@@ -32,13 +32,20 @@ a run has until 07:00 on a weekday. Each run:
     is on disk at a time, and the build never holds more than one partition's holdings.
   * stops at `RUN_BUDGET_S` of wall clock, or when the quiet span ends, or on a 403 / 429; the half-written `.part`
     file is deleted, the last good index stays, and the next day tries again.
+  * writes a receipt when it ends, whatever it did (`receipt`). A fire that lands while the pod restarts for a deploy
+    is lost (the new container schedules the NEXT day), and a run a restart kills ends without one, so `catch_up`,
+    registered beside it (`CATCHUP_BOOT_DELAY_S` after boot, and daily at `CATCHUP_AT_ET`), starts the same run when
+    no run has ended since the last slot (`behind`), through `run_scheduled` and so through every one of its guards.
+    The catch-up never asks the SEC anything itself: the run it starts decides, as every run does, whether there is
+    anything new (no request while the index holds the newest data set).
 REQUESTS A RUN: none when current; else at most two zips, one 404, and one company_tickers.json (each may be retried
 once by the client on a 403 / 429 / 5xx), and the one split list read from Massive. In a year: four new data sets, so
 eight zip downloads (about 3.6 GB read, streamed, never kept).
 DISK: one zip at a time (at most `ZIP_MAX_BYTES`, deleted when read), the partition files (24 bytes a kept holding,
 at most `MAX_EQUITY_ROWS` of them, about 0.24 GB; each deleted once its partition is written), the new index while it
 is written, any leftover of all of these deleted at the start of the next run, plus the index (`index_v1.sqlite`, at most `KEEP_ROWS` funds and `KEEP_SOLD` sold-out funds for each of at most
-`MAX_TICKERS` stocks, tens of MB) and a small state file, all under `<DATA_DIR>/fund_holders_nport/`.
+`MAX_TICKERS` stocks, tens of MB) and two small state files (the last run that did something, and the receipt of
+the last run that ended), all under `<DATA_DIR>/fund_holders_nport/`.
 
 THE REQUEST PATH (`overlay`, called by `GET /api/research/ownership/{sym}`): one read-only SQLite read of the held
 index. It never downloads, never builds, never waits. Every state is said in the block's own words.
@@ -66,6 +73,8 @@ SEC_TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
 
 # ── the builder's defaults (not owner rulings) ───────────────────────────────────────────────────
 RUN_AT_ET = (0, 50)                      # daily, New York time (the quiet span runs to 07:00 on a weekday)
+CATCHUP_BOOT_DELAY_S = 1200              # the catch-up's boot check: this long after registration (INS 600 s, IV rank 900 s)
+CATCHUP_AT_ET = (5, 40)                  # and its daily retry, inside the quiet span, clear of the 03:00 builds
 QUIET_HOURS_ET = (7 * 60, 20 * 60 + 15)  # a weekday between these minutes is busy (scan_period._reuse_quiet_now)
 RUN_BUDGET_S = 5400.0                    # wall clock one run may take (90 minutes)
 ZIP_MAX_BYTES = 1_500_000_000            # a data set zip larger than this is refused (the largest listed: 690.83 MB)
@@ -78,6 +87,7 @@ DISPLAY_ROWS = 50                        # funds the answer carries (the index k
 DISK_DIR = "fund_holders_nport"
 INDEX_NAME = "index_v1.sqlite"
 STATE_NAME = "state_v1.json"
+RECEIPT_NAME = "receipt_v1.json"
 
 
 class TooLarge(ValueError):
@@ -115,6 +125,34 @@ def next_run(now: Optional[datetime] = None) -> datetime:
     now = now or now_et()
     slot = now.replace(hour=RUN_AT_ET[0], minute=RUN_AT_ET[1], second=0, microsecond=0)
     return slot if slot > now else slot + timedelta(days=1)
+
+
+def last_slot(now: Optional[datetime] = None) -> datetime:
+    """The most recent scheduled run at or before `now` (New York): stepped forward with `next_run` from two days
+    earlier, so the schedule is stated once (`next_run`, `RUN_AT_ET`)."""
+    from zoneinfo import ZoneInfo
+    now = (now or now_et()).astimezone(ZoneInfo("America/New_York"))
+    slot = next_run(now - timedelta(days=2))          # a day holds one slot, so this one is before `now`
+    while (following := next_run(slot)) <= now:
+        slot = following
+    return slot
+
+
+def behind(receipt: Optional[dict], now: Optional[datetime] = None) -> bool:
+    """Pure: should the catch-up start a run? True when no run has ended since the last scheduled slot: no receipt,
+    or its `finished_at` before `last_slot(now)` (the fire was lost, or a restart killed the run). A run that ended
+    in any state (current, built, not posted, stopped, failed) has run for that slot and waits for the next one. It
+    never asks whether the SEC has posted a newer data set: only the run checks that. A `finished_at` that is not a
+    moment counts as no receipt."""
+    if not isinstance(receipt, dict):
+        return True
+    try:
+        finished = datetime.fromisoformat(str(receipt.get("finished_at") or ""))
+    except ValueError:
+        return True
+    if finished.tzinfo is None:
+        return True
+    return finished < last_slot(now)
 
 
 def _base_dir() -> Optional[str]:
@@ -418,7 +456,7 @@ def _remove(path: str) -> None:
 # ── one run at a time, its state held here and on disk ──────────────────────────────────────────
 
 _lock = threading.Lock()
-_state: dict[str, Any] = {"inflight": None, "last": None, "loaded": False}
+_state: dict[str, Any] = {"inflight": None, "last": None, "loaded": False, "receipt": None, "receipt_loaded": False}
 
 
 def _now_iso() -> str:
@@ -430,18 +468,56 @@ def _state_path() -> Optional[str]:
     return os.path.join(d, STATE_NAME) if d else None
 
 
-def _save_state(last: dict) -> None:
-    path = _state_path()
+def _receipt_path() -> Optional[str]:
+    d = _base_dir()
+    return os.path.join(d, RECEIPT_NAME) if d else None
+
+
+def _write_json(path: Optional[str], doc: dict, what: str) -> None:
     if not path:
         return
     try:
         os.makedirs(os.path.dirname(path), exist_ok=True)
         fd, tmp = tempfile.mkstemp(prefix=".state_", suffix=".tmp", dir=os.path.dirname(path))
         with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(last, fh)
+            json.dump(doc, fh)
         os.replace(tmp, path)
     except Exception as exc:  # noqa: BLE001
-        _log.warning("[fund-holders-nport] the run state could not be written (%s)", type(exc).__name__)
+        _log.warning("[fund-holders-nport] the %s could not be written (%s)", what, type(exc).__name__)
+
+
+def _save_state(last: dict) -> None:
+    _write_json(_state_path(), last, "run state")
+
+
+def _save_receipt(state: str) -> None:
+    """The receipt of a run that ENDED, whatever it did. It sits beside the state file, which keeps only the runs
+    that did something (a 'current' run leaves that file as it was)."""
+    rec = {"finished_at": _now_iso(), "state": state}
+    with _lock:
+        _state["receipt"], _state["receipt_loaded"] = rec, True
+    _write_json(_receipt_path(), rec, "run receipt")
+
+
+def receipt() -> Optional[dict]:
+    """The last ended run's receipt ({finished_at, state}), from disk once; None before any run has ended here."""
+    with _lock:
+        if _state["receipt"] is not None or _state["receipt_loaded"]:
+            return _state["receipt"]
+    got = None
+    path = _receipt_path()
+    if path and os.path.exists(path):
+        try:
+            with open(path, encoding="utf-8") as fh:
+                got = json.load(fh)
+        except (OSError, ValueError):
+            got = None
+    with _lock:
+        if not _state["receipt_loaded"]:
+            _state["receipt_loaded"] = True
+            if _state["receipt"] is None and isinstance(got, dict):
+                _state["receipt"] = got
+        return _state["receipt"]
 
 
 def last_run() -> Optional[dict]:
@@ -475,6 +551,7 @@ def _run(done: threading.Event, now: datetime) -> None:
             with _lock:
                 _state["last"] = out
             _save_state(out)
+        _save_receipt(out["state"])
         line = (f"state={out['state']} quarter={out.get('quarter')} prior={out.get('prior_quarter')} "
                 f"downloads={out.get('downloads')} bytes={out.get('bytes')} requests={out.get('requests')} "
                 f"stocks={out.get('stocks')} matched_value_pct={out.get('matched_value_pct')} "
@@ -504,6 +581,18 @@ def run_scheduled(now: Optional[datetime] = None) -> dict:
     return {"started": True}
 
 
+def catch_up(now: Optional[datetime] = None) -> dict:
+    """THE CATCH-UP ENTRY (`api/main.py`: a DATE job `CATCHUP_BOOT_DELAY_S` after boot and a daily retry at
+    `CATCHUP_AT_ET`): `run_scheduled` itself (the quiet span, one run at a time) only when `behind`; otherwise it
+    reads the receipt (from disk once) and nothing else, never the SEC. Never on a member's request. Returns at once:
+    `{"started": False, "reason": "current"}`, or `run_scheduled`'s answer (which says "running" while a run is in
+    flight)."""
+    now = now or now_et()
+    if not behind(receipt(), now):
+        return {"started": False, "reason": "current"}
+    return run_scheduled(now)
+
+
 def building() -> bool:
     with _lock:
         return _state["inflight"] is not None
@@ -511,7 +600,7 @@ def building() -> bool:
 
 def reset_for_tests() -> None:
     with _lock:
-        _state.update({"inflight": None, "last": None, "loaded": False})
+        _state.update({"inflight": None, "last": None, "loaded": False, "receipt": None, "receipt_loaded": False})
 
 
 # ── the request path ─────────────────────────────────────────────────────────────────────────────
