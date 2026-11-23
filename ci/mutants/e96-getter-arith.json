@@ -89,7 +89,7 @@
       "from": "noteCreateDrop(op, k, TEXT_SLOTS.has(k) ? noteTextDrop(op, op.family, k, node, recorded) : recorded)",
       "to": "noteCreateDrop(op, k, recorded)",
       "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/e96GetterArithLabels.test.js src/components/chart/engine/__tests__/e96TextDropCorpus.test.js",
-      "expectRed": "no refusal recorded"
+      "expectRed": "every text a drawing loses carries a guard and a sentence"
     },
     {
       "id": "G11",
