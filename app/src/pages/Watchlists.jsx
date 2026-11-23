@@ -1049,7 +1049,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // A ticker the user CLICKED in the list (vs searched): the scan list must NOT scroll to
   // it — only the gold highlight moves. The list only snaps on an external SEARCH.
   const clickSelectRef = useRef(null)
-  const { sym: hubSym, setSym: setHubSym, tf: hubTf, tfs: hubTfs } = useChartsSym()
+  const { sym: hubSym, setSym: setHubSym, tf: hubTf, tfs: hubTfs, selectInPress = false } = useChartsSym()
   useEffect(() => {
     if (hubSym && hubSym !== selectedSym) setSelectedSym(hubSym)
   }, [hubSym]) // intentionally do NOT depend on selectedSym (avoid feedback loop)
@@ -1914,12 +1914,23 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         // transition as BLOCKING, so they render synchronously on every press. What keeps a fast scan
         // there from drawing every row is the handoff's settle rule (useSymbolHandoff), and the board's
         // setGroupSym decides the switch in this press (hooks/handoffGroups.js): one render, one frame.
+        // ⭐ (2026-11-23, next-row key profile) A HOST WHOSE GROUP SYMBOL IS IN A STORE (`selectInPress`: the board's
+        // WatchlistWidget) gets the selection BESIDE the symbol, outside the transition. That host and the charts render
+        // synchronously in this press anyway (the store), so the transition bought nothing there and cost two renders
+        // of this list per press: the selection came a render later (the `hubSym` effect below, a scheduler task) and
+        // the transition rendered once more for nothing. Both updates are now in one render, and that effect finds the
+        // two already agree. A host that keeps the symbol in React state (the breadth drill) keeps the transition.
         navPendingRef.current = { sym: nextSym, base: selectedSym }
         keyMoveRef.current = nextSym
-        startTransition(() => {
+        if (selectInPress) {
           if (nextSym !== selectedSym) setSelectedSym(nextSym)
           setHubSym(nextSym)   // always re-assert so this widget wins the color group
-        })
+        } else {
+          startTransition(() => {
+            if (nextSym !== selectedSym) setSelectedSym(nextSym)
+            setHubSym(nextSym)   // always re-assert so this widget wins the color group
+          })
+        }
       }
     }
     // ⛔ THIS USED TO BE GATED ON `flagged.includes(selectedSym)` AND CALL
@@ -1941,7 +1952,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       toggleFlag(selectedSym)
       setFlagToast(willFlag ? 'added' : 'removed')
     }
-  }, [visibleSymsFlat, selectedSym, flagged, toggleFlag, setHubSym])
+  }, [visibleSymsFlat, selectedSym, flagged, toggleFlag, setHubSym, selectInPress])
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown)
