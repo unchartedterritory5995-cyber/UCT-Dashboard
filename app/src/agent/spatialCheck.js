@@ -1018,7 +1018,7 @@ export function excludedCharts(text0, charts = [], sel = null, opts = {}) {
   // reader below — none of them may read its anchor as the exclusion or its relation as one from the click
   const anchorRel = anchorRelExclusions(text0, charts, sel, opts?.subject || null)
   const textA = anchorRel.length ? blankAnchorRel(text0, anchorRel) : text0
-  const text = textA
+  let text = textA
   const out = new Set()
   // the exception PHRASES a reader below placed (added a chart or UNPLACED), normalized — matched by phrase, not by index: the
   // readers run on exceptForm(text), the unplaced scan on the words as said
@@ -1058,6 +1058,10 @@ export function excludedCharts(text0, charts = [], sel = null, opts = {}) {
   for (const r of xo.refs) out.add(r)
   const xoWhole = xo.spans.filter(x => x.whole).map(x => ` ${normPhrase(String(textA || '').slice(x.index, x.end))} `)
   const xoCovered = (p) => { const w = normPhrase(String(p || '')).replace(NET_CUE_LEAD, ''); return !!w && xoWhole.some(t => t.includes(` ${w} `)) }
+  // ⛔ (pl-exclneg) a NEGATED object the negation reader read (its exact complement, or UNPLACED) is blanked for every legacy
+  // reader below: none of them is negation-aware ("except the ones that are not SPY" would read "not SPY" as SPY excluded)
+  const xoNeg = xo.spans.filter(x => x.neg)
+  if (xoNeg.length) text = blankAnchorRel(text, xoNeg)
   const negs = [...exceptForm(text).matchAll(NEG_EXCEPT)].filter(m => negNamesAChart(m[1].trim(), charts))
   for (const m of [...exceptMatches(text), ...negs, ...sepButMatches(text), ...tickerPossMatches(text)]) {
     const a0 = adds
@@ -1338,7 +1342,7 @@ function scopeLine(text, charts, sel) {
 // ⛔ FAIL SAFE: an item that names a board attribute (a timeframe, a chart type / size word with a chart noun, a board ticker,
 // a position / line / order word, "chart N") and that no reader places is UNPLACED — NEVER "exclude nothing".
 // `opts.xoDisable` (tests only: the non-vacuity control) switches class readers off by name: timeframe, type, size, ticker,
-// position, list. Switched off, each class — under every cue form — must come out UNPLACED, never a silent run.
+// position, list, relative, unknown, generic, mixedList, negation, negGuard, unless. Switched off, each class — under every cue form — must come out UNPLACED, never a silent run.
 // ⛔ NO LOOKBEHIND (#988 AUDIT L1).
 const XO_NOUN = String.raw`(?:charts?|ones?|cells?|panes?|panels?|graphs?)`
 const XO_DET = String.raw`(?:(?:the|my|those|these|both|any|all(?:\s+(?:of\s+)?(?:the|my|those|these))?)\s+)`
@@ -1423,7 +1427,16 @@ const XO_NOT = /(?:^|[,;:—–]|\b(?:and|though|just)\b)\s*not\s+(?!(?:just|onl
 const XO_SEP_BUT = /\bbut\s+(?!not\b|leave|keep|skip|ignore|exclude|spare|don|do\b|never|please|also|then|make|set|put|switch|change|add)/gi
 const XO_STAY = new RegExp(String.raw`(?:^|[,;:.!?—–]\s*|\b(?:but|though|while|so|and)\s+)((?:the|my|both|all|those|these)\s+[^,;:.!?—–()]{1,80}?|\$?[A-Z]{1,5}(?:\s*(?:,|\band\b|&)\s*\$?[A-Z]{1,5})*|(?:[A-Za-z-]+\s+)?${XO_UNK_HEAD}|[A-Za-z]{6,14}(?:['’]s)?(?:\s+(?:chart|one))?)\s+(?:(?:can|should|will|may|must|could)\s+)?(?:stay|stays|remain|remains|(?:is|are)\s+(?:just\s+|already\s+)?(?:fine|good|ok(?:ay)?|perfect|alright))\b`, 'gi')
 const XO_SCAN = new RegExp(String.raw`\b${XO_DET}(?:${XO_TFW}\s+${XO_NOUN}|${XO_NOUN}\s+(?:(?:that\s+are|which\s+are|set)\s+)?(?:on|at)\s+(?:the\s+)?${XO_TFW}(?!\s+(?:timeframe|tf))|${XO_TFPL}|${XO_TYPEW}(?:[\s-]+(?:style|type))?\s+${XO_NOUN}|${XO_SIZEW}\s+${XO_NOUN})\b|\b${XO_TFPL}\b`, 'gi')
-const XO_BODY_END = /[.;:!?—–()]|\s+(?:but|then|though|although|while|because|since|whereas|unless|if|when)\b/i
+// (pl-exclneg) "anything but X" / "nothing but X" inside an object is a NEGATION (the negated-relative reader's), not a new clause
+// (no lookbehind, #988: the "but" is skipped in code)
+const XO_BODY_END = /[.;:!?—–()]|\s+(?:but|then|though|although|while|because|since|whereas|unless|if|when)\b/gi
+function xoBodyEnd(rest) {
+  for (const m of String(rest).matchAll(XO_BODY_END)) {
+    if (/^\s+but\b/i.test(m[0]) && /\b(?:anything|nothing|something)$/i.test(rest.slice(0, m.index))) continue
+    return m.index
+  }
+  return -1
+}
 const XO_SEP = /\s*,\s*(?:(?:and|or|&|nor|plus)\s+)?|\s+(?:and|or|nor|plus)\s+|\s*&\s*/gi
 // an item that starts a new clause ends the list: a command, a complement ("the rest"), a relative clause, a person
 const XO_LIST_END = /^(?:(?:please\s+)?(?:set|make|put|switch|change|add|move|turn|show|hide|remove|give|apply|take|drop|flip|close|delete|draw|plot|open|reset|replace|use|do|swap|load|bring|go|goes|leave|keep|let|skip|ignore|exclude|spare|stay|stays|then|to|into|onto|with|and|or|nor|plus|also|not|never|don['’]?t|dont|hands\s+off|without)\b|(?:all\s+)?the\s+(?:rest|others|remaining)\b|everything\s+else\b|all\s+(?:the\s+)?(?:rest|others)\b|every\s+other\b|each\s+other\b|(?:thanks|thank\s+you|thx|cheers|please)\s*[.!]*$|(?:which|who|whose|because|since|as|if|when|so|but|i|we|you|they|it['’]s|that\s+(?:i|you|we|is|are|was|were))\b)/i
@@ -1543,13 +1556,21 @@ function xoMayMean(item, charts) {
  * One item of an exclusion's object → { kind: 'placed', refs } | { kind: 'unplaced', unoffered } | { kind: 'defer' } |
  * { kind: 'none' }. `only` limits the readers (the stay / negated-action forms read descriptions only).
  */
-function xoReadItem(item0, charts, ctx, { weak = false, only = null, gweak = false } = {}) {
+function xoReadItem(item0, charts, ctx, { weak = false, only = null, gweak = false, noNeg = false } = {}) {
   const off = ctx.off
   const on = (k) => !off.has(k) && (!only || only.includes(k))
   const base = ordinalDigits(String(item0 || '').trim().replace(/^(?:also|just|only|even|both\s+of|either\s+of)\s+/i, '')
     .replace(/^(?:changing|touching|affecting|modifying|altering|updating|including)\s+/i, ''))
     .replace(/\b(row|column)s\b/gi, '$1')
   if (!base) return { kind: 'none' }
+  // ⛔ (pl-exclneg) a NEGATION in the object: the exact complement, or UNPLACED — never a negation-blind reader's positive set
+  if (!noNeg) {
+    const nn = xoNegCount(base)
+    if (nn > 0) {
+      if (!off.has('negation') && nn === 1) { const r = xoNegRelative(base, charts, ctx); if (r) return r }
+      if (!off.has('negGuard') && ctx.generic) return { ...xoUnk(charts), neg: true }
+    }
+  }
   const tries = [base]
   if (!/^(?:the|my|this|that|those|these|both|all|any|chart)\b/i.test(base) && !/^\$?[A-Z]/.test(base)) tries.push(`the ${base}`)
   const noDest = base.replace(/\s+(?:to|into|onto)\s+\S[\s\S]*$/i, '').trim()
@@ -1634,6 +1655,52 @@ function xoRelative(b) {
   const noun = singular ? 'chart' : 'charts'
   return { what, tries: [`the ${v} ${noun}`, `the ${noun} on ${v}`, `the ${noun} showing ${v}`, `the ${v}`, v] }
 }
+// ⛔ (pl-exclneg, AUDIT T2 b9) NEGATION in an exclusion object ("except the ones that are NOT on daily", "apart from whatever isn't
+// weekly", "except anything but daily", "except the non-daily ones"). A negation-blind reader reads the POSITIVE set and so
+// inverts the exclusion (nothing changes, but the question offers exactly the charts the member excluded). The class rule:
+//   - ONE plain negation over a board class the board carries for every chart (timeframe, chart type, ticker), whose positive
+//     set the class readers place: the exclusion is the exact COMPLEMENT (a singular head needs a single chart / link group);
+//   - anything else — a double negative ("aren't not daily", "not non-daily"), an odd form ("nothing but daily", "unless they're
+//     not daily"), a negated value no class reader places, an empty complement, a negated item in a list — is UNPLACED with
+//     EVERY chart unoffered (ask, offer nothing);
+//   - GUARD: an object with a negation that the negation reader does not read is UNPLACED — it never reaches a negation-blind
+//     reader (xoDisable 'negation' = the reader off; 'negGuard' = the guard off).
+/** The words with every negation spelled "not": n't, never, no longer, non-, "anything but / other than / except" (cues: true
+ *  also reads a nested "other than X" / "except X" inside the object as one). */
+function xoNegNorm(s0, { cues = true } = {}) {
+  let s = xoUncontract(String(s0 || ''))
+    .replace(/\bain['’]t\b/gi, 'is not').replace(/\bwon['’]t\b/gi, 'will not').replace(/\bcan['’]t\b|\bcannot\b/gi, 'can not')
+    .replace(/\b([a-z]+)n['’]t\b/gi, '$1 not').replace(/\b(is|are|do|does|was|were)nt\b/gi, '$1 not')
+    .replace(/\bno\s+longer\b/gi, 'not').replace(/\bnever\b/gi, 'not').replace(/\bnon[\s-]+(?=[a-z0-9$])/gi, 'not ')
+    .replace(/\bnothing\s+(?:but|other\s+than|except)\b/gi, 'not not')            // "nothing but daily" (= only daily): an odd form
+    .replace(/^(anything|everything|whatever)\s+(?:but|other\s+than|except(?:\s+for)?)\b/i, '$1 that is not')
+    .replace(/\b(?:anything|something)\s+(?:but|other\s+than|except(?:\s+for)?)\b/gi, 'not')
+  if (cues) s = s.replace(/\b(?:other\s+than|except(?:\s+for)?|apart\s+from|aside\s+from|excluding|besides)\b/gi, 'not')
+  return s
+}
+const xoNegCount = (s, o) => (xoNegNorm(s, o).match(/\bnot\b/gi) || []).length
+const XO_NEG_HEAD = String.raw`(?:(?:all\s+(?:of\s+)?)?(?:the|those|these|any)\s+(?:ones?|charts?|cells?|panes?|panels?|graphs?)|those|these|anything|everything|whatever|whichever|what|all\s+the|the|any)`
+const XO_NEG_LINK = String.raw`(?:\s+(?:that|which|who|what))?(?:\s+(?:is|are|was|were|do|does|did|be|being|currently|still|now|already|actually|really|even|set|sitting|showing|using))*`
+const XO_NEG_SHAPE = new RegExp(String.raw`^(${XO_NEG_HEAD})(${XO_NEG_LINK})\s+not\s+(.+)$`, 'i')
+const XO_REL_NEG_HEAD = /\b(?:ones?|charts?|those|these|anything|everything|whatever|whichever)\s+(?:(?:that|which|who)\s+)?(?:(?:is|are|['’]s|['’]re)\s+)?(?:not\b|non\b|non-|\w+n['’]t\b|never\b|no\s+longer\b)/i
+// "unless they're daily", "unless it's on weekly", "unless the charts are line charts"
+const XO_UNLESS = /\bunless\s+(?:they|it|the\s+(?:charts?|ones?)|those|these)(?:\s*['’](?:re|s)\b|\s+(?:is|are|were|was|happens?\s+to\s+be)\b|\s+(?:isn|aren|wasn|weren|don|doesn)['’]t\b|\s+(?:do|does)\s+not\b)?\s*/gi
+/** A negated object → the exact complement, UNPLACED (every chart unoffered), or null (no negated chart-set shape). */
+function xoNegRelative(base, charts, ctx) {
+  const m = XO_NEG_SHAPE.exec(xoNegNorm(base).replace(/\s+/g, ' ').trim())
+  if (!m) return null
+  const head = m[1], tail = m[3].trim()
+  if (/\bnot\b/i.test(tail) || /\b(?:I|you|we|he|she|they|me|us|it)\b/.test(tail) || GEN_RELATION.test(tail)) return null
+  const det = /^(?:the|any|all\s+the)$/i.test(head)                  // "the non-daily ones" → "the daily ones"
+  const singular = /^(?:the|that|this)\s+(?:one|chart|cell|pane|panel|graph)$/i.test(head) || (det && /\b(?:one|chart|cell|pane|panel|graph)$/i.test(tail))
+  const pos = det ? `the ${tail.replace(/\b(one|chart|cell|pane|panel|graph)$/i, '$1s')}` : `the charts that are ${tail}`
+  const v = xoReadItem(pos, charts, ctx, { only: ['timeframe', 'type', 'ticker'], noNeg: true })
+  if (v.kind !== 'placed') return ctx.generic ? { ...xoUnk(charts), neg: true } : { kind: 'none' }
+  const S = new Set(v.refs)
+  const C = charts.filter(c => !S.has(c.ref))
+  if (!C.length || (singular && new Set(C.map(xoGroupKey)).size > 1)) return { ...xoUnk(charts), neg: true }
+  return { kind: 'placed', refs: C.map(c => c.ref), neg: true }
+}
 /** (pl-exclhole2) the attribute classes the change gives a VALUE of in the clause before an "instead of" cue ("to monthly",
  *  "make it line" — never a description: "the weekly chart"). */
 function xoReplacedClass(before0) {
@@ -1688,14 +1755,58 @@ export function readExclusionObjects(text0, charts = [], opts = {}, place = null
   }
   for (const m of s.matchAll(XO_CIRCUM)) cues.push({ at: m.index, bodyAt: m.index + m[0].length, form: 'circum' })
   for (const m of s.matchAll(XO_NOT)) cues.push({ at: m.index, bodyAt: m.index + m[0].length, form: 'not' })
-  if (wide) for (const m of s.matchAll(XO_SEP_BUT)) cues.push({ at: m.index, bodyAt: m.index + m[0].length, form: 'but' })
+  if (wide) {
+    for (const m of s.matchAll(XO_SEP_BUT)) {
+      // (pl-exclneg) "… the ones that are anything but daily": a negation inside the object, never a "but X" cue of its own
+      if (/\b(?:anything|nothing|something)\s*$/i.test(s.slice(0, m.index))) continue
+      cues.push({ at: m.index, bodyAt: m.index + m[0].length, form: 'but' })
+    }
+  }
+  // ⛔ (pl-exclneg) "unless they're daily" / "unless it's on weekly": a conditional exclusion of the described charts; a negated
+  // one ("unless they're not daily") is an odd form — UNPLACED, no chart offered
+  const unlessV = []
+  if (!off.has('unless') && ctx.generic) {
+    for (const m of s.matchAll(XO_UNLESS)) {
+      const rest = s.slice(m.index + m[0].length)
+      const e = xoBodyEnd(rest)
+      const body = (e < 0 ? rest : rest.slice(0, e)).trim()
+      const clause = `${m[0]}${body}`
+      if (!body) continue
+      let v = null
+      if (!off.has('negGuard') && xoNegCount(clause.replace(/^\s*unless\b/i, ''), { cues: false }) > 0) v = xoUnk(charts)
+      else if (XO_ATTR.test(body) || xoNamesSym(body, charts) || xoUnknownAttr(body)) {
+        v = xoReadItem(`the charts that are ${body}`, charts, ctx, { only: ['timeframe', 'type', 'ticker'] })
+        if (v.kind !== 'placed') v = xoUnk(charts)
+      }
+      if (v) unlessV.push({ v, index: m.index, end: m.index + clause.length })
+    }
+  }
   const take = (v) => {
     if (v.kind === 'placed') for (const r of v.refs) res.refs.add(r)
     if (v.kind === 'unplaced') { res.unplaced = true; for (const r of v.unoffered || []) res.unoffered.add(r) }
   }
+  for (const u of unlessV) { take(u.v); res.spans.push({ index: u.index, end: u.end, form: 'unless', verdicts: [u.v.kind], whole: u.v.kind === 'placed', neg: true }) }
+  // ⛔ (pl-exclneg) a cue INSIDE another cue's negated item ("except whatever's other than daily", "except the ones that are
+  // anything except daily") is part of that item's negation — never an exclusion cue of its own (it would read the positive set)
+  const negSpans = []
+  if (!off.has('negGuard')) {
+    for (const k of cues) {
+      const rest = s.slice(k.bodyAt)
+      const e = xoBodyEnd(rest)
+      let body = e < 0 ? rest : rest.slice(0, e)
+      const nc = ACT_NEXT_COMMAND.exec(body)
+      if (nc) body = body.slice(0, nc.index)
+      for (const it of xoItems(body, off)) {
+        const t0 = it.t.trim()
+        if (!t0 || XO_LIST_END.test(t0)) break
+        if (xoNegCount(t0) > 0) negSpans.push({ k, start: k.bodyAt + it.at, end: k.bodyAt + it.at + it.t.length })
+      }
+    }
+  }
   for (const k of cues) {
+    if (negSpans.some(n => n.k !== k && k.at >= n.start && k.at < n.end)) continue
     const rest = s.slice(k.bodyAt)
-    const e = rest.search(XO_BODY_END)
+    const e = xoBodyEnd(rest)
     let body = e < 0 ? rest : rest.slice(0, e)
     const nc = ACT_NEXT_COMMAND.exec(body)
     if (nc) body = body.slice(0, nc.index)
@@ -1756,6 +1867,9 @@ export function readExclusionObjects(text0, charts = [], opts = {}, place = null
       const nonChart = got.some(v => v.kind === 'none' && !v.ticker)
       if ((chartish && nonChart) || got.some(v => v.kind === 'unplaced')) got.push(xoUnk(charts))
     }
+    // ⛔ (pl-exclneg) a NEGATED item in a list ("except the ones that aren't daily or weekly": not (daily or weekly)? or each?) —
+    // the scope of the negation is not certain: UNPLACED, no chart offered
+    if (got.length > 1 && got.some(v => v.neg)) got.push(xoUnk(charts))
     // "not all the daily charts" may mean SOME of them: never exact — asked, none of them offered
     if (k.form === 'not' && /^\s*all\b/i.test(body)) for (let i = 0; i < got.length; i++) if (got[i].kind === 'placed') got[i] = { kind: 'unplaced', unoffered: got[i].refs }
     // leave / keep / let X: an exclusion only with its tail ("alone", "as is", …), a kept setting, or beside the whole board
@@ -1764,7 +1878,8 @@ export function readExclusionObjects(text0, charts = [], opts = {}, place = null
     if (got.every(v => v.kind === 'none')) continue
     for (const v of got) take(v)
     const whole = got.every(v => v.kind === 'placed' || v.kind === 'none') && got.some(v => v.kind === 'placed')
-    res.spans.push({ index: k.at, end: k.bodyAt + end, form: k.form, verdicts: got.map(v => v.kind), whole })
+    // (pl-exclneg) neg: the span holds a negated object the negation reader read — no negation-blind legacy reader re-reads it
+    res.spans.push({ index: k.at, end: k.bodyAt + end, form: k.form, verdicts: got.map(v => v.kind), whole, ...(got.some(v => v.neg) ? { neg: true } : {}) })
   }
   // an ADDITIVE tail after an exclusion ("…leave the daily ones alone, and the weekly one too"): the legacy additive reader finds
   // it (additiveRefs); its object is read here like any other item
@@ -1796,7 +1911,7 @@ export function readExclusionObjects(text0, charts = [], opts = {}, place = null
       // ⛔ (pl-exclhole2) a stated keep that describes no chart here ("the monthly ones stay as they are" with none) is UNPLACED like
       // every other form — no longer "a statement" that excludes nothing
       for (const v of vs) take(v)
-      res.spans.push({ index: at, end: at + subj.length, form: 'stay', verdicts: vs.map(v => v.kind), whole: vs.every(v => v.kind === 'placed') })
+      res.spans.push({ index: at, end: at + subj.length, form: 'stay', verdicts: vs.map(v => v.kind), whole: vs.every(v => v.kind === 'placed'), ...(vs.some(v => v.neg) ? { neg: true } : {}) })
     }
   }
   // a negated imperative's DESCRIPTIONS anywhere in its clause ("don't add RSI to the daily ones", "never hide volume on the
@@ -1809,6 +1924,15 @@ export function readExclusionObjects(text0, charts = [], opts = {}, place = null
       const nc = ACT_NEXT_COMMAND.exec(body)
       if (nc) body = body.slice(0, nc.index)
       const bodyAt = m.index + m[0].length - String(m[3] || '').length
+      // ⛔ (pl-exclneg) a second negation inside the negated clause ("never add RSI to the non-daily charts", "don't touch the ones
+      // that aren't daily"): the scanned description is the INVERSE of the protected set — UNPLACED, no chart offered
+      // (an object a prefix cue already read — "don't touch the ones that aren't daily" — is that cue's: the exact complement)
+      const byCue = res.spans.some(x => x.neg && x.index >= m.index && x.index < bodyAt + body.length)
+      if (!byCue && !off.has('negGuard') && ctx.generic && xoNegCount(body, { cues: false }) > 0 && (XO_ATTR.test(body) || xoNamesSym(body, charts) || XO_REL_NEG_HEAD.test(body))) {
+        take(xoUnk(charts))
+        res.spans.push({ index: bodyAt, end: bodyAt + body.length, form: 'negAction', verdicts: ['unplaced'], whole: false, neg: true })
+        continue
+      }
       for (const h of body.matchAll(XO_SCAN)) {
         const v = xoReadItem(h[0], charts, ctx, { only: ['timeframe', 'type', 'size'] })
         if (v.kind !== 'placed' && v.kind !== 'unplaced') continue
