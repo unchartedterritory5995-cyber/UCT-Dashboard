@@ -19,12 +19,44 @@ def _spa_routes(app):
     return [r for r in app.routes if getattr(r, "path", None) == "/{full_path:path}"]
 
 
+def _declared_method_sets():
+    """The method set api/main.py DECLARES on the catch-all, read from its source.
+
+    The route is registered inside `if os.path.exists(DIST):`, and no test job builds the front end, so on a checkout
+    without app/dist `app.routes` holds no catch-all at all: the live check below then had nothing to read and this
+    rail was red for the build state, not for the method set (nightly full suite, run 45066472928)."""
+    import ast
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[1] / "api" / "main.py").read_text(encoding="utf-8")
+    out = []
+    for fn in ast.walk(ast.parse(src)):
+        if not isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        for d in fn.decorator_list:
+            if not (isinstance(d, ast.Call) and isinstance(d.func, ast.Attribute) and d.args
+                    and isinstance(d.args[0], ast.Constant) and d.args[0].value == "/{full_path:path}"):
+                continue
+            if d.func.attr == "api_route":
+                kw = {k.arg: k.value for k in d.keywords}
+                out.append(set(ast.literal_eval(kw["methods"])) if "methods" in kw else {"GET"})
+            else:
+                out.append({d.func.attr.upper()})          # @app.get(...) serves GET only
+    return out
+
+
 def test_the_spa_catch_all_answers_head_as_well_as_get():
+    declared = _declared_method_sets()
+    assert declared, "the SPA catch-all route is gone -- this rail is pointing at nothing"
+    for methods in declared:
+        assert "GET" in methods, "/{full_path:path} is no longer declared to serve GET"
+        assert "HEAD" in methods, (
+            f"/{{full_path:path}} is declared with {sorted(methods)} -- a HEAD probe of any page URL "
+            "will 405. Register the catch-all with methods=['GET', 'HEAD']."
+        )
+
     from api.main import app
 
-    routes = _spa_routes(app)
-    assert routes, "the SPA catch-all route is gone -- this rail is pointing at nothing"
-    for r in routes:
+    for r in _spa_routes(app):              # registered only where app/dist exists: the live half, when it can run
         methods = set(r.methods or ())
         assert "GET" in methods, f"{r.path} no longer serves GET"
         # ⛔ THE POINT: a resource that answers GET must answer HEAD. Without
