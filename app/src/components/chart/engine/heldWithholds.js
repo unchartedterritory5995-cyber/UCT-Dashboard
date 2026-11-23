@@ -34,6 +34,9 @@ function entriesOf(doc) {
 const COMMITTED = entriesOf(DOC)
 let _entries = COMMITTED
 let _ignored = false
+// ⭐ THE PASTE WORKER — moves whenever the list as consulted may have moved (`memberDoorImage.memberDoorStateVersion`)
+let _revision = 0
+export function heldWithholdsRevision() { return _revision }
 
 /** How many captured charts ask for it, in the member's words. */
 function chartsWord(w) {
@@ -116,11 +119,11 @@ export function heldWithholdsOf(source, door) {
 }
 
 /** Rails only (`src/test-setup.js` may opt the measuring suites out): the grade measures the engine, not this list. */
-export function __ignoreHeldWithholdsForTests() { _ignored = true }
+export function __ignoreHeldWithholdsForTests() { _revision += 1; _ignored = true }
 /** Rails only: back to the app's state (the committed file, ON). */
-export function __resetHeldWithholds() { _ignored = false; _entries = COMMITTED }
+export function __resetHeldWithholds() { _revision += 1; _ignored = false; _entries = COMMITTED }
 /** Rails only: a synthetic document (`{scripts: [...]}`), ON. */
-export function __setHeldWithholdsForTests(doc) { _ignored = false; _entries = entriesOf(doc) }
+export function __setHeldWithholdsForTests(doc) { _revision += 1; _ignored = false; _entries = entriesOf(doc) }
 /** ⭐ The list's state as one comparable string, a declared part of the test grant's gate state
  *  (`testing/runtimeGate.js::gateState`, so a hook outside any test that narrows it fails by name, GATE-BLIND):
  *  `ignored` (the test grant), `committed` (the app's state), or a synthetic document's sources and withholds. */
@@ -128,4 +131,17 @@ export function heldWithholdsState() {
   if (_ignored) return 'ignored'
   if (_entries === COMMITTED) return 'committed'
   return `doc:${[..._entries.entries()].map(([sha, e]) => `${sha}=${heldWithholdsStamp(e.withholds).join('|')}`).sort().join(',')}`
+}
+
+/** ⭐ THE PASTE WORKER (2026-11-20) — the list as this page consults it, as plain data, for the member door's
+ *  worker (`builder/memberPane/memberDoorImage.js`), and back. The committed file rides as `null` (the worker
+ *  holds the same file); only a document a rail set is carried whole. */
+export function heldWithholdsImage() {
+  return { ignored: _ignored, scripts: _entries === COMMITTED ? null : [..._entries.values()] }
+}
+export function applyHeldWithholdsImage(img) {
+  _revision += 1
+  const m = img && typeof img === 'object' ? img : {}
+  _ignored = m.ignored === true
+  _entries = Array.isArray(m.scripts) ? entriesOf({ scripts: m.scripts }) : COMMITTED
 }

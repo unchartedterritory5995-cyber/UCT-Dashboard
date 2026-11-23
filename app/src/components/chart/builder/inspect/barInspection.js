@@ -173,7 +173,7 @@ export const INSPECT_MAX_NAMES = 96
  * Inspect a script: derive the probe copies, run each through the caller's doors, and gather one
  * column per variable. The doors are the engine's own, handed in:
  *   names(source)              -> [{ name, line, kind }]      the top-level names
- *   build(source)              -> { ok, definition, reason }  the door a pasted script goes through
+ *   build(source)              -> { ok, definition, reason }  the door a pasted script goes through (may be a promise)
  *   compute(definition, bars)  -> { lane, outputs: [{ key, title, values }] }  (may be a promise)
  *
  * A copy that the door refuses is retried ONE NAME AT A TIME, so one variable that cannot be
@@ -186,7 +186,7 @@ export async function inspectScript({ source, bars, names, build, compute }) {
   if (typeof source !== 'string' || !source.trim()) return none('There is no script to inspect.')
   // the script itself first: a script the door refuses has nothing to read, and its lane is the
   // one every probe copy is compared with
-  const own = build(source)
+  const own = await build(source)
   if (!own || !own.ok) return none((own && own.reason) || 'This script is not drawn, so there is nothing to read.')
   const ownRun = await compute(own.definition, bars)
   // ⛔ the script ITSELF is not computed here (it reads another symbol, or a weekly value this
@@ -201,7 +201,7 @@ export async function inspectScript({ source, bars, names, build, compute }) {
   const failed = []
   let laneDiffers = false
   const run = async (src) => {
-    const built = build(src)
+    const built = await build(src)
     if (!built || !built.ok) return { ok: false, reason: (built && built.reason) || 'it could not be read' }
     const out = await compute(built.definition, bars)
     if (!out || !Array.isArray(out.outputs)) return { ok: false, reason: (out && out.reason) || 'it could not be computed' }

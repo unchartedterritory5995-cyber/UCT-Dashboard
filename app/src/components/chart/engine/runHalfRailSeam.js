@@ -39,10 +39,14 @@ export function registeredRunHalfObjectRail() {
 // NO object program (a lost removal, every drawing lost), and a run drawing that names no call.
 export const RUN_HALF_EVIDENCE_MIN_CAPTURES = 2
 let _evidence = new Map()
+// ⭐ THE PASTE WORKER — moves whenever the evidence is replaced (`memberDoorImage.memberDoorStateVersion`)
+let _evidenceRevision = 0
+export function runHalfEvidenceRevision() { return _evidenceRevision }
 
 /** Replace the evidence list: `[{sha256, admission?, substituted?, captures: [{capture, verdict,
  *  objectsV2, runtimeOn, substituted?}]}]` (the `run_half_evidence` key of the kill read). */
 export function setRunHalfObjectEvidence(list) {
+  _evidenceRevision += 1
   const next = new Map()
   for (const e of Array.isArray(list) ? list : []) {
     if (!e || typeof e.sha256 !== 'string' || !/^[0-9a-f]{64}$/i.test(e.sha256)) continue
@@ -62,6 +66,16 @@ export function setRunHalfObjectEvidence(list) {
 // `admission` still counts MATCH only. Mirrors `runtime_definitions.py::run_half_entry_admits`
 // (the server serves only what it admits); both answer every case of
 // tests/fixtures/ast/run_half_evidence_parity.json, so the two cannot drift.
+/** ⭐ THE PASTE WORKER (2026-11-20) — the evidence as plain data, for the member door's worker
+ *  (`builder/memberPane/memberDoorImage.js`), and back: a worker is its own module graph and starts with none. */
+export function runHalfEvidenceImage() {
+  return [..._evidence]
+}
+export function applyRunHalfEvidenceImage(img) {
+  _evidenceRevision += 1
+  _evidence = new Map(Array.isArray(img) ? img.filter((e) => Array.isArray(e) && typeof e[0] === 'string') : [])
+}
+
 const ADMISSION_SUBSTITUTED = 'substituted'
 
 /** A non-empty list of distinct non-empty names, sorted; null otherwise (`rollout_gate.py::
