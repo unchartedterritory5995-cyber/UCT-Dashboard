@@ -111,6 +111,8 @@ const points = v => {
   const sign = Number(body) === 0 ? '' : v > 0 ? '+' : '-'
   return `${sign}${body} pts`
 }
+// Volume & volatility: a ratio of two falls ("0.62×": the stock fell 0.62 times as far as the index).
+const ratioX = v => v == null ? '—' : `${formatNumber(v, { decimals: 2 })}×`
 
 export const COLUMN_DEFS = {
   ticker: { label: 'Ticker', fmt: v => v },
@@ -744,4 +746,36 @@ export const COLUMN_DEFS = {
     desc: 'Trailing-twelve-month gross margin now minus the same margin a year earlier, in percentage points, from SEC filings. Only for companies that report gross profit, about a third of them, so it is blank for most banks and insurers. Blank without both quarters. Not the Gr Mgn column, which is the data provider\'s current figure.' },
   shares_chg_1y: { label: 'Shares Chg 1Y', fmt: pct,
     desc: 'Shares outstanding on the newest filing\'s cover page against the count about a year earlier, in percent, from SEC filings. Below 0 means fewer shares (net buybacks), above 0 means more (dilution). Split-adjusted, so a stock split is not dilution. Blank for companies with more than one share class and where the split history cannot be verified.' },
+  // ── Volume & volatility (2026-11-23), from the row's own stored daily bars (`volume_volatility`) ──
+  // The numbers in these sentences (20 / 60 returns, 25 sessions, 0.2%, the 10-session look-back and
+  // average, 20 sessions, 10%) are `stock_stats_calc.RV_SESSIONS`, `volume_footprint_calc.AD_WINDOWS`,
+  // `AD_MIN_MOVE`, `PIVOT_LOOKBACK`, `PIVOT_MA`, `volume_volatility.PIVOT_SESSIONS` and
+  // `market_history_calc.CORRECTION_MIN` on the server (tests/test_screener_volume_volatility.py holds
+  // each to these sentences).
+  hv_20: { label: 'HV 20', fmt: pctPlain(1),
+    desc: 'How much the stock has moved from close to close over the last 20 sessions, annualized, from daily bars: the standard deviation of daily log returns times the square root of 252, the same number STAT prints. Higher means bigger daily swings. Close to close, so an overnight gap counts and the range inside a day does not (that is ATR% and ADR%). Blank with fewer than 21 sessions.' },
+  hv_60: { label: 'HV 60', fmt: pctPlain(1),
+    desc: 'How much the stock has moved from close to close over the last 60 sessions, annualized, from daily bars: the standard deviation of daily log returns times the square root of 252, the same number STAT prints. Higher means bigger daily swings. Close to close, so an overnight gap counts and the range inside a day does not (that is ATR% and ADR%). Blank with fewer than 61 sessions.' },
+  ad_net_25: { label: 'A/D Net 25', fmt: signedInt, heat: heatSign,
+    desc: 'Accumulation days less distribution days over the last 25 sessions, from daily bars, as VFP counts them: an accumulation day closes at least 0.2% higher on more volume than the session before, a distribution day at least 0.2% lower on more volume. +5 means five more accumulation days than distribution days. Blank with fewer than 26 sessions or when a session\'s volume is missing. Not the Acc/Dis grade, which is a letter from an up/down volume ratio.' },
+  pocket_pivots_20: { label: 'Pocket Piv 20', fmt: num(0),
+    desc: 'How many pocket pivots the last 20 sessions held, from daily bars, as VFP finds them: an up day whose volume is above the largest down-day volume of the 10 sessions before it, closing above its 10-day average. Blank with fewer than 31 sessions or when a volume is missing.' },
+  days_since_pocket_pivot: { label: 'Last Pocket Piv', fmt: barsAgo,
+    desc: 'Sessions since the newest pocket pivot of the last year, from daily bars ("today" means the newest session is one), as VFP finds them: an up day whose volume is above the largest down-day volume of the 10 sessions before it, closing above its 10-day average. Blank when the last year holds none or a volume is missing.' },
+  corr_rel_last: { label: 'Drop vs SPX', fmt: ratioX,
+    desc: 'In the newest S&P 500 correction that has ended (a fall of 10% or more from a closing high, since regained, as MKTH finds them), how far the stock fell against how far the index fell, from daily bars: 0.50× means it fell half as far, 1.50× half as far again, 0.00× that it did not fall. Below 1 means it held up better. Blank when the stock\'s history does not reach back to that correction.' },
+  // ── Beats, insiders & funds (2026-11-23), each read once per build from a held store (`beats_insiders_funds`) ──
+  // The numbers here (0.5%, 12 quarters, 30 days) are `sector_earnings_calc.IN_LINE_PCT`,
+  // `earnings_intel._QUARTERS_BACK` and `beats_insiders_funds.INSIDER_DAYS` on the server
+  // (tests/test_screener_beats_insiders_funds.py holds each to these sentences).
+  eps_surprise_last: { label: 'EPS Surp', fmt: pct, heat: heatSign,
+    desc: 'The newest report\'s EPS against the analysts\' consensus, in percent, from UCT\'s held earnings results (the Research Earnings tab\'s figures): +8% means 8% above the consensus. Only reports dated on or before the last session count. Blank when there is no comparable consensus, the consensus is under 5 cents, or a newer report is due and has not reached UCT yet.' },
+  eps_beat_streak: { label: 'Beat Streak', fmt: quarters,
+    desc: 'How many reported quarters in a row beat the EPS consensus, counted back from the newest, by the same rule as the earnings season view: a surprise above 0.5% is a beat, within 0.5% either way is in line. Stops at the first quarter that did not beat; at most the 12 quarters UCT holds. Blank when the newest quarter has no comparable consensus.' },
+  insider_buys_30d: { label: 'Ins Buys 30D', fmt: num(0),
+    desc: 'How many SEC Form 4 filings reported an open-market purchase in the last 30 days (filed in the 30 calendar days ending on the last session), matched by the trading symbol the filing names. Every Form 4 in the SEC\'s daily index is read each night, so 0 means none was filed. Purchases only: sales are not counted. Blank while UCT\'s filing store does not reach back the whole 30 days.' },
+  insider_buy_value_30d: { label: 'Ins Buy $ 30D', fmt: dollarVol,
+    desc: 'The dollars of those open-market purchases, at the prices the filers stated. A purchase with no stated price is counted in Ins Buys 30D but never valued at $0. Blank when no purchase in the window states a price.' },
+  fund_net_adds: { label: 'Fund Net Adds', fmt: signedInt, heat: heatSign,
+    desc: 'Funds that added to or opened a position, less funds that cut or sold out, from the SEC\'s quarterly fund holdings reports (Form N-PORT: mutual funds and ETFs), each fund\'s newest report against its previous one, adjusted for stock splits. +12 means twelve more funds added than cut. Blank when the change cannot be told (no fund with two reports, or a split that could not be checked). Funds report about 60 days after each quarter ends.' },
 }

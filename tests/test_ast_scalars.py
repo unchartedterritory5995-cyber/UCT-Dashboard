@@ -386,7 +386,13 @@ def test_the_scalar_section_PARTITIONS_snapshot_db_COLUMNS_exactly():
     # (`rev_accel_q`, `eps_streak_25`, `eps_growth_min_2q`/`3q`/`4q`, `net_margin_chg_1y`,
     # `gross_margin_chg_1y`, `shares_chg_1y`) from `fund_trends.read_fields`, NULL until the first
     # build after the first evening run (R8). The declared half did not move.
-    assert (len(declared), len(excluded)) == (149, 156)
+    # ⭐ (149, 156) → (149, 167) on 2026-11-23 (new Screener columns): the six volume & volatility
+    # columns (`hv_20`, `hv_60`, `ad_net_25`, `pocket_pivots_20`, `days_since_pocket_pivot`,
+    # `corr_rel_last`, the build's `bars_volume_volatility` step) and the five beats, insiders & funds
+    # columns (`eps_surprise_last`, `eps_beat_streak`, `insider_buys_30d`, `insider_buy_value_30d`,
+    # `fund_net_adds`, `beats_insiders_funds`'s three readers), NULL until the first build after they
+    # land (R8). The declared half did not move.
+    assert (len(declared), len(excluded)) == (149, 167)
 
 
 def test_a_scalar_tree_is_non_repainting_AND_as_of_snapshot__both_verdicts_or_neither():
