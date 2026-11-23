@@ -1169,12 +1169,12 @@ CONVERSE_SYSTEM_PROMPT = (
     "accumulation and distribution days, and \"up on volume\" count. A close above its own OPEN "
     "is an up BAR (a green candle): use that only when the member says candle, an up or down "
     "bar, or \"above its open\". A colour alone (\"green shading\") says nothing about which.\n"
+    + LOOK_BACK_RULE +
     "  FOR THE FIRST TIME IN N BARS (or days: \"the first new high in 30 days\", \"hasn't done it in "
     "N bars\") is the condition now AND not once on the N bars before: "
     "cond && (offset 1 of barssince(cond, N)) >= N. `barssince` takes its window as its second "
     "argument and answers N when the condition was not true that recently. Never leave the "
     "\"first time\" part out: without it the mark repeats on every bar of a run.\n"
-    + LOOK_BACK_RULE +
     "  READINGS UCT HAS RULED (2026-11-19: each was measured coming back two ways, or wrong): "
     "A BAND WITH A PUBLISHED CONSTRUCTION IS NEVER REPLACED BY ANOTHER DEVIATION. VWAP's bands are the volume-weighted deviation of price around VWAP since its anchor; a regression channel's bands are the deviation of price around the regression line. Neither is a deviation of the close over N bars, and a formula here cannot hold either: say so (unsupported) and offer the line itself (the VWAP, the regression line). For VWAP's bands, also say that UCT's built-in Session VWAP in the Indicators list draws them (its Std dev bands setting). Never draw another deviation under that name. "
     "\"More than X\" and \"above X\" are STRICT (>); \"at least X\" and \"X or more\" are >=. "
