@@ -10,6 +10,9 @@
 //   * the stored note is read, labelled with its own report date, and never asked for;
 //   * the picker and a row click write the market into the command;
 //   * no position is called bullish or bearish; no hard-coded color; axe.
+//   * by trader type (the CFTC's TFF and Disaggregated reports): one market's "By trader type" table below the
+//     classes table, with each class's net, sides, share and range, its own report date and the credit; every
+//     state; the board's funds column from ONE read, never waited for, each cell naming its class.
 // Every number, name and note is invented; the fixtures are the routes' real shapes.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, within, act, waitFor } from '@testing-library/react'
@@ -31,6 +34,8 @@ import { expectNoAxeViolations } from '../../journal-2-0/a11y/axeHarness'
 const SYMBOLS_URL = '/api/cot/symbols'
 const rowsUrl = (code) => `/api/cot/${code}?weeks=160`
 const noteUrl = (code) => `/api/cot/${code}/narratives?limit=1`
+const FINER_BOARD_URL = '/api/cot/breakdown'
+const finerUrl = (code) => `/api/cot/${code}/breakdown?weeks=160`
 /** The Tuesday `back` weeks before Tue Nov 17 2026. */
 const tue = (back) => new Date(Date.UTC(2026, 10, 17) - back * 7 * 86400000).toISOString().slice(0, 10)
 const weekly = (n, f, shift = 0) => Array.from({ length: n }, (_, i) => ({ date: tue(n - 1 - i + shift), ...f(n - 1 - i) }))
@@ -57,12 +62,51 @@ const SYMBOLS = { groups: {
   ENERGIES: [{ symbol: 'CL', name: 'Crude Oil' }, { symbol: 'NG', name: 'Natural Gas' }],
 } }
 const NOTE = { symbol: 'GC', rows: [{ report_date: '2026-11-17', text: 'Large speculators added to their net long.\n\nCommercials added to their net short.', created_at: '2026-11-20T21:40:00+00:00' }] }
+/** By trader type, the board: managed money in gold (+120,000, +20,000 on the week) and crude (one week, a week
+ *  older than crude's legacy row), leveraged funds in the S&P (-120,000, -30,000); the rest carry no record. */
+const FINER_BOARD = {
+  state: 'ok', source: 'x', watch: { tff: 'leveraged_funds', disaggregated: 'managed_money' }, reports: {},
+  markets: {
+    GC: { report: 'disaggregated', watch: 'managed_money', date: tue(0), open_interest: 520000, long: 150000, short: 30000, spread: 40000,
+      previous: { date: tue(1), open_interest: 500000, long: 140000, short: 40000, spread: 30000 } },
+    ES: { report: 'tff', watch: 'leveraged_funds', date: tue(0), open_interest: 2500000, long: 300000, short: 420000, spread: 1,
+      previous: { date: tue(1), open_interest: 2500000, long: 310000, short: 400000, spread: 1 } },
+    CL: { report: 'disaggregated', watch: 'managed_money', date: tue(1), open_interest: 500000, long: 50000, short: 20000, spread: 0, previous: null },
+  },
+  no_record: ['NQ', 'SI', 'ZN', 'NG'], next_check: '2026-11-22T21:10-05:00', building: false,
+}
+const DIS_KEYS = ['producer_merchant', 'swap_dealer', 'managed_money', 'other_reportable', 'nonreportable']
+/** By trader type, one market: 160 weeks of gold in the Disaggregated report. Managed money +240,000 now (+80,000
+ *  on the week, 80 of 100, 46.2% of open interest); the other classes hold still (50 of 100). */
+const finerGold = (n = 160, shift = 0) => ({
+  symbol: 'GC', state: 'ok', report: 'disaggregated', report_name: 'Disaggregated', watch: 'managed_money',
+  classes: DIS_KEYS.map((key) => ({ key, cftc: key, spread: !['producer_merchant', 'nonreportable'].includes(key), traders: key !== 'nonreportable' })),
+  rows: Array.from({ length: n }, (_, i) => {
+    const back = n - 1 - i
+    const mm = back === 0 ? 280000 : back % 2 ? 200000 : 300000
+    return {
+      date: tue(back + shift), open_interest: back === 0 ? 520000 : 500000, traders_total: 300,
+      classes: {
+        producer_merchant: { long: 50000, short: 210000, spread: null, traders_long: 30, traders_short: 41, traders_spread: null },
+        swap_dealer: { long: 20000, short: 90000, spread: 1234, traders_long: 12, traders_short: 15, traders_spread: 6 },
+        managed_money: { long: mm, short: 40000, spread: 30000, traders_long: 88, traders_short: 21, traders_spread: 34 },
+        other_reportable: { long: 30000, short: 31000, spread: 2000, traders_long: 40, traders_short: 22, traders_spread: 9 },
+        nonreportable: { long: 45000, short: 50000, spread: null, traders_long: null, traders_short: null, traders_spread: null },
+      },
+    }
+  }),
+  records: [{ cftc_code: 'INV001', market_name: 'INVENTED METAL - INVENTED EXCHANGE', match: 'code', first: tue(n - 1 + shift), last: tue(shift) }],
+  concentration: { date: tue(shift), gross_4_long: 21.7, gross_4_short: 18.0, gross_8_long: 33.1, gross_8_short: 29.4 },
+  source: 'x', next_check: '2026-11-22T21:10-05:00', building: false,
+})
 /** Every route the board and one market read, all answering. */
 const ALL = {
   [SYMBOLS_URL]: SYMBOLS,
   [rowsUrl('ES')]: SP, [rowsUrl('NQ')]: NASDAQ, [rowsUrl('GC')]: GOLD, [rowsUrl('SI')]: SILVER, [rowsUrl('ZN')]: TNOTE, [rowsUrl('CL')]: CRUDE,
   [rowsUrl('NG')]: [],
   [noteUrl('GC')]: NOTE,
+  [FINER_BOARD_URL]: FINER_BOARD,
+  [finerUrl('GC')]: finerGold(),
 }
 const BOARD_URLS = ['ES', 'NQ', 'GC', 'SI', 'ZN', 'CL', 'NG'].map(rowsUrl)
 
@@ -177,8 +221,9 @@ describe('COT the board', () => {
     serve(ALL)
     renderPanel()
     await screen.findByTestId('terminal-cot-board')
-    expect(asked().sort()).toEqual([SYMBOLS_URL, ...BOARD_URLS].sort())
+    expect(asked().sort()).toEqual([SYMBOLS_URL, FINER_BOARD_URL, ...BOARD_URLS].sort())
     for (const url of BOARD_URLS) expect(timesAsked(url), url).toBe(1)       // ES and ZN sit on the shortlist too: still one read each
+    expect(timesAsked(FINER_BOARD_URL)).toBe(1)                              // by trader type: one read for every market
     // no status call (it can start a refresh on the server), no note, and nothing but a GET
     expect(calls().some((u) => /status|narrative|refresh/.test(u))).toBe(false)
     for (const [, init] of jsonFetcher.mock.calls) expect(init?.method ?? 'GET').toBe('GET')
@@ -188,7 +233,7 @@ describe('COT the board', () => {
     let inFlight = 0
     let most = 0
     jsonFetcher.mockImplementation((url) => {
-      if (url === SYMBOLS_URL) return Promise.resolve(SYMBOLS)
+      if (url === SYMBOLS_URL || url === FINER_BOARD_URL) return Promise.resolve(ALL[url])
       inFlight += 1
       most = Math.max(most, inFlight)
       return new Promise((resolve) => { setTimeout(() => { inFlight -= 1; resolve(ALL[url]) }, 5) })
@@ -196,7 +241,7 @@ describe('COT the board', () => {
     renderPanel()
     await screen.findByTestId('terminal-cot-board')
     expect(most).toBe(4)
-    expect(asked()).toHaveLength(8)
+    expect(asked()).toHaveLength(9)
   })
 
   it('one row per market, largest weekly move first, a market with no week change last', async () => {
@@ -207,9 +252,10 @@ describe('COT the board', () => {
     expect(boardCodes()).toEqual(['GC', 'CL', 'NQ', 'ES', 'SI', 'ZN'])
     expect(screen.getByTestId('terminal-cot-asof').textContent).toBe('Report of Tue Nov 17, 2026. 6 markets, largest weekly move first.')
     expect(screen.getByTestId('terminal-cot-weekly').textContent).toBe(COT_WEEKLY_LINE)
-    expect(lastReport(setFreshness)).toEqual(WEEKLY_REPORT)
+    // the report is set in an effect; with the funds read resolving beside the board it can land a tick later
+    await waitFor(() => expect(lastReport(setFreshness)).toEqual(WEEKLY_REPORT))
     expect([...screen.getByTestId('terminal-cot-board').querySelectorAll('thead th')].map((th) => th.textContent))
-      .toEqual(['Market', 'Large specs, net', 'Commercials, net', "Week's move", '3-year range'])
+      .toEqual(['Market', 'Large specs, net', 'Commercials, net', "Week's move", '3-year range', 'Funds, net'])
   })
 
   it('each row: the market and its code, both nets over the week\'s change, the move as a share of open interest, the range', async () => {
@@ -217,13 +263,19 @@ describe('COT the board', () => {
     renderPanel()
     await screen.findByTestId('terminal-cot-board')
     const cells = (i) => [...boardRows()[i].querySelectorAll('td')].map((td) => td.textContent)
-    expect(cells(0)).toEqual(['GoldGC', '+180.0K+80.0K on the week', '-190.0K-70.0K on the week', '+15.4%', '80'])
-    expect(cells(1)).toEqual(['Crude OilCL', '+20.0K-40.0K on the week', '-10.0K+40.0K on the week', '-8.0%', 'n/a'])
-    expect(cells(2)).toEqual(['Nasdaq 100 E-miniNQ', '+10.0K+6,000 on the week', '-12.0K-7,000 on the week', '+2.0%', 'n/a'])
-    expect(cells(3)).toEqual(['S&P 500 E-miniES', '+25.0K-5,000 on the week', '-15.0K+5,000 on the week', '-0.2%', 'n/a'])
-    expect(cells(4)).toEqual(['SilverSI', '+7,0000 on the week', '-8,0000 on the week', '0.0%', 'n/a'])
+    // the last cell is the funds column (by trader type): the watched class's net, its week's change and its name
+    expect(cells(0)).toEqual(['GoldGC', '+180.0K+80.0K on the week', '-190.0K-70.0K on the week', '+15.4%', '80', '+120.0K+20.0K on the weekManaged money'])
+    expect(cells(1)).toEqual(['Crude OilCL', '+20.0K-40.0K on the week', '-10.0K+40.0K on the week', '-8.0%', 'n/a', '+30.0Kno earlier reportManaged money'])
+    // a funds figure from another week than its row is named once above the board, and in its cell's title
+    expect(screen.getByTestId('terminal-cot-funds-dates').textContent)
+      .toBe("The funds column is from another week's report for Crude Oil (CL), report of Tue Nov 10, 2026.")
+    expect(within(boardRows()[1]).getByTestId('terminal-cot-board-funds').getAttribute('title')).toBe('Report of Tue Nov 10, 2026.')
+    expect(within(boardRows()[0]).getByTestId('terminal-cot-board-funds').getAttribute('title')).toBeNull()
+    expect(cells(2)).toEqual(['Nasdaq 100 E-miniNQ', '+10.0K+6,000 on the week', '-12.0K-7,000 on the week', '+2.0%', 'n/a', 'n/a'])
+    expect(cells(3)).toEqual(['S&P 500 E-miniES', '+25.0K-5,000 on the week', '-15.0K+5,000 on the week', '-0.2%', 'n/a', '-120.0K-30.0K on the weekLeveraged funds'])
+    expect(cells(4)).toEqual(['SilverSI', '+7,0000 on the week', '-8,0000 on the week', '0.0%', 'n/a', 'n/a'])
     // one report: no week change and no move, said in words, never a 0
-    expect(cells(5)).toEqual(['10-Year T-NoteZN', '+180.0Kno earlier report', '-190.0Kno earlier report', 'n/a', 'n/a'])
+    expect(cells(5)).toEqual(['10-Year T-NoteZN', '+180.0Kno earlier report', '-190.0Kno earlier report', 'n/a', 'n/a', 'n/a'])
     expect(within(boardRows()[1]).getByTestId('terminal-cot-board-range').getAttribute('title')).toBe('The 3-year range needs 156 weekly reports; 3 are stored.')
   })
 
@@ -324,7 +376,7 @@ describe('COT the board', () => {
     expect(boardCodes()).toEqual(['ES', 'ZN'])
     fireEvent.click(within(group).getByRole('button', { name: 'All' }))
     expect(boardCodes()).toHaveLength(6)
-    expect(asked()).toHaveLength(8)                     // a filter is not a new read
+    expect(asked()).toHaveLength(9)                     // a filter is not a new read
   })
 
   it('a group with no stored report says so', async () => {
@@ -394,7 +446,7 @@ describe('COT one market', () => {
     const { setFreshness } = renderPanel({ market: 'GOLD' })
     await screen.findByTestId('terminal-cot-classes')
     await screen.findByTestId('terminal-cot-note')
-    expect(asked().sort()).toEqual([SYMBOLS_URL, rowsUrl('GC'), noteUrl('GC')].sort())
+    expect(asked().sort()).toEqual([SYMBOLS_URL, rowsUrl('GC'), noteUrl('GC'), finerUrl('GC')].sort())   // + its own by-trader-type read
     expect(screen.getByTestId('terminal-cot').getAttribute('data-state')).toBe('market')
     expect(screen.getByTestId('terminal-cot').getAttribute('data-market')).toBe('GC')
     expect(screen.getByTestId('terminal-cot-asof').textContent).toBe('Gold (GC). Report of Tue Nov 17, 2026.')
@@ -586,6 +638,165 @@ describe('COT the picker', () => {
     await waitFor(() => expect(screen.getByTestId('terminal-cot-loading')).toBeTruthy())
     expect(screen.queryByTestId('terminal-cot-classes')).toBeNull()
     expect(asked()).toContain(rowsUrl('SI'))
+  })
+})
+
+describe('COT by trader type: one market', () => {
+  const finerRows = () => screen.getAllByTestId('terminal-cot-finer-class')
+  const cellsOf = (tr) => [...tr.children].map((c) => c.textContent)
+
+  it('sits below the classes table and above the history, with its own report, every class, the credit and the record', async () => {
+    serve(ALL)
+    renderPanel({ market: 'GOLD' })
+    const table = await screen.findByTestId('terminal-cot-finer-classes')
+    const classes = screen.getByTestId('terminal-cot-classes')
+    const history = screen.getByTestId('terminal-cot-history')
+    expect(classes.compareDocumentPosition(table) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(table.compareDocumentPosition(history) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    const section = screen.getByTestId('terminal-cot-finer')
+    expect(section.getAttribute('data-state')).toBe('ok')
+    expect(within(section).getByRole('heading', { level: 3 }).textContent).toBe('By trader type')
+    expect(screen.getByTestId('terminal-cot-finer-asof').textContent).toBe("The CFTC's Disaggregated report of Tue Nov 17, 2026.")
+    expect([...table.querySelectorAll('thead th')].map((th) => th.textContent))
+      .toEqual(['Trader class', 'Net, contracts', 'Long and short', 'Share of open interest', '3-year range'])
+    expect(finerRows().map((tr) => tr.getAttribute('data-class'))).toEqual(DIS_KEYS)
+    expect(cellsOf(finerRows()[0])).toEqual(['Producers and merchants', '-160.0K0 on the week', '50.0K long210.0K short', '-30.8%', '50 of 100'])
+    expect(cellsOf(finerRows()[1])).toEqual(['Swap dealers', '-70.0K0 on the week', '20.0K long90.0K short1,234 spreading', '-13.5%', '50 of 100'])
+    expect(cellsOf(finerRows()[2])).toEqual(['Managed moneywatched most', '+240.0K+80.0K on the week', '280.0K long40.0K short30.0K spreading', '+46.2%', '80 of 100'])
+    expect(cellsOf(finerRows()[4])).toEqual(['Small traders', '-5,0000 on the week', '45.0K long50.0K short', '-1.0%', '50 of 100'])
+    expect(finerRows()[2].querySelector('th').getAttribute('title')).toBe("The CFTC's Managed Money: commodity trading advisers and hedge funds, the speculators of the commodity markets. Traders: 88 long, 21 short, 34 spreading.")
+    expect(finerRows()[4].querySelector('th').getAttribute('title')).toBe("The CFTC's Nonreportable Positions: positions too small to report.")
+    expect(screen.getByTestId('terminal-cot-finer-credit').textContent)
+      .toBe('Source: CFTC Commitments of Traders (Traders in Financial Futures / Disaggregated), as of the Tuesday it covers, published the following Friday.')
+    expect(screen.getByTestId('terminal-cot-finer-record').textContent).toBe('CFTC record: INVENTED METAL - INVENTED EXCHANGE, contract INV001.')
+    expect(screen.getByTestId('terminal-cot-finer-concentration').textContent).toBe('The largest 4 traders hold 21.7% of the long side and 18.0% of the short side; the largest 8 hold 33.1% of the long side and 29.4% of the short side (gross positions).')
+    expect(screen.getByLabelText("Gold: positions of each trader class in the CFTC's Disaggregated report of Tue Nov 17, 2026")).toBe(table)
+    expect(within(table).getAllByTestId('terminal-cot-finer-net')[2].querySelector('span').className).toMatch(/up/)
+    expect(within(table).getAllByTestId('terminal-cot-finer-net')[0].querySelector('span').className).toMatch(/down/)
+    expect(screen.getByTestId('terminal-cot').textContent).not.toMatch(/bullish|bearish|crowded|extreme|smart money|signal|—|–/i)
+  })
+
+  it('a report older or newer than the legacy figures says so; a range under 156 weeks reads n/a and says why', async () => {
+    serve({ ...ALL, [finerUrl('GC')]: finerGold(20, 1) })
+    renderPanel({ market: 'GC' })
+    expect((await screen.findByTestId('terminal-cot-finer-asof')).textContent)
+      .toBe("The CFTC's Disaggregated report of Tue Nov 10, 2026. It is older than the figures above.")
+    const ranges = screen.getAllByTestId('terminal-cot-finer-range')
+    expect(ranges.map((td) => td.textContent)).toEqual(['n/a', 'n/a', 'n/a', 'n/a', 'n/a'])
+    expect(ranges[2].getAttribute('title')).toBe('The 3-year range needs 156 weekly reports of this class; 20 are stored.')
+    cleanup()
+    serve({ ...ALL, [finerUrl('GC')]: finerGold(160, -1) })
+    renderPanel({ market: 'GC' })
+    expect((await screen.findByTestId('terminal-cot-finer-asof')).textContent).toContain('It is newer than the figures above.')
+  })
+
+  it('not read yet, no record, a failed read with Retry, a paid-plan lock and an unreadable store each say so, and the legacy figures stay', async () => {
+    const cases = [
+      [{ state: 'not_built', source: 'x', next_check: 'x' }, 'not_built', "The CFTC's Traders in Financial Futures and Disaggregated reports have not been read on this server yet. They are read after each Friday's report, in the evening, New York time."],
+      [{ state: 'no_record', source: 'x' }, 'no_record', "Neither of the CFTC's finer reports (Traders in Financial Futures, Disaggregated) carries a record of Gold."],
+      [{ state: 'unavailable', reason: 'x' }, 'failed', 'Positioning by trader type could not be read just now. Retry'],
+      [{ rows: [] }, 'failed', 'Positioning by trader type could not be read just now. Retry'],
+      [fail(500), 'failed', 'Positioning by trader type could not be read just now. Retry'],
+      [fail(402), 'failed', 'Positioning by trader type needs a paid plan. '],
+    ]
+    for (const [answer, state, words] of cases) {
+      serve({ ...ALL, [finerUrl('GC')]: answer })
+      renderPanel({ market: 'GC' })
+      await waitFor(() => expect(screen.getByTestId('terminal-cot-finer').getAttribute('data-state')).toBe(state))
+      const said = screen.queryByTestId('terminal-cot-finer-none') || screen.getByTestId('terminal-cot-finer-failed')
+      expect(said.textContent.replace(/\s+/g, ' ')).toBe(words)
+      expect(screen.getAllByTestId('terminal-cot-class')).toHaveLength(3)           // the legacy table stays
+      expect(screen.queryByTestId('terminal-cot-finer-classes')).toBeNull()
+      cleanup()
+    }
+  })
+
+  it('Retry asks for the market again, and a failed re-read keeps the last table on screen and says so', async () => {
+    serve({ ...ALL, [finerUrl('GC')]: fail(500) })
+    renderPanel({ market: 'GC' })
+    fireEvent.click(await screen.findByTestId('terminal-cot-finer-retry'))
+    await waitFor(() => expect(timesAsked(finerUrl('GC'))).toBe(2))
+    cleanup()
+    serve(ALL)
+    renderPanel({ market: 'GC' })
+    await screen.findByTestId('terminal-cot-finer-classes')
+    serve({ ...ALL, [finerUrl('GC')]: fail(503) })
+    await act(async () => { await revalidateAll() })
+    expect((await screen.findByTestId('terminal-cot-finer-stale')).textContent).toBe('Positioning by trader type could not be read just now. Showing the last read.')
+    expect(screen.getByTestId('terminal-cot-finer-classes')).toBeTruthy()
+  })
+
+  it('shows a loading line while its read is out, and the rest of the market is already drawn', async () => {
+    serve({ ...ALL, [finerUrl('GC')]: PENDING })
+    renderPanel({ market: 'GC' })
+    expect((await screen.findByTestId('terminal-cot-finer-loading')).textContent).toBe('Loading positioning by trader type.')
+    expect(screen.getByTestId('terminal-cot-classes')).toBeTruthy()
+  })
+})
+
+describe('COT by trader type: the board', () => {
+  it('the funds column never holds the board back: while its read is out the board draws and each cell says loading', async () => {
+    serve({ ...ALL, [FINER_BOARD_URL]: PENDING })
+    renderPanel()
+    await screen.findByTestId('terminal-cot-board')
+    expect(screen.getAllByTestId('terminal-cot-board-funds').map((td) => td.textContent)).toEqual(Array(6).fill('loading'))
+    expect(screen.queryByTestId('terminal-cot-funds-failed')).toBeNull()
+  })
+
+  it('a market with no record is n/a with why; the method names both classes; the credit is there', async () => {
+    serve(ALL)
+    renderPanel()
+    await screen.findByTestId('terminal-cot-board')
+    const funds = screen.getAllByTestId('terminal-cot-board-funds')
+    expect(funds[2].getAttribute('title')).toBe("Neither of the CFTC's finer reports carries a record of this market.")
+    expect(funds[0].querySelector('span').className).toMatch(/up/)
+    expect(funds[3].querySelector('span').className).toMatch(/down/)
+    expect(screen.getByTestId('terminal-cot-funds-method').textContent.replace(/\s+/g, ' ')).toContain(
+      'leveraged funds in the Traders in Financial Futures report (stock indexes, rates, currencies, crypto), managed money in the Disaggregated report (commodities)')
+    expect(screen.getByTestId('terminal-cot-funds-credit').textContent).toBe(
+      'Source: CFTC Commitments of Traders (Traders in Financial Futures / Disaggregated), as of the Tuesday it covers, published the following Friday.')
+    expect(screen.queryByTestId('terminal-cot-funds-failed')).toBeNull()
+    expect(screen.queryByTestId('terminal-cot-funds-none')).toBeNull()
+  })
+
+  it('not read yet, a failed read with Retry and a paid-plan lock each say so once under the board; every cell is n/a', async () => {
+    serve({ ...ALL, [FINER_BOARD_URL]: { state: 'not_built', source: 'x' } })
+    renderPanel()
+    expect((await screen.findByTestId('terminal-cot-funds-none')).textContent.replace(/\s+/g, ' '))
+      .toBe("The funds column is blank: the CFTC's finer reports have not been read on this server yet. They are read after each Friday's report, in the evening, New York time.")
+    expect(screen.getAllByTestId('terminal-cot-board-funds').map((td) => td.textContent)).toEqual(Array(6).fill('n/a'))
+    cleanup()
+    serve({ ...ALL, [FINER_BOARD_URL]: fail(500) })
+    renderPanel()
+    const failed = await screen.findByTestId('terminal-cot-funds-failed')
+    expect(failed.textContent).toBe('Positioning by trader type could not be read just now. The funds column is blank. Retry')
+    expect(boardCodes()).toEqual(['GC', 'CL', 'NQ', 'ES', 'SI', 'ZN'])               // the board itself is whole
+    serve(ALL)
+    fireEvent.click(screen.getByTestId('terminal-cot-funds-retry'))
+    await waitFor(() => expect(screen.queryByTestId('terminal-cot-funds-failed')).toBeNull())
+    expect(screen.getAllByTestId('terminal-cot-board-funds')[0].textContent).toBe('+120.0K+20.0K on the weekManaged money')
+    cleanup()
+    serve({ ...ALL, [FINER_BOARD_URL]: fail(402) })
+    renderPanel()
+    expect((await screen.findByTestId('terminal-cot-funds-failed')).textContent).toBe('Positioning by trader type needs a paid plan. The funds column is blank. ')
+    expect(screen.queryByTestId('terminal-cot-funds-retry')).toBeNull()
+  })
+
+  it('the board and one market each pass axe with the by-trader-type parts in every state (WCAG A and AA)', async () => {
+    serve({ ...ALL, [FINER_BOARD_URL]: fail(500) })
+    renderPanel({}, { code: 'COT' })
+    await screen.findByTestId('terminal-cot-funds-failed')
+    await expectNoAxeViolations(document.body.firstElementChild)
+    cleanup()
+    serve({ ...ALL, [finerUrl('GC')]: { state: 'not_built' } })
+    renderPanel({ market: 'GC' }, { code: 'COT' })
+    await screen.findByTestId('terminal-cot-finer-none')
+    await expectNoAxeViolations(document.body.firstElementChild)
+    cleanup()
+    serve({ ...ALL, [finerUrl('GC')]: fail(500) })
+    renderPanel({ market: 'GC' }, { code: 'COT' })
+    await screen.findByTestId('terminal-cot-finer-failed')
+    await expectNoAxeViolations(document.body.firstElementChild)
   })
 })
 

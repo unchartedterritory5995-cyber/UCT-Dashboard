@@ -1,0 +1,66 @@
+/* SETH: how setups acted. App tokens only (the terminal wears the member's theme). The tables, notes and
+   the fold helpers come from marketPanels.module.css; this sheet adds a setup's head and words, the second
+   line of a two-line cell and the plain-words caveats. Nothing here keys on the screen: every cell wraps
+   between words at any width. Green and red only on the sign of a return. */
+
+.setup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+
+.title {
+  margin: 0;
+  color: var(--text-bright);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.words {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-normal);
+  overflow-wrap: break-word;
+}
+
+/* The second line of a two-line cell. */
+.sub {
+  display: block;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+/* A row's phase reads like the first column of the other tables. Two classes beat the table's header rule. */
+.rowHead.rowHead {
+  color: var(--text);
+  font-weight: 400;
+  font-size: inherit;
+  text-align: left;
+}
+
+/* A withheld sentence across the number cells, and a setup's name, read left to right. */
+td.textCell.textCell,
+th.textCell.textCell {
+  text-align: left;
+}
+
+/* The hindsight and survivorship sentences: said plainly, beside the numbers, never in a footnote. */
+.caveat {
+  margin: 0;
+  padding: var(--space-xs) var(--space-sm);
+  border-left: 2px solid var(--warn);
+  color: var(--text);
+  font-size: var(--text-xs);
+  line-height: var(--lh-normal);
+  overflow-wrap: break-word;
+}
+
+.dropped {
+  margin: 0;
+  padding-left: var(--space-md);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-normal);
+}

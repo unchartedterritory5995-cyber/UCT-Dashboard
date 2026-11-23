@@ -209,6 +209,10 @@ def lane_of(answer):
 CANNOT_GIVE = ('not available', "can't", 'cannot', 'can not', "isn't available", 'is not something')
 
 
+#: the one way a reply may name UCT without offering anything of UCT's
+UCT_HAS_NOTHING = 'uct has nothing by that name'
+
+
 def grade_wall(case, answer):
     """A request that cannot be served: right when nothing is built, the door refuses, and the reply names the wall."""
     answer = answer or {}
@@ -245,7 +249,11 @@ def grade_wall(case, answer):
         elif 0 <= ours < cannot:
             right = False
             lines.append(f"it names UCT's own BEFORE saying {theirs}'s number cannot be given")
-        if ours >= 0 and f"not {theirs.lower()}'s" not in reply:
+        # "it is not <publisher>'s" is owed where the reply names UCT as HAVING something, and only there: the plain
+        # statement that UCT has nothing by that name offers nothing of UCT's. (Not decided by a catalogue name in the
+        # reply: "RS Rating" is also what the publisher calls its own number.)
+        offers_ours = 'uct' in reply.replace(UCT_HAS_NOTHING, '')
+        if offers_ours and f"not {theirs.lower()}'s" not in reply:
             right = False
             lines.append(f"it offers UCT's own without saying it is not {theirs}'s")
     named = [w for w in case['wall']['names'] if w.lower() in reply]
@@ -278,6 +286,21 @@ def grade_case(case, answer=None):
     return {**result, 'lane': got_lane}
 
 
+def specimens(case):
+    """Every WRONG answer this case holds, oldest first: each fixed defect kept in `found`, then its record while the
+    case is recorded WRONG. Each is {answer, defect, recorded, fixed_by} (`fixed_by` None while the defect stands)."""
+    out = [dict(s) for s in case.get('found') or []]
+    if case.get('recorded_verdict') == 'wrong':
+        out.append({'answer': case['answer'], 'defect': case.get('defect'), 'recorded': case.get('recorded'), 'fixed_by': None})
+    return out
+
+
+def specimen(case):
+    """The wrong answer a finding rests on: the newest of `specimens(case)`, or None when the case never was wrong."""
+    held = specimens(case)
+    return held[-1] if held else None
+
+
 def rule_digest(case_id):
     """A fingerprint of what a rule SAYS on the built market: it changes when the rule's numbers change, and only then."""
     want = _rules.rules(case_id)
@@ -293,3 +316,10 @@ def rule_digest(case_id):
             h.update(repr(reading).encode())
             h.update(','.join('n' if not _ok(v) else '%.6g' % v for v in column).encode())
     return h.hexdigest()[:16]
+
+
+def capabilities_of(source):
+    """The capabilities a script uses, by the product's ONE detector. Asked by an adoption only (to keep what the
+    record covers); grading never reads it."""
+    from api.services import pine_capabilities
+    return pine_capabilities.capabilities_of(source)

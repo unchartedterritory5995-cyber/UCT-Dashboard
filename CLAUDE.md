@@ -85,6 +85,21 @@ over 4 hours) against 23 minutes for everything else. `pine heavy` alone was 50%
   catch-up merge re-runs everything: 15 of those 41 runs were triggered by one.
 - **Batch small related PRs into a train** (the `train/eNN` precedent): one check and one deploy instead of N.
 
+## ⛔⛔ `master` TAKES CHANGES THROUGH THE MERGE QUEUE (since 2026-11-22)
+
+- **Merge with `gh pr merge <n> --merge`, ONCE.** It QUEUES the pull request. If its checks are still
+  running it waits and joins the queue by itself when they pass. Never poll and re-run the command.
+- **It has landed only when `gh pr view <n> --json state --jq .state` prints `MERGED`.** Never report
+  "merged", and never build on it, before that.
+- **Removed from the queue** = a required check failed on the QUEUED commit (master, plus the pull requests
+  ahead, plus this one). Read that check, fix, queue again. The pull request stays open.
+- **Nobody holds for anybody.** The queue tests each pull request on top of the ones ahead of it and lands
+  exactly the commit it tested. The Agent program's quiet window on `master` is gone.
+- **No direct push to `master`**, and never `--admin`.
+- A pull request queued behind an Agent one lands WITH it: up to about 20 minutes later.
+- Design, rehearsal results and the one-switch rollback: `docs/merge-queue/`. A queue that looks stuck for
+  30 minutes: tell the owner.
+
 ## ⭐ Heavy tests run on GitHub, not on this PC (2026-11-16, GitHub Pro: 40 concurrent jobs)
 
 The dev PC runs ONE heavy test job at a time (`heavy_lock`, RAM limits) and every session queues behind it.

@@ -183,7 +183,8 @@ describe('device engine: ingest', () => {
 
   it('ingestAll runs the manifest one timeframe at a time, D first, resolving URLs against the manifest', async () => {
     const d = packOf(UNIVERSE, { build: 'b9' })
-    const m5 = packOf({ AAPL: synthBars(300, { step: 300, t0: 1_794_000_000 }) }, { tf: '5', build: 'b9' })
+    // (ending at the as-of session's last bucket, 15:55 ET on 2026-11-18: a seed that stops earlier loses its last row)
+    const m5 = packOf({ AAPL: synthBars(300, { step: 300, t0: Date.UTC(2026, 10, 18, 20, 55) / 1000 - 299 * 300 }) }, { tf: '5', build: 'b9' })
     const edge = fakeEdge({ 'https://x.test/seed/D.pack': d, 'https://x.test/seed/5.pack': m5 })
     let inFlight = 0, peak = 0
     const counting = vi.fn(async (...a) => { inFlight++; peak = Math.max(peak, inFlight); try { return await edge(...a) } finally { inFlight-- } })

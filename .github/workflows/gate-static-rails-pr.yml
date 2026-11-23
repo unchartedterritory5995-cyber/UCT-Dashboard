@@ -35,6 +35,12 @@ name: gate static rails (PR)
 on:
   pull_request:
     branches: [master]
+  # 2026-11-22, merge-queue prep. `master gate static checks` is the required check on master; a merge queue
+  # asks every required check for a verdict on its merge group, and a workflow without this trigger never
+  # reports one (the queued pull request then times out). INERT until a queue exists: nothing fires it.
+  # A merge group's commit is a merge too (first parent = master plus the entries ahead), so HEAD^..HEAD is
+  # still exactly the queued pull request's change and fetch-depth 2 still holds.
+  merge_group:
 
 permissions:
   contents: read
@@ -139,6 +145,15 @@ jobs:
       - name: Every test file lands in a lane, a queued domain, or EXEMPT
         if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
         run: python -m pytest tests/test_domain_test_census.py -q -p no:cacheprovider
+
+      # 2026-11-22 (#2501): these three files hold the Agent CI workflows, the merge-queue verdict and the evidence
+      # tools to their rules, and NO pull-request job ran them (agent ci's server job runs only the Agent's own
+      # server test files), so a PR that edited agent-ci-queue.yml alone was checked by nothing before it landed. Stdlib, PyYAML
+      # and git (throwaway repositories under the runner's temp folder). On the runner at
+      # 8b39c3aef6 this step took 18 s (554 tests; run 45055761744 of this job).
+      - name: The Agent CI workflows, queue verdict and evidence tools keep their rails
+        if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
+        run: python -m pytest tests/test_ci_agent_merge_ref.py tests/test_agent_ci_required.py tests/test_agent_ci_evidence.py -q -p no:cacheprovider
 
       - name: This job mirrors the gate's static steps
         if: ${{ !cancelled() && steps.deps.outcome == 'success' }}

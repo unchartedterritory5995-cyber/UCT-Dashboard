@@ -72,6 +72,8 @@ import { registerPeriodSortCapabilities } from './capabilities/periodSort'
 import { registerNewsLibraryCapabilities } from './capabilities/newsLibrary'
 // Tools → Compare Symbols: open the panel on its Rotation (RRG-style) or Overlay tab, switch between them
 import { registerComparePanelCapabilities } from './capabilities/comparePanel'
+// Charts family (2026-11-19): Recently deleted — bring back a deleted watchlist, saved layout or saved screen
+import { registerRecentlyDeletedCapabilities } from './capabilities/recentlyDeleted'
 
 let done = false
 export function registerBuiltins() {
@@ -120,6 +122,7 @@ export function registerBuiltins() {
   registerJournalCapabilities()
   registerPeriodSortCapabilities()
   registerNewsLibraryCapabilities()         // newsLibrary.*: the UCT News library's own writers (lib/tradeExchangeNewsLibrary.js)
+  registerRecentlyDeletedCapabilities()     // recentlyDeleted.*: the Recently deleted panel's own routes (/api/artifact-versions)
   registerComparePanelCapabilities()        // compare.openView: the Compare panel's Rotation / Overlay view (a view, not saved)
   registerMultiChartCapabilities()   // pl-grid: the Multi Chart grid itself (C3-042..061)
 }

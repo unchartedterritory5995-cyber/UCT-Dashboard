@@ -92,7 +92,7 @@ Response 200:
 {"note": {"id": "<note id>", "title": "<title>", "url": "<note url>"}}
 ```
 
-## Member session reads (797)
+## Member session reads (808)
 
 ### Limits
 
@@ -119,6 +119,7 @@ Response 200:
 | options-analytics | 600/minute |
 | options-flow | 1200/minute |
 | research | 600/minute |
+| research-studies | 30/minute |
 | screener | 600/minute |
 | stream | 120/minute |
 | trade-exchange-news-internal | 1200/minute |
@@ -259,9 +260,11 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/compare/groups` | paid | market-analytics | type (required) |
 | GET | `/api/confidence-scores/{symbol}` | paid | market-analytics | {symbol} |
 | GET | `/api/confluence` | member | market-analytics | days=30 |
+| GET | `/api/cot/breakdown` | paid | market-analytics |  |
 | GET | `/api/cot/status` | paid | market-analytics |  |
 | GET | `/api/cot/symbols` | paid | market-analytics |  |
 | GET | `/api/cot/{symbol}` | paid | market-analytics | {symbol}, weeks=52 |
+| GET | `/api/cot/{symbol}/breakdown` | paid | market-analytics | {symbol}, weeks=52 |
 | GET | `/api/cot/{symbol}/narratives` | paid | market-analytics | {symbol}, limit=60 |
 | GET | `/api/crypto/pairs` | member | market-data |  |
 | GET | `/api/crypto/quote/{symbol}` | member | market-data | {symbol} |
@@ -616,6 +619,7 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/oi-snapshot/history` | paid | options-flow | sym (required), cp (required), strike (required), exp (required), days=30 |
 | GET | `/api/oi-snapshot/lookup` | paid | options-flow | sym (required), cp (required), strike (required), exp (required), snap_date |
 | GET | `/api/options-screener/iv-percentile` | paid | options-analytics |  |
+| GET | `/api/options-screener/iv-rank` | paid | options-analytics |  |
 | GET | `/api/options-screener/more-strategies` | paid | options-analytics |  |
 | GET | `/api/options-screener/more/{name}` | paid | options-analytics | {name}, underlyings, limit=50 |
 | GET | `/api/options-screener/multi-leg` | paid | options-analytics | underlyings, limit=50 |
@@ -656,6 +660,7 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/patterns/{sym}` | paid | screener | {sym}, tf=D, types, min_conf=50.0, confirmed_only=True, include_structures=False |
 | GET | `/api/pine/breadth/{spelling}` | paid | screener | {spelling} |
 | GET | `/api/pine/events/{ticker}` | paid | screener | {ticker} |
+| GET | `/api/pine/financial/{ticker}` | paid | screener | {ticker} |
 | GET | `/api/pine/history-window` | member | screener |  |
 | GET | `/api/pine/libraries` | member | screener |  |
 | GET | `/api/pine/libraries/{author}/{name}/{version}` | member | screener | {author}, {name}, {version} |
@@ -680,8 +685,11 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/research/estimate-history` | paid | research | metric=eps, window=30 |
 | GET | `/api/research/estimate-history/{sym}` | paid | research | {sym} |
 | GET | `/api/research/estimates/{sym}` | paid | research | {sym}, consensus=0, revisions=0 |
+| GET | `/api/research/event-study` | paid | research-studies | kind, universe, metric, series, indicator, period, market, group, op, threshold, symbol, horizons, episodes=first, entry=event_close |
+| GET | `/api/research/event-study/series` | paid | research-studies |  |
 | GET | `/api/research/events/{sym}` | paid | research | {sym} |
 | GET | `/api/research/expected-move/{sym}` | paid | research | {sym}, report_date, grade=True |
+| GET | `/api/research/factor-exposure/{ticker}` | paid | research | {ticker} |
 | GET | `/api/research/fed-watch` | paid | research |  |
 | GET | `/api/research/filing-search` | paid | research | q (required), sym, form, section, limit=40 |
 | GET | `/api/research/filings-feed` | paid | research | form |
@@ -689,7 +697,7 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/research/financial-history/{sym}` | paid | research | {sym}, period=quarter |
 | GET | `/api/research/financials/{sym}` | paid | research | {sym} |
 | GET | `/api/research/ftd/{sym}` | paid | research | {sym} |
-| GET | `/api/research/group-stats` | paid | research | kind=sector, name |
+| GET | `/api/research/group-stats` | paid | research | kind=sector, name, part |
 | GET | `/api/research/history/{sym}` | paid | research | {sym}, days=90 |
 | GET | `/api/research/index-changes` | paid | research | index=all, sym |
 | GET | `/api/research/iv-history/{sym}` | paid | research | {sym} |
@@ -729,11 +737,14 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/research/revenue-segments/{ticker}` | paid | research | {ticker}, period=annual |
 | GET | `/api/research/seasonality-board` | paid | research |  |
 | GET | `/api/research/seasonality/{sym}` | paid | research | {sym} |
+| GET | `/api/research/setup-history` | paid | research |  |
+| GET | `/api/research/setup-history/{ticker}` | paid | research | {ticker} |
 | GET | `/api/research/short-data/{ticker}` | paid | research | {ticker} |
 | GET | `/api/research/short-interest-list` | paid | research | rank, limit |
 | GET | `/api/research/stock-stats/{ticker}` | paid | research | {ticker} |
 | GET | `/api/research/treasury-auctions` | paid | research |  |
 | GET | `/api/research/treasury-yields` | paid | research |  |
+| GET | `/api/research/volume-footprint/{ticker}` | paid | research | {ticker} |
 | GET | `/api/risk-summary` | paid | member-workspace |  |
 | GET | `/api/rs-rankings` | paid | market-analytics |  |
 | GET | `/api/rs-rankings/{ticker}` | paid | market-analytics | {ticker} |
@@ -748,6 +759,7 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/scans/highest-volume-ever/status` | paid | screener |  |
 | GET | `/api/scans/ipo-1y` | paid | screener |  |
 | GET | `/api/scans/ipo-1y/status` | paid | screener |  |
+| GET | `/api/scans/ipo-lockups` | paid | screener |  |
 | GET | `/api/scans/live-status` | paid | screener |  |
 | GET | `/api/scans/period-change` | paid | screener | start (required), end (required) |
 | GET | `/api/scans/period-change-coverage` | paid | screener | start (required), end (required) |

@@ -1,0 +1,87 @@
+/* VFP: the four sections of one stock's volume footprint and gaps. App tokens only (the terminal wears the
+   member's theme). The tables, notes and the fold helpers come from marketPanels.module.css; this sheet adds
+   the section heads, the label and value pairs, the second line of a two-line cell and the two small marks.
+   Nothing here keys on the screen: a pair wraps between words at any width. Green and red only on the sign
+   of a move. */
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+
+.title {
+  margin: 0;
+  color: var(--text-bright);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+/* Label and value pairs: the label column takes at most 45% of the panel and wraps inside it, the value
+   takes the rest; both break between words, never inside one. */
+.facts {
+  margin: 0;
+  display: grid;
+  grid-template-columns: fit-content(45%) minmax(0, 1fr);
+  gap: 2px var(--space-md);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--lh-normal);
+}
+
+.facts dt {
+  color: var(--text-muted);
+  overflow-wrap: break-word;
+}
+
+.facts dd {
+  margin: 0;
+  min-width: 0;
+  color: var(--text);
+  overflow-wrap: break-word;
+}
+
+/* The second line of a two-line cell. */
+.sub {
+  display: block;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+/* A row's label in the fills table reads like the first column of the other tables. Two classes beat the
+   table's own header rule. */
+.rowHead.rowHead {
+  color: var(--text);
+  font-weight: 400;
+  font-size: inherit;
+  text-align: left;
+}
+
+/* "10-day line" stays on one line: it never breaks at its hyphen. */
+.keep {
+  white-space: nowrap;
+}
+
+/* An earnings report beside the session: a quiet outlined word, never a colour of its own. */
+.tag {
+  display: inline-block;
+  margin-top: 2px;
+  margin-right: var(--space-xs);
+  padding: 0 var(--space-xs);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+.check {
+  display: inline-block;
+  margin-top: 2px;
+  padding: 0 var(--space-xs);
+  border: 1px solid var(--warn);
+  border-radius: var(--radius-pill);
+  color: var(--text);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}

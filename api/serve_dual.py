@@ -108,7 +108,8 @@ def build_config():
     )
 
 
-def exit_after_shutdown(code: int, *, budget: float | None = None) -> None:
+def exit_after_shutdown(code: int, *, budget: float | None = None,
+                        signalled_at: float | None = None) -> None:
     """End the process after the server's shutdown, without waiting on stragglers forever.
 
     Called only once `uvicorn.Server.run()` has RETURNED, which is after the lifespan
@@ -116,9 +117,16 @@ def exit_after_shutdown(code: int, *, budget: float | None = None) -> None:
     shared deadline (`THREAD_JOIN_SECONDS` in total, never per thread); any still alive
     after it is named in one log line. stdio is flushed, then `os._exit`: no further
     interpreter shutdown, so nothing can hold the pod past this point.
+
+    ⭐ ALWAYS ONE `[serve-dual] exit after` LINE (track 6, 2026-11-22), so a swap's hold can be
+    split from the pod's own log: the seconds from the shutdown signal (``signalled_at``, the
+    monotonic instant `main` saw SIGTERM/SIGINT) to this exit, the server's own shutdown
+    (the graceful drain and the lifespan) and the thread join. Without a signal (run by hand,
+    or a server told to stop in-process) the line says so and still names the join.
     """
     budget = THREAD_JOIN_SECONDS if budget is None else budget
-    deadline = time.monotonic() + budget
+    joined_from = time.monotonic()
+    deadline = joined_from + budget
     skip = {threading.current_thread(), threading.main_thread()}
     for t in threading.enumerate():
         if t in skip or t.daemon:
@@ -128,6 +136,15 @@ def exit_after_shutdown(code: int, *, budget: float | None = None) -> None:
     if alive:
         print(f"[serve-dual] exiting with {len(alive)} non-daemon thread(s) still running after "
               f"{budget:g}s: {', '.join(alive)}", file=sys.stderr, flush=True)
+    now = time.monotonic()
+    join = now - joined_from
+    if signalled_at is not None:
+        print(f"[serve-dual] exit after {now - signalled_at:.1f}s from the shutdown signal "
+              f"(the server's shutdown {joined_from - signalled_at:.1f}s, the thread join {join:.2f}s, "
+              f"{len(alive)} thread(s) left)", file=sys.stderr, flush=True)
+    else:
+        print(f"[serve-dual] exit after the thread join {join:.2f}s ({len(alive)} thread(s) left; "
+              f"no shutdown signal was seen)", file=sys.stderr, flush=True)
     for stream in (sys.stdout, sys.stderr):
         try:
             stream.flush()
@@ -147,11 +164,24 @@ def main() -> None:
     families = "+".join("ipv6" if s.family == socket.AF_INET6 else "ipv4" for s in socks)
     print(f"[serve-dual] listening on port {port} ({families})", file=sys.stderr, flush=True)
     server = uvicorn.Server(build_config())
+    # The first shutdown signal's instant, for the always-on exit line. uvicorn installs
+    # `self.handle_exit` as the signal handler when `run()` starts, so wrapping the bound
+    # method on the instance (before `run()`) sees every signal it handles.
+    signalled: list = []
+    handle_exit = server.handle_exit
+
+    def _timed_handle_exit(sig, frame):
+        if not signalled:
+            signalled.append(time.monotonic())
+        handle_exit(sig, frame)
+
+    server.handle_exit = _timed_handle_exit
     server.run(sockets=socks)
     # run() has returned, so the lifespan shutdown is over (snapshot saved, scheduler
     # stopped). If run() raised instead, the exception propagates as before: no hard exit
     # from a shutdown that may not have finished.
-    exit_after_shutdown(0 if server.started else STARTUP_FAILURE)
+    exit_after_shutdown(0 if server.started else STARTUP_FAILURE,
+                        signalled_at=signalled[0] if signalled else None)
 
 
 if __name__ == "__main__":

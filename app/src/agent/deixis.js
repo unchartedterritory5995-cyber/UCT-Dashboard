@@ -13,7 +13,7 @@ import { addableRows } from './capabilities/indicatorEdits'
 import { resolvedTicker, isReservedWord, PRONOUNS } from './nl/tickers'
 import { sanitizeChartTabs } from '../pages/charts/chartTabs'
 import { CLICK_ACT_NP } from './clickRef'
-import { namedAnchorRelation, wholeLinesNamed, clickLineMatch, clickLineHits, activeText, relationAnchor, blankStated, negatedClick, withoutExclusions, excludedCharts } from './spatialCheck'
+import { namedAnchorRelation, wholeLinesNamed, clickLineMatch, clickLineHits, activeText, relationAnchor, blankStated, negatedClick, withoutExclusions, excludedCharts, everyExceptSet, withoutAnchorRel } from './spatialCheck'
 
 // Words that point at "the chart in front of me". "it" counts only for a CHART-kind op ("make it
 // weekly"), never on its own ("put it in Momentum", "what is it" are not about a chart).
@@ -950,7 +950,10 @@ export function resolveDeictic({ host, kind, candidates, text, chartOp = false }
   // (G5, AUDIT probe 18) a clause that says a chart is fine names no target: "this one …, the QQQ chart next to SPY is fine"
   const ex = leftOut(text, live, selectedChart(host))
   // (#988 follow-up) a chart described only to be LEFT OUT ("hide volume except the NVDA chart") is no description of the target
-  const said0 = describedCharts(activeText(text) || text, live)
+  // (H-RDR-1) when every clause is inert because the sentence opens with a negation ("don't touch the SPY chart and switch the AMD
+  // chart to weekly"), the description is read on the words WITHOUT their exclusions, never on the excluded chart's own words
+  const kept0 = withoutExclusions(text)
+  const said0 = describedCharts(activeText(text) || (kept0 !== text && kept0.trim() ? kept0 : text), live)
   const said = said0?.length && ex.size ? (said0.some(c => !ex.has(c.ref)) ? said0.filter(c => !ex.has(c.ref)) : null) : said0
   const sel = selectedChart(host)
   if (said) {
@@ -1187,6 +1190,9 @@ export function screenUnnamedTargets({ host, ops, text, context = null, pickedRe
   const left = ex.size ? charts.filter(c => !ex.has(c.ref)) : []
   if (left.length === 1 && !offBoardTicker(words, charts)) named.add(left[0].ref)
   const kept = withoutExclusions(words)
+  // (H-RDR-1) the charts the words name OUTSIDE their exclusions are named too: "do not touch chart 1; set chart 4 to weekly" names
+  // chart 4 (the ordinal reader takes only the first ordinal in the words, and that one is the excluded chart)
+  if (kept !== words) for (const r of chartsNamedBy(kept, charts)) if (!ex.has(r)) named.add(r)
   // (#988) a position said only to EXCLUDE a chart ("log on the one I selected, not the left one") is no place the request names
   const said = chartPositions(withoutExclusions(words))
   const answered = (pickedRefs || []).some(Boolean)
@@ -1421,6 +1427,7 @@ function clauseTargets({ host, ops, text, getTargetKind, getCapability, parse })
 
 export function screenDeicticOps({ host, ops, text, getTargetKind, getCapability, parse = null }) {
   if (!pointsAtChart(text, { chartOp: true, charts: host?.charts?.list?.() || [] })) return null
+  if (planIsExceptSet({ host, ops, text, getTargetKind, getCapability })) return null
   {
     const per = clauseTargets({ host, ops, text, getTargetKind, getCapability, parse })
     if (per?.ask) return per
@@ -1501,6 +1508,37 @@ export function screenDeicticOps({ host, ops, text, getTargetKind, getCapability
     }
   }
   return aimed.size ? { aim: ops.map(o => (aimed.has(o) ? { ...o, target: aimed.get(o) } : o)) } : null
+}
+
+// (H-RDR-1) "every chart …, but leave the top-left one alone" / "all of them; skip chart 2": a whole-board quantifier less a
+// RECOGNIZED exclusion names exactly one SET (spatialCheck.everyExceptSet — null when the exclusion cannot be placed). A plan
+// whose every op is chart-backed and whose charts are exactly that set is identified by the words (what in them points at a
+// chart points only at the chart left out), so the deictic screen never asks about it. Any other plan is screened as before.
+export function planIsExceptSet({ host, ops, text, getTargetKind, getCapability }) {
+  try {
+    const live = host?.charts?.list?.() || []
+    if (live.length < 2 || !ops?.length) return false
+    // (#988 option-2 ruling, kept) an exclusion read through a RELATION ("except the one diagonally across from this one") is
+    // still put to the member as the one-set question; only plain references (a ticker, a place, an order, a line, the click) are settled here
+    // ("as it is" / "where it is" is a keep tail, never a relation from the click)
+    // (H-RDR-1 follow-up) …but an ANCHOR-RELATIVE exclusion ("except the one left of AAPL") is a plain reference here: placed
+    // exactly by everyExceptSet below, or the set is null (asked)
+    const s = withoutAnchorRel(String(text || '')).replace(/\b(?:as|where)\s+(?:it|they)\s+(?:is|are|was)\b/gi, ' ')
+    if (relationMatch(s) || refPointAny(s)) return false
+    const ev = everyExceptSet(text, live, selectedChart(host))
+    if (!ev?.refs?.length) return false
+    const planned = new Set()
+    for (const o of ops) {
+      const cap = getCapability(o?.action)
+      const kind = cap ? getTargetKind(cap.target) : null
+      if (!kind) return false
+      if (cap.query) continue
+      const c = chartRefOf(kind, (kind.list(host) || []).find(s => s.ref === o.target))
+      if (!c) return false
+      planned.add(c)
+    }
+    return planned.size === ev.refs.length && ev.refs.every(r => planned.has(r))
+  } catch { return false }
 }
 
 /** round 3: do the sentence's clauses name DIFFERENT charts ("the TSLA chart … and this one …")? An instant reader that applies

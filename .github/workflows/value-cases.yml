@@ -39,6 +39,9 @@ on:
       - 'tests/test_value_cases_walls.py'
       - 'tests/test_value_cases_intraday.py'
       - 'tests/test_value_cases_udaily.py'
+      - 'tests/test_value_cases_round17.py'
+      - 'tests/test_value_cases_fundamentals.py'
+      - 'tests/test_value_cases_found.py'
       - 'api/services/pine_capabilities.py'
       - 'tests/fixtures/authoring/value_cases.json'
       # the door, and the interpreter a formula answer is computed by
@@ -93,7 +96,7 @@ jobs:
         run: |
           # pipefail: without it `| tee` hands the step tee's exit code and a red run reads green.
           set -euxo pipefail
-          python -m pytest tests/test_value_cases.py tests/test_value_cases_scripts.py tests/test_value_record.py tests/test_value_cases_capabilities.py tests/test_script_reads_what_was_asked.py tests/test_script_higher_timeframe_last_bar.py tests/test_script_number_on_bars.py tests/test_script_format_is_a_literal.py tests/test_value_cases_walls.py tests/test_value_cases_intraday.py tests/test_value_cases_udaily.py -q -p no:cacheprovider -rs 2>&1 | tee value_cases.log
+          python -m pytest tests/test_value_cases.py tests/test_value_cases_scripts.py tests/test_value_record.py tests/test_value_cases_capabilities.py tests/test_script_reads_what_was_asked.py tests/test_script_higher_timeframe_last_bar.py tests/test_script_number_on_bars.py tests/test_script_format_is_a_literal.py tests/test_value_cases_walls.py tests/test_value_cases_intraday.py tests/test_value_cases_udaily.py tests/test_value_cases_round17.py tests/test_value_cases_fundamentals.py tests/test_value_cases_found.py -q -p no:cacheprovider -rs 2>&1 | tee value_cases.log
           # a run is a run only with a totals line, and a skip means this lane lost node or the modules
           grep -qE "^[0-9]+ passed" value_cases.log || { echo "::error::no totals line: the value cases did not run"; exit 1; }
           if grep -qE "[0-9]+ skipped" value_cases.log; then

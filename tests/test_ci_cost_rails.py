@@ -37,9 +37,9 @@ UNFILTERED_PR_OK = {
     "term018-guards.yml": "every guard in api/ is its subject; ~3 min",
     "wisdom-rails.yml": "the ban rails scan the whole tree; ~5 min",
     "secret-scan.yml": "a key can land in ANY file of a public repo; scans only the PR's own commits, ~1 min",
-    # 2026-11-12: must post its status on EVERY PR into agent/int|master (a path filter = no status = a required check
-    # that never arrives); the job is a few API calls on a two-file sparse checkout, no node, no tests, <1 min
-    "agent-ci-required.yml": "the one required Agent status must exist on every PR; a few API calls, <1 min",
+    # (2026-11-22: agent-ci-required.yml left this list. It is still unfiltered on purpose, but its trigger is now
+    # `pull_request_target` on master, because the status is posted with a GitHub App from an environment only master
+    # may use; this rail reads `pull_request` triggers. Its shape is held by tests/test_ci_agent_merge_ref.py.)
     # 2026-11-20: the master deploy gate's static checks, before the merge (three gate reds in one day on checks only
     # the gate ran). PRs into master only, no push trigger; ~3 min, mostly the 80 s shadow sweep
     "gate-static-rails-pr.yml": "the hygiene check's subject is every tracked file and the shadow sweep's every module",
@@ -89,6 +89,46 @@ def test_no_branch_push_trigger_runs_without_a_path_filter():
             continue
         bad.append(f"{name}: push.branches={sorted(branches)}")
     assert not bad, "branch push triggers with no path filter (add `paths:` or pin with a reason):\n" + "\n".join(bad)
+
+
+#: a branch the merge queue would create for pull request 1 into master
+QUEUE_BRANCH = "gh-readonly-queue/master/pr-1-0123456789abcdef0123456789abcdef01234567"
+
+
+def _branch_glob_matches(pattern: str, branch: str) -> bool:
+    """GitHub's branch filter, the two wildcards these workflows use: `*` stops at a slash, `**` does not."""
+    rx = "".join(".*" if tok == "**" else "[^/]*" if tok == "*" else re.escape(tok)
+                 for tok in re.split(r"(\*\*|\*)", pattern))
+    return re.fullmatch(rx, branch) is not None
+
+
+def _fires_on_the_queue(push: dict) -> bool:
+    """Would this push trigger run for the merge queue's temporary branch?"""
+    branches = push.get("branches")
+    if branches:
+        return any(_branch_glob_matches(b, QUEUE_BRANCH) for b in branches if not b.startswith("!"))
+    return not any(_branch_glob_matches(b, QUEUE_BRANCH) for b in push.get("branches-ignore") or [])
+
+
+def test_no_push_trigger_runs_on_the_merge_queues_temporary_branches():
+    """Rehearsed 2026-11-22 (northstar-quarry/mq-rehearsal, 5 queued pull requests): GitHub builds every queued pull
+    request on a branch `gh-readonly-queue/<base>/pr-N-<sha>`, and a `push` trigger with no branch filter ran on
+    each of them, once per queued pull request. At ~170 merges a day that is ~170 extra runs per such workflow.
+    A push trigger names its branches, or ignores the queue's."""
+    bad = [name for name, doc in _workflows()
+           if _on(doc).get("push") is not None and _fires_on_the_queue(_on(doc)["push"])]
+    assert not bad, ("push triggers that would run on the merge queue's temporary branches "
+                     "(add `branches-ignore: ['gh-readonly-queue/**']`):\n" + "\n".join(bad))
+
+
+def test_the_queue_branch_judge_can_tell_the_cases_apart():
+    """Control: a judge that answered the same for every trigger would hold nothing."""
+    assert _fires_on_the_queue({}) and _fires_on_the_queue({"paths": ["api/**"]})
+    assert _fires_on_the_queue({"branches": ["**"]}) and _fires_on_the_queue({"branches": ["gh-readonly-queue/**"]})
+    assert not _fires_on_the_queue({"branches": ["master", "main"]})
+    assert not _fires_on_the_queue({"branches": ["agent/**", "wisdom/**", "*"]})      # `*` stops at a slash
+    assert not _fires_on_the_queue({"paths": ["api/**"], "branches-ignore": ["gh-readonly-queue/**"]})
+    assert _fires_on_the_queue({"branches-ignore": ["gh-readonly-queue/*"]})          # one level only: not enough
 
 
 def test_unfiltered_pr_workflows_are_exactly_the_pinned_set():

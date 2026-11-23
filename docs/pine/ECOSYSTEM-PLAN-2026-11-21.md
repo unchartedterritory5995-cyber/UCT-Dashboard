@@ -262,6 +262,8 @@ Orders are simulated on our chart and never routed.
 
 ## 6. Owner decisions this plan needs
 
+**Answered 2026-11-22: YES to all four** (section 8). Still open: the breadth licence question (ESC-03).
+
 1. **Breadth as a chart series** (USI: spellings from our breadth data): 13 scripts, plus WRITE.
 2. **Corporate events as TradingView serves them:** 15 scripts.
 3. **Fundamentals as labelled UCT data** (SEC point in time) for WRITE and `request.financial`. They are
@@ -450,3 +452,80 @@ requests come from the catalogue, so they stay private under the owner's rule. S
 4. Monday 11-23: the Q-BSF captures.
 5. The live run's script and formula lanes.
 6. After e94: the census at e94, then U-DAILY.
+
+### 2026-11-22, day (to 17:00Z)
+
+**The owner's decisions (section 6): all four are YES.** "Everything", "full anything and everything: any
+TradingView Pine script able to be converted by anyone". The stages below are the safety path, not open
+questions. One licence question remains (breadth, below).
+
+**Track 6, the server lane: armed at `admins`, proven end to end.**
+- A new `pine-runtime` service (2 vCPU / 2 GB, internal only) is wired to web, with identity checks on
+  both sides (#2434, #2457, #2460, #2463, #2464).
+- A runtime-lane alert fired from the server with no chart open. A scan of 20 symbols and a backtest ran.
+  0 withheld; service p95: alert 81 ms, scan 64 ms, backtest 36 ms; memory peak 0.21 GB.
+- The server lanes admit by evidence-backed capability, the same as the chart (#2441). The kill list
+  applies everywhere. Forming-bar-only capabilities are refused by name on lanes that can see a forming
+  bar.
+- **Nightly sweep, fixed:**
+  - per-document isolation: one member's multi-plot script crashed every sweep (#2477);
+  - a boot catch-up for a missed sweep (#2475);
+  - fairness: members' ordinary definitions always come before runtime docs (#2482);
+  - a 10.6x web-side speed-up from reading and encoding each symbol's bars once per chunk (#2485);
+  - a named withhold counts as an answer, so receipts are filed; refusals are remembered (#2486).
+- **Load test (L-cohort at `admins`): every bar passed except the sweep time.** That is re-measured on
+  the 11-23 05:00 ET sweep.
+- **Web restarts:** a member read now waits ~25 s at a web swap, down from 45 s, via a bounded graceful
+  exit (#2473, #2478, #2484).
+- **Next:** `all` after the 72 h soak and the sweep bar. alert() delivery (AL1-AL3) rides e95. The
+  nightly server re-translate of saved scripts is designed (#2489 store, dark); its parity rail waits
+  for e94's worker door.
+
+**Track 4, data.**
+- **Corporate events:**
+  - E0 witnesses (#2439), and the E1 dark supply `/api/pine/events` (#2443);
+  - E2, the engine read of `request.earnings/dividends/splits`, as an e95 draft (#2465);
+  - against production: splits and NVDA dividends can match; earnings diverge by vendor record (named),
+    so they never grade MATCH;
+  - earnings are cut to TradingView's window (2001-09-01); ETFs read no earnings.
+- **Breadth:** B1 is built dark (#2456). Serving it waits on the licence question ESC-03: does the data
+  vendor's grant reach derived works such as breadth? That is the owner's call.
+- **Fundamentals (F1):** started.
+
+**Engine, train e95 (drafts, NUMBER PENDING):**
+- #2465 events; #2466 a named other-symbol read followed on the runtime lane (a silent `na` closed);
+  #2474 input-kind (the VWAP anchor setting);
+- #2461 / #2476 / #2487 alert() delivery; #2496 other-symbol reads on custom timeframes (4h etc. read
+  nothing before);
+- in progress: computed number formats named and folded; TradingView's built-in VWAP (4 of 6 Session
+  captures MATCH, on a carried kernel); the anchor as a live setting; text constants in `var`.
+
+**Train e94:**
+- Lane-0 census: 0 served -> refused. No translate regression on master: the apparent 2x was the
+  harness's clocks.
+- The final stops come from e94's own code. A per-call speed difference between the e93 budgets branch
+  and the train is being bisected, but it does not block e94.
+
+**WRITE (the studio):**
+- Merged: #2433 (literal formats, interim), #2435 (another publisher's number named as theirs), #2462
+  (rule 12 removed, by measurement), #2468 (the intraday unit), #2471 (the day-length guard), #2472
+  (fill-in settings draw nothing until filled), #2479 (round 17: nine capability cases, rules first).
+- The live L10 run as a member: script 18 of 19 right (j06 is the engine's forming-bar wall); wall 26 of 28
+  before the fixes; spend $2.41 of $20. The thresholds come from answers given after every fix.
+
+**Data identity.** The 13-symbol v3 correction is published and verified served (33/33 closes; 6 controls
+unchanged). SPX intraday history is deep again (691 sessions on 5/30 minutes, 1-minute from May), with
+filled slots named.
+
+**Infrastructure.**
+- heavy_lock gained a shared mode for non-timing jobs, and refuses Windows' TIMEOUT.EXE.
+- The daily disk sweep's 20-minutes-per-file walk is fixed: it also could have unlinked an unrelated
+  same-named junction.
+
+**Next.**
+1. e94: basis -> stops -> acceptance -> re-trace -> merge.
+2. e95: the units above, then the train.
+3. Track 6 at `all` after the soak.
+4. The L10 thresholds PR.
+5. Fundamentals F1.
+6. The breadth licence decision.
