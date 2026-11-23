@@ -161,7 +161,7 @@ def test_deep_daily_request_keeps_background_path(fresh_state, monkeypatch, cloc
     before it, the bar a real chart holds on that day."""
     now = _CLOCKS[clock]
     _freeze_bars_fetch_clock(monkeypatch, now)
-    day = now.date()                                   # the wall clock's own date (the old rule)
+    day = _last_session_on_or_before(now.date())
     stored = bars_sqlite.put_bars(
         "MSTR", "D",
         [{"t": day.isoformat(), "o": 10, "h": 11, "l": 9, "c": 10.5, "v": 1000}],
