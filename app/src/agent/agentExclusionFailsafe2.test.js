@@ -366,3 +366,126 @@ describe('every mutation family the targeting layer serves (registry-enumerated)
     if (!exact) expect(checkSpatialConstraints({ ...d, ops: famOps(f, ['BR']), text: t })?.ask).toBeTruthy()
   })
 })
+
+// ── (AUDIT T2 r2) RELATIVE-CLAUSE exclusion objects: "except whatever's on daily", "apart from the ones that are on daily" ──
+const REL_CUES = {
+  'except X': (x) => ` except ${x}`, 'apart from X': (x) => ` apart from ${x}`, 'other than X': (x) => ` other than ${x}`,
+  'excluding X': (x) => ` excluding ${x}`, 'but not X': (x) => ` but not ${x}`, 'barring X': (x) => ` barring ${x}`,
+  'besides X': (x) => ` besides ${x}`, 'but leave X alone': (x) => ` but leave ${x} alone`, 'skip X': (x) => `, skip ${x}`,
+}
+// [template, plural] — relative pronouns (that / which / what / whatever / who) × contractions × copulas
+const REL_TF = [
+  ["whatever's on V", true], ['whatever is on V', true], ["what's on the V", true], ['what is on V', true], ["anything that's V", true],
+  ['anything that is on V', true], ['the ones that are on V', true], ["the ones that're on V", true], ['the ones which are V', true],
+  ['those which are V', true], ["those that're V", true], ['those that sit on V', true], ['the charts that are set to V', true],
+  ['the ones who are on V', true], ["everything that's on V", true], ['the charts which are currently on V', true],
+  ["the one that's on V", false], ['the chart which is set to V', false],
+]
+const REL_TYPE = [["whatever's a V chart", true], ['the ones that are V charts', true], ['those which are V charts', true], ['anything shown as V', true], ["the one that's a V chart", false]]
+const REL_TK = [["the one that's V", false], ['the chart that is V', false], ["whatever's V", true]]
+const relPick = (hits, plural) => (hits.length && (plural || new Set(hits).size === 1) ? { exact: hits } : { unplaced: true })
+const REL_ROWS = []
+for (const b of BOARDS) {
+  const ds = []
+  for (const [w, c] of [['daily', 'D'], ['weekly', 'W'], ['monthly', 'M'], ['hourly', '60']]) {
+    const hits = b.meta.filter(m => m.tf === c).map(m => m.ref)
+    for (const [tpl, pl] of REL_TF) ds.push({ x: tpl.replace('V', w), ...relPick(hits, pl), cls: 'timeframe' })
+  }
+  for (const [w, t] of [['line', 'line'], ['bar', 'bars']]) {
+    const hits = b.meta.filter(m => m.type === t).map(m => m.ref)
+    for (const [tpl, pl] of REL_TYPE) ds.push({ x: tpl.replace('V', w), ...relPick(hits, pl), cls: 'type' })
+  }
+  const bySym = {}
+  for (const m of b.meta) (bySym[m.sym] = bySym[m.sym] || []).push(m.ref)
+  for (const [sym, refs] of Object.entries(bySym)) for (const [tpl, pl] of REL_TK) ds.push({ x: tpl.replace('V', sym), ...relPick(refs, pl || refs.length === 1), cls: 'ticker' })
+  ds.forEach((d, i) => { for (const [f, mk] of Object.entries(REL_CUES)) REL_ROWS.push({ b, d, f, t: `${['add RSI to every chart', 'set every chart to monthly', 'show volume on all of them'][(i + f.length) % 3]}${mk(d.x)}` }) })
+}
+describe('(AUDIT T2 r2) a RELATIVE-CLAUSE exclusion object is the described set — exact, or UNPLACED; never nothing', () => {
+  it(`${REL_ROWS.length} sentences: cues × relative pronouns × contractions × copulas × timeframe / type / ticker descriptions × boards`, () => {
+    expect(REL_ROWS.length).toBeGreaterThan(2000)
+    const miss = []
+    for (const { b, d, t } of REL_ROWS) {
+      const r = read(b, t)
+      if (d.unplaced) {
+        if (!r.unplaced) miss.push(`${b.name} · "${t}" → NOT UNPLACED ${JSON.stringify(r)}`)
+        if (!checkSpatialConstraints({ ...deps(b), ops: opsOn(ALL(b)), text: t })?.ask) miss.push(`${b.name} · "${t}": RAN`)
+        continue
+      }
+      const want = [...d.exact].sort()
+      if (r.unplaced || JSON.stringify(r.ex) !== JSON.stringify(want)) { miss.push(`${b.name} · "${t}" → ${JSON.stringify(r)} (want ${want})`); continue }
+      const k = checkSpatialConstraints({ ...deps(b), ops: opsOn(ALL(b)), text: t })
+      if (!k?.ask) miss.push(`${b.name} · "${t}": a plan on every chart RAN`)
+      else for (const c of k.ask.choices) if (want.includes(c.ref)) miss.push(`${b.name} · "${t}": OFFERED ${c.ref}`)
+      const g = withoutExcludedCharts(opsOn(ALL(b)), [t], deps(b))
+      for (const o of g.ops) if (want.includes(o.target)) miss.push(`${b.name} · "${t}": KEPT op on ${o.target}`)
+      const rest = ALL(b).filter(x => !want.includes(x))
+      if (rest.length && checkSpatialConstraints({ ...deps(b), ops: opsOn(rest), text: t })) miss.push(`${b.name} · "${t}": the exact plan was asked`)
+    }
+    expect(miss.slice(0, 40).join(String.fromCharCode(10)), `${miss.length} misses`).toBe('')
+  })
+  it('a relative description the readers cannot evaluate is UNPLACED ("whatever is red", "the ones that are up today")', () => {
+    for (const t of ['add RSI to every chart except whatever is red', 'add RSI to every chart except the ones that are up today', "add RSI to every chart except anything that's leveraged"]) expect(read(AUDIT, t).unplaced, t).toBe(true)
+  })
+  it('controls: a clause about a person, or a relation, keeps its own reading', () => {
+    expect(read(AUDIT, 'set all to weekly other than what I said')).toEqual({ ex: [], unplaced: false, unoffered: [] })
+    expect(read(AUDIT, 'set every chart to weekly, not the chart I meant')).toEqual({ ex: [], unplaced: false, unoffered: [] })
+  })
+  it('STRIP: each class reader (and the relative reader) switched off → UNPLACED, never a silent run', () => {
+    const miss = []
+    for (const [cls, x] of [['timeframe', "whatever's on daily"], ['timeframe', 'the ones that are on daily'], ['type', 'those which are line charts'], ['ticker', "the one that's QQQ"], ['relative', "whatever's on daily"], ['relative', "anything that's daily"], ['relative', 'those which are on weekly']]) {
+      for (const mk of Object.values(REL_CUES)) {
+        const t = `add RSI to every chart${mk(x)}`
+        const on = read(MIXED, t)
+        const off = read(MIXED, t, { xoDisable: [cls] })
+        if (on.unplaced || !on.ex.length) miss.push(`ON ${cls} "${t}" → ${JSON.stringify(on)}`)
+        if (!off.unplaced) miss.push(`OFF ${cls} "${t}" → ${JSON.stringify(off)} (a silent run)`)
+      }
+    }
+    expect(miss.join(String.fromCharCode(10))).toBe('')
+  })
+})
+
+// ── (AUDIT T2 r2) MIXED LISTS: a non-chart item never silently ends a chart-exclusion list ──
+const NONCHART_ITEMS = ['volume', 'RSI', 'the 50 day', 'MACD', 'the grid', 'the VWAP']
+const MIX_CUES = { 'except X': (x) => ` except ${x}`, 'other than X': (x) => ` other than ${x}`, 'apart from X': (x) => ` apart from ${x}`, 'excluding X': (x) => ` excluding ${x}`, 'besides X': (x) => ` besides ${x}`, 'barring X': (x) => ` barring ${x}`, 'but leave X alone': (x) => ` but leave ${x} alone` }
+const MIX_ROWS = []
+for (const b of BOARDS) {
+  const chartItems = [...descSets(b).filter(d => !d.unplaced).map(d => d.x), 'the ETFs', 'Apple']
+  chartItems.forEach((c, i) => {
+    const n = NONCHART_ITEMS[i % NONCHART_ITEMS.length]
+    for (const [f, mk] of Object.entries(MIX_CUES)) {
+      for (const x of [`${n} and ${c}`, `${c} and ${n}`, `${n}, ${c} and ${NONCHART_ITEMS[(i + 1) % NONCHART_ITEMS.length]}`, `${n} or ${c}`]) MIX_ROWS.push({ b, f, t: `${['add RSI to every chart', 'set every chart to monthly', 'show volume on all of them'][(i + f.length) % 3]}${mk(x)}` })
+    }
+  })
+}
+describe('(AUDIT T2 r2) a MIXED list (a non-chart item and a chart item) is UNPLACED — asked, no chart offered', () => {
+  it(`${MIX_ROWS.length} sentences: cues × non-chart items × chart items × orders × boards`, () => {
+    expect(MIX_ROWS.length).toBeGreaterThan(600)
+    const miss = []
+    for (const { b, t } of MIX_ROWS) {
+      const r = read(b, t)
+      if (!r.unplaced) { miss.push(`${b.name} · "${t}" → NOT UNPLACED ${JSON.stringify(r)}`); continue }
+      for (const refs of [ALL(b), [ALL(b)[0]]]) {
+        const k = checkSpatialConstraints({ ...deps(b), ops: opsOn(refs), text: t })
+        if (!k?.ask) miss.push(`${b.name} · ${refs} · "${t}": RAN`)
+        else if (k.ask.choices.length) miss.push(`${b.name} · "${t}": OFFERED ${k.ask.choices.map(c => c.ref)}`)
+      }
+    }
+    expect(miss.slice(0, 40).join(String.fromCharCode(10)), `${miss.length} misses`).toBe('')
+  })
+  it.each([
+    'remove all indicators except RSI and MACD', 'remove all indicators except volume and the 50 day', 'delete every line except the trendline and the 200',
+    'add RSI to every chart except volume', 'add RSI to every chart except on Fridays and holidays', 'set all to monthly except volume',
+  ])('control — no chart in the object: "%s" excludes nothing', (t) => {
+    expect(read(AUDIT, t)).toEqual({ ex: [], unplaced: false, unoffered: [] })
+  })
+  it('a ticker the board does not show stays master policy beside a chart item ("except TSLA and the daily ones": exact)', () => {
+    expect(read(AUDIT, 'add RSI to every chart except TSLA and the daily ones')).toEqual({ ex: ['BL', 'BR', 'TR'], unplaced: false, unoffered: [] })
+  })
+  it('STRIP / non-vacuity: class readers off → still UNPLACED; the mixed-list rule off → the old silent run comes back', () => {
+    const t = 'add RSI to every chart except volume and the daily ones'
+    for (const cls of ['timeframe', 'type', 'ticker', 'unknown', 'list']) expect(read(AUDIT, t, { xoDisable: [cls] }).unplaced, cls).toBe(true)
+    expect(read(AUDIT, 'add RSI to every chart except volume and the ETFs', { xoDisable: ['mixedList'] }).unplaced).toBe(false)
+    expect(read(AUDIT, 'add RSI to every chart except volume and the ETFs').unplaced).toBe(true)
+  })
+})

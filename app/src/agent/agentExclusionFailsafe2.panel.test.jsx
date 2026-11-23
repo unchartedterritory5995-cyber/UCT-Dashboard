@@ -55,6 +55,16 @@ const CASES = [
   [' barring SPY and QQQ', ['TL', 'TR']],
   [' instead of the weekly one', ['TL']],
   [' rather than NVDA', ['BL']],
+  // (AUDIT T2 r2) relative-clause objects: the described set, exactly
+  [" except whatever's on daily", ['TR', 'BL', 'BR']],
+  [' apart from the ones that are on daily', ['TR', 'BL', 'BR']],
+  [" except what's on the weekly", ['TL']],
+  [" except anything that's daily", ['TR', 'BL', 'BR']],
+  [' but not those which are daily', ['TR', 'BL', 'BR']],
+  // (AUDIT T2 r2) mixed lists: a non-chart item never ends the list — asked, no chart offered
+  [' except volume and the ETFs', IDS],
+  [' other than RSI and the daily ones', IDS],
+  [' except the 50 day and SPY', IDS],
 ]
 const ROWS = Object.entries(FAMILIES).flatMap(([fam, f]) => CASES.map(([x, ex]) => [fam, `${f.verb}${x}`, ex, f]))
 
@@ -82,6 +92,8 @@ describe('a model plan on exactly the other charts is honoured (the new cues are
     ['chart.setTimeframe', 'set every chart to monthly barring the daily ones', ['TL']],
     ['indicator.add', 'add RSI to every chart barring SPY', ['BL', 'BR', 'TR']],
     ['indicator.add', 'add RSI to every chart instead of the weekly one', ['BL', 'BR', 'TR']],
+    ['chart.setTimeframe', "set every chart to monthly except whatever's on daily", ['TL']],
+    ['indicator.add', "add RSI to every chart except what's on the weekly", ['BL', 'BR', 'TR']],
   ]
   it.each(EXACT)('%s · "%s" → applied on %j only', async (fam, t, rest) => {
     const f = FAMILIES[fam]
