@@ -24,7 +24,12 @@ def test_the_axis_declares_exactly_what_the_legacy_lane_enumerates():
     assert declared == legacy, (
         "the axis and the legacy lane disagree about what exists — "
         f"only-axis={declared - legacy} only-legacy={legacy - declared}")
-    assert len(declared) == 44, f"expected 30 indicators + close + ma_cross + 12 rs_line (2b-05; +rating, 2b-06 2026-11-07), got {len(declared)}"
+    # 2026-11-23: 44 -> 51. The RS split lane S2 (382a3521ee, 2026-11-10) added rs_phases.flipBlue/flipRed and
+    # rs_vs_ema.crossUp/crossDown; RS Exit Warnings (46705db957, 2026-11-11) added rs_exit.deadBreak/quickBreak/quicksand.
+    # Both are intended addresses; this pin was not moved with them (no pre-merge job ran this file).
+    assert len(declared) == 51, (
+        "expected 30 indicators + close + ma_cross + 12 rs_line (2b-05; +rating, 2b-06 2026-11-07) "
+        f"+ 4 RS split S2 (rs_phases.*, rs_vs_ema.*) + 3 rs_exit.*, got {len(declared)}")
 
 
 def test_parameter_signatures_come_from_the_compute_not_from_this_module():
