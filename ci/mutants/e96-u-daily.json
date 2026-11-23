@@ -170,7 +170,7 @@
    "file": "api/services/definition_conversation.py",
    "from": "        if ast_interpret.is_daily_read(node):",
    "to": "        if False:",
-   "rail": "python -B -m pytest tests/test_value_cases_udaily.py -q -p no:cacheprovider -k door_passes",
+   "rail": "python -B -m pytest tests/test_udaily_done_line.py -q -p no:cacheprovider -k door_passes",
    "expectRed": "test_the_door_passes_each_build"
   },
   {
@@ -188,7 +188,7 @@
    "file": "tools/value_cases/grade.py",
    "from": "            return _interpret(tree, c['bars'], inputs, c['tf'], c['symbols'], _daily_frames(c)), None",
    "to": "            return _interpret(tree, c['bars'], inputs, c['tf'], c['symbols']), None",
-   "rail": "python -B -m pytest tests/test_value_cases_udaily.py -q -p no:cacheprovider -k DONE_LINE",
+   "rail": "python -B -m pytest tests/test_udaily_done_line.py -q -p no:cacheprovider -k DONE_LINE",
    "expectRed": "test_THE_DONE_LINE"
   },
   {
