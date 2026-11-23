@@ -20,6 +20,7 @@
 
 import { addableRows, defIdOfWords, inputsOfDef, targetOf, indicatorEditsKind } from './indicatorEdits'
 import { normalizeColor } from './chart'
+import * as nativeRegistry from '../../components/chart/engine/nativeRegistry'
 
 const lc = (s) => String(s ?? '').trim().toLowerCase().replace(/[’‘]/g, '\'')
 const squash = (s) => lc(s).replace(/[\s\-_/.'()]+/g, '')
@@ -124,7 +125,25 @@ export function colorOfWords(lower) {
     return { instance: st.subject, property: UP_WORDS.test(sign[1]) ? 'upColor' : 'downColor', value: col.value, output: null }
   }
   rest = rest.replace(/^(?:histogram|hist)$/, 'histogram')
+  // ⭐ P0.2 (INV1 B F1-c): LEFTOVER WORDS ARE NEVER AN ARGUMENT VALUE. The words between the indicator and the colour become
+  // `output` only when they name one of that indicator's own colour outputs (a colour input or a plot, by label or key — what
+  // the capability will match). Anything else ("make the rsi pane bigger plus make the rsi red" → "pane bigger plus make the
+  // rsi") is not read here: the sentence goes to the model, never to a refusal built on the leftovers.
+  if (rest && !namesColorOutput(st.subject, rest)) return null
   return { instance: st.subject, property: 'color', value: col.value, output: rest || null }
+}
+/** Do `words` name a colour output of the indicator `subject` names (a "#20" length is a moving average)? */
+export function namesColorOutput(subject, words) {
+  const w = lc(words)
+  if (!w) return false
+  let def = null
+  try { def = nativeRegistry.getDefinition(String(subject).startsWith('#') ? 'movingAverage' : subject) } catch { def = null }
+  if (!def) return false
+  const names = [
+    ...(def.inputs || []).filter(i => i && i.type === 'color').flatMap(i => [i.label, i.key]),
+    ...(Array.isArray(def.plots) ? def.plots : []).flatMap(pl => [pl && pl.label, pl && pl.key]),
+  ].filter(n => typeof n === 'string' && n).map(lc)
+  return names.some(n => n === w || n.includes(w))
 }
 
 // ── line width, line style, plot style ──

@@ -824,6 +824,8 @@ export function targetTickers(text, charts = [], known = new Map(), ordinary = n
   for (const t of tickerTokens(text)) {
     const lower = t.upper.toLowerCase()
     if (t.dollar) { add(t.upper); continue }
+    // ⭐ P0.2, the other direction: a word in a verb / command role names no target ticker ("NOW the right one too" is no NOW)
+    if (wordInVerbRole(text, t.upper, isOrdinary(lower, ordinary))) continue
     if (t.caps) {
       // an ordinary word in capitals ("ALL", "NOW", "IT") is a word — unless it is a symbol on this board
       if (on.has(t.upper)) { add(t.upper); continue }
@@ -843,6 +845,177 @@ export function lowerTickerCandidates(text, charts = [], isSymbolWord = () => tr
   const on = new Set((charts || []).map(c => String(c?.symbol || '').toUpperCase()).filter(Boolean))
   return [...new Set(tickerTokens(text).filter(t => !t.caps && !t.dollar && !on.has(t.upper)).map(t => t.upper.toLowerCase())
     .filter(w => w.length >= 2 && !isOrdinary(w) && isSymbolWord(w)))]
+}
+
+// ── ⭐ P0.2 (INV1 C, assessment 2026-11-23): a ticker the PLAN carries as a VALUE, taken from an ordinary lowercase WORD ──
+// The model may read the member's own verb as a ticker ("fix that" → chart.setSymbol FIX; FIX is a listed ticker), and every check
+// above only questions a ticker the words name as a TARGET. This one questions the VALUE: a symbol the member typed only as a
+// lowercase word, in a verb / command position, and never as a ticker, is asked about — never applied. The rule (per symbol):
+//   • EXPLICIT (applies exactly as before): typed in capitals ("FIX"; a message typed ALL in capitals is not evidence), with a "$"
+//     ("$fix"), or in a ticker frame — "fix stock / shares / ticker / symbol / etf", "ticker / symbol / stock fix", "the fix chart".
+//   • VERB / COMMAND POSITION (asked): the head of a clause (after fillers like "ok", "now", "and") followed by an object or a
+//     particle ("fix that", "run it", "edit the chart", "go ahead", "try again"); right after a modal, a subject pronoun, "please",
+//     "let me" or "want to / need to / try to…" ("can you fix…", "please run it", "i want to edit that"); or a filler word itself
+//     at the head of a clause ("well, …", "now …", "next, …").
+//   • ANY OTHER POSITION is the existing rule, unchanged ("switch to fix", "pull up nvda", "nvda" alone): a word after a chart verb
+//     names what the chart shows.
+// A symbol the words never spell (a company name the model grounded, "apple" → AAPL) is not this rule's business.
+// ⛔ Not a phrase reader: it reads no request, only checks where a plan's ticker came from. Only writes are checked.
+const SYMBOL_KEYS = new Set(['symbol', 'symbols', 'ticker', 'tickers'])
+const WT_TOKEN = /\$?[A-Za-z][A-Za-z0-9'’]*/g
+const WT_CONNECT = new Set(['and', 'then', 'but', 'also', 'plus'])
+const WT_FILLER = new Set(['ok', 'okay', 'so', 'now', 'just', 'hey', 'um', 'uh', 'actually', 'alright', 'well', 'no', 'nope', 'nah', 'yeah', 'yes',
+  'yep', 'oh', 'hmm', 'next', 'first', 'and', 'then', 'also', 'but', 'plus'])
+// (a bare modal or "do" is no verb frame: "do msft instead", "can amd go weekly" — the frame is the SUBJECT after it: "can you fix")
+const WT_MODAL = new Set(['please', 'pls', 'plz',
+  'dont', 'don\'t', 'didnt', 'didn\'t', 'cant', 'can\'t', 'wont', 'won\'t', 'couldnt', 'couldn\'t', 'wouldnt', 'wouldn\'t', 'shouldnt',
+  'shouldn\'t', 'never', 'lets', 'let\'s', 'gonna', 'wanna', 'gotta', 'i', 'we', 'you', 'u', 'ya', 'they'])
+const WT_TO_HEAD = new Set(['want', 'wants', 'wanted', 'need', 'needs', 'needed', 'try', 'tried', 'trying', 'going', 'have', 'has', 'had',
+  'how', 'able', 'like', 'meant', 'time'])
+const WT_FOLLOW = new Set(['that', 'this', 'it', 'them', 'these', 'those', 'everything', 'all', 'the', 'my', 'a', 'an', 'your', 'its', 'his',
+  'her', 'our', 'their', 'again', 'ahead', 'up', 'back', 'over', 'out', 'off', 'already', 'properly', 'correctly'])
+const WT_DETERMINERS = new Set(['the', 'my', 'a', 'an', 'your', 'its', 'his', 'her', 'our', 'their'])
+const WT_NOUN_AFTER = new Set(['stock', 'stocks', 'share', 'shares', 'ticker', 'symbol', 'etf', 'equity'])
+const WT_NOUN_BEFORE = new Set(['ticker', 'symbol', 'tickers', 'symbols', 'stock'])
+const WT_DET = new Set(['the', 'a', 'my', 'that', 'this'])
+
+function wordTokens(text) {
+  const s = String(text || '').replace(/[’‘]/g, '\'')
+  const out = []
+  let clause = 0, last = 0
+  for (const m of s.matchAll(WT_TOKEN)) {
+    const raw = m[0].replace(/'+$/, '')
+    const bare = raw.replace(/^\$/, '')
+    const low = bare.toLowerCase()
+    if (/[.,;:!?\n()]/.test(s.slice(last, m.index)) || (out.length && WT_CONNECT.has(out[out.length - 1].low))) clause++
+    last = m.index + m[0].length
+    out.push({ raw, bare, low, dollar: raw.startsWith('$'), clause })
+  }
+  return out
+}
+/** The tickers the plan's WRITES carry as values: [{ ticker }] (keys symbol / symbols / ticker / tickers, at any depth). */
+function planTickerValues(ops, getCapability) {
+  const out = new Set()
+  const take = (v) => {
+    if (typeof v === 'string') { const t = v.trim().replace(/^\$/, '').toUpperCase(); if (/^[A-Z][A-Z0-9.]{0,9}$/.test(t)) out.add(t) } else if (Array.isArray(v)) v.forEach(take)
+    else if (v && typeof v === 'object') Object.values(v).forEach(take)
+  }
+  const walk = (v) => {
+    if (Array.isArray(v)) v.forEach(walk)
+    else if (v && typeof v === 'object') for (const [k, x] of Object.entries(v)) { if (SYMBOL_KEYS.has(k)) take(x); else walk(x) }
+  }
+  for (const o of ops || []) {
+    const cap = getCapability ? getCapability(o?.action) : null
+    if (getCapability && (!cap || cap.query)) continue
+    walk(o?.args)
+  }
+  return [...out]
+}
+/**
+ * How the member's words carry `ticker`: 'explicit' | 'verb' | 'other' | null (never spelled).
+ * `capsExplicit: false` — capitals are not evidence (an ORDINARY word typed in capitals for emphasis: "NOW the right one too").
+ * `lone: true` — an ordinary word standing alone as a clause before more words is an interjection ("GO, the right one").
+ * `strong: true` — the head-of-clause role needs a pronoun object or a particle ("fix that", "go ahead"), not a determiner: used
+ * where the word would otherwise RAISE a question (a named target), so "nvda the daily" keeps its question.
+ */
+export function tickerWordRole(text, ticker, { capsExplicit = true, strong = false, lone = false } = {}) {
+  const T = String(ticker || '').replace(/^\$/, '').toUpperCase()
+  if (!T) return null
+  const toks = wordTokens(text)
+  const shouting = !/[a-z]/.test(String(text || ''))
+  let verb = false, seen = false
+  for (let i = 0; i < toks.length; i++) {
+    const t = toks[i]
+    if (t.bare.toUpperCase() !== T) continue
+    seen = true
+    if (t.dollar) return 'explicit'
+    if (capsExplicit && t.bare === T && /[A-Z]/.test(t.bare) && !shouting) return 'explicit'
+    const prev = toks[i - 1] && toks[i - 1].clause === t.clause ? toks[i - 1] : null
+    const prev2 = prev && toks[i - 2] && toks[i - 2].clause === t.clause ? toks[i - 2] : null
+    const next = toks[i + 1] && toks[i + 1].clause === t.clause ? toks[i + 1] : null
+    if (next && WT_NOUN_AFTER.has(next.low)) return 'explicit'
+    if (prev && WT_NOUN_BEFORE.has(prev.low)) return 'explicit'
+    if (prev && WT_DET.has(prev.low) && next && /^charts?$/.test(next.low)) return 'explicit'
+    // the head of its clause: every word before it in the clause is a filler
+    let head = true
+    for (let j = i - 1; j >= 0 && toks[j].clause === t.clause; j--) if (!WT_FILLER.has(toks[j].low)) { head = false; break }
+    const first = !prev
+    if (head && next && WT_FOLLOW.has(next.low) && !(strong && WT_DETERMINERS.has(next.low))) verb = true
+    else if (prev && WT_MODAL.has(prev.low)) verb = true
+    else if (prev && prev.low === 'to' && prev2 && WT_TO_HEAD.has(prev2.low)) verb = true
+    else if (prev && prev.low === 'me' && prev2 && prev2.low === 'let') verb = true
+    // a filler word heading a clause that goes on ("now fix it", "NOW the right one too"); "NOW instead" is the word as an object
+    else if (first && WT_FILLER.has(t.low) && toks.filter(x => x.clause === t.clause).length >= 3) verb = true
+    // `lone`: an ORDINARY word that is a whole clause of its own, with more to come ("GO, the right one instead", "BE, …") — an
+    // interjection, never a name
+    else if (lone && first && !next && toks.length > i + 1) verb = true
+  }
+  return !seen ? null : verb ? 'verb' : 'other'
+}
+/** The plan's ticker values the member typed only as an ordinary word in a verb / command position → [{ ticker, word }]. */
+export function wordOnlyTickers({ ops, text, getCapability = null }) {
+  const out = []
+  for (const T of planTickerValues(ops, getCapability)) {
+    if (tickerWordRole(text, T) === 'verb') out.push({ ticker: T, word: T.toLowerCase() })
+  }
+  return out
+}
+export function wordTickerQuestion(hits) {
+  const list = (hits || []).filter(h => h && h.ticker)
+  if (!list.length) return 'I wasn’t sure which ticker you meant, so nothing has changed yet. Which ticker do you mean?'
+  const t = list.map(h => h.ticker).join(' / ')
+  const w = list.map(h => `“${h.word}”`).join(', ')
+  return `Did you mean the ticker ${t}? You wrote ${w} as an ordinary word, so I haven’t changed anything — apply it below only if you meant the ticker ${t}, or tell me what you’d like instead.`
+}
+
+/**
+ * ⭐ P0.2, the other direction (PL 11-23, e2eBench e2-t11): does the member's word for `ticker` sit in a verb / command role, so that
+ * it names NO chart and NO target ticker? An ORDINARY word ("now", "on", "go", "it": `ordinary`) in any case — capitals are emphasis
+ * there ("NOW the right one too"); any other word only typed in lowercase and only in a strong role ("fix it on the right one";
+ * "nvda the daily" still names NVDA). A "$" or a ticker frame always names it.
+ */
+export function wordInVerbRole(text, ticker, ordinary = false) {
+  try {
+    return ordinary ? tickerWordRole(text, ticker, { capsExplicit: false, lone: true }) === 'verb' : tickerWordRole(text, ticker, { strong: true }) === 'verb'
+  } catch { return false }
+}
+
+// ── ⭐ AUDIT 11-23 (the false-conflict half, reproduced on production code): a CORRECT correction plan was always asked ──
+// After a change on the META chart, "no, the MSFT one" planned as [META put back as it was, MSFT changed] was ALWAYS stopped with
+// "You named MSFT, but Chart (META) shows META" (v1 and v2, apply and propose): the write on META is not a target choice, it is the
+// UNDO HALF of the correction. It is recognised — and only it — when ALL hold:
+//   (1) the words are a correction (a leading "no / nope / wait / oops / sorry / actually / wrong", or "not", "instead", "meant",
+//       "rather", "wrong one / chart" anywhere);
+//   (2) the Agent's LAST turn changed that chart: its Undo entry holds the chart as it was (`items`: the entries' landed items);
+//   (3) the op puts back EXACTLY what that change changed: read through the capability's own `apply` and the kind's own `patch`,
+//       the op's change equals the change from the chart now back to the chart as it was (same fields, same values).
+// Anything else on that chart (another property, another value, a chart the last turn did not change, no correction words) is not
+// the undo half — the target rail asks, as before. Fails closed (an unreadable check is no revert).
+const CORRECTION_CUE = /^\s*(?:no|nope|nah|wait|oops|sorry|actually|wrong)\b|\b(?:not|instead|meant|rather|wrong (?:one|chart))\b/i
+const canonJson = (v) => JSON.stringify(v, (k, x) => (x && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries(Object.keys(x).sort().map(key => [key, x[key]])) : x))
+/** → (op) => true when `op` is the undo half of a correction (rules above), or null when the words are no correction / nothing to undo. */
+export function correctionReverts({ text, items, host, getCapability, getTargetKind }) {
+  if (!CORRECTION_CUE.test(String(text || '')) || !Array.isArray(items) || !items.length) return null
+  return (o) => {
+    try {
+      const cap = getCapability(o?.action)
+      const kind = cap && !cap.query ? getTargetKind(cap.target) : null
+      if (!kind || typeof cap.apply !== 'function' || typeof kind.patch !== 'function' || typeof kind.stateOf !== 'function') return false
+      const item = [...items].reverse().find(i => i && i.ref === o.target && i.before)
+      if (!item) return false
+      const cur = kind.read(host, o.target)
+      if (!cur) return false
+      const st = kind.stateOf(cur)
+      const after = cap.apply(st, o.args || {})
+      if (!after || after === st) return false
+      const was = kind.stateOf(item.before)
+      // compared by VALUE, field by field (a snapshot's settings object is a new object on every read)
+      const differs = (x, y) => [...new Set([...Object.keys(x || {}), ...Object.keys(y || {})])].filter(k => typeof x?.[k] !== 'function' && canonJson(x?.[k]) !== canonJson(y?.[k])).sort()
+      const changed = differs(st, after)
+      const back = differs(st, was)
+      return changed.length > 0 && canonJson(changed) === canonJson(back) && changed.every(k => canonJson(after[k]) === canonJson(was[k]))
+    } catch { return false }
+  }
 }
 const valuesOf = (ops) => {
   const out = new Set()
@@ -1143,7 +1316,9 @@ export function chartsNamedBySymbol(text, charts = []) {
     const objs = new Set(list.map(c => (typeof c.group === 'string' && c.group && !c.group.startsWith('N') ? `g:${c.group}` : `c:${c.ref}`)))
     if (objs.size !== 1) continue
     const re = new RegExp(`(?:^|[^A-Za-z0-9.])${escapeRe(sym)}(?![A-Za-z0-9])`, sym.length <= 2 ? '' : 'i')
-    if (re.test(s)) for (const c of list) named.add(c.ref)
+    // ⭐ P0.2, the other direction: the symbol said as a word in a verb / command role names no chart ("fix it on the right one",
+    // "NOW the right one too")
+    if (re.test(s) && !wordInVerbRole(s, sym, isOrdinary(sym.toLowerCase()))) for (const c of list) named.add(c.ref)
   }
   return named
 }

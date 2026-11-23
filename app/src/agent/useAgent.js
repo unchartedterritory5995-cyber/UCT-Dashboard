@@ -33,7 +33,7 @@ import { setOwnedDefinitionSource } from './capabilities/indicatorEdits'
 import { setAuthoringSources, setExceptSetReader, draftAmbiguity, selectDraft, isDraftAction, lastSaved, screenModelOps, PROPOSAL_TTL_MS, saveReferent, splitSaveAs, renameBeforeSave, explicitIndicatorCreate } from './capabilities/indicatorAuthoring'
 import { fastParse, matchPosition } from './fastPath'
 import { screenNewChart, screenEmptyBoardChart } from './capabilities/workspace'
-import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf, selectedChart, chartNameWord, clausesNameDifferentCharts, targetTickerConflict, lowerTickerCandidates, TARGET_CHECK_FAILED, timeframeSetOf } from './deixis'
+import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf, selectedChart, chartNameWord, clausesNameDifferentCharts, targetTickerConflict, lowerTickerCandidates, wordOnlyTickers, wordTickerQuestion, correctionReverts, TARGET_CHECK_FAILED, timeframeSetOf } from './deixis'
 import { screenWatchlistWidget } from './watchlistTarget'
 import { whichListView, LIST_VIEW_WHICH } from './whichWidget'
 import { checkSpatialConstraints, excludedCharts, spatialConstraints, UNPLACED, withoutExcludedCharts, everyExceptSet, everyExceptNothing, nothingLeftText } from './spatialCheck'
@@ -3440,10 +3440,25 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
           return
         }
       }
+      // ⭐ AUDIT 11-23 (reproduced on production code): a CORRECTION plan — "no, the MSFT one" after a change on META, planned as
+      // [META put back exactly as it was, MSFT changed] — was always asked "You named MSFT, but Chart (META) shows META". Its UNDO
+      // HALF (the chart the LAST turn changed, put back exactly as that turn's Undo entry holds it, under correction words:
+      // deixis.correctionReverts) is identified by the correction itself, so the target rails below read the plan WITHOUT it.
+      // Any other write (another property, another value, no correction words) is screened exactly as before. Fail closed.
+      let undoHalf = []
+      try {
+        const lastTurn = memoryRef.current?.lastTurn?.(epochOf(host)) || null
+        const undoItems = lastTurn?.undoIds?.length ? (undoRef.current || []).filter(e => lastTurn.undoIds.includes(e?.id)).flatMap(e => e.items || []) : []
+        // the words the member TYPED (NLM-1 may have rewritten `text` into its explicit form, without the correction words)
+        const reverts = correctionReverts({ text: String(raw || text), items: undoItems, host, getCapability, getTargetKind })
+        undoHalf = reverts ? (screened.ops || []).filter(o => reverts(o)) : []
+      } catch { undoHalf = [] }
+      if (undoHalf.length) mark('correction', `undo-half:${undoHalf.length}`)
+      const forRails = () => (undoHalf.length ? (screened.ops || []).filter(o => !undoHalf.includes(o)) : screened.ops)
       // ⭐ Multi Chart: a plan aimed anywhere but "the one I just changed" is asked about, even when it aims at the clicked chart
       const deictic = onSubject ? null : sw0.changed
         ? { ask: { text: 'Which chart do you mean?', choices: (host?.charts?.list?.() || []).map(c => ({ ref: c.ref, label: c.label })) } }
-        : screenDeicticOps({ host, ops: screened.ops, text, getTargetKind, getCapability, parse: fastParse, subject: chartSubjectOf(memoryRef.current, host) })
+        : screenDeicticOps({ host, ops: forRails(), text, getTargetKind, getCapability, parse: fastParse, subject: chartSubjectOf(memoryRef.current, host) })
       // ⛔ AUDIT probe 18 (G3) / GO bar (3): a chart the words EXCLUDE ("everything in this row except SPY"), or a relation's ANCHOR
       // that is not a target, is never offered by any question — the constraint check's own exclusions (spatialCheck)
       const dropExcluded = (ask) => {
@@ -3460,7 +3475,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         } catch { return ask }
       }
       if (deictic?.ask) deictic.ask = dropExcluded(deictic.ask)
-      if (deictic?.aim) screened.ops = deictic.aim
+      if (deictic?.aim) screened.ops = [...undoHalf, ...deictic.aim]
       if (deictic?.refuse) {
         const said = `I didn't change anything: ${deictic.refuse}`
         push({ role: 'refusal', text: said })
@@ -3496,7 +3511,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       // (indicatorAuthoring.explicitIndicatorCreate: decided from their words, never by the model) is applied; its Save
       // still stops at a ready draft when an R1 condition fails after the build (an acknowledgement, a name they already use)
       if (!nl1 && disposition === 'propose' && explicitIndicatorCreate(screened.ops)) { mark('deescalate', 'explicit-create'); disposition = 'apply' }
-      const unnamed = onSubject ? null : screenUnnamedTargets({ host, ops: screened.ops, text, context: askedFor, pickedRefs: answeredRefs, getTargetKind, getCapability, subject: chartSubjectOf(memoryRef.current, host) })
+      const unnamed = onSubject ? null : screenUnnamedTargets({ host, ops: forRails(), text, context: askedFor, pickedRefs: answeredRefs, getTargetKind, getCapability, subject: chartSubjectOf(memoryRef.current, host) })
       if (unnamed?.ask) unnamed.ask = dropExcluded(unnamed.ask)
       if (unnamed?.ask && askEveryExcept(disposition)) return
       if (unnamed?.ask) {
@@ -3522,7 +3537,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       // ⛔ #988 (AUDIT probe 17): the LAST safety net behind the resolvers — every spatial constraint the words state (a line, a
       // place, a relation from a named anchor or the click, a count), checked on the plan's own targets. A violation is asked
       // (only the cells that satisfy them are offered, never an anchor) and nothing runs. spatialCheck.js
-      const spatial = onSubject ? null : checkSpatialConstraints({ host, ops: screened.ops, text, pickedRefs: answeredRefs, getTargetKind, getCapability, subject: chartSubjectOf(memoryRef.current, host) })
+      const spatial = onSubject ? null : checkSpatialConstraints({ host, ops: forRails(), text, pickedRefs: answeredRefs, getTargetKind, getCapability, subject: chartSubjectOf(memoryRef.current, host) })
       if (spatial?.ask && askEveryExcept(disposition)) return
       if (spatial?.ask) {
         const kinds = kindsOf(screened.ops)
@@ -3549,7 +3564,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
           await nameSearchAll(lower)
           for (const w of lower) { const v = groundingOf(w); if (v && (v.kind === 'ticker' || v.kind === 'name') && v.ticker) known.set(w, v.ticker) }
         }
-        tgtTicker = targetTickerConflict({ host, ops: screened.ops, text, pickedRefs: answeredRefs, getTargetKind, getCapability, known, ordinary: lexiconFor(host).words })
+        tgtTicker = targetTickerConflict({ host, ops: forRails(), text, pickedRefs: answeredRefs, getTargetKind, getCapability, known, ordinary: lexiconFor(host).words })
       } catch {
         tgtTicker = { failed: true, ask: { text: TARGET_CHECK_FAILED } }        // ⛔ fail closed: an unread check never writes
       }
@@ -3557,6 +3572,18 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         push({ role: 'agent', text: tgtTicker.ask.text })
         record({ member: null, outcome: tgtTicker.ask.text, outcomeData: { kind: 'clarify-target-ticker', actions: screened.ops.map(o => o?.action) }, telemetry: { path: 'model', disposition: 'clarify', voice } })
         return
+      }
+      // ⭐ P0.2 (INV1 C, assessment 11-23): a ticker the plan carries as a VALUE that the member only typed as an ordinary word in a
+      // verb / command position ("fix that" → chart.setSymbol FIX) is ASKED, never applied: the plan becomes a proposal card under the
+      // question, and nothing changes unless the member applies it (deixis.wordOnlyTickers states the rule). Fail closed.
+      let wordTicker = []
+      try { wordTicker = wordOnlyTickers({ ops: screened.ops, text, getCapability }) } catch { wordTicker = [{ ticker: null }] }
+      if (wordTicker.length) {
+        const q = wordTickerQuestion(wordTicker)
+        mark('escalate', 'word-ticker')
+        push({ role: 'agent', text: q })
+        record({ member: null, outcome: q, outcomeData: { kind: 'clarify-word-ticker', actions: screened.ops.map(o => o?.action), tickers: wordTicker.map(h => h.ticker) }, telemetry: { path: 'model', disposition: 'clarify', voice } })
+        disposition = 'propose'
       }
       if (unnamed?.propose && disposition === 'apply') {
         mark('escalate', 'unnamed-charts')
@@ -3608,6 +3635,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         // a plan held for approval (above) never reverses anything by itself: the earlier change stays
         const cp = unsentWords.length ? { ok: false, reason: 'part of your request needs actions I couldn’t include' }
           : unnamed?.propose ? { ok: false, reason: 'I wasn’t sure which charts you meant' }
+          : wordTicker.length ? { ok: false, reason: 'I wasn’t sure you meant a ticker' }
           : correctionPlan({ env, memory: memoryRef.current, epoch: epochOf(host), undoStack: undoRef.current })
         const reversed = cp?.ok ? await doUndo(cp.undoId, { member: null, voice }) : false
         if (!reversed) {
