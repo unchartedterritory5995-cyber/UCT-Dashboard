@@ -120,6 +120,13 @@ def budget() -> dict:
         }
 
 
+def is_configured() -> bool:
+    """Whether FMP's credential is present, asked of the ADAPTER (TERM-022: no module outside it reads the key).
+    A caller that must say "no key" once instead of discovering it per call (the RS batch's declared splits) asks
+    this; `_get_raw` below still refuses by name when it is absent."""
+    return bool(os.environ.get("FMP_API_KEY"))
+
+
 # ── Low-level transport (spec §9.2, §9.5) ───────────────────────────────────
 
 def _get_raw(path: str, params: dict, timeout: Optional[int] = None,

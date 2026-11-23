@@ -209,6 +209,12 @@ def _reopen_the_bars_seed_pool_a_lifespan_test_stopped():
     this, every later test whose stream kicks a seed is silently refused (seen: a seed-kick test reading six
     refusals, and `api/routers/stream_bars_test.py` expecting `seeded == ["AAPL"]`).
 
+    The same for the bars-warm pool (api/services/bars_fetch.py shutdown_bars_warm_pool, called by the same
+    lifespan): it is created AT IMPORT, so "reopen" is a fresh pool from the module's own factory
+    (`_new_bars_warm_pool`) in place of the stopped one (seen: test_bars_review_followups' warm_bars_async test
+    reading nothing after test_boot_does_not_wait_on_bars_db). tests/test_bars_warm_pool_shutdown.py T7/T8 are
+    the paired rails for both halves.
+
     A pool left closed is reopened BEFORE each test and AFTER each test. Both halves are needed:
       after   reaches the tests under api/** that follow in the same process (this conftest covers tests/
               only, and every test that runs the real lifespan lives under tests/);
@@ -224,6 +230,10 @@ def _reopen_the_bars_seed_pool_a_lifespan_test_stopped():
         if mod is not None and getattr(mod, "_seed_closed", False):
             mod._seed_closed = False
             mod._seed_pool = None
+        warm = sys.modules.get("api.services.bars_fetch")
+        if warm is not None and getattr(warm, "_bars_warm_closed", False):
+            warm._bars_warm_closed = False
+            warm._bars_warm_pool = warm._new_bars_warm_pool()
 
     _reopen()
     yield
