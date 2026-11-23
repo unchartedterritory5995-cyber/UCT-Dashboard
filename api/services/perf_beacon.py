@@ -45,9 +45,14 @@ nothing measured it outside a test rig. The page now counts it
 
 INTEGERS ONLY. No ticker, no list, nothing typed: there is no field a string
 could sit in. An unknown key, a string, a fraction, a count over
-MAX_SWITCH_COUNT, an index outside its list, a cell twice or too many cells
-REFUSES the whole report. The lists here are the page's own, pinned equal by
-tests/test_perf_beacon.py.
+MAX_SWITCH_COUNT, more than MAX_SWITCH_TOTAL switches in all, an index outside
+its list, a cell twice or too many cells REFUSES the whole report. The lists
+here are the page's own, pinned equal by tests/test_perf_beacon.py.
+
+The door is anonymous, so a sender can invent counts. What bounds one sender's
+weight in a pooled share: SWITCH_RATE_LIMIT reports an hour, each of at most
+MAX_SWITCH_TOTAL switches. `reports` / `reports_all_under` count each report
+once whatever it claims, so they are the read that an inflated report cannot move.
 
 What is kept is a MERGE, never a report: per ET day, client and combination, the
 summed counts, how many reports added to them and in how many of those every
@@ -111,6 +116,7 @@ SWITCH_UNDER_MS = 40
 SWITCH_COUNTERS = ("superseded", "abandoned", "unpressed", "untracked", "unclocked", "overflow")
 MAX_SWITCH_CELLS = 64
 MAX_SWITCH_COUNT = 100_000
+MAX_SWITCH_TOTAL = 20_000      # every count of one report together: more than a page can make between two sends
 SWITCH_RATE_LIMIT = 30         # switch reports per IP hash per hour (the page sends at most one per 5 minutes)
 SWITCH_RETENTION_DAYS = 90
 _SWITCH_DIMS = (len(SWITCH_TF), 2, len(SWITCH_TRIGGER), len(SWITCH_ROUTE), 2)
@@ -276,6 +282,8 @@ def validate_switches(sw: Any) -> dict[str, Any]:
             raise ValueError("switch cell twice or empty")
         seen.add(key)
         out.append((key, counts))
+    if sum(sum(counts) for _, counts in out) > MAX_SWITCH_TOTAL:
+        raise ValueError("switches total")
     totals = [_whole(v, MAX_SWITCH_COUNT) for v in counters]
     if not out and not any(totals):
         raise ValueError("switches empty")

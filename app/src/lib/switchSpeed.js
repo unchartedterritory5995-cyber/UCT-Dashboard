@@ -50,6 +50,10 @@ export const SWITCH_COUNTERS = ['superseded', 'abandoned', 'unpressed', 'untrack
 export const MAX_SWITCH_CELLS = 64
 /** No count grows past this (the server refuses a larger one). */
 export const MAX_SWITCH_COUNT = 100000
+/** ...and no more than this many samples in all are counted between two sends (one every 1.2 s for a whole
+ *  session, without a pause): the rest are `overflow`. The server refuses a report that holds more, so one
+ *  sender cannot outweigh every member in a pooled share. */
+export const MAX_SWITCH_TOTAL = 20000
 /** A sample outside 0..this is not a switch time (a clock mismatch, a page that slept): counted `unclocked`. */
 export const MAX_SWITCH_MS = 60000
 /** Where lib/perfBeacon.js finds `{take, peek}`. perfBeacon holds the same literal; its test pins them equal. */
@@ -85,7 +89,7 @@ const C_ABANDONED = 1    // the page was hidden while it waited (no frame is dra
 const C_UNPRESSED = 2    // the symbol changed with no input event in flight (a link, a restore): not a press
 const C_UNTRACKED = 3    // a chart of the group carries no paint identity, so its draw cannot be seen
 const C_UNCLOCKED = 4    // the press or the sample had no usable time (see MAX_SWITCH_MS)
-const C_OVERFLOW = 5     // more than MAX_SWITCH_CELLS combinations between two sends
+const C_OVERFLOW = 5     // more than MAX_SWITCH_CELLS combinations, or MAX_SWITCH_TOTAL samples, between two sends
 
 const NB = SWITCH_BUCKET_EDGES_MS.length + 1
 const N_TF = SWITCH_TF.length
@@ -96,6 +100,7 @@ const _counts = new Uint32Array(N_CELLS * NB)
 const _used = new Uint8Array(N_CELLS)
 const _counters = new Uint32Array(SWITCH_COUNTERS.length)
 let _cellsUsed = 0
+let _total = 0
 
 /** group -> the switch waiting for its frame: { sym, t0, trig, route, members, drawn, all, ready } */
 const _pending = new Map()
@@ -274,6 +279,7 @@ function _count(p, now) {
     try { c = switchTfClass(ms[i].tf()) } catch { c = N_TF - 1 }
     if (c < tf) tf = c
   }
+  if (_total >= MAX_SWITCH_TOTAL) { _bump(C_OVERFLOW); return }
   const cell = (((tf * 2 + (_store ? 1 : 0)) * N_TRIG + p.trig) * N_ROUTE + p.route) * 2 + _rthNow(now)
   if (!_used[cell]) {
     if (_cellsUsed >= MAX_SWITCH_CELLS) { _bump(C_OVERFLOW); return }
@@ -281,7 +287,7 @@ function _count(p, now) {
     _cellsUsed += 1
   }
   const i = cell * NB + switchBucketOf(dt)
-  if (_counts[i] < MAX_SWITCH_COUNT) _counts[i] += 1
+  if (_counts[i] < MAX_SWITCH_COUNT) { _counts[i] += 1; _total += 1 }
 }
 
 function _snapshot(reset) {
@@ -303,7 +309,7 @@ function _snapshot(reset) {
   // a symbol that changed with no press is not worth a report of its own: it rides with the next one
   const worth = cells.length > 0 || counters.some((n, i) => n > 0 && i !== C_UNPRESSED)
   if (!worth) return null
-  if (reset) { _counts.fill(0); _used.fill(0); _counters.fill(0); _cellsUsed = 0 }
+  if (reset) { _counts.fill(0); _used.fill(0); _counters.fill(0); _cellsUsed = 0; _total = 0 }
   return { v: SWITCH_VERSION, cells, counters }
 }
 
@@ -323,7 +329,7 @@ try {
 /** Tests: forget everything counted and waiting. The page's facts (setSwitchEnv) are kept: the handoff sets them
  *  once per page load, and a rail that goes through the handoff must see what it set. */
 export function __resetSwitchSpeedForTests() {
-  _counts.fill(0); _used.fill(0); _counters.fill(0); _cellsUsed = 0
+  _counts.fill(0); _used.fill(0); _counters.fill(0); _cellsUsed = 0; _total = 0
   _pending.clear()
   _hint = -1; _rthAt = -Infinity; _rthVal = 0
   _frameAsked = false; _armed = false
