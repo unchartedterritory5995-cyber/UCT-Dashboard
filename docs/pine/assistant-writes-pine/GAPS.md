@@ -30,7 +30,11 @@ This file holds capabilities only: no member's request, no answer and no count f
 | a member cannot get | what the engine says | refused as | probe |
 |---|---|---|---|
 | A volume profile: volume stacked by price level, drawn sideways | the pasted script offers no plot and no alert condition to filter on | `pine:no-output` | `volume-profile-boxes` |
-| A table of the average return of each weekday | 1 of 4 drawing elements in this script aren't supported yet, so what it draws is incomplete. (The 4 are every drawing step this chart tried to carry: each line, label, box or table created, changed or written to, each change to a list of them, each loop, and each call to a drawing function of the script's own that could not be followed.) Where this chart can run the script bar by bar the way Tradi | `drawings:lost` | `weekday-table` |
+| A table of the average return of each weekday | 1 of 4 drawing elements in this script aren't supported yet, so what it draws is incomplete. (The 4 are every drawing step this chart tried to carry: each line, label, box or table created, changed or written to, each change to a list of them, each loop, and each call to a drawing function of the script's own that could not be followed.) A table cell whose text is written at line 13 is not drawn b | `drawings:lost` | `weekday-table` |
+| A label whose text is a function (such as `math.abs`, `math.round`, `math.max`) of a value read back from a drawing | 1 of 4 drawing elements in this script aren't supported yet, so what it draws is incomplete. (The 4 are every drawing step this chart tried to carry: each line, label, box or table created, changed or written to, each change to a list of them, each loop, and each call to a drawing function of the script's own that could not be followed.) A label whose text is written at line 9 is not drawn because | `drawings:lost` | `getter-function-in-text` |
+| A label whose text reads a local that mixes a value read back from a drawing with a price series | 1 of 4 drawing elements in this script aren't supported yet, so what it draws is incomplete. (The 4 are every drawing step this chart tried to carry: each line, label, box or table created, changed or written to, each change to a list of them, each loop, and each call to a drawing function of the script's own that could not be followed.) A label whose text is written at line 10 is not drawn becaus | `drawings:lost` | `getter-local-with-series` |
+| A value read back from a drawing printed with a named format (`format.mintick`) | 1 of 4 drawing elements in this script aren't supported yet, so what it draws is incomplete. (The 4 are every drawing step this chart tried to carry: each line, label, box or table created, changed or written to, each change to a list of them, each loop, and each call to a drawing function of the script's own that could not be followed.) A label whose text is written at line 9 is not drawn because | `drawings:lost` | `getter-named-format` |
+| A table cell whose text is a value read back from a drawing | 1 of 4 drawing elements in this script aren't supported yet, so what it draws is incomplete. (The 4 are every drawing step this chart tried to carry: each line, label, box or table created, changed or written to, each change to a list of them, each loop, and each call to a drawing function of the script's own that could not be followed.) A table cell whose text is written at line 8 is not drawn be | `drawings:lost` | `getter-in-table-cell` |
 
 ## Data a script can read
 
@@ -366,4 +370,60 @@ indicator("probe", overlay=true)
 note = input.text_area("hello", "Note")
 if barstate.islast
     label.new(bar_index, high, note)
+```
+
+### `getter-function-in-text`
+
+```pine
+//@version=5
+indicator("probe", overlay=true)
+var line l = na
+var label lb = na
+if barstate.islast
+    line.delete(l)
+    label.delete(lb)
+    l := line.new(bar_index - 5, low[5], bar_index, close)
+    lb := label.new(bar_index, close, str.tostring(math.abs(line.get_y2(l) - line.get_y1(l)), "#.00"))
+```
+
+### `getter-local-with-series`
+
+```pine
+//@version=5
+indicator("probe", overlay=true)
+var line l = na
+var label lb = na
+if barstate.islast
+    line.delete(l)
+    label.delete(lb)
+    l := line.new(bar_index - 5, low[5], bar_index, close)
+    float above = line.get_y2(l) - low
+    lb := label.new(bar_index, close, str.tostring(above, "#.00"))
+```
+
+### `getter-named-format`
+
+```pine
+//@version=5
+indicator("probe", overlay=true)
+var line l = na
+var label lb = na
+if barstate.islast
+    line.delete(l)
+    label.delete(lb)
+    l := line.new(bar_index - 5, low[5], bar_index, close)
+    lb := label.new(bar_index, close, str.tostring(line.get_y2(l), format.mintick))
+```
+
+### `getter-in-table-cell`
+
+```pine
+//@version=5
+indicator("probe", overlay=true)
+var line l = na
+var table t = table.new(position.top_right, 1, 1)
+if barstate.islast
+    line.delete(l)
+    l := line.new(bar_index - 5, low[5], bar_index, close)
+    table.cell(t, 0, 0, str.tostring(line.get_y2(l) - line.get_y1(l), "#.00"))
 ```
