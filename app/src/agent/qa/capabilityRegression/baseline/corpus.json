@@ -1423,6 +1423,627 @@
       ]
     },
     {
+      "id": "compare.list.self",
+      "source": "Compare family 11-23 (pl-compare): the general compare reader (capabilities/comparePhrases.js) over the Compare panel's own writers",
+      "capabilities": [
+        "chart.compare"
+      ],
+      "board": "ONE",
+      "needs": [
+        "chart.compare"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "chart.compare",
+            "args": {
+              "add": [
+                "MSFT",
+                "QQQ"
+              ],
+              "remove": [],
+              "clear": false
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "chart.compare",
+            "target": "$charts[0]",
+            "args": {
+              "add": [
+                "MSFT",
+                "QQQ"
+              ],
+              "remove": [],
+              "clear": false
+            }
+          }
+        ]
+      },
+      "expect": {
+        "settingSome": {
+          "key": "comparisonSymbols",
+          "match": {
+            "sym": "MSFT"
+          }
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        {
+          "text": "compare it with MSFT and QQQ",
+          "det": "required"
+        },
+        {
+          "text": "overlay MSFT and QQQ on this chart",
+          "det": "required"
+        },
+        {
+          "text": "compare NVDA with MSFT and QQQ",
+          "det": "required"
+        },
+        {
+          "text": "add MSFT and QQQ as comparisons",
+          "det": "required"
+        },
+        "put MSFT and QQQ on the chart as comparisons",
+        "compare this chart against MSFT & QQQ"
+      ]
+    },
+    {
+      "id": "compare.base.other-chart",
+      "source": "Compare family 11-23 (pl-compare): the general compare reader (capabilities/comparePhrases.js) over the Compare panel's own writers — the BASE ticker names the target chart; the symbols added never do",
+      "capabilities": [
+        "chart.compare"
+      ],
+      "board": "TWO",
+      "needs": [
+        "chart.compare"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "chart.compare",
+            "args": {
+              "add": [
+                "QQQ"
+              ],
+              "remove": [],
+              "clear": false
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "chart.compare",
+            "target": "$charts[1]",
+            "args": {
+              "add": [
+                "QQQ"
+              ],
+              "remove": [],
+              "clear": false
+            }
+          }
+        ]
+      },
+      "expect": {
+        "settingSome": {
+          "chart": 1,
+          "key": "comparisonSymbols",
+          "match": {
+            "sym": "QQQ"
+          }
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        {
+          "text": "compare AMD with QQQ",
+          "det": "required"
+        },
+        {
+          "text": "overlay QQQ on AMD",
+          "det": "required"
+        },
+        {
+          "text": "plot QQQ against AMD",
+          "det": "required"
+        }
+      ]
+    },
+    {
+      "id": "compare.remove.one",
+      "source": "Compare family 11-23 (pl-compare): the general compare reader (capabilities/comparePhrases.js) over the Compare panel's own writers",
+      "capabilities": [
+        "chart.compare"
+      ],
+      "board": "ONE",
+      "before": [
+        {
+          "say": "compare it with SPY and QQQ",
+          "expect": {
+            "settingSome": {
+              "key": "comparisonSymbols",
+              "match": {
+                "sym": "QQQ"
+              }
+            }
+          }
+        }
+      ],
+      "needs": [
+        "chart.compare"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "chart.compare",
+            "args": {
+              "add": [],
+              "remove": [
+                "QQQ"
+              ],
+              "clear": false
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "chart.compare",
+            "target": "$charts[0]",
+            "args": {
+              "add": [],
+              "remove": [
+                "QQQ"
+              ],
+              "clear": false
+            }
+          }
+        ]
+      },
+      "expect": {
+        "setting": {
+          "key": "comparisonSymbols.length",
+          "value": 1
+        },
+        "settingSome": {
+          "key": "comparisonSymbols",
+          "match": {
+            "sym": "SPY"
+          }
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        {
+          "text": "remove the QQQ comparison",
+          "det": "required"
+        },
+        {
+          "text": "take QQQ off the comparison",
+          "det": "required"
+        },
+        {
+          "text": "stop comparing with QQQ",
+          "det": "required"
+        },
+        {
+          "text": "drop the QQQ overlay",
+          "det": "required"
+        },
+        "get rid of the QQQ comparison"
+      ]
+    },
+    {
+      "id": "compare.clear.all",
+      "source": "Compare family 11-23 (pl-compare): the general compare reader (capabilities/comparePhrases.js) over the Compare panel's own writers",
+      "capabilities": [
+        "chart.compare"
+      ],
+      "board": "ONE",
+      "before": [
+        {
+          "say": "compare it with SPY and QQQ",
+          "expect": {
+            "settingSome": {
+              "key": "comparisonSymbols",
+              "match": {
+                "sym": "QQQ"
+              }
+            }
+          }
+        }
+      ],
+      "needs": [
+        "chart.compare"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "chart.compare",
+            "args": {
+              "add": [],
+              "remove": [],
+              "clear": true
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "chart.compare",
+            "target": "$charts[0]",
+            "args": {
+              "add": [],
+              "remove": [],
+              "clear": true
+            }
+          }
+        ]
+      },
+      "expect": {
+        "setting": {
+          "key": "comparisonSymbols.length",
+          "value": 0
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        {
+          "text": "clear all the comparisons",
+          "det": "required"
+        },
+        {
+          "text": "remove every comparison",
+          "det": "required"
+        },
+        {
+          "text": "stop comparing",
+          "det": "required"
+        },
+        "get rid of the comparisons"
+      ]
+    },
+    {
+      "id": "compare.display.sameScale",
+      "source": "Compare family 11-23 (pl-compare): the general compare reader (capabilities/comparePhrases.js) over the Compare panel's own writers",
+      "capabilities": [
+        "chartSetup.compareDisplay"
+      ],
+      "board": "ONE",
+      "before": [
+        {
+          "say": "compare it with SPY and QQQ",
+          "expect": {
+            "settingSome": {
+              "key": "comparisonSymbols",
+              "match": {
+                "sym": "QQQ"
+              }
+            }
+          }
+        }
+      ],
+      "needs": [
+        "chartSetup.compareDisplay"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "chartSetup.compareDisplay",
+            "args": {
+              "symbols": [
+                "QQQ"
+              ],
+              "scale": "same",
+              "visible": null,
+              "groupOnly": null
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "chartSetup.compareDisplay",
+            "target": "$charts[0]",
+            "args": {
+              "symbols": [
+                "QQQ"
+              ],
+              "scale": "same",
+              "visible": null,
+              "groupOnly": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "setting": {
+          "key": "comparisonSymbols.1.scaleMode",
+          "value": "same"
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        {
+          "text": "put QQQ on the same scale",
+          "gaps": {
+            "a": {
+              "id": "GAP-COMPARE-DISPLAY-ROUTE",
+              "router": "v1",
+              "owner": "pl-compare",
+              "reason": "the fast path reads these with no model whenever the chart HAS comparisons (the only state they mean anything in: capreg (c) and the panel tests pass); a MODEL-routed paraphrase names no chartSetup word — chartSetup carries no scale / comparison words, and this branch adds none to an existing group (routing budget). Follow-up: comparison-display words for the chartSetup group, with a budget re-check.",
+              "mode": "\"put QQQ on the same scale\" → chartSetup.compareDisplay"
+            }
+          }
+        },
+        {
+          "text": "move QQQ to the main price scale",
+          "gaps": {
+            "a": {
+              "id": "GAP-COMPARE-DISPLAY-ROUTE",
+              "router": "v1+v2",
+              "owner": "pl-compare",
+              "reason": "the fast path reads these with no model whenever the chart HAS comparisons (the only state they mean anything in: capreg (c) and the panel tests pass); a MODEL-routed paraphrase names no chartSetup word — chartSetup carries no scale / comparison words, and this branch adds none to an existing group (routing budget). Follow-up: comparison-display words for the chartSetup group, with a budget re-check.",
+              "mode": "\"move QQQ to the main price scale\" → chartSetup.compareDisplay"
+            }
+          }
+        },
+        {
+          "text": "make QQQ share the price scale",
+          "gaps": {
+            "a": {
+              "id": "GAP-COMPARE-DISPLAY-ROUTE",
+              "router": "v1",
+              "owner": "pl-compare",
+              "reason": "the fast path reads these with no model whenever the chart HAS comparisons (the only state they mean anything in: capreg (c) and the panel tests pass); a MODEL-routed paraphrase names no chartSetup word — chartSetup carries no scale / comparison words, and this branch adds none to an existing group (routing budget). Follow-up: comparison-display words for the chartSetup group, with a budget re-check.",
+              "mode": "\"make QQQ share the price scale\" → chartSetup.compareDisplay"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "compare.display.groupOnly",
+      "source": "Compare family 11-23 (pl-compare): the general compare reader (capabilities/comparePhrases.js) over the Compare panel's own writers",
+      "capabilities": [
+        "chartSetup.compareDisplay"
+      ],
+      "board": "ONE",
+      "before": [
+        {
+          "say": "compare it with SPY and QQQ",
+          "expect": {
+            "settingSome": {
+              "key": "comparisonSymbols",
+              "match": {
+                "sym": "QQQ"
+              }
+            }
+          }
+        }
+      ],
+      "needs": [
+        "chartSetup.compareDisplay"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "chartSetup.compareDisplay",
+            "args": {
+              "symbols": [],
+              "scale": null,
+              "visible": null,
+              "groupOnly": true
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "chartSetup.compareDisplay",
+            "target": "$charts[0]",
+            "args": {
+              "symbols": [],
+              "scale": null,
+              "visible": null,
+              "groupOnly": true
+            }
+          }
+        ]
+      },
+      "expect": {
+        "setting": {
+          "key": "compareHideBase",
+          "value": true
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "hide the base symbol",
+        "group only",
+        {
+          "text": "show only the comparisons",
+          "gaps": {
+            "a": {
+              "id": "GAP-COMPARE-DISPLAY-ROUTE",
+              "router": "v1",
+              "owner": "pl-compare",
+              "reason": "the fast path reads these with no model whenever the chart HAS comparisons (the only state they mean anything in: capreg (c) and the panel tests pass); a MODEL-routed paraphrase names no chartSetup word — chartSetup carries no scale / comparison words, and this branch adds none to an existing group (routing budget). Follow-up: comparison-display words for the chartSetup group, with a budget re-check.",
+              "mode": "\"show only the comparisons\" → chartSetup.compareDisplay"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "compare.group.remove",
+      "source": "Compare family 11-23 (pl-compare): the general compare reader (capabilities/comparePhrases.js) over the Compare panel's own writers — C1-037 (the add is the model's until BASELINE:compare.group.aiChips is decided)",
+      "capabilities": [
+        "chartSetup.compareGroup"
+      ],
+      "board": "ONE",
+      "before": [
+        {
+          "say": "compare this chart against the AI Chips theme",
+          "model": {
+            "ops": [
+              {
+                "action": "chartSetup.compareGroup",
+                "target": "$charts[0]",
+                "args": {
+                  "action": "add",
+                  "group": "AI Chips",
+                  "groupType": "any",
+                  "scale": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "settingSome": {
+              "key": "comparisonSymbols",
+              "match": {
+                "sym": "AMD",
+                "group": "AI Chips"
+              }
+            }
+          }
+        }
+      ],
+      "needs": [
+        "chartSetup.compareGroup"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "chartSetup.compareGroup",
+            "args": {
+              "action": "remove",
+              "group": "ai chips",
+              "groupType": "any",
+              "scale": null
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "chartSetup.compareGroup",
+            "target": "$charts[0]",
+            "args": {
+              "action": "remove",
+              "group": "AI Chips",
+              "groupType": "any",
+              "scale": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "setting": {
+          "key": "comparisonSymbols.length",
+          "value": 0
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "remove the AI Chips group",
+        "drop the ai chips theme from the comparisons"
+      ]
+    },
+    {
+      "id": "scale.percent.words",
+      "source": "Compare family 11-23 (pl-compare): the general compare reader (capabilities/comparePhrases.js) over the Compare panel's own writers — \"show it as percent\" (the A / L / % toggle)",
+      "capabilities": [
+        "chart.setScale"
+      ],
+      "board": "ONE",
+      "needs": [
+        "chart.setScale"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "chart.setScale",
+            "args": {
+              "scale": "percent"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "chart.setScale",
+            "target": "$charts[0]",
+            "args": {
+              "scale": "percent"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "setting": {
+          "key": "percentScale",
+          "value": true
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        {
+          "text": "show it as percent",
+          "det": "required"
+        },
+        {
+          "text": "switch to percentage terms",
+          "det": "required"
+        },
+        {
+          "text": "set the chart to percent",
+          "det": "required"
+        }
+      ]
+    },
+    {
       "id": "widget.news",
       "capabilities": [
         "widget.add"

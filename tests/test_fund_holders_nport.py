@@ -12,7 +12,7 @@ import os
 import shutil
 import sqlite3
 import zipfile
-from datetime import date, datetime
+from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -930,3 +930,206 @@ def test_quarters_count_back_across_the_year():
     assert M.quarter_before((2031, 1)) == (2030, 4)
     assert M.parse_label("2031Q3") == (2031, 3) and M.parse_label("junk") is None
     assert M.data_set_url((2031, 3)) == "https://www.sec.gov/files/dera/data/form-n-port-data-sets/2031q3_nport.zip"
+
+
+# ── the catch-up: a 00:50 run lost to a restart heals itself ────────────────────────────────────
+
+SLOT = datetime(2031, 11, 22, 0, 50, tzinfo=ET)            # Saturday's run (QUIET_NOW is 05:50 that morning)
+HELD_NEWEST = {"quarter": "2031Q3", "version": D.INDEX_VERSION}    # the index holds the newest data set at QUIET_NOW
+
+
+def _receipt_at(moment: datetime, state: str = "current") -> dict:
+    """A receipt of a run that ended at `moment`, written the way `_save_receipt` writes it."""
+    return {"finished_at": moment.astimezone(timezone.utc).isoformat(timespec="seconds"), "state": state}
+
+
+def _no_sec(monkeypatch) -> list:
+    calls: list = []
+    download, sec_get = _fake_sec({}, calls)
+    monkeypatch.setattr(M, "_download", download)
+    monkeypatch.setattr(M, "_sec_get", sec_get)
+    return calls
+
+
+def test_the_last_slot_is_stepped_from_next_run_across_midnight_and_the_0050_boundary():
+    assert M.last_slot(SLOT) == SLOT                                                      # at 00:50 the slot has come
+    assert M.last_slot(SLOT - timedelta(seconds=1)) == SLOT - timedelta(days=1)
+    assert M.last_slot(datetime(2031, 11, 22, 23, 59, tzinfo=ET)) == SLOT
+    assert M.last_slot(datetime(2031, 11, 22, 6, 0, tzinfo=timezone.utc)) == SLOT        # a UTC moment (01:00 ET)
+    t = datetime(2031, 10, 20, 0, 7, tzinfo=ET)               # three weeks, across the November clock change
+    while t < datetime(2031, 11, 10, tzinfo=ET):
+        s = M.last_slot(t)
+        assert s <= t < M.next_run(s) and M.next_run(t) == M.next_run(s), t
+        assert (s.hour, s.minute) == M.RUN_AT_ET, t
+        t += timedelta(minutes=37)
+
+
+def test_behind_with_no_receipt_is_a_run_that_never_ended_here():
+    assert M.behind(None, QUIET_NOW) is True
+
+
+def test_a_run_that_ended_since_the_slot_is_current_and_one_that_ended_before_it_is_behind():
+    assert M.behind(_receipt_at(SLOT + timedelta(minutes=2)), QUIET_NOW) is False
+    assert M.behind(_receipt_at(SLOT - timedelta(hours=20)), QUIET_NOW) is True          # Saturday's fire was lost
+
+
+def test_a_run_that_ended_in_any_state_has_run_for_its_slot():
+    for state in ("current", "built", "not_published", "stopped", "failed", "shape", "low_disk"):
+        assert M.behind(_receipt_at(SLOT + timedelta(minutes=5), state), QUIET_NOW) is False, state
+
+
+def test_the_0050_boundary():
+    friday = _receipt_at(SLOT - timedelta(days=1) + timedelta(minutes=3))
+    assert M.behind(friday, SLOT - timedelta(seconds=1)) is False
+    assert M.behind(friday, SLOT) is True
+    assert M.behind(_receipt_at(SLOT), SLOT + timedelta(minutes=1)) is False         # ended at the slot itself
+
+
+@pytest.mark.parametrize("finished_at", [None, "", "this morning", "2031-11-22T00:53:00"])   # the last names no zone
+def test_a_receipt_whose_time_is_not_a_moment_counts_as_none(finished_at):
+    assert M.behind({"finished_at": finished_at, "state": "current"}, QUIET_NOW) is True
+
+
+def test_every_run_that_ends_writes_a_receipt_while_the_state_file_keeps_only_runs_that_did_something(data_dir, monkeypatch):
+    import threading
+    calls = _no_sec(monkeypatch)
+    monkeypatch.setattr(M, "_held_meta", lambda path: dict(HELD_NEWEST))
+    M._run(threading.Event(), QUIET_NOW)                         # current: nothing asked, nothing written but the receipt
+    assert calls == [] and M.receipt()["state"] == "current" and M.last_run() is None
+    assert not (data_dir / M.DISK_DIR / M.STATE_NAME).exists()
+    rec = json.loads((data_dir / M.DISK_DIR / M.RECEIPT_NAME).read_text(encoding="utf-8"))
+    assert rec == M.receipt() and M.behind(rec, datetime.fromisoformat(rec["finished_at"])) is False
+    M.reset_for_tests()                                          # a restart reads it from disk
+    assert M.receipt() == rec
+    monkeypatch.setattr(M, "_held_meta", lambda path: None)
+    M._run(threading.Event(), QUIET_NOW)                         # nothing posted: both files say so
+    assert M.receipt()["state"] == "not_published" and M.last_run()["state"] == "not_published"
+
+
+def test_a_run_that_dies_before_it_ends_writes_no_receipt(data_dir, monkeypatch):
+    import threading
+    monkeypatch.setattr(M, "build", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("invented")))
+    M._run(threading.Event(), QUIET_NOW)
+    assert M.receipt() is None and not (data_dir / M.DISK_DIR / M.RECEIPT_NAME).exists()
+
+
+def _stub_run(monkeypatch) -> list:
+    started: list = []
+    monkeypatch.setattr(M, "run_scheduled", lambda now=None: started.append(now) or {"started": True})
+    return started
+
+
+def test_the_catch_up_starts_the_run_when_no_run_ended_since_the_slot_and_asks_the_sec_nothing_itself(data_dir, monkeypatch):
+    calls = _no_sec(monkeypatch)
+    started = _stub_run(monkeypatch)
+    assert M.catch_up(QUIET_NOW) == {"started": True}
+    assert started == [QUIET_NOW] and calls == []
+
+
+def test_after_a_restart_the_catch_up_reads_the_receipt_and_starts_the_run_only_once_behind(data_dir, monkeypatch):
+    M._write_json(M._receipt_path(), _receipt_at(SLOT + timedelta(minutes=4)), "run receipt")
+    M.reset_for_tests()                                                                 # a new process
+    calls = _no_sec(monkeypatch)
+    started = _stub_run(monkeypatch)
+    assert M.catch_up(QUIET_NOW) == {"started": False, "reason": "current"}
+    sunday = datetime(2031, 11, 23, 2, 0, tzinfo=ET)                                    # Sunday's fire was lost
+    assert started == [] and M.catch_up(sunday) == {"started": True} and started == [sunday] and calls == []
+
+
+def test_the_catch_up_keeps_the_scheduled_runs_guards(tmp_path, monkeypatch):
+    import threading
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    M.reset_for_tests()
+    calls = _no_sec(monkeypatch)
+    busy = datetime(2031, 11, 18, 11, 0, tzinfo=ET)                       # a Tuesday at 11:00, and behind
+    assert M.catch_up(busy) == {"started": False, "reason": "not_quiet"} and M.building() is False
+    with M._lock:
+        M._state["inflight"] = threading.Event()
+    assert M.catch_up(QUIET_NOW) == {"started": False, "reason": "running"}
+    M.reset_for_tests()
+    assert calls == []
+
+
+def test_the_catch_up_runs_the_real_job_which_decides_cheaply_and_is_current_after_it(data_dir, monkeypatch):
+    calls = _no_sec(monkeypatch)
+    monkeypatch.setattr(M, "_held_meta", lambda path: dict(HELD_NEWEST))
+    assert M.catch_up(QUIET_NOW) == {"started": True}
+    with M._lock:
+        done = M._state["inflight"]
+    if done is not None:
+        assert done.wait(10)
+    assert calls == [] and M.receipt()["state"] == "current"
+    at = datetime.fromisoformat(M.receipt()["finished_at"])
+    assert M.catch_up(at) == {"started": False, "reason": "current"}
+
+
+def test_no_member_request_reaches_the_catch_up(data_dir, monkeypatch):
+    import inspect
+    from api.routers import research
+    monkeypatch.setattr(M, "catch_up", lambda *a, **k: pytest.fail("a read path started the catch-up"))
+    monkeypatch.setattr(M, "run_scheduled", lambda *a, **k: pytest.fail("a read path started a run"))
+    assert M.answer_for("ZQAA")["state"] == "not_built"
+    assert M.overlay({"sym": "ZQAA"}, "ZQAA")["funds_nport"]["state"] == "not_built"
+    assert "catch_up" not in inspect.getsource(research)
+
+
+def _boot_level_calls(life) -> list:
+    """The names of the calls the lifespan makes itself (not inside a function it defines)."""
+    import ast
+    out: list = []
+
+    def walk(node, nested):
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+                walk(child, True)
+                continue
+            if isinstance(child, ast.Call) and not nested:
+                out.append(getattr(child.func, "attr", None) or getattr(child.func, "id", None) or "")
+            walk(child, nested)
+    walk(life, False)
+    return out
+
+
+def test_the_catch_up_is_a_date_job_after_boot_and_a_daily_retry_under_its_own_boot_mark():
+    import ast
+    from tests.test_insider_clusters_sec import _add_jobs, _kw, _lifespan, _lit
+    src, life = _lifespan()
+    jobs = _add_jobs(life)
+    boot, retry = jobs["fund_holders_nport_catchup_boot"], jobs["fund_holders_nport_catchup"]
+    assert "from api.services import fund_holders_nport as _fhn_cu" in src
+    defs = {n.name: n for n in ast.walk(life) if isinstance(n, ast.FunctionDef)}
+    for call in (boot, retry):
+        body = ast.get_source_segment(src, defs[call.args[0].id])
+        assert ".catch_up()" in body and "run_scheduled" not in body
+    assert _lit(boot, "trigger") == "date" and _lit(boot, "kwargs") == {"source": "boot"}
+    run_date = ast.unparse(_kw(boot, "run_date"))
+    assert "now(_ET)" in run_date and "seconds=_fhn_cu.CATCHUP_BOOT_DELAY_S" in run_date
+    assert _lit(boot, "max_instances") == 1 and _lit(boot, "misfire_grace_time") >= 60
+    assert ast.unparse(_kw(retry, "trigger")) == (
+        "CronTrigger(hour=_fhn_cu.CATCHUP_AT_ET[0], minute=_fhn_cu.CATCHUP_AT_ET[1], timezone=_ET)")
+    assert _lit(retry, "kwargs") == {"source": "retry"}
+    assert (_lit(retry, "coalesce"), _lit(retry, "max_instances")) == (True, 1) and _lit(retry, "misfire_grace_time") >= 60
+    at_boot = _boot_level_calls(life)
+    assert "_boot_mark" in at_boot and "add_job" in at_boot                 # control: the walk sees the boot's calls
+    assert not {"catch_up", "run_scheduled", "_fund_holders_nport_catch_up_job", "_fund_holders_nport_job"} & set(at_boot)
+    marks = sorted((c.lineno, c.args[0].value) for c in ast.walk(life)
+                   if isinstance(c, ast.Call) and getattr(c.func, "id", "") == "_boot_mark")
+    names = [n for _, n in marks]
+    assert names.count("NPORT-catch-up") == 1
+    i = names.index("NPORT-catch-up")
+    for call in (boot, retry):
+        assert marks[i][0] < call.lineno < marks[i + 1][0]
+
+
+def test_the_daily_retry_comes_after_the_runs_budget_inside_the_quiet_span_every_day():
+    for day in range(17, 24):                                                 # a whole week
+        assert M.quiet(datetime(2031, 11, day, *M.CATCHUP_AT_ET, tzinfo=ET)), day
+    run_ends = SLOT + timedelta(seconds=M.RUN_BUDGET_S)
+    assert (run_ends.hour, run_ends.minute) <= M.CATCHUP_AT_ET
+
+
+def test_the_boot_catch_ups_never_start_together():
+    from api.services import insider_clusters_sec as ics
+    from api.services.research import iv_rank_leaders as ivr
+    delays = [ics.CATCHUP_BOOT_DELAY_S, ivr.CATCHUP_BOOT_DELAY_S, M.CATCHUP_BOOT_DELAY_S]
+    assert delays == sorted(delays) and all(b - a >= 300 for a, b in zip(delays, delays[1:])), delays

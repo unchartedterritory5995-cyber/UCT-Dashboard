@@ -50,6 +50,7 @@ import { pickComparisonColor } from '../../components/chart/comparisonUtils'
 import { MAX_COMPARISONS } from '../../components/chart/chartCeilings'
 import { isPronounToken, isReservedWord, groundSymbols, groundingOf, resolvedTicker, candidatesText, suggestionText } from '../nl/tickers'
 import { plainSymbolWord } from '../nl/lexicon'
+import { compareOfWords, percentOfWords } from './comparePhrases'
 import { matchName } from '../nl/match'
 import { whenVisible } from '../frames'
 // C1-178: as app.js NAV_DELAY_MS — the receipt is on screen before Ask AI leaves Charts
@@ -150,7 +151,8 @@ function comparisonsAfter(st, { add, remove, clear }) {
   const drop = new Set((remove || []).map(x => String(x).trim().toUpperCase()))
   list = list.filter(x => !drop.has(String(x.sym).toUpperCase()))
   for (const raw of add || []) {
-    const sym = String(raw || '').trim().toUpperCase()
+    // Gate B: an exact company name the ticker search answered for ("nvidia" → NVDA) is its one ticker; any other input as typed
+    const sym = resolvedTicker(String(raw || '').trim())
     if (!sym || list.some(x => x.sym === sym)) continue
     list = [...list, { sym, enabled: true, color: pickComparisonColor(list.length, list.map(x => x.color)), scaleMode: 'new' }]
   }
@@ -809,11 +811,12 @@ const CAPABILITIES = [
     name: 'chart.setScale',
     summary: "Set one chart's price scale: linear (arithmetic), logarithmic, or percent.",
     args: { type: 'object', properties: { scale: { type: 'string', enum: ['linear', 'log', 'percent'] } }, required: ['scale'], additionalProperties: false },
-    fast: ({ core }) => {
+    fast: ({ core, lower }) => {
       if (/^(log|log scale|logarithmic|logarithmic scale)$/.test(core)) return { scale: 'log' }
       if (/^(linear|linear scale|arithmetic|arithmetic scale|arith)$/.test(core)) return { scale: 'linear' }
       if (/^(percent scale|percentage scale|% scale)$/.test(core)) return { scale: 'percent' }
-      return null
+      // Compare family: "show it as percent", "switch to percentage terms" (comparePhrases)
+      return percentOfWords({ lower })
     },
     check(st, { scale }) {
       if (!SCALE_LABEL[scale]) return `“${scale}” is not a price scale.`
@@ -1090,6 +1093,9 @@ const CAPABILITIES = [
     // Entries are exactly the panel's: {sym, enabled:true, color: pickComparisonColor, scaleMode:'new'};
     // clear also leaves "Group only", and (as the open panel does) a percent scale is switched off.
     name: 'chart.compare',
+    // Compare family (11-23): the general reader (comparePhrases.compareOfWords) — whole sentences, since a list is inside them
+    fastWhole: true,
+    fast: (p) => compareOfWords(p),
     summary: 'Overlay other symbols on ONE chart (Tools → Compare Symbols): add tickers, remove some, or clear all comparisons.',
     hints: 'add = tickers to overlay, uppercase ([] for none); remove = tickers to take off ([] for none); clear = true to remove every comparison. "Compare NVDA against QQQ on this chart" = target the NVDA chart, add [QQQ].',
     args: { type: 'object', properties: {
@@ -1097,18 +1103,28 @@ const CAPABILITIES = [
     }, required: ['add', 'remove', 'clear'], additionalProperties: false },
     // (`trusted`: tickers UCT itself showed — a screen's rows, Gate C "compare it to the others" — are
     // not looked up again, exactly as chart.setSymbol; anything the member or the model typed still is)
+    // ⭐ Gate B (Compare family, 11-23): exactly chart.setSymbol's lookup — an input that is not a ticker is tried ONCE as an
+    // exact company name ("nvidia" → NVDA); several companies → asked; none → refused, with one near ticker SUGGESTED in
+    // words ("Did you mean AMZN?"), never swapped in.
     async prepare(ops) {
       const syms = ops.filter(o => !o.trusted).flatMap(o => (o.args?.add || []).map(x => String(x || '').trim().toUpperCase())).filter(Boolean)
-      return syms.length ? { unknownSymbols: await unknownSymbols(syms) } : {}
+      if (!syms.length) return {}
+      const unknown = await unknownSymbols(syms)
+      if (!unknown.size) return { unknownSymbols: unknown }
+      const g = await groundSymbols([...unknown])
+      return { unknownSymbols: g.unknown, ambiguousSymbols: g.ambiguous, namedSymbols: g.named }
     },
     check(st, { add, remove, clear }, env) {
-      const list = (add || []).map(x => String(x || '').trim().toUpperCase())
-      if (!clear && !list.length && !(remove || []).length) return 'Which symbols should I compare?'
-      const odd = list.find(x => !/^[A-Z0-9.$:^_\-/]{1,24}$/.test(x))
+      const typed = (add || []).map(x => String(x || '').trim().toUpperCase())
+      if (!clear && !typed.length && !(remove || []).length) return 'Which symbols should I compare?'
+      const vague = typed.find(x => env?.ambiguousSymbols?.has(x))
+      if (vague) return `“${vague}” could be ${candidatesText(vague)} — which one? Say the ticker.`
+      const odd = typed.find(x => !env?.namedSymbols?.has(x) && !/^[A-Z0-9.$:^_\-/]{1,24}$/.test(x))
       if (odd) return `“${odd}” doesn't look like a ticker.`
+      const list = typed.map(x => resolvedTicker(x))
       if (list.includes(String(st.symbol || '').toUpperCase())) return `The chart already shows ${st.symbol} — compare it against a different symbol.`
-      const bad = list.find(x => env?.unknownSymbols?.has(x))
-      if (bad) return `UCT has no symbol “${bad}”.`
+      const bad = typed.find(x => env?.unknownSymbols?.has(x))
+      if (bad) return `UCT has no symbol “${bad}”.${suggestionText(bad)}`
       // ⛔ F5: the product's published ceiling (chartCeilings.MAX_COMPARISONS), counted on the RESULT —
       // after removals and duplicates. Never blocks a change that leaves fewer than the chart has now.
       const cur = Array.isArray(st.cs?.comparisonSymbols) ? st.cs.comparisonSymbols.length : 0

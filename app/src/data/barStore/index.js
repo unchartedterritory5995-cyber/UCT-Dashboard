@@ -44,9 +44,13 @@ export function createBarStore(o = {}) {
   const setTimer = o.timers?.setTimer ?? ((fn, ms) => setTimeout(fn, ms))
   const clearTimer = o.timers?.clearTimer ?? ((h) => clearTimeout(h))
   const registry = o.registry ?? createRegistry({ ctx: () => ({ nowMs: now() }), ...(o.frame ? { frame: o.frame } : {}) })
+  /** key → { n, stops: Function[] } for keys with at least one subscriber (declared first: persist's `onScreen` reads it) */
+  const active = new Map()
   // the history lake (per-browser switch until its edge route is live; historyFeed.js)
   const history = o.history !== undefined ? o.history : (historyLakeEnabled() ? createHistoryFeed() : null)
+  // `beforeAnswer` names `persist`, created below: it is called only when an answer lands, long after both exist.
   const network = o.network ?? createNetwork({
+    beforeAnswer: (key, answer) => persist?.flushJoins?.(key, answer),
     history,
     registry, request: o.request, setTimer, clearTimer, now,
     ...(o.isHidden ? { isHidden: o.isHidden } : {}), ...(o.onVisible ? { onVisible: o.onVisible } : {}),
@@ -55,6 +59,9 @@ export function createBarStore(o = {}) {
   const persist = o.persist ?? createPersist({ registry, io: o.io, setTimer, clearTimer, now, ...(o.idle ? { idle: o.idle } : {}),
     // a kill seen on this page re-asks the keys holding device rows now (network.kick: only a key a chart is on)
     onDeviceKill: (keys) => { for (const k of keys) network.kick(k) },
+    // a device copy joining the lake's rows of a key a chart shows, its answer on the way, waits for idle (persist _joinWaits)
+    onScreen: (key) => active.has(key),
+    answerPending: (key) => (network.inflight?.(key) ?? 0) > 0,
     ...(o.device !== undefined ? { device: o.device } : {}) })
   const live = o.liveFeed ?? createLiveFeed({
     registry, now, onReconnect: (key) => network.kick(key), onReanchor: (key) => network.kick(key),
@@ -63,8 +70,6 @@ export function createBarStore(o = {}) {
     ...(o.pushEnabled ? { pushEnabled: o.pushEnabled } : {}),
   })
 
-  /** key → { n, stops: Function[] } for keys with at least one subscriber */
-  const active = new Map()
   let statusTimer = null
 
   function _statusLoop() {

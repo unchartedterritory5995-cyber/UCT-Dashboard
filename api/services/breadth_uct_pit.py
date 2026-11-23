@@ -16,6 +16,10 @@ all sessions). Interim fix #2535 stopped shading those rows; this module serves 
   • the columns: PRODUCTION's breadth engine (`breadth_live.build_levels` + `compute_metrics`,
     via `breadth_history_recon.recompute_from_frame`) on split- and dividend-adjusted bars (the
     V2 dividend basis), new highs/lows on the intraday basis (`breadth_nhnl_intraday`'s rule);
+  • market-wide columns (tools/breadth/uct_pit/market_wide.py): the index closes / MA dots / dist
+    days from the provider's bars, VIX / VIX6M / VXN / SPX from Cboe's own CSVs; VXN before
+    2009-09-14 (Cboe's file starts there) from Yahoo ^VXN, which matches Cboe on 99.7% of the
+    sessions both carry (patched into the series 2026-11-23);
   • graded on 2026 against the REAL lists (pit_uct_ledger): the engine reproduces production's
     served columns (most within 0.1 pt); the rebuilt list's readings land within a median of
     0.25-0.4 pt of the real list's.
