@@ -90,7 +90,7 @@
 //     chart's thread, as `astColumnsFor` would have thrown it there.
 import {
   astLanePlan, astLaneFinish, astRuntimeErrorStop, astSideRecordsOf, withAstSideRecords, astPlotKey,
-  columnErrors, withColumnErrors, otherSymbolsFor, astColumnsGiven,
+  columnErrors, withColumnErrors, otherSymbolsFor, astColumnsGiven, withWithheldBars,
 } from './astColumns.js'
 import { lowerTfCodesOf } from './lowerTf.js'
 import { hostLaneCostOf } from './hostLaneCost.js'
@@ -161,7 +161,7 @@ const _last = new Map()      // `${pane}\u0001${sig}` -> the pane's latest pictu
 let _realigned = new WeakMap() // picture columns -> {rows, answer}
 let _costs = new WeakMap()   // specialised document -> hostLaneCostOf
 const _stats = { posted: 0, landed: 0, superseded: 0, cancelled: 0, retired: 0, dropped: 0, toMain: 0, refused: 0,
-  starts: 0, lost: 0, workerMs: 0, mainComputed: 0, memoHits: 0, lastFallback: null }
+  starts: 0, lost: 0, workerMs: 0, mainComputed: 0, memoHits: 0, lastFallback: null, firstPages: 0, firstPageFailed: 0 }
 
 const clock = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now())
 
@@ -445,6 +445,70 @@ function answerOnMain(plan, per, key, stop, pane, sig, docId, inputs, ctx, extra
   return cols
 }
 
+// ─── ⭐⭐ THE FIRST PAGE (coordinator-approved first-draw unit, 2026-11-23) ─────────────────────────────────────────
+//
+// ⚰️ Production 2026-11-23 (RDDT with Fred RS, a cold 1D -> intraday switch): every byte the pane needs had landed by
+// 160-430 ms, and the pane stayed BLANK until 0.6-1.3 s: the worker computing Fred's values over 20,000-32,000 chart
+// rows (`hostLaneRoute`: about 12 ms per 1,000 rows), with no picture of this pane to show meanwhile.
+// So, while the full job runs in the worker, the NEWEST `FIRST_PAGE_ROWS` bars are computed here, TWICE, from two starts
+// `FIRST_PAGE_PROBE` bars apart. ⛔ A plot is drawn on the first page ONLY where both starts agree BIT FOR BIT on every
+// page bar: its values there do not depend on where history began (Fred's RS line, `close / SPX(t)`, reads no
+// history at all). Any other plot (a moving average, a `var` state, `bar_index`) is WITHHELD whole on the first page,
+// by name (`FIRST_PAGE_CODE` in the plot's per-bar withholdings), and drawn when the full answer lands. The drawings
+// (the run half) are not computed from a page: they wait for the full answer. The page is stored as the pane's picture,
+// so `pendingAnswer` draws it, and the full job's landing replaces it through the path a poll uses.
+export const FIRST_PAGE_ROWS = 1500
+export const FIRST_PAGE_PROBE = 251
+export const FIRST_PAGE_CODE = 'chart:first-page'
+let _firstPageOn = true
+/** Test seam / kill switch: turn the first page off (the pane is blank until the full answer, as before). */
+export function setFirstPageEnabled(on) { _firstPageOn = on !== false }
+
+/** Do two columns hold the same value on the last `n` bars, bit for bit (`NaN` equal to `NaN`)? */
+function sameTail(a, b, n) {
+  if (!a || !b || a.length < n || b.length < n) return false
+  for (let i = 1; i <= n; i += 1) if (!Object.is(a[a.length - i], b[b.length - i])) return false
+  return true
+}
+
+/**
+ * The pane's first page over `plan` (see above), or null when there is none to make: a calc_bars_count window or a
+ * framed instance (its values are not the chart's rows), a chart too short to need one, or a compute that threw (the
+ * pane then waits for the full answer, as before). Pure apart from `astColumnsGiven`.
+ */
+export function firstPageColumns(plan, stop) {
+  if (!_firstPageOn || plan.win || plan.valueRows !== plan.rows) return null
+  const rows = plan.rows
+  const n = rows.length
+  if (n < 2 * FIRST_PAGE_ROWS + FIRST_PAGE_PROBE) return null
+  const cut = n - FIRST_PAGE_ROWS
+  let page, probe
+  try {
+    page = astColumnsGiven(plan.def, rows.slice(cut), plan.scalars, plan.valueCtx, stop)
+    probe = astColumnsGiven(plan.def, rows.slice(cut - FIRST_PAGE_PROBE), plan.scalars, plan.valueCtx, stop)
+  } catch {
+    _stats.firstPageFailed += 1
+    return null
+  }
+  const out = {}
+  const withheld = {}
+  const all = new Float64Array(n).fill(1)
+  const before = new Float64Array(n)
+  for (let i = 0; i < cut; i += 1) before[i] = 1
+  for (const key of Object.keys(page)) {
+    const col = page[key]
+    if (!col || typeof col.length !== 'number' || col.length !== FIRST_PAGE_ROWS) continue
+    const full = new Float64Array(n).fill(NaN)
+    const exact = sameTail(col, probe[key], FIRST_PAGE_ROWS)
+    if (exact) for (let i = 0; i < FIRST_PAGE_ROWS; i += 1) full[cut + i] = col[i]
+    out[key] = full
+    withheld[key] = new Map([[FIRST_PAGE_CODE, exact ? before : all]])
+  }
+  if (!Object.keys(out).length) return null
+  _stats.firstPages += 1
+  return withWithheldBars(out, withheld)
+}
+
 /**
  * ⭐⭐ A CHART PANE'S HOST ANSWER (see the header): the values memoised for these bars, computed on the main
  * thread when this tab has measured them cheap here (`hostLaneRoute.computesOnMain`), in the worker otherwise
@@ -495,6 +559,12 @@ export function hostLaneColumns(def, bars, inputs, ctx, extras) {
   // is computed NOW on this thread, today's path, never left pending
   const now = per.get(key)
   if (now && now.state === 'main') return answerOnMain(plan, per, key, stop, pane, sig, docId, inputs, ctx, extras)
+  // ⭐⭐ THE FIRST PAGE: no picture of this pane yet (a cold timeframe or symbol), so the newest bars are drawn now
+  // (`firstPageColumns`), exact plots only; the worker's full answer replaces them when it lands
+  if (!pictureOf(pane, sig)) {
+    const first = firstPageColumns(plan, stop)
+    if (first) rememberPicture(pane, sig, { rows: plan.rows, cols: first })
+  }
   return pendingAnswer(pane, sig, plan.rows)
 }
 
