@@ -154,6 +154,11 @@ def coverage_lines(held):
             for cid, caps in sorted((held or {}).items())]
 
 
+def kept_lines(by_name):
+    """What the command says of each right answer it did not adopt because the case says its record stands."""
+    return [f"NOT ADOPTED {cid}: right again, and its record stands by the case's own word: {why}" for cid, why in sorted((by_name or {}).items())]
+
+
 def adopt(data, report, stamps, fixed_by=None, notes=None, capabilities_of=None):
     """Make a run's RIGHT answers the record. A wrong or missing one is never adopted: the old record stands.
 
@@ -163,6 +168,10 @@ def adopt(data, report, stamps, fixed_by=None, notes=None, capabilities_of=None)
     ({case id: {"pr": "#2435", "merge": "<commit>"}}); without that its old record stands and it is returned in
     `kept`.
 
+    A RECORD A TEST RESTS ON STANDS. A case may say `keep_record: <why>` (a test changes the recorded answer's own
+    lines to prove its rule can fail). A right answer over such a RIGHT record is not adopted
+    (`notes["kept_by_name"]` says {case id: why}). A fixed defect on such a case is adopted like any other.
+
     A RE-RECORDING NEVER COSTS A CAPABILITY ITS ONLY CASE. Where adopting a right answer over a record that was
     also right would leave a capability no recorded script uses, that case keeps its old record (it is returned in
     `kept`, and `notes["held_for_coverage"]` says {case id: [capabilities]}). A fixed defect is always adopted. The
@@ -171,9 +180,14 @@ def adopt(data, report, stamps, fixed_by=None, notes=None, capabilities_of=None)
     adopted, kept = [], []
     fixed_by = fixed_by or {}
     capabilities_of = capabilities_of or G.capabilities_of
+    by_name = {}
     before = {case["id"]: copy.deepcopy(case) for case in data["cases"]}
     for case in data["cases"]:
         if report["verdicts"].get(case["id"]) == "right" and case["id"] in report["answers"]:
+            if case.get("keep_record") and case.get("recorded_verdict") != "wrong":
+                kept.append(case["id"])                            # a test rests on this record's own lines: it stands
+                by_name[case["id"]] = case["keep_record"]
+                continue
             if case.get("recorded_verdict") == "wrong":
                 fix = fixed_by.get(case["id"])
                 if not (isinstance(fix, dict) and fix.get("pr") and fix.get("merge")):
@@ -205,6 +219,7 @@ def adopt(data, report, stamps, fixed_by=None, notes=None, capabilities_of=None)
     kept += sorted(held)
     if isinstance(notes, dict):
         notes["held_for_coverage"] = held
+        notes["kept_by_name"] = by_name
     listed = data.get("capabilities_without_a_case")
     if isinstance(listed, list):
         now = held_by(data["cases"], capabilities_of)
@@ -323,6 +338,8 @@ def main(argv):
         if unnamed:
             print(f"NOT ADOPTED, recorded WRONG and right in this run, with nothing in --fixed-by naming what fixed them: {unnamed}")
         for line in coverage_lines(notes.get("held_for_coverage")):
+            print(line)
+        for line in kept_lines(notes.get("kept_by_name")):
             print(line)
     if "--full" in argv:
         if not report["full_lanes"]:

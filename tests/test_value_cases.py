@@ -67,7 +67,7 @@ def test_the_fixture_is_whole():
         # a case may be recorded WRONG: a known defect of the door, named, never silently passed
         assert case.get("recorded_verdict", "wrong" if "defect" in case else None) in (None, "wrong"), case["id"]
         assert ("defect" in case) == (case.get("recorded_verdict") == "wrong") and len(case.get("defect") or "x" * 99) > 80, case["id"]
-    assert [c["id"] for c in CASES if c.get("recorded_verdict") == "wrong"] == ["intraday-01", "date-start-01", "wall-18", "j06", "wall-26", "intraday-02", "wall-31", "wall-32"]     # every one is named here, on purpose
+    assert [c["id"] for c in CASES if c.get("recorded_verdict") == "wrong"] == ["intraday-01", "date-start-01", "wall-18", "j06"]     # every one is named here, on purpose
 
 
 def _floor(case):
@@ -310,16 +310,45 @@ def test_the_market_is_the_same_every_run_long_enough_and_has_ties():
 
 # ── the runner: a fresh run against the record, and the ratchet ──
 
+def _body_of(answer):
+    """A recorded answer as the DOOR sends it: what was built, or a question's one-tap choices, rides in `envelope`."""
+    if "ops" in answer:
+        return {"disposition": answer.get("disposition", "change"), "reply": answer.get("reply", ""), "envelope": {"ops": answer.get("ops")}}
+    body = {k: v for k, v in answer.items() if k != "questions"}
+    if answer.get("questions"):
+        body["envelope"] = {"questions": answer["questions"]}
+    return body
+
+
+def _unset(data):
+    """A copy of the fixture as a repository whose thresholds no run has written yet."""
+    data = copy.deepcopy(data)
+    data["thresholds"].update({lane: None for lane in ("formula", "wall", "script")})
+    return data
+
+
 def _answers_dir(tmp_path, changed=None, missing=()):
     """A run folder as the recorder writes one: <id>-0.body.json per request, the door's whole answer."""
     for case in HERE:
         if case["id"] in missing:
             continue
         answer = (changed or {}).get(case["id"], case["answer"])
-        body = {"disposition": answer.get("disposition", "change"), "reply": answer.get("reply", ""), "envelope": {"ops": answer.get("ops")}} \
-            if "ops" in answer else dict(answer)
+        body = _body_of(answer)
         (tmp_path / f"{case['id']}-0.body.json").write_text(json.dumps(body), encoding="utf-8")
     return tmp_path
+
+
+def test_a_record_read_back_as_the_door_sends_it_is_the_record():
+    """A question with one-tap choices rides in `envelope.questions`, as the door sends it (found by this file's own
+    run-folder tests the day a wall record became a question)."""
+    asked = [c for c in WALL if c["answer"].get("questions")]
+    assert asked, "no wall record is a question: this test holds nothing"
+    for case in asked:
+        body = _body_of(case["answer"])
+        assert "questions" not in body and body["envelope"]["questions"] == case["answer"]["questions"]
+        assert value_eval.answer_of(body) == case["answer"] and G.grade_case(case, value_eval.answer_of(body))["verdict"] == "right"
+    built = FORMULA[0]["answer"]
+    assert value_eval.answer_of(_body_of(built))["ops"] == built["ops"]
 
 
 def test_a_fresh_run_equal_to_the_record_scores_every_case(tmp_path):
@@ -357,7 +386,7 @@ def test_a_fresh_run_names_what_went_wrong_and_what_was_not_answered(tmp_path):
 
 
 def test_THE_RATCHET_the_first_full_run_writes_the_threshold_and_a_later_run_below_it_is_red(tmp_path):
-    data = copy.deepcopy(DATA)
+    data = _unset(DATA)
     assert data["thresholds"]["formula"] is None and data["thresholds"]["wall"] is None
     (tmp_path / "a").mkdir()
     full = value_eval.grade_run(data, _answers_dir(tmp_path / "a"))
@@ -374,7 +403,7 @@ def test_THE_RATCHET_the_first_full_run_writes_the_threshold_and_a_later_run_bel
     assert verdict["ok"] is False and "formula" in verdict["below"]
     assert data["thresholds"]["formula"] == len(RIGHT)
     # LANE BY LANE: a lane with a request unanswered is neither written nor tested; a lane fully answered is
-    data2 = copy.deepcopy(DATA)
+    data2 = _unset(DATA)
     (tmp_path / "c").mkdir()
     partial = value_eval.grade_run(data2, _answers_dir(tmp_path / "c", missing={FORMULA[0]["id"]}))
     verdict = value_eval.apply_ratchet(data2, partial)

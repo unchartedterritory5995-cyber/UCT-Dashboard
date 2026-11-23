@@ -120,4 +120,4 @@ def test_every_recorded_wall_is_what_its_case_says_and_only_the_named_kinds_carr
     assert more == {"wall-26": ["theirs"], "intraday-02": ["offers"], "wall-31": ["theirs"], "wall-32": ["theirs"]}
     for case in WALLS:
         assert G.grade_wall(case, case["answer"])["verdict"] == case.get("recorded_verdict", "right"), case["id"]
-    assert [c["id"] for c in WALLS if c.get("recorded_verdict") == "wrong"] == ["wall-26", "intraday-02", "wall-31", "wall-32"]
+    assert [c["id"] for c in WALLS if c.get("recorded_verdict") == "wrong"] == []
