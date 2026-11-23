@@ -28,7 +28,7 @@ import { compareBoards, changeOnOtherChart, entities } from './e2eHost'
 export const E2E_OUTCOMES = ['success', 'partial_reported', 'partial_silent', 'residue', 'wrong_chart', 'wrong_action', 'unnecessary_ask', 'missed_ask', 'refusal', 'unsafe', 'error']
 
 // the member is told something was not done (receipts and notes say it in these words)
-export const FAILURE_WORDS = /\b(couldn[’']?t|could not|can[’']?t|cannot|didn[’']?t|did not|not done|failed|fail|wasn[’']?t|was not|unable|not (?:saved|confirmed|applied|possible|available|supported)|refused|conflict|isn[’']?t (?:possible|available|supported)|skipped|left out|only (?:did|added|changed|made)|not take effect|nothing to change|no change|isn[’']?t on|there is no|i don[’']?t see)\b/i
+export const FAILURE_WORDS = /\b(couldn[’']?t|could not|can[’']?t|cannot|didn[’']?t|did not|not done|failed|fail|wasn[’']?t|was not|unable|not (?:saved|confirmed|applied|possible|available|supported)|refused|conflict|isn[’']?t (?:possible|available|supported)|skipped|left out|only (?:did|added|changed|made)|not take effect|nothing to change|no change|isn[’']?t on|there is no|i don[’']?t see|can only|only lets? me|(?:as )?a separate request|ask me (?:to|for) .{0,60}\bnext|one (?:\w+ )?change (?:per|at a time)|not this part|didn[’']?t do the next part|separately|(?:on|by) (?:its|their) own)\b/i
 
 const same = (a, b) => JSON.stringify(entities(a)) === JSON.stringify(entities(b))
 
@@ -103,10 +103,10 @@ export function scoreTurn({ e, pre, mid, post, oracles = [], asked = false, choi
     if (e.blocked?.length && !honest) { flags.push('silent'); return done('partial_silent', 'the refused save was not reported') }
     return done('success')
   }
-  if (cmp.extra.length || cmp.wrong.length) return done('wrong_action', `extra ${cmp.extra.join(',')} wrong ${cmp.wrong.join(',')}`.trim())
-  // only missing items: a partial request
+  if (cmp.extra.length || cmp.wrong.length) return done('wrong_action', [cmp.extra.length ? `extra change on ${cmp.extra.join(',')}` : '', cmp.wrong.length ? `a different change on ${cmp.wrong.join(',')}` : ''].filter(Boolean).join('; '))
+  // only missing items (whole entities, or the rest of a partly done one): a partial request
   if (!honest) flags.push('silent')
-  return done(honest ? 'partial_reported' : 'partial_silent', `missing ${cmp.missing.join(',')}`)
+  return done(honest ? 'partial_reported' : 'partial_silent', `missing ${cmp.missing.join(',')}${cmp.partial?.length ? ` (partly done: ${cmp.partial.join(',')})` : ''}`)
 }
 
 const pct = (xs, q) => { if (!xs.length) return null; const s = [...xs].sort((a, b) => a - b); return s[Math.min(s.length - 1, Math.floor(q * s.length))] }

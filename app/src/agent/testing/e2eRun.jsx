@@ -63,7 +63,7 @@ export function requestKey(arm, body, history) {
 }
 
 // ── the panel's request taps (installed by the test file's vi.mock of nl1/interpreter and nlm1/flag) ─────────────
-export const tap = globalThis.__e2eTap || (globalThis.__e2eTap = { nl1: null, route: null })
+export const tap = globalThis.__e2eTap || (globalThis.__e2eTap = { nl1: null, route: null, committed: [] })
 
 // ── responders ──────────────────────────────────────────────────────────────────────────────────────────────
 /** Every result row of a runner results file (or a list of them), by key. */
@@ -281,7 +281,7 @@ function resetAll() {
   try { localStorage.clear() } catch { /* */ }
   _resetAuthoring(); _resetDraftPreview(); _resetProposedPlans(); _resetScreenerCache(); _resetAgentConfig()
   try { drawingsStore._reset() } catch { /* */ }
-  tap.nl1 = null; tap.route = null
+  tap.nl1 = null; tap.route = null; tap.committed = []
 }
 
 const busy = () => !!screen.queryByTestId('agent-typing')
@@ -367,12 +367,15 @@ export async function replay({ spec, c, arm, responder, conflict, steps, upTo, d
     const step = branchStep(steps[i], decided[i - 1])
     const pre = m.snap()
     m.server.turn = i; m.server.step = step
+    const committedBefore = (tap.committed || []).length
     const r = await m.say(step.say)
     if (r.requests.some(q => q.miss)) return { m, start, turns, missAt: i }
     const mid = m.snap()
     let approved = ''
     if (r.card && ['act', 'propose'].includes(step.expect?.kind)) approved = await m.approve()
-    turns.push({ step, pre, mid, post: m.snap(), ...r, approved })
+    // the EXECUTED plan: what the runtime committed in this turn (a repair REPLACES the first plan; approvals included)
+    const commits = (tap.committed || []).slice(committedBefore)
+    turns.push({ step, pre, mid, post: m.snap(), ...r, approved, executed: commits.filter(x => x.ok).flatMap(x => x.ops), failedCommits: commits.filter(x => !x.ok).flatMap(x => x.ops) })
   }
   return { m, start, turns, missAt: null }
 }

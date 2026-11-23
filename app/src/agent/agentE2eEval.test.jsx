@@ -28,6 +28,11 @@ vi.mock('./nl1/interpreter', async (orig) => {
   const m = await orig()
   return { ...m, buildNl1Request: (args) => { const r = m.buildNl1Request(args); if (!args?.need) (globalThis.__e2eTap ||= {}).nl1 = r; return r } }
 })
+vi.mock('./runtime', async (orig) => {
+  const m = await orig()
+  // the plans the runtime actually COMMITTED (what reached the writers): the executed plan of a turn
+  return { ...m, commitPlan: async (host, plan, o) => { const res = await m.commitPlan(host, plan, o); ((globalThis.__e2eTap ||= {}).committed ||= []).push({ ops: (plan?.plans || []).flatMap(p => (p.items || []).map(i => i.op?.action)).filter(Boolean), ok: !!res?.ok }); return res } }
+})
 vi.mock('./nlm1/flag', async (orig) => {
   const m = await orig()
   return { ...m, pickRouter: () => { const route = m.pickRouter(); return (full, text, routeOpts, need) => { const routed = route(full, text, routeOpts, need); if (need === undefined) (globalThis.__e2eTap ||= {}).route = { route, full, text, routeOpts, routed }; return routed } } }

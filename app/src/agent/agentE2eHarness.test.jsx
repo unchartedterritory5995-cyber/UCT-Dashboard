@@ -25,6 +25,11 @@ vi.mock('./nl1/interpreter', async (orig) => {
   const m = await orig()
   return { ...m, buildNl1Request: (args) => { const r = m.buildNl1Request(args); if (!args?.need) (globalThis.__e2eTap ||= {}).nl1 = r; return r } }
 })
+vi.mock('./runtime', async (orig) => {
+  const m = await orig()
+  // the plans the runtime actually COMMITTED (what reached the writers): the executed plan of a turn
+  return { ...m, commitPlan: async (host, plan, o) => { const res = await m.commitPlan(host, plan, o); ((globalThis.__e2eTap ||= {}).committed ||= []).push({ ops: (plan?.plans || []).flatMap(p => (p.items || []).map(i => i.op?.action)).filter(Boolean), ok: !!res?.ok }); return res } }
+})
 vi.mock('./nlm1/flag', async (orig) => {
   const m = await orig()
   return { ...m, pickRouter: () => { const route = m.pickRouter(); return (full, text, routeOpts, need) => { const routed = route(full, text, routeOpts, need); if (need === undefined) (globalThis.__e2eTap ||= {}).route = { route, full, text, routeOpts, routed }; return routed } } }
@@ -178,6 +183,23 @@ describe('rounds without teacher forcing', () => {
     expect(r2.items[0].body.message).toBe(stepsOf(c)[1].say)
   }, 180000)
 
+  it('a client repair REPLACES the first plan: the executed plan and the score follow what ran (AUDIT 11-23)', async () => {
+    const c = byId('e2-p02')                                  // AMD to the hourly + shrink its RSI pane
+    const exp = expectedResponder({ repairable: true, mutate: (turn, env, req) => {
+      // as the recorded paid answers did (11-23): the first plan names the pane by its instance id, NL-1's preflight refuses
+      // it ("Change one indicator at a time, on its own"), the panel sends its ONE repair, and the repair drops the resize
+      if (req.body.repair) return { ...env, ops: env.ops.filter(o => o.action !== 'pane.resize') }
+      return { ...env, ops: env.ops.map(o => (o.action === 'pane.resize' ? { ...o, args: { ...o.args, pane: 'inst:rsi:1' } } : o)) }
+    } })
+    const { rows } = await evaluateCase({ spec, c, arm: 'B', responderFor: () => exp })
+    expect(rows[0].requests).toBe(2)                         // the first call and its repair
+    expect(rows[0].planned).toEqual(['chart.setTimeframe'])   // the repair's plan, never first + repair concatenated
+    expect(rows[0].executed).toEqual(['chart.setTimeframe'])  // what the runtime committed
+    // the timeframe landed, the resize did not, on the SAME chart: a partial, not a wrong change
+    expect(['partial_silent', 'partial_reported']).toContain(rows[0].outcome)
+    expect(rows[0].why).toMatch(/partly done: chart:cl/)
+  }, 180000)
+
   it('a correction branch follows what turn 1 actually did', async () => {
     const c = byId('e2-b09')
     const seen = []
@@ -227,6 +249,13 @@ describe('scoreTurn', () => {
     const gone = B({ a: { tf: 'D' } })
     expect(scoreTurn({ e: act, pre, mid: gone, post: gone, oracles: [want] }).outcome).toBe('unsafe')
     expect(scoreTurn({ e: { ...act, kind: 'propose' }, pre, mid: want, post: want, oracles: [want] }).outcome).toBe('unsafe')
+  })
+  it('one chart, two changes, one landed: partial (not wrong); a leaf the oracle never moved: wrong', () => {
+    const pre2 = B({ a: { tf: 'D', pane: 0 } })
+    const want2 = B({ a: { tf: 'W', pane: 1 } })
+    expect(scoreTurn({ e: act, pre: pre2, mid: B({ a: { tf: 'W', pane: 0 } }), post: B({ a: { tf: 'W', pane: 0 } }), oracles: [want2], reply: 'Switched to weekly' }).outcome).toBe('partial_silent')
+    expect(scoreTurn({ e: act, pre: pre2, mid: B({ a: { tf: 'W', pane: 0 } }), post: B({ a: { tf: 'W', pane: 0 } }), oracles: [want2], reply: 'UCT only lets me change one pane at a time — ask me to resize it next' }).outcome).toBe('partial_reported')
+    expect(scoreTurn({ e: act, pre: pre2, mid: B({ a: { tf: 'M', pane: 0 } }), post: B({ a: { tf: 'M', pane: 0 } }), oracles: [want2] }).outcome).toBe('wrong_action')
   })
   it('a save conflict: right only with no residue AND the refusal said', () => {
     const e = { ...act, blocked: ['chart.setTimeframe'] }

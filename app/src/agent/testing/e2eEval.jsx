@@ -13,11 +13,14 @@ import { ARMS, bankResponder, oracleResponder, replay, stepsOf, branchStep, inCh
 import { scoreTurn, usdOf } from './e2eScore'
 import { entities } from './e2eHost'
 
+/** The model's final plan in a turn: the LAST answered request's ops (a repair replaces the plan; a reroute is one runner item). */
+const finalPlan = (t) => { const answered = t.requests.filter(q => q.envelope); return (answered[answered.length - 1]?.envelope?.ops || []).map(o => o.action) }
 const plansOf = (e) => [e.ops, ...(e.alt || [])].filter(p => Array.isArray(p))
 const unblocked = (plan, e) => plan.filter(o => !(e.blocked || []).includes(o.a))
 
 /** Every turn answered with ITS expected envelope (the oracle self-check). `mutate(turn, envelope)` makes a known-wrong one. */
-export function expectedResponder({ mutate = null } = {}) {
+// `repairable`: answer as a first call the server did not repair (usage.repaired null), so the panel may send its ONE client repair
+export function expectedResponder({ mutate = null, repairable = false } = {}) {
   return (req) => {
     const e = req.step?.expect || { kind: 'answer' }
     let r
@@ -36,6 +39,7 @@ export function expectedResponder({ mutate = null } = {}) {
       r = { key: 'expected', envelope: { disposition: e.kind === 'unsupported' ? 'unsupported' : 'answer', reply: 'I can’t do that here.', question: null, ops: [], unsupported_category: e.kind === 'unsupported' ? 'other' : null, correction: null }, usage: { model_calls: 1, repaired: false, citations: [] } }
     }
     if (mutate) r = { ...r, envelope: mutate(req.turn, r.envelope, req) || r.envelope }
+    if (repairable && !req.body.repair) r = { ...r, usage: { ...r.usage, repaired: null } }
     return r
   }
 }
@@ -133,7 +137,7 @@ export async function evaluateCase({ spec, c, arm, bank = new Map(), collect = n
     if (['act', 'propose'].includes(e.kind) && !lookup && !e.blocked?.length && oracleMoved) oracle = { ...oracle, boards: oracle.boards.filter(moved) }
     const sc = invalid ? { outcome: 'oracle_invalid', why: 'the expected plan changes nothing on this board (it cannot be executed here)', flags: [] } : scoreTurn({ e, pre, mid: t.mid, post: t.post, oracles: oracle.boards, asked, choices: t.newChoices, reply: `${t.reply} ${t.approved}`,
       data: t.data, oracleData: oracle.data, notOnIds: notOnIds(run.m.built.host, e.notOn),
-      planned: t.requests.flatMap(q => (q.envelope?.ops || []).map(o => o.action)) })
+      planned: finalPlan(t) })
     decided[i] = { outcome: sc.outcome, asked }
     const reqs = t.requests.filter(q => !q.miss)
     const P = JSON.stringify(entities(pre))
@@ -143,8 +147,9 @@ export async function evaluateCase({ spec, c, arm, bank = new Map(), collect = n
       lane: t.requests.length ? 'model' : 'deterministic', requests: reqs.length,
       modelMs: reqs.reduce((a, q) => a + (q.row?.model_ms || 0), 0), rounds: reqs.reduce((a, q) => a + (q.row?.rounds || 0), 0),
       usd: reqs.reduce((a, q) => a + usdOf(q.row?.usage, price), 0),
-      planned: t.requests.flatMap(q => (q.envelope?.ops || []).map(o => o.action)),
-      forbiddenPlanned: t.requests.flatMap(q => (q.envelope?.ops || []).map(o => o.action)).filter(a => (e.never || []).includes(a)) })
+      // the model's FINAL plan (a client repair replaces the first one: useAgent uses r2's envelope), and what ran
+      planned: finalPlan(t), executed: t.executed, failedCommits: t.failedCommits,
+      forbiddenPlanned: finalPlan(t).filter(a => (e.never || []).includes(a)) })
   }
   return { rows }
 }

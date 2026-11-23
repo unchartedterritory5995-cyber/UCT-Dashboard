@@ -212,13 +212,19 @@ export function leafDelta(a, b) {
 export function compareBoards(pre, actual, oracle) {
   const P = entities(pre), A = entities(actual), O = entities(oracle)
   const keys = new Set([...Object.keys(P), ...Object.keys(A), ...Object.keys(O)])
-  const r = { done: [], missing: [], wrong: [], extra: [], destructive: [] }
+  const r = { done: [], missing: [], wrong: [], extra: [], destructive: [], partial: [] }
   for (const k of [...keys].sort()) {
     const p = J(P[k]), a = J(A[k]), o = J(O[k])
     if (o !== p) {
       if (a === o) r.done.push(k)
       else if (a === p) r.missing.push(k)
-      else r.wrong.push(k)
+      else {
+        // part of the oracle's change landed and nothing else did (a timeframe switched, its pane resize not): that entity is
+        // PARTLY DONE (missing the rest), not a wrong change — every leaf that moved moved to the oracle's value
+        const da = leafDelta(P[k], A[k]), dob = leafDelta(P[k], O[k])
+        const subset = Object.keys(da).every(x => dob[x] && dob[x][1] === da[x][1])
+        if (subset) { r.partial.push(k); r.missing.push(k) } else r.wrong.push(k)
+      }
     } else if (a !== p) r.extra.push(k)
     // a removal the oracle did not make: an entity gone, a leaf the board had that is gone, an item marked removed
     if (a !== o) {
