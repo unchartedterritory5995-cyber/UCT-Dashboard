@@ -153,10 +153,12 @@ describe('historyFeed', () => {
     } finally { delete globalThis.localStorage }
   })
 
+  // (2026-11-23: the same one line now also hands the app store its minute feed starter, minuteFeedSwitch.appMinuteFeed;
+  // both wirings are pinned here, and minuteFeed.switch.test.js S8 / S9 prove what the second one does)
   it('getBarStore builds the app store with appHistoryFeed (read from the source: one wiring, one place)', async () => {
     const { readFileSync } = await import('node:fs')
     const src = readFileSync(new URL('./index.js', import.meta.url), 'utf8')
     const body = src.slice(src.indexOf('export function getBarStore'), src.indexOf('export function _resetBarStoreForTests'))
-    expect(body).toMatch(/createBarStore\(\{\s*history:\s*appHistoryFeed\(\)\s*\}\)/)
+    expect(body).toMatch(/createBarStore\(\{\s*history:\s*appHistoryFeed\(\),\s*minuteFeed:\s*appMinuteFeed\s*\}\)/)
   })
 })

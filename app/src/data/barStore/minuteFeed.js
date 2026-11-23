@@ -114,7 +114,7 @@ export function createMinuteFeeder({
   let busy = false
   let dirty = false
   let done = Promise.resolve()
-  const stats = { frames: 0, breaks: 0, appended: 0, corrected: 0, refused: 0 }
+  const stats = { frames: 0, breaks: 0, appended: 0, corrected: 0, rejected: 0 }
 
   function _heldNow() {
     const m = new Map()
@@ -185,7 +185,7 @@ export function createMinuteFeeder({
       const next = _offer(key, sym, row)
       // the minute must now be a closed row, with no forming bar left at or before it; anything else (the reducer
       // refused it: a sealed span, a foreign identity) ends this key's feed until its next answer
-      if (!next || !_hasRow(next, row.t) || (next.developing && next.developing.t <= row.t)) { stats.refused++; return }
+      if (!next || !_hasRow(next, row.t) || (next.developing && next.developing.t <= row.t)) { stats.rejected++; return }
       if (next !== s) stats.appended++
       s = next
     }
