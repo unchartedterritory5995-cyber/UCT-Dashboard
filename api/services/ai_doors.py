@@ -228,6 +228,23 @@ DOORS: dict[str, Door] = {
         "CONVERSE_ADMIN_CAP_DAILY (default $10) + catalyst member budget; 2 calls max "
         "per turn, 0 HTTP retries, input byte caps refused before any call",
         gap="in-process windows, not the durable store this meter surface reads"),
+    # 2026-11-23 (master red, the census found it): ea76054779 (2026-11-19, Studio S1/S3) gave Create
+    # Indicator's assistant a SCRIPT turn with its own `messages.create`. It runs only inside the /converse
+    # door above and is classified WITH it, so the llm_budget keys its calls were already charged under
+    # (an unlisted door is non-member, so `*background` applies) do not change here. Whether the converse
+    # door and this lane become `member` now that a create-indicator cohort can be released is the spend
+    # owner's call, not a census fix's.
+    "api/services/script_conversation.py": Door(
+        "operator", "the script turn inside POST /api/user-definitions/converse (require_paid + "
+        "require_create_indicator_access: admins, plus the create-indicator cohort when "
+        "CREATE_INDICATOR_COHORT_ENABLED releases it); lane switch CONVERSE_SCRIPT_ENABLED "
+        "(admin = admin accounts only, all = every account that door admits; unset = off)",
+        "SHARES /converse's budget: the same 40/hour/member window (in-process) + the member's "
+        "`concierge:<user>` daily $ allowance on catalyst_cost_log (durable; the conversation cap, "
+        "the admin cap for role admin) + catalyst member budget, both checked before EVERY call; "
+        "<= 2 calls per script turn (MAX_SCRIPT_CALLS), <= 2 engine-refusal repair rounds per "
+        "request (MAX_REPAIR_ROUNDS), 0 HTTP retries",
+        gap="no ai_meters key and no population cap: the converse door's own gate and allowance bound it"),
     "api/services/uct_agent/turn.py": Door(
         "operator", "POST /api/agent/turn (require_paid + require_admin: ADMIN-ONLY while UCT Agent "
         "is dark, 2026-10-07); opt-in research via the shared Perplexity client",

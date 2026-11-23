@@ -4,6 +4,9 @@
 one by default): {turn: 'script', script: {pine}} is run through `script_lane.run`; anything else is graded as
 the wrong lane. Returns {case id: {'verdict', 'lines', 'lane', 'not_asked_for'}}.
 
+An entry may be HELD BY ANOTHER CASE'S RULE (`holds`): a reference script, written by hand, answers an existing
+case's request with a way of writing no door answer uses, and is graded by that case's rule under its own id.
+
 A case may name an EDGE: one bar, exactly `back` bars before the newest, made a strict extreme. The script is
 then run on the plain chart AND on the edge chart, and is right only when it is right on both. The edge is what
 lets the check tell "the last 252 bars" from 253: on the plain bars the two often draw the same level.
@@ -50,9 +53,10 @@ def grade_all(cases: List[Dict[str, Any]], answers: Optional[Dict[str, Any]] = N
             cid = case["id"]
             if cid not in sources:
                 continue
-            result = _one(cid, cid, sources[cid], run)
+            rule = case.get("holds") or cid                # the rule that holds it: its own, or the case it answers
+            result = _one(rule, cid, sources[cid], run)
             if case.get("edge") and result["verdict"] == "right":
-                edged = _one(cid, cid + EDGE, sources[cid], run)
+                edged = _one(rule, cid + EDGE, sources[cid], run)
                 result = {**edged, "lines": result["lines"] + ["  -- on the edge chart (a strict extreme one bar outside the window) --"] + edged["lines"]}
             out[cid] = {**result, "lane": "script"}
     return out

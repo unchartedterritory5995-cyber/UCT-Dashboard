@@ -108,7 +108,10 @@ def test_explicit_allow_shared_root_override_bypasses_the_guard(monkeypatch):
     monkeypatch.setenv("PATTERN_DB_ALLOW_SHARED_ROOT", "1")
     assert pattern_db._would_hit_shared_root() is False
     # Resolves to the real shared path only because the override was explicit.
-    assert pattern_db._db_path() == os.path.abspath(r"C:\data\patterns.db")
+    # The helper above sets auth_db._DB_PATH to "/data/auth.db", and the product puts patterns.db beside it: that is
+    # <drive>:/data/patterns.db on Windows and /data/patterns.db on Linux. The old literal, a raw "C:" + backslash
+    # path, is a RELATIVE file name on Linux (a backslash is not a separator there), so it could only match on Windows.
+    assert pattern_db._db_path() == os.path.abspath("/data/patterns.db")
 
 
 def test_ordinary_test_execution_never_sets_the_override_itself():

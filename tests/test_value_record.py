@@ -50,6 +50,12 @@ def test_a_run_is_refused_before_the_browser_when_the_account_is_not_synthetic(m
     monkeypatch.setenv("SMOKE_EMAIL", "smoke@uctintelligence.internal")
     monkeypatch.delenv("SMOKE_PASSWORD", raising=False)           # not set at all on a runner; set on a dev box
     assert value_record.main([str(tmp_path / "run"), "--account", "smoke"]) == 2
+    # an account the helper does not know is refused by name, whatever the environment holds
+    monkeypatch.setenv("OWNER_EMAIL", "owner@uctintelligence.internal")
+    monkeypatch.setenv("OWNER_PASSWORD", "x")
+    assert value_record.main([str(tmp_path / "run"), "--account", "owner"]) == 2
+    assert "OWNER is not one of the synthetic accounts" in capsys.readouterr().out
+    assert not (tmp_path / "run").exists()
 
 
 def test_a_chunk_stops_sending_at_its_time_and_the_run_says_who_answered_what():
@@ -257,4 +263,140 @@ def test_every_row_the_recorder_writes_carries_it():
     repairs = [k.value for k in rows[0].keywords if k.arg == "repairs"]
     assert len(repairs) == 1 and isinstance(repairs[0], ast.Call) and repairs[0].func.id == "repairs_of"
     assert [a.id for a in repairs[0].args] == ["answers"]              # of every answer of the request, not the last one
+
+
+# ── the sign-in is the helper's, and the session is closed however the run ends (2026-11-23) ──
+
+RECORDER = ROOT / "tools" / "value_record.py"
+
+
+def _code_strings(tree):
+    """Every string the CODE holds (docstrings are prose and are left out: code, never prose)."""
+    prose = {id(n.body[0].value) for n in ast.walk(tree)
+             if isinstance(n, (ast.Module, ast.FunctionDef, ast.ClassDef)) and n.body
+             and isinstance(n.body[0], ast.Expr) and isinstance(n.body[0].value, ast.Constant)}
+    return [n.value for n in ast.walk(tree) if isinstance(n, ast.Constant) and isinstance(n.value, str) and id(n) not in prose]
+
+
+def test_the_recorder_never_signs_in_or_out_itself_and_never_reads_the_password():
+    """⚰️ Until 2026-11-23 it POSTed the login itself and signed out on the last line of the run: a run that left
+    early left a live 30-day session to a production account (the sign-out rail found it)."""
+    tree = ast.parse(RECORDER.read_text(encoding="utf-8"))
+    strings = _code_strings(tree)
+    for needle in ("/api/auth/" + "login", "/api/auth/" + "logout", "_PASS" + "WORD"):
+        assert not [s for s in strings if needle in s and "is not set" not in s], needle
+    # CONTROL: the walk sees the strings of the code (the door it sends to is one of them)
+    assert value_record.CONVERSE in strings
+    # the sign-in is the helper's, by the account's NAME
+    calls = [n for n in ast.walk(tree) if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+             and n.func.attr == "sign_in_playwright"]
+    assert len(calls) == 1 and getattr(calls[0].func.value, "id", None) == "synthetic_session"
+    assert [getattr(a, "id", None) for a in calls[0].args] == ["page", "BASE", "name"] and not calls[0].keywords
+    # the one domain is the helper's: read from it, never written a second time
+    domain = next(n for n in tree.body if isinstance(n, ast.Assign) and getattr(n.targets[0], "id", None) == "SYNTHETIC_DOMAIN")
+    assert ast.unparse(domain.value) == "synthetic_session.SYNTHETIC_DOMAIN"
+    assert value_record.SYNTHETIC_DOMAIN == "@uctintelligence.internal"
+
+
+def test_the_session_and_the_browser_are_closed_however_the_run_is_left():
+    """Held in the code: the session the helper returns goes straight into the block's exit stack (so does the
+    browser), and nothing in the run closes either by hand, where an early exit would skip it."""
+    tree = ast.parse(RECORDER.read_text(encoding="utf-8"))
+    main = next(n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == "main")
+    block = next(n for n in ast.walk(main) if isinstance(n, ast.With)
+                 and any("ExitStack" in ast.dump(i.context_expr) for i in n.items))
+    stack = next(i.optional_vars.id for i in block.items if "ExitStack" in ast.dump(i.context_expr))
+    entered = [n for n in ast.walk(block) if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+               and n.func.attr == "enter_context" and getattr(n.func.value, "id", None) == stack]
+    assert len(entered) == 1 and "sign_in_playwright" in ast.dump(entered[0].args[0])   # entered AS it is made
+    callbacks = [n for n in ast.walk(block) if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+                 and n.func.attr == "callback" and getattr(n.func.value, "id", None) == stack]
+    assert [ast.unparse(c.args[0]) for c in callbacks] == ["browser.close"]
+    by_hand = [ast.unparse(n) for n in ast.walk(main) if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+               and n.func.attr == "close" and not n.args]
+    assert by_hand == [], by_hand
+    # every way out of the block before the end is a plain `return` inside it: the stack runs on each
+    assert [n for n in ast.walk(block) if isinstance(n, ast.Return)]
+    # and the run's stamps say whether the sign-out was proved
+    assert any(k.arg == "signed_out" for n in ast.walk(main) if isinstance(n, ast.Call) for k in n.keywords)
+
+
+def test_the_sign_out_rail_sees_nothing_to_refuse_in_the_recorder():
+    from tests import test_synthetic_session_signout as rail
+    _triggered, bad = rail.violations("tools/value_record.py", RECORDER.read_text(encoding="utf-8"))
+    assert bad == []
+    # CONTROL: the rail refuses the recorder as it was (a login it POSTs itself)
+    was = RECORDER.read_text(encoding="utf-8").replace(
+        "session = leave.enter_context(synthetic_session.sign_in_playwright(page, BASE, name))",
+        'page.request.post(BASE + "/api/auth/" + "login")'.replace('" + "', ""))
+    assert was != RECORDER.read_text(encoding="utf-8")
+    assert rail.violations("tools/value_record.py", was)[1]
+
+
+def test_a_refused_or_failed_sign_in_leaves_no_session_and_no_browser(monkeypatch, tmp_path, capsys):
+    """The run itself, with a stand-in browser and a stand-in helper: whichever way the sign-in fails, the browser
+    is closed and the session (when one came back) is closed, before `main` returns."""
+    import types
+    closed = []
+
+    class Session:
+        def __init__(self, ok):
+            self.ok, self.status, self.signed_out = ok, 401, None
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            closed.append("session")
+            self.signed_out = True
+            return False
+
+    class Page:
+        request = None
+
+        def goto(self, *a, **k):
+            return None
+
+    class Browser:
+        def new_context(self, **k):
+            return types.SimpleNamespace(new_page=lambda: Page())
+
+        def close(self):
+            closed.append("browser")
+
+    class PW:
+        chromium = types.SimpleNamespace(launch=lambda: Browser())
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    fake = types.ModuleType("playwright.sync_api")
+    fake.sync_playwright = lambda: PW()
+    monkeypatch.setitem(__import__("sys").modules, "playwright", types.ModuleType("playwright"))
+    monkeypatch.setitem(__import__("sys").modules, "playwright.sync_api", fake)
+    monkeypatch.setenv("BENCH_EMAIL", "bench@uctintelligence.internal")
+    monkeypatch.setenv("BENCH_PASSWORD", "x")
+    helper = value_record.synthetic_session
+
+    # (1) the door answers a refusal: a session object comes back, not ok
+    monkeypatch.setattr(helper, "sign_in_playwright", lambda page, base, name: Session(False))
+    assert value_record.main([str(tmp_path / "a")]) == 2
+    assert closed == ["session", "browser"] and "not accepted (HTTP 401)" in capsys.readouterr().out
+    # (2) the helper raises (someone else's session, no cookie, TOTP): it signed out itself; the browser still closes
+    closed.clear()
+
+    def raises(page, base, name):
+        raise helper.IdentityMismatch("answered for a different or no account; the session was signed out")
+    monkeypatch.setattr(helper, "sign_in_playwright", raises)
+    assert value_record.main([str(tmp_path / "b")]) == 2
+    assert closed == ["browser"] and "REFUSED" in capsys.readouterr().out
+    # (3) anything else going wrong after the sign-in: the session and the browser are closed on the way out
+    closed.clear()
+    monkeypatch.setattr(helper, "sign_in_playwright", lambda page, base, name: Session(True))
+    with pytest.raises(AttributeError):                      # the stand-in page has no `request`: the run breaks at its next line
+        value_record.main([str(tmp_path / "c")])
+    assert closed == ["session", "browser"]
 

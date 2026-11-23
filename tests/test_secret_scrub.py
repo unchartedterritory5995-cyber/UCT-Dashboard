@@ -77,6 +77,13 @@ def test_no_credential_in_git_history_of_this_branch():
 
     if not git("rev-parse", "--verify", "-q", "origin/master").strip():
         return                                  # no remote to compare against
+    # ON master itself (the nightly full suite, or a box sitting exactly on origin/master) this branch has no commits
+    # of its own: the diff is empty because there is nothing to scan, which is not the vacuous pass the assert below
+    # guards against. Say so. A branch WITH commits must still produce a diff, and a git call that answers nothing
+    # ("" is not "0") still reaches the assert.
+    if git("rev-list", "--count", "origin/master..HEAD").strip() == "0":
+        import pytest
+        pytest.skip("HEAD has no commits beyond origin/master: there is no branch history to scan")
     diff = git("diff", "-U0", "origin/master..HEAD")
     assert diff.strip(), "empty diff — the check would pass vacuously"
 
