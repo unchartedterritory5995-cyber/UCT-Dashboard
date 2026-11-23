@@ -11703,6 +11703,11 @@
      {
       "digest": "1925140a1086b448",
       "reason": "written from the request's words before the answer was read"
+     },
+     {
+      "digest": "1925140a1086b448",
+      "quote": "Plot",
+      "reason": "corrected on a live answer 11-23 (coordinator's ruling): only what is DRAWN ON BARS counts as a value on the chart. The rule counted a HIDDEN output (the share count, kept for a table cell) as drawn; the door's guard passes a hidden output on purpose, nothing is on a bar and the chart is not squeezed. The rule's numbers did not change."
      }
     ]
    },
@@ -11722,11 +11727,11 @@
    ],
    "recorded": {
     "on": "2026-11-22",
-    "front": "ba74a9fdc0",
+    "front": "b95ee9c9a3",
     "model": "claude-opus-5"
    },
    "recorded_verdict": "wrong",
-   "defect": "The two settings are right (the member's own figures, defaulting to 0, and the reply says the holdings cannot be known). But the average cost is drawn as the BARE setting: until the member fills it in it is a line at price 0, and the price chart is squeezed to fit it; the table shows 0 shares and 0.00. A setting the member must fill in draws nothing until it is filled.",
+   "defect": "Since #2472 the build is right: two settings defaulting to 0, the average cost drawn only once it is filled, the share count kept for a table cell and drawn on no bar. But the reply never says the door cannot read the member's holdings. It says \"two settings you fill in yourself\" and \"default to 0 until you enter your own numbers\". A member who asked for the shares they OWN is asked to type them and is not told why; the first live answer had said it (\"I can't know your actual holdings\"), and nothing at the door held it.",
    "answer": {
     "contract": "uct.authoring.patch/1",
     "ops": [
@@ -11734,7 +11739,7 @@
       "op": "create",
       "name": "My Position",
       "placement": "price",
-      "primary": "avgCost",
+      "primary": "avgCostLine",
       "inputs": [
        {
         "key": "shares",
@@ -11744,8 +11749,8 @@
         "step": 1
        },
        {
-        "key": "avgPrice",
-        "label": "Average cost per share",
+        "key": "avgCost",
+        "label": "Average cost",
         "default": 0,
         "min": 0,
         "step": 0.01
@@ -11753,15 +11758,49 @@
       ],
       "outputs": [
        {
-        "key": "avgCost",
+        "key": "avgCostLine",
         "label": "Average cost",
         "tree": {
-         "type": "series",
-         "name": "avgPrice"
+         "type": "op",
+         "name": "?:",
+         "args": [
+          {
+           "type": "op",
+           "name": ">",
+           "args": [
+            {
+             "type": "series",
+             "name": "avgCost"
+            },
+            {
+             "type": "num",
+             "value": 0
+            }
+           ]
+          },
+          {
+           "type": "series",
+           "name": "avgCost"
+          },
+          {
+           "type": "op",
+           "name": "/",
+           "args": [
+            {
+             "type": "num",
+             "value": 0
+            },
+            {
+             "type": "num",
+             "value": 0
+            }
+           ]
+          }
+         ]
         }
        },
        {
-        "key": "sharesOwned",
+        "key": "sharesHeld",
         "label": "Shares owned",
         "hidden": true,
         "tree": {
@@ -11773,10 +11812,10 @@
      },
      {
       "op": "set_style",
-      "output": "avgCost",
-      "style": "line",
+      "output": "avgCostLine",
       "color": "#2962FF",
-      "width": 2
+      "width": 2,
+      "lineStyle": "dashed"
      },
      {
       "op": "set_table",
@@ -11786,8 +11825,8 @@
         "row": 0,
         "col": 0,
         "text": "My Position",
-        "bold": true,
-        "span": 2
+        "span": 2,
+        "bold": true
        },
        {
         "row": 1,
@@ -11797,8 +11836,8 @@
        {
         "row": 1,
         "col": 1,
-        "output": "sharesOwned",
-        "format": "auto"
+        "output": "sharesHeld",
+        "format": "integer"
        },
        {
         "row": 2,
@@ -11808,14 +11847,117 @@
        {
         "row": 2,
         "col": 1,
-        "output": "avgCost",
+        "output": "avgCostLine",
         "format": "decimal2"
        }
       ]
      }
     ],
-    "reply": "I built a position indicator with two settings you fill in yourself — shares owned and average cost per share — both starting at 0 until you set them in the indicator's settings. Your average cost is drawn as a blue line across the price chart, and a small table in the top right shows the share count and the average cost. I can't know your actual holdings, so please enter them there."
-   }
+    "reply": "I added two settings you fill in yourself — Shares owned and Average cost — drew the average cost as a dashed blue line on the price chart, and put both figures in a small table in the top right. Both default to 0 until you enter your own numbers in the indicator's settings; the line stays hidden while the cost is 0. This is informational only."
+   },
+   "found": [
+    {
+     "answer": {
+      "contract": "uct.authoring.patch/1",
+      "ops": [
+       {
+        "op": "create",
+        "name": "My Position",
+        "placement": "price",
+        "primary": "avgCost",
+        "inputs": [
+         {
+          "key": "shares",
+          "label": "Shares owned",
+          "default": 0,
+          "min": 0,
+          "step": 1
+         },
+         {
+          "key": "avgPrice",
+          "label": "Average cost per share",
+          "default": 0,
+          "min": 0,
+          "step": 0.01
+         }
+        ],
+        "outputs": [
+         {
+          "key": "avgCost",
+          "label": "Average cost",
+          "tree": {
+           "type": "series",
+           "name": "avgPrice"
+          }
+         },
+         {
+          "key": "sharesOwned",
+          "label": "Shares owned",
+          "hidden": true,
+          "tree": {
+           "type": "series",
+           "name": "shares"
+          }
+         }
+        ]
+       },
+       {
+        "op": "set_style",
+        "output": "avgCost",
+        "style": "line",
+        "color": "#2962FF",
+        "width": 2
+       },
+       {
+        "op": "set_table",
+        "position": "top_right",
+        "cells": [
+         {
+          "row": 0,
+          "col": 0,
+          "text": "My Position",
+          "bold": true,
+          "span": 2
+         },
+         {
+          "row": 1,
+          "col": 0,
+          "text": "Shares"
+         },
+         {
+          "row": 1,
+          "col": 1,
+          "output": "sharesOwned",
+          "format": "auto"
+         },
+         {
+          "row": 2,
+          "col": 0,
+          "text": "Avg cost"
+         },
+         {
+          "row": 2,
+          "col": 1,
+          "output": "avgCost",
+          "format": "decimal2"
+         }
+        ]
+       }
+      ],
+      "reply": "I built a position indicator with two settings you fill in yourself — shares owned and average cost per share — both starting at 0 until you set them in the indicator's settings. Your average cost is drawn as a blue line across the price chart, and a small table in the top right shows the share count and the average cost. I can't know your actual holdings, so please enter them there."
+     },
+     "defect": "The two settings are right (the member's own figures, defaulting to 0, and the reply says the holdings cannot be known). But the average cost is drawn as the BARE setting: until the member fills it in it is a line at price 0, and the price chart is squeezed to fit it; the table shows 0 shares and 0.00. A setting the member must fill in draws nothing until it is filled.",
+     "recorded": {
+      "on": "2026-11-22",
+      "front": "ba74a9fdc0",
+      "model": "claude-opus-5"
+     },
+     "fixed_by": {
+      "pr": "#2472",
+      "merge": "04949a82d776e05ff9fa5af07ab2c4e73233e277"
+     }
+    }
+   ]
   },
   {
    "id": "date-start-02",
