@@ -205,6 +205,8 @@ class BarBroadcaster:
         # a candle built from part of its minute. Absent = no gap (the seed or AM covered it, or
         # this process never declared one: the in-web local mode is unchanged).
         self._cover_from: dict[str, int] = {}
+        self._reseed_on_flow: set = set()   # seeded while coverage was still pending
+        self._reseed_wanted: set = set()    # ...and their first trade has since arrived
         # D3 CP3 (G3): monotonic-ms of the last AM/A/T event received for this symbol,
         # across every tf -- the bars lane's own staleness answer, mirroring
         # realtime_stream.get_last_seen for the quote lane. Read by last_tick_age().
@@ -324,6 +326,8 @@ class BarBroadcaster:
         self._pruned_at.pop(sym, None)
         self._seeded.pop(sym, None)
         self._cover_from.pop(sym, None)
+        self._reseed_on_flow.discard(sym)
+        self._reseed_wanted.discard(sym)
         self._day_volume.pop(sym, None)
         for k in _ALL_KEYS:
             self._dirty.pop((sym, k), None)
@@ -469,6 +473,15 @@ class BarBroadcaster:
                 if self._cover_from.get(sym) == _COVER_PENDING:
                     # coverage: the first trade since T was requested — whole from the next ms
                     self._cover_from[sym] = int(payload["t"]) + 1
+                    if sym in self._reseed_on_flow:
+                        # a seed ran before the flow began: it cannot vouch for the gap
+                        # between its fetch and this trade. Forget it; seed again.
+                        self._reseed_on_flow.discard(sym)
+                        for st in (self._minutes.get(sym) or {}).values():
+                            if not st.auth:
+                                st.seeded = False
+                        self._seeded.pop(sym, None)
+                        self._reseed_wanted.add(sym)
                 hl_ok, last_ok = trade_conditions.classify(payload.get("c"))
                 minute = self._apply_trade(sym, int(payload["t"]), payload["p"],
                                            payload.get("s") or 0, hl_ok, last_ok)
@@ -537,6 +550,8 @@ class BarBroadcaster:
         su = sym.upper()
         with self._lock:
             self._cover_from[su] = _COVER_PENDING
+            self._reseed_on_flow.discard(su)
+            self._reseed_wanted.discard(su)
             for st in (self._minutes.get(su) or {}).values():
                 if not st.auth:
                     st.seeded = False
@@ -550,7 +565,26 @@ class BarBroadcaster:
         """Coverage: nothing before the T start is missing (a seed fetch that succeeded and
         found no bars today: no trade happened, so no minute lacks one)."""
         with self._lock:
-            self._cover_from.pop(sym.upper(), None)
+            self._close_gap(sym.upper())
+
+    def _close_gap(self, su: str) -> None:
+        """A seed answered (caller holds _lock). If trades already flow, REST (fetched after the
+        flow began, plus the lag allowance) and T overlap: no gap remains. If NO trade has arrived
+        yet (a thin name, or T slow to start: the seed gave up waiting), the fetch may predate the
+        real flow start, so coverage stays pending and the first trade asks for a fresh seed."""
+        if self._cover_from.get(su) == _COVER_PENDING:
+            self._reseed_on_flow.add(su)
+        else:
+            self._cover_from.pop(su, None)
+
+    def take_reseeds(self) -> list:
+        """Symbols whose first trade arrived after a seed that predates it (see _close_gap):
+        the ingest seeds them again. Cheap when empty (called once per trade)."""
+        if not self._reseed_wanted:
+            return []
+        with self._lock:
+            out, self._reseed_wanted = sorted(self._reseed_wanted), set()
+        return out
 
     def covered(self, sym: str) -> bool:
         with self._lock:
@@ -587,7 +621,7 @@ class BarBroadcaster:
             # the vendor's aggregates), so REST holds every minute up to the fetch and T every
             # trade since: no gap remains. Also when nothing was TOUCHED: every REST bar is
             # older than the retained window, i.e. no trade in it before the T start.
-            self._cover_from.pop(su, None)
+            self._close_gap(su)
             if not touched:
                 self._seeded.pop(su, None)
                 return False
@@ -669,8 +703,9 @@ class BarBroadcaster:
             # Seed for a still-developing minute (REST partial): merge with the T
             # accumulation — the REST bar saw the minute's earlier prints.
             st.seeded = True
-            if st.o is None or st.o_ts > m:
-                st.o, st.o_ts = bar["o"], m
+            # the REST bar's open IS the minute's first eligible trade (it saw the minute from
+            # its start); it replaces whatever an earlier, less complete seed or T put there
+            st.o, st.o_ts = bar["o"], m
             if st.c is None:
                 st.c, st.c_ts = bar["c"], m
             st.h = bar["h"] if st.h is None else max(st.h, bar["h"])
@@ -715,8 +750,11 @@ class BarBroadcaster:
         cover = self._cover_from.get(sym)
         for m in range(start, end, _MINUTE_MS):
             st = mins.get(m)
-            if cover is not None and m < cover and not (st is not None and (st.auth or st.seeded)):
-                return None   # coverage: began before T did and no seed/AM has filled it yet
+            if cover is not None and m < cover and not (
+                    st is not None and (st.auth or (st.seeded and cover != _COVER_PENDING))):
+                # coverage: began before T did and no seed/AM has filled it yet (a seed taken
+                # before the first trade arrived vouches for nothing: see _close_gap)
+                return None
             if st is None:
                 continue
             v += st.v

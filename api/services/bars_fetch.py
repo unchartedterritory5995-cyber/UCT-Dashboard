@@ -2275,26 +2275,6 @@ def _fetch_intraday_range(ticker: str, tf: str, from_ymd: str, to_ymd: str,
         return []
 
 
-def fetch_minutes_between(ticker: str, from_ms: int, to_ms: int, timeout: float = 1.5) -> list[dict]:
-    """The vendor's 1-minute aggregates with start in [from_ms, to_ms] (ms), the current
-    minute's partial included, as {t (unix s), o, h, l, c, v}, split-ADJUSTED like every other
-    intraday fetch. ONE short request (a single bucket of minutes, no pagination) bounded by
-    `timeout` because a chart's first answer waits on it (bar_contract._vendor_partial).
-    RAISES on any vendor error: the caller decides what an absent bar means."""
-    client = _get_client()
-    url = (
-        f"{_REST_BASE}/v2/aggs/ticker/{to_polygon_symbol(ticker)}/range/1/minute"
-        f"/{int(from_ms)}/{int(to_ms)}"
-        f"?adjusted=true&sort=asc&limit=500&apiKey={client._api_key}"
-    )
-    data = client._get(url, timeout=timeout)
-    return [
-        {"t": int(bar["t"] / 1000), "o": _px(bar["o"]), "h": _px(bar["h"]),
-         "l": _px(bar["l"]), "c": _px(bar["c"]), "v": int(_bar_volume(bar))}
-        for bar in (data.get("results") or [])
-    ]
-
-
 def _paginate_massive_aggs(client, url: str) -> list[dict]:
     """Follow Massive/Polygon ``next_url`` pagination, returning ALL raw
     result dicts across pages.

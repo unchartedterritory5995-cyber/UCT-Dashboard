@@ -84,7 +84,9 @@ log = logging.getLogger("api.services.ingest_runtime")
 #: The bar_stream owner every web client's channels are held under.
 REMOTE_OWNER = "remote"
 SNAPSHOT_LOOKBACK_MIN = float(os.environ.get("INGEST_SNAPSHOT_LOOKBACK_MIN", "15"))
-SEED_WORKERS = max(1, int(os.environ.get("INGEST_SEED_WORKERS", "4")))
+# 16 (was 4): with coverage a charted symbol's open bucket waits for its seed, so after a
+# vendor reconnect (every chart symbol at once) the seeds must not queue for tens of seconds.
+SEED_WORKERS = max(1, int(os.environ.get("INGEST_SEED_WORKERS", "16")))
 # How long a NEW symbol's partial developing bars wait for its first seed (see _seed_hold).
 SEED_HOLD_S = float(os.environ.get("INGEST_SEED_HOLD_S", "3"))
 #: Coverage: backoff (s) between seed attempts for a charted symbol whose seed failed (the
@@ -186,7 +188,7 @@ class IngestRuntime:
                          "bars_invalid": 0, "prices_invalid": 0, "keys_without_channels": 0,
                          "seed_reoffers": 0, "bars_held_for_seed": 0, "seed_hold_expired": 0,
                          "seeds_superseded": 0, "seeds_empty": 0, "seed_retries": 0,
-                         "seed_retry_exhausted": 0}
+                         "seed_retry_exhausted": 0, "reseeds_on_flow": 0}
 
     def attach(self, server) -> None:
         self.server = server
@@ -327,6 +329,11 @@ class IngestRuntime:
         """bar_stream's callback: the broadcaster first (it routes bars through
         `_publish` synchronously), then mark the quote dirty."""
         self.bc.push_aggregate(sym, payload, kind)
+        if kind == "T":
+            # coverage: a seed that ran before this symbol's trades began to flow is redone
+            for s in self.bc.take_reseeds():
+                self.counters["reseeds_on_flow"] += 1
+                self._schedule_seed(s)
         su = sym.upper()
         self._price_dirty.add(su)
         self.side.on_event(su, payload, kind)
@@ -467,6 +474,8 @@ class IngestRuntime:
                 self.counters["seeds_empty"] += 1
                 self.bc.mark_covered(sym)
                 self._release_hold(sym)
+                if self.bc.covered(sym):
+                    self._reoffer(sym)            # the bucket refused until now goes out whole
                 return
             if self.bc.apply_seed(sym, bars):
                 self.counters["seeds_applied"] += 1

@@ -553,8 +553,12 @@ def test_seeds_fetch_off_the_loop_apply_on_it_and_reseed_after_a_reconnect():
         # the minute the socket "missed" (T0+1min, only in the 2nd REST fetch) reaches the
         # connected client as a closed bar on BOTH keys, not only in a later snapshot
         await until(lambda: any(u.bar["t"] == T0 + MIN and u.final for u in bars_in(c, ("ZZA", "1"))))
-        # the 5m bucket is still developing; it now counts both REST minutes
-        assert any(u.bar["t"] == T0 and u.bar["v"] == 20 for u in bars_in(c, ("ZZA", "5")))
+        # coverage: after a reconnect nothing NEW is known whole until trades flow again; the
+        # first one redoes the seed (fetched before it), and the open 5m bucket then counts
+        # every REST minute
+        rig.trade("ZZA", T0 + 4 * MIN + 30_000, 1.5, 0)
+        await until(lambda: rig.rt.counters["reseeds_on_flow"] == 1)
+        await until(lambda: any(u.bar["t"] == T0 and u.bar["v"] >= 30 for u in bars_in(c, ("ZZA", "5"))))
         await c.close()
         await asyncio.wait_for(t, 2)
         await rig.rt.stop_reader()
@@ -1080,8 +1084,11 @@ def test_coverage_a_failed_seed_is_retried_and_an_empty_answer_needs_no_seed(mon
     async def go2():
         c = FakeConn([hello(), desired(1, OWN, frozenset({("ZZA", "1")}))])
         t = await run_until(c, rig2.srv, lambda: rig2.rt.counters["seeds_empty"] == 1)
+        # no trade has flowed yet, so the empty answer cannot vouch for the gap before the flow
+        assert not rig2.rt.bc.covered("ZZA")
+        rig2.trade("ZZA", T0 + 31_000, 6.0, 10)             # the first trade of the day
+        await until(lambda: rig2.rt.counters["seeds_empty"] == 2)   # redone after the flow
         assert rig2.rt.bc.covered("ZZA")
-        rig2.trade("ZZA", T0 + 31_000, 6.0, 10)             # the first trade of the day: whole
         await until(lambda: [u for u in bars_in(c, ("ZZA", "1")) if u.bar["t"] == T0])
         await c.close()
         await asyncio.wait_for(t, 2)
@@ -1168,6 +1175,38 @@ def test_a_seed_waits_for_trades_to_flow_then_the_vendor_lag(monkeypatch):
         assert fetched_after_trade == [True]
         first = [u for u in bars_in(c, ("ZZA", "1")) if u.bar["t"] == T0][0]
         assert first.bar["o"] == 5.0
+        await c.close()
+        await asyncio.wait_for(t, 2)
+        await rig.rt.stop_reader()
+    asyncio.run(go())
+
+
+def test_a_seed_fetched_before_trades_flow_is_redone_when_the_first_trade_arrives():
+    """Review 2026-11-23 #4: T slow to start (or a quiet name): the seed stops waiting and
+    fetches. It cannot vouch for trades between its fetch and the real flow start, so coverage
+    stays pending; the first trade asks for a fresh seed, and only that one makes the bucket."""
+    calls = []
+
+    def fetcher(sym):
+        calls.append(sym)
+        o = 1.0 if len(calls) == 1 else 5.0
+        return [{"t": T0, "o": o, "h": 9.0, "l": 0.5, "c": 6.0, "v": 900}]
+
+    rig = Rig(seeding=True, fetcher=fetcher)
+    rig.now[0] = T0 + 30_000
+
+    async def go():
+        c = FakeConn([hello(), desired(1, OWN, frozenset({("ZZA", "1")}))])
+        t = await run_until(c, rig.srv, lambda: len(calls) == 1)     # gave up waiting: fetched
+        await until(lambda: "ZZA" in rig.rt.bc._reseed_on_flow)
+        assert not rig.rt.bc.covered("ZZA")
+        assert not [u for u in bars_in(c, ("ZZA", "1")) if u.bar["t"] == T0], "pre-flow seed shown"
+        rig.trade("ZZA", T0 + 45_000, 6.0, 10)                         # T finally flows
+        await until(lambda: len(calls) == 2)
+        await until(lambda: [u for u in bars_in(c, ("ZZA", "1")) if u.bar["t"] == T0])
+        first = [u for u in bars_in(c, ("ZZA", "1")) if u.bar["t"] == T0][0]
+        assert first.bar["o"] == 5.0, "the bucket comes from the seed fetched after the flow"
+        assert rig.rt.counters["reseeds_on_flow"] == 1
         await c.close()
         await asyncio.wait_for(t, 2)
         await rig.rt.stop_reader()
