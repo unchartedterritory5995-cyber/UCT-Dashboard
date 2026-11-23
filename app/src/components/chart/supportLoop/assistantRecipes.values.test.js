@@ -497,23 +497,21 @@ const CHECKS = {
       o = ho; c = hc
     }
     const cols = engineColumns('heikin-ashi-candles')
-    // open, high, low, close, which colour, and (e96: the candle is DRAWN, one candle authority) the packed colours
-    // the chart's candle reads for its body, wick and border (`pine.js::candleFactsOf`), each the v5 green or red
-    expect(cols.length).toBeGreaterThanOrEqual(6)
-    same(cols[0], wantO, 'HA open', { rel: 1e-9 })
-    same(cols[1], wantH, 'HA high', { rel: 1e-9 })
-    same(cols[2], wantL, 'HA low', { rel: 1e-9 })
-    same(cols[3], wantC, 'HA close', { rel: 1e-9 })
-    // the colour of each candle: up (green) when its close is at or above its open
-    expect(cols[4]).toEqual(wantC.map((v, i) => (v >= wantO[i] ? 1 : 0)))
+    // ⭐ e96 — the candle is DRAWN now (one candle authority), so the document is the candle's: its four prices and
+    // the packed colour the chart's candle reads (`0xTTBBGGRR`). Which door draws it (and so the column order) is
+    // the cost route's to decide, so each column is found by what it holds, never by its position.
+    const near = (got, want) => got.length === want.length && want.every((w, i) => close2(got[i], w, 1e-9))
+    for (const [want, label] of [[wantO, 'HA open'], [wantH, 'HA high'], [wantL, 'HA low'], [wantC, 'HA close']]) {
+      expect(cols.some((c) => near(c, want)), `${label}: no engine column holds it`).toBe(true)
+    }
+    // the colour of each candle: up (green) when its close is at or above its open, as the chart's candle reads it
     const packedGreen = objectHexToPacked('#4CAF50')   // v5 `color.green`, packed as the runtime lane packs it
     const packedRed = objectHexToPacked('#FF5252')     // v5 `color.red`
-    for (const pc of cols.slice(5)) {
-      expect(pc).toEqual(wantC.map((v, i) => (v >= wantO[i] ? packedGreen : packedRed)))
-    }
-    expect(new Set(cols[4]).size).toBe(2)                           // both colours occur on these bars
+    const wantColour = wantC.map((v, i) => (v >= wantO[i] ? packedGreen : packedRed))
+    expect(cols.some((c) => c.length === wantColour.length && c.every((v, i) => v === wantColour[i])), 'the candle colour').toBe(true)
+    expect(new Set(wantColour).size).toBe(2)                           // both colours occur on these bars
     // not the bar's own candles: on most bars the open differs from the bar's open
-    expect(cols[0].filter((v, i) => Math.abs(v - b[i].o) > 1e-9).length).toBeGreaterThan(b.length * 0.9)
+    expect(wantO.filter((v, i) => Math.abs(v - b[i].o) > 1e-9).length).toBeGreaterThan(b.length * 0.9)
   },
   // ⭐ 2026-11-21: a count in which each counted bar is judged by the bars AFTER it. The reference is two plain
   // loops written from the recipe's stated rule; it shares no code with the engine.
