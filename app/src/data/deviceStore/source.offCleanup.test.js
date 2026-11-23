@@ -150,6 +150,23 @@ describe('OFF BY DEFAULT: the packs are kept, unused', () => {
     expect(await off(NOW + 25 * 3_600_000)).toBe(0)                      // not stale any more
   })
 
+  it('a run forgets an earlier stale mark: 30 days after it, the first stale off load marks again, it does not delete', async () => {
+    ranHere(31)
+    const off = async (t) => {
+      const src = await pageLoad({ defaultOn: false })
+      const s = scheduler()
+      const o = opfs()
+      look(src, s, o, { now: () => t })
+      await paintAndIdle(s)
+      return o.root.removeEntry.mock.calls.length
+    }
+    expect(await off(NOW)).toBe(0)                                       // marked
+    const { createDeviceClient } = await vi.importActual('./client')
+    createDeviceClient({ makeWorker: () => ({ postMessage() {}, terminate() {} }), afterPaint: () => {}, now: () => NOW + 3_600_000 }).start()
+    expect(await off(NOW + 3_600_000 + 31 * DAY)).toBe(0)                // stale again, but the old mark went with the run
+    expect(await off(NOW + 3_600_000 + 32 * DAY)).toBe(1)                // the new mark, confirmed a day later
+  })
+
   it('the run stamp NEVER moves backwards (a clock set back after running ahead): the newest stamp stands', async () => {
     localStorage.setItem(LAST_RUN_KEY, String(NOW + 10 * DAY))
     const { createDeviceClient } = await vi.importActual('./client')
