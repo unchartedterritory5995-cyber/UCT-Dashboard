@@ -474,6 +474,16 @@ export const PROVENANCE_CLASSES = Object.freeze(['index:fmp', 'index:fmp-rollup'
  *  MIRRORS the floor the L10 value cases use (coordinator ruling 2026-11-22), so there is one number for "enough bars to
  *  speak". A capture whose Yahoo window holds fewer is INCONCLUSIVE by Guard 1, which is correct. */
 export const PROVENANCE_SOURCED_MIN = 200
+/** ⭐⭐ BIN (v) (coordinator ruling 2026-11-23, option a): the chart's LAST regular-hours bar of a session served from
+ *  the FMP prefix reads the session's closing value from the older intraday history, where FMP's closing value and
+ *  TradingView's differ (30m 15:30: TradingView equals ours on 332 of 666 FMP-prefix sessions; 117 of 125 inside our 1m
+ *  window, 60 of 60 Yahoo-window sessions; the 15:59 one-minute close does not explain it, 5 vs 4). Its own named class,
+ *  per BAR from the supply's provenance (never a date constant). A Yahoo-sourced session-last bar is graded as before. */
+export const SESSION_LAST_CLASS = 'index:fmp-session-last'
+/** Why each provenance class is not a MATCH, in words (the summary prints it once per class present). */
+export const PROVENANCE_REASONS = Object.freeze({
+  [SESSION_LAST_CLASS]: "the session's last bar from the older intraday history, where our vendor's closing value and TradingView's differ",
+})
 
 const _ET_FMT = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit',
   day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
@@ -489,8 +499,15 @@ function _etDayMin(sec) {
  * the series' class from `deepFrom` through `deepThrough`, else Yahoo's own (null). ⭐ A bar BEFORE 09:30 ET on the
  * session after `deepThrough` reads the prefix's last bar (an extended-hours chart's pre-market): the prefix class.
  * Daily (ISO-dated) captures carry none: the daily index rows are FMP's primary, never a deep prefix.
+ * ⭐ BIN (v): on an INTRADAY capture (`intraday`: its own contiguous grid), the session's last regular-hours bar
+ * (the day's last bar inside 09:30-16:00 ET, so a 13:00 half-day's last too) of a prefix session is SESSION_LAST_CLASS.
  */
-export function provenanceBarsOf(times, provenance) {
+/** An intraday capture: a numeric (minutes) timeframe such as `5`, `30`, `60`, `1` or `5m`; never `1D` / `D` / `W` / `M`. */
+export function isIntradayCapture(capture) {
+  return /^\d+m?$/.test(String((capture && capture.timeframe) || ''))
+}
+
+export function provenanceBarsOf(times, provenance, { intraday = false } = {}) {
   const list = Array.isArray(provenance) ? provenance.filter((e) => e && PROVENANCE_CLASSES.includes(e.class)) : []
   if (!list.length || !Array.isArray(times) || !times.length) return null
   let any = false
@@ -504,6 +521,15 @@ export function provenanceBarsOf(times, provenance) {
     }
     return null
   })
+  if (any && intraday) {
+    const lastOfDay = new Map()
+    times.forEach((t, i) => {
+      if (typeof t !== 'number' || !Number.isFinite(t)) return
+      const { day, min } = _etDayMin(t > 1e11 ? t / 1000 : t)
+      if (min >= 570 && min < 960) lastOfDay.set(day, i)
+    })
+    for (const i of lastOfDay.values()) if (out[i] === 'index:fmp' || out[i] === 'index:fmp-rollup') out[i] = SESSION_LAST_CLASS
+  }
   return any ? out : null
 }
 
@@ -983,7 +1009,7 @@ export function compareCapture(capture, ours, opts = {}) {
   const supplyBehind = opts.supplyBehind || null
   const behindBars = supplyBehind && times.length ? times.map((_, i) => i === times.length - 1) : null
   // ⭐⭐ INDEX PROVENANCE: one mask for the capture (every plot of a script that reads the series depends on it)
-  const provenanceBars = provenanceBarsOf(times, ours.indexProvenance)
+  const provenanceBars = provenanceBarsOf(times, ours.indexProvenance, { intraday: isIntradayCapture(capture) })
   const rowsByTime = new Map((capture.plotValues.rows || []).map((r) => [String(r[0]), r]))
   const roles = vendorPlotRoles(capture)
   for (const p of roles.notDrawn) base.notCompared.push({ id: p.id, title: p.title, type: p.type, why: 'alertcondition — draws nothing on TradingView either; not a visual claim' })
@@ -2274,6 +2300,8 @@ export function renderSummary(results) {
   if (provRows.length) {
     lines.push(`INDEX PROVENANCE (${provRows.length} captures; those bars compared into a provenance block, never into a MATCH): `
       + provRows.map(([r, x]) => `${r.id} ${r.verdict} ${(100 * x.share).toFixed(1)}% provenance (${x.prov} bars)`).join('; '))
+    const named = new Set(results.flatMap((r) => (r.plots || []).flatMap((pl) => Object.keys((pl && pl.stats && pl.stats.provenance) || {}))))
+    for (const cls of Object.keys(PROVENANCE_REASONS)) if (named.has(cls)) lines.push(`  ${cls}: ${PROVENANCE_REASONS[cls]}`)
   }
   lines.push(`TOTAL ${results.length} captures — MATCH ${tally.MATCH} · DIVERGE ${tally.DIVERGE} · INCONCLUSIVE ${tally.INCONCLUSIVE}`
     + (tally.MATCH_SUBSTITUTED ? ` · MATCH_SUBSTITUTED ${tally.MATCH_SUBSTITUTED} (verified with substituted inputs; never counted as MATCH)` : ''))

@@ -7,7 +7,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
-  PROVENANCE_SOURCED_MIN, comparePlot, plotVerdict, provenanceBarsOf, provenanceText, renderSummary, tolerancePolicy,
+  PROVENANCE_REASONS, PROVENANCE_SOURCED_MIN, SESSION_LAST_CLASS, comparePlot, isIntradayCapture, plotVerdict, provenanceBarsOf, provenanceText, renderSummary, tolerancePolicy,
 } from '../../../../../../../tools/vendor_harness/compare.mjs'
 
 const TOL = tolerancePolicy({ symbol: { pricescale: 100 } })
@@ -94,7 +94,7 @@ describe('GUARD 1: the verdict speaks only for the Yahoo-sourced bars, which mus
 describe('the capture grade wires it (code, not prose)', () => {
   it('compareCapture builds ONE mask from our side’s `indexProvenance` and hands it to every plot’s comparison', () => {
     const src = fs.readFileSync(path.resolve(globalThis.process.cwd(), '../tools/vendor_harness/compare.mjs'), 'utf8')
-    expect(src).toMatch(/const provenanceBars = provenanceBarsOf\(times, ours\.indexProvenance\)/)
+    expect(src).toMatch(/const provenanceBars = provenanceBarsOf\(times, ours\.indexProvenance, \{ intraday: /)
     const args = src.match(/const plotArgs = \{[\s\S]*?\}\n/)
     expect(args && args[0]).toMatch(/behindBars, provenanceBars \}/)
   })
@@ -117,5 +117,52 @@ describe('GUARD 2: a summary that counts MATCH rows shows each row’s provenanc
     expect(table).toContain(' · provenance index:fmp 100/100 equal')
     const share = ((100 * 100) / (own + 100)).toFixed(1)
     expect(table).toContain(`: rs-rating-fred6724-intra-spy-30-x MATCH ${share}% provenance (100 bars)`)
+  })
+})
+
+// ⭐⭐ BIN (v) (coordinator ruling 2026-11-23, option a): the session's last regular-hours bar of an FMP-prefix session is
+// its own named class, per BAR from the supply's provenance; a Yahoo-sourced session-last bar is graded as before.
+describe('BIN (v): an FMP-prefix session-last bar is its own named class; a Yahoo one is graded as before', () => {
+  // a 30m regular-hours grid (09:30 .. 15:30) on a day, plus an extended-hours bar after the close
+  const day30 = (d) => [9.5, 10, 10.5, 11, 11.5, 12, 12.5, 13, 13.5, 14, 14.5, 15, 15.5].map((h) => at(d, Math.floor(h), (h % 1) * 60))
+  const PROV2 = [{ symbol: 'SPX', class: 'index:fmp-rollup', deepFrom: '2025-11-03', deepThrough: '2025-11-04', firstOwnSession: '2025-11-05', filled: [] }]
+
+  it('on ONE chart across the boundary: the prefix session\'s 15:30 is SESSION_LAST, its other bars the series class, Yahoo\'s 15:30 none', () => {
+    const times = [...day30('2025-11-04'), at('2025-11-04', 16, 0), ...day30('2025-11-05')]
+    const m = provenanceBarsOf(times, PROV2, { intraday: true })
+    expect(m[12]).toBe(SESSION_LAST_CLASS)                       // 2025-11-04 15:30, the FMP prefix's last session
+    expect(m.slice(0, 12).every((c) => c === 'index:fmp-rollup')).toBe(true)
+    expect(m[13]).toBe('index:fmp-rollup')                        // 16:00 is extended hours, never the session's last
+    expect(m[14 + 12]).toBeNull()                                 // 2025-11-05 15:30: Yahoo's own, graded as before
+    // ⛔ CONTROL: without the intraday grid (a sparse or daily list) no bar is re-classed
+    expect(provenanceBarsOf(times, PROV2)[12]).toBe('index:fmp-rollup')
+  })
+
+  it('a 13:00 half-day: its last bar (12:30 on 30m) is the session\'s last; a filled session keeps index:etf-fill', () => {
+    const half = [9.5, 10, 10.5, 11, 11.5, 12, 12.5].map((h) => at('2025-11-03', Math.floor(h), (h % 1) * 60))
+    expect(provenanceBarsOf(half, PROV2, { intraday: true }).at(-1)).toBe(SESSION_LAST_CLASS)
+    const filled = provenanceBarsOf(day30('2025-11-04'), [{ ...PROV2[0], filled: ['2025-11-04'] }], { intraday: true })
+    expect(filled.every((c) => c === 'index:etf-fill')).toBe(true)
+  })
+
+  it('graded into its own block (never matching), and the summary prints the cause once, in words', () => {
+    const times = [...day30('2025-11-04'), ...day30('2025-11-05')]
+    const bars = provenanceBarsOf(times, PROV2, { intraday: true })
+    const vendor = times.map((_, i) => 100 + i); const ours = vendor.slice(); ours[12] += 5   // the session-last bar differs
+    const stats = comparePlot({ times, vendor, ours, tol: TOL, provenanceBars: bars })
+    expect(stats.provenance[SESSION_LAST_CLASS]).toMatchObject({ compared: 1, equal: 0 })
+    expect(stats.provenance['index:fmp-rollup']).toMatchObject({ compared: 12, equal: 12 })
+    expect(stats.matching).toBe(13)                                // Yahoo's 13 bars, its 15:30 included
+    const table = renderSummary([{ id: 'x', symbol: 'SPY', timeframe: '30', verdict: 'INCONCLUSIVE',
+      plots: [{ id: 'plot_0', title: 'RS Line', verdict: 'INCONCLUSIVE', reason: '', stats }] }])
+    expect(table).toContain(`${SESSION_LAST_CLASS}: ${PROVENANCE_REASONS[SESSION_LAST_CLASS]}`)
+    expect(PROVENANCE_REASONS[SESSION_LAST_CLASS]).toMatch(/session's last bar from the older intraday history/)
+  })
+
+  it('the capture grade passes the intraday grid (code, not prose)', () => {
+    const src = fs.readFileSync(path.resolve(process.cwd(), '..', 'tools/vendor_harness/compare.mjs'), 'utf8')
+    expect(src).toContain('provenanceBarsOf(times, ours.indexProvenance, { intraday: isIntradayCapture(capture) })')
+    for (const tf of ['1', '5', '30', '60', '5m']) expect(isIntradayCapture({ timeframe: tf }), tf).toBe(true)
+    for (const tf of ['1D', 'D', 'W', '1W', 'M', '', undefined]) expect(isIntradayCapture({ timeframe: tf }), String(tf)).toBe(false)
   })
 })
