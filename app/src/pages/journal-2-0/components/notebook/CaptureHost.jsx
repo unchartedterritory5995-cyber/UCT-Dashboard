@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import CaptureDialog from './CaptureDialog'
+// The dialog itself loads on its first open (CaptureDialogDoor): this file is in the app's entry chunk.
+import CaptureDialogDoor from './CaptureDialogDoor'
 import { CAPTURE_OPEN_EVENT } from '../../lib/captureBus'
 import { captureDestination } from '../../lib/capture'
 import { shareCaptureDetail, takePendingShare } from '../../lib/shareTarget'
@@ -94,7 +95,7 @@ export default function CaptureHost() {
   }, [navigate])
 
   return (
-    <CaptureDialog
+    <CaptureDialogDoor
       key={seq}
       open={open}
       onClose={() => setOpen(false)}
