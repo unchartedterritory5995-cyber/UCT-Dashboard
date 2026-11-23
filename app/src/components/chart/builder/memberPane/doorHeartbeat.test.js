@@ -14,6 +14,10 @@
 //      dead: the build refused by name (`pine:door-silent`, ONE sentence), the worker terminated and replaced, every
 //      ask it owed answered, nothing left spinning; a SLOW worker that beats is never stopped by it (the 25-minute
 //      deadline's watchdog stays the budget for real work).
+//   3. ⭐⭐ (e96 train, coordinator follow-up) THE SILENCE BOUND STARTS AT THE WORKER'S FIRST WORD: a fresh worker is
+//      loading its ~2.6 MB bundle until it says anything, and a slow connection is not a hung check. Before its first
+//      word the separate, generous LOAD BOUND (`MEMBER_DOOR_LOAD_MS`, 5 minutes) applies, once per worker; a worker
+//      that never speaks in it is stopped by name as a check that did not start (`pine:door-worker`), never "silent".
 // The clocks are counted, never read: a pulse clock that moves a fixed step per read, and fake timers on the page.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import fs from 'node:fs'
@@ -26,7 +30,7 @@ import { lowerIrProgram } from '../../engine/runtime/lowerIr.js'
 import { execute } from '../../engine/runtime/vm.js'
 import {
   createMemberDoorService, createKeyedWorkerService, doorSilentSentence, MEMBER_DOOR_SILENT_GUARD, DOOR_WORKER_STOPPED,
-  MEMBER_DOOR_WATCHDOG_MS,
+  MEMBER_DOOR_WATCHDOG_MS, MEMBER_DOOR_LOAD_MS, MEMBER_DOOR_SILENCE_MS, MEMBER_DOOR_WORKER_GUARD, doorNotLoadedWhy,
 } from './memberDoorAsync'
 import { MEMBER_PANE_DEF_PREFIX, DOOR_TIMED_OUT } from './memberPaneDefinition'
 import { memberDoorImage } from './memberDoorImage'
@@ -174,6 +178,7 @@ describe('2. the page: a silent worker is dead within 30 s; a slow worker that b
     const got = []
     const off = svc.subscribe({ source: RVOL }, (l) => got.push(l))
     expect(made).toHaveLength(1)
+    made[0].beat()                       // its first word (the job's start beat): it has loaded, then says nothing
     vi.advanceTimersByTime(29999)
     expect(got, 'nothing yet: a worker is given 30 s to say anything').toHaveLength(0)
     expect(made[0].terminated).toBe(false)
@@ -254,6 +259,7 @@ describe('2. the page: a silent worker is dead within 30 s; a slow worker that b
     const svc = createKeyedWorkerService({ job: INSPECT_WORKER_JOB, factory })
     const got = []
     const off = svc.subscribe({ source: RVOL, dialect: 'auto' }, (l) => got.push(l))
+    made[0].beat()                       // loaded: its first word
     vi.advanceTimersByTime(29999)
     expect(got).toHaveLength(0)
     vi.advanceTimersByTime(1)
@@ -271,10 +277,11 @@ describe('2. the page: a silent worker is dead within 30 s; a slow worker that b
 
   it('the several-scripts summary: a silent worker is said in the same sentence', () => {
     vi.useFakeTimers()
-    const { factory } = scripted()
+    const { made, factory } = scripted()
     const svc = createKeyedWorkerService({ job: INSPECT_LIBRARY_WORKER_JOB, factory })
     const got = []
     const off = svc.subscribe({ scripts: [RVOL, RVOL] }, (l) => got.push(l))
+    made[0].beat()                       // loaded: its first word
     vi.advanceTimersByTime(30000)
     expect(got).toHaveLength(1)
     expect(got[0].report).toBe(null)
@@ -290,6 +297,7 @@ describe('2. the page: a silent worker is dead within 30 s; a slow worker that b
     let answer = 'pending'
     svc.ask({ type: 'objects-ask', reportKey: 'k' }).then((a) => { answer = a })
     expect(made).toHaveLength(1)
+    made[0].beat()                       // loaded: its first word
     vi.advanceTimersByTime(29999)
     await Promise.resolve()
     expect(answer).toBe('pending')
@@ -313,6 +321,116 @@ describe('2. the page: a silent worker is dead within 30 s; a slow worker that b
     expect(svc.stats().silent).toBe(0)
     expect(made[0].terminated).toBe(false)
     off()
+    svc.dispose()
+  })
+})
+
+describe('2b. a worker still LOADING is not silent: the silence bound starts at its first word (e96 train)', () => {
+  it('⭐⭐ the bounds are two: 30 s of silence after a word, a generous load bound before the first', () => {
+    expect(MEMBER_DOOR_SILENCE_MS).toBe(30000)
+    expect(MEMBER_DOOR_LOAD_MS, '2.6 MB at about 70 kbit/s').toBe(5 * 60 * 1000)
+    expect(MEMBER_DOOR_LOAD_MS).toBeGreaterThan(MEMBER_DOOR_SILENCE_MS * 4)
+    expect(MEMBER_DOOR_LOAD_MS).toBeLessThan(MEMBER_DOOR_WATCHDOG_MS)
+    expect(doorNotLoadedWhy()).toBe('it did not start within 5 minutes')
+  })
+
+  it('⭐⭐ a worker that has said NOTHING yet is loading: never refused as silent at 30 s, stopped at the load bound by name', () => {
+    vi.useFakeTimers()
+    const { made, factory } = scripted()
+    const svc = createMemberDoorService({ factory })
+    const got = []
+    const off = svc.subscribe({ source: RVOL }, (l) => got.push(l))
+    expect(svc.stats()).toMatchObject({ loading: true, listening: false })
+    vi.advanceTimersByTime(MEMBER_DOOR_SILENCE_MS)
+    expect(got, 'a worker still loading its bundle is not silent').toHaveLength(0)
+    expect(made[0].terminated).toBe(false)
+    vi.advanceTimersByTime(MEMBER_DOOR_LOAD_MS - MEMBER_DOOR_SILENCE_MS - 1)
+    expect(got, 'nothing a moment before the load bound').toHaveLength(0)
+    vi.advanceTimersByTime(1)
+    expect(got, 'at the load bound the check that never started is refused').toHaveLength(1)
+    expect(got[0].built.ok).toBe(false)
+    expect(got[0].built.guard, 'a check that did not start, never "silent"').toBe(MEMBER_DOOR_WORKER_GUARD)
+    expect(got[0].built.guard).not.toBe(MEMBER_DOOR_SILENT_GUARD)
+    expect(got[0].built.reason).toContain('it did not start within 5 minutes')
+    expect(got[0].built[DOOR_WORKER_STOPPED], 'a fact about the check, never the script').toBe(true)
+    expect(made[0].terminated).toBe(true)
+    expect(svc.stats()).toMatchObject({ unloaded: 1, silent: 0, watchdog: 0, busy: false, loading: false, listening: false })
+    off()
+    svc.dispose()
+  })
+
+  it('⭐⭐ a SLOW LOAD (its first word at 2:00) is never taken for silent; its silence counts from that word', () => {
+    vi.useFakeTimers()
+    const { made, factory } = scripted()
+    const svc = createMemberDoorService({ factory })
+    const got = []
+    const off = svc.subscribe({ source: RVOL }, (l) => got.push(l))
+    vi.advanceTimersByTime(2 * 60 * 1000)
+    expect(got).toHaveLength(0)
+    made[0].beat()                       // loaded at 2:00: its start beat
+    expect(svc.stats()).toMatchObject({ loading: false, listening: true })
+    run(60 * 1000, made[0])              // a minute of work, beating
+    made[0].answerDoor(DRAWN)
+    expect(got).toHaveLength(1)
+    expect(got[0].built).toEqual(DRAWN)
+    expect(svc.stats()).toMatchObject({ unloaded: 0, silent: 0, answered: 1 })
+    off()
+    svc.dispose()
+  })
+
+  it('a worker that loads (2:00), then says nothing: refused as silent at 2:30, not at 0:30 and not at the load bound', () => {
+    vi.useFakeTimers()
+    const { made, factory } = scripted()
+    const svc = createMemberDoorService({ factory })
+    const got = []
+    const off = svc.subscribe({ source: RVOL }, (l) => got.push(l))
+    vi.advanceTimersByTime(2 * 60 * 1000)
+    made[0].beat()
+    vi.advanceTimersByTime(MEMBER_DOOR_SILENCE_MS - 1)
+    expect(got).toHaveLength(0)
+    vi.advanceTimersByTime(1)
+    expect(got).toHaveLength(1)
+    expect(got[0].built.guard).toBe(MEMBER_DOOR_SILENT_GUARD)
+    expect(svc.stats()).toMatchObject({ silent: 1, unloaded: 0 })
+    off()
+    svc.dispose()
+  })
+
+  it('the load bound runs ONCE per worker: an ask posted while it loads does not restart it', async () => {
+    vi.useFakeTimers()
+    const { made, factory } = scripted()
+    const svc = createKeyedWorkerService({ job: INSPECT_WORKER_JOB, factory })
+    let first = 'pending'
+    let second = 'pending'
+    svc.ask({ type: 'objects-ask', reportKey: 'a' }).then((a) => { first = a })
+    vi.advanceTimersByTime(4 * 60 * 1000)
+    svc.ask({ type: 'objects-ask', reportKey: 'b' }).then((a) => { second = a })
+    vi.advanceTimersByTime(MEMBER_DOOR_LOAD_MS - 4 * 60 * 1000 - 1)
+    await Promise.resolve()
+    expect([first, second]).toEqual(['pending', 'pending'])
+    vi.advanceTimersByTime(1)
+    await Promise.resolve()
+    expect([first, second], 'every ask the unstarted worker owed is answered null').toEqual([null, null])
+    expect(made[0].terminated).toBe(true)
+    expect(svc.stats()).toMatchObject({ unloaded: 1, silent: 0 })
+    svc.dispose()
+  })
+
+  it('a worker kept from a previous job has loaded: a new job on it is held to the silence bound at once', () => {
+    vi.useFakeTimers()
+    const { made, factory } = scripted()
+    const svc = createMemberDoorService({ factory })
+    const got = []
+    const off = svc.subscribe({ source: RVOL }, (l) => got.push(l))
+    made[0].answerDoor(DRAWN)            // its first word was this answer
+    const got2 = []
+    const off2 = svc.subscribe({ source: CLOUDS }, (l) => got2.push(l))
+    expect(made, 'the same worker takes the next job').toHaveLength(1)
+    vi.advanceTimersByTime(MEMBER_DOOR_SILENCE_MS)
+    expect(got2).toHaveLength(1)
+    expect(got2[0].built.guard).toBe(MEMBER_DOOR_SILENT_GUARD)
+    off()
+    off2()
     svc.dispose()
   })
 })

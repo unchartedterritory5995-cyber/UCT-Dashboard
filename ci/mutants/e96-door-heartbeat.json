@@ -1,6 +1,6 @@
 {
   "schema": "uct.ci-mutants/v1",
-  "about": "e96 DOOR HEARTBEAT (feat/e96-door-heartbeat, coordinator ruling 2026-11-23): the member door's worker beats from its own counted steps (the translator's step budget, the door window's walks, the VM's bars) as each job starts and at least every 5 s while it works; the page treats a worker that owes an answer and has said nothing for 30 s as dead (refused by name in one sentence, terminated and replaced, every ask answered), never a slow worker that beats; and every 'checking' surface says for how long the check has run. Every rule, broken once, must turn its rail red.",
+  "about": "e96 DOOR HEARTBEAT (feat/e96-door-heartbeat, coordinator ruling 2026-11-23): the member door's worker beats from its own counted steps (the translator's step budget, the door window's walks, the VM's bars) as each job starts and at least every 5 s while it works; the page treats a worker that owes an answer and has said nothing for 30 s as dead (refused by name in one sentence, terminated and replaced, every ask answered), never a slow worker that beats; and every 'checking' surface says for how long the check has run. Every rule, broken once, must turn its rail red. (e96 train, coordinator follow-up 2026-11-23) The silence bound starts only at the worker's first word; before it a separate, generous load bound (5 minutes) applies once per worker, and a worker that never speaks in it is stopped as a check that did not start, never as silent: L1-L5.",
   "mutants": [
     {
       "id": "H1",
@@ -127,6 +127,51 @@
       "to": "  const headline = checking ? <CheckingLine elapsedMs={null} /> : shown.headline",
       "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/doorHeartbeat.elapsed.test.jsx",
       "expectRed": "the headline counts too"
+    },
+    {
+      "id": "L1",
+      "mutant": "the silence bound starts at the post: a worker still loading its bundle is taken for silent at 30 s",
+      "file": "app/src/components/chart/builder/memberPane/memberDoorAsync.js",
+      "from": "    if (spoke !== w) {   // still loading: the load bound, never the silence bound",
+      "to": "    if (false) {   // (mutant L1)",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/doorHeartbeat.test.js",
+      "expectRed": "a worker still loading its bundle is not silent"
+    },
+    {
+      "id": "L2",
+      "mutant": "a worker's first word is not heard as its load: a loaded worker that goes quiet is never taken for silent",
+      "file": "app/src/components/chart/builder/memberPane/memberDoorAsync.js",
+      "from": "    if (spoke !== w) { spoke = w; stopLoading() }",
+      "to": "    if (false) { spoke = w; stopLoading() }",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/doorHeartbeat.test.js",
+      "expectRed": "at 30 s of silence the build is refused"
+    },
+    {
+      "id": "L3",
+      "mutant": "the load bound restarts on every ask: a worker that never loads is kept as long as it is asked",
+      "file": "app/src/components/chart/builder/memberPane/memberDoorAsync.js",
+      "from": "      if (loading === null) loading = setTimeout(() => { loading = null; onNotLoaded(w) }, loadMs)",
+      "to": "      stopLoading(); loading = setTimeout(() => { loading = null; onNotLoaded(w) }, loadMs)",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/doorHeartbeat.test.js",
+      "expectRed": "the load bound runs ONCE per worker"
+    },
+    {
+      "id": "L4",
+      "mutant": "a check that never started is named silent",
+      "file": "app/src/components/chart/builder/memberPane/memberDoorAsync.js",
+      "from": "    if (r) finish(r, job.failed(doorNotLoadedWhy(loadMs), r.entry, r.version))",
+      "to": "    if (r) finish(r, silentOf(r.entry, r.version, silenceMs))",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/doorHeartbeat.test.js",
+      "expectRed": "a check that did not start, never"
+    },
+    {
+      "id": "L5",
+      "mutant": "the load bound is no more generous than the silence bound (a 2.6 MB worker on a slow connection is stopped)",
+      "file": "app/src/components/chart/builder/memberPane/memberDoorAsync.js",
+      "from": "export const MEMBER_DOOR_LOAD_MS = 5 * 60 * 1000",
+      "to": "export const MEMBER_DOOR_LOAD_MS = 30000",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/doorHeartbeat.test.js",
+      "expectRed": "2.6 MB at about 70 kbit/s"
     }
   ]
 }
