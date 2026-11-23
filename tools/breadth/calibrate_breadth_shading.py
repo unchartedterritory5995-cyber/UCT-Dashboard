@@ -248,6 +248,8 @@ def main(argv=None) -> int:
                                                   "laid over the back-tested rows, as the Monitor serves it")
     ap.add_argument("--uct-exp-model", default="", help="the rebuilt UCT Exp series "
                                                         "(breadth_uct_exposure_model) filled in as served")
+    ap.add_argument("--universe-extras", default="", help="US / Nasdaq / NYSE: the rebuilt Up Vol / HVC / "
+                                                          ">7xATR series (breadth_universe_extras) as served")
     args = ap.parse_args(argv)
     with open(SPEC, encoding="utf-8") as f:
         spec = json.load(f)
@@ -256,6 +258,12 @@ def main(argv=None) -> int:
             print(f"shadeSpec pcts.{lv} must be one of {GRID}")
             return 2
     uspec = spec_for(spec, args.universe)
+    if args.universe_extras:
+        sys.path.insert(0, ROOT)
+        from api.services import breadth_universe_extras as uex  # noqa: E402
+        os.environ["BREADTH_UNIVERSE_EXTRAS"] = "1"
+        uex.SERIES_PATH = args.universe_extras
+        uex._view.clear()
     rows = load_rows(args.universe, args.uct_deep, args.uct_backtest, args.exposure_db)
     if args.uct_pit:
         if args.universe != "uct":

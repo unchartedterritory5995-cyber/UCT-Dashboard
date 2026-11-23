@@ -36,7 +36,7 @@ import { screenNewChart, screenEmptyBoardChart } from './capabilities/workspace'
 import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf, selectedChart, chartNameWord, clausesNameDifferentCharts, targetTickerConflict, lowerTickerCandidates, TARGET_CHECK_FAILED, timeframeSetOf } from './deixis'
 import { screenWatchlistWidget } from './watchlistTarget'
 import { whichListView, LIST_VIEW_WHICH } from './whichWidget'
-import { checkSpatialConstraints, excludedCharts, spatialConstraints, UNPLACED, withoutExcludedCharts, everyExceptSet } from './spatialCheck'
+import { checkSpatialConstraints, excludedCharts, spatialConstraints, UNPLACED, withoutExcludedCharts, everyExceptSet, everyExceptNothing, nothingLeftText } from './spatialCheck'
 import { groundSymbols, groundingOf } from './nl/tickers'
 import { multiChartPlan, screenChartGrid, isWorkspaceRequest, gridChoiceFor } from './multiChart'
 import { scopeHostToGrid } from './host'
@@ -442,6 +442,19 @@ function everyExceptQuestion(host, ops, text, subject = null) {
     const labels = set.map(c => c.label || c.symbol || c.ref)
     const label = labels.length === 1 ? labels[0] : `${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]}`
     return { text: set.length === 1 ? `Did you mean ${label}? Nothing has changed yet.` : `Did you mean these ${set.length} charts: ${label}? Nothing has changed yet.`, choice: { ref: `set:${set.map(c => c.ref).join(',')}`, label, ops: out } }
+  } catch { return null }
+}
+// (AUDIT 11-23) the plain answer when the words' exclusion covers every chart and the plan is chart-backed changes only
+// (spatialCheck.everyExceptNothing) → the sentence, or null. Never throws.
+function nothingLeftFor(host, ops, text, subject = null) {
+  try {
+    if (!ops?.length) return null
+    const chartBacked = ops.every(o => { const cap = getCapability(o?.action); return !!cap && !cap.query && !!getTargetKind(cap.target) })
+    if (!chartBacked) return null
+    const live = host?.charts?.list?.() || []
+    const sel = selectedChart(host)
+    const v = everyExceptNothing(text, live, sel, { subject, rest: !sel && !subject })
+    return v ? nothingLeftText(v, live.length) : null
   } catch { return null }
 }
 // GATE C: a committed plan → session memory, every target as its CHART ref (a kind's `groupOf`), with
@@ -3416,6 +3429,17 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         } catch { return false }
       })()
       if (onSubject) mark('subject', 'memory')
+      // (AUDIT 11-23) an exclusion that covers EVERY chart ("set all to weekly but leave the daily ones alone", every chart daily):
+      // the plan changes nothing and the member is told so in one plain sentence — never a question whose every choice is a
+      // chart they excluded. Only a plan of chart-backed changes; a partial cover or an unplaceable exclusion runs / asks as before
+      {
+        const nothing = nothingLeftFor(host, screened.ops, text, chartSubjectOf(memoryRef.current, host))
+        if (nothing) {
+          push({ role: 'agent', text: nothing })
+          record({ member: null, outcome: nothing, outcomeData: { kind: 'nothing-left-to-change', actions: screened.ops.map(o => o?.action) }, telemetry: { path: 'model', disposition: 'clarify', voice } })
+          return
+        }
+      }
       // ⭐ Multi Chart: a plan aimed anywhere but "the one I just changed" is asked about, even when it aims at the clicked chart
       const deictic = onSubject ? null : sw0.changed
         ? { ask: { text: 'Which chart do you mean?', choices: (host?.charts?.list?.() || []).map(c => ({ ref: c.ref, label: c.label })) } }

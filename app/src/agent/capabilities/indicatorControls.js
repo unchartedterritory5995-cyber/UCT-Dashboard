@@ -292,7 +292,7 @@ function describeBuilt(a) {
   const pv = plan.preview || {}
   // PACKAGE 3: a width set through the indicator's own Line width setting is said as a settings change
   if (plan.op === 'setInputs' && pv.inputs) return receiptLine({ op: 'setInputs', inputs: pv.inputs, defId: plan.target?.defId, name: pv.nameAfter || pv.name }, a.chart)
-  return extReceiptLine({ op: plan.op, change: pv.change, copied: pv.copied, already: pv.already, from: pv.from }, ownIndicatorName(plan.target?.defId) || pv.nameAfter || pv.name || 'the indicator', ` on ${a.chart}`)
+  return extReceiptLine({ op: plan.op, change: pv.change, copied: pv.copied, already: pv.already, from: pv.from, defId: plan.target?.defId },ownIndicatorName(plan.target?.defId) || pv.nameAfter || pv.name || 'the indicator', ` on ${a.chart}`)
 }
 
 let registered = false
