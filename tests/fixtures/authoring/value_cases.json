@@ -12745,6 +12745,32 @@
     "script": {
      "pine": "//@version=5\nindicator(\"Stop risk vs today's low\", overlay=true)\n\nshares = input.int(100, \"Shares\", minval=1)\n\n// Today's low: resets on each new day, updates through the session\nnewDay = ta.change(time(\"D\")) != 0\nvar float dayLow = na\nif newDay\n    dayLow := low\nelse\n    dayLow := na(dayLow) ? low : math.min(dayLow, low)\n\nriskPerShare = close - dayLow\nriskTotal = riskPerShare * shares\n\nvar table t = table.new(position.top_right, 2, 4, border_width=1)\ntable.cell(t, 0, 0, \"Today's low\", text_color=color.white, bgcolor=color.gray)\ntable.cell(t, 1, 0, str.tostring(dayLow, \"#.##\"), text_color=color.white)\ntable.cell(t, 0, 1, \"Latest price\", text_color=color.white, bgcolor=color.gray)\ntable.cell(t, 1, 1, str.tostring(close, \"#.##\"), text_color=color.white)\ntable.cell(t, 0, 2, \"Risk / share\", text_color=color.white, bgcolor=color.gray)\ntable.cell(t, 1, 2, str.tostring(riskPerShare, \"#.##\"), text_color=color.white)\ntable.cell(t, 0, 3, \"Risk on \" + str.tostring(shares) + \" shares\", text_color=color.white, bgcolor=color.gray)\ntable.cell(t, 1, 3, str.tostring(riskTotal, \"#.##\"), text_color=color.white, bgcolor=riskPerShare > 0 ? color.new(color.red, 70) : color.new(color.green, 70))\n\nplot(riskTotal, \"Dollar risk\", color=color.new(color.gray, 100))\n"
     }
+   },
+   "keep_record": "tests/test_value_cases_intraday.py changes this script's own lines, one at a time, to prove the rule can fail (the low that never starts again with a new day, 200 shares, the distance to the high)"
+  },
+  {
+   "id": "weekly-plot-01",
+   "lane": "script",
+   "chart": "daily",
+   "words": "Plot the 10 week simple moving average of the weekly close on my daily chart, and put a label with the text Cross on each bar where the close crosses above it",
+   "rule": {
+    "digest": "7ff9bf10ef31cbee",
+    "history": [
+     {
+      "digest": "7ff9bf10ef31cbee",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "recorded": {
+    "on": "2026-11-22",
+    "front": "b95ee9c9a3"
+   },
+   "answer": {
+    "turn": "script",
+    "script": {
+     "pine": "//@version=5\nindicator(\"Weekly 10 SMA + cross labels\", overlay=true, max_labels_count=500)\n\nlen = input.int(10, \"Weekly SMA length\", minval=1)\n\nwsma = request.security(syminfo.tickerid, \"W\", ta.sma(close, len))\n\nplot(wsma, \"Weekly 10 SMA\", color=color.purple, linewidth=2)\n\ncrossUp = ta.crossover(close, wsma)\nif crossUp\n    label.new(bar_index, high, \"Cross\", style=label.style_label_down, color=color.green, textcolor=color.white)\n"
+    }
    }
   },
   {
@@ -13202,15 +13228,31 @@
    },
    "recorded": {
     "on": "2026-11-22",
-    "front": "ba74a9fdc0",
-    "model": null
+    "front": "b95ee9c9a3",
+    "model": "claude-opus-5"
    },
    "answer": {
     "disposition": "answer",
-    "reply": "RS Rating is one of UCT's own indicators, UCT RS Rating: the stock's RS Rating, 1 to 99, session by session on daily charts. It is not a formula to build here."
+    "reply": "IBD's RS Rating is IBD's own and is not available here. UCT has its own, UCT RS Rating: the stock's RS Rating, 1 to 99, session by session on daily charts. It is not IBD's number, and it is not a formula to build here."
    },
-   "recorded_verdict": "wrong",
-   "defect": "Asked for the proprietary number another publisher prints, the door answered by name with an offer of UCT's own indicator and never said it is NOT that publisher's number: under those words a named offer reads as a yes. The right answer says first that IBD's number is IBD's own and is not available here, and only then names UCT's own, as UCT's and as not IBD's. Found by the first full live run as a member (2026-11-22); the door's own sentence now says it."
+   "found": [
+    {
+     "answer": {
+      "disposition": "answer",
+      "reply": "RS Rating is one of UCT's own indicators, UCT RS Rating: the stock's RS Rating, 1 to 99, session by session on daily charts. It is not a formula to build here."
+     },
+     "defect": "Asked for the proprietary number another publisher prints, the door answered by name with an offer of UCT's own indicator and never said it is NOT that publisher's number: under those words a named offer reads as a yes. The right answer says first that IBD's number is IBD's own and is not available here, and only then names UCT's own, as UCT's and as not IBD's. Found by the first full live run as a member (2026-11-22); the door's own sentence now says it.",
+     "recorded": {
+      "on": "2026-11-22",
+      "front": "ba74a9fdc0",
+      "model": null
+     },
+     "fixed_by": {
+      "pr": "#2435",
+      "merge": "ff022c3bcd58d0e5fb2e040d45875b7680135fc7"
+     }
+    }
+   ]
   },
   {
    "id": "wall-27",
@@ -13295,80 +13337,39 @@
     ]
    },
    "recorded": {
-    "on": "2026-11-21",
-    "front": "c7f99ed2c3"
+    "on": "2026-11-22",
+    "front": "b95ee9c9a3",
+    "model": "claude-opus-5"
    },
-   "recorded_verdict": "wrong",
-   "defect": "A STAND-IN WAS BUILT where the member should have been asked: the line uses the ATR of fourteen 5 MINUTE bars where the words ask for the 14 DAY ATR, under a note that says so. By value it is not what was asked on any bar, and a member reads the chart, not the note. The words add today's own low to a DAILY measure in one line, which cannot be built below a day yet. The right answer builds nothing, says that plainly, and offers what can be drawn: the 14 day ATR as a line on daily bars, and the same line with the ATR of this chart's own bars, named for what they span. When a daily read below a day can be built, this becomes a formula case again and must build right.",
    "answer": {
-    "disposition": "change",
-    "reply": "I've put a line on the price chart at today's session low so far plus 0.6 times the 14-bar ATR, with a dot above each bar that closes above it. One thing to confirm: the ATR is measured on the chart's 5-minute bars — if you meant a true 14-day ATR, say so and I'll change it.",
-    "ops": [
+    "disposition": "clarify",
+    "reply": "Today's low so far is a 5 minute session value, while the 14 day ATR is a daily measure, and I can't combine the two on one 5 minute chart yet. Tell me which version you want and I'll build it exactly as named, dots and all.",
+    "questions": [
      {
-      "op": "create",
-      "name": "Session Low + 0.6 ATR",
-      "placement": "price",
-      "primary": "trigger",
-      "outputs": [
+      "text": "I can't yet mix today's low so far on a 5 minute chart with a daily measure like the 14 day ATR. Which would you like?",
+      "choices": [
+       "Use the ATR of 14 five-minute bars (about 1 hour 10 minutes)",
+       "Build it on daily bars with the 14 day ATR"
+      ]
+     }
+    ]
+   },
+   "found": [
+    {
+     "answer": {
+      "disposition": "change",
+      "reply": "I've put a line on the price chart at today's session low so far plus 0.6 times the 14-bar ATR, with a dot above each bar that closes above it. One thing to confirm: the ATR is measured on the chart's 5-minute bars — if you meant a true 14-day ATR, say so and I'll change it.",
+      "ops": [
        {
-        "key": "trigger",
-        "label": "Low + 0.6 ATR",
-        "tree": {
-         "type": "op",
-         "name": "+",
-         "args": [
-          {
-           "type": "call",
-           "name": "sessionLow",
-           "args": []
-          },
-          {
-           "type": "op",
-           "name": "*",
-           "args": [
-            {
-             "type": "num",
-             "value": 0.6
-            },
-            {
-             "type": "call",
-             "name": "atr",
-             "args": [
-              {
-               "type": "series",
-               "name": "high"
-              },
-              {
-               "type": "series",
-               "name": "low"
-              },
-              {
-               "type": "series",
-               "name": "close"
-              },
-              {
-               "type": "num",
-               "value": 14
-              }
-             ]
-            }
-           ]
-          }
-         ]
-        }
-       },
-       {
-        "key": "above",
-        "label": "Close above line",
-        "tree": {
-         "type": "op",
-         "name": ">",
-         "args": [
-          {
-           "type": "series",
-           "name": "close"
-          },
-          {
+        "op": "create",
+        "name": "Session Low + 0.6 ATR",
+        "placement": "price",
+        "primary": "trigger",
+        "outputs": [
+         {
+          "key": "trigger",
+          "label": "Low + 0.6 ATR",
+          "tree": {
            "type": "op",
            "name": "+",
            "args": [
@@ -13411,19 +13412,85 @@
             }
            ]
           }
-         ]
-        }
+         },
+         {
+          "key": "above",
+          "label": "Close above line",
+          "tree": {
+           "type": "op",
+           "name": ">",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "op",
+             "name": "+",
+             "args": [
+              {
+               "type": "call",
+               "name": "sessionLow",
+               "args": []
+              },
+              {
+               "type": "op",
+               "name": "*",
+               "args": [
+                {
+                 "type": "num",
+                 "value": 0.6
+                },
+                {
+                 "type": "call",
+                 "name": "atr",
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "high"
+                  },
+                  {
+                   "type": "series",
+                   "name": "low"
+                  },
+                  {
+                   "type": "series",
+                   "name": "close"
+                  },
+                  {
+                   "type": "num",
+                   "value": 14
+                  }
+                 ]
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "op": "set_marker",
+        "output": "above",
+        "shape": "circle",
+        "position": "aboveBar"
        }
       ]
      },
-     {
-      "op": "set_marker",
-      "output": "above",
-      "shape": "circle",
-      "position": "aboveBar"
+     "defect": "A STAND-IN WAS BUILT where the member should have been asked: the line uses the ATR of fourteen 5 MINUTE bars where the words ask for the 14 DAY ATR, under a note that says so. By value it is not what was asked on any bar, and a member reads the chart, not the note. The words add today's own low to a DAILY measure in one line, which cannot be built below a day yet. The right answer builds nothing, says that plainly, and offers what can be drawn: the 14 day ATR as a line on daily bars, and the same line with the ATR of this chart's own bars, named for what they span. When a daily read below a day can be built, this becomes a formula case again and must build right.",
+     "recorded": {
+      "on": "2026-11-21",
+      "front": "c7f99ed2c3"
+     },
+     "fixed_by": {
+      "pr": "#2471",
+      "merge": "b071e3d2cdda6333d0fa1a5cac33ac9fec819feb"
      }
-    ]
-   }
+    }
+   ]
   },
   {
    "id": "wall-31",
@@ -13437,14 +13504,30 @@
    },
    "recorded": {
     "on": "2026-11-22",
-    "front": "07b9615296"
+    "front": "b95ee9c9a3",
+    "model": "claude-opus-5"
    },
-   "recorded_verdict": "wrong",
-   "defect": "The door answered with its unknown-name sentence: \"Zacks Rank\" is not an indicator UCT knows by name, describe the rule itself and the assistant will build exactly that. It never says the number is the publisher's own and is not available here, so the reply reads as \"you can have Zacks Rank if you explain it\". UCT holds nothing by that name, so the fix of the first case of this family (a name UCT holds, #2435) does not reach it. Refused at the door with no model call.",
    "answer": {
-    "disposition": null,
-    "reply": "\"Zacks Rank\" is not an indicator UCT knows by name. Describe the rule itself in your own words (what it measures, over how many bars) and the assistant will build exactly that."
-   }
+    "disposition": "unsupported",
+    "reply": "\"Zacks Rank\" is Zacks's own number and is not available here. UCT has nothing by that name. To build something of your own, describe the rule (what it measures, over how many bars) and the assistant will build exactly that."
+   },
+   "found": [
+    {
+     "answer": {
+      "disposition": null,
+      "reply": "\"Zacks Rank\" is not an indicator UCT knows by name. Describe the rule itself in your own words (what it measures, over how many bars) and the assistant will build exactly that."
+     },
+     "defect": "The door answered with its unknown-name sentence: \"Zacks Rank\" is not an indicator UCT knows by name, describe the rule itself and the assistant will build exactly that. It never says the number is the publisher's own and is not available here, so the reply reads as \"you can have Zacks Rank if you explain it\". UCT holds nothing by that name, so the fix of the first case of this family (a name UCT holds, #2435) does not reach it. Refused at the door with no model call.",
+     "recorded": {
+      "on": "2026-11-22",
+      "front": "07b9615296"
+     },
+     "fixed_by": {
+      "pr": "#2517",
+      "merge": "39ec3530c171590a9265d0b74ad764f314d87aca"
+     }
+    }
+   ]
   },
   {
    "id": "wall-32",
@@ -13458,39 +13541,59 @@
    },
    "recorded": {
     "on": "2026-11-22",
-    "front": "07b9615296"
+    "front": "b95ee9c9a3",
+    "model": "claude-opus-5"
    },
-   "recorded_verdict": "wrong",
-   "defect": "The door answered with its unknown-name sentence: \"Composite Rating\" is not an indicator UCT knows by name, describe the rule itself and the assistant will build exactly that. It never says the rating is the publisher's own and is not available here, and it does not name the publisher at all, so the reply reads as \"you can have it if you explain it\". UCT holds nothing by that name, so the fix of the first case of this family (#2435) does not reach it. Refused at the door with no model call.",
    "answer": {
-    "disposition": null,
-    "reply": "\"Composite Rating\" is not an indicator UCT knows by name. Describe the rule itself in your own words (what it measures, over how many bars) and the assistant will build exactly that."
+    "disposition": "unsupported",
+    "reply": "\"Composite Rating\" is IBD's own number and is not available here. UCT has nothing by that name. To build something of your own, describe the rule (what it measures, over how many bars) and the assistant will build exactly that."
+   },
+   "found": [
+    {
+     "answer": {
+      "disposition": null,
+      "reply": "\"Composite Rating\" is not an indicator UCT knows by name. Describe the rule itself in your own words (what it measures, over how many bars) and the assistant will build exactly that."
+     },
+     "defect": "The door answered with its unknown-name sentence: \"Composite Rating\" is not an indicator UCT knows by name, describe the rule itself and the assistant will build exactly that. It never says the rating is the publisher's own and is not available here, and it does not name the publisher at all, so the reply reads as \"you can have it if you explain it\". UCT holds nothing by that name, so the fix of the first case of this family (#2435) does not reach it. Refused at the door with no model call.",
+     "recorded": {
+      "on": "2026-11-22",
+      "front": "07b9615296"
+     },
+     "fixed_by": {
+      "pr": "#2517",
+      "merge": "39ec3530c171590a9265d0b74ad764f314d87aca"
+     }
+    }
+   ]
+  },
+  {
+   "id": "wall-33",
+   "lane": "wall",
+   "words": "Show my live P&L from my brokerage account on the chart, updating as I trade.",
+   "wall": {
+    "names": [
+     "brokerage account",
+     "account",
+     "P&L"
+    ]
+   },
+   "recorded": {
+    "on": "2026-11-22",
+    "front": "b95ee9c9a3"
+   },
+   "answer": {
+    "disposition": "unsupported",
+    "reply": "I can't connect to your brokerage account, so live positions and account P&L aren't available here — an indicator only reads chart price and volume. The closest thing I can build is a P&L tracker you fill in yourself: you'd set your share size and average entry price in the indicator's settings, and it would draw your entry line on the chart and show the open profit or loss (per share, total dollars, or percent) in a corner table that updates with each new bar. Just say the word and tell me which figures you'd like shown."
    }
   }
  ],
  "thresholds": {
   "_": "How many cases of a lane a FULL live run must get right. Written by the first full live run (tools/value_eval.py --answers <dir> --full), never typed; a later full run below it is red. Raising one is a deliberate commit; lowering one needs the coordinator.",
   "formula": null,
-  "wall": null,
-  "script": null
+  "wall": 30,
+  "script": 19
  },
  "pending": [
-  {
-   "id": "weekly-plot-01",
-   "lane": "script",
-   "chart": "daily",
-   "words": "Plot the 10 week simple moving average of the weekly close on my daily chart, and put a label with the text Cross on each bar where the close crosses above it",
-   "rule": {
-    "digest": "7ff9bf10ef31cbee",
-    "history": [
-     {
-      "digest": "7ff9bf10ef31cbee",
-      "reason": "written from the request's words before the answer was read"
-     }
-    ]
-   },
-   "why": "No recorded script PLOTS a weekly or monthly value: the measurement that removed the other-timeframe rule (2026-11-22) could not see whether a script plot of another timeframe comes out right. This case asks it. The line is held by value to every honest reading of a weekly average on a daily bar; the labels to the line the script itself plots."
-  },
   {
    "id": "udaily-01",
    "lane": "wall",
@@ -13871,18 +13974,6 @@
     ]
    },
    "held": "Not an acceptance case by value yet: on the built 5 minute chart this condition is true on NO bar under any reading of the 14 day ATR, so a rule could not tell a right answer from a formula that is never true. Re-admit if the fixture gains a session where it can be true. The member's words are not changed to make it one."
-  },
-  {
-   "id": "wall-33",
-   "lane": "wall",
-   "words": "Show my live P&L from my brokerage account on the chart, updating as I trade.",
-   "wall": {
-    "names": [
-     "brokerage account",
-     "account",
-     "P&L"
-    ]
-   }
   },
   {
    "id": "cap-01",

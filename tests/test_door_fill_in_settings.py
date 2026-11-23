@@ -207,8 +207,11 @@ def test_the_case_moved_to_the_build_lane_with_its_reason_and_is_recorded_WRONG(
 
 
 def test_the_wall_lane_keeps_a_request_that_truly_needs_the_account():
-    sibling = next(c for c in DATA["pending"] if c["id"] == "wall-33")
-    assert sibling["lane"] == "wall" and "brokerage account" in sibling["words"] and "answer" not in sibling
+    # (written words and rule first, as a pending case; it holds its first live answer since the thresholds PR)
+    sibling = next(c for c in (DATA.get("pending") or []) + DATA["cases"] if c["id"] == "wall-33")
+    assert sibling["lane"] == "wall" and "brokerage account" in sibling["words"]
+    if "answer" in sibling:
+        assert sibling["recorded"]["front"] and G.grade_wall(sibling, sibling["answer"])["verdict"] == sibling.get("recorded_verdict", "right")
     assert G.grade_wall(sibling, {"disposition": "unsupported", "reply": "I can't read a brokerage account from here."})["verdict"] == "right"
     assert G.grade_wall(sibling, {"disposition": "unsupported", "reply": "I can't build that."})["verdict"] == "wrong"
     assert G.grade_wall(sibling, {"disposition": "change", "reply": "your account", "ops": [FILLED]})["verdict"] == "wrong"
