@@ -3,7 +3,9 @@
 The value cases hold twelve requests asked on a 5 MINUTE chart that give a length in DAYS and cannot be built whole on
 daily bars (four compare each bar with the daily measure, six read another symbol, and the two of the same rounds that
 add today's own values to a daily ATR): `udaily-01`..`udaily-10` (pending, walls until U-DAILY, each with its rule
-fingerprinted before any answer existed) and `intraday-01`, `intraday-02`. Their BY-VALUE rules are the owner's
+fingerprinted before any answer existed) and `intraday-01`, `intraday-02`; and `intraday-03` (yesterday's close plus and
+minus the 20 day average range), the studio's finding that on a daily read `close` already IS yesterday's close and one
+more offset is the day before yesterday (its control below). Their BY-VALUE rules are the owner's
 (`tools/value_cases/udaily_rules.py`, `intraday_rules.py`); their lanes are the owner's too, and this file reads them,
 never edits them (coordinator, 2026-11-22: the case-file change is DEEPVUE's).
 
@@ -115,6 +117,8 @@ ATR14 = daily(call("atr", HIGH, LOW, CLOSE, num(14)))
 RANGE_PCT = op("*", op("/", daily(call("sma", op("-", HIGH, LOW), num(14))), CLOSE), num(100))
 RATIO = op("/", CLOSE, spy(CLOSE))
 LINE_02 = op("+", call("sessionLow"), op("*", num(0.6), ATR14))
+#: the average of the last 20 days' range (the high minus the low), on daily bars
+ADR20 = daily(call("sma", op("-", HIGH, LOW), num(20)))
 
 #: THE DONE-LINE: each request, built with a daily read, in the door's own tree language
 REFERENCE = {
@@ -133,11 +137,13 @@ REFERENCE = {
     "udaily-10": built(daily(beta(chg(), spy(chg()), 60))),
     "intraday-01": built(op("+", call("sessionLow"), ATR14), op("-", call("sessionHigh"), ATR14)),
     "intraday-02": built(LINE_02, op(">", CLOSE, LINE_02)),
+    # the studio's finding (2026-11-22): "yesterday's close" on a daily read is `close` itself, no offset
+    "intraday-03": built(op("+", daily(CLOSE), ADR20), op("-", daily(CLOSE), ADR20)),
 }
 
 
-def test_the_done_line_is_the_twelve_requests_and_each_has_its_rule_and_its_words():
-    assert set(REFERENCE) == set(U.IDS) | {"intraday-01", "intraday-02"} and len(REFERENCE) == 12
+def test_the_done_line_is_the_thirteen_requests_and_each_has_its_rule_and_its_words():
+    assert set(REFERENCE) == set(U.IDS) | {"intraday-01", "intraday-02", "intraday-03"} and len(REFERENCE) == 13
     for cid in REFERENCE:
         assert cid in BY_ID and BY_ID[cid]["chart"] == "intraday", cid
         assert G.rule_digest(cid), cid                                   # a by-value rule exists for each
@@ -191,6 +197,28 @@ def test_CONTROL_the_finished_reading_is_not_the_one_as_it_stands():
     stands = spread[f"{U.STANDS}, in percent"]
     got, _err = G.evaluate(REFERENCE["udaily-01"]["ops"][0]["outputs"][0]["tree"], {}, "intraday")
     assert sum(1 for g, s in zip(got, stands) if ok(g) and ok(s) and abs(g - s) > 1e-6) > N // 2
+
+
+def test_CONTROL_yesterdays_close_offset_by_one_on_a_daily_read_is_the_day_before_yesterday():
+    """⭐ The studio's finding (2026-11-22): asked for "yesterday's close +/- the 20 day average range" on a 5 minute
+    chart, a build took `close[1]` on a DAILY calculation and called it "yesterday's close". On a daily read `close`
+    already IS the last finished day's close; one more offset is the day before yesterday: WRONG under the rule, in both
+    spellings (a daily read, and a whole indicator calculated on daily bars), while the same builds without the offset
+    are right."""
+    before = back(1, CLOSE)
+    rng = call("sma", op("-", HIGH, LOW), num(20))
+    as_read = built(op("+", daily(before), ADR20), op("-", daily(before), ADR20))
+    got = G.grade("intraday-03", as_read, "intraday")
+    assert got["verdict"] == "wrong", got["lines"]
+    on_daily_bars = built(op("+", before, rng), op("-", before, rng))
+    on_daily_bars["ops"].append({"op": "set_calculation_timeframe", "timeframe": "D"})
+    got = G.grade("intraday-03", on_daily_bars, "intraday")
+    assert got["verdict"] == "wrong", got["lines"]
+    # the same two, without the offset, are right (the control can pass)
+    right = built(op("+", CLOSE, rng), op("-", CLOSE, rng))
+    right["ops"].append({"op": "set_calculation_timeframe", "timeframe": "D"})
+    assert G.grade("intraday-03", right, "intraday")["verdict"] == "right"
+    assert G.grade("intraday-03", REFERENCE["intraday-03"], "intraday")["verdict"] == "right"
 
 
 def test_CONTROL_without_the_daily_bars_nothing_is_drawn_and_nothing_is_right():

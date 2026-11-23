@@ -297,7 +297,10 @@ def test_the_doors_tree_vocabulary_offers_D_and_the_prompt_teaches_the_finished_
                   "the value of THE LAST FINISHED DAY (yesterday's on every bar of today)",
                   "A DAILY READ IS NEVER TODAY'S VALUE SO FAR",
                   "name every daily read plainly for the day it shows",
-                  "ANOTHER SYMBOL GOES INSIDE THE READ"):
+                  "ANOTHER SYMBOL GOES INSIDE THE READ",
+                  # the studio's finding (intraday-03): `close[1]` on a daily read is the day BEFORE yesterday
+                  "`close` ALREADY IS THE LAST FINISHED DAY'S CLOSE",
+                  "with NO further offset, and an offset of 1 there means the day before yesterday"):
         assert piece in prompt, piece
 
 
