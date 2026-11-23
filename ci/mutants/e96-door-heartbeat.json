@@ -58,10 +58,10 @@
     },
     {
       "id": "S2",
-      "mutant": "the page no longer hears a beat as a sign of life: a slow worker that beats is killed at 30 s",
+      "mutant": "the page no longer hears a beat as a sign of life: a slow worker that beats is killed at 30 s (e96 train: only its FIRST word, which ends the load bound, arms the silence bound; no later beat restarts it)",
       "file": "app/src/components/chart/builder/memberPane/memberDoorAsync.js",
       "from": "      if (w === worker) listen()",
-      "to": "      void w",
+      "to": "      if (w === worker && silence === null) listen()",
       "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/doorHeartbeat.test.js",
       "expectRed": "a worker that beats is alive"
     },
