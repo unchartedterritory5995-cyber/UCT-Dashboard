@@ -66,7 +66,11 @@ describe('every walkthrough points at a real control', () => {
         }
         if (typeof t === 'object' && t.inWidget) { expect(source, t.inWidget).toContain(`data-guide="${t.inWidget}"`); continue }
         if (typeof t === 'object' && t.within) {
-          expect(source.includes(`data-guide="${t.within}"`) || source.includes(`guide="${t.within}"`), t.within).toBe(true)
+          // '@chart' is the chart talked about, '@menu' any open role="menu" (guide/targets.js): neither is an attribute of ours
+          if (t.within === '@menu') expect(source, '@menu').toContain('role="menu"')
+          else if (t.within !== '@chart') expect(source.includes(`data-guide="${t.within}"`) || source.includes(`guide="${t.within}"`), t.within).toBe(true)
+          // the board's own drag handle (ChartsWorkspace draggableHandle)
+          if (t.grab) { expect(source).toContain('draggableHandle=".charts-widget-drag-handle"'); continue }
           if (t.guide) { expect(source, t.guide).toContain(`data-guide="${t.guide}"`); continue }
           if (t.label) continue   // an on-screen label: proved row by row in the browser (teach-status.md), not by grep
           if (t.cursor) continue  // the chart library's own pane divider: proved in the browser, it is not in our source
