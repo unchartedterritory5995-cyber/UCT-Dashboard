@@ -241,10 +241,19 @@ export const EDGE_WARM_REFUSED = -1
 /** How long a typed text the daily pack does not know may wait for the lake's answer to "is it a
  *  ticker?" (its index: one edge round trip) before the warm gives up on it. */
 export const INTENT_LAKE_INDEX_WAIT_MS = 400
-/** A neighbour hold's tail re-ask waits this long after a bucket boundary, so the server holds the bucket that closed. */
-export const TAIL_BOUNDARY_LAG_MS = 2000
-/** A neighbour hold re-asks one row's tail at most this often per bucket (a name that is not printing stays behind). */
+/** A neighbour hold's boundary ask waits this long after a bucket boundary (so the server holds the bucket that closed),
+ *  JITTERED per hold per boundary, uniform in [MIN, MAX]: a fleet's holds never ask in the same instant (review of #2619). */
+export const TAIL_LAG_MIN_MS = 2000
+export const TAIL_LAG_MAX_MS = 8000
+/** A neighbour hold re-asks one row's tail at most this often per bucket (a name that is not printing stays behind)... */
 export const TAIL_REASKS_PER_BUCKET = 2
+/** ...and its second ask in a bucket at least this long after the first. */
+export const TAIL_REASK_SPACING_MS = 4000
+/** A boundary ask that left a row still behind (the server had not stored the closed bucket yet) is tried once more, this
+ *  long after it, inside the same bucket. */
+export const TAIL_RETRY_MS = 5000
+/** The boundary timer runs only this long after the member last CHANGED the selection (a key press, a click on a row). */
+export const TAIL_ACTIVE_MS = 3 * 60_000
 const SHORT_FULL_MAX = 4000
 
 /**
@@ -290,6 +299,7 @@ export function createPrefetch(o = {}) {
   const deepNeighbors = o.deepNeighbors ?? deepNeighborsEnabled
   const visible = o.visible ?? isAppVisible
   const inSession = o.inSession ?? (() => inRegularSession(now()))
+  const random = o.random ?? Math.random
 
   /** key → {at, gen} of the last request this module caused (cooldown). */
   const asked = new Map()
@@ -411,12 +421,15 @@ export function createPrefetch(o = {}) {
    */
   async function ensure(key, {
     until = PREPARED, depth = 0, priority = 'urgent', signal = null, session: sess = session(),
-    warm = false, front = false, local = true, _s0 = null,
+    warm = false, front = false, local = true, _s0 = null, bg = false,
   } = {}) {
     const s0 = _s0 ?? await _hydrate(key)   // a caller that already hydrated passes its snapshot
     if (_satisfied(s0, until, depth) && (local || s0.restSeen)) return s0
     if (signal?.aborted) return S().peek(key)
     const a = _noteAsked(key)
+    // `bg`: a neighbour hold's tail ask (createNeighborHold). Its answer cools the key like any other, but it never starts
+    // the "name not printing" grace of `_behindClock`: see there.
+    if (bg) a.bg = true
     const s = await S().ensure(key, { until, depth, priority, signal, session: sess, hydrated: true, warm, front })
     // Only an ANSWER starts the cooldown: an aborted request or a shed / failed one gives
     // the slot back (the lane's 503 backoff is what paces a shedding server).
@@ -493,7 +506,12 @@ export function createPrefetch(o = {}) {
     const n = expectedBarsBehind(tailT, p.tf, now(), { session: ext ? 'extended' : 'rth' })
     if (n == null || n < 1) return false
     const a = asked.get(key)
-    return !(a?.answered && now() - a.at < BEHIND_RECHECK_MS)
+    // ⛔ (review of #2619, MEDIUM-1) THE GRACE IS FOR THE SWITCH'S OWN ANSWER, NEVER A BACKGROUND TAIL ASK'S. A tail ask made
+    // a few seconds after a bucket boundary can come back still behind (the server has not stored the bucket that just
+    // closed). Taken as "the name is not printing", it let a press in the next BEHIND_RECHECK_MS paint that copy at once,
+    // MISSING the newest closed bar, which then appeared (the owner's 2026-11-20 complaint, at every boundary). So a
+    // background answer that is behind stays behind here: the press asks for itself, exactly as before.
+    return !(a?.answered && !a.bg && now() - a.at < BEHIND_RECHECK_MS)
   }
 
   // ── the handoff ─────────────────────────────────────────────────────────────
@@ -1074,13 +1092,23 @@ export function createPrefetch(o = {}) {
   // minute boundary, the switch refuses it (peekDisplayable: `_behindClock`), and the press waits for its own `since=`
   // ask (measured: a third to a half of next-row presses at 80-200 ms instead of the key task). So the rows named in
   // `tail` (the next row, the one after, the previous row) are asked again, AT ONCE when the press finds one behind
-  // (this `set`, after the paint), and at each bucket boundary of the hold's timeframe while the member rests (one timer
-  // per hold, TAIL_BOUNDARY_LAG_MS after the boundary): only a row that HOLDS A SERVER ANSWER and is behind the clock by
-  // the switch's own rule, at most TAIL_REASKS_PER_BUCKET times per row per bucket, in the background lane (a list
-  // warm's), in the regular session only, never while the app is hidden, intraday only. `clear` (unmount) and the next
-  // `set` cancel the timer. The rule the switch paints by is untouched: the row is simply current when it is asked for.
-  // Budget, per hold (one timeframe of one list): at most 3 rows x TAIL_REASKS_PER_BUCKET per bucket, in practice one
-  // request per row that fell behind: <= 3 a minute on 1m, <= 3 per 15 minutes on 15m, none on D / W / M.
+  // (this `set`, after the paint), and at each bucket boundary of the hold's timeframe while the member rests: only a row
+  // that HOLDS A SERVER ANSWER and is behind the clock by the switch's own rule, in the background lane (a list warm's),
+  // in the regular session only, intraday only. The rule the switch paints by is untouched: the row is simply current
+  // when it is asked for (and a tail answer still behind never borrows the switch's grace: `_behindClock`).
+  // BOUNDED (review of #2619, MEDIUM-2):
+  //   * ONLY WHILE THE MEMBER NAVIGATES: the boundary timer runs for TAIL_ACTIVE_MS after the last CHANGE of `selected`
+  //     (a key press, a click on a row; the list's first selection, a live re-sort or a new list of visible rows open
+  //     nothing). Outside that window: no timer and no ask. The first press after a rest asks at its own `set`.
+  //   * NEVER WHILE HIDDEN: no ask, and the timer is not armed (lib/deskVisibility.isAppVisible); the next `set` arms it.
+  //   * NEVER A HERD: each boundary's ask waits a lag drawn per hold per boundary, uniform in TAIL_LAG_MIN_MS to
+  //     TAIL_LAG_MAX_MS after the boundary, so a fleet's holds spread their asks over seconds.
+  //   * AT MOST TAIL_REASKS_PER_BUCKET asks per row per bucket, the second at least TAIL_REASK_SPACING_MS after the first:
+  //     a boundary ask that left a row behind (the server had not stored the closed bucket) is tried once more
+  //     TAIL_RETRY_MS later.
+  //   `clear` (unmount) and the next `set` cancel the timer.
+  // Budget, per hold (one timeframe of one list): 0 outside the window; inside it 3 rows x 1 ask per bucket when the server
+  // holds the closed bucket by the lag (<= 3 a minute on 1m), at most 3 x TAIL_REASKS_PER_BUCKET when it lags; none on D/W/M.
   function createNeighborHold() {
     let held = new Map()   // key → true
     let deepTimer = null
@@ -1089,7 +1117,10 @@ export function createPrefetch(o = {}) {
     let tailTimer = null
     let tail = []          // the keys kept current across a boundary (see above)
     let tailExt = undefined
-    const reasked = new Map()   // key → { b: the bucket's start, n: re-asks in it }
+    let selSeen = false         // a `selected` was given before (the list's first selection opens no window)
+    let lastSel = undefined
+    let activeUntil = -Infinity // the boundary timer runs until then (TAIL_ACTIVE_MS after the last selection change)
+    const reasked = new Map()   // key → { b: the bucket's start, n: re-asks in it, at: the last one }
     const stopDeep = () => {
       deepGen++
       if (deepTimer != null) { clearTimer(deepTimer); deepTimer = null }
@@ -1097,10 +1128,13 @@ export function createPrefetch(o = {}) {
     }
     const stopTail = () => { if (tailTimer != null) { clearTimer(tailTimer); tailTimer = null } }
     const _bucketOfNow = (tf) => bucketEndUnix(Math.floor(now() / 1000), tf) - 1
-    /** Ask again each tail row that holds a server answer behind the clock (bounded per row per bucket). */
+    const _hidden = () => { try { return visible() === false } catch { return false } }
+    const _active = () => now() < activeUntil
+    /** Ask again each tail row that holds a server answer behind the clock (bounded and spaced per row per bucket).
+     *  Returns how many it asked. */
     function keepTailCurrent() {
-      if (!tail.length || !inSession()) return
-      try { if (visible() === false) return } catch { /* visible */ }
+      if (!tail.length || !inSession() || !_active() || _hidden()) return 0
+      let asked = 0
       for (const k of tail) {
         const s = S().peek(k)
         if (!s?.restSeen || !s.bars?.length || preparing.get(k) || !_behindClock(k, s, tailExt)) continue
@@ -1109,18 +1143,27 @@ export function createPrefetch(o = {}) {
         const r = reasked.get(k)
         const n = r && r.b === b ? r.n : 0
         if (n >= TAIL_REASKS_PER_BUCKET) continue
-        reasked.set(k, { b, n: n + 1 })
+        if (n > 0 && now() - r.at < TAIL_REASK_SPACING_MS) continue
+        reasked.set(k, { b, n: n + 1, at: now() })
         if (reasked.size > 64) reasked.delete(reasked.keys().next().value)
-        ensure(k, { until: ASK_AGAIN, priority: 'background', warm: true, local: false, _s0: s, session: session(tailExt) }).catch(() => {})
+        ensure(k, { until: ASK_AGAIN, priority: 'background', warm: true, local: false, bg: true, _s0: s, session: session(tailExt) }).catch(() => {})
+        asked++
       }
+      return asked
     }
-    /** One timer per hold: the next bucket boundary of `tf`, in the session only; it re-arms itself. */
-    function armTail(tf) {
+    /** One timer per hold: the next bucket boundary of `tf` plus a lag drawn for this hold and boundary (or, `retry`, one
+     *  spaced retry inside the bucket after a boundary ask); armed only in the session, inside the selection window and
+     *  while the app is visible. It re-arms itself under the same rules. */
+    function armTail(tf, retry = false) {
       stopTail()
-      if (!tail.length || !inSession()) return
-      const t = Math.floor(now() / 1000)
-      const ms = bucketEndUnix(t, tf) * 1000 - now() + TAIL_BOUNDARY_LAG_MS
-      tailTimer = setTimer(() => { tailTimer = null; keepTailCurrent(); armTail(tf) }, Math.max(0, ms))
+      if (!tail.length || !inSession() || !_active() || _hidden()) return
+      const lag = TAIL_LAG_MIN_MS + random() * (TAIL_LAG_MAX_MS - TAIL_LAG_MIN_MS)
+      const ms = retry ? TAIL_RETRY_MS : bucketEndUnix(Math.floor(now() / 1000), tf) * 1000 - now() + lag
+      tailTimer = setTimer(() => {
+        tailTimer = null
+        const n = keepTailCurrent()
+        armTail(tf, !retry && n > 0)
+      }, Math.max(0, ms))
     }
     // D/W/M: the deep sealed history of each row, joined before the member gets there.
     async function deepenDates(keys, gen) {
@@ -1168,7 +1211,7 @@ export function createPrefetch(o = {}) {
       }
     }
     return {
-      set(syms, tf, { showExtended, deep = null, tail: tailSyms = null } = {}) {
+      set(syms, tf, { showExtended, deep = null, tail: tailSyms = null, selected = undefined } = {}) {
         const st = S()
         const want = new Map()
         for (const sym of syms || []) { const k = keyFor(sym, tf, { showExtended }); if (k) want.set(k, true) }
@@ -1176,6 +1219,12 @@ export function createPrefetch(o = {}) {
         for (const k of held.keys()) if (!want.has(k)) st.registry.release(k)
         held = want
         stopDeep()
+        // the selection window (TAIL_ACTIVE_MS): opened by a CHANGE of the member's selection, never by any other `set`
+        if (selected !== undefined) {
+          if (selSeen && selected !== lastSel) activeUntil = now() + TAIL_ACTIVE_MS
+          selSeen = true
+          lastSel = selected
+        }
         // the rows kept current across a boundary (intraday, held by this hold): asked now if behind, then at each boundary
         tail = []
         tailExt = showExtended
