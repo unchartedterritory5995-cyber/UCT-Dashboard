@@ -440,6 +440,7 @@ export function createPrefetch(o = {}) {
     const s0 = _s0 ?? await _hydrate(key)   // a caller that already hydrated passes its snapshot
     if (_satisfied(s0, until, depth) && (local || s0.restSeen)) return s0
     if (signal?.aborted) return S().peek(key)
+    const prev = asked.get(key)   // (the row's last record: an aborted ask gives it back, see below)
     const a = _noteAsked(key)
     // `own`: the SWITCH's own ask (prepareForDisplay, askForDisplay). Only its answer starts the "name not printing" grace
     // of `_behindClock`; every other answer (a list's, a warm's, the tail's) cools the key and lends nothing: see there.
@@ -447,8 +448,12 @@ export function createPrefetch(o = {}) {
     const s = await S().ensure(key, { until, depth, priority, signal, session: sess, hydrated: true, warm, front })
     // Only an ANSWER starts the cooldown: an aborted request or a shed / failed one gives
     // the slot back (the lane's 503 backoff is what paces a shedding server).
-    if ((signal?.aborted || (s?.error && s.error !== 'no_data')) && asked.get(key) === a) asked.delete(key)
-    else if (s) {
+    // ⭐ (review of fb6fed4328, LOW) AN ABORTED ASK WAS NEVER AN ASK: the row keeps the record it had before (its last
+    // answer's cooldown, neither lost nor restarted). A tail ask aborted when its row left the tail used to delete it, so
+    // a list or urgent warm re-asked a row answered seconds before.
+    if (signal?.aborted || (s?.error && s.error !== 'no_data')) {
+      if (asked.get(key) === a) { if (signal?.aborted && prev) asked.set(key, prev); else asked.delete(key) }
+    } else if (s) {
       a.gen = s.gen   // the gen the answer landed under
       a.answered = true
       a.at = now()    // the cooldown runs from the ANSWER, not from when the request was queued
