@@ -206,17 +206,37 @@ def test_engine_fixed_is_HAND_MARKED_only_adopt_never_writes_it():
     assert case["found"][0] == marked and set(case["found"][1]) == KEYS
 
 
+#: The version file's tag for a unit's line that awaits its engine number, BUILT FROM TWO PIECES. A train's retag
+#: rewrites every literal copy of the tag to "engine <n>" (train e95 rewrote this rail's own regex that way and left
+#: its allowance matching nothing); a split literal is not a tag, so no retag can reach it.
+PENDING_TAG = "NUMBER " + "PENDING"
+
+
+def _pending_trains(text: str) -> set:
+    """The trains whose lines in `text` (the version file) still await their number: `train e<n>` in the header."""
+    import re
+    return {int(n) for n in re.findall(re.escape(PENDING_TAG) + r" = \([^)]*\btrain e(\d+)\b", text)}
+
+
+def test_the_pending_allowance_can_fire():
+    """CONTROL (train e95, e96's finding): the allowance below reads a synthetic pending line; a numbered entry or a
+    retagged line is not one."""
+    line = f"/** {PENDING_TAG} = (feat/synthetic, train e96) a unit's sentence */"
+    assert _pending_trains(line) == {96}
+    assert _pending_trains("/** 96 = (engine 96 train, feat/synthetic, train e96) a unit's sentence */") == set()
+    assert _pending_trains(line.replace(PENDING_TAG, "engine 96")) == set()
+
+
 def test_engine_fixed_is_never_claimed_AHEAD_of_the_engine_that_earns_it():
     """Condition 1: `since_engine` is not above the engine version the lane runs (`scriptEngineVersion.js`, read by
     `user_definitions.read_script_engine_version`, the one reader). ⚠️ ONE ALLOWANCE, NAMED: while the fixing train
-    is not numbered yet (the version file carries its `engine 95` lines, `train e<n>`), its own number `n` may be
-    claimed; the day the coordinator numbers it, the version is `n` and the plain rule holds."""
-    import re
+    is not numbered yet (the version file carries its pending lines, `PENDING_TAG`, with `train e<n>`), its own number
+    `n` may be claimed; the day the coordinator numbers it, the version is `n` and the plain rule holds."""
     from api.services import user_definitions as ud
     engine = ud.read_script_engine_version()
     assert isinstance(engine, int) and engine > 0
     text = (ROOT / "app" / "src" / "components" / "chart" / "engine" / "scriptEngineVersion.js").read_text(encoding="utf-8")
-    pending = {int(n) for n in re.findall(r"engine 95 = \([^)]*\btrain e(\d+)\b", text)}
+    pending = _pending_trains(text)
     marked = [(c["id"], k[ENGINE_FIXED]) for c in WITH_FOUND for k in c["found"] if ENGINE_FIXED in k]
     assert marked, "no specimen carries engine_fixed: this rail would read nothing"
     for cid, ef in marked:
