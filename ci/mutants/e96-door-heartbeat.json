@@ -1,0 +1,132 @@
+{
+  "schema": "uct.ci-mutants/v1",
+  "about": "e96 DOOR HEARTBEAT (feat/e96-door-heartbeat, coordinator ruling 2026-11-23): the member door's worker beats from its own counted steps (the translator's step budget, the door window's walks, the VM's bars) as each job starts and at least every 5 s while it works; the page treats a worker that owes an answer and has said nothing for 30 s as dead (refused by name in one sentence, terminated and replaced, every ask answered), never a slow worker that beats; and every 'checking' surface says for how long the check has run. Every rule, broken once, must turn its rail red.",
+  "mutants": [
+    {
+      "id": "H1",
+      "mutant": "the translator's step loop no longer drives the pulse: a translation beats nothing",
+      "file": "app/src/components/chart/engine/ast/pine.js",
+      "from": "  workPulse()",
+      "to": "  void 0",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/doorHeartbeat.test.js",
+      "expectRed": "the step loop read the pulse clock"
+    },
+    {
+      "id": "H2",
+      "mutant": "the door window's clock reads no longer pulse: a walk outside a Resolver beats nothing",
+      "file": "app/src/components/chart/engine/ast/doorDeadline.js",
+      "from": "  if (DOOR !== null && DOOR.pulse !== null) DOOR.pulse()",
+      "to": "  void DOOR",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/doorHeartbeat.test.js",
+      "expectRed": "one beat per sampled clock read of the walk"
+    },
+    {
+      "id": "H3",
+      "mutant": "the VM's bars no longer pulse: a long probe run beats nothing",
+      "file": "app/src/components/chart/engine/runtime/vm.js",
+      "from": "    workPulse(perBar)",
+      "to": "    void perBar",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/doorHeartbeat.test.js",
+      "expectRed": "the run beat from its bars"
+    },
+    {
+      "id": "H4",
+      "mutant": "the worker installs no pulse: a job beats once as it starts and never again while it works",
+      "file": "app/src/components/chart/builder/memberPane/memberDoorWorkerCore.js",
+      "from": "  setWorkPulse(PAGE_POST ? beat : null, { everyMs, clock: PULSE_CLOCK })",
+      "to": "  setWorkPulse(null, { everyMs, clock: PULSE_CLOCK })",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/doorHeartbeat.test.js",
+      "expectRed": "and beats from its steps while it works"
+    },
+    {
+      "id": "H5",
+      "mutant": "a job no longer beats as it starts: the page hears nothing until five seconds of steps",
+      "file": "app/src/components/chart/builder/memberPane/memberDoorWorkerCore.js",
+      "from": "      try { beat(t0) } catch { /* the page is gone: the job goes on */ }",
+      "to": "      void t0",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/doorHeartbeat.test.js",
+      "expectRed": "a beat as it starts"
+    },
+    {
+      "id": "S1",
+      "mutant": "the silence bound widened from 30 s to 60 s",
+      "file": "app/src/components/chart/builder/memberPane/memberDoorAsync.js",
+      "from": "export const MEMBER_DOOR_SILENCE_MS = 30000",
+      "to": "export const MEMBER_DOOR_SILENCE_MS = 60000",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/doorHeartbeat.test.js",
+      "expectRed": "at 30 s of silence the build is refused"
+    },
+    {
+      "id": "S2",
+      "mutant": "the page no longer hears a beat as a sign of life: a slow worker that beats is killed at 30 s",
+      "file": "app/src/components/chart/builder/memberPane/memberDoorAsync.js",
+      "from": "      if (w === worker) listen()",
+      "to": "      void w",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/doorHeartbeat.test.js",
+      "expectRed": "a worker that beats is alive"
+    },
+    {
+      "id": "S3",
+      "mutant": "a silent worker is terminated but the build it owed is never answered: the member is left on 'checking'",
+      "file": "app/src/components/chart/builder/memberPane/memberDoorAsync.js",
+      "from": "    if (r) finish(r, silentOf(r.entry, r.version, silenceMs))",
+      "to": "    void r",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/doorHeartbeat.test.js",
+      "expectRed": "at 30 s of silence the build is refused"
+    },
+    {
+      "id": "S4",
+      "mutant": "a silent worker is not replaced",
+      "file": "app/src/components/chart/builder/memberPane/memberDoorAsync.js",
+      "from": "    if (!worker) spawn()   // (the replacement)",
+      "to": "    void 0",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/doorHeartbeat.test.js",
+      "expectRed": "and replaced"
+    },
+    {
+      "id": "S5",
+      "mutant": "an ask a silent worker owed is left waiting",
+      "file": "app/src/components/chart/builder/memberPane/memberDoorAsync.js",
+      "from": "    for (const [askId, a] of [...asks]) { asks.delete(askId); a.resolve(null) }",
+      "to": "    void asks",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/doorHeartbeat.test.js",
+      "expectRed": "an ask the silent worker owed"
+    },
+    {
+      "id": "S6",
+      "mutant": "PasteBox's report of a silent worker is the anonymous engine fault, not the named one",
+      "file": "app/src/components/chart/builder/inspectAsync.js",
+      "from": "  silent: (entry, version, silenceMs) => ({ report: silentReport(entry.args.source, silenceMs), offThread: true }),",
+      "to": "  silent: (entry) => ({ report: stopped(entry.args.source, 'it went quiet'), offThread: true }),",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/doorHeartbeat.test.js",
+      "expectRed": "a silent worker's report is the engine fault, named"
+    },
+    {
+      "id": "E1",
+      "mutant": "the elapsed time is never re-read: the clock line freezes at its first reading",
+      "file": "app/src/components/chart/builder/memberPane/useElapsedSince.js",
+      "from": "    const id = setInterval(() => setTick((n) => n + 1), ELAPSED_TICK_MS)",
+      "to": "    const id = null",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/doorHeartbeat.elapsed.test.jsx",
+      "expectRed": "the line counts while the build runs"
+    },
+    {
+      "id": "E2",
+      "mutant": "the page's build start does not reach the member pane: no clock while it builds",
+      "file": "app/src/components/chart/builder/memberPane/useMemberDoor.js",
+      "from": "    since: pending && waitingHere ? waiting.since : null }",
+      "to": "    since: null }",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/doorHeartbeat.elapsed.test.jsx",
+      "expectRed": "the line counts while the build runs"
+    },
+    {
+      "id": "E3",
+      "mutant": "the editor status panel's headline ignores how long the check has run",
+      "file": "app/src/components/chart/builder/PineEditorStatus.jsx",
+      "from": "  const headline = checking ? <CheckingLine elapsedMs={elapsed} /> : shown.headline",
+      "to": "  const headline = checking ? <CheckingLine elapsedMs={null} /> : shown.headline",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/doorHeartbeat.elapsed.test.jsx",
+      "expectRed": "the headline counts too"
+    }
+  ]
+}
