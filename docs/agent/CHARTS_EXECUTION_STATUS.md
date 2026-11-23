@@ -38,6 +38,13 @@ Owner decision of 2026-11-10: "Re-measure #1016's execution coverage using a cor
 
 OLD = the voided run on the stale install; NEW = this run. Per-area table and per-row ledger: `attempt-2/compare.md`, `attempt-2/ledger.md`. 0 rows differ between OLD and NEW. A weakness the method keeps: 37 VERIFIED rows (34 in C3) are proved only at file level, because their citation names no test the recount can match.
 
+## Update 2026-11-23: Compare family (agent/pl/compare-family)
+
+One general reader, `app/src/agent/capabilities/comparePhrases.js`, fills args only for the existing Compare capabilities (`chart.compare`, `chartSetup.compareDisplay`, `chartSetup.compareGroup`, `compare.openView`, and `chart.setScale` for "show it as percent"). Every write still goes through the Compare panel's own list writers (`comparisonsAfter`, `compareGroups.withoutGroup` / `withGroupScale`, the `uct:compare-open` door), is read back and has the chart kind's exact Undo. `chart.compare` now grounds an unknown ticker exactly as `chart.setSymbol` (Gate B: refused with one suggested near ticker, a company name resolved to its one ticker, never swapped). Evidence: vitest, jsdom, scripted model; not a real browser and not the real model. Tests: `app/src/agent/agentCompareFamily.test.js` (generated phrasings), `app/src/agent/agentCompareFamily.panel.test.jsx` (real panel), capreg intents `compare.list.self`, `compare.base.other-chart`, `compare.remove.one`, `compare.clear.all`, `compare.display.sameScale`, `compare.display.groupOnly`, `compare.group.remove`, `scale.percent.words`.
+
+- VERIFIED (8): C1-035, C1-036, C1-037, C1-038, C1-039, C1-040, C1-041, and the new row C1-041R (Rotation / Overlay view, shipped 11-12 with no inventory row). Was MISSING (3): C1-035, C1-037, C1-040 (stale: built 11-12 with commitPlan-level tests only); was IMPLEMENTED / UNVERIFIED (4): C1-036, C1-038, C1-039, C1-041. C1-034 was already VERIFIED; it now has an instant reading and more citations.
+- Held: the INSTANT reading of a group ADD ("compare against the semis group") is built and unit-tested but left to the model, because claiming it changes the locked capreg intent `compare.group.aiChips` (no deterministic plan), which needs an owner decision `BASELINE:compare.group.aiChips`.
+- Counts updated by hand: C1 Compare, C1 all and the last Total row (+8 VERIFIED, −4 IMPLEMENTED / UNVERIFIED, −3 MISSING, +1 row in scope: C1 169, total 485). "The number" headline is left for the merge recount.
 ## Update 2026-11-11: chart zoom (C1-028) and C1-022 log / arithmetic (agent/pl/chart-zoom)
 
 New capability `chartSetup.zoom` {direction in | out, steps 1-10}: the + / - keys' own writer (`StockChart.zoomTimeAxis`, which the key handler now calls), reached through `ChartPane.viewDo('zoom')`, read back from `getDateMeta().frame` (the window width moved the asked way, to the width asked), refused at the time scale's bar-spacing limit (`getDateMeta().zoomLimits`), exact Undo through `restoreView`. C1-022's log and arithmetic were not driven by an outcome test; two cases now are. Evidence: vitest, scripted model, jsdom; the zoom row is † (the chart's view is a stand-in inside the test; StockChart's half is a source check). PR doc: `docs/agent/program/PR-chart-zoom.md`.
@@ -206,7 +213,7 @@ Every file:line citation in the control column was checked against this tree: 33
 | C1 | Scale | 3 | 0 | 0 | 1 | 1 | 0 | 5 | 0 |
 | C1 | View | 3 | 0 | 0 | 0 | 0 | 0 | 3 | 0 |
 | C1 | Go to date | 2 | 0 | 1 | 1 | 0 | 0 | 4 | 0 |
-| C1 | Compare | 1 | 0 | 4 | 3 | 0 | 0 | 8 | 0 |
+| C1 | Compare | 9 | 0 | 0 | 0 | 0 | 0 | 9 | 0 |
 | C1 | Replay | 2 | 0 | 0 | 1 | 1 | 1 | 5 | 0 |
 | C1 | Settings | 24 | 2 | 0 | 6 | 0 | 0 | 32 | 0 |
 | C1 | Themes | 2 | 0 | 0 | 1 | 0 | 0 | 3 | 0 |
@@ -275,12 +282,12 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3 | Review | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 3 |
 | C3 | Company dock | 3 | 0 | 2 | 0 | 0 | 0 | 5 | 0 |
 | C3 | Workspace | 0 | 0 | 0 | 1 | 1 | 1 | 3 | 0 |
-| C1 | **all** | 105 | 3 | 17 | 28 | 10 | 5 | 168 | 11 |
+| C1 | **all** | 113 | 3 | 13 | 25 | 10 | 5 | 169 | 11 |
 | C2 | **all** | 39 | 0 | 32 | 20 | 5 | 4 | 100 | 1 |
 | C3 | **all** | 101 | 7 | 19 | 59 | 27 | 3 | 216 | 7 |
 | | **Total** | 245 | 10 | 68 | 107 | 42 | 12 | 484 | 19 |
 | C3 | **all** | 117 | 7 | 19 | 57 | 13 | 3 | 216 | 7 |
-| | **Total** | 259 | 11 | 68 | 105 | 29 | 12 | 484 | 19 |
+| | **Total** | 267 | 11 | 64 | 102 | 29 | 12 | 485 | 19 |
 
 ## Raised to VERIFIED (47)
 
@@ -443,14 +450,15 @@ Every file:line citation in the control column was checked against this tree: 33
 | C1-031 | Go to date | Pick date or year in calendar | IMPLEMENTED / UNVERIFIED | none named | n/a | source only |
 | C1-032 | Go to date | Step one bar back/forward | MISSING | none | n/a | none |
 | C1-033 | Go to date | Open date box (Alt+G) | VERIFIED † | c:chart.goToDate | pass 4/4 | panel, scripted model |
-| C1-034 | Compare | Add a symbol | VERIFIED | c:compare.amd | pass 5/5 | panel, scripted model |
-| C1-035 | Compare | Add a whole group | MISSING | none | n/a | none |
-| C1-036 | Compare | Remove one symbol | IMPLEMENTED / UNVERIFIED | agentBatch6.test.jsx | pass 11/11 | runtime, no panel |
-| C1-037 | Compare | Remove a group | MISSING | none | n/a | none |
-| C1-038 | Compare | Clear all comparisons | IMPLEMENTED / UNVERIFIED | agentBatch6.test.jsx | pass 11/11 | runtime, no panel |
-| C1-039 | Compare | Same/new scale per symbol | IMPLEMENTED / UNVERIFIED | agentChartsOperatorP1.test.jsx | pass 48/48 | runtime, no panel |
-| C1-040 | Compare | Same/new scale for a group | MISSING | none | n/a | none |
-| C1-041 | Compare | Group only (hide base) | IMPLEMENTED / UNVERIFIED | agentChartsOperatorP1.test.jsx | pass 48/48 | runtime, no panel |
+| C1-034 | Compare | Add a symbol | VERIFIED — instant general reader (one or several symbols, BASE chart named by its ticker) | c:compare.amd; c:compare.list.self; c:compare.base.other-chart; agentCompareFamily.panel.test.jsx: C1-034 "compare it with MSFT and QQQ", "compare AMD with NVDA" (two charts) | pass (see Update 2026-11-23) | panel, scripted model |
+| C1-035 | Compare | Add a whole group | VERIFIED (model path; the instant reading is held for an owner decision, BASELINE:compare.group.aiChips) | c:compare.group.aiChips; agentCompareFamily.panel.test.jsx: C1-035 add (model plan); agentCompareGroups.test.jsx | pass (see Update 2026-11-23) | panel, scripted model |
+| C1-036 | Compare | Remove one symbol | VERIFIED | c:compare.remove.one; agentCompareFamily.panel.test.jsx: C1-036 "remove the QQQ comparison" | pass (see Update 2026-11-23) | panel, scripted model |
+| C1-037 | Compare | Remove a group | VERIFIED | c:compare.group.remove; agentCompareFamily.panel.test.jsx: C1-035 … C1-037 "remove the ai chips group" | pass (see Update 2026-11-23) | panel, scripted model |
+| C1-038 | Compare | Clear all comparisons | VERIFIED | c:compare.clear.all; agentCompareFamily.panel.test.jsx: C1-038 "clear all the comparisons" | pass (see Update 2026-11-23) | panel, scripted model |
+| C1-039 | Compare | Same/new scale per symbol | VERIFIED (scale and the row's eye) | c:compare.display.sameScale; agentCompareFamily.panel.test.jsx: C1-039 "put QQQ on the same scale", C1-039 eye | pass (see Update 2026-11-23) | panel, scripted model |
+| C1-040 | Compare | Same/new scale for a group | VERIFIED | agentCompareFamily.panel.test.jsx: C1-040 "put the AI Chips group on the same scale" | pass (see Update 2026-11-23) | panel, scripted model |
+| C1-041 | Compare | Group only (hide base) | VERIFIED | c:compare.display.groupOnly; agentCompareFamily.panel.test.jsx: C1-041 "hide the base symbol" | pass (see Update 2026-11-23) | panel, scripted model |
+| C1-041R | Compare | Rotation / Overlay view (Tools → Compare Symbols tabs; the "Open the rotation map" link) | VERIFIED (new row 2026-11-23: shipped 11-12 with no inventory row) | c:compare.openView; c:compare.openView.overlay; agentComparePanel.test.jsx; agentCompareFamily.panel.test.jsx: "open the rotation map for NVDA's sector" | pass (see Update 2026-11-23) | panel, scripted model |
 | C1-042 | Replay | Start from a date | VERIFIED | c:chart.replay; agentChartReplay: replay from Oct 15 | pass 5/5 | panel, scripted model |
 | C1-043 | Replay | Choose replay timeframe | MISSING | none | n/a | none |
 | C1-044 | Replay | Pick the cutoff on the chart | BLOCKED | none | n/a | none |

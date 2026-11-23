@@ -260,7 +260,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false
+   "fast": true
   },
   "chart.describeSetup": {
    "domain": "chart",
@@ -559,7 +559,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false
+   "fast": true
   },
   "chartSetup.compareGroup": {
    "domain": "chartSetup",
@@ -572,7 +572,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false
+   "fast": true
   },
   "chartSetup.copyLook": {
    "domain": "chartSetup",
@@ -767,7 +767,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false
+   "fast": true
   },
   "cot.positioning": {
    "domain": "cot",
