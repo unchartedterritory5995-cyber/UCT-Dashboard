@@ -23,6 +23,7 @@ import { describe, it, expect, beforeAll, beforeEach } from 'vitest'
 import { createChart, CandlestickSeries } from 'lightweight-charts'
 import { createWindowedChart, renderWindowRows, RENDER_WINDOW_OFF_KEY } from './windowedChart'
 import { installNetChangePaint, paintNetFrom, _hollowFill } from './netChangePaint'
+import { wrapSeriesForBarColours, applyBarColours } from './engine/barColours'
 
 // ── the reference: the wrap's setData / update as they were (44a7defafb), verbatim but for `NC` being an argument ──
 function refPaintNet(bar, prevClose, prevBar, NC) {
@@ -174,7 +175,7 @@ const frame = () => new Promise((r) => setTimeout(r, 60))
 
 const N = 8000
 /** A board whose candle series records every array the LIBRARY is handed (the raw series' setData). */
-function board(NC, readNC = null) {
+function board(NC, readNC = null, barColours = null) {
   const el = document.createElement('div')
   document.body.appendChild(el)
   const raw = createChart(el, { width: 900, height: 500, timeScale: { rightOffset: 8 } })
@@ -193,6 +194,8 @@ function board(NC, readNC = null) {
   const counted = new Proxy(NC, { get: (t, k) => { if (k === 'mode') reads += 1; return t[k] } })
   const R = mkRefs()
   installNetChangePaint(series, readNC || (() => counted), R)
+  // as StockChart installs them: the net wrap first, then Pine `barcolor` (so barcolor's colours reach the net wrap first)
+  if (barColours) wrapSeriesForBarColours(series, () => barColours)
   return { chart, series, handed, R, reads: () => reads, ts: chart.timeScale() }
 }
 
@@ -279,5 +282,29 @@ describe('C5 the paint from any row on equals the whole pass from that row on', 
         }
       }
     }
+  })
+})
+
+describe('C6 Pine barcolor through the render window (review of #2632)', () => {
+  it("barcolor's explicit colours survive the window's cut and an extension left, as before", async () => {
+    const data = candles(N)
+    const map = new Map()
+    for (const i of [7251, 7400, 7999, 3010, 2600, 100]) map.set(String(T(i)), '#7c3aed')   // in the window, in the extension, left of both
+    const want = refSetData(applyBarColours(data, map), NC_NET)   // what the library held: barcolor, then the net paint
+    const b = board(NC_NET, null, map)
+    b.chart.window.setWindow(renderWindowRows(150, 0), { span: 150 })
+    b.series.setData(data)
+    const ws = b.chart.window.windowStart()
+    expect(ws).toBeLessThan(7251)                                    // a recoloured row is in the window (or this proves nothing)
+    const handed = b.handed[b.handed.length - 1]
+    expect(handed).toEqual(want.painted.slice(ws))
+    expect(handed.find((r) => r.time === T(7400)).color).toBe('#7c3aed')
+    b.ts.setVisibleLogicalRange({ from: 3000, to: 3150 })
+    await frame()
+    const ws2 = b.chart.window.windowStart()
+    expect(ws2).toBeLessThan(3010)
+    const handed2 = b.handed[b.handed.length - 1]
+    expect(handed2).toEqual(want.painted.slice(ws2))
+    expect(handed2.find((r) => r.time === T(3010)).color).toBe('#7c3aed')
   })
 })

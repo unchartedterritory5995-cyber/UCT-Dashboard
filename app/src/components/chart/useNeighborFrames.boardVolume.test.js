@@ -12,6 +12,8 @@
  *   V2 what the chart gets is what it computed before: volDataOf over the bars with computeHVC and the extremes, no frames
  *   V3 the extremes are the chart memo's as before (in the year, outside it, open bounds, no volume, marking off)
  *   V4 a chart that does not mark the extremes prepares its volume as before (extremes null)
+ *   V5 (review of #2632) a row whose snapshot holds a FORMING bar: the prepared volume, forming bar included, is what the
+ *      chart computes, and the extremes are found on the bars with it
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 const snaps = new Map()
@@ -76,8 +78,8 @@ beforeEach(() => {
 })
 afterEach(() => nf.__setNeighborFramesForTests(null))
 
-function preparedRow(sym, R, n = 600) {
-  const s = Object.freeze({ key: keyOf(sym), tf: 'D', bars: daily(n), developing: null, baseRev: 3, status: 'current', restSeen: true })
+function preparedRow(sym, R, n = 600, developing = null) {
+  const s = Object.freeze({ key: keyOf(sym), tf: 'D', bars: daily(n), developing, baseRev: 3, status: 'current', restSeen: true })
   snaps.set(keyOf(sym), s)
   drain(prepareRow(sym, 0, { recipes: () => R, view: () => view, engineRef }))
   return deriveSession(legacyBars(s), R)       // the chart's filteredBars on arrival (a filed hit)
@@ -131,5 +133,21 @@ describe("the board's volume (markVolumeExtremes on) is prepared for the next ro
     expect(vx).toBeNull()
     expect(nf.hasDerived(filtered, 'vol', `${R.vol.sig}|hvc${nf.identitySig(h)}|vx${nf.identitySig(null)}`)).toBe(true)
     expect(deriveVol(filtered, h, vx, R)).toEqual(volDataOf(filtered, VOL_P, computeHVC(filtered), null, adjustTime))
+  })
+})
+
+describe('the forming bar (review of #2632)', () => {
+  it('V5 a snapshot with a forming bar: the prepared volume is the computed one, forming bar included', () => {
+    const R = recipes({ mark: true })
+    const last = daily(600)[599]
+    const dev = { t: last.t + 86400, o: 52, h: 60, l: 51, c: 59, v: 9e9 }   // today's forming bar, the biggest volume yet
+    const filtered = preparedRow('FORM', R, 600, dev)
+    expect(filtered.length).toBe(601)                                // the forming bar is in the chart's bars (or this proves nothing)
+    const h = deriveHvc(filtered, R)
+    const vx = deriveVolExtremes(filtered, R)
+    expect(nf.hasDerived(filtered, 'vol', `${R.vol.sig}|hvc${nf.identitySig(h)}|vx${nf.identitySig(vx)}`)).toBe(true)
+    const got = deriveVol(filtered, h, vx, R)
+    expect(got).toEqual(volDataOf(filtered, VOL_P, computeHVC(filtered), refVolExtremes(true, filtered, null, null), adjustTime))
+    expect(got[got.length - 1]).toMatchObject({ value: 9e9, color: '#e6b800' })   // the forming bar, gold as the new extreme
   })
 })
