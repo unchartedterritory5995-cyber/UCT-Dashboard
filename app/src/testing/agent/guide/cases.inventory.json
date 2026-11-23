@@ -687,7 +687,7 @@
   "id": "C1-147",
   "say": "show me how to make that line pink",
   "feature": "drawingEdit",
-  "title": "Recolouring a drawing"
+  "title": "Recoloring a drawing"
  },
  {
   "id": "C1-148",
@@ -951,7 +951,7 @@
   "id": "C2-031",
   "say": "show me how to make MACD bars blue when rising",
   "feature": "indicatorColor",
-  "title": "Changing the colour of MACD"
+  "title": "Changing the color of MACD"
  },
  {
   "id": "C2-034",
@@ -1029,13 +1029,13 @@
   "id": "C2-070",
   "say": "show me how to put a green arrow under the bar when true",
   "feature": "builderAction",
-  "title": "Signal markers and colours"
+  "title": "Signal markers and colors"
  },
  {
   "id": "C2-071",
   "say": "show me how to paint the candles gold when true",
   "feature": "builderAction",
-  "title": "Signal markers and colours"
+  "title": "Signal markers and colors"
  },
  {
   "id": "C2-072",
@@ -1164,22 +1164,10 @@
   "title": "Linking charts and widgets"
  },
  {
-  "id": "C3-008",
-  "say": "how do I float a widget over another",
-  "feature": "widgetHeader",
-  "title": "Widget controls: Float"
- },
- {
   "id": "C3-009",
   "say": "how do I drag or resize a floating widget",
   "feature": "widgetResize",
   "title": "Resizing a chart or widget"
- },
- {
-  "id": "C3-011",
-  "say": "how do I move a floating widget into another widget's tabs",
-  "feature": "widgetMove",
-  "title": "Moving a chart or widget"
  },
  {
   "id": "C3-012",
@@ -1239,7 +1227,7 @@
   "id": "C3-023",
   "say": "how do I change a chart tab's link colour",
   "feature": "control",
-  "title": "A chart tab’s link colour"
+  "title": "A chart tab’s link color"
  },
  {
   "id": "C3-024",
@@ -1261,9 +1249,9 @@
  },
  {
   "id": "C3-027",
-  "say": "how do I undo a layout switch from the toast",
+  "say": "show me how to go back to my last layout",
   "feature": "layoutAction",
-  "title": "Undoing a layout switch"
+  "title": "A layout’s version history"
  },
  {
   "id": "C3-028",
@@ -1608,12 +1596,6 @@
   "title": "Adding a ticker to a Volume Surge list"
  },
  {
-  "id": "C3-125",
-  "say": "show me how to show logos on volume surge",
-  "feature": "control",
-  "title": "Logos on Volume Surge"
- },
- {
   "id": "C3-127",
   "say": "how do I see my alerts",
   "feature": "widgetAction",
@@ -1644,40 +1626,22 @@
   "title": "Sending Alerts to the Journal"
  },
  {
-  "id": "C3-133",
-  "say": "how do I filter catalysts up, down or all",
-  "feature": "widgetAction",
-  "title": "Filtering catalysts"
- },
- {
-  "id": "C3-134",
-  "say": "how do I read stored headlines for a symbol",
-  "feature": "widgetAction",
-  "title": "Reading a symbol’s headlines"
- },
- {
   "id": "C3-136",
   "say": "how do I change News widget appearance",
   "feature": "widgetSettings",
   "title": "News widget settings"
  },
  {
-  "id": "C3-137",
-  "say": "how do I send the feed to Journal",
-  "feature": "control",
-  "title": "Sending News & Catalysts to the Journal"
- },
- {
   "id": "C3-138",
   "say": "how do I search headlines",
   "feature": "widgetAction",
-  "title": "Reading a symbol’s headlines"
+  "title": "Searching headlines"
  },
  {
   "id": "C3-139",
   "say": "show me how to only show headlines on my watchlist",
   "feature": "widgetAction",
-  "title": "Reading a symbol’s headlines"
+  "title": "Filtering the news feed"
  },
  {
   "id": "C3-141",
@@ -1695,7 +1659,7 @@
   "id": "C3-145",
   "say": "how do I explain a headline or ask about it",
   "feature": "widgetAction",
-  "title": "Reading a symbol’s headlines"
+  "title": "Explaining a headline"
  },
  {
   "id": "C3-146",
@@ -1812,12 +1776,6 @@
   "title": "Sending Theme Tracker to the Journal"
  },
  {
-  "id": "C3-181",
-  "say": "how do I read profile and earnings table",
-  "feature": "widgetAction",
-  "title": "Reading a company profile"
- },
- {
   "id": "C3-183",
   "say": "how do I hide or restore an index",
   "feature": "control",
@@ -1834,30 +1792,6 @@
   "say": "show me how to add the Nasdaq 100 to new highs",
   "feature": "widgetAction",
   "title": "New highs and lows universes"
- },
- {
-  "id": "C3-196",
-  "say": "show me how to ask AI search about NVDA",
-  "feature": "widgetAction",
-  "title": "Asking AI Search"
- },
- {
-  "id": "C3-198",
-  "say": "show me how to save that answer",
-  "feature": "control",
-  "title": "Saving an answer"
- },
- {
-  "id": "C3-199",
-  "say": "how do I copy or speak an answer",
-  "feature": "control",
-  "title": "Copying an answer"
- },
- {
-  "id": "C3-200",
-  "say": "how do I send the conversation to Journal",
-  "feature": "control",
-  "title": "Sending AI Search to the Journal"
  },
  {
   "id": "C3-201",

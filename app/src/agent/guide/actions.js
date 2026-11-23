@@ -151,15 +151,30 @@ const inCell = (type, guide) => ({ widgetType: type, guide })
 const SCAN_HEAD = { widgetType: 'scanner', aria: 'Sort by Symbol' }
 // the row's own control is behind a release switch (guide/releases.js): its last step says which
 const released = (name, row) => ({ ...row, steps: row.steps.map((st, i, all) => (i === all.length - 1 ? { ...st, release: name } : st)) })
+// a row whose control shows only once something in its widget is opened: that step goes just before the last one
+const opened = (row, step) => ({ ...row, steps: [...row.steps.slice(0, -1), step, row.steps[row.steps.length - 1]] })
 const point = (type, label, target, name, say, alt) =>[...onBoard(type, label, cellOf(type)), { target: alt ? [target, cellOf(type)] : target, name, text: say, altText: alt }]
 
 // ── the Watchlist widget (pages/Watchlists.jsx, pages/charts/widgets/WatchlistPicker.jsx) ──
 const WL = 'watchlist'
 const ROW = { widgetType: WL, attr: 'data-watch-sym' }
 const PICKER = { widgetType: WL, attr: 'data-guide', value: 'watchlist.picker' }
+// ⭐ THE LIBRARY (UCT frame, owner 11-13 / 11-15): a board Watchlist opens straight onto a list (else Flagged) with its library
+// beside it (pages/charts/widgets/LibraryRail.jsx): Prebuilt · Community · My Lists as tabs, a search, then every list. On the
+// board it IS the picker: the list's ‹ Lists is hidden while the library button shows (Watchlists.module.css .pickHeader:has
+// libraryToggle). The picker still shows where the widget has nothing open, so a step that picks a list names either.
+export const WL_LIBRARY = { widgetType: WL, guide: 'watchlist.library' }
+export const WL_LISTS = [PICKER, WL_LIBRARY]
+// a narrow widget slides the library over its list, and closes it: its button brings it back (aria-label names the state)
+export const WL_SHOW_LIBRARY = { target: { widgetType: WL, attr: 'aria-label', value: 'Show the library' }, name: 'the library button', text: 'Click this to show the library: Prebuilt, Community and My Lists.', waitFor: WL_LIBRARY, optional: true, late: true }
+// one of the library's tabs (role="tab", aria-selected when it is the one showing)
+export const wlLibraryTab = (label) => ({ within: 'watchlist.library', attr: 'role', value: 'tab', text: label })
+// the member's own lists, New list and each list's ⋯ are on My Lists only
+export const WL_MY_LISTS = { target: wlLibraryTab('My Lists'), name: 'My Lists', text: 'Open My Lists.', waitFor: { ...wlLibraryTab('My Lists'), on: true }, optional: true, late: true }
 const OPEN_LIST = [
-  ...onBoard(WL, 'Watchlist', [ROW, PICKER]),
-  { target: PICKER, name: 'your lists', text: 'Click a list to open it. It needs at least one ticker.', waitFor: ROW, optional: true, late: true },
+  ...onBoard(WL, 'Watchlist', [ROW, ...WL_LISTS]),
+  WL_SHOW_LIBRARY,
+  { target: WL_LISTS, name: 'your lists', text: 'Click a list to open it. It needs at least one ticker.', waitFor: ROW, optional: true, late: true },
 ]
 const onRow = (name, say, opts = {}) => [...OPEN_LIST, { target: ROW, name, text: say, ...opts }]
 const rowItem = (id) => ({ within: 'watchlist.rowMenu', attr: 'data-menu-id', value: id })
@@ -172,11 +187,12 @@ const rowMenu = (id, name, say, more = []) => [
 // a row's render is pinned byte for byte (Watchlists.entitykeys.test.jsx), so these are the row's own attributes
 const HEAD = { widgetType: WL, aria: 'Sort by Symbol' }
 export const WATCHLIST_ACTIONS = [
-  { id: 'flagged', label: 'Opening the Flagged list', re: /\b(open|see|view|show|find)\b.*\bflagged\b/, steps: [...onBoard(WL, 'Watchlist', PICKER), { target: 'watchlist.pickFlagged', name: 'Flagged', text: 'Click Flagged to open the tickers you’ve flagged.' }] },
+  // in the library, Flagged is the first of My Lists (LibraryRail.jsx: its own name, the person's Flagged label)
+  { id: 'flagged', label: 'Opening the Flagged list', re: /\b(open|see|view|show|find)\b.*\bflagged\b/, steps: [...onBoard(WL, 'Watchlist', WL_LISTS), WL_SHOW_LIBRARY, WL_MY_LISTS, { target: ['watchlist.pickFlagged', { within: 'watchlist.library', label: 'Flagged' }], name: 'Flagged', text: 'Click Flagged to open the tickers you’ve flagged.' }] },
   { id: 'flag', label: 'Flagging a ticker', re: /\b(flag|unflag|star)\b|\b(add|put)\b.*\b(to|on|in|into)\b.*\bflagged\b/, steps: [...OPEN_LIST, { target: { widgetType: WL, attr: 'title', value: 'Add to Flagged (Shift+F)' }, name: 'the star', text: 'Click a row’s star to add it to Flagged, or take it off. With a row selected, Shift+F does the same.' }] },
-  { id: 'prebuilt', label: 'Opening a prebuilt list', re: /\b(prebuilt|pre-built|community|uct'?s?) (watch ?)?lists?\b/, steps: [...onBoard(WL, 'Watchlist', PICKER), { target: PICKER, name: 'the list picker', text: 'The tabs at the top of the picker hold My Lists, Prebuilt and Community. Open one and click a list.' }] },
+  { id: 'prebuilt', label: 'Opening a prebuilt list', re: /\b(prebuilt|pre-built|community|uct'?s?) (watch ?)?lists?\b/, steps: [...onBoard(WL, 'Watchlist', WL_LISTS), WL_SHOW_LIBRARY, { target: WL_LISTS, name: 'the list picker', text: 'The tabs at the top hold My Lists, Prebuilt and Community. Open one and click a list.' }] },
   // ⭐ cov-1: one of the member's own lists, opened in the widget ("show my Momentum list")
-  { id: 'openList', label: 'Opening one of your lists', re: /\b(open|load|show|pull up|bring up|switch to|go to)\s+(up\s+)?(one of\s+)?(my|my own|another|other|a different|a saved|one of my)\s+(\w+\s+)?(watch ?)?lists?\b/, steps: [...onBoard(WL, 'Watchlist', PICKER), { target: PICKER, name: 'your lists', text: 'Click one of your lists to open it in this widget. The tabs at the top hold My Lists, Prebuilt and Community.' }] },
+  { id: 'openList', label: 'Opening one of your lists', re: /\b(open|load|show|pull up|bring up|switch to|go to)\s+(up\s+)?(one of\s+)?(my|my own|another|other|a different|a saved|one of my)\s+(\w+\s+)?(watch ?)?lists?\b/, steps: [...onBoard(WL, 'Watchlist', WL_LISTS), WL_SHOW_LIBRARY, { target: WL_LISTS, name: 'your lists', text: 'Click one of your lists to open it in this widget. The tabs at the top hold My Lists, Prebuilt and Community.' }] },
   { id: 'remove', label: 'Removing a ticker from a list', re: /\b(remove|delete|take off|take out|get rid of)\b.*\b(tickers?|symbols?|stocks?|names?|from)\b|\b(take|pull|drop)\b.+\b(off|out of)\b.*\b(watch ?)?lists?\b/, steps: rowMenu('remove', 'Remove from watchlist', 'Click Remove from watchlist.') },
   { id: 'note', label: 'A note on a ticker', re: /\bnotes?\b/, steps: rowMenu('notes', 'Notes', 'Click Notes: a note box opens under the ticker, and it saves as you type.') },
   { id: 'research', label: 'Research on a ticker', re: /\b(research|ask ai|ai about)\b/, steps: rowMenu('research', 'Full Research', 'Click Full Research, or Ask the UCT Agent just below it.') },
@@ -215,11 +231,12 @@ const ADD_TAB = 'widget.addTab'
 export const TAB_ACTIONS = [
   { id: 'closeChart', label: 'Closing a chart tab', re: /\bclos\w*\b.*\bchart tabs?\b|\bchart tabs?\b.*\bclos\w*\b/, steps: [{ target: ['chart.tabClose', 'chart.addTab'], name: 'the tab’s ×', text: 'Click this ×, then click again to confirm.', altText: 'This chart has no extra tabs to close. This + adds one.' }] },
   { id: 'switchChart', label: 'Switching chart tabs', re: /\bswitch\w*\b.*\bchart tabs?\b|\bchart tabs?\b.*\bswitch\w*\b/, steps: [{ target: ['chart.tabs', 'chart.addTab'], name: 'the chart’s tabs', text: 'Click a tab to switch to it. Double-click one to rename it.', altText: 'This chart has one tab. This + adds another, and the strip of tabs appears above the chart.' }] },
-  // ⭐ cov-4 (7): a widget tab's × shows only on the SELECTED extra tab (WidgetHeader.jsx: `!tab.isMain && active`), so the tab
-  // is selected first; with it already selected, that step is met at once and the walkthrough goes straight to its ×
+  // ⭐ the board's tabs have no × (UCT frame, owner 11-14: WidgetHeader.jsx "Close tab is in the right-click menu, so it can
+  // never be hit by accident"): a tab's right-click menu (portalled, role="menu") ends in Close tab, on every tab but the first.
+  // The old look's × on the selected extra tab still counts where it shows
   { id: 'close', label: 'Closing a widget tab', re: /\bclos\w*\b.*\btabs?\b/, steps: [
-    { target: [{ within: 'workspace.widgetTabs', attr: 'aria-selected', value: 'false' }, 'workspace.widgetTabClose', ADD_TAB], name: 'the tab', text: 'Click the tab you want to close.', altText: 'This widget has no extra tabs. This + adds one.', waitFor: 'workspace.widgetTabClose' },
-    { target: ['workspace.widgetTabClose', ADD_TAB], name: 'the tab’s ×', text: 'Click its ×, then click again to confirm.', altText: 'This widget has no extra tabs. This + adds one.' },
+    { target: [{ within: 'workspace.widgetTabs', attr: 'aria-selected', value: 'false' }, 'workspace.widgetTabClose', ADD_TAB], name: 'the tab', text: 'Right-click the tab you want to close (any tab but the first).', altText: 'This widget has no extra tabs. This + adds one.', waitFor: [{ within: '@menu', label: 'Close tab' }, 'workspace.widgetTabClose'] },
+    { target: [{ within: '@menu', label: 'Close tab' }, 'workspace.widgetTabClose', ADD_TAB], name: 'Close tab', text: 'Click Close tab.', altText: 'This widget has no extra tabs. This + adds one.' },
   ] },
   { id: 'switch', label: 'Switching widget tabs', re: /\bswitch\w*\b.*\btabs?\b/, steps: [{ target: ['workspace.widgetTabs', ADD_TAB], name: 'the tabs', text: 'Click a tab to switch to it. Double-click one to rename it.', altText: 'This widget has one tab. This + adds another.' }] },
 ]
@@ -246,12 +263,18 @@ export const WIDGET_ACTIONS = [
   widget('alertsDelete', 'alerts', 'Deleting an alert', /\b(delete|remove|cancel)\b.*\balerts?\b/, 'alerts.delete', 'the alert’s ×', 'Click this × to delete that alert.', 'You have no alerts to delete yet.'),
   widget('newsFilter', 'news', 'Filtering catalysts', /\bcatalysts?\b|\bnews\b.*\b(up|down) (moves?|days?)\b/, 'news.filters', 'the filters', 'These pills filter the catalysts: all, up or down.'),
   widget('newsRead', 'news', 'Reading a symbol’s headlines', /\b(headlines?|stored news|news for)\b/, cellOf('news'), 'the News widget', 'This widget lists the stored headlines for the linked chart’s symbol, newest first.'),
-  widget('teSearch', 'tradeExchangeNews', 'Searching headlines', /\b(trade exchange|te news)\b.*\bsearch\b|\bsearch\b.*\b(trade exchange|te news)\b/, { widgetType: 'tradeExchangeNews', aria: 'Search headlines' }, 'the search box', 'Type here to search the headlines.'),
-  widget('teFilter', 'tradeExchangeNews', 'Filtering the news feed', /\b(trade exchange|te news)\b.*\b(filter|categor\w+|watch ?list)\b|\b(filter|categor\w+)\b.*\b(trade exchange|te news)\b/, { widgetType: 'tradeExchangeNews', aria: 'Filter by watchlist' }, 'the filters', 'This limits the feed to a watchlist. The funnel beside it filters by category or the linked symbol.'),
+  // ⭐ with News & Catalysts hidden (11-13) the News widget the menu offers is this one, so its headlines and "the feed" name it
+  widget('teSearch', 'tradeExchangeNews', 'Searching headlines', /\b(trade exchange|te news)\b.*\bsearch\b|\bsearch\b.*\b(trade exchange|te news|headlines?|(the |news )?feed)\b/, { widgetType: 'tradeExchangeNews', aria: 'Search headlines' }, 'the search box', 'Type here to search the headlines.'),
+  widget('teFilter', 'tradeExchangeNews', 'Filtering the news feed', /\b(trade exchange|te news)\b.*\b(filter|categor\w+|watch ?list)\b|\b(filter|categor\w+)\b.*\b(trade exchange|te news)\b|\bheadlines?\b.*\b(on|in|from) (my|a|the) watch ?lists?\b|\b(filter\w*|only)\b.*\b(headlines?|feed)\b.*\b(categor\w+|symbols?|watch ?lists?)\b/, { widgetType: 'tradeExchangeNews', aria: 'Filter by watchlist' }, 'the filters', 'This limits the feed to a watchlist. The funnel beside it filters by category or the linked symbol.'),
   widget('teExplain', 'tradeExchangeNews', 'Explaining a headline', /\b(explain|ask about)\b.*\bheadlines?\b/, 'teNews.explain', 'Explain', 'Click this on a headline to have it explained.', 'This shows on each headline once the feed has loaded.'),
-  widget('calRow', 'calendar', 'Loading a stock from the earnings list', /\b(click|open|load|chart)\b.*\bearnings\b.*\b(row|stock|ticker)s?\b|\bearnings (row|list)\b/, 'calendar.row', 'an earnings row', 'Click a row to load that stock on the linked chart.', 'No one reports on this day. Step to another day with the arrows.'),
+  // ⭐ the board's Calendar (owner 11-14, look "Simple": pages/charts/widgets/CalendarTimeline.jsx) folds each earnings line: its
+  // Show more lists the reporters, whose rows are the same calendar.row. Off the board the rows show at once (the step is skipped)
+  opened(widget('calRow', 'calendar', 'Loading a stock from the earnings list', /\b(click|open|load|chart)\b.*\bearnings\b.*\b(row|stock|ticker)s?\b|\bearnings (row|list)\b/, 'calendar.row', 'an earnings row', 'Click a row to load that stock on the linked chart.', 'No one reports on this day. Step to another day with the arrows.'),
+    { target: { widgetType: 'calendar', label: 'Show more' }, name: 'Show more', text: 'Click Show more on a line of reporters to list them.', waitFor: inCell('calendar', 'calendar.row'), optional: true, late: true }),
   widget('calDays', 'calendar', 'Stepping through days', /\bcalendar\b.*\b(next|previous|another|step|other) days?\b|\b(next|previous|another) day\b.*\bcalendar\b/, 'calendar.days', 'the day arrows', 'These arrows step one trading day at a time.'),
-  widget('calStars', 'calendar', 'Filtering economic events', /\b(economic|econ)\b.*\b(events?|filter|stars?|impact)\b/, 'calendar.stars', 'the stars', 'These stars set the impact shown: one is everything, three is high impact only.', 'There are no economic events on this day. Step to another day with the arrows.'),
+  // the board's Calendar keeps the impact choice in its Filter events menu (the same calendar.stars, one per level)
+  opened(widget('calStars', 'calendar', 'Filtering economic events', /\b(economic|econ)\b.*\b(events?|filter|stars?|impact)\b/, 'calendar.stars', 'the stars', 'These set the impact shown: one star is everything, three is high impact only.', 'There are no economic events on this day. Step to another day with the arrows.'),
+    { target: { widgetType: 'calendar', aria: 'Filter events' }, name: 'Filter events', text: 'Click Filter events in the Calendar’s top bar.', waitFor: inCell('calendar', 'calendar.stars'), optional: true, late: true }),
   widget('calWho', 'calendar', 'Who reports on a day', /\bwho reports\b|\b(earnings|reports?)\b.*\b(today|tomorrow|on a day|this day)\b/, cellOf('calendar'), 'the Calendar widget', 'This widget lists who reports on the day shown, before the open and after the close. Click a row to load its chart.'),
   widget('breadthRead', 'breadth', 'Reading the breadth tiles', /\b(read|understand)\b.*\bbreadth\b|\bbreadth\b.*\b(tiles?|drill)\b|\btiles?\b.*\bbreadth\b/, cellOf('breadth'), 'the Breadth widget', 'Each tile is one breadth reading, colored by how strong it is. Click one to open it on Breadth. The widget’s gear adds or removes readings.'),
   widget('flowScope', 'optionsflow', 'Market or symbol flow', /\b(flow|options)\b.*\b(market|symbol|scope)\b/, 'flow.scope', 'Market', 'Market shows the whole tape. The button beside it follows the linked chart’s symbol.'),

@@ -773,7 +773,8 @@
  },
  "C3-008": {
   "feature": "widgetHeader",
-  "from": "2026-11-05 matrix Guide feature"
+  "from": "2026-11-05 matrix Guide feature",
+  "withheld": "owner 2026-11-14: the widget Float button is switched off (ChartsWorkspace FLOAT_BUTTON_ON = false); the guide says so"
  },
  "C3-012": {
   "feature": "widgetHeader",
@@ -1026,11 +1027,13 @@
  },
  "C3-121": {
   "feature": "widgetAction",
-  "from": "2026-11-05 matrix Guide feature"
+  "from": "2026-11-05 matrix Guide feature",
+  "withheld": "Volume Surge: owner 2026-11-13: the widget is hidden from every add menu (widgets/registry.js HIDDEN_WIDGETS); the guide says so, and walks a board that already has it"
  },
  "C3-124": {
   "feature": "widgetSettings",
-  "from": "2026-11-05 matrix Guide feature"
+  "from": "2026-11-05 matrix Guide feature",
+  "withheld": "Volume Surge: owner 2026-11-13: the widget is hidden from every add menu (widgets/registry.js HIDDEN_WIDGETS); the guide says so, and walks a board that already has it"
  },
  "C3-127": {
   "feature": "widgetAction",
@@ -1054,11 +1057,13 @@
  },
  "C3-133": {
   "feature": "widgetAction",
-  "from": "2026-11-05 matrix Guide feature"
+  "from": "2026-11-05 matrix Guide feature",
+  "withheld": "News & Catalysts: owner 2026-11-13: the widget is hidden from every add menu (widgets/registry.js HIDDEN_WIDGETS); the guide says so, and walks a board that already has it"
  },
  "C3-134": {
   "feature": "widgetAction",
-  "from": "2026-11-05 matrix Guide feature"
+  "from": "2026-11-05 matrix Guide feature",
+  "withheld": "News & Catalysts: owner 2026-11-13: the widget is hidden from every add menu (widgets/registry.js HIDDEN_WIDGETS); the guide says so, and walks a board that already has it"
  },
  "C3-136": {
   "feature": "widgetSettings",
@@ -1162,19 +1167,23 @@
  },
  "C3-178": {
   "feature": "widgetAction",
-  "from": "2026-11-05 matrix Guide feature"
+  "from": "2026-11-05 matrix Guide feature",
+  "withheld": "Fundamentals: owner 2026-11-13: the widget is hidden from every add menu (widgets/registry.js HIDDEN_WIDGETS); the guide says so, and walks a board that already has it"
  },
  "C3-179": {
   "feature": "widgetAction",
-  "from": "2026-11-05 matrix Guide feature"
+  "from": "2026-11-05 matrix Guide feature",
+  "withheld": "Fundamentals: owner 2026-11-13: the widget is hidden from every add menu (widgets/registry.js HIDDEN_WIDGETS); the guide says so, and walks a board that already has it"
  },
  "C3-180": {
   "feature": "widgetSettings",
-  "from": "2026-11-05 matrix Guide feature"
+  "from": "2026-11-05 matrix Guide feature",
+  "withheld": "Fundamentals: owner 2026-11-13: the widget is hidden from every add menu (widgets/registry.js HIDDEN_WIDGETS); the guide says so, and walks a board that already has it"
  },
  "C3-181": {
   "feature": "widgetAction",
-  "from": "2026-11-05 matrix Guide feature"
+  "from": "2026-11-05 matrix Guide feature",
+  "withheld": "Stock Profile: owner 2026-11-13: the widget is hidden from every add menu (widgets/registry.js HIDDEN_WIDGETS); the guide says so, and walks a board that already has it"
  },
  "C3-187": {
   "feature": "widgetAction",
@@ -1190,19 +1199,23 @@
  },
  "C3-191": {
   "feature": "widgetSettings",
-  "from": "2026-11-05 matrix Guide feature"
+  "from": "2026-11-05 matrix Guide feature",
+  "withheld": "H/L Pulse: owner 2026-11-13: the widget is hidden from every add menu (widgets/registry.js HIDDEN_WIDGETS); the guide says so, and walks a board that already has it"
  },
  "C3-192": {
   "feature": "widgetAction",
-  "from": "2026-11-05 matrix Guide feature"
+  "from": "2026-11-05 matrix Guide feature",
+  "withheld": "Market Map: owner 2026-11-13: the widget is hidden from every add menu (widgets/registry.js HIDDEN_WIDGETS); the guide says so, and walks a board that already has it"
  },
  "C3-193": {
   "feature": "widgetAction",
-  "from": "2026-11-05 matrix Guide feature"
+  "from": "2026-11-05 matrix Guide feature",
+  "withheld": "Market Map: owner 2026-11-13: the widget is hidden from every add menu (widgets/registry.js HIDDEN_WIDGETS); the guide says so, and walks a board that already has it"
  },
  "C3-196": {
   "feature": "widgetAction",
-  "from": "2026-11-05 matrix Guide feature"
+  "from": "2026-11-05 matrix Guide feature",
+  "withheld": "AI Search: owner 2026-11-13: the widget is hidden from every add menu (widgets/registry.js HIDDEN_WIDGETS); the guide says so, and walks a board that already has it"
  },
  "C3-201": {
   "feature": "widgetAction",
@@ -1342,7 +1355,7 @@
  },
  "C3-023": {
   "feature": "control",
-  "title": "A chart tab’s link colour",
+  "title": "A chart tab’s link color",
   "from": "catalog control reviewed by hand 2026-11-07"
  },
  "C3-035": {
@@ -1388,7 +1401,8 @@
  "C3-137": {
   "feature": "control",
   "title": "Sending News & Catalysts to the Journal",
-  "from": "catalog control reviewed by hand 2026-11-07"
+  "from": "catalog control reviewed by hand 2026-11-07",
+  "withheld": "News & Catalysts: owner 2026-11-13: the widget is hidden from every add menu (widgets/registry.js HIDDEN_WIDGETS); the guide says so, and walks a board that already has it"
  },
  "C3-141": {
   "feature": "control",
@@ -1438,17 +1452,20 @@
  "C3-198": {
   "feature": "control",
   "title": "Saving an answer",
-  "from": "catalog control reviewed by hand 2026-11-07"
+  "from": "catalog control reviewed by hand 2026-11-07",
+  "withheld": "AI Search: owner 2026-11-13: the widget is hidden from every add menu (widgets/registry.js HIDDEN_WIDGETS); the guide says so, and walks a board that already has it"
  },
  "C3-199": {
   "feature": "control",
   "title": "Copying an answer",
-  "from": "catalog control reviewed by hand 2026-11-07"
+  "from": "catalog control reviewed by hand 2026-11-07",
+  "withheld": "AI Search: owner 2026-11-13: the widget is hidden from every add menu (widgets/registry.js HIDDEN_WIDGETS); the guide says so, and walks a board that already has it"
  },
  "C3-200": {
   "feature": "control",
   "title": "Sending AI Search to the Journal",
-  "from": "catalog control reviewed by hand 2026-11-07"
+  "from": "catalog control reviewed by hand 2026-11-07",
+  "withheld": "AI Search: owner 2026-11-13: the widget is hidden from every add menu (widgets/registry.js HIDDEN_WIDGETS); the guide says so, and walks a board that already has it"
  },
  "C3-203": {
   "feature": "control",
@@ -1507,12 +1524,14 @@
  "C3-125": {
   "feature": "control",
   "title": "Logos on Volume Surge",
-  "from": "reviewed by hand 2026-11-07 (round 3)"
+  "from": "reviewed by hand 2026-11-07 (round 3)",
+  "withheld": "Volume Surge: owner 2026-11-13: the widget is hidden from every add menu (widgets/registry.js HIDDEN_WIDGETS); the guide says so, and walks a board that already has it"
  },
  "C3-135": {
   "feature": "control",
   "title": "A headline on the chart",
-  "from": "reviewed by hand 2026-11-07 (round 3)"
+  "from": "reviewed by hand 2026-11-07 (round 3)",
+  "withheld": "News & Catalysts: owner 2026-11-13: the widget is hidden from every add menu (widgets/registry.js HIDDEN_WIDGETS); the guide says so, and walks a board that already has it"
  },
  "C1-067": {
   "feature": "chartSetting",
@@ -1543,7 +1562,8 @@
  },
  "C3-011": {
   "feature": "widgetMove",
-  "from": "cov-5 row reviewed by hand 2026-11-09 (not assigned before: Moving a chart or widget ends on the header bar you drag into another widget’s tabs)"
+  "from": "cov-5 row reviewed by hand 2026-11-09 (not assigned before: Moving a chart or widget ends on the header bar you drag into another widget’s tabs)",
+  "withheld": "owner 2026-11-14: the widget Float button is switched off (ChartsWorkspace FLOAT_BUTTON_ON = false); the guide says so"
  },
  "C3-015": {
   "feature": "widgetHeader",

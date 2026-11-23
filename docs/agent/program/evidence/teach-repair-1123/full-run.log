@@ -1,0 +1,308 @@
+PASS  C1-001  how do I change ticker by search pick
+PASS  C1-005  how do I flag current ticker (Shift+F)
+PASS  C1-006  how do I pick preset timeframe on bar
+PASS  C1-007  how do I pick from full timeframe menu
+PASS  C1-008  how do I add custom interval
+PASS  C1-009  how do I delete custom interval
+PASS  C1-010  how do I star a favourite timeframe
+PASS  C1-011  how do I timeframe keys with repeat-press cycle
+PASS  C1-013  how do I choose chart type in settings
+PASS  C1-017  how do I candle colour mode
+PASS  C1-018  how do I thin bars
+PASS  C1-019  how do I regular/extended on intraday
+PASS  C1-020  how do I regular/extended on D/W/M
+PASS  C1-022  show me how to log scale
+PASS  C1-024  how do I invert scale (Alt+I)
+PASS  C1-025  how do I auto-scale
+PASS  C1-027  how do I reset view
+PASS  C1-028  how do I zoom in/out (+/-)
+PASS  C1-029  how do I range buttons (3M/6M/YTD/1Y/5Y)
+PASS  C1-030  how do I type a date in Time Navigator
+PASS  C1-031  show me how to go to 2020
+PASS  C1-034  show me how to compare with AMD
+PASS  C1-035  show me how to compare against the semis group
+PASS  C1-037  show me how to remove the semis overlay
+PASS  C1-038  how do I clear all comparisons
+PASS  C1-039  how do I same/new scale per symbol
+PASS  C1-040  how do I same/new scale for a group
+PASS  C1-041  show me how to show only the comparisons
+PASS  C1-042  show me how to replay from Oct 15
+PASS  C1-043  how do I choose replay timeframe
+FAIL  C1-045  how do I exit replay  — last step shows its fallback: Replay isn’t running, so there’s nothing to exit. Exit replay shows here while it runs.
+PASS  C1-047  how do I toggle grid
+PASS  C1-048  how do I solid/gradient background
+PASS  C1-049  how do I solid background colour
+PASS  C1-050  how do I gradient colours
+PASS  C1-051  how do I crosshair mode
+PASS  C1-052  how do I crosshair colour/width/style
+PASS  C1-054  how do I price labels / MA labels
+PASS  C1-055  how do I scale text size and colour
+PASS  C1-056  how do I watermark on/off (Alt+Shift+W)
+PASS  C1-057  how do I watermark lines
+PASS  C1-058  how do I watermark alignment
+PASS  C1-059  how do I watermark size/weight/colour/opacity
+PASS  C1-060  how do I move watermark
+PASS  C1-061  how do I reset watermark to centre
+PASS  C1-062  how do I title shows ticker/company/both
+PASS  C1-063  how do I day change beside title
+PASS  C1-064  how do I legend mode
+PASS  C1-065  how do I legend bar-info fields
+PASS  C1-067  how do I header colours
+PASS  C1-068  how do I swing labels on/off and sensitivity
+PASS  C1-069  how do I swing label background, tint, colours
+PASS  C1-070  show me how to turn on earnings markers
+PASS  C1-071  how do I earnings beat/miss and IPO colours
+PASS  C1-072  show me how to show the prior day high
+PASS  C1-073  show me how to dash the prior day low
+PASS  C1-074  how do I dark-pool levels
+PASS  C1-075  how do I bar-close countdown (Shift+C)
+PASS  C1-076  how do I restore defaults
+PASS  C1-078  how do I light/dark palette (Shift+T)
+PASS  C1-079  how do I apply a theme to one chart
+PASS  C1-080  how do I apply a theme to all charts
+PASS  C1-081  how do I apply a theme to all widgets
+PASS  C1-082  how do I apply a template
+PASS  C1-083  how do I save a template
+PASS  C1-084  how do I delete a template
+PASS  C1-086  how do I show/hide volume (Ctrl+V, menu)
+PASS  C1-087  how do I remove volume
+PASS  C1-088  show me how to put volume in its own pane
+PASS  C1-089  how do I resize volume pane by drag
+PASS  C1-090  how do I hVC highlight
+PASS  C1-091  how do I volume colours, MA, label, bar style
+PASS  C1-094  how do I resize a pane
+PASS  C1-097  how do I hide/show an indicator from chip
+PASS  C1-098  how do I display in another pane from chip
+PASS  C1-099  show me how to duplicate the 20 EMA
+PASS  C1-100  show me how to show RSI value in the header
+PASS  C1-101  how do I add alert from chip
+PASS  C1-102  how do I delete indicator from chip
+PASS  C1-103  how do I hide all indicators (Alt+Shift+I)
+PASS  C1-105  how do I toggle moving averages (Ctrl+M)
+PASS  C1-107  how do I bars & Time
+PASS  C1-109  how do I price Move
+PASS  C1-110  how do I open share popover (Alt+S)
+PASS  C1-111  how do I download PNG
+PASS  C1-112  how do I copy image
+PASS  C1-113  how do I copy share link
+PASS  C1-115  how do I alert on a line, following it
+PASS  C1-116  how do I alert at a line's fixed level
+PASS  C1-119  how do I pause/resume indicator alert
+PASS  C1-120  how do I delete indicator alert
+PASS  C1-121  how do I move a level line
+PASS  C1-124  how do I open indicator settings
+PASS  C1-125  how do I clear all drawings
+PASS  C1-126  how do I hide all drawings
+PASS  C1-127  how do I open chart settings (Alt+,, gear)
+PASS  C1-128  how do I trendline
+PASS  C1-130  how do I extended line
+PASS  C1-131  how do I horizontal line
+PASS  C1-132  how do I horizontal ray
+PASS  C1-133  how do I vertical line
+PASS  C1-134  how do I rectangle
+PASS  C1-135  how do I circle
+PASS  C1-136  how do I arrow
+PASS  C1-137  how do I fib retracement
+PASS  C1-138  how do I fib extension
+PASS  C1-139  how do I pitchfork
+PASS  C1-140  how do I parallel channel
+PASS  C1-141  how do I cup curve
+PASS  C1-142  how do I anchored VWAP
+PASS  C1-143  how do I text note
+PASS  C1-144  how do I position calculator
+PASS  C1-145  how do I eraser
+PASS  C1-146  show me how to remove that trendline
+PASS  C1-147  show me how to make that line pink
+PASS  C1-148  how do I width and line style
+PASS  C1-149  show me how to shade that box blue
+PASS  C1-150  show me how to make the note bold
+PASS  C1-151  how do I fib levels and fills
+FAIL  C1-152  show me how to reset the fib levels  — step 1: no point of the region it names opened the menu row it needs
+PASS  C1-153  show me how to hide bars on the measure
+PASS  C1-154  show me how to show the price on that line
+PASS  C1-155  how do I edit anchors
+PASS  C1-156  show me how to flatten that line
+PASS  C1-157  show me how to copy that line
+PASS  C1-158  show me how to lock that line
+PASS  C1-159  show me how to hide that fib
+PASS  C1-162  how do I undo/redo a drawing
+PASS  C1-163  how do I magnet for drawing
+PASS  C1-164  how do I repeat drawing mode
+PASS  C1-165  how do I customise tool favourites
+PASS  C1-166  how do I nudge selected with arrows
+PASS  C1-167  how do I switch drawing board
+PASS  C1-168  how do I create a board
+PASS  C1-169  how do I rename a board
+PASS  C1-170  how do I delete a board
+PASS  C1-173  show me how to 2x2 grid
+PASS  C2-001  how do I open indicator library
+PASS  C2-002  how do I search indicators by name or purpose
+PASS  C2-003  show me how to what momentum indicators do you have
+PASS  C2-004  how do I add built-in indicator
+PASS  C2-005  show me how to add a 20 EMA
+PASS  C2-006  show me how to add another 20 EMA
+FAIL  C2-007  how do I add own saved indicator  — last step shows its fallback: You have no saved indicators yet. Search here, or use Create indicator above.
+PASS  C2-008  how do I add a symbol as a data series from search
+PASS  C2-010  how do I keyboard chord toggles RSI, MACD, BB, VWAP
+PASS  C2-011  show me how to turn on moving average 3
+PASS  C2-014  how do I delete indicator from legend
+PASS  C2-016  show me how to remove the 9 EMA
+PASS  C2-017  how do I remove an unavailable indicator
+PASS  C2-018  how do I hide indicator
+PASS  C2-019  how do I show indicator
+PASS  C2-020  how do I hide or show volume
+PASS  C2-022  show me how to what indicators are on this chart
+PASS  C2-024  show me how to make RSI 7
+PASS  C2-025  how do I change select setting (MA type, source)
+PASS  C2-026  show me how to turn off the signal line
+PASS  C2-029  show me how to calculate this RSI on the weekly
+PASS  C2-031  show me how to make MACD bars blue when rising
+PASS  C2-034  how do I change plot style
+PASS  C2-039  how do I resize pane by divider
+PASS  C2-041  show me how to show RSI's value in the header
+PASS  C2-042  show me how to duplicate the 20 EMA
+PASS  C2-043  show me how to make my own copy of MACD
+PASS  C2-048  how do I indicator undo and redo buttons
+PASS  C2-055  how do I open Create Indicator
+PASS  C2-056  how do I describe an indicator, get a draft
+PASS  C2-059  how do I undo a draft step
+PASS  C2-061  how do I save draft, acknowledge warnings
+PASS  C2-062  how do I discard draft
+PASS  C2-066  how do I enter a formula
+FAIL  C2-070  show me how to put a green arrow under the bar when true  — last step shows its fallback: These show once the formula gives a yes or no, such as close > open. Type one on the Formula tab, then set it as a Signal here.
+FAIL  C2-071  show me how to paint the candles gold when true  — last step shows its fallback: These show once the formula gives a yes or no, such as close > open. Type one on the Formula tab, then set it as a Signal here.
+PASS  C2-072  how do I name the draft
+PASS  C2-073  how do I ask for an alert from the builder
+PASS  C2-076  how do I paste Pine or thinkScript
+PASS  C2-088  how do I open indicator alerts popover
+PASS  C2-089  show me how to alert me when RSI goes above 70
+PASS  C2-090  how do I create MA cross alert
+FAIL  C2-091  show me how to alert on the MACD signal line  — last step shows its fallback: Choose an indicator with several lines first, such as MACD: the Plot list appears here.
+FAIL  C2-092  how do I alert on a yes/no signal with trigger policy  — last step shows its fallback: This shows when the indicator gives a yes or no signal.
+PASS  C2-093  how do I alert on another timeframe
+PASS  C2-096  show me how to the alert on the 9 EMA, left chart
+PASS  C2-097  show me how to show my indicator alerts
+PASS  C2-098  how do I pause or resume alert
+PASS  C2-099  show me how to delete the RSI alert
+FAIL  C2-100  how do I see why an alert cannot fire  — last step shows its fallback: None of your alerts for this symbol are blocked. A blocked one says why under its name here.
+PASS  C3-001  how do I add a widget from Widgets ▾
+PASS  C3-002  how do I drag a widget to move it, or nudge it
+PASS  C3-003  how do I drag a widget edge or merged seam to resize
+PASS  C3-004  how do I close a widget
+PASS  C3-005  how do I merge or unmerge widgets (lock board, drop borders)
+PASS  C3-006  how do I cycle a widget's link colour
+PASS  C3-007  how do I change a tool panel's colour group
+PASS  C3-009  how do I drag or resize a floating widget
+PASS  C3-012  how do I pop a widget into its own window
+PASS  C3-015  how do I close a popped widget
+PASS  C3-016  how do I add a widget as a tab
+PASS  C3-017  how do I switch a widget tab
+PASS  C3-018  how do I rename a widget tab
+PASS  C3-019  how do I close a widget tab
+PASS  C3-020  how do I add a chart tab
+PASS  C3-021  how do I switch a chart tab
+PASS  C3-022  how do I rename a chart tab
+FAIL  C3-023  how do I change a chart tab's link colour  — no walkthrough: Harness
+PASS  C3-024  how do I close a chart tab
+PASS  C3-025  how do I open a saved layout
+PASS  C3-026  how do I see which layout is open
+PASS  C3-027  show me how to go back to my last layout
+PASS  C3-028  how do I create a new layout from the dock
+PASS  C3-029  how do I start a new blank board from the Layouts menu
+PASS  C3-030  show me how to save my layout
+PASS  C3-031  how do I save as a new layout
+PASS  C3-033  how do I rename a layout
+PASS  C3-034  how do I duplicate a layout
+PASS  C3-035  how do I delete a layout
+PASS  C3-037  how do I pin a layout to the bar
+PASS  C3-039  how do I remove a layout from the bar
+PASS  C3-040  how do I view a layout's version history
+PASS  C3-041  how do I restore a layout version
+PASS  C3-042  show me how to use the 3x3 multi chart
+PASS  C3-043  show me how to multi chart 2 by 5
+PASS  C3-044  how do I exit Multi Chart
+PASS  C3-045  show me how to sync the crosshairs
+PASS  C3-046  show me how to sync the time range
+PASS  C3-047  how do I turn on Groups mode
+PASS  C3-048  how do I pick a group for the grid
+PASS  C3-049  show me how to next group
+PASS  C3-050  how do I refresh the group
+PASS  C3-051  how do I exit Groups
+PASS  C3-052  how do I apply a saved grid
+PASS  C3-053  how do I save a grid
+PASS  C3-054  how do I save a grid as global (admin)
+PASS  C3-055  how do I delete a saved grid
+PASS  C3-056  how do I set a cell's timeframe
+PASS  C3-057  how do I set a cell's chart style
+FAIL  C3-058  how do I toggle a cell's session  — last step shows its fallback: This chart is too narrow to show them. Maximize it, or close me for a moment.
+PASS  C3-059  how do I reset a cell to my chart
+PASS  C3-060  how do I maximize or restore a cell
+PASS  C3-061  how do I open shared grid settings
+PASS  C3-062  how do I set an alert from a cell
+PASS  C3-063  show me how to show my Momentum list
+PASS  C3-064  how do I open a prebuilt or community list
+PASS  C3-065  how do I open the Flagged list
+PASS  C3-067  how do I go back to the list picker
+PASS  C3-068  how do I click a row to load the symbol
+PASS  C3-069  how do I walk the list with arrow keys or space
+PASS  C3-070  how do I create a list
+FAIL  C3-075  how do I delete a list  — 
+PASS  C3-077  how do I add to Flagged
+PASS  C3-078  how do I flag or unflag a row (star)
+PASS  C3-082  show me how to sort my watchlist by RVOL
+PASS  C3-098  how do I set a price alert from a row
+PASS  C3-099  how do I delete an alert from the row popover
+PASS  C3-100  how do I open Full Research or AI from a row
+PASS  C3-101  how do I compare from a row
+PASS  C3-107  how do I pick a preset scan
+PASS  C3-108  how do I leave a scan, back to the picker
+PASS  C3-110  how do I read a scan's conditions
+PASS  C3-111  how do I read a scan's results
+PASS  C3-112  how do I refresh a scan
+PASS  C3-113  how do I sort a scan
+PASS  C3-114  how do I change scan columns
+FAIL  C3-120  how do I send a scan to Journal  — no walkthrough: Harness
+FAIL  C3-122  how do I create, rename or delete a scope list  — last step shows its fallback: You have no lists of your own here yet.
+PASS  C3-123  how do I add a ticker to a scope list
+PASS  C3-127  how do I see my alerts
+PASS  C3-128  how do I create a price alert
+PASS  C3-129  how do I delete an alert
+PASS  C3-131  how do I change Alerts widget appearance
+PASS  C3-132  how do I send alerts to Journal
+FAIL  C3-136  how do I change News widget appearance  — 
+PASS  C3-138  how do I search headlines
+PASS  C3-139  show me how to only show headlines on my watchlist
+PASS  C3-141  how do I save or unsave a headline
+PASS  C3-144  how do I add a headline's ticker to a watchlist
+PASS  C3-145  how do I explain a headline or ask about it
+FAIL  C3-146  show me how to back to live news  — 
+PASS  C3-147  how do I send a headline to Notebook
+PASS  C3-149  how do I ask who reports on a day from Charts
+PASS  C3-150  how do I ask when a stock reports from Charts
+PASS  C3-151  how do I filter economic events by stars
+PASS  C3-155  how do I click an earnings row
+PASS  C3-156  how do I send a day to Journal
+PASS  C3-157  how do I read breadth tiles
+PASS  C3-163  show me how to send breadth to journal
+PASS  C3-164  show me how to flow for this symbol only
+PASS  C3-167  how do I read the flow
+PASS  C3-169  show me how to show themes by week
+PASS  C3-170  show me how to sort themes worst first
+PASS  C3-171  show me how to measure from the open
+PASS  C3-172  how do I open a theme or pick a holding
+PASS  C3-173  how do I search themes or tickers
+PASS  C3-174  how do I pick, rename or delete a theme set
+PASS  C3-175  how do I edit a set (add, hide, reset, custom theme)
+PASS  C3-177  how do I send the ranking to Journal
+FAIL  C3-183  how do I hide or restore an index  — no walkthrough: Harness
+FAIL  C3-184  show me how to send index levels to journal  — no walkthrough: Harness
+PASS  C3-187  show me how to add the Nasdaq 100 to new highs
+PASS  C3-201  how do I open or search a note
+FAIL  C3-203  how do I edit a note's title or body  — last step shows its fallback: Open a note from the list first.
+PASS  C3-205  how do I start a custom-period sort
+PASS  C3-209  how do I start replay at a date
+FAIL  C3-210  how do I exit replay  — last step shows its fallback: Replay isn’t running, so there’s nothing to exit. Exit replay shows here while it runs.
+PASS  C3-212  how do I set replay timeframe
+PASS  C3-217  show me how to hide the company panel
+FAIL  C3-219  how do I open ETF holdings  — last step shows its fallback: View Holdings shows on a chart of an ETF or an index. Load one first.
+287/307 pass → C:/Users/blake/AppData/Local/Temp/claude/2ef397b80db79bf7/56266831-c770-46eb-8e87-f65def6d19f9/scratchpad/full.json
