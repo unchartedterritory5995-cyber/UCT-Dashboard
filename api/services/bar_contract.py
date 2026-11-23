@@ -293,7 +293,8 @@ def compute(ticker: str, tf: str, session, rows: list, *, delta: bool = False,
                            > (_store_key(tf, considered[-1].get("t")) or 0)):
         dev_rows = rows                    # e.g. today's daily bar appended past the store
     out["developing"] = (_developing(tf, grid, dev_rows, rev, now)
-                         or _live_partial(tkr, tf, sess, grid, now))
+                         or _live_partial(tkr, tf, sess, grid, now)
+                         or (None if (delta or to) else _vendor_partial(tkr, tf, sess, grid, rows, now)))
     if not store_rows or not considered:
         return out
     # P: the store's seal — every bucket that ended by it is final in the store.
@@ -410,6 +411,61 @@ def _live_partial(ticker: str, tf: str, sess, grid: str, now: float):
     if b is None or not (b[0] <= now < b[1]):
         return None
     return _bar_out(dict(bar, t=t), int(bar.get("trade_ts") or now * 1000))
+
+
+#: (ticker, tf, grid, bucket start s) -> (monotonic s, bar or None): a storm of first answers
+#: for one symbol (a layout opening several charts) costs the vendor one call per second.
+_VENDOR_PARTIAL_CACHE: dict = {}
+_VENDOR_PARTIAL_TTL_S = 1.0
+_VENDOR_PARTIAL_TIMEOUT_S = 1.5
+
+
+def _vendor_partial(ticker: str, tf: str, sess, grid: str, rows: list, now: float):
+    """⭐ THE FORMING BUCKET ON A FIRST ANSWER (owner 2026-11-23: "as soon as someone opens a
+    different ticker ... that current candle should be completely accurate as if they were
+    already watching it. It should not change."). The store holds closed minutes only and this
+    process has no push feed for a symbol nobody here watches, so without this a first answer
+    stops one bucket short and the forming candle appears a beat later from the stream. The
+    vendor's own minute aggregates of the bucket so far ARE that candle: the same source the
+    stream's seed and the minute's final AM come from, so the stream's frames only extend it.
+
+    Only when the answer already runs up to the bucket before the current one (or the current
+    bucket opens the regular session): a session-filtered answer never gains a bar its session
+    does not show. Never invents a bar: None on any doubt, vendor error or timeout."""
+    if tf not in INTRADAY_TFS or not rows:
+        return None
+    try:
+        cur = bucket_bounds(tf, int(now), grid)
+        last = bucket_bounds(tf, rows[-1].get("t"), grid)
+    except Exception:                      # noqa: BLE001
+        return None
+    if cur is None or last is None or not (cur[0] <= now < cur[1]) or last[0] >= cur[0]:
+        return None
+    if last[1] != cur[0]:
+        opens = datetime.fromtimestamp(cur[0], _ET)
+        if not (opens.hour == 9 and opens.minute == 30):
+            return None                    # a gap (closed session, no trade): not ours to fill
+    key = (ticker, tf, grid, cur[0])
+    hit = _VENDOR_PARTIAL_CACHE.get(key)
+    mono = _time.monotonic()
+    if hit is not None and mono - hit[0] < _VENDOR_PARTIAL_TTL_S:
+        return dict(hit[1]) if hit[1] else None
+    bar = None
+    try:
+        from api.services.bars_fetch import fetch_minutes_between
+        mins = fetch_minutes_between(ticker, cur[0] * 1000, int(now * 1000),
+                                     timeout=_VENDOR_PARTIAL_TIMEOUT_S)
+        mins = [m for m in mins if cur[0] <= int(m["t"]) < cur[1]]
+        if mins:
+            bar = {"t": cur[0], "o": mins[0]["o"], "h": max(m["h"] for m in mins),
+                   "l": min(m["l"] for m in mins), "c": mins[-1]["c"],
+                   "v": sum(int(m.get("v") or 0) for m in mins), "rev": int(now * 1000)}
+    except Exception:                      # noqa: BLE001 — never let this break a chart serve
+        bar = None
+    if len(_VENDOR_PARTIAL_CACHE) > 4096:
+        _VENDOR_PARTIAL_CACHE.clear()
+    _VENDOR_PARTIAL_CACHE[key] = (mono, bar)
+    return dict(bar) if bar else None
 
 
 def derive_for_grid(ticker: str, tf: str, session, rows: list, base: dict,

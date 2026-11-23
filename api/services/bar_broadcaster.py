@@ -100,6 +100,8 @@ _trailing_flush_total = 0   # D9 trailing flushes that delivered a throttled upd
 _final_emits_total = 0      # bars emitted with final=true (closes + late corrections)
 _seed_total = 0             # D8 successful seeds
 _seed_fail_total = 0        # D8 seed fetches that raised / returned nothing
+#: Coverage: T requested, no trade arrived yet — no minute is known whole (sorts after any ms).
+_COVER_PENDING = 1 << 62
 
 
 class _Minute:
@@ -464,6 +466,9 @@ class BarBroadcaster:
         with self._lock:
             prev_hwm = self._hwm.get(sym)
             if kind == "T":
+                if self._cover_from.get(sym) == _COVER_PENDING:
+                    # coverage: the first trade since T was requested — whole from the next ms
+                    self._cover_from[sym] = int(payload["t"]) + 1
                 hl_ok, last_ok = trade_conditions.classify(payload.get("c"))
                 minute = self._apply_trade(sym, int(payload["t"]), payload["p"],
                                            payload.get("s") or 0, hl_ok, last_ok)
@@ -522,11 +527,24 @@ class BarBroadcaster:
             if forget_failure:
                 self._seed_failed_at.pop(su, None)
 
-    def trades_started(self, sym: str, at_ms: Optional[int] = None) -> None:
-        """Coverage: T (re)started for `sym` at `at_ms` (default now). Every minute that began
-        before it is incomplete in the minute map until a seed or AM covers it."""
+    def trades_started(self, sym: str) -> None:
+        """Coverage: T was (re)requested for `sym`. Until its first trade ARRIVES nothing new is
+        known whole (the request is only queued; the vendor starts sending some time later), so
+        coverage is pending; the first trade then fixes it at that trade's own exchange time
+        (the clock the minute keys use): a minute that began after it is whole, every earlier
+        one needs a seed or its AM. A seed mark from before the restart no longer counts — the
+        minutes since then miss the gap's trades."""
+        su = sym.upper()
         with self._lock:
-            self._cover_from[sym.upper()] = int(self._clock_ms() if at_ms is None else at_ms)
+            self._cover_from[su] = _COVER_PENDING
+            for st in (self._minutes.get(su) or {}).values():
+                if not st.auth:
+                    st.seeded = False
+
+    def trades_flowing(self, sym: str) -> bool:
+        """Coverage: a trade has arrived since the last trades_started (or none is pending)."""
+        with self._lock:
+            return self._cover_from.get(sym.upper()) != _COVER_PENDING
 
     def mark_covered(self, sym: str) -> None:
         """Coverage: nothing before the T start is missing (a seed fetch that succeeded and
@@ -565,11 +583,14 @@ class BarBroadcaster:
                     continue
                 if got is not None:
                     touched.append(got)
-            if not touched:
-                return False
-            # Coverage: the fetch began after T restarted (the ingest drops an older one), so
-            # REST holds every minute up to the fetch and T every trade since: no gap remains.
+            # Coverage: the ingest fetches only once trades are flowing (plus a lag allowance for
+            # the vendor's aggregates), so REST holds every minute up to the fetch and T every
+            # trade since: no gap remains. Also when nothing was TOUCHED: every REST bar is
+            # older than the retained window, i.e. no trade in it before the T start.
             self._cover_from.pop(su, None)
+            if not touched:
+                self._seeded.pop(su, None)
+                return False
             # F2: emit only each key's CURRENT bucket. The seeded history is
             # already on the client (REST); replaying ~3h of buckets into a
             # 64-slot queue only overflowed it.

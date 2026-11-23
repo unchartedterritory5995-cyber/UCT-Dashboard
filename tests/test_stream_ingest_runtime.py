@@ -30,6 +30,10 @@ MIN = 60_000
 def _env_and_state(monkeypatch):
     monkeypatch.setattr(ifs, "BATCH_INTERVAL_S", 0.005)
     monkeypatch.setattr(ifs, "HELLO_TIMEOUT_S", 0.5)
+    # coverage: a seed waits for the first trade (bounded) and the vendor lag; tests that
+    # need either set them themselves
+    monkeypatch.setattr(ir, "SEED_WAIT_T_S", 0.05)
+    monkeypatch.setattr(ir, "SEED_LAG_S", 0.0)
     for v in ("STREAM_INGEST_CONNECT", "STREAM_SCOPED_CHANNELS"):
         monkeypatch.delenv(v, raising=False)
     names = ("_active", "_active_channels", "_sub_owners", "_pending_subscribe", "_pending_unsubscribe")
@@ -574,12 +578,15 @@ def test_a_snapshot_taken_before_the_seed_is_corrected_when_it_lands():
         rig.trade("ZZA", T0 + 30_000, 6.0, 10)             # half of minute 0, seen live
         rig.trade("ZZA", T0 + MIN + 1000, 6.5, 10)         # closes minute 0
         c.inbox.put_nowait(enc(fp.Patch(gen=1, seq=1, keys_add=frozenset({("ZZA", "1")}))))
-        await until(lambda: bars_in(c, ("ZZA", "1")))
-        first = [u for u in bars_in(c, ("ZZA", "1")) if u.bar["t"] == T0]
-        assert first and first[0].final and first[0].bar["v"] == 10
+        await asyncio.sleep(0.05)
+        # coverage (owner 2026-11-23): minute 0 began before T flowed, so the bucket built from
+        # those trades alone is never sent — not even as a final the seed corrects later
+        assert not [u for u in bars_in(c, ("ZZA", "1")) if u.bar["t"] == T0]
         gate.set()
         await until(lambda: rig.rt.counters["seeds_applied"] == 1)
-        await until(lambda: any(u.bar["t"] == T0 and u.bar["v"] == 900 for u in bars_in(c, ("ZZA", "1"))))
+        await until(lambda: [u for u in bars_in(c, ("ZZA", "1")) if u.bar["t"] == T0])
+        first = [u for u in bars_in(c, ("ZZA", "1")) if u.bar["t"] == T0]
+        assert first[0].final and first[0].bar["v"] == 900, "the first frame is already whole"
         await c.close()
         await asyncio.wait_for(t, 2)
         await rig.rt.stop_reader()
@@ -922,8 +929,7 @@ def test_a_reopened_chart_reseeds_when_its_trades_stopped_in_between():
                                         keys_add=frozenset({("ZZA", "1")}))))
         await until(lambda: ("ZZA", "1") in rig.rt._key_routes)
         rig.trade("ZZA", T0 + 10 * MIN + 31_000, 6.0, 10)  # mid-bucket: NOT the open
-        await asyncio.sleep(0.05)
-        assert len(fetches) == 2, "T restarted: the symbol must be seeded again"
+        await until(lambda: len(fetches) == 2)              # T restarted: seeded again
         assert not [u for u in bars_in(c, ("ZZA", "1")) if u.bar["t"] == T0 + 10 * MIN], "partial bucket leaked"
         gate.set()
         await until(lambda: rig.rt.counters["seeds_applied"] == 2)
@@ -1027,7 +1033,10 @@ def test_coverage_a_5m_bucket_waits_for_every_minute_before_t_then_goes_out_whol
         rig.trade("ZZA", T0 + 2 * MIN + 31_000, 7.1, 10)
         rig.am("ZZA", T0, 5.0, 6.0, 4.5, 5.5, 100)          # the closed minutes arrive as AMs
         rig.am("ZZA", T0 + MIN, 5.5, 6.5, 5.0, 6.0, 100)
+        rig.now[0] = T0 + 2 * MIN + 31_000 + int(ir.SEED_HOLD_S * 1000) + 1000   # past the hold
+        rig.trade("ZZA", T0 + 2 * MIN + 36_000, 7.15, 10)
         await asyncio.sleep(0.05)
+        assert rig.rt._seed_hold.get("ZZA") is None or not rig.rt._holding("ZZA"), "hold is over"
         assert not [u for u in bars_in(c, ("ZZA", "5")) if u.bar["t"] == T0], "minute 2 not covered yet"
         gate.set()
         await until(lambda: [u for u in bars_in(c, ("ZZA", "5")) if u.bar["t"] == T0])
@@ -1078,3 +1087,88 @@ def test_coverage_a_failed_seed_is_retried_and_an_empty_answer_needs_no_seed(mon
         await asyncio.wait_for(t, 2)
         await rig2.rt.stop_reader()
     asyncio.run(go2())
+
+
+def _bb_cov():
+    now = [T0]
+    sent = []
+    b = bbm.BarBroadcaster(clock_ms=lambda: now[0], scheduler=lambda d, fn: None,
+                           seed_fetcher=lambda s: [], publisher=lambda q, loop, msg: sent.append(msg))
+    b.subscribe_sink("ZZA", "1", object(), "rth")
+    return b, now, sent
+
+
+def _t(b, now, t, p, s=10):
+    now[0] = max(now[0], t)
+    b.push_aggregate("ZZA", {"t": t, "p": p, "s": s, "c": []}, "T")
+
+
+def test_coverage_starts_at_the_first_trade_that_arrives_not_at_the_request():
+    """Review 2026-11-23 #1: T is only REQUESTED when the delta lands; it flows some time later.
+    Coverage is fixed by the first trade that arrives (its exchange time): the minute it falls in
+    is incomplete, the next one is whole even if the request was made in the previous minute."""
+    b, now, sent = _bb_cov()
+    now[0] = T0 + 59_900                     # requested 100 ms before a minute boundary
+    b.trades_started("ZZA")
+    assert not b.trades_flowing("ZZA")
+    assert b.snapshot_bars("ZZA", "1") == []
+    _t(b, now, T0 + 60_400, 6.0)             # first trade arrives inside the next minute
+    assert b.trades_flowing("ZZA") and not b.covered("ZZA")
+    assert [x for x in b.snapshot_bars("ZZA", "1") if x["t"] == T0 + MIN] == [], \
+        "the minute T began in missed its first 400 ms"
+    _t(b, now, T0 + 2 * MIN + 100, 6.1)      # the next minute began after T flowed: whole
+    assert [x["t"] for x in b.snapshot_bars("ZZA", "1")] == [T0 + 2 * MIN]
+
+
+def test_coverage_a_t_restart_forgets_seed_marks_from_before_the_gap():
+    """Review #3: switch away and back inside one minute (an always-wanted name keeps its minute
+    map). The minute's old seed mark does not cover the trades of the gap."""
+    b, now, sent = _bb_cov()
+    now[0] = T0 + 10_000
+    b.trades_started("ZZA")
+    _t(b, now, T0 + 10_500, 6.0)
+    assert b.apply_seed("ZZA", [{"t": T0, "o": 5.0, "h": 9.0, "l": 4.0, "c": 6.0, "v": 900}]) is True
+    assert b.covered("ZZA") and b.snapshot_bars("ZZA", "1")
+    now[0] = T0 + 40_000                     # away and back: T stopped then restarted
+    b.trades_started("ZZA")
+    _t(b, now, T0 + 41_000, 6.2)
+    assert b.snapshot_bars("ZZA", "1") == [], "the old seed mark must not cover the gap"
+
+
+def test_coverage_rest_with_only_old_bars_still_covers():
+    """Review #4: every REST bar older than the retained window (a thin name quiet for hours):
+    nothing was touched, yet no trade was missed — the current minute must not stay stuck."""
+    b, now, sent = _bb_cov()
+    now[0] = T0 + 5 * 3600_000 + 10_000
+    b.trades_started("ZZA")
+    _t(b, now, T0 + 5 * 3600_000 + 10_500, 6.0)
+    old = [{"t": T0, "o": 5.0, "h": 5.0, "l": 5.0, "c": 5.0, "v": 1}]
+    b.apply_seed("ZZA", old)
+    assert b.covered("ZZA")
+    assert [x["t"] for x in b.snapshot_bars("ZZA", "1")] == [T0 + 5 * 3600_000]
+
+
+def test_a_seed_waits_for_trades_to_flow_then_the_vendor_lag(monkeypatch):
+    """Review #2: the seed is fetched only after the first trade arrived (plus SEED_LAG_S), so
+    REST and T overlap: no trade falls between the two."""
+    monkeypatch.setattr(ir, "SEED_WAIT_T_S", 2.0)
+    monkeypatch.setattr(ir, "SEED_LAG_S", 0.05)
+    fetched_after_trade = []
+    rig = Rig(seeding=True, fetcher=lambda s: fetched_after_trade.append(rig.rt.bc.trades_flowing(s))
+              or [{"t": T0, "o": 5.0, "h": 9.0, "l": 4.0, "c": 6.0, "v": 900}])
+    rig.now[0] = T0 + 30_000
+
+    async def go():
+        c = FakeConn([hello(), desired(1, OWN, frozenset({("ZZA", "1")}))])
+        t = await run_until(c, rig.srv, lambda: ("ZZA", "1") in rig.rt._key_routes)
+        await asyncio.sleep(0.2)
+        assert fetched_after_trade == [], "no fetch before T flows"
+        rig.trade("ZZA", T0 + 31_000, 6.0, 10)
+        await until(lambda: rig.rt.counters["seeds_applied"] == 1)
+        assert fetched_after_trade == [True]
+        first = [u for u in bars_in(c, ("ZZA", "1")) if u.bar["t"] == T0][0]
+        assert first.bar["o"] == 5.0
+        await c.close()
+        await asyncio.wait_for(t, 2)
+        await rig.rt.stop_reader()
+    asyncio.run(go())
