@@ -2211,7 +2211,9 @@ export function everyExceptNothing(text, charts = [], sel = null, opts = {}) {
     if (charts.length < 2) return null
     const s = String(text || '')
     const exclude0 = (tx) => excludedCharts(tx, charts, sel, opts)
-    const base = exclude0(s)
+    // after #2604 the exclusion readers PLACE descriptions directly; the cover probe needs the pre-#2604 base
+    // (descriptions left unplaced) to find them, so read the base with the timeframe/ticker readers off.
+    const base = excludedCharts(s, charts, sel, { ...opts, xoDisable: ['timeframe', 'ticker'] })
     // each description in an exclusion's scope, probed by "chart k" (k: the board order of one of ITS charts)
     const order = (ref) => { for (let k = 1; k <= charts.length; k++) if (ordinalChart(`chart ${k}`, charts)?.ref === ref) return k; return 0 }
     // the descriptions, without overlaps, each with a probe chart of its own (distinct, so a list "X and Y" reads two charts)
