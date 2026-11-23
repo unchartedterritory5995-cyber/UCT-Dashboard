@@ -6,7 +6,7 @@
 //
 // WHAT ONE SAMPLE IS
 //   press   the `timeStamp` of the input event in flight when the board's setGroupSym ran
-//           (hooks/handoffGroups.beginGroupSwitch): the keydown of an arrow / Space / Enter, the click of a
+//           (hooks/handoffGroups.beginGroupSwitch): the key event of an arrow / Space / Enter, the click of a
 //           row. It is the browser's own time for the input, so the wait for a busy main thread before the
 //           handler ran is inside the sample.
 //   frame   the clock, read inside the first animation-frame callback after EVERY chart of the linked group
@@ -133,14 +133,16 @@ export function switchTfClass(code) {
 
 // input events: 1 a key, 2 a pointer, 3 a form event. Anything else in flight (a timer's task, a message,
 // a load) is not a press.
+// ⛔ A KEY EVENT IS KNOWN BY ITS SHAPE (`key`, `repeat`), NEVER BY ITS NAME. This file listens for no key and spells
+// no key event's name: pages/command/keyListenerCensus.test.js counts every such string outside a listener call as
+// a suspected listener, and it is right to (that is how a registration through a variable shows up).
 const _KIND = new Map([
-  ['keydown', 1], ['keypress', 1],
   ['click', 2], ['auxclick', 2], ['dblclick', 2], ['mousedown', 2], ['mouseup', 2], ['pointerdown', 2],
   ['pointerup', 2], ['touchstart', 2], ['touchend', 2],
   ['submit', 3], ['change', 3], ['input', 3],
 ])
 function _classify(ev) {
-  const kind = _KIND.get(ev.type)
+  const kind = typeof ev.key === 'string' && typeof ev.repeat === 'boolean' ? 1 : _KIND.get(ev.type)
   if (!kind) return -1
   const t = ev.target
   const typing = !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable === true)
