@@ -29,6 +29,7 @@ import { useLatestCallback } from './latestCallback'
 import { getBarStore } from '../../data/barStore/index'
 import { legacyBars, legacyDevelopingOf, newestBarIsFormingOf } from '../../data/barStore/adapter'
 import { prefetch as storePrefetch, viewKeyFor, LAKE_JOIN_WAIT_MS, deviceRefusalOf } from '../../data/barStore/prefetch'
+import { deviceStoreKillSeen } from '../../lib/chartSpeed'
 import { keyOf, parseKey, STATUS, isDateTf, dateLabelToUnix } from '../../data/barStore/types'
 import { isNativeTf, fetchTf, resampleSpec } from './timeframes'
 import { resolveDailyTodaySeed, useCompareBars } from './useLegacyChartBars'
@@ -207,7 +208,7 @@ export function useBarSnapshotBars({
   const _deviceRefused = snap?.deviceRows === true && _intradayLike && !_hasOverride && !replayCutoff
     && _devicePaintedRef.current !== _deviceView
     // eslint-disable-next-line react-hooks/purity
-    && !!deviceRefusalOf(snap, { extended: !!showExtended, through: store.persist?.deviceThroughOf?.(key) ?? null, nowMs: Date.now() })
+    && !!deviceRefusalOf(snap, { extended: !!showExtended, through: store.persist?.deviceThroughOf?.(key) ?? null, nowMs: Date.now(), killed: deviceStoreKillSeen() })
   let chosen = null
   if (_overrideArr) chosen = barsOverride
   else if (barsOverridePending || _econId) chosen = null
