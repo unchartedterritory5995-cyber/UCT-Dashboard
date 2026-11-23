@@ -257,6 +257,12 @@ const FITS_THE_BOTTOM = [
   // snugWrap); in the 640, 462 and 340px panels the panel's scroll width is its width, every column shows and none
   // scrolls in a 340px screen, so each needs at most 316 + 29. Nothing folds.
   ['VolumeFootprintPanel.jsx', 'VFP (its four tables)', 345],
+  // ERNSC, measured 2026-11-22 at 1536, 1180 and 340px (sample data, a sector open and closed): five columns of two-line
+  // cells whose headers and reaction words wrap in a snug panel (snugWrap) and whose sector name gives back its floor
+  // (snugTight); the least width with every column showing is 414px (+ 29). In the 640, 462 and 340px panels the panel's
+  // scroll width is its width and the table does not scroll in its box. On a phone the year-earlier column folds
+  // (phoneHide) and stays in the opened sector.
+  ['SectorEarningsPanel.jsx', 'ERNSC', 443],
 ]
 /** Tables with no sample rows: never measured, so they must not fold on a desktop panel above the bottom of the ladder.
  *  (InsiderPanel.jsx left this list on 2026-11-21: see INS in MEASURED.) */

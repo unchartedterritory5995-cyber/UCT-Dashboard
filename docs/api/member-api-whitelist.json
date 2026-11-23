@@ -4819,6 +4819,14 @@
     {
       "limit": "600/minute",
       "method": "GET",
+      "params": "season=current, sector",
+      "path": "/api/research/sector-earnings",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
       "params": "",
       "path": "/api/research/setup-history",
       "rate_limit_family": "research",

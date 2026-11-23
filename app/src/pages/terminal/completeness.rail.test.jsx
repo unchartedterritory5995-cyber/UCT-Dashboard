@@ -149,6 +149,7 @@ const ARG_SAMPLE = {
   groupsKind: 'INDUSTRIES', groupsView: 'VALUATION',
   eehscWindow: '7D', eehscMetric: 'REVENUE',
   pubrView: 'TRIALS',
+  ernscSeason: 'YEARAGO', ernscMetric: 'REVENUE',
 }
 
 afterEach(cleanup)

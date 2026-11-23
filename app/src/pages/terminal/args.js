@@ -171,6 +171,11 @@ export const IDXC_INDEX_WORDS = Object.freeze({ 'S&P500': 'sp500', NASDAQ100: 'n
 // EEHSC (2026-11-21): copies of the panel model's words (functions.revisionBreadth.test.js pins each to its owner)
 export const EEHSC_WINDOW_WORDS = Object.freeze({ '7D': 7, '1W': 7, '30D': 30, '1M': 30 })
 export const EEHSC_METRIC_WORDS = Object.freeze({ EPS: 'eps', REVENUE: 'revenue', REV: 'revenue', SALES: 'revenue' })
+// ERNSC (2026-11-22): copies of the panel model's words (functions.sectorEarnings.test.js pins each to its owner). The
+// season that holds today is the bare command; the measure words are EEHSC's, with the same meaning.
+export const ERNSC_SEASON_WORDS = Object.freeze({ PRIOR: 'previous', PREVIOUS: 'previous', YEARAGO: 'year_ago', LASTYEAR: 'year_ago' })
+export const ERNSC_METRIC_WORDS = Object.freeze({ EPS: 'eps', REVENUE: 'revenue', REV: 'revenue', SALES: 'revenue' })
+const ERNSC_SEASON_DESCRIBE = Object.freeze({ previous: 'the season before', year_ago: 'the same season a year earlier' })
 // PUBR: a copy of the panel model's section words (functions.publicRecords.test.js pins it to its owner). ALL is a stock
 // (Allstate), so the all-sections view is the bare command.
 export const PUBR_VIEW_WORDS = Object.freeze({
@@ -828,6 +833,25 @@ export const ARG_KINDS = {
       return Object.prototype.hasOwnProperty.call(EEHSC_METRIC_WORDS, key) ? EEHSC_METRIC_WORDS[key] : null
     },
     describe: (v) => (v === 'revenue' ? 'revenue estimates' : 'EPS estimates'),
+  },
+  // ── ERNSC (2026-11-22): the panel model's words (panels/sectorEarningsModel.js; pinned by functions.sectorEarnings.test.js) ──
+  /** ERNSC's season: the one before, or the same one a year earlier (bare `ERNSC` is the season that holds today). */
+  ernscSeason: {
+    takes: 'a season (PRIOR or YEARAGO)',
+    parse: (tok) => {
+      const key = String(tok ?? '').trim().toUpperCase()
+      return Object.prototype.hasOwnProperty.call(ERNSC_SEASON_WORDS, key) ? ERNSC_SEASON_WORDS[key] : null
+    },
+    describe: (v) => ERNSC_SEASON_DESCRIBE[v] || v,
+  },
+  /** ERNSC's measure: EPS (bare `ERNSC`) or revenue. */
+  ernscMetric: {
+    takes: 'a measure (EPS or REVENUE)',
+    parse: (tok) => {
+      const key = String(tok ?? '').trim().toUpperCase()
+      return Object.prototype.hasOwnProperty.call(ERNSC_METRIC_WORDS, key) ? ERNSC_METRIC_WORDS[key] : null
+    },
+    describe: (v) => (v === 'revenue' ? 'revenue against the consensus' : 'EPS against the consensus'),
   },
 }
 
