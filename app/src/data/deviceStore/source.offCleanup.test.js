@@ -167,13 +167,48 @@ describe('OFF BY DEFAULT: the packs are kept, unused', () => {
     expect(await off(NOW + 3_600_000 + 32 * DAY)).toBe(1)                // the new mark, confirmed a day later
   })
 
-  it('the run stamp NEVER moves backwards (a clock set back after running ahead): the newest stamp stands', async () => {
-    localStorage.setItem(LAST_RUN_KEY, String(NOW + 10 * DAY))
+  it('the run stamp NEVER moves backwards within a week (a clock set back after running ahead): the newest stamp stands', async () => {
     const { createDeviceClient } = await vi.importActual('./client')
-    createDeviceClient({ makeWorker: () => ({ postMessage() {}, terminate() {} }), afterPaint: () => {}, now: () => NOW }).start()
-    expect(localStorage.getItem(LAST_RUN_KEY)).toBe(String(NOW + 10 * DAY))
-    createDeviceClient({ makeWorker: () => ({ postMessage() {}, terminate() {} }), afterPaint: () => {}, now: () => NOW + 11 * DAY }).start()
-    expect(localStorage.getItem(LAST_RUN_KEY)).toBe(String(NOW + 11 * DAY))
+    const run = (at) => createDeviceClient({ makeWorker: () => ({ postMessage() {}, terminate() {} }), afterPaint: () => {}, now: () => at }).start()
+    for (const ahead of [6 * DAY, 7 * DAY]) {
+      localStorage.setItem(LAST_RUN_KEY, String(NOW + ahead))
+      run(NOW)
+      expect(localStorage.getItem(LAST_RUN_KEY), `${ahead / DAY} days ahead`).toBe(String(NOW + ahead))
+    }
+    run(NOW + 8 * DAY)
+    expect(localStorage.getItem(LAST_RUN_KEY)).toBe(String(NOW + 8 * DAY))
+  })
+
+  // P-3 (a) of the review of #2537 head 107dea1ee1: a stamp written while the clock ran FAR ahead (a clock once set to
+  // 2099) made the seed read "not stale" until real time passed it plus 30 days: never, for 2099. A run now treats a
+  // stamp more than DEVICE_LAST_RUN_FUTURE_MAX_MS (7 days) ahead of its own clock as corrupt and overwrites it.
+  it('a stamp more than 7 days ahead of the running clock is corrupt: the run overwrites it with now', async () => {
+    const { createDeviceClient } = await vi.importActual('./client')
+    const run = (at) => createDeviceClient({ makeWorker: () => ({ postMessage() {}, terminate() {} }), afterPaint: () => {}, now: () => at }).start()
+    for (const stamp of [NOW + 7 * DAY + 1, NOW + 400 * DAY, Date.UTC(2099, 0, 1)]) {
+      localStorage.setItem(LAST_RUN_KEY, String(stamp))
+      run(NOW)
+      expect(localStorage.getItem(LAST_RUN_KEY), new Date(stamp).toISOString()).toBe(String(NOW))
+    }
+    const { DEVICE_LAST_RUN_FUTURE_MAX_MS } = await import('./residue')
+    expect(DEVICE_LAST_RUN_FUTURE_MAX_MS).toBe(7 * DAY)
+  })
+
+  it('so a seed stamped in 2099 and then abandoned is deleted on the usual schedule: 30 days after its last run, confirmed a day later', async () => {
+    localStorage.setItem(FILES_KEY, '1')
+    localStorage.setItem(LAST_RUN_KEY, String(Date.UTC(2099, 0, 1)))
+    const { createDeviceClient } = await vi.importActual('./client')
+    createDeviceClient({ makeWorker: () => ({ postMessage() {}, terminate() {} }), afterPaint: () => {}, now: () => NOW }).start()   // the last run here
+    const off = async (at) => {
+      const src = await pageLoad({ defaultOn: false })
+      const s = scheduler()
+      const o = opfs()
+      look(src, s, o, { now: () => at })
+      await paintAndIdle(s)
+      return o.root.removeEntry.mock.calls.filter((c) => c[0] === DIR).length
+    }
+    expect(await off(NOW + 30 * DAY)).toBe(0)                            // stale: marked
+    expect(await off(NOW + 31 * DAY)).toBe(1)                            // confirmed a day later: deleted
   })
 
   it('no stamp (a seed from before the stamp existed), or a stamp from the future (a clock set back): KEPT', async () => {
