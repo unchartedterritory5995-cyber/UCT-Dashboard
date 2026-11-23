@@ -71,6 +71,8 @@ import { isCacheCurrentForView, expectedBarsBehind } from '../../utils/marketSes
 import { deviceCopyFresh, inRegularSession } from '../deviceStore/fresh'
 import { deviceServesTf } from '../deviceStore/tfs'
 import { deviceStoreKillSeen } from '../../lib/chartSpeed'
+import { isAppVisible } from '../../lib/deskVisibility'
+import { bucketEndUnix } from '../../components/chart/liveBuckets'
 import { BARSTORE } from '../../components/chart/barStoreSwitch'
 import { prefetchTickerMeta as _defaultTickerMeta } from '../../hooks/useTickerMeta'
 import {
@@ -239,6 +241,10 @@ export const EDGE_WARM_REFUSED = -1
 /** How long a typed text the daily pack does not know may wait for the lake's answer to "is it a
  *  ticker?" (its index: one edge round trip) before the warm gives up on it. */
 export const INTENT_LAKE_INDEX_WAIT_MS = 400
+/** A neighbour hold's tail re-ask waits this long after a bucket boundary, so the server holds the bucket that closed. */
+export const TAIL_BOUNDARY_LAG_MS = 2000
+/** A neighbour hold re-asks one row's tail at most this often per bucket (a name that is not printing stays behind). */
+export const TAIL_REASKS_PER_BUCKET = 2
 const SHORT_FULL_MAX = 4000
 
 /**
@@ -282,6 +288,8 @@ export function createPrefetch(o = {}) {
   const setTimer = o.setTimer ?? ((fn, ms) => setTimeout(fn, ms))
   const clearTimer = o.clearTimer ?? ((h) => clearTimeout(h))
   const deepNeighbors = o.deepNeighbors ?? deepNeighborsEnabled
+  const visible = o.visible ?? isAppVisible
+  const inSession = o.inSession ?? (() => inRegularSession(now()))
 
   /** key → {at, gen} of the last request this module caused (cooldown). */
   const asked = new Map()
@@ -1058,15 +1066,61 @@ export function createPrefetch(o = {}) {
   // history job), one row at a time, at `grid` rank; the flip then paints them whole from memory. The
   // history is one edge-cached request (~50-100 ms), so the rest is shorter than the intraday one.
   // Same switch ('uct.deepNeighbors' = '0').
+  //
+  // ⭐ ...AND THE ROWS ON EITHER SIDE STAY CURRENT ACROSS A BUCKET BOUNDARY (2026-11-23, `tail`; owner's bar: under 40 ms
+  // from the key to pixels). A row's copy is asked once, when it enters the window, and its answer then COOLS for a
+  // bucket (cooldownMs: 60 s on 1m): every later warm of it skips it. On a 1m board in a session the server's answer
+  // often ends at the last CLOSED minute (no forming row yet), so the copy falls one bucket behind the clock at the next
+  // minute boundary, the switch refuses it (peekDisplayable: `_behindClock`), and the press waits for its own `since=`
+  // ask (measured: a third to a half of next-row presses at 80-200 ms instead of the key task). So the rows named in
+  // `tail` (the next row, the one after, the previous row) are asked again, AT ONCE when the press finds one behind
+  // (this `set`, after the paint), and at each bucket boundary of the hold's timeframe while the member rests (one timer
+  // per hold, TAIL_BOUNDARY_LAG_MS after the boundary): only a row that HOLDS A SERVER ANSWER and is behind the clock by
+  // the switch's own rule, at most TAIL_REASKS_PER_BUCKET times per row per bucket, in the background lane (a list
+  // warm's), in the regular session only, never while the app is hidden, intraday only. `clear` (unmount) and the next
+  // `set` cancel the timer. The rule the switch paints by is untouched: the row is simply current when it is asked for.
+  // Budget, per hold (one timeframe of one list): at most 3 rows x TAIL_REASKS_PER_BUCKET per bucket, in practice one
+  // request per row that fell behind: <= 3 a minute on 1m, <= 3 per 15 minutes on 15m, none on D / W / M.
   function createNeighborHold() {
     let held = new Map()   // key → true
     let deepTimer = null
     let dateTimer = null
     let deepGen = 0
+    let tailTimer = null
+    let tail = []          // the keys kept current across a boundary (see above)
+    let tailExt = undefined
+    const reasked = new Map()   // key → { b: the bucket's start, n: re-asks in it }
     const stopDeep = () => {
       deepGen++
       if (deepTimer != null) { clearTimer(deepTimer); deepTimer = null }
       if (dateTimer != null) { clearTimer(dateTimer); dateTimer = null }
+    }
+    const stopTail = () => { if (tailTimer != null) { clearTimer(tailTimer); tailTimer = null } }
+    const _bucketOfNow = (tf) => bucketEndUnix(Math.floor(now() / 1000), tf) - 1
+    /** Ask again each tail row that holds a server answer behind the clock (bounded per row per bucket). */
+    function keepTailCurrent() {
+      if (!tail.length || !inSession()) return
+      try { if (visible() === false) return } catch { /* visible */ }
+      for (const k of tail) {
+        const s = S().peek(k)
+        if (!s?.restSeen || !s.bars?.length || preparing.get(k) || !_behindClock(k, s, tailExt)) continue
+        const p = parseKey(k)
+        const b = _bucketOfNow(p.tf)
+        const r = reasked.get(k)
+        const n = r && r.b === b ? r.n : 0
+        if (n >= TAIL_REASKS_PER_BUCKET) continue
+        reasked.set(k, { b, n: n + 1 })
+        if (reasked.size > 64) reasked.delete(reasked.keys().next().value)
+        ensure(k, { until: ASK_AGAIN, priority: 'background', warm: true, local: false, _s0: s, session: session(tailExt) }).catch(() => {})
+      }
+    }
+    /** One timer per hold: the next bucket boundary of `tf`, in the session only; it re-arms itself. */
+    function armTail(tf) {
+      stopTail()
+      if (!tail.length || !inSession()) return
+      const t = Math.floor(now() / 1000)
+      const ms = bucketEndUnix(t, tf) * 1000 - now() + TAIL_BOUNDARY_LAG_MS
+      tailTimer = setTimer(() => { tailTimer = null; keepTailCurrent(); armTail(tf) }, Math.max(0, ms))
     }
     // D/W/M: the deep sealed history of each row, joined before the member gets there.
     async function deepenDates(keys, gen) {
@@ -1114,7 +1168,7 @@ export function createPrefetch(o = {}) {
       }
     }
     return {
-      set(syms, tf, { showExtended, deep = null } = {}) {
+      set(syms, tf, { showExtended, deep = null, tail: tailSyms = null } = {}) {
         const st = S()
         const want = new Map()
         for (const sym of syms || []) { const k = keyFor(sym, tf, { showExtended }); if (k) want.set(k, true) }
@@ -1122,6 +1176,16 @@ export function createPrefetch(o = {}) {
         for (const k of held.keys()) if (!want.has(k)) st.registry.release(k)
         held = want
         stopDeep()
+        // the rows kept current across a boundary (intraday, held by this hold): asked now if behind, then at each boundary
+        tail = []
+        tailExt = showExtended
+        for (const sym of tailSyms || []) {
+          const k = keyFor(sym, tf, { showExtended })
+          const p = k ? parseKey(k) : null
+          if (p && !p.window && isIntradayTf(p.tf) && want.has(k) && !tail.includes(k)) tail.push(k)
+        }
+        keepTailCurrent()
+        if (tail.length) armTail(parseKey(tail[0]).tf); else stopTail()
         if (!deep?.length || !deepNeighbors()) return
         const next = []
         const dates = []
@@ -1139,6 +1203,8 @@ export function createPrefetch(o = {}) {
       },
       clear() {
         stopDeep()
+        stopTail()
+        tail = []
         const st = S()
         for (const k of held.keys()) st.registry.release(k)
         held = new Map()
