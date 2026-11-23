@@ -703,13 +703,20 @@ function applyRest(state, action, ctx, kind) {
   // ⛔ DEVICE ROWS NEVER OUTLIVE THE FIRST ANSWER AS ANSWERED ROWS (review of #2554, P3-L1). An answer whose tail LAGS the
   // device (an unverified or stale-while-revalidate serve) left the device's newer closed rows and its newer forming bar
   // in place, under `restSeen`: painted with every device rule off, and written by persist as a server-backed copy that
-  // a later page reads back unmarked. They go: the rows newer than this answer's newest bar are the server's to send
-  // (the stream and the next poll do). Only LOCAL rows and a LOCAL forming bar no tick touched; a live bar is kept.
-  // Only on the first answer to an entry holding device rows: never with the store off.
+  // a later page reads back unmarked. What the device does not VOUCH for goes: a LOCAL row newer than this answer whose
+  // bucket ends after the copy's stamp (`deviceThrough`: a bucket the device had not completed, closed by the clock or a
+  // push), and a LOCAL forming bar no tick touched. A live bar is kept.
+  // ⭐ ...AND WHAT IT VOUCHES FOR STAYS (review of #2558, P4-L3). A bucket that ends at or before the stamp is a complete
+  // rollup of the server's own minutes, and the member was already looking at it: dropped, the newest candles vanished
+  // until the stream or the next poll sent them again (a hole of seconds). Kept, it is still a LOCAL row, so the server's
+  // own row for that bucket replaces it the moment one arrives (mergeRows `_wins`: a server row always replaces a local
+  // one). A copy with no stamp vouches for nothing. Only on the first answer to an entry holding device rows: never with
+  // the store off.
   const newestIn = state.deviceRows && !state.restSeen
     ? Math.max(rows.length ? rows[rows.length - 1].t : -Infinity, devIn ? devIn.t : -Infinity) : null
   if (finite(newestIn)) {
-    const kept = working.bars.filter((b) => !(b.src === 'local' && b.t > newestIn))
+    const vouched = finite(state.deviceThrough) ? state.deviceThrough : -Infinity
+    const kept = working.bars.filter((b) => !(b.src === 'local' && b.t > newestIn && bucketEnd(b.t, working) > vouched))
     const d = state.developing
     const dropDev = !!d && d.src === DEV_SRC.LOCAL && !d.ticked && d.t > newestIn
     if (kept.length !== working.bars.length || dropDev) {
@@ -1037,7 +1044,9 @@ function _applyLocal(state, action, ctx, source) {
     // lake, a saved copy) rewrites while the device's rows stay. Carried by every later action (finalize spreads the
     // state); gone with the rows: a saved copy that REPLACES them starts from initialState, an invalidate clears it,
     // an evicted key comes back as a new entry. Only a device copy sets it: never reached with the store off.
-    ...(source === 'device' ? { deviceRows: true } : {}),
+    // `deviceThrough`: the copy's stamp (persist: the newest minute the device applied), what the first answer may keep of
+    // the device's rows (applyRest, P4-L3). Set with the marker and gone with it.
+    ...(source === 'device' ? { deviceRows: true, deviceThrough: numOrNull(p.through) } : {}),
   }, ctx)
 }
 
@@ -1224,7 +1233,7 @@ export function invalidate(state, reason, ctx = {}) {
     ...fresh, baseRev: state.baseRev, devRev: state.devRev,
     needsFull: true, invalidatedFor: reason || 'invalidate', gen: state.gen + 1,
     // the device rows go with the rest (only an entry that held them carries the mark: never with the store off)
-    ...(state.deviceRows ? { deviceRows: false } : {}),
+    ...(state.deviceRows ? { deviceRows: false, deviceThrough: null } : {}),
   }, ctx)
 }
 
@@ -1238,7 +1247,7 @@ function applyError(state, action, ctx) {
   // painted, and persist wrote them as a server-backed copy. Only an entry holding device rows and no answer yet: never
   // with the store off, where the held rows stay exactly as before.
   if (error === 'no_data' && state.deviceRows && !state.restSeen) {
-    return finalize(state, { error, restSeen: true, bars: EMPTY_BARS, developing: null, deviceRows: false }, ctx)
+    return finalize(state, { error, restSeen: true, bars: EMPTY_BARS, developing: null, deviceRows: false, deviceThrough: null }, ctx)
   }
   // A terminal no-data answer IS a server answer (the entry never returns to local-only).
   return finalize(state, error === 'no_data' ? { error, restSeen: true } : { error }, ctx)
