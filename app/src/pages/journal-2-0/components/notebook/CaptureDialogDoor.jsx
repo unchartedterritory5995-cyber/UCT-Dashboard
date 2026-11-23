@@ -13,7 +13,8 @@
  * nothing else on the page changes, and nothing is sent.
  *
  * ⛔ A chunk that cannot load is never a silent no-op: the ONE status line (mounted empty while the first opening
- * waits, before any sentence can arrive, so it is announced) says so, with Try again and Close. Nothing is saved.
+ * waits, before any sentence can arrive, so it is announced) says so, with Try again and Close. Nothing is saved, and
+ * nothing is lost: a share parked by the mobile share page is taken only once the dialog is on screen (`onShown`).
  * Closed, the door renders nothing and loads nothing. No key listener here (pages/command/keyListenerCensus.test.js).
  * Rails: components/notebook/RefusedCopyOffer.lazy.test.js (no static importer of the dialog),
  * CaptureDialogDoor.test.jsx (first open; a later opening; a failing chunk; Try again; closed loads nothing),
@@ -34,10 +35,15 @@ const loadDialog = () => importWithOneRetry(() => captureDialogLoaders.dialog(),
 
 export const CAPTURE_UNAVAILABLE = 'Capture couldn’t load. Nothing was saved. Try again, or reload the page.'
 
-export default function CaptureDialogDoor(props) {
+/** `onShown` (the door's own prop, not the dialog's): called once the dialog is MOUNTED and open. CaptureHost takes a
+ *  parked share only then, so a chunk that fails cannot lose it (review of #2624). */
+export default function CaptureDialogDoor({ onShown, ...props }) {
   const { open, onClose } = props
   const [Dialog, setDialog] = useState(() => loadedDialog)
   const [failed, setFailed] = useState(false)
+  // Try again empties the line until that attempt settles, so a second failure is a NEW sentence and is announced
+  // again (review of #2624). The banner and its buttons stay: the button just pressed keeps its place and its focus.
+  const [retrying, setRetrying] = useState(false)
   const [attempt, setAttempt] = useState(0)
   const wanted = open && !Dialog
 
@@ -45,18 +51,20 @@ export default function CaptureDialogDoor(props) {
   useEffect(() => {
     if (!wanted) return undefined
     let live = true
-    loadDialog().then((D) => { if (live) setDialog(() => D) }, () => { if (live) setFailed(true) })
+    loadDialog().then((D) => { if (live) setDialog(() => D) }, () => { if (live) { setFailed(true); setRetrying(false) } })
     return () => { live = false }
   }, [wanted, attempt])
+
+  useEffect(() => { if (Dialog && open) onShown?.() }, [Dialog, open, onShown])
 
   if (Dialog) return <Dialog {...props} />
   if (!open) return null
   return (
     <div className={failed ? styles.unavailable : styles.quiet} data-testid="capture-dialog-door">
-      <p className={styles.status} role="status">{failed ? CAPTURE_UNAVAILABLE : ''}</p>
+      <p className={styles.status} role="status">{failed && !retrying ? CAPTURE_UNAVAILABLE : ''}</p>
       {failed ? (
         <div className={styles.actions}>
-          <button type="button" className={styles.btn} onClick={() => setAttempt((a) => a + 1)}>Try again</button>
+          <button type="button" className={styles.btn} onClick={() => { setRetrying(true); setAttempt((a) => a + 1) }}>Try again</button>
           <button type="button" className={styles.btn} onClick={() => onClose?.()}>Close</button>
         </div>
       ) : null}

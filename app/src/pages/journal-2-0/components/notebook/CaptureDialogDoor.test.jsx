@@ -87,6 +87,41 @@ describe('CaptureDialogDoor -- the dialog loads on its first open', () => {
     expect(screen.queryByText(mod.CAPTURE_UNAVAILABLE)).toBeNull()
   })
 
+  it('Try again that fails again is announced again: the line empties while it retries, the buttons stay', async () => {
+    const failing = vi.fn(() => Promise.reject(new Error('offline')))
+    mod.captureDialogLoaders.dialog = failing
+    render(<Door open onClose={() => {}} destination={DEST} />)
+    await screen.findByText(mod.CAPTURE_UNAVAILABLE)
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(screen.getByTestId('capture-dialog-door').querySelector('[role="status"]').textContent,
+      'the same sentence again is no new announcement').toBe('')
+    expect(screen.getByRole('button', { name: 'Try again' }), 'the pressed button keeps its place').toBeInTheDocument()
+    expect(await screen.findByText(mod.CAPTURE_UNAVAILABLE)).toBeInTheDocument()
+    expect(failing).toHaveBeenCalledTimes(2)
+  })
+
+  it('onShown (the host’s, never the dialog’s) is called once the dialog is mounted, never while loading or failed', async () => {
+    const real = mod.captureDialogLoaders.dialog
+    let release
+    const gate = new Promise((resolve) => { release = resolve })
+    mod.captureDialogLoaders.dialog = () => gate.then(() => real())
+    const onShown = vi.fn()
+    render(<Door open onClose={() => {}} destination={DEST} onShown={onShown} />)
+    expect(onShown).not.toHaveBeenCalled()
+    release()
+    await screen.findByRole('dialog')
+    expect(onShown).toHaveBeenCalledTimes(1)
+    cleanup()
+    mod.captureDialogLoaders.dialog = () => Promise.reject(new Error('offline'))
+    vi.resetModules()
+    const fresh = await import('./CaptureDialogDoor')
+    fresh.captureDialogLoaders.dialog = () => Promise.reject(new Error('offline'))
+    const failedShown = vi.fn()
+    render(<fresh.default open onClose={() => {}} destination={DEST} onShown={failedShown} />)
+    await screen.findByText(fresh.CAPTURE_UNAVAILABLE)
+    expect(failedShown).not.toHaveBeenCalled()
+  })
+
   it('closed after a failure, it renders nothing', async () => {
     mod.captureDialogLoaders.dialog = () => Promise.reject(new Error('offline'))
     const { rerender, container } = render(<Door open onClose={() => {}} destination={DEST} />)
