@@ -62,14 +62,15 @@ const MAX_ARGS_CHARS = 300
  *            groups of the request it came from, kept for the answer)
  *   pendingProposal  { ops } with real refs, as the legacy request sends it
  *   need     action groups the model asked for (`need_groups`): the one bounded reroute
+ *   prevText the member's previous message: routes a follow-up that names nothing itself (nl1/selection.js selectNl1)
  * Returns { body, refMap, selection } (selection: nl1/selection.js selectNl1's result).
  */
 export function buildNl1Request({ host, text, capCtx = {}, manageIndicators = false, memory = null, epoch = null,
-  pendingQuestion = null, pendingProposal = null, isProtectedLayout = null, need = [], budget = undefined }) {
+  pendingQuestion = null, pendingProposal = null, isProtectedLayout = null, need = [], budget = undefined, prevText = '' }) {
   const full = manifestFor({ ...capCtx, manageIndicators })
   const readings = new Map()          // the lexicon's typo readings, once per text (selection asks several times)
   const selOpts = {
-    text, budget,
+    text, budget, prevText,
     names: routingNames(host),
     correct: (t) => {
       if (!readings.has(t)) readings.set(t, (correctTypos(t, lexiconFor(host)) || []).map(v => v.text))
