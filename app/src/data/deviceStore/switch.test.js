@@ -58,10 +58,9 @@ describe('the device store switch', () => {
     expect((await pageLoad()).sw.deviceStoreEnabled()).toBe(false)
   })
 
-  // L1 (review of #2537): only '1' means on and only '0' off. Anything else is not read as a choice: it answers
-  // exactly what an absent key answers (the default), so a member who typed 'off', 'false' or 'true' is never
-  // switched ON by it while the default is OFF.
-  it('L1 a key that is neither "1" nor "0" reads exactly as an absent key (never ON while the default is OFF)', async () => {
+  // L1 (review of #2537): only '1' means on. Anything else stored is OFF, so a member who typed 'off', 'false' or 'true'
+  // is never switched ON by it; with today's default OFF that reads the same as an absent key.
+  it('L1 with the default OFF (today): a key that is neither "1" nor "0" reads OFF, as an absent key does', async () => {
     const absent = (await pageLoad()).sw.deviceStoreEnabled()
     expect(absent).toBe(DEVICE_STORE_DEFAULT_ON)
     expect(absent).toBe(false)
@@ -69,6 +68,23 @@ describe('the device store switch', () => {
       localStorage.setItem(DEVICE_STORE_KEY, v)
       expect((await pageLoad()).sw.deviceStoreEnabled(), JSON.stringify(v)).toBe(absent)
     }
+  })
+
+  // (review of #2549, for #2537): once a default can be ON, a stored value that is not a choice must be OFF, not "the
+  // default". The rule: '1' on; '0' off; ANY other stored value off; no key at all = the default. With today's default
+  // OFF the two readings cannot be told apart, so the default is turned ON through the module's seam.
+  it('L1 with the default ON: no key is ON, "1" ON, and "0" or ANY other stored value OFF', async () => {
+    const cases = [[null, true], ['1', true], ['0', false], ['true', false], ['on', false], ['yes', false], ['off', false],
+      ['false', false], ['', false], [' 1', false], ['1 ', false], ['01', false], ['null', false]]
+    for (const [stored, want] of cases) {
+      const { sw } = await pageLoad()
+      sw.__setDeviceStoreDefaultForTests(true)
+      if (stored === null) localStorage.removeItem(DEVICE_STORE_KEY); else localStorage.setItem(DEVICE_STORE_KEY, stored)
+      expect(sw.deviceStoreEnabled(), JSON.stringify(stored)).toBe(want)
+    }
+    localStorage.removeItem(DEVICE_STORE_KEY)
+    const { sw } = await pageLoad()
+    expect(sw.deviceStoreEnabled()).toBe(DEVICE_STORE_DEFAULT_ON)      // (the seam lives and dies with its page load)
   })
 
   it('M3 ONE decision per page load: a key that changes after the first read changes nothing until the next load', async () => {
