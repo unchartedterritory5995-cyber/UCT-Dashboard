@@ -492,7 +492,16 @@ export function createPrefetch(o = {}) {
     const held = S().peek(key)
     if (!held) _hydrate(key)   // the mem half lands synchronously
     // A held DEVICE copy is brought forward (its synchronous half lands now; a worker read, the poll sees)
-    else if (_deviceHeld(held)) { try { S().persist.refreshDevice?.(key) } catch { /* optional */ } }
+    // ⭐ ...and one the rule refuses as 'stale' is re-read NEWER, here (review of #2565 against #2563). The switch's look
+    // (its route, and every wake of its waiter) is the one door every member's switch goes through; the device rule's own
+    // newer re-read (deviceVerdict) was reached on the intraday path only through the per-switch diagnostics, which #2563
+    // runs on a tester's page alone. Without this a member on the default waited for the server's answer although the
+    // device already had the minute (the client's 20 s recently-read cache answered the plain re-read with the copy just
+    // refused). Only this facade's switch calls peekDisplayable: urgent, as deviceVerdict's re-read is.
+    else if (_deviceHeld(held)) {
+      const stale = _deviceRefusal(held, false) === 'stale'   // (its age, whatever the view)
+      try { if (stale) S().persist.refreshDevice?.(key, URGENT_NEWER); else S().persist.refreshDevice?.(key) } catch { /* optional */ }
+    }
     // An entry that holds no rows is looked up in mem again, SYNCHRONOUSLY and with no new IDB
     // read: the first peek made the entry, and a warmer may have promoted the key since (the
     // handoff's 25 ms poll exists to see exactly that).
