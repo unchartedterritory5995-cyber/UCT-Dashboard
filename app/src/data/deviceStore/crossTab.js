@@ -42,7 +42,10 @@ export function createCrossTab({
   // carried by the worker's `info` answer (workerCore), so a failing store is visible instead of reading as empty.
   let serveFailures = 0
   let lastServeError = null
-  const _noteServeFailure = (err) => { serveFailures += 1; lastServeError = String(err?.message || err).slice(0, 120) }
+  // Noting a failure must never fail the read it belongs to: an error that cannot be turned into text
+  // (String(Object.create(null)) throws) is still counted, with a placeholder for its cause.
+  const _errText = (err) => { try { return String(err?.message || err).slice(0, 120) } catch { return '(unprintable error)' } }
+  const _noteServeFailure = (err) => { serveFailures += 1; lastServeError = _errText(err) }
   const _servedNothing = (err) => { _noteServeFailure(err); return null }
 
   const _become = () => {
@@ -61,7 +64,7 @@ export function createCrossTab({
           (res) => { try { ch.postMessage({ type: 'res', to: m.from, id: m.id, res: res ?? null }) } catch { /* closed */ } },
           (err) => {
             _noteServeFailure(err)
-            try { ch.postMessage({ type: 'res', to: m.from, id: m.id, res: null, error: String(err?.message || err) }) } catch { /* closed */ }
+            try { ch.postMessage({ type: 'res', to: m.from, id: m.id, res: null, error: _errText(err) }) } catch { /* closed */ }
           },
         )
       } else if (m.type === 'res') {
