@@ -26,7 +26,8 @@ export const COV2_HELD_OUT = [
   ['how do I add an RSI and then change its length', '"attr":"data-field"'],
   ['how do I add a MACD then change its colour', 'chartSettings.colorPanel'],
   ['how do I draw a trendline and then set an alert on it', 'Set alert'],
-  ['how do I switch this chart to weekly and then add the RSI', '"named":"RSI"'],
+  // teach repair 11-23: an add from the Indicators window opens the new one's settings (UCT Signature R1, 11-15), so the add ends there
+  ['how do I switch this chart to weekly and then add the RSI', '"value":"inspector"'],
   ['how do I put NVDA on my watchlist and then flag it', 'Add to Flagged'],
   ['how do I open my watchlist then sort it by change', 'Sort by Symbol'],
   // a drawing tool by its own name

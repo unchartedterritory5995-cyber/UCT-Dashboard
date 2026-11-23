@@ -40,14 +40,14 @@ def test_the_infinity_form_costs_the_repair_and_the_note_says_what_a_window_does
     r = conv.converse("volume below the lowest up day volume of the last 10 days", user_id="u1", view=EMPTY())
     assert r["ok"] is True and r["attempts"] == 2
     note = client.calls[1]["messages"][-1]["content"][0]["content"]
-    assert note.startswith("[envelope:reference]")
+    assert note.startswith("[envelope:infinity-in-a-window]")
     assert "lowest" in note and "NO VALUE" in note and "looks further BACK" in note and "1000000000000000" in note
 
 
 def test_twice_is_refused_and_never_reaches_the_browser(conv, clean_env, model):
     model([emits(create(AS_WRITTEN)), emits(create(AS_WRITTEN))])
     r = conv.converse("x", user_id="u1", view=EMPTY())
-    assert r["ok"] is False and r["gate"] == "envelope:reference"
+    assert r["ok"] is False and r["gate"] == "envelope:infinity-in-a-window"
 
 
 def test_each_shape_of_the_mistake_is_seen(conv, clean_env, model):
@@ -63,7 +63,7 @@ def test_each_shape_of_the_mistake_is_seen(conv, clean_env, model):
     for tree in shapes:
         model([emits(create(tree)), emits(create(tree))])
         r = conv.converse("x", user_id="u1", view=EMPTY())
-        assert r["ok"] is False and r["gate"] == "envelope:reference", tree
+        assert r["ok"] is False and r["gate"] == "envelope:infinity-in-a-window", tree
 
 
 def test_CONTROL_what_is_not_the_mistake_passes_first_time(conv, clean_env, model):

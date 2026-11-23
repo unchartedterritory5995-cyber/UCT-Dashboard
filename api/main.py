@@ -10984,6 +10984,28 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             print(f"[startup] COT by trader type job registration failed (non-fatal): {e}")
 
+        # COT LEGACY BACKFILL (2026-11-22): the legacy store re-reads its ten seed years ONCE, so the weeks the
+        # code-first parser (PR #2533) now matches in past years (Hard Red Spring wheat, MW) are filled without the
+        # admin reseed. cot_service.legacy_backfill: daily at BACKFILL_RUN_AT_ET (22:40 ET, inside scan_period's quiet
+        # span every day, after the 21:10 trader-type run); one indexed read and nothing else once its marker
+        # (`legacy_backfill_v1` in cot.db) is written; an empty store stays the boot seed's job; a run that did not
+        # complete is asked again on a later day, at most once a day. Never on a member's request.
+        _boot_mark("COT-legacy-backfill")
+        try:
+            def _cot_legacy_backfill_job():
+                print(f"[scheduler] COT legacy one-time backfill check: {_cot_service.legacy_backfill()}")
+
+            _scheduler.add_job(
+                _cot_legacy_backfill_job,
+                trigger=CronTrigger(hour=_cot_service.BACKFILL_RUN_AT_ET[0],
+                                    minute=_cot_service.BACKFILL_RUN_AT_ET[1], timezone=_ET),
+                id="cot_legacy_backfill", max_instances=1, replace_existing=True, coalesce=True,
+                misfire_grace_time=1800,
+            )
+            print("[startup] COT legacy one-time backfill check scheduled -- daily 22:40 ET until it completes")
+        except Exception as e:
+            print(f"[startup] COT legacy backfill job registration failed (non-fatal): {e}")
+
         # Pine support loop, Phase B — the daily digest (docs/pine/support-loop/PHASE-B.md).
         # Light: two indexed SELECTs + one JSON read, cached per ET day; posts one admin
         # Discord line only when there is work (PINE_SUPPORT_DIGEST_POST=off silences it).

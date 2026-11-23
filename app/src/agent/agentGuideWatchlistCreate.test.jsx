@@ -159,7 +159,7 @@ describe('WL · the whole path, every step on the real control', () => {
   it('from a board with no Watchlist widget: Widgets ▾ → Watchlist → ＋ New → name → Create → the list; only the member creates it', async () => {
     const { say } = await start()
     await onIt(/Click \+ Add widget/, widgetsBtn)
-    expect(card().textContent).toMatch(/1 of 6/)
+    expect(card().textContent).toMatch(/1 of 7/)
     expect(screen.getByRole('button', { name: 'Skip' })).toBeTruthy()
     await toPicker()
     expect(document.querySelector('[data-guide="watchlist.picker"]')).toBeTruthy()
@@ -220,7 +220,7 @@ describe('WL · the whole path, every step on the real control', () => {
   it('a Watchlist widget already showing a list: ‹ Lists opens the picker and the walkthrough carries on from ＋ New', async () => {
     await start({ lists: [{ watchKey: 'user:9', watchName: 'Old' }] })
     await onIt(/Click ‹ Lists on this widget/, () => document.querySelector('[data-guide="watchlist.lists"]'))
-    expect(card().textContent).toMatch(/1 of 7/)
+    expect(card().textContent).toMatch(/1 of 8/)
     fireEvent.click(document.querySelector('[data-guide="watchlist.lists"]'))
     await onIt(/Click ＋ New/, newBtn)
   }, 30000)
@@ -376,7 +376,7 @@ describe('WL · a control that disappears', () => {
     const m = p.mount(...ONE())
     const out = await m.say('show me how to create a watchlist')
     expect(out).toMatch(/I can’t see the Widgets menu on your screen right now/)
-    expect(out).toMatch(/click ＋ New, name the list and click Create/)
+    expect(out).toMatch(/open My Lists, click New list, name it and click Create/)
     expect(card()).toBeNull()
   }, 30000)
 })

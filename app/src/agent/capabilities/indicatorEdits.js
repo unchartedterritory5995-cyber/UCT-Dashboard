@@ -34,6 +34,7 @@ import { wordsSelect } from '../routing'
 import { savedReferent } from './indicatorAuthoring'
 import { colorName } from './chart'
 import { calcTimeframeOf } from '../../components/chart/engine/instanceTimeframe'
+import { settingOfWords, visibilityOfWords, squashedDefId } from './indicatorPhrases'
 
 const REF = 'ixe:'
 const refOf = (chartRef) => `${REF}${chartRef}`
@@ -856,7 +857,8 @@ export function registerIndicatorEditCapabilities() {
       if (saved) return { defId: saved.defId, inputs: null, __target: refOf(saved.chart), __explicit: true }
       const m = /^(?:please )?(?:add|put|apply|plot)(?: another| a second| one more| an extra| an?| the| my)? (.+?)(?: indicator| study)?(?: again)?(?: (?:on|to|onto|in) (?:my|the|this) chart)?(?: again)?$/.exec(lower)
       if (!m) return null
-      const defId = defIdOfWords(m[1])
+      // (C2 family: also the name typed without its spaces — "the rs line", "stoch rsi", "super trend")
+      const defId = defIdOfWords(m[1]) || squashedDefId(String(m[1]).replace(/^(?:the|my) /, ''))
       if (defId) return { defId, inputs: null }
       // (`assumed`: a default type was applied — the receipt names the type it used, "… ma type EMA")
       const s = settingsOfWords(m[1])
@@ -945,7 +947,8 @@ export function registerIndicatorEditCapabilities() {
       required: ['instance', 'inputs'],
       additionalProperties: false,
     },
-    fast: ({ lower }) => updateOfWords(lower),
+    // (C2 family: any declared setting by its own label — "set the macd fast length to 8", "turn off the rs rating on the rs line")
+    fast: ({ lower }) => updateOfWords(lower) || settingOfWords(lower),
     // other indicators read this one → their inputs move with it: shown first, applied on approval
     confirmIf(st, { instance, inputs }) {
       const req = updateRequest(st, instance, inputs)
@@ -984,6 +987,9 @@ export function registerIndicatorEditCapabilities() {
     registerCapability({
       ...common,
       name,
+      // C2 family: "hide the rsi on all charts" — one per chart (useAgent fan-out); the instant words only when the board says which
+      fanOut: true,
+      fast: ({ lower, host }) => visibilityOfWords(lower, visible, host),
       summary: `${visible ? 'Show' : 'Hide'} ONE indicator (its whole group) on ONE chart — the settings / legend eye. Undo puts it back.`,
       hints: 'target = the ref of that chart\'s indicatorEdits entry. instance = the indicator\'s `id` from that chart\'s indicators list (exact; a name only if it is unique). Volume is not an indicator (use volume.setState).',
       args: { type: 'object', properties: { instance: { type: 'string' } }, required: ['instance'], additionalProperties: false },

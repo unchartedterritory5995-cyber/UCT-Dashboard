@@ -44,7 +44,7 @@ def test_a_window_of_one_costs_the_repair_and_the_note_says_what_the_window_is(c
     assert r["ok"] is True and r["attempts"] == 2
     assert r["envelope"]["ops"][0]["outputs"][0]["tree"] == AS_ASKED          # what reached the browser is the repaired one
     note = client.calls[1]["messages"][-1]["content"][0]["content"]
-    assert note.startswith("[envelope:reference]")
+    assert note.startswith("[envelope:event-window]")
     for piece in ("`valuewhen` is given a window of 1 bar", "looks BACK", "reads only the bar itself", "NO VALUE on every bar after it",
                   "reaches back past that event", "cond ? value : 0 / 0"):
         assert piece in note, piece
@@ -53,7 +53,7 @@ def test_a_window_of_one_costs_the_repair_and_the_note_says_what_the_window_is(c
 def test_twice_is_refused_and_never_reaches_the_browser(conv, clean_env, model):
     model([emits(create(AS_WRITTEN)), emits(create(AS_WRITTEN))])
     r = conv.converse(WORDS, user_id="u1", view=EMPTY())
-    assert r["ok"] is False and r["gate"] == "envelope:reference"
+    assert r["ok"] is False and r["gate"] == "envelope:event-window"
     assert "envelope" not in r or not r.get("envelope")
 
 
@@ -69,13 +69,13 @@ def test_each_place_the_mistake_can_sit_is_seen(conv, clean_env, model):
     for tree in shapes:
         model([emits(create(tree)), emits(create(tree))])
         r = conv.converse(WORDS, user_id="u1", view=EMPTY())
-        assert r["ok"] is False and r["gate"] == "envelope:reference", tree
+        assert r["ok"] is False and r["gate"] == "envelope:event-window", tree
     # and in a colour state's condition, not only an output
     coloured = env(0, [{"op": "create", "name": "x", "outputs": [{"key": "c", "tree": CLOSE}]},
                        {"op": "set_color_states", "output": "c", "states": [{"when": op(">", CLOSE, held(num(1))), "color": "#22c55e"}]}])
     model([emits(coloured), emits(coloured)])
     r = conv.converse(WORDS, user_id="u1", view=EMPTY())
-    assert r["ok"] is False and r["gate"] in ("envelope:reference", "envelope:schema"), r.get("gate")
+    assert r["ok"] is False and r["gate"] in ("envelope:event-window", "envelope:schema"), r.get("gate")
 
 
 def test_CONTROL_what_is_not_the_mistake_passes_first_time(conv, clean_env, model):

@@ -79,7 +79,7 @@ def refused_by(fn, *args):
 
 def test_THE_FINDING_a_setting_drawn_bare_on_the_price_chart_is_refused():
     exc = refused_by(dc._refuse_a_bare_fill_in_setting, {"ops": LIVE["ops"]})
-    assert exc is not None and exc.gate == "envelope:reference"
+    assert exc is not None and exc.gate == "envelope:fill-in-drawn-bare"
     told = exc.for_model()
     for piece in ("draws the setting `avgPrice` bare on the price chart", "a line at price 0, and the chart is squeezed to fit it",
                   "`avgPrice > 0 ? avgPrice : 0 / 0`"):
@@ -231,7 +231,7 @@ def test_THE_SECOND_FINDING_the_build_is_right_and_the_reply_never_says_why():
     assert refused_by(dc._refuse_a_bare_fill_in_setting, {"ops": SILENT["ops"]}) is None          # the first fix holds: nothing at price 0
     assert sorted(dc.member_filled_outputs({"ops": SILENT["ops"]})) == [("avgCostLine", "avgCost"), ("sharesHeld", "shares")]
     exc = refused_by(SAYS_GATE, SILENT)
-    assert exc is not None and exc.gate == "envelope:reference"
+    assert exc is not None and exc.gate == "envelope:reply-silent-on-your-figure"
     told = exc.for_model()
     for piece in ("`reply` does not say that UCT cannot read `avgCost`, `shares` for the member",
                   "they are owed the reason they must type it", "I can't read your account, so enter them in the indicator's settings"):
@@ -319,9 +319,13 @@ def test_ONE_helper_tells_both_guards_which_settings_are_the_members_to_fill():
 def test_no_recorded_right_answer_shows_such_a_figure_so_none_can_be_refused():
     right = [c for c in CASES if c["lane"] == "formula" and c.get("recorded_verdict") != "wrong"]
     assert len(right) >= 100
+    shows = [c["id"] for c in right if dc.member_filled_outputs(c["answer"])]
+    assert shows in ([], [CASE["id"]])                                # only this request ever does
     for case in right:
-        assert dc.member_filled_outputs(case["answer"]) == [], case["id"]
-    # CONTROL: the one recorded request that does, in both its answers
+        if dc.member_filled_outputs(case["answer"]):
+            # recorded RIGHT while showing such a figure: its recorded reply says why, so the guard passes it
+            assert refused_by(SAYS_GATE, case["answer"]) is None and case["answer"].get("reply"), case["id"]
+    # CONTROL: the one recorded request that does, in both its wrong answers
     assert all(dc.member_filled_outputs(s["answer"]) for s in G.specimens(CASE))
 
 
