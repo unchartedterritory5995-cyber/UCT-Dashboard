@@ -1,33 +1,36 @@
 /**
- * NEXT-ROW: THE ARROW KEY'S SCROLL WAITS FOR THE FRAME THAT SHOWS THE SWITCH (2026-11-23, key-press profiles).
+ * NEXT-ROW: AN ARROW KEY'S SCROLL RUNS IN THE NEXT ANIMATION FRAME CALLBACK, NOT IN THE KEY TASK (2026-11-23).
  *
  * Between a watchlist arrow key and the two linked charts' first frame, the list kept its selected row in view
- * INSIDE the commit: the virtualizer centred it (`scrollToIndex` reads the scroller's scrollHeight/clientHeight,
- * a forced layout) and the row's `scrollIntoView` ran (a second one), before the charts could paint. Keeping
- * the row in view now waits for the frame that shows the switch (utils/afterPaintSlot.js); the highlight and the
- * charts do not wait for anything.
+ * INSIDE the commit: the virtualizer centred it (`scrollToIndex` reads the scroller's scrollHeight/clientHeight, a
+ * forced layout, before the charts' DOM writes were done) and the row's `scrollIntoView` ran. For a move made by
+ * the arrow keys, keeping the row in view now runs in the next animation frame callback
+ * (utils/afterPaintSlot.js createNextFrameSlot): after every DOM write of the key task, before that frame's layout
+ * and paint, so the scroll is painted in the SAME frame as the highlight (review of #2598, F1: no bar that jumps a
+ * row and back on a held key). Every other selection (a list opened on a selection, a symbol set from elsewhere, a
+ * search) scrolls in the commit exactly as before (F2).
  *   K1 the press moves the highlight at once: no frame is needed for it (small and virtualized lists)
  *   K2 the colour group's symbol is set inside the key handler itself (the paired charts follow in that task)
- *   K3 before the frame nothing scrolls and nothing reads the scroller's height
- *   K4 after the frame the selected row is brought into view: a small list's row `scrollIntoView({ block:
- *      'nearest' })`; a virtualized list's row is centred by the virtualizer (scrollTo) and then the same
- *      `scrollIntoView` (what each did before, one frame later)
- *   K5 a held arrow (three presses, no frame between) scrolls ONCE, to the last row
- *   K6 a widget that goes away before the frame scrolls nothing
+ *   K3 inside the key task and its commits nothing scrolls and nothing reads the scroller's height
+ *   K4 the scroll runs INSIDE the next frame callback (no timer after it): a small list's row
+ *      `scrollIntoView({ block: 'nearest' })`; a virtualized list's row is centred (scrollTo at THAT row's offset)
+ *      and then the same `scrollIntoView`
+ *   K5 a held arrow (three presses, no frame between) scrolls ONCE, in that frame, to the last row
+ *   K6 a widget that goes away before the frame scrolls nothing, and leaves nothing waiting for one
  *   K7 the arrows walk the rows in the order they are drawn (a column sort), and wrap
+ *   K8 a list opened on a selection scrolls in the commit, as before (no frame needed)
+ *   K9 a symbol set from elsewhere (the colour group moved) scrolls in the commit, as before
+ *   K10 the list changes between the press and the frame: the row is found again by its symbol, and nothing
+ *       scrolls in the commit meanwhile
+ *   K11 the row is gone when the frame comes: nothing scrolls, and when it is back the snap happens (it was not
+ *       marked done) (F5)
+ *   K12 under StrictMode a list opened on a selection still snaps (F4)
  *
- * Mutation proof (each run before calling these done):
- *   the virtualizer's centring back in the commit      -> K3 (virtualized) red
- *   the row's scrollIntoView back in the commit        -> K3 (both) red
- *   no coalescing (a run per press)                    -> K5 red
- *   the unmount does not cancel                        -> K6 red
- *   the highlight waits for the frame                  -> K1 red
- *   the group symbol set a task later                  -> K2 red
- *   the arrows walk the stored order                   -> K7 red
+ * Mutation proof (each run before calling these done): see the PR body.
  *
  * Harness: Watchlists.virtualized.test.jsx's (a prebuilt list through mocked SWR, a 600 px box for every element
- * so the virtualizer measures a viewport), plus spies on the two scroll calls and the scrollHeight read, and
- * animation frames the test runs by hand so "before the frame" is a state a test can stand in.
+ * so the virtualizer measures a viewport and every row is 600 px), spies on the two scroll calls and the
+ * scrollHeight read, and animation frames the test runs by hand.
  */
 import React from 'react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
@@ -35,6 +38,7 @@ import { render, waitFor, act } from '@testing-library/react'
 import { ChartsSymContext } from './charts/ChartsSymContext'
 
 const BIG = 400          // > VIRTUALIZE_MIN_ROWS
+const ROW = 600          // every element's offsetHeight here, so every measured row
 const mkItems = (syms) => syms.map((s) => ({ id: s, sym: s, notes: '' }))
 
 const hoisted = vi.hoisted(() => ({ prebuilt: [] }))
@@ -82,6 +86,7 @@ function spyScroll() {
   })
 }
 const clearSeen = () => { seen.intoView = []; seen.scrollTo = []; seen.heightReads = 0 }
+const NEAREST = { block: 'nearest', inline: 'nearest' }
 
 // Frames the test runs by hand, by id (ids far above jsdom's own, so a cancel of a frame asked for before the
 // hold, or of one already run, can never strike a waiting one).
@@ -94,10 +99,8 @@ function holdFrames() {
   vi.stubGlobal('cancelAnimationFrame', (id) => { frames.delete(id) })
 }
 const waitingFrames = () => frames.size
-/** The frame that shows the press comes and is painted (its animation frames, then the zero timer after it). */
-async function paint() {
-  await act(async () => { runFrames(); await sleep(5) })
-}
+/** The next frame's animation frame callbacks run, and NOTHING else (no timer, no sleep). */
+const frame = () => act(() => { runFrames() })
 
 const press = (key = 'ArrowDown') =>
   act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true })) })
@@ -110,7 +113,7 @@ beforeEach(() => {
   try { localStorage.clear() } catch { /* private mode */ }
   setHidden(false)
   vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({}) })))
-  Object.defineProperty(HTMLElement.prototype, 'offsetHeight', { configurable: true, value: 600 })
+  Object.defineProperty(HTMLElement.prototype, 'offsetHeight', { configurable: true, value: ROW })
   Object.defineProperty(HTMLElement.prototype, 'offsetWidth', { configurable: true, value: 400 })
   Object.defineProperty(HTMLElement.prototype, 'clientHeight', { configurable: true, value: 600 })
   Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, value: 400 })
@@ -133,27 +136,30 @@ afterEach(() => {
   delete document.hidden
 })
 
+const listEl = (listId, name, ctx) => (
+  <ChartsSymContext.Provider value={ctx}>
+    <Watchlists embedded pickList={`community:${listId}`} pickName={name} />
+  </ChartsSymContext.Provider>
+)
+
 /** Mounted, settled, frames held, recorders emptied. `picked` records the group symbol writes as they happen. */
-async function mount(listId, name) {
+async function mount(listId, name, { sym = null, strict = false, holdFirst = false } = {}) {
   const picked = []
-  const ctx = { sym: null, setSym: (s) => { picked.push(s) } }
-  const view = render(
-    <ChartsSymContext.Provider value={ctx}>
-      <Watchlists embedded pickList={`community:${listId}`} pickName={name} />
-    </ChartsSymContext.Provider>,
-  )
+  const ctx = { sym, setSym: (s) => { picked.push(s) } }
+  if (holdFirst) holdFrames()
+  const el = listEl(listId, name, ctx)
+  const view = render(strict ? <React.StrictMode>{el}</React.StrictMode> : el)
   await waitFor(() => expect(view.container.querySelectorAll('[data-watch-sym]').length).toBeGreaterThan(0))
-  await act(async () => { await sleep(50) })              // the mount's own frames come and go first
-  holdFrames()
-  clearSeen()
-  return { ...view, picked }
+  await act(async () => { await sleep(50) })              // the mount's own frames (if not held) come and go first
+  if (!holdFirst) { holdFrames(); clearSeen() }
+  return { ...view, picked, ctx }
 }
 
 describe('a small list (every row drawn)', () => {
   const SYMS = ['M2', 'M0', 'M3', 'M1', 'M4']
   beforeEach(() => { hoisted.prebuilt = [{ id: 'small', name: 'Small', items: mkItems(SYMS) }] })
 
-  it('K1 K2 K3 K4: the highlight and the group symbol move in the press; the scroll waits for the frame', async () => {
+  it('K1 K2 K3 K4: the highlight and the group symbol move in the press; the scroll runs inside the next frame callback', async () => {
     const { container, picked } = await mount('small', 'Small')
     let pickedInHandler = null
     await act(() => {
@@ -164,23 +170,22 @@ describe('a small list (every row drawn)', () => {
     expect(selectedSyms(container)).toEqual(['M2'])      // K1: no frame has come
     expect(seen.intoView).toEqual([])                    // K3
     expect(seen.heightReads).toBe(0)
-    await paint()
-    expect(seen.intoView).toEqual([{ sym: 'M2', opts: { block: 'nearest', inline: 'nearest' } }])   // K4
+    await frame()                                        // K4: the frame callback itself, no timer
+    expect(seen.intoView).toEqual([{ sym: 'M2', opts: NEAREST }])
   })
 
-  it('K5: a held arrow (three presses before a frame) scrolls once, to the last row', async () => {
+  it('K5: a held arrow (three presses before a frame) scrolls once, in that frame, to the last row', async () => {
     const { container } = await mount('small', 'Small')
     await press(); await press(); await press()
     expect(selectedSyms(container)).toEqual(['M3'])
     expect(seen.intoView).toEqual([])
-    await paint()
-    expect(seen.intoView).toEqual([{ sym: 'M3', opts: { block: 'nearest', inline: 'nearest' } }])
-    await paint()                                        // and nothing more on the frames after it
+    await frame()
+    expect(seen.intoView).toEqual([{ sym: 'M3', opts: NEAREST }])
+    await frame()                                        // nothing more on the next frame
     await act(async () => { await sleep(300) })          // nor from the backstop timer
     expect(seen.intoView).toHaveLength(1)
-    // the next press scrolls again, after its own frame: a held key never stops scrolling
-    await press()
-    await paint()
+    await press()                                        // the next press scrolls in its own frame
+    await frame()
     expect(seen.intoView.map((c) => c.sym)).toEqual(['M3', 'M1'])
   })
 
@@ -190,7 +195,7 @@ describe('a small list (every row drawn)', () => {
     expect(waitingFrames()).toBeGreaterThan(0)           // the press left work for its frame (or this proves nothing)
     view.unmount()
     expect(waitingFrames()).toBe(0)                      // the unmount took it back
-    await paint()
+    await frame()
     await act(async () => { await sleep(300) })
     expect(seen.intoView).toEqual([])
   })
@@ -203,15 +208,26 @@ describe('a small list (every row drawn)', () => {
     for (let i = 0; i < drawn.length + 1; i++) await press()
     expect(picked).toEqual([...drawn, drawn[0]])
   })
+
+  it('K8: a list opened on a selection scrolls in the commit, with no frame', async () => {
+    await mount('small', 'Small', { sym: 'M3', holdFirst: true })
+    expect(seen.intoView).toEqual([{ sym: 'M3', opts: NEAREST }])
+  })
+
+  it('K9: a symbol set from elsewhere scrolls in the commit, with no frame', async () => {
+    const { rerender, ctx } = await mount('small', 'Small')
+    await act(() => { rerender(listEl('small', 'Small', { ...ctx, sym: 'M4' })) })
+    expect(seen.intoView).toEqual([{ sym: 'M4', opts: NEAREST }])
+  })
 })
 
 describe('a virtualized list', () => {
   const SYMS = Array.from({ length: BIG }, (_, i) => `S${i}`)
   beforeEach(() => { hoisted.prebuilt = [{ id: 'big', name: 'Big', items: mkItems(SYMS) }] })
 
-  it('K1 K2 K3 K4: nothing is centred or measured before the frame; after it, centred once and kept in view', async () => {
+  it('K1 K2 K3 K4: nothing is centred or measured in the key task; in the frame callback, THAT row is centred once', async () => {
     const { container, picked } = await mount('big', 'Big')
-    await press(); await paint(); clearSeen()            // on S0, its scroll done
+    await press(); await frame(); clearSeen()            // on S0, its scroll done
     let pickedInHandler = null
     await act(() => {
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }))
@@ -222,21 +238,20 @@ describe('a virtualized list', () => {
     expect(seen.scrollTo).toEqual([])                    // K3: the virtualizer has not scrolled ...
     expect(seen.heightReads).toBe(0)                     // ... nor read the scroller's height
     expect(seen.intoView).toEqual([])
-    await paint()
-    expect(seen.scrollTo).toHaveLength(1)                // K4: centred, once
-    expect(Number.isFinite(seen.scrollTo[0].top)).toBe(true)
-    expect(seen.intoView).toEqual([{ sym: 'S1', opts: { block: 'nearest', inline: 'nearest' } }])
+    await frame()                                        // K4
+    expect(seen.scrollTo).toEqual([{ top: 1 * ROW, behavior: 'auto' }])   // row 1, centred in a 600 px viewport
+    expect(seen.intoView).toEqual([{ sym: 'S1', opts: NEAREST }])
   })
 
-  it('K5: a held arrow centres once, on the last row', async () => {
+  it('K5: a held arrow centres once, in that frame, on the last row', async () => {
     const { container } = await mount('big', 'Big')
-    await press(); await paint(); clearSeen()            // on S0
+    await press(); await frame(); clearSeen()            // on S0
     await press(); await press(); await press()
     expect(selectedSyms(container)).toEqual(['S3'])
     expect(seen.scrollTo).toEqual([])
-    await paint()
-    expect(seen.scrollTo).toHaveLength(1)
-    expect(seen.intoView).toEqual([{ sym: 'S3', opts: { block: 'nearest', inline: 'nearest' } }])
+    await frame()
+    expect(seen.scrollTo).toEqual([{ top: 3 * ROW, behavior: 'auto' }])
+    expect(seen.intoView).toEqual([{ sym: 'S3', opts: NEAREST }])
   })
 
   it('K6: a widget that goes away before the frame centres nothing, and leaves nothing waiting for one', async () => {
@@ -245,9 +260,39 @@ describe('a virtualized list', () => {
     expect(waitingFrames()).toBeGreaterThan(0)
     view.unmount()
     expect(waitingFrames()).toBe(0)
-    await paint()
+    await frame()
     await act(async () => { await sleep(300) })
     expect(seen.scrollTo).toEqual([])
     expect(seen.intoView).toEqual([])
+  })
+
+  it('K10: the list changes before the frame: nothing scrolls meanwhile, and the row is found again by its symbol', async () => {
+    const { rerender, ctx } = await mount('big', 'Big')
+    await press(); await frame(); clearSeen()            // on S0
+    await press()                                        // S1 (row 1) asked for
+    hoisted.prebuilt = [{ id: 'big', name: 'Big', items: mkItems(['X0', ...SYMS]) }]   // S1 is row 2 now
+    await act(() => { rerender(listEl('big', 'Big', ctx)) })
+    expect(seen.scrollTo).toEqual([])                    // the list change scrolled nothing in its commit
+    await frame()
+    expect(seen.scrollTo).toHaveLength(1)
+    expect(seen.scrollTo[0].top).toBeGreaterThan(1 * ROW)   // not row 1's offset: the row was found where it is now
+  })
+
+  it('K11: the row is gone when the frame comes: nothing scrolls; when it is back, the snap happens', async () => {
+    const { rerender, ctx } = await mount('big', 'Big')
+    await press(); await frame(); clearSeen()            // on S0
+    await press()                                        // S1 asked for
+    hoisted.prebuilt = [{ id: 'big', name: 'Big', items: mkItems(SYMS.filter((s) => s !== 'S1')) }]
+    await act(() => { rerender(listEl('big', 'Big', ctx)) })
+    await frame()
+    expect(seen.scrollTo).toEqual([])                    // no row to centre
+    hoisted.prebuilt = [{ id: 'big', name: 'Big', items: mkItems(SYMS) }]
+    await act(() => { rerender(listEl('big', 'Big', ctx)) })
+    expect(seen.scrollTo).toEqual([{ top: 1 * ROW, behavior: 'auto' }])   // back: snapped (in its commit, as before)
+  })
+
+  it('K12: under StrictMode a list opened on a selection still snaps', async () => {
+    await mount('big', 'Big', { sym: 'S50', strict: true, holdFirst: true })
+    expect(seen.scrollTo.filter((c) => c.top > 0)).toHaveLength(1)
   })
 })
