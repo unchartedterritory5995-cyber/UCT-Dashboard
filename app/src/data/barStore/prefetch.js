@@ -254,6 +254,11 @@ export const TAIL_REASK_SPACING_MS = 4000
 export const TAIL_RETRY_MS = 5000
 /** The boundary timer runs only this long after the member last CHANGED the selection (a key press, a click on a row). */
 export const TAIL_ACTIVE_MS = 3 * 60_000
+/** (re-review of #2619 (B)) A HARD cap: at most this many tail asks of one hold in flight at once. */
+export const TAIL_MAX_INFLIGHT = 3
+/** (re-review of #2619 (B)) Selection changes closer than this are a SWEEP (a held arrow repeats every 30-60 ms): the tail
+ *  asks nothing while it lasts, and asks its rows this long after the last change (the row the member stops on). */
+export const TAIL_SWEEP_MS = 250
 const SHORT_FULL_MAX = 4000
 
 /**
@@ -1117,9 +1122,19 @@ export function createPrefetch(o = {}) {
   //   * AT MOST TAIL_REASKS_PER_BUCKET asks per row per bucket, the second at least TAIL_REASK_SPACING_MS after the first:
   //     a boundary ask that left a row behind (the server had not stored the closed bucket) is tried once more
   //     TAIL_RETRY_MS later.
-  //   `clear` (unmount) and the next `set` cancel the timer.
+  //   * NEVER ONE PER ROW PASSED (re-review of #2619 (B)): each tail ask carries its own abort, and a `set` whose tail no
+  //     longer holds the row aborts it (a queued ask never reaches the network; a sent one is cancelled). An aborted ask is
+  //     not an answer: no cooldown, no grace, not counted against its row's bucket (asked again when the member comes back),
+  //     no error. At most TAIL_MAX_INFLIGHT in flight per hold, a hard cap. While the selection changes faster than
+  //     TAIL_SWEEP_MS (a held arrow), `set` asks nothing: the rows around the row the member stops on are asked
+  //     TAIL_SWEEP_MS after the last change (the hold's one timer). A row's count is kept for its whole bucket.
+  //   `clear` (unmount) and the next `set` cancel the timer; `clear` aborts every tail ask in flight.
   // Budget, per hold (one timeframe of one list): 0 outside the window; inside it 3 rows x 1 ask per bucket when the server
   // holds the closed bucket by the lag (<= 3 a minute on 1m), at most 3 x TAIL_REASKS_PER_BUCKET when it lags; none on D/W/M.
+  // Per press: at most the tail's 3 rows (only those behind and not asked twice in the bucket), 0 during a sweep, and at
+  // most TAIL_MAX_INFLIGHT in flight. The window opens on a selection change from ANY source while the symbol is in the
+  // list (a typed ticker, another list's press or a linked chart's symbol counts: `selectedSym` follows the colour group),
+  // and two lists on one colour group that both hold the symbol both open theirs (each bounded as above).
   function createNeighborHold() {
     let held = new Map()   // key → true
     let deepTimer = null
@@ -1131,13 +1146,19 @@ export function createPrefetch(o = {}) {
     let selSeen = false         // a `selected` was given before (the list's first selection opens no window)
     let lastSel = undefined
     let activeUntil = -Infinity // the boundary timer runs until then (TAIL_ACTIVE_MS after the last selection change)
-    const reasked = new Map()   // key → { b: the bucket's start, n: re-asks in it, at: the last one }
+    let lastChangeAt = -Infinity // the last selection CHANGE (a sweep: changes closer than TAIL_SWEEP_MS)
+    const reasked = new Map()   // key → { b: the bucket's start, n: re-asks in it, at: the last one } (this bucket's only)
+    const tailCtl = new Map()   // key → the AbortController of its tail ask in flight (at most TAIL_MAX_INFLIGHT)
     const stopDeep = () => {
       deepGen++
       if (deepTimer != null) { clearTimer(deepTimer); deepTimer = null }
       if (dateTimer != null) { clearTimer(dateTimer); dateTimer = null }
     }
     const stopTail = () => { if (tailTimer != null) { clearTimer(tailTimer); tailTimer = null } }
+    /** Abort the tail asks of the keys `keep` does not hold (all of them when `keep` is null). */
+    const abortTail = (keep = null) => {
+      for (const [k, c] of [...tailCtl]) if (!keep || !keep.includes(k)) { tailCtl.delete(k); c.abort() }
+    }
     const _bucketOfNow = (tf) => bucketEndUnix(Math.floor(now() / 1000), tf) - 1
     const _hidden = () => { try { return visible() === false } catch { return false } }
     const _active = () => now() < activeUntil
@@ -1145,8 +1166,12 @@ export function createPrefetch(o = {}) {
      *  Returns how many it asked. */
     function keepTailCurrent() {
       if (!tail.length || !inSession() || !_active() || _hidden()) return 0
+      // a row's count matters for its bucket only: the earlier buckets' go (the map holds this bucket's rows, never fewer)
+      for (const [k, r] of [...reasked]) { const tf = parseKey(k)?.tf; if (!tf || r.b !== _bucketOfNow(tf)) reasked.delete(k) }
       let asked = 0
       for (const k of tail) {
+        if (tailCtl.size >= TAIL_MAX_INFLIGHT) break   // the hard cap
+        if (tailCtl.has(k)) continue                    // its ask is in flight
         const s = S().peek(k)
         if (!s?.restSeen || !s.bars?.length || preparing.get(k) || !_behindClock(k, s, tailExt)) continue
         const p = parseKey(k)
@@ -1155,25 +1180,36 @@ export function createPrefetch(o = {}) {
         const n = r && r.b === b ? r.n : 0
         if (n >= TAIL_REASKS_PER_BUCKET) continue
         if (n > 0 && now() - r.at < TAIL_REASK_SPACING_MS) continue
-        reasked.set(k, { b, n: n + 1, at: now() })
-        if (reasked.size > 64) reasked.delete(reasked.keys().next().value)
-        ensure(k, { until: ASK_AGAIN, priority: 'background', warm: true, local: false, _s0: s, session: session(tailExt) }).catch(() => {})
+        const mark = { b, n: n + 1, at: now() }
+        reasked.set(k, mark)
+        const c = new AbortController()
+        tailCtl.set(k, c)
+        ensure(k, { until: ASK_AGAIN, priority: 'background', warm: true, local: false, signal: c.signal, _s0: s, session: session(tailExt) })
+          .catch(() => {})
+          .then(() => {
+            if (tailCtl.get(k) === c) tailCtl.delete(k)
+            // aborted (the row left the tail): it was never an ask, so its row may be asked again in this bucket
+            if (c.signal.aborted && reasked.get(k) === mark) { if (r && r.b === b) reasked.set(k, r); else reasked.delete(k) }
+          })
         asked++
       }
       return asked
     }
     /** One timer per hold: the next bucket boundary of `tf` plus a lag drawn for this hold and boundary (or, `retry`, one
-     *  spaced retry inside the bucket after a boundary ask); armed only in the session, inside the selection window and
-     *  while the app is visible. It re-arms itself under the same rules. */
-    function armTail(tf, retry = false) {
+     *  spaced retry inside the bucket after a boundary ask; or, `settle`, TAIL_SWEEP_MS after the last change of a sweep);
+     *  armed only in the session, inside the selection window and while the app is visible. It re-arms itself under the
+     *  same rules (a settle pass, like a press, is followed by the boundary). */
+    function armTail(tf, mode = 'boundary') {
       stopTail()
       if (!tail.length || !inSession() || !_active() || _hidden()) return
       const lag = TAIL_LAG_MIN_MS + random() * (TAIL_LAG_MAX_MS - TAIL_LAG_MIN_MS)
-      const ms = retry ? TAIL_RETRY_MS : bucketEndUnix(Math.floor(now() / 1000), tf) * 1000 - now() + lag
+      const ms = mode === 'retry' ? TAIL_RETRY_MS
+        : mode === 'settle' ? TAIL_SWEEP_MS
+          : bucketEndUnix(Math.floor(now() / 1000), tf) * 1000 - now() + lag
       tailTimer = setTimer(() => {
         tailTimer = null
         const n = keepTailCurrent()
-        armTail(tf, !retry && n > 0)
+        armTail(tf, mode === 'boundary' && n > 0 ? 'retry' : 'boundary')
       }, Math.max(0, ms))
     }
     // D/W/M: the deep sealed history of each row, joined before the member gets there.
@@ -1231,8 +1267,13 @@ export function createPrefetch(o = {}) {
         held = want
         stopDeep()
         // the selection window (TAIL_ACTIVE_MS): opened by a CHANGE of the member's selection, never by any other `set`
+        let sweeping = false
         if (selected !== undefined) {
-          if (selSeen && selected !== lastSel) activeUntil = now() + TAIL_ACTIVE_MS
+          if (selSeen && selected !== lastSel) {
+            activeUntil = now() + TAIL_ACTIVE_MS
+            sweeping = now() - lastChangeAt < TAIL_SWEEP_MS   // a held arrow: the tail waits for the row it stops on
+            lastChangeAt = now()
+          }
           selSeen = true
           lastSel = selected
         }
@@ -1244,8 +1285,10 @@ export function createPrefetch(o = {}) {
           const p = k ? parseKey(k) : null
           if (p && !p.window && isIntradayTf(p.tf) && want.has(k) && !tail.includes(k)) tail.push(k)
         }
-        keepTailCurrent()
-        if (tail.length) armTail(parseKey(tail[0]).tf); else stopTail()
+        abortTail(tail)                                  // a row that left the tail: its ask is no longer wanted
+        if (!tail.length) stopTail()
+        else if (sweeping) armTail(parseKey(tail[0]).tf, 'settle')
+        else { keepTailCurrent(); armTail(parseKey(tail[0]).tf) }
         if (!deep?.length || !deepNeighbors()) return
         const next = []
         const dates = []
@@ -1264,6 +1307,7 @@ export function createPrefetch(o = {}) {
       clear() {
         stopDeep()
         stopTail()
+        abortTail()
         tail = []
         const st = S()
         for (const k of held.keys()) st.registry.release(k)

@@ -26,6 +26,12 @@
 //   A1-A4 the grace is the switch's OWN: an answer still behind from the list's warm, the urgent next-row warm, the typed
 //       warm or the hover-intent warm, then a press 1 s later: not displayable, the press prepares and asks (M1b: the
 //       switch's own answer keeps it). (The edge warm sends HEADs to the CDN and never asks the bars route: no grace path.)
+//   B1  a held arrow (30 rows at 16 a second) right after a boundary: while it is held the tail sends nothing; at most 3 at
+//       the press that starts it and 3 where it stops; never more than 3 in flight; the row it stops on is asked, answered
+//   B2  a tail ask for a row the member passed is ABORTED: never answered, no cooldown, not "asked" for its bucket (asked
+//       again when the member comes back), no error
+//   B3  at most 3 tail asks in flight per hold, whatever the tail it is given
+//   B4  a row's count in its bucket survives a long sweep (the bound is the bucket, not the last 64 rows)
 // Real store, real network, real facade, a held fake server.
 import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest'
 import { installFakeIndexedDB } from './testing/fakeIndexedDB'
@@ -404,5 +410,132 @@ describe('re-review of #2619 (A): the grace is the switch\'s own; no other warm 
     const r = await behindAfter(async (w) => { w.pf.prefetchBarOnIntent('AAA', '1', { delay: 0 }) })
     expect(r.shown).toBe(false)
     expect(r.asked).toBe(1)
+  })
+})
+
+describe("re-review of #2619 (B): the tail's asks are bounded per hold, and a passed row's ask is aborted", () => {
+  it('B1 a held arrow through 30 rows at 16 a second right after a boundary: the tail sends nothing while it is held', async () => {
+    vi.setSystemTime(at(10, 0, 50))
+    const w = await boot('closed')
+    const R = Array.from({ length: 34 }, (_, i) => `R${String(i).padStart(2, '0')}`)
+    await warmAll(w, R, '1')                                    // every row answered at 10:00:50, before the boundary
+    const hold = w.pf.createNeighborHold()
+    hold.set(R, '1', { tail: [R[1], R[2]], selected: R[0] })    // the list opens on R00
+    await tick(11_000)                                          // 10:01:01: every row one bucket behind (and cooling)
+    const before = w.server.calls.length
+    const tailCalls = () => w.server.calls.slice(before).filter((c) => c.q.warm)
+    let ctl = null
+    let maxOpen = 0
+    let atSweep = null
+    for (let i = 1; i <= 30; i++) {
+      for (const c of w.server.open()) c.respond()             // the server answers within one press (~60 ms)
+      await w.server.flush()
+      if (i === 3) atSweep = tailCalls().length                 // (the press that started the sweep, and the next, are done)
+      ctl?.abort()
+      ctl = new AbortController()
+      w.pf.prepareForDisplay(R[i], '1', { signal: ctl.signal }).catch(() => {})   // the switch (useSymbolHandoff)
+      w.pf.prefetchBars([R[i + 1], R[i + 2]], '1', { urgent: true })             // the next-row warm (cooling: nothing)
+      hold.set(R, '1', { tail: [R[i + 1], R[i + 2], R[i - 1]], selected: R[i] })
+      await w.server.flush()
+      maxOpen = Math.max(maxOpen, tailCalls().filter((c) => !c.done).length)
+      await tick(62)
+    }
+    const inSweep = tailCalls().length - atSweep
+    await tick(1_000)                                           // the member rests on R30
+    await w.server.drain()
+    expect(inSweep).toBe(0)                                     // held: the tail asked nothing (the switch asked its rows)
+    expect(tailCalls().length).toBeLessThanOrEqual(6)           // 3 where it started, 3 where it stopped (not 1 per row)
+    expect(maxOpen).toBeLessThanOrEqual(3)
+    expect(w.live.maxBg).toBeLessThanOrEqual(3)
+    const stop = w.server.calls.slice(before).filter((c) => c.q.sym === 'R30')
+    expect(stop.some((c) => c.done && !c.aborted)).toBe(true)  // the row it stops on: asked and answered...
+    expect(w.store.peek(w.pf.keyFor('R30', '1')).bars.at(-1).t).toBe(OPEN + 30 * 60)   // ...with the closed minute
+    expect(w.pf.peekDisplayable('R31', '1')).toBe(true)        // and the next row is current for the next press
+    hold.clear()
+    w.store.dispose()
+  })
+
+  it('B2 a tail ask for a row the member passed is aborted: never answered, no cooldown, asked again on return, no error', async () => {
+    vi.setSystemTime(at(10, 0, 50))
+    const w = await boot('closed')
+    const L = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
+    await warmAll(w, L, '1')
+    const hold = w.pf.createNeighborHold()
+    hold.set(L, '1', { tail: ['B', 'C'], selected: 'A' })       // the list opens on A
+    await tick(11_000)                                          // 10:01:01: every row one bucket behind
+    const before = w.server.calls.length
+    const tailOf = (sym) => w.server.calls.slice(before).filter((c) => c.q.warm && c.q.sym === sym)
+    // a slow server: nothing is answered while the member moves on, 0.4 s a press (not a held arrow)
+    hold.set(L, '1', { tail: ['C', 'D', 'A'], selected: 'B' })
+    await w.server.flush()
+    await tick(400)
+    hold.set(L, '1', { tail: ['D', 'E', 'B'], selected: 'C' })  // C (selected) and A leave the tail
+    await w.server.flush()
+    await tick(400)
+    hold.set(L, '1', { tail: ['E', 'F', 'C'], selected: 'D' })  // D (selected) and B leave
+    await w.server.flush()
+    expect(w.live.maxBg).toBeLessThanOrEqual(3)
+    await w.server.drain()                                      // the server answers whatever is still asked
+    for (const sym of ['A', 'B', 'D']) {
+      for (const c of tailOf(sym)) expect(c.aborted).toBe(true) // sent and cancelled, or never sent: never answered
+    }
+    const kB = w.pf.keyFor('B', '1')
+    expect(w.store.peek(kB)?.error ?? null).toBe(null)           // not an error
+    // not an answer: B does not cool. (A warm never re-asks a held server answer it would flip to, so the probe is a warm
+    // that wants more depth than B holds: it asks unless B is cooling, prefetch `_cooling`.)
+    const b0 = w.server.calls.length
+    w.pf.prefetch([kB], { priority: 'urgent', depth: 1_000_000 })
+    await w.server.flush(40)
+    expect(w.server.calls.slice(b0).filter((c) => c.q.sym === 'B').length).toBe(1)
+    await w.server.drain()
+    await tick(400)
+    const a0 = tailOf('A').length
+    hold.set(L, '1', { tail: ['C', 'D', 'A'], selected: 'B' })  // the member comes back, 1.2 s after A's first ask
+    await w.server.flush()
+    await w.server.drain()
+    expect(tailOf('A').length - a0).toBe(1)                     // A is asked again: its aborted ask was not counted
+    hold.clear()
+    w.store.dispose()
+  })
+
+  it('B3 at most 3 tail asks in flight per hold, whatever the tail it is given', async () => {
+    vi.setSystemTime(at(10, 0, 50))
+    const w = await boot('closed')
+    const L = ['A', 'B', 'C', 'D', 'E', 'F']
+    await warmAll(w, L, '1')
+    const hold = w.pf.createNeighborHold()
+    hold.set(L, '1', { tail: [], selected: 'A' })
+    await tick(11_000)
+    const before = w.server.calls.length
+    hold.set(L, '1', { tail: ['B', 'C', 'D', 'E', 'F'], selected: 'X' })   // five rows behind
+    await w.server.flush()
+    expect(w.live.maxBg).toBe(3)
+    await w.server.drain()
+    expect(w.server.calls.slice(before).filter((c) => c.q.warm).length).toBe(3)
+    hold.clear()
+    w.store.dispose()
+  })
+
+  it("B4 a row's count in its bucket survives a long sweep (the bound is the bucket, not the last 64 rows)", async () => {
+    vi.setSystemTime(at(10, 0, 1))
+    const w = await boot('behind')                              // every answer ends at 09:40: every row stays behind
+    const R = Array.from({ length: 70 }, (_, i) => `Q${String(i).padStart(2, '0')}`)
+    const ALL = ['X', ...R]
+    await warmAll(w, ALL, '1')
+    const hold = w.pf.createNeighborHold()
+    hold.set(ALL, '1', { tail: [], selected: 'open' })          // the list opens
+    await tick(7_000)                                           // 10:00:08, past every warm answer's grace
+    const before = w.server.calls.length
+    let n = 0
+    const step = async (tail) => { hold.set(ALL, '1', { tail, selected: `s${++n}` }); await w.server.drain(); await tick(300) }
+    await step(['X'])                                           // X asked (1)
+    await tick(5_000)
+    await step(['X'])                                           // and once more, spaced (2): its last in this bucket
+    expect(asksOf(w, 'X', before)).toBe(2)
+    for (const q of R) await step([q])                          // 70 other rows pass through the tail, 0.3 s apart
+    await step(['X'])                                           // 10:00:35: X is back, same bucket
+    expect(asksOf(w, 'X', before)).toBe(2)                      // not a third time
+    hold.clear()
+    w.store.dispose()
   })
 })
