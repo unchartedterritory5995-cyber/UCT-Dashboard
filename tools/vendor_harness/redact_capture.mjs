@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 // tools/vendor_harness/redact_capture.mjs
 //
 // ⛔⛔ TRADINGVIEW'S COMPILED SCRIPT NEVER ENTERS THIS PUBLIC REPO (coordinator ruling 2026-11-23). A capture's
