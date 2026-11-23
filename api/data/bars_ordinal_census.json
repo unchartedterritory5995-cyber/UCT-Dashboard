@@ -723,7 +723,7 @@
       ],
       "evidence": {
         "pattern": "int-subscript",
-        "index": 0
+        "index": 1
       }
     },
     "api/services/screener/sparks.py": {
