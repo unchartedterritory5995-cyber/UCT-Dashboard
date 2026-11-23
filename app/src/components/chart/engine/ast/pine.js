@@ -18244,9 +18244,22 @@ export function chartOnlySentence(word, how = {}) {
       : `${code} is drawn: it recolours the chart's own candles, bar by bar; it is not a column, so ${SCREEN_READS}`
   }
   if (word === 'hline') {
-    if (host) return `${code} is not drawn on this chart: this door does not carry a horizontal level yet, and ${SCREEN_READS} either`
-    if (how.site === 'top' && how.level) return `${code} draws a horizontal level; this door carries it as a level line for a chart, and ${SCREEN_READS}`
-    return `${code} draws a horizontal level; ${how.site === 'bound' ? 'assigned to a name it' : 'its price is not a fixed number this door can read, so it'} is not carried, and ${SCREEN_READS} either`
+    // ⭐⭐ e96 — `how.level` is `resolveHlineLevels`' read of THIS call: `{level}` (drawn, or hidden by
+    // its author's `display.none`) or `{withheld}` (the reason). The member document draws exactly the
+    // `level`s it carries (`hlineLevels.js::hlineGuides`), on both doors; `chartOnly.test.js` rails each
+    // sentence against that document.
+    const read = how.level || null
+    const lv = read && read.level
+    if (!lv) {
+      const why = (read && read.withheld) || 'it could not be read as a level'
+      return host
+        ? `${code} is not drawn: ${why}, and ${SCREEN_READS} either`
+        : `${code} draws a horizontal level; ${why}, so it is not carried, and ${SCREEN_READS} either`
+    }
+    if (!host) return `${code} draws a horizontal level; this door carries it as a level line for a chart, and ${SCREEN_READS}`
+    if (lv.hidden) return `${code} has \`display = display.none\`, so it is not drawn — TradingView does not draw it either`
+    const at = lv.input && lv.input.name ? `the setting \`${lv.input.name}\` (${lv.value} by default)` : String(lv.value)
+    return `${code} is drawn: a horizontal level at ${at} across this script's pane; it is not a column, so ${SCREEN_READS}`
   }
   if (word === 'fill') {
     // ⭐ G-h (r1) — a band withheld because its colour reads a block this chart cannot
@@ -18254,10 +18267,16 @@ export function chartOnlySentence(word, how = {}) {
     if (host && how.site === 'top' && typeof how.withheld === 'string' && how.withheld) {
       return `${code} is not drawn: its colour is withheld — ${how.withheld}`
     }
+    // ⭐ e96 — `how.levels`: the band's two edges are two `hline`s (`presentation.levelFills`)
+    const edges = how.levels ? 'levels' : 'plots'
     if (how.site === 'top' && how.band) {
       return host
-        ? `${code} is carried as the band between its two plots; it is not a column, so ${SCREEN_READS}`
-        : `${code} shades the band between two plots; this door carries it as that band for a chart, and ${SCREEN_READS}`
+        ? `${code} is carried as the band between its two ${edges}; it is not a column, so ${SCREEN_READS}`
+        : `${code} shades the band between two ${edges}; this door carries it as that band for a chart, and ${SCREEN_READS}`
+    }
+    if (how.levels && how.site === 'top') {
+      const lw = 'one of its two levels is not drawn (its own line says why)'
+      return host ? `${code} is not drawn: ${lw}` : `${code} shades the band between two levels; ${lw}, so it is not carried, and ${SCREEN_READS} either`
     }
     const why = how.site === 'bound' ? 'a `fill` assigned to a name is not read' : 'its two edges are not both plots this door carries'
     return host ? `${code} is not drawn: ${why}` : `${code} shades the band between two plots; ${why}, so it is not carried, and ${SCREEN_READS} either`
@@ -29109,6 +29128,11 @@ function translatePineResult(source, opts = {}) {
   // PRICE-SCALE JOIN: which scale the declaration puts the script on (`declarationScale`).
   let declScale = null
   const levels = []
+  /** ⭐⭐ e96 — every `hline(…)` the script writes, bare (`hline(70)`) or bound to a handle
+   *  (`h = hline(70)`), in source order: its arguments and the scope they were written in.
+   *  Read once after the walk (`resolveHlineLevels`), with a resolver, so an input-bound
+   *  price is read as the setting it is; `levels` is what that read carries. */
+  const hlineCalls = []
   /** ⭐ C1-B — every `fill(handleA, handleB, …)` the script writes, by HANDLE.
    *  Resolved to output indexes after the outputs are known, because a fill may
    *  legally appear before either plot it joins. */
@@ -30264,6 +30288,19 @@ function translatePineResult(source, opts = {}) {
       if (rhs[0].kind === 'ident' && CHART_ONLY_CALLS.has(rhs[0].value) && isPunct(rhs[1], '(')) {
         markOpaque(nameTok.value, 'pine:drawing', locate(rhs[0]),
           `\`${nameTok.value}\` holds a \`${rhs[0].value}\` handle, which is a chart object rather than a number`)
+        // ⭐⭐ e96 — `h = hline(70)` IS STILL A LEVEL: the handle is what a `fill(h1, h2)` joins, and
+        // the call draws its line exactly as a bare one does (970 of the full census's 2,082 `hline`
+        // calls are bound). Read with the bare ones, after the walk, under its handle's name.
+        if (rhs[0].value === 'hline') {
+          const how = { lane: isHostLane(opts) ? 'host' : 'screen', site: 'top', level: null }
+          const note = noteOf('pine:chart-only', chartOnlyNote('hline', how), rhs[0])
+          notes.push(note)
+          const rec = { args: hlineArgsOf(rhs.slice(2)), env: new Map(env), tok: rhs[0], handle: nameTok.value,
+            ordinal: hlineCalls.length }
+          hlineCalls.push(rec)
+          chartOnlyPending.push({ note, word: 'hline', how, hline: rec })
+          continue
+        }
         notes.push(noteOf('pine:chart-only',
           chartOnlyNote(rhs[0].value, { lane: isHostLane(opts) ? 'host' : 'screen', site: 'bound' }), rhs[0]))
         continue
@@ -30422,26 +30459,18 @@ function translatePineResult(source, opts = {}) {
       // ⛔ IT STILL EMITS THE CHART-ONLY NOTE. The level is now CARRIED, but the
       // call is still not a column, and the member's disclosure list should keep
       // saying so.
+      // ⭐⭐ e96 — …AND IT IS READ ONCE, AFTER THE WALK, WITH A RESOLVER (`resolveHlineLevels`), the way
+      // a `fill`'s colour and a paint are: so a price that is a SETTING (`ob = input.int(70)`,
+      // `hline(ob)`) is carried as that setting, a negative literal folds, and the sentence is said
+      // once the outcome is known (`chartOnlyPending`).
       if (word === 'hline') {
-        let hlineLevel = false
-        try {
-          const hargs = parseArguments(new Cursor(toks.slice(2)))
-          const positional = hargs.filter((a) => !a.name)
-          const priceArg = hargs.find((a) => a.name === 'price') || positional[0]
-          const titleArg = hargs.find((a) => a.name === 'title') || positional[1]
-          const v = numberValue(priceArg && priceArg.value)
-          if (v !== null) {
-            hlineLevel = true
-            levels.push({
-              value: v,
-              title: titleArg && titleArg.value && titleArg.value.type === 'string'
-                ? titleArg.value.value : null,
-              ...outputPresentation(hargs),
-            })
-          }
-        } catch { /* a level this grammar cannot fold stays an ignored line */ }
-        notes.push(noteOf('pine:chart-only',
-          chartOnlyNote(word, { lane: isHostLane(opts) ? 'host' : 'screen', site: 'top', level: hlineLevel }), first))
+        const how = { lane: isHostLane(opts) ? 'host' : 'screen', site: 'top', level: null }
+        const note = noteOf('pine:chart-only', chartOnlyNote(word, how), first)
+        notes.push(note)
+        const rec = { args: hlineArgsOf(toks.slice(2)), env: new Map(env), tok: first, handle: null,
+          ordinal: hlineCalls.length }
+        hlineCalls.push(rec)
+        chartOnlyPending.push({ note, word, how, hline: rec })
         continue
       }
       // ⭐⭐ C1-B — `fill(handleA, handleB, color = …)` IS THE BAND.
@@ -31159,6 +31188,13 @@ function translatePineResult(source, opts = {}) {
         hiddenReason: authorHid ? 'author' : fillAnchor ? 'fill-anchor' : flat ? 'constant' : null,
         refusal: null,
       }
+      // ⭐⭐ e96 — A CANDLE'S OWN FACTS, ON ITS CLOSE ROW: where and whether TradingView draws it (`show_last`,
+      // `display`, `force_overlay`) and the colour of its body, wick and border, each as the PACKED colour the
+      // chart's candle reads per bar (`binder.computedOhlcPayload`), or why it cannot be carried. The member door
+      // asks the one candle rule both doors share (`memberPaneDefinition.js::candleRule`) whether it is drawn.
+      if (out.role === 'close' && Object.prototype.hasOwnProperty.call(MULTI_OUTPUT_CALLS, out.kind)) {
+        row.candle = candleFactsOf(args, out.kind, { env, resolver, bodyPres: row.presentation })
+      }
       Object.defineProperty(row, '_bareRole', { value: bareRole, enumerable: false })
       // ⭐ C29 — this plot folded a chart-period value (`periodReads.js` refuses
       // it, and only it, on a chart of another period). A hand-off, non-enumerable.
@@ -31754,11 +31790,23 @@ function translatePineResult(source, opts = {}) {
   // settled and a resolver of their own (as the fills below get theirs). Host lane
   // only: `paints` is empty on the screener lane by construction.
   const paintRecs = paints.length ? resolvePaints(paints, { resolver: makeResolver(), version, hostLane: isHostLane(opts) }) : null
+  // ⭐⭐ e96 — THE LEVELS (`hline`), read once with every name settled, each in the scope it was
+  // written in. `levels` carries the drawable ones (a fixed number, or one setting at its value);
+  // a level it cannot read is withheld by name in its own sentence (`chartOnlySentence`).
+  const hlineReads = hlineCalls.length
+    ? resolveHlineLevels(hlineCalls, { makeResolver, version, notes }) : []
+  for (const h of hlineReads) if (h.level) levels.push(h.level)
+  // …and the ones it could not read, by ordinal and line, so a document can account for every `hline` the
+  // script writes (drawn, hidden by its author, or withheld by name). Present only when there are any.
+  const levelsWithheld = hlineReads.map((h, i) => (h.level ? null : {
+    ordinal: i, line: (locate(hlineCalls[i].tok) || {}).line ?? null, reason: h.withheld,
+  })).filter(Boolean)
   // ⭐ B1 (step 61) — the deferred sentences, said once the outcome is known. A
   // fill not yet resolved (the no-output return below has no plots) keeps its
   // `band: false` sentence, which is then the true one.
   const sayChartOnly = () => {
     for (const p of chartOnlyPending) {
+      if (p.hline) p.how.level = hlineReads[p.hline.ordinal] || null
       if (p.paint) p.how.paint = paintRecs ? paintRecs[paints.indexOf(p.paint)] || null : null
       if (p.fillRec) p.how.band = carriedFills.has(p.fillRec)
       // ⭐ G-h (r1) — a band G-h withheld says why, by its gate's own sentence
@@ -31842,7 +31890,7 @@ function translatePineResult(source, opts = {}) {
       : refusalValue(guard, REFUSALS[guard], null)
     return {
       ok: false, version, declaration, title, outputs: [], selected: -1,
-      presentation: { overlay, levels, ...(paintRecs ? { paints: paintRecs } : {}) },
+      presentation: { overlay, levels, ...(levelsWithheld.length ? { levelsWithheld } : {}), ...(paintRecs ? { paints: paintRecs } : {}) },
       notes: withExcerpts(notes, lines),
       refusal: hardRefusals[0] || r,
       refusals: withExcerpts(hardRefusals.length ? refusals : [r, ...refusals], lines),
@@ -31973,6 +32021,19 @@ function translatePineResult(source, opts = {}) {
   // ⭐ C1-B's bands, resolved HERE rather than inside the literal below, so the
   // `fill` sentences can say whether each band was carried (B1, step 61).
   const presentationFills = resolveFillHandles(fills, outputs, resolved, { env, resolver: makeResolver(), carried: carriedFills, withheld: withheldFills, version, hostLane: isHostLane(opts) })
+  // ⭐⭐ e96 — A BAND BETWEEN TWO LEVELS (`h1 = hline(70)`, `h2 = hline(30)`, `fill(h1, h2)`), read by the SAME
+  // `resolveFillHandles` a band between two plots is (its colour, its static opacity rule), with each level's call
+  // standing as the edge: `a` / `b` are the two `hline` ordinals. A level that is not read, or hidden by its author,
+  // is not an edge, so the band is not carried and says why. The member door draws it on the existing band mechanism
+  // (`memberPaneDefinition.js`: two hidden rows at the two levels).
+  const levelHandles = new Map(hlineCalls.filter((h) => h.handle).map((h) => [h.handle, h.ordinal]))
+  const levelFillRecs = fills.filter((f) => levelHandles.has(f.a) && levelHandles.has(f.b))
+  const presentationLevelFills = levelFillRecs.length
+    ? resolveFillHandles(levelFillRecs, hlineCalls.map((h) => ({ handle: h.handle })),
+      hlineReads.map((h) => (h.level && !h.level.hidden ? { refusal: null } : { refusal: 'not an edge' })),
+      { env, resolver: makeResolver(), carried: carriedFills, withheld: withheldFills, version, hostLane: isHostLane(opts) })
+    : []
+  for (const p of chartOnlyPending) if (p.fillRec && levelFillRecs.includes(p.fillRec)) p.how.levels = true
   sayChartOnly()
 
   const result = {
@@ -32001,10 +32062,14 @@ function translatePineResult(source, opts = {}) {
       // Present only when the declaration passes `scale =`, so every other result keeps its shape.
       ...(declScale ? { scale: declScale } : {}),
       levels,
+      // ⭐ e96 — the `hline`s this door could not read, by ordinal and reason; present only when there are any.
+      ...(levelsWithheld.length ? { levelsWithheld } : {}),
       // ⭐ (j) j.3b — `resolver` reaches the fills HERE and nowhere earlier; it does
       // not exist at collection time, which is why a conditional fill colour was
       // uncarried for the whole of a6.
       fills: presentationFills,
+      // ⭐ e96 — the bands between two levels, by `hline` ordinal; present only when there are any.
+      ...(presentationLevelFills.length ? { levelFills: presentationLevelFills } : {}),
       // ⭐ B1 — present only for a host-lane script that writes a paint, so every
       // other result keeps its exact shape.
       ...(paintRecs ? { paints: paintRecs } : {}),
@@ -34469,6 +34534,220 @@ function hangColourGates(holder, gates) {
     const had = Array.isArray(rule[COLOUR_BLOCK_RUNS]) ? rule[COLOUR_BLOCK_RUNS] : []
     Object.defineProperty(rule, COLOUR_BLOCK_RUNS, { value: [...had, ...gates], enumerable: false, configurable: true })
   }
+}
+
+/** ⭐⭐ e96 — `hline`'s parameters in Pine's positional order (v4-v6; v1-v3 stop at `editable`). */
+const HLINE_POSITIONAL = Object.freeze(['price', 'title', 'color', 'linestyle', 'linewidth', 'editable', 'display'])
+/** ⭐ e96 — the line styles an `hline` names, as the chart's style vocabulary
+ *  (`defSchema.PLOT_LINE_STYLES`) spells them. v1-v3 also spell them bare. */
+const HLINE_STYLE_OF = Object.freeze({
+  'hline.style_solid': 'solid', 'hline.style_dotted': 'dotted', 'hline.style_dashed': 'dashed',
+})
+const HLINE_BARE_STYLE_OF = Object.freeze({ solid: 'solid', dotted: 'dotted', dashed: 'dashed' })
+
+/** An `hline(…)` call's arguments (the tokens after its `(`), or null when they do not parse. */
+function hlineArgsOf(toks) {
+  try { return parseArguments(new Cursor(toks)) } catch { return null }
+}
+
+/** ⭐⭐ e96 — EVERY `hline` THE SCRIPT WRITES, READ AS THE LEVEL IT DRAWS (or why it cannot be).
+ *
+ *  One read per call, in source order (`calls[i].ordinal === i`), each in the scope it was written in,
+ *  with a resolver of its own, so the PRICE is read as Pine computes it: a literal (a negative one
+ *  folds), a constant, or ONE SETTING (`ob = input.int(70)`, `hline(ob)`), carried as that setting
+ *  (`input`: its folded entry, the same record a plot's `inputsFolded` holds) so the member door binds
+ *  the line to the member's own value (`hlineLevels.js`). A price that is neither a fixed number nor a
+ *  single setting is WITHHELD by name. ⛔ Reading a price mints no parameter (`paramMint` off) and
+ *  leaves no note behind: the translation of every other line is what it was.
+ *
+ *  The presentation is what the author WROTE, `outputPresentation` reading the colour and width as it
+ *  does a plot's, plus the line style and `display`. A style field the author wrote in a form this door
+ *  cannot read is listed in `unread`, never guessed; a field the author did not write is absent here,
+ *  and TradingView's default for it is `hlineLevels.js`'s (a witnessed table).
+ *
+ *  @returns {Array<{level: object}|{withheld: string}>} */
+function resolveHlineLevels(calls, { makeResolver, version, notes }) {
+  return calls.map((rec) => {
+    const at = locate(rec.tok)
+    const line = at ? at.line : null
+    if (!rec.args) return { withheld: 'its arguments could not be read' }
+    const byName = new Map()
+    let k = 0
+    for (const a of rec.args) {
+      const nm = a.name || HLINE_POSITIONAL[k++]
+      if (nm && !byName.has(nm)) byName.set(nm, a)
+    }
+    const priceArg = byName.get('price')
+    if (!priceArg) return { withheld: 'it names no price' }
+    // ── the price ──
+    let r = null
+    try { r = makeResolver(rec.env) } catch { r = null }
+    if (!r) return { withheld: 'its price is not a fixed number this door can read' }
+    const n0 = notes.length
+    const minted = r.paramMint
+    r.paramMint = null
+    const before = new Set(r.usedInputs.keys())
+    let ast = null
+    try { ast = r.resolve(priceArg.value) } catch { ast = null } finally {
+      r.paramMint = minted
+      notes.length = n0
+    }
+    const used = [...r.usedInputs.entries()].filter(([key]) => !before.has(key)).map(([, e]) => e)
+    // a canonical number: `num`, or a negative one, which is `u-` over a positive `num` (`cNum`)
+    const numberOf = (n) => (n && n.type === 'num' && Number.isFinite(n.value) ? n.value
+      : n && n.type === 'op' && n.name === 'u-' && n.args && n.args.length === 1 && n.args[0].type === 'num'
+        && Number.isFinite(n.args[0].value) ? -n.args[0].value : null)
+    const fromSettings = () => ({ withheld: 'its price is computed from settings (`' + used.map((e) => e.name || '?').join('`, `')
+      + '`), and a level follows one setting or none' })
+    let value = numberOf(ast)
+    let input = null
+    if (value !== null) {
+      if (used.length === 1 && used[0].name && Number(used[0].folded) === value) input = used[0]
+      else if (used.length) return fromSettings()
+    } else if (ast && ast.type === 'series' && used.length === 1 && used[0].name === ast.name
+        && Number.isFinite(Number(used[0].folded))) {
+      value = Number(used[0].folded)
+      input = used[0]
+    } else if (used.length) {
+      return fromSettings()
+    } else {
+      return { withheld: 'its price is not one fixed number or one setting this door can read' }
+    }
+    // ── what it is called, and how it looks ──
+    const titleArg = byName.get('title')
+    const title = titleArg && titleArg.value && titleArg.value.type === 'string' ? titleArg.value.value : null
+    const unread = []
+    const presArgs = ['color', 'linewidth'].filter((n) => byName.has(n)).map((n) => ({ ...byName.get(n), name: n }))
+    let pres = {}
+    try { pres = outputPresentation(presArgs, { env: rec.env }) || {} } catch { pres = {} }
+    const colour = {}
+    if (byName.has('color')) {
+      if (typeof pres.color === 'string' && !pres.colorWithheld) {
+        colour.color = pres.color
+        if (Number.isFinite(pres.opacity)) colour.opacity = pres.opacity
+      } else unread.push('color')
+    }
+    let width
+    if (byName.has('linewidth')) {
+      if (Number.isFinite(pres.width) && pres.width > 0) width = pres.width
+      else unread.push('width')
+    }
+    let lineStyle
+    if (byName.has('linestyle')) {
+      const sn = byName.get('linestyle').value
+      const nm = sn && sn.type === 'name' ? sn.name : null
+      const legacyBare = !Number.isInteger(version) || version <= 3
+      lineStyle = (nm && HLINE_STYLE_OF[nm]) || (nm && legacyBare && HLINE_BARE_STYLE_OF[nm]) || undefined
+      if (!lineStyle) unread.push('lineStyle')
+    }
+    let hidden = false
+    if (byName.has('display')) {
+      const dn = byName.get('display').value
+      const nm = dn && dn.type === 'name' ? dn.name : null
+      if (nm === 'display.none') hidden = true
+      else if (nm !== 'display.all') return { withheld: 'its `display` is not one this door can read' }
+    }
+    return {
+      level: {
+        value,
+        title,
+        ...colour,
+        ...(width !== undefined ? { width } : {}),
+        ...(lineStyle ? { lineStyle } : {}),
+        ...(hidden ? { hidden: true } : {}),
+        ...(input ? { input: { ...input } } : {}),
+        ...(unread.length ? { unread } : {}),
+        ...(rec.handle ? { handle: rec.handle } : {}),
+        ordinal: rec.ordinal,
+        line,
+      },
+    }
+  })
+}
+
+/** ⭐⭐ e96 — `plotcandle` / `plotbar` parameters in Pine's positional order (v5/v6). */
+const CANDLE_POSITIONAL = Object.freeze({
+  plotcandle: Object.freeze(['open', 'high', 'low', 'close', 'title', 'color', 'wickcolor', 'editable', 'show_last',
+    'bordercolor', 'display', 'format', 'precision', 'force_overlay']),
+  plotbar: Object.freeze(['open', 'high', 'low', 'close', 'title', 'color', 'editable', 'show_last', 'display',
+    'format', 'precision', 'force_overlay']),
+})
+const CANDLE_COLOUR_PARAMS = Object.freeze({ plotcandle: ['color', 'wickcolor', 'bordercolor'], plotbar: ['color'] })
+
+/** ⭐⭐ e96 — a candle colour as the PACKED per-bar colour the chart's candle reads (`0xTTBBGGRR`,
+ *  `runtime/colours.js`): one static colour, or a two-colour rule over its condition, as a tree; anything else
+ *  is `{withheld}` with the reason. ⛔ Never a guess: a colour this cannot pack is withheld, never approximated. */
+function packedColourTreeOf(pres) {
+  const packed = (hex, opacity) => {
+    if (typeof hex !== 'string') return null
+    let h = hex
+    if (/^#[0-9a-f]{6}$/i.test(h) && Number.isFinite(opacity) && opacity < 1) {
+      h += Math.round(Math.max(0, opacity) * 255).toString(16).padStart(2, '0')
+    }
+    return objectHexToPacked(h)
+  }
+  const tree = (ast) => {
+    const formula = printFormula(ast)
+    verifyRoundTrip(formula, ast)
+    return { ast, formula }
+  }
+  if (!pres || pres.colorWithheld || pres.colorDynamic || pres.colorDynamicArity !== undefined) {
+    return { withheld: 'its colour is an expression this door cannot read yet' }
+  }
+  if (typeof pres.color === 'string') {
+    const p = packed(pres.color, pres.opacity)
+    return p === null ? { withheld: 'its colour is not one a candle here can carry' } : tree(cNum(p))
+  }
+  if (typeof pres.colorUp === 'string' && typeof pres.colorDown === 'string' && pres.colorCondition && pres.colorCondition.ast) {
+    const up = packed(pres.colorUp, pres.opacity)
+    const down = packed(pres.colorDown, pres.opacity)
+    if (up === null || down === null) return { withheld: 'its colour is not one a candle here can carry' }
+    return tree(cOp('?:', [pres.colorCondition.ast, cNum(up), cNum(down)]))
+  }
+  return { withheld: 'its colour picks among more than two colours, or by a rule a candle here cannot carry yet' }
+}
+
+/** ⭐⭐ e96 — what a `plotcandle` / `plotbar` call says about where it is drawn and in what colours (the close row
+ *  carries it, `row.candle`): `showLast`, `display` (the constant's name, or `'unread'`), `forceOverlay`
+ *  (`true` / `false` / `'unread'`), and `colours[param]` for each colour the call WRITES (absent when it does not). */
+function candleFactsOf(args, kind, ctx) {
+  const byName = new Map()
+  let k = 0
+  for (const a of args || []) {
+    const nm = a.name || CANDLE_POSITIONAL[kind][k++]
+    if (nm && !byName.has(nm)) byName.set(nm, a)
+  }
+  const facts = { call: kind, colours: {} }
+  const titleArg = byName.get('title')
+  if (titleArg && titleArg.value && titleArg.value.type === 'string') facts.title = titleArg.value.value
+  if (byName.has('show_last')) facts.showLast = true
+  if (byName.has('display')) {
+    const d = byName.get('display').value
+    facts.display = d && d.type === 'name' ? d.name : 'unread'
+  }
+  if (byName.has('force_overlay')) {
+    const f = byName.get('force_overlay').value
+    const tok = f && f.type === 'number' && f.tok ? f.tok.value : null
+    facts.forceOverlay = tok === 'true' ? true : tok === 'false' ? false : 'unread'
+  }
+  // ⭐ ONE READ PER DISTINCT COLOUR: the body's is the row's own (`bodyPres`, read once already), and a wick or
+  // border written as the same name as the body (`color = c, wickcolor = c`) is that same read, not a second one
+  const sameAsBody = (param) => {
+    const a = byName.get(param) && byName.get(param).value
+    const b = byName.get('color') && byName.get('color').value
+    return !!(a && b && a.type === 'name' && b.type === 'name' && a.name === b.name)
+  }
+  for (const param of CANDLE_COLOUR_PARAMS[kind]) {
+    if (!byName.has(param)) continue
+    if (param !== 'color' && sameAsBody(param) && facts.colours.color) { facts.colours[param] = facts.colours.color; continue }
+    let pres = null
+    if (param === 'color' && ctx.bodyPres) pres = ctx.bodyPres
+    else {
+      try { pres = outputPresentation([{ ...byName.get(param), name: 'color' }], { env: ctx.env, resolver: ctx.resolver, kind }) } catch { pres = null }
+    }
+    try { facts.colours[param] = packedColourTreeOf(pres) } catch { facts.colours[param] = { withheld: 'its colour could not be read' } }
+  }
+  return facts
 }
 
 function resolvePaints(paints, ctx) {

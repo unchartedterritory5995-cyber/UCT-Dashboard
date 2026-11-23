@@ -51,8 +51,8 @@
        "note": "This script is drawn by running it bar by bar, the way TradingView does, because a single formula per line cannot hold it. Its settings can be changed like any indicator's; a value outside the script author's own bounds or options is refused by name, never stretched to fit."
       },
       {
-       "name": "Not drawn by this pane",
-       "note": "This script also writes a horizontal line, which a script drawn bar by bar does not draw here yet. Those are not drawn here."
+       "name": "hline 1",
+       "note": "`hline 1`: style not reproduced: TradingView's default line style for a v4 `hline` is not captured; TradingView's default line width for a v4 `hline` is not captured. The level is drawn at its exact price, in the chart's text colour, solid and 1 px wide, rather than in a style the script does not choose."
       }
      ],
      "requirementTags": []
@@ -158,6 +158,17 @@
        "decimals": 2
       },
       "forward": 0
+     },
+     {
+      "key": "hline1",
+      "label": "hline 1",
+      "style": "hlines",
+      "levels": [
+       "$th"
+      ],
+      "color": "chart.fg_color",
+      "width": 1,
+      "lineStyle": "solid"
      }
     ]
    }
