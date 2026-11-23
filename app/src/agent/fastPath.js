@@ -19,7 +19,7 @@
 
 import { allCapabilityNames, getCapability, onSurface } from './capabilities'
 import { lexiconFor, correctTypos, setBaseSources } from './nl/lexicon'
-import { chartQualifier, ordinalChart, ORD_RE } from './deixis'
+import { chartQualifier, ordinalChart, ORD_RE, timeframeSetOf } from './deixis'
 import { spatialTargetSpan } from './spatialCheck'
 
 // Phase 1: "change MY chart to 15 minutes", "change the timeframe to daily", "switch to the 15 minute"
@@ -136,7 +136,7 @@ const POS_RE = new RegExp(`\\b(?:(?:on|for|in|to)\\s+)?the\\s+${POS}${NOUN}?\\b|
 // P2-B: "all four charts", "all 3 of them" — the COUNT the member said is kept, and checked against the
 // board by the orchestrator (a mismatch asks; it never changes a different set of charts than they counted)
 // ⭐ acceptance 2026-10-29: "each", "each of them", "every one of them", "each one" too ("…, with a 50 sma on each")
-const ALL_RE = /\b(?:(?:on|for|in|to)\s+)?(both|all|every|each)(?:\s+one)?(?:\s+(?:the|of the))?(?:\s+(two|three|four|five|six|seven|eight|nine|ten|\d{1,2}))?(?:\s+(?:charts?|of them|ones))?\b/i
+const ALL_RE = /\b(?:(?:on|for|in|to|onto|into|from|off|across)\s+)?(both|all|every|each)(?:\s+one)?(?:\s+(?:the|of the))?(?:\s+(two|three|four|five|six|seven|eight|nine|ten|\d{1,2}))?(?:\s+(?:charts?|of them|ones))?\b/i
 const PLURAL_RE = /(?:\b(?:on|for|in|to)\s+)?(?:\b(?:them|those|these)\b|(?:^|\s)'?em\b)/i
 const COUNT_WORD = { two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 }
 const NORM_POS = { upper: 'top', lower: 'bottom' }
@@ -146,6 +146,17 @@ const cut = (s, m) => (s.slice(0, m.index) + ' ' + s.slice(m.index + m[0].length
 export function extractTarget(text, host = null) {
   // ⭐ PHASE 2: "make them all daily", "switch them both to weekly" — the pronoun belongs to the "all" / "both"
   const s = String(text || '').replace(/\b(?:them|those|these) (all|both)\b/i, '$1')
+  // ⭐ C2 family: "add rsi to all the daily charts" — the charts on that timeframe (deixis.timeframeSetOf), read before "all":
+  // two or more → that set (never widened to the board); one → that chart; none → asked, nothing runs
+  const tfs = host ? timeframeSetOf(s, host.charts?.list?.() || []) : null
+  if (tfs) {
+    const rest = cut(s, tfs.match).replace(/\s+(?:on|to|onto|for|in|into|from|off|across)$/i, '')
+    const board = host.charts.list()
+    const target = tfs.refs.length > 1 ? { all: true, refs: tfs.refs, line: true }
+      : tfs.refs.length === 1 ? { chart: tfs.refs[0], word: tfs.word }
+        : { ask: { text: `None of the charts here is on ${tfs.word} — which chart do you mean?`, choices: board.map(c => ({ ref: c.ref, label: c.label })) } }
+    return { text: rest, target }
+  }
   const all = ALL_RE.exec(s)
   if (all) {
     const count = all[1].toLowerCase() === 'both' ? 2 : all[2] ? (COUNT_WORD[all[2].toLowerCase()] || Number(all[2])) : null

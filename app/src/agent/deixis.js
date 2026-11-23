@@ -592,6 +592,27 @@ function tfOfWord(w) {
   return /^h/.test(m[2]) ? String(Number(m[1]) * 60) : String(Number(m[1]))
 }
 
+// ── C2 family (multi-chart): a SET of charts named by their TIMEFRAME — "all the daily charts", "every weekly chart",
+// "the 5 minute charts", "each of my hourly charts". The set is the board's charts on that timeframe right now; it is a
+// set the member NAMED (like "both charts" or a whole row), so a plan on exactly those charts is identified and a plan on
+// any other chart is not. Never read beside a scope word ("only", "except", "but", "not" …): "only show RSI on the daily
+// charts" is a show-on policy and "every chart except the weekly ones" is an exclusion — both are other readers'.
+const TF_WORD = String.raw`(\d{1,3}\s*(?:m|min|mins|minute|minutes|h|hr|hour|hours)|1h|hourly|daily|weekly|monthly)`
+const TF_PREP = String.raw`(?:\b(?:on|to|onto|into|in|for|from|off|across)\s+)?`
+const TF_SET = new RegExp(String.raw`${TF_PREP}\b(?:(?:all|each|every one)(?:\s+of)?(?:\s+(?:the|my))?|the|my|those|these)\s+${TF_WORD}\s+(?:charts|ones)\b|${TF_PREP}\b(?:every|each)\s+${TF_WORD}\s+chart\b`, 'i')
+const TF_SET_SCOPE = /\b(?:only|just|except|but|not|other than|apart from|besides|excluding|exclude|skip|leave|without)\b/i
+/** → { match: {index, 0}, word, code, refs } (refs: the charts on that timeframe now, possibly none) | null (no such words). */
+export function timeframeSetOf(text, charts = []) {
+  const s = String(text || '')
+  if (TF_SET_SCOPE.test(s)) return null
+  const m = TF_SET.exec(s)
+  if (!m) return null
+  const word = (m[1] || m[2]).toLowerCase()
+  const code = tfOfWord(word)
+  if (!code) return null
+  return { match: { index: m.index, 0: m[0] }, word, code, refs: charts.filter(c => String(c.tf) === code).map(c => c.ref) }
+}
+
 /**
  * "the AMD chart" / "the 5 minute chart" / "the empty chart" / "the chart with RSI" — a chart named by what it IS right
  * now: the SYMBOL or TIMEFRAME it shows, its STATE, an INDICATOR on it (autotest multi-chart-04: every word the board can
@@ -1222,7 +1243,10 @@ export function screenUnnamedTargets({ host, ops, text, context = null, pickedRe
   // charts" — and, like a place, it is never a bare command the click answers
   const lineSet = wholeLinesNamed(words, charts)
   for (const r of lineSet) named.add(r)
-  const lineNamed = !!absLine?.line || lineSet.size > 0
+  // C2 family: "all the daily charts" names exactly the charts on that timeframe (and, like a line, the click never answers for it)
+  const tfSet = timeframeSetOf(words, charts)
+  for (const r of tfSet?.refs || []) named.add(r)
+  const lineNamed = !!absLine?.line || lineSet.size > 0 || !!tfSet
   // (#988, AUDIT probe 20 a) "other than the one I'm looking at, put THE REST on log": with the click negated, "the rest / the
   // others / everything else" names every chart but the click (a plan on the click is excluded by the negation screens)
   if (sel && !answered && REST_OF_BOARD.test(words) && negatedPointer(words)) for (const c of charts) if (c.ref !== sel) named.add(c.ref)
