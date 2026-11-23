@@ -33,6 +33,8 @@
 //   B3  at most 3 tail asks in flight per hold, whatever the tail it is given
 //   B4  a row's count in its bucket survives a long sweep (the bound is the bucket, not the last 64 rows)
 //   B5  (review of fb6fed4328) deliberate tapping, 150 ms between presses, is NOT a sweep: each press asks its rows
+//   B6  (review of fb6fed4328) the lag retry is for the server's write lag only: a name not printing (its answer more than
+//       one bucket behind) is never lag-retried
 // Real store, real network, real facade, a held fake server.
 import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest'
 import { installFakeIndexedDB } from './testing/fakeIndexedDB'
@@ -529,6 +531,24 @@ describe("re-review of #2619 (B): the tail's asks are bounded per hold, and a pa
     }
     expect(tailCalls().length).toBeGreaterThanOrEqual(10)       // the row entering as next+1 at each press, at least
     expect(w.P.TAIL_SWEEP_MS).toBeLessThan(150)
+    hold.clear()
+    w.store.dispose()
+  })
+
+  it('B6 a name not printing (more than one bucket behind) is never lag-retried', async () => {
+    vi.setSystemTime(at(10, 0, 50))
+    const w = await boot('behind')                              // every answer ends at 09:40
+    await warmAll(w, ['AAA', 'BBB'], '1')
+    const hold = w.pf.createNeighborHold()
+    hold.set(['AAA', 'BBB'], '1', { tail: ['BBB'], selected: 'X' })
+    await tick(11_000)                                          // 10:01:01, inside the boundary's lag window
+    const before = w.server.calls.length
+    hold.set(['AAA', 'BBB'], '1', { tail: ['BBB'], selected: 'Y' })   // a press: BBB asked, still far behind
+    await w.server.drain()
+    expect(w.server.calls.length - before).toBe(1)
+    await tick(7_000)
+    await w.server.drain()
+    expect(w.server.calls.length - before).toBe(1)              // no lag retry
     hold.clear()
     w.store.dispose()
   })
