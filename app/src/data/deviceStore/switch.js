@@ -39,7 +39,9 @@
 //                                                                                 Faster charts on this device → Off;
 //                                                                                 its "Automatic" REMOVES the key, never '1')
 //   'default-off'       no key, and the default reads OFF (a phone, a touch-tier tablet, a narrow window, a metered
-//                       connection: it changes from load to load)              -> KEPT, unused; deleted only once the
+//                       connection: it changes from load to load; or the code-level rollback, DEVICE_STORE_DEFAULT_ON
+//                       false: deviceStoreDefaultOffCause says which, for words only)
+//                                                                           -> KEPT, unused; deleted only once the
 //                                                                                 store has not run here for 30 days
 //                                                                                 (two off loads 24 h apart, residue.js)
 //   'chart-speed-kill'  CHART_SPEED_ENABLED (an incident lever for other features too) -> KEPT
@@ -67,10 +69,15 @@ export const DEVICE_STORE_DESKTOP_QUERY = `${MQ.desktop} and (hover: hover) and 
 /** Effective connection types that are metered or too slow for a ~80 MB seed. */
 const METERED_EFFECTIVE = new Set(['slow-2g', '2g', '3g'])
 
+/** Tests: DEVICE_STORE_DEFAULT_ON for this page load (null: the constant). The code-level rollback is the constant. */
+let _defaultSwitchForTests = null
+/** Is the default allowed to turn ON at all (DEVICE_STORE_DEFAULT_ON, or a test's forced value)? */
+function _defaultSwitchOn() { return _defaultSwitchForTests ?? DEVICE_STORE_DEFAULT_ON }
+
 /** Does the default turn the store ON in this browser (see the header)? Desktop only, never on a metered connection.
  *  Never throws; anything it cannot read answers OFF. Read once per page load, through `_defaultOn`. */
 export function deviceStoreDefaultOn() {
-  if (!DEVICE_STORE_DEFAULT_ON) return false
+  if (!_defaultSwitchOn()) return false
   try {
     const c = typeof navigator !== 'undefined' ? navigator.connection : null
     if (c && (c.saveData === true || c.type === 'cellular' || METERED_EFFECTIVE.has(String(c.effectiveType || '')))) return false
@@ -111,7 +118,8 @@ export function deviceStoreKeyState() {
 
 /** The key's state as it is stored NOW (read fresh, not latched; same names as deviceStoreKeyState). Settings → Faster
  *  charts on this device (pages/settings/FasterChartsCard.jsx) shows it beside this page load's answer, so a change the
- *  member just made reads as "applies on the next load". Never throws. */
+ *  member just made reads as "applies on the next load". The device client reads it too (client.js): a fresh 'off' (the
+ *  member's '0') stops the store in the load it was picked in; nothing else changes before the next load. Never throws. */
 export function deviceStoreKeyNow() { return _readKey() }
 
 function _read() {
@@ -139,8 +147,23 @@ export function deviceStoreOffReason() {
   return 'default-off'
 }
 
+/** When this page load is off BY DEFAULT (deviceStoreOffReason() 'default-off'), why, in the member's terms (Settings →
+ *  Faster charts on this device): 'rollout', the default is off for every browser (DEVICE_STORE_DEFAULT_ON false, the
+ *  code-level rollback); 'device', this window, pointer or connection does not qualify. null when the default did not
+ *  decide (a key, a kill, or ON). It refines the reason for words and never replaces it: the reason stays 'default-off'
+ *  in both cases, so source.js's deletion policy (its stale rule for 'default-off') cannot move (review of #2537 head
+ *  24fe13dc8f, Z-2). */
+export function deviceStoreDefaultOffCause() {
+  if (deviceStoreOffReason() !== 'default-off') return null
+  return _defaultSwitchOn() ? 'device' : 'rollout'
+}
+
 /** Tests: forget this page load's answer (a new page load). */
 export function __resetDeviceStoreSwitchForTests() { _decided = null; _key = null }
+
+/** Tests: DEVICE_STORE_DEFAULT_ON for this page load (true / false; null: the constant), as the code-level rollback
+ *  would set it. */
+export function __setDeviceStoreDefaultSwitchForTests(on) { _defaultSwitchForTests = on == null ? null : on === true; _decided = null }
 
 /** Tests: the default this page load uses when no key is stored (true / false; null: computed). */
 export function __setDeviceStoreDefaultForTests(on) { _defaultForTests = on == null ? null : on === true; _decided = null }

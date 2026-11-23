@@ -36,6 +36,14 @@
 // kept its worker and feed until a reload. The same visible beat reads them FRESH (lib/chartSpeed.deviceStoreKilledNow;
 // an auth answer refreshes them, and AuthContext re-asks /api/auth/me when a tab becomes visible): killed, the client
 // stops its worker for good (shutdown). Every read then answers null, and the charts ask the server.
+// ⭐ A MEMBER'S OFF IN THE SAME PAGE LOAD (review of #2537 head 24fe13dc8f, Z-1). The switch decides once per load, so a
+// member on the default who picked Off in Settings (the key becomes '0') and then opened a chart still started the store,
+// and its first paint began the ~80 MB download the next load deletes. The client reads the key FRESH
+// (switch.deviceStoreKeyNow, one localStorage read) where it already looks: before its FIRST start (a '0': it never starts,
+// no worker, no request, no marker), at the first paint's idle before the ingest, and on the visible beat beside the
+// kills. A '0' stops it exactly as a kill does, and tells the page through the kill's latch
+// (lib/chartSpeed.noteDeviceStoreStopped: device rows already held stop painting, #2580). Nothing else is read fresh:
+// Automatic, a tester's '1' or any other value change nothing until the next load, and a stopped client stays stopped.
 //
 // ⭐ THE SYNCHRONOUS CACHE EXPIRES (SYNC_CACHE_TTL_MS). Today's bars grow every minute, so a copy read
 // a while ago is behind (never WRONG: it holds complete buckets only, live.js); past the TTL `peekBars`
@@ -70,9 +78,9 @@
 
 import { afterFirstChartPaint } from '../../lib/barsPackClient'
 import { isAppVisible, onDeskHiddenChange } from '../../lib/deskVisibility'
-import { deviceStoreKilledNow } from '../../lib/chartSpeed'
+import { deviceStoreKilledNow, noteDeviceStoreStopped } from '../../lib/chartSpeed'
 import { askPersistOnce } from '../../lib/storagePersist'
-import { deviceStoreKeyState } from './switch'
+import { deviceStoreKeyNow, deviceStoreKeyState } from './switch'
 import { SERVED_TFS } from './tfs'
 import { noteDeviceFiles } from './residue'
 
@@ -141,9 +149,12 @@ export function createDeviceClient({
   killed = deviceStoreKilledNow,
   noteFiles = noteDeviceFiles,
   askPersist = _choseOn,
+  keyNow = deviceStoreKeyNow,
+  onStop = noteDeviceStoreStopped,
 } = {}) {
   let worker = null
   let dead = false
+  let offStopped = false         // the member's Off stopped this client (never started again in this page load)
   let nextId = 1
   let ingestAsked = false
   let lastIngestAt = -Infinity   // when this page last asked the leader for an ingest (M2)
@@ -322,13 +333,25 @@ export function createDeviceClient({
     return _call({ op: 'ingest', manifestUrl: manifestUrl(), ...(recheck ? { recheck: true } : {}) })
   }
 
-  /** On every visible beat (and on becoming visible): a kill read fresh stops this client for good (M9); else a
-   *  re-check that is due is asked at idle (M2). Never while hidden: the callers ask only when visible. */
+  /** The member's own Off, read FRESH (the key exactly '0': switch.deviceStoreKeyNow 'off'). Never throws. */
+  const _memberOff = () => { try { return keyNow() === 'off' } catch { return false } }
+  /** The member's Off reached this page load: stop exactly as for a kill (shutdown), and tell the page (the kill's latch:
+   *  device rows already held stop painting). For good: nothing starts it again in this load. */
+  function _stopForOff() {
+    offStopped = true
+    try { onStop() } catch { /* the latch is a speed-up of the refusal only */ }
+    api.shutdown()
+  }
+
+  /** On every visible beat (and on becoming visible): a kill read fresh stops this client for good (M9), and so does the
+   *  member's Off read fresh (Z-1); else a re-check that is due is asked at idle (M2). Never while hidden: the callers
+   *  ask only when visible. */
   function _whileVisible() {
     if (dead) return
     let k = false
     try { k = killed() === true } catch { k = false }
     if (k) { api.shutdown(); return }
+    if (_memberOff()) { _stopForOff(); return }
     if (recheckQueued || now() - lastIngestAt < recheckMs) return
     recheckQueued = true
     idle(() => {
@@ -340,6 +363,9 @@ export function createDeviceClient({
 
   const api = {
     start() {
+      if (offStopped) return api
+      // the FIRST start of this page load: the member picked Off since the switch decided ON (Z-1): never start
+      if (!ingestAsked && _memberOff()) { _stopForOff(); return api }
       _worker()
       if (!ingestAsked) {
         ingestAsked = true
@@ -348,6 +374,7 @@ export function createDeviceClient({
         try { noteFiles(now()) } catch { /* storage blocked */ }
         afterPaint(() => idle(() => {
           if (dead) return
+          if (_memberOff()) { _stopForOff(); return }     // Off picked before the first paint: the download never begins
           _askIngest(false)
           _report()
           try { onVisibilityChange(() => { _report(); if (_visibleNow()) _whileVisible() }) } catch { /* no document */ }

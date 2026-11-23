@@ -29,12 +29,16 @@ import { useCallback, useState } from 'react'
 import TileCard from '../../components/TileCard'
 import ChoiceMenu from '../../components/chart/ChoiceMenu'
 import {
-  DEVICE_STORE_KEY, deviceStoreEnabled, deviceStoreKeyNow, deviceStoreKeyState, deviceStoreOffReason,
+  DEVICE_STORE_KEY, deviceStoreDefaultOffCause, deviceStoreEnabled, deviceStoreKeyNow, deviceStoreKeyState,
+  deviceStoreOffReason,
 } from '../../data/deviceStore/switch'
 import { isDesktopApp } from '../../lib/desktopBridge'
 import styles from './FasterChartsCard.module.css'
 
 export const TITLE = 'Faster charts on this device'
+/** The row's visible label, and the dropdown's accessible name (WCAG 2.5.3, label in name: a voice-control user says the
+ *  words they see; review of #2537 head 24fe13dc8f, Z-5). The house way: IndicatorMemoryCard passes its row's title. */
+export const LABEL = 'Keep chart data on this device'
 
 const AUTO = 'auto'
 const OFF = 'off'
@@ -53,8 +57,10 @@ export function choiceOf(key) {
   return AUTO
 }
 
-/** The line under the control: on or off on THIS page load, and why, in the member's words. */
-export function stateLine({ enabled, reason, desktopApp = false }) {
+/** The line under the control: on or off on THIS page load, and why, in the member's words. `cause`
+ *  (switch.deviceStoreDefaultOffCause) says why the DEFAULT reads off: 'rollout' (off for everyone: the code-level
+ *  rollback, where no device condition is the cause) or 'device'. */
+export function stateLine({ enabled, reason, cause = null, desktopApp = false }) {
   if (enabled) return 'On for this device.'
   switch (reason) {
     case 'device-purge':
@@ -64,6 +70,7 @@ export function stateLine({ enabled, reason, desktopApp = false }) {
     case 'member-off':
       return 'Off: you turned it off. The stored chart data is removed the next time a chart loads.'
     case 'default-off':
+      if (cause === 'rollout') return 'Off by default for now.'
       return desktopApp
         ? 'Off on this device: it needs a connection that is not metered.'
         : 'Off on this device: it needs a window wider than a tablet, a mouse or trackpad, and a connection that is not metered.'
@@ -87,6 +94,7 @@ export default function FasterChartsCard() {
   const [load] = useState(() => ({
     enabled: deviceStoreEnabled(),
     reason: deviceStoreOffReason(),
+    cause: deviceStoreDefaultOffCause(),
     key: deviceStoreKeyState(),
     desktopApp: isDesktopApp(),
   }))
@@ -115,11 +123,11 @@ export default function FasterChartsCard() {
       <div className={styles.card}>
         <div className={styles.row}>
           <div className={styles.text}>
-            <span className={styles.label}>Keep chart data on this device</span>
+            <span className={styles.label}>{LABEL}</span>
             <span className={styles.hint} data-testid="faster-charts-state">{stateLine(load)}</span>
           </div>
           <ChoiceMenu
-            ariaLabel={TITLE}
+            ariaLabel={LABEL}
             value={choiceOf(keyNow)}
             options={options}
             onChange={choose}
