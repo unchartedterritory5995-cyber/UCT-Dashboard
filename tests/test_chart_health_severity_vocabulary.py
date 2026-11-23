@@ -136,8 +136,13 @@ SINK_FUNCTION = "emit"
 #: ADDING AN EMIT SITE? Both numbers move together unless the new site's
 #: severity is computed rather than a literal. Update them here and say so in the
 #: commit; the failure message prints the full derived inventory to paste from.
-EXPECTED_EMIT_SITES = 29
-EXPECTED_LITERAL_SEVERITY_SITES = 27
+#:
+#: 2026-11-23: 29/27 -> 30/28. 78c6de2716 (2026-11-12, the nightly RS rating heals itself) added
+#: `api/main.py::_check_rs_history_current`, a literal "warning" under the key
+#: `rs_history_stale:{target}`, and did not move these (red in master's full suite from the run on
+#: 3d6045258e; absent from the failures of the run before it, on 150283034b, which predates the commit).
+EXPECTED_EMIT_SITES = 30
+EXPECTED_LITERAL_SEVERITY_SITES = 28
 
 #: The sites the OLD name-literal matcher could not see, `(relpath, key,
 #: severity)`, WITHOUT line numbers — a pinned line number is the drift this

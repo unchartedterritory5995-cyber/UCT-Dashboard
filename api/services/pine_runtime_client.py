@@ -94,6 +94,11 @@ BUSY_BACKOFF_S = 0.5
 #: Jobs per request: the nightly sweep is sent in chunks of 50 symbols (3.1); every other
 #: profile up to the service's ``MAX_JOBS`` (= ``scan_run.MAX_RUN_SYMBOLS``, read, not retyped).
 SWEEP_CHUNK = 50
+#: W5-T9's numbers (``services/pine_runtime/metrics.mjs``): a GET signed like ``/v1/run`` over the EMPTY body,
+#: under the same clock and replay rules (``server.mjs::metricsRoute``). Read by ``PineRuntimeClient.metrics``.
+METRICS_PATH = "/v1/metrics"
+#: How long one metrics read may take, seconds. A slow or absent answer is simply no answer.
+METRICS_DEADLINE_S = 10.0
 
 _HEX64 = re.compile(r"^[0-9a-f]{64}$")
 _DEF_ID = re.compile(r"^[A-Za-z0-9_.:-]{1,64}$")
@@ -462,6 +467,17 @@ def httpx_transport(url: str, body: bytes, headers: Mapping[str, str], timeout: 
     return resp.status_code, resp.content
 
 
+#: ``(url, headers, timeout_s) -> (status, reply bytes)`` for a signed GET; raises on connect/DNS/timeout.
+GetTransport = Callable[[str, Mapping[str, str], float], Tuple[int, bytes]]
+
+
+def httpx_get_transport(url: str, headers: Mapping[str, str], timeout: float) -> Tuple[int, bytes]:
+    """The production GET transport (``PineRuntimeClient.metrics``): one GET, no redirects, no retries."""
+    import httpx
+    resp = httpx.get(url, headers=dict(headers), timeout=timeout, follow_redirects=False)
+    return resp.status_code, resp.content
+
+
 # --- the client -----------------------------------------------------------------
 
 class PineRuntimeClient:
@@ -471,12 +487,45 @@ class PineRuntimeClient:
 
     def __init__(self, *, url: Optional[str], secret: Optional[str], identity: Optional[Mapping[str, Any]],
                  transport: Optional[Transport] = None, clock: Callable[[], float] = time.time,
-                 monotonic: Callable[[], float] = time.monotonic, sleep: Callable[[float], None] = time.sleep):
+                 monotonic: Callable[[], float] = time.monotonic, sleep: Callable[[float], None] = time.sleep,
+                 get_transport: Optional[GetTransport] = None):
         self.url = (url or "").strip() or None
         self.secret = (secret or "").strip() or None
         self.identity = dict(identity) if identity else None
         self.transport = transport or httpx_transport
+        # ⛔ A client handed its own POST transport (every rail's fake) gets NO default GET transport: its metrics
+        # read answers nothing unless a GET transport is handed in too, so a fake never reaches the network.
+        self.get_transport = get_transport if get_transport is not None else (
+            httpx_get_transport if transport is None else None)
         self.clock, self.monotonic, self.sleep = clock, monotonic, sleep
+
+    # -- the service's own numbers ------------------------------------------------
+    def metrics(self) -> Optional[Dict[str, Any]]:
+        """The service's ``GET /v1/metrics`` (W5-T9), signed like ``/v1/run`` over the EMPTY body, or ``None``
+        when it cannot be read (unconfigured, unreachable, refused, not a JSON object). Never raises.
+
+        A reader of these numbers (the nightly sweep's in-flight bound, ``scan_evaluator._runtime_in_flight``)
+        takes ``None`` as "unknown" and decides for itself what unknown costs; this method never guesses."""
+        if not self.url or not self.secret or self.get_transport is None:
+            return None
+        body = b""
+        t = signing_time(hashlib.sha256(body).hexdigest(), int(self.clock()))
+        headers = {SIGNATURE_HEADER: sign(self.secret, t, body)}
+        try:
+            status, payload = self.get_transport(self.url.rstrip("/") + METRICS_PATH, headers, METRICS_DEADLINE_S)
+        except Exception as e:  # noqa: BLE001 -- connect, DNS, timeout: no answer
+            log.warning("[pine-runtime-client] metrics unreadable: the service could not be reached (%s)",
+                        type(e).__name__)
+            return None
+        if status != 200 or not isinstance(payload, (bytes, bytearray)):
+            log.warning("[pine-runtime-client] metrics unreadable: the service answered HTTP %s", status)
+            return None
+        try:
+            reply = json.loads(bytes(payload).decode("utf-8"))
+        except Exception:  # noqa: BLE001
+            log.warning("[pine-runtime-client] metrics unreadable: the reply is not JSON")
+            return None
+        return reply if isinstance(reply, dict) else None
 
     # -- the batch API ------------------------------------------------------------
     def run(self, *, def_id: str, version: int, doc: Mapping[str, Any], owner_id: Any, profile: str,

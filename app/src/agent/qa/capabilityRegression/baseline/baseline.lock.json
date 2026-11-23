@@ -6162,6 +6162,81 @@
      "modes": {}
     }
    }
+  },
+  "chart.setSetting.legendHold": {
+   "digest": "07aa401da2f3756f",
+   "phrasings": {
+    "only show the legend when I hold": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "show the legend only when I press and hold": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "set the status line to hold": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "put the chart legend on hold": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chart.setSetting.barInfoOpen": {
+   "digest": "ee81f75e34da9a99",
+   "phrasings": {
+    "hide the open in the legend": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "remove the open price from the legend": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "take the open off the bar info": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "drop the open from the legend": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chart.setSetting.infoRowStat": {
+   "digest": "4b678de96877d3ad",
+   "phrasings": {
+    "add the short float to the info row": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "show short % of float in the header": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "put the short float in the info row": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "include short % of float in the chart header": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    }
+   }
   }
  },
  "refusals": {
