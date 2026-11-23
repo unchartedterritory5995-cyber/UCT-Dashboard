@@ -10,6 +10,8 @@
 //   S1 a newer copy that holds the bucket complete and the next one forming: the complete values win
 //   S2 a newer copy of complete buckets only: the same
 //   S3 a LIVE developing bar (push) is not the device's: a device copy never drops it
+//   S4 ...nor one a TICK touched (the tick fallback keeps the bar LOCAL and marks it `ticked`: a live observation, the
+//      distinction applyRest makes too; review of #2549 P2-L1)
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { reduce, initialState } from './reducer'
 import { keyOf, ACTION, DEV_SRC } from './types'
@@ -101,5 +103,22 @@ describe('M1 the device\'s own earlier forming bar is superseded by its newer co
     const s = reduce(s1, device([...closedTo(595), { ...A, c: 102.2, v: 6 }], { through: T(603), formingAt: 600 }), ctxAt(PUSHED))
     expect(s.developing?.src).toBe(DEV_SRC.PUSH)
     expect(ohlcv(s.developing)).toEqual(pushed)
+  })
+
+  it('S4 a tick-touched device bar is not the device's to drop: the tick's high and close survive a newer copy', () => {
+    const s0 = first()
+    const TICKED = at(602, 40)
+    vi.setSystemTime(TICKED)
+    const down = { nowMs: TICKED, streamLive: false }                // the push stream is not delivering: ticks fold in
+    const s1 = reduce(s0, { type: ACTION.TICK_FALLBACK, event: { price: 104.4, ts: T(602) + 40 } }, down)
+    expect(s1.developing?.ticked).toBe(true)
+    expect(s1.developing.src).toBe(DEV_SRC.LOCAL)                     // (still LOCAL: what made the supersede drop it)
+    const ticked = ohlcv(s1.developing)
+    expect(ticked[1]).toBe(104.4)
+    const NEWER = at(603, 5)
+    vi.setSystemTime(NEWER)
+    const s = reduce(s1, device([...closedTo(595), { ...A, c: 102.2, v: 6 }], { through: T(603), formingAt: 600 }), { nowMs: NEWER, streamLive: false })
+    expect(s.developing?.ticked).toBe(true)
+    expect(ohlcv(s.developing)).toEqual(ticked)
   })
 })
