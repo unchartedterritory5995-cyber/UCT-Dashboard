@@ -713,6 +713,60 @@ def end_bars_refreshes(timeout_s: float = BARS_REFRESH_ENDS_WITHIN_S) -> list:
     return sorted(t.name for t in live_bars_refreshes())
 
 
+# ⚰️ THE SAME LEAK THROUGH A POOL (merge-queue run 45274569039, 2026-11-23): tests/test_bars_derived_tail_local_first
+# .py::test_Z2, whose fresh store must stay empty, held "[('AAPL', 'D'), ('QQQ', 'D')], 6 bars".
+# tests/test_bars_data_auth.py, five files earlier, had asked `/api/bars/AAPL?tf=D&bars=3` and the same for QQQ:
+# a cold symbol, so `bars_fetch._kick_cold_fetch` queued its first fetch on the cold pool with no provider
+# stubbed, and the pool wrote the provider's three bars per symbol when it answered.
+# A pool's worker threads never end, so its work cannot be joined by name. And `bars_fetch._cold_bg_inflight` is
+# no register either (tests replace and clear it). What a first-in-first-out pool does allow is exact: one gate
+# job per worker. All of them can be running at once only when every job accepted before them has finished.
+#
+#: (module, the pool's name in it, its worker threads' name prefix): pools whose jobs fetch from a provider and
+#: write the store when it answers.
+#:   bars_fetch._cold_bg_pool   `_kick_cold_fetch`: a cold symbol's first fetch
+BARS_WORK_POOLS = (("api.services.bars_fetch", "_cold_bg_pool", "bars-cold-bg"),)
+
+
+def end_bars_pool_work(timeout_s: float = BARS_REFRESH_ENDS_WITHIN_S) -> list:
+    """Wait until every job the bars work pools have accepted so far has finished, `timeout_s` in all. Returns the
+    names of the pools still busy. A pool that never started a worker has never had a job and is left alone, as is
+    a test's stand-in for one, and a pool that has been stopped (it accepts no gate, and dropped what it had queued)."""
+    import threading
+    import time
+    from concurrent.futures import ThreadPoolExecutor
+    deadline = time.monotonic() + timeout_s
+    busy = []
+    for mod_name, attr, prefix in BARS_WORK_POOLS:
+        pool = getattr(sys.modules.get(mod_name), attr, None)
+        if not isinstance(pool, ThreadPoolExecutor):
+            continue
+        if not any(t.name.startswith(prefix) for t in threading.enumerate()):
+            continue
+        release = threading.Event()
+        running = [threading.Event() for _ in range(pool._max_workers)]
+
+        def _gate(mine, _release=release):
+            mine.set()
+            _release.wait()
+
+        try:
+            for ev in running:
+                pool.submit(_gate, ev)
+            if not all(ev.wait(max(0.0, deadline - time.monotonic())) for ev in running):
+                busy.append(f"{attr} ({prefix})")
+        except RuntimeError:
+            pass
+        finally:
+            release.set()                                  # a gate still queued behind a held job returns at once
+    return busy
+
+
+def end_bars_background_work() -> list:
+    """Everything the rule waits for when a test's body returns. Returns what is still running after the wait."""
+    return end_bars_refreshes() + end_bars_pool_work()
+
+
 @pytest.hookimpl(wrapper=True)
 def pytest_runtest_call(item):
     try:
@@ -720,14 +774,14 @@ def pytest_runtest_call(item):
     except (KeyboardInterrupt, SystemExit):
         raise
     except BaseException:
-        end_bars_refreshes()                               # the test's own outcome is the report
+        end_bars_background_work()                         # the test's own outcome is the report
         raise
-    left = end_bars_refreshes()
+    left = end_bars_background_work()
     if left:
         pytest.fail(
-            f"a bars background refresh was still running {BARS_REFRESH_ENDS_WITHIN_S:.0f} s after this test's "
-            f"body returned: {', '.join(left)}. When its provider answers it writes into whatever store a LATER "
-            "test owns: stub the provider it asks, or release it before the test returns.",
+            f"bars background work was still running {BARS_REFRESH_ENDS_WITHIN_S:.0f} s after this test's body "
+            f"returned: {', '.join(left)}. When its provider answers it writes into whatever store a LATER test "
+            "owns: stub the provider it asks, or release it before the test returns.",
             pytrace=False)
     return result
 

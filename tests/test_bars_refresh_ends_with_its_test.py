@@ -24,9 +24,11 @@ THE CAUSE, each step measured (the runs are in the pull request that added this 
      the hole. Hence exactly one bar, the last session's, and neither of the stored ones.
 
 THE RULE (tests/conftest.py `pytest_runtest_call`): when a test's body returns, pytest waits for every bars refresh
-thread still running (`BARS_REFRESH_THREADS`) before any fixture is undone, so its write lands in the store of the
-test that started it. The two tests below are that leak, in order, with the provider's latency replaced by a
-provider that answers at the worst moment: without the rule the second one reads the last session and nothing else.
+thread still running (`BARS_REFRESH_THREADS`) and for every job the bars work pools have accepted
+(`BARS_WORK_POOLS`) before any fixture is undone, so the write lands in the store of the test that started it.
+test_1 and test_2 below are the leak above, in order, with the provider's latency replaced by a provider that
+answers at the worst moment: without the rule test_2 reads the last session and nothing else. test_4 and test_5 are
+the same leak through the cold pool (their own heading says where that one was seen).
 """
 import os
 import sqlite3
@@ -206,3 +208,19 @@ def test_5_the_next_tests_store_holds_nothing_of_it(tmp_path, monkeypatch):
         f"another test's cold fetch wrote into this store: {_aapl_daily(mine)}; test_4's holds "
         f"{_aapl_daily(_COLD['store'])}")
     assert _aapl_daily(_COLD["store"]) == [(int(d.replace("-", "")), 9.0) for d in _COLD_ROWS]
+
+
+def test_6_a_pool_job_that_never_ends_is_named(request):
+    """The pool half of the rule names a pool whose job is held when the wait runs out (the hook fails the test with
+    it), and says nothing once the job has ended."""
+    import tests.conftest as rule
+    assert request.config.pluginmanager.is_registered(rule), "a second copy of tests/conftest.py, not the plugin"
+    assert [(m, a) for m, a, _prefix in rule.BARS_WORK_POOLS] == [("api.services.bars_fetch", "_cold_bg_pool")]
+    asked, answer = threading.Event(), threading.Event()
+    bars_fetch._cold_bg_pool.submit(lambda: (asked.set(), answer.wait(10)))
+    try:
+        assert asked.wait(5)
+        assert rule.end_bars_pool_work(timeout_s=0.05) == ["_cold_bg_pool (bars-cold-bg)"]
+    finally:
+        answer.set()
+    assert rule.end_bars_pool_work(timeout_s=10) == []
