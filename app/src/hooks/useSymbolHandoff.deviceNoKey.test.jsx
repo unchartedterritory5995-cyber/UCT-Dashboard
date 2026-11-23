@@ -6,8 +6,9 @@
 // waited for the server's answer instead. The switch's own look at the key (prefetch.peekDisplayable, its route and its
 // every wake) now asks for the newer copy itself.
 // Through the real switch (useSymbolHandoff), the real chart rule (useBarSnapshotBars), the real store and facade, the
-// REAL device switch (switch.js: no stored key, its default made ON through its test seam; DEVICE_STORE_DEFAULT_ON is
-// untouched) and the REAL device client over a worker that answers with the copy it holds now:
+// REAL device switch (switch.js: no stored key, its default made ON through its test seam; the browser's own default is
+// untouched, and jsdom is no desktop, so it would read OFF) and the REAL device client over a worker that answers with
+// the copy it holds now:
 //   K0 the precondition: the store is on by default, no key is stored, and the diagnostics are OFF
 //   K1 B's held copy went stale at the 10:05 boundary and the worker has applied the 10:04 minute: the switch re-reads it
 //      NEWER before the chart is shown, and B paints from the device copy when its panes are ready, with no server
@@ -178,7 +179,9 @@ afterEach(() => { S.store?.dispose(); vi.useRealTimers() })
 describe('a member on the default (no key, no diagnostics): the switch re-reads a stale device copy newer itself', () => {
   it('K0 the store is on by default, no key is stored, and the diagnostics are off', () => {
     expect(localStorage.getItem(SW.DEVICE_STORE_KEY)).toBeNull()
-    expect(SW.DEVICE_STORE_DEFAULT_ON).toBe(false)                  // (the constant is untouched: the seam says ON)
+    // the SEAM says ON, not the environment: jsdom is no desktop (test-setup's matchMedia answers false), so the browser's
+    // own default reads OFF here. (Since #2537 DEVICE_STORE_DEFAULT_ON is true; it was false when this was written.)
+    expect(SW.deviceStoreDefaultOn()).toBe(false)
     expect(SW.deviceStoreEnabled()).toBe(true)
     expect(deviceDiagOn()).toBe(false)
   })
