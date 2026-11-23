@@ -10,6 +10,7 @@ shipped in the first place (`lesson_a_rails_important_half_can_be_opt_in`).
 from __future__ import annotations
 
 import json
+import os
 import pathlib
 import subprocess
 import sys
@@ -99,6 +100,12 @@ def test_success_on_the_WRONG_commit_is_not_accepted():
               sleep=lambda _s: None, max_polls=2, log=lambda *_a: None)
 
 
+# The ONE machine this cannot run on by construction is a GitHub-hosted runner: no Railway CLI, no token, no linked
+# project, and deploy_watch is never run from one. There it was a permanent red in the nightly full suite (run
+# 45066472928, 2026-11-22), and a red nobody can fix teaches people to read past the list. On every other machine the
+# rule in the module docstring stands: it FAILS rather than skips. The skip prints its reason (pytest.ini: -ra).
+@pytest.mark.skipif(os.environ.get("GITHUB_ACTIONS") == "true",
+                    reason="a GitHub-hosted runner has no Railway CLI or linked project; this boundary is the operator machine's")
 def test_the_real_boundary_resolve_and_run_railway_status_json_for_real():
     """⛔ RULE 10: the fake-`run` cases above CANNOT see a PATH-resolution defect. This one can."""
     exe = resolve_railway()                     # real shutil.which — raises if absent

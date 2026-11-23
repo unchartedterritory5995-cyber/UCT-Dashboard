@@ -427,7 +427,14 @@ jobs:
         # never collected. requirements.txt is a strict superset of that list.
         # 2026-11-18: + tests/ci-only-packages.txt, the test-only packages the production
         # image does not carry (brotli: six history-lake suites could not be collected).
-        run: python -m pip install --quiet -r requirements.txt -r tests/ci-only-packages.txt
+        # 2026-11-23: + /data. Production mounts a writable volume there and several modules choose their
+        # default path by `os.path.isdir("/data")` (snapshot_db.get_db_path, single_stock_etfs). The deploy
+        # gate, the remote lane and the app/src rails all create it; this job did not, so two rails of
+        # tests/test_shared_data_root_guard.py were red here and green in every other lane (run 45066472928
+        # against remote run 45211968351; the test and both modules are the same in the two).
+        run: |
+          sudo mkdir -p /data && sudo chown "$(id -u):$(id -g)" /data
+          python -m pip install --quiet -r requirements.txt -r tests/ci-only-packages.txt
       # ⚰️⚰️ E CP21 — 109 OF RUN #18'S 226 PYTEST FAILURE ENTRIES WERE ONE MISSING
       # INSTALL. Several suites drive a **JS lane**: they run `node` against the repo's own
       # sources to check that the Python and JavaScript implementations agree. Those tests

@@ -31,7 +31,9 @@ describe('create', () => {
     expect(m.lastReceipt().textContent).toMatch(/NVDA at or above \$210/)
     const out = await m.say('show my alerts')
     expect(out).toMatch(/NVDA at or above \$210 — active/)
-    expect(m.p.turns()).toBe(1)                       // the list is answered without the model
+    // the list is answered without the model; since the Alerts family reader (alertPhrases, 2026-11-23) the create is too —
+    // "this one" with the bottom-left clicked is the clicked chart, read instantly, the same card and the same POST as the plan
+    expect(m.p.turns()).toBe(0)
   })
   it('"the top-left chart": the alert lands on that chart\'s symbol', async () => {
     const m = quad()

@@ -61,7 +61,15 @@ def test_control_the_scan_finds_the_name_where_it_is():
 
 # ── 2. refusals ─────────────────────────────────────────────────────────────────────────
 
-@pytest.mark.parametrize("path", [r"C:\data", r"C:\DATA\clock", r"c:\data\sub\x", "/data", "/data/x"])
+#: On POSIX a backslash is not a separator and nothing folds case, so these two are relative FILE NAMES that are not
+#: inside the shared root, and the launcher is right not to refuse them there. (The first spelling still matches on
+#: POSIX: the path and the root are the same string.) The node ids are unchanged.
+_WINDOWS_SPELLING = pytest.mark.skipif(
+    os.name != "nt", reason="a case-folded or deeper backslash spelling of the shared root is a Windows path; on POSIX it is a relative file name")
+
+
+@pytest.mark.parametrize("path", [r"C:\data", pytest.param(r"C:\DATA\clock", marks=_WINDOWS_SPELLING),
+                                  pytest.param(r"c:\data\sub\x", marks=_WINDOWS_SPELLING), "/data", "/data/x"])
 def test_the_shared_data_root_is_refused(path):
     assert sc.refuse_data_dir(path)
 

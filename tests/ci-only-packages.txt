@@ -9,3 +9,9 @@
 # pack,piece,stamp}.py could not even be collected without it (remote run 44307066612, 2026-11-18).
 # Pinned to the version the history-lake publish runs with on the dev PC.
 brotli==1.2.0
+#
+# tools/history_lake/build.py imports pyarrow inside its functions, and tests/test_history_lake_{build,jobs,
+# merge,pack,stamp}.py call them: 30 rows of the full suite on master af1cb918a1 (run 45066472928,
+# 2026-11-22) were `ModuleNotFoundError: No module named 'pyarrow'`. The production image never builds the
+# lake, so it does not belong in requirements.txt. Pinned to the version on the dev PC that builds it.
+pyarrow==23.0.1
