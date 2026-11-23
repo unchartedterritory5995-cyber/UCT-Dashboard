@@ -36,8 +36,9 @@ function seedRows() {
 
 /** 20:30 ET on 2026-11-18, after the replayed day's last frame. */
 const AFTER_DAY = Date.UTC(2026, 10, 19, 1, 30)
-async function engineWithToday({ asof = '2026-11-17', nowMs = AFTER_DAY, splits = { session: '2026-11-18', symbols: {} } } = {}) {
-  const { m5, D } = seedRows()
+async function engineWithToday({ asof = '2026-11-17', nowMs = AFTER_DAY, splits = { session: '2026-11-18', symbols: {} }, seedBars = null } = {}) {
+  const { m5: whole, D } = seedRows()
+  const m5 = seedBars == null ? whole : whole.slice(0, seedBars)   // (a seed whose rows stop early: seedBars < 78)
   const disk = new Map()
   const packs = { '5': seedPackOf({ [SYM]: m5 }, { tf: '5', asof, build: 'b1' }), D: seedPackOf({ [SYM]: D }, { tf: 'D', asof, build: 'b1' }) }
   const eng = createDeviceEngine({ io: memoryIO(disk), fetchFn: async (u) => new Response(packs[u]), now: () => nowMs })
@@ -84,6 +85,45 @@ describe('engine read with today', () => {
     const got = eng.read(SYM, '5')                                        // 21:00 ET on the as-of day
     expect(got.t.length).toBe(m5.length)
     expect(got.through).toBe(Date.UTC(2026, 10, 18) / 1000)
+  })
+
+  // The published builds of 2026-11-20 and 2026-11-21: 99.8% of the 30m rows (60m, 15m alike) stopped hours before the close of
+  // the as-of day. Such a copy is not complete through its as-of day, and today must never be joined to it.
+  // ⛔ ...AND ITS LAST ROW IS NEVER HANDED OUT (review of #2407): that row was caught while its bucket was forming
+  // (A, 30m 10:00 ET: L 173.76 C 174.29 V 43,567 in the file, 172.23 / 172.34 / 84,444 from its minutes), and in the
+  // store an incoming local row replaces a held one, so it would overwrite a complete bucket the lake or the pack holds.
+  it("A SEED THAT STOPS BEFORE ITS AS-OF SESSION'S LAST BUCKET: its last row dropped, stamped where that row starts, today never appended", async () => {
+    const { eng, m5 } = await engineWithToday({ seedBars: 8 })           // yesterday's 09:30 ... 10:05 only
+    expect(eng.why(SYM, '5')).toBe('seed-short')
+    const got = eng.read(SYM, '5')
+    expect(got.t.length).toBe(7)                                          // the 10:05 row is not handed out; today not joined
+    expect(got.t.at(-1)).toBe(m5[6].t)
+    expect(got.c.at(-1)).toBe(m5[6].c)
+    expect(got.through).toBe(m5[7].t)                                     // complete, at most, to where the dropped row starts
+    expect(eng.why(SYM, 'D')).toBe('ok')                                  // D is one bar a day: never short
+    // the boundary: the bucket before the session's last (15:50) is short, the last one (15:55) is whole
+    const near = await engineWithToday({ seedBars: 77 })
+    expect(near.eng.why(SYM, '5')).toBe('seed-short')
+    expect(near.eng.read(SYM, '5').t.length).toBe(76)
+    const whole = await engineWithToday({ seedBars: 78 })
+    expect(whole.eng.why(SYM, '5')).toBe('ok')
+    expect(whole.eng.read(SYM, '5').t.length).toBeGreaterThan(78)         // today joined
+    // one row only, and it is the short one: nothing to hand out
+    const one = await engineWithToday({ seedBars: 1 })
+    expect(one.eng.why(SYM, '5')).toBe('seed-short')
+    expect(one.eng.read(SYM, '5')).toBeNull()
+  })
+
+  // (the server's delta fixtures carry such a symbol: a halted name whose window did not change, delta.test.js SAME)
+  it("a seed whose last row is an EARLIER session's last bucket: its rows whole, but never complete through its as-of day", async () => {
+    // the file says as of 2026-11-18; this symbol's rows end with the 15:55 bucket of 2026-11-17
+    const { eng, m5 } = await engineWithToday({ asof: '2026-11-18', splits: null })
+    expect(eng.why(SYM, '5')).toBe('seed-short')
+    const got = eng.read(SYM, '5')
+    expect(got.t.length).toBe(m5.length)                                  // every row is a whole bucket: none dropped
+    expect(got.t.at(-1)).toBe(m5.at(-1).t)
+    expect(got.through).toBe(m5.at(-1).t)                                 // ...and its stamp is nowhere near the as-of close
+    expect(got.through).toBeLessThan(Date.UTC(2026, 10, 18, 14, 30) / 1000)
   })
 
   it("THE SPLIT GUARD: past its as-of day a copy needs the next session's split list, without the symbol", async () => {

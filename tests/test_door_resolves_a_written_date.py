@@ -35,6 +35,7 @@ from tests.test_p2_truth_server import (  # noqa: F401 -- fixtures by name
     call, conv, emits, empty_view, env, model, num,
 )
 from tests.test_p2x_truth_converse import clean_env  # noqa: F401 -- fixture by name
+from tools.value_cases import grade as G
 
 NY = ZoneInfo("America/New_York")
 CHART = {"sym": "NVDA", "tf": "D"}
@@ -42,8 +43,11 @@ CHART = {"sym": "NVDA", "tf": "D"}
 NOW = dt.datetime(2026, 11, 22, 12, 0, tzinfo=NY)
 ROOT = Path(__file__).resolve().parents[1]
 CASES = json.loads((ROOT / "tests" / "fixtures" / "authoring" / "value_cases.json").read_text(encoding="utf-8"))["cases"]
-THE_ANSWER = next(c for c in CASES if c["id"] == "date-start-01")
-WORDS = THE_ANSWER["words"]
+THE_CASE = next(c for c in CASES if c["id"] == "date-start-01")
+WORDS = THE_CASE["words"]
+#: the answer the finding rests on (the assistant's own number for the date): the case's record while it is recorded
+#: WRONG, its `found` specimen once the door gets it right
+THE_ANSWER = G.specimen(THE_CASE)
 #: what the assistant worked out live for "2 June 2026": 6 June
 WRONG = 1780718400
 
@@ -294,4 +298,4 @@ def test_no_recorded_right_answer_is_refused_by_the_date_guard():
     assert refused_by(dc.check_date_numbers, THE_ANSWER["answer"], supplied) is not None
     on_the_right_day = json.loads(json.dumps(THE_ANSWER["answer"]).replace(str(WRONG), str(JUNE_2)))
     assert refused_by(dc.check_date_numbers, on_the_right_day, supplied) is None
-    assert THE_ANSWER["recorded_verdict"] == "wrong" and "6 June 2026" in THE_ANSWER["defect"]
+    assert "6 June 2026" in THE_ANSWER["defect"]

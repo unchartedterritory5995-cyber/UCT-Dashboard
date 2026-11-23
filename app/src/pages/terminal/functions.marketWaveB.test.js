@@ -31,8 +31,8 @@ describe('the three codes', () => {
     }
   })
 
-  it('IPO is market-wide, in the Calendar group, and takes no argument', () => {
-    expect(BY_CODE.IPO.market).toEqual({ panel: 'IpoCalendar' })
+  it('IPO is market-wide, in the Calendar group, and takes only its view word (IPO LOCKUP, 2026-11-22)', () => {
+    expect(BY_CODE.IPO.market).toEqual({ panel: 'IpoCalendar', args: [{ kind: 'ipoView', prop: 'view' }] })
     expect(BY_CODE.IPO.ticker).toBeUndefined()
     expect(BY_CODE.IPO.group).toBe('Calendar')
     expect(BY_CODE.IPO.label).toBe('IPO calendar (upcoming and priced deals)')
