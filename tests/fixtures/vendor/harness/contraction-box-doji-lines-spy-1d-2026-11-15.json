@@ -115,7 +115,7 @@
     "type": "text",
     "defval": "",
     "isHidden": true,
-    "value": "bmI9Ks46_rKoC22OGSEkN3NClZNOt+A==_V631mhmbr6SkxPkln/dDwCdM5eu6Gh7ujEV1dj9D4KTZrKmVxNwgRmFW74mrQ0tqxJDZa95kpQ3irelRoy2pnl9su7ttLxtauASfmKctfssXFZk/4r5YFJHzKXPD+ne7d9Y3WA1K/fMbtJYAbXKu5CI/soBi8dqrdIkQjHvuGwpZLIW8f/vGr16OohB4HYZ0WDkttvJqd3Lo1ZOkEKzFpRRWGxbV4SsLNfRQxto6okAfA+IFRMrf0i+N4KM6CuSD4n91p/xNwk0TVMyxZWdQ5W2QJHX2IZtGArHIIZ54Q0RUZYZVWppimPnQkGb9D9EdXKhA5xF6mDEAxWX/gLYDjs7tiwf4yZ3nCoGPC70LOItdOGg+wjcc34eYb8GfTyT3hQqf3zS2f/VkckRe7LYHn8cLERkI0IboTgmSrhcFqHMl9IqcXBvyfGBdYBXiRk7ncZJvHwbxYw4GuGiwGKgdaKFbxcEo5fsQamldT9iDqLilkm03NRZtbqgW6fM9XVs0E8P234yFZosi5IJeP7wAiazfbI2ueI9Cr7mALesZwXFlDLz2cHeCm1hB5Uh3qDJtTfNu0C8J83xYbYTfI0Bs2r+zDczG/xQtgt+9ih8EQWJVYKD2qbzJh7guZejWAgPV6IdvJ46BQ4jFyRamk9WF1VipV0EJPTCYOlYC9IIbcr6Phx7MGtmgoOOvTO0GIgTfRa20lw7Zly32WKSbYDS8tYSoTU+Mo46z9ZvMdoL9eYEQtZ0f7NsFk+w4aq6Q5q/OkBstjLhRlv17xqUCaijKbm5Ifh6QoQZK4olSn6BmMaERFSYDFK8VNmODdXmo1SrTDTnRMip7dw1H+Hy7L0G6+F/TKM5Y4Y8awag4sakf3UZYu3xcL5UQvuGHOHVMBVnV4kV7eGYBPg56O2ddPnbgduDPQ7J1iRwuQ3mcq+0dFf78zBMO/jlL/ctGx/7Ev5HVc8xhwRouwU6yVfhrHPLAUvcxxClvivfHUN4/NLlzcheRb2r3uqlcQJYmNc222LrRy6ew8lQPg7wHROMKsHMJXRDQpNiapWKXiz//Fkqxh9ea0xUsPN3NUCZ1OkLW/5s0g3FK574QmCyI6eYnVwN8dN5Zeh5+g/4ccpCTe4dhxQR5ZNgCMo9q9sZHIuwOgDQAourwMWqULYWuch2Q+/2+QD18SydTIgKw8hDlD2oyFDcYIwwP/t44m6hCSg0tmeXqgA1q8CvBzaBvTD9RwnlQEPu8Mc2ozUO7p7jhL1W0tTOO0adbfZDn3lV2+cMB+4uQnz+8q2e1okTPbDsStqoa6fYH7NetEwPfcj2I9pw2i1q8UswA/MuMoy8t/WeX8gDBS2MVZTSR7rjjBrUYMcUWDNZvsNdri/Q2hjHH6g=="
+    "value": "[redacted: TradingView compiled script]"
    },
    {
     "id": "pineId",
@@ -72352,10 +72352,25 @@
  "warnings": [
   "objects-only study: it declares no plots, so plotValues is empty and its drawings are the whole answer"
  ],
+ "redactions": [
+  {
+   "field": "study.inputs[name=ILScript].value",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 1418,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 483975,
+    "fnv1a": 3295318462
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:28Z"
+  }
+ ],
  "receipt": {
   "algo": "fnv1a32-utf16",
   "over": "JSON.stringify(capture without its receipt key)",
-  "chars": 483975,
-  "fnv1a": 3295318462
+  "chars": 482897,
+  "fnv1a": 1875080750
  }
 }

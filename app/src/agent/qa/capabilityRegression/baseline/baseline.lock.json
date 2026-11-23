@@ -807,6 +807,207 @@
     }
    }
   },
+  "compare.list.self": {
+   "digest": "4e4f7aa2285a1dde",
+   "phrasings": {
+    "compare it with MSFT and QQQ": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "overlay MSFT and QQQ on this chart": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "compare NVDA with MSFT and QQQ": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "add MSFT and QQQ as comparisons": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "put MSFT and QQQ on the chart as comparisons": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "compare this chart against MSFT & QQQ": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "compare.base.other-chart": {
+   "digest": "8d86426cc7f7f16f",
+   "phrasings": {
+    "compare AMD with QQQ": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "overlay QQQ on AMD": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "plot QQQ against AMD": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "compare.remove.one": {
+   "digest": "33394eb9503b8342",
+   "phrasings": {
+    "remove the QQQ comparison": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "take QQQ off the comparison": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "stop comparing with QQQ": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "drop the QQQ overlay": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "get rid of the QQQ comparison": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "compare.clear.all": {
+   "digest": "9a5349845e45e05e",
+   "phrasings": {
+    "clear all the comparisons": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "remove every comparison": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "stop comparing": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "get rid of the comparisons": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "compare.display.sameScale": {
+   "digest": "6df32c38ea22b2dd",
+   "phrasings": {
+    "put QQQ on the same scale": {
+     "digest": "44136fa355b3678a",
+     "gaps": [
+      "a"
+     ],
+     "modes": {
+      "a": "\"put QQQ on the same scale\" → chartSetup.compareDisplay"
+     }
+    },
+    "move QQQ to the main price scale": {
+     "digest": "44136fa355b3678a",
+     "gaps": [
+      "a"
+     ],
+     "modes": {
+      "a": "\"move QQQ to the main price scale\" → chartSetup.compareDisplay"
+     }
+    },
+    "make QQQ share the price scale": {
+     "digest": "44136fa355b3678a",
+     "gaps": [
+      "a"
+     ],
+     "modes": {
+      "a": "\"make QQQ share the price scale\" → chartSetup.compareDisplay"
+     }
+    }
+   }
+  },
+  "compare.display.groupOnly": {
+   "digest": "36dad4b783e8e191",
+   "phrasings": {
+    "hide the base symbol": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "group only": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show only the comparisons": {
+     "digest": "44136fa355b3678a",
+     "gaps": [
+      "a"
+     ],
+     "modes": {
+      "a": "\"show only the comparisons\" → chartSetup.compareDisplay"
+     }
+    }
+   }
+  },
+  "compare.group.remove": {
+   "digest": "0a725fd93686f38e",
+   "phrasings": {
+    "remove the AI Chips group": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "drop the ai chips theme from the comparisons": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "scale.percent.words": {
+   "digest": "b79954327f5da620",
+   "phrasings": {
+    "show it as percent": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "switch to percentage terms": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "set the chart to percent": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
   "widget.news": {
    "digest": "3ed95be08c5b166b",
    "phrasings": {
@@ -6113,6 +6314,156 @@
     }
    }
   },
+  "stock.riskProfile": {
+   "digest": "fe853a527d9164f0",
+   "phrasings": {
+    "NVDA stock stats": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "what is NVDA's beta": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "how volatile is NVDA": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "how did NVDA hold up in corrections": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "stock.volumeFootprint": {
+   "digest": "4abfb2990a239ae4",
+   "phrasings": {
+    "NVDA volume footprint": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "accumulation days in NVDA": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "pocket pivots on NVDA": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "unfilled gaps on NVDA": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "stock.factorExposure": {
+   "digest": "d95a49159db931d3",
+   "phrasings": {
+    "NVDA factor exposure": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "is NVDA a growth or value stock": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "factor loadings for NVDA": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "style tilt of NVDA": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "stock.setupHistory": {
+   "digest": "140f214b6235b2c3",
+   "phrasings": {
+    "NVDA setup history": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "setups that fired on NVDA": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "past signals on NVDA": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "how have NVDA's setups done": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "stock.companyRecord": {
+   "digest": "afb2152f6b4d3a13",
+   "phrasings": {
+    "NVDA government contracts": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "clinical trials for NVDA": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "FDA approvals for NVDA": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "lobbying by NVDA": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "stock.ownershipReport": {
+   "digest": "c4a8788e4d2ee35d",
+   "phrasings": {
+    "which funds hold NVDA": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "mutual funds holding NVDA": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "NVDA fund holders": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "ETFs that own NVDA": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
   "recentlyDeleted.restore": {
    "digest": "f6602f95f8c2a866",
    "phrasings": {
@@ -6232,6 +6583,106 @@
      "modes": {}
     },
     "include short % of float in the chart header": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "alert.family-create": {
+   "digest": "29d6f8af0ff10b30",
+   "phrasings": {
+    "alert me when AAPL crosses above 200": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "ping me if $AAPL breaks out above 200": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "set an alert for AAPL above 200": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "notify me as soon as AAPL gets back above 200": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "alert.family-chart-below": {
+   "digest": "75c581574dedda71",
+   "phrasings": {
+    "alert me if it drops below 140": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "ping me when this stock falls below 140": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "set an alert below 140": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "alert.family-list-symbol": {
+   "digest": "1ccee928b7610f77",
+   "phrasings": {
+    "what alerts do I have on NVDA": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "do I have any alerts on NVDA": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "show my NVDA alerts": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "indicatorAlert.family-timeframe": {
+   "digest": "6d64772749884512",
+   "phrasings": {
+    "ping me if RSI drops below 30 on the daily": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "alert me when the daily rsi goes below 30": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "notify me if the RSI falls under 30 on the daily chart": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "indicatorAlert.family-attention": {
+   "digest": "5369009419aba1e6",
+   "phrasings": {
+    "why hasn't my RSI alert fired": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "why isn't my RSI alert working": {
      "digest": "dcd51037b21b1b84",
      "gaps": [],
      "modes": {}

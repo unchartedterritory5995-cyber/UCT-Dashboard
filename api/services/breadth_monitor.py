@@ -269,7 +269,28 @@ _PUTCALL_BAND = (0.37, 0.53)
 _SCORE_MIN_WEIGHT = 60
 
 
-def _score_breakdown(row: dict) -> tuple[Optional[float], list[dict]]:
+#: ⭐ The per-population bands (lo -> 0 points, hi -> full points), set for UCT. Another universe
+#: scores with its own bands (`breadth_health_bands`): each edge is moved to the value at the SAME
+#: percentile of that universe's own 2008+ history as UCT's edge holds in UCT's, so a reading earns
+#: the points a reading as unusual earns on UCT. The market-wide inputs keep their bands.
+UCT_BANDS = {"pct_above_50sma": (30, 65), "ratio_5day": (0.7, 1.5), "magna": (40, 70),
+             "hi_ratio": (0.5, 5.0), "stage2": (5, 25)}
+
+
+def health_inputs(row: dict) -> dict:
+    """The per-population inputs of the Health score, as its bands read them."""
+    mu, md = row.get("magna_up"), row.get("magna_down")
+    s2, uni = row.get("stage2_count"), row.get("universe_count")
+    return {
+        "pct_above_50sma": row.get("pct_above_50sma"),
+        "ratio_5day": row.get("ratio_5day"),
+        "magna": (mu / (mu + md) * 100) if (mu is not None and md is not None and (mu + md) > 0) else None,
+        "hi_ratio": row.get("hi_ratio"),
+        "stage2": (s2 / uni * 100) if (s2 is not None and uni and uni > 0) else None,
+    }
+
+
+def _score_breakdown(row: dict, bands: Optional[dict] = None) -> tuple[Optional[float], list[dict]]:
     """Composite breadth score 0-100 AND the per-component attribution, from one
     pass. The total and the breakdown can never disagree because there is only
     one calculation.
@@ -305,14 +326,12 @@ def _score_breakdown(row: dict) -> tuple[Optional[float], list[dict]]:
             "present": present, "value": val,
         })
 
-    take("pct_above_50sma", row.get("pct_above_50sma"), 30, 65)
-    take("ratio_5day", row.get("ratio_5day"), 0.7, 1.5)
-
-    mu, md = row.get("magna_up"), row.get("magna_down")
-    take("magna", (mu / (mu + md) * 100) if (mu is not None and md is not None
-                                             and (mu + md) > 0) else None, 40, 70)
-
-    take("hi_ratio", row.get("hi_ratio"), 0.5, 5.0)
+    b = {**UCT_BANDS, **(bands or {})}
+    inp = health_inputs(row)
+    take("pct_above_50sma", inp["pct_above_50sma"], *b["pct_above_50sma"])
+    take("ratio_5day", inp["ratio_5day"], *b["ratio_5day"])
+    take("magna", inp["magna"], *b["magna"])
+    take("hi_ratio", inp["hi_ratio"], *b["hi_ratio"])
     # Contrarian: a higher equity put/call is more fearful, which is a better setup.
     take("cboe_putcall", row.get("cboe_putcall"), *_PUTCALL_BAND)
     # Contrarian: invert, so a -30 spread (very bearish) earns full points.
@@ -321,8 +340,7 @@ def _score_breakdown(row: dict) -> tuple[Optional[float], list[dict]]:
     vix = row.get("vix")
     take("vix", (30 - vix) if vix is not None else None, 0, 12)
 
-    s2, uni = row.get("stage2_count"), row.get("universe_count")
-    take("stage2", (s2 / uni * 100) if (s2 is not None and uni and uni > 0) else None, 5, 25)
+    take("stage2", inp["stage2"], *b["stage2"])
 
     # Binary, not interpolated: the advance/decline component is a coin flip on
     # the sign, which is why it cannot go through `take`'s lerp.
@@ -496,7 +514,7 @@ def get_history(days: int = 90, end: Optional[str] = None, anchor: str = "le") -
     # common read and everything keyed to it are unchanged; a teleported window
     # gets a distinct key under the SAME prefix every write already invalidates.
     ck = f"breadth_history_{days}" if not end else f"breadth_history_{days}_{end}_{anchor}"
-    ck += _authority_suffix()
+    ck += _authority_suffix() + _uct_exp_token()
     hit = cache.get(ck)
     if hit is not None:
         # ⛔ THIS LABEL WAS MISSING AND THE INSTRUMENT LIED BECAUSE OF IT. A window
@@ -658,6 +676,7 @@ def _history_uncached(days: int, end: Optional[str], anchor: str, ck: str) -> li
     # Need oldest-first to compute rolling windows, then reverse back
     result_asc = list(reversed(result))
     _apply_authority(result_asc)
+    _apply_uct_exp_model(result_asc)
     _apply_nhnl(result_asc, "counts")
     _derive_ascending(result_asc, adv_decline_seed)
     _apply_nhnl(result_asc, "derived")
@@ -743,6 +762,34 @@ def _uct_pit_token() -> str:
     try:
         from api.services import breadth_uct_pit as pit
         return pit.token()
+    except Exception:
+        return ""
+
+
+def _uct_exp_token() -> str:
+    """'' when the rebuilt UCT Exp history is off (cache keys byte-identical to before)."""
+    try:
+        from api.services import breadth_uct_exposure_model as uxm
+        return uxm.token()
+    except Exception:
+        return ""
+
+
+def _apply_uct_exp_model(result_asc: list) -> int:
+    """(2026-11-23) Blank UCT Exp before the wire published the current formula -> the formula run
+    on history (`breadth_uct_exposure_model`). A published rating is never replaced."""
+    try:
+        from api.services import breadth_uct_exposure_model as uxm
+        return uxm.fill(result_asc)
+    except Exception as e:
+        print(f"[breadth_monitor] uct exposure model skipped: {type(e).__name__}: {e}")
+        return 0
+
+
+def _universe_extras_token() -> str:
+    try:
+        from api.services import breadth_universe_extras as uex
+        return uex.token()
     except Exception:
         return ""
 
@@ -1060,7 +1107,7 @@ def get_history_deep(days: int = 90, end: Optional[str] = None, anchor: str = "l
     from api.services.cache import cache
     from api.services import single_flight
     from api.services import breadth_timing
-    ck = f"breadth_history_deep_{days}_{end or 'latest'}_{anchor}" + _authority_suffix() + _uct_pit_token()
+    ck = f"breadth_history_deep_{days}_{end or 'latest'}_{anchor}" + _authority_suffix() + _uct_pit_token() + _uct_exp_token()
     hit = cache.get(ck)
     if hit is not None:
         breadth_timing.note(cache="hit", cache_tier="deep")
@@ -1169,6 +1216,7 @@ def _history_deep_uncached(days: int, end: Optional[str], anchor: str, ck: str) 
         _seed = _adv_decline_seed_before(window[0])
     _pit_rows = _apply_uct_pit(result_asc)
     _apply_authority(result_asc)
+    _apply_uct_exp_model(result_asc)
     _apply_nhnl(result_asc, "counts")
     with _bt.phase('derive'):
         _derive_ascending(result_asc, _seed)
@@ -1320,8 +1368,36 @@ def _finish_universe_row(row: dict, universe: str, uct_row: Optional[dict]) -> d
             row[k] = uct_row.get(k)
     for k in bum.HIDDEN + bum.UNAVAILABLE:
         row[k] = None
+    # Up Vol / HVC / >7xATR from the universe's own rebuilt series (breadth_universe_extras), if on
+    try:
+        from api.services import breadth_universe_extras as uex
+        ex = uex.values(universe, row.get("date") or "")
+        if ex:
+            for k in uex.KEYS:
+                row[k] = ex.get(k)
+    except Exception as e:
+        print(f"[breadth_monitor] universe extras skipped: {type(e).__name__}: {e}")
+    # Health with the universe's own bands, over its own readings and the market-wide fear gauges
+    bands = health_bands(universe)
+    row["breadth_score"] = _score_breakdown(row, bands)[0] if bands else None
     row["_universe"] = universe
     return row
+
+
+_HEALTH_BANDS_PATH = os.path.join(os.path.dirname(__file__), "breadth_health_bands.generated.json")
+_health_bands_doc: dict = {}
+
+
+def health_bands(universe: str) -> Optional[dict]:
+    """The Health bands calibrated for `universe` (None: Health is not scored there)."""
+    if not _health_bands_doc:
+        try:
+            with open(_HEALTH_BANDS_PATH, encoding="utf-8") as fh:
+                _health_bands_doc.update(json.load(fh))
+        except Exception:
+            return None
+    b = (_health_bands_doc.get(universe) or {}).get("bands")
+    return {k: tuple(v) for k, v in b.items()} if b else None
 
 
 def universe_live_row(universe: str) -> Optional[dict]:
@@ -1344,7 +1420,7 @@ def get_history_universe(universe: str, days: int = 90, end: Optional[str] = Non
     u = bum._check(universe)
     tl = universe_timeline(u)
     # the market-wide keys come from the UCT deep rows, so the UCT history's identity is in the key
-    ck = f"breadth_history_deep_{days}_{end or 'latest'}_{anchor}_{u}|{tl['token']}{_uct_pit_token()}"
+    ck = f"breadth_history_deep_{days}_{end or 'latest'}_{anchor}_{u}|{tl['token']}{_uct_pit_token()}{_uct_exp_token()}{_universe_extras_token()}"
     hit = cache.get(ck)
     if hit is not None:
         return hit

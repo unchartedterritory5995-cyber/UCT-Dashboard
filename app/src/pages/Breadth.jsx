@@ -19,6 +19,10 @@ import { useLiveBreadth } from '../hooks/useLiveBreadth'
 import { drillTarget } from './breadth/liveDrill'
 import { shadeFor, SHADE_SPEC, isBacktestedRow } from './breadth/shading'
 
+// (2026-11-23) UCT Exp before 2026-08-22 is the Exposure Rating formula run on history
+// (breadth_uct_exposure_model.py), not a rating the Morning Wire published.
+const UCT_EXP_MODEL_TITLE = "Rebuilt by the UCT Agent: today's Exposure Rating formula, run on the SPY and QQQ bars "
+  + 'through the session before. The Morning Wire did not publish a rating that day.'
 // A UCT session before the collector's first live list (owner 2026-11-22): its numbers are kept,
 // unshaded, and the date says why.
 const BACKTEST_TITLE = "Back-tested list — UCT before 2026 is today's UCT list run backward, "
@@ -34,7 +38,7 @@ import BreadthDateNav from './breadth/BreadthDateNav'
 import useMonitorGrid from './breadth/useMonitorGrid'
 import {
   MONITOR_UNIVERSES, DEFAULT_UNIVERSE, parseUniverse, universeLabel,
-  universeColumnNote, universeCellOverride, NOT_AVAILABLE_NOTE, columnTagFor,
+  universeColumnNote, universeCellOverride, NOT_AVAILABLE_NOTE, columnTagFor, REBUILT_COLS, NOT_IN_SERIES_NOTE,
 } from './breadth/monitorUniverses'
 import { mergeParams } from './calendar/useEarningsModalRoute'
 // ⋯ → Snapshot… (the /charts camera's Signature popover; its capture code is lazy) and Copy share link.
@@ -1877,7 +1881,7 @@ export default function Breadth() {
                 // put the stop on a cell that is not the first one on screen.
                 const firstDrillKey = visibleCols.find(
                   c => gridDrill(row, c, liveBreadth)
-                    || (isCellReadable(c) && !universeCellOverride(c.key, universe) && isFiniteNum(row[c.key])),
+                    || (isCellReadable(c) && !universeCellOverride(c.key, universe, row) && isFiniteNum(row[c.key])),
                 )?.key ?? null
                 return (
                 <tr key={row.date} className={`${ri % 2 === 0 ? styles.rowEven : styles.rowOdd} ${row._live ? styles.liveRow : ''}`}>
@@ -1951,13 +1955,13 @@ export default function Breadth() {
                     // No list here: the cell still opens its reading (History).
                     const isDrillable = hasList || (isCellReadable(col) && isFiniteNum(val))
                     // Off UCT: Health is hidden ("—") and the Phase 3 columns read "n/a".
-                    const override = universeCellOverride(col.key, universe)
+                    const override = universeCellOverride(col.key, universe, row)
                     if (override) {
                       return (
                         <td key={col.key}
                             className={`${styles.td} ${styles.naCell} ${groupStart}`}
                             data-universe-na={col.key}
-                            title={override === 'n/a' ? NOT_AVAILABLE_NOTE : universeColumnNote(col.key, universe)}>
+                            title={REBUILT_COLS.has(col.key) ? NOT_IN_SERIES_NOTE : override === 'n/a' ? NOT_AVAILABLE_NOTE : universeColumnNote(col.key, universe)}>
                           {override}
                         </td>
                       )
@@ -1993,6 +1997,7 @@ export default function Breadth() {
                               ? 'Provisional, reconciles to roughly 10%'
                               : liveBreadth.partial?.has(col.key) && row._live
                                 ? 'Builds through the session — only complete at the close'
+                                : (col.key === 'uct_exposure' && row.uct_exposure_model && val != null) ? UCT_EXP_MODEL_TITLE
                                 : carried ? undefined   // its as-of shows in the age tooltip below
                                   : isStaleAaii ? `Survey: ${row.aaii_survey_date}`
                                     : hasList ? 'Click to see stocks'

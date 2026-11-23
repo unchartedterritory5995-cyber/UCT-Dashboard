@@ -337,14 +337,44 @@ export const dotSizeWord = (w) => (w === 'medium' ? 'Default' : String(w || 'Def
 const CALC_WORD = { D: 'daily', W: 'weekly', M: 'monthly', 60: '1-hour', 1: '1-minute', 5: '5-minute', 15: '15-minute', 30: '30-minute' }
 export const calcWord = (code) => CALC_WORD[code] || String(code || '')
 const chartTfWord = (tf) => (tf === 'D' ? 'Daily' : tf === 'W' ? 'Weekly' : tf === 'M' ? 'Monthly' : /^\d+$/.test(String(tf)) ? (Number(tf) % 60 === 0 ? `${Number(tf) / 60}h` : `${tf}m`) : String(tf))
+// (AUDIT 11-23) THE RECEIPT NAMES THE PLOT: a style change that landed on ONE output of an indicator that has SEVERAL — a colour
+// setting of several ("MACD's Signal color"), a histogram's up / down colour, one output's plot style or dot size — names that
+// output by the definition's OWN label (never the member's words, never the model's), from the confirmed change's own target /
+// plotKey. An indicator with one colour / one drawn line keeps its receipt exactly as it was; an instance-level control (line
+// width, line style: no plotKey in the contract) names no output, because it changed every line.
+// → the label, or null (one output, no output named, or a definition that cannot be read).
+const drawnPlots = (def) => (Array.isArray(def?.plots) ? def.plots : []).filter(p => p && p.key && p.style !== 'hlines')
+const colorLabelWord = (s) => String(s || '').replace(/\s+colou?r$/i, '').trim()
+export function styledOutputWord(defId, change) {
+  let def = null
+  try { def = defId ? nativeRegistry.getDefinition(defId) : null } catch { def = null }
+  if (!def) return null
+  const c = change || {}
+  const tgt = String(c.target || '')
+  if (tgt.startsWith('input:')) {
+    const colors = (Array.isArray(def.inputs) ? def.inputs : []).filter(i => i && i.type === 'color')
+    if (colors.length < 2) return null
+    const i = colors.find(x => `input:${x.key}` === tgt)
+    return i ? (colorLabelWord(i.label || i.key) || null) : null
+  }
+  if (typeof c.plotKey !== 'string' || !c.plotKey || drawnPlots(def).length < 2) return null
+  const p = drawnPlots(def).find(x => x.key === c.plotKey)
+  return p ? String(p.label || p.key).trim() || null : null
+}
 export function extReceiptLine(receipt, name, where) {
   const c = receipt.change || {}
+  const out = ['setAppearance', 'setDotSize', 'setPlotStyle', 'setColor'].includes(receipt.op) ? styledOutputWord(receipt.defId, c) : null
+  const its = out ? `${name}'s ${out}` : null
   switch (receipt.op) {
-    case 'setAppearance': return `Changed ${name}'s ${STYLE_WORD[c.key] || c.key}${where} — ${c.before} → ${c.after}.`
+    case 'setAppearance': return `Changed ${its || name + "'s"} ${STYLE_WORD[c.key] || c.key}${where} — ${c.before} → ${c.after}.`
     // ⭐ 2a-12b: `plotKey` only when ONE dot output was sized (absent = the instance level, as the Dot size control writes it)
-    case 'setDotSize': return `Changed ${name}'s dot size${c.plotKey ? ` (${c.plotKey})` : ''}${where} — ${dotSizeWord(c.before)} → ${dotSizeWord(c.after)}.`
-    case 'setPlotStyle': return `Changed how ${name}${c.plotKey ? ` (${c.plotKey})` : ''} is drawn${where} — ${c.before || 'default'} → ${c.after}.`
-    case 'setColor': return `Changed ${name}'s ${String(c.target || '').startsWith('sign:') ? `${c.target === 'sign:up' ? 'up' : 'down'} color` : 'color'}${where} to ${colorName(c.after)}.`
+    case 'setDotSize': return its
+      ? `Changed ${its} dot size${where} — ${dotSizeWord(c.before)} → ${dotSizeWord(c.after)}.`
+      : `Changed ${name}'s dot size${c.plotKey ? ` (${c.plotKey})` : ''}${where} — ${dotSizeWord(c.before)} → ${dotSizeWord(c.after)}.`
+    case 'setPlotStyle': return its
+      ? `Changed how ${its} is drawn${where} — ${c.before || 'default'} → ${c.after}.`
+      : `Changed how ${name}${c.plotKey ? ` (${c.plotKey})` : ''} is drawn${where} — ${c.before || 'default'} → ${c.after}.`
+    case 'setColor': return `Changed ${its || name + "'s"} ${String(c.target || '').startsWith('sign:') ? `${c.target === 'sign:up' ? 'up' : 'down'} color` : 'color'}${where} to ${colorName(c.after)}.`
     // calc-TF family: which bars COMPUTE it (never the chart's timeframe, never where it shows)
     case 'setCalculationTimeframe': return c.after
       ? `Calculated ${name}${where} on ${calcWord(c.after)} bars (was ${c.before ? `${calcWord(c.before)} bars` : 'the chart\'s own timeframe'})${c.chartTf ? ` — the chart itself stays on ${chartTfWord(c.chartTf)}` : ''}.`
@@ -415,7 +445,58 @@ async function persistAndReadBack(host, chartRef, before, written) {
   return { ok: true, readBack: c && c.stored != null ? c.stored : null }
 }
 
-const fail = (msg, { unreverted = false } = {}) => Object.assign(new Error(msg), unreverted ? { unreverted: true } : {})
+const fail = (msg, { unreverted = false, ...extra } = {}) => Object.assign(new Error(msg), unreverted ? { unreverted: true } : {}, extra)
+
+// ⛔ SAVE-FAILURE SAFETY (INV2, 2026-11-23): a change the save refused is never left on screen under a "not done" receipt.
+// The only two outcomes of a failed save (conflict, not-saved, a throw), for a change and for its Undo alike:
+//   (a) the chart is put back to `cur.stored` (this tab's own copy from before the write) and a READ-BACK proves it →
+//       "not done, put back, nothing was changed";
+//   (b) it could not be put back (Guard 1: the chart moved on after the Agent's write — the member's own edit is never
+//       clobbered; Guard 2: the read-back does not show the old state) → "on this screen but NOT saved", with no Undo.
+// The server's copy is never pulled in mid-turn: that is the workspace's Reload, not the Agent's.
+const SAVE_WHY = {
+  conflict: 'your workspace was changed in another window or device',
+  'not-saved': 'the save was not confirmed',
+}
+const saveWhy = (reason) => SAVE_WHY[reason] || SAVE_WHY['not-saved']
+const RELOAD_TAIL = {
+  conflict: 'Reload this page to see your saved workspace (reloading discards it).',
+  'not-saved': 'It may still be saved by the board’s next save, or be gone after a reload.',
+}
+export const SAVE_BLOCKED = (label, undo) => `I didn’t ${undo ? 'undo that on' : 'change'} ${label}: your workspace was changed in another window or device, so changes here can’t be saved until you reload this page. Nothing was changed.`
+
+/** Put the chart back to `stored` — only if it still holds exactly what the Agent wrote — and read it back. → 'restored' | 'kept' */
+async function putBack(host, chartRef, stored, before, written) {
+  const now = () => { const c = host.charts.read(chartRef); return c ? JSON.stringify(c.stored ?? null) : null }
+  const s0 = now()
+  if (s0 === before) return 'restored'                      // the write never showed: the screen is as it was
+  if (s0 !== written) return 'kept'                         // Guard 1: something changed the chart after the Agent did
+  let ok = false
+  try { ok = !!host.charts.commit(chartRef, { settings: stored ?? null }) } catch { ok = false }
+  if (!ok) return 'kept'
+  await untilCommitted(host, chartRef, written, before)
+  return now() === before ? 'restored' : 'kept'             // Guard 2: "put back" only on a read-back of the old state
+}
+
+function saveFailure(label, reason, outcome, undo) {
+  const why = saveWhy(reason)
+  if (outcome === 'restored') {
+    return fail(`the save was not confirmed (${reason}), so it is not done; I put the chart back`, {
+      putBack: true,
+      say: undo
+        ? `I couldn’t undo that on ${label}: the save didn’t go through (${why}), so I put the chart back — your change is still in place, as saved.`
+        : `I didn’t change ${label}: the save didn’t go through (${why}), so I put the chart back. Nothing was changed.`,
+    })
+  }
+  const tail = RELOAD_TAIL[reason] || RELOAD_TAIL['not-saved']
+  return fail(`the save was not confirmed (${reason})`, {
+    onScreen: true,
+    keptNote: 'it is on this screen but NOT saved',
+    say: undo
+      ? `The undo on ${label} is on this screen but NOT saved: ${why}. ${tail}`
+      : `That change to ${label} is on this screen but NOT saved: ${why}. ${tail}`,
+  })
+}
 
 // ⛔ calc-TF family READ-BACK: the chart as read after the save (`after`) against the chart before it (`before`). The chart's
 // own timeframe must be unchanged, and the STORED instance must read the frame the change named (a change) or a frame other
@@ -495,10 +576,16 @@ export const indicatorEditsKind = {
     // on the state before ("make the 20 red AND dashed": the second step), so it is planned afresh. A change made
     // ELSEWHERE leaves the cache alone, so an approval still meets the pins the member saw.
     for (const k of [...proposed.keys()]) if (k.startsWith(`${chartRef}|`)) proposed.delete(k)
+    // ⛔ STICKY CONFLICT: a tab that already holds a refused save of a key this chart is saved through can save nothing
+    // more until a reload — refused up front, before the screen is touched (host.saveBlocked: agent/host.js)
+    let blocked = false
+    try { blocked = typeof host.saveBlocked === 'function' && !!host.saveBlocked() } catch { blocked = false }
+    if (blocked) throw fail('your workspace was changed in another window or device, so nothing can be saved here until you reload', { say: SAVE_BLOCKED(label, !!patch.undo), saveBlocked: true })
     const before = JSON.stringify(cur.stored ?? null)
+    const written = JSON.stringify(step.cs ?? null)
     if (!host.charts.commit(chartRef, { settings: step.cs })) throw fail('the chart did not accept the change')
-    const saved = await persistAndReadBack(host, chartRef, before, JSON.stringify(step.cs ?? null))
-    if (!saved.ok) throw fail(`the save was not confirmed (${saved.reason}), so it is not done`, { unreverted: true })
+    const saved = await persistAndReadBack(host, chartRef, before, written)
+    if (!saved.ok) throw saveFailure(label, saved.reason, await putBack(host, chartRef, cur.stored, before, written), !!patch.undo)
     const done = confirmIndicatorMutation(saved.readBack, step.pending, ctx)
     if (done.status !== 'confirmed') throw fail(refusalSentence({ reason: done.reason || done.status }, { chart: label }), { unreverted: true })
     // ⛔ calc-TF family: a calculation-timeframe change is "done" only when the STORED instance reads the new frame back

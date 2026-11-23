@@ -105,9 +105,9 @@
     "id": "text",
     "name": "ILScript",
     "type": "text",
-    "defval": "bmI9Ks46_DQladFsyY1rqI8GESto2VA==_IVwyIO89Kb/CqJD2uu3a/2S/V7YIEKZeXvZ49LSMG1A+nyJ03P8BvQuE3WdFG4/dueVVMB6vYPZJvi2Rl5xLTKKZ/KyD0/VF8btUCeRBfGPjM+kJXHKQ90m6TLxnNzyH4HoNpwg9d/majPKFI1JT9kO1DNRnuzVlsLJj6/dp13mexsPtaU9frBgDszzPXSvPnT+IZlMOyLpL4t+CBBF6YbUVZaeQPDRnsThvEGV6a+BnzP7D3slH47x+t6VX2Dxw4feEomof53qegAO7dsHCXu/XsXDfyOprvY3mBOYnMHkzoH3z7f+ro7JzZ4HEsjVI+tJJkhEraG5IXdJPR2fjTgxWdoLXeSDoZHbO973N0aC7J9MsvjxdZVhJN1pURWoQEuu78Nb4Bls2iPAwZpk15WUuNI6H8ocjJ0IGjEHc+APSQfMT6yfcG3EMhx3dHMbJlZyzI/RoO+w6UQgy5dI1jqg3M6kRKtvFP1X7MWZBIYOxtWOdePRx3ZTy0+O+P8Vyj0Xouflu0grpSr2TiAiu+rZ8ie5/oaFk3h42LeukSorfOZbrRJZ6E6Bw1zXwgBoykUtPiKYlw1N0NLkXeG5xYF3Za9EO6hdFdbJeLEz6riux/al3Dpijop4jwCmNhCYJDKIyAKTcVAST3DFKwiYCQtUHhTlaFno62qGMxQUb/BFfY9OirRj60ruOWDYMlgmJSZzjykgC20zdlyqYWJuWxcRkCg1zENM7gP5fOEmz64v1k/nbXmrvMXsa4EP3Xkxx0qL40kbam+kwuw4BEdksZ3LNdMzi+AUd9EhHcEJbuhFDWTAZW5orfJmTkAaqGxarajuHZidhztNia84hVDns/poByRbHQiG1NWhSEsfHtC8M2S/XIco7FMieavKK69AoAQWwELHR7dv8bVrL0V528FVYUf/BD0pJcJPqaO907vpqfwnEK/R31iriyYX3wDKS3SSADuPfUSjkbEVmwO9k+mjJUZqs5sUg0fy/PJZ9w85Xt43vKfw7k3xbvMbgcjKMzKSczep3pqZcpB9bjOU0MK1G1cRg/PAF6dr8ftI+G4Ae4vwmuDlN89+hDMo6Ndx7AICKCKeu5GO5icDSmxzDb6EV0au12V+4Vn8WSaOZ6p8FnMKVe1YdIqjNroEkboRxAcm/oi9LJTpLb0Ic1H1Qwag0vxazbZBcS8XRlzaJQ+3DR1eGdzRXaVux9AeouHdzDDkYln/CBvn97lwjQj3dw1/CJzbeWyRb1v3P1Q4DUdwJTznyaKpRgT01V2MIt4wQu0Rz25flLUdKh3rZ5t9YQ6vVlrY/6OpOLf32rYWpaSOfTb2vBdWj04DTXTunolVMzpZY4MkSiviUCzPqSWjVRtfGXjea0gxMaCfRPw==",
+    "defval": "[redacted: TradingView compiled script]",
     "isHidden": true,
-    "value": "bmI9Ks46_DQladFsyY1rqI8GESto2VA==_IVwyIO89Kb/CqJD2uu3a/2S/V7YIEKZeXvZ49LSMG1A+nyJ03P8BvQuE3WdFG4/dueVVMB6vYPZJvi2Rl5xLTKKZ/KyD0/VF8btUCeRBfGPjM+kJXHKQ90m6TLxnNzyH4HoNpwg9d/majPKFI1JT9kO1DNRnuzVlsLJj6/dp13mexsPtaU9frBgDszzPXSvPnT+IZlMOyLpL4t+CBBF6YbUVZaeQPDRnsThvEGV6a+BnzP7D3slH47x+t6VX2Dxw4feEomof53qegAO7dsHCXu/XsXDfyOprvY3mBOYnMHkzoH3z7f+ro7JzZ4HEsjVI+tJJkhEraG5IXdJPR2fjTgxWdoLXeSDoZHbO973N0aC7J9MsvjxdZVhJN1pURWoQEuu78Nb4Bls2iPAwZpk15WUuNI6H8ocjJ0IGjEHc+APSQfMT6yfcG3EMhx3dHMbJlZyzI/RoO+w6UQgy5dI1jqg3M6kRKtvFP1X7MWZBIYOxtWOdePRx3ZTy0+O+P8Vyj0Xouflu0grpSr2TiAiu+rZ8ie5/oaFk3h42LeukSorfOZbrRJZ6E6Bw1zXwgBoykUtPiKYlw1N0NLkXeG5xYF3Za9EO6hdFdbJeLEz6riux/al3Dpijop4jwCmNhCYJDKIyAKTcVAST3DFKwiYCQtUHhTlaFno62qGMxQUb/BFfY9OirRj60ruOWDYMlgmJSZzjykgC20zdlyqYWJuWxcRkCg1zENM7gP5fOEmz64v1k/nbXmrvMXsa4EP3Xkxx0qL40kbam+kwuw4BEdksZ3LNdMzi+AUd9EhHcEJbuhFDWTAZW5orfJmTkAaqGxarajuHZidhztNia84hVDns/poByRbHQiG1NWhSEsfHtC8M2S/XIco7FMieavKK69AoAQWwELHR7dv8bVrL0V528FVYUf/BD0pJcJPqaO907vpqfwnEK/R31iriyYX3wDKS3SSADuPfUSjkbEVmwO9k+mjJUZqs5sUg0fy/PJZ9w85Xt43vKfw7k3xbvMbgcjKMzKSczep3pqZcpB9bjOU0MK1G1cRg/PAF6dr8ftI+G4Ae4vwmuDlN89+hDMo6Ndx7AICKCKeu5GO5icDSmxzDb6EV0au12V+4Vn8WSaOZ6p8FnMKVe1YdIqjNroEkboRxAcm/oi9LJTpLb0Ic1H1Qwag0vxazbZBcS8XRlzaJQ+3DR1eGdzRXaVux9AeouHdzDDkYln/CBvn97lwjQj3dw1/CJzbeWyRb1v3P1Q4DUdwJTznyaKpRgT01V2MIt4wQu0Rz25flLUdKh3rZ5t9YQ6vVlrY/6OpOLf32rYWpaSOfTb2vBdWj04DTXTunolVMzpZY4MkSiviUCzPqSWjVRtfGXjea0gxMaCfRPw=="
+    "value": "[redacted: TradingView compiled script]"
    },
    {
     "id": "pineId",
@@ -7075,10 +7075,38 @@
  "warnings": [
   "objects-only study: it declares no plots, so plotValues is empty and its drawings are the whole answer"
  ],
+ "redactions": [
+  {
+   "field": "study.inputs[name=ILScript].value",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 1418,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 53891,
+    "fnv1a": 3827699949
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:28Z"
+  },
+  {
+   "field": "study.inputs[name=ILScript].defval",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 1418,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 53891,
+    "fnv1a": 3827699949
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:28Z"
+  }
+ ],
  "receipt": {
   "algo": "fnv1a32-utf16",
   "over": "JSON.stringify(capture without its receipt key)",
-  "chars": 53891,
-  "fnv1a": 3827699949
+  "chars": 51719,
+  "fnv1a": 3978067154
  }
 }

@@ -651,6 +651,20 @@ export const GROUPS = [
   { id: 'marketRates', title: 'US Treasury auctions (coming up and recent results), Treasury real yields and breakevens, the Fed watch (FOMC statement changes, speeches, next decision)',
     domains: [], actions: ['stock.auctionCalendar', 'stock.realCurve', 'stock.fomcWatch'], fillLast: true, wordsOnly: true,
     words: [] },
+  // Terminal data wave 10 (stock.riskProfile / stock.volumeFootprint / stock.factorExposure / stock.setupHistory /
+  // stock.companyRecord / stock.ownershipReport): one stock's statistics, its volume footprint and gaps, its factor exposure, the
+  // setups that fired on it, its public records and the funds holding it, ALL SIX in ONE group of their own. No existing group
+  // was used: the `data` group has no room under the routing budget for six more actions, wave 7's `marketReads` (the
+  // confirmed setups) and every other words-only group are held at their sizes. WORDS-ONLY and fillLast for wave 3's reasons,
+  // so it is never a filler and no existing group or unrecognised request changes; listed by `actions` because their `stock`
+  // domain would put them in the `data` group. `words` stays EMPTY here: capabilities/terminalDataWave10.js arms each
+  // capability's own words only while it is registered (the server serves its kind), so on a dark server this group never
+  // matches and routing is byte-identical to the base (pinned in agentTerminalDataWave10.test.js). This is the 52nd of the 56
+  // groups the server keeps (turn.MAX_GROUPS); the cap is not changed here.
+  { id: 'stockStudies', title: 'One stock\'s statistics (volatility, beta, returns, corrections), volume footprint and gaps, factor exposure, setup history, public records, funds holding it',
+    domains: [], actions: ['stock.riskProfile', 'stock.volumeFootprint', 'stock.factorExposure', 'stock.setupHistory', 'stock.companyRecord',
+      'stock.ownershipReport'], fillLast: true, wordsOnly: true,
+    words: [] },
 ]
 // chartReplay: the replay bar's bare playback words, which route there ONLY while a chart's bar replay is on (namedGroups)
 const REPLAY_ON_WORDS = /^(?:please )?(?:play|pause|resume|unpause|stop)\b|\b(?:play|pause|resume) (?:it|playback|playing)\b|\b(?:next|previous|prev|last) bar\b|\bstep (?:it )?(?:forward|back(?:ward)?)\b|\b(?:forward|back) (?:\d+|one|a|ten) bars?\b|\b(?:speed (?:it )?up|slow (?:it )?down|faster|slower)\b|\b(?:1|5|20) ?x\b|\b(?:to )?the (?:start|end|beginning)\b/
@@ -884,7 +898,10 @@ export function routeManifest(manifest, message, opts = {}, extra = []) {
   // Past it, routing always applies: the always-on and follow-up groups, every other group NAMED,
   // so the model asks for what it needs (need_groups) instead of anything being cut.
   if (opts.enabled === false && manifest.length <= limit) return { manifest, routing: null }
-  const { priority, matched, soft } = selectGroups(message, opts)
+  // `opts.groups` (NL-1 selection only): selectGroups(message, opts), already read by the caller for this same message and
+  // options — so one request's selection reads its words once, not twice per reroute (agentNl1SelectionMemo.test.js proves
+  // the routing is identical either way)
+  const { priority, matched, soft } = opts.groups || selectGroups(message, opts)
   // `opts.after` (review #771 delta H1): the groups an ANSWER to the model's question carries over — packed AFTER the
   // message's own groups (never displacing them), and before any fill
   const after = (opts.after || []).filter(id => GROUPS.some(g => g.id === id))

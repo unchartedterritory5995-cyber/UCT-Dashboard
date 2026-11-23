@@ -27,6 +27,7 @@
   "canonicalise:textop",
   "canonicalise:this",
   "canonicalise:timeframe",
+  "chart:first-page",
   "chart:scalar-current-only",
   "engine:error",
   "engine:withheld",

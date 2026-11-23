@@ -38,7 +38,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false
+   "fast": true
   },
   "alert.delete": {
    "domain": "alert",
@@ -51,7 +51,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false
+   "fast": true
   },
   "alert.list": {
    "domain": "alert",
@@ -260,7 +260,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false
+   "fast": true
   },
   "chart.describeSetup": {
    "domain": "chart",
@@ -559,7 +559,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false
+   "fast": true
   },
   "chartSetup.compareGroup": {
    "domain": "chartSetup",
@@ -572,7 +572,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false
+   "fast": true
   },
   "chartSetup.copyLook": {
    "domain": "chartSetup",
@@ -767,7 +767,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false
+   "fast": true
   },
   "cot.positioning": {
    "domain": "cot",
@@ -1118,7 +1118,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false
+   "fast": true
   },
   "drawing.setAllVisible": {
    "domain": "drawing",
@@ -1430,7 +1430,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false
+   "fast": true
   },
   "indicatorAlert.delete": {
    "domain": "indicatorAlert",
@@ -1443,7 +1443,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false
+   "fast": true
   },
   "indicatorAlert.list": {
    "domain": "indicatorAlert",
@@ -1469,7 +1469,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false
+   "fast": true
   },
   "indicatorCopy.copyTo": {
    "domain": "indicatorCopy",
@@ -2333,6 +2333,19 @@
    ],
    "fast": false
   },
+  "stock.companyRecord": {
+   "domain": "stock",
+   "group": "stockStudies",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
   "stock.compare": {
    "domain": "stock",
    "group": "data",
@@ -2476,6 +2489,19 @@
    ],
    "fast": false
   },
+  "stock.factorExposure": {
+   "domain": "stock",
+   "group": "stockStudies",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
   "stock.flowRecord": {
    "domain": "stock",
    "group": "marketBoards",
@@ -2593,6 +2619,19 @@
    ],
    "fast": false
   },
+  "stock.ownershipReport": {
+   "domain": "stock",
+   "group": "stockStudies",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
   "stock.profile": {
    "domain": "stock",
    "group": "data",
@@ -2622,6 +2661,19 @@
   "stock.realCurve": {
    "domain": "stock",
    "group": "marketRates",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
+  "stock.riskProfile": {
+   "domain": "stock",
+   "group": "stockStudies",
    "target": "market",
    "risk": "local",
    "reversible": true,
@@ -2674,6 +2726,19 @@
   "stock.sessionHighsLows": {
    "domain": "stock",
    "group": "data",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
+  "stock.setupHistory": {
+   "domain": "stock",
+   "group": "stockStudies",
    "target": "market",
    "risk": "local",
    "reversible": true,
@@ -2804,6 +2869,19 @@
   "stock.uct20List": {
    "domain": "stock",
    "group": "marketReads",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
+  "stock.volumeFootprint": {
+   "domain": "stock",
+   "group": "stockStudies",
    "target": "market",
    "risk": "local",
    "reversible": true,

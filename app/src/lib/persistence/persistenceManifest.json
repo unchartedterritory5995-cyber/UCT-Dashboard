@@ -352,6 +352,18 @@
       ]
     },
     {
+      "key": "indicator_tours_seen",
+      "store": "server-preference",
+      "scope": "cross-device",
+      "surface": "Charts",
+      "kind": "state",
+      "label": "Indicator walkthroughs already seen",
+      "serverAllowlisted": true,
+      "files": [
+        "app/src/components/chart/useIndicatorTours.js"
+      ]
+    },
+    {
       "key": "j2_calendar_pnl_basis",
       "store": "server-preference",
       "scope": "cross-device",

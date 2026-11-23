@@ -11,6 +11,17 @@
 //                       visibility (lib/deskVisibility.isAppVisible) on every change and once a minute
 //                       while visible, so the leader's feed pauses when no tab is looked at
 //
+// ⭐ THE FEED'S CATCH-UP WAITS FOR A QUIET PAGE (2026-11-23, the live-session read of the device store). The leader's
+// minute feed starts on this page's first visibility report, and a feed that starts, or hears the app visible again after
+// it was hidden (liveFeed.visible -> consumer.syncNow), catches up at once: mid-session that is today.bin, the whole day so
+// far, downloaded and replayed in the leader's worker. ONE gate holds it, the seed ingest's: the first chart paint, then
+// an idle period (start(): afterPaint -> idle; the first report rides that callback). Back from hidden, the visible
+// report waits for the same `idle` (a member returning to the app starts switching right away); a hidden report goes at
+// once, and it changes nothing in the leader (liveFeed.visible(false) writes nothing): the feed keeps polling until
+// VISIBLE_FRESH_MS (90 s) after the last VISIBLE report, as before (review of #2615). `idle` (requestIdleCallback) is the
+// only cheap "not mid-switch" signal this client has:
+// it does not run while the page is busy rendering a switch. No other gate, no new global.
+//
 // ⭐ PERSISTENT STORAGE, ASKED ONCE PER BROWSER PROFILE (review of #2537, L5). OPFS is best-effort storage: under disk
 // pressure the browser may evict the 70+ MB of seed files. Once a seed file is held (the worker's status, or a new
 // generation), the page asks `navigator.storage.persist()` (only a page can; a worker cannot) through
@@ -160,6 +171,7 @@ export function createDeviceClient({
   let lastIngestAt = -Infinity   // when this page last asked the leader for an ingest (M2)
   let recheckQueued = false      // a re-check waits for idle
   let beat = null                // the visible beat's interval
+  let visibleQueued = false      // a visible report waits for idle (back from hidden)
   const pending = new Map()      // id → resolve
   let readTimeouts = 0           // reads the worker did not answer in time (diagnostics)
   const cache = new Map()        // `${tf}|${SYM}` → {cols, at} (LRU: Map order)
@@ -361,6 +373,18 @@ export function createDeviceClient({
     })
   }
 
+  /** Back from hidden: the visible report at the next idle (one queued at a time). It is what restarts the feed's catch-up
+   *  (liveFeed.visible -> consumer.syncNow), so it waits for a quiet page like the first one did. */
+  function _reportVisibleAtIdle() {
+    if (visibleQueued) return
+    visibleQueued = true
+    idle(() => {
+      visibleQueued = false
+      if (dead || !_visibleNow()) return     // hidden again meanwhile: that report already went
+      _report()
+    })
+  }
+
   const api = {
     start() {
       if (offStopped) return api
@@ -377,7 +401,10 @@ export function createDeviceClient({
           if (_memberOff()) { _stopForOff(); return }     // Off picked before the first paint: the download never begins
           _askIngest(false)
           _report()
-          try { onVisibilityChange(() => { _report(); if (_visibleNow()) _whileVisible() }) } catch { /* no document */ }
+          // hidden: reported at once (the leader's feed keeps polling until 90 s after the last visible report: liveFeed
+          // VISIBLE_FRESH_MS); visible again: the report at the next idle, never inside
+          // the event (see THE FEED'S CATCH-UP WAITS FOR A QUIET PAGE above); the kill and re-check look as before
+          try { onVisibilityChange(() => { if (!_visibleNow()) { _report(); return } _reportVisibleAtIdle(); _whileVisible() }) } catch { /* no document */ }
           try { beat = setIntervalFn(() => { if (_visibleNow()) { _report(); _whileVisible() } }, VISIBLE_HEARTBEAT_MS) } catch { /* no timers */ }
         }))
       }

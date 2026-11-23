@@ -25,11 +25,19 @@ const _TFS = new Set(SERVED_TFS)
 
 let _clientP = null
 let _client = null
+/** The client chunk could not be loaded (offline, a deploy that removed the chunk, a blocked worker URL): a MISS, never
+ *  an error. This page's store then has no client, every read answers null and the chart asks the server, as with the
+ *  store off. COUNTED (TERM-033, lib/swallowedFetch.census.test.js), so a page whose store never loaded says so instead
+ *  of reading like a store that holds nothing. One lazy load per page: a failed one is not retried until the next load. */
+let _loadFailures = 0
+const _clientUnavailable = () => { _loadFailures += 1; return null }
+/** Diagnostics: how many times this page failed to load the device client (0 or 1). */
+export function deviceClientLoadFailures() { return _loadFailures }
 function _load() {
   if (!_clientP) {
     _clientP = import('./client')
       .then((m) => { _client = m.getDeviceClient().start(); return _client })
-      .catch(() => null)
+      .catch(_clientUnavailable)
   }
   return _clientP
 }

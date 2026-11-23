@@ -581,7 +581,7 @@ function stepFrom(charts, s, side, n) {
 }
 const knownIndicator =(word) => { try { return addableRows().some(r => String(r.defId).toLowerCase() === String(word).toLowerCase()) } catch { return false } }
 const carries = (c, word) => (c?.cs?.indicatorInstances || []).some(i => i && !i.deleted && String(i.defId || '').toLowerCase() === String(word).toLowerCase())
-function tfOfWord(w) {
+export function tfOfWord(w) {
   const s = String(w || '').toLowerCase().trim()
   if (s === 'daily') return 'D'
   if (s === 'weekly') return 'W'

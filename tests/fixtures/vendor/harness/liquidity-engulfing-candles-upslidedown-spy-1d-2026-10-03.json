@@ -141,9 +141,9 @@
     "id": "text",
     "name": "ILScript",
     "type": "text",
-    "defval": "bmI9Ks46_aHPoyNRAXCI8ckQooDxawg==_2uX+wYPZ2eFHJAfZGAauO+1l+1M+FBWI/p+p36qbf/TSPGzqCqzCEoM33eHYJ4YxQEwfV2wsamqCmtjiB6p3dVFh8AH14BBpqwIliOXBppaS6yX3FJ1C8R2w3GL4bb1f9NqPJFFBYxqxaUgc0AuwhVw+25H9eQ/RR7ZLTBy1X163q6Lg0Jxs3Oi20Rn6mWHiWhJuKWpvNO+UP2Hsx24oNECyem3dkifQajikyz0tTiNjHJT3AexutOECyyAq3S+5g6HjZIXolMIf4nI08KDGufWRLt+BupXL0uuUNMN+QobnM45OY17gdbz7ZXy95ppXjlcZtBlX31N4dRcOS8thgbxxYoEuszQUpOq7nbX0aKsAAVx/SW4QrQhTQGAoKH0PdpWlGDbliPt8xtOOMhWkqWFba3ftLqHEQxcxv8Y710r2WLc9Yee6OGXMCBrQceJcAecCDQiOqL3g5jJlv48+v9x/nWIQnsT/c+KyoONIpyTSqkOAuryJVQ7l9x/HzmgtezgVZaN1YZLDZvH5LK9gNtR7Jvgun4y2zmfSO6KECQTunse1jLmkn6n0adbbyQoHhJlidN7A9N7wViR6vKbKcfdEee+kiO5O/N5Xy+pZSlrdamH9a2ydr3reRKvJspvNcDIXIiLH3uTh0IHCGuVh6H+I/zKwUL6T9xm6VlPwVpxFEdzXRxi6j98ge5p+VTaEQ7I97QvgOLT+1slJ9yh+QkUvFjO9yxzwTmQU03Slqo2guFl7pYF+iTLb3Jlj6NUcVHDjrpNBEiozYsDYFD9rNkJ/HjryVDLq4EFVzgxrkxIh9+gkt6PtK3mnb0S7w18IW03cKzhvxqVavQiDHK5vviPO9Ue1wD+c/DvIOFdkjeb1MhplUBALs/vXgE+fxVsMSPDEb8h3LD74uHQqqjHqCdCceOwAJaa5ev6Wx1RKgXR2+QvG8G563y9smLUqlM5nu18Xl3jIZxu9eM5CK6hIKP4Lqp7yOCZdU6HtrxQ0qrqOhRY/Uo/TB1W9jqdJ8r/WiokP0diYieB3teI+sfCUcSzgvMJTLs2gz6v64OsPDtVxi3qJYolWkbonmYeiQeeD2TNbx/wdOY/L2e0IQWc2y/8qCIF2P9w/mSQejWc2duVIbwlpTZvi4FQWCv23rgBYMVEWmGO9B+EGDvD8suDy5v4TrFP228H3TaM0NUgH23NAITtgI7oZ8ynSGvze8pjNQCRO5Ol1kFpVgHoL1xFSqNQ4cesGnR03HhwBBt43oHHrT67GxnPYEhr8G02Po/hHxwaowRxU/db02lzXunULYvRkl+/UtHDEk5UgDTSOTFV4iCsdGG7oRxYhV1KsQ/BqzoLSSSOkPWkUGEinRuQPyySB91sE9QriIS4gvfoa56KRh6DVeOaZtWPCnu5m0vw3MhdUUjI+3lLaxcgnvz6LJzv9V5HDQihvcjH5yRpnPhNvFiwjk7bPR9GVv7RXbrS85JR/mWAn3M5mYFUGoID7hAqceoj50CHeRF1GyZxPT4yE7hKlOMbnmH3O",
+    "defval": "[redacted: TradingView compiled script]",
     "isHidden": true,
-    "value": "bmI9Ks46_aHPoyNRAXCI8ckQooDxawg==_2uX+wYPZ2eFHJAfZGAauO+1l+1M+FBWI/p+p36qbf/TSPGzqCqzCEoM33eHYJ4YxQEwfV2wsamqCmtjiB6p3dVFh8AH14BBpqwIliOXBppaS6yX3FJ1C8R2w3GL4bb1f9NqPJFFBYxqxaUgc0AuwhVw+25H9eQ/RR7ZLTBy1X163q6Lg0Jxs3Oi20Rn6mWHiWhJuKWpvNO+UP2Hsx24oNECyem3dkifQajikyz0tTiNjHJT3AexutOECyyAq3S+5g6HjZIXolMIf4nI08KDGufWRLt+BupXL0uuUNMN+QobnM45OY17gdbz7ZXy95ppXjlcZtBlX31N4dRcOS8thgbxxYoEuszQUpOq7nbX0aKsAAVx/SW4QrQhTQGAoKH0PdpWlGDbliPt8xtOOMhWkqWFba3ftLqHEQxcxv8Y710r2WLc9Yee6OGXMCBrQceJcAecCDQiOqL3g5jJlv48+v9x/nWIQnsT/c+KyoONIpyTSqkOAuryJVQ7l9x/HzmgtezgVZaN1YZLDZvH5LK9gNtR7Jvgun4y2zmfSO6KECQTunse1jLmkn6n0adbbyQoHhJlidN7A9N7wViR6vKbKcfdEee+kiO5O/N5Xy+pZSlrdamH9a2ydr3reRKvJspvNcDIXIiLH3uTh0IHCGuVh6H+I/zKwUL6T9xm6VlPwVpxFEdzXRxi6j98ge5p+VTaEQ7I97QvgOLT+1slJ9yh+QkUvFjO9yxzwTmQU03Slqo2guFl7pYF+iTLb3Jlj6NUcVHDjrpNBEiozYsDYFD9rNkJ/HjryVDLq4EFVzgxrkxIh9+gkt6PtK3mnb0S7w18IW03cKzhvxqVavQiDHK5vviPO9Ue1wD+c/DvIOFdkjeb1MhplUBALs/vXgE+fxVsMSPDEb8h3LD74uHQqqjHqCdCceOwAJaa5ev6Wx1RKgXR2+QvG8G563y9smLUqlM5nu18Xl3jIZxu9eM5CK6hIKP4Lqp7yOCZdU6HtrxQ0qrqOhRY/Uo/TB1W9jqdJ8r/WiokP0diYieB3teI+sfCUcSzgvMJTLs2gz6v64OsPDtVxi3qJYolWkbonmYeiQeeD2TNbx/wdOY/L2e0IQWc2y/8qCIF2P9w/mSQejWc2duVIbwlpTZvi4FQWCv23rgBYMVEWmGO9B+EGDvD8suDy5v4TrFP228H3TaM0NUgH23NAITtgI7oZ8ynSGvze8pjNQCRO5Ol1kFpVgHoL1xFSqNQ4cesGnR03HhwBBt43oHHrT67GxnPYEhr8G02Po/hHxwaowRxU/db02lzXunULYvRkl+/UtHDEk5UgDTSOTFV4iCsdGG7oRxYhV1KsQ/BqzoLSSSOkPWkUGEinRuQPyySB91sE9QriIS4gvfoa56KRh6DVeOaZtWPCnu5m0vw3MhdUUjI+3lLaxcgnvz6LJzv9V5HDQihvcjH5yRpnPhNvFiwjk7bPR9GVv7RXbrS85JR/mWAn3M5mYFUGoID7hAqceoj50CHeRF1GyZxPT4yE7hKlOMbnmH3O"
+    "value": "[redacted: TradingView compiled script]"
    },
    {
     "id": "pineId",
@@ -25497,10 +25497,38 @@
   "unreadable": []
  },
  "warnings": [],
+ "redactions": [
+  {
+   "field": "study.inputs[name=ILScript].value",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 1562,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 134671,
+    "fnv1a": 1538776584
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:32Z"
+  },
+  {
+   "field": "study.inputs[name=ILScript].defval",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 1562,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 134671,
+    "fnv1a": 1538776584
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:32Z"
+  }
+ ],
  "receipt": {
   "algo": "fnv1a32-utf16",
   "over": "JSON.stringify(capture without its receipt key)",
-  "chars": 134671,
-  "fnv1a": 1538776584
+  "chars": 132213,
+  "fnv1a": 1495092895
  }
 }

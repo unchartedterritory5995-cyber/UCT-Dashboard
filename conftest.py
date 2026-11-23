@@ -1551,6 +1551,32 @@ if not _INERT_IN_PRODUCTION:
     os.environ.setdefault("BARS_CORRECTIONS_SERVE", "0")
 
 
+# ─── boot work that outlives the tests: OFF, or not made to wait, under pytest ──
+#
+# A test that enters the real `api.main` lifespan (`with TestClient(app)`, or the lifespan context itself) starts
+# the app's boot work. An executor's QUEUED work is finished at interpreter exit, so a pytest process cannot exit
+# while such work is queued. Measured on the remote lane, 2026-11-23, the same 12 test files started together:
+#   master                                   pytest step 23.0 min (tests 5 min, then 18 min waiting to exit)
+#   + the two prewarms below off             10.5 min
+#   + the background lane's settle at 0      4.8 min: the process exits 2 s after its summary
+# That waiting is a runner held for nothing in every lane that runs such a test (the org's 120 job slots were
+# full on that day, with jobs queueing 10 minutes), and thousands of vendor requests from a test process.
+#
+#   * `ticker_logos_prewarm.start_async()`: after 30 s, one logo fetch per universe ticker (3,639) on a
+#     12-worker pool. `ticker_names_prewarm.start_async()`: after 60 s, one profile lookup per ticker.
+#     Both honour their own kill switch, the names the local sandbox sets.
+#   * `api/services/bg_lane.py` holds background work until `BG_LANE_SETTLE_S` (default 600 s) after the process
+#     started, so a web pod's boot is not fought over. The boot's deploy-smoke audit queues ten tickers on a
+#     one-worker pool, each waiting for that window (thread dump: `bars_audit._one` in `bg_lane.wait_settled`),
+#     so the process could not exit until ten minutes after it began. A test process has no boot to protect.
+# Set here (at conftest import, before any test module) and opt-IN: a test of a prewarm calls its `_run_pass()`
+# directly; tests/test_bg_lane.py sets the lane's variables itself.
+if not _INERT_IN_PRODUCTION:
+    os.environ.setdefault("TICKER_LOGOS_PREWARM_DISABLED", "1")
+    os.environ.setdefault("TICKER_NAMES_PREWARM_DISABLED", "1")
+    os.environ.setdefault("BG_LANE_SETTLE_S", "0")
+
+
 # ─── prebuilt catalogue memo: cleared between tests ────────────────────────
 #
 # `watchlist_prebuilt._load_committed()` is memoized (TTL + config-file mtime) so

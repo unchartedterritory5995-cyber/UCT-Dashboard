@@ -1,8 +1,8 @@
 {
  "schema": "uct.strategy-verdict/v1",
  "captureId": "w9-r1-risk-intraday-range-spy-15-2026-11-15",
- "captureSha256": "3d0e575acdbba1309dbaecec565b59e319e8f18480598200b4d7a3112a7c3850",
- "receipt": 2167840392,
+ "captureSha256": "cb2ef01f656f2de5ea39a9f68f8f68591532fd8851f6aea9931af32f2845a312",
+ "receipt": 2043540044,
  "sourceSha256": "edc03e613e4f3d998d91b1df1be8d243c557c3f419199166417e332fbac013bb",
  "queueTargetId": "W9-R1i",
  "symbol": "AMEX:SPY",

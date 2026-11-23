@@ -89,9 +89,9 @@
     "id": "text",
     "name": "ILScript",
     "type": "text",
-    "defval": "bmI9Ks46_DaDmHpJZjyQet2KhTj9qxQ==_rg6OYYryufE31vdwfzSM4HlbpA0PlDF0F2rxey/01YpvG/HX8s78rcRKVcvtKXSkm3NW8VJzG17Bzp9lNp5Tf9Eqx/+tYthc6oYtJb5dsy07To+iYD3iWq3YGE/ltJM4izTPnvUOt7kMK/Y7lFJeQRAx43mZI9zc4seB6OI8KByM2QGp5MBzOwNbZwRNGAmDh2hh94S5pi69YsYHu88/2RhBYaplKUOj3AkmUBm1S9BoEx9bAGpkaJhLaSrM3wknbDId5XvdaUkWC+MnJKJjgBlOlcfx8mDI8G1dIwPtoV2SwNMv2MBUCTAcOz4we4fR0IW3HrEODIXAg/+avf+wkT+BPRMSnaOMUB97zx8vPqxomDxpDhxpKYOEkYSaHkMkPK50pcxIE9OQmT8TrAFMd8ATaTe4zPltqIO4zLglKA==",
+    "defval": "[redacted: TradingView compiled script]",
     "isHidden": true,
-    "value": "bmI9Ks46_DaDmHpJZjyQet2KhTj9qxQ==_rg6OYYryufE31vdwfzSM4HlbpA0PlDF0F2rxey/01YpvG/HX8s78rcRKVcvtKXSkm3NW8VJzG17Bzp9lNp5Tf9Eqx/+tYthc6oYtJb5dsy07To+iYD3iWq3YGE/ltJM4izTPnvUOt7kMK/Y7lFJeQRAx43mZI9zc4seB6OI8KByM2QGp5MBzOwNbZwRNGAmDh2hh94S5pi69YsYHu88/2RhBYaplKUOj3AkmUBm1S9BoEx9bAGpkaJhLaSrM3wknbDId5XvdaUkWC+MnJKJjgBlOlcfx8mDI8G1dIwPtoV2SwNMv2MBUCTAcOz4we4fR0IW3HrEODIXAg/+avf+wkT+BPRMSnaOMUB97zx8vPqxomDxpDhxpKYOEkYSaHkMkPK50pcxIE9OQmT8TrAFMd8ATaTe4zPltqIO4zLglKA=="
+    "value": "[redacted: TradingView compiled script]"
    },
    {
     "id": "pineId",
@@ -6495,10 +6495,38 @@
   "unreadable": []
  },
  "warnings": [],
+ "redactions": [
+  {
+   "field": "study.inputs[name=ILScript].value",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 462,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 39849,
+    "fnv1a": 1947139311
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:34Z"
+  },
+  {
+   "field": "study.inputs[name=ILScript].defval",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 462,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 39849,
+    "fnv1a": 1947139311
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:34Z"
+  }
+ ],
  "receipt": {
   "algo": "fnv1a32-utf16",
   "over": "JSON.stringify(capture without its receipt key)",
-  "chars": 39849,
-  "fnv1a": 1947139311
+  "chars": 39587,
+  "fnv1a": 3046897902
  }
 }

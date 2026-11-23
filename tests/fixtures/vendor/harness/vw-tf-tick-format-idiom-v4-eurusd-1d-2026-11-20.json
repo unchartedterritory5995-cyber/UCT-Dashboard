@@ -103,7 +103,7 @@
     "type": "text",
     "defval": "",
     "isHidden": true,
-    "value": "bmI9Ks46_N7YOXxdCSfHyZv9M6gCciQ==_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"
+    "value": "[redacted: TradingView compiled script]"
    },
    {
     "id": "pineId",
@@ -51357,10 +51357,25 @@
   "objects-only study: it declares no plots, so plotValues is empty and its drawings are the whole answer",
   "newestBarIsForming not derived: the symbol carries no readable session or timezone"
  ],
+ "redactions": [
+  {
+   "field": "study.inputs[name=ILScript].value",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 2034,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 334794,
+    "fnv1a": 3387102496
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:49Z"
+  }
+ ],
  "receipt": {
   "algo": "fnv1a32-utf16",
   "over": "JSON.stringify(capture without its receipt key)",
-  "chars": 334794,
-  "fnv1a": 3387102496
+  "chars": 333100,
+  "fnv1a": 357015241
  }
 }

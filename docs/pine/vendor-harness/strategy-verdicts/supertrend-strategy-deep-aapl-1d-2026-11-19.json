@@ -1,8 +1,8 @@
 {
  "schema": "uct.strategy-verdict/v1",
  "captureId": "supertrend-strategy-deep-aapl-1d-2026-11-19",
- "captureSha256": "a5bfa60a34aaa435dc66e74321b40997befe7062c4fbac430e3a8d335c411ad7",
- "receipt": 3441911600,
+ "captureSha256": "f42c30421ea44faebe3cc63f6cc3ccaf206ae4a34366b8098974da93da207c5d",
+ "receipt": 4058349416,
  "sourceSha256": "7e343cf8b46cb5aab4eb84ee28dcd76c1af2e2af8461dec02271b6a89133c00a",
  "queueTargetId": "Q-SU-8",
  "symbol": "NASDAQ:AAPL",

@@ -93,13 +93,15 @@ export async function commitPlan(host, plan, { env = {}, ctx = null } = {}) {
   // "nothing was left changed" over a change that was deliberately kept
   // `say`: the step's own COMPLETE sentence for the member (it already says what was and wasn't kept) —
   // said once, as-is; only a change that could not be reversed is added to it. `gate`: diagnostics only.
-  const fail = async (label, reason, { dirty = false, note = null, say = null, gate = null } = {}) => {
+  // `onScreen`: the failing step's change is still ON SCREEN, unsaved (its kind could not put it back) — the panel never says
+  // "didn't do" about it (useAgent: a follow-up's lead, and the follow-up loop stops)
+  const fail = async (label, reason, { dirty = false, note = null, say = null, gate = null, onScreen = false } = {}) => {
     const restored = (await compensate(host, landed)) && !dirty
     const tail = note ? ` — ${note}` : (restored ? ' — nothing was left changed' : NOT_REVERSED_TAIL)
     return {
       ok: false, lines: [], undo: null, compensated: restored && !note,
       failed: [{ label, reason: `${reason}${tail}`,
-        ...(say ? { say: restored ? say : `${say}${NOT_REVERSED_SAY}` } : {}), ...(gate ? { gate } : {}) }],
+        ...(say ? { say: restored ? say : `${say}${NOT_REVERSED_SAY}` } : {}), ...(gate ? { gate } : {}), ...(onScreen ? { onScreen: true } : {}) }],
     }
   }
 
@@ -114,8 +116,9 @@ export async function commitPlan(host, plan, { env = {}, ctx = null } = {}) {
       if (e?.created && Object.keys(e.created).length) {
         landed.push({ ref: p.ref, kind: p.kind, label: p.snap.label, siblings: p.siblings, lines: [], before: p.snap, after: kind.read(host, p.ref), patch: p.patch, partial: e.created })
       }
+      // (`e.say`: a kind's own complete sentence carried beside a short reason — indicatorEdits' save failures)
       return fail(p.snap.label, `failed (${e?.message || 'error'})`, { dirty: !!e?.unreverted, note: e?.keptNote || null,
-        say: e?.complete && e?.message ? e.message : null, gate: e?.gate || null })
+        say: e?.say || (e?.complete && e?.message ? e.message : null), gate: e?.gate || null, onScreen: !!e?.onScreen })
     }
     if (res && res.created) Object.assign(aliases, res.created)
     if (res && res.born) Object.assign(born, res.born)
@@ -251,10 +254,13 @@ async function runUndoEntry(host, entry) {
       // ⛔ A step that wrote before it failed (`e.unreverted`, e.g. a re-save it could not read back)
       // gets the same words `commitPlan.fail` gives a dirty step, never "Nothing was undone."
       const left = !!e?.unreverted
+      const own = e?.say || (e?.complete && e?.message ? e.message : null)
       return {
         ok: false, lines: [], partial: done.length > 0,
+        // `spent`: the Undo's own write is ON SCREEN, unsaved (its kind could not put it back) — this entry is not offered again
+        ...(e?.onScreen ? { spent: true } : {}),
         // PACKAGE 3: a kind's own complete sentence (it already says what happened) is said as it is
-        reason: e?.complete && e?.message && !done.length ? `${e.message}${left ? NOT_REVERSED_SAY : ''}`
+        reason: own && !done.length ? `${own}${left ? NOT_REVERSED_SAY : ''}`
           : `${it.label} could not be undone (${e?.message || 'error'})${left ? NOT_REVERSED_TAIL : ''}.${done.length ? ` Already restored: ${done.join(', ')}.` : (left ? '' : ' Nothing was undone.')}`,
       }
     }
