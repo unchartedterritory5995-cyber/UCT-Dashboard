@@ -78,7 +78,9 @@ const _hit = (cols) => {
   const formingT = cols.forming ? cols.t[n - 1] : null
   let rows = null
   return {
-    n, through, savedAt: through != null ? through * 1000 : buildTimeMs(cols.build), formingT,
+    // `lastT`: the time of the copy's newest row, read without building rows (persist.flushJoins: a copy whose newest row
+    // is no newer than an answer's newest has nothing that answer could keep, whatever its stamp says; review of #2620)
+    n, through, savedAt: through != null ? through * 1000 : buildTimeMs(cols.build), formingT, lastT: cols.t[n - 1],
     get rows() { return rows || (rows = columnsToRows(cols)) },
   }
 }
