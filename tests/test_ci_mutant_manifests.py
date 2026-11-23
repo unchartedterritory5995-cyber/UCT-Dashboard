@@ -26,8 +26,9 @@ sys.path.insert(0, str(ROOT / "tools"))
 
 import ci_mutant_manifests as T  # noqa: E402
 
-#: the size of the debt list the day it was written. It only goes DOWN: lower it when the list shrinks, never raise it.
-CEILING = 45
+#: the size of the debt list. It only goes DOWN: lower it when the list shrinks, never raise it. 45 the day it was
+#: written; 0 since fix/stale-mutant-anchors (2026-11-23) re-anchored 44 and deleted 1 with its reason.
+CEILING = 0
 
 
 @pytest.fixture(scope="module")
