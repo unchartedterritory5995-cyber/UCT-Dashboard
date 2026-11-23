@@ -27,6 +27,7 @@ import { planOps, collectTargets } from './executor'
 import { buildChartSource } from './host'
 import { makeBoard } from './__fixtures__/board'
 import { mergeChartSettings } from '../components/chart/chartDefaults'
+import { withDeclaredRefusal } from './testing/fastRefusals'
 
 registerBuiltins()
 
@@ -155,6 +156,9 @@ export function measureCase(c) {
   // ⭐ A would-be WRONG instant plan that the REAL planner refuses (capability `check`, e.g. "rename UCT
   // Default" — built-in; "save as Day Trading" — never overwrites) changes nothing: scored fast-refuses.
   if (row.outcome === 'fast-WRONG' && fast?.kind === 'ops' && plannerRefuses(host, fast)) row.outcome = 'fast-refuses'
+  // ⭐ Gate C (AUDIT 2026-11-22): a plan the capability's DECLARED hidden-field rule refuses whole (owner F-16) is a safe
+  // refusal too — testing/fastRefusals.js; a plan that would run anything stays WRONG
+  row.outcome = withDeclaredRefusal(row.outcome, fast)
   // routing coverage — the groups the expected plan needs, among the routed groups
   const need = e.groups || [...new Set((e.ops || []).map(o => groupOfAction(o.a)).filter(Boolean))]
   // exactly what the browser would send: the real routeManifest over the real manifest and limits
@@ -213,11 +217,14 @@ describe('conversational intelligence — layer A baseline (deterministic, free)
     }
     const line = (k, s) => `${k.padEnd(12)} n=${s.cases} fast ${s.idealFastReached}/${s.idealFast} (${s.deterministicCoverage}) · det.acc ${s.deterministicAccuracy} · WRONG ${s.wrongActions} · refused ${s.safeRefusals} · needless-ask ${s.unnecessaryClarifications} · →model ${s.toModel} · calls/case ${s.modelCallsPerCase} · route MISS ${s.routingMiss}/${s.routingChecked} · fastParse p50 ${s.fastParseMs.p50}ms p95 ${s.fastParseMs.p95}ms`
     console.log(`\n── layer A ──\n${line('dev', report.dev)}\n${line('heldout', report.heldout)}\n${line('adversarial', report.adversarial)}\n${line('heldout2', report.heldout2)}\n${line('adversarial2', report.adversarial2)}\n` +
-      'WRONG: ' + report.rows.filter(r => r.outcome === 'fast-WRONG').map(r => `${r.id} “${r.text}” → ${r.detail}`).join(' | ') + '\n')
+      // ⛔ held-out / adversarial / sealed rows print their ID ONLY: case text (or the plan built from it)
+      // in a log contaminates the set. Dev rows may show the plan; none prints the member's text.
+      'WRONG: ' + report.rows.filter(r => r.outcome === 'fast-WRONG').map(r => r.split === 'dev' ? `${r.id} → ${r.detail}` : r.id).join(' | ') + '\n')
     if (globalThis.process?.env?.AGENT_EVAL_OUT) fs.writeFileSync(globalThis.process.env.AGENT_EVAL_OUT, JSON.stringify(report, null, 2))
-    // the dev corpus already pins "no new misfire" (agentNlCorpus.test.js); here the held-out set is MEASURED,
-    // and a later phase may only lower its WRONG count (BASELINE_WRONG is updated by hand with evidence)
-    const BASELINE_WRONG = Number(globalThis.process?.env?.AGENT_EVAL_BASELINE_WRONG ?? Infinity)
+    // the dev corpus already pins "no new misfire" (agentNlCorpus.test.js). ⛔ PINNED (Gate C, 2026-11-22): the held-out and
+    // adversarial sets have ZERO deterministic misfires, and any WRONG fails here (it was Infinity, so three crept in
+    // unseen). Raising it needs the owner's decision with evidence.
+    const BASELINE_WRONG = 0
     expect(report.heldout.wrongActions + report.adversarial.wrongActions + report.heldout2.wrongActions + report.adversarial2.wrongActions).toBeLessThanOrEqual(BASELINE_WRONG)
   })
 })
