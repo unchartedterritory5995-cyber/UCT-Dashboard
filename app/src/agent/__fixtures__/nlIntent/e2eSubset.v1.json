@@ -1,0 +1,196 @@
+{
+ "version": 1,
+ "about": "E2E paired stratified subset v1: the SAME cases on all three arms. Eligible = every turn of the case has an executable oracle (no oracle_invalid in the harness self-check, agentE2eHarness.test.jsx). Within each stratum the eligible cases are ranked by FNV-1a of \"<id>|pl-e2e-subset-v1\" and the first k are taken (no hand-picking).",
+ "excluded": [
+  "e2-b02",
+  "e2-b06",
+  "e2-b07",
+  "e2-b10",
+  "e2-p06",
+  "e2-p12",
+  "e2-t01",
+  "e2-t02",
+  "e2-t08",
+  "e2-t09",
+  "e2-t11",
+  "e2-t12",
+  "rb-f04",
+  "rb-f10",
+  "rb-m07",
+  "rb-m10",
+  "rb-m11",
+  "rb-m12",
+  "rb-m15",
+  "rb-m16",
+  "rb-m17",
+  "rb-m19",
+  "rb-m20",
+  "rb-m21",
+  "rb-m22",
+  "rb-m24",
+  "rb-m25",
+  "rb-m26",
+  "rb-m27",
+  "rb-s03",
+  "rb-s06",
+  "rb-s07",
+  "rb-s09",
+  "rb-s15",
+  "rb-s16",
+  "rb-s19",
+  "rb-s23",
+  "rb-s24",
+  "rb-s25",
+  "rb-s28"
+ ],
+ "strata": {
+  "single": {
+   "file": "realModelBench.v1.json",
+   "of": 33,
+   "eligible": 22,
+   "cases": 7,
+   "turns": 7,
+   "ids": [
+    "rb-s22",
+    "rb-s29",
+    "rb-s11",
+    "rb-s31",
+    "rb-s17",
+    "rb-s21",
+    "rb-s01"
+   ]
+  },
+  "multi": {
+   "file": "realModelBench.v1.json",
+   "of": 28,
+   "eligible": 13,
+   "cases": 6,
+   "turns": 6,
+   "ids": [
+    "rb-m01",
+    "rb-m13",
+    "rb-m06",
+    "rb-m23",
+    "rb-m03",
+    "rb-m28"
+   ]
+  },
+  "followup": {
+   "file": "realModelBench.v1.json",
+   "of": 12,
+   "eligible": 10,
+   "cases": 3,
+   "turns": 6,
+   "ids": [
+    "rb-f05",
+    "rb-f12",
+    "rb-f06"
+   ]
+  },
+  "ask": {
+   "file": "realModelBench.v1.json",
+   "of": 8,
+   "eligible": 8,
+   "cases": 3,
+   "turns": 3,
+   "ids": [
+    "rb-a01",
+    "rb-a08",
+    "rb-a02"
+   ]
+  },
+  "pane-multistep": {
+   "file": "e2eBench.v1.json",
+   "of": 12,
+   "eligible": 10,
+   "cases": 5,
+   "turns": 5,
+   "ids": [
+    "e2-p02",
+    "e2-p03",
+    "e2-p11",
+    "e2-p07",
+    "e2-p09"
+   ]
+  },
+  "ticker-correction": {
+   "file": "e2eBench.v1.json",
+   "of": 12,
+   "eligible": 6,
+   "cases": 3,
+   "turns": 6,
+   "ids": [
+    "e2-t07",
+    "e2-t05",
+    "e2-t03"
+   ]
+  },
+  "pane-conflict": {
+   "file": "e2eBench.v1.json",
+   "of": 12,
+   "eligible": 12,
+   "cases": 4,
+   "turns": 4,
+   "ids": [
+    "e2-c07",
+    "e2-c09",
+    "e2-c04",
+    "e2-c08"
+   ]
+  },
+  "correction-branch": {
+   "file": "e2eBench.v1.json",
+   "of": 10,
+   "eligible": 6,
+   "cases": 2,
+   "turns": 4,
+   "ids": [
+    "e2-b01",
+    "e2-b08"
+   ]
+  }
+ },
+ "cases": {
+  "realModelBench.v1.json": [
+   "rb-s22",
+   "rb-s29",
+   "rb-s11",
+   "rb-s31",
+   "rb-s17",
+   "rb-s21",
+   "rb-s01",
+   "rb-m01",
+   "rb-m13",
+   "rb-m06",
+   "rb-m23",
+   "rb-m03",
+   "rb-m28",
+   "rb-f05",
+   "rb-f12",
+   "rb-f06",
+   "rb-a01",
+   "rb-a08",
+   "rb-a02"
+  ],
+  "e2eBench.v1.json": [
+   "e2-p02",
+   "e2-p03",
+   "e2-p11",
+   "e2-p07",
+   "e2-p09",
+   "e2-t07",
+   "e2-t05",
+   "e2-t03",
+   "e2-c07",
+   "e2-c09",
+   "e2-c04",
+   "e2-c08",
+   "e2-b01",
+   "e2-b08"
+  ]
+ },
+ "total": {
+  "cases": 33,
+  "turns": 41
+ }
+}

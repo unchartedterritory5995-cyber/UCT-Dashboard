@@ -67,7 +67,7 @@ function legacyRequest({ host, text, memory, router = 'v1', catalogs = null }) {
  * panel would stop). The full catalog is stored ONCE in `catalogs` ({ catalog, kind: 'legacy', manifest }).
  */
 export const LEGACY_MAX_NEED = 2
-function legacyRerouteRecord({ full, text, routed, route, routeOpts, catalogs }) {
+export function legacyRerouteRecord({ full, text, routed, route, routeOpts, catalogs }) {
   if (!routed.routing) return null                       // the whole catalog was sent: the panel never reroutes
   const json = JSON.stringify(full)
   const id = catalogId(json)
@@ -109,7 +109,7 @@ export function subsetsUpTo(ids, k) {
  *              panel's reroute would send (null = they do not fit; the panel then says so and stops)
  *   catalog    the id of this request's full available manifest (stored once, in `catalogs`)
  */
-function selectionRecord(req, catalogs, needsOf = null, expect = null) {
+export function selectionRecord(req, catalogs, needsOf = null, expect = null) {
   const s = req.selection
   const json = JSON.stringify(req.full)
   const id = catalogId(json)

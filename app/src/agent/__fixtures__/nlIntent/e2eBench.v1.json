@@ -1,0 +1,3384 @@
+{
+ "version": 1,
+ "about": "UCT Agent E2E BENCH v1 (2026-11-23, pl-e2e): scored END TO END on the final board (testing/e2eEval.jsx), never teacher-forced. Four classes, written fresh as classes (no production sentence reused): pane-multistep (multi-step with an indicator pane edit), ticker-correction (a correction whose first word is also a ticker), pane-conflict (a pane resize whose save the server refuses with a 409 revision conflict; host.conflict), correction-branch (dialogues whose second line depends on what the first turn did). Expectation fields beyond the bench format: from: \"start\" (the final board is compared with the dialogue's first board + these ops), blocked (actions whose save is refused), branch: { success | wrongChart | ask | fail: turn }, host: { conflict }. Fixture tickers and numbers only.",
+ "split": "dev",
+ "fixtures": {
+  "rb_solo": {
+   "drawings": true,
+   "charts": [
+    {
+     "id": "c1",
+     "x": 0,
+     "y": 0,
+     "w": 18,
+     "h": 20,
+     "symbol": "AAPL",
+     "tf": "D"
+    }
+   ],
+   "watchlistWidget": {
+    "id": "wl",
+    "x": 18,
+    "y": 0,
+    "w": 6,
+    "h": 20,
+    "list": "s1"
+   },
+   "selected": null
+  },
+  "rb_pair_sel": {
+   "drawings": true,
+   "charts": [
+    {
+     "id": "cl",
+     "x": 0,
+     "y": 0,
+     "w": 12,
+     "h": 20,
+     "symbol": "MSFT",
+     "tf": "D"
+    },
+    {
+     "id": "cr",
+     "x": 12,
+     "y": 0,
+     "w": 12,
+     "h": 20,
+     "symbol": "META",
+     "tf": "15"
+    }
+   ],
+   "selected": "cr"
+  },
+  "rb_pair_nosel": {
+   "drawings": true,
+   "charts": [
+    {
+     "id": "cl",
+     "x": 0,
+     "y": 0,
+     "w": 12,
+     "h": 20,
+     "symbol": "MSFT",
+     "tf": "D"
+    },
+    {
+     "id": "cr",
+     "x": 12,
+     "y": 0,
+     "w": 12,
+     "h": 20,
+     "symbol": "META",
+     "tf": "15"
+    }
+   ],
+   "selected": null
+  },
+  "rb_twins": {
+   "drawings": true,
+   "charts": [
+    {
+     "id": "cl",
+     "x": 0,
+     "y": 0,
+     "w": 12,
+     "h": 20,
+     "symbol": "SPY",
+     "tf": "D"
+    },
+    {
+     "id": "cr",
+     "x": 12,
+     "y": 0,
+     "w": 12,
+     "h": 20,
+     "symbol": "SPY",
+     "tf": "5"
+    }
+   ],
+   "selected": null
+  },
+  "rb_trio": {
+   "drawings": true,
+   "charts": [
+    {
+     "id": "lg",
+     "x": 0,
+     "y": 0,
+     "w": 12,
+     "h": 20,
+     "symbol": "NVDA",
+     "tf": "D"
+    },
+    {
+     "id": "ur",
+     "x": 12,
+     "y": 0,
+     "w": 12,
+     "h": 10,
+     "symbol": "AMD",
+     "tf": "15"
+    },
+    {
+     "id": "lr",
+     "x": 12,
+     "y": 10,
+     "w": 12,
+     "h": 10,
+     "symbol": "AVGO",
+     "tf": "15"
+    }
+   ],
+   "selected": null
+  },
+  "rb_quad": {
+   "drawings": true,
+   "charts": [
+    {
+     "id": "tl",
+     "x": 0,
+     "y": 0,
+     "w": 12,
+     "h": 10,
+     "symbol": "SMH",
+     "tf": "D"
+    },
+    {
+     "id": "tr",
+     "x": 12,
+     "y": 0,
+     "w": 12,
+     "h": 10,
+     "symbol": "XLE",
+     "tf": "D"
+    },
+    {
+     "id": "bl",
+     "x": 0,
+     "y": 10,
+     "w": 12,
+     "h": 10,
+     "symbol": "AMZN",
+     "tf": "W"
+    },
+    {
+     "id": "br",
+     "x": 12,
+     "y": 10,
+     "w": 12,
+     "h": 10,
+     "symbol": "GOOGL",
+     "tf": "60"
+    }
+   ],
+   "selected": "tl"
+  },
+  "e2_solo_rsi": {
+   "drawings": true,
+   "charts": [
+    {
+     "id": "c1",
+     "x": 0,
+     "y": 0,
+     "w": 18,
+     "h": 20,
+     "symbol": "NVDA",
+     "tf": "D",
+     "settings": {
+      "indicatorInstances": [
+       {
+        "instanceId": "inst:rsi:1",
+        "defId": "rsi",
+        "inputs": {}
+       }
+      ]
+     }
+    }
+   ],
+   "watchlistWidget": {
+    "id": "wl",
+    "x": 18,
+    "y": 0,
+    "w": 6,
+    "h": 20,
+    "list": "m1"
+   },
+   "selected": null
+  },
+  "e2_solo_rsi_sized": {
+   "drawings": true,
+   "charts": [
+    {
+     "id": "c1",
+     "x": 0,
+     "y": 0,
+     "w": 24,
+     "h": 20,
+     "symbol": "QQQ",
+     "tf": "60",
+     "settings": {
+      "indicatorInstances": [
+       {
+        "instanceId": "inst:rsi:1",
+        "defId": "rsi",
+        "inputs": {}
+       }
+      ],
+      "paneSizes": {
+       "inst:rsi:1": 0.3
+      },
+      "preset": "custom"
+     }
+    }
+   ],
+   "selected": null
+  },
+  "e2_pair_ind": {
+   "drawings": true,
+   "charts": [
+    {
+     "id": "cl",
+     "x": 0,
+     "y": 0,
+     "w": 12,
+     "h": 20,
+     "symbol": "AMD",
+     "tf": "D",
+     "settings": {
+      "indicatorInstances": [
+       {
+        "instanceId": "inst:rsi:1",
+        "defId": "rsi",
+        "inputs": {}
+       }
+      ]
+     }
+    },
+    {
+     "id": "cr",
+     "x": 12,
+     "y": 0,
+     "w": 12,
+     "h": 20,
+     "symbol": "TSLA",
+     "tf": "60",
+     "settings": {
+      "indicatorInstances": [
+       {
+        "instanceId": "inst:macd:1",
+        "defId": "macd",
+        "inputs": {}
+       }
+      ]
+     }
+    }
+   ],
+   "selected": null
+  },
+  "e2_trio_rsi": {
+   "drawings": true,
+   "charts": [
+    {
+     "id": "lg",
+     "x": 0,
+     "y": 0,
+     "w": 12,
+     "h": 20,
+     "symbol": "NVDA",
+     "tf": "D",
+     "settings": {
+      "indicatorInstances": [
+       {
+        "instanceId": "inst:rsi:1",
+        "defId": "rsi",
+        "inputs": {}
+       }
+      ]
+     }
+    },
+    {
+     "id": "ur",
+     "x": 12,
+     "y": 0,
+     "w": 12,
+     "h": 10,
+     "symbol": "AMD",
+     "tf": "15"
+    },
+    {
+     "id": "lr",
+     "x": 12,
+     "y": 10,
+     "w": 12,
+     "h": 10,
+     "symbol": "AVGO",
+     "tf": "15"
+    }
+   ],
+   "selected": null
+  },
+  "e2_words": {
+   "drawings": true,
+   "charts": [
+    {
+     "id": "cl",
+     "x": 0,
+     "y": 0,
+     "w": 12,
+     "h": 20,
+     "symbol": "ON",
+     "tf": "D"
+    },
+    {
+     "id": "cr",
+     "x": 12,
+     "y": 0,
+     "w": 12,
+     "h": 20,
+     "symbol": "NOW",
+     "tf": "D"
+    }
+   ],
+   "selected": null
+  }
+ },
+ "cases": [
+  {
+   "id": "e2-p01",
+   "cls": "pane-multistep",
+   "mix": "multi",
+   "fam": "indicator",
+   "fx": "rb_solo",
+   "text": "throw rsi on here and make its pane taller",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "indicator.add",
+      "t": "Chart (AAPL)",
+      "args": {
+       "defId": "rsi",
+       "inputs": null
+      }
+     },
+     {
+      "a": "pane.resize",
+      "t": "Chart (AAPL)",
+      "args": {
+       "pane": "rsi",
+       "size": "bigger"
+      }
+     }
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "e2-p02",
+   "cls": "pane-multistep",
+   "mix": "multi",
+   "fam": "indicator",
+   "fx": "e2_pair_ind",
+   "text": "amd chart to the hourly, then shrink the rsi pane down",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "chart.setTimeframe",
+      "t": "Left chart (AMD)",
+      "args": {
+       "timeframe": "60"
+      }
+     },
+     {
+      "a": "pane.resize",
+      "t": "Left chart (AMD)",
+      "args": {
+       "pane": "rsi",
+       "size": "smaller"
+      }
+     }
+    ],
+    "notOn": [
+     "Right chart (TSLA)"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "e2-p03",
+   "cls": "pane-multistep",
+   "mix": "multi",
+   "fam": "indicator",
+   "fx": "e2_pair_ind",
+   "text": "weekly on tsla, add a 20 ema and make the macd pane smaller",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "chart.setTimeframe",
+      "t": "Right chart (TSLA)",
+      "args": {
+       "timeframe": "W"
+      }
+     },
+     {
+      "a": "indicator.add",
+      "t": "Right chart (TSLA)",
+      "args": {
+       "defId": "movingAverage",
+       "inputs": [
+        {
+         "key": "period",
+         "value": 20
+        },
+        {
+         "key": "maType",
+         "value": "ema"
+        }
+       ]
+      }
+     },
+     {
+      "a": "pane.resize",
+      "t": "Right chart (TSLA)",
+      "args": {
+       "pane": "macd",
+       "size": "smaller"
+      }
+     }
+    ],
+    "notOn": [
+     "Left chart (AMD)"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "e2-p04",
+   "cls": "pane-multistep",
+   "mix": "multi",
+   "fam": "indicator",
+   "fx": "rb_trio",
+   "text": "stick macd under nvda and give that pane 25% of the height",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "indicator.add",
+      "t": "Left chart (NVDA)",
+      "args": {
+       "defId": "macd",
+       "inputs": null
+      }
+     },
+     {
+      "a": "pane.resize",
+      "t": "Left chart (NVDA)",
+      "args": {
+       "pane": "macd",
+       "size": 25
+      }
+     }
+    ],
+    "notOn": [
+     "Top-right chart (AMD)",
+     "Bottom-right chart (AVGO)"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "e2-p05",
+   "cls": "pane-multistep",
+   "mix": "multi",
+   "fam": "indicator",
+   "fx": "e2_solo_rsi",
+   "text": "bump the rsi pane to 40 percent and hide volume",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "pane.resize",
+      "t": "Chart (NVDA)",
+      "args": {
+       "pane": "rsi",
+       "size": 40
+      }
+     },
+     {
+      "a": "volume.setState",
+      "t": "Chart (NVDA)",
+      "args": {
+       "state": {
+        "$in": [
+         "hidden",
+         "removed"
+        ]
+       }
+      }
+     }
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "e2-p06",
+   "cls": "pane-multistep",
+   "mix": "multi",
+   "fam": "indicator",
+   "fx": "e2_solo_rsi",
+   "text": "rsi length 21 pls and make its panel a bit bigger",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "indicator.update",
+      "t": "Chart (NVDA)",
+      "args": {
+       "instance": "rsi",
+       "inputs": [
+        {
+         "key": "period",
+         "value": 21
+        }
+       ]
+      }
+     },
+     {
+      "a": "pane.resize",
+      "t": "Chart (NVDA)",
+      "args": {
+       "pane": "rsi",
+       "size": "bigger"
+      }
+     }
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "e2-p07",
+   "cls": "pane-multistep",
+   "mix": "multi",
+   "fam": "indicator",
+   "fx": "e2_trio_rsi",
+   "text": "on nvda move the rsi up top and make it smaller",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "pane.move",
+      "t": "Left chart (NVDA)",
+      "args": {
+       "pane": "rsi",
+       "to": "top",
+       "relativeTo": null
+      }
+     },
+     {
+      "a": "pane.resize",
+      "t": "Left chart (NVDA)",
+      "args": {
+       "pane": "rsi",
+       "size": "smaller"
+      }
+     }
+    ],
+    "notOn": [
+     "Top-right chart (AMD)",
+     "Bottom-right chart (AVGO)"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "e2-p08",
+   "cls": "pane-multistep",
+   "mix": "multi",
+   "fam": "indicator",
+   "fx": "rb_trio",
+   "text": "avgo: add rsi, make that pane smaller, then flip it to the 1 hour",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "indicator.add",
+      "t": "Bottom-right chart (AVGO)",
+      "args": {
+       "defId": "rsi",
+       "inputs": null
+      }
+     },
+     {
+      "a": "pane.resize",
+      "t": "Bottom-right chart (AVGO)",
+      "args": {
+       "pane": "rsi",
+       "size": "smaller"
+      }
+     },
+     {
+      "a": "chart.setTimeframe",
+      "t": "Bottom-right chart (AVGO)",
+      "args": {
+       "timeframe": "60"
+      }
+     }
+    ],
+    "notOn": [
+     "Left chart (NVDA)",
+     "Top-right chart (AMD)"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "e2-p09",
+   "cls": "pane-multistep",
+   "mix": "multi",
+   "fam": "indicator",
+   "fx": "rb_pair_sel",
+   "text": "put rsi and macd on this one and make the macd pane taller",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "indicator.add",
+      "t": "Right chart (META)",
+      "args": {
+       "defId": "rsi",
+       "inputs": null
+      }
+     },
+     {
+      "a": "indicator.add",
+      "t": "Right chart (META)",
+      "args": {
+       "defId": "macd",
+       "inputs": null
+      }
+     },
+     {
+      "a": "pane.resize",
+      "t": "Right chart (META)",
+      "args": {
+       "pane": "macd",
+       "size": "bigger"
+      }
+     }
+    ],
+    "notOn": [
+     "Left chart (MSFT)"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "e2-p10",
+   "cls": "pane-multistep",
+   "mix": "multi",
+   "fam": "indicator",
+   "fx": "e2_pair_ind",
+   "text": "make both indicator panes bigger",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "pane.resize",
+      "t": "Left chart (AMD)",
+      "args": {
+       "pane": "rsi",
+       "size": "bigger"
+      }
+     },
+     {
+      "a": "pane.resize",
+      "t": "Right chart (TSLA)",
+      "args": {
+       "pane": "macd",
+       "size": "bigger"
+      }
+     }
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "e2-p11",
+   "cls": "pane-multistep",
+   "mix": "multi",
+   "fam": "indicator",
+   "fx": "e2_solo_rsi_sized",
+   "text": "put the rsi pane back to normal height and add a 50 sma",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "pane.resize",
+      "t": "Chart (QQQ)",
+      "args": {
+       "pane": "rsi",
+       "size": "auto"
+      }
+     },
+     {
+      "a": "indicator.add",
+      "t": "Chart (QQQ)",
+      "args": {
+       "defId": "movingAverage",
+       "inputs": {
+        "$has": [
+         {
+          "key": "period",
+          "value": 50
+         }
+        ]
+       }
+      }
+     }
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "e2-p12",
+   "cls": "pane-multistep",
+   "mix": "multi",
+   "fam": "indicator",
+   "fx": "rb_quad",
+   "text": "xle: macd on it, pane at 30 percent, and switch it to weekly",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "indicator.add",
+      "t": "Top-right chart (XLE)",
+      "args": {
+       "defId": "macd",
+       "inputs": null
+      }
+     },
+     {
+      "a": "pane.resize",
+      "t": "Top-right chart (XLE)",
+      "args": {
+       "pane": "macd",
+       "size": 30
+      }
+     },
+     {
+      "a": "chart.setTimeframe",
+      "t": "Top-right chart (XLE)",
+      "args": {
+       "timeframe": "W"
+      }
+     }
+    ],
+    "notOn": [
+     "Top-left chart (SMH)",
+     "Bottom-left chart (AMZN)",
+     "Bottom-right chart (GOOGL)"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "e2-t01",
+   "cls": "ticker-correction",
+   "mix": "followup",
+   "fam": "correction",
+   "fx": "rb_pair_nosel",
+   "turns": [
+    {
+     "say": "weekly on the msft chart",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "chart.setTimeframe",
+        "t": "Left chart (MSFT)",
+        "args": {
+         "timeframe": "W"
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     }
+    },
+    {
+     "say": "no wait, IT should stay daily, do meta instead",
+     "expect": {
+      "kind": "act",
+      "from": "start",
+      "ops": [
+       {
+        "a": "chart.setTimeframe",
+        "t": "Right chart (META)",
+        "args": {
+         "timeframe": "W"
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ],
+      "why": "the capitalised word is the member correcting, never a ticker to switch to"
+     }
+    }
+   ]
+  },
+  {
+   "id": "e2-t02",
+   "cls": "ticker-correction",
+   "mix": "followup",
+   "fam": "correction",
+   "fx": "rb_trio",
+   "turns": [
+    {
+     "say": "add rsi to amd",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "indicator.add",
+        "t": "Top-right chart (AMD)",
+        "args": {
+         "defId": "rsi",
+         "inputs": null
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     }
+    },
+    {
+     "say": "ON second thought put it on avgo not amd",
+     "expect": {
+      "kind": "act",
+      "from": "start",
+      "ops": [
+       {
+        "a": "indicator.add",
+        "t": "Bottom-right chart (AVGO)",
+        "args": {
+         "defId": "rsi",
+         "inputs": null
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ],
+      "why": "the capitalised word is the member correcting, never a ticker to switch to"
+     }
+    }
+   ]
+  },
+  {
+   "id": "e2-t03",
+   "cls": "ticker-correction",
+   "mix": "followup",
+   "fam": "correction",
+   "fx": "rb_quad",
+   "turns": [
+    {
+     "say": "make smh the hourly",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "chart.setTimeframe",
+        "t": "Top-left chart (SMH)",
+        "args": {
+         "timeframe": "60"
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     }
+    },
+    {
+     "say": "NOW make it the 15 instead",
+     "expect": {
+      "kind": "act",
+      "from": "start",
+      "ops": [
+       {
+        "a": "chart.setTimeframe",
+        "t": "Top-left chart (SMH)",
+        "args": {
+         "timeframe": "15"
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ],
+      "why": "the capitalised word is the member correcting, never a ticker to switch to"
+     }
+    }
+   ]
+  },
+  {
+   "id": "e2-t04",
+   "cls": "ticker-correction",
+   "mix": "followup",
+   "fam": "correction",
+   "fx": "rb_solo",
+   "turns": [
+    {
+     "say": "add the 50 sma",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "indicator.add",
+        "t": "Chart (AAPL)",
+        "args": {
+         "defId": "movingAverage",
+         "inputs": {
+          "$has": [
+           {
+            "key": "period",
+            "value": 50
+           }
+          ]
+         }
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     }
+    },
+    {
+     "say": "ALL of them i said, the 20 and 200 too",
+     "expect": {
+      "kind": "act",
+      "from": "start",
+      "ops": [
+       {
+        "a": "indicator.add",
+        "t": "Chart (AAPL)",
+        "args": {
+         "defId": "movingAverage",
+         "inputs": {
+          "$has": [
+           {
+            "key": "period",
+            "value": 50
+           }
+          ]
+         }
+        }
+       },
+       {
+        "a": "indicator.add",
+        "t": "Chart (AAPL)",
+        "args": {
+         "defId": "movingAverage",
+         "inputs": {
+          "$has": [
+           {
+            "key": "period",
+            "value": 20
+           }
+          ]
+         }
+        }
+       },
+       {
+        "a": "indicator.add",
+        "t": "Chart (AAPL)",
+        "args": {
+         "defId": "movingAverage",
+         "inputs": {
+          "$has": [
+           {
+            "key": "period",
+            "value": 200
+           }
+          ]
+         }
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ],
+      "why": "the capitalised word is the member correcting, never a ticker to switch to"
+     }
+    }
+   ]
+  },
+  {
+   "id": "e2-t05",
+   "cls": "ticker-correction",
+   "mix": "followup",
+   "fam": "correction",
+   "fx": "rb_pair_sel",
+   "turns": [
+    {
+     "say": "log scale on this",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "chart.setScale",
+        "t": "Right chart (META)",
+        "args": {
+         "scale": "log"
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     }
+    },
+    {
+     "say": "A normal scale is fine here actually, log goes on msft",
+     "expect": {
+      "kind": "act",
+      "from": "start",
+      "ops": [
+       {
+        "a": "chart.setScale",
+        "t": "Left chart (MSFT)",
+        "args": {
+         "scale": "log"
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ],
+      "why": "the capitalised word is the member correcting, never a ticker to switch to"
+     }
+    }
+   ]
+  },
+  {
+   "id": "e2-t06",
+   "cls": "ticker-correction",
+   "mix": "followup",
+   "fam": "correction",
+   "fx": "rb_solo",
+   "turns": [
+    {
+     "say": "switch to the weekly",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "chart.setTimeframe",
+        "t": "Chart (AAPL)",
+        "args": {
+         "timeframe": "W"
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     }
+    },
+    {
+     "say": "SO sorry, i meant monthly",
+     "expect": {
+      "kind": "act",
+      "from": "start",
+      "ops": [
+       {
+        "a": "chart.setTimeframe",
+        "t": "Chart (AAPL)",
+        "args": {
+         "timeframe": "M"
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ],
+      "why": "the capitalised word is the member correcting, never a ticker to switch to"
+     }
+    }
+   ]
+  },
+  {
+   "id": "e2-t07",
+   "cls": "ticker-correction",
+   "mix": "followup",
+   "fam": "correction",
+   "fx": "rb_trio",
+   "turns": [
+    {
+     "say": "nvda as a line chart",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "chart.setType",
+        "t": "Left chart (NVDA)",
+        "args": {
+         "type": "line"
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     }
+    },
+    {
+     "say": "GO back to candles on that and do the line on amd",
+     "expect": {
+      "kind": "act",
+      "from": "start",
+      "ops": [
+       {
+        "a": "chart.setType",
+        "t": "Top-right chart (AMD)",
+        "args": {
+         "type": "line"
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ],
+      "why": "the capitalised word is the member correcting, never a ticker to switch to"
+     }
+    }
+   ]
+  },
+  {
+   "id": "e2-t08",
+   "cls": "ticker-correction",
+   "mix": "followup",
+   "fam": "correction",
+   "fx": "rb_pair_nosel",
+   "turns": [
+    {
+     "say": "put bollinger bands on meta",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "indicator.add",
+        "t": "Right chart (META)",
+        "args": {
+         "defId": "bb",
+         "inputs": null
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     }
+    },
+    {
+     "say": "U know what, macd instead of the bands",
+     "expect": {
+      "kind": "act",
+      "from": "start",
+      "ops": [
+       {
+        "a": "indicator.add",
+        "t": "Right chart (META)",
+        "args": {
+         "defId": "macd",
+         "inputs": null
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ],
+      "why": "the capitalised word is the member correcting, never a ticker to switch to"
+     }
+    }
+   ]
+  },
+  {
+   "id": "e2-t09",
+   "cls": "ticker-correction",
+   "mix": "followup",
+   "fam": "correction",
+   "fx": "rb_quad",
+   "turns": [
+    {
+     "say": "hide the volume on the amazon chart",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "volume.setState",
+        "t": "Bottom-left chart (AMZN)",
+        "args": {
+         "state": {
+          "$in": [
+           "hidden",
+           "removed"
+          ]
+         }
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     }
+    },
+    {
+     "say": "BE careful, i said the google one, put amazon back",
+     "expect": {
+      "kind": "act",
+      "from": "start",
+      "ops": [
+       {
+        "a": "volume.setState",
+        "t": "Bottom-right chart (GOOGL)",
+        "args": {
+         "state": {
+          "$in": [
+           "hidden",
+           "removed"
+          ]
+         }
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ],
+      "why": "the capitalised word is the member correcting, never a ticker to switch to"
+     }
+    }
+   ]
+  },
+  {
+   "id": "e2-t10",
+   "cls": "ticker-correction",
+   "mix": "followup",
+   "fam": "correction",
+   "fx": "rb_solo",
+   "turns": [
+    {
+     "say": "level at 190",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "drawing.addLevel",
+        "t": "Drawings on AAPL",
+        "args": {
+         "price": 190
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     }
+    },
+    {
+     "say": "IT was meant to be 195 not 190",
+     "expect": {
+      "kind": "act",
+      "from": "start",
+      "ops": [
+       {
+        "a": "drawing.addLevel",
+        "t": "Drawings on AAPL",
+        "args": {
+         "price": 195
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ],
+      "why": "the capitalised word is the member correcting, never a ticker to switch to"
+     }
+    }
+   ]
+  },
+  {
+   "id": "e2-t11",
+   "cls": "ticker-correction",
+   "mix": "followup",
+   "fam": "correction",
+   "fx": "e2_words",
+   "turns": [
+    {
+     "say": "the left one to weekly",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "chart.setTimeframe",
+        "t": "Left chart (ON)",
+        "args": {
+         "timeframe": "W"
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     }
+    },
+    {
+     "say": "NOW the right one too, and keep ON on the weekly",
+     "expect": {
+      "kind": "act",
+      "from": "start",
+      "ops": [
+       {
+        "a": "chart.setTimeframe",
+        "t": "Left chart (ON)",
+        "args": {
+         "timeframe": "W"
+        }
+       },
+       {
+        "a": "chart.setTimeframe",
+        "t": "Right chart (NOW)",
+        "args": {
+         "timeframe": "W"
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ],
+      "why": "the capitalised word is the member correcting, never a ticker to switch to"
+     }
+    }
+   ]
+  },
+  {
+   "id": "e2-t12",
+   "cls": "ticker-correction",
+   "mix": "followup",
+   "fam": "correction",
+   "fx": "rb_pair_nosel",
+   "turns": [
+    {
+     "say": "15 minute on msft",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "chart.setTimeframe",
+        "t": "Left chart (MSFT)",
+        "args": {
+         "timeframe": "15"
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     }
+    },
+    {
+     "say": "ON meta not msft, and make it the 5",
+     "expect": {
+      "kind": "act",
+      "from": "start",
+      "ops": [
+       {
+        "a": "chart.setTimeframe",
+        "t": "Right chart (META)",
+        "args": {
+         "timeframe": "5"
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ],
+      "why": "the capitalised word is the member correcting, never a ticker to switch to"
+     }
+    }
+   ]
+  },
+  {
+   "id": "e2-c01",
+   "cls": "pane-conflict",
+   "mix": "multi",
+   "fam": "indicator",
+   "fx": "e2_solo_rsi",
+   "host": {
+    "conflict": "paneSizes"
+   },
+   "text": "make the rsi pane bigger",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "pane.resize",
+      "t": "Chart (NVDA)",
+      "args": {
+       "pane": "rsi",
+       "size": "bigger"
+      }
+     }
+    ],
+    "blocked": [
+     "pane.resize"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ],
+    "why": "the save is refused (409): nothing the server refused may stay on screen, and the member is told"
+   }
+  },
+  {
+   "id": "e2-c02",
+   "cls": "pane-conflict",
+   "mix": "multi",
+   "fam": "indicator",
+   "fx": "e2_solo_rsi",
+   "host": {
+    "conflict": "paneSizes"
+   },
+   "text": "rsi pane to 35%",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "pane.resize",
+      "t": "Chart (NVDA)",
+      "args": {
+       "pane": "rsi",
+       "size": 35
+      }
+     }
+    ],
+    "blocked": [
+     "pane.resize"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ],
+    "why": "the save is refused (409): nothing the server refused may stay on screen, and the member is told"
+   }
+  },
+  {
+   "id": "e2-c03",
+   "cls": "pane-conflict",
+   "mix": "multi",
+   "fam": "indicator",
+   "fx": "e2_pair_ind",
+   "host": {
+    "conflict": "paneSizes"
+   },
+   "text": "shrink the rsi on amd",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "pane.resize",
+      "t": "Left chart (AMD)",
+      "args": {
+       "pane": "rsi",
+       "size": "smaller"
+      }
+     }
+    ],
+    "blocked": [
+     "pane.resize"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ],
+    "why": "the save is refused (409): nothing the server refused may stay on screen, and the member is told"
+   }
+  },
+  {
+   "id": "e2-c04",
+   "cls": "pane-conflict",
+   "mix": "multi",
+   "fam": "indicator",
+   "fx": "e2_pair_ind",
+   "host": {
+    "conflict": "paneSizes"
+   },
+   "text": "on tsla make the macd panel taller",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "pane.resize",
+      "t": "Right chart (TSLA)",
+      "args": {
+       "pane": "macd",
+       "size": "bigger"
+      }
+     }
+    ],
+    "blocked": [
+     "pane.resize"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ],
+    "why": "the save is refused (409): nothing the server refused may stay on screen, and the member is told"
+   }
+  },
+  {
+   "id": "e2-c05",
+   "cls": "pane-conflict",
+   "mix": "multi",
+   "fam": "indicator",
+   "fx": "e2_solo_rsi",
+   "host": {
+    "conflict": "paneSizes"
+   },
+   "text": "add macd and make the rsi pane smaller",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "indicator.add",
+      "t": "Chart (NVDA)",
+      "args": {
+       "defId": "macd",
+       "inputs": null
+      }
+     },
+     {
+      "a": "pane.resize",
+      "t": "Chart (NVDA)",
+      "args": {
+       "pane": "rsi",
+       "size": "smaller"
+      }
+     }
+    ],
+    "blocked": [
+     "pane.resize"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ],
+    "why": "the save is refused (409): nothing the server refused may stay on screen, and the member is told"
+   }
+  },
+  {
+   "id": "e2-c06",
+   "cls": "pane-conflict",
+   "mix": "multi",
+   "fam": "indicator",
+   "fx": "rb_solo",
+   "host": {
+    "conflict": "paneSizes"
+   },
+   "text": "rsi on, and make it taller",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "indicator.add",
+      "t": "Chart (AAPL)",
+      "args": {
+       "defId": "rsi",
+       "inputs": null
+      }
+     },
+     {
+      "a": "pane.resize",
+      "t": "Chart (AAPL)",
+      "args": {
+       "pane": "rsi",
+       "size": "bigger"
+      }
+     }
+    ],
+    "blocked": [
+     "pane.resize"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ],
+    "why": "the save is refused (409): nothing the server refused may stay on screen, and the member is told"
+   }
+  },
+  {
+   "id": "e2-c07",
+   "cls": "pane-conflict",
+   "mix": "multi",
+   "fam": "indicator",
+   "fx": "e2_pair_ind",
+   "host": {
+    "conflict": "paneSizes"
+   },
+   "text": "weekly on amd and make its rsi pane bigger",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "chart.setTimeframe",
+      "t": "Left chart (AMD)",
+      "args": {
+       "timeframe": "W"
+      }
+     },
+     {
+      "a": "pane.resize",
+      "t": "Left chart (AMD)",
+      "args": {
+       "pane": "rsi",
+       "size": "bigger"
+      }
+     }
+    ],
+    "blocked": [
+     "pane.resize"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ],
+    "why": "the save is refused (409): nothing the server refused may stay on screen, and the member is told"
+   }
+  },
+  {
+   "id": "e2-c08",
+   "cls": "pane-conflict",
+   "mix": "multi",
+   "fam": "indicator",
+   "fx": "e2_pair_ind",
+   "host": {
+    "conflict": "paneSizes"
+   },
+   "text": "make the amd rsi pane bigger, then put amd on the hourly",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "pane.resize",
+      "t": "Left chart (AMD)",
+      "args": {
+       "pane": "rsi",
+       "size": "bigger"
+      }
+     },
+     {
+      "a": "chart.setTimeframe",
+      "t": "Left chart (AMD)",
+      "args": {
+       "timeframe": "60"
+      }
+     }
+    ],
+    "alt": [
+     [
+      {
+       "a": "pane.resize",
+       "t": "Left chart (AMD)",
+       "args": {
+        "pane": "rsi",
+        "size": "bigger"
+       }
+      }
+     ]
+    ],
+    "blocked": [
+     "pane.resize"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ],
+    "why": "the save is refused (409): nothing the server refused may stay on screen, and the member is told"
+   }
+  },
+  {
+   "id": "e2-c09",
+   "cls": "pane-conflict",
+   "mix": "multi",
+   "fam": "indicator",
+   "fx": "e2_trio_rsi",
+   "host": {
+    "conflict": "paneSizes"
+   },
+   "text": "nvda: give the rsi half the chart",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "pane.resize",
+      "t": "Left chart (NVDA)",
+      "args": {
+       "pane": "rsi",
+       "size": 50
+      }
+     }
+    ],
+    "blocked": [
+     "pane.resize"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ],
+    "why": "the save is refused (409): nothing the server refused may stay on screen, and the member is told"
+   }
+  },
+  {
+   "id": "e2-c10",
+   "cls": "pane-conflict",
+   "mix": "multi",
+   "fam": "indicator",
+   "fx": "e2_solo_rsi_sized",
+   "host": {
+    "conflict": "paneSizes"
+   },
+   "text": "reset the rsi pane height to auto",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "pane.resize",
+      "t": "Chart (QQQ)",
+      "args": {
+       "pane": "rsi",
+       "size": "auto"
+      }
+     }
+    ],
+    "blocked": [
+     "pane.resize"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ],
+    "why": "the save is refused (409): nothing the server refused may stay on screen, and the member is told"
+   }
+  },
+  {
+   "id": "e2-c11",
+   "cls": "pane-conflict",
+   "mix": "multi",
+   "fam": "indicator",
+   "fx": "e2_pair_ind",
+   "host": {
+    "conflict": "paneSizes"
+   },
+   "text": "make both indicator panes bigger",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "pane.resize",
+      "t": "Left chart (AMD)",
+      "args": {
+       "pane": "rsi",
+       "size": "bigger"
+      }
+     },
+     {
+      "a": "pane.resize",
+      "t": "Right chart (TSLA)",
+      "args": {
+       "pane": "macd",
+       "size": "bigger"
+      }
+     }
+    ],
+    "blocked": [
+     "pane.resize"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ],
+    "why": "the save is refused (409): nothing the server refused may stay on screen, and the member is told"
+   }
+  },
+  {
+   "id": "e2-c12",
+   "cls": "pane-conflict",
+   "mix": "multi",
+   "fam": "indicator",
+   "fx": "e2_solo_rsi",
+   "host": {
+    "conflict": "always"
+   },
+   "text": "switch to weekly and make the rsi pane smaller",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "chart.setTimeframe",
+      "t": "Chart (NVDA)",
+      "args": {
+       "timeframe": "W"
+      }
+     },
+     {
+      "a": "pane.resize",
+      "t": "Chart (NVDA)",
+      "args": {
+       "pane": "rsi",
+       "size": "smaller"
+      }
+     }
+    ],
+    "blocked": [
+     "chart.setTimeframe",
+     "pane.resize"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ],
+    "why": "the save is refused (409): nothing the server refused may stay on screen, and the member is told"
+   }
+  },
+  {
+   "id": "e2-b01",
+   "cls": "correction-branch",
+   "mix": "followup",
+   "fam": "correction",
+   "fx": "rb_pair_nosel",
+   "turns": [
+    {
+     "say": "add the 9 ema on the right",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "indicator.add",
+        "t": "Right chart (META)",
+        "args": {
+         "defId": "movingAverage",
+         "inputs": [
+          {
+           "key": "period",
+           "value": 9
+          },
+          {
+           "key": "maType",
+           "value": "ema"
+          }
+         ]
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     }
+    },
+    {
+     "branch": {
+      "success": {
+       "say": "and the 21 on the same chart",
+       "expect": {
+        "kind": "act",
+        "ops": [
+         {
+          "a": "indicator.add",
+          "t": "Right chart (META)",
+          "args": {
+           "defId": "movingAverage",
+           "inputs": [
+            {
+             "key": "period",
+             "value": 21
+            },
+            {
+             "key": "maType",
+             "value": "ema"
+            }
+           ]
+          }
+         }
+        ],
+        "never": [
+         "chart.resetDefaults",
+         "widget.remove",
+         "layout.delete",
+         "watchlist.delete",
+         "watchlist.clear",
+         "drawing.clear",
+         "indicator.remove",
+         "definition.delete"
+        ]
+       }
+      },
+      "wrongChart": {
+       "say": "no, the other one",
+       "expect": {
+        "kind": "act",
+        "from": "start",
+        "ops": [
+         {
+          "a": "indicator.add",
+          "t": "Right chart (META)",
+          "args": {
+           "defId": "movingAverage",
+           "inputs": [
+            {
+             "key": "period",
+             "value": 9
+            },
+            {
+             "key": "maType",
+             "value": "ema"
+            }
+           ]
+          }
+         }
+        ],
+        "never": [
+         "chart.resetDefaults",
+         "widget.remove",
+         "layout.delete",
+         "watchlist.delete",
+         "watchlist.clear",
+         "drawing.clear",
+         "indicator.remove",
+         "definition.delete"
+        ]
+       }
+      },
+      "ask": {
+       "say": "the meta one",
+       "expect": {
+        "kind": "act",
+        "from": "start",
+        "ops": [
+         {
+          "a": "indicator.add",
+          "t": "Right chart (META)",
+          "args": {
+           "defId": "movingAverage",
+           "inputs": [
+            {
+             "key": "period",
+             "value": 9
+            },
+            {
+             "key": "maType",
+             "value": "ema"
+            }
+           ]
+          }
+         }
+        ],
+        "never": [
+         "chart.resetDefaults",
+         "widget.remove",
+         "layout.delete",
+         "watchlist.delete",
+         "watchlist.clear",
+         "drawing.clear",
+         "indicator.remove",
+         "definition.delete"
+        ]
+       }
+      },
+      "fail": {
+       "say": "fix that, i wanted a 9 ema on the meta chart",
+       "expect": {
+        "kind": "act",
+        "from": "start",
+        "ops": [
+         {
+          "a": "indicator.add",
+          "t": "Right chart (META)",
+          "args": {
+           "defId": "movingAverage",
+           "inputs": [
+            {
+             "key": "period",
+             "value": 9
+            },
+            {
+             "key": "maType",
+             "value": "ema"
+            }
+           ]
+          }
+         }
+        ],
+        "never": [
+         "chart.resetDefaults",
+         "widget.remove",
+         "layout.delete",
+         "watchlist.delete",
+         "watchlist.clear",
+         "drawing.clear",
+         "indicator.remove",
+         "definition.delete"
+        ]
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "e2-b02",
+   "cls": "correction-branch",
+   "mix": "followup",
+   "fam": "correction",
+   "fx": "rb_trio",
+   "turns": [
+    {
+     "say": "make the big chart weekly",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "chart.setTimeframe",
+        "t": "Left chart (NVDA)",
+        "args": {
+         "timeframe": "W"
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     }
+    },
+    {
+     "branch": {
+      "success": {
+       "say": "undo that and make it monthly instead",
+       "expect": {
+        "kind": "act",
+        "from": "start",
+        "ops": [
+         {
+          "a": "chart.setTimeframe",
+          "t": "Left chart (NVDA)",
+          "args": {
+           "timeframe": "M"
+          }
+         }
+        ],
+        "never": [
+         "chart.resetDefaults",
+         "widget.remove",
+         "layout.delete",
+         "watchlist.delete",
+         "watchlist.clear",
+         "drawing.clear",
+         "indicator.remove",
+         "definition.delete"
+        ]
+       }
+      },
+      "fail": {
+       "say": "fix that, i meant the nvda chart",
+       "expect": {
+        "kind": "act",
+        "from": "start",
+        "ops": [
+         {
+          "a": "chart.setTimeframe",
+          "t": "Left chart (NVDA)",
+          "args": {
+           "timeframe": "W"
+          }
+         }
+        ],
+        "never": [
+         "chart.resetDefaults",
+         "widget.remove",
+         "layout.delete",
+         "watchlist.delete",
+         "watchlist.clear",
+         "drawing.clear",
+         "indicator.remove",
+         "definition.delete"
+        ]
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "e2-b03",
+   "cls": "correction-branch",
+   "mix": "followup",
+   "fam": "correction",
+   "fx": "rb_solo",
+   "turns": [
+    {
+     "say": "add rsi and macd",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "indicator.add",
+        "t": "Chart (AAPL)",
+        "args": {
+         "defId": "rsi",
+         "inputs": null
+        }
+       },
+       {
+        "a": "indicator.add",
+        "t": "Chart (AAPL)",
+        "args": {
+         "defId": "macd",
+         "inputs": null
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     }
+    },
+    {
+     "branch": {
+      "success": {
+       "say": "undo that and make it weekly instead",
+       "expect": {
+        "kind": "act",
+        "from": "start",
+        "ops": [
+         {
+          "a": "chart.setTimeframe",
+          "t": "Chart (AAPL)",
+          "args": {
+           "timeframe": "W"
+          }
+         }
+        ],
+        "never": [
+         "chart.resetDefaults",
+         "widget.remove",
+         "layout.delete",
+         "watchlist.delete",
+         "watchlist.clear",
+         "drawing.clear",
+         "indicator.remove",
+         "definition.delete"
+        ]
+       }
+      },
+      "fail": {
+       "say": "fix that, i wanted rsi AND macd",
+       "expect": {
+        "kind": "act",
+        "from": "start",
+        "ops": [
+         {
+          "a": "indicator.add",
+          "t": "Chart (AAPL)",
+          "args": {
+           "defId": "rsi",
+           "inputs": null
+          }
+         },
+         {
+          "a": "indicator.add",
+          "t": "Chart (AAPL)",
+          "args": {
+           "defId": "macd",
+           "inputs": null
+          }
+         }
+        ],
+        "never": [
+         "chart.resetDefaults",
+         "widget.remove",
+         "layout.delete",
+         "watchlist.delete",
+         "watchlist.clear",
+         "drawing.clear",
+         "indicator.remove",
+         "definition.delete"
+        ]
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "e2-b04",
+   "cls": "correction-branch",
+   "mix": "followup",
+   "fam": "correction",
+   "fx": "rb_quad",
+   "turns": [
+    {
+     "say": "switch the bottom two to daily",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "chart.setTimeframe",
+        "t": "Bottom-left chart (AMZN)",
+        "args": {
+         "timeframe": "D"
+        }
+       },
+       {
+        "a": "chart.setTimeframe",
+        "t": "Bottom-right chart (GOOGL)",
+        "args": {
+         "timeframe": "D"
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     }
+    },
+    {
+     "branch": {
+      "success": {
+       "say": "now the top two to weekly",
+       "expect": {
+        "kind": "act",
+        "ops": [
+         {
+          "a": "chart.setTimeframe",
+          "t": "Top-left chart (SMH)",
+          "args": {
+           "timeframe": "W"
+          }
+         },
+         {
+          "a": "chart.setTimeframe",
+          "t": "Top-right chart (XLE)",
+          "args": {
+           "timeframe": "W"
+          }
+         }
+        ],
+        "never": [
+         "chart.resetDefaults",
+         "widget.remove",
+         "layout.delete",
+         "watchlist.delete",
+         "watchlist.clear",
+         "drawing.clear",
+         "indicator.remove",
+         "definition.delete"
+        ]
+       }
+      },
+      "fail": {
+       "say": "no, the bottom row, amzn and googl",
+       "expect": {
+        "kind": "act",
+        "from": "start",
+        "ops": [
+         {
+          "a": "chart.setTimeframe",
+          "t": "Bottom-left chart (AMZN)",
+          "args": {
+           "timeframe": "D"
+          }
+         },
+         {
+          "a": "chart.setTimeframe",
+          "t": "Bottom-right chart (GOOGL)",
+          "args": {
+           "timeframe": "D"
+          }
+         }
+        ],
+        "never": [
+         "chart.resetDefaults",
+         "widget.remove",
+         "layout.delete",
+         "watchlist.delete",
+         "watchlist.clear",
+         "drawing.clear",
+         "indicator.remove",
+         "definition.delete"
+        ]
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "e2-b05",
+   "cls": "correction-branch",
+   "mix": "followup",
+   "fam": "correction",
+   "fx": "rb_pair_sel",
+   "turns": [
+    {
+     "say": "put this one on the 5 min",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "chart.setTimeframe",
+        "t": "Right chart (META)",
+        "args": {
+         "timeframe": "5"
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     }
+    },
+    {
+     "branch": {
+      "success": {
+       "say": "undo that and make it weekly instead",
+       "expect": {
+        "kind": "act",
+        "from": "start",
+        "ops": [
+         {
+          "a": "chart.setTimeframe",
+          "t": "Right chart (META)",
+          "args": {
+           "timeframe": "W"
+          }
+         }
+        ],
+        "never": [
+         "chart.resetDefaults",
+         "widget.remove",
+         "layout.delete",
+         "watchlist.delete",
+         "watchlist.clear",
+         "drawing.clear",
+         "indicator.remove",
+         "definition.delete"
+        ]
+       }
+      },
+      "wrongChart": {
+       "say": "no, the other one",
+       "expect": {
+        "kind": "act",
+        "from": "start",
+        "ops": [
+         {
+          "a": "chart.setTimeframe",
+          "t": "Right chart (META)",
+          "args": {
+           "timeframe": "5"
+          }
+         }
+        ],
+        "never": [
+         "chart.resetDefaults",
+         "widget.remove",
+         "layout.delete",
+         "watchlist.delete",
+         "watchlist.clear",
+         "drawing.clear",
+         "indicator.remove",
+         "definition.delete"
+        ]
+       }
+      },
+      "fail": {
+       "say": "fix that, meta to the 5 minute",
+       "expect": {
+        "kind": "act",
+        "from": "start",
+        "ops": [
+         {
+          "a": "chart.setTimeframe",
+          "t": "Right chart (META)",
+          "args": {
+           "timeframe": "5"
+          }
+         }
+        ],
+        "never": [
+         "chart.resetDefaults",
+         "widget.remove",
+         "layout.delete",
+         "watchlist.delete",
+         "watchlist.clear",
+         "drawing.clear",
+         "indicator.remove",
+         "definition.delete"
+        ]
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "e2-b06",
+   "cls": "correction-branch",
+   "mix": "followup",
+   "fam": "correction",
+   "fx": "rb_twins",
+   "turns": [
+    {
+     "say": "add vwap to the intraday spy",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "indicator.add",
+        "t": "Right chart (SPY)",
+        "args": {
+         "defId": "vwap",
+         "inputs": null
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     }
+    },
+    {
+     "branch": {
+      "success": {
+       "say": "and the 20 ema too",
+       "expect": {
+        "kind": "act",
+        "ops": [
+         {
+          "a": "indicator.add",
+          "t": "Right chart (SPY)",
+          "args": {
+           "defId": "movingAverage",
+           "inputs": [
+            {
+             "key": "period",
+             "value": 20
+            },
+            {
+             "key": "maType",
+             "value": "ema"
+            }
+           ]
+          }
+         }
+        ],
+        "never": [
+         "chart.resetDefaults",
+         "widget.remove",
+         "layout.delete",
+         "watchlist.delete",
+         "watchlist.clear",
+         "drawing.clear",
+         "indicator.remove",
+         "definition.delete"
+        ]
+       }
+      },
+      "wrongChart": {
+       "say": "no, the other one",
+       "expect": {
+        "kind": "act",
+        "from": "start",
+        "ops": [
+         {
+          "a": "indicator.add",
+          "t": "Right chart (SPY)",
+          "args": {
+           "defId": "vwap",
+           "inputs": null
+          }
+         }
+        ],
+        "never": [
+         "chart.resetDefaults",
+         "widget.remove",
+         "layout.delete",
+         "watchlist.delete",
+         "watchlist.clear",
+         "drawing.clear",
+         "indicator.remove",
+         "definition.delete"
+        ]
+       }
+      },
+      "ask": {
+       "say": "the 5 minute one",
+       "expect": {
+        "kind": "act",
+        "from": "start",
+        "ops": [
+         {
+          "a": "indicator.add",
+          "t": "Right chart (SPY)",
+          "args": {
+           "defId": "vwap",
+           "inputs": null
+          }
+         }
+        ],
+        "never": [
+         "chart.resetDefaults",
+         "widget.remove",
+         "layout.delete",
+         "watchlist.delete",
+         "watchlist.clear",
+         "drawing.clear",
+         "indicator.remove",
+         "definition.delete"
+        ]
+       }
+      },
+      "fail": {
+       "say": "fix that, vwap on the 5 minute spy",
+       "expect": {
+        "kind": "act",
+        "from": "start",
+        "ops": [
+         {
+          "a": "indicator.add",
+          "t": "Right chart (SPY)",
+          "args": {
+           "defId": "vwap",
+           "inputs": null
+          }
+         }
+        ],
+        "never": [
+         "chart.resetDefaults",
+         "widget.remove",
+         "layout.delete",
+         "watchlist.delete",
+         "watchlist.clear",
+         "drawing.clear",
+         "indicator.remove",
+         "definition.delete"
+        ]
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "e2-b07",
+   "cls": "correction-branch",
+   "mix": "followup",
+   "fam": "correction",
+   "fx": "rb_trio",
+   "turns": [
+    {
+     "say": "drop a level at 120 on amd",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "drawing.addLevel",
+        "t": "Drawings on AMD",
+        "args": {
+         "price": 120
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     }
+    },
+    {
+     "branch": {
+      "success": {
+       "say": "undo that and put it at 125 instead",
+       "expect": {
+        "kind": "act",
+        "from": "start",
+        "ops": [
+         {
+          "a": "drawing.addLevel",
+          "t": "Drawings on AMD",
+          "args": {
+           "price": 125
+          }
+         }
+        ],
+        "never": [
+         "chart.resetDefaults",
+         "widget.remove",
+         "layout.delete",
+         "watchlist.delete",
+         "watchlist.clear",
+         "drawing.clear",
+         "indicator.remove",
+         "definition.delete"
+        ]
+       }
+      },
+      "fail": {
+       "say": "fix that, a level at 120 on the amd chart",
+       "expect": {
+        "kind": "act",
+        "from": "start",
+        "ops": [
+         {
+          "a": "drawing.addLevel",
+          "t": "Drawings on AMD",
+          "args": {
+           "price": 120
+          }
+         }
+        ],
+        "never": [
+         "chart.resetDefaults",
+         "widget.remove",
+         "layout.delete",
+         "watchlist.delete",
+         "watchlist.clear",
+         "drawing.clear",
+         "indicator.remove",
+         "definition.delete"
+        ]
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "e2-b08",
+   "cls": "correction-branch",
+   "mix": "followup",
+   "fam": "correction",
+   "fx": "rb_solo",
+   "turns": [
+    {
+     "say": "add nflx to swing",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "watchlist.add",
+        "t": "Swing",
+        "args": {
+         "symbols": {
+          "$has": [
+           "NFLX"
+          ]
+         }
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     }
+    },
+    {
+     "branch": {
+      "success": {
+       "say": "undo that and put it in momentum instead",
+       "expect": {
+        "kind": "act",
+        "from": "start",
+        "ops": [
+         {
+          "a": "watchlist.add",
+          "t": "Momentum",
+          "args": {
+           "symbols": {
+            "$has": [
+             "NFLX"
+            ]
+           }
+          }
+         }
+        ],
+        "never": [
+         "chart.resetDefaults",
+         "widget.remove",
+         "layout.delete",
+         "watchlist.delete",
+         "watchlist.clear",
+         "drawing.clear",
+         "indicator.remove",
+         "definition.delete"
+        ]
+       }
+      },
+      "fail": {
+       "say": "fix that, nflx goes in my swing list",
+       "expect": {
+        "kind": "act",
+        "from": "start",
+        "ops": [
+         {
+          "a": "watchlist.add",
+          "t": "Swing",
+          "args": {
+           "symbols": {
+            "$has": [
+             "NFLX"
+            ]
+           }
+          }
+         }
+        ],
+        "never": [
+         "chart.resetDefaults",
+         "widget.remove",
+         "layout.delete",
+         "watchlist.delete",
+         "watchlist.clear",
+         "drawing.clear",
+         "indicator.remove",
+         "definition.delete"
+        ]
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "e2-b09",
+   "cls": "correction-branch",
+   "mix": "followup",
+   "fam": "correction",
+   "fx": "rb_quad",
+   "turns": [
+    {
+     "say": "rsi on the xle chart",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "indicator.add",
+        "t": "Top-right chart (XLE)",
+        "args": {
+         "defId": "rsi",
+         "inputs": null
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     }
+    },
+    {
+     "branch": {
+      "success": {
+       "say": "make it a 21 period",
+       "expect": {
+        "kind": "act",
+        "ops": [
+         {
+          "a": "indicator.update",
+          "t": "Top-right chart (XLE)",
+          "args": {
+           "instance": "rsi",
+           "inputs": [
+            {
+             "key": "period",
+             "value": 21
+            }
+           ]
+          }
+         }
+        ],
+        "never": [
+         "chart.resetDefaults",
+         "widget.remove",
+         "layout.delete",
+         "watchlist.delete",
+         "watchlist.clear",
+         "drawing.clear",
+         "indicator.remove",
+         "definition.delete"
+        ]
+       }
+      },
+      "wrongChart": {
+       "say": "no, the other one, xle",
+       "expect": {
+        "kind": "act",
+        "from": "start",
+        "ops": [
+         {
+          "a": "indicator.add",
+          "t": "Top-right chart (XLE)",
+          "args": {
+           "defId": "rsi",
+           "inputs": null
+          }
+         }
+        ],
+        "never": [
+         "chart.resetDefaults",
+         "widget.remove",
+         "layout.delete",
+         "watchlist.delete",
+         "watchlist.clear",
+         "drawing.clear",
+         "indicator.remove",
+         "definition.delete"
+        ]
+       }
+      },
+      "fail": {
+       "say": "fix that, rsi on xle",
+       "expect": {
+        "kind": "act",
+        "from": "start",
+        "ops": [
+         {
+          "a": "indicator.add",
+          "t": "Top-right chart (XLE)",
+          "args": {
+           "defId": "rsi",
+           "inputs": null
+          }
+         }
+        ],
+        "never": [
+         "chart.resetDefaults",
+         "widget.remove",
+         "layout.delete",
+         "watchlist.delete",
+         "watchlist.clear",
+         "drawing.clear",
+         "indicator.remove",
+         "definition.delete"
+        ]
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "e2-b10",
+   "cls": "correction-branch",
+   "mix": "followup",
+   "fam": "correction",
+   "fx": "rb_pair_nosel",
+   "turns": [
+    {
+     "say": "make msft a line chart",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "chart.setType",
+        "t": "Left chart (MSFT)",
+        "args": {
+         "type": "line"
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     }
+    },
+    {
+     "branch": {
+      "success": {
+       "say": "undo that and make it weekly instead",
+       "expect": {
+        "kind": "act",
+        "from": "start",
+        "ops": [
+         {
+          "a": "chart.setTimeframe",
+          "t": "Left chart (MSFT)",
+          "args": {
+           "timeframe": "W"
+          }
+         }
+        ],
+        "never": [
+         "chart.resetDefaults",
+         "widget.remove",
+         "layout.delete",
+         "watchlist.delete",
+         "watchlist.clear",
+         "drawing.clear",
+         "indicator.remove",
+         "definition.delete"
+        ]
+       }
+      },
+      "fail": {
+       "say": "fix that, msft should be a line chart",
+       "expect": {
+        "kind": "act",
+        "from": "start",
+        "ops": [
+         {
+          "a": "chart.setType",
+          "t": "Left chart (MSFT)",
+          "args": {
+           "type": "line"
+          }
+         }
+        ],
+        "never": [
+         "chart.resetDefaults",
+         "widget.remove",
+         "layout.delete",
+         "watchlist.delete",
+         "watchlist.clear",
+         "drawing.clear",
+         "indicator.remove",
+         "definition.delete"
+        ]
+       }
+      }
+     }
+    }
+   ]
+  }
+ ]
+}

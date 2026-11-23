@@ -1,0 +1,244 @@
+// E2E EVAL harness self-checks (no model call, no network): testing/e2eRun.jsx + e2eEval.jsx + e2eScore.js.
+//
+//   • ORACLE self-check: every case of the bench and the e2e corpus, answered turn by turn with ITS OWN expected
+//     envelope through the real panel, scores `success` on the board it leaves — so no expectation is impossible;
+//   • KNOWN-WRONG: the same cases with a wrong answer (another chart, a dropped step, nothing at all) score failure;
+//   • no teacher forcing: turn 2 runs on the board turn 1 actually left, and a correction branch follows the outcome;
+//   • the save conflict host refuses a pane-size save with a 409-shaped answer and stays refused;
+//   • the bank: a request's key is stable across mounts, a miss becomes a runner item and stops the dialogue.
+//
+// AGENT_E2E_SELFCHECK_FILES=realModelBench.v1.json,e2eBench.v1.json (default both) and AGENT_E2E_SELFCHECK_ONLY=<ids>.
+import { describe, it, expect, vi } from 'vitest'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { registerBuiltins } from './builtins'
+import { specFor } from './testing/bench'
+import { evaluateCase, expectedResponder } from './testing/e2eEval'
+import { bankResponder, requestKey, mountCase, stepsOf } from './testing/e2eRun'
+import { scoreTurn, armTable, paired } from './testing/e2eScore'
+import { buildBoard, snapshot, compareBoards } from './testing/e2eHost'
+
+vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
+// the panel's request taps: what it routed / selected for the request it is about to send (the reroute tables)
+vi.mock('./nl1/interpreter', async (orig) => {
+  const m = await orig()
+  return { ...m, buildNl1Request: (args) => { const r = m.buildNl1Request(args); if (!args?.need) (globalThis.__e2eTap ||= {}).nl1 = r; return r } }
+})
+vi.mock('./nlm1/flag', async (orig) => {
+  const m = await orig()
+  return { ...m, pickRouter: () => { const route = m.pickRouter(); return (full, text, routeOpts, need) => { const routed = route(full, text, routeOpts, need); if (need === undefined) (globalThis.__e2eTap ||= {}).route = { route, full, text, routeOpts, routed }; return routed } } }
+})
+
+registerBuiltins()
+const env = globalThis.process?.env || {}
+const DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '__fixtures__/nlIntent')
+const SPEC = JSON.parse(fs.readFileSync(path.join(DIR, 'corpus.json'), 'utf8'))
+const load = (f) => JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8'))
+const FILES = (env.AGENT_E2E_SELFCHECK_FILES || 'realModelBench.v1.json,e2eBench.v1.json').split(',').filter(Boolean)
+const ONLY = env.AGENT_E2E_SELFCHECK_ONLY ? new Set(env.AGENT_E2E_SELFCHECK_ONLY.split(',')) : null
+
+// PRODUCT CEILINGS (2026-11-23, on the origin/master merge): the case's IDEAL answer still fails on today's panel. These
+// are findings about the product, the same for every arm (no model can pass them through these rails).
+const CEILING = {
+  // a pane resize whose save the server refuses (409) stays on screen: "…failed (the save was not confirmed (conflict)) — and
+  // some changes could not be reversed" (INV2 §1: indicatorEditsKind.commit never restores cur.stored). Honest, not rolled back.
+  'e2-c01#0': 'residue', 'e2-c02#0': 'residue', 'e2-c03#0': 'residue', 'e2-c04#0': 'residue', 'e2-c05#0': 'residue',
+  'e2-c06#0': 'residue', 'e2-c07#0': 'residue', 'e2-c08#0': 'residue', 'e2-c10#0': 'residue', 'e2-c11#0': 'residue',
+  // a timeframe change whose save is refused stays on screen too ("On your screen but NOT saved"): honest, not rolled back
+  'e2-c12#0': 'residue',
+  // the target screen asks "Which chart do you mean?" although the words name the chart ("nvda:", "the same chart",
+  // "make it a 21 period" after an RSI, "the daily" answering UCT's own SPY question, "atr on the google one")
+  'e2-c09#0': 'partial_silent', 'e2-b01#1': 'unnecessary_ask', 'e2-b09#1': 'unnecessary_ask', 'e2-t09#1': 'unnecessary_ask',
+  'rb-f12#1': 'unnecessary_ask', 'rb-s13#0': 'unnecessary_ask', 'rb-s12#0': 'refusal',
+  // fixture: this board has no theme-all writer, so the theme-all plan is "Nothing to change" (the per-chart plan is the oracle)
+  'rb-m22#0': 'refusal',
+}
+
+describe('oracle self-check: each case\'s own expectation scores success end to end', () => {
+  for (const f of FILES) {
+    const data = fs.existsSync(path.join(DIR, f)) ? load(f) : { cases: [] }
+    const spec = specFor(SPEC, data)
+    for (const c of data.cases.filter(x => !ONLY || ONLY.has(x.id))) {
+      it(`${f} ${c.id}`, async () => {
+        const { rows } = await evaluateCase({ spec, c, arm: 'B', responderFor: () => expectedResponder() })
+        if (env.AGENT_E2E_DEBUG) console.log(JSON.stringify(rows))
+        for (const r of rows.filter(x => x.outcome !== 'success')) console.log(`SELFCHECK ${r.key} ${r.outcome} ${CEILING[r.key] === r.outcome ? 'ceiling' : ''} | ${r.why || ''} | ${(r.reply || '').slice(0, 200)}`)
+        // an expectation the harness cannot execute is reported (oracle_invalid, never scored); a PRODUCT CEILING (the ideal
+        // answer still fails because of a rail or the save path) must fail exactly as recorded — a fix flips it and this asks
+        // for the list to be updated; anything else is a broken expectation
+        const bad = rows.filter(r => r.outcome !== 'success' && r.outcome !== 'oracle_invalid' && CEILING[r.key] !== r.outcome)
+        const stale = rows.filter(r => r.outcome === 'success' && CEILING[r.key])
+        expect([...bad, ...stale].map(r => `${r.key} ${r.outcome} ${r.why}`)).toEqual([])
+      }, 120000)
+    }
+  }
+})
+
+// ── known-wrong answers must FAIL ───────────────────────────────────────────────────────────────────────────
+// turn 0 of each case answered wrongly, rotating by case: nothing at all / the first change on another chart / the last
+// step dropped. The other turns get their expected answers.
+const chartRefs = (ctx) => {
+  const out = []
+  const walk = (v, d) => { if (!v || typeof v !== 'object' || d > 6) return; if (Array.isArray(v)) { v.forEach(x => walk(x, d + 1)); return } const lab = v.label || v.chart; if (typeof v.ref === 'string' && /(chart \(|^drawings on )/i.test(String(lab || '')) && !out.some(([r]) => r === v.ref)) out.push([v.ref, lab]); for (const x of Object.values(v)) walk(x, d + 1) }
+  walk(ctx, 0)
+  return out
+}
+const MUTATIONS = {
+  nothing: (env) => ({ ...env, disposition: 'answer', reply: 'Done.', ops: [], question: null }),
+  // the first op's target moved to ANOTHER chart's entry of the same kind (same ref initial, another label)
+  otherChart: (env, req) => {
+    const labels = chartRefs(req.body.context)
+    const ops = env.ops || []
+    const i = ops.findIndex(o => labels.some(([r]) => r === o.target))
+    if (i < 0) return null
+    const mine = labels.find(([r]) => r === ops[i].target)
+    const other = labels.find(([r, l]) => r[0] === mine[0][0] && l !== mine[1])
+    if (!other) return null
+    return { ...env, ops: ops.map((o, k) => (k === i ? { ...o, target: other[0] } : o)) }
+  },
+  dropLast: (env) => ((env.ops || []).length > 1 ? { ...env, ops: env.ops.slice(0, -1) } : null),
+}
+// a mistake the rails cannot see (the words name an indicator, not which one): RSI planned as MACD
+const wrongIndicator = (env) => ({ ...env, ops: (env.ops || []).map(o => (o.args?.defId === 'rsi' ? { ...o, args: { ...o.args, defId: 'macd' } } : o)) })
+// known-wrong answers the PRODUCT neutralises or the board cannot see (2026-11-23): a rail re-targets the plan to the chart the
+// words name, the moved op was a no-op on that chart, or the dropped op has no effect on the board snapshot (a panel opens)
+const NEUTRAL = {
+  'rb-s05:otherChart': 'rail: "this one" re-targets to the clicked chart',
+  'rb-m02:otherChart': 'the moved op (MSFT to daily) is already so',
+  'rb-m09:dropLast': 'blind spot: watchlist.open opens a panel, outside the board snapshot',
+  'e2-t11:otherChart': 'rail: the words name the chart',
+  'e2-b05:otherChart': 'rail: "this one" re-targets to the clicked chart',
+}
+
+describe('known-wrong answers score failure', () => {
+  for (const f of FILES) {
+    const data = fs.existsSync(path.join(DIR, f)) ? load(f) : { cases: [] }
+    const spec = specFor(SPEC, data)
+    data.cases.filter(x => !ONLY || ONLY.has(x.id)).forEach((c, idx) => {
+      const names = Object.keys(MUTATIONS)
+      const want = names[idx % names.length]
+      it(`${f} ${c.id} (${want})`, async () => {
+        let used = want
+        const mutate = (turn, env, req) => {
+          if (turn !== 0) return null
+          const m = MUTATIONS[used](env, req) || MUTATIONS.nothing(env, req)
+          if (!MUTATIONS[used](env, req)) used = 'nothing'
+          return m
+        }
+        const { rows } = await evaluateCase({ spec, c, arm: 'B', responderFor: () => expectedResponder({ mutate }) })
+        const r0 = rows[0]
+        // the wrong answer never reached the board when: a deterministic reader answered the turn (no model call), the
+        // expectation is not executable here (oracle_invalid), or the case is a recorded blind spot / rail catch (NEUTRAL)
+        if (r0.lane === 'deterministic' || r0.outcome === 'oracle_invalid' || r0.lookup || r0.blocked || NEUTRAL[`${c.id}:${used}`]) return
+        expect(`${r0.key} ${used} ${r0.outcome}`).not.toMatch(/ success$/)
+      }, 120000)
+    })
+  }
+})
+
+// ── rounds, the bank, and no teacher forcing ────────────────────────────────────────────────────────────────
+describe('rounds without teacher forcing', () => {
+  const data = load('e2eBench.v1.json')
+  const spec = specFor(SPEC, data)
+  const byId = (id) => data.cases.find(c => c.id === id)
+
+  it('a request key is stable across mounts and ignores the conversation id', () => {
+    const b = { message: 'x', context: { a: 1 }, conversationId: 'one' }
+    expect(requestKey('A', b, [])).toBe(requestKey('A', { ...b, conversationId: 'two' }, []))
+    expect(requestKey('A', b, [])).not.toBe(requestKey('B', b, []))
+    expect(requestKey('A', b, [])).not.toBe(requestKey('A', b, [{ role: 'member', text: 'y' }]))
+  })
+
+  it('round by round: a miss is written out and stops the dialogue; the next round runs on the board turn 1 left', async () => {
+    const c = byId('e2-t02')                                  // 2 turns
+    const exp = expectedResponder({ mutate: (turn, env) => (turn === 0 ? wrongIndicator(env) : null) })
+    const bank = new Map()
+    const roundOf = async () => { const collect = new Map(); const r = await evaluateCase({ spec, c, arm: 'B', bank, collect, catalogs: new Map() }); return { rows: r.rows, items: [...collect.values()] } }
+    const r1 = await roundOf()
+    expect(r1.rows.map(r => r.outcome)).toEqual(['pending', 'pending'])
+    expect(r1.items).toHaveLength(1)
+    expect(r1.items[0]).toMatchObject({ mode: 'nl1', caseId: 'e2-t02', turn: 0 })
+    expect(r1.items[0].selection && r1.items[0].reroutes).toBeTruthy()     // NL-1 reroute tables for the runner
+    // "the paid run": answer each written request as the (wrong) model would, as a runner results row
+    const pay = (items) => { for (const it2 of items) bank.set(it2.key, { key: it2.key, envelope: exp({ body: it2.body, history: it2.history, turn: it2.turn, step: stepsOf(c)[it2.turn], host: hostNow }).envelope, model_ms: 900, rounds: 1, usage: { input_tokens: 100, output_tokens: 50, cache_read_tokens: 1000, cache_write_tokens: 0, model_calls: 1 } }) }
+    // the wrong answer needs the board's own targets: a mount of the same board gives them (same fixture, same refs)
+    let hostNow = (await mountCase({ spec, c, arm: 'B', responder: () => ({ miss: true, status: 503 }) })).built.host
+    pay(r1.items)
+    // the panel may need more than one round for turn 1 (its client repair is a new model request): pay until it is scored
+    let r2 = await roundOf()
+    for (let k = 0; k < 3 && r2.rows[0].outcome === 'pending'; k++) { expect(r2.items[0].turn).toBe(0); pay(r2.items); r2 = await roundOf() }
+    expect(r2.rows[0].outcome).toBe('wrong_action')                         // turn 1 really went wrong (MACD, not RSI)
+    expect(r2.rows[1].outcome).toBe('pending')
+    expect(r2.items).toHaveLength(1)
+    expect(r2.items[0].turn).toBe(1)
+    // turn 2's request carries what turn 1 REALLY did (its receipt names MACD), not the expected RSI
+    const h = JSON.stringify(r2.items[0].history)
+    expect(h).toMatch(/MACD/i)
+    expect(r2.items[0].body.message).toBe(stepsOf(c)[1].say)
+  }, 180000)
+
+  it('a correction branch follows what turn 1 actually did', async () => {
+    const c = byId('e2-b09')
+    const seen = []
+    const exp = expectedResponder({ mutate: (turn, env, req) => { seen.push(req.body.message); return turn === 0 ? wrongIndicator(env) : null } })
+    const { rows } = await evaluateCase({ spec, c, arm: 'B', responderFor: () => exp })
+    expect(rows[0].outcome).toBe('wrong_action')
+    expect(seen).toContain('fix that, rsi on xle')                          // the fail branch, not the follow-up
+    expect(seen).not.toContain('make it a 21 period')
+    expect(rows[1].outcome).not.toBe('pending')                             // judged from the first board
+  }, 180000)
+})
+
+// ── the save-conflict host (409 workspace_conflict, sticky) ─────────────────────────────────────────────────
+describe('save conflict host', () => {
+  const data = load('e2eBench.v1.json')
+  const spec = specFor(SPEC, data)
+  it('refuses a save that carries a pane-size change, then every later save; an unchanged board saves', async () => {
+    const b = buildBoard(spec, 'e2_solo_rsi', { conflict: 'paneSizes' })
+    expect(await b.host.persist()).toEqual({ ok: true })
+    const w = b.state.widgets.find(x => x.id === 'c1')
+    b.state.widgets = b.state.widgets.map(x => (x === w ? { ...w, opts: { ...w.opts, settings: { ...w.opts.settings, paneSizes: { 'inst:rsi:1': 0.5 } } } } : x))
+    expect(await b.host.persist()).toEqual({ ok: false, conflict: true, reason: 'conflict' })
+    expect(snapshot(b).residue).toBe(true)
+    b.state.widgets = b.state.widgets.map(x => (x.id === 'c1' ? w : x))
+    expect(await b.host.persist()).toMatchObject({ ok: false, conflict: true })    // sticky until a reload
+    expect(snapshot(b).residue).toBe(false)
+  })
+})
+
+// ── the scorer (pure) ───────────────────────────────────────────────────────────────────────────────────────
+describe('scoreTurn', () => {
+  const B = (charts, extra = {}) => ({ charts, widgets: {}, layouts: null, watchlists: {}, drawings: {}, residue: false, ...extra })
+  const pre = B({ a: { tf: 'D' }, b: { tf: 'D' } })
+  const want = B({ a: { tf: 'W' }, b: { tf: 'D' } })
+  const act = { kind: 'act', ops: [{ a: 'chart.setTimeframe' }] }
+  it('outcomes', () => {
+    expect(scoreTurn({ e: act, pre, mid: want, post: want, oracles: [want] }).outcome).toBe('success')
+    expect(scoreTurn({ e: act, pre, mid: B({ a: { tf: 'D' }, b: { tf: 'W' } }), post: B({ a: { tf: 'D' }, b: { tf: 'W' } }), oracles: [want] }).outcome).toBe('wrong_chart')
+    expect(scoreTurn({ e: act, pre, mid: pre, post: pre, oracles: [want], reply: 'Switched to weekly' }).outcome).toBe('refusal')
+    expect(scoreTurn({ e: act, pre, mid: pre, post: pre, oracles: [want], reply: 'Switched to weekly' }).flags).toContain('silent')
+    expect(scoreTurn({ e: act, pre, mid: pre, post: pre, oracles: [want], asked: true }).outcome).toBe('unnecessary_ask')
+    expect(scoreTurn({ e: { kind: 'clarify' }, pre, mid: want, post: want }).outcome).toBe('missed_ask')
+    const two = B({ a: { tf: 'W' }, b: { tf: 'W' } })
+    expect(scoreTurn({ e: act, pre, mid: want, post: want, oracles: [two], reply: 'Weekly on a.' }).outcome).toBe('partial_silent')
+    expect(scoreTurn({ e: act, pre, mid: want, post: want, oracles: [two], reply: "Weekly on a. I couldn't change b." }).outcome).toBe('partial_reported')
+    // a destructive change that ran before any card
+    const gone = B({ a: { tf: 'D' } })
+    expect(scoreTurn({ e: act, pre, mid: gone, post: gone, oracles: [want] }).outcome).toBe('unsafe')
+    expect(scoreTurn({ e: { ...act, kind: 'propose' }, pre, mid: want, post: want, oracles: [want] }).outcome).toBe('unsafe')
+  })
+  it('a save conflict: right only with no residue AND the refusal said', () => {
+    const e = { ...act, blocked: ['chart.setTimeframe'] }
+    expect(scoreTurn({ e, pre, mid: pre, post: pre, oracles: [pre], reply: "the save was not confirmed (conflict), so it is not done" }).outcome).toBe('success')
+    expect(scoreTurn({ e, pre, mid: pre, post: pre, oracles: [pre], reply: 'Done.' }).outcome).toBe('partial_silent')
+    expect(scoreTurn({ e, pre, mid: want, post: { ...want, residue: true }, oracles: [pre], reply: 'failed (conflict)' }).outcome).toBe('residue')
+  })
+  it('paired McNemar: 10 discordant all one way is significant, 3 is not', () => {
+    const rows = (oks) => oks.map((ok, i) => ({ key: `k${i}`, outcome: ok ? 'success' : 'wrong_action' }))
+    expect(paired(rows(Array(10).fill(true)), rows(Array(10).fill(false))).p).toBeLessThan(0.01)
+    expect(paired(rows([true, true, true]), rows([false, false, false])).p).toBeGreaterThan(0.2)
+    expect(armTable([{ key: 'a', dialogue: 'd', outcome: 'success', lane: 'model', modelMs: 10, rounds: 1, usd: 0.01, requests: 1 }]).successPct).toBe(100)
+  })
+  void compareBoards; void bankResponder
+})
