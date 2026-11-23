@@ -7,26 +7,26 @@
  },
  "totals": {
   "capabilities": 255,
-  "withAnyRegressionCase": 203,
+  "withAnyRegressionCase": 204,
   "perProtection": {
    "nl": {
-    "covered": 200,
+    "covered": 201,
     "applicable": 255
    },
    "routing": {
-    "covered": 197,
+    "covered": 198,
     "applicable": 255
    },
    "args": {
-    "covered": 203,
+    "covered": 204,
     "applicable": 255
    },
    "execution": {
-    "covered": 200,
+    "covered": 201,
     "applicable": 255
    },
    "receipt": {
-    "covered": 171,
+    "covered": 172,
     "applicable": 255
    },
    "refusal": {
@@ -42,16 +42,56 @@
     "applicable": 143
    },
    "multiStep": {
-    "covered": 40,
+    "covered": 43,
     "applicable": 255
    },
    "phrasings": {
-    "covered": 196,
+    "covered": 197,
     "applicable": 255
    }
   }
  },
  "knownGaps": [
+  {
+   "id": "GAP-COMPARE-DISPLAY-ROUTE",
+   "router": "v1",
+   "owner": "pl-compare",
+   "reason": "the fast path reads these with no model whenever the chart HAS comparisons (the only state they mean anything in: capreg (c) and the panel tests pass); a MODEL-routed paraphrase names no chartSetup word — chartSetup carries no scale / comparison words, and this branch adds none to an existing group (routing budget). Follow-up: comparison-display words for the chartSetup group, with a budget re-check.",
+   "mode": "\"put QQQ on the same scale\" → chartSetup.compareDisplay",
+   "level": "a",
+   "intent": "compare.display.sameScale",
+   "phrasing": "put QQQ on the same scale"
+  },
+  {
+   "id": "GAP-COMPARE-DISPLAY-ROUTE",
+   "router": "v1+v2",
+   "owner": "pl-compare",
+   "reason": "the fast path reads these with no model whenever the chart HAS comparisons (the only state they mean anything in: capreg (c) and the panel tests pass); a MODEL-routed paraphrase names no chartSetup word — chartSetup carries no scale / comparison words, and this branch adds none to an existing group (routing budget). Follow-up: comparison-display words for the chartSetup group, with a budget re-check.",
+   "mode": "\"move QQQ to the main price scale\" → chartSetup.compareDisplay",
+   "level": "a",
+   "intent": "compare.display.sameScale",
+   "phrasing": "move QQQ to the main price scale"
+  },
+  {
+   "id": "GAP-COMPARE-DISPLAY-ROUTE",
+   "router": "v1",
+   "owner": "pl-compare",
+   "reason": "the fast path reads these with no model whenever the chart HAS comparisons (the only state they mean anything in: capreg (c) and the panel tests pass); a MODEL-routed paraphrase names no chartSetup word — chartSetup carries no scale / comparison words, and this branch adds none to an existing group (routing budget). Follow-up: comparison-display words for the chartSetup group, with a budget re-check.",
+   "mode": "\"make QQQ share the price scale\" → chartSetup.compareDisplay",
+   "level": "a",
+   "intent": "compare.display.sameScale",
+   "phrasing": "make QQQ share the price scale"
+  },
+  {
+   "id": "GAP-COMPARE-DISPLAY-ROUTE",
+   "router": "v1",
+   "owner": "pl-compare",
+   "reason": "the fast path reads these with no model whenever the chart HAS comparisons (the only state they mean anything in: capreg (c) and the panel tests pass); a MODEL-routed paraphrase names no chartSetup word — chartSetup carries no scale / comparison words, and this branch adds none to an existing group (routing budget). Follow-up: comparison-display words for the chartSetup group, with a budget re-check.",
+   "mode": "\"show only the comparisons\" → chartSetup.compareDisplay",
+   "level": "a",
+   "intent": "compare.display.groupOnly",
+   "phrasing": "show only the comparisons"
+  },
   {
    "id": "GAP-HISTORY-PERIODS-ROUTE",
    "router": "v1+v2",
@@ -1145,7 +1185,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false,
+   "fast": true,
    "protections": {
     "nl": true,
     "routing": true,
@@ -1155,38 +1195,59 @@
     "refusal": false,
     "permission": true,
     "undo": true,
-    "multiStep": false,
+    "multiStep": true,
     "phrasings": true
    },
-   "phrasings": 4,
+   "phrasings": 22,
    "evidence": {
     "nl": [
      "compare.amd: \"compare with AMD\"",
      "compare.amd: \"overlay AMD on this chart\"",
      "compare.amd: \"compare NVDA to AMD\"",
-     "compare.amd: \"add AMD as a comparison\""
+     "compare.amd: \"add AMD as a comparison\"",
+     "compare.list.self: \"compare it with MSFT and QQQ\"",
+     "compare.list.self: \"overlay MSFT and QQQ on this chart\""
     ],
     "routing": [
      "compare.amd: \"compare with AMD\"",
      "compare.amd: \"overlay AMD on this chart\"",
      "compare.amd: \"compare NVDA to AMD\"",
-     "compare.amd: \"add AMD as a comparison\""
+     "compare.amd: \"add AMD as a comparison\"",
+     "compare.list.self: \"compare it with MSFT and QQQ\"",
+     "compare.list.self: \"overlay MSFT and QQQ on this chart\""
     ],
     "args": [
-     "corpus compare.amd"
+     "corpus compare.amd",
+     "corpus compare.list.self",
+     "corpus compare.base.other-chart",
+     "corpus compare.remove.one",
+     "corpus compare.clear.all"
     ],
     "execution": [
-     "compare.amd (c)"
+     "compare.amd (c)",
+     "compare.list.self (c)",
+     "compare.base.other-chart (c)",
+     "compare.remove.one (c)",
+     "compare.clear.all (c)"
     ],
     "receipt": [
-     "compare.amd (c)"
+     "compare.amd (c)",
+     "compare.list.self (c)",
+     "compare.base.other-chart (c)",
+     "compare.remove.one (c)",
+     "compare.clear.all (c)"
     ],
     "refusal": [],
     "permission": [],
     "undo": [
-     "compare.amd: undo restores"
+     "compare.amd: undo restores",
+     "compare.list.self: undo restores",
+     "compare.base.other-chart: undo restores"
     ],
-    "multiStep": [],
+    "multiStep": [
+     "compare.remove.one: after an earlier turn",
+     "compare.clear.all: after an earlier turn"
+    ],
     "phrasings": []
    }
   },
@@ -1671,7 +1732,7 @@
     "multiStep": true,
     "phrasings": true
    },
-   "phrasings": 5,
+   "phrasings": 8,
    "evidence": {
     "nl": [
      "scale.log: \"log scale\"",
@@ -1679,31 +1740,36 @@
      "scale.log: \"use a logarithmic price scale\"",
      "scale.log: \"make the chart log\"",
      "scale.log: \"turn on log scale\"",
-     "GW-01.symbol-weekly-emas-log-undo"
+     "scale.percent.words: \"show it as percent\""
     ],
     "routing": [
      "scale.log: \"log scale\"",
      "scale.log: \"switch to log scale\"",
      "scale.log: \"use a logarithmic price scale\"",
      "scale.log: \"make the chart log\"",
-     "scale.log: \"turn on log scale\""
+     "scale.log: \"turn on log scale\"",
+     "scale.percent.words: \"show it as percent\""
     ],
     "args": [
      "corpus scale.log",
+     "corpus scale.percent.words",
      "GW-01.symbol-weekly-emas-log-undo"
     ],
     "execution": [
      "scale.log (c)",
+     "scale.percent.words (c)",
      "GW-01.symbol-weekly-emas-log-undo"
     ],
     "receipt": [
      "scale.log (c)",
+     "scale.percent.words (c)",
      "GW-01.symbol-weekly-emas-log-undo"
     ],
     "refusal": [],
     "permission": [],
     "undo": [
      "scale.log: undo restores",
+     "scale.percent.words: undo restores",
      "GW-01.symbol-weekly-emas-log-undo"
     ],
     "multiStep": [
@@ -2484,30 +2550,52 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false,
+   "fast": true,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
     "undo": false,
-    "multiStep": false,
-    "phrasings": false
+    "multiStep": true,
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 6,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "compare.display.sameScale: \"put QQQ on the same scale\"",
+     "compare.display.sameScale: \"move QQQ to the main price scale\"",
+     "compare.display.sameScale: \"make QQQ share the price scale\"",
+     "compare.display.groupOnly: \"hide the base symbol\"",
+     "compare.display.groupOnly: \"group only\"",
+     "compare.display.groupOnly: \"show only the comparisons\""
+    ],
+    "routing": [
+     "compare.display.groupOnly: \"hide the base symbol\"",
+     "compare.display.groupOnly: \"group only\""
+    ],
+    "args": [
+     "corpus compare.display.sameScale",
+     "corpus compare.display.groupOnly"
+    ],
+    "execution": [
+     "compare.display.sameScale (c)",
+     "compare.display.groupOnly (c)"
+    ],
+    "receipt": [
+     "compare.display.sameScale (c)",
+     "compare.display.groupOnly (c)"
+    ],
     "refusal": [],
     "permission": [],
     "undo": [],
-    "multiStep": [],
+    "multiStep": [
+     "compare.display.sameScale: after an earlier turn",
+     "compare.display.groupOnly: after an earlier turn"
+    ],
     "phrasings": []
    }
   },
@@ -2522,7 +2610,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false,
+   "fast": true,
    "protections": {
     "nl": true,
     "routing": true,
@@ -2532,36 +2620,45 @@
     "refusal": false,
     "permission": true,
     "undo": true,
-    "multiStep": false,
+    "multiStep": true,
     "phrasings": true
    },
-   "phrasings": 3,
+   "phrasings": 5,
    "evidence": {
     "nl": [
      "compare.group.aiChips: \"compare this chart against the AI Chips theme\"",
      "compare.group.aiChips: \"overlay the AI Chips group on this chart\"",
-     "compare.group.aiChips: \"compare NVDA with the AI Chips theme\""
+     "compare.group.aiChips: \"compare NVDA with the AI Chips theme\"",
+     "compare.group.remove: \"remove the AI Chips group\"",
+     "compare.group.remove: \"drop the ai chips theme from the comparisons\""
     ],
     "routing": [
      "compare.group.aiChips: \"compare this chart against the AI Chips theme\"",
      "compare.group.aiChips: \"overlay the AI Chips group on this chart\"",
-     "compare.group.aiChips: \"compare NVDA with the AI Chips theme\""
+     "compare.group.aiChips: \"compare NVDA with the AI Chips theme\"",
+     "compare.group.remove: \"remove the AI Chips group\"",
+     "compare.group.remove: \"drop the ai chips theme from the comparisons\""
     ],
     "args": [
-     "corpus compare.group.aiChips"
+     "corpus compare.group.aiChips",
+     "corpus compare.group.remove"
     ],
     "execution": [
-     "compare.group.aiChips (c)"
+     "compare.group.aiChips (c)",
+     "compare.group.remove (c)"
     ],
     "receipt": [
-     "compare.group.aiChips (c)"
+     "compare.group.aiChips (c)",
+     "compare.group.remove (c)"
     ],
     "refusal": [],
     "permission": [],
     "undo": [
      "compare.group.aiChips: undo restores"
     ],
-    "multiStep": [],
+    "multiStep": [
+     "compare.group.remove: after an earlier turn"
+    ],
     "phrasings": []
    }
   },
@@ -3269,7 +3366,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false,
+   "fast": true,
    "protections": {
     "nl": true,
     "routing": true,
