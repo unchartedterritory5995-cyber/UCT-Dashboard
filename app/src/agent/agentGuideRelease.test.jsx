@@ -79,3 +79,27 @@ describe('a widget the capture switch keeps off the board (Indexes, Market Conte
     expect(releasedOnly(steps)).toBe(steps)
   })
 })
+
+// ⚰️ teach repair 11-23: a widget the owner hid from every add menu (HIDDEN_WIDGETS, 11-13), and the Float button switched off
+// (11-14). The guide says so plainly; it never says "a panel may be covering it" for a control no menu can bring.
+describe('hidden widgets and the Float switch', () => {
+  it('a control on a hidden widget the board does not have: said, not rung', () => {
+    const steps = [{ target: { widgetType: 'news', nameRe: '^Send (?!to Journal).+ to Journal$' } }]
+    expect(releasedOnly(steps)).toMatch(/isn’t in \+ Add widget right now/)
+  })
+  it('…on a board that already has it, the walkthrough runs', () => {
+    document.body.innerHTML = '<div data-widget-type="news"></div>'
+    const steps = [{ target: { widgetType: 'news', nameRe: '^Send (?!to Journal).+ to Journal$' } }]
+    expect(releasedOnly(steps)).toBe(steps)
+  })
+  it('a widget the menu still offers is untouched', () => {
+    const steps = [{ target: { widgetType: 'tradeExchangeNews', aria: 'Search headlines' } }]
+    expect(releasedOnly(steps)).toBe(steps)
+  })
+  it('the Float button: off while no widget renders one, on when one does', () => {
+    const steps = [{ target: 'widget.float' }]
+    expect(releasedOnly(steps)).toBe(RELEASES.float.off)
+    document.body.innerHTML = '<button data-guide="widget.float"></button>'
+    expect(releasedOnly(steps)).toBe(steps)
+  })
+})

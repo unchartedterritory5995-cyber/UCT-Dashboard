@@ -147,13 +147,17 @@ def _build_indicator(monkeypatch, tmp_path, authed):
     monkeypatch.setattr(iv, "_charge", lambda uid, now=None: None)
     monkeypatch.setattr(iv.telemetry, "log_event", lambda *a, **k: None)
 
-    def candidates(*, image_bytes, media_type, user_id, bars, note):
+    # ⭐ 2026-11-23: the router hands the service its hourly bound since bcd6fa09d0 (2026-11-05, the
+    # vision spend on the shared ledger); this stand-in took the old keywords only, so every indicator
+    # case died on a TypeError before the door was reached. It takes what the real service takes.
+    def candidates(*, image_bytes, media_type, user_id, bars, note, max_per_hour=None):
         calls["n"] += 1
         calls["sizes"].append(len(image_bytes))
         calls["bars"], calls["note"] = bars, note
+        calls["max_per_hour"] = max_per_hour
         if len(image_bytes) > iv.svc.MAX_IMAGE_BYTES:      # the service's own graceful refusal
             return real(image_bytes=image_bytes, media_type=media_type, user_id=user_id,
-                        bars=bars, note=note)
+                        bars=bars, note=note, max_per_hour=max_per_hour)
         return {"ok": True, "candidates": []}
 
     monkeypatch.setattr(iv.svc, "candidates_from_image", candidates)
@@ -380,6 +384,9 @@ def test_indicator_bars_and_note_reach_the_service(db_path, monkeypatch, tmp_pat
                              data={"note": "my rsi", "bars": '[{"t": 1, "c": 2}]'})
     assert r.status_code == 200, r.text
     assert calls["note"] == "my rsi" and calls["bars"] == [{"t": 1, "c": 2}]
+    # and the door's hourly bound, read from the router rather than restated here
+    from api.routers import indicator_vision as iv
+    assert calls["max_per_hour"] == iv.VISION_MAX_PER_HOUR
 
 
 def test_a_missing_file_is_the_same_422_a_File_parameter_gave(db_path, monkeypatch, tmp_path):

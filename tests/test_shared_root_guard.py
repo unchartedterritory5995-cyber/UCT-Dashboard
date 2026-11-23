@@ -40,13 +40,17 @@ def fake(tmp_path):
 def _spellings(root: Path, tmp_path: Path) -> dict:
     r = str(root)
     out = {
-        "plain": r, "upper": r.upper(), "trailing sep": r + os.sep, "sub": str(root / "sub"),
+        "plain": r, "trailing sep": r + os.sep, "sub": str(root / "sub"),
         "forward slashes": r.replace("\\", "/"), "dotdot": str(root / "sub" / ".."),
     }
     if WINDOWS:
         drive, rest = os.path.splitdrive(r)        # "C:", "\\Users\\...\\FAKEDATA"
         letter = drive[0]
         out.update({
+            # A case-folded spelling names the same directory only where the filesystem folds case. On POSIX it is
+            # ANOTHER directory and the guard is right not to refuse it; in the neutral table above it made every
+            # "every spelling" rail red on Linux at its first entry, so the spellings after it were never tried there.
+            "upper": r.upper(),
             "trailing dot": r + ".", "trailing space": r + " ",
             "device ?": "\\\\?\\" + r, "device ? sub": "\\\\?\\" + r + "\\sub", "device .": "\\\\.\\" + r,
             "admin share localhost": f"\\\\localhost\\{letter}$" + rest,

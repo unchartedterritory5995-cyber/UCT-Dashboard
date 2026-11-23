@@ -66,8 +66,8 @@
   },
   {
    "id": "NB3",
-   "mutant": "buildDefinition does not write a row's sparse",
-   "file": "app/src/components/chart/builder/BuilderSheet.jsx",
+   "mutant": "buildDefinition does not write a row's sparse (#2254 moved buildDefinition verbatim into builder/buildDefinition.js)",
+   "file": "app/src/components/chart/builder/buildDefinition.js",
    "from": "      ...(r.sparse === true ? { sparse: true } : {}),",
    "to": "      ...({}),",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/markerScaleAndNaBreaks.test.js",

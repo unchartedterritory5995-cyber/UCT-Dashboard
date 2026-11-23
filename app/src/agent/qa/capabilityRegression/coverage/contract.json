@@ -38,7 +38,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false
+   "fast": true
   },
   "alert.delete": {
    "domain": "alert",
@@ -51,7 +51,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false
+   "fast": true
   },
   "alert.list": {
    "domain": "alert",
@@ -819,7 +819,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false
+   "fast": true
   },
   "definition.search": {
    "domain": "definition",
@@ -1118,7 +1118,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false
+   "fast": true
   },
   "drawing.setAllVisible": {
    "domain": "drawing",
@@ -1430,7 +1430,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false
+   "fast": true
   },
   "indicatorAlert.delete": {
    "domain": "indicatorAlert",
@@ -1443,7 +1443,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false
+   "fast": true
   },
   "indicatorAlert.list": {
    "domain": "indicatorAlert",
@@ -1469,7 +1469,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false
+   "fast": true
   },
   "indicatorCopy.copyTo": {
    "domain": "indicatorCopy",
@@ -1920,6 +1920,19 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true
+  },
+  "newsLibrary.toNotebook": {
+   "domain": "newsLibrary",
+   "group": "newsLibrary",
+   "target": "newsLibrary",
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "none",
    "query": false,
    "surfaces": [
     "charts"

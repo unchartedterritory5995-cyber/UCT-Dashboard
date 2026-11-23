@@ -41,7 +41,7 @@
   {
    "id": "OK5",
    "mutant": "a refused keep still offers Add (the host document is what it would send)",
-   "file": "app/src/components/chart/builder/memberPane/MemberPane.jsx",
+   "file": "app/src/components/chart/builder/memberPane/addAuthority.js",
    "from": "  return b.oversize.saveAs ? { ...b, definition: b.oversize.saveAs.definition } : null",
    "to": "  return b.oversize.saveAs ? { ...b, definition: b.oversize.saveAs.definition } : b",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/oversizeKeep.test.jsx",
@@ -51,8 +51,8 @@
    "id": "OK6",
    "mutant": "Add saves the previewed host document instead of the kept runtime one",
    "file": "app/src/components/chart/builder/memberPane/MemberPane.jsx",
-   "from": "    await attachBuilt(fn, keptBuildOf(built), needsAck && acked)",
-   "to": "    await attachBuilt(fn, built, needsAck && acked)",
+   "from": "    await attachBuilt(fn, addSendsFor({ built, doorSource, source }), needsAck && acked, doorSource)",
+   "to": "    await attachBuilt(fn, built, needsAck && acked, doorSource)",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/oversizeKeep.test.jsx",
    "expectRed": "K7"
   },
