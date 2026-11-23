@@ -726,6 +726,26 @@ DATA_BLOCKS: Tuple[str, ...] = ("uct_language_notes", "uct_indicator_data",
                                 "uct_authoring_state", "uct_recent_turns")
 REQUEST_BLOCK = "uct_member_request"
 
+#: ⭐ 2026-11-23 -- A DISCLOSED STAND-IN IS NOT A BUILD. Measured over the 289 distinct formula builds on record: one
+#: reply says it built something other than what was asked ("I had to count back to the last bar that closed above the
+#: bar before it, not above today's close"), and that build was wrong on 1,267 of 1,700 bars. The instructions already
+#: said "never substitute"; saying so in the reply is not a way around it. A turn that DECLINES is handed to the script
+#: lane (`_with_script_lane`: only an `unsupported` formula turn is followed by a script); a turn that builds never is.
+DISCLOSED_STAND_IN_RULE = (
+    "  * A DIFFERENT THING, BUILT AND DISCLOSED, IS STILL A DIFFERENT THING. If the formula you can write does not "
+    "compute what the member asked for on every bar, so that `reply` would have to say it measures something else "
+    "(\"I had to count back to ..., not ...\"), do not build it and explain: set disposition unsupported, name the "
+    "one thing a formula here cannot hold, and OFFER the nearest thing in one sentence. When you decline, the door "
+    "can still have what was asked written as a script; when you build something else, it never does.\n")
+
+#: The exit a repair note gives when the thing asked for cannot be written: the same words wherever a note teaches
+#: another way to write it. ⚰️ The compared-with-itself note taught percentrank (HOW MANY bars of a window are above
+#: today's value) and had no exit for a request about WHICH bar, so the only way it showed was to another measure.
+WHICH_BAR_EXIT = (
+    " percentrank says HOW MANY bars of the window are above or below today's value. If the member asked WHICH bar or "
+    "HOW LONG AGO (the most recent close above today's close, the bars since a higher close), no formula here holds "
+    "that: answer `unsupported` and say what is missing. Do not build another measure in its place.")
+
 CONVERSE_SYSTEM_PROMPT = (
     "You are UCT's indicator-authoring assistant. Each turn you receive ONE member "
     "message and the CURRENT indicator, and you answer with exactly one call to "
@@ -1100,6 +1120,7 @@ CONVERSE_SYSTEM_PROMPT = (
     "  * If the request needs something not offered here, emit no ops, set "
     "disposition unsupported and say so plainly in `reply`. Never substitute "
     "something different.\n"
+    + DISCLOSED_STAND_IN_RULE +
     "  * A phrase listed under `not_in_vocabulary` in <uct_language_notes> is not "
     "one of UCT's functions or concepts: you may DISCUSS it in an answer, never "
     "author with it, and never build a look-alike under its name.\n"
@@ -3075,7 +3096,7 @@ def _refuse_a_reading_compared_with_itself(trees: List[Tuple[str, Any]]) -> None
                 "TODAY's value use percentrank: percentrank(x, N) is the percent of the N bars before this one "
                 "whose x is at or below today's, so among the last N bars with this one the bars above today's "
                 "are (N - 1) - percentrank(x, N - 1) * (N - 1) / 100, and the rank with 1 for the highest is "
-                "N - percentrank(x, N - 1) * (N - 1) / 100.")
+                "N - percentrank(x, N - 1) * (N - 1) / 100." + WHICH_BAR_EXIT)
         if isinstance(args, list):
             visit(args, where)
 
@@ -5388,6 +5409,13 @@ def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
     # about one built turn in four pays a second model call, nearly always at one gate
     # (`envelope:reference`), and the gate code alone does not say which name. A repair doubles
     # the member's wait, so its cause has to be readable to be fixed.
+    if trace.get("refusals"):
+        # ⭐ 2026-11-23 -- WHICH GUARD REFUSED EACH ATTEMPT, BY ITS CODE, FOR EVERY ACCOUNT. The value cases are
+        # recorded as a MEMBER, and a member's response said only `attempts: 2`: a build that went wrong on its
+        # repair call (cap-01) could not be traced to the guard that sent it there. The CODE alone is carried:
+        # it is one of this file's own gate names, never model output. What the repair turn was TOLD stays with
+        # the builders, below.
+        result["refused_attempts"] = refused_attempts(trace["refusals"])
     if admin and trace.get("refusals"):
         # WHY EACH ATTEMPT WAS REFUSED, FOR THE BUILDERS ONLY (2026-11-16). The house set
         # found requests that fail twice at a name or reference check, and nothing outside
@@ -5686,6 +5714,17 @@ def understand_turn(message: str, chart: Any) -> Dict[str, Any]:
             "member_names": list(member_names or []),
             # the chart's own symbol: naming it is not naming something to compare WITH
             "chart_sym": chart.get("sym") if isinstance(chart, Mapping) else None}
+
+
+def refused_attempts(refusals: Any) -> List[Dict[str, Any]]:
+    """[{attempt, gate}] for a response: which of the door's guards refused each attempt, by its code and nothing
+    else. A code that is not one this door can refuse with is left out (never a string that came from elsewhere)."""
+    out: List[Dict[str, Any]] = []
+    for r in refusals or []:
+        gate = r.get("gate") if isinstance(r, Mapping) else None
+        if isinstance(gate, str) and gate in REFUSALS and isinstance(r.get("attempt"), int):
+            out.append({"attempt": r["attempt"], "gate": gate})
+    return out
 
 
 def door_answers_by_name(message: Any, chart: Any, can_add: Any = frozenset()) -> bool:
