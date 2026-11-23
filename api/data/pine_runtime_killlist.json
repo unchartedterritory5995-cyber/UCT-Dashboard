@@ -589,11 +589,11 @@
       "source": "tools/visual_conformance/probes/vw-format-percent.pine",
       "reason": "a probe script: its format.percent cells are withheld by name (e95 unit 1 #2483 keeps format.percent withheld until a community script grades MATCH); its \"#.##\" cells agree",
       "evidence": {
-        "capture": "vw-format-percent-rddt-1d-2026-11-23-preopen, vw-format-percent-spy-1d-2026-11-23-preopen",
+        "capture": "vw-format-percent-spy-1d-2026-11-23-preopen",
         "verdict": "DIVERGE",
         "production": "DIVERGE",
         "divergence": "format.percent withheld by name (the 11 finite format.percent cells are not drawn)",
-        "lanes": "host lane DIVERGE and member's runtime lane DIVERGE on both captures, on the table's format.percent column only: ours draws 28 of the 39 cells, none that TradingView does not (no text only ours); the \"#.##\" column and P12's \"NaN%\" agree. The captures are #2564's (tests/fixtures/vendor/harness)",
+        "lanes": "host lane DIVERGE and member's runtime lane DIVERGE on both captures (this one and vw-format-percent-rddt-1d-2026-11-23-preopen), on the table's format.percent column only: ours draws 28 of the 39 cells, none that TradingView does not (no text only ours); the \"#.##\" column and P12's \"NaN%\" agree. The captures are #2564's (tests/fixtures/vendor/harness)",
         "session": "vendor harness snapshots regenerated at engine 95 (train e95's regen guard), where these probe captures were first graded; host-listed (host_divergence.py --write), and drawn by the runtime lane under admission, so the DRAW-1 rule kills it (its runtime-on captures do not grade MATCH)"
       },
       "liftWhen": "remove this entry when format.percent is served (its own unit, after a community capture grades MATCH)",
