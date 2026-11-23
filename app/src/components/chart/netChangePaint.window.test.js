@@ -12,13 +12,17 @@
  *      rows left of the window stay as they came (the app's `data()` still holds every row)
  *   C4 the rows an extension adds keep the colours of the setData that brought them: a colour change made after it
  *      (StockChart's netColorsRef moves every render) reaches the chart with the next setData, as before
+ *   C5 the paint from any row on equals the whole pass from that row on (`paintNetFrom(rows, from)`), for EVERY `from`,
+ *      on every mode, with whitespace and null rows before `from`: the step back to the previous row with a close
+ * (The fixture's gold rows sit OFF the facade's 250-row window grid: on it, every window started on a gold row, which
+ * the paint leaves alone, and a paint with no step back at all passed C2 and C4. C5 rails the step back directly.)
  *
  * The reference below is the wrap exactly as it was before this change (StockChart.jsx updateChart at 44a7defafb).
  */
 import { describe, it, expect, beforeAll, beforeEach } from 'vitest'
 import { createChart, CandlestickSeries } from 'lightweight-charts'
 import { createWindowedChart, renderWindowRows, RENDER_WINDOW_OFF_KEY } from './windowedChart'
-import { installNetChangePaint, _hollowFill } from './netChangePaint'
+import { installNetChangePaint, paintNetFrom, _hollowFill } from './netChangePaint'
 
 // ── the reference: the wrap's setData / update as they were (44a7defafb), verbatim but for `NC` being an argument ──
 function refPaintNet(bar, prevClose, prevBar, NC) {
@@ -100,7 +104,7 @@ function candles(n, ws = 3) {
     const c = l + (h - l) * (((i * 37) % 10) / 10)
     const o = l + (h - l) * (((i * 53) % 10) / 10)
     const row = { time: T(i), open: o, high: h, low: l, close: c }
-    if (i % 500 === 250) row.color = '#e6b800'                // a gold highlight: an explicit colour, kept
+    if (i % 500 === 251) row.color = '#e6b800'                // a gold highlight: an explicit colour, kept (OFF the window grid)
     out.push(row)
   }
   for (let k = 0; k < ws; k++) out.push({ time: T(n + k) })
@@ -201,12 +205,14 @@ describe('C2 through the render window, the library holds the rows it held befor
     b.series.setData(data)
     const ws = b.chart.window.windowStart()
     expect(ws).toBeGreaterThan(0)                                // a window (or this proves nothing)
+    expect(want.painted[ws]).not.toBe(data[ws])                  // its first row is one the paint colours (or the step back is not tested)
     expect(b.handed[b.handed.length - 1]).toEqual(want.painted.slice(ws))
     expect(refsNow(b.R)).toEqual(want.refs)
     b.ts.setVisibleLogicalRange({ from: 3000, to: 3150 })        // reach left: the window extends
     await frame()
     const ws2 = b.chart.window.windowStart()
     expect(ws2).toBeLessThan(ws)
+    expect(want.painted[ws2]).not.toBe(data[ws2])                // likewise the extension's first row
     expect(b.handed[b.handed.length - 1]).toEqual(want.painted.slice(ws2))
     const bar = { time: T(N + 3), open: 101, high: 104, low: 99, close: 103 }
     b.series.update(bar)
@@ -259,5 +265,19 @@ describe('C4 the colours of a setData stay with its rows', () => {
     const ws2 = b.chart.window.windowStart()
     expect(ws2).toBeLessThan(ws)                                 // it did extend (or this proves nothing)
     expect(b.handed[b.handed.length - 1]).toEqual(want.painted.slice(ws2))
+  })
+})
+
+describe('C5 the paint from any row on equals the whole pass from that row on', () => {
+  it('every from, every mode, whitespace and null rows before it', () => {
+    const fixtures = [ODD, candles(60), [{ time: T(0) }, { time: T(1) }, ...candles(20, 2)]]
+    for (const [name, NC] of Object.entries(MODES)) {
+      for (const rows of fixtures) {
+        const whole = refSetData(rows, NC).painted
+        for (let from = 0; from <= rows.length; from++) {
+          expect(paintNetFrom(rows, from, () => NC), `${name} from ${from}`).toEqual(whole.slice(from))
+        }
+      }
+    }
   })
 })
