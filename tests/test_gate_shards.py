@@ -1229,6 +1229,13 @@ NAMED_BUT_NOT_READ = {
     'docs/plans/joystick/gate-runs': 'rule12Paths.test.js — the SHARED_ARTIFACT_PREFIXES carve-out string',
     'docs/plans/joystick/gate-runs/2026-09-24T18-04-13.json': 'rule12Paths.test.js — a `changed` fixture row (a gate receipt)',
     'docs/plans/joystick/gate-runs/2026-09-24T18-04-13.md': 'rule12Paths.test.js — a `changed` fixture row (a gate receipt)',
+    # 2026-11-23: the admin AI-spend page's rail hands door PATHS to the page as data (spend rows,
+    # budget rows, `featureName(...)` labels); AiSpend.test.jsx opens no file.
+    'api/routers/ai_search.py': 'AiSpend.test.jsx — a `featureName` argument (a door path as a label)',
+    'api/services/desk_session_insights.py': 'AiSpend.test.jsx — a spend-row fixture door',
+    'api/services/groups.py': 'AiSpend.test.jsx — a `silent_doors` fixture entry',
+    'api/services/journal_two/coach_chat.py': 'AiSpend.test.jsx — a `featureName` argument (a door path as a label)',
+    'api/services/tsdr_lessons.py': 'AiSpend.test.jsx — a budget-row fixture door',
 }
 
 _PATH_LITERAL = re.compile(r"""['"]([A-Za-z0-9_.\-/]+)['"]""")
