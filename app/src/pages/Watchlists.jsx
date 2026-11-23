@@ -204,6 +204,19 @@ const COL_FULL_MINW = {
 }
 // The column library's new columns (owner 11-14): a width each, and the width at which the
 // full label fits (shorter → the short label).
+// A row's library cells (`libCellsFor` in the component) are kept while every shown cell is the same, so the
+// memoized row sees the same object; this is that sameness: the same columns, each with the same value, text and kind.
+const LIB_CELLS_KEEP_MAX = 2000
+function sameLibCells(a, b, keys) {
+  let n = 0
+  for (const k in a) n++
+  if (n !== keys.length) return false
+  for (const k of keys) {
+    const x = a[k], y = b[k]
+    if (!x || !y || !Object.is(x.v, y.v) || x.t !== y.t || x.signed !== y.signed || x.bar !== y.bar || x.text !== y.text) return false
+  }
+  return true
+}
 for (const [k, c] of [...Object.entries(LIVE_COLUMNS), ...Object.entries(FACT_COLUMNS)]) {
   COL_META[k] = { def: c.width || (c.text ? 96 : 72), min: 44 }
   COL_FULL_MINW[k] = Math.round(c.label.length * 6.6 + 20)
@@ -2528,6 +2541,14 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // The column library's columns for one row (owner 11-14): the value (also the sort key)
   // and its display text. LIVE ones read the session-aware quote (and the meta batch for
   // Days to Earnings); FACT ones read the nightly snapshot, re-based on the live price.
+  // ⭐ (2026-11-23, next-row key profile) A ROW KEEPS ITS CELLS OBJECT WHILE WHAT IT SHOWS IS UNCHANGED. This built a
+  // new object for every row on every render, and `WatchRow` is React.memo over its props: with one library column
+  // shown, an arrow key re-rendered EVERY mounted row (twice: the group symbol's render and the selection's), not the
+  // two whose highlight moved. The cells are still computed each render; when every shown cell (value, text, kind)
+  // equals the row's last ones, the last object is handed back, so the row's memo holds. A changed cell, an added or
+  // removed column, gives a new object. Kept per symbol, at most `LIB_CELLS_KEEP_MAX`: past it the store starts over
+  // (each row then re-renders once).
+  const libCellsKeptRef = useRef(new Map())
   const libCellsFor = (sym, q) => {
     const out = {}
     for (const k of libKeys) {
@@ -2541,6 +2562,11 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       const v = factValue(k, factsData?.[sym], q?._sessBlank ? null : q)
       out[k] = { v, t: factText(k, v), signed: !!f.signed, text: !!f.text }
     }
+    const kept = libCellsKeptRef.current
+    const last = kept.get(sym)
+    if (last && sameLibCells(last, out, libKeys)) return last
+    if (kept.size >= LIB_CELLS_KEEP_MAX) kept.clear()
+    kept.set(sym, out)
     return out
   }
 
