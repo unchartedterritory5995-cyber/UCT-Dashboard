@@ -70,20 +70,21 @@ class _Client:
 
 
 #: The request path's own background threads (`bars_fetch._start_bounded_delta`'s provider repair and
-#: `_bounded_job`'s local rebuild). Each is short-lived; the process-wide `bars-meta-flush` thread and the pools'
-#: idle workers are not, and are never joined here.
+#: `_bounded_job`'s local rebuild). Each is short-lived; the pools' idle workers are not, and are never joined here.
 _REQUEST_THREAD_PREFIXES = ("bars-reqdelta-", "bars-job-")
 
 
 def _drain_request_work(sq, started_before, timeout=5.0):
-    """Teardown: finish what this test's requests left running, and write what they queued, while `_DB_PATH`
-    is still THIS test's store.
+    """Teardown: finish what this test's requests left running while `_DB_PATH` is still THIS test's store.
 
     Each test has its own bars.db (tmp_path), but every thread's connection follows the module's `_DB_PATH` through
-    `bump_db_epoch` (`bars_sqlite._conn`). A repair thread released here, or the `bars-meta-flush` thread carrying the
-    proofs and seals that thread queued (flushed once a second), otherwise opens the NEXT test's store while its setup
-    initialises it. Seen on PR #2588's "Bars rails" (2026-11-23): `sqlite3.OperationalError: database is locked` at
-    `init_db` -> `PRAGMA journal_mode=WAL`, in the setup of the test after the one that left a repair running."""
+    `bump_db_epoch` (`bars_sqlite._conn`). A repair thread released here and still running after the epoch moves
+    reopens on the NEXT test's store and writes there, or opens it while that test's setup initialises it. Seen on
+    PR #2588's "Bars rails" (2026-11-23): `sqlite3.OperationalError: database is locked` at `init_db` ->
+    `PRAGMA journal_mode=WAL`, in the setup of the test after the one that left a repair running (Z1/Z2 pin it).
+    The proofs and seals the repair queued are written here too: tests/conftest.py turns the background meta flusher
+    off (BARS_META_FLUSH_SECONDS=0), so they would otherwise stay in the process buffer that `series_meta` merges into
+    every later read."""
     deadline = time.monotonic() + timeout
     for t in threading.enumerate():
         if t not in started_before and t.name.startswith(_REQUEST_THREAD_PREFIXES):
@@ -227,12 +228,20 @@ def test_base_that_does_not_overlap_the_target_tail_is_never_used(env, monkeypat
     assert sq.get_last_ts("SPY", "30") == target[-1]["t"], "no fabricated contiguous tail"
 
 
+#: How long Z1's provider takes to answer: well past the request (0.3 s) and past the old teardown's 50 ms grace.
+_Z1_PROVIDER_S = 1.0
+
+
 def test_Z1_a_request_leaves_its_provider_repair_running_past_its_answer(env, monkeypatch):
-    """First half of a PAIR (Z2 reads what this leaves). The provider is still answering when the request returns
-    (the 0.3 s deadline); released at teardown, the repair finishes and queues its proof and seal for SPY 30."""
-    sq, calls, _, _ = env
+    """First half of a PAIR (Z2 reads what this leaves). The provider answers today's 15m rows _Z1_PROVIDER_S
+    after it is asked, long after the request returned (0.3 s deadline): the repair then WRITES (the 15m base, the
+    30m resample) through whatever store `_DB_PATH` names at that moment."""
+    sq, calls, _, prov = env
     monkeypatch.setattr(bars_fetch, "_REQUEST_DEADLINE_SECONDS", 0.3)
     _seed(sq, "30", base_today_end=(9, 0))
+    today = _session_rows(2026, 11, 11, 15, end=(9, 45))
+    prov["answer"] = lambda url: (time.sleep(_Z1_PROVIDER_S), [dict(t=b["t"] * 1000, o=b["o"], h=b["h"], l=b["l"],
+                                                                    c=b["c"], v=b["v"]) for b in today])[1]
     bars_fetch._get_bars_inner("SPY", "30", 60)
     assert _provider_calls_after_the_answer(calls) == 1
     assert [t for t in threading.enumerate() if t.name.startswith("bars-reqdelta-SPY-30")], \
@@ -240,11 +249,12 @@ def test_Z1_a_request_leaves_its_provider_repair_running_past_its_answer(env, mo
 
 
 def test_Z2_the_next_tests_store_holds_nothing_of_it(env):
-    """Second half: a fresh store stays empty through two meta-flush ticks. Without the teardown drain, Z1's
-    repair (or the flusher carrying what it queued) writes SPY 30 into THIS store, or locks it during setup."""
+    """Second half: this fresh store stays empty after Z1's provider has answered. Without the teardown drain, Z1's
+    repair wakes after this test's setup moved `_DB_PATH` here and writes SPY into THIS store (or locks it during
+    setup)."""
     import sqlite3
     sq, *_ = env
-    time.sleep(2.5 * max(sq._META_FLUSH_S, 0.2))
+    time.sleep(_Z1_PROVIDER_S + 1.0)
     c = sqlite3.connect(sq._DB_PATH, timeout=5)
     try:
         rows = c.execute("SELECT ticker, tf FROM series_meta").fetchall()
