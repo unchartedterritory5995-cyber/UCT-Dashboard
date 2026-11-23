@@ -146,3 +146,109 @@ describe('M9 a kill that reaches an open page', () => {
     expect(h.w.terminate).toHaveBeenCalledTimes(1)
   })
 })
+
+// (review of #2537 head 24fe13dc8f, Z-1) A MEMBER'S OFF IN THE SAME PAGE LOAD. The switch decides once per load, so a
+// member on the default who picked Off (Settings -> Faster charts on this device: the key becomes '0') and then opened a
+// chart still started the store, and its first paint began the ~80 MB download the next load deletes. The client reads
+// the key FRESH (switch.deviceStoreKeyNow) where it already looks: before its first start (Off: it never starts), at the
+// first paint's idle before the ingest, and on the visible beat that reads the kills. Off stops it exactly as a kill
+// does, and the page is told (lib/chartSpeed.noteDeviceStoreStopped: #2580's latch, so device rows stop painting).
+// Only '0' stops it: Automatic (no key), a tester's '1' or any other value change nothing until the next load.
+describe("Z-1 a member's Off reaching this page load", () => {
+  /** The harness, plus the key as stored NOW (`h.env.key`, switch.deviceStoreKeyNow's names) and the page's latch. */
+  function offHarness(key0 = 'absent') {
+    let env = null
+    const keyNow = vi.fn(() => env.key)
+    const onStop = vi.fn()
+    const noteFiles = vi.fn()
+    let made = null                                                      // the harness's own fake worker, counted
+    const makeWorker = vi.fn(() => made)
+    const h = harness({ keyNow, onStop, noteFiles, makeWorker })
+    env = h.env
+    env.key = key0
+    made = h.w
+    return { ...h, keyNow, onStop, makeWorker, noteFiles }
+  }
+
+  it('Off picked before the first start: the client never starts: no worker, no message, no marker, no beat; the page is told once', async () => {
+    const h = offHarness('off')
+    h.c.start()
+    h.idleNow()
+    expect(h.makeWorker).not.toHaveBeenCalled()
+    expect(h.w.posted).toEqual([])
+    expect(h.noteFiles).not.toHaveBeenCalled()
+    expect(h.env.periods).toEqual([])
+    expect(h.onStop).toHaveBeenCalledTimes(1)
+    expect(await h.c.getBars('AAA', 'D')).toBeNull()
+    h.c.start()                                                          // asked again: still nothing
+    expect(h.makeWorker).not.toHaveBeenCalled()
+  })
+
+  it('Off picked after the start, before the first paint\'s idle: the ingest is never asked, the worker stops, no beat', () => {
+    const h = offHarness()
+    h.c.start()
+    expect(h.makeWorker).toHaveBeenCalledTimes(1)
+    h.env.key = 'off'
+    h.idleNow()
+    expect(ops(h.w, 'ingest')).toEqual([])
+    expect(ops(h.w, 'live')).toEqual([])
+    expect(h.w.terminate).toHaveBeenCalledTimes(1)
+    expect(h.env.periods).toEqual([])
+    expect(h.onStop).toHaveBeenCalledTimes(1)
+  })
+
+  it('Off picked while the store runs: stopped on the next visible beat, exactly as for a kill', async () => {
+    const h = offHarness()
+    h.c.start()
+    h.idleNow()
+    expect(ops(h.w, 'ingest')).toHaveLength(1)
+    h.tick()
+    expect(h.w.terminate).not.toHaveBeenCalled()
+    h.env.key = 'off'
+    h.tick()
+    expect(h.w.terminate).toHaveBeenCalledTimes(1)
+    expect(h.env.cleared).toEqual([77])
+    expect(h.onStop).toHaveBeenCalledTimes(1)
+    const n = h.w.posted.length
+    expect(await h.c.getBars('AAA', 'D')).toBeNull()
+    h.clock.t += 60 * MIN
+    h.tick(); h.env.change(); h.idleNow()
+    expect(h.w.posted.length).toBe(n)
+    expect(h.onStop).toHaveBeenCalledTimes(1)
+  })
+
+  it('the reverse changes nothing in this load: no key, a tester\'s 1 or any other value never stop it; stopped by Off, Automatic does not restart it', () => {
+    const h = offHarness()
+    h.c.start()
+    h.idleNow()
+    for (const k of ['absent', 'on', 'not-a-choice', 'unreadable']) { h.env.key = k; h.tick(); h.env.change() }
+    expect(h.w.terminate).not.toHaveBeenCalled()
+    expect(h.onStop).not.toHaveBeenCalled()
+    h.env.key = 'off'
+    h.tick()
+    expect(h.w.terminate).toHaveBeenCalledTimes(1)
+    const n = h.w.posted.length
+    h.env.key = 'absent'                                                 // Automatic, picked after the Off
+    h.clock.t += 60 * MIN
+    h.tick(); h.env.change(); h.idleNow(); h.c.start()
+    expect(h.w.posted.length).toBe(n)
+    expect(h.makeWorker).toHaveBeenCalledTimes(1)
+  })
+
+  it('CONTROL: hidden, the key is not read (nothing runs while hidden); the next visible beat reads it', () => {
+    const h = offHarness()
+    h.c.start()
+    h.idleNow()
+    const before = h.keyNow.mock.calls.length
+    expect(before).toBeGreaterThan(0)                                    // read before the start and before the ingest
+    h.env.vis = false
+    h.env.key = 'off'
+    h.tick()
+    expect(h.keyNow.mock.calls.length).toBe(before)
+    expect(h.w.terminate).not.toHaveBeenCalled()
+    h.env.vis = true
+    h.tick()
+    expect(h.keyNow.mock.calls.length).toBe(before + 1)
+    expect(h.w.terminate).toHaveBeenCalledTimes(1)
+  })
+})

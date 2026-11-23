@@ -36,10 +36,12 @@ const clearKills = () => { clearCookie('uct_chart_speed'); clearCookie('uct_devi
 
 /** A new page load: the switch, the kills and the card evaluated afresh. `desktop`: what the switch's default reads on
  *  this load (null: computed, which jsdom answers OFF: no matchMedia). */
-async function pageLoad({ desktop = null } = {}) {
+async function pageLoad({ desktop = null, rollout = null } = {}) {
   vi.resetModules()
   const sw = await import('../../data/deviceStore/switch')
   if (desktop != null) sw.__setDeviceStoreDefaultForTests(desktop)
+  // `rollout`: DEVICE_STORE_DEFAULT_ON for this load (false: the code-level rollback, no browser defaults on)
+  if (rollout != null) sw.__setDeviceStoreDefaultSwitchForTests(rollout)
   const mod = await import('./FasterChartsCard')
   return { sw, Card: mod.default }
 }
@@ -51,7 +53,8 @@ function writes() {
   return { set, remove, none: () => set.mock.calls.length === 0 && remove.mock.calls.length === 0 }
 }
 
-const control = () => screen.getByRole('button', { name: new RegExp(`^${TITLE}:`) })
+// The dropdown, found by its role and the value its name ends with (its label is the subject of its own test below).
+const control = () => screen.getByRole('button', { name: /: (Automatic|Off|On \(testing mode\))$/ })
 const stateText = () => screen.getByTestId('faster-charts-state').textContent
 const nextText = () => screen.getByTestId('faster-charts-next').textContent
 const optionLabels = () => screen.getAllByRole('option').map((o) => o.textContent.replace('✓', '').trim())
@@ -82,6 +85,57 @@ describe('what the member sees: the control, and the state of THIS page load', (
     render(<Card />)
     expect(control().textContent).toMatch(/Automatic/)
     expect(stateText()).toBe(DEFAULT_OFF)
+  })
+
+  // (review of #2537 head 24fe13dc8f, Z-5, WCAG 2.5.3 label in name) A voice-control user says the words they SEE: the
+  // control's accessible name must contain its visible label, not another phrase.
+  it('label in name: the control is reached by its visible label, "Keep chart data on this device"', async () => {
+    const { Card } = await pageLoad({ desktop: true })
+    render(<Card />)
+    const visible = screen.getByText('Keep chart data on this device')
+    const btn = screen.getByRole('button', { name: 'Keep chart data on this device: Automatic' })
+    expect(btn.getAttribute('aria-label').startsWith(visible.textContent)).toBe(true)
+    expect(btn).toBe(control())
+  })
+
+  // (review of #2537 head 24fe13dc8f, Z-2) Under the code-level rollback (DEVICE_STORE_DEFAULT_ON false) every browser is
+  // off by default, and the device's conditions are not the cause: neither default-off line may name them.
+  it('the code-level rollback: "Off by default for now.", in a browser and in the desktop app; a key still reads as before', async () => {
+    let { Card } = await pageLoad({ rollout: false })
+    render(<Card />)
+    expect(stateText()).toBe('Off by default for now.')
+    expect(control().textContent).toMatch(/Automatic/)
+    cleanup()
+    window.uctDesktop = { bridgeVersion: 1, capabilities: [] }
+    try {
+      ;({ Card } = await pageLoad({ rollout: false }))
+      render(<Card />)
+      expect(stateText()).toBe('Off by default for now.')
+    } finally { delete window.uctDesktop }
+    cleanup()
+    localStorage.setItem(KEY, '0')
+    ;({ Card } = await pageLoad({ rollout: false }))
+    render(<Card />)
+    expect(stateText()).toBe(MEMBER_OFF)
+    cleanup()
+    localStorage.setItem(KEY, '1')
+    ;({ Card } = await pageLoad({ rollout: false }))
+    render(<Card />)
+    expect(stateText()).toBe(ON)
+  })
+
+  it("CONTROL: the rollout on and this device not qualifying still names the device's conditions (browser and desktop app)", async () => {
+    let { Card } = await pageLoad({ rollout: true })               // jsdom: no wide window, no mouse
+    render(<Card />)
+    expect(stateText()).toBe(DEFAULT_OFF)
+    cleanup()
+    window.uctDesktop = { bridgeVersion: 1, capabilities: [] }
+    Object.defineProperty(navigator, 'connection', { value: { saveData: true }, configurable: true })
+    try {
+      ;({ Card } = await pageLoad({ rollout: true }))              // the desktop app on a metered connection
+      render(<Card />)
+      expect(stateText()).toBe('Off on this device: it needs a connection that is not metered.')
+    } finally { delete window.uctDesktop; Object.defineProperty(navigator, 'connection', { value: undefined, configurable: true }) }
   })
 
   it("the member's own '0': Off, and the packs go on the next chart load", async () => {

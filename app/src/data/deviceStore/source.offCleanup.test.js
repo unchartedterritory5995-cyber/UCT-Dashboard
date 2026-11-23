@@ -446,14 +446,17 @@ describe('races with another tab', () => {
 
   it("LOW-1: an off tab's removal settling after an on tab started does not leave the marker saying 'nothing here'", async () => {
     ranHere(1)
+    // (review of #2537 head 24fe13dc8f, Z-1) tab A starts BEFORE the '0' exists: one jsdom is both tabs over one
+    // localStorage, and a client whose first start already reads '0' never starts at all (client.memberOff.test.js)
+    localStorage.setItem(STORE_KEY, '1')
+    const { createDeviceClient } = await vi.importActual('./client')     // tab A starts (its own switch read '1')
+    const w = { postMessage() {}, terminate() {} }
+    createDeviceClient({ makeWorker: () => w, afterPaint: () => {}, now: () => NOW }).start()
     localStorage.setItem(STORE_KEY, '0')
     const src = await pageLoad()                                         // tab B: '0', its removal scheduled
     const s = scheduler()
     const o = opfs({ fail: new DOMException('none', 'NotFoundError') }) // tab A's worker has not made the directory yet
     look(src, s, o)
-    const { createDeviceClient } = await vi.importActual('./client')     // tab A starts (its own switch read '1')
-    const w = { postMessage() {}, terminate() {} }
-    createDeviceClient({ makeWorker: () => w, afterPaint: () => {}, now: () => NOW }).start()
     await paintAndIdle(s)                                                // B's removal settles after A started
     expect(localStorage.getItem(FILES_KEY)).toBe('0')
     w.onmessage({ data: { type: 'event', event: { type: 'gen', tf: 'D', build: 'b' } } })   // A commits a generation

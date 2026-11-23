@@ -269,3 +269,61 @@ describe('first-open bytes: the default is computed without the heavy client', (
     expect(getDeviceClient).not.toHaveBeenCalled()
   })
 })
+
+// (review of #2537 head 24fe13dc8f, Z-2) THE CODE-LEVEL ROLLBACK, `DEVICE_STORE_DEFAULT_ON = false`: no browser defaults on,
+// a mouse desktop and the desktop app included. The reason stays 'default-off' (source.js's stale rule acts on it, so the
+// deletion policy cannot move); deviceStoreDefaultOffCause() only says WHY the default reads off, for the member's words:
+// 'rollout' (off for everyone) or 'device' (this window, pointer or connection), and null whenever the default did not
+// decide (a key, a kill, ON).
+describe('the code-level rollback: the default off for every browser, and why', () => {
+  it('DEVICE_STORE_DEFAULT_ON false: a mouse desktop and the desktop app are OFF, reason default-off, cause rollout', async () => {
+    viewport(true)
+    let { sw } = await pageLoad()
+    sw.__setDeviceStoreDefaultSwitchForTests(false)
+    expect(sw.deviceStoreDefaultOn()).toBe(false)
+    expect([sw.deviceStoreEnabled(), sw.deviceStoreOffReason(), sw.deviceStoreDefaultOffCause()]).toEqual([false, 'default-off', 'rollout'])
+    window.uctDesktop = { bridgeVersion: 1, capabilities: [] }
+    ;({ sw } = await pageLoad())
+    sw.__setDeviceStoreDefaultSwitchForTests(false)
+    expect([sw.deviceStoreEnabled(), sw.deviceStoreOffReason(), sw.deviceStoreDefaultOffCause()]).toEqual([false, 'default-off', 'rollout'])
+  })
+
+  it('the default switch on: a phone is off by default for a reason of its own (device); a desktop is ON (no cause)', async () => {
+    viewport(false)
+    let { sw } = await pageLoad()
+    expect([sw.deviceStoreOffReason(), sw.deviceStoreDefaultOffCause()]).toEqual(['default-off', 'device'])
+    connection({ saveData: true })
+    viewport(true)
+    ;({ sw } = await pageLoad())
+    expect([sw.deviceStoreOffReason(), sw.deviceStoreDefaultOffCause()]).toEqual(['default-off', 'device'])
+    connection(undefined)
+    ;({ sw } = await pageLoad())
+    expect([sw.deviceStoreEnabled(), sw.deviceStoreOffReason(), sw.deviceStoreDefaultOffCause()]).toEqual([true, null, null])
+  })
+
+  it('a key or a kill decides before the default does: no cause, under the rollback too', async () => {
+    viewport(true)
+    for (const [key, enabled, reason] of [['0', false, 'member-off'], ['1', true, null], ['off', false, 'not-a-choice']]) {
+      localStorage.setItem(KEY, key)
+      const { sw } = await pageLoad()
+      sw.__setDeviceStoreDefaultSwitchForTests(false)
+      expect([sw.deviceStoreEnabled(), sw.deviceStoreOffReason(), sw.deviceStoreDefaultOffCause()], key).toEqual([enabled, reason, null])
+    }
+    localStorage.removeItem(KEY)
+    document.cookie = 'uct_device_store=0; path=/'
+    const { sw } = await pageLoad()
+    sw.__setDeviceStoreDefaultSwitchForTests(false)
+    expect([sw.deviceStoreOffReason(), sw.deviceStoreDefaultOffCause()]).toEqual(['device-kill', null])
+  })
+
+  it('under the rollback the deletion policy is unchanged: default-off keeps a seed used yesterday and deletes one unused for 30 days on the confirming load', async () => {
+    viewport(true)
+    let { sw, src } = await pageLoad()
+    sw.__setDeviceStoreDefaultSwitchForTests(false)
+    expect(await packsAfter(src, { ranDaysAgo: 1 })).toBe('kept')
+    ;({ sw, src } = await pageLoad())
+    sw.__setDeviceStoreDefaultSwitchForTests(false)
+    localStorage.setItem('uct.deviceStore.staleSince', String(NOW - DAY))   // an earlier stale off load, a day ago
+    expect(await packsAfter(src, { ranDaysAgo: 31 })).toBe('deleted')
+  })
+})
