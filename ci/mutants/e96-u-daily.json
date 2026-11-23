@@ -87,7 +87,7 @@
    "id": "UD10",
    "mutant": "a chart below a day no longer fetches the daily bars a daily read needs",
    "file": "app/src/components/chart/engine/useCalcFrames.js",
-   "from": "      for (const s of dailyReadNeeds(defOf(inst.defId), sym)) out.set(frameKey('D', s), { frame: 'D', symbol: s })",
+   "from": "      for (const s of dailyReadNeeds(defOf(inst.defId), sym, inst.inputs || {})) out.set(frameKey('D', s), { frame: 'D', symbol: s })",
    "to": "      void dailyReadNeeds",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/dailyRead.test.js",
    "expectRed": "the frames a chart below a day fetches"

@@ -15,10 +15,25 @@
 // ⛔ PENDING IS NOT A REFUSAL: until the chart symbol's daily bars are in hand the document is not computable yet (the
 // binder skips it, exactly as an instance calculated on daily bars waits for its frame); an OTHER symbol's daily bars
 // not in hand are simply not handed, and the reads of them are withheld by name there.
+// ⭐⭐ (train e96, U-DAILY x e95 2b; coordinator ruling 2026-11-23) THE DOCUMENT A BINDING DRAWS, NEVER AN UNPICKED KNOB
+// ARM: every question here is asked of the document bound at the instance's inputs (`knobBind.js::boundDocument`, the
+// same prune `astColumns.js` runs before `interpret` routes a tree to `interpretDailyReads`). A knob script whose daily
+// read sits in an arm the member's setting does not pick needs no daily bars, waits for none and is never held pending
+// for them; the arm it does pick is asked the same question the compute will answer. `inputs` omitted: the saved
+// document (every arm), as before.
 
 import { treeReadsDaily, dailyReadSymbols, isBelowADay } from './ast/interpret'
 import { projectFrameColumns, frameKey, frameBarsUsable } from './mtfProjection'
 import { SOURCE_STATUS } from './secondaryBars'
+import { boundDocument } from './knobBind'
+import { bindConstsFor } from './ast/bind'
+
+/** The document as the binding at `inputs` draws it (its knob arms pruned; a knob test reads inputs only), or the saved
+ *  document when no inputs are given. */
+function boundAt(def, inputs) {
+  if (inputs === undefined || inputs === null) return def
+  return boundDocument(def, bindConstsFor({ inputs }))
+}
 
 /** Every tree a stored formula document holds: its one tree, or its per-plot trees. */
 function treesOf(def) {
@@ -30,17 +45,18 @@ function treesOf(def) {
   return out
 }
 
-/** Does this document read a daily value (`tf` of D) in any of its trees? */
-export function defReadsDaily(def) {
-  return treesOf(def).some((t) => treeReadsDaily(t))
+/** Does this document, as the binding at `inputs` draws it, read a daily value (`tf` of D) in any of its trees? */
+export function defReadsDaily(def, inputs) {
+  return treesOf(boundAt(def, inputs)).some((t) => treeReadsDaily(t))
 }
 
-/** The symbols whose DAILY bars this document's daily reads need on `sym`'s chart: the chart symbol first, then every
- *  other symbol a daily read's child names. `[]` when it reads none. */
-export function dailyReadNeeds(def, sym) {
-  if (!sym || !defReadsDaily(def)) return []
+/** The symbols whose DAILY bars this document's daily reads need on `sym`'s chart, as the binding at `inputs` draws it:
+ *  the chart symbol first, then every other symbol a daily read's child names. `[]` when it reads none. */
+export function dailyReadNeeds(def, sym, inputs) {
+  const bound = boundAt(def, inputs)
+  if (!sym || !defReadsDaily(bound)) return []
   const out = [String(sym).toUpperCase()]
-  for (const t of treesOf(def)) for (const s of dailyReadSymbols(t)) if (!out.includes(s)) out.push(s)
+  for (const t of treesOf(bound)) for (const s of dailyReadSymbols(t)) if (!out.includes(s)) out.push(s)
   return out
 }
 
@@ -57,15 +73,15 @@ const usableEntry = (entry) => !!entry && entry.status === SOURCE_STATUS.AVAILAB
   && entry.bars.length > 0 && frameBarsUsable(entry.bars, 'D')
 
 /**
- * The supply a daily read is computed with on this chart, or null when the document reads none (or the chart is not
- * below a day, where the interpreter refuses the read by name).
+ * The supply a daily read is computed with on this chart, or null when the document, as the binding at `inputs` draws
+ * it, reads none (or the chart is not below a day, where the interpreter refuses the read by name).
  * @returns {null | {pending: true} | {frame: {bars, symbols, newestFinal, place, stale}, sig: string}}
  *   `frame.stale` turns true when the projection found the chart showing a day the daily bars do not know has finished
  *   (the binder asks for a refresh, as it does for a calculated frame).
  */
-export function dailyReadSupplyFor(def, frames, sym, chartTf) {
+export function dailyReadSupplyFor(def, frames, sym, chartTf, inputs) {
   if (!isBelowADay(chartTf)) return null
-  const needs = dailyReadNeeds(def, sym)
+  const needs = dailyReadNeeds(def, sym, inputs)
   if (!needs.length) return null
   const map = frames && typeof frames.get === 'function' ? frames : null
   const own = map ? map.get(frameKey('D', needs[0])) : null

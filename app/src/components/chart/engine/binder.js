@@ -2560,7 +2560,9 @@ export function createBinder({ chart, LWC, scope = '' }) {
       // ⭐⭐ U-DAILY (e96) — A FORMULA THAT READS A DAILY VALUE (`tf` of D) ON A CHART BELOW A DAY is computed with
       // the symbol's DAILY bars beside the chart's (`dailyReadSupply.js`; `useCalcFrames` fetches them for it). Until
       // they are in hand it is not computable yet (no series, no stale value), as a framed instance waits for its frame.
-      const daily = frame ? null : dailyReadSupplyFor(def, frameMap, ctx.sym, ctx.tf)
+      // (train e96 x e95 2b) asked of the document THIS instance's inputs bind, the one `astColumns` computes: an
+      // unpicked knob arm's daily read neither fetches nor holds the instance pending
+      const daily = frame ? null : dailyReadSupplyFor(def, frameMap, ctx.sym, ctx.tf, inst.inputs || {})
       if (daily && daily.pending) continue
       const dailySig = daily && daily.frame ? `|day:${daily.sig}` : ''
       // ⭐ U2b — what the compute reads BEYOND bars and inputs that can change under

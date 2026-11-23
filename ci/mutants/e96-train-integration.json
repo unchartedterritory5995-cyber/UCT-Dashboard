@@ -1,6 +1,6 @@
 {
   "schema": "uct.ci-mutants/v1",
-  "about": "Train e96 x train e95 (engine 96): U-DAILY part A (#2550) meets master's one-sentence-per-guard (#2559) and day-length question words (#2578). The ONE function (`daily_values_below_a_day`) reads U-DAILY's capability (D in crossContext.json's tfBelowADayCodes, on a chart whose own timeframe is below a day); the ONE day-length sentence promises what that capability does, and THE TIE holds it; the daily read's door check raises gates of its own, never `envelope:reference`; the prompt and the guard's repair teach the daily read and keep master's rule for a question. Each rule, broken once, must turn its rail red.",
+  "about": "Train e96 x train e95 (engine 96): U-DAILY part A (#2550) meets master's one-sentence-per-guard (#2559) and day-length question words (#2578). The ONE function (`daily_values_below_a_day`) reads U-DAILY's capability (D in crossContext.json's tfBelowADayCodes, on a chart whose own timeframe is below a day); the ONE day-length sentence promises what that capability does, and THE TIE holds it; the daily read's door check raises gates of its own, never `envelope:reference`; the prompt and the guard's repair teach the daily read and keep master's rule for a question. Each rule, broken once, must turn its rail red. (coordinator ruling 2026-11-23, after train/e95's 2b bind audit) A knob script WITH a daily read is bound first and routed second: the evaluator prunes before the daily route, and the chart's daily supply, fetch and binder call ask the document the instance's inputs bind (TJ6-TJ9).",
   "mutants": [
     {
       "id": "TJ1",
@@ -46,6 +46,42 @@
       "to": "                        \"If the member's words leave that open, ask \"",
       "rail": "python -B -m pytest tests/test_door_days_on_an_intraday_chart.py -q -p no:cacheprovider",
       "expectRed": "answer with disposition clarify"
+    },
+    {
+      "id": "TJ6",
+      "mutant": "the evaluator routes before it binds: an unpicked knob arm's daily read is routed, and the drawn arm is withheld for want of daily bars",
+      "file": "api/services/ast_interpret.py",
+      "from": "    ast = prune_knob_arms(ast, {k: v for k, v in (inputs or {}).items() if _is_number(v)})",
+      "to": "    pass",
+      "rail": "python -B -m pytest tests/test_e96_knob_daily_read.py -q -p no:cacheprovider",
+      "expectRed": "THE_COMPOSITION"
+    },
+    {
+      "id": "TJ7",
+      "mutant": "the daily supply asks the saved document (every arm): an unpicked arm's daily read holds the instance pending",
+      "file": "app/src/components/chart/engine/dailyReadSupply.js",
+      "from": "  return boundDocument(def, bindConstsFor({ inputs }))",
+      "to": "  return def",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/dailyReadKnobBind.test.js",
+      "expectRed": "never holds the instance pending"
+    },
+    {
+      "id": "TJ8",
+      "mutant": "the chart fetches the daily bars of an unpicked arm (framesNeeded asks the saved document)",
+      "file": "app/src/components/chart/engine/useCalcFrames.js",
+      "from": "dailyReadNeeds(defOf(inst.defId), sym, inst.inputs || {})",
+      "to": "dailyReadNeeds(defOf(inst.defId), sym)",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/dailyReadKnobBind.test.js",
+      "expectRed": "an unpicked daily arm fetches nothing"
+    },
+    {
+      "id": "TJ9",
+      "mutant": "the binder asks the supply without the instance's inputs (the saved document)",
+      "file": "app/src/components/chart/engine/binder.js",
+      "from": "dailyReadSupplyFor(def, frameMap, ctx.sym, ctx.tf, inst.inputs || {})",
+      "to": "dailyReadSupplyFor(def, frameMap, ctx.sym, ctx.tf)",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/dailyReadKnobBind.test.js",
+      "expectRed": "inst.inputs || {}"
     }
   ]
 }

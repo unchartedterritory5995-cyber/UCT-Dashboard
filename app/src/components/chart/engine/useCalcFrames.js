@@ -107,7 +107,8 @@ export function framesNeeded(instances, defOf, sym, chartTf) {
     // ⭐⭐ U-DAILY (e96) — a formula that reads a daily value (`tf` of D) on a chart below a day needs the DAILY bars of
     // the chart symbol and of every symbol its daily reads name (`dailyReadSupply.js`), on the same window ladder
     if ((!f || !f.frame) && isBelowADay(chartTf)) {
-      for (const s of dailyReadNeeds(defOf(inst.defId), sym)) out.set(frameKey('D', s), { frame: 'D', symbol: s })
+      // (train e96 x e95 2b) the document this instance's inputs bind: an unpicked knob arm's daily read fetches nothing
+      for (const s of dailyReadNeeds(defOf(inst.defId), sym, inst.inputs || {})) out.set(frameKey('D', s), { frame: 'D', symbol: s })
     }
     if (!f || !f.frame) continue
     out.set(frameKey(f.frame, sym), { frame: f.frame, symbol: String(sym).toUpperCase() })

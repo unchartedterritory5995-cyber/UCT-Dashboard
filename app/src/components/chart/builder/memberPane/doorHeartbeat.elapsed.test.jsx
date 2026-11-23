@@ -82,10 +82,11 @@ describe('the clock line itself', () => {
 describe('⭐⭐ the member pane: while the build runs, "Checking your script..." and for how long, kept current', () => {
   it('0:00 says it is checking; 42 s on, 0:42; a second later, 0:43; the answer ends it', async () => {
     const made = []
-    // (a silence bound and a watchdog far past the rail: this rail is the clock line's; the bounds have their own,
+    // (the production bounds: this worker says nothing until it answers, so it is still LOADING for the page (e96
+    // train: the silence bound starts at a worker's first word, `MEMBER_DOOR_LOAD_MS` before it), and the line counts
+    // the whole time, past the 30 s a silent worker would be given; the bounds have their own rails,
     // `doorHeartbeat.test.js`)
-    svc = createMemberDoorService({ factory: () => { const w = new HoldingWorker(); made.push(w); return w },
-      silenceMs: 3600000, watchdogMs: 7200000 })
+    svc = createMemberDoorService({ factory: () => { const w = new HoldingWorker(); made.push(w); return w } })
     __setMemberDoorServiceForTests(svc)
     render(
       <AuthContext.Provider value={{ user: { id: 7 }, isPaid: true, loading: false }}>
@@ -100,6 +101,8 @@ describe('⭐⭐ the member pane: while the build runs, "Checking your script...
     expect(line().textContent).toBe(CHECKING_TEXT)
     await seconds(42)
     expect(line().textContent, 'the line counts while the build runs').toBe('Checking your script... 0:42')
+    expect(svc.stats(), 'the worker has said nothing yet: still loading, never taken for silent').toMatchObject(
+      { loading: true, listening: false, silent: 0, unloaded: 0 })
     await seconds(1)
     expect(line().textContent).toBe('Checking your script... 0:43')
     // the clock is aria-hidden: the live region says "checking" once, not every second
