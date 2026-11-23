@@ -872,6 +872,9 @@ def _access_payload(user: dict, plan: str) -> dict:
         # key; it reads the `uct_chart_speed` cookie every auth response sets beside it
         # (_set_chart_speed_cookie, same reader), so the kill costs first open nothing.
         "chart_speed_enabled": _chart_speed_enabled(),
+        # ── the on-device bar store's OWN kill (2026-11-23, review of #2537 M9): the readout. The browser reads the
+        # `uct_device_store` cookie set beside it (_set_chart_speed_cookie), never this key.
+        "device_store_enabled": _device_store_enabled(),
         # ── Research "Technical" tab (Chart/Technical Intelligence Convergence) ──
         # Same request-time mechanism as the hub flag above: read HERE, per
         # request, never captured at module import. That is what lets the flag be
@@ -3734,6 +3737,13 @@ def _set_chart_edge_cookie(response: Response, user: dict, plan: str):
 # Not HttpOnly on purpose (page scripts must read it) and it carries no secret: "0" or absent.
 CHART_SPEED_COOKIE = "uct_chart_speed"
 CHART_SPEED_COOKIE_MAX_AGE = 400 * 86400
+# ── THE DEVICE STORE'S OWN KILL (2026-11-23, review of #2537 M9) ── the same channel, for `uct.deviceStore` ALONE:
+# DEVICE_STORE_ENABLED on web, KILL polarity, read per request; its cookie rides the same responses (the setter below,
+# so tests/test_chart_speed_kill.py's AST rail covers it). Off, a browser's store is off from its next page load (and an
+# open page's on its next visible beat, app/src/data/deviceStore/client.js), and the store deletes the seed it held in
+# that browser (deviceStore/source.js). Neighbor frames are untouched. docs/feature_flags.json DEVICE_STORE_ENABLED;
+# tests/test_device_store_kill.py.
+DEVICE_STORE_COOKIE = "uct_device_store"
 
 
 def _chart_speed_enabled() -> bool:
@@ -3743,16 +3753,21 @@ def _chart_speed_enabled() -> bool:
     ).strip().lower() not in ("0", "false", "no", "off")
 
 
-def _set_chart_speed_cookie(response: Response) -> None:
-    """Write the browser's copy of the kill: `uct_chart_speed=0` while killed, cleared otherwise.
+def _device_store_enabled() -> bool:
+    """DEVICE_STORE_ENABLED, read PER REQUEST. KILL polarity: only 0/false/no/off kills."""
+    return os.environ.get(
+        "DEVICE_STORE_ENABLED", "1"
+    ).strip().lower() not in ("0", "false", "no", "off")
 
-    ⛔ NEVER RAISES: it rides every sign-in, and a kill switch must never cost a login."""
+
+def _set_kill_cookie(response: Response, name: str, enabled: bool) -> None:
+    """`name=0` while killed (readable, site-wide, long-lived), a deletion otherwise. Never raises."""
     try:
-        if _chart_speed_enabled():
-            response.delete_cookie(CHART_SPEED_COOKIE, path="/")
+        if enabled:
+            response.delete_cookie(name, path="/")
             return
         response.set_cookie(
-            key=CHART_SPEED_COOKIE,
+            key=name,
             value="0",
             httponly=False,         # app/src/lib/chartSpeed.js reads it from document.cookie
             secure=COOKIE_SECURE,
@@ -3762,3 +3777,13 @@ def _set_chart_speed_cookie(response: Response) -> None:
         )
     except Exception:  # noqa: BLE001 -- the universal auth path must not fail on a kill switch
         pass
+
+
+def _set_chart_speed_cookie(response: Response) -> None:
+    """Write the browser's copy of the kills: `uct_chart_speed=0` while CHART_SPEED_ENABLED is off and
+    `uct_device_store=0` while DEVICE_STORE_ENABLED is off; each cleared otherwise. Two cookies, two tries:
+    a failure on one never skips the other.
+
+    ⛔ NEVER RAISES: it rides every sign-in, and a kill switch must never cost a login."""
+    _set_kill_cookie(response, CHART_SPEED_COOKIE, _chart_speed_enabled())
+    _set_kill_cookie(response, DEVICE_STORE_COOKIE, _device_store_enabled())

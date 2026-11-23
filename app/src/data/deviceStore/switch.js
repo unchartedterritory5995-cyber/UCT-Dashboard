@@ -15,13 +15,17 @@
 // handoff never trusts a device rule its store does not have, and the diagnostics never start the client (the
 // worker, the 80 MB ingest, the all-day minute feed) for a page whose bar store decided OFF. A change of the key
 // takes effect on the next load.
-// ⭐ The SERVER's kill switch (CHART_SPEED_ENABLED, lib/chartSpeed.js) wins over everything here, on EVERY read (it
-// is read first, never cached here): killed, the store is off in every browser, a local '1' included.
+// ⭐ The SERVER's kill switches win over everything here, on EVERY read (they are read first, never cached here):
+// CHART_SPEED_ENABLED (both chart speed switches) and DEVICE_STORE_ENABLED (this store ALONE, review of #2537 M9), both
+// lib/chartSpeed.js. Killed, the store is off in every browser, a local '1' included.
+// ⭐ OFF IS "OFF AND CLEAN UP" (M9): a page whose store is off ('0', a kill, or the default) deletes a seed this browser
+// downloaded before, once, at idle after its first chart paint (source.deviceSource, residue.js). No UI: the member's
+// '0' is the off switch.
 //
 // Tiny on purpose: persist.js imports this statically (through source.js); everything else of the device store is
 // loaded lazily (source.js → client.js → the worker), so first-open bytes do not move.
 
-import { chartSpeedKilled } from '../../lib/chartSpeed'
+import { chartSpeedKilled, deviceStoreKilled } from '../../lib/chartSpeed'
 
 export const DEVICE_STORE_KEY = 'uct.deviceStore'
 export const DEVICE_STORE_DEFAULT_ON = false
@@ -47,7 +51,7 @@ function _read() {
 
 /** Is the on-device bar store switched on in this browser, for this page load? Never throws. */
 export function deviceStoreEnabled() {
-  if (chartSpeedKilled()) return false
+  if (chartSpeedKilled() || deviceStoreKilled()) return false
   if (_decided === null) _decided = _read()
   return _decided
 }

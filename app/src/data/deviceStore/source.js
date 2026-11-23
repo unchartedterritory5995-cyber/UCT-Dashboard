@@ -18,6 +18,8 @@
 
 import { deviceStoreEnabled } from './switch'
 import { SERVED_TFS } from './tfs'
+import { deviceFilesMayExist, removeDeviceFiles, whenIdle } from './residue'
+import { afterFirstChartPaint } from '../../lib/barsPackClient'
 
 const _TFS = new Set(SERVED_TFS)
 
@@ -104,7 +106,33 @@ export function createDeviceSource({ load = _load, current = () => _client } = {
   }
 }
 
-/** The app's source, or null while the switch is off (then nothing of the store ever loads). */
-export function deviceSource({ enabled = deviceStoreEnabled } = {}) {
-  return enabled() ? createDeviceSource() : null
+/** navigator.storage, or null (no navigator / no StorageManager). */
+function _navStorage() {
+  try { return (typeof navigator !== 'undefined' && navigator.storage) || null } catch { return null }
+}
+
+let _offLooked = false
+/**
+ * ⭐ OFF IS "OFF AND CLEAN UP" (review of #2537, M9). A page whose store is off (the member's '0', a kill, or the
+ * default) looks ONCE whether this browser may hold the store's files: residue.deviceFilesMayExist, two localStorage
+ * reads, the whole cost for a browser that never ran the store (nothing scheduled, nothing imported, OPFS never asked).
+ * Only when it may: after the page's first chart paint, at idle, the directory is removed from the page (no client, no
+ * worker). Once per page load; a removal that fails is tried again on the next load.
+ */
+function _offCleanup({ afterPaint, idle, storage }) {
+  if (_offLooked) return
+  _offLooked = true
+  if (!deviceFilesMayExist()) return
+  // (the defaults are taken only here, on the rare path: a page that never needs them never touches them)
+  const paint = afterPaint || afterFirstChartPaint
+  const whenFree = idle || whenIdle
+  try { paint(() => whenFree(() => { removeDeviceFiles(storage === undefined ? _navStorage() : storage) })) } catch { /* the next load */ }
+}
+
+/** The app's source, or null while the switch is off (then nothing of the store ever loads, and a seed an earlier
+ *  page load downloaded is removed: _offCleanup). `afterPaint` / `idle` / `storage`: tests. */
+export function deviceSource({ enabled = deviceStoreEnabled, afterPaint = null, idle = null, storage = undefined } = {}) {
+  if (enabled()) return createDeviceSource()
+  _offCleanup({ afterPaint, idle, storage })
+  return null
 }
