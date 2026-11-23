@@ -68,7 +68,7 @@ describe('M1 the bucket roll', () => {
     store.dispose()
   })
 
-  it('B1c the device catches up (through covers the bucket's end): then it paints, the bucket complete', () => {
+  it("B1c the device catches up (through covers the bucket's end): then it paints, the bucket complete", () => {
     vi.setSystemTime((T(605) + 5) * 1000)
     const SHORT = { ...bar(600, 1.01), c: 50.9 }
     const dev = fakeDevice(copy([...closedTo(595), SHORT], { through: T(604), formingT: T(600) }))
@@ -85,7 +85,7 @@ describe('M1 the bucket roll', () => {
     store.dispose()
   })
 
-  it('B1p the stream's push for the next bucket closes the short bucket before the answer: still no first frame', () => {
+  it("B1p the stream's push for the next bucket closes the short bucket before the answer: still no first frame", () => {
     vi.setSystemTime((T(605) + 5) * 1000)
     const SHORT = { ...bar(600, 1.01), c: 50.9 }
     const { store, pf, key } = boot(fakeDevice(copy([...closedTo(595), SHORT], { through: T(604), formingT: T(600) })))

@@ -105,7 +105,7 @@ describe('M1 the device\'s own earlier forming bar is superseded by its newer co
     expect(ohlcv(s.developing)).toEqual(pushed)
   })
 
-  it('S4 a tick-touched device bar is not the device's to drop: the tick's high and close survive a newer copy', () => {
+  it("S4 a tick-touched device bar is not the device's to drop: the tick's high and close survive a newer copy", () => {
     const s0 = first()
     const TICKED = at(602, 40)
     vi.setSystemTime(TICKED)
