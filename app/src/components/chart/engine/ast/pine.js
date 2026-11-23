@@ -662,6 +662,18 @@ const MULTI_OUTPUT_CALLS = Object.freeze({
  *  questions, and separating them is what lets the ONE authority answer the second
  *  one. Today `D` is recognised and then refused by the engine's list, exactly as
  *  before — same behaviour, derived reason. */
+// ⭐⭐ U-DAILY (e96, part B) — the served set of a daily EXPRESSION above an intraday chart (`Resolver.
+// dailyExpressionShapeOf`): the bar's own fields, windows of a literal length (reach = length - 1; a change, length),
+// pointwise maths, and the running values that stay refused BY NAME (their answer depends on where TradingView's daily
+// history starts, which no capture shows yet). Bare v4 names beside the `ta.` / `math.` ones.
+const DAILY_EXPRESSION_SERIES = new Set(['open', 'high', 'low', 'close', 'volume'])
+const DAILY_EXPRESSION_WINDOWS = new Set(['ta.sma', 'sma', 'ta.highest', 'highest', 'ta.lowest', 'lowest',
+  'ta.stdev', 'stdev'])
+const DAILY_EXPRESSION_CHANGE = new Set(['ta.change', 'change'])
+const DAILY_EXPRESSION_POINTWISE = new Set(['math.max', 'math.min', 'math.abs', 'max', 'min', 'abs'])
+const DAILY_EXPRESSION_STATEFUL = new Set(['ta.ema', 'ema', 'ta.rma', 'rma', 'ta.atr', 'atr', 'ta.rsi', 'rsi',
+  'ta.macd', 'macd', 'ta.cum', 'cum', 'ta.vwap', 'vwap', 'ta.tsi', 'ta.dmi', 'ta.supertrend', 'ta.sar', 'sar',
+  'ta.obv', 'ta.valuewhen', 'valuewhen', 'ta.barssince', 'barssince', 'fixnan'])
 const PINE_TF_SPELLING = Object.freeze({
   '1': '1', '1M': 'M', '1W': 'W', '5': '5', '15': '15', '30': '30',
   '60': '60', '1H': '60', '240': '240', '4H': '240',
@@ -8653,6 +8665,10 @@ export class Resolver {
      *  `targetReader`) reads a daily read above an intraday chart as an `above` target its supply serves. Every
      *  other resolver (the host's translation, the screen) keeps the refusal it always had (ruling 3.5, C49). */
     this.aboveDailyReads = opts.aboveDailyReads === true
+    /** ⭐⭐ U-DAILY (e96, part B) — and a daily EXPRESSION there (`dailyExpressionShapeOf`), only where the capability
+     *  `request-daily-expression` is admitted (`dailyExpressionGate.js`: the run lane passes its answer). A resolver not
+     *  told so mints nothing new. */
+    this.aboveDailyExpressions = opts.aboveDailyExpressions === true
     /** ⭐⭐ C10 (2026-09-29) — THE TIMEFRAME A `request.security` CHILD IS BEING
      *  RESOLVED FOR, while `securityAsNode` resolves one at another timeframe;
      *  `null` everywhere else. Pine evaluates the requested expression IN that
@@ -15317,11 +15333,21 @@ export class Resolver {
         // it (the daily gate below); a look-ahead read declines as it always did.
         // ⛔ A BARE open / high / low / close only: the probes witnessed those four (rs-own-daily D01..D04, rs-spx
         // X01..X04 on 1 / 5 / 15 / 30 / 60m); any other expression at "D" declines, refused by name as before.
-        if (this.requestLookaheadOf(args, placed) !== false) return null
+        const look = this.requestLookaheadOf(args, placed)
         const v = positional[2]
         const bare = !!v && v.type === 'name' && ['open', 'high', 'low', 'close'].includes(v.name) && !(this.env && this.env.has(v.name))
-        if (!bare) return null
-        return { own, other, venue, code: 'D', live: false, positional, folded: null, above: true }
+        if (look === false && bare) return { own, other, venue, code: 'D', live: false, positional, folded: null, above: true }
+        // ⭐⭐ U-DAILY (e96, part B) — A DAILY EXPRESSION of this chart's OWN symbol, on the same witnessed row choice,
+        // only where the capability is admitted (`this.aboveDailyExpressions`, `dailyExpressionGate.js`) and the
+        // expression is in the served set (`dailyExpressionShapeOf`): `dailyReach` daily rows of history it reads (the
+        // supply withholds a bar whose rows do not reach that far), `lookaheadOn` the previous-day idiom (`high[1]` with
+        // look-ahead on: every bar reads its own session's row, whose `[1]` is the day before). Anything else declines,
+        // and is refused by name (`dailyExpressionDeclineOf`).
+        if (look === null || own === null || other !== null || !this.aboveDailyExpressions) return null
+        const shape = this.dailyExpressionShapeOf(v, look === true)
+        if (!shape.ok) return null
+        return { own, other, venue, code: 'D', live: false, positional, folded: null, above: true,
+          dailyReach: shape.reach, ...(look === true ? { lookaheadOn: true } : {}) }
       } else if (isLowerTfRequest(code, this.basePeriod)) {
         // ⭐⭐ C41 — A TIMEFRAME BELOW THE CHART'S OWN. Whether it is served is
         // `lowerTf.js`'s answer alone (`lowerTfDeclineOf` — the ONE reader, also
@@ -15391,6 +15417,116 @@ export class Resolver {
       return { own, other: null, venue: null, code: null, live: false, positional, folded: this.basePeriod }
     }
     return { own: null, other, venue, code: 'D', live: false, positional, folded: null, below: true }
+  }
+
+  /** ⭐⭐ U-DAILY (e96, part B) — IS THIS EXPRESSION ONE A DAILY READ ABOVE AN INTRADAY CHART SERVES, AND HOW FAR BACK
+   *  DOES IT READ? `{ok: true, reach, minBack}` or `{ok: false, why}`. `reach`: the daily rows before its own it reads
+   *  (a 50 day average 49, `high[1]` 1); `minBack`: the nearest row it reads (0 when it reads its own row).
+   *  ⭐ The served set is WINDOW-BOUNDED and depends only on the daily rows the supply holds: open / high / low / close /
+   *  volume, numbers, literal offsets, `+ - * /` and unary minus, `math.max / min / abs`, and the literal-length windows
+   *  `ta.sma / highest / lowest / stdev / change` (their v4 bare names too). The row choice is L12 PR 2's, witnessed.
+   *  ⛔ Not served, each named: a stateful kernel (its value depends on where TradingView's daily history starts, which
+   *  no capture shows), a value of the script read inside the request (Pine recomputes it in the daily context), a
+   *  length that is not a whole-number literal, and, with look-ahead on, any read of the day the bar is inside
+   *  (`minBack` 0: on past bars that is a day that had not finished). */
+  dailyExpressionShapeOf(v, lookaheadOn) {
+    const no = (why) => ({ ok: false, why })
+    const lit = (n) => {
+      if (typeof n === 'number') return n
+      return n && n.type === 'number' && typeof n.value === 'number' ? n.value : null
+    }
+    const walk = (n, depth) => {
+      if (!n || depth > 64) return no('an expression this reader cannot follow')
+      if (n.type === 'number') return { ok: true, reach: 0, minBack: Infinity }
+      if (n.type === 'name') {
+        if (this.env && this.env.has(n.name)) {
+          return no(`it reads \`${n.name}\`, a value of the script, which Pine computes again in the daily context`)
+        }
+        return DAILY_EXPRESSION_SERIES.has(n.name) ? { ok: true, reach: 0, minBack: 0 }
+          : no(`it reads \`${n.name}\`, which is not one of open, high, low, close or volume`)
+      }
+      if (n.type === 'offset') {
+        const k = lit(n.n)
+        if (!Number.isInteger(k) || k < 0) return no('it reads a history offset that is not a whole-number literal')
+        const a = walk(n.arg, depth + 1)
+        return a.ok ? { ok: true, reach: a.reach + k, minBack: a.minBack + k } : a
+      }
+      if (n.type === 'unary' && n.op === '-') return walk(n.arg, depth + 1)
+      if (n.type === 'binary' && ['+', '-', '*', '/'].includes(n.op)) {
+        const a = walk(n.left, depth + 1)
+        if (!a.ok) return a
+        const b = walk(n.right, depth + 1)
+        if (!b.ok) return b
+        return { ok: true, reach: Math.max(a.reach, b.reach), minBack: Math.min(a.minBack, b.minBack) }
+      }
+      if (n.type === 'call' && typeof n.name === 'string') {
+        const name = n.name
+        const args = Array.isArray(n.args) ? n.args : []
+        if (DAILY_EXPRESSION_STATEFUL.has(name)) {
+          return no(`it calls \`${name}\`, a running value whose answer depends on where TradingView's daily history `
+            + 'starts, which no capture shows yet')
+        }
+        if (args.some((a) => !a || a.name)) return no(`it names an argument of \`${name}\``)
+        const vals = args.map((a) => a.value)
+        if (DAILY_EXPRESSION_WINDOWS.has(name) || DAILY_EXPRESSION_CHANGE.has(name)) {
+          const change = DAILY_EXPRESSION_CHANGE.has(name)
+          if (vals.length !== 2 && !(change && vals.length === 1)) return no(`it calls \`${name}\` in a form this read does not serve`)
+          const len = vals.length === 2 ? lit(vals[1]) : 1
+          if (!Number.isInteger(len) || len < 1) return no(`\`${name}\`'s length is not a whole-number literal`)
+          const a = walk(vals[0], depth + 1)
+          return a.ok ? { ok: true, reach: a.reach + (change ? len : len - 1), minBack: a.minBack } : a
+        }
+        if (DAILY_EXPRESSION_POINTWISE.has(name) && vals.length >= 1) {
+          let out = { ok: true, reach: 0, minBack: Infinity }
+          for (const x of vals) {
+            const a = walk(x, depth + 1)
+            if (!a.ok) return a
+            out = { ok: true, reach: Math.max(out.reach, a.reach), minBack: Math.min(out.minBack, a.minBack) }
+          }
+          return out
+        }
+        return no(`it calls \`${name}\`, which a daily read above an intraday chart does not serve yet`)
+      }
+      return no('it is an expression outside the served set (windows, offsets and arithmetic of open, high, low, '
+        + 'close and volume)')
+    }
+    const got = walk(v, 0)
+    if (!got.ok) return got
+    if (lookaheadOn && !(got.minBack >= 1)) {
+      return { ...no('it looks ahead and reads the day the bar is inside: on a past bar that day had not finished, so '
+        + 'only a read at least one day back (`high[1]`) is served with look-ahead on'), lookahead: true }
+    }
+    return got
+  }
+
+  /** ⭐⭐ U-DAILY (e96, part B) — WHY A DAILY READ OF AN EXPRESSION ABOVE AN INTRADAY CHART IS NOT SERVED, or null when
+   *  it is not such a read: `{why}` (the clause the run's refusal says, `requestSupply.js::unreadOwnSentence`; with
+   *  `lookahead: true` where look-ahead is the reason), or `{notAdmitted: true}` where the expression is in the served set
+   *  and only the capability is closed (the run says the gate's own sentence, `dailyExpressionGate.js`). Asked by the run
+   *  lane only, of a request `requestTargetOf` declined. */
+  dailyExpressionDeclineOf(node) {
+    if (!isIntradayTf(this.basePeriod) || !node || !Array.isArray(node.args)) return null
+    const placed = positionaliseSecurityArgs(node.args)
+    if (!placed) return null
+    const positional = placed.slice(0, 3)
+    if (positional.some((p) => p === undefined)) return null
+    // a request declined for its other arguments (`gaps`, `currency`, ...) keeps that refusal
+    if (this.requestArgsDecline(placed)) return null
+    const reach = this.requestTimeframeReach()
+    const raw = this.timeframeLiteralOf(positional[1], 0, reach)
+    if (raw === null || PINE_TF_SPELLING[String(raw).trim().toUpperCase()] !== 'D') return null
+    if (this.ownSymbolNameOf(positional[0]) === null) {
+      return { why: 'another symbol\'s daily expression is not served above an intraday chart (a bare open, high, low '
+        + 'or close of a witnessed symbol is)' }
+    }
+    const look = this.requestLookaheadOf(node.args, placed)
+    if (look === null) return { why: 'its `lookahead` is spelled in a way this reader does not take' }
+    const shape = this.dailyExpressionShapeOf(positional[2], look === true)
+    if (!shape.ok) {
+      return { why: `a daily read of an expression is not served here: ${shape.why}`, ...(shape.lookahead ? { lookahead: true } : {}) }
+    }
+    // in the served set: the capability is the only reason, unless it is open (another rule declined it, and says so)
+    return this.aboveDailyExpressions ? null : { notAdmitted: true }
   }
 
   /** ⭐ C47 — is this the one quarter request this door serves? The timeframe is

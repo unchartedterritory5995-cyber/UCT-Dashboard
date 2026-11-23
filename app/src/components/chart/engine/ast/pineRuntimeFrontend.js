@@ -141,6 +141,7 @@ const ARRAY_READS_ELEMENT = new Set(['array.get', 'array.pop', 'array.shift',
   'array.first', 'array.last', 'array.remove'])
 import { COLOUR_FNS, producesColour, hexToPacked, objectHexToPacked, colourTypedNamesOf, COLOUR_COMPARABLE } from '../runtime/colours.js'
 import { THEME_NAMES, packedThemeColour } from '../objectTheme.js'
+import { dailyExpressionAdmitted, DAILY_EXPRESSION_NOT_ADMITTED } from '../dailyExpressionGate.js'
 
 /** ⭐ THE REFUSAL VOCABULARY IS ITS OWN, AND DELIBERATELY GRANULAR (§19).
  *  Collapsing these into `pine:state` would hide the next dependency, which is
@@ -2988,6 +2989,9 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
       // (`pine:request`) though the request itself was served. ⛔ The HOST translator never sets it (C49, C23,
       // ruling 3.5 keep their refusals there).
       aboveDailyReads: true,
+      // ⭐⭐ U-DAILY (e96, part B) — and a daily EXPRESSION there, only where its capability is admitted
+      // (`dailyExpressionGate.js`, `request-daily-expression`: not admitted until its captures grade MATCH)
+      aboveDailyExpressions: dailyExpressionAdmitted(),
       ...objectDoorOpts,
       // ⭐⭐ (request unit, TF-FOLD, engine 89) — a request's timeframe is read with the runtime lane's reach
       // (`pine.js::requestTimeframeReach`: `TF_READ_HOPS` names and arms, and (PR 2) a script function's settled
@@ -7803,7 +7807,8 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
       let t = null
       try {
         // ⭐ RS RATING L12 PR 2 — this reader alone reads a daily read above an intraday chart (`above`)
-        targetReader = new Resolver(env, TABLE, new Map(), { ...resolverOpts, basePeriod: lanePeriod, aboveDailyReads: true })
+        targetReader = new Resolver(env, TABLE, new Map(), { ...resolverOpts, basePeriod: lanePeriod, aboveDailyReads: true,
+          aboveDailyExpressions: dailyExpressionAdmitted() })
         t = targetReader.requestTargetOf(node)
       } catch { return null } // a refusal on the way is "not the identity": the path below names it
       if (t && t.lower !== true && !reachesSlotThroughEnv(t.positional[0], scope)
@@ -7904,6 +7909,13 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
       || (hostTarget.live === true && TF_RESAMPLABLE.includes(hostTarget.code)))
     for (const a2 of node.args) {
       if (a2 && a2.name === 'lookahead' && !lookaheadOff) {
+        // ⭐⭐ U-DAILY (e96, part B) — a daily read above an intraday chart that looks ahead says ITS reason where it has
+        // one: the previous-day idiom waits for its capability (`dailyExpressionGate.js`), and a look-ahead read of the
+        // day the bar is inside is named. Any other declined look-ahead keeps the sentence below.
+        const daily = (() => { try { return targetReader ? targetReader.dailyExpressionDeclineOf(node) : null } catch { return null } })()
+        if (daily && (daily.notAdmitted === true || daily.lookahead === true)) {
+          throw new RuntimeRefusal('runtime:request', daily.notAdmitted === true ? DAILY_EXPRESSION_NOT_ADMITTED : daily.why, at)
+        }
         // ⭐⭐ (request unit PR 2) — a timeframe written as a call to the script's own function says why it was not read
         const fnWhy = settledCallWhy(argOf(positional[1]), scope)
         throw new RuntimeRefusal('runtime:request',
@@ -8053,11 +8065,24 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
         // ⭐ RS RATING L12 PR 2 (U-DAILY) — a daily read above an intraday chart (`pine.js`): supplied from the
         // symbol's held daily rows, each chart bar reading the session it had completed (`requestSupply.js`)
         ...(hostTarget.above === true ? { above: true } : {}),
+        // ⭐⭐ U-DAILY (e96, part B) — a daily EXPRESSION there: the daily rows of history it reads before its own
+        // (`dailyReach`, the supply withholds a bar whose rows do not reach that far) and the previous-day idiom
+        // (`lookaheadOn`: every bar reads its own session's row)
+        ...(hostTarget.above === true && Number.isInteger(hostTarget.dailyReach) ? { dailyReach: hostTarget.dailyReach } : {}),
+        ...(hostTarget.above === true && hostTarget.lookaheadOn === true ? { lookaheadOn: true } : {}),
       }) : ownUnread ? Object.freeze({
         // ⭐ RS RATING L8 (4b) — the chart's own symbol at a timeframe the host does not read:
         // `code` is the literal as written, never a served code; `unread` refuses it in the supply
         own: true, ticker: null, venue: null, code: tfIr.value, live: false, unread: true,
         line: node.tok ? node.tok.line : null,
+        // ⭐⭐ U-DAILY (e96, part B) — a daily read of an EXPRESSION above an intraday chart says why it is not read:
+        // the capability is not admitted (`dailyExpressionGate.js`), or the expression is outside the served set
+        ...(() => {
+          let d = null
+          try { d = targetReader ? targetReader.dailyExpressionDeclineOf(node) : null } catch { d = null }
+          if (!d) return {}
+          return { unreadWhy: d.notAdmitted === true ? DAILY_EXPRESSION_NOT_ADMITTED : d.why }
+        })(),
       }) : null })
     return requestCall(site, symbolIr, results)
   }
