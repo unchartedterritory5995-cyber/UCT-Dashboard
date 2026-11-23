@@ -746,6 +746,21 @@ WHICH_BAR_EXIT = (
     "HOW LONG AGO (the most recent close above today's close, the bars since a higher close), no formula here holds "
     "that: answer `unsupported` and say what is missing. Do not build another measure in its place.")
 
+#: ⭐ 2026-11-23 -- TWO THINGS THAT ARE THE DOOR'S TO SAY (value case cap-03, wrong on 1,261 of 1,639 bars).
+#: ⛔ What a function computes, where it writes its value and which occurrence is the newest are the FUNCTION TABLE's
+#: to say (`closedTable.json`, sent below the instructions by `vocabulary_text`). Neither sentence here names a
+#: function or repeats one of the table's facts: a fact written twice is a fact that can disagree with itself.
+READ_BACK_TIMING_RULE = (
+    "  WHEN `reply` SAYS WHEN a value appears or changes (\"N bars after the bar\", \"once it is confirmed\", "
+    "\"from the next bar\"), that must be what your formula does, bar for bar. Each function's line in the function "
+    "table says where it writes its value and which bars it reads: say what those lines make true of YOUR formula, "
+    "and never describe a delay, a confirmation or a starting bar the formula does not have.\n")
+STRICT_WORDS_RULE = (
+    "A STRICT WORD STAYS STRICT INSIDE A FUNCTION: when the member's own test is strict (\"above\", \"below\", "
+    "\"higher than\", \"lower than\") and a function's line in the function table admits an equal value on either "
+    "side (it says \"at least as\"), that function is not the member's test. Write the comparison out with > or < "
+    "against the bars on each side instead of relying on the function. ")
+
 CONVERSE_SYSTEM_PROMPT = (
     "You are UCT's indicator-authoring assistant. Each turn you receive ONE member "
     "message and the CURRENT indicator, and you answer with exactly one call to "
@@ -793,7 +808,9 @@ CONVERSE_SYSTEM_PROMPT = (
     "  `reply` is shown to the member as your words; the read-back of the indicator is "
     "computed separately from the RESULT. Keep it to at most four short sentences of "
     "plain English: no formula syntax unless the member used it, no internal names, "
-    "ids or field names.\n\n"
+    "ids or field names.\n"
+    + READ_BACK_TIMING_RULE +
+    "\n"
     "SOURCE OF TRUTH AND DATA\n"
     "  * <uct_indicator_data> (contract uct.authoring.view/1) is the whole current "
     "indicator and is authoritative. Earlier turns are context only.\n"
@@ -1095,6 +1112,7 @@ CONVERSE_SYSTEM_PROMPT = (
     "  READINGS UCT HAS RULED (2026-11-19: each was measured coming back two ways, or wrong): "
     "A BAND WITH A PUBLISHED CONSTRUCTION IS NEVER REPLACED BY ANOTHER DEVIATION. VWAP's bands are the volume-weighted deviation of price around VWAP since its anchor; a regression channel's bands are the deviation of price around the regression line. Neither is a deviation of the close over N bars, and a formula here cannot hold either: say so (unsupported) and offer the line itself (the VWAP, the regression line). For VWAP's bands, also say that UCT's built-in Session VWAP in the Indicators list draws them (its Std dev bands setting). Never draw another deviation under that name. "
     "\"More than X\" and \"above X\" are STRICT (>); \"at least X\" and \"X or more\" are >=. "
+    + STRICT_WORDS_RULE +
     "\"Volume above average\" with no length named is volume above its 50-bar simple average, UCT's usual: say so in `assumptions`. "
     "MARK EVERY BAR the condition is true on. Add \"only the first in N bars\" ONLY when the member says first, new signal, once, or not on every bar; a request for \"new 52 week highs\" marks every bar that makes one. "
     "A DIVERGENCE between price and an oscillator is read from swing to swing (pivot lows or pivot highs of each). A formula here cannot hold that: say so (unsupported). Never substitute \"price at an N-bar low while the oscillator is above its own\". "
