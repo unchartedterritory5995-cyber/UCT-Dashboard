@@ -23,6 +23,7 @@
 import { registerCapability, registerTargetKind, registerContextProvider } from '../capabilities'
 import { GROUP_TYPES, readGroupList } from '../../pages/charts/compareGroups'
 import { matchGroup, nameWords } from './compareGroup'
+import { compareViewOfWords } from './comparePhrases'
 
 const REF = 'comparePanel'
 const LABEL = 'Compare panel (Tools → Compare Symbols)'
@@ -162,6 +163,9 @@ export function registerComparePanelCapabilities() {
   registerCapability({
     target: 'comparePanel', surfaces: ['charts'], available: (ctx) => ctx.surface === 'charts',
     name: 'compare.openView',
+    // Compare family (11-23): the general reader (comparePhrases.compareViewOfWords); a named group is still matched by UCT
+    fastWhole: true,
+    fast: (p) => compareViewOfWords(p),
     summary: 'Open the Compare panel (Tools → Compare Symbols) on its Rotation tab — the RRG-style relative-rotation map — or its Overlay tab, or switch between them; optionally show one stock\'s theme / sector / industry, or a named group, on the Rotation map. A view: nothing saved. Undo closes it or returns to Overlay; leaving Rotation or re-picking on it has NO Undo.',
     hints: 'tab = rotation | overlay. For rotation: symbol = a ticker to show its group ("rotation map for NVDA"), groupType = theme | sector | industry (default theme); or group = a group NAME as said ("semis") with groupType when said. Else null. The RS INDICATOR\'s Rotation view is indicator.update, not this.',
     args: { type: 'object', properties: {

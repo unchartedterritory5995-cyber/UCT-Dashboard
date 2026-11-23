@@ -376,6 +376,11 @@ function _read(payload, asked) {
     // ⭐ (e90) the depth this window asked (`askedBars`, above), on an entry that holds rows; a tail read
     // (`refreshSecondaryTail`) names none: its rows are merged into the held entry, which keeps its own
     const asks = asked === undefined ? {} : { askedBars: askedBarsOf(asked) }
+    // ⭐ (2026-11-23, the index-history disclosure) the route's own `deep` record, when it sent one: an index series whose
+    // older sessions come from our data vendor's settled history (FMP) before Yahoo's own window. Plain fields only (it
+    // crosses the worker with the entry); `indexHistoryNotice.js` reads it, nothing else does.
+    const d = payload && payload.deep && typeof payload.deep === 'object' ? payload.deep : null
+    if (d) asks.indexDeep = { src: d.src || null, joined: d.joined === true, from: d.from || null, through: d.through || null }
     // ⭐ 2026-09-28 — THE NEWEST BAR'S CLOSE STATE TRAVELS WITH THE BARS IT
     // DESCRIBES. A calculation-timeframe frame (`mtfProjection.js`) may only treat
     // its newest bar as a COMPLETED period when the server said so; dropping the

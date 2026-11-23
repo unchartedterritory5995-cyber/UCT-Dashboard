@@ -75,8 +75,9 @@ DERIVED_KINDS = {"mcclellan_osc": "MCO", "adv_decline_cum": "AD"}
 #: Monitor columns with no per-universe source yet. Never stored; the UI says "n/a".
 UNAVAILABLE = ("up_vol_ratio", "hvc_52w", "atr_ext_7", "new_ath")
 
-#: ⛔ Health is UCT-calibrated: hidden ("—") on every other universe until it is recalibrated.
-HIDDEN = ("breadth_score",)
+#: Hidden ("—") on every other universe. Empty since 2026-11-23: Health scores each universe with
+#: its own bands (`breadth_health_bands.generated.json`, tools/breadth/calibrate_health_bands.py).
+HIDDEN = ()
 
 #: ⭐ MARKET-WIDE Monitor keys: copied from the UCT row of the same date, never per universe.
 #: (`breadth_metrics` marks every one of these NOT_PORTABLE, or they are a price / index reading.)
@@ -91,7 +92,7 @@ MARKET_WIDE = (
     "is_ftd", "manual_ftd",
 )
 #: The as-of / provenance fields the market-wide columns' age labels read.
-MARKET_WIDE_SUPPORT = ("aaii_survey_date", "naaim_date")
+MARKET_WIDE_SUPPORT = ("aaii_survey_date", "naaim_date", "uct_exposure_model")
 
 #: Sessions a tail refresh rebuilds (well inside the authorities' small-limit fast path).
 TAIL_SESSIONS = 40

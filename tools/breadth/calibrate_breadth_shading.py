@@ -74,10 +74,10 @@ def load_rows(universe: str = "uct", uct_deep: str = "", uct_backtest: str = "",
     if universe == "uct" and uct_deep:
         return load_uct_deep_rows(uct_deep, exposure_db)
     if universe != "uct":
-        from api.services import breadth_universe_monitor as bum  # noqa: E402
-        ds = bum.dates(universe)
-        by = bum.rows_for_dates(universe, ds)
-        return [dict(by[d], date=d) for d in ds if d in by]
+        # the rows as served: the universe's own columns plus its Health (scored at serve time)
+        from api.services import breadth_monitor as svc  # noqa: E402
+        rows = svc.get_history_universe(universe, days=8000)
+        return [r for r in reversed(rows) if not r.get("_provisional")]
     from api.services import breadth_monitor as svc  # noqa: E402
     rows = svc.get_history_deep(days=8000)
     return [r for r in rows if not r.get("_live")]
@@ -104,6 +104,17 @@ def apply_uct_pit(rows: list, series_path: str) -> int:
                     r[k] = v
         r.pop("_ad_back", None)
     return n
+
+
+def apply_uct_exp_model(rows: list, series_path: str) -> int:
+    """The Monitor's own fill (`breadth_uct_exposure_model.fill`): blank UCT Exp before the wire
+    published the current formula takes the formula run on history, as the cells show it."""
+    sys.path.insert(0, ROOT)
+    from api.services import breadth_uct_exposure_model as uxm  # noqa: E402
+    os.environ["BREADTH_UCT_EXP_MODEL"] = "1"
+    uxm.SERIES_PATH = series_path
+    uxm._view.clear()
+    return uxm.fill(rows)
 
 
 def spec_for(spec: dict, universe: str) -> dict:
@@ -235,6 +246,8 @@ def main(argv=None) -> int:
     ap.add_argument("--exposure-db", default="", help="UCT: a local monitor copy whose uct_exposure wins")
     ap.add_argument("--uct-pit", default="", help="UCT: the point-in-time history series (breadth_uct_pit) "
                                                   "laid over the back-tested rows, as the Monitor serves it")
+    ap.add_argument("--uct-exp-model", default="", help="the rebuilt UCT Exp series "
+                                                        "(breadth_uct_exposure_model) filled in as served")
     args = ap.parse_args(argv)
     with open(SPEC, encoding="utf-8") as f:
         spec = json.load(f)
@@ -248,6 +261,8 @@ def main(argv=None) -> int:
         if args.universe != "uct":
             raise SystemExit("--uct-pit is UCT only")
         print(f"uct pit rows laid over: {apply_uct_pit(rows, args.uct_pit)}")
+    if args.uct_exp_model:
+        print(f"uct exp rows filled: {apply_uct_exp_model(rows, args.uct_exp_model)}")
     # ⭐ THE WINDOW (owner 2026-11-19): every universe over ALL of its point-in-time history —
     # UCT (uct_backtest), US and Nasdaq from 2008-01-02, NYSE from 2009-06-11. Nothing before
     # 2008-01-02 is used, whatever a source holds (extending earlier is an owner decision).
