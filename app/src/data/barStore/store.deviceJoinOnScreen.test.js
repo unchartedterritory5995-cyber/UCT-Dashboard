@@ -22,6 +22,10 @@
 //   J9 an IndexedDB-held key (not the lake's) on screen with its answer on the way: joined at once (`source !== 'lake'`)
 //   J0 with the store off (no device source) the answer path never reaches a flush: persist has no `flushJoins` at all,
 //      so the network's call before each answer reads one missing property and stops
+// round 14 (the flush is spent only where the answer can keep a row of the copy; J2 rails a CURRENT answer):
+//   J8b the copy stamped exactly at the end of the bucket after the answer's newest row: flushed, that candle kept (`<=`)
+//   J10 an answer lagging only by the bucket the copy is still forming: nothing flushed (the answer would drop that bar),
+//      the join refused at idle
 import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest'
 import { createBarStore } from './index'
 import { createPrefetch } from './prefetch'
@@ -54,9 +58,9 @@ function answer() {
 }
 
 /** A device source whose recently-read cache is empty (peek: null) and whose reads land when the test says. */
-function fakeDevice(rows, through) {
+function fakeDevice(rows, through, formingT = null) {
   const pending = []
-  const hit = { n: rows.length, rows, through, savedAt: through * 1000, formingT: null }
+  const hit = { n: rows.length, rows, through, savedAt: through * 1000, formingT }
   return {
     pending,
     land: () => { for (const r of pending.splice(0)) r(hit) },
@@ -269,6 +273,48 @@ describe("a device copy joining the lake's rows on a chart already showing them,
     expect(chart.seen.length).toBeGreaterThan(before)        // the chart heard it (the join and the answer, one task)
     w.runIdle()                                               // nothing is left to join at idle
     expect(w.store.peek(w.key)).toBe(s)
+    chart.off()
+    w.store.dispose()
+  })
+
+  it('J8b the copy stamped AT the end of the bucket after the answer\'s newest row: flushed, and that candle stays', async () => {
+    const dev = fakeDevice(DEVICE, T(690))                    // stamped 11:30: its 11:25 bucket ends AT the stamp, complete
+    const w = boot({ device: dev, reply: laggingAnswer })     // the answer: closed to 11:15, 11:20 forming
+    lakeHeld(w)
+    const chart = await onScreen(w)
+    w.pf.deviceWarm('NEWB', '5')
+    dev.land()
+    await vi.advanceTimersByTimeAsync(5)
+    expect(w.store.peek(w.key).source).toBe('lake')          // deferred
+    w.release()
+    await vi.advanceTimersByTimeAsync(5)
+    const s = w.store.peek(w.key)
+    expect(s.restSeen).toBe(true)
+    expect(s.bars.some((b) => b.t === T(685))).toBe(true)    // vouched (its bucket ends at, not after, the stamp): kept
+    chart.off()
+    w.store.dispose()
+  })
+
+  it('J10 an answer lagging only by the bucket the copy is still forming: no join spent before it, refused at idle', async () => {
+    vi.setSystemTime(T(688) * 1000)                            // 11:28
+    const dev = fakeDevice(DEVICE, T(688), T(685))             // stamped 11:28: its 11:25 bucket (ends 11:30) is forming
+    const w = boot({ device: dev, reply: laggingAnswer })     // the answer: closed to 11:15, 11:20 forming
+    lakeHeld(w)
+    const chart = await onScreen(w)
+    w.pf.deviceWarm('NEWB', '5')
+    dev.land()
+    await vi.advanceTimersByTimeAsync(5)
+    expect(w.store.peek(w.key).source).toBe('lake')          // deferred (or this proves nothing)
+    expect(w.idleQ.length).toBeGreaterThan(0)
+    w.release()
+    await vi.advanceTimersByTimeAsync(5)
+    const s = w.store.peek(w.key)
+    expect(s.restSeen).toBe(true)
+    expect(chart.seen).not.toContain('device')               // no join, and no device render, in the answer's task
+    expect(s.bars.some((b) => b.t === T(685))).toBe(false)   // nothing lost: the answer drops a bar the stamp does not
+    expect(s.developing?.t).not.toBe(T(685))                 // vouch for (P3-L1), joined or not
+    w.runIdle()
+    expect(w.store.peek(w.key)).toBe(s)                       // refused at idle ('answered')
     chart.off()
     w.store.dispose()
   })
