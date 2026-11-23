@@ -256,6 +256,13 @@ export const TAIL_RETRY_MS = 5000
 export const TAIL_ACTIVE_MS = 3 * 60_000
 /** (re-review of #2619 (B)) A HARD cap: at most this many tail asks of one hold in flight at once. */
 export const TAIL_MAX_INFLIGHT = 3
+/** (review of fb6fed4328, MEDIUM-1) THE SERVER'S WRITE LAG. A tail answer that lands exactly ONE bucket behind within
+ *  TAIL_LAG_WINDOW_MS of the boundary means the server has not stored the bucket that just closed: the hold asks that row
+ *  again TAIL_LAG_RETRY_MS after the landing, then twice that, at most TAIL_LAG_RETRIES times per row per bucket, on its
+ *  own timer, which a press does not cancel. A row more than one bucket behind is a name not printing: never retried. */
+export const TAIL_LAG_RETRY_MS = 1000
+export const TAIL_LAG_RETRIES = 2
+export const TAIL_LAG_WINDOW_MS = 8000
 /** (re-review of #2619 (B)) Selection changes closer than this are a SWEEP (a held arrow repeats every 30-60 ms): the tail
  *  asks nothing while it lasts, and asks its rows this long after the last change (the row the member stops on). */
 export const TAIL_SWEEP_MS = 250
@@ -496,20 +503,24 @@ export function createPrefetch(o = {}) {
   // illiquid minute, a late seal): it paints as it is and is not asked again on every keystroke.
   // ⛔ 60m / 1h on an EXTENDED view buckets on the clock grid, which expectedBarsBehind does not measure (it
   // walks the 09:30 session grid): those keys keep the status rule.
-  function _behindClock(key, s, showExtended) {
+  /** How many buckets `s` is behind the session frontier by the clock (0: not behind, or not judged by the clock). */
+  function _bucketsBehind(key, s, showExtended) {
     const rows = s?.bars
-    if (!rows?.length) return false
+    if (!rows?.length) return 0
     // a DEVICE copy is judged by its own complete-through stamp (devicePaints / deviceStore/fresh.js)
-    if (_deviceHeld(s)) return false
+    if (_deviceHeld(s)) return 0
     const p = parseKey(key)
-    if (!p || p.window || !isIntradayTf(p.tf)) return false
+    if (!p || p.window || !isIntradayTf(p.tf)) return 0
     const ext = session(showExtended) === 'eth'
-    if (ext && Number(p.tf) >= 60) return false
+    if (ext && Number(p.tf) >= 60) return 0
     // the DEVELOPING row counts too: at a bucket roll the just-closed bucket is still the forming row until its
     // seal lands, and a copy holding it holds the frontier (a copy whose forming row is OLDER is still behind)
     const tailT = Math.max(rows[rows.length - 1].t, s.developing?.t ?? -Infinity)
     const n = expectedBarsBehind(tailT, p.tf, now(), { session: ext ? 'extended' : 'rth' })
-    if (n == null || n < 1) return false
+    return n == null || n < 1 ? 0 : n
+  }
+  function _behindClock(key, s, showExtended) {
+    if (_bucketsBehind(key, s, showExtended) < 1) return false
     const a = asked.get(key)
     // ⛔ (review of #2619, MEDIUM-1, and its re-review (A)) THE GRACE IS THE SWITCH'S OWN, BY CONSTRUCTION: only an answer to
     // an ask marked `own` (prepareForDisplay's and askForDisplay's, at `visible` rank) starts it. Any other ask made a few
@@ -1150,6 +1161,9 @@ export function createPrefetch(o = {}) {
     let lastChangeAt = -Infinity // the last selection CHANGE (a sweep: changes closer than TAIL_SWEEP_MS)
     const reasked = new Map()   // key → { b: the bucket's start, n: re-asks in it, at: the last one } (this bucket's only)
     const tailCtl = new Map()   // key → the AbortController of its tail ask in flight (at most TAIL_MAX_INFLIGHT)
+    const lagged = new Map()    // key → { b: the bucket, n: lag retries in it, due: when the next one is (0: none) }
+    let lagTimer = null
+    let lagTimerAt = Infinity
     const stopDeep = () => {
       deepGen++
       if (deepTimer != null) { clearTimer(deepTimer); deepTimer = null }
@@ -1161,6 +1175,9 @@ export function createPrefetch(o = {}) {
       for (const [k, c] of [...tailCtl]) if (!keep || !keep.includes(k)) { tailCtl.delete(k); c.abort() }
     }
     const _bucketOfNow = (tf) => bucketEndUnix(Math.floor(now() / 1000), tf) - 1
+    /** The boundary that opened the current bucket of `tf` (ms). */
+    const _boundaryMs = (tf) => bucketEndUnix(Math.floor(now() / 1000), tf) * 1000 - Number(tf) * 60_000
+    const stopLag = () => { if (lagTimer != null) { clearTimer(lagTimer); lagTimer = null; lagTimerAt = Infinity } }
     const _hidden = () => { try { return visible() === false } catch { return false } }
     const _active = () => now() < activeUntil
     /** Ask again each tail row that holds a server answer behind the clock (bounded and spaced per row per bucket).
@@ -1169,6 +1186,7 @@ export function createPrefetch(o = {}) {
       if (!tail.length || !inSession() || !_active() || _hidden()) return 0
       // a row's count matters for its bucket only: the earlier buckets' go (the map holds this bucket's rows, never fewer)
       for (const [k, r] of [...reasked]) { const tf = parseKey(k)?.tf; if (!tf || r.b !== _bucketOfNow(tf)) reasked.delete(k) }
+      for (const [k, L] of [...lagged]) { const tf = parseKey(k)?.tf; if (!tf || L.b !== _bucketOfNow(tf)) lagged.delete(k) }
       let asked = 0
       for (const k of tail) {
         if (tailCtl.size >= TAIL_MAX_INFLIGHT) break   // the hard cap
@@ -1190,18 +1208,65 @@ export function createPrefetch(o = {}) {
         if (n > 0 && now() - r.at < TAIL_REASK_SPACING_MS) continue
         const mark = { b, n: n + 1, at: now() }
         reasked.set(k, mark)
-        const c = new AbortController()
-        tailCtl.set(k, c)
-        ensure(k, { until: ASK_AGAIN, priority: 'background', warm: true, local: false, signal: c.signal, _s0: s, session: session(tailExt) })
-          .catch(() => {})
-          .then(() => {
-            if (tailCtl.get(k) === c) tailCtl.delete(k)
-            // aborted (the row left the tail): it was never an ask, so its row may be asked again in this bucket
-            if (c.signal.aborted && reasked.get(k) === mark) { if (r && r.b === b) reasked.set(k, r); else reasked.delete(k) }
-          })
+        // aborted (the row left the tail): it was never an ask, so its row may be asked again in this bucket
+        askTail(k, s, () => { if (reasked.get(k) === mark) { if (r && r.b === b) reasked.set(k, r); else reasked.delete(k) } })
         asked++
       }
       return asked
+    }
+    /** One tail ask of `k`: its own abort (`undo` runs if it is aborted); on its landing, the server's write lag is
+     *  looked for (lagRetryLater). */
+    function askTail(k, s, undo) {
+      const c = new AbortController()
+      tailCtl.set(k, c)
+      ensure(k, { until: ASK_AGAIN, priority: 'background', warm: true, local: false, signal: c.signal, _s0: s, session: session(tailExt) })
+        .catch(() => {})
+        .then(() => {
+          if (tailCtl.get(k) === c) tailCtl.delete(k)
+          if (c.signal.aborted) { undo?.(); return }
+          lagRetryLater(k)
+        })
+    }
+    /** (review of fb6fed4328, MEDIUM-1) A tail row whose answer just landed exactly ONE bucket behind, inside
+     *  TAIL_LAG_WINDOW_MS of the boundary: the server has not stored the closed bucket yet. Ask it again TAIL_LAG_RETRY_MS
+     *  after this landing (then twice that), at most TAIL_LAG_RETRIES times in the bucket, on the hold's lag timer: a
+     *  press re-arms the boundary timer, never this one, so a scan faster than the lag no longer leaves the row behind
+     *  until its own press. */
+    function lagRetryLater(k) {
+      if (!tail.includes(k) || !inSession() || !_active() || _hidden()) return
+      if (_bucketsBehind(k, S().peek(k), tailExt) !== 1) return   // current; or more than one behind: not printing
+      const tf = parseKey(k).tf
+      if (!(now() - _boundaryMs(tf) < TAIL_LAG_WINDOW_MS)) return  // past the server's write lag
+      const b = _bucketOfNow(tf)
+      const L = lagged.get(k)
+      const n = L && L.b === b ? L.n : 0
+      if (n >= TAIL_LAG_RETRIES) return
+      lagged.set(k, { b, n, due: now() + TAIL_LAG_RETRY_MS * 2 ** n })
+      armLag()
+    }
+    function armLag() {
+      let due = Infinity
+      for (const L of lagged.values()) if (L.due && L.due < due) due = L.due
+      if (due === Infinity) { stopLag(); return }
+      if (lagTimer != null && lagTimerAt <= due) return
+      stopLag()
+      lagTimerAt = due
+      lagTimer = setTimer(lagFire, Math.max(0, due - now()))
+    }
+    function lagFire() {
+      lagTimer = null
+      lagTimerAt = Infinity
+      for (const [k, L] of [...lagged]) {
+        if (!L.due || L.due > now()) continue
+        L.due = 0
+        if (!tail.includes(k) || !inSession() || !_active() || _hidden()) continue
+        if (tailCtl.has(k) || tailCtl.size >= TAIL_MAX_INFLIGHT) continue
+        const s = S().peek(k)
+        if (!s?.bars?.length || preparing.get(k) || !_behindClock(k, s, tailExt)) continue
+        L.n++
+        askTail(k, s, () => { L.n-- })
+      }
+      armLag()
     }
     /** One timer per hold: the next bucket boundary of `tf` plus a lag drawn for this hold and boundary (or, `retry`, one
      *  spaced retry inside the bucket after a boundary ask; or, `settle`, TAIL_SWEEP_MS after the last change of a sweep);
@@ -1315,6 +1380,8 @@ export function createPrefetch(o = {}) {
       clear() {
         stopDeep()
         stopTail()
+        stopLag()
+        lagged.clear()
         abortTail()
         tail = []
         const st = S()
