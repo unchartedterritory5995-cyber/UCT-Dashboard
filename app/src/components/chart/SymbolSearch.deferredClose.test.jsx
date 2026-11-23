@@ -2,13 +2,15 @@
 // dialog in the key task and unmounts it after the charts' frame. In between, every reader must already read it closed,
 // and a member acting at once must not lose anything:
 //   readers   utils/modalOpen.isModalOpen (the pane's type-to-search, the chart shortcuts) and lib/topLayer (the
-//             page-level shortcuts) find no dialog; the accessibility tree has none
+//             page-level shortcuts) find no dialog; the accessibility tree has none; and it is off screen
 //   a letter  typed on the chart in the gap (the pane's openWith) starts a FRESH search, even after the chart switch has
 //             re-rendered the search, and the dialog shows again, focused, and stays open past the frame
 //   the badge clicked in the gap OPENS the search (it does not close the hidden one)
+//   an effect the notebook embed's door calls openWith from a passive effect, where React will not flushSync; in the
+//             gap that must show the dialog too
 //   Escape    pressed in the gap is not swallowed by the hidden dialog's listener
 //   unmount   in the gap cancels the pending teardown quietly
-import { createRef } from 'react'
+import { createRef, useEffect } from 'react'
 import { render, screen, fireEvent, act } from '@testing-library/react'
 import { test, expect, vi, beforeEach } from 'vitest'
 import SymbolSearch from './SymbolSearch'
@@ -38,6 +40,7 @@ test('every reader reads it closed from the Enter task on: isModalOpen, topLayer
   expect(dialog()).toBeNull()
   expect(isModalOpen()).toBe(false)
   expect([...openLayers()]).toEqual([])
+  expect(screen.getByText('Symbol search')).not.toBeVisible()        // still mounted, and off screen
 })
 
 test('a letter typed on the chart in the gap starts a FRESH search (after the switch re-rendered it), shown and focused, and it stays open', async () => {
@@ -58,6 +61,24 @@ test('the badge clicked in the gap opens the search (it does not close the hidde
   enterOn('amd')
   fireEvent.click(screen.getByRole('button', { name: /SPY/ }))
   expect(dialog()).not.toBeNull()
+  await afterFrame()
+  expect(dialog()).not.toBeNull()
+})
+
+test('a reopen from inside an effect (the notebook embed door) in the gap shows the dialog, focused, and it stays open', async () => {
+  const ref = createRef()
+  const onSymbolChange = vi.fn()
+  function Opener() { useEffect(() => { ref.current.openWith('T') }, []); return null }
+  const Host = ({ reopen }) => <><SymbolSearch ref={ref} sym="SPY" onSymbolChange={onSymbolChange} />{reopen && <Opener />}</>
+  const view = render(<Host reopen={false} />)
+  fireEvent.click(screen.getByRole('button', { name: /SPY/ }))
+  fireEvent.change(input(), { target: { value: 'amd' } })
+  fireEvent.keyDown(input(), { key: 'Enter' })
+  expect(dialog()).toBeNull()
+  view.rerender(<Host reopen />)
+  expect(dialog()).not.toBeNull()
+  expect(input().value).toBe('T')
+  expect(document.activeElement).toBe(input())
   await afterFrame()
   expect(dialog()).not.toBeNull()
 })

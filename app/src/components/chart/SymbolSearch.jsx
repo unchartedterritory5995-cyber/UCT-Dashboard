@@ -91,29 +91,28 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
   const openRef = useRef(false)
   // ⭐ (2026-11-23, item 2, review of #2624 section 5) ENTER TAKES THE DIALOG OFF SCREEN IN ITS OWN TASK AND UNMOUNTS IT
   // AFTER THE CHARTS' FRAME. `submit` hides the portal root (display:none: out of rendering and out of the
-  // accessibility tree) and takes the dialog's role off, so every reader of "a dialog is open" (utils/modalOpen, the
-  // pane's type-to-search and the chart shortcuts; lib/topLayer) reads it closed from the Enter task on; the React
-  // teardown (40 rows, the input, the blur layer's node) runs after the paint. `closing` is that gap; a reopen inside
-  // it (a letter typed on the chart, the badge) shows the same dialog again and cancels the pending teardown (`gen`).
-  const backdropRef = useRef(null)
+  // accessibility tree) and takes the dialog's role and aria-modal off, so every reader of "a dialog is open"
+  // (utils/modalOpen, the pane's type-to-search and the chart shortcuts; lib/topLayer) reads it closed from the Enter
+  // task on; the React teardown (40 rows, the input, the blur layer's node) runs after the paint. `closingRef` holds
+  // that pending teardown (a token; false when none, and on unmount). A reopen inside the gap (a letter typed on the
+  // chart, the badge, the notebook embed's door, which calls openWith from an effect) cancels it and mounts a FRESH
+  // dialog through a normal render (`mountKey`), which is what a reopen after the teardown shows. Not flushSync: inside
+  // an effect React refuses to flush (react-dom 19 logs an error), and that door calls openWith from one.
   const closingRef = useRef(false)
-  const genRef = useRef(0)
+  const [mountKey, setMountKey] = useState(0)
   openRef.current = open && !closingRef.current
   const reshow = () => {
+    if (!closingRef.current) return
     closingRef.current = false
-    genRef.current++
-    if (backdropRef.current) backdropRef.current.style.display = ''
-    dialogRef.current?.setAttribute('role', 'dialog')
-    dialogRef.current?.setAttribute('aria-modal', 'true')
+    setMountKey(k => k + 1)
     lastIntentRef.current = null
-    inputRef.current?.focus()
   }
-  useEffect(() => () => { genRef.current++ }, [])
+  useEffect(() => () => { closingRef.current = false }, [])
   useImperativeHandle(ref, () => ({
     openWith: (text = '') => {
       // Append when already open so fast chart type-to-search keystrokes during the
       // async focus gap don't reset the query; fresh start when the box was closed.
-      if (closingRef.current) reshow()
+      reshow()
       const wasOpen = openRef.current
       openRef.current = true
       setOpen(true)
@@ -129,7 +128,7 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
       const len = inputRef.current.value.length
       try { inputRef.current.setSelectionRange(len, len) } catch { /* */ }
     }
-  }, [open])
+  }, [open, mountKey])
 
   // Close on Escape
   useEffect(() => {
@@ -275,16 +274,19 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
   const submit = useCallback((ticker) => {
     // ⭐ A typed member-facing `UCT:A50` opens the canonical `UCTA50`.
     const clean = canonicalTicker(ticker, breadthAll)
-    // hidden and closed to every reader FIRST (see backdropRef), then the symbol, then the teardown after the paint
-    const gen = ++genRef.current
-    closingRef.current = true
+    // hidden and closed to every reader FIRST (see closingRef), then the symbol, then the teardown after the paint
+    const token = {}
+    closingRef.current = token
     openRef.current = false
     abortRef.current?.abort()
-    if (backdropRef.current) backdropRef.current.style.display = 'none'
-    dialogRef.current?.removeAttribute('role')
-    dialogRef.current?.removeAttribute('aria-modal')
+    const d = dialogRef.current
+    if (d) {
+      d.parentElement.style.display = 'none'   // the portal root (the backdrop)
+      d.removeAttribute('role')
+      d.removeAttribute('aria-modal')
+    }
     if (clean && clean !== sym) onSymbolChange(clean)
-    const close = () => { if (genRef.current === gen) { closingRef.current = false; setOpen(false); setQuery('') } }
+    const close = () => { if (closingRef.current === token) { closingRef.current = false; setOpen(false); setQuery('') } }
     if (document.hidden) close()
     else requestAnimationFrame(() => setTimeout(close, 0))
   }, [sym, onSymbolChange, breadthAll])
@@ -324,7 +326,7 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
       <button
         className={styles.badge}
         style={hideIcon ? { justifyContent: fullLabel ? 'flex-start' : 'center', width: fullLabel ? 'auto' : '100%' } : undefined}
-        onClick={() => { if (openRef.current) { setOpen(false) } else { if (closingRef.current) reshow(); setQuery(''); setChip('all'); setOpen(true) } }}
+        onClick={() => { if (openRef.current) { setOpen(false) } else { reshow(); setQuery(''); setChip('all'); setOpen(true) } }}
         title={displayLabel ? `${sym} — click to search` : 'Search ticker'}
         // `ariaLabel`: a caller whose badge does something OTHER than retarget this
         // chart (the "+ Compare" doors) names that action; omitted = unchanged.
@@ -361,7 +363,7 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
 
       {open && createPortal(
         <div
-          ref={backdropRef}
+          key={mountKey}
           className={styles.backdrop}
           onMouseDown={(e) => { if (e.target === e.currentTarget) setOpen(false) }}
         >
