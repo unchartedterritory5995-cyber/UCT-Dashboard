@@ -224,3 +224,37 @@ def test_the_door_files_named_for_staleness_exist():
     for path in value_eval.DOOR_PATHS:
         assert (ROOT / path).exists(), path
     assert any("definition_conversation" in p for p in value_eval.DOOR_PATHS) and any("scriptEngineVersion" in p for p in value_eval.DOOR_PATHS)
+
+
+# ── which guard refused each attempt (2026-11-23) ──
+
+def test_the_record_keeps_which_guard_refused_each_attempt_of_each_answer():
+    """⚰️ A build that went wrong on its repair call was on record as `attempts: 2` and nothing else."""
+    gate = {"attempt": 1, "gate": "envelope:compared-with-itself"}
+    plain = {"status": 200, "body": {"ok": True, "attempts": 1}}
+    repaired = {"status": 200, "body": {"ok": True, "attempts": 2, "refused_attempts": [gate]}}
+    told = {"attempt": 1, "gate": "envelope:reference", "detail": "set_style names output `x`, which the indicator does not have"}
+    by_an_admin = {"status": 200, "body": {"ok": True, "attempts": 2, "refused_attempts": [{"attempt": 1, "gate": "envelope:reference"}], "diagnostic": [told]}}
+    before = {"status": 200, "body": {"ok": True, "attempts": 2}}          # answered before the door said which guard
+    assert value_record.repairs_of([plain]) == [] and value_record.repairs_of([]) == []
+    assert value_record.repairs_of([plain, repaired]) == [{"answer": 1, "attempts": 2, "refused": [gate]}]
+    assert value_record.repairs_of([by_an_admin]) == [{"answer": 0, "attempts": 2, "refused": [{"attempt": 1, "gate": "envelope:reference"}], "told": [told]}]
+    # a repair whose guard the door did not name is kept as a repair with NO guard named, never dropped as "none"
+    assert value_record.repairs_of([before]) == [{"answer": 0, "attempts": 2, "refused": []}]
+    assert value_record.repairs_of([{"status": 500, "body": None}, {"status": 200, "body": "text"}]) == []
+    # a refusal of the whole turn names both attempts
+    twice = {"status": 200, "body": {"ok": False, "gate": "envelope:compared-with-itself", "attempts": 2,
+                                     "refused_attempts": [gate, {"attempt": 2, "gate": "envelope:compared-with-itself"}]}}
+    assert [r["attempt"] for r in value_record.repairs_of([twice])[0]["refused"]] == [1, 2]
+
+
+def test_every_row_the_recorder_writes_carries_it():
+    tree = ast.parse((ROOT / "tools" / "value_record.py").read_text(encoding="utf-8"))
+    rows = [node for node in ast.walk(tree) if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "update" and isinstance(node.func.value, ast.Name) and node.func.value.id == "row"
+            and any(k.arg == "done" for k in node.keywords)]
+    assert len(rows) == 1                                              # the one place a request's row is written
+    repairs = [k.value for k in rows[0].keywords if k.arg == "repairs"]
+    assert len(repairs) == 1 and isinstance(repairs[0], ast.Call) and repairs[0].func.id == "repairs_of"
+    assert [a.id for a in repairs[0].args] == ["answers"]              # of every answer of the request, not the last one
+
