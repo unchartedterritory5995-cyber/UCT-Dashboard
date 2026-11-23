@@ -104,6 +104,7 @@ describe('a device read the worker never answers', () => {
     const ps = ['A', 'B', 'W1'].map((s) => a.c.getBars(s, 'D'))
     a.c.dispose()
     expect(await Promise.all(ps)).toEqual([null, null, null])
+    await turn()                                               // (the 0 ms timer that closes this task's ask)
     expect(vi.getTimerCount()).toBe(0)
     expect(a.c.readTimeouts()).toBe(0)
 
