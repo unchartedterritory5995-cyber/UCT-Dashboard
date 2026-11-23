@@ -141,7 +141,7 @@
     "type": "text",
     "defval": "",
     "isHidden": true,
-    "value": "bmI9Ks46_f0N52T38pPCPIxeJNcDl7A==_sCcKgRi3hrkRJYVBNXLK/b5qAXAIu5QRDrMRpohA6uoT54GUE0QW9H7t+7IIJhYdGpvEQ3tjfsEqWYUZG2lc1LhDCAgQjdhvSEKs4Lc4yvaShzxOgtJsZ+khsQbIW9HywbQQq9XElnPJKC1MIl80y1O8yYPdJDYhhYZbFALP5abAor10g4bwiiQU3oBrwFJ7E1MABT7x2Z0s6wq53wLuygh0Z57mlbWaJOvywqbq+cHyiiWjlyklkDsG2aF0p4eRYtj120pH39xBRaxtTqjSeA3XTWdB5PY/a7BfKlS5MdnLZdsyGavHlWzSY7fNksuj4hJNVF+AhCLh+3FuXqrYwxlbLcKJU7kocxde1yCVV2cL7evBFG/Vi8odkg6vOaGD3LDUEaFGn6OlTCPTi5nnBiTNQ75xLc1W45Yq0us0lQaioZOk1RF5HToaIXP9IE5M3ii+mwmjqQk8UDvEFDb5CwOqWQwE+O6LZHhNS5LChvYazQfNGYllBgz7np7oDYnNBZEt43q6c/9ov2X1KmDYCmKG4tBQqug3nAGSVFN2aYevZdkLuNjfAkWEVRvSchhdrmCEdKRLRteGfhqgQBEhHIc3c4ghaQAmkHN/sEKcrF5gDXrd7zthPEYNgqtRCRdhggjIzrX6mLDqTutn5nLZwQ/NoTdTHe+L1mnOxe6x0UzCSminY6fiRvSLMDQXM+fFRN2MqVnzThWTFgiCM5R3LnYcJ12sbXGKUjTD3cB2MRJhNpmbWbMU2P7pLyo0fY/kuNV9wBIKBI3vNmakrZzP1bWj1x1MyfD14oDpjlXe/aZpf9O8t0A2ocu1wdT4f2I51JIN2rGMSv81s6uzoZXty91oCi0tK5WKirSP6QKZiZhz/sPjOPEGdkV7OnxMkYL/D/gSdKvtb4EBb+k4Fe6zUrv2hkY+syvK3YkS9NTAPgwCOawg0Oi5tGV4/A1yjTVZVrbXL2E6nhOU8f07DxxZnJs6aASOY6uQwCNPmPn/soBk0pcItVzGi5UWgvUv2/WifUSGlyGYLP2b6AE7fc0nobA+MAy6QSbffqUrNxEiwmhuVKJtyfn9dsorU3gBWsLZeK4oqv8NaW8RaAUAymBUhTGQhQsYdPaNdF88DsV9vCwC14ku62lAMcf0AxLCUi2o//0kjJ4j5kFYBUUlNvtsEbRDMaM+GjtpGiGrIFu/ye/p2JTVqA9hARsJ9bQwP3HAg5j4eInT0v3Rja2nHWWxuzEFrLzDKql/+O32weqETWEHhGP9hN4h5wpUYcmHkK5TYZcBRfkp2jdEhxBiNA=="
+    "value": "[redacted: TradingView compiled script]"
    },
    {
     "id": "pineId",
@@ -10532,10 +10532,25 @@
   "unreadable": []
  },
  "warnings": [],
+ "redactions": [
+  {
+   "field": "study.inputs[name=ILScript].value",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 1334,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 64795,
+    "fnv1a": 2730487740
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:31Z"
+  }
+ ],
  "receipt": {
   "algo": "fnv1a32-utf16",
   "over": "JSON.stringify(capture without its receipt key)",
-  "chars": 64795,
-  "fnv1a": 2730487740
+  "chars": 63800,
+  "fnv1a": 1132165064
  }
 }

@@ -763,9 +763,9 @@
     "id": "text",
     "name": "ILScript",
     "type": "text",
-    "defval": "bmI9Ks46_3g1lyOHAX0rG3G9uLSAD8A==_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",
+    "defval": "[redacted: TradingView compiled script]",
     "isHidden": true,
-    "value": "bmI9Ks46_3g1lyOHAX0rG3G9uLSAD8A==_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"
+    "value": "[redacted: TradingView compiled script]"
    },
    {
     "id": "pineId",
@@ -20053,10 +20053,38 @@
  "warnings": [
   "the newest D/W/M bar closed less than 5 h before this capture: TradingView confirms such a bar hours after the regular close (measured between 19:22 and 20:55 ET, docs/pine/barstate.md ruling 3.1), so the vendor's own barstate.isconfirmed may still read 0 on it"
  ],
+ "redactions": [
+  {
+   "field": "study.inputs[name=ILScript].value",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 3534,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 124039,
+    "fnv1a": 2538570784
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:28Z"
+  },
+  {
+   "field": "study.inputs[name=ILScript].defval",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 3534,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 124039,
+    "fnv1a": 2538570784
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:28Z"
+  }
+ ],
  "receipt": {
   "algo": "fnv1a32-utf16",
   "over": "JSON.stringify(capture without its receipt key)",
-  "chars": 124039,
-  "fnv1a": 2538570784
+  "chars": 117637,
+  "fnv1a": 582012235
  }
 }

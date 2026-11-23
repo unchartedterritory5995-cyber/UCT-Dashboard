@@ -1,8 +1,8 @@
 {
  "schema": "uct.strategy-verdict/v1",
  "captureId": "vw-s1-q-s1g-blocked-stop-entry-rpt-rddt-1d-2026-11-16",
- "captureSha256": "dc55d9d9df32684070462ef2878834fab463e18914b5f803a31d6516ea445a9e",
- "receipt": 4122223536,
+ "captureSha256": "ac979106af6eeeb3616096d04a2ee7350c9d06127bb62ef06523ef0bb02bc1e3",
+ "receipt": 561637528,
  "sourceSha256": "a6af0c4fc6851204851fc971b5a446cd32417b66cca6f1e3d9d6c3bcb4036840",
  "queueTargetId": "Q-S1g",
  "symbol": "NYSE:RDDT",

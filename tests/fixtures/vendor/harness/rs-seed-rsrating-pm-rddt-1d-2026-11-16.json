@@ -198,7 +198,7 @@
     "type": "text",
     "defval": "",
     "isHidden": true,
-    "value": "bmI9Ks46_uOQDr0Xyt9kbsMP4qQ05Ww==_N3PhPpHEfqxOdepYLpmsPQb7YlruRKpA3azL93bypsgTBia34u6NdsRVmt8+wy5zXeqDNiAa7vxgR2MZsdatOtafNCFDL3JTrwiCweo6klGS7gdI6ZgQ6kNaSR9B8IVC9zyioK7/QbKfxyJtHaXpToiWxYaR+6Gh3tdpsNB56EQwL84njx1nphrSg6OH/j/PcB/XfFARX84vDfE5x7ktgVfCJjvjwCj7bJsy02owumb+fW7wDlIVdc3YmEHENLpmMHhAR7ivYZjFcQijuTJwcC6JVn1N/LTtVn6ZqLMyeyMtWGMBV4jfUE+zKt54kuY17lAs3MEA+kKX7dmaxMQEZoRLqsfAIDbF37iwPauK6ponMseWitKeHdpnmpP/q8Q8M4avZbnxNkyHj2KsrxeZhOEZlYGtwymFcxAiylxzu00+9zqUPDCYgEumwsvKCdwl5C4R5GqU2YrMYceutZUgGm+usRcCq3dr9HQydI8gXI/nfdzzzX5PXnDDebNis/e3pTMklX/MyDjFRom18t8IUAPNTCN591KArNfIFpgNFzzBac6Iar43bf3iXCNyv1ioL0k3WYXXeJBBRaz963BCECnAVMRXraolR7TuZmn80meOIZUdhw0d7GctgWDArL0LZm9Kih/ZSxuQYh4+paAslM+QiXvGZQwJRExdbzm0Q+OPwxO4Th4v3K+8z9S7UwLkR1WHwOZnOCZn7xge6G+Y7/56WKH3ung1thCPJrlZZLiangBahck8/mOUo7409QrUW+BmtuF13HzYl08ntksfkbKmvjF1IGdTN/bWakW0Uy6hq2ywu2Sfrjj8Jdm6VkWgwWvwDjK/S+eluv5Lkeh0M2xinc3GX8k7GuxiIMuRMPk7f+b1xLb62J+bhMdDsFHdkbBq62jISFZ2dRmR6Us76HIPzpxHdBuOGzxNOCb7po0gzKan2gSz7g5qqMHhaOMUyszjbcQw1iVhqAo9jJSVg6QaTWsC5mGiX/Lbf7VbqWpuE8x2Ib2G3dMmAIae3x1WdLNGEonjXKH2xC9IqhDKP/lRzRfsbi6avfeUCS45oOLJ1kwfCv6DQZW2sm7O+ePkFVadM1/MGH+i1n5GOOKfQocHdlVsH9qrZV+6o9zu5NoxI2z2p7h9YWn+MfacHrssRnIHnhZ3EJztNvg5HieqH+1tNUb+VajRKAxmJC/VdEnnG6D4dWYTS+g/2gI6fU7Axsr5ugr8jj+PAMC+QZvkGiCVgAgXiRpUm/RNjcgwC6ah13ECH77Wv7j8I4jpSXiNt8Zi6qp1W6wyvmSC"
+    "value": "[redacted: TradingView compiled script]"
    },
    {
     "id": "pineId",
@@ -11655,10 +11655,25 @@
  "warnings": [
   "the newest D/W/M bar closed less than 5 h before this capture: TradingView confirms such a bar hours after the regular close (measured between 19:22 and 20:55 ET, docs/pine/barstate.md ruling 3.1), so the vendor's own barstate.isconfirmed may still read 0 on it"
  ],
+ "redactions": [
+  {
+   "field": "study.inputs[name=ILScript].value",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 1330,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 67005,
+    "fnv1a": 362041385
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:36Z"
+  }
+ ],
  "receipt": {
   "algo": "fnv1a32-utf16",
   "over": "JSON.stringify(capture without its receipt key)",
-  "chars": 67005,
-  "fnv1a": 362041385
+  "chars": 66013,
+  "fnv1a": 3405404432
  }
 }

@@ -1,8 +1,8 @@
 {
  "schema": "uct.strategy-verdict/v1",
  "captureId": "vw-s1-q-s1d-close-reverse-rpt-rddt-1d-2026-11-16",
- "captureSha256": "cc0dd5a291286bc797a43cbc59859413f6796766a2e43c2a376bb03c69738944",
- "receipt": 1986726430,
+ "captureSha256": "45ae74bf7e6e9f497f88cb6c2fb6c27bc3a6658edc251b30e21d5a5e0fdb4943",
+ "receipt": 2463312675,
  "sourceSha256": "a5a3b74b323b104ad81b6f48d83add3bf7143e8e3c0bdf747ebfd24f1042d620",
  "queueTargetId": "Q-S1d",
  "symbol": "NYSE:RDDT",

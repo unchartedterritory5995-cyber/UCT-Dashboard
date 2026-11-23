@@ -122,9 +122,9 @@
     "id": "text",
     "name": "ILScript",
     "type": "text",
-    "defval": "bmI9Ks46_y78ta6wHtvW+PmreZCoTGw==_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",
+    "defval": "[redacted: TradingView compiled script]",
     "isHidden": true,
-    "value": "bmI9Ks46_y78ta6wHtvW+PmreZCoTGw==_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"
+    "value": "[redacted: TradingView compiled script]"
    },
    {
     "id": "pineId",
@@ -9190,10 +9190,38 @@
   "unreadable": []
  },
  "warnings": [],
+ "redactions": [
+  {
+   "field": "study.inputs[name=ILScript].value",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 2462,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 76084,
+    "fnv1a": 599176573
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:32Z"
+  },
+  {
+   "field": "study.inputs[name=ILScript].defval",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 2462,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 76084,
+    "fnv1a": 599176573
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:32Z"
+  }
+ ],
  "receipt": {
   "algo": "fnv1a32-utf16",
   "over": "JSON.stringify(capture without its receipt key)",
-  "chars": 76084,
-  "fnv1a": 599176573
+  "chars": 71822,
+  "fnv1a": 1641260894
  }
 }

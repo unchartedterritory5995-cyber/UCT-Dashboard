@@ -145,7 +145,7 @@
     "type": "text",
     "defval": "",
     "isHidden": true,
-    "value": "bmI9Ks46_yb35kCuoT3zXBAbmq6mbvg==_F/eOWsoV43BKo4xr63sRYswo6qGPxSR8W3FM9LW/eBPkihAZQXECvJF3WT7vrjPu5q53LCzN6mmfRgVpgfD7zNOwqDXnh+1T55M/M5KwAKhaRFH/uu+tXpcQoRI+3a+65zJn3KBfrHdGy6V8G0sxn1UD3p095AT3SM7pfnfnF542GfmV6ddyB2L7sa4dowypBI5499Ff4eTMQC/OWlqgnSfqk+Qr5xYii+I5P4ZnXP9CI8BoYsvUxNasUo6eo0STs8JrRp+p1c6+fIuU8d+ABosd4ZKaho3SiMboUGqcKCFmtWp4nCa2bfKCSltjdKGyxwuEbagLe1KNvlFtxOHGWULD5sHZbV1Rgjzp/03GwDQgW4/pzlcUh5rSJ69ruY35E7NcxOGdAD6XpDt+JS/vAzphansMRkyzHunEsFXkgPDAb6ksbdePQUMxu6Rm+1fTKAenj0vWF9HXEQmhhPr/fGSWb/S0kLdGUqgPUuPdj6tBGv21d1i2+uqAsPk0qVf8I++R8xq2MAyZCHNN61n1dCG/4phbdX5S2bk3sG9u1Okl9BNylH6GzTQXB58PjYZC/liVnXgtR7wV3M2VgptJRzV8sMEfeKnfHp0j+iPQ/mXnnQnwp5aKKpYrgwDStHdoq3UyqcgDxVSMPXkKsxlBJw/wCqLURuOWt3FXD9bx1N0prFzLnWEPkc7Yrnzb/063isZY7SvM4YKlatakIjeDcY2eDevlwFf0diCKPkOFNjPSnjcGHAem3n+oUenSAZlGDv33N57e33LsDnb6lV3sPgZUUaPZkJ1sOHR1mYwFU+7rIhfgUeQef6/5HfgTsdc2P0WLmZfybB27kjnaKPz8VZ8KjVMwtMZT+SYdxpx3ui/vUmvZFPhwDAFUAr4Y1yHAW7yzEE8P80765Qatjj++LmOBkLDzlNb3M+yelj11nU5fRH883e4yKXl8u9FzCD2hF5xoamIGEuAqUjUfmY+zA1sL/l2iFXbQWQzwMhSRmcfqBiZnCFg+ZJPW6DP8sEnQV2yQ7bZFrfXMv5Y1zhUfYTmTpqHb8dPWnk5Pxo8xPS5yccsLOCFKW1KVZe2L4uS03hi0W9On4lAW6+ozhq6iXRNHt0Yo/Ke1pwFko16ZQN8Iq5BNq35WVZWt3k2LsWUeAOhMjTgiC7fu3whhMukTdwOTZhoyRTgk3+RXlNKeGGhkp/B+a+/cIEUX2VLhqCqStrVIfCll8oQb2OzQzgyXd7uA8RF4svJ/sw=="
+    "value": "[redacted: TradingView compiled script]"
    },
    {
     "id": "pineId",
@@ -8355,10 +8355,25 @@
   "unreadable": []
  },
  "warnings": [],
+ "redactions": [
+  {
+   "field": "study.inputs[name=ILScript].value",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 1286,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 52020,
+    "fnv1a": 2417077646
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:44Z"
+  }
+ ],
  "receipt": {
   "algo": "fnv1a32-utf16",
   "over": "JSON.stringify(capture without its receipt key)",
-  "chars": 52020,
-  "fnv1a": 2417077646
+  "chars": 51073,
+  "fnv1a": 1543508490
  }
 }

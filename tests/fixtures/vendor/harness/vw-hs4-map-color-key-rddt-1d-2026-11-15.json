@@ -158,7 +158,7 @@
     "type": "text",
     "defval": "",
     "isHidden": true,
-    "value": "bmI9Ks46_8PiFpMhESnRyzkpk7kCRig==_QSSJk5/1LpCM/U2WjStHMdDo1Lr/N3ITQ0aWhgK1A3hF5qCKGcrouZ29mfSrpAAO41VQ2qgiCohG++tslxd0l2GzZciSuJjkcD22snnth8T4ifaPFvHx4hAn/3Gq9eb3v/kCGZyV2RgbRTeAP5e1/pNIe1KKE9QIV9JZkgkd7C89b2eUE5ns0OPGHEtBWR0AtJAsSGqVcGOUKopC3oolkb8IgmXd46igVwUwVcu4BuPTLCys7ofNu2wB0qJUeUnPV7h1RjKn/9e6IsxjQ8DoFXdbfMY3u/IY1L5N7Y/Pbblz8hgvk9tTID0Fyj7JW7oPLgbHixvpP6fZRLt2jjEo8aocxogMn4LcPNB2C0REzR0g++bdMMzgkCtMRsbpQq9zruWQp7RZnWIYehjGRE0xU8pBaiINfMD6iHPCm7ifoC76I+mgtaUncFSQdo2bfyv/n+frU4jfqu5er9S5AY+83hY7CK7+2Nnt7EsRWNg7EoQWy/ocFY9gJjympPn9CbVPoPlYJ/s0K4cz1bab88C8BL/cIHXOdS2l1f5D/rwA88w+CRr85OZhDQ/WZmCo3T+fxAtUSM+jl6bjfwOkt1U4Q8PY9XgQ06fJuD/bLt99PRiYpul46TU0FDl8UitAFBEwioCXfZnuOydvAC5pKHTyXeK8yax5+w4CZKWHlpWnweuI2RPcNFFnYLfqVUNxssOg+golUAnFkoldxImmwukUe040AvEbb7JcRCZBbOVFpGaYcXLEP0yGcl/eP/ftr1+8+F1jU9S1a8fCVDgSVRlZa+MvYVtWtvQIyCKEYA3looAr/4kDBC3eygTDPYvQT6MBS/84ZPatjPpeuxtLeGW2kAiGVhsvrf9B7PMrovNOK1DrOX369jgcUurc3kHN0hXHkzELl/5Lj9nxi5RD+scoMp4pD3M8hp5UL0wTnizLd+DWb3WAHAcqDOjRiB2ndR89iCRAyi4K3KpODq/cmmRpMJj3tlv8jB+M+AE+2qGr1CsTpVEp1wea6GiLaXNyD1zPE0AkDs2lIzOMNYhx9kA/KIUQnVdMe1NZCHj8EZIVJQUjlNdNOebN3mRCrQMDmb2VTDdwrARU+/77nS39BYhRYdvGwYDqxqcw8+c="
+    "value": "[redacted: TradingView compiled script]"
    },
    {
     "id": "pineId",
@@ -10262,10 +10262,25 @@
   }
  },
  "warnings": [],
+ "redactions": [
+  {
+   "field": "study.inputs[name=ILScript].value",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 1158,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 52023,
+    "fnv1a": 4166154416
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:46Z"
+  }
+ ],
  "receipt": {
   "algo": "fnv1a32-utf16",
   "over": "JSON.stringify(capture without its receipt key)",
-  "chars": 52023,
-  "fnv1a": 4166154416
+  "chars": 51204,
+  "fnv1a": 2256281968
  }
 }

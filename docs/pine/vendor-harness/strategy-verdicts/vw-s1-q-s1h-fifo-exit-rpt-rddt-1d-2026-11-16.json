@@ -1,8 +1,8 @@
 {
  "schema": "uct.strategy-verdict/v1",
  "captureId": "vw-s1-q-s1h-fifo-exit-rpt-rddt-1d-2026-11-16",
- "captureSha256": "58cb47b4fcde9debeb8af72ae643bbcacbcb7c27a8ec3cfbdb924b6eac313585",
- "receipt": 3140190398,
+ "captureSha256": "73432c94ca2a0bc0a478026d89ce513e7b6a65fdf6285edd7402b8aa1cd7b858",
+ "receipt": 2189425111,
  "sourceSha256": "250794b47c70bacb83033a96804d97ae6387b4f174a8f0d68a0b9d6cd883e9cb",
  "queueTargetId": "Q-S1h",
  "symbol": "NYSE:RDDT",

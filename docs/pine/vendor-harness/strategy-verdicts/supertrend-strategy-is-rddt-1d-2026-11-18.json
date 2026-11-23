@@ -1,8 +1,8 @@
 {
  "schema": "uct.strategy-verdict/v1",
  "captureId": "supertrend-strategy-is-rddt-1d-2026-11-18",
- "captureSha256": "a728de310d94dc21c62162e0a75e34f95cf425ee5a1c12c1d7b741bf75fa9a66",
- "receipt": 397238599,
+ "captureSha256": "12bd4e12f47ecac60a969c8222b38bbc57c8a8ec8e5775e8857b7a1bc55c63bf",
+ "receipt": 529997469,
  "sourceSha256": "7e343cf8b46cb5aab4eb84ee28dcd76c1af2e2af8461dec02271b6a89133c00a",
  "queueTargetId": "Q-S1p",
  "symbol": "NYSE:RDDT",
