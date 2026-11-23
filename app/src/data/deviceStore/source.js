@@ -18,7 +18,7 @@
 
 import { deviceStoreEnabled, deviceStoreOffReason, deviceStoreKeyState } from './switch'
 import { SERVED_TFS } from './tfs'
-import { deviceFilesMayExist, deviceFilesStale, removeDeviceFiles, whenIdle } from './residue'
+import { deviceFilesMayExist, deviceFilesStaleConfirmed, removeDeviceFiles, whenIdle } from './residue'
 import { afterFirstChartPaint } from '../../lib/barsPackClient'
 
 const _TFS = new Set(SERVED_TFS)
@@ -153,7 +153,7 @@ function _offCleanup({ offReason, afterPaint, idle, storage, now }) {
     keyStored = k === 'on' || k === 'off' || k === 'not-a-choice'
   } catch { return }
   if (!deviceFilesMayExist(keyStored)) return
-  if (rule === 'stale' && !deviceFilesStale((now || Date.now)())) return
+  if (rule === 'stale' && !deviceFilesStaleConfirmed((now || Date.now)())) return
   // (the defaults are taken only here, on the rare path: a page that never needs them never touches them)
   const paint = afterPaint || afterFirstChartPaint
   const whenFree = idle || whenIdle

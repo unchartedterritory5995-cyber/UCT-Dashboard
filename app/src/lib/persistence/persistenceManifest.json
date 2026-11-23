@@ -2314,6 +2314,19 @@
       ]
     },
     {
+      "key": "uct.deviceStore",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Charts",
+      "kind": "setting",
+      "label": "Faster charts on this device",
+      "files": [
+        "app/src/data/deviceStore/diag.js",
+        "app/src/data/deviceStore/switch.js",
+        "app/src/pages/settings/FasterChartsCard.jsx"
+      ]
+    },
+    {
       "key": "uct.draw.recentTools",
       "store": "localStorage",
       "scope": "device-local",
