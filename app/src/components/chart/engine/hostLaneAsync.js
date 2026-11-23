@@ -94,6 +94,7 @@ import {
 } from './astColumns.js'
 import { lowerTfCodesOf } from './lowerTf.js'
 import { hostLaneCostOf } from './hostLaneCost.js'
+import { boundAtInputs } from './knobBind.js'
 import { computesOnMain, learnCost, resetHostLaneRoute } from './hostLaneRoute.js'
 import { notifyColumnsLanded } from './serverCompute.js'
 import { FIRST_PAGE_ROWS, FIRST_PAGE_PROBE, FIRST_PAGE_POST_ROWS, widenFirstPage } from './firstPage.js'
@@ -202,6 +203,7 @@ export function resetHostLaneAsync() {
   _last.clear()
   _realigned = new WeakMap()
   _costs = new WeakMap()
+  _routeDocs = new WeakMap()
   _objServed.clear()
   _routeAll = false
   resetHostLaneRoute()
@@ -214,6 +216,28 @@ const defaultFactory = () => new Worker(new URL('./hostLaneWorker.js', import.me
 /** ⭐ THE ESTIMATE'S HALF OF THE ROUTE: is this (specialised) document over #1711's estimate
  *  (`hostLaneCostOf(def).over`, no clock, memoised per document)? Such a document always computes off the
  *  main thread; any other goes where this tab's measurements say (`hostLaneRoute.computesOnMain`). */
+let _routeDocs = new WeakMap() // specialised document -> Map(the instance's settings -> the document they bind)
+/** ⭐⭐ (train e95, the 2b bind audit's eighth reader) THE DOCUMENT THE ROUTE'S ESTIMATE READS: `def` bound at the
+ *  instance's settings (`knobBind.js::boundAtInputs`), memoised per document and settings so the estimate below stays
+ *  memoised too. Since 2b a saved document keeps every arm of a `switch` on a member's `input.string`, and the estimate
+ *  could not read the unpicked arms (Fred RS's eight knobs read as `unreadable`, never over), so a document over the
+ *  budget was routed as a cheap one and computed on the chart's thread. The worker is still sent `def` itself: the
+ *  compute binds it there (`astColumns.js::boundDocument`). */
+function routeDocOf(def, inputs) {
+  if (!def || typeof def !== 'object') return def
+  const sig = JSON.stringify(inputs || {})
+  let byDef = _routeDocs.get(def)
+  if (!byDef) {
+    byDef = new Map()
+    _routeDocs.set(def, byDef)
+  }
+  if (!byDef.has(sig)) {
+    if (byDef.size > 16) byDef.clear()
+    byDef.set(sig, boundAtInputs(def, inputs || {}))
+  }
+  return byDef.get(sig)
+}
+
 export function hostLaneRunsOffThread(def) {
   let c = _costs.get(def)
   if (!c) { c = hostLaneCostOf(def); if (def && typeof def === 'object') _costs.set(def, c) }
@@ -524,7 +548,7 @@ export function hostLaneColumns(def, bars, inputs, ctx, extras) {
   const stop = astRuntimeErrorStop(plan.def, plan.valueRows, plan.scalars, plan.valueCtx)
   // ⭐⭐ THE ROUTE: a document over #1711's estimate always goes to the worker; any other, to the worker unless
   // this tab measured it cheap here (`computesOnMain`); with no worker, the main thread, as before
-  const offThread = workerUsable() && (_routeAll || hostLaneRunsOffThread(plan.def)
+  const offThread = workerUsable() && (_routeAll || hostLaneRunsOffThread(routeDocOf(plan.def, inputs))
     || !computesOnMain(docId, tfOf(plan, ctx), plan.valueRows.length))
   if (!offThread) return answerOnMain(plan, per, key, stop, pane, sig, docId, inputs, ctx, extras)
   const job = { kind: 'values', pane, sig, key, per, plan, inputs, ctx, extras, asked, stop, docId,

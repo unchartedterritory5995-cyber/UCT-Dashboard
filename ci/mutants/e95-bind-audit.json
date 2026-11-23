@@ -64,6 +64,15 @@
    "to": "    tree = compute.get(\"ast\")",
    "rail": "python -m pytest -q tests/test_knob_arms_gates.py",
    "expectRed": "test_the_sweep_evaluates_the_tree_the_door_admitted"
+  },
+  {
+   "id": "BA8",
+   "mutant": "the host lane routes by the SAVED document (Fred RS's knob arms leave the estimate unread: an over-budget document is computed on the chart's thread)",
+   "file": "app/src/components/chart/engine/hostLaneAsync.js",
+   "from": "  const offThread = workerUsable() && (_routeAll || hostLaneRunsOffThread(routeDocOf(plan.def, inputs))",
+   "to": "  const offThread = workerUsable() && (_routeAll || hostLaneRunsOffThread(plan.def)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/hostLaneFirstPage.test.js",
+   "expectRed": "ORDERING"
   }
  ]
 }
