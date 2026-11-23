@@ -15,6 +15,9 @@
 //   * Each fund reports for its own period, so every row carries its period, and the block says the span.
 //   * Matching a fund's holding to the ticker is said: how this stock was matched, and what share of the data set
 //     was matched at all. A stock nobody could be matched to is "could not be matched", never "no fund holds it".
+//   * Across a stock split between a fund's two reports the server puts the earlier shares in post-split terms, and
+//     the block says so; a change it could not check (no split list, or a split with no ratio) is "not comparable",
+//     never an add or a cut.
 
 import { formatCompactTerminal, formatNumber, formatPercent } from '../../../lib/presentation/presentationPrimitives'
 import { dayText } from './shortInterestModel'
@@ -25,6 +28,7 @@ export const NPORT_SOURCE = 'SEC Form N-PORT (public; filed 60 days after each q
 export const DEFAULT_ROWS = 20
 export const NOT_REPORTED = 'not reported'
 export const NOT_KNOWN = 'not known'
+export const NOT_COMPARABLE = 'not comparable'
 
 const num = (v) => {
   if (v == null || v === '' || typeof v === 'boolean') return null
@@ -44,7 +48,7 @@ export function quarterWords(q) {
 
 // ── rows ────────────────────────────────────────────────────────────────────
 
-const STATES = new Set(['added', 'cut', 'unchanged', 'new', 'no_prior'])
+const STATES = new Set(['added', 'cut', 'unchanged', 'new', 'no_prior', 'not_comparable'])
 
 /** The block's rows from `funds_nport.holders`, in the server's order (value, highest first). */
 export function nportRows(block) {
@@ -71,6 +75,15 @@ export function nportRows(block) {
 export const STATE_WORDS = {
   new: { text: 'New position', tone: 'up' },
   no_prior: { text: 'No earlier report', tone: null },
+  not_comparable: { text: 'Change not comparable', tone: null },
+}
+
+/** A split ratio (shares after per share before) in words: 4 -> '4-for-1', 0.1 -> '1-for-10', 1.5 -> '1.5-for-1'. */
+export function splitWords(ratio) {
+  const r = num(ratio)
+  if (r == null || r <= 0) return null
+  const fmt = (x) => (Math.abs(x - Math.round(x)) < 1e-9 ? String(Math.round(x)) : String(Math.round(x * 100) / 100))
+  return r >= 1 ? `${fmt(r)}-for-1` : `1-for-${fmt(1 / r)}`
 }
 
 // ── cells ───────────────────────────────────────────────────────────────────
@@ -81,6 +94,7 @@ const compact = (v, money = false) => (v == null ? NOT_REPORTED : formatCompactT
 export function changeText(row) {
   if (row.state === 'new') return 'new'
   if (row.state === 'no_prior') return 'no earlier report'
+  if (row.state === 'not_comparable') return NOT_COMPARABLE
   if (row.changeShares == null) return NOT_KNOWN
   if (Math.abs(row.changeShares) < 0.5) return 'unchanged'
   const body = formatCompactTerminal(row.changeShares)
@@ -90,6 +104,7 @@ export function changeText(row) {
 /** The change as a percent of the previous holding. A new position has none to measure against. */
 export function changePctText(row) {
   if (row.state === 'new') return 'new'
+  if (row.state === 'not_comparable') return NOT_COMPARABLE
   if (row.changePct == null) return NOT_KNOWN
   if (Math.abs(row.changePct) < 0.05) return formatPercent(0, { decimals: 1 })
   return formatPercent(row.changePct, { decimals: 1, signed: true })
@@ -196,11 +211,20 @@ export function nportSummaryLines(block) {
   const parts = [['added', 'added'], ['cut', 'cut'], ['unchanged', 'unchanged'], ['new', 'new'], ['sold_out', 'sold out']]
     .map(([k, w]) => [num(s[k]) ?? 0, w])
   const noPrior = num(s.no_prior) ?? 0
+  const apart = num(s.not_comparable) ?? 0
+  if (apart > 0) parts.push([apart, 'not comparable'])
   if (parts.some(([n]) => n > 0)) {
     lines.push(`Since each fund's previous report: ${parts.map(([n, w]) => `${count(n)} ${w}`).join(', ')}.`
-      + (noPrior > 0 ? ` ${count(noPrior)} ${plural(noPrior, 'fund has', 'funds have')} no earlier report in the data, so ${plural(noPrior, 'its', 'their')} change is not known.` : ''))
+      + (noPrior > 0 ? ` ${count(noPrior)} ${plural(noPrior, 'fund has', 'funds have')} no earlier report in the data, so ${plural(noPrior, 'its', 'their')} change is not known.` : '')
+      + (apart > 0 ? ` ${count(apart)} ${plural(apart, "fund's change is", "funds' changes are")} not comparable: a stock split may fall between the two reports and could not be checked, so ${plural(apart, 'it is', 'they are')} not counted as added or cut.` : ''))
   } else if (noPrior > 0) {
     lines.push(`No fund has an earlier report in the data, so no change is known.`)
+  }
+  const splits = (Array.isArray(s.splits) ? s.splits : [])
+    .map((x) => (Array.isArray(x) && isoDay(x[0]) && splitWords(x[1]) ? `${splitWords(x[1])} on ${dayText(isoDay(x[0]))}` : null))
+    .filter(Boolean)
+  if (splits.length) {
+    lines.push(`A stock split fell between some funds' two reports (${splits.join('; ')}): their shares before are counted in post-split shares, so a fund that held still reads unchanged.`)
   }
   const now = num(s.both_now)
   const before = num(s.both_prior)
@@ -225,7 +249,10 @@ export function nportPeriodLine(block) {
   const cmp = pq ? `, each compared with the fund's previous report (the ${pq} data set or the same one)` : ''
   const read = isoDay(ds.built_at) ? ` Read on ${dayText(isoDay(ds.built_at))}.` : ''
   const missing = !pq && q ? ' The data set before it could not be read, so changes are not known.' : ''
-  return `${span}${from_}${cmp}.${read}${missing} A fund files within 60 days after each fiscal quarter ends and the SEC posts these data sets once a quarter, so the newest report shown can be months old.`
+  const noSplits = ds.splits?.state === 'unavailable'
+    ? ' The list of stock splits could not be read for this data set, so a change a split may have touched is not compared.'
+    : ''
+  return `${span}${from_}${cmp}.${read}${missing}${noSplits} A fund files within 60 days after each fiscal quarter ends and the SEC posts these data sets once a quarter, so the newest report shown can be months old.`
 }
 
 /** What the table shows, how it is sorted, and where the list stops. */

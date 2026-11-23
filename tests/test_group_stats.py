@@ -199,6 +199,30 @@ def test_a_close_equal_to_its_own_average_is_not_above_it_at_any_price():
     assert (below["now"]["above20"], below["now"]["above200"]) == (False, False)
 
 
+def test_a_close_of_exactly_95_percent_of_the_high_is_near_it_at_any_price():
+    """Within 5% of the 52-week high counts a close of EXACTLY 95%. `0.95 * high` rounds, so a high of 16.60 and a close
+    of 15.77 (exactly 95%) once read as not near (2026-11-22 review); so did 33.20 and 31.54. Invented prices."""
+    assert C.near_high(15.77, 16.60) is True and C.near_high(31.54, 33.20) is True
+    assert C.near_high(15.76, 16.60) is False                                  # a cent under is not
+    assert C.near_high(95.0, 100.0) is True and C.near_high(math.nextafter(95.0, 0.0), 100.0) is False
+    assert C.near_high(16.60, 16.60) is True and C.near_high(1.0, 100.0) is False
+    # every high from 1.00 to 99.99 whose exact 95% is a whole cent: that close is near, a cent below it is not
+    seen = 0
+    for cents in range(100, 10000, 7):
+        if (cents * 19) % 20:
+            continue
+        high, close = cents / 100, cents * 19 // 20 / 100
+        assert C.near_high(close, high) is True, (high, close)
+        assert C.near_high(round(close - 0.01, 2), high) is False, (high, close)
+        seen += 1
+    assert seen > 50
+    # and through the stock's own breadth: the 52-week closing high 16.60, the evening's close 15.77
+    near, _ = _breadth([10.0] * 200 + [16.60] + [12.0] * 58 + [15.77])
+    assert near["now"]["near_high"] is True
+    under, _ = _breadth([10.0] * 200 + [16.60] + [12.0] * 58 + [15.76])
+    assert under["now"]["near_high"] is False
+
+
 def test_a_session_the_stock_did_not_trade_is_no_answer_and_the_line_follows_the_sessions():
     b, ords = _breadth(list(range(1, 301)), targets=None)
     missing = C.stock_breadth(*C.tail(closes_of(list(range(1, 301)))), {"now": ords[-1] + 1}, [ords[-1], ords[-1] + 1])
@@ -275,6 +299,27 @@ def test_the_build_reads_each_mapped_stock_once_pauses_after_each_and_never_read
     assert ans["built_for"] == "2031-06-04" and ans["session"] == "2031-06-04"
     assert ans["fund_refs"] == {"now": "2031-06-04", "year_ago": "2030-06-04", "three_years_ago": "2028-06-04"}
     assert ans["lagging"] == [] and ans["fundamentals"]["state"] == "ok" and ans["fundamentals"]["with_data"] == 9
+
+
+def test_once_the_quiet_span_ends_mid_build_every_pause_is_the_busy_one():
+    """The quiet span is checked when a build starts; a build still running at 07:00 goes on to the end, pausing the
+    busy span's longer pause after every stock from then on (MKTH's YIELD_S / YIELD_BUSY_S pair)."""
+    looks = []
+    times = [EVENING] * 3 + [datetime(2031, 6, 5, 7, 0, tzinfo=ET), EVENING]   # the 4th look is a weekday 07:00
+
+    def clock():
+        looks.append(1)
+        return times[min(len(looks), len(times)) - 1]
+    ans, reads, _arts, pauses = _build(clock=clock, yield_busy_s=0.02)
+    assert reads == TECH + OIL                                         # never stopped: every stock is read
+    assert pauses == [0.001] * 3 + [0.02] * 6                           # busy from the 4th stock on, and it stays so
+    assert len(looks) == 4 and ans["build"]["busy_after"] == 3
+    assert gs.YIELD_BUSY_S > gs.YIELD_S and gs.YIELD_BUSY_S == 0.05    # the market_history pair's busy pause
+    quiet_all, *_ = _build(clock=lambda: EVENING)
+    assert quiet_all["build"]["busy_after"] is None
+    # given `now` and no clock, the clock is `now` held still: a test's evening is never the real clock
+    _a, _r, _f, held_still = _build()
+    assert held_still == [0.001] * 9
 
 
 def test_the_cap_bounds_the_universe(monkeypatch):
@@ -463,6 +508,73 @@ def test_a_failed_build_says_so_and_waits_before_another(monkeypatch):
     assert gs.last_build()["outcome"] == "failed (RuntimeError)"
     assert gs._state["retry_at"] > time.time() and gs.refresh_due(EVENING) is False
     assert gs.get_group_stats("sector")["status"] == "not_built"
+
+
+def _priced_only(n):
+    """A build whose price reads answer for the first `n` mapped stocks only (the rest fail)."""
+    ok = (TECH + OIL)[:n]
+    return _build(read_closes=lambda s: {"status": "ok", "closes": PRICES[s]} if s in ok else {"status": "unavailable"})[0]
+
+
+def test_a_build_that_priced_nothing_never_replaces_the_held_answer(monkeypatch, tmp_path):
+    """Every price read failing gives a build with no session, no breadth and no rank. It is a failure: the last good
+    evening's answer stays held, in memory and on disk, and the evening is tried again (held_build's rule)."""
+    monkeypatch.setattr(gs, "build", lambda *a, **k: _fake_answer())
+    assert gs._start_job().wait(10)
+    disk = tmp_path / "group_stats" / "group_stats_v1.json"
+    good, before = gs._state["answer"], disk.read_bytes()
+    assert good["breadth"]["state"] == "ok"
+    empty = _priced_only(0)
+    assert empty["session"] is None and empty["breadth"]["state"] == "unavailable"     # what used to be held
+    monkeypatch.setattr(gs, "build", lambda *a, **k: empty)
+    assert gs._start_job().wait(10)
+    assert gs._state["answer"] is good and disk.read_bytes() == before
+    assert gs.last_build()["outcome"].startswith("failed (priced 0 of 10 stocks")
+    assert gs._state["retry_at"] > time.time() and gs._state["lag"] == ("2031-06-04", 1)
+    t = gs.get_group_stats("sector")
+    assert t["status"] == "ok" and t["sources"]["breadth"]["state"] == "ok"
+    gs.reset_for_tests()                                                   # a restart serves the good disk copy
+    assert gs.get_group_stats("sector")["sources"]["breadth"]["state"] == "ok"
+
+
+def test_a_build_that_priced_under_a_quarter_of_the_universe_is_not_held(monkeypatch):
+    assert gs.MIN_PRICED_SHARE == 0.25
+    assert gs.too_thin(_priced_only(2)) == "priced 2 of 10 stocks"          # 20%: under the floor
+    assert gs.too_thin(_priced_only(3)) is None                             # 30%: held
+    assert gs.too_thin(_priced_only(9)) is None
+    monkeypatch.setattr(gs, "build", lambda *a, **k: _priced_only(2))
+    assert gs._start_job().wait(10)
+    assert gs._state["answer"] is None and gs.get_group_stats("sector")["status"] == "not_built"
+    monkeypatch.setattr(gs, "build", lambda *a, **k: _priced_only(3))
+    assert gs._start_job().wait(10)
+    assert gs._state["answer"]["universe"]["symbols"] == 10 and gs.get_group_stats("sector")["status"] == "ok"
+
+
+def test_a_build_with_no_session_is_not_held_either():
+    ans = _priced_only(9)
+    ans["session"] = None
+    assert gs.too_thin(ans) == "no session in the closes"
+
+
+def test_a_build_that_priced_too_little_is_retried_within_the_evenings_tries(monkeypatch):
+    with gs._lock:
+        gs._state.update(answer=_fake_answer(key="2031-06-03"), built_for="2031-06-03", loaded=True)
+    monkeypatch.setattr(gs, "build", lambda *a, **k: _priced_only(0))
+    later = time.time() + 10 * gs.FAIL_RETRY_S
+    for tries in range(1, gs.LAG_TRIES + 1):
+        assert gs.refresh_due(EVENING, at=later) is True
+        assert gs._start_job().wait(10)
+        assert gs._state["lag"] == ("2031-06-04", tries) and gs._state["built_for"] == "2031-06-03"
+        assert gs.refresh_due(EVENING) is False                          # the retry wait is on
+    assert gs.refresh_due(EVENING, at=later) is False                    # three tries spent: this evening is done
+    assert gs.refresh_due(datetime(2031, 6, 5, 20, 20, tzinfo=ET), at=later) is True     # the next evening tries again
+    gs.reset_for_tests()
+    with gs._lock:                                                       # with nothing held, the same three tries
+        gs._state.update(loaded=True, lag=("2031-06-04", gs.LAG_TRIES))
+    assert gs.refresh_due(EVENING, at=later) is False
+    with gs._lock:
+        gs._state["lag"] = ("2031-06-04", gs.LAG_TRIES - 1)
+    assert gs.refresh_due(EVENING, at=later) is True
 
 
 def test_while_the_first_build_runs_a_read_says_computing(monkeypatch):
