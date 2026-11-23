@@ -193,7 +193,12 @@ export function createPersist({
   const _claimless = (s) => !s.restSeen && !s.developing && !_stamped(s)
   /** One device read of `p`'s key. `urgent` (the member's own ask: a key press, the chart on screen) goes ahead of
    *  every background read (deviceStore/client.js, TWO LANES); a warm passes nothing and waits its turn. */
-  const _devRead = (p, urgent) => (urgent === true ? DEV.read(p.sym, p.cacheTf, { urgent: true }) : DEV.read(p.sym, p.cacheTf))
+  // `newerThan` (review of #2558, P4-L2): the `through` of the copy the entry holds, when the read is to bring it FORWARD:
+  // the device client then never answers it from its recently-read cache with a copy no newer than that one.
+  const _devRead = (p, urgent, newerThan = null) => {
+    if (!Number.isFinite(newerThan)) return urgent === true ? DEV.read(p.sym, p.cacheTf, { urgent: true }) : DEV.read(p.sym, p.cacheTf)
+    return DEV.read(p.sym, p.cacheTf, urgent === true ? { urgent: true, newerThan } : { newerThan })
+  }
   /** Is a device READ worth making for this entry? Nothing held, only a device copy (it moves its own copy
    *  FORWARD: review of #2189, a copy warmed at 09:35 must not paint its 09:35 bars at 15:55), or a copy with no
    *  claim, which a FRESH device copy may join (`_joinRefused` decides when the copy is in hand). */
@@ -266,7 +271,9 @@ export function createPersist({
     // `forming_t`: the copy's last row is the bucket in progress (deviceStore/source.js `formingT`): the reducer files
     // it as the developing bar whatever the clock says, never as a closed bar (review of #2537, M1)
     const formingT = Number.isFinite(got.formingT) ? { forming_t: got.formingT } : null
-    registry.dispatch(key, { type: ACTION.DEVICE_HIT, key, gen, payload: { sym: p.sym, bars: got.rows, saved_at: got.savedAt ?? null, ...formingT } })
+    // `through`: the copy's stamp rides on the entry with its marker (reducer `deviceThrough`): what the first answer may
+    // keep of the device's rows is what it vouches for (review of #2558, P4-L3)
+    registry.dispatch(key, { type: ACTION.DEVICE_HIT, key, gen, payload: { sym: p.sym, bars: got.rows, saved_at: got.savedAt ?? null, through: got.through ?? null, ...formingT } })
     const after = registry.peek(key)
     if (after === before || after?.source !== 'device') {
       if (was.dev) _noteDev(key, was.through); else devThrough.delete(key)
@@ -407,14 +414,17 @@ export function createPersist({
      * Bring a held DEVICE copy (no server answer yet) forward to the device's newest: synchronously
      * from the device's recent-read cache, else one worker read. The switch calls it on every peek of
      * such an entry (prefetch), so a copy warmed long ago is re-read before it is shown. Resolves true
-     * when the entry moved. `urgent`: the member's own ask (`_devRead`).
+     * when the entry moved. `urgent`: the member's own ask (`_devRead`). `newer`: the device rule REFUSED the copy held
+     * ('stale'): the read asks for one newer than it (`_devRead` newerThan), so the client's recently-read cache does not
+     * answer with the copy just refused (review of #2558, P4-L2). One read per key in flight, whatever asks (the client).
      */
-    refreshDevice(key, { urgent = false } = {}) {
+    refreshDevice(key, { urgent = false, newer = false } = {}) {
       const p = parseKey(key)
       if (!p || p.window || !_devKey(p) || !_deviceMay(registry.peek(key))) return Promise.resolve(false)
       const gen = registry.getSnapshot(key).gen
       try { if (_deviceHit(key, p, gen, DEV.peek(p.sym, p.cacheTf))) return Promise.resolve(true) } catch { /* optional */ }
-      return Promise.resolve().then(() => _devRead(p, urgent)).then((got) => _deviceHit(key, p, gen, got)).catch(() => false)
+      const held = newer === true ? devThrough.get(key) : null
+      return Promise.resolve().then(() => _devRead(p, urgent, held)).then((got) => _deviceHit(key, p, gen, got)).catch(() => false)
     },
     /** Write every pending key now (page hide / tests). */
     async flush() {

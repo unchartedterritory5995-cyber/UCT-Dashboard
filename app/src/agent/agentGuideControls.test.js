@@ -43,7 +43,9 @@ describe('the catalog names real controls', () => {
         for (const t of [...flat(s.target), ...flat(s.waitFor)]) {
           if (typeof t === 'string') { expect(source.includes(`data-guide="${t}"`) || source.includes(`data-guide={\`${t.split('.')[0]}.`) || t.startsWith('workspace.widgets.'), t).toBe(true); continue }
           if (t.id) { expect(source.includes(`data-guide="${t.id}"`) || /^chartSettings\.tab\./.test(t.id), t.id).toBe(true); continue }
-          if (t.within && t.within !== '@chart') expect(source.includes(`data-guide="${t.within}"`), t.within).toBe(true)
+          // '@menu': any open role="menu" the product portals with no attribute of ours (guide/targets.js)
+          if (t.within === '@menu') expect(source, '@menu').toContain('role="menu"')
+          else if (t.within && t.within !== '@chart') expect(source.includes(`data-guide="${t.within}"`), t.within).toBe(true)
           if (t.widgetType) expect(source).toContain('data-widget-type={w.type}')
           if (t.guide) expect(source, t.guide).toContain(`data-guide="${t.guide}"`)
           if (t.aria) expect(NAMES.includes(t.aria), t.aria).toBe(true)

@@ -1313,7 +1313,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false
+   "fast": true
   },
   "indicator.list": {
    "domain": "indicator",
@@ -1391,7 +1391,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false
+   "fast": true
   },
   "indicator.undoDraft": {
    "domain": "indicator",
@@ -1495,7 +1495,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false
+   "fast": true
   },
   "indicatorStyle.placeIn": {
    "domain": "indicatorStyle",
@@ -1920,6 +1920,19 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true
+  },
+  "newsLibrary.toNotebook": {
+   "domain": "newsLibrary",
+   "group": "newsLibrary",
+   "target": "newsLibrary",
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "none",
    "query": false,
    "surfaces": [
     "charts"

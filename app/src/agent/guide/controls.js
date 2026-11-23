@@ -20,7 +20,7 @@
 // ⛔ NEVER INVENT A CONTROL. agentGuideControls.test.js rails every name and anchor against the product's source.
 
 import { conceptsOf, describe, OBJECTS } from './words'
-import { GEAR, onBoard } from './actions'
+import { GEAR, onBoard, WL_LISTS, WL_LIBRARY, WL_SHOW_LIBRARY, WL_MY_LISTS } from './actions'
 import { SLOTS, DRAWING_TOOLS } from './slots'
 import { labelMap, menuGroups } from '../../widgets/registry'
 import { CONTROLS as DRAW_CONTROLS, SCHEMA as DRAW_SCHEMA } from '../../components/chart/drawingSettingsSchema'
@@ -50,6 +50,7 @@ const placeWords = (place) => {
 const WL = 'watchlist'
 const PICKER = { widgetType: WL, attr: 'data-guide', value: 'watchlist.picker' }
 const OPEN_LIST = { widgetType: WL, guide: 'watchlist.lists' }
+const LIST_OPEN = [OPEN_LIST, { widgetType: WL, guide: 'watchlist.libraryToggle' }]
 const LAYOUT_TAB = { within: 'workspace.layouts', attr: 'data-layout-pin' }
 const DRAW_MENU = (label) => ({ within: 'chart.drawingMenu', label })
 function opening(place, row) {
@@ -58,18 +59,20 @@ function opening(place, row) {
     // a widget the Widgets menu does not offer here (Indexes, Market Context) is shown only where a board already has it
     return inMenu(type) ? onBoard(type, widgetLabel(type), [{ widgetType: type }]) : []
   }
-  // a list open in the widget: its ‹ Lists button is how the widget shows it (the list's own header is hidden in pick mode)
+  // a list open in the widget: its ‹ Lists button is how the widget shows it (the list's own header is hidden in pick mode),
+  // or, on the board's UCT frame, its library button (‹ Lists is hidden there: the library beside the list is the picker)
   if (place === 'list') {
     return [
-      ...onBoard(WL, widgetLabel(WL), [OPEN_LIST, PICKER]),
-      { target: PICKER, name: 'your lists', text: 'Click one of your own lists to open it.', waitFor: OPEN_LIST, optional: true, late: true },
+      ...onBoard(WL, widgetLabel(WL), [...LIST_OPEN, PICKER]),
+      { target: WL_LISTS, name: 'your lists', text: 'Click one of your own lists to open it.', waitFor: LIST_OPEN, optional: true, late: true },
     ]
   }
-  // the widget's list picker: on a widget showing a list, ‹ Lists brings it back
+  // the widget's list picker: on a widget showing a list, ‹ Lists brings it back; on the UCT frame, the library is the picker
   if (place === 'picker') {
     return [
-      ...onBoard(WL, widgetLabel(WL), [OPEN_LIST, PICKER]),
+      ...onBoard(WL, widgetLabel(WL), [OPEN_LIST, ...WL_LISTS]),
       { target: OPEN_LIST, name: '‹ Lists', text: 'Click ‹ Lists to open the list picker.', waitFor: PICKER, optional: true },
+      WL_SHOW_LIBRARY,
     ]
   }
   // the library is a row in the Layouts menu (owner 11-16: its button left the bar with the bottom rail)
@@ -89,21 +92,34 @@ function opening(place, row) {
 // ── the catalog ──
 const w = (type, need, target, name, say, more = {}) => ({ place: `w:${type}`, need, target: typeof target === 'string' ? { widgetType: type, aria: target } : { widgetType: type, ...target }, name, say, ...more })
 const title = (value) => ({ attr: 'title', value })
-const JOURNAL = '^Send (?!to Journal).+ to Journal$'
+// "Send this snapshot to Journal"; the board's Calendar (CalendarTimeline, owner 11-14) says "Send this day to the Journal"
+const JOURNAL = '^Send (?!to Journal|to the Journal).+ to (the )?Journal$'
+// ⭐ the board's Theme Tracker (UCT frame) moved its Journal door into the footer's ⋯ menu (ThemeTrackerPage.jsx
+// themes.footerMenu, a portalled role="menu"): there it is that menu's "Send ranking to Journal"
+const THEMES_MENU_SEND = { within: '@menu', label: 'Send ranking to Journal' }
+const JOURNAL_VIA = {
+  themes: {
+    open: [{ target: { widgetType: 'themes', guide: 'themes.footerMenu' }, name: 'the ⋯ menu', text: 'Click ⋯ at the bottom of the Theme Tracker.', waitFor: THEMES_MENU_SEND, optional: true, late: true }],
+    target: [{ widgetType: 'themes', nameRe: JOURNAL }, THEMES_MENU_SEND],
+    say: 'This sends the Theme Tracker’s ranking to your Journal. The row below it chooses where it goes.',
+  },
+}
 const SEND = ['send', 'save', 'copy', '~add', '~get']
 // every widget whose own header carries "Send … to Journal" (the scan's has its own walkthrough: actions.js scanJournal)
 // with what each one's button says it sends (its accessible name: "Send this snapshot to Journal")
 const JOURNAL_WIDGETS = { alerts: 'these alerts', news: 'this feed', calendar: 'this day', breadth: 'this snapshot', fundamentals: 'these financials', indexes: 'these index levels', marketcontext: 'this market context', aisearch: 'this conversation', themes: 'this ranking' }
 
 const ROWS = [
-  ...Object.entries(JOURNAL_WIDGETS).map(([type, what]) => w(type, 'journal', { nameRe: JOURNAL }, `Send ${what} to Journal`, `This sends the ${widgetLabel(type)} widget to your Journal. The arrow beside it chooses where it goes.`, { id: `journal.${type}`, any: SEND, alt: 'Send to Journal shows in this widget’s top bar once it has something to send.', label: `Sending ${widgetLabel(type)} to the Journal` })),
+  ...Object.entries(JOURNAL_WIDGETS).map(([type, what]) => w(type, 'journal', { nameRe: JOURNAL }, `Send ${what} to Journal`, `This sends the ${widgetLabel(type)} widget to your Journal. The arrow beside it chooses where it goes.`, { id: `journal.${type}`, any: SEND, alt: 'Send to Journal shows in this widget’s top bar once it has something to send.', label: `Sending ${widgetLabel(type)} to the Journal`, ...(JOURNAL_VIA[type] || {}) })),
 
   // ── a watchlist's own lists, in the Charts Watchlist widget. ⛔ The widget shows a list in PICK MODE, which hides the list's
   // header (Watchlists.module.css .pickMode .wlHeader { display: none }): its Delete, Share, Prebuilt, Send to Journal buttons and
   // its right-click menu (rename, copy, export, import, history, remove starred) are NOT reachable here, so they are not taught.
   // What the widget does show: the picker, with a bin on each of your lists (WatchlistPicker.jsx).
-  { id: 'list.delete', place: 'picker', need: 'delete list', target: { within: 'watchlist.picker', nameRe: '^Delete (?!watchlist)' }, name: 'the list’s bin', say: 'Click the bin beside a list to delete it. It asks before anything is lost.', alt: 'Only your own lists have a bin. Make one with ＋ New, and it shows here.', fallback: [PICKER], label: 'Deleting a watchlist' },
-  { id: 'list.back', place: 'list', need: 'list', any: ['~picker', '~other', '~different', '~another'], also: 'choose', target: { widgetType: WL, guide: 'watchlist.lists' }, name: '‹ Lists', say: 'Click ‹ Lists to go back to the list picker and open another list.', label: 'Going back to the list picker' },
+  // the library (UCT frame): each of your lists has a ⋯ (LibraryRail.jsx "Options for <list>"), whose menu ends in Delete, which
+  // asks once more ("Click again to delete"). The menu is portalled out of the widget: it is any open menu (`@menu`)
+  { id: 'list.delete', place: 'picker', need: 'delete list', open: [WL_MY_LISTS, { target: { within: 'watchlist.library', nameRe: '^Options for (?!Flagged$)' }, name: 'the list’s ⋯', text: 'Click the ⋯ beside a list you made.', waitFor: { within: '@menu', label: 'Delete' }, optional: true, late: true }], target: [{ within: 'watchlist.picker', nameRe: '^Delete (?!watchlist)' }, { within: '@menu', label: 'Delete' }], name: 'Delete', say: 'Click Delete to delete that list. It asks once more before anything is lost.', alt: 'Only your own lists can be deleted. Make one of your own first, and it shows here.', fallback: [WL_LISTS], label: 'Deleting a watchlist' },
+  { id: 'list.back', place: 'list', need: 'list', any: ['~picker', '~other', '~different', '~another'], also: 'choose', open: [WL_SHOW_LIBRARY], target: [{ widgetType: WL, guide: 'watchlist.lists' }, WL_LIBRARY], name: 'your lists', say: 'Pick another list here: ‹ Lists opens the list picker, and where the library is showing, click any list in it.', label: 'Going back to the list picker' },
 
   // ── layouts: the library (the + on the bar) and a layout's own menu on the bar (pages/charts/LayoutDock.jsx) ──
   { id: 'library.delete', place: 'library', need: 'delete layout', not: ['~bar', 'pin', '~prebuilt', '~template', '~global'], target: { within: 'workspace.layoutLibraryMenu', nameRe: '^Delete .+ permanently$' }, name: 'the bin', say: 'This bin deletes that layout permanently. It asks first.', alt: 'Only your own layouts can be deleted. They are listed here once you save one.', label: 'Deleting a layout' },

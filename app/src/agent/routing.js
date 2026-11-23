@@ -113,7 +113,9 @@ export const GROUPS = [
       /\b(?:save|unsave|bookmark|unbookmark)\b[^.;!?]*\b(?:headlines?|stor(?:y|ies)|articles?|news items?)\b|\b(?:headlines?|stor(?:y|ies)|articles?)\b[^.;!?]*\b(?:to|in|from|out of) (?:my |the )?(?:news )?library\b/,
       /\b(?:saved headlines|research library|news library)\b|\bmy (?:news )?collections\b/,
       /\b(?:create|make|start|rename|delete|remove)\b[^.;!?]*\b(?:news )?collections?\b|\b(?:into|in|to|out of|from) (?:my |the )?[\w “”"'-]{1,40} collection\b/,
-      /\bnote\b[^.;!?]*\b(?:headline|story|article)\b|\b(?:headline|story|article)\b[^.;!?]*\bnote\b/] },
+      /\bnote\b[^.;!?]*\b(?:headline|story|article)\b|\b(?:headline|story|article)\b[^.;!?]*\bnote\b/,
+      // C3-147 (newsLibrary.toNotebook): a headline / story / article and the Notebook (or Journal), either order
+      /\b(?:headlines?|stor(?:y|ies)|articles?)\b[^.;!?]*\b(?:notebook|journal)\b|\b(?:notebook|journal)\b[^.;!?]*\b(?:headlines?|stor(?:y|ies)|articles?)\b/] },
   // Family C (right-click and header parity, 2026-11-11): a chart's right-click Ask AI and the watermark's Reset position, in
   // their OWN words-only group (as compareGroups): never a filler, so no existing group and no unrecognised request changes.
   // "ask" / "watermark" are used elsewhere, so each needs its context: Ask AI with about / on / for or a chart word; the

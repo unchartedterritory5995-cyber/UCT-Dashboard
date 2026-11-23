@@ -149,7 +149,7 @@ def test_the_notes_carry_each_length_in_days_with_its_span_and_only_below_a_day(
 
 def test_THE_FINDING_days_built_as_bars_of_a_chart_below_a_day_are_refused():
     exc = refused_by(dc.check_day_lengths, STAND_IN, WORDS, FIVE)
-    assert exc is not None and exc.gate == "envelope:reference"
+    assert exc is not None and exc.gate == "envelope:days-as-bars"
     told = exc.for_model()
     for piece in ("`atr(..., 14)` is 14 five-minute bars, about 1 hour 10 minutes, and the member asked for 14 DAYS",
                   "If EVERY part of the indicator is a daily line on the chart's own symbol, keep the formula and add set_calculation_timeframe D",
@@ -268,7 +268,7 @@ def test_the_same_request_on_a_daily_chart_is_built_as_it_always_was_and_carries
 def test_the_stand_in_twice_changes_nothing(conv, clean_env, model):
     client = model([emits(STAND_IN), emits(STAND_IN)])
     r = conv.converse(WORDS, user_id="u1", view=empty_view(0), chart=FIVE)
-    assert r["ok"] is False and r["gate"] == "envelope:reference" and len(client.calls) == 2
+    assert r["ok"] is False and r["gate"] == "envelope:days-as-bars" and len(client.calls) == 2
 
 
 def test_the_instructions_say_days_are_days_and_how_to_ask(conv):
