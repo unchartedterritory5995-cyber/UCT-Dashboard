@@ -19,7 +19,8 @@
 // closed and deleted. A crash at any point leaves either the old committed generation or the new one.
 //
 // ⭐ READ: index row → ONE positioned read into a reused buffer → inflate + decodeBody (codec.js) →
-// Float64 columns. W and M are derived from D (resample.js). Symbols are keyed as /api/bars names them
+// Float64 columns. W and M are derived from D (resample.js) for the engine's own reads only: the page is never
+// served them (tfs.SERVED_TFS, review of #2537 H1). Symbols are keyed as /api/bars names them
 // (upper case; class shares with '-', e.g. BRK-B); a '.' spelling in a file is found too. A symbol the
 // file does not hold reads null: no device copy, the chart asks the network.
 //

@@ -1,5 +1,9 @@
 // app/src/data/deviceStore/resample.js — W and M from the device store's D bars.
 //
+// ⛔ NOT SERVED TO THE PAGE (review of #2537, H1: tfs.SERVED_TFS). From the device's ~350-session D window, without
+// today's bar, these are shallow and lack the period in progress, so no W or M key is ever asked of the device; the
+// engine still derives them for its own reads and diagnostics only.
+//
 // ⭐ ONE OWNER OF THE BUCKETING: utils/resampleBars (resampleDailyToWeekly / resampleDailyToMonthly),
 // which mirrors the server's resamplers bar for bar (ISO-Friday week label, 1st-of-month label). This
 // module only converts columns to that module's row shape and back.

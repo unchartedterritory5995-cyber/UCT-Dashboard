@@ -54,6 +54,7 @@ import { ACTION, parseKey, isDateTf, isIntradayTf, unixToDateLabel, keyOf } from
 import { isSealedRow, bucketEnd, normT } from './reducer'
 import { deviceSource as _defaultDeviceSource } from '../deviceStore/source'
 import { deviceCopyFresh } from '../deviceStore/fresh'
+import { deviceServesTf } from '../deviceStore/tfs'
 
 export const PERSIST_DEBOUNCE_MS = 1000
 export const META_VERSION = 1
@@ -174,8 +175,11 @@ export function createPersist({
   // provisional / context, never persisted, the server's answer replaces or joins it under the
   // reducer's rules), so a symbol nobody opened in this browser paints without waiting on the server.
   const DEV = device === undefined ? _defaultDeviceSource() : device
-  // (which cache-tfs it holds is the source's own answer: deviceStore/tfs.SERVED_TFS)
-  const _devKey = (p) => !!DEV && !p.window
+  // ⛔ THE ONE GATE EVERY DEVICE READ OF THE STORE GOES THROUGH (hydrateMem, hydrate, refreshDevice, _deviceAgain): a
+  // key whose cache-tf the device serves (deviceStore/tfs.SERVED_TFS: D and the intraday session grid). Never W or M
+  // (review of #2537, H1: derived from the device's D window they lacked the period in progress and the depth): such a
+  // key is never asked of the device, whatever source this store holds, and behaves exactly as with the store off.
+  const _devKey = (p) => !!DEV && !p.window && deviceServesTf(p.cacheTf)
   /** Does the entry carry a stamp a save wrote (persist's envelope: identity, a seal, a completeness claim)? A
    *  saved answer of the BarStore's always does (the server sends cache_key, bar_contract.py). */
   const _stamped = (s) => s.cacheKey != null || s.historyRev != null || s.completeThrough != null
@@ -259,7 +263,10 @@ export function createPersist({
     const was = { dev: devThrough.has(key), through: held, saved: savedAt.has(key), savedAt: savedAt.get(key) }
     _noteDev(key, got.through ?? null)
     _noteSaved(key, got.savedAt ?? null)
-    registry.dispatch(key, { type: ACTION.DEVICE_HIT, key, gen, payload: { sym: p.sym, bars: got.rows, saved_at: got.savedAt ?? null } })
+    // `forming_t`: the copy's last row is the bucket in progress (deviceStore/source.js `formingT`): the reducer files
+    // it as the developing bar whatever the clock says, never as a closed bar (review of #2537, M1)
+    const formingT = Number.isFinite(got.formingT) ? { forming_t: got.formingT } : null
+    registry.dispatch(key, { type: ACTION.DEVICE_HIT, key, gen, payload: { sym: p.sym, bars: got.rows, saved_at: got.savedAt ?? null, ...formingT } })
     const after = registry.peek(key)
     if (after === before || after?.source !== 'device') {
       if (was.dev) _noteDev(key, was.through); else devThrough.delete(key)

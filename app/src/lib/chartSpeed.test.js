@@ -8,11 +8,12 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { CHART_SPEED_COOKIE, chartSpeedKilled, cookieKillsChartSpeed, __resetChartSpeedForTests } from './chartSpeed'
 import { neighborFramesOn, __setNeighborFramesForTests, NEIGHBOR_FRAMES_KEY } from '../components/chart/neighborFrames'
-import { deviceStoreEnabled, DEVICE_STORE_KEY } from '../data/deviceStore/switch'
+import { deviceStoreEnabled, DEVICE_STORE_KEY, __resetDeviceStoreSwitchForTests } from '../data/deviceStore/switch'
 
 const kill = () => { document.cookie = `${CHART_SPEED_COOKIE}=0; path=/` }
 const clear = () => { document.cookie = `${CHART_SPEED_COOKIE}=; max-age=0; path=/` }
-const newPageLoad = () => { __resetChartSpeedForTests(); __setNeighborFramesForTests(null) }
+// (the device switch answers once per page load too: switch.js, review of #2537 M3)
+const newPageLoad = () => { __resetChartSpeedForTests(); __setNeighborFramesForTests(null); __resetDeviceStoreSwitchForTests() }
 
 beforeEach(() => { clear(); localStorage.clear(); newPageLoad() })
 afterEach(() => { clear(); localStorage.clear(); newPageLoad() })
