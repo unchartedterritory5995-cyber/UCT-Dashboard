@@ -5041,3 +5041,26 @@ the unchanged full path. There are 2 deleted `api/` lines, both the rewritten ro
   `screener.rs_post_pass` -> `routers.auth` -> `research.iv_history`). It never runs the IPO scan, the IV history read or
   either new job; the older files it keeps running lack only what it never invokes.
 - **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.
+
+## COT legacy reader matches by CFTC contract code first (Hard Red Spring wheat had stopped updating) · `fix/cot-legacy-market-names` · 2026-11-22
+
+| | |
+|---|---|
+| classification | **flow-worker stranded: NOT EXERCISED, safe; NO marker bump** |
+| stranded files | `api/services/cot_service.py`, `api/services/cot_finer.py` |
+
+- **The change.** `cot_service._parse_cftc_stream` now matches each row through `cot_finer.symbol_for` (the contract code
+  first, through `cot_finer.CONTRACT_CODES`; then the market name, runs of spaces collapsed; a code match beats a name
+  match for the same symbol and week), reading the optional `CFTC Contract Market Code` column; `_CFTC_ALIASES` gains
+  "WHEAT-HRSpring - MIAX FUTURES EXCHANGE" -> MW. `cot_finer.py` changes in its docstring only. Checked once against the
+  CFTC's 2026 legacy file: the only records that change are MW's 46 weeks (none before); every other record is identical
+  and in the same order.
+- **Flow-worker.** Reaches `cot_service` through a static chain (`flow_worker_main` -> `flow_gap_autofill` ->
+  `liveflow_monitor` -> `bars_fetch` -> `breadth_monitor` -> `breadth_live_universes` -> `market_indicators.producers` ->
+  `market_indicators.registry` -> `cot_service`), and `cot_finer` one hop further only through the new function-level
+  import inside `_parse_cftc_stream` (not in its closure before). Its closure uses `cot_service`'s symbol tables,
+  `DB_PATH`, `_get_conn`, `init_db` and `get_cot_data`; it never runs `_parse_cftc_stream`, `refresh_from_current`,
+  `seed_from_historical`, `refresh_if_stale`, `daily_catchup` or `get_status` (the COT jobs live in `api/main.py`, the COT
+  routes in `api/routers/cot.py`, neither in its closure), so it never even imports `cot_finer`. The older files it keeps
+  running lack only what it never invokes.
+- **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.

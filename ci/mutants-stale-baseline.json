@@ -1,0 +1,5 @@
+{
+ "schema": "uct.ci-mutants-stale/v1",
+ "about": "Mutants in ci/mutants/*.json whose `from` no longer resolves exactly once in its file (or whose file is gone), as measured on master 5b19c609c7, 2026-11-23: 45 of 849 mutants, in 18 of 82 manifests. Each would mutate nothing if run. This is a DEBT list, owed by each manifest's author, and it ONLY SHRINKS: give the mutant the `from` and `to` of the file's current text, run it with tools/ci_mutant_runner.py, and remove its id here. No new entry is ever added (tools/ci_mutant_manifests.py, tests/test_ci_mutant_manifests.py). To see what is wrong with each: python tools/ci_mutant_manifests.py --list. 2026-11-23 (fix/stale-mutant-anchors, on master 02458f1e8c): 44 re-anchored to their file's current text (each manifest run on pine-heavy's mutant job: see the pull request), 1 deleted with its reason (library-version-island V23, in that manifest's `about`); the list is empty.",
+ "stale": {}
+}

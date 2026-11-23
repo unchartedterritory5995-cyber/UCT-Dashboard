@@ -11,6 +11,9 @@ Public API:
     get_cot_data(symbol, weeks) -> list → last N weekly records, ascending by date
     get_status() -> dict               → last_updated, next_friday, record_count
     _parse_cftc_stream(stream) -> (list, set)  → (records, unmapped_names) — exported for tests
+
+How a CFTC row becomes one of our symbols: its contract market code first (`cot_finer.CONTRACT_CODES`, the one
+code table), then its market name (SYMBOL_MAP + _CFTC_ALIASES, runs of spaces collapsed). See _parse_cftc_stream.
 """
 
 import io
@@ -140,6 +143,8 @@ _CFTC_ALIASES: dict[str, str] = {
     "USD INDEX - ICE FUTURES U.S.":                               "DX",
     "BRITISH POUND - CHICAGO MERCANTILE EXCHANGE":                "B6",
     "NZ DOLLAR - CHICAGO MERCANTILE EXCHANGE":                    "N6",
+    # GRAINS: the Minneapolis Grain Exchange now reads as MIAX Futures (every week of the 2026 file, code 001626)
+    "WHEAT-HRSpring - MIAX FUTURES EXCHANGE":                     "MW",
 }
 
 SYMBOL_NAMES: dict[str, str] = {
@@ -197,12 +202,14 @@ SYMBOL_GROUPS: dict[str, list[str]] = {
 }
 
 # Reverse lookup: CFTC market name (uppercase) → our symbol
-# Built from both SYMBOL_MAP (historical names) and _CFTC_ALIASES (renamed contracts)
+# Built from both SYMBOL_MAP (historical names) and _CFTC_ALIASES (renamed contracts). The name fallback of
+# cot_finer.symbol_for reads it (runs of spaces collapsed); both readers match a row through that one function.
 _NAME_TO_SYMBOL: dict[str, str] = {v.upper(): k for k, v in SYMBOL_MAP.items()}
 _NAME_TO_SYMBOL.update({k.upper(): v for k, v in _CFTC_ALIASES.items()})
 
 # ── CFTC column names (actual names from deacot{year}.zip annual.txt) ─────────
 _COL_MARKET   = "Market and Exchange Names"
+_COL_CODE     = "CFTC Contract Market Code"   # read when present (not required): a file without it matches by name
 _COL_DATE     = "As of Date in Form YYYY-MM-DD"
 _COL_OI       = "Open Interest (All)"
 _COL_NC_LONG  = "Noncommercial Positions-Long (All)"
@@ -285,10 +292,26 @@ def is_empty() -> bool:
 def _parse_cftc_stream(stream: TextIO) -> tuple[list[dict], set[str]]:
     """Parse a CFTC COT CSV file stream.
 
+    How a row becomes a symbol (2026-11-22): `cot_finer.symbol_for`, the trader-type reader's own rule, so the two
+    readers cannot disagree. Its CFTC contract market code first, through `cot_finer.CONTRACT_CODES` (the one code
+    table; a test holds it to SYMBOL_MAP); a row whose code is not in it falls back to its market name through
+    SYMBOL_MAP + _CFTC_ALIASES with runs of spaces collapsed. A code match beats a name match for the same symbol and
+    week; any other repeat is kept in file order, as before (the upsert's last write wins). A file without the code
+    column matches by name alone.
+
+    WHY THE CODE. It survives the CFTC's renames, and the names did not: Hard Red Spring wheat (MW, code 001626) reads
+    "WHEAT-HRSpring - MIAX FUTURES EXCHANGE" in every week of the 2026 file, which the name table did not hold, so MW
+    stopped updating while every other market kept matching. Checked once against the CFTC's 2026 `deacot2026.zip`
+    on 2026-11-22: it carries the code column, all 66 markets match by code, and a code match and a name match never
+    named two different markets; MW was the only market the names missed.
+
     Returns:
         records  — list of dicts ready for upsert
-        unmapped — set of CFTC market name strings not in our symbol map
+        unmapped — set of CFTC market name strings matched by neither code nor name
     """
+    # Imported here, not at the top: cot_finer imports this module at its own top.
+    from api.services.cot_finer import MATCH_CODE, symbol_for
+
     reader = csv.DictReader(stream)
     if reader.fieldnames:
         reader.fieldnames = [f.strip() for f in reader.fieldnames]
@@ -303,12 +326,13 @@ def _parse_cftc_stream(stream: TextIO) -> tuple[list[dict], set[str]]:
         except (ValueError, TypeError):
             return 0
 
-    records: list[dict] = []
+    matched: list[tuple[dict, str]] = []
+    code_weeks: set[tuple[str, str]] = set()
     unmapped: set[str]  = set()
 
     for row in reader:
         market_raw = row.get(_COL_MARKET, "").strip()
-        sym = _NAME_TO_SYMBOL.get(market_raw.upper())
+        sym, how = symbol_for(row.get(_COL_CODE), market_raw)
 
         if sym is None:
             unmapped.add(market_raw)
@@ -321,15 +345,20 @@ def _parse_cftc_stream(stream: TextIO) -> tuple[list[dict], set[str]]:
             logger.warning("COT: bad date %r for symbol %s — row skipped", raw_date, sym)
             continue
 
-        records.append({
+        record = {
             "symbol":         sym,
             "date":           date.isoformat(),
             "large_spec_net": _int(row, _COL_NC_LONG) - _int(row, _COL_NC_SHORT),
             "commercial_net": _int(row, _COL_C_LONG)  - _int(row, _COL_C_SHORT),
             "small_spec_net": _int(row, _COL_NR_LONG) - _int(row, _COL_NR_SHORT),
             "open_interest":  _int(row, _COL_OI),
-        })
+        }
+        matched.append((record, how))
+        if how == MATCH_CODE:
+            code_weeks.add((sym, record["date"]))
 
+    # A name match never stands beside a code match for the same symbol and week, wherever either sits in the file.
+    records = [r for r, how in matched if how == MATCH_CODE or (r["symbol"], r["date"]) not in code_weeks]
     return records, unmapped
 
 
