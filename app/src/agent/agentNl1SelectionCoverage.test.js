@@ -144,7 +144,10 @@ it('holds the selection invariants on every dev / exposed request, and reports f
   // ⭐ heldout-v2 was SEALED (never measured here) until it was marked exposed 2026-11-22 (Gate C). Its first
   // measurement is 140/150 (93.3%) at budget 55, the same with or without the two expectations amended that day; the
   // floor is that measurement, a ratchet (may only rise), and the gap below 95% is an open routing finding.
-  const FIRST_CALL_FLOOR = { 'heldout-v2.json': 140 / 150 }
+  // ⭐ RATCHETED 2026-11-23 (first-call routing, agentFirstCallRouting.test.js): the ten misses were seven routing classes
+  // (member names as vocabulary, navigation verbs, "what %", one stock's yearly high, keep-and-add, board things vs lists,
+  // follow-ups that name nothing) — fixed by class, measured 150/150 at budget 55. The floor is that measurement.
+  const FIRST_CALL_FLOOR = { 'heldout-v2.json': 150 / 150 }
   for (const [f, b] of Object.entries(at55)) {
     expect(b.lost, `${f}: a request whose actions no reroute can supply`).toBe(0)
     expect(b.first / b.n, `${f}: first-call coverage`).toBeGreaterThanOrEqual(FIRST_CALL_FLOOR[f] ?? 0.95)

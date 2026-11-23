@@ -31,6 +31,17 @@ const STOCK_HISTORY = /\b(?:pull(?:ed|ing|s)?[\s-]?backs?|pulled back|pulling ba
 const CONCEPT_Q = /\bwhat(?:'s| is| are) (?:a|an) |\b(?:explain|define|definition|meaning of|in plain (?:words|english))\b/
 const UNIVERSE_WORDS = /\bpull(?:ed|ing|s)?[-\s]?backs? (?:to|into|toward|near)\b|\bin (?:up|down)trends\b|\b(?:stocks|names|tickers|equities|screens?|scans?|screener|universe|watchlist|list)\b/
 const DATA_HISTORY = new RegExp(`^(?!.*(?:${UNIVERSE_WORDS.source}))(?!.*(?:${CONCEPT_Q.source})).*${STOCK_HISTORY.source}`)
+// first-call routing (2026-11-23): ONE stock's 52-week / all-time high or low is a profile reading (the data group), as its
+// 52-week range already was (STOCK_HISTORY). A universe question ("stocks near their 52-week highs") and NEW highs (a count:
+// breadth / screener) are not matched here.
+const STOCK_LEVEL = /\b(?:52|fifty[\s-]two)[\s-]?(?:weeks?|wks?|w)[\s-]+(?:highs?|lows?)\b|\ball[\s-]time (?:highs?|lows?)\b|\byear(?:ly)? (?:highs?|lows?)\b/
+const DATA_LEVEL = new RegExp(`^(?!.*(?:${UNIVERSE_WORDS.source}))(?!.*\\bnew (?:52|fifty|all|year))(?!.*(?:${CONCEPT_Q.source})).*(?:${STOCK_LEVEL.source})`)
+// first-call routing (2026-11-23): the verbs that OPEN a UCT page. `breadth` hands "<verb> … breadth … page" to `settings`
+// (app.open), so both read this one list: a verb breadth excludes is always one settings takes.
+const NAV_VERBS = 'open|go to|take me to|navigate to|bring up|pull up|switch to|head to|jump to'
+// first-call routing (2026-11-23): KEEP the current chart AND get another view of it ("weekly but keep the daily too", "keep
+// this one as well") — a second chart or a chart tab, both workspace's (widget.add, chart.addTab)
+const KEEP_ALSO = /\bkeep\b(?:[^.;!?]*?)\b(?:too|as well|also|both|open)\b|\b(?:alongside|in addition to)\b/
 // W2 (CG-1): "four equal panels" — a count of chart cells said as panels / cells / boxes / windows / quadrants
 const GRID_CELLS = /\b(two|three|four|five|six|seven|eight|nine|[2-9]) (?:\w+ )?(?:panels|cells|boxes|windows|quadrants)\b|\bequal (?:panels|cells|boxes|windows|quadrants)\b/
 const EQUAL_SIZE = /\b(same|equal|even|identical) (size|sizes|sized|width|height)\b|\bequal(ly)?[\s-]?sized?\b|\bevenly\b|\bequally\b|\bsplit\b|\btile\b|\btiled\b/
@@ -158,7 +169,7 @@ export const GROUPS = [
       /\b(link|unlink|colou?r group)\b/, /\btabs?\b/, EQUAL_SIZE,
       // CG-3a (corpus #769): a COUNT of charts with no tickers ("put four charts on my screen", "create four charts") is
       // new charts + an even re-tile — the widget adds and the arrange live here (chartGrid needs tickers)
-      MULTI_CHARTS, GRID_CELLS, /\b(2 ?x ?2|[2-4] by [2-4])\b/] },
+      MULTI_CHARTS, GRID_CELLS, /\b(2 ?x ?2|[2-4] by [2-4])\b/, KEEP_ALSO] },
   // ⭐ pl-grid (C3-042..061): the Multi Chart GRID itself — its shape, entering / leaving it, the sync toggles, Groups, saved
   // grids, the shared settings dialog, maximize and "Reset to my chart" — its OWN fillLast group (two actions), so neither the
   // NL-1 core nor the workspace / chartGrid groups grow. ADD-ONLY: routing only adds what the model may see.
@@ -320,7 +331,9 @@ export const GROUPS = [
       /\b(?:turn|switch|toggle|enable|disable)\s+(?:on\s+|off\s+)?(?:the\s+|my\s+)?(?:confirmed\s+)?(?:setups|caution)\b|\b(?:setups?|caution|support\s*(?:&|and|\/)\s*resistance|s\/r) (?:layer|lines|toggle)\b|\bcaution setups?\b/,
       /\b(?:turn|switch|toggle|enable|disable)\b.*\bsupport\s*(?:&|and|\/)\s*resistance\b/] },
   { id: 'lists', title: 'Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)', domains: ['watchlist'],
-    words: [/\bwatch ?lists?\b/, /\blists?\b/, /\b(add|put|remove|drop)\b.+\b(to|into|from|off)\b/] },
+    // first-call routing (2026-11-23): add / put … to is not a list's when what moves is a board thing and no list is named
+    // ("add a breadth widget to this board": workspace's — lists beside it left neither group room under the budget)
+    words: [/\bwatch ?lists?\b/, /\blists?\b/, /^(?!.*\b(?:widgets?|panels?|panes?)\b(?!.*\b(?:watch ?lists?|lists?)\b)).*\b(add|put|remove|drop)\b.+\b(to|into|from|off)\b/] },
   { id: 'screener', title: 'Screener (run screens, saved screens: run, save, copy, rename, delete)', domains: ['screener'],
     words: [/\bscreen\w*\b/, /\bscans?\b/, /\bfind (me )?(stocks|names|tickers)\b/, /\bfilter\w*\b/, /\b(stocks|names) (with|above|below|over|under)\b/, /\b(top|first) \d+\b/, /\bresults?\b/, /\b(adr|rs rating|rvol|market cap|dollar volume|52[- ]week)\b/,
       // STRENGTH / LEADERSHIP screens (stabilization, 2026-10-11). A strength/rank word ATTACHED to a
@@ -401,7 +414,7 @@ export const GROUPS = [
       /\b(?:after|following) .*\b(?:gapping|gaps? (?:up|down)|breakouts?|break(?:s|ing)? out|new \d{1,3}[- ]?(?:day|week|session) (?:closing )?highs?)\b/,
       // PKG2: an index level / commodity / crypto price (the asset-class quote kinds, MD-1 §4.7.3) — "gold price", "price of bitcoin"
       /\b(?:gold|silver|copper|crude|oil|brent|wti|natgas|natural gas|bitcoin|btc|ethereum|ether|solana)(?:'s)? (?:price|quote)\b|\b(?:price|quote|level) (?:of|for|on) (?:gold|silver|copper|crude|oil|brent|wti|natgas|natural gas|bitcoin|btc|ethereum|ether|solana|the (?:s&p|dow|nasdaq|russell|vix))\b/,
-      DATA_HISTORY,
+      DATA_HISTORY, DATA_LEVEL,
       // CG-12 (corpus #774): "tell me about AAPL", "tell me about TSM the company"
       /\btell me (?:a (?:little|bit) )?about\b/,
       // CG-11 / CG-13 (corpus #769): "how much is NVDA (right now)", "how does NVDA stack up against AMD"
@@ -415,11 +428,14 @@ export const GROUPS = [
     // W2 gaps-5: "averages for the S&P" — the MARKET's moving-average participation is breadth's (A20…A200: the share of stocks
     // above their averages); UCT's data group has no moving-average reading for an index (stock.dailyBars: closes, ranges,
     // off-high, pullbacks), so breadth is the canonical capability (breadth.show; the US universe stands for the S&P)
-    words: [/^(?!.*\b(open|go to|take me to|navigate to|bring up|pull up|switch to)\b.*\bbreadth\b.*\b(page|monitor|dashboard|tab|screen)\b).*\bbreadth\b/,
+    // (first-call routing 2026-11-23: the shared NAV_VERBS; and "a breadth widget / panel" is a WIDGET, workspace's, as
+    // data's "news widget" — the two groups together left workspace no room under the budget)
+    words: [new RegExp(`^(?!.*\\b(${NAV_VERBS})\\b.*\\bbreadth\\b.*\\b(page|monitor|dashboard|tab|screen)\\b).*\\bbreadth\\b(?! (?:widget|panel)s?\\b)`),
       // review gaps-5 (2): never ONE symbol's averages ("the 50 day moving average of SPY", "…on the SPY chart"): no SPY, no "on",
       // no chart, no add / put / show
       /^(?!.*\b(?:charts?|add|put|show|plot|draw)\b).*\b(?:moving )?averages?\b.*\b(?:for|of|across|in) (?:the )?(?:s ?& ?p|s and p|spx|market|nasdaq|nyse|us market)\b/,
-      /\b(percent|pct|share|portion|how many|what %|what percent)\b.*\b(above|below|over|under)\b.*\b\d+[- ]?(day|d|dma|sma|ema|week)\b/,
+      // first-call routing (2026-11-23): "what %" ends in a symbol, so it takes no closing \b ("what % are below the 20 day")
+      /(?:\b(?:percent|pct|share|portion|how many|what percent)\b|\bwhat ?%)[^.;!?]*\b(above|below|over|under)\b.*\b\d+[- ]?(day|d|dma|sma|ema|week)\b/,
       /% (of )?(all )?(us |nyse |nasdaq |uct )?(stocks|names|issues)\b/,
       /\b(us|nyse|nasdaq|uct) (stocks|names|issues) (are |were )?above\b/,
       /\b(?:(?:us|nyse|nasdaq|uct)\s*:?\s*)?a(?:5|10|20|40|50|100|150|200)\b/,
@@ -432,7 +448,9 @@ export const GROUPS = [
     // CG-25..27 (corpus #774): the APP's theme ("use the light theme", "UCT theme"), a DEFAULT for new charts ("new charts
     // should open on the weekly", "by default", "always open") and alert sounds (plural) are settings
     words: [/\bsettings?\b/, /\b(dark|light) mode\b/, /\b(app|uct|site|light|dark) theme\b/, /\bdefault (chart )?time ?frames?\b/, /\b(alert )?sounds?\b/,
-      /\bnew charts? (?:should|will|to|must|always) (?:open|start|load|default|be)\b|\bby default\b|\balways (?:open|start|load)\b|\bdefault for new charts?\b/, /\bdigest\b/, /\bemail\b/, /\b(open|go to|take me to)\b.*\b(page|screener|dashboard|breadth|research)\b/] },
+      /\bnew charts? (?:should|will|to|must|always) (?:open|start|load|default|be)\b|\bby default\b|\balways (?:open|start|load)\b|\bdefault for new charts?\b/, /\bdigest\b/, /\bemail\b/,
+      // first-call routing (2026-11-23): every verb `breadth` hands over ("pull up the breadth page" matched no group at all)
+      new RegExp(`\\b(${NAV_VERBS})\\b.*\\b(page|screener|dashboard|breadth|research)\\b`)] },
   // W2 gaps-5: the earnings CALENDAR (calendar.day / calendar.nextReport) in its own small group — "what's on the calendar
   // this week", "who reports tomorrow" (it was ungrouped: never named by any message's words)
   { id: 'calendar', title: 'Earnings calendar: who reports on a day or this week, when one stock reports next', domains: ['calendar'], fillLast: true,
@@ -681,8 +699,60 @@ const surfaceWord = (n) => !String(n).trim().includes(' ') && SURFACE_GROUPS.som
 /** The widget types on the board that `message` names (by label), with controls a person sets. */
 export const namedBoardWidgets = (message, types) => namedWidgetTypes(message, types || [], surfaceWord)
 const normWords = (s) => ` ${String(s || '').toLowerCase().replace(/[^a-z0-9$&+.\- ]+/g, ' ').replace(/\s+/g, ' ').trim()} `
+// ⭐ first-call routing (2026-11-23): a member's OWN multi-word name is an ENTITY, not vocabulary. Its words never count as
+// a group's words ("Earnings Plays", "Earnings Week": the "earnings" in them is not the data group's), and it is still found
+//   • with ONE typo in one of its longer words ("open earnings weak" → Earnings Week), when the typo is a real word the
+//     lexicon cannot correct;
+//   • by its LEADING word right after a container word ("put META in earnings" → the Earnings Plays watchlist): watchlists
+//     only, the one kind that holds symbols.
+// Routing only ADDS the name's group and drops what the name's words alone would have added; nothing here acts.
+const nameWords = (s) => normWords(s).trim().split(' ').filter(Boolean)
+const oneEdit = (a, b) => {                          // at most one insertion, deletion or substitution
+  if (a === b) return true
+  if (Math.abs(a.length - b.length) > 1) return false
+  let i = 0
+  while (i < a.length && i < b.length && a[i] === b[i]) i++
+  if (a.length === b.length) return a.slice(i + 1) === b.slice(i + 1)
+  return a.length > b.length ? a.slice(i + 1) === b.slice(i) : a.slice(i) === b.slice(i + 1)
+}
+const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+const CONTAINER_BEFORE = new Set(['in', 'into', 'to', 'onto', 'from', 'off'])
+/** The member's MULTI-WORD names in `q`: { groups: Set, spans: [the matched words, to strip before group words] }. */
+function memberNames(q, names) {
+  const groups = new Set()
+  const spans = []
+  const toks = nameWords(q)
+  for (const [kind, id] of Object.entries(NAME_GROUPS)) {
+    for (const n of names?.[kind] || []) {
+      const w = nameWords(n)
+      if (w.length < 2) continue                     // a one-word name stays an exact match only (namedGroups)
+      for (let i = 0; i + w.length <= toks.length; i++) {
+        const win = toks.slice(i, i + w.length)
+        let edits = 0
+        const ok = win.every((t, k) => {
+          if (t === w[k]) return true
+          if (w[k].length < 4 || edits) return false
+          edits++
+          return oneEdit(t, w[k])
+        })
+        if (ok) { groups.add(id); spans.push(win); break }
+      }
+      // a watchlist by its leading word, right after a container word (in / into / to / onto / from / off [my | the])
+      if (kind === 'watchlists' && w[0].length >= 4) {
+        for (let i = 1; i < toks.length; i++) {
+          if (toks[i] !== w[0]) continue
+          const before = (toks[i - 1] === 'my' || toks[i - 1] === 'the') ? toks[i - 2] : toks[i - 1]
+          if (CONTAINER_BEFORE.has(before)) { groups.add(id); spans.push([w[0]]); break }
+        }
+      }
+    }
+  }
+  return { groups, spans }
+}
+/** `q` without these name spans (whole words). */
+const withoutNames = (q, spans) => spans.reduce((t, s) => t.replace(new RegExp(`\\b${s.map(escapeRe).join('[^a-z0-9]+')}\\b`, 'g'), ' '), q)
 function namedGroups(q, names) {
-  const out = new Set()
+  const out = memberNames(q, names).groups
   const text = normWords(q)
   for (const [kind, id] of Object.entries(NAME_GROUPS)) {
     for (const n of names?.[kind] || []) {
@@ -743,9 +813,12 @@ export function selectGroups(message, { pendingActions = [], recentActions = [],
   // may SEE; nothing here acts on a correction.
   let texts = [q]
   try { if (typeof correct === 'function') texts = [q, ...(correct(raw) || []).map(t => String(t).toLowerCase())] } catch { texts = [q] }
+  // first-call routing: a member's multi-word name is not vocabulary — group words are matched on the text without it
+  const spans = texts.flatMap(t => memberNames(t, names).spans)
+  const bare = spans.length ? texts.map(t => withoutNames(t, spans)) : texts
   for (const g of GROUPS) {
     if (g.always) continue
-    if (texts.some(t => g.words.some(re => re.test(t)))) hits.add(g.id)
+    if (bare.some(t => g.words.some(re => re.test(t)))) hits.add(g.id)
   }
   for (const t of texts) for (const id of namedGroups(t, names)) hits.add(id)
   // "put NVDA on the left", "Switch to AMD": a ticker-shaped word (case-sensitive, on the raw
@@ -763,7 +836,7 @@ export function selectGroups(message, { pendingActions = [], recentActions = [],
   // "pulling back", "when does nvda report") moves its groups to the FRONT of the catalog order — it
   // never narrows the request: nothing recognised still means every group is a candidate (and the
   // full manifest when it fits). When a group's own words DID match, vocabulary adds nothing.
-  const soft = matched ? [] : GROUPS.filter(g => !g.always && (g.vocab || []).some(re => texts.some(t => re.test(t)))).map(g => g.id)
+  const soft = matched ? [] : GROUPS.filter(g => !g.always && (g.vocab || []).some(re => bare.some(t => re.test(t)))).map(g => g.id)
   // PRIORITY order (Batch 6): always-on, then follow-ups, then the message's own groups (catalog
   // order). routeManifest packs them in this order under the per-request budget. When NOTHING was
   // recognised, every group is a candidate in catalog order (charts first — the page's own
