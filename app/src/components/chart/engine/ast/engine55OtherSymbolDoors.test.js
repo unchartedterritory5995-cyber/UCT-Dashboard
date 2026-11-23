@@ -201,10 +201,13 @@ describe('⭐⭐ review L5 — a spelling the host cannot turn into a listing: O
 })
 
 describe('⭐ review L6 — only a real breadth spelling gets the breadth sentence', () => {
-  it('ADVN, TICK.NY and USI:ADD are breadth; DECKXX, ADDYYX and TSX:ADDYY are not', () => {
+  it('ADVN, TICK.NY and USI:ADDQ are breadth; DECKXX, ADDYYX and TSX:ADDYY are not', () => {
     expect(staticallyUnservable('ADVN', '').reason).toMatch(/breadth/)
     expect(staticallyUnservable('TICK.NY', '').reason).toMatch(/breadth/)
-    expect(spellingUnservable('USI:ADD').reason).toMatch(/breadth/)
+    // (B2 W-B1, 2026-11-22: USI:ADD is witnessed and served, so it is refused by no sentence; USI:ADDQ, not in the
+    // probe, still refuses with the breadth sentence)
+    expect(spellingUnservable('USI:ADDQ').reason).toMatch(/breadth/)
+    expect(spellingUnservable('USI:ADD')).toBeFalsy()
     for (const [t, v] of [['DECKXX', ''], ['ADDYYX', '']]) {
       const why = staticallyUnservable(t, v)
       expect(why && why.code, t).toBe(R.BARE)
