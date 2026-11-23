@@ -200,6 +200,25 @@ def test_the_lookback_counts_the_childs_daily_reach_plus_the_finished_day():
     assert ai.max_lookback(TF("D", child)) == ai.max_lookback(child) + 1
 
 
+def test_the_same_read_written_twice_is_one_read_one_column_one_series_of_the_budget():
+    from api.services import ast_budget
+
+    def a():
+        return TF("D", C("sma", S("close"), N(10)))
+
+    def b():
+        return TF("D", C("sma", S("close"), N(20)))
+    tree = O("&&", O(">", a(), b()), O("&&", O(">", a(), OFF(5, a())), O(">", b(), OFF(5, b()))))
+    assert ast_budget.series_refs(tree) == 3                               # close, and the two distinct daily reads
+    ast_budget.check_budget(tree, None)                                    # must not raise
+    # the same read nine times is ONE column on the chart's bars too: inside the budget's eight series (nine leaves
+    # would not be), each bar adding the same value nine times
+    nine = TF("D", C("sma", S("close"), N(3)))
+    for _k in range(8):
+        nine = O("+", nine, TF("D", C("sma", S("close"), N(3))))
+    assert run(nine, five()) == each(9 * 104.0, 9 * 105.0, 9 * 106.0)
+
+
 def test_the_linter_calls_it_non_repainting_and_its_literal_is_the_engines():
     assert ast_lint.lint_repaint(O(">", S("close"), TF("D", C("sma", S("close"), N(50)))))["mode"] == "non-repainting"
     assert ast_lint._DAILY_READ_CODE == ai.DAILY_READ                      # noqa: SLF001

@@ -11,6 +11,7 @@ import {
   dailyReadSymbols, isBelowADay, TF_RESAMPLABLE,
 } from './interpret.js'
 import { DAILY_READ_CODE, lintRepaint } from './lint.js'
+import { seriesRefs, checkBudget } from './budget.js'
 import { sentenceFor } from './sentence.js'
 import { projectFrameColumns, frameKey } from '../mtfProjection.js'
 import { dailyReadSupplyFor, dailyReadNeeds, defReadsDaily } from '../dailyReadSupply.js'
@@ -129,6 +130,20 @@ describe('U-DAILY — the gates that never evaluate agree', () => {
   it('⭐ the lookback counts the child\'s daily reach plus the finished day', () => {
     const child = C('sma', S('close'), N(50))
     expect(maxLookback(TF('D', child))).toBe(maxLookback(child) + 1)
+  })
+
+  it('⭐ the same read written twice is ONE read: one column, one series of the budget (never more on the chart)', () => {
+    const A = () => TF('D', C('sma', S('close'), N(10)))
+    const B = () => TF('D', C('sma', S('close'), N(20)))
+    // the 10 day average above the 20 day, and both higher than 5 bars ago: six reads written, two distinct
+    const tree = O('&&', O('>', A(), B()), O('&&', O('>', A(), OFF(5, A())), O('>', B(), OFF(5, B()))))
+    expect(seriesRefs(tree)).toBe(3)                 // close, and the two distinct daily reads
+    expect(checkBudget(tree, undefined).ok).toBe(true)
+    // the same read nine times is ONE column on the chart's bars too: the tree evaluated there stays inside the
+    // budget's eight series (nine leaves would not), and each bar adds the same value nine times
+    let nine = TF('D', C('sma', S('close'), N(3)))
+    for (let k = 1; k < 9; k += 1) nine = O('+', nine, TF('D', C('sma', S('close'), N(3))))
+    expect(run(nine, five())).toEqual(each(9 * 104, 9 * 105, 9 * 106))
   })
 
   it('⭐ the linter calls it non-repainting (it reads no bar the chart bar is inside)', () => {

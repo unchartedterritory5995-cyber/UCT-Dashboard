@@ -251,7 +251,7 @@ def test_a_daily_read_on_a_daily_chart_is_sent_back(conv, clean_env, model):
     client = model([emits(DAILY_BUILD), emits(STAND_IN)])
     r = conv.converse(WORDS, user_id="u1", view=empty_view(0), chart=DAILY)
     assert len(client.calls) == 2 and r["ok"] is True, (r.get("gate"), r.get("reason"))     # on a daily chart 14 bars ARE 14 days
-    assert "for a chart BELOW A DAY" in json.dumps(client.calls[1]["messages"])
+    assert "the last finished day on each bar of a chart BELOW A DAY" in json.dumps(client.calls[1]["messages"])
 
 
 def test_the_question_given_at_once_costs_one_call_and_builds_nothing(conv, clean_env, model):

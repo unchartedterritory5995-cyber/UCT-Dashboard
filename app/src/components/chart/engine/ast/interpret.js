@@ -5854,14 +5854,33 @@ function dailySupplyOf(opts) {
   return f && Array.isArray(f.bars) && f.bars.length && typeof f.place === 'function' ? f : null
 }
 
+/** A tree's structural key (keys sorted at every level): two daily reads with the same key are the same read. */
+function canonicalOf(n) {
+  if (Array.isArray(n)) return `[${n.map(canonicalOf).join(',')}]`
+  if (n && typeof n === 'object') return `{${Object.keys(n).sort().map((k) => `${JSON.stringify(k)}:${canonicalOf(n[k])}`).join(',')}}`
+  return JSON.stringify(n)
+}
+/** ⭐ U-DAILY — a daily read's identity: the same read written twice is ONE read, one column, and one series of the
+ *  budget's count (`budget.js::seriesRefs`), whichever occurrence is walked first. Python twin: `daily_read_key`. */
+export function dailyReadKey(node) {
+  return `${DAILY_LEAF_PREFIX}${canonicalOf(node)}`
+}
+
 /** The tree with each top-level daily read replaced by a leaf (path copy: every other node keeps its identity, so the
- *  pass's memo still shares them). `reads`: [{node, name}] in walk order. */
+ *  pass's memo still shares them). The same read written twice is one leaf and one column. `reads`: [{node, name}],
+ *  one per distinct read, in walk order. */
 function withDailyLeaves(tree, reads) {
+  const named = new Map()
   const visit = (n) => {
     if (!n || typeof n !== 'object') return n
     if (isDailyRead(n)) {
-      const name = `${DAILY_LEAF_PREFIX}${reads.length}`
-      reads.push({ node: n, name })
+      const key = dailyReadKey(n)
+      let name = named.get(key)
+      if (name === undefined) {
+        name = `${DAILY_LEAF_PREFIX}${reads.length}`
+        named.set(key, name)
+        reads.push({ node: n, name })
+      }
       return { type: 'series', name }
     }
     if (!Array.isArray(n.args) || !treeReadsDaily(n)) return n

@@ -5328,18 +5328,29 @@ def daily_read_placement(frame_bars: List[dict], chart_bars: List[dict], chart_t
     return at, stale
 
 
-def _with_daily_leaves(tree: Any, reads: List[Tuple[Any, str]]) -> Any:
-    """The tree with each top-level daily read replaced by a leaf (path copy). Mirrors ``withDailyLeaves``."""
+def daily_read_key(node: Any) -> str:
+    """A daily read's identity: the same read written twice is ONE read, one column and one series of the budget's
+    count (``ast_budget.series_refs``). Mirrors ``interpret.js::dailyReadKey`` (keys sorted at every level)."""
+    import json                                                             # noqa: PLC0415
+    return _DAILY_LEAF_PREFIX + json.dumps(node, sort_keys=True, separators=(",", ":"))
+
+
+def _with_daily_leaves(tree: Any, reads: List[Tuple[Any, str]], named: Optional[Dict[str, str]] = None) -> Any:
+    """The tree with each top-level daily read replaced by a leaf (path copy); the same read written twice is one leaf
+    and one column. Mirrors ``withDailyLeaves``."""
+    named = {} if named is None else named
     if not isinstance(tree, dict):
         return tree
     if is_daily_read(tree):
-        name = "%s%d" % (_DAILY_LEAF_PREFIX, len(reads))
-        reads.append((tree, name))
-        return {"type": "series", "name": name}
+        key = daily_read_key(tree)
+        if key not in named:
+            named[key] = "%s%d" % (_DAILY_LEAF_PREFIX, len(reads))
+            reads.append((tree, named[key]))
+        return {"type": "series", "name": named[key]}
     args = tree.get("args")
     if not isinstance(args, list) or not tree_reads_daily(tree):
         return tree
-    return dict(tree, args=[_with_daily_leaves(a, reads) for a in args])
+    return dict(tree, args=[_with_daily_leaves(a, reads, named) for a in args])
 
 
 def _interpret_daily_reads(ast, bars, inputs, budget, scalars, opts) -> List[MaybeNum]:

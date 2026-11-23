@@ -102,6 +102,24 @@
    "expectRed": "refuses it on a daily or higher chart"
   },
   {
+   "id": "UD12",
+   "mutant": "the budget no longer counts a daily read as a column of its own (the door admits what the chart may refuse)",
+   "file": "app/src/components/chart/engine/ast/budget.js",
+   "from": "    if (isDailyRead(node)) found.add(dailyReadKey(node))",
+   "to": "    void dailyReadKey",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/dailyRead.test.js",
+   "expectRed": "the same read written twice is ONE read"
+  },
+  {
+   "id": "UD13",
+   "mutant": "the same read written twice is two leaves (two columns, two series of the budget)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "      if (name === undefined) {",
+   "to": "      if (true) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/dailyRead.test.js",
+   "expectRed": "the same read written twice is ONE read"
+  },
+  {
    "id": "UDC1",
    "mutant": "CONTROL: a `sym` under a weekly read is no longer refused (the rule a daily read is exempted from)",
    "file": "app/src/components/chart/engine/ast/interpret.js",
@@ -190,6 +208,24 @@
    "to": "            return _interpret(tree, c['bars'], inputs, c['tf'], c['symbols']), None",
    "rail": "python -B -m pytest tests/test_udaily_done_line.py -q -p no:cacheprovider -k DONE_LINE",
    "expectRed": "test_THE_DONE_LINE"
+  },
+  {
+   "id": "UP10",
+   "mutant": "the Python budget no longer counts a daily read as a column of its own",
+   "file": "api/services/ast_budget.py",
+   "from": "            found.add(daily_read_key(node))",
+   "to": "            pass",
+   "rail": "python -B -m pytest tests/test_ast_daily_read.py -q -p no:cacheprovider",
+   "expectRed": "test_the_same_read_written_twice_is_one_read"
+  },
+  {
+   "id": "UP11",
+   "mutant": "the Python lane makes the same read written twice two leaves (nine of them exceed the series budget)",
+   "file": "api/services/ast_interpret.py",
+   "from": "        if key not in named:",
+   "to": "        if True:",
+   "rail": "python -B -m pytest tests/test_ast_daily_read.py -q -p no:cacheprovider",
+   "expectRed": "test_the_same_read_written_twice_is_one_read"
   },
   {
    "id": "UPC1",
