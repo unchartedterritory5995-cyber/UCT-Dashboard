@@ -1313,7 +1313,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false
+   "fast": true
   },
   "indicator.list": {
    "domain": "indicator",
@@ -1391,7 +1391,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false
+   "fast": true
   },
   "indicator.undoDraft": {
    "domain": "indicator",
@@ -1495,7 +1495,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false
+   "fast": true
   },
   "indicatorStyle.placeIn": {
    "domain": "indicatorStyle",

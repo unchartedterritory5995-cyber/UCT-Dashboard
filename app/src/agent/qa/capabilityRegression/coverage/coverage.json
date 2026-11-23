@@ -5568,7 +5568,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false,
+   "fast": true,
    "protections": {
     "nl": true,
     "routing": true,
@@ -5914,7 +5914,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false,
+   "fast": true,
    "protections": {
     "nl": true,
     "routing": true,
@@ -6359,7 +6359,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false,
+   "fast": true,
    "protections": {
     "nl": true,
     "routing": true,

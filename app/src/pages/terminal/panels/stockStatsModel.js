@@ -83,7 +83,9 @@ function readBetaPair(raw) {
       downCapture: finite(raw.down_capture), downDays: count(raw.down_capture_days),
     }
   }
-  if (['fund', 'no_sector', 'not_mapped', 'not_held'].includes(raw.state)) {
+  // 'unavailable': the fund's prices could not be read just now (a failed read, tried again on the server),
+  // which is not 'not_held' (nothing stored for it)
+  if (['fund', 'no_sector', 'not_mapped', 'not_held', 'unavailable'].includes(raw.state)) {
     return { state: raw.state, symbol: text(raw.symbol), sector: text(raw.sector) }
   }
   return { ...shortOf(raw), symbol: text(raw.symbol), sector: text(raw.sector) }
@@ -321,13 +323,14 @@ export function betaText(p) {
   if (p.state === 'no_sector') return 'No sector is held for this stock.'
   if (p.state === 'not_mapped') return `Its sector (${p.sector || 'unknown'}) has no sector fund in UCT's list.`
   if (p.state === 'not_held') return `UCT holds no prices for ${p.symbol || 'the fund'} on this server.`
+  if (p.state === 'unavailable') return `Prices for ${p.symbol || 'the fund'} could not be read just now. The server tries again on its own.`
   return shortText(p)
 }
 
 export const sectorLabel = (p) => (p.symbol ? `Beta vs ${p.sector ? `${p.sector} (${p.symbol})` : p.symbol}` : 'Beta vs its sector fund')
 
 export function captureText(p, key) {
-  if (p.state !== 'ok') return p.state === 'not_held' ? betaText(p) : shortText(p)
+  if (p.state !== 'ok') return p.state === 'not_held' || p.state === 'unavailable' ? betaText(p) : shortText(p)
   const v = key === 'up' ? p.upCapture : p.downCapture
   const days = key === 'up' ? p.upDays : p.downDays
   if (v == null) return `Too few ${key} days for SPY${days != null ? ` (${formatNumber(days)})` : ''}.`

@@ -94,6 +94,7 @@ async function windowVerdict({ now, asof, day = null, last = null, rollupBar = t
 const WED = '2026-11-18', TUE = '2026-11-17'
 const FRI = '2026-11-20', THU = '2026-11-19', SAT = '2026-11-21'
 const HALF = '2026-11-27', HALF_PREV = '2026-11-25'           // Friday after Thanksgiving: the 13:00 close
+const HOLIDAY = '2026-11-26'                                    // Thanksgiving: no session
 
 describe('H2 the daily chart from the device, window by window', () => {
   // [window, the case, what the first frame may be built from]
@@ -110,6 +111,13 @@ describe('H2 the daily chart from the device, window by window', () => {
     ['half day after 20:00 (H2)', { now: et(HALF, 20, 30), asof: HALF_PREV, day: HALF, last: [19, 59] }, { paints: false, reason: 'status:provisional', tail: HALF_PREV }],
     ['server row 16:40', { now: et(WED, 16, 40, 20), asof: TUE, day: WED, last: [16, 39], serverRow: true }, { paints: false, reason: 'stale', tail: WED }],
     ['server row after 20:00', { now: et(WED, 20, 30), asof: TUE, day: WED, last: [19, 59], serverRow: true }, { paints: true, tail: WED }],
+    // (review of #2549 P2-L4: the windows the rail lacked)
+    ['server row 19:30 (past 00:00 UTC, before the 20:00 end)', { now: et(WED, 19, 30, 20), asof: TUE, day: WED, last: [19, 29], serverRow: true }, { paints: true, reason: 'paints', tail: WED }],
+    ['midnight hour, the day just ended (its seed in, the overlay still on it)', { now: et(THU, 0, 30), asof: WED, day: WED, last: [19, 59] }, { paints: true, tail: WED }],
+    ['midnight hour, a page whose seed is one session old', { now: et(THU, 0, 30), asof: TUE, day: WED, last: [19, 59] }, { paints: false, tail: null }],
+    ['holiday 08:00', { now: et(HOLIDAY, 8, 0), asof: HALF_PREV }, { paints: true, tail: HALF_PREV }],
+    ['holiday 12:00 (the paint frontier ignores holidays: waits, as with the store off)', { now: et(HOLIDAY, 12, 0), asof: HALF_PREV }, { paints: false, reason: 'status:provisional', tail: HALF_PREV }],
+    ['holiday 17:00', { now: et(HOLIDAY, 17, 0), asof: HALF_PREV }, { paints: true, tail: HALF_PREV }],
     ['flag on, regular session 11:31', { now: et(WED, 11, 31, 20), asof: TUE, day: WED, last: [11, 30], formingDaily: true, withAv: true }, { paints: true, tail: WED }],
     ['flag on, after the close 16:30', { now: et(WED, 16, 30, 20), asof: TUE, day: WED, last: [16, 29], formingDaily: true, withAv: true }, { paints: false, reason: 'status:provisional', tail: TUE }],
     ['flag on, 19:30 (H2)', { now: et(WED, 19, 30, 20), asof: TUE, day: WED, last: [19, 29], formingDaily: true, withAv: true }, { paints: false, reason: 'status:provisional', tail: TUE }],
