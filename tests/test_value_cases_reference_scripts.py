@@ -11,9 +11,12 @@ graded by that case's own rule through the same lane (the member pane's own path
   * What that proves: the ENGINE runs a script written that way right, on every bar.
   * What it does NOT prove: that the assistant writes it. `capabilities_without_a_case` keeps its meaning and does
     not shrink; `capabilities_held_by_a_reference_script` is the second line.
-Eight are right. Two capabilities are held by nothing yet, each for a named reason:
+Eight were right. Two capabilities were held by nothing, each for a named reason:
   * `obj:getter`, recorded WRONG, an ENGINE DEFECT: a label whose text is arithmetic on a value read back from a
-    drawing is not drawn, and nothing is reported (silent). It goes right when the engine does;
+    drawing is not drawn, and nothing is reported (silent). It goes right when the engine does. ⭐⭐ IT DID: e96 #2610
+    computes getter arithmetic in a drawing's text, so the script is graded RIGHT now, its record kept (recorded
+    WRONG, its defect) and marked `engine_fixed` {by, since_engine: 96}, the value cases' own field, never claimed
+    ahead of the engine that earns it. Nine are right; `obj:getter` is held;
   * `conditional-ta`, a CORRECT NAMED REFUSAL kept as a specimen: the assistant is told it may write a ta call
     inside an `if`; the engine refuses that script by name, rightly, when the block does not run on every bar. The
     fault is the wording. A script written to a wording the gate admits will hold it.
@@ -41,13 +44,30 @@ BY_ID = {r["id"]: r for r in REFS}
 CASES = {c["id"]: c for c in (DATA.get("pending") or []) + DATA["cases"]}
 WITHOUT = list(DATA["capabilities_without_a_case"])
 HELD = list(DATA["capabilities_held_by_a_reference_script"])
-WRONG = {"ref-obj-getter"}                      # an engine defect, named
+RECORDED_WRONG = {"ref-obj-getter"}             # recorded WRONG: an engine defect, named
+ENGINE_FIXED = {"ref-obj-getter"}               # ... which the engine has since fixed (e96 #2610): graded RIGHT now
+WRONG = RECORDED_WRONG - ENGINE_FIXED            # wrong today: none
 REFUSED = {"ref-conditional-ta"}                # refused by the engine BY NAME, rightly: a specimen
 RIGHT = [r for r in REFS if r["id"] not in WRONG | REFUSED]
 #: a window under 5 bars, by the case whose rule holds the script (see `SHORT_WINDOWS` in the script tests)
 SHORT = {"cap-03": 3, "cap-04": 3}
 #: a neighbour's rule, for the control: the same kind of thing (a plotted column, or a drawing), asked differently
-NEIGHBOUR = {"cap-01": "cap-09", "cap-02": "cap-09", "cap-03": "cap-02", "cap-09": "cap-02", "cap-04": "cap-05", "cap-06": "cap-05"}
+NEIGHBOUR = {"cap-01": "cap-09", "cap-02": "cap-09", "cap-03": "cap-02", "cap-09": "cap-02", "cap-04": "cap-05", "cap-06": "cap-05",
+             "cap-05": "cap-06"}                 # (e96: the getter script is right now, so it has a neighbour too)
+
+
+def claimable(since):
+    """An `engine_fixed` claim is never AHEAD of the engine that earns it: `since` is not above the engine the lane runs
+    (`user_definitions.read_script_engine_version`), or, while the fixing train is not numbered yet, it is that train's
+    own number, named in a pending line of the version file. (The tag is built in two pieces: a train's retag rewrites
+    the literal wherever it is written, and this reader must survive the numbering it waits for.)"""
+    import re
+    from api.services import user_definitions as ud
+    engine = ud.read_script_engine_version()
+    text = (ROOT / "app" / "src" / "components" / "chart" / "engine" / "scriptEngineVersion.js").read_text(encoding="utf-8")
+    tag = "NUMBER" + " PENDING"
+    pending = {int(n) for n in re.findall(re.escape(tag) + r" = \([^)]*\btrain e(\d+)\b", text)}
+    return since <= engine or (since in pending and since > engine)
 
 
 def pine(ref):
@@ -74,7 +94,13 @@ def test_the_section_is_whole():
         assert ref.get("edge") == held_by.get("edge"), rid              # the same edge as the case it answers, or none
         assert ("defect" in ref) == (ref.get("recorded_verdict") == "wrong") and len(ref.get("defect") or "x" * 99) > 80, rid
         assert ("refused" in ref) == (ref["id"] in REFUSED), rid
-    assert {r["id"] for r in REFS if r.get("recorded_verdict") == "wrong"} == WRONG
+    assert {r["id"] for r in REFS if r.get("recorded_verdict") == "wrong"} == RECORDED_WRONG
+    # ⭐ e96: the engine fix is marked by hand, on a recorded-wrong script only, its record kept beside it
+    assert {r["id"] for r in REFS if "engine_fixed" in r} == ENGINE_FIXED <= RECORDED_WRONG
+    for rid in ENGINE_FIXED:
+        ef = BY_ID[rid]["engine_fixed"]
+        assert set(ef) == {"by", "since_engine"} and "#2610" in ef["by"] and ef["since_engine"] == 96, ef
+        assert claimable(ef["since_engine"]), (rid, ef, "claimed ahead of the engine that earns it")
     refused = BY_ID["ref-conditional-ta"]["refused"]
     assert refused["guard"] == "pine:block" and "CORRECT NAMED REFUSAL" in refused["why"] and "WORDING" in refused["why"]
 
@@ -91,8 +117,9 @@ def test_the_two_lines_say_two_different_things():
     """`capabilities_without_a_case`: what no DOOR ANSWER uses. A reference script never takes a capability off it."""
     written_for = {c for ref in RIGHT for c in ref["capabilities"]}
     assert HELD == [c for c in WITHOUT if c in written_for]
-    assert HELD == ["for-in", "generics", "max_bars_back", "method-call", "realtime-state", "switch", "udt", "while"]
-    assert set(WITHOUT) - set(HELD) == {"obj:getter", "conditional-ta"}     # held by nothing right: each is a named defect
+    assert HELD == ["for-in", "generics", "max_bars_back", "method-call", "obj:getter", "realtime-state", "switch", "udt",
+                    "while"]                                            # (e96: `obj:getter` is held, #2610)
+    assert set(WITHOUT) - set(HELD) == {"conditional-ta"}                    # held by nothing right: a named refusal
     assert len(WITHOUT) == 10
     # only the capability a script was WRITTEN FOR counts. The detector also finds `conditional-ta` in the `switch`
     # script (a ta call in a switch arm): that is not the capability as it is worded ("inside an `if` block").
@@ -111,10 +138,15 @@ def test_every_reference_script_is_what_the_section_says(graded):
         assert graded[ref["id"]]["verdict"] == want, (ref["id"], graded[ref["id"]]["lines"])
 
 
-def test_the_two_wrong_ones_are_wrong_for_the_reason_their_defect_names(graded):
+def test_the_one_wrong_one_is_refused_for_its_reason_and_the_getter_is_right_since_e96(graded):
+    """⭐ e96 #2610: the label whose text is arithmetic on a read-back value is DRAWN, with the right number. The proof
+    the studio designed: `obj:getter` goes RIGHT when e96's engine fix lands (a mutant reverting #2610's read of the
+    arithmetic, `stateNumber`, turns it back to WRONG and this rail red: ci/mutants/e96-train-integration.json TJ10)."""
     getter = "\n".join(str(line) for line in graded["ref-obj-getter"]["lines"])
     assert "RIGHT  a line from the lowest low of the last 60 bars to the newest close" in getter      # the line is drawn right
-    assert "CHECK  a label at the end of the line" in getter and "all labels []" in getter           # the label is not drawn
+    assert "RIGHT  a label at the end of the line" in getter and "all labels []" not in getter       # and now the label is
+    assert graded["ref-obj-getter"]["verdict"] == "right"
+    # its record is kept beside the fix: what was wrong, and why
     assert "ARITHMETIC on a value read back from a drawing" in BY_ID["ref-obj-getter"]["defect"]
     refused = "\n".join(str(line) for line in graded["ref-conditional-ta"]["lines"])
     assert BY_ID["ref-conditional-ta"]["refused"]["guard"] in refused and "plotted no column to compare" in refused   # by name
