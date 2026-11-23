@@ -1,0 +1,27 @@
+//@version=3
+study("UCTPROBE_VW_HLINE_DEFAULTS_V3", overlay = false)
+
+// PROVENANCE: written 2026-11-22 (Q-HLINE-3, docs/pine/capture-queue-2026-11-22-e96-presentation.md). Our probe.
+// NEVER COMPILED ON TRADINGVIEW.
+//
+// ─── TRADINGVIEW'S OWN DEFAULTS FOR A v5 `hline`, ONE FIELD AT A TIME ───
+//
+// v1-v3 line style (dashed) and width (1) are captured (S1, transparency-defaults-by-version-rddt-1d-2026-11-14),
+// and the v6 defaults (vw-hline-written). The v3 default COLOUR is not. Only the v6 defaults are captured (`vw-hline-written-rddt-1d-2026-11-20`, H5: #808080, dashed, width 1). Until
+// these rows are, a v3 hline that names no colour, style or width is drawn in the chart's neutral ink and named
+// (`app/src/components/chart/engine/hlineLevels.js::HLINE_DEFAULTS`). Each row leaves exactly one field unwritten.
+//
+//   P0  close (a plot, so the pane has a scale)
+//   D0  price 100, nothing else                       (colour, style and width all TradingView's)
+//   D1  price 110, colour and width written           (the default STYLE)
+//   D2  price 120, colour and style written           (the default WIDTH)
+//   D3  price 130, style and width written            (the default COLOUR)
+//   D4  price 140, red written                  (a palette colour kept opaque, or not)
+// CAPTURE: NYSE:RDDT 1D from the listing, inputs at defaults; record study.bands / bandDefaults / bandState.
+
+plot(close, title = "P0_close", color = gray)
+hline(100, title = "D0_nothing")
+hline(110, title = "D1_default_style", color = blue, linewidth = 2)
+hline(120, title = "D2_default_width", color = green, linestyle = dotted)
+hline(130, title = "D3_default_colour", linestyle = solid, linewidth = 3)
+hline(140, title = "D4_red_only", color = red)

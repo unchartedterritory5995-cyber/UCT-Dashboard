@@ -24,7 +24,7 @@
 // `buildDefinition` call are the shapes it already proved land a valid document.
 import { staticPlotRefusalsOf } from '../../engine/otherSymbols.js'
 import { checkDoorDeadline } from '../../engine/ast/doorDeadline'
-import { translatePine, lexPine, blockStatements, parseWholeExpression, findTop, isPunct, boundName, PAINT_RUNTIME_COLOUR, strippedForScan, OBJECT_SITE_SOURCES, COLOUR_UNREAD, COLOUR_DEFAULT_UNWITNESSED, isPreV4PineVersion, LEGACY_PLOT_DEFAULT_TRANSP, NO_VERSION_GUARD, modernPineSyntaxIn, noVersionSentence, withDoorDeadline } from '../../engine/ast/pine'
+import { printFormula, translatePine, lexPine, blockStatements, parseWholeExpression, findTop, isPunct, boundName, PAINT_RUNTIME_COLOUR, strippedForScan, OBJECT_SITE_SOURCES, COLOUR_UNREAD, COLOUR_DEFAULT_UNWITNESSED, isPreV4PineVersion, LEGACY_PLOT_DEFAULT_TRANSP, NO_VERSION_GUARD, modernPineSyntaxIn, noVersionSentence, withDoorDeadline } from '../../engine/ast/pine'
 import { withAlphaByte } from '../../designTokens'
 import { DEFAULT_SERIES_COLOUR } from '../../engine/pinePalette'
 import { THEME_FG } from '../../engine/objectTheme'
@@ -73,7 +73,7 @@ import { DOOR_VERSION } from '../../engine/memberDocumentMigration'
 import { evaluateFormula } from '../FormulaField'
 import { BUILDER_INPUT_SCOPE, seriesNamesOf, memberInputKey, inputsFromFolded } from '../builderInputs'
 // ⭐⭐ e96 — a Pine `hline` drawn as the level it is, one authority for both doors.
-import { hlineGuides, hlineNotReproducedNote, hlineWithheldNote } from '../../engine/hlineLevels'
+import { hlineGuides, hlineNotReproducedNote, hlineWithheldNote, hlineOrdinalOf } from '../../engine/hlineLevels'
 // ⭐ RS RATING L3 — the substituted-value disclosure (`syminfo.industry` / `sector` from UCT data).
 import { substitutionNotesFor, otherSymbolSourceNotesFor } from '../../engine/ast/symbolSubstitution'
 
@@ -1210,6 +1210,47 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
     bindInput: (entry) => hostLevelInputKey(entry, { t, declared: docInputsBase, extra: levelSpecs }),
   })
   const docInputs = levelSpecs.length ? [...(docInputsBase || []), ...levelSpecs] : docInputsBase
+  // ⭐⭐ e96 — A BAND BETWEEN TWO LEVELS (`fill(h1, h2)`, `presentation.levelFills`), ON THE EXISTING BAND MECHANISM:
+  // two hidden rows at the two levels (a level bound to a setting reads that setting, so the band follows the
+  // member's value as the lines do) and the band between them, exactly as a band between two hidden plots is drawn.
+  // ⛔ A band one of whose levels is not drawn is not drawn; a band whose colour changes bar by bar is not carried
+  // here yet; both are said by name.
+  const levelBandNotes = []
+  {
+    const guideByOrdinal = new Map(levelPlan.guides.map((g) => [hlineOrdinalOf(g.key), g]))
+    const scope = { ...lintScope, ...Object.fromEntries(levelSpecs.map((s) => [s.key, true])) }
+    const anchorOf = (g) => {
+      const lv = g.levels[0]
+      const ast = typeof lv === 'string' ? { type: 'series', name: lv.slice(1) }
+        : lv < 0 ? { type: 'op', name: 'u-', args: [{ type: 'num', value: -lv }] } : { type: 'num', value: lv }
+      const formula = printFormula(ast)
+      const ev = evaluateFormula(formula, scope)
+      const row = { key: keyAt(rows.length), label: '', source: formula, ast,
+        mode: (ev && ev.verdict && ev.verdict.mode) || 'non-repainting', readback: (ev && ev.readback) || '',
+        style: 'line', hidden: true, color: COLOUR_NONE }
+      rows.push(row)
+      return row
+    }
+    for (const f of ((t.presentation || {}).levelFills || [])) {
+      const ga = guideByOrdinal.get(f.a)
+      const gb = guideByOrdinal.get(f.b)
+      const name = `\`fill\` (${(ga && ga.label) || `hline ${f.a + 1}`} / ${(gb && gb.label) || `hline ${f.b + 1}`})`
+      if (!ga || !gb) { levelBandNotes.push({ name, note: `${name} is not drawn: one of its two levels is not drawn.` }); continue }
+      if (typeof f.color !== 'string') {
+        const why = typeof f.colorUp === 'string' || Array.isArray(f.colorPalette)
+          ? 'its colour changes bar by bar, which a band between two levels does not carry here yet'
+          : 'it names no colour, and TradingView\'s default for a band between two levels is not captured'
+        levelBandNotes.push({ name, note: `${name} is not drawn: ${why}.` })
+        continue
+      }
+      const ra = anchorOf(ga)
+      const rb = anchorOf(gb)
+      ra.fill = { with: rb.key }
+      ra.fillColor = f.color
+      if (Number.isFinite(f.opacity)) ra.fillOpacity = f.opacity
+      if (f.transparency && typeof f.transparency.via === 'string') ra.fillTransparency = { ...f.transparency }
+    }
+  }
   let definition = null
   try {
     definition = buildDefinition({
@@ -1386,6 +1427,13 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
   }
   // ⭐⭐ e96 — A CANDLE OR BAR THAT IS NOT DRAWN IS SAID SO, by its title (never a silent hidden row).
   for (const n of candleNotes) {
+    const key = `${n.name} :: ${n.note}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    notes.push(n)
+  }
+  // ⭐⭐ e96 — A BAND BETWEEN TWO LEVELS THAT IS NOT DRAWN IS SAID SO.
+  for (const n of levelBandNotes) {
     const key = `${n.name} :: ${n.note}`
     if (seen.has(key)) continue
     seen.add(key)

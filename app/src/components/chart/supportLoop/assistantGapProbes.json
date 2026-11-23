@@ -27,9 +27,15 @@
   },
   {
    "id": "plotbar",
-   "cannot": "Bars drawn from computed values (plotbar)",
+   "cannot": "Bars in the chart's own prices, coloured by a rule (plotbar)",
    "kind": "output",
    "source": "//@version=5\nindicator(\"probe\")\nplotbar(open, high, low, close, \"Bars\", color=close > open ? color.green : color.red)\n"
+  },
+  {
+   "id": "plotbar-computed",
+   "cannot": "Bars drawn from computed values (plotbar)",
+   "kind": "output",
+   "source": "//@version=5\nindicator(\"probe\")\nhaClose = (open + high + low + close) / 4\nvar float haOpen = na\nhaOpen := na(haOpen[1]) ? (open + close) / 2 : (haOpen[1] + haClose[1]) / 2\nplotbar(haOpen, math.max(high, haOpen, haClose), math.min(low, haOpen, haClose), haClose, \"Heikin Ashi bars\", color=haClose > haOpen ? color.green : color.red)\n"
   },
   {
    "id": "vwap-deviation-bands",

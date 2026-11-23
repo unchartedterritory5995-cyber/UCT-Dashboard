@@ -169,8 +169,9 @@ describe('⭐⭐ the sentence agrees with the door on every corpus script, both 
           if (/is drawn:/.test(n.message) !== draws) bad.push(`${name} line ${n.line}: "${n.message}" vs record ${JSON.stringify(r && { withheld: !!r.withheld, hidden: !!r.hidden, na: !!r.na })}`)
         })
         // bands: as many "carried" sentences as bands carried
-        const carried = notes.filter((n) => /^`fill` (is carried as the band|shades the band between two plots; this door carries)/.test(n.message)).length
-        const bands = (((t.presentation || {}).fills) || []).length
+        const carried = notes.filter((n) => /^`fill` (is carried as the band|shades the band between two (plots|levels); this door carries)/.test(n.message)).length
+        // ⭐ e96 — a band between two levels is carried as `presentation.levelFills`
+        const bands = (((t.presentation || {}).fills) || []).length + (((t.presentation || {}).levelFills) || []).length
         if (carried !== bands) bad.push(`${name}: ${carried} fill sentences say carried, ${bands} bands carried`)
       }
     }

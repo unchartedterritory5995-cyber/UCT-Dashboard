@@ -17585,10 +17585,16 @@ export function chartOnlySentence(word, how = {}) {
     if (host && how.site === 'top' && typeof how.withheld === 'string' && how.withheld) {
       return `${code} is not drawn: its colour is withheld — ${how.withheld}`
     }
+    // ⭐ e96 — `how.levels`: the band's two edges are two `hline`s (`presentation.levelFills`)
+    const edges = how.levels ? 'levels' : 'plots'
     if (how.site === 'top' && how.band) {
       return host
-        ? `${code} is carried as the band between its two plots; it is not a column, so ${SCREEN_READS}`
-        : `${code} shades the band between two plots; this door carries it as that band for a chart, and ${SCREEN_READS}`
+        ? `${code} is carried as the band between its two ${edges}; it is not a column, so ${SCREEN_READS}`
+        : `${code} shades the band between two ${edges}; this door carries it as that band for a chart, and ${SCREEN_READS}`
+    }
+    if (how.levels && how.site === 'top') {
+      const lw = 'one of its two levels is not drawn (its own line says why)'
+      return host ? `${code} is not drawn: ${lw}` : `${code} shades the band between two levels; ${lw}, so it is not carried, and ${SCREEN_READS} either`
     }
     const why = how.site === 'bound' ? 'a `fill` assigned to a name is not read' : 'its two edges are not both plots this door carries'
     return host ? `${code} is not drawn: ${why}` : `${code} shades the band between two plots; ${why}, so it is not carried, and ${SCREEN_READS} either`
@@ -31287,6 +31293,19 @@ function translatePineResult(source, opts = {}) {
   // ⭐ C1-B's bands, resolved HERE rather than inside the literal below, so the
   // `fill` sentences can say whether each band was carried (B1, step 61).
   const presentationFills = resolveFillHandles(fills, outputs, resolved, { env, resolver: makeResolver(), carried: carriedFills, withheld: withheldFills, version, hostLane: isHostLane(opts) })
+  // ⭐⭐ e96 — A BAND BETWEEN TWO LEVELS (`h1 = hline(70)`, `h2 = hline(30)`, `fill(h1, h2)`), read by the SAME
+  // `resolveFillHandles` a band between two plots is (its colour, its static opacity rule), with each level's call
+  // standing as the edge: `a` / `b` are the two `hline` ordinals. A level that is not read, or hidden by its author,
+  // is not an edge, so the band is not carried and says why. The member door draws it on the existing band mechanism
+  // (`memberPaneDefinition.js`: two hidden rows at the two levels).
+  const levelHandles = new Map(hlineCalls.filter((h) => h.handle).map((h) => [h.handle, h.ordinal]))
+  const levelFillRecs = fills.filter((f) => levelHandles.has(f.a) && levelHandles.has(f.b))
+  const presentationLevelFills = levelFillRecs.length
+    ? resolveFillHandles(levelFillRecs, hlineCalls.map((h) => ({ handle: h.handle })),
+      hlineReads.map((h) => (h.level && !h.level.hidden ? { refusal: null } : { refusal: 'not an edge' })),
+      { env, resolver: makeResolver(), carried: carriedFills, withheld: withheldFills, version, hostLane: isHostLane(opts) })
+    : []
+  for (const p of chartOnlyPending) if (p.fillRec && levelFillRecs.includes(p.fillRec)) p.how.levels = true
   sayChartOnly()
 
   const result = {
@@ -31321,6 +31340,8 @@ function translatePineResult(source, opts = {}) {
       // not exist at collection time, which is why a conditional fill colour was
       // uncarried for the whole of a6.
       fills: presentationFills,
+      // ⭐ e96 — the bands between two levels, by `hline` ordinal; present only when there are any.
+      ...(presentationLevelFills.length ? { levelFills: presentationLevelFills } : {}),
       // ⭐ B1 — present only for a host-lane script that writes a paint, so every
       // other result keeps its exact shape.
       ...(paintRecs ? { paints: paintRecs } : {}),

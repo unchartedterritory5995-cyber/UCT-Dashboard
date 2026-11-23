@@ -856,11 +856,13 @@ describe('the runtime lane\'s own disclosure of the calls it never draws is a wi
     expect(status.items.filter((x) => x.name === '`hline`')).toEqual([])
   })
 
-  it('real door: a band between two levels is not carried (the levels are, e96); a band between two plots is (control)', () => {
+  it('real door (e96): a band between two levels is carried, as a band between two plots is; one with an unread level is not', () => {
     const src = '//@version=6\nindicator("b")\nplot(ta.rsi(close, 14), "RSI")\nh1 = hline(70)\nh2 = hline(30)\nfill(h1, h2)'
-    const undrawn = statusOf(src).status.items.filter((x) => x.kind === 'undrawn')
+    expect(statusOf(src).status.items.filter((x) => x.kind === 'undrawn')).toEqual([])
+    const unread = '//@version=6\nindicator("b")\nplot(ta.rsi(close, 14), "RSI")\nh1 = hline(close)\nh2 = hline(30)\nfill(h1, h2)'
+    const undrawn = statusOf(unread).status.items.filter((x) => x.kind === 'undrawn')
       .map((x) => [x.name, x.line]).sort((a, b) => a[1] - b[1])
-    expect(undrawn).toEqual([['`fill`', 6]])
+    expect(undrawn).toEqual([['`hline`', 4], ['`fill`', 6]])
     // control: the band between two plots IS carried, so nothing is withheld for it
     expect(statusOf(FILL).status.items.some((x) => x.kind === 'undrawn')).toBe(false)
   })

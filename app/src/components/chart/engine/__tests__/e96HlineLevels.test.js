@@ -134,6 +134,19 @@ describe('the member door draws them, on both doors', () => {
       registry.uninstallUserDefinition(installed[0].id)
     }
   })
+  it('the neutral ink is the CHART\'s text colour, resolved where the guide is planned (`pool.planBindings`)', () => {
+    withPanes()
+    const d = memberPaneDefinition({ source: v(5, 'plot(ta.rsi(close, 14), "RSI")\nhline(70, "Overbought")'), id: 'u_e96_h3t', name: 't' })
+    const { installed } = registry.installUserDefinitions([d.definition])
+    try {
+      const reg = { getDefinition: (id) => (id === installed[0].id ? installed[0] : null) }
+      const guides = planBindings([{ instanceId: 'i:e96t', defId: installed[0].id, inputs: {} }], reg, null,
+        { theme: { fg: '#D1D4DC', bg: '#131722' } }).bind.flatMap((b) => b.guides || [])
+      expect(guides.map((g) => g.color)).toEqual(['#D1D4DC'])
+    } finally {
+      registry.uninstallUserDefinition(installed[0].id)
+    }
+  })
   it('a v5 unstyled level is drawn in the neutral ink, and the door says so by name', () => {
     withPanes()
     const d = memberPaneDefinition({ source: v(5, 'plot(ta.rsi(close, 14), "RSI")\nhline(70, "Overbought")'), id: 'u_e96_h3', name: 't' })
@@ -157,6 +170,34 @@ describe('the member door draws them, on both doors', () => {
     expect(guidesOf(d)).toEqual([])
     const t = d.translation
     expect(t.notes.find((n) => n.code === 'pine:chart-only').message).toMatch(/^`hline` is not drawn: /)
+  })
+})
+
+describe('a band between two levels is drawn on the existing band mechanism (e96, unit 3)', () => {
+  it('two hidden rows at the two levels, the band between them, in the fill\'s own colour', () => {
+    withPanes()
+    const src = v(6, 'ob = input.int(70, "OB")\nplot(ta.rsi(close, 14), "RSI")\nh1 = hline(ob, "Up")\nh2 = hline(30, "Down")\nfill(h1, h2, color = color.new(color.purple, 90))')
+    const t = translatePine(src, { strict: true })
+    expect(t.notes.find((n) => n.code === 'pine:chart-only' && n.line === 6).message).toMatch(/^`fill` is carried as the band between its two levels/)
+    expect(t.presentation.levelFills.map((f) => [f.a, f.b])).toEqual([[0, 1]])
+    const d = memberPaneDefinition({ source: src, id: 'u_e96_b1', name: 't' })
+    expect(d.ok).toBe(true)
+    const edge = d.definition.plots.find((p) => p.fill && p.fill.with)
+    const other = d.definition.plots.find((p) => p.key === edge.fill.with)
+    expect([edge.hidden, other.hidden]).toEqual([true, true])
+    expect([d.definition.compute.sources[edge.key], d.definition.compute.sources[other.key]]).toEqual(['ob', '30'])
+    expect(edge.fillColor).toBe('#9C27B0')
+    expect(edge.fillOpacity).toBeCloseTo(0.1, 12)
+    expect(d.notes.some((n) => /^`fill`/.test(n.name || ''))).toBe(false)
+  })
+  it('⛔ a band one of whose levels is not drawn is not drawn, by name', () => {
+    withPanes()
+    const src = v(6, 'plot(ta.rsi(close, 14), "RSI")\nh1 = hline(close)\nh2 = hline(30, "Down")\nfill(h1, h2, color = color.blue)')
+    const t = translatePine(src, { strict: true })
+    expect(t.presentation.levelFills || []).toEqual([])
+    expect(t.notes.find((n) => n.code === 'pine:chart-only' && n.line === 5).message).toMatch(/^`fill` is not drawn: one of its two levels is not drawn/)
+    const d = memberPaneDefinition({ source: src, id: 'u_e96_b2', name: 't' })
+    expect(d.definition.plots.some((p) => p.fill)).toBe(false)
   })
 })
 
