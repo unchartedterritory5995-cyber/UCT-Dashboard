@@ -23,6 +23,7 @@ import { unknownSymbols } from '../agentClient'
 import { mutate as globalMutate } from 'swr'
 import { kindServed, readQuoteMap } from './marketDataFacts'
 import { indicatorAlertBook } from './indicatorAlerts'
+import { alertFast } from './alertPhrases'
 
 const ROUTE = '/api/watchlist-alerts'
 const TTL_MS = 20_000
@@ -214,6 +215,8 @@ function libraryEntry(refFor) {
   }
 }
 
+const sayOrList = alertFast('alert.list', { sayer: true })
+
 let registered = false
 export function registerAlertCapabilities() {
   if (registered) return
@@ -266,7 +269,9 @@ export function registerAlertCapabilities() {
       required: ['symbol', 'status', 'triggered_today'], additionalProperties: false,
     },
     fastWhole: true,
-    fast: ({ lower }) => (/^((show|list)( me)?( all)?( of)? my( price)? alerts|what alerts do i have|my alerts)[?.!]?$/.test(lower) ? { symbol: null, status: null, triggered_today: null } : null),
+    // the Alerts family's general reader (alertPhrases): "what alerts do I have on TSLA", "which alerts went off today";
+    // it also says, in fixed words, that a price alert can't be paused ("turn off my NVDA alert") — nothing is deleted for it
+    fast: (ctx) => (/^((show|list)( me)?( all)?( of)? my( price)? alerts|what alerts do i have|my alerts)[?.!]?$/.test(ctx.lower) ? { symbol: null, status: null, triggered_today: null } : sayOrList(ctx)),
     // ⭐ "what alerts do I have" is about the member's WHOLE book: each half is named, and a half that wasn't read is said to
     // be missing — never "you have no alerts" from the price half alone. "Went off" is a price-alert reading only.
     async answer(_snap, { symbol, status, triggered_today: today }, host) {
@@ -314,6 +319,10 @@ export function registerAlertCapabilities() {
       properties: { symbol: { type: 'string' }, price: { type: 'number' }, direction: { type: 'string', enum: ['above', 'below'] } },
       required: ['symbol', 'price', 'direction'], additionalProperties: false,
     },
+    // alertPhrases: "alert me when AAPL crosses above 200", "ping me if this one drops below 150" — a side and a level said,
+    // the symbol typed or the ONE chart pointed at; always the same proposal card as a model plan
+    fastWhole: true,
+    fast: alertFast('alert.create'),
     // Fresh book (duplicates), real symbols, and the price now (an alert whose level is
     // already reached would go off at once — said instead of created).
     async prepare(ops) {
@@ -336,7 +345,10 @@ export function registerAlertCapabilities() {
       if (direction !== 'above' && direction !== 'below') return 'Should it go off above or below that price?'
       if (st.creates.length >= MAX_CREATES) return `That's more than ${MAX_CREATES} alerts in one request — ask for them in smaller groups.`
       const same = (a) => a.sym === sym && a.direction === direction && a.price === p
-      const dup = st.alerts.find(a => a.active && same(a)) || st.creates.find(same)
+      // the book prepare() just re-read from the server, when it could (an instant reading plans without the context refresh a
+      // model turn gets, so the snapshot may be up to TTL_MS old: an alert deleted elsewhere must not read as a duplicate)
+      const book = env?.alertBookFresh ? rows() : st.alerts
+      const dup = book.find(a => a.active && same(a)) || st.creates.find(same)
       if (dup) return `You already have an active alert for ${alertPhrase({ sym, direction, price: p })}.`
       const now = env?.alertQuotes?.[sym]
       if (now != null && (direction === 'above' ? now >= p : now <= p)) {
@@ -367,6 +379,9 @@ export function registerAlertCapabilities() {
       + 'status is not active. If more than one alert could be the one they mean (e.g. two alerts on AMD), clarify with the real alerts as choices — never pick one. '
       + 'If the alerts list is not shown, use alert.list first.',
     args: { type: 'object', properties: {}, required: [], additionalProperties: false },
+    // alertPhrases: "delete my NVDA alert" — exactly one alert across both books (else the model asks with the real choices)
+    fastWhole: true,
+    fast: alertFast('alert.delete'),
     // Same as the Alerts widget's ✕: a line-bound alert is deleted the same way (its line stays).
     check: () => null,
     apply: (st) => ({ ...st, deleted: true }),

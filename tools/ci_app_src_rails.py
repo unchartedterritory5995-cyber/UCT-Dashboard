@@ -107,8 +107,6 @@ KNOWN_RED: dict[str, str] = {
         "dev-PC lock: pid 999999 reads as a live holder on a runner (LockHeld), so the contract cannot be probed there",
     "tests/test_gate_box_lock.py::test_the_lock_self_check_still_passes_end_to_end":
         "dev-PC lock: the self-check finds the running pytest itself as the holder on a runner (LockHeld)",
-    "tests/test_gate_shards.py::test_the_read_set_covers_every_root_relative_path_the_suite_reads":
-        "paths the suite reads are missing from GATE_READ_PATHS, so a re-derivation would carry a verdict across them",
     "tests/test_journal_styles_schema.py::test_the_committed_fixture_is_what_the_composer_makes_now":
         "the composer's output moved: regenerate journalStylesComposed.json and let its schema test judge the diff",
     "tests/test_notebook_campaign_clock.py::test_the_shared_data_root_is_refused[C:\\\\DATA\\\\clock]":

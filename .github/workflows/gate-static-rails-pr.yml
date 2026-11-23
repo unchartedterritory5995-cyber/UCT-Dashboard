@@ -149,8 +149,9 @@ jobs:
       # 2026-11-22 (#2501): these three files hold the Agent CI workflows, the merge-queue verdict and the evidence
       # tools to their rules, and NO pull-request job ran them (agent ci's server job runs only the Agent's own
       # server test files), so a PR that edited agent-ci-queue.yml alone was checked by nothing before it landed. Stdlib, PyYAML
-      # and git (throwaway repositories under the runner's temp folder). On the runner at
-      # 8b39c3aef6 this step took 18 s (554 tests; run 45055761744 of this job).
+      # and git (throwaway repositories under the runner's temp folder). On the runner the step took 44 to 58 s
+      # (762 tests) in the first four merge-group runs of this job, 2026-11-23 (55 s in run 45090974812). It was 18 s
+      # with 554 tests at 8b39c3aef6; the workflow-tree scan's rails are most of the difference.
       - name: The Agent CI workflows, queue verdict and evidence tools keep their rails
         if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
         run: python -m pytest tests/test_ci_agent_merge_ref.py tests/test_agent_ci_required.py tests/test_agent_ci_evidence.py -q -p no:cacheprovider
