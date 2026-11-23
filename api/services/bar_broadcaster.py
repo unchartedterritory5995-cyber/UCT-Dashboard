@@ -104,7 +104,7 @@ _seed_fail_total = 0        # D8 seed fetches that raised / returned nothing
 
 class _Minute:
     """One minute of one symbol. Prices are None until an eligible print/bar."""
-    __slots__ = ("o", "o_ts", "h", "l", "c", "c_ts", "v", "last_ts", "auth")
+    __slots__ = ("o", "o_ts", "h", "l", "c", "c_ts", "v", "last_ts", "auth", "seeded")
 
     def __init__(self):
         self.o = None
@@ -116,6 +116,7 @@ class _Minute:
         self.v = 0
         self.last_ts = None   # unix ms of the latest T trade seen for this minute
         self.auth = False     # True = AM / completed-REST bar (T can no longer change it)
+        self.seeded = False   # True = a REST partial covered this minute's start (coverage)
 
 
 def _default_seed_fetcher(sym: str) -> list[dict]:
@@ -124,7 +125,9 @@ def _default_seed_fetcher(sym: str) -> list[dict]:
     from zoneinfo import ZoneInfo
     from api.services import bars_fetch
     day = datetime.now(ZoneInfo("America/New_York")).strftime("%Y-%m-%d")
-    bars = bars_fetch._fetch_intraday_range(sym, "1", day, day)
+    # raise_errors: a vendor ERROR must not read as "no bars today" — the ingest marks a
+    # symbol covered on an empty answer (no trade was missed) but retries an error.
+    bars = bars_fetch._fetch_intraday_range(sym, "1", day, day, raise_errors=True)
     out = []
     for b in bars or []:
         t = int(b["t"])
@@ -192,6 +195,14 @@ class BarBroadcaster:
         self._seeded: dict[str, int] = {}
         self._seed_failed_at: dict[str, int] = {}   # sym -> clock ms of the last empty/failed seed
         self._seed_retry_ms: int = 60_000
+        # ⭐ COVERAGE (owner 2026-11-23: "the current candle should be completely accurate as if
+        # they were already watching it. It should not change."). sym -> clock ms from which the
+        # minute map holds EVERY trade (T (re)started there). A minute that began before it is
+        # known only through an AM / REST bar (auth) or a seed (seeded); until then any bucket
+        # containing it is NOT derived: never emitted, never snapshotted, so no client ever sees
+        # a candle built from part of its minute. Absent = no gap (the seed or AM covered it, or
+        # this process never declared one: the in-web local mode is unchanged).
+        self._cover_from: dict[str, int] = {}
         # D3 CP3 (G3): monotonic-ms of the last AM/A/T event received for this symbol,
         # across every tf -- the bars lane's own staleness answer, mirroring
         # realtime_stream.get_last_seen for the quote lane. Read by last_tick_age().
@@ -310,6 +321,7 @@ class BarBroadcaster:
         self._hwm.pop(sym, None)
         self._pruned_at.pop(sym, None)
         self._seeded.pop(sym, None)
+        self._cover_from.pop(sym, None)
         self._day_volume.pop(sym, None)
         for k in _ALL_KEYS:
             self._dirty.pop((sym, k), None)
@@ -510,6 +522,22 @@ class BarBroadcaster:
             if forget_failure:
                 self._seed_failed_at.pop(su, None)
 
+    def trades_started(self, sym: str, at_ms: Optional[int] = None) -> None:
+        """Coverage: T (re)started for `sym` at `at_ms` (default now). Every minute that began
+        before it is incomplete in the minute map until a seed or AM covers it."""
+        with self._lock:
+            self._cover_from[sym.upper()] = int(self._clock_ms() if at_ms is None else at_ms)
+
+    def mark_covered(self, sym: str) -> None:
+        """Coverage: nothing before the T start is missing (a seed fetch that succeeded and
+        found no bars today: no trade happened, so no minute lacks one)."""
+        with self._lock:
+            self._cover_from.pop(sym.upper(), None)
+
+    def covered(self, sym: str) -> bool:
+        with self._lock:
+            return sym.upper() not in self._cover_from
+
     def apply_seed(self, sym: str, bars) -> bool:
         """D8 step 3: fold fetched 1-min bars into the minute map (see ensure_seeded).
         Empty `bars` = a failed seed (retried after _seed_retry_ms). Non-blocking."""
@@ -539,6 +567,9 @@ class BarBroadcaster:
                     touched.append(got)
             if not touched:
                 return False
+            # Coverage: the fetch began after T restarted (the ingest drops an older one), so
+            # REST holds every minute up to the fetch and T every trade since: no gap remains.
+            self._cover_from.pop(su, None)
             # F2: emit only each key's CURRENT bucket. The seeded history is
             # already on the client (REST); replaying ~3h of buckets into a
             # 64-slot queue only overflowed it.
@@ -616,6 +647,7 @@ class BarBroadcaster:
         else:
             # Seed for a still-developing minute (REST partial): merge with the T
             # accumulation — the REST bar saw the minute's earlier prints.
+            st.seeded = True
             if st.o is None or st.o_ts > m:
                 st.o, st.o_ts = bar["o"], m
             if st.c is None:
@@ -659,8 +691,11 @@ class BarBroadcaster:
         o = h = l = c = None
         v = 0
         trade_ts = None
+        cover = self._cover_from.get(sym)
         for m in range(start, end, _MINUTE_MS):
             st = mins.get(m)
+            if cover is not None and m < cover and not (st is not None and (st.auth or st.seeded)):
+                return None   # coverage: began before T did and no seed/AM has filled it yet
             if st is None:
                 continue
             v += st.v

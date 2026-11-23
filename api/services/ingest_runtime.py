@@ -87,6 +87,8 @@ SNAPSHOT_LOOKBACK_MIN = float(os.environ.get("INGEST_SNAPSHOT_LOOKBACK_MIN", "15
 SEED_WORKERS = max(1, int(os.environ.get("INGEST_SEED_WORKERS", "4")))
 # How long a NEW symbol's partial developing bars wait for its first seed (see _seed_hold).
 SEED_HOLD_S = float(os.environ.get("INGEST_SEED_HOLD_S", "3"))
+#: Coverage: backoff (s) between seed attempts for a charted symbol whose seed failed.
+SEED_RETRY_S = (2.0, 5.0, 15.0)
 #: Seconds after boot before the first Massive connect (see DEPLOY HANDOFF).
 CONNECT_GRACE_S = float(os.environ.get("INGEST_CONNECT_GRACE_S", "45"))
 #: Ingest buffers hold a connect-time snapshot (~16 bars per 1m key) on top of the
@@ -168,6 +170,7 @@ class IngestRuntime:
         self._seed_hold: dict = {}
         self._first_seed: set = set()            # first seed scheduled, not finished
         self._seed_gen: dict = {}                # sym -> bumped each time T restarts (stale-seed guard)
+        self._seed_attempts: dict = {}           # sym -> retries spent since its last T restart
         self._reader: Optional[asyncio.Task] = None
         self._grace_until: Optional[float] = None
         self.counters = {"bars_routed": 0, "bars_unrouted": 0, "bars_superseded": 0,
@@ -176,7 +179,7 @@ class IngestRuntime:
                          "seed_errors": 0, "reseeds": 0, "upstream_changes": 0,
                          "bars_invalid": 0, "prices_invalid": 0, "keys_without_channels": 0,
                          "seed_reoffers": 0, "bars_held_for_seed": 0, "seed_hold_expired": 0,
-                         "seeds_superseded": 0}
+                         "seeds_superseded": 0, "seeds_empty": 0, "seed_retries": 0}
 
     def attach(self, server) -> None:
         self.server = server
@@ -230,8 +233,7 @@ class IngestRuntime:
         t_started = {s for s, ch in delta.subscribe.items() if "T" in ch}
         charted = {s for s, _ in self._keys}
         for sym in sorted(t_started):
-            self.bc.reset_seed(sym, forget_failure=False)
-            self._seed_gen[sym] = self._seed_gen.get(sym, 0) + 1
+            self._restart_coverage(sym, forget_failure=False)
             if sym in charted and self.seeding:
                 self._seed_hold[sym] = self._now()     # a fresh hold, not an older seed's
         for sym in sorted(new_syms | (t_started & charted)):
@@ -419,14 +421,17 @@ class IngestRuntime:
                 return                        # T restarted while queued: the newer seed runs
             if not self.bc.begin_seed(sym):
                 self._release_hold(sym)       # already seeded today: nothing partial to hide
+                if not self.bc.covered(sym):
+                    self._retry_seed(sym, gen)    # a recent failure gates it: try again later
                 return
             self.counters["seeds_started"] += 1
+            fetched = True
             try:
                 bars = await asyncio.get_running_loop().run_in_executor(self._pool, self._fetch, sym)
             except Exception as e:  # noqa: BLE001
                 self.counters["seed_errors"] += 1
                 log.warning("[stream-ingest] seed(%s) failed: %s", sym, type(e).__name__)
-                bars = []
+                bars, fetched = [], False
             # back on the loop: the apply (and the frames it emits) is ordered with the reader
             if gen != self._seed_gen.get(sym, 0):
                 # T restarted mid-fetch: this fetch predates the restart. Drop it whole (an
@@ -434,13 +439,44 @@ class IngestRuntime:
                 # hold, the first-seed mark and the re-offer belong to the newer seed.
                 self.counters["seeds_superseded"] += 1
                 return
+            if fetched and not bars:
+                # the vendor answered and the symbol has no bar today: no trade was missed
+                self.counters["seeds_empty"] += 1
+                self.bc.mark_covered(sym)
+                self._release_hold(sym)
+                return
             if self.bc.apply_seed(sym, bars):
                 self.counters["seeds_applied"] += 1
+                self._seed_attempts.pop(sym, None)
                 self._seed_hold.pop(sym, None)
                 self._first_seed.discard(sym)
                 self._reoffer(sym)
             else:
-                self._release_hold(sym)       # a failed seed: the live bars are all there is
+                # a failed seed: the bucket that began before T stays underived (coverage),
+                # never shown partial; later buckets are whole. Retry while it matters.
+                self._release_hold(sym)
+                self._retry_seed(sym, gen)
+
+    def _retry_seed(self, sym: str, gen: int) -> None:
+        """Coverage: a charted symbol whose seed failed is fetched again after a backoff, so
+        its current candle appears whole within seconds instead of at the next bucket."""
+        n = self._seed_attempts.get(sym, 0)
+        if n >= len(SEED_RETRY_S) or not self.seeding:
+            return
+        self._seed_attempts[sym] = n + 1
+        self.counters["seed_retries"] += 1
+
+        def fire():
+            if gen != self._seed_gen.get(sym, 0) or self.bc.covered(sym):
+                return
+            if not any(s == sym for s, _ in self._keys):
+                return
+            self.bc.reset_seed(sym)               # past the failure gate: this IS the retry
+            self._schedule_seed(sym)
+        try:
+            asyncio.get_running_loop().call_later(SEED_RETRY_S[n], fire)
+        except RuntimeError:
+            pass
 
     def _release_hold(self, sym: str) -> None:
         # Re-offer even when the hold already EXPIRED: a bar dropped while held is marked
@@ -480,8 +516,22 @@ class IngestRuntime:
         self.counters["reseeds"] += 1
         log.info("[stream-ingest] Massive reconnect #%d: re-seeding %d chart symbol(s)", n, len(syms))
         for sym in syms:
-            self.bc.reset_seed(sym)
+            # the socket missed every trade of the gap: nothing from before now is known
+            # whole until the reseed lands (coverage), and a seed fetched before the
+            # reconnect can no longer clear it
+            self._restart_coverage(sym, forget_failure=True)
             self._schedule_seed(sym)
+
+    def _restart_coverage(self, sym: str, forget_failure: bool) -> None:
+        """T (re)started for `sym` (a new subscription or a vendor reconnect): the minute map
+        lacks every trade before now. Forget the seed, move the seed generation on (a fetch
+        already in flight predates this and is dropped) and tell the broadcaster, which then
+        derives no bucket that began before now until a seed or AM fills it."""
+        self.bc.reset_seed(sym, forget_failure=forget_failure)
+        self._seed_gen[sym] = self._seed_gen.get(sym, 0) + 1
+        self._seed_attempts.pop(sym, None)
+        if self.seeding:      # no seeding = nothing could ever fill the gap: keep the old behavior
+            self.bc.trades_started(sym)
 
     # ── the Massive reader ──────────────────────────────────────────────────
 

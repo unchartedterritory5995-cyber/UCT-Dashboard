@@ -836,7 +836,7 @@ def test_a_new_symbols_partial_bucket_waits_for_its_first_seed():
         rig.trade("ZZA", T0 + 31_000, 6.0, 10)             # mid-bucket: NOT the open
         await asyncio.sleep(0.05)
         assert not [u for u in bars_in(c, ("ZZA", "1")) if u.bar["t"] == T0], "partial bucket leaked"
-        assert rig.rt.counters["bars_held_for_seed"] >= 1
+        assert not rig.rt.bc.covered("ZZA"), "coverage: the bucket that began before T is not derived"
         gate.set()
         await until(lambda: rig.rt.counters["seeds_applied"] == 1)
         await until(lambda: [u for u in bars_in(c, ("ZZA", "1")) if u.bar["t"] == T0])
@@ -850,9 +850,19 @@ def test_a_new_symbols_partial_bucket_waits_for_its_first_seed():
     asyncio.run(go())
 
 
-def test_a_slow_seed_never_blanks_the_live_candle_past_the_hold():
+def test_a_slow_seed_never_sends_a_partial_bucket_and_the_next_bucket_is_live():
+    """Owner 2026-11-23: the forming candle must be exact the moment a chart opens and never
+    change. SUPERSEDED rule: a slow seed used to release the partial bucket after SEED_HOLD_S.
+    Now the bucket that began before T started is never sent partial, however slow the seed;
+    the NEXT bucket began after T did, so it is whole and goes out live; when the seed lands
+    the first bucket goes out whole."""
     gate = threading.Event()
-    rig = Rig(seeding=True, fetcher=lambda s: gate.wait(2) and [])
+
+    def fetcher(sym):
+        gate.wait(2)
+        return [{"t": T0, "o": 5.0, "h": 9.0, "l": 4.0, "c": 6.0, "v": 900}]
+
+    rig = Rig(seeding=True, fetcher=fetcher)
     rig.now[0] = T0 + 30_000
 
     async def go():
@@ -860,12 +870,15 @@ def test_a_slow_seed_never_blanks_the_live_candle_past_the_hold():
         t = await run_until(c, rig.srv, lambda: ("ZZA", "1") in rig.rt._key_routes)
         rig.trade("ZZA", T0 + 31_000, 6.0, 10)
         rig.now[0] = T0 + 31_000 + int(ir.SEED_HOLD_S * 1000) + 1000
-        rig.trade("ZZA", T0 + 32_000, 6.1, 10)             # past the hold: sent
+        rig.trade("ZZA", T0 + 40_000, 6.1, 10)             # past the hold: still NOT sent
+        rig.trade("ZZA", T0 + MIN + 1_000, 6.2, 10)        # the next bucket: whole, live
+        await until(lambda: [u for u in bars_in(c, ("ZZA", "1")) if u.bar["t"] == T0 + MIN])
+        assert not [u for u in bars_in(c, ("ZZA", "1")) if u.bar["t"] == T0], "partial bucket sent"
+        gate.set()
+        await until(lambda: rig.rt.counters["seeds_applied"] == 1)
         await until(lambda: [u for u in bars_in(c, ("ZZA", "1")) if u.bar["t"] == T0])
-        assert rig.rt.counters["seed_hold_expired"] == 1
-        n = rig.rt.counters["seed_reoffers"]
-        gate.set()                                         # then the seed FAILS: still re-offered
-        await until(lambda: rig.rt.counters["seed_reoffers"] > n)
+        first = [u for u in bars_in(c, ("ZZA", "1")) if u.bar["t"] == T0][0]
+        assert first.bar["o"] == 5.0 and first.bar["v"] >= 900
         await c.close()
         await asyncio.wait_for(t, 2)
         await rig.rt.stop_reader()
@@ -934,7 +947,11 @@ def test_a_reopen_keeps_the_failed_seed_retry_gate():
     """Review 2026-11-23: a T restart forgets the seed mark but NOT a recent failure, so a thin
     watchlist name whose seed keeps coming back empty is not re-fetched on every reopen."""
     fetches = []
-    rig = Rig(seeding=True, fetcher=lambda s: fetches.append(s) or [])
+    def fetcher(s):
+        fetches.append(s)
+        raise RuntimeError("vendor error")              # an ERROR (an empty answer means "no bars")
+
+    rig = Rig(seeding=True, fetcher=fetcher)
     rig.now[0] = T0 + 30_000
     both = {"volume": {"ZZA": frozenset({"AM", "A"})}, "bars": {"ZZA": frozenset({"AM", "A", "T"})}}
 
@@ -990,3 +1007,74 @@ def test_a_seed_in_flight_from_before_a_t_restart_cannot_release_the_new_hold():
         await asyncio.wait_for(t, 2)
         await rig.rt.stop_reader()
     asyncio.run(go())
+
+
+def test_coverage_a_5m_bucket_waits_for_every_minute_before_t_then_goes_out_whole():
+    """Coverage on a multi-minute key: T starts 2.5 minutes into a 5m bucket. The bucket is not
+    sent until its earlier minutes are covered (their AMs) AND the minute T began in is seeded."""
+    gate = threading.Event()
+
+    def fetcher(sym):
+        gate.wait(2)
+        return [{"t": T0 + 2 * MIN, "o": 7.0, "h": 7.5, "l": 6.5, "c": 7.2, "v": 300}]
+
+    rig = Rig(seeding=True, fetcher=fetcher)
+    rig.now[0] = T0 + 2 * MIN + 30_000
+
+    async def go():
+        c = FakeConn([hello(), desired(1, OWN, frozenset({("ZZA", "5")}))])
+        t = await run_until(c, rig.srv, lambda: ("ZZA", "5") in rig.rt._key_routes)
+        rig.trade("ZZA", T0 + 2 * MIN + 31_000, 7.1, 10)
+        rig.am("ZZA", T0, 5.0, 6.0, 4.5, 5.5, 100)          # the closed minutes arrive as AMs
+        rig.am("ZZA", T0 + MIN, 5.5, 6.5, 5.0, 6.0, 100)
+        await asyncio.sleep(0.05)
+        assert not [u for u in bars_in(c, ("ZZA", "5")) if u.bar["t"] == T0], "minute 2 not covered yet"
+        gate.set()
+        await until(lambda: [u for u in bars_in(c, ("ZZA", "5")) if u.bar["t"] == T0])
+        first = [u for u in bars_in(c, ("ZZA", "5")) if u.bar["t"] == T0][0]
+        assert first.bar["o"] == 5.0 and first.bar["v"] >= 500, "the whole bucket from its first minute"
+        await c.close()
+        await asyncio.wait_for(t, 2)
+        await rig.rt.stop_reader()
+    asyncio.run(go())
+
+
+def test_coverage_a_failed_seed_is_retried_and_an_empty_answer_needs_no_seed(monkeypatch):
+    monkeypatch.setattr(ir, "SEED_RETRY_S", (0.01, 0.01, 0.01))
+    calls = []
+
+    def fetcher(sym):
+        calls.append(sym)
+        if len(calls) == 1:
+            raise RuntimeError("vendor error")
+        return [{"t": T0, "o": 5.0, "h": 9.0, "l": 4.0, "c": 6.0, "v": 900}]
+
+    rig = Rig(seeding=True, fetcher=fetcher)
+    rig.now[0] = T0 + 30_000
+
+    async def go():
+        c = FakeConn([hello(), desired(1, OWN, frozenset({("ZZA", "1")}))])
+        t = await run_until(c, rig.srv, lambda: ("ZZA", "1") in rig.rt._key_routes)
+        rig.trade("ZZA", T0 + 31_000, 6.0, 10)
+        await until(lambda: rig.rt.counters["seeds_applied"] == 1)
+        assert rig.rt.counters["seed_retries"] == 1 and len(calls) == 2
+        await until(lambda: [u for u in bars_in(c, ("ZZA", "1")) if u.bar["t"] == T0])
+        assert [u for u in bars_in(c, ("ZZA", "1")) if u.bar["t"] == T0][0].bar["o"] == 5.0
+        await c.close()
+        await asyncio.wait_for(t, 2)
+        await rig.rt.stop_reader()
+    asyncio.run(go())
+
+    rig2 = Rig(seeding=True, fetcher=lambda s: [])          # vendor answered: no bar today
+    rig2.now[0] = T0 + 30_000
+
+    async def go2():
+        c = FakeConn([hello(), desired(1, OWN, frozenset({("ZZA", "1")}))])
+        t = await run_until(c, rig2.srv, lambda: rig2.rt.counters["seeds_empty"] == 1)
+        assert rig2.rt.bc.covered("ZZA")
+        rig2.trade("ZZA", T0 + 31_000, 6.0, 10)             # the first trade of the day: whole
+        await until(lambda: [u for u in bars_in(c, ("ZZA", "1")) if u.bar["t"] == T0])
+        await c.close()
+        await asyncio.wait_for(t, 2)
+        await rig2.rt.stop_reader()
+    asyncio.run(go2())
