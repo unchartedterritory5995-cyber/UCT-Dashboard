@@ -98,7 +98,28 @@ describe('⭐⭐ a saved script\'s upgrade at chart load builds in the door\'s w
     rows.forEach((r) => upg.resolveRow(r))
     await settled(rows)
     const here = rows.map((r) => upg.resolveRow(r))
-    expect(here.every((h) => h.definition && h.writeBack), 'each row upgraded on the main thread (the control)').toBe(true)
+    // ⭐ WHAT THE CONTROL PINS (engine 94 train): each row's outcome on the main thread, BY NAME, and the worker path
+    // below must give every row the same one. Three rows fit the store and upgrade with a write-back. twin-range-filter's
+    // translation is over the store's byte cap (master's ITEM 2 oversize keep, 026a8b0a53: 73,142 stored bytes against
+    // 65,536 at a8f825e089 and at e94 alike), so it is drawn as stored, never written back and never refused.
+    // (#2364's rail predates ITEM 2 and expected a write-back for every row.)
+    const OVER_THE_STORE_CAP = new Set(['twinRange'])
+    Object.keys(SCRIPTS).forEach((name, i) => {
+      const h = here[i]
+      expect(h.definition, `${name}: drawn on the main thread`).toBeTruthy()
+      expect(h.refusal, `${name}: never refused`).toBe(null)
+      expect(h.pending, `${name}: settled`).toBe(false)
+      if (OVER_THE_STORE_CAP.has(name)) {
+        expect(h.writeBack, `${name}: over the store's cap (ITEM 2), kept as stored, nothing written back`).toBe(null)
+        expect(canonOf(h.definition), `${name}: the stored document is drawn`).toBe(canonOf(rows[i].definition))
+        const b = mpd.memberPaneDefinition({ source: rows[i].pine_source, id: rows[i].def_id })
+        expect(b.oversize && b.oversize.guard, `${name}: the door names the store's cap`).toBe('pine:document-size')
+        expect(b.oversize.cap, `${name}: the store's cap`).toBe(64 * 1024)
+        expect(b.oversize.bytes, `${name}: today's translation is over it`).toBeGreaterThan(b.oversize.cap)
+      } else {
+        expect(h.writeBack, `${name}: upgraded on the main thread with a write-back (the control)`).toBeTruthy()
+      }
+    })
     // THROUGH THE DOOR'S WORKER (the production loader: `import('./memberDoorAsync')`)
     upg.__resetSavedScriptUpgrade()
     withWorkers()
