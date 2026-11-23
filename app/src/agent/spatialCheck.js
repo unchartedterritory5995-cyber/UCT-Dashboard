@@ -1385,10 +1385,36 @@ const BOARD_PP = /\b(?:on|in|across)\s+(?:the|my|this)\s+(?:board|screen|layout|
 const SCOPE_WORD = /\b(?:above|below|under|over|beneath|underneath|left|right|next|beside|near|row|column|side|other|others|else|around|across|opposite|diagonal\w*|top|bottom|upper|lower|middle|cent(?:er|re)|corner|this|that|it|these|those)\b/i
 const REL_TO_CLICK = /\b(?:above|below|under|over|beneath|underneath|left|right|next|beside|near|nearest|closest|adjacent|across|opposite|diagonal\w*|corner|around|surrounding|kitty|catty)\b/i
 const CLICK_WORD = new RegExp('\\b(?:this|it|its|here)\\b|' + CLICK_ACT_NP, 'i')
+// (#2532 follow-up) a BARE whole-board quantifier — "set all to weekly but leave AAPL alone", "make each weekly except AMD", "put
+// RSI on the lot, skip chart 2" — carries no chart noun, so EVERY_Q never read it and the plan was only proposed ("I wasn't sure
+// you meant …"). It is read as "every chart" ONLY in the shape where it can mean nothing else: the quantifier stands alone (its
+// next word is the change's destination / setting / an exclusion word / the clause's end — never a noun: "all indicators", "all
+// the lines", "each other", "every one of the drawings" stay what they were), it is no idiom ("at all", "after all", "above all",
+// "all in all", "that's all"), and — as for every quantifier here — the exclusion must PLACE a chart (an indicator, a value or an
+// unplaceable phrase forms no set: "remove all but RSI", "hide all except volume" keep their meaning and are handled as before).
+// "the rest / the others / everything else" counts only when the caller says nothing else can be "the rest" of (`opts.rest`: no
+// click, no earlier-turn chart) — otherwise "the rest" may be relative to that chart, and the gates ask as before.
+// ⛔ NO LOOKBEHIND (#988 AUDIT L1): the idiom test reads the words before the match in code.
+const BARE_NEXT = String.raw`(?=\s*(?:[,;:.!?—–]|$)|\s+(?:to|into|onto|on|in|at|for|but|except|apart|other\s+than|save|minus|excluding|besides|aside|bar|barring|without|please|now|too|then|and|so|weekly|daily|monthly|hourly|intraday|log|linear|percent(?:age)?|candles?|candlesticks?|bars|heikin|\d{1,3}\s*(?:m|min|mins|minutes?|h|hr|hours?|d|w)?)\b)`
+const BARE_Q = new RegExp(String.raw`\b(?:all|each|every\s+(?:single\s+)?one|the\s+(?:whole\s+)?lot)${BARE_NEXT}`, 'gi')
+const REST_Q = new RegExp(String.raw`\b(?:(?:all\s+)?the\s+(?:rest|others)|everything\s+else|all\s+(?:the\s+)?others)${BARE_NEXT}`, 'gi')
+const BARE_IDIOM_BEFORE = /\b(?:at|after|above|all\s+in|that['’]?s|is|was|it['’]?s|of|once\s+and\s+for|not)\s+$/i
+const BARE_IDIOM_AFTER = /^\s+(?:in\s+all|of\s+(?:a\s+)?sudden|set|good|done|right|clear|gone|the\s+same)\b/i
+/** The first bare whole-board quantifier in the (exceptForm'd) words, or null. */
+export function bareQuantifier(t, { rest = false } = {}) {
+  const s = String(t || '')
+  for (const re of rest ? [BARE_Q, REST_Q] : [BARE_Q]) {
+    for (const m of s.matchAll(re)) {
+      if (BARE_IDIOM_BEFORE.test(s.slice(0, m.index)) || BARE_IDIOM_AFTER.test(s.slice(m.index + m[0].length))) continue
+      return m
+    }
+  }
+  return null
+}
 export const quantifierCoversClick = (scoped) => !scoped
 export function everyExceptSet(text, charts = [], sel = null, opts = {}) {
   const t = exceptForm(text)
-  const q = EVERY_Q.exec(t)
+  const q = EVERY_Q.exec(t) || bareQuantifier(t, { rest: !!opts?.rest })
   if (!q) return null
   const after = q.index + q[0].length
   const ex0 = EXCEPT_WORD.exec(t.slice(after))
