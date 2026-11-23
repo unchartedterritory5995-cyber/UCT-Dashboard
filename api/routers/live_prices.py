@@ -727,6 +727,19 @@ def _fetch_snapshots(client, tickers: list[str], session: str) -> dict:
     return out
 
 
+def _error_answer(status_code: int, content: dict, response) -> JSONResponse:
+    """One of the route's error answers (the two 400s, the 503). FastAPI merges the injected `response`'s headers only
+    into an answer it builds from a returned value, never into a returned Response, so the Set-Cookie headers already
+    on `response` (the kill cookies, set at the top of the route while a kill is in force) are carried here: a page
+    polling through a vendor outage with nothing cached (the 503) still learns of a kill from the poll (review of
+    #2583, LOW-1). With no kill in force `response` holds none and the answer is today's. `response` None (server code
+    calling the route as a function): the same plain JSONResponse as before."""
+    out = JSONResponse(status_code=status_code, content=content)
+    if response is not None:
+        out.raw_headers.extend(h for h in response.raw_headers if h[0] == b"set-cookie")
+    return out
+
+
 @router.get("/api/live-prices")
 def get_live_prices(
     tickers: str = Query(..., description="Comma-separated ticker symbols (max 250)"),
@@ -745,18 +758,16 @@ def get_live_prices(
     # page has them within one poll of the restarted web pod serving, and the device client acts on its next visible
     # beat. With no kill in force this adds no header (auth.set_kill_cookies_when_killed). Never raises. `response` is
     # FastAPI's (injected by its type) on the HTTP route, and None when server code calls this as a function (the
-    # Notebook widgets, the journal): no member's page reads that answer, so nothing is set there.
+    # Notebook widgets, the journal): no member's page reads that answer, so nothing is set there. The error answers
+    # below carry what is set here (`_error_answer`); lifting a kill: auth.set_kill_cookies_when_killed's docstring.
     if response is not None:
         from api.routers.auth import set_kill_cookies_when_killed
         set_kill_cookies_when_killed(response)
     raw_list = [t.strip().upper() for t in tickers.split(",") if t.strip()]
     if not raw_list:
-        return JSONResponse(status_code=400, content={"error": "No tickers provided"})
+        return _error_answer(400, {"error": "No tickers provided"}, response)
     if len(raw_list) > _MAX_TICKERS:
-        return JSONResponse(
-            status_code=400,
-            content={"error": f"Maximum {_MAX_TICKERS} tickers per request"},
-        )
+        return _error_answer(400, {"error": f"Maximum {_MAX_TICKERS} tickers per request"}, response)
 
     unique = list(dict.fromkeys(raw_list))  # dedupe, preserve order
 
@@ -842,7 +853,7 @@ def get_live_prices(
 
     if not result:
         if provider_failed:
-            return JSONResponse(status_code=503, content={"error": "Pricing service unavailable"})
+            return _error_answer(503, {"error": "Pricing service unavailable"}, response)
         # L10: the provider answered and simply does not list these tickers (an
         # unknown or delisted symbol such as DAWN). That is not an outage: 200
         # with the tickers absent, never cached as a whole set.
