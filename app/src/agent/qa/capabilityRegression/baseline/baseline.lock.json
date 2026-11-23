@@ -6162,6 +6162,181 @@
      "modes": {}
     }
    }
+  },
+  "chart.setSetting.legendHold": {
+   "digest": "07aa401da2f3756f",
+   "phrasings": {
+    "only show the legend when I hold": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "show the legend only when I press and hold": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "set the status line to hold": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "put the chart legend on hold": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chart.setSetting.barInfoOpen": {
+   "digest": "ee81f75e34da9a99",
+   "phrasings": {
+    "hide the open in the legend": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "remove the open price from the legend": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "take the open off the bar info": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "drop the open from the legend": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chart.setSetting.infoRowStat": {
+   "digest": "4b678de96877d3ad",
+   "phrasings": {
+    "add the short float to the info row": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "show short % of float in the header": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "put the short float in the info row": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "include short % of float in the chart header": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "alert.family-create": {
+   "digest": "29d6f8af0ff10b30",
+   "phrasings": {
+    "alert me when AAPL crosses above 200": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "ping me if $AAPL breaks out above 200": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "set an alert for AAPL above 200": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "notify me as soon as AAPL gets back above 200": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "alert.family-chart-below": {
+   "digest": "75c581574dedda71",
+   "phrasings": {
+    "alert me if it drops below 140": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "ping me when this stock falls below 140": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "set an alert below 140": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "alert.family-list-symbol": {
+   "digest": "1ccee928b7610f77",
+   "phrasings": {
+    "what alerts do I have on NVDA": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "do I have any alerts on NVDA": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "show my NVDA alerts": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "indicatorAlert.family-timeframe": {
+   "digest": "6d64772749884512",
+   "phrasings": {
+    "ping me if RSI drops below 30 on the daily": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "alert me when the daily rsi goes below 30": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "notify me if the RSI falls under 30 on the daily chart": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "indicatorAlert.family-attention": {
+   "digest": "5369009419aba1e6",
+   "phrasings": {
+    "why hasn't my RSI alert fired": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "why isn't my RSI alert working": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    }
+   }
   }
  },
  "refusals": {

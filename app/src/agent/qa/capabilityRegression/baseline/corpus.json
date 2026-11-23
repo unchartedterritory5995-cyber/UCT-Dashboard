@@ -14799,6 +14799,568 @@
         "what is in recently deleted",
         "show my deleted layouts"
       ]
+    },
+    {
+      "id": "chart.setSetting.legendHold",
+      "source": "LEGEND family (pl-legend, 11-23): the on-chart legend and the info row, read by capabilities/legendPhrases.js (verb x field x place classes)",
+      "capabilities": [
+        "chart.setSetting"
+      ],
+      "board": "ONE",
+      "needs": [
+        "chart.setSetting"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "chart.setSetting",
+            "args": {
+              "setting": "header.legendMode",
+              "value": "hold"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "chart.setSetting",
+            "target": "$charts[0]",
+            "args": {
+              "setting": "header.legendMode",
+              "value": "hold"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "setting": {
+          "key": "header.legendMode",
+          "value": "hold"
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        {
+          "text": "only show the legend when I hold",
+          "det": "required"
+        },
+        {
+          "text": "show the legend only when I press and hold",
+          "det": "required"
+        },
+        {
+          "text": "set the status line to hold",
+          "det": "required"
+        },
+        {
+          "text": "put the chart legend on hold",
+          "det": "required"
+        }
+      ]
+    },
+    {
+      "id": "chart.setSetting.barInfoOpen",
+      "source": "LEGEND family (pl-legend, 11-23): the on-chart legend and the info row, read by capabilities/legendPhrases.js (verb x field x place classes)",
+      "capabilities": [
+        "chart.setSetting"
+      ],
+      "board": "ONE",
+      "needs": [
+        "chart.setSetting"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "chart.setSetting",
+            "args": {
+              "setting": "header.barInfo",
+              "value": "-open"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "chart.setSetting",
+            "target": "$charts[0]",
+            "args": {
+              "setting": "header.barInfo",
+              "value": "-open"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "setting": {
+          "key": "header.barInfo",
+          "value": [
+            "date",
+            "high",
+            "low",
+            "close",
+            "change",
+            "changePct"
+          ]
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        {
+          "text": "hide the open in the legend",
+          "det": "required"
+        },
+        {
+          "text": "remove the open price from the legend",
+          "det": "required"
+        },
+        {
+          "text": "take the open off the bar info",
+          "det": "required"
+        },
+        {
+          "text": "drop the open from the legend",
+          "det": "required"
+        }
+      ]
+    },
+    {
+      "id": "chart.setSetting.infoRowStat",
+      "source": "LEGEND family (pl-legend, 11-23): the on-chart legend and the info row, read by capabilities/legendPhrases.js (verb x field x place classes)",
+      "capabilities": [
+        "chart.setSetting"
+      ],
+      "board": "ONE",
+      "needs": [
+        "chart.setSetting"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "chart.setSetting",
+            "args": {
+              "setting": "header.fields",
+              "value": "+shortf"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "chart.setSetting",
+            "target": "$charts[0]",
+            "args": {
+              "setting": "header.fields",
+              "value": "+shortf"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "setting": {
+          "key": "header.fields",
+          "value": [
+            "mcap",
+            "earn",
+            "shortf"
+          ]
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        {
+          "text": "add the short float to the info row",
+          "det": "required"
+        },
+        {
+          "text": "show short % of float in the header",
+          "det": "required"
+        },
+        {
+          "text": "put the short float in the info row",
+          "det": "required"
+        },
+        {
+          "text": "include short % of float in the chart header",
+          "det": "required"
+        }
+      ]
+    },
+    {
+      "id": "alert.family-create",
+      "source": "Alerts family (pl-alertfam 11-23): the general alert reader (capabilities/alertPhrases.js) — instant, then the product's own writer",
+      "capabilities": [
+        "alert.create"
+      ],
+      "board": "ONE",
+      "needs": [
+        "alert.create"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "alert.create",
+            "args": {
+              "symbol": "AAPL",
+              "price": 200,
+              "direction": "above"
+            }
+          }
+        ]
+      },
+      "model": {
+        "disposition": "propose",
+        "ops": [
+          {
+            "action": "alert.create",
+            "target": "$alertLibrary",
+            "args": {
+              "symbol": "AAPL",
+              "price": 200,
+              "direction": "above"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "proposal": true,
+        "unchanged": true,
+        "noCalls": [
+          "^POST /api/watchlist-alerts"
+        ]
+      },
+      "approve": true,
+      "afterApprove": {
+        "writes": [
+          "^POST /api/watchlist-alerts .*\"sym\":\"AAPL\".*200"
+        ],
+        "receipt": true
+      },
+      "phrasings": [
+        {
+          "text": "alert me when AAPL crosses above 200",
+          "det": "required"
+        },
+        {
+          "text": "ping me if $AAPL breaks out above 200",
+          "det": "required"
+        },
+        {
+          "text": "set an alert for AAPL above 200",
+          "det": "required"
+        },
+        {
+          "text": "notify me as soon as AAPL gets back above 200",
+          "det": "required"
+        }
+      ]
+    },
+    {
+      "id": "alert.family-chart-below",
+      "source": "Alerts family (pl-alertfam 11-23): the general alert reader (capabilities/alertPhrases.js) — instant, then the product's own writer — the one chart as the subject",
+      "capabilities": [
+        "alert.create"
+      ],
+      "board": "ONE",
+      "needs": [
+        "alert.create"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "alert.create",
+            "args": {
+              "symbol": "NVDA",
+              "price": 140,
+              "direction": "below"
+            }
+          }
+        ]
+      },
+      "model": {
+        "disposition": "propose",
+        "ops": [
+          {
+            "action": "alert.create",
+            "target": "$alertLibrary",
+            "args": {
+              "symbol": "NVDA",
+              "price": 140,
+              "direction": "below"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "proposal": true,
+        "unchanged": true,
+        "noCalls": [
+          "^POST /api/watchlist-alerts"
+        ]
+      },
+      "approve": true,
+      "afterApprove": {
+        "writes": [
+          "^POST /api/watchlist-alerts .*\"sym\":\"NVDA\".*140"
+        ],
+        "receipt": true
+      },
+      "phrasings": [
+        {
+          "text": "alert me if it drops below 140",
+          "det": "required"
+        },
+        {
+          "text": "ping me when this stock falls below 140",
+          "det": "required"
+        },
+        {
+          "text": "set an alert below 140",
+          "det": "required"
+        }
+      ]
+    },
+    {
+      "id": "alert.family-list-symbol",
+      "source": "Alerts family (pl-alertfam 11-23): the general alert reader (capabilities/alertPhrases.js) — instant, then the product's own writer — the book by symbol",
+      "capabilities": [
+        "alert.list"
+      ],
+      "board": "ONE",
+      "seed": {
+        "alerts": [
+          {
+            "id": "a1",
+            "sym": "NVDA",
+            "target_price": 150,
+            "direction": "above"
+          },
+          {
+            "id": "a2",
+            "sym": "AMD",
+            "target_price": 90,
+            "direction": "below"
+          }
+        ]
+      },
+      "needs": [
+        "alert.list"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "alert.list",
+            "args": {
+              "symbol": "NVDA",
+              "status": null,
+              "triggered_today": null
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "alert.list",
+            "target": "$alertLibrary",
+            "args": {
+              "symbol": "NVDA",
+              "status": null,
+              "triggered_today": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^GET /api/watchlist-alerts"
+        ],
+        "unchanged": true,
+        "refusal": false
+      },
+      "phrasings": [
+        {
+          "text": "what alerts do I have on NVDA",
+          "det": "required"
+        },
+        {
+          "text": "do I have any alerts on NVDA",
+          "det": "required"
+        },
+        {
+          "text": "show my NVDA alerts",
+          "det": "required"
+        }
+      ]
+    },
+    {
+      "id": "indicatorAlert.family-timeframe",
+      "source": "Alerts family (pl-alertfam 11-23): the general alert reader (capabilities/alertPhrases.js) — instant, then the product's own writer — an indicator alert on a named timeframe",
+      "capabilities": [
+        "indicatorAlert.create"
+      ],
+      "board": "IALERTS",
+      "needs": [
+        "indicatorAlert.create"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "indicatorAlert.create",
+            "args": {
+              "instance": "inst:rsi:1",
+              "condition": "below",
+              "threshold": 30,
+              "timeframe": "D"
+            }
+          }
+        ]
+      },
+      "model": {
+        "disposition": "propose",
+        "ops": [
+          {
+            "action": "indicatorAlert.create",
+            "target": "$indicatorAlertLibrary",
+            "args": {
+              "instance": "inst:rsi:1",
+              "plot": null,
+              "condition": "below",
+              "threshold": 30,
+              "crossWith": null,
+              "chart": null,
+              "trigger": null,
+              "timeframe": "D"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "proposal": true,
+        "indicatorAlerts": {
+          "count": 0
+        }
+      },
+      "approve": true,
+      "afterApprove": {
+        "indicatorAlerts": {
+          "count": 1,
+          "match": {
+            "sym": "NVDA",
+            "indicator": "rsi",
+            "condition": "below",
+            "threshold": 30,
+            "tf": "D"
+          }
+        },
+        "receipt": true
+      },
+      "phrasings": [
+        {
+          "text": "ping me if RSI drops below 30 on the daily",
+          "det": "required"
+        },
+        {
+          "text": "alert me when the daily rsi goes below 30",
+          "det": "required"
+        },
+        {
+          "text": "notify me if the RSI falls under 30 on the daily chart",
+          "det": "required"
+        }
+      ]
+    },
+    {
+      "id": "indicatorAlert.family-attention",
+      "source": "Alerts family (pl-alertfam 11-23): the general alert reader (capabilities/alertPhrases.js) — instant, then the product's own writer — why an alert can't fire (C2-100)",
+      "capabilities": [
+        "indicatorAlert.list"
+      ],
+      "board": "IALERTS",
+      "seed": {
+        "indicatorAlerts": [
+          {
+            "id": 7,
+            "sym": "NVDA",
+            "indicator": "rsi",
+            "condition": "above",
+            "threshold": 70,
+            "tf": "D",
+            "params_json": {
+              "period": 14
+            },
+            "instance_id": "inst:rsi:1",
+            "state": "needs_attention",
+            "state_detail": "SYNTHETIC: the RSI instance was removed"
+          }
+        ]
+      },
+      "needs": [
+        "indicatorAlert.list"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "indicatorAlert.list",
+            "args": {
+              "symbol": null,
+              "status": "attention"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "indicatorAlert.list",
+            "target": "$indicatorAlertLibrary",
+            "args": {
+              "symbol": null,
+              "status": "attention"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^GET /api/indicator-alerts"
+        ],
+        "unchanged": true,
+        "refusal": false
+      },
+      "phrasings": [
+        {
+          "text": "why hasn't my RSI alert fired",
+          "det": "required"
+        },
+        {
+          "text": "why isn't my RSI alert working",
+          "det": "required"
+        }
+      ]
     }
   ],
   "refusals": [

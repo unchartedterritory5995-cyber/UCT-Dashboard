@@ -33,6 +33,7 @@ import { pointUnixTime, toUnixTimeBase } from '../../components/chart/drawingTim
 import { isDateTf } from '../../components/chart/patternTime'
 import { isoDayMs, dayWord } from '../dateWords'
 import { normalizeColor, colorName } from './chart'
+import { alertFast } from './alertPhrases'
 
 const FONT_MIN = 8, FONT_MAX = 64            // bumpFont's clamp in DrawingContextMenu
 const TEXT_MAX = 200
@@ -478,7 +479,7 @@ export function registerDrawingFamily(common, h) {
   })
 
   // ── an alert that follows the drawing ──
-  const alertPlan = (st, { drawing, direction, level }, env) => {
+  const alertPlan = (st, { drawing, direction, level, follow = null }, env) => {
     const d = byId(st, drawing)
     if (!d) return { why: notFound(drawing) }
     const name = objectTypeName(d.type)
@@ -499,25 +500,35 @@ export function registerDrawingFamily(common, h) {
     if (!geom) return { why: `I can't read that ${name}'s position to set an alert on it.` }
     if (!boundIds(env)) return { why: 'I couldn\'t read your alerts, so I set nothing.' }
     const id = boundIdFor(d.id, lv)
-    if (sameBound(env, id, direction)) return { why: `That ${name} already has an active alert ${direction} it.` }
-    return { d, lv, c: { sym: String(st.symbol).toUpperCase(), price: geom.target_price, direction, body: { sym: st.symbol, direction, ...geom, drawing_id: id } } }
+    // C1-116: the menu's "at a fixed level" (bound: false) — the SAME body without `drawing_id`, so it stays where the line is now
+    // and no longer moves with the drawing (StockChart handleSetDrawingAlert); "follow this line" (the default) binds it
+    const fixed = follow === false
+    if (!fixed && sameBound(env, id, direction)) return { why: `That ${name} already has an active alert ${direction} it.` }
+    return { d, lv, fixed, c: { sym: String(st.symbol).toUpperCase(), price: geom.target_price, direction, body: { sym: st.symbol, direction, ...geom, ...(fixed ? {} : { drawing_id: id }) } } }
   }
   registerCapability({
     ...common,
     name: 'drawing.setAlert',
     risk: 'confirm',
     summary: 'Set an alert that FOLLOWS a drawing (the drawing menu\'s "Set alert…"): a trendline, ray, extended line, horizontal line or ray, or one Fibonacci level. A sloped line\'s level moves with time; moving the drawing moves the alert. Always shown first; Undo removes the alert unless it already went off.',
-    hints: 'target = the drawings entry; drawing = its id; direction = above ("breaks above", "gets above") or below ("breaks below", "loses"). If they do not say which side, clarify — never guess. level = the Fibonacci level (0.618 or 61.8), else null. Plan it, disposition propose. For a price with no drawing use alert.create.',
-    args: { type: 'object', properties: { drawing: { type: 'string' }, direction: { type: 'string', enum: ['above', 'below'] }, level: { type: ['number', 'null'] } }, required: ['drawing', 'direction', 'level'], additionalProperties: false },
+    hints: 'target = the drawings entry; drawing = its id; direction = above ("breaks above", "gets above") or below ("breaks below", "loses"). If they do not say which side, clarify — never guess. level = the Fibonacci level (0.618 or 61.8), else null. follow = false only for "at a fixed level" / "not following the line", else null. Plan it, disposition propose. For a price with no drawing use alert.create.',
+    args: { type: 'object', properties: { drawing: { type: 'string' }, direction: { type: 'string', enum: ['above', 'below'] }, level: { type: ['number', 'null'] }, follow: { type: ['boolean', 'null'] } }, required: ['drawing', 'direction', 'level', 'follow'], additionalProperties: false },
+    // 2026-11-23 (C1-116): `follow` was ADDED; a plan from before it (key left out) follows the line, as it always did
+    absentAsNull: ['follow'],
+    // alertPhrases: "alert me if it breaks below this trendline", "set an alert above that line at a fixed level"
+    fastWhole: true,
+    fast: alertFast('drawing.setAlert'),
     prepare: prepareBound,
     check(st, args, env) { return alertPlan(st, args, env).why || null },
     apply(st, args, env) { return { ...st, alerts: [...st.alerts, alertPlan(st, args, env).c] } },
     describe(b, a, args, env) {
       if (a.alerts.length <= b.alerts.length) return null
-      const { d, lv, c } = alertPlan(b, args, env)
+      const { d, lv, c, fixed } = alertPlan(b, args, env)
       const what = lv != null ? `${lv} level of the ${objectTypeName(d.type)}` : objectTypeName(d.type)
       const moves = c.body.alert_type === 'trendline' ? ', and its level moves with the line' : ''
-      return `Alert on ${c.sym}: price ${c.direction === 'above' ? 'at or above' : 'at or below'} the ${what} — goes off once, checked while the market is open${moves}. It follows the drawing if you move it. If price is already past it, it goes off at the next check`
+      const follows = fixed ? ` It does NOT follow the drawing: moving the ${objectTypeName(d.type)} later leaves this alert where it is.` : ' It follows the drawing if you move it.'
+      const at = fixed && c.body.alert_type !== 'trendline' ? ` (fixed at ${money(c.price)})` : ''
+      return `Alert on ${c.sym}: price ${c.direction === 'above' ? 'at or above' : 'at or below'} the ${what}${at} — goes off once, checked while the market is open${moves}.${follows} If price is already past it, it goes off at the next check`
     },
   })
 }
