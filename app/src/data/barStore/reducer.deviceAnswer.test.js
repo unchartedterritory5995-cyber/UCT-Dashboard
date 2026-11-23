@@ -16,6 +16,9 @@
 //   NA7 ...a row whose bucket ends AFTER the stamp (closed by the clock, a minute or more short) goes; the one before stays
 //   NA8 the server's next answer carrying those buckets replaces the kept candles with its own (a correction lands)
 //   NA9 the stamp rides with the marker: set by a device copy, gone with an invalidate and with a no_data answer
+// P6-L2 (review of #2565): A KILL TAKES THE STAMP'S WORD AWAY. If the device data is wrong, its "complete" candles are too.
+//   NA10 after the kill (DEVICE_KILLED) a lagging first answer keeps NO device row newer than it; the rows stay until then
+//   NA11 DEVICE_KILLED on an entry holding no device rows changes nothing (the same object)
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { reduce, initialState } from './reducer'
 import { keyOf, ACTION, STATUS, DEV_SRC } from './types'
@@ -123,5 +126,23 @@ describe('P4-L3 the device\'s complete candles are kept, what its stamp does not
     expect(inv.deviceThrough ?? null).toBeNull()
     const nd = reduce(withDevice(T(690)), { type: ACTION.REST_ERROR, payload: { error: 'no_data' } }, ctx)
     expect(nd.deviceThrough ?? null).toBeNull()
+  })
+})
+
+describe('P6-L2 the kill takes the stamp\'s word away', () => {
+  it('NA10 after the kill a lagging first answer keeps no device row newer than it; until then nothing moves', () => {
+    const s0 = withDevice(T(690))
+    const k = reduce(s0, { type: ACTION.DEVICE_KILLED }, ctx)
+    expect(k.bars).toEqual(s0.bars)                                 // nothing blanked by the kill itself
+    expect(k.deviceRows).toBe(true)                                 // still the device's rows: the refusal keys on it
+    expect(k.deviceThrough ?? null).toBeNull()
+    const s = reduce(k, answer(closedTo(675, 600)), ctx)
+    expect(s.bars.some((b) => b.t > T(675))).toBe(false)
+    expect(s.developing).toBeNull()
+  })
+
+  it('NA11 on an entry holding no device rows it changes nothing', () => {
+    const s0 = reduce(initialState(K, ctx), { type: ACTION.IDB_HIT, payload: { bars: closedTo(685) } }, ctx)
+    expect(reduce(s0, { type: ACTION.DEVICE_KILLED }, ctx)).toBe(s0)
   })
 })

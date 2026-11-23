@@ -24,6 +24,7 @@ import { REASONS } from '../../components/chart/builder/agentMutations'
 import { USER_DEFINITIONS_KEY } from '../../hooks/useUserDefinitions'
 import * as nativeRegistry from '../../components/chart/engine/nativeRegistry'
 import { ownedDefinitionIds } from './indicatorEdits'
+import { customCopyOfWords } from './indicatorPhrases'
 
 const quote = (s) => `“${s}”`
 // the network doors (`{fork, save, remove, read}`) — Indicators' own defaults unless a test hands in its in-memory server
@@ -163,6 +164,8 @@ export function registerDefinitionCapabilities() {
     risk: 'confirm',
     summary: 'Save a COPY of an indicator as one of the member\'s own indicators (the legend\'s "Create custom copy") — a built-in becomes an editable formula, one of theirs is forked. Shown first; Undo deletes the copy (while no chart draws it).',
     hints: 'target = the definitionLibrary entry; defId = the indicator\'s id (or its exact name). To put an indicator on a chart twice use indicatorCopy.duplicate instead.',
+    // LEGEND family: "create a custom copy of the rsi", "make my own copy of macd" (the legend menu's Create custom copy)
+    fast: ({ lower }) => customCopyOfWords(lower),
     args: { type: 'object', properties: { defId: { type: 'string' } }, required: ['defId'], additionalProperties: false },
     check(st, { defId }) {
       if (st.action) return 'One indicator change at a time.'

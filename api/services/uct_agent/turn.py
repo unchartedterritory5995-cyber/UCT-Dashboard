@@ -1439,7 +1439,8 @@ BREADTH_RULE = ("MARKET BREADTH (% of US / NYSE / Nasdaq stocks above a moving a
 #: The MEMBER's words ask a breadth question (mirrors app/src/agent/routing.js `breadth`; words only).
 _BREADTH_Q = re.compile(
     r"\bbreadth\b"
-    r"|\b(percent(age)?|pct|share|portion|how many|what %)\b.{0,60}\b(above|below|over|under)\b.{0,20}\b\d+\s*-?\s*(day|d|dma|sma|ema|ma|week)?\b"
+    # "what %" ends in a symbol: no closing \b after it (first-call routing 2026-11-23, = routing.js)
+    r"|(\b(percent(age)?|pct|share|portion|how many)\b|\bwhat ?%).{0,60}\b(above|below|over|under)\b.{0,20}\b\d+\s*-?\s*(day|d|dma|sma|ema|ma|week)?\b"
     r"|%\s*(of\s+)?(all\s+)?(us\s+|nyse\s+|nasdaq\s+|uct\s+)?(stocks|names|issues)\b"
     r"|\bnew\s+(52[- ]week\s+|52w\s+|20[- ]day\s+)?(highs?|lows?)\b|\bnet new (highs?|lows?)\b"
     r"|\badvance[- /]decline\b|\badvancers?\b|\bdecliners?\b|\bstage ?[24] (counts?|stocks|names)\b|\bmarket internals\b",

@@ -16,6 +16,11 @@
 //      intraday prepare does (HANDOFF_HANG_MS after the switch)
 //   G6 a fresh device copy lets go of the hold too: the device had the minute's frame by the time the switch showed the
 //      chart, and the switch's re-read of the refused copy finds it; B is shown from it at once, with no request
+// While it holds, exactly ONE bars request for B leaves (G1, G2, G4: the hold joins the key's request, never doubles it).
+// P6-L2 (review of #2565): A KILL SEEN ON THE OPEN PAGE (the device client's beat read `uct_device_store=0` fresh):
+//   GK1 a switch to a key holding a fresh device copy does not paint it: A stays until B's answer, never a blank frame
+//   GK2 the kill seen while the switch waits for its panes' columns (decided before, shown after): held the same way
+//   GK3 a linked group (1m + 15m) both on fresh device copies: both stay on A, then both show B in ONE frame
 import { render, act } from '@testing-library/react'
 import { useLayoutEffect, useRef } from 'react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
@@ -39,6 +44,8 @@ const { fakeCandle, fakePrices } = await import('../data/barStore/testing/fakeFe
 const { useBarSnapshotBars } = await import('../components/chart/useBarSnapshotBars')
 const useSymbolHandoff = (await import('./useSymbolHandoff')).default
 const { __resetHandoffGroupsForTests } = await import('./handoffGroups')
+const speed = await import('../lib/chartSpeed')
+const KILL = () => { document.cookie = 'uct_device_store=0; path=/'; return speed.deviceStoreKilledNow() }
 
 const DAY = 86400
 const etMs = (hh, mm, ss = 0, ms = 0) => Date.UTC(2026, 10, 18, hh + 5, mm, ss, ms)   // Wed 2026-11-18 (EST)
@@ -179,6 +186,8 @@ beforeEach(() => {
   _resetPrefetchForTests()
   __resetHandoffGroupsForTests()
   S.colsMs = 300
+  document.cookie = 'uct_device_store=; max-age=0; path=/'
+  speed.__resetChartSpeedForTests()
 })
 afterEach(() => { S.store?.dispose(); vi.useRealTimers() })
 
@@ -193,7 +202,7 @@ describe('P4-M1 the switch asks the chart\'s own refusal when it shows the chart
     expect(last(log)[0].shown).toBe('AAA')                           // ...and waits for its panes' columns
     await advance(310)                                               // 10:05:00.110: columns landed, the minute rolled
     expect(last(log)[0].shown).toBe('AAA')                           // B's copy lacks the 10:04 minute: A stays
-    expect(w.asked('BBB')).toBeGreaterThan(0)                        // ...and B's bars request has left
+    expect(w.asked('BBB')).toBe(1)                                   // ...and B's bars request has left, once
     await act(async () => { w.answer('BBB'); await vi.advanceTimersByTimeAsync(50) })
     expect(last(log)[0].shown).toBe('BBB')
     expect(last(log)[0].n).toBeGreaterThan(0)
@@ -210,7 +219,7 @@ describe('P4-M1 the switch asks the chart\'s own refusal when it shows the chart
     expect(last(log)[0].shown).toBe('AAA')
     await advance(310)                                               // 10:05:00.110: columns landed, the minute rolled
     expect(last(log)[0].shown).toBe('AAA')
-    expect(w.asked('BBB')).toBeGreaterThan(0)
+    expect(w.asked('BBB')).toBe(1)
     await act(async () => { w.answer('BBB'); await vi.advanceTimersByTimeAsync(50) })
     expect(last(log)[0].shown).toBe('BBB')
     expect(last(log)[0].n).toBeGreaterThan(0)
@@ -243,7 +252,7 @@ describe('P4-M1 the switch asks the chart\'s own refusal when it shows the chart
     press('BBB')
     await advance(310)                                               // 10:05:00.110: the 1m copy is refused, the 15m is not
     expect(last(log).map((c) => c.shown)).toEqual(['AAA', 'AAA'])
-    expect(w.asked('BBB')).toBeGreaterThan(0)
+    expect(w.asked('BBB')).toBe(1)
     await act(async () => { w.answer('BBB'); await vi.advanceTimersByTimeAsync(50) })
     expect(last(log).map((c) => c.shown)).toEqual(['BBB', 'BBB'])
     for (const f of log) expect(f.charts[0].shown).toBe(f.charts[1].shown)   // never one chart on B and its sibling on A
@@ -277,6 +286,54 @@ describe('P4-M1 the switch asks the chart\'s own refusal when it shows the chart
     expect(first.at).toBe(etMs(10, 5, 0, 100))
     expect(first.charts[0].n).toBeGreaterThan(0)
     expect(first.calls.filter((u) => symOf(u) === 'BBB')).toEqual([])
+    expect(blanks(log)).toEqual([])
+  })
+
+  it('GK1 after the kill is seen: a switch to a fresh device copy does not paint it; A stays until B\'s answer', async () => {
+    vi.setSystemTime(etMs(10, 4, 40))
+    const w = world({ BBB: { 1: devCopy(1, et(10, 4)) } })          // fresh at 10:04:50 (G3 paints it at +300)
+    const { log, press } = await mountBoard(w, ['1'])
+    expect(KILL()).toBe(true)
+    vi.setSystemTime(etMs(10, 4, 50))
+    press('BBB')
+    await advance(310)
+    expect(last(log)[0].shown).toBe('AAA')
+    expect(w.asked('BBB')).toBe(1)
+    await act(async () => { w.answer('BBB'); await vi.advanceTimersByTimeAsync(310) })
+    expect(last(log)[0].shown).toBe('BBB')
+    expect(last(log)[0].n).toBeGreaterThan(0)
+    expect(blanks(log)).toEqual([])
+  })
+
+  it('GK2 the kill seen while the switch waits for its panes\' columns: held, A stays until B\'s answer', async () => {
+    vi.setSystemTime(etMs(10, 4, 40))
+    const w = world({ BBB: { 1: devCopy(1, et(10, 4)) } })
+    const { log, press } = await mountBoard(w, ['1'])
+    vi.setSystemTime(etMs(10, 4, 50))
+    press('BBB')                                                     // decided on the fresh copy ('now')
+    await advance(150)
+    KILL()                                                           // the beat sees the kill mid-wait
+    await advance(160)                                               // 10:04:50.310: the columns landed at .300
+    expect(last(log)[0].shown).toBe('AAA')
+    expect(w.asked('BBB')).toBe(1)
+    await act(async () => { w.answer('BBB'); await vi.advanceTimersByTimeAsync(50) })
+    expect(last(log)[0].shown).toBe('BBB')
+    expect(last(log)[0].n).toBeGreaterThan(0)
+    expect(blanks(log)).toEqual([])
+  })
+
+  it('GK3 a linked group (1m + 15m) on fresh device copies after the kill: both stay on A, then B in ONE frame', async () => {
+    vi.setSystemTime(etMs(10, 4, 40))
+    const w = world({ BBB: { 1: devCopy(1, et(10, 4)), 15: devCopy(15, et(10, 4), { forming: true }) } })
+    const { log, press } = await mountBoard(w, ['1', '15'], { group: 'charts:A' })
+    KILL()
+    vi.setSystemTime(etMs(10, 4, 50))
+    press('BBB')
+    await advance(310)
+    expect(last(log).map((c) => c.shown)).toEqual(['AAA', 'AAA'])
+    await act(async () => { w.answer('BBB'); await vi.advanceTimersByTimeAsync(400) })
+    expect(last(log).map((c) => c.shown)).toEqual(['BBB', 'BBB'])
+    for (const f of log) expect(f.charts[0].shown).toBe(f.charts[1].shown)
     expect(blanks(log)).toEqual([])
   })
 })

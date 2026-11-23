@@ -22,8 +22,10 @@ import { beforeAll } from 'vitest'
 export const LAZY_CHUNKS = Object.freeze({
   builderSheet: { importer: 'components/chart/ChartToolbar.jsx', spec: './builder/BuilderSheet',
     load: () => import('../components/chart/builder/BuilderSheet') },
-  memberPaneDefinition: { importer: 'components/chart/IndicatorHouseTab.jsx', spec: './builder/memberPane/memberPaneDefinition',
-    load: () => import('../components/chart/builder/memberPane/memberPaneDefinition') },
+  // (engine 94, #2367: Indicator House's copy builds through the member door's worker service, so the tab loads
+  // memberDoorAsync lazily, and memberPaneDefinition loads with it)
+  memberDoorAsync: { importer: 'components/chart/IndicatorHouseTab.jsx', spec: './builder/memberPane/memberDoorAsync',
+    load: () => import('../components/chart/builder/memberPane/memberDoorAsync') },
   tradeChartPane: { importer: 'pages/journal-2-0/components/trade/TradeDetailPage.jsx', spec: '../../../../components/chart/pane/ChartPane',
     load: () => import('../components/chart/pane/ChartPane') },
   ownChartSettings: { importer: 'pages/journal-2-0/lib/widgetEmbedCore.js', spec: '../../../components/chart/pane/ownChartSettings',

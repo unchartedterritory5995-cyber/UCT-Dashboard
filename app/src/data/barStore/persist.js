@@ -55,12 +55,17 @@ import { isSealedRow, bucketEnd, normT } from './reducer'
 import { deviceSource as _defaultDeviceSource } from '../deviceStore/source'
 import { deviceCopyFresh } from '../deviceStore/fresh'
 import { deviceServesTf } from '../deviceStore/tfs'
+import { onDeviceStoreKill } from '../../lib/chartSpeed'
 
 export const PERSIST_DEBOUNCE_MS = 1000
 export const META_VERSION = 1
 /** How long a hydrate waits, after its saved-copy reads, for an on-device read still in flight (a
  *  ready device store answers in ~1 ms; a later answer still lands, it just does not hold the caller). */
 export const DEVICE_HYDRATE_WAIT_MS = 8
+/** A `newer` device re-read that found nothing newer is not asked again for the same key and held copy within this
+ *  (review of #2565, P6-L1: below the minute-frame feed's 2 s retry, so a frame that lands is picked up by the next ask
+ *  at most this much later). */
+export const NEWER_RETRY_MS = 1500
 
 const finite = (x) => typeof x === 'number' && Number.isFinite(x)
 
@@ -167,6 +172,7 @@ const _defaultIdle = (fn) => {
 export function createPersist({
   registry, io = null, debounceMs = PERSIST_DEBOUNCE_MS, idle = _defaultIdle, now = () => Date.now(),
   setTimer = (fn, ms) => setTimeout(fn, ms), clearTimer = (h) => clearTimeout(h), device = undefined,
+  onDeviceKill = null,
 } = {}) {
   const IO = { memPutMonotonic, memPeekEntry, idbPutMonotonic, idbGet, idbImportPack, idbPutHistory, idbGetHistory, idbGetHistoryEntry, ...(io || {}) }
   // ⭐ THE ON-DEVICE COPY (data/deviceStore). A key with no mem record is also looked up in the device
@@ -242,6 +248,35 @@ export function createPersist({
   /** key → `through` (unix s) of the device copy the entry holds: how far it is complete (deviceStore
    *  fresh.js / prefetch.devicePaints read it). Bounded, oldest out. */
   const devThrough = new Map()
+  /**
+   * ⭐ A NEWER RE-READ THAT FOUND NOTHING IS NOT ASKED AGAIN AT ONCE (review of #2565, P6-L1). key → {through, at}: the held
+   * copy's stamp a `newer` read was asked against, and when it answered "nothing newer". The device applies a minute's frame
+   * on the feed's schedule (lib/minuteFrames/consumer: the minute's end + 7 s + up to 3 s, then every 2 s until it is
+   * there), so its copy changes at most about every 2 s while a frame is landing; a held arrow asked every press. The same
+   * key against the same held stamp is not asked newer again within NEWER_RETRY_MS; a newer held copy or another key asks at
+   * once. Bounded, oldest out. Nothing reaches the device client for a skipped ask (its lanes are untouched).
+   */
+  const newerMiss = new Map()
+  const _noteMiss = (key, through) => {
+    newerMiss.delete(key)
+    newerMiss.set(key, { through, at: now() })
+    if (newerMiss.size > 1000) newerMiss.delete(newerMiss.keys().next().value)
+  }
+  /** ⛔ A KILL SEEN ON THIS PAGE (review of #2565, P6-L2; lib/chartSpeed.onDeviceStoreKill, told once by the device client's
+   *  beat). Every entry holding device rows: its stamp vouches for nothing (DEVICE_KILLED: a first answer keeps none of
+   *  them newer than itself), and the store re-asks the server for it now (`onDeviceKill`: the network's kick, which only a
+   *  key a chart is on takes), so a chart already showing a device copy gets the answer's rows instead of waiting for its
+   *  next poll. Nothing is blanked. Only with a device source: never with the store off. */
+  const offKill = DEV ? onDeviceStoreKill(() => {
+    const keys = []
+    for (const k of registry.keys()) {
+      const s = registry.peek(k)
+      if (!s?.deviceRows) continue
+      registry.dispatch(k, { type: ACTION.DEVICE_KILLED, key: k })
+      keys.push(k)
+    }
+    try { onDeviceKill?.(keys) } catch { /* a re-ask is a speed-up only */ }
+  }) : null
   const _noteDev = (key, through) => {
     devThrough.delete(key)
     devThrough.set(key, Number.isFinite(through) ? through : null)
@@ -424,8 +459,18 @@ export function createPersist({
       const gen = registry.getSnapshot(key).gen
       try { if (_deviceHit(key, p, gen, DEV.peek(p.sym, p.cacheTf))) return Promise.resolve(true) } catch { /* optional */ }
       const held = newer === true ? devThrough.get(key) : null
-      return Promise.resolve().then(() => _devRead(p, urgent, held)).then((got) => _deviceHit(key, p, gen, got)).catch(() => false)
+      if (Number.isFinite(held)) {
+        const m = newerMiss.get(key)
+        if (m && m.through === held && now() - m.at < NEWER_RETRY_MS) return Promise.resolve(false)
+      }
+      return Promise.resolve().then(() => _devRead(p, urgent, held)).then((got) => {
+        const moved = _deviceHit(key, p, gen, got)
+        if (Number.isFinite(held)) { if (moved) newerMiss.delete(key); else _noteMiss(key, held) }
+        return moved
+      }).catch(() => false)
     },
+    /** Stop listening for a kill (the store's dispose). */
+    dispose() { try { offKill?.() } catch { /* gone */ } },
     /** Write every pending key now (page hide / tests). */
     async flush() {
       const keys = [...watched.keys()]
