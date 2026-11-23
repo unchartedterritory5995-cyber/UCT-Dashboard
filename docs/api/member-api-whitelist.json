@@ -1044,6 +1044,14 @@
       "limit": "600/minute",
       "method": "GET",
       "params": "",
+      "path": "/api/cot/breakdown",
+      "rate_limit_family": "market-analytics",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "",
       "path": "/api/cot/status",
       "rate_limit_family": "market-analytics",
       "tier": "paid"
@@ -1061,6 +1069,14 @@
       "method": "GET",
       "params": "{symbol}, weeks=52",
       "path": "/api/cot/{symbol}",
+      "rate_limit_family": "market-analytics",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "{symbol}, weeks=52",
+      "path": "/api/cot/{symbol}/breakdown",
       "rate_limit_family": "market-analytics",
       "tier": "paid"
     },
