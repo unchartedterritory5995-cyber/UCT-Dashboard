@@ -22,15 +22,15 @@ yet published (0 of 289 frames). This is the follow-up run once frames carry `av
     python tools/forming_daily_check.py --mid            # mid-session: D so far vs the newest av / minute
     python tools/forming_daily_check.py --symbols SPY,AAPL --json out.json
 
-Signs in as the synthetic smoke account: SMOKE_EMAIL / SMOKE_PASSWORD from the operator's environment (never
-printed, never written). Read-only; ~3 requests a symbol plus the day's frames (one today.bin + the newest
-minute files).
+Signs in as the synthetic smoke account through tools/synthetic_session.py (the one sign-in: it reads the operator's
+credentials, never prints or writes them, and signs the session OUT when the run ends, however it ends). Read-only;
+~3 requests a symbol plus the day's frames (one today.bin + the newest minute files).
 """
 from __future__ import annotations
 
 import argparse
+import functools
 import json
-import os
 import statistics
 import sys
 from datetime import datetime
@@ -117,11 +117,29 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
     import requests
 
+    # tools/synthetic_session.py: the ONE sign-in for a synthetic account, signed OUT in the `finally` below. This tool
+    # used to POST the login itself and never sign out, so every run left a 30-day live session behind
+    # (tests/test_synthetic_session_signout.py).
+    try:
+        from tools import synthetic_session as S  # noqa: PLC0415 -- package import
+    except ImportError:
+        import synthetic_session as S  # noqa: PLC0415 -- script import (tools/ on sys.path)
     s = requests.Session()
     s.headers["User-Agent"] = UA
-    r = s.post(f"{BASE}/api/auth/login", json={"email": os.environ["SMOKE_EMAIL"],
-                                               "password": os.environ["SMOKE_PASSWORD"]}, timeout=30)
-    r.raise_for_status()
+    # The helper POSTs the login with the client's own `post` and passes no timeout, and a requests session has no
+    # default one, so the login could wait as long as production takes. This session's `post` carries the 30 s the
+    # old login used. The helper's own requests (the /api/auth/me check, the sign-out) already carry 30 s.
+    s.post = functools.partial(s.post, timeout=30)
+    session = S.sign_in_client(s, BASE, "smoke", timeout=30)
+    try:
+        session.response.raise_for_status()
+        return _compare(a, s)
+    finally:
+        session.close()
+
+
+def _compare(a, s) -> int:
+    """The comparison, on the signed-in session `s` (`a`: the parsed arguments)."""
     now = datetime.now(ET)
     day = now.date().isoformat()
     close = regular_close_min(day)

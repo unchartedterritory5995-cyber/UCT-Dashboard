@@ -567,7 +567,7 @@ export function otherSymbolReport(columns) {
 /** ⭐ ENGINE 56 — the key a column map carries its per-bar witness withholdings under,
  *  non-enumerable like `__chartClock`: plot key → `{code: Float64Array(0/1)}`. */
 const WITHHELD_BARS = '__withheldBars'
-function withWithheldBars(out, byKey) {
+export function withWithheldBars(out, byKey) {
   const rows = {}
   for (const [key, codes] of Object.entries(byKey || {})) {
     if (codes && codes.size) rows[key] = Object.freeze(Object.fromEntries(codes))

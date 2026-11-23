@@ -149,7 +149,7 @@ export function createWorkerCore({ post, locks, makeChannel, makeIO, fetchFn, ta
     await ready
     if (!engine || !req) return null
     switch (req.op) {
-      case 'info': return { ...engine.info(), lastIngest, live: feed?.status() ?? null, ingestState: engine.ingestState() }
+      case 'info': return { ...engine.info(), lastIngest, live: feed?.status() ?? null, ingestState: engine.ingestState(), crossTab: xt.stats() }
       case 'ingest': return _kickIngest(req.manifestUrl, req.recheck === true)
       case 'live': return _live(req.visible)
       // diagnostics (data/deviceStore/diag.js): the rule behind what read() answers for (sym, tf)
