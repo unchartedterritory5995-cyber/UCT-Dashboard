@@ -174,6 +174,18 @@ describe('STAT sections', () => {
     expect(fact('terminal-stat-beta-method')).toContain('Daily returns over the last 252 sessions NVDA and the fund both traded (Nov 20, 2025 to Nov 20, 2026); at least 200 needed.')
   })
 
+  it('section 2: a benchmark read that failed says it could not be read just now; a fund not held keeps its words', async () => {
+    const body = statAnswer()
+    body.beta.spy = { symbol: 'SPY', state: 'unavailable', reason: 'read_failed' }
+    body.beta.sector = { symbol: 'XLK', sector: 'Technology', state: 'not_held' }
+    serve(body)
+    renderPanel()
+    await screen.findByTestId('terminal-stat-beta')
+    const failed = 'Prices for SPY could not be read just now. The server tries again on its own.'
+    for (const k of ['spy', 'up', 'down']) expect(fact(`terminal-stat-betas-${k}`)).toBe(failed)
+    expect(fact('terminal-stat-betas-sector')).toBe('UCT holds no prices for XLK on this server.')
+  })
+
   it('section 3: every period and the best and worst day and week, the yearly rate on 3 and 5 years', async () => {
     serve(statAnswer())
     renderPanel()

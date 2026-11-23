@@ -26,6 +26,7 @@ from pathlib import Path
 import pytest
 
 from api.services import definition_conversation as dc
+from tools.value_cases import grade as G
 from tests.test_p2_truth_server import (  # noqa: F401 -- fixtures by name
     conv, emits, empty_view, env, model,
 )
@@ -33,8 +34,10 @@ from tests.test_p2x_truth_converse import clean_env  # noqa: F401 -- fixture by 
 
 ROOT = Path(__file__).resolve().parents[1]
 CASES = json.loads((ROOT / "tests" / "fixtures" / "authoring" / "value_cases.json").read_text(encoding="utf-8"))["cases"]
-THE_ANSWER = next(c for c in CASES if c["id"] == "intraday-01")
-WORDS = THE_ANSWER["words"]
+THE_CASE = next(c for c in CASES if c["id"] == "intraday-01")
+#: the wrong build a member was given (the case's record while it was recorded WRONG; its specimen since the door asks)
+THE_ANSWER = G.specimen(THE_CASE)
+WORDS = THE_CASE["words"]
 CHART = {"sym": "NVDA", "tf": "5"}
 
 CLOSE = {"type": "series", "name": "close"}
@@ -182,4 +185,4 @@ def test_no_recorded_right_answer_is_refused_by_either_guard():
     wrong = THE_ANSWER["answer"]
     assert refused_by(dc._refuse_a_scope_read_of_nothing, dc._trees_of(wrong)) is not None
     assert refused_by(dc._refuse_a_placeholder_reply, wrong) is not None
-    assert THE_ANSWER["recorded_verdict"] == "wrong" and "Placeholder" in THE_ANSWER["defect"]
+    assert "Placeholder" in THE_ANSWER["defect"] and G.grade("intraday-01", THE_ANSWER["answer"], "intraday")["verdict"] == "wrong"

@@ -196,8 +196,9 @@ SEC_NAMES = {"ZEPHYR BEACON BIOSCIENCE": {"ZQBB"}, "EMBER HOLDINGS": {"ZQEE"}, "
 FTD = {CUS_C: "ZQCC"}
 
 
-def _builder(tmp_path, q3=None, q2=None, parts=None) -> dict:
-    """The index from the two miniatures, built in its own folder; `stocks` reads the written file."""
+def _builder(tmp_path, q3=None, q2=None, parts=None, split_rows=()) -> dict:
+    """The index from the two miniatures, built in its own folder; `stocks` reads the written file. `split_rows` is
+    what the split list read gave over the build's window (default: read, no split in it; None: the read failed)."""
     import tempfile
     d = tempfile.mkdtemp(dir=tmp_path)
     b = D.Builder(work_dir=os.path.join(d, "parts"), parts=parts)
@@ -210,7 +211,9 @@ def _builder(tmp_path, q3=None, q2=None, parts=None) -> dict:
         b.add_current(zf)
     with zipfile.ZipFile(p2) as zf:
         b.add_prior(zf)
-    return b.finish(os.path.join(d, "index.sqlite"), {"quarter": "2031Q3"}, ftd_pairs=FTD, sec_names=SEC_NAMES)
+    splits = D.split_table(split_rows, b.split_window(), reason=None if split_rows is not None else "invented outage")
+    return b.finish(os.path.join(d, "index.sqlite"), {"quarter": "2031Q3"}, ftd_pairs=FTD, sec_names=SEC_NAMES,
+                    splits=splits)
 
 
 # ── helpers ─────────────────────────────────────────────────────────────────────────────────────
@@ -380,10 +383,148 @@ def test_without_the_data_set_before_every_change_is_no_earlier_report(tmp_path)
     p.write_bytes(q3_zip())
     with zipfile.ZipFile(p) as zf:
         b.add_current(zf)
-    idx = b.finish(str(tmp_path / "index.sqlite"), ftd_pairs=FTD, sec_names=SEC_NAMES)
+    # the split list was read over the one fund's two reports (2026-11-22: given on purpose, since a build with no
+    # split list never compares a change)
+    idx = b.finish(str(tmp_path / "index.sqlite"), ftd_pairs=FTD, sec_names=SEC_NAMES,
+                   splits=D.split_table([], b.split_window()))
     states = {h["state"] for h in idx["stocks"]["ZQAA"]["holders"]}
     assert states == {"no_prior", "cut"}                               # only the fund with two reports in the data set
     assert idx["stocks"]["ZQAA"]["sold"] == []
+
+
+# ── a stock split between a fund's two reports (2026-11-22) ────────────────────────────────────────
+# Each split row is what Massive's split reference gives (`reference_corp_actions.fetch_confirmed_splits_strict`); every
+# ticker, date and ratio is INVENTED.
+SPLIT_4_FOR_1 = [{"ticker": "ZQAA", "execution_date": "2031-07-15", "split_from": 1, "split_to": 4}]
+
+
+def _q3(old, new):
+    return _rewrite(q3_zip(), "FUND_REPORTED_HOLDING.tsv", old, new)
+
+
+def test_a_split_between_a_funds_two_reports_reads_in_post_split_shares(tmp_path):
+    """A 4-for-1 split of ZQAA executed 2031-07-15 falls between the reports of Petrel (Apr 30 -> Jul 31) and Quarry
+    (May 31 -> Aug 31), and not Larchmont's or Ostler's (Mar 31 -> Jun 30). Petrel held 500 before it and 2,000 after:
+    it did nothing, and used to read "added", +1,500 shares, +300%."""
+    q3 = _q3("\t500\tNS\t\tUSD\t5000\t", "\t2000\tNS\t\tUSD\t5000\t")
+    idx = _builder(tmp_path, q3=q3, split_rows=SPLIT_4_FOR_1)
+    name = {s: f["name"] for s, f in idx["funds"].items()}
+    zqaa = idx["stocks"]["ZQAA"]
+    got = {name[h["fund"]]: (h["shares"], h["prior_shares"], h["state"]) for h in zqaa["holders"]}
+    assert got == {
+        "Petrel Growth Fund": (2000, 2000, "unchanged"),                 # 500 before the split is 2,000 after it
+        "Quarry Small Cap ETF": (300, 1800, "cut"),                      # 450 before is 1,800 after; it holds 300
+        "Larchmont Total Market Index Fund": (1000, 800, "added"),       # no split between its two reports
+        "Tamsin Value Fund": (200, None, "no_prior"),
+    }
+    assert [(name[h["fund"]], h["prior_shares"]) for h in zqaa["sold"]] == [("Ostler Income Fund", 700)]
+    sm = zqaa["summary"]
+    assert (sm["added"], sm["cut"], sm["unchanged"], sm["new"], sm["no_prior"], sm["sold_out"], sm["not_comparable"]) == \
+        (1, 1, 1, 0, 1, 1, 0)
+    assert (sm["both_now"], sm["both_prior"]) == (1000 + 2000 + 300, 800 + 2000 + 1800 + 700)
+    assert sm["splits"] == [["2031-07-15", 4.0]] and "splits" not in idx["stocks"]["ZQBB"]["summary"]
+    assert idx["splits"] == {"state": "ok", "from": "2031-04-01", "to": "2031-08-31", "events": 1, "reason": None}
+    from api.services import group_positioning as GP
+    assert GP.fund_figures(sm) == (4, 1, 2, round((3300 - 5300) / 5300 * 100, 2))   # GRPS reads the same summary
+
+
+def test_a_reverse_split_and_a_sold_out_funds_earlier_shares_are_put_in_post_split_terms(tmp_path):
+    """ZQBB 1-for-10 on 2031-05-01: Ostler held 10 before and 1 after (it did nothing; it used to read "cut", -90%).
+    ZQAA 2-for-1 on 2031-04-15: Larchmont's 800 is 1,600 after, so its 1,000 is a cut; Ostler, which sold out, counts
+    1,400 in both_prior while its own row keeps the 700 it reported on Mar 31."""
+    rows = [{"ticker": "ZQBB", "execution_date": "2031-05-01", "split_from": 10, "split_to": 1},
+            {"ticker": "ZQAA", "execution_date": "2031-04-15", "split_from": 1, "split_to": 2},
+            {"ticker": "ZQZZ", "execution_date": "2031-05-01", "split_from": 1, "split_to": 3},      # no fund holds it
+            {"ticker": "ZQAA", "execution_date": "2031-09-15", "split_from": 1, "split_to": 5}]      # after every report
+    q3 = _q3("\t10\tNS\t\tUSD\t500\t", "\t1\tNS\t\tUSD\t500\t")
+    idx = _builder(tmp_path, q3=q3, split_rows=rows)
+    name = {s: f["name"] for s, f in idx["funds"].items()}
+    zqbb = {name[h["fund"]]: (h["shares"], h["prior_shares"], h["state"]) for h in idx["stocks"]["ZQBB"]["holders"]}
+    assert zqbb == {"Larchmont Total Market Index Fund": (100, 0.0, "new"), "Ostler Income Fund": (1, 1.0, "unchanged")}
+    assert idx["stocks"]["ZQBB"]["summary"]["splits"] == [["2031-05-01", 0.1]]
+    zqaa = idx["stocks"]["ZQAA"]
+    got = {name[h["fund"]]: (h["prior_shares"], h["state"]) for h in zqaa["holders"]}
+    assert got["Larchmont Total Market Index Fund"] == (1600, "cut") and got["Petrel Growth Fund"] == (500, "unchanged")
+    assert [(name[h["fund"]], h["prior_shares"]) for h in zqaa["sold"]] == [("Ostler Income Fund", 700)]
+    assert zqaa["summary"]["both_prior"] == 1600 + 500 + 450 + 1400 and zqaa["summary"]["splits"] == [["2031-04-15", 2.0]]
+    assert idx["splits"]["events"] == 3                                  # the September split is outside the window
+    for parts in (3, 7):                                                 # the same index, whatever the partitions
+        again = _builder(tmp_path, q3=q3, split_rows=rows, parts=parts)
+        assert {t: again["stocks"][t] for t in again["stocks"]} == {t: idx["stocks"][t] for t in idx["stocks"]}
+
+
+def test_a_split_on_the_later_reports_date_counts_and_one_on_the_earlier_reports_date_does_not(tmp_path):
+    """A report gives the shares held at its date's close. A split executed ON the later report's date is in that
+    report (Larchmont, Mar 31 -> Jun 30); one executed ON the earlier report's date is in the earlier one already
+    (Quarry, May 31 -> Aug 31)."""
+    def priors(rows):
+        idx = _builder(tmp_path, split_rows=rows)
+        name = {s: f["name"] for s, f in idx["funds"].items()}
+        return {name[h["fund"]]: h["prior_shares"] for h in idx["stocks"]["ZQAA"]["holders"]}
+    on_later = priors([{"ticker": "ZQAA", "execution_date": "2031-06-30", "split_from": 1, "split_to": 2}])
+    assert on_later["Larchmont Total Market Index Fund"] == 1600
+    on_earlier = priors([{"ticker": "ZQAA", "execution_date": "2031-05-31", "split_from": 1, "split_to": 2}])
+    assert on_earlier["Quarry Small Cap ETF"] == 450 and on_earlier["Petrel Growth Fund"] == 1000
+
+
+def test_without_the_split_list_no_change_is_guessed_it_is_not_comparable(tmp_path):
+    idx = _builder(tmp_path, split_rows=None)
+    name = {s: f["name"] for s, f in idx["funds"].items()}
+    zqaa = idx["stocks"]["ZQAA"]
+    got = {name[h["fund"]]: (h["prior_shares"], h["state"]) for h in zqaa["holders"]}
+    assert got == {"Larchmont Total Market Index Fund": (800, "not_comparable"), "Petrel Growth Fund": (500, "not_comparable"),
+                   "Quarry Small Cap ETF": (450, "not_comparable"), "Tamsin Value Fund": (None, "no_prior")}
+    sm = zqaa["summary"]
+    assert (sm["added"], sm["cut"], sm["unchanged"], sm["not_comparable"], sm["no_prior"], sm["sold_out"]) == (0, 0, 0, 3, 1, 1)
+    assert (sm["both_now"], sm["both_prior"]) == (0, 0)                  # no fund's change can be put in the same terms
+    zqbb = {name[h["fund"]]: h["state"] for h in idx["stocks"]["ZQBB"]["holders"]}
+    assert zqbb == {"Larchmont Total Market Index Fund": "new", "Ostler Income Fund": "not_comparable"}
+    assert idx["splits"] == {"state": "unavailable", "from": "2031-04-01", "to": "2031-08-31", "events": 0,
+                             "reason": "invented outage"}
+    from api.services import group_positioning as GP
+    assert GP.fund_figures(sm) == (4, None, None, None)                 # GRPS: no known change, never a guess
+    # a builder given no split list at all is the same: never a guessed add or cut
+    b = D.Builder(work_dir=str(tmp_path / "parts2"))
+    for zp, add in ((q3_zip(), b.add_current), (q2_zip(), b.add_prior)):
+        p = tmp_path / "z.zip"
+        p.write_bytes(zp)
+        with zipfile.ZipFile(p) as zf:
+            add(zf)
+    bare = b.finish(str(tmp_path / "bare.sqlite"), ftd_pairs=FTD, sec_names=SEC_NAMES)
+    assert bare["stocks"]["ZQAA"]["summary"]["not_comparable"] == 3 and bare["splits"]["reason"] == "not_read"
+
+
+def test_the_split_list_reaches_back_a_bounded_span_and_a_split_with_no_ratio_is_not_comparable(tmp_path, monkeypatch):
+    monkeypatch.setattr(D, "SPLIT_SPAN_MAX_DAYS", 122)                   # 2031-08-31 less 122 days: 2031-05-01
+    idx = _builder(tmp_path, split_rows=[])
+    assert (idx["splits"]["from"], idx["splits"]["to"]) == ("2031-05-01", "2031-08-31")
+    name = {s: f["name"] for s, f in idx["funds"].items()}
+    zqaa = idx["stocks"]["ZQAA"]
+    got = {name[h["fund"]]: h["state"] for h in zqaa["holders"]}
+    assert got == {"Larchmont Total Market Index Fund": "not_comparable",      # its Mar 31 report is before the window
+                   "Petrel Growth Fund": "unchanged", "Quarry Small Cap ETF": "cut", "Tamsin Value Fund": "no_prior"}
+    assert (zqaa["summary"]["both_now"], zqaa["summary"]["both_prior"]) == (500 + 300, 500 + 450)   # Ostler: Mar 31 too
+    monkeypatch.setattr(D, "SPLIT_SPAN_MAX_DAYS", 400)
+    no_ratio = [{"ticker": "ZQAA", "execution_date": "2031-07-15", "split_from": None, "split_to": 4}]
+    idx = _builder(tmp_path, split_rows=no_ratio)
+    name = {s: f["name"] for s, f in idx["funds"].items()}
+    got = {name[h["fund"]]: h["state"] for h in idx["stocks"]["ZQAA"]["holders"]}
+    assert got["Petrel Growth Fund"] == got["Quarry Small Cap ETF"] == "not_comparable"   # the split is between theirs
+    assert got["Larchmont Total Market Index Fund"] == "added" and "splits" not in idx["stocks"]["ZQAA"]["summary"]
+
+
+def test_the_split_table_reads_the_references_rows_in_the_sites_spelling():
+    rows = [{"ticker": "zqjj.b", "execution_date": "2031-06-02", "split_from": 2, "split_to": 3},
+            {"ticker": "ZQAA", "execution_date": "2031-03-31", "split_from": 1, "split_to": 2},     # before the window
+            {"ticker": "", "execution_date": "2031-06-02", "split_from": 1, "split_to": 2}, "junk",
+            {"ticker": "ZQAA", "execution_date": "not a date", "split_from": 1, "split_to": 2}]
+    t = D.split_table(rows, ("2031-04-01", "2031-08-31"))
+    assert t["state"] == "ok" and t["events"] == 1
+    assert t["by_ticker"] == {"ZQJJ-B": ((date(2031, 6, 2).toordinal(), 1.5),)}
+    assert D.split_table(None, ("2031-04-01", "2031-08-31"), reason="x")["state"] == "unavailable"
+    assert D.split_table([], None)["state"] == "not_needed"
+    assert D.STATES[-1] == "not_comparable" and D.INDEX_VERSION == 2
+    assert D.Builder().split_window() is None                            # no earlier report: nothing to compare
 
 
 def test_rows_are_bounded_and_ranked_by_value(tmp_path, monkeypatch):
@@ -462,6 +603,7 @@ def data_dir(tmp_path, monkeypatch):
     monkeypatch.setattr(M, "ftd_pairs", lambda: dict(FTD))
     monkeypatch.setattr(M, "quiet", lambda now: True)
     monkeypatch.setattr(M, "PAUSE_S", 0.0)
+    monkeypatch.setattr(M, "_read_splits", lambda a, b: [])            # the split list: read, none listed (no vendor)
     M.reset_for_tests()
     yield tmp_path
     M.reset_for_tests()
@@ -542,6 +684,40 @@ def test_the_answer_for_a_held_stock(data_dir, monkeypatch):
     assert a["sold_out_total"] == 1
     assert a["coverage"]["matched_rows_pct"] == 80.0 and a["coverage"]["pct_units"] == "assumed_percent"
     assert a["summary"]["tier"] == "fund_ticker"
+
+
+def test_the_run_reads_the_split_list_once_over_the_reports_and_a_failed_read_is_said(data_dir, monkeypatch):
+    asked = []
+    monkeypatch.setattr(M, "_read_splits", lambda a, b: asked.append((a, b)) or list(SPLIT_4_FOR_1))
+    q3 = _q3("\t500\tNS\t\tUSD\t5000\t", "\t2000\tNS\t\tUSD\t5000\t")
+    out, _ = _built(data_dir, monkeypatch, zips={"2031q3": q3, "2031q2": q2_zip()})
+    assert out["state"] == "built" and out["splits"] == "ok"
+    assert asked == [("2031-04-01", "2031-08-31")]                       # once, from the day after the earliest earlier report
+    a = M.answer_for("ZQAA")
+    petrel = next(h for h in a["holders"] if h["name"] == "Petrel Growth Fund")
+    assert (petrel["shares"], petrel["prior_shares"], petrel["change_shares"], petrel["change_pct"], petrel["state"]) == \
+        (2000, 2000, 0, 0.0, "unchanged")
+    assert a["data_set"]["splits"]["state"] == "ok" and a["summary"]["splits"] == [["2031-07-15", 4.0]]
+
+    def outage(a, b):
+        raise RuntimeError("invented outage")
+    monkeypatch.setattr(M, "_read_splits", outage)
+    out, _ = _built(data_dir, monkeypatch, zips={"2031q3": q3, "2031q2": q2_zip()})
+    assert out["state"] == "built" and out["splits"] == "unavailable"     # the holdings are still served
+    a = M.answer_for("ZQAA")
+    assert a["data_set"]["splits"] == {"state": "unavailable", "from": "2031-04-01", "to": "2031-08-31", "events": 0,
+                                       "reason": "RuntimeError"}
+    petrel = next(h for h in a["holders"] if h["name"] == "Petrel Growth Fund")
+    assert (petrel["prior_shares"], petrel["change_shares"], petrel["change_pct"], petrel["state"]) == \
+        (500, None, None, "not_comparable")
+    assert a["summary"]["not_comparable"] == 3 and a["summary"]["added"] == 0
+    # with no earlier report anywhere, nothing is compared and the list is not read at all
+    asked.clear()
+    monkeypatch.setattr(M, "_read_splits", lambda a, b: asked.append((a, b)) or [])
+    lone = _rewrite(q3_zip(), "SUBMISSION.tsv", "15-JUL-2031\t\tNPORT-P", "15-JUL-2031\t\tNT NPORT-P")
+    out, _ = _built(data_dir, monkeypatch, zips={"2031q3": lone})        # no data set before, no earlier report
+    assert out["state"] == "built" and out["splits"] == "not_needed" and asked == []
+    assert M.answer_for("ZQAA")["data_set"]["splits"]["state"] == "not_needed"
 
 
 def test_a_stock_not_in_the_index_is_not_matched_never_none(data_dir, monkeypatch):

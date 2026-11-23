@@ -58,8 +58,8 @@ def test_a_worded_capability_with_no_case_is_on_the_list_and_the_list_is_true():
 def test_the_list_may_only_shrink():
     # MEASURED 2026-11-22, when the rule began: 29 worded, 13 with a case, 16 without. The number below is the most
     # the list has ever been allowed to hold; lower it as cases arrive, never raise it.
-    assert len(DATA["capabilities_without_a_case"]) <= 14
-    assert len(WORDED) - len(DATA["capabilities_without_a_case"]) >= 15
+    assert len(DATA["capabilities_without_a_case"]) <= 10
+    assert len(WORDED) - len(DATA["capabilities_without_a_case"]) >= 19
 
 
 def test_CONTROL_a_new_wording_with_no_case_is_caught():

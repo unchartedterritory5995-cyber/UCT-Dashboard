@@ -611,17 +611,17 @@ def test_the_benchmarks_and_the_sector_fund_say_when_they_are_not_held(monkeypat
     assert ans["beta"]["sector"] == {"state": "fund"}
 
 
-def test_a_benchmark_not_held_when_the_answer_was_built_is_tried_again_with_the_stock(monkeypatch):
+def test_a_benchmark_that_could_not_be_read_when_the_answer_was_built_is_tried_again_with_the_stock(monkeypatch):
     # a failed SPY (or sector fund) read is tried again after LAG_RECHECK_S; the stock's held answer
-    # must follow it, never carry "not held" for the rest of the session
+    # must follow it, never carry the failed read for the rest of the session
     _world(monkeypatch)
     good = S._read_closes
     state = {"fail": True}
     monkeypatch.setattr(S, "_read_closes", lambda s: {"status": "unavailable", "reason": "read_failed", "symbol": s}
                         if state["fail"] else good(s))
     first = S.get_stock_stats("ZZQA")
-    assert first["beta"]["spy"] == {"symbol": "SPY", "state": "not_held"}
-    assert first["beta"]["sector"]["state"] == "not_held"
+    assert first["beta"]["spy"] == {"symbol": "SPY", "state": "unavailable", "reason": "read_failed"}
+    assert first["beta"]["sector"]["state"] == "unavailable"
     state["fail"] = False
     # half an hour passes: every time this module stored moves back by the recheck
     for held in S._bench.values():
@@ -634,6 +634,25 @@ def test_a_benchmark_not_held_when_the_answer_was_built_is_tried_again_with_the_
     assert ans["beta"]["spy"]["state"] == "ok" and ans["beta"]["spy"]["beta"] is not None
     assert ans["beta"]["sector"]["state"] == "ok" and ans["beta"]["sector"]["symbol"] == "XLK"
     assert S._cache["ZZQA"]["recheck_at"] is None                      # both held now: kept for the session
+
+
+def test_a_failed_benchmark_read_is_said_as_a_failed_read_and_only_nothing_stored_is_not_held(monkeypatch):
+    # `read_failed` (the store could not be read just now) is NOT "UCT holds no prices for SPY"
+    _world(monkeypatch)
+    monkeypatch.setattr(S, "_read_closes", lambda s: {"status": "unavailable", "reason": "read_failed", "symbol": s})
+    ans = S.get_stock_stats("ZZQA")
+    assert ans["beta"]["spy"] == {"symbol": "SPY", "state": "unavailable", "reason": "read_failed"}
+    assert ans["beta"]["sector"] == {"symbol": "XLK", "sector": "Technology", "state": "unavailable", "reason": "read_failed"}
+    entry = S._cache["ZZQA"]                                            # and it is read again after the recheck
+    assert entry["recheck_at"] is not None and abs(entry["recheck_at"] - (entry["at"] + S.LAG_RECHECK_S)) < 1e-6
+    # nothing stored for the fund, or nothing settled by the session: not held, in the words it always had
+    for read in ({"status": "unavailable", "reason": "no_price_history"},
+                 {"status": "ok", "closes": [("2031-06-03", 300.0)]}):          # only a close after the session
+        S.reset_for_tests()
+        monkeypatch.setattr(S, "_read_closes", lambda s, read=read: {**read, "symbol": s})
+        ans = S.get_stock_stats("ZZQA")
+        assert ans["beta"]["spy"] == {"symbol": "SPY", "state": "not_held"}
+        assert ans["beta"]["sector"] == {"symbol": "XLK", "sector": "Technology", "state": "not_held"}
 
 
 def test_a_sector_fund_not_held_alone_also_sends_the_stock_back_for_the_recheck(monkeypatch):
