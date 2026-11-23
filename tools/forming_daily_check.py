@@ -29,6 +29,7 @@ credentials, never prints or writes them, and signs the session OUT when the run
 from __future__ import annotations
 
 import argparse
+import functools
 import json
 import statistics
 import sys
@@ -125,7 +126,11 @@ def main(argv=None) -> int:
         import synthetic_session as S  # noqa: PLC0415 -- script import (tools/ on sys.path)
     s = requests.Session()
     s.headers["User-Agent"] = UA
-    session = S.sign_in_client(s, BASE, "smoke")
+    # The helper POSTs the login with the client's own `post` and passes no timeout, and a requests session has no
+    # default one, so the login could wait as long as production takes. This session's `post` carries the 30 s the
+    # old login used. The helper's own requests (the /api/auth/me check, the sign-out) already carry 30 s.
+    s.post = functools.partial(s.post, timeout=30)
+    session = S.sign_in_client(s, BASE, "smoke", timeout=30)
     try:
         session.response.raise_for_status()
         return _compare(a, s)

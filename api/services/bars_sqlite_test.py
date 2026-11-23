@@ -253,10 +253,12 @@ def test_put_bars_retries_on_locked_then_succeeds(tmp_path, monkeypatch):
     # real connection in a thin proxy whose executemany is monkeypatchable.
     # ⭐ Everything else put_bars uses (its reads before the write, the rev bump after it) goes to the real
     # connection unchanged; only the write itself is locked, once.
+    # ⭐ It counts the attempts at the OHLCV WRITE, not every executemany: the rev bump after a successful write
+    # (bump_series_revs) is an executemany too, so counting them all read 3 for one retry.
     class _FlakyConn:
         def __init__(self, real):
             self._real = real
-            self.calls = 0
+            self.ohlcv_write_attempts = 0
 
         @property
         def total_changes(self):
@@ -265,11 +267,12 @@ def test_put_bars_retries_on_locked_then_succeeds(tmp_path, monkeypatch):
         def execute(self, *args, **kwargs):
             return self._real.execute(*args, **kwargs)
 
-        def executemany(self, *args, **kwargs):
-            self.calls += 1
-            if self.calls == 1:
-                raise sqlite3.OperationalError("database is locked")
-            return self._real.executemany(*args, **kwargs)
+        def executemany(self, sql, *args, **kwargs):
+            if "INTO ohlcv" in sql:
+                self.ohlcv_write_attempts += 1
+                if self.ohlcv_write_attempts == 1:
+                    raise sqlite3.OperationalError("database is locked")
+            return self._real.executemany(sql, *args, **kwargs)
 
         def commit(self):
             return self._real.commit()
@@ -282,7 +285,9 @@ def test_put_bars_retries_on_locked_then_succeeds(tmp_path, monkeypatch):
         [{"t": 20240102, "o": 1, "h": 2, "l": 1, "c": 2, "v": 100}],
     )
     assert n == 1
-    assert flaky.calls == 2, "expected one retry after a single locked error"
+    assert flaky.ohlcv_write_attempts == 2, "expected one retry after a single locked error"
+    stored = real_conn.execute("SELECT COUNT(*) FROM ohlcv WHERE ticker = 'AAPL' AND tf = 'D'").fetchone()[0]
+    assert stored == 1, "the retried write must land"
 
 
 # ⚰️ SIX CASES FOR `bars_provenance` LIVED HERE UNTIL 2026-08-09 and they were
