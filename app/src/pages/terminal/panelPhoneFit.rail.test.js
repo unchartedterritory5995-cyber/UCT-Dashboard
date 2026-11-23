@@ -266,6 +266,12 @@ const FITS_THE_BOTTOM = [
   // 340px panels the panel's scroll width is its width. On a phone the IV rank list's sessions and open interest fold
   // (phoneHide); the lockup table's three columns of two- and three-line cells wrap between words and nothing folds.
   ['IvRankPanel.jsx', 'OSCR RICH / OSCR CHEAP', 383], ['IpoLockupPanel.jsx', 'IPO LOCKUP', 362],
+  // ERNSC, measured 2026-11-22 at 1536, 1180 and 340px (sample data, a sector open and closed): five columns of two-line
+  // cells whose headers and reaction words wrap in a snug panel (snugWrap) and whose sector name gives back its floor
+  // (snugTight); the least width with every column showing is 414px (+ 29). In the 640, 462 and 340px panels the panel's
+  // scroll width is its width and the table does not scroll in its box. On a phone the year-earlier column folds
+  // (phoneHide) and stays in the opened sector.
+  ['SectorEarningsPanel.jsx', 'ERNSC', 443],
 ]
 /** Tables with no sample rows: never measured, so they must not fold on a desktop panel above the bottom of the ladder.
  *  (InsiderPanel.jsx left this list on 2026-11-21: see INS in MEASURED.) */
