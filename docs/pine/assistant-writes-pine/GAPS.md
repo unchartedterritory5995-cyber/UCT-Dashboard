@@ -14,10 +14,10 @@ This file holds capabilities only: no member's request, no answer and no count f
 
 | a member cannot get | what the engine says | refused as | probe |
 |---|---|---|---|
-| A horizontal level drawn with hline | `hline` is not drawn on this chart: this door does not carry a horizontal level yet, and a screen reads plot() and alertcondition() and nothing else, so a screen built from this script does not read it either | `pine:chart-only` | `hline` |
+| A horizontal level drawn with hline | `Overbought`: style not reproduced: TradingView's default colour for a v5 `hline` is not captured; TradingView's default line style for a v5 `hline` is not captured; TradingView's default line width for a v5 `hline` is not captured. The level is drawn at its exact price, in the chart's text colour, solid and 1 px wide, rather than in a style the script does not choose. | `pine:colour-default-unwitnessed` | `hline` |
 | A shaded area between two plots that have no title | This script also writes a fill between two plots, which a script drawn bar by bar does not draw here yet. Its lines are drawn; those are not. | `runtime:presentation` | `untitled-fill-anchor` |
 | Up and down arrows in their own colours (plotarrow) | this script is not drawn: TradingView draws a `plotarrow` as up and down arrows at its positive and negative values, which this chart does not draw yet, so it is not drawn as a line of its value | `pine:plotarrow-not-drawn` | `plotarrow-colours` |
-| Bars drawn from computed values (plotbar) | this script declares nothing a chart can draw | `withheld` | `plotbar` |
+| Candles drawn from computed values (Heikin Ashi, plotcandle) | this script is not drawn: `Heikin Ashi` is not drawn: it does not write `wickcolor =`, and TradingView's default for it is not captured. Nothing is drawn for it rather than a guess. | `pine:candle-not-drawn` | `plotcandle` |
 
 ## Calculations
 
@@ -53,7 +53,7 @@ This file holds capabilities only: no member's request, no answer and no count f
 
 ## Probes the engine serves today
 
-Asked the same way, and not a gap: `plotcandle` (candles drawn from computed values (Heikin Ashi, plotcandle)), `regression-channel-deviation` (a regression channel whose bands are the deviation around the line), `schaff-trend-cycle` (the Schaff Trend Cycle in its published two-stage form), `rsi-divergence-pivots` (a divergence between price and an oscillator, read pivot to pivot), `regression-channel-residual` (a regression channel whose bands are the deviation of price around the line), `zigzag-lines` (a zigzag that joins swing highs and lows with lines), `zones-extended-right` (zones as boxes that start at a past bar and extend to the right), `linefill` (a shaded area between two drawn lines (linefill)), `input-text-area` (a multi-line text setting (input.text_area)).
+Asked the same way, and not a gap: `plotbar` (bars in the chart's own prices, coloured by a rule (plotbar)), `plotbar-computed` (bars drawn from computed values (plotbar)), `regression-channel-deviation` (a regression channel whose bands are the deviation around the line), `schaff-trend-cycle` (the Schaff Trend Cycle in its published two-stage form), `rsi-divergence-pivots` (a divergence between price and an oscillator, read pivot to pivot), `regression-channel-residual` (a regression channel whose bands are the deviation of price around the line), `zigzag-lines` (a zigzag that joins swing highs and lows with lines), `zones-extended-right` (zones as boxes that start at a past bar and extend to the right), `linefill` (a shaded area between two drawn lines (linefill)), `input-text-area` (a multi-line text setting (input.text_area)).
 
 ## The probes
 
@@ -101,6 +101,17 @@ plotcandle(haOpen, math.max(high, haOpen, haClose), math.min(low, haOpen, haClos
 //@version=5
 indicator("probe")
 plotbar(open, high, low, close, "Bars", color=close > open ? color.green : color.red)
+```
+
+### `plotbar-computed`
+
+```pine
+//@version=5
+indicator("probe")
+haClose = (open + high + low + close) / 4
+var float haOpen = na
+haOpen := na(haOpen[1]) ? (open + close) / 2 : (haOpen[1] + haClose[1]) / 2
+plotbar(haOpen, math.max(high, haOpen, haClose), math.min(low, haOpen, haClose), haClose, "Heikin Ashi bars", color=haClose > haOpen ? color.green : color.red)
 ```
 
 ### `vwap-deviation-bands`

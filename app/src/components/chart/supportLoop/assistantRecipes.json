@@ -701,9 +701,9 @@
    "shows": "each candle is made from the bar and the candle before it: its close is the average of the bar's four prices, its open is halfway between the open and close of the candle before (the first one uses the bar's own open and close), and its high and low reach the bar's high and low. The candles are drawn in their OWN pane under the chart (a script cannot replace the chart's candles). All three colours of a candle are written (body, wick and border): a candle given only one is drawn half in the chart's default colours",
    "chart": "daily",
    "source": "//@version=5\nindicator(\"Heikin Ashi\", overlay=false)\nhaClose = (open + high + low + close) / 4\nvar float haOpen = na\nhaOpen := na(haOpen[1]) ? (open + close) / 2 : (haOpen[1] + haClose[1]) / 2\nhaHigh = math.max(high, haOpen, haClose)\nhaLow = math.min(low, haOpen, haClose)\ncandleColor = haClose >= haOpen ? color.green : color.red\nplotcandle(haOpen, haHigh, haLow, haClose, \"Heikin Ashi\", color=candleColor, wickcolor=candleColor, bordercolor=candleColor)\n",
-   "lane": "host",
-   "state": "runs",
-   "headline": "Runs on the chart and in alerts; screens and scans need a threshold",
+   "lane": "runtime",
+   "state": "runs-with-notes",
+   "headline": "Runs on the chart and in alerts, with 1 note",
    "draws": false,
    "runs": {
     "fromListing": {
@@ -712,7 +712,7 @@
     },
     "offListing": {
      "ok": true,
-     "values": 1750
+     "values": 1729
     }
    },
    "member": {

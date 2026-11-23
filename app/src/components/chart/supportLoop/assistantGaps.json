@@ -11,9 +11,9 @@
    "lane": "host",
    "state": "runs-withheld",
    "headline": "Runs on the chart and in alerts, 1 value withheld (not guessed)",
-   "guard": "pine:chart-only",
-   "family": "language",
-   "why": "`hline` is not drawn on this chart: this door does not carry a horizontal level yet, and a screen reads plot() and alertcondition() and nothing else, so a screen built from this script does not read it either"
+   "guard": "pine:colour-default-unwitnessed",
+   "family": "presentation",
+   "why": "`Overbought`: style not reproduced: TradingView's default colour for a v5 `hline` is not captured; TradingView's default line style for a v5 `hline` is not captured; TradingView's default line width for a v5 `hline` is not captured. The level is drawn at its exact price, in the chart's text colour, solid and 1 px wide, rather than in a style the script does not choose."
   },
   {
    "id": "untitled-fill-anchor",
@@ -46,23 +46,33 @@
    "kind": "output",
    "cannot": "Candles drawn from computed values (Heikin Ashi, plotcandle)",
    "source": "//@version=5\nindicator(\"probe\")\nhaClose = (open + high + low + close) / 4\nvar float haOpen = na\nhaOpen := na(haOpen[1]) ? (open + close) / 2 : (haOpen[1] + haClose[1]) / 2\nplotcandle(haOpen, math.max(high, haOpen, haClose), math.min(low, haOpen, haClose), haClose, \"Heikin Ashi\", color=haClose > haOpen ? color.green : color.red)\n",
-   "runs": true,
+   "runs": false,
    "lane": "host",
-   "state": "runs",
-   "headline": "Runs on the chart and in alerts; screens and scans need a threshold"
+   "state": "runs-elsewhere",
+   "headline": "Runs in alerts; the chart cannot draw it yet: How it is drawn",
+   "guard": "pine:candle-not-drawn",
+   "family": "presentation",
+   "why": "this script is not drawn: `Heikin Ashi` is not drawn: it does not write `wickcolor =`, and TradingView's default for it is not captured. Nothing is drawn for it rather than a guess."
   },
   {
    "id": "plotbar",
    "kind": "output",
-   "cannot": "Bars drawn from computed values (plotbar)",
+   "cannot": "Bars in the chart's own prices, coloured by a rule (plotbar)",
    "source": "//@version=5\nindicator(\"probe\")\nplotbar(open, high, low, close, \"Bars\", color=close > open ? color.green : color.red)\n",
-   "runs": false,
+   "runs": true,
    "lane": "host",
-   "state": "not-yet",
-   "headline": "Not yet: Nothing a chart can draw",
-   "guard": null,
-   "family": null,
-   "why": "this script declares nothing a chart can draw"
+   "state": "runs",
+   "headline": "Runs on the chart and in alerts; not in screens or scans"
+  },
+  {
+   "id": "plotbar-computed",
+   "kind": "output",
+   "cannot": "Bars drawn from computed values (plotbar)",
+   "source": "//@version=5\nindicator(\"probe\")\nhaClose = (open + high + low + close) / 4\nvar float haOpen = na\nhaOpen := na(haOpen[1]) ? (open + close) / 2 : (haOpen[1] + haClose[1]) / 2\nplotbar(haOpen, math.max(high, haOpen, haClose), math.min(low, haOpen, haClose), haClose, \"Heikin Ashi bars\", color=haClose > haOpen ? color.green : color.red)\n",
+   "runs": true,
+   "lane": "runtime",
+   "state": "runs-with-notes",
+   "headline": "Runs on the chart and in alerts, with 1 note"
   },
   {
    "id": "vwap-deviation-bands",

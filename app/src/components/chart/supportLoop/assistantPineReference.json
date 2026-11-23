@@ -1702,8 +1702,8 @@
  "pitfalls": [
   {
    "id": "candle-one-colour",
-   "state": "runs",
-   "standing": false
+   "state": "runs-elsewhere",
+   "standing": true
   },
   {
    "id": "drawings-beside-plain-plots",
@@ -1843,9 +1843,9 @@
    "shows": "candles drawn from computed values with plotcandle; ALL THREE colours (color, wickcolor, bordercolor) are written, each a fixed colour chosen by ?:, which is the shape this engine draws as candles",
    "source": "//@version=5\nindicator(\"Heikin Ashi\", overlay=false)\nhaClose = (open + high + low + close) / 4\nvar float haOpen = na\nhaOpen := na(haOpen[1]) ? (open + close) / 2 : (haOpen[1] + haClose[1]) / 2\nhaHigh = math.max(high, haOpen, haClose)\nhaLow = math.min(low, haOpen, haClose)\nc = haClose >= haOpen ? color.green : color.red\nplotcandle(haOpen, haHigh, haLow, haClose, \"Heikin Ashi\", color=c, wickcolor=c, bordercolor=c)\n",
    "ok": true,
-   "lane": "host",
-   "state": "runs",
-   "headline": "Runs on the chart and in alerts; screens and scans need a threshold"
+   "lane": "runtime",
+   "state": "runs-with-notes",
+   "headline": "Runs on the chart and in alerts, with 1 note"
   }
  ]
 }
