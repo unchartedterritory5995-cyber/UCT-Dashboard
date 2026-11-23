@@ -99,9 +99,16 @@ function holdFrames() {
   vi.stubGlobal('cancelAnimationFrame', (id) => { frames.delete(id) })
 }
 const waitingFrames = () => frames.size
-/** The next frame's animation frame callbacks run, and NOTHING else (no timer, no sleep). */
-const frame = () => act(() => { runFrames() })
+/**
+ * The next frame's animation frame callbacks run, and NOTHING else; `check` sees what they did at once, inside the
+ * same synchronous callback, so no timer (a zero timer after the frame, a backstop) can have run before it.
+ * ⛔ Never `await frame(); expect(...)` for what the frame callback must have done: awaiting `act` yields a task,
+ * in which a zero timer can run first, and a deferral to "after the frame" would pass.
+ */
+const frame = (check = () => {}) => act(() => { runFrames(); check() })
 
+/** Timers due now run (a scroll a deferral left for after the frame lands here, not in the next assertion). */
+const settle = () => act(async () => { await sleep(10) })
 const press = (key = 'ArrowDown') =>
   act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true })) })
 const selectedSyms = (container) =>
@@ -170,8 +177,7 @@ describe('a small list (every row drawn)', () => {
     expect(selectedSyms(container)).toEqual(['M2'])      // K1: no frame has come
     expect(seen.intoView).toEqual([])                    // K3
     expect(seen.heightReads).toBe(0)
-    await frame()                                        // K4: the frame callback itself, no timer
-    expect(seen.intoView).toEqual([{ sym: 'M2', opts: NEAREST }])
+    await frame(() => expect(seen.intoView).toEqual([{ sym: 'M2', opts: NEAREST }]))   // K4: in the frame callback
   })
 
   it('K5: a held arrow (three presses before a frame) scrolls once, in that frame, to the last row', async () => {
@@ -179,14 +185,12 @@ describe('a small list (every row drawn)', () => {
     await press(); await press(); await press()
     expect(selectedSyms(container)).toEqual(['M3'])
     expect(seen.intoView).toEqual([])
-    await frame()
-    expect(seen.intoView).toEqual([{ sym: 'M3', opts: NEAREST }])
+    await frame(() => expect(seen.intoView).toEqual([{ sym: 'M3', opts: NEAREST }]))
     await frame()                                        // nothing more on the next frame
     await act(async () => { await sleep(300) })          // nor from the backstop timer
     expect(seen.intoView).toHaveLength(1)
     await press()                                        // the next press scrolls in its own frame
-    await frame()
-    expect(seen.intoView.map((c) => c.sym)).toEqual(['M3', 'M1'])
+    await frame(() => expect(seen.intoView.map((c) => c.sym)).toEqual(['M3', 'M1']))
   })
 
   it('K6: a widget that goes away before the frame scrolls nothing, and leaves nothing waiting for one', async () => {
@@ -227,7 +231,7 @@ describe('a virtualized list', () => {
 
   it('K1 K2 K3 K4: nothing is centred or measured in the key task; in the frame callback, THAT row is centred once', async () => {
     const { container, picked } = await mount('big', 'Big')
-    await press(); await frame(); clearSeen()            // on S0, its scroll done
+    await press(); await frame(); await settle(); clearSeen()   // on S0, its scroll done
     let pickedInHandler = null
     await act(() => {
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }))
@@ -238,20 +242,22 @@ describe('a virtualized list', () => {
     expect(seen.scrollTo).toEqual([])                    // K3: the virtualizer has not scrolled ...
     expect(seen.heightReads).toBe(0)                     // ... nor read the scroller's height
     expect(seen.intoView).toEqual([])
-    await frame()                                        // K4
-    expect(seen.scrollTo).toEqual([{ top: 1 * ROW, behavior: 'auto' }])   // row 1, centred in a 600 px viewport
-    expect(seen.intoView).toEqual([{ sym: 'S1', opts: NEAREST }])
+    await frame(() => {                                  // K4: in the frame callback
+      expect(seen.scrollTo).toEqual([{ top: 1 * ROW, behavior: 'auto' }])   // row 1, centred in a 600 px viewport
+      expect(seen.intoView).toEqual([{ sym: 'S1', opts: NEAREST }])
+    })
   })
 
   it('K5: a held arrow centres once, in that frame, on the last row', async () => {
     const { container } = await mount('big', 'Big')
-    await press(); await frame(); clearSeen()            // on S0
+    await press(); await frame(); await settle(); clearSeen()   // on S0
     await press(); await press(); await press()
     expect(selectedSyms(container)).toEqual(['S3'])
     expect(seen.scrollTo).toEqual([])
-    await frame()
-    expect(seen.scrollTo).toEqual([{ top: 3 * ROW, behavior: 'auto' }])
-    expect(seen.intoView).toEqual([{ sym: 'S3', opts: NEAREST }])
+    await frame(() => {
+      expect(seen.scrollTo).toEqual([{ top: 3 * ROW, behavior: 'auto' }])
+      expect(seen.intoView).toEqual([{ sym: 'S3', opts: NEAREST }])
+    })
   })
 
   it('K6: a widget that goes away before the frame centres nothing, and leaves nothing waiting for one', async () => {
@@ -268,24 +274,25 @@ describe('a virtualized list', () => {
 
   it('K10: the list changes before the frame: nothing scrolls meanwhile, and the row is found again by its symbol', async () => {
     const { rerender, ctx } = await mount('big', 'Big')
-    await press(); await frame(); clearSeen()            // on S0
+    await press(); await frame(); await settle(); clearSeen()   // on S0
     await press()                                        // S1 (row 1) asked for
     hoisted.prebuilt = [{ id: 'big', name: 'Big', items: mkItems(['X0', ...SYMS]) }]   // S1 is row 2 now
     await act(() => { rerender(listEl('big', 'Big', ctx)) })
     expect(seen.scrollTo).toEqual([])                    // the list change scrolled nothing in its commit
-    await frame()
-    expect(seen.scrollTo).toHaveLength(1)
-    expect(seen.scrollTo[0].top).toBeGreaterThan(1 * ROW)   // not row 1's offset: the row was found where it is now
+    await frame(() => {
+      expect(seen.scrollTo).toHaveLength(1)
+      expect(seen.scrollTo[0].top).toBeGreaterThan(1 * ROW)   // not row 1's offset: the row was found where it is now
+    })
   })
 
   it('K11: the row is gone when the frame comes: nothing scrolls; when it is back, the snap happens', async () => {
     const { rerender, ctx } = await mount('big', 'Big')
-    await press(); await frame(); clearSeen()            // on S0
+    await press(); await frame(); await settle(); clearSeen()   // on S0
     await press()                                        // S1 asked for
     hoisted.prebuilt = [{ id: 'big', name: 'Big', items: mkItems(SYMS.filter((s) => s !== 'S1')) }]
     await act(() => { rerender(listEl('big', 'Big', ctx)) })
-    await frame()
-    expect(seen.scrollTo).toEqual([])                    // no row to centre
+    await frame(() => expect(seen.scrollTo).toEqual([]))   // the frame came: no row to centre
+    await act(async () => { await sleep(300) })          // and nothing waits on a timer either
     hoisted.prebuilt = [{ id: 'big', name: 'Big', items: mkItems(SYMS) }]
     await act(() => { rerender(listEl('big', 'Big', ctx)) })
     expect(seen.scrollTo).toEqual([{ top: 1 * ROW, behavior: 'auto' }])   // back: snapped (in its commit, as before)
