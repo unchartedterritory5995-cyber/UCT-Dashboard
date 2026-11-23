@@ -17,35 +17,43 @@ import { Parser } from 'acorn'
 import jsx from 'acorn-jsx'
 
 vi.mock('../../../components/chart/barStoreSwitch', () => ({ BARSTORE: true }))
-const st = { displayable: false, lake: false, deep: true, device: false, held: true, syncLand: false }
-// The device read: lands a few ms later, as a worker read does; `syncLand`: inside the call, as a copy the device
-// client already holds does (its recently-read cache)
+// ⭐ THE STORE IS KEYED BY SYMBOL (review of #2624, section 4): a copy that landed for one symbol makes only THAT symbol
+// displayable, so "prime X, Enter Y" takes the round here as in the app. `lake` / `deep` are global (their answer is
+// the same for every symbol in these cases); `syncLand`: the read lands inside the call, as a copy the device client
+// already holds does (its recently-read cache); otherwise a few ms later, as a worker read does.
+const st = { lake: false, deep: true, syncLand: false, bySym: new Map() }
+const of = (sym) => st.bySym.get(String(sym)) || { device: false, displayable: false, held: false }
 const LAND_MS = 3
-const land = () => { st.device = true; st.displayable = true }
-const deviceWarm = vi.fn(() => {
-  if (st.syncLand) { land(); return Promise.resolve(true) }
-  return new Promise((resolve) => setTimeout(() => { land(); resolve(true) }, LAND_MS))
+const land = (sym) => { st.bySym.set(String(sym), { device: true, displayable: true, held: true }) }
+const deviceWarm = vi.fn((sym) => {
+  if (st.syncLand) { land(sym); return Promise.resolve(true) }
+  return new Promise((resolve) => setTimeout(() => { land(sym); resolve(true) }, LAND_MS))
 })
+/** Every facade call, by name: what the store-off case reads (no read, no entry, no request). */
+const facadeCalls = []
+const rec = (name, fn) => (...a) => { facadeCalls.push(name); return fn(...a) }
+const sw = { on: true }
 vi.mock('../../../data/barStore/prefetch', () => ({
-  peekDisplayable: () => st.displayable,
-  lakePending: () => st.lake,
-  deepPending: () => st.deep,
-  holdsBars: () => st.held,
-  devicePaints: () => st.device,
-  deviceVerdict: () => ({ paints: st.device, reason: st.device ? 'paints' : 'none', held: 'none' }),
-  deviceWarm: (...a) => deviceWarm(...a),
-  deviceHold: () => null,
-  watch: () => () => {},
-  prepareForDisplay: () => new Promise(() => {}),
-  prepareDailyForDisplay: () => new Promise(() => {}),
-  prefetchBarsToIDB: () => {},
-  heldRows: () => 0,
+  peekDisplayable: rec('peekDisplayable', (sym) => of(sym).displayable),
+  lakePending: rec('lakePending', () => st.lake),
+  deepPending: rec('deepPending', () => st.deep),
+  holdsBars: rec('holdsBars', (sym) => of(sym).held),
+  devicePaints: rec('devicePaints', (sym) => of(sym).device),
+  deviceVerdict: rec('deviceVerdict', (sym) => ({ paints: of(sym).device, reason: of(sym).device ? 'paints' : 'none', held: 'none' })),
+  deviceWarm: rec('deviceWarm', (...a) => deviceWarm(...a)),
+  deviceHold: rec('deviceHold', () => null),
+  watch: rec('watch', () => () => {}),
+  prepareForDisplay: rec('prepareForDisplay', () => new Promise(() => {})),
+  prepareDailyForDisplay: rec('prepareDailyForDisplay', () => new Promise(() => {})),
+  prefetchBarsToIDB: rec('prefetchBarsToIDB', () => {}),
+  heldRows: rec('heldRows', () => 0),
+  askForDisplay: rec('askForDisplay', () => Promise.resolve(null)),
 }))
 vi.mock('../../../utils/prefetchBars', () => ({ prefetchBarsToIDB: () => {}, prepareForDisplay: () => new Promise(() => {}), prepareDailyForDisplay: () => new Promise(() => {}) }))
 vi.mock('../../../components/chart/engine/serverCompute', () => ({
   columnsReadyFor: () => true, whenColumnsReady: () => Promise.resolve(true), warmColumnsFor: () => {},
 }))
-vi.mock('../../../data/deviceStore/switch', () => ({ deviceStoreEnabled: () => true }))
+vi.mock('../../../data/deviceStore/switch', () => ({ deviceStoreEnabled: () => sw.on }))
 vi.mock('../../../data/deviceStore/source', () => ({ deviceSource: () => null }))
 
 let useSymbolHandoff, G, primeTypedIntent
@@ -59,7 +67,10 @@ const scope = { board: 1 }
 
 beforeEach(async () => {
   vi.useFakeTimers()
-  Object.assign(st, { displayable: false, lake: false, deep: true, device: false, held: true, syncLand: false })
+  Object.assign(st, { lake: false, deep: true, syncLand: false })
+  st.bySym.clear()
+  sw.on = true
+  facadeCalls.length = 0
   deviceWarm.mockClear()
   await load()
 })
@@ -92,7 +103,7 @@ describe('the typed intent starts the key press\'s device reads early', () => {
     st.syncLand = true                                                  // the device client already holds them
     const h = linkedPair()
     act(() => { primeTypedIntent(scope, 'A', 'BBB') })
-    expect(st.device).toBe(true)                                        // (the reads did land)
+    expect(of('BBB').device).toBe(true)                                 // (the reads did land)
     expect(G.decisionFor(scope, 'charts:A')).toBeNull()                 // no decision published before Enter
     expect(h.result.current).toEqual(['AAA', 'AAA'])                   // nothing moves before Enter
     await act(async () => { await vi.advanceTimersByTimeAsync(5) })
@@ -109,11 +120,32 @@ describe('the typed intent starts the key press\'s device reads early', () => {
   })
 })
 
+describe('with the device store OFF the prime does nothing at all', () => {
+  it('no device read, no store entry, no request: not one facade call (the member prime returns at !DEVICE)', async () => {
+    sw.on = false
+    await load()                                                        // the store-off page load
+    linkedPair()
+    const before = facadeCalls.length
+    primeTypedIntent(scope, 'A', 'BBB')
+    await act(async () => { await vi.advanceTimersByTimeAsync(LAND_MS + 1) })
+    expect(facadeCalls.slice(before)).toEqual([])
+    expect(deviceWarm).not.toHaveBeenCalled()
+  })
+})
+
 describe('so Enter shows a typed ticker in the key task, as a list pick does', () => {
   it('CONTROL: with no typed intent, the device reads start at Enter, land after it, and the group takes the round', () => {
     const h = linkedPair()
     expect(enter(h, 'BBB')).toBe(false)
     expect(h.result.current).toEqual(['AAA', 'AAA'])                   // the round shows it later
+  })
+
+  it('prime X, Enter Y: the copies are for X, so Enter on Y takes the round (the prime is for the text it was given)', async () => {
+    const h = linkedPair()
+    primeTypedIntent(scope, 'A', 'BBB')                                 // the text settled on BBB...
+    await act(async () => { await vi.advanceTimersByTimeAsync(LAND_MS + 1) })
+    expect(enter(h, 'CCC')).toBe(false)                                 // ...and Enter took CCC (an arrowed row)
+    expect(h.result.current).toEqual(['AAA', 'AAA'])
   })
 
   it('with the typed intent before Enter, the copies are in, and Enter shows BOTH charts in its own render', async () => {

@@ -50,6 +50,19 @@ test('the settled typed text reaches the host, beside the chart\'s own typed war
   expect(legacyWarm).not.toHaveBeenCalled()
 })
 
+// (review of #2624, section 2c) THE ORDER IS LOAD-BEARING: the chart's own warm hydrates the typing chart's key
+// synchronously (it creates the entry), so the host's prime finds it held and skips a second hydrate (prefetch
+// deviceWarm). Reversed, that key would be hydrated twice: two pairs of IndexedDB reads per settled text.
+test('ORDER: the chart\'s own typed warm runs first, the host is told after it', () => {
+  const seq = []
+  storeWarm.mockImplementation(() => { seq.push('warm') })
+  const host = vi.fn(() => { seq.push('host') })
+  render(<ChartPane sym="NVDA" tf="D" onTfChange={() => {}} onSymbolChange={vi.fn()} onTypedIntent={host} />)
+  chartSearch().onTypedIntent('AMD')
+  expect(seq).toEqual(['warm', 'host'])
+  storeWarm.mockReset()
+})
+
 test('a host that throws never breaks the chart\'s own warm; a pane with no host warms exactly as before', () => {
   const host = vi.fn(() => { throw new Error('host') })
   render(<ChartPane sym="NVDA" tf="D" onTfChange={() => {}} onSymbolChange={vi.fn()} onTypedIntent={host} />)

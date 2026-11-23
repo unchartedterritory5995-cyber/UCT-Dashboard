@@ -343,7 +343,9 @@ export function createPrefetch(o = {}) {
   /** Hydrate a key nothing has loaded yet (mem part synchronous, IDB part async).
    *  ⭐ `URGENT` (2026-11-22): the member's own ask, whose device read goes ahead of every warm's (deviceStore/
    *  client.js, TWO LANES). Passed only by the switch itself (deviceWarm at the key press, the two prepares, the
-   *  device rule); every warm passes nothing, so the ~80 keys a scrolled list asks for wait their turn. */
+   *  device rule) and by the same key press's reads made early, when a typed ticker's text settles (deviceWarm through
+   *  pages/charts/widgets/typedIntentPrime.js: at most one in flight and one waiting per linked chart, latest-only);
+   *  every other warm passes nothing, so the ~80 keys a scrolled list asks for wait their turn. */
   function _hydrate(key, lane) {
     const st = S()
     const s = st.peek(key)
