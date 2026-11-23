@@ -21,6 +21,7 @@ No model is called and nothing reaches the network.
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import pytest
 
@@ -32,6 +33,7 @@ from tests.test_p2_truth_server import (  # noqa: F401 -- fixtures by name
 from tests.test_p2x_truth_converse import clean_env  # noqa: F401 -- fixture by name
 from tests.test_script_conversation import A_PATCH, ACCEPTS, CHART, GOOD, lane, writes  # noqa: F401 -- `lane` is a fixture
 
+ROOT = Path(__file__).resolve().parents[1]
 CLOSE = {"type": "series", "name": "close"}
 WORDS = ("In a pane under the chart, plot how many bars back the most recent close above today's close was, "
          "looking back at most 250 bars, and plot nothing when there is none")
@@ -145,3 +147,39 @@ def test_only_a_code_of_this_door_is_carried_and_nothing_beside_it():
     assert dc.refused_attempts(refusals) == [{"attempt": 1, "gate": GATE}]
     assert dc.refused_attempts(None) == [] and dc.refused_attempts([]) == []
     assert GATE in dc.REFUSALS
+
+
+# ── the fact, where the FIRST attempt reads it (2026-11-23) ──
+
+def test_the_first_attempt_reads_the_fact_the_repair_note_carries():
+    """⚰️ Six live samples of this request since the rule above: 4 right, each after a guard's note had said a formula
+    cannot do this; 2 wrong, each a first formula that passed every guard and never read that note."""
+    prompt, rule = dc.CONVERSE_SYSTEM_PROMPT, dc.LOOK_BACK_RULE
+    assert prompt.count(rule) == 1
+    # in the vocabulary section, immediately BEFORE the reading of "for the first time in N bars" (the other look-back
+    # rule). ⚰️ It was first put AFTER that paragraph, between it and the ruled readings, which tests/test_ruled_readings
+    # holds adjacent: the rulings follow the paragraph that teaches "first time". Both are held here, by position.
+    assert rule + "  FOR THE FIRST TIME IN N BARS" in prompt
+    assert "without it the mark repeats on every bar of a run.\n  READINGS UCT HAS RULED" in prompt
+    for part in ("A LOOK-BACK NEVER COMPARES ITS BARS WITH TODAY'S VALUE", "each series is read at its own bar",
+                 "`close > close` there compares every bar with itself", "`close[1] > close` compares each bar with the one before it",
+                 "the door can have it written as a script"):
+        assert part in rule, part
+    # ONE constant: the instruction CONTAINS the repair note's own exit, and the exit is written once in the module
+    assert dc.WHICH_BAR_EXIT in rule and prompt.count(dc.WHICH_BAR_EXIT) == 1
+    source = (ROOT / "api" / "services" / "definition_conversation.py").read_text(encoding="utf-8")
+    assert source.count("no formula here holds") == 1
+    # and the repair note still ends with it: the two places cannot drift apart
+    refused = _told(dc._refuse_a_reading_compared_with_itself, call("barssince", op(">", CLOSE, CLOSE), num(250)))
+    assert refused.for_model().endswith(dc.WHICH_BAR_EXIT)
+
+
+def test_CONTROL_the_two_wrong_first_attempts_pass_every_guard_which_is_why_the_instruction_is_needed():
+    """The formulas the two wrong live answers were built from. No guard refuses them (each compares a bar with its
+    NEIGHBOUR, not with itself), so nothing but the instructions can stop them."""
+    before = {"type": "offset", "value": 1, "args": [CLOSE]}
+    for cond in (op(">", CLOSE, before), op(">", before, CLOSE)):
+        envelope = env(0, [{"op": "create", "name": "Bars since a higher close", "placement": "pane", "outputs": [
+            {"key": "back", "tree": call("barssince", cond, num(250))}]}])
+        assert dc.check_envelope(envelope, 0, empty_view(0)) is not None
+

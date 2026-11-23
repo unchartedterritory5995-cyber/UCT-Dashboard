@@ -206,3 +206,11 @@ describe('back-tested UCT history is never shaded', () => {
     expect(isBacktestedRow({ a: 1 }, 'uct')).toBe(false)
   })
 })
+
+describe('a rebuilt point-in-time UCT row is real history again', () => {
+  it('is shaded like any other session', () => {
+    const row = { a: 99.9, _reconstructed: true, _uct_pit: true }
+    expect(isBacktestedRow(row, 'uct')).toBe(false)
+    expect(shadeFor('a', row, { specIn: spec, cut, universe: 'uct' })).toEqual({ tone: 'bull', level: 3 })
+  })
+})

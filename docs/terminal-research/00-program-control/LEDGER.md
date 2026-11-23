@@ -5109,3 +5109,48 @@ the unchanged full path. There are 2 deleted `api/` lines, both the rewritten ro
   only callers, `api/main.py`'s lifespan and job and `api/routers/cot.py`, are not in its closure; checked with
   `reachable_paths`). The older file it keeps running lacks only what it never invokes.
 - **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.
+
+## The device-store and chart-speed kills ride the live-prices poll, and its error answers · `fix/device-kill-reaches-open-pages` (PR #2583) · 2026-11-23
+
+| | |
+|---|---|
+| classification | **flow-worker stranded: ADDITIVE, safe; NO marker bump** |
+| stranded files | `api/routers/auth.py`, `api/routers/live_prices.py` |
+
+- **Additive.** `auth.py` gains `_kill_cookie_values()` (the one statement of which kill cookies the environment calls
+  for) and `set_kill_cookies_when_killed(response)`; `_set_chart_speed_cookie` now writes through `_kill_cookie_values`
+  (the same Set-Cookie headers, in the same order, for every readable environment, pinned per environment by
+  `tests/test_device_store_kill.py`; a kill whose variable cannot be read is left out instead of raising).
+  `live_prices.py`: `get_live_prices` gains a LAST parameter `response: Response = None` (FastAPI injects it on the HTTP
+  route) and a new `_error_answer` for its two 400s and its 503; with `response` None, every function caller's case, the
+  function sets nothing and returns exactly what it returned before.
+- **Flow-worker.** Reaches `live_prices` through a static chain whose hop into it is a function-level import
+  (`flow_worker_main` -> `auth_surface_check` -> `flow_proxy` -> `auth_service` -> `auth_db` -> `journal_two.db` ->
+  `journal_two.notes` -> `journal_two.trader_blocks` -> `routers.live_prices`), and `routers.auth` through `live_prices`'
+  function-level import (checked with `reachable_paths`). It mounts neither router (`flow_worker_main` includes only the
+  debug and vouch routers), so it never serves `/api/live-prices` or an auth answer; it never calls
+  `_set_chart_speed_cookie`, `set_kill_cookies_when_killed` or `_kill_cookie_values`; any call it makes to
+  `get_live_prices` as a function passes no `response`. The older files it keeps running lack only what it never
+  invokes.
+- **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.
+
+## The web lifespan stops the bars-warm pool, and the admin stop ends a whole universe warm · `fix/bars-warm-pool-shutdown` (PR #2601) · 2026-11-23
+
+| | |
+|---|---|
+| classification | **flow-worker stranded: ADDITIVE, safe; NO marker bump** |
+| stranded files | `api/routers/bars.py`, `api/services/bars_fetch.py` |
+
+- **Additive.** `bars_fetch.py` gains `_new_bars_warm_pool()` (the pool's one factory, the same executor and arguments as
+  the import line it replaces), `stop_bars_warm_pool(*, reopen)` and `shutdown_bars_warm_pool()` (the one way the pool
+  is stopped), `_bars_warm_lock`, `_bars_warm_closed`, and the universe warm's run helpers (`_begin_warm_run`,
+  `_warm_count`, `_count_warm_results`, `_end_warm_run`, `supersede_warm_run`). The altered code is the two universe
+  warms (a captured pool, a run id, each job read through its own `result()`) and the admin warm-universe-stop's body in
+  `bars.py` (the shared stop).
+- **Flow-worker.** Reaches both files only through static chains (`reachable_paths`); it mounts no bars router
+  (`flow_worker_main` includes only the debug and vouch routers), so it never serves the admin warm routes and never
+  runs a universe warm; nothing outside web's lifespan calls the new stop. At import it builds the pool through the
+  factory: the same pool. The older files it keeps running lack only what it never invokes. worker and bars-api the
+  same: they import serve functions from `api.routers.bars` and mount no router.
+- **No marker bump.** flow-worker deploys only by hand, and it executes none of the altered code; a restart drops the
+  OPRA socket for zero behavioural difference.

@@ -55,6 +55,11 @@ def best(cols, want, label, flag=False, exact=False):
         else:
             diff = sum(1 for i in cmp if col[i] is None or abs(col[i] - want[i]) > 1e-9)
         rows.append((diff, len(cmp), k))
+    if not rows:
+        # ⚰️ 2026-11-23: a script that runs and plots NOTHING (the engine refused its one plot by name) crashed here
+        # with "list index out of range". No column is a wrong answer, said in words, never an exception.
+        _say(f"  CHECK  {label}: the script plotted no column to compare")
+        return False
     rows.sort()
     diff, n, k = rows[0]
     _say(f"  {'RIGHT' if diff == 0 else 'CHECK'}  {label}: column {k!r}, {diff} of {n} bars differ; yes/positive in the rule on {sum(1 for x in want if x)} bars")

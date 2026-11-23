@@ -884,7 +884,10 @@ export function routeManifest(manifest, message, opts = {}, extra = []) {
   // Past it, routing always applies: the always-on and follow-up groups, every other group NAMED,
   // so the model asks for what it needs (need_groups) instead of anything being cut.
   if (opts.enabled === false && manifest.length <= limit) return { manifest, routing: null }
-  const { priority, matched, soft } = selectGroups(message, opts)
+  // `opts.groups` (NL-1 selection only): selectGroups(message, opts), already read by the caller for this same message and
+  // options — so one request's selection reads its words once, not twice per reroute (agentNl1SelectionMemo.test.js proves
+  // the routing is identical either way)
+  const { priority, matched, soft } = opts.groups || selectGroups(message, opts)
   // `opts.after` (review #771 delta H1): the groups an ANSWER to the model's question carries over — packed AFTER the
   // message's own groups (never displacing them), and before any fill
   const after = (opts.after || []).filter(id => GROUPS.some(g => g.id === id))

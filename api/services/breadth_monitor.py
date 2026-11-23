@@ -738,6 +738,51 @@ def _apply_authority(result_asc: list) -> None:
         print(f"[breadth_monitor] authority overlay skipped: {type(e).__name__}: {e}")
 
 
+def _uct_pit_token() -> str:
+    """'' when the point-in-time UCT history is off (cache keys byte-identical to before)."""
+    try:
+        from api.services import breadth_uct_pit as pit
+        return pit.token()
+    except Exception:
+        return ""
+
+
+def _apply_uct_pit(result_asc: list) -> int:
+    """(2026-11-22) Back-tested UCT rows → the point-in-time rebuild (`breadth_uct_pit`). Returns
+    the number of rows replaced; 0 (and nothing touched) when the switch is off."""
+    try:
+        from api.services import breadth_uct_pit as pit
+        return pit.overlay(result_asc)
+    except Exception as e:
+        print(f"[breadth_monitor] uct pit overlay skipped: {type(e).__name__}: {e}")
+        return 0
+
+
+def _anchor_uct_pit_ad_line(result_asc: list) -> None:
+    """The rebuilt rows' A/D line, anchored so it meets the collector's line with no step: the line
+    at the last rebuilt session is the V1 lineage's running total there (what the collector's own
+    rows continue from), and each earlier rebuilt row subtracts the rebuilt net advances after it."""
+    try:
+        from datetime import date as _d, timedelta as _td
+        from api.services import breadth_uct_pit as pit
+        last = pit.last_date()
+        if not last:
+            return
+        nxt = (_d.fromisoformat(last) + _td(days=1)).isoformat()
+        line = None
+        try:
+            from api.services import breadth_authority as ba
+            if ba.in_force():
+                line = (ba.legacy_ad_cum(last) or {}).get(last)
+        except Exception:
+            line = None
+        if line is None:
+            line = _adv_decline_seed_before(nxt)
+        pit.anchor_ad_line(result_asc, line)
+    except Exception as e:
+        print(f"[breadth_monitor] uct pit A/D anchor skipped: {type(e).__name__}: {e}")
+
+
 _EXTRA_MA = ("pct_above_20sma", "pct_above_150sma")
 
 
@@ -774,6 +819,8 @@ def _apply_nhnl(result_asc: list, part: str) -> None:
             return
         keys = nhi.COUNTS if part == "counts" else ("net_new_high_low", "hi_ratio", "lo_ratio")
         for row in result_asc:
+            if row.get("_uct_pit"):
+                continue          # the rebuilt history carries its own intraday-basis counts
             v = nhi.values("uct", row.get("date") or "")
             if v:
                 for k in keys:
@@ -1013,7 +1060,7 @@ def get_history_deep(days: int = 90, end: Optional[str] = None, anchor: str = "l
     from api.services.cache import cache
     from api.services import single_flight
     from api.services import breadth_timing
-    ck = f"breadth_history_deep_{days}_{end or 'latest'}_{anchor}" + _authority_suffix()
+    ck = f"breadth_history_deep_{days}_{end or 'latest'}_{anchor}" + _authority_suffix() + _uct_pit_token()
     hit = cache.get(ck)
     if hit is not None:
         breadth_timing.note(cache="hit", cache_tier="deep")
@@ -1120,11 +1167,14 @@ def _history_deep_uncached(days: int, end: Optional[str], anchor: str, ck: str) 
 
     with _bt.phase('adv_seed'):
         _seed = _adv_decline_seed_before(window[0])
+    _pit_rows = _apply_uct_pit(result_asc)
     _apply_authority(result_asc)
     _apply_nhnl(result_asc, "counts")
     with _bt.phase('derive'):
         _derive_ascending(result_asc, _seed)
     _apply_nhnl(result_asc, "derived")
+    if _pit_rows:
+        _anchor_uct_pit_ad_line(result_asc)
     _apply_extra_ma(result_asc)
 
     out = list(reversed(result_asc))[:days]
@@ -1293,7 +1343,8 @@ def get_history_universe(universe: str, days: int = 90, end: Optional[str] = Non
     from api.services.cache import cache
     u = bum._check(universe)
     tl = universe_timeline(u)
-    ck = f"breadth_history_deep_{days}_{end or 'latest'}_{anchor}_{u}|{tl['token']}"
+    # the market-wide keys come from the UCT deep rows, so the UCT history's identity is in the key
+    ck = f"breadth_history_deep_{days}_{end or 'latest'}_{anchor}_{u}|{tl['token']}{_uct_pit_token()}"
     hit = cache.get(ck)
     if hit is not None:
         return hit

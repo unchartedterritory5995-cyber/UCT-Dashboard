@@ -3076,7 +3076,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         // other group named), every context section (none gated on the member's words), the session memory
         // with the last change, and the question this message may answer
         turnPath('model')
-        await refreshContext(1500)
+        await refreshContext(1500, { host })
         mark('context:refreshed')
         // a local question's stored plan is dropped: the model re-plans the request with the answer in view
         // (the chart's Create Indicator / Modify door asked "What indicator would you like to build?": the answer
@@ -3150,7 +3150,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       // Data that can change outside this panel is re-read first (bounded) — Phase 2: only for the
       // action groups this message was routed to (a timeframe change no longer waits on alerts).
       turnPath('model')
-      await refreshContext(1500, { groups: routed.routing ? (routed.refresh || routed.routing.selected) : null })
+      await refreshContext(1500, { groups: routed.routing ? (routed.refresh || routed.routing.selected) : null, host })
       mark('context:refreshed')
       let context;
       ({ context, refMap } = buildContext(host, { ...capCtx, message: text }))
@@ -3195,7 +3195,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         }
         mark('reroute', need.join(','))
         // the newly needed groups' data is read fresh, and the context rebuilt from it
-        await refreshContext(1500, { groups: need });
+        await refreshContext(1500, { groups: need, host });
         ({ context, refMap } = buildContext(host, { ...capCtx, message: text }))
         res = await ask(routed, { conversationId: res.data.conversationId, reroute: true })
         mark('reroute:received', res.ok ? stagesOf(res.data) : res.status || 'error')

@@ -146,7 +146,10 @@ def test_theme_warm_is_throttled_and_capped(monkeypatch):
     monkeypatch.setattr(tp.svc, "build_theme_performance", lambda: (big, True))
     monkeypatch.setattr(tp.svc, "looks_like_ticker", lambda s: True)
     monkeypatch.setattr(tp, "_COLD_TAIL_CAP", 30, raising=False)
-    tp._last_theme_warm = 0.0  # force first call to warm
+    # NOT 0.0. The route compares time.monotonic() with this, and monotonic counts from BOOT: on a machine up for less
+    # than the 600 s interval (a fresh CI runner) 0.0 reads as "warmed at boot, still inside the interval", the first
+    # call does not warm, and this test reds for a reason that has nothing to do with the throttle.
+    monkeypatch.setattr(tp, "_last_theme_warm", float("-inf"))  # never warmed, whatever the uptime
 
     tp.get_theme_performance()
     tp.get_theme_performance()  # immediate second poll must NOT re-warm

@@ -430,7 +430,9 @@ const sepButMatches = (text) => (WHOLE_BOARD.test(String(text || '')) ? [...Stri
 /** The words with every exclusion phrase blanked (EXCEPT and NEG_EXCEPT): a position said only to EXCLUDE a chart ("…, not the
  * left one") is no place the request is aimed at (deixis.screenUnnamedTargets' said positions). */
 export function withoutExclusions(text) {
-  let s = exceptForm(text)
+  // (pl-exclhole) every exclusion OBJECT first, read on the words alone (any capitalized ticker counts as one): "except SPY, QQQ
+  // and NVDA" names none of the three as a target (the keyword phrase below stops at the comma)
+  let s = exceptForm(withoutExclusionObjects(text, syntacticBoard(text)))
   // (H-RDR-1 follow-up) an anchor-relative exclusion first, WHOLE: the "except X" blank below stops at "to" / "on", and would
   // leave "… to AMD" / "… to NVDA's right" — the anchor — read as a place or a ticker the request aims at
   s = blankAnchorRel(s, anchorRelSpans(s))
@@ -561,7 +563,7 @@ const NOUN_W = String.raw`(?:ones?|charts?|cells?|panes?|panels?|graphs?|rows?|c
 const REF_SHAPE = new RegExp('^(?:'
   + String.raw`(?:the|my|this|that|these|those|both)\s+(?:(?:${PLACE_W}|${ORD_W}|two|three|four|selected|clicked|current|active|other|same)[\s-]+){0,3}${NOUN_W}(?:\s+(?:on|in|at|along)\s+the\s+(?:left|right|top|bottom)(?:\s+(?:side|edge|row|column))?)?`
   + String.raw`|(?:the|my)\s+(?:${PLACE_W}[\s-]*){1,2}`
-  + String.raw`|(?:the\s+)?(?:(?:two|three|four|pair|2|3|4)\s+)?(?:(?:charts?|ones?)\s+)?(?:on|at|along)\s+the\s+(?:left|right|top|bottom)(?:\s+(?:side|edge|row|column))?`
+  + String.raw`|(?:the\s+)?(?:(?:two|three|four|pair|2|3|4)\s+)?(?:(?:charts?|ones?|columns?|rows?)\s+)?(?:on|at|along)\s+the\s+(?:left|right|top|bottom)(?:\s+(?:side|edge|row|column))?`
   + String.raw`|chart\s+(?:#\s*)?[1-9]|mine|my\s+own(?:\s+${NOUN_W})?|it|this|that|them|those|these`
   + '|' + CLICK_ACT_NP
   + ')$', 'i')
@@ -1015,7 +1017,8 @@ export function excludedCharts(text0, charts = [], sel = null, opts = {}) {
   // (H-RDR-1 follow-up) an ANCHOR-RELATIVE exclusion ("except the one left of AAPL") is read whole, first, and blanked for every
   // reader below — none of them may read its anchor as the exclusion or its relation as one from the click
   const anchorRel = anchorRelExclusions(text0, charts, sel, opts?.subject || null)
-  const text = anchorRel.length ? blankAnchorRel(text0, anchorRel) : text0
+  const textA = anchorRel.length ? blankAnchorRel(text0, anchorRel) : text0
+  const text = textA
   const out = new Set()
   // the exception PHRASES a reader below placed (added a chart or UNPLACED), normalized — matched by phrase, not by index: the
   // readers run on exceptForm(text), the unplaced scan on the words as said
@@ -1028,10 +1031,33 @@ export function excludedCharts(text0, charts = [], sel = null, opts = {}) {
   // chart to change — no reader below excludes it (nor unplaces it: a linked SPY pair is still the target). The new symbol is a
   // ticker no chart shows, or a shown one as the relation's direct complement (tickerChanged tight)
   const shownSyms = new Set(charts.map(c => String(c?.symbol || '').toUpperCase()).filter(Boolean))
-  const namedSyms = namedTickers(text, [...shownSyms])
-  const fresh = namedSyms.filter(t => !shownSyms.has(t)), onBoard = namedSyms.filter(t => shownSyms.has(t))
-  const changed = (sym) => !!sym && (tickerChanged(text, sym, fresh) || tickerChanged(text, sym, onBoard, { tight: true }))
+  const namedSyms = namedTickers(textA, [...shownSyms])
+  // (pl-exclhole2) an indicator's abbreviation is no NEW symbol: "add RSI to every chart instead of SPY" changes no ticker
+  const fresh = namedSyms.filter(t => !shownSyms.has(t) && !XO_INDICATOR_ABBR.test(t)), onBoard = namedSyms.filter(t => shownSyms.has(t))
+  const changed = (sym) => !!sym && (tickerChanged(textA, sym, fresh) || tickerChanged(textA, sym, onBoard, { tight: true }))
   const changedIn = (phrase) => namedTickers(phrase, [...shownSyms]).some(t => shownSyms.has(t) && changed(t))
+  // ⛔ (pl-exclhole, AUDIT 11-23 T2) EXCLUSION OBJECTS, read first: every exclusion cue's object — a description by timeframe,
+  // chart type, size or ticker, a position, and any LIST of them (commas, "and", "or", "&") — is placed exactly, or the exclusion
+  // is UNPLACED (asked; the charts it may mean never offered). Never "exclude nothing" for an object that names a board attribute.
+  // A phrase inside a span read whole (every item placed) is never ALSO unplaced by a legacy net below (xoCovered); the legacy
+  // readers still run on the words as said (their own context — "…alone, and the bottom one too" — stays whole).
+  const xo = readExclusionObjects(textA, charts, { ...opts, changed }, (p) => {
+    // the resolver's verdict only — nothing it adds stays in the result unless the object reader takes it (a span it skips —
+    // "keep the top one on daily" alone — must leave no trace)
+    const got = []
+    const prev = out.add
+    const had = new Set(out), hadOff = new Set(unoffered)
+    out.add = (x) => { got.push(x); return prev(x) }
+    try { readException({ 0: p, 1: p, index: String(textA || '').length, input: String(textA || '') }) } finally { out.add = prev }
+    for (const x of got) if (!had.has(x)) out.delete(x)
+    const may = [...unoffered].filter(x => !hadOff.has(x))
+    for (const x of may) unoffered.delete(x)
+    if (got.includes(UNPLACED)) return { kind: 'unplaced', unoffered: may }
+    return got.length ? { kind: 'placed', refs: got } : { kind: 'unplaced', unoffered: may }
+  })
+  for (const r of xo.refs) out.add(r)
+  const xoWhole = xo.spans.filter(x => x.whole).map(x => ` ${normPhrase(String(textA || '').slice(x.index, x.end))} `)
+  const xoCovered = (p) => { const w = normPhrase(String(p || '')).replace(NET_CUE_LEAD, ''); return !!w && xoWhole.some(t => t.includes(` ${w} `)) }
   const negs = [...exceptForm(text).matchAll(NEG_EXCEPT)].filter(m => negNamesAChart(m[1].trim(), charts))
   for (const m of [...exceptMatches(text), ...negs, ...sepButMatches(text), ...tickerPossMatches(text)]) {
     const a0 = adds
@@ -1048,6 +1074,7 @@ export function excludedCharts(text0, charts = [], sel = null, opts = {}) {
       const scope = scopeLine(text, charts, sel)
       const inScope = scope ? list.filter(c => scope.includes(c)) : []
       if (inScope.length === 1) { out.add(inScope[0].ref); continue }
+      if (xoCovered(r.phrase)) continue                          // (pl-exclhole) "both SPY charts": read whole above
       out.add(UNPLACED)
       for (const c of list) unoffered.add(c.ref)
       continue
@@ -1069,7 +1096,7 @@ export function excludedCharts(text0, charts = [], sel = null, opts = {}) {
   //   (b) it is not a relation from the click that the relation readers place ("the charts around it", "the one below it"
   //       with a chart clicked: those charts are excluded instead);
   //   (c) its cue is not a bare "not" governing a loose phrase ("…, not the chart I meant" is a contrast: nothing, as before);
-  //   (d) it is not a STATED keep ("<X> stays / is fine"), whose unplaceable subject excludes nothing (see below).
+  //   (d) (retired, pl-exclhole2) a STATED keep ("<X> stays / is fine") is no longer exempt: unplaceable → UNPLACED (see below).
   // A reference that IS placed adds exactly its chart(s) and nothing else — a recognized exclusion is never also UNPLACED (its
   // phrase is in `placed`, which the net below compares without the cue: NET_CUE_LEAD).
   for (const r of negChartRefs(text, charts)) {
@@ -1082,15 +1109,18 @@ export function excludedCharts(text0, charts = [], sel = null, opts = {}) {
     placed.push(normPhrase(r.phrase))
     if (adds > a0) continue
     if (r.cue === 'not' && !r.strong && r.loose) continue
-    // (d) a STATED keep ("the column on the right is fine", "chart 5 stays as it is") the board cannot place is a statement,
-    // not an instruction: it excludes nothing (the stated-clause rule, G5, as before) — never UNPLACED
-    if (r.stay) continue
+    // ⛔ (d, pl-exclhole2) a STATED keep ("the column on the right is fine", "chart 5 stays as it is") the board cannot place is
+    // UNPLACED like every other exclusion form (asked) — it was "a statement" that excluded nothing (old G5), so a plan on the
+    // chart the member meant ran
     // a RELATION from the click ("leave the charts around it alone", "don't touch the one below it") is placed by the relation
     // readers (negatedRelations / relativeChart in spatialConstraints): resolved there, never unplaced here
     if (sel && negatedRelations(text).some(p => normPhrase(p) === normPhrase(r.phrase))) continue
     const rel = sel ? relativeChart(r.phrase, charts, sel) : null
     if (rel?.hits?.length) { for (const c of rel.hits) if (c.ref !== sel) out.add(c.ref); if (adds > a0) continue }
+    if (xoCovered(r.phrase)) continue                            // (pl-exclhole) a description read whole above
     out.add(UNPLACED)
+    // (pl-exclhole2) a stated keep of a chart the board cannot place ("chart 6 stays as it is"): any chart may be the one meant
+    if (r.stay) for (const c of charts) if (c?.ref) unoffered.add(c.ref)
   }
   // (H-RDR-1, AUDIT) a NEGATED IMPERATIVE with a destination ("don't change the top-left one to weekly", "do not add RSI to the
   // second chart", "never hide volume on SPY"): every chart its clause names is a chart the change must never land on. A plain
@@ -1112,6 +1142,7 @@ export function excludedCharts(text0, charts = [], sel = null, opts = {}) {
     if (r.tok && !r.shaped) {
       const list = charts.filter(c => String(c?.symbol || '').toUpperCase() === r.tok)
       if (list.length === 1) out.add(list[0].ref)
+      else if (xoCovered(r.phrase)) adds++                         // (pl-exclhole) "the SPY charts": read whole above
       else { out.add(UNPLACED); for (const c of list) unoffered.add(c.ref) }
     } else if (r.relation) {
       // a relation from the click ("don't touch the one below it"): its charts (the relation readers', as negChartRefs reads it)
@@ -1120,7 +1151,7 @@ export function excludedCharts(text0, charts = [], sel = null, opts = {}) {
         for (const c of rel?.hits || []) if (c.ref !== sel) out.add(c.ref)
       } else if (sel) adds++                                       // placed by spatialConstraints' negated-relation reader
     } else if (r.shaped && !GEN_RELATION.test(r.phrase)) readException({ 0: r.phrase, 1: r.phrase, index: r.end, input: String(text || '') })
-    if (adds === a0) out.add(UNPLACED)
+    if (adds === a0 && !xoCovered(r.phrase)) out.add(UNPLACED)
     for (const x of out) if (!before.has(x) && x !== UNPLACED) forbidden.add(x)
     placed.push(normPhrase(r.phrase))
   }
@@ -1144,11 +1175,13 @@ export function excludedCharts(text0, charts = [], sel = null, opts = {}) {
     const body = k[1].replace(/\s+(?:too|as\s+well|also|either)\s*$/i, '').trim()
     const items = body.split(/\s*(?:&|\band\b|\bor\b|\bnor\b|\bplus\b)\s*/i).map(x => ordinalDigits(x.trim().replace(/^also\s+/i, ''))).filter(Boolean)
     if (items.length < 2) continue
+    // (pl-exclhole2) a list of indicators ("remove all indicators except RSI and MACD") is no list of charts
+    if (XO_NONCHART_Q.test(String(text || '')) || items.every(x => XO_INDICATOR_ABBR.test(x.replace(/^the\s+/i, '').toUpperCase()))) continue
     if (!items.every(x => REF_SHAPE.test(x) || /^(?:(?:the|my)\s+)?\$?[A-Z][A-Z0-9]{0,4}(?:['’]s)?(?:\s+(?:chart|one))?$/.test(x))) continue
     for (const x of items) {
       const a0 = adds
       readException({ 0: x, 1: x, index: k.index + k[0].length, input: String(text || '') })
-      if (adds === a0) out.add(UNPLACED)
+      if (adds === a0 && !xoCovered(x)) out.add(UNPLACED)
     }
     placed.push(normPhrase(k[1]))
   }
@@ -1157,6 +1190,7 @@ export function excludedCharts(text0, charts = [], sel = null, opts = {}) {
     // "leave SPY's chart alone", the reader placed "SPY's chart") — a recognized exclusion is never ALSO unplaced (asked)
     const w = normPhrase(k[1]).replace(NET_CUE_LEAD, '')
     if (placed.some(ph => ph && (w.startsWith(ph) || ph.startsWith(w)))) continue
+    if (xoCovered(k[1])) continue
     if (!CHARTISH.test(k[1])) continue
     // a TICKER in the excepted words is the board's to place (master policy: a ticker the board does not show excludes nothing)
     // — only a PLAIN ticker reference ("the TSLA one"); a ticker's possessive or a relation from it ("SPY's neighbour", "the one
@@ -1176,6 +1210,9 @@ export function excludedCharts(text0, charts = [], sel = null, opts = {}) {
     for (const x of r.refs) add(x)
     if (r.unplaced) { add(UNPLACED); for (const x of r.unoffered) unoffered.add(x) }
   }
+  // (pl-exclhole) an exclusion object the board cannot place exactly: asked, and every chart it may mean never offered
+  if (xo.unplaced) add(UNPLACED)
+  for (const x of xo.unoffered) unoffered.add(x)
   out.add = add
   // the charts an UNPLACED exception may mean (a ticker on several charts): never offered by a question (`unoffered`)
   Object.defineProperty(out, 'unoffered', { value: unoffered, enumerable: false })
@@ -1192,7 +1229,7 @@ export function excludedCharts(text0, charts = [], sel = null, opts = {}) {
       if (line) { for (const c of line) out.add(c.ref) } else out.add(UNPLACED)
       return
     }
-    const side = /^(?:the\s+)?(?:(two|three|four|pair|2|3|4)\s+)?(?:charts?\s+|ones?\s+)?(?:on|at|along)\s+the\s+(left|right|top|bottom)(?:\s+(?:side|edge|row|column))?$/i.exec(phrase)
+    const side = /^(?:the\s+)?(?:(two|three|four|pair|2|3|4)\s+)?(?:charts?\s+|ones?\s+|columns?\s+|rows?\s+)?(?:on|at|along)\s+the\s+(left|right|top|bottom)(?:\s+(?:side|edge|row|column))?$/i.exec(phrase)
     if (side) {
       const axis = /^(?:left|right)$/i.test(side[2]) ? 'column' : 'row'
       const ls = linesOf(charts, axis)
@@ -1225,6 +1262,7 @@ export function excludedCharts(text0, charts = [], sel = null, opts = {}) {
     if (multi.length > 1) {
       const scope = scopeLine(text, charts, sel)
       const inScope = scope ? multi.filter(c => scope.includes(c)) : []
+      if (inScope.length !== 1 && xoCovered(phrase)) return       // (pl-exclhole) "the SPY charts": read whole above
       out.add(inScope.length === 1 ? inScope[0].ref : UNPLACED)
       if (inScope.length !== 1) for (const c of multi) unoffered.add(c.ref)
     }
@@ -1266,6 +1304,545 @@ function scopeLine(text, charts, sel) {
   if (w) return pickLine(linesOf(charts, w[2].toLowerCase()), w[1].toLowerCase().replace('upper', 'top').replace('lower', 'bottom'), w[2].toLowerCase())
   return null
 }
+// ── EXCLUSION OBJECTS (pl-exclhole, AUDIT 11-23 T2) ──
+// ROOT CAUSE: every exclusion reader above reads ONE object of a fixed shape — a position, a line, a ticker, the click, a
+// relation — and stops at the first comma or at 30 characters. An object they cannot read fell through to "exclude nothing"
+// unless one of several nets happened to see its words. Measured on master (a model plan on every chart):
+//   "set every chart to monthly but not the daily ones"            → [] — APPLIED to every chart, the daily ones included
+//   "leave the daily ones and the weekly one alone"                → []
+//   "set all to weekly except SPY, QQQ and NVDA"                    → SPY only — the question OFFERED QQQ and NVDA
+//   "except the weekly one" (one weekly chart)                      → UNPLACED, and the question offered that very chart
+// THE CLASS: an exclusion CUE governs an OBJECT; the object is a LIST of items (commas, "and", "or", "nor", "&", "plus", any
+// length); each item is a chart DESCRIPTION read on the board's own state, or a reference the legacy readers own.
+//   cues        except (for) · apart / aside from · other than · excluding · besides · save for · minus · but not ·
+//               everything / all / every chart but · without · with the exception of · skip · ignore · exclude · spare ·
+//               hands off · leave / keep out · don't / do not / never touch / change / modify / alter / update / switch /
+//               include / mess with · leave / keep / let X alone / as is / the same / untouched / unchanged / be (or any
+//               leave / keep X beside a whole-board quantifier) · a clause-leading "not X" (only an X with a chart noun or a
+//               board ticker: "weekly, not daily" is a value contrast) · "but X" after a whole-board quantifier (only a
+//               description) · "X stay(s) / remain(s) / is fine" (only descriptions) · a negated imperative's descriptions
+//               ("don't add RSI to the daily ones")
+//   items       TIMEFRAME  "the daily ones", "daily", "the dailies", "the ones on weekly", "the charts set to 1h", "the
+//                          5 minute charts", "intraday ones"
+//               CHART TYPE "the line charts", "the candlestick ones", "the charts showing bars"
+//               SIZE       "the big chart", "the small ones" (the board's own cell sizes)
+//               TICKER     "SPY", "NVDA's", "the SPY charts", "both QQQ ones"
+//               POSITION   "the top row", "the top-left one", "chart 3", "the left column" (the legacy phrase resolver)
+//               legacy     the click, a pronoun, a relation, a possessive of a chart → left to the readers above (deferred)
+//   verdict     each item: EXACT when the board places it (a plural description: every chart that fits it; a singular one:
+//               exactly one chart, or one link group); otherwise UNPLACED — the plan is asked and every chart the item may
+//               mean is never offered (a singular description on several charts, a description that fits no chart, a
+//               description narrowed by words the reader cannot read, a reader that is switched off).
+//               An item that names NO board attribute (a value, an indicator: "except volume") excludes nothing, as before;
+//               a ticker the board does not show excludes nothing (master policy), its possessive is UNPLACED.
+// ⛔ FAIL SAFE: an item that names a board attribute (a timeframe, a chart type / size word with a chart noun, a board ticker,
+// a position / line / order word, "chart N") and that no reader places is UNPLACED — NEVER "exclude nothing".
+// `opts.xoDisable` (tests only: the non-vacuity control) switches class readers off by name: timeframe, type, size, ticker,
+// position, list. Switched off, each class — under every cue form — must come out UNPLACED, never a silent run.
+// ⛔ NO LOOKBEHIND (#988 AUDIT L1).
+const XO_NOUN = String.raw`(?:charts?|ones?|cells?|panes?|panels?|graphs?)`
+const XO_DET = String.raw`(?:(?:the|my|those|these|both|any|all(?:\s+(?:of\s+)?(?:the|my|those|these))?)\s+)`
+const XO_TFW = String.raw`(?:\d{1,3}[\s-]*(?:m|min|mins|minutes?|h|hr|hrs|hours?)|1d|1w|hourly|daily|weekly|monthly|intraday)`
+const XO_TFPL = String.raw`(?:dailies|weeklies|monthlies|hourlies)`
+const XO_TYPEW = String.raw`(?:candles?|candlesticks?|candle[\s-]stick|hollow(?:[\s-]+candles?)?|bars?|ohlc|line|area)`
+const XO_SIZEW = String.raw`(?:big|bigger|biggest|large|larger|largest|huge|wide|wider|widest|small|smaller|smallest|little|tiny|mini|narrow|narrower|narrowest)`
+const XO_PLURAL_DET = /^(?:both|all|those|these)\b/i
+const XO_TF1 = new RegExp(String.raw`^${XO_DET}?(${XO_TFW})(?:\s+(${XO_NOUN}))?$`, 'i')
+const XO_TF2 = new RegExp(String.raw`^${XO_DET}?(${XO_NOUN})\s+(?:(?:that\s+are|that['’]re|which\s+are|that\s+is|which\s+is|currently|still|already|set|now)\s+)*(?:(?:on|at|to|in)\s+)?(?:the\s+|a\s+)?(${XO_TFW})(?:\s+(?:timeframe|tf|interval|setting|view))?$`, 'i')
+const XO_TF3 = new RegExp(String.raw`^${XO_DET}?(${XO_TFPL})$`, 'i')
+const XO_TY1 = new RegExp(String.raw`^${XO_DET}?(${XO_TYPEW})(?:[\s-]+(?:style|type))?\s+(${XO_NOUN})$`, 'i')
+const XO_TY2 = new RegExp(String.raw`^${XO_DET}?(${XO_NOUN})\s+(?:(?:that\s+are|which\s+are|that\s+is|which\s+is|drawn|shown|set|currently)\s+)*(?:in|on|with|as|showing|using|to)\s+(?:a\s+|the\s+)?(${XO_TYPEW})(?:\s+(?:style|type|mode|view|charts?))?$`, 'i')
+const XO_SZ = new RegExp(String.raw`^${XO_DET}?(${XO_SIZEW})\s+(${XO_NOUN})$`, 'i')
+const XO_TK = new RegExp(String.raw`^${XO_DET}?\$?([A-Za-z][A-Za-z0-9]{0,5}(?:\.[A-Za-z0-9]{1,2})?)(['’]s)?(?:\s+(${XO_NOUN}))?$`, 'i')
+// a board attribute in an item the readers could not place (→ UNPLACED, never nothing)
+const XO_ATTR = new RegExp(String.raw`\b${XO_TFPL}\b|\b${XO_TFW}(?:\s+${XO_NOUN})?\s*$|\b${XO_TFW}\s+${XO_NOUN}\b|\b${XO_TYPEW}(?:[\s-]+(?:style|type))?\s+${XO_NOUN}\b|\b${XO_SIZEW}\s+${XO_NOUN}\b|\b(?:top|bottom|upper|lower|left|right|middle|cent(?:er|re)|corner|first|second|third|fourth|fifth|sixth|last|leftmost|rightmost|topmost|bottommost)\b[\s\S]*\b(?:${XO_NOUN}|rows?|columns?|corners?|sides?)\b|^(?:the\s+)?(?:(?:top|bottom|upper|lower|left|right)[\s-]*){1,2}$|\b(?:rows?|columns?)\b|\bchart\s+(?:#\s*)?(?:[1-9]|one|two|three|four|five|six|seven|eight|nine)\b`, 'i')
+const XO_PREFIX = /\b(except(?:\s+for)?|apart\s+from|aside\s+from|other\s+than|excluding|besides|save\s+for|minus|but\s+not|without|with\s+the\s+exception\s+of|skip(?:ping)?|ignor(?:e|ing)|exclude|spar(?:e|ing)|hands\s+off(?:\s+of)?|leav(?:e|ing)\s+out|keep(?:ing)?\s+out|(?:don['’]?t|dont|do\s+not|never|please\s+don['’]?t)\s+(?:touch|change|modify|alter|update|switch|mess\s+with|bother\s+with|include|do\s+anything\s+(?:to|with))|(?:everything|all|them|these|(?:every|each)\s+(?:chart|one))\s+but(?!\s+not\b))\s+/gi
+// (pl-exclhole2) "barring X" anywhere; "bar X" only as a preposition: glued to a whole-board quantifier ("every chart bar SPY",
+// "all bar the daily ones") or after a comma / dash when the words hold one (", bar the daily ones") — never the chart style
+// ("bar charts", "bar style", "switch to bar", "a bar chart"), never "bar none"
+const XO_BAR = /\b(barring)\s+|(?:\b(?:everything|all(?:\s+(?:of\s+)?(?:them|the\s+charts|my\s+charts|charts|four|three|six|nine|two))?|(?:every|each)(?:\s+single)?\s+(?:chart|one|cell|pane)|(?:them|these|charts)\s+all)\s+|[,;—–]\s*)(bar)\s+(?!(?:charts?|graphs?|style|type|view|mode|candles?|form|format|none|ones?)\b(?!\s+#?\s*[1-9]))/gi
+// (pl-exclhole2) "instead of X" / "rather than X": an exclusion only when X is a CHART SET (a description with a chart noun, a
+// board ticker the words do not change, a position) — "instead of daily, use weekly" / "a line instead of candles" is a
+// REPLACEMENT of a value and excludes nothing; "rather than just the daily ones" ADDS charts, it excludes none
+const XO_INSTEAD = /\b(?:instead\s+of|rather\s+than)\s+(?!(?:just|only|merely|simply|also|even|solely)\b)/gi
+// ── (pl-exclhole2) UNKNOWN ATTRIBUTES: a chart set described by an attribute the board does not carry — symbol type (ETF, stock,
+// index, crypto, future, fund …), sector / industry (tech, semis, energy, financials …), market cap (large caps, small-cap ones)
+// and the like. The board cannot evaluate it, so it is never placed: UNPLACED (asked), and every chart may be meant (none
+// offered) — NEVER "exclude nothing". Read on the item AFTER the board readers (a board ticker "COIN" is still that chart).
+const XO_UNK_HEAD = String.raw`(?:etfs?|etns?|stocks?|equit(?:y|ies)|shares|indexes|indices|cryptos?|cryptocurrenc(?:y|ies)|coins|tokens|futures|commodit(?:y|ies)|currenc(?:y|ies)|forex|fx\s+pairs|bonds?|treasur(?:y|ies)|funds?|mutual\s+funds?|companies|holdings|reits?|adrs?|spacs?|semis|semiconductors|financials|industrials|utilities|staples|miners|banks|biotechs|sectors?|industr(?:y|ies)|(?:large|small|mid|mega|micro|nano)[\s-]?caps)`
+const XO_UNK_MOD = String.raw`(?:etf|etn|stock|equity|index|crypto|bitcoin|futures?|forex|fx|commodity|bond|treasury|fund|sector|industry|tech|technology|semi|semiconductor|software|chip|financial|bank|banking|energy|oil|healthcare|health\s+care|biotech|pharma|utility|industrial|consumer|retail|real\s+estate|reit|telecom|defensive|cyclical|growth|dividend|leveraged|inverse|(?:large|small|mid|mega|micro|nano)[\s-]?cap|market[\s-]?cap)`
+const XO_UNK = new RegExp(String.raw`\b${XO_UNK_HEAD}\b`
+  + String.raw`|\b${XO_UNK_MOD}[\s-]+(?:[a-z-]+\s+)?(?:${XO_NOUN}|${XO_UNK_HEAD}|names|plays|tickers|symbols)\b`
+  + String.raw`|^(?:(?:the|my|any|all(?:\s+the)?)\s+)?(?:${XO_UNK_MOD})(?:\s+(?:sector|space|names|stuff|plays))?$`
+  + String.raw`|\b(?:in|from)\s+(?:the\s+)?${XO_UNK_MOD}\b|\bmarket[\s-]?cap\b`, 'i')
+// a singular "index" is an indicator's last word ("the money flow index") unless it is the item's whole noun ("the index (chart)")
+const XO_UNK_INDICATOR = /\b(?:strength|flow|volatility|channel|choppiness|mass|movement|force|vortex|ulcer|directional|momentum|commodity\s+channel)\s+index\b/i
+const xoUnknownAttr = (item) => XO_UNK.test(item) && !(XO_UNK_INDICATOR.test(item) && !/\b(?:indexes|indices|etfs?|stocks?)\b/i.test(item))
+// (pl-exclhole2) a DESCRIBED chart set the readers cannot evaluate: a determiner, modifier words and a chart noun ("the red ones",
+// "the green charts", "the ones up today" is a clause, not this) — UNPLACED, every chart may be meant; never a complement
+const XO_DESC_NP = new RegExp(String.raw`^(?:the|my|those|these|both|any)\s+(?:[A-Za-z0-9$&'’-]+\s+){1,3}${XO_NOUN}$`, 'i')
+const XO_DESC_NP_STOP = /\b(?:other|same|rest|remaining|else|wrong|correct|intended|right|left|top|bottom|upper|lower|middle|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|last|\d+(?:st|nd|rd|th)?|selected|clicked|current|active|two|three|four|five|six)\b/i
+const XO_INDICATOR_ABBR = /^(?:RSI|MACD|EMA|SMA|WMA|HMA|VWAP|AVWAP|ATR|ADX|DMI|CCI|MFI|OBV|ROC|TRIX|KDJ|PSAR|SAR|BB|ADR|RVOL|RS|MA)$/
+// (pl-exclhole2) the GENERIC fallback's non-chart objects: an indicator / study, a drawing or annotation, a chart part, a value or
+// setting, a time or event ("except volume", "except RSI", "except on Fridays", "except the 50 day", "excluding after-hours")
+const XO_NONCHART = new RegExp(String.raw`^(?:(?:the|my|a|an|any|all(?:\s+the)?|those|these|this|that|its|their)\s+)?(?:[\w$.&'’-]+\s+){0,4}?(?:`
+  + String.raw`volumes?|rsi|macd|emas?|smas?|wmas?|vwaps?|mas|moving\s+averages?|averages?|bollinger(?:\s+bands?)?|bands?|atr|adx|dmi|cci|mfi|obv|stoch\w*|ichimoku|cloud|keltner|donchian|envelopes?|pivots?|fib\w*|supertrend|psar|sar|aroon|williams|momentum|roc|trix|kdj|histogram|signal|oscillators?|indicators?|studies|study|overlays?|index|`
+  + String.raw`drawings?|lines?|trend\s*lines?|trendlines?|levels?|zones?|boxes|rectangles?|arrows?|labels?|notes?|texts?|annotations?|alerts?|markers?|channels?|rays?|measures?|`
+  + String.raw`axis|axes|grid|gridlines|legend|crosshair|watermark|scale|log|linear|percent|colou?rs?|theme|layout|style|type|timeframe|interval|period|settings?|values?|`
+  + String.raw`daily|weekly|monthly|hourly|intraday|candles?|candlesticks?|bars?|ohlc|area|hollow|heikin\w*|renko|`
+  + String.raw`\d+(?:\s*(?:day|d|week|w|period|ema|sma|ma))?`
+  + String.raw`)(?:\s+(?:line|lines|setting|settings|indicator|pane|panel|panes))?$|^(?:on|at|in|during|after|before|for|from|until|till|when|if|by)\b`
+  // a time or an event, as the WHOLE object ("except today", "excluding after-hours", "except the earnings") — "the ones up
+  // today" is a chart set described by a state the board does not carry
+  + String.raw`|^(?:(?:the|this|next|last|every|any|all)\s+)?(?:[\w-]+\s+)?(?:days?|weeks?|months?|years?|today|tomorrow|yesterday|tonight|weekends?|holidays?|mornings?|afternoons?|evenings?|nights?|mondays?|tuesdays?|wednesdays?|thursdays?|fridays?|saturdays?|sundays?|`
+  + String.raw`after[\s-]?hours|pre[\s-]?market|premarket|extended(?:\s+hours)?|ext|earnings|news|splits?|dividends|events?|gaps?|open|close|session|prices?|quotes?|data)$`
+  + String.raw`|^(?:the|a|an|my|any|that|this|it|them|those|these|nothing|anything|something|none|both|either|neither|all|everything|yet|now|really|so|too|quite|ever|always|again|anymore|please|thanks|thank\s+you|cheers|ok(?:ay)?|alone|untouched|unchanged|out|be|as\s+(?:it\s+|they\s+)?(?:is|are)|the\s+same)$`
+  // the app's own parts and steps ("leave my watchlist alone", "skip the intro")
+  + String.raw`|\b(?:watchlists?|lists?|sidebar|toolbar|menus?|tabs?|widgets?|intro|tutorial|tour|warnings?|messages?|questions?|steps?|confirmations?|popups?)$`, 'i')
+// the generic fallback reads only a CONTENT object: never a bare chart noun ("the one" — a relation's blanked head, a pronoun),
+// never an anaphoric / clausal object ("it that way", "the two to its right", "the one I meant"), never bare function words
+const XO_NOUN_END = new RegExp(String.raw`\b${XO_NOUN}$`, 'i')
+const XO_NOUN_HEAD = new RegExp(String.raw`^(?:the|those|these)\s+${XO_NOUN}\s+\S`, 'i')     // "the ones up today", "the one my wife likes"
+const XO_GENERIC_SKIP =new RegExp(String.raw`^(?:(?:the|this|that|a|an|my|any|each|every)\s+)?(?:${XO_NOUN}|other\s+${XO_NOUN})?$|\b(?:its|it|their|them|I|you|we|he|she|they|me|us)\b`, 'i')
+// the change quantifies a NON-chart set ("remove all indicators except RSI", "delete every line but the trendline")
+const XO_NONCHART_Q = /\b(?:all|every|each|any)\s+(?:(?:of\s+)?(?:the|my|these|those)\s+)?(?:\w+\s+)?(?:indicators?|studies|overlays?|drawings?|lines?|trend\s*lines?|levels?|annotations?|alerts?|labels?|notes?|markers?|zones?|boxes|arrows?|averages?|emas?|smas?|bands?|oscillators?|panes?\s+(?:below|under))\b/i
+function xoGenericChartSet(base, weak) {
+  const b = String(base || '').trim().replace(/[.!?]+$/, '')
+  if (!b || !/[A-Za-z]/.test(b) || b.split(/\s+/).length > 8) return false
+  if (XO_NONCHART.test(b) || XO_GENERIC_SKIP.test(b.replace(/\s+/g, ' '))) return false
+  if (!weak) return true
+  // a weak cue: a chart noun, a capitalized proper name ("Apple"), or an unknown attribute word
+  return new RegExp(String.raw`\b${XO_NOUN}\b`, 'i').test(b) || /(?:^|\s)(?:[A-Z][a-z]{2,}|\$?[A-Z]{2,5}\b)/.test(b) || xoUnknownAttr(b)
+}
+// a stated keep that ENDS its clause ("Apple stays as it is", "…are fine, and …") — never "stays above 400"
+const XO_STAY_END = /^(?:\s+(?:as\s+(?:it|they)\s+(?:is|are)|as\s+is|the\s+same|unchanged|untouched|put|where\s+(?:it\s+is|they\s+are)|for\s+now|please|though))*\s*(?:[,;:.!?—–)]|$|\s+(?:and|but|then|though|while|so|please)\b)/i
+const XO_UNK_SCAN =new RegExp(String.raw`\b(?:(?:the|my|any|all(?:\s+the)?)\s+)?(?:[A-Za-z-]+\s+)?(?:${XO_UNK_HEAD}|${XO_UNK_MOD}[\s-]+(?:${XO_NOUN}|${XO_UNK_HEAD}))\b`, 'i')
+const xoUnk = (charts) => ({ kind: 'unplaced', unk: true, unoffered: charts.map(c => c.ref) })
+const XO_CIRCUM = /\b(leav(?:e|ing)|keep(?:ing)?|let)\s+(?!out\b)/gi
+const XO_NOT = /(?:^|[,;:—–]|\b(?:and|though|just)\b)\s*not\s+(?!(?:just|only|merely|simply|sure|yet|now|too|so|really|quite|very|even|that\s+(?:much|many)|this\s+time|anymore|necessarily|exactly|any)\b)/gi
+const XO_SEP_BUT = /\bbut\s+(?!not\b|leave|keep|skip|ignore|exclude|spare|don|do\b|never|please|also|then|make|set|put|switch|change|add)/gi
+const XO_STAY = new RegExp(String.raw`(?:^|[,;:.!?—–]\s*|\b(?:but|though|while|so|and)\s+)((?:the|my|both|all|those|these)\s+[^,;:.!?—–()]{1,80}?|\$?[A-Z]{1,5}(?:\s*(?:,|\band\b|&)\s*\$?[A-Z]{1,5})*|(?:[A-Za-z-]+\s+)?${XO_UNK_HEAD}|[A-Za-z]{6,14}(?:['’]s)?(?:\s+(?:chart|one))?)\s+(?:(?:can|should|will|may|must|could)\s+)?(?:stay|stays|remain|remains|(?:is|are)\s+(?:just\s+|already\s+)?(?:fine|good|ok(?:ay)?|perfect|alright))\b`, 'gi')
+const XO_SCAN = new RegExp(String.raw`\b${XO_DET}(?:${XO_TFW}\s+${XO_NOUN}|${XO_NOUN}\s+(?:(?:that\s+are|which\s+are|set)\s+)?(?:on|at)\s+(?:the\s+)?${XO_TFW}(?!\s+(?:timeframe|tf))|${XO_TFPL}|${XO_TYPEW}(?:[\s-]+(?:style|type))?\s+${XO_NOUN}|${XO_SIZEW}\s+${XO_NOUN})\b|\b${XO_TFPL}\b`, 'gi')
+const XO_BODY_END = /[.;:!?—–()]|\s+(?:but|then|though|although|while|because|since|whereas|unless|if|when)\b/i
+const XO_SEP = /\s*,\s*(?:(?:and|or|&|nor|plus)\s+)?|\s+(?:and|or|nor|plus)\s+|\s*&\s*/gi
+// an item that starts a new clause ends the list: a command, a complement ("the rest"), a relative clause, a person
+const XO_LIST_END = /^(?:(?:please\s+)?(?:set|make|put|switch|change|add|move|turn|show|hide|remove|give|apply|take|drop|flip|close|delete|draw|plot|open|reset|replace|use|do|swap|load|bring|go|goes|leave|keep|let|skip|ignore|exclude|spare|stay|stays|then|to|into|onto|with|and|or|nor|plus|also|not|never|don['’]?t|dont|hands\s+off|without)\b|(?:all\s+)?the\s+(?:rest|others|remaining)\b|everything\s+else\b|all\s+(?:the\s+)?(?:rest|others)\b|every\s+other\b|each\s+other\b|(?:thanks|thank\s+you|thx|cheers|please)\s*[.!]*$|(?:which|who|whose|because|since|as|if|when|so|but|i|we|you|they|it['’]s|that\s+(?:i|you|we|is|are|was|were))\b)/i
+const XO_TAIL = /^(.*?)((?:\s+(?:alone|be|out(?:\s+of\s+(?:it|this|that|them))?|as\s+(?:it\s+|they\s+)?(?:is|are|was|were)|as\s+is|untouched|unchanged|the\s+same|where\s+(?:it\s+is|they\s+are)|though|please|thanks|for\s+now|this\s+time|too|either|as\s+well|also))*)$/i
+const XO_STRONG_TAIL = /\b(?:alone|be|out|as\s+(?:it\s+|they\s+)?(?:is|are|was|were)|as\s+is|untouched|unchanged|the\s+same|where)\b/i
+const XO_KEEP_AT = new RegExp(String.raw`^(.*?)\s+(?:(?:on|at|in)\s+)?(?:(?:a|the)\s+)?${KEEP_SETTING}(?:\s+(?:as\s+(?:it\s+)?is|for\s+now|too))?$`, 'i')
+const XO_SETTING_TAIL = new RegExp(String.raw`\s+(?:(?:on|at|in|to|into)\s+)?(?:(?:a|the)\s+)?${KEEP_SETTING}(?:\s+(?:timeframe|tf|scale|view))?$`, 'i')
+// "on a chart other than the one I clicked, the bottom-right one": an indefinite target before the cue makes a bare comma an
+// APPOSITION (it renames the target), never a list item
+const XO_INDEF_BEFORE = /\b(?:a|an|another|one|some)\s+(?:(?:different|other|single|new)\s+)?(?:chart|cell|pane|panel|graph)?\s*$/i
+const XO_VALUE_BEFORE = /\b(?:something|anything|timeframe|interval|period|setting|value|style|colou?r|type|scale|resolution)\s*$/i
+const XO_TF_NORM = (c) => { const t = String(c?.tf ?? 'D').toUpperCase(); return /^1[DWM]$/.test(t) ? t.slice(1) : t }
+function xoTfPred(w0) {
+  const w = String(w0 || '').toLowerCase().replace(/-/g, ' ').replace(/\s+/g, ' ').trim()
+  const one = { dailies: 'daily', weeklies: 'weekly', monthlies: 'monthly', hourlies: 'hourly' }[w] || w
+  if (one === 'intraday') return (c) => !['D', 'W', 'M'].includes(XO_TF_NORM(c))
+  let code = { daily: 'D', '1d': 'D', weekly: 'W', '1w': 'W', monthly: 'M', hourly: '60' }[one] || null
+  if (!code) {
+    const m = /^(\d{1,3})\s*(m|min|mins|minutes?|h|hr|hrs|hours?)$/.exec(one)
+    if (m) code = /^h/.test(m[2]) ? String(Number(m[1]) * 60) : String(Number(m[1]))
+  }
+  return code ? (c) => XO_TF_NORM(c) === code : null
+}
+const xoTypeOf = (w) => (/hollow/i.test(w) ? 'hollow' : /^candle/i.test(w) ? 'candles' : /^(?:bars?|ohlc)$/i.test(w) ? 'bars' : /^line$/i.test(w) ? 'line' : /^area$/i.test(w) ? 'area' : null)
+const xoGroupKey = (c) => (typeof c?.group === 'string' && c.group && !c.group.startsWith('N') ? `g:${c.group}` : `c:${c.ref}`)
+// a plural description: every chart that fits (none → UNPLACED); a singular one: exactly one chart or one link group
+function xoPick(hits, plural) {
+  if (!hits.length) return { kind: 'unplaced', unoffered: [] }
+  if (plural || new Set(hits.map(xoGroupKey)).size === 1) return { kind: 'placed', refs: hits.map(c => c.ref) }
+  return { kind: 'unplaced', unoffered: hits.map(c => c.ref) }
+}
+function xoTimeframe(item, charts, weak) {
+  let m, word, plural, noun
+  if ((m = XO_TF3.exec(item))) { word = m[1]; plural = true; noun = true }
+  else if ((m = XO_TF1.exec(item))) { word = m[1]; noun = !!m[2]; plural = !m[2] || /s$/i.test(m[2]) || XO_PLURAL_DET.test(item) }
+  else if ((m = XO_TF2.exec(item))) { word = m[2]; noun = true; plural = /s$/i.test(m[1]) || XO_PLURAL_DET.test(item) }
+  else return null
+  if (weak && !noun) return { kind: 'none' }                       // "weekly, not daily": a value contrast
+  const p = xoTfPred(word)
+  return p ? xoPick(charts.filter(p), plural) : null
+}
+function xoType(item, charts) {
+  let m, word, nounW
+  if ((m = XO_TY1.exec(item))) { word = m[1]; nounW = m[2] } else if ((m = XO_TY2.exec(item))) { word = m[2]; nounW = m[1] } else return null
+  const t = xoTypeOf(word)
+  if (!t) return null
+  return xoPick(charts.filter(c => String(c?.cs?.chartType || 'candles').toLowerCase() === t), /s$/i.test(nounW) || XO_PLURAL_DET.test(item))
+}
+function xoSize(item, charts) {
+  const m = XO_SZ.exec(item)
+  if (!m) return null
+  const plural = /s$/i.test(m[2]) || XO_PLURAL_DET.test(item)
+  const wide = /^(?:wide|wider|widest|narrow|narrower|narrowest)$/i.test(m[1])
+  const big = /^(?:big|bigger|biggest|large|larger|largest|huge|wide|wider|widest)$/i.test(m[1])
+  const size = (c) => (c?.cell ? (Number(c.cell.w) || 0) * (wide ? 1 : (Number(c.cell.h) || 0)) : null)
+  const all = charts.map(c => c.ref)
+  if (charts.some(c => size(c) == null)) return { kind: 'unplaced', unoffered: all }
+  const sizes = charts.map(size)
+  const hi = Math.max(...sizes), lo = Math.min(...sizes)
+  if (hi === lo) return { kind: 'unplaced', unoffered: all }       // every chart the same size: no "big one" on this board
+  const hits = charts.filter(c => size(c) === (big ? hi : lo))
+  const r = xoPick(hits, plural)
+  return r.kind === 'placed' ? r : { kind: 'unplaced', unoffered: hits.map(c => c.ref) }
+}
+function xoTicker(item, charts, changed) {
+  const m = XO_TK.exec(item)
+  if (!m) return null
+  const tok = m[1], up = tok.toUpperCase(), poss = !!m[2]
+  const list = charts.filter(c => String(c?.symbol || '').toUpperCase() === up)
+  // (pl-exclhole2) an indicator's abbreviation is no ticker ("other than RSI and the daily ones": RSI is a non-chart item)
+  if (!list.length && XO_INDICATOR_ABBR.test(up) && !poss) return { kind: 'none' }
+  if (list.length && (tok === up || (tok.length >= 3 && !LOWER_STOP.test(tok)))) {
+    if (changed?.(up)) return { kind: 'none' }                     // a ticker the words CHANGE is never one they exclude
+    return xoPick(list, (m[3] && /s$/i.test(m[3])) || XO_PLURAL_DET.test(item))
+  }
+  if (/^[A-Z]/.test(tok) && poss) return { kind: 'unplaced', unoffered: [] }   // "Apple's": a chart the board cannot place
+  if (tok === up && /^[A-Z][A-Z0-9.]*$/.test(tok) && tok !== 'I') return { kind: 'none', ticker: true }   // not on the board: master policy
+  return null
+}
+// a predicate after an exclusion's object (subject position) or the change's value after it ("… with AMD", "… to weekly")
+const XO_PRED_VERB = String.raw`(?:goes|go|switch(?:es)?|flips?|turns?|moves?|gets?|becomes?|should|stays?|remains?|is|are|can|will|must|may|could|needs?|changes?|looks?)`
+const XO_PREDICATE = new RegExp(String.raw`^(?:${XO_PRED_VERB}\b|(?:to|into|onto)\s)`)
+// "… with AMD" is the change's VALUE only in a replace / swap request ("replace every chart except the top-right one with AMD");
+// anywhere else it narrows ("the daily ones with RSI": unplaced, never the daily ones)
+const XO_REPLACE = /\b(?:replace|replacing|swap|swapping|substitute|exchange)\b/i
+const XO_WITH_VALUE = /^(?:with|for)\s+\$?[A-Z]{1,5}\b/
+const XO_PRED_IN = new RegExp(String.raw`\s${XO_PRED_VERB}\b`, 'i')
+const XO_DESC_ATTR =new RegExp(String.raw`\b${XO_TFPL}\b|\b${XO_TFW}\b|\b${XO_TYPEW}(?:[\s-]+(?:style|type))?\s+${XO_NOUN}\b|\b${XO_SIZEW}\s+${XO_NOUN}\b`, 'i')
+// a board ticker in the words (a short one in capitals only)
+const xoNamesSym = (t, charts) => charts.some(c => {
+  const s = String(c?.symbol || '')
+  return s.length >= 2 && new RegExp(String.raw`(?:^|[^A-Za-z0-9.])\$?${s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![A-Za-z0-9])`, s.length >= 4 ? 'i' : '').test(t)
+})
+const xoDeferred = (item) =>!!clickRole(item) || BARE_PRONOUN.test(item) || /^(?:mine|my\s+own(?:\s+\w+)?)$/i.test(item)
+  || GEN_RELATION.test(xoUncontract(item)) || anchorRelSpans(`except ${item}`, { clickToo: true }).length > 0
+// (pl-exclhole2) "whatever's / what's / that's" is a contraction, never a possessive (no relation from a chart)
+const xoUncontract = (s) => String(s || '').replace(/\b(what|whatever|whichever|that|which|who|it|there|here|everything|anything|something)['’]s\b/gi, '$1 is').replace(/\b(they|you|we|that|which|who)['’]re\b/gi, '$1 are')
+const xoPositionShaped = (p) => REF_SHAPE.test(p) || BARE_ORD_PLACE.test(p)
+  || /^(?:the\s+)?(?:top|bottom|upper|lower|middle|cent(?:er|re)|first|second|third|last|left|right)\s+(?:row|column)$/i.test(p)
+  || /^(?:the\s+)?(?:(?:two|three|four|pair|2|3|4)\s+)?(?:(?:charts?|ones?|columns?|rows?)\s+)?(?:on|at|along)\s+the\s+(?:left|right|top|bottom)(?:\s+(?:side|edge|row|column))?$/i.test(p)
+  || /^(?:the\s+)?(?:(?:top|bottom|upper|lower|left|right)[\s-]*){1,2}(?:one|chart|cell|pane|panel|graph|side)?s?$/i.test(p)
+/** The charts an unreadable item MAY mean (never offered): its tickers', timeframes', places' charts — or every chart. */
+function xoMayMean(item, charts) {
+  const may = new Set()
+  for (const c of charts) {
+    const sym = String(c?.symbol || '')
+    if (sym && new RegExp(String.raw`(?:^|[^A-Za-z0-9.])${sym.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![A-Za-z0-9])`, sym.length <= 2 ? '' : 'i').test(item)) may.add(c.ref)
+  }
+  for (const m of item.matchAll(new RegExp(String.raw`\b(${XO_TFPL}|${XO_TFW})\b`, 'gi'))) { const p = xoTfPred(m[1]); if (p) for (const c of charts) if (p(c)) may.add(c.ref) }
+  for (const w of item.toLowerCase().match(/\b(?:top|bottom|upper|lower|left|right)\b/g) || []) {
+    const k = w.replace('upper', 'top').replace('lower', 'bottom')
+    for (const c of charts) if (String(c?.position || '').split('-').includes(k)) may.add(c.ref)
+  }
+  return may.size ? [...may] : charts.map(c => c.ref)
+}
+/**
+ * One item of an exclusion's object → { kind: 'placed', refs } | { kind: 'unplaced', unoffered } | { kind: 'defer' } |
+ * { kind: 'none' }. `only` limits the readers (the stay / negated-action forms read descriptions only).
+ */
+function xoReadItem(item0, charts, ctx, { weak = false, only = null, gweak = false } = {}) {
+  const off = ctx.off
+  const on = (k) => !off.has(k) && (!only || only.includes(k))
+  const base = ordinalDigits(String(item0 || '').trim().replace(/^(?:also|just|only|even|both\s+of|either\s+of)\s+/i, '')
+    .replace(/^(?:changing|touching|affecting|modifying|altering|updating|including)\s+/i, ''))
+    .replace(/\b(row|column)s\b/gi, '$1')
+  if (!base) return { kind: 'none' }
+  const tries = [base]
+  if (!/^(?:the|my|this|that|those|these|both|all|any|chart)\b/i.test(base) && !/^\$?[A-Z]/.test(base)) tries.push(`the ${base}`)
+  const noDest = base.replace(/\s+(?:to|into|onto)\s+\S[\s\S]*$/i, '').trim()
+  if (noDest && noDest !== base) tries.push(noDest)
+  const noPrep = base.replace(/^(?:on|in|for|from)\s+(?=\S)/i, '').trim()
+  if (noPrep !== base) tries.push(noPrep)
+  // the change's own setting after the object ("except SPY on weekly", "but the bottom row to 1h please")
+  const noSetting = base.replace(XO_SETTING_TAIL, '').trim()
+  if (noSetting && noSetting !== base) tries.push(noSetting)
+  // (pl-exclhole2) an attribute the board does not carry (symbol type, sector, market cap …): UNPLACED unless a board reader
+  // places the item whole ("COIN" on the board is that chart)
+  const unk = !off.has('unknown') && tries.some(xoUnknownAttr)
+  for (const t of tries) {
+    const r = (on('timeframe') && xoTimeframe(t, charts, weak)) || (on('type') && xoType(t, charts)) || (on('size') && xoSize(t, charts))
+      || (on('ticker') && xoTicker(t, charts, ctx.changed))
+    if (r) return unk && r.kind !== 'placed' ? xoUnk(charts) : r
+  }
+  // ⛔ (pl-exclhole2, AUDIT T2 r2) a RELATIVE-CLAUSE description ("whatever's on daily", "the ones that are on daily", "what's on
+  // the weekly", "anything that's daily", "those which are line charts", "the one that's SPY"): the described set, read by the
+  // same class readers — exact, or UNPLACED (a relative description the readers cannot evaluate is never nothing)
+  const rel = off.has('relative') ? null : xoRelative(base)
+  if (rel) {
+    for (const t of rel.tries) {
+      const r = (on('timeframe') && xoTimeframe(t, charts, false)) || (on('type') && xoType(t, charts)) || (on('size') && xoSize(t, charts))
+        || (on('ticker') && xoTicker(t, charts, ctx.changed))
+      if (r && (r.kind === 'placed' || r.kind === 'unplaced')) return unk && r.kind !== 'placed' ? xoUnk(charts) : r
+    }
+    return { kind: 'unplaced', unoffered: xoMayMean(rel.what, charts) }
+  }
+  if (unk && !/\b(?:others|rest|remaining|else|other)\b/i.test(base)) return xoUnk(charts)
+  // the click, a pronoun or a relation — also once the change's own setting is off it ("keep it daily") — is the legacy readers'
+  if (tries.some(xoDeferred)) return { kind: 'defer' }
+  // a complement ("the other charts", "the rest") is no chart the exclusion names
+  if (ACT_COMPLEMENT.test(base)) return { kind: 'none' }
+  // SUBJECT POSITION / a replacement after the object: "everything except the QQQ one goes weekly", "every chart except the
+  // top-right one with AMD" — the object is the longest leading phrase a reader places when what follows is a predicate or the
+  // change's value (never a narrowing: "the daily ones in the top row" stays whole, and so unplaced)
+  const words = base.split(/\s+/)
+  for (let n = words.length - 1; n >= 1; n--) {
+    const rest = words.slice(n).join(' ')
+    if (!XO_PREDICATE.test(rest) && !(ctx.replace && XO_WITH_VALUE.test(rest))) continue
+    const pre = words.slice(0, n).join(' ')
+    const r = (on('timeframe') && xoTimeframe(pre, charts, weak)) || (on('type') && xoType(pre, charts)) || (on('size') && xoSize(pre, charts))
+      || (on('ticker') && xoTicker(pre, charts, ctx.changed))
+      || (!only && on('position') && ctx.place && !xoDeferred(pre) && xoPositionShaped(ordinalDigits(pre)) ? ctx.place(ordinalDigits(pre)) : null)
+    if (r && r.kind === 'placed') return r
+  }
+  // a clause ("the second chart stays as it is", "my watchlist goes weekly") is the stative / legacy readers'
+  if (XO_PRED_IN.test(base.replace(/\b(?:that|which|who)\s+(?:are|is)\b|\bthat['’]re\b/gi, ' '))) return { kind: 'defer' }
+  const shaped = only ? null : tries.find(xoPositionShaped)
+  if (shaped && on('position') && ctx.place) return ctx.place(shaped)
+  if (shaped && !ctx.place) return { kind: 'defer' }
+  // (pl-exclhole2) a described chart set no reader evaluates ("the red ones", "the leveraged charts"): UNPLACED, none offered
+  if (!off.has('unknown') && XO_DESC_NP.test(base) && !XO_DESC_NP_STOP.test(base)) return xoUnk(charts)
+  // ⛔ FAIL SAFE: a board attribute no reader placed is UNPLACED — never nothing
+  if (XO_ATTR.test(base) || xoNamesSym(base, charts)) return { kind: 'unplaced', net: true, unoffered: xoMayMean(base, charts) }
+  // ⛔ (pl-exclhole2) GENERIC FALLBACK: an object NO reader resolved, that is no known non-chart thing (an indicator, a drawing, a
+  // value or setting, a time) and the change quantifies CHARTS (never "remove all indicators except …") — UNPLACED, asked, every
+  // chart may be meant (none offered). Never a silent run. A weak cue ("not", "but", "instead of") reads it only when it names a
+  // chart noun or a proper name ("not Apple"): "weekly, not daily" is a contrast.
+  if (ctx.generic && !off.has('generic') && xoGenericChartSet(base, weak || gweak)) return { kind: 'unplaced', generic: true, unoffered: charts.map(c => c.ref) }
+  return { kind: 'none' }
+}
+/** (pl-exclhole2, AUDIT T2 r2) a relative-clause description → { what, tries } (the described value and the canonical
+ *  descriptions the class readers read), or null. A head (the ones / the charts / those / these / anything / everything /
+ *  whatever / whichever / what) and a relative pronoun (that / which / who / what) or a copula / contraction ('s / 're / is / are /
+ *  sit / are set to …) before the value; never a clause about a person ("what I meant"). */
+const XO_REL_HEAD = String.raw`(?:(?:all\s+(?:of\s+)?)?(?:the\s+)?(ones?|charts?|cells?|panes?|panels?|graphs?)|those|these|anything|everything|whatever|whichever|what|any\s+(?:ones?|charts?))`
+const XO_REL = new RegExp(String.raw`^${XO_REL_HEAD}((?:\s+(?:that|which|who|what))?(?:\s*['’](?:s|re)\b|\s+(?:is|are|sits?|sitting|currently|still|now|already|set|showing|shows?|using|displayed|drawn|shown)\b)*)\s*((?:(?:on|at|in|to|as|with)\s+)?(?:(?:the|a|an)\s+)?)(.+?)$`, 'i')
+function xoRelative(b) {
+  const m = XO_REL.exec(String(b || '').trim())
+  if (!m) return null
+  const head = m[0].slice(0, m[0].length - m[2].length - m[3].length - m[4].length).trim()
+  const link = m[2] || ''
+  // a relative pronoun, a contraction or a copula — or an indefinite / free-relative head ("anything daily", "whatever's …")
+  if (!/\b(?:that|which|who|what)\b|['’](?:s|re)\b|\b(?:is|are|sits?|sitting|set|showing|shows?|using|displayed|drawn|shown)\b/i.test(link) && !/^(?:anything|everything|whatever|whichever|what)$/i.test(head)) return null
+  const what = m[4].replace(/\s+(?:timeframe|tf|interval|setting|style|type|mode|view|right\s+now|now|currently|today)$/i, '').trim()
+  if (!what || /\b(?:I|you|we|he|she|they|me|us|it)\b/.test(what) || GEN_RELATION.test(what)) return null
+  if (/^(?:else|other|more|at\s+all|of\s+(?:it|them|those|these))\b/i.test(what)) return null   // "anything else": a complement   // a relation: its readers'
+  const v = what.replace(/\s+(?:charts?|ones?|candles?)$/i, (x) => (/candles?/i.test(x) ? x : '')).trim()
+  const singular = !!m[1] && !/s$/i.test(m[1])
+  const noun = singular ? 'chart' : 'charts'
+  return { what, tries: [`the ${v} ${noun}`, `the ${noun} on ${v}`, `the ${noun} showing ${v}`, `the ${v}`, v] }
+}
+/** (pl-exclhole2) the attribute classes the change gives a VALUE of in the clause before an "instead of" cue ("to monthly",
+ *  "make it line" — never a description: "the weekly chart"). */
+function xoReplacedClass(before0) {
+  const before = String(before0 || '').split(/[.;!?]/).pop()
+  const notNoun = String.raw`(?![\s-]+(?:${XO_NOUN}|dailies|weeklies|monthlies)\b)`
+  // a value: no chart noun after it, or a destination before it ("switch to line charts", "make them all a line chart")
+  const dest = String.raw`\b(?:to|into|as|use|using|an?)\s+(?:an?\s+)?`
+  const tf = new RegExp(String.raw`\b(?:${XO_TFW})\b${notNoun}|${dest}(?:${XO_TFW})\b`, 'i').test(before)
+  const type = new RegExp(String.raw`\b(?:${XO_TYPEW})\b${notNoun}|${dest}(?:${XO_TYPEW})\b`, 'i').test(before)
+  return tf || type ? { tf, type } : null
+}
+/** The items of an object body (commas, and, or, nor, &, plus) with their offsets in the body. */
+function xoItems(body, off) {
+  if (off.has('list')) return [{ t: body, at: 0 }]
+  const items = []
+  let last = 0
+  let sep = ''
+  for (const sp of body.matchAll(XO_SEP)) { if (!sp[0]) continue; items.push({ t: body.slice(last, sp.index), at: last, sep }); sep = sp[0]; last = sp.index + sp[0].length }
+  items.push({ t: body.slice(last), at: last, sep })
+  return items
+}
+/**
+ * Every exclusion object in the words, read on the board → { refs: Set, unplaced, unoffered: Set, spans: [{ index, end, form,
+ * verdicts, whole }] } (whole: every item of the span placed).
+ * `place(phrase)` is the legacy phrase resolver for a position (excludedCharts' readException); null = positions deferred.
+ */
+export function readExclusionObjects(text0, charts = [], opts = {}, place = null) {
+  const s = String(text0 || '')
+  const off = new Set(opts?.xoDisable || [])
+  const res = { refs: new Set(), unplaced: false, unoffered: new Set(), spans: [] }
+  if (!s.trim() || charts.length < 1) return res
+  const ctx = { off, changed: opts?.changed || null, place, replace: XO_REPLACE.test(s), generic: !XO_NONCHART_Q.test(s) }
+  const ef = exceptForm(s)
+  const wide = REST_WORDS.test(s) || WHOLE_BOARD.test(s) || EVERY_Q.test(ef) || !!bareQuantifier(ef)
+  const cues = []
+  for (const m of s.matchAll(XO_PREFIX)) {
+    if (XO_VALUE_BEFORE.test(s.slice(0, m.index))) continue       // "anything other than daily": a value, not a chart set
+    cues.push({ at: m.index, bodyAt: m.index + m[0].length, form: 'prefix' })
+  }
+  if (!off.has('newCues')) {
+    for (const m of s.matchAll(XO_BAR)) {
+      if (m[2] && !m[0].startsWith('bar') && /^[,;—–]/.test(m[0]) && !wide) continue      // ", bar X" only beside the whole board
+      if (XO_VALUE_BEFORE.test(s.slice(0, m.index))) continue
+      const at = m.index + m[0].search(/\bbar/i)
+      cues.push({ at, bodyAt: m.index + m[0].length, form: 'prefix' })
+    }
+    for (const m of s.matchAll(XO_INSTEAD)) {
+      // "the weekly timeframe instead of the daily one", "something rather than daily": a value, not a chart set
+      if (XO_VALUE_BEFORE.test(s.slice(0, m.index))) continue
+      cues.push({ at: m.index, bodyAt: m.index + m[0].length, form: 'instead' })
+    }
+  }
+  for (const m of s.matchAll(XO_CIRCUM)) cues.push({ at: m.index, bodyAt: m.index + m[0].length, form: 'circum' })
+  for (const m of s.matchAll(XO_NOT)) cues.push({ at: m.index, bodyAt: m.index + m[0].length, form: 'not' })
+  if (wide) for (const m of s.matchAll(XO_SEP_BUT)) cues.push({ at: m.index, bodyAt: m.index + m[0].length, form: 'but' })
+  const take = (v) => {
+    if (v.kind === 'placed') for (const r of v.refs) res.refs.add(r)
+    if (v.kind === 'unplaced') { res.unplaced = true; for (const r of v.unoffered || []) res.unoffered.add(r) }
+  }
+  for (const k of cues) {
+    const rest = s.slice(k.bodyAt)
+    const e = rest.search(XO_BODY_END)
+    let body = e < 0 ? rest : rest.slice(0, e)
+    const nc = ACT_NEXT_COMMAND.exec(body)
+    if (nc) body = body.slice(0, nc.index)
+    const items = xoItems(body, off)
+    const weak = k.form === 'not' || k.form === 'but' || k.form === 'instead'
+    // (pl-exclhole2) "set all to monthly instead of the daily ones": the change's own VALUE of the class the object describes,
+    // said before the cue, may make it a replacement (daily → monthly) as much as an exclusion — never exact: UNPLACED, the
+    // charts it describes never offered
+    const replaceOf = k.form === 'instead' ? xoReplacedClass(s.slice(0, k.at)) : null
+    const appos = XO_INDEF_BEFORE.test(s.slice(0, k.at)) && !items.some(x => /\S/.test(x.sep || '') && !/^\s*,\s*$/.test(x.sep))
+    const got = []
+    let end = 0, strongTail = false, at = false
+    for (let i = 0; i < items.length; i++) {
+      const raw = items[i].t
+      const t0 = raw.trim()
+      if (!t0 || XO_LIST_END.test(t0)) break
+      if (i > 0 && appos) break
+      const tm = XO_TAIL.exec(t0)
+      let core = (tm ? tm[1] : t0).trim()
+      const tail = tm ? tm[2] || '' : ''
+      let v = xoReadItem(core, charts, ctx, { weak, gweak: /^(?:skip|ignor|exclud|spar)/i.test(s.slice(k.at, k.bodyAt).trim()) })
+      // "keep the top one on daily": a kept setting after the object (only when the whole item is no description itself —
+      // "the charts set to daily" IS one)
+      if (k.form === 'circum' && !tail && v.kind !== 'placed') {
+        const a = XO_KEEP_AT.exec(core)
+        if (a && a[1].trim()) { const v2 = xoReadItem(a[1].trim(), charts, ctx, { weak }); if (v2.kind === 'placed' || (v2.kind !== 'none' && (v.kind === 'none' || v.kind === 'defer'))) { v = v2; at = true } }
+      }
+      // a shared noun / determiner: "the daily and weekly ones", "the top and bottom rows" — retried with the list's noun
+      if (v.kind !== 'placed' && i < items.length - 1) {
+        const noun = new RegExp(String.raw`\s(${XO_NOUN}|rows|columns)\s*$`, 'i').exec(items[items.length - 1].t.trim().replace(XO_TAIL, '$1'))
+        if (noun && !new RegExp(String.raw`\b${XO_NOUN}$`, 'i').test(core)) {
+          const v2 = xoReadItem(`${/^(?:the|my|those|these|both|all)\b/i.test(core) ? '' : 'the '}${core} ${noun[1]}`, charts, ctx, { weak })
+          if (v2.kind === 'placed') v = v2
+        }
+      }
+      // "not X" / "but X": only an object that names a board attribute ("weekly, not daily" and "not the chart I meant" are
+      // contrasts: the legacy readers' verdict stands)
+      if (weak && i === 0 && v.kind !== 'placed' && v.kind !== 'unplaced') break
+      if (replaceOf && v.kind === 'placed' && ((replaceOf.tf && xoTimeframe(core, charts, true)) || (replaceOf.type && xoType(core, charts)))) v = { kind: 'unplaced', unoffered: v.refs }
+      // …and a fail-safe UNPLACED only for a DESCRIPTION with a chart noun ("not the daily ones" on a board with none); a position
+      // or a clause ("but the first chart stays as it is") stays with the legacy readers
+      if (weak && v.net && !((XO_DESC_ATTR.test(core) && new RegExp(String.raw`\b(?:${XO_NOUN}|${XO_TFPL})\b`, 'i').test(core)) || xoNamesSym(core, charts) || xoPositionShaped(ordinalDigits(core)))) { if (i === 0) break; v = { kind: 'defer' } }
+      got.push(v)
+      end = items[i].at + raw.replace(/\s+$/, '').length
+      if (tail) { strongTail = strongTail || XO_STRONG_TAIL.test(tail); break }
+      if (at) break
+      // a non-chart first item ends the object ("except volume and …" is no list of charts)
+      // ⛔ (pl-exclhole2, AUDIT T2 r2) …but in a request that quantifies CHARTS it never silently ends the list: "except volume and
+      // the ETFs", "other than RSI and the daily ones" read on (the mixed-list rule below decides)
+      if (i === 0 && v.kind === 'none' && !v.ticker && (!ctx.generic || off.has('mixedList') || weak)) break
+    }
+    if (!got.length) continue
+    // ⛔ (pl-exclhole2, AUDIT T2 r2) MIXED LIST: a non-chart item beside a chart item in one exclusion object ("except volume and
+    // the daily ones") — what the member meant to protect is not certain: the whole exclusion is UNPLACED, no chart offered.
+    // And any UNPLACED item in a LIST makes the whole list asked with no chart offered.
+    if (ctx.generic && !off.has('mixedList') && got.length > 1) {
+      const chartish = got.some(v => v.kind === 'placed' || v.kind === 'unplaced' || v.kind === 'defer')
+      const nonChart = got.some(v => v.kind === 'none' && !v.ticker)
+      if ((chartish && nonChart) || got.some(v => v.kind === 'unplaced')) got.push(xoUnk(charts))
+    }
+    // "not all the daily charts" may mean SOME of them: never exact — asked, none of them offered
+    if (k.form === 'not' && /^\s*all\b/i.test(body)) for (let i = 0; i < got.length; i++) if (got[i].kind === 'placed') got[i] = { kind: 'unplaced', unoffered: got[i].refs }
+    // leave / keep / let X: an exclusion only with its tail ("alone", "as is", …), a kept setting, or beside the whole board
+    // ("keep the top one on daily" alone can be the change itself: a kept setting counts only beside the whole board)
+    if (k.form === 'circum' && !strongTail && !wide) continue
+    if (got.every(v => v.kind === 'none')) continue
+    for (const v of got) take(v)
+    const whole = got.every(v => v.kind === 'placed' || v.kind === 'none') && got.some(v => v.kind === 'placed')
+    res.spans.push({ index: k.at, end: k.bodyAt + end, form: k.form, verdicts: got.map(v => v.kind), whole })
+  }
+  // an ADDITIVE tail after an exclusion ("…leave the daily ones alone, and the weekly one too"): the legacy additive reader finds
+  // it (additiveRefs); its object is read here like any other item
+  for (const r of additiveRefs(s, charts)) {
+    const v = xoReadItem(r.phrase, charts, ctx)
+    if (v.kind !== 'placed' && v.kind !== 'unplaced') continue
+    take(v)
+    res.spans.push({ index: r.index, end: r.end, form: 'additive', verdicts: [v.kind], whole: v.kind === 'placed' })
+  }
+  // "<descriptions> stay as they are / are fine": the stative keep — read only when every item is a description it places
+  if (!off.has('stay')) {
+    for (const m of s.matchAll(XO_STAY)) {
+      const subj = m[1]
+      const at = m.index + m[0].indexOf(subj)
+      const items = xoItems(subj, off).map(x => x.t.trim()).filter(Boolean)
+      // a description subject only (a position's stated keep is the legacy G5 rule's): every item names a timeframe, a chart
+      // type or size with a chart noun, or a board ticker
+      // (pl-exclhole2) …or an attribute the board does not carry ("the ETFs stay as they are"), or a described set ("the red ones")
+      // ⛔ GENERIC: any other subject no reader owns ("Apple stays as it is", "the leveraged ones are fine") when the keep ends its clause
+      // ("SPY stays above 400" is no keep) — never a position / the click / a relation (the legacy stated-keep reader's)
+      const ends = XO_STAY_END.test(s.slice(m.index + m[0].length))
+      const generic = (x) => ends && ctx.generic && !off.has('generic') && !XO_ATTR.test(x) && !xoPositionShaped(ordinalDigits(x)) && !REF_SHAPE.test(ordinalDigits(x)) && !xoDeferred(x) && !ACT_COMPLEMENT.test(x) && xoGenericChartSet(x, false)
+        && (XO_NOUN_END.test(x) || XO_NOUN_HEAD.test(x)
+          || x.split(/\s+/).some(w => /^(?:[A-Z][a-z]{2,}|\$?[A-Z]{2,5}s?)(?:['’]s)?$/.test(w) && !XO_INDICATOR_ABBR.test(w)))
+      const descOf = (x) => XO_DESC_ATTR.test(x) || xoNamesSym(x, charts) || (!off.has('unknown') && (xoUnknownAttr(x) || (XO_DESC_NP.test(x) && !XO_DESC_NP_STOP.test(x)))) || generic(x)
+      if (!items.length || !items.every(descOf)) continue
+      const vs = items.map(x => xoReadItem(x, charts, ctx, { only: ['timeframe', 'type', 'size', 'ticker'] }))
+      if (!vs.length || vs.some(v => v.kind === 'none' || v.kind === 'defer')) continue
+      // ⛔ (pl-exclhole2) a stated keep that describes no chart here ("the monthly ones stay as they are" with none) is UNPLACED like
+      // every other form — no longer "a statement" that excludes nothing
+      for (const v of vs) take(v)
+      res.spans.push({ index: at, end: at + subj.length, form: 'stay', verdicts: vs.map(v => v.kind), whole: vs.every(v => v.kind === 'placed') })
+    }
+  }
+  // a negated imperative's DESCRIPTIONS anywhere in its clause ("don't add RSI to the daily ones", "never hide volume on the
+  // dailies"): every description is a chart the change must never land on
+  if (!off.has('negAction')) {
+    for (const m of s.matchAll(NEG_ACT_RE)) {
+      let body = String(m[3] || '')
+      const ce = GEN_CLAUSE_END.exec(body)
+      if (ce) body = body.slice(0, ce.index)
+      const nc = ACT_NEXT_COMMAND.exec(body)
+      if (nc) body = body.slice(0, nc.index)
+      const bodyAt = m.index + m[0].length - String(m[3] || '').length
+      for (const h of body.matchAll(XO_SCAN)) {
+        const v = xoReadItem(h[0], charts, ctx, { only: ['timeframe', 'type', 'size'] })
+        if (v.kind !== 'placed' && v.kind !== 'unplaced') continue
+        if (v.kind === 'unplaced' && !v.unoffered?.length) v.unoffered = xoMayMean(h[0], charts)
+        take(v)
+        res.spans.push({ index: bodyAt + h.index, end: bodyAt + h.index + h[0].length, form: 'negAction', verdicts: [v.kind], whole: v.kind === 'placed' })
+      }
+      // (pl-exclhole2) …and an attribute the board does not carry ("never add RSI to the ETFs"): UNPLACED, none offered
+      const u = off.has('unknown') ? null : XO_UNK_SCAN.exec(body)
+      if (u && !xoNamesSym(u[0], charts)) {
+        take(xoUnk(charts))
+        res.spans.push({ index: bodyAt + u.index, end: bodyAt + u.index + u[0].length, form: 'negAction', verdicts: ['unplaced'], whole: false })
+      }
+    }
+  }
+  return res
+}
+/** The exclusion-object spans the words hold (everyExceptSet's "is there an exclusion" test; positions left to the readers). */
+export function exclusionObjectSpans(text, charts = []) {
+  try { return readExclusionObjects(text, charts, {}, null).spans.filter(x => x.verdicts.some(v => v === 'placed' || v === 'unplaced')) } catch { return [] }
+}
+/** The words with every exclusion object's span blanked, position for position: a place listed only to EXCLUDE a chart ("…other
+ *  than NVDA, the bottom row") is no place the request aims at. */
+/** A stand-in board for reading the words alone: one chart per capitalized ticker-like word (span finding only, never placing). */
+export function syntacticBoard(text) {
+  const toks = [...new Set([...String(text || '').matchAll(/(?:^|[^A-Za-z0-9.$])\$?([A-Z]{1,5})(?![A-Za-z0-9])/g)].map(m => m[1]).filter(t => t !== 'I'))]
+  return toks.length ? toks.map(t => ({ ref: `sym:${t}`, symbol: t, tf: '' })) : [{ ref: 'sym:', symbol: '', tf: '' }]
+}
+export function withoutExclusionObjects(text, charts = [], onto = null) {
+  let s = onto == null ? String(text || '') : String(onto)
+  // (only a span this reader read — a placed or unplaced item; a span of deferred references stays the legacy readers' words)
+  try { for (const x of exclusionObjectSpans(String(text || ''), charts)) s =s.slice(0, x.index) + ' '.repeat(Math.max(0, x.end - x.index)) + s.slice(x.end) } catch { /* the words as said */ }
+  return s
+}
 /** An exclusion the board cannot place ("except the three on the left" with two there): every plan is asked. */
 export const UNPLACED = '\u0000unplaced'
 // (G4) "the SPY chart on weekly, and the one to ITS right": a relation's possessive / pronoun anchor after a clause that names
@@ -1299,7 +1876,7 @@ export function spatialConstraints(text0, charts = [], sel = null, opts = {}) {
   const text = anchorRel.length ? blankAnchorRel(text0, anchorRel) : text0
   const add = (refs, why) => { out.allowed = out.allowed || new Set(); for (const r of refs) out.allowed.add(r); out.why.push(why) }
   // (H-RDR-1) a negated chart clause names an EXCLUSION, never an allowed target ("hands off the top-left one" is no place to aim)
-  const clauses = targetClauses(blankNegChartRefs(text, charts))
+  const clauses = targetClauses(withoutExclusionObjects(text, charts, blankNegChartRefs(text, charts)))
   for (const c of clauses) {
     if (MOVE.test(c)) continue
     // P: an absolute place in a line (either order) — the resolver's own reading of the words, checked on this geometry below
@@ -1421,7 +1998,7 @@ export function everyExceptSet(text, charts = [], sel = null, opts = {}) {
   // (hotfix) a negated-TICKER clause beside the quantifier ("every chart weekly, but leave NVDA's alone") is this family too:
   // the quantifier's own words run to its clause's end, and the exclusion is the ticker the clause names
   // (H-RDR-1) …and a negated CHART clause ("every chart weekly, but leave the top-left one alone", "…; skip chart 2")
-  const ex = ex0 || ((negTickerRefs(text, charts).length || negChartRefs(text, charts).length || negActionRefs(text, charts).length || anchorRelSpans(text).length)
+  const ex = ex0 || ((negTickerRefs(text, charts).length || negChartRefs(text, charts).length || negActionRefs(text, charts).length || anchorRelSpans(text).length || exclusionObjectSpans(text, charts).length)
     ? { index: t.slice(after).split(/[,;:.!?—–]|\s+(?:but|and|then|though)\s+/i)[0].length, neg: true } : null)
   if (!ex) return null
   const seg = t.slice(after, after + ex.index).replace(BOARD_PP, ' ')
