@@ -5494,7 +5494,7 @@
    "domain": "drawing",
    "target": "drawing",
    "summary": "Set an alert that FOLLOWS a drawing (the drawing menu's \"Set alert…\"): a trendline, ray, extended line, horizontal line or ray, or one Fibonacci level. A sloped line's level moves with time; moving the drawing moves the alert. Always shown first; Undo removes the alert unless it already went off.",
-   "hints": "target = the drawings entry; drawing = its id; direction = above (\"breaks above\", \"gets above\") or below (\"breaks below\", \"loses\"). If they do not say which side, clarify — never guess. level = the Fibonacci level (0.618 or 61.8), else null. Plan it, disposition propose. For a price with no drawing use alert.create.",
+   "hints": "target = the drawings entry; drawing = its id; direction = above (\"breaks above\", \"gets above\") or below (\"breaks below\", \"loses\"). If they do not say which side, clarify — never guess. level = the Fibonacci level (0.618 or 61.8), else null. follow = false only for \"at a fixed level\" / \"not following the line\", else null. Plan it, disposition propose. For a price with no drawing use alert.create.",
    "args": {
     "type": "object",
     "properties": {
@@ -5513,12 +5513,19 @@
        "number",
        "null"
       ]
+     },
+     "follow": {
+      "type": [
+       "boolean",
+       "null"
+      ]
      }
     },
     "required": [
      "drawing",
      "direction",
-     "level"
+     "level",
+     "follow"
     ],
     "additionalProperties": false
    },
@@ -7578,6 +7585,7 @@
        "history",
        "arrange",
        "widgets",
+       "recentlyDeleted",
        "layouts",
        "customIndicator",
        "indicators",
@@ -8111,6 +8119,34 @@
    "shape": null
   },
   {
+   "name": "newsLibrary.toNotebook",
+   "domain": "newsLibrary",
+   "target": "newsLibrary",
+   "summary": "Send ONE UCT News headline to the member's Notebook (their current note, else the Notebook inbox), exactly as the headline's ⋯ → Send to Notebook does. Shown first; no Undo.",
+   "hints": "headline = \"selected\" (the one open in their News widget), \"previous\" (the one your previous turn named), a TICKER (\"NVDA\"), or ≥3 words of its text — never an id you chose. One headline per request.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "headline": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "headline"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "none",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
    "name": "newsLibrary.place",
    "domain": "newsLibrary",
    "target": "newsLibrary",
@@ -8142,6 +8178,111 @@
    "query": false,
    "argAliases": null,
    "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "recentlyDeleted.list",
+   "domain": "recentlyDeleted",
+   "target": "recentlyDeleted",
+   "summary": "Show what is in the member's Recently deleted: watchlists, saved layouts and saved screens they deleted that can still be brought back. Use this for \"what have I deleted?\", \"show my recently deleted lists\", \"can I get my deleted layout back?\".",
+   "hints": "target = the ref of the recentlyDeleted entry. kind: watchlist | layout | screen, or null for all three.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "kind": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "watchlist",
+       "layout",
+       "screen",
+       null
+      ]
+     }
+    },
+    "required": [
+     "kind"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "argAliases": null,
+   "coerce": {
+    "kind": {
+     "list": "watchlist",
+     "lists": "watchlist",
+     "watchlists": "watchlist",
+     "layouts": "layout",
+     "screens": "screen",
+     "scan": "screen",
+     "scans": "screen",
+     "all": null
+    }
+   },
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "recentlyDeleted.restore",
+   "domain": "recentlyDeleted",
+   "target": "recentlyDeleted",
+   "summary": "Bring back ONE watchlist, saved layout or saved screen the member deleted, from Recently deleted — as it was when it was deleted (the same as its Bring back button). It comes back private; nothing existing is replaced. Not for undoing an edit of something that still exists.",
+   "hints": "target = the ref of the recentlyDeleted entry; item = the item value of ONE entry in its items, exactly as shown (kind:id, e.g. \"watchlist:12\"; never invent one); kind = that entry's kind. One op per item, at most 5. \"All my deleted lists except X\" = one op per listed watchlist but X. If two items could be meant, clarify with their names as choices — never pick one. Bringing something back is always shown first, so plan it (disposition propose). If the items are not shown, use recentlyDeleted.list first.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "item": {
+      "type": "string"
+     },
+     "kind": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "watchlist",
+       "layout",
+       "screen",
+       null
+      ]
+     }
+    },
+    "required": [
+     "item",
+     "kind"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "none",
+   "query": false,
+   "argAliases": {
+    "item": [
+     "name",
+     "id",
+     "artifact_id"
+    ]
+   },
+   "coerce": {
+    "kind": {
+     "list": "watchlist",
+     "lists": "watchlist",
+     "watchlists": "watchlist",
+     "layouts": "layout",
+     "screens": "screen",
+     "scan": "screen",
+     "scans": "screen"
+    }
+   },
    "defaults": null,
    "defaultsWhen": null,
    "shape": null

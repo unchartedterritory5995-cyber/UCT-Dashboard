@@ -13,7 +13,7 @@ import { addableRows } from './capabilities/indicatorEdits'
 import { resolvedTicker, isReservedWord, PRONOUNS } from './nl/tickers'
 import { sanitizeChartTabs } from '../pages/charts/chartTabs'
 import { CLICK_ACT_NP } from './clickRef'
-import { namedAnchorRelation, wholeLinesNamed, clickLineMatch, clickLineHits, activeText, relationAnchor, blankStated, negatedClick, withoutExclusions, excludedCharts, everyExceptSet } from './spatialCheck'
+import { namedAnchorRelation, wholeLinesNamed, clickLineMatch, clickLineHits, activeText, relationAnchor, blankStated, negatedClick, withoutExclusions, excludedCharts, everyExceptSet, withoutAnchorRel } from './spatialCheck'
 
 // Words that point at "the chart in front of me". "it" counts only for a CHART-kind op ("make it
 // weekly"), never on its own ("put it in Momentum", "what is it" are not about a chart).
@@ -233,7 +233,9 @@ const CROSS_CLAUSE = /(?:[,;]\s*|\s+)(?:and|then|but)\s+(?:put|make|set|switch|c
 export function relationMatch(text0) {
   // (H5, probe 19) a clause that says a chart already is so relates nothing (blanked: positions kept)
   // (AUDIT probe 3) an imperative negation of the click relates nothing either: blanked (the click is excluded by the check)
-  const text = blankStated(negatedClick(text0).text)
+  // (anchor-diagonal follow-up) an anchor-relative EXCLUSION ("except the one diagonal from AAPL", "leave the chart catty-corner to QQQ
+  // alone") relates no chart to the click: blanked first (positions kept; spatialCheck.anchorRelExclusions reads it whole)
+  const text = blankStated(negatedClick(withoutAnchorRel(text0)).text)
   const r0 = relationMatchIn(text)
   // pl-auto unseen12 (#988): the click's own line said as a relation ("the rest of this row", "same column, other row", "same row, far
   // end", "one column right from this chart", "this one, the first chart in its row") — read where the relation readers find
@@ -588,6 +590,27 @@ function tfOfWord(w) {
   const m = /^(\d{1,3})\s*(m|min|mins|minute|minutes|h|hr|hour|hours)$/.exec(s)
   if (!m) return null
   return /^h/.test(m[2]) ? String(Number(m[1]) * 60) : String(Number(m[1]))
+}
+
+// ── C2 family (multi-chart): a SET of charts named by their TIMEFRAME — "all the daily charts", "every weekly chart",
+// "the 5 minute charts", "each of my hourly charts". The set is the board's charts on that timeframe right now; it is a
+// set the member NAMED (like "both charts" or a whole row), so a plan on exactly those charts is identified and a plan on
+// any other chart is not. Never read beside a scope word ("only", "except", "but", "not" …): "only show RSI on the daily
+// charts" is a show-on policy and "every chart except the weekly ones" is an exclusion — both are other readers'.
+const TF_WORD = String.raw`(\d{1,3}\s*(?:m|min|mins|minute|minutes|h|hr|hour|hours)|1h|hourly|daily|weekly|monthly)`
+const TF_PREP = String.raw`(?:\b(?:on|to|onto|into|in|for|from|off|across)\s+)?`
+const TF_SET = new RegExp(String.raw`${TF_PREP}\b(?:(?:all|each|every one)(?:\s+of)?(?:\s+(?:the|my))?|the|my|those|these)\s+${TF_WORD}\s+(?:charts|ones)\b|${TF_PREP}\b(?:every|each)\s+${TF_WORD}\s+chart\b`, 'i')
+const TF_SET_SCOPE = /\b(?:only|just|except|but|not|other than|apart from|besides|excluding|exclude|skip|leave|without)\b/i
+/** → { match: {index, 0}, word, code, refs } (refs: the charts on that timeframe now, possibly none) | null (no such words). */
+export function timeframeSetOf(text, charts = []) {
+  const s = String(text || '')
+  if (TF_SET_SCOPE.test(s)) return null
+  const m = TF_SET.exec(s)
+  if (!m) return null
+  const word = (m[1] || m[2]).toLowerCase()
+  const code = tfOfWord(word)
+  if (!code) return null
+  return { match: { index: m.index, 0: m[0] }, word, code, refs: charts.filter(c => String(c.tf) === code).map(c => c.ref) }
 }
 
 /**
@@ -1143,7 +1166,7 @@ function clickFits(said, charts, sel) {
   return said.some(w => { const parts = w.split('-'); return charts.some(c => c.ref === sel && c.position && parts.every(p => c.position.split('-').includes(p))) })
 }
 
-export function screenUnnamedTargets({ host, ops, text, context = null, pickedRefs = [], getTargetKind, getCapability }) {
+export function screenUnnamedTargets({ host, ops, text, context = null, pickedRefs = [], getTargetKind, getCapability, subject = null }) {
   if (pointsAtChart(text, { chartOp: true, charts: host?.charts?.list?.() || [] })) return null
   // an ANSWER to the model's question is read with the words that question was about (`context`)
   const words = context ? `${text} ${context}` : String(text || '')
@@ -1177,6 +1200,18 @@ export function screenUnnamedTargets({ host, ops, text, context = null, pickedRe
       ? { propose: true, note: `You said ${count} charts, and this changes ${targets.size} — check it first; nothing has changed yet.` }
       : null
   }
+  // (#2532 follow-up) a BARE quantifier less an exclusion that places its chart(s) exactly ("set all to weekly but leave AAPL
+  // alone", "make each weekly except the one diagonal from SPY"; with no click and no earlier-turn chart, "the rest …, but skip
+  // chart 2") names the set as "every chart except …" does (MANY_COUNT above): a plan on exactly that set is identified, and an op on an
+  // excluded chart is the exclusion gates' (dropped / asked, never offered). An exclusion the board cannot place forms no set
+  // (spatialCheck.everyExceptSet → null): screened below, unchanged.
+  {
+    const sel0 = selectedChart(host)
+    let ev = null
+    try { ev = everyExceptSet(words, charts, sel0, { subject, rest: !sel0 && !subject }) } catch { ev = null }
+    // exactly the set (a plan on only part of it is screened below, as before)
+    if (ev?.refs?.length && ev.refs.every(r => targets.has(r)) && [...targets.keys()].every(c => ev.refs.includes(c) || ev.excluded.includes(c))) return null
+  }
   const named = chartsNamedBy(words, charts)
   // a picked choice may be the chart itself or a chart-backed entry of it (`ixe:<chart>`)
   for (const r of pickedRefs || []) if (r) { named.add(r); named.add(String(r).replace(/^[a-z]+:/i, '')) }
@@ -1208,7 +1243,10 @@ export function screenUnnamedTargets({ host, ops, text, context = null, pickedRe
   // charts" — and, like a place, it is never a bare command the click answers
   const lineSet = wholeLinesNamed(words, charts)
   for (const r of lineSet) named.add(r)
-  const lineNamed = !!absLine?.line || lineSet.size > 0
+  // C2 family: "all the daily charts" names exactly the charts on that timeframe (and, like a line, the click never answers for it)
+  const tfSet = timeframeSetOf(words, charts)
+  for (const r of tfSet?.refs || []) named.add(r)
+  const lineNamed = !!absLine?.line || lineSet.size > 0 || !!tfSet
   // (#988, AUDIT probe 20 a) "other than the one I'm looking at, put THE REST on log": with the click negated, "the rest / the
   // others / everything else" names every chart but the click (a plan on the click is excluded by the negation screens)
   if (sel && !answered && REST_OF_BOARD.test(words) && negatedPointer(words)) for (const c of charts) if (c.ref !== sel) named.add(c.ref)
@@ -1425,9 +1463,9 @@ function clauseTargets({ host, ops, text, getTargetKind, getCapability, parse })
   return any ? { ok: true } : null
 }
 
-export function screenDeicticOps({ host, ops, text, getTargetKind, getCapability, parse = null }) {
+export function screenDeicticOps({ host, ops, text, getTargetKind, getCapability, parse = null, subject = null }) {
   if (!pointsAtChart(text, { chartOp: true, charts: host?.charts?.list?.() || [] })) return null
-  if (planIsExceptSet({ host, ops, text, getTargetKind, getCapability })) return null
+  if (planIsExceptSet({ host, ops, text, getTargetKind, getCapability, subject })) return null
   {
     const per = clauseTargets({ host, ops, text, getTargetKind, getCapability, parse })
     if (per?.ask) return per
@@ -1514,16 +1552,21 @@ export function screenDeicticOps({ host, ops, text, getTargetKind, getCapability
 // RECOGNIZED exclusion names exactly one SET (spatialCheck.everyExceptSet — null when the exclusion cannot be placed). A plan
 // whose every op is chart-backed and whose charts are exactly that set is identified by the words (what in them points at a
 // chart points only at the chart left out), so the deictic screen never asks about it. Any other plan is screened as before.
-export function planIsExceptSet({ host, ops, text, getTargetKind, getCapability }) {
+export function planIsExceptSet({ host, ops, text, getTargetKind, getCapability, subject = null }) {
   try {
     const live = host?.charts?.list?.() || []
     if (live.length < 2 || !ops?.length) return false
     // (#988 option-2 ruling, kept) an exclusion read through a RELATION ("except the one diagonally across from this one") is
     // still put to the member as the one-set question; only plain references (a ticker, a place, an order, a line, the click) are settled here
     // ("as it is" / "where it is" is a keep tail, never a relation from the click)
-    const s = String(text || '').replace(/\b(?:as|where)\s+(?:it|they)\s+(?:is|are|was)\b/gi, ' ')
+    // (H-RDR-1 follow-up) …but an ANCHOR-RELATIVE exclusion ("except the one left of AAPL") is a plain reference here: placed
+    // exactly by everyExceptSet below, or the set is null (asked)
+    const s = withoutAnchorRel(String(text || '')).replace(/\b(?:as|where)\s+(?:it|they)\s+(?:is|are|was)\b/gi, ' ')
     if (relationMatch(s) || refPointAny(s)) return false
-    const ev = everyExceptSet(text, live, selectedChart(host))
+    // (#2532 follow-up) a bare quantifier counts here too (spatialCheck.bareQuantifier); "the rest" only with no click and no
+    // earlier-turn chart, which it could be the rest of
+    const sel = selectedChart(host)
+    const ev = everyExceptSet(text, live, sel, { subject, rest: !sel && !subject })
     if (!ev?.refs?.length) return false
     const planned = new Set()
     for (const o of ops) {

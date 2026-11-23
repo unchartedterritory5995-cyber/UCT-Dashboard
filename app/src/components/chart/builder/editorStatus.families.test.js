@@ -26,6 +26,8 @@ const FILES = [
   ...sourcesIn(path.join(ENGINE, 'runtime')),
   path.join(HERE, 'memberPane', 'memberPaneDefinition.js'),
   path.join(HERE, 'memberPane', 'runtimeObjectsDoor.js'),
+  // the paste worker: the guards the off-thread door refuses by when its worker dies or the door throws
+  path.join(HERE, 'memberPane', 'memberDoorAsync.js'),
 ]
 
 function guardLiterals() {

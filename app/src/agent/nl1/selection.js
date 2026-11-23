@@ -39,10 +39,17 @@ export const NL1_BUDGET = MANIFEST_CONTRACT.routingThreshold
 export const NL1_MAX_NEED = 3
 
 const ALWAYS = GROUPS.filter(g => g.always).map(g => g.id)
-// each group's action count in `full`, one pass (selection reads it per group, per reroute)
+// each group's action count in `full`, one pass (selection reads it per group, per reroute). ⭐ Memoised per `full` array
+// (2026-11-23): one selection read it four times, and a request's reroutes reuse the same `full` (manifestFor's array, never
+// changed after it is built). Kept with the array's length and its first / last names, so an array changed in place is
+// counted again rather than served a stale count. The Map is internal: callers only read it.
+const COUNTS = new WeakMap()
 const groupCounts = (full) => {
+  const hit = COUNTS.get(full)
+  if (hit && hit.len === full.length && hit.first === full[0]?.name && hit.last === full[full.length - 1]?.name) return hit.n
   const n = new Map()
   for (const c of full) { const g = nl1GroupOf(c.name); n.set(g, (n.get(g) || 0) + 1) }
+  COUNTS.set(full, { n, len: full.length, first: full[0]?.name, last: full[full.length - 1]?.name })
   return n
 }
 const presentGroups = (full) => { const n = groupCounts(full); return GROUPS.filter(g => n.has(g.id)) }
@@ -75,22 +82,51 @@ export function groupsOfActions(names, full) {
  *   pinActions   action names of a waiting proposal / the last change
  *   pinGroups    group ids to keep (the request a pending question came from)
  *   need         group ids the model asked for (reroute)
+ *   prevText     the member's PREVIOUS message (first-call routing 2026-11-23): only when this message's own words name no
+ *                group ("the third one", "take it back out"), the groups the previous message's words named are packed
+ *                FIRST in the fallback fill (routeManifest `after`), so a referential follow-up keeps its subject's actions.
+ *                It never narrows, never pins past the budget, and is ignored whenever this message names anything itself.
  */
-export function selectNl1(full, { text = '', names = null, correct = null, pinActions = [], pinGroups = [], need = [], budget = NL1_BUDGET } = {}) {
+/**
+ * selectGroups(t, { names, correct }) for ONE request, read once per text. A request's words, names and typo readings never
+ * change between its first call and its reroutes, so the panel's reroute and the eval's reroute table (hundreds of
+ * selections per request) read them once. Each reading is FROZEN: no selection may change a shared one.
+ * (2026-11-23: reading the words was most of each selection's time, twice per selection; agentNl1SelectionMemo.test.js
+ * proves memoised and fresh selections are identical.)
+ */
+export function nl1WordsReader({ names = null, correct = null } = {}) {
+  const memo = new Map()
+  return (t) => {
+    const key = String(t ?? '')
+    if (!memo.has(key)) {
+      const r = selectGroups(t, { names, correct })
+      memo.set(key, Object.freeze({ ...r, selected: Object.freeze(r.selected), priority: Object.freeze(r.priority), soft: Object.freeze(r.soft) }))
+    }
+    return memo.get(key)
+  }
+}
+
+export function selectNl1(full, { text = '', names = null, correct = null, pinActions = [], pinGroups = [], need = [], budget = NL1_BUDGET, prevText = '', wordsOf = null } = {}) {
   const present = presentGroups(full).map(g => g.id)
   const core = coreOf(full)
   const keep = (ids) => [...new Set(ids)].filter(id => present.includes(id) && !core.includes(id))
   const needed = keep(need)
   const pins = keep([...groupsOfActions(pinActions, full), ...pinGroups])
-  const routed = routeManifest(full, text, { enabled: true, limit: NL1_LIMIT, budget: Math.min(budget, NL1_LIMIT), names, correct, groupOf: nl1GroupOf },
+  // `wordsOf` (optional): the request's nl1WordsReader, made with these same names / correct; absent = read fresh. Either
+  // way ONE reading of `text` serves the report below and the routing (routeManifest `groups`), which read it twice before.
+  const read = wordsOf || ((t) => selectGroups(t, { names, correct }))
+  // the groups the member's own words (names, typo readings) pointed at: reported, and used only to ADD caution
+  const words = read(text)
+  // a follow-up that names nothing itself: the previous message's groups lead the fallback fill (prevText above)
+  const prev = !words.matched && prevText ? read(prevText) : null
+  const carried = prev?.matched ? prev.selected.filter(id => !ALWAYS.includes(id) && present.includes(id) && !core.includes(id)) : []
+  const routed = routeManifest(full, text, { enabled: true, limit: NL1_LIMIT, budget: Math.min(budget, NL1_LIMIT), names, correct, groupOf: nl1GroupOf, after: carried, groups: words },
     [...core, ...needed, ...pins])
   const selected = routed.routing ? routed.routing.selected : present
-  // the groups the member's own words (names, typo readings) pointed at: reported, and used only to ADD caution
-  const words = selectGroups(text, { names, correct })
   const wordGroups = (words.matched ? words.selected : words.soft).filter(id => !ALWAYS.includes(id) && present.includes(id))
   const { manifest, routing } = assembleNl1(full, core, selected)
   return {
-    manifest, routing, core, pins, need: needed, selected,
+    manifest, routing, core, pins, need: needed, selected, carried,
     unselected: present.filter(id => !selected.includes(id)),
     wordGroups,
     // groups the words named that could not be sent: a plan made without them is only PROPOSED (useAgent)

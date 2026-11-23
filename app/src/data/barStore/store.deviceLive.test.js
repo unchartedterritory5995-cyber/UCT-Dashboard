@@ -131,8 +131,11 @@ describe('a device copy current to the last closed minute', () => {
     const early = DEVICE.slice(0, -1)                                    // through the 11:20 bucket
     const dev = fakeDevice(early, { through: OPEN + 116 * 60 })          // complete through 11:26
     const { store, pf, key } = boot({ device: dev })
-    expect(pf.peekDisplayable('NEWB', '5')).toBe(true)                   // current by status (one bucket)
-    expect(pf.devicePaints('NEWB', '5')).toBe(false)                     // but 5 minutes old: not by stamp
+    // current by status (one bucket), but 5 minutes old by its stamp: no door paints it (review of #2549 P2-M1: the
+    // status rule alone used to let peekDisplayable commit it, for a key the lake does not carry)
+    expect(pf.peekDisplayable('NEWB', '5')).toBe(false)
+    expect(store.peek(key).status).toBe(STATUS.CONTEXT)
+    expect(pf.devicePaints('NEWB', '5')).toBe(false)
     dev.swap(DEVICE, THROUGH)                                            // the device has moved on
     expect(pf.devicePaints('NEWB', '5')).toBe(true)                      // re-read on the switch, in the same call
     expect(store.peek(key).bars.length).toBe(DEVICE.length)
@@ -286,6 +289,8 @@ describe('a device copy current to the last closed minute', () => {
     expect(await run(false)).toBe('current')
     expect(await run(true)).toBe('pending')                              // it waits for the server instead
   })
+  // (2026-11-21: the HYDRATE applies the device copy again over a saved copy that makes no claim, so the key stays
+  // the device's there: store.deviceFirstPaint.test.js P2. Any entry that is not sourced 'device' still stops the rule.)
   it('L9 once a saved copy joins the device copy, the entry is no longer the device copy: the rule stops', () => {
     const { store, pf, key } = boot({ device: fakeDevice(DEVICE) })
     pf.peekDisplayable('NEWB', '5')

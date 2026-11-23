@@ -15,6 +15,18 @@
 #   - every other file in the repo is scanned by every default rule.
 # captureId / captureSha256 / sourceSha256 need no exemption: the rule never fires on them.
 # If a real secret is ever found anywhere, ROTATE IT FIRST (see PUBLIC-REPO-PLAN.md Part 4).
+#
+# SECOND narrow allowlist, added 2026-11-23 by the integrating session after the owner delegated
+# this decision in chat ("you do it all"): app/src/agent/__fixtures__/program/scores/screener-fields.json,
+# a GENERATED file (`python -m tests.test_uct_agent_qa_scan_corpus --write-baseline`) listing every
+# Screener field as `"key": "<field name>"`. gitleaks' generic-api-key rule fires on the word "key"
+# and reads some field names as credentials: PR #2448 hit 4 false positives on 2026-11-22
+# (eps_growth_min_2q / _3q / _4q, gross_margin_chg_1y), all of them this one field.
+# Scope (condition = AND, regexTarget = "match"), as narrow as the first: this one file, AND a
+# finding whose ENTIRE matched text is `key": "<lowercase field name>"`. Measured over all 272 keys
+# in the file on 2026-11-23: every one is [a-z0-9_], max 24 chars. So a mixed-case, hyphenated or
+# punctuated value is still reported, any other field is still reported, and every other file in
+# the repo is scanned by every default rule.
 
 [extend]
 useDefault = true
@@ -25,3 +37,10 @@ condition = "AND"
 paths = ['''^docs/pine/vendor-harness/evidence-ledger\.jsonl$''']
 regexTarget = "match"
 regexes = ['''^scriptKey"\s*:\s*"[a-z0-9-]{1,120}"$''']
+
+[[allowlists]]
+description = "generated Screener field list: a lowercase snake_case field name, not a credential"
+condition = "AND"
+paths = ['''^app/src/agent/__fixtures__/program/scores/screener-fields\.json$''']
+regexTarget = "match"
+regexes = ['''^key"\s*:\s*"[a-z0-9_]{1,60}"$''']

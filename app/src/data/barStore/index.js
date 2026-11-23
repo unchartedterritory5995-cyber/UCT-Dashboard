@@ -53,6 +53,8 @@ export function createBarStore(o = {}) {
   })
   // `o.device`: the on-device bar store (deviceStore/source); omitted = the app's, off unless switched on
   const persist = o.persist ?? createPersist({ registry, io: o.io, setTimer, clearTimer, now, ...(o.idle ? { idle: o.idle } : {}),
+    // a kill seen on this page re-asks the keys holding device rows now (network.kick: only a key a chart is on)
+    onDeviceKill: (keys) => { for (const k of keys) network.kick(k) },
     ...(o.device !== undefined ? { device: o.device } : {}) })
   const live = o.liveFeed ?? createLiveFeed({
     registry, now, onReconnect: (key) => network.kick(key), onReanchor: (key) => network.kick(key),
@@ -82,7 +84,8 @@ export function createBarStore(o = {}) {
       registry.acquire(key)
       // Saved copy first; with none (and no server answer yet) the lake's newest bars paint at once
       // (network.lakeSeed: never persisted, kept only where the server's answer proves them).
-      persist.hydrate(key).catch(() => {}).then(() => { try { network.lakeSeed?.(key) } catch { /* paint only */ } })
+      // (urgent: a subscriber is a chart on screen, so its device read goes ahead of every warm's)
+      persist.hydrate(key, { urgent: true }).catch(() => {}).then(() => { try { network.lakeSeed?.(key) } catch { /* paint only */ } })
       a.stops.push(persist.attach(key))
       a.stops.push(live.attach(key, { session }))
       // P3-S2b: a live gap (reducer.liveGapStart) asks the server NOW — once per gap; the answer
@@ -200,6 +203,7 @@ export function createBarStore(o = {}) {
       active.clear()
       if (statusTimer != null) { clearTimer(statusTimer); statusTimer = null }
       network.dispose()
+      try { persist.dispose?.() } catch { /* ignore */ }
     },
   }
   return api

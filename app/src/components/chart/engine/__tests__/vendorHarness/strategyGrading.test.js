@@ -766,4 +766,21 @@ describe('ruling D12b: the two Pine v4 captures run at the margin TradingView re
     const run = runOurBroker(x)
     expect(run.refusal).toMatchObject({ guard: 'runtime:strategy-unsettled', expected: false })
   })
+  // ⭐ (2026-11-23) RULING D12 STILL HOLDS for every v4 declaration shape no capture settles: the run stops at bind on
+  // the SETTING (`BrokerRefusal.setting`, `V4_MARGIN_DEFAULT_SETTING`), and that refusal is EXPECTED, never a DIVERGE.
+  // ⚰️ Once D12b ran both committed v4 captures, no committed capture refused on a setting, and mutant D3
+  // (ci/mutants/strategy-readbacks-b.json: the setting clause of `runOurBroker`'s `expected` removed) stayed green.
+  // The case: a committed v4 capture with one more declaration argument, a shape `V4_MARGIN0_SHAPES` does not hold.
+  it('a v4 declaration shape no capture settles stops on the SETTING, graded EXPECTED-REFUSAL, never a DIVERGE (ruling D12)', () => {
+    const capture = JSON.parse(fs.readFileSync(path.join(HARNESS_DIR, 'w9-q-s1a-size-v4-rddt-1d-2026-11-15.json'), 'utf8'))
+    const text = capture.source.text.replace(/^(strategy\(title="[^"]*", overlay=false)\)$/m, '$1, pyramiding=1)')
+    expect(text).not.toBe(capture.source.text)
+    expect(text).not.toMatch(/margin_(long|short)/)
+    const unsettled = { ...capture, source: { ...capture.source, text } }
+    const run = runOurBroker(unsettled)
+    expect(run.ok).toBe(false)
+    expect(run.refusal).toMatchObject({ guard: 'runtime:strategy-unsettled', expected: true })
+    expect(run.refusal.message).toMatch(/states no `margin_long` \/ `margin_short`/)
+    expect(gradeStrategyCapture(unsettled, { slotMap: SLOT_MAP })).toMatchObject({ verdict: 'EXPECTED-REFUSAL', step: 1 })
+  })
 })

@@ -1044,6 +1044,14 @@
       "limit": "600/minute",
       "method": "GET",
       "params": "",
+      "path": "/api/cot/breakdown",
+      "rate_limit_family": "market-analytics",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "",
       "path": "/api/cot/status",
       "rate_limit_family": "market-analytics",
       "tier": "paid"
@@ -1061,6 +1069,14 @@
       "method": "GET",
       "params": "{symbol}, weeks=52",
       "path": "/api/cot/{symbol}",
+      "rate_limit_family": "market-analytics",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "{symbol}, weeks=52",
+      "path": "/api/cot/{symbol}/breakdown",
       "rate_limit_family": "market-analytics",
       "tier": "paid"
     },
@@ -3900,6 +3916,14 @@
       "limit": "600/minute",
       "method": "GET",
       "params": "",
+      "path": "/api/options-screener/iv-rank",
+      "rate_limit_family": "options-analytics",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "",
       "path": "/api/options-screener/more-strategies",
       "rate_limit_family": "options-analytics",
       "tier": "paid"
@@ -4219,6 +4243,14 @@
     {
       "limit": "600/minute",
       "method": "GET",
+      "params": "{ticker}",
+      "path": "/api/pine/financial/{ticker}",
+      "rate_limit_family": "screener",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
       "params": "",
       "path": "/api/pine/history-window",
       "rate_limit_family": "screener",
@@ -4443,6 +4475,14 @@
     {
       "limit": "600/minute",
       "method": "GET",
+      "params": "{ticker}",
+      "path": "/api/research/factor-exposure/{ticker}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
       "params": "",
       "path": "/api/research/fed-watch",
       "rate_limit_family": "research",
@@ -4499,7 +4539,7 @@
     {
       "limit": "600/minute",
       "method": "GET",
-      "params": "kind=sector, name",
+      "params": "kind=sector, name, part",
       "path": "/api/research/group-stats",
       "rate_limit_family": "research",
       "tier": "paid"
@@ -4819,6 +4859,14 @@
     {
       "limit": "600/minute",
       "method": "GET",
+      "params": "season=current, sector",
+      "path": "/api/research/sector-earnings",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
       "params": "",
       "path": "/api/research/setup-history",
       "rate_limit_family": "research",
@@ -4989,6 +5037,14 @@
       "method": "GET",
       "params": "",
       "path": "/api/scans/ipo-1y/status",
+      "rate_limit_family": "screener",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "",
+      "path": "/api/scans/ipo-lockups",
       "rate_limit_family": "screener",
       "tier": "paid"
     },

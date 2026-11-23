@@ -7,15 +7,16 @@
 //   * during the regular session: complete through the last DEVICE_FRESH_MS (2 minutes). `through` is the
 //     last CLOSED MINUTE the overlay applied (live.js), whatever the timeframe: a 5m-60m copy holding every
 //     complete bucket passes mid-session and paints them; the forming bucket is not in it, and the server's
-//     answer only adds it (store.deviceLive L1/L2). D, W and M pass THIS check too, but never paint
-//     mid-session: their copy lacks today's developing bar, so the store's status rule refuses it (L6), and
-//     the server's answer carries that bar.
+//     answer only adds it (store.deviceLive L1/L2). D passes THIS check too, but never paints mid-session: its
+//     copy lacks today's developing bar, so the store's status rule refuses it (L6), and the server's answer
+//     carries that bar. (W and M are never served by the device at all: tfs.SERVED_TFS, review of #2537 H1.)
 //   * outside it: complete through the end of the last closed session (intraday: its regular close, 13:00
 //     on an NYSE early-close day; D/W/M: the end of that day, when its daily bar is whole).
 // Small on purpose: barStore/prefetch.js imports it.
 
 import { etDateLabel, etMinuteOfDay, fromChartTime } from '../../components/chart/barTime'
 import { earlyCloseOn } from '../../lib/marketClock/nyseCalendar'
+import { DAILY_TODAY_MAX_AGE_MS } from '../../utils/marketSession'
 import { prevSessionISO, sessionISO } from './sessions'
 
 export const DEVICE_FRESH_MS = 120_000
@@ -30,6 +31,14 @@ export function closeMinuteOf(iso) {
 
 const dayUnix = (iso) => Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10)) / 1000
 
+/** Is the regular session open at `nowMs` (a session day, 09:30 to its close: 13:00 on an early-close day)? */
+export function inRegularSession(nowMs = Date.now()) {
+  const nowSec = Math.floor(nowMs / 1000)
+  const today = etDateLabel(nowSec)
+  const mod = etMinuteOfDay(nowSec)
+  return !!sessionISO(today) && mod >= RTH_OPEN_MIN && mod < closeMinuteOf(today)
+}
+
 /**
  * @param {number} through   unix s the copy is complete up to
  * @param {string} tf        store tf ('1' ... '60', 'D', 'W', 'M')
@@ -41,7 +50,14 @@ export function deviceCopyFresh(through, tf, nowMs = Date.now()) {
   const today = etDateLabel(nowSec)
   const mod = etMinuteOfDay(nowSec)
   const close = closeMinuteOf(today)
-  if (sessionISO(today) && mod >= RTH_OPEN_MIN && mod < close) return through * 1000 >= nowMs - DEVICE_FRESH_MS
+  if (inRegularSession(nowMs)) {
+    // ⛔ D/W/M: NEVER FRESHER THAN THE CHART WILL PAINT (review of #2407). The chart has its own age rule for a
+    // today-dated daily bar (marketSession.isDailyTodayBarStaleForPaint, read with the copy's saved time, which
+    // is this `through`): DAILY_TODAY_MAX_AGE_MS. A daily copy older than that and inside DEVICE_FRESH_MS was
+    // committed by the handoff and then refused by the chart: a blank chart. The chart's bound, by name.
+    const maxAge = DATE_TFS.has(String(tf)) ? Math.min(DEVICE_FRESH_MS, DAILY_TODAY_MAX_AGE_MS) : DEVICE_FRESH_MS
+    return through * 1000 >= nowMs - maxAge
+  }
   const last = sessionISO(today) && mod >= close ? today : prevSessionISO(today)
   if (!last) return false
   const need = DATE_TFS.has(String(tf))

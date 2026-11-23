@@ -38,7 +38,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false
+   "fast": true
   },
   "alert.delete": {
    "domain": "alert",
@@ -51,7 +51,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false
+   "fast": true
   },
   "alert.list": {
    "domain": "alert",
@@ -819,7 +819,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false
+   "fast": true
   },
   "definition.search": {
    "domain": "definition",
@@ -1118,7 +1118,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false
+   "fast": true
   },
   "drawing.setAllVisible": {
    "domain": "drawing",
@@ -1313,7 +1313,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false
+   "fast": true
   },
   "indicator.list": {
    "domain": "indicator",
@@ -1391,7 +1391,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false
+   "fast": true
   },
   "indicator.undoDraft": {
    "domain": "indicator",
@@ -1430,7 +1430,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false
+   "fast": true
   },
   "indicatorAlert.delete": {
    "domain": "indicatorAlert",
@@ -1443,7 +1443,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false
+   "fast": true
   },
   "indicatorAlert.list": {
    "domain": "indicatorAlert",
@@ -1469,7 +1469,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false
+   "fast": true
   },
   "indicatorCopy.copyTo": {
    "domain": "indicatorCopy",
@@ -1495,7 +1495,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false
+   "fast": true
   },
   "indicatorStyle.placeIn": {
    "domain": "indicatorStyle",
@@ -1926,6 +1926,19 @@
    ],
    "fast": true
   },
+  "newsLibrary.toNotebook": {
+   "domain": "newsLibrary",
+   "group": "newsLibrary",
+   "target": "newsLibrary",
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "none",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true
+  },
   "pane.move": {
    "domain": "pane",
    "group": "indicatorSetup",
@@ -2016,6 +2029,32 @@
     "charts"
    ],
    "fast": false
+  },
+  "recentlyDeleted.list": {
+   "domain": "recentlyDeleted",
+   "group": "layoutBar",
+   "target": "recentlyDeleted",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true
+  },
+  "recentlyDeleted.restore": {
+   "domain": "recentlyDeleted",
+   "group": "layoutBar",
+   "target": "recentlyDeleted",
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "none",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true
   },
   "research.ask": {
    "domain": "research",

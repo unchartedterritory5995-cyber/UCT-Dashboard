@@ -1053,13 +1053,55 @@ _ACTIONS_HEADING = "AVAILABLE ACTIONS (ops[].action, with args exactly as the sc
 
 def system_parts(capabilities: list[dict], unselected: list[dict] | None = None, compact: bool | None = None) -> list[str]:
     """The system prompt as its cache blocks. Constant schema: [the rules, the same on every request, so they stay a cached
-    prefix whichever actions routing picked] [this request's actions + the groups it was not given]. Otherwise one block."""
+    prefix whichever actions routing picked] [this request's actions + the groups it was not given] — the actions cut in two
+    at a line boundary when they are long enough (PREFIX SPLIT, below), so a shared lead group is a cached prefix too.
+    Otherwise one block."""
     if not constant_schema():
         return [system_prompt(capabilities, unselected, compact)]
     head, heading, _ = _SYSTEM_HEAD.partition(_ACTIONS_HEADING)
     catalog = "\n".join(_catalog_lines(capabilities)) if capabilities else "(none available here -- answer, clarify or say unsupported)"
-    return [head + _SYSTEM_TAIL.lstrip("\n") + "\n" + _COMPACT_OPS_RULE + "\n",
-            heading + catalog + "\n" + _routing_note(unselected)]
+    rules = head + _SYSTEM_TAIL.lstrip("\n") + "\n" + _COMPACT_OPS_RULE + "\n"
+    actions = heading + catalog + "\n"
+    note = _routing_note(unselected)
+    lead, rest = _split_actions(rules, actions)
+    return [rules, lead, rest + note] if lead else [rules, actions + note]
+
+
+# ⭐ PREFIX SPLIT (2026-11-22, docs/agent/LATENCY.md "Cache prefix"). The rules block alone (~3.8 k-4.7 k tokens,
+# estimated) sits AT Haiku 4.5's 4,096-token cache minimum, so its cache mark is not reliably written, and the first
+# prefix that is caches only with this request's whole routed catalog — 97 distinct prefixes over 885 captured requests.
+# The catalog follows the manifest's group order, so requests whose routing shares a lead group share their first action
+# lines. A third cache mark after the first action line that takes the prefix past PREFIX_TARGET_CHARS lets those
+# requests share a cached prefix that clears the minimum. The TEXT is unchanged: the same characters in the same order,
+# cut at a line boundary into two blocks. UCT_AGENT_PREFIX_SPLIT=0 restores the two-block layout exactly.
+PREFIX_SPLIT_ENV = "UCT_AGENT_PREFIX_SPLIT"
+PREFIX_TARGET_CHARS = 19000          # ~4,750 tokens at 4 chars/token: over 4,096 with ~15% margin, schema not counted
+
+
+def prefix_split() -> bool:
+    return os.environ.get(PREFIX_SPLIT_ENV, "").strip().lower() not in ("0", "false", "off", "no")
+
+
+def _split_actions(rules: str, actions: str) -> tuple[str, str]:
+    """(lead, rest) with lead + rest == actions, cut just before the first action line ("\\n- ") at or past the
+    target; ("", actions) when the split is off or the catalog does not reach the target."""
+    if not prefix_split():
+        return "", actions
+    cut = actions.find("\n- ", max(0, PREFIX_TARGET_CHARS - len(rules)))
+    if cut < 0:
+        return "", actions
+    return actions[:cut + 1], actions[cut + 1:]
+
+
+MAX_CACHE_MARKS = 4                  # the Messages API refuses a request with more than 4 cache_control blocks
+
+
+def cache_blocks(parts: list[str]) -> list[dict]:
+    """System text blocks with a cache mark on each of the first three and on the last (all of them up to 4 — as
+    before); a 5th part is sent unmarked rather than as a request the API refuses."""
+    marked = set(range(min(MAX_CACHE_MARKS - 1, len(parts)))) | {len(parts) - 1}
+    return [{"type": "text", "text": t, **({"cache_control": {"type": "ephemeral"}} if i in marked else {})}
+            for i, t in enumerate(parts)]
 
 
 def nl1_system_texts(capabilities: list[dict], unselected: list[dict] | None = None, stable: set[str] | None = None) -> list[str]:
@@ -1397,7 +1439,8 @@ BREADTH_RULE = ("MARKET BREADTH (% of US / NYSE / Nasdaq stocks above a moving a
 #: The MEMBER's words ask a breadth question (mirrors app/src/agent/routing.js `breadth`; words only).
 _BREADTH_Q = re.compile(
     r"\bbreadth\b"
-    r"|\b(percent(age)?|pct|share|portion|how many|what %)\b.{0,60}\b(above|below|over|under)\b.{0,20}\b\d+\s*-?\s*(day|d|dma|sma|ema|ma|week)?\b"
+    # "what %" ends in a symbol: no closing \b after it (first-call routing 2026-11-23, = routing.js)
+    r"|(\b(percent(age)?|pct|share|portion|how many)\b|\bwhat ?%).{0,60}\b(above|below|over|under)\b.{0,20}\b\d+\s*-?\s*(day|d|dma|sma|ema|ma|week)?\b"
     r"|%\s*(of\s+)?(all\s+)?(us\s+|nyse\s+|nasdaq\s+|uct\s+)?(stocks|names|issues)\b"
     r"|\bnew\s+(52[- ]week\s+|52w\s+|20[- ]day\s+)?(highs?|lows?)\b|\bnet new (highs?|lows?)\b"
     r"|\badvance[- /]decline\b|\badvancers?\b|\bdecliners?\b|\bstage ?[24] (counts?|stocks|names)\b|\bmarket internals\b",
@@ -2802,7 +2845,7 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
         # and the workspace_context block is rebuilt from the sanitised entry
         context = agent_coach.sanitize_context(context)
         blocks = [_block("workspace_context", context)]
-    system_blocks = [{"type": "text", "text": t, "cache_control": {"type": "ephemeral"}} for t in parts]
+    system_blocks = cache_blocks(parts)
     if headline is not None:
         blocks.append(_block("news_headline", headline))
     if repair_in:

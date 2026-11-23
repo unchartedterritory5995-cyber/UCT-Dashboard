@@ -1,41 +1,41 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 253,
-  "withProductionKinds": 205,
+  "all": 256,
+  "withProductionKinds": 208,
   "darkGated": 48
  },
  "totals": {
-  "capabilities": 253,
-  "withAnyRegressionCase": 201,
+  "capabilities": 256,
+  "withAnyRegressionCase": 204,
   "perProtection": {
    "nl": {
-    "covered": 198,
-    "applicable": 253
+    "covered": 201,
+    "applicable": 256
    },
    "routing": {
-    "covered": 195,
-    "applicable": 253
+    "covered": 198,
+    "applicable": 256
    },
    "args": {
-    "covered": 201,
-    "applicable": 253
+    "covered": 204,
+    "applicable": 256
    },
    "execution": {
-    "covered": 198,
-    "applicable": 253
+    "covered": 201,
+    "applicable": 256
    },
    "receipt": {
-    "covered": 170,
-    "applicable": 253
+    "covered": 171,
+    "applicable": 256
    },
    "refusal": {
     "covered": 35,
-    "applicable": 253
+    "applicable": 256
    },
    "permission": {
-    "covered": 246,
-    "applicable": 253
+    "covered": 248,
+    "applicable": 256
    },
    "undo": {
     "covered": 84,
@@ -43,11 +43,11 @@
    },
    "multiStep": {
     "covered": 40,
-    "applicable": 253
+    "applicable": 256
    },
    "phrasings": {
-    "covered": 194,
-    "applicable": 253
+    "covered": 197,
+    "applicable": 256
    }
   }
  },
@@ -241,7 +241,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false,
+   "fast": true,
    "protections": {
     "nl": true,
     "routing": true,
@@ -254,7 +254,7 @@
     "multiStep": false,
     "phrasings": true
    },
-   "phrasings": 6,
+   "phrasings": 13,
    "evidence": {
     "nl": [
      "alert.price-above: \"alert me if nvda goes above 150\"",
@@ -274,16 +274,22 @@
     ],
     "args": [
      "corpus alert.price-above",
+     "corpus alert.family-create",
+     "corpus alert.family-chart-below",
      "GW-14.price-alert-needs-approval",
      "refuse.alert-needs-approval",
      "refuse.alert.price-above.dismissed"
     ],
     "execution": [
      "alert.price-above (c)",
+     "alert.family-create (c)",
+     "alert.family-chart-below (c)",
      "GW-14.price-alert-needs-approval"
     ],
     "receipt": [
      "alert.price-above (c)",
+     "alert.family-create (c)",
+     "alert.family-chart-below (c)",
      "GW-14.price-alert-needs-approval"
     ],
     "refusal": [
@@ -292,6 +298,8 @@
     ],
     "permission": [
      "alert.price-above: waits for Apply",
+     "alert.family-create: waits for Apply",
+     "alert.family-chart-below: waits for Apply",
      "GW-14.price-alert-needs-approval: waits for Apply"
     ],
     "undo": [],
@@ -310,7 +318,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false,
+   "fast": true,
    "protections": {
     "nl": true,
     "routing": true,
@@ -380,30 +388,35 @@
     "multiStep": false,
     "phrasings": true
    },
-   "phrasings": 5,
+   "phrasings": 8,
    "evidence": {
     "nl": [
      "alert.list: \"show my alerts\"",
      "alert.list: \"what alerts do I have\"",
      "alert.list: \"list my price alerts\"",
      "alert.list: \"which alerts are set\"",
-     "alert.list: \"show me all my alerts\""
+     "alert.list: \"show me all my alerts\"",
+     "alert.family-list-symbol: \"what alerts do I have on NVDA\""
     ],
     "routing": [
      "alert.list: \"show my alerts\"",
      "alert.list: \"what alerts do I have\"",
      "alert.list: \"list my price alerts\"",
      "alert.list: \"which alerts are set\"",
-     "alert.list: \"show me all my alerts\""
+     "alert.list: \"show me all my alerts\"",
+     "alert.family-list-symbol: \"what alerts do I have on NVDA\""
     ],
     "args": [
-     "corpus alert.list"
+     "corpus alert.list",
+     "corpus alert.family-list-symbol"
     ],
     "execution": [
-     "alert.list (c)"
+     "alert.list (c)",
+     "alert.family-list-symbol (c)"
     ],
     "receipt": [
-     "alert.list (c)"
+     "alert.list (c)",
+     "alert.family-list-symbol (c)"
     ],
     "refusal": [],
     "permission": [],
@@ -1792,7 +1805,7 @@
     "multiStep": false,
     "phrasings": true
    },
-   "phrasings": 8,
+   "phrasings": 20,
    "evidence": {
     "nl": [
      "chart.setSetting.gradient: \"turn the gradient off on this chart\"",
@@ -1812,21 +1825,33 @@
     ],
     "args": [
      "corpus chart.setSetting.gradient",
-     "corpus chart.setSetting.grid"
+     "corpus chart.setSetting.grid",
+     "corpus chart.setSetting.legendHold",
+     "corpus chart.setSetting.barInfoOpen",
+     "corpus chart.setSetting.infoRowStat"
     ],
     "execution": [
      "chart.setSetting.gradient (c)",
-     "chart.setSetting.grid (c)"
+     "chart.setSetting.grid (c)",
+     "chart.setSetting.legendHold (c)",
+     "chart.setSetting.barInfoOpen (c)",
+     "chart.setSetting.infoRowStat (c)"
     ],
     "receipt": [
      "chart.setSetting.gradient (c)",
-     "chart.setSetting.grid (c)"
+     "chart.setSetting.grid (c)",
+     "chart.setSetting.legendHold (c)",
+     "chart.setSetting.barInfoOpen (c)",
+     "chart.setSetting.infoRowStat (c)"
     ],
     "refusal": [],
     "permission": [],
     "undo": [
      "chart.setSetting.gradient: undo restores",
-     "chart.setSetting.grid: undo restores"
+     "chart.setSetting.grid: undo restores",
+     "chart.setSetting.legendHold: undo restores",
+     "chart.setSetting.barInfoOpen: undo restores",
+     "chart.setSetting.infoRowStat: undo restores"
     ],
     "multiStep": [],
     "phrasings": []
@@ -3476,7 +3501,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false,
+   "fast": true,
    "protections": {
     "nl": false,
     "routing": false,
@@ -4710,7 +4735,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false,
+   "fast": true,
    "protections": {
     "nl": true,
     "routing": true,
@@ -5568,7 +5593,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false,
+   "fast": true,
    "protections": {
     "nl": true,
     "routing": true,
@@ -5914,7 +5939,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false,
+   "fast": true,
    "protections": {
     "nl": true,
     "routing": true,
@@ -6064,7 +6089,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false,
+   "fast": true,
    "protections": {
     "nl": true,
     "routing": true,
@@ -6077,7 +6102,7 @@
     "multiStep": false,
     "phrasings": true
    },
-   "phrasings": 13,
+   "phrasings": 16,
    "evidence": {
     "nl": [
      "indicatorAlert.threshold: \"alert me when RSI goes above 70\"",
@@ -6099,17 +6124,20 @@
      "corpus indicatorAlert.threshold",
      "corpus indicatorAlert.ma-cross",
      "corpus indicatorAlert.ma-cross-multichart",
+     "corpus indicatorAlert.family-timeframe",
      "refuse.indicatorAlert.threshold.dismissed",
      "refuse.indicatorAlert.ma-cross.dismissed"
     ],
     "execution": [
      "indicatorAlert.threshold (c)",
      "indicatorAlert.ma-cross (c)",
-     "indicatorAlert.ma-cross-multichart (c)"
+     "indicatorAlert.ma-cross-multichart (c)",
+     "indicatorAlert.family-timeframe (c)"
     ],
     "receipt": [
      "indicatorAlert.threshold (c)",
-     "indicatorAlert.ma-cross (c)"
+     "indicatorAlert.ma-cross (c)",
+     "indicatorAlert.family-timeframe (c)"
     ],
     "refusal": [
      "refuse.indicatorAlert.threshold.dismissed",
@@ -6118,7 +6146,8 @@
     "permission": [
      "indicatorAlert.threshold: waits for Apply",
      "indicatorAlert.ma-cross: waits for Apply",
-     "indicatorAlert.ma-cross-multichart: waits for Apply"
+     "indicatorAlert.ma-cross-multichart: waits for Apply",
+     "indicatorAlert.family-timeframe: waits for Apply"
     ],
     "undo": [],
     "multiStep": [],
@@ -6136,7 +6165,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false,
+   "fast": true,
    "protections": {
     "nl": true,
     "routing": true,
@@ -6206,28 +6235,35 @@
     "multiStep": false,
     "phrasings": true
    },
-   "phrasings": 4,
+   "phrasings": 6,
    "evidence": {
     "nl": [
      "indicatorAlert.list: \"show my indicator alerts\"",
      "indicatorAlert.list: \"list my indicator alerts\"",
      "indicatorAlert.list: \"what indicator alerts do I have\"",
-     "indicatorAlert.list: \"which indicator alerts are on my account\""
+     "indicatorAlert.list: \"which indicator alerts are on my account\"",
+     "indicatorAlert.family-attention: \"why hasn't my RSI alert fired\"",
+     "indicatorAlert.family-attention: \"why isn't my RSI alert working\""
     ],
     "routing": [
      "indicatorAlert.list: \"show my indicator alerts\"",
      "indicatorAlert.list: \"list my indicator alerts\"",
      "indicatorAlert.list: \"what indicator alerts do I have\"",
-     "indicatorAlert.list: \"which indicator alerts are on my account\""
+     "indicatorAlert.list: \"which indicator alerts are on my account\"",
+     "indicatorAlert.family-attention: \"why hasn't my RSI alert fired\"",
+     "indicatorAlert.family-attention: \"why isn't my RSI alert working\""
     ],
     "args": [
-     "corpus indicatorAlert.list"
+     "corpus indicatorAlert.list",
+     "corpus indicatorAlert.family-attention"
     ],
     "execution": [
-     "indicatorAlert.list (c)"
+     "indicatorAlert.list (c)",
+     "indicatorAlert.family-attention (c)"
     ],
     "receipt": [
-     "indicatorAlert.list (c)"
+     "indicatorAlert.list (c)",
+     "indicatorAlert.family-attention (c)"
     ],
     "refusal": [],
     "permission": [],
@@ -6247,7 +6283,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false,
+   "fast": true,
    "protections": {
     "nl": true,
     "routing": true,
@@ -6359,7 +6395,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false,
+   "fast": true,
    "protections": {
     "nl": true,
     "routing": true,
@@ -8123,6 +8159,56 @@
     "phrasings": []
    }
   },
+  "newsLibrary.toNotebook": {
+   "domain": "newsLibrary",
+   "group": "newsLibrary",
+   "target": "newsLibrary",
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "none",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": false,
+    "refusal": false,
+    "permission": false,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "newsLibrary.toNotebook: \"send the NVDA headline to my notebook\"",
+     "newsLibrary.toNotebook: \"put the NVDA story in my journal\"",
+     "newsLibrary.toNotebook: \"clip the NVDA headline into my notebook\""
+    ],
+    "routing": [
+     "newsLibrary.toNotebook: \"send the NVDA headline to my notebook\"",
+     "newsLibrary.toNotebook: \"put the NVDA story in my journal\"",
+     "newsLibrary.toNotebook: \"clip the NVDA headline into my notebook\""
+    ],
+    "args": [
+     "corpus newsLibrary.toNotebook"
+    ],
+    "execution": [
+     "newsLibrary.toNotebook (c)"
+    ],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "pane.move": {
    "domain": "pane",
    "group": "indicatorSetup",
@@ -8422,6 +8508,114 @@
     "receipt": [],
     "refusal": [],
     "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "recentlyDeleted.list": {
+   "domain": "recentlyDeleted",
+   "group": "layoutBar",
+   "target": "recentlyDeleted",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "recentlyDeleted.list: \"what have I deleted\"",
+     "recentlyDeleted.list: \"show my recently deleted screens\"",
+     "recentlyDeleted.list: \"what is in recently deleted\"",
+     "recentlyDeleted.list: \"show my deleted layouts\""
+    ],
+    "routing": [
+     "recentlyDeleted.list: \"what have I deleted\"",
+     "recentlyDeleted.list: \"show my recently deleted screens\"",
+     "recentlyDeleted.list: \"what is in recently deleted\"",
+     "recentlyDeleted.list: \"show my deleted layouts\""
+    ],
+    "args": [
+     "corpus recentlyDeleted.list"
+    ],
+    "execution": [
+     "recentlyDeleted.list (c)"
+    ],
+    "receipt": [
+     "recentlyDeleted.list (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "recentlyDeleted.restore": {
+   "domain": "recentlyDeleted",
+   "group": "layoutBar",
+   "target": "recentlyDeleted",
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "none",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "recentlyDeleted.restore: \"bring back my Old Breakouts screen\"",
+     "recentlyDeleted.restore: \"undelete the Old Breakouts screen\"",
+     "recentlyDeleted.restore: \"restore my deleted Old Breakouts screen\"",
+     "recentlyDeleted.restore: \"recover the Old Breakouts screen I deleted\""
+    ],
+    "routing": [
+     "recentlyDeleted.restore: \"bring back my Old Breakouts screen\"",
+     "recentlyDeleted.restore: \"undelete the Old Breakouts screen\"",
+     "recentlyDeleted.restore: \"restore my deleted Old Breakouts screen\"",
+     "recentlyDeleted.restore: \"recover the Old Breakouts screen I deleted\""
+    ],
+    "args": [
+     "corpus recentlyDeleted.restore"
+    ],
+    "execution": [
+     "recentlyDeleted.restore (c)"
+    ],
+    "receipt": [],
+    "refusal": [],
+    "permission": [
+     "recentlyDeleted.restore: waits for Apply"
+    ],
     "undo": [],
     "multiStep": [],
     "phrasings": []
@@ -11805,7 +11999,7 @@
     "multiStep": true,
     "phrasings": true
    },
-   "phrasings": 10,
+   "phrasings": 13,
    "evidence": {
     "nl": [
      "watchlist.add: \"add AMD to my Momentum list\"",
@@ -11827,24 +12021,28 @@
      "corpus watchlist.add",
      "corpus scan.to-watchlist",
      "corpus scan.to-new-watchlist",
+     "corpus watchlist.add.fromHeadline",
      "GW-25.scan-conversation"
     ],
     "execution": [
      "watchlist.add (c)",
      "scan.to-watchlist (c)",
      "scan.to-new-watchlist (c)",
+     "watchlist.add.fromHeadline (c)",
      "GW-25.scan-conversation"
     ],
     "receipt": [
      "watchlist.add (c)",
      "scan.to-watchlist (c)",
      "scan.to-new-watchlist (c)",
+     "watchlist.add.fromHeadline (c)",
      "GW-25.scan-conversation"
     ],
     "refusal": [],
     "permission": [],
     "undo": [
      "watchlist.add: undo restores",
+     "watchlist.add.fromHeadline: undo restores",
      "GW-25.scan-conversation"
     ],
     "multiStep": [

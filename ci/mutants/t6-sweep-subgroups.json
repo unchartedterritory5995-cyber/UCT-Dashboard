@@ -1,0 +1,96 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "Track 6, the nightly sweep's runtime group (coordinator ruling 2026-11-23): the night's runtime documents run in sub-groups of RUNTIME_SWEEP_SUBGROUP (9), each filed when it completes, so a cut loses at most the sub-group in flight; and the group's requests go at most two at a time (the service's own workers.live from GET /v1/metrics, at most RUNTIME_IN_FLIGHT_CEILING, 1 when unreadable) through ONE named exception to scan_evaluator's measured concurrency ban, scoped to the runtime group's request function. Each mutant must turn its rail red and restore byte-equal.",
+ "mutants": [
+  {
+   "id": "S1",
+   "mutant": "sub-grouping disabled (k = all): the night's documents run as one group again",
+   "file": "api/services/screener/scan_evaluator.py",
+   "from": "    subgroups = [runs[s:s + RUNTIME_SWEEP_SUBGROUP] for s in range(0, len(runs), RUNTIME_SWEEP_SUBGROUP)]\n",
+   "to": "    subgroups = [runs]\n",
+   "rail": "python -m pytest -q -p no:cacheprovider tests/test_scan_runtime_lane.py -k a_cut_loses_at_most_ONE_sub_group",
+   "expectRed": "a_cut_loses_at_most_ONE_sub_group"
+  },
+  {
+   "id": "S2",
+   "mutant": "k raised to the whole night (25): one sub-group holds every document",
+   "file": "api/services/screener/scan_evaluator.py",
+   "from": "\nRUNTIME_SWEEP_SUBGROUP = 9\n",
+   "to": "\nRUNTIME_SWEEP_SUBGROUP = 25\n",
+   "rail": "python -m pytest -q -p no:cacheprovider tests/test_scan_runtime_lane.py -k a_cut_loses_at_most_ONE_sub_group",
+   "expectRed": "a_cut_loses_at_most_ONE_sub_group"
+  },
+  {
+   "id": "C1",
+   "mutant": "the exception widened to the tree path: the sweep loop runs each tree definition through the runtime group's request pool",
+   "file": "api/services/screener/scan_evaluator.py",
+   "from": "            out = evaluate(definition)\n",
+   "to": "            with _runtime_requests_in_flight(RUNTIME_IN_FLIGHT_CEILING) as send:\n                out = send(lambda: evaluate(definition))()\n            if isinstance(out, Exception):\n                raise out\n",
+   "rail": "python -m pytest -q -p no:cacheprovider tests/test_scan_evaluator.py -k ONE_named_exception",
+   "expectRed": "ONE_named_exception"
+  },
+  {
+   "id": "C2",
+   "mutant": "the pool imported at module level, outside the one named exception",
+   "file": "api/services/screener/scan_evaluator.py",
+   "from": "import functools\n",
+   "to": "import functools\nfrom concurrent.futures import ThreadPoolExecutor\n",
+   "rail": "python -m pytest -q -p no:cacheprovider tests/test_scan_evaluator.py -k imports_no_concurrency_primitive",
+   "expectRed": "imports_no_concurrency_primitive"
+  },
+  {
+   "id": "F1",
+   "mutant": "the ceiling ignored: as many requests in flight as the service reports workers",
+   "file": "api/services/screener/scan_evaluator.py",
+   "from": "    return min(live, RUNTIME_IN_FLIGHT_CEILING)\n",
+   "to": "    return live\n",
+   "rail": "python -m pytest -q -p no:cacheprovider tests/test_scan_runtime_lane.py -k INFLIGHT",
+   "expectRed": "at_most_the_ceiling"
+  },
+  {
+   "id": "F2",
+   "mutant": "an unreadable worker count means the ceiling, not one",
+   "file": "api/services/screener/scan_evaluator.py",
+   "from": "\"request is in flight\", repr(live)[:40])\n        return 1\n",
+   "to": "\"request is in flight\", repr(live)[:40])\n        return RUNTIME_IN_FLIGHT_CEILING\n",
+   "rail": "python -m pytest -q -p no:cacheprovider tests/test_scan_runtime_lane.py -k INFLIGHT",
+   "expectRed": "unreadable_is_ONE"
+  },
+  {
+   "id": "F3",
+   "mutant": "the lane never holds two: every request runs as it is sent, one at a time",
+   "file": "api/services/screener/scan_evaluator.py",
+   "from": "    if in_flight <= 1:\n        def send_now(request: Any) -> Any:\n",
+   "to": "    if True:\n        def send_now(request: Any) -> Any:\n",
+   "rail": "python -m pytest -q -p no:cacheprovider tests/test_scan_runtime_lane.py -k two_requests_are_in_flight_at_once",
+   "expectRed": "two_requests_are_in_flight_at_once"
+  },
+  {
+   "id": "F4",
+   "mutant": "no read ahead: the next chunk is read only after this chunk's requests are answered",
+   "file": "api/services/screener/scan_evaluator.py",
+   "from": "        if (lane is not None and lane[\"in_flight\"] > 1 and nxt < len(kept)\n",
+   "to": "        if (False and lane is not None and lane[\"in_flight\"] > 1 and nxt < len(kept)\n",
+   "rail": "python -m pytest -q -p no:cacheprovider tests/test_scan_runtime_lane.py -k next_chunk_is_read_while",
+   "expectRed": "next_chunk_is_read_while"
+  },
+  {
+   "id": "P1",
+   "mutant": "the metrics read is signed over a body it does not send",
+   "file": "api/services/pine_runtime_client.py",
+   "from": "        body = b\"\"\n",
+   "to": "        body = b\"{}\"\n",
+   "rail": "python -m pytest -q -p no:cacheprovider tests/test_pine_runtime_client.py -k metrics",
+   "expectRed": "signed_get_over_the_empty_body"
+  },
+  {
+   "id": "P2",
+   "mutant": "a client handed a fake POST transport still reads metrics over the real network",
+   "file": "api/services/pine_runtime_client.py",
+   "from": "            httpx_get_transport if transport is None else None)\n",
+   "to": "            httpx_get_transport)\n",
+   "rail": "python -m pytest -q -p no:cacheprovider tests/test_pine_runtime_client.py -k metrics",
+   "expectRed": "never_reads_metrics_over_the_network"
+  }
+ ]
+}

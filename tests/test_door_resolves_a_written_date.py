@@ -35,6 +35,7 @@ from tests.test_p2_truth_server import (  # noqa: F401 -- fixtures by name
     call, conv, emits, empty_view, env, model, num,
 )
 from tests.test_p2x_truth_converse import clean_env  # noqa: F401 -- fixture by name
+from tools.value_cases import grade as G
 
 NY = ZoneInfo("America/New_York")
 CHART = {"sym": "NVDA", "tf": "D"}
@@ -42,8 +43,11 @@ CHART = {"sym": "NVDA", "tf": "D"}
 NOW = dt.datetime(2026, 11, 22, 12, 0, tzinfo=NY)
 ROOT = Path(__file__).resolve().parents[1]
 CASES = json.loads((ROOT / "tests" / "fixtures" / "authoring" / "value_cases.json").read_text(encoding="utf-8"))["cases"]
-THE_ANSWER = next(c for c in CASES if c["id"] == "date-start-01")
-WORDS = THE_ANSWER["words"]
+THE_CASE = next(c for c in CASES if c["id"] == "date-start-01")
+WORDS = THE_CASE["words"]
+#: the answer the finding rests on (the assistant's own number for the date): the case's record while it is recorded
+#: WRONG, its `found` specimen once the door gets it right
+THE_ANSWER = G.specimen(THE_CASE)
 #: what the assistant worked out live for "2 June 2026": 6 June
 WRONG = 1780718400
 
@@ -182,7 +186,7 @@ def test_the_date_numbers_a_turn_may_use():
 def test_a_date_number_the_turn_did_not_supply_is_refused(tree, how):
     supplied = dc.supplied_date_numbers(WORDS, {"dates": dc.dates_named(WORDS, NOW)}, None, None)
     exc = refused_by(dc.check_date_numbers, created(tree), supplied)
-    assert exc is not None and exc.gate == "envelope:reference", tree
+    assert exc is not None and exc.gate == "envelope:date-number", tree
     told = exc.for_model()
     for piece in (how, "a date number this turn did not give you", "A date's number is never worked out",
                   "2026-06-02 is 1780372800", "ask for it in plain words (the day, the month and the year), and never ask for a number"):
@@ -248,7 +252,7 @@ def test_THE_FINDING_the_recorded_answer_is_refused_and_the_repair_carries_the_r
 def test_an_answer_that_works_the_date_out_twice_changes_nothing(conv, clean_env, model):
     client = model([emits(from_the_date(WRONG)), emits(from_the_date(WRONG + 86400))])
     r = conv.converse(WORDS, user_id="u1", view=empty_view(0), chart=CHART)
-    assert r["ok"] is False and r["gate"] == "envelope:reference" and len(client.calls) == 2
+    assert r["ok"] is False and r["gate"] == "envelope:date-number" and len(client.calls) == 2
     assert not (r.get("envelope") or {}).get("ops")
 
 
@@ -294,4 +298,4 @@ def test_no_recorded_right_answer_is_refused_by_the_date_guard():
     assert refused_by(dc.check_date_numbers, THE_ANSWER["answer"], supplied) is not None
     on_the_right_day = json.loads(json.dumps(THE_ANSWER["answer"]).replace(str(WRONG), str(JUNE_2)))
     assert refused_by(dc.check_date_numbers, on_the_right_day, supplied) is None
-    assert THE_ANSWER["recorded_verdict"] == "wrong" and "6 June 2026" in THE_ANSWER["defect"]
+    assert "6 June 2026" in THE_ANSWER["defect"]

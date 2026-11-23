@@ -19,24 +19,43 @@ Held here, with no paid call:
     rule's (those two need node: where it is missing they SKIP, and the lane that runs this file treats a skip as a
     failure);
   * the cases are pending: no answer, no record, and none of them counts toward any threshold.
+
+THE LIVE PASS (2026-11-23) answered all nine. Eight are RECORDED and one waits:
+  * four came back as scripts, right by value, and are script cases (cap-04, cap-05, cap-06, cap-08). cap-04 and
+    cap-05 each name an EDGE: on the plain bars a window one bar longer draws the very same lines;
+  * four the door answered WITHOUT a script (cap-02, cap-03, cap-07, cap-09). They are formula cases now, held by
+    the SAME rule (`rules.SAME_RULE_AS_THE_SCRIPT_LANE`: the script lane's own function on the formula lane's bars).
+    Three are right. cap-03 is recorded WRONG with its findings named, and the formula that says its words is here;
+  * the formula lane now holds NOTHING where the words ask for nothing ("only while ..., and nothing on the other
+    bars"): until this pass it compared only the bars both sides had a value on;
+  * cap-01 waits: the formula lane built a different thing and said so, which is not a build.
 """
 from __future__ import annotations
 
+import copy
 import json
+import re
 from pathlib import Path
 
 import pytest
 
+from tools.value_cases import grade as G
+from tools.value_cases import rules as formula_rules
 from tools.value_cases import script_rules as R
 from tools.value_cases.market import STOCK
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA = json.loads((ROOT / "tests" / "fixtures" / "authoring" / "value_cases.json").read_text(encoding="utf-8"))
 PENDING = {c["id"]: c for c in DATA.get("pending") or [] if c["id"].startswith("cap-")}
+#: the cases of this round that hold their first live answer (2026-11-23): each was answered with a script, right
+RECORDED = {c["id"]: c for c in DATA["cases"] if c["id"].startswith("cap-")}
+EVERY = {**PENDING, **RECORDED}
 IDS = [f"cap-0{n}" for n in range(1, 10)]
 CHART = {"bars": STOCK}
 COLUMN_RULES = ("cap-01", "cap-02", "cap-03", "cap-07", "cap-09")
 DRAWN_RULES = ("cap-04", "cap-05", "cap-06", "cap-08")
+ON_THE_FORMULA_LANE = ("cap-02", "cap-03", "cap-07", "cap-09")     # the door answers these without a script (live 2026-11-23)
+MOVED = "moved to the formula lane 2026-11-23"
 KEY_WORDS = {
     "cap-01": "the most recent close above today's close was, looking back at most 250 bars, and plot nothing when there is none",
     "cap-02": "SMA, EMA or WMA, with SMA as the default and a length of 20",
@@ -71,28 +90,63 @@ def graded(cid, *, columns=None, labels=(), lines=(), boxes=(), source="plot(x)"
 
 # ── the cases ──
 
-def test_nine_cases_wait_with_their_words_and_their_rule_and_no_answer():
-    assert sorted(PENDING) == IDS
-    recorded = {c["id"] for c in DATA["cases"]}
-    for cid, case in PENDING.items():
-        assert cid not in recorded and case["lane"] == "script" and case["chart"] == "daily"
-        assert "answer" not in case and "recorded" not in case and "recorded_verdict" not in case
-        assert len(case["rule"]["history"]) == 1 and case["rule"]["history"][0]["digest"] == case["rule"]["digest"]
-        assert case["rule"]["history"][0]["reason"] == "written from the request's words before the answer was read"
+def test_nine_cases_each_with_its_words_its_rule_and_where_it_stands():
+    assert sorted(EVERY) == IDS and not set(PENDING) & set(RECORDED)
+    assert sorted(PENDING) == ["cap-01"]                 # a disclosed stand-in is not a build: it waits for the door's routing unit
+    assert tuple(formula_rules.SAME_RULE_AS_THE_SCRIPT_LANE) == ON_THE_FORMULA_LANE
+    for cid, case in EVERY.items():
+        formula = cid in ON_THE_FORMULA_LANE
+        assert case["lane"] == ("formula" if formula else "script") and case.get("chart", "daily") == "daily", cid
+        history = case["rule"]["history"]
+        assert history[0]["reason"] == "written from the request's words before the answer was read", cid
+        assert history[-1]["digest"] == case["rule"]["digest"], cid
+        if cid in PENDING:
+            assert "answer" not in case and "recorded" not in case and "recorded_verdict" not in case
+            assert len(case["found_live"]) > 60                       # what the live pass found is written beside it
+        else:
+            assert case["recorded"]["front"] and "found_live" not in case, cid      # the record says it now
+            assert (case["answer"].get("ops") if formula else case["answer"]["script"]["pine"]), cid
+        if formula:
+            # ONE rule whichever lane answers: the case says why it moved, in the member's own words
+            assert len(history) == 2 and history[1]["reason"].startswith(MOVED) and history[1]["quote"] in case["words"], cid
+            assert history[0]["digest"] != history[1]["digest"], cid   # the same rule on other bars says other numbers
+        else:
+            assert len(history) == 1, cid
         assert case["needs"] and case["distinguishes"] and R.has_rule(cid)
+    assert {cid for cid, case in RECORDED.items() if case.get("recorded_verdict") == "wrong"} == {"cap-03"}
+    # cap-03's record is the door's CURRENT answer (live 2026-11-23, after #2572, #2573 and #2574), and it names what stands
+    for finding in ("on the swing bar itself", "EQUALS a high in the 3 bars before it", "read-back", "739 of 1,643 bars differ",
+                    "all three live samples"):
+        assert finding in RECORDED["cap-03"]["defect"], finding
+    # the answer of the first pass is kept, as the specimen of the one finding that IS fixed, with what fixed it
+    (first_pass,) = RECORDED["cap-03"]["found"]
+    assert first_pass["fixed_by"] == {"pr": "#2573", "merge": "e161dd870304e6e30e01169c7f50affc6fa49dd6"}
+    for finding in ("occurrence 0 is the newest", "1,261 of 1,639 bars differed"):
+        assert finding in first_pass["defect"], finding
+    assert first_pass["answer"] != RECORDED["cap-03"]["answer"] and first_pass["recorded"]["front"] != RECORDED["cap-03"]["recorded"]["front"]
+    # cap-01 waits with BOTH live passes beside it: the stand-in, then two right scripts and one stand-in that was not said
+    for said in ("DISCLOSED STAND-IN", "2 of 3 RIGHT, as scripts", "NOT disclosed", "stays pending"):
+        assert said in PENDING["cap-01"]["found_live"], said
+    assert RECORDED["cap-04"]["edge"] == {"back": 3, "low": True} and RECORDED["cap-05"]["edge"] == {"back": 60, "low": True}
     assert set(COLUMN_RULES) | set(DRAWN_RULES) == set(IDS)
     assert [R.RULES[cid] for cid in COLUMN_RULES] == [R.rule_cap01, R.rule_cap02, R.rule_cap03, R.rule_cap07, R.rule_cap09]
     assert all(R.drawn_rules_known(cid) for cid in DRAWN_RULES) and not any(cid in R.RULES for cid in DRAWN_RULES)
     # the member's words, each by the part its rule rests on
     for cid, part in KEY_WORDS.items():
-        assert part in PENDING[cid]["words"], cid
+        assert part in EVERY[cid]["words"], cid
 
 
 def test_a_pending_case_is_in_no_lane_count_and_no_threshold():
     counted = {c["id"] for c in DATA["cases"]}
-    assert not counted & set(IDS)
+    assert counted & set(IDS) == set(RECORDED) and not counted & set(PENDING)
     # the capability list is untouched by words alone: it shrinks only when a RECORDED answer uses the capability
-    assert "while" in DATA["capabilities_without_a_case"] and "collections:array" in DATA["capabilities_without_a_case"]
+    without = DATA["capabilities_without_a_case"]
+    assert "while" in without and "switch" in without                 # asked for, and no recorded script uses them yet
+    for cap in ("collections:array", "typed-array", "obj:collection", "obj:delete"):
+        assert cap not in without, cap                                # held since cap-08 was recorded
+    from api.services import pine_capabilities
+    held = set(pine_capabilities.capabilities_of(RECORDED["cap-08"]["answer"]["script"]["pine"]))
+    assert {"collections:array", "typed-array", "obj:collection", "obj:delete"} <= held
 
 
 # ── each rule, against a second calculation of the same words ──
@@ -331,30 +385,164 @@ def lane_chart():
     return run["charts"]["daily"]
 
 
-def test_each_fingerprint_is_its_rules_on_the_lanes_bars(lane_chart):
+def test_each_fingerprint_is_its_rules_on_its_own_lanes_bars(lane_chart):
     from tools.value_cases import script_grade
-    digests = script_grade.rule_digests([PENDING[cid] for cid in IDS])
-    assert {cid: PENDING[cid]["rule"]["digest"] for cid in IDS} == digests
+    script_ids = [cid for cid in IDS if cid not in ON_THE_FORMULA_LANE]
+    digests = {**script_grade.rule_digests([EVERY[cid] for cid in script_ids]), **{cid: G.rule_digest(cid) for cid in ON_THE_FORMULA_LANE}}
+    assert {cid: EVERY[cid]["rule"]["digest"] for cid in IDS} == digests
     assert len(set(digests.values())) == 9
+    # a case that moved keeps, as its first entry, the fingerprint it was written with: the same rule on the script lane's bars
+    was = script_grade.rule_digests([{"id": cid, "chart": "daily"} for cid in ON_THE_FORMULA_LANE])
+    assert {cid: EVERY[cid]["rule"]["history"][0]["digest"] for cid in ON_THE_FORMULA_LANE} == was
 
 
-def test_what_each_case_says_its_rule_distinguishes_is_true(lane_chart):
+def test_what_each_script_lane_case_says_its_rule_distinguishes_is_true(lane_chart):
     R.bind(lane_chart)
     n = R.N
-    said = {cid: PENDING[cid]["distinguishes"] for cid in IDS}
-    c1, c3, c7, c9 = R.rule_cap01()[0][1], R.rule_cap03()[0][1], R.rule_cap07()[0][1], R.rule_cap09()[0][1]
+    said = {cid: EVERY[cid]["distinguishes"] for cid in IDS}
+    c1 = R.rule_cap01()[0][1]
     has = lambda col: sum(1 for v in col if v is not None)  # noqa: E731
     beyond = sum(1 for i in range(n) if c1[i] is None and any(R.C[j] > R.C[i] for j in range(0, max(0, i - 250))))
     assert f"a value on {has(c1):,} of {n:,} bars" in said["cap-01"] and f"of which {beyond} have a higher close further back than 250 bars" in said["cap-01"]
     assert beyond >= 5                                                    # the 250 bar limit decides bars on this chart
-    assert "only the DEFAULT choice is held" in said["cap-02"]
-    assert f"{len(R._swings(R.H, 3, True))} swing highs" in said["cap-03"] and has(c3) > 1000
     assert f"{len(R._swings(R.L, 3, False))} swing lows" in said["cap-04"]
     assert f"the rise is {R.drawn_rules('cap-05')['labels_at'][0][2]:.2f}" in said["cap-05"]
     assert f"reading {R.drawn_rules('cap-06')['labels_at'][0][2]:.2f} percent" in said["cap-06"]
-    assert f"shown on {has(c7):,} bars and must be empty on {n - has(c7):,}" in said["cap-07"] and has(c7) > 300 and n - has(c7) > 300
     gaps = R._gap_boxes(10 ** 6)
     assert f"{len(gaps)} gap bars" in said["cap-08"] and len(gaps) >= 12
+
+
+def test_what_each_formula_lane_case_says_its_rule_distinguishes_is_true():
+    bound()                                                               # the formula lane's own bars
+    n = R.N
+    said = {cid: EVERY[cid]["distinguishes"] for cid in ON_THE_FORMULA_LANE}
+    c2, c3, c7, c9 = R.rule_cap02()[0][1], R.rule_cap03()[0][1], R.rule_cap07()[0][1], R.rule_cap09()[0][1]
+    has = lambda col: sum(1 for v in col if v is not None)  # noqa: E731
+    assert f"the default line has a value on {has(c2):,} of {n:,} bars" in said["cap-02"] and "only the DEFAULT choice is held" in said["cap-02"]
+    assert f"{len(R._swings(R.H, 3, True))} swing highs strictly above" in said["cap-03"] and f"a value on {has(c3):,} of {n:,} bars" in said["cap-03"] and has(c3) > 1000
+    assert f"shown on {has(c7):,} bars and must be empty on {n - has(c7):,}" in said["cap-07"] and has(c7) > 300 and n - has(c7) > 300
     plain = R._sma(R.V, 10)
     differs = sum(1 for i in range(n) if c9[i] is not None and plain[i] is not None and abs(c9[i] - plain[i]) > 1e-9)
     assert f"differs from the plain 10 bar average volume on {differs:,} of {n:,} bars" in said["cap-09"] and differs > 1000
+
+
+# ── four the door answers without a script: the formula lane, by the same rule ──
+
+def _formula_answer(cid, tree):
+    """The recorded formula answer of `cid` with its one output's formula replaced."""
+    answer = copy.deepcopy(RECORDED[cid]["answer"])
+    outputs = answer["ops"][0]["outputs"]
+    assert len(outputs) == 1
+    outputs[0]["tree"] = tree
+    return answer
+
+
+def _tree_of(cid):
+    return copy.deepcopy(RECORDED[cid]["answer"]["ops"][0]["outputs"][0]["tree"])
+
+
+def test_the_four_formula_answers_are_held_by_value_three_right_and_one_wrong():
+    for cid in ("cap-02", "cap-07", "cap-09"):
+        got = G.grade(cid, RECORDED[cid]["answer"])
+        assert got["verdict"] == "right", (cid, got["lines"])
+    got = G.grade("cap-03", RECORDED["cap-03"]["answer"])
+    assert got["verdict"] == "wrong" and "739 of 1643 bars differ" in got["lines"][0], got["lines"]
+    # the first pass's answer, kept as a specimen: wrong by the same rule, on more bars
+    was = G.grade("cap-03", RECORDED["cap-03"]["found"][0]["answer"])
+    assert was["verdict"] == "wrong" and "1261 of 1639 bars differ" in was["lines"][0], was["lines"]
+
+
+def test_ONE_RULE_WHICHEVER_LANE_ANSWERS(monkeypatch):
+    for cid in ON_THE_FORMULA_LANE:
+        (what, readings), = formula_rules.rules(cid).items()
+        mine = bound().RULES[cid]()                                       # the script lane's function, on the formula lane's bars
+        assert what == mine[0][0] and len(readings) == len(mine) == 1, cid
+        assert readings[0][0] == mine[0][0] and same([None if v != v else v for v in readings[0][1]], mine[0][1]), cid
+    # DERIVED, never restated: move the source and the formula lane's rule moves with it
+    monkeypatch.setitem(R.RULES, "cap-09", lambda: [("the plain 10 bar average volume", R._sma(R.V, 10))])
+    assert list(formula_rules.rules("cap-09")) == ["the plain 10 bar average volume"]
+    assert G.grade("cap-09", RECORDED["cap-09"]["answer"])["verdict"] == "wrong"
+    assert G.rule_digest("cap-09") != RECORDED["cap-09"]["rule"]["digest"]
+
+
+def test_NOTHING_IS_HELD_ON_THE_FORMULA_LANE_TOO(monkeypatch):
+    """⚰️ Until 2026-11-23 a formula was right when it equalled the rule on every bar BOTH had a value. "Only while
+    the close is above the 50 day average, and nothing on the other bars": the plain 10 bar average, drawn on every
+    bar, passed."""
+    assert formula_rules.exact("cap-07") and not any(formula_rules.exact(cid) for cid in ("cap-02", "cap-03", "cap-09", "d01"))
+    tree = _tree_of("cap-07")
+    assert tree["name"] == "?:"                                          # the 10 bar average WHILE the close is above the 50 bar one
+    right = G.grade("cap-07", RECORDED["cap-07"]["answer"])
+    assert right["verdict"] == "right" and "nothing where the rule holds nothing" in right["lines"][0]
+    everywhere = _formula_answer("cap-07", tree["args"][1])               # the same average, on EVERY bar
+    got = G.grade("cap-07", everywhere)
+    assert got["verdict"] == "wrong" and "nothing is part of what was asked" in got["lines"][0], got["lines"]
+    zero = _tree_of("cap-07")
+    zero["args"][2] = {"type": "num", "value": 0}                        # a line at 0 where the words say nothing
+    assert G.grade("cap-07", _formula_answer("cap-07", zero))["verdict"] == "wrong"
+    late = _tree_of("cap-07")
+    late["args"][0]["args"][1]["args"][1]["value"] = 51                   # the right shape, read against a 51 bar average
+    assert G.grade("cap-07", _formula_answer("cap-07", late))["verdict"] == "wrong"
+    # CONTROL: with the rule's NOTHING not held, the average drawn on every bar passes, exactly as it did before
+    before = G.rule_digest("cap-07")
+    assert before == RECORDED["cap-07"]["rule"]["digest"]
+    monkeypatch.setattr(formula_rules, "exact", lambda cid: set())
+    assert G.grade("cap-07", everywhere)["verdict"] == "right"
+    assert G.rule_digest("cap-07") != before                              # a rule that stops holding NOTHING has changed
+    assert G.rule_digest("cap-09") == RECORDED["cap-09"]["rule"]["digest"]
+
+
+def _said_exactly(first, last, strict=True):
+    """The member's words as a formula: a high above the highs of the 3 bars before it and the 3 after it, known 3 bars
+    later, the average of five of them. `first..last`: which occurrences are read (0 is the newest)."""
+    S = lambda name: {"type": "series", "name": name}  # noqa: E731, N806
+    num = lambda v: {"type": "num", "value": v}  # noqa: E731
+    call = lambda name, *args: {"type": "call", "name": name, "args": list(args)}  # noqa: E731
+    op = lambda name, *args: {"type": "op", "name": name, "args": list(args)}  # noqa: E731
+    back = lambda k, tree: {"type": "offset", "value": k, "args": [tree]}  # noqa: E731
+    if strict:
+        swing = op("&&", op(">", back(3, S("high")), back(4, call("highest", S("high"), num(3)))),
+                   op(">", back(3, S("high")), call("highest", S("high"), num(3))))
+        value = back(3, S("high"))
+    else:                                                                 # the engine's own swing: an equal high before is allowed
+        value = call("pivothigh", S("high"), num(3), num(3))
+        swing = op("!", call("na", value))
+    total = None
+    for k in range(first, last + 1):
+        part = call("valuewhenOccurrence", swing, value, num(k))
+        total = part if total is None else op("+", total, part)
+    return op("/", total, num(5))
+
+
+def test_cap03_the_words_can_be_met_on_the_formula_lane_and_each_finding_alone_is_wrong():
+    """cap-03 is recorded WRONG. This is what RIGHT is, for the door unit that fixes it: no script is needed."""
+    right = G.grade("cap-03", _formula_answer("cap-03", _said_exactly(0, 4)))
+    assert right["verdict"] == "right" and right["lines"][0].endswith(" on 1643 bars"), right["lines"]
+    # finding 1 alone: the right swings, read one swing late (occurrences 1 to 5; 0 is the newest)
+    assert G.grade("cap-03", _formula_answer("cap-03", _said_exactly(1, 5)))["verdict"] == "wrong"
+    # finding 2 alone: the newest five, of `pivothigh` (an equal high in the 3 bars before still counts as a swing)
+    assert G.grade("cap-03", _formula_answer("cap-03", _said_exactly(0, 4, strict=False)))["verdict"] == "wrong"
+    # the FIRST pass was both at once (one swing late, and the engine's swing): the tree this helper writes for them
+    assert _said_exactly(1, 5, strict=False) == RECORDED["cap-03"]["found"][0]["answer"]["ops"][0]["outputs"][0]["tree"]
+    # the record now reads the newest five (fixed by the table's sentence) and is still the engine's swing, on its own bar
+    assert _said_exactly(0, 4, strict=False) == _tree_of("cap-03")
+
+
+def test_cap04_a_swing_window_one_bar_longer_is_caught_only_on_the_edge_chart():
+    """Why cap-04 names an edge. Its recorded script with ONLY the swing window raised (3 bars each side to 4) draws
+    the same three lines on the plain bars. On the edge chart the bar 3 bars before the newest is a strict low: a 3 bar
+    swing known on the newest bar, and no 4 bar swing yet."""
+    from tools.converse_eval import LaneUnavailable
+    from tools.value_cases import script_grade
+    case = RECORDED["cap-04"]
+    longer, hits = re.subn(r'input\.int\(3, "Bars (before|after)"', lambda m: f'input.int(4, "Bars {m.group(1)}"', case["answer"]["script"]["pine"])
+    assert hits == 2                                                      # the recorded script's two window settings, nothing else
+    answer = {"cap-04": {"turn": "script", "script": {"pine": longer}}}
+    plain = {k: v for k, v in case.items() if k != "edge"}
+    try:
+        got = (script_grade.grade_all([case])["cap-04"]["verdict"],
+               script_grade.grade_all([plain], answer)["cap-04"]["verdict"],
+               script_grade.grade_all([case], answer)["cap-04"]["verdict"])
+    except LaneUnavailable as exc:
+        pytest.skip(f"the script lane is not available here: {str(exc)[:200]}")
+    assert got == ("right", "right", "wrong")

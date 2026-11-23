@@ -445,9 +445,10 @@ def session_key(now) -> str:
 
 
 def _run(request: dict) -> dict:
-    """The engine, indirected for tests."""
+    """The engine, indirected for tests. Its outcome closes stop at the study's `end` (the evening's
+    session), so a window ending on a session that has not closed is still open, never an unfinished close."""
     from api.services.market_intel import event_study as _es
-    return _es.run(request, deadline_s=BUILD_DEADLINE_S, allowed_kinds=MEMBER_KINDS)
+    return _es.run(request, deadline_s=BUILD_DEADLINE_S, allowed_kinds=MEMBER_KINDS, price_through=request.get("end"))
 
 
 def _build_for(key: tuple):

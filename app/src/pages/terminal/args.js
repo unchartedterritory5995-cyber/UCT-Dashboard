@@ -171,11 +171,20 @@ export const IDXC_INDEX_WORDS = Object.freeze({ 'S&P500': 'sp500', NASDAQ100: 'n
 // EEHSC (2026-11-21): copies of the panel model's words (functions.revisionBreadth.test.js pins each to its owner)
 export const EEHSC_WINDOW_WORDS = Object.freeze({ '7D': 7, '1W': 7, '30D': 30, '1M': 30 })
 export const EEHSC_METRIC_WORDS = Object.freeze({ EPS: 'eps', REVENUE: 'revenue', REV: 'revenue', SALES: 'revenue' })
+// ERNSC (2026-11-22): copies of the panel model's words (functions.sectorEarnings.test.js pins each to its owner). The
+// season that holds today is the bare command; the measure words are EEHSC's, with the same meaning.
+export const ERNSC_SEASON_WORDS = Object.freeze({ PRIOR: 'previous', PREVIOUS: 'previous', YEARAGO: 'year_ago', LASTYEAR: 'year_ago' })
+export const ERNSC_METRIC_WORDS = Object.freeze({ EPS: 'eps', REVENUE: 'revenue', REV: 'revenue', SALES: 'revenue' })
+const ERNSC_SEASON_DESCRIBE = Object.freeze({ previous: 'the season before', year_ago: 'the same season a year earlier' })
 // PUBR: a copy of the panel model's section words (functions.publicRecords.test.js pins it to its owner). ALL is a stock
 // (Allstate), so the all-sections view is the bare command.
 export const PUBR_VIEW_WORDS = Object.freeze({
   CONTRACTS: 'contracts', AWARDS: 'contracts', TRIALS: 'trials', FDA: 'fda', APPROVALS: 'fda', LOBBYING: 'lobbying',
 })
+// OSCR RICH / OSCR CHEAP (2026-11-22): a copy of the panel model's view words (args.ivRank.test.js pins it to its owner)
+export const OSCR_VIEW_WORDS = Object.freeze({ RICH: 'rich', CHEAP: 'cheap' })
+// IPO LOCKUP (2026-11-22): a copy of the panel model's view words (args.ipoLockup.test.js pins it to its owner)
+export const IPO_VIEW_WORDS = Object.freeze({ LOCKUP: 'lockup', LOCKUPS: 'lockup' })
 /** A typed `MM/DD` for ERNS is the nearest such day; past this many days away it is the next or the last year's. */
 export const EARNINGS_DAY_REACH = 183
 export const RS_SCREEN_ARG_WORDS = Object.freeze({
@@ -207,10 +216,12 @@ export const FUND_MAX_PEERS = 3
 export const GROUPS_KIND_WORDS = Object.freeze({ SECTOR: 'sector', SECTORS: 'sector', INDUSTRY: 'industry', INDUSTRIES: 'industry' })
 export const GROUPS_VIEW_WORDS = Object.freeze({
   OVERVIEW: 'overview', GROWTH: 'growth', MARGINS: 'margins', MARGIN: 'margins', VALUATION: 'valuation', BREADTH: 'breadth', RANK: 'rank', ALL: 'all',
+  CROWDING: 'crowding',
 })
 const GROUPS_VIEW_DESCRIBE = Object.freeze({
   overview: 'the overview columns', growth: 'the growth columns', margins: 'the margin and return columns', valuation: 'the valuation columns',
   breadth: 'the breadth columns', rank: 'the weekly rank columns', all: 'every column',
+  crowding: 'the crowding columns (short interest, insider buying, fund holdings)',
 })
 const FUND_WORD_OF = Object.freeze(Object.fromEntries(Object.entries(FUND_METRIC_WORDS).map(([w, id]) => [id, w])))
 const fundMetricOf = (tok) => {
@@ -742,6 +753,26 @@ export const ARG_KINDS = {
     },
     describe: (v) => ({ contracts: 'federal contracts', trials: 'clinical trials', fda: 'FDA approvals', lobbying: 'lobbying' })[v] || v,
   },
+  // ── OSCR RICH / OSCR CHEAP (2026-11-22): panels/ivRankModel.js OSCR_VIEW_ARG_WORDS; pinned by args.ivRank.test.js ──
+  /** OSCR's IV rank view: the highest or the lowest IV rank across the options log; bare `OSCR` is the screener. */
+  oscrView: {
+    takes: 'RICH or CHEAP',
+    parse: (tok) => {
+      const key = String(tok ?? '').trim().toUpperCase()
+      return Object.prototype.hasOwnProperty.call(OSCR_VIEW_WORDS, key) ? OSCR_VIEW_WORDS[key] : null
+    },
+    describe: (v) => (v === 'cheap' ? 'lowest IV rank' : 'highest IV rank'),
+  },
+  // ── IPO LOCKUP (2026-11-22): panels/ipoLockupModel.js IPO_VIEW_ARG_WORDS; pinned by args.ipoLockup.test.js ──
+  /** IPO's lockup view: the estimated lockup expiries of the next 30 days; bare `IPO` is the calendar. */
+  ipoView: {
+    takes: 'LOCKUP',
+    parse: (tok) => {
+      const key = String(tok ?? '').trim().toUpperCase()
+      return Object.prototype.hasOwnProperty.call(IPO_VIEW_WORDS, key) ? IPO_VIEW_WORDS[key] : null
+    },
+    describe: (v) => (v === 'lockup' ? 'IPO lockup expiries (estimated)' : v),
+  },
   // ── FUND (2026-11-21): the panel model's words (panels/fundMetricsModel.js; pinned by functions.fundMetrics.test.js) ──
   /** FUND's line: ONE metric word draws that metric as a line (parseFundMetric). */
   fundMetric: {
@@ -803,7 +834,7 @@ export const ARG_KINDS = {
   },
   /** GRPS's column set. */
   groupsView: {
-    takes: 'a column set (OVERVIEW, GROWTH, MARGINS, VALUATION, BREADTH, RANK, ALL)',
+    takes: 'a column set (OVERVIEW, GROWTH, MARGINS, VALUATION, BREADTH, RANK, CROWDING, ALL)',
     parse: (tok) => {
       const key = String(tok ?? '').trim().toUpperCase()
       return Object.prototype.hasOwnProperty.call(GROUPS_VIEW_WORDS, key) ? GROUPS_VIEW_WORDS[key] : null
@@ -828,6 +859,25 @@ export const ARG_KINDS = {
       return Object.prototype.hasOwnProperty.call(EEHSC_METRIC_WORDS, key) ? EEHSC_METRIC_WORDS[key] : null
     },
     describe: (v) => (v === 'revenue' ? 'revenue estimates' : 'EPS estimates'),
+  },
+  // ── ERNSC (2026-11-22): the panel model's words (panels/sectorEarningsModel.js; pinned by functions.sectorEarnings.test.js) ──
+  /** ERNSC's season: the one before, or the same one a year earlier (bare `ERNSC` is the season that holds today). */
+  ernscSeason: {
+    takes: 'a season (PRIOR or YEARAGO)',
+    parse: (tok) => {
+      const key = String(tok ?? '').trim().toUpperCase()
+      return Object.prototype.hasOwnProperty.call(ERNSC_SEASON_WORDS, key) ? ERNSC_SEASON_WORDS[key] : null
+    },
+    describe: (v) => ERNSC_SEASON_DESCRIBE[v] || v,
+  },
+  /** ERNSC's measure: EPS (bare `ERNSC`) or revenue. */
+  ernscMetric: {
+    takes: 'a measure (EPS or REVENUE)',
+    parse: (tok) => {
+      const key = String(tok ?? '').trim().toUpperCase()
+      return Object.prototype.hasOwnProperty.call(ERNSC_METRIC_WORDS, key) ? ERNSC_METRIC_WORDS[key] : null
+    },
+    describe: (v) => (v === 'revenue' ? 'revenue against the consensus' : 'EPS against the consensus'),
   },
 }
 

@@ -79,3 +79,10 @@
 
 .attachOk { color: var(--color-success, #4ade80); }
 .attachErr { color: var(--color-danger, #f87171); }
+
+/* ⭐ THE PASTE WORKER — a build of the script on screen is still running (off the main thread): said, quietly. */
+.building {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--text-muted, #a9a59b);
+}

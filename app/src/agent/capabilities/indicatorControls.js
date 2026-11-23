@@ -28,6 +28,7 @@ import {
 } from './indicatorEdits'
 import { isValidTf } from '../../components/chart/timeframes'
 import { activeAlertsOnInstance } from './indicatorAlerts'
+import { colorOfWords, lookOfWords, placeOfWords, paneMoveOfWords, paneResizeOfWords, duplicateOfWords } from './indicatorPhrases'
 
 const APPEARANCE = ['lineWidth', 'lineStyle', 'overlap']
 // ⭐ PACKAGE 3: `showOn` — which chart timeframes it draws on (Indicators' `setVisibility`, the Inspector's "Show on")
@@ -307,7 +308,8 @@ export function registerIndicatorControlCapabilities() {
     summary: 'Change how ONE indicator on ONE chart looks — its color (or a histogram\'s up / down colors), line width, line style, plot style, dot size (on an indicator that draws dots), or which chart timeframes it shows on — exactly what its settings / Inspector offer. One change per op; Undo puts it back.',
     hints: 'target = the ref of that chart\'s indicatorEdits entry; instance = the indicator\'s id from that chart\'s indicators list (or "#20" for the one of length 20, "#20:ema"). property = color | upColor | downColor | lineWidth (1–4, or "thicker" / "thinner") | lineStyle (solid | dashed | dotted) | plotStyle (line, histogram, area… as offered) | overlap | showOn (which chart timeframes it draws on: value = "daily", "weekly", "daily and weekly", "intraday", "daily and above" or "all" — "only show it on the daily" = showOn daily) | dotSize (small | medium | large — "medium" is the default; only an indicator that draws dots, e.g. "make the RS dots large" = dotSize large). value = the member\'s value (a color name or #hex for colors). output = which line, color or dot output when the indicator has several (its label), else null. "Make the 9 green and the 20 red and dashed" = three ops.',
     args: { type: 'object', properties: { instance: instanceArg, property: { type: 'string', enum: PROPERTIES }, value: { type: ['string', 'number', 'boolean'] }, output: { type: ['string', 'null'] } }, required: ['instance', 'property', 'value', 'output'], additionalProperties: false },
-    fast: ({ lower }) => fastStyle(lower),
+    // (C2 family: the general colour / width / line-style / plot-style readers after the original shapes)
+    fast: ({ lower }) => fastStyle(lower) || colorOfWords(lower) || lookOfWords(lower),
     check: (st, args) => checkBuilt(st, styleRequest(st, args)),
     apply: (st, args) => applyBuilt(st, styleRequest(st, args)),
     describe: (b, a) => describeBuilt(a),
@@ -321,7 +323,7 @@ export function registerIndicatorControlCapabilities() {
     summary: 'Move ONE indicator on ONE chart to where it draws — on the price pane, on the volume pane, in its own pane, inside another indicator\'s pane, or back to automatic (the Inspector\'s "Display in"). Undo puts it back.',
     hints: 'target = the chart\'s indicatorEdits entry; instance = the indicator; place = price | volume | pane (its own) | auto | another indicator on that chart (its id or name) to draw inside its pane.',
     args: { type: 'object', properties: { instance: instanceArg, place: { type: 'string' } }, required: ['instance', 'place'], additionalProperties: false },
-    fast: ({ lower }) => fastPlace(lower),
+    fast: ({ lower }) => fastPlace(lower) || placeOfWords(lower),
     confirmIf(st, args) {
       const b = placeRequest(st, args)
       if (!b.req) return false
@@ -366,7 +368,9 @@ export function registerIndicatorControlCapabilities() {
     summary: 'Reorder ONE chart\'s panes (Chart Data → Arrange): move a pane up, down, to the top or bottom, or above / below another pane ("move RSI above price"). Undo puts the order back.',
     hints: 'target = the chart\'s indicatorEdits entry; pane = price | volume | an indicator drawn in its own pane (its id, name or kind, e.g. "rsi"); to = up | down | top | bottom | above | below; relativeTo = the other pane for above / below, else null.',
     args: { type: 'object', properties: { pane: { type: 'string' }, to: { type: 'string', enum: POSITIONS }, relativeTo: { type: ['string', 'null'] } }, required: ['pane', 'to', 'relativeTo'], additionalProperties: false },
-    fast: ({ lower }) => fastMove(lower),
+    // whole sentence too: "move rsi to the top" — "the top" is a pane position here, never a chart's (fastPath.extractTarget)
+    fast: ({ lower }) => fastMove(lower) || paneMoveOfWords(lower),
+    fastWhole: true,
     check: (st, args) => checkBuilt(st, moveRequest(st, args)),
     apply: (st, args) => applyBuilt(st, moveRequest(st, args)),
     describe: (b, a) => describeBuilt(a),
@@ -379,7 +383,7 @@ export function registerIndicatorControlCapabilities() {
     summary: 'Change the height of ONE pane on ONE chart (what dragging its divider does): a percent of the chart\'s height, bigger, smaller, or back to automatic. Undo puts it back.',
     hints: 'target = the chart\'s indicatorEdits entry; pane = price | volume | an indicator in its own pane; size = a percent (4–90) or "bigger" | "smaller" | "auto".',
     args: { type: 'object', properties: { pane: { type: 'string' }, size: { type: ['string', 'number'] } }, required: ['pane', 'size'], additionalProperties: false },
-    fast: ({ lower }) => fastResize(lower),
+    fast: ({ lower }) => fastResize(lower) || paneResizeOfWords(lower),
     check: (st, args) => checkBuilt(st, resizeRequest(st, args)),
     apply: (st, args) => applyBuilt(st, resizeRequest(st, args)),
     describe: (b, a) => describeBuilt(a),
@@ -392,6 +396,7 @@ export function registerIndicatorControlCapabilities() {
     addsIndicators: true,
     summary: 'Add a second copy of ONE indicator on the same chart, with everything it is configured with (the legend\'s Duplicate). Undo removes only the copy.',
     hints: 'target = the chart\'s indicatorEdits entry; instance = the indicator to copy. To put indicators on ANOTHER chart use indicatorCopy.copyTo.',
+    fast: ({ lower }) => duplicateOfWords(lower),
     args: { type: 'object', properties: { instance: instanceArg }, required: ['instance'], additionalProperties: false },
     check(st, { instance }) {
       const t = targetOf(st, instance)
@@ -442,7 +447,8 @@ const instanceWord = (w) => {
   const n = /^(\d{1,4})(?: ?(ema|sma|wma|hma))?$/.exec(s)
   if (n) return n[2] ? `#${n[1]}:${n[2]}` : `#${n[1]}`
   // a word is an indicator only when it NAMES one exactly ("rsi", "macd") — "make the chart green" is not ours
-  return defIdOfWords(s) ? s : null
+  // (C2 family: the catalog id, so a full name — "the relative strength index" — resolves on the chart as "rsi" does)
+  return defIdOfWords(s) || null
 }
 function fastStyle(lower) {
   let m = new RegExp(`^(?:make|turn|colou?r|paint) (.+?) (${COLORS.join('|')}|#[0-9a-f]{3}|#[0-9a-f]{6})$`).exec(lower)

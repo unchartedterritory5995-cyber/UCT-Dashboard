@@ -31,8 +31,16 @@ background thread started by the scheduler's evening ticks (`scheduled_refresh`,
 and never by a member's request: only in the quiet span `scan_period` keeps whole-universe work to (weekends,
 and weekdays before 07:00 or from 20:15 New York time), only when the held answer is older than the newest
 session's evening (`REBUILD_AT_ET`), one build at a time, with a short pause after every stock (`YIELD_S`).
+The span is checked only when a build STARTS; a build still running when it ends (07:00 on a weekday) is not
+stopped, but from that stock on it pauses `YIELD_BUSY_S` after each one (MKTH's pair, `market_history.py`).
 Closes that stop short of that evening, or filings that could not be read, are tried again on a later tick,
 at most `LAG_TRIES` times an evening.
+A BUILD THAT PRICED TOO LITTLE IS A FAILURE (`held_build.py`'s rule: a look that did not go well never replaces a
+good answer). When every price read fails, the build still finishes with no session, no breadth and no rank; held,
+it would replace the last good evening's figures in memory and on disk. So a build that priced fewer than
+`MIN_PRICED_SHARE` of the stocks it read (none at all included), or found no session, is not held: the held answer
+and its disk copy stay as they were, the failure is said in the build's log line, and the evening is tried again on
+a later tick (after `FAIL_RETRY_S`), counted against the same `LAG_TRIES`.
 
 BOUNDS: at most `MAX_SYMBOLS` symbols; each stock's full history is dropped as soon as its last
 `TAIL_SESSIONS` closes and three valuation closes are taken (the tails are arrays: about 4 KB a stock);
@@ -45,6 +53,14 @@ THE WEEKLY RANK, MEASURED (2026-11-22, the build before and after on the same in
 sectors and 145 industries, filings off, best of three, dev PC): +1.4 s of CPU per build (1.0 s for the changes, the
 medians and the ranks; 0.4 s for the longer tail), +5.9 MB at the build's peak, +1.5 MB held with the answer, and
 +341 KB in the answer's JSON (disk and the industries table).
+
+POSITIONING (2026-11-22, the GRPS CROWDING view): after the closes are let go, the same build reads three stores
+this server already holds, each ONCE (the short interest list SHRTS ranks, the INS CLUSTER store's open-market
+purchases, and the Funds (N-PORT) index), and rolls each stock's figure up by the same groups
+(`api/services/group_positioning.py` says where every number comes from, what is left out and why). Held with the
+answer; a part whose store cannot be read says so, and a failure there never costs the rest of the build. An answer
+held from before it is rebuilt on the next quiet tick, as the weekly rank was. The table and one group's members are
+read with `part=positioning` (`get_group_positioning`), so the other views' answers stay exactly as they were.
 """
 from __future__ import annotations
 
@@ -60,6 +76,7 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Callable, Optional
 from zoneinfo import ZoneInfo
 
+from api.services import group_positioning as GP
 from api.services import group_stats_calc as C
 
 _log = logging.getLogger(__name__)
@@ -74,7 +91,9 @@ MAP_NAME = "the sector and industry each company's details name (the map GRP and
 # ── defaults (each one is the builder's, not an owner ruling) ────────────────────────────────
 REBUILD_AT_ET = (20, 15)        # a trading day's evening begins here (scan_period's quiet span)
 QUIET_HOURS_ET = (7 * 60, 20 * 60 + 15)   # minutes: a weekday between these is busy (scan_period._reuse_quiet_now)
-YIELD_S = 0.005                 # the build sleeps this long after every stock it reads
+YIELD_S = 0.005                 # the build sleeps this long after every stock it reads, in the quiet span
+YIELD_BUSY_S = 0.05             # and this long once the quiet span has ended mid-build (market_history.YIELD_BUSY_S)
+MIN_PRICED_SHARE = 0.25         # a build that priced fewer than this share of the universe it read is not held
 MAX_SYMBOLS = 8000              # the universe read never exceeds this many symbols
 FAIL_RETRY_S = 1200.0           # a failed build waits this long before another is started
 LAG_TRIES = 3                   # an evening whose closes or filings fell short is tried again at most this often
@@ -233,15 +252,23 @@ def _metric_meta() -> list[dict]:
 def build(now: Optional[datetime] = None, *, read_closes: Optional[Callable[[str], dict]] = None,
           read_artifact: Optional[Callable[[str], Optional[dict]]] = None, symbols: Optional[list] = None,
           groups: Optional[dict] = None, pause: Callable[[float], None] = time.sleep,
-          yield_s: Optional[float] = None, fund_on: Optional[bool] = None) -> dict:
+          yield_s: Optional[float] = None, fund_on: Optional[bool] = None,
+          positioning: Optional[Callable[[dict], dict]] = None, yield_busy_s: Optional[float] = None,
+          clock: Optional[Callable[[], datetime]] = None) -> dict:
     """The whole build on the calling (background) thread; returns the answer. Reads every stock ONCE (its
-    closes, then its filings), then works out every group's figures."""
+    closes, then its filings), then works out every group's figures, then each group's positioning from the three
+    held stores (`positioning(sym_groups)`, `group_positioning.build` unless a test gives one).
+    After each stock it pauses `yield_s`, or `yield_busy_s` from the first stock at which `clock()` is past the quiet
+    span (the build goes on to the end). `clock` is the real clock, or `now` held still when the caller gives `now`."""
     started, cpu0 = time.time(), time.process_time()
+    if clock is None:
+        clock = (lambda: now) if now is not None else now_et
     now = now or now_et()
     key = evening_key(now)
     refs = fund_refs(date.fromisoformat(key))
     read_closes = read_closes or _closes
     yield_s = YIELD_S if yield_s is None else yield_s
+    yield_busy_s = YIELD_BUSY_S if yield_busy_s is None else yield_busy_s
     symbols = list(symbols if symbols is not None else _universe())[:MAX_SYMBOLS]
     groups = groups if groups is not None else _group_map()
     fund_on = fundamentals_on() if fund_on is None else fund_on
@@ -262,6 +289,7 @@ def build(now: Optional[datetime] = None, *, read_closes: Optional[Callable[[str
     day_counts: Counter = Counter()
     counts = Counter()
     t_prices = t_filings = 0.0
+    busy_after: Optional[int] = None      # stocks read before the quiet span ended, once it has
     try:
         for sym in symbols:
             g = groups.get(sym) or {}
@@ -322,8 +350,11 @@ def build(now: Optional[datetime] = None, *, read_closes: Optional[Callable[[str
                 else:
                     counts["no_filings"] += 1
                 t_filings += time.process_time() - t1
-            if yield_s > 0:
-                pause(yield_s)
+            if busy_after is None and not quiet(clock()):
+                busy_after = counts["mapped"] - 1          # the quiet span ended: every pause from here is the busy one
+            wait = yield_s if busy_after is None else yield_busy_s
+            if wait > 0:
+                pause(wait)
     finally:
         try:
             close_reader()
@@ -365,6 +396,15 @@ def build(now: Optional[datetime] = None, *, read_closes: Optional[Callable[[str
     rank_members.clear()
     t_rank += time.process_time() - t3
     t_breadth = time.process_time() - t2 - t_rank
+
+    # positioning runs after the closes are let go, so the build's peak is the larger of the two passes, not their sum
+    t4 = time.process_time()
+    try:
+        pos = (positioning or GP.build)(sym_groups)
+    except Exception as exc:  # noqa: BLE001 -- said as every part's state; the rest of the build stands
+        _log.warning("[group-stats] positioning could not be worked out (%s)", type(exc).__name__)
+        pos = GP.failed()
+    t_pos = time.process_time() - t4
 
     iso = lambda o: date.fromordinal(o).isoformat()
     rank_dates = [iso(p) if p is not None else None for p in points]
@@ -418,9 +458,11 @@ def build(now: Optional[datetime] = None, *, read_closes: Optional[Callable[[str
                      "not_mapped": counts["not_mapped"]},
         "lagging": lag,
         "kinds": kinds_out,
+        "positioning": pos,
         "build": {"seconds": round(time.time() - started, 1), "cpu_seconds": round(time.process_time() - cpu0, 1),
                   "prices_cpu_s": round(t_prices, 1), "filings_cpu_s": round(t_filings, 1),
-                  "groups_cpu_s": round(t_breadth, 1), "rank_cpu_s": round(t_rank, 2), "counts": dict(counts)},
+                  "groups_cpu_s": round(t_breadth, 1), "rank_cpu_s": round(t_rank, 2),
+                  "positioning_cpu_s": round(t_pos, 2), "counts": dict(counts), "busy_after": busy_after},
         "metrics": _metric_meta(),
     }
     return answer
@@ -458,11 +500,40 @@ def _rank_blocks(blocks: dict) -> None:
 
 # ── the one background build ─────────────────────────────────────────────────────────────────
 
+def _positioning_said(pos: Optional[dict]) -> str:
+    """Each positioning part's state and how many stocks it covered, for the build's one log line."""
+    parts = (pos or {}).get("parts") or {}
+    return " ".join(f"{p}={(parts.get(p) or {}).get('state')}/{(parts.get(p) or {}).get('covered', '-')}"
+                    for p in ("short", "insider", "funds"))
+
+
+def too_thin(answer: dict) -> Optional[str]:
+    """Why a finished build is not good enough to hold, in words for the log, or None. It priced no stock, or fewer
+    than `MIN_PRICED_SHARE` of the stocks it read, or found no session (so no breadth and no rank)."""
+    priced = int(((answer.get("build") or {}).get("counts") or {}).get("priced") or 0)
+    universe = int((answer.get("universe") or {}).get("symbols") or 0)
+    if priced == 0 or priced < MIN_PRICED_SHARE * universe:
+        return f"priced {priced} of {universe} stocks"
+    if answer.get("session") is None:
+        return "no session in the closes"
+    return None
+
+
 def _run_build(done: threading.Event) -> None:
     started = time.time()
     said, level = "failed", logging.WARNING
     try:
         answer = build()
+        thin = too_thin(answer)
+        if thin is not None:
+            # never held, never written: the last good answer and its disk copy stay; tried again, within LAG_TRIES
+            with _lock:
+                key, prev = answer["built_for"], _state["lag"]
+                tries = prev[1] + 1 if prev and prev[0] == key else 1
+                _state["lag"] = (key, tries)
+                _state["retry_at"] = time.time() + FAIL_RETRY_S
+            said = f"failed ({thin}; not held, the last answer stays; try {tries} of {LAG_TRIES} for {key})"
+            return
         with _lock:
             prev = _state["lag"]
             key = answer["built_for"]
@@ -477,9 +548,11 @@ def _run_build(done: threading.Event) -> None:
         _save_disk()
         b = answer["build"]
         said = (f"session={answer['session']} for={answer['built_for']} lagging={answer['lagging'] or 'no'} "
+                f"busy_after={b.get('busy_after')} "
                 f"cpu={b['cpu_seconds']}s prices={b['prices_cpu_s']}s filings={b['filings_cpu_s']}s "
                 f"groups={b['groups_cpu_s']}s rank={b.get('rank_cpu_s')}s counts={b['counts']} "
-                f"ranked={(answer.get('rank') or {}).get('counted')}")
+                f"ranked={(answer.get('rank') or {}).get('counted')} positioning={b.get('positioning_cpu_s')}s "
+                f"{_positioning_said(answer.get('positioning'))}")
         level = logging.INFO
     except Exception as exc:  # noqa: BLE001 -- a failed build is said and tried again later, never "computing" for ever
         said = f"failed ({type(exc).__name__})"
@@ -506,18 +579,24 @@ def _start_job() -> threading.Event:
 def refresh_due(now: Optional[datetime] = None, at: Optional[float] = None) -> bool:
     """True when nothing is running, no retry wait is on, and the held answer is older than the newest
     session's evening, or that evening fell short (closes or filings) and has been tried fewer than
-    `LAG_TRIES` times. Pure over the module's state."""
+    `LAG_TRIES` times. A build that priced too little to hold counts against the same tries: with nothing held,
+    or only an older evening's answer, the evening is not tried again once `LAG_TRIES` builds of it priced too
+    little. Pure over the module's state."""
     now = now or now_et()
     at = time.time() if at is None else at
     with _lock:
         if _state["inflight"] is not None or at < _state["retry_at"]:
             return False
-        if _state["answer"] is None:
-            return True
-        if "rank" not in _state["answer"]:       # held from before the weekly rank: the next quiet tick builds it
-            return True
-        built_for, lag = _state["built_for"], _state["lag"]
+        ans, built_for, lag = _state["answer"], _state["built_for"], _state["lag"]
     key = evening_key(now)
+    if lag and lag[0] == key and lag[1] >= LAG_TRIES and (ans is None or built_for is None or built_for < key):
+        return False                            # this evening's tries are spent; the next evening tries again
+    if ans is None:
+        return True
+    if "rank" not in ans:                       # held from before the weekly rank: the next quiet tick builds it
+        return True
+    if "positioning" not in ans:                # held from before positioning: likewise
+        return True
     if built_for is None or built_for < key:
         return True
     return bool(lag and lag[0] == key and lag[1] < LAG_TRIES)
@@ -747,6 +826,45 @@ def get_group_stats(kind: str = "sector", name: Optional[str] = None) -> dict:
                 "fund": hit.get("fund") if on else None, "breadth": hit.get("breadth"),
                 "rank": _full_rank(hit.get("rank"), ans, kind),
                 "line_dates": ans.get("line_dates") or []})
+    return out
+
+
+def get_group_positioning(kind: str = "sector", name: Optional[str] = None) -> dict:
+    """GRPS CROWDING: every group of a kind with its positioning (the table), or one group's positioning with its
+    members and their own figures (`name`). NEVER builds and never reads a store: it reads what this module holds.
+    The other parts of the answer (fundamentals, breadth, rank) are left out, so this answer stays small."""
+    if kind not in KINDS:
+        return {"status": "error", "detail": "kind must be sector or industry"}
+    _ensure_loaded()
+    with _lock:
+        ans = _state["answer"]
+        running = _state["inflight"] is not None
+    if ans is None or ans.get("status") != "ok":
+        if running:
+            return {"status": "computing", "kind": kind, "part": "positioning"}
+        return {"status": "not_built", "kind": kind, "part": "positioning",
+                "detail": ("The group figures are worked out once each evening after the close (from 8:15 PM New "
+                           "York time), and the first one has not run on this server yet.")}
+    pos = ans.get("positioning")
+    names = (ans.get("kinds") or {}).get(kind) or {}
+    blocks = ((pos or {}).get("kinds") or {}).get(kind) or {}
+    out = _common(ans, kind, fundamentals_on(), running)
+    out["part"] = "positioning"
+    out["sources"]["positioning"] = GP.parts_view(pos)
+    if name is None:
+        out["groups"] = [{"name": b["name"], "members": b["members"], "positioning": GP.brief(blocks.get(b["name"]))}
+                         for b in names.values()]
+        out["count"] = len(out["groups"])
+        return out
+    asked = " ".join(str(name).split())[:MAX_NAME]
+    hit = _find(names, asked)
+    out.update({"name": asked, "peers": len(names)})
+    if hit is None:
+        out["found"] = False
+        return out
+    block = blocks.get(hit["name"])
+    out.update({"found": True, "name": hit["name"], "members": hit["members"], "positioning": GP.brief(block),
+                **GP.member_rows(pos, block)})
     return out
 
 

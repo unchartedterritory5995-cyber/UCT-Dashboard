@@ -27,7 +27,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { settleAction, BURST_SETTLE_MS } from './useSymbolSettle'
-import { groupJoin, groupLeave, groupReady, registerMember, settleClock, createSettleClock, decisionFor, subscribeDecisions } from './handoffGroups'
+import { groupJoin, groupLeave, groupReady, registerMember, settleClock, createSettleClock, decisionFor, subscribeDecisions, latestOnly } from './handoffGroups'
 import { memPeek } from '../utils/barsMemCache'
 import * as legacyPrefetch from '../utils/prefetchBars'
 import * as storePrefetch from '../data/barStore/prefetch'
@@ -38,7 +38,7 @@ import { isNativeTf, fetchTf } from '../components/chart/timeframes'
 import { columnsReadyFor, whenColumnsReady, warmColumnsFor } from '../components/chart/engine/serverCompute'
 import { deviceStoreEnabled } from '../data/deviceStore/switch'
 import { deviceSource } from '../data/deviceStore/source'
-import { noteDeviceSwitch, exposeDeviceDiag } from '../data/deviceStore/diag'
+import { noteDeviceSwitch, exposeDeviceDiag, deviceDiagOn } from '../data/deviceStore/diag'
 
 const INTRADAY = new Set(['1', '5', '15', '30', '60'])
 /** The longest a switch waits for its panes' server columns before it commits anyway. */
@@ -50,14 +50,22 @@ export const COLUMNS_WAIT_MS = 300
 // its peek is the store's status, and the held-set test reads the store (`peekBars`) instead of
 // the mem cache alone.
 const P = BARSTORE ? storePrefetch : legacyPrefetch
-// ⭐ The on-device store (data/deviceStore, per-browser switch 'uct.deviceStore', read once like the
-// store's own): a CURRENT device copy paints at once (storePrefetch.devicePaints), not after the deep
-// joins the switch otherwise waits for.
+// ⭐ The on-device store (data/deviceStore, per-browser switch 'uct.deviceStore'): a CURRENT device copy paints at
+// once (storePrefetch.devicePaints), not after the deep joins the switch otherwise waits for. The switch is ONE
+// decision per page load (switch.js, review of #2537 M3): this read, the BarStore's and the diagnostics' below agree.
 const DEVICE = BARSTORE && deviceStoreEnabled()
 const devicePaints = (sym, tf, opts) => DEVICE && storePrefetch.devicePaints(sym, tf, opts)
-// the worker's rule for a switch the device did not paint (diag.js); the source loads nothing new
+/** The chart's own device refusal for the key (sym, tf) shows, NOW (prefetch.deviceHold), or null. Device store on only. */
+const deviceHoldFor = (sym, tf, opts) => {
+  if (!DEVICE) return null
+  try { return storePrefetch.deviceHold?.(sym, tf, opts) ?? null } catch { return null }
+}
+// the worker's rule for a switch the device did not paint (diag.js); null source (the page's store is off): nothing loads
 const deviceWhy = (sym, tf) => { const src = deviceSource(); return src ? src.why(sym, tf) : Promise.resolve('no-client') }
-if (DEVICE) exposeDeviceDiag()
+// ⭐ DIAGNOSTICS FOR A TESTER ONLY (review of #2537, L2: diag.deviceDiagOn): a record costs a worker lookup per switch
+// the device did not paint, which no member on the default should pay. Read once per page load, like DEVICE.
+const DIAG = DEVICE && deviceDiagOn()
+if (DIAG) exposeDeviceDiag()
 /**
  * ⭐ (2026-11-20, the owner's cold path) ROWS THAT COVER THE VIEW PAINT AT ONCE. A cold switch reproduced in
  * the owner's layout (D + 30m, four averages): every 30m handoff took the intraday prepare with the lake's
@@ -156,18 +164,35 @@ function sameTaskRoute(sym, tf, sess) {
   return 'prepare'
 }
 
-/** ⭐ DIAGNOSTICS (device store on only): ONE record per switch, at its commit, of what the first frame is built
+/** ⭐ DIAGNOSTICS (a tester's page only: DIAG, the device store on AND diag.deviceDiagOn): ONE record per switch, at
+ *  its commit, of what the first frame is built
  *  from and, when it is not the device copy, which rule refused it (data/deviceStore/diag.js). Read by no
  *  decision; a failure here never costs the switch. */
-function noteDeviceFor(sym, tf, sess, outcome) {
-  if (!DEVICE) return
+function noteDeviceFor(sym, tf, sess, outcome, pre = null) {
+  if (!DIAG) return
   try {
     const intraday = INTRADAY.has(String(tf))
     const vtf = intraday ? fetchTf(tf) : tf
     const v = storePrefetch.deviceVerdict(sym, vtf, intraday ? sess : {})
-    const rec = noteDeviceSwitch({ sym, tf: String(tf), at: performance.now(), outcome, painted: v.held, reason: v.reason, why: null })
+    // queue: the device client's reads in flight at this commit (a held arrow's backlog, if any)
+    let queue = null
+    try { queue = deviceSource()?.inFlight?.() ?? null } catch { queue = null }
+    const rec = noteDeviceSwitch({ sym, tf: String(tf), at: performance.now(), outcome, painted: v.held, reason: v.reason, why: null, queue, pre })
     if (v.held !== 'device') deviceWhy(sym, vtf).then((w) => { rec.why = w }, () => { rec.why = 'error' })
   } catch { /* diagnostics only */ }
+}
+
+/** ⭐ DIAGNOSTICS (2026-11-21): the device rule's answer for this chart's key NOW, while no server answer holds it
+ *  (null once one does, and without DIAG). A switch that waited commits after the server answered, and
+ *  its record's own verdict then reads 'held:rest' whatever kept the device copy from painting in the meantime
+ *  (devgates 2026-11-21: 107 of 116 typed and 70-row records said only that). The last answer seen here is the record's `pre`. */
+function deviceRuleBeforeAnswer(sym, tf, sess) {
+  if (!DIAG) return null
+  try {
+    const intraday = INTRADAY.has(String(tf))
+    const v = storePrefetch.deviceVerdict(sym, intraday ? fetchTf(tf) : tf, intraday ? sess : {})
+    return v && v.held !== 'rest' && v.held !== 'server' ? v.reason : null
+  } catch { return null }
 }
 
 /** ⭐ CAN THIS CHART SHOW `sym` IN THIS TASK (the key handler's decision, handoffGroups.decideGroupShow)? The same
@@ -179,6 +204,24 @@ function canShowNowFor(sym, tf, sess, st, settle) {
   const route = sameTaskRoute(sym, tf, sess)
   if (route === 'econ') return true
   return route === 'now' && columnsReadyFor(sym, tf)
+}
+
+/** ⭐ (2026-11-21, the cold switch) START THIS CHART'S DEVICE READ for `sym` now (the key press: handoffGroups
+ *  primeGroup), on the key its switch will read (the intraday fetch key and session, or the D/W/M key). */
+function primeDeviceFor(sym, tf, sess) {
+  if (!DEVICE || !sym || !tf || !isNativeTf(tf) || /^ECON:/i.test(String(sym))) return undefined
+  const intraday = INTRADAY.has(String(tf))
+  try { return storePrefetch.deviceWarm(sym, intraday ? fetchTf(tf) : tf, intraday ? sess : {}) } catch { return undefined }
+}
+
+/** ⭐ (2026-11-21, the cold switch) Wake `cb` on each change of the entry (sym, tf) shows, instead of polling it
+ *  every POLL_MS; null under the legacy source (no store to watch: the caller polls). */
+// ⛔ DEVICE STORE ON ONLY (2026-11-21, to ship in the chart train): with the device store off, every waiter keeps
+// today's POLL_MS poll, so this branch changes NOTHING for a member without it (cold gates 1, 3 and 4 are device-only
+// by construction: the prime returns at !DEVICE; the worker and its minute replay only run with the store on).
+const watchEntry = (sym, tf, opts, cb) => {
+  if (!BARSTORE || !DEVICE) return null
+  try { return storePrefetch.watch?.(sym, tf, opts, cb) || null } catch { return null }
 }
 
 const NO_SUBSCRIPTION = () => () => {}
@@ -234,11 +277,16 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
   }
   // the member's view, for canShowNow: written each commit, read by the key handler (never during a render)
   const viewRef = useRef({ tf, showExtended })
+  // this chart's device read in the key press, LATEST-ONLY (handoffGroups.latestOnly): a held arrow never queues
+  // a read per row it passes
+  const primeRef = useRef(null)
+  if (!primeRef.current) primeRef.current = latestOnly((sym) => primeDeviceFor(sym, viewRef.current.tf, sessOf(viewRef.current.showExtended)))
   useLayoutEffect(() => { viewRef.current = { tf, showExtended } })
   useLayoutEffect(() => {
     if (!scoped) return undefined
     return registerMember(scope, group, memberIdRef.current, {
       tf: () => viewRef.current.tf,
+      prime: (sym) => primeRef.current(sym),
       canShowNow: (sym, settleNow) => canShowNowFor(sym, viewRef.current.tf, sessOf(viewRef.current.showExtended), settleRef.current, settleNow),
       showDecided: (sym) => {
         lastOutcomeRef.current = null   // the synchronous warm path, as the effect's same-tick commit records it
@@ -266,6 +314,12 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
   // DEGRADED handoff separately from a successful one. Diagnostic only — no
   // rendering decision reads it.
   const lastOutcomeRef = useRef(null)
+  // ⛔⛔ (2026-11-21, the held key) A REQUEST THAT IS LEFT NEVER SHOWS. Every answer below is checked against the
+  // generation that started it, but a generation only ended when the NEXT request RAN, and inside a burst the next
+  // request waits BURST_SETTLE_MS before it runs (or never runs: a newer key replaces it). So a superseded request
+  // stayed current that long, and a late answer of it (its panes' columns landing) showed it, alone, over the newer
+  // one. It ends HERE, in the commit that leaves it: a layout cleanup, so before any late answer can run.
+  useLayoutEffect(() => () => { genRef.current += 1 }, [requestedSym, tf, enabled, group])
 
   useEffect(() => {
     // Disabled / nothing requested: pass straight through, same tick. The
@@ -298,19 +352,65 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
 
     function run() {
       const gen = ++genRef.current
+      const startedAt = Date.now()
+      const sess = sessOf(showExtended)
       // the chart is ready: it is SHOWN with its group (groupReady), or alone when it has none
-      const show = () => { if (genRef.current === gen) setDisplayedSym(requestedSym) }
-      const commitNow = () => { if (genRef.current === gen) groupReady(group, requestedSym, memberIdRef.current, show, String(tf)) }
+      let shown = false
+      const show = () => { if (genRef.current === gen) { shown = true; stopHold(); setDisplayedSym(requestedSym) } }
+      // ⛔⛔ THE CHART'S OWN REFUSAL, ASKED AT THE MOMENT OF SHOWING (review of #2558, P4-M1). Every route below decides on
+      // what the store holds NOW and shows the chart LATER: after its panes' columns (COLUMNS_WAIT_MS), after the intraday
+      // prepare's lake join, after its group's last member. A bucket that ends in between makes the chart refuse the device
+      // copy this switch accepted (useBarSnapshotBars: short of its current bucket), and the chart has not shown that key
+      // yet, so nothing exempts it: A -> blank -> B, with no bars request even left on the 'now' route. So the round asks
+      // here (`holds`, prefetch.deviceHold: the chart's rule, its key, its clock) right before it shows this chart, and a
+      // copy the chart would refuse is not shown: A stays, B's bars request leaves now (prefetch.askForDisplay), and the
+      // switch waits on the entry for the answer or a newer device copy, then is ready again. Bounded by the intraday
+      // prepare's hang guard (HANDOFF_HANG_MS from the switch): past it the chart shows its own loading state, as before.
+      // In a linked group the round holds EVERY member while one holds (handoffGroups _flushRound): one frame, or none.
+      // With the device store off `holds` is null and nothing here runs (deviceHoldFor answers null without a device copy).
+      let forced = false
+      let holdStop = null
+      const holdCtl = DEVICE && typeof AbortController !== 'undefined' ? new AbortController() : null
+      function stopHold() { const h = holdStop; holdStop = null; if (h) h() }
+      const refusedNow = () => !forced && genRef.current === gen && !!deviceHoldFor(requestedSym, tf, sess)
+      const hold = () => {
+        if (holdStop) return
+        try { storePrefetch.askForDisplay?.(requestedSym, tf, { ...sess, signal: holdCtl?.signal ?? null }) } catch { /* the chart asks */ }
+        const wake = () => {
+          if (!holdStop || genRef.current !== gen) return
+          if (refusedNow() || !holdStop) return   // (the look may re-read the device and land the switch inside it)
+          stopHold()
+          commitNow()
+        }
+        const unwatch = watchEntry(requestedSym, fetchTf(tf), sess, wake)
+        const poll = unwatch ? null : setInterval(wake, POLL_MS)
+        const guard = setTimeout(() => {
+          if (!holdStop || genRef.current !== gen) return
+          stopHold()
+          forced = true
+          lastOutcomeRef.current = 'hang'
+          commitNow()
+        }, Math.max(0, startedAt + HANDOFF_HANG_MS - Date.now()))
+        holdStop = () => { if (unwatch) unwatch(); if (poll) clearInterval(poll); clearTimeout(guard) }
+      }
+      const holds = DEVICE ? () => { if (!refusedNow()) return false; hold(); return true } : null
+      const commitNow = () => { if (genRef.current === gen) groupReady(group, requestedSym, memberIdRef.current, show, String(tf), holds) }
+      // what this switch leaves behind when it is left (a newer symbol, unmount) or done: no waiter, and a hold's request
+      // aborted unless the chart was shown (then the chart owns that request)
+      const leaveHold = () => { stopHold(); if (!shown) { try { holdCtl?.abort() } catch { /* ignore */ } } }
       // ⭐ ONE PAINT, PANES INCLUDED (2026-11-17): every path below commits through here, and B is
       // shown only once the server columns its panes draw have landed (serverCompute.columnsReadyFor),
       // waiting at most COLUMNS_WAIT_MS. Landed (or stored in this browser) commits in the same tick.
-      const sess = sessOf(showExtended)
       // one device diagnostics record per switch, at its commit (noteDeviceFor)
       let noted = false
+      // `pre`: the device rule's last answer while this switch waited with no server answer on the key
+      // (deviceRuleBeforeAnswer); asked wherever the switch itself asks the rule, never on a timer of its own
+      let pre = null
+      const seePre = () => { const r = deviceRuleBeforeAnswer(requestedSym, tf, sess); if (r) pre = r }
       const noteDevice = () => {
         if (noted) return
         noted = true
-        noteDeviceFor(requestedSym, tf, sess, lastOutcomeRef.current)
+        noteDeviceFor(requestedSym, tf, sess, lastOutcomeRef.current, pre)
       }
       const commit = () => {
         if (genRef.current !== gen) return
@@ -323,7 +423,7 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
       // or prefetch through the bars lane (it would 404) — the chart loads it from
       // /api/econ itself, so the request commits straight through.
       const route = sameTaskRoute(requestedSym, tf, sess)
-      if (route === 'econ') { commitNow(); return undefined }
+      if (route === 'econ') { commitNow(); return leaveHold }
 
       // The panes' server columns leave NOW, beside the bars (the prepare below, or the daily one), so
       // the commit's bounded wait (COLUMNS_WAIT_MS) covers only what is left of them.
@@ -354,22 +454,34 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
         // of this key's life, never a saved copy alone: a copy from an earlier day is behind, and the chart
         // refuses to paint it (useBarSnapshotBars, dailyCachePaintVerdict), so committing on it would show a
         // loading chart instead of A.
+        // ⭐ (2026-11-21) with the device store on: woken by prefetch.watch (the device copy landing, the tail's
+        // answer being noted), never a poll; off, the POLL_MS poll as before (watchEntry)
         let devTimer = null
-        const devPoll = () => {
-          devTimer = null
-          if (!live) return
-          if (devicePaints(requestedSym, tf)) { land('device'); return }
-          if (covers(requestedSym, tf, { answered: true })) { land('covered'); return }
-          devTimer = setTimeout(devPoll, POLL_MS)
+        let unwatch = null
+        // ⛔ ONE STOP, SAFE TO CALL AGAIN: a look at the entry can wake the watcher INSIDE it (the device rule
+        // re-reads the device), and that nested wake lands the switch and stops watching first
+        const stopWatch = () => { const u = unwatch; unwatch = null; if (u) u() }
+        const ready = () => {
+          if (!live) return true
+          seePre()
+          if (devicePaints(requestedSym, tf)) { land('device'); return true }
+          if (covers(requestedSym, tf, { answered: true })) { land('covered'); return true }
+          return false
         }
-        if (DEVICE || BARSTORE) devTimer = setTimeout(devPoll, 0)
-        return () => { live = false; clearTimeout(bound); if (devTimer) clearTimeout(devTimer); ctl.abort() }
+        if (DEVICE || BARSTORE) {
+          unwatch = watchEntry(requestedSym, tf, {}, () => { if (unwatch && ready()) stopWatch() })
+          if (unwatch) { if (ready()) stopWatch() } else {
+            const devPoll = () => { devTimer = null; if (!ready()) devTimer = setTimeout(devPoll, POLL_MS) }
+            devTimer = setTimeout(devPoll, 0)
+          }
+        }
+        return () => { live = false; clearTimeout(bound); if (devTimer) clearTimeout(devTimer); stopWatch(); ctl.abort(); leaveHold() }
       }
 
       // displayable and whole (paintsWholeNow), or a code this coordinator does not govern: commit now. The
       // prepare below otherwise waits for the lake's join (bounded, prefetch LAKE_JOIN_WAIT_MS) and the chart's
       // first frame holds it. The warms join it before Enter, so this is the rare case.
-      if (route === 'now') { commit(); return undefined }
+      if (route === 'now') { commit(); return leaveHold }
 
       let alive = true
       // PREPARE, AND COMMIT ON WHAT IT REPORTS — never on a stopwatch.
@@ -404,13 +516,24 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
       // symbol from the shared queue before our own prepare resolves — committing
       // the moment the cache is good is strictly better than waiting for our
       // request to come back.
+      // ⭐ (2026-11-21) with the device store on it is woken by prefetch.watch (a repair, a device copy, the
+      // answer), never a POLL_MS poll; off (and under the legacy source) it keeps the poll (watchEntry).
       let timer = null
+      let unwatchI = null
+      const stopWatchI = () => { const u = unwatchI; unwatchI = null; if (u) u() }   // (safe to call again: see stopWatch)
       const tick = () => {
         if (!alive || genRef.current !== gen) return
+        seePre()
         if (paintsWholeNow(requestedSym, tf, sess)) { commitHere(); return }
         timer = setTimeout(tick, POLL_MS)
       }
-      timer = setTimeout(tick, POLL_MS)
+      seePre()   // (the route was just decided on this entry: what the device rule said of it then)
+      unwatchI = watchEntry(requestedSym, fetchTf(tf), sess, () => {
+        if (!unwatchI || !alive || genRef.current !== gen || committed) return
+        seePre()
+        if (paintsWholeNow(requestedSym, tf, sess)) { stopWatchI(); commitHere() }
+      })
+      if (!unwatchI) timer = setTimeout(tick, POLL_MS)
 
       // ⚠️ THE BACKSTOP IS A HANG GUARD, NOT A RESULT. `prepareForDisplay` resolves
       // on success AND on failure, so the only way to reach this is a request that
@@ -418,12 +541,14 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
       // staring at the previous symbol forever is worse than a chart that says it
       // is loading — but it is recorded as degraded, exactly like 'error'.
       const deadline = setTimeout(() => {
-        if (!alive || genRef.current !== gen) return
+        if (!alive || genRef.current !== gen || forced) return
         lastOutcomeRef.current = 'hang'
+        forced = true      // (a hold's own guard fires at the same bound: never a second hold after it)
+        stopHold()
         commitHere()
       }, HANDOFF_HANG_MS)
 
-      return () => { alive = false; if (timer) clearTimeout(timer); clearTimeout(deadline); if (!committed) { try { prepCtl?.abort() } catch { /* ignore */ } } }
+      return () => { alive = false; if (timer) clearTimeout(timer); stopWatchI(); clearTimeout(deadline); if (!committed) { try { prepCtl?.abort() } catch { /* ignore */ } } leaveHold() }
       // ⚠️ `displayedSym` IS A DEPENDENCY, NOT A REF READ DURING RENDER. Reading a
       // ref while rendering is unsafe under concurrent rendering (and the lint rule
       // says so). Depending on it re-runs this effect exactly once after a commit,

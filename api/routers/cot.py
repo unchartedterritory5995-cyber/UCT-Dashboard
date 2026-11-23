@@ -12,6 +12,8 @@ Routes (read the router, not this list — the count here has been wrong before)
     GET  /api/cot/narratives/prewarm-status → the last pre-warm run's summary        — PUSH_SECRET bearer
     GET  /api/cot/narratives/recent         → newest stored reads, every symbol      — PUSH_SECRET bearer
     GET  /api/cot/{symbol}/narratives       → the archive: one read per report week — PAID
+    GET  /api/cot/breakdown                 → every market's watched class by trader type (cot_finer) — PAID
+    GET  /api/cot/{symbol}/breakdown        → one market by trader type, TFF or Disaggregated (cot_finer) — PAID
 
 🔴 `/refresh` AND `/reseed` WERE ANONYMOUS. `reseed` downloads and re-parses TEN
 YEARS of CFTC zips into `/data/cot.db`; `refresh` re-downloads the current year.
@@ -198,6 +200,35 @@ def narrative(symbol: str, body: NarrativeBody,
             detail=f"facts payload is {size} bytes; limit is {cot_narrative.MAX_FACTS_BYTES}",
         )
     return cot_narrative.get_or_create(sym, body.name, body.report_date, body.facts)
+
+
+# -- by trader type (2026-11-22) ------------------------------------------------
+#
+# The CFTC's Traders in Financial Futures and Disaggregated reports (`cot_finer`),
+# read on the module's own schedule inside the quiet span and NEVER on a request:
+# both routes only read what is stored. `GET /breakdown` is declared before the
+# `GET /{symbol}` catch-all for the same reason the narrative routes are.
+
+@router.get("/breakdown")
+def breakdown_board(_user: dict = Depends(require_paid)):
+    """Every market's newest two weeks of the class traders watch most in its
+    report (leveraged funds, managed money); `state` ok | not_built | unavailable."""
+    from api.services import cot_finer
+    return cot_finer.board_answer()
+
+
+@router.get("/{symbol}/breakdown")
+def breakdown_for_symbol(symbol: str, weeks: int = 52,
+                         _user: dict = Depends(require_paid)):
+    """One market's last `weeks` weeks by trader type, oldest first; `state` ok |
+    no_record | not_built | unavailable."""
+    sym = symbol.upper()
+    if sym not in cot_service.SYMBOL_MAP:
+        raise HTTPException(status_code=404, detail=f"Unknown COT symbol: {sym}")
+    if not 1 <= weeks <= 520:
+        raise HTTPException(status_code=400, detail="weeks must be between 1 and 520")
+    from api.services import cot_finer
+    return cot_finer.market_answer(sym, weeks)
 
 
 @router.get("/{symbol}")

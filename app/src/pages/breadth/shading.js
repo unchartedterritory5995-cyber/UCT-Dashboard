@@ -68,6 +68,20 @@ export function shadeValue(c, field, row) {
   return d && d > 0 ? v / d : null
 }
 
+// ⛔ BACK-TESTED UCT HISTORY IS NEVER SHADED (owner 2026-11-22). UCT rows before the collector's
+// first session (`_reconstructed`) are today's UCT list run backward, not the universe as it was
+// on that day, so a stock that later became a leader is in the list during its run-up. Ranking
+// those readings as rare or common would be misleading. Until the point-in-time UCT rebuild
+// lands, such a cell shows its number unshaded. Market-wide columns (VIX, sentiment, the index
+// readings...) do not depend on the list and stay shaded. Mirrored in breadth_shade_rule.py.
+export function isBacktestedRow(row, universe = 'uct') {
+  // a rebuilt point-in-time row (`_uct_pit`, breadth_uct_pit.py) is real history again
+  return (!universe || universe === 'uct') && !!row?._reconstructed && !row?._uct_pit
+}
+export function isBacktestedCell(key, row, universe = 'uct') {
+  return isBacktestedRow(row, universe) && !MARKET_WIDE_COLS.has(key)
+}
+
 /**
  * The cell's shade, or null when it is in the unshaded middle.
  * @returns {{ tone: 'bull'|'bear', level: 1|2|3 } | null}
@@ -75,6 +89,7 @@ export function shadeValue(c, field, row) {
 export function shadeFor(key, row, { specIn = spec, cut, universe = 'uct' } = {}) {
   const c = specIn.cols[key]
   if (!c || !row) return null
+  if (isBacktestedCell(key, row, universe)) return null
   cut = cut ?? cutoffsFor(universe, key)
   if (c.kind === 'flag') return row[key] ? { tone: 'bull', level: 2 } : null
   if (c.kind === 'pair') {

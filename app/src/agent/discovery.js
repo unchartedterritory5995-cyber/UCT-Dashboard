@@ -74,6 +74,15 @@ export const TOPICS = [
     planned: null,
   },
   {
+    // Charts family (2026-11-19): Recently deleted (the Layout library's / Screens menu's / My Lists' "Bring back")
+    id: 'recentlyDeleted', title: 'Bringing back something I deleted',
+    words: [/\b(recently deleted|undelet\w*)\b/, /\b(bring back|restore|recover)\b.*\b(deleted|removed)\b/, /\bdeleted (watch ?lists?|lists|layouts?|screens?)\b/],
+    caps: ['recentlyDeleted.list', 'recentlyDeleted.restore'], productHas: true,
+    canDo: 'show what is in your Recently deleted (watchlists, saved layouts and saved screens you deleted) and bring one back as it was when it was deleted — shown first, it comes back private, nothing existing is replaced (no Undo: to remove it again, delete it as usual and it goes back to Recently deleted)',
+    known: () => ['bringing back an earlier version of a deleted item (its Earlier versions list)'],
+    planned: null,
+  },
+  {
     id: 'layouts', title: 'Saved layouts',
     words: [/\blayouts?\b/, /\bworkspaces?\b/],
     caps: ['layout.current', 'layout.list', 'layout.open', 'layout.saveAs', 'layout.saveCurrent', 'layout.rename', 'layout.create', 'layout.delete', 'layout.duplicate', 'layout.pinToBar', 'layout.unpinFromBar', 'layout.moveOnBar'], productHas: true,
@@ -166,7 +175,7 @@ export const TOPICS = [
   {
     id: 'stockInfo', title: 'Stock information and news',
     words: [/\b(news|catalysts?|earnings|profile|fundamentals?|compare|headlines?)\b/],
-    caps: ['stock.profile', 'stock.earnings', 'stock.compare', 'news.latest', 'news.catalysts', 'chartFeatures.companyPanel', 'chartFeatures.earningsStrip', 'newsLibrary.save', 'newsLibrary.setNote', 'newsLibrary.collection', 'newsLibrary.deleteCollection', 'newsLibrary.place'], productHas: true,
+    caps: ['stock.profile', 'stock.earnings', 'stock.compare', 'news.latest', 'news.catalysts', 'chartFeatures.companyPanel', 'chartFeatures.earningsStrip', 'newsLibrary.save', 'newsLibrary.setNote', 'newsLibrary.collection', 'newsLibrary.deleteCollection', 'newsLibrary.place', 'newsLibrary.toNotebook'], productHas: true,
     canDo: 'look up a company’s profile and key numbers, its earnings, compare two stocks, and show the latest news and catalysts; and on a chart, add, expand, collapse or remove its Company Info panel (and switch its Overview, Financials, Earnings, Ownership or News tab) or add or remove its Earnings Strip — with Undo; and in your UCT News library, save a headline you have open or name by its ticker (or take one out), add to or replace its note, create, rename or delete a collection (shown first — its headlines stay saved) and put a headline in one — with Undo',
     known: () => ['calendar, ownership, insider, ETF holdings, options flow and themes (on their own widgets)'],
     planned: { when: 'Batch 10', what: 'more read-only data questions' },

@@ -51,6 +51,49 @@ export function registerMember(scope, group, id, member) {
   }
 }
 
+/**
+ * ⭐ (2026-11-21, the cold switch) START EVERY MEMBER'S DEVICE READ NOW, in the key press, before the decision
+ * and before any chart renders the request (`member.prime(sym)`, optional; a throw is ignored). A copy the device
+ * client already holds lands synchronously, so the decision can show it in this task; otherwise the read is in
+ * flight while React renders, instead of starting in the handoff's effect after it.
+ */
+export function primeGroup(scope, group, sym) {
+  if (!scope || !group || !sym) return
+  const members = _groupsOf(scope).get(group)
+  if (!members) return
+  for (const m of members.values()) { try { m.prime?.(sym) } catch { /* optional */ } }
+}
+
+/**
+ * ⛔ A HELD ARROW IS ~25 ROWS A SECOND, PER LINKED CHART. `latestOnly(fn)` runs `fn(arg)` for the newest request
+ * only: while one call is in flight a newer request WAITS (replacing any older waiting one, which is dropped,
+ * never run), and starts the moment the call in flight settles. So a chart's device reads never queue up rows the
+ * member has already left, and the row it lands on is behind at most the one read already in flight.
+ */
+export function latestOnly(fn) {
+  let busy = false
+  let next = null   // { arg } | null: the newest request waiting
+  const run = (arg) => {
+    if (busy) { next = { arg }; return }
+    busy = true
+    let p
+    try { p = Promise.resolve(fn(arg)) } catch { p = Promise.resolve() }
+    p.catch(() => {}).then(() => {
+      busy = false
+      if (next) { const n = next; next = null; run(n.arg) }
+    })
+  }
+  return run
+}
+
+/** THE KEY PRESS, in the order it must run (the board's setGroupSym calls this one function): every member's
+ *  device read starts (primeGroup), THEN the group decides (decideGroupShow), so a copy the device already holds
+ *  can be shown in this task. Returns the decision's answer. */
+export function beginGroupSwitch(scope, group, sym) {
+  primeGroup(scope, group, sym)
+  return decideGroupShow(scope, group, sym)
+}
+
 // ── the settle clock: the settle rule's state per group, shared by the decision and the round ───────────────
 /**
  * A clock of the settle rule (useSymbolSettle.settleAction). `request(sym, now)` notes a request and returns the
@@ -153,16 +196,42 @@ export function subscribeDecisions(fn) { _subs.add(fn); return () => { _subs.del
  * that never gets ready at all (a defect, not a slow answer) is let go, past GROUP_HANG_MS: then the ready ones show.
  *  - A member is a chart of the group whose request moved to `sym` and is not showing it yet; it joins in a
  *    LAYOUT effect, so every sibling of one commit has joined before any of them can be ready.
- *  - A chart leaving the round (a newer symbol, unmounted) never holds the others.
+ *  - A chart leaving the round (closed, unlinked) never holds the others: the ready ones show in that task. A newer
+ *    symbol is not that: every member leaves for it, and nothing of the round it replaces is shown (groupLeave).
  *  - No group (a host that passes none): the chart shows itself, as before.
  *  - `show` is called with { sym, tf }: the symbol and the timeframe the member had when it became ready.
  */
 export const GROUP_SYNC_MS = 150   // (kept: the name the tests and the decision docs cite; no longer a split point)
 /** The round's ONLY bound: past every member's own (HANDOFF_HANG_MS 4000 + COLUMNS_WAIT_MS 300 is the longest). */
 export const GROUP_HANG_MS = 4500
-const _rounds = new Map()   // group -> { sym, members: Map<id, {ready, show, tf}>, timer, expired }
+const _rounds = new Map()   // group -> { sym, members: Map<id, {ready, show, tf, holds}>, timer, expired }
+/** Does a member hold (its `holds()`, asked now)? A member with none never holds; one that throws does not either. */
+const _holding = (holds) => {
+  if (typeof holds !== 'function') return false
+  try { return !!holds() } catch { return false }
+}
+function _arm(group, round) {
+  if (round.timer || round.expired) return
+  round.timer = setTimeout(() => {
+    round.timer = null
+    round.expired = true
+    _flushRound(group, round)
+  }, GROUP_HANG_MS)
+}
 function _flushRound(group, round) {
   if (round.timer) { clearTimeout(round.timer); round.timer = null }
+  // ⛔⛔ ASKED AT THE MOMENT OF SHOWING (review of #2558, P4-M1). A member became ready on what it held THEN; the round shows
+  // it only now, after its siblings (and its own panes' columns) were ready, and a bucket may have ended in between, so the
+  // chart would refuse the device copy it was ready on and draw a blank. So every ready member is asked here, before anyone
+  // is shown (`holds`, handed with its `show`): one that can no longer show its symbol whole is ready no longer and waits
+  // (its own switch makes it ready again, bounded by its own hang guard), and NOBODY is shown in this pass. The owner's rule
+  // stands: every chart of a group in one frame, or none. Past the round's bound (a member that never got ready: a defect)
+  // the ready ones show as before, still never one that holds.
+  let held = false
+  for (const m of round.members.values()) {
+    if (m.ready && _holding(m.holds)) { m.ready = false; m.show = null; m.holds = null; held = true }
+  }
+  if (held && !round.expired) { _arm(group, round); return }
   const ready = [...round.members.entries()].filter(([, m]) => m.ready)
   for (const [id, m] of ready) { round.members.delete(id); try { m.show({ sym: round.sym, tf: m.tf }) } catch { /* one member never blocks the rest */ } }
   if (!round.members.size && _rounds.get(group) === round) _rounds.delete(group)
@@ -174,29 +243,38 @@ export function groupJoin(group, sym, id) {
     round = { sym, members: new Map(), timer: null, expired: false }
     _rounds.set(group, round)
   }
-  if (!round.members.has(id)) round.members.set(id, { ready: false, show: null, tf: null })
+  if (!round.members.has(id)) round.members.set(id, { ready: false, show: null, tf: null, holds: null })
 }
 export function groupLeave(group, sym, id) {
   const round = _rounds.get(group)
   if (!round || round.sym !== sym || !round.members.delete(id)) return
   if (!round.members.size) { if (round.timer) clearTimeout(round.timer); _rounds.delete(group); return }
-  // the siblings left may all be ready now
-  if ([...round.members.values()].every((m) => m.ready)) _flushRound(group, round)
+  // the siblings left may all be ready now.
+  // ⛔⛔ (2026-11-21, the held key) ...BUT THAT IS DECIDED AFTER THE COMMIT THIS LEAVE RUNS IN, NEVER INSIDE IT. A
+  // newer symbol makes EVERY member leave in one commit, one after the other (layout cleanups, in tree order). Decided
+  // here, the first to leave (the daily chart) found its sibling ready and showed it: the 30m chart, alone, on the row
+  // the PREVIOUS key asked for, in the frame of the NEXT key (three held-key runs: 33 of 33 such paints, the landing
+  // row of two). After the commit the answer is known: every member left (the round is gone, or a newer symbol's
+  // took its place) and nothing shows; or one really went (closed, unlinked) and the ready ones show, still in this
+  // task; or it came back (its timeframe changed) and the round waits for it again.
+  if (round.leaving) return
+  round.leaving = true
+  Promise.resolve().then(() => {
+    round.leaving = false
+    if (_rounds.get(group) !== round || !round.members.size) return
+    if ([...round.members.values()].every((m) => m.ready)) _flushRound(group, round)
+  })
 }
-export function groupReady(group, sym, id, show, tf = null) {
+/** `holds` (optional): asked right before this member is shown; true = it cannot show its symbol whole now (it calls
+ *  groupReady again when it can). Never passed with the device store off: then exactly as before. */
+export function groupReady(group, sym, id, show, tf = null, holds = null) {
   const round = group ? _rounds.get(group) : null
   const m = round && round.sym === sym ? round.members.get(id) : null
-  if (!m) { show({ sym, tf }); return }                // no group, or not a member of this round: show now
-  m.ready = true; m.show = show; m.tf = tf
+  if (!m) { if (!_holding(holds)) show({ sym, tf }); return }   // no group, or not a member of this round: show now
+  m.ready = true; m.show = show; m.tf = tf; m.holds = holds
   if (round.expired) { _flushRound(group, round); return }
   if ([...round.members.values()].every((x) => x.ready)) { _flushRound(group, round); return }
-  if (!round.timer) {
-    round.timer = setTimeout(() => {
-      round.timer = null
-      round.expired = true
-      _flushRound(group, round)
-    }, GROUP_HANG_MS)
-  }
+  _arm(group, round)
 }
 
 /** @internal tests: forget every round and decision (members unregister through their own cleanup). */
