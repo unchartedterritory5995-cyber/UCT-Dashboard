@@ -27,6 +27,9 @@
 # 2026-11-20: + runtime/__tests__/strategyDeepStart.test.js, which reads app/src/components/StockChart.jsx (a daily chart
 # holding a strategy asks for its full daily history) and app/src/utils/barsBackfill.js (the daily depth pinned to the
 # strategy window): a PR that changes either and never touches the engine must run it.
+# 2026-11-23 (#2570, the ILScript redaction): + vendorHarness/redactions.test.js, which reads every JSON under
+# tests/fixtures (every committed capture must be redacted and verify): a PR that adds a capture and never touches the
+# engine must run it.
 src/components/chart/engine/__tests__/bindSymbolFields.rail.test.js
 src/components/chart/engine/__tests__/binderSeriesDataSpread.rail.test.js
 src/components/chart/engine/__tests__/controlDoorCensus.test.js
@@ -59,6 +62,7 @@ src/components/chart/engine/__tests__/singleWriterIndex.test.js
 src/components/chart/engine/__tests__/storeIntradayAgreement.test.js
 src/components/chart/engine/__tests__/suiteCoverage.test.js
 src/components/chart/engine/__tests__/vendorHarness/historyClaim.test.js
+src/components/chart/engine/__tests__/vendorHarness/redactions.test.js
 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.c45BarIndex.test.js
 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.l8RecordedSupply.test.js
 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.reqBareSecurityForced.test.js
