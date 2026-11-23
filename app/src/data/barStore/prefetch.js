@@ -263,9 +263,11 @@ export const TAIL_MAX_INFLIGHT = 3
 export const TAIL_LAG_RETRY_MS = 1000
 export const TAIL_LAG_RETRIES = 2
 export const TAIL_LAG_WINDOW_MS = 8000
-/** (re-review of #2619 (B)) Selection changes closer than this are a SWEEP (a held arrow repeats every 30-60 ms): the tail
- *  asks nothing while it lasts, and asks its rows this long after the last change (the row the member stops on). */
-export const TAIL_SWEEP_MS = 250
+/** (re-review of #2619 (B)) Selection changes closer than this are a SWEEP (a held arrow repeats every 30-90 ms): the tail
+ *  asks nothing while it lasts, and asks its rows this long after the last change (the row the member stops on).
+ *  (review of fb6fed4328, LOW-MEDIUM-2) 120 ms, not 250: deliberate tapping is ~150-250 ms between presses and is not a
+ *  sweep (each tap asks its rows, ~150 ms ahead of the next tap); an OS key repeat (~33 ms Windows, ~90 ms macOS) is. */
+export const TAIL_SWEEP_MS = 120
 const SHORT_FULL_MAX = 4000
 
 /**
