@@ -1970,7 +1970,8 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
         raise ScanRunRefused("not-scannable", str(exc)) from exc
 
     compute = definition["compute"]
-    tree = compute.get("ast")
+    # ⭐⭐ (train e95, the 2b bind audit) the tree the door admitted: bound at the defaults
+    tree = scan_definition.bound_scan_tree(definition)
     rev = compute.get("rev")
     def_hash = spec["def_hash"]
     # ⭐⭐ C48 / C45 — the gates the member door stamped on the plot this scan runs

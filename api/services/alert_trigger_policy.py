@@ -133,6 +133,9 @@ def output_type_of(definition: Mapping[str, Any], plot_key: str) -> Optional[str
     tree = plot_tree(definition, plot_key)
     if not isinstance(tree, Mapping):
         return None
+    # ⭐⭐ (train e95, the 2b bind audit) the type of what the chart draws at the defaults, never of an unpicked knob arm
+    from api.services.ast_bind import tree_at_settings
+    tree = tree_at_settings(tree, definition)
     if ast_interpret.unresolved_scalars(tree, None):
         return "scalar"
     return "condition" if scan_definition.is_boolean_tree(tree) else "series"

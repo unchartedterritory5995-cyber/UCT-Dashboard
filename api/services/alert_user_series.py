@@ -793,6 +793,12 @@ def _make_value_fn(def_id: str, plot_key: str,
         tree = compute.get("ast")
     budget = compute.get("budget")
     address = f"{def_id}.{plot_key}"
+    # ⭐⭐ (train e95, the 2b bind audit) THE GATES BELOW READ THE TREE A BINDING DRAWS: at the declared defaults here
+    # (``ast_bind.tree_at_settings``, as the member door decides), and at each instance's own settings in
+    # ``instance_gate`` (a knob arm the member picked). ``tree`` itself stays the SAVED tree: the column evaluates it
+    # with the instance's inputs, and ``interpret`` prunes it at them.
+    from api.services.ast_bind import tree_at_settings
+    gate_tree = tree_at_settings(tree, definition)
     # ⭐⭐ SETTINGS PARITY (2a) - THE INSTANCE'S PARAMETER SETTINGS. A folded Pine length is a
     # chart setting (`param<N>`, `api/services/param_inputs.py`); the alert row's `params_json`
     # holds the value the member set on the chart. The plot is evaluated with that value written
@@ -823,6 +829,10 @@ def _make_value_fn(def_id: str, plot_key: str,
         sym_why = symbol_moved(params)
         if sym_why:
             return None, sym_why
+        # ⭐⭐ (train e95, the 2b bind audit) a knob arm the member picked, asked the admission's gates
+        knob_why = instance_gate(params)
+        if knob_why:
+            return None, knob_why
         if not param_specs:
             return tree, None
         sig = tuple((s["key"], (params or {}).get(s["key"])) for s in param_specs)
@@ -862,15 +872,15 @@ def _make_value_fn(def_id: str, plot_key: str,
     # bars would fabricate a history. Refused by name instead of arming an alert
     # that reads a hole through a comparison as a permanent "no".
     # ⚠️ Only of a real tree: a missing/falsy one keeps ITS own refusal below.
-    scalars_read = (_lane.unresolved_scalars(tree, None)
-                    if isinstance(tree, Mapping) else [])
+    scalars_read = (_lane.unresolved_scalars(gate_tree, None)
+                    if isinstance(gate_tree, Mapping) else [])
     if scalars_read:
         raise AdmissionRefused(
             "scalar",
             f"{address} {REFUSAL_FRAGMENTS['scalar']} ({', '.join(scalars_read)}): "
             "it is one number per symbol from the nightly snapshot, so an alert "
             "on it would arm and never fire. It works as a screen.")
-    withheld = _lane.whole_series_withheld(tree, [], budget=budget, opts=lane_opts)
+    withheld = _lane.whole_series_withheld(gate_tree, [], budget=budget, opts=lane_opts)
     # ⭐⭐ P0 — AND A PLOT THAT READS A SERIES THIS LANE IS NEVER SUPPLIED. A
     # `sym('SPY', …)` or `ltf(…, '60')` evaluates off `opts["symbols"]` /
     # `opts["lowerTf"]`, and `lane_opts_for` supplies neither — so before P0 the
@@ -882,12 +892,12 @@ def _make_value_fn(def_id: str, plot_key: str,
     # reads (`_symbol_bars`), at the alert's own timeframe; anything else keeps a
     # named refusal. The supply check below is asked with the tickers marked
     # supplied, so `ltf` keeps its own refusal unchanged.
-    tickers, _lower = _external_reads(tree)
+    tickers, _lower = _external_reads(gate_tree)
     cross_code = cross_symbol_refusal(tickers)
     supplied_syms = tuple(tickers) if tickers and cross_code is None else ()
     check_opts = (dict(lane_opts, symbols={t: (True,) for t in supplied_syms})
                   if supplied_syms else lane_opts)
-    unsupplied = unsupplied_reads(tree, check_opts)
+    unsupplied = unsupplied_reads(gate_tree, check_opts)
     if cross_code:
         unsupplied = [cross_code] + [c for c in unsupplied if c != UNSUPPLIED_OTHER_SYMBOL]
     # ⭐⭐ ENGINE 55 — PINE'S MERGED HIGHER-TIMEFRAME READ (`tf_merge`): the week's
@@ -898,13 +908,13 @@ def _make_value_fn(def_id: str, plot_key: str,
     # ⭐⭐ ALERT TF_MERGE (coordinator ruling 2026-11-19, option A) — UNLESS EVERY MERGE IS READ
     # THROUGH A HISTORY OFFSET k >= 1 (`merge_newest_unproven`, static): `x[1]` reads the bar
     # before's merge, which is settled, and the drawing lane draws it on the newest bar (#1996).
-    if merge_newest_unproven(tree, compute):
+    if merge_newest_unproven(gate_tree, compute):
         unsupplied = list(unsupplied) + [_lane.TF_MERGE_NEWEST_CODE]
     if unsupplied:
         raise AdmissionRefused(
             "withheld",
             f"{address} {REFUSAL_FRAGMENTS['withheld']} ({', '.join(unsupplied)}): "
-            + _unsupplied_reason(tree, unsupplied)
+            + _unsupplied_reason(gate_tree, unsupplied)
             + " An alert on it would arm and never fire. It still draws on a "
             "chart that can supply it.")
     if withheld:
@@ -925,6 +935,43 @@ def _make_value_fn(def_id: str, plot_key: str,
     # bars change is honoured the moment they arrive. Captured with the tree.
     from api.services import block_runs as _block_runs
     gates = _block_runs.block_runs_for(definition, plot_key)
+
+    _instance_gates: dict = {}
+
+    def instance_gate(params: Optional[Mapping]) -> Optional[str]:
+        """⭐⭐ (train e95, the 2b bind audit) the admission's gates re-asked of the tree THIS instance's settings bind,
+        or None: the scalar, other-symbol, lower-timeframe, merged-timeframe and whole-series gates above. A knob arm
+        the member picked that reads what this lane cannot answer is withheld BY NAME, never armed to stay silent.
+        None when the settings bind the tree admission was decided on."""
+        knobs = _inputs_for(definition, params)
+        sig = tuple(sorted(knobs.items()))
+        if sig in _instance_gates:
+            return _instance_gates[sig]
+        bound = tree_at_settings(tree, definition, params)
+        why = None
+        if bound is not gate_tree and bound != gate_tree:
+            codes: list = []
+            if isinstance(bound, Mapping) and _lane.unresolved_scalars(bound, None):
+                codes.append("scalar")
+            mine, _low = _external_reads(bound)
+            extra = [t for t in mine if t not in supplied_syms]
+            if extra:
+                codes.append(cross_symbol_refusal(extra) or UNSUPPLIED_OTHER_SYMBOL)
+            codes += [c for c in unsupplied_reads(bound, dict(lane_opts, symbols={t: (True,) for t in mine}))
+                      if c not in codes]
+            if merge_newest_unproven(bound, compute):
+                codes.append(_lane.TF_MERGE_NEWEST_CODE)
+            codes += [c for c in _lane.whole_series_withheld(bound, [], budget=budget, opts=lane_opts)
+                      if c not in codes]
+            if codes:
+                why = (f"{address} {REFUSAL_FRAGMENTS['withheld']} ({', '.join(codes)}): at this setting the "
+                       "indicator reads what the alert lane cannot answer ("
+                       + (_unsupplied_reason(bound, codes) or "a series it is never handed")
+                       + "). An alert on it would arm and never fire. It still draws on a chart that can supply it.")
+        if len(_instance_gates) > 32:
+            _instance_gates.clear()
+        _instance_gates[sig] = why
+        return why
 
     def block_runs_refusal(bars: list, params: dict, opts: Optional[Mapping] = None) -> Optional[str]:
         """Why this plot is withheld on ``bars`` (the gate's own sentence), or None."""
