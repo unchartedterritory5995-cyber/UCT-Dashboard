@@ -3,11 +3,13 @@
 // frame bytes (lib/minuteFrames/testing/frameWriter, decoded by the product decoder). No network: frames are handed in.
 //
 //   APPEND      F1 the minute that just closed lands on a held, answered key        F2 a forming bar is closed by the feed's bar
-//   NEVER A HOLE F3 a forming bar with no feed bar is never stepped past            F4 a MISSED frame
+//   NEVER A HOLE (ONE RULE: a minute the feed holds no bar for STOPS the walk; the key stays behind until its answer)
+//               F3 a forming bar with no feed bar is never stepped past            F4 a MISSED frame
 //               F5 an INCOMPLETE frame      F6 a frame the publisher never wrote   F7 a symbol held only after its frame
-//               F8 a minute a complete frame proved empty is not a hole            F9 minutes no longer kept
-//               F10 a pre-market minute is not "proved empty"
-//   RECORDS     F11 a LATE record in the same frame    F12 a LATE record a frame later    F13 a REPLACE record
+//               F8 a minute with no bar (a quiet name, or a late bar): STOP, never stepped over
+//               F9 minutes no longer kept   F10 a pre-market minute (never kept)
+//   RECORDS     F11 a LATE record in the next frame    F12 a LATE record a frame later lets the walk continue
+//               F12b a LATE record for a minute the answer lacks is inserted       F13 a REPLACE record
 //   SERVER WINS F14 a later answer replaces a fed bar   F15 a sealed span removes one    F16 a REPLACE never beats the server
 //               F17 an answer built BEFORE the minute closed does not turn the closed bar back into a partial one
 //   LEFT ALONE  F18 a key a chart is on     F19 a key with no answer / no entry     F20 a saved (local) copy
@@ -80,7 +82,7 @@ describe('minute feed · append', () => {
     expect(w.tail('AAA')).toMatchObject({ ...bar(30), src: 'final', fin: true, rev: (M(30) + 1) * 60_000 })
     w.frame(31)
     expect(w.times('AAA', 28)).toEqual([28, 29, 30, 31])
-    expect(w.feeder.stats()).toMatchObject({ appended: 2, breaks: 0, chainFrom: M(30), chainTo: M(31) })
+    expect(w.feeder.stats()).toMatchObject({ appended: 2, breaks: 0, through: M(31) })
   })
 
   it('F1b a price the vendor sent at more than 4 decimals is stored as the server stores it', () => {
@@ -160,13 +162,20 @@ describe('minute feed · contiguity: no hole is ever created, and the key stays 
     expect(w.tail('AAA').t).toBe(T(30))
   })
 
-  it('F8 a minute a complete frame proved empty is not a hole: the next bar is appended across it', () => {
+  it('F8 a minute with no bar STOPS the walk (no bar cannot prove the minute was empty): never stepped over', () => {
     const w = world()
     w.answer('AAA', { through: 29 })
-    w.frame(30, { rows: [rec('BBB', 30)] })                       // AAA did not trade in 10:00
-    expect(w.tail('AAA').t).toBe(T(29))                           // (still "behind": the quiet-name stamp is not in this slice)
-    w.frame(31)
-    expect(w.times('AAA', 28)).toEqual([28, 29, 31])
+    w.frame(30, { rows: [rec('BBB', 30)] })                       // a complete frame WITHOUT AAA: quiet, or its bar is late
+    w.frame(31)                                                   // AAA traded in 10:01
+    expect(w.times('AAA', 28)).toEqual([28, 29])                  // not appended across 10:00: the key stays behind, as today
+    w.frame(32)
+    expect(w.times('AAA', 28)).toEqual([28, 29])
+    // the switch asks; the server says what 10:00 was (here: no bar), and the feed carries on from its tail
+    w.clock.ms = at(33, 20)
+    w.answer('AAA', { through: 32, skip: [30] })
+    w.frame(33)
+    expect(w.times('AAA', 28)).toEqual([28, 29, 31, 32, 33])
+    expect(w.tail('AAA')).toMatchObject({ t: T(33), src: 'final' })
   })
 
   it('F9 a copy further behind than the minutes kept is left alone', () => {
@@ -179,7 +188,7 @@ describe('minute feed · contiguity: no hole is ever created, and the key stays 
     expect(w.tail('AAA').t).toBe(T(29))
   })
 
-  it('F10 a pre-market minute is not "proved empty": an extended copy ending before 09:29 is left alone', () => {
+  it('F10 a pre-market minute is never kept: an extended copy ending before 09:29 is left alone', () => {
     const w = world()
     w.clock.ms = at(-1, 20)                                       // 09:29:20
     w.answer('EXT', { from: -6, through: -2 })                    // pre-market rows through 09:28
@@ -201,14 +210,24 @@ describe('minute feed · LATE and REPLACE records', () => {
     expect(w.row('AAA', 30)).toMatchObject({ ...bar(30), src: 'final', rev: M(31) * 60_000 })
   })
 
-  it('F12 a LATE record for a minute already stepped over is inserted', () => {
+  it('F12 the walk stopped at a minute with no bar; a later frame carrying that late bar lets it continue', () => {
     const w = world()
     w.answer('AAA', { through: 29 })
     w.frame(30, { rows: [rec('BBB', 30)] })
     w.frame(31)
-    expect(w.times('AAA', 28)).toEqual([28, 29, 31])
+    expect(w.times('AAA', 28)).toEqual([28, 29])                  // stopped at 10:00
     w.frame(32, { blocks: [{ minute: M(30), kind: KIND_LATE, rows: [rec('AAA', 30)] }] })
-    expect(w.times('AAA', 28)).toEqual([28, 29, 30, 31, 32])
+    expect(w.times('AAA', 28)).toEqual([28, 29, 30, 31, 32])      // 10:00, then the two minutes kept behind it
+    expect(w.row('AAA', 30)).toMatchObject({ ...bar(30), src: 'final' })
+  })
+
+  it('F12b a LATE record for a minute the server answer lacks (outside its seal) is inserted', () => {
+    const w = world()
+    w.clock.ms = at(32, 20)
+    w.answer('AAA', { through: 31, skip: [30], seal: 29 })        // the server had no 10:00 bar when it answered
+    w.frame(32, { blocks: [{ minute: M(30), kind: KIND_LATE, rows: [rec('AAA', 30)] }] })
+    expect(w.times('AAA', 29)).toEqual([29, 30, 31, 32])
+    expect(w.feeder.stats().corrected).toBe(1)
   })
 
   it('F13 a REPLACE record replaces the bar an earlier frame fed', () => {

@@ -11,22 +11,26 @@
 // holds, as the reducer's existing PUSH_FINAL. `_behindClock` reads only the newest bar, so a fed copy is current at
 // the next press by construction; nothing in the switch changes.
 //
-// ⛔ CONTIGUITY, THE ONE RULE THAT MAKES AN APPEND HONEST. The reducer cannot see a hole made by finals (its live-gap
-// check runs only when a LIVE action opens a forming bucket), so the guard lives here. A minute is appended to a key
-// only when the copy and the feed MEET:
-//   • the CHAIN: the unbroken run of COMPLETE frames this page applied in order. A frame that is missing, that the
-//     publisher flagged INCOMPLETE (the vendor socket was down: "a symbol missing here may still have traded"), that
-//     the decoder refused, or whose `prev_seq` says frames existed that never arrived here, breaks it (the consumer
-//     reports each as a gap: lib/minuteFrames/consumer.js, the same code the device store runs). A new chain starts at
-//     the next complete frame.
-//   • the SYMBOL: its bars are kept only from the first frame applied while the key was held (`since`).
-//   • the KEY: the minute right after its newest CLOSED row must be inside both. Then every minute up to the newest
-//     frame is either a bar the feed carried or a minute a complete frame proved empty, and they are appended in
-//     order. Otherwise NOTHING is appended: the key stays behind the clock exactly as today, the switch asks, and
-//     the server's answer (which then lets the feed carry on from its tail) heals it.
-//   • a FORMING bar the copy holds (the server's partial bar of the minute it answered in) is closed only by the
-//     feed's own bar for that minute. The feed never steps past it: a later final would make the reducer close that
-//     stale partial bar as if it were complete.
+// ⛔ CONTIGUITY, THE ONE RULE THAT MAKES AN APPEND HONEST (strict, owner ruling 2026-11-23): A FRAME NEVER SHOWS A
+// COPY MISSING A CLOSED BAR AS IF IT WERE CURRENT. The reducer cannot see a hole made by finals (its live-gap check
+// runs only when a LIVE action opens a forming bucket), so the guard lives here, and it is one sentence:
+//
+//     the walk goes minute by minute from the copy's newest CLOSED row, and STOPS at the first minute the feed
+//     holds no bar of this symbol for.
+//
+// No bar is never read as "the minute was empty": a complete frame without the symbol may be a quiet name, or a
+// bar the vendor delivers late (it then rides a later frame as a LATE record, and the walk continues from it). A
+// stopped key stays behind the clock exactly as today, the switch asks, and the server's answer (which says what
+// that minute was) lets the feed carry on from its tail. Quiet names therefore are NOT kept current by this slice.
+// Everything else that must not be appended is the same sentence, because its bars are simply NOT KEPT:
+//   - a frame that never arrived here, that the publisher never wrote, or that the decoder refused: no bars;
+//   - the own minute of a frame the publisher flagged INCOMPLETE (the vendor socket was down): dropped, though
+//     the frame carried it (the consumer reports it as a gap: lib/minuteFrames/consumer.js, the device store's code);
+//   - a minute before the key was held (only held symbols are read from a frame), or older than RING_MINUTES;
+//   - a minute outside the regular session.
+// A FORMING bar the copy holds (the server's partial bar of the minute it answered in) is closed by the feed's own
+// bar for that minute, or the walk stops there like at any other minute without one: stepping past it would make
+// the reducer close that stale partial bar as if it were complete.
 //
 // THE SERVER KEEPS THE LAST WORD. A fed row is a push FINAL: it ranks below a REST seal, never enters a sealed span,
 // and carries as its revision the EARLIEST instant it can have been observed (the end of its minute; for a LATE or
@@ -51,8 +55,8 @@
 //
 // COST, ON: one GET a minute per PAGE (the minute file, `immutable` in the browser cache, so a second tab reads the
 // first tab's copy), at low priority, only while the app is visible and the regular session is open. Never head.json,
-// never today.bin, never a backlog: back from hidden the run starts again at the minute now due, and every key the
-// chain no longer reaches is simply behind, as today. A member the edge refuses (401/403), or a feed that is not
+// never today.bin, never a backlog: back from hidden the run starts again at the minute now due, and every key whose
+// walk stops at a minute that was missed is simply behind, as today. A member the edge refuses (401/403), or a feed that is not
 // there, backs off (BOUNDED: see `_failed`) and nothing surfaces. OFF: this module is never loaded.
 
 import { createMinuteFrameConsumer } from '../../lib/minuteFrames/consumer'
@@ -65,7 +69,7 @@ import { ACTION, parseKey } from './types'
 
 /** The one timeframe this slice feeds. */
 export const FEED_TF = '1'
-/** Minutes of each held symbol kept. A copy further behind than this is the server's to heal. */
+/** Minutes of each held symbol kept. A copy further behind stops at the first minute dropped: the server's to heal. */
 export const RING_MINUTES = 30
 /** The appends of one frame give the thread back after this much work (a held 1m copy is up to 20,000 rows, and a
  *  list holds a hundred of them). */
@@ -98,8 +102,8 @@ export function createMinuteFeeder({
   sliceMs = DRAIN_SLICE_MS, yieldTo = () => new Promise((r) => setTimeout(r, 0)), elapsed = _perfNow,
 } = {}) {
   if (!registry || typeof registry.feed !== 'function') throw new Error('minuteFeed needs a registry with feed()')
-  /** sym -> { key, since, bars: Map<minute, row>, redo: Set<minute> }: one per held regular 1m key. `since` = the
-   *  minute of the first frame applied while the key was held (nothing is known of the symbol before it). */
+  /** sym -> { key, bars: Map<minute, row>, redo: Set<minute> }: one per held regular 1m key. `bars` = the minutes
+   *  KEPT for it (see the header: what is not kept cannot be walked). */
   const syms = new Map()
   /** Map<sym, key> of the 1m keys held while the frame in hand is applied (read once per frame). */
   let held = null
@@ -107,9 +111,8 @@ export function createMinuteFeeder({
   let pend = []
   /** The newest minute a gap reported for the frame in hand covers (null: none). */
   let gapTo = null
-  /** The chain: the first and the newest minute of the unbroken run of complete frames (null: none). */
-  let chainFrom = null
-  let chainTo = null
+  /** The minute of the newest frame applied (null: none): how far a walk may go. */
+  let through = null
   let stopped = false
   let busy = false
   let dirty = false
@@ -164,25 +167,14 @@ export function createMinuteFeeder({
       if (next && next !== s) { stats.corrected++; s = next }
     }
     st.redo.clear()
-    // 2) the append, only where the copy and the chain meet (CONTIGUITY, the header)
-    if (chainFrom == null) return
+    // 2) THE WALK (CONTIGUITY, the header): minute by minute from the newest closed row, and it STOPS at the first
+    //    minute no bar is kept for. Never stepped over: no bar cannot prove the minute was empty.
+    if (through == null) return
     s = registry.peek(key)
     if (!s || !s.bars.length) return
-    const first = s.bars[s.bars.length - 1].t / 60 + 1        // the minute right after the newest closed row
-    // they do not meet (the chain, the symbol's own start, or the minutes still kept): the key stays behind, as today
-    if (first < Math.max(chainFrom, st.since, chainTo - RING_MINUTES)) return
-    for (let m = first; m <= chainTo; m++) {
-      // ⛔ regular-session minutes only: the bars of any other minute were not kept (frameDone), so such a minute is
-      // NOT one the feed proved empty. A copy whose next minute is a pre-market one is left alone (an extended view).
-      if (!isRthBar(m * 60)) return
+    for (let m = s.bars[s.bars.length - 1].t / 60 + 1; m <= through; m++) {
       const row = st.bars.get(m)
-      const dev = s.developing
-      if (!row) {
-        // A complete frame without the symbol: no bar in that minute. ⛔ Unless the copy holds a FORMING bar for it:
-        // the feed has nothing to close it with, and stepping past it would close a stale partial bar. Stop here.
-        if (dev && dev.t === m * 60) return
-        continue
-      }
+      if (!row) return
       const next = _offer(key, sym, row)
       // the minute must now be a closed row, with no forming bar left at or before it; anything else (the reducer
       // refused it: a sealed span, a foreign identity) ends this key's feed until its next answer
@@ -228,28 +220,29 @@ export function createMinuteFeeder({
     },
     /** A new trading day: nothing of yesterday is contiguous with it. */
     reset() {
-      syms.clear(); held = null; pend = []; gapTo = null; chainFrom = null; chainTo = null
+      syms.clear(); held = null; pend = []; gapTo = null; through = null
     },
-    /** One frame is applied: file its records, move the chain, bring the held keys forward. */
+    /** One frame is applied: keep its records (the header says which), bring the held keys forward. */
     frameDone(info) {
       const M = info?.minute
       if (stopped || !Number.isFinite(M)) { pend = []; held = null; gapTo = null; return }
-      // this frame's OWN minute is a gap (INCOMPLETE, refused): it vouches for nothing, and the chain ends
+      // this frame's OWN minute is a gap (INCOMPLETE; a refused frame carries nothing): its own bars are not kept
       const unusable = gapTo != null && gapTo >= M
-      // minutes BEFORE it are missing: a new chain starts at this frame
-      const brokeBefore = gapTo != null && gapTo < M
+      if (gapTo != null && stats.frames > 0) stats.breaks++     // (diagnostics only: the first frame always follows a gap)
       gapTo = null
       if (!held) held = _heldNow()                              // (a frame with no accepted record never asked)
       for (const [sym, key] of held) {
         const st = syms.get(sym)
         if (st) st.key = key
-        else syms.set(sym, { key, since: unusable ? M + 1 : M, bars: new Map(), redo: new Set() })
+        else syms.set(sym, { key, bars: new Map(), redo: new Set() })
       }
       for (const sym of [...syms.keys()]) if (!held.has(sym)) syms.delete(sym)
       held = null
       for (const [sym, minute, bar] of pend) {
         const st = syms.get(sym)
-        if (!st || !isRthBar(minute * 60)) continue             // regular-session minutes only (this slice)
+        if (!st) continue
+        if (!isRthBar(minute * 60)) continue                    // NOT KEPT: a minute outside the regular session
+        if (unusable && minute === M) continue                  // NOT KEPT: the own minute of an INCOMPLETE frame
         st.bars.set(minute, {
           t: minute * 60, o: serverPrice(bar.o), h: serverPrice(bar.h), l: serverPrice(bar.l), c: serverPrice(bar.c), v: bar.v,
           // the earliest instant this bar can have been observed (the header): the end of its own minute, or for a
@@ -259,13 +252,8 @@ export function createMinuteFeeder({
         st.redo.add(minute)
       }
       pend = []
-      if (unusable) { if (chainFrom != null) stats.breaks++; chainFrom = null; chainTo = null }
-      else {
-        if (brokeBefore && chainFrom != null) stats.breaks++
-        if (chainFrom == null || brokeBefore) chainFrom = M
-        chainTo = M
-      }
-      const floor = M - RING_MINUTES
+      through = M
+      const floor = M - RING_MINUTES                            // NOT KEPT: anything older than RING_MINUTES
       for (const st of syms.values()) for (const k of st.bars.keys()) if (k < floor) st.bars.delete(k)
       stats.frames++
       _pump()
@@ -282,7 +270,7 @@ export function createMinuteFeeder({
     /** Resolves when the appends of every frame applied so far are done (tests). */
     settled: () => done,
     stop() { stopped = true; syms.clear(); pend = []; held = null },
-    stats: () => ({ ...stats, symbols: syms.size, chainFrom, chainTo }),
+    stats: () => ({ ...stats, symbols: syms.size, through }),
   }
 }
 
