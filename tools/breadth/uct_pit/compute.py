@@ -45,6 +45,7 @@ def build_frame(sessions):
     # dividend basis: the V2 pipeline's canonical table (ratio r = 1 - cash / prior raw close),
     # applied to every close before the ex-session, so the moving averages and 52-week levels
     # are on the same economic basis production measures on
+    split_closes = closes.astype(np.float32)          # bars.db's basis, for atr_ext_7
     div = json.load(open(DIV_TABLE))["applied"]
     nd = 0
     for t, evs in div.items():
@@ -55,7 +56,7 @@ def build_frame(sessions):
             if j <= 0 or j > D or not (0 < r <= 1): continue
             closes[i, :j] *= r; nd += 1
     print("dividend events applied", nd, flush=True)
-    return {"dates": sessions, "date_pos": pos, "closes": closes, "vols": vols,
+    return {"dates": sessions, "date_pos": pos, "closes": closes, "vols": vols, "split_closes": split_closes,
             "highs": highs, "lows": lows, "tick": tick}, tickers
 
 W52, W20 = 251, 19
@@ -78,6 +79,30 @@ def intraday_nhnl(frame, j, mem):
             out[f"new_{tag}_highs"] = int((ok & (h > mx)).sum())
             out[f"new_{tag}_lows"] = int((ok & (l < mn)).sum())
     return out
+
+def atr_ext(frame, j, mem, thresh=7.0, atr_n=14, sma_n=50):
+    """breadth_eod_extras.atr_extended, line for line: names whose close sits MORE than `thresh`
+    ATR(14) above the 50-day SMA (simple 14-bar mean true range; atr% rounded to 0.1, distance
+    rounded to 0.1), over the 55 sessions through d, split-adjusted bars."""
+    a = j - (sma_n + 5) + 1
+    if a < 0:
+        return None
+    idx = np.array([frame["tick"][t] for t in mem if t in frame["tick"]], dtype=np.int64)
+    C = frame["split_closes"][idx, a:j + 1].astype(np.float64)
+    H = frame["highs"][idx, a:j + 1].astype(np.float64); L = frame["lows"][idx, a:j + 1].astype(np.float64)
+    pc = np.concatenate([np.full((C.shape[0], 1), np.nan), C[:, :-1]], axis=1)
+    with np.errstate(invalid="ignore"):
+        tr = np.fmax(np.fmax(H - L, np.abs(H - pc)), np.abs(L - pc))
+    tr14 = tr[:, -atr_n:]; c = C[:, -1]; sma = C[:, -sma_n:]
+    ok = (~np.isnan(tr14).any(axis=1)) & (~np.isnan(sma).any(axis=1)) & (c > 0)
+    n = 0
+    for i in np.nonzero(ok)[0]:
+        atr = float(tr14[i].mean())
+        if atr <= 0: continue
+        atr_pct = round(atr / c[i] * 100, 1)
+        if atr_pct <= 0: continue
+        if round((c[i] - float(sma[i].mean())) / (atr_pct / 100.0 * c[i]), 1) > thresh: n += 1
+    return n
 
 if __name__ == "__main__":
     lo, hi = sys.argv[1], sys.argv[2]
@@ -107,6 +132,7 @@ if __name__ == "__main__":
             for k in ("new_52w_highs", "new_52w_lows", "new_20d_highs", "new_20d_lows"):
                 m[k + "_close"] = m.get(k)
             m.update(intraday_nhnl(frame, frame["date_pos"][d], mem))
+            m["atr_ext_7"] = atr_ext(frame, frame["date_pos"][d], mem)
         row = {"date": d, "members": len(mem), "ok": r.get("ok"), "reason": r.get("reason"),
                "metrics": r.get("metrics")}
         out.write(json.dumps(row) + "\n"); n += 1

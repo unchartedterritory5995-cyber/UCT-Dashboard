@@ -137,6 +137,32 @@ def write_all(by_universe: dict) -> None:
         f.write("\n")
 
 
+#: How far past its share a level may reach before a tie moves its cutoff (continuous columns
+#: land on their share within a session or two; a tied value can hold a third of history).
+TIE_SLACK = 1.2
+
+
+def tie_strict(vals: list, cut: float, share: float, end: str) -> float:
+    """⛔ (2026-11-23) A level never covers more history than its share. On a column with few
+    distinct values (distribution days, UCT Exp, CNN Fear & Greed, the up/down ratios) the quantile
+    lands ON a common value, and every session tied with it would be shaded: UCT Exp read Extreme
+    on a third of its sessions. When the sessions at or past the cutoff exceed the share, the
+    cutoff moves to the next distinct value further out (past the last one: nothing is that rare)."""
+    import bisect
+    n = len(vals)
+    if not n:
+        return cut
+    if end == "hi":
+        if (n - bisect.bisect_left(vals, cut)) / n <= share * TIE_SLACK + 1.0 / n:
+            return cut
+        i = bisect.bisect_right(vals, cut)
+        return sig(vals[i]) if i < n else math.nextafter(vals[-1], math.inf)
+    if bisect.bisect_right(vals, cut) / n <= share * TIE_SLACK + 1.0 / n:
+        return cut
+    i = bisect.bisect_left(vals, cut) - 1
+    return sig(vals[i]) if i >= 0 else math.nextafter(vals[0], -math.inf)
+
+
 def build_cutoffs(rows: list, spec: dict, universe: str = "uct") -> dict:
     cols = {}
     fields = {}
@@ -155,8 +181,8 @@ def build_cutoffs(rows: list, spec: dict, universe: str = "uct") -> dict:
         cols[ck] = {
             "n": len(vals),
             "mid": sig(quantile(vals, 0.5)),
-            "lo": [sig(quantile(vals, p / 100)) for p in GRID],
-            "hi": [sig(quantile(vals, 1 - p / 100)) for p in GRID],
+            "lo": [tie_strict(vals, sig(quantile(vals, p / 100)), p / 100, "lo") for p in GRID],
+            "hi": [tie_strict(vals, sig(quantile(vals, 1 - p / 100)), p / 100, "hi") for p in GRID],
         }
     dates = sorted(r["date"] for r in rows if r.get("date"))
     # the first session a PER-UNIVERSE column is ranked over (UCT: its first real, not back-tested,

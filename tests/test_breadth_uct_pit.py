@@ -91,3 +91,15 @@ def test_calibration_ranks_the_rebuilt_rows_as_the_monitor_serves_them(tmp_path,
     assert rows[2]["hi_ratio"] == 77.0                # a collector row stays exactly as exported
     assert all("_ad_back" not in r for r in rows)
     assert not rule.is_backtested_row(rows[0], "uct")
+
+
+def test_a_tied_value_never_shades_more_than_its_share():
+    from tools.breadth.calibrate_breadth_shading import tie_strict
+    vals = sorted([1] * 50 + [2] * 30 + [3] * 17 + [4] * 3)   # 3 is the 3%-quantile value, held by 17%
+    assert tie_strict(vals, 3, 0.03, "hi") == 4                # moved out to the next distinct value
+    assert tie_strict(vals, 4, 0.03, "hi") == 4                # already rare enough: unchanged
+    top = sorted([5] * 40 + [1] * 60)
+    assert tie_strict(top, 5, 0.03, "hi") > 5                  # past the last value: nothing is that rare
+    cont = [i / 1000 for i in range(1000)]
+    assert tie_strict(cont, cont[970], 0.03, "hi") == cont[970]  # a continuous column is untouched
+    assert tie_strict(sorted([0] * 30 + [5] * 70), 0, 0.03, "lo") < 0

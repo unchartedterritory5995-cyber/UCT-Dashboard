@@ -1343,7 +1343,8 @@ def get_history_universe(universe: str, days: int = 90, end: Optional[str] = Non
     from api.services.cache import cache
     u = bum._check(universe)
     tl = universe_timeline(u)
-    ck = f"breadth_history_deep_{days}_{end or 'latest'}_{anchor}_{u}|{tl['token']}"
+    # the market-wide keys come from the UCT deep rows, so the UCT history's identity is in the key
+    ck = f"breadth_history_deep_{days}_{end or 'latest'}_{anchor}_{u}|{tl['token']}{_uct_pit_token()}"
     hit = cache.get(ck)
     if hit is not None:
         return hit

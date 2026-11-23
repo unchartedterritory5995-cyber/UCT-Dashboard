@@ -4,7 +4,9 @@
   `mcclellan_osc` over the rebuilt net advances (the V1 recurrence: a = 2/20, 2/40, seeded at the
   first observation), `ad_back` = the rebuilt net advances summed over the sessions AFTER this one
   through the last rebuilt session (the server anchors the A/D line on it so the line runs into
-  the collector's sessions without a step), and `new_ath` withheld (needs each name's full history).
+  the collector's sessions without a step), the market-wide columns (market_wide.py: SPY/QQQ and
+their SMA flags, distribution days, VIX family, the S&P close), and `new_ath` withheld (needs each
+name's full history).
 Only sessions BEFORE the collector's first session (2026-01-02) are written: from there the
 collector / V2 rows are served as they are. Writes /data/_audit/uct_pit/breadth_uct_pit_v1.json."""
 import glob, hashlib, json, sys, time
@@ -20,6 +22,13 @@ for p in sorted(glob.glob(f"{ROOT}/out/rows_*.jsonl")):
             m["new_ath"] = None
             m["members"] = j.get("members")
             rows[j["date"]] = m
+# the market-wide columns (market_wide.py): production's definitions, the same on every universe
+import os
+mwp = f"{ROOT}/market_wide.json"
+if os.path.exists(mwp):
+    mw = json.load(open(mwp))
+    for d, r in rows.items():
+        r.update(mw.get(d) or {})
 ds = sorted(rows)
 a19, a39 = 2.0 / 20, 2.0 / 40
 e19 = e39 = None
