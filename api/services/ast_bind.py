@@ -669,6 +669,18 @@ def prune_knob_arms(ast: Any, consts: Mapping[str, Any] = None) -> Any:
         return ast
 
 
+def tree_at_settings(tree: Any, definition: Mapping[str, Any], params: Mapping[str, Any] = None) -> Any:
+    """⭐⭐ (train e95, the 2b bind audit) ``tree`` as ONE binding draws it: the instance's settings ``params`` over the
+    definition's declared defaults (``alert_user_series._inputs_for``: a text option as its index, the rule the chart
+    shares), every knob ternary's unpicked arm pruned (``prune_knob_arms``). ``params=None``: the defaults, for a
+    reader with no instance (a screen, the alert admission, the trigger policy). The tree itself when nothing prunes.
+
+    Since 2b the SAVED document keeps every arm of a ``switch`` on a member's ``input.string``; a gate that read the
+    saved tree refused a knob script on an arm the member never picked."""
+    from api.services.alert_user_series import _inputs_for  # noqa: PLC0415 (alert_user_series reaches this module)
+    return prune_knob_arms(tree, _inputs_for(definition, params))
+
+
 def fold_bound(ast: Any, consts: Mapping[str, Any] = None) -> Any:
     """The tree with every foldable INT-slot argument replaced by its literal.
 

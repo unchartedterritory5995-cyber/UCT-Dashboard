@@ -457,6 +457,16 @@ def def_hash(definition: Any) -> str:
     return user_definitions.semantic_identity(computed, ast_interpret.semantics_for(definition))
 
 
+def bound_scan_tree(definition: Any) -> Any:
+    """⭐⭐ (train e95, the 2b bind audit) the scan plot's tree as a screen evaluates it: bound at the declared defaults
+    (``ast_bind.tree_at_settings``), every knob ternary's unpicked arm pruned. A screen holds no instance, so it is the
+    chart at its defaults; the sweep evaluates with no inputs, so a knob left in the tree would be an unknown name,
+    and an unpicked arm's other symbol (an event field) a benchmark refusal. The door (``assert_scannable``) and the
+    sweep (``scan_evaluator``) read THIS one tree; the result identity stays the saved tree's (``def_hash``)."""
+    from api.services.ast_bind import tree_at_settings
+    return tree_at_settings(_compute_of(definition).get("ast"), definition)
+
+
 def _compute_of(definition: Any) -> Mapping[str, Any]:
     if not isinstance(definition, dict):
         raise ScanRefused(
@@ -516,6 +526,7 @@ def assert_scannable(definition: Any) -> dict:
         raise ScanRefused("tree", str(exc)) from exc
 
     handle = def_hash(definition)
+    tree = bound_scan_tree(definition)
 
     try:
         # ⛔⛔ THE RESOLVE PASS, RUN ONCE, AT THE DOOR. `is_boolean_tree` below
