@@ -651,26 +651,34 @@ const WatchRow = React.memo(function WatchRow({
   )
 })
 
+// Would centring row `idx` keep the whole viewport inside the rows this render drew (`drawn`, the render's virtual
+// items)? Read from the virtualizer's cached state only: `getMeasurements()` (sizes measured or estimated, kept in
+// itemSizeCache) and `getSize()` (the viewport from its last rect report). Neither reads layout (virtual-core 3.14.0
+// index.js 366-373 and 439-523). The drawn rows' edges are looked up by index in the SAME measurements as the target
+// (a row measured between the render and this check moves both alike). `top` is where
+// `scrollToIndex(idx, { align: 'center' })` puts the viewport before its upper clamp (getOffsetForAlignment's
+// max-offset); the lower clamp (0) is mirrored, the upper is NOT: for the rows within about half a viewport of the
+// list's end this answers "far" although the clamped view would stay inside the drawn rows, so those presses centre in
+// the commit (the parent's path): conservative, the gain is only lost there.
+export function centredViewStaysDrawn(virt, idx, drawn) {
+  try {
+    if (!drawn || !drawn.length) return false
+    const ms = virt.getMeasurements()
+    const m = ms[idx]
+    const lo = ms[drawn[0].index]
+    const hi = ms[drawn[drawn.length - 1].index]
+    const size = virt.getSize()
+    if (!m || !lo || !hi || !(size > 0)) return false
+    const top = Math.max(0, m.start + (m.size - size) / 2)
+    return lo.start <= top && hi.end >= top + size
+  } catch { return false }
+}
+
 // Virtualized row list for SCAN mode (read-only lists that can be thousands of rows, e.g.
 // Custom-Period Sort's whole-market ranking). Renders only the visible window inside the
 // shared `.listBody` scroll container (the sticky column header sits above it), and reports
 // the visible symbols up so ONLY those get live-streamed — the whole point that lets a
 // ~5,000-row scan render without opening ~100 SSE streams or mounting 5,000 DOM rows.
-// Would centring row `idx` keep the whole viewport inside the rows this render drew (`drawn`, the render's virtual
-// items)? Read from the virtualizer's cached state only: `getMeasurements()` (sizes measured or estimated, kept in
-// itemSizeCache) and `getSize()` (the viewport from its last rect report). Neither reads layout (virtual-core 3.14.0
-// index.js 366-373 and 439-523). `top` is where `scrollToIndex(idx, { align: 'center' })` puts the viewport before the
-// max-offset clamp (getOffsetForAlignment); that clamp only moves it back toward the rows already drawn.
-function centredViewStaysDrawn(virt, idx, drawn) {
-  try {
-    if (!drawn || !drawn.length) return false
-    const m = virt.getMeasurements()[idx]
-    const size = virt.getSize()
-    if (!m || !(size > 0)) return false
-    const top = Math.max(0, m.start + (m.size - size) / 2)
-    return drawn[0].start <= top && drawn[drawn.length - 1].end >= top + size
-  } catch { return false }
-}
 
 export function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChange, scrollToSym, noScrollRef, keyMoveRef = null, measureOffset = false }) {
   // ⭐ WHY AN OFFSET EXISTS AT ALL. The virtualizer places rows absolutely and
@@ -750,11 +758,16 @@ export function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChan
   // we DON'T mark done, so a later `items` update (the expand) still lands the scroll once.
   const scrolledForRef = useRef(null)
   // ⭐ (2026-11-23, next-row key profile; review of #2598) AN ARROW KEY'S SNAP RUNS IN THE NEXT ANIMATION FRAME
-  // CALLBACK, NOT IN THE KEY PRESS'S COMMIT. `scrollToIndex` reads the scroller's scrollHeight/clientHeight
-  // (virtual-core getMaxScrollOffset): in the commit that was a forced layout before the two linked charts had made
-  // their DOM writes, so the frame laid out twice. In the frame callback (utils/afterPaintSlot.js
-  // createNextFrameSlot) every write of the key task is made, the read is the layout that frame needs anyway, and the
-  // scroll is painted in that same frame with the highlight: the bar stays put and the rows move under it, as before.
+  // CALLBACK, NOT IN THIS EFFECT. `scrollToIndex` reads the scroller's scrollHeight/clientHeight (virtual-core
+  // getMaxScrollOffset), a forced layout, then scrolls. WHERE THIS EFFECT RUNS on /charts (react-dom 19.2.4): the key
+  // task renders the group store's readers at SyncLane (the charts, and Watchlists with the new `hubSym` but the old
+  // `selectedSym`); Watchlists' `[hubSym]` effect then sets `selectedSym` at DefaultLane, rendered in the NEXT
+  // scheduler task, and that commit's passive effects (this one) are themselves scheduled. Here the snap ran in that
+  // passive callback. Now it runs in the next frame callback registered from it (utils/afterPaintSlot.js
+  // createNextFrameSlot): the layout it reads is the one that frame needs anyway, and the scroll is painted in that
+  // frame. That is the frame that first paints the highlight when the highlight's commit and this callback share a
+  // scheduler slice; when React yields between them, the highlight paints a frame before the scroll, exactly as on the
+  // parent, whose scroll ran in this same callback.
   // ONLY a move the arrow keys made (`keyMoveRef`, set by Watchlists' handleKeyDown) waits; a list opened on a
   // selection, a search, a symbol set from elsewhere snap here in the commit exactly as before. A held key snaps
   // once per frame, to the newest row. The snap is marked done when it RUNS: a row missing then is snapped by the
@@ -1961,14 +1974,15 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
 
   // Scroll the active row into view when selection changes via keyboard.
   // ⭐ (2026-11-23, next-row key profile; review of #2598) FOR AN ARROW KEY'S MOVE, IN THE NEXT ANIMATION FRAME
-  // CALLBACK. On /charts the commit of an arrow key's selection is still the key press's task, and the row lookup and
-  // `scrollIntoView` (a forced layout, then a scroll) ran there before the two linked charts had made their DOM
-  // writes. In the frame callback (utils/afterPaintSlot.js createNextFrameSlot) the layout is the one that frame needs
-  // anyway, and the scroll is painted in that same frame with the highlight. Which row, and whether this widget
-  // scrolls at all, is decided here as before; any other selection (a list opened on one, a search, a symbol set from
-  // elsewhere) scrolls here in the commit exactly as before. A held key scrolls once per frame, to the newest row; an
-  // unmount, or a selection that empties, scrolls nothing. This effect also ends the key move (`keyMoveRef`): it runs
-  // after ScanRows' snap effect in the same commit, which reads it first.
+  // CALLBACK. On /charts an arrow key's selection commits one scheduler task after the key task (the `[hubSym]`
+  // effect below sets it at DefaultLane; see ScanRows' snap effect for the whole path), and this passive effect is
+  // scheduled after that commit. The row lookup and `scrollIntoView` (a forced layout, then a scroll) ran here; now
+  // they run in the next frame callback registered from here (utils/afterPaintSlot.js createNextFrameSlot), where the
+  // layout is the one that frame needs anyway. Which row, and whether this widget scrolls at all, is decided here as
+  // before; any other selection (a list opened on one, a search, a symbol set from elsewhere) scrolls here exactly as
+  // before. A held key scrolls once per frame, to the newest row; an unmount, or a selection that empties, scrolls
+  // nothing. This effect also ends the key move (`keyMoveRef`) once its selection has committed: it runs after
+  // ScanRows' snap effect in the same commit, which reads it first.
   const pageRef = useRef(null)
   const rowScrollSlotRef = useRef(null)
   if (!rowScrollSlotRef.current) rowScrollSlotRef.current = createNextFrameSlot()
@@ -1976,7 +1990,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   useEffect(() => {
     const slot = rowScrollSlotRef.current
     const keyMove = keyMoveRef.current != null && keyMoveRef.current === selectedSym
-    keyMoveRef.current = null
+    if (keyMove) keyMoveRef.current = null               // only the move this commit shows: a later one keeps its own
     // Only the active widget scrolls — otherwise all 4 watchlists force a synchronous
     // reflow on every selection change (the big cost when scanning up / wrapping).
     if (!selectedSym || !pageRef.current || !isActiveWidget()) { slot.cancel(); return }
