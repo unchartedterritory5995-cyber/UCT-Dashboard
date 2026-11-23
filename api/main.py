@@ -11495,6 +11495,13 @@ async def lifespan(app: FastAPI):
         _csg_stop.shutdown()
     except Exception as e:  # noqa: BLE001
         print(f"[shutdown] cold-preload pool stop failed (non-fatal): {type(e).__name__}")
+    # The same for the chart stream's bars-seed pool (api/routers/stream.py _kick_seed), measured holding the
+    # join the same way: "4 non-daemon thread(s) still running after 5s: bars-seed_0..3". Never fatal.
+    try:
+        from api.routers import stream as _seed_stop
+        _seed_stop.shutdown_seed_pool()
+    except Exception as e:  # noqa: BLE001
+        print(f"[shutdown] bars-seed pool stop failed (non-fatal): {type(e).__name__}")
 
     # ⚡ Last write before the pod goes away, so the REPLACEMENT boots warm.
     # Deliberately after the scheduler stops (no job can be mutating the cache

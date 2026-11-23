@@ -547,18 +547,43 @@ _seed_pool = None
 _seed_inflight = 0
 _seed_skipped_total = 0
 _seed_lock = threading.Lock()
+#: Set by shutdown_seed_pool(): from then on no seed starts and no pool is made.
+_seed_closed = False
+
+
+def shutdown_seed_pool() -> None:
+    """At process shutdown (the web lifespan's last steps): let the seed pool's IDLE workers exit now.
+
+    Measured at a web pod swap: "[serve-dual] exiting with 4 non-daemon thread(s) still running after 5s:
+    bars-seed_0..3" ("exit after 12.0s (shutdown 7.0s, join 5.00s)"). Idle ThreadPoolExecutor workers wait
+    on the work queue until interpreter shutdown wakes them, which api/serve_dual.py's `os._exit` never
+    reaches, so the bounded join spent its whole 5 s on them. The cold-preload pool's fix exactly
+    (cold_start_guard.shutdown, #2478): `wait=False`, because a seed still running is a bars read for a
+    stream that is going away and finishes on its own (the join bounds it); `cancel_futures=True`, because
+    one not yet started never needs to. After this `_kick_seed` refuses (False, its "not started"), and
+    no new pool is made. Safe to call twice, and when no stream ever made the pool."""
+    global _seed_pool, _seed_closed
+    with _seed_lock:
+        _seed_closed = True
+        pool, _seed_pool = _seed_pool, None
+    if pool is not None:
+        pool.shutdown(wait=False, cancel_futures=True)
 
 
 def _kick_seed(fn, sym: str) -> bool:
-    """Run fn(sym) on the bounded seed pool. Returns False when it was skipped."""
+    """Run fn(sym) on the bounded seed pool. Returns False when it was skipped (saturated, or the
+    process is shutting down: shutdown_seed_pool)."""
     global _seed_pool, _seed_inflight, _seed_skipped_total
     with _seed_lock:
+        if _seed_closed:
+            return False
         if _seed_inflight >= _SEED_MAX_INFLIGHT:
             _seed_skipped_total += 1
             return False
         if _seed_pool is None:
             from concurrent.futures import ThreadPoolExecutor
             _seed_pool = ThreadPoolExecutor(max_workers=_SEED_WORKERS, thread_name_prefix="bars-seed")
+        pool = _seed_pool
         _seed_inflight += 1
 
     def _run():
@@ -572,8 +597,8 @@ def _kick_seed(fn, sym: str) -> bool:
                 _seed_inflight -= 1
 
     try:
-        _seed_pool.submit(_run)
-    except Exception:  # noqa: BLE001 — pool shut down at exit
+        pool.submit(_run)
+    except Exception:  # noqa: BLE001 — pool shut down at exit (a kick racing shutdown_seed_pool)
         with _seed_lock:
             _seed_inflight -= 1
         return False
