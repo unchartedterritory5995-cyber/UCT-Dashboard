@@ -193,6 +193,10 @@ describe('the first page: drawn at once, byte-equal to the full history where it
   })
 
   it('⛔ ORDERING: a page that lands AFTER its full answer is DISCARDED, never painted over the full picture', () => {
+    // ⭐ (train e95) THE ROUTE IS PINNED: this rail is about ORDERING. Left to the learned route, the stale call below
+    // went to the worker only while Fred's 5-minute pass measured over LONG_TASK_MS on the runner (73 ms on master);
+    // e95 computes it in 41 ms, so the tab answered it on its own thread and the rail read a wall clock, not the order.
+    __routeEveryHostDocumentForTests(true)
     const def = fredDef()
     const fc = fredCtx(fiveMinute(24).spx)
     const r1 = fiveMinute(22).chart
