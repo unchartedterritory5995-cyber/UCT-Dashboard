@@ -24,6 +24,7 @@ import {
 import * as nativeRegistry from '../../components/chart/engine/nativeRegistry'
 import { common } from './indicatorEdits'
 import { checkBuilt, applyBuilt } from './indicatorControls'
+import { prefWriteFailed, readsBack } from '../prefFailure'
 
 const quote = (s) => `“${s}”`
 const OFF = 'Indicator templates aren’t switched on in this build.'
@@ -86,6 +87,7 @@ export const indicatorTemplatesKind = {
   patch: (before, after) => (after.change ? { ...after.change } : null),
   async commit(host, ref, patch) {
     let verdict = null
+    const before = (() => { try { return snap(host).templates } catch { return undefined } })()
     const stamped = { ...patch, ...(patch.put && patch.put.savedAt === 0 ? { put: { ...patch.put, savedAt: Date.now() } } : {}) }
     const answer = await host.prefs.merge(INDICATOR_TEMPLATES_PREF, (current) => {
       const m = mergedTemplates(current, stamped)
@@ -93,7 +95,8 @@ export const indicatorTemplatesKind = {
       return m.why ? undefined : m.list          // `undefined` abandons the write
     })
     if (verdict) throw new Error(WHY[verdict] || verdict)
-    if (!answer || answer.ok !== true) throw new Error('the server did not confirm the change, so it is not saved')
+    // ⛔ INV2: a refused merge may keep its optimistic list in this tab — "nothing was left changed" only on a read-back of the old one
+    if (!answer || answer.ok !== true) throw prefWriteFailed('the server did not confirm the change, so it is not saved', { unchanged: before !== undefined && readsBack(() => snap(host).templates, before) })
     return patch.line ? { lines: [patch.line] } : true
   },
   landed(s, { put, drop }) {
