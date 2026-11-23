@@ -50,7 +50,7 @@ def _env_and_state(monkeypatch):
 class Rig:
     """A runtime + feed server on an injected clock (ms) with manual timers."""
 
-    def __init__(self, seeding=False, fetcher=None, lookback_ms=None, trades=None):
+    def __init__(self, seeding=False, fetcher=None, lookback_ms=None, trades=None, probe=None):
         self.now = [T0]
         self.tape = []          # every feed trade: the vendor's tape holds them too
         self.timers = []
@@ -60,6 +60,7 @@ class Rig:
                             "seed_fetcher": lambda s: []},
             seed_fetcher=fetcher or (lambda s: []), seeding=seeding,
             trades_fetcher=trades or (lambda s, a, b: [r for r in self.tape if a <= r[0] < b]),
+            tape_probe=probe or (lambda s, at: any(r[0] >= at for r in self.tape)),
             snapshot_lookback_ms=lookback_ms)
         if trades is not None and hasattr(trades, "rig"):
             trades.rig = self
@@ -1274,35 +1275,6 @@ def test_coverage_prints_sharing_the_first_trades_millisecond_all_count_once():
     assert (x["o"], x["c"], x["v"]) == (5.0, 6.2, 142)
 
 
-def test_a_tape_that_does_not_reach_the_first_trade_is_asked_again(monkeypatch):
-    """Review #3: the trades tape lags; an answer without the first live trade would miss prints
-    just before it. It is asked again shortly (not a failure), then used once it reaches B."""
-    monkeypatch.setattr(ir, "TAPE_RETRY_S", 0.01)
-    answers = []
-
-    def trades(sym, a, b):
-        answers.append((a, b))
-        if len(answers) == 1:
-            return [(T0 + 1_000, 5.0, 100, [])]            # behind: no print at B yet
-        return [(T0 + 1_000, 5.0, 100, []), (T0 + 20_000, 4.0, 50, []), (b - 1, 6.0, 10, [])]
-
-    rig = Rig(seeding=True, trades=trades)
-    rig.now[0] = T0 + 30_000
-
-    async def go():
-        c = FakeConn([hello(), desired(1, OWN, frozenset({("ZZA", "1")}))])
-        t = await run_until(c, rig.srv, lambda: ("ZZA", "1") in rig.rt._key_routes)
-        rig.trade("ZZA", T0 + 31_000, 6.0, 10)
-        await until(lambda: _frames(c, T0))
-        assert rig.rt.counters["seed_tape_behind"] == 1 and rig.rt.counters["seed_errors"] == 0
-        b = _frames(c, T0)[0].bar
-        assert (b["o"], b["l"], b["v"]) == (5.0, 4.0, 160)
-        await c.close()
-        await asyncio.wait_for(t, 2)
-        await rig.rt.stop_reader()
-    asyncio.run(go())
-
-
 def test_coverage_a_straggler_first_trade_does_not_open_the_gap():
     """Review #6: the first trade to arrive is stamped well before T was requested (a straggler).
     It does not fix the gap; the next real one does."""
@@ -1351,20 +1323,66 @@ def test_coverage_minute_before_m_without_a_vendor_bar_comes_from_the_tape():
     assert (x["o"], x["h"], x["v"]) == (6.0, 9.5, 120)
 
 
-def test_a_cancelled_first_print_does_not_block_the_tape_check(monkeypatch):
-    """Review #2: the first live print is missing from the tape (cancelled/corrected); any print
-    at or after B still proves the tape reaches B."""
-    rig = Rig(seeding=True, trades=lambda s, a, b: [(T0 + 1_000, 5.0, 100, []), (T0 + 31_500, 6.1, 5, [])])
+def test_a_tape_that_does_not_reach_the_first_trade_is_asked_again(monkeypatch):
+    """Review 2026-11-23 #3: the trades tape lags; until the one-row probe finds a print at/after
+    B it is asked again shortly (not a failure), always for the same fixed window."""
+    monkeypatch.setattr(ir, "TAPE_RETRY_S", 0.01)
+    probes, windows = [], []
+
+    def probe(sym, at):
+        probes.append(at)
+        return len(probes) > 1
+
+    def trades(sym, a, b):
+        windows.append((a, b))
+        return [(T0 + 1_000, 5.0, 100, []), (T0 + 20_000, 4.0, 50, []), (T0 + 31_000, 6.0, 10, [])]
+
+    rig = Rig(seeding=True, trades=trades, probe=probe)
     rig.now[0] = T0 + 30_000
 
     async def go():
         c = FakeConn([hello(), desired(1, OWN, frozenset({("ZZA", "1")}))])
         t = await run_until(c, rig.srv, lambda: ("ZZA", "1") in rig.rt._key_routes)
         rig.trade("ZZA", T0 + 31_000, 6.0, 10)
-        rig.now[0] = T0 + 32_000
         await until(lambda: _frames(c, T0))
-        assert rig.rt.counters["seed_tape_behind"] == 0
+        assert rig.rt.counters["seed_tape_behind"] == 1 and rig.rt.counters["seed_errors"] == 0
+        assert len(set(windows)) == 1 and windows[0][1] == T0 + 31_001, "a fixed window, through B"
+        b = _frames(c, T0)[0].bar
+        assert (b["o"], b["l"], b["v"]) == (5.0, 4.0, 160)
         await c.close()
         await asyncio.wait_for(t, 2)
         await rig.rt.stop_reader()
     asyncio.run(go())
+
+
+def test_a_cancelled_first_print_does_not_block_the_tape_check():
+    """Review #2: the first live print is missing from the tape (cancelled/corrected); the probe
+    finds a later print, so coverage still closes from the tape through B."""
+    rig = Rig(seeding=True, trades=lambda s, a, b: [r for r in [(T0 + 1_000, 5.0, 100, [])] if a <= r[0] < b],
+              probe=lambda s, at: True)
+    rig.now[0] = T0 + 30_000
+
+    async def go():
+        c = FakeConn([hello(), desired(1, OWN, frozenset({("ZZA", "1")}))])
+        t = await run_until(c, rig.srv, lambda: ("ZZA", "1") in rig.rt._key_routes)
+        rig.trade("ZZA", T0 + 31_000, 6.0, 10)
+        await until(lambda: _frames(c, T0))
+        assert rig.rt.counters["seed_tape_behind"] == 0 and _frames(c, T0)[0].bar["o"] == 5.0
+        await c.close()
+        await asyncio.wait_for(t, 2)
+        await rig.rt.stop_reader()
+    asyncio.run(go())
+
+
+def test_coverage_an_am_for_the_minute_before_m_is_never_overwritten_by_the_tape():
+    """Review (6th) #2: the AM for M-1 arrived before the seed; the tape fold must not replace it."""
+    b, now, sent = _bb_cov()
+    M = T0 + 2 * MIN
+    now[0] = M
+    b.trades_started("ZZA")
+    _t(b, now, M + 10_000, 7.0, 10)
+    b.push_aggregate("ZZA", {"t": T0 + MIN, "o": 8.0, "h": 9.0, "l": 7.5, "c": 8.5, "v": 1000}, "AM")
+    tape = [(T0 + MIN + 5_000, 8.0, 50, []), (M + 10_000, 7.0, 10, [])]
+    assert b.apply_seed("ZZA", [], gap_trades=tape, fetched_at=M + 12_000, tape_from=T0 + MIN) is True
+    st = b._minutes["ZZA"][T0 + MIN]
+    assert (st.o, st.h, st.v) == (8.0, 9.0, 1000)

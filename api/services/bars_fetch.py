@@ -2280,8 +2280,8 @@ def fetch_trades_between(ticker: str, from_ms: int, to_ms: int, timeout: float =
     """The vendor's trades with SIP timestamp in [from_ms, to_ms) (ms), oldest first, as
     [(t ms, price, size, conditions)] — the fields the live T feed carries, so the stream's
     coverage seed (bar_broadcaster) classifies and folds them exactly as it does the feed's.
-    At most one minute is asked for. RAISES on any vendor error or a truncated answer: a
-    partial list would make a wrong candle look whole."""
+    At most two minutes are asked for (M-1 and M up to the first live trade). RAISES on any
+    vendor error or a truncated answer: a partial list would make a wrong candle look whole."""
     client = _get_client()
     lo, hi = int(from_ms) * 1_000_000, int(to_ms) * 1_000_000
     url = (f"{_REST_BASE}/v3/trades/{to_polygon_symbol(ticker)}"
@@ -2301,6 +2301,16 @@ def fetch_trades_between(ticker: str, from_ms: int, to_ms: int, timeout: float =
             return out
         url = f"{nxt}{'&' if '?' in nxt else '?'}apiKey={client._api_key}"
     raise RuntimeError("trades answer truncated")
+
+
+def tape_reaches(ticker: str, at_ms: int, timeout: float = 3.0) -> bool:
+    """True when the vendor's trades tape already holds a print stamped at or after `at_ms`
+    (one-row probe): proof a tape fetched up to `at_ms` is not behind. Raises on error."""
+    client = _get_client()
+    url = (f"{_REST_BASE}/v3/trades/{to_polygon_symbol(ticker)}"
+           f"?timestamp.gte={int(at_ms) * 1_000_000}&order=asc&sort=timestamp&limit=1"
+           f"&apiKey={client._api_key}")
+    return bool(client._get(url, timeout=timeout).get("results"))
 
 
 def _paginate_massive_aggs(client, url: str) -> list[dict]:

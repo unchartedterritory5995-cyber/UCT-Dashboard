@@ -140,6 +140,7 @@ class IngestRuntime:
     def __init__(self, *, broadcaster_kw: Optional[dict] = None,
                  seed_fetcher: Optional[Callable[[str], list]] = None,
                  trades_fetcher: Optional[Callable[[str, int, int], list]] = None,
+                 tape_probe: Optional[Callable[[str, int], bool]] = None,
                  seeding: Optional[bool] = None,
                  policy: Optional[massive_reconnect.MaxConnLadder] = None,
                  snapshot_lookback_ms: Optional[int] = None):
@@ -153,6 +154,7 @@ class IngestRuntime:
         self._fetch = seed_fetcher or bbm._default_seed_fetcher
         # coverage: the vendor's trades of a gap [M, B) as [(t ms, price, size, conditions)]
         self._fetch_trades = trades_fetcher or bbm._default_trades_fetcher
+        self._tape_probe = tape_probe or bbm._default_tape_probe
         self._flow_events: dict = {}             # sym -> asyncio.Event set by its first trade
         # Seeds only when the socket will really open (no live data = nothing to merge into).
         self.seeding = connect_decision()[0] if seeding is None else bool(seeding)
@@ -472,19 +474,22 @@ class IngestRuntime:
 
     def _fetch_seed(self, sym: str, gap):
         """Off the loop: the day's minute bars and, for a declared gap (M, B), the vendor's trades
-        from M (or from M-1 when the vendor has no settled bar for M-1) up to the fetch time.
-        Returns (bars, trades, fetched_at, tape_from); fetched_at is taken BEFORE any request, so a
-        slow answer can never pass a partial minute off as settled. Raises on any vendor error."""
+        from M (or from M-1 when the vendor has no settled bar for M-1) through B — a fixed window
+        however often it is retried — plus a one-row probe proving the tape reaches B.
+        Returns (bars, trades, fetched_at, tape_from, reaches); fetched_at is taken BEFORE any
+        request, so a slow answer can never pass a partial minute off as settled. Raises on any
+        vendor error."""
         fetched_at = self.bc._clock_ms()
         bars = self._fetch(sym) or []
         if gap is None:
-            return bars, None, fetched_at, None
+            return bars, None, fetched_at, None, True
         m0, b0 = gap
         prev = m0 - 60_000
         has_prev = any(int(b.get("t", -1)) // 60_000 * 60_000 == prev for b in bars)
         tape_from = m0 if has_prev else prev
-        trades = list(self._fetch_trades(sym, tape_from, max(fetched_at, b0 + 1)) or [])
-        return bars, trades, fetched_at, tape_from
+        reaches = bool(self._tape_probe(sym, b0))     # probed first: the tape then holds it all
+        trades = list(self._fetch_trades(sym, tape_from, b0 + 1) or [])
+        return bars, trades, fetched_at, tape_from, reaches
 
     async def _seed(self, sym: str, gen: int) -> None:
         coverage = not self.bc.covered(sym)
@@ -502,12 +507,12 @@ class IngestRuntime:
             gap = self.bc.gap_window(sym) if coverage else None
             fetched = True
             try:
-                bars, trades, fetched_at, tape_from = await asyncio.get_running_loop().run_in_executor(
+                bars, trades, fetched_at, tape_from, reaches = await asyncio.get_running_loop().run_in_executor(
                     self._pool, self._fetch_seed, sym, gap)
             except Exception as e:  # noqa: BLE001
                 self.counters["seed_errors"] += 1
                 log.warning("[stream-ingest] seed(%s) failed: %s", sym, type(e).__name__)
-                bars, trades, fetched, fetched_at, tape_from = [], None, False, None, None
+                bars, trades, fetched, fetched_at, tape_from, reaches = [], None, False, None, None, False
             # back on the loop: the apply (and the frames it emits) is ordered with the reader
             if gen != self._seed_gen.get(sym, 0):
                 # T restarted mid-fetch: this fetch predates the restart. Drop it whole (an
@@ -515,7 +520,7 @@ class IngestRuntime:
                 # hold, the first-seed mark and the re-offer belong to the newer seed.
                 self.counters["seeds_superseded"] += 1
                 return
-            if coverage and fetched and gap is not None and not any(int(r[0]) >= gap[1] for r in trades):
+            if coverage and fetched and gap is not None and not reaches:
                 # the tape has nothing at or after the first live trade yet: it may be behind B and
                 # miss prints just before it. Not an error: ask again shortly. (Any print at/after
                 # B proves it, so a cancelled first print can't block this forever.)

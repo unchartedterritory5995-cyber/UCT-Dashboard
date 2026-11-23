@@ -127,6 +127,12 @@ class _Minute:
         self.seeded = False   # True = a REST partial covered this minute's start (coverage)
 
 
+def _default_tape_probe(sym: str, at_ms: int) -> bool:
+    """Coverage: does the vendor's tape hold a print at/after `at_ms` yet? Raises on error."""
+    from api.services import bars_fetch
+    return bars_fetch.tape_reaches(sym, at_ms)
+
+
 def _default_seed_fetcher(sym: str) -> list[dict]:
     """Today's (ET) stored/REST 1-min bars as {t(ms), o, h, l, c, v}."""
     from datetime import datetime
@@ -681,8 +687,11 @@ class BarBroadcaster:
                     # on it, and no stale pre-restart state in it is ever shown
                     mins = self._minutes.setdefault(su, {})
                     prev = gap[0] - _MINUTE_MS
+                    held = mins.get(prev)
                     if prev not in seen and tape_from is not None and tape_from <= prev \
-                            and self._accept_minute(su, prev):
+                            and self._accept_minute(su, prev) \
+                            and not (held is not None and held.auth and held.o is not None):
+                        # (an AM for M-1 that already arrived is the minute: never overwritten)
                         # no settled vendor bar for M-1 (late, or no trade): the tape decides
                         e = _Minute()
                         for (t, p, s, conds) in gap_trades:
