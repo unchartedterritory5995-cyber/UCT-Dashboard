@@ -5373,7 +5373,7 @@ def _interpret_daily_reads(ast, bars, inputs, budget, scalars, opts) -> List[May
     for node, name in reads:
         child_bars = supply["bars"] if supply else (bars if isinstance(bars, list) else [])
         child_opts = dict(opts or {})
-        for k in ("frames", DAILY_READ_COLUMNS, "historyFromListing", "listingStart", "barIndexFromFirstBar",
+        for k in ("frames", DAILY_READ_COLUMNS, "historyFromListing", "listingStart", "barIndexAbsolute",
                   "lowerTf", "prefixProbe", "chartClockSink"):
             child_opts.pop(k, None)
         child_opts["tf"] = DAILY_READ

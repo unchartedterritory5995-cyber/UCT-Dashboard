@@ -5925,7 +5925,7 @@ function interpretDailyReads(ast, bars, inputs, budget, scalars, opts) {
       // the newest daily bar's state is the SUPPLY's (its payload), never the chart's
       newestBarIsForming: supply ? (supply.newestFinal === true ? false : null) : null,
       // the daily bars are not the series the chart's caller described (`astColumns.listingOptsFor`)
-      historyFromListing: undefined, listingStart: undefined, barIndexFromFirstBar: undefined,
+      historyFromListing: undefined, listingStart: undefined, barIndexAbsolute: undefined,
       lowerTf: undefined, prefixProbe: undefined, probeBase: undefined,
       crossMemo: dailyMemo, chartClockSink: childClock, withheldBarsSink: undefined,
     }), childBars.length)
@@ -6747,7 +6747,8 @@ export const CHART_CLOCK_WITHHELD = Object.freeze({
     + 'bars of that day, which the chart asks for again.',
   [DAILY_READ_NO_DAILY_BARS]: (tf) => 'This indicator reads a daily value the way a chart below a day shows it (the last '
     + `finished day on each bar), and here (timeframe ${tfSpelled(tf)}) it is not handed the symbol's daily bars beside `
-    + 'its own, so everything it draws from that read is withheld rather than guessed. On a chart below a day it draws.',
+    + 'its own, so everything it draws from that read is withheld rather than guessed. On a chart below a day it draws. '
+    + 'What would settle it: the symbol\'s daily bars handed beside this view\'s own.',
   'request:other-timeframe': (tf) => 'This indicator reads another timeframe of its own symbol with '
     + '`request.security`. Here that read is built for a 1D chart: a daily request is the chart\'s own bars, '
     + `and a weekly or monthly one is made from them. This chart's timeframe is ${tfSpelled(tf)}, where the `
