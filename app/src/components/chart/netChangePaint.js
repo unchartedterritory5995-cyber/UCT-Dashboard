@@ -9,6 +9,7 @@
 // color change repaints via setData without recreating the series (no shake).
 
 import { parseColor } from '../../utils/dividerColor'
+import { SET_DATA_PAINTED } from './windowedChart'
 
 /** A hollow body: the colour's own RGB at alpha 0 (the pill and the candle keep their hue). */
 export const _hollowFill = (c) => {
@@ -62,7 +63,61 @@ export function paintNetBar(bar, prevClose, prevBar, readNC) {
 }
 
 /**
+ * ⭐ (2026-11-23, next-row chart walks, item ii) THE PAINTED ROWS `from..end` OF A WHOLE-ARRAY PASS, WITHOUT THE PASS.
+ * The pass carries one thing from row to row: the previous row WITH a close (its close and its high/low). So the rows
+ * from `from` on are painted from the last such row before `from`, found by stepping back over rows with no close:
+ * `paintNetFrom(rows, from, readNC)` equals the whole pass's painted array `.slice(from)` (netChangePaint.window.test.js
+ * C1/C2). `prevBar` is the previous row itself here (the paint reads only its high and low).
+ */
+export function paintNetFrom(rows, from, readNC) {
+  let prev = null, prevBar = null
+  for (let j = from - 1; j >= 0; j--) {
+    const b = rows[j]
+    if (b && b.close != null) { prev = b.close; prevBar = b; break }
+  }
+  const out = new Array(rows.length - from)
+  for (let i = from; i < rows.length; i++) {
+    const b = rows[i]
+    if (b && b.close != null) {
+      out[i - from] = paintNetBar(b, prev, prevBar, readNC)
+      prev = b.close
+      prevBar = b
+    } else {
+      out[i - from] = b
+    }
+  }
+  return out
+}
+
+/** The developing-bar refs a whole pass over `data` ends with: the last row with a close and the one before it. */
+function netRefsOf(data) {
+  let last = -1, before = -1
+  for (let i = data.length - 1; i >= 0; i--) {
+    const b = data[i]
+    if (b && b.close != null) {
+      if (last < 0) last = i
+      else { before = i; break }
+    }
+  }
+  const hl = (i) => ({ high: data[i].high, low: data[i].low })
+  return {
+    netPrevClose: last >= 0 && before >= 0 ? data[before].close : null,
+    lastNetClose: last >= 0 ? data[last].close : null,
+    netPrevBar: last >= 0 && before >= 0 ? hl(before) : null,
+    lastNetBar: last >= 0 ? hl(last) : null,
+    lastNetTime: data.length ? data[data.length - 1]?.time : null,
+  }
+}
+
+/**
  * Wrap `series`' setData / update with the net-change paint, once.
+ * ⭐ (2026-11-23, next-row chart walks, item ii) ON A RENDER-WINDOW SERIES ONLY THE ROWS HANDED TO THE LIBRARY ARE
+ * PAINTED. The wrap re-mapped EVERY row at each setData (one new object per bar: ~1.3 ms a next-row press on a daily
+ * chart, production profile) while the facade (chart/windowedChart.js) handed the library a window of ~750 of them.
+ * It now hands the facade the rows as they came and the paint (`SET_DATA_PAINTED`): the facade paints the window it
+ * cuts, and the rows an extension adds when it adds them, with the colours read at this setData (as the rows painted
+ * here kept them before). What the library holds is what it held before; the refs are the whole pass's, read from the
+ * tail. A series without the facade (the window switched off) is painted whole, as before.
  * @param {object} series  the price series (the render-window facade's, in StockChart)
  * @param {() => object} readNC  the live colours (StockChart `netColorsRef.current`)
  * @param {{netPrevCloseRef, lastNetCloseRef, netPrevBarRef, lastNetBarRef, lastNetTimeRef}} refs  what update()
@@ -72,27 +127,22 @@ export function installNetChangePaint(series, readNC, refs) {
   const { netPrevCloseRef, lastNetCloseRef, netPrevBarRef, lastNetBarRef, lastNetTimeRef } = refs
   const _realSet = series.setData.bind(series)
   const _realUpd = series.update.bind(series)
+  const _setPainted = typeof series[SET_DATA_PAINTED] === 'function' ? series[SET_DATA_PAINTED] : null
   series.setData = (data) => {
     if (!Array.isArray(data)) return _realSet(data)
-    let prev = null, lastPrev = null, prevBar = null, lastPrevBar = null
-    const painted = data.map((b) => {
-      if (b && b.close != null) {
-        lastPrev = prev
-        lastPrevBar = prevBar
-        const out = paintNetBar(b, prev, prevBar, readNC)
-        prev = b.close
-        prevBar = { high: b.high, low: b.low }
-        return out
-      }
-      return b
-    })
     // Refs the update() wrap reads for the developing bar: prev-of-last & the last bar.
-    netPrevCloseRef.current = lastPrev
-    lastNetCloseRef.current = prev
-    netPrevBarRef.current = lastPrevBar
-    lastNetBarRef.current = prevBar
-    lastNetTimeRef.current = painted.length ? data[data.length - 1]?.time : null
-    return _realSet(painted)
+    const r = netRefsOf(data)
+    netPrevCloseRef.current = r.netPrevClose
+    lastNetCloseRef.current = r.lastNetClose
+    netPrevBarRef.current = r.netPrevBar
+    lastNetBarRef.current = r.lastNetBar
+    lastNetTimeRef.current = r.lastNetTime
+    if (_setPainted) {
+      const NC = readNC()               // this setData's colours, for every cut of these rows
+      const ncNow = () => NC
+      return _setPainted(data, (rows, from) => paintNetFrom(rows, from, ncNow))
+    }
+    return _realSet(paintNetFrom(data, 0, readNC))
   }
   series.update = (bar) => {
     if (!bar || bar.close == null) return _realUpd(bar)
