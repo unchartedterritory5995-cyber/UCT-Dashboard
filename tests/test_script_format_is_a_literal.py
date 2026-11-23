@@ -165,11 +165,14 @@ def test_THE_PERCENT_SENTENCE_STAYS_EXACTLY_AS_LONG_AS_THE_ENGINE_WITHHOLDS_FORM
 
 def test_the_recorded_answer_is_no_longer_a_case_recorded_WRONG():
     """On 2026-11-22 that answer drew NO VALUES (its table showed two labels and no numbers: the engine withheld a text
-    whose format was not a string literal), and the case was recorded WRONG. Since e95 unit 1 the engine folds a
-    format that is fixed, the same recorded answer grades RIGHT on the script lane
-    (`tests/test_value_cases_scripts.py`), and the case left the WRONG list (`tests/test_value_cases.py`). (train e95:
-    master keeps that wrong answer as the case's fixed specimen, `found`, the one this finding reads.)"""
+    whose format was not a string literal), and the case was recorded WRONG. Its wrong answer stays as the case's
+    specimen (`found`, the live run's record: a fixed defect stays as a specimen), and since e95 unit 1 the engine folds
+    a format that is fixed, so that specimen's own script draws its values (the forms above); the case is not on the
+    WRONG list (`tests/test_value_cases.py`)."""
     assert CASE["lane"] == "script" and "recorded_verdict" not in CASE and "defect" not in CASE
     assert "NO VALUES" in FOUND["defect"]
+    # ⭐ the specimen is marked as the ENGINE's fix (`engine_fixed`, coordinator ruling 2026-11-22), so the value-case
+    # invariant holds it RIGHT through the engine (`tests/test_value_cases_found.py`; mutant FF10 reverts the fold)
+    assert FOUND.get("engine_fixed") == {"by": "e95 unit 1 (#2483)", "since_engine": 95}
     assert "str.tostring(pdh, fmt)" in RECORDED and "request.security" not in RECORDED
     assert script_rules.has_rule("table-format-01")

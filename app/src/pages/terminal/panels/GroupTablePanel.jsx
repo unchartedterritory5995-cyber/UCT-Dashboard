@@ -2,10 +2,15 @@
 // from SEC filings (point in time), and breadth from UCT's stored closes, worked out once each evening.
 //
 //   GRPS                   every sector, the overview columns        GRPS INDUSTRIES      every industry
-//   GRPS VALUATION         a column set: OVERVIEW | GROWTH | MARGINS | VALUATION | BREADTH | RANK | ALL
+//   GRPS VALUATION         a column set: OVERVIEW | GROWTH | MARGINS | VALUATION | BREADTH | RANK | CROWDING | ALL
 //   GRPS INDUSTRIES RANK   (2026-11-22) each group's weekly rank by the median 6-month price change of its stocks: now,
 //                          the places moved over 4, 13 and 52 weeks, the year's best and worst, the 3-month rank and the
 //                          year's small line, sorted best first; the movers strip above it
+//   GRPS CROWDING          (2026-11-22) positioning: each group's short interest (median % of float, days to cover, change since the
+//                          last report, the most shorted), insider buying (buyers, dollars, the largest buys) and fund
+//                          holdings (the share where more funds added than cut, the median net change), each part with its
+//                          own date and coverage above the table; "N stocks" opens the group's stocks with their own
+//                          figures (GroupPositioningMembers). Its own lean read: the same route with `part=positioning`.
 //
 // ONE paid route, GET /api/research/group-stats?kind= (groupStatsModel.js says what it answers). A name opens
 // GRP on that group beside this panel: its stocks ranked, and its own fundamentals and breadth in full.
@@ -19,7 +24,7 @@
 // EE and FUND do; nothing folds. A column set keeps a view to a handful of columns.
 import { useMemo, useState } from 'react'
 import {
-  PanelCommand, PanelSkeleton, PanelState, panelAsOf, useInTerminalPanel, usePanelFreshness,
+  PanelCommand, PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, usePanelFreshness,
 } from '../../../components/terminal'
 import { formatNumber } from '../../../lib/presentation/presentationPrimitives'
 import { ariaSortFor, nextSort, sortCaretFor } from '../../../lib/presentation/dataGrid'
@@ -32,10 +37,13 @@ import {
   DEFAULT_GROUPS_SORT, GROUPS_TABLE_CODE, GROUPS_VIEWS, GROUP_STATS_COMPUTING_POLL_MS, GROUP_STATS_KINDS, GROUP_STATS_POLL_MS,
   GROUP_STATS_SOURCE, GROUP_STATS_WHAT, RANK_MOVER_WINDOWS, builtWords, columnHead, defaultGroupsSort, firstSortDir, fundStateWords,
   groupStatsUrl, groupsCommandArgs, groupsSortWords, moverWords, normGroupsKind, normGroupsView, placeText, placesText, rankMovers,
-  rankScaleMax, rankStateWords, rankWindowWords, readGroupsTable, sortGroupsRows, tableCell, viewColumns,
+  rankScaleMax, rankStateWords, rankWindowWords, readGroupsTable, sortGroupsRows, tableCell, viewColumns, viewPart,
 } from './groupStatsModel'
+import { POSITIONING_PART, positioningAsOfLine, positioningNotes } from './groupPositioningModel'
+import GroupPositioningMembers from './GroupPositioningMembers'
 import styles from './marketPanels.module.css'
 import local from './groupStats.module.css'
+import pos from './groupPositioning.module.css'
 
 const count = (n) => formatNumber(n, { decimals: 0 })
 const KIND_OPTIONS = Object.entries(GROUP_STATS_KINDS).map(([value, k]) => ({ value, label: k.label }))
@@ -104,7 +112,29 @@ function RankMovers({ rows, kind }) {
   )
 }
 
+/** A cell naming stocks (the most shorted; the insider dollars over the largest buys): each symbol is the kit's symbol
+ *  cell, then its figure. A figure of its own (the dollars) sits above the list. */
+function ListCell({ cell }) {
+  return (
+    <td title={cell.words}>
+      {cell.text ? <span className={local.main} aria-hidden="true">{cell.text}</span> : null}
+      {cell.sub ? <span className={local.sub} aria-hidden="true">{cell.sub}</span> : null}
+      {cell.text ? <span className="sr-only">{cell.words}</span> : null}
+      <span className={pos.list}>
+        {cell.list.map((x, i) => (
+          <span key={`${x.sym}-${i}`} className={pos.item}>
+            <PanelSymbol sym={x.sym} />
+            <span className={pos.fig} aria-hidden="true">{x.text}</span>
+            <span className="sr-only">{`: ${x.words}`}</span>
+          </span>
+        ))}
+      </span>
+    </td>
+  )
+}
+
 function Cell({ cell }) {
+  if (cell.list) return <ListCell cell={cell} />
   if (!cell.text) return <td><span className="sr-only">{cell.words}</span></td>
   return (
     <td title={cell.words}>
@@ -125,17 +155,21 @@ export default function GroupTablePanel({ kind: kindProp = null, view: viewProp 
   const [view, setView] = useState(() => normGroupsView(viewProp))
   const [sort, setSort] = useState(() => defaultGroupsSort(normGroupsView(viewProp)))
   const [computing, setComputing] = useState(false)
-  const read = useMarketRead(groupStatsUrl(kind), { refreshInterval: computing ? GROUP_STATS_COMPUTING_POLL_MS : GROUP_STATS_POLL_MS })
+  // CROWDING: the group whose stocks are open (null: the table)
+  const [open, setOpen] = useState(null)
+  const part = viewPart(view)
+  const read = useMarketRead(groupStatsUrl(kind, null, part), { refreshInterval: computing ? GROUP_STATS_COMPUTING_POLL_MS : GROUP_STATS_POLL_MS })
   const table = useMemo(() => readGroupsTable(read.body), [read.body])
-  // Only an answer for THIS kind is drawn (the previous kind's is kept while this one loads).
-  const mine = table.state === 'ok' || table.state === 'empty' ? table.kind === kind : true
+  // Only an answer for THIS kind and THIS part is drawn (the previous one is kept while this one loads).
+  const mine = table.state === 'ok' || table.state === 'empty' ? table.kind === kind && (table.part || null) === part : true
   if ((table.state === 'computing') !== computing) setComputing(table.state === 'computing')
   usePanelFreshness(table.state === 'ok' && mine ? panelAsOf(GROUP_STATS_SOURCE, table.session || table.builtFor) : null)
 
-  const pickKind = (next) => { const k = normGroupsKind(next); setKind(k); writeBack(groupsCommandArgs({ kind: k, view })) }
+  const pickKind = (next) => { const k = normGroupsKind(next); setKind(k); setOpen(null); writeBack(groupsCommandArgs({ kind: k, view })) }
   const pickView = (next) => {
     const v = normGroupsView(next)
     setView(v)
+    setOpen(null)
     if (v === 'rank' && view !== 'rank') setSort(defaultGroupsSort('rank'))
     else if (sort.key !== 'name' && !GROUPS_VIEWS[v].columns.some((c) => c.key === sort.key)) setSort(DEFAULT_GROUPS_SORT)
     writeBack(groupsCommandArgs({ kind, view: v }))
@@ -143,7 +177,7 @@ export default function GroupTablePanel({ kind: kindProp = null, view: viewProp 
   const k = GROUP_STATS_KINDS[kind]
   const columns = useMemo(() => viewColumns(view, table.fundState), [view, table.fundState])
   const ctx = useMemo(() => ({ metaById: table.metrics || new Map(), minMembers: table.minMembers, dates: table.rankDates || [],
-    scaleMax: rankScaleMax(table.rows) }), [table])
+    scaleMax: rankScaleMax(table.rows), positioning: table.positioning || null }), [table])
   const rows = useMemo(() => (table.state === 'ok' ? sortGroupsRows(table.rows, sort, ctx) : []), [table, sort, ctx])
 
   const toolbar = (
@@ -208,10 +242,14 @@ export default function GroupTablePanel({ kind: kindProp = null, view: viewProp 
     ))
   }
 
+  const positioning = part === POSITIONING_PART
+  if (positioning && open) {
+    return wrap('members', <GroupPositioningMembers key={`${kind}:${open}`} kind={kind} name={open} onBack={() => setOpen(null)} />)
+  }
   const when = builtWords(table)
   const ranks = view === 'rank'
   const rankDown = ranks ? rankStateWords(table.rankState) : null
-  const fundWords = ranks ? null : fundStateWords(table.fundState)
+  const fundWords = ranks || positioning ? null : fundStateWords(table.fundState)
   const breadthDown = table.breadthState !== 'ok'
   const header = (key, label, title, sortable = true) => (sortable ? (
     <th key={key} scope="col" title={title} aria-sort={ariaSortFor(sort, key, 'none')} className={key === 'name' ? local.nameCell : undefined}>
@@ -230,17 +268,30 @@ export default function GroupTablePanel({ kind: kindProp = null, view: viewProp 
           {count(table.rows.length)} {table.rows.length === 1 ? k.one : k.many}{when ? `, ${when}` : ''}.
           {' '}{ranks
             ? `Each ${k.one}'s place among them by the median 6-month price change of its stocks, week by week for a year.`
-            : <>Medians of each {k.one}&apos;s stocks from their SEC filings as known that day; breadth from UCT&apos;s stored closes.</>}
+            : positioning
+              ? `Short interest, insider buying and fund holdings of each ${k.one}'s stocks; each part has its own date, below.`
+              : <>Medians of each {k.one}&apos;s stocks from their SEC filings as known that day; breadth from UCT&apos;s stored closes.</>}
         </span>
       </div>
       {table.refreshing ? <p className={styles.muted} role="status" data-testid="terminal-grps-refreshing">The evening build is running; these are the last figures.</p> : null}
       {fundWords ? <p className={styles.note} role="status" data-testid="terminal-grps-fund-state">{fundWords}</p> : null}
-      {breadthDown && !ranks ? (
+      {positioning ? (
+        <>
+          <p className={styles.muted} data-testid="terminal-grps-pos-asof">{positioningAsOfLine(table.positioning)}</p>
+          <details className={local.section} data-testid="terminal-grps-pos-notes">
+            <summary><span className={local.sectionTitle}>Where each part comes from, how far it reaches and how old it is</span></summary>
+            <div className={`${local.sectionBody} ${styles.muted}`}>
+              {positioningNotes(table.positioning).map((n) => <p key={n.key} data-testid={`terminal-grps-pos-note-${n.key}`}>{n.text}</p>)}
+            </div>
+          </details>
+        </>
+      ) : null}
+      {breadthDown && !ranks && !positioning ? (
         <p className={styles.note} role="status" data-testid="terminal-grps-breadth-down">
           No stored closes could be read at the last evening build, so breadth is not shown.
         </p>
       ) : null}
-      {table.lagging.includes('prices') && !breadthDown ? (
+      {table.lagging.includes('prices') && !breadthDown && !positioning ? (
         <p className={styles.note} role="status" data-testid="terminal-grps-lagging">
           The stored closes stopped short of the evening&apos;s session, so {ranks ? 'the latest point of the rank is' : 'breadth is measured at'}{' '}
           the last session most stocks have. The server tries again later that evening.
@@ -268,7 +319,13 @@ export default function GroupTablePanel({ kind: kindProp = null, view: viewProp 
                       <span className={local.main}>
                         <PanelCommand cmd={groupDrillCommand({ kind, name: r.name })} label={`Open the stocks of ${r.name}, ranked`}>{r.name}</PanelCommand>
                       </span>
-                      <span className={local.sub}>{count(r.members)} {r.members === 1 ? 'stock' : 'stocks'}</span>
+                      {positioning ? (
+                        <button type="button" className={pos.membersBtn} onClick={() => setOpen(r.name)}
+                          aria-label={`Show the ${count(r.members)} ${r.members === 1 ? 'stock' : 'stocks'} of ${r.name}, each with its own figures`}
+                          data-testid={`terminal-grps-members-${r.name}`}>
+                          {count(r.members)} {r.members === 1 ? 'stock' : 'stocks'}
+                        </button>
+                      ) : <span className={local.sub}>{count(r.members)} {r.members === 1 ? 'stock' : 'stocks'}</span>}
                     </td>
                     {columns.map((c) => (c.kind === 'rankLine'
                       ? <LineCell key={c.key} cell={tableCell(r, c, ctx)} />
@@ -284,7 +341,20 @@ export default function GroupTablePanel({ kind: kindProp = null, view: viewProp 
           title={`${GROUPS_VIEWS[view].label} shows only fundamentals, which are not on hand.`}
           action={<button type="button" className={styles.chip} onClick={() => pickView('breadth')}>Show breadth</button>} />
       )}
-      {ranks ? (
+      {positioning ? (
+        <p className={styles.muted} data-testid="terminal-grps-method">
+          Each {k.one} is every stock in UCT&apos;s universe (US stocks of $300M market value and up, no funds) whose company
+          details name it. A median or a share needs at least {count(table.minMembers)} stocks with a figure, and the small line
+          under it is how many it rests on; with fewer the count is shown and no figure. Short % float is shares short in the
+          latest FINRA report over today&apos;s float, days to cover is shares short over average daily volume, and the change
+          is shares short against the report before it. Insider buyers are the stocks with at least one open-market purchase
+          (SEC Form 4, code P) filed in the window, of all its stocks; the dollars count the purchases that state a price.
+          Funds adding is the share of its stocks where more funds added or opened a position than cut or sold out, among the
+          stocks whose funds have an earlier report (SEC Form N-PORT); fund shares is the median change in shares held by the
+          funds with both reports. Click a header to sort (a list sorts by its first stock); a blank sorts last either way.
+          Click a name to open its stocks in GRP, or its stock count for each stock&apos;s own figures here.
+        </p>
+      ) : ranks ? (
         <p className={styles.muted} data-testid="terminal-grps-method">
           Each week&apos;s rank is the {k.one}&apos;s place among the {k.many} with at least {count(table.minMembers)} stocks priced
           that week, by the median 6-month price change of its stocks, highest first (equal medians share a place); the small

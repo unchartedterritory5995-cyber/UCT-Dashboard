@@ -16,6 +16,7 @@
 
 import { etDateLabel, etMinuteOfDay, fromChartTime } from '../../components/chart/barTime'
 import { earlyCloseOn } from '../../lib/marketClock/nyseCalendar'
+import { DAILY_TODAY_MAX_AGE_MS } from '../../utils/marketSession'
 import { prevSessionISO, sessionISO } from './sessions'
 
 export const DEVICE_FRESH_MS = 120_000
@@ -41,7 +42,14 @@ export function deviceCopyFresh(through, tf, nowMs = Date.now()) {
   const today = etDateLabel(nowSec)
   const mod = etMinuteOfDay(nowSec)
   const close = closeMinuteOf(today)
-  if (sessionISO(today) && mod >= RTH_OPEN_MIN && mod < close) return through * 1000 >= nowMs - DEVICE_FRESH_MS
+  if (sessionISO(today) && mod >= RTH_OPEN_MIN && mod < close) {
+    // ⛔ D/W/M: NEVER FRESHER THAN THE CHART WILL PAINT (review of #2407). The chart has its own age rule for a
+    // today-dated daily bar (marketSession.isDailyTodayBarStaleForPaint, read with the copy's saved time, which
+    // is this `through`): DAILY_TODAY_MAX_AGE_MS. A daily copy older than that and inside DEVICE_FRESH_MS was
+    // committed by the handoff and then refused by the chart: a blank chart. The chart's bound, by name.
+    const maxAge = DATE_TFS.has(String(tf)) ? Math.min(DEVICE_FRESH_MS, DAILY_TODAY_MAX_AGE_MS) : DEVICE_FRESH_MS
+    return through * 1000 >= nowMs - maxAge
+  }
   const last = sessionISO(today) && mod >= close ? today : prevSessionISO(today)
   if (!last) return false
   const need = DATE_TFS.has(String(tf))
