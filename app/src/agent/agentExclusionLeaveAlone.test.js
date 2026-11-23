@@ -221,14 +221,23 @@ const UNRESOLVED = [
   ['set every chart to weekly, but leave this one alone', Q, null],                  // nothing clicked
   ['show volume on every chart but leave it alone', Q, null],                        // a pronoun, nothing clicked
   ['Leave that one alone and add RSI to every chart.', Q, null],                     // a pronoun follow-up the board cannot place
-  ['add RSI to every chart, but leave the one next to the top-left one alone', Q, null],   // a relation from a named chart
-  ["switch all charts to log scale; don't touch the one beside NVDA", Q, null],
+  ['add RSI to every chart, but leave the one next to the middle one alone', Q, null],     // a relation from a named chart the board lacks
+  ["switch all charts to log scale; don't touch the one beside TSLA", Q, null],             // (no TSLA chart)
+  ['add RSI to every chart, but leave the one above the top-left one alone', Q, null],      // nothing on that side
   ['add RSI to every chart, leave the other chart alone', Q, null],
   ['set every chart to weekly, but keep the big chart the same', Q, null],
   ['add RSI to every chart but leave the middle row alone', Q, null],                 // two rows
   ['Set every chart to weekly. Not the middle one.', Q, null],                         // a bare "not" on a place the board lacks
 ]
 describe('(3) fail safe: an exclusion the board cannot place is asked (UNPLACED), never acted on', () => {
+  // (H-RDR-1 follow-up, agentAnchorRelativeExclusion) a relation from a NAMED chart the board places EXACTLY is that chart, never
+  // asked and never its anchor (these two were UNPLACED before; the unplaceable relations above stay asked)
+  it.each([
+    ['add RSI to every chart, but leave the one next to the top-left one alone', ['q1']],
+    ["switch all charts to log scale; don't touch the one beside NVDA", ['q3']],
+  ])('anchor-relative, placed exactly: "%s" → %j', (t, refs) => {
+    expect(read(t, Q, null)).toEqual(refs)
+  })
   it.each(UNRESOLVED)('"%s" → UNPLACED; the plan on every chart is asked; the gate guesses nothing', (t, board, sel) => {
     expect(read(t, board, sel)).toContain('UNPLACED')
     const f = FAMILIES.find(x => x.name === 'indicator.add')
