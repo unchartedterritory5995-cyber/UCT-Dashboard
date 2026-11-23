@@ -1925,12 +1925,9 @@ def warm_universe_stop(request: Request):
     (bars_fetch.stop_bars_warm_pool), shared with the process shutdown.
     """
     _check_admin_auth(request)
+    # the status first (the stopped run loses its claim on it), then the pool (the runner's next submit raises)
+    was_running = _bars_fetch.supersede_warm_run()
     _bars_fetch.stop_bars_warm_pool(reopen=True)
-    with _warm_state_lock:
-        was_running = _warm_state.get("running", False)
-        if was_running:
-            _warm_state["running"] = False
-            _warm_state["completed_iso"] = datetime.utcnow().isoformat() + "Z"
     return {"status": "stopped", "was_running": was_running}
 
 
