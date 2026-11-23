@@ -143,6 +143,7 @@ import {
   RUNTIME_AT_CALL, RUNTIME_PROGRAM_VERSION, MAX_RUNTIME_VALUES, runtimeAtIndex, rtLoopId,
   withObjectTransparency, isPassCondition, objectSiteKey,
 } from './objectProgram.js'
+import { TEXT_DROPS_KEPT } from './objectLoss.js'
 import { wholeTransparency, unpackColor } from '../colorInt.js'
 import { hexToPacked, byteTransparency, gradientChannelTree, objectHexToPacked, GRADIENT_ZERO_COLOUR, fromGradient, packedToObjectHex } from '../runtime/colours.js'
 import { THEME_NAMES, themeColourWithTransparency, parseThemeColour } from '../objectTheme.js'
@@ -22939,9 +22940,14 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       const stateFmtOk = !stateFmt || (stateFmt.type === 'string' && String(stateFmt.value) !== ''
         && (/^[#0]*(\.[#0]*)?$/.test(String(stateFmt.value)) || tostringPatternOf(String(stateFmt.value)) !== null))
       if (stateOk && !inline && arg0 && stateFmtOk && !(node.args && node.args.length > 2)) {
-        const live = stateOperand(arg0)
+        // ⭐⭐ e96 — and ARITHMETIC on such numbers (`line.get_y2(ln) - line.get_y1(ln)`), by
+        // the object runtime's own value operators (`stateNumber`).
+        const live = stateOperand(arg0) || (readsState(arg0) ? stateNumber(arg0) : null)
         if (live) return stateFmt ? { t: 'val', v: live, fmt: String(stateFmt.value) } : { t: 'val', v: live }
       }
+      // ⛔ e96 — a read-back number not served above goes on to `canonicalOf` as it always did (it may
+      // answer `null` with no refusal, or `pine:drawing`); the slot's drop is NAMED where it drops
+      // (`textDropRefusal`), the one place every text drop is worded.
       const ast = canonicalOf(node.args && node.args[0] && node.args[0].value, inline, envAt)
       if (!ast) return null
       const fmtNode = node.args && node.args[1] && node.args[1].value
@@ -25841,6 +25847,19 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     }
     return scalarRef(node, inline)
   }
+  /** ⭐ e96 — THE LEAF `stateArith` AND `stateNumber` SHARE (one answer to "what is a number
+   *  here"): a WHOLE state operand (`stateOperand`), or a getter-free NUMBER — a literal,
+   *  `bar_index`, a tree. `undefined` when the node reads object state but is not a whole
+   *  operand (the caller walks it); `null` when it is a leaf this reader cannot use. */
+  const stateLeaf = (node) => {
+    const s = stateOperand(node)
+    if (s) return s
+    if (readsState(node)) return undefined
+    if (node.type === 'string' || node.type === 'colour') return null
+    const v = valueRef(node)
+    return v && ['const', 'bar', 'tree', 'graph', 'param', 'at'].includes(v.v)
+      && !(v.v === 'const' && typeof v.value !== 'number') ? v : null
+  }
   /** ⭐⭐ C43 — A GETTER IN ARITHMETIC, AS A BAR COORDINATE (2026-09-30).
    *
    *  trend-duration-forecast extends its line every bar by an average:
@@ -25865,18 +25884,12 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
    *  getter-free values; `int(x)`; `math.avg(a, b)` of two such. Only for a bar
    *  coordinate (`objectProgram.js::BAR_COORD_PROPS`, which the validator holds
    *  too), only outside a loop body (`stateOk`).
-   *  A price, a colour, a text, `*` / `/`, a getter's history — still refused. */
+   *  A price, a colour, `*` / `/`, a getter's history — still refused.
+   *  ⭐ e96 — a TEXT's number is `stateNumber`'s, below, with the same leaves. */
   const stateArith = (node, depth = 0) => {
     if (!node || typeof node !== 'object' || depth > 16) return null
-    const s = stateOperand(node)
-    if (s) return s
-    if (!readsState(node)) {
-      // a getter-free operand is an ordinary number: a literal, `bar_index`, a tree
-      if (node.type === 'string' || node.type === 'colour') return null
-      const v = valueRef(node)
-      return v && ['const', 'bar', 'tree', 'graph', 'param', 'at'].includes(v.v)
-        && !(v.v === 'const' && typeof v.value !== 'number') ? v : null
-    }
+    const leaf = stateLeaf(node)
+    if (leaf !== undefined) return leaf
     if (node.type === 'binary' && (node.op === '+' || node.op === '-')) {
       const a = stateArith(node.left, depth + 1)
       const b = a && stateArith(node.right, depth + 1)
@@ -25894,6 +25907,106 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       return a && b ? { v: 'op', op: '/', args: [{ v: 'op', op: '+', args: [a, b] }, { v: 'const', value: 2 }] } : null
     }
     return null
+  }
+  /** ⭐⭐ e96 (2026-11-23) — A NUMBER READ BACK FROM A DRAWING, IN ARITHMETIC, AS A TEXT.
+   *
+   *  ⚰️ FOUND BY THE STUDIO, NINE PROBES (`__fixtures__/e96GetterArith/`): in a `barstate.islast`
+   *  block, `label.new(…, str.tostring(line.get_y2(ln) - line.get_y1(ln), "#.00"))` drew NO label
+   *  and named nothing, while `str.tostring(line.get_y2(ln))` drew. The text reader took object
+   *  state only WHOLE (`stateOperand`); anything else fell to `canonicalOf`, which answers `null`
+   *  on a getter and records no refusal, so the create dropped as "no refusal recorded" and the
+   *  pane drew the line beside a missing label.
+   *
+   *  ⭐ The arithmetic is the object runtime's own `{v:'op'}` (`objectRuntime.js`, the same
+   *  evaluator C43 uses for a bar coordinate), over the leaves `stateLeaf` reads, with the
+   *  operators the value grammar carries (`objectProgram.js::OBJECT_VALUE_OPS`) and a unary
+   *  minus. NO `trunc`: a text prints the float, as `str.tostring` does. Formatted by the one
+   *  number formatter (`{t:'val'}`). ⛔ Only where a whole getter is read in a text (`stateOk`,
+   *  outside a helper's frame); any other shape is refused BY NAME (`drawingReadRefusal`). */
+  const stateNumber = (node, depth = 0) => {
+    if (!node || typeof node !== 'object' || depth > 16) return null
+    const leaf = stateLeaf(node)
+    if (leaf !== undefined) return leaf
+    if (node.type === 'binary' && OBJECT_VALUE_OPS.includes(node.op)) {
+      const a = stateNumber(node.left, depth + 1)
+      const b = a && stateNumber(node.right, depth + 1)
+      return a && b ? { v: 'op', op: node.op, args: [a, b] } : null
+    }
+    if (node.type === 'unary' && node.op === '-') {
+      const a = stateNumber(node.arg, depth + 1)
+      return a ? { v: 'op', op: '-', args: [a] } : null
+    }
+    return null
+  }
+  /** ⭐⭐ e96 — A GETTER-FED SCALAR'S ARITHMETIC WRITE (`float rise = line.get_y2(ln) -
+   *  line.get_y1(ln)`), as the reader admitted it (`objectFnInline.js::isGetterArithAt`): the
+   *  value operators and a unary minus over WHOLE getters on declared handles (`getterRef`) and
+   *  numeric literals, nothing else — the validator's `objectProgram.js::isGetterArith`. It is
+   *  written by `setnum` at its statement's place, so a later setter on the line does not change
+   *  what the local held (Pine evaluated it there). A shape this does not read loses the scalar,
+   *  and every reader of it is then refused by name (`drawingReadRefusal`). */
+  const scalarNumber = (node, depth = 0) => {
+    if (!node || typeof node !== 'object' || depth > 16) return null
+    const g = getterRef(node)
+    if (g) return g.back ? null : g
+    if (node.type === 'number' && Number.isFinite(Number(node.value))) return { v: 'const', value: Number(node.value) }
+    if (node.type === 'binary' && OBJECT_VALUE_OPS.includes(node.op)) {
+      const a = scalarNumber(node.left, depth + 1)
+      const b = a && scalarNumber(node.right, depth + 1)
+      return a && b ? { v: 'op', op: node.op, args: [a, b] } : null
+    }
+    if (node.type === 'unary' && node.op === '-') {
+      const a = scalarNumber(node.arg, depth + 1)
+      return a ? { v: 'op', op: '-', args: [a] } : null
+    }
+    return null
+  }
+  /** ⭐⭐ e96 — THE FIRST VALUE READ BACK FROM A DRAWING that a text reaches, spelled: a getter
+   *  (`line.get_y2`, `ln.get_y2`), a drawing list's length, or a NAME whose binding reaches one
+   *  (opened as `openName` opens it, so a local holding a getter's arithmetic is seen). Null when
+   *  the text reads no drawing. Reads and records nothing: it only NAMES (`drawingReadRefusal`).
+   *  → `{ read, via }`: what is read, and the first name it was reached through (or null). */
+  const drawingReadIn = (node, scope, depth = 0, via = null) => {
+    if (!node || typeof node !== 'object' || depth > 24) return null
+    if (sizeRef(node)) return { read: spellNode(node), via }
+    if (node.type === 'call' && GETTER_NAME_RE.test(String(node.name || ''))) {
+      const head = String(node.name).slice(0, String(node.name).lastIndexOf('.'))
+      if (OBJECT_NS.has(head) || collected.decls.has(head)) return { read: String(node.name), via }
+    }
+    if (node.type === 'method' && /^get_/.test(String(node.name || ''))) return { read: `.${node.name}()`, via }
+    if (node.type === 'name') {
+      // a getter-fed scalar IS a value read back (every write of it is a getter's): named as itself
+      if (numId.has(node.name) || scalarDecls.has(node.name)) return { read: String(node.name), via }
+      const opened = openName(node, scope, 0)
+      return opened ? drawingReadIn(opened.node, opened.env, depth + 1, via || String(node.name)) : null
+    }
+    for (const k of ['left', 'right', 'test', 'yes', 'no', 'arg', 'value', 'recv']) {
+      const hit = drawingReadIn(node[k], scope, depth + 1, via)
+      if (hit) return hit
+    }
+    for (const a of Array.isArray(node.args) ? node.args : []) {
+      const hit = drawingReadIn(a && a.value !== undefined ? a.value : a, scope, depth + 1, via)
+      if (hit) return hit
+    }
+    return null
+  }
+  /** ⭐⭐ e96 — THE NAMED REFUSAL FOR A TEXT THAT READS A DRAWING AND IS NOT COMPUTED, or null
+   *  when the text reads none. ⛔ Its sentence states what IS computed, from the same sources the
+   *  reader decides by (`OBJECT_VALUE_OPS`), so it cannot claim a narrower or wider set. */
+  const drawingReadRefusal = (node, scope) => {
+    const hit = drawingReadIn(node, scope)
+    if (!hit) return null
+    const ops = OBJECT_VALUE_OPS.map((o) => `\`${o}\``)
+    const through = hit.via ? ` (through \`${hit.via}\`)` : ''
+    return {
+      guard: 'pine:text-value',
+      message: `this text (\`${spellNode(node)}\`) reads \`${hit.read}\`${through}, a value read back from the chart's `
+        + 'drawings, in a form this chart does not compute yet. It computes such a value only in a '
+        + "drawing's own text (a label's or a box's, not a table cell's), outside loops and helper "
+        + 'functions, as `str.tostring` (with no format or a number pattern) of a getter, of a local set '
+        + `only from getters and numbers, or of ${ops.slice(0, -1).join(', ')} or ${ops[ops.length - 1]} `
+        + 'on those and other numbers',
+    }
   }
   /** A getter-free node → its interned tree; a bare getter → its `get` ref.
    *  ⭐ C16: a bare `array.size(bs)` → its `size` ref, and `+ - *` over live
@@ -26225,6 +26338,38 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     const list = diagnostics.withheldDrawings || (diagnostics.withheldDrawings = [])
     const d = ENUM_DROPS[kind]
     if (d && list.length < 20) list.push({ family: family || null, line: op && op.line !== undefined ? op.line : null, guard: d.guard, sentence: d.sentence })
+  }
+  /** ⭐⭐ e96 — CORPUS CLASS: A DRAWING'S TEXT THAT IS NOT DRAWN IS REFUSED BY NAME, ALWAYS.
+   *
+   *  ⚰️ The studio's nine probes: a label whose text was arithmetic on a value read back from a
+   *  drawing was not drawn, `errors: {}`, and its `createDropWhy` read "no refusal recorded" — the
+   *  text reader gave up without saying on what, so nothing anywhere named the missing label.
+   *  This is the ONE place a text slot's drop is worded (a create's, a setter's, a table cell's):
+   *    · the reader's own refusal, when it recorded one — except `pine:drawing` ("answers with no
+   *      number") about a text that reads a drawing's VALUE, which is false of a getter;
+   *    · else, a text that reads a drawing: `drawingReadRefusal`, which says what IS computed;
+   *    · else, the text's SHAPE spelled (`spellNode`), under `pine:text-value`.
+   *  Recorded structured (`textDrops`: family, slot, line, guard, sentence), read by the member's
+   *  drawing note (`objectLoss.js::textDropsSentence`). Returns the refusal it recorded. */
+  const textDropRefusal = (node, recorded) => {
+    const drawn = node ? drawingReadRefusal(node, scopeEnv) : null
+    if (recorded && recorded.guard && !(drawn && recorded.guard === 'pine:drawing')) return recorded
+    if (drawn) return drawn
+    return {
+      guard: 'pine:text-value',
+      message: `this text (\`${node ? spellNode(node) : '?'}\`) is a shape this chart's drawing reader does not compute yet`,
+    }
+  }
+  const noteTextDrop = (op, family, slot, node, recorded) => {
+    const r = textDropRefusal(node, recorded)
+    const list = diagnostics.textDrops || (diagnostics.textDrops = [])
+    const entry = {
+      family: family || null, slot, line: op && op.line !== undefined ? op.line : null,
+      guard: r.guard, sentence: String(r.message || ''),
+    }
+    if (list.length < TEXT_DROPS_KEPT
+      && !list.some((e) => e.line === entry.line && e.slot === entry.slot && e.family === entry.family)) list.push(entry)
+    return r
   }
   const noteCreateDrop = (op, slot, r) => {
     noteWhy('createDropWhy', `create ${op.family}@${op.line === undefined ? '?' : op.line} ${slot}: `
@@ -27179,8 +27324,10 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
           }
           if (required.has(k) || (CONTENT[op.family] && CONTENT[op.family].has(k))) {
             // ⭐ W3-S1 — the text reader's own named refusal when no canonical one was written.
-            noteCreateDrop(op, k, lastCanonRefusal !== refusalBefore ? lastCanonRefusal
-              : lastTextRefusal !== textRefusalBefore ? lastTextRefusal : null)
+            const recorded = lastCanonRefusal !== refusalBefore ? lastCanonRefusal
+              : lastTextRefusal !== textRefusalBefore ? lastTextRefusal : null
+            // ⛔⛔ e96 — A TEXT THAT IS NOT DRAWN IS REFUSED BY NAME, ALWAYS (`textDropRefusal`).
+            noteCreateDrop(op, k, TEXT_SLOTS.has(k) ? noteTextDrop(op, op.family, k, node, recorded) : recorded)
             bad = true
             break
           }
@@ -27248,9 +27395,18 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       try {
         op.props.forEach((name, i) => {
           const node = op.args[i] && op.args[i].value
+          const canonBefore = lastCanonRefusal
+          const textBefore = lastTextRefusal
           const v = node ? valueRef(node, name) : null
-          if (!v) bad = true
-          else props[name] = v
+          if (!v) {
+            bad = true
+            // ⛔⛔ e96 — a setter's TEXT that is not drawn is refused by name too (`textDropRefusal`):
+            // the object it writes is withheld (`contentLostBy`), and that must say why.
+            if (node && TEXT_SLOTS.has(name) && !enumNaDrop) {
+              noteTextDrop(op, op.family, name, node, lastCanonRefusal !== canonBefore ? lastCanonRefusal
+                : lastTextRefusal !== textBefore ? lastTextRefusal : null)
+            }
+          } else props[name] = v
         })
       } finally { stateOk = false; stateOp = null }
       if (bad || !Object.keys(props).length) {
@@ -27350,10 +27506,11 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
           // (`periodReads.js::periodReadsObjectRefusal`). Named (`neverRunOps`), never counted.
           if (k === 'text' && g && g.never) { neverRunText = true; break }
           if (k === 'text') {
-            const r = lastCanonRefusal !== cellRefusalBefore ? lastCanonRefusal
-              : lastTextRefusal !== textRefusalBefore ? lastTextRefusal : null
+            // ⛔⛔ e96 — never "no refusal recorded" again: `textDropRefusal` names every text.
+            const r = noteTextDrop(op, 'table', k, node, lastCanonRefusal !== cellRefusalBefore ? lastCanonRefusal
+              : lastTextRefusal !== textRefusalBefore ? lastTextRefusal : null)
             noteWhy('cellTextWhy', `cell@${op.line === undefined ? '?' : op.line}: `
-              + (r ? `${r.guard || 'refused'} ${String(r.message || '').slice(0, 200)}` : 'no refusal recorded'))
+              + `${r.guard || 'refused'} ${String(r.message || '').slice(0, 200)}`)
           }
           // ⛔⛔ THE TEXT *IS* THE CELL. A cell whose text this door cannot read
           // is dropped, never emitted blank: an empty cell in a dashboard reads
@@ -27557,7 +27714,8 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       const g0 = getterRef(n)
       return g0 && String(regNameOf.get(g0.target.id) || '').includes(INLINE_SUFFIX) ? g0 : null
     }
-    const value = node ? (op.inlined ? ownGetter(node) : getterRef(node)) : null
+    // ⭐ e96 — outside an inlined body, a write may be arithmetic over getters (`scalarNumber`).
+    const value = node ? (op.inlined ? ownGetter(node) : getterRef(node) || scalarNumber(node)) : null
     // ⛔ A scalar written under a condition that itself reads object state would
     // need that condition latched where the `if` stands; not carried — refused.
     const stateGuard = (op.guards || []).some((gd) => {

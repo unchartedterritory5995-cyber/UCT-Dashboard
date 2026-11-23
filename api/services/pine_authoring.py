@@ -70,7 +70,6 @@ CAPABILITY_WORDS: Dict[str, str] = {
     "generics": "generic type arguments (`array<line>`)",
     "max_bars_back": "`max_bars_back`",
     "realtime-state": "`barstate.*` reads (a value read on the newest bar can move until that bar closes)",
-    "conditional-ta": "a `ta.sma` / `ta.ema` call inside an `if` block at the top level of the script",
     "obj:line": "lines (`line.*`)",
     "obj:label": "labels (`label.*`)",
     "obj:box": "boxes (`box.*`)",
@@ -79,6 +78,29 @@ CAPABILITY_WORDS: Dict[str, str] = {
     "obj:getter": "reading a drawing back (`line.get_y1`, `label.get_text`)",
     "obj:collection": "the list of drawings of a kind (`line.all`, `label.all`)",
 }
+
+#: ⭐⭐ e96 (2026-11-23) — CAPABILITIES WORDED BY THE ENGINE'S OWN GATE, never typed here. The generated
+#: reference carries them (`capabilityWords`, from `assistantPineReference.js::GATE_WORDS`, which copies the
+#: gate's own sentence, `engine/blockRuns.js::BLOCK_RUNS_ADMITS`). ⚰️ `conditional-ta` was typed here as "a
+#: `ta.sma` / `ta.ema` call inside an `if` block at the top level of the script", and the engine refuses that
+#: (`pine:block`) whenever the `if` skips a bar and runs again, as an `if` on a price condition does: the
+#: assistant was taught a script the engine refuses. A gate-worded id the reference does not word is NOT worded
+#: (fail closed: `tests/test_pine_authoring.py` then reds on an admitted capability nobody worded).
+GATE_WORDED = ("conditional-ta",)
+
+
+def capability_words(ref: Optional[Mapping[str, Any]] = None) -> Dict[str, str]:
+    """Every capability's words for the assistant: the typed ones (`CAPABILITY_WORDS`) and the gate-worded ones,
+    read from the generated reference (`GATE_WORDED`)."""
+    ref = reference() if ref is None else ref
+    gate = (ref or {}).get("capabilityWords") or {}
+    words = dict(CAPABILITY_WORDS)
+    for cap in GATE_WORDED:
+        said = gate.get(cap) if isinstance(gate, Mapping) else None
+        if isinstance(said, str) and said.strip():
+            words[cap] = said
+    return words
+
 
 #: ⭐ ADMITTED BY THE ENGINE AND DELIBERATELY NOT OFFERED TO THE ASSISTANT, each with its reason. The
 #: assistant writes INDICATORS: the rule that every admitted capability is worded has these named
@@ -563,7 +585,8 @@ def document(ref: Optional[Mapping[str, Any]] = None, run_stops: Optional[List[s
     admitted = list(ref.get("admitted") or [])
     out: List[str] = [contract(ref), ""]
 
-    out += _lines("LANGUAGE YOU MAY USE", [f"- {CAPABILITY_WORDS[c]}" for c in admitted if c in CAPABILITY_WORDS])
+    words = capability_words(ref)
+    out += _lines("LANGUAGE YOU MAY USE", [f"- {words[c]}" for c in admitted if c in words])
 
     out += _lines("WHAT A SCRIPT CAN SHOW", [f"- `{name}`" for name in served_outputs(ref)])
 

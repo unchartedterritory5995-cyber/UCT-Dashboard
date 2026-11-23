@@ -46,6 +46,29 @@
  *  same reason (`pine:block`: a block this engine reads as one expression). */
 export const BLOCK_RUNS_GUARD = 'pine:block'
 
+/**
+ * ⭐⭐ e96 (2026-11-23) — WHAT THIS GATE ADMITS, IN THE WORDS THE ASSISTANT IS GIVEN.
+ *
+ * ⚰️ The assistant was told it may write "a `ta.sma` / `ta.ema` call inside an `if` block at the
+ * top level of the script" (typed in `api/services/pine_authoring.py`). This gate refuses exactly
+ * that whenever the `if` skips a bar and runs again, which a price condition always does (the
+ * studio's probe: `if close > close[1]` / `avgUp := ta.sma(volume, 10)`, refused `pine:block`).
+ *
+ * ⭐ THIS SENTENCE IS `firstRunAfterSkip` IN WORDS: a block is refused when it RUNS on a bar after a
+ * bar it SKIPPED, so it is admitted when it runs on every bar from the first and, at most, stops for
+ * good. The assistant reference copies it from here (`supportLoop/assistantPineReference.js`,
+ * `capabilityWords`) and the server prints that copy (`pine_authoring.capability_words`); nothing
+ * restates it. `__tests__/e96BlockRunsWords.test.js` runs the gate on each shape the sentence
+ * names, and the generator test runs the studio's two probes through the member's own path.
+ */
+export const BLOCK_RUNS_ADMITS = 'a `ta.*` call inside a block (an `if`, a `switch` arm, a `?:` arm) only where '
+  + 'that block runs on every bar from the chart\'s first bar until, at most, it stops for good: the arms of a '
+  + '`switch` (or an `if`) over a setting, where the chosen arm runs on every bar and the others on none (for '
+  + 'example `ma = switch kind` with `"EMA" => ta.ema(close, len)` and `=> ta.sma(close, len)` arms, `kind` an '
+  + '`input.string`). A block that skips a bar and runs again later, as an `if` on a price condition such as '
+  + `\`if close > close[1]\` does, is refused by name (\`${BLOCK_RUNS_GUARD}\`): its call would see only the bars `
+  + 'its block ran on'
+
 const stampOf = (def) => {
   const br = def && def.meta && def.meta.blockRuns
   return br && Array.isArray(br.keys) && br.keys.length ? br : null
