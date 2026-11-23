@@ -49,7 +49,7 @@ def _this_repo(fallback: str) -> str:
     return m.group(1) if m else fallback
 
 
-REPO = _this_repo("unchartedterritory5995-cyber/UCT-Dashboard")
+REPO = _this_repo("northstar-quarry/UCT-Dashboard")
 SAMPLE = 8                 # runs read per workflow before deciding whether to read it in full
 FULL_AT = 3                # a workflow with a sampled run of this many jobs is read in full
 BUDGET_MARGIN = 1000       # requests left for every other session after this run

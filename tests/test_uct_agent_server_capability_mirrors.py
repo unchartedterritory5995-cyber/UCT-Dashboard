@@ -116,6 +116,15 @@ def test_the_guard_still_passes_ordinary_multi_chart_prose():
         assert guard.suspicious(text) is False, text
 
 
+def test_the_recently_deleted_family_is_a_BOARD_action_withheld_bare():
+    # recentlyDeleted.* brings back the member's own deleted watchlists / layouts / saved screens: the workspace, never history
+    for n in ("recentlyDeleted.list", "recentlyDeleted.restore"):
+        assert v2.domain_for(n) == "board", n
+        assert guard.suspicious(_bare(n)) is True, n
+    for text in ("Bring back your Momentum watchlist from Recently deleted.", "Your recently deleted layouts are listed below."):
+        assert guard.suspicious(text) is False, text
+
+
 def test_the_news_library_family_is_a_NEWS_action_withheld_bare():
     # newsLibrary.* saves / notes / collects the member's own UCT News headlines: the news domain, never history
     for n in ("newsLibrary.save", "newsLibrary.setNote", "newsLibrary.collection", "newsLibrary.deleteCollection", "newsLibrary.place"):
