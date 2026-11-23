@@ -11,6 +11,12 @@ and its one process-wide fair-access limiter, one request per file, the body str
 A data set is listed at 387 to 483 MB for every quarter of 2023 to 2026 (690.83 MB at most, 2022 Q3). A download
 past `ZIP_MAX_BYTES` is refused, not truncated, and nothing starts unless the data directory has
 `DISK_HEADROOM_BYTES` free.
+AND ONE READ OF THE STOCK SPLIT LIST per build (2026-11-22; `_read_splits`): Massive's split reference, through
+`reference_corp_actions.fetch_confirmed_splits_strict` (the read the site already makes; DVD MARKET reads the same
+vendor in the same licence class), over the execution dates between the earliest previous report and the newest
+current report (`Builder.split_window`), at most 20 pages; it raises rather than give part of the window. A fund's
+change across a split is worked out in post-split shares (`fund_holders_nport_data` says how). When the read fails,
+nothing is guessed: every change that needed it is "not comparable" and the block says the split list could not be read.
 
 WHEN (never on a member's request). The scheduler calls `run_scheduled` daily at `RUN_AT_ET` (00:50 New York time),
 inside the quiet span scan_period keeps whole-universe work to (weekends, and weekdays before 07:00 or from 20:15), so
@@ -27,8 +33,8 @@ a run has until 07:00 on a weekday. Each run:
   * stops at `RUN_BUDGET_S` of wall clock, or when the quiet span ends, or on a 403 / 429; the half-written `.part`
     file is deleted, the last good index stays, and the next day tries again.
 REQUESTS A RUN: none when current; else at most two zips, one 404, and one company_tickers.json (each may be retried
-once by the client on a 403 / 429 / 5xx). In a year: four new data sets, so eight zip downloads (about 3.6 GB read,
-streamed, never kept).
+once by the client on a 403 / 429 / 5xx), and the one split list read from Massive. In a year: four new data sets, so
+eight zip downloads (about 3.6 GB read, streamed, never kept).
 DISK: one zip at a time (at most `ZIP_MAX_BYTES`, deleted when read), the partition files (24 bytes a kept holding,
 at most `MAX_EQUITY_ROWS` of them, about 0.24 GB; each deleted once its partition is written), the new index while it
 is written, any leftover of all of these deleted at the start of the next run, plus the index (`index_v1.sqlite`, at most `KEEP_ROWS` funds and `KEEP_SOLD` sold-out funds for each of at most
@@ -199,6 +205,13 @@ def _sec_get(url: str) -> bytes:
     return edgar_ownership._sec_get(url)
 
 
+def _read_splits(from_iso: str, to_iso: str) -> list:
+    """ONE read of the stock split list over [from_iso, to_iso] (`reference_corp_actions.fetch_confirmed_splits_strict`:
+    raises `CorpActionsUnavailable` when Massive could not give the whole window). Tests replace this by name."""
+    from api.services import reference_corp_actions
+    return reference_corp_actions.fetch_confirmed_splits_strict(from_iso, to_iso)
+
+
 def _sec_error_type():
     from api.services.fundamentals_pit.sec_client import SecError
     return SecError
@@ -357,11 +370,20 @@ def build(now: datetime, *, held_quarter: Optional[tuple[int, int]] = None) -> d
         except ValueError:
             summary["names_missing"] = "shape"
         pairs = ftd_pairs()
+        # the split list, read once, so a fund's change across a split is in post-split shares; never guessed
+        window = builder.split_window()
+        splits = D.split_table(None, None)
+        if window is not None:
+            try:
+                splits = D.split_table(_read_splits(*window), window)
+            except Exception as exc:  # noqa: BLE001 -- said on the block: those changes are not comparable
+                splits = D.split_table(None, window, reason=type(exc).__name__)
+        summary["splits"] = splits["state"]
         meta = {"quarter": label(target), "prior_quarter": label(prior) if builder.stats["prior_read"] else None,
                 "url": data_set_url(target), "listing": LISTING_URL, "built_at": D.built_now(),
                 "prior_missing": summary.get("prior_missing"), "names_missing": summary.get("names_missing"),
                 "ftd_pairs": bool(pairs), "source": SOURCE}
-        index = builder.finish(part_path, meta, ftd_pairs=pairs, sec_names=names)
+        index = builder.finish(part_path, meta, ftd_pairs=pairs, sec_names=names, splits=splits)
         os.replace(part_path, os.path.join(base, INDEX_NAME))       # whole, or not at all
         cov = index["coverage"]
         summary.update(state="built", index_bytes=index["bytes"], stocks=cov["stocks"],
@@ -456,6 +478,7 @@ def _run(done: threading.Event, now: datetime) -> None:
         line = (f"state={out['state']} quarter={out.get('quarter')} prior={out.get('prior_quarter')} "
                 f"downloads={out.get('downloads')} bytes={out.get('bytes')} requests={out.get('requests')} "
                 f"stocks={out.get('stocks')} matched_value_pct={out.get('matched_value_pct')} "
+                f"splits={out.get('splits')} "
                 f"reason={out.get('reason')} {out.get('elapsed_s')}s")
         (_log.info if out["state"] in ("built", "current", "not_published") else _log.warning)(
             "[fund-holders-nport] %s", line)
@@ -544,7 +567,8 @@ def answer_for(sym: str) -> dict:
     cov = meta.get("coverage") or {}
     data_set = {"quarter": meta.get("quarter"), "prior_quarter": meta.get("prior_quarter"), "url": meta.get("url"),
                 "listing": meta.get("listing"), "built_at": meta.get("built_at"),
-                "periods": meta.get("periods"), "prior_missing": meta.get("prior_missing")}
+                "periods": meta.get("periods"), "prior_missing": meta.get("prior_missing"),
+                "splits": meta.get("splits")}
     coverage = {"matched_value_pct": cov.get("matched_value_pct"), "matched_rows_pct": cov.get("matched_rows_pct"),
                 "pct_units": meta.get("pct_units")}
     out = {**base, "data_set": data_set, "coverage": coverage, "building": building(),
@@ -557,7 +581,8 @@ def answer_for(sym: str) -> dict:
     summary = json.loads(stock[0])
     rows = []
     for (shares, value, pct, pshares, pvalue, state, *fund) in holders:
-        ch, chp = _change(shares, pshares)
+        # a change across a split that could not be checked is never given (the index says `not_comparable`)
+        ch, chp = (None, None) if state == "not_comparable" else _change(shares, pshares)
         rows.append({**_fund(fund), "shares": shares, "value": value, "pct": pct, "prior_shares": pshares,
                      "prior_value": pvalue, "change_shares": ch, "change_pct": chp, "state": state})
     sold_rows = [{**_fund(fund), "prior_shares": ps, "prior_value": pv} for (ps, pv, *fund) in sold]

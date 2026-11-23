@@ -18,8 +18,16 @@
 // the server then rewrites. With it goes `through`: the unix second up to which the copy is complete
 // (the end of the newest minute applied). The handoff paints a device copy only while `through` is
 // recent (prefetch.devicePaints), and the store records it as the copy's saved time. The forming bucket
-// comes from the live stream or the server's answer, as for any other local copy. D completes at the
-// end of the 04:00-20:00 day (rollup.bucketOf: its volume counts every minute).
+// comes from the live stream or the server's answer, as for any other local copy...
+// ⭐ ...or, with forming.js on (intraday: ON), from here: the ONE bucket after the last complete one, MARKED
+// `forming`. "In progress" is relative to `through`, not the clock: just after a bucket's end, before its last
+// minute's frame has landed, it is still the forming bucket here, so the marker travels to the store (source.js
+// `formingT`), which files it as the developing bar whatever the clock says, never as a closed bar (review of
+// #2537, M1).
+// ⛔ D FROM MINUTES IS NEVER A COMPLETE DAY (review of #2537, H2). The rollup's D bucket ends at 20:00 ET, but a
+// day rolled up from minutes is not the official daily row (its volume, its open and close), so it is never handed
+// out as a complete bar: at most as today's FORMING bar while the regular session is open (forming.js
+// DEVICE_FORMING_DAILY, off). Today's official row comes from the server's own row below, or the next seed.
 //
 // ⭐ EXACT, OR NOT USED. The overlay is appended to a read only while it can vouch for every bar it
 // holds. It cannot after: a bucket the rollup marked PARTIAL (it spans minutes this device lacks) or
@@ -199,14 +207,22 @@ export function createLiveOverlay({ nameOf = (sym) => sym, formingIntraday = DEV
     if (s?.bad) return { res: null, why: 'bad-series' }
     if (!s || !s.n) return { res: { cols: null, through }, why: 'ok' }
     let n = s.n
-    while (n > 0 && bucketEndOf(s.cols.t[n - 1], tf) > through) n--   // not finished: never handed out...
+    // not finished: never handed out... ⛔ and a D bar built from MINUTES is never finished (review of #2537, H2). Its
+    // bucket ends at 20:00 ET, and after the last frame it used to be appended as a COMPLETE row: its volume a sum of
+    // minutes (or the vendor's accumulated volume), its O/H/L/C from regular-session minutes, never the official
+    // daily row, yet stamped complete through 20:00, fresh, and painted by the daily switch. Today's official row
+    // comes from the server, from the server's own day row above, or from the next seed.
+    while (n > 0 && (tf === 'D' || bucketEndOf(s.cols.t[n - 1], tf) > through)) n--
     // ⭐ ...unless TODAY'S FORMING BAR is on for this timeframe (forming.js): then the ONE bucket after the last
-    // complete one, as far as today's minutes go (the rollup's bucket in progress). D only when every frame of
-    // the day carried the accumulated day volume, so its volume is the vendor's and not a sum of minutes.
+    // complete one, as far as today's minutes go (the rollup's bucket in progress), MARKED `forming` (the store files
+    // it as the developing bar whatever the clock says: source.js formingT, M1). D only when every frame of the day
+    // carried the accumulated day volume, so its volume is the vendor's and not a sum of minutes, and ONLY WHILE THE
+    // REGULAR SESSION IS OPEN (the newest minute applied is a regular-session minute: a half day closes at 13:00).
+    // After the close it is no longer forming and it is not the official row either: nothing (H2).
     let forming = null
     if (n === s.n - 1 && formingFor(tf)) {
       if (tf !== 'D') forming = 'intraday'
-      else if (avAll && s.cols.v[n] > 0) forming = 'D'
+      else if (avAll && s.cols.v[n] > 0 && isRthBar(lastMinute * 60)) forming = 'D'
     }
     const m = forming ? n + 1 : n
     if (!m) return { res: { cols: null, through }, why: 'ok' }

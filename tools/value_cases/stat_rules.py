@@ -50,6 +50,7 @@ def stat_rules(cid, C, V, S):
                 ('of the 100 bars before, the percent below today', 100, 0, True, 100),
                 ('of the last 100 with today, the percent below today', 99, 0, True, 100),
                 ('of the last 100 with today, the percent below today, of the other 99', 99, 0, True, 99),
+                ('of the last 100 with today, the percent at or below today, of the other 99', 99, 0, False, 99),
                 ('of the last 100 with today, the percent at or below today (today counts)', 99, -1, False, 100)):
             col = []
             for i in range(N):

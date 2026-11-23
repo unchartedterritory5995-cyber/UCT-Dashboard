@@ -6,7 +6,8 @@ Database: SQLite at DB_PATH (Railway persistent volume: /data/cot.db).
 Public API:
     init_db()                          → create tables if absent
     is_empty() -> bool                 → True if cot_records has no rows
-    seed_from_historical() -> int      → download CFTC zip, parse, upsert all history
+    seed_from_historical() -> int      → download the last _SEED_YEARS yearly zips, one at a time, upsert each
+    legacy_backfill(now_et) -> dict    → the one-time scheduled re-seed (marker `legacy_backfill_v1` in cot_meta)
     refresh_from_current() -> int      → download current-year file, upsert new records
     get_cot_data(symbol, weeks) -> list → last N weekly records, ascending by date
     get_status() -> dict               → last_updated, next_friday, record_count
@@ -18,8 +19,10 @@ code table), then its market name (SYMBOL_MAP + _CFTC_ALIASES, runs of spaces co
 
 import io
 import csv
+import json
 import os
 import threading
+import time
 import zipfile
 import logging
 import sqlite3
@@ -43,6 +46,7 @@ DB_PATH: str = os.environ.get("COT_DB_PATH", _DEFAULT_DB_PATH)
 _HIST_BASE   = "https://www.cftc.gov/files/dea/history/deacot"
 _SEED_YEARS  = 10   # download last N years for seed (covers 5Y lookback + buffer)
 _TIMEOUT     = 120   # seconds
+_SEED_PAUSE_S = 2.0  # between two yearly files of one seed (the figure cot_finer.PAUSE_S waits between its downloads)
 
 # ── Symbol map: our symbol → CFTC market name (uppercase for matching) ─────────
 SYMBOL_MAP: dict[str, str] = {
@@ -277,6 +281,12 @@ def init_db() -> None:
                 model       TEXT NOT NULL,
                 created_at  TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS cot_meta (
+                key   TEXT PRIMARY KEY,
+                value TEXT NOT NULL,
+                at    TEXT NOT NULL
+            );
         """)
 
 
@@ -422,33 +432,210 @@ def _download_year_zip(year: int) -> tuple[list[dict], set[str]]:
     return records, unmapped
 
 
-def seed_from_historical() -> int:
-    """Download last _SEED_YEARS years of CFTC per-year zips, parse, upsert into DB.
-
-    Runs in a background thread so it never blocks FastAPI startup.
-    Returns total records inserted.
-    """
+def _seed_years() -> list[int]:
+    """The years a seed reads, oldest first: the last _SEED_YEARS calendar years (UTC), the current one included."""
     current_year = datetime.now(timezone.utc).year
-    all_records: list[dict] = []
-    all_unmapped: set[str]  = set()
+    return list(range(current_year - _SEED_YEARS + 1, current_year + 1))
 
-    for year in range(current_year - _SEED_YEARS + 1, current_year + 1):
-        try:
-            recs, unmapped = _download_year_zip(year)
-            all_records.extend(recs)
+
+def _pause(seconds: float) -> None:
+    time.sleep(seconds)
+
+
+def _http_status(exc: BaseException) -> int | None:
+    """The HTTP status of a failed download (requests' HTTPError, raised by `raise_for_status`), else None."""
+    if isinstance(exc, requests.HTTPError):
+        return getattr(exc.response, "status_code", None)
+    return None
+
+
+# One seed at a time: the boot seed of an empty store, the admin reseed and the one-time backfill all run through
+# seed_from_historical, and two ten-year reads at once would ask the CFTC for every file twice.
+_SEED_LOCK = threading.Lock()
+
+
+def seed_from_historical(outcome: dict | None = None, keep_going=None) -> int:
+    """Download the last _SEED_YEARS years of CFTC per-year zips and upsert them, ONE YEAR AT A TIME. Returns the
+    records upserted.
+
+    Callers: the boot seed of an empty store (`api/main.py` `_cot_seed_background`, on its own thread), the admin
+    route `POST /api/cot/reseed`, and the one-time backfill (`legacy_backfill`). Never on a member's request.
+
+    BOUNDS (2026-11-22). Each year is downloaded, parsed, upserted and dropped before the next one is asked for, with
+    a pause of _SEED_PAUSE_S between two files. Until then every year's records were held together and written in
+    one go at the end (see LEGACY BACKFILL below for what that held). The write is unchanged (`_upsert_records`,
+    INSERT OR REPLACE on (symbol, date)) and the years still go oldest first, so the store ends as it did.
+      * A year that fails (not posted, a file of the wrong shape, a network error) is skipped and named; the seed
+        goes on, as before.
+      * A REFUSAL (HTTP 403 or 429) ends the seed at once; the years already read stay written.
+      * `keep_going` (optional, no arguments) is asked before every file after the first; False ends the seed
+        ('busy'), and the years already read stay written.
+      * One seed at a time (`_SEED_LOCK`): a call while another runs reads nothing and returns 0 ('running').
+
+    A COMPLETE seed (every year read, nothing ended it) writes the marker LEGACY_BACKFILL_KEY, so the one-time
+    backfill never repeats a ten-year read the boot seed or the admin route has just finished.
+
+    `outcome`, when given, is filled: `state` 'complete' | 'partial' (a year failed) | 'stopped' (a refusal or
+    `keep_going`) | 'running'; `years_read`, `years_failed`, `records`; `reason` unless complete.
+    """
+    out = outcome if outcome is not None else {}
+    if not _SEED_LOCK.acquire(blocking=False):
+        out.update(state="running", years_read=[], years_failed=[], records=0, reason="another seed is running")
+        logger.info("COT: seed not started -- another seed is running")
+        return 0
+    try:
+        years_read: list[int] = []
+        years_failed: list[str] = []
+        all_unmapped: set[str] = set()
+        stop: str | None = None
+        n = 0
+        for i, year in enumerate(_seed_years()):
+            if i:
+                if keep_going is not None and not keep_going():
+                    stop = "busy"
+                    logger.info("COT: seed stopped before %d -- keep_going said no; the years read stay", year)
+                    break
+                _pause(_SEED_PAUSE_S)
+            try:
+                recs, unmapped = _download_year_zip(year)
+            except Exception as exc:  # noqa: BLE001 -- a year that fails is named; a refusal ends the seed
+                status = _http_status(exc)
+                if status in (403, 429):
+                    stop = f"http_{status}"
+                    logger.warning("COT: seed stopped at %d -- the CFTC refused (%d); the years read stay", year, status)
+                    break
+                years_failed.append(f"{year}: {f'http_{status}' if status else type(exc).__name__}")
+                logger.warning("COT: skipping %d — %s", year, exc)
+                continue
+            n += _upsert_records(recs)
             all_unmapped |= unmapped
+            years_read.append(year)
             logger.info("COT: %d — %d records parsed", year, len(recs))
-        except Exception as exc:
-            logger.warning("COT: skipping %d — %s", year, exc)
+            del recs
+        _log_unmapped(all_unmapped)
+        state = "stopped" if stop else "partial" if years_failed else "complete"
+        reason = stop or "; ".join(years_failed)
+        _log_refresh(n, "seed" if state == "complete" else f"seed {state}: {reason}"[:200])
+        out.update(state=state, years_read=years_read, years_failed=years_failed, records=n)
+        if state == "complete":
+            _mark_backfilled(years_read, n)
+        else:
+            out["reason"] = reason[:200]
+        logger.info(
+            "COT: seed %s — %d records upserted from %d years (%d unmapped markets ignored)",
+            state, n, len(years_read), len(all_unmapped),
+        )
+        return n
+    finally:
+        _SEED_LOCK.release()
 
-    n = _upsert_records(all_records)
-    _log_unmapped(all_unmapped)
-    _log_refresh(n, "seed")
-    logger.info(
-        "COT: initial seed complete — %d records inserted (%d unmapped markets ignored)",
-        n, len(all_unmapped),
-    )
-    return n
+
+# ── LEGACY BACKFILL: the one-time re-seed after the code-first parser (2026-11-22) ──────────────────────────────
+# WHY. PR #2533 made _parse_cftc_stream match a row by its CFTC contract code first, because Hard Red Spring wheat
+# (MW, code 001626) had been renamed and matched no week of the 2026 file. The Friday refresh re-reads the current
+# year only, so any MW week of an earlier year the store lacks would stay missing: only a seed re-reads past years,
+# and a seed ran only on an empty store or on the admin route. The owner asked that this happen without him.
+#
+# WHAT. `legacy_backfill` runs seed_from_historical ONCE, from a scheduled check inside scan_period's quiet span
+# (`api/main.py` job `cot_legacy_backfill`, daily at BACKFILL_RUN_AT_ET; never on a member's request):
+#   * DONE ONCE: a complete seed writes the marker row LEGACY_BACKFILL_KEY in `cot_meta`; with it present every later
+#     check answers 'done' after one indexed read and asks the CFTC for nothing. Any complete seed writes it (the boot
+#     seed of an empty store and the admin route too), so an empty store's own seed is never followed by a second one.
+#   * A failed, partial or stopped run writes no marker and is asked again at the next check on a later New York day:
+#     at most one attempt a day (`_BACKFILL_TRIED_KEY` holds the day of the last one, written before it starts, so a
+#     restart mid-run does not make a second attempt that day).
+#   * An empty store is the boot seed's job ('empty'); a seed already running is left alone ('running').
+#   * BOUNDS: seed_from_historical's own (one yearly file at a time, a pause between two, a stop on a refusal), plus
+#     the quiet span asked again before every file (`keep_going`): a run that reaches the end of the span stops there.
+#   * MEMORY, measured 2026-11-22 on an INVENTED ten-year miniature in the legacy layout (all 66 markets in every
+#     week of every year, the most a year can match, plus 334 unmatched markets: 20,800 to 21,200 rows a year, 126
+#     columns, 16.4 MB unpacked and 7.3 MB zipped a year; 34,452 records in all), Python's own allocation peak
+#     (tracemalloc) over a whole seed: the old seed, holding every year's records until the end, 29.2 MB; one year at
+#     a time, 15.2 MB, most of it the one zip the download holds in memory (invented random figures pack poorly).
+#   * WHAT IT CHANGES (proved on an invented miniature, tests/test_cot_legacy_backfill.py): the write upserts, so a
+#     week the store holds is rewritten with the CFTC file's figures (identical where the file carries the same
+#     figures; the internal `id` is reassigned, as every Friday refresh already does, and nothing reads it) and a week
+#     it lacks is added; a week the files do not carry is left alone; nothing is deleted. The UCT Agent's COT answers
+#     read this store (`get_cot_data`): MW's older weeks appear there, and on the COT tab, once the backfill has run.
+LEGACY_BACKFILL_KEY = "legacy_backfill_v1"
+_BACKFILL_TRIED_KEY = "legacy_backfill_v1_tried"
+BACKFILL_RUN_AT_ET = (22, 40)   # inside the quiet span every day; after cot_finer's 21:10 run, before the 23:00 jobs
+
+
+def _now_et() -> datetime:
+    from zoneinfo import ZoneInfo
+    return datetime.now(ZoneInfo("America/New_York"))
+
+
+def _quiet(now: datetime) -> bool:
+    """scan_period's quiet span, through the trader-type reader's own check (`cot_finer.quiet`, which reads
+    `scan_period._reuse_quiet_now`): both COT jobs that read past years from the CFTC keep to one rule."""
+    from api.services.cot_finer import quiet
+    return quiet(now)
+
+
+def _meta_get(key: str) -> str | None:
+    with _get_conn() as conn:
+        row = conn.execute("SELECT value FROM cot_meta WHERE key = ?", (key,)).fetchone()
+    return row["value"] if row else None
+
+
+def _meta_set(key: str, value: str) -> None:
+    with _get_conn() as conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO cot_meta (key, value, at) VALUES (?, ?, ?)",
+            (key, value, datetime.now(timezone.utc).isoformat(timespec="seconds")),
+        )
+
+
+def _meta_delete(key: str) -> None:
+    with _get_conn() as conn:
+        conn.execute("DELETE FROM cot_meta WHERE key = ?", (key,))
+
+
+def _mark_backfilled(years: list[int], records: int) -> None:
+    """Written only by a complete seed. A failure to write it is logged, never raised: without the marker the
+    backfill runs once more, and a seed is idempotent."""
+    try:
+        _meta_set(LEGACY_BACKFILL_KEY, json.dumps({"years": years, "records": records}))
+    except sqlite3.Error as exc:
+        logger.warning("COT: the backfill marker was not written (%s); the next check runs the seed again", exc)
+
+
+def legacy_backfill(now_et: datetime | None = None) -> dict:
+    """THE SCHEDULED ONE-TIME BACKFILL (see LEGACY BACKFILL above). Runs the seed on the calling thread. Never
+    raises. `state`: 'done' (the marker is there; nothing asked) | 'not_quiet' | 'empty' (the boot seed's job) |
+    'tried_today' (an attempt already started this New York day) | 'running' (another seed is running) | the
+    seed's own 'complete' (the marker is written) | 'partial' | 'stopped' | 'failed'."""
+    now_et = now_et or _now_et()
+    try:
+        init_db()
+        if _meta_get(LEGACY_BACKFILL_KEY) is not None:
+            return {"state": "done"}
+        if not _quiet(now_et):
+            return {"state": "not_quiet"}
+        if is_empty():
+            return {"state": "empty"}
+        today = now_et.date().isoformat()
+        tried = _meta_get(_BACKFILL_TRIED_KEY)
+        if tried == today:
+            return {"state": "tried_today"}
+        if _SEED_LOCK.locked():
+            return {"state": "running"}
+        _meta_set(_BACKFILL_TRIED_KEY, today)
+        outcome: dict = {}
+        seed_from_historical(outcome, keep_going=lambda: _quiet(_now_et()))
+        if outcome.get("state") == "running":
+            # another seed started between the check and this one: the day's attempt is not spent
+            if tried is None:
+                _meta_delete(_BACKFILL_TRIED_KEY)
+            else:
+                _meta_set(_BACKFILL_TRIED_KEY, tried)
+        logger.info("COT: legacy backfill -- %s", {k: v for k, v in outcome.items() if k != "years_read"})
+        return outcome
+    except Exception as exc:  # noqa: BLE001 -- no marker; the next check on a later day asks again
+        logger.warning("COT: legacy backfill failed (%s); no marker, asked again on a later day", type(exc).__name__)
+        return {"state": "failed", "reason": type(exc).__name__}
 
 
 def _latest_record_date() -> str | None:

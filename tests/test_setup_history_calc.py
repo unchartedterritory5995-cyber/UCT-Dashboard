@@ -128,6 +128,44 @@ def test_three_weeks_tight_reads_the_closes_five_and_ten_sessions_apart():
     assert _col("tight_3wk", _bars(loose))[-1] == 0.0    # 11.0 to 11.6 is more than 1.5%
 
 
+def test_a_pocket_pivot_needs_a_down_day_among_the_10_sessions_before_as_vfp_reads_it():
+    """VFP's reading (`volume_footprint_calc.pocket_pivots`): with no down day among the 10 sessions before there
+    is no down-day volume to beat, so it is not a pocket pivot; with one, the day's volume must be above it."""
+    rising = [20.0 + i * 0.05 for i in range(80)]           # every close above the one before: no down day at all
+    day = rising[-1] + 0.5                                  # an up close, above its 50-day average
+    loud = [1000.0] * 80 + [5000.0]
+    assert _col("pocket_pivot", _bars(rising + [day], vols=loud))[-1] == 0.0     # nothing to beat
+
+    def with_down(k, down_vol):
+        closes, vols = list(rising), list(loud)
+        closes[80 - k] = closes[80 - k - 1] - 0.02          # one down day, k sessions before the day
+        vols[80 - k] = down_vol
+        return _bars(closes + [day], vols=vols)
+
+    assert _col("pocket_pivot", with_down(5, 1000.0))[-1] == 1.0      # above the down day's volume
+    assert _col("pocket_pivot", with_down(5, 6000.0))[-1] == 0.0      # below it
+    assert _col("pocket_pivot", with_down(10, 1000.0))[-1] == 1.0     # 10 sessions back is among the 10
+    assert _col("pocket_pivot", with_down(11, 1000.0))[-1] == 0.0     # 11 back is not: none among the 10
+    assert "no down day" in C.BY_ID["pocket_pivot"].words
+
+
+def test_a_pocket_pivot_closes_above_its_10_day_line_not_its_50_day_as_vfp_reads_it():
+    """VFP's (published) reading: the close is above the 10-day simple average of the 10 closes through that day.
+    A pullback that bounces above its 10-day line but stays under its 50-day is a pocket pivot; one that stays
+    under its 10-day line is not, however far above the 50-day it is."""
+    up = [20.0 + i * 0.1 for i in range(70)]                 # a long rise: the 50-day sits far below
+    down = [up[-1] - (i + 1) * 0.6 for i in range(9)]        # a sharp 9-day drop, well under the 50-day
+    closes = up + down
+    vols = [1000.0] * len(closes) + [5000.0]
+    bounce = 24.5                                            # an up close that clears the 10-day line (about
+    assert (sum(closes[-9:]) + bounce) / 10 < bounce < sum((closes + [bounce])[-50:]) / 50   # 23.9), not the 50-day
+    assert _col("pocket_pivot", _bars(closes + [bounce], vols=vols))[-1] == 1.0
+    weak = closes[-1] + 0.05                                 # an up close still under its 10-day line
+    assert closes[-1] < weak < (sum(closes[-9:]) + weak) / 10
+    assert _col("pocket_pivot", _bars(closes + [weak], vols=vols))[-1] == 0.0
+    assert "10-day moving average" in C.BY_ID["pocket_pivot"].words
+
+
 def test_the_fast_trees_answer_exactly_what_the_plain_trees_answer():
     """The 52-week high as four quarters' highs, and "20 closes below" as a count: the same answer on
     every bar either answers, the same declared warm-up."""
