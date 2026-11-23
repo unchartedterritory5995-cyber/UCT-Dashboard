@@ -21,7 +21,7 @@ import { planOps, collectTargets } from '../executor'
 import { serverServesNl1 } from '../agentClient'
 import { routingNames } from '../routing'
 import { correctTypos, lexiconFor } from '../nl/lexicon'
-import { selectNl1 } from './selection'
+import { selectNl1, nl1WordsReader } from './selection'
 
 export const NL1_KEY = 'uct.agent.nl1'
 export const INTERPRETER = 'nl1'
@@ -79,6 +79,8 @@ export function buildNl1Request({ host, text, capCtx = {}, manageIndicators = fa
     pinActions: [...(pendingProposal?.ops || []).map(o => o.action), ...(memory?.lastChange?.(epoch)?.ops || []).map(o => o.action)],
     pinGroups: pendingQuestion?.groups || [],
   }
+  // the request's words, read once for its first call and every reroute (nl1/selection.js nl1WordsReader)
+  selOpts.wordsOf = nl1WordsReader({ names: selOpts.names, correct: selOpts.correct })
   const selection = selectNl1(full, { ...selOpts, need })
   const manifest = selection.manifest
   // context: every provider, never gated on the member's words (`nl1: true`; a provider that would
