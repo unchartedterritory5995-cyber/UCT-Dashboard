@@ -391,7 +391,7 @@ def _run(a, items: list[dict], prices: dict) -> int:  # pragma: no cover - paid 
         return turn.run_turn(message=b["message"], context=b["context"], history=it.get("history") or [],
                              capabilities=b["capabilities"], routing=b.get("routing"), pending=b.get("pending"),
                              manifest_version=b.get("manifestVersion"), caller=caller, interpreter=b.get("interpreter"),
-                             reference=b.get("reference"), reroute=reroute, meter=meter)
+                             reference=b.get("reference"), reroute=reroute, meter=meter, repair=b.get("repair"))
 
     for it in items:
         b = it["body"]
