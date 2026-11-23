@@ -212,7 +212,8 @@ describe('C2 through the render window, the library holds the rows it held befor
     b.series.update(bar)
     const u = refUpdate(bar, want.refs, NC_NET)
     const appSeen = b.series.data()
-    expect(appSeen[appSeen.length - 1]).toEqual(u.out)          // the live bar, painted as before
+    // (the library writes its own `_internal_originalTime` onto the item it is handed: compare the item's own fields)
+    expect(appSeen[appSeen.length - 1]).toMatchObject(u.out)    // the live bar, painted as before
   })
 
   it('with the window off (every bar), the library is handed every painted row, as before', () => {
@@ -244,7 +245,7 @@ describe('C3 only the window is painted', () => {
 })
 
 describe('C4 the colours of a setData stay with its rows', () => {
-  it('an extension after a colour change paints the rows it adds with the setData's colours', async () => {
+  it("an extension after a colour change paints the rows it adds with the setData's colours", async () => {
     const data = candles(N)
     const want = refSetData(data, NC_NET)
     const holder = { nc: NC_NET }

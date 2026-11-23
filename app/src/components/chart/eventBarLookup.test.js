@@ -179,11 +179,17 @@ describe('the event badges find the bars they did before (equality with the buil
 })
 
 describe('the builders read a handful of bars on a sorted daily chart', () => {
+  // The count is read BEFORE the spy is restored: `mockRestore` resets the calls, and a count read after it is always 0
+  // (this rail's first run passed on the code it exists to catch, for exactly that reason).
   const slicesDuring = (fn) => {
     const spy = vi.spyOn(String.prototype, 'slice')
-    try { fn() } finally { spy.mockRestore() }
-    return spy.mock.calls.length
+    let n = -1
+    try { fn(); n = spy.mock.calls.length } finally { spy.mockRestore() }
+    return n
   }
+  it('E3 control: the counter counts (two slices read as two)', () => {
+    expect(slicesDuring(() => { 'abcdef'.slice(1); 'abcdef'.slice(0, 2) })).toBe(2)
+  })
   it('E3 earnings, splits and dividends: far fewer bucket slices than bars', () => {
     const md = { earnings: EARNINGS.filter((e) => e && !e.estimate), splits: SPLITS, dividends: DIVS }
     const nE = slicesDuring(() => earningsEventsOf(md, true, 'D', DAILY, false))
