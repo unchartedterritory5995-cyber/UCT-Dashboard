@@ -67,7 +67,7 @@ def test_the_fixture_is_whole():
         # a case may be recorded WRONG: a known defect of the door, named, never silently passed
         assert case.get("recorded_verdict", "wrong" if "defect" in case else None) in (None, "wrong"), case["id"]
         assert ("defect" in case) == (case.get("recorded_verdict") == "wrong") and len(case.get("defect") or "x" * 99) > 80, case["id"]
-    assert [c["id"] for c in CASES if c.get("recorded_verdict") == "wrong"] == ["intraday-01", "date-start-01", "wall-18", "j06"]     # every one is named here, on purpose
+    assert [c["id"] for c in CASES if c.get("recorded_verdict") == "wrong"] == ["j06"]     # every one is named here, on purpose
 
 
 def _floor(case):
@@ -98,7 +98,10 @@ def test_the_recorded_answer_is_right_on_the_lane_the_request_belongs_on(case):
         assert result["verdict"] == "wrong", (case["id"], "is recorded WRONG and now grades", result["verdict"], result["lines"])
         return
     assert result["verdict"] == "right", (case["words"], result["lines"])
-    if case["lane"] == "formula":
+    if case["lane"] == "formula" and any(line.startswith("filled in, each figure is shown on every bar") for line in result["lines"]):
+        # a rule about SETTINGS the member fills in: each figure was held on every bar with the settings filled
+        assert any(line.startswith("with nothing filled in, nothing is drawn") for line in result["lines"]), result["lines"]
+    elif case["lane"] == "formula":
         # something was compared: "right" over no bars would be a pass by silence
         compared = [int(line.rsplit(" on ", 1)[1].split()[0]) for line in result["lines"] if " = " in line]
         assert compared and min(compared) > _floor(case), result["lines"]
@@ -327,9 +330,20 @@ def _unset(data):
     return data
 
 
-def _answers_dir(tmp_path, changed=None, missing=()):
+def _with_a_known_defect():
+    """(the fixture with ONE formula case put back as it stood the day it was recorded WRONG, that case). The fixture
+    itself may hold none (every defect the first full run found is fixed): the specimen is the wrong answer."""
+    data = copy.deepcopy(DATA)
+    case = next(c for c in data["cases"] if c["lane"] == "formula" and c.get("found") and c.get("recorded_verdict") != "wrong")
+    kept = case["found"][-1]
+    case.update(answer=kept["answer"], recorded_verdict="wrong", defect=kept["defect"])
+    assert G.grade_case(case)["verdict"] == "wrong"
+    return data, case
+
+
+def _answers_dir(tmp_path, changed=None, missing=(), data=None):
     """A run folder as the recorder writes one: <id>-0.body.json per request, the door's whole answer."""
-    for case in HERE:
+    for case in (HERE if data is None else [c for c in data["cases"] if c["lane"] != "script"]):
         if case["id"] in missing:
             continue
         answer = (changed or {}).get(case["id"], case["answer"])
@@ -353,26 +367,25 @@ def test_a_record_read_back_as_the_door_sends_it_is_the_record():
 
 def test_a_fresh_run_equal_to_the_record_scores_every_case(tmp_path):
     report = value_eval.grade_run(DATA, _answers_dir(tmp_path))
-    # a known defect is ANSWERED and not right: it is in `of` and `answered`, never in `right`, and it is no change
-    assert KNOWN_WRONG and len(RIGHT) + len(KNOWN_WRONG) == len(FORMULA)
+    assert len(RIGHT) + len(KNOWN_WRONG) == len(FORMULA)
     assert report["scores"] == {"formula": {"right": len(RIGHT), "of": len(FORMULA), "answered": len(FORMULA)},
                                 "wall": {"right": len(RIGHT_WALL), "of": len(WALL), "answered": len(WALL)}}
     assert report["full"] is True and report["full_lanes"] == ["formula", "wall"] and report["changed"] == []
+    # a known defect is ANSWERED and not right: it is in `of` and `answered`, never in `right`, and it is no change
+    data, case = _with_a_known_defect()
+    (tmp_path / "defect").mkdir()
+    again = value_eval.grade_run(data, _answers_dir(tmp_path / "defect", data=data))
+    assert again["scores"]["formula"] == {"right": len(RIGHT) - 1 + len(KNOWN_WRONG) * 0, "of": len(FORMULA), "answered": len(FORMULA)}
+    assert again["verdicts"][case["id"]] == "wrong" and again["changed"] == [] and again["full_lanes"] == ["formula", "wall"]
 
 
 def test_a_known_defect_the_door_now_gets_right_is_named_as_a_change(tmp_path):
     """wrong -> RIGHT is reported (it is how a fix shows in a live run), and it is never counted as worse."""
-    case = KNOWN_WRONG[0]
-    fixed = copy.deepcopy(RIGHT[0]["answer"])
-    real = G.grade_case
-    try:
-        G.grade_case = lambda c, answer=None: ({"verdict": "right", "lines": [], "lane": c["lane"]}
-                                               if c["id"] == case["id"] and answer is not None else real(c, answer) if answer is not None else real(c))
-        report = value_eval.grade_run(DATA, _answers_dir(tmp_path, changed={case["id"]: fixed}))
-    finally:
-        G.grade_case = real
+    data, case = _with_a_known_defect()
+    fixed = copy.deepcopy(BY_ID[case["id"]]["answer"])                # the right answer the repository records for it today
+    report = value_eval.grade_run(data, _answers_dir(tmp_path, changed={case["id"]: fixed}, data=data))
     assert [(row["id"], row["was"], row["now"]) for row in report["changed"]] == [(case["id"], "wrong", "right")]
-    assert report["scores"]["formula"]["right"] == len(RIGHT) + 1
+    assert report["scores"]["formula"]["right"] == len(RIGHT)         # one more than the fixture with the defect holds right
 
 
 def test_a_fresh_run_names_what_went_wrong_and_what_was_not_answered(tmp_path):

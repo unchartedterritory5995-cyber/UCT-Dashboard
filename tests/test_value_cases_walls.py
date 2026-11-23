@@ -117,7 +117,7 @@ def test_a_recorded_question_keeps_its_text_and_its_choices():
 
 def test_every_recorded_wall_is_what_its_case_says_and_only_the_named_kinds_carry_more():
     more = {c["id"]: sorted(k for k in c["wall"] if k != "names") for c in WALLS if set(c["wall"]) - {"names"}}
-    assert more == {"wall-26": ["theirs"], "intraday-02": ["offers"], "wall-31": ["theirs"], "wall-32": ["theirs"]}
+    assert more == {"wall-26": ["theirs"], "intraday-02": ["offers"], "intraday-01": ["offers"], "wall-31": ["theirs"], "wall-32": ["theirs"]}
     for case in WALLS:
         assert G.grade_wall(case, case["answer"])["verdict"] == case.get("recorded_verdict", "right"), case["id"]
     assert [c["id"] for c in WALLS if c.get("recorded_verdict") == "wrong"] == []
