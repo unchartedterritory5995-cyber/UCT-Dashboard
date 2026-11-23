@@ -91,6 +91,26 @@ def account_refusal(answers: List[Dict[str, Any]]) -> Optional[str]:
     return None
 
 
+def repairs_of(answers: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """What the door refused of its OWN attempts before each answer it gave: [{answer, attempts, refused: [{attempt,
+    gate}], told: [...]}], one entry per answer that paid for more than one attempt or names a refused one.
+    `refused` is the door's `refused_attempts` (every account); `told` is what the repair turn was told, which the
+    door gives to an admin only (`diagnostic`). ⚰️ 2026-11-23: a build that went wrong on its repair call was on
+    record as `attempts: 2` and nothing else, so which guard sent it there could not be measured."""
+    out = []
+    for n, a in enumerate(answers):
+        body = a.get("body")
+        if not isinstance(body, dict):
+            continue
+        refused = [r for r in body.get("refused_attempts") or [] if isinstance(r, dict) and r.get("gate")]
+        told = [r for r in body.get("diagnostic") or [] if isinstance(r, dict) and r.get("gate")]
+        attempts = body.get("attempts")
+        if refused or told or (isinstance(attempts, int) and attempts > 1):
+            out.append({"answer": n, "attempts": attempts, "refused": [{"attempt": r.get("attempt"), "gate": r["gate"]} for r in refused],
+                        **({"told": [{"attempt": r.get("attempt"), "gate": r["gate"], "detail": r.get("detail")} for r in told]} if told else {})})
+    return out
+
+
 def is_answer(answers: List[Dict[str, Any]]) -> bool:
     """A request is ANSWERED (and never sent again) when the door answered every turn of it with status 200 and none
     of those turns was a refusal about the account. A refusal about the REQUEST (an unknown name, a wall) is an
@@ -249,7 +269,7 @@ def main(argv: List[str]) -> int:
                 row.update(seconds=round(time.time() - t0, 1), usd=round(usd, 6), answers=len(answers),
                            statuses=[a["status"] for a in answers], turn=(body or {}).get("turn"), disposition=(body or {}).get("disposition"),
                            writes_stopped=sorted(set(state["stopped"])), turns_nobody_sent=state["unsent"],
-                           done=is_answer(answers))
+                           repairs=repairs_of(answers), done=is_answer(answers))
                 if any(a["status"] == 429 for a in answers):
                     stopped = "the door's hourly limit (429)"
                 if refused:
