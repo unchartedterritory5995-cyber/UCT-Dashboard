@@ -214,11 +214,13 @@ describe('through the REAL panel (panelHarness): one approval card, the hook\'s 
     // (the whole transcript: the helper's slice can start mid-word when timestamps re-render)
     expect(screen.getByTestId('agent-transcript').textContent).toMatch(/Indicator alert: NVDA RSI \(RSI \(7\)\) above threshold 70 on the D chart/)
     expect(srv.rows.map(r => [r.sym, r.indicator, r.condition, r.threshold, r.tf, r.instance_id, r.params_json])).toEqual([['NVDA', 'rsi', 'above', 70, 'D', 'inst:rsi:1', { period: 7 }]])
-    expect(p.turns()).toBe(1)
+    // 2026-11-23 (Alerts family, alertPhrases): this sentence is now read INSTANTLY — the same card, the same stored row, the
+    // same Undo as the scripted plan above, with no model turn (the scripted envelope is left unused)
+    expect(p.turns()).toBe(0)
     const undone = await say('undo')
     expect(undone).toMatch(/Undid/)
     expect(srv.rows).toEqual([])
-    expect(p.turns()).toBe(1)
+    expect(p.turns()).toBe(0)
   }, 40000)
 })
 
