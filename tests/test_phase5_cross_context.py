@@ -222,7 +222,8 @@ def test_P5_a_daily_tf_inside_a_formula_is_authored_below_a_day_and_refused_by_n
     conv.check_daily_reads(got, "the 50 day average", {"sym": "NVDA", "tf": "5"})        # must not raise
     with pytest.raises(conv._Refused) as exc:
         conv.check_daily_reads(got, "the 50 day average", {"sym": "NVDA", "tf": "D"})
-    assert exc.value.gate == "envelope:reference"
+    # (train e96: the daily read's own gate; `envelope:reference` is `_check_references`' alone, master #2559)
+    assert exc.value.gate == "envelope:daily-read-on-days"
 
 
 def test_P5_tf_live_is_authored_and_lints_preview_repaints_not_refused(conv):
