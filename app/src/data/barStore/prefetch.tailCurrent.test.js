@@ -12,6 +12,16 @@
 //   TC3 nothing is asked outside the regular session, on a hidden app, or for D
 //   TC4 at most TAIL_REASKS_PER_BUCKET asks per row per bucket (a name that is not printing stays behind)
 //   TC5 clear() (unmount) cancels the boundary timer
+// ...and, from the review of #2619:
+//   M1  a tail answer that is STILL BEHIND (the server stores the closed minute LAGGING_S after the boundary) starts no
+//       grace: a press right after it does not paint the short copy (it prepares, as on master); the spaced retry inside
+//       the bucket comes back current and the next press can show the row in the key task. M1b: the switch's OWN answer
+//       still starts the grace exactly as before
+//   M2a hidden: the timer is not ARMED (asserted on the timer), and a boundary that finds the app hidden does not re-arm it
+//   M2b the timer runs only in a window after a SELECTION CHANGE: the list's first selection and a re-sort arm nothing; a
+//       selection arms it; past TAIL_ACTIVE_MS it stops
+//   M2c the boundary lag is drawn per hold (two holds never ask in the same instant), in [TAIL_LAG_MIN_MS, TAIL_LAG_MAX_MS];
+//       a row's second ask in a bucket is at least TAIL_REASK_SPACING_MS after its first
 // Real store, real network, real facade, a held fake server.
 import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest'
 import { installFakeIndexedDB } from './testing/fakeIndexedDB'
@@ -30,16 +40,19 @@ beforeEach(() => {
 })
 afterEach(() => { vi.useRealTimers(); localStorage.removeItem('barspack.version') })
 
-async function boot(mode, { visible = () => true } = {}) {
+/** `random`: the lag draw (0: the shortest lag, deterministic); `timers`: every delay the facade schedules. */
+async function boot(mode, { visible = () => true, random = () => 0 } = {}) {
   vi.resetModules()
   const server = installFakeBarsServer({ modeFor: () => mode })
   const { createBarStore } = await import('./index')
-  const { createPrefetch } = await import('./prefetch')
+  const P = await import('./prefetch')
   const store = createBarStore({
     stream: fakeStream(), candle: fakeCandle(), prices: fakePrices(),
     isHidden: () => false, onVisible: () => () => {}, idle: (fn) => fn(),
   })
-  return { server, store, pf: createPrefetch({ store, tickerMeta: () => {}, extended: () => false, visible }) }
+  const timers = []
+  const setTimer = (fn, ms) => { timers.push(ms); return setTimeout(fn, ms) }
+  return { server, store, P, timers, pf: P.createPrefetch({ store, tickerMeta: () => {}, extended: () => false, visible, random, setTimer }) }
 }
 const tick = (ms) => vi.advanceTimersByTimeAsync(ms)
 /** The list warm: every row answered once, now. */
@@ -50,6 +63,13 @@ async function warmAll(w, syms, tf) {
   await p
 }
 const asksOf = (w, sym, from) => w.server.calls.slice(from).filter((c) => c.q.sym === sym).length
+/** The member navigates the list: its first selection, then a press (a CHANGE of the selection opens the window). */
+let sel = 0
+function navigate(hold, syms, tf, tail) {
+  hold.set(syms, tf, { tail, selected: `S${++sel}` })
+  hold.set(syms, tf, { tail, selected: `S${++sel}` })
+}
+const press = (hold, syms, tf, tail) => hold.set(syms, tf, { tail, selected: `S${++sel}` })
 
 describe('the hold keeps the next, the one after and the previous row current across a bucket boundary', () => {
   it('TC1 a row warmed before a minute boundary is asked again after it, and reads displayable at the next press', async () => {
@@ -58,7 +78,7 @@ describe('the hold keeps the next, the one after and the previous row current ac
     await warmAll(w, ['AAA', 'BBB', 'CCC', 'DDD'], '1')
     expect(w.pf.peekDisplayable('AAA', '1')).toBe(true)        // current when warmed (newest row 09:59)
     const hold = w.pf.createNeighborHold()
-    hold.set(['AAA', 'BBB', 'CCC', 'DDD'], '1', { tail: ['AAA', 'BBB', 'DDD'] })
+    navigate(hold, ['AAA', 'BBB', 'CCC', 'DDD'], '1', ['AAA', 'BBB', 'DDD'])
     const before = w.server.calls.length
     await tick(13_000)                                         // past 10:01:00 (+ the lag)
     await w.server.drain()
@@ -84,7 +104,7 @@ describe('the hold keeps the next, the one after and the previous row current ac
     expect(w.server.open()).toHaveLength(0)
     const before = w.server.calls.length
     const hold = w.pf.createNeighborHold()
-    hold.set(['AAA', 'BBB', 'DDD'], '1', { tail: ['AAA', 'BBB', 'DDD'] })   // the press, after its paint
+    navigate(hold, ['AAA', 'BBB', 'DDD'], '1', ['AAA', 'BBB', 'DDD'])   // the press, after its paint
     await w.server.drain()
     expect(w.server.calls.length - before).toBe(3)
     await tick(6_000)
@@ -98,10 +118,10 @@ describe('the hold keeps the next, the one after and the previous row current ac
     const w = await boot('closed')
     await warmAll(w, ['AAA', 'BBB'], '1')
     const hold = w.pf.createNeighborHold()
-    hold.set(['AAA', 'BBB'], '1', { tail: ['AAA', 'BBB'] })
+    navigate(hold, ['AAA', 'BBB'], '1', ['AAA', 'BBB'])
     const before = w.server.calls.length
     await tick(20_000)                                         // 16:00:10: the boundary was the close
-    hold.set(['AAA', 'BBB'], '1', { tail: ['AAA', 'BBB'] })    // a press after the close
+    press(hold, ['AAA', 'BBB'], '1', ['AAA', 'BBB'])           // a press after the close
     await w.server.drain()
     expect(w.pf.peekDisplayable('AAA', '1')).toBe(false)       // behind the close's last bar...
     expect(w.server.calls.length - before).toBe(0)             // ...and still never asked
@@ -114,7 +134,7 @@ describe('the hold keeps the next, the one after and the previous row current ac
     const w = await boot('closed', { visible: () => false })
     await warmAll(w, ['AAA', 'BBB'], '1')
     const hold = w.pf.createNeighborHold()
-    hold.set(['AAA', 'BBB'], '1', { tail: ['AAA', 'BBB'] })
+    navigate(hold, ['AAA', 'BBB'], '1', ['AAA', 'BBB'])
     const before = w.server.calls.length
     await tick(13_000)
     await w.server.drain()
@@ -128,7 +148,7 @@ describe('the hold keeps the next, the one after and the previous row current ac
     const w = await boot('closed')
     await warmAll(w, ['AAA', 'BBB'], 'D')
     const hold = w.pf.createNeighborHold()
-    hold.set(['AAA', 'BBB'], 'D', { tail: ['AAA', 'BBB'] })
+    navigate(hold, ['AAA', 'BBB'], 'D', ['AAA', 'BBB'])
     const before = w.server.calls.length
     await tick(120_000)
     await w.server.drain()
@@ -140,20 +160,22 @@ describe('the hold keeps the next, the one after and the previous row current ac
   it('TC4 at most TAIL_REASKS_PER_BUCKET asks per row per bucket (a name not printing stays behind)', async () => {
     vi.setSystemTime(at(10, 0, 5))
     const w = await boot('behind')                             // every answer ends at 09:40
-    const { TAIL_REASKS_PER_BUCKET } = await import('./prefetch')
     await warmAll(w, ['AAA'], '1')
     const hold = w.pf.createNeighborHold()
+    hold.set(['AAA'], '1', { tail: ['AAA'], selected: `S${++sel}` })
     const before = w.server.calls.length
     for (let i = 0; i < 6; i++) {                              // a press every 6 s inside the 10:00 bucket
       await tick(6_000)
-      hold.set(['AAA'], '1', { tail: ['AAA'] })
+      press(hold, ['AAA'], '1', ['AAA'])
       await w.server.drain()
     }
-    expect(TAIL_REASKS_PER_BUCKET).toBe(2)
-    expect(w.server.calls.length - before).toBe(TAIL_REASKS_PER_BUCKET)
-    await tick(30_000)                                         // the 10:01 boundary (+ lag): a new bucket
+    expect(w.P.TAIL_REASKS_PER_BUCKET).toBe(2)
+    expect(w.server.calls.length - before).toBe(w.P.TAIL_REASKS_PER_BUCKET)
+    await tick(21_000)                                         // 10:01:02: the 10:01 boundary's ask...
     await w.server.drain()
-    expect(w.server.calls.length - before).toBe(TAIL_REASKS_PER_BUCKET + 1)
+    await tick(6_000)                                          // ...and its one spaced retry (still behind), 5 s later
+    await w.server.drain()
+    expect(w.server.calls.length - before).toBe(2 * w.P.TAIL_REASKS_PER_BUCKET)
     hold.clear()
     w.store.dispose()
   })
@@ -163,13 +185,157 @@ describe('the hold keeps the next, the one after and the previous row current ac
     const w = await boot('closed')
     await warmAll(w, ['AAA', 'BBB'], '1')
     const hold = w.pf.createNeighborHold()
-    hold.set(['AAA', 'BBB'], '1', { tail: ['AAA', 'BBB'] })
+    navigate(hold, ['AAA', 'BBB'], '1', ['AAA', 'BBB'])
     await tick(5_000)
     hold.clear()
     const before = w.server.calls.length
-    await tick(10_000)                                         // past 10:01:02
+    await tick(10_000)                                         // past the boundary and its lag
     await w.server.drain()
     expect(w.server.calls.length - before).toBe(0)
+    w.store.dispose()
+  })
+})
+
+describe('review of #2619, MEDIUM-1: a tail answer still behind never lets a press paint a short copy', () => {
+  it('M1 the server stores the closed minute 5 s after the boundary: the press right after the tail answer prepares; the retry makes it current', async () => {
+    vi.setSystemTime(at(10, 0, 50))
+    const w = await boot('lagging')                            // a bucket is stored LAGGING_S (5 s) after it ends
+    await warmAll(w, ['AAA', 'BBB'], '1')
+    expect(w.pf.peekDisplayable('AAA', '1')).toBe(true)
+    const hold = w.pf.createNeighborHold()
+    navigate(hold, ['AAA', 'BBB'], '1', ['AAA', 'BBB'])
+    const before = w.server.calls.length
+    await tick(12_000)                                         // 10:01:02: the boundary ask (lag 2 s)...
+    await w.server.drain()
+    expect(w.server.calls.length - before).toBe(2)
+    expect(w.store.peek(w.pf.keyFor('AAA', '1')).bars.at(-1).t).toBe(OPEN + 29 * 60)   // ...came back still ending 09:59
+    await tick(1_000)                                          // a press at 10:01:03, 1 s after that answer
+    expect(w.pf.peekDisplayable('AAA', '1')).toBe(false)       // NOT painted short: the switch asks for itself, as on master
+    await tick(5_000)                                          // 10:01:07: the spaced retry, after the server stored 10:00
+    await w.server.drain()
+    expect(w.server.calls.length - before).toBe(4)
+    expect(w.store.peek(w.pf.keyFor('AAA', '1')).bars.at(-1).t).toBe(OPEN + 30 * 60)  // the closed minute is in
+    await tick(1_000)
+    expect(w.server.open()).toHaveLength(0)
+    expect(w.pf.peekDisplayable('AAA', '1')).toBe(true)        // the next press shows it in the key task
+    hold.clear()
+    w.store.dispose()
+  })
+
+  it("M1b the switch's OWN answer still starts the grace exactly as before (a name not printing paints as it is)", async () => {
+    vi.setSystemTime(at(10, 1, 10))
+    const w = await boot('behind')                             // every answer ends at 09:40
+    await warmAll(w, ['AAA'], '1')
+    await tick(6_000)
+    expect(w.pf.peekDisplayable('AAA', '1')).toBe(false)
+    const out = { v: 'pending' }
+    w.pf.prepareForDisplay('AAA', '1').then((x) => { out.v = x })   // the switch's own ask
+    await w.server.flush(40)
+    await w.server.drain()
+    expect(w.pf.peekDisplayable('AAA', '1')).toBe(true)        // inside BEHIND_RECHECK_MS of its own answer
+    await tick(1_000)
+    expect(out.v).not.toBe('pending')
+    w.store.dispose()
+  })
+})
+
+describe('review of #2619, MEDIUM-2: the timer runs only while the member navigates, visibly, never in a herd', () => {
+  it('M2a hidden: the timer is not ARMED; a boundary that finds the app hidden does not re-arm it', async () => {
+    vi.setSystemTime(at(10, 0, 50))
+    let vis = false
+    const w = await boot('closed', { visible: () => vis })
+    await warmAll(w, ['AAA', 'BBB'], '1')
+    const hold = w.pf.createNeighborHold()
+    let n0 = w.timers.length
+    navigate(hold, ['AAA', 'BBB'], '1', ['AAA', 'BBB'])
+    expect(w.timers.length - n0).toBe(0)                       // hidden: nothing armed
+    vis = true
+    n0 = w.timers.length
+    press(hold, ['AAA', 'BBB'], '1', ['AAA', 'BBB'])
+    expect(w.timers.length - n0).toBe(1)                       // (control) visible: one timer, the boundary
+    vis = false                                                // hidden before that boundary
+    n0 = w.timers.length
+    const before = w.server.calls.length
+    await tick(13_000)                                         // the boundary fires into a hidden app
+    await w.server.drain()
+    expect(w.server.calls.length - before).toBe(0)
+    expect(w.timers.length - n0).toBe(0)                       // ...and arms nothing after it
+    hold.clear()
+    w.store.dispose()
+  })
+
+  it('M2b the list\'s first selection and a re-sort arm nothing; a selection arms it; past TAIL_ACTIVE_MS it stops', async () => {
+    vi.setSystemTime(at(10, 0, 50))
+    const w = await boot('closed')
+    await warmAll(w, ['AAA', 'BBB', 'CCC'], '1')
+    const hold = w.pf.createNeighborHold()
+    let n0 = w.timers.length
+    hold.set(['AAA', 'BBB', 'CCC'], '1', { tail: ['AAA', 'BBB'], selected: 'X' })   // the list opens on X
+    hold.set(['BBB', 'AAA', 'CCC'], '1', { tail: ['AAA', 'BBB'], selected: 'X' })   // a live re-sort: same selection
+    expect(w.timers.length - n0).toBe(0)
+    let before = w.server.calls.length
+    await tick(13_000)
+    await w.server.drain()
+    expect(w.server.calls.length - before).toBe(0)             // no boundary ask without navigation
+    n0 = w.timers.length
+    hold.set(['AAA', 'BBB', 'CCC'], '1', { tail: ['AAA', 'BBB'], selected: 'Y' })   // the member moves
+    expect(w.timers.length - n0).toBeGreaterThan(0)            // armed
+    // past the window (3 minutes after that move, no other): the next boundary asks nothing and the timer stops
+    expect(w.P.TAIL_ACTIVE_MS).toBe(3 * 60_000)
+    await tick(w.P.TAIL_ACTIVE_MS + 1_000)
+    await w.server.drain()
+    n0 = w.timers.length
+    before = w.server.calls.length
+    await tick(120_000)
+    await w.server.drain()
+    expect(w.server.calls.length - before).toBe(0)
+    expect(w.timers.length - n0).toBe(0)
+    hold.clear()
+    w.store.dispose()
+  })
+
+  it('M2c two holds never ask in the same instant (a lag drawn per hold, inside its bounds); a second ask is spaced', async () => {
+    vi.setSystemTime(at(10, 0, 50))
+    const draws = [0.1, 0.9]
+    const w = await boot('closed', { random: () => draws.shift() ?? 0.5 })
+    expect([w.P.TAIL_LAG_MIN_MS, w.P.TAIL_LAG_MAX_MS]).toEqual([2_000, 8_000])
+    await warmAll(w, ['AAA', 'BBB'], '1')
+    const A = w.pf.createNeighborHold()
+    const B = w.pf.createNeighborHold()
+    navigate(A, ['AAA'], '1', ['AAA'])                          // lag 2.6 s
+    navigate(B, ['BBB'], '1', ['BBB'])                          // lag 7.4 s
+    const before = w.server.calls.length
+    await tick(9_100)                                          // 10:00:59.2
+    await tick(3_900)                                          // 10:01:03.1: A has asked, B has not
+    expect(asksOf(w, 'AAA', before)).toBe(1)
+    expect(asksOf(w, 'BBB', before)).toBe(0)
+    await tick(5_000)                                          // 10:01:08.1: B too
+    expect(asksOf(w, 'BBB', before)).toBe(1)
+    A.clear(); B.clear()
+    w.store.dispose()
+  })
+
+  it('M2c a row\'s second ask in a bucket waits TAIL_REASK_SPACING_MS after its first', async () => {
+    vi.setSystemTime(at(10, 0, 5))
+    const w = await boot('behind')                             // every answer ends at 09:40: it stays behind
+    await warmAll(w, ['AAA'], '1')
+    const hold = w.pf.createNeighborHold()
+    hold.set(['AAA'], '1', { tail: ['AAA'], selected: `S${++sel}` })
+    await tick(6_000)
+    const before = w.server.calls.length
+    press(hold, ['AAA'], '1', ['AAA'])                         // 10:00:11: the first ask
+    await w.server.drain()
+    expect(w.server.calls.length - before).toBe(1)
+    await tick(1_000)
+    press(hold, ['AAA'], '1', ['AAA'])                         // 1 s later: not yet
+    await w.server.drain()
+    expect(w.server.calls.length - before).toBe(1)
+    expect(w.P.TAIL_REASK_SPACING_MS).toBe(4_000)
+    await tick(4_000)
+    press(hold, ['AAA'], '1', ['AAA'])                         // 5 s after the first: the second
+    await w.server.drain()
+    expect(w.server.calls.length - before).toBe(2)
+    hold.clear()
     w.store.dispose()
   })
 })

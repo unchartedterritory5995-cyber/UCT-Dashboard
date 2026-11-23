@@ -159,7 +159,7 @@ test('the hold keeps the next row, the one after and the previous row current ac
   globalThis.__uctStoreWarmers = {
     prefetchBarsToIDB: () => {}, prefetchAllTimeframes: () => {}, prefetchListAllTimeframes: () => {},
     warmMemFromIDB: () => {}, prefetchBars: () => {}, prefetchBarOnIntent: () => {}, prewarmVisibleList: () => {},
-    createNeighborHold: () => ({ set: (syms, tf, opts) => sets.push({ tf, tail: opts?.tail ? [...opts.tail] : null }), clear: () => {} }),
+    createNeighborHold: () => ({ set: (syms, tf, opts) => sets.push({ tf, tail: opts?.tail ? [...opts.tail] : null, selected: opts?.selected }), clear: () => {} }),
   }
   try {
     hub.sym = 'CCC'
@@ -169,6 +169,7 @@ test('the hold keeps the next row, the one after and the previous row current ac
     const s = sets[sets.length - 1]
     expect(s.tf).toBe('5')
     expect(s.tail).toEqual(['DDD', 'EEE', 'BBB'])            // next, the one after (scan direction), previous
+    expect(s.selected).toBe('CCC')                           // the selection: a CHANGE of it opens the hold's window
   } finally {
     delete globalThis.__uctStoreWarmers
   }

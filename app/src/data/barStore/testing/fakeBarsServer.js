@@ -7,6 +7,8 @@ import { bucketStartUnix } from '../../../components/chart/barTime'
 import { bucketEndUnix } from '../../../components/chart/liveBuckets'
 
 export const OPEN = Date.UTC(2026, 10, 10, 14, 30) / 1000     // Tue 2026-11-10 09:30 ET
+/** 'lagging': how long after a bucket's end the server has stored it. */
+export const LAGGING_S = 5
 
 export function parseBarsUrl(url) {
   const u = new URL(String(url), 'http://x')
@@ -35,7 +37,8 @@ export function intradayRows(tf, now, { since = null, from = OPEN } = {}) {
 }
 
 /** The server's answer for a parsed request at Date.now().
- *  `mode`: ok | closed (contract, the closed buckets only: no forming row, no developing) | behind (legacy, 09:40) |
+ *  `mode`: ok | closed (contract, the closed buckets only: no forming row, no developing) | lagging (closed, but a bucket
+ *  is stored only LAGGING_S after it ends: the server's write lag at a boundary) | behind (legacy, 09:40) |
  *  behind-unsealed (contract, 09:40, no seal) | nodata | shed | fail */
 export function serverAnswer(q, mode = 'ok') {
   if (mode === 'nodata') return { body: { bars: [], no_data: true } }
@@ -63,10 +66,11 @@ export function serverAnswer(q, mode = 'ok') {
       },
     }
   }
-  if (mode === 'closed') {
+  if (mode === 'closed' || mode === 'lagging') {
     // The store holds the CLOSED buckets only (its forming minute not written yet, no live partial in this process):
     // a contract answer with no developing bar, its newest row the last closed bucket.
-    const rows = intradayRows(tf, now, { since: q.since }).filter((b) => bucketEndUnix(b.t, tf, {}) <= now)
+    const stored = mode === 'lagging' ? now - LAGGING_S : now
+    const rows = intradayRows(tf, now, { since: q.since }).filter((b) => bucketEndUnix(b.t, tf, {}) <= stored)
     const end = rows.length ? bucketEndUnix(rows[rows.length - 1].t, tf, {}) : null
     return {
       body: {
