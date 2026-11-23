@@ -337,14 +337,44 @@ export const dotSizeWord = (w) => (w === 'medium' ? 'Default' : String(w || 'Def
 const CALC_WORD = { D: 'daily', W: 'weekly', M: 'monthly', 60: '1-hour', 1: '1-minute', 5: '5-minute', 15: '15-minute', 30: '30-minute' }
 export const calcWord = (code) => CALC_WORD[code] || String(code || '')
 const chartTfWord = (tf) => (tf === 'D' ? 'Daily' : tf === 'W' ? 'Weekly' : tf === 'M' ? 'Monthly' : /^\d+$/.test(String(tf)) ? (Number(tf) % 60 === 0 ? `${Number(tf) / 60}h` : `${tf}m`) : String(tf))
+// (AUDIT 11-23) THE RECEIPT NAMES THE PLOT: a style change that landed on ONE output of an indicator that has SEVERAL — a colour
+// setting of several ("MACD's Signal color"), a histogram's up / down colour, one output's plot style or dot size — names that
+// output by the definition's OWN label (never the member's words, never the model's), from the confirmed change's own target /
+// plotKey. An indicator with one colour / one drawn line keeps its receipt exactly as it was; an instance-level control (line
+// width, line style: no plotKey in the contract) names no output, because it changed every line.
+// → the label, or null (one output, no output named, or a definition that cannot be read).
+const drawnPlots = (def) => (Array.isArray(def?.plots) ? def.plots : []).filter(p => p && p.key && p.style !== 'hlines')
+const colorLabelWord = (s) => String(s || '').replace(/\s+colou?r$/i, '').trim()
+export function styledOutputWord(defId, change) {
+  let def = null
+  try { def = defId ? nativeRegistry.getDefinition(defId) : null } catch { def = null }
+  if (!def) return null
+  const c = change || {}
+  const tgt = String(c.target || '')
+  if (tgt.startsWith('input:')) {
+    const colors = (Array.isArray(def.inputs) ? def.inputs : []).filter(i => i && i.type === 'color')
+    if (colors.length < 2) return null
+    const i = colors.find(x => `input:${x.key}` === tgt)
+    return i ? (colorLabelWord(i.label || i.key) || null) : null
+  }
+  if (typeof c.plotKey !== 'string' || !c.plotKey || drawnPlots(def).length < 2) return null
+  const p = drawnPlots(def).find(x => x.key === c.plotKey)
+  return p ? String(p.label || p.key).trim() || null : null
+}
 export function extReceiptLine(receipt, name, where) {
   const c = receipt.change || {}
+  const out = ['setAppearance', 'setDotSize', 'setPlotStyle', 'setColor'].includes(receipt.op) ? styledOutputWord(receipt.defId, c) : null
+  const its = out ? `${name}'s ${out}` : null
   switch (receipt.op) {
-    case 'setAppearance': return `Changed ${name}'s ${STYLE_WORD[c.key] || c.key}${where} — ${c.before} → ${c.after}.`
+    case 'setAppearance': return `Changed ${its || name + "'s"} ${STYLE_WORD[c.key] || c.key}${where} — ${c.before} → ${c.after}.`
     // ⭐ 2a-12b: `plotKey` only when ONE dot output was sized (absent = the instance level, as the Dot size control writes it)
-    case 'setDotSize': return `Changed ${name}'s dot size${c.plotKey ? ` (${c.plotKey})` : ''}${where} — ${dotSizeWord(c.before)} → ${dotSizeWord(c.after)}.`
-    case 'setPlotStyle': return `Changed how ${name}${c.plotKey ? ` (${c.plotKey})` : ''} is drawn${where} — ${c.before || 'default'} → ${c.after}.`
-    case 'setColor': return `Changed ${name}'s ${String(c.target || '').startsWith('sign:') ? `${c.target === 'sign:up' ? 'up' : 'down'} color` : 'color'}${where} to ${colorName(c.after)}.`
+    case 'setDotSize': return its
+      ? `Changed ${its} dot size${where} — ${dotSizeWord(c.before)} → ${dotSizeWord(c.after)}.`
+      : `Changed ${name}'s dot size${c.plotKey ? ` (${c.plotKey})` : ''}${where} — ${dotSizeWord(c.before)} → ${dotSizeWord(c.after)}.`
+    case 'setPlotStyle': return its
+      ? `Changed how ${its} is drawn${where} — ${c.before || 'default'} → ${c.after}.`
+      : `Changed how ${name}${c.plotKey ? ` (${c.plotKey})` : ''} is drawn${where} — ${c.before || 'default'} → ${c.after}.`
+    case 'setColor': return `Changed ${its || name + "'s"} ${String(c.target || '').startsWith('sign:') ? `${c.target === 'sign:up' ? 'up' : 'down'} color` : 'color'}${where} to ${colorName(c.after)}.`
     // calc-TF family: which bars COMPUTE it (never the chart's timeframe, never where it shows)
     case 'setCalculationTimeframe': return c.after
       ? `Calculated ${name}${where} on ${calcWord(c.after)} bars (was ${c.before ? `${calcWord(c.before)} bars` : 'the chart\'s own timeframe'})${c.chartTf ? ` — the chart itself stays on ${chartTfWord(c.chartTf)}` : ''}.`
