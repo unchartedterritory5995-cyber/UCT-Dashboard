@@ -1,13 +1,13 @@
 # Merge queue on `master`: cutover runbook
 
-**Status: NOT RUN.** This is the procedure for the day the queue is switched on. Read `DESIGN.md` first.
+**Status: RUN on 2026-11-23 (00:35Z; Sunday 2026-11-22, 6:35 PM CT), on the owner's go.** This is the procedure for the day the queue is switched on. Read `DESIGN.md` first.
 Every step here is reversible with one switch (the last section).
 
 ## Before the day: all of these are true
 
-- [ ] AUDIT has re-reviewed `DESIGN.md` and the Agent pull request after its "CHANGES NEEDED" of 2026-11-22 and
+- [x] (APPROVED on #2495 and #2501, 2026-11-22T22:20Z) AUDIT has re-reviewed `DESIGN.md` and the Agent pull request after its "CHANGES NEEDED" of 2026-11-22 and
       said APPROVED on both.
-- [ ] The verdict's GitHub App exists, is installed on this repo with commit statuses read and write, and its
+- [x] (`northstar-agent-ci-verdict`, App ID 5877416; it posted on #2524 at 22:45Z) The verdict's GitHub App exists, is installed on this repo with commit statuses read and write, and its
       credentials are in the environment `agent-ci-verdict`, whose deployment-branch policy allows `master` only.
 - [x] The follower was rehearsed with that App in the rehearsal repo at #2501's FINAL head (`01a295991c`), three rows.
       The first two rounds carried CRLF copies of the five files (same content, different blobs); the 23:13Z round of
@@ -20,13 +20,13 @@ Every step here is reversible with one switch (the last section).
         entry branched before it is REMOVED by the follower, and lands once the file is gone (2026-11-22, 23:43Z:
         "r9-expr.yml: job x declares an environment: only the two posters may reach the verdict App", removed after
         77 s; requeued once the file was gone, landed 23:46:46Z).
-- [ ] `git diff origin/master origin/agent/int -- .github/workflows/agent-ci-required.yml` is empty. Done by the
+- [x] (empty at 00:00:32Z on 2026-11-23, `agent/int` at `dc05c06d2d`) `git diff origin/master origin/agent/int -- .github/workflows/agent-ci-required.yml` is empty. Done by the
       Agent Lead (merge `master` into `agent/int` after #2501 lands, outside a re-arm or evidence run: the file is an
       Agent path, so the merge starts an 18-job run). Checked by AUDIT.
       When: #2501 has merged (done 2026-11-22, `a5d74997a9`), its master deploy gate run is green, AUDIT has confirmed
       that the first pull request into master after it carries the App's status, and no Agent re-arm or evidence
       run is in flight.
-- [ ] Environment `agent-ci-verdict` has "Allow administrators to bypass" OFF (`can_admins_bypass: false`).
+- [x] (re-read `false` at 00:00:32Z on 2026-11-23) Environment `agent-ci-verdict` has "Allow administrators to bypass" OFF (`can_admins_bypass: false`).
       Set on 2026-11-22; re-read it on the day:
       `gh api repos/northstar-quarry/UCT-Dashboard/environments/agent-ci-verdict --jq .can_admins_bypass`
 - [x] (2026-11-22: 93 open into master, 70 drafts, 51 from `agent/**`; re-count on the day) The list of open pull requests is recorded: each needs a push, a reopen or an agent ci run before the
@@ -35,10 +35,10 @@ Every step here is reversible with one switch (the last section).
 - [x] (2026-11-22, 23:13Z round, exact blobs) The Agent part was exercised by real `merge_group` events in the rehearsal repo at #2501's FINAL head (with a
       stand-in for the 18 Agent jobs): no Agent path, Agent path, Agent + self-protected, and an Agent entry stacked
       behind a machinery edit.
-- [ ] The owner has said go for the switch-on.
-- [ ] No required check is flaky. Check the last 7 days of `master gate static checks` and `agent-ci-required`
+- [x] (2026-11-22, about 6:00 PM CT) The owner has said go for the switch-on.
+- [x] (`master gate static checks`: 411 runs since 2026-11-20, no red that went green on the same commit; `agent-ci-required` has posted from the App only since 22:25Z, too few runs to say) No required check is flaky. Check the last 7 days of `master gate static checks` and `agent-ci-required`
       for a red that went green on a rerun with no change.
-- [ ] GitHub Actions is healthy and the organization is not at its job limit at the chosen hour.
+- [x] (healthy but BUSY at 00:00Z: 27 runs in progress, 23 queued; accepted for a Sunday evening) GitHub Actions is healthy and the organization is not at its job limit at the chosen hour.
 
 ## The hour
 
