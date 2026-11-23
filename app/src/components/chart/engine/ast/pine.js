@@ -663,13 +663,14 @@ const MULTI_OUTPUT_CALLS = Object.freeze({
  *  one. Today `D` is recognised and then refused by the engine's list, exactly as
  *  before — same behaviour, derived reason. */
 // ⭐⭐ U-DAILY (e96, part B) — the served set of a daily EXPRESSION above an intraday chart (`Resolver.
-// dailyExpressionShapeOf`): the bar's own fields, windows of a literal length (reach = length - 1; a change, length),
-// pointwise maths, and the running values that stay refused BY NAME (their answer depends on where TradingView's daily
-// history starts, which no capture shows yet). Bare v4 names beside the `ta.` / `math.` ones.
+// dailyExpressionShapeOf`): the bar's own fields, windows of a literal length (reach = length - 1), pointwise maths,
+// and the running values that stay refused BY NAME (their answer depends on where TradingView's daily history starts,
+// which no capture shows yet). Bare v4 names beside the `ta.` / `math.` ones. ⛔ `ta.change` is NOT in the set: the run
+// lane refuses it inside a request (`runtime:function-global-state`, measured on the first remote run of this unit), so
+// it is named here rather than promised (`close - close[1]` is the served spelling).
 const DAILY_EXPRESSION_SERIES = new Set(['open', 'high', 'low', 'close', 'volume'])
 const DAILY_EXPRESSION_WINDOWS = new Set(['ta.sma', 'sma', 'ta.highest', 'highest', 'ta.lowest', 'lowest',
   'ta.stdev', 'stdev'])
-const DAILY_EXPRESSION_CHANGE = new Set(['ta.change', 'change'])
 const DAILY_EXPRESSION_POINTWISE = new Set(['math.max', 'math.min', 'math.abs', 'max', 'min', 'abs'])
 const DAILY_EXPRESSION_STATEFUL = new Set(['ta.ema', 'ema', 'ta.rma', 'rma', 'ta.atr', 'atr', 'ta.rsi', 'rsi',
   'ta.macd', 'macd', 'ta.cum', 'cum', 'ta.vwap', 'vwap', 'ta.tsi', 'ta.dmi', 'ta.supertrend', 'ta.sar', 'sar',
@@ -15424,7 +15425,7 @@ export class Resolver {
    *  (a 50 day average 49, `high[1]` 1); `minBack`: the nearest row it reads (0 when it reads its own row).
    *  ⭐ The served set is WINDOW-BOUNDED and depends only on the daily rows the supply holds: open / high / low / close /
    *  volume, numbers, literal offsets, `+ - * /` and unary minus, `math.max / min / abs`, and the literal-length windows
-   *  `ta.sma / highest / lowest / stdev / change` (their v4 bare names too). The row choice is L12 PR 2's, witnessed.
+   *  `ta.sma / highest / lowest / stdev` (their v4 bare names too; not `ta.change`, which the run lane refuses inside a request: `close - close[1]` is served). The row choice is L12 PR 2's, witnessed.
    *  ⛔ Not served, each named: a stateful kernel (its value depends on where TradingView's daily history starts, which
    *  no capture shows), a value of the script read inside the request (Pine recomputes it in the daily context), a
    *  length that is not a whole-number literal, and, with look-ahead on, any read of the day the bar is inside
@@ -15468,13 +15469,12 @@ export class Resolver {
         }
         if (args.some((a) => !a || a.name)) return no(`it names an argument of \`${name}\``)
         const vals = args.map((a) => a.value)
-        if (DAILY_EXPRESSION_WINDOWS.has(name) || DAILY_EXPRESSION_CHANGE.has(name)) {
-          const change = DAILY_EXPRESSION_CHANGE.has(name)
-          if (vals.length !== 2 && !(change && vals.length === 1)) return no(`it calls \`${name}\` in a form this read does not serve`)
-          const len = vals.length === 2 ? lit(vals[1]) : 1
+        if (DAILY_EXPRESSION_WINDOWS.has(name)) {
+          if (vals.length !== 2) return no(`it calls \`${name}\` in a form this read does not serve`)
+          const len = lit(vals[1])
           if (!Number.isInteger(len) || len < 1) return no(`\`${name}\`'s length is not a whole-number literal`)
           const a = walk(vals[0], depth + 1)
-          return a.ok ? { ok: true, reach: a.reach + (change ? len : len - 1), minBack: a.minBack } : a
+          return a.ok ? { ok: true, reach: a.reach + len - 1, minBack: a.minBack } : a
         }
         if (DAILY_EXPRESSION_POINTWISE.has(name) && vals.length >= 1) {
           let out = { ok: true, reach: 0, minBack: Infinity }

@@ -137,12 +137,12 @@ describe('U-DAILY B — OPENED for a measurement: the served set on the witnesse
     expect(supplyOf(PREV_HIGH).target).toMatchObject({ above: true, dailyReach: 1, lookaheadOn: true })
   })
 
-  it('⭐ a highest of 2 reads one row back, a change of 1 one row back', () => {
+  it('⭐ a highest of 2 reads one row back, a difference with `close[1]` one row back', () => {
     const hi = run(['plot(request.security(syminfo.tickerid, "D", ta.highest(high, 2)))'])
     expect(hi.x[0]).toBe(85)             // row 4's two highs: 84, 85
-    const ch = run(['plot(request.security(syminfo.tickerid, "D", ta.change(close)))'])
+    const ch = run(['plot(request.security(syminfo.tickerid, "D", close - close[1]))'])
     expect(ch.x[0]).toBe(1)              // row 4 against row 3
-    expect(supplyOf(['plot(request.security(syminfo.tickerid, "D", ta.change(close, 2) + close[3]))']).target.dailyReach).toBe(3)
+    expect(supplyOf(['plot(request.security(syminfo.tickerid, "D", ta.sma(close, 2) + close[3]))']).target.dailyReach).toBe(3)
   })
 
   it('⛔ a bar whose window reaches before the held rows is DEPTH (`knownFrom`), never a short window', () => {
@@ -150,9 +150,12 @@ describe('U-DAILY B — OPENED for a measurement: the served set on the witnesse
     const { sup } = supplyOf(SMA3, OWN_D.slice(3))
     expect(sup.refusal && sup.refusal.message).not.toMatch(/after its history began/)
     expect(sup.refusal && sup.refusal.knownFrom, 'day 1\'s last bar (row 2) is the first whose window is held').toBe(11)
+    // the run starts at bar 11, off the listing, so the two-start curtain may withhold its first bars too: nothing
+    // before it is drawn, and every value drawn from it is the window over held rows, never a short one
     const cols = run(SMA3, ctxOf(OWN_D.slice(3)))
     for (let i = 0; i < 11; i += 1) expect(Number.isNaN(cols.x[i]), `bar ${i} is unknown`).toBe(true)
-    near(cols.x[11], 84, 'bar 11 (rows 0..2: 83, 84, 85)')
+    for (let i = 11; i < 23; i += 1) if (!Number.isNaN(cols.x[i])) near(cols.x[i], 84, `bar ${i} (rows 0..2: 83, 84, 85)`)
+    near(cols.x[22], 84, 'bar 22 (rows 0..2)')
     near(cols.x[23], 85, 'bar 23 (rows 1..3)')
     // the previous-day idiom: rows from 11-16, so day 1 has no day before it held
     const prev = supplyOf(PREV_HIGH, OWN_D.slice(5)).sup
@@ -173,6 +176,10 @@ describe('U-DAILY B — OPENED for a measurement: the served set on the witnesse
     expect(() => run(['len = input.int(3)', 'plot(request.security(syminfo.tickerid, "D", ta.sma(close, len)))']))
       .toThrow(/`ta\.sma`'s length is not a whole-number literal/)
     expect(() => run(['plot(request.security(syminfo.tickerid, "D", ta.sma(volume, 3) / ta.atr(14)))'])).toThrow(/`ta\.atr`, a running value/)
+    // `ta.change` is not in the set: the run lane refuses it inside a request's value before the supply is asked
+    // (`runtime:function-global-state`, the first remote run of this unit), and the shape says so where it is asked
+    expect(() => run(['plot(request.security(syminfo.tickerid, "D", ta.change(close)))']))
+      .toThrow(/a function body reading a global|`ta\.change`, which a daily read above an intraday chart does not serve yet/)
     expect(() => run(['plot(request.security(syminfo.tickerid, "D", close, lookahead = barmerge.lookahead_on))']))
       .toThrow(/reads the day the bar is inside/)
     expect(() => run(['plot(request.security(syminfo.tickerid, "D", close[1] - close, lookahead = barmerge.lookahead_on))']))
