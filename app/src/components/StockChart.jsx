@@ -1805,6 +1805,7 @@ import { tradingSessionTodayET } from './chart/tradingTodayMemo'   // isTradingS
 import { tailRetriesExhausted, liveBadgeState } from '../utils/intradayTailPoll'
 import { parseTf } from './chart/timeframes'
 import { bucketEventDate, barLookupFor } from './chart/eventBarLookup'
+import { _hollowFill, installNetChangePaint } from './chart/netChangePaint'
 import { barsRenderPlan } from './chart/renderPlan'
 import ChartSkeleton from './chart/ChartSkeleton'
 import { normalizeToPctChange } from './chart/comparisonUtils'
@@ -3170,10 +3171,8 @@ const LEGACY_LIVE_HELPERS = Object.freeze({
 // color parser strips alpha before contrasting, turning transparent BLACK into an
 // opaque black box over the price pill. Falls back to the old placeholder (same
 // on-chart behavior as before this fix) only if the color string doesn't parse.
-export const _hollowFill = (c) => {
-  const rgb = parseColor(c)
-  return rgb ? `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0)` : 'rgba(0,0,0,0)'
-}
+// `_hollowFill` (a hollow body: the colour's RGB at alpha 0) lives in chart/netChangePaint.js; re-exported here.
+export { _hollowFill }
 
 // Model Book "Throughout the Years" palette — tuned to pop like TC2000:
 // a brighter, bolder green that leaps off the chart, a deeper darker red that
@@ -12762,90 +12761,10 @@ function StockChartBody({
       // change doesn't need a recreate. In open-close mode _paintNet is a passthrough
       // and LWC colors natively from the live series options.
       if (colorByNetChange && _netEligible && !priceSeries.__uctNetWrap) {
-        const _isInside = (bar, prevBar) => (
-          prevBar
-          && bar.high != null && bar.low != null && prevBar.high != null && prevBar.low != null
-          && bar.high <= prevBar.high && bar.low >= prevBar.low
-        )
-        // Colors are read LIVE from netColorsRef (updated every render) so a color
-        // change repaints via setData without recreating the series (no shake).
-        const _paintNet = (bar, prevClose, prevBar) => {
-          if (!bar || bar.close == null) return bar
-          if (bar.color != null) return bar   // preserve an explicit override (gold highlight)
-          const NC = netColorsRef.current
-          // Sunrise's black inside-day candles are part of the theme's signature
-          // look, so they paint in EVERY color mode — checked before the openclose
-          // passthrough (below) which otherwise skips all per-bar painting. The
-          // fill still follows close-vs-open (TC2000): an inside day that closed
-          // above its open is a HOLLOW black outline, below = filled black.
-          if (NC.insideBlack && _isInside(bar, prevBar)) {
-            const openUpIn = bar.open != null ? bar.close >= bar.open : true
-            return { ...bar, color: (NC.noBody || (NC.hollow && openUpIn)) ? 'rgba(0,0,0,0)' : '#000000', borderColor: '#000000', wickColor: '#000000' }
-          }
-          if (NC.mode === 'openclose') return bar   // native close-vs-open coloring (Body off rides the series colours)
-          // One color: every bar the same body/border/wick (shape still hollow on up).
-          if (NC.mode === 'onecolor') {
-            const up = bar.open != null ? bar.close >= bar.open : true
-            const body = NC.noBody ? 'rgba(0,0,0,0)' : (NC.hollow && up) ? _hollowFill(NC.one) : NC.one
-            return { ...bar, color: body, borderColor: NC.one, wickColor: NC.one }
-          }
-          // TC2000 hollow-candle semantics: COLOR and FILL are independent axes.
-          // Direction (net-change close-vs-prev-close, or close-vs-open in that
-          // mode) drives the green/red palette; close-vs-OPEN alone drives the
-          // hollow/filled body. So a green candle that closed below its open is
-          // FILLED green, and a red candle that closed above its open is HOLLOW
-          // red — all four combinations render.
-          let up
-          if (NC.mode === 'netchange') {
-            if (prevClose == null) return bar   // first bar — no prior close to compare
-            up = bar.close >= prevClose
-          } else {
-            up = bar.open != null ? bar.close >= bar.open : true
-          }
-          const openUp = bar.open != null ? bar.close >= bar.open : up
-          const body = NC.noBody ? 'rgba(0,0,0,0)' : (NC.hollow && openUp) ? _hollowFill(up ? NC.up : NC.down) : (up ? NC.up : NC.down)
-          return { ...bar, color: body, borderColor: (up ? NC.borUp : NC.borDown), wickColor: (up ? NC.wickUp : NC.wickDown) }
-        }
-        const _realSet = priceSeries.setData.bind(priceSeries)
-        const _realUpd = priceSeries.update.bind(priceSeries)
-        priceSeries.setData = (data) => {
-          if (!Array.isArray(data)) return _realSet(data)
-          let prev = null, lastPrev = null, prevBar = null, lastPrevBar = null
-          const painted = data.map((b) => {
-            if (b && b.close != null) {
-              lastPrev = prev
-              lastPrevBar = prevBar
-              const out = _paintNet(b, prev, prevBar)
-              prev = b.close
-              prevBar = { high: b.high, low: b.low }
-              return out
-            }
-            return b
-          })
-          // Refs the update() wrap reads for the developing bar: prev-of-last & the last bar.
-          netPrevCloseRef.current = lastPrev
-          lastNetCloseRef.current = prev
-          netPrevBarRef.current = lastPrevBar
-          lastNetBarRef.current = prevBar
-          lastNetTimeRef.current = painted.length ? data[data.length - 1]?.time : null
-          return _realSet(painted)
-        }
-        priceSeries.update = (bar) => {
-          if (!bar || bar.close == null) return _realUpd(bar)
-          const isNewBar = lastNetTimeRef.current != null && bar.time > lastNetTimeRef.current
-          const prevClose = isNewBar ? lastNetCloseRef.current : netPrevCloseRef.current
-          const prevBar = isNewBar ? lastNetBarRef.current : netPrevBarRef.current
-          const out = _paintNet(bar, prevClose, prevBar)
-          if (isNewBar) {
-            netPrevCloseRef.current = lastNetCloseRef.current
-            netPrevBarRef.current = lastNetBarRef.current
-            lastNetTimeRef.current = bar.time
-          }
-          lastNetCloseRef.current = bar.close
-          lastNetBarRef.current = { high: bar.high, low: bar.low }
-          return _realUpd(out)
-        }
-        priceSeries.__uctNetWrap = true
+        // (the paint and its wrap: chart/netChangePaint.js, moved from here unchanged)
+        installNetChangePaint(priceSeries, () => netColorsRef.current, {
+          netPrevCloseRef, lastNetCloseRef, netPrevBarRef, lastNetBarRef, lastNetTimeRef,
+        })
       }
       // ⭐ B1 — Pine `barcolor`: every write to an OHLC price series is recoloured
       // from `barColoursRef` (time → colour). Installed once per series, AFTER the
