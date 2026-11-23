@@ -156,8 +156,11 @@ def test_the_first_attempt_reads_the_fact_the_repair_note_carries():
     cannot do this; 2 wrong, each a first formula that passed every guard and never read that note."""
     prompt, rule = dc.CONVERSE_SYSTEM_PROMPT, dc.LOOK_BACK_RULE
     assert prompt.count(rule) == 1
-    # in the vocabulary section, right after the reading of "for the first time in N bars" (the other look-back rule)
-    assert "without it the mark repeats on every bar of a run.\n" + rule in prompt
+    # in the vocabulary section, immediately BEFORE the reading of "for the first time in N bars" (the other look-back
+    # rule). ⚰️ It was first put AFTER that paragraph, between it and the ruled readings, which tests/test_ruled_readings
+    # holds adjacent: the rulings follow the paragraph that teaches "first time". Both are held here, by position.
+    assert rule + "  FOR THE FIRST TIME IN N BARS" in prompt
+    assert "without it the mark repeats on every bar of a run.\n  READINGS UCT HAS RULED" in prompt
     for part in ("A LOOK-BACK NEVER COMPARES ITS BARS WITH TODAY'S VALUE", "each series is read at its own bar",
                  "`close > close` there compares every bar with itself", "`close[1] > close` compares each bar with the one before it",
                  "the door can have it written as a script"):
