@@ -184,7 +184,8 @@ from the pull request's own tree. So the check lives in `tools/agent_ci_required
 `.github/workflows/` tree at `head_sha`, read from git objects. It fails any entry where:
 
 - a job outside the two posters has an `environment` key, whatever its value;
-- a job uses a reusable workflow that is not `./.github/workflows/...`;
+- a job uses a reusable workflow that is not one file directly in `./.github/workflows/` (another repository,
+  a sub-folder, or a path with `..` in it);
 - a file other than the two posters names `AGENT_CI_VERDICT_*` or the context outside a comment.
 
 Scanning the whole tree also fails an entry queued BEHIND one that adds such a file. The same check runs on the pull
