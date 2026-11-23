@@ -142,3 +142,67 @@ def test_3_the_rule_sees_both_refreshes_by_the_names_bars_fetch_gives_them(tmp_p
     finally:
         answer.set()
     assert rule.end_bars_refreshes(timeout_s=10) == []
+
+
+# ── The same leak through the cold pool ──────────────────────────────────────────────────────────────────────
+#
+# Merge-queue run 45274569039 (2026-11-23): tests/test_bars_derived_tail_local_first.py::test_Z2, whose fresh store
+# must stay empty, held "[('AAPL', 'D'), ('QQQ', 'D')], 6 bars". tests/test_bars_data_auth.py had asked
+# `/api/bars/AAPL?tf=D&bars=3` and `/api/bars/QQQ?tf=D&bars=3` for entitled callers five files earlier: a cold
+# symbol, so `bars_fetch._kick_cold_fetch` queued its first fetch on the `bars-cold-bg` pool, no provider stubbed,
+# and the pool wrote Yahoo's three bars per symbol into the store that was current when Yahoo answered.
+
+_COLD: dict = {}
+_COLD_ROWS = ("2026-06-10", "2026-06-11", "2026-06-12")
+
+
+def _has_bars_table(path: str) -> bool:
+    if not os.path.exists(path):
+        return False
+    c = sqlite3.connect(path)
+    try:
+        return c.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='ohlcv'").fetchone() is not None
+    finally:
+        c.close()
+
+
+def test_4_a_test_asks_for_a_cold_symbol_and_the_provider_answers_late(tmp_path, monkeypatch):
+    """What tests/test_bars_data_auth.py's entitled request reaches: a cold AAPL daily read answers "warming" and
+    queues the first fetch on the cold pool. The provider answers once a LATER test's store exists (or, when no
+    later test gets the store while it waits, after LATE_PROVIDER_WAITS_S)."""
+    from api.services import bars_disk_cache
+    mine = _own_store(tmp_path, monkeypatch)
+    monkeypatch.setattr(bars_disk_cache, "_CACHE_DIR", str(tmp_path / "disk"))
+    asked = threading.Event()
+
+    def _late_provider(sym, bars, deep=False):
+        asked.set()
+        deadline = time.monotonic() + LATE_PROVIDER_WAITS_S
+        while time.monotonic() < deadline:
+            now = bars_sqlite._DB_PATH
+            if now != mine and _has_bars_table(now):
+                break
+            time.sleep(0.005)
+        return [{"t": d, "o": 9, "h": 9.5, "l": 8.5, "c": 9, "v": 1} for d in _COLD_ROWS]
+
+    monkeypatch.setattr(bars_fetch, "_fetch_daily", _late_provider)
+    bars_fetch._get_bars_inner("AAPL", "D", 3)
+    assert bars_fetch.get_serve_layer() == "cold-bg"
+    assert asked.wait(5), "the cold pool never asked its provider"
+    _COLD.update(store=mine)
+
+
+def test_5_the_next_tests_store_holds_nothing_of_it(tmp_path, monkeypatch):
+    """The second half: a store of its own, written by nobody. The cold fetch test_4 queued must have ended in
+    test_4's store."""
+    if "store" not in _COLD:
+        pytest.skip("runs right after test_4 in this file (it is the second half of one ordered pair)")
+    mine = _own_store(tmp_path, monkeypatch)
+    deadline = time.monotonic() + 10          # a fetch still queued or running ends when its provider answers
+    while "AAPL_D" in bars_fetch._cold_bg_inflight and time.monotonic() < deadline:
+        time.sleep(0.005)
+    assert "AAPL_D" not in bars_fetch._cold_bg_inflight
+    assert _aapl_daily(mine) == [], (
+        f"another test's cold fetch wrote into this store: {_aapl_daily(mine)}; test_4's holds "
+        f"{_aapl_daily(_COLD['store'])}")
+    assert _aapl_daily(_COLD["store"]) == [(int(d.replace("-", "")), 9.0) for d in _COLD_ROWS]
