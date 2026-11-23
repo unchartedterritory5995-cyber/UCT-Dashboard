@@ -292,7 +292,9 @@ def test_the_route_logs_its_entry_inside_the_boot_window(monkeypatch, caplog):
     monkeypatch.setattr(boot_probe, "in_entry_window", lambda: True)
     with caplog.at_level(logging.INFO, logger=r._logger.name):
         r.research_estimates("ZZEN", consensus=1)
-    assert [m for m in caplog.messages if m.startswith("[ee-enter] ZZEN consensus=1 boot+")]
+    # The line is "[ee-enter] %s consensus=%s revisions=%s boot+..." since #1938 (2026-11-18) gave the route its
+    # `revisions` parameter; this prefix still read the line from before it, and matched nothing on any machine.
+    assert [m for m in caplog.messages if m.startswith("[ee-enter] ZZEN consensus=1 revisions=0 boot+")]
 
 
 def test_control_the_route_entry_line_is_silent_after_the_window(monkeypatch, caplog):
