@@ -175,10 +175,10 @@
   },
   {
    "id": "W20",
-   "mutant": "the link check does not hold box.new / table.cell object defaults (Phase B's hole)",
+   "mutant": "the link check does not hold box.new's object defaults (Phase B's hole; table.cell's hold was retired by e93 unit 5, e6b2675d88: a cell's unset text is color.black in v4, v5 and v6)",
    "file": "app/src/components/chart/engine/ast/pineLibraryVersion.js",
-   "from": "      if ((v === 'box.new' || v === 'table.cell') && !t.member && isPunct(next, '(')) {",
-   "to": "      if (false && (v === 'box.new' || v === 'table.cell') && !t.member && isPunct(next, '(')) {",
+   "from": "      if (v === 'box.new' && !t.member && isPunct(next, '(')) {",
+   "to": "      if (false && v === 'box.new' && !t.member && isPunct(next, '(')) {",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineLibraryVersion.test.js",
    "expectRed": "box.new without bgcolor"
   },
@@ -186,8 +186,8 @@
    "id": "W21",
    "mutant": "box.new's text colour is not held",
    "file": "app/src/components/chart/engine/ast/pineLibraryVersion.js",
-   "from": "        const missing = (v === 'box.new' ? ['bgcolor', 'text_color'] : ['text_color']).find((w) => !named(w))",
-   "to": "        const missing = (v === 'box.new' ? ['bgcolor'] : ['text_color']).find((w) => !named(w))",
+   "from": "        const missing = ['bgcolor', 'text_color'].find((w) => !named(w))",
+   "to": "        const missing = ['bgcolor'].find((w) => !named(w))",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineLibraryVersion.test.js",
    "expectRed": "box.new with bgcolor, without text_color"
   }

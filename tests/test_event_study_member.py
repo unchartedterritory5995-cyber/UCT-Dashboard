@@ -254,6 +254,25 @@ def test_the_study_ends_on_the_evenings_session_so_an_unclosed_session_is_never_
     assert all(e["event_date"] <= EVENING for e in got["events"])
 
 
+def test_a_window_that_ends_after_the_evenings_session_is_still_open_never_an_unfinished_close(monkeypatch):
+    days = sessions("2018-01-02", "2026-07-02")
+    bars = walk(days)
+    for b in bars:                                   # a -10% day ON the evening's session: the one episode
+        if b["t"] == EVENING:
+            b["c"] = b["c"] * 0.90
+    _store(monkeypatch, {"ZZQA": bars})              # the store also holds 07-01 and 07-02, sessions not closed yet
+    study, _ = M.parse(_spec(threshold="-4.5", horizons="1d"))
+    got = M.get_study(study)
+    assert got["status"] == "ok" and got["counts"]["events_used"] == 1
+    (ev,) = got["events"]
+    assert ev["event_date"] == EVENING
+    (one,) = ev["returns"]
+    # its 1-session window ends on 07-01, a session that had not closed at the evening: still open
+    assert one["outcome"] == "incomplete" and one["return"] is None, one
+    assert got["horizons"][0]["n"] == 0 and got["horizons"][0]["incomplete"] == 1
+    assert got["coverage"]["price_last"] == EVENING
+
+
 def test_no_episodes_is_a_count_of_zero_never_a_row_of_zeros(monkeypatch):
     _store(monkeypatch, {"ZZQA": walk(sessions("2018-01-02", EVENING))})
     study, _ = M.parse(_spec(threshold="-30"))

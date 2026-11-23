@@ -299,3 +299,27 @@ The report prints `schema_mode` rows (model p50 / p90, cache read share, calls p
 - **Wrong diagnosis:** if model p50 stays near 6 s, schema compilation was not the cause. Turn it off and read the stage logs.
 
 Expect one slow call per day: the first call after the 24-hour schema cache expires still compiles.
+
+## Cache prefix (2026-11-22)
+
+**Where things stand.** The constant schema (#813) is on production (`origin/production` contains `acc6db3db71`): over 885 captured legacy-path requests (the NL-1 eval corpus sets, `AGENT_EVAL_MODE=legacy`) the model-facing schema is ONE set of bytes, and the routed block is deterministic (97 distinct prefixes = 97 distinct routed group sets; no ordering, timestamp or workspace leak). The production figures in "Constant schema" above (p50 6.4 s, 57 schemas) predate it.
+
+**What was still wrong.** Haiku 4.5 writes no cache entry for a prefix under 4,096 tokens. The stable rules block is ~3.8 k–4.7 k tokens (estimated: chars/4, word count, chars/3.3), i.e. AT the minimum, so its cache mark is not reliably written. The first prefix that certainly caches is rules + this request's WHOLE routed catalog, so two requests share a cached prompt only when routing picked exactly the same groups.
+
+**Change.** `UCT_AGENT_PREFIX_SPLIT` (default on; `0`, `false`, `off`, `no` restores the two-block layout exactly, no deploy): the routed actions are cut at an action line into two cache blocks, just past `PREFIX_TARGET_CHARS` (19,000 chars of system text ≈ 4,750 tokens at 4 chars/token, schema not counted). The catalog follows the manifest's group order, so requests that share a lead group (charts, indicators, lists…) share a prefix that clears the minimum. The model reads the same characters in the same order; the schema, messages, manifest checks, sanitizer, admin gate and the $0.25 per-turn cap are untouched (the worst-case reservation grows by one block's JSON framing). `cache_blocks` also keeps a request at the API's 4 cache marks (first three + last) — a 5-part prompt (split + news + coach) would otherwise be refused.
+
+**Free measurement** (`python tools/agent_cache_prefix_report.py BODIES.json`; no model, numbers only):
+
+| 885 legacy requests | before (master) | after |
+|---|---|---|
+| distinct schemas | 1 | 1 |
+| rules block (bp1), tokens est. low / high | 3,904 / 4,732 | same |
+| distinct first cacheable prefixes | 97 | 35 |
+| first cacheable prefix, tokens p50 (low est.) | 8,294 | 5,434 |
+| P(next request shares a cacheable prefix with a random earlier one) | 0.097 | 0.33 |
+| expected cached share of input tokens, same pairing | 0.084 | 0.189 |
+| unlimited-TTL sequential: requests with a prior prefix / token share | 0.89 / 0.755 | 0.96 / 0.788 |
+
+These assume the rules block alone does NOT cache (the conservative reading). If it does, both sides already share it and the split costs nothing. Only the paid probe tells which: a `plain` call of a SECOND category with `cache_read > 0` on base proves the rules block caches alone.
+
+**Not changed: routing misses.** 182 of 885 requests (21%) get the 11-group default set (52 actions, ~10 k tokens). Narrowing it changes what the model sees and needs the paid eval first; with the split those requests now share the charts lead prefix.

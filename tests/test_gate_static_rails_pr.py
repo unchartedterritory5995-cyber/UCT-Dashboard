@@ -62,6 +62,9 @@ PR_ONLY = {
         "tests/test_ci_agent_merge_ref.py, tests/test_agent_ci_required.py and tests/test_agent_ci_evidence.py hold the "
         "Agent CI workflows, the merge-queue verdict and the evidence tools to their rules, and no pull-request job ran "
         "them (agent ci's server job runs tests/test_uct_agent*.py only): #2501's 176 new tests were checked by nothing",
+    "Every CI mutant manifest still names text that exists":
+        "tests/test_ci_mutant_manifests.py: a manifest in ci/mutants is run only on dispatch, so an edit to a target "
+        "file left 45 of 849 mutants (2026-11-23) with a `from` that matched nothing, and no job said so",
     "This job mirrors the gate's static steps":
         "this file",
 }
