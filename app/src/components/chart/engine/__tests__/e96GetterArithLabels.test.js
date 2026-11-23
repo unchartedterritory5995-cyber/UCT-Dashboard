@@ -25,7 +25,7 @@
 //   C  each shape this lane still does not compute is refused BY NAME, with a sentence that is true;
 //   D  CORPUS CLASS: `e96TextDropCorpus.test.js` (its own file: it translates the committed corpus);
 //   E  the document validator admits exactly the scalar arithmetic the converter builds.
-import { describe, it, expect, vi, afterAll } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
@@ -34,8 +34,6 @@ import { objectReaderFor } from '../objectColumns'
 import { evaluateObjects } from '../objectRuntime'
 import { toRenderState } from '../objectRenderState'
 import * as nativeRegistry from '../nativeRegistry'
-import { __permitRuntimePaneForTests, __resetRuntimePanePermission } from '../runtimePaneGate'
-import { __allowEveryRuntimeScriptForTests, __resetRuntimeAllowList } from '../runtimeKill'
 import { translatePine } from '../ast/pine'
 import { assertObjectProgram, isGetterArith } from '../ast/objectProgram'
 import { assessObjectLoss, objectLossNote, textDropsSentence, TEXT_DROPS_KEPT } from '../ast/objectLoss'
@@ -129,14 +127,12 @@ describe('A — every probe, graded by value on the member\'s own route', () => 
     expect(() => assertObjectProgram(six)).not.toThrow()
   })
 
-  describe('probe 09 — the same subtraction PLOTTED (the bar-by-bar lane), unchanged', () => {
+  it('probe 09, the same subtraction PLOTTED (the bar-by-bar lane, unchanged), is 15.5 on every bar', () => {
+    // the member's build with the bar-by-bar pane on (the test grant already permits it, `src/test-setup.js`);
+    // ⛔ switched off again inside this test, so every case after it is the object-program route
     const RUNTIME_FLAG = flagOf('src/components/chart/engine/runtimePaneGate.js')
-    // ⛔ back to the member's object-program route for every case after this one
-    afterAll(() => { __resetRuntimePanePermission(); __resetRuntimeAllowList(); vi.stubEnv(RUNTIME_FLAG, '0') })
-    it('is 15.5 on every bar', () => {
-      vi.stubEnv(RUNTIME_FLAG, '1')
-      __permitRuntimePaneForTests()
-      __allowEveryRuntimeScriptForTests()
+    vi.stubEnv(RUNTIME_FLAG, '1')
+    try {
       const pane = memberPaneDefinition({ source: PROBE['09'], id: 'u_e96_09', name: 'probe 09' })
       expect(pane.ok, pane.reason).toBe(true)
       const cols = nativeRegistry.computeFor(pane.definition, BARS, undefined, CTX)
@@ -145,8 +141,10 @@ describe('A — every probe, graded by value on the member\'s own route', () => 
       const values = Array.from(cols[key])
       expect(values.length).toBe(N)
       expect(values.every((v) => v === 15.5)).toBe(true)
-    }, 120_000)
-  })
+    } finally {
+      vi.stubEnv(RUNTIME_FLAG, '0')
+    }
+  }, 120_000)
 })
 
 describe('B — a local is written where it stands: a later setter does not move what it held', () => {
