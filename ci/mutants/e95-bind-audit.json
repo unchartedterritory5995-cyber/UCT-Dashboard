@@ -73,6 +73,15 @@
    "to": "  const offThread = workerUsable() && (_routeAll || hostLaneRunsOffThread(plan.def)",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/hostLaneFirstPage.test.js",
    "expectRed": "ORDERING"
+  },
+  {
+   "id": "BA9",
+   "mutant": "the door's cost route reads the SAVED document (a knob script over the budget is never offered to the runtime lane)",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "  const cost = hostLaneCostOf(defaultBoundDocument(host.definition))",
+   "to": "  const cost = hostLaneCostOf(host.definition)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/hostLaneRouteBound.test.js",
+   "expectRed": "offered to the runtime lane"
   }
  ]
 }

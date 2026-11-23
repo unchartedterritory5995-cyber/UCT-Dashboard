@@ -32,4 +32,14 @@ describe('Fred RS: the route\'s estimate reads the bound document', () => {
     const saved = hostLaneCostOf(def)
     expect(saved.over, JSON.stringify(saved)).toBe(false)
   })
+
+  it('the DOOR\'s cost route reads it too: an over-budget knob script is offered to the runtime lane, as on master', () => {
+    // `memberPaneDefinition.routeByCost` (ninth reader, mutant BA9): with the runtime pane on, a host document over the
+    // budget is offered to the runtime lane and carries `costRoute` (moved or why it stayed). Read off the saved
+    // document, Fred RS was never offered (no `costRoute`).
+    const d = memberPaneDefinition({ source: RS, name: 'RS Rating', id: 'u_fred-route-door' })
+    expect(d.ok, d.reason).toBe(true)
+    const offered = d.costRoute || (d.definition && d.definition.compute && d.definition.compute.kind === 'runtime')
+    expect(offered, 'an over-budget knob script is offered to the runtime lane').toBeTruthy()
+  })
 })
