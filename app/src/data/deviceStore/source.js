@@ -84,10 +84,13 @@ export function createDeviceSource({ load = _load, current = () => _client } = {
       if (!c) { load(); return null }
       try { return _hit(c.peekBars(sym, String(tf))) } catch { return null }
     },
-    read(sym, tf, { urgent = false } = {}) {
+    // `newerThan`: a copy no newer than this `through` is not the answer (client.getBars; review of #2558, P4-L2)
+    read(sym, tf, { urgent = false, newerThan = null } = {}) {
       if (!sym || !_TFS.has(String(tf))) return Promise.resolve(null)
+      const newer = Number.isFinite(newerThan)
+      const opts = urgent === true ? (newer ? { urgent: true, newerThan } : { urgent: true }) : (newer ? { newerThan } : null)
       return Promise.resolve(current() || load())
-        .then((c) => (c ? (urgent === true ? c.getBars(sym, String(tf), { urgent: true }) : c.getBars(sym, String(tf))) : null))
+        .then((c) => (c ? (opts ? c.getBars(sym, String(tf), opts) : c.getBars(sym, String(tf))) : null))
         .then(_hit, () => null)
     },
     /** Diagnostics: the client's worker requests in flight (client.inFlight), 0 before it loaded. */

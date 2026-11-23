@@ -366,12 +366,16 @@ export function createDeviceClient({
       cache.set(k, c)
       return c.cols
     },
-    /** `urgent`: the member's own ask (see TWO LANES above); anything else takes the background lane. */
-    getBars(sym, tf, { urgent = false } = {}) {
+    /** `urgent`: the member's own ask (see TWO LANES above); anything else takes the background lane.
+     *  ⭐ `newerThan` (review of #2558, P4-L2): the `through` of the copy the caller holds and has REFUSED (the store's device
+     *  rule: short of its current bucket). A cached copy no newer than that is not the answer: the worker is asked (the
+     *  read in flight for the key, if any, is joined, never doubled), on the same lane as any other read. Every read that
+     *  does not say keeps the cache exactly as before. */
+    getBars(sym, tf, { urgent = false, newerThan = null } = {}) {
       tf = String(tf)
       if (!sym || !SERVED.has(tf)) return Promise.resolve(null)
       const hit = api.peekBars(sym, tf)
-      if (hit) return Promise.resolve(hit)
+      if (hit && !(Number.isFinite(newerThan) && !(hit.through > newerThan))) return Promise.resolve(hit)
       const k = keyOf(sym, tf)
       const running = reads.get(k)
       if (running) {
