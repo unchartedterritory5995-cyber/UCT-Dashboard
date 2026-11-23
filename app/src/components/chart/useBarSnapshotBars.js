@@ -23,12 +23,13 @@
 //
 // The full legacy-selector → rule map (and what is intentionally dropped) is in the P3-S1 PR
 // body and docs/architecture/barstore.md §P3-S1.
-import { useEffect, useRef, useState, useCallback, useMemo, useSyncExternalStore } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo, useSyncExternalStore } from 'react'
 import { useBarSnapshot } from '../../data/barStore/useBarSnapshot'
 import { useLatestCallback } from './latestCallback'
 import { getBarStore } from '../../data/barStore/index'
 import { legacyBars, legacyDevelopingOf, newestBarIsFormingOf } from '../../data/barStore/adapter'
 import { prefetch as storePrefetch, viewKeyFor, LAKE_JOIN_WAIT_MS, deviceRefusalOf } from '../../data/barStore/prefetch'
+import { deviceStoreKillSeen } from '../../lib/chartSpeed'
 import { keyOf, parseKey, STATUS, isDateTf, dateLabelToUnix } from '../../data/barStore/types'
 import { isNativeTf, fetchTf, resampleSpec } from './timeframes'
 import { resolveDailyTodaySeed, useCompareBars } from './useLegacyChartBars'
@@ -207,7 +208,7 @@ export function useBarSnapshotBars({
   const _deviceRefused = snap?.deviceRows === true && _intradayLike && !_hasOverride && !replayCutoff
     && _devicePaintedRef.current !== _deviceView
     // eslint-disable-next-line react-hooks/purity
-    && !!deviceRefusalOf(snap, { extended: !!showExtended, through: store.persist?.deviceThroughOf?.(key) ?? null, nowMs: Date.now() })
+    && !!deviceRefusalOf(snap, { extended: !!showExtended, through: store.persist?.deviceThroughOf?.(key) ?? null, nowMs: Date.now(), killed: deviceStoreKillSeen() })
   let chosen = null
   if (_overrideArr) chosen = barsOverride
   else if (barsOverridePending || _econId) chosen = null
@@ -290,8 +291,12 @@ export function useBarSnapshotBars({
   const _tfSwitchHold = _isTfSwitch && !!snap && ((!_answered && _edgeProvisional) || _lakeHold)
   tfSwitchHoldRef.current = _tfSwitchHold
   const bars = _tfSwitchHold ? null : chosen
-  // (what this chart has shown of a device copy, per key and view: see `_deviceRefused`)
-  if (bars?.length && snap?.deviceRows === true) _devicePaintedRef.current = _deviceView
+  // (what this chart has SHOWN of a device copy, per key and view: see `_deviceRefused`). ⛔ Written after the commit, never
+  // during the render (review of #2558, P4-L1): a render React throws away (a transition something else suspends, an
+  // interrupted render) would otherwise mark a view as shown that never was, and the next render, possibly after the bucket
+  // ended, would paint a copy the rule refuses.
+  const _shownDeviceView = bars?.length && snap?.deviceRows === true ? _deviceView : null
+  useLayoutEffect(() => { if (_shownDeviceView) _devicePaintedRef.current = _shownDeviceView }, [_shownDeviceView])
 
   // ── `data` / `error`: the server's answer as the legacy SWR surfaced it ─────────
   const data = useMemo(() => {

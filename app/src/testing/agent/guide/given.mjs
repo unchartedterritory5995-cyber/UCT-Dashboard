@@ -76,7 +76,7 @@ export function givenFor(c) {
   // one of the member's own Volume Surge lists, open in the widget
   if (/Volume Surge list/.test(c.title || '')) { g.board = 'surge'; g.prefs = { ...(g.prefs || {}), volume_scan_lists: JSON.stringify([{ id: 'teach-semis', name: 'Semis', syms: ['NVDA', 'AMD'] }]) } }
   // the TE News feed loaded (lib/tradeExchangeNewsStreamManager.js: GET /recent → { items, epoch, last_seq, first_seq })
-  if (/^(Saving a headline|A headline’s actions: \w+|Back to the live feed)$/.test(c.title || '')) g.teFeed = true
+  if (/^(Saving a headline|A headline’s actions: \w+|Back to the live feed|Explaining a headline)$/.test(c.title || '')) g.teFeed = true
   // the chart's own settings pref (components/chart/chartDefaults.js parses a partial chart_settings over its defaults):
   // a custom interval to delete, and symbols (one a group's) the Compare panel lists
   if (/^Deleting a custom timeframe$/.test(c.title || '')) g.chartSettings = { header: { customTimeframes: ['45'] } }
@@ -91,7 +91,7 @@ export function givenFor(c) {
   // a grid filled from a group: Multi Chart's flyout shows Prev/Next, Refresh group and Exit Groups only while one is set
   // (pages/charts/grid/MultiChartMenu.jsx `mc.state.group`; gridLayouts.js sanitizeGroup keeps id, by, n, name)
   if (c.feature === 'gridAction' && /^(Stepping through groups|Refreshing a group|Leaving Groups mode)$/.test(c.title || '')) g.prefs = { multichart_state: JSON.stringify({ ...MULTI, groupsMode: true, group: { id: 'semiconductors', by: 'today', n: 4, name: 'Semiconductors' } }) }
-  if (c.feature === 'tabAction' || /tab’s link colour|Renaming a (chart|widget) tab/.test(c.title || '')) g.board = 'tabs'
+  if (c.feature === 'tabAction' || /tab’s link colou?r|Renaming a (chart|widget) tab/.test(c.title || '')) g.board = 'tabs'
   // a per-browser switch the case states itself (a release flag the app reads from localStorage, e.g. widgets/captureRelease.js)
   if (c.ls) g.ls = c.ls
   g.setup = setupScript(g)

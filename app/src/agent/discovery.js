@@ -175,7 +175,7 @@ export const TOPICS = [
   {
     id: 'stockInfo', title: 'Stock information and news',
     words: [/\b(news|catalysts?|earnings|profile|fundamentals?|compare|headlines?)\b/],
-    caps: ['stock.profile', 'stock.earnings', 'stock.compare', 'news.latest', 'news.catalysts', 'chartFeatures.companyPanel', 'chartFeatures.earningsStrip', 'newsLibrary.save', 'newsLibrary.setNote', 'newsLibrary.collection', 'newsLibrary.deleteCollection', 'newsLibrary.place'], productHas: true,
+    caps: ['stock.profile', 'stock.earnings', 'stock.compare', 'news.latest', 'news.catalysts', 'chartFeatures.companyPanel', 'chartFeatures.earningsStrip', 'newsLibrary.save', 'newsLibrary.setNote', 'newsLibrary.collection', 'newsLibrary.deleteCollection', 'newsLibrary.place', 'newsLibrary.toNotebook'], productHas: true,
     canDo: 'look up a company’s profile and key numbers, its earnings, compare two stocks, and show the latest news and catalysts; and on a chart, add, expand, collapse or remove its Company Info panel (and switch its Overview, Financials, Earnings, Ownership or News tab) or add or remove its Earnings Strip — with Undo; and in your UCT News library, save a headline you have open or name by its ticker (or take one out), add to or replace its note, create, rename or delete a collection (shown first — its headlines stay saved) and put a headline in one — with Undo',
     known: () => ['calendar, ownership, insider, ETF holdings, options flow and themes (on their own widgets)'],
     planned: { when: 'Batch 10', what: 'more read-only data questions' },

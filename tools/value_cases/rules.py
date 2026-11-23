@@ -125,8 +125,33 @@ def flag(cond_fn):
     return out
 
 
+#: ROUND 17 requests the door answers WITHOUT a script. Each was written for the script lane, from the request's words
+#: and before any answer; the live pass (2026-11-23) showed the formula lane holds them. ONE rule whichever lane
+#: answers: the script lane's own rule function, bound to this lane's bars. Never a second copy of it here.
+SAME_RULE_AS_THE_SCRIPT_LANE = ('cap-02', 'cap-03', 'cap-07', 'cap-09')
+
+
+def _script_lane_rule(cid):
+    from .script_rules import RULES as script_lane_rules, bind
+    bind({'bars': BARS})
+    return script_lane_rules[cid]()
+
+
+def exact(cid):
+    """The named things of a rule whose NOTHING is part of what was asked ("only while the close is above", "plot
+    nothing when there is none"). `grade.grade` then wants no value on every bar the rule holds none, and a value on
+    every bar it holds one. Empty for a rule whose empty bars are only bars it does not compare (a warm-up)."""
+    if cid in SAME_RULE_AS_THE_SCRIPT_LANE:
+        variants = _script_lane_rule(cid)
+        return {variants[0][0]} if all(len(v) > 3 and v[3] == 'exact' for v in variants) else set()
+    return set()
+
+
 # ── the rules, from each request's own words ──
 def rules(cid):
+    if cid in SAME_RULE_AS_THE_SCRIPT_LANE:
+        variants = _script_lane_rule(cid)                # readings of ONE named thing: any one of them right is right
+        return {variants[0][0]: [(v[0], [NAN if x is None else x for x in v[1]]) for v in variants]}
     # ── round 2: semantic traps ──
     up = lambda k: k > 0 and C[k] > C[k - 1]      # noqa: E731
     dn = lambda k: k > 0 and C[k] < C[k - 1]      # noqa: E731

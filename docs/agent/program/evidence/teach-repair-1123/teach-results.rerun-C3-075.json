@@ -1,0 +1,70 @@
+{
+ "mode": "BROWSER-MOCK-MODEL",
+ "evidence": "LOCAL agent harness, scripted model, synthetic bars and fixtures: not production, not gate evidence",
+ "at": "2026-11-23T07:07:05.835Z",
+ "base": "http://127.0.0.1:5317",
+ "results": [
+  {
+   "id": "C3-075",
+   "say": "how do I delete a list",
+   "feature": "control",
+   "title": "Deleting a watchlist",
+   "given": [],
+   "pass": true,
+   "steps": [
+    {
+     "i": 5,
+     "text": "Open My Lists.",
+     "onPrimary": true,
+     "pr": [
+      963,
+      97,
+      68,
+      35
+     ],
+     "rr": [
+      959,
+      93,
+      76,
+      43
+     ]
+    },
+    {
+     "i": 6,
+     "text": "Click the ⋯ beside a list you made.",
+     "onPrimary": true,
+     "pr": [
+      1007,
+      249,
+      24,
+      22
+     ],
+     "rr": [
+      1003,
+      245,
+      32,
+      30
+     ]
+    },
+    {
+     "i": 7,
+     "text": "Click Delete to delete that list. It asks once more before anything is lost.",
+     "onPrimary": true,
+     "pr": [
+      842,
+      429,
+      182,
+      37
+     ],
+     "rr": [
+      838,
+      425,
+      190,
+      45
+     ]
+    }
+   ],
+   "consoleErrors": []
+  }
+ ]
+}

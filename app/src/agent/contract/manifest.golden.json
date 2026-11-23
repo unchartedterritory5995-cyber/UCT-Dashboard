@@ -8119,6 +8119,34 @@
    "shape": null
   },
   {
+   "name": "newsLibrary.toNotebook",
+   "domain": "newsLibrary",
+   "target": "newsLibrary",
+   "summary": "Send ONE UCT News headline to the member's Notebook (their current note, else the Notebook inbox), exactly as the headline's ⋯ → Send to Notebook does. Shown first; no Undo.",
+   "hints": "headline = \"selected\" (the one open in their News widget), \"previous\" (the one your previous turn named), a TICKER (\"NVDA\"), or ≥3 words of its text — never an id you chose. One headline per request.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "headline": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "headline"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "none",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
    "name": "newsLibrary.place",
    "domain": "newsLibrary",
    "target": "newsLibrary",

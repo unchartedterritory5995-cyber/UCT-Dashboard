@@ -11,7 +11,10 @@
 // OPFS needs a secure context (https, or localhost) and FileSystemSyncAccessHandle, which exists only
 // in a dedicated worker. `opfsIO()` resolves null where either is missing (the store then stays off).
 
-export const STORE_DIR = 'uct-device-store'
+// the directory's name has ONE owner, residue.js (the page removes it when the store is off there)
+import { STORE_DIR } from './residue'
+
+export { STORE_DIR }
 
 export class FileBusyError extends Error {
   constructor(name) { super(`file is open elsewhere: ${name}`); this.name = 'NoModificationAllowedError' }

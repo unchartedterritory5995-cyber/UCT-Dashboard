@@ -61,17 +61,27 @@ function optionOf(row, w) {
   return null
 }
 
-// the one catalog row the words NAME: its name, short name or id first ("atr" is ATR, not SuperTrend's "atr" tag),
-// then its tags — never a guess between several
+// a row's own NAMES: its name, short name and id, and the name / short name without UCT's brand prefix
+// (members call "UCT RS Rating" "RS Rating")
+const BRAND = /^uct\s+/
+export const rowNames = (r) => [...new Set([r.name, r.shortName].filter(Boolean).flatMap(x => [norm(x), norm(x).replace(BRAND, '')]).concat(String(r.id).toLowerCase()))]
+// the one catalog row the words NAME: its names first ("atr" is ATR, not SuperTrend's "atr" tag), then its tags —
+// never a guess between several
 function indicatorRow(words) {
   const w = core(words)
   if (!w || w.length > 40) return null
   let rows = []
-  // ⭐ RS split U1 — a `meta.requiresServer` definition the live server has not listed is not explained as addable.
-  try { rows = catalogRows(nativeRegistry).filter(r => r.description && !r.userDefined && isCatalogRowOffered(r, nativeRegistry)) } catch { rows = [] }
-  const named = rows.filter(r => norm(r.name) === w || norm(r.shortName) === w || String(r.id).toLowerCase() === w)
-  if (named.length) return named.length === 1 ? { row: named[0], option: null } : null
-  const tagged = rows.filter(r => (r.tags || []).some(t => norm(t) === w))
+  try { rows = catalogRows(nativeRegistry).filter(r => r.description && !r.userDefined) } catch { rows = [] }
+  const offered = (r) => isCatalogRowOffered(r, nativeRegistry)
+  // ⭐ Gate C misfire fix (2026-11-22, layer A h-talk-02): NAMES are matched over EVERY catalog row, offered or not.
+  // Words that name a row the live server has not listed (`meta.requiresServer`, withheld) name THAT row — they are
+  // never re-read as a different row that merely carries the same words as a tag or a mode option. A name two rows
+  // share is ambiguous. ⭐ RS split U1: the one row named must be offered — a withheld definition is not explained as
+  // addable. Either way → null → the model.
+  const named = rows.filter(r => rowNames(r).includes(w))
+  if (named.length) return named.length === 1 && offered(named[0]) ? { row: named[0], option: null } : null
+  // tags only when no row is named, among offered rows
+  const tagged = rows.filter(r => offered(r) && (r.tags || []).some(t => norm(t) === w))
   return tagged.length === 1 ? { row: tagged[0], option: optionOf(tagged[0], w) } : null
 }
 

@@ -75,22 +75,29 @@ export function groupsOfActions(names, full) {
  *   pinActions   action names of a waiting proposal / the last change
  *   pinGroups    group ids to keep (the request a pending question came from)
  *   need         group ids the model asked for (reroute)
+ *   prevText     the member's PREVIOUS message (first-call routing 2026-11-23): only when this message's own words name no
+ *                group ("the third one", "take it back out"), the groups the previous message's words named are packed
+ *                FIRST in the fallback fill (routeManifest `after`), so a referential follow-up keeps its subject's actions.
+ *                It never narrows, never pins past the budget, and is ignored whenever this message names anything itself.
  */
-export function selectNl1(full, { text = '', names = null, correct = null, pinActions = [], pinGroups = [], need = [], budget = NL1_BUDGET } = {}) {
+export function selectNl1(full, { text = '', names = null, correct = null, pinActions = [], pinGroups = [], need = [], budget = NL1_BUDGET, prevText = '' } = {}) {
   const present = presentGroups(full).map(g => g.id)
   const core = coreOf(full)
   const keep = (ids) => [...new Set(ids)].filter(id => present.includes(id) && !core.includes(id))
   const needed = keep(need)
   const pins = keep([...groupsOfActions(pinActions, full), ...pinGroups])
-  const routed = routeManifest(full, text, { enabled: true, limit: NL1_LIMIT, budget: Math.min(budget, NL1_LIMIT), names, correct, groupOf: nl1GroupOf },
-    [...core, ...needed, ...pins])
-  const selected = routed.routing ? routed.routing.selected : present
   // the groups the member's own words (names, typo readings) pointed at: reported, and used only to ADD caution
   const words = selectGroups(text, { names, correct })
+  // a follow-up that names nothing itself: the previous message's groups lead the fallback fill (prevText above)
+  const prev = !words.matched && prevText ? selectGroups(prevText, { names, correct }) : null
+  const carried = prev?.matched ? prev.selected.filter(id => !ALWAYS.includes(id) && present.includes(id) && !core.includes(id)) : []
+  const routed = routeManifest(full, text, { enabled: true, limit: NL1_LIMIT, budget: Math.min(budget, NL1_LIMIT), names, correct, groupOf: nl1GroupOf, after: carried },
+    [...core, ...needed, ...pins])
+  const selected = routed.routing ? routed.routing.selected : present
   const wordGroups = (words.matched ? words.selected : words.soft).filter(id => !ALWAYS.includes(id) && present.includes(id))
   const { manifest, routing } = assembleNl1(full, core, selected)
   return {
-    manifest, routing, core, pins, need: needed, selected,
+    manifest, routing, core, pins, need: needed, selected, carried,
     unselected: present.filter(id => !selected.includes(id)),
     wordGroups,
     // groups the words named that could not be sent: a plan made without them is only PROPOSED (useAgent)

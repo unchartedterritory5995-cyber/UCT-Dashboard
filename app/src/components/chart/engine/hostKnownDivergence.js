@@ -45,6 +45,9 @@ function entriesOf(doc) {
 const COMMITTED = entriesOf(LIST)
 let _entries = COMMITTED
 let _ignored = false
+// ⭐ THE PASTE WORKER — moves whenever the list as consulted may have moved (`memberDoorImage.memberDoorStateVersion`)
+let _revision = 0
+export function hostKnownDivergenceRevision() { return _revision }
 
 /** The listed hashes (tests, diagnostics). */
 export function hostKnownDivergenceList() {
@@ -69,10 +72,23 @@ export function hostKnownDivergenceOf(source) {
 }
 
 /** Rails only (`src/test-setup.js`): the measuring suites grade the engine, not this list. */
-export function __ignoreHostKnownDivergenceForTests() { _ignored = true }
+export function __ignoreHostKnownDivergenceForTests() { _revision += 1; _ignored = true }
 /** Rails only: back to the app's state (the committed list, ON). */
-export function __resetHostKnownDivergence() { _ignored = false; _entries = COMMITTED }
+export function __resetHostKnownDivergence() { _revision += 1; _ignored = false; _entries = COMMITTED }
 /** Rails only: a synthetic list (`{scripts: [...]}`), ON. */
-export function __setHostKnownDivergenceForTests(doc) { _ignored = false; _entries = entriesOf(doc) }
+export function __setHostKnownDivergenceForTests(doc) { _revision += 1; _ignored = false; _entries = entriesOf(doc) }
 /** Rails only: is the list consulted? */
 export function hostKnownDivergenceActive() { return !_ignored }
+
+/** ⭐ THE PASTE WORKER (2026-11-20) — the list as this page consults it, as plain data, for the member door's
+ *  worker (`builder/memberPane/memberDoorImage.js`), and back. The committed list rides as `null` (the worker
+ *  holds the same file); only a list a rail set is carried whole. */
+export function hostKnownDivergenceImage() {
+  return { ignored: _ignored, scripts: _entries === COMMITTED ? null : [..._entries.values()] }
+}
+export function applyHostKnownDivergenceImage(img) {
+  _revision += 1
+  const m = img && typeof img === 'object' ? img : {}
+  _ignored = m.ignored === true
+  _entries = Array.isArray(m.scripts) ? entriesOf({ scripts: m.scripts }) : COMMITTED
+}

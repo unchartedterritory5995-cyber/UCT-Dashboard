@@ -466,16 +466,24 @@ describe('the instance the words name', () => {
   it('a timeframe in days stays a timeframe', () => {
     expect(getCapability('guide.show').fast({ raw: 'how do I make a 45-minute chart', host: { surface: 'charts' } })?.feature).toBe('timeframeCustom')
   })
+  // the step before the last: a host that goes back to the list rings the new row (UCT Signature R1, 11-15: an add from the
+  // Indicators window opens the new one's settings instead, the last step)
+  const rowStep = (q) => stepsFor(guideFeature('indicators'), q).at(-2)
   it('asking for exactly the default has nothing left to set', () => {
-    expect(lastStep('how do I add a 5 SMA').text).toBe('SMA 5 is on the chart. Click it here to change its settings, colors and pane.')
-    expect(lastStep('how do I add a moving average').text).toBe('SMA 5 is on the chart. Click it here to change its settings, colors and pane.')
+    expect(lastStep('how do I add a 5 SMA').text).toBe('SMA 5 is on the chart. Its settings are open here: its inputs, colors and pane.')
+    expect(lastStep('how do I add a moving average').text).toBe('SMA 5 is on the chart. Its settings are open here: its inputs, colors and pane.')
+    expect(rowStep('how do I add a 5 SMA').text).toBe('SMA 5 is on the chart. Click it here to change its settings, colors and pane.')
   })
   it('the row it rings is the row a new one really shows', () => {
-    expect(JSON.stringify(lastStep('how do I add a 20 EMA').target)).toMatch(/"named":"SMA 5"/)
-    expect(JSON.stringify(lastStep('how do I add a 20 EMA').target)).not.toMatch(/EMA/)
+    expect(JSON.stringify(rowStep('how do I add a 20 EMA').target)).toMatch(/"named":"SMA 5"/)
+    expect(JSON.stringify(rowStep('how do I add a 20 EMA').target)).not.toMatch(/EMA/)
+    // and the last step rings that new one's own settings, never a row of another
+    expect(lastStep('how do I add a 20 EMA').target).toEqual({ within: 'chartSettings', attr: 'data-testid', value: 'inspector' })
+    // an editor another indicator left open is not this add: the row step's result is an ending, which startIndex never reads
+    expect(rowStep('how do I add a 20 EMA').waitFor.not).toBeTruthy()
   })
   it('an indicator with no such defaults is still named as asked', () => {
-    expect(lastStep('how do I add RSI').text).toBe('RSI is on the chart. Click it here to change its settings, colors and pane.')
+    expect(lastStep('how do I add RSI').text).toBe('RSI is on the chart. Its settings are open here: its inputs, colors and pane.')
   })
   it('adding one with a length waits for the add itself', () => {
     const steps = stepsFor(guideFeature('indicators'), 'how do I add a 20 SMA')

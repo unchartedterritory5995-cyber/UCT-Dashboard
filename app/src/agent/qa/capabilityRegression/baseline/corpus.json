@@ -11278,6 +11278,103 @@
       ]
     },
     {
+      "id": "newsLibrary.toNotebook",
+      "source": "C3-147 (pl-newsfam 11-23): the headline row's ⋯ → Send to Notebook (lib/tradeExchangeNewsNotebook.sendHeadlineToNotebook); always a card, no Undo",
+      "capabilities": [
+        "newsLibrary.toNotebook"
+      ],
+      "board": "NEWS_LIB",
+      "needs": [
+        "newsLibrary.toNotebook"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "newsLibrary.toNotebook",
+            "args": {
+              "headline": "NVDA"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "newsLibrary.toNotebook",
+            "target": "$newsLibrary[0]",
+            "args": {
+              "headline": "NVDA"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "proposal": true,
+        "proposalSays": [
+          "Notebook"
+        ],
+        "receipt": false,
+        "refusal": false
+      },
+      "phrasings": [
+        "send the NVDA headline to my notebook",
+        "put the NVDA story in my journal",
+        "clip the NVDA headline into my notebook"
+      ]
+    },
+    {
+      "id": "watchlist.add.fromHeadline",
+      "source": "C3-144 (pl-newsfam 11-23): the headline row's ⋯ → Add to Watchlist — the OPEN headline's own tickers (newsLibrary's resolver) onto a list",
+      "capabilities": [
+        "watchlist.add"
+      ],
+      "board": "NEWS_WL",
+      "needs": [
+        "watchlist.add"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "watchlist.add",
+            "target": "$watchlists[0]",
+            "args": {
+              "symbols": [
+                "AMD"
+              ]
+            }
+          }
+        ]
+      },
+      "expect": {
+        "watchlist": {
+          "name": "Momentum",
+          "include": [
+            "AMD",
+            "NVDA",
+            "TSLA"
+          ]
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "watchlist": {
+            "name": "Momentum",
+            "exclude": [
+              "AMD"
+            ]
+          }
+        }
+      },
+      "phrasings": [
+        "add this headline's ticker to Momentum",
+        "add the ticker from the selected headline to my Momentum list",
+        "put the stock from this story on the Momentum watchlist"
+      ]
+    },
+    {
       "id": "newsLibrary.save",
       "source": "Charts family 11-15: the News row bookmark (lib/tradeExchangeNewsLibrary.save); a headline named by its tickers field",
       "capabilities": [

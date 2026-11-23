@@ -91,3 +91,41 @@ export function checkDoorDeadline() {
   const w = doorDeadlinePassed()
   if (w) throw new DoorDeadlineError(w.budgetMs)
 }
+
+// ─── ⭐⭐ (engine 94, coordinator ruling 2026-11-22, interim) — A MAIN-THREAD WALL CAP, SUPPLIED BY THE CALLER ────
+//
+// With the deterministic budgets a translation is bounded by its step budget, and the wall clock only by last-resort
+// stops sized in MINUTES for the workers the member paths run in (#2254, #2364, #2367): no 10 s window any more. A caller
+// that still runs a check on the page's MAIN THREAD supplies its own short cap here. Today that is one caller: the
+// authoring script check (`builder/authoring/scriptAnswer.js`), until it moves to the door's worker, which removes the
+// cap. `fn` runs inside a door window of `capMs` on `clock`, so every limb of the call asks it (each translation, the
+// door's own window opened inside it, the round trip's walks), and an expired cap answers `capped` with NO value: never
+// a part of a check and never a document built while the cap ran out; the caller refuses by name. A call that finished
+// past the cap without a limb noticing is `capped` too. ⛔ No worker path opens one (`scriptCheckCap.test.js`).
+// `fn` is synchronous (the window is this module's state: it must never span an await).
+
+/**
+ * @param {number} capMs  the caller's cap, in ms (> 0)
+ * @param {() => *} fn    the synchronous main-thread work
+ * @param {() => number} clock  the wall clock the cap is read on (ms)
+ * @returns {{value: *, capped: boolean, elapsedMs: number}} `value` is null whenever `capped`
+ */
+export function withMainThreadCap(capMs, fn, clock) {
+  if (!(Number.isFinite(capMs) && capMs > 0) || typeof fn !== 'function' || typeof clock !== 'function') {
+    // (a plain Error: this module is inside sentence.test.js's pure-derivation scan, whose allowlist has `Error`)
+    throw new Error('withMainThreadCap(capMs > 0, fn, clock)')
+  }
+  const t0 = clock()
+  const win = openDoorWindow(capMs, clock)
+  let value = null
+  try {
+    value = fn()
+  } catch (err) {
+    if (!win.tripped) throw err
+  } finally {
+    closeDoorWindow(win)
+  }
+  const elapsedMs = clock() - t0
+  const capped = win.tripped || elapsedMs > capMs
+  return { value: capped ? null : value, capped, elapsedMs }
+}

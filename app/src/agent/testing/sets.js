@@ -30,7 +30,7 @@ export const SETS = [
   { file: 'corpus.json', split: 'dev', type: 'single', about: 'NL corpus (2026-10-12), written beside the matchers' },
   { file: 'dev-nl1.json', split: 'dev', type: 'mixed', about: 'NL-1 development cases: corrections, multi-step, ambiguity, unsupported, injection, conversations' },
   { file: 'heldout-v1.json', split: 'exposed', type: 'single', about: 'held-out v1 (2026-10-13); informed Gate B routing vocabulary' },
-  { file: 'heldout-v2.json', split: 'sealed', type: 'single', about: 'held-out v2 (2026-10-13), blind; scored only in aggregate on the deterministic layers since' },
+  { file: 'heldout-v2.json', split: 'exposed', type: 'single', about: 'held-out v2 (2026-10-13); EXPOSED 2026-11-22 (AUDIT): the Gate C layer-A misfire fix read two of its cases and amended their expectations (h2-ind-19: #1173 ruling 1; h2-screen-06: owner F-16), so it is no longer blind' },
   { file: 'sealed-v3.json', split: 'sealed', type: 'mixed', about: 'NL-1 blind set (2026-10-16), written from the capability catalog only: the headline' },
 ]
 

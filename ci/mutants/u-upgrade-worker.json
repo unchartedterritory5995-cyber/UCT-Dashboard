@@ -1,0 +1,42 @@
+{
+  "schema": "uct.ci-mutants/v1",
+  "about": "SAVED-SCRIPT UPGRADE IN THE DOOR'S WORKER (feat/pine-upgrade-worker, stacked on #2254): a stale saved script is translated again in the member door's worker at chart load, never on the chart's main thread; a worker that stopped leaves the row drawn as stored, never refused. Every rule, broken once, must turn its rail red.",
+  "mutants": [
+    {
+      "id": "U1",
+      "mutant": "the upgrade translates on the chart's main thread again (the translator loaded instead of the door's service)",
+      "file": "app/src/components/chart/builder/memberPane/savedScriptUpgrade.js",
+      "from": "  if (!_translator) _translator = import('./memberDoorAsync')",
+      "to": "  if (!_translator) _translator = import('./memberPaneDefinition')",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/savedScriptUpgrade.worker.test.js",
+      "expectRed": "door calls in the worker: one per row"
+    },
+    {
+      "id": "U2",
+      "mutant": "a stopped worker's answer is judged as a refusal (remembered server-side)",
+      "file": "app/src/components/chart/builder/memberPane/savedScriptUpgrade.js",
+      "from": "  if (built && built.doorWorkerStopped === true) return",
+      "to": "  if (built && built.doorWorkerStopped === 'never') return",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/savedScriptUpgrade.worker.test.js",
+      "expectRed": "a stopped check is not a refusal"
+    },
+    {
+      "id": "U3",
+      "mutant": "the page's dead-worker answer does not carry the mark",
+      "file": "app/src/components/chart/builder/memberPane/memberDoorAsync.js",
+      "from": "    [DOOR_WORKER_STOPPED]: true,",
+      "to": "    [DOOR_WORKER_STOPPED]: false,",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/savedScriptUpgrade.worker.test.js",
+      "expectRed": "a stopped check is not a refusal"
+    },
+    {
+      "id": "U4",
+      "mutant": "each row's build is never released (the service holds every answer)",
+      "file": "app/src/components/chart/builder/memberPane/savedScriptUpgrade.js",
+      "from": "      Promise.resolve().then(() => { if (release) release(); upgradeThroughDoor(service, rest) })",
+      "to": "      Promise.resolve().then(() => { upgradeThroughDoor(service, rest) })",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/savedScriptUpgrade.worker.test.js",
+      "expectRed": "the service holds nothing"
+    }
+  ]
+}
