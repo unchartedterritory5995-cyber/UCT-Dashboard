@@ -16,6 +16,9 @@ value-free part, kept apart from `data.study` (the member's text and table) so a
 
 Semantics: freshness `historical`; `as_of` = the regular-session close of the last stored price session the study
 used; `stale` when that session predates the newest completed session; `provider_calls` 0 (a store read).
+Completed sessions only: the study reads no outcome close after the newest completed session (`price_through`,
+from `sessions.last_completed_session`, the session `bars.daily` ends on), because the store can hold today's
+unfinished daily bar (a chart view writes it); a window ending on it is incomplete, never a counted return.
 Every answer says "descriptive, not predictive".
 """
 from __future__ import annotations
@@ -139,17 +142,17 @@ def read_event_study(params: dict, ctx: dict) -> dict:  # noqa: ARG001 — no pe
     if why:
         return env.unavailable(KIND, params, SOURCE, why)
     from api.services.market_intel import event_study, event_study_answer
+    from api.services.uct_agent.marketdata.bars_daily import _iso_date, _session_close_utc
+    from api.services.uct_agent.marketdata.sessions import last_completed_session
     req = study_request(params)
-    res = event_study.run(req, allowed_kinds=ALLOWED_SERIES_KINDS)
+    latest = last_completed_session()
+    res = event_study.run(req, allowed_kinds=ALLOWED_SERIES_KINDS, price_through=_iso_date(latest))
     ans = event_study_answer.answer(res)
     if not isinstance(res, dict) or res.get("status") != "ok":
         return env.unavailable(KIND, params, SOURCE, str(ans.get("text") or "the study could not be computed")[:300])
     cov = res.get("coverage") or {}
     price_last = cov.get("price_last")
-    from api.services.uct_agent.marketdata.bars_daily import _session_close_utc
-    from api.services.uct_agent.marketdata.sessions import last_completed_session
     as_of = _session_close_utc(_ymd(price_last)) if price_last else None
-    latest = last_completed_session()
     stale = bool(price_last) and _ymd(price_last) < latest
     notes = [NOTE_DESCRIPTIVE, NOTE_SAMPLE, NOTE_COMPLETED, NOTE_LOCAL]
     if params.get("indicator") == "gap_pct":
@@ -157,8 +160,7 @@ def read_event_study(params: dict, ctx: dict) -> dict:  # noqa: ARG001 — no pe
     if first_of_run_applied(res):
         notes.append(NOTE_FIRST_OF_RUN)
     if stale:
-        notes.append(f"the stored closes end {price_last}; the newest completed session is "
-                     f"{str(latest)[:4]}-{str(latest)[4:6]}-{str(latest)[6:]}")
+        notes.append(f"the stored closes end {price_last}; the newest completed session is {_iso_date(latest)}")
     if not as_of:
         notes.append("the study carries no price date")
     data = {

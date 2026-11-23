@@ -2,14 +2,17 @@
 // prefetch facade, with a device source that says which bar of its copy is the bucket in progress (`formingT`,
 // deviceStore/source.js; live.js hands it out relative to the newest minute the device applied).
 //   B1 read just AFTER a bucket's end, before the frame of its last minute has landed, the copy's forming bucket is
-//      the entry's developing bar (the forming candle), never a closed row one minute short; the copy is still a
-//      first paint (complete through 65 s ago: its closed rows are whole)
+//      the entry's developing bar (the forming candle), never a closed row one minute short, AND it is no first frame
+//      (review of #2549: the rolling refusal; the switch waits for the server's answer, as with the store off)
+//   B1c the device catches up (its `through` reaches the bucket's end): then it paints, with the bucket complete
+//   B1p the stream's first push for the next bucket closes the short bucket into a row before the answer: still no
+//      first frame (a closed row the device's stamp does not cover, in a bucket that has ended)
 //   B2 a copy warmed while the bucket formed and re-read after it ended: the device's newer copy brings that bucket
 //      COMPLETE, and the complete values are the closed row (the earlier forming bar is not merged over them)
 import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest'
 import { createBarStore } from './index'
 import { createPrefetch } from './prefetch'
-import { keyOf } from './types'
+import { keyOf, ACTION } from './types'
 import { installFakeIndexedDB } from './testing/fakeIndexedDB'
 import { fakeStream, fakeCandle, fakePrices } from './testing/fakeFeeds'
 import { memClear } from '../../utils/barsMemCache'
@@ -60,7 +63,39 @@ describe('M1 the bucket roll', () => {
     expect(s.bars.some((b) => b.t === T(600))).toBe(false)
     expect(s.developing?.t).toBe(T(600))                            // ...it is the forming candle
     expect(ohlcv(s.developing)).toEqual(ohlcv(SHORT))
-    expect(pf.deviceVerdict('NEWB', '5', { showExtended: false }).paints).toBe(true)
+    expect(pf.deviceVerdict('NEWB', '5', { showExtended: false })).toMatchObject({ paints: false, reason: 'rolling', held: 'device' })
+    expect(pf.peekDisplayable('NEWB', '5')).toBe(false)
+    store.dispose()
+  })
+
+  it("B1c the device catches up (through covers the bucket's end): then it paints, the bucket complete", () => {
+    vi.setSystemTime((T(605) + 5) * 1000)
+    const SHORT = { ...bar(600, 1.01), c: 50.9 }
+    const dev = fakeDevice(copy([...closedTo(595), SHORT], { through: T(604), formingT: T(600) }))
+    const { store, pf, key } = boot(dev)
+    pf.peekDisplayable('NEWB', '5')
+    expect(pf.devicePaints('NEWB', '5')).toBe(false)
+    vi.setSystemTime((T(605) + 12) * 1000)                          // 10:05:12: the 10:04 frame has landed
+    const WHOLE = { ...bar(600, 1.01), c: 51.1, v: 1300 }
+    dev.swap(copy([...closedTo(595), WHOLE], { through: T(605) }))  // complete through 10:05:00, nothing forming yet
+    expect(pf.peekDisplayable('NEWB', '5')).toBe(true)              // (the waiter's look re-reads the device)
+    expect(pf.deviceVerdict('NEWB', '5', { showExtended: false })).toMatchObject({ paints: true, reason: 'paints' })
+    const s = store.peek(key)
+    expect(ohlcv(s.bars.find((b) => b.t === T(600)))).toEqual(ohlcv(WHOLE))
+    store.dispose()
+  })
+
+  it("B1p the stream's push for the next bucket closes the short bucket before the answer: still no first frame", () => {
+    vi.setSystemTime((T(605) + 5) * 1000)
+    const SHORT = { ...bar(600, 1.01), c: 50.9 }
+    const { store, pf, key } = boot(fakeDevice(copy([...closedTo(595), SHORT], { through: T(604), formingT: T(600) })))
+    pf.peekDisplayable('NEWB', '5')
+    store.registry.dispatch(key, { type: ACTION.PUSH_BAR, key, event: { sym: 'NEWB', t: T(605), o: 51, h: 51.2, l: 50.9, c: 51.1, v: 40, rev: 1 } })
+    const s = store.peek(key)
+    expect(s.developing?.t).toBe(T(605))                            // the push opened the next bucket...
+    expect(ohlcv(s.bars.find((b) => b.t === T(600)))).toEqual(ohlcv(SHORT))   // ...and closed the short one
+    expect(pf.deviceVerdict('NEWB', '5', { showExtended: false })).toMatchObject({ paints: false, reason: 'rolling' })
+    expect(pf.peekDisplayable('NEWB', '5')).toBe(false)
     store.dispose()
   })
 
