@@ -34,6 +34,7 @@ import {
 } from '../../components/chart/engine/triggerPolicy'
 import { alertNeedsAttention } from '../../components/chart/alertState'
 import { showOnOf } from './indicatorControls'
+import { alertFast } from './alertPhrases'
 
 const MAX_CREATES = 5
 const SHOW_IN_CONTEXT = 25
@@ -58,8 +59,9 @@ function paramsOf(raw) {
 const rowSig = (a) => JSON.stringify([a.id, a.sym, a.indicator, a.condition, a.threshold, a.tf, a.active])
 
 // ── the server's list and catalog, cached for planning; every write re-reads the list first ──
-const cache = { rows: null, catalog: null, p: null }
-export function _resetIndicatorAlertCache() { cache.rows = null; cache.catalog = null; cache.p = null }
+// `src`: the hook source the rows were read from — an instant reading trusts only a book read from ITS host's source
+const cache = { rows: null, catalog: null, p: null, src: null }
+export function _resetIndicatorAlertCache() { cache.rows = null; cache.catalog = null; cache.p = null; cache.src = null }
 let hostRef = null
 export async function loadIndicatorAlerts(host = hostRef, { force = false } = {}) {
   const src = host?.indicatorAlerts
@@ -69,6 +71,7 @@ export async function loadIndicatorAlerts(host = hostRef, { force = false } = {}
   if (!cache.p) {
     cache.p = Promise.resolve(src.list()).then(async rows => {
       cache.rows = (Array.isArray(rows) ? rows : []).map(slim)
+      cache.src = src
       // the catalog names each alert's plot ("RSI", "MACD signal"); read once, never required for the list itself
       if (!cache.catalog) { try { await loadCatalog(host) } catch { /* labels fall back to the stored address */ } }
       return cache.rows
@@ -103,6 +106,21 @@ function plotsForInstance(catalog, inst) {
   return out
 }
 const plotLabel = (p) => p.label || p.value
+/** alertPhrases (instant path): the plots the catalog offers this instance ({ value, label, cross }), or null when the catalog
+ *  isn't read yet — never a list of its own. */
+export function alertPlotsOf(inst) {
+  if (!cache.catalog || !inst) return null
+  return plotsForInstance(cache.catalog, inst).map(p => ({ value: p.value, label: plotLabel(p), cross: isCrossPlot(p) }))
+}
+/** The `plot` arg of a moving-average cross on this instance: null (its only plot, or the catalog not read: the check
+ *  decides), the cross plot's address when it has others too, undefined when the catalog offers it no single cross. */
+export function crossPlotOf(inst) {
+  const plots = alertPlotsOf(inst)
+  if (!plots) return null
+  const x = plots.filter(p => p.cross)
+  if (x.length !== 1) return undefined
+  return plots.length === 1 ? null : x[0].value
+}
 const condLabel = (p, c) => (p.conditions || []).find(x => x.value === c)?.label || c
 
 // ── LT-13 (live 2026-11-03): a HUMAN reference to an indicator on the chart ─────────────────────────────
@@ -258,6 +276,13 @@ export const indicatorAlertLibraryKind = {
   },
   undoPatch: (item) => { const ids = Object.values(item.created || {}); return ids.length ? { deleteCreated: ids } : null },
   compensatePatch: (item) => { const ids = Object.values(item.created || item.partial || {}); return ids.length ? { deleteCreated: ids } : null },
+  // the Alerts family's instant reader (alertPhrases) reads the catalog's plots through the kind
+  plotsOf: (inst) => alertPlotsOf(inst),
+  // an instant reading plans on THIS host, as the context build does before a model plan (hostRef: the board instances are looked up on)
+  noteHost: (host) => { if (host?.indicatorAlerts) hostRef = host },
+  // alertPhrases: the book in hand was read from this host's own source (never another board's / session's list)
+  bookReadFor: (host) => !!cache.rows && !!host?.indicatorAlerts && cache.src === host.indicatorAlerts,
+  crossPlotOf: (inst) => crossPlotOf(inst),
   fingerprint: () => 'indicatorAlerts',
   fingerprintFor(host, snap, item) {
     const ids = Object.values(item.created || {})
@@ -340,7 +365,8 @@ export function registerIndicatorAlertCapabilities() {
   registerContextProvider({
     key: 'indicatorAlertLibrary',
     refreshGroup: 'alerts',
-    refresh: () => loadIndicatorAlerts(hostRef, { force: true }),
+    // the turn's own host when it carries the hook's source (refreshContext hands it over), else the one last noted
+    refresh: ({ host } = {}) => loadIndicatorAlerts(host?.indicatorAlerts ? host : hostRef, { force: true }),
     build: (host, refFor) => {
       if (!host?.indicatorAlerts) return undefined
       hostRef = host                                   // the board the next plan's instances are looked up on
@@ -375,7 +401,9 @@ export function registerIndicatorAlertCapabilities() {
     summary: 'Show the member\'s indicator alerts from UCT\'s real list: symbol, indicator, condition, timeframe, whether each is active or paused, and why one can\'t fire. Use this (disposition apply) for "show my indicator alerts", "why hasn\'t my RSI alert fired".',
     hints: 'target = the ref of the indicatorAlertLibrary entry. symbol: one ticker, or null. status: active | paused | attention (alerts that can\'t fire) | null (all).',
     args: { type: 'object', properties: { symbol: { type: ['string', 'null'] }, status: { type: ['string', 'null'], enum: ['active', 'paused', 'attention', null] } }, required: ['symbol', 'status'], additionalProperties: false },
-    fast: ({ lower }) => (/^(?:show|list)(?: me)?(?: all)?(?: of)? my indicator alerts$/.test(lower) ? { symbol: null, status: null } : null),
+    // the Alerts family's general reader (alertPhrases): "show my paused indicator alerts", "why hasn't my RSI alert fired"
+    fastWhole: true,
+    fast: alertFast('indicatorAlert.list'),
     async answer(_snap, { symbol = null, status = null } = {}) {
       let all
       try {
@@ -421,6 +449,9 @@ export function registerIndicatorAlertCapabilities() {
     }, required: ['instance', 'plot', 'condition', 'threshold', 'crossWith', 'chart', 'trigger', 'timeframe'], additionalProperties: false },
     // 2026-11-04 — `crossWith` and `chart` were ADDED, then `trigger` and `timeframe`; an arg shape from before them (key left out) reads as null.
     absentAsNull: ['crossWith', 'chart', 'trigger', 'timeframe'],
+    // alertPhrases: "ping me if RSI drops below 30 on the daily", "alert me when the 9 ema crosses above the 20" — only on ONE certain chart
+    fastWhole: true,
+    fast: alertFast('indicatorAlert.create'),
     // the model's chart ref → the real chart ref (useAgent translateRefs)
     argRefs: { chart: 'chart' },
     async prepare() {
@@ -435,7 +466,8 @@ export function registerIndicatorAlertCapabilities() {
       if (r.why) return r.why
       if (st.creates.length >= MAX_CREATES) return `That's more than ${MAX_CREATES} alerts in one request — ask for them in smaller groups.`
       const c = toCreate(r)
-      const dup = st.alerts.find(a => a.active && sameAlert(a, c))
+      // the list prepare() just re-read (an instant reading has no context refresh before it: the snapshot may be stale)
+      const dup = (env?.iaBookFresh ? rows() : st.alerts).find(a => a.active && sameAlert(a, c))
       if (dup || st.creates.find(x => sameAlert(x, c))) return `You already have an active alert for ${phrase(dup || c)}.`
       return null
     },
@@ -455,6 +487,9 @@ export function registerIndicatorAlertCapabilities() {
     summary: 'Pause or resume ONE indicator alert (the ON / OFF switch on its row in the chart\'s Indicator Alerts popover). Undo switches it back.',
     hints: 'target = the ref of that alert in the indicatorAlerts list; active = false to pause, true to resume. One op per alert.',
     args: { type: 'object', properties: { active: { type: 'boolean' } }, required: ['active'], additionalProperties: false },
+    // alertPhrases: "pause my RSI alert", "turn my NVDA RSI alert back on" — exactly one alert in the book
+    fastWhole: true,
+    fast: alertFast('indicatorAlert.toggle'),
     check: () => null,
     apply: (st, { active }) => (st.active === active ? st : { ...st, active }),
     describe: (b, a) => (b.active === a.active ? null : `${a.active ? 'Resumed' : 'Paused'} the indicator alert ${phrase(b)}`),
@@ -471,6 +506,9 @@ export function registerIndicatorAlertCapabilities() {
     summary: 'Delete one of the member\'s indicator alerts (permanent — UCT cannot restore a deleted alert).',
     hints: 'target = the ref of that alert in the indicatorAlerts list. One op per alert. Always shown as a proposal first; if two alerts could be the one they mean, clarify with the real alerts as choices — never pick one. To stop one without deleting it, indicatorAlert.toggle.',
     args: { type: 'object', properties: {}, required: [], additionalProperties: false },
+    // alertPhrases: "delete my RSI alert" — exactly one alert across both books, else the model asks
+    fastWhole: true,
+    fast: alertFast('indicatorAlert.delete'),
     check: () => null,
     apply: (st) => ({ ...st, deleted: true }),
     describe: (b, a) => (a.deleted ? `Deleted the indicator alert ${phrase(b)} (permanent)` : null),
