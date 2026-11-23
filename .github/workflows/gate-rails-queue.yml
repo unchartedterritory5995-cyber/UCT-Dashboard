@@ -1,0 +1,120 @@
+# promotion-gate: no — merge groups only. The master deploy gate runs these same two jobs on master and is the
+#   deploy blocker; this workflow moves the same red from after the merge to before it.
+#
+# THE DEPLOY GATE'S ENGINE AND BARS RAILS, RUN ON EVERY MERGE GROUP.
+#
+# WHY (2026-11-23). The merge queue required two checks: the Agent verdict and `master gate static checks`. The
+# deploy gate then ran more on master, after the merge. So a change could merge with a gate rail red:
+#   * #2613 merged at 19:08Z with its own advisory `whole-app engine rails` job RED (enumerationSites.test.js). The
+#     gate failed on master for the same test, twice, and the next nine pull requests showed that red as their own.
+#   * #2589 merged at 13:52Z and left a rail red on master for 2.5 hours; thirteen pull requests inherited it.
+# Of 24 red runs of the advisory engine workflow on pull requests that day, 22 were inherited from master.
+# With this check REQUIRED in the queue's ruleset, such an entry is removed from the queue and master stays green.
+#
+# WHAT IT RUNS. `engine` and `bars` are the gate's jobs `whole-app-engine-rails` and `bars-rails`: same runner,
+# same timeout, same env, same steps, byte for byte. tests/test_gate_static_rails_pr.py holds that equality, so a
+# gate edit that is not made here turns the required static check red. No selection, no path filter: a merge
+# group runs what the gate will run on that same commit. Measured on the gate, 53 runs: engine median 4.2 min
+# (max 5.1), bars median 8.5 (max 10.5). They run beside the static check (median 10.6 min in merge groups), so
+# the queue's wall time barely moves; the cost is about 13 runner-minutes a merge group.
+#
+# THE CHECK. `verdict` is the ONE name a ruleset requires: `merge queue gate rails`. It runs even when a job
+# failed or was cancelled, and passes only if both jobs succeeded (a skipped job counts as passing for a required
+# check, so the two jobs carry no condition and the verdict tests each result by name).
+# A required check must also report on a pull request's head, or the pull request can never enter the queue:
+# gate-rails-queue-pr.yml posts the same name there (it runs nothing; the pull request's own engine and bars
+# workflows are path-filtered and stay advisory). One name, two posters, as the Agent verdict has.
+#
+# NOT here: the gate's Agent jobs (the Agent verdict covers Agent pull requests) and its static steps (the
+# static check). The names of this file's jobs differ from the gate's on purpose: a merge group's commit is the
+# commit that lands, and the gate then runs on it; two check runs of one name on one commit would be read as one.
+name: gate rails (merge queue)
+
+on:
+  merge_group:
+
+permissions:
+  contents: read
+
+jobs:
+  engine:
+    name: engine whole-app rails (merge queue)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      UCT_VENDOR_CAPTURE_STORE: /tmp/pine-heavy-empty-store/captures
+      UCT_HARNESS_SUPPLY_STORE: /tmp/pine-heavy-empty-store/supply
+      NODE_OPTIONS: --max-old-space-size=6144
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # full history: listed rails read StockChart.jsx at an older commit (`git show <sha>:...`)
+          fetch-depth: 0
+      - uses: ./.github/actions/pine-heavy-setup
+      - name: The list names real engine test files, once each
+        run: python3 tools/ci_whole_app_rails.py --verify-list
+      - name: The whole-app rails (offline)
+        working-directory: app
+        run: |
+          set -euo pipefail
+          files="$(python3 ../tools/ci_whole_app_rails.py --print-list)"
+          echo "$files"
+          # shellcheck disable=SC2086
+          bash ../tools/ci_offline.sh npx vitest run $files --maxWorkers=2             --reporter=default --reporter=json --outputFile=../whole-app-report.json
+      - name: Every listed file ran
+        run: python3 tools/ci_whole_app_rails.py --ran whole-app-report.json
+
+
+  bars:
+    name: bars rails (merge queue)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install the bars rails' dependencies
+        run: |
+          sudo mkdir -p /data && sudo chown "$(id -u):$(id -g)" /data
+          python -m pip install --quiet -r requirements.txt
+          (cd app && npm ci --no-audit --no-fund)
+
+      - name: Bars rails (tools/bars_gate_rails.py)
+        run: |
+          set -euo pipefail
+          files="$(python tools/bars_gate_rails.py)"
+          test -n "$files"
+          echo "bars rails: $(echo "$files" | wc -w) files"
+          python -m pytest $files -q -p no:cacheprovider
+
+
+  # One named verdict. Runs even when a job above failed or was cancelled, and passes ONLY if both succeeded.
+  verdict:
+    name: merge queue gate rails
+    needs: [engine, bars]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Both rails succeeded
+        env:
+          ENGINE: ${{ needs.engine.result }}
+          BARS: ${{ needs.bars.result }}
+        run: |
+          echo "engine rails: $ENGINE"
+          echo "bars rails: $BARS"
+          test "$ENGINE" = "success"
+          test "$BARS" = "success"

@@ -17,6 +17,7 @@
 import { registerCapability } from '../capabilities'
 import { pickComparisonColor } from '../../components/chart/comparisonUtils'
 import { GROUP_TYPES, readGroupList, fetchGroupMembers, withGroupAdded, withoutGroup, withGroupScale, groupsIn } from '../../pages/charts/compareGroups'
+import { compareGroupOfWords } from './comparePhrases'
 
 const TYPES = GROUP_TYPES.map(t => t.key)            // theme | sector | industry
 const comps = (cs) => (Array.isArray(cs?.comparisonSymbols) ? cs.comparisonSymbols : [])
@@ -109,6 +110,11 @@ export function registerCompareGroupCapability() {
   registerCapability({
     target: 'chart', surfaces: ['charts'], available: (ctx) => ctx.surface === 'charts',
     name: 'chartSetup.compareGroup',
+    // Compare family (11-23): the general reader (comparePhrases.compareGroupOfWords); a group's NAME is still matched by UCT.
+    // ⛔ ADD stays the model's for now: reading it instantly changes the LOCKED capreg intent compare.group.aiChips (it has
+    // no deterministic plan), which needs an owner decision (BASELINE:compare.group.aiChips). Remove / scale are instant.
+    fastWhole: true,
+    fast: (p) => { const r = compareGroupOfWords(p); return r && r.action !== 'add' ? r : null },
     summary: 'Compare ONE chart against a whole GROUP (Tools → Compare Symbols → Themes / Sectors / Industries): add every member of a theme, sector or industry as overlay lines, remove a compared group, or put a compared group on the main price scale ("same") or its own % scale ("new"). For single tickers use chart.compare.',
     hints: 'action = add | remove | scale. group = the group\'s name as the member said it ("semis", "AI Chips", "Technology"); UCT matches it itself and asks when it could be more than one, so pass the words, never a guess. groupType = theme | sector | industry when the member said which, else any. scale = same | new for action scale, else null. "Compare NVDA against the semis group" = target the NVDA chart, action add, group "semis".',
     args: { type: 'object', properties: {

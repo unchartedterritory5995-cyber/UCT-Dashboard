@@ -137,6 +137,13 @@ export function bucketEnd(t, state) {
   return bucketEndUnix(t, Number(tf), { grid: _gridFor(state) })
 }
 
+/** The frame an answer's rows are read in (applyRest `working`): the entry, on the server's grid when the answer names
+ *  one (the server owns row identity), else on its own. persist reads a waiting device copy against an answer in the
+ *  same frame (persist.flushJoins, review of #2615). */
+export function answerFrame(state, p) {
+  return { ...state, grid: p.grid ?? state.grid }
+}
+
 // ── bar shapes ───────────────────────────────────────────────────────────────
 
 function _vol(v) { const n = Number(v); return Number.isFinite(n) && n >= 0 ? n : 0 }
@@ -600,7 +607,6 @@ function applyRest(state, action, ctx, kind) {
   const inCk = p.cache_key ?? null
   const inHist = numOrNull(p.history_rev)
   const inSeries = numOrNull(p.series_rev)
-  const inGrid = p.grid ?? null
   const inAdj = _stampOf(p)
 
   // S8: seals RESTORED from a persisted copy (spans held before any server answer) are only
@@ -642,8 +648,8 @@ function applyRest(state, action, ctx, kind) {
       gen: state.gen, depthFloor: state.depthFloor, invalidatedFor: ckChanged ? ckWhy : 'history_rev' })
   }
   // A grid the rows were not built on cannot merge (the server owns row identity).
-  const stGrid = inGrid ?? state.grid
-  const working = { ...state, grid: stGrid }
+  const working = answerFrame(state, p)
+  const stGrid = working.grid
 
   const nowSec = Math.floor((ctx.nowMs ?? Date.now()) / 1000)
   const rev = inSeries

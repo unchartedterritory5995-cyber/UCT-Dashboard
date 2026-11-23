@@ -43,6 +43,9 @@ UNFILTERED_PR_OK = {
     # 2026-11-20: the master deploy gate's static checks, before the merge (three gate reds in one day on checks only
     # the gate ran). PRs into master only, no push trigger; ~3 min, mostly the 80 s shadow sweep
     "gate-static-rails-pr.yml": "the hygiene check's subject is every tracked file and the shadow sweep's every module",
+    # 2026-11-23: the pull-request half of the required check `merge queue gate rails`. A required check must report
+    # on EVERY pull request's head or that pull request cannot enter the queue; one job, no checkout, a few seconds
+    "gate-rails-queue-pr.yml": "it posts the name of a required check on every pull request; it runs nothing",
 }
 
 
