@@ -35,7 +35,9 @@
 // ⭐ WHY IT IS OFF DECIDES WHETHER THE PACKS GO (review of #2563, MEDIUM-1 / MEDIUM-2). deviceStoreOffReason names it,
 // once per page load like the answer itself, and source.deviceSource acts on it:
 //   'device-purge'      the server's purge (`uct_device_store=purge`)          -> the packs are DELETED
-//   'member-off'        the member's own key, exactly '0'                      -> DELETED ('0' is the off switch; no UI)
+//   'member-off'        the member's own key, exactly '0'                      -> DELETED ('0' is the off switch: Settings →
+//                                                                                 Faster charts on this device → Off;
+//                                                                                 its "Automatic" REMOVES the key, never '1')
 //   'default-off'       no key, and the default reads OFF (a phone, a touch-tier tablet, a narrow window, a metered
 //                       connection: it changes from load to load)              -> KEPT, unused; deleted only once the
 //                                                                                 store has not run here for 30 days
@@ -106,6 +108,11 @@ export function deviceStoreKeyState() {
   if (_key === null) _key = _readKey()
   return _key
 }
+
+/** The key's state as it is stored NOW (read fresh, not latched; same names as deviceStoreKeyState). Settings → Faster
+ *  charts on this device (pages/settings/FasterChartsCard.jsx) shows it beside this page load's answer, so a change the
+ *  member just made reads as "applies on the next load". Never throws. */
+export function deviceStoreKeyNow() { return _readKey() }
 
 function _read() {
   const k = deviceStoreKeyState()

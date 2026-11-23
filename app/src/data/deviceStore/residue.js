@@ -18,7 +18,9 @@
 //                            DEVICE_LAST_RUN_FUTURE_MAX_MS; a stamp further ahead of a run's clock is corrupt (a clock once
 //                            set to 2099 would keep an abandoned seed "not stale" for ever: review of #2537 head
 //                            107dea1ee1, P-3 a) and the run overwrites it. A page left on refreshes it on its 30-minute
-//                            re-check and every committed generation (client.js).
+//                            re-check and every committed generation (client.js). To the stale rule a stamp that far
+//                            ahead is corrupt too (deviceFilesStale): stale-eligible, for a browser whose LAST run
+//                            wrote it and that never runs the store again (review of #2537 head f16a87dd98, Q-1.4).
 //   'uct.deviceStore.staleSince'  the first off-by-default load that saw the seed stale (ms). A stale seed goes only
 //                            when a SECOND such load, at least DEVICE_FILES_STALE_CONFIRM_MS later, still sees it stale
 //                            (review of #2563 round 2: the rule trusts the local clock, so one load under a clock that ran
@@ -56,12 +58,16 @@ export function deviceFilesMayExist(switchKeyStored = false) {
   } catch { return false }
 }
 
-/** Has the store not started here for DEVICE_FILES_STALE_MS? No stamp, an unreadable one, or one from the future (a
- *  clock set back): NOT stale (keep). Never throws. */
+/** Has the store not started here for DEVICE_FILES_STALE_MS? No stamp or an unreadable one: NOT stale (keep). A stamp
+ *  from the future up to DEVICE_LAST_RUN_FUTURE_MAX_MS ahead (a clock set back after a run): NOT stale. A stamp further
+ *  ahead is corrupt, as it is to a run (noteDeviceFiles), and stale-ELIGIBLE: a browser whose LAST run wrote one (its
+ *  clock far ahead then) has no later run to overwrite it, and kept its seed until real time passed the stamp (review of
+ *  #2537 head f16a87dd98, Q-1.4). deviceFilesStaleConfirmed still wants two such loads 24 h apart. Never throws. */
 export function deviceFilesStale(nowMs) {
   try {
     const t = Number(localStorage.getItem(DEVICE_LAST_RUN_KEY))
-    if (!Number.isFinite(t) || t <= 0 || t > nowMs) return false
+    if (!Number.isFinite(t) || t <= 0) return false
+    if (t > nowMs) return t - nowMs > DEVICE_LAST_RUN_FUTURE_MAX_MS
     return nowMs - t >= DEVICE_FILES_STALE_MS
   } catch { return false }
 }
