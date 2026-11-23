@@ -839,25 +839,28 @@ describe('the runtime lane\'s own disclosure of the calls it never draws is a wi
     expect(status.items.some((x) => x.kind === 'pane-note' && x.reason === own.note)).toBe(false)
   })
 
-  it('real door: a level the chart door never draws, on either lane, is a withheld value on its line, the door\'s own note', () => {
+  it('real door (e96): a level both doors DRAW is no withheld value; one the chart door cannot read is, on its line', () => {
     const host = statusOf('//@version=6\nindicator("h")\nplot(ta.rsi(close, 14), "RSI")\nhline(70, "OB")').status
-    const levels = host.items.filter((x) => x.name === '`hline`')
+    expect(host.items.filter((x) => x.name === '`hline`')).toEqual([])
+    expect(host.state).toBe('runs')
+    const unread = statusOf('//@version=6\nindicator("h")\nplot(ta.rsi(close, 14), "RSI")\nhline(close)').status
+    const levels = unread.items.filter((x) => x.name === '`hline`')
     expect(levels).toHaveLength(1)
     expect(levels[0]).toMatchObject({ severity: SEVERITY.WITHHELD, line: 4, guard: 'pine:chart-only' })
-    expect(levels[0].reason).toMatch(/^`hline` is not drawn on this chart/)
-    expect(host.headline).toBe('Runs on the chart and in alerts, 1 value withheld (not guessed)')
-    // the runtime lane: its document carries no level either, and says nothing of one
+    expect(levels[0].reason).toMatch(/^`hline` is not drawn: its price is not one fixed number or one setting/)
+    // the runtime lane draws the level too, and lists nothing for it
     runtimeOn()
     const { pane, status } = statusOf('//@version=6\nindicator("r")\nvar float acc = 0\nacc += close\nplot(acc, "Acc")\nhline(50, "Mid")')
     expect(pane.lane, 'control: the runtime lane draws it').toBe('runtime')
-    expect(status.items.filter((x) => x.name === '`hline`').map((x) => x.line)).toEqual([6])
+    expect(pane.definition.plots.filter((p) => p.style === 'hlines').map((p) => p.levels)).toEqual([[50]])
+    expect(status.items.filter((x) => x.name === '`hline`')).toEqual([])
   })
 
-  it('real door: a band between two levels is not carried; a band between two plots is (control)', () => {
+  it('real door: a band between two levels is not carried (the levels are, e96); a band between two plots is (control)', () => {
     const src = '//@version=6\nindicator("b")\nplot(ta.rsi(close, 14), "RSI")\nh1 = hline(70)\nh2 = hline(30)\nfill(h1, h2)'
     const undrawn = statusOf(src).status.items.filter((x) => x.kind === 'undrawn')
       .map((x) => [x.name, x.line]).sort((a, b) => a[1] - b[1])
-    expect(undrawn).toEqual([['`hline`', 4], ['`hline`', 5], ['`fill`', 6]])
+    expect(undrawn).toEqual([['`fill`', 6]])
     // control: the band between two plots IS carried, so nothing is withheld for it
     expect(statusOf(FILL).status.items.some((x) => x.kind === 'undrawn')).toBe(false)
   })

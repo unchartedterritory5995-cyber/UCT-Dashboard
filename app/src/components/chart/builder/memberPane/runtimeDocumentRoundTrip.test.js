@@ -147,10 +147,12 @@ describe('RF — what a runtime document does not draw is named, paints included
     expect(((built.translation.presentation || {}).paints || []).length).toBe(0)
     expect(built.definition.meta.disclosures.map((d) => d.name)).not.toContain('Not drawn by this pane')
   })
-  it('⭐⭐ THE FAMILY LEDGER — adx-and-di-for-v4\'s `hline`, drawn by no runtime document, is named', () => {
+  it('⭐⭐ e96 — adx-and-di-for-v4\'s `hline` is DRAWN by its runtime document, at its setting, its unwitnessed v4 style named', () => {
     flagsOn()
     const { built } = mint(RUNTIME_ONLY[0], 0) // adx-and-di-for-v4
-    const note = built.definition.meta.disclosures.find((d) => d.name === 'Not drawn by this pane')
-    expect(note && note.note).toContain('a horizontal line')
+    expect(built.definition.plots.filter((p) => p.style === 'hlines').map((p) => [p.key, p.levels])).toEqual([['hline1', ['$th']]])
+    expect(built.definition.meta.disclosures.map((d) => d.name)).not.toContain('Not drawn by this pane')
+    expect(built.definition.meta.disclosures.find((d) => d.name === 'hline 1').note)
+      .toMatch(/style not reproduced: TradingView's default line style for a v4 `hline` is not captured/)
   })
 })

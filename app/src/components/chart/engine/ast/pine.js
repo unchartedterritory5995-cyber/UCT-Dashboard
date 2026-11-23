@@ -30454,6 +30454,13 @@ function translatePineResult(source, opts = {}) {
         hiddenReason: authorHid ? 'author' : fillAnchor ? 'fill-anchor' : flat ? 'constant' : null,
         refusal: null,
       }
+      // ⭐⭐ e96 — A CANDLE'S OWN FACTS, ON ITS CLOSE ROW: where and whether TradingView draws it (`show_last`,
+      // `display`, `force_overlay`) and the colour of its body, wick and border, each as the PACKED colour the
+      // chart's candle reads per bar (`binder.computedOhlcPayload`), or why it cannot be carried. The member door
+      // asks the one candle rule both doors share (`memberPaneDefinition.js::candleRule`) whether it is drawn.
+      if (out.role === 'close' && Object.prototype.hasOwnProperty.call(MULTI_OUTPUT_CALLS, out.kind)) {
+        row.candle = candleFactsOf(args, out.kind, { env, resolver })
+      }
       Object.defineProperty(row, '_bareRole', { value: bareRole, enumerable: false })
       // ⭐ C29 — this plot folded a chart-period value (`periodReads.js` refuses
       // it, and only it, on a chart of another period). A hand-off, non-enumerable.
@@ -33835,19 +33842,23 @@ function resolveHlineLevels(calls, { makeResolver, version, notes }) {
       notes.length = n0
     }
     const used = [...r.usedInputs.entries()].filter(([key]) => !before.has(key)).map(([, e]) => e)
-    let value = null
+    // a canonical number: `num`, or a negative one, which is `u-` over a positive `num` (`cNum`)
+    const numberOf = (n) => (n && n.type === 'num' && Number.isFinite(n.value) ? n.value
+      : n && n.type === 'op' && n.name === 'u-' && n.args && n.args.length === 1 && n.args[0].type === 'num'
+        && Number.isFinite(n.args[0].value) ? -n.args[0].value : null)
+    const fromSettings = () => ({ withheld: 'its price is computed from settings (`' + used.map((e) => e.name || '?').join('`, `')
+      + '`), and a level follows one setting or none' })
+    let value = numberOf(ast)
     let input = null
-    if (ast && ast.type === 'num' && Number.isFinite(ast.value)) {
-      value = ast.value
+    if (value !== null) {
       if (used.length === 1 && used[0].name && Number(used[0].folded) === value) input = used[0]
-      else if (used.length) {
-        return { withheld: 'its price is computed from settings (`' + used.map((e) => e.name || '?').join('`, `')
-          + '`), and a level follows one setting or none' }
-      }
+      else if (used.length) return fromSettings()
     } else if (ast && ast.type === 'series' && used.length === 1 && used[0].name === ast.name
         && Number.isFinite(Number(used[0].folded))) {
       value = Number(used[0].folded)
       input = used[0]
+    } else if (used.length) {
+      return fromSettings()
     } else {
       return { withheld: 'its price is not one fixed number or one setting this door can read' }
     }
@@ -33901,6 +33912,80 @@ function resolveHlineLevels(calls, { makeResolver, version, notes }) {
       },
     }
   })
+}
+
+/** ⭐⭐ e96 — `plotcandle` / `plotbar` parameters in Pine's positional order (v5/v6). */
+const CANDLE_POSITIONAL = Object.freeze({
+  plotcandle: Object.freeze(['open', 'high', 'low', 'close', 'title', 'color', 'wickcolor', 'editable', 'show_last',
+    'bordercolor', 'display', 'format', 'precision', 'force_overlay']),
+  plotbar: Object.freeze(['open', 'high', 'low', 'close', 'title', 'color', 'editable', 'show_last', 'display',
+    'format', 'precision', 'force_overlay']),
+})
+const CANDLE_COLOUR_PARAMS = Object.freeze({ plotcandle: ['color', 'wickcolor', 'bordercolor'], plotbar: ['color'] })
+
+/** ⭐⭐ e96 — a candle colour as the PACKED per-bar colour the chart's candle reads (`0xTTBBGGRR`,
+ *  `runtime/colours.js`): one static colour, or a two-colour rule over its condition, as a tree; anything else
+ *  is `{withheld}` with the reason. ⛔ Never a guess: a colour this cannot pack is withheld, never approximated. */
+function packedColourTreeOf(pres) {
+  const packed = (hex, opacity) => {
+    if (typeof hex !== 'string') return null
+    let h = hex
+    if (/^#[0-9a-f]{6}$/i.test(h) && Number.isFinite(opacity) && opacity < 1) {
+      h += Math.round(Math.max(0, opacity) * 255).toString(16).padStart(2, '0')
+    }
+    return objectHexToPacked(h)
+  }
+  const tree = (ast) => {
+    const formula = printFormula(ast)
+    verifyRoundTrip(formula, ast)
+    return { ast, formula }
+  }
+  if (!pres || pres.colorWithheld || pres.colorDynamic || pres.colorDynamicArity !== undefined) {
+    return { withheld: 'its colour is an expression this door cannot read yet' }
+  }
+  if (typeof pres.color === 'string') {
+    const p = packed(pres.color, pres.opacity)
+    return p === null ? { withheld: 'its colour is not one a candle here can carry' } : tree(cNum(p))
+  }
+  if (typeof pres.colorUp === 'string' && typeof pres.colorDown === 'string' && pres.colorCondition && pres.colorCondition.ast) {
+    const up = packed(pres.colorUp, pres.opacity)
+    const down = packed(pres.colorDown, pres.opacity)
+    if (up === null || down === null) return { withheld: 'its colour is not one a candle here can carry' }
+    return tree(cOp('?:', [pres.colorCondition.ast, cNum(up), cNum(down)]))
+  }
+  return { withheld: 'its colour picks among more than two colours, or by a rule a candle here cannot carry yet' }
+}
+
+/** ⭐⭐ e96 — what a `plotcandle` / `plotbar` call says about where it is drawn and in what colours (the close row
+ *  carries it, `row.candle`): `showLast`, `display` (the constant's name, or `'unread'`), `forceOverlay`
+ *  (`true` / `false` / `'unread'`), and `colours[param]` for each colour the call WRITES (absent when it does not). */
+function candleFactsOf(args, kind, ctx) {
+  const byName = new Map()
+  let k = 0
+  for (const a of args || []) {
+    const nm = a.name || CANDLE_POSITIONAL[kind][k++]
+    if (nm && !byName.has(nm)) byName.set(nm, a)
+  }
+  const facts = { call: kind, colours: {} }
+  const titleArg = byName.get('title')
+  if (titleArg && titleArg.value && titleArg.value.type === 'string') facts.title = titleArg.value.value
+  if (byName.has('show_last')) facts.showLast = true
+  if (byName.has('display')) {
+    const d = byName.get('display').value
+    facts.display = d && d.type === 'name' ? d.name : 'unread'
+  }
+  if (byName.has('force_overlay')) {
+    const f = byName.get('force_overlay').value
+    const tok = f && f.type === 'number' && f.tok ? f.tok.value : null
+    facts.forceOverlay = tok === 'true' ? true : tok === 'false' ? false : 'unread'
+  }
+  for (const param of CANDLE_COLOUR_PARAMS[kind]) {
+    if (!byName.has(param)) continue
+    let pres = null
+    try { pres = outputPresentation([{ ...byName.get(param), name: 'color' }], { env: ctx.env, resolver: ctx.resolver, kind }) } catch { pres = null }
+    try { facts.colours[param] = packedColourTreeOf(pres) } catch { facts.colours[param] = { withheld: 'its colour could not be read' } }
+  }
+  return facts
 }
 
 function resolvePaints(paints, ctx) {

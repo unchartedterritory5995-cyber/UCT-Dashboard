@@ -220,7 +220,9 @@ export const FAMILIES = Object.freeze([
       // engine 58 colours (landing train 1): a colour withheld by name, never drawn in a made-up one
       'pine:colour-unread', 'pine:colour-default-unwitnessed',
       // a `plotarrow` (TradingView's up and down arrows) is not drawn as a line of its value: withheld by name
-      'pine:plotarrow-not-drawn'],
+      'pine:plotarrow-not-drawn',
+      // e96 — a candle or bar the one candle rule withholds (never four lines in its place): by name
+      'pine:candle-not-drawn'],
     prefix: ['pine:offset-negative', 'paint:', 'runtime:fill-', 'format:'],
     label: 'How it is drawn',
     why: 'The value is computed, but this way of drawing it is not supported yet, so it is not drawn '

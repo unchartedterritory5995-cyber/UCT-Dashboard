@@ -138,6 +138,7 @@
   "pine:calc-bars-forming",
   "pine:calc-bars-objects",
   "pine:calc-bars-request",
+  "pine:candle-not-drawn",
   "pine:character",
   "pine:chart-only",
   "pine:collection",

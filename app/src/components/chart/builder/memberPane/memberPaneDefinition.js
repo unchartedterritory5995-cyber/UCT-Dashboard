@@ -643,7 +643,10 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
   const allPaints = ((t.presentation || {}).paints || []).filter(Boolean)
   const drawnPaints = allPaints.filter((p) => !p.withheld && !p.hidden && !p.na)
   const drawsPaints = drawnPaints.length > 0
-  if (!visible.length && !(allowObjectsOnly && (drawsObjects || drawsPaints))) {
+  // ⭐⭐ e96 — a candle whose four prices are the chart's own (passthrough) is a DRAWING (its colours are the
+  // indicator), so a script whose only drawing it is reaches the candle rule below, drawn or refused by name.
+  const drawsCandles = carryable.some((o) => o && o.candle && Object.prototype.hasOwnProperty.call(RUNTIME_CANDLE_STYLE, o.kind))
+  if (!visible.length && !drawsCandles && !(allowObjectsOnly && (drawsObjects || drawsPaints))) {
     // ⭐⭐ CBC-FMT — a windowed script whose only drawing is its host object program: that
     // program has no window yet, so it is refused by name, never "declares nothing".
     if (windowed && hostObjectsWouldDraw) return no(CALC_BARS_DRAWINGS_NOTE, 'pine:calc-bars-objects', t)
@@ -848,6 +851,59 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
       } : {}),
     }
   })
+
+  // ⭐⭐ e96 — THE CANDLES AND BARS (coordinator ruling R1, 2026-11-22): a `plotcandle` / `plotbar` is drawn as the
+  // candle or bar TradingView draws, or withheld BY NAME — never as four lines. ⚰️ The host door drew a computed
+  // candle's open, high, low and close as four lines (22 member-served scripts of the full census), and hid a candle
+  // whose four prices are the chart's own (`hiddenReason: 'passthrough'`) without a word (13 more). Now its close
+  // row IS the candle (`style: 'candles' | 'ohlcBars'`, the runtime document's shape), its other three prices ride as
+  // hidden columns, and its colours as packed colour columns (`pine.js::candleFactsOf`), each asked of the ONE candle
+  // rule both doors share (`candleRule`). A candle that fails it hides all four rows and says why.
+  const hostCandleOf = new Map()
+  const candleNotes = []
+  {
+    const outs = t.outputs || []
+    const overlayScript = !!(t.presentation && t.presentation.overlay === true)
+    const seenKinds = new Map()
+    drawable.forEach((o, i) => {
+      if (!o || !o.candle || !Object.prototype.hasOwnProperty.call(RUNTIME_CANDLE_STYLE, o.kind)) return
+      const ord = (seenKinds.get(o.kind) || 0) + 1
+      seenKinds.set(o.kind, ord)
+      const at = outs.indexOf(o)
+      const arms = at >= 3 ? [outs[at - 3], outs[at - 2], outs[at - 1]] : []
+      const armIdx = arms.map((g) => drawable.indexOf(g))
+      // a candle its author hid (`display = display.none`) draws nothing on TradingView either: hidden, unnamed
+      if ((o.candle && o.candle.display === 'display.none') || o._authorHidden === true || o.hiddenReason === 'author') {
+        for (const j of [...armIdx.filter((j) => j >= 0), i]) rows[j].hidden = true
+        return
+      }
+      const name = (o.candle && o.candle.title) || `${o.kind} ${ord}`
+      const complete = arms.length === 3 && armIdx.every((j) => j >= 0)
+        && arms.every((g) => g && g.kind === o.kind && hostCarriesRow(g))
+      const rule = complete
+        ? hostCandlePresentation(o.kind, t.version, o.candle, overlayScript)
+        : { ok: false, why: 'one of its four prices is not carried (that line says why)' }
+      if (!rule.ok) {
+        for (const j of [...armIdx.filter((j) => j >= 0), i]) rows[j].hidden = true
+        candleNotes.push({ name, note: `\`${name}\` is not drawn: ${rule.why}. Nothing is drawn for it rather than a guess.` })
+        return
+      }
+      for (const j of armIdx) rows[j].hidden = true
+      const row = rows[i]
+      for (const f of ['colorMode', 'colorUp', 'colorDown', 'colorPalette', 'colorGradient', 'colorWithheld', 'opacity']) delete row[f]
+      Object.assign(row, { style: RUNTIME_CANDLE_STYLE[o.kind], hidden: false, color: COLOUR_NONE, label: o.candle.title || row.label })
+      const ohlcColors = {}
+      for (const [part, tree] of Object.entries(rule.colours)) ohlcColors[part] = conditionColumnFor(tree)
+      hostCandleOf.set(row.key, {
+        ohlc: { open: rows[armIdx[0]].key, high: rows[armIdx[1]].key, low: rows[armIdx[2]].key },
+        ohlcColors,
+      })
+    })
+  }
+  // ⛔ A SCRIPT WHOSE ONLY DRAWING IS A CANDLE THE RULE WITHHOLDS IS REFUSED BY NAME, never served blank.
+  if (candleNotes.length && !rows.some((r) => r && !r.hidden) && !drawsObjects && !drawsPaints) {
+    return no(`this script is not drawn: ${candleNotes.map((n) => n.note).join(' ')}`, 'pine:candle-not-drawn', t)
+  }
 
   // ⭐⭐ (j) j.1 — THE FILLS, CARRIED BY THE ANCHORS THEY ALREADY NAME.
   //
@@ -1208,6 +1264,10 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
   // ⭐⭐ ENGINE 58 — a withheld colour's name rides on its built plot
   // (`buildDefinition` projects only the fields it knows).
   definition.plots = withColourWithheld(definition.plots, rows)
+  // ⭐⭐ e96 — a candle row names its price and colour columns, as the runtime document's does.
+  if (hostCandleOf.size) {
+    definition.plots = definition.plots.map((pl) => (pl && hostCandleOf.has(pl.key) ? { ...pl, ...hostCandleOf.get(pl.key) } : pl))
+  }
   // ⭐⭐ e96 — the levels ride after every data row (`pool.planBindings` hangs them on the first visible one).
   if (levelPlan.guides.length) definition.plots = [...definition.plots, ...levelPlan.guides]
   // ⭐⭐ DIV-4 — A `barcolor` WHOSE COLOUR THE HOST LANE WITHHELD, READ FROM THE
@@ -1319,6 +1379,13 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
   }
   // ⭐⭐ ENGINE 58 — A COLOUR WITHHELD BY NAME IS SAID SO, row by row.
   for (const n of colourWithheldNotes(rows)) {
+    const key = `${n.name} :: ${n.note}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    notes.push(n)
+  }
+  // ⭐⭐ e96 — A CANDLE OR BAR THAT IS NOT DRAWN IS SAID SO, by its title (never a silent hidden row).
+  for (const n of candleNotes) {
     const key = `${n.name} :: ${n.note}`
     if (seen.has(key)) continue
     seen.add(key)
@@ -1991,32 +2058,60 @@ const RUNTIME_CANDLE_STYLE = Object.freeze({ plotcandle: OHLC_DEF_STYLES[0], plo
  *  @param {boolean} overlay  the script is an `overlay = true` one
  *  @returns {{ok: true, colours: object} | {ok: false, why: string}} */
 function runtimeCandlePresentation(kind, version, ro, overlay) {
+  const c = (ro && ro.candle) || {}
+  const field = { color: 'colour', wickcolor: 'wick', bordercolor: 'border' }
+  return candleRule(kind, version, {
+    showLast: c.showLast, display: c.display, forceOverlay: c.forceOverlay,
+    colour: (param) => {
+      const f = ro && ro[field[param]]
+      if (!f) return { absent: true }
+      return Number.isInteger(f.output) ? { value: f.output } : { refused: f.refused || 'unreadable' }
+    },
+  }, overlay, 'this lane could not compute')
+}
+
+/** ⭐⭐ e96 — THE ONE CANDLE RULE, BOTH DOORS (coordinator ruling R1, 2026-11-22): whether a `plotcandle` /
+ *  `plotbar` is drawn as the candle or bar TradingView draws, or withheld by name. The runtime door asks it of
+ *  the run's descriptor (`runtimeCandlePresentation`); the host door of the translation's own candle facts
+ *  (`pine.js::candleFactsOf`, `hostCandlePresentation`). ⛔ Never four lines in a candle's place.
+ *  @param {{showLast?, display?, forceOverlay?, colour: (param) => ({value}|{absent}|{refused})}} facts */
+function candleRule(kind, version, facts, overlay, couldNot) {
   const why = (w) => ({ ok: false, why: w })
   if (!(Number.isInteger(version) && version >= 5)) {
     return why(`the colour rules of a v${version ?? '1'} candle have no capture here`)
   }
-  const c = (ro && ro.candle) || {}
-  if (c.showLast === true) return why('its `show_last` limits the candle to the last bars, which this pane does not apply')
-  if (c.display !== undefined && c.display !== 'display.all' && c.display !== 'display.pane') {
-    return why(`its \`display = ${c.display}\` is not a place this pane reads`)
+  if (facts.showLast === true) return why('its `show_last` limits the candle to the last bars, which this pane does not apply')
+  if (facts.display !== undefined && facts.display !== 'display.all' && facts.display !== 'display.pane') {
+    return why(`its \`display = ${facts.display}\` is not a place this pane reads`)
   }
-  if (c.forceOverlay === 'unread') return why('its `force_overlay` is not a literal `true` or `false`')
-  if (c.forceOverlay === true && !overlay) {
+  if (facts.forceOverlay === 'unread') return why('its `force_overlay` is not a literal `true` or `false`')
+  if (facts.forceOverlay === true && !overlay) {
     return why('it asks for the price chart (`force_overlay = true`) from a script that is not an overlay')
   }
   const fields = kind === 'plotcandle'
-    ? [['body', 'colour', 'color'], ['wick', 'wick', 'wickcolor'], ['border', 'border', 'bordercolor']]
-    : [['body', 'colour', 'color']]
+    ? [['body', 'color'], ['wick', 'wickcolor'], ['border', 'bordercolor']]
+    : [['body', 'color']]
   const colours = {}
-  for (const [part, field, param] of fields) {
-    const f = ro && ro[field]
-    if (!f) return why(`it does not write \`${param} =\`, and TradingView's default for it is not captured`)
-    if (!Number.isInteger(f.output)) {
-      return why(`this lane could not compute its \`${param} =\` (${f.refused || 'unreadable'})`)
-    }
-    colours[part] = f.output
+  for (const [part, param] of fields) {
+    const f = facts.colour(param) || { absent: true }
+    if (f.absent) return why(`it does not write \`${param} =\`, and TradingView's default for it is not captured`)
+    if (f.refused !== undefined) return why(`${couldNot} its \`${param} =\` (${f.refused})`)
+    colours[part] = f.value
   }
   return { ok: true, colours }
+}
+
+/** ⭐⭐ e96 — the host door's question to `candleRule`, from the close row's own facts (`row.candle`). */
+function hostCandlePresentation(kind, version, facts, overlay) {
+  const f = facts || {}
+  return candleRule(kind, version, {
+    showLast: f.showLast, display: f.display, forceOverlay: f.forceOverlay,
+    colour: (param) => {
+      const c = f.colours && f.colours[param]
+      if (!c) return { absent: true }
+      return c.withheld ? { refused: c.withheld } : { value: c }
+    },
+  }, overlay, 'this door could not carry')
 }
 
 /* ⚰️ RT2 — `RUNTIME_REPAINT_RISK` (a regex over the raw source, comments
