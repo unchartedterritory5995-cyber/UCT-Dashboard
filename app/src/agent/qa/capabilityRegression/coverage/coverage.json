@@ -1792,7 +1792,7 @@
     "multiStep": false,
     "phrasings": true
    },
-   "phrasings": 8,
+   "phrasings": 20,
    "evidence": {
     "nl": [
      "chart.setSetting.gradient: \"turn the gradient off on this chart\"",
@@ -1812,21 +1812,33 @@
     ],
     "args": [
      "corpus chart.setSetting.gradient",
-     "corpus chart.setSetting.grid"
+     "corpus chart.setSetting.grid",
+     "corpus chart.setSetting.legendHold",
+     "corpus chart.setSetting.barInfoOpen",
+     "corpus chart.setSetting.infoRowStat"
     ],
     "execution": [
      "chart.setSetting.gradient (c)",
-     "chart.setSetting.grid (c)"
+     "chart.setSetting.grid (c)",
+     "chart.setSetting.legendHold (c)",
+     "chart.setSetting.barInfoOpen (c)",
+     "chart.setSetting.infoRowStat (c)"
     ],
     "receipt": [
      "chart.setSetting.gradient (c)",
-     "chart.setSetting.grid (c)"
+     "chart.setSetting.grid (c)",
+     "chart.setSetting.legendHold (c)",
+     "chart.setSetting.barInfoOpen (c)",
+     "chart.setSetting.infoRowStat (c)"
     ],
     "refusal": [],
     "permission": [],
     "undo": [
      "chart.setSetting.gradient: undo restores",
-     "chart.setSetting.grid: undo restores"
+     "chart.setSetting.grid: undo restores",
+     "chart.setSetting.legendHold: undo restores",
+     "chart.setSetting.barInfoOpen: undo restores",
+     "chart.setSetting.infoRowStat: undo restores"
     ],
     "multiStep": [],
     "phrasings": []
@@ -3476,7 +3488,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false,
+   "fast": true,
    "protections": {
     "nl": false,
     "routing": false,
