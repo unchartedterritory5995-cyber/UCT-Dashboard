@@ -1926,6 +1926,19 @@
    ],
    "fast": true
   },
+  "newsLibrary.toNotebook": {
+   "domain": "newsLibrary",
+   "group": "newsLibrary",
+   "target": "newsLibrary",
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "none",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true
+  },
   "pane.move": {
    "domain": "pane",
    "group": "indicatorSetup",
