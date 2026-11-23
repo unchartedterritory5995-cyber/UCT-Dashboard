@@ -150,6 +150,7 @@ const ARG_SAMPLE = {
   eehscWindow: '7D', eehscMetric: 'REVENUE',
   pubrView: 'TRIALS',
   oscrView: 'CHEAP', ipoView: 'LOCKUP',
+  ernscSeason: 'YEARAGO', ernscMetric: 'REVENUE',
 }
 
 afterEach(cleanup)

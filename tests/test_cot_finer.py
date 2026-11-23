@@ -11,7 +11,8 @@ Rails:
   * the plan asks for nothing when both reports hold the report due and every seed year; the year of the expected
     report first, then missing seed years newest first; a past year's 404 is not asked again;
   * a run: stores what it read, asks nothing the second time, keeps what it read on a refusal, a shape failure or
-    an oversized file, runs only inside the quiet span (scan_period's own rule) and one at a time;
+    an oversized file, runs only inside the quiet span (scan_period's own rule) and one at a time; a file of the
+    wrong shape does not end the run, and a past year's is remembered and not asked for again within the week;
   * the request path only reads: ok, no_record, not_built, unavailable; the board's watched class per report;
   * the routes: paid (401 / 402), 404 and 400 as the legacy route, declared before the catch-all, plain defs,
     and they never start a download.
@@ -25,7 +26,7 @@ import io
 import os
 import sqlite3
 import zipfile
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -264,6 +265,9 @@ def test_the_plan_seeds_newest_first_and_asks_nothing_once_everything_is_held(mo
     # a report due early in January can still be the previous year's: the plan follows the report, not the clock
     held_jan = {k: {2031: "2031-12-23", 2030: "2030-12-31", 2029: "2029-12-25"} for k in F.REPORTS}
     assert F.plan(held_jan, date(2031, 12, 30)) == [("tff", 2031), ("disaggregated", 2031)]
+    # a seed year whose file read as the wrong shape this week is left out; the year of the expected report never is
+    assert F.plan({}, want, {("tff", 2030), ("tff", 2031)}) == [("tff", 2031), ("disaggregated", 2031), ("tff", 2029),
+                                                                ("disaggregated", 2030), ("disaggregated", 2029)]
 
 
 # ── a run ──────────────────────────────────────────────────────────────────────────────────────
@@ -337,8 +341,11 @@ def test_a_refusal_stops_the_run_and_what_was_read_stays(run_env, monkeypatch):
     assert F.last_run()["state"] == "stopped"
 
 
+_BAD_SHAPE = ("FinFutYY.txt", "Market_and_Exchange_Names\nX\n")       # a zip whose text has no required column
+
+
+# The wrong shape left this list on 2026-11-22 on purpose: it no longer ends the run (the two tests below).
 @pytest.mark.parametrize("failure, state, reason", [
-    (("FinFutYY.txt", "Market_and_Exchange_Names\nX\n"), "shape", None),
     (F.TooLarge("x"), "failed", "too_large"),
     (500, "failed", "http_500"),
 ])
@@ -355,6 +362,63 @@ def test_a_bad_file_ends_the_run_without_touching_stored_weeks(run_env, monkeypa
     if reason:
         assert out["reason"] == reason
     assert F.market_answer("ES", 52)["rows"] == before["rows"]
+
+
+def test_a_seed_year_of_the_wrong_shape_is_remembered_and_the_run_reads_the_years_after_it(run_env, monkeypatch):
+    """One bad seed-year file used to end every run there: never stored, it was downloaded again by each run, and every
+    year after it in the plan (all the Disaggregated years come after the TFF ones) was never read."""
+    monkeypatch.setattr(S, "_SEED_YEARS", 3)
+    answers = _answers()
+    answers[_url("tff", 2030)] = _BAD_SHAPE
+    answers[_url("tff", 2029)] = ("FinFutYY.txt", text(tff_header(), [tff_lev("2029-12-25", 1000, 2000, 30)]))
+    answers[_url("disaggregated", 2029)] = ("f_year.txt", text(disagg_header(), [disagg_mm("2029-12-25", 4, 5, 6)]))
+    cftc = FakeCftc(answers)
+    monkeypatch.setattr(F, "_download", cftc)
+    first = datetime(2031, 3, 21, 21, 10, tzinfo=ET)
+    out = F.refresh(first)
+    assert cftc.asked == [_url("tff", 2031), _url("disaggregated", 2031), _url("tff", 2030), _url("tff", 2029),
+                          _url("disaggregated", 2030), _url("disaggregated", 2029)]
+    assert out["state"] == "shape" and out["shape"] == ["tff 2030"] and out["reason"].startswith("tff 2030: missing")
+    assert [(f["report"], f["year"]) for f in out["files"] if f["status"] == "read"] == [
+        ("tff", 2031), ("disaggregated", 2031), ("tff", 2029), ("disaggregated", 2029)]
+    assert F.last_run()["state"] == "shape" and F.market_answer("GC", 520)["rows"][0]["date"] == "2029-12-25"
+    with S._get_conn() as conn:
+        assert [tuple(r) for r in conn.execute("SELECT report, year FROM cot_finer_shape")] == [("tff", 2030)]
+    # the runs of the next week do not ask for it again
+    cftc.asked.clear()
+    for later in (timedelta(hours=8), timedelta(days=6, hours=23)):
+        again = F.refresh(first + later)
+        assert (again["state"], again["requests"]) == ("current", 0)
+    assert cftc.asked == []
+    # a week on it is asked for once more; read well, it is stored and the record goes
+    answers[_url("tff", 2030)] = ("FinFutYY.txt", text(tff_header(), [tff_lev("2030-12-30", 200000, 150000, 4000)]))
+    week = F.refresh(first + timedelta(days=7, minutes=1))
+    assert week["state"] == "built" and cftc.asked == [_url("tff", 2030)]
+    with S._get_conn() as conn:
+        assert conn.execute("SELECT COUNT(*) FROM cot_finer_shape").fetchone()[0] == 0
+    assert F.refresh(first + timedelta(days=7, hours=8))["state"] == "current"
+
+
+def test_the_expected_years_file_of_the_wrong_shape_is_asked_again_each_run_and_the_run_goes_on(run_env, monkeypatch):
+    monkeypatch.setattr(F, "_download", FakeCftc(_answers()))
+    F.refresh(datetime(2031, 3, 21, 21, 10, tzinfo=ET))
+    before = F.market_answer("ES", 52)
+    monkeypatch.setattr(S, "expected_latest_report_date", lambda now: date(2031, 3, 25))
+    answers = _answers()
+    answers[_url("tff", 2031)] = _BAD_SHAPE
+    answers[_url("disaggregated", 2031)] = ("f_year.txt", text(disagg_header(), [
+        disagg_mm("2031-03-18", 250000, 40000, 30000), disagg_mm("2031-03-25", 260000, 41000, 30000)]))
+    cftc = FakeCftc(answers)
+    monkeypatch.setattr(F, "_download", cftc)
+    out = F.refresh(datetime(2031, 3, 28, 21, 10, tzinfo=ET))
+    assert out["state"] == "shape" and out["shape"] == ["tff 2031"]
+    assert F.market_answer("ES", 52)["rows"] == before["rows"]            # the stored weeks are untouched
+    assert F.market_answer("GC", 52)["rows"][-1]["date"] == "2031-03-25"   # the file after it was still read
+    with S._get_conn() as conn:
+        assert conn.execute("SELECT COUNT(*) FROM cot_finer_shape").fetchone()[0] == 0   # the current year: no record
+    cftc.asked.clear()
+    F.refresh(datetime(2031, 3, 29, 5, 10, tzinfo=ET))
+    assert cftc.asked == [_url("tff", 2031)]                               # asked again on the next run
 
 
 def test_the_current_year_not_posted_yet_is_said_and_noted_nowhere(run_env, monkeypatch):
