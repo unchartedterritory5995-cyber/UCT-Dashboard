@@ -882,7 +882,7 @@ def test_a_new_symbols_partial_bucket_waits_for_its_first_seed():
         await until(lambda: _frames(c, T0))
         b = _frames(c, T0)[0].bar
         assert (b["o"], b["h"], b["l"], b["c"], b["v"]) == (5.0, 9.0, 4.0, 6.0, 210)
-        assert base.calls == [(T0, T0 + 31_001)]
+        assert base.calls == [(T0 - MIN, T0 + 31_001)]  # from M-1: the vendor had no bar for it
         rig.trade("ZZA", T0 + 32_000, 6.1, 10)             # live again, extending it
         await until(lambda: any(u.bar["c"] == 6.1 and u.bar["o"] == 5.0 and u.bar["v"] == 220
                                 for u in _frames(c, T0)))
@@ -970,7 +970,7 @@ def test_a_reopened_chart_reseeds_when_its_trades_stopped_in_between():
         await until(lambda: ("ZZA", "1") in rig.rt._key_routes)
         rig.trade("ZZA", T0 + 10 * MIN + 31_000, 6.0, 10)
         await until(lambda: _frames(c, T0 + 10 * MIN))
-        assert trades.calls[-1] == (T0 + 10 * MIN, T0 + 10 * MIN + 31_001)
+        assert trades.calls[-1] == (T0 + 9 * MIN, T0 + 10 * MIN + 31_001)  # from M-1: the vendor had no bar for it
         b = _frames(c, T0 + 10 * MIN)[0].bar
         assert (b["o"], b["h"], b["v"]) == (5.0, 9.0, 111), "the first frame carries the true minute"
         await c.close()
@@ -1020,7 +1020,7 @@ def test_a_seed_in_flight_from_before_a_t_restart_is_dropped():
         i = min(len(calls), 2)
         calls.append((a, b))
         gates[i].wait(2)
-        return [(a, 1.0 if i == 0 else 5.0, 100, []), (b - 1, 6.0, 10, [])]
+        return [(T0 + 1_000, 1.0 if i == 0 else 5.0, 100, []), (b - 1, 6.0, 10, [])]
 
     rig = Rig(seeding=True, trades=trades)
     rig.now[0] = T0 + 30_000
@@ -1207,7 +1207,7 @@ def test_a_seed_fetched_before_trades_flow_is_redone_when_the_first_trade_arrive
         assert calls == [] and not rig.rt.bc.covered("ZZA")
         rig.trade("ZZA", T0 + 45_000, 6.0, 10)             # T finally flows
         await until(lambda: _frames(c, T0))
-        assert calls == [(T0, T0 + 45_001)] and rig.rt.counters["reseeds_on_flow"] >= 1
+        assert calls == [(T0 - MIN, T0 + 45_001)] and rig.rt.counters["reseeds_on_flow"] >= 1
         assert _frames(c, T0)[0].bar["o"] == 5.0
         await c.close()
         await asyncio.wait_for(t, 2)
@@ -1229,7 +1229,7 @@ def test_a_seed_waits_for_the_first_trade_then_the_vendor_lag(monkeypatch):
         assert calls == [] and rig.rt.counters["seeds_started"] == 0, "no fetch before T flows"
         rig.trade("ZZA", T0 + 31_000, 6.0, 10)
         await until(lambda: rig.rt.counters["seeds_applied"] == 1)
-        assert calls == [(T0, T0 + 31_001)]
+        assert calls == [(T0 - MIN, T0 + 31_001)]  # from M-1: the vendor had no bar for it
         await c.close()
         await asyncio.wait_for(t, 2)
         await rig.rt.stop_reader()
@@ -1313,3 +1313,58 @@ def test_coverage_a_straggler_first_trade_does_not_open_the_gap():
     assert not b.trades_flowing("ZZA")
     _t(b, now, T0 + 5 * MIN + 400, 6.0)
     assert b.gap_window("ZZA") == (T0 + 5 * MIN, T0 + 5 * MIN + 400)
+
+
+def test_coverage_settled_is_judged_at_fetch_time_not_apply_time():
+    """Review 2026-11-23 (5th) #1: a slow answer must not pass M's partial REST bar off as a
+    settled minute. With fetched_at before the fetch, M is built from the tape and stays open
+    to later live trades."""
+    b, now, sent = _bb_cov()
+    M = T0 + 2 * MIN
+    now[0] = M + 50_000
+    b.trades_started("ZZA")
+    _t(b, now, M + 55_000, 6.0, 10)
+    partial_m = [{"t": M, "o": 5.0, "h": 6.0, "l": 5.0, "c": 6.0, "v": 500}]
+    fetched_at = M + 56_000
+    now[0] = M + 63_000                                  # the answer arrived 7 s later
+    assert b.apply_seed("ZZA", partial_m, gap_trades=[(M + 1_000, 5.0, 490, []), (M + 55_000, 6.0, 10, [])],
+                        fetched_at=fetched_at, tape_from=M) is True
+    _t(b, now, M + 59_000, 6.5, 100)                     # a later live trade of M
+    x = [r for r in b.snapshot_bars("ZZA", "1") if r["t"] == M][0]
+    assert x["v"] == 600 and x["c"] == 6.5, "M stays the live minute, not a frozen partial bar"
+
+
+def test_coverage_minute_before_m_without_a_vendor_bar_comes_from_the_tape():
+    """Review #3: no settled vendor bar for M-1 (late): M-1 is built from the tape, not assumed
+    empty."""
+    b, now, sent = _bb_cov()
+    b.subscribe_sink("ZZA", "5", object(), "rth")
+    M = T0 + 2 * MIN
+    now[0] = M
+    b.trades_started("ZZA")
+    _t(b, now, M + 10_000, 7.0, 10)
+    tape = [(T0 + MIN + 5_000, 8.0, 50, []), (T0 + MIN + 50_000, 9.5, 25, []),
+            (M + 2_000, 7.2, 5, []), (M + 10_000, 7.0, 10, [])]
+    bars = [{"t": T0, "o": 6.0, "h": 6.5, "l": 5.5, "c": 6.2, "v": 30}]
+    assert b.apply_seed("ZZA", bars, gap_trades=tape, fetched_at=M + 12_000, tape_from=T0 + MIN) is True
+    x = [r for r in b.snapshot_bars("ZZA", "5") if r["t"] == T0][0]
+    assert (x["o"], x["h"], x["v"]) == (6.0, 9.5, 120)
+
+
+def test_a_cancelled_first_print_does_not_block_the_tape_check(monkeypatch):
+    """Review #2: the first live print is missing from the tape (cancelled/corrected); any print
+    at or after B still proves the tape reaches B."""
+    rig = Rig(seeding=True, trades=lambda s, a, b: [(T0 + 1_000, 5.0, 100, []), (T0 + 31_500, 6.1, 5, [])])
+    rig.now[0] = T0 + 30_000
+
+    async def go():
+        c = FakeConn([hello(), desired(1, OWN, frozenset({("ZZA", "1")}))])
+        t = await run_until(c, rig.srv, lambda: ("ZZA", "1") in rig.rt._key_routes)
+        rig.trade("ZZA", T0 + 31_000, 6.0, 10)
+        rig.now[0] = T0 + 32_000
+        await until(lambda: _frames(c, T0))
+        assert rig.rt.counters["seed_tape_behind"] == 0
+        await c.close()
+        await asyncio.wait_for(t, 2)
+        await rig.rt.stop_reader()
+    asyncio.run(go())

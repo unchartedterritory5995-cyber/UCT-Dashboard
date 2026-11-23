@@ -631,23 +631,27 @@ class BarBroadcaster:
         with self._lock:
             return sym.upper() not in self._cover_from
 
-    def apply_seed(self, sym: str, bars, gap_trades=None) -> bool:
+    def apply_seed(self, sym: str, bars, gap_trades=None, fetched_at=None, tape_from=None) -> bool:
         """D8 step 3: fold fetched 1-min bars into the minute map (see ensure_seeded).
         Empty `bars` = a failed seed (retried after _seed_retry_ms). Non-blocking.
 
         COVERAGE MODE (the symbol has a declared gap — stream-ingest): see the block above.
         `gap_trades` = the vendor's trades for gap_window() as [(t ms, price, size, conditions)],
-        fetched AFTER the flow began; [] = none happened. Returns True when coverage closed."""
+        fetched AFTER the flow began; [] = none happened. `fetched_at` = the clock ms taken BEFORE
+        the fetch (what "settled" is judged against — never the apply time). `tape_from` = where
+        the tape starts: M-1 min when the vendor had no settled bar for M-1, which is then built
+        from the tape (proving it empty or whole) instead of assumed empty. Returns True when
+        coverage closed."""
         su = sym.upper()
         with self._lock:
             coverage_mode = su in self._cover_from
         if coverage_mode:
-            return self._apply_coverage_seed(su, bars or [], gap_trades)
+            return self._apply_coverage_seed(su, bars or [], gap_trades, fetched_at, tape_from)
         return self._apply_seed_legacy(su, bars)
 
-    def _apply_coverage_seed(self, su: str, bars, gap_trades) -> bool:
+    def _apply_coverage_seed(self, su: str, bars, gap_trades, fetched_at=None, tape_from=None) -> bool:
         global _seed_total
-        now = self._clock_ms()
+        now = self._clock_ms() if fetched_at is None else int(fetched_at)
         with self._lock:
             if not self._symbol_wanted(su) or su not in self._cover_from:
                 return False
@@ -676,6 +680,19 @@ class BarBroadcaster:
                     # bar for had no trade: known EMPTY (auth), not a hole — so no bucket waits
                     # on it, and no stale pre-restart state in it is ever shown
                     mins = self._minutes.setdefault(su, {})
+                    prev = gap[0] - _MINUTE_MS
+                    if prev not in seen and tape_from is not None and tape_from <= prev \
+                            and self._accept_minute(su, prev):
+                        # no settled vendor bar for M-1 (late, or no trade): the tape decides
+                        e = _Minute()
+                        for (t, p, s, conds) in gap_trades:
+                            if prev <= t < gap[0]:
+                                hl_ok, last_ok = trade_conditions.classify(conds)
+                                self._fold_trade(e, t, p, s, hl_ok, last_ok)
+                        e.auth = True
+                        mins[prev] = e
+                        seen.add(prev)
+                        touched.append(prev)
                     for m in range(gap[0] - _COVER_LOOKBACK_MS, gap[0], _MINUTE_MS):
                         if m in seen or not self._accept_minute(su, m):
                             continue

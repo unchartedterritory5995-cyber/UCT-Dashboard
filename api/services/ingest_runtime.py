@@ -269,6 +269,9 @@ class IngestRuntime:
     def _symbol_cleared(self, sym: str) -> None:
         """BarBroadcaster dropped `sym` (minute map + hwm): finality starts over."""
         self.counters["forgets"] += 1
+        self._seed_attempts.pop(sym, None)
+        self._tape_attempts.pop(sym, None)
+        self._flow_events.pop(sym, None)
         for client in list(self._routes.values()):
             client.buffer.forget(sym)
         for k in [k for k in self._price_sent if k[1] == sym]:
@@ -469,10 +472,19 @@ class IngestRuntime:
 
     def _fetch_seed(self, sym: str, gap):
         """Off the loop: the day's minute bars and, for a declared gap (M, B), the vendor's trades
-        in [M, B] (through B's own millisecond). Raises on any vendor error."""
+        from M (or from M-1 when the vendor has no settled bar for M-1) up to the fetch time.
+        Returns (bars, trades, fetched_at, tape_from); fetched_at is taken BEFORE any request, so a
+        slow answer can never pass a partial minute off as settled. Raises on any vendor error."""
+        fetched_at = self.bc._clock_ms()
         bars = self._fetch(sym) or []
-        trades = None if gap is None else list(self._fetch_trades(sym, gap[0], gap[1] + 1) or [])
-        return bars, trades
+        if gap is None:
+            return bars, None, fetched_at, None
+        m0, b0 = gap
+        prev = m0 - 60_000
+        has_prev = any(int(b.get("t", -1)) // 60_000 * 60_000 == prev for b in bars)
+        tape_from = m0 if has_prev else prev
+        trades = list(self._fetch_trades(sym, tape_from, max(fetched_at, b0 + 1)) or [])
+        return bars, trades, fetched_at, tape_from
 
     async def _seed(self, sym: str, gen: int) -> None:
         coverage = not self.bc.covered(sym)
@@ -490,12 +502,12 @@ class IngestRuntime:
             gap = self.bc.gap_window(sym) if coverage else None
             fetched = True
             try:
-                bars, trades = await asyncio.get_running_loop().run_in_executor(
+                bars, trades, fetched_at, tape_from = await asyncio.get_running_loop().run_in_executor(
                     self._pool, self._fetch_seed, sym, gap)
             except Exception as e:  # noqa: BLE001
                 self.counters["seed_errors"] += 1
                 log.warning("[stream-ingest] seed(%s) failed: %s", sym, type(e).__name__)
-                bars, trades, fetched = [], None, False
+                bars, trades, fetched, fetched_at, tape_from = [], None, False, None, None
             # back on the loop: the apply (and the frames it emits) is ordered with the reader
             if gen != self._seed_gen.get(sym, 0):
                 # T restarted mid-fetch: this fetch predates the restart. Drop it whole (an
@@ -503,9 +515,10 @@ class IngestRuntime:
                 # hold, the first-seed mark and the re-offer belong to the newer seed.
                 self.counters["seeds_superseded"] += 1
                 return
-            if coverage and fetched and gap is not None and not any(int(r[0]) == gap[1] for r in trades):
-                # the tape does not hold the first live trade yet: it is behind B, so it would
-                # miss prints just before it. Not an error: ask again shortly.
+            if coverage and fetched and gap is not None and not any(int(r[0]) >= gap[1] for r in trades):
+                # the tape has nothing at or after the first live trade yet: it may be behind B and
+                # miss prints just before it. Not an error: ask again shortly. (Any print at/after
+                # B proves it, so a cancelled first print can't block this forever.)
                 self.counters["seed_tape_behind"] += 1
                 self._release_hold(sym)
                 self._tape_retry(sym, gen)
@@ -518,7 +531,8 @@ class IngestRuntime:
                 self._schedule_seed(sym)
                 return
             if coverage:
-                closed = fetched and self.bc.apply_seed(sym, bars, gap_trades=trades)
+                closed = fetched and self.bc.apply_seed(sym, bars, gap_trades=trades,
+                                                        fetched_at=fetched_at, tape_from=tape_from)
                 if closed:
                     self.counters["seeds_applied"] += 1
                     self._seed_attempts.pop(sym, None)
@@ -536,6 +550,7 @@ class IngestRuntime:
                 return
             if fetched and not bars:
                 self.counters["seeds_empty"] += 1
+                self.bc.seed_failed(sym)              # keep the 60 s re-seed gate it had before
                 self._release_hold(sym)
                 return
             if self.bc.apply_seed(sym, bars):
