@@ -11,8 +11,12 @@ from __future__ import annotations
 
 import base64
 import datetime
+import json
 import logging
 import math
+import pathlib
+import threading
+import time
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -1391,3 +1395,289 @@ def test_REFUSED_AT_RESOLUTION_is_not_missing_for_the_boot_catch_up(world, refus
     ev.sweep_catch_up()
     assert swept == [[good]], "only the scannable definition is missing; the refused one is not re-handed"
     # mutant R6 (the catch-up without the filter) -> RED here
+
+
+# ═══ 8h. 2026-11-23 TRACK 6: SUB-GROUPS of k documents, and TWO requests in flight ═══════════════════════
+#
+# Coordinator ruling (2026-11-23). Measured: ~4.3k jobs/min with ONE request in flight, so the night's ~280k
+# jobs took ~65 min against the 60-min bar; and a web deploy mid-sweep cut the whole group (nothing is filed
+# before its last chunk), twice that morning. (1) The runtime group's requests go two at a time: the bound is
+# the service's own `workers.live` (`GET /v1/metrics`, read once per group through the signed client), at
+# most `RUNTIME_IN_FLIGHT_CEILING`; unreadable means one. (2) The documents run in sub-groups of
+# `RUNTIME_SWEEP_SUBGROUP` (9), one after the other, each filed when it completes, so a cut loses at most the
+# sub-group in flight. The receipt (8g) and fairness (8e) rails above are unchanged.
+# Mutation proof: ci/mutants/t6-sweep-subgroups.json (each test's last line names its mutants).
+
+class _Killed(BaseException):
+    """The process going away mid-run (a web deploy): nothing in the sweep may catch it."""
+
+
+def _lane_client(world, monkeypatch, *, transport=None, live=None):
+    """The world's client with ``transport`` in front of the fake, and the service's metrics answering
+    ``workers.live = live`` (``None``: no metrics door at all, so one request in flight)."""
+    world.fake.live_workers = live
+    get = world.fake.get if live is not None else None
+    monkeypatch.setattr(ev, "_runtime_client", lambda: prc.PineRuntimeClient(
+        url="http://pine-runtime.test", secret=FIXTURE_SECRET, identity=FIXTURE_IDENTITY,
+        transport=transport or world.fake, clock=lambda: T0, sleep=lambda s: None, get_transport=get))
+
+
+class _Wire:
+    """A transport in front of the fake that counts the requests in flight at once. The FIRST TWO requests
+    wait for each other (a barrier), so two in flight is SEEN when the lane allows it, never inferred from
+    timing, and a third let through by a wrong bound would be counted while they wait."""
+
+    def __init__(self, fake):
+        self.fake = fake
+        self.lock = threading.Lock()
+        self.n = self.now = self.most = 0
+        self.pair = threading.Barrier(2, timeout=5)
+        self.paired = None
+
+    def __call__(self, url, body, headers, timeout):
+        with self.lock:
+            self.n += 1
+            nth = self.n
+            self.now += 1
+            self.most = max(self.most, self.now)
+        try:
+            if nth <= 2:
+                try:
+                    self.pair.wait()
+                    self.paired = True if self.paired is None else self.paired
+                except threading.BrokenBarrierError:
+                    self.paired = False
+            return self.fake(url, body, headers, timeout)
+        finally:
+            with self.lock:
+                self.now -= 1
+
+
+@pytest.mark.parametrize("live,expected", [(2, 2), (1, 1), (16, "ceiling"), (0, 1), (-1, 1), (None, 1),
+                                           ("2", 1), (True, 1), (2.5, 1)])
+def test_INFLIGHT_the_bound_is_the_services_live_workers_at_most_the_ceiling_and_unreadable_is_ONE(live, expected):
+    assert ev.RUNTIME_IN_FLIGHT_CEILING == 2
+    fake = PineRuntimeFake(script=cond_script)
+    fake.live_workers = live
+    client = prc.PineRuntimeClient(url="http://pine-runtime.test", secret=FIXTURE_SECRET, identity=FIXTURE_IDENTITY,
+                                   transport=fake, clock=lambda: T0, get_transport=fake.get)
+    assert ev._runtime_in_flight(client) == (ev.RUNTIME_IN_FLIGHT_CEILING if expected == "ceiling" else expected)
+    assert len(fake.metrics_calls) == 1
+    # mutants F1 (the ceiling ignored) and F2 (unreadable means the ceiling) -> RED here
+
+
+@pytest.mark.parametrize("fault", ["refused", "unreachable", "no-metrics-door", "not-a-client"])
+def test_INFLIGHT_a_service_whose_numbers_cannot_be_read_gets_ONE_request_in_flight_never_more(fault):
+    fake = PineRuntimeFake(script=cond_script)
+    get = fake.get
+    if fault == "refused":
+        fake.metrics_reply = (401, b'{"protocol":1,"error":{"guard":"runtime:server-auth"}}')
+    elif fault == "unreachable":
+        def get(url, headers, timeout):
+            raise TimeoutError("no answer")
+    elif fault == "no-metrics-door":
+        get = None
+    client = object() if fault == "not-a-client" else prc.PineRuntimeClient(
+        url="http://pine-runtime.test", secret=FIXTURE_SECRET, identity=FIXTURE_IDENTITY, transport=fake,
+        clock=lambda: T0, get_transport=get)
+    assert ev._runtime_in_flight(client) == 1
+
+
+def test_INFLIGHT_the_services_numbers_are_read_ONCE_per_group_and_never_for_a_run_of_one(world, monkeypatch):
+    syms = [f"S{i:03d}" for i in range(120)]
+    world.bars = {s: _bars() for s in syms}
+    _lane_client(world, monkeypatch, live=2)
+    outs, stopped = _group(_group_docs(ev.RUNTIME_SWEEP_SUBGROUP + 3), syms)        # 2 sub-groups x 3 chunks
+    assert stopped is None and all(o["answered"] == 120 and o["persisted"] for o in outs)
+    assert len(world.fake.metrics_calls) == 1, "once per group, not per sub-group, chunk or request"
+    _run(world, syms)                                                                # evaluate_one: a run of one
+    assert len(world.fake.metrics_calls) == 1, "a run of one document reads no metrics"
+
+
+def test_INFLIGHT_two_requests_are_in_flight_at_once_never_more_and_every_answer_is_the_one_at_a_time(
+        world, monkeypatch):
+    syms = _mixed_universe(world)
+    world.fake.withhold["7:S007"] = ("runtime:limit", "the script ran past its instruction budget")
+    docs = _group_docs(ev.RUNTIME_SWEEP_SUBGROUP + 3)
+    one_at_a_time, _ = _group(docs, syms)                       # the world's client: no metrics door, one in flight
+    key = lambda c: (c["definition"]["def_id"], c["jobs"][0]["job"])     # noqa: E731
+    calls1, cov1, hits1 = sorted(world.fake.calls, key=key), list(world.cov_written), list(world.hits_written)
+    world.fake.calls.clear()
+    world.cov_written.clear()
+    world.hits_written.clear()
+    wire = _Wire(world.fake)
+    _lane_client(world, monkeypatch, transport=wire, live=16)  # the service says 16: the ceiling says 2
+    outs, stopped = _group(docs, syms)
+    assert wire.paired is True, "two requests were never in flight at once"
+    assert wire.most == ev.RUNTIME_IN_FLIGHT_CEILING == 2, f"{wire.most} requests were in flight at once"
+    assert stopped is None and outs == one_at_a_time, "each document's answer is the one it got one at a time"
+    assert world.cov_written == cov1 and world.hits_written == hits1, "the same receipts, in the same order"
+    assert sorted(world.fake.calls, key=key) == calls1, "the same requests, byte for byte"
+    # mutants F1 (the ceiling ignored) and F3 (the lane never holds two) -> RED here
+
+
+def test_INFLIGHT_the_next_chunk_is_read_while_this_chunks_requests_are_out(world, monkeypatch):
+    """The service's time hides under this pod's: chunk 2's bars are read and encoded while chunk 1's requests
+    are out. Chunk 1's requests are HELD until chunk 2's read begins (at most 3 s), so the order is seen."""
+    syms = [f"S{i:03d}" for i in range(120)]
+    world.bars = {s: _bars() for s in syms}
+    reading_next = threading.Event()
+    lock = threading.Lock()
+    answered = {"first chunk": 0}
+    seen = {}
+
+    def wire(url, body, headers, timeout):
+        first_chunk = json.loads(body)["jobs"][0]["job"].startswith("0:")
+        if first_chunk:
+            reading_next.wait(timeout=3)
+        try:
+            return world.fake(url, body, headers, timeout)
+        finally:
+            if first_chunk:
+                with lock:
+                    answered["first chunk"] += 1
+
+    real_prepare = ev._runtime_prepare
+
+    def prepare(chunk, start, *a, **kw):
+        if start == ev._RUNTIME_CHUNK:
+            with lock:
+                seen["first chunk answered when the second is read"] = answered["first chunk"]
+            reading_next.set()
+        return real_prepare(chunk, start, *a, **kw)
+
+    monkeypatch.setattr(ev, "_runtime_prepare", prepare)
+    _lane_client(world, monkeypatch, transport=wire, live=2)
+    outs, _ = _group(_group_docs(2), syms)
+    assert all(o["answered"] == 120 for o in outs)
+    assert seen == {"first chunk answered when the second is read": 0}, (
+        "the second chunk was read only after the first chunk's requests had been answered")
+    assert sorted(world.reads) == sorted(syms), "read ahead is still read ONCE"
+    # mutant F4 (no read ahead) -> RED here
+
+
+def test_SUBGROUPS_each_chunk_is_read_once_per_sub_group_and_serves_k_documents(world, monkeypatch):
+    """THE READ-ONCE COUNT = k PER CHUNK: 2k+1 documents over 3 chunks are 3 sub-groups (k, k, 1); each
+    chunk is read and encoded once per sub-group, and each read serves that sub-group's documents."""
+    k = ev.RUNTIME_SWEEP_SUBGROUP
+    syms = [f"S{i:03d}" for i in range(120)]
+    world.bars = {s: _bars() for s in syms}
+    events = []
+    real_prepare = ev._runtime_prepare
+    monkeypatch.setattr(ev, "_runtime_prepare",
+                        lambda chunk, start, *a, **kw: (events.append("read"), real_prepare(chunk, start, *a, **kw))[1])
+
+    def wire(url, body, headers, timeout):
+        events.append("request")
+        return world.fake(url, body, headers, timeout)
+
+    _lane_client(world, monkeypatch, transport=wire)
+    encoded = []
+    real_encode = prc.encode_bars
+    monkeypatch.setattr(prc, "encode_bars", lambda bars: (encoded.append(1), real_encode(bars))[1])
+    docs = _group_docs(2 * k + 1)
+    outs, stopped = _group(docs, syms)
+    served = []
+    for event in events:
+        if event == "read":
+            served.append(0)
+        else:
+            served[-1] += 1
+    assert served == [k] * 3 + [k] * 3 + [1] * 3, f"requests per read: {served}"
+    assert len(world.reads) == 3 * len(syms) and set(world.reads) == set(syms), "each sub-group reads once"
+    assert len(encoded) == 3 * len(syms)
+    assert stopped is None and all(o["answered"] == 120 and o["persisted"] for o in outs)
+    assert len(world.cov_written) == 2 * k + 1
+    # mutant S1 (sub-grouping disabled: k = all) -> RED here
+
+
+@pytest.mark.parametrize("live", [None, 2], ids=["one-in-flight", "two-in-flight"])
+def test_SUBGROUPS_a_cut_loses_at_most_ONE_sub_group_and_the_resume_bit_re_leads_it(world, monkeypatch, live):
+    """THE LOSS BOUND. The night's 25 documents (the Q2 cap) are 3 sub-groups (9, 9, 7). The process is killed
+    (a deploy) at the third request of the SECOND sub-group's last chunk, mid-group. The first sub-group is
+    filed; the cut one is not, and neither is the one never started; the boot catch-up hands exactly the
+    unfiled ones, and on the next night the resume bit puts them first, so the cut sub-group leads."""
+    k, n = ev.RUNTIME_SWEEP_SUBGROUP, ev.RUNTIME_SWEEP_CAP
+    syms = [f"S{i:02d}" for i in range(60)]                          # 2 chunks: 50 + 10
+    world.bars = {s: _bars() for s in syms}
+    docs = _group_docs(n)
+    handles = [ev._scannable_handle(d) for d in docs]
+    filed = set()
+
+    def record_coverage(*a, **kw):
+        world.cov_written.append((a, kw))
+        filed.add((a[0], a[2]))
+
+    monkeypatch.setattr(scan_store, "record_coverage", record_coverage)
+    monkeypatch.setattr(scan_store, "coverage", lambda h, tf, as_of: {"as_of": as_of} if (h, as_of) in filed else None)
+    prev = {"session": 20261102}
+    monkeypatch.setattr(ev, "previous_session", lambda as_of: prev["session"])
+    lock = threading.Lock()
+    sent = {"n": 0}
+
+    def wire(url, body, headers, timeout):
+        with lock:
+            sent["n"] += 1
+            nth = sent["n"]
+        if nth == 3 * k + 3:              # sub-group 1: 2k requests; sub-group 2: k, then this chunk's third
+            raise _Killed()
+        return world.fake(url, body, headers, timeout)
+
+    _lane_client(world, monkeypatch, transport=wire, live=live)
+    monkeypatch.setattr(ev, "expected_session", lambda: SESSION)
+    monkeypatch.setattr(ev, "_now_et", lambda: datetime.datetime(2026, 11, 4, 5, 0, tzinfo=_ET))
+    with pytest.raises(_Killed):
+        ev.run_sweep(docs, universe=syms, as_of=SESSION, deadline=datetime.datetime(2026, 11, 4, 9, 0, tzinfo=_ET))
+    filed_tonight = {h for h, s in filed if s == SESSION}
+    assert filed_tonight == set(handles[:k]), (
+        f"{len(filed_tonight)} of the first sub-group's {k} documents were filed before the cut: a cut must "
+        "lose at most the sub-group in flight")
+    assert {a[0] for a, _ in world.hits_written} <= set(handles[:k])
+    # the boot catch-up after the deploy hands exactly the unfiled ones
+    assert [h for h, d in zip(handles, docs) if not ev._has_receipt(d, "D", SESSION)] == handles[k:]
+    # the next night: no receipt for the previous session leads (the resume bit), so the cut sub-group leads
+    prev["session"] = SESSION
+    order = [h for h, _ in ev._resume_order(list(zip(handles, docs)), "D", 20261104)]
+    assert order == handles[k:] + handles[:k]
+    assert order[:k] == handles[k:2 * k], "the cut sub-group is the next run's first sub-group"
+    # mutant S1 (sub-grouping disabled: k = all) -> RED here
+
+
+def test_SUBGROUPS_a_stop_files_every_earlier_sub_group_and_each_sub_group_logs_ONE_line(world, caplog):
+    """The deadline's cut, between two chunks of the second sub-group: the first sub-group is filed, the
+    second is not (`None`: unswept, never a partial receipt). One line per sub-group carries its documents,
+    jobs, seconds and jobs/min, so the next nightly sweep reads its own numbers."""
+    k = ev.RUNTIME_SWEEP_SUBGROUP
+    syms = [f"S{i:02d}" for i in range(60)]                          # 2 chunks
+    world.bars = {s: _bars() for s in syms}
+    caplog.set_level(logging.INFO, logger=ev.log.name)
+    asks = []
+
+    def stop():
+        asks.append(1)
+        return ev.UNSWEPT_REASON if len(asks) == 4 else None        # sub-group 2, before its second chunk
+
+    outs, stopped = _group(_group_docs(k + 3), syms, stop_reason=stop)
+    assert stopped == ev.UNSWEPT_REASON
+    assert all(isinstance(o, dict) and o["persisted"] for o in outs[:k]) and outs[k:] == [None] * 3
+    assert len(world.cov_written) == k
+    lines = [r.getMessage() for r in caplog.records if "runtime sweep sub-group" in r.getMessage()]
+    assert len(lines) == 2, lines
+    assert lines[0].startswith(f"[scan] runtime sweep sub-group 1/2: {k} document(s), {k * 60} job(s) in ")
+    assert "jobs/min), 1 request(s) in flight;" in lines[0] and lines[0].endswith(f"{k} of {k} filed")
+    assert lines[1].startswith(f"[scan] runtime sweep sub-group 2/2 STOPPED ({ev.UNSWEPT_REASON}): 3 document(s), "
+                               "150 job(s) in ")
+    assert "NONE filed" in lines[1]
+    # a run of one document (on demand) logs no sub-group line
+    caplog.clear()
+    _run(world, syms)
+    assert not [r for r in caplog.records if "runtime sweep" in r.getMessage()]
+
+
+def test_SUBGROUPS_k_and_the_in_flight_ceiling_are_ONE_named_constant_each():
+    """k = 9 and the ceiling = 2 are the coordinator's ruling (2026-11-23), each derived in its comment.
+    Changing either is a commit, re-derived from the per-sub-group log lines of a nightly sweep."""
+    assert ev.RUNTIME_SWEEP_SUBGROUP == 9 and ev.RUNTIME_IN_FLIGHT_CEILING == 2
+    src = pathlib.Path(ev.__file__).read_text(encoding="utf-8")
+    for name in ("RUNTIME_SWEEP_SUBGROUP", "RUNTIME_IN_FLIGHT_CEILING"):
+        assert src.count(f"\n{name} = ") == 1, f"{name} has a second authority"

@@ -87,7 +87,7 @@ def refused_by(fn, *args):
 def test_a_scope_read_of_nothing_is_refused(tree, why):
     exc = refused_by(dc._refuse_a_scope_read_of_nothing, [("output x", tree)])
     assert exc is not None, why
-    assert exc.gate == "envelope:reference"
+    assert exc.gate == "envelope:number-for-a-value"
     told = exc.for_model()
     for piece in ("output x:", "reads a plain number, not a value of a bar", "a number is standing where the value the member asked for should be",
                   "the weekly close is tf(close, W)", "answer `unsupported` and say what is missing"):
@@ -157,7 +157,7 @@ def test_an_answer_that_is_refused_twice_changes_nothing(conv, clean_env, model)
     answered = {**env(0, copy.deepcopy(THE_ANSWER["answer"]["ops"])), "reply": "Two lines."}
     client = model([emits(answered), emits(answered)])
     r = conv.converse(WORDS, user_id="u1", view=empty_view(0), chart=CHART)
-    assert r["ok"] is False and r["gate"] == "envelope:reference" and len(client.calls) == 2
+    assert r["ok"] is False and r["gate"] == "envelope:number-for-a-value" and len(client.calls) == 2
     assert not (r.get("envelope") or {}).get("ops")
 
 

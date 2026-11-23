@@ -232,6 +232,9 @@ def script_turn(message: str, *, user_id: Any, chart: Any, cap_usd: float, calls
     cost_usd, attempts = 0.0, 0
     other_read_repaired = False
     extra = lambda: {"tokens": dict(tokens), "cost_usd": round(cost_usd, 6), "attempts": attempts, "model": dc.MODEL}  # noqa: E731
+    if dc.forced_tool_choice_unsupported():
+        # refused BY NAME, before any call and any charge: the configured model rejects the forced call below
+        return _refused(dc.FORCED_TOOL_CHOICE_GATE, **extra())
     while attempts < MAX_SCRIPT_CALLS:
         if cancelled is not None and cancelled.is_set():
             return _refused("internal:timeout", **extra())

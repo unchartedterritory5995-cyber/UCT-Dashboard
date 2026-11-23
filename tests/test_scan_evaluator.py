@@ -1193,11 +1193,28 @@ _CONCURRENCY_NAMES = frozenset({
 })
 
 
-def _concurrency_census(source: str) -> set:
-    """Every concurrency primitive IMPORTED or CALLED, by AST."""
+#: ⭐ THE ONE NAMED EXCEPTION TO THE BAN (track 6, coordinator ruling 2026-11-23). The ban was MEASURED for
+#: the in-process tree interpreter (threads x1.00, then negative) and stays whole for it. The runtime group's
+#: requests WAIT on the pine-runtime service's workers, not on this pod's GIL, so they may be in flight two
+#: at a time (the service's own live worker count, at most a ceiling). The exception is ONE function, and
+#: the rails below hold it there: its only caller is `_CONCURRENCY_EXCEPTION_CALLER`, and it knows nothing of
+#: the module (it runs the request callables it is handed), so no tree definition can reach a thread.
+_CONCURRENCY_EXCEPTION = "_runtime_requests_in_flight"
+_CONCURRENCY_EXCEPTION_CALLER = "_evaluate_runtime_group"
+
+
+def _concurrency_census(source: str, *, exempt: frozenset = frozenset()) -> set:
+    """Every concurrency primitive IMPORTED or CALLED, by AST, outside the module-level
+    functions named in ``exempt`` (their whole bodies, nested functions included)."""
     tree = pyast.parse(source)
+    skip: set = set()
+    for node in tree.body:
+        if isinstance(node, (pyast.FunctionDef, pyast.AsyncFunctionDef)) and node.name in exempt:
+            skip.update(id(n) for n in pyast.walk(node))
     found: set = set()
     for node in pyast.walk(tree):
+        if id(node) in skip:
+            continue
         if isinstance(node, pyast.Import):
             for a in node.names:
                 root = a.name.split(".")[0]
@@ -1223,12 +1240,92 @@ def _concurrency_census(source: str) -> set:
 def test_the_evaluator_imports_no_concurrency_primitive__BY_AST():
     """⛔ AST, NEVER GREP. This module's own docstring says 'ThreadPool' four
     times; a grep counts comments and has done so in BOTH directions on this
-    branch. The census reads `ast.Import`/`ast.ImportFrom`/`ast.Call` nodes."""
-    found = _concurrency_census(MODULE_PATH.read_text(encoding="utf-8"))
+    branch. The census reads `ast.Import`/`ast.ImportFrom`/`ast.Call` nodes,
+    everywhere but the ONE named exception (`_CONCURRENCY_EXCEPTION`)."""
+    found = _concurrency_census(MODULE_PATH.read_text(encoding="utf-8"),
+                                exempt=frozenset({_CONCURRENCY_EXCEPTION}))
     assert found == set(), (
-        f"scan_evaluator reaches {sorted(found)}. MEASURED: threads buy x1.00 at "
+        f"scan_evaluator reaches {sorted(found)} outside its one named exception "
+        f"({_CONCURRENCY_EXCEPTION}). MEASURED: threads buy x1.00 at "
         "4 workers and are NEGATIVE at 8 and 16, because the 1e-9 cross-lane "
         "guarantee is what makes the interpreter GIL-bound.")
+
+
+def test_the_ONE_named_exception_is_the_runtime_groups_request_function_and_NOTHING_ELSE__BY_AST():
+    """⛔⛔ THE EXCEPTION'S SCOPE (track 6, coordinator ruling 2026-11-23). Four facts, each by AST:
+      1. it is ONE module-level function;
+      2. the pool really lives in it (else the exemption covers nothing, and must be dropped);
+      3. it knows nothing of this module: it names no module-level function, so it can only run the
+         callables it is handed;
+      4. it is named ONLY inside `_evaluate_runtime_group` (its own definition aside): no tree path, no
+         sweep loop, no other helper can hand it work.
+    A tree definition reaching a thread through this door turns 4 red (mutant C1 in
+    ci/mutants/t6-sweep-subgroups.json); a pool anywhere else turns the census above red."""
+    scope = _exception_scope(MODULE_PATH.read_text(encoding="utf-8"))
+    assert scope["defined"] == 1, (f"{_CONCURRENCY_EXCEPTION} must be exactly one function, at module level "
+                                   "(a second one under its name would share its exemption)")
+    assert scope["inside"], (f"{_CONCURRENCY_EXCEPTION} holds no concurrency primitive any more: drop the "
+                             "exemption with it, the ban is whole again")
+    assert scope["names_module_fns"] == [], (
+        f"{_CONCURRENCY_EXCEPTION} names {scope['names_module_fns']}: the exception runs the request "
+        "callables it is handed and knows nothing else of the module")
+    assert scope["strays"] == [], (
+        f"{_CONCURRENCY_EXCEPTION} is reached from {scope['strays']}: the one named exception is the RUNTIME "
+        f"group's requests, entered only by {_CONCURRENCY_EXCEPTION_CALLER}. The tree interpreter stays "
+        "sequential (measured: threads x1.00, then negative).")
+    assert scope["caller_calls"] == 1, "the control: the runtime group does enter the exception, once"
+
+
+def _exception_scope(source: str) -> dict:
+    """The facts the rail above judges, read from ``source`` by AST: how many functions carry the exception's
+    name (and whether the one at module level is the only one), the concurrency primitives inside it, the
+    module-level functions it names, every OTHER function (or module-level statement) that names it, and how
+    many times its one caller calls it."""
+    tree = pyast.parse(source)
+    defs = [n for n in tree.body if isinstance(n, (pyast.FunctionDef, pyast.AsyncFunctionDef))]
+    anywhere = [n for n in pyast.walk(tree) if isinstance(n, (pyast.FunctionDef, pyast.AsyncFunctionDef))
+                and n.name == _CONCURRENCY_EXCEPTION]
+    mine = [n for n in defs if n.name == _CONCURRENCY_EXCEPTION]
+    exc_fn = mine[0] if mine else None
+    caller = next((n for n in defs if n.name == _CONCURRENCY_EXCEPTION_CALLER), None)
+
+    def names_it(node) -> bool:
+        return any((isinstance(x, pyast.Name) and x.id == _CONCURRENCY_EXCEPTION)
+                   or (isinstance(x, pyast.Attribute) and x.attr == _CONCURRENCY_EXCEPTION)
+                   for x in pyast.walk(node))
+
+    strays = sorted(f.name for f in defs if f is not exc_fn and f is not caller and names_it(f))
+    strays += ["<module level>"] if any(names_it(n) for n in tree.body if n not in defs) else []
+    return {
+        "defined": len(anywhere) if len(anywhere) == len(mine) else 0,
+        "inside": _concurrency_census(pyast.unparse(exc_fn)) if exc_fn else set(),
+        "names_module_fns": sorted({n.id for n in pyast.walk(exc_fn) if isinstance(n, pyast.Name)}
+                                   & {f.name for f in defs}) if exc_fn else [],
+        "strays": strays,
+        "caller_calls": sum(1 for n in pyast.walk(caller) if isinstance(n, pyast.Call)
+                            and isinstance(n.func, pyast.Name) and n.func.id == _CONCURRENCY_EXCEPTION)
+        if caller else 0,
+    }
+
+
+def test_the_exception_scope_rail_CAN_FAIL():
+    """⚠️ THE POSITIVE CONTROL for the rail above, on the SHIPPED module: the tree path's sweep loop
+    routed through the exception (the widening it exists to refuse) is a stray; a pool imported at
+    module level is seen by the census; the exception naming a module function is seen."""
+    source = MODULE_PATH.read_text(encoding="utf-8")
+    tree = pyast.parse(source)
+    fn = next(n for n in tree.body if isinstance(n, pyast.FunctionDef) and n.name == "_sweep_entries")
+    fn.body.insert(0, pyast.parse(f"{_CONCURRENCY_EXCEPTION}(2)").body[0])
+    assert _exception_scope(pyast.unparse(tree))["strays"] == ["_sweep_entries"], (
+        "the scope walk is blind to a tree-path caller")
+    hoisted = "from concurrent.futures import ThreadPoolExecutor\n" + source
+    assert _concurrency_census(hoisted, exempt=frozenset({_CONCURRENCY_EXCEPTION})) == {
+        "concurrent.futures", "concurrent.futures.ThreadPoolExecutor"}, "a module-level pool import is invisible"
+    tree = pyast.parse(source)
+    exc_fn = next(n for n in tree.body if isinstance(n, pyast.FunctionDef) and n.name == _CONCURRENCY_EXCEPTION)
+    exc_fn.body.insert(0, pyast.parse("evaluate_one").body[0])
+    assert _exception_scope(pyast.unparse(tree))["names_module_fns"] == ["evaluate_one"]
+    assert _exception_scope(source)["strays"] == [], "the control: the shipped module has no stray"
 
 
 def test_the_concurrency_census_can_actually_FIND_a_thread_pool():

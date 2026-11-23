@@ -70,6 +70,7 @@ import { isNativeTf, fetchTf } from '../../components/chart/timeframes'
 import { isCacheCurrentForView, expectedBarsBehind } from '../../utils/marketSession'
 import { deviceCopyFresh, inRegularSession } from '../deviceStore/fresh'
 import { deviceServesTf } from '../deviceStore/tfs'
+import { deviceStoreKillSeen } from '../../lib/chartSpeed'
 import { BARSTORE } from '../../components/chart/barStoreSwitch'
 import { prefetchTickerMeta as _defaultTickerMeta } from '../../hooks/useTickerMeta'
 import {
@@ -120,6 +121,10 @@ const REPLAY_WARM_TFS = Object.freeze(['5', '15', '30', '60'])
 const COOLDOWN_MAX_KEYS = 400
 /** The lane of the member's own ask (see `_hydrate`). */
 const URGENT = Object.freeze({ urgent: true })
+/** ⭐ (review of #2558, P4-L2) A re-read of a device copy the rule REFUSED: urgent, and asking the device for a copy newer
+ *  than the one held (persist.refreshDevice `newer`), so the client's recently-read cache (20 s) cannot answer it with the
+ *  very copy just refused. Only where the rule says 'stale'; every other read keeps the cache. */
+const URGENT_NEWER = Object.freeze({ urgent: true, newer: true })
 
 /** TERM-033: what a FAILED device-cache hydrate resolves to (`_hydrate`). "Nothing was hydrated",
  *  never an answer: the caller takes its verdict on the store as it stands, so the key is asked of
@@ -253,8 +258,12 @@ const SHORT_FULL_MAX = 4000
  *               catch: this one covers it (the push-closed short row included: its bucket ended at the current
  *               bucket's start, after the stamp), so 'rolling' is gone.
  */
-export function deviceRefusalOf(s, { extended = false, through = null, nowMs = Date.now() } = {}) {
+export function deviceRefusalOf(s, { extended = false, through = null, nowMs = Date.now(), killed = false } = {}) {
   if (!s || s.deviceRows !== true || s.restSeen) return null
+  // ⛔ A KILL SEEN ON THIS PAGE (review of #2565, P6-L2): the device's rows stop painting with its worker. The rollback for
+  // wrong device data must reach the rows an open page already holds, not only its next reload. `killed`: the caller's
+  // lib/chartSpeed.deviceStoreKillSeen(), a plain boolean the client's beat sets (no cookie read per switch).
+  if (killed) return 'killed'
   const p = parseKey(s.key)
   if (!p) return null
   const intraday = isIntradayTf(p.tf)
@@ -488,7 +497,16 @@ export function createPrefetch(o = {}) {
     const held = S().peek(key)
     if (!held) _hydrate(key)   // the mem half lands synchronously
     // A held DEVICE copy is brought forward (its synchronous half lands now; a worker read, the poll sees)
-    else if (_deviceHeld(held)) { try { S().persist.refreshDevice?.(key) } catch { /* optional */ } }
+    // ⭐ ...and one the rule refuses as 'stale' is re-read NEWER, here (review of #2565 against #2563). The switch's look
+    // (its route, and every wake of its waiter) is the one door every member's switch goes through; the device rule's own
+    // newer re-read (deviceVerdict) was reached on the intraday path only through the per-switch diagnostics, which #2563
+    // runs on a tester's page alone. Without this a member on the default waited for the server's answer although the
+    // device already had the minute (the client's 20 s recently-read cache answered the plain re-read with the copy just
+    // refused). Only this facade's switch calls peekDisplayable: urgent, as deviceVerdict's re-read is.
+    else if (_deviceHeld(held)) {
+      const stale = _deviceRefusal(held, false) === 'stale'   // (its age, whatever the view)
+      try { if (stale) S().persist.refreshDevice?.(key, URGENT_NEWER); else S().persist.refreshDevice?.(key) } catch { /* optional */ }
+    }
     // An entry that holds no rows is looked up in mem again, SYNCHRONOUSLY and with no new IDB
     // read: the first peek made the entry, and a warmer may have promoted the key since (the
     // handoff's 25 ms poll exists to see exactly that).
@@ -515,7 +533,7 @@ export function createPrefetch(o = {}) {
    *  deviceVerdict. The chart's own paint rule asks the same function (useBarSnapshotBars). */
   function _deviceRefusal(s, showExtended) {
     if (!_deviceRows(s)) return null
-    return deviceRefusalOf(s, { extended: extOf(showExtended), through: S().persist?.deviceThroughOf?.(s.key) ?? null, nowMs: now() })
+    return deviceRefusalOf(s, { extended: extOf(showExtended), through: S().persist?.deviceThroughOf?.(s.key) ?? null, nowMs: now(), killed: deviceStoreKillSeen() })
   }
 
   /**
@@ -767,7 +785,7 @@ export function createPrefetch(o = {}) {
     const s0 = S().peek(key)
     const r0 = _deviceHeld(s0) ? _deviceRefusal(s0, false) : null   // (its age, whatever the view)
     if (r0 === 'stale') {
-      try { S().persist.refreshDevice?.(key, URGENT) } catch { /* optional */ }
+      try { S().persist.refreshDevice?.(key, URGENT_NEWER) } catch { /* optional */ }
     }
     const s = S().peek(key)
     const held = !s ? 'none' : s.source === 'device' ? (s.restSeen ? 'server' : 'device') : String(s.source || 'unknown')
@@ -775,10 +793,38 @@ export function createPrefetch(o = {}) {
     if (!_deviceHeld(s)) return { paints: false, reason: s.source === 'device' ? 'server-answered' : `held:${held}`, held }
     // (the one refusal, with the store's status rule between its first answer and the others, as the reasons read)
     const refusal = _deviceRefusal(s, showExtended)
-    if (refusal === 'ext-hours') return { paints: false, reason: refusal, held }
+    if (refusal === 'ext-hours' || refusal === 'killed') return { paints: false, reason: refusal, held }
     if (!HANDOFF_PAINTS.includes(s.status)) return { paints: false, reason: `status:${s.status}`, held }
     if (refusal) return { paints: false, reason: refusal, held }
     return { paints: true, reason: 'paints', held }
+  }
+
+  /**
+   * ⭐⭐ THE CHART'S OWN REFUSAL, FOR THE SWITCH, AT THE MOMENT IT SHOWS THE CHART (review of #2558, P4-M1). The switch
+   * decides on what the store holds and shows the chart later (its panes' columns, the lake join, its group); a bucket that
+   * ends in between makes the chart's paint rule (useBarSnapshotBars `_deviceRefused`) refuse a device copy the switch had
+   * accepted, and the chart, which has not shown that key yet, draws a blank. So the switch asks this, the same rule on the
+   * same key and clock, right before it shows the chart. Returns the refusal ('ext-hours' | 'stale') or null: a key that
+   * holds no device rows, a server answer, a D/W/M key (the chart's daily rule decides those, as it always has).
+   * A 'stale' copy is re-read first, asking the device for a newer one than it holds (URGENT_NEWER): the frame of the minute
+   * that just ended may be in.
+   */
+  function deviceHold(sym, tf, { showExtended } = {}) {
+    const key = keyFor(sym, tf, { showExtended })
+    const p = key ? parseKey(key) : null
+    if (!p || p.window || !isIntradayTf(p.tf)) return null
+    const r = _deviceRefusal(S().peek(key), showExtended)
+    if (r !== 'stale') return r
+    try { S().persist?.refreshDevice?.(key, URGENT_NEWER) } catch { /* optional */ }
+    return _deviceRefusal(S().peek(key), showExtended)
+  }
+
+  /** ...and while it holds, THE bars request for that key, now (the chart's own when it is shown, which then joins it): the
+   *  prepare's request, at `visible` rank, never a warm. Resolves with the snapshot; never rejects. */
+  function askForDisplay(sym, tf, { showExtended, signal = null } = {}) {
+    const key = keyFor(sym, tf, { showExtended })
+    if (!key) return Promise.resolve(null)
+    return ensure(key, { until: PREPARED, priority: 'visible', signal, warm: false, local: false, _s0: S().peek(key) || {}, session: session(showExtended) })
   }
 
   /**
@@ -1332,6 +1378,7 @@ export function createPrefetch(o = {}) {
 
   return {
     keyFor, peek, ensure, prefetch, peekDisplayable, peekBars, holdsBars, heldRows, prepareForDisplay, prepareDailyForDisplay, lakePending, deepPending, devicePaints, deviceVerdict, deviceWarm, watch,
+    deviceHold, askForDisplay,
     prefetchBars, prefetchBar, prefetchBarsToIDB, prefetchAllTimeframes, prefetchListAllTimeframes,
     prefetchGridWarm, warmMemFromIDB, prewarmVisibleList, prefetchListDeep, prefetchReplayTimeframes,
     prefetchBarOnIntent, warmTypedSymbol, createNeighborHold, edgeWarmList,
@@ -1358,6 +1405,8 @@ export function deepPending(sym, tf, opts = {}) { return _f().deepPending(sym, t
 export function devicePaints(sym, tf, opts = {}) { return _f().devicePaints(sym, tf, opts) }
 export function deviceVerdict(sym, tf, opts = {}) { return _f().deviceVerdict(sym, tf, opts) }
 export function deviceWarm(sym, tf, opts = {}) { return _f().deviceWarm(sym, tf, opts) }
+export function deviceHold(sym, tf, opts = {}) { return _f().deviceHold(sym, tf, opts) }
+export function askForDisplay(sym, tf, opts = {}) { return _f().askForDisplay(sym, tf, opts) }
 export function watch(sym, tf, opts = {}, cb) { return _f().watch(sym, tf, opts, cb) }
 export function prepareDailyForDisplay(sym, tf, opts = {}) { return _f().prepareDailyForDisplay(sym, tf, opts) }
 export function prefetchBars(tickers, tf = 'D', opts = {}) { return _f().prefetchBars(tickers, tf, opts) }

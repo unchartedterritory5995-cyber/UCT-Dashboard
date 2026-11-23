@@ -191,6 +191,18 @@ describe('each limb asks the door (a clock that jumps past any deadline on every
   })
 })
 
+describe('⭐⭐ e94 — the shipped door deadline is ruling (C)\'s: proportional to the uncut work', () => {
+  it('the door deadline is >= 2.5x the slowest served uncut door call, in whole minutes, and not #2225\'s 5 minutes', () => {
+    // e94's census (docs/pine/evidence/2026-11-22-e94-deterministic-budgets/EVIDENCE.md): the slowest served script's uncut door call, 592,223 ms
+    // (one run on the shipped code (the step budget as shipped, the door's runtime clocks held still), the two last-resort stops lifted in the measurement snapshot only, lane 1, nothing else running: a single run with a margin for run-to-run variance, by the amended ruling; a licence-held script, named in the private evidence)
+    expect(MEMBER_DOOR_BUDGET_MS).toBe(1500000)
+    expect(MEMBER_DOOR_BUDGET_MS % 60000).toBe(0)
+    expect(MEMBER_DOOR_BUDGET_MS / 592223).toBeGreaterThanOrEqual(2.5)
+    expect(MEMBER_DOOR_BUDGET_MS).not.toBe(300000)
+    expect(doorTimeoutSentence()).toMatch(/^this script is not drawn: checking it took longer than 25 minutes,/)
+  })
+})
+
 describe('a fast script is unaffected', () => {
   it('the same answer, byte for byte, as under a deadline that never comes, and far inside the real budget', () => {
     memberView()

@@ -12733,6 +12733,1144 @@
    }
   },
   {
+   "id": "cap-02",
+   "lane": "formula",
+   "words": "Let me choose the type of moving average in the settings, SMA, EMA or WMA, with SMA as the default and a length of 20, and plot that average on the price chart",
+   "rule": {
+    "digest": "55922a08cc7978a8",
+    "history": [
+     {
+      "digest": "e1878a6c3c77f435",
+      "reason": "written from the request's words before the answer was read"
+     },
+     {
+      "digest": "55922a08cc7978a8",
+      "reason": "moved to the formula lane 2026-11-23: the door builds this without a script (the type is a numbered setting), so the same rule is held on the formula lane's bars",
+      "quote": "with SMA as the default and a length of 20"
+     }
+    ]
+   },
+   "needs": "a choice among three calculations by a setting (`switch`)",
+   "distinguishes": "the default line has a value on 1,681 of 1,700 bars; only the DEFAULT choice is held (the settings stand at their defaults)",
+   "recorded": {
+    "on": "2026-11-23",
+    "front": "fe04e2fb72"
+   },
+   "answer": {
+    "contract": "uct.authoring.patch/1",
+    "ops": [
+     {
+      "op": "create",
+      "name": "Moving Average",
+      "placement": "price",
+      "primary": "ma",
+      "inputs": [
+       {
+        "key": "maType",
+        "label": "Average type (1 = SMA, 2 = EMA, 3 = WMA)",
+        "default": 1,
+        "min": 1,
+        "max": 3,
+        "step": 1
+       },
+       {
+        "key": "maLength",
+        "label": "Length",
+        "default": 20,
+        "min": 1,
+        "step": 1
+       }
+      ],
+      "outputs": [
+       {
+        "key": "ma",
+        "label": "Moving Average",
+        "tree": {
+         "type": "op",
+         "name": "?:",
+         "args": [
+          {
+           "type": "op",
+           "name": "==",
+           "args": [
+            {
+             "type": "series",
+             "name": "maType"
+            },
+            {
+             "type": "num",
+             "value": 2
+            }
+           ]
+          },
+          {
+           "type": "call",
+           "name": "ema",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "num",
+             "value": 20
+            }
+           ]
+          },
+          {
+           "type": "op",
+           "name": "?:",
+           "args": [
+            {
+             "type": "op",
+             "name": "==",
+             "args": [
+              {
+               "type": "series",
+               "name": "maType"
+              },
+              {
+               "type": "num",
+               "value": 3
+              }
+             ]
+            },
+            {
+             "type": "call",
+             "name": "wma",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "num",
+               "value": 20
+              }
+             ]
+            },
+            {
+             "type": "call",
+             "name": "sma",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "num",
+               "value": 20
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "cap-07",
+   "lane": "formula",
+   "words": "Plot the 10 day simple moving average only while the close is above the 50 day simple moving average, and nothing on the other bars",
+   "rule": {
+    "digest": "e1abf49b3ef350b9",
+    "history": [
+     {
+      "digest": "59a2c04eaf0d9e69",
+      "reason": "written from the request's words before the answer was read"
+     },
+     {
+      "digest": "e1abf49b3ef350b9",
+      "reason": "moved to the formula lane 2026-11-23: the door builds this without a script; the same rule on the formula lane's bars, where NOTHING on the other bars is now held too",
+      "quote": "only while the close is above the 50 day simple moving average, and nothing on the other bars"
+     }
+    ]
+   },
+   "needs": "a moving average under a condition",
+   "distinguishes": "shown on 902 bars and must be empty on 798",
+   "recorded": {
+    "on": "2026-11-23",
+    "front": "fe04e2fb72"
+   },
+   "answer": {
+    "contract": "uct.authoring.patch/1",
+    "ops": [
+     {
+      "op": "create",
+      "name": "10 SMA While Above 50 SMA",
+      "placement": "price",
+      "primary": "sma10",
+      "outputs": [
+       {
+        "key": "sma10",
+        "label": "10 SMA (above 50 SMA)",
+        "tree": {
+         "type": "op",
+         "name": "?:",
+         "args": [
+          {
+           "type": "op",
+           "name": ">",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "call",
+             "name": "sma",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "num",
+               "value": 50
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "call",
+           "name": "sma",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "num",
+             "value": 10
+            }
+           ]
+          },
+          {
+           "type": "op",
+           "name": "/",
+           "args": [
+            {
+             "type": "num",
+             "value": 0
+            },
+            {
+             "type": "num",
+             "value": 0
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ]
+     },
+     {
+      "op": "set_style",
+      "output": "sma10",
+      "breaks": true,
+      "width": 2
+     }
+    ]
+   }
+  },
+  {
+   "id": "cap-09",
+   "lane": "formula",
+   "words": "Plot the average volume of the last 10 up days, where an up day closes above the prior close, skipping the down days in between",
+   "rule": {
+    "digest": "470171f127581a3e",
+    "history": [
+     {
+      "digest": "ae2ab8087fd8fb4e",
+      "reason": "written from the request's words before the answer was read"
+     },
+     {
+      "digest": "470171f127581a3e",
+      "reason": "moved to the formula lane 2026-11-23: the door builds this without a script, so the same rule is held on the formula lane's bars",
+      "quote": "the average volume of the last 10 up days"
+     }
+    ]
+   },
+   "needs": "a list filled only on some bars, averaged (`array.*`, `for ... in`)",
+   "distinguishes": "differs from the plain 10 bar average volume on 1,678 of 1,700 bars",
+   "recorded": {
+    "on": "2026-11-23",
+    "front": "fe04e2fb72"
+   },
+   "answer": {
+    "contract": "uct.authoring.patch/1",
+    "ops": [
+     {
+      "op": "create",
+      "name": "Average Up-Day Volume (10)",
+      "placement": "pane",
+      "primary": "upVol",
+      "outputs": [
+       {
+        "key": "upVol",
+        "label": "Avg volume, last 10 up days",
+        "tree": {
+         "type": "op",
+         "name": "/",
+         "args": [
+          {
+           "type": "call",
+           "name": "sum",
+           "args": [
+            {
+             "type": "op",
+             "name": "?:",
+             "args": [
+              {
+               "type": "op",
+               "name": ">",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                },
+                {
+                 "type": "offset",
+                 "value": 1,
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "close"
+                  }
+                 ]
+                }
+               ]
+              },
+              {
+               "type": "series",
+               "name": "volume"
+              },
+              {
+               "type": "op",
+               "name": "/",
+               "args": [
+                {
+                 "type": "num",
+                 "value": 0
+                },
+                {
+                 "type": "num",
+                 "value": 0
+                }
+               ]
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 10
+            }
+           ]
+          },
+          {
+           "type": "call",
+           "name": "sum",
+           "args": [
+            {
+             "type": "op",
+             "name": "?:",
+             "args": [
+              {
+               "type": "op",
+               "name": ">",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                },
+                {
+                 "type": "offset",
+                 "value": 1,
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "close"
+                  }
+                 ]
+                }
+               ]
+              },
+              {
+               "type": "num",
+               "value": 1
+              },
+              {
+               "type": "op",
+               "name": "/",
+               "args": [
+                {
+                 "type": "num",
+                 "value": 0
+                },
+                {
+                 "type": "num",
+                 "value": 0
+                }
+               ]
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 10
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "cap-03",
+   "lane": "formula",
+   "words": "Plot the average of the last 5 swing highs as a line, where a swing high is a bar whose high is above the highs of the 3 bars before it and the 3 bars after it",
+   "rule": {
+    "digest": "eb12ea74d418714c",
+    "history": [
+     {
+      "digest": "57253976d21d0b9d",
+      "reason": "written from the request's words before the answer was read"
+     },
+     {
+      "digest": "eb12ea74d418714c",
+      "reason": "moved to the formula lane 2026-11-23: the door answers this without a script, and the words can be met there, so the same rule is held on the formula lane's bars",
+      "quote": "a swing high is a bar whose high is above the highs of the 3 bars before it and the 3 bars after it"
+     }
+    ]
+   },
+   "needs": "a list that keeps the last five values (`array.*`)",
+   "distinguishes": "143 swing highs strictly above the 3 bars on each side; the average has a value on 1,643 of 1,700 bars",
+   "recorded": {
+    "on": "2026-11-23",
+    "front": "66a732bd29"
+   },
+   "recorded_verdict": "wrong",
+   "defect": "The swing is read on the swing bar itself, and an equal high counted. The build averages valuewhenOccurrence(..., 0) to (..., 4) of pivothigh(high, 3, 3): the newest five, which is right since #2573. But the formula's pivothigh writes a swing on the swing bar itself, so the average moves on that bar, where the member's swing is only known 3 bars later; and pivothigh marks a bar whose high EQUALS a high in the 3 bars before it (the member wrote 'above': strict), which alone moves 409 bars. The reply's read-back ('the line steps to a new level three bars after each new swing high') is not what the tree does on the bars. 739 of 1,643 bars differ. The same tree came back in all three live samples, each built on the repair after the first attempt was refused by the schema check.",
+   "answer": {
+    "contract": "uct.authoring.patch/1",
+    "ops": [
+     {
+      "op": "create",
+      "name": "Average of Last 5 Swing Highs",
+      "placement": "price",
+      "primary": "avgSwingHigh",
+      "outputs": [
+       {
+        "key": "avgSwingHigh",
+        "label": "Avg of last 5 swing highs",
+        "tree": {
+         "type": "op",
+         "name": "/",
+         "args": [
+          {
+           "type": "op",
+           "name": "+",
+           "args": [
+            {
+             "type": "op",
+             "name": "+",
+             "args": [
+              {
+               "type": "op",
+               "name": "+",
+               "args": [
+                {
+                 "type": "op",
+                 "name": "+",
+                 "args": [
+                  {
+                   "type": "call",
+                   "name": "valuewhenOccurrence",
+                   "args": [
+                    {
+                     "type": "op",
+                     "name": "!",
+                     "args": [
+                      {
+                       "type": "call",
+                       "name": "na",
+                       "args": [
+                        {
+                         "type": "call",
+                         "name": "pivothigh",
+                         "args": [
+                          {
+                           "type": "series",
+                           "name": "high"
+                          },
+                          {
+                           "type": "num",
+                           "value": 3
+                          },
+                          {
+                           "type": "num",
+                           "value": 3
+                          }
+                         ]
+                        }
+                       ]
+                      }
+                     ]
+                    },
+                    {
+                     "type": "call",
+                     "name": "pivothigh",
+                     "args": [
+                      {
+                       "type": "series",
+                       "name": "high"
+                      },
+                      {
+                       "type": "num",
+                       "value": 3
+                      },
+                      {
+                       "type": "num",
+                       "value": 3
+                      }
+                     ]
+                    },
+                    {
+                     "type": "num",
+                     "value": 0
+                    }
+                   ]
+                  },
+                  {
+                   "type": "call",
+                   "name": "valuewhenOccurrence",
+                   "args": [
+                    {
+                     "type": "op",
+                     "name": "!",
+                     "args": [
+                      {
+                       "type": "call",
+                       "name": "na",
+                       "args": [
+                        {
+                         "type": "call",
+                         "name": "pivothigh",
+                         "args": [
+                          {
+                           "type": "series",
+                           "name": "high"
+                          },
+                          {
+                           "type": "num",
+                           "value": 3
+                          },
+                          {
+                           "type": "num",
+                           "value": 3
+                          }
+                         ]
+                        }
+                       ]
+                      }
+                     ]
+                    },
+                    {
+                     "type": "call",
+                     "name": "pivothigh",
+                     "args": [
+                      {
+                       "type": "series",
+                       "name": "high"
+                      },
+                      {
+                       "type": "num",
+                       "value": 3
+                      },
+                      {
+                       "type": "num",
+                       "value": 3
+                      }
+                     ]
+                    },
+                    {
+                     "type": "num",
+                     "value": 1
+                    }
+                   ]
+                  }
+                 ]
+                },
+                {
+                 "type": "call",
+                 "name": "valuewhenOccurrence",
+                 "args": [
+                  {
+                   "type": "op",
+                   "name": "!",
+                   "args": [
+                    {
+                     "type": "call",
+                     "name": "na",
+                     "args": [
+                      {
+                       "type": "call",
+                       "name": "pivothigh",
+                       "args": [
+                        {
+                         "type": "series",
+                         "name": "high"
+                        },
+                        {
+                         "type": "num",
+                         "value": 3
+                        },
+                        {
+                         "type": "num",
+                         "value": 3
+                        }
+                       ]
+                      }
+                     ]
+                    }
+                   ]
+                  },
+                  {
+                   "type": "call",
+                   "name": "pivothigh",
+                   "args": [
+                    {
+                     "type": "series",
+                     "name": "high"
+                    },
+                    {
+                     "type": "num",
+                     "value": 3
+                    },
+                    {
+                     "type": "num",
+                     "value": 3
+                    }
+                   ]
+                  },
+                  {
+                   "type": "num",
+                   "value": 2
+                  }
+                 ]
+                }
+               ]
+              },
+              {
+               "type": "call",
+               "name": "valuewhenOccurrence",
+               "args": [
+                {
+                 "type": "op",
+                 "name": "!",
+                 "args": [
+                  {
+                   "type": "call",
+                   "name": "na",
+                   "args": [
+                    {
+                     "type": "call",
+                     "name": "pivothigh",
+                     "args": [
+                      {
+                       "type": "series",
+                       "name": "high"
+                      },
+                      {
+                       "type": "num",
+                       "value": 3
+                      },
+                      {
+                       "type": "num",
+                       "value": 3
+                      }
+                     ]
+                    }
+                   ]
+                  }
+                 ]
+                },
+                {
+                 "type": "call",
+                 "name": "pivothigh",
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "high"
+                  },
+                  {
+                   "type": "num",
+                   "value": 3
+                  },
+                  {
+                   "type": "num",
+                   "value": 3
+                  }
+                 ]
+                },
+                {
+                 "type": "num",
+                 "value": 3
+                }
+               ]
+              }
+             ]
+            },
+            {
+             "type": "call",
+             "name": "valuewhenOccurrence",
+             "args": [
+              {
+               "type": "op",
+               "name": "!",
+               "args": [
+                {
+                 "type": "call",
+                 "name": "na",
+                 "args": [
+                  {
+                   "type": "call",
+                   "name": "pivothigh",
+                   "args": [
+                    {
+                     "type": "series",
+                     "name": "high"
+                    },
+                    {
+                     "type": "num",
+                     "value": 3
+                    },
+                    {
+                     "type": "num",
+                     "value": 3
+                    }
+                   ]
+                  }
+                 ]
+                }
+               ]
+              },
+              {
+               "type": "call",
+               "name": "pivothigh",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "high"
+                },
+                {
+                 "type": "num",
+                 "value": 3
+                },
+                {
+                 "type": "num",
+                 "value": 3
+                }
+               ]
+              },
+              {
+               "type": "num",
+               "value": 4
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 5
+          }
+         ]
+        }
+       }
+      ]
+     },
+     {
+      "op": "set_style",
+      "output": "avgSwingHigh",
+      "style": "stepline",
+      "color": "#FF9800",
+      "width": 2
+     }
+    ]
+   },
+   "found": [
+    {
+     "answer": {
+      "contract": "uct.authoring.patch/1",
+      "ops": [
+       {
+        "op": "create",
+        "name": "Average of Last 5 Swing Highs",
+        "placement": "price",
+        "primary": "avgSwingHigh",
+        "outputs": [
+         {
+          "key": "avgSwingHigh",
+          "label": "Avg of last 5 swing highs",
+          "tree": {
+           "type": "op",
+           "name": "/",
+           "args": [
+            {
+             "type": "op",
+             "name": "+",
+             "args": [
+              {
+               "type": "op",
+               "name": "+",
+               "args": [
+                {
+                 "type": "op",
+                 "name": "+",
+                 "args": [
+                  {
+                   "type": "op",
+                   "name": "+",
+                   "args": [
+                    {
+                     "type": "call",
+                     "name": "valuewhenOccurrence",
+                     "args": [
+                      {
+                       "type": "op",
+                       "name": "!",
+                       "args": [
+                        {
+                         "type": "call",
+                         "name": "na",
+                         "args": [
+                          {
+                           "type": "call",
+                           "name": "pivothigh",
+                           "args": [
+                            {
+                             "type": "series",
+                             "name": "high"
+                            },
+                            {
+                             "type": "num",
+                             "value": 3
+                            },
+                            {
+                             "type": "num",
+                             "value": 3
+                            }
+                           ]
+                          }
+                         ]
+                        }
+                       ]
+                      },
+                      {
+                       "type": "call",
+                       "name": "pivothigh",
+                       "args": [
+                        {
+                         "type": "series",
+                         "name": "high"
+                        },
+                        {
+                         "type": "num",
+                         "value": 3
+                        },
+                        {
+                         "type": "num",
+                         "value": 3
+                        }
+                       ]
+                      },
+                      {
+                       "type": "num",
+                       "value": 1
+                      }
+                     ]
+                    },
+                    {
+                     "type": "call",
+                     "name": "valuewhenOccurrence",
+                     "args": [
+                      {
+                       "type": "op",
+                       "name": "!",
+                       "args": [
+                        {
+                         "type": "call",
+                         "name": "na",
+                         "args": [
+                          {
+                           "type": "call",
+                           "name": "pivothigh",
+                           "args": [
+                            {
+                             "type": "series",
+                             "name": "high"
+                            },
+                            {
+                             "type": "num",
+                             "value": 3
+                            },
+                            {
+                             "type": "num",
+                             "value": 3
+                            }
+                           ]
+                          }
+                         ]
+                        }
+                       ]
+                      },
+                      {
+                       "type": "call",
+                       "name": "pivothigh",
+                       "args": [
+                        {
+                         "type": "series",
+                         "name": "high"
+                        },
+                        {
+                         "type": "num",
+                         "value": 3
+                        },
+                        {
+                         "type": "num",
+                         "value": 3
+                        }
+                       ]
+                      },
+                      {
+                       "type": "num",
+                       "value": 2
+                      }
+                     ]
+                    }
+                   ]
+                  },
+                  {
+                   "type": "call",
+                   "name": "valuewhenOccurrence",
+                   "args": [
+                    {
+                     "type": "op",
+                     "name": "!",
+                     "args": [
+                      {
+                       "type": "call",
+                       "name": "na",
+                       "args": [
+                        {
+                         "type": "call",
+                         "name": "pivothigh",
+                         "args": [
+                          {
+                           "type": "series",
+                           "name": "high"
+                          },
+                          {
+                           "type": "num",
+                           "value": 3
+                          },
+                          {
+                           "type": "num",
+                           "value": 3
+                          }
+                         ]
+                        }
+                       ]
+                      }
+                     ]
+                    },
+                    {
+                     "type": "call",
+                     "name": "pivothigh",
+                     "args": [
+                      {
+                       "type": "series",
+                       "name": "high"
+                      },
+                      {
+                       "type": "num",
+                       "value": 3
+                      },
+                      {
+                       "type": "num",
+                       "value": 3
+                      }
+                     ]
+                    },
+                    {
+                     "type": "num",
+                     "value": 3
+                    }
+                   ]
+                  }
+                 ]
+                },
+                {
+                 "type": "call",
+                 "name": "valuewhenOccurrence",
+                 "args": [
+                  {
+                   "type": "op",
+                   "name": "!",
+                   "args": [
+                    {
+                     "type": "call",
+                     "name": "na",
+                     "args": [
+                      {
+                       "type": "call",
+                       "name": "pivothigh",
+                       "args": [
+                        {
+                         "type": "series",
+                         "name": "high"
+                        },
+                        {
+                         "type": "num",
+                         "value": 3
+                        },
+                        {
+                         "type": "num",
+                         "value": 3
+                        }
+                       ]
+                      }
+                     ]
+                    }
+                   ]
+                  },
+                  {
+                   "type": "call",
+                   "name": "pivothigh",
+                   "args": [
+                    {
+                     "type": "series",
+                     "name": "high"
+                    },
+                    {
+                     "type": "num",
+                     "value": 3
+                    },
+                    {
+                     "type": "num",
+                     "value": 3
+                    }
+                   ]
+                  },
+                  {
+                   "type": "num",
+                   "value": 4
+                  }
+                 ]
+                }
+               ]
+              },
+              {
+               "type": "call",
+               "name": "valuewhenOccurrence",
+               "args": [
+                {
+                 "type": "op",
+                 "name": "!",
+                 "args": [
+                  {
+                   "type": "call",
+                   "name": "na",
+                   "args": [
+                    {
+                     "type": "call",
+                     "name": "pivothigh",
+                     "args": [
+                      {
+                       "type": "series",
+                       "name": "high"
+                      },
+                      {
+                       "type": "num",
+                       "value": 3
+                      },
+                      {
+                       "type": "num",
+                       "value": 3
+                      }
+                     ]
+                    }
+                   ]
+                  }
+                 ]
+                },
+                {
+                 "type": "call",
+                 "name": "pivothigh",
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "high"
+                  },
+                  {
+                   "type": "num",
+                   "value": 3
+                  },
+                  {
+                   "type": "num",
+                   "value": 3
+                  }
+                 ]
+                },
+                {
+                 "type": "num",
+                 "value": 5
+                }
+               ]
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 5
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "op": "set_style",
+        "output": "avgSwingHigh",
+        "style": "stepline",
+        "width": 2
+       }
+      ]
+     },
+     "defect": "One swing late. The build averaged valuewhenOccurrence(..., 1) to (..., 5) of pivothigh(high, 3, 3); occurrence 0 is the newest, so on 1,192 of 1,639 bars it had not taken in a swing high that was already 3 or more bars old. The function table's sentence did not say which end the count starts at; it does since #2573, and the three live samples of 2026-11-23 all read 0 to 4. (The same answer also counted an equal high and described timing it did not have: those stand, and are the case's defect now.) 1,261 of 1,639 bars differed.",
+     "recorded": {
+      "on": "2026-11-23",
+      "front": "fe04e2fb72"
+     },
+     "fixed_by": {
+      "pr": "#2573",
+      "merge": "e161dd870304e6e30e01169c7f50affc6fa49dd6"
+     }
+    }
+   ]
+  },
+  {
    "id": "h03",
    "lane": "script",
    "chart": "daily",
@@ -13393,6 +14531,68 @@
     "turn": "script",
     "script": {
      "pine": "//@version=5\nindicator(\"Gap-up boxes\", overlay=true, max_boxes_count=500)\n\nkeep     = input.int(10, \"Boxes to keep\", minval=1, maxval=500)\nbgTransp = input.int(85, \"Box fill transparency\", minval=0, maxval=100)\n\n// a gap: this bar's low is above the prior bar's high\nisGap = low > high[1]\n\nvar box[]   boxes  = array.new_box(0)\nvar float[] tops   = array.new_float(0)\nvar bool[]  live   = array.new_bool(0)\n\n// new box on a gap bar: from the prior bar's high up to this bar's low\nif isGap\n    array.push(boxes, box.new(bar_index, low, bar_index, high[1], border_color=color.teal, bgcolor=color.new(color.teal, bgTransp)))\n    array.push(tops, low)\n    array.push(live, true)\n    if array.size(boxes) > keep\n        box.delete(array.shift(boxes))\n        array.shift(tops)\n        array.shift(live)\n\n// extend every still-open box; end it at the bar whose low drops below its top\nif array.size(boxes) > 0\n    for i = 0 to array.size(boxes) - 1\n        if array.get(live, i)\n            b = array.get(boxes, i)\n            box.set_right(b, bar_index)\n            if low < array.get(tops, i) and not (isGap and i == array.size(boxes) - 1)\n                array.set(live, i, false)\n\n// hidden plot so the script can be used in alerts\nplot(array.size(tops) > 0 ? array.last(tops) : na, \"Latest gap top\", color=color.new(color.gray, 100))\n"
+    }
+   }
+  },
+  {
+   "id": "cap-04",
+   "lane": "script",
+   "chart": "daily",
+   "words": "Draw a horizontal line at each of the last 3 swing lows, where a swing low is a bar whose low is below the lows of the 3 bars before it and the 3 bars after it, from the swing bar to the right edge, and remove the oldest line when a new swing low makes a fourth",
+   "rule": {
+    "digest": "c1f87cf94b2fa095",
+    "history": [
+     {
+      "digest": "c1f87cf94b2fa095",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "needs": "a list of drawings, the oldest deleted (`array<line>`, `line.delete`)",
+   "distinguishes": "189 swing lows over the chart; on the newest bar the three lines are at [113.4, 112.19, 108.65]",
+   "edge": {
+    "back": 3,
+    "low": true
+   },
+   "recorded": {
+    "on": "2026-11-23",
+    "front": "fe04e2fb72"
+   },
+   "answer": {
+    "turn": "script",
+    "script": {
+     "pine": "//@version=5\nindicator(\"Last 3 swing low lines\", overlay=true, max_lines_count=500)\n\nleft = input.int(3, \"Bars before\", minval=1)\nright = input.int(3, \"Bars after\", minval=1)\nkeep = input.int(3, \"Lines to keep\", minval=1, maxval=20)\nlineColor = input.color(color.green, \"Line colour\")\nlineWidth = input.int(1, \"Line width\", minval=1)\n\n// Swing low: low is below the lows of the `left` bars before and `right` bars after\npl = ta.pivotlow(low, left, right)\n\nvar float[] prices = array.new_float(0)\nvar int[] bars = array.new_int(0)\nvar line[] ls = array.new_line(0)\n\nif not na(pl)\n    array.push(prices, pl)\n    array.push(bars, bar_index - right)\n    array.push(ls, line.new(bar_index - right, pl, bar_index, pl, extend=extend.right, color=lineColor, width=lineWidth))\n    if array.size(ls) > keep\n        line.delete(array.shift(ls))\n        array.shift(prices)\n        array.shift(bars)\n\n// keep each kept line anchored from its swing bar to the right edge\nif array.size(ls) > 0\n    for i = 0 to array.size(ls) - 1\n        ln = array.get(ls, i)\n        y = array.get(prices, i)\n        x = array.get(bars, i)\n        line.set_xy1(ln, x, y)\n        line.set_xy2(ln, bar_index, y)\n\nnewest = array.size(prices) > 0 ? array.get(prices, array.size(prices) - 1) : na\nplot(newest, \"Most recent swing low\", color=color.new(color.gray, 100))"
+    }
+   }
+  },
+  {
+   "id": "cap-05",
+   "lane": "script",
+   "chart": "daily",
+   "words": "Draw a line from the lowest low of the last 60 bars to the latest close, and put a label at the end of the line showing how many dollars the line rises",
+   "rule": {
+    "digest": "250f99befbb6c5f3",
+    "history": [
+     {
+      "digest": "250f99befbb6c5f3",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "needs": "a drawing read back, or the same two numbers kept (`line.get_*`)",
+   "distinguishes": "the line runs from 2026-11-17 (105.03) to 2027-01-29 (113.09); the rise is 8.06",
+   "edge": {
+    "back": 60,
+    "low": true
+   },
+   "recorded": {
+    "on": "2026-11-23",
+    "front": "fe04e2fb72"
+   },
+   "answer": {
+    "turn": "script",
+    "script": {
+     "pine": "//@version=5\nindicator(\"Low-to-close rise line\", overlay=true)\n\nn = input.int(60, \"Lookback bars\", minval=2)\n\nll = ta.lowest(low, n)\noffset = ta.lowestbars(low, n)\nlowBar = bar_index + offset\n\nrise = close - ll\n\nvar line rl = line.new(bar_index, close, bar_index, close, color=color.teal, width=2)\nvar label lb = label.new(bar_index, close, \"\", style=label.style_label_left, color=color.teal, textcolor=color.white)\n\nif not na(ll)\n    line.set_xy1(rl, lowBar, ll)\n    line.set_xy2(rl, bar_index, close)\n    label.set_xy(lb, bar_index, close)\n    label.set_text(lb, (rise >= 0 ? \"+\" : \"-\") + \"$\" + str.tostring(math.abs(rise), \"#.##\"))\n\nplot(rise, \"Rise ($)\", color=color.new(color.gray, 100))\n"
     }
    }
   },
@@ -14614,115 +15814,7 @@
    },
    "needs": "a loop that stops when it finds the bar (`while`, or `for` with a break)",
    "distinguishes": "a value on 1,951 of 2,000 bars, 140 distinct counts, the largest 248; nothing on 49 bars, of which 19 have a higher close further back than 250 bars (those are the bars a look-back with no limit would get wrong)",
-   "found_live": "Live 2026-11-23: answered on the FORMULA lane with a DISCLOSED STAND-IN, wrong by value on 1,267 of 1,700 bars. The reply says so itself: it counts back to the last bar that closed above the bar before it, not above today's close. The honest answer needs a loop, which is a script. A disclosed stand-in is not a build: the door's routing between its two lanes is the next unit."
-  },
-  {
-   "id": "cap-02",
-   "lane": "script",
-   "chart": "daily",
-   "words": "Let me choose the type of moving average in the settings, SMA, EMA or WMA, with SMA as the default and a length of 20, and plot that average on the price chart",
-   "rule": {
-    "digest": "e1878a6c3c77f435",
-    "history": [
-     {
-      "digest": "e1878a6c3c77f435",
-      "reason": "written from the request's words before the answer was read"
-     }
-    ]
-   },
-   "needs": "a choice among three calculations by a setting (`switch`)",
-   "distinguishes": "the default line has a value on 1,981 of 2,000 bars; only the DEFAULT choice is held (the script runs with its defaults)",
-   "found_live": "Live 2026-11-23: answered on the FORMULA lane, RIGHT by value on every bar (the default 20 bar average; the type is a numbered setting). No script was needed, so `switch` is still held by no case. It moves to the formula lane with its rule in the next unit."
-  },
-  {
-   "id": "cap-03",
-   "lane": "script",
-   "chart": "daily",
-   "words": "Plot the average of the last 5 swing highs as a line, where a swing high is a bar whose high is above the highs of the 3 bars before it and the 3 bars after it",
-   "rule": {
-    "digest": "57253976d21d0b9d",
-    "history": [
-     {
-      "digest": "57253976d21d0b9d",
-      "reason": "written from the request's words before the answer was read"
-     }
-    ]
-   },
-   "needs": "a list that keeps the last five values (`array.*`)",
-   "distinguishes": "203 swing highs; the average has a value on 1,960 bars and changes on 199 of them",
-   "found_live": "Live 2026-11-23: answered on the FORMULA lane from pivothigh; values differ on 1,261 of 1,643 bars. The member said a high ABOVE the three bars before and after; equal highs are not read the same way. Rule against engine on ties is still to be split."
-  },
-  {
-   "id": "cap-04",
-   "lane": "script",
-   "chart": "daily",
-   "words": "Draw a horizontal line at each of the last 3 swing lows, where a swing low is a bar whose low is below the lows of the 3 bars before it and the 3 bars after it, from the swing bar to the right edge, and remove the oldest line when a new swing low makes a fourth",
-   "rule": {
-    "digest": "c1f87cf94b2fa095",
-    "history": [
-     {
-      "digest": "c1f87cf94b2fa095",
-      "reason": "written from the request's words before the answer was read"
-     }
-    ]
-   },
-   "needs": "a list of drawings, the oldest deleted (`array<line>`, `line.delete`)",
-   "distinguishes": "189 swing lows over the chart; on the newest bar the three lines are at [113.4, 112.19, 108.65]",
-   "found_live": "Live 2026-11-23: answered with a SCRIPT, RIGHT by value (three lines at the last three swing lows, the oldest deleted; it uses an array of lines). Not recorded yet: on the plain bars a script that reads every window one bar longer draws the same three lines, so the record could not tell an off-by-one window. It needs an EDGE first, like the other drawings held on the newest bar."
-  },
-  {
-   "id": "cap-05",
-   "lane": "script",
-   "chart": "daily",
-   "words": "Draw a line from the lowest low of the last 60 bars to the latest close, and put a label at the end of the line showing how many dollars the line rises",
-   "rule": {
-    "digest": "250f99befbb6c5f3",
-    "history": [
-     {
-      "digest": "250f99befbb6c5f3",
-      "reason": "written from the request's words before the answer was read"
-     }
-    ]
-   },
-   "needs": "a drawing read back, or the same two numbers kept (`line.get_*`)",
-   "distinguishes": "the line runs from 2026-11-17 (105.03) to 2027-01-29 (113.09); the rise is 8.06",
-   "found_live": "Live 2026-11-23: answered with a SCRIPT, RIGHT by value (a line from the lowest low of 60 bars to the newest close, a label with its rise). Not recorded yet: on the plain bars the lowest low of 61 bars IS the lowest of 60, so the record could not tell an off-by-one window. It needs an EDGE first, like the other drawings held on the newest bar."
-  },
-  {
-   "id": "cap-07",
-   "lane": "script",
-   "chart": "daily",
-   "words": "Plot the 10 day simple moving average only while the close is above the 50 day simple moving average, and nothing on the other bars",
-   "rule": {
-    "digest": "59a2c04eaf0d9e69",
-    "history": [
-     {
-      "digest": "59a2c04eaf0d9e69",
-      "reason": "written from the request's words before the answer was read"
-     }
-    ]
-   },
-   "needs": "a moving average under a condition",
-   "distinguishes": "the line is shown on 922 bars and must be empty on 1,078",
-   "found_live": "Live 2026-11-23: answered on the FORMULA lane, RIGHT by value on every bar, nothing on the other bars. No script was needed. It moves to the formula lane with its rule in the next unit (the formula grader must first hold 'nothing on the other bars')."
-  },
-  {
-   "id": "cap-09",
-   "lane": "script",
-   "chart": "daily",
-   "words": "Plot the average volume of the last 10 up days, where an up day closes above the prior close, skipping the down days in between",
-   "rule": {
-    "digest": "ae2ab8087fd8fb4e",
-    "history": [
-     {
-      "digest": "ae2ab8087fd8fb4e",
-      "reason": "written from the request's words before the answer was read"
-     }
-    ]
-   },
-   "needs": "a list filled only on some bars, averaged (`array.*`, `for ... in`)",
-   "distinguishes": "differs from the plain 10 bar average volume on 1,974 of 2,000 bars",
-   "found_live": "Live 2026-11-23: answered on the FORMULA lane, RIGHT by value on every bar (the average volume of the last 10 up days). No script was needed, so a filtered list is still held by no case. It moves to the formula lane with its rule in the next unit."
+   "found_live": "Live 2026-11-23, first pass: answered on the FORMULA lane with a DISCLOSED STAND-IN, wrong by value on 1,267 of 1,700 bars (it counted back to the last bar that closed above the bar before it, not above today's close, and said so). Measured over the 289 distinct formula builds on record, it was the one reply that discloses building something else. Ruled: where the formula lane cannot hold the words exactly it declines, and the door's routing then tries a script (#2572). Live again the same day, three samples on the build that holds #2572: 2 of 3 RIGHT, as scripts, exact on every bar (a guard refused the formula attempt, once envelope:event-window and once envelope:compared-with-itself, the repair declined, and the door handed the request to the script lane). 1 of 3 WRONG: the same stand-in formula, built on a first attempt no guard refuses, and this time NOT disclosed in the reply. Two of three is not a record: the case stays pending, on the script lane, and three more samples are owed to tell how often the stand-in comes back and whether it is said."
   },
   {
    "id": "fund-01",

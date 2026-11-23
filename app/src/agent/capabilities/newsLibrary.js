@@ -10,6 +10,15 @@
 //   newsLibrary.collection        create or rename a collection
 //   newsLibrary.deleteCollection  delete a collection (its headlines stay saved) — always a card, NO Undo
 //   newsLibrary.place             put a saved headline in a collection, or take it out
+//   newsLibrary.toNotebook        (C3-147) send ONE headline to the member's Notebook through the row ⋯ menu's own door,
+//                                 lib/tradeExchangeNewsNotebook.sendHeadlineToNotebook (→ sendCaptureToJournal, kind
+//                                 tradeExchangeHeadline): their current note, else the Notebook inbox. Always a card, NO Undo.
+//                                 The capture is the headline VERBATIM, so it is sent only when its full text is known: the live
+//                                 feed's pool (the stream manager the widget reads) or the member's saved copy — never the
+//                                 door's 80-character row text.
+//
+// headlineTickers (C3-144) — read-only: the tickers of the headline the member's words point at (selected / previous / a
+// ticker / a quoted phrase), by the same resolver, for watchlist.add's reader ("add this headline's ticker to Semis").
 //
 // ⛔ A HEADLINE IS NAMED UNIQUELY OR ASKED (H14). `headline` is a REFERENCE, never an id the model picked from a list:
 //   "selected"  the one open in a News widget (its ⋯ menu / Explain, else the one expanded row) — the member's click
@@ -24,8 +33,9 @@
 import { registerCapability, registerTargetKind, registerContextProvider } from '../capabilities'
 import * as lib from '../../lib/tradeExchangeNewsLibrary'
 import { wordsSelect } from '../routing'
+import { sendHeadlineToNotebook } from '../../lib/tradeExchangeNewsNotebook'
 
-export const NEWS_LIBRARY_ACTIONS = Object.freeze(['newsLibrary.save', 'newsLibrary.setNote', 'newsLibrary.collection', 'newsLibrary.deleteCollection', 'newsLibrary.place'])
+export const NEWS_LIBRARY_ACTIONS = Object.freeze(['newsLibrary.save', 'newsLibrary.setNote', 'newsLibrary.collection', 'newsLibrary.deleteCollection', 'newsLibrary.place', 'newsLibrary.toNotebook'])
 const NEWS_TYPES = ['tradeExchangeNews', 'researchLibrary']
 const REF = 'library'
 const LABEL = 'Your UCT News library'
@@ -58,7 +68,7 @@ const rowOf = (x) => ({ id: String(x.id), text: String(x.text ?? x.content ?? ''
 
 // ── the conversation's turns: what each turn named or acted on (the PREVIOUS turn licenses "it", never an older one) ──
 const turns = { n: 0, typed: null, named: new Map(), offered: new Map() }
-export function _resetNewsLibraryForTests() { turns.n = 0; turns.typed = null; turns.named = new Map(); turns.offered = new Map() }
+export function _resetNewsLibraryForTests() { turns.n = 0; turns.typed = null; turns.named = new Map(); turns.offered = new Map(); feedForTests = null }
 function noteTurn(typed, host) {
   const t = String(typed || '').trim()
   if (!t || t === turns.typed) return
@@ -288,6 +298,7 @@ const outOfCollection = (text, name) => {
   return new RegExp(`\\b(?:out of|from|off) (?:of )?(?:my |the )?(?:news )?${n}(?: news)? collection\\b|\\b(?:out of|from) (?:my |the )?(?:news )?collection (?:called |named )?${n}\\b`).test(norm(text))
 }
 const headlineWhy = (a) => `your words didn’t name that headline (“${String(a?.headline ?? '').slice(0, 60)}”) — name its ticker or click it in your News widget.`
+const NOTEBOOK_W = /\b(?:notebook|journal|current note)\b/i
 const DELETE_W = /\b(?:delete|deleting|deleted|remove|removing|get rid of|erase|trash|discard)\b/i
 export const ASKED = {
   'newsLibrary.save': {
@@ -306,6 +317,11 @@ export const ASKED = {
     // AUDIT (Q2): only DELETE words — "tidy up my collections" / "clean up the library" never do; (T2) naming THAT collection
     by: (t, a) => DELETE_W.test(t) && wordsNameCollection(t, a.collection),
     why: () => 'a collection is deleted only when you ask for exactly that (“delete my Earnings collection”).',
+  },
+  // C3-147: the member's words name the Notebook (or Journal) AND the headline
+  'newsLibrary.toNotebook': {
+    by: (t, a) => NOTEBOOK_W.test(t) && wordsNameHeadline(t, a.headline),
+    why: (a, t) => (!NOTEBOOK_W.test(t) ? 'a headline goes to your Notebook only when you ask for exactly that (“send the AMD headline to my notebook”).' : headlineWhy(a)),
   },
   'newsLibrary.place': {
     by: (t, a) => wordsNameCollection(t, a.collection) && (a.member === false ? outOfCollection(t, a.collection) : true) && wordsNameHeadline(t, a.headline),
@@ -341,6 +357,7 @@ function lineOf(o) {
     case 'create': return `Created the collection “${o.name}”`
     case 'rename': return `Renamed the collection “${o.prev}” to “${o.name}”`
     case 'delete': return `Deleted the collection “${o.name}” (its ${o.count} headline${o.count === 1 ? '' : 's'} stay saved)`
+    case 'notebook': return o.sent ? `Sent the headline ${opText(o)} to your Notebook — ${o.sent}` : `Send the headline ${opText(o)} to your Notebook (your current note, or the Notebook inbox)`
     case 'place': return o.member ? `Put the headline ${opText(o)} in “${o.cname}”${o.wasSaved ? '' : ' (and saved it — a collection only holds saved headlines)'}` : `Took the headline ${opText(o)} out of “${o.cname}”`
     default: return 'Changed your library'
   }
@@ -369,6 +386,14 @@ async function runOp(L, o, rec) {
       rec.savedByMe = !!o.member && !before && L.isSaved(o.id)
       return r
     }
+    case 'notebook': {
+      // the row ⋯ menu's own door: the Notebook's one capture path, its own sentence for where it went
+      const r = await sendHeadlineToNotebook(o.item)
+      if (!r?.ok) return { ok: false, error: r?.text || 'Could not send to Notebook — try again' }
+      rec.sent = r.text
+      delete rec.item
+      return { ok: true }
+    }
     default: return { ok: false, error: 'unknown change' }
   }
 }
@@ -396,7 +421,7 @@ export const newsLibraryKind = {
     // ⛔ the server's own sentence, as it said it — and nothing claimed when nothing happened
     if (!done.length && failed) { const e = new Error(failed.error); e.complete = true; throw e }
     const lines = done.map(lineOf)
-    if (failed) lines.push(`Not done: ${lineOf(failed.op).replace(/^\w+/, (v) => ({ Saved: 'save', Removed: 'remove', Added: 'add to', Replaced: 'replace', Cleared: 'clear', Created: 'create', Renamed: 'rename', Deleted: 'delete', Put: 'put', Took: 'take', Changed: 'change' })[v] || v)} — ${failed.error}`)
+    if (failed) lines.push(`Not done: ${lineOf(failed.op).replace(/^\w+/, (v) => ({ Saved: 'save', Removed: 'remove', Added: 'add to', Replaced: 'replace', Cleared: 'clear', Created: 'create', Renamed: 'rename', Deleted: 'delete', Put: 'put', Took: 'take', Changed: 'change', Sent: 'send', Send: 'send' })[v] || v)} — ${failed.error}`)
     return { lines, undoData: { done: clone(done) } }
   },
   landed(snap, patch) {
@@ -413,7 +438,7 @@ export const newsLibraryKind = {
   },
   undoPatch(item) {
     const done = item.undoData?.done || item.patch?.result?.done || []
-    if (!done.length || done.some(o => o.op === 'delete')) return null
+    if (!done.length || done.some(o => o.op === 'delete' || o.op === 'notebook')) return null
     const back = []
     for (const o of [...done].reverse()) {
       if (o.op === 'save') back.push({ op: 'unsave', id: o.id, text: o.text })
@@ -472,6 +497,78 @@ async function prepareSaved(ops) {
   return { newsSaved: { forRef, byId, notes, member, ok } }
 }
 
+// ── C3-147: the headline's FULL text for the Notebook capture (the door's rows are cut at 80 characters, AUDIT D13) ──
+// The live feed's pool — the ONE stream manager every News widget reads — by id; a saved headline's own copy otherwise.
+let feedForTests = null
+/** tests / the capability-regression host: the pool's items in place of the stream manager's snapshot */
+export function _setNewsFeedForTests(fn) { feedForTests = typeof fn === 'function' ? fn : null }
+async function feedPool() {
+  let items = []
+  try { items = feedForTests ? feedForTests() : (await import('../../lib/tradeExchangeNewsStreamManager')).getSnapshot()?.items } catch { items = [] }
+  return new Map((Array.isArray(items) ? items : []).filter(it => it && it.id != null).map(it => [String(it.id), it]))
+}
+async function prepareNotebook(ops) {
+  const [saved, pool] = await Promise.all([prepareSaved(ops), feedPool()])
+  return { ...saved, newsPool: pool }
+}
+/** the headline exactly as the ⋯ menu hands it to sendHeadlineToNotebook, or null when its full text is not known here */
+function fullItem(id, env) {
+  const it = env?.newsPool?.get?.(String(id))
+  if (it && typeof it.content === 'string' && it.content) return { id: String(it.id), content: it.content, received_at_ms: it.received_at_ms ?? null, tickers: it.tickers || [] }
+  const r = env?.newsSaved?.byId?.get?.(String(id))
+  return r && r.text ? { id: r.id, content: r.text, received_at_ms: r.time ?? null, tickers: r.tickers || [] } : null
+}
+export const NOT_IN_FEED = 'I can only send a headline from today’s live feed or your saved headlines — for an older one, open its ⋯ menu → Send to Notebook. Nothing was sent.'
+
+// ── C3-144: the tickers of the headline the member's words point at (read-only; the watchlist.add reader's referent) ──
+// refWords = the member's own words for the headline ("this headline", "the selected story", "the AMD headline", a quoted
+// phrase, "the headline about the Fed"). → { tickers, text } | { say } (a fixed answer: nothing is changed) | null (not a
+// headline reference: the words are left to the other readers and the model).
+const HL_REF_NOUN = '(?:headlines?|stor(?:y|ies)|articles?|news items?|news)'
+export function headlineTickers(host, refWords, typed = refWords) {
+  const w = String(refWords || '').trim().replace(/[’]/g, "'")
+  if (!w) return null
+  noteTurn(typed, host)
+  const views = newsViews(host)
+  const visible = dedupe(views.flatMap(v => v.visible.map(rowOf)))
+  const selected = [...new Set(views.map(v => v.selected).filter(Boolean).map(String))]
+  const pick = (id) => visible.find(r => r.id === id) || null
+  let rows = null
+  let m
+  if (new RegExp(`^(?:this|that|the|my)?\\s*(?:selected|open|opened|highlighted|current|clicked)?\\s*${HL_REF_NOUN}$`, 'i').test(w) && /\b(?:this|that|selected|open|opened|highlighted|current|clicked)\b/i.test(w)) {
+    if (!views.length) return null
+    if (selected.length === 1) rows = [pick(selected[0])].filter(Boolean)
+    else if (selected.length > 1) return { say: 'More than one headline is open in your News widgets — close all but the one you mean, or name its ticker. Nothing was changed.' }
+    else if (/\bthat\b/i.test(w) && previousSubject()) rows = [pick(previousSubject())].filter(Boolean)
+    if (!rows || !rows.length) return { say: 'Which headline? Click it (or open its ⋯ menu) in your News widget, or name its ticker. Nothing was changed.' }
+  } else if (/^(?:the |that |this )?(?:previous|last|same) (?:headlines?|stor(?:y|ies)|articles?)$/i.test(w)) {
+    const p = previousSubject()
+    if (!p || !pick(p)) return { say: 'Which headline? Click it (or open its ⋯ menu) in your News widget, or name its ticker. Nothing was changed.' }
+    rows = [pick(p)]
+  } else if ((m = new RegExp(`^(?:the |that |this |my )?\\$?([a-z]{1,5}) ${HL_REF_NOUN}$`, 'i').exec(w))) {
+    if (!views.length) return null
+    rows = matchRows(visible, m[1])
+    if (!rows.length) return { say: `There’s no ${m[1].toUpperCase()} headline on your News widget right now. Nothing was changed.` }
+  } else if ((m = new RegExp(`^(?:the |that |this )?[“"]([^”"]{3,200})[”"](?: ${HL_REF_NOUN})?$`, 'i').exec(w))) {
+    if (!views.length) return null
+    rows = matchRows(visible, m[1])
+    if (!rows.length) return { say: `No headline on your News widget says “${m[1]}”. Nothing was changed.` }
+  } else if ((m = new RegExp(`^(?:the |that |this )?${HL_REF_NOUN} (?:about|on|regarding|covering) (.{2,80})$`, 'i').exec(w))) {
+    if (!views.length) return null
+    const descs = headlineDescriptions(w)
+    if (!descs.length) return null
+    rows = visible.filter(r => descs.every(d => descriptionMatches(d, r)))
+    if (!rows.length) return { say: 'No headline on your News widget matches that. Click the one you mean (or name its ticker). Nothing was changed.' }
+  } else return null
+  if (rows.length > 1) {
+    return { say: `That could be ${rows.slice(0, MAX_CHOICES).map((r, i) => `${i + 1}) ${quoteOf(r.text)}${r.tickers.length ? ` (${r.tickers.join(', ')})` : ''}`).join('  ')} — click the one you mean (or open its ⋯ menu) and ask again. Nothing was changed.` }
+  }
+  const row = rows[0]
+  if (!row.tickers.length) return { say: `The headline ${quoteOf(row.text)} names no ticker (Trade Exchange linked none), so there’s nothing to add. Nothing was changed.` }
+  noteActed(row.id)
+  return { tickers: [...row.tickers], text: row.text, id: row.id }
+}
+
 function baseWhy(st) {
   if (!st) return NOT_AVAILABLE
   if (st.status !== 'ready') return NOT_AVAILABLE
@@ -491,6 +588,16 @@ function refOfWords(w) {
   const q = /^(?:the )?[“"]([^”"]{3,200})[”"](?: headline| story)?$/.exec(s)
   if (q) return q[1]
   return null
+}
+
+// C3-147's reading of the member's words for the headline: the pointer forms first ("this news item", "the highlighted story"),
+// then refOfWords — and never a pronoun or article read as a ticker ("this news item" is not a $THIS headline)
+const NOT_A_TICKER = /^(?:THE|THIS|THAT|MY|A|AN|IT|ONE|OPEN|NEWS)$/
+function notebookRef(w) {
+  const s = String(w || '').trim()
+  if (/^(?:this|that|the selected|the open|the opened|the highlighted|the clicked)(?: one)? (?:headline|story|article|news item)$/i.test(s)) return 'selected'
+  const r = refOfWords(s)
+  return r && !NOT_A_TICKER.test(r) ? r : null
 }
 
 let registered = false
@@ -666,6 +773,48 @@ export function registerNewsLibraryCapabilities() {
       return { ...st, collections: st.collections.filter(x => x.id !== c.id), ops: [...st.ops, { op: 'delete', cid: c.id, name: c.name, count: c.count }] }
     },
     describe: (b, a) => { const o = (a.ops || []).filter(x => x.op === 'delete').at(-1); return o ? lineOf(o) : null },
+  })
+
+  // ── C3-147: one headline → the member's Notebook, through the row ⋯ menu's own door (sendHeadlineToNotebook). It writes into
+  // their notes and no door has a way back, so it is always shown first (the card is the deliberate second click the ⋯ menu's
+  // "Send to Notebook again" asks for) and has no Undo.
+  registerCapability({
+    ...common,
+    name: 'newsLibrary.toNotebook',
+    risk: 'confirm',
+    undo: 'none',
+    undoNote: 'A headline sent to your Notebook stays there — remove it from the note yourself if you change your mind.',
+    // the member's own words name the Notebook (or Journal) and the headline
+    askedBy: ASKED['newsLibrary.toNotebook'].by,
+    askedByWhy: ASKED['newsLibrary.toNotebook'].why,
+    summary: 'Send ONE UCT News headline to the member\'s Notebook (their current note, else the Notebook inbox), exactly as the headline\'s ⋯ → Send to Notebook does. Shown first; no Undo.',
+    hints: `${HEADLINE_HINT}. One headline per request.`,
+    args: { type: 'object', properties: { headline: headlineArg }, required: ['headline'], additionalProperties: false },
+    prepare: prepareNotebook,
+    fast: ({ raw, lower, typed, host }) => {
+      noteTurn(typed || raw, host)
+      const m = /^(?:please )?(?:send|put|add|drop|clip|copy|capture|save|stick|throw|pop) (.+?) (?:to|in|into|onto|on) (?:my |the )?(?:ucts? )?(?:notebook(?: inbox)?|journal|current note)$/i.exec(String(lower || '').trim())
+      // a headline noun (or a quoted phrase) must be said: a bare "send this to my notebook" may be the chart or a widget
+      // (widget.sendToJournal), and "the headline" alone names none (refOfWords would read "the" as a ticker)
+      if (!m || !/\b(?:headline|story|article|news item)\b|[“"]/.test(m[1]) || /^(?:the |my |a )?(?:headline|story|article|news item)$/.test(m[1].trim())) return null
+      const r = notebookRef(m[1].replace(/'s$/, ''))
+      return r ? { headline: r } : null
+    },
+    check(st, args = {}, env) {
+      if (!st) return NOT_AVAILABLE
+      const r = resolveHeadline(st, args.headline, st.status === 'ready' ? 'union' : 'visible', env)
+      if (r.ask) return r.ask
+      if (r.none) return r.none
+      if ((st.ops || []).some(o => o.op === 'notebook')) return 'I send one headline to your Notebook at a time — which one? Nothing was sent.'
+      return fullItem(r.id, env) ? null : NOT_IN_FEED
+    },
+    apply(st, args = {}, env) {
+      const r = resolveHeadline(st, args.headline, st.status === 'ready' ? 'union' : 'visible', env)
+      const item = r.id ? fullItem(r.id, env) : null
+      if (!item) return st
+      return { ...st, ops: [...st.ops, { op: 'notebook', id: item.id, item, text: (textOf(st, item.id, env) || item.content), pointed: r.via === 'selected' || r.via === 'previous' || r.via === 'offered' }] }
+    },
+    describe: (b, a) => { const o = (a.ops || []).filter(x => x.op === 'notebook').at(-1); return o ? lineOf(o) : null },
   })
 
   registerCapability({

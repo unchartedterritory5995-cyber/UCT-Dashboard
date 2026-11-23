@@ -146,9 +146,14 @@ describe('pine:timeout — the wall clock', () => {
 })
 
 describe('the shipped numbers are measured, not guessed', () => {
-  it('the budget is ~30x the slowest legitimate script', () => {
-    // Slowest of 434 scripts: 322ms (tools/pine_survey/r11_translate_timings.json).
-    expect(PINE_TRANSLATE_BUDGET_MS).toBe(10000)
+  it('⭐ e94 — the wall stop is the last resort: >= 3x the slowest served script\'s clean, uncut translate call', () => {
+    // e94's census (docs/pine/evidence/2026-11-22-e94-deterministic-budgets/EVIDENCE.md), ruling (C): the slowest single translatePine call of a served script, uncut:
+    // 294,832 ms (one run on the shipped code (the step budget as shipped, the door's runtime clocks held still), the two last-resort stops lifted in the measurement snapshot only, lane 1, nothing else running: a single run with a margin for run-to-run variance, by the amended ruling; a licence-held script, named in the private evidence). Whole minutes.
+    // ⛔ The value SHIPPED is pinned: a lift made for a measurement never reaches a member.
+    expect(PINE_TRANSLATE_BUDGET_MS).toBe(1080000)
+    expect(PINE_TRANSLATE_BUDGET_MS % 60000).toBe(0)
+    expect(PINE_TRANSLATE_BUDGET_MS / 294832).toBeGreaterThanOrEqual(3.5)
+    // (and it still bounds a non-terminating script: the old survey's slowest legitimate script was 322 ms)
     expect(PINE_TRANSLATE_BUDGET_MS / 322).toBeGreaterThan(25)
   })
 

@@ -35,6 +35,24 @@
 // serving throughout: no held copy, another base, a malformed entry, a download that fails, is short, long
 // or wrong, a trailer that names another build or base, a symbol set that is not the manifest's, a record
 // that does not decode or check, a write or read-back that fails.
+//
+// ⭐ WHAT A MEMBER'S BROWSER PAYS WHEN THINGS GO WRONG IS BOUNDED (review of #2537; INGEST_STATE_FILE keeps the records
+// across page loads, beside the packs, so removing the store's directory removes them too):
+//   M5  ROOM FIRST. No pack is downloaded (nor a delta applied: it writes a new full-size generation) unless the
+//       origin's free quota (navigator.storage.estimate) holds the pack plus HEADROOM_MARGIN_BYTES: the quota is
+//       shared with IndexedDB (the bar caches, the Notebook's offline outbox), and the seed must never be what makes
+//       those fail. A write the disk refuses (QuotaExceededError, or fewer bytes written than given) removes the
+//       partial generation at once (never resumed), and either refusal records "no room" for NO_ROOM_RETRY_MS: until
+//       then this browser is asked nothing (the leader does not even fetch the manifest, workerCore). One attempt per
+//       period, never a loop on a browser that cannot hold the seed (a private window, a tiny quota, a full disk).
+//       Any other write failure removes the partial too, without the marker.
+//   M7  A PACK THAT FAILS ITS CHECKS (sha256, size, trailer, build, the probe record) is discarded whole, as before,
+//       and recorded with its build: tried again after BAD_PACK_RETRY_MS[0], then [1], then never again for that
+//       build + sha256 (BAD_PACK_MAX_TRIES). A new build clears it. A bad object at the edge costs a member at most
+//       three downloads per build, not one per page load.
+//   L3  Pack and delta downloads are `cache: 'no-store'`: the edge serves them `private, max-age=31536000, immutable`,
+//       which would keep a second copy of every pack in the HTTP cache. The edge's own copy (its Cache API, keyed by
+//       a URL the Worker builds) does not depend on the request's cache mode.
 
 import { decodeRecord, trailerLengthOf, parseTrailer, PACK_TAIL_BYTES, DeviceFormatError, SEED_FIELDS, SEED_MAGIC } from './codec'
 import { parseDelta, applyDelta, newSetOf } from './delta'
@@ -58,6 +76,80 @@ const BUSY_WAIT_MS = 120
 
 export class IngestError extends Error {
   constructor(message) { super(message); this.name = 'IngestError' }
+}
+/** The disk refused a write (quota, or a short write): M5. */
+export class NoRoomError extends IngestError {
+  constructor(message) { super(message); this.name = 'NoRoomError' }
+}
+/** The downloaded object is not the manifest's (size, sha256): M7. */
+class BadPackError extends IngestError {
+  constructor(message) { super(message); this.badPack = true }
+}
+
+/** M5: free quota a pack download must leave untouched (see the header). 256 MiB: the seed is ~80 MB and replacing a
+ *  timeframe briefly holds two generations, so a browser needs ~340 MB free to take a first seed; the bars pack's
+ *  IndexedDB caches and the Notebook's offline outbox keep a quarter gigabyte to grow into. A normal desktop profile
+ *  has gigabytes (Chrome: up to 60% of the disk); a private window or a nearly full disk does not, and stays off. */
+export const HEADROOM_MARGIN_BYTES = 256 * 1024 * 1024
+/** M5: how long a "no room" stands before this browser tries once more. A wrong "no room" costs a member the speed
+ *  feature for a few days; a wrong retry costs up to a whole pack of download and disk churn: at most ~10 a month. */
+export const NO_ROOM_RETRY_MS = 3 * 24 * 3_600_000
+/** M7: wait after the 1st and the 2nd failure of a pack (same build + sha256); the 3rd is the last try for that build. */
+export const BAD_PACK_RETRY_MS = Object.freeze([3_600_000, 6 * 3_600_000])
+export const BAD_PACK_MAX_TRIES = 3
+/** The records of M5 and M7, beside the packs: {v: 1, noRoom: {at, until, tf, why, need?, free?} | null,
+ *  bad: {tf: {build, sha256, tries, at, until, error}}}. */
+export const INGEST_STATE_FILE = 'ingest.json'
+
+const _isQuota = (e) => e?.name === 'QuotaExceededError' || e?.code === 22
+/** One write, all of it, or a typed failure: NoRoomError for a quota refusal or a short write; any other failure is
+ *  the original error marked `writeFailed` (its partial is removed, never resumed). */
+function _put(h, u8, at) {
+  let n
+  try { n = h.write(u8, at) } catch (e) {
+    if (_isQuota(e)) throw new NoRoomError(`write refused: ${e?.message || e}`)
+    try { e.writeFailed = true } catch { /* not an object */ }
+    throw e
+  }
+  if (n !== u8.length) throw new NoRoomError(`short write: ${n} of ${u8.length} bytes`)
+}
+function _flush(h) {
+  try { h.flush() } catch (e) {
+    if (_isQuota(e)) throw new NoRoomError(`flush refused: ${e?.message || e}`)
+    try { e.writeFailed = true } catch { /* not an object */ }
+    throw e
+  }
+}
+const _writeFailed = (e) => e instanceof NoRoomError || e?.writeFailed === true
+/** navigator.storage.estimate() where there is one (a worker has it too), else null: "cannot tell" never blocks. */
+const _estimate = async () => {
+  const st = typeof navigator !== 'undefined' ? navigator.storage : null
+  return st && typeof st.estimate === 'function' ? st.estimate() : null
+}
+/** The newest as-of session ('YYYY-MM-DD') any row of a timeframe file holds, or null. */
+function _asofMaxOf(index) {
+  let m = 0
+  const a = index?.asof
+  if (a && typeof a.length === 'number') for (let i = 0; i < a.length; i++) if (a[i] > m) m = a[i]
+  return m > 0 ? isoOfYmd(m) : null
+}
+const _emptyState = () => ({ v: 1, noRoom: null, bad: {} })
+/** A state file's contents, kept only where well-formed (anything else is forgotten: the safe direction is to try).
+ *  ⭐ CAPPED WHEN READ (review of #2563, LOW-4): a record written while the clock ran ahead never locks this browser
+ *  out past its schedule counted from `nowMs` (this load): "no room" at most NO_ROOM_RETRY_MS, a bad pack at most its
+ *  try's wait. ("Never again for this build", after the last try, is not a time and is kept.) */
+function _stateOf(j, nowMs) {
+  const out = _emptyState()
+  const n = j?.noRoom
+  if (n && Number.isFinite(n.until) && Number.isFinite(n.at)) out.noRoom = { ...n, until: Math.min(n.until, nowMs + NO_ROOM_RETRY_MS) }
+  for (const [tf, b] of Object.entries(j?.bad || {})) {
+    if (STORED_TFS.includes(tf) && b && typeof b.build === 'string' && typeof b.sha256 === 'string' && Number.isSafeInteger(b.tries)
+        && b.tries > 0 && (b.until === null || Number.isFinite(b.until))) {
+      const wait = BAD_PACK_RETRY_MS[Math.min(b.tries, BAD_PACK_RETRY_MS.length) - 1]
+      out.bad[tf] = { ...b, until: b.until === null ? null : Math.min(b.until, nowMs + wait) }
+    }
+  }
+  return out
 }
 
 const _enc = new TextEncoder()
@@ -97,8 +189,11 @@ function _splitsOf(m) {
   return { session: sp.session, symbols: new Set(Object.keys(sp.symbols).map((x) => x.toUpperCase().replace(/\./g, '-'))) }
 }
 
-export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEvent = null, flushEvery = 8 << 20, now = () => Date.now(), deltaSliceMs = DELTA_SLICE_MS } = {}) {
+export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEvent = null, flushEvery = 8 << 20, now = () => Date.now(), deltaSliceMs = DELTA_SLICE_MS,
+  estimate = _estimate, headroomBytes = HEADROOM_MARGIN_BYTES } = {}) {
   if (!io) throw new Error('device engine: no io')
+  /** M5 / M7 records (INGEST_STATE_FILE), read at open(). */
+  let state = _emptyState()
   /** ⭐ THE SPLIT GUARD (review of #2189). The seed is split-adjusted AS OF its session (`asof`); a split
    *  executing on a LATER session puts the server (and today's raw minutes) on another basis than the
    *  seed, and a joined copy would paint a fake cliff the server's answer then resets. The manifest names
@@ -189,7 +284,7 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
   function _install(tf, entry) {
     names = null
     const old = live.get(tf)
-    live.set(tf, { ...entry, scratch: new Uint8Array(4096), bad: 0 })
+    live.set(tf, { ...entry, scratch: new Uint8Array(4096), bad: 0, asofMax: _asofMaxOf(entry.index) })
     if (old && old.handle !== entry.handle) { try { old.handle.close() } catch { /* gone */ } }
   }
   async function _removeGen(tf, gen) {
@@ -332,6 +427,9 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
         if (all.includes(SPLITS_FILE)) {
           try { const j = await _readJson(SPLITS_FILE); splits = _splitsOf({ splits: j && { session: j.session, symbols: Object.fromEntries((j.symbols || []).map((x) => [x, 1])) } }) } catch { splits = null }
         }
+        if (all.includes(INGEST_STATE_FILE)) {
+          try { state = _stateOf(await _readJson(INGEST_STATE_FILE), now()) } catch { state = _emptyState() }
+        }
         return _scan(all)
       })()
       for (const tf of STORED_TFS) tfOpening.set(tf, listing.then((by) => _openTf(tf, by.get(tf)), () => {}))
@@ -368,6 +466,33 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
       try { await _writeJson(SPLITS_FILE, sp ? { session: sp.session, symbols: [...sp.symbols] } : null) } catch { /* memory still holds it */ }
     },
 
+    /**
+     * M2: does any held timeframe still pass the split guard today, for some symbol? Its newest as-of session is today
+     * or later, or today is the next session and the manifest's split list covers it (_basisHolds without a symbol).
+     * False: every read() answers null ('split') until a newer seed lands, so the leader stops the minute feed.
+     */
+    serves() {
+      const today = etDateLabel(Math.floor(now() / 1000))
+      for (const L of live.values()) {
+        const asof = L.asofMax
+        if (!asof) continue
+        if (today <= asof) return true
+        const next = nextSessionISO(asof)
+        if (splits && splits.session === next && today <= next) return true
+      }
+      return false
+    },
+
+    /** M5: this browser has no room for the seed (until the marker expires): {status: 'no-room', ...} or null. */
+    ingestBlocked() {
+      const n = state.noRoom
+      if (!n || !(now() < n.until)) return null
+      return { status: 'no-room', ...n }
+    },
+
+    /** Diagnostics: the M5 / M7 records (a copy). */
+    ingestState() { return JSON.parse(JSON.stringify(state)) },
+
     /** Attach (or detach, null) today's overlay (live.js), read by every read() after this. */
     attachLive(o) { overlay = o || null },
     /** The name a held file uses for `sym` ('BRK-B' or 'BRK.B' spelling), or null when none holds it. */
@@ -395,10 +520,12 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
      * Download, verify and commit one timeframe file. `entry` = {tf, build, url, bytes, sha256,
      * encoding?: 'identity' | 'gzip', symbols?, bars?, delta?: {base, url, bytes, sha256}} (the manifest's
      * per-tf entry plus its build). Resolves {tf, status: 'current' | 'ingested', via: 'delta' | 'full', ...}
-     * (`delta`: why an offered delta was not used); rejects on a failure (a partial download stays on disk
-     * and resumes on the next call; a file whose sha256 does not match is discarded whole). The delta is
-     * tried first when the held generation is its base, the full pack on any doubt (see the header). One
-     * ingest per timeframe at a time.
+     * (`delta`: why an offered delta was not used), 'no-room' (M5: no download without room, or the disk refused
+     * a write: {why: 'headroom' | 'write', until, need?, free?}) or 'backoff' (M7: this build failed its checks
+     * recently: {build, tries, until}, until null once its tries are spent); rejects on a failure (a download the
+     * NETWORK cut stays on disk and resumes on the next call; a file that fails its checks is discarded whole and
+     * recorded; a write that fails is discarded whole). The delta is tried first when the held generation is its
+     * base, the full pack on any doubt (see the header). One ingest per timeframe at a time.
      */
     ingest(entry, opts = {}) {
       const tf = String(entry?.tf)
@@ -413,6 +540,8 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
      *  in STORED_TFS order. */
     async ingestAll(manifest, { signal = null, base = null } = {}) {
       await api.open()
+      const blocked = api.ingestBlocked()
+      if (blocked) return [blocked]                       // M5: nothing at all until the marker expires
       await api.setSplits(manifest)
       const out = []
       for (const tf of STORED_TFS) {
@@ -428,6 +557,7 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
         try { out.push(await api.ingest({ build: manifest.build, ...e, tf, url, delta }, { signal })) } catch (err) {
           out.push({ tf, status: 'error', error: String(err?.message || err) })
         }
+        if (out[out.length - 1]?.status === 'no-room') break   // M5: the next timeframe would not fit either
       }
       return out
     },
@@ -466,25 +596,115 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
     return null
   }
 
+  async function _saveState() {
+    try { await _writeJson(INGEST_STATE_FILE, state) } catch { /* memory still holds it: one try per page load */ }
+  }
+  /** M5: the browser has no room (`why` 'headroom' | 'write'): recorded for NO_ROOM_RETRY_MS. The status to answer. */
+  async function _noRoom(tf, why, extra = {}) {
+    const at = now()
+    state.noRoom = { at, until: at + NO_ROOM_RETRY_MS, tf, why, ...extra }
+    await _saveState()
+    return { tf, status: 'no-room', why, until: state.noRoom.until, ...extra }
+  }
+  /** M5: is there room for `bytes` more plus the margin? `ok` when the browser cannot tell. */
+  async function _room(bytes) {
+    let est = null
+    try { est = await estimate() } catch { est = null }
+    const quota = Number(est?.quota), usage = Number(est?.usage)
+    if (!Number.isFinite(quota) || !Number.isFinite(usage)) return { ok: true, free: null, need: null }
+    const free = quota - usage
+    const need = bytes + headroomBytes
+    return { ok: free >= need, free, need }
+  }
+  /** M5 (review of #2563, LOW-4): the bytes of THIS build's resumable partial download of `tf` already on disk (its
+   *  .prog names exactly this entry), so the room check asks only for the rest. 0 for none, and for a gzip pack (it
+   *  restarts from zero). */
+  async function _resumableBytes(tf, entry) {
+    if (entry.encoding === 'gzip') return 0
+    try {
+      for (const [g, kinds] of _scan(await io.list()).get(tf) || []) {
+        if (kinds.has('ok') || !kinds.has('prog') || !kinds.has('pack')) continue
+        const p = await _readJson(progName(tf, g))
+        if (p.build !== entry.build || p.sha256 !== entry.sha256 || p.bytes !== entry.bytes || p.url !== entry.url) continue
+        const h = await _open(packName(tf, g))
+        try { return Math.max(0, Math.min(h.size(), entry.bytes)) } finally { h.close() }
+      }
+    } catch { /* none readable: count nothing */ }
+    return 0
+  }
+  /** M5: every uncommitted generation of `tf` (a partial, an unmarked delta generation) goes: no room to finish it. */
+  async function _dropUncommitted(tf) {
+    let gens
+    try { gens = _scan(await io.list()).get(tf) } catch { return }
+    const cur = live.get(tf)
+    for (const [g, kinds] of gens || []) if (g !== cur?.gen && !kinds.has('ok')) await _removeGen(tf, g)
+  }
+  /** M7: the status to answer while this build of `tf` is backed off, or null (go). A record of another build or
+   *  sha256 is cleared: a new build is never held to an old one's failures. */
+  async function _backoffFor(tf, entry) {
+    const b = state.bad[tf]
+    if (!b) return null
+    if (b.build !== entry.build || b.sha256 !== entry.sha256) { delete state.bad[tf]; await _saveState(); return null }
+    const base = { tf, status: 'backoff', build: b.build, tries: b.tries, error: b.error ?? null }
+    if (b.tries >= BAD_PACK_MAX_TRIES) return { ...base, until: null }
+    if (now() < b.until) return { ...base, until: b.until }
+    return null
+  }
+  /** M7: this build of `tf` failed its checks once more. */
+  async function _noteBad(tf, entry, e) {
+    const prev = state.bad[tf]
+    const tries = prev && prev.build === entry.build && prev.sha256 === entry.sha256 ? prev.tries + 1 : 1
+    const at = now()
+    state.bad[tf] = { build: entry.build, sha256: entry.sha256, tries, at, until: tries >= BAD_PACK_MAX_TRIES ? null : at + BAD_PACK_RETRY_MS[tries - 1], error: String(e?.message || e).slice(0, 200) }
+    await _saveState()
+  }
+  async function _clearBad(tf) {
+    if (!state.bad[tf]) return
+    delete state.bad[tf]
+    await _saveState()
+  }
+
   async function _ingestAny(entry, opts = {}) {
     const tf = _checkEntry(entry)
     await api.open()
     const cur = live.get(tf)
     if (_isCurrent(cur, entry)) return { tf, status: 'current', build: cur.build, via: cur.via ?? 'full' }
+    const blocked = api.ingestBlocked()
+    if (blocked) return { ...blocked, tf }
+    const backoff = await _backoffFor(tf, entry)
+    if (backoff) return backoff
+    // ⭐ ROOM FIRST (M5): both paths write a new generation the size of the full pack; a full download that RESUMES
+    // needs only the rest of it (LOW-4 of the review of #2563)
+    const deltaFirst = entry.delta != null && !_deltaRefusal(entry, cur)
+    const room = await _room(entry.bytes - (deltaFirst ? 0 : await _resumableBytes(tf, entry)))
+    if (!room.ok) { await _dropUncommitted(tf); return _noRoom(tf, 'headroom', { need: room.need, free: room.free }) }
     let why = null
     if (entry.delta != null) {
       why = _deltaRefusal(entry, cur)
       if (!why) {
-        try { return await _ingestDelta(tf, entry, cur, opts) } catch (e) { why = `failed: ${String(e?.message || e).slice(0, 200)}` }
+        try {
+          const r = await _ingestDelta(tf, entry, cur, opts)
+          await _clearBad(tf)
+          return r
+        } catch (e) {
+          // the disk refused the delta's generation: the full pack would not fit either (no 80 MB fallback)
+          if (e instanceof NoRoomError || _isQuota(e)) return _noRoom(tf, 'write', { error: String(e?.message || e).slice(0, 200) })
+          why = `failed: ${String(e?.message || e).slice(0, 200)}`
+        }
       }
     }
-    const r = await _ingest(entry, opts)
+    let r
+    try { r = await _ingest(entry, opts) } catch (e) {
+      // a quota refusal anywhere in the download (its .prog / .ok files included) is "no room" too, never a loop
+      if (_isQuota(e)) return _noRoom(tf, 'write', { error: String(e?.message || e).slice(0, 200) })
+      throw e
+    }
     return why && r.status === 'ingested' ? { ...r, delta: why } : r
   }
 
   /** The delta file, whole, in memory: exactly `d.bytes`, sha256 `d.sha256`, or IngestError. */
   async function _fetchDelta(tf, d, signal) {
-    const res = await fetchFn(d.url, { signal, credentials: 'same-origin' })
+    const res = await fetchFn(d.url, { signal, credentials: 'same-origin', cache: 'no-store' })   // L3
     if (res.status !== 200) throw new IngestError(`delta: ${tf} answered ${res.status}`)
     if (!res.body) throw new IngestError('delta: no body')
     const buf = new Uint8Array(d.bytes)
@@ -551,7 +771,7 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
       let at = 0
       for (const { sym, blob, entry: e } of applyDelta({ index: L.index, read: readBase }, dt, bytes)) {
         e[0] = at
-        if (h.write(blob, at) !== blob.length) throw new IngestError('delta: short write')
+        _put(h, blob, at)
         at += blob.length
         symbols[sym] = e
         await pace()
@@ -567,9 +787,10 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
       tv.setUint32(0, tb.length % 4294967296, true)
       tv.setUint32(4, Math.floor(tb.length / 4294967296), true)
       tail.set(_enc.encode(SEED_MAGIC), 8)
-      if (h.write(tb, at) !== tb.length || h.write(tail, at + tb.length) !== tail.length) throw new IngestError('delta: short write')
+      _put(h, tb, at)
+      _put(h, tail, at + tb.length)
       const size = at + tb.length + tail.length
-      h.flush()
+      _flush(h)
       if (h.size() !== size) throw new IngestError(`delta: the new file is ${h.size()} bytes, ${size} were written`)
 
       // 3. ⭐ THE CHECK, its only copy: READ IT BACK through the reader, the trailer then every record, as a
@@ -648,7 +869,7 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
         // a gzip FILE cannot resume mid-stream (the inflater's state is gone): start it over
         if (gz && have > 0) { h.truncate(0); have = 0; hasher = createSha256() }
         const headers = have > 0 ? { Range: `bytes=${have}-` } : {}
-        const res = await fetchFn(entry.url, { headers, signal, credentials: 'same-origin' })
+        const res = await fetchFn(entry.url, { headers, signal, credentials: 'same-origin', cache: 'no-store' })   // L3
         if (have > 0 && res.status === 200) { h.truncate(0); have = 0; hasher = createSha256() }   // range ignored
         else if (have > 0 && res.status === 206) {
           const m = /bytes\s+(\d+)-/i.exec(res.headers?.get?.('content-range') || '')
@@ -659,33 +880,32 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
         if (gz) stream = stream.pipeThrough(new DecompressionStream('gzip'))
         const reader = stream.getReader()
         let since = 0
+        let writeErr = null
         try {
           for (;;) {
             const { value, done } = await reader.read()
             if (done) break
             if (signal?.aborted) throw new IngestError('ingest: aborted')
-            if (have + value.length > entry.bytes) throw new IngestError('ingest: longer than the manifest says')
-            h.write(value, have)
+            if (have + value.length > entry.bytes) throw new BadPackError('ingest: longer than the manifest says')
+            try { _put(h, value, have) } catch (e) { writeErr = e; throw e }
             hasher.update(value)
             have += value.length
             since += value.length
-            if (since >= flushEvery) { h.flush(); since = 0 }
+            if (since >= flushEvery) { try { _flush(h) } catch (e) { writeErr = e; throw e } since = 0 }
             onProgress?.(tf, have, entry.bytes)
           }
         } finally {
-          h.flush()
+          // what arrived before a network cut is kept for the resume (flushed); a write failure is not
+          if (!writeErr) { try { _flush(h) } catch (e) { writeErr = e } }
           try { reader.releaseLock() } catch { /* done */ }
         }
+        if (writeErr) throw writeErr
+        // the body ENDED (no network error) short of the manifest's size: the object at the edge is not the manifest's
+        if (have !== entry.bytes) throw new BadPackError(`ingest: ${tf} is ${have} bytes, the manifest says ${entry.bytes}`)
       }
       if (have !== entry.bytes) throw new IngestError(`ingest: ${tf} is ${have} bytes, the manifest says ${entry.bytes}`)
-      if (hasher.hex() !== entry.sha256) {
-        // never resumed: the bytes on disk are wrong somewhere
-        h.truncate(0)
-        h.flush()
-        h.close(); h = null
-        await _removeGen(tf, gen)
-        throw new IngestError(`ingest: ${tf} sha256 mismatch`)
-      }
+      // never resumed: the bytes on disk are wrong somewhere (discarded whole and recorded below)
+      if (hasher.hex() !== entry.sha256) throw new BadPackError(`ingest: ${tf} sha256 mismatch`)
       // A whole, verified file that is still not USABLE is discarded whole too (never resumed): its
       // trailer must parse for this tf, it must be the build the manifest named (a stale edge copy, a
       // mixed-up URL), and ONE record must decode (a store that answers null for every symbol is never
@@ -696,8 +916,7 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
         if (index.build != null && index.build !== entry.build) throw new IngestError(`ingest: ${tf} holds build ${index.build}, the manifest says ${entry.build}`)
         if (index.count) decodeRecord(index, 0, _probe(h, index))
       } catch (e) {
-        h.close(); h = null
-        await _removeGen(tf, gen)
+        try { e.badPack = true } catch { /* not an object */ }
         throw e
       }
       await _writeJson(okName(tf, gen), { v: 1, tf, gen, build: entry.build, sha256: entry.sha256, bytes: entry.bytes })
@@ -705,8 +924,19 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
       h = null
       try { await io.remove(progName(tf, gen)) } catch { /* harmless */ }
       for (const g of gens.keys()) if (g !== gen) await _removeGen(tf, g)
+      await _clearBad(tf)
       try { onEvent?.({ type: 'gen', tf, build: entry.build, gen }) } catch { /* listener */ }
       return { tf, status: 'ingested', build: entry.build, count: index.count, via: 'full' }
+    } catch (e) {
+      // ⛔ DISCARDED WHOLE, NEVER RESUMED: a file that is not the manifest's (M7: recorded, backed off) and a file the
+      // disk refused to write (M5: no partial kept in a quota shared with IndexedDB; "no room" recorded on a refusal)
+      if (e?.badPack === true || _writeFailed(e) || _isQuota(e)) {
+        if (h) { try { h.close() } catch { /* gone */ } h = null }
+        await _removeGen(tf, gen)
+        if (e?.badPack === true) await _noteBad(tf, entry, e)
+        else if (e instanceof NoRoomError || _isQuota(e)) return _noRoom(tf, 'write', { error: String(e?.message || e).slice(0, 200) })
+      }
+      throw e
     } finally {
       if (h) h.close()
     }

@@ -819,7 +819,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false
+   "fast": true
   },
   "definition.search": {
    "domain": "definition",
@@ -1920,6 +1920,19 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true
+  },
+  "newsLibrary.toNotebook": {
+   "domain": "newsLibrary",
+   "group": "newsLibrary",
+   "target": "newsLibrary",
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "none",
    "query": false,
    "surfaces": [
     "charts"

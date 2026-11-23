@@ -1,41 +1,41 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 255,
-  "withProductionKinds": 207,
+  "all": 256,
+  "withProductionKinds": 208,
   "darkGated": 48
  },
  "totals": {
-  "capabilities": 255,
-  "withAnyRegressionCase": 203,
+  "capabilities": 256,
+  "withAnyRegressionCase": 204,
   "perProtection": {
    "nl": {
-    "covered": 200,
-    "applicable": 255
+    "covered": 201,
+    "applicable": 256
    },
    "routing": {
-    "covered": 197,
-    "applicable": 255
+    "covered": 198,
+    "applicable": 256
    },
    "args": {
-    "covered": 203,
-    "applicable": 255
+    "covered": 204,
+    "applicable": 256
    },
    "execution": {
-    "covered": 200,
-    "applicable": 255
+    "covered": 201,
+    "applicable": 256
    },
    "receipt": {
     "covered": 171,
-    "applicable": 255
+    "applicable": 256
    },
    "refusal": {
     "covered": 35,
-    "applicable": 255
+    "applicable": 256
    },
    "permission": {
     "covered": 248,
-    "applicable": 255
+    "applicable": 256
    },
    "undo": {
     "covered": 84,
@@ -43,11 +43,11 @@
    },
    "multiStep": {
     "covered": 40,
-    "applicable": 255
+    "applicable": 256
    },
    "phrasings": {
-    "covered": 196,
-    "applicable": 255
+    "covered": 197,
+    "applicable": 256
    }
   }
  },
@@ -1792,7 +1792,7 @@
     "multiStep": false,
     "phrasings": true
    },
-   "phrasings": 8,
+   "phrasings": 20,
    "evidence": {
     "nl": [
      "chart.setSetting.gradient: \"turn the gradient off on this chart\"",
@@ -1812,21 +1812,33 @@
     ],
     "args": [
      "corpus chart.setSetting.gradient",
-     "corpus chart.setSetting.grid"
+     "corpus chart.setSetting.grid",
+     "corpus chart.setSetting.legendHold",
+     "corpus chart.setSetting.barInfoOpen",
+     "corpus chart.setSetting.infoRowStat"
     ],
     "execution": [
      "chart.setSetting.gradient (c)",
-     "chart.setSetting.grid (c)"
+     "chart.setSetting.grid (c)",
+     "chart.setSetting.legendHold (c)",
+     "chart.setSetting.barInfoOpen (c)",
+     "chart.setSetting.infoRowStat (c)"
     ],
     "receipt": [
      "chart.setSetting.gradient (c)",
-     "chart.setSetting.grid (c)"
+     "chart.setSetting.grid (c)",
+     "chart.setSetting.legendHold (c)",
+     "chart.setSetting.barInfoOpen (c)",
+     "chart.setSetting.infoRowStat (c)"
     ],
     "refusal": [],
     "permission": [],
     "undo": [
      "chart.setSetting.gradient: undo restores",
-     "chart.setSetting.grid: undo restores"
+     "chart.setSetting.grid: undo restores",
+     "chart.setSetting.legendHold: undo restores",
+     "chart.setSetting.barInfoOpen: undo restores",
+     "chart.setSetting.infoRowStat: undo restores"
     ],
     "multiStep": [],
     "phrasings": []
@@ -3476,7 +3488,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false,
+   "fast": true,
    "protections": {
     "nl": false,
     "routing": false,
@@ -8123,6 +8135,56 @@
     "phrasings": []
    }
   },
+  "newsLibrary.toNotebook": {
+   "domain": "newsLibrary",
+   "group": "newsLibrary",
+   "target": "newsLibrary",
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "none",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": false,
+    "refusal": false,
+    "permission": false,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "newsLibrary.toNotebook: \"send the NVDA headline to my notebook\"",
+     "newsLibrary.toNotebook: \"put the NVDA story in my journal\"",
+     "newsLibrary.toNotebook: \"clip the NVDA headline into my notebook\""
+    ],
+    "routing": [
+     "newsLibrary.toNotebook: \"send the NVDA headline to my notebook\"",
+     "newsLibrary.toNotebook: \"put the NVDA story in my journal\"",
+     "newsLibrary.toNotebook: \"clip the NVDA headline into my notebook\""
+    ],
+    "args": [
+     "corpus newsLibrary.toNotebook"
+    ],
+    "execution": [
+     "newsLibrary.toNotebook (c)"
+    ],
+    "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "pane.move": {
    "domain": "pane",
    "group": "indicatorSetup",
@@ -11913,7 +11975,7 @@
     "multiStep": true,
     "phrasings": true
    },
-   "phrasings": 10,
+   "phrasings": 13,
    "evidence": {
     "nl": [
      "watchlist.add: \"add AMD to my Momentum list\"",
@@ -11935,24 +11997,28 @@
      "corpus watchlist.add",
      "corpus scan.to-watchlist",
      "corpus scan.to-new-watchlist",
+     "corpus watchlist.add.fromHeadline",
      "GW-25.scan-conversation"
     ],
     "execution": [
      "watchlist.add (c)",
      "scan.to-watchlist (c)",
      "scan.to-new-watchlist (c)",
+     "watchlist.add.fromHeadline (c)",
      "GW-25.scan-conversation"
     ],
     "receipt": [
      "watchlist.add (c)",
      "scan.to-watchlist (c)",
      "scan.to-new-watchlist (c)",
+     "watchlist.add.fromHeadline (c)",
      "GW-25.scan-conversation"
     ],
     "refusal": [],
     "permission": [],
     "undo": [
      "watchlist.add: undo restores",
+     "watchlist.add.fromHeadline: undo restores",
      "GW-25.scan-conversation"
     ],
     "multiStep": [

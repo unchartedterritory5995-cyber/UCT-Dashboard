@@ -863,6 +863,44 @@ production engine 90 (2026-11-20 18:42Z, smoke@, RDDT, the e90 live sweep):
 - **SPY's bad lows** (2005-10-05, 2006-10-05): the owner confirmed D1-D6 on 2026-11-20 (coordinator's record). One private correction ledger,
   applied at serve time and reversible. Its applier for served D/W/M bars merged dark (#2256).
 
+## Status, 2026-11-23: the RS line's divergence on SPY 5m / 30m / 60m is fully explained
+
+- **The result: (iv) unexplained = 0 on all three frames** (coordinator, 2026-11-23).
+  - Every RS-line bar that differs from TradingView's is attributed to a named cause in TradingView's or the vendor's SPX.
+  - The other three Fred plots match exactly on every captured intraday chart (SPY, ADT, AZTA, BGIN).
+- **Method.** The SPY intraday grade (14 Q-FRED-INTRA captures; SPY 5m / 30m / 60m, runtime-on lane), read against the grade's OWN inputs:
+  - the held supply records (SPX at the chart's timeframe plus SPX daily, as production served them at 2026-11-23T01:49Z, with the route's provenance);
+  - TradingView's own SPX on every bar, from the SPX witness captures on SPY (`rs-spx-daily-witness-spy-{5,30,60}-2026-11-23`).
+  - Only the grade's verdict pass is binned: the grader's counterfactual re-run of the same plot follows it and is excluded.
+- **Fred's RS line has ZERO lookback**, from its source:
+  - `rs = close / request.security(lineTicker, timeframe.period, close) * SpxValue * offset / 100`;
+  - `SpxValue` is a constant input (4200); `offset` is 80, or 90 for "Investment Trusts/Mutual Funds" such as SPY.
+  - So an RS bar reads SPX on that bar only. An RS difference is never explained by an earlier bar.
+- **The bins, by |dSPX| between ours and TradingView's on the bar.** "Exact" means 0 at the source's precision:
+
+  | bin | rule | SPY 5m (524) | SPY 30m (4,576) | SPY 60m (15,378) |
+  |---|---|---|---|---|
+  | (i) one tick: index rounding | 0.005 <= \|dSPX\| <= 0.01 | 473 (maxRel 1.4e-6) | 4,347 (2.1e-6) | 14,199 (2.8e-6) |
+  | (i) sub-tick | 0 < \|dSPX\| < 0.005 | 0 | 0 | 143 (2.6e-7) |
+  | (ii) a vendor bar difference | \|dSPX\| > 0.01 | 49 (1.9e-3) | 43 (1.1e-3) | 1,032 (7.2e-4) |
+  | (v) session last bar, FMP prefix | > 0.01, on a prefix session's last RTH bar | 2 (1.6e-3) | 186 (1.6e-3) | 4 (2.5e-6) |
+  | (iv) unexplained | \|dSPX\| = 0 | **0** | **0** | **0** |
+
+  - **(i), index rounding.** TradingView's older SPX intraday history is one index tick away from two vendors (FMP, Yahoo) that agree with each other. It's the approved rounding class: never MATCH, and its own column.
+  - **(i) sub-tick.** TradingView's DAILY SPX close carries a third decimal (3936.691) where ours is rounded to the cent (3936.69). It's read by extended-hours bars, which take the official close (140 of the 143). It's a counted sub-column of the rounding class, never MATCH.
+  - **(ii).** These stay DIVERGE, named as vendor bar differences.
+  - **(v).** TradingView equals neither FMP's last 5m close nor the 15:59 one-minute close: where those two disagree, it sides with each 5 vs 4. So it isn't served differently. It's graded as its own provenance class, `index:fmp-session-last` (#2512), never MATCH.
+    - A served Fred chart that reads FMP-prefix SPX intraday carries one disclosure line: "Older intraday S&P 500 history comes from our data vendor; on a session's last bar its closing value can differ slightly from TradingView's." That's its own unit after #2512.
+    - Yahoo-window session-last bars equal TradingView's on 60 of 60 sessions.
+- **SPX intraday depth is FMP's limit, not ours.**
+  - FMP's 5min answers ^GSPC from 2020 and ^NDX from 2021; 2019 answers "no data" (measured on the pod 2026-11-22; `api/index_bars.py`, `DEEP_DAYS`).
+  - TradingView draws SPX 60m from 2017-2018 (ADT's 60m RS reads it from 2018-01-19, AZTA's from 2017-01-03). Raising `DEEP_DAYS` cannot reach that.
+  - Those bars are withheld by name (`other-symbol:before-held`, #2429 in e94), never `na`. ADT/AZTA 60m are re-graded after e94 is served.
+- **ADT / AZTA / BGIN** (regraded on the deep supply, 2026-11-23):
+  - The RS-line value diffs are SPX-driven: their maxRel equals SPY's on every frame (1.9e-3 on 5m, 1.6e-3 on 30m, 7.2e-4 on 60m).
+  - BGIN 1D and 1W: MATCH_SUBSTITUTED (syminfo.industry).
+  - The 5m / 30m drawing objects are withheld by name (`pine:object-removal-lost`), an engine-lane unit. Its witness set lands after #2570, redacted.
+
 ## Owner rulings
 
 - **2026-11-16, the S&P 500 history difference (Q-RS9):** told that the RS line on bars before

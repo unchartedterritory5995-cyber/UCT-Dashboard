@@ -62,7 +62,7 @@ import { resolveFollowUpOps, snapshotOf, rescopeOrdinal } from './nlm1/followupO
 import { isStepPlan, prepareStepPlan, snapshotInstances, resolveResultRefs, readBackStepPlan } from './nlm1/stepPlans'   // NLM-1 step plans (same two keys)
 import { doItForMe } from './capabilities/guide'
 import { endForNewRequest } from './guide/guideStore'
-import { createMemory, tickersOfAnswer } from './memory'
+import { createMemory, tickersOfAnswer, MEMORY_TTL_MS } from './memory'
 import { resolveReference, subjectTarget, pluralTarget, retargetCorrection } from './references'
 import { resolveFollowUp, resolvePicked } from './conversation'
 import { planCompound, resolveStep, chartsShowing, MAX_STEP_OPS, workspaceConflict, workspaceQuestion, workspaceSteps, WORKSPACE_CHOICES } from './compound'
@@ -152,6 +152,14 @@ const TAB_ADDS = new Set(['chart.addTab', 'widget.addTab'])
 // on the very next message, every op the same tab action on the same widget. Memory's lifetime is no test: "the last change
 // added a tab" stays true for half an hour, and any later request planned as tabs would pass (the 2026-11-03 hotfix's case).
 const TAB_FOLLOW_MAX_WORDS = 6
+/** The member's line before `text` in this chat (`said`: the last two member lines, newest last), while it is fresh (the
+ *  session memory's 30 minutes) — '' when there is none. `text` itself may or may not have been echoed yet. */
+export function previousMemberText(said, text, now = Date.now()) {
+  const xs = Array.isArray(said) ? said : []
+  const last = xs[xs.length - 1]
+  const prev = last && last.text === String(text || '') ? xs[xs.length - 2] : last
+  return prev && now - prev.at <= MEMORY_TTL_MS ? prev.text : ''
+}
 export function continuesTabs(ops, lastTurn, turnNow, text) {
   if (!lastTurn || lastTurn.id !== turnNow - 1) return false
   const words = String(text || '').trim().split(/\s+/)
@@ -829,6 +837,8 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
   // NL-1 (flag off by default): the question UCT is waiting on, sent to the model with the next message
   // (pending_question) so a TYPED answer is read with the question in front of it
   const lastQuestionRef = useRef(null)      // the newest question shown (local or the model's)
+  // the member's last two lines in this chat (first-call routing: NL-1 routes a follow-up that names nothing by the one before)
+  const memberSaidRef = useRef([])
   const pendingQuestionRef = useRef(null)   // the MODEL's open question: { text, choices: [{ label, ref }] }
   // P2-B: the member's words the model's open question is ABOUT ("make the right chart cleaner" → "Hide volume"):
   // an answer is read with them when deciding which charts the member named. Kept for the very next message only.
@@ -967,6 +977,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     }
     const id = item?.id || nid()
     if (item?.role === 'question') lastQuestionRef.current = { ...item, id }
+    if (item?.role === 'member') memberSaidRef.current = [...memberSaidRef.current.slice(-1), { text: String(item.text || ''), at: Date.now() }]
     setItems(xs => [...xs, { at: Date.now(), ...item, id }])
   }, [])
   const patchItem = useCallback((id, patch) => setItems(xs => xs.map(x => (x.id === id ? { ...x, ...patch } : x))), [])
@@ -3085,7 +3096,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         if (picked) answeredRefs = [picked]
         const nl1Args = { host, text, capCtx, manageIndicators, memory: memoryRef.current, epoch: epochOf(host), isProtectedLayout: (e) => isProtected(e),
           pendingQuestion: asked ? { text: asked.text, choices: (asked.choices || []).map(c => ({ label: c.label, ref: c.ref || null })), groups: asked.groups || [] } : null,
-          pendingProposal: p?.kind === 'proposal' ? p : null }
+          pendingProposal: p?.kind === 'proposal' ? p : null, prevText: previousMemberText(memberSaidRef.current, text) }
         const req = buildNl1Request(nl1Args)
         refMap = req.refMap
         nl1Sel = req.selection
@@ -3693,6 +3704,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     setConversationId(null)
     pendingRef.current = null
     memoryRef.current.clear()             // GATE C: memory belongs to one chat
+    memberSaidRef.current = []
     setItems([])
   }, [setConversationId])
 
@@ -3701,6 +3713,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     if (!conv) return
     pendingRef.current = null
     memoryRef.current.clear()             // a reopened chat's old rows are history, not live references
+    memberSaidRef.current = []
     setConversationId(id)
     setItems(itemsFromTurns(conv.turns))
   }, [setConversationId])

@@ -34,7 +34,7 @@ import { wordsSelect } from '../routing'
 import { savedReferent } from './indicatorAuthoring'
 import { colorName } from './chart'
 import { calcTimeframeOf } from '../../components/chart/engine/instanceTimeframe'
-import { settingOfWords, visibilityOfWords, squashedDefId } from './indicatorPhrases'
+import { settingOfWords, visibilityOfWords, squashedDefId, toggleOfWords } from './indicatorPhrases'
 
 const REF = 'ixe:'
 const refOf = (chartRef) => `${REF}${chartRef}`
@@ -882,6 +882,9 @@ export function registerIndicatorEditCapabilities() {
     // ⭐ Phase 2 — "add another 20 EMA" / "a second RSI" / "RSI again": the member's explicit copy (agent/duplicates.js
     // reuses an identical one otherwise).
     fast: ({ lower, raw, host }) => {
+      // LEGEND family: "toggle vwap" with that indicator on no chart — the chord adds it (toggleOfWords)
+      const toggled = toggleOfWords(lower, 'add', host)
+      if (toggled) return toggled
       // PACKAGE 3: "apply it" right after the Agent SAVED an indicator (no draft active) = add that saved definition
       const saved = savedReferent(host, raw)
       if (saved) return { defId: saved.defId, inputs: null, __target: refOf(saved.chart), __explicit: true }
@@ -1019,7 +1022,8 @@ export function registerIndicatorEditCapabilities() {
       name,
       // C2 family: "hide the rsi on all charts" — one per chart (useAgent fan-out); the instant words only when the board says which
       fanOut: true,
-      fast: ({ lower, host }) => visibilityOfWords(lower, visible, host),
+      // LEGEND family: "toggle rsi" (the chord) — hide / show only when the whole board agrees which
+      fast: ({ lower, host }) => visibilityOfWords(lower, visible, host) || toggleOfWords(lower, visible ? 'show' : 'hide', host),
       summary: `${visible ? 'Show' : 'Hide'} ONE indicator (its whole group) on ONE chart — the settings / legend eye. Undo puts it back.`,
       hints: 'target = the ref of that chart\'s indicatorEdits entry. instance = the indicator\'s `id` from that chart\'s indicators list (exact; a name only if it is unique). Volume is not an indicator (use volume.setState).',
       args: { type: 'object', properties: { instance: { type: 'string' } }, required: ['instance'], additionalProperties: false },
