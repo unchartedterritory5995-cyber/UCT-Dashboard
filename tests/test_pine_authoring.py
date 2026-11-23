@@ -125,7 +125,7 @@ def test_a_drawing_family_is_printed_only_when_the_reference_admits_it():
 
 
 def test_an_event_read_is_handed_over_only_while_its_door_answers_members(monkeypatch):
-    """T4 E2 (NUMBER PENDING, train e95): the engine reads `request.earnings` / `.dividends` / `.splits`, and ONE door
+    """T4 E2 (engine 95, train e95): the engine reads `request.earnings` / `.dividends` / `.splits`, and ONE door
     supplies them, staged by `PINE_EVENTS_SUPPLY_ENABLED`. Dark for members (unset, `admins`, `off`), the assistant is
     never handed them and their gaps stay gaps; at `all` both move. The stage the door reads is the only authority."""
     ref = copy.deepcopy(REF)
@@ -147,7 +147,7 @@ def test_an_event_read_is_handed_over_only_while_its_door_answers_members(monkey
 
 
 def test_a_financial_read_is_handed_over_only_while_its_door_answers_members(monkeypatch):
-    """T4 F1b (NUMBER PENDING, train e95): the engine reads `request.financial` as UCT data from company filings, and
+    """T4 F1b (engine 95, train e95): the engine reads `request.financial` as UCT data from company filings, and
     ONE door supplies it, staged by `PINE_FINANCIAL_SUPPLY_ENABLED`. Dark for members (unset, `admins`, `off`), the
     assistant is never handed it and its gap stays a gap; at `all` both move. The door's own stage is the authority."""
     # the engine's answer, as the generated reference and gap probes hold it once F1b serves the read (stated here, so

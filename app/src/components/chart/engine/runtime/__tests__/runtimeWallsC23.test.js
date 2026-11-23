@@ -340,7 +340,7 @@ describe('⭐ 6b — on the product path the run settles `syminfo.mintick` from 
 })
 
 describe('⭐ 7 — `alert()` draws nothing, arguments evaluated as Pine does', () => {
-  // ⭐⭐ TRACK 6, AL1 (NUMBER PENDING, coordinator ruling 2026-11-22): the call is now RECORDED where it stands (one
+  // ⭐⭐ TRACK 6, AL1 (engine 95, coordinator ruling 2026-11-22): the call is now RECORDED where it stands (one
   // `ALERT_EMIT` statement on the run's alert log, `collections.js`), so the program differs from "no alert at all" by
   // exactly that statement and the `bar_index` column it reads, and by nothing the run draws. This rail said "the same
   // program as no alert at all" until then; it now says the same thing about everything but the record call.

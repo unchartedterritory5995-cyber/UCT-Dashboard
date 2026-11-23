@@ -69,7 +69,7 @@ describe('S4-1: a data read in a switch arm the inputs never take', () => {
     expect(run(PLAIN_INPUT)).toEqual(SESSION)
   })
 
-  // ⭐⭐ T4 E2 (NUMBER PENDING) — the arm that reads the chart's own events is BUILT: its read is the run's request of the
+  // ⭐⭐ T4 E2 (engine 95) — the arm that reads the chart's own events is BUILT: its read is the run's request of the
   // events door (`pine.js::eventAsSecurity`), served or refused by name per chart by its supply
   // (`otherSymbols.js::eventDecision`; railed in `engine/requestEvents.test.js`). ⚰️ Before E2 it refused at the build.
   it.each(['Earnings', 'Dividends', 'Splits'])('⭐ the member picks %s: the arm that reads the chart events is built (its supply decides)', (pick) => {

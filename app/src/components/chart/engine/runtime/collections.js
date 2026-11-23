@@ -88,7 +88,7 @@ export function callSiteRuns(lastRunBar, bar, why, where) {
     + 'so its calls have not run on every bar and nothing is drawn.', skipped, bar)
 }
 
-/** ⭐⭐ TRACK 6, AL1 (NUMBER PENDING, coordinator ruling 2026-11-22: alert() is delivered on the server lane) --
+/** ⭐⭐ TRACK 6, AL1 (engine 95, coordinator ruling 2026-11-22: alert() is delivered on the server lane) --
  *  A SCRIPT'S `alert()` CALLS, RECORDED WHERE THEY RUN. The front end lowers `alert(message, freq)` to one void call
  *  of this internal builtin exactly where the statement stands (inside its `if` arm, so only on the bars that arm
  *  runs). Its only effect is one entry on the RUN's alert log; it reads nothing and draws nothing, so no column, no

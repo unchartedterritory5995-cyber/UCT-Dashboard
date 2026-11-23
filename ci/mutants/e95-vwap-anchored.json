@@ -1,6 +1,6 @@
 {
  "schema": "uct.ci-mutants/v1",
- "about": "NUMBER PENDING (train e95), unit 2, the built-in VWAP: Pine's anchored ta.vwap(source, anchor[, stdev_mult]) on both lanes and in the Python twin (TradingView's published computeVWAP, summed from each reset, na before the first), the 3-value form, and the harness grading a hand-added built-in on its held published source (ruling F1). Every rule, broken once, must turn its rail red. Plus the hazard ruling (coordinator, 2026-11-22): the anchored sums are their own class, never a running total, and are served per bar from the first anchor inside the loaded history, the bars before it withheld by name.",
+ "about": "engine 95 (train e95), unit 2, the built-in VWAP: Pine's anchored ta.vwap(source, anchor[, stdev_mult]) on both lanes and in the Python twin (TradingView's published computeVWAP, summed from each reset, na before the first), the 3-value form, and the harness grading a hand-added built-in on its held published source (ruling F1). Every rule, broken once, must turn its rail red. Plus the hazard ruling (coordinator, 2026-11-22): the anchored sums are their own class, never a running total, and are served per bar from the first anchor inside the loaded history, the bars before it withheld by name.",
  "mutants": [
   {
    "id": "VA1",

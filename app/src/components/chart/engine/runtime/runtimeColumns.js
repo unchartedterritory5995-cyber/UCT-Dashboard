@@ -1648,7 +1648,7 @@ function snapBytes(snap) {
 }
 /** ⭐ Where a run's realtime facts ride (non-enumerable): `{isNew, varip, ledgerBars}`. */
 export const RUNTIME_REALTIME_KEY = '__runtimeRealtime'
-/** ⭐⭐ TRACK 6, AL1 (NUMBER PENDING) -- THE RUN'S `alert()` CALLS (`collections.js::ALERT_EMIT`), plain data beside
+/** ⭐⭐ TRACK 6, AL1 (engine 95) -- THE RUN'S `alert()` CALLS (`collections.js::ALERT_EMIT`), plain data beside
  *  the columns: `{fromBar: 0, events: [{bar, message, freq}], dropped}`. Present ONLY on a run that executed the
  *  program over EVERY bar from the first (never on a resumed run, which ran only the newest bars): a partial log
  *  would read as "no alert on the bars it did not run". Absent means "not recorded", never "no alert". */

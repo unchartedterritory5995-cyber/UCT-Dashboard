@@ -1,6 +1,6 @@
 {
  "schema": "uct.ci-mutants/v1",
- "about": "Train e95, the assistant reference's value calls (NUMBER PENDING until the train is numbered): every call the reference hands the assistant (`assistantPineReference.json` values[].call, read from `doorNameCoverage.json`'s probes) translates and is SERVED on the member's path. The data reads the parse rewrites (request.earnings / dividends / splits / financial) are probed with the call their door serves, never the bare call the bind refuses; a probe the member's paste path refuses is not a name's call. Each rule, broken once, must turn its rail red.",
+ "about": "Train e95, the assistant reference's value calls (engine 95 until the train is numbered): every call the reference hands the assistant (`assistantPineReference.json` values[].call, read from `doorNameCoverage.json`'s probes) translates and is SERVED on the member's path. The data reads the parse rewrites (request.earnings / dividends / splits / financial) are probed with the call their door serves, never the bare call the bind refuses; a probe the member's paste path refuses is not a name's call. Each rule, broken once, must turn its rail red.",
  "mutants": [
   {
    "id": "VP1",

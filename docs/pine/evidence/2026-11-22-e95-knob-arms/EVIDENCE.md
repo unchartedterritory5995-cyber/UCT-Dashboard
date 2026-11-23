@@ -1,6 +1,6 @@
 # A `switch` on a member's setting is a live setting, pruned at bind (train e95, unit 2b, 2026-11-22)
 
-Train e95, unit 2b. Engine number: NUMBER PENDING (the coordinator numbers the train). Counts and verdicts only: no
+Train e95, unit 2b. Engine number: engine 95 (the coordinator numbers the train). Counts and verdicts only: no
 licence-held script is named, every TradingView value stays in the local capture store, and TradingView's built-in
 source is never committed (it is held locally and named by its sha256 only, ruling F1).
 

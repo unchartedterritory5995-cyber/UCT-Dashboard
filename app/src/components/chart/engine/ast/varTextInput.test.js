@@ -1,4 +1,4 @@
-// ─── ⭐⭐ (NUMBER PENDING, input-kind) A `var` NOTHING REASSIGNS, READ AS TEXT, IS ITS `input.string` ─────────────────
+// ─── ⭐⭐ (engine 95, input-kind) A `var` NOTHING REASSIGNS, READ AS TEXT, IS ITS `input.string` ─────────────────
 //
 // `var anchor = input.string(defval = "Session", options = [...])` holds its initializer on every bar (Pine runs it once,
 // on bar 0, and nothing writes it again). As a `switch` subject or an `==` operand it is the same text the plain binding

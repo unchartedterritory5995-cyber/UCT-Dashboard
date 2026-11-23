@@ -305,7 +305,7 @@
           "captured": ""
         }
       },
-      "how": "T4 B2 (2026-11-22, NUMBER PENDING): UCT's own breadth count (B1, Exchange Breadth V1: NYSE from 2009-06-11, Nasdaq from 2008-01-02, operating equity, common stock and ADRs), labelled UCT breadth data, never TradingView's series. WITNESSED by W-B1 (Q-T4-B1, 2026-11-22, AMEX:SPY and NYSE:RDDT 1D): same-date (pineBreadth.js::BREADTH_DAILY_ALIGNMENT); our counts differ from TradingView's by pineBreadth.js::BREADTH_DIVERGENCE, said in the member's note. Q-T4-B2 the weekly and monthly blocks."
+      "how": "T4 B2 (2026-11-22, engine 95): UCT's own breadth count (B1, Exchange Breadth V1: NYSE from 2009-06-11, Nasdaq from 2008-01-02, operating equity, common stock and ADRs), labelled UCT breadth data, never TradingView's series. WITNESSED by W-B1 (Q-T4-B1, 2026-11-22, AMEX:SPY and NYSE:RDDT 1D): same-date (pineBreadth.js::BREADTH_DAILY_ALIGNMENT); our counts differ from TradingView's by pineBreadth.js::BREADTH_DIVERGENCE, said in the member's note. Q-T4-B2 the weekly and monthly blocks."
     },
     "USI:DECL.NY": {
       "kind": "breadth",
@@ -345,7 +345,7 @@
           "captured": ""
         }
       },
-      "how": "T4 B2 (2026-11-22, NUMBER PENDING): UCT's own breadth count (B1, Exchange Breadth V1: NYSE from 2009-06-11, Nasdaq from 2008-01-02, operating equity, common stock and ADRs), labelled UCT breadth data, never TradingView's series. WITNESSED by W-B1 (Q-T4-B1, 2026-11-22, AMEX:SPY and NYSE:RDDT 1D): same-date (pineBreadth.js::BREADTH_DAILY_ALIGNMENT); our counts differ from TradingView's by pineBreadth.js::BREADTH_DIVERGENCE, said in the member's note. Q-T4-B2 the weekly and monthly blocks."
+      "how": "T4 B2 (2026-11-22, engine 95): UCT's own breadth count (B1, Exchange Breadth V1: NYSE from 2009-06-11, Nasdaq from 2008-01-02, operating equity, common stock and ADRs), labelled UCT breadth data, never TradingView's series. WITNESSED by W-B1 (Q-T4-B1, 2026-11-22, AMEX:SPY and NYSE:RDDT 1D): same-date (pineBreadth.js::BREADTH_DAILY_ALIGNMENT); our counts differ from TradingView's by pineBreadth.js::BREADTH_DIVERGENCE, said in the member's note. Q-T4-B2 the weekly and monthly blocks."
     },
     "USI:UNCH.NY": {
       "kind": "breadth",
@@ -385,7 +385,7 @@
           "captured": ""
         }
       },
-      "how": "T4 B2 (2026-11-22, NUMBER PENDING): UCT's own breadth count (B1, Exchange Breadth V1: NYSE from 2009-06-11, Nasdaq from 2008-01-02, operating equity, common stock and ADRs), labelled UCT breadth data, never TradingView's series. WITNESSED by W-B1 (Q-T4-B1, 2026-11-22, AMEX:SPY and NYSE:RDDT 1D): same-date (pineBreadth.js::BREADTH_DAILY_ALIGNMENT); our counts differ from TradingView's by pineBreadth.js::BREADTH_DIVERGENCE, said in the member's note. Q-T4-B2 the weekly and monthly blocks."
+      "how": "T4 B2 (2026-11-22, engine 95): UCT's own breadth count (B1, Exchange Breadth V1: NYSE from 2009-06-11, Nasdaq from 2008-01-02, operating equity, common stock and ADRs), labelled UCT breadth data, never TradingView's series. WITNESSED by W-B1 (Q-T4-B1, 2026-11-22, AMEX:SPY and NYSE:RDDT 1D): same-date (pineBreadth.js::BREADTH_DAILY_ALIGNMENT); our counts differ from TradingView's by pineBreadth.js::BREADTH_DIVERGENCE, said in the member's note. Q-T4-B2 the weekly and monthly blocks."
     },
     "USI:ADVN.NQ": {
       "kind": "breadth",
@@ -425,7 +425,7 @@
           "captured": ""
         }
       },
-      "how": "T4 B2 (2026-11-22, NUMBER PENDING): UCT's own breadth count (B1, Exchange Breadth V1: NYSE from 2009-06-11, Nasdaq from 2008-01-02, operating equity, common stock and ADRs), labelled UCT breadth data, never TradingView's series. WITNESSED by W-B1 (Q-T4-B1, 2026-11-22, AMEX:SPY and NYSE:RDDT 1D): same-date (pineBreadth.js::BREADTH_DAILY_ALIGNMENT); our counts differ from TradingView's by pineBreadth.js::BREADTH_DIVERGENCE, said in the member's note. Q-T4-B2 the weekly and monthly blocks."
+      "how": "T4 B2 (2026-11-22, engine 95): UCT's own breadth count (B1, Exchange Breadth V1: NYSE from 2009-06-11, Nasdaq from 2008-01-02, operating equity, common stock and ADRs), labelled UCT breadth data, never TradingView's series. WITNESSED by W-B1 (Q-T4-B1, 2026-11-22, AMEX:SPY and NYSE:RDDT 1D): same-date (pineBreadth.js::BREADTH_DAILY_ALIGNMENT); our counts differ from TradingView's by pineBreadth.js::BREADTH_DIVERGENCE, said in the member's note. Q-T4-B2 the weekly and monthly blocks."
     },
     "USI:DECL.NQ": {
       "kind": "breadth",
@@ -465,7 +465,7 @@
           "captured": ""
         }
       },
-      "how": "T4 B2 (2026-11-22, NUMBER PENDING): UCT's own breadth count (B1, Exchange Breadth V1: NYSE from 2009-06-11, Nasdaq from 2008-01-02, operating equity, common stock and ADRs), labelled UCT breadth data, never TradingView's series. WITNESSED by W-B1 (Q-T4-B1, 2026-11-22, AMEX:SPY and NYSE:RDDT 1D): same-date (pineBreadth.js::BREADTH_DAILY_ALIGNMENT); our counts differ from TradingView's by pineBreadth.js::BREADTH_DIVERGENCE, said in the member's note. Q-T4-B2 the weekly and monthly blocks."
+      "how": "T4 B2 (2026-11-22, engine 95): UCT's own breadth count (B1, Exchange Breadth V1: NYSE from 2009-06-11, Nasdaq from 2008-01-02, operating equity, common stock and ADRs), labelled UCT breadth data, never TradingView's series. WITNESSED by W-B1 (Q-T4-B1, 2026-11-22, AMEX:SPY and NYSE:RDDT 1D): same-date (pineBreadth.js::BREADTH_DAILY_ALIGNMENT); our counts differ from TradingView's by pineBreadth.js::BREADTH_DIVERGENCE, said in the member's note. Q-T4-B2 the weekly and monthly blocks."
     },
     "USI:UNCH.NQ": {
       "kind": "breadth",
@@ -505,7 +505,7 @@
           "captured": ""
         }
       },
-      "how": "T4 B2 (2026-11-22, NUMBER PENDING): UCT's own breadth count (B1, Exchange Breadth V1: NYSE from 2009-06-11, Nasdaq from 2008-01-02, operating equity, common stock and ADRs), labelled UCT breadth data, never TradingView's series. PENDING: `alignment` is app/src/components/chart/engine/pineBreadth.js::BREADTH_DAILY_ALIGNMENT, a named constant until Q-T4-B1 (W-B1) lands; that capture fills `witness` + `captured` (and flips the constant if it shows the previous session), Q-T4-B2 the weekly and monthly blocks."
+      "how": "T4 B2 (2026-11-22, engine 95): UCT's own breadth count (B1, Exchange Breadth V1: NYSE from 2009-06-11, Nasdaq from 2008-01-02, operating equity, common stock and ADRs), labelled UCT breadth data, never TradingView's series. PENDING: `alignment` is app/src/components/chart/engine/pineBreadth.js::BREADTH_DAILY_ALIGNMENT, a named constant until Q-T4-B1 (W-B1) lands; that capture fills `witness` + `captured` (and flips the constant if it shows the previous session), Q-T4-B2 the weekly and monthly blocks."
     },
     "USI:ADD": {
       "kind": "breadth",
@@ -545,7 +545,7 @@
           "captured": ""
         }
       },
-      "how": "T4 B2 (2026-11-22, NUMBER PENDING): UCT's own breadth count (B1, Exchange Breadth V1: NYSE from 2009-06-11, Nasdaq from 2008-01-02, operating equity, common stock and ADRs), labelled UCT breadth data, never TradingView's series. WITNESSED by W-B1 (Q-T4-B1, 2026-11-22, AMEX:SPY and NYSE:RDDT 1D): same-date (pineBreadth.js::BREADTH_DAILY_ALIGNMENT); our counts differ from TradingView's by pineBreadth.js::BREADTH_DIVERGENCE, said in the member's note. Q-T4-B2 the weekly and monthly blocks."
+      "how": "T4 B2 (2026-11-22, engine 95): UCT's own breadth count (B1, Exchange Breadth V1: NYSE from 2009-06-11, Nasdaq from 2008-01-02, operating equity, common stock and ADRs), labelled UCT breadth data, never TradingView's series. WITNESSED by W-B1 (Q-T4-B1, 2026-11-22, AMEX:SPY and NYSE:RDDT 1D): same-date (pineBreadth.js::BREADTH_DAILY_ALIGNMENT); our counts differ from TradingView's by pineBreadth.js::BREADTH_DIVERGENCE, said in the member's note. Q-T4-B2 the weekly and monthly blocks."
     },
     "USI:ADDQ": {
       "kind": "breadth",
@@ -585,7 +585,7 @@
           "captured": ""
         }
       },
-      "how": "T4 B2 (2026-11-22, NUMBER PENDING): UCT's own breadth count (B1, Exchange Breadth V1: NYSE from 2009-06-11, Nasdaq from 2008-01-02, operating equity, common stock and ADRs), labelled UCT breadth data, never TradingView's series. PENDING: `alignment` is app/src/components/chart/engine/pineBreadth.js::BREADTH_DAILY_ALIGNMENT, a named constant until Q-T4-B1 (W-B1) lands; that capture fills `witness` + `captured` (and flips the constant if it shows the previous session), Q-T4-B2 the weekly and monthly blocks."
+      "how": "T4 B2 (2026-11-22, engine 95): UCT's own breadth count (B1, Exchange Breadth V1: NYSE from 2009-06-11, Nasdaq from 2008-01-02, operating equity, common stock and ADRs), labelled UCT breadth data, never TradingView's series. PENDING: `alignment` is app/src/components/chart/engine/pineBreadth.js::BREADTH_DAILY_ALIGNMENT, a named constant until Q-T4-B1 (W-B1) lands; that capture fills `witness` + `captured` (and flips the constant if it shows the previous session), Q-T4-B2 the weekly and monthly blocks."
     },
     "USI:ADV": {
       "kind": "breadth",
@@ -626,7 +626,7 @@
           "captured": ""
         }
       },
-      "how": "T4 B2 (2026-11-22, NUMBER PENDING): UCT's own breadth count (B1, Exchange Breadth V1: NYSE from 2009-06-11, Nasdaq from 2008-01-02, operating equity, common stock and ADRs), labelled UCT breadth data, never TradingView's series. PENDING: `alignment` is app/src/components/chart/engine/pineBreadth.js::BREADTH_DAILY_ALIGNMENT, a named constant until Q-T4-B1 (W-B1) lands; that capture fills `witness` + `captured` (and flips the constant if it shows the previous session), Q-T4-B2 the weekly and monthly blocks. An alias of `USI:ADVN.NY`: served only once the capture shows TradingView answers `USI:ADV` alike. W-B1 (2026-11-22): TradingView answers it as ANOTHER series (equal to its long spelling on at most 40 of ~8,000 sessions), so it is not served as an alias."
+      "how": "T4 B2 (2026-11-22, engine 95): UCT's own breadth count (B1, Exchange Breadth V1: NYSE from 2009-06-11, Nasdaq from 2008-01-02, operating equity, common stock and ADRs), labelled UCT breadth data, never TradingView's series. PENDING: `alignment` is app/src/components/chart/engine/pineBreadth.js::BREADTH_DAILY_ALIGNMENT, a named constant until Q-T4-B1 (W-B1) lands; that capture fills `witness` + `captured` (and flips the constant if it shows the previous session), Q-T4-B2 the weekly and monthly blocks. An alias of `USI:ADVN.NY`: served only once the capture shows TradingView answers `USI:ADV` alike. W-B1 (2026-11-22): TradingView answers it as ANOTHER series (equal to its long spelling on at most 40 of ~8,000 sessions), so it is not served as an alias."
     },
     "USI:DECL": {
       "kind": "breadth",
@@ -667,7 +667,7 @@
           "captured": ""
         }
       },
-      "how": "T4 B2 (2026-11-22, NUMBER PENDING): UCT's own breadth count (B1, Exchange Breadth V1: NYSE from 2009-06-11, Nasdaq from 2008-01-02, operating equity, common stock and ADRs), labelled UCT breadth data, never TradingView's series. PENDING: `alignment` is app/src/components/chart/engine/pineBreadth.js::BREADTH_DAILY_ALIGNMENT, a named constant until Q-T4-B1 (W-B1) lands; that capture fills `witness` + `captured` (and flips the constant if it shows the previous session), Q-T4-B2 the weekly and monthly blocks. An alias of `USI:DECL.NY`: served only once the capture shows TradingView answers `USI:DECL` alike. W-B1 (2026-11-22): TradingView answers it as ANOTHER series (equal to its long spelling on at most 40 of ~8,000 sessions), so it is not served as an alias."
+      "how": "T4 B2 (2026-11-22, engine 95): UCT's own breadth count (B1, Exchange Breadth V1: NYSE from 2009-06-11, Nasdaq from 2008-01-02, operating equity, common stock and ADRs), labelled UCT breadth data, never TradingView's series. PENDING: `alignment` is app/src/components/chart/engine/pineBreadth.js::BREADTH_DAILY_ALIGNMENT, a named constant until Q-T4-B1 (W-B1) lands; that capture fills `witness` + `captured` (and flips the constant if it shows the previous session), Q-T4-B2 the weekly and monthly blocks. An alias of `USI:DECL.NY`: served only once the capture shows TradingView answers `USI:DECL` alike. W-B1 (2026-11-22): TradingView answers it as ANOTHER series (equal to its long spelling on at most 40 of ~8,000 sessions), so it is not served as an alias."
     },
     "USI:ADVQ": {
       "kind": "breadth",
@@ -708,7 +708,7 @@
           "captured": ""
         }
       },
-      "how": "T4 B2 (2026-11-22, NUMBER PENDING): UCT's own breadth count (B1, Exchange Breadth V1: NYSE from 2009-06-11, Nasdaq from 2008-01-02, operating equity, common stock and ADRs), labelled UCT breadth data, never TradingView's series. PENDING: `alignment` is app/src/components/chart/engine/pineBreadth.js::BREADTH_DAILY_ALIGNMENT, a named constant until Q-T4-B1 (W-B1) lands; that capture fills `witness` + `captured` (and flips the constant if it shows the previous session), Q-T4-B2 the weekly and monthly blocks. An alias of `USI:ADVN.NQ`: served only once the capture shows TradingView answers `USI:ADVQ` alike. W-B1 (2026-11-22): TradingView answers it as ANOTHER series (equal to its long spelling on at most 40 of ~8,000 sessions), so it is not served as an alias."
+      "how": "T4 B2 (2026-11-22, engine 95): UCT's own breadth count (B1, Exchange Breadth V1: NYSE from 2009-06-11, Nasdaq from 2008-01-02, operating equity, common stock and ADRs), labelled UCT breadth data, never TradingView's series. PENDING: `alignment` is app/src/components/chart/engine/pineBreadth.js::BREADTH_DAILY_ALIGNMENT, a named constant until Q-T4-B1 (W-B1) lands; that capture fills `witness` + `captured` (and flips the constant if it shows the previous session), Q-T4-B2 the weekly and monthly blocks. An alias of `USI:ADVN.NQ`: served only once the capture shows TradingView answers `USI:ADVQ` alike. W-B1 (2026-11-22): TradingView answers it as ANOTHER series (equal to its long spelling on at most 40 of ~8,000 sessions), so it is not served as an alias."
     },
     "USI:DECLQ": {
       "kind": "breadth",
@@ -749,7 +749,7 @@
           "captured": ""
         }
       },
-      "how": "T4 B2 (2026-11-22, NUMBER PENDING): UCT's own breadth count (B1, Exchange Breadth V1: NYSE from 2009-06-11, Nasdaq from 2008-01-02, operating equity, common stock and ADRs), labelled UCT breadth data, never TradingView's series. PENDING: `alignment` is app/src/components/chart/engine/pineBreadth.js::BREADTH_DAILY_ALIGNMENT, a named constant until Q-T4-B1 (W-B1) lands; that capture fills `witness` + `captured` (and flips the constant if it shows the previous session), Q-T4-B2 the weekly and monthly blocks. An alias of `USI:DECL.NQ`: served only once the capture shows TradingView answers `USI:DECLQ` alike. W-B1 (2026-11-22): TradingView answers it as ANOTHER series (equal to its long spelling on at most 40 of ~8,000 sessions), so it is not served as an alias."
+      "how": "T4 B2 (2026-11-22, engine 95): UCT's own breadth count (B1, Exchange Breadth V1: NYSE from 2009-06-11, Nasdaq from 2008-01-02, operating equity, common stock and ADRs), labelled UCT breadth data, never TradingView's series. PENDING: `alignment` is app/src/components/chart/engine/pineBreadth.js::BREADTH_DAILY_ALIGNMENT, a named constant until Q-T4-B1 (W-B1) lands; that capture fills `witness` + `captured` (and flips the constant if it shows the previous session), Q-T4-B2 the weekly and monthly blocks. An alias of `USI:DECL.NQ`: served only once the capture shows TradingView answers `USI:DECLQ` alike. W-B1 (2026-11-22): TradingView answers it as ANOTHER series (equal to its long spelling on at most 40 of ~8,000 sessions), so it is not served as an alias."
     }
   }
 }

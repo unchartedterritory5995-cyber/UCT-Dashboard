@@ -729,7 +729,7 @@ PINE_OBJECTS_X_DIVERGE = "DIVERGE"
 #: captured on CLOSED bars (E0); an event landing on a forming bar is not graded (W-E5), so history-only.
 #: `request-financial` (T4 F1b): the chart's own figures from company filings; a filing can become public while a bar
 #: forms, and no capture grades that bar, so history-only.
-#: `request-breadth` (T4 B2, NUMBER PENDING): a `USI:` read served from UCT's daily breadth counts; a forming session's
+#: `request-breadth` (T4 B2, engine 95): a `USI:` read served from UCT's daily breadth counts; a forming session's
 #: count is not witnessed (Q-T4-B1 is a pre-open capture), so history-only.
 PINE_CAPABILITY_FORMING_UNGRADED = frozenset({"realtime-state", "varip", "request-other", "request-events",
                                               "request-financial", "request-breadth"})

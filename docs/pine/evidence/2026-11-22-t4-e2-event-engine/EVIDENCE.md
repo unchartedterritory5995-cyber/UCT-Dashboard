@@ -3,7 +3,7 @@
 Track 4 (the data indicators need), unit E2, on the coordinator's rulings of 2026-11-22. A member's Pine script that
 calls `request.earnings`, `request.dividends` or `request.splits` on its chart's own symbol is now served, on both
 lanes, placed on the chart's bars as TradingView places them (E0) and supplied from UCT's own event data (E1). Engine
-number: NUMBER PENDING (train e95).
+number: engine 95 (train e95).
 
 This document holds counts, dates and verdicts only. Every TradingView value stays in the local capture store, and
 every UCT event value stays in the local held supply (licensed vendor data, never committed).

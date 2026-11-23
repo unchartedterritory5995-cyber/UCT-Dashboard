@@ -404,7 +404,7 @@ _EVENTS_RX = re.compile(r"(?<![\w.])request\s*\.\s*(?:earnings|dividends|splits)
 #: (`rollout_gate.PINE_CAPABILITY_FORMING_UNGRADED`). Declared BESIDE `request-other` (over-declared, never under).
 FINANCIAL_CALLS = ("request.financial",)
 _FINANCIAL_RX = re.compile(r"(?<![\w.])request\s*\.\s*financial\s*\(")
-#: ⭐⭐ T4 B2 (2026-11-22, NUMBER PENDING) -- TradingView's `USI:` breadth spellings, served from UCT's own breadth counts
+#: ⭐⭐ T4 B2 (2026-11-22, engine 95) -- TradingView's `USI:` breadth spellings, served from UCT's own breadth counts
 #: (B1, `GET /api/pine/breadth/<spelling>`) as `app/src/components/chart/engine/pineBreadth.js` names them: a request
 #: whose script carries a `USI:` string. Read off the STRING contents (`strip_code`), and only beside `request-other`
 #: (a title that merely says "USI:" is no read). Over-declares, never under. History-only

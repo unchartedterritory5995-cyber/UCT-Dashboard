@@ -21,7 +21,7 @@ export {
   // W5-T7b: the run's own warm-up record (`computeOffListing`), which the service puts on the wire
   // as `warmup.withheldBars` beside the columns, read by the function the browser worker reads.
   runtimeWarmupOf,
-  // ⭐⭐ TRACK 6, AL1 (NUMBER PENDING): the run's alert() calls, read by the reader the job adapter uses for '#alerts'
+  // ⭐⭐ TRACK 6, AL1 (engine 95): the run's alert() calls, read by the reader the job adapter uses for '#alerts'
   runtimeAlertsOf, RUNTIME_ALERTS_KEY,
 } from './runtimeColumns.js'
 // W5-T7b: the T3 canonical codec, so the supervisor (services/pine_runtime/protocol.mjs

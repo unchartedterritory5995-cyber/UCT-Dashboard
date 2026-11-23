@@ -485,7 +485,7 @@ OWN_FUNCTION_CANDIDATES = ("ta.supertrend", "ta.sar", "ta.kc", "ta.kcw", "ta.bb"
                            "ta.dmi", "ta.wpr", "ta.hma", "ta.linreg")
 
 
-#: ⭐ (T4 E2, NUMBER PENDING, train e95) the event reads the engine serves (`request.earnings` / `.dividends` / `.splits`)
+#: ⭐ (T4 E2, engine 95, train e95) the event reads the engine serves (`request.earnings` / `.dividends` / `.splits`)
 #: are supplied by ONE door, `GET /api/pine/events/<symbol>`, staged by `PINE_EVENTS_SUPPLY_ENABLED`
 #: (`pine_events.stage()`). Until it is `all` a member's chart answers "earnings data is not available on this chart
 #: yet", so the assistant is never handed them and the gap stays a gap: the stage the door reads is the one authority.
@@ -499,7 +499,7 @@ def events_open_to_members() -> bool:
     return pine_events.stage() == "all"
 
 
-#: ⭐ (T4 F1b, NUMBER PENDING, train e95) `request.financial` is supplied by ONE door, `GET /api/pine/financial/<symbol>`,
+#: ⭐ (T4 F1b, engine 95, train e95) `request.financial` is supplied by ONE door, `GET /api/pine/financial/<symbol>`,
 #: staged by `PINE_FINANCIAL_SUPPLY_ENABLED` (`pine_financial.stage()`): the assistant is handed it only while that door
 #: answers every paid member, and its gap stays a gap until then. Its figures are UCT data from company filings.
 FINANCIAL_READS = ("request.financial",)
@@ -512,7 +512,7 @@ def financial_open_to_members() -> bool:
     return pine_financial.stage() == "all"
 
 
-#: ⭐⭐ (T4 B2, NUMBER PENDING, train e95) TradingView's `USI:` breadth spellings the engine serves from UCT's own breadth
+#: ⭐⭐ (T4 B2, engine 95, train e95) TradingView's `USI:` breadth spellings the engine serves from UCT's own breadth
 #: counts are supplied by ONE door, `GET /api/pine/breadth/<spelling>` (B1), staged by `PINE_BREADTH_SUPPLY_ENABLED`
 #: (`pine_breadth.stage()`), and each spelling is served only once its capture witnesses it (`requestWitnesses.json`
 #: rows of kind `breadth`, the engine's one authority, read here as data). The assistant is handed a spelling only

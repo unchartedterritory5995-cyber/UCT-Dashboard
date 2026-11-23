@@ -1323,7 +1323,7 @@ REQUEST_OTHER_KILLED_SLUGS = {"artemis-oscillator-pro", "average-day-range-adr-p
                               "request-realtime-alignment", "rs-seed-rsrating", "vw-other-symbol",
                               # engine 92 follow-up (coordinator ruling 2026-11-21, C)
                               "vw-req-w-closure-day"}
-#: ⭐ T4 B2 (NUMBER PENDING, e95): `vold-market-breadth` left this set, not the kill list. It reads a `USI:` spelling, so the
+#: ⭐ T4 B2 (engine 95, e95): `vold-market-breadth` left this set, not the kill list. It reads a `USI:` spelling, so the
 #: detector (v4) declares `request-breadth` beside `request-other`, and `request-breadth` is pending: `request-other` alone no
 #: longer admits it, so the scan above cannot name it. Its kill stays (api/data/pine_runtime_killlist.json): the day
 #: `request-breadth` is admitted, the same DIVERGE capture needs it again, and this set takes it back.

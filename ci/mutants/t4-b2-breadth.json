@@ -1,6 +1,6 @@
 {
  "schema": "uct.ci-mutants/v1",
- "about": "T4 B2 (NUMBER PENDING, train e95): TradingView's `USI:` breadth spellings read from UCT's own breadth counts (`pineBreadth.js`), each behind its capture witness, supplied by the breadth door only (`breadthSupply.js`, never `/api/bars` nor `/api/ticker-meta`), withheld by name before UCT's counts, disclosed as UCT breadth data, never graded MATCH, handed to the assistant only while its door serves members. Every rule, broken once, must turn its rail red.",
+ "about": "T4 B2 (engine 95, train e95): TradingView's `USI:` breadth spellings read from UCT's own breadth counts (`pineBreadth.js`), each behind its capture witness, supplied by the breadth door only (`breadthSupply.js`, never `/api/bars` nor `/api/ticker-meta`), withheld by name before UCT's counts, disclosed as UCT breadth data, never graded MATCH, handed to the assistant only while its door serves members. Every rule, broken once, must turn its rail red.",
  "mutants": [
   {
    "id": "BR1",

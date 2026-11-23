@@ -1,6 +1,6 @@
 // app/src/components/chart/engine/pineFinancial.js
 //
-// ─── ⭐⭐ TRACK 4 F1b — `request.financial` ON THE CHART'S OWN SYMBOL, AS UCT DATA (NUMBER PENDING, e95) ─────────
+// ─── ⭐⭐ TRACK 4 F1b — `request.financial` ON THE CHART'S OWN SYMBOL, AS UCT DATA (engine 95, e95) ─────────
 //
 // A Pine script's `request.financial(syminfo.tickerid, "<ID>", "<period>"[, gaps])` reads a company figure. UCT answers
 // it from its own point-in-time fundamentals store (company filings, F1a: `GET /api/pine/financial/<symbol>`), NEVER

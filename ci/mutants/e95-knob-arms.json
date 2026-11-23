@@ -1,6 +1,6 @@
 {
  "schema": "uct.ci-mutants/v1",
- "about": "NUMBER PENDING (train e95), unit 2b: a `switch` on a member's input.string is a LIVE setting. The member door builds every arm (a refused one stands as the refusing leaf `refusedArm(k)`), the bind prunes each ternary whose test compares knobs to constants before anything per binding reads the tree (JS chart lane, Python twin, the Python interpreter's entry), and the install budgets are measured at the knobs' defaults (registry, door, server save gate). Every rule, broken once, must turn its rail red.",
+ "about": "engine 95 (train e95), unit 2b: a `switch` on a member's input.string is a LIVE setting. The member door builds every arm (a refused one stands as the refusing leaf `refusedArm(k)`), the bind prunes each ternary whose test compares knobs to constants before anything per binding reads the tree (JS chart lane, Python twin, the Python interpreter's entry), and the install budgets are measured at the knobs' defaults (registry, door, server save gate). Every rule, broken once, must turn its rail red.",
  "mutants": [
   {
    "id": "KA1",

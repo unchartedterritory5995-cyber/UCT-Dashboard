@@ -9124,7 +9124,7 @@ export class Resolver {
     this.readAt = undefined
     /** name → the mutator tokens found by the raw-token scan. */
     this.mutated = opts.mutated || new Map()
-    /** ⭐ (NUMBER PENDING, input-kind) whether that scan was handed in: only then is a `var` nothing reassigns known
+    /** ⭐ (engine 95, input-kind) whether that scan was handed in: only then is a `var` nothing reassigns known
      *  to be one (`fixedVarBinding`); a Resolver built without it (the runtime frontend's) reads every `var` as before. */
     this.mutatedKnown = !!opts.mutated
     /** name → the binding in scope where its own `[1]` was read: the SEED. */
@@ -10766,7 +10766,7 @@ export class Resolver {
     return cCall(REFUSED_ARM_CALL, [cNum(k + 1)])
   }
 
-  /** ⭐⭐ (NUMBER PENDING, coordinator ruling 2026-11-22, the input-kind unit) — A `var` NOTHING REASSIGNS, HOLDING AN
+  /** ⭐⭐ (engine 95, coordinator ruling 2026-11-22, the input-kind unit) — A `var` NOTHING REASSIGNS, HOLDING AN
    *  `input.string`, READ AS TEXT, IS ITS INITIALIZER. `var anchor = input.string(defval = "Session", options = [...])` holds its initializer on every bar
    *  (Pine runs it once, on bar 0, and nothing writes it again), so as a `switch` subject or an `==` operand it is the
    *  same text the plain binding `anchor = input.string(...)` is, which this door has always read. ⚰️ The `var` form
@@ -18448,7 +18448,7 @@ export const STRING_VAR_NA_SEED_WHY = 'still holding the `na` it was declared wi
  *  for a number in a text slot) is not reopened. Measured on mtf-key-levels-support-and-resistance:
  *  `var DNoSpaces = " "`, read through `DailySpaces + "pdOpen"`, dropped 22 name labels TradingView draws
  *  (" pdOpen", " pdHigh" ...): the per-bar lane drew 3 labels of TradingView's 27, now 25. */
-/** ⭐ (NUMBER PENDING, input-kind) a `var` whose initializer IS an `input.string` names its knob the way the plain binding
+/** ⭐ (engine 95, input-kind) a `var` whose initializer IS an `input.string` names its knob the way the plain binding
  *  does (`stampInputName`), so a member's choice reaches it (`Resolver.enumCompare`) where it is read as text
  *  (`Resolver.fixedVarBinding`). ⛔ `input.string` only: every other `var` input is left exactly as it was. */
 const isStringInputCall = (node) => !!(node && node.type === 'call' && node.name === 'input.string')

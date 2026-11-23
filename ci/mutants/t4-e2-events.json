@@ -1,6 +1,6 @@
 {
  "schema": "uct.ci-mutants/v1",
- "about": "T4 E2 (NUMBER PENDING, train e95): `request.earnings` / `request.dividends` / `request.splits` on the chart's own symbol, rewritten at parse into an event read (`pine.js::eventAsSecurity`), supplied by the events door only (`eventSupply.js`, never `/api/bars`), placed as TradingView places them (`pineEvents.js::placeEvents`, E0's R1 and R2), withheld by name before UCT's record and before the earnings window, and `na` on every bar for a fund. Every rule, broken once, must turn its rail red.",
+ "about": "T4 E2 (engine 95, train e95): `request.earnings` / `request.dividends` / `request.splits` on the chart's own symbol, rewritten at parse into an event read (`pine.js::eventAsSecurity`), supplied by the events door only (`eventSupply.js`, never `/api/bars`), placed as TradingView places them (`pineEvents.js::placeEvents`, E0's R1 and R2), withheld by name before UCT's record and before the earnings window, and `na` on every bar for a fund. Every rule, broken once, must turn its rail red.",
  "mutants": [
   {
    "id": "EV1",

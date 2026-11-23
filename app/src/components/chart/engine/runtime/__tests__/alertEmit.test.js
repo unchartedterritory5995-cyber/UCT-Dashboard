@@ -1,6 +1,6 @@
 // app/src/components/chart/engine/runtime/__tests__/alertEmit.test.js
 //
-// ⭐⭐ TRACK 6, AL1 (NUMBER PENDING, coordinator ruling 2026-11-22): a script's `alert()` calls are RECORDED where
+// ⭐⭐ TRACK 6, AL1 (engine 95, coordinator ruling 2026-11-22): a script's `alert()` calls are RECORDED where
 // they run (`collections.js::ALERT_EMIT`, lowered by `pineRuntimeFrontend.js` C23) and carried beside the columns
 // as the run's alert record (`runtimeColumns.js::RUNTIME_ALERTS_KEY`), so the server lane can deliver them. These
 // rails hold the four promises:

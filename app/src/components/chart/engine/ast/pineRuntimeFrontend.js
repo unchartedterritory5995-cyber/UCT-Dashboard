@@ -1564,7 +1564,7 @@ function strategyOrdersSkipped(built) {
   return !!(fam && fam['runtime:strategy-order'] > 0)
 }
 
-/** ⛔ TEST SEAM (NUMBER PENDING, the named-request follow) — the routing as it was before the general follow (a name inside
+/** ⛔ TEST SEAM (engine 95, the named-request follow) — the routing as it was before the general follow (a name inside
  *  a call's arguments is followed only to an event read): the grade diff's "before" and its mutant's control. */
 let _namedRequestFollowOff = false
 export function __namedRequestFollowOffForTests(off) { _namedRequestFollowOff = !!off }
@@ -6900,7 +6900,7 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
   const callArgReadsRequest = (node, depth = 0) => {
     if (!node || typeof node !== 'object' || depth > 64) return false
     if (node.type === 'call' && node.name === 'request.security') return true
-    // ⭐⭐ (NUMBER PENDING, coordinator ruling 2026-11-22) — A NAME BOUND TO A REQUEST IS THE REQUEST IT NAMES, inside a
+    // ⭐⭐ (engine 95, coordinator ruling 2026-11-22) — A NAME BOUND TO A REQUEST IS THE REQUEST IT NAMES, inside a
     // call's arguments too: `e = request.security(…)` then `nz(e, -1)` / `na(e)` / `ta.sma(e, 5)`, and the chart's own
     // corporate events (`pine.js::eventAsSecurity`: `e = request.earnings(…)` then `not na(e)`, the corpus anchor idiom).
     // ⚰️ MEASURED (2026-11-22, a vitest probe through `computeRuntimeColumns`, SPY supplied): the call's argument `e` was
@@ -6931,7 +6931,7 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
     return false
   }
 
-  /** ⭐ (NUMBER PENDING, the named-request follow) — does this bound subtree hold a request that reads ANOTHER series' bars
+  /** ⭐ (engine 95, the named-request follow) — does this bound subtree hold a request that reads ANOTHER series' bars
    *  (`requestTargetOf`: another symbol, or the chart's own corporate events, an `event` read), following further names?
    *  A request the host's reader cannot settle counts (the run names its refusal; the columnar lane would read `na`).
    *  A generic walk, depth-bounded like `callArgReadsRequest`. */
@@ -16039,7 +16039,7 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
             setSlotTy(slot, initialiserTy(v, scope))
             out.push(declare(slot, lowerExpr(v, scope)))
           }
-          // ⭐⭐ TRACK 6, AL1 (NUMBER PENDING, coordinator ruling 2026-11-22) -- THE CALL IS RECORDED WHERE IT
+          // ⭐⭐ TRACK 6, AL1 (engine 95, coordinator ruling 2026-11-22) -- THE CALL IS RECORDED WHERE IT
           // STANDS: one `ALERT_EMIT` (collections.js) on the run's alert log, so the server lane can deliver it
           // on the bars its branch runs. It reads `bar_index` and nothing else; no output, refusal or column the
           // pane draws moves. ⛔ NEVER A NEW REFUSAL: only a STRING LITERAL message is carried; any other message

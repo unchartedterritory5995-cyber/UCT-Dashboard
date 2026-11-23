@@ -63,7 +63,7 @@ describe('S4-1 on the product path (member door, then the run with the member\'s
     expect(values[BARS.length - 1]).toBe(BARS.length / 2)
   })
 
-  // ⭐⭐ T4 E2 (NUMBER PENDING) — the Earnings arm reads the chart's own events through the events door
+  // ⭐⭐ T4 E2 (engine 95) — the Earnings arm reads the chart's own events through the events door
   // (`eventSupply.js`, under `pineEvents.EVENTS_KEY`): never a count drawn without them, refused by name where the door is
   // dark, and the count stepping on each report's bar where they are served. ⚰️ Before E2 the run refused the read.
   it('⛔ the member moves the anchor to Earnings: never a count without the events, refused by name where the door is dark', () => {

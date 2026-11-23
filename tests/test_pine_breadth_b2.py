@@ -1,4 +1,4 @@
-"""Track 4, unit B2 (NUMBER PENDING, train e95): the server's half of `USI:` breadth in the engine.
+"""Track 4, unit B2 (engine 95, train e95): the server's half of `USI:` breadth in the engine.
 
 Each must hold, with a test that goes red when it breaks:
   * the engine's spellings (`app/src/components/chart/engine/pineBreadth.js::BREADTH_SPELLINGS` / `BREADTH_ALIASES`) are

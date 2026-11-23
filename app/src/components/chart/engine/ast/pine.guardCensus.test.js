@@ -52,7 +52,7 @@ describe('the Pine guard census, by name', () => {
   })()
 
   const DECLARED = Object.keys(PINE_REFUSALS).sort()
-  /** ⭐ (NUMBER PENDING, T4 E2) the drawing door's enum rule declares its own guards, each with its sentence
+  /** ⭐ (engine 95, T4 E2) the drawing door's enum rule declares its own guards, each with its sentence
    *  (`enumNaRule.js::ENUM_DROPS`). A corpus script reaches one once its drawings are reached: 14-earnings-gap-ups,
    *  whose earnings reads E2 serves, is withheld at `pine:enum-unreadable` (an enum method's line style). They are
    *  declared, so a fired one is no bare code; they are not this module's, so the unexercised roster stays REFUSALS'. */

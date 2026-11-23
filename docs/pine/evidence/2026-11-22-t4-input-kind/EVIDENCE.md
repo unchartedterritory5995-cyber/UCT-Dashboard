@@ -1,6 +1,6 @@
 # Input-kind: a `var` text input reads as its default (track 4, 2026-11-22)
 
-Track 4, the input-kind unit, assigned by the coordinator on 2026-11-22. Engine number: NUMBER PENDING (train e95).
+Track 4, the input-kind unit, assigned by the coordinator on 2026-11-22. Engine number: engine 95 (train e95).
 
 This document holds counts and verdicts only. No corpus script is named: the corpus rows are counted, and every
 TradingView value stays in the local capture store.

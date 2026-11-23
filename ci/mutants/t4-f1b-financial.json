@@ -1,6 +1,6 @@
 {
  "schema": "uct.ci-mutants/v1",
- "about": "T4 F1b (NUMBER PENDING, train e95): `request.financial` on the chart's own symbol, rewritten at parse into a data read (`pineFinancial.js::financialCallParts` via `pine.js::eventAsSecurity`), supplied by the financial door only (`financialSupply.js`, never `/api/bars`), placed on the first bar closing at or after each filing's knownFrom (`placeFinancial`), withheld by name where UCT knows no current figure, disclosed as UCT data from company filings, and never graded MATCH. Every rule, broken once, must turn its rail red.",
+ "about": "T4 F1b (engine 95, train e95): `request.financial` on the chart's own symbol, rewritten at parse into a data read (`pineFinancial.js::financialCallParts` via `pine.js::eventAsSecurity`), supplied by the financial door only (`financialSupply.js`, never `/api/bars`), placed on the first bar closing at or after each filing's knownFrom (`placeFinancial`), withheld by name where UCT knows no current figure, disclosed as UCT data from company filings, and never graded MATCH. Every rule, broken once, must turn its rail red.",
  "mutants": [
   {
    "id": "FN1",

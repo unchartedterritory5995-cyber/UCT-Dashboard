@@ -209,14 +209,14 @@ def test_engine_fixed_is_HAND_MARKED_only_adopt_never_writes_it():
 def test_engine_fixed_is_never_claimed_AHEAD_of_the_engine_that_earns_it():
     """Condition 1: `since_engine` is not above the engine version the lane runs (`scriptEngineVersion.js`, read by
     `user_definitions.read_script_engine_version`, the one reader). ⚠️ ONE ALLOWANCE, NAMED: while the fixing train
-    is not numbered yet (the version file carries its `NUMBER PENDING` lines, `train e<n>`), its own number `n` may be
+    is not numbered yet (the version file carries its `engine 95` lines, `train e<n>`), its own number `n` may be
     claimed; the day the coordinator numbers it, the version is `n` and the plain rule holds."""
     import re
     from api.services import user_definitions as ud
     engine = ud.read_script_engine_version()
     assert isinstance(engine, int) and engine > 0
     text = (ROOT / "app" / "src" / "components" / "chart" / "engine" / "scriptEngineVersion.js").read_text(encoding="utf-8")
-    pending = {int(n) for n in re.findall(r"NUMBER PENDING = \([^)]*\btrain e(\d+)\b", text)}
+    pending = {int(n) for n in re.findall(r"engine 95 = \([^)]*\btrain e(\d+)\b", text)}
     marked = [(c["id"], k[ENGINE_FIXED]) for c in WITH_FOUND for k in c["found"] if ENGINE_FIXED in k]
     assert marked, "no specimen carries engine_fixed: this rail would read nothing"
     for cid, ef in marked:

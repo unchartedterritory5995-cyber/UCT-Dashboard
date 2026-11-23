@@ -1,6 +1,6 @@
 {
  "schema": "uct.ci-mutants/v1",
- "about": "NUMBER PENDING (train e95), the input-kind unit: on the host lane a `var` nothing reassigns, read as text (a `switch` subject, an `==` operand), whose initializer is an `input.string` is that input, as the plain binding always was, with the member's knob reaching it; a reassigned `var` and a `var` holding per-bar text keep their refusal. Every rule, broken once, must turn its rail red. A `var` holding per-bar text is never followed because the change reads a `var` only where the reader returns text fixed before bar 0 (`stringValueOf`) or an `input.string` call (`enumInputCallOf`); its rail is a control, with no code of its own to mutate.",
+ "about": "engine 95 (train e95), the input-kind unit: on the host lane a `var` nothing reassigns, read as text (a `switch` subject, an `==` operand), whose initializer is an `input.string` is that input, as the plain binding always was, with the member's knob reaching it; a reassigned `var` and a `var` holding per-bar text keep their refusal. Every rule, broken once, must turn its rail red. A `var` holding per-bar text is never followed because the change reads a `var` only where the reader returns text fixed before bar 0 (`stringValueOf`) or an `input.string` call (`enumInputCallOf`); its rail is a control, with no code of its own to mutate.",
  "mutants": [
   {
    "id": "IK1",

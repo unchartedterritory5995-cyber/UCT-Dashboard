@@ -1,6 +1,6 @@
 # The built-in VWAP served: Pine's anchored `ta.vwap` (train e95, unit 2, 2026-11-22)
 
-Train e95, unit 2. Engine number: NUMBER PENDING (the coordinator numbers the train). Counts and verdicts only: no
+Train e95, unit 2. Engine number: engine 95 (the coordinator numbers the train). Counts and verdicts only: no
 licence-held script is named, every TradingView value stays in the local capture store, and TradingView's built-in
 source is never committed (it is held locally and named here by its sha256 only).
 

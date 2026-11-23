@@ -1,6 +1,6 @@
 {
  "schema": "uct.ci-mutants/v1",
- "about": "NUMBER PENDING (train e95), unit 1, computed number formats: a `str.tostring` format that is a pure function of literals and inputs is folded to its text on both lanes (`pine.js::Resolver.formatTextOf`, `pineRuntimeFrontend.js::fixedFormatOf`, one `formatTextCall`), and a text still withheld for its format is said to the member (`objectRuntime.js`, `FORMAT_WITHHELD_KEY`). Every rule, broken once, must turn its rail red.",
+ "about": "engine 95 (train e95), unit 1, computed number formats: a `str.tostring` format that is a pure function of literals and inputs is folded to its text on both lanes (`pine.js::Resolver.formatTextOf`, `pineRuntimeFrontend.js::fixedFormatOf`, one `formatTextCall`), and a text still withheld for its format is said to the member (`objectRuntime.js`, `FORMAT_WITHHELD_KEY`). Every rule, broken once, must turn its rail red.",
  "mutants": [
   {
    "id": "FF1",

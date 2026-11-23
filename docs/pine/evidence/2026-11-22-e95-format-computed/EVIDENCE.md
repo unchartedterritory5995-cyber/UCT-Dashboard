@@ -1,6 +1,6 @@
 # Computed number formats: folded where fixed, named where withheld (train e95, unit 1, 2026-11-22)
 
-Train e95, unit 1. Engine number: NUMBER PENDING (the coordinator numbers the train). Counts and verdicts only: no
+Train e95, unit 1. Engine number: engine 95 (the coordinator numbers the train). Counts and verdicts only: no
 corpus script is named, and every TradingView value stays in the local capture store.
 
 ## The defect (member-facing, silent)
