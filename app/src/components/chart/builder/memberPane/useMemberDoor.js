@@ -12,7 +12,7 @@
 // (`key` says which; while it is another's, it is no answer for these args).
 // ⭐ e96: `since`, while `pending`: when the check of the current args began, on the page's clock (the service's
 // `sinceOf`: one start for every reader of one build), or null; what "Checking your script... 0:42" counts from
-// (`useElapsedSince`).
+// (`useElapsedSince.js`).
 import { useEffect, useRef, useState } from 'react'
 import { memberDoorService } from './memberDoorAsync'
 
@@ -43,21 +43,4 @@ export function useWorkerJob(service, args, refresh) {
 /** The chart door's shared build of `args` (`{source, id?, name?}`). */
 export function useMemberDoor(args, refresh) {
   return useWorkerJob(memberDoorService(), args, refresh)
-}
-
-/** How often a running check's elapsed time is re-read, in ms. */
-export const ELAPSED_TICK_MS = 1000
-
-/** ⭐⭐ e96 — HOW LONG A CHECK HAS RUN, kept current: the ms since `since` (a page-clock time, `Date.now`), re-read every
- *  `ELAPSED_TICK_MS` while `since` is a number, so a status that says it is still checking also says for how long; null
- *  when there is no check. */
-export function useElapsedSince(since, now = Date.now) {
-  const [, setTick] = useState(0)
-  const live = typeof since === 'number' && Number.isFinite(since)
-  useEffect(() => {
-    if (!live) return undefined
-    const id = setInterval(() => setTick((n) => n + 1), ELAPSED_TICK_MS)
-    return () => clearInterval(id)
-  }, [live, since])
-  return live ? Math.max(0, now() - since) : null
 }

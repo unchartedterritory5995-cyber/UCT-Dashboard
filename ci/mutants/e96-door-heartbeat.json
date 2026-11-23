@@ -104,7 +104,7 @@
     {
       "id": "E1",
       "mutant": "the elapsed time is never re-read: the clock line freezes at its first reading",
-      "file": "app/src/components/chart/builder/memberPane/useMemberDoor.js",
+      "file": "app/src/components/chart/builder/memberPane/useElapsedSince.js",
       "from": "    const id = setInterval(() => setTick((n) => n + 1), ELAPSED_TICK_MS)",
       "to": "    const id = null",
       "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/doorHeartbeat.elapsed.test.jsx",

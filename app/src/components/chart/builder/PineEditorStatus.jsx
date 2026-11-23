@@ -15,7 +15,8 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { memberPaneDefinition, MEMBER_PANE_DEF_PREFIX } from './memberPane/memberPaneDefinition'
-import { useMemberDoor, useElapsedSince } from './memberPane/useMemberDoor'
+import { useMemberDoor } from './memberPane/useMemberDoor'
+import { useElapsedSince } from './memberPane/useElapsedSince'
 import { useHubStatus } from './useHubStatus'
 import { memberDoorKeyOf } from './memberPane/memberDoorAsync'
 import {
