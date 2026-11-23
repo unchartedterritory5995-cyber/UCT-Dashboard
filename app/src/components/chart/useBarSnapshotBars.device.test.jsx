@@ -9,6 +9,7 @@
 //   FM3 a first mount on a 1m copy that lacks the minute that just closed: the loading state, then the answer
 //   FM4 a chart already SHOWING the device copy is never blanked when the copy later reads refused (the bucket ends
 //       before the answer): what is on screen stays until the answer replaces it
+//   FM5 ...per VIEW: the same shared key switched from the regular to the extended view is refused again
 //   TF1 a same-symbol timeframe change on an EXTENDED view onto a fresh device copy: the previous timeframe holds until
 //       the new key is answered (the change held for a rolled or stale copy already; not for this one)
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
@@ -151,6 +152,19 @@ describe('P3-M2 the chart\'s first mount and timeframe change consult the device
     h.rerender(p)
     expect(h.result.current.bars?.length).toBe(shown.length)           // still on screen
     expect(w.store.peek(K(5)).restSeen).toBe(false)
+  })
+
+  it('FM5 ...but a chart that showed the device copy on the REGULAR view, switched to the EXTENDED view of the same key: not that copy', async () => {
+    vi.setSystemTime(et(10, 7, 30) * 1000)
+    const w = world({ 5: { rows: [...yday(5), ...rows(5, et(9, 30), et(10, 5)), { t: et(10, 5), ...px(et(10, 5)) }], through: et(10, 7), formingT: et(10, 5) } })
+    let p = params()
+    const h = await mount(p)
+    expect(h.result.current.bars?.length).toBeGreaterThan(0)           // the regular view paints the device copy
+    p = { ...p, showExtended: true }                                    // the member turns extended hours on: same key
+    h.rerender(p)
+    expect(h.result.current.bars).toBeNull()                           // no pre-market bars in it: not shown
+    await answered(w, h, p)
+    expect(h.result.current.bars?.some((b) => b.t === et(9, 0))).toBe(true)
   })
 
   it('TF1 a timeframe change on an EXTENDED view onto a fresh device copy holds the previous timeframe until answered', async () => {
