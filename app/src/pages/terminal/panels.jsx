@@ -183,6 +183,8 @@ export const PANEL_IMPORTERS = {
   VolumeFootprint: () => import('./panels/VolumeFootprintPanel'),
   // FCTX (2026-11-22): one stock's loadings on the market, size, growth vs value, momentum, quality and low volatility
   FactorExposure: () => import('./panels/FactorExposurePanel'),
+  // ERNSC (2026-11-22): earnings season by sector from the results UCT holds: beat rates, surprises, reactions
+  SectorEarnings: () => import('./panels/SectorEarningsPanel'),
   // the earnings season screen (owner pick, 2026-11-17)
   EarningsSeason: () => import('./panels/EarningsSeasonPanel'),
   ThemeBoard: () => import('./panels/ThemeBoardPanel'),

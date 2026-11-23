@@ -7,9 +7,9 @@
 //   * during the regular session: complete through the last DEVICE_FRESH_MS (2 minutes). `through` is the
 //     last CLOSED MINUTE the overlay applied (live.js), whatever the timeframe: a 5m-60m copy holding every
 //     complete bucket passes mid-session and paints them; the forming bucket is not in it, and the server's
-//     answer only adds it (store.deviceLive L1/L2). D, W and M pass THIS check too, but never paint
-//     mid-session: their copy lacks today's developing bar, so the store's status rule refuses it (L6), and
-//     the server's answer carries that bar.
+//     answer only adds it (store.deviceLive L1/L2). D passes THIS check too, but never paints mid-session: its
+//     copy lacks today's developing bar, so the store's status rule refuses it (L6), and the server's answer
+//     carries that bar. (W and M are never served by the device at all: tfs.SERVED_TFS, review of #2537 H1.)
 //   * outside it: complete through the end of the last closed session (intraday: its regular close, 13:00
 //     on an NYSE early-close day; D/W/M: the end of that day, when its daily bar is whole).
 // Small on purpose: barStore/prefetch.js imports it.

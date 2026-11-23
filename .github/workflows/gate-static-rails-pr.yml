@@ -155,6 +155,16 @@ jobs:
         if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
         run: python -m pytest tests/test_ci_agent_merge_ref.py tests/test_agent_ci_required.py tests/test_agent_ci_evidence.py -q -p no:cacheprovider
 
+      # 2026-11-23: ci/mutants/*.json are the mutant manifests tools/ci_mutant_runner.py runs, and a manifest is run only
+      # when someone dispatches it. An edit to a target file afterwards can leave a `from` that matches nothing: the
+      # mutant would mutate nothing and the manifest still reads as proof. On master 5b19c609c7, 45 of 849 mutants in
+      # 18 of 82 manifests were in that state and no check said so. This step fails the pull request that
+      # makes one more; the 45 are the debt list ci/mutants-stale-baseline.json, which only shrinks. Standard library;
+      # it reads about a hundred files (a second or two).
+      - name: Every CI mutant manifest still names text that exists
+        if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
+        run: python -m pytest tests/test_ci_mutant_manifests.py -q -p no:cacheprovider
+
       - name: This job mirrors the gate's static steps
         if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
         run: python -m pytest tests/test_gate_static_rails_pr.py -q -p no:cacheprovider

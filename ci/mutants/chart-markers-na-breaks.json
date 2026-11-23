@@ -86,8 +86,8 @@
    "id": "NB5",
    "mutant": "the binder no longer splits a sparse line into its valued runs",
    "file": "app/src/components/chart/engine/binder.js",
-   "from": "(b.plot && b.plot.sparse === true)",
-   "to": "(b.plot && b.plot.sparse === 'mutant NB5')",
+   "from": "        && (hasPitLineage(b.inst, instances) || (b.plot && b.plot.sparse === true))",
+   "to": "        && (hasPitLineage(b.inst, instances) || (b.plot && b.plot.sparse === 'mutant NB5'))",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/markerScaleAndNaBreaks.test.js",
    "expectRed": "two runs"
   },

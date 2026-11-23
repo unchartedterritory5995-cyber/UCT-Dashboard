@@ -5041,3 +5041,47 @@ the unchanged full path. There are 2 deleted `api/` lines, both the rewritten ro
   `screener.rs_post_pass` -> `routers.auth` -> `research.iv_history`). It never runs the IPO scan, the IV history read or
   either new job; the older files it keeps running lack only what it never invokes.
 - **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.
+
+## COT legacy reader matches by CFTC contract code first (Hard Red Spring wheat had stopped updating) · `fix/cot-legacy-market-names` · 2026-11-22
+
+| | |
+|---|---|
+| classification | **flow-worker stranded: NOT EXERCISED, safe; NO marker bump** |
+| stranded files | `api/services/cot_service.py`, `api/services/cot_finer.py` |
+
+- **The change.** `cot_service._parse_cftc_stream` now matches each row through `cot_finer.symbol_for` (the contract code
+  first, through `cot_finer.CONTRACT_CODES`; then the market name, runs of spaces collapsed; a code match beats a name
+  match for the same symbol and week), reading the optional `CFTC Contract Market Code` column; `_CFTC_ALIASES` gains
+  "WHEAT-HRSpring - MIAX FUTURES EXCHANGE" -> MW. `cot_finer.py` changes in its docstring only. Checked once against the
+  CFTC's 2026 legacy file: the only records that change are MW's 46 weeks (none before); every other record is identical
+  and in the same order.
+- **Flow-worker.** Reaches `cot_service` through a static chain (`flow_worker_main` -> `flow_gap_autofill` ->
+  `liveflow_monitor` -> `bars_fetch` -> `breadth_monitor` -> `breadth_live_universes` -> `market_indicators.producers` ->
+  `market_indicators.registry` -> `cot_service`), and `cot_finer` one hop further only through the new function-level
+  import inside `_parse_cftc_stream` (not in its closure before). Its closure uses `cot_service`'s symbol tables,
+  `DB_PATH`, `_get_conn`, `init_db` and `get_cot_data`; it never runs `_parse_cftc_stream`, `refresh_from_current`,
+  `seed_from_historical`, `refresh_if_stale`, `daily_catchup` or `get_status` (the COT jobs live in `api/main.py`, the COT
+  routes in `api/routers/cot.py`, neither in its closure), so it never even imports `cot_finer`. The older files it keeps
+  running lack only what it never invokes.
+- **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.
+
+## Terminal review follow-ups 2 (N-PORT changes across splits, GRPS empty build and busy pause, COT by trader seeding, near the 52-week high) · `fix/terminal-review-followups-2` · 2026-11-22
+
+| | |
+|---|---|
+| classification | **flow-worker stranded: NOT EXERCISED, safe; NO marker bump** |
+| stranded files | `api/services/cot_finer.py` |
+
+- **The change in the stranded file.** `cot_finer.refresh` no longer ends a run on a file of the wrong shape: it records a
+  past year's failure in a new `cot_finer_shape` table (created by `cot_finer.init_db`), goes on to the next file, and
+  `plan` leaves that year out for `SHAPE_RETRY_S` (a week); `store` removes the record once the year is read. `symbol_for`,
+  `CONTRACT_CODES` and the parser are unchanged.
+- **Flow-worker.** Reaches `cot_finer` only through the function-level import inside `cot_service._parse_cftc_stream`
+  (the chain in the row above), which uses `symbol_for` alone. It never runs `refresh`, `plan`, `store`, `init_db` or the
+  scheduled run (registered in `api/main.py`, not in its closure). The older file it keeps running lacks only what it
+  never invokes.
+- **The other files are not in its closure** (`group_stats.py`, `group_stats_calc.py`, `group_positioning.py`,
+  `fund_holders_nport.py`, `fund_holders_nport_data.py`; checked with `reachable_paths`). `reference_corp_actions.py`,
+  which is in it (through `live_massive_router` -> `dividends_calendar`), is not changed: the N-PORT job only calls its
+  existing `fetch_confirmed_splits_strict` and `split_ratio`.
+- **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.

@@ -45,7 +45,11 @@ def test_the_one_renamed_pair_is_comparable():
 def test_the_other_thirty_are_not_comparable():
     census = proj.comparability_census()
     assert census["n_comparable"] == 1, census["comparable"]
-    assert census["n_not_comparable"] == 31, sorted(census["not_comparable"])  # 2026-11-04: +ma_cross
+    # 2026-11-04: +ma_cross (31). 2026-11-23: 31 -> 50, the 19 RS addresses (12 rs_line.*, 2026-11-06/07; rs_phases.* +
+    # rs_vs_ema.*, 2026-11-10; rs_exit.*, 2026-11-11). None has a book form, so none is comparable, by the same verdict.
+    assert census["n_not_comparable"] == 50, sorted(census["not_comparable"])
+    rs = {k: v for k, v in census["not_comparable"].items() if k.startswith(("rs_line.", "rs_phases.", "rs_vs_ema.", "rs_exit."))}
+    assert len(rs) == 19 and set(rs.values()) == {proj.NO_BOOK_FORM}, rs
     assert "rsi" in census["not_comparable"]
     assert "bb.upper" in census["not_comparable"]
 

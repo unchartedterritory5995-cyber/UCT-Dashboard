@@ -13,7 +13,7 @@ import { addableRows } from './capabilities/indicatorEdits'
 import { resolvedTicker, isReservedWord, PRONOUNS } from './nl/tickers'
 import { sanitizeChartTabs } from '../pages/charts/chartTabs'
 import { CLICK_ACT_NP } from './clickRef'
-import { namedAnchorRelation, wholeLinesNamed, clickLineMatch, clickLineHits, activeText, relationAnchor, blankStated, negatedClick, withoutExclusions, excludedCharts, everyExceptSet } from './spatialCheck'
+import { namedAnchorRelation, wholeLinesNamed, clickLineMatch, clickLineHits, activeText, relationAnchor, blankStated, negatedClick, withoutExclusions, excludedCharts, everyExceptSet, withoutAnchorRel } from './spatialCheck'
 
 // Words that point at "the chart in front of me". "it" counts only for a CHART-kind op ("make it
 // weekly"), never on its own ("put it in Momentum", "what is it" are not about a chart).
@@ -233,7 +233,9 @@ const CROSS_CLAUSE = /(?:[,;]\s*|\s+)(?:and|then|but)\s+(?:put|make|set|switch|c
 export function relationMatch(text0) {
   // (H5, probe 19) a clause that says a chart already is so relates nothing (blanked: positions kept)
   // (AUDIT probe 3) an imperative negation of the click relates nothing either: blanked (the click is excluded by the check)
-  const text = blankStated(negatedClick(text0).text)
+  // (anchor-diagonal follow-up) an anchor-relative EXCLUSION ("except the one diagonal from AAPL", "leave the chart catty-corner to QQQ
+  // alone") relates no chart to the click: blanked first (positions kept; spatialCheck.anchorRelExclusions reads it whole)
+  const text = blankStated(negatedClick(withoutAnchorRel(text0)).text)
   const r0 = relationMatchIn(text)
   // pl-auto unseen12 (#988): the click's own line said as a relation ("the rest of this row", "same column, other row", "same row, far
   // end", "one column right from this chart", "this one, the first chart in its row") — read where the relation readers find
@@ -1521,7 +1523,9 @@ export function planIsExceptSet({ host, ops, text, getTargetKind, getCapability 
     // (#988 option-2 ruling, kept) an exclusion read through a RELATION ("except the one diagonally across from this one") is
     // still put to the member as the one-set question; only plain references (a ticker, a place, an order, a line, the click) are settled here
     // ("as it is" / "where it is" is a keep tail, never a relation from the click)
-    const s = String(text || '').replace(/\b(?:as|where)\s+(?:it|they)\s+(?:is|are|was)\b/gi, ' ')
+    // (H-RDR-1 follow-up) …but an ANCHOR-RELATIVE exclusion ("except the one left of AAPL") is a plain reference here: placed
+    // exactly by everyExceptSet below, or the set is null (asked)
+    const s = withoutAnchorRel(String(text || '')).replace(/\b(?:as|where)\s+(?:it|they)\s+(?:is|are|was)\b/gi, ' ')
     if (relationMatch(s) || refPointAny(s)) return false
     const ev = everyExceptSet(text, live, selectedChart(host))
     if (!ev?.refs?.length) return false

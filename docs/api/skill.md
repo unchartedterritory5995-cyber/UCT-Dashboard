@@ -92,7 +92,7 @@ Response 200:
 {"note": {"id": "<note id>", "title": "<title>", "url": "<note url>"}}
 ```
 
-## Member session reads (806)
+## Member session reads (809)
 
 ### Limits
 
@@ -260,9 +260,11 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/compare/groups` | paid | market-analytics | type (required) |
 | GET | `/api/confidence-scores/{symbol}` | paid | market-analytics | {symbol} |
 | GET | `/api/confluence` | member | market-analytics | days=30 |
+| GET | `/api/cot/breakdown` | paid | market-analytics |  |
 | GET | `/api/cot/status` | paid | market-analytics |  |
 | GET | `/api/cot/symbols` | paid | market-analytics |  |
 | GET | `/api/cot/{symbol}` | paid | market-analytics | {symbol}, weeks=52 |
+| GET | `/api/cot/{symbol}/breakdown` | paid | market-analytics | {symbol}, weeks=52 |
 | GET | `/api/cot/{symbol}/narratives` | paid | market-analytics | {symbol}, limit=60 |
 | GET | `/api/crypto/pairs` | member | market-data |  |
 | GET | `/api/crypto/quote/{symbol}` | member | market-data | {symbol} |
@@ -735,6 +737,7 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/research/revenue-segments/{ticker}` | paid | research | {ticker}, period=annual |
 | GET | `/api/research/seasonality-board` | paid | research |  |
 | GET | `/api/research/seasonality/{sym}` | paid | research | {sym} |
+| GET | `/api/research/sector-earnings` | paid | research | season=current, sector |
 | GET | `/api/research/setup-history` | paid | research |  |
 | GET | `/api/research/setup-history/{ticker}` | paid | research | {ticker} |
 | GET | `/api/research/short-data/{ticker}` | paid | research | {ticker} |
