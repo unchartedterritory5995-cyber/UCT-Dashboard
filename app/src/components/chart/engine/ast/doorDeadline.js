@@ -112,7 +112,8 @@ export function checkDoorDeadline() {
  */
 export function withMainThreadCap(capMs, fn, clock) {
   if (!(Number.isFinite(capMs) && capMs > 0) || typeof fn !== 'function' || typeof clock !== 'function') {
-    throw new TypeError('withMainThreadCap(capMs > 0, fn, clock)')
+    // (a plain Error: this module is inside sentence.test.js's pure-derivation scan, whose allowlist has `Error`)
+    throw new Error('withMainThreadCap(capMs > 0, fn, clock)')
   }
   const t0 = clock()
   const win = openDoorWindow(capMs, clock)
