@@ -53,8 +53,13 @@ function partial(i, t) {
 }
 
 let fakeDb
+/** Stores to dispose even when a scan fails half way. */
+const undo = []
 beforeAll(() => { fakeDb = installFakeIndexedDB() })
-afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); localStorage.removeItem('uct.minuteFeed'); localStorage.removeItem('barspack.version') })
+afterEach(() => {
+  for (const f of undo.splice(0)) { try { f() } catch { /* already gone */ } }
+  vi.useRealTimers(); vi.restoreAllMocks(); localStorage.removeItem('uct.minuteFeed'); localStorage.removeItem('barspack.version')
+})
 
 /** The modelled network (see the header). Records what was asked. */
 function installNetwork(model) {
@@ -120,6 +125,7 @@ async function scan({ feedOn, model }) {
     stream: fakeStream(), candle: fakeCandle(), prices: fakePrices(), history: null,
     isHidden: () => false, onVisible: () => () => {}, idle: (fn) => fn(), minuteFeed: appMinuteFeed,
   })
+  undo.push(() => store.dispose())
   const pf = createPrefetch({ store, tickerMeta: () => {}, extended: () => false })
   const key = (i) => pf.keyFor(SYMS[i], '1')
 

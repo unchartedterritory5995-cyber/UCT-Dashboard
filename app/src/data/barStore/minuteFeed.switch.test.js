@@ -18,6 +18,8 @@ vi.mock('../../hooks/useTickerMeta', () => ({ prefetchTickerMeta: () => {} }))
 const NOW = Date.UTC(2026, 10, 10, 15, 2, 20)                    // Tue 2026-11-10 10:02:20 ET
 const clearCookie = (n) => { document.cookie = `${n}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/` }
 let fakeDb
+/** What a test must undo even when it FAILS half way (a store left running would ask into the next test's fetch). */
+const undo = []
 beforeAll(() => { fakeDb = installFakeIndexedDB() })
 beforeEach(() => {
   fakeDb._clear()
@@ -28,6 +30,7 @@ beforeEach(() => {
   delete window.__uctMinuteFeed
 })
 afterEach(() => {
+  for (const f of undo.splice(0)) { try { f() } catch { /* already gone */ } }
   vi.useRealTimers()
   localStorage.removeItem('uct.minuteFeed'); localStorage.removeItem('uct.deviceStore')
   clearCookie('uct_chart_speed'); clearCookie('uct_device_store')
@@ -132,10 +135,12 @@ describe('the bar store starts it once, at its first chart', () => {
   async function store(minuteFeed) {
     const { createBarStore } = await import('./index')
     globalThis.fetch = vi.fn(() => new Promise(() => {}))        // the server never answers: nothing here needs it to
-    return createBarStore({
+    const s = createBarStore({
       stream: fakeStream(), candle: fakeCandle(), prices: fakePrices(), history: null,
       isHidden: () => false, onVisible: () => () => {}, idle: (fn) => fn(), ...(minuteFeed !== undefined ? { minuteFeed } : {}),
     })
+    undo.push(() => s.dispose())
+    return s
   }
 
   it('S7 never at creation, never for a warm; once at the first subscriber; dispose stops it', async () => {
@@ -182,6 +187,7 @@ describe('the app store', () => {
     vi.doMock('../../lib/realtimeCandle', async (orig) => ({ ...(await orig()), subscribe: () => () => {}, getCandle: () => null, getLastTickAt: () => 0, getLastTrade: () => null }))
     vi.doMock('../../lib/priceStreamManager', async (orig) => ({ ...(await orig()), subscribe: () => () => {}, getSnapshot: () => ({ prices: {} }) }))
     const { getBarStore, _resetBarStoreForTests } = await import('./index')
+    undo.push(_resetBarStoreForTests)
     return { s: getBarStore(), done: _resetBarStoreForTests }
   }
 
