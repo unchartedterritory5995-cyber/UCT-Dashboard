@@ -201,6 +201,9 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
       fetch(url, { signal: ctl.signal })
         .then(r => r.ok ? r.json() : Promise.reject(r.status))
         .then(j => {
+          // ⛔ A SUPERSEDED OR ABORTED REQUEST IS NOT A RESULT (2026-11-23). A newer keystroke, Enter or the dialog
+          // closing aborts it (this effect's cleanup); an answer that lands anyway must not replace the newer list.
+          if (ctl.signal.aborted) return
           let arr = Array.isArray(j?.results) ? j.results : []
           // Client-side safety net: if a category is active AND the server labeled
           // types, keep only that type (so a stale/typeless server can't leak the
@@ -212,6 +215,9 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
           setActiveIdx(0)
         })
         .catch(() => {
+          // ...and its AbortError is not a failure: written, it rendered the search again right after Enter's switch,
+          // and while typing it put "Go to {earlier text}" back under the newer text. A real failure still clears.
+          if (ctl.signal.aborted) return
           setResults(typeParam ? [] : [{ ticker: q.toUpperCase(), name: null, _typed: true }])
           setActiveIdx(0)
         })
