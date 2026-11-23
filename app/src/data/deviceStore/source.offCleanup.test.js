@@ -99,16 +99,64 @@ describe('OFF BY DEFAULT: the packs are kept, unused', () => {
     expect(localStorage.getItem(FILES_KEY)).toBe('1')
   })
 
-  it('not run here for 30 days: the stale seed is deleted (once, at idle after the first chart paint)', async () => {
+  // (review of #2563 round 2, LOW: the 30-day rule trusts the local clock) A stale seed is deleted only when TWO off-by-
+  // default loads at least 24 h apart both see it 30+ days unused, with the store not run in between: one load under a
+  // clock that ran ahead is never enough.
+  it('not run here for 30 days: deleted on the SECOND stale off load 24 h after the first (once, at idle after the first chart paint)', async () => {
     ranHere(30)
-    const src = await pageLoad({ defaultOn: false })
-    const s = scheduler()
-    const o = opfs()
-    look(src, s, o)
-    expect(s.painted).toHaveLength(1)
-    await paintAndIdle(s)
-    expect(o.root.removeEntry).toHaveBeenCalledWith(DIR, { recursive: true })
+    const at = async (t) => {
+      const src = await pageLoad({ defaultOn: false })
+      const s = scheduler()
+      const o = opfs()
+      look(src, s, o, { now: () => t })
+      await paintAndIdle(s)
+      return o.root.removeEntry.mock.calls.length
+    }
+    expect(await at(NOW)).toBe(0)                                        // the first stale look only marks it
+    expect(await at(NOW + 24 * 3_600_000 - 1)).toBe(0)
+    expect(localStorage.getItem(FILES_KEY)).toBe('1')
+    expect(await at(NOW + 24 * 3_600_000)).toBe(1)
     expect(localStorage.getItem(FILES_KEY)).toBe('0')
+  })
+
+  it('a clock that ran ahead for ONE load cannot delete a seed in use: the next load with the right clock clears the mark', async () => {
+    ranHere(1)                                                           // the store ran yesterday
+    const at = async (t) => {
+      const src = await pageLoad({ defaultOn: false })
+      const s = scheduler()
+      const o = opfs()
+      look(src, s, o, { now: () => t })
+      await paintAndIdle(s)
+      return o.root.removeEntry.mock.calls.length
+    }
+    expect(await at(NOW + 40 * DAY)).toBe(0)                             // 41 days "unused" by a wrong clock: marked only
+    expect(await at(NOW + 2 * 3_600_000)).toBe(0)                        // the clock is right again: not stale, mark cleared
+    expect(await at(NOW + 41 * DAY)).toBe(0)                             // wrong again a day later: a FIRST mark again
+  })
+
+  it('the store running in between (an ON load) restarts the count: a stale mark never carries over a run', async () => {
+    ranHere(31)
+    const off = async (t) => {
+      const src = await pageLoad({ defaultOn: false })
+      const s = scheduler()
+      const o = opfs()
+      look(src, s, o, { now: () => t })
+      await paintAndIdle(s)
+      return o.root.removeEntry.mock.calls.length
+    }
+    expect(await off(NOW)).toBe(0)
+    const { createDeviceClient } = await vi.importActual('./client')    // a wide window: the store runs, and stamps
+    createDeviceClient({ makeWorker: () => ({ postMessage() {}, terminate() {} }), afterPaint: () => {}, now: () => NOW + 3_600_000 }).start()
+    expect(await off(NOW + 25 * 3_600_000)).toBe(0)                      // not stale any more
+  })
+
+  it('the run stamp NEVER moves backwards (a clock set back after running ahead): the newest stamp stands', async () => {
+    localStorage.setItem(LAST_RUN_KEY, String(NOW + 10 * DAY))
+    const { createDeviceClient } = await vi.importActual('./client')
+    createDeviceClient({ makeWorker: () => ({ postMessage() {}, terminate() {} }), afterPaint: () => {}, now: () => NOW }).start()
+    expect(localStorage.getItem(LAST_RUN_KEY)).toBe(String(NOW + 10 * DAY))
+    createDeviceClient({ makeWorker: () => ({ postMessage() {}, terminate() {} }), afterPaint: () => {}, now: () => NOW + 11 * DAY }).start()
+    expect(localStorage.getItem(LAST_RUN_KEY)).toBe(String(NOW + 11 * DAY))
   })
 
   it('no stamp (a seed from before the stamp existed), or a stamp from the future (a clock set back): KEPT', async () => {

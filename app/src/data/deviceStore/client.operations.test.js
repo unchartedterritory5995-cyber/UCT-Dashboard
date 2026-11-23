@@ -89,6 +89,28 @@ describe('M2 a page left open re-checks the seed', () => {
   })
 })
 
+describe('(review of #2563 round 2) a page left ON for days keeps its run stamp fresh, on beats it already has', () => {
+  it('the 30-minute re-check and every committed generation (or held-seed status) stamp the run; no timer of its own', () => {
+    const noteFiles = vi.fn()
+    const h = harness({ noteFiles })
+    h.c.start()
+    expect(noteFiles).toHaveBeenLastCalledWith(h.clock.t)               // start stamps
+    h.idleNow()
+    const t0 = h.clock.t
+    h.clock.t += 30 * MIN
+    h.tick(); h.idleNow()                                                // the re-check goes...
+    expect(ops(h.w, 'ingest')).toHaveLength(2)
+    expect(noteFiles).toHaveBeenLastCalledWith(t0 + 30 * MIN)           // ...and stamps
+    h.clock.t += 5 * MIN
+    h.w.onmessage({ data: { type: 'event', event: { type: 'gen', tf: 'D', build: 'b' } } })
+    expect(noteFiles).toHaveBeenLastCalledWith(t0 + 35 * MIN)           // a generation committed: stamped
+    h.clock.t += 1 * MIN
+    h.w.onmessage({ data: { type: 'status', role: 'leader', supported: true, info: { tfs: { D: { build: 'b' } } } } })
+    expect(noteFiles).toHaveBeenLastCalledWith(t0 + 36 * MIN)           // a held seed reported: stamped
+    expect(h.env.periods).toEqual([60_000])                              // still only the beat it already had
+  })
+})
+
 describe('M9 a kill that reaches an open page', () => {
   it('on the next visible beat the worker is stopped for good, and nothing starts it again', async () => {
     let killed = false
