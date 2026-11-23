@@ -16,13 +16,16 @@ ONE way to stop it: `bars_fetch.stop_bars_warm_pool(reopen=...)`.
 After a stop with nothing in its place, a submit raises RuntimeError, and every submitter already treats that as
 "pool shutting down": nothing reaches a request handler (T2).
 
-Mutation proof (predictions written before each run):
-    1. the stop does nothing                              -> T1, T2, T3, T5b, T7a RED
-    2. the stop waits on running work (wait=True)         -> T3, T5b RED
-    3. the stop starts queued work (no cancel_futures)    -> T3, T5b RED
-    4. the lifespan does not call it                      -> T4 RED
+Mutation proof (predictions written before each run; the PR body has the runs):
+    1. the process stop does nothing                      -> T1, T2, T3, T5b, R2, T7a RED
+    2. the lifespan does not call it                      -> T4 RED
+    3. the stop waits on running work (wait=True)         -> T3, T5b RED
+    4. the stop keeps queued work (no cancel_futures)     -> T3, T5b, R1, R3 RED
     5. the admin stop reopens after the process stop      -> R2 RED
-    6. tests/conftest.py does not reopen the warm pool    -> T7b, T8b RED
+    6. tests/conftest.py does not reopen the warm pool    -> T7b, T8b RED, and test_bars_review_followups'
+                                                             warm_bars_async test after a lifespan test
+    7. the universe warms count through as_completed      -> T5b, R3 RED (their runner waits for ever)
+    8. the admin route keeps its own shutdown + new pool  -> T9, R2 RED
 """
 from __future__ import annotations
 

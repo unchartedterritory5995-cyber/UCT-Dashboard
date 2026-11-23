@@ -4232,7 +4232,51 @@ def _get_bars_since_response(ticker: str, tf: str, bars: int, since_str: str) ->
 # cache before the client requests it (e.g. when a breadth drill list is
 # fetched, warm the top tickers' Daily bars so chart loads are instant).
 from concurrent.futures import ThreadPoolExecutor as _BarsWarmExecutor
-_bars_warm_pool = _BarsWarmExecutor(max_workers=4, thread_name_prefix="bars-warm")
+
+
+def _new_bars_warm_pool():
+    """The bars-warm pool: 4 workers named "bars-warm_N". The ONE factory (import, the admin stop's fresh pool,
+    the test suite's reopen in tests/conftest.py)."""
+    return _BarsWarmExecutor(max_workers=4, thread_name_prefix="bars-warm")
+
+
+_bars_warm_pool = _new_bars_warm_pool()
+_bars_warm_lock = _threading.Lock()
+#: Set by shutdown_bars_warm_pool() (process shutdown): from then on the pool stays stopped, nothing reopens it.
+_bars_warm_closed = False
+
+
+def stop_bars_warm_pool(*, reopen: bool) -> None:
+    """Stop the bars-warm pool. THE one way it is stopped:
+      reopen=True   /api/admin/warm-universe-stop: a fresh pool takes its place so the next warm can start,
+                    unless the process already stopped it for good (then nothing reopens it);
+      reopen=False  process shutdown (shutdown_bars_warm_pool, the web lifespan): stopped for good.
+    `wait=False`: a job already running is a provider read Python cannot interrupt; it finishes on its own, and
+    at process exit api/serve_dual.py's bounded join bounds it. `cancel_futures=True`: a job not yet started never
+    runs. A submit to the stopped pool raises RuntimeError, which every submitter already reads as "pool shutting
+    down" (warm_bars_async returns; the universe warms stop submitting and count what they submitted; scan_period's
+    deep daily warm stops), so no request handler sees it. Safe to call twice."""
+    global _bars_warm_pool, _bars_warm_closed
+    with _bars_warm_lock:
+        pool = _bars_warm_pool
+        if not reopen:
+            _bars_warm_closed = True
+        elif not _bars_warm_closed:
+            _bars_warm_pool = _new_bars_warm_pool()
+    try:
+        pool.shutdown(wait=False, cancel_futures=True)
+    except Exception:  # noqa: BLE001 -- a stop never raises
+        pass
+
+
+def shutdown_bars_warm_pool() -> None:
+    """At process shutdown (the web lifespan's last steps): let the bars-warm pool's IDLE workers exit now.
+
+    Measured at web pod swaps after #2577 stopped the bars-seed pool: the exit join still spent its whole 5 s on
+    "bars-warm_0..3" (exits at 12.0-12.6 s). Idle ThreadPoolExecutor workers wait on the work queue until
+    interpreter shutdown wakes them, which api/serve_dual.py's `os._exit` never reaches. Same fix as the bars-seed
+    pool (api/routers/stream.py shutdown_seed_pool) and the cold-preload pool (cold_start_guard.shutdown)."""
+    stop_bars_warm_pool(reopen=False)
 
 # ── Never-block cold fetch (instant-charts Phase 4) ──────────────────────────
 # A truly-cold symbol's provider fetch can take ~15-22s; holding a REQUEST thread
@@ -4844,7 +4888,6 @@ def _run_universe_warm(tickers: list[str], tf: str, bars_count: int) -> None:
     submitted to the bars-warm pool (4 workers) so live API requests aren't
     blocked. This typically completes in 1-3 hours for ~3,700 tickers.
     """
-    from concurrent.futures import as_completed
     with _warm_state_lock:
         _warm_state.update({
             "running": True,
@@ -4882,10 +4925,13 @@ def _run_universe_warm(tickers: list[str], tf: str, bars_count: int) -> None:
         except RuntimeError:
             break  # pool shutting down
 
-    for fut in as_completed(futures):
+    # Each job through its OWN result(), never as_completed(): a job that stop_bars_warm_pool cancelled
+    # (cancel_futures=True) never wakes as_completed (CPython tells its waiters only when a worker picks the job
+    # up), so this runner waited for ever after every stop with work queued, its counters short.
+    for fut in futures:
         try:
             ok = fut.result()
-        except Exception:
+        except Exception:  # a failed job, or one a stop cancelled (CancelledError)
             ok = False
         with _warm_state_lock:
             _warm_state["done"] += 1
@@ -4913,7 +4959,6 @@ def _run_universe_warm_multi_tf(tickers: list[str], tfs: list[str], bars_count: 
     intraday) so the most-viewed TF is hot earliest. Aggregate progress is
     reported in _warm_state.
     """
-    from concurrent.futures import as_completed
     total_jobs = len(tickers) * len(tfs)
     with _warm_state_lock:
         _warm_state.update({
@@ -4998,10 +5043,10 @@ def _run_universe_warm_multi_tf(tickers: list[str], tfs: list[str], bars_count: 
             except RuntimeError:
                 break
 
-        for fut in as_completed(futures):
+        for fut in futures:    # each job's own result(), never as_completed(): see _run_universe_warm
             try:
                 ok = fut.result()
-            except Exception:
+            except Exception:  # a failed job, or one a stop cancelled (CancelledError)
                 ok = False
             with _warm_state_lock:
                 _warm_state["done"] += 1
