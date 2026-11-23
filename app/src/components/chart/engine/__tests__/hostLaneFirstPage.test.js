@@ -1,6 +1,6 @@
 // ⭐⭐ THE FIRST PAGE (coordinator-approved first-draw unit, 2026-11-23): on a cold timeframe the pane draws the newest
-// FIRST_PAGE_ROWS bars at once (computed twice, from two starts; a plot only where both agree bit for bit), while the
-// worker computes the full history, which then REPLACES it.
+// FIRST_PAGE_ROWS bars first (computed twice, from two starts; a plot only where both agree bit for bit), IN THE WORKER as
+// its own small job ahead of the full history, which then REPLACES it. ⛔ The chart's thread never computes the page.
 // ⛔ THE CORRECTNESS BAR: every value the first page draws is BYTE-EQUAL to the full-history answer on that bar; a plot
 // whose page values depend on where history began is withheld whole on the page, by name; the drawings wait.
 import fs from 'node:fs'
@@ -14,6 +14,7 @@ import {
   __routeEveryHostDocumentForTests,
   FIRST_PAGE_ROWS, FIRST_PAGE_PROBE, FIRST_PAGE_CODE,
 } from '../hostLaneAsync'
+import { FIRST_PAGE_NOTE } from '../firstPage'
 import { withheldBarsReport } from '../astColumns'
 import { standInWorkers, firstDifference } from './hostLaneStandIn'
 import { OWN_DAILY_KEY } from '../otherSymbols'
@@ -105,9 +106,19 @@ describe('the first page: drawn at once, byte-equal to the full history where it
     expect(chart.length).toBeGreaterThan(2 * FIRST_PAGE_ROWS + FIRST_PAGE_PROBE)
     const fc = fredCtx(spx)
     const full = registry.computeFor(def, chart, {}, { ...fc })                  // the full history, on this thread
-    const first = registry.computeFor(def, chart, {}, { ...fc, hostPane: 'fp\u0001a' })
-    expect(isHostLanePending(first), 'the full job is in the worker').toBe(true)
+    const cold = registry.computeFor(def, chart, {}, { ...fc, hostPane: 'fp\u0001a' })
+    // ⛔⛔ THE CHART'S THREAD NEVER COMPUTES THE PAGE: nothing is drawn until the worker answers the page job
+    expect(isHostLanePending(cold), 'the full job is in the worker').toBe(true)
+    expect(Object.keys(cold).length, 'no page computed on this thread').toBe(0)
+    expect(hostLaneStats().firstPages).toBe(0)
+    // the page job is the one posted first (the full job waits behind it)
+    const msg = workers.made[0].inbox[0]
+    expect(msg && msg.kind, 'the page job goes first, to the worker').toBe('firstPage')
+    expect(workers.posted()).toBe(1)
+    expect(workers.answerOne()).toBe(true)
     expect(hostLaneStats().firstPages).toBe(1)
+    const first = registry.computeFor(def, chart, {}, { ...fc, hostPane: 'fp\u0001a' })
+    expect(isHostLanePending(first), 'the full job is still in the worker').toBe(true)
     const keys = Object.keys(first)
     expect(keys.length, 'the first page is a picture, not an empty pane').toBeGreaterThan(0)
     let drawn = 0
@@ -126,11 +137,16 @@ describe('the first page: drawn at once, byte-equal to the full history where it
     for (const k of keys) for (let i = 0; i < chart.length - FIRST_PAGE_ROWS; i += 1) expect(Number.isFinite(first[k][i])).toBe(false)
     const named = withheldBarsReport(first)
     expect(named && Object.values(named).every((codes) => codes[FIRST_PAGE_CODE]), 'every plot names the first page').toBe(true)
+    // ⭐ the member reads it, in plain words, on the disclosure strip (never a silent partial line)
+    const notes = registry.externalReadNotices(def, first).filter((n) => n.code === FIRST_PAGE_CODE)
+    expect(notes.map((n) => n.reason)).toEqual([FIRST_PAGE_NOTE])
+    expect(FIRST_PAGE_NOTE).toMatch(/shown once the full history loads/)
     // the worker's full answer replaces the page: byte-equal to the full history
     workers.drain()
     const landed = registry.computeFor(def, chart, {}, { ...fc, hostPane: 'fp\u0001a' })
     expect(isHostLanePending(landed)).toBe(false)
     expect(firstDifference(full, landed)).toBeNull()
+    expect(registry.externalReadNotices(def, landed).some((n) => n.code === FIRST_PAGE_CODE), 'the note goes with the page').toBe(false)
   })
 
   it('⛔ a plot whose page values depend on where history began is withheld WHOLE on the page, by name', () => {
@@ -144,8 +160,9 @@ describe('the first page: drawn at once, byte-equal to the full history where it
     const ctx = { sym: 'RDDT', tf: '5', newestBarIsForming: false, symbol: RDDT }
     const full = registry.computeFor(def, chart, {}, { ...ctx })
     __routeEveryHostDocumentForTests(true)
+    expect(isHostLanePending(registry.computeFor(def, chart, {}, { ...ctx, hostPane: 'fp\u0001b' })), 'routed to the worker').toBe(true)
+    expect(workers.answerOne()).toBe(true)                                          // the page job
     const first = registry.computeFor(def, chart, {}, { ...ctx, hostPane: 'fp\u0001b' })
-    expect(isHostLanePending(first), 'routed to the worker').toBe(true)
     const [exactKey, cumKey] = Object.keys(full)
     expect(finite(first[exactKey])).toBe(FIRST_PAGE_ROWS)
     expect(finite(full[cumKey]), 'non-vacuity: the full history draws the mean').toBeGreaterThan(3000)
@@ -158,6 +175,7 @@ describe('the first page: drawn at once, byte-equal to the full history where it
     const fc = fredCtx(fiveMinute(22).spx)
     const short = fiveMinute(8).chart                 // 1,536 rows: under 2 * FIRST_PAGE_ROWS + FIRST_PAGE_PROBE
     registry.computeFor(def, short, {}, { ...fc, hostPane: 'fp\u0001c' })
+    workers.drain()
     expect(hostLaneStats().firstPages).toBe(0)
     setFirstPageEnabled(false)
     const { chart } = fiveMinute(22)
@@ -169,6 +187,36 @@ describe('the first page: drawn at once, byte-equal to the full history where it
     registry.computeFor(def, chart, {}, { ...fc, hostPane: 'fp\u0001d' })    // the pane now holds the full picture
     const longer = fiveMinute(23).chart
     registry.computeFor(def, longer, {}, { ...fc, hostPane: 'fp\u0001d' })    // new rows: pending, the OLD picture shown
+    expect(workers.made.flatMap((w) => w.inbox).some((m) => m.kind === 'firstPage'), 'no page job is posted').toBe(false)
+    workers.drain()
     expect(hostLaneStats().firstPages, 'a pane with a picture keeps it; no page is computed').toBe(0)
+  })
+
+  it('⛔ ORDERING: a page that lands AFTER its full answer is DISCARDED, never painted over the full picture', () => {
+    const def = fredDef()
+    const fc = fredCtx(fiveMinute(24).spx)
+    const r1 = fiveMinute(22).chart
+    const r2 = fiveMinute(23).chart
+    const P = 'fp\u0001e'
+    registry.computeFor(def, r1, {}, { ...fc, hostPane: P })     // page1 posted, full1 queued
+    registry.computeFor(def, r2, {}, { ...fc, hostPane: P })     // new rows before anything landed: page2 queued, full2 replaces full1
+    expect(workers.answerOne()).toBe(true)                        // page1 lands: the pane's first picture
+    expect(hostLaneStats().firstPages).toBe(1)
+    expect(workers.answerOne()).toBe(true)                        // full2 lands: the full picture
+    const full2 = registry.computeFor(def, r2, {}, { ...fc, hostPane: P })
+    expect(isHostLanePending(full2)).toBe(false)
+    expect(workers.made.flatMap((w) => w.inbox).map((m) => m.kind), 'page2 is now the posted job').toEqual(['firstPage'])
+    expect(workers.answerOne()).toBe(true)                        // page2 lands LATE
+    expect(hostLaneStats().firstPageDiscarded, 'the late page is dropped').toBe(1)
+    expect(hostLaneStats().firstPages).toBe(1)
+    // the pane's picture is still the FULL answer: new rows show it (re-aligned), drawn before the page region too
+    const r3 = fiveMinute(24).chart
+    const stale = registry.computeFor(def, r3, {}, { ...fc, hostPane: P })
+    expect(isHostLanePending(stale)).toBe(true)
+    const k = Object.keys(full2).find((x) => finite(full2[x]) > FIRST_PAGE_ROWS)
+    expect(k, 'non-vacuity: the full answer draws beyond a page').toBeTruthy()
+    const head = Array.from(stale[k]).slice(0, r3.length - FIRST_PAGE_ROWS - 300)
+    expect(head.filter(Number.isFinite).length, 'the full picture, not a page, is what stays').toBeGreaterThan(0)
+    workers.drain()
   })
 })

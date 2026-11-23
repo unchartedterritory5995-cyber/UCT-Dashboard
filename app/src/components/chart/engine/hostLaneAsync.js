@@ -90,12 +90,13 @@
 //     chart's thread, as `astColumnsFor` would have thrown it there.
 import {
   astLanePlan, astLaneFinish, astRuntimeErrorStop, astSideRecordsOf, withAstSideRecords, astPlotKey,
-  columnErrors, withColumnErrors, otherSymbolsFor, astColumnsGiven, withWithheldBars,
+  columnErrors, withColumnErrors, otherSymbolsFor, astColumnsGiven,
 } from './astColumns.js'
 import { lowerTfCodesOf } from './lowerTf.js'
 import { hostLaneCostOf } from './hostLaneCost.js'
 import { computesOnMain, learnCost, resetHostLaneRoute } from './hostLaneRoute.js'
 import { notifyColumnsLanded } from './serverCompute.js'
+import { FIRST_PAGE_ROWS, FIRST_PAGE_PROBE, FIRST_PAGE_POST_ROWS, widenFirstPage } from './firstPage.js'
 import { packRows, ctxImageOf, answerFromImage, errorFromImage } from './hostLaneWire.js'
 
 /** How long the worker may take to answer the job it holds before it is called unresponsive, in
@@ -161,7 +162,7 @@ const _last = new Map()      // `${pane}\u0001${sig}` -> the pane's latest pictu
 let _realigned = new WeakMap() // picture columns -> {rows, answer}
 let _costs = new WeakMap()   // specialised document -> hostLaneCostOf
 const _stats = { posted: 0, landed: 0, superseded: 0, cancelled: 0, retired: 0, dropped: 0, toMain: 0, refused: 0,
-  starts: 0, lost: 0, workerMs: 0, mainComputed: 0, memoHits: 0, lastFallback: null, firstPages: 0, firstPageFailed: 0 }
+  starts: 0, lost: 0, workerMs: 0, mainComputed: 0, memoHits: 0, lastFallback: null, firstPages: 0, firstPageFailed: 0, firstPageDiscarded: 0 }
 
 const clock = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now())
 
@@ -445,68 +446,43 @@ function answerOnMain(plan, per, key, stop, pane, sig, docId, inputs, ctx, extra
   return cols
 }
 
-// ─── ⭐⭐ THE FIRST PAGE (coordinator-approved first-draw unit, 2026-11-23) ─────────────────────────────────────────
+// ─── ⭐⭐ THE FIRST PAGE (`firstPage.js`; coordinator-approved first-draw unit, 2026-11-23) ───────────────────────────
 //
-// ⚰️ Production 2026-11-23 (RDDT with Fred RS, a cold 1D -> intraday switch): every byte the pane needs had landed by
-// 160-430 ms, and the pane stayed BLANK until 0.6-1.3 s: the worker computing Fred's values over 20,000-32,000 chart
-// rows (`hostLaneRoute`: about 12 ms per 1,000 rows), with no picture of this pane to show meanwhile.
-// So, while the full job runs in the worker, the NEWEST `FIRST_PAGE_ROWS` bars are computed here, TWICE, from two starts
-// `FIRST_PAGE_PROBE` bars apart. ⛔ A plot is drawn on the first page ONLY where both starts agree BIT FOR BIT on every
-// page bar: its values there do not depend on where history began (Fred's RS line, `close / SPX(t)`, reads no
-// history at all). Any other plot (a moving average, a `var` state, `bar_index`) is WITHHELD whole on the first page,
-// by name (`FIRST_PAGE_CODE` in the plot's per-bar withholdings), and drawn when the full answer lands. The drawings
-// (the run half) are not computed from a page: they wait for the full answer. The page is stored as the pane's picture,
-// so `pendingAnswer` draws it, and the full job's landing replaces it through the path a poll uses.
-export const FIRST_PAGE_ROWS = 1500
-export const FIRST_PAGE_PROBE = 251
-export const FIRST_PAGE_CODE = 'chart:first-page'
+// A cold pane (no picture of its signature yet) whose full job goes to the worker is sent a SECOND, small job FIRST:
+// kind 'firstPage', the newest `FIRST_PAGE_POST_ROWS` rows, posted on its own queue tag (`<pane>\u0003first`) so the
+// queue keeps both and the full job never supersedes it. ⛔⛔ The page's two computes run IN THE WORKER; this thread
+// only widens the window that lands (`widenFirstPage`) and stores it as the pane's picture, so `pendingAnswer` draws it
+// and the full answer replaces it. ⛔ A page that lands AFTER its full answer (or after any picture of its signature)
+// is DISCARDED, never painted over it.
+export { FIRST_PAGE_ROWS, FIRST_PAGE_PROBE, FIRST_PAGE_CODE } from './firstPage.js'
 let _firstPageOn = true
 /** Test seam / kill switch: turn the first page off (the pane is blank until the full answer, as before). */
 export function setFirstPageEnabled(on) { _firstPageOn = on !== false }
 
-/** Do two columns hold the same value on the last `n` bars, bit for bit (`NaN` equal to `NaN`)? */
-function sameTail(a, b, n) {
-  if (!a || !b || a.length < n || b.length < n) return false
-  for (let i = 1; i <= n; i += 1) if (!Object.is(a[a.length - i], b[b.length - i])) return false
-  return true
+/** The page job for a cold pane's full `job`, or null when there is none to make: switched off, a calc_bars_count
+ *  window or a framed instance (its values are not the chart's rows), or a chart too short to need one. */
+function firstPageJobOf(job) {
+  const plan = job.plan
+  if (!_firstPageOn || plan.win || plan.valueRows !== plan.rows) return null
+  const n = plan.rows.length
+  if (n < 2 * FIRST_PAGE_ROWS + FIRST_PAGE_PROBE) return null
+  return { kind: 'firstPage', pane: `${job.pane}\u0003first`, realPane: job.pane, sig: job.sig, key: job.key, per: new Map(),
+    fullKey: job.key, plan, asked: job.asked, stop: job.stop, docId: job.docId, rows: plan.rows,
+    sendDef: plan.def, postRows: plan.rows.slice(n - FIRST_PAGE_POST_ROWS), postCtx: plan.valueCtx }
 }
 
-/**
- * The pane's first page over `plan` (see above), or null when there is none to make: a calc_bars_count window or a
- * framed instance (its values are not the chart's rows), a chart too short to need one, or a compute that threw (the
- * pane then waits for the full answer, as before). Pure apart from `astColumnsGiven`.
- */
-export function firstPageColumns(plan, stop) {
-  if (!_firstPageOn || plan.win || plan.valueRows !== plan.rows) return null
-  const rows = plan.rows
-  const n = rows.length
-  if (n < 2 * FIRST_PAGE_ROWS + FIRST_PAGE_PROBE) return null
-  const cut = n - FIRST_PAGE_ROWS
-  let page, probe
-  try {
-    page = astColumnsGiven(plan.def, rows.slice(cut), plan.scalars, plan.valueCtx, stop)
-    probe = astColumnsGiven(plan.def, rows.slice(cut - FIRST_PAGE_PROBE), plan.scalars, plan.valueCtx, stop)
-  } catch {
-    _stats.firstPageFailed += 1
-    return null
-  }
-  const out = {}
-  const withheld = {}
-  const all = new Float64Array(n).fill(1)
-  const before = new Float64Array(n)
-  for (let i = 0; i < cut; i += 1) before[i] = 1
-  for (const key of Object.keys(page)) {
-    const col = page[key]
-    if (!col || typeof col.length !== 'number' || col.length !== FIRST_PAGE_ROWS) continue
-    const full = new Float64Array(n).fill(NaN)
-    const exact = sameTail(col, probe[key], FIRST_PAGE_ROWS)
-    if (exact) for (let i = 0; i < FIRST_PAGE_ROWS; i += 1) full[cut + i] = col[i]
-    out[key] = full
-    withheld[key] = new Map([[FIRST_PAGE_CODE, exact ? before : all]])
-  }
-  if (!Object.keys(out).length) return null
+/** A landed page: widened and stored as its pane's picture, unless that pane already holds a picture of its
+ *  signature or its full answer has settled (then it is dropped: the full picture is never painted over). */
+function settleFirstPage(job, reply) {
+  if (!reply.ok) { _stats.firstPageFailed += 1; return }
+  // ONE guard: the pane already holds a picture of this signature (its full answer, which `rememberPicture` stored when it
+  // landed, or an earlier page): the page is dropped
+  if (_last.has(`${job.realPane}\u0001${job.sig}`)) { _stats.firstPageDiscarded += 1; return }
+  const cols = widenFirstPage(reply.page, job.rows.length)
+  if (!cols) return
+  rememberPicture(job.realPane, job.sig, { rows: job.rows, cols })
   _stats.firstPages += 1
-  return withWithheldBars(out, withheld)
+  notifyColumnsLanded(`host:${job.fullKey}`)
 }
 
 /**
@@ -554,17 +530,15 @@ export function hostLaneColumns(def, bars, inputs, ctx, extras) {
   const job = { kind: 'values', pane, sig, key, per, plan, inputs, ctx, extras, asked, stop, docId,
     rows: plan.rows, sendDef: plan.def, postRows: plan.valueRows, postCtx: plan.valueCtx }
   per.set(key, { state: 'pending', job })
+  // ⭐⭐ THE FIRST PAGE: no picture of this pane yet (a cold timeframe or symbol): a small page job goes to the worker
+  // AHEAD of the full one, and its exact plots are drawn when it lands; the full answer replaces them
+  const page = pictureOf(pane, sig) ? null : firstPageJobOf(job)
+  if (page) submit(page)
   submit(job)
   // ⛔ a job the worker could not take at once (no worker could be started, the post was refused)
   // is computed NOW on this thread, today's path, never left pending
   const now = per.get(key)
   if (now && now.state === 'main') return answerOnMain(plan, per, key, stop, pane, sig, docId, inputs, ctx, extras)
-  // ⭐⭐ THE FIRST PAGE: no picture of this pane yet (a cold timeframe or symbol), so the newest bars are drawn now
-  // (`firstPageColumns`), exact plots only; the worker's full answer replaces them when it lands
-  if (!pictureOf(pane, sig)) {
-    const first = firstPageColumns(plan, stop)
-    if (first) rememberPicture(pane, sig, { rows: plan.rows, cols: first })
-  }
   return pendingAnswer(pane, sig, plan.rows)
 }
 
@@ -700,7 +674,7 @@ function supersedeRunning(newer) {
     stopRetiring()
   }
   const run = _inFlight
-  if (!run || run.pane !== newer.pane) return
+  if (!run || run.pane !== newer.pane || run.kind === 'firstPage') return
   if (!_retiring && paintsWhileNewerComputes(run, newer)) retireRunning()
   else cancelRunning()
 }
@@ -784,6 +758,7 @@ function pump() {
 
 /** ⛔ The worker could not take this job: today's path computes it, on the main thread. */
 function toMain(job, why) {
+  if (job.kind === 'firstPage') { _stats.firstPageFailed += 1; return }
   // a values job keeps the `runtime.error` stop it was asked with: the main thread computes the same job
   settleEntry(job, job.kind === 'values' ? { state: 'main', stop: job.stop ?? null } : { state: 'main' })
   _stats.toMain += 1
@@ -811,7 +786,9 @@ function killWorker(kind) {
   _lost += 1
   _stats.lost = _lost
   if (_lost >= HOST_WORKER_MAX_STARTS) _broken = true
-  if (job) {
+  if (job && job.kind === 'firstPage') {
+    _stats.firstPageFailed += 1
+  } else if (job) {
     if (kind === 'unresponsive') {
       settleEntry(job, { state: 'refused', guard: HOST_WORKER_UNRESPONSIVE_GUARD, sentence: unresponsiveSentence() })
       _stats.refused += 1
@@ -860,7 +837,7 @@ function post(job) {
     const rows = packRows(job.postRows)
     const ctx = ctxImageOf(job.postCtx, job.asked)
     msg = { id, kind: job.kind, docId: job.docId, rows: rows.pack, ctx: ctx.image,
-      ...(job.kind === 'values' ? { scalars: job.plan.scalars, stop: job.stop } : { inputs: job.inputs }) }
+      ...(job.kind === 'objects' ? { inputs: job.inputs } : { scalars: job.plan.scalars, stop: job.stop }) }
     transfer = [...rows.transfer, ...ctx.transfer]
   } catch {
     toMain(job, 'pack-failed'); pump(); return
@@ -919,6 +896,7 @@ function landed(reply) {
  *  picture taken, a timeline entry, and the chart told. ⛔ An answer whose pane already drew a NEWER
  *  job's is dropped (only a retiring worker can answer that late): never settled, never drawn. */
 function settleLanded(job, reply) {
+  if (job.kind === 'firstPage') { settleFirstPage(job, reply); return }
   const newest = _landedSeq.get(job.pane)
   if (Number.isFinite(newest) && newest > job.seq) {
     forget(job)
