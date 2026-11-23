@@ -3795,6 +3795,25 @@ def _set_kill_cookie(response: Response, name: str, value) -> None:
         pass
 
 
+def set_kill_cookies_when_killed(response: Response) -> None:
+    """The kills on a response a charting page receives OFTEN (api/routers/live_prices.py, the 2 s poll every live chart
+    runs while visible; review of #2580): SET while a kill is in force, and NOTHING otherwise. Never a deletion: clearing
+    stays the auth answers' job (`_set_chart_speed_cookie`), so with no kill in force no response changes for anyone. The
+    same cookies and attributes as the auth path (`_set_kill_cookie`). Without it an open page learned a kill only with
+    its next auth answer (a tab becoming visible, or every 10 minutes while a bars stream is open); a web restart, which
+    setting the variable causes, makes no page re-auth.
+
+    ⛔ NEVER RAISES: it rides a price poll, and a kill switch must never cost a member their prices."""
+    try:
+        if not _chart_speed_enabled():
+            _set_kill_cookie(response, CHART_SPEED_COOKIE, "0")
+        kill = _device_store_kill()
+        if kill:
+            _set_kill_cookie(response, DEVICE_STORE_COOKIE, kill)
+    except Exception:  # noqa: BLE001
+        pass
+
+
 def _set_chart_speed_cookie(response: Response) -> None:
     """Write the browser's copy of the kills: `uct_chart_speed=0` while CHART_SPEED_ENABLED is off, and
     `uct_device_store=0` or `=purge` while DEVICE_STORE_ENABLED kills; each cleared otherwise. Two cookies, two

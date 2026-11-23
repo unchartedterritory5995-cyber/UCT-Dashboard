@@ -20,7 +20,7 @@ import threading
 import time
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Response
 from fastapi.responses import JSONResponse
 from api.middleware.auth_middleware import get_current_user
 from api.services.cache import TTLCache
@@ -731,6 +731,7 @@ def _fetch_snapshots(client, tickers: list[str], session: str) -> dict:
 def get_live_prices(
     tickers: str = Query(..., description="Comma-separated ticker symbols (max 250)"),
     user: dict = Depends(get_current_user),
+    response: Response = None,
 ):
     """Return real-time price snapshot for a batch of tickers.
 
@@ -739,6 +740,15 @@ def get_live_prices(
     observation timestamp for THIS ticker's quote when available, else
     None -- never a fabricated wall-clock stamp.
     """
+    # ⭐ THE KILLS REACH AN OPEN CHARTING PAGE HERE (review of #2580). Every live chart polls this every 2 s while visible
+    # (30 s with the market fully closed): while an operator's kill is in force its cookies ride the answer, so an open
+    # page has them within one poll of the restarted web pod serving, and the device client acts on its next visible
+    # beat. With no kill in force this adds no header (auth.set_kill_cookies_when_killed). Never raises. `response` is
+    # FastAPI's (injected by its type) on the HTTP route, and None when server code calls this as a function (the
+    # Notebook widgets, the journal): no member's page reads that answer, so nothing is set there.
+    if response is not None:
+        from api.routers.auth import set_kill_cookies_when_killed
+        set_kill_cookies_when_killed(response)
     raw_list = [t.strip().upper() for t in tickers.split(",") if t.strip()]
     if not raw_list:
         return JSONResponse(status_code=400, content={"error": "No tickers provided"})
