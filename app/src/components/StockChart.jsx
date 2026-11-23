@@ -1804,6 +1804,7 @@ import { isCurrentEnoughForPaint, dailyMissingSessionsForPaint, DAILY_PAINT_MAX_
 import { tradingSessionTodayET } from './chart/tradingTodayMemo'   // isTradingSessionTodayET, one answer per minute
 import { tailRetriesExhausted, liveBadgeState } from '../utils/intradayTailPoll'
 import { parseTf } from './chart/timeframes'
+import { bucketEventDate, barLookupFor } from './chart/eventBarLookup'
 import { barsRenderPlan } from './chart/renderPlan'
 import ChartSkeleton from './chart/ChartSkeleton'
 import { normalizeToPctChange } from './chart/comparisonUtils'
@@ -3543,18 +3544,8 @@ const useChartRealtimePrices = LEGACY_LIVE ? useRealtimePrices : useQuietRealtim
 // `chart/chartMetaStore.js`). Each chart holds one `memoLast` of each (`createChartMetaView`), and both places
 // call that same instance with the same arguments, so a value either computed is the identity the other sees.
 
-// Splits + dividends: snap each event date to its containing bar (same bucketing as earnings).
-function bucketEventDate(dstr, tf) {
-  const s = String(dstr).slice(0, 10)
-  if (tf === 'W') {
-    const dt = new Date(`${s}T00:00:00Z`)
-    if (isNaN(dt.getTime())) return s
-    dt.setUTCDate(dt.getUTCDate() - ((dt.getUTCDay() + 6) % 7)) // → Monday of its ISO week
-    return dt.toISOString().slice(0, 10)
-  }
-  if (tf === 'M') return s.slice(0, 7)   // YYYY-MM
-  return s
-}
+// Splits + dividends: snap each event date to its containing bar (same bucketing as earnings): `bucketEventDate`, and
+// the bar that holds a date found WITHOUT an index of every bar (`barLookupFor`), both chart/eventBarLookup.js.
 
 // Earnings events (daily/weekly only) with the reporting bar's LOW, so the badge
 // primitive can hug just under the candle and click-matching has the dates. The
@@ -3572,9 +3563,7 @@ export function earningsEventsOf(markersData, earningsOn, resolvedTf, filteredBa
   // coincidence when a report happened to land on a Friday). Bucket both the
   // bars and the earnings dates the same way, then look up the containing bar.
   const tf = resolvedTf
-  const bucket = (dstr) => bucketEventDate(dstr, tf)
-  const barByBucket = new Map()
-  for (const b of filteredBars) barByBucket.set(bucket(b.t), b)
+  const barOf = barLookupFor(filteredBars, tf)   // (the bar of a date's period: chart/eventBarLookup.js)
   const out = []
   const seen = new Set()
   // Next earnings "E" ON → it REPLACES the upcoming (estimate) badge on every timeframe (owner 11-16): the
@@ -3589,7 +3578,7 @@ export function earningsEventsOf(markersData, earningsOn, resolvedTf, filteredBa
       out.push({ date: bucketSlot(tf, e.date), low: null, beat: null, estimate: true, data: e })
       continue
     }
-    const bar = barByBucket.get(bucket(e.date))
+    const bar = barOf(e.date)
     if (!bar) continue                      // no bar in that period (outside loaded range)
     const low = +bar.l
     if (!Number.isFinite(low) || seen.has(bar.t)) continue  // 1 badge/bar (≤1 report/period)
@@ -3604,13 +3593,12 @@ export function earningsEventsOf(markersData, earningsOn, resolvedTf, filteredBa
 export function splitEventsOf(markersData, splitsOn, resolvedTf, filteredBars) {
   const isDailyWeekly = parseTf(resolvedTf).minutes == null
   if (!splitsOn || !Array.isArray(markersData?.splits) || !isDailyWeekly || !filteredBars?.length) return []
-  const barByBucket = new Map()
-  for (const b of filteredBars) barByBucket.set(bucketEventDate(b.t, resolvedTf), b)
+  const barOf = barLookupFor(filteredBars, resolvedTf)
   const out = []
   const seen = new Set()
   for (const s of markersData.splits) {
     if (!s.date) continue
-    const bar = barByBucket.get(bucketEventDate(s.date, resolvedTf))
+    const bar = barOf(s.date)
     if (!bar || seen.has(bar.t)) continue
     seen.add(bar.t)
     out.push({ date: bar.t, low: +bar.l, ratio: s.ratio })
@@ -3621,13 +3609,12 @@ export function splitEventsOf(markersData, splitsOn, resolvedTf, filteredBars) {
 export function dividendEventsOf(markersData, dividendsOn, resolvedTf, filteredBars) {
   const isDailyWeekly = parseTf(resolvedTf).minutes == null
   if (!dividendsOn || !Array.isArray(markersData?.dividends) || !isDailyWeekly || !filteredBars?.length) return []
-  const barByBucket = new Map()
-  for (const b of filteredBars) barByBucket.set(bucketEventDate(b.t, resolvedTf), b)
+  const barOf = barLookupFor(filteredBars, resolvedTf)
   const out = []
   const seen = new Set()
   for (const d of markersData.dividends) {
     if (!d.date || d.amount == null) continue
-    const bar = barByBucket.get(bucketEventDate(d.date, resolvedTf))
+    const bar = barOf(d.date)
     if (!bar || seen.has(bar.t)) continue
     seen.add(bar.t)
     out.push({ date: bar.t, low: +bar.l, amount: Number(d.amount) })
