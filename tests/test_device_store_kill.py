@@ -6,8 +6,13 @@ sets the readable cookie `uct_device_store=0` while DEVICE_STORE_ENABLED is off 
 `_set_chart_speed_cookie`, so tests/test_chart_speed_kill.py's AST rail (every payload-bearing auth response calls it)
 covers this cookie too. app/src/lib/chartSpeed.js reads it (`deviceStoreKilled`, `deviceStoreKilledNow`).
 
+TWO KILL VALUES (review of #2563, MEDIUM-2). 0/false/no/off: the store OFF, its packs KEPT in every browser (lifting
+it costs nobody a download). `purge`: the store OFF and each browser DELETES its packs (cookie `uct_device_store=purge`,
+app/src/data/deviceStore/source.js). The chart-speed kill never deletes.
+
 What each test proves:
-  * KILL polarity: unset means "not killed"; only an explicit 0/false/no/off kills. The default literal is pinned.
+  * KILL polarity: unset means "not killed"; only an explicit 0/false/no/off kills, and `purge` kills and purges.
+    The default literal is pinned.
   * Read PER REQUEST: a flip reaches the running process's next answer.
   * The cookie: readable, site-wide, long-lived when killed; a deletion when not; independent of the chart speed kill.
   * It rides /me beside the payload's readout, both ways.
@@ -66,6 +71,11 @@ def _readout(auth, user, value):
     return auth._access_payload(user, "free")["device_store_enabled"]
 
 
+def _purge_readout(auth, user, value):
+    _set(ENV, value)
+    return auth._access_payload(user, "free")["device_store_purge"]
+
+
 # -- polarity and the per-request read ----------------------------------------------------------
 
 def test_unset_means_not_killed(auth, a_member):
@@ -77,9 +87,21 @@ def test_explicit_off_spellings_kill_it(auth, a_member, value):
     assert _readout(auth, a_member, value) is False
 
 
-@pytest.mark.parametrize("value", ["1", "true", "yes", "on", "", "anything-else"])
+@pytest.mark.parametrize("value", ["1", "true", "yes", "on", "", "anything-else", "purged", "purg"])
 def test_everything_else_leaves_it_on(auth, a_member, value):
     assert _readout(auth, a_member, value) is True
+    assert _purge_readout(auth, a_member, value) is False
+
+
+@pytest.mark.parametrize("value", ["purge", "PURGE", " Purge "])
+def test_purge_kills_AND_purges(auth, a_member, value):
+    assert _readout(auth, a_member, value) is False
+    assert _purge_readout(auth, a_member, value) is True
+
+
+@pytest.mark.parametrize("value", [None, "0", "off", "1"])
+def test_only_purge_purges(auth, a_member, value):
+    assert _purge_readout(auth, a_member, value) is False
 
 
 def test_the_flag_is_read_per_request(auth, a_member):
@@ -91,7 +113,7 @@ def test_the_flag_is_read_per_request(auth, a_member):
 def test_the_default_in_source_is_ON():
     """A default changed to "0" would switch the store off (and delete every seed) on a variable nobody set."""
     src = open(AUTH_PY, encoding="utf-8").read()
-    body = src[src.index("def _device_store_enabled"):]
+    body = src[src.index("def _device_store_kill"):]
     body = body[:body.index("\ndef ")]
     assert '"DEVICE_STORE_ENABLED", "1"' in body
 
@@ -110,6 +132,19 @@ def test_killed_sets_a_readable_site_wide_cookie(auth):
     assert f"max-age={auth.CHART_SPEED_COOKIE_MAX_AGE}" in low
 
 
+@pytest.mark.parametrize("value", ["purge", " PURGE "])
+def test_purge_sets_the_purge_cookie(auth, value):
+    _set(ENV, value)
+    r = Response()
+    auth._set_chart_speed_cookie(r)
+    [c] = _cookies(r, "uct_device_store")
+    low = c.lower()
+    assert c.startswith("uct_device_store=purge;")
+    assert "path=/;" in low or low.endswith("path=/")
+    assert "httponly" not in low
+    assert f"max-age={auth.CHART_SPEED_COOKIE_MAX_AGE}" in low
+
+
 @pytest.mark.parametrize("value", [None, "1"])
 def test_not_killed_CLEARS_the_cookie(auth, value):
     _set(ENV, value)
@@ -122,7 +157,7 @@ def test_not_killed_CLEARS_the_cookie(auth, value):
     assert "path=/;" in low or low.endswith("path=/")
 
 
-@pytest.mark.parametrize("speed, device", [("1", "0"), ("0", "1"), ("0", "0"), ("1", "1")])
+@pytest.mark.parametrize("speed, device", [("1", "0"), ("0", "1"), ("0", "0"), ("1", "1"), ("0", "purge"), ("1", "purge")])
 def test_the_two_kills_are_independent(auth, speed, device):
     _set(SPEED_ENV, speed)
     _set(ENV, device)
@@ -132,6 +167,7 @@ def test_the_two_kills_are_independent(auth, speed, device):
     [d] = _cookies(r, "uct_device_store")
     assert s.startswith("uct_chart_speed=0;") is (speed == "0")
     assert d.startswith("uct_device_store=0;") is (device == "0")
+    assert d.startswith("uct_device_store=purge;") is (device == "purge")
 
 
 def test_the_cookie_setter_never_raises(auth):
@@ -170,13 +206,17 @@ def test_me_sets_the_cookie_beside_its_payload(auth, a_member, monkeypatch):
     monkeypatch.setattr(auth, "get_user_plan", lambda uid: "pro")
     monkeypatch.setattr(auth, "get_subscription", lambda uid: None)
     monkeypatch.setattr(auth, "_set_chart_edge_cookie", lambda *a, **k: None)
-    for value, killed in (("0", True), ("1", False), ("0", True)):
+    for value, cookie in (("0", "0"), ("1", None), ("purge", "purge"), ("0", "0"), ("1", None)):
         _set(ENV, value)
         r = Response()
         body = auth.me(r, a_member)
-        assert body["device_store_enabled"] is (not killed)
+        assert body["device_store_enabled"] is (cookie is None)
+        assert body["device_store_purge"] is (cookie == "purge")
         [c] = _cookies(r, "uct_device_store")
-        assert c.startswith("uct_device_store=0;") is killed
+        if cookie is None:
+            assert "max-age=0" in c.lower()
+        else:
+            assert c.startswith(f"uct_device_store={cookie};")
 
 
 # -- one name, two files -----------------------------------------------------------------------------
@@ -186,3 +226,10 @@ def test_the_cookie_name_is_the_same_on_both_sides(auth):
     m = re.search(r"export const DEVICE_STORE_COOKIE = '([^']+)'", js)
     assert m, "lib/chartSpeed.js no longer declares DEVICE_STORE_COOKIE"
     assert m.group(1) == auth.DEVICE_STORE_COOKIE == "uct_device_store"
+
+
+def test_the_purge_value_is_the_same_on_both_sides(auth):
+    js = open(CHART_SPEED_JS, encoding="utf-8").read()
+    m = re.search(r"export const DEVICE_STORE_PURGE = '([^']+)'", js)
+    assert m, "lib/chartSpeed.js no longer declares DEVICE_STORE_PURGE"
+    assert m.group(1) == auth.DEVICE_STORE_PURGE == "purge"

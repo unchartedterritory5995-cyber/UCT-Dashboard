@@ -288,6 +288,95 @@ describe('M7 a pack that fails its checks is not downloaded again on every page 
   })
 })
 
+/** An edge whose pack body ENDS CLEANLY at `cutAt` bytes (`'short'`), or runs `extra` bytes past the pack (`'long'`). */
+function wrongSizeEdge(pack, how) {
+  return vi.fn(async () => {
+    const bytes = how === 'short' ? pack.subarray(0, pack.length - 100) : Uint8Array.from([...pack, ...new Uint8Array(3000)])
+    const chunks = []
+    for (let i = 0; i < bytes.length; i += 1024) chunks.push(bytes.slice(i, Math.min(bytes.length, i + 1024)))
+    return new Response(new ReadableStream({ pull(ctl) { if (chunks.length) ctl.enqueue(chunks.shift()); else ctl.close() } }), { status: 200 })
+  })
+}
+
+describe('M7 (review of #2563, test gaps): a body of the wrong size is a bad pack too', () => {
+  it.each([['short', /bytes, the manifest says/], ['long', /longer than the manifest says/]])(
+    'a body that ends %s of the manifest: discarded whole, recorded, not fetched again within the hour', async (how, err) => {
+      const pack = packOf(UNIVERSE)
+      const disk = new Map()
+      let t = T0
+      const edge = wrongSizeEdge(pack, how)
+      const eng = createDeviceEngine({ now: () => t, io: memoryIO(disk), fetchFn: edge })
+      await expect(eng.ingest(entryOf('D', 'u', pack))).rejects.toThrow(err)
+      expect(packFiles(disk)).toEqual([])                                 // never resumed
+      t = T0 + 59 * 60_000
+      expect(await eng.ingest(entryOf('D', 'u', pack))).toMatchObject({ status: 'backoff', tries: 1, until: T0 + HOUR })
+      expect(edge).toHaveBeenCalledTimes(1)
+    })
+})
+
+describe('LOW-4 (review of #2563): the records never lock a browser out past their schedule', () => {
+  const FAR = T0 + 365 * DAYMS                                           // a system clock a year ahead when written
+
+  it('a "no room" written by a clock that ran ahead is capped when read: at most NO_ROOM_RETRY from that load', async () => {
+    const pack = packOf(UNIVERSE)
+    const disk = new Map()
+    const ahead = createDeviceEngine({ now: () => FAR, io: memoryIO(disk), fetchFn: fakeEdge({ u: pack }), estimate: roomFor(MB) })
+    expect(await ahead.ingest(entryOf('D', 'u', pack))).toMatchObject({ status: 'no-room', until: FAR + NO_ROOM_RETRY })
+    ahead.close()
+    let t = T0                                                            // the clock put right, the next page load
+    const next = createDeviceEngine({ now: () => t, io: memoryIO(disk), fetchFn: fakeEdge({ u: pack }), estimate: roomFor(4000 * MB) })
+    await next.open()
+    expect(next.ingestBlocked()).toMatchObject({ status: 'no-room', until: T0 + NO_ROOM_RETRY })
+    t = T0 + NO_ROOM_RETRY
+    expect(next.ingestBlocked()).toBeNull()
+    expect(await next.ingest(entryOf('D', 'u', pack))).toMatchObject({ status: 'ingested' })
+  })
+
+  it('a bad-pack backoff written by a clock that ran ahead is capped when read: at most its try\'s wait from that load', async () => {
+    const good = packOf(UNIVERSE)
+    const disk = new Map()
+    const lying = { ...entryOf('D', 'u', good), sha256: 'f'.repeat(64) }
+    const ahead = createDeviceEngine({ now: () => FAR, io: memoryIO(disk), fetchFn: fakeEdge({ u: good }) })
+    await expect(ahead.ingest(lying)).rejects.toThrow(/sha256/)
+    let t = T0
+    const edge = fakeEdge({ u: good })
+    const next = createDeviceEngine({ now: () => t, io: memoryIO(disk), fetchFn: edge })
+    expect(await next.ingest(lying)).toMatchObject({ status: 'backoff', tries: 1, until: T0 + HOUR })
+    t = T0 + HOUR
+    await expect(next.ingest(lying)).rejects.toThrow(/sha256/)
+    expect(edge).toHaveBeenCalledTimes(1)
+  })
+
+  it("this build's own resumable partial is not counted against the free space (and resumes)", async () => {
+    const pack = packOf(UNIVERSE)
+    const disk = new Map()
+    const CUT = 3000
+    let cut = true
+    const ranges = []
+    const edge = vi.fn(async (url, init = {}) => {
+      ranges.push(init.headers?.Range ?? null)
+      const m = /bytes=(\d+)-/.exec(init.headers?.Range || '')
+      const start = m ? Number(m[1]) : 0
+      if (cut) {
+        cut = false
+        let sent = false
+        return new Response(new ReadableStream({ pull(ctl) { if (!sent) { sent = true; ctl.enqueue(pack.slice(0, CUT)) } else ctl.error(new Error('network gone')) } }), { status: 200 })
+      }
+      return new Response(pack.slice(start), { status: 206, headers: { 'content-range': `bytes ${start}-${pack.length - 1}/${pack.length}` } })
+    })
+    const first = createDeviceEngine({ now: () => T0, io: memoryIO(disk), fetchFn: edge })
+    await expect(first.ingest(entryOf('D', 'u', pack))).rejects.toThrow(/network gone/)
+    expect(disk.get('D.1.pack').size).toBe(CUT)
+    // CONTROL: one byte short of what the rest needs is still no room
+    const tight = createDeviceEngine({ now: () => T0, io: memoryIO(new Map([...disk].map(([k, f]) => [k, { ...f, buf: f.buf.slice(), open: false }]))), fetchFn: edge, estimate: roomFor(pack.length - CUT + MARGIN - 1) })
+    expect(await tight.ingest(entryOf('D', 'u', pack))).toMatchObject({ status: 'no-room', need: pack.length - CUT + MARGIN })
+    // room for the REST of the pack plus the margin: it resumes
+    const next = createDeviceEngine({ now: () => T0, io: memoryIO(disk), fetchFn: edge, estimate: roomFor(pack.length - CUT + MARGIN) })
+    expect(await next.ingest(entryOf('D', 'u', pack))).toMatchObject({ status: 'ingested' })
+    expect(ranges).toEqual([null, `bytes=${CUT}-`])
+  })
+})
+
 describe('L3 no second copy in the HTTP cache', () => {
   it('the pack download and the delta download are both cache: no-store', async () => {
     const k = caseOf('5')
