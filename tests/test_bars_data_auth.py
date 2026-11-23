@@ -106,6 +106,19 @@ def as_caller(monkeypatch):
     return _set
 
 
+@pytest.fixture(autouse=True)
+def _no_request_in_this_file_asks_a_provider(monkeypatch):
+    """⛔ THIS FILE TESTS WHO MAY READ, NEVER WHAT A PROVIDER ANSWERS. An entitled `/api/bars/AAPL?tf=D&bars=3` is a
+    cold symbol here, so the route answers "warming" and `bars_fetch._kick_cold_fetch` queues its first fetch on
+    the cold pool. Until 2026-11-23 that fetch was real: Yahoo answered a second or more later and the pool wrote
+    three AAPL and three QQQ bars into whatever store was current by then (merge-queue run 45274569039:
+    tests/test_bars_derived_tail_local_first.py::test_Z2 found "[('AAPL', 'D'), ('QQQ', 'D')], 6 bars" in its
+    empty store). No assertion in this file reads a fetched bar, so the fetch is not queued at all.
+    tests/conftest.py `pytest_runtest_call` is the general rule; this keeps the gate off the network."""
+    from api.services import bars_fetch
+    monkeypatch.setattr(bars_fetch, "_kick_cold_fetch", lambda *a, **k: None)
+
+
 def _get(app, path, cookie=True):
     c = TestClient(app)
     cookies = {"uct_session": "t"} if cookie else {}
