@@ -2,9 +2,9 @@
  "populations": {
   "capture": {
    "scripts": 1029,
-   "admitted": 830,
+   "admitted": 828,
    "runtimeLane": 227,
-   "hostLane": 314,
+   "hostLane": 312,
    "refused": 289,
    "coreOnly": 47
   },
@@ -10006,32 +10006,6 @@
     "typed-array",
     "var",
     "while"
-   ]
-  },
-  {
-   "capture": "vw-format-percent-rddt-1d-2026-11-23-preopen",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:table",
-    "realtime-state",
-    "var"
-   ]
-  },
-  {
-   "capture": "vw-format-percent-spy-1d-2026-11-23-preopen",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:table",
-    "realtime-state",
-    "var"
    ]
   },
   {
@@ -22123,38 +22097,7 @@
    ]
   }
  ],
- "refusedByName": [
-  {
-   "capture": "vw-format-percent-rddt-1d-2026-11-23-preopen",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:table",
-    "realtime-state",
-    "var"
-   ],
-   "guard": "pine:known-divergence",
-   "slug": "vw-format-percent"
-  },
-  {
-   "capture": "vw-format-percent-spy-1d-2026-11-23-preopen",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:table",
-    "realtime-state",
-    "var"
-   ],
-   "guard": "pine:known-divergence",
-   "slug": "vw-format-percent"
-  }
- ],
+ "refusedByName": [],
  "matchToDiverge": [],
  "substitutedToDiverge": []
 }

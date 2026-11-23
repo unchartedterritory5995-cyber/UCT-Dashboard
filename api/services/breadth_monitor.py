@@ -786,6 +786,14 @@ def _apply_uct_exp_model(result_asc: list) -> int:
         return 0
 
 
+def _universe_extras_token() -> str:
+    try:
+        from api.services import breadth_universe_extras as uex
+        return uex.token()
+    except Exception:
+        return ""
+
+
 def _apply_uct_pit(result_asc: list) -> int:
     """(2026-11-22) Back-tested UCT rows → the point-in-time rebuild (`breadth_uct_pit`). Returns
     the number of rows replaced; 0 (and nothing touched) when the switch is off."""
@@ -1360,6 +1368,15 @@ def _finish_universe_row(row: dict, universe: str, uct_row: Optional[dict]) -> d
             row[k] = uct_row.get(k)
     for k in bum.HIDDEN + bum.UNAVAILABLE:
         row[k] = None
+    # Up Vol / HVC / >7xATR from the universe's own rebuilt series (breadth_universe_extras), if on
+    try:
+        from api.services import breadth_universe_extras as uex
+        ex = uex.values(universe, row.get("date") or "")
+        if ex:
+            for k in uex.KEYS:
+                row[k] = ex.get(k)
+    except Exception as e:
+        print(f"[breadth_monitor] universe extras skipped: {type(e).__name__}: {e}")
     # Health with the universe's own bands, over its own readings and the market-wide fear gauges
     bands = health_bands(universe)
     row["breadth_score"] = _score_breakdown(row, bands)[0] if bands else None
@@ -1403,7 +1420,7 @@ def get_history_universe(universe: str, days: int = 90, end: Optional[str] = Non
     u = bum._check(universe)
     tl = universe_timeline(u)
     # the market-wide keys come from the UCT deep rows, so the UCT history's identity is in the key
-    ck = f"breadth_history_deep_{days}_{end or 'latest'}_{anchor}_{u}|{tl['token']}{_uct_pit_token()}{_uct_exp_token()}"
+    ck = f"breadth_history_deep_{days}_{end or 'latest'}_{anchor}_{u}|{tl['token']}{_uct_pit_token()}{_uct_exp_token()}{_universe_extras_token()}"
     hit = cache.get(ck)
     if hit is not None:
         return hit

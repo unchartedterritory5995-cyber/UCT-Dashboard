@@ -66,6 +66,16 @@ describe('F1b — a financial read reaches the financial door and nothing else',
     expect(fetchableOtherSymbols(d)).toEqual([])
   })
 
+  it('(train e95, the 2b bind audit) a knob arm the instance does not pick fetches no financial figures; a picked one does', () => {
+    const base = def()
+    const pick = { type: 'op', name: '==', args: [{ type: 'series', name: 'src' }, { type: 'num', value: 1 }] }
+    const tree = { type: 'op', name: '?:', args: [pick, base.compute.trees.p0, { type: 'series', name: 'close' }] }
+    const d = { ...base, inputs: [{ key: 'src', type: 'enum', options: ['Price', 'Revenue'], default: 'Price' }],
+      compute: { kind: 'ast', trees: { p0: tree } } }
+    expect(financialNeededBy([{ defId: 'x', inputs: {} }], () => d)).toBe(false)
+    expect(financialNeededBy([{ defId: 'x', inputs: { src: 'Revenue' } }], () => d)).toBe(true)
+  })
+
   it('ensureChartSources: the financial key asks the financial door with the chart\'s symbol, and the bars door nothing', async () => {
     const asked = []
     const fetcher = (url) => { asked.push(url); return Promise.resolve(url.startsWith('/api/pine/financial/') ? DOC : { bars: [] }) }

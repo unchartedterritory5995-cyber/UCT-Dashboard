@@ -13,6 +13,7 @@
 import { registerCapability, registerTargetKind, registerContextProvider } from '../capabilities'
 import { APP_THEMES, isUctTheme, uctThemeId, uctThemeValue } from '../../styles/appThemes'
 import { ALERT_SOUNDS } from '../../utils/alertSound'
+import { prefWriteFailed, readsBack } from '../prefFailure'
 
 // The base themes AppThemePicker offers (plain data-theme values) + the UCT catalog.
 const BASE_THEMES = [{ value: 'dark', label: 'Graphite (default dark)' }, { value: 'oled', label: 'OLED Black' }, { value: 'light', label: 'Light' }]
@@ -61,7 +62,9 @@ export const settingsKind = {
       if (!ok) {
         // Put back what this step already saved, then say it plainly.
         for (const d of done) { try { await host.prefs.write(d, patch.from[d]) } catch { /* reported below */ } }
-        throw new Error('the server did not confirm the change, so it is not saved (this tab may keep showing it until you reload)')
+        // ⛔ INV2: "nothing was left changed" only when every setting this step touched reads back as it was
+        const keys = Object.keys(patch.set)
+        throw prefWriteFailed('the server did not confirm the change, so it is not saved', { unchanged: readsBack(() => keys.map(x => snap(host).values[x]), keys.map(x => patch.from[x])) })
       }
       done.push(k)
     }

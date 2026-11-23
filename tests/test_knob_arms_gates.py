@@ -89,6 +89,17 @@ class TestTheAlertLane:
         assert any(v is not None for v in fn.column(bars, {"anchor": "Week"}, "D"))
 
 
+class TestTheAlertColumnsHistory:
+    LONG_ARM = {"type": "call", "name": "sma", "args": [CLOSE, {"type": "num", "value": 300}]}
+
+    def test_an_unpicked_arm_s_longer_lookback_never_withholds_the_column(self):
+        """40 bars: the default arm (close) answers; the picked 300-bar average is short, so it withholds (CONTROL)."""
+        fn = aus._make_value_fn("u_knob_gate_h", "p", _defn(_pick(self.LONG_ARM, CLOSE)))
+        bars = _bars(40)
+        assert any(v is not None for v in fn.column(bars, {}, "D"))
+        assert all(v is None for v in fn.column(bars, {"anchor": "Earnings"}, "D"))
+
+
 class TestTheTriggerPolicy:
     SCALAR_READ = {"type": "op", "name": ">", "args": [{"type": "series", "name": "market_cap"}, {"type": "num", "value": 1e9}]}
     CONDITION = {"type": "op", "name": ">", "args": [CLOSE, OPEN]}

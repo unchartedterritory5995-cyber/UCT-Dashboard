@@ -219,6 +219,8 @@ def test_MIRROR_the_servers_local_only_set_is_every_localOnly_capability():
     # Terminal data wave 8: the three capabilities over the isolated kinds stock.corporateActions / calendar.ipos /
     # calendar.dividends
     # Terminal data wave 9: the three capabilities over the isolated kinds rates.auctions / rates.realYields / fed.watch
+    # Terminal data wave 10: the six capabilities over the isolated kinds stock.stats / stock.volumeFootprint /
+    # stock.factorExposure / stock.setupHistory / company.publicRecords / ownership.funds
     assert found == set(turn.LOCAL_ONLY_ACTIONS) == {"breadth.show", "breadth.history", "history.afterEvent", "journal.reviewTrades",
                                                      "news.movers", "rs.compare", "stock.analystActions", "stock.sessionHighsLows",
                                                      "stock.longRunLeaders", "stock.darkPoolLevels", "stock.yearlyHighsLows",
@@ -232,7 +234,9 @@ def test_MIRROR_the_servers_local_only_set_is_every_localOnly_capability():
                                                      "stock.marketRegime", "stock.setups", "stock.eventsTimeline",
                                                      "stock.uct20List", "stock.ivHistory", "stock.dilutionWatch",
                                                      "stock.splitsDividends", "stock.ipoCalendar", "stock.dividendsCalendar",
-                                                     "stock.auctionCalendar", "stock.realCurve", "stock.fomcWatch"}
+                                                     "stock.auctionCalendar", "stock.realCurve", "stock.fomcWatch",
+                                                     "stock.riskProfile", "stock.volumeFootprint", "stock.factorExposure",
+                                                     "stock.setupHistory", "stock.companyRecord", "stock.ownershipReport"}
 
 
 # ═══ 3. the one door: what a stored row may say to a model ══════════════════════════════════════════

@@ -149,7 +149,9 @@ export function eventsNeededBy(instances, defOf) {
 export function financialNeededBy(instances, defOf) {
   for (const inst of Array.isArray(instances) ? instances : []) {
     const def = inst && defOf ? defOf(inst.defId) : null
-    if (def && financialNeeded(def)) return true
+    // ⭐ (train e95, the 2b bind audit) as THIS instance's settings make the document, like the events fetch above:
+    // an unpicked arm's financial read is not fetched for
+    if (def && financialNeeded(instanceDocumentForFetch(def, inst))) return true
   }
   return false
 }

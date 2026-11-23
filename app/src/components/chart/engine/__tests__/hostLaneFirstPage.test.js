@@ -193,6 +193,10 @@ describe('the first page: drawn at once, byte-equal to the full history where it
   })
 
   it('⛔ ORDERING: a page that lands AFTER its full answer is DISCARDED, never painted over the full picture', () => {
+    // pinned: the stale call below must go to the worker. Left to the learned route it does so only while Fred's host
+    // pass takes over LONG_TASK_MS on the runner (a faster engine or runner keeps it on the main thread and reds this
+    // rail with the ordering logic fine); the route is not what this case tests, so it does not depend on the clock.
+    __routeEveryHostDocumentForTests(true)
     const def = fredDef()
     const fc = fredCtx(fiveMinute(24).spx)
     const r1 = fiveMinute(22).chart
