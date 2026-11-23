@@ -421,15 +421,15 @@ export function createPrefetch(o = {}) {
    */
   async function ensure(key, {
     until = PREPARED, depth = 0, priority = 'urgent', signal = null, session: sess = session(),
-    warm = false, front = false, local = true, _s0 = null, bg = false,
+    warm = false, front = false, local = true, _s0 = null, own = false,
   } = {}) {
     const s0 = _s0 ?? await _hydrate(key)   // a caller that already hydrated passes its snapshot
     if (_satisfied(s0, until, depth) && (local || s0.restSeen)) return s0
     if (signal?.aborted) return S().peek(key)
     const a = _noteAsked(key)
-    // `bg`: a neighbour hold's tail ask (createNeighborHold). Its answer cools the key like any other, but it never starts
-    // the "name not printing" grace of `_behindClock`: see there.
-    if (bg) a.bg = true
+    // `own`: the SWITCH's own ask (prepareForDisplay, askForDisplay). Only its answer starts the "name not printing" grace
+    // of `_behindClock`; every other answer (a list's, a warm's, the tail's) cools the key and lends nothing: see there.
+    if (own) a.own = true
     const s = await S().ensure(key, { until, depth, priority, signal, session: sess, hydrated: true, warm, front })
     // Only an ANSWER starts the cooldown: an aborted request or a shed / failed one gives
     // the slot back (the lane's 503 backoff is what paces a shedding server).
@@ -506,12 +506,23 @@ export function createPrefetch(o = {}) {
     const n = expectedBarsBehind(tailT, p.tf, now(), { session: ext ? 'extended' : 'rth' })
     if (n == null || n < 1) return false
     const a = asked.get(key)
-    // ⛔ (review of #2619, MEDIUM-1) THE GRACE IS FOR THE SWITCH'S OWN ANSWER, NEVER A BACKGROUND TAIL ASK'S. A tail ask made
-    // a few seconds after a bucket boundary can come back still behind (the server has not stored the bucket that just
-    // closed). Taken as "the name is not printing", it let a press in the next BEHIND_RECHECK_MS paint that copy at once,
-    // MISSING the newest closed bar, which then appeared (the owner's 2026-11-20 complaint, at every boundary). So a
-    // background answer that is behind stays behind here: the press asks for itself, exactly as before.
-    return !(a?.answered && !a.bg && now() - a.at < BEHIND_RECHECK_MS)
+    // ⛔ (review of #2619, MEDIUM-1, and its re-review (A)) THE GRACE IS THE SWITCH'S OWN, BY CONSTRUCTION: only an answer to
+    // an ask marked `own` (prepareForDisplay's and askForDisplay's, at `visible` rank) starts it. Any other ask made a few
+    // seconds after a bucket boundary (the list's warm, the urgent next-row warm, the typed or hover-intent warm, the
+    // neighbour hold's tail) can come back still behind (the server has not stored the bucket that just closed). Taken as
+    // "the name is not printing", it let a press in the next BEHIND_RECHECK_MS paint that copy at once, MISSING the newest
+    // closed bar, which then appeared (the owner's 2026-11-20 complaint, at every boundary). So such an answer stays behind
+    // here: the press asks for itself (at most BEHIND_HOLD_MAX_MS, then the copy paints as it is). Its own answer, still
+    // behind, is what says the name is not printing: the next presses inside BEHIND_RECHECK_MS paint it at once.
+    return !(a?.answered && a.own && now() - a.at < BEHIND_RECHECK_MS)
+  }
+
+  /** The key's last answer (ANY ask's) landed less than BEHIND_RECHECK_MS ago: a warm asking again now would most likely
+   *  get the same answer (re-review of #2619 (A): the typed warm's re-ask budget, exactly as before). Never a reason to SHOW
+   *  a copy behind the clock: that grace is the switch's own (`_behindClock`). */
+  function _justAnswered(key) {
+    const a = asked.get(key)
+    return !!(a?.answered && now() - a.at < BEHIND_RECHECK_MS)
   }
 
   // ── the handoff ─────────────────────────────────────────────────────────────
@@ -667,7 +678,7 @@ export function createPrefetch(o = {}) {
       const lake = date ? Promise.resolve(false) : _lakeLoad(key, hyd)
       const s0 = await Promise.race([hyd, new Promise((resolve) => setTimer(() => resolve(undefined), HYDRATE_WAIT_MS))])
       if (s0 === undefined) {
-        const req = ensure(key, { until: date ? DAILY_PREPARED : PREPARED, priority: 'visible', signal, warm: false, local: false, _s0: S().peek(key) || {}, session: session(showExtended) })
+        const req = ensure(key, { until: date ? DAILY_PREPARED : PREPARED, priority: 'visible', signal, warm: false, local: false, _s0: S().peek(key) || {}, session: session(showExtended), own: true })
         // a local copy behind the clock paints after BEHIND_HOLD_MAX_MS if the answer has not won by then
         const localFirst = hyd.then((h) => {
           if (!_localPaints(h, fetchTf(String(tf)), showExtended)) return new Promise(() => {})
@@ -687,7 +698,7 @@ export function createPrefetch(o = {}) {
       if ((heldPaints || localPaints) && !date && _behindClock(key, s0, showExtended)) {
         // A paintable copy behind the clock: ask for the tail first (one request, ~50-110 ms) and paint the
         // answer; past BEHIND_HOLD_MAX_MS the copy paints as it is and the answer lands on the chart.
-        const req = ensure(key, { until: ASK_AGAIN, priority: 'visible', signal, warm: false, local: false, _s0: s0, session: session(showExtended) })
+        const req = ensure(key, { until: ASK_AGAIN, priority: 'visible', signal, warm: false, local: false, _s0: s0, session: session(showExtended), own: true })
         await Promise.race([req, new Promise((resolve) => setTimer(resolve, BEHIND_HOLD_MAX_MS))])
         await _joined(lake)
         return 'current'
@@ -701,7 +712,7 @@ export function createPrefetch(o = {}) {
       // warmers' two lane slots and their backoff (first candles 353 ms median against the
       // legacy path's 30 ms). At `visible` rank it leaves at once, and the chart's own request
       // for the same URL joins it.
-      const req = ensure(key, { until: date ? DAILY_PREPARED : PREPARED, priority: 'visible', signal, warm: false, local: false, _s0: s0, session: session(showExtended) })
+      const req = ensure(key, { until: date ? DAILY_PREPARED : PREPARED, priority: 'visible', signal, warm: false, local: false, _s0: s0, session: session(showExtended), own: true })
       // (a D/W/M key never paints from the lake: network.lakeSeed carries intraday keys only)
       const s = await Promise.race([req, _lakeAlone(lake, t0, key, fetchTf(String(tf)), showExtended)])
       if (s === LAKE_PAINTS) return 'lake'
@@ -850,7 +861,7 @@ export function createPrefetch(o = {}) {
   function askForDisplay(sym, tf, { showExtended, signal = null } = {}) {
     const key = keyFor(sym, tf, { showExtended })
     if (!key) return Promise.resolve(null)
-    return ensure(key, { until: PREPARED, priority: 'visible', signal, warm: false, local: false, _s0: S().peek(key) || {}, session: session(showExtended) })
+    return ensure(key, { until: PREPARED, priority: 'visible', signal, warm: false, local: false, _s0: S().peek(key) || {}, session: session(showExtended), own: true })
   }
 
   /**
@@ -1095,7 +1106,7 @@ export function createPrefetch(o = {}) {
   // (this `set`, after the paint), and at each bucket boundary of the hold's timeframe while the member rests: only a row
   // that HOLDS A SERVER ANSWER and is behind the clock by the switch's own rule, in the background lane (a list warm's),
   // in the regular session only, intraday only. The rule the switch paints by is untouched: the row is simply current
-  // when it is asked for (and a tail answer still behind never borrows the switch's grace: `_behindClock`).
+  // when it is asked for (and a tail answer still behind lends no grace: only the switch's own answer does, `_behindClock`).
   // BOUNDED (review of #2619, MEDIUM-2):
   //   * ONLY WHILE THE MEMBER NAVIGATES: the boundary timer runs for TAIL_ACTIVE_MS after the last CHANGE of `selected`
   //     (a key press, a click on a row; the list's first selection, a live re-sort or a new list of visible rows open
@@ -1146,7 +1157,7 @@ export function createPrefetch(o = {}) {
         if (n > 0 && now() - r.at < TAIL_REASK_SPACING_MS) continue
         reasked.set(k, { b, n: n + 1, at: now() })
         if (reasked.size > 64) reasked.delete(reasked.keys().next().value)
-        ensure(k, { until: ASK_AGAIN, priority: 'background', warm: true, local: false, bg: true, _s0: s, session: session(tailExt) }).catch(() => {})
+        ensure(k, { until: ASK_AGAIN, priority: 'background', warm: true, local: false, _s0: s, session: session(tailExt) }).catch(() => {})
         asked++
       }
       return asked
@@ -1401,7 +1412,8 @@ export function createPrefetch(o = {}) {
     // answer is usually held by Enter.
     const closedBehind = (s) => _behindClock(key, s)
     const held = S().peek(key)
-    if (held?.restSeen && HANDOFF_PAINTS.includes(held.status) && !closedBehind(held)) return null   // the flip paints it as it is
+    // the flip paints it as it is; or, behind, it was answered a moment ago (Enter asks for itself: prepareForDisplay)
+    if (held?.restSeen && HANDOFF_PAINTS.includes(held.status) && (!closedBehind(held) || _justAnswered(key))) return null
     if (typed && typed.key === key) return null
     const ctl = new AbortController()
     const mine = { key, ctl, kept: false }

@@ -22,6 +22,10 @@
 //       selection arms it; past TAIL_ACTIVE_MS it stops
 //   M2c the boundary lag is drawn per hold (two holds never ask in the same instant), in [TAIL_LAG_MIN_MS, TAIL_LAG_MAX_MS];
 //       a row's second ask in a bucket is at least TAIL_REASK_SPACING_MS after its first
+// ...and, from the re-review of #2619 (head 0f9b5e3769):
+//   A1-A4 the grace is the switch's OWN: an answer still behind from the list's warm, the urgent next-row warm, the typed
+//       warm or the hover-intent warm, then a press 1 s later: not displayable, the press prepares and asks (M1b: the
+//       switch's own answer keeps it). (The edge warm sends HEADs to the CDN and never asks the bars route: no grace path.)
 // Real store, real network, real facade, a held fake server.
 import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest'
 import { installFakeIndexedDB } from './testing/fakeIndexedDB'
@@ -40,8 +44,9 @@ beforeEach(() => {
 })
 afterEach(() => { vi.useRealTimers(); localStorage.removeItem('barspack.version') })
 
-/** `random`: the lag draw (0: the shortest lag, deterministic); `timers`: every delay the facade schedules. */
-async function boot(mode, { visible = () => true, random = () => 0 } = {}) {
+/** `random`: the lag draw (0: the shortest lag, deterministic); `timers`: every delay the facade schedules; `live`: the
+ *  background warm asks (the tail's) the store is serving, now and at most (`maxBg`). */
+async function boot(mode, { visible = () => true, random = () => 0, packIngesting = undefined } = {}) {
   vi.resetModules()
   const server = installFakeBarsServer({ modeFor: () => mode })
   const { createBarStore } = await import('./index')
@@ -50,9 +55,26 @@ async function boot(mode, { visible = () => true, random = () => 0 } = {}) {
     stream: fakeStream(), candle: fakeCandle(), prices: fakePrices(),
     isHidden: () => false, onVisible: () => () => {}, idle: (fn) => fn(),
   })
+  const live = { bg: 0, maxBg: 0 }
+  const realEnsure = store.ensure.bind(store)
+  store.ensure = (key, opts) => {
+    const bg = opts?.priority === 'background' && !!opts?.warm
+    let left = !bg
+    const leave = () => { if (!left) { left = true; live.bg-- } }
+    if (bg) {
+      live.bg++; live.maxBg = Math.max(live.maxBg, live.bg)
+      opts?.signal?.addEventListener?.('abort', leave, { once: true })   // an aborted ask leaves flight at its abort
+    }
+    const p = realEnsure(key, opts)
+    Promise.resolve(p).finally(leave).catch(() => {})
+    return p
+  }
   const timers = []
   const setTimer = (fn, ms) => { timers.push(ms); return setTimeout(fn, ms) }
-  return { server, store, P, timers, pf: P.createPrefetch({ store, tickerMeta: () => {}, extended: () => false, visible, random, setTimer }) }
+  return {
+    server, store, P, timers, live,
+    pf: P.createPrefetch({ store, tickerMeta: () => {}, extended: () => false, visible, random, setTimer, ...(packIngesting ? { packIngesting } : {}) }),
+  }
 }
 const tick = (ms) => vi.advanceTimersByTimeAsync(ms)
 /** The list warm: every row answered once, now. */
@@ -337,5 +359,50 @@ describe('review of #2619, MEDIUM-2: the timer runs only while the member naviga
     expect(w.server.calls.length - before).toBe(2)
     hold.clear()
     w.store.dispose()
+  })
+})
+
+describe('re-review of #2619 (A): the grace is the switch\'s own; no other warm lends it', () => {
+  // 10:01:01, the server stores a closed minute LAGGING_S (5 s) after it ends: an answer now still ends at 09:59
+  async function behindAfter(warm, opts = {}) {
+    vi.setSystemTime(at(10, 1, 1))
+    const w = await boot('lagging', opts)
+    await warm(w)
+    await tick(130)
+    await w.server.drain()
+    const k = w.pf.keyFor('AAA', '1')
+    expect(w.store.peek(k)?.restSeen).toBe(true)                // the warm's answer is held...
+    expect(w.store.peek(k).bars.at(-1).t).toBe(OPEN + 29 * 60)  // ...still ending 09:59 (one bucket behind)
+    await tick(1_000)                                           // a press 1 s later
+    const shown = w.pf.peekDisplayable('AAA', '1')
+    const before = w.server.calls.length
+    const out = { v: 'pending' }
+    w.pf.prepareForDisplay('AAA', '1').then((x) => { out.v = x })
+    await w.server.flush(40)
+    const asked = w.server.calls.slice(before).filter((c) => c.q.sym === 'AAA').length
+    await w.server.drain()
+    await tick(1_000)
+    w.store.dispose()
+    return { shown, asked, out }
+  }
+  it("A1 the list's background warm (prefetchBarsToIDB)", async () => {
+    const r = await behindAfter(async (w) => { w.pf.prefetchBarsToIDB(['AAA'], '1') })
+    expect(r.shown).toBe(false)
+    expect(r.asked).toBe(1)                                     // the press prepares: it asks for itself
+  })
+  it('A2 the urgent next-row warm (prefetchBars, urgent)', async () => {
+    const r = await behindAfter(async (w) => { w.pf.prefetchBars(['AAA'], '1', { urgent: true }) })
+    expect(r.shown).toBe(false)
+    expect(r.asked).toBe(1)
+  })
+  it('A3 the typed warm (warmTypedSymbol, intraday)', async () => {
+    const r = await behindAfter(async (w) => { w.pf.warmTypedSymbol('AAA', '1') }, { packIngesting: () => true })
+    expect(r.shown).toBe(false)
+    expect(r.asked).toBe(1)
+  })
+  it('A4 the hover-intent warm (prefetchBarOnIntent)', async () => {
+    const r = await behindAfter(async (w) => { w.pf.prefetchBarOnIntent('AAA', '1', { delay: 0 }) })
+    expect(r.shown).toBe(false)
+    expect(r.asked).toBe(1)
   })
 })
