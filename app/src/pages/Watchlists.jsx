@@ -101,6 +101,7 @@ import useTagColors from '../hooks/useTagColors'
 import { prefetchBars, prefetchAllTimeframes, prefetchBarOnIntent, warmMemFromIDB, prewarmVisibleList, prefetchBarsToIDB, createNeighborHold } from '../utils/barsWarm'
 import { scanNeighbors } from '../utils/scanNeighbors'
 import { afterPaint } from '../utils/afterPaint'
+import { createAfterPaintSlot } from '../utils/afterPaintSlot'
 import { publishScanNeighbors } from '../components/chart/neighborFrames'
 import { useIsTouch } from '../hooks/useBreakpoint'
 import Sheet from '../components/mobile/Sheet'
@@ -732,6 +733,17 @@ export function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChan
   // the user can freely scroll away. If the row isn't present yet (its group hasn't expanded),
   // we DON'T mark done, so a later `items` update (the expand) still lands the scroll once.
   const scrolledForRef = useRef(null)
+  // ⭐ (2026-11-23, next-row key profile) THE SNAP RUNS AFTER THE FRAME THAT SHOWS THE SELECTION, NOT IN ITS
+  // COMMIT. An arrow key's selection commits in the key press's task, and `scrollToIndex` reads the scroller's
+  // scrollHeight/clientHeight (virtual-core getMaxScrollOffset): a forced layout, then a scroll, before the two
+  // linked charts could paint. Whether to snap is still decided here (no layout); the snap itself waits for the
+  // frame (utils/afterPaintSlot.js): the row's highlight and the charts show first, the list centres the row
+  // one frame later. A held key snaps once per frame, to the newest row; an unmount snaps nothing.
+  const itemsRef = useRef(items)
+  itemsRef.current = items
+  const snapSlotRef = useRef(null)
+  if (!snapSlotRef.current) snapSlotRef.current = createAfterPaintSlot()
+  useEffect(() => () => snapSlotRef.current.cancel(), [])
   useEffect(() => {
     if (!scrollToSym) { scrolledForRef.current = null; return }
     if (scrolledForRef.current === scrollToSym) return   // already snapped to it — allow free scroll
@@ -740,8 +752,15 @@ export function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChan
     if (noScrollRef?.current === scrollToSym) { scrolledForRef.current = scrollToSym; noScrollRef.current = null; return }
     const idx = items.findIndex((it) => it?.sym === scrollToSym && !it.isGroup)
     if (idx < 0) return                                  // row not rendered yet — retry on next items change
-    try { virt.scrollToIndex(idx, { align: 'center' }) } catch { /* mid-mount */ }
     scrolledForRef.current = scrollToSym
+    const sym = scrollToSym
+    snapSlotRef.current.schedule(() => {
+      if (scrolledForRef.current !== sym) return         // superseded before the frame (a click, a cleared search)
+      const list = itemsRef.current
+      const at = list[idx]?.sym === sym && !list[idx].isGroup ? idx : list.findIndex((it) => it?.sym === sym && !it.isGroup)
+      if (at < 0) return
+      try { virt.scrollToIndex(at, { align: 'center' }) } catch { /* mid-mount */ }
+    })
   }, [scrollToSym, items]) // eslint-disable-line react-hooks/exhaustive-deps
   if (items.length === 0) return <div className={styles.wlEmpty}>{emptyText}</div>
   return (
@@ -1890,16 +1909,32 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   }, [handleKeyDown])
 
   // Scroll the active row into view when selection changes via keyboard.
+  // ⭐ (2026-11-23, next-row key profile) AFTER THE FRAME THAT SHOWS THE SELECTION, NOT IN ITS COMMIT. On /charts
+  // the commit of an arrow key's selection is still the key press's task, and the row lookup and `scrollIntoView`
+  // (a forced layout, then a scroll) ran there before the two linked charts could paint. Which row, and whether this
+  // widget scrolls at all, is decided here as before; the lookup and the scroll wait for the frame
+  // (utils/afterPaintSlot.js), so the highlight and the charts show first and the row comes into view one frame
+  // later. A held key scrolls once per frame, to the newest row; an unmount, or a selection that empties, scrolls
+  // nothing.
   const pageRef = useRef(null)
+  const rowScrollSlotRef = useRef(null)
+  if (!rowScrollSlotRef.current) rowScrollSlotRef.current = createAfterPaintSlot()
+  useEffect(() => () => rowScrollSlotRef.current.cancel(), [])
   useEffect(() => {
-    if (!selectedSym || !pageRef.current) return
+    const slot = rowScrollSlotRef.current
+    if (!selectedSym || !pageRef.current) { slot.cancel(); return }
     // Only the active widget scrolls — otherwise all 4 watchlists force a synchronous
     // reflow on every selection change (the big cost when scanning up / wrapping).
     if (!isActiveWidget()) return
-    const row = pageRef.current.querySelector(`[data-watch-sym="${CSS.escape(selectedSym)}"]`)
-    if (row && typeof row.scrollIntoView === 'function') {
-      row.scrollIntoView({ block: 'nearest', inline: 'nearest' })
-    }
+    const sym = selectedSym
+    slot.schedule(() => {
+      const root = pageRef.current
+      if (!root) return
+      const row = root.querySelector(`[data-watch-sym="${CSS.escape(sym)}"]`)
+      if (row && typeof row.scrollIntoView === 'function') {
+        row.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+      }
+    })
   }, [selectedSym])
 
   // Warm the WHOLE visible list up front the moment it opens/changes, so scrolling
