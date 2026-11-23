@@ -1109,8 +1109,9 @@ export function createPrefetch(o = {}) {
   // ask (measured: a third to a half of next-row presses at 80-200 ms instead of the key task). So the rows named in
   // `tail` (the next row, the one after, the previous row) are asked again, AT ONCE when the press finds one behind
   // (this `set`, after the paint), and at each bucket boundary of the hold's timeframe while the member rests: only a row
-  // that HOLDS A SERVER ANSWER and is behind the clock by the switch's own rule, in the background lane (a list warm's),
-  // in the regular session only, intraday only. The rule the switch paints by is untouched: the row is simply current
+  // that HOLDS ROWS (a server answer, or the copy hydrated from the cache once the registry let that answer go: see
+  // keepTailCurrent) and is behind the clock by the switch's own rule, in the background lane (a list warm's), in the
+  // regular session only, intraday only. The rule the switch paints by is untouched: the row is simply current
   // when it is asked for (and a tail answer still behind lends no grace: only the switch's own answer does, `_behindClock`).
   // BOUNDED (review of #2619, MEDIUM-2):
   //   * ONLY WHILE THE MEMBER NAVIGATES: the boundary timer runs for TAIL_ACTIVE_MS after the last CHANGE of `selected`
@@ -1173,7 +1174,14 @@ export function createPrefetch(o = {}) {
         if (tailCtl.size >= TAIL_MAX_INFLIGHT) break   // the hard cap
         if (tailCtl.has(k)) continue                    // its ask is in flight
         const s = S().peek(k)
-        if (!s?.restSeen || !s.bars?.length || preparing.get(k) || !_behindClock(k, s, tailExt)) continue
+        // ⭐ A COPY THE REGISTRY LET GO COUNTS TOO (live session 2026-11-23, #2619 at 0f9b5e3769: the tail asked once a press
+        // for ~45 s, then never again across three boundaries). The list warm answers a row ~65 s before the member reaches
+        // it; in a sustained scan the registry passes its limits (keys / bars: each press adds the row's timeframes and the
+        // charts' deep loads) and evicts that idle answer. The row is then hydrated again from mem / IndexedDB when it
+        // enters the window: a LOCAL copy, one bucket behind after a boundary, which the switch refuses (`_behindClock`) and
+        // the urgent next-row warm takes as painting (its legacy rule allows one pending bucket). Asking only `restSeen`
+        // rows left exactly those rows to the press. Any row with rows that the switch would refuse is asked.
+        if (!s?.bars?.length || preparing.get(k) || !_behindClock(k, s, tailExt)) continue
         const p = parseKey(k)
         const b = _bucketOfNow(p.tf)
         const r = reasked.get(k)
