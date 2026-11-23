@@ -163,6 +163,15 @@
    "to": "      ra.fillNever = { with: rb.key }",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/e96HlineLevels.test.js",
    "expectRed": "existing band mechanism"
+  },
+  {
+   "id": "HL10",
+   "mutant": "a level drawn in the neutral ink is listed as a note, not a withheld part (the GAPS probe would read as served)",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "    out.push({ name: n.title, note: hlineNotReproducedNote(n), line: n.line, withheld: COLOUR_DEFAULT_UNWITNESSED })",
+   "to": "    out.push({ name: n.title, note: hlineNotReproducedNote(n), line: n.line })",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/e96HlineLevels.test.js",
+   "expectRed": "WITHHELD part"
   }
  ]
 }

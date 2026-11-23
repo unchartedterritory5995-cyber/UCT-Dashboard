@@ -153,6 +153,16 @@ describe('the member door draws them, on both doors', () => {
     expect(guidesOf(d)).toEqual([{ key: 'hline1', label: 'Overbought', style: 'hlines', levels: [70], color: WITHHELD_COLOUR_INK, width: 1, lineStyle: 'solid' }])
     expect(d.notes.find((n) => n.name === 'Overbought').note).toMatch(/^`Overbought`: style not reproduced: TradingView's default colour for a v5 `hline` is not captured/)
   })
+  it('⭐ the editor\'s status lists a style not reproduced as a WITHHELD part (the GAPS probe stays listed until Q-HLINE-3)', async () => {
+    withPanes()
+    const { inspectSource } = await import('../../builder/PineBox')
+    const { editorStatus } = await import('../../builder/editorStatus')
+    const source = v(5, 'plot(ta.rsi(close, 14), "RSI")\nhline(70, "Overbought")')
+    const pane = memberPaneDefinition({ source, id: 'u_e96_h3s', name: 't' })
+    const status = editorStatus({ report: inspectSource(source, 'pine'), pane, savedRow: null, inspectedSource: source })
+    expect(status.state).toBe('runs-withheld')
+    expect(status.items.find((i) => i.name === 'Overbought')).toMatchObject({ severity: 'withheld', guard: 'pine:colour-default-unwitnessed' })
+  })
   it('runtime: the same guides, and "a horizontal line" is no longer said to be undrawn', () => {
     withPanes()
     __forceRuntimeLaneForTests(true)

@@ -291,9 +291,13 @@ function colourWithheldNotes(rows) {
  *  draw (`hlineLevels.js`), in the order the script writes them. */
 function levelNotesOf(plan) {
   const out = []
-  for (const n of (plan && plan.notReproduced) || []) out.push({ name: n.title, note: hlineNotReproducedNote(n), line: n.line })
-  for (const w of (plan && plan.withheld) || []) out.push({ name: w.title, note: hlineWithheldNote(w), line: w.line })
-  return out.sort((a, b) => (a.line ?? 1e9) - (b.line ?? 1e9)).map(({ name, note }) => ({ name, note }))
+  // `withheld` (the guard) makes the editor's status list each as a WITHHELD part, not a note: a style TradingView
+  // draws that this chart does not reproduce is a value withheld by name (coordinator ruling R2)
+  for (const n of (plan && plan.notReproduced) || []) {
+    out.push({ name: n.title, note: hlineNotReproducedNote(n), line: n.line, withheld: COLOUR_DEFAULT_UNWITNESSED })
+  }
+  for (const w of (plan && plan.withheld) || []) out.push({ name: w.title, note: hlineWithheldNote(w), line: w.line, withheld: 'pine:chart-only' })
+  return out.sort((a, b) => (a.line ?? 1e9) - (b.line ?? 1e9)).map(({ name, note, withheld }) => ({ name, note, withheld }))
 }
 
 /** ⭐⭐ e96 — THE HOST DOCUMENT'S KEY FOR A LEVEL'S SETTING (`hlineLevels.hlineGuides`' `bindInput`): the member
