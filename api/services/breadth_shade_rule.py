@@ -34,8 +34,9 @@ MARKET_WIDE_COLS = frozenset({
     "spy_dist_days", "qqq_dist_days", "rsp_spy_ratio", "iwm_qqq_ratio", "vix_term_structure",
     "cnn_fear_greed", "aaii_bulls", "aaii_neutral", "aaii_bears", "aaii_spread", "naaim", "cboe_putcall",
 })
-#: Hidden / not yet available off UCT (monitorUniverses.js).
-NOT_PER_UNIVERSE = frozenset({"breadth_score", "up_vol_ratio", "hvc_52w", "atr_ext_7", "new_ath"})
+#: Not yet available off UCT (monitorUniverses.js). Health left this set on 2026-11-23: each
+#: universe scores it with its own bands and ranks it in its own history.
+NOT_PER_UNIVERSE = frozenset({"up_vol_ratio", "hvc_52w", "atr_ext_7", "new_ath"})
 
 def numeric(v):
     if isinstance(v, bool) or v is None:
