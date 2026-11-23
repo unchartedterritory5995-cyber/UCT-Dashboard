@@ -561,7 +561,9 @@ def shutdown_seed_pool() -> None:
     (cold_start_guard.shutdown, #2478): `wait=False`, because a seed still running is a bars read for a
     stream that is going away and finishes on its own (the join bounds it); `cancel_futures=True`, because
     one not yet started never needs to. After this `_kick_seed` refuses (False, its "not started"), and
-    no new pool is made. Safe to call twice, and when no stream ever made the pool."""
+    no new pool is made. Safe to call twice, and when no stream ever made the pool. A seed cancelled here
+    never runs its `finally`, so `_seed_inflight` stays one high per cancelled seed: harmless, every kick
+    is already refused and the process is about to exit."""
     global _seed_pool, _seed_closed
     with _seed_lock:
         _seed_closed = True

@@ -92,6 +92,34 @@ def test_T3_the_stop_never_waits_on_a_running_seed_and_drops_a_queued_one(monkey
     assert not queued_ran.is_set()                                 # never started
 
 
+def test_T5_a_kick_that_loses_the_race_with_the_stop_leaves_the_count_right(monkeypatch):
+    """The kick took the pool under the lock, the stop shut it down, then the kick submits: the executor
+    refuses (RuntimeError). The kick answers False and gives its in-flight place back."""
+    pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="bars-seed-t5")
+    pool.shutdown(wait=False)                     # the stop won the race; the flag is not what refuses here
+    _fresh(monkeypatch, pool)
+    ran = []
+    assert stream._kick_seed(ran.append, "LATE") is False
+    assert stream._seed_inflight == 0
+    assert ran == []
+
+
+def test_T6_a_test_that_wants_seeds_can_reopen_the_state_after_a_lifespan_stopped_it(monkeypatch):
+    """Two tests in this suite run the real api.main lifespan through shutdown, which stops the pool for the
+    rest of the pytest process. A test that kicks seeds must set its own state (as _fresh does, and as
+    test_bar_broadcaster_tv_replay's F3 does); this pins that doing so is enough."""
+    _fresh(monkeypatch)
+    stream.shutdown_seed_pool()                   # what an earlier lifespan test leaves behind
+    assert stream._kick_seed(lambda s: None, "X") is False
+    monkeypatch.setattr(stream, "_seed_closed", False)
+    monkeypatch.setattr(stream, "_seed_pool", None)
+    done = threading.Event()
+    assert stream._kick_seed(lambda s: done.set(), "X") is True
+    assert done.wait(5)
+    stream._seed_pool.shutdown(wait=True)
+    assert stream._seed_inflight == 0
+
+
 def test_T4_the_lifespan_stops_the_seed_pool_after_it_serves():
     """The call sits in the lifespan's shutdown half (after its one `yield`), and is the stream router's own."""
     tree = ast.parse((ROOT / "api" / "main.py").read_text(encoding="utf-8"))
