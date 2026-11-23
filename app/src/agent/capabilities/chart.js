@@ -36,8 +36,10 @@ import { TF_ORDER } from '../../components/chart/keyboardShortcuts'
 import { paneVolumePct } from '../../components/chart/pane/paneLook'
 import { HEADER_FIELDS } from '../../components/chart/headerFields'
 // the stored list may hold any library stat a member picked in Chart Settings (headerStatCatalog.js); the Agent adds and
-// removes only the HEADER_FIELDS members below, and never drops a member's other picks or their order
-import { headerStatKeys } from '../../components/chart/headerStatCatalog'
+// removes one of the picker's catalog stats at a time (INFO_ROW_MEMBERS below), through the picker's own toggle, and never
+// drops a member's other picks or their order
+import { headerStatKeys, headerStatTogglePatch, HEADER_STATS } from '../../components/chart/headerStatCatalog'
+import { legendSettingOfWords } from './legendPhrases'
 import { BAR_INFO_FIELDS, barInfoFieldsOf, withBarInfoField } from '../../components/chart/barInfoFields'
 import { ELIGIBLE_SETTINGS, settingDescriptor, coerceSettingValue, settingUnavailable, withSetting, settingValue, canvasLock, settingHiddenNote } from '../../components/chart/chartSettingsDescriptors'
 import { CHART_DEFAULTS } from '../../components/chart/chartDefaults'
@@ -181,10 +183,16 @@ function writeSetting(st, d, v) {
 // removed) and the Bar info strip (`header.barInfo`, toggleBarField → withBarInfoField: the complete set in canonical
 // order). Each row is DATA: its members (the product's own catalog), how the chart reads it, and the product's own writer.
 // value = "+member" or "-member", by key or by the label Chart Settings shows. Read back through the same resolver.
+// ⭐ LEGEND family (pl-legend): the Info row's members are the stat picker's WHOLE catalog (HEADER_STATS — the header's
+// own fields first, in the order the refusal lists them, then the library stats the picker offers), and a pick / unpick
+// is the picker's own writer (`headerStatTogglePatch`: an unpick takes the stat's rename and look with it, as the ✕ does)
+const INFO_ROW_MEMBERS = [...HEADER_FIELDS.map(f => ({ value: f.key, label: f.label })),
+  ...HEADER_STATS.filter(s => !HEADER_FIELDS.some(f => f.key === s.key)).map(s => ({ value: s.key, label: s.label }))]
 const LIST_SETTINGS = [
-  { id: 'header.fields', label: 'Info row', members: HEADER_FIELDS.map(f => ({ value: f.key, label: f.label })),
+  { id: 'header.fields', label: 'Info row', members: INFO_ROW_MEMBERS,
     read: (cs) => headerStatKeys(cs?.header),
-    write: (cs, key, on) => { const cur = headerStatKeys(cs?.header); return { ...cs, header: { ...(cs?.header || {}), fields: on ? [...cur, key] : cur.filter(k => k !== key) }, preset: 'custom' } } },
+    write: (cs, key, on) => (headerStatKeys(cs?.header).includes(key) === on ? cs
+      : { ...cs, header: { ...(cs?.header || {}), ...headerStatTogglePatch(cs?.header, key) }, preset: 'custom' }) },
   { id: 'header.barInfo', label: 'Bar info', members: BAR_INFO_FIELDS.map(f => ({ value: f.id, label: f.label })),
     read: (cs) => barInfoFieldsOf(cs),
     write: (cs, id, on) => ({ ...cs, header: { ...(cs?.header || {}), barInfo: withBarInfoField(cs, id, on) }, preset: 'custom' }) },
@@ -930,7 +938,8 @@ const CAPABILITIES = [
       setting: { type: 'string', enum: [...ELIGIBLE_SETTINGS.map(d => d.id), ...LIST_SETTINGS.map(l => l.id)] },
       value: { type: ['string', 'number', 'boolean'] },
     }, required: ['setting', 'value'], additionalProperties: false },
-    fast: ({ lower, core }) => fastSetting(lower) || fastSetting(core),
+    // LEGEND family (legendPhrases.js): the legend's mode, a bar-info field, an info-row stat — verb × field × place classes
+    fast: ({ lower, core }) => fastSetting(lower) || fastSetting(core) || legendSettingOfWords(lower),
     // W1.1 R-01 (LT-3): what the live planner sent for the promoted rows — a differently named key for `setting`
     // (the value's own typing — "off", "90%" — is read by coerceSettingValue, as the dialog reads it)
     argAliases: { setting: ['key', 'id', 'name', 'option', 'settingId', 'setting_id', 'path', 'property'] },

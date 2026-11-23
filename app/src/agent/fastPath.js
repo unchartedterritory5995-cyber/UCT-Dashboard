@@ -341,7 +341,8 @@ function capabilityPhrases(text, host, typed = text) {
   const whole = matchWhole(text, host, typed)
   if (whole) return whole.say ? { kind: 'say', text: whole.say } : { kind: 'ops', ops: [whole], target: null }
   const { text: rest0, target } = extractTarget(text, host)
-  const rest = slashPairs(rest0)
+  // LEGEND family: "press and hold" / "click and hold" is ONE gesture (the legend's Hold mode), never two clauses ("press-hold": a hyphen is a word boundary, so "-and-" would still split)
+  const rest = slashPairs(rest0).replace(/\b(press|click|tap) and hold\b/gi, '$1-hold')
   const clauses = rest.split(/,|;|\band\b|\bthen\b|&/i).map(s => s.trim()).filter(Boolean)
   if (!clauses.length || clauses.length > 6) return null
   const ops = []
