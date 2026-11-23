@@ -1,5 +1,6 @@
 {
  "schema": "uct.ci-mutants/v1",
+ "about": "Landing train 2's mutants (2026-11-16). TR-3 and TR-5 (\"B-PYR is pinned without a capture\": the mutation inserted `\"B-PYR\":[\"nothing\"]` into runtime/brokerPins.resolved.json, and w9T4Sizing.test.js / strategyReportPanel.test.jsx had to go red) were deleted on 2026-11-23 (fix/d3-rail-tr-retire): their premise is gone. B-PYR has been pinned by real captures since 30f9977848 (2026-11-16: w9-d11-late-first-use-rpt, w9-q-s1b-defaults-v5, w9-q-s1b-defaults-v6), so \"B-PYR pinned\" is the committed state, not a fault, and both stayed green in pine-heavy run 45102502443.",
  "mutants": [
   {
    "id": "V1",
@@ -602,28 +603,12 @@
    "to": "\"B-QTY-GONE\":"
   },
   {
-   "id": "TR-3",
-   "mutant": "train 2: B-PYR is pinned without a capture (the member door serves a rule no capture grades)",
-   "file": "app/src/components/chart/engine/runtime/brokerPins.resolved.json",
-   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9T4Sizing.test.js",
-   "from": "\"B-QTY\":",
-   "to": "\"B-PYR\":[\"nothing\"],\"B-QTY\":"
-  },
-  {
    "id": "TR-4",
    "mutant": "train 2: B-CLOSE drops out of the committed ledger (the product-default report no longer equals the all-served one)",
    "file": "app/src/components/chart/engine/runtime/brokerPins.resolved.json",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/pane/strategyReportPanel.test.jsx",
    "from": "\"B-CLOSE\":",
    "to": "\"B-CLOSE-GONE\":"
-  },
-  {
-   "id": "TR-5",
-   "mutant": "train 2: B-PYR is pinned without a capture (a record that used it is served by the report)",
-   "file": "app/src/components/chart/engine/runtime/brokerPins.resolved.json",
-   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/pane/strategyReportPanel.test.jsx",
-   "from": "\"B-QTY\":",
-   "to": "\"B-PYR\":[\"nothing\"],\"B-QTY\":"
   }
  ]
 }

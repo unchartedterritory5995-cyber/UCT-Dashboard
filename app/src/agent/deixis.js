@@ -1166,7 +1166,7 @@ function clickFits(said, charts, sel) {
   return said.some(w => { const parts = w.split('-'); return charts.some(c => c.ref === sel && c.position && parts.every(p => c.position.split('-').includes(p))) })
 }
 
-export function screenUnnamedTargets({ host, ops, text, context = null, pickedRefs = [], getTargetKind, getCapability }) {
+export function screenUnnamedTargets({ host, ops, text, context = null, pickedRefs = [], getTargetKind, getCapability, subject = null }) {
   if (pointsAtChart(text, { chartOp: true, charts: host?.charts?.list?.() || [] })) return null
   // an ANSWER to the model's question is read with the words that question was about (`context`)
   const words = context ? `${text} ${context}` : String(text || '')
@@ -1199,6 +1199,18 @@ export function screenUnnamedTargets({ host, ops, text, context = null, pickedRe
     return count && count !== targets.size
       ? { propose: true, note: `You said ${count} charts, and this changes ${targets.size} — check it first; nothing has changed yet.` }
       : null
+  }
+  // (#2532 follow-up) a BARE quantifier less an exclusion that places its chart(s) exactly ("set all to weekly but leave AAPL
+  // alone", "make each weekly except the one diagonal from SPY"; with no click and no earlier-turn chart, "the rest …, but skip
+  // chart 2") names the set as "every chart except …" does (MANY_COUNT above): a plan on exactly that set is identified, and an op on an
+  // excluded chart is the exclusion gates' (dropped / asked, never offered). An exclusion the board cannot place forms no set
+  // (spatialCheck.everyExceptSet → null): screened below, unchanged.
+  {
+    const sel0 = selectedChart(host)
+    let ev = null
+    try { ev = everyExceptSet(words, charts, sel0, { subject, rest: !sel0 && !subject }) } catch { ev = null }
+    // exactly the set (a plan on only part of it is screened below, as before)
+    if (ev?.refs?.length && ev.refs.every(r => targets.has(r)) && [...targets.keys()].every(c => ev.refs.includes(c) || ev.excluded.includes(c))) return null
   }
   const named = chartsNamedBy(words, charts)
   // a picked choice may be the chart itself or a chart-backed entry of it (`ixe:<chart>`)
@@ -1451,9 +1463,9 @@ function clauseTargets({ host, ops, text, getTargetKind, getCapability, parse })
   return any ? { ok: true } : null
 }
 
-export function screenDeicticOps({ host, ops, text, getTargetKind, getCapability, parse = null }) {
+export function screenDeicticOps({ host, ops, text, getTargetKind, getCapability, parse = null, subject = null }) {
   if (!pointsAtChart(text, { chartOp: true, charts: host?.charts?.list?.() || [] })) return null
-  if (planIsExceptSet({ host, ops, text, getTargetKind, getCapability })) return null
+  if (planIsExceptSet({ host, ops, text, getTargetKind, getCapability, subject })) return null
   {
     const per = clauseTargets({ host, ops, text, getTargetKind, getCapability, parse })
     if (per?.ask) return per
@@ -1540,7 +1552,7 @@ export function screenDeicticOps({ host, ops, text, getTargetKind, getCapability
 // RECOGNIZED exclusion names exactly one SET (spatialCheck.everyExceptSet — null when the exclusion cannot be placed). A plan
 // whose every op is chart-backed and whose charts are exactly that set is identified by the words (what in them points at a
 // chart points only at the chart left out), so the deictic screen never asks about it. Any other plan is screened as before.
-export function planIsExceptSet({ host, ops, text, getTargetKind, getCapability }) {
+export function planIsExceptSet({ host, ops, text, getTargetKind, getCapability, subject = null }) {
   try {
     const live = host?.charts?.list?.() || []
     if (live.length < 2 || !ops?.length) return false
@@ -1551,7 +1563,10 @@ export function planIsExceptSet({ host, ops, text, getTargetKind, getCapability 
     // exactly by everyExceptSet below, or the set is null (asked)
     const s = withoutAnchorRel(String(text || '')).replace(/\b(?:as|where)\s+(?:it|they)\s+(?:is|are|was)\b/gi, ' ')
     if (relationMatch(s) || refPointAny(s)) return false
-    const ev = everyExceptSet(text, live, selectedChart(host))
+    // (#2532 follow-up) a bare quantifier counts here too (spatialCheck.bareQuantifier); "the rest" only with no click and no
+    // earlier-turn chart, which it could be the rest of
+    const sel = selectedChart(host)
+    const ev = everyExceptSet(text, live, sel, { subject, rest: !sel && !subject })
     if (!ev?.refs?.length) return false
     const planned = new Set()
     for (const o of ops) {

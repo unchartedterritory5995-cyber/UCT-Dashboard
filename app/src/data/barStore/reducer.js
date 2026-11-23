@@ -954,17 +954,33 @@ function _applyLocal(state, action, ctx, source) {
     return finalize(state, { bars: mergeRows(state, rows) }, ctx)
   }
   // No server answer yet: the local copy is the best we have. Its last row is the forming
-  // bucket when the clock says that bucket has not ended.
+  // bucket when the clock says that bucket has not ended...
+  // ⛔ ...OR WHEN THE DEVICE SAYS SO (review of #2537, M1). A device copy's last row may be the bucket in progress
+  // relative to the newest minute the DEVICE applied (deviceStore/live.js), and names it (`forming_t`, persist.js).
+  // Read just after that bucket's end, before the frame of its last minute has landed, the clock alone filed it as a
+  // CLOSED bar one minute short, and the server's answer then changed the candle. Named, it is the developing bar.
+  // (Only a device copy carries the marker: no other copy's payload is read for it.)
   const nowSec = Math.floor((ctx.nowMs ?? Date.now()) / 1000)
   let devIn = null
   const lastRow = rows[rows.length - 1]
-  if (!lastRow._sealed && bucketEnd(lastRow.t, working) > nowSec) { devIn = lastRow; rows = rows.slice(0, -1) }
+  const namedForming = source === 'device' && numOrNull(p.forming_t) === lastRow.t
+  if (!lastRow._sealed && (namedForming || bucketEnd(lastRow.t, working) > nowSec)) { devIn = lastRow; rows = rows.slice(0, -1) }
   let bars = mergeRows(working, rows)
   if (spans !== state.sealedSpans) {
     // Absences inside a restored span are the server's: drop earlier local-only rows there.
     for (const sp of spans) bars = mergeRows({ ...working, bars, sealedSpans: spans }, [], sp)
   }
   let dev = state.developing
+  // ⛔ THE DEVICE'S NEWER COPY SUPERSEDES ITS OWN EARLIER FORMING BAR (review of #2537, M1: the other half of the roll).
+  // A device copy lands only on an entry whose developing bar is none, a live one, or the device's own (a LOCAL bar:
+  // persist _joinRefused refuses any other, and refreshDevice dispatches only a NEWER copy). The newer copy says what
+  // that bucket is now: a closed row (above), the forming row (`devIn`), or nothing it vouches for any more (today's
+  // forming D after the close, live.js). Kept, the older forming bar was closed or settled INTO the rows, where its
+  // rank ties the copy's and it is merged last, so it REPLACED the complete bucket the newer copy had just brought (a
+  // copy warmed at 10:02 and shown at 10:07 painted its 10:00 bar as it was at 10:02). A live bar is not the device's and
+  // is never dropped here: a push re-sources the bar it touches (PUSH), and a TICK keeps it LOCAL but marks it `ticked`
+  // (applyTick), a live observation, the same distinction applyRest makes (review of #2549, P2-L1).
+  if (source === 'device' && dev && dev.src === DEV_SRC.LOCAL && !dev.ticked) dev = null
   let st = { ...working, bars, sealedSpans: spans }
   if (devIn && (!dev || devIn.t > dev.t)) {
     if (dev) { ({ bars } = closeDeveloping(st, bars)); st = { ...st, bars } }
@@ -997,6 +1013,12 @@ function _applyLocal(state, action, ctx, source) {
     // Restored seals make a since= delta sound (deltaFrom starts after the newest seal).
     ...(spans !== state.sealedSpans ? { needsFull: false } : {}),
     source,
+    // ⭐ THE ENTRY HOLDS A DEVICE COPY'S ROWS (review of #2549, P2-M1): every device rule (prefetch: the extended-hours
+    // rule, the stamp's freshness, the rolling bucket) keys on this, not on `source`, which the next copy to join (the
+    // lake, a saved copy) rewrites while the device's rows stay. Carried by every later action (finalize spreads the
+    // state); gone with the rows: a saved copy that REPLACES them starts from initialState, an invalidate clears it,
+    // an evicted key comes back as a new entry. Only a device copy sets it: never reached with the store off.
+    ...(source === 'device' ? { deviceRows: true } : {}),
   }, ctx)
 }
 
@@ -1182,6 +1204,8 @@ export function invalidate(state, reason, ctx = {}) {
   return finalize(state, {
     ...fresh, baseRev: state.baseRev, devRev: state.devRev,
     needsFull: true, invalidatedFor: reason || 'invalidate', gen: state.gen + 1,
+    // the device rows go with the rest (only an entry that held them carries the mark: never with the store off)
+    ...(state.deviceRows ? { deviceRows: false } : {}),
   }, ctx)
 }
 

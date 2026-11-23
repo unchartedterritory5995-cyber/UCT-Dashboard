@@ -12,8 +12,10 @@
 //   DEVICE_FORMING_DAILY     D: today's bar from the regular-session minutes, its volume the frames'
 //                            ACCUMULATED day volume (`av`, MINUTE_FRAMES_WITH_AV: the consolidated basis),
 //                            painted only when every frame of the day carried it (fail closed: a sum of
-//                            minute volumes is not the vendor's day volume). W / M: the period in progress
-//                            from the D bars, only when today's forming D bar is in the copy.
+//                            minute volumes is not the vendor's day volume), and only while the regular
+//                            session is open: after the close a day built from minutes is neither forming nor
+//                            the official row, so it is never handed out (live.js, review of #2537 H2). W / M
+//                            are never served to the page (tfs.SERVED_TFS, H1).
 //
 // ⛔ EACH PATH FLIPS ON ITS OWN EVIDENCE, HERE, ONCE (the seed engineer measures the server's bars against
 // the minute rollups, RTH vs extended basis included).

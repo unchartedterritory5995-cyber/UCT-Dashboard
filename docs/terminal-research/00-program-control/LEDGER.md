@@ -5064,3 +5064,24 @@ the unchanged full path. There are 2 deleted `api/` lines, both the rewritten ro
   routes in `api/routers/cot.py`, neither in its closure), so it never even imports `cot_finer`. The older files it keeps
   running lack only what it never invokes.
 - **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.
+
+## Terminal review follow-ups 2 (N-PORT changes across splits, GRPS empty build and busy pause, COT by trader seeding, near the 52-week high) · `fix/terminal-review-followups-2` · 2026-11-22
+
+| | |
+|---|---|
+| classification | **flow-worker stranded: NOT EXERCISED, safe; NO marker bump** |
+| stranded files | `api/services/cot_finer.py` |
+
+- **The change in the stranded file.** `cot_finer.refresh` no longer ends a run on a file of the wrong shape: it records a
+  past year's failure in a new `cot_finer_shape` table (created by `cot_finer.init_db`), goes on to the next file, and
+  `plan` leaves that year out for `SHAPE_RETRY_S` (a week); `store` removes the record once the year is read. `symbol_for`,
+  `CONTRACT_CODES` and the parser are unchanged.
+- **Flow-worker.** Reaches `cot_finer` only through the function-level import inside `cot_service._parse_cftc_stream`
+  (the chain in the row above), which uses `symbol_for` alone. It never runs `refresh`, `plan`, `store`, `init_db` or the
+  scheduled run (registered in `api/main.py`, not in its closure). The older file it keeps running lacks only what it
+  never invokes.
+- **The other files are not in its closure** (`group_stats.py`, `group_stats_calc.py`, `group_positioning.py`,
+  `fund_holders_nport.py`, `fund_holders_nport_data.py`; checked with `reachable_paths`). `reference_corp_actions.py`,
+  which is in it (through `live_massive_router` -> `dividends_calendar`), is not changed: the N-PORT job only calls its
+  existing `fetch_confirmed_splits_strict` and `split_ratio`.
+- **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.

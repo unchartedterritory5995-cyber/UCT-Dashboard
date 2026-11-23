@@ -39,14 +39,16 @@ describe('the live overlay', () => {
     expect(nextSessionISO('2026-11-20')).toBe('2026-11-23')          // Friday -> Monday
   })
 
-  it('a whole day replayed: every seed timeframe equals the SERVER\'s buckets, regular session only', () => {
+  it('a whole day replayed: every intraday seed timeframe equals the SERVER\'s buckets, regular session only; no D bar', () => {
     const { overlay } = replay()
     for (const sym of Object.keys(DAY.expected)) {
       for (const tf of STORED_TFS) {
-        const want = (DAY.expected[sym][tf] || []).filter((b) => tf === 'D' || isRthBar(b[0]))
+        const want = tf === 'D' ? [] : (DAY.expected[sym][tf] || []).filter((b) => isRthBar(b[0]))
         const got = overlay.read(sym, tf, PREV)
-        // the 20:00 frame was the last: everything is complete through then, the day's D bar included
+        // the 20:00 frame was the last: everything is complete through then...
         expect(got.through).toBe(Math.floor(Date.UTC(2026, 10, 19, 1, 0) / 1000))
+        // ...except D: a day built from minutes is never the official daily row (review of #2537 H2,
+        // live.dailyMinutes.test.js), so the day's D bar is the server's to send
         if (!want.length) { expect(got.cols).toBeNull(); continue }
         expect(rows(got.cols)).toEqual(want)
       }
@@ -94,9 +96,11 @@ describe('the live overlay', () => {
   it('joined only across ONE night: a seed ending at another session gets nothing', () => {
     const { overlay } = replay()
     const sym = Object.keys(DAY.expected)[0]
-    expect(overlay.read(sym, 'D', PREV).cols).not.toBeNull()
-    expect(overlay.read(sym, 'D', '2026-11-16')).toBeNull()           // a session would be missing between
-    expect(overlay.read(sym, 'D', DAY.day)).toBeNull()                 // the seed already holds today
+    expect(overlay.read(sym, '5', PREV).cols).not.toBeNull()
+    expect(overlay.read(sym, '5', '2026-11-16')).toBeNull()           // a session would be missing between
+    expect(overlay.read(sym, '5', DAY.day)).toBeNull()                 // the seed already holds today
+    expect(overlay.read(sym, 'D', '2026-11-16')).toBeNull()
+    expect(overlay.read(sym, 'D', DAY.day)).toBeNull()
   })
 
   it('a gap inside the session: nothing is vouched for; outside it: only D is refused', () => {

@@ -40,6 +40,20 @@ the newest REPORT_DATE among its filings in the newest data set, the latest-file
 restates the whole report). Its PREVIOUS report is the newest REPORT_DATE before that, from the same data set or the
 one before it. Late-filing notices (NT NPORT-P) carry no holdings and are skipped.
 
+A FUND'S CHANGE ACROSS A STOCK SPLIT (2026-11-22). A report gives the shares held on its own date, so across a split
+between a fund's two reports the raw difference is the split, not the fund: a 4-for-1 split read every holder that did
+nothing as "added +300%", a reverse split as "cut". So the earlier report's shares are put in the later report's terms:
+multiplied by the ratio (shares after per share before, `reference_corp_actions.split_ratio`) of every split of the
+stock whose execution date is after the earlier report's date and on or before the later one's (`split_table`: the
+split list the quarterly job reads ONCE per build, over the span the two data sets' report dates cover). That adjusted
+figure is the holder's `prior_shares` and goes into `both_prior` (a sold-out fund's own row keeps the shares it
+reported, with its date). A fund's change is NOT COMPARABLE (state `not_comparable`: no add or cut, its change not
+given, left out of `both_now` and `both_prior`) when the split list could not be read, when its earlier report is older
+than the list's window (`SPLIT_SPAN_MAX_DAYS`), or when a split between its reports gives no ratio: never a guessed add
+or cut. Each stock's summary lists the splits applied to it (`splits`). A CUSIP change at a split (common with a
+reverse split) still reads as a new position with no matching sold-out fund: the split list names tickers only, so it
+cannot tie the old CUSIP to the new one, and no rule is invented for it.
+
 MATCHING A HOLDING TO A TICKER (no name or CUSIP is ever matched on its own words alone):
   1. the security is its ISSUER_CUSIP (check digit verified), else the CUSIP inside a US or CA ISIN;
   2. that CUSIP's ticker comes from, in this order:
@@ -79,7 +93,7 @@ import zipfile
 import zlib
 from array import array
 from collections.abc import Mapping
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Callable, Iterable, Optional
 
 #: the tables read, and the columns each one must carry (by NAME, in any order)
@@ -107,7 +121,8 @@ FLUSH_ROWS = 100_000           # holdings buffered before they are appended to t
 JOIN_BATCH = 20_000            # IDENTIFIERS rows joined to the holdings at once
 WRITE_BATCH = 20_000           # index rows written at once
 PCT_SAMPLE = 200_000           # current-report holdings the percent-unit check reads (the first ones read)
-INDEX_VERSION = 1
+SPLIT_SPAN_MAX_DAYS = 400      # the split list reaches back at most this far before the newest current report
+INDEX_VERSION = 2              # 2: changes adjusted across stock splits (2026-11-22); an index of another version is rebuilt
 
 EQUITY_CODES = frozenset({"EC", "EQUITY-COMMON", "EQUITY COMMON"})
 SHARE_UNITS = frozenset({"NS", "NUMBER OF SHARES"})
@@ -117,7 +132,7 @@ TIERS = ("sec_ftd", "fund_ticker", "sec_name")
 _NO_CODE = (1 << 20) - 1          # the IDENTIFIERS join key's code for a holding with no CUSIP (yet)
 _CODE_MASK = (1 << 20) - 1
 _MAX_HOLDING_ID = 1 << 43         # a holding id must fit beside a 20-bit security code in 64 bits
-STATES = ("added", "cut", "unchanged", "new", "no_prior")
+STATES = ("added", "cut", "unchanged", "new", "no_prior", "not_comparable")
 
 _SERIES_ID = re.compile(r"^S\d{9}$")
 _ACCESSION = re.compile(r"^\d{10}-\d{2}-\d{6}$")
@@ -258,6 +273,58 @@ def _to_int(raw) -> Optional[int]:
         return int(str(raw).strip())
     except (TypeError, ValueError):
         return None
+
+
+def split_table(rows: Optional[Iterable], window: Optional[tuple], *, reason: Optional[str] = None) -> dict:
+    """The split list one build uses, from the split reference's rows ({ticker, execution_date, split_from, split_to}:
+    `reference_corp_actions.fetch_confirmed_splits_strict`) over `window` ((from, to) ISO execution dates,
+    `Builder.split_window`): {state 'ok', from, to, events, by_ticker {ticker: ((day ordinal, ratio), ...)}}, the
+    tickers in the site's spelling (`norm_ticker`), a split with no usable ratio as NaN (a change across it is not
+    comparable). `rows` None: the list could not be read, state 'unavailable' (with `reason`); `window` None: no fund
+    has an earlier report, so nothing is compared, state 'not_needed'."""
+    from api.services.reference_corp_actions import split_ratio
+    if window is None:
+        return {"state": "not_needed", "from": None, "to": None, "events": 0, "by_ticker": {}, "reason": None}
+    if rows is None:
+        return {"state": "unavailable", "from": window[0], "to": window[1], "events": 0, "by_ticker": {},
+                "reason": reason}
+    lo, hi = date.fromisoformat(window[0]), date.fromisoformat(window[1])
+    seen: dict = {}
+    for r in rows:
+        if not isinstance(r, dict):
+            continue
+        t, d = norm_ticker(r.get("ticker")), parse_day(str(r.get("execution_date") or "")[:10])
+        if not t or d is None or not lo.isoformat() <= d <= hi.isoformat():
+            continue
+        ratio = split_ratio(r.get("split_from"), r.get("split_to"))
+        seen[(t, date.fromisoformat(d).toordinal())] = float("nan") if ratio is None else float(ratio)
+    by: dict = {}
+    for (t, day), ratio in sorted(seen.items()):
+        by.setdefault(t, []).append((day, ratio))
+    return {"state": "ok", "from": window[0], "to": window[1], "events": len(seen),
+            "by_ticker": {t: tuple(v) for t, v in by.items()}, "reason": None}
+
+
+def _split_factors(t_arr, s_arr, mask, split_of_tick: dict, prev_day, cur_day, applied: dict):
+    """Per row (stock `t_arr`, fund `s_arr`): the product of the ratios of the stock's splits dated after the fund's
+    earlier report and on or before its later one; 1.0 with none, NaN when one of them has no ratio. Only the rows in
+    `mask` are looked at (the rest are 1.0). `applied` collects {stock: {(day ordinal, ratio)}} of the splits used."""
+    import numpy as np
+    out = np.ones(len(t_arr))
+    if not split_of_tick or not len(t_arr):
+        return out
+    keys = np.fromiter(split_of_tick, dtype=np.int64, count=len(split_of_tick))
+    for j in np.nonzero(mask & np.isin(t_arr, keys))[0].tolist():
+        t, s = int(t_arr[j]), int(s_arr[j])
+        lo, hi = int(prev_day[s]), int(cur_day[s])
+        f = 1.0
+        for day, ratio in split_of_tick[t]:
+            if lo < day <= hi:
+                f *= ratio
+                if ratio == ratio:
+                    applied.setdefault(t, set()).add((day, ratio))
+        out[j] = f
+    return out
 
 
 def _text(raw) -> Optional[str]:
@@ -512,6 +579,17 @@ class Builder:
         del by_series
         if wanted:
             self._read_holdings(zf, members, wanted, label)
+
+    def split_window(self) -> Optional[tuple]:
+        """(from, to), ISO: the execution dates a split must fall in to sit between a fund's two reports: from the day
+        after the earliest previous report (but no earlier than `SPLIT_SPAN_MAX_DAYS` before the newest current
+        report) to the newest current report. None when no fund has a previous report (no change is compared)."""
+        if not self.prev or not self.cur:
+            return None
+        newest = max(date.fromisoformat(self.reps[r]["report_date"]) for r in self.cur.values())
+        earliest = min(date.fromisoformat(self.reps[r]["report_date"]) for r in self.prev.values())
+        lo = max(earliest + timedelta(days=1), newest - timedelta(days=SPLIT_SPAN_MAX_DAYS))
+        return lo.isoformat(), newest.isoformat()
 
     def _add_rep(self, rec: dict, s: int) -> int:
         """Keep what the index uses of a report (a trust's name once for all its funds)."""
@@ -806,11 +884,14 @@ class Builder:
 
     # ── the index, partition by partition ──
     def finish(self, path: str, meta: Optional[dict] = None, ftd_pairs: Optional[dict] = None,
-               sec_names: Optional[dict] = None) -> dict:
+               sec_names: Optional[dict] = None, splits: Optional[dict] = None) -> dict:
         """Write the whole index to `path` (a new file; any file there is replaced) and return what it holds:
-        {stocks (a read-only view of the file), funds, coverage, pct_units, stats, data_sets, periods, bytes}.
-        A partition's rows are loaded, worked out, written and let go before the next one is loaded."""
+        {stocks (a read-only view of the file), funds, coverage, pct_units, stats, data_sets, periods, splits, bytes}.
+        A partition's rows are loaded, worked out, written and let go before the next one is loaded. `splits` is the
+        build's split list (`split_table`); without one, every change that needs it is not comparable."""
         import numpy as np
+        if not isinstance(splits, dict):
+            splits = split_table(None, self.split_window(), reason="not_read")
         ticker_of, tier_of, votes_of, conflict = self.match(ftd_pairs, sec_names)
         self.votes, self.names = {}, {}
         pct_units, pct_factor = self._pct_units(np.frombuffer(self._sample["rep"], dtype=np.int32).copy(),
@@ -845,6 +926,16 @@ class Builder:
         day_of_series = np.zeros(len(self.series.items), dtype=np.int64)
         for s, r in self.cur.items():
             day_of_series[s] = date.fromisoformat(self.reps[r]["report_date"]).toordinal()
+        prev_day_of_series = np.zeros(len(self.series.items), dtype=np.int64)
+        for s, r in self.prev.items():
+            prev_day_of_series[s] = date.fromisoformat(self.reps[r]["report_date"]).toordinal()
+        # a fund's two reports can be compared only when the split list was read and reaches back past the earlier one
+        covered = np.zeros(len(self.series.items), dtype=bool)
+        if splits.get("state") == "ok":
+            covered = has_prev & (prev_day_of_series >= date.fromisoformat(splits["from"]).toordinal() - 1)
+        split_of_tick = {tix[t]: ev for t, ev in (splits.get("by_ticker") or {}).items() if t in tix}
+        split_meta = {"state": splits.get("state"), "from": splits.get("from"), "to": splits.get("to"),
+                      "events": splits.get("events"), "reason": splits.get("reason")}
 
         n_kind = 3 + len(TIERS)
         cov_rows, cov_value = np.zeros(n_kind, dtype=np.int64), np.zeros(n_kind)
@@ -873,7 +964,7 @@ class Builder:
                 here, f_per, s_per = self._partition(con, rec, T, tickers, is_cur, is_prev, series_of, tick_of_cus,
                                                      kind_of_cus, cus_of_tick, has_prev, has_cur, day_of_series,
                                                      pct_factor, state_names, tier_of_tick, votes_of_tick,
-                                                     cov_rows, cov_value)
+                                                     cov_rows, cov_value, prev_day_of_series, covered, split_of_tick)
                 funds_per[here] += f_per
                 sold_per[here] += s_per
                 del rec
@@ -910,7 +1001,7 @@ class Builder:
                        "funds": len(self.cur), "funds_with_previous": len(self.prev)}
             full_meta = {**(meta or {}), "version": INDEX_VERSION, "coverage": coverage, "pct_units": pct_units,
                          "periods": periods, "stats": dict(self.stats), "data_sets": dict(self.data_sets),
-                         "keep_rows": KEEP_ROWS, "keep_sold": KEEP_SOLD}
+                         "keep_rows": KEEP_ROWS, "keep_sold": KEEP_SOLD, "splits": split_meta}
             con.executemany("INSERT INTO meta VALUES (?, ?)", ((k, json.dumps(v)) for k, v in full_meta.items()))
             con.commit()
             if dropped:
@@ -919,11 +1010,11 @@ class Builder:
             con.close()
         return {"stocks": _IndexStocks(path), "funds": funds, "coverage": coverage, "pct_units": pct_units,
                 "stats": dict(self.stats), "data_sets": dict(self.data_sets), "periods": periods,
-                "bytes": os.path.getsize(path)}
+                "splits": split_meta, "bytes": os.path.getsize(path)}
 
     def _partition(self, con, rec, T, tickers, is_cur, is_prev, series_of, tick_of_cus, kind_of_cus, cus_of_tick,
                    has_prev, has_cur, day_of_series, pct_factor, state_names, tier_of_tick, votes_of_tick,
-                   cov_rows, cov_value):
+                   cov_rows, cov_value, prev_day_of_series, covered, split_of_tick):
         """Every stock of one partition, worked out and written. Returns (the stocks present, as indices into
         `tickers`; their funds; their sold-out funds)."""
         import numpy as np
@@ -960,13 +1051,23 @@ class Builder:
         prior_bal = np.where(found, p_bal[pos] if len(pkey) else 0.0, np.nan)
         prior_val = np.where(found, p_val[pos] if len(pkey) else 0.0, np.nan)
         known = has_prev[g_s] if len(g_s) else np.zeros(0, dtype=bool)
+        # across a split between the fund's two reports, its earlier shares in the later report's terms; a change that
+        # cannot be put in those terms (no split list, a report older than its window, a split with no ratio) is
+        # not comparable
+        cov = covered[g_s] if len(g_s) else np.zeros(0, dtype=bool)
+        applied: dict = {}
+        factor = _split_factors(g_t, g_s, found & cov, split_of_tick, prev_day_of_series, day_of_series, applied)
+        comparable = cov & ~np.isnan(factor)
+        prior_bal = np.where(found & comparable, prior_bal * factor, prior_bal)
         state = np.full(len(g_t), 4, dtype=np.int8)                      # no_prior
         diff = g_bal - np.nan_to_num(prior_bal)
+        ok = known & found & comparable
         state[known & ~found] = 3                                        # new
-        state[known & found & (diff > 0.5)] = 0                          # added
-        state[known & found & (diff < -0.5)] = 1                         # cut
-        state[known & found & (np.abs(diff) <= 0.5)] = 2                 # unchanged
-        del pkey, q, pos, diff
+        state[ok & (diff > 0.5)] = 0                                     # added
+        state[ok & (diff < -0.5)] = 1                                    # cut
+        state[ok & (np.abs(diff) <= 0.5)] = 2                            # unchanged
+        state[known & found & ~comparable] = 5                           # not comparable
+        del pkey, q, pos, diff, factor
 
         # sold out: held at the previous report, none at a current report (_group keeps (stock, fund) order)
         gkey = g_t * (1 << 32) + g_s
@@ -979,6 +1080,14 @@ class Builder:
         sold_idx = np.nonzero(sold_mask)[0]
         sold_t = p_t[sold_idx]
         del gkey, sold_mask
+        # a sold-out fund's earlier shares, in its later report's terms, for `both_prior` (its own row keeps what it
+        # reported, with the date); one whose shares cannot be put in those terms is left out of `both_prior`
+        sold_s = pk_s[sold_idx]
+        s_cov = covered[sold_s] if len(sold_s) else np.zeros(0, dtype=bool)
+        s_factor = _split_factors(sold_t, sold_s, s_cov, split_of_tick, prev_day_of_series, day_of_series, applied)
+        s_ok = s_cov & ~np.isnan(s_factor)
+        sold_prior = p_bal[sold_idx] * np.where(s_ok, s_factor, 1.0)
+        del sold_s, s_cov, s_factor
 
         # this partition's stocks, over EVERY matched fund; arrays sized to the stocks present here, not to all
         present = np.unique(np.concatenate([g_t, sold_t])) if (len(g_t) or len(sold_t)) else np.zeros(0, dtype=np.int64)
@@ -991,9 +1100,10 @@ class Builder:
         shares = np.bincount(lg, weights=g_bal, minlength=L)
         value = np.bincount(lg, weights=np.where(vok, g_val, 0.0), minlength=L)
         missing = np.bincount(lg, weights=(~vok).astype(np.float64), minlength=L)
-        both_now = np.bincount(lg[known], weights=g_bal[known], minlength=L)
-        both_prior = (np.bincount(lg[known & found], weights=prior_bal[known & found], minlength=L)
-                      + np.bincount(ls, weights=p_bal[sold_idx], minlength=L))
+        both = known & (~found | comparable)                            # a new position, or a comparable change
+        both_now = np.bincount(lg[both], weights=g_bal[both], minlength=L)
+        both_prior = (np.bincount(lg[ok], weights=prior_bal[ok], minlength=L)
+                      + np.bincount(ls[s_ok], weights=sold_prior[s_ok], minlength=L))
         by_state = [np.bincount(lg[state == k], minlength=L) for k in range(len(STATES))]
         day_from = np.full(L, np.iinfo(np.int64).max, dtype=np.int64)
         day_to = np.zeros(L, dtype=np.int64)
@@ -1036,6 +1146,8 @@ class Builder:
                 "period_to": date.fromordinal(int(day_to[i])).isoformat() if funds else None,
                 "tier": tier_of_tick[t], "votes": votes_of_tick[t] or None,
             }
+            if t in applied:
+                summary["splits"] = [[date.fromordinal(d).isoformat(), r] for d, r in sorted(applied[t])]
             stock_rows.append((sym, json.dumps(summary, separators=(",", ":"))))
             for r, j in enumerate(top[row_edges[i]:row_edges[i + 1]].tolist()):
                 holder_rows.append((sym, r, int(g_s[j]), float(g_bal[j]), opt(g_val[j]), opt(g_pct[j]),
