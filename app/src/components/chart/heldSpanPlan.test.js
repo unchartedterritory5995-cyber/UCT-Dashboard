@@ -10,7 +10,7 @@ import { fullBarsFor } from '../../utils/barsBackfill'
 const SECS = 1795000000
 
 describe('the held span starts at the timeframe’s full target', () => {
-  it.each([['1', 20000], ['5', 40000], ['15', 40000], ['30', 40000], ['60', 40000], ['D', 20000], ['W', 5000], ['M', 2000], ['240', 10000]])(
+  it.each([['1', 40000], ['5', 40000], ['15', 40000], ['30', 40000], ['60', 40000], ['D', 20000], ['W', 5000], ['M', 2000], ['240', 10000]])(
     '%s: %i rows from the first render', (tf, span) => {
       expect(heldFloorFor(tf)).toBe(fullBarsFor(tf))
       expect(heldSpanOn(tf, 0, null, 600)).toBe(span)
@@ -33,6 +33,21 @@ describe('the held span starts at the timeframe’s full target', () => {
   it('a pan beyond the target still raises it (the chart’s own rows, on this timeframe)', () => {
     expect(heldSpanOn('5', 45000, '5', 600)).toBe(60000)
     expect(heldSpanOn('5', 45000, '15', 600)).toBe(40000)       // another timeframe's count never does
+  })
+
+  it('⭐ 1m asks ONE page through the backfill AND the live minutes after it (2026-11-23: no second 40,000-row ask)', () => {
+    const spans = new Set()
+    for (const loaded of [600, 5000, 19990, 20000, 20008, 20057, 20380]) spans.add(heldSpanOn('1', loaded, '1', 600))
+    expect([...spans]).toEqual([40000])
+    // ⛔ CONTROL: without the headroom the target sat on a rung and the live minutes climbed to the next one
+    const noHeadroom = new Set([600, 20000, 20008].map((n) => heldSpanFor(Math.max(n, heldFloorFor('1')), 600)))
+    expect([...noHeadroom].sort()).toEqual([20000, 40000])
+  })
+
+  it('the headroom moves no other timeframe’s rung', () => {
+    for (const tf of ['5', '15', '30', '60', 'D', 'W', 'M', '240']) {
+      expect(heldSpanOn(tf, 0, null, 600)).toBe(heldSpanFor(heldFloorFor(tf), 600))
+    }
   })
 
   it('the daily rows read with it are asked at one depth too', () => {
