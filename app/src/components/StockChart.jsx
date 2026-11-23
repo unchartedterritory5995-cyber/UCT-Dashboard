@@ -2977,7 +2977,7 @@ const FUTURE_MIN = { '1': 90, '5': 30, '15': 30, '30': 24, '60': 24, 'D': 40, 'W
 // series keys its bars: daily = the exact day, weekly = that ISO week's Friday,
 // monthly = the 1st. Lets an upcoming-earnings date line up with a whitespace slot
 // so the marker docks instead of pinning to the edge. (Mirrors computeBarTime.)
-function bucketSlot(tf, dateStr) {
+export function bucketSlot(tf, dateStr) {
   const s = String(dateStr).slice(0, 10)
   if (tf === 'W') {
     const dt = new Date(`${s}T00:00:00Z`)
@@ -3559,7 +3559,7 @@ function bucketEventDate(dstr, tf) {
 // Earnings events (daily/weekly only) with the reporting bar's LOW, so the badge
 // primitive can hug just under the candle and click-matching has the dates. The
 // date string maps 1:1 to a daily/weekly bar time (adjustTime is identity there).
-function earningsEventsOf(markersData, earningsOn, resolvedTf, filteredBars, _nextEarnOn) {
+export function earningsEventsOf(markersData, earningsOn, resolvedTf, filteredBars, _nextEarnOn) {
   // parseTf, NOT the hand-written 5-native-code literal (see buildDeskMentionMarkers
   // above): TF_MENU also offers '45'/'120'/'240', which the literal let through as
   // daily-like, mixing a date-string marker time into this numeric-time mergedMarkers
@@ -3601,7 +3601,7 @@ function earningsEventsOf(markersData, earningsOn, resolvedTf, filteredBars, _ne
   return out
 }
 
-function splitEventsOf(markersData, splitsOn, resolvedTf, filteredBars) {
+export function splitEventsOf(markersData, splitsOn, resolvedTf, filteredBars) {
   const isDailyWeekly = parseTf(resolvedTf).minutes == null
   if (!splitsOn || !Array.isArray(markersData?.splits) || !isDailyWeekly || !filteredBars?.length) return []
   const barByBucket = new Map()
@@ -3618,7 +3618,7 @@ function splitEventsOf(markersData, splitsOn, resolvedTf, filteredBars) {
   return out
 }
 
-function dividendEventsOf(markersData, dividendsOn, resolvedTf, filteredBars) {
+export function dividendEventsOf(markersData, dividendsOn, resolvedTf, filteredBars) {
   const isDailyWeekly = parseTf(resolvedTf).minutes == null
   if (!dividendsOn || !Array.isArray(markersData?.dividends) || !isDailyWeekly || !filteredBars?.length) return []
   const barByBucket = new Map()
