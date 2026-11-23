@@ -22,7 +22,7 @@ describe('recordPaint', () => {
 
 // (2026-11-23) the same record is handed to ONE listener, for a chart that paints under an identity
 // (PaintMemberContext): the switch-speed instrument (lib/switchSpeed.js).
-describe('recordPaint hands a member chart's pass to the listener', () => {
+describe("recordPaint hands a member chart's pass to the listener", () => {
   beforeEach(() => { delete window.__uctPaints })
   afterEach(() => { onChartPaint(null) })
 
