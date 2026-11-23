@@ -9,7 +9,14 @@
 //   W2 flush() writes what waits, at once (pagehide / hidden)
 //   W3 two answers inside the debounce: ONE write, of the newest snapshot
 //   W4 bounded: past WRITE_SOON_MAX waiting, the oldest is written at once
-//   W5 the final cache equals the immediate path's (a full answer, a delta, a series past the 3,000-row tail record)
+//   W5 the final cache equals TODAY'S, record for record (review of #2630, MEDIUM-1): today writes an unwatched key at
+//      each ANSWER only, so a full answer past the 3,000-row tail record and a delta are written, and a scroll-back that
+//      lands inside the debounce (the neighbour hold's deepening, 500 ms after the press; a lake join) is NOT: the pending
+//      write is the answer's own snapshot, never the registry's at write time
+//   W5b two answers COALESCED inside the debounce (one write, where today made two): the tail record equals today's, and
+//      the series the cache gives back (the tail record and its history segment) equals today's. (The @hist record itself
+//      can hold one row more than today's: today's second write skipped the segment, the one coalesced write carries the
+//      newer series; the extra row is one the tail record holds too.)
 //   W6 the app's store flushes on pagehide, on a hidden document and on a hidden desktop desk
 import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest'
 import { createRegistry } from './registry'
@@ -139,12 +146,13 @@ describe("a warm answer's write waits for the debounce and idle", () => {
     expect(r.persist.stats().soon).toBe(WRITE_SOON_MAX)
   })
 
-  it('W5 the final cache equals the immediate path (a full answer, a delta, a series past the 3,000-row tail record)', async () => {
+  it("W5 the final cache equals TODAY'S, record for record: each answer is written, a scroll-back inside the debounce is not", async () => {
     const k = keyOf({ sym: 'EQL', tf: '5' })
+    // [the step, whether it is an ANSWER (store.ensure writes it: today writeOnce, now writeSoon)]
     const steps = [
-      (reg) => reg.dispatch(k, full(k, 'EQL', ALL.slice(-2000, -1))),
-      (reg) => reg.dispatch(k, { type: ACTION.REST_DELTA, key: k, payload: { ticker: 'EQL', tf: '5', bars: ALL.slice(-1), since: ALL[ALL.length - 2].t } }),
-      (reg) => reg.dispatch(k, { type: ACTION.SCROLL_BACK, key: k, payload: { bars: ALL.slice(0, -1999) } }),
+      [(reg) => reg.dispatch(k, full(k, 'EQL', ALL.slice(-4000, -1))), true],   // past the 3,000-row tail: an @hist too
+      [(reg) => reg.dispatch(k, { type: ACTION.REST_DELTA, key: k, payload: { ticker: 'EQL', tf: '5', bars: ALL.slice(-1), since: ALL[ALL.length - 2].t } }), true],
+      [(reg) => reg.dispatch(k, { type: ACTION.SCROLL_BACK, key: k, payload: { bars: ALL.slice(0, -3999) } }), false],
     ]
     const records = () => {
       const out = {}
@@ -155,16 +163,45 @@ describe("a warm answer's write waits for the debounce and idle", () => {
     vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(NOW)
     let reg = createRegistry({ ctx: () => ({ nowMs: NOW }) })
     let p = createPersist({ registry: reg })
-    for (const step of steps) { step(reg); await p.writeOnce(k) }
+    for (const [step, answer] of steps) { step(reg); if (answer) await p.writeOnce(k) }
     const today = records()
     expect(Object.keys(today).sort()).toEqual(['EQL_5', 'EQL_5@hist'])   // the tail record and the @hist segment
     fakeDb._clear(); memClear()
     // writeSoon: coalesced, then flushed
     reg = createRegistry({ ctx: () => ({ nowMs: NOW }) })
     p = createPersist({ registry: reg, idle: () => {} })
-    for (const step of steps) { step(reg); p.writeSoon(k) }
+    // each answer's debounce runs out before the next answer (flush); the scroll-back lands inside the last one's
+    for (const [step, answer] of steps) { if (answer) await p.flush(); step(reg); if (answer) p.writeSoon(k) }
+    expect(reg.peek(k).bars.length).toBe(ALL.length)          // (the registry holds the deepened series...)
     await p.flush()
-    expect(records()).toEqual(today)
+    expect(records()).toEqual(today)                           // (...the cache holds what today's answers wrote)
+  })
+
+  it("W5b two answers coalesced inside the debounce: today's tail record, and the series the cache gives back is today's", async () => {
+    const k = keyOf({ sym: 'EQL', tf: '5' })
+    const steps = [
+      [(reg) => reg.dispatch(k, full(k, 'EQL', ALL.slice(-4000, -1))), true],
+      [(reg) => reg.dispatch(k, { type: ACTION.REST_DELTA, key: k, payload: { ticker: 'EQL', tf: '5', bars: ALL.slice(-1), since: ALL[ALL.length - 2].t } }), true],
+      [(reg) => reg.dispatch(k, { type: ACTION.SCROLL_BACK, key: k, payload: { bars: ALL.slice(0, -3999) } }), false],
+    ]
+    const tailRec = () => [...fakeDb._rows()].find(([key]) => key === 'EQL_5')?.[1]?.bars.map((b) => [b.t, b.o, b.h, b.l, b.c, b.v])
+    const readBack = () => {
+      const byT = new Map()
+      for (const [key, rec] of fakeDb._rows()) if (key.startsWith('EQL_')) for (const b of rec.bars) byT.set(b.t, [b.t, b.o, b.h, b.l, b.c, b.v])
+      return [...byT.values()].sort((a, b) => a[0] - b[0])
+    }
+    vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(NOW)
+    let reg = createRegistry({ ctx: () => ({ nowMs: NOW }) })
+    let p = createPersist({ registry: reg })
+    for (const [step, answer] of steps) { step(reg); if (answer) await p.writeOnce(k) }
+    const today = { tail: tailRec(), series: readBack() }
+    fakeDb._clear(); memClear()
+    reg = createRegistry({ ctx: () => ({ nowMs: NOW }) })
+    p = createPersist({ registry: reg, idle: () => {} })
+    for (const [step, answer] of steps) { step(reg); if (answer) p.writeSoon(k) }   // both answers in one debounce
+    await p.flush()
+    expect({ tail: tailRec(), series: readBack() }).toEqual(today)
+    expect(today.series.length).toBe(4000)                     // (the answers' rows, not the scroll-back's)
   })
 
   it('W6 the app\'s store flushes on pagehide, on a hidden document and on a hidden desktop desk', async () => {

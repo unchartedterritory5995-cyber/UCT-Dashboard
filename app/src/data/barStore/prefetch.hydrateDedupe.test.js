@@ -7,7 +7,9 @@
 //   D1 three concurrent background hydrates of a new key: ONE cache read
 //   D2 an urgent hydrate (the switch) does not join a background one: its own read, on its own lane
 //   D3 a hydrate after the first has settled (the cache held nothing) reads again
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+//   D4 (review of #2630) a hydrate that never settles (an IndexedDB callback lost) holds the key for HYDRATE_JOIN_MAX_MS at
+//      most: a later caller then starts its own read
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { createBarStore } from './index'
 import { createPrefetch } from './prefetch'
 import { keyOf } from './types'
@@ -17,6 +19,7 @@ import { memClear } from '../../utils/barsMemCache'
 vi.mock('../../hooks/useTickerMeta', () => ({ prefetchTickerMeta: () => {} }))
 
 beforeEach(() => { memClear() })
+afterEach(() => { vi.useRealTimers() })
 
 function boot() {
   const pending = []
@@ -62,6 +65,28 @@ describe('one hydrate in flight per key', () => {
     await w.settle()
     expect(w.lanes).toEqual(['background', 'urgent'])
     expect(w.io.idbGet).toHaveBeenCalledTimes(2)
+    w.land()
+    await w.settle()
+    w.store.dispose()
+  })
+
+  it('D4 a hydrate that never settles holds the key for a bounded time: a later caller then reads again', async () => {
+    const T0 = Date.UTC(2026, 10, 10, 15, 0)
+    vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(T0)
+    const w = boot()                                            // the first read is never landed
+    w.pf.warmMemFromIDB(['NEW'], ['5'])
+    await w.settle()
+    vi.setSystemTime(T0 + 500)
+    w.pf.warmMemFromIDB(['NEW'], ['5'])                         // inside the bound: it joins
+    await w.settle()
+    expect(w.io.idbGet).toHaveBeenCalledTimes(1)
+    vi.setSystemTime(T0 + 10_000)
+    w.pf.warmMemFromIDB(['NEW'], ['5'])                         // past it: its own read
+    await w.settle()
+    expect(w.io.idbGet).toHaveBeenCalledTimes(2)
+    const { HYDRATE_JOIN_MAX_MS } = await import('./prefetch')
+    expect(HYDRATE_JOIN_MAX_MS).toBeGreaterThan(500)
+    expect(HYDRATE_JOIN_MAX_MS).toBeLessThanOrEqual(10_000)
     w.land()
     await w.settle()
     w.store.dispose()

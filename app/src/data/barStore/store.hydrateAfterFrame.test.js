@@ -13,6 +13,10 @@
 //   H6 the floor is the switch's own "rows that cover the view" (hooks/useSymbolHandoff COVER_ROWS)
 //   H7 the final entry equals the immediate path's (a real cache: a 3,000-row tail and a 5,000-row history record)
 //   H8 store ON: a key the device holds (no server answer) is read at once, as today
+// ...and from the review of #2630:
+//   H9 THE FIRST FRAME IS TODAY'S: the mem record's older rows still join in the subscribe's own task (only the IndexedDB
+//      reads, asynchronous today too, wait for the frame): an EMA 200 and an SMA 300 over the default view, identical
+//   H10 the floor is inclusive: a 599-row answer is read at once, a 600-row one waits for the frame
 import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -21,7 +25,7 @@ import { keyOf, ACTION } from './types'
 import { installFakeIndexedDB } from './testing/fakeIndexedDB'
 import { fakeStream, fakeCandle, fakePrices } from './testing/fakeFeeds'
 import { etUnix } from './__fixtures__/seededSeries'
-import { memClear } from '../../utils/barsMemCache'
+import { memClear, memPutMonotonic } from '../../utils/barsMemCache'
 import { idbPutMonotonic, idbPutHistory, idbGet, idbGetHistoryEntry } from '../../utils/barsIDB'
 
 vi.mock('../../hooks/useTickerMeta', () => ({ prefetchTickerMeta: () => {} }))
@@ -58,6 +62,15 @@ function boot({ io, frames, device, afterPaint } = {}) {
   return store
 }
 const settle = async () => { for (let i = 0; i < 20; i++) await Promise.resolve() }
+/** What a chart draws over the default view (the last 390 rows): an EMA 200 (unbounded memory) and an SMA 300. */
+function studies(rows) {
+  const closes = rows.map((r) => r[4])
+  const k = 2 / 201
+  let e = null
+  const ema = closes.map((c) => (e = e == null ? c : c * k + e * (1 - k)))
+  const sma = closes.map((_, i) => (i < 299 ? null : closes.slice(i - 299, i + 1).reduce((a, b) => a + b, 0) / 300))
+  return { ema: ema.slice(-390), sma: sma.slice(-390) }
+}
 const runFrames = (frames) => { for (const fn of frames.splice(0)) fn() }
 
 let fakeDb
@@ -171,6 +184,42 @@ describe("a chart's subscribe reads the bar cache after the frame when the key a
     expect(deferred.bars.length).toBeGreaterThan(ANSWER.length)   // the depth did join
     expect(rowsOf(deferred)).toEqual(rowsOf(immediate))
     expect(deferred.depth).toBe(immediate.depth)
+  })
+
+  it("H9 the first frame is today's: mem's older rows join in the subscribe's own task (EMA 200 and SMA 300, identical)", async () => {
+    const k = keyOf({ sym: 'AAA', tf: '5' })
+    const answer = ALL.slice(-650)
+    const run = (afterPaint) => {
+      memClear()
+      memPutMonotonic('AAA', '5', ALL.slice(-3000), { savedAt: NOW - 60_000 })    // a deeper copy in mem
+      const io = { idbGet: vi.fn(async () => null), idbGetHistoryEntry: vi.fn(async () => null), idbPutMonotonic: async () => null, idbPutHistory: async () => null, memPutMonotonic: () => {} }
+      const frames = []
+      const store = boot({ io, frames, afterPaint })
+      store.registry.dispatch(k, rest(k, 'AAA', answer))
+      const off = store.subscribe(k, () => {})
+      const first = rowsOf(store.peek(k))                     // the subscribe's own task: what the first frame draws
+      const readNow = io.idbGet.mock.calls.length
+      off(); store.dispose()
+      return { first, readNow }
+    }
+    const immediate = run((fn) => { fn(); return () => false })
+    const deferred = run(undefined)
+    expect(immediate.first.length).toBeGreaterThan(answer.length)   // (precondition: mem's older rows join a held answer)
+    expect(deferred.readNow).toBe(0)                                // the IndexedDB reads still wait for the frame
+    expect(deferred.first.length).toBe(immediate.first.length)
+    expect(studies(deferred.first)).toEqual(studies(immediate.first))
+  })
+
+  it('H10 the floor is inclusive: a 599-row answer is read at once, a 600-row one waits for the frame', async () => {
+    for (const [n, waits] of [[599, false], [600, true]]) {
+      const io = spyIO(); const frames = []
+      const store = boot({ io, frames })
+      const k = keyOf({ sym: 'AAA', tf: '5' })
+      store.registry.dispatch(k, rest(k, 'AAA', ANSWER.slice(-n)))
+      const off = store.subscribe(k, () => {})
+      expect([n, frames.length, io.idbGet.mock.calls.length]).toEqual([n, waits ? 1 : 0, waits ? 0 : 1])
+      off(); store.dispose()
+    }
   })
 
   it('H8 store ON: a key the device holds (no server answer) is read at once', async () => {
