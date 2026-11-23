@@ -58,6 +58,7 @@
 // answer to "which scale do the candles own", consumed here so that the
 // complete option set can name `priceScaleId` even when a caller supplies no
 // placement at all.
+import { withLevelsInAutoscale } from './hlineLevels'
 import { ALPHA, withAlpha, withAlphaByte } from '../designTokens'
 import { fromGradient, objectHexToPacked, packedToObjectHex } from './runtime/colours'
 import { withObjectTransparency } from './ast/objectProgram'
@@ -1276,7 +1277,7 @@ export function planBindings(instances, registry, prevBindings, opts) {
       // cannot mean has to be clamped HERE too — otherwise the plan would create
       // a candlestick the binder then refuses to feed.
       const srcCap = sourceCapability ? sourceCapability(inst) : null
-      const plot = presentedPlot(withThemeColour(resolvePlotForInstance(rawPlot, inst.inputs,
+      const plot = withLevelsInAutoscale(presentedPlot(withThemeColour(resolvePlotForInstance(rawPlot, inst.inputs,
         { pickReplacesOpacity: !!(def && def.meta && def.meta.recurrenceOrigin === 'pine') }), theme), inst,
         { ohlcCapable: !!(ohlcCapable && ohlcCapable(inst)),
           candles,
@@ -1286,7 +1287,10 @@ export function planBindings(instances, registry, prevBindings, opts) {
           // creates a candlestick the binder then correctly refuses to feed — an
           // empty series where a line belongs, which is worse than either outcome.
           sourceDefaultStyle: srcCap ? srcCap.defaultStyle : null,
-          allowedStyles: srcCap ? srcCap.allowedStyles : null })
+          allowedStyles: srcCap ? srcCap.allowedStyles : null }),
+        // e96 (Q-HLINE-2): the pane's scale holds every Pine level this instance draws, as TradingView's does;
+        // on every data plot of the instance, since any of them may carry the guides (`reassignOrphanedGuides`)
+        guides)
       const pk = poolKey(plot)
       if (!pk) continue                       // unmappable style: bind nothing
       const key = bindingKey(inst.instanceId, plot.key)

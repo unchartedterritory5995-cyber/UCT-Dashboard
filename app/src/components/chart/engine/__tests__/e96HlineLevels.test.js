@@ -13,7 +13,7 @@ import process from 'node:process'
 import { translatePine } from '../ast/pine'
 import { memberPaneDefinition, __forceRuntimeLaneForTests, WITHHELD_COLOUR_INK } from '../../builder/memberPane/memberPaneDefinition'
 import * as registry from '../nativeRegistry'
-import { planBindings } from '../pool'
+import { planBindings, seriesOptionsForPlot } from '../pool'
 import { hlineGuides, HLINE_DEFAULTS, hlineKeyOf, hlineOrdinalOf } from '../hlineLevels'
 import { compareBands } from '../../../../../../tools/vendor_harness/compare.mjs'
 import { loadCapture, gradeCapture } from './vendorHarness/harness'
@@ -180,6 +180,46 @@ describe('the member door draws them, on both doors', () => {
     expect(guidesOf(d)).toEqual([])
     const t = d.translation
     expect(t.notes.find((n) => n.code === 'pine:chart-only').message).toMatch(/^`hline` is not drawn: /)
+  })
+})
+
+describe('⭐⭐ the pane\'s scale holds every drawn level (Q-HLINE-2, answered: TradingView\'s autoscale includes them)', () => {
+  // The capture (`vw-hline-autoscale` RDDT 1D, FRED RS 2026-11-23 11:47Z): an RSI with levels at 1000 and -500; the
+  // study pane read -731.97 .. 1579.93, both levels inside. The reference is the probe's own two levels.
+  const PROBE = fs.readFileSync(path.join(REPO, 'tools/visual_conformance/probes/vw-hline-autoscale.pine'), 'utf8').replace(/\r\n/g, '\n')
+  const planned = (source, id, inputs = {}) => {
+    withPanes()
+    const d = memberPaneDefinition({ source, id, name: 't' })
+    expect(d.ok, d.reason).toBe(true)
+    const { installed, errors } = registry.installUserDefinitions([d.definition])
+    expect(errors).toEqual([])
+    try {
+      const reg = { getDefinition: (k) => (k === installed[0].id ? installed[0] : null) }
+      return planBindings([{ instanceId: `i:${id}`, defId: installed[0].id, inputs }], reg, null, {}).bind
+    } finally {
+      registry.uninstallUserDefinition(installed[0].id)
+    }
+  }
+  it('every data series of the instance includes the probe\'s two levels, so an RSI pane spans -500 .. 1000', () => {
+    const bind = planned(PROBE, 'u_e96_as1')
+    expect(bind.length).toBeGreaterThan(0)
+    for (const b of bind) expect(b.plot.autoscaleInclude, b.plot.key).toEqual({ min: -500, max: 1000 })
+    const opts = seriesOptionsForPlot(bind[0].plot, {})
+    const got = opts.autoscaleInfoProvider(() => ({ priceRange: { minValue: 20, maxValue: 80 } }))
+    expect(got.priceRange).toEqual({ minValue: -500, maxValue: 1000 })
+  })
+  it('a setting-bound level widens the scale at the member\'s own value', () => {
+    const src = v(6, 'top = input.int(1000, "Top")\nplot(ta.rsi(close, 14), "RSI")\nhline(top, "Top")\nhline(-500, "Bottom")')
+    expect(planned(src, 'u_e96_as2')[0].plot.autoscaleInclude).toEqual({ min: -500, max: 1000 })
+    expect(planned(src, 'u_e96_as3', { top: 1200 })[0].plot.autoscaleInclude).toEqual({ min: -500, max: 1200 })
+  })
+  it('the runtime document\'s pane holds them too (the same planner, both doors)', () => {
+    __forceRuntimeLaneForTests(true)
+    const bind = planned(PROBE, 'u_e96_as5')
+    expect(bind.some((b) => b.plot.autoscaleInclude && b.plot.autoscaleInclude.min === -500 && b.plot.autoscaleInclude.max === 1000)).toBe(true)
+  })
+  it('CONTROL — a script that draws no level frames its pane as before', () => {
+    expect(planned(v(6, 'plot(ta.rsi(close, 14), "RSI")'), 'u_e96_as4')[0].plot.autoscaleInclude).toBeUndefined()
   })
 })
 

@@ -172,6 +172,15 @@
    "to": "    out.push({ name: n.title, note: hlineNotReproducedNote(n), line: n.line })",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/e96HlineLevels.test.js",
    "expectRed": "WITHHELD part"
+  },
+  {
+   "id": "HL11",
+   "mutant": "the pane's scale no longer holds the drawn levels (Q-HLINE-2: TradingView's autoscale includes them)",
+   "file": "app/src/components/chart/engine/hlineLevels.js",
+   "from": "  return { ...plot, autoscaleInclude: has ? { min: Math.min(own.min, r.min), max: Math.max(own.max, r.max) } : r }",
+   "to": "  return plot",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/e96HlineLevels.test.js",
+   "expectRed": "holds every drawn level"
   }
  ]
 }

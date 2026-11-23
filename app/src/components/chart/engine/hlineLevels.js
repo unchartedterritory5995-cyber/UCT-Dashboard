@@ -153,3 +153,33 @@ export function hlineNotReproducedNote(n) {
 export function hlineWithheldNote(w) {
   return `\`${w.title}\` is not drawn: ${w.reason}.`
 }
+
+/** ⭐⭐ e96 — TRADINGVIEW'S AUTOSCALE INCLUDES EVERY DRAWN `hline` (Q-HLINE-2, answered 2026-11-23: capture
+ *  `vw-hline-autoscale` RDDT 1D, FRED RS 11:47Z: the study pane read -731.97 .. 1579.93 over an RSI with levels at
+ *  1000 and -500, both inside, while the price pane read 57.0 .. 332.5). A chart price line is not in the library's
+ *  autoscale, so the levels widen the series' own range instead (`pool.includeRangeProvider`,
+ *  `plots[].autoscaleInclude`).
+ *  The range of a document's PINE levels (guide keys `hline<n>`, `hlineKeyOf`) as planned for ONE instance (a
+ *  setting-bound level at that instance's value), or `null` when it draws none. A native guide (RSI's 70 / 30) is
+ *  not a Pine level and keeps its own framing. */
+export function pineLevelsRange(guides) {
+  let min = Infinity
+  let max = -Infinity
+  for (const g of Array.isArray(guides) ? guides : []) {
+    if (!g || hlineOrdinalOf(g.key) === null) continue
+    for (const v of Array.isArray(g.levels) ? g.levels : []) {
+      if (Number.isFinite(v)) { min = Math.min(min, v); max = Math.max(max, v) }
+    }
+  }
+  return min <= max ? { min, max } : null
+}
+
+/** A planned data plot whose pane must also hold these guides' Pine levels: its `autoscaleInclude` widened to them
+ *  (a plot's own include, if any, kept). The same plot when there is nothing to include. */
+export function withLevelsInAutoscale(plot, guides) {
+  const r = pineLevelsRange(guides)
+  if (!r || !plot) return plot
+  const own = plot.autoscaleInclude
+  const has = !!own && Number.isFinite(own.min) && Number.isFinite(own.max)
+  return { ...plot, autoscaleInclude: has ? { min: Math.min(own.min, r.min), max: Math.max(own.max, r.max) } : r }
+}
