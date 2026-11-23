@@ -46,6 +46,17 @@
 // those go first. Each request keeps its cache mode (head.json `no-store`, the .bin files the default). The edge keys its
 // cache on the path alone (edge/bars-edge-router/live1m.js), and a fetch that does not know the option ignores it
 // (RequestInit is a dictionary).
+//
+// ⭐ TAIL ONLY (`tailOnly`, 2026-11-23: the bar store's page-side feed, data/barStore/minuteFeed.js). The device store
+// wants the whole day (head.json, today.bin, a backlog of minute files). A reader that only keeps the copies it ALREADY
+// holds current wants the newest minute and nothing else, so with `tailOnly` this consumer asks for ONE minute file a
+// minute and never for head.json or today.bin (11-19 MB):
+//   • the first step, a step after a pause (hidden, outside the caller's window) and a step after a minute it gave up
+//     on all start again AT the minute now due. The minutes skipped are a GAP the sink hears when that frame is applied
+//     (the same `applyChecked` as above: the format, the chain and the epoch are read by one piece of code);
+//   • a minute file that is not there yet is asked again every `retryMs`, at most `tailRetries` times, then given up
+//     (the next minute starts a new run).
+// Off (the default), nothing here changes: the device store's consumer is the code above, as it was.
 
 import {
   decodeFrame, todayInfo, todayFrames, inflateIfGzip, hhmmOfSeq, dailyRows, FrameError, NO_SEQ, SESSION_MINUTES,
@@ -79,6 +90,8 @@ class HttpError extends Error {
  * @param {number} [o.sliceMs]             the today.bin replay yields after this much work (loadToday)
  * @param {Function} [o.yieldTo]           () => Promise: how it yields (default: a 0 ms timer, a new task)
  * @param {Function} [o.elapsed]           a monotonic ms clock for the slices (default performance.now)
+ * @param {boolean} [o.tailOnly]           follow the newest minute only: never head.json, never today.bin (see the header)
+ * @param {number} [o.tailRetries]         tailOnly: asks again for a minute file that is not there yet, before giving it up
  */
 export function createMinuteFrameConsumer({
   sink, base = DEFAULT_BASE, fetchImpl = (...a) => fetch(...a), now = () => Date.now(),
@@ -87,6 +100,7 @@ export function createMinuteFrameConsumer({
   clearTimer = (t) => clearTimeout(t), random = Math.random,
   sliceMs = 8, yieldTo = () => new Promise((r) => setTimeout(r, 0)),
   elapsed = () => (typeof performance !== 'undefined' ? performance.now() : Date.now()),
+  tailOnly = false, tailRetries = 3,
 } = {}) {
   const rollup = createMinuteRollup({ sink, ...rollupOpts })
   let day = null            // 'YYYY-MM-DD' being followed
@@ -97,6 +111,8 @@ export function createMinuteFrameConsumer({
   const st = { frames: 0, refused: 0, todayLoads: 0, bytes: 0, gaps: [], errors: 0, lastError: null, lastAppliedAt: 0 }
   /** The DAILY trust of the epoch being followed (see the header). */
   const dly = { epoch: null, knownStart: false, seen: false, ok: false }
+  /** tailOnly: the seq being asked for and how often it was not there. */
+  const tail = { want: null, tries: 0 }
 
   const visible = () => {
     if (typeof isVisible === 'function') { try { return isVisible() !== false } catch { return true } }
@@ -249,8 +265,32 @@ export function createMinuteFrameConsumer({
     }
   }
 
+  /** tailOnly (see the header): the minute now due, and nothing else. One behind is the steady state (the next
+   *  file). Further behind, the run starts again at the due minute: never head.json, never today.bin, never a backlog. */
+  async function stepTail() {
+    const d = etDateLabel(Math.floor(now() / 1000))
+    if (d !== day) startDay(d)
+    const due = dueSeq(now())
+    if (due < 0 || (lastSeq != null && lastSeq >= due)) return { current: true }
+    const want = lastSeq != null && due - lastSeq === 1 ? lastSeq + 1 : due
+    if (want !== tail.want) { tail.want = want; tail.tries = 0 }
+    let f
+    try {
+      f = await fetchFrame(want)
+    } catch (e) {
+      // damaged bytes, a 5xx, the network: asked again like a minute that is not there, and given up the same way
+      // (the tick's own retry has no bound: it is the device store's, which then reads head.json)
+      if (++tail.tries > tailRetries) return { current: true }
+      throw e
+    }
+    if (f) { applyChecked(f); return { current: true } }
+    // not there yet: asked again a bounded number of times, then this minute is given up (the next one is a new run)
+    return ++tail.tries <= tailRetries ? { retry: true } : { current: true }
+  }
+
   /** The steady-state step: the next frame, directly (no head read) when it is due. */
   async function step() {
+    if (tailOnly) return stepTail()
     const d = etDateLabel(Math.floor(now() / 1000))
     if (d !== day || lastSeq == null) return catchUp()
     const due = dueSeq(now())
@@ -279,6 +319,14 @@ export function createMinuteFrameConsumer({
       return Math.min(untilOpen, 3_600_000) + pollDelayMs + Math.floor(random() * jitterMs)
     }
     if (result?.idle) return 5 * 60_000 + Math.floor(random() * jitterMs)   // nothing published today yet
+    if (tailOnly) {
+      // The next file is due `pollDelayMs` after ITS minute ends, which is not always the end of the minute the clock
+      // is in: a step taken in a minute's first seconds (the first one, a wake) applied the minute BEFORE the one that
+      // just ended, and that one's file is due in a moment, not a minute from now. (From `pollDelayMs` into a minute
+      // on, this is the line below.) Without it the run would skip a minute at every such step: a gap of its own making.
+      const nextDue = (Math.floor((t - pollDelayMs) / 60_000) + 1) * 60_000 + pollDelayMs
+      return nextDue - t + Math.floor(random() * jitterMs)
+    }
     const nextMinuteEnd = (Math.floor(t / 60_000) + 1) * 60_000
     return nextMinuteEnd - t + pollDelayMs + Math.floor(random() * jitterMs)
   }
@@ -307,8 +355,11 @@ export function createMinuteFrameConsumer({
     /** Start following (idempotent). Catches up at once. */
     start() { if (running) return; running = true; schedule(0) },
     stop() { running = false; if (timer) clearTimer(timer); timer = null },
-    /** Catch up now (e.g. the app became visible). Resolves when done. */
-    async syncNow() { if (busy) await busy.catch(() => {}); return catchUp() },
+    /** Catch up now (e.g. the app became visible). Resolves when done. (tailOnly: the due minute, never a catch-up.) */
+    async syncNow() { if (busy) await busy.catch(() => {}); return tailOnly ? stepTail() : catchUp() },
+    /** Take the next step now instead of at its timer (the page is visible again). Nothing while a step is in flight
+     *  or when stopped. */
+    wake() { if (running && !busy) schedule(0) },
     /** Apply one already-decoded frame (tests, or a frame the device got another way). */
     applyFrame: (f) => applyChecked(f),
     status: () => ({ day, lastSeq, running, ...st, gaps: st.gaps.map((g) => ({ ...g })), rollup: rollup.stats() }),

@@ -1,9 +1,11 @@
 // app/src/lib/chartSpeed.js — the SERVER's kill switch over the chart speed switches (2026-11-20).
 //
-// One server setting, CHART_SPEED_ENABLED on web (api/routers/auth.py, read per request), turns BOTH
+// One server setting, CHART_SPEED_ENABLED on web (api/routers/auth.py, read per request), turns the
 // chart speed switches off in every browser, over a member's own local '1':
 //   • `uct.neighborframes` (components/chart/neighborFrames.js, ON by default since #2202)
 //   • `uct.deviceStore`    (data/deviceStore/switch.js)
+//   • `uct.minuteFeed`     (data/barStore/minuteFeedSwitch.js, 2026-11-23: the minute feed into the bar store's
+//                          registry; a page left open reads the cookie fresh before each of its polls and stops)
 // Each asks `chartSpeedKilled()` before it reads its own local value.
 //
 // ⭐ THE BROWSER'S COPY IS A COOKIE THE SERVER WRITES: `uct_chart_speed=0`, set beside every auth payload
