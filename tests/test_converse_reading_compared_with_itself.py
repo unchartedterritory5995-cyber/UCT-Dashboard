@@ -35,14 +35,14 @@ def test_the_mistake_costs_the_repair_and_the_note_says_how_to_rank_against_toda
     r = conv.converse("the rank of today's volume among the last 20 bars, 1 for the highest", user_id="u1", view=EMPTY())
     assert r["ok"] is True and r["attempts"] == 2
     note = client.calls[1]["messages"][-1]["content"][0]["content"]
-    assert note.startswith("[envelope:reference]")
+    assert note.startswith("[envelope:compared-with-itself]")
     assert "ITSELF" in note and "percentrank(x, N - 1) * (N - 1) / 100" in note and "`a > b`" in note
 
 
 def test_twice_is_refused_and_never_reaches_the_browser(conv, clean_env, model):
     model([emits(create(AS_BUILT_FIRST)), emits(create(AS_BUILT_SECOND))])
     r = conv.converse("x", user_id="u1", view=EMPTY())
-    assert r["ok"] is False and r["gate"] == "envelope:reference"
+    assert r["ok"] is False and r["gate"] == "envelope:compared-with-itself"
 
 
 def test_each_shape_of_the_mistake_is_seen(conv, clean_env, model):
@@ -59,7 +59,7 @@ def test_each_shape_of_the_mistake_is_seen(conv, clean_env, model):
     for tree in shapes:
         model([emits(create(tree)), emits(create(tree))])
         r = conv.converse("x", user_id="u1", view=EMPTY())
-        assert r["ok"] is False and r["gate"] == "envelope:reference", tree
+        assert r["ok"] is False and r["gate"] == "envelope:compared-with-itself", tree
 
 
 def test_CONTROL_what_is_not_the_mistake_passes_first_time(conv, clean_env, model):

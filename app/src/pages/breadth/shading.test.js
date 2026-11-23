@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { shadeFor, SHADE_PCTS, SHADE_SPEC, SHADE_CUTOFFS } from './shading'
+import { shadeFor, SHADE_PCTS, SHADE_SPEC, SHADE_CUTOFFS, isBacktestedRow, isBacktestedCell } from './shading'
 
 // Synthetic cutoffs only — never real market values in a test.
 const GRID = [0.5, 1, 2, 3, 5, 7.5, 10, 15, 20]
@@ -182,5 +182,27 @@ describe('shadeFor — counts ranked as a SHARE of the universe (owner 2026-11-1
     expect(SHADE_SPEC.cols.up_4pct_today.shareFloors.high).toBeLessThan(1)
     expect(SHADE_CUTOFFS.cols['up_4pct_today/universe_count']).toBeDefined()
     expect(SHADE_CUTOFFS.cols.up_4pct_today).toBeUndefined()
+  })
+})
+
+// 2026-11-22 (owner): a back-tested UCT session (`_reconstructed`: today's list run backward) is
+// never shaded on its per-universe columns; market-wide columns and other universes are unaffected.
+describe('back-tested UCT history is never shaded', () => {
+  const hot = { a: 99.9, vix: 99.9, _reconstructed: true }
+  const bspec = { ...spec, cols: { ...spec.cols, vix: { bull: 'low', sides: 'both' } } }
+  const bcut = { ...cut, cols: { ...cut.cols, vix: ramp() } }
+  it('a per-universe column on a back-tested UCT row is unshaded', () => {
+    expect(shadeFor('a', hot, { specIn: spec, cut, universe: 'uct' })).toBeNull()
+    expect(shadeFor('a', { ...hot, _reconstructed: false }, { specIn: spec, cut, universe: 'uct' }))
+      .toEqual({ tone: 'bull', level: 3 })
+  })
+  it('a market-wide column on the same row keeps its shade', () => {
+    expect(shadeFor('vix', hot, { specIn: bspec, cut: bcut, universe: 'uct' })).toEqual({ tone: 'bear', level: 3 })
+  })
+  it('only UCT rows carry the meaning', () => {
+    expect(isBacktestedRow(hot, 'uct')).toBe(true)
+    expect(isBacktestedRow(hot, 'nasdaq')).toBe(false)
+    expect(isBacktestedCell('vix', hot, 'uct')).toBe(false)
+    expect(isBacktestedRow({ a: 1 }, 'uct')).toBe(false)
   })
 })

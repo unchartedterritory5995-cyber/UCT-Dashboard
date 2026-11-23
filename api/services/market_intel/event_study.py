@@ -346,7 +346,20 @@ def _load_condition(cond: dict, req: dict) -> dict:
     return series
 
 
-def _study(req: dict) -> dict:
+def _closes_through(ps: dict, through: str) -> dict:
+    """`daily_closes`' answer cut to the closes on or before `through`, for a caller whose store can hold a
+    session that has not closed yet (the member route's evening session: a chart view writes today's
+    unfinished bar into the store), so no window ends on an unfinished close."""
+    closes = [(d, c) for d, c in ps["closes"] if d <= through]
+    sym = ps.get("symbol")
+    if not closes:
+        return {"status": "unavailable", "reason": "no_price_history", "symbol": sym,
+                "detail": f"UCT has no settled daily history for {sym} yet."}
+    return {**ps, "closes": closes, "first": closes[0][0], "last": closes[-1][0],
+            "suspect_jumps": [j for j in ps.get("suspect_jumps") or () if j <= through]}
+
+
+def _study(req: dict, price_through: Optional[str] = None) -> dict:
     loaded = []
     for c in req["conditions"]:
         sr = _load_condition(c, req)
@@ -355,6 +368,8 @@ def _study(req: dict) -> dict:
         loaded.append(sr)
     series = loaded[0]
     ps = _pr.daily_closes(req["symbol"])
+    if ps.get("status") == "ok" and price_through:
+        ps = _closes_through(ps, price_through)
     if ps.get("status") != "ok":
         return {**ps, "request": req, "stage": "price"}
     price = dict(ps["closes"])
@@ -566,12 +581,15 @@ def request_note(raw: Any) -> str:
             f"entry {ok['entry'].replace('_', ' ')}{', non-overlapping' if ok['non_overlapping'] else ''}{span})")
 
 
-def run(request: Any, *, deadline_s: float = DEADLINE_S, allowed_kinds: Optional[Iterable[str]] = None) -> dict:
-    """Validate and run one event study. Never raises. `allowed_kinds`: see validate()."""
+def run(request: Any, *, deadline_s: float = DEADLINE_S, allowed_kinds: Optional[Iterable[str]] = None,
+        price_through: Optional[str] = None) -> dict:
+    """Validate and run one event study. Never raises. `allowed_kinds`: see validate(). `price_through`
+    (YYYY-MM-DD): read no outcome close after that day (the newest settled session), so a window ending on a
+    session that has not closed is INCOMPLETE; None reads every stored close."""
     req, refusal = validate(request, allowed_kinds=allowed_kinds)
     if refusal:
         return refusal
-    fut = _pool.submit(_study, req)
+    fut = _pool.submit(_study, req, _parse_date(price_through))
     try:
         return fut.result(timeout=deadline_s)
     except _cf.TimeoutError:

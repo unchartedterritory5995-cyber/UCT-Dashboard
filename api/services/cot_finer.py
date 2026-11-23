@@ -30,7 +30,9 @@ table (`cot_service._NAME_TO_SYMBOL`, SYMBOL_MAP plus its rename aliases), with 
 match always beats a name match for the same market and week. Each stored week keeps the code, the CFTC's name and
 which way it matched, and a market answer lists the records its weeks came from. Found in the 2026 files: Hard Red
 Spring wheat (MW) now reads "WHEAT-HRSpring - MIAX FUTURES EXCHANGE" and Micro Ether (TA) carries two spaces before
-its hyphen, so the legacy name table no longer finds either; their codes (001626, 146022) still do.
+its hyphen in the TFF file, so the legacy name table as it stood found neither; their codes (001626, 146022) still do.
+THE LEGACY READER MATCHES THROUGH THIS SAME RULE (`cot_service._parse_cftc_stream` calls `symbol_for`, 2026-11-22):
+a change to `CONTRACT_CODES` or `symbol_for` changes what the legacy report stores too.
 
 WHEN (never on a member's request). The scheduler calls `run_scheduled` at 05:10 and 21:10 New York time
 (`RUN_HOURS_ET`, `RUN_MINUTE_ET`), both inside scan_period's quiet span (`scan_period._reuse_quiet_now`, read, never
@@ -41,6 +43,12 @@ year of the seed (`cot_service._SEED_YEARS`, the legacy reader's ten) is held. O
 time, for the year of the expected report first and then each missing seed year, newest first, until the run's
 budget (`RUN_BUDGET_S`) or the quiet span ends; what it read stays written, so a cut run resumes the next time.
 A failure is recorded (`cot_finer_runs`) and the last good weeks stay; nothing retries on a member's request.
+A FILE OF THE WRONG SHAPE (a required column missing, not a zip) does not end the run: the run says `shape` and goes
+on to the next file. A past year's file of the wrong shape is recorded per (report, year) in `cot_finer_shape`, as a
+past year's 404 is in `cot_finer_files`, and the plan leaves it out until `SHAPE_RETRY_S` (a week) has passed; then it
+is asked for once again. (Before 2026-11-22 one such seed year ended every run there: it was never stored, so each run
+downloaded it again and stopped, and the years after it, every Disaggregated year among them, were never read.) The
+year of the expected report is asked for again on every run, as when it is not posted yet.
 
 MEMORY AND DISK. A file is streamed to disk in 64 KB pieces (at most `MAX_ZIP_BYTES`, refused not truncated), read
 from the zip row by row, and deleted; one file is on disk at a time, beside the COT database. A run holds one
@@ -80,6 +88,7 @@ FILE_BASE = "https://www.cftc.gov/files/dea/history/"
 RUN_HOURS_ET = (5, 21)          # two runs a day, New York time, both inside scan_period's quiet span
 RUN_MINUTE_ET = 10
 RUN_BUDGET_S = 1200.0           # wall clock one run may take
+SHAPE_RETRY_S = 7 * 24 * 3600.0  # a past year whose file read as the wrong shape is asked for again at most this often
 PAUSE_S = 2.0                   # between two downloads of one run
 HTTP_TIMEOUT = (15, 120)        # connect, read (seconds)
 CHUNK_BYTES = 64 * 1024
@@ -446,6 +455,13 @@ def init_db() -> None:
                 weeks     INTEGER NOT NULL DEFAULT 0,
                 elapsed_s REAL
             );
+            CREATE TABLE IF NOT EXISTS cot_finer_shape (
+                report    TEXT    NOT NULL,
+                year      INTEGER NOT NULL,
+                failed_at TEXT    NOT NULL,
+                reason    TEXT,
+                PRIMARY KEY (report, year)
+            );
         """)
 
 
@@ -465,6 +481,7 @@ def store(parsed: Parsed, year: int, nbytes: int) -> int:
             "INSERT OR REPLACE INTO cot_finer_files (report, year, fetched_at, bytes, rows, weeks, newest) "
             "VALUES (?, ?, ?, ?, ?, ?, ?)",
             (parsed.report, year, _now_iso(), nbytes, parsed.rows, weeks, parsed.newest))
+        conn.execute("DELETE FROM cot_finer_shape WHERE report = ? AND year = ?", (parsed.report, year))
     return weeks
 
 
@@ -474,6 +491,30 @@ def _note_not_posted(report: str, year: int) -> None:
         conn.execute(
             "INSERT OR REPLACE INTO cot_finer_files (report, year, fetched_at, bytes, rows, weeks, newest) "
             "VALUES (?, ?, ?, 0, 0, 0, NULL)", (report, year, _now_iso()))
+
+
+def _utc_iso(at: datetime) -> str:
+    return at.astimezone(timezone.utc).isoformat(timespec="seconds")
+
+
+def _note_shape(report: str, year: int, reason: str, at: datetime) -> None:
+    """A past year whose file read as the wrong shape, with when: the plan leaves it out until SHAPE_RETRY_S has
+    passed (`shape_skips`). Read well later, its row is removed (`store`)."""
+    with cot_service._get_conn() as conn:
+        conn.execute("INSERT OR REPLACE INTO cot_finer_shape (report, year, failed_at, reason) VALUES (?, ?, ?, ?)",
+                     (report, year, _utc_iso(at), str(reason or "")[:200]))
+
+
+def shape_skips(now: datetime) -> set[tuple[str, int]]:
+    """{(report, year)} whose file read as the wrong shape less than SHAPE_RETRY_S before `now` (empty when the table
+    cannot be read: the plan then asks for them again, as before the record existed)."""
+    cutoff = _utc_iso(now - timedelta(seconds=SHAPE_RETRY_S))
+    try:
+        with cot_service._get_conn() as conn:
+            return {(r["report"], int(r["year"])) for r in conn.execute(
+                "SELECT report, year FROM cot_finer_shape WHERE failed_at > ?", (cutoff,))}
+    except sqlite3.Error:
+        return set()
 
 
 def held_files() -> dict[str, dict[int, Optional[str]]]:
@@ -540,9 +581,12 @@ def next_run(now: Optional[datetime] = None) -> datetime:
     return (now + timedelta(days=1)).replace(hour=min(RUN_HOURS_ET), minute=RUN_MINUTE_ET, second=0, microsecond=0)
 
 
-def plan(held: dict[str, dict[int, Optional[str]]], expected: date) -> list[tuple[str, int]]:
+def plan(held: dict[str, dict[int, Optional[str]]], expected: date,
+         skip: frozenset | set = frozenset()) -> list[tuple[str, int]]:
     """PURE: the files this run asks for, in order. For each report: the year of the expected report when the
-    report does not hold it yet, then every seed year not held, newest first. [] when everything is held."""
+    report does not hold it yet, then every seed year not held, newest first. [] when everything is held. A seed
+    year in `skip` (its file read as the wrong shape within the week, `shape_skips`) is left out; the year of the
+    expected report never is."""
     want = expected.isoformat()
     top = expected.year
     seed = range(top, top - cot_service._SEED_YEARS, -1)
@@ -554,7 +598,7 @@ def plan(held: dict[str, dict[int, Optional[str]]], expected: date) -> list[tupl
             todo.append((key, top))
     for key in REPORTS:
         files = held.get(key) or {}
-        todo.extend((key, y) for y in seed if y not in files and (key, y) not in todo)
+        todo.extend((key, y) for y in seed if y not in files and (key, y) not in todo and (key, y) not in skip)
     return todo
 
 
@@ -588,14 +632,15 @@ def _work_dir() -> str:
 def refresh(now: Optional[datetime] = None) -> dict:
     """One run on the CALLING thread. Never raises. `state`: 'current' (nothing asked) | 'built' (every planned file
     read) | 'stopped' (cut by the budget, the quiet span's end or a refusal; what was read stays) | 'not_published'
-    (the expected year's file is not posted yet) | 'failed' | 'shape' | 'low_disk'."""
+    (the expected year's file is not posted yet) | 'failed' | 'shape' (a file read as the wrong shape; the run went on
+    and what else it read stays) | 'low_disk'."""
     now = now or now_et()
     started = time.monotonic()
     summary: dict[str, Any] = {"state": None, "at": _now_iso(), "requests": 0, "bytes": 0, "weeks": 0, "files": []}
     try:
         init_db()
         expected = cot_service.expected_latest_report_date(now)
-        todo = plan(held_files(), expected)
+        todo = plan(held_files(), expected, shape_skips(now))
     except Exception as exc:  # noqa: BLE001 -- only the class is kept
         summary.update(state="failed", reason=type(exc).__name__)
         return _finish(summary, started)
@@ -608,6 +653,7 @@ def refresh(now: Optional[datetime] = None) -> dict:
     shutil.rmtree(work, ignore_errors=True)
     os.makedirs(work, exist_ok=True)
     not_posted: list[str] = []
+    shape_files: list[str] = []
     try:
         for n, (key, year) in enumerate(todo):
             if n:
@@ -636,6 +682,14 @@ def refresh(now: Optional[datetime] = None) -> dict:
             summary["bytes"] += nbytes
             try:
                 parsed = parse_zip(dest, report)
+            except Shape as shape:
+                why = str(shape)[:200]
+                shape_files.append(f"{key} {year}")
+                summary["files"].append({"report": key, "year": year, "status": "shape", "reason": why})
+                summary.setdefault("reason", f"{key} {year}: {why}"[:200])
+                if year < expected.year:
+                    _note_shape(key, year, why, now)      # not asked for again within the week; the run goes on
+                continue
             finally:
                 try:
                     os.remove(dest)
@@ -646,7 +700,9 @@ def refresh(now: Optional[datetime] = None) -> dict:
             summary["files"].append({"report": key, "year": year, "status": "read", "bytes": nbytes,
                                      "rows": parsed.rows, "weeks": weeks, "newest": parsed.newest})
         read_any = any(f["status"] == "read" for f in summary["files"])
-        summary["state"] = "built" if read_any else "not_published"
+        summary["state"] = "shape" if shape_files else "built" if read_any else "not_published"
+        if shape_files:
+            summary["shape"] = shape_files
         if not_posted:
             summary["not_posted"] = not_posted
     except _Stop as stop:

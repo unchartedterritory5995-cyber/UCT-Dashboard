@@ -24,8 +24,8 @@
    "id": "OU-M3",
    "mutant": "v2 grades the records v1 took out",
    "file": "tools/vendor_harness/compare.mjs",
-   "from": "  const unsettledOut = Array.isArray(v1.otherSymbolUnsettled) ? v1.otherSymbolUnsettled : []",
-   "to": "  const unsettledOut = []",
+   "from": "  const osuOut = Array.isArray(v1.otherSymbolUnsettled) ? v1.otherSymbolUnsettled : []",
+   "to": "  const osuOut = []",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.objectsOtherSymbolUnsettled.test.js",
    "expectRed": "OU3"
   },

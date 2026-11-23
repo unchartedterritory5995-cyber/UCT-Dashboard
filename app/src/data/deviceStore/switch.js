@@ -1,54 +1,97 @@
 // app/src/data/deviceStore/switch.js — the per-browser switch of the on-device bar store.
 //
-// localStorage 'uct.deviceStore': '1' on, '0' off (a member's own choice always wins); absent = the DEFAULT below.
-// Read once per BarStore (the app's store is created once per page), so a change takes effect on the next load.
-// ⭐ The SERVER's kill switch (CHART_SPEED_ENABLED, lib/chartSpeed.js) wins over everything here: killed,
-// the store is off in every browser, a local '1' included.
+// localStorage 'uct.deviceStore', THE RULE (review of #2537 L1, made explicit by the review of #2549):
+//   '1'                      on
+//   '0'                      off
+//   ANY other stored value   off ('true', 'off', '', ' 1': not a choice, and never read as one)
+//   no key at all            the default (`_defaultOn`: DEVICE_STORE_DEFAULT_ON today)
+// ⛔ A stored value that is not a choice is OFF, not "the default": once a default can be ON (#2537's desktop default),
+// a member who typed 'off' or 'false' to switch the store off must not be switched ON by it.
+// ⭐ DEFAULT OFF in the PR that adds the store, so it can be measured before it is turned on: flipping
+// the default is this one constant (or, with #2537, its computation inside `_defaultOn`).
+// ⭐ ONE DECISION PER PAGE LOAD (review of #2537, M3). It is read when the BarStore is created (persist.js), at the
+// symbol handoff's module scope (hooks/useSymbolHandoff.js) and by the handoff's diagnostics on every switch
+// (source.deviceSource), moments apart. The FIRST answer is the page's answer, so those reads can never disagree: the
+// handoff never trusts a device rule its store does not have, and the diagnostics never start the client (the
+// worker, the 80 MB ingest, the all-day minute feed) for a page whose bar store decided OFF. A change of the key
+// takes effect on the next load.
+// ⭐ The SERVER's kill switches win over everything here, on EVERY read (they are read first, never cached here):
+// CHART_SPEED_ENABLED (both chart speed switches) and DEVICE_STORE_ENABLED (this store ALONE, review of #2537 M9), both
+// lib/chartSpeed.js. Killed, the store is off in every browser, a local '1' included.
+// ⭐ WHY IT IS OFF DECIDES WHETHER THE PACKS GO (review of #2563, MEDIUM-1 / MEDIUM-2). deviceStoreOffReason names it,
+// once per page load like the answer itself, and source.deviceSource acts on it:
+//   'device-purge'      the server's purge (`uct_device_store=purge`)          -> the packs are DELETED
+//   'member-off'        the member's own key, exactly '0'                      -> DELETED ('0' is the off switch; no UI)
+//   'default-off'       no key, and the default reads OFF (today always; after #2537 a narrow window, a metered
+//                       connection: it changes from load to load)              -> KEPT, unused; deleted only once the
+//                                                                                 store has not run here for 30 days
+//   'chart-speed-kill'  CHART_SPEED_ENABLED (an incident lever for other features too) -> KEPT
+//   'device-kill'       `uct_device_store=0`                                    -> KEPT (lifting it costs no download)
+//   'not-a-choice'      any other stored value                                  -> KEPT
+//   'unreadable'        localStorage threw                                      -> KEPT
 //
-// ⭐⭐ DEFAULT ON FOR DESKTOP ONLY (owner, 2026-11-21): desktop browsers and the desktop app. A phone, a touch-tier
-// tablet (≤ 1024 px: styles/breakpoints MQ.desktop is false) and a metered connection (navigator.connection's
-// saveData, a cellular type, or a slow-2g/2g/3g effectiveType where the browser reports it) stay OFF: the seed is
-// ~80 MB of packs per browser (measured 2026-11-22: 79.96 MB over the six timeframes). It needs POSITIVE evidence of a desktop (the desktop app's bridge, or MQ.desktop matching):
-// a browser that cannot say (no matchMedia) stays off.
-//
-// Tiny on purpose: persist.js imports this statically; everything else of the device store is loaded
-// lazily (source.js → client.js → the worker), so first-open bytes do not move. Its two imports import nothing.
+// Tiny on purpose: persist.js imports this statically (through source.js); everything else of the device store is
+// loaded lazily (source.js → client.js → the worker), so first-open bytes do not move.
 
-import { chartSpeedKilled } from '../../lib/chartSpeed'
-import { isDesktopApp } from '../../lib/desktopBridge'
-import { MQ } from '../../styles/breakpoints'
+import { chartSpeedKilled, deviceStoreKilled, deviceStorePurge } from '../../lib/chartSpeed'
 
 export const DEVICE_STORE_KEY = 'uct.deviceStore'
-/** The default is ON, for the browsers `deviceStoreDefaultOn` admits (desktop only); OFF everywhere else. */
-export const DEVICE_STORE_DEFAULT_ON = true
+export const DEVICE_STORE_DEFAULT_ON = false
 
-/** Connection types that are metered or too slow for a ~80 MB seed. */
-const METERED_EFFECTIVE = new Set(['slow-2g', '2g', '3g'])
+/** This page load's answer (null: not read yet). */
+let _decided = null
+/** This page load's key: 'on' ('1') | 'off' ('0') | 'not-a-choice' | 'absent' | 'unreadable' (null: not read yet). */
+let _key = null
+/** Tests: the default as a later one may compute it (null: DEVICE_STORE_DEFAULT_ON). */
+let _defaultForTests = null
 
-/** Does the default turn the device store ON in this browser? Desktop only, never on a metered connection.
- *  Never throws; anything it cannot read answers OFF. */
-export function deviceStoreDefaultOn() {
-  if (!DEVICE_STORE_DEFAULT_ON) return false
+/** The answer when no key is stored. */
+function _defaultOn() { return _defaultForTests ?? DEVICE_STORE_DEFAULT_ON }
+
+function _readKey() {
   try {
-    const c = typeof navigator !== 'undefined' ? navigator.connection : null
-    if (c && (c.saveData === true || c.type === 'cellular' || METERED_EFFECTIVE.has(String(c.effectiveType || '')))) return false
-    if (isDesktopApp()) return true                       // the desktop app, whatever its window's width
-    const mm = typeof window !== 'undefined' ? window.matchMedia : null
-    return typeof mm === 'function' && mm.call(window, MQ.desktop).matches === true
+    if (typeof localStorage === 'undefined') return 'absent'
+    const v = localStorage.getItem(DEVICE_STORE_KEY)
+    if (v === null) return 'absent'
+    return v === '1' ? 'on' : v === '0' ? 'off' : 'not-a-choice'
   } catch {
-    return false
+    return 'unreadable'
   }
 }
 
-/** Is the on-device bar store switched on in this browser? Never throws. */
+/** This page load's key state (read once, see `_key`). */
+export function deviceStoreKeyState() {
+  if (_key === null) _key = _readKey()
+  return _key
+}
+
+function _read() {
+  const k = deviceStoreKeyState()
+  if (k === 'absent') return _defaultOn()   // no key at all: the default
+  return k === 'on'                         // '1' on; '0' and ANY other stored value off; unreadable off
+}
+
+/** Is the on-device bar store switched on in this browser, for this page load? Never throws. */
 export function deviceStoreEnabled() {
-  if (chartSpeedKilled()) return false
-  try {
-    const v = typeof localStorage === 'undefined' ? null : localStorage.getItem(DEVICE_STORE_KEY)
-    if (v === '1') return true
-    if (v === '0') return false
-    return deviceStoreDefaultOn()
-  } catch {
-    return false
-  }
+  if (chartSpeedKilled() || deviceStoreKilled()) return false
+  if (_decided === null) _decided = _read()
+  return _decided
 }
+
+/** Why is the store off on this page load (see the header): null exactly when deviceStoreEnabled() is true. */
+export function deviceStoreOffReason() {
+  if (deviceStoreEnabled()) return null
+  if (deviceStorePurge()) return 'device-purge'
+  const k = deviceStoreKeyState()
+  if (k === 'off') return 'member-off'
+  if (chartSpeedKilled()) return 'chart-speed-kill'
+  if (deviceStoreKilled()) return 'device-kill'
+  if (k === 'not-a-choice' || k === 'unreadable') return k
+  return 'default-off'
+}
+
+/** Tests: forget this page load's answer (a new page load). */
+export function __resetDeviceStoreSwitchForTests() { _decided = null; _key = null }
+
+/** Tests: the default this page load uses when no key is stored (true / false; null: the constant). */
+export function __setDeviceStoreDefaultForTests(on) { _defaultForTests = on == null ? null : on === true; _decided = null }

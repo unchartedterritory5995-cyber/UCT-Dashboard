@@ -32,7 +32,7 @@ import { setOwnedDefinitionSource } from './capabilities/indicatorEdits'
 import { setAuthoringSources, setExceptSetReader, draftAmbiguity, selectDraft, isDraftAction, lastSaved, screenModelOps, PROPOSAL_TTL_MS, saveReferent, splitSaveAs, renameBeforeSave, explicitIndicatorCreate } from './capabilities/indicatorAuthoring'
 import { fastParse, matchPosition } from './fastPath'
 import { screenNewChart, screenEmptyBoardChart } from './capabilities/workspace'
-import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf, selectedChart, chartNameWord, clausesNameDifferentCharts, targetTickerConflict, lowerTickerCandidates, TARGET_CHECK_FAILED } from './deixis'
+import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf, selectedChart, chartNameWord, clausesNameDifferentCharts, targetTickerConflict, lowerTickerCandidates, TARGET_CHECK_FAILED, timeframeSetOf } from './deixis'
 import { screenWatchlistWidget } from './watchlistTarget'
 import { whichListView, LIST_VIEW_WHICH } from './whichWidget'
 import { checkSpatialConstraints, excludedCharts, spatialConstraints, UNPLACED, withoutExcludedCharts, everyExceptSet } from './spatialCheck'
@@ -83,7 +83,8 @@ import { beginAuthoringIntent, takeAuthoringIntent, peekAuthoringIntent, clearAu
 
 registerBuiltins()
 // (H-RDR-1) F5's "all charts" check reads "every chart less the exclusions" as the set the words name (indicatorAuthoring)
-setExceptSetReader(everyExceptSet)
+// …and (C2 family) "all the daily charts": the charts on that timeframe (deixis.timeframeSetOf) are a set the words name too
+setExceptSetReader((text, charts, sel) => everyExceptSet(text, charts, sel) || timeframeSetOf(text, charts))
 
 // ⛔ Charts operator P1 hardening: a model QUESTION's choices become buttons. Only a non-empty string, or an
 // object with a non-empty string `label` (NL-1: plus a context `ref`, translated back to a real target), ever
@@ -3401,7 +3402,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       // ⭐ Multi Chart: a plan aimed anywhere but "the one I just changed" is asked about, even when it aims at the clicked chart
       const deictic = onSubject ? null : sw0.changed
         ? { ask: { text: 'Which chart do you mean?', choices: (host?.charts?.list?.() || []).map(c => ({ ref: c.ref, label: c.label })) } }
-        : screenDeicticOps({ host, ops: screened.ops, text, getTargetKind, getCapability, parse: fastParse })
+        : screenDeicticOps({ host, ops: screened.ops, text, getTargetKind, getCapability, parse: fastParse, subject: chartSubjectOf(memoryRef.current, host) })
       // ⛔ AUDIT probe 18 (G3) / GO bar (3): a chart the words EXCLUDE ("everything in this row except SPY"), or a relation's ANCHOR
       // that is not a target, is never offered by any question — the constraint check's own exclusions (spatialCheck)
       const dropExcluded = (ask) => {
@@ -3454,7 +3455,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       // (indicatorAuthoring.explicitIndicatorCreate: decided from their words, never by the model) is applied; its Save
       // still stops at a ready draft when an R1 condition fails after the build (an acknowledgement, a name they already use)
       if (!nl1 && disposition === 'propose' && explicitIndicatorCreate(screened.ops)) { mark('deescalate', 'explicit-create'); disposition = 'apply' }
-      const unnamed = onSubject ? null : screenUnnamedTargets({ host, ops: screened.ops, text, context: askedFor, pickedRefs: answeredRefs, getTargetKind, getCapability })
+      const unnamed = onSubject ? null : screenUnnamedTargets({ host, ops: screened.ops, text, context: askedFor, pickedRefs: answeredRefs, getTargetKind, getCapability, subject: chartSubjectOf(memoryRef.current, host) })
       if (unnamed?.ask) unnamed.ask = dropExcluded(unnamed.ask)
       if (unnamed?.ask && askEveryExcept(disposition)) return
       if (unnamed?.ask) {

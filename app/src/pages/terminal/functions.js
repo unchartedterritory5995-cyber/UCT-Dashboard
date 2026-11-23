@@ -741,6 +741,17 @@ export const FUNCTIONS = [
   // web search on 2026-11-22 found no stock or fund listed under it (FEX, the brief's first pick, is a First Trust fund).
   { code: 'FCTX', label: 'Factor exposure (market, size, growth vs value, momentum, quality, low volatility)', group: 'Security',
     ticker: { panel: 'FactorExposure' } },
+  // ERNSC (2026-11-22): earnings season by sector. For the season that holds today (the reports dated in this calendar
+  // quarter), the one before, or the same one a year earlier: per sector, the reporters so far and still to come, the
+  // share that beat, met and missed the EPS (or revenue) consensus, the median surprise, the median move from the close
+  // before the report to the close after and the share that rose, each with its count and a floor of 5; a sector opens
+  // every reporter, the biggest beats and misses first (GET /api/research/sector-earnings, rolled up by the server from
+  // the earnings results it already holds: only the stocks it holds them for, said first). `ERNSC YEARAGO REVENUE`.
+  // Not a GRPS view: another population (the stocks with held results that reported) from another source, re-read at
+  // most every 30 minutes. ERNS for one day, ERNSC for the season. Not in the site's universe, and a web search on
+  // 2026-11-22 found no stock or fund listed under it.
+  { code: 'ERNSC', label: 'Earnings season by sector (beat rates, surprises and reactions)', group: 'Market',
+    market: { panel: 'SectorEarnings', args: [{ kind: 'ernscSeason', prop: 'season' }, { kind: 'ernscMetric', prop: 'metric' }] } },
 ]
 
 /** Other spellings of a registered code: `alias → code`. The parser answers an alias with the code
@@ -1142,6 +1153,12 @@ const FUNCTION_WORDS = {
   // put OSCR ahead of RSL for a one-word search on "rank" (OSCR sits earlier in the registry).
   OSCR: { example: 'OSCR RICH',
     note: 'The option screen, unusual option volume and IV percentile. OSCR RICH and OSCR CHEAP: the highest and lowest IV rank across the options log, built each evening.' },
+  // ERNSC: "earnings season" stays ERNS's, "earnings scoreboard" EMOV's, "earnings reaction" ERX's (each answers it first);
+  // no keyword holds "sectors" or "surprises", so neither generic word finds it first. "beat" does: no other function
+  // answers it.
+  ERNSC: { example: 'ERNSC', keywords: ['earnings by sector', 'sector earnings', 'beat rate', 'beat rates', 'earnings beat rate',
+    'earnings season by sector', 'season by sector', 'which sector is beating'],
+    note: 'Only the stocks UCT holds earnings results for. A surprise within 0.5% either way is in line; a share or a median needs 5 reporters. One stock: NVDA ERX.' },
 }
 for (const [code, w] of Object.entries(FUNCTION_WORDS)) {
   const f = BY_CODE[code]
