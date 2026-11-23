@@ -56,9 +56,16 @@ test('Enter during a pending search: the aborted request updates nothing after t
   fireEvent.keyDown(input(), { key: 'Enter' })
   expect(onSymbolChange).toHaveBeenCalledWith('AMD')
   expect(searches[0].signal.aborted).toBe(true)
+  // (item 2, the deferred teardown) the dialog's own teardown renders once AFTER the charts' frame, by design; what must
+  // not render is the aborted request: its rejection settles in the microtasks right after the key task
   const after = commits.length
-  await flush(50)
+  await act(async () => { for (let i = 0; i < 5; i++) await Promise.resolve() })
   expect(commits.length).toBe(after)
+  await flush(50)                                                      // the frame: the deferred teardown
+  expect(screen.queryByRole('textbox', { name: 'Search symbol or company' })).toBeNull()
+  const torn = commits.length
+  await flush(50)
+  expect(commits.length).toBe(torn)                                    // and nothing after it
 })
 
 test('typing NV then NVD: the aborted NV request does not put "Go to NV" back under NVD', async () => {

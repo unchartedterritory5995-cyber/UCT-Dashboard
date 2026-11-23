@@ -89,11 +89,31 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
   // Imperative open-with-text — used by ChartPane so typing a letter on the
   // chart opens the search with that letter already entered.
   const openRef = useRef(false)
-  openRef.current = open
+  // ⭐ (2026-11-23, item 2, review of #2624 section 5) ENTER TAKES THE DIALOG OFF SCREEN IN ITS OWN TASK AND UNMOUNTS IT
+  // AFTER THE CHARTS' FRAME. `submit` hides the portal root (display:none: out of rendering and out of the
+  // accessibility tree) and takes the dialog's role off, so every reader of "a dialog is open" (utils/modalOpen, the
+  // pane's type-to-search and the chart shortcuts; lib/topLayer) reads it closed from the Enter task on; the React
+  // teardown (40 rows, the input, the blur layer's node) runs after the paint. `closing` is that gap; a reopen inside
+  // it (a letter typed on the chart, the badge) shows the same dialog again and cancels the pending teardown (`gen`).
+  const backdropRef = useRef(null)
+  const closingRef = useRef(false)
+  const genRef = useRef(0)
+  openRef.current = open && !closingRef.current
+  const reshow = () => {
+    closingRef.current = false
+    genRef.current++
+    if (backdropRef.current) backdropRef.current.style.display = ''
+    dialogRef.current?.setAttribute('role', 'dialog')
+    dialogRef.current?.setAttribute('aria-modal', 'true')
+    lastIntentRef.current = null
+    inputRef.current?.focus()
+  }
+  useEffect(() => () => { genRef.current++ }, [])
   useImperativeHandle(ref, () => ({
     openWith: (text = '') => {
       // Append when already open so fast chart type-to-search keystrokes during the
       // async focus gap don't reset the query; fresh start when the box was closed.
+      if (closingRef.current) reshow()
       const wasOpen = openRef.current
       openRef.current = true
       setOpen(true)
@@ -114,7 +134,7 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
   // Close on Escape
   useEffect(() => {
     if (!open) return undefined
-    const handler = (e) => { if (e.key === 'Escape') { e.stopPropagation(); setOpen(false) } }
+    const handler = (e) => { if (e.key === 'Escape' && !closingRef.current) { e.stopPropagation(); setOpen(false) } }
     document.addEventListener('keydown', handler, true)
     return () => document.removeEventListener('keydown', handler, true)
   }, [open])
@@ -255,9 +275,18 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
   const submit = useCallback((ticker) => {
     // ⭐ A typed member-facing `UCT:A50` opens the canonical `UCTA50`.
     const clean = canonicalTicker(ticker, breadthAll)
+    // hidden and closed to every reader FIRST (see backdropRef), then the symbol, then the teardown after the paint
+    const gen = ++genRef.current
+    closingRef.current = true
+    openRef.current = false
+    abortRef.current?.abort()
+    if (backdropRef.current) backdropRef.current.style.display = 'none'
+    dialogRef.current?.removeAttribute('role')
+    dialogRef.current?.removeAttribute('aria-modal')
     if (clean && clean !== sym) onSymbolChange(clean)
-    setOpen(false)
-    setQuery('')
+    const close = () => { if (genRef.current === gen) { closingRef.current = false; setOpen(false); setQuery('') } }
+    if (document.hidden) close()
+    else requestAnimationFrame(() => setTimeout(close, 0))
   }, [sym, onSymbolChange, breadthAll])
 
   const handleInputKey = useCallback((e) => {
@@ -295,7 +324,7 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
       <button
         className={styles.badge}
         style={hideIcon ? { justifyContent: fullLabel ? 'flex-start' : 'center', width: fullLabel ? 'auto' : '100%' } : undefined}
-        onClick={() => { if (open) { setOpen(false) } else { setQuery(''); setChip('all'); setOpen(true) } }}
+        onClick={() => { if (openRef.current) { setOpen(false) } else { if (closingRef.current) reshow(); setQuery(''); setChip('all'); setOpen(true) } }}
         title={displayLabel ? `${sym} — click to search` : 'Search ticker'}
         // `ariaLabel`: a caller whose badge does something OTHER than retarget this
         // chart (the "+ Compare" doors) names that action; omitted = unchanged.
@@ -332,6 +361,7 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
 
       {open && createPortal(
         <div
+          ref={backdropRef}
           className={styles.backdrop}
           onMouseDown={(e) => { if (e.target === e.currentTarget) setOpen(false) }}
         >
