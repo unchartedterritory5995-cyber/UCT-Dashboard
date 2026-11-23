@@ -15,6 +15,7 @@
 //   H8 store ON: a key the device holds (no server answer) is read at once, as today
 import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest'
 import fs from 'node:fs'
+import path from 'node:path'
 import { createBarStore } from './index'
 import { keyOf, ACTION } from './types'
 import { installFakeIndexedDB } from './testing/fakeIndexedDB'
@@ -133,7 +134,14 @@ describe("a chart's subscribe reads the bar cache after the frame when the key a
 
   it("H6 the floor is the switch's own rows-that-cover-the-view (useSymbolHandoff COVER_ROWS)", async () => {
     const { HYDRATE_AFTER_FRAME_MIN_ROWS } = await import('./index')
-    const src = fs.readFileSync(new URL('../../hooks/useSymbolHandoff.js', import.meta.url), 'utf8')
+    // (by path from the app root, found from the cwd as entryExcludesChartEngine does: this environment's import.meta.url
+    // is not a file URL)
+    let dir = process.cwd()
+    for (let i = 0; i < 8 && !fs.existsSync(path.join(dir, 'src', 'hooks', 'useSymbolHandoff.js')); i++) {
+      if (fs.existsSync(path.join(dir, 'app', 'src', 'hooks', 'useSymbolHandoff.js'))) { dir = path.join(dir, 'app'); break }
+      dir = path.dirname(dir)
+    }
+    const src = fs.readFileSync(path.join(dir, 'src', 'hooks', 'useSymbolHandoff.js'), 'utf8')
     const cover = Number(/export const COVER_ROWS = (\d+)/.exec(src)?.[1])
     expect(cover).toBe(600)
     expect(HYDRATE_AFTER_FRAME_MIN_ROWS).toBe(cover)
