@@ -17,7 +17,9 @@
 // far, downloaded and replayed in the leader's worker. ONE gate holds it, the seed ingest's: the first chart paint, then
 // an idle period (start(): afterPaint -> idle; the first report rides that callback). Back from hidden, the visible
 // report waits for the same `idle` (a member returning to the app starts switching right away); a hidden report goes at
-// once, so the feed stops polling. `idle` (requestIdleCallback) is the only cheap "not mid-switch" signal this client has:
+// once, and it changes nothing in the leader (liveFeed.visible(false) writes nothing): the feed keeps polling until
+// VISIBLE_FRESH_MS (90 s) after the last VISIBLE report, as before (review of #2615). `idle` (requestIdleCallback) is the
+// only cheap "not mid-switch" signal this client has:
 // it does not run while the page is busy rendering a switch. No other gate, no new global.
 //
 // ⭐ PERSISTENT STORAGE, ASKED ONCE PER BROWSER PROFILE (review of #2537, L5). OPFS is best-effort storage: under disk
@@ -355,7 +357,8 @@ export function createDeviceClient({
           if (dead) return
           _askIngest(false)
           _report()
-          // hidden: reported at once (the feed stops polling); visible again: the report at the next idle, never inside
+          // hidden: reported at once (the leader's feed keeps polling until 90 s after the last visible report: liveFeed
+          // VISIBLE_FRESH_MS); visible again: the report at the next idle, never inside
           // the event (see THE FEED'S CATCH-UP WAITS FOR A QUIET PAGE above); the kill and re-check look as before
           try { onVisibilityChange(() => { if (!_visibleNow()) { _report(); return } _reportVisibleAtIdle(); _whileVisible() }) } catch { /* no document */ }
           try { beat = setIntervalFn(() => { if (_visibleNow()) { _report(); _whileVisible() } }, VISIBLE_HEARTBEAT_MS) } catch { /* no timers */ }

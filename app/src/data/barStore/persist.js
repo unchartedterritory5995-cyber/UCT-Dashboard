@@ -51,11 +51,11 @@ import {
 } from '../../utils/barsIDB'
 import { TAIL_ENTRY_MAX_BARS, HIST_PERSIST_MAX_BARS, historyLagsTail } from '../../utils/historyPrepend'
 import { ACTION, parseKey, isDateTf, isIntradayTf, unixToDateLabel, keyOf } from './types'
-import { isSealedRow, bucketEnd, normT } from './reducer'
+import { isSealedRow, bucketEnd, normT, answerFrame } from './reducer'
 import { deviceSource as _defaultDeviceSource } from '../deviceStore/source'
 import { deviceCopyFresh } from '../deviceStore/fresh'
 import { deviceServesTf } from '../deviceStore/tfs'
-import { onDeviceStoreKill } from '../../lib/chartSpeed'
+import { onDeviceStoreKill, deviceStoreKillSeen } from '../../lib/chartSpeed'
 
 export const PERSIST_DEBOUNCE_MS = 1000
 export const META_VERSION = 1
@@ -265,6 +265,56 @@ export function createPersist({
     if (!before || before.restSeen || before.source !== 'lake') return false
     try { return onScreen?.(key) === true && answerPending?.(key) === true } catch { return false }
   }
+  /** key → the device copies whose join waits for idle (_joinWaits), in arrival order. Bounded by the keys a chart shows
+   *  with a request in flight: each is run at idle or, when the key's answer can keep some of it, by `flushJoins` just
+   *  before that answer. */
+  const joinsWaiting = new Map()
+  function _runWaiting(key, job) {
+    const list = joinsWaiting.get(key)
+    const i = list ? list.indexOf(job) : -1
+    if (i < 0) return                                    // already run (the answer's flush came first)
+    list.splice(i, 1)
+    if (!list.length) joinsWaiting.delete(key)
+    try { _deviceHit(key, job.p, job.gen, job.got, job.ownDev, true) } catch { /* a device copy is optional */ }
+  }
+  /**
+   * ⭐ A WAITING JOIN GOES RIGHT BEFORE ITS KEY'S ANSWER WHEN THAT ANSWER CAN KEEP SOME OF IT (review of #2615, item 1). An
+   * answer that LAGS the device copy (its tail older than the copy's newest complete bucket: seal lag at a bucket roll, a
+   * stale-while-revalidate serve) landing before idle made the waiting join refuse ('answered'), so the device's vouched
+   * newer candle was lost until the stream or the next poll: the hole of seconds #2558 P4-L3 closed (reducer applyRest: the
+   * first answer keeps the device rows newer than itself whose bucket ends by the copy's stamp). The network calls this
+   * just before it dispatches the key's answer, with the answer (index.js `beforeAnswer`), in the same task, so such a
+   * join and the answer reach the chart together and P4-L3 applies as on master.
+   * ⛔ ONLY A JOIN THE ANSWER CAN KEEP SOME OF (J2, J10). A CURRENT answer (the common case: its forming bar is the
+   * clock's bucket) keeps nothing of the copy, and joining it first spent exactly the join #2615 moved off the key path,
+   * plus a device render the answer overwrote in the same task. A job the answer cannot keep stays queued and is judged
+   * again at idle (refused 'answered' once the answer holds the key; joined if the answer never landed).
+   * A key with nothing waiting: one Map lookup. With the store off this function does not exist (J0).
+   */
+  function flushJoins(key, answer) {
+    const list = joinsWaiting.get(key)
+    if (!list) return
+    const st = registry.peek(key)
+    if (!st) return
+    for (const job of list.slice()) if (_answerKeeps(answer, job.got, st)) _runWaiting(key, job)
+  }
+  const _rowT = (r, tf) => { const t = r ? normT(r.t ?? r.time, tf) : NaN; return Number.isFinite(t) ? t : -Infinity }
+  /**
+   * Can the first answer `answer` keep a row of the waiting copy `got` (reducer applyRest P4-L3: a device row newer than
+   * the answer's newest row whose bucket ends by the copy's stamp)? Read without the copy's rows (deviceStore/source.js
+   * builds them lazily, and a copy the answer cannot keep should cost none): every row newer than the answer's newest
+   * starts at or after the end of that row's bucket, and `bucketEnd` is monotone, so a kept row needs the bucket right
+   * after the answer's newest to end by the stamp. A NECESSARY condition: which rows stay is still the reducer's call.
+   * The answer's newest row is its last bar or its forming bar, whichever is later (applyRest `newestIn`), in the frame
+   * applyRest reads the answer in (`answerFrame`: the server's grid when it names one). An answer with no rows, or a copy
+   * with no stamp (it vouches for nothing), is not flushed.
+   */
+  function _answerKeeps(answer, got, st) {
+    const frame = answerFrame(st, answer || {})
+    const rows = Array.isArray(answer?.bars) ? answer.bars : null
+    const newest = Math.max(_rowT(rows?.length ? rows[rows.length - 1] : null, frame.tf), _rowT(answer?.developing, frame.tf))
+    return Number.isFinite(newest) && Number.isFinite(got?.through) && bucketEnd(bucketEnd(newest, frame), frame) <= got.through
+  }
   /** key → `through` (unix s) of the device copy the entry holds: how far it is complete (deviceStore
    *  fresh.js / prefetch.devicePaints read it). Bounded, oldest out. */
   const devThrough = new Map()
@@ -313,6 +363,10 @@ export function createPersist({
   function _deviceHit(key, p, gen, got, ownDev = null, atIdle = false) {
     // (`n`: the copy's row count without building its rows, deviceStore/source.js; a copy with no `n` has rows)
     if (!got || !(got.n ?? got.rows?.length)) return false
+    // ⛔ NOTHING JOINS ONCE THE PAGE HAS SEEN A KILL (review of #2615, item 2). The kill marks only the entries holding
+    // device rows at that moment (onDeviceStoreKill above); a copy read before it whose join waited for idle would join
+    // after it, unmarked, and its rows would read as vouched.
+    if (deviceStoreKillSeen()) return false
     const before = registry.peek(key)
     const held = devThrough.get(key)
     // What nearly every warm of a device-held key ends in. It reads no row: the count above is `got.n`, and for an
@@ -321,7 +375,10 @@ export function createPersist({
     if (before?.source === 'device' && held != null && !(got.through > held)) return false   // not newer
     // a join onto the lake's rows on a chart already showing them, its answer on the way: at idle (_joinWaits)
     if (!atIdle && _joinWaits(key, before)) {
-      idle(() => { try { _deviceHit(key, p, gen, got, ownDev, true) } catch { /* a device copy is optional */ } })
+      const job = { p, gen, got, ownDev }
+      if (!joinsWaiting.has(key)) joinsWaiting.set(key, [])
+      joinsWaiting.get(key).push(job)
+      idle(() => _runWaiting(key, job))
       return false
     }
     if (_joinRefused(before, p, got, ownDev)) return false
@@ -496,6 +553,10 @@ export function createPersist({
     },
     /** Stop listening for a kill (the store's dispose). */
     dispose() { try { offKill?.() } catch { /* gone */ } },
+    /** Run the device joins waiting for idle on `key` now: the network calls it just before the key's answer (index.js).
+     *  Only with a device source: with the store off it is not there at all, so the network's call reads one missing
+     *  property and stops (index.js `beforeAnswer`). */
+    ...(DEV ? { flushJoins } : {}),
     /** Write every pending key now (page hide / tests). */
     async flush() {
       const keys = [...watched.keys()]

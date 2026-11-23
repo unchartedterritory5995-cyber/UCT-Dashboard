@@ -36,7 +36,7 @@ MARKET_WIDE_COLS = frozenset({
 })
 #: Not yet available off UCT (monitorUniverses.js). Health left this set on 2026-11-23: each
 #: universe scores it with its own bands and ranks it in its own history.
-NOT_PER_UNIVERSE = frozenset({"up_vol_ratio", "hvc_52w", "atr_ext_7", "new_ath"})
+NOT_PER_UNIVERSE = frozenset({"new_ath"})   # Up Vol / HVC / >7xATR: breadth_universe_extras
 
 def numeric(v):
     if isinstance(v, bool) or v is None:

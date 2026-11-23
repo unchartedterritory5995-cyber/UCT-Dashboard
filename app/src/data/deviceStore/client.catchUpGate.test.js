@@ -5,7 +5,8 @@
 // far, downloaded and replayed. ONE gate already holds the seed ingest: the first chart paint, then an idle period
 // (client.js start(): afterPaint -> idle). The page-load report rides the same callback (G1 pins it). A member coming back
 // to the app reported visible inside the visibility event itself, which is exactly when a member starts switching again:
-// now that report waits for the same idle (G2), a hidden report still goes at once (the feed stops polling), and a page
+// now that report waits for the same idle (G2), a hidden report still goes at once (the leader's feed keeps polling until
+// 90 s after the last visible report: liveFeed VISIBLE_FRESH_MS; a hidden report changes nothing there), and a page
 // hidden again before its idle reports nothing visible (G3). No new gate: the client's own `idle`.
 import { describe, it, expect, vi } from 'vitest'
 import { createDeviceClient } from './client'
@@ -57,7 +58,7 @@ describe("the feed's catch-up waits for a quiet page", () => {
     t.runIdle()
     expect(lives(t.w)).toEqual([true])
     vis.v = false; t.change()
-    expect(lives(t.w)).toEqual([true, false])              // hidden: at once, so the feed stops polling
+    expect(lives(t.w)).toEqual([true, false])              // hidden: at once (the leader's 90 s freshness, not this, stops the feed)
     vis.v = true; t.change()
     expect(lives(t.w)).toEqual([true, false])              // visible again: NOT inside the visibility event
     t.runIdle()
