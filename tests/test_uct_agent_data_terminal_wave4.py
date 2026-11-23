@@ -949,7 +949,12 @@ def test_unusual_volume_needs_no_kind_the_screeners_scan_kind_already_takes_the_
         assert scan_sources.precheck({"spec": body}) == f"the Screener has no column {UNVOL_PANEL_ONLY_COLUMN!r}", req["name"]
     names = gw.registry().names()
     assert "screen.run" in names and gw.registry().get("screen.run").category == "scan"
-    assert not [n for n in names if "volume" in n.lower() or "unvol" in n.lower()]      # no second authority for the reading
+    # no second authority for the reading. Terminal data wave 10's `stock.volumeFootprint` (VFP) is named for volume and is
+    # not one: it counts accumulation and distribution days, pocket pivots and gaps from the daily bars, and the one list of
+    # VFP's that sets a day's volume against an average (the biggest volume days) is left out of the kind
+    from api.services.uct_agent.marketdata import volume_footprint_read as vfr
+    assert '"left_out": ["big_days", "ad_days"]' in Path(vfr.__file__).read_text(encoding="utf-8")
+    assert not [n for n in names if ("volume" in n.lower() or "unvol" in n.lower()) and n != vfr.KIND]
     doc = DOC.read_text(encoding="utf-8")
     assert "`screen.run`" in doc[doc.index("**Not kinds of this wave**"):doc.index("## 8. Changing this contract")]
 

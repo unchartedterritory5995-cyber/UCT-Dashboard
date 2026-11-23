@@ -1307,6 +1307,11 @@ _OUTCOME_LABEL = {
 # which names no AI lane; fed.watch: the Board's and the New York Fed's materials, whose rows name no AI lane, the news
 # wire's headlines, which have no row, and the economic calendar's next decision), so the member sees the card and a
 # model never sees a value
+# stock.riskProfile / stock.volumeFootprint / stock.factorExposure / stock.setupHistory / stock.companyRecord /
+# stock.ownershipReport (terminal data wave 10): each reads a model-isolated kind (stock.stats, stock.volumeFootprint,
+# stock.factorExposure and stock.setupHistory: figures UCT works out from the market-data vendor's daily history, which no
+# register row clears for a model, as seasonality.stock; company.publicRecords and ownership.funds: government records whose
+# rows, T-100 to T-104, name no AI lane), so the member sees the card and a model never sees a value
 LOCAL_ONLY_ACTIONS = frozenset({"breadth.show", "breadth.history", "history.afterEvent", "journal.reviewTrades", "news.movers",
                                 "rs.compare", "stock.analystActions", "stock.sessionHighsLows", "stock.longRunLeaders",
                                 "stock.darkPoolLevels", "stock.yearlyHighsLows", "stock.themeRotation",
@@ -1319,7 +1324,9 @@ LOCAL_ONLY_ACTIONS = frozenset({"breadth.show", "breadth.history", "history.afte
                                 "stock.marketRegime", "stock.setups", "stock.eventsTimeline", "stock.uct20List",
                                 "stock.ivHistory", "stock.dilutionWatch",
                                 "stock.splitsDividends", "stock.ipoCalendar", "stock.dividendsCalendar",
-                                "stock.auctionCalendar", "stock.realCurve", "stock.fomcWatch"})
+                                "stock.auctionCalendar", "stock.realCurve", "stock.fomcWatch",
+                                "stock.riskProfile", "stock.volumeFootprint", "stock.factorExposure", "stock.setupHistory",
+                                "stock.companyRecord", "stock.ownershipReport"})
 #: ⛔ DATA-READ ANSWERS (hotfix 2026-11-03, live: "when does nvda report" got a reply inventing a date and a
 #: beat while the stock.earnings card said the date was not in UCT's data). These read-only actions (manifest
 #: `query: true`, market / screen data) answer with UCT's own deterministic card; the model's `reply` is written
