@@ -85,15 +85,41 @@ export function deviceStoreKilled() { return deviceStoreKill() !== null }
 /** ...and told every browser to delete its packs (`purge`)? */
 export function deviceStorePurge() { return deviceStoreKill() === 'purge' }
 
+let _killSeen = false       // a fresh read below has seen a kill on this page (never cleared: the client stopped for good)
+const _killWatchers = new Set()
+
 /** Is the device store killed NOW, by either kill (either device value)? Read FRESH from the jar (not latched): a page
- *  left open asks it on a visible beat and stops its worker. No document (a worker) or an unreadable jar: not killed. */
+ *  left open asks it on a visible beat and stops its worker. No document (a worker) or an unreadable jar: not killed.
+ *  ⭐ A kill it sees is REMEMBERED for the page (deviceStoreKillSeen) and told ONCE to the watchers (onDeviceStoreKill):
+ *  review of #2565, P6-L2. */
 export function deviceStoreKilledNow() {
   try {
     if (typeof document === 'undefined') return false
     const jar = document.cookie
-    return cookieKillsChartSpeed(jar) || cookieKillsDeviceStore(jar)
+    const k = cookieKillsChartSpeed(jar) || cookieKillsDeviceStore(jar)
+    if (k && !_killSeen) {
+      _killSeen = true
+      for (const fn of [..._killWatchers]) { try { fn() } catch { /* one watcher never stops the rest */ } }
+    }
+    return k
   } catch { return false }
 }
 
+/**
+ * ⭐ HAS THIS PAGE SEEN A KILL (review of #2565, P6-L2)? A plain boolean: no cookie is read here. It turns true the moment
+ * the fresh read above sees a kill (the device client's visible beat: deviceStore/client.js, every VISIBLE_HEARTBEAT_MS
+ * while visible and on becoming visible), and stays true: that client has stopped for good. The bar store's device rule
+ * asks it on every switch (barStore/prefetch deviceRefusalOf 'killed'), so device rows the page already holds stop
+ * painting with the worker, not at the next reload.
+ */
+export function deviceStoreKillSeen() { return _killSeen }
+
+/** Call `fn` once, when the fresh read first sees a kill on this page (the bar store re-asks the keys it holds device rows
+ *  for). Returns the unsubscribe. */
+export function onDeviceStoreKill(fn) {
+  _killWatchers.add(fn)
+  return () => { _killWatchers.delete(fn) }
+}
+
 /** Tests: forget this page load's answers. */
-export function __resetChartSpeedForTests() { _killed = null; _deviceKill = null }
+export function __resetChartSpeedForTests() { _killed = null; _deviceKill = null; _killSeen = false; _killWatchers.clear() }

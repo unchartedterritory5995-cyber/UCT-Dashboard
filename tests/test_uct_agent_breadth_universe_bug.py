@@ -49,6 +49,9 @@ def searched(monkeypatch):
     "how many US stocks are above the 200-day MA today",
     "what's breadth like right now",
     "how many new highs on the nasdaq today",
+    # "what %" (a symbol, no word boundary after it) — first-call routing 2026-11-23, = routing.js
+    "what % are over the 10 day today",
+    "what% are above the 200 dma",
 ])
 def test_RECOGNIZED_breadth_questions(message):
     assert turn.is_breadth_question(message)

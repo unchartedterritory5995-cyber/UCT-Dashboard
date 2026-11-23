@@ -64,12 +64,17 @@ on:
       # what the cross-folder VITEST rails read outside the paths above, so a PR changing one runs them. DERIVED:
       # `python tools/ci_app_src_vitest_rails.py --print-paths` prints what is missing, and
       # tests/test_ci_app_src_vitest_rails.py fails (UNTRIGGERED READ) until it is added here.
+      - 'corpus/committed/artemis-oscillator-pro__ea1097ca9e.pine'
       - 'corpus/committed/atr-bands__ad60b125e6.pine'
+      - 'corpus/committed/atr-support-and-resistance__3e9ddb38c4.pine'
+      - 'corpus/committed/camarilla__jw9faob08r.pine'
+      - 'corpus/committed/chart-champions-part-1-npoc-levels-vwaps__wdeUFJ4ZD2.pine'
       - 'corpus/committed/heat-map-seasons__53acdf3223.pine'
       - 'corpus/committed/makuchaku039s-trade-tools-fair-value-gaps__b951deedc8.pine'
       - 'corpus/committed/pa-zigzag-fibonacci-fan__2001.pine'
       - 'corpus/committed/strong-start-rvol-dashboard__36140b1cbe.pine'
       - 'corpus/committed/supertrend-strategy__rcRbtoBiKG.pine'
+      - 'corpus/committed/twin-range-filter__xF3L2PeXm7.pine'
       - 'corpus/committed/vdubus-pattern-gen-v2-restored-refined__66dc68412e.pine'
       - 'docs/agent/CHARTS_COVERAGE_MATRIX.md'
       - 'docs/agent/CHARTS_TEACH_STATUS.md'

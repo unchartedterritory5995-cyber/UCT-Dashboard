@@ -3795,11 +3795,58 @@ def _set_kill_cookie(response: Response, name: str, value) -> None:
         pass
 
 
+def _kill_cookie_values() -> list:
+    """WHICH KILL COOKIES THE CURRENT ENVIRONMENT CALLS FOR: `[(cookie name, value)]`, chart speed first, then the device
+    store. `value` is what the cookie carries while that kill is in force ("0", or the device kill's "0" / "purge") and
+    None while it is not. THE ONE STATEMENT OF THIS MAPPING (review of #2583, LOW-2): both writers below read it, so a
+    kill added here reaches the auth answers and the live-prices poll together (tests/test_kill_cookie_on_live_prices.py
+    LP8).
+
+    Read per call. Each kill is read in ITS OWN try: a kill whose variable cannot be read is LEFT OUT, so neither writer
+    sets or clears it (the browser keeps what it holds: a kill once seen stays until an answer says otherwise), and it
+    never costs the other kill its cookie. ⛔ NEVER RAISES."""
+    out = []
+    for name, read in (
+        (CHART_SPEED_COOKIE, lambda: None if _chart_speed_enabled() else "0"),
+        (DEVICE_STORE_COOKIE, lambda: _device_store_kill()),
+    ):
+        try:
+            out.append((name, read()))
+        except Exception:  # noqa: BLE001 -- a kill switch must never cost a login or a price poll
+            pass
+    return out
+
+
+def set_kill_cookies_when_killed(response: Response) -> None:
+    """The kills on a response a charting page receives OFTEN (api/routers/live_prices.py, the 2 s poll every live chart
+    runs while visible; review of #2580): SET while a kill is in force, and NOTHING otherwise. Never a deletion: clearing
+    stays the auth answers' job (`_set_chart_speed_cookie`), so with no kill in force no response changes for anyone. The
+    same cookies and attributes as the auth path (`_kill_cookie_values`, `_set_kill_cookie`). Without it an open page
+    learned a kill only with its next auth answer (a tab becoming visible, or every 10 minutes while a bars stream is
+    open); a web restart, which setting the variable causes, makes no page re-auth.
+
+    LIFTING A KILL (review of #2583, LOW-5). The poll then sets nothing, so the cookie stays in the browser until the
+    page's next auth answer clears it (a tab becoming visible, at least 30 s apart; every 10 minutes while a bars stream
+    is open; the recovery paths). A page that already acted on the kill stays off until it is reloaded (the device
+    client's shutdown is for the page's life). A visible page that received the cookie but had not reached its next
+    60 s beat when the kill was lifted still shuts down at that beat, on the cookie it holds. A new page load: its boot
+    /me clears the cookie; the chart code reads the jar once per load (app/src/lib/chartSpeed.js), so only a load whose
+    chart code read it before that /me answered would stay off, and only for that load (as before this poll carried it).
+
+    ⛔ NEVER RAISES: it rides a price poll, and a kill switch must never cost a member their prices
+    (`_kill_cookie_values` and `_set_kill_cookie` never raise)."""
+    for name, value in _kill_cookie_values():
+        if value is not None:
+            _set_kill_cookie(response, name, value)
+
+
 def _set_chart_speed_cookie(response: Response) -> None:
     """Write the browser's copy of the kills: `uct_chart_speed=0` while CHART_SPEED_ENABLED is off, and
-    `uct_device_store=0` or `=purge` while DEVICE_STORE_ENABLED kills; each cleared otherwise. Two cookies, two
-    tries: a failure on one never skips the other.
+    `uct_device_store=0` or `=purge` while DEVICE_STORE_ENABLED kills; each cleared otherwise (`_kill_cookie_values`).
+    Two cookies, two tries: a failure on one never skips the other, and a kill that cannot be read is left as the
+    browser holds it.
 
-    ⛔ NEVER RAISES: it rides every sign-in, and a kill switch must never cost a login."""
-    _set_kill_cookie(response, CHART_SPEED_COOKIE, None if _chart_speed_enabled() else "0")
-    _set_kill_cookie(response, DEVICE_STORE_COOKIE, _device_store_kill())
+    ⛔ NEVER RAISES: it rides every sign-in, and a kill switch must never cost a login (`_kill_cookie_values` and
+    `_set_kill_cookie` never raise)."""
+    for name, value in _kill_cookie_values():
+        _set_kill_cookie(response, name, value)

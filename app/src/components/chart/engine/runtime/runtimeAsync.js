@@ -525,7 +525,14 @@ export function ensureRuntimeLane({ factory } = {}) {
  *  WHETHER (only for a member whose runtime pane is permitted: this module is reached only behind
  *  that gate). Returns whether a worker now exists.
  *  ⛔ Without `Worker` (tests, a non-browser host) it registers the lane and spawns nothing. */
+let _warmAsks = 0
+/** ⭐ THE PASTE WORKER (2026-11-20) — how many times this module was asked to warm the lane. The member door
+ *  builds in its own worker, where a warm can spawn nothing (no page); the worker counts the door's asks
+ *  and the page warms the lane when the answer lands (`builder/memberPane/memberDoorAsync.js`). */
+export function runtimeLaneWarmAsks() { return _warmAsks }
+
 export function warmRuntimeLane({ factory } = {}) {
+  _warmAsks += 1
   ensureRuntimeLane({ factory })
   const canWork = typeof Worker === 'function' && typeof window !== 'undefined'
   if (!factory && !canWork) return false

@@ -17,6 +17,26 @@
 //
 // The engine modules are loaded only when a script arrives (dynamic imports), so the dock's
 // first-open bytes do not grow by the Pine translator.
+//
+// ⭐⭐ (engine 94, coordinator ruling 2026-11-22, interim) — THIS CHECK RUNS ON THE PAGE'S MAIN THREAD, SO IT
+// CARRIES ITS OWN WALL CAP. The deterministic budgets took the translator's 10 s window away: a translation is bounded
+// by its step budget, and the wall clock only by last-resort stops sized in minutes for the workers every other member
+// path runs in. This check has not moved to the door's worker yet, so it passes the door API a short cap of its own
+// (`engine/ast/doorDeadline.js::withMainThreadCap`, `SCRIPT_CHECK_CAP_MS`, the old window's 10 s) over the whole
+// main-thread part of the check (the report, the door, the status). Past it the check is REFUSED BY NAME: "This
+// script could not be checked here", with the cap said in a line, nothing of the check kept, nothing sent back to the
+// assistant (a cap is a fact about this window, never about the script). Moving the check to the door's worker
+// removes the cap. Rails: `scriptCheckCap.test.js`. (The cap's module is loaded with the engine, never at first open.)
+
+/** The authoring check's main-thread cap, in ms: the translator's old 10 s window (see the note above). */
+export const SCRIPT_CHECK_CAP_MS = 10000
+/** The headline of a check this window could not make (the engine did not load, a check threw, the cap ran out). */
+export const UNCHECKED_HEADLINE = 'This script could not be checked here'
+/** What the member reads under that headline when the cap ran out. */
+export const SCRIPT_CHECK_CAPPED_LINE = `Checking it here took longer than ${SCRIPT_CHECK_CAP_MS / 1000} seconds, and this `
+  + 'window stops a check that long rather than hold the page. That is a limit of this window, not a mistake in the '
+  + 'script: open it in the editor to check it there.'
+const wallNow = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now())
 
 /** The most times one request's script is sent back for repair (the server holds the same bound). */
 export const MAX_REPAIR_ROUNDS = 2
@@ -99,9 +119,10 @@ export function sameRefusals(a, b) {
  * Run one script through the member's own paste path. Never throws: a failure to check is a
  * verdict that says so (and is never read as "runs").
  * @param {string} pine
- * @param {object} [deps]  injectable for tests: `{ load }` returns the engine modules
+ * @param {object} [deps]  injectable for tests: `{ load }` returns the engine modules; `capClock` the wall clock the
+ *                         main-thread cap is read on
  */
-export async function checkScript(pine, { load = loadEngine, chart = null, admission = null } = {}) {
+export async function checkScript(pine, { load = loadEngine, chart = null, admission = null, capClock = wallNow } = {}) {
   try {
     const { inspectSource, memberPaneDefinition, editorStatus, prepare, runHereWhenLanded, verdictOnChart, consultPending, pendingReason } = await load()
     // (why the server is still checking, when it said: kept on a verdict that is only CHECKING, nowhere else)
@@ -111,9 +132,16 @@ export async function checkScript(pine, { load = loadEngine, chart = null, admis
       return PENDING_REASON_LINES[reason] ? { ...v, pendingReason: reason } : v
     }
     await prepare(pine, admission)
-    const report = inspectSource(pine, 'pine')
-    const pane = memberPaneDefinition({ source: pine, id: SCRIPT_CHECK_ID, name: 'script' })
-    const pasted = verdictFrom(editorStatus({ report, pane, savedRow: null, inspectedSource: pine }), pane)
+    // ⭐⭐ ONE CAP over the main-thread part of the check (see the note at the top): past it, refused by name, nothing kept
+    const { withMainThreadCap } = await import('../../engine/ast/doorDeadline.js')
+    const checked = withMainThreadCap(SCRIPT_CHECK_CAP_MS, () => {
+      const report = inspectSource(pine, 'pine')
+      const pane = memberPaneDefinition({ source: pine, id: SCRIPT_CHECK_ID, name: 'script' })
+      return { pane, status: editorStatus({ report, pane, savedRow: null, inspectedSource: pine }) }
+    }, capClock)
+    if (checked.capped) return cappedVerdict()
+    const { pane } = checked.value
+    const pasted = verdictFrom(checked.value.status, pane)
     // ⛔ A VERDICT MADE WHILE THE CHART DOES NOT KNOW WHETHER IT MAY DRAW THE SCRIPT IS NOT A REFUSAL (review
     // 2026-11-19). The bar-by-bar lane declines a script whose admission has not answered (the server said
     // "still being checked", or the question failed); the paste check then reads "does not run", with the
@@ -136,9 +164,16 @@ export async function checkScript(pine, { load = loadEngine, chart = null, admis
     const run = await runHereWhenLanded(pane, chart, { timeoutMs: RUN_WAIT_MS })
     return withReason(verdictOnChart(pasted, run, SCRIPT_REFUSAL_LIMITS))
   } catch {
-    return { runs: false, attaches: false, state: UNCHECKED_STATE, lane: 'host', headline: 'This script could not be checked here',
+    return { runs: false, attaches: false, state: UNCHECKED_STATE, lane: 'host', headline: UNCHECKED_HEADLINE,
       withheld: [], notes: [], errors: [] }
   }
+}
+
+/** The verdict of a check whose main-thread cap ran out: refused by name, the cap said, nothing of the check kept, and
+ *  nothing for the assistant to repair (`errors` empty: `refusalOf` sends nothing). */
+function cappedVerdict() {
+  return { runs: false, attaches: false, state: UNCHECKED_STATE, lane: 'host', headline: UNCHECKED_HEADLINE,
+    withheld: [], notes: [SCRIPT_CHECK_CAPPED_LINE], errors: [], capped: true }
 }
 
 /** How long the dock waits for a run handed to a worker before saying "still being checked". */

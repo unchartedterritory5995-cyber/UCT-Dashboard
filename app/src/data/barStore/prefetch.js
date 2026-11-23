@@ -70,6 +70,7 @@ import { isNativeTf, fetchTf } from '../../components/chart/timeframes'
 import { isCacheCurrentForView, expectedBarsBehind } from '../../utils/marketSession'
 import { deviceCopyFresh, inRegularSession } from '../deviceStore/fresh'
 import { deviceServesTf } from '../deviceStore/tfs'
+import { deviceStoreKillSeen } from '../../lib/chartSpeed'
 import { BARSTORE } from '../../components/chart/barStoreSwitch'
 import { prefetchTickerMeta as _defaultTickerMeta } from '../../hooks/useTickerMeta'
 import {
@@ -257,8 +258,12 @@ const SHORT_FULL_MAX = 4000
  *               catch: this one covers it (the push-closed short row included: its bucket ended at the current
  *               bucket's start, after the stamp), so 'rolling' is gone.
  */
-export function deviceRefusalOf(s, { extended = false, through = null, nowMs = Date.now() } = {}) {
+export function deviceRefusalOf(s, { extended = false, through = null, nowMs = Date.now(), killed = false } = {}) {
   if (!s || s.deviceRows !== true || s.restSeen) return null
+  // ⛔ A KILL SEEN ON THIS PAGE (review of #2565, P6-L2): the device's rows stop painting with its worker. The rollback for
+  // wrong device data must reach the rows an open page already holds, not only its next reload. `killed`: the caller's
+  // lib/chartSpeed.deviceStoreKillSeen(), a plain boolean the client's beat sets (no cookie read per switch).
+  if (killed) return 'killed'
   const p = parseKey(s.key)
   if (!p) return null
   const intraday = isIntradayTf(p.tf)
@@ -528,7 +533,7 @@ export function createPrefetch(o = {}) {
    *  deviceVerdict. The chart's own paint rule asks the same function (useBarSnapshotBars). */
   function _deviceRefusal(s, showExtended) {
     if (!_deviceRows(s)) return null
-    return deviceRefusalOf(s, { extended: extOf(showExtended), through: S().persist?.deviceThroughOf?.(s.key) ?? null, nowMs: now() })
+    return deviceRefusalOf(s, { extended: extOf(showExtended), through: S().persist?.deviceThroughOf?.(s.key) ?? null, nowMs: now(), killed: deviceStoreKillSeen() })
   }
 
   /**
@@ -788,7 +793,7 @@ export function createPrefetch(o = {}) {
     if (!_deviceHeld(s)) return { paints: false, reason: s.source === 'device' ? 'server-answered' : `held:${held}`, held }
     // (the one refusal, with the store's status rule between its first answer and the others, as the reasons read)
     const refusal = _deviceRefusal(s, showExtended)
-    if (refusal === 'ext-hours') return { paints: false, reason: refusal, held }
+    if (refusal === 'ext-hours' || refusal === 'killed') return { paints: false, reason: refusal, held }
     if (!HANDOFF_PAINTS.includes(s.status)) return { paints: false, reason: `status:${s.status}`, held }
     if (refusal) return { paints: false, reason: refusal, held }
     return { paints: true, reason: 'paints', held }

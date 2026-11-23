@@ -95,6 +95,18 @@ _ET = ZoneInfo("America/New_York")
 #: honest.
 MODEL: str = os.environ.get("CONCIERGE_MODEL", "claude-opus-5")
 
+#: ⭐ 2026-11-23 -- THE GATE OF A MODEL THAT REJECTS THE FORCED TOOL CALL every assistant turn makes
+#: (`forced_tool_choice`: the table, its source, and why there is never a fall back to `tool_choice: auto`). The turn is
+#: refused under this gate BEFORE any call and any charge, in the formula assistant, the conversation door and the
+#: script turn alike. It is ours to fix (a setting), so it is an `internal:` gate, never the assistant's doing.
+FORCED_TOOL_CHOICE_GATE = "internal:assistant-model"
+
+
+def forced_tool_choice_unsupported() -> bool:
+    """Is the assistant's configured model one that rejects the forced tool call every assistant turn makes?"""
+    from api.services import forced_tool_choice
+    return forced_tool_choice.rejects(MODEL)
+
 #: A ceiling on THINKING PLUS the tool call. Opus 5 thinks by default when
 #: ``thinking`` is omitted and ``max_tokens`` caps both, so 1200 — sized for the
 #: tool call ALONE — would truncate a thought mid-tree into a repair call and a
@@ -247,6 +259,10 @@ REFUSALS: Mapping[str, str] = {
     # Its own gate so monitoring can tell that from an outage; the member is told neither detail.
     "model:unavailable": (
         "the UCT Agent is not available right now"),
+    # ⭐ 2026-11-23: OUR setting, not the provider and not the assistant. ONE sentence, read by all three turns.
+    "internal:assistant-model": (
+        "the UCT Agent is switched off by a setting on our side, so nothing was sent to it and nothing was charged -- "
+        "please try again later"),
     "model:no-tool": (
         "the UCT Agent replied without emitting a formula"),
     "schema:node": (
@@ -3549,6 +3565,9 @@ def propose(prompt: str, *, user_id: Any, bars: Optional[List[dict]] = None,
         # ⭐ THE CAP IS CONSULTED BEFORE THE SPEND, EVERY TIME ROUND. A cap checked
         # after the call is not a cap, and a loop that checks only on the first
         # pass is not a cap on the second.
+        if forced_tool_choice_unsupported():
+            # refused BY NAME, before any call and any charge: this model rejects the forced call below
+            return {"ok": False, "gate": FORCED_TOOL_CHOICE_GATE, "reason": REFUSALS[FORCED_TOOL_CHOICE_GATE]}
         # ⛔ THE MEMBER-LANE GATE, NOT THE GLOBAL ONE. `may_synthesize` is the
         # SCHEDULED lanes' gate and it opens the full $15; asking it here let a
         # population of members spend the catalyst engine's budget — measured, 20

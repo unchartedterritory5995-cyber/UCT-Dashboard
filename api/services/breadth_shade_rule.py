@@ -84,7 +84,9 @@ def _paired(u, d, side):
 def is_backtested_row(row: dict, universe: str = "uct") -> bool:
     """A UCT row before the collector's first session (`_reconstructed`): today's UCT list run
     backward, not the universe as it was (owner 2026-11-22). shading.js `isBacktestedRow`."""
-    return (not universe or universe == "uct") and bool((row or {}).get("_reconstructed"))
+    # a rebuilt point-in-time row (`_uct_pit`, breadth_uct_pit.py) is real history again
+    r = row or {}
+    return (not universe or universe == "uct") and bool(r.get("_reconstructed")) and not r.get("_uct_pit")
 
 
 def is_backtested_cell(key: str, row: dict, universe: str = "uct") -> bool:

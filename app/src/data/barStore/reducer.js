@@ -1283,6 +1283,11 @@ export function reduce(state, action, ctx = {}) {
     case ACTION.TICK_FALLBACK: return applyTick(state, action, ctx)
     case ACTION.SCROLL_BACK: return applyScrollBack(state, action, ctx)
     case ACTION.INVALIDATE: return invalidate(state, action.reason, ctx)
+    // ⛔ A KILL SEEN ON THIS PAGE (review of #2565, P6-L2): the copy's stamp vouches for nothing any more, so the first answer
+    // keeps none of the device's rows newer than itself (applyRest). The rows stay until then (nothing is blanked), and the
+    // marker stays: the refusal ('killed') keys on it. Only an entry holding device rows; never with the store off.
+    case ACTION.DEVICE_KILLED:
+      return state.deviceRows && state.deviceThrough != null ? Object.freeze({ ...state, deviceThrough: null }) : state
     default: return state
   }
 }

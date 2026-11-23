@@ -1,0 +1,33 @@
+{
+  "schema": "uct.ci-mutants/v1",
+  "about": "INDICATOR HOUSE'S COPY AND INSPECT-A-BAR IN THE DOOR'S WORKER (feat/pine-door-paths, stacked on the saved-script upgrade and #2254): each path asks the member door's worker for one build and never runs the door on the page's main thread; every build is released once read.",
+  "mutants": [
+    {
+      "id": "B1",
+      "mutant": "Indicator House's copy builds on the main thread again",
+      "file": "app/src/components/chart/IndicatorHouseTab.jsx",
+      "from": "  const landed = await doorBuildOnce({ source: item.pine, id, name: item.name })",
+      "to": "  const landed = { built: (await import('./builder/memberPane/memberPaneDefinition')).memberPaneDefinition({ source: item.pine, id, name: item.name }) }",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/doorPaths.worker.test.js",
+      "expectRed": "door calls on the MAIN thread for the copy"
+    },
+    {
+      "id": "D1",
+      "mutant": "inspect-a-bar builds the script and its probe copies on the main thread again",
+      "file": "app/src/components/chart/builder/inspect/inspectDoors.js",
+      "from": "  const landed = await doorBuildOnce({ source, id: MEMBER_PANE_DEF_PREFIX })",
+      "to": "  const landed = { built: (await import('../memberPane/memberPaneDefinition')).memberPaneDefinition({ source, id: MEMBER_PANE_DEF_PREFIX }) }",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/doorPaths.worker.test.js",
+      "expectRed": "door calls on the MAIN thread for the inspection"
+    },
+    {
+      "id": "O1",
+      "mutant": "a one-shot build is never released (the service holds every answer)",
+      "file": "app/src/components/chart/builder/memberPane/memberDoorAsync.js",
+      "from": "      Promise.resolve().then(() => { if (release) release() })\n      resolve(answer)",
+      "to": "      resolve(answer)",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/doorPaths.worker.test.js",
+      "expectRed": "released once read"
+    }
+  ]
+}

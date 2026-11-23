@@ -219,7 +219,7 @@ describe('a member on the default (no key, no diagnostics): the switch re-reads 
     await advance(310)
     expect(last(log).shown).toBe('AAA')
     expect(w.store.persist.deviceThroughOf(KB)).toBe(et(10, 4))      // nothing newer to find
-    expect(w.asked('BBB')).toBeGreaterThan(0)
+    expect(w.asked('BBB')).toBe(1)                                   // one request, never doubled (review of #2565)
     await act(async () => { w.answer('BBB'); await vi.advanceTimersByTimeAsync(50) })
     expect(last(log).shown).toBe('BBB')
     expect(last(log).n).toBeGreaterThan(0)

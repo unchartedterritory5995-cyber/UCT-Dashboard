@@ -75,7 +75,8 @@ export function shadeValue(c, field, row) {
 // lands, such a cell shows its number unshaded. Market-wide columns (VIX, sentiment, the index
 // readings...) do not depend on the list and stay shaded. Mirrored in breadth_shade_rule.py.
 export function isBacktestedRow(row, universe = 'uct') {
-  return (!universe || universe === 'uct') && !!row?._reconstructed
+  // a rebuilt point-in-time row (`_uct_pit`, breadth_uct_pit.py) is real history again
+  return (!universe || universe === 'uct') && !!row?._reconstructed && !row?._uct_pit
 }
 export function isBacktestedCell(key, row, universe = 'uct') {
   return isBacktestedRow(row, universe) && !MARKET_WIDE_COLS.has(key)

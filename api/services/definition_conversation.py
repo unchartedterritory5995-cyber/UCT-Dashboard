@@ -167,6 +167,43 @@ def _raw_schema_text() -> str:
     return PATCH_SCHEMA_PATH.read_text(encoding="utf-8")
 
 
+def _choice_max_chars() -> int:
+    """How long one choice of a question may be: the schema's own number (`$defs.question.properties.choices`)."""
+    limit = json.loads(_raw_schema_text())["$defs"]["question"]["properties"]["choices"]["items"]["maxLength"]
+    if not isinstance(limit, int) or isinstance(limit, bool) or limit < 1:
+        raise RuntimeError("patchSchema.json: a question's choice has no length limit to read")
+    return limit
+
+
+#: ⭐ 2026-11-23 -- A GUARD THAT DEMANDS EXACT WORDS MUST FIT ITS FIELD. Measured live: asked for a version on this
+#: chart's bars, the assistant wrote choices of 89 and 192 characters, the SCHEMA refused them (a choice may be 80,
+#: a limit it was never told), and the shorter repair was refused by the day-length guard, whose note asked for
+#: every span "exactly": 165 characters for a request with four lengths. Two rules no one answer was told how to
+#: meet. The limit is read from the schema (never typed here), the door's own words for the bars version never
+#: exceed BARS_PHRASE_MAX_CHARS, and the import fails if those words would not leave the assistant room for its own.
+CHOICE_MAX_CHARS = _choice_max_chars()
+BARS_PHRASE_MAX_CHARS = 60
+ROOM_FOR_THE_ASSISTANTS_WORDS = 20
+
+
+def require_room_in_a_choice(limit: int, required: int = BARS_PHRASE_MAX_CHARS, room: int = ROOM_FOR_THE_ASSISTANTS_WORDS) -> None:
+    """Refuse to start when the words a guard requires in a choice would not fit the choice (with room to say what
+    the choice draws). Raised at import: a schema limit lowered under the guard's words is found before a member is."""
+    if required + room > limit:
+        raise RuntimeError(f"a choice may be {limit} characters, and the day-length guard requires up to {required} "
+                           f"of them with {room} left for the assistant's own words: the two cannot both hold")
+
+
+require_room_in_a_choice(CHOICE_MAX_CHARS)
+
+
+def daily_values_below_a_day(chart: Any = None) -> bool:
+    """Can a chart below a day BUILD a daily measure inside its own formula (a daily read on an intraday chart)?
+    NO, today. ⛔ THE ONE PLACE THIS IS ANSWERED: the engine unit that admits it (U-DAILY) points this function at
+    its capability, and what the assistant is told follows (`day_length_turn_notes`), with nothing else to edit."""
+    return False
+
+
 def patch_schema() -> Dict[str, Any]:
     """The engine's contract file, unmodified (a fresh copy)."""
     return json.loads(_raw_schema_text())
@@ -761,6 +798,14 @@ STRICT_WORDS_RULE = (
     "side (it says \"at least as\"), that function is not the member's test. Write the comparison out with > or < "
     "against the bars on each side instead of relying on the function. ")
 
+#: What a choice of the day-length question must hold (see CHOICE_MAX_CHARS above). The limit is the schema's number.
+DAY_LENGTH_CHOICE_RULE = (
+    f"A choice is at most {CHOICE_MAX_CHARS} characters, and a longer one is refused. In the version on this chart's "
+    "bars put `uct_language_notes.day_lengths_bars_phrase` as given: it is the door's own wording of what those bars "
+    "span, every length at once. Never call that version by its number of days. If "
+    "`uct_language_notes.daily_measure_inside` is true, a daily measure CAN be read inside a formula of this chart: "
+    "build what the member asked that way, and ask only about what still cannot be written. ")
+
 CONVERSE_SYSTEM_PROMPT = (
     "You are UCT's indicator-authoring assistant. Each turn you receive ONE member "
     "message and the CURRENT indicator, and you answer with exactly one call to "
@@ -952,8 +997,9 @@ CONVERSE_SYSTEM_PROMPT = (
     "symbol (which takes no calculation timeframe at all). Do NOT build it on the chart's bars under a note: a line "
     "of 50 bars of a 5 minute chart is about four hours, not 50 days, whatever the note says, and the member reads "
     "the chart. Set disposition clarify, emit `ops: []`, and ask ONE question: one plain sentence of why, then two "
-    "`choices` that each name what they draw IN TIME. Write the bars version with the `on_this_chart` words exactly "
-    "as given, and never call it by its number of days. For \"show when the close crosses above its 50 day average\" "
+    "`choices` that each name what they draw IN TIME. "
+    + DAY_LENGTH_CHOICE_RULE +
+    "For \"show when the close crosses above its 50 day average\" "
     "on a 5 minute chart: \"I can't yet compare each 5 minute bar with a daily measure like the 50 day average. Which "
     "would you like?\" with the choices \"The 50 day average as a line, on daily bars\" and \"Crosses of the average "
     "of 50 five-minute bars (about 4 hours)\". For a daily measure of another symbol (\"the ratio against SPY with "
@@ -1504,6 +1550,50 @@ def day_length_notes(message: Any, chart: Any) -> List[Dict[str, Any]]:
     return [{"days": n, "on_this_chart": span_on_this_chart(n, minutes)} for n in day_lengths(message)]
 
 
+def bars_phrase(message: Any, chart: Any) -> Optional[str]:
+    """ONE ready phrase for the version on this chart's bars, every length of the request at once, never longer than
+    BARS_PHRASE_MAX_CHARS: "50 five-minute bars, about 4 hours"; "10, 21, 50 and 14 five-minute bars, about 50
+    minutes to 4 hours". The DOOR writes the time words (the assistant once worked a date out four days wrong); the
+    assistant writes the rest of its choice around them. None when the request gives no length in days below a day.
+
+    Shorter forms when the full one would not fit: without the counts, then "these bars" with the times alone."""
+    notes = day_length_notes(message, chart)
+    if not notes:
+        return None
+    spans = [n["on_this_chart"] for n in notes]
+    if len(spans) == 1:
+        return spans[0] if len(spans[0]) <= BARS_PHRASE_MAX_CHARS else None
+    if ", " not in spans[0]:                             # the chart's minutes are not known: "50 bars of this chart"
+        counts = [str(n["days"]) for n in notes]
+        said = ", ".join(counts[:-1]) + " and " + counts[-1] + " bars of this chart"
+        return said if len(said) <= BARS_PHRASE_MAX_CHARS else "these bars in place of days"
+    kind = spans[0].split(", ", 1)[0].split(" ", 1)[1]   # "five-minute bars"
+    ordered = sorted(notes, key=lambda n: n["days"])
+    low, high = (n["on_this_chart"].split(", ", 1)[1] for n in (ordered[0], ordered[-1]))
+    times = low if low == high else f"{low} to {high.replace('about ', '', 1)}"
+    counts = [str(n["days"]) for n in notes]
+    for said in (f"{', '.join(counts[:-1])} and {counts[-1]} {kind}, {times}", f"{kind}, {times}", f"these bars, {times}"):
+        if len(said) <= BARS_PHRASE_MAX_CHARS:
+            return said
+    return None
+
+
+def day_length_turn_notes(message: Any, chart: Any) -> Dict[str, Any]:
+    """What a turn below a day is told about its lengths in days: each one with what that many bars span
+    (`day_lengths`), the door's one phrase for the bars version (`day_lengths_bars_phrase`), and, only once a chart
+    below a day can build a daily measure (`daily_values_below_a_day`), that it can. {} when there is nothing to say."""
+    lengths = day_length_notes(message, chart)
+    if not lengths:
+        return {}
+    out: Dict[str, Any] = {"day_lengths": lengths}
+    phrase = bars_phrase(message, chart)
+    if phrase:
+        out["day_lengths_bars_phrase"] = phrase
+    if daily_values_below_a_day(chart):
+        out["daily_measure_inside"] = True
+    return out
+
+
 def check_day_lengths(envelope: Mapping[str, Any], message: Any, chart: Any) -> None:
     """A LENGTH IN DAYS BUILT AS THAT MANY BARS OF A CHART BELOW A DAY IS REFUSED, so the model gets its repair; and
     a QUESTION that offers the bars version must say what it spans and never call it by its number of days.
@@ -1515,6 +1605,7 @@ def check_day_lengths(envelope: Mapping[str, Any], message: Any, chart: Any) -> 
     if not lengths:
         return
     by_days = {n["days"]: n["on_this_chart"] for n in lengths}
+    phrase = bars_phrase(message, chart)
     if envelope.get("disposition") == "clarify":
         for q in envelope.get("questions") or []:
             for choice in (q.get("choices") or []) if isinstance(q, Mapping) else []:
@@ -1524,12 +1615,17 @@ def check_day_lengths(envelope: Mapping[str, Any], message: Any, chart: Any) -> 
                     continue
                 span = next((s for s in by_days.values() if s.split(",")[0] in text and s.split(", ")[-1] in text), None)
                 called_days = next((n for n in by_days if re.search(rf"(?<![\d.]){n}[\s-]*days?\b", text, re.I)), None)
-                if span is None or called_days is not None:
+                carries_the_phrase = phrase is not None and phrase in text
+                if (span is None and not carries_the_phrase) or called_days is not None:
+                    # ⛔ THE NOTE ASKS FOR WHAT THE CODE ACCEPTS, and for something that fits a choice. It used to
+                    # ask for every span "exactly", which no choice of a request with several lengths could hold.
+                    wanted = (f"put these words in it as given: \"{phrase}\"" if phrase is not None
+                              else f"name one of these exactly: {'; '.join(by_days.values())}")
                     raise _Refused(
                         "envelope:days-choice-in-days",
-                        f"the choice {text!r} offers a version on this chart's bars. Name it for what it spans, with the "
-                        f"words of `uct_language_notes.day_lengths` exactly ({'; '.join(by_days.values())}), and never "
-                        "call it by its number of days.")
+                        f"the choice {text!r} offers a version on this chart's bars. Name it for what it spans: {wanted}. "
+                        f"Keep the whole choice within {CHOICE_MAX_CHARS} characters, and never call it by its number "
+                        "of days.")
         return
     if envelope.get("disposition") not in (None, "change") or not envelope.get("ops"):
         return
@@ -1557,8 +1653,9 @@ def check_day_lengths(envelope: Mapping[str, Any], message: Any, chart: Any) -> 
                         "add set_calculation_timeframe D. If not (each bar is compared with the daily measure, today's "
                         "own values are added to it, or another symbol is read), it cannot be written yet: do NOT build "
                         "it on the chart's bars under a note. Answer with disposition clarify, `ops: []`, and ONE "
-                        "question: one plain sentence of why, then two `choices` that each name what they draw in time, "
-                        f"the bars version written as \"{by_days[n]}\" and never as {n} days.")
+                        f"question: one plain sentence of why, then two `choices` of at most {CHOICE_MAX_CHARS} characters "
+                        "that each name what they draw in time, the bars version carrying "
+                        f"\"{phrase or by_days[n]}\" as given and never called {n} days.")
         visit(args, where)
 
     for where, tree in _trees_of(envelope):
@@ -5457,7 +5554,7 @@ _BUDGET_GATES = {"cost:user": "budget_user", "cost:global": "budget_global",
 _PLATFORM_GATES = {"model:transport"}
 #: ⭐ O7 -- the provider refused OUR ACCOUNT. Its own class: an outage heals, this needs a person.
 _ACCOUNT_GATES = {"model:unavailable"}
-_INTERNAL_GATES = {"internal:error", "internal:timeout"}
+_INTERNAL_GATES = {"internal:error", "internal:timeout", dc.FORCED_TOOL_CHOICE_GATE}
 _MODEL_GATE_PREFIXES = ("envelope:", "model:", "schema:", "lint:", "budget:", "converse:")
 
 #: ⭐ UNSUPPORTED DEMAND. Deterministic buckets over a model-"unsupported" turn's own
@@ -5919,10 +6016,10 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
         notes = {**notes, "dates": written_dates}
         trace["dates"] = len(written_dates)        # how many, never which
     date_numbers = supplied_date_numbers(message, notes, view, turns)
-    days_as_bars = day_length_notes(message, chart)
+    days_as_bars = day_length_turn_notes(message, chart)
     if days_as_bars:
-        notes = {**notes, "day_lengths": days_as_bars}
-        trace["day_lengths"] = len(days_as_bars)       # how many, never which
+        notes = {**notes, **days_as_bars}
+        trace["day_lengths"] = len(days_as_bars["day_lengths"])       # how many, never which
     from api.services import worked_examples
     carried = worked_examples.for_turn(message, view, admin=admin, asked=examples)
     content = user_turn(request_text, {**notes, "worked_examples": carried} if carried else notes,
@@ -5955,6 +6052,11 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
     if isinstance(trace, dict):
         trace["refusals"] = refusals
     extra = {"not_understood": not_understood, "unavailable": unavailable}
+
+    if dc.forced_tool_choice_unsupported():
+        # refused BY NAME, before any call and any charge: the configured model rejects the forced call below
+        # (`forced_tool_choice`). Everything the door answers WITHOUT the assistant was answered above, as always.
+        return _refusal(dc.FORCED_TOOL_CHOICE_GATE, **extra)
 
     while attempts < MAX_MODEL_CALLS:
         if cancelled is not None and cancelled.is_set():

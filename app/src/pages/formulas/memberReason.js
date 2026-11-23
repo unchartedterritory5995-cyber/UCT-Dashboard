@@ -37,6 +37,10 @@ const SENTENCES = [
   [/^Wave 7\b/, NOT_FILLED],
   [/^HELD BACK BECAUSE IT IS EMPTY/, NOT_FILLED],
   [/^for the same reason as `chg_pct_3m`/, NOT_FILLED],
+  // the Fundamental Trends columns (#2448, 2026-11-21): held back under R8 until the nightly row carries them.
+  // ⛔ Matched on the R8 re-admit clause too, so an entry of that family held back for any OTHER reason falls
+  // through to the fallback and the "known kind" rail asks for its own sentence.
+  [/^FUNDAMENTAL TRENDS\b[\s\S]*\bRE-ADMIT WHEN THE ARTIFACT SHOWS THE COLUMN FILLED\b/, NOT_FILLED],
   [/^NOT GRANTED YET/, 'A Screener filter, not a formula name yet. Use it as a filter in the Screener; on a chart, describe it and the UCT Agent writes the formula.'],
   [/^LIVE-ONLY/, 'A live extended-hours value. Formulas read the nightly snapshot, so it is a Screener column and not a formula name.'],
   [/^holds letter grades/, 'A letter grade, not a number. Filter by it in the Screener.'],
