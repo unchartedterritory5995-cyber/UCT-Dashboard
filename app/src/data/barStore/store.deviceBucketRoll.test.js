@@ -63,7 +63,8 @@ describe('M1 the bucket roll', () => {
     expect(s.bars.some((b) => b.t === T(600))).toBe(false)
     expect(s.developing?.t).toBe(T(600))                            // ...it is the forming candle
     expect(ohlcv(s.developing)).toEqual(ohlcv(SHORT))
-    expect(pf.deviceVerdict('NEWB', '5', { showExtended: false })).toMatchObject({ paints: false, reason: 'rolling', held: 'device' })
+    // (review of #2554, P3-M1: the rolled bucket is the device's stamp short of the current bucket's START: 'stale')
+    expect(pf.deviceVerdict('NEWB', '5', { showExtended: false })).toMatchObject({ paints: false, reason: 'stale', held: 'device' })
     expect(pf.peekDisplayable('NEWB', '5')).toBe(false)
     store.dispose()
   })
@@ -94,7 +95,7 @@ describe('M1 the bucket roll', () => {
     const s = store.peek(key)
     expect(s.developing?.t).toBe(T(605))                            // the push opened the next bucket...
     expect(ohlcv(s.bars.find((b) => b.t === T(600)))).toEqual(ohlcv(SHORT))   // ...and closed the short one
-    expect(pf.deviceVerdict('NEWB', '5', { showExtended: false })).toMatchObject({ paints: false, reason: 'rolling' })
+    expect(pf.deviceVerdict('NEWB', '5', { showExtended: false })).toMatchObject({ paints: false, reason: 'stale' })
     expect(pf.peekDisplayable('NEWB', '5')).toBe(false)
     store.dispose()
   })
