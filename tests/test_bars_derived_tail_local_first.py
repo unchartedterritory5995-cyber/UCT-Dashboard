@@ -142,6 +142,23 @@ def _row_dicts(rows):
     return [dict(t=r[0], o=r[1], h=r[2], l=r[3], c=r[4], v=r[5]) for r in rows]
 
 
+def _provider_calls_after_the_answer(calls, timeout=5.0, settle=0.2):
+    """How many times the provider was asked by this request, counted once its repair thread has had time to ask.
+
+    The request path asks the provider on its OWN thread (`bars-reqdelta-*`, `bars_fetch._start_bounded_delta`), and
+    `_get_bars_inner` returns at the request deadline (0.3 s here) whether or not that thread has reached the provider:
+    before it does, it runs the local rebuild and its SQLite reads. On a loaded runner that took longer than the
+    deadline: master's deploy gate, 2026-11-23 13:26Z (run 45184001216, "Bars rails"), failed
+    `assert len(calls) == 1` with `0 == 1`, while the same failure report, rendered a moment later, already showed the
+    provider's URL in `calls`. So: wait (bounded) for the first call, then a short settle so a second one would be
+    seen, and count. A provider that is never asked still reads 0, after `timeout`."""
+    deadline = time.monotonic() + timeout
+    while not calls and time.monotonic() < deadline:
+        time.sleep(0.01)
+    time.sleep(settle)
+    return len(calls)
+
+
 @pytest.mark.parametrize("tf", ["30", "60"])
 def test_stale_derived_tf_first_answer_is_rebuilt_from_stored_15m_without_the_provider(env, tf):
     sq, calls, _, _ = env
@@ -173,7 +190,7 @@ def test_CONTROL_stale_base_still_asks_the_provider_only_from_the_rebuilt_tail(e
     monkeypatch.setattr(bars_fetch, "_REQUEST_DEADLINE_SECONDS", 0.3)
     _seed(sq, "30", base_today_end=(9, 0))          # 15m stops at 08:45: not current
     bars_fetch._get_bars_inner("SPY", "30", 60)
-    assert len(calls) == 1, "a base that is not current cannot answer"
+    assert _provider_calls_after_the_answer(calls) == 1, "a base that is not current cannot answer"
     assert sq.get_last_ts("SPY", "30") == _ts(2026, 11, 11, 8, 30), "covered part rebuilt locally"
     assert "/range/15/minute/2026-11-11/" in calls[0], "provider asked only from the rebuilt tail"
 
@@ -183,7 +200,7 @@ def test_base_that_does_not_overlap_the_target_tail_is_never_used(env, monkeypat
     monkeypatch.setattr(bars_fetch, "_REQUEST_DEADLINE_SECONDS", 0.3)
     target = _seed(sq, "30", base_overlap=False)    # 15m only began today
     bars_fetch._get_bars_inner("SPY", "30", 60)
-    assert len(calls) == 1
+    assert _provider_calls_after_the_answer(calls) == 1
     assert sq.get_last_ts("SPY", "30") == target[-1]["t"], "no fabricated contiguous tail"
 
 
@@ -430,4 +447,4 @@ def test_forming_bucket_repair_blocks_exactly_as_master(env, monkeypatch, tf, en
     assert bars_fetch.get_serve_layer() == "sd-deadline"
     assert body["bars"][-1]["t"] == rows[-1]["t"]
     assert set(body) == {"ticker", "tf", "bars"}
-    assert len(calls) == 1
+    assert _provider_calls_after_the_answer(calls) == 1
