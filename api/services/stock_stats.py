@@ -25,7 +25,8 @@ symbol for the session: an answer is keyed on the newest session whose evening h
 session are read, so a chart view that writes today's unfinished bar into the store never changes
 it. A stock whose newest close is older than that session (a halt, a store that has not caught up)
 is read again at most every `LAG_RECHECK_S`, and so is one whose answer was built while SPY or its
-sector fund was not held (that read is tried again after `LAG_RECHECK_S` too). The held answers are
+sector fund was not held or could not be read (that read is tried again after `LAG_RECHECK_S` too; a
+failed read is said as one, never as "no prices held"). The held answers are
 capped (`CACHE_MAX`, the least recently asked dropped first); one request per symbol builds at a time
 (a second waits for it), and at most `BUILD_SLOTS` symbols build at once (past `BUILD_WAIT_S` the
 request says `busy`).
@@ -65,7 +66,7 @@ BENCH_TAIL = 400                # benchmark closes held per evening (beta reads 
 _lock = threading.Lock()
 _cache: "OrderedDict[str, dict]" = OrderedDict()   # sym -> {key, stamp, at, recheck_at, answer}
 _inflight: dict[str, threading.Event] = {}
-_bench: dict[str, dict] = {}                        # fund -> {key, at, closes | None, state}
+_bench: dict[str, dict] = {}                        # fund -> {key, at, closes | None, why | None}
 _slots = threading.BoundedSemaphore(BUILD_SLOTS)
 
 
@@ -130,21 +131,28 @@ def sector_fund(sym: str) -> dict:
     return {"state": "ok", "symbol": etf, "sector": sector}
 
 
-def bench_closes(fund: str, key: str) -> Optional[list]:
-    """The newest `BENCH_TAIL` settled closes of `fund` (SPY or a sector fund), read at most once
-    per session key for every member (a failed read is tried again after `LAG_RECHECK_S`)."""
+def bench_closes(fund: str, key: str) -> tuple[Optional[list], Optional[dict]]:
+    """`(closes, None)`: the newest `BENCH_TAIL` settled closes of `fund` (SPY or a sector fund); or
+    `(None, why)`, `why` the block's state: `{"state": "not_held"}` (nothing settled is stored for it)
+    or `{"state": "unavailable", "reason": ...}` (the read failed, which is NOT "nothing stored").
+    Read at most once per session key for every member; a missing answer of either kind is tried
+    again after `LAG_RECHECK_S`."""
     now = time.time()
     with _lock:
         held = _bench.get(fund)
         if held and held["key"] == key and (held["closes"] is not None or now < held["at"] + LAG_RECHECK_S):
-            return held["closes"]
+            return held["closes"], held["why"]
     got = _read_closes(fund)
-    closes = None
+    closes, why = None, {"state": "not_held"}
     if got.get("status") == "ok":
         closes = [(d, c) for d, c in got.get("closes") or () if d <= key][-BENCH_TAIL:] or None
+    elif got.get("reason") != "no_price_history":
+        why = {"state": "unavailable", "reason": got.get("reason") or "read_failed"}
+    if closes is not None:
+        why = None
     with _lock:
-        _bench[fund] = {"key": key, "at": now, "closes": closes}
-    return closes
+        _bench[fund] = {"key": key, "at": now, "closes": closes, "why": why}
+    return closes, why
 
 
 def market_corrections() -> tuple[dict, tuple]:
@@ -172,16 +180,14 @@ def _beta_section(sym: str, closes: list, key: str) -> dict:
     stock = closes[-(C.BETA.WINDOW + 60):]
     out: dict = {"as_of": closes[-1][0], "window": C.BETA.WINDOW, "min": C.BETA.MIN_OBS,
                  "capture_min_days": C.CAPTURE_MIN_DAYS}
-    spy = bench_closes(BENCHMARK, key)
-    out["spy"] = ({"symbol": BENCHMARK, **C.beta_block(stock, spy, capture=True)} if spy
-                  else {"symbol": BENCHMARK, "state": "not_held"})
+    spy, why = bench_closes(BENCHMARK, key)
+    out["spy"] = {"symbol": BENCHMARK, **(C.beta_block(stock, spy, capture=True) if spy else why)}
     sec = sector_fund(sym)
     if sec["state"] != "ok":
         out["sector"] = sec
     else:
-        fund = bench_closes(sec["symbol"], key)
-        out["sector"] = ({**sec, **C.beta_block(stock, fund)} if fund
-                         else {**sec, "state": "not_held"})
+        fund, why = bench_closes(sec["symbol"], key)
+        out["sector"] = {**sec, **(C.beta_block(stock, fund) if fund else why)}
     return out
 
 
@@ -249,10 +255,10 @@ def _held(sym: str, key: str, stamp: tuple, now: float) -> Optional[dict]:
 
 
 def _bench_missing(answer: dict) -> bool:
-    """True when SPY or the sector fund was not held as the answer was built: `bench_closes` tries
-    that read again after `LAG_RECHECK_S`, and the stock's held answer must follow it."""
+    """True when SPY or the sector fund was not held, or could not be read, as the answer was built:
+    `bench_closes` tries that read again after `LAG_RECHECK_S`, and the stock's held answer must follow it."""
     beta = answer.get("beta") or {}
-    return any((beta.get(k) or {}).get("state") == "not_held" for k in ("spy", "sector"))
+    return any((beta.get(k) or {}).get("state") in ("not_held", "unavailable") for k in ("spy", "sector"))
 
 
 def _keep(sym: str, key: str, stamp: tuple, answer: dict, now: float) -> None:
