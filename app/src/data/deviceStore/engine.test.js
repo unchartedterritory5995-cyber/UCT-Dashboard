@@ -54,6 +54,8 @@ function fakeEdge(files, { cutAt = null, ignoreRange = false } = {}) {
   return fetchFn
 }
 const entryOf = (tf, url, bytes, build = 'b1') => ({ tf, url, bytes: bytes.length, sha256: sha(bytes), build })
+/** The store's pack files on `disk` (a failure record beside them, engine INGEST_STATE_FILE, is not a pack file). */
+const packFiles = (disk) => [...disk.keys()].filter((n) => /\.(pack|ok|prog)$/.test(n)).sort()
 
 describe('device engine: index + reads', () => {
   it('reads every symbol back with EXACT values after an ingest; unknown symbol / tf → null', async () => {
@@ -133,7 +135,7 @@ describe('device engine: ingest', () => {
     await expect(eng.ingest(wrong)).rejects.toThrow(/sha256/)
     expect(Array.from(eng.read('AAPL', 'D').c)).toEqual(before)
     expect(eng.info().tfs.D.build).toBe('b1')
-    expect([...disk.keys()].sort()).toEqual(['D.1.ok', 'D.1.pack'])   // the bad generation is gone
+    expect(packFiles(disk)).toEqual(['D.1.ok', 'D.1.pack'])   // the bad generation is gone (its failure is recorded: M7)
   })
 
   it('a new build replaces the old one: new values served, old generation deleted', async () => {
@@ -206,7 +208,7 @@ describe('device engine: ingest', () => {
     const eng = createDeviceEngine({ now: AT_ASOF, io: memoryIO(disk), fetchFn: fakeEdge({ u: pack }) })
     await expect(eng.ingest(entryOf('D', 'u', pack, '20261119T0131Z'))).rejects.toThrow(/build/)
     expect(eng.read('AAPL', 'D')).toBeNull()
-    expect([...disk.keys()]).toEqual([])                     // discarded whole: nothing to resume into a loop
+    expect(packFiles(disk)).toEqual([])                      // discarded whole: nothing to resume into a loop
   })
 
   it('refuses a malformed manifest entry before touching the disk', async () => {

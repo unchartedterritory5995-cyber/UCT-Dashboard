@@ -95,7 +95,9 @@ const REGIONS = `((ref, text) => {
   const t = String(text).toLowerCase()
   const out = []
   if (/price numbers|right edge|price scale|price axis/.test(t)) { for (const pn of panes) if (pn.axis) for (const fy of [0.5, 0.3, 0.7]) out.push(at(pn.axis, 0.5, fy)) }
-  else if (/volume/.test(t)) { for (let fy = 0.97; fy >= 0.6; fy -= 0.03) out.push(at(p0, 0.6, fy)); for (const pn of panes.slice(1)) out.push(at(pn.plot, 0.5, 0.5)) }
+  // a pane of its own first (UCT Signature R2, 11-16: volume is a regular indicator, in its own pane by default), then the
+  // bottom of the price pane, where an overlaid volume draws
+  else if (/volume/.test(t)) { for (const pn of panes.slice(1)) out.push(at(pn.plot, 0.5, 0.5)); for (let fy = 0.97; fy >= 0.6; fy -= 0.03) out.push(at(p0, 0.6, fy)) }
   else if (/drawing|a line|rectangle|trendline|fibonacci|text note|measure|on the chart. if this chart has none/.test(t)) {
     // a drawing: the pixels the app's drawing layer painted (its own canvas, above the chart's: only drawings are on it)
     const layer = [...cell.querySelectorAll('canvas')].find(cv => !cv.closest('.tv-lightweight-charts') && getComputedStyle(cv).zIndex === '4')
@@ -110,6 +112,12 @@ const REGIONS = `((ref, text) => {
   else { for (const fy of [0.4, 0.5, 0.3, 0.6]) out.push(at(p0, 0.5, fy)) }
   return out
 })`
+// a menu that is OPEN: one on screen, never a button that opens one. The UCT Signature restyle (11-15) put data-guide ids ending
+// in "Menu" on trigger buttons that are always there (chart.typeMenu on every chart, watchlist.listMenu), so "any such element"
+// was always true: the runner then pressed Escape with no menu open, which is the member leaving the guide (GuideOverlay).
+const MENU_OPEN = `[...document.querySelectorAll('[role="menu"],[data-guide$="Menu"]')].some(m => !m.matches('button,[aria-haspopup]') && m.getClientRects().length > 0)`
+// a window corner where a bare, fixed, window-sized element (a menu's click-catching backdrop) is on top, or null
+const CLICK_AWAY = `(() => { const vw = innerWidth, vh = innerHeight; for (const [x, y] of [[4, vh - 4], [vw - 4, vh - 4], [4, 4], [vw - 4, 4]]) { const e = document.elementFromPoint(x, y); if (!e || e.childElementCount || e.closest('[role],button,a,input,[data-guide]')) continue; const r = e.getBoundingClientRect(); if (getComputedStyle(e).position === 'fixed' && r.width >= vw * 0.9 && r.height >= vh * 0.9) return { x, y } } return null })()`
 async function rightClickRegion(s) {
   // a right-click on a control that is not the chart (a list's row, a layout on the bar) lands on that control
   const pts = s.onChart ? await p.b.evaluate(`${REGIONS}(${JSON.stringify(s.chartRef)}, ${JSON.stringify(s.stepText)})`) : [s.ring, ...(s.kids || [])]
@@ -123,12 +131,15 @@ async function rightClickRegion(s) {
     let now = await p.b.evaluate(STATE)
     // a menu opened without the row: the guide may be saying the row is not offered here (GuideOverlay ABSENT_MS), as a
     // person who opened the menu and waited would see. Wait for that before trying the next point
-    if (now && now.index === s.index && !now.met && await p.b.evaluate(`!!document.querySelector('[role="menu"],[data-guide$="Menu"]')`)) { await sleep(1900); now = await p.b.evaluate(STATE) }
+    if (now && now.index === s.index && !now.met && await p.b.evaluate(MENU_OPEN)) { await sleep(1900); now = await p.b.evaluate(STATE) }
     if (!now || now.index !== s.index || now.met) return true
     // the wrong region's menu closes, and the next candidate is tried. Escape only while a menu is open: with none, Escape is
     // the member leaving the guide (GuideOverlay's own rule)
-    if (await p.b.evaluate(`!!document.querySelector('[role="menu"],[data-guide$="Menu"]')`)) await p.b.key('Escape')
+    if (await p.b.evaluate(MENU_OPEN)) await p.b.key('Escape')
     await sleep(200)
+    // a menu Escape does not close (the board chart's right-click menu closes on a press outside it): click away, on its
+    // full-window backdrop, as a person would. Only a bare element covering the window is pressed, never a control
+    if (await p.b.evaluate(MENU_OPEN)) { const away = await p.b.evaluate(CLICK_AWAY); if (away) { await p.b.click(away.x, away.y); await sleep(250) } }
   }
   return false
 }
@@ -167,8 +178,12 @@ try {
     if (!s.ring) { if (waits++ < 6) { await sleep(1500); continue } rec.why = `step ${s.index + 1}: no ring`; break }
     waits = 0
     if (s.picker) {
-      const pt = await p.b.evaluate(`(() => { const c = document.querySelector('[data-widget-type="watchlist"] [data-guide="watchlist.picker"]'); const el = c && [...c.querySelectorAll('button,[role=button],div')].find(e => /Momentum/.test(e.textContent) && e.children.length < 4); if (!el) return null; const r = el.getBoundingClientRect(); return { x: r.left + 20, y: r.top + r.height / 2 } })()`)
-      if (pt) { await p.b.click(pt.x, pt.y); await sleep(1500); continue }
+      // a person picks one of their own lists (the fixture's Momentum): in the widget's list picker, or in its library (the board's
+      // UCT frame, owner 11-13 / 11-15), where a person's own lists are on its My Lists tab. The box is the one the card rings
+      const PICK = `(() => { const at = document.elementFromPoint(${Math.round(s.ring.x)}, ${Math.round(s.ring.y)}); const c = at && at.closest('[data-guide="watchlist.picker"],[data-guide="watchlist.library"]'); if (!c) return null; const vis = (e) => e.getClientRects().length > 0; const el = [...c.querySelectorAll('button,[role=button]')].find(e => /^\\s*Momentum(?![A-Za-z])/.test(e.textContent) && vis(e)) || [...c.querySelectorAll('button,[role=button],div')].find(e => /Momentum/.test(e.textContent) && e.children.length < 4 && vis(e)); if (el) { const r = el.getBoundingClientRect(); return { x: r.left + 20, y: r.top + r.height / 2 } } const tab = [...c.querySelectorAll('[role="tab"]')].find(e => /My Lists/.test(e.textContent) && e.getAttribute('aria-selected') !== 'true'); if (!tab) return null; const r = tab.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, tab: true } })()`
+      let pt = await p.b.evaluate(PICK)
+      if (pt?.tab) { await p.b.click(pt.x, pt.y); await sleep(900); pt = await p.b.evaluate(PICK) }
+      if (pt && !pt.tab) { await p.b.click(pt.x, pt.y); await sleep(1500); continue }
     }
     // the card names a key chord ("Click the chart, then press Alt+Shift+A"): click where it rings, then press it, as a person would
     const chord = /\bpress ((?:(?:Ctrl|Alt|Shift|Meta|Cmd)\+)+)([A-Z0-9])\b/.exec(s.stepText || '')
@@ -194,8 +209,10 @@ try {
     if (!s.field) await p.b.click(s.ring.x, s.ring.y)
     await sleep(1300)
     const after = await p.b.evaluate(STATE)
+    // the same step now rings another of its controls (a tab the press opened shows the button the step names): follow it
+    const moved = after && after.index === s.index && after.ring && s.ring && Math.hypot(after.ring.x - s.ring.x, after.ring.y - s.ring.y) > 4
     // a step with nothing to click (typing, dragging, a key) moves on with the card's own button
-    if (after && after.index === s.index && after.next) { await p.button(after.next, '[data-testid="guide-card"]'); await sleep(900) }
+    if (after && after.index === s.index && after.next && !moved) { await p.button(after.next, '[data-testid="guide-card"]'); await sleep(900) }
   }
   rec.consoleErrors = p.errors().slice(0, 3)
 } catch (e) { rec.error = String(e?.message || e) } finally {

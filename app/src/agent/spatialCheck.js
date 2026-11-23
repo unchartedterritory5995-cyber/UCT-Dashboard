@@ -811,12 +811,26 @@ export function blankNegatedClauses(text, charts = []) {
 const AR_NOUN = String.raw`(?:ones?|charts?|cells?|panes?|panels?|graphs?)`
 const AR_HEAD = String.raw`\b(?:the|that)\s+(?:(?:single|other)\s+)?(${AR_NOUN})`
 const AR_LINK = String.raw`(?:\s+(?:that['’]s|that\s+is|which\s+is|sitting|located|placed|positioned))?(?:\s+(?:right|directly|immediately|just))?`
-const AR_REL = String.raw`(to\s+the\s+left\s+of|on\s+the\s+left\s+of|left\s+of|to\s+the\s+right\s+of|on\s+the\s+right\s+of|right\s+of|on\s+top\s+of|above|over|below|under(?:neath)?|beneath|next\s+to|beside|alongside|adjacent\s+to|near(?:est)?(?:\s+to)?)`
+// (anchor-diagonal follow-up) the DIAGONAL family: diagonal(ly) from / to / of / across from / opposite, catty- / kitty- / cater-
+// corner (from / to), across from, opposite (to / from) — read by grid arithmetic (arDiagonal below), never by the side readers
+const AR_DIAG_REL = String.raw`diagonal(?:ly)?\s+(?:across\s+from|opposite(?:\s+(?:to|from))?|from|to|of)|(?:catty|kitty|cater)[\s-]?corner(?:ed|s)?(?:\s+(?:from|to|of))?|across\s+from|opposite(?:\s+(?:to|from))?`
+const AR_REL = String.raw`(${AR_DIAG_REL}|to\s+the\s+left\s+of|on\s+the\s+left\s+of|left\s+of|to\s+the\s+right\s+of|on\s+the\s+right\s+of|right\s+of|on\s+top\s+of|above|over|below|under(?:neath)?|beneath|next\s+to|beside|alongside|adjacent\s+to|near(?:est)?(?:\s+to)?)`
 // the anchor: a short run of words, lazily, up to a tail / destination / clause end (the resolver below says what it names)
 const AR_ANCHOR_END = String.raw`(?=\s+(?:alone|as|the\s+same|untouched|unchanged|be|out|where|stays?|remains?|is|are|can|should|will|must|to|on|in|into|onto|at|for|from|with|please|thanks|though|too|either|also|and|or|nor|but|then|so|while|because|weekly|daily|monthly|hourly)\b|\s*[,;:.!?—–()]|\s*$)`
 const AR_RE = new RegExp(String.raw`${AR_HEAD}${AR_LINK}\s+${AR_REL}\s+((?:the\s+|my\s+)?[$A-Za-z0-9][^,;:.!?—–()]{0,40}?)${AR_ANCHOR_END}`, 'gi')
 // "the one to AAPL's left", "the chart on its right" ("the one to the left of it" is AR_RE's)
 const AR_POSS_RE = new RegExp(String.raw`${AR_HEAD}${AR_LINK}\s+(?:to|on)\s+((?:the\s+)?(?:its|\$?[A-Za-z]{1,5}(?:\.[A-Za-z])?['’]s|[a-z -]{1,24}?\s+(?:one|chart)['’]s))\s+(left|right)(?:[\s-]+hand)?(?:\s+side)?\b`, 'gi')
+// "the corner opposite AAPL", "the one in the opposite corner from AAPL", "the chart in the far corner to SPY", "the corner
+// diagonally across from NVDA": the board corner opposite the anchor (rel 'corner')
+const AR_CORNER_RE = new RegExp(String.raw`\b(?:the|that)\s+((?:(?:one|chart|cell|pane|panel|graph)\s+(?:in|at)\s+the\s+)?(?:(?:opposite|far|other|diagonal)\s+corner(?:\s+(?:one|chart|cell))?\s+(?:from|to|of)|corner(?:\s+(?:one|chart|cell))?\s+(?:diagonal(?:ly)?\s+(?:across\s+from|opposite(?:\s+(?:to|from))?|from|to)|(?:directly\s+)?(?:opposite(?:\s+(?:to|from))?|across\s+from))))\s+((?:the\s+|my\s+)?[$A-Za-z0-9][^,;:.!?—–()]{0,40}?)${AR_ANCHOR_END}`, 'gi')
+/** The diagonal-family kind of a relation: 'corner' | 'diag' | 'across' | null (a side relation). */
+const AR_DIAG_KIND = (rel) => {
+  const s = String(rel || '').toLowerCase()
+  if (s === 'corner') return 'corner'
+  if (/diagonal|catty|kitty|cater/.test(s)) return 'diag'
+  if (/across|opposite/.test(s)) return 'across'
+  return null
+}
 const AR_SIDES = (rel) => {
   const s = String(rel || '').toLowerCase()
   if (/left/.test(s)) return ['left']
@@ -846,7 +860,7 @@ const AR_PLACE = /\b(?:top|bottom|upper|lower|left|right|middle|cent(?:er|re)|fi
 export function anchorRelSpans(text, { clickToo = false } = {}) {
   const s = String(text || '')
   const out = []
-  const scan = (m, rel, anchor) => {
+  const scan = (m, rel, anchor, head = m[1]) => {
     const i = m.index, e = m.index + m[0].length
     if (out.some(o => i < o.end && o.index < e)) return
     // the clause the phrase sits in: back to the last boundary before it, on to the next one after it
@@ -871,8 +885,9 @@ export function anchorRelSpans(text, { clickToo = false } = {}) {
     if (!scoped) return
     const an = ordinalDigits(String(anchor || '').trim()).replace(/\s+/g, ' ')
     if (!clickToo && (AR_CLICK.test(an) || AR_PRONOUN.test(an))) return
-    out.push({ index: i, end: e, phrase: m[0], head: m[1], rel, anchor: String(anchor || '').trim(), plural: /s$/i.test(m[1]) })
+    out.push({ index: i, end: e, phrase: m[0], head, rel, anchor: String(anchor || '').trim(), plural: rel !== 'corner' && /s$/i.test(head) })
   }
+  for (const m of s.matchAll(AR_CORNER_RE)) scan(m, 'corner', m[2])
   for (const m of s.matchAll(AR_POSS_RE)) scan(m, m[3], String(m[2]).replace(/['’]s$/i, ''))
   for (const m of s.matchAll(AR_RE)) scan(m, m[2], m[3])
   return out.sort((x, y) => x.index - y.index)
@@ -914,6 +929,54 @@ function sideCharts(charts, a, sides, plural) {
   }
   return [...new Map(out.map(c => [c.ref, c])).values()]
 }
+/** The board as a REGULAR lattice (every chart one equal cell, every row × column filled) → Map(ref → {r, c}, R, C) | null. */
+function latticeOf(charts) {
+  const all = charts.filter(Boolean)
+  if (!all.length || all.some(c => !c.cell)) return null
+  const w = all[0].cell.w, h = all[0].cell.h
+  if (all.some(c => c.cell.w !== w || c.cell.h !== h)) return null
+  const xs = [...new Set(all.map(c => c.cell.x))].sort((a, b) => a - b), ys = [...new Set(all.map(c => c.cell.y))].sort((a, b) => a - b)
+  if (xs.length * ys.length !== all.length) return null
+  const at = new Map(all.map(c => [c.ref, { r: ys.indexOf(c.cell.y), c: xs.indexOf(c.cell.x) }]))
+  if (new Set([...at.values()].map(p => `${p.r},${p.c}`)).size !== all.length) return null
+  return { at, R: ys.length, C: xs.length }
+}
+/**
+ * (anchor-diagonal follow-up) A DIAGONAL-family relation from `anchors` → { refs, unplaced, unoffered }. On a regular lattice:
+ *   diag    (diagonal / catty-corner / kitty-corner) every chart with |Δrow| = |Δcol| > 0: exactly one → that chart (a plural head:
+ *           all of them); several (the centre of a 3×3, a 3×3 corner: the centre AND the far corner) or none (one row) → asked
+ *   across  (across from / opposite) the row, the column or the diagonal: exactly one such chart (a 1×2 / 2×1 board) → it; else
+ *           (a 2×2: the row-mate, the column-mate or the diagonal?) asked — never a guess between row and diagonal
+ *   corner  ("the corner opposite X") the anchor is a board corner of a board at least 2×2 → the mirrored corner; else asked
+ * An irregular board, no anchor, or the anchor on several charts → asked. Every chart the phrase MAY mean is `unoffered`
+ * (an irregular board: every chart sharing no row / column with the anchor, or any chart for "across").
+ */
+function arDiagonal(charts, anchors, kind, plural) {
+  const L = latticeOf(charts)
+  const others = (a) => charts.filter(c => c && c.ref !== a.ref)
+  let may
+  if (!L) {
+    may = anchors.flatMap(a => others(a).filter(c => kind === 'across' || !c.cell || !a.cell
+      || (!overlaps(c.cell.x, c.cell.x + c.cell.w, a.cell.x, a.cell.x + a.cell.w) && !overlaps(c.cell.y, c.cell.y + c.cell.h, a.cell.y, a.cell.y + a.cell.h))))
+  } else {
+    const fits = (a, c) => {
+      const p = L.at.get(a.ref), q = L.at.get(c.ref)
+      const dr = Math.abs(p.r - q.r), dc = Math.abs(p.c - q.c)
+      if (kind === 'diag') return dr === dc && dr > 0
+      if (kind === 'across') return (dr === 0) !== (dc === 0) || (dr === dc && dr > 0)
+      const corner = (x) => (x.r === 0 || x.r === L.R - 1) && (x.c === 0 || x.c === L.C - 1)
+      if (L.R < 2 || L.C < 2 || !corner(p)) return corner(q)                      // no single opposite corner: every corner may be meant
+      return q.r === L.R - 1 - p.r && q.c === L.C - 1 - p.c
+    }
+    may = anchors.flatMap(a => others(a).filter(c => fits(a, c)))
+  }
+  may = [...new Set(may.map(c => c.ref))]
+  const a = anchors[0]
+  const exact = !!L && anchors.length === 1 && may.length >= 1 && (may.length === 1 || (plural && kind === 'diag'))
+    && (kind !== 'corner' || (L.R >= 2 && L.C >= 2 && (() => { const p = L.at.get(a.ref); return (p.r === 0 || p.r === L.R - 1) && (p.c === 0 || p.c === L.C - 1) })()))
+  const refs = exact ? may.filter(r => r !== a.ref) : []
+  return refs.length ? { refs, unplaced: false, unoffered: [] } : { refs: [], unplaced: true, unoffered: may }
+}
 /**
  * The anchor-relative exclusions the words state, resolved → [{ index, end, phrase, refs: [chart refs], unplaced, unoffered }].
  * A phrase anchored on the CLICK is left to the click-relation readers (not returned). `subject`: the chart ref an earlier turn
@@ -924,6 +987,8 @@ export function anchorRelExclusions(text, charts = [], sel = null, subject = nul
   for (const sp of anchorRelSpans(text, { clickToo: true })) {
     const an = anchorOf(sp.anchor, charts, sel, subject)
     if (an.kind === 'click') continue
+    const dk = AR_DIAG_KIND(sp.rel)
+    if (dk) { out.push({ ...sp, kind: an.kind, anchorRefs: an.charts.map(c => c.ref), ...arDiagonal(charts, an.charts, dk, sp.plural) }); continue }
     const sides = AR_SIDES(sp.rel)
     const may = [...new Set(an.charts.flatMap(a => sideCharts(charts, a, sides, sp.plural)).map(c => c.ref))]
     let refs = [], unplaced = false
@@ -937,7 +1002,9 @@ export function anchorRelExclusions(text, charts = [], sel = null, subject = nul
   return out
 }
 /** The words with every anchor-relative exclusion phrase blanked, position for position. */
-export const withoutAnchorRel = (text) => blankAnchorRel(text, anchorRelSpans(text))
+// a function DECLARATION (hoisted): deixis.relationMatch calls it across the deixis ⇄ spatialCheck import cycle, where a module
+// mock spreading the in-progress module (agentNegatedTickerLayers) would copy an uninitialised const
+export function withoutAnchorRel(text) { return blankAnchorRel(text, anchorRelSpans(text)) }
 function blankAnchorRel(text, list) {
   let s = String(text || '')
   for (const r of list) s = s.slice(0, r.index) + ' '.repeat(r.end - r.index) + s.slice(r.end)
@@ -1318,10 +1385,36 @@ const BOARD_PP = /\b(?:on|in|across)\s+(?:the|my|this)\s+(?:board|screen|layout|
 const SCOPE_WORD = /\b(?:above|below|under|over|beneath|underneath|left|right|next|beside|near|row|column|side|other|others|else|around|across|opposite|diagonal\w*|top|bottom|upper|lower|middle|cent(?:er|re)|corner|this|that|it|these|those)\b/i
 const REL_TO_CLICK = /\b(?:above|below|under|over|beneath|underneath|left|right|next|beside|near|nearest|closest|adjacent|across|opposite|diagonal\w*|corner|around|surrounding|kitty|catty)\b/i
 const CLICK_WORD = new RegExp('\\b(?:this|it|its|here)\\b|' + CLICK_ACT_NP, 'i')
+// (#2532 follow-up) a BARE whole-board quantifier — "set all to weekly but leave AAPL alone", "make each weekly except AMD", "put
+// RSI on the lot, skip chart 2" — carries no chart noun, so EVERY_Q never read it and the plan was only proposed ("I wasn't sure
+// you meant …"). It is read as "every chart" ONLY in the shape where it can mean nothing else: the quantifier stands alone (its
+// next word is the change's destination / setting / an exclusion word / the clause's end — never a noun: "all indicators", "all
+// the lines", "each other", "every one of the drawings" stay what they were), it is no idiom ("at all", "after all", "above all",
+// "all in all", "that's all"), and — as for every quantifier here — the exclusion must PLACE a chart (an indicator, a value or an
+// unplaceable phrase forms no set: "remove all but RSI", "hide all except volume" keep their meaning and are handled as before).
+// "the rest / the others / everything else" counts only when the caller says nothing else can be "the rest" of (`opts.rest`: no
+// click, no earlier-turn chart) — otherwise "the rest" may be relative to that chart, and the gates ask as before.
+// ⛔ NO LOOKBEHIND (#988 AUDIT L1): the idiom test reads the words before the match in code.
+const BARE_NEXT = String.raw`(?=\s*(?:[,;:.!?—–]|$)|\s+(?:to|into|onto|on|in|at|for|but|except|apart|other\s+than|save|minus|excluding|besides|aside|bar|barring|without|please|now|too|then|and|so|weekly|daily|monthly|hourly|intraday|log|linear|percent(?:age)?|candles?|candlesticks?|bars|heikin|\d{1,3}\s*(?:m|min|mins|minutes?|h|hr|hours?|d|w)?)\b)`
+const BARE_Q = new RegExp(String.raw`\b(?:all|each|every\s+(?:single\s+)?one|the\s+(?:whole\s+)?lot)${BARE_NEXT}`, 'gi')
+const REST_Q = new RegExp(String.raw`\b(?:(?:all\s+)?the\s+(?:rest|others)|everything\s+else|all\s+(?:the\s+)?others)${BARE_NEXT}`, 'gi')
+const BARE_IDIOM_BEFORE = /\b(?:at|after|above|all\s+in|that['’]?s|is|was|it['’]?s|of|once\s+and\s+for|not)\s+$/i
+const BARE_IDIOM_AFTER = /^\s+(?:in\s+all|of\s+(?:a\s+)?sudden|set|good|done|right|clear|gone|the\s+same)\b/i
+/** The first bare whole-board quantifier in the (exceptForm'd) words, or null. */
+export function bareQuantifier(t, { rest = false } = {}) {
+  const s = String(t || '')
+  for (const re of rest ? [BARE_Q, REST_Q] : [BARE_Q]) {
+    for (const m of s.matchAll(re)) {
+      if (BARE_IDIOM_BEFORE.test(s.slice(0, m.index)) || BARE_IDIOM_AFTER.test(s.slice(m.index + m[0].length))) continue
+      return m
+    }
+  }
+  return null
+}
 export const quantifierCoversClick = (scoped) => !scoped
 export function everyExceptSet(text, charts = [], sel = null, opts = {}) {
   const t = exceptForm(text)
-  const q = EVERY_Q.exec(t)
+  const q = EVERY_Q.exec(t) || bareQuantifier(t, { rest: !!opts?.rest })
   if (!q) return null
   const after = q.index + q[0].length
   const ex0 = EXCEPT_WORD.exec(t.slice(after))

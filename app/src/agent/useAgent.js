@@ -32,7 +32,7 @@ import { setOwnedDefinitionSource } from './capabilities/indicatorEdits'
 import { setAuthoringSources, setExceptSetReader, draftAmbiguity, selectDraft, isDraftAction, lastSaved, screenModelOps, PROPOSAL_TTL_MS, saveReferent, splitSaveAs, renameBeforeSave, explicitIndicatorCreate } from './capabilities/indicatorAuthoring'
 import { fastParse, matchPosition } from './fastPath'
 import { screenNewChart, screenEmptyBoardChart } from './capabilities/workspace'
-import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf, selectedChart, chartNameWord, clausesNameDifferentCharts, targetTickerConflict, lowerTickerCandidates, TARGET_CHECK_FAILED } from './deixis'
+import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf, selectedChart, chartNameWord, clausesNameDifferentCharts, targetTickerConflict, lowerTickerCandidates, TARGET_CHECK_FAILED, timeframeSetOf } from './deixis'
 import { screenWatchlistWidget } from './watchlistTarget'
 import { whichListView, LIST_VIEW_WHICH } from './whichWidget'
 import { checkSpatialConstraints, excludedCharts, spatialConstraints, UNPLACED, withoutExcludedCharts, everyExceptSet } from './spatialCheck'
@@ -62,7 +62,7 @@ import { resolveFollowUpOps, snapshotOf, rescopeOrdinal } from './nlm1/followupO
 import { isStepPlan, prepareStepPlan, snapshotInstances, resolveResultRefs, readBackStepPlan } from './nlm1/stepPlans'   // NLM-1 step plans (same two keys)
 import { doItForMe } from './capabilities/guide'
 import { endForNewRequest } from './guide/guideStore'
-import { createMemory, tickersOfAnswer } from './memory'
+import { createMemory, tickersOfAnswer, MEMORY_TTL_MS } from './memory'
 import { resolveReference, subjectTarget, pluralTarget, retargetCorrection } from './references'
 import { resolveFollowUp, resolvePicked } from './conversation'
 import { planCompound, resolveStep, chartsShowing, MAX_STEP_OPS, workspaceConflict, workspaceQuestion, workspaceSteps, WORKSPACE_CHOICES } from './compound'
@@ -83,7 +83,8 @@ import { beginAuthoringIntent, takeAuthoringIntent, peekAuthoringIntent, clearAu
 
 registerBuiltins()
 // (H-RDR-1) F5's "all charts" check reads "every chart less the exclusions" as the set the words name (indicatorAuthoring)
-setExceptSetReader(everyExceptSet)
+// …and (C2 family) "all the daily charts": the charts on that timeframe (deixis.timeframeSetOf) are a set the words name too
+setExceptSetReader((text, charts, sel) => everyExceptSet(text, charts, sel) || timeframeSetOf(text, charts))
 
 // ⛔ Charts operator P1 hardening: a model QUESTION's choices become buttons. Only a non-empty string, or an
 // object with a non-empty string `label` (NL-1: plus a context `ref`, translated back to a real target), ever
@@ -151,6 +152,14 @@ const TAB_ADDS = new Set(['chart.addTab', 'widget.addTab'])
 // on the very next message, every op the same tab action on the same widget. Memory's lifetime is no test: "the last change
 // added a tab" stays true for half an hour, and any later request planned as tabs would pass (the 2026-11-03 hotfix's case).
 const TAB_FOLLOW_MAX_WORDS = 6
+/** The member's line before `text` in this chat (`said`: the last two member lines, newest last), while it is fresh (the
+ *  session memory's 30 minutes) — '' when there is none. `text` itself may or may not have been echoed yet. */
+export function previousMemberText(said, text, now = Date.now()) {
+  const xs = Array.isArray(said) ? said : []
+  const last = xs[xs.length - 1]
+  const prev = last && last.text === String(text || '') ? xs[xs.length - 2] : last
+  return prev && now - prev.at <= MEMORY_TTL_MS ? prev.text : ''
+}
 export function continuesTabs(ops, lastTurn, turnNow, text) {
   if (!lastTurn || lastTurn.id !== turnNow - 1) return false
   const words = String(text || '').trim().split(/\s+/)
@@ -815,6 +824,8 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
   // NL-1 (flag off by default): the question UCT is waiting on, sent to the model with the next message
   // (pending_question) so a TYPED answer is read with the question in front of it
   const lastQuestionRef = useRef(null)      // the newest question shown (local or the model's)
+  // the member's last two lines in this chat (first-call routing: NL-1 routes a follow-up that names nothing by the one before)
+  const memberSaidRef = useRef([])
   const pendingQuestionRef = useRef(null)   // the MODEL's open question: { text, choices: [{ label, ref }] }
   // P2-B: the member's words the model's open question is ABOUT ("make the right chart cleaner" → "Hide volume"):
   // an answer is read with them when deciding which charts the member named. Kept for the very next message only.
@@ -953,6 +964,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     }
     const id = item?.id || nid()
     if (item?.role === 'question') lastQuestionRef.current = { ...item, id }
+    if (item?.role === 'member') memberSaidRef.current = [...memberSaidRef.current.slice(-1), { text: String(item.text || ''), at: Date.now() }]
     setItems(xs => [...xs, { at: Date.now(), ...item, id }])
   }, [])
   const patchItem = useCallback((id, patch) => setItems(xs => xs.map(x => (x.id === id ? { ...x, ...patch } : x))), [])
@@ -3071,7 +3083,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         if (picked) answeredRefs = [picked]
         const nl1Args = { host, text, capCtx, manageIndicators, memory: memoryRef.current, epoch: epochOf(host), isProtectedLayout: (e) => isProtected(e),
           pendingQuestion: asked ? { text: asked.text, choices: (asked.choices || []).map(c => ({ label: c.label, ref: c.ref || null })), groups: asked.groups || [] } : null,
-          pendingProposal: p?.kind === 'proposal' ? p : null }
+          pendingProposal: p?.kind === 'proposal' ? p : null, prevText: previousMemberText(memberSaidRef.current, text) }
         const req = buildNl1Request(nl1Args)
         refMap = req.refMap
         nl1Sel = req.selection
@@ -3401,7 +3413,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       // ⭐ Multi Chart: a plan aimed anywhere but "the one I just changed" is asked about, even when it aims at the clicked chart
       const deictic = onSubject ? null : sw0.changed
         ? { ask: { text: 'Which chart do you mean?', choices: (host?.charts?.list?.() || []).map(c => ({ ref: c.ref, label: c.label })) } }
-        : screenDeicticOps({ host, ops: screened.ops, text, getTargetKind, getCapability, parse: fastParse })
+        : screenDeicticOps({ host, ops: screened.ops, text, getTargetKind, getCapability, parse: fastParse, subject: chartSubjectOf(memoryRef.current, host) })
       // ⛔ AUDIT probe 18 (G3) / GO bar (3): a chart the words EXCLUDE ("everything in this row except SPY"), or a relation's ANCHOR
       // that is not a target, is never offered by any question — the constraint check's own exclusions (spatialCheck)
       const dropExcluded = (ask) => {
@@ -3454,7 +3466,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       // (indicatorAuthoring.explicitIndicatorCreate: decided from their words, never by the model) is applied; its Save
       // still stops at a ready draft when an R1 condition fails after the build (an acknowledgement, a name they already use)
       if (!nl1 && disposition === 'propose' && explicitIndicatorCreate(screened.ops)) { mark('deescalate', 'explicit-create'); disposition = 'apply' }
-      const unnamed = onSubject ? null : screenUnnamedTargets({ host, ops: screened.ops, text, context: askedFor, pickedRefs: answeredRefs, getTargetKind, getCapability })
+      const unnamed = onSubject ? null : screenUnnamedTargets({ host, ops: screened.ops, text, context: askedFor, pickedRefs: answeredRefs, getTargetKind, getCapability, subject: chartSubjectOf(memoryRef.current, host) })
       if (unnamed?.ask) unnamed.ask = dropExcluded(unnamed.ask)
       if (unnamed?.ask && askEveryExcept(disposition)) return
       if (unnamed?.ask) {
@@ -3668,6 +3680,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     setConversationId(null)
     pendingRef.current = null
     memoryRef.current.clear()             // GATE C: memory belongs to one chat
+    memberSaidRef.current = []
     setItems([])
   }, [setConversationId])
 
@@ -3676,6 +3689,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     if (!conv) return
     pendingRef.current = null
     memoryRef.current.clear()             // a reopened chat's old rows are history, not live references
+    memberSaidRef.current = []
     setConversationId(id)
     setItems(itemsFromTurns(conv.turns))
   }, [setConversationId])

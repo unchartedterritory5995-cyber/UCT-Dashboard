@@ -204,9 +204,34 @@ export function subscribeDecisions(fn) { _subs.add(fn); return () => { _subs.del
 export const GROUP_SYNC_MS = 150   // (kept: the name the tests and the decision docs cite; no longer a split point)
 /** The round's ONLY bound: past every member's own (HANDOFF_HANG_MS 4000 + COLUMNS_WAIT_MS 300 is the longest). */
 export const GROUP_HANG_MS = 4500
-const _rounds = new Map()   // group -> { sym, members: Map<id, {ready, show, tf}>, timer, expired }
+const _rounds = new Map()   // group -> { sym, members: Map<id, {ready, show, tf, holds}>, timer, expired }
+/** Does a member hold (its `holds()`, asked now)? A member with none never holds; one that throws does not either. */
+const _holding = (holds) => {
+  if (typeof holds !== 'function') return false
+  try { return !!holds() } catch { return false }
+}
+function _arm(group, round) {
+  if (round.timer || round.expired) return
+  round.timer = setTimeout(() => {
+    round.timer = null
+    round.expired = true
+    _flushRound(group, round)
+  }, GROUP_HANG_MS)
+}
 function _flushRound(group, round) {
   if (round.timer) { clearTimeout(round.timer); round.timer = null }
+  // ⛔⛔ ASKED AT THE MOMENT OF SHOWING (review of #2558, P4-M1). A member became ready on what it held THEN; the round shows
+  // it only now, after its siblings (and its own panes' columns) were ready, and a bucket may have ended in between, so the
+  // chart would refuse the device copy it was ready on and draw a blank. So every ready member is asked here, before anyone
+  // is shown (`holds`, handed with its `show`): one that can no longer show its symbol whole is ready no longer and waits
+  // (its own switch makes it ready again, bounded by its own hang guard), and NOBODY is shown in this pass. The owner's rule
+  // stands: every chart of a group in one frame, or none. Past the round's bound (a member that never got ready: a defect)
+  // the ready ones show as before, still never one that holds.
+  let held = false
+  for (const m of round.members.values()) {
+    if (m.ready && _holding(m.holds)) { m.ready = false; m.show = null; m.holds = null; held = true }
+  }
+  if (held && !round.expired) { _arm(group, round); return }
   const ready = [...round.members.entries()].filter(([, m]) => m.ready)
   for (const [id, m] of ready) { round.members.delete(id); try { m.show({ sym: round.sym, tf: m.tf }) } catch { /* one member never blocks the rest */ } }
   if (!round.members.size && _rounds.get(group) === round) _rounds.delete(group)
@@ -218,7 +243,7 @@ export function groupJoin(group, sym, id) {
     round = { sym, members: new Map(), timer: null, expired: false }
     _rounds.set(group, round)
   }
-  if (!round.members.has(id)) round.members.set(id, { ready: false, show: null, tf: null })
+  if (!round.members.has(id)) round.members.set(id, { ready: false, show: null, tf: null, holds: null })
 }
 export function groupLeave(group, sym, id) {
   const round = _rounds.get(group)
@@ -240,20 +265,16 @@ export function groupLeave(group, sym, id) {
     if ([...round.members.values()].every((m) => m.ready)) _flushRound(group, round)
   })
 }
-export function groupReady(group, sym, id, show, tf = null) {
+/** `holds` (optional): asked right before this member is shown; true = it cannot show its symbol whole now (it calls
+ *  groupReady again when it can). Never passed with the device store off: then exactly as before. */
+export function groupReady(group, sym, id, show, tf = null, holds = null) {
   const round = group ? _rounds.get(group) : null
   const m = round && round.sym === sym ? round.members.get(id) : null
-  if (!m) { show({ sym, tf }); return }                // no group, or not a member of this round: show now
-  m.ready = true; m.show = show; m.tf = tf
+  if (!m) { if (!_holding(holds)) show({ sym, tf }); return }   // no group, or not a member of this round: show now
+  m.ready = true; m.show = show; m.tf = tf; m.holds = holds
   if (round.expired) { _flushRound(group, round); return }
   if ([...round.members.values()].every((x) => x.ready)) { _flushRound(group, round); return }
-  if (!round.timer) {
-    round.timer = setTimeout(() => {
-      round.timer = null
-      round.expired = true
-      _flushRound(group, round)
-    }, GROUP_HANG_MS)
-  }
+  _arm(group, round)
 }
 
 /** @internal tests: forget every round and decision (members unregister through their own cleanup). */

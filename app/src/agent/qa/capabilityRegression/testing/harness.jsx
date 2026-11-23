@@ -33,7 +33,7 @@ import { makeGridControl } from './gridStub'
 import * as nativeRegistry from '../../../../components/chart/engine/nativeRegistry'
 import { _resetAgentConfig, loadAgentConfig } from '../../../agentClient'
 import { publishWidgetDoor } from '../../../../pages/charts/widgetDoors'
-import { _resetNewsLibraryForTests } from '../../../capabilities/newsLibrary'
+import { _resetNewsLibraryForTests, _setNewsFeedForTests } from '../../../capabilities/newsLibrary'
 
 const chart = (id, x, y, w, h) => ({ id, type: 'chart', x, y, w, h, color: 'N', opts: { settings: bareSettings() } })
 /** Named fixture boards. Charts are bare (the default 9/20/50/200 overlays removed, as a member's removal leaves them). */
@@ -74,6 +74,9 @@ export const BOARDS = {
   WATERMARK: () => [[{ ...chart('c1', 0, 0, 24, 20), opts: { settings: bareSettings(), watermarkPos: { x: 0.2, y: 0.8, anchor: null } } }], { 'N:c1': 'NVDA' }],
   // newsLibrary.*: a chart beside a UCT News widget (its door: three rendered rows), over a library stand-in seeded per case
   NEWS_LIB: () => [[chart('c1', 0, 0, 12, 20), { id: 'n1', type: 'tradeExchangeNews', x: 12, y: 0, w: 12, h: 20, color: 'A', opts: {} }], { 'N:c1': 'NVDA' }, { newsLibrary: true }],
+  // C3-144 (pl-newsfam): the same News widget, its AMD headline OPEN (its ⋯ menu: the door's `selected`), beside the saved watchlists
+  NEWS_WL: () => [[chart('c1', 0, 0, 12, 20), { id: 'n1', type: 'tradeExchangeNews', x: 12, y: 0, w: 12, h: 20, color: 'A', opts: {} }], { 'N:c1': 'NVDA' },
+    { newsLibrary: true, newsSelected: 'h1', watchlists: [{ id: 'w1', name: 'Momentum', symbols: ['NVDA', 'TSLA'] }, { id: 'w2', name: 'Earnings', symbols: ['AAPL'] }] }],
   // a chart drawn with a GRADIENT background (live LT-3: "turn the gradient off on this chart")
   GRADIENT: () => [[{ ...chart('c1', 0, 0, 24, 20), opts: { settings: { ...bareSettings(), bgMode: 'gradient' } } }], { 'N:c1': 'NVDA' }],
   // one chart on its DEFAULT settings (EMA 9/20, SMA 50/200) with the indicator-alert library
@@ -919,8 +922,10 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
     _resetNewsLibraryForTests()
     const rows = [{ id: 'h1', text: 'SYNTHETIC: AMD guidance raised', tickers: ['AMD'], time: 1 }, { id: 'h2', text: 'SYNTHETIC: Fed minutes due', tickers: [], time: 2 },
       { id: 'h3', text: 'SYNTHETIC: NVDA beats estimates', tickers: ['NVDA'], time: 3 }]
-    publishWidgetDoor('n1', () => ({ read: () => ({ search: '', visible: rows, selected: null }) }))
+    publishWidgetDoor('n1', () => ({ read: () => ({ search: '', visible: rows, selected: extra.newsSelected || null }) }))
     mounted.h.newsLibrary = newsLibraryStandIn(seed.newsLibrary || {})
+    // C3-147: the live feed's pool, as the stream manager holds it (the headline WHOLE: the Notebook capture's source)
+    _setNewsFeedForTests(() => rows.map(r => ({ id: r.id, content: r.text, tickers: r.tickers, received_at_ms: r.time })))
   }
   // uctIntelligence.set: each chart's UCT Intelligence gates as StockChart publishes them (ChartPane → ChartWidget agent.uctIntelligence)
   if (extra.uctIntel) {

@@ -149,13 +149,13 @@ def test_the_notes_carry_each_length_in_days_with_its_span_and_only_below_a_day(
 
 def test_THE_FINDING_days_built_as_bars_of_a_chart_below_a_day_are_refused():
     exc = refused_by(dc.check_day_lengths, STAND_IN, WORDS, FIVE)
-    assert exc is not None and exc.gate == "envelope:reference"
+    assert exc is not None and exc.gate == "envelope:days-as-bars"
     told = exc.for_model()
     for piece in ("`atr(..., 14)` is 14 five-minute bars, about 1 hour 10 minutes, and the member asked for 14 DAYS",
                   "If EVERY part of the indicator is a daily line on the chart's own symbol, keep the formula and add set_calculation_timeframe D",
                   "do NOT build it on the chart's bars under a note", "disposition clarify, `ops: []`, and ONE question",
-                  "two `choices` that each name what they draw in time",
-                  'the bars version written as "14 five-minute bars, about 1 hour 10 minutes" and never as 14 days'):
+                  "two `choices` of at most 80 characters that each name what they draw in time",
+                  f'the bars version carrying "{dc.bars_phrase(WORDS, FIVE)}" as given and never called 14 days'):
         assert piece in told, piece
     # the words name the chart, whatever chart the request came from (the live rounds were sent from a daily one)
     assert refused_by(dc.check_day_lengths, STAND_IN, "On a 5 minute chart, " + WORDS, DAILY) is not None
@@ -268,7 +268,7 @@ def test_the_same_request_on_a_daily_chart_is_built_as_it_always_was_and_carries
 def test_the_stand_in_twice_changes_nothing(conv, clean_env, model):
     client = model([emits(STAND_IN), emits(STAND_IN)])
     r = conv.converse(WORDS, user_id="u1", view=empty_view(0), chart=FIVE)
-    assert r["ok"] is False and r["gate"] == "envelope:reference" and len(client.calls) == 2
+    assert r["ok"] is False and r["gate"] == "envelope:days-as-bars" and len(client.calls) == 2
 
 
 def test_the_instructions_say_days_are_days_and_how_to_ask(conv):
@@ -280,7 +280,8 @@ def test_the_instructions_say_days_are_days_and_how_to_ask(conv):
                   "or read another symbol (which takes no calculation timeframe at all)",
                   "Do NOT build it on the chart's bars under a note", "the member reads the chart",
                   "ask ONE question: one plain sentence of why, then two `choices` that each name what they draw IN TIME",
-                  "Write the bars version with the `on_this_chart` words exactly as given, and never call it by its number of days",
+                  "A choice is at most 80 characters, and a longer one is refused",
+                  "put `uct_language_notes.day_lengths_bars_phrase` as given", "Never call that version by its number of days",
                   BARS_CHOICE, "The ratio with an average of 21 five-minute bars (about 1 hour 45 minutes)",
                   "Nothing for now: on a daily chart this builds exactly as asked",
                   "Build only what the member picks, named for what it is"):

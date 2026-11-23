@@ -38,14 +38,14 @@ def test_the_drawn_stand_in_costs_the_repair_and_the_note_says_how_to_make_it_no
     r = conv.converse("the lowest low among the down days of the last 4 bars", user_id="u1", view=EMPTY())
     assert r["ok"] is True and r["attempts"] == 2
     note = client.calls[1]["messages"][-1]["content"][0]["content"]
-    assert note.startswith("[envelope:reference]")
+    assert note.startswith("[envelope:stand-in-drawn]")
     assert "lowest" in note and "1e+15" in note and "sum(cond ? 1 : 0, N) > 0" in note and "0 / 0" in note
 
 
 def test_twice_is_refused_and_never_reaches_the_browser(conv, clean_env, model):
     model([emits(create(LOWEST_DOWN_LOW)), emits(create(LOWEST_DOWN_LOW))])
     r = conv.converse("x", user_id="u1", view=EMPTY())
-    assert r["ok"] is False and r["gate"] == "envelope:reference"
+    assert r["ok"] is False and r["gate"] == "envelope:stand-in-drawn"
 
 
 def test_each_shape_of_the_mistake_is_seen(conv, clean_env, model):
@@ -62,7 +62,7 @@ def test_each_shape_of_the_mistake_is_seen(conv, clean_env, model):
     for tree in shapes:
         model([emits(create(tree)), emits(create(tree))])
         r = conv.converse("x", user_id="u1", view=EMPTY())
-        assert r["ok"] is False and r["gate"] == "envelope:reference", tree
+        assert r["ok"] is False and r["gate"] == "envelope:stand-in-drawn", tree
 
 
 def test_CONTROL_what_is_not_the_mistake_passes_first_time(conv, clean_env, model):

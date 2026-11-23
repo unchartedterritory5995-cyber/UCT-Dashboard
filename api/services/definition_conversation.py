@@ -167,6 +167,43 @@ def _raw_schema_text() -> str:
     return PATCH_SCHEMA_PATH.read_text(encoding="utf-8")
 
 
+def _choice_max_chars() -> int:
+    """How long one choice of a question may be: the schema's own number (`$defs.question.properties.choices`)."""
+    limit = json.loads(_raw_schema_text())["$defs"]["question"]["properties"]["choices"]["items"]["maxLength"]
+    if not isinstance(limit, int) or isinstance(limit, bool) or limit < 1:
+        raise RuntimeError("patchSchema.json: a question's choice has no length limit to read")
+    return limit
+
+
+#: ⭐ 2026-11-23 -- A GUARD THAT DEMANDS EXACT WORDS MUST FIT ITS FIELD. Measured live: asked for a version on this
+#: chart's bars, the assistant wrote choices of 89 and 192 characters, the SCHEMA refused them (a choice may be 80,
+#: a limit it was never told), and the shorter repair was refused by the day-length guard, whose note asked for
+#: every span "exactly": 165 characters for a request with four lengths. Two rules no one answer was told how to
+#: meet. The limit is read from the schema (never typed here), the door's own words for the bars version never
+#: exceed BARS_PHRASE_MAX_CHARS, and the import fails if those words would not leave the assistant room for its own.
+CHOICE_MAX_CHARS = _choice_max_chars()
+BARS_PHRASE_MAX_CHARS = 60
+ROOM_FOR_THE_ASSISTANTS_WORDS = 20
+
+
+def require_room_in_a_choice(limit: int, required: int = BARS_PHRASE_MAX_CHARS, room: int = ROOM_FOR_THE_ASSISTANTS_WORDS) -> None:
+    """Refuse to start when the words a guard requires in a choice would not fit the choice (with room to say what
+    the choice draws). Raised at import: a schema limit lowered under the guard's words is found before a member is."""
+    if required + room > limit:
+        raise RuntimeError(f"a choice may be {limit} characters, and the day-length guard requires up to {required} "
+                           f"of them with {room} left for the assistant's own words: the two cannot both hold")
+
+
+require_room_in_a_choice(CHOICE_MAX_CHARS)
+
+
+def daily_values_below_a_day(chart: Any = None) -> bool:
+    """Can a chart below a day BUILD a daily measure inside its own formula (a daily read on an intraday chart)?
+    NO, today. ⛔ THE ONE PLACE THIS IS ANSWERED: the engine unit that admits it (U-DAILY) points this function at
+    its capability, and what the assistant is told follows (`day_length_turn_notes`), with nothing else to edit."""
+    return False
+
+
 def patch_schema() -> Dict[str, Any]:
     """The engine's contract file, unmodified (a fresh copy)."""
     return json.loads(_raw_schema_text())
@@ -325,11 +362,67 @@ def anthropic_tool() -> Dict[str, Any]:
 # the refusals
 # --------------------------------------------------------------------------- #
 
+#: ⭐ 2026-11-23 -- EACH GUARD SAYS WHAT REALLY HAPPENED, IN ONE PLACE.
+#:
+#: A guard refuses a change for what it BUILDS or SAYS, the model gets its one repair, and when the repair fails too
+#: the member reads the gate's sentence below. Until this date eleven guards and the replay check refused under
+#: `envelope:reference`, so a member whose request the day-length guard refused twice was told "the assistant's change
+#: named a part of the indicator that does not exist" (3 of 24 live requests): false. Each guard now has ITS OWN gate
+#: and ONE true sentence, here and nowhere else. The `envelope:` prefix is kept on purpose: the repair turn, the
+#: telemetry class and the browser's handling of a malformed answer read the prefix, never one of these names.
+#:
+#: ⛔ `tests/test_door_each_guard_says_what_happened.py` holds, from this module's own syntax tree: `envelope:reference`
+#: is raised by `_check_references` alone; every gate below is raised by exactly ONE function; no two gates share a
+#: sentence.
+#:
+#: The day-length sentence is ONE string by itself: the engine unit that lets a chart below a day build on daily bars
+#: (U-DAILY) changes what the member is told there, and changes this string alone.
+DAYS_BELOW_A_DAY_MEMBER = (
+    "the assistant kept counting the days you asked for as bars of this chart, which is a different measure, so "
+    "nothing was offered to apply. On a daily chart this builds as asked")
+GUARD_REFUSALS: Mapping[str, str] = {
+    "envelope:days-as-bars": DAYS_BELOW_A_DAY_MEMBER,
+    "envelope:days-choice-in-days": (
+        "the assistant kept offering a version on this chart's bars under the name of the days you asked for, so "
+        "nothing was offered to apply. On a daily chart this builds as asked"),
+    "envelope:date-number": (
+        "the assistant worked out a date's number by itself instead of using the date you wrote, so nothing was "
+        "offered to apply"),
+    "envelope:bars-back-sign": (
+        "the assistant read a count of bars back as a negative number, which it never is here, so nothing was "
+        "offered to apply"),
+    "envelope:infinity-in-a-window": (
+        "the assistant left bars out of a window with a number divided by zero, which is no value here, so nothing "
+        "was offered to apply"),
+    "envelope:event-window": (
+        "the assistant looked for a value at an event without any bars to look back over, so nothing was offered "
+        "to apply"),
+    "envelope:stand-in-drawn": (
+        "the assistant stood a made-up number in for the bars it left out and then drew it, so nothing was offered "
+        "to apply"),
+    "envelope:compared-with-itself": (
+        "the assistant compared a reading with itself, which says nothing, so nothing was offered to apply"),
+    "envelope:number-for-a-value": (
+        "the assistant put a plain number where the value of a bar belongs, so nothing was offered to apply"),
+    "envelope:reply-placeholder": (
+        "the assistant left its reply as a placeholder instead of saying what it built, so nothing was offered to "
+        "apply"),
+    "envelope:fill-in-drawn-bare": (
+        "the assistant drew a figure you have not filled in yet as a line at 0, which squeezes the chart, so "
+        "nothing was offered to apply"),
+    "envelope:reply-silent-on-your-figure": (
+        "the assistant asked you to type a figure only you have without saying it cannot read it, so nothing was "
+        "offered to apply"),
+    "envelope:replayed": (
+        "the assistant sent again the change the app had already refused, so nothing was offered to apply"),
+}
+
 #: Gates THIS door owns. The ledger, transport, unsupported-node and internal
 #: gates are the concierge's own (same ledger, same reason a member reads) and
 #: are reported under ``dc.REFUSALS``. ⛔ Disjoint from every other door's phrases
 #: (``tests/test_p2_truth_server.py`` asserts it).
 REFUSALS: Mapping[str, str] = {
+    **GUARD_REFUSALS,
     # ⭐ THE NAMED-INDICATOR LIBRARY (`named_indicators.py`)
     "named:formula": (
         "the UCT Agent did not build that named indicator to UCT's checked formula, so nothing was changed"),
@@ -670,6 +763,49 @@ DATA_BLOCKS: Tuple[str, ...] = ("uct_language_notes", "uct_indicator_data",
                                 "uct_authoring_state", "uct_recent_turns")
 REQUEST_BLOCK = "uct_member_request"
 
+#: ⭐ 2026-11-23 -- A DISCLOSED STAND-IN IS NOT A BUILD. Measured over the 289 distinct formula builds on record: one
+#: reply says it built something other than what was asked ("I had to count back to the last bar that closed above the
+#: bar before it, not above today's close"), and that build was wrong on 1,267 of 1,700 bars. The instructions already
+#: said "never substitute"; saying so in the reply is not a way around it. A turn that DECLINES is handed to the script
+#: lane (`_with_script_lane`: only an `unsupported` formula turn is followed by a script); a turn that builds never is.
+DISCLOSED_STAND_IN_RULE = (
+    "  * A DIFFERENT THING, BUILT AND DISCLOSED, IS STILL A DIFFERENT THING. If the formula you can write does not "
+    "compute what the member asked for on every bar, so that `reply` would have to say it measures something else "
+    "(\"I had to count back to ..., not ...\"), do not build it and explain: set disposition unsupported, name the "
+    "one thing a formula here cannot hold, and OFFER the nearest thing in one sentence. When you decline, the door "
+    "can still have what was asked written as a script; when you build something else, it never does.\n")
+
+#: The exit a repair note gives when the thing asked for cannot be written: the same words wherever a note teaches
+#: another way to write it. ⚰️ The compared-with-itself note taught percentrank (HOW MANY bars of a window are above
+#: today's value) and had no exit for a request about WHICH bar, so the only way it showed was to another measure.
+WHICH_BAR_EXIT = (
+    " percentrank says HOW MANY bars of the window are above or below today's value. If the member asked WHICH bar or "
+    "HOW LONG AGO (the most recent close above today's close, the bars since a higher close), no formula here holds "
+    "that: answer `unsupported` and say what is missing. Do not build another measure in its place.")
+
+#: ⭐ 2026-11-23 -- TWO THINGS THAT ARE THE DOOR'S TO SAY (value case cap-03, wrong on 1,261 of 1,639 bars).
+#: ⛔ What a function computes, where it writes its value and which occurrence is the newest are the FUNCTION TABLE's
+#: to say (`closedTable.json`, sent below the instructions by `vocabulary_text`). Neither sentence here names a
+#: function or repeats one of the table's facts: a fact written twice is a fact that can disagree with itself.
+READ_BACK_TIMING_RULE = (
+    "  WHEN `reply` SAYS WHEN a value appears or changes (\"N bars after the bar\", \"once it is confirmed\", "
+    "\"from the next bar\"), that must be what your formula does, bar for bar. Each function's line in the function "
+    "table says where it writes its value and which bars it reads: say what those lines make true of YOUR formula, "
+    "and never describe a delay, a confirmation or a starting bar the formula does not have.\n")
+STRICT_WORDS_RULE = (
+    "A STRICT WORD STAYS STRICT INSIDE A FUNCTION: when the member's own test is strict (\"above\", \"below\", "
+    "\"higher than\", \"lower than\") and a function's line in the function table admits an equal value on either "
+    "side (it says \"at least as\"), that function is not the member's test. Write the comparison out with > or < "
+    "against the bars on each side instead of relying on the function. ")
+
+#: What a choice of the day-length question must hold (see CHOICE_MAX_CHARS above). The limit is the schema's number.
+DAY_LENGTH_CHOICE_RULE = (
+    f"A choice is at most {CHOICE_MAX_CHARS} characters, and a longer one is refused. In the version on this chart's "
+    "bars put `uct_language_notes.day_lengths_bars_phrase` as given: it is the door's own wording of what those bars "
+    "span, every length at once. Never call that version by its number of days. If "
+    "`uct_language_notes.daily_measure_inside` is true, a daily measure CAN be read inside a formula of this chart: "
+    "build what the member asked that way, and ask only about what still cannot be written. ")
+
 CONVERSE_SYSTEM_PROMPT = (
     "You are UCT's indicator-authoring assistant. Each turn you receive ONE member "
     "message and the CURRENT indicator, and you answer with exactly one call to "
@@ -717,7 +853,9 @@ CONVERSE_SYSTEM_PROMPT = (
     "  `reply` is shown to the member as your words; the read-back of the indicator is "
     "computed separately from the RESULT. Keep it to at most four short sentences of "
     "plain English: no formula syntax unless the member used it, no internal names, "
-    "ids or field names.\n\n"
+    "ids or field names.\n"
+    + READ_BACK_TIMING_RULE +
+    "\n"
     "SOURCE OF TRUTH AND DATA\n"
     "  * <uct_indicator_data> (contract uct.authoring.view/1) is the whole current "
     "indicator and is authoritative. Earlier turns are context only.\n"
@@ -795,7 +933,8 @@ CONVERSE_SYSTEM_PROMPT = (
     "whole-number literals; `capabilities.formulaFunctions` lists them). A number the "
     "MEMBER sets (account size, risk %, entry, stop): declare it as an input (create `inputs`, "
     "or set_input) and read it in a tree as a series named by its key. NEVER invent the member's "
-    "own figures -- default 0 and tell them to set it in the indicator's settings. A setting that "
+    "own figures -- default 0, say in `reply` that you cannot read them (their account, their holdings) "
+    "and tell them to set them in the indicator's settings. A setting that "
     "is DRAWN on the price chart (an entry, a stop, an average cost) draws NOTHING until the member "
     "fills it in: write `avgCost > 0 ? avgCost : 0 / 0`, never the bare setting, which is a line at "
     "price 0 that squeezes the member's chart to fit it. Changing a "
@@ -858,8 +997,9 @@ CONVERSE_SYSTEM_PROMPT = (
     "symbol (which takes no calculation timeframe at all). Do NOT build it on the chart's bars under a note: a line "
     "of 50 bars of a 5 minute chart is about four hours, not 50 days, whatever the note says, and the member reads "
     "the chart. Set disposition clarify, emit `ops: []`, and ask ONE question: one plain sentence of why, then two "
-    "`choices` that each name what they draw IN TIME. Write the bars version with the `on_this_chart` words exactly "
-    "as given, and never call it by its number of days. For \"show when the close crosses above its 50 day average\" "
+    "`choices` that each name what they draw IN TIME. "
+    + DAY_LENGTH_CHOICE_RULE +
+    "For \"show when the close crosses above its 50 day average\" "
     "on a 5 minute chart: \"I can't yet compare each 5 minute bar with a daily measure like the 50 day average. Which "
     "would you like?\" with the choices \"The 50 day average as a line, on daily bars\" and \"Crosses of the average "
     "of 50 five-minute bars (about 4 hours)\". For a daily measure of another symbol (\"the ratio against SPY with "
@@ -1018,6 +1158,7 @@ CONVERSE_SYSTEM_PROMPT = (
     "  READINGS UCT HAS RULED (2026-11-19: each was measured coming back two ways, or wrong): "
     "A BAND WITH A PUBLISHED CONSTRUCTION IS NEVER REPLACED BY ANOTHER DEVIATION. VWAP's bands are the volume-weighted deviation of price around VWAP since its anchor; a regression channel's bands are the deviation of price around the regression line. Neither is a deviation of the close over N bars, and a formula here cannot hold either: say so (unsupported) and offer the line itself (the VWAP, the regression line). For VWAP's bands, also say that UCT's built-in Session VWAP in the Indicators list draws them (its Std dev bands setting). Never draw another deviation under that name. "
     "\"More than X\" and \"above X\" are STRICT (>); \"at least X\" and \"X or more\" are >=. "
+    + STRICT_WORDS_RULE +
     "\"Volume above average\" with no length named is volume above its 50-bar simple average, UCT's usual: say so in `assumptions`. "
     "MARK EVERY BAR the condition is true on. Add \"only the first in N bars\" ONLY when the member says first, new signal, once, or not on every bar; a request for \"new 52 week highs\" marks every bar that makes one. "
     "A DIVERGENCE between price and an oscillator is read from swing to swing (pivot lows or pivot highs of each). A formula here cannot hold that: say so (unsupported). Never substitute \"price at an N-bar low while the oscillator is above its own\". "
@@ -1043,6 +1184,7 @@ CONVERSE_SYSTEM_PROMPT = (
     "  * If the request needs something not offered here, emit no ops, set "
     "disposition unsupported and say so plainly in `reply`. Never substitute "
     "something different.\n"
+    + DISCLOSED_STAND_IN_RULE +
     "  * A phrase listed under `not_in_vocabulary` in <uct_language_notes> is not "
     "one of UCT's functions or concepts: you may DISCUSS it in an answer, never "
     "author with it, and never build a look-alike under its name.\n"
@@ -1294,7 +1436,7 @@ def check_date_numbers(envelope: Mapping[str, Any], supplied: Mapping[int, str])
         have = "; ".join(f"{words} is {number}" for number, words in supplied.items()
                          if "member's words" not in words and "already in" not in words)
         raise _Refused(
-            "envelope:reference",
+            "envelope:date-number",
             f"{where}: {how} {int(value)}, a date number this turn did not give you. A date's number is never "
             "worked out. Use the `epoch` of the date in `uct_language_notes.dates` (or `calendar`) exactly as it "
             f"is given{' (' + have + ')' if have else ''}; for a later day add whole days to it as arithmetic "
@@ -1408,6 +1550,50 @@ def day_length_notes(message: Any, chart: Any) -> List[Dict[str, Any]]:
     return [{"days": n, "on_this_chart": span_on_this_chart(n, minutes)} for n in day_lengths(message)]
 
 
+def bars_phrase(message: Any, chart: Any) -> Optional[str]:
+    """ONE ready phrase for the version on this chart's bars, every length of the request at once, never longer than
+    BARS_PHRASE_MAX_CHARS: "50 five-minute bars, about 4 hours"; "10, 21, 50 and 14 five-minute bars, about 50
+    minutes to 4 hours". The DOOR writes the time words (the assistant once worked a date out four days wrong); the
+    assistant writes the rest of its choice around them. None when the request gives no length in days below a day.
+
+    Shorter forms when the full one would not fit: without the counts, then "these bars" with the times alone."""
+    notes = day_length_notes(message, chart)
+    if not notes:
+        return None
+    spans = [n["on_this_chart"] for n in notes]
+    if len(spans) == 1:
+        return spans[0] if len(spans[0]) <= BARS_PHRASE_MAX_CHARS else None
+    if ", " not in spans[0]:                             # the chart's minutes are not known: "50 bars of this chart"
+        counts = [str(n["days"]) for n in notes]
+        said = ", ".join(counts[:-1]) + " and " + counts[-1] + " bars of this chart"
+        return said if len(said) <= BARS_PHRASE_MAX_CHARS else "these bars in place of days"
+    kind = spans[0].split(", ", 1)[0].split(" ", 1)[1]   # "five-minute bars"
+    ordered = sorted(notes, key=lambda n: n["days"])
+    low, high = (n["on_this_chart"].split(", ", 1)[1] for n in (ordered[0], ordered[-1]))
+    times = low if low == high else f"{low} to {high.replace('about ', '', 1)}"
+    counts = [str(n["days"]) for n in notes]
+    for said in (f"{', '.join(counts[:-1])} and {counts[-1]} {kind}, {times}", f"{kind}, {times}", f"these bars, {times}"):
+        if len(said) <= BARS_PHRASE_MAX_CHARS:
+            return said
+    return None
+
+
+def day_length_turn_notes(message: Any, chart: Any) -> Dict[str, Any]:
+    """What a turn below a day is told about its lengths in days: each one with what that many bars span
+    (`day_lengths`), the door's one phrase for the bars version (`day_lengths_bars_phrase`), and, only once a chart
+    below a day can build a daily measure (`daily_values_below_a_day`), that it can. {} when there is nothing to say."""
+    lengths = day_length_notes(message, chart)
+    if not lengths:
+        return {}
+    out: Dict[str, Any] = {"day_lengths": lengths}
+    phrase = bars_phrase(message, chart)
+    if phrase:
+        out["day_lengths_bars_phrase"] = phrase
+    if daily_values_below_a_day(chart):
+        out["daily_measure_inside"] = True
+    return out
+
+
 def check_day_lengths(envelope: Mapping[str, Any], message: Any, chart: Any) -> None:
     """A LENGTH IN DAYS BUILT AS THAT MANY BARS OF A CHART BELOW A DAY IS REFUSED, so the model gets its repair; and
     a QUESTION that offers the bars version must say what it spans and never call it by its number of days.
@@ -1419,6 +1605,7 @@ def check_day_lengths(envelope: Mapping[str, Any], message: Any, chart: Any) -> 
     if not lengths:
         return
     by_days = {n["days"]: n["on_this_chart"] for n in lengths}
+    phrase = bars_phrase(message, chart)
     if envelope.get("disposition") == "clarify":
         for q in envelope.get("questions") or []:
             for choice in (q.get("choices") or []) if isinstance(q, Mapping) else []:
@@ -1428,12 +1615,17 @@ def check_day_lengths(envelope: Mapping[str, Any], message: Any, chart: Any) -> 
                     continue
                 span = next((s for s in by_days.values() if s.split(",")[0] in text and s.split(", ")[-1] in text), None)
                 called_days = next((n for n in by_days if re.search(rf"(?<![\d.]){n}[\s-]*days?\b", text, re.I)), None)
-                if span is None or called_days is not None:
+                carries_the_phrase = phrase is not None and phrase in text
+                if (span is None and not carries_the_phrase) or called_days is not None:
+                    # ⛔ THE NOTE ASKS FOR WHAT THE CODE ACCEPTS, and for something that fits a choice. It used to
+                    # ask for every span "exactly", which no choice of a request with several lengths could hold.
+                    wanted = (f"put these words in it as given: \"{phrase}\"" if phrase is not None
+                              else f"name one of these exactly: {'; '.join(by_days.values())}")
                     raise _Refused(
-                        "envelope:reference",
-                        f"the choice {text!r} offers a version on this chart's bars. Name it for what it spans, with the "
-                        f"words of `uct_language_notes.day_lengths` exactly ({'; '.join(by_days.values())}), and never "
-                        "call it by its number of days.")
+                        "envelope:days-choice-in-days",
+                        f"the choice {text!r} offers a version on this chart's bars. Name it for what it spans: {wanted}. "
+                        f"Keep the whole choice within {CHOICE_MAX_CHARS} characters, and never call it by its number "
+                        "of days.")
         return
     if envelope.get("disposition") not in (None, "change") or not envelope.get("ops"):
         return
@@ -1455,14 +1647,15 @@ def check_day_lengths(envelope: Mapping[str, Any], message: Any, chart: Any) -> 
                         and not isinstance(a.get("value"), bool) and a["value"] in by_days):
                     n = int(a["value"])
                     raise _Refused(
-                        "envelope:reference",
+                        "envelope:days-as-bars",
                         f"{where}: `{node.get('name')}(..., {n})` is {by_days[n]}, and the member asked for {n} DAYS. If "
                         "EVERY part of the indicator is a daily line on the chart's own symbol, keep the formula and "
                         "add set_calculation_timeframe D. If not (each bar is compared with the daily measure, today's "
                         "own values are added to it, or another symbol is read), it cannot be written yet: do NOT build "
                         "it on the chart's bars under a note. Answer with disposition clarify, `ops: []`, and ONE "
-                        "question: one plain sentence of why, then two `choices` that each name what they draw in time, "
-                        f"the bars version written as \"{by_days[n]}\" and never as {n} days.")
+                        f"question: one plain sentence of why, then two `choices` of at most {CHOICE_MAX_CHARS} characters "
+                        "that each name what they draw in time, the bars version carrying "
+                        f"\"{phrase or by_days[n]}\" as given and never called {n} days.")
         visit(args, where)
 
     for where, tree in _trees_of(envelope):
@@ -2769,7 +2962,7 @@ def _refuse_negative_bars_back(trees: List[Tuple[str, Any]]) -> None:
                     how = ("is compared with a negative number" if sign > 0
                            else "is negated and compared with a positive number")
                     raise _Refused(
-                        "envelope:reference",
+                        "envelope:bars-back-sign",
                         f"{where}: `{name}` {how}. Here `{name}` answers a count of bars BACK: "
                         "0 on this bar, 1 one bar ago, never negative (unlike TradingView's "
                         "`ta.highestbars` / `ta.lowestbars`). Use the count itself, not negated, "
@@ -2849,7 +3042,7 @@ def _refuse_infinity_in_a_window(trees: List[Tuple[str, Any]]) -> None:
             if isinstance(args, list) and args and reads_infinity(args[0]):
                 name = node["name"]
                 raise _Refused(
-                    "envelope:reference",
+                    "envelope:infinity-in-a-window",
                     f"{where}: `{name}` reads a number divided by zero for the bars it should leave out. "
                     "There is no infinity here: a division by zero is NO VALUE, and "
                     f"`{name}` skips a bar with no value and looks further BACK for one, so this reads the "
@@ -2887,7 +3080,7 @@ def _refuse_a_value_at_an_event_that_cannot_look_back(trees: List[Tuple[str, Any
             window = _is_literal_number(args[-1]) if isinstance(args, list) and len(args) == 3 else None
             if window is not None and window < _SMALLEST_WINDOW_THAT_LOOKS_BACK:
                 raise _Refused(
-                    "envelope:reference",
+                    "envelope:event-window",
                     f"{where}: `{_VALUE_AT_AN_EVENT}` is given a window of {window:g} bar. Its last argument is how "
                     "many bars it looks BACK for the most recent bar where the condition was true, so this reads "
                     "only the bar itself: a value where the condition is true and NO VALUE on every bar after "
@@ -2954,7 +3147,7 @@ def _refuse_a_stand_in_drawn_as_a_value(trees: List[Tuple[str, Any]]) -> None:
             if stand_in is not None:
                 name = node["name"]
                 raise _Refused(
-                    "envelope:reference",
+                    "envelope:stand-in-drawn",
                     f"{where}: `{name}` leaves bars out by giving them the number {stand_in:g}, and its answer "
                     "is drawn (or used in arithmetic) as it is. On a bar whose window holds no qualifying bar "
                     f"that stand-in is the answer, so {stand_in:g} would be drawn as if it were a real value. "
@@ -3011,14 +3204,14 @@ def _refuse_a_reading_compared_with_itself(trees: List[Tuple[str, Any]]) -> None
                 and _same_bar_reading(args[0]) == _same_bar_reading(args[1])):
             name = node["name"]
             raise _Refused(
-                "envelope:reference",
+                "envelope:compared-with-itself",
                 f"{where}: `a {name} b` compares a reading with ITSELF (both sides are the same value on the same "
                 "bar), so it says nothing. Inside sum(..., N) and every other window each series is read at its "
                 "own bar: nothing written there means today's value. To measure the bars of a window against "
                 "TODAY's value use percentrank: percentrank(x, N) is the percent of the N bars before this one "
                 "whose x is at or below today's, so among the last N bars with this one the bars above today's "
                 "are (N - 1) - percentrank(x, N - 1) * (N - 1) / 100, and the rank with 1 for the highest is "
-                "N - percentrank(x, N - 1) * (N - 1) / 100.")
+                "N - percentrank(x, N - 1) * (N - 1) / 100." + WHICH_BAR_EXIT)
         if isinstance(args, list):
             visit(args, where)
 
@@ -3061,7 +3254,7 @@ def _refuse_a_scope_read_of_nothing(trees: List[Tuple[str, Any]]) -> None:
             return
         if node.get("type") in _SCOPE_WRAPPERS and not _reads_a_bar(node.get("args")):
             raise _Refused(
-                "envelope:reference",
+                "envelope:number-for-a-value",
                 f"{where}: `{node['type']}` here reads a plain number, not a value of a bar, so it is that number on "
                 "every bar: a number is standing where the value the member asked for should be. Write the formula "
                 "the read is OF inside it (the weekly close is tf(close, W)). If what the member asked for cannot be "
@@ -3084,9 +3277,15 @@ def _refuse_a_placeholder_reply(envelope: Mapping[str, Any]) -> None:
     reply = envelope.get("reply")
     if envelope.get("ops") and isinstance(reply, str) and _PLACEHOLDER_REPLY.match(reply):
         raise _Refused(
-            "envelope:reference",
+            "envelope:reply-placeholder",
             f"`reply` is {reply.strip()!r}: a placeholder, not what the member is told. Write one or two plain "
             "sentences saying what was built; and check the formulas for a number left standing in for a value.")
+
+
+def _unfilled_settings(create: Mapping[str, Any]) -> set:
+    """The settings a `create` declares with NO REAL DEFAULT (0, or none): the member's own figures, to fill in."""
+    return {x["key"] for x in create.get("inputs") or []
+            if isinstance(x, Mapping) and isinstance(x.get("key"), str) and x.get("default") in (0, 0.0, None)}
 
 
 def _refuse_a_bare_fill_in_setting(envelope: Mapping[str, Any]) -> None:
@@ -3106,18 +3305,85 @@ def _refuse_a_bare_fill_in_setting(envelope: Mapping[str, Any]) -> None:
     for o in envelope.get("ops") or []:
         if not isinstance(o, Mapping) or o.get("op") != "create" or o.get("placement") != "price":
             continue
-        unfilled = {x["key"] for x in o.get("inputs") or []
-                    if isinstance(x, Mapping) and isinstance(x.get("key"), str) and x.get("default") in (0, 0.0, None)}
+        unfilled = _unfilled_settings(o)
         for i, out in enumerate(o.get("outputs") or []):
             tree = out.get("tree") if isinstance(out, Mapping) else None
             if (isinstance(tree, Mapping) and tree.get("type") == "series" and tree.get("name") in unfilled
                     and not out.get("hidden")):
                 key = tree["name"]
                 raise _Refused(
-                    "envelope:reference",
+                    "envelope:fill-in-drawn-bare",
                     f"outputs[{i}] draws the setting `{key}` bare on the price chart. Until the member fills it in "
                     "it is 0: a line at price 0, and the chart is squeezed to fit it. Draw nothing until it is "
                     f"filled: `{key} > 0 ? {key} : 0 / 0`.")
+
+
+#: how a reply says the door cannot read or know something
+_SAYS_IT_CANNOT = ("can't", "cannot", "can not", "no way to", "unable to", "not able to", "no access to",
+                   "don't have access", "do not have access")
+
+
+def _only_a_setting(tree: Any, unfilled: set) -> Optional[str]:
+    """The setting a tree is NOTHING BUT: `shares`, or `shares > 0 ? shares : <no value>` (drawn only once filled)."""
+    if not isinstance(tree, Mapping):
+        return None
+    if tree.get("type") == "series":
+        return tree.get("name") if tree.get("name") in unfilled else None
+    args = tree.get("args") or []
+    if tree.get("type") == "op" and tree.get("name") == "?:" and len(args) == 3:
+        key = _only_a_setting(args[1], unfilled)
+        cond = args[0] if isinstance(args[0], Mapping) else {}
+        asks_if_filled = (cond.get("type") == "op" and cond.get("name") in (">", "!=", ">=")
+                          and any(isinstance(a, Mapping) and a.get("type") == "series" and a.get("name") == key
+                                  for a in cond.get("args") or []))
+        return key if key and isinstance(args[1], Mapping) and args[1].get("type") == "series" and asks_if_filled else None
+    return None
+
+
+def member_filled_outputs(envelope: Mapping[str, Any]) -> List[Tuple[str, str]]:
+    """[(output key, setting key)]: the outputs that are nothing but a figure ONLY THE MEMBER HAS: a setting of the
+    same `create` with no real default, shown bare (drawn or hidden) or only once it is filled."""
+    found = []
+    for o in envelope.get("ops") or []:
+        if not isinstance(o, Mapping) or o.get("op") != "create":
+            continue
+        unfilled = _unfilled_settings(o)
+        for out in o.get("outputs") or []:
+            key = _only_a_setting(out.get("tree"), unfilled) if isinstance(out, Mapping) else None
+            if key:
+                found.append((str(out.get("key")), key))
+    return found
+
+
+def _refuse_a_reply_silent_on_a_figure_only_the_member_has(envelope: Mapping[str, Any]) -> None:
+    """2026-11-23 -- THE MEMBER WAS ASKED TO TYPE THEIR SHARES AND NOT TOLD WHY. Found by the live re-check of the
+    guard above, as a member.
+
+    Asked to "plot the number of shares I own and my average cost", the door built two settings and drew nothing at
+    price 0 (right). The reply said "two settings you fill in yourself ... default to 0 until you enter your own
+    numbers" and never that it cannot read the member's holdings. The first live answer had said it; nothing held it.
+
+    Refused, for the one repair: a turn that shows a figure only the member has (`member_filled_outputs`) with a
+    `reply` that does not say the door cannot read or know it. It passes when the reply says so in any of the plain
+    ways (`_SAYS_IT_CANNOT`), when no output is such a figure (a setting with a real default, a setting inside a
+    calculation), and when there is no reply at all (left as it was, as the placeholder guard leaves it: the member
+    then reads what was built). No model call is added, and no list of account words: what makes a figure the
+    member's own is that the door declared it as theirs to fill in.
+    """
+    theirs = member_filled_outputs(envelope)
+    reply = envelope.get("reply")
+    if not theirs or not isinstance(reply, str) or not reply.strip():
+        return
+    told = " ".join(reply.lower().replace("\u2019", "'").split())
+    if any(phrase in told for phrase in _SAYS_IT_CANNOT):
+        return
+    keys = sorted({key for _out, key in theirs})
+    named = ", ".join(f"`{k}`" for k in keys)
+    raise _Refused(
+        "envelope:reply-silent-on-your-figure",
+        f"`reply` does not say that UCT cannot read {named} for the member. They asked for a figure only they have, "
+        "so they are owed the reason they must type it. Say it in one plain sentence (for example: \"I can't read "
+        "your account, so enter them in the indicator's settings\") and keep the rest of the reply.")
 
 
 def _refuse_scalars(trees: List[Tuple[str, Any]]) -> None:
@@ -4417,6 +4683,7 @@ def check_envelope(envelope: Any, revision: int, view: Any = None) -> Dict[str, 
     _refuse_a_scope_read_of_nothing(_trees_of(envelope))
     _refuse_a_placeholder_reply(envelope)
     _refuse_a_bare_fill_in_setting(envelope)
+    _refuse_a_reply_silent_on_a_figure_only_the_member_has(envelope)
     _refuse_scalars(_trees_of(envelope))
     errors = _schema_errors(envelope)
     if errors:
@@ -5257,6 +5524,13 @@ def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
     # about one built turn in four pays a second model call, nearly always at one gate
     # (`envelope:reference`), and the gate code alone does not say which name. A repair doubles
     # the member's wait, so its cause has to be readable to be fixed.
+    if trace.get("refusals"):
+        # ⭐ 2026-11-23 -- WHICH GUARD REFUSED EACH ATTEMPT, BY ITS CODE, FOR EVERY ACCOUNT. The value cases are
+        # recorded as a MEMBER, and a member's response said only `attempts: 2`: a build that went wrong on its
+        # repair call (cap-01) could not be traced to the guard that sent it there. The CODE alone is carried:
+        # it is one of this file's own gate names, never model output. What the repair turn was TOLD stays with
+        # the builders, below.
+        result["refused_attempts"] = refused_attempts(trace["refusals"])
     if admin and trace.get("refusals"):
         # WHY EACH ATTEMPT WAS REFUSED, FOR THE BUILDERS ONLY (2026-11-16). The house set
         # found requests that fail twice at a name or reference check, and nothing outside
@@ -5557,6 +5831,17 @@ def understand_turn(message: str, chart: Any) -> Dict[str, Any]:
             "chart_sym": chart.get("sym") if isinstance(chart, Mapping) else None}
 
 
+def refused_attempts(refusals: Any) -> List[Dict[str, Any]]:
+    """[{attempt, gate}] for a response: which of the door's guards refused each attempt, by its code and nothing
+    else. A code that is not one this door can refuse with is left out (never a string that came from elsewhere)."""
+    out: List[Dict[str, Any]] = []
+    for r in refusals or []:
+        gate = r.get("gate") if isinstance(r, Mapping) else None
+        if isinstance(gate, str) and gate in REFUSALS and isinstance(r.get("attempt"), int):
+            out.append({"attempt": r["attempt"], "gate": gate})
+    return out
+
+
 def door_answers_by_name(message: Any, chart: Any, can_add: Any = frozenset()) -> bool:
     """Would the door answer this request itself, BY NAME and with no assistant call? A request that is only a
     built-in's name (offered in one tap, or pointed at in the Indicators list), or only "VWAP with its bands" for a
@@ -5731,10 +6016,10 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
         notes = {**notes, "dates": written_dates}
         trace["dates"] = len(written_dates)        # how many, never which
     date_numbers = supplied_date_numbers(message, notes, view, turns)
-    days_as_bars = day_length_notes(message, chart)
+    days_as_bars = day_length_turn_notes(message, chart)
     if days_as_bars:
-        notes = {**notes, "day_lengths": days_as_bars}
-        trace["day_lengths"] = len(days_as_bars)       # how many, never which
+        notes = {**notes, **days_as_bars}
+        trace["day_lengths"] = len(days_as_bars["day_lengths"])       # how many, never which
     from api.services import worked_examples
     carried = worked_examples.for_turn(message, view, admin=admin, asked=examples)
     content = user_turn(request_text, {**notes, "worked_examples": carried} if carried else notes,
@@ -5857,7 +6142,7 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
             if envelope.get("disposition") == "change":
                 envelope = _with_door_notes(envelope, as_before_notes(as_before))
             if replayed and envelope.get("ops") == replayed[0].get("ops"):
-                raise _Refused("envelope:reference",
+                raise _Refused("envelope:replayed",
                                f"this is the patch the app already refused ({replayed[1]}); change it")
         except _Refused as refused:
             last = refused

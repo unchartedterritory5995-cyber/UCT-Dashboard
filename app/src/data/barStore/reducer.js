@@ -700,6 +700,32 @@ function applyRest(state, action, ctx, kind) {
     rows = ingestRows([...rows, devIn], working, { rev, fin: false, src: 'rest' })
     devIn = null
   }
+  // ⛔ DEVICE ROWS NEVER OUTLIVE THE FIRST ANSWER AS ANSWERED ROWS (review of #2554, P3-L1). An answer whose tail LAGS the
+  // device (an unverified or stale-while-revalidate serve) left the device's newer closed rows and its newer forming bar
+  // in place, under `restSeen`: painted with every device rule off, and written by persist as a server-backed copy that
+  // a later page reads back unmarked. What the device does not VOUCH for goes: a LOCAL row newer than this answer whose
+  // bucket ends after the copy's stamp (`deviceThrough`: a bucket the device had not completed, closed by the clock or a
+  // push), and a LOCAL forming bar no tick touched. A live bar is kept.
+  // ⭐ ...AND WHAT IT VOUCHES FOR STAYS (review of #2558, P4-L3). A bucket that ends at or before the stamp is a complete
+  // rollup of the server's own minutes, and the member was already looking at it: dropped, the newest candles vanished
+  // until the stream or the next poll sent them again (a hole of seconds). Kept, it is still a LOCAL row, so the server's
+  // own row for that bucket replaces it the moment one arrives (mergeRows `_wins`: a server row always replaces a local
+  // one). A copy with no stamp vouches for nothing. Only on the first answer to an entry holding device rows: never with
+  // the store off.
+  const newestIn = state.deviceRows && !state.restSeen
+    ? Math.max(rows.length ? rows[rows.length - 1].t : -Infinity, devIn ? devIn.t : -Infinity) : null
+  if (finite(newestIn)) {
+    const vouched = finite(state.deviceThrough) ? state.deviceThrough : -Infinity
+    const kept = working.bars.filter((b) => !(b.src === 'local' && b.t > newestIn && bucketEnd(b.t, working) > vouched))
+    const d = state.developing
+    const dropDev = !!d && d.src === DEV_SRC.LOCAL && !d.ticked && d.t > newestIn
+    if (kept.length !== working.bars.length || dropDev) {
+      state = Object.freeze({ ...state, bars: Object.freeze(kept), developing: dropDev ? null : d,
+        baseRev: state.baseRev + 1, devRev: state.devRev + (dropDev ? 1 : 0) })
+      working.bars = state.bars
+      working.developing = state.developing
+    }
+  }
 
   // What this answer seals.
   // A contract answer seals exactly its `complete_through`; NULL means nothing is
@@ -954,17 +980,33 @@ function _applyLocal(state, action, ctx, source) {
     return finalize(state, { bars: mergeRows(state, rows) }, ctx)
   }
   // No server answer yet: the local copy is the best we have. Its last row is the forming
-  // bucket when the clock says that bucket has not ended.
+  // bucket when the clock says that bucket has not ended...
+  // ⛔ ...OR WHEN THE DEVICE SAYS SO (review of #2537, M1). A device copy's last row may be the bucket in progress
+  // relative to the newest minute the DEVICE applied (deviceStore/live.js), and names it (`forming_t`, persist.js).
+  // Read just after that bucket's end, before the frame of its last minute has landed, the clock alone filed it as a
+  // CLOSED bar one minute short, and the server's answer then changed the candle. Named, it is the developing bar.
+  // (Only a device copy carries the marker: no other copy's payload is read for it.)
   const nowSec = Math.floor((ctx.nowMs ?? Date.now()) / 1000)
   let devIn = null
   const lastRow = rows[rows.length - 1]
-  if (!lastRow._sealed && bucketEnd(lastRow.t, working) > nowSec) { devIn = lastRow; rows = rows.slice(0, -1) }
+  const namedForming = source === 'device' && numOrNull(p.forming_t) === lastRow.t
+  if (!lastRow._sealed && (namedForming || bucketEnd(lastRow.t, working) > nowSec)) { devIn = lastRow; rows = rows.slice(0, -1) }
   let bars = mergeRows(working, rows)
   if (spans !== state.sealedSpans) {
     // Absences inside a restored span are the server's: drop earlier local-only rows there.
     for (const sp of spans) bars = mergeRows({ ...working, bars, sealedSpans: spans }, [], sp)
   }
   let dev = state.developing
+  // ⛔ THE DEVICE'S NEWER COPY SUPERSEDES ITS OWN EARLIER FORMING BAR (review of #2537, M1: the other half of the roll).
+  // A device copy lands only on an entry whose developing bar is none, a live one, or the device's own (a LOCAL bar:
+  // persist _joinRefused refuses any other, and refreshDevice dispatches only a NEWER copy). The newer copy says what
+  // that bucket is now: a closed row (above), the forming row (`devIn`), or nothing it vouches for any more (today's
+  // forming D after the close, live.js). Kept, the older forming bar was closed or settled INTO the rows, where its
+  // rank ties the copy's and it is merged last, so it REPLACED the complete bucket the newer copy had just brought (a
+  // copy warmed at 10:02 and shown at 10:07 painted its 10:00 bar as it was at 10:02). A live bar is not the device's and
+  // is never dropped here: a push re-sources the bar it touches (PUSH), and a TICK keeps it LOCAL but marks it `ticked`
+  // (applyTick), a live observation, the same distinction applyRest makes (review of #2549, P2-L1).
+  if (source === 'device' && dev && dev.src === DEV_SRC.LOCAL && !dev.ticked) dev = null
   let st = { ...working, bars, sealedSpans: spans }
   if (devIn && (!dev || devIn.t > dev.t)) {
     if (dev) { ({ bars } = closeDeveloping(st, bars)); st = { ...st, bars } }
@@ -997,6 +1039,14 @@ function _applyLocal(state, action, ctx, source) {
     // Restored seals make a since= delta sound (deltaFrom starts after the newest seal).
     ...(spans !== state.sealedSpans ? { needsFull: false } : {}),
     source,
+    // ⭐ THE ENTRY HOLDS A DEVICE COPY'S ROWS (review of #2549, P2-M1): every device rule (prefetch: the extended-hours
+    // rule, the stamp's freshness, the rolling bucket) keys on this, not on `source`, which the next copy to join (the
+    // lake, a saved copy) rewrites while the device's rows stay. Carried by every later action (finalize spreads the
+    // state); gone with the rows: a saved copy that REPLACES them starts from initialState, an invalidate clears it,
+    // an evicted key comes back as a new entry. Only a device copy sets it: never reached with the store off.
+    // `deviceThrough`: the copy's stamp (persist: the newest minute the device applied), what the first answer may keep of
+    // the device's rows (applyRest, P4-L3). Set with the marker and gone with it.
+    ...(source === 'device' ? { deviceRows: true, deviceThrough: numOrNull(p.through) } : {}),
   }, ctx)
 }
 
@@ -1182,6 +1232,8 @@ export function invalidate(state, reason, ctx = {}) {
   return finalize(state, {
     ...fresh, baseRev: state.baseRev, devRev: state.devRev,
     needsFull: true, invalidatedFor: reason || 'invalidate', gen: state.gen + 1,
+    // the device rows go with the rest (only an entry that held them carries the mark: never with the store off)
+    ...(state.deviceRows ? { deviceRows: false, deviceThrough: null } : {}),
   }, ctx)
 }
 
@@ -1190,6 +1242,13 @@ function applyError(state, action, ctx) {
   if (action.gen != null && action.gen !== state.gen) return state
   const error = p.terminal || p.error === 'no_data' ? 'no_data' : String(p.error || p.status || 'error')
   if (error === state.error) return state
+  // ⛔ (review of #2554, P3-L1) THE SERVER HAS NO DATA FOR A KEY HOLDING DEVICE ROWS (a seed symbol renamed or delisted
+  // after the build): those rows go with the answer. Kept, they read as answered (`restSeen`: every device rule off),
+  // painted, and persist wrote them as a server-backed copy. Only an entry holding device rows and no answer yet: never
+  // with the store off, where the held rows stay exactly as before.
+  if (error === 'no_data' && state.deviceRows && !state.restSeen) {
+    return finalize(state, { error, restSeen: true, bars: EMPTY_BARS, developing: null, deviceRows: false, deviceThrough: null }, ctx)
+  }
   // A terminal no-data answer IS a server answer (the entry never returns to local-only).
   return finalize(state, error === 'no_data' ? { error, restSeen: true } : { error }, ctx)
 }
@@ -1224,6 +1283,11 @@ export function reduce(state, action, ctx = {}) {
     case ACTION.TICK_FALLBACK: return applyTick(state, action, ctx)
     case ACTION.SCROLL_BACK: return applyScrollBack(state, action, ctx)
     case ACTION.INVALIDATE: return invalidate(state, action.reason, ctx)
+    // ⛔ A KILL SEEN ON THIS PAGE (review of #2565, P6-L2): the copy's stamp vouches for nothing any more, so the first answer
+    // keeps none of the device's rows newer than itself (applyRest). The rows stay until then (nothing is blanked), and the
+    // marker stays: the refusal ('killed') keys on it. Only an entry holding device rows; never with the store off.
+    case ACTION.DEVICE_KILLED:
+      return state.deviceRows && state.deviceThrough != null ? Object.freeze({ ...state, deviceThrough: null }) : state
     default: return state
   }
 }

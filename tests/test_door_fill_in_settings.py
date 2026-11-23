@@ -39,9 +39,10 @@ DATA = json.loads((ROOT / "tests" / "fixtures" / "authoring" / "value_cases.json
 CASES = DATA["cases"]
 CASE = next(c for c in CASES if c["id"] == "wall-18")
 WORDS = CASE["words"]
-#: the build a member was given live (a line at price 0 until filled): the case's record while it is recorded WRONG,
-#: its `found` specimen once the door gets it right
-LIVE = G.specimen(CASE)["answer"]
+#: the build a member was given live (a line at price 0 until filled): the case's FIRST wrong answer
+LIVE = G.specimens(CASE)[0]["answer"]
+#: the SECOND: after the first fix the build was right and the reply never said the door cannot read the holdings
+SILENT = G.specimens(CASE)[1]["answer"]
 CHART = {"sym": "NVDA", "tf": "D"}
 ZERO_OVER_ZERO = {"type": "op", "name": "/", "args": [{"type": "num", "value": 0}, {"type": "num", "value": 0}]}
 
@@ -78,7 +79,7 @@ def refused_by(fn, *args):
 
 def test_THE_FINDING_a_setting_drawn_bare_on_the_price_chart_is_refused():
     exc = refused_by(dc._refuse_a_bare_fill_in_setting, {"ops": LIVE["ops"]})
-    assert exc is not None and exc.gate == "envelope:reference"
+    assert exc is not None and exc.gate == "envelope:fill-in-drawn-bare"
     told = exc.for_model()
     for piece in ("draws the setting `avgPrice` bare on the price chart", "a line at price 0, and the chart is squeezed to fit it",
                   "`avgPrice > 0 ? avgPrice : 0 / 0`"):
@@ -125,7 +126,7 @@ def test_the_live_build_is_sent_back_and_the_one_that_draws_nothing_until_filled
 
 def test_the_formula_door_is_told(conv):
     prompt = " ".join(conv.CONVERSE_SYSTEM_PROMPT.split())
-    for piece in ("NEVER invent the member's own figures", "A setting that is DRAWN on the price chart (an entry, a stop, an average cost) draws NOTHING until the member fills it in",
+    for piece in ("NEVER invent the member's own figures -- default 0", "A setting that is DRAWN on the price chart (an entry, a stop, an average cost) draws NOTHING until the member fills it in",
                   "`avgCost > 0 ? avgCost : 0 / 0`, never the bare setting", "a line at price 0 that squeezes the member's chart to fit it"):
         assert piece in prompt, piece
 
@@ -197,7 +198,7 @@ def test_a_case_may_hold_what_the_member_is_told():
 
 # ── the record ──
 
-def test_the_case_moved_to_the_build_lane_with_its_reason_and_is_recorded_WRONG():
+def test_the_case_moved_to_the_build_lane_with_its_reason_and_its_first_answer_was_WRONG():
     assert CASE["lane"] == "formula" and "wall" not in CASE and G.specimen(CASE) is not None
     assert CASE["provenance"].startswith("corrected on review 11-22: the words ask for the member's own numbers, not an account read")
     assert G.rule_digest("wall-18") == CASE["rule"]["digest"]
@@ -207,8 +208,183 @@ def test_the_case_moved_to_the_build_lane_with_its_reason_and_is_recorded_WRONG(
 
 
 def test_the_wall_lane_keeps_a_request_that_truly_needs_the_account():
-    sibling = next(c for c in DATA["pending"] if c["id"] == "wall-33")
-    assert sibling["lane"] == "wall" and "brokerage account" in sibling["words"] and "answer" not in sibling
+    # (written words and rule first, as a pending case; it holds its first live answer since the thresholds PR)
+    sibling = next(c for c in (DATA.get("pending") or []) + DATA["cases"] if c["id"] == "wall-33")
+    assert sibling["lane"] == "wall" and "brokerage account" in sibling["words"]
+    if "answer" in sibling:
+        assert sibling["recorded"]["front"] and G.grade_wall(sibling, sibling["answer"])["verdict"] == sibling.get("recorded_verdict", "right")
     assert G.grade_wall(sibling, {"disposition": "unsupported", "reply": "I can't read a brokerage account from here."})["verdict"] == "right"
     assert G.grade_wall(sibling, {"disposition": "unsupported", "reply": "I can't build that."})["verdict"] == "wrong"
     assert G.grade_wall(sibling, {"disposition": "change", "reply": "your account", "ops": [FILLED]})["verdict"] == "wrong"
+
+
+# ── a figure only the member has: the reply says the door cannot read it (2026-11-23) ──
+#
+# Found by the live re-check of the guard above, as a member (2026-11-22 23:40Z). The build was right (nothing at price
+# 0; the share count kept for a table cell) and the reply never said the door cannot read the member's holdings.
+
+SAYS_GATE = dc._refuse_a_reply_silent_on_a_figure_only_the_member_has
+SILENT_REPLY = SILENT["reply"]
+
+
+def test_THE_SECOND_FINDING_the_build_is_right_and_the_reply_never_says_why():
+    assert refused_by(dc._refuse_a_bare_fill_in_setting, {"ops": SILENT["ops"]}) is None          # the first fix holds: nothing at price 0
+    assert sorted(dc.member_filled_outputs({"ops": SILENT["ops"]})) == [("avgCostLine", "avgCost"), ("sharesHeld", "shares")]
+    exc = refused_by(SAYS_GATE, SILENT)
+    assert exc is not None and exc.gate == "envelope:reply-silent-on-your-figure"
+    told = exc.for_model()
+    for piece in ("`reply` does not say that UCT cannot read `avgCost`, `shares` for the member",
+                  "they are owed the reason they must type it", "I can't read your account, so enter them in the indicator's settings"):
+        assert piece in told, piece
+    assert refused_by(dc.check_envelope, {**env(0, copy.deepcopy(SILENT["ops"])), "reply": SILENT_REPLY}, 0) is not None      # and at the whole check
+    # the same build with a reply that says why passes the whole check
+    assert refused_by(dc.check_envelope, {**env(0, copy.deepcopy(SILENT["ops"])), "reply": SILENT_REPLY + " " + REPLY}, 0) is None
+
+
+@pytest.mark.parametrize("reply", [
+    REPLY,
+    "I can’t know your actual holdings, so please enter them there.",                 # a typographic apostrophe
+    "There is no way to read a brokerage from here; type both figures in.",
+    "I'm unable to see your position, so the two figures are settings.",
+    "I do not have access to your account. Enter your shares and cost in the settings.",
+    "UCT CANNOT read your holdings; fill both in.",
+])
+def test_a_reply_that_says_the_door_cannot_read_it_passes(reply):
+    assert refused_by(SAYS_GATE, {"ops": [FILLED], "reply": reply}) is None
+
+
+@pytest.mark.parametrize("reply", [
+    SILENT_REPLY,
+    "Here are two settings for your shares and your average cost.",
+    "Enter your shares and your cost in the indicator's settings; both default to 0.",
+    "Built.",
+])
+def test_a_reply_that_never_says_it_is_refused(reply):
+    exc = refused_by(SAYS_GATE, {"ops": [FILLED], "reply": reply})
+    assert exc is not None and "`avgPrice`, `shares`" in exc.for_model()
+
+
+def test_every_shape_of_a_figure_only_the_member_has():
+    def shown(tree, **kw):
+        return dc.member_filled_outputs({"ops": [position(tree, {"type": "num", "value": 1}, **kw)]})
+    key = "avgPrice"
+    cond = lambda name, of=key: {"type": "op", "name": name, "args": [setting(of), {"type": "num", "value": 0}]}  # noqa: E731
+    assert shown(setting(key)) == [("avgCost", key)]                                               # bare, drawn
+    assert shown(setting(key), hidden=(True, True)) == [("avgCost", key)]                          # bare, hidden (a table cell reads it)
+    assert shown(setting(key), placement="pane") == [("avgCost", key)]                             # under the chart too
+    for name in (">", "!=", ">="):                                                                 # drawn only once filled
+        assert shown({"type": "op", "name": "?:", "args": [cond(name), setting(key), ZERO_OVER_ZERO]}) == [("avgCost", key)], name
+    # NOT such a figure: the setting inside a calculation, a branch that is not the setting, a condition about something else
+    assert shown({"type": "op", "name": "*", "args": [setting(key), {"type": "num", "value": 1.1}]}) == []
+    assert shown({"type": "op", "name": "?:", "args": [cond(">"), {"type": "series", "name": "close"}, ZERO_OVER_ZERO]}) == []
+    assert shown({"type": "op", "name": "?:", "args": [cond(">", "shares"), setting(key), ZERO_OVER_ZERO]}) == []
+    assert shown({"type": "op", "name": "?:", "args": [cond("<"), setting(key), ZERO_OVER_ZERO]}) == []
+    assert shown({"type": "series", "name": "close"}) == [] and shown({"type": "num", "value": 100}) == [] and shown(None) == []
+    # a setting with a REAL default is a level the member asked for, not a figure only they have
+    assert shown(setting(key), defaults=(0, 100)) == []
+    # each such output is listed, whichever create it is in; an op that is not a create shows nothing
+    both = {"ops": [position(setting("avgPrice"), setting("shares")), {"op": "set_style", "output": "avgCost", "color": "#fff"}]}
+    assert dc.member_filled_outputs(both) == [("avgCost", "avgPrice"), ("sharesOwned", "shares")]
+    assert dc.member_filled_outputs({"ops": [{"op": "set_style", "output": "x"}, "junk"]}) == [] and dc.member_filled_outputs({}) == []
+
+
+@pytest.mark.parametrize("op,why", [
+    (position(setting("avgPrice"), setting("shares"), defaults=(100, 100), placement="pane"), "real defaults: levels the member asked for"),
+    (position({"type": "op", "name": "*", "args": [setting("avgPrice"), {"type": "num", "value": 1.1}]}, {"type": "series", "name": "close"}), "a setting inside a calculation"),
+    (position({"type": "series", "name": "close"}, {"type": "num", "value": 5}), "no setting is shown at all"),
+])
+def test_CONTROL_a_turn_that_shows_no_figure_of_the_members_is_left_alone_whatever_it_says(op, why):
+    assert refused_by(SAYS_GATE, {"ops": [op], "reply": "Built."}) is None, why
+
+
+def test_no_reply_at_all_is_left_as_it_was():
+    for reply in (None, "", "   ", 7):
+        assert refused_by(SAYS_GATE, {"ops": [FILLED], **({} if reply is None else {"reply": reply})}) is None, reply
+
+
+def test_ONE_helper_tells_both_guards_which_settings_are_the_members_to_fill():
+    assert dc._unfilled_settings({"inputs": [{"key": "a", "default": 0}, {"key": "b"}, {"key": "c", "default": 5}, {"key": "d", "default": 0.0},
+                                             "junk", {"default": 0}, {"key": 3, "default": 0}]}) == {"a", "b", "d"}
+    assert dc._unfilled_settings({}) == set()
+    import ast
+    tree = ast.parse(Path(dc.__file__).read_text(encoding="utf-8"))
+    calls = {fn.name: {c.func.id for c in ast.walk(fn) if isinstance(c, ast.Call) and isinstance(c.func, ast.Name)}
+             for fn in ast.walk(tree) if isinstance(fn, ast.FunctionDef)}
+    assert "_unfilled_settings" in calls["_refuse_a_bare_fill_in_setting"] and "_unfilled_settings" in calls["member_filled_outputs"]
+    assert "member_filled_outputs" in calls["_refuse_a_reply_silent_on_a_figure_only_the_member_has"]
+    # and the whole check runs the new guard right after the first
+    assert {"_refuse_a_bare_fill_in_setting", "_refuse_a_reply_silent_on_a_figure_only_the_member_has"} <= calls["check_envelope"]
+
+
+def test_no_recorded_right_answer_shows_such_a_figure_so_none_can_be_refused():
+    right = [c for c in CASES if c["lane"] == "formula" and c.get("recorded_verdict") != "wrong"]
+    assert len(right) >= 100
+    shows = [c["id"] for c in right if dc.member_filled_outputs(c["answer"])]
+    assert shows in ([], [CASE["id"]])                                # only this request ever does
+    for case in right:
+        if dc.member_filled_outputs(case["answer"]):
+            # recorded RIGHT while showing such a figure: its recorded reply says why, so the guard passes it
+            assert refused_by(SAYS_GATE, case["answer"]) is None and case["answer"].get("reply"), case["id"]
+    # CONTROL: the one recorded request that does, in both its wrong answers
+    assert all(dc.member_filled_outputs(s["answer"]) for s in G.specimens(CASE))
+
+
+def test_the_formula_door_is_told_to_say_it(conv):
+    prompt = " ".join(conv.CONVERSE_SYSTEM_PROMPT.split())
+    assert ("NEVER invent the member's own figures -- default 0, say in `reply` that you cannot read them (their account, their holdings) "
+            "and tell them to set them in the indicator's settings.") in prompt
+
+
+def test_the_silent_reply_is_sent_back_and_the_one_that_says_why_is_the_answer(conv, clean_env, model):
+    said = SILENT_REPLY + " I can't read your account or your holdings, which is why you enter them yourself."
+    client = model([emits({**env(0, copy.deepcopy(SILENT["ops"])), "reply": SILENT_REPLY}), emits({**env(0, copy.deepcopy(SILENT["ops"])), "reply": said})])
+    r = conv.converse(WORDS, user_id="u1", view=empty_view(0), chart=CHART)
+    assert r["ok"] is True and r["attempts"] == 2 and len(client.calls) == 2, (r.get("gate"), r.get("reason"))
+    assert "does not say that UCT cannot read" in json.dumps(client.calls[1]["messages"])
+    built = {"ops": r["envelope"]["ops"], "reply": r["reply"]}
+    assert G.grade_case(CASE, built)["verdict"] == "right", G.grade_case(CASE, built)["lines"]
+
+
+def test_a_reply_that_says_why_the_first_time_costs_no_second_call(conv, clean_env, model):
+    client = model([emits({**env(0, copy.deepcopy(SILENT["ops"])), "reply": SILENT_REPLY + " " + REPLY})])
+    r = conv.converse(WORDS, user_id="u1", view=empty_view(0), chart=CHART)
+    assert r["ok"] is True and r["attempts"] == 1 and len(client.calls) == 1
+
+
+# ── the rule: only what is DRAWN ON BARS counts (corrected 2026-11-23) ──
+
+def test_a_HIDDEN_output_is_not_drawn_and_a_visible_one_is():
+    hidden_bare = position(when_filled("avgPrice"), setting("shares"))                 # the share count hidden, read by a table cell
+    assert G.hidden_outputs({"ops": [hidden_bare]}) == {"output sharesOwned"} and G.hidden_outputs({}) == set()
+    built, inputs = G.trees_of({"ops": [hidden_bare]})
+    cols = [(n, *G.evaluate(t, inputs)) for n, t in built]
+    got = G._grade_fill_in(FILL, built, inputs, cols, "daily", None, G.hidden_outputs({"ops": [hidden_bare]}))
+    assert got["verdict"] == "right" and got["lines"][0] == "with nothing filled in, nothing is drawn (hidden, not drawn: ['output sharesOwned'])"
+    # the SAME tree drawn (not hidden) is a level at 0 on the bars: wrong
+    visible = position(when_filled("avgPrice"), setting("shares"), hidden=(False, False))
+    built, inputs = G.trees_of({"ops": [visible]})
+    cols = [(n, *G.evaluate(t, inputs)) for n, t in built]
+    drawn = G._grade_fill_in(FILL, built, inputs, cols, "daily", None, G.hidden_outputs({"ops": [visible]}))
+    assert drawn["verdict"] == "wrong" and "['output sharesOwned'] has a value on the chart" in drawn["lines"][0]
+    # and the rule is told which outputs are hidden by the grader itself (the case's own verdict moves with it)
+    assert G.grade_case(CASE, {"contract": "uct.authoring.patch/1", "ops": [hidden_bare], "reply": REPLY})["verdict"] == "right"
+    assert G.grade_case(CASE, {"contract": "uct.authoring.patch/1", "ops": [visible], "reply": REPLY})["verdict"] == "wrong"
+
+
+def test_what_the_member_is_told_is_read_with_a_typographic_apostrophe_as_a_plain_one():
+    said = {"contract": "uct.authoring.patch/1", "ops": [FILLED], "reply": "I can’t read your account, so enter both in the settings."}
+    assert G.grade_case(CASE, said)["verdict"] == "right"
+
+
+def test_the_case_holds_BOTH_findings_and_its_rule_says_how_it_was_corrected():
+    held = G.specimens(CASE)
+    assert len(held) >= 2 and held[0]["fixed_by"] == {"pr": "#2472", "merge": "04949a82d776e05ff9fa5af07ab2c4e73233e277"}
+    first, second = G.grade_case(CASE, held[0]["answer"]), G.grade_case(CASE, held[1]["answer"])
+    assert first["verdict"] == "wrong" and "has a value on the chart" in " ".join(first["lines"])
+    assert "the reply says none of" not in " ".join(first["lines"])                        # the first SAID it and drew a line at 0
+    assert second["verdict"] == "wrong" and second["lines"][0].startswith("with nothing filled in, nothing is drawn")
+    assert len([line for line in second["lines"] if line.startswith("the reply says none of")]) == 2       # the second drew right and never said it
+    assert "never says the door cannot read the member's holdings" in held[1]["defect"]
+    last = CASE["rule"]["history"][-1]
+    assert last["digest"] == CASE["rule"]["digest"] == G.rule_digest("wall-18") and last["quote"] in WORDS
+    assert "only what is DRAWN ON BARS counts" in last["reason"] and "numbers did not change" in last["reason"]

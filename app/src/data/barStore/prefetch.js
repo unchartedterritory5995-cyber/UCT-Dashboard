@@ -60,6 +60,7 @@
 
 import { getBarStore } from './index'
 import { keyOf, parseKey, normTf, isIntradayTf, isDateTf, PERIOD_SEC, STATUS, unixToDateLabel } from './types'
+import { bucketOf } from './reducer'
 import { DAILY_POLL_MS } from './network'
 import { legacyBars } from './adapter'
 import { fullBarsFor, firstPaintBarsFor } from '../../utils/barsBackfill'
@@ -67,7 +68,9 @@ import { PREFETCH_WINDOWS, prefetchTargetBars } from '../../utils/historyPrepend
 import { viewShowExtended } from '../../utils/viewSession'
 import { isNativeTf, fetchTf } from '../../components/chart/timeframes'
 import { isCacheCurrentForView, expectedBarsBehind } from '../../utils/marketSession'
-import { deviceCopyFresh } from '../deviceStore/fresh'
+import { deviceCopyFresh, inRegularSession } from '../deviceStore/fresh'
+import { deviceServesTf } from '../deviceStore/tfs'
+import { deviceStoreKillSeen } from '../../lib/chartSpeed'
 import { BARSTORE } from '../../components/chart/barStoreSwitch'
 import { prefetchTickerMeta as _defaultTickerMeta } from '../../hooks/useTickerMeta'
 import {
@@ -118,6 +121,10 @@ const REPLAY_WARM_TFS = Object.freeze(['5', '15', '30', '60'])
 const COOLDOWN_MAX_KEYS = 400
 /** The lane of the member's own ask (see `_hydrate`). */
 const URGENT = Object.freeze({ urgent: true })
+/** ⭐ (review of #2558, P4-L2) A re-read of a device copy the rule REFUSED: urgent, and asking the device for a copy newer
+ *  than the one held (persist.refreshDevice `newer`), so the client's recently-read cache (20 s) cannot answer it with the
+ *  very copy just refused. Only where the rule says 'stale'; every other read keeps the cache. */
+const URGENT_NEWER = Object.freeze({ urgent: true, newer: true })
 
 /** TERM-033: what a FAILED device-cache hydrate resolves to (`_hydrate`). "Nothing was hydrated",
  *  never an answer: the caller takes its verdict on the store as it stands, so the key is asked of
@@ -233,6 +240,38 @@ export const EDGE_WARM_REFUSED = -1
  *  ticker?" (its index: one edge round trip) before the warm gives up on it. */
 export const INTENT_LAKE_INDEX_WAIT_MS = 400
 const SHORT_FULL_MAX = 4000
+
+/**
+ * ⛔ THE ONE DEVICE REFUSAL (reviews of #2549 P2-M1, #2554 P3-M1 / P3-M2): why an entry holding a device copy's rows
+ * (reducer `deviceRows`) and no server answer may not be a first frame now, or null. PURE: the snapshot, the view's
+ * session, the stamp of the device copy the entry holds (persist.deviceThroughOf) and the clock. Asked by every door of
+ * the switch (createPrefetch `_deviceRefusal`) AND by the chart's own paint rule (useBarSnapshotBars: a first mount, a
+ * timeframe change), so the two can never disagree. Null for an entry with no device rows: never anything with the
+ * store off.
+ *   'ext-hours' an EXTENDED view of a key both sessions share (1/5/15/30): the device copy is the regular-session view
+ *               (review of #2189), and the server's answer would add the pre/post-market bars after the paint
+ *   'stale'     not complete through the last 2 minutes / the last closed session (deviceStore/fresh.js), and, while
+ *               the regular session is open, not complete through the START of the key's current bucket (P3-M1): the
+ *               device then lacks (part of) the bucket that just ended. A 1m copy never carries a forming row, so in
+ *               the first seconds of every minute it simply LACKED the minute that just closed and painted; a 5m-60m
+ *               copy short of the bucket that just rolled is the same case, which a separate 'rolling' rule used to
+ *               catch: this one covers it (the push-closed short row included: its bucket ended at the current
+ *               bucket's start, after the stamp), so 'rolling' is gone.
+ */
+export function deviceRefusalOf(s, { extended = false, through = null, nowMs = Date.now(), killed = false } = {}) {
+  if (!s || s.deviceRows !== true || s.restSeen) return null
+  // ⛔ A KILL SEEN ON THIS PAGE (review of #2565, P6-L2): the device's rows stop painting with its worker. The rollback for
+  // wrong device data must reach the rows an open page already holds, not only its next reload. `killed`: the caller's
+  // lib/chartSpeed.deviceStoreKillSeen(), a plain boolean the client's beat sets (no cookie read per switch).
+  if (killed) return 'killed'
+  const p = parseKey(s.key)
+  if (!p) return null
+  const intraday = isIntradayTf(p.tf)
+  if (intraday && p.session == null && extended) return 'ext-hours'
+  if (!deviceCopyFresh(through, p.tf, nowMs)) return 'stale'
+  if (intraday && inRegularSession(nowMs) && !(through >= bucketOf(Math.floor(nowMs / 1000), s))) return 'stale'
+  return null
+}
 
 export function createPrefetch(o = {}) {
   const S = () => o.store ?? getBarStore()
@@ -458,13 +497,22 @@ export function createPrefetch(o = {}) {
     const held = S().peek(key)
     if (!held) _hydrate(key)   // the mem half lands synchronously
     // A held DEVICE copy is brought forward (its synchronous half lands now; a worker read, the poll sees)
-    else if (_deviceHeld(held)) { try { S().persist.refreshDevice?.(key) } catch { /* optional */ } }
+    // ⭐ ...and one the rule refuses as 'stale' is re-read NEWER, here (review of #2565 against #2563). The switch's look
+    // (its route, and every wake of its waiter) is the one door every member's switch goes through; the device rule's own
+    // newer re-read (deviceVerdict) was reached on the intraday path only through the per-switch diagnostics, which #2563
+    // runs on a tester's page alone. Without this a member on the default waited for the server's answer although the
+    // device already had the minute (the client's 20 s recently-read cache answered the plain re-read with the copy just
+    // refused). Only this facade's switch calls peekDisplayable: urgent, as deviceVerdict's re-read is.
+    else if (_deviceHeld(held)) {
+      const stale = _deviceRefusal(held, false) === 'stale'   // (its age, whatever the view)
+      try { if (stale) S().persist.refreshDevice?.(key, URGENT_NEWER); else S().persist.refreshDevice?.(key) } catch { /* optional */ }
+    }
     // An entry that holds no rows is looked up in mem again, SYNCHRONOUSLY and with no new IDB
     // read: the first peek made the entry, and a warmer may have promoted the key since (the
     // handoff's 25 ms poll exists to see exactly that).
     else if (!(held.depth || held.restSeen || held.developing)) { try { S().persist.hydrateMem(key) } catch { /* derived */ } }
     const s = S().peek(key)
-    if (_deviceRthOnly(s, showExtended)) return false
+    if (_deviceRefusal(s, showExtended)) return false
     // (A status in HANDOFF_PAINTS already means rows are held: status.deriveStatus answers
     // empty / unavailable for an entry with none. No second rows test here: it could not be
     // proved by a test, 2026-11-16 mutation run.)
@@ -472,17 +520,20 @@ export function createPrefetch(o = {}) {
     return !!s && HANDOFF_PAINTS.includes(s.status) && !_behindClock(key, s, showExtended)
   }
 
-  /** Does the entry hold the device's copy alone (no server answer yet)? */
+  /** Is the entry the device's copy (no server answer yet, and no other copy has taken the key since)? What the
+   *  device's own PAINT and its re-reads key on (deviceVerdict, refreshDevice). Its REFUSALS key on `_deviceRows`. */
   function _deviceHeld(s) { return !!s && s.source === 'device' && !s.restSeen }
-  /**
-   * ⛔ A DEVICE COPY IS THE REGULAR-SESSION VIEW (review of #2189): on a key both sessions share
-   * (1/5/15/30) an EXTENDED view never paints it, by any rule: the store derives a shared key's status
-   * with the 'rth' session, and the server's answer would add the pre/post-market bars after the paint.
-   */
-  function _deviceRthOnly(s, showExtended) {
-    if (!_deviceHeld(s)) return false
-    const p = parseKey(s.key)
-    return !!p && isIntradayTf(p.tf) && p.session == null && extOf(showExtended)
+  /** Does the entry hold a device copy's ROWS and no server answer, whatever joined them since (the lake, a saved
+   *  copy)? (reducer `deviceRows`: set by a device copy, gone with its rows: a replacing copy, an invalidate, an
+   *  eviction.) Never with the store off. */
+  function _deviceRows(s) { return !!s && s.deviceRows === true && !s.restSeen }
+  /** The one device refusal (`deviceRefusalOf`, module level), for this facade's view, stamps and clock. Checked at every
+   *  door that commits a held copy: peekDisplayable (the switch's same-task route and its waiter), _localPaints (the
+   *  intraday prepare, the warm's flip rule, the lake-alone commit), the lake-alone commit's fallback, and
+   *  deviceVerdict. The chart's own paint rule asks the same function (useBarSnapshotBars). */
+  function _deviceRefusal(s, showExtended) {
+    if (!_deviceRows(s)) return null
+    return deviceRefusalOf(s, { extended: extOf(showExtended), through: S().persist?.deviceThroughOf?.(s.key) ?? null, nowMs: now(), killed: deviceStoreKillSeen() })
   }
 
   /**
@@ -561,7 +612,7 @@ export function createPrefetch(o = {}) {
   /** Legacy `_paintCurrent`: would the chart paint this LOCAL copy as current for the view? */
   function _localPaints(s, tf, showExtended) {
     if (!s || s.restSeen || !isIntradayTf(normTf(tf))) return false
-    if (_deviceRthOnly(s, showExtended)) return false
+    if (_deviceRefusal(s, showExtended)) return false
     const rows = s.developing ? [...s.bars, s.developing] : s.bars
     const lastT = rows.length ? rows[rows.length - 1].t : null
     return isCacheCurrentForView(rows, lastT, normTf(tf), { session: extOf(showExtended) ? 'extended' : 'rth', nowMs: now() })
@@ -729,18 +780,51 @@ export function createPrefetch(o = {}) {
     const key = keyFor(sym, tf, { showExtended })
     const p = key ? parseKey(key) : null
     if (!p) return { paints: false, reason: 'no-key', held: 'none' }
-    // a held copy that is not fresh is brought forward first (its synchronous half lands now)
-    if (_deviceHeld(S().peek(key)) && !deviceCopyFresh(S().persist.deviceThroughOf?.(key), p.tf, now())) {
-      try { S().persist.refreshDevice?.(key, URGENT) } catch { /* optional */ }
+    // a held copy the device rule refuses for its age or a rolled bucket is brought forward first (its synchronous half
+    // lands now): the device may hold a newer one
+    const s0 = S().peek(key)
+    const r0 = _deviceHeld(s0) ? _deviceRefusal(s0, false) : null   // (its age, whatever the view)
+    if (r0 === 'stale') {
+      try { S().persist.refreshDevice?.(key, URGENT_NEWER) } catch { /* optional */ }
     }
     const s = S().peek(key)
     const held = !s ? 'none' : s.source === 'device' ? (s.restSeen ? 'server' : 'device') : String(s.source || 'unknown')
     if (!s) return { paints: false, reason: 'none', held }
     if (!_deviceHeld(s)) return { paints: false, reason: s.source === 'device' ? 'server-answered' : `held:${held}`, held }
-    if (_deviceRthOnly(s, showExtended)) return { paints: false, reason: 'ext-hours', held }
+    // (the one refusal, with the store's status rule between its first answer and the others, as the reasons read)
+    const refusal = _deviceRefusal(s, showExtended)
+    if (refusal === 'ext-hours' || refusal === 'killed') return { paints: false, reason: refusal, held }
     if (!HANDOFF_PAINTS.includes(s.status)) return { paints: false, reason: `status:${s.status}`, held }
-    if (!deviceCopyFresh(S().persist.deviceThroughOf?.(key), p.tf, now())) return { paints: false, reason: 'stale', held }
+    if (refusal) return { paints: false, reason: refusal, held }
     return { paints: true, reason: 'paints', held }
+  }
+
+  /**
+   * ⭐⭐ THE CHART'S OWN REFUSAL, FOR THE SWITCH, AT THE MOMENT IT SHOWS THE CHART (review of #2558, P4-M1). The switch
+   * decides on what the store holds and shows the chart later (its panes' columns, the lake join, its group); a bucket that
+   * ends in between makes the chart's paint rule (useBarSnapshotBars `_deviceRefused`) refuse a device copy the switch had
+   * accepted, and the chart, which has not shown that key yet, draws a blank. So the switch asks this, the same rule on the
+   * same key and clock, right before it shows the chart. Returns the refusal ('ext-hours' | 'stale') or null: a key that
+   * holds no device rows, a server answer, a D/W/M key (the chart's daily rule decides those, as it always has).
+   * A 'stale' copy is re-read first, asking the device for a newer one than it holds (URGENT_NEWER): the frame of the minute
+   * that just ended may be in.
+   */
+  function deviceHold(sym, tf, { showExtended } = {}) {
+    const key = keyFor(sym, tf, { showExtended })
+    const p = key ? parseKey(key) : null
+    if (!p || p.window || !isIntradayTf(p.tf)) return null
+    const r = _deviceRefusal(S().peek(key), showExtended)
+    if (r !== 'stale') return r
+    try { S().persist?.refreshDevice?.(key, URGENT_NEWER) } catch { /* optional */ }
+    return _deviceRefusal(S().peek(key), showExtended)
+  }
+
+  /** ...and while it holds, THE bars request for that key, now (the chart's own when it is shown, which then joins it): the
+   *  prepare's request, at `visible` rank, never a warm. Resolves with the snapshot; never rejects. */
+  function askForDisplay(sym, tf, { showExtended, signal = null } = {}) {
+    const key = keyFor(sym, tf, { showExtended })
+    if (!key) return Promise.resolve(null)
+    return ensure(key, { until: PREPARED, priority: 'visible', signal, warm: false, local: false, _s0: S().peek(key) || {}, session: session(showExtended) })
   }
 
   /**
@@ -758,9 +842,13 @@ export function createPrefetch(o = {}) {
   // group took the round instead of one same-task render. So the hydrate runs here exactly as the first look would
   // have run it (its mem half in this call; IndexedDB and the device read beside it), and the device read below is
   // for an entry that already exists.
+  // ⛔ ...AND NOTHING AT ALL FOR A KEY THE DEVICE DOES NOT SERVE (review of #2537, H1: W, M, the extended 60m grid).
+  // The hydrate above exists only because the device read would make the entry; with no device read there is nothing
+  // to do, and the key press leaves that key exactly as the store-off key press does (hooks/useSymbolHandoff
+  // primeDeviceFor is never called then).
   function deviceWarm(sym, tf, { showExtended } = {}) {
     const key = keyFor(sym, tf, { showExtended })
-    if (!key) return Promise.resolve(false)
+    if (!key || !deviceServesTf(parseKey(key)?.cacheTf)) return Promise.resolve(false)
     const st = S()
     try { if (!st.peek(key)) _hydrate(key, URGENT) } catch { /* a store with no registry: the read below still leaves */ }
     try { return Promise.resolve(st.persist?.refreshDevice?.(key, URGENT)).catch(() => false) } catch { return Promise.resolve(false) }
@@ -811,7 +899,9 @@ export function createPrefetch(o = {}) {
         const at = (ms, fn) => setTimer(fn, Math.max(0, t0 + ms - now()))
         at(LAKE_ALONE_MS, () => {
           if (_localPaints(S().peek(key), tf, showExtended)) resolve(LAKE_PAINTS)
-          else at(LAKE_BEHIND_MAX_MS, () => resolve(LAKE_PAINTS))
+          // ⛔ ...and a behind copy paints after LAKE_BEHIND_MAX_MS, EXCEPT one the device rule refuses (device rows on an
+          // extended view, stale, a rolled bucket: review of #2549, P2-M1): the server's answer decides that one
+          else at(LAKE_BEHIND_MAX_MS, () => { if (!_deviceRefusal(S().peek(key), showExtended)) resolve(LAKE_PAINTS) })
         })
       })
       : never), () => never)
@@ -1288,6 +1378,7 @@ export function createPrefetch(o = {}) {
 
   return {
     keyFor, peek, ensure, prefetch, peekDisplayable, peekBars, holdsBars, heldRows, prepareForDisplay, prepareDailyForDisplay, lakePending, deepPending, devicePaints, deviceVerdict, deviceWarm, watch,
+    deviceHold, askForDisplay,
     prefetchBars, prefetchBar, prefetchBarsToIDB, prefetchAllTimeframes, prefetchListAllTimeframes,
     prefetchGridWarm, warmMemFromIDB, prewarmVisibleList, prefetchListDeep, prefetchReplayTimeframes,
     prefetchBarOnIntent, warmTypedSymbol, createNeighborHold, edgeWarmList,
@@ -1314,6 +1405,8 @@ export function deepPending(sym, tf, opts = {}) { return _f().deepPending(sym, t
 export function devicePaints(sym, tf, opts = {}) { return _f().devicePaints(sym, tf, opts) }
 export function deviceVerdict(sym, tf, opts = {}) { return _f().deviceVerdict(sym, tf, opts) }
 export function deviceWarm(sym, tf, opts = {}) { return _f().deviceWarm(sym, tf, opts) }
+export function deviceHold(sym, tf, opts = {}) { return _f().deviceHold(sym, tf, opts) }
+export function askForDisplay(sym, tf, opts = {}) { return _f().askForDisplay(sym, tf, opts) }
 export function watch(sym, tf, opts = {}, cb) { return _f().watch(sym, tf, opts, cb) }
 export function prepareDailyForDisplay(sym, tf, opts = {}) { return _f().prepareDailyForDisplay(sym, tf, opts) }
 export function prefetchBars(tickers, tf = 'D', opts = {}) { return _f().prefetchBars(tickers, tf, opts) }

@@ -17,7 +17,12 @@ import ContextPopover from '../components/mobile/ContextPopover'
 import useBreadthCustomize from './breadth/useBreadthCustomize'
 import { useLiveBreadth } from '../hooks/useLiveBreadth'
 import { drillTarget } from './breadth/liveDrill'
-import { shadeFor, SHADE_SPEC } from './breadth/shading'
+import { shadeFor, SHADE_SPEC, isBacktestedRow } from './breadth/shading'
+
+// A UCT session before the collector's first live list (owner 2026-11-22): its numbers are kept,
+// unshaded, and the date says why.
+const BACKTEST_TITLE = "Back-tested list — UCT before 2026 is today's UCT list run backward, "
+  + 'not the universe as it was that day, so its cells are not shaded. Market-wide columns still are.'
 import { defaultsFor } from './breadth/defaultColumns'
 import { columnInfo, columnTitle } from './breadth/columnInfo'
 import { fetchDrill, peekDrill, prefetchDrill, forgetDrill } from './breadth/drillFetch'
@@ -1876,10 +1881,11 @@ export default function Breadth() {
                 )?.key ?? null
                 return (
                 <tr key={row.date} className={`${ri % 2 === 0 ? styles.rowEven : styles.rowOdd} ${row._live ? styles.liveRow : ''}`}>
-                  <td className={`${styles.td} ${styles.dateCell} ${row._provisional && !row._live ? styles.provisionalDate : ''}`}
+                  <td className={`${styles.td} ${styles.dateCell} ${row._provisional && !row._live ? styles.provisionalDate : ''} ${isBacktestedRow(row, universe) ? styles.backtestDate : ''}`}
+                      data-backtested={isBacktestedRow(row, universe) ? 'true' : undefined}
                       title={row._provisional && !row._live
                         ? `Provisional — the canonical ${universeLabel(universe)} session replaces it when it lands`
-                        : undefined}>
+                        : isBacktestedRow(row, universe) ? BACKTEST_TITLE : undefined}>
                     {row._live
                       ? (
                         <span className={styles.liveStamp} title={isUct ? liveTitle

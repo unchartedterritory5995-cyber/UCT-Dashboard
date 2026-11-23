@@ -5,9 +5,12 @@
   "masterSha": "d5f3f9bf6ee36fd0afe606b9d53edf48313fb856",
   "generatedAt": "2026-11-12",
   "regen": "git fetch origin; cd app; UPDATE_FIRST_CALL_RATCHET=1 npx vitest run src/agent/qa/firstCallRatchet.test.js (only with the Lead's / AUDIT's OK)",
-  "withExpectation": 789,
-  "v1In": 643,
-  "v2In": 676
+  "withExpectation": 788,
+  "v1In": 642,
+  "v2In": 675,
+  "amended": [
+   "2026-11-22 (Gate C misfire fix, Lead/AUDIT ruling): heldout-v2.json:h2-screen-06 removed — its expectation is now an F-16 local refusal with no plan, so it has no first-call plan to hold IN"
+  ]
  },
  "v1": [
   "agentExec list held-out[0]:C1-066",
@@ -443,7 +446,6 @@
   "heldout-v2.json:h2-screen-03",
   "heldout-v2.json:h2-screen-04",
   "heldout-v2.json:h2-screen-05",
-  "heldout-v2.json:h2-screen-06",
   "heldout-v2.json:h2-screen-07",
   "heldout-v2.json:h2-screen-08",
   "heldout-v2.json:h2-screen-09",
@@ -1105,7 +1107,6 @@
   "heldout-v2.json:h2-screen-01",
   "heldout-v2.json:h2-screen-03",
   "heldout-v2.json:h2-screen-04",
-  "heldout-v2.json:h2-screen-06",
   "heldout-v2.json:h2-screen-07",
   "heldout-v2.json:h2-screen-11",
   "heldout-v2.json:h2-screen-12",

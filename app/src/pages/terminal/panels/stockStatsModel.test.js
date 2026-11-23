@@ -102,6 +102,24 @@ describe('section 2: beta and correlation', () => {
     expect(betaText({ state: 'short', needed: 200, held: 12, unit: 'returns' })).toBe('Needs 200 daily returns on days both traded; UCT holds 12.')
     expect(captureText({ state: 'ok', upCapture: null, upDays: 4 }, 'up')).toBe('Too few up days for SPY (4).')
   })
+  it('a benchmark read that failed says it could not be read just now and is tried again; a fund not held keeps its words', () => {
+    const body = statAnswer()
+    body.beta.spy = { symbol: 'SPY', state: 'unavailable', reason: 'read_failed' }
+    body.beta.sector = { symbol: 'XLK', sector: 'Technology', state: 'unavailable', reason: 'read_failed' }
+    const failed = view(body).beta
+    expect(failed.spy).toEqual({ state: 'unavailable', symbol: 'SPY', sector: null })
+    const spyWords = 'Prices for SPY could not be read just now. The server tries again on its own.'
+    expect(betaText(failed.spy)).toBe(spyWords)
+    expect(captureText(failed.spy, 'up')).toBe(spyWords)
+    expect(captureText(failed.spy, 'down')).toBe(spyWords)
+    expect(betaText(failed.sector)).toBe('Prices for XLK could not be read just now. The server tries again on its own.')
+    expect(sectorLabel(failed.sector)).toBe('Beta vs Technology (XLK)')
+    for (const p of [failed.spy, failed.sector]) expect(betaText(p)).not.toContain('holds no prices')
+    body.beta.spy = { symbol: 'SPY', state: 'not_held' }
+    const notHeld = view(body).beta.spy
+    expect(betaText(notHeld)).toBe('UCT holds no prices for SPY on this server.')
+    expect(captureText(notHeld, 'up')).toBe('UCT holds no prices for SPY on this server.')
+  })
 })
 
 describe('section 3: returns', () => {

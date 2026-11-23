@@ -61,19 +61,40 @@ def test_the_window_rule_is_each_universe_full_history_from_2008():
         "uct": "2008-01-02", "us": "2008-01-02", "nasdaq": "2008-01-02", "nyse": "2009-06-11"}
 
 
-def test_uct_long_window_prefers_uct_backtest_but_keeps_the_served_highs_lows_basis(tmp_path):
+def _export(path, obj):
     import base64
     import gzip
+    body = base64.b64encode(gzip.compress(json.dumps(obj).encode())).decode()
+    path.write_text(f"===BEGIN===\n{body}\n===END===\n", encoding="utf-8")
 
-    def export(path, obj):
-        body = base64.b64encode(gzip.compress(json.dumps(obj).encode())).decode()
-        path.write_text(f"===BEGIN===\n{body}\n===END===\n", encoding="utf-8")
-    deep = [{"date": "2010-01-04", "up_4pct_today": 1, "universe_count": 10, "new_52w_highs": 7, "vix": 20}]
-    bt = {"2010-01-04": {"up_4pct_today": 99, "universe_count": 1000, "new_52w_highs": 55}}
-    export(tmp_path / "deep.txt", deep)
-    export(tmp_path / "bt.txt", bt)
-    rows = cb.load_uct_rows(str(tmp_path / "deep.txt"), str(tmp_path / "bt.txt"))
-    assert rows[0]["up_4pct_today"] == 99 and rows[0]["universe_count"] == 1000   # point-in-time
-    assert rows[0]["new_52w_highs"] == 7                                           # the served basis
-    assert rows[0]["vix"] == 20                                                    # market-wide from the sheet
-    assert "new_52w_highs" not in cb.UCT_BACKTEST_KEYS
+
+def test_uct_is_calibrated_on_the_rows_the_sheet_shows_and_nothing_laid_over(tmp_path):
+    """2026-11-22: the cutoffs describe the cells. No `uct_backtest` overlay (today's list run backward)."""
+    deep = [{"date": "2026-02-02", "up_4pct_today": 1, "universe_count": 10, "vix": 20},
+            {"date": "2026-02-03", "_live": True, "up_4pct_today": 5, "universe_count": 10}]
+    _export(tmp_path / "deep.txt", deep)
+    rows = cb.load_rows("uct", str(tmp_path / "deep.txt"))
+    assert [r["date"] for r in rows] == ["2026-02-02"]                 # the live row is not history
+    assert rows[0]["up_4pct_today"] == 1 and rows[0]["universe_count"] == 10
+    import pytest
+    with pytest.raises(SystemExit):
+        cb.load_rows("uct", str(tmp_path / "deep.txt"), str(tmp_path / "bt.txt"))
+
+
+def test_back_tested_uct_sessions_are_never_ranked_and_never_shaded():
+    """A `_reconstructed` UCT row is today's list run backward: its per-universe cells are unshaded
+    and it is left out of the per-universe cutoffs; market-wide columns are unaffected."""
+    spec = {"pcts": SPEC["pcts"], "cols": {**SPEC["cols"], "vix": {"bull": "low", "sides": "both"}}}
+    real = [dict(r, date=r["date"].replace("2010", "2026")) for r in _rows()]
+    fake = [dict(r, _reconstructed=True, dn=r["dn"] * 50, pct=99, vix=r["pct"]) for r in _rows()]
+    cut = cb.build_cutoffs(fake + real, spec, "uct")
+    assert cut["cols"]["dn/universe_count"] == cb.build_cutoffs(real, spec, "uct")["cols"]["dn/universe_count"]
+    assert cut["cols"]["pct"] == cb.build_cutoffs(real, spec, "uct")["cols"]["pct"]
+    assert cut["cols"]["vix"]["n"] == len(fake)                       # market-wide: the whole window
+    assert cut["from"] == "2010-01-01" and cut["ranked_from"] == "2026-01-01"
+    hot = dict(fake[0], dn=1999, pct=100)
+    assert cb.shade(hot, "dn", spec, cut, "uct") is None
+    assert cb.shade(hot, "pct", spec, cut, "uct") is None
+    assert cb.shade(dict(hot, _reconstructed=False), "pct", spec, cut, "uct") is not None
+    # another universe never carries the flag's meaning
+    assert not cb.is_backtested_cell("pct", hot, "nasdaq")

@@ -44,10 +44,14 @@ function answer(k = 1) {
   }
 }
 
-function fakeDevice(rows, { cached = false, sym = 'NEWB', tf = '5' } = {}) {
+// `through`: the unix second the copy is complete up to (deviceStore/engine.js stamps every copy). Default: the close of
+// the session the rows end in. ⛔ A copy with NO stamp is never a first frame (review of #2549, P2-M1: the device rule
+// cannot vouch for it), so these fakes carry the stamp the engine would give the rows they hold.
+function fakeDevice(rows, { cached = false, sym = 'NEWB', tf = '5', through = OPEN + 390 * 60 } = {}) {
+  const hit = () => ({ rows, through, savedAt: through * 1000 })
   return {
-    peek: vi.fn((s, t) => (cached && s === sym && t === tf ? { rows, savedAt: null } : null)),
-    read: vi.fn(async (s, t) => (s === sym && t === tf ? { rows, savedAt: null } : null)),
+    peek: vi.fn((s, t) => (cached && s === sym && t === tf ? hit() : null)),
+    read: vi.fn(async (s, t) => (s === sym && t === tf ? hit() : null)),
   }
 }
 
@@ -155,7 +159,7 @@ describe('the on-device copy in the BarStore', () => {
   it('D5 mid-session, last night\'s device copy is held (provisional) but the switch does not paint it alone', () => {
     vi.setSystemTime((OPEN + 2 * 3600) * 1000)              // 11:30 ET: today's bars are not in the seed
     const request = vi.fn(() => new Promise(() => {}))
-    const { store, pf, key } = boot({ device: fakeDevice(session(OPEN - DAY), { cached: true }), request })
+    const { store, pf, key } = boot({ device: fakeDevice(session(OPEN - DAY), { cached: true, through: OPEN - DAY + 390 * 60 }), request })
     expect(pf.peekDisplayable('NEWB', '5')).toBe(false)
     const s = store.peek(key)
     expect(s.source).toBe('device')

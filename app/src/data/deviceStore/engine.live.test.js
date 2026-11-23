@@ -67,12 +67,16 @@ describe('engine read with today', () => {
     expect(tail).toEqual(today)
   })
 
-  it('D ends with today (whole after 20:00); W ends with the LAST COMPLETE week, not this one', async () => {
+  // ⛔ review of #2537 H2: after 20:00 the minute rollup's D bar used to be appended as a COMPLETE row (its volume a
+  // sum of minutes, its prices regular-session minutes): never the official daily row, yet stamped complete and
+  // painted. A day built from minutes is never appended; the seed's D ends with the last closed session until the
+  // seed itself carries today (or the server's own day row does: live.daily.test.js).
+  it('D after 20:00 does NOT end with today: the seed\'s last session, stamped through the 20:00 frame; W the last complete week', async () => {
     const { eng, D } = await engineWithToday()
     const d = eng.read(SYM, 'D')
-    expect(d.t.length).toBe(D.length + 1)
-    expect(new Date(d.t.at(-1) * 1000).toISOString().slice(0, 10)).toBe(DAY.day)
-    expect(d.c.at(-1)).toBe(DAY.expected[SYM].D[0][4])
+    expect(d.t.length).toBe(D.length)
+    expect(new Date(d.t.at(-1) * 1000).toISOString().slice(0, 10)).toBe('2026-11-17')
+    expect(d.forming).toBeUndefined()
     expect(d.through).toBe(Math.floor(Date.UTC(2026, 10, 19, 1, 0) / 1000))   // the 20:00 frame
     const w = eng.read(SYM, 'W')
     expect(new Date(w.t.at(-1) * 1000).toISOString().slice(0, 10)).toBe('2026-11-13')   // this week is not over

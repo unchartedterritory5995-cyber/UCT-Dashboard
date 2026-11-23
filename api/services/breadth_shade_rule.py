@@ -37,19 +37,6 @@ MARKET_WIDE_COLS = frozenset({
 #: Hidden / not yet available off UCT (monitorUniverses.js).
 NOT_PER_UNIVERSE = frozenset({"breadth_score", "up_vol_ratio", "hvc_52w", "atr_ext_7", "new_ath"})
 
-#: The UCT columns read from the V2 artifact's point-in-time `uct_backtest` series (2008+) in place of
-#: the survivorship-biased reconstructed UCT history. The new highs / lows family is NOT among them:
-#: the sheet displays those on the intraday basis, which the Monitor's own rows already carry.
-UCT_BACKTEST_KEYS = (
-    "adv_decline", "advancing", "declining", "down_20pct_5d", "down_25pct_month",
-    "down_25pct_quarter", "down_4pct_today", "down_50pct_month", "magna_down", "magna_up",
-    "near_52w_high", "pct_above_100sma", "pct_above_10sma", "pct_above_200sma", "pct_above_40sma",
-    "pct_above_50sma", "pct_above_5sma", "ratio_10day", "ratio_5day", "stage2_count", "stage4_count",
-    "universe_count", "up_20pct_5d", "up_25pct_month", "up_25pct_quarter", "up_4pct_today",
-    "up_50pct_month",
-)
-
-
 def numeric(v):
     if isinstance(v, bool) or v is None:
         return None
@@ -94,10 +81,24 @@ def _paired(u, d, side):
     return ("bear", 2) if r <= 0.30 else ("bear", 1) if r <= 0.40 else None
 
 
+def is_backtested_row(row: dict, universe: str = "uct") -> bool:
+    """A UCT row before the collector's first session (`_reconstructed`): today's UCT list run
+    backward, not the universe as it was (owner 2026-11-22). shading.js `isBacktestedRow`."""
+    return (not universe or universe == "uct") and bool((row or {}).get("_reconstructed"))
+
+
+def is_backtested_cell(key: str, row: dict, universe: str = "uct") -> bool:
+    """Never shaded and never ranked: a per-universe column on a back-tested UCT row. Market-wide
+    columns do not depend on the list. shading.js `isBacktestedCell`."""
+    return is_backtested_row(row, universe) and key not in MARKET_WIDE_COLS
+
+
 def shade(row: dict, key: str, spec: dict, cut: dict, universe: str = "uct"):
     """(tone 'bull'|'bear', level 1..3) or None — shading.js `shadeFor`, line for line."""
     c = spec["cols"].get(key)
     if not c or cut is None:
+        return None
+    if is_backtested_cell(key, row, universe):
         return None
     kind = c.get("kind")
     if kind == "flag":
@@ -197,26 +198,15 @@ def read_export(path: str):
     return json.loads(gzip.decompress(base64.b64decode(b64)))
 
 
-def overlay_backtest(deep_rows: list, backtest: dict, exposure: dict | None = None) -> list:
-    """Deep rows (any order) → ASC rows, every `UCT_BACKTEST_KEYS` value replaced by the
-    point-in-time `backtest[date]` value where the date has one; `exposure[date]` wins for
-    `uct_exposure`."""
-    deep = {r["date"]: r for r in deep_rows if r.get("date") and not r.get("_live")}
-    rows = []
-    for d in sorted(deep):
-        r = dict(deep[d])
-        b = backtest.get(d) if backtest else None
-        if b is not None:
-            for k in UCT_BACKTEST_KEYS:
-                r[k] = b.get(k)
-        if exposure and d in exposure:
-            r["uct_exposure"] = exposure[d]
-        rows.append(r)
-    return rows
+def load_uct_deep_rows(deep_path: str, exposure_db: str = "") -> list:
+    """ASC rows of a read-only export of the Monitor's own UCT deep history (what the cells show),
+    `exposure_db`'s `uct_exposure` laid over where it has one.
 
-
-def load_uct_rows(deep_path: str, backtest_path: str, exposure_db: str = "") -> list:
-    """UCT's long-window rows from the read-only production exports (see `overlay_backtest`)."""
+    ⛔ (2026-11-22) No `uct_backtest` overlay any more. That V2 series is "today's pinned list"
+    run backward (tools/breadth_v2/pinned/breadth_corrected_pass.py), not a point-in-time
+    universe, and it replaced values the cells never displayed, so the cutoffs and the drill
+    window's reading did not describe the sheet. Back-tested sessions are excluded from every
+    ranking by `is_backtested_cell` instead."""
     exp = {}
     if exposure_db:
         import sqlite3
@@ -226,4 +216,11 @@ def load_uct_rows(deep_path: str, backtest_path: str, exposure_db: str = "") -> 
             if v is not None:
                 exp[d] = v
         c.close()
-    return overlay_backtest(read_export(deep_path), read_export(backtest_path), exp)
+    deep = {r["date"]: r for r in read_export(deep_path) if r.get("date") and not r.get("_live")}
+    rows = []
+    for d in sorted(deep):
+        r = dict(deep[d])
+        if d in exp:
+            r["uct_exposure"] = exp[d]
+        rows.append(r)
+    return rows

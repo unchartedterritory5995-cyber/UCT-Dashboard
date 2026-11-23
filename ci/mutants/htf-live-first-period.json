@@ -87,8 +87,8 @@
    "id": "L10",
    "mutant": "JS: the root walk not exact (a running value over the read withheld from the first unknown bar on)",
    "file": "app/src/components/chart/engine/ast/interpret.js",
-   "from": "    (nd) => Float64Array.from(own.get(nd)), TF_LIVE_FIRST_CODE, { exact: true })",
-   "to": "    (nd) => Float64Array.from(own.get(nd)), TF_LIVE_FIRST_CODE, { exact: false })",
+   "from": "    (nd) => Float64Array.from(own.get(nd)), TF_LIVE_FIRST_CODE, { exact: true }, own)",
+   "to": "    (nd) => Float64Array.from(own.get(nd)), TF_LIVE_FIRST_CODE, { exact: false }, own)",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/htfLiveFirstPeriod.test.js",
    "expectRed": "ema(live(high), 3)"
   },
@@ -96,8 +96,8 @@
    "id": "L11",
    "mutant": "JS: the higher-timeframe walk not exact (a window inside reaches its declared lookback)",
    "file": "app/src/components/chart/engine/ast/interpret.js",
-   "from": "    { exact: true })",
-   "to": "    { exact: false })",
+   "from": "    { exact: true }, sites)",
+   "to": "    { exact: false }, sites)",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/htfLiveFirstPeriod.test.js",
    "expectRed": "live(sma(high, 2))"
   },
@@ -184,19 +184,19 @@
   },
   {
    "id": "PL10",
-   "mutant": "Python: the root walk not exact",
+   "mutant": "Python: the root walk not exact (ITEM 4, a4863b712c: every Python walk is exact through ONE line, `_walk_two_starts`'s first `_witness_mask` call; that line broken, the root walk's case)",
    "file": "api/services/ast_interpret.py",
-   "from": "                         lambda nd: id(nd) in sites, lambda nd: list(sites[id(nd)]), exact=True)",
-   "to": "                         lambda nd: id(nd) in sites, lambda nd: list(sites[id(nd)]), exact=False)",
+   "from": "    mask = _witness_mask(tree, bars, inputs, budget, scalars, opts, is_site, flagged, exact=True,",
+   "to": "    mask = _witness_mask(tree, bars, inputs, budget, scalars, opts, is_site, flagged, exact=False,",
    "rail": "python -m pytest tests/test_pine_htf_live_first_period.py -q -p no:cacheprovider",
    "expectRed": "ema(live(high), 3)"
   },
   {
    "id": "PL11",
-   "mutant": "Python: the higher-timeframe walk not exact",
+   "mutant": "Python: the higher-timeframe walk not exact (ITEM 4, a4863b712c: the same one line as PL10, `_walk_two_starts`; this mutant holds the higher-timeframe walk's case)",
    "file": "api/services/ast_interpret.py",
-   "from": "                         _reads_partial_field, first_only, exact=True)",
-   "to": "                         _reads_partial_field, first_only, exact=False)",
+   "from": "    mask = _witness_mask(tree, bars, inputs, budget, scalars, opts, is_site, flagged, exact=True,",
+   "to": "    mask = _witness_mask(tree, bars, inputs, budget, scalars, opts, is_site, flagged, exact=False,",
    "rail": "python -m pytest tests/test_pine_htf_live_first_period.py -q -p no:cacheprovider",
    "expectRed": "live(sma(high, 2))"
   }

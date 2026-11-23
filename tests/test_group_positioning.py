@@ -127,6 +127,18 @@ def test_one_stocks_fund_figures_added_counts_new_cut_counts_sold_out_and_unknow
     assert GP.fund_figures(None) is None
 
 
+def test_a_stock_with_a_fund_whose_change_is_not_comparable_has_no_known_change_never_a_guess():
+    """A stock split may fall between a fund's two reports and could not be checked (2026-11-22): its funds' adds and
+    cuts are not counted at all, so the new positions and sold-out funds alone never read as the stock's change."""
+    assert GP.fund_figures({**nport(10, 0, 0, 0, 2, 1, 1, 40.0, 0.0), "not_comparable": 6}) == (10, None, None, None)
+    assert GP.fund_figures({**NPORT["rows"]["QAA"], "not_comparable": 0}) == (10, 7, 2, 10.0)
+    assert "not_comparable" in GP.NPORT_FIELDS
+    pos, _ = _build(nport_reader=lambda syms: {**NPORT, "rows": {**NPORT["rows"], "QAA": {**NPORT["rows"]["QAA"], "not_comparable": 1}},
+                                               "meta": {**NPORT["meta"], "splits": "unavailable"}})
+    assert pos["stocks"]["QAA"][-3:] == [None, None, None] and pos["parts"]["funds"]["known"] == 5
+    assert pos["parts"]["funds"]["splits"] == "unavailable"
+
+
 # ── the groups ───────────────────────────────────────────────────────────────────────────────────────────
 
 def test_each_store_is_read_once_and_only_the_universe_is_asked_of_the_index():
@@ -271,6 +283,11 @@ def test_the_nport_read_is_the_held_index_file_for_the_members_only(monkeypatch,
     got = GP.read_nport(["QAA", "QAB"])
     assert got["state"] == "ok" and set(got["rows"]) == {"QAA"} and set(got["rows"]["QAA"]) == set(GP.NPORT_FIELDS)
     assert got["meta"]["quarter"] == "2031Q1" and got["meta"]["matched_value_pct"] == 96.0
+    assert got["meta"]["splits"] is None                                 # an index from before the split list
+    _index(tmp_path / "v2.sqlite", {"QAA": NPORT["rows"]["QAA"]}, {"quarter": "2031Q1", "splits": {"state": "ok", "events": 2}})
+    monkeypatch.setattr(fhn, "index_path", lambda: str(tmp_path / "v2.sqlite"))
+    assert GP.read_nport(["QAA"])["meta"]["splits"] == "ok"
+    monkeypatch.setattr(fhn, "index_path", lambda: str(path))
     path.write_bytes(b"not a database at all, invented")
     assert GP.read_nport(["QAA"])["state"] == "unavailable"
 

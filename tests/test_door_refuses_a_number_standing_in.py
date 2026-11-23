@@ -26,6 +26,7 @@ from pathlib import Path
 import pytest
 
 from api.services import definition_conversation as dc
+from tools.value_cases import grade as G
 from tests.test_p2_truth_server import (  # noqa: F401 -- fixtures by name
     conv, emits, empty_view, env, model,
 )
@@ -33,8 +34,10 @@ from tests.test_p2x_truth_converse import clean_env  # noqa: F401 -- fixture by 
 
 ROOT = Path(__file__).resolve().parents[1]
 CASES = json.loads((ROOT / "tests" / "fixtures" / "authoring" / "value_cases.json").read_text(encoding="utf-8"))["cases"]
-THE_ANSWER = next(c for c in CASES if c["id"] == "intraday-01")
-WORDS = THE_ANSWER["words"]
+THE_CASE = next(c for c in CASES if c["id"] == "intraday-01")
+#: the wrong build a member was given (the case's record while it was recorded WRONG; its specimen since the door asks)
+THE_ANSWER = G.specimen(THE_CASE)
+WORDS = THE_CASE["words"]
 CHART = {"sym": "NVDA", "tf": "5"}
 
 CLOSE = {"type": "series", "name": "close"}
@@ -84,7 +87,7 @@ def refused_by(fn, *args):
 def test_a_scope_read_of_nothing_is_refused(tree, why):
     exc = refused_by(dc._refuse_a_scope_read_of_nothing, [("output x", tree)])
     assert exc is not None, why
-    assert exc.gate == "envelope:reference"
+    assert exc.gate == "envelope:number-for-a-value"
     told = exc.for_model()
     for piece in ("output x:", "reads a plain number, not a value of a bar", "a number is standing where the value the member asked for should be",
                   "the weekly close is tf(close, W)", "answer `unsupported` and say what is missing"):
@@ -154,7 +157,7 @@ def test_an_answer_that_is_refused_twice_changes_nothing(conv, clean_env, model)
     answered = {**env(0, copy.deepcopy(THE_ANSWER["answer"]["ops"])), "reply": "Two lines."}
     client = model([emits(answered), emits(answered)])
     r = conv.converse(WORDS, user_id="u1", view=empty_view(0), chart=CHART)
-    assert r["ok"] is False and r["gate"] == "envelope:reference" and len(client.calls) == 2
+    assert r["ok"] is False and r["gate"] == "envelope:number-for-a-value" and len(client.calls) == 2
     assert not (r.get("envelope") or {}).get("ops")
 
 
@@ -182,4 +185,4 @@ def test_no_recorded_right_answer_is_refused_by_either_guard():
     wrong = THE_ANSWER["answer"]
     assert refused_by(dc._refuse_a_scope_read_of_nothing, dc._trees_of(wrong)) is not None
     assert refused_by(dc._refuse_a_placeholder_reply, wrong) is not None
-    assert THE_ANSWER["recorded_verdict"] == "wrong" and "Placeholder" in THE_ANSWER["defect"]
+    assert "Placeholder" in THE_ANSWER["defect"] and G.grade("intraday-01", THE_ANSWER["answer"], "intraday")["verdict"] == "wrong"

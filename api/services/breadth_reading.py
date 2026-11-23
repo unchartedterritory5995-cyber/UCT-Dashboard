@@ -94,29 +94,21 @@ def store_token(universe: str) -> str:
     return f"{universe}|{bum.version(universe)}"
 
 
-def _uct_backtest_overlay() -> dict:
-    """{date: {key: value}} from the frozen V2 `uct_backtest` replica, or {} where it is absent."""
-    try:
-        from api.services import breadth_authority as ba
-        out: dict = {}
-        for k in rule.UCT_BACKTEST_KEYS:
-            for d, v in ba._frozen_metric("uct_backtest", k).items():
-                out.setdefault(d, {})[k] = v[3]
-        return out
-    except Exception:
-        return {}
-
 
 def _load_rows(universe: str) -> list:
     """ASC rows of the universe's full stored history within the window."""
     if universe == "uct":
-        deep, bt = _dev_exports()
+        # ⭐ (2026-11-22) the rows the Monitor SHOWS, with nothing laid over them: the reading ranks
+        # exactly the value the cell displays. (The V2 `uct_backtest` overlay this used to apply
+        # is today's list run backward, and it replaced values the cell never showed.)
+        deep, _bt = _dev_exports()
         if deep:
-            rows = rule.load_uct_rows(deep, bt)
+            deep_rows = rule.read_export(deep)
         else:
             from api.services import breadth_monitor as svc
-            deep_rows = [r for r in svc.get_history_deep(8000) if not r.get("_live")]
-            rows = rule.overlay_backtest(deep_rows, _uct_backtest_overlay())
+            deep_rows = svc.get_history_deep(8000)
+        by = {r["date"]: r for r in deep_rows if r.get("date") and not r.get("_live")}
+        rows = [by[d] for d in sorted(by)]
     else:
         from api.services import breadth_universe_monitor as bum
         ds = bum.dates(universe)
@@ -199,6 +191,10 @@ def build_series(universe: str, metric: str, rows: list, spec: dict, spy: tuple)
     c = spec["cols"].get(metric)
     dates, ranks, disp = [], [], []
     for r in rows:
+        # ⛔ a back-tested UCT session (today's list run backward) is neither ranked nor ranked
+        # against: its date has no reading, and the window is UCT's real sessions only.
+        if rule.is_backtested_cell(metric, r, universe):
+            continue
         v = _rank_of(c, metric, r)
         if v is None:
             continue
