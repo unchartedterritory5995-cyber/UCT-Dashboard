@@ -10923,10 +10923,46 @@ async def lifespan(app: FastAPI):
                 trigger=CronTrigger(day_of_week="tue-sat", hour=_ics_mod.RUN_AT_ET[0],
                                     minute=_ics_mod.RUN_AT_ET[1], timezone=_ET),
                 id="insider_clusters_sec_nightly", max_instances=1, replace_existing=True, coalesce=True,
+                misfire_grace_time=3600,
             )
             print("[startup] insider clusters (SEC Form 4) scheduled -- Tue-Sat 01:20 ET")
         except Exception as e:
             print(f"[startup] insider clusters job registration failed (non-fatal): {e}")
+
+        # ... AND ITS CATCH-UP (2026-11-23, read on the live site): two days after the merge the route still answered
+        # `not_built`. The job had no `misfire_grace_time` (APScheduler's default is about 1 s) and no catch-up, and a
+        # fire that lands while the pod restarts for a deploy (master merges land every 20-30 minutes) is simply lost:
+        # the new container's memory job store schedules the NEXT slot (`misfire_grace_time` covers only a scheduler
+        # that was ALIVE at the fire time, as the rs_history catch-up's note says). So, as rs_history does: a one-hour
+        # grace on the job above, and `insider_clusters_sec.catch_up`, which starts the SAME run only when the held
+        # answer was built before the last slot (`insider_clusters_sec.behind`): a DATE job CATCHUP_BOOT_DELAY_S after
+        # boot (never inline: the boot is not slowed) and an hourly check (CATCHUP_HOURS_ET at CATCHUP_MINUTE_ET, every
+        # day; `behind` knows the schedule). A run a restart killed resumes from the store's per-day checkpoint, and the
+        # module's own guard runs one at a time. Nothing on a member's request starts it.
+        _boot_mark("INS-catch-up")
+        try:
+            def _insider_clusters_sec_catch_up_job(source):
+                from api.services import insider_clusters_sec as _ics
+                print(f"[scheduler] insider clusters (SEC Form 4) catch-up ({source}): {_ics.catch_up()}")
+
+            from datetime import datetime as _ics_dt, timedelta as _ics_td
+            from api.services import insider_clusters_sec as _ics_cu
+            _scheduler.add_job(
+                _insider_clusters_sec_catch_up_job, kwargs={"source": "boot"}, trigger="date",
+                run_date=_ics_dt.now(_ET) + _ics_td(seconds=_ics_cu.CATCHUP_BOOT_DELAY_S),
+                id="insider_clusters_sec_catchup_boot", max_instances=1, replace_existing=True,
+                misfire_grace_time=3600,
+            )
+            _scheduler.add_job(
+                _insider_clusters_sec_catch_up_job, kwargs={"source": "hourly"},
+                trigger=CronTrigger(hour=_ics_cu.CATCHUP_HOURS_ET, minute=_ics_cu.CATCHUP_MINUTE_ET, timezone=_ET),
+                id="insider_clusters_sec_catchup", max_instances=1, replace_existing=True, coalesce=True,
+                misfire_grace_time=1800,
+            )
+            print(f"[startup] insider clusters catch-up scheduled -- {_ics_cu.CATCHUP_BOOT_DELAY_S}s after boot, "
+                  f"hourly {_ics_cu.CATCHUP_HOURS_ET}h at :{_ics_cu.CATCHUP_MINUTE_ET:02d} ET, when behind")
+        except Exception as e:
+            print(f"[startup] insider clusters catch-up registration failed (non-fatal): {e}")
 
         # Funds (N-PORT) on OWN (2026-11-22): which mutual funds and ETFs hold a stock, from the SEC's
         # quarterly Form N-PORT data sets (api/services/fund_holders_nport.py). Daily at 00:50 ET, early in
