@@ -199,6 +199,8 @@
   "newsLibrary.collection": "newsLibrary",
   "newsLibrary.deleteCollection": "newsLibrary",
   "newsLibrary.place": "newsLibrary",
+  "recentlyDeleted.list": "layoutBar",
+  "recentlyDeleted.restore": "layoutBar",
   "compare.openView": "comparePanel",
   "multiChart.set": "multiChart",
   "multiChart.cell": "multiChart"
@@ -250,7 +252,7 @@
   },
   {
    "id": "layoutBar",
-   "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+   "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it; Recently deleted: bring back a deleted list, layout or screen"
   },
   {
    "id": "indicators",
@@ -457,7 +459,7 @@
      },
      {
       "id": "layoutBar",
-      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it; Recently deleted: bring back a deleted list, layout or screen"
      },
      {
       "id": "indicators",
@@ -682,7 +684,7 @@
      },
      {
       "id": "layoutBar",
-      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it; Recently deleted: bring back a deleted list, layout or screen"
      },
      {
       "id": "indicators",
@@ -921,7 +923,7 @@
      },
      {
       "id": "layoutBar",
-      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it; Recently deleted: bring back a deleted list, layout or screen"
      },
      {
       "id": "indicators",
@@ -1170,7 +1172,7 @@
      },
      {
       "id": "layoutBar",
-      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it; Recently deleted: bring back a deleted list, layout or screen"
      },
      {
       "id": "indicators",
@@ -1391,7 +1393,7 @@
      },
      {
       "id": "layoutBar",
-      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it; Recently deleted: bring back a deleted list, layout or screen"
      },
      {
       "id": "indicators",
@@ -1747,6 +1749,8 @@
     "newsLibrary.collection",
     "newsLibrary.deleteCollection",
     "newsLibrary.place",
+    "recentlyDeleted.list",
+    "recentlyDeleted.restore",
     "compare.openView",
     "multiChart.set",
     "multiChart.cell"

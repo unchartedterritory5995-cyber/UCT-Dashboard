@@ -47,6 +47,8 @@ _GROUP_OF = {"chart": "charts", "volume": "charts", "widget": "workspace", "layo
              "compare": "comparePanel",
              # Charts family (2026-11-15): the UCT News library, its own words-only group
              "newsLibrary": "newsLibrary",
+             # Charts family (2026-11-19): Recently deleted (bring back a deleted watchlist / layout / screen) rides in the words-only layoutBar group
+             "recentlyDeleted": "layoutBar",
              # #1030 (2026-11-10): the Multi Chart grid family, its own fillLast group (app/src/agent/routing.js)
              "multiChart": "multiChart"}
 #: membership by ACTION NAME (routing.js `actions`), ahead of the domain — hotfix 2026-11-03: agent.undo's own group

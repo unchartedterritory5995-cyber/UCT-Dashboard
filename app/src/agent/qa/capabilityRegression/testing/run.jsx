@@ -16,6 +16,7 @@ import * as drawingsStore from '../../../../components/chart/drawingsStore'
 import { resolveLevels } from '../../../../components/chart/drawingFib'
 import { loadIndicatorAlerts, _resetIndicatorAlertCache } from '../../../capabilities/indicatorAlerts'
 import { _resetScreenerCache } from '../../../capabilities/screener'
+import { _resetRecentlyDeleted } from '../../../capabilities/recentlyDeleted'
 import { looksLikeFormula } from '../../../capabilities/indicatorAuthoring'
 import { listDrafts } from '../../../../components/chart/builder/agentAuthoring'
 import { readFavoriteTools } from '../../../../components/chart/drawToolFavorites'
@@ -301,6 +302,7 @@ export async function replay({ board: boardName = 'ONE', steps, seed = {}, kinds
   const m = mountCase(boardName, { seed, kinds: kindsFor({ kinds }) })
   const { p, board, say } = m
   _resetScreenerCache()                               // module-level: each case reads its own saved screens
+  _resetRecentlyDeleted()                             // and its own Recently deleted (recentlyDeleted.*: module-level cache)
   // a member's panel has read their indicator alerts long before they ask (the cache is module-level: start clean)
   if (m.h.indicatorAlerts) { _resetIndicatorAlertCache(); await loadIndicatorAlerts(m.h, { force: true }) }
   const start = boardState(board)
