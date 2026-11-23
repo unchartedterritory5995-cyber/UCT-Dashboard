@@ -157,7 +157,8 @@ def _scope_defs() -> Dict[str, Any]:
                                "args": copy.deepcopy(child)}}
     return {
         "sym": wrapper("sym", {"type": "string", "pattern": cc["tickerPattern"]}),
-        "tf": wrapper("tf", {"enum": list(cc["tfCodes"])}),
+        # ⭐⭐ U-DAILY (e96) -- and D, the last finished day, on a chart below a day only (``check_daily_reads``)
+        "tf": wrapper("tf", {"enum": list(cc["tfCodes"]) + list(cc["tfBelowADayCodes"])}),
         "tf_live": wrapper("tf_live", {"enum": list(cc["tfLiveCodes"])}),
     }
 
@@ -198,10 +199,16 @@ require_room_in_a_choice(CHOICE_MAX_CHARS)
 
 
 def daily_values_below_a_day(chart: Any = None) -> bool:
-    """Can a chart below a day BUILD a daily measure inside its own formula (a daily read on an intraday chart)?
-    NO, today. ⛔ THE ONE PLACE THIS IS ANSWERED: the engine unit that admits it (U-DAILY) points this function at
-    its capability, and what the assistant is told follows (`day_length_turn_notes`), with nothing else to edit."""
-    return False
+    """Can THIS chart BUILD a daily measure inside its own formula (a daily read, `tf(x, D)`, on an intraday chart)?
+    ⛔ THE ONE PLACE THIS IS ANSWERED, and what the assistant is told follows (`day_length_turn_notes`).
+
+    ⭐⭐ U-DAILY (e96) points it at the capability itself: the cross context lists D among the timeframes a chart
+    below a day may read (`crossContext.json::tfBelowADayCodes`, the file the door's `tf` vocabulary
+    (`_scope_defs`, `_check_scopes`) and the browser's tree gate (`applyPatch.js::gateTree`) read), and this chart's
+    own timeframe is below a day (`ast_interpret.is_below_a_day`, the twin of the gate's `isBelowADay`). A chart that
+    does not state its timeframe is not one the browser builds a daily read on, so it is answered no."""
+    tf = chart.get("tf") if isinstance(chart, Mapping) else None
+    return "D" in cross_context()["tfBelowADayCodes"] and ast_interpret.is_below_a_day(tf)
 
 
 def patch_schema() -> Dict[str, Any]:
@@ -379,7 +386,8 @@ def anthropic_tool() -> Dict[str, Any]:
 #: (U-DAILY) changes what the member is told there, and changes this string alone.
 DAYS_BELOW_A_DAY_MEMBER = (
     "the assistant kept counting the days you asked for as bars of this chart, which is a different measure, so "
-    "nothing was offered to apply. On a daily chart this builds as asked")
+    "nothing was offered to apply. Below a day it builds each daily measure on daily bars, as of the last "
+    "finished day")
 GUARD_REFUSALS: Mapping[str, str] = {
     "envelope:days-as-bars": DAYS_BELOW_A_DAY_MEMBER,
     "envelope:days-choice-in-days": (
@@ -415,6 +423,13 @@ GUARD_REFUSALS: Mapping[str, str] = {
         "offered to apply"),
     "envelope:replayed": (
         "the assistant sent again the change the app had already refused, so nothing was offered to apply"),
+    # ⭐⭐ U-DAILY (e96) -- `check_daily_reads`: a daily read is for a chart below a day, and is one way, not two
+    "envelope:daily-read-on-days": (
+        "the assistant read the last finished day on a chart whose bars already are days, where the value itself "
+        "is that reading, so nothing was offered to apply"),
+    "envelope:daily-read-and-daily-bars": (
+        "the assistant both read the last finished day and moved the whole indicator onto daily bars, two ways of "
+        "doing one thing, so nothing was offered to apply"),
 }
 
 #: Gates THIS door owns. The ledger, transport, unsupported-node and internal
@@ -953,6 +968,8 @@ CONVERSE_SYSTEM_PROMPT = (
     '    {"type":"sym","value":<TICKER>,"args":[<one node>]}  the child read on that symbol\n'
     '    {"type":"tf","value":"W"|"M","args":[<one node>]}  the child on the weekly/monthly '
     "timeframe, LAST CLOSED period (the default for any \"weekly\"/\"monthly\" read)\n"
+    '    {"type":"tf","value":"D","args":[<one node>]}  ON A CHART BELOW A DAY ONLY: the child on daily bars, '
+    "shown on every bar as THE LAST FINISHED DAY (a daily read, below)\n"
     '    {"type":"tf_live","value":"W"|"M","args":[<one node>]}  the FORMING period so far: '
     "it repaints; ONLY when the member explicitly asks for the current/live/so-far week "
     "or month\n"
@@ -990,23 +1007,31 @@ CONVERSE_SYSTEM_PROMPT = (
     "on an intraday chart; `high[1]` alone is only the previous BAR.\n"
     "  ON A CHART BELOW A DAY A LENGTH IN DAYS IS DAYS (\"the 50 day average\", \"the 14 day ATR\", \"a new 20 day "
     "high\"): never that many bars of the chart. `uct_language_notes.day_lengths` lists each one with what that "
-    "many bars of THIS chart really span (`on_this_chart`). When EVERY part of the indicator is a daily LINE on the "
-    "chart's own symbol, build it and add set_calculation_timeframe D. When it is not, it cannot be written yet: the "
-    "words compare each bar of this chart with the daily measure (a cross, a marker, a colour, a dot on each bar that "
-    "closes above it), or add today's own values to it (\"today's low so far plus the 14 day ATR\"), or read another "
-    "symbol (which takes no calculation timeframe at all). Do NOT build it on the chart's bars under a note: a line "
-    "of 50 bars of a 5 minute chart is about four hours, not 50 days, whatever the note says, and the member reads "
-    "the chart. Set disposition clarify, emit `ops: []`, and ask ONE question: one plain sentence of why, then two "
-    "`choices` that each name what they draw IN TIME. "
+    "many bars of THIS chart really span (`on_this_chart`). Build each daily measure as a DAILY READ, "
+    "tf(<the measure>, D): it is computed on daily bars and shows on EVERY bar of the chart the value of THE LAST "
+    "FINISHED DAY (yesterday's on every bar of today), and the rest of the formula stays on the chart's own bars. "
+    "So a cross of the 50 day average is close > tf(sma(close, 50), D) against offset 1 of close <= offset 1 of "
+    "tf(sma(close, 50), D); today's low so far plus the 14 day ATR is sessionLow() + tf(atr(high, low, close, 14), "
+    "D); a dot, a colour or a marker on each bar reads the daily read like any other line. ANOTHER SYMBOL GOES INSIDE "
+    "THE READ: SPY's 20 day percent change is tf(sym(SPY, roc(close, 20)), D), and a 21 day average of the ratio "
+    "against SPY is tf(ema(close / sym(SPY, close), 21), D), beside the ratio of this bar, close / sym(SPY, close). "
+    "A DAILY READ IS NEVER TODAY'S VALUE SO FAR: \"as it stands\", \"including today\" or \"today's\" values are written "
+    "with today's own names (sessionHigh(), sessionLow(), sessionOpen(), close), never with a daily read. ON A DAILY "
+    "READ, AND ON A WHOLE INDICATOR CALCULATED ON DAILY BARS, `close` ALREADY IS THE LAST FINISHED DAY'S CLOSE: "
+    "\"yesterday's close\" is tf(close, D) (or close under set_calculation_timeframe D) with NO further offset, and an "
+    "offset of 1 there means the day before yesterday. In the "
+    "reply, name every daily read plainly for the day it shows (\"the 50 day average as of the last finished day\", "
+    "\"yesterday's 14 day ATR\"), so nobody reads it as today's forming value. When EVERY part of the indicator is a "
+    "daily LINE on the chart's own symbol you may instead build it and add set_calculation_timeframe D (then use no "
+    "daily read in it). A daily read is never inside sym, tf or tf_live, holds no other timeframe read, and is never "
+    "used on a daily or higher chart (there the bars already are days: use the value itself). Do NOT build a daily "
+    "measure on the chart's bars under a note: a line of 50 bars of a 5 minute chart is about four hours, not 50 "
+    "days, whatever the note says, and the member reads the chart. Only when the member ASKS for the chart's own "
+    "bars, build those, named with the `on_this_chart` words exactly as given and never by their number of days. "
+    "When the member's words leave it open whether they mean days or this chart's bars, ask ONE question: one "
+    "plain sentence of why, then two `choices` that each name what they draw IN TIME. "
     + DAY_LENGTH_CHOICE_RULE +
-    "For \"show when the close crosses above its 50 day average\" "
-    "on a 5 minute chart: \"I can't yet compare each 5 minute bar with a daily measure like the 50 day average. Which "
-    "would you like?\" with the choices \"The 50 day average as a line, on daily bars\" and \"Crosses of the average "
-    "of 50 five-minute bars (about 4 hours)\". For a daily measure of another symbol (\"the ratio against SPY with "
-    "its 21 day average\"): \"I can't yet build a daily measure of a ratio against SPY on a 5 minute chart. Which "
-    "would you like?\" with \"The ratio with an average of 21 five-minute bars (about 1 hour 45 minutes)\" and "
-    "\"Nothing for now: on a daily chart this builds exactly as asked\". Build only what the member picks, named "
-    "for what it is.\n"
+    "Build only what the member picks, named for what it is.\n"
     "  THE REGULAR SESSION has names of its own, right on every intraday timeframe: "
     "`sessionOpen()` (today's open), `sessionHigh()` and `sessionLow()` (today's high and low so "
     "far, regular hours only), and `openingRangeHigh(minutes)` / `openingRangeLow(minutes)` (the "
@@ -1640,6 +1665,9 @@ def check_day_lengths(envelope: Mapping[str, Any], message: Any, chart: Any) -> 
             return
         if not isinstance(node, Mapping):
             return
+        # ⭐⭐ U-DAILY (e96) -- inside a daily read the windows ARE days: it is computed on daily bars
+        if ast_interpret.is_daily_read(node):
+            return
         args = node.get("args")
         if node.get("type") == "call" and isinstance(args, list):
             for a in args:
@@ -1648,18 +1676,52 @@ def check_day_lengths(envelope: Mapping[str, Any], message: Any, chart: Any) -> 
                     n = int(a["value"])
                     raise _Refused(
                         "envelope:days-as-bars",
-                        f"{where}: `{node.get('name')}(..., {n})` is {by_days[n]}, and the member asked for {n} DAYS. If "
-                        "EVERY part of the indicator is a daily line on the chart's own symbol, keep the formula and "
-                        "add set_calculation_timeframe D. If not (each bar is compared with the daily measure, today's "
-                        "own values are added to it, or another symbol is read), it cannot be written yet: do NOT build "
-                        "it on the chart's bars under a note. Answer with disposition clarify, `ops: []`, and ONE "
-                        f"question: one plain sentence of why, then two `choices` of at most {CHOICE_MAX_CHARS} characters "
-                        "that each name what they draw in time, the bars version carrying "
+                        f"{where}: `{node.get('name')}(..., {n})` is {by_days[n]}, and the member asked for {n} DAYS. "
+                        f"Write the {n} day measure as a DAILY READ, tf(<the measure>, D): it is computed on daily bars "
+                        "and shows on every bar of this chart the value of THE LAST FINISHED DAY, while the rest of "
+                        "the formula (a comparison with each bar, today's own values, a marker) stays on this chart's "
+                        "bars. Another symbol goes INSIDE it: tf(sym(SPY, close), D). If EVERY part of the indicator is "
+                        "a daily line on the chart's own symbol, you may instead keep the formula and add "
+                        "set_calculation_timeframe D. Do NOT build it on the chart's bars under a note; only a member "
+                        f"who asks for this chart's bars gets those, written as \"{by_days[n]}\" and never as {n} days. "
+                        "If the member's words leave that open, answer with disposition clarify, `ops: []`, and ONE question "
+                        f"instead: two `choices` of at most {CHOICE_MAX_CHARS} characters that each name what they draw in time, "
+                        "the bars version carrying "
                         f"\"{phrase or by_days[n]}\" as given and never called {n} days.")
         visit(args, where)
 
     for where, tree in _trees_of(envelope):
         visit(tree, where)
+
+
+def check_daily_reads(envelope: Mapping[str, Any], message: Any, chart: Any) -> None:
+    """⭐⭐ U-DAILY (e96) -- A DAILY READ (`tf` of D: the last finished day on each bar) IS FOR A CHART BELOW A DAY.
+
+    On a daily or higher chart the bars already are days, and the engine refuses the read there by name
+    (``ast_interpret._interpret_daily_reads``); a whole indicator calculated on daily bars holds none either (its bars
+    are days too). Refused here so the model gets its repair: on such a chart the value itself is the read.
+    """
+    if envelope.get("disposition") not in (None, "change"):
+        return
+    trees = [(where, tree) for where, tree in _trees_of(envelope) if ast_interpret.tree_reads_daily(tree)]
+    if not trees:
+        return
+    calc = next((o.get("timeframe") for o in envelope.get("ops") or []
+                 if isinstance(o, Mapping) and o.get("op") == "set_calculation_timeframe"), None)
+    where = trees[0][0]
+    if not below_a_day(message, chart):                    # a daily or higher chart: its bars already are days
+        raise _Refused(
+            "envelope:daily-read-on-days",
+            f"{where}: a daily read, tf(..., D), shows the last finished day on each bar of a chart BELOW A DAY, and "
+            "this chart's bars are days or longer: read the value itself (the 50 day average is sma(close, 50) on a "
+            "daily chart).")
+    if calc in _HIGHER_FRAMES:
+        raise _Refused(
+            "envelope:daily-read-and-daily-bars",
+            f"{where}: a daily read, tf(..., D), sits on a chart below a day, and set_calculation_timeframe {calc} "
+            "moves the whole indicator onto bars that already are days or longer. Use one or the other: the daily "
+            "read alone (the rest of the formula stays on this chart's bars), or the calculation timeframe with the "
+            "value itself.")
 
 
 def user_turn(message: str, notes: Mapping[str, Any], view: Mapping[str, Any],
@@ -3590,7 +3652,8 @@ def _check_scopes(where: str, tree: Any) -> None:
     concierge's gate: one child each, a servable unambiguous ticker, W/M only."""
     cc = cross_context()
     ambiguous = set(cc["ambiguousBare"])
-    codes = {"tf": set(cc["tfCodes"]), "tf_live": set(cc["tfLiveCodes"])}
+    # ⭐⭐ U-DAILY (e96) -- a daily read's code too: WHERE it may be used (a chart below a day) is ``check_daily_reads``'s
+    codes = {"tf": set(cc["tfCodes"]) | set(cc["tfBelowADayCodes"]), "tf_live": set(cc["tfLiveCodes"])}
     for node in _walk(tree):
         kind = node.get("type")
         if kind not in SCOPE_NODES:
@@ -6132,6 +6195,7 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
             envelope = check_envelope(candidate, revision, view)
             check_date_numbers(envelope, date_numbers)         # a date number is the door's, never the assistant's
             check_day_lengths(envelope, message, chart)        # below a day, a length in days is never that many bars
+            check_daily_reads(envelope, message, chart)        # a daily read is for a chart below a day (U-DAILY)
             check_output_renames(envelope, message, view, turns)
             check_named(envelope, view, named)                 # a named indicator is its checked formula, or nothing
             check_withheld(envelope, withheld, understood_turn.get("member_names"))   # an unchecked name is never written
