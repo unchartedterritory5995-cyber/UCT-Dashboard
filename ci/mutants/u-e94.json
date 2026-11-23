@@ -1,6 +1,6 @@
 {
   "schema": "uct.ci-mutants/v1",
-  "about": "ENGINE e94 (NUMBER PENDING, fix/pine-e94-deterministic-budgets): no answer depends on how fast the machine is. The translator's window trips the WHOLE call by name (a latch every clock limb sets, so a swallowed throw cannot leave a partial translation), a deterministic per-call step budget bounds the call, and the member door's own runs read a clock that never moves. Every rule, broken once, must turn its rail red.",
+  "about": "ENGINE 94 (fix/pine-e94-deterministic-budgets): no answer depends on how fast the machine is. The translator's window trips the WHOLE call by name (a latch every clock limb sets, so a swallowed throw cannot leave a partial translation), a deterministic per-call step budget bounds the call, and the member door's own runs read a clock that never moves. Every rule, broken once, must turn its rail red.",
   "mutants": [
     {
       "id": "E1",

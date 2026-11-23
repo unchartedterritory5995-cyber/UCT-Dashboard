@@ -1,4 +1,4 @@
-# Engine 94 (NUMBER PENDING): no answer depends on how fast the machine is (the deterministic budgets; evidence, 2026-11-21 / 2026-11-22)
+# Engine 94: no answer depends on how fast the machine is (the deterministic budgets; evidence, 2026-11-21 / 2026-11-22)
 
 Branch `fix/pine-e94-deterministic-budgets` (its working name was "e93"; engine 93 shipped with other content, so the
 unit's files say e94), merged with master `6770c111a9`. It ships in train e94; its engine number is the train's.

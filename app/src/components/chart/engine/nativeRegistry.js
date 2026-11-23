@@ -2370,7 +2370,7 @@ export function externalReadNotices(def, columns) {
       out.push({ code: r.code, reason: r.static === true ? staticOtherSymbolMessage(r.ticker, r)
         : `This indicator reads \`${r.ticker}\`: ${r.reason}` })
     }
-    // ⭐⭐ (NUMBER PENDING, coordinator ruling 2026-11-22) — the bars a series withholds before its first row are named
+    // ⭐⭐ (engine 94, coordinator ruling 2026-11-22) — the bars a series withholds before its first row are named
     // per bar (`OTHER_SYMBOL_BEFORE_HELD_CODE`); where a plot carries them, the member reads why, once per series
     const held = withheldBarsReport(columns) || {}
     if (Object.values(held).some((codes) => codes && codes[OTHER_SYMBOL_BEFORE_HELD_CODE])) {

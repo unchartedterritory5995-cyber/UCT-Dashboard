@@ -72,7 +72,7 @@ import { withAmbientRunClock } from './vm.js'
 const hostNow = () => (typeof performance !== 'undefined' ? performance.now() : Date.now())
 const clockOf = (opts) => (opts && typeof opts.now === 'function' ? opts.now : (MEMBER_DOOR_CLOCK || hostNow))
 
-// ─── ⭐⭐ ENGINE e94 (NUMBER PENDING) — THE MEMBER DOOR'S OWN RUNS ARE BOUNDED BY INSTRUCTIONS, NOT BY TIME ─────────
+// ─── ⭐⭐ ENGINE 94 — THE MEMBER DOOR'S OWN RUNS ARE BOUNDED BY INSTRUCTIONS, NOT BY TIME ─────────
 // The member door (`memberPaneDefinition`) compiles and runs the script to DECIDE its document: the object-runtime
 // check, the program probe, the colour-input probe. Their runs read the host's clock (the VM's `WALL_TIME`, a run's
 // budget), so a busier machine stopped a probe earlier and the door answered a different document

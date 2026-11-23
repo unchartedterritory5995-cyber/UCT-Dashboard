@@ -1,6 +1,6 @@
 {
  "schema": "uct.ci-mutants/v1",
- "about": "A chart bar before another series' first held row (a SERIES_UNKNOWN_BEFORE_FIRST series: our store's intraday depth of SP:SPX) is withheld BY NAME on the per-bar channel (other-symbol:before-held), with the bars within the tree's reach of one; the strip says why; holes after the first row and unmarked or gaps-read-na series are never named. Coordinator ruling 2026-11-22 (NUMBER PENDING, rides train e94). Every rule, broken once, must turn its rail red.",
+ "about": "A chart bar before another series' first held row (a SERIES_UNKNOWN_BEFORE_FIRST series: our store's intraday depth of SP:SPX) is withheld BY NAME on the per-bar channel (other-symbol:before-held), with the bars within the tree's reach of one; the strip says why; holes after the first row and unmarked or gaps-read-na series are never named. Coordinator ruling 2026-11-22 (engine 94, rides train e94). Every rule, broken once, must turn its rail red.",
  "mutants": [
   {
    "id": "OB1",

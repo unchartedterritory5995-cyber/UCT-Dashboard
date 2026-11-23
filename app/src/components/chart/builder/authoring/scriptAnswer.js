@@ -18,7 +18,7 @@
 // The engine modules are loaded only when a script arrives (dynamic imports), so the dock's
 // first-open bytes do not grow by the Pine translator.
 //
-// ⭐⭐ (NUMBER PENDING, coordinator ruling 2026-11-22, interim) — THIS CHECK RUNS ON THE PAGE'S MAIN THREAD, SO IT
+// ⭐⭐ (engine 94, coordinator ruling 2026-11-22, interim) — THIS CHECK RUNS ON THE PAGE'S MAIN THREAD, SO IT
 // CARRIES ITS OWN WALL CAP. The deterministic budgets took the translator's 10 s window away: a translation is bounded
 // by its step budget, and the wall clock only by last-resort stops sized in minutes for the workers every other member
 // path runs in. This check has not moved to the door's worker yet, so it passes the door API a short cap of its own

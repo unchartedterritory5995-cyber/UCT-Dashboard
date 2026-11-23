@@ -9366,7 +9366,7 @@ export const SERIES_GAPS_READ_NA = '__gapsReadNa'
  *  begins, not the instrument's (an index's intraday bars: yfinance holds 60 days of 5m): a chart bar before that
  *  row is UNKNOWN to `symAlignmentMask` (withheld, by name), never `na`. */
 export const SERIES_UNKNOWN_BEFORE_FIRST = '__unknownBeforeFirst'
-/** ⭐⭐ (NUMBER PENDING, coordinator ruling 2026-11-22) — THE BARS A `SERIES_UNKNOWN_BEFORE_FIRST` SERIES WITHHOLDS, BY NAME,
+/** ⭐⭐ (engine 94, coordinator ruling 2026-11-22) — THE BARS A `SERIES_UNKNOWN_BEFORE_FIRST` SERIES WITHHOLDS, BY NAME,
  *  PER BAR: the chart bars before that series' first row, and every bar within the tree's reach of one
  *  (`symAlignmentMasks`). `withSymAlignment` writes them to the plot's per-bar channel (`opts.withheldBarsSink`, the
  *  plot's `__withheldBars`), so the vendor harness grades them "not compared" and the headless lane reports them per
@@ -9634,7 +9634,7 @@ function withSymAlignment(ast, bars, out, opts) {
   if (typeof opts.prefixProbe === 'number') return out
   if (!isColumn(out) || !treeReadsSym(ast)) return out
   const { mask, beforeHeld } = symAlignmentMasks(ast, bars, opts)
-  // ⭐⭐ (NUMBER PENDING, coordinator ruling 2026-11-22) — the bars a series withholds before its first row, BY NAME,
+  // ⭐⭐ (engine 94, coordinator ruling 2026-11-22) — the bars a series withholds before its first row, BY NAME,
   // per bar (`OTHER_SYMBOL_BEFORE_HELD_CODE`): every one is inside `mask`, so the channel never names a drawn bar
   if (beforeHeld) sinkPerBar(opts, OTHER_SYMBOL_BEFORE_HELD_CODE, beforeHeld)
   if (!mask) return out

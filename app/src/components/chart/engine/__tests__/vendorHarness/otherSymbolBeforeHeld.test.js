@@ -1,4 +1,4 @@
-// ─── ⭐⭐ (NUMBER PENDING, coordinator ruling 2026-11-22) — A CHART BAR BEFORE ANOTHER SERIES' FIRST HELD ROW IS WITHHELD
+// ─── ⭐⭐ (engine 94, coordinator ruling 2026-11-22) — A CHART BAR BEFORE ANOTHER SERIES' FIRST HELD ROW IS WITHHELD
 //     BY NAME ON BOTH LANES, NEVER READ AS PINE'S `na` ────────────────────────────────────────────────────────────────
 //
 // Fred RS on an intraday chart reads SP:SPX at the chart's timeframe, laid out on the chart's grid

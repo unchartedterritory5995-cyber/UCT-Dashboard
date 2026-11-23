@@ -92,7 +92,7 @@ export function checkDoorDeadline() {
   if (w) throw new DoorDeadlineError(w.budgetMs)
 }
 
-// ─── ⭐⭐ (NUMBER PENDING, coordinator ruling 2026-11-22, interim) — A MAIN-THREAD WALL CAP, SUPPLIED BY THE CALLER ────
+// ─── ⭐⭐ (engine 94, coordinator ruling 2026-11-22, interim) — A MAIN-THREAD WALL CAP, SUPPLIED BY THE CALLER ────
 //
 // With the deterministic budgets a translation is bounded by its step budget, and the wall clock only by last-resort
 // stops sized in MINUTES for the workers the member paths run in (#2254, #2364, #2367): no 10 s window any more. A caller

@@ -1,7 +1,7 @@
 // @vitest-environment node
 // app/src/components/chart/engine/ast/pine.e94.test.js
 //
-// ─── ⭐⭐ ENGINE e94 (NUMBER PENDING) — NO ANSWER DEPENDS ON HOW FAST THE MACHINE IS ────────────────────────────────
+// ─── ⭐⭐ ENGINE 94 — NO ANSWER DEPENDS ON HOW FAST THE MACHINE IS ────────────────────────────────
 //
 // docs/pine/evidence/2026-11-22-e94-deterministic-budgets/EVIDENCE.md. A served script drew on one run and refused its
 // drawing on the next: the translator's window THREW `pine:timeout` from a sampled clock check, a resolve site caught

@@ -8311,7 +8311,7 @@ const MAX_CALL_DEPTH = 24
  * a budget is the only thing that holds when the NEXT unbounded shape arrives, and
  * that one will not be known in advance either.
  *
- * ⭐⭐ e94 (NUMBER PENDING) — IT IS NOW THE LAST-RESORT STOP, AND IT REFUSES THE WHOLE CALL BY NAME. The 10s above cut
+ * ⭐⭐ engine 94 — IT IS NOW THE LAST-RESORT STOP, AND IT REFUSES THE WHOLE CALL BY NAME. The 10s above cut
  * served scripts: a call that ran past it had the rest of its work swallowed by the `catch`es a timeout passed through,
  * and the picture depended on the machine's speed (e94's census: 2-3 drawn documents and 3-4 reports per lane). The
  * deterministic bound is now `PINE_TRANSLATE_CALL_MAX_STEPS`; this clock is latched (`tripWindow`: once it trips, every
@@ -8440,7 +8440,7 @@ export function withTranslateClock(now, fn) {
   try { return fn() } finally { TRANSLATE_CLOCK = prior }
 }
 
-// ─── ⭐⭐ ENGINE e94 (NUMBER PENDING) — NO ANSWER DEPENDS ON HOW FAST THE MACHINE IS ─────────────────────────────
+// ─── ⭐⭐ ENGINE 94 — NO ANSWER DEPENDS ON HOW FAST THE MACHINE IS ─────────────────────────────
 //
 // ⚰️ MEASURED (#2254's paste trace, then batchD/batchF, 2026-11-21): one served script drew on one run and refused its
 // drawing on the next (`pine:object-removal-lost`), and drew three DIFFERENT documents at normal speed. The cause was

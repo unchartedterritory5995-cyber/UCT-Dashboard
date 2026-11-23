@@ -537,7 +537,7 @@ function withOtherSymbols(out, other) {
   return out
 }
 
-/** ⭐⭐ (NUMBER PENDING, coordinator ruling 2026-11-22) — each served series whose first row is our store's depth
+/** ⭐⭐ (engine 94, coordinator ruling 2026-11-22) — each served series whose first row is our store's depth
  *  (`SERIES_UNKNOWN_BEFORE_FIRST`): `[{ticker, from}]`, `from` its first row's time. PLAIN DATA, not the series' own
  *  non-enumerable mark: it rides the record across the host worker's `postMessage` (`AST_SIDE_RECORDS`), and the strip
  *  says it (`nativeRegistry.externalReadNotices`, `otherSymbolBeforeHeldSentence`). */

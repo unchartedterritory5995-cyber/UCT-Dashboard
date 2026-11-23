@@ -1,6 +1,6 @@
 // app/src/components/chart/builder/authoring/scriptCheckCap.test.js
 //
-// ─── ⭐⭐ (NUMBER PENDING, coordinator ruling 2026-11-22, interim) — THE AUTHORING CHECK'S MAIN-THREAD CAP ───────────
+// ─── ⭐⭐ (engine 94, coordinator ruling 2026-11-22, interim) — THE AUTHORING CHECK'S MAIN-THREAD CAP ───────────
 //
 // The deterministic budgets took the translator's 10 s window away; every member path that translates runs in the
 // member door's workers, bounded by the step budget, with no wall window but the last-resort stops sized in minutes.
