@@ -168,11 +168,13 @@ const _defaultIdle = (fn) => {
  * @param {() => number} [o.now]
  * @param {object|null} [o.device]  the on-device bar store (deviceStore/source: {peek, read}); default
  *   = the app's, which is null while its switch (localStorage 'uct.deviceStore') is off
+ * @param {(key:string)=>boolean} [o.onScreen]       a chart shows `key` (index.js: a subscriber's life cycle runs)
+ * @param {(key:string)=>boolean} [o.answerPending]  a server request for `key` is on its way (network.inflight)
  */
 export function createPersist({
   registry, io = null, debounceMs = PERSIST_DEBOUNCE_MS, idle = _defaultIdle, now = () => Date.now(),
   setTimer = (fn, ms) => setTimeout(fn, ms), clearTimer = (h) => clearTimeout(h), device = undefined,
-  onDeviceKill = null,
+  onDeviceKill = null, onScreen = null, answerPending = null,
 } = {}) {
   const IO = { memPutMonotonic, memPeekEntry, idbPutMonotonic, idbGet, idbImportPack, idbPutHistory, idbGetHistory, idbGetHistoryEntry, ...(io || {}) }
   // ⭐ THE ON-DEVICE COPY (data/deviceStore). A key with no mem record is also looked up in the device
@@ -245,6 +247,24 @@ export function createPersist({
     if (!(last >= tail)) return 'held-newer'
     return null
   }
+  /**
+   * ⭐ A JOIN ONTO A CHART ALREADY SHOWING THE LAKE'S ROWS, WITH ITS ANSWER ON THE WAY, WAITS FOR IDLE (2026-11-23, the
+   * live-session read of the device store). The key press asks the device for the new symbol at once (prefetch.deviceWarm),
+   * and the chart's subscribe asks again (index.js _start -> hydrate). For a key holding only the history lake's rows the
+   * copy lands 1-20 ms later and JOINS them: its rows built (deviceStore/source.js) and merged over thousands of lake rows
+   * (DEVICE_HIT), and when the switch has already committed on the lake's rows that work re-renders the chart inside the
+   * press-to-frame window, moments before the server's answer, already on its way, refuses or replaces the device's rows
+   * anyway (`_joinRefused` 'answered'). So exactly that case runs at idle: the entry is the LAKE's, no answer holds it, a
+   * chart shows the key (`onScreen`) and a server request for it is in flight (`answerPending`). At idle the copy is
+   * judged again on the entry then (an answer that landed first refuses it). Never a seed of an empty entry (a cold
+   * key's device copy is its first frame, at once, as always), never a key no chart shows yet (a switch waiting on it
+   * may paint the device copy), never the device moving its own copy forward or re-joining a saved copy (_deviceAgain:
+   * the source is not the lake). Only with a device source: never with the store off.
+   */
+  function _joinWaits(key, before) {
+    if (!before || before.restSeen || before.source !== 'lake') return false
+    try { return onScreen?.(key) === true && answerPending?.(key) === true } catch { return false }
+  }
   /** key → `through` (unix s) of the device copy the entry holds: how far it is complete (deviceStore
    *  fresh.js / prefetch.devicePaints read it). Bounded, oldest out. */
   const devThrough = new Map()
@@ -290,7 +310,7 @@ export function createPersist({
    *  the rule read `through` as unknown, answered 'stale', and the copy that had just landed was never painted
    *  (devgates 2026-11-21, 0 of 28 with the watcher against 3 of 28 with the 25 ms poll it replaced). A copy the
    *  reducer refuses, or one that does not leave the key the device's, puts both stamps back as they were. */
-  function _deviceHit(key, p, gen, got, ownDev = null) {
+  function _deviceHit(key, p, gen, got, ownDev = null, atIdle = false) {
     // (`n`: the copy's row count without building its rows, deviceStore/source.js; a copy with no `n` has rows)
     if (!got || !(got.n ?? got.rows?.length)) return false
     const before = registry.peek(key)
@@ -299,6 +319,11 @@ export function createPersist({
     // entry the device already holds `_joinRefused` returns before it reads one either. (The saving is the lazy
     // `rows` of deviceStore/source.js, not this check's place in the order.)
     if (before?.source === 'device' && held != null && !(got.through > held)) return false   // not newer
+    // a join onto the lake's rows on a chart already showing them, its answer on the way: at idle (_joinWaits)
+    if (!atIdle && _joinWaits(key, before)) {
+      idle(() => { try { _deviceHit(key, p, gen, got, ownDev, true) } catch { /* a device copy is optional */ } })
+      return false
+    }
     if (_joinRefused(before, p, got, ownDev)) return false
     const was = { dev: devThrough.has(key), through: held, saved: savedAt.has(key), savedAt: savedAt.get(key) }
     _noteDev(key, got.through ?? null)
