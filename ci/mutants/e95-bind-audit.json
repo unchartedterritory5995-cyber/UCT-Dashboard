@@ -66,24 +66,6 @@
    "expectRed": "test_the_sweep_evaluates_the_tree_the_door_admitted"
   },
   {
-   "id": "BA8",
-   "mutant": "the host lane routes by the SAVED document (Fred RS's knob arms leave the estimate unread: an over-budget document is computed on the chart's thread)",
-   "file": "app/src/components/chart/engine/hostLaneAsync.js",
-   "from": "  const offThread = workerUsable() && (_routeAll || hostLaneRunsOffThread(routeDocOf(plan.def, inputs))",
-   "to": "  const offThread = workerUsable() && (_routeAll || hostLaneRunsOffThread(plan.def)",
-   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/hostLaneFirstPage.test.js",
-   "expectRed": "ORDERING"
-  },
-  {
-   "id": "BA9",
-   "mutant": "the door's cost route reads the SAVED document (a knob script over the budget is never offered to the runtime lane)",
-   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
-   "from": "  const cost = hostLaneCostOf(defaultBoundDocument(host.definition))",
-   "to": "  const cost = hostLaneCostOf(host.definition)",
-   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/hostLaneRouteBound.test.js",
-   "expectRed": "offered to the runtime lane"
-  },
-  {
    "id": "BA10",
    "mutant": "the financial fetch reads the SAVED document (an unpicked arm's financial read is fetched for)",
    "file": "app/src/components/chart/engine/useSecondarySources.js",

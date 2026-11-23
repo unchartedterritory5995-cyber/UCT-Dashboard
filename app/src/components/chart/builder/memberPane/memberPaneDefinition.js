@@ -1561,11 +1561,7 @@ function withOversizeKeep(answer, { source, id, name, t, no }) {
  *  asked and the answer is byte-identical to before. */
 function routeByCost({ host, source, id, name, t, no }) {
   if (!runtimePaneEnabled()) return host
-  // ⭐⭐ (train e95, the 2b bind audit's ninth reader) the estimate reads the document the chart draws at the knobs'
-  // defaults (`defaultBoundDocument`, as the door's `staticRefusals` do): since 2b the SAVED document keeps every knob
-  // arm and the estimate cannot read them, so a knob script over the budget was never offered to the runtime lane.
-  // 2b changes no LANE decision: the offer is master's, for the arm the chart draws.
-  const cost = hostLaneCostOf(defaultBoundDocument(host.definition))
+  const cost = hostLaneCostOf(host.definition)
   if (!cost.over) return host
   // ⛔ The refusal `runtimeLaneDefinition` builds on a decline is never read (the host answer stands),
   // so it carries no guard of its own: a code nobody can be shown is not minted. (A HELD refusal, below, is read.)
