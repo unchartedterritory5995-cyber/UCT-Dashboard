@@ -81,7 +81,7 @@ import { INSPECT_WORKER_JOB, INSPECT_LIBRARY_WORKER_JOB, __setInspectServicesFor
 import { FakeDoorWorker, importWorkerCore, fakeChannel, canonOf } from '../../../../testing/builder/memberDoor.testkit.js'
 // (train e96 x #2568, the door heartbeat) the silence and load bounds, and a heartbeat, for the composition rail below
 import { MEMBER_DOOR_SILENCE_MS, MEMBER_DOOR_LOAD_MS, MEMBER_DOOR_SILENT_GUARD, MEMBER_DOOR_WORKER_GUARD } from '../memberPane/memberDoorAsync'
-import { BEAT } from '../memberPane/memberDoorProtocol'
+import { BEAT, MEMBER_DOOR_HEARTBEAT_MS } from '../memberPane/memberDoorProtocol'
 
 const APP = process.cwd()
 const EXAMPLES = path.resolve(APP, 'src/components/chart/supportLoop/assistantExamples')
@@ -319,7 +319,16 @@ describe('⭐⭐ what is waited for, and how long', () => {
     vi.useFakeTimers()
     let done
     judgeOffThread(TABLE).then((v) => { done = v })
-    await vi.advanceTimersByTimeAsync(10 * 60 * 1000)
+    // (train e96 x #2568) a build that is still RUNNING says so: the real worker beats as the job starts and at least
+    // every 5 s while it works (`MEMBER_DOOR_HEARTBEAT_MS`). A held stand-in that said nothing for ten minutes would be
+    // a worker that never loaded, and the load bound would rightly stop it (the composition rail below holds that).
+    for (let t = 0; t < 10 * 60 * 1000; t += MEMBER_DOOR_HEARTBEAT_MS) {
+      const w = made[made.length - 1]
+      const job = w && w.jobs[w.jobs.length - 1]
+      if (w && w.onmessage) w.onmessage({ data: { type: BEAT, id: job ? job.id : null, ms: t } })
+      await vi.advanceTimersByTimeAsync(MEMBER_DOOR_HEARTBEAT_MS)
+    }
+    expect(made.length, 'the working worker was never stopped').toBe(1)
     expect(done, 'no timer of the check\'s ended the wait for the door').toBeUndefined()
     expect(made[0].held.length, 'the build is still the worker\'s').toBe(1)
     made[0].release()
