@@ -97,6 +97,10 @@ SEED_RETRY_MAX = 64
 #: the allowance for the vendor's minute aggregates to include the newest trades.
 SEED_WAIT_T_S = float(os.environ.get("INGEST_SEED_WAIT_T_S", "5"))
 SEED_LAG_S = float(os.environ.get("INGEST_SEED_LAG_S", "1.0"))
+#: Coverage: a trades tape that does not yet hold the first live trade is asked again this often,
+#: up to TAPE_RETRY_MAX times, before the slow seed backoff takes over.
+TAPE_RETRY_S = 0.5
+TAPE_RETRY_MAX = 10
 #: Seconds after boot before the first Massive connect (see DEPLOY HANDOFF).
 CONNECT_GRACE_S = float(os.environ.get("INGEST_CONNECT_GRACE_S", "45"))
 #: Ingest buffers hold a connect-time snapshot (~16 bars per 1m key) on top of the
@@ -183,6 +187,7 @@ class IngestRuntime:
         self._first_seed: set = set()            # first seed scheduled, not finished
         self._seed_gen: dict = {}                # sym -> bumped each time T restarts (stale-seed guard)
         self._seed_attempts: dict = {}           # sym -> retries spent since its last T restart
+        self._tape_attempts: dict = {}           # sym -> quick re-asks while the tape lags B
         self._reader: Optional[asyncio.Task] = None
         self._grace_until: Optional[float] = None
         self.counters = {"bars_routed": 0, "bars_unrouted": 0, "bars_superseded": 0,
@@ -193,7 +198,7 @@ class IngestRuntime:
                          "seed_reoffers": 0, "bars_held_for_seed": 0, "seed_hold_expired": 0,
                          "seeds_superseded": 0, "seeds_empty": 0, "seed_retries": 0,
                          "seed_retry_exhausted": 0, "reseeds_on_flow": 0,
-                         "seeds_before_flow": 0}
+                         "seeds_before_flow": 0, "seed_tape_behind": 0}
 
     def attach(self, server) -> None:
         self.server = server
@@ -450,18 +455,23 @@ class IngestRuntime:
             try:
                 await asyncio.wait_for(ev.wait(), SEED_WAIT_T_S)
             except asyncio.TimeoutError:
-                pass
-            finally:
-                if self._flow_events.get(sym) is ev and not ev.is_set():
-                    self._flow_events.pop(sym, None)
-        if SEED_LAG_S > 0 and gen == self._seed_gen.get(sym, 0):
-            await asyncio.sleep(SEED_LAG_S)
+                pass      # the event stays for any other waiter; the first trade pops it
+        if gen != self._seed_gen.get(sym, 0):
+            return
+        wait = SEED_LAG_S
+        gap = self.bc.gap_window(sym)
+        if gap is not None:
+            # the minute before M must be settled at the vendor before its bar is believed
+            settle = (gap[0] + bbm._SEED_SETTLE_MS - self.bc._clock_ms()) / 1000.0
+            wait = max(wait, settle)
+        if wait > 0:
+            await asyncio.sleep(wait)
 
     def _fetch_seed(self, sym: str, gap):
         """Off the loop: the day's minute bars and, for a declared gap (M, B), the vendor's trades
-        in [M, B). Raises on any vendor error."""
+        in [M, B] (through B's own millisecond). Raises on any vendor error."""
         bars = self._fetch(sym) or []
-        trades = None if gap is None else list(self._fetch_trades(sym, gap[0], gap[1]) or [])
+        trades = None if gap is None else list(self._fetch_trades(sym, gap[0], gap[1] + 1) or [])
         return bars, trades
 
     async def _seed(self, sym: str, gen: int) -> None:
@@ -492,6 +502,20 @@ class IngestRuntime:
                 # empty apply would also arm the failure gate against the newer seed); the
                 # hold, the first-seed mark and the re-offer belong to the newer seed.
                 self.counters["seeds_superseded"] += 1
+                return
+            if coverage and fetched and gap is not None and not any(int(r[0]) == gap[1] for r in trades):
+                # the tape does not hold the first live trade yet: it is behind B, so it would
+                # miss prints just before it. Not an error: ask again shortly.
+                self.counters["seed_tape_behind"] += 1
+                self._release_hold(sym)
+                self._tape_retry(sym, gen)
+                return
+            if coverage and fetched and gap is None and self.bc.trades_flowing(sym):
+                # fetched while pending, but the first trade landed meanwhile: seed that gap now
+                self.counters["reseeds_on_flow"] += 1
+                self._release_hold(sym)
+                self.bc.reset_seed(sym, forget_failure=False)
+                self._schedule_seed(sym)
                 return
             if coverage:
                 closed = fetched and self.bc.apply_seed(sym, bars, gap_trades=trades)
@@ -525,6 +549,25 @@ class IngestRuntime:
                 # never shown partial; later buckets are whole. Retry while it matters.
                 self._release_hold(sym)
                 self._retry_seed(sym, gen)
+
+    def _tape_retry(self, sym: str, gen: int) -> None:
+        n = self._tape_attempts.get(sym, 0)
+        if n >= TAPE_RETRY_MAX:
+            self._tape_attempts.pop(sym, None)
+            self.bc.seed_failed(sym)
+            self._retry_seed(sym, gen)            # the slow backoff from here on
+            return
+        self._tape_attempts[sym] = n + 1
+
+        def fire():
+            if gen != self._seed_gen.get(sym, 0) or self.bc.covered(sym):
+                return
+            self.bc.reset_seed(sym, forget_failure=False)
+            self._schedule_seed(sym)
+        try:
+            asyncio.get_running_loop().call_later(TAPE_RETRY_S, fire)
+        except RuntimeError:
+            pass
 
     def _retry_seed(self, sym: str, gen: int) -> None:
         """Coverage: a charted symbol whose seed failed is fetched again after a backoff, so
@@ -608,6 +651,7 @@ class IngestRuntime:
         self.bc.reset_seed(sym, forget_failure=forget_failure)
         self._seed_gen[sym] = self._seed_gen.get(sym, 0) + 1
         self._seed_attempts.pop(sym, None)
+        self._tape_attempts.pop(sym, None)
         if self.seeding:      # no seeding = nothing could ever fill the gap: keep the old behavior
             self.bc.trades_started(sym)
 

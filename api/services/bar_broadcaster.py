@@ -104,6 +104,10 @@ _seed_fail_total = 0        # D8 seed fetches that raised / returned nothing
 _COVER_PENDING = 1 << 62
 #: Coverage: a REST minute bar is taken as the whole minute only this long after it ended.
 _SEED_SETTLE_MS = 2_000
+#: Coverage: how far before the gap minute a seed vouches for every minute (the widest bucket).
+_COVER_LOOKBACK_MS = 60 * _MINUTE_MS
+#: Coverage: a first trade stamped this long before T was requested is a straggler, not the flow.
+_STRAGGLER_MS = 2_000
 
 
 class _Minute:
@@ -214,7 +218,8 @@ class BarBroadcaster:
         # this process never declared one: the in-web local mode is unchanged).
         self._cover_from: dict[str, int] = {}
         self._gap: dict = {}                # sym -> (minute M ms, first-trade ms B): see Coverage
-        self._t_floor: dict = {}            # sym -> B: feed trades stamped before it are dropped
+        self._t_floor: dict = {}            # sym -> B+1: feed trades stamped before it are dropped
+        self._t_requested: dict = {}        # sym -> clock ms T was last requested (straggler guard)
         self._reseed_on_flow: set = set()   # seeded while coverage was still pending
         self._reseed_wanted: set = set()    # ...and their first trade has since arrived
         # D3 CP3 (G3): monotonic-ms of the last AM/A/T event received for this symbol,
@@ -338,6 +343,7 @@ class BarBroadcaster:
         self._cover_from.pop(sym, None)
         self._gap.pop(sym, None)
         self._t_floor.pop(sym, None)
+        self._t_requested.pop(sym, None)
         self._reseed_on_flow.discard(sym)
         self._reseed_wanted.discard(sym)
         self._day_volume.pop(sym, None)
@@ -483,7 +489,10 @@ class BarBroadcaster:
             prev_hwm = self._hwm.get(sym)
             if kind == "T":
                 if self._cover_from.get(sym) == _COVER_PENDING:
-                    self._first_trade(sym, int(payload["t"]))
+                    t0 = int(payload["t"])
+                    if t0 < self._t_requested.get(sym, 0) - _STRAGGLER_MS:
+                        return    # stamped well before T was asked for: a straggler, not the flow
+                    self._first_trade(sym, t0)
                 hl_ok, last_ok = trade_conditions.classify(payload.get("c"))
                 minute = self._apply_trade(sym, int(payload["t"]), payload["p"],
                                            payload.get("s") or 0, hl_ok, last_ok)
@@ -562,6 +571,7 @@ class BarBroadcaster:
         su = sym.upper()
         with self._lock:
             self._cover_from[su] = _COVER_PENDING
+            self._t_requested[su] = self._clock_ms()
             self._gap.pop(su, None)
             self._t_floor.pop(su, None)
             self._reseed_on_flow.discard(su)
@@ -575,7 +585,9 @@ class BarBroadcaster:
         m = t // _MINUTE_MS * _MINUTE_MS
         self._cover_from[sym] = m + _MINUTE_MS
         self._gap[sym] = (m, t)
-        self._t_floor[sym] = t
+        # the vendor's tape supplies M through B's own millisecond (several prints can share it);
+        # the feed keeps only what is stamped after it — the first trade itself included in the tape
+        self._t_floor[sym] = t + 1
         st = (self._minutes.get(sym) or {}).get(m)
         if st is not None and not st.auth:
             # whatever the map held for M came from before the restart: M is rebuilt from the
@@ -643,17 +655,35 @@ class BarBroadcaster:
             gap = self._gap.get(su)
             prev_hwm = self._hwm.get(su)
             touched = []
+            seen = set()
             for b in bars:
                 try:
                     m = int(b["t"]) // _MINUTE_MS * _MINUTE_MS
                     if m + _MINUTE_MS + _SEED_SETTLE_MS > now:
                         continue    # a minute still open (or just closed) vouches for nothing:
-                                    # the gap minute comes from the trades instead
+                                    # an open gap minute comes from the trades instead
+                    seen.add(m)
                     got = self._apply_minute_bar(su, b, authoritative=True, from_seed=True)
                 except (KeyError, TypeError, ValueError):
                     continue
                 if got is not None:
                     touched.append(got)
+            if gap is not None and gap_trades is not None and cover != _COVER_PENDING:
+                if gap[0] + _SEED_SETTLE_MS > now:
+                    gap_trades = None     # the minute before M is not settled yet: not ready
+                else:
+                    # every settled minute of the widest bucket before M that the vendor has no
+                    # bar for had no trade: known EMPTY (auth), not a hole — so no bucket waits
+                    # on it, and no stale pre-restart state in it is ever shown
+                    mins = self._minutes.setdefault(su, {})
+                    for m in range(gap[0] - _COVER_LOOKBACK_MS, gap[0], _MINUTE_MS):
+                        if m in seen or not self._accept_minute(su, m):
+                            continue
+                        st = mins.get(m)
+                        if st is None or not st.auth:
+                            e = _Minute()
+                            e.auth = True
+                            mins[m] = e
             if cover == _COVER_PENDING or gap is None or gap_trades is None:
                 if cover == _COVER_PENDING:
                     self._reseed_on_flow.add(su)  # the first trade asks for the real seed
@@ -667,7 +697,7 @@ class BarBroadcaster:
                     self._minutes[su][m0] = st
                 if not st.auth:
                     for (t, p, s, conds) in gap_trades:
-                        if m0 <= t < b0:
+                        if m0 <= t <= b0:      # through B's own ms (the feed keeps t > B)
                             hl_ok, last_ok = trade_conditions.classify(conds)
                             self._fold_trade(st, t, p, s, hl_ok, last_ok)
                     st.seeded = True
@@ -746,7 +776,8 @@ class BarBroadcaster:
             return None
         floor = self._t_floor.get(sym)
         if floor is not None and t < floor:
-            return None   # coverage: stamped before the flow began — the seed's trades hold it
+            self._bump_hwm(sym, t)
+            return None   # coverage: at/before the first live trade — the seed's tape holds it
         mins = self._minutes.setdefault(sym, {})
         st = mins.get(m)
         if st is None:
@@ -782,8 +813,9 @@ class BarBroadcaster:
         if st is None:
             st = _Minute()
             mins[m] = st
-        elif from_seed and st.auth:
-            return None   # AM already authoritative for this minute
+        elif from_seed and st.auth and st.o is not None:
+            return None   # AM already authoritative for this minute (a seed's "known empty"
+                          # minute, auth with no prices, still takes a later-arriving REST bar)
         if authoritative:
             st.o, st.h, st.l, st.c, st.v = bar["o"], bar["h"], bar["l"], bar["c"], bar["v"]
             st.o_ts, st.c_ts = m, m + _MINUTE_MS - 1

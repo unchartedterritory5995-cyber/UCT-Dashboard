@@ -2291,7 +2291,7 @@ def fetch_trades_between(ticker: str, from_ms: int, to_ms: int, timeout: float =
     for _ in range(page_cap):
         data = client._get(url, timeout=timeout)
         for r in data.get("results") or []:
-            ts = r.get("sip_timestamp") or r.get("participant_timestamp")
+            ts = r.get("sip_timestamp")      # the feed's clock; never the participant's
             if ts is None or r.get("price") is None:
                 continue
             out.append((int(ts) // 1_000_000, float(r["price"]), r.get("size") or 0,
