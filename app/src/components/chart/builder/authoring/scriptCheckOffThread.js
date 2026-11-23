@@ -29,7 +29,7 @@
 // the check as it always did, on this thread, under its cap.
 //
 // Rails: `scriptCheckOffThread.test.js`. Mutants: `ci/mutants/u-script-check-worker.json`.
-import { memberDoorService, doorRefOf, MEMBER_DOOR_WORKER_GUARD, MEMBER_DOOR_FAILED_GUARD } from '../memberPane/memberDoorAsync'
+import { memberDoorService, doorRefOf, MEMBER_DOOR_WORKER_GUARD, MEMBER_DOOR_FAILED_GUARD, MEMBER_DOOR_SILENT_GUARD } from '../memberPane/memberDoorAsync'
 import { inspectService, linkHub, reportKeyOf, hubStatusOf, subscribeHubStatuses, pageDoorRefOf } from '../inspectAsync'
 
 /**
@@ -122,7 +122,11 @@ export async function judgeOffThread(pine, { cancelled = () => false, statusWait
     const [built, reported] = both
     const pane = built && built.built
     if (!pane || typeof pane !== 'object') return unchecked(UNCHECKED_BECAUSE.DOOR_THREW)
-    if (pane.guard === MEMBER_DOOR_WORKER_GUARD || pane.guard === MEMBER_DOOR_FAILED_GUARD) return unchecked(UNCHECKED_BECAUSE.DOOR_WORKER)
+    // ⭐⭐ (train e96 x #2568) and a door worker that went SILENT (`pine:door-silent`: its first word, then nothing for
+    // the silence bound) is the window's fault too, like one that never loaded (`pine:door-worker`, the load bound):
+    // never a refusal of the script handed to the hub, never sent to the assistant
+    if (pane.guard === MEMBER_DOOR_WORKER_GUARD || pane.guard === MEMBER_DOOR_FAILED_GUARD
+      || pane.guard === MEMBER_DOOR_SILENT_GUARD) return unchecked(UNCHECKED_BECAUSE.DOOR_WORKER)
     // a report that crossed from its worker has a key; one this page had to make in its place (the worker stopped, the
     // report threw there) has none, and is no report of the script
     const reportKey = reportKeyOf(reported && reported.report)

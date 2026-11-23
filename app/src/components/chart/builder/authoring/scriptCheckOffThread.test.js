@@ -79,6 +79,9 @@ import { runtimeConsultPendingOf, runtimePendingReasonOf } from '../../engine/ru
 import { createMemberDoorService, createKeyedWorkerService, __setMemberDoorServiceForTests, memberDoorKeyOf } from '../memberPane/memberDoorAsync'
 import { INSPECT_WORKER_JOB, INSPECT_LIBRARY_WORKER_JOB, __setInspectServicesForTests, __setHubChannelForTests, hubMessageForTests } from '../inspectAsync'
 import { FakeDoorWorker, importWorkerCore, fakeChannel, canonOf } from '../../../../testing/builder/memberDoor.testkit.js'
+// (train e96 x #2568, the door heartbeat) the silence and load bounds, and a heartbeat, for the composition rail below
+import { MEMBER_DOOR_SILENCE_MS, MEMBER_DOOR_LOAD_MS, MEMBER_DOOR_SILENT_GUARD, MEMBER_DOOR_WORKER_GUARD } from '../memberPane/memberDoorAsync'
+import { BEAT } from '../memberPane/memberDoorProtocol'
 
 const APP = process.cwd()
 const EXAMPLES = path.resolve(APP, 'src/components/chart/supportLoop/assistantExamples')
@@ -381,5 +384,70 @@ describe('⭐ the member\'s Stop ends the wait', () => {
     await settle()
     expect(v && v.state).toBe(UNCHECKED_STATE)
     expect(v.errors).toEqual([])
+  }, 180_000)
+})
+
+// ─── ⭐⭐ TRAIN e96 x #2568 (the door heartbeat), coordinator ruling 2026-11-23 ───────────────────────────────────────
+// While (c) waits on the door, the door's worker may go SILENT (its first word, then nothing for the silence bound:
+// `pine:door-silent`) or never LOAD (no word in the load bound: `pine:door-worker`, "it did not start within 5
+// minutes"). Either is a fault of the window: (c)'s plain "This script could not be checked here", nothing kept and
+// nothing sent to the assistant, never a refusal of the script. Mutant: ci/mutants/e96-train-integration.json TJ11.
+describe('⭐⭐ (train e96 x #2568) a door worker that goes silent or never loads while the check waits: "could not be checked here"', () => {
+  const plain = { runs: false, attaches: false, state: UNCHECKED_STATE, lane: 'host', headline: UNCHECKED_HEADLINE,
+    withheld: [], notes: [], errors: [] }
+  /** The newest door worker says its first word (a start beat for the job it holds): it has loaded. */
+  const firstWord = () => {
+    const w = made[made.length - 1]
+    const job = w.jobs[w.jobs.length - 1]
+    w.onmessage({ data: { type: BEAT, id: job ? job.id : null, ms: 0 } })
+  }
+
+  it('silent: its first word, then nothing for the silence bound (pine:door-silent)', async () => {
+    useWorkers({ mode: 'hang' })
+    vi.useFakeTimers()
+    let judged
+    judgeOffThread(TABLE).then((v) => { judged = v })
+    await vi.advanceTimersByTimeAsync(0)
+    expect(made.length, 'the door worker holds the build').toBe(1)
+    firstWord()
+    await vi.advanceTimersByTimeAsync(MEMBER_DOOR_SILENCE_MS - 1)
+    expect(judged, 'a moment inside the silence bound: still waiting').toBeUndefined()
+    await vi.advanceTimersByTimeAsync(1)
+    await settle()
+    expect(svc.stats().silent, 'the silence bound stopped it').toBe(1)
+    expect(judged).toEqual({ unchecked: true, because: UNCHECKED_BECAUSE.DOOR_WORKER })
+    expect(onMain(), 'nothing computed on the page in its place').toEqual(NOTHING_ON_MAIN)
+    // and through the check: the plain line, nothing for the assistant to repair
+    let v
+    checkScript(TABLE, { load: engine }).then((x) => { v = x })
+    await vi.advanceTimersByTimeAsync(0)
+    firstWord()
+    await vi.advanceTimersByTimeAsync(MEMBER_DOOR_SILENCE_MS + 5)
+    await settle()
+    expect(v).toEqual(plain)
+    expect(refusalOf(TABLE, v, 1), 'nothing goes back to the assistant').toBe(null)
+    expect(scriptNeedsFixing({ runs: v.runs, state: v.state })).toBe(false)
+    expect(MEMBER_DOOR_SILENT_GUARD).toBe('pine:door-silent')
+  }, 180_000)
+
+  it('never loads: no word within the load bound (pine:door-worker, "it did not start")', async () => {
+    useWorkers({ mode: 'hang' })
+    vi.useFakeTimers()
+    let judged
+    judgeOffThread(TABLE).then((v) => { judged = v })
+    await vi.advanceTimersByTimeAsync(MEMBER_DOOR_SILENCE_MS * 2)
+    expect(judged, 'a worker still loading is not silent').toBeUndefined()
+    await vi.advanceTimersByTimeAsync(MEMBER_DOOR_LOAD_MS)
+    await settle()
+    expect(svc.stats()).toMatchObject({ unloaded: 1, silent: 0 })
+    expect(judged).toEqual({ unchecked: true, because: UNCHECKED_BECAUSE.DOOR_WORKER })
+    let v
+    checkScript(TABLE, { load: engine }).then((x) => { v = x })
+    await vi.advanceTimersByTimeAsync(MEMBER_DOOR_LOAD_MS + 5)
+    await settle()
+    expect(v).toEqual(plain)
+    expect(refusalOf(TABLE, v, 1), 'nothing goes back to the assistant').toBe(null)
+    expect(MEMBER_DOOR_WORKER_GUARD).toBe('pine:door-worker')
+    expect(onMain()).toEqual(NOTHING_ON_MAIN)
   }, 180_000)
 })

@@ -1,6 +1,6 @@
 {
   "schema": "uct.ci-mutants/v1",
-  "about": "Train e96 x train e95 (engine 96): U-DAILY part A (#2550) meets master's one-sentence-per-guard (#2559) and day-length question words (#2578). The ONE function (`daily_values_below_a_day`) reads U-DAILY's capability (D in crossContext.json's tfBelowADayCodes, on a chart whose own timeframe is below a day); the ONE day-length sentence promises what that capability does, and THE TIE holds it; the daily read's door check raises gates of its own, never `envelope:reference`; the prompt and the guard's repair teach the daily read and keep master's rule for a question. Each rule, broken once, must turn its rail red. (coordinator ruling 2026-11-23, after train/e95's 2b bind audit) A knob script WITH a daily read is bound first and routed second: the evaluator prunes before the daily route, and the chart's daily supply, fetch and binder call ask the document the instance's inputs bind (TJ6-TJ9).",
+  "about": "Train e96 x train e95 (engine 96): U-DAILY part A (#2550) meets master's one-sentence-per-guard (#2559) and day-length question words (#2578). The ONE function (`daily_values_below_a_day`) reads U-DAILY's capability (D in crossContext.json's tfBelowADayCodes, on a chart whose own timeframe is below a day); the ONE day-length sentence promises what that capability does, and THE TIE holds it; the daily read's door check raises gates of its own, never `envelope:reference`; the prompt and the guard's repair teach the daily read and keep master's rule for a question. Each rule, broken once, must turn its rail red. (coordinator ruling 2026-11-23, after train/e95's 2b bind audit) A knob script WITH a daily read is bound first and routed second: the evaluator prunes before the daily route, and the chart's daily supply, fetch and binder call ask the document the instance's inputs bind (TJ6-TJ9). (c) x #2568 (coordinator ruling 2026-11-23): a door worker that goes silent or never loads while the authoring check waits gives (c)'s plain 'could not be checked here', with nothing sent to the assistant (TJ11).",
   "mutants": [
     {
       "id": "TJ1",
@@ -82,6 +82,15 @@
       "to": "dailyReadSupplyFor(def, frameMap, ctx.sym, ctx.tf)",
       "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/dailyReadKnobBind.test.js",
       "expectRed": "inst.inputs || {}"
+    },
+    {
+      "id": "TJ11",
+      "mutant": "(c) x #2568: a door worker that went SILENT is read as the door's answer about the script (handed to the hub, sent to the assistant)",
+      "file": "app/src/components/chart/builder/authoring/scriptCheckOffThread.js",
+      "from": "      || pane.guard === MEMBER_DOOR_SILENT_GUARD) return unchecked(UNCHECKED_BECAUSE.DOOR_WORKER)",
+      "to": "      ) return unchecked(UNCHECKED_BECAUSE.DOOR_WORKER)",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/authoring/scriptCheckOffThread.test.js",
+      "expectRed": "its first word, then nothing for the silence bound"
     }
   ]
 }
