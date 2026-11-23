@@ -134,7 +134,14 @@ def test_CONTROL_a_script_that_does_not_build_and_a_formula_where_a_script_belon
     assert got[SCRIPT[2]["id"]]["verdict"] == "wrong" and "wall lane" in got[SCRIPT[2]["id"]]["lines"][0]
 
 
-def _every_window_one_longer(source):
+#: A window SHORTER than 5 bars, by case. The slip below leaves the numbers under 5 alone (in a drawing script they are
+#: mostly widths and counts of things kept), so a case whose window is that short names it here and the slip raises
+#: that number too. ⚰️ MEASURED 2026-11-23: cap-04's swing is "the 3 bars before it and the 3 bars after it", its
+#: recorded script holds no number from 5 to 300 that is a window, and the slip left it exactly as it was.
+SHORT_WINDOWS = {"cap-04": 3}
+
+
+def _every_window_one_longer(source, short=None):
     """The same script reading ONE BAR FURTHER everywhere: every whole number from 5 to 300 in its code raised by one
     (20 written as 21, 252 as 253), and every look-back one bar deeper (`high[1]` written as `high[2]`).
     The first number of a drawing script is often a style or a count of things kept, so one slip proves little."""
@@ -142,7 +149,8 @@ def _every_window_one_longer(source):
     for line in source.splitlines():
         code, sep, comment = line.partition("//")
         if not code.lstrip().startswith(("indicator(", "strategy(")):
-            code, n = re.subn(r"(?<![\w.\"#\[])(?:[5-9]|[1-9]\d|[12]\d\d|300)(?![\w.\"%\]])", lambda m: str(int(m.group(0)) + 1), code)
+            numbers = (f"{int(short)}|" if short else "") + r"[5-9]|[1-9]\d|[12]\d\d|300"
+            code, n = re.subn(r"(?<![\w.\"#\[])(?:" + numbers + r")(?![\w.\"%\]])", lambda m: str(int(m.group(0)) + 1), code)
             code, k = re.subn(r"\[(\d{1,3})\]", lambda m: "[" + str(int(m.group(1)) + 1) + "]", code)
             hits += n + k
         lines.append(code + sep + comment)
@@ -152,7 +160,7 @@ def _every_window_one_longer(source):
 def test_a_script_with_every_window_one_longer_is_caught():
     answers, tried = {}, []
     for case in SCRIPT:
-        source, hit = _every_window_one_longer(case["answer"]["script"]["pine"])
+        source, hit = _every_window_one_longer(case["answer"]["script"]["pine"], SHORT_WINDOWS.get(case["id"]))
         if hit:
             answers[case["id"]] = {"turn": "script", "script": {"pine": source}}
             tried.append(case)
@@ -165,6 +173,17 @@ def test_a_script_with_every_window_one_longer_is_caught():
     # just outside the window the request names, made a strict extreme.
     assert len(tried) == len(SCRIPT) >= FLOOR
     assert sorted(caught) == sorted(c["id"] for c in tried), sorted({c["id"] for c in tried} - set(caught))
+
+
+def test_a_short_window_is_the_one_the_request_names():
+    by_id = {c["id"]: c for c in SCRIPT}
+    assert set(SHORT_WINDOWS) <= set(by_id)
+    for cid, window in SHORT_WINDOWS.items():
+        assert 1 <= window < 5 and f"the {window} bars before it and the {window} bars after it" in by_id[cid]["words"], cid
+    # the slip really reaches such a window, and without the case's number it does not
+    source = 'left = input.int(3, "Bars before")\npl = ta.pivotlow(low, left, 3)\n'
+    assert _every_window_one_longer(source) == (source.rstrip("\n"), False)
+    assert _every_window_one_longer(source, 3) == ('left = input.int(4, "Bars before")\npl = ta.pivotlow(low, left, 4)', True)
 
 
 def test_an_edge_sits_one_bar_outside_the_window_the_request_names():
