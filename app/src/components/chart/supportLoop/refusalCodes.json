@@ -360,6 +360,8 @@
   "runtime:request-pending",
   "runtime:request-with-state",
   "runtime:runtime.error",
+  "runtime:server-integrity",
+  "runtime:server-output-absent",
   "runtime:statement",
   "runtime:strategy-chart",
   "runtime:strategy-markers-record",
