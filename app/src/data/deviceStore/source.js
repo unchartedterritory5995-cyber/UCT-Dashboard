@@ -16,8 +16,10 @@
 // worker) is a dynamic import, started on the first ask. Until it has loaded, peek answers null and
 // read waits for it.
 
-import { deviceStoreEnabled } from './switch'
+import { deviceStoreEnabled, deviceStoreOffReason, deviceStoreKeyState } from './switch'
 import { SERVED_TFS } from './tfs'
+import { deviceFilesMayExist, deviceFilesStale, removeDeviceFiles, whenIdle } from './residue'
+import { afterFirstChartPaint } from '../../lib/barsPackClient'
 
 const _TFS = new Set(SERVED_TFS)
 
@@ -104,7 +106,51 @@ export function createDeviceSource({ load = _load, current = () => _client } = {
   }
 }
 
-/** The app's source, or null while the switch is off (then nothing of the store ever loads). */
-export function deviceSource({ enabled = deviceStoreEnabled } = {}) {
-  return enabled() ? createDeviceSource() : null
+/** navigator.storage, or null (no navigator / no StorageManager). */
+function _navStorage() {
+  try { return (typeof navigator !== 'undefined' && navigator.storage) || null } catch { return null }
+}
+
+let _offLooked = false
+/** What an off page does with the packs, by why it is off (switch.deviceStoreOffReason; review of #2563): 'delete',
+ *  'stale' (delete only once the store has not run here for 30 days), or null (keep). */
+const _CLEANUP = Object.freeze({ 'device-purge': 'delete', 'member-off': 'delete', 'default-off': 'stale' })
+
+/**
+ * ⭐ OFF IS NOT ALWAYS "CLEAN UP" (review of #2537 M9, policy from the review of #2563 MEDIUM-1 / MEDIUM-2). A page whose
+ * store is off looks ONCE, by WHY it is off:
+ *   the member's own '0', the server's purge            -> the packs are removed
+ *   off BY DEFAULT (no key)                             -> kept, unless the store has not run here for 30 days
+ *   the chart-speed kill, the device kill (=0), any other stored value, an unreadable key -> kept, unused
+ * so a default that reads OFF on one load and ON on the next (#2537: the window's width, the connection) or a kill
+ * lifted after an hour costs no download. The whole cost for a browser that never ran the store: the switch's own read
+ * (it was there before), one latched document.cookie read for both kills, and ONE localStorage read (the marker,
+ * residue.deviceFilesMayExist): nothing scheduled, nothing imported, OPFS never asked. A removal runs after the page's
+ * first chart paint, at idle, from the page (no client, no worker); a removal that fails is tried on the next load.
+ */
+function _offCleanup({ offReason, afterPaint, idle, storage, now }) {
+  if (_offLooked) return
+  _offLooked = true
+  let rule = null
+  let keyStored = false
+  try {
+    rule = _CLEANUP[(offReason || deviceStoreOffReason)()] || null
+    if (!rule) return
+    const k = deviceStoreKeyState()
+    keyStored = k === 'on' || k === 'off' || k === 'not-a-choice'
+  } catch { return }
+  if (!deviceFilesMayExist(keyStored)) return
+  if (rule === 'stale' && !deviceFilesStale((now || Date.now)())) return
+  // (the defaults are taken only here, on the rare path: a page that never needs them never touches them)
+  const paint = afterPaint || afterFirstChartPaint
+  const whenFree = idle || whenIdle
+  try { paint(() => whenFree(() => { removeDeviceFiles(storage === undefined ? _navStorage() : storage) })) } catch { /* the next load */ }
+}
+
+/** The app's source, or null while the switch is off (then nothing of the store ever loads, and the packs an earlier
+ *  page load downloaded may be removed: _offCleanup). `offReason` / `afterPaint` / `idle` / `storage` / `now`: tests. */
+export function deviceSource({ enabled = deviceStoreEnabled, offReason = null, afterPaint = null, idle = null, storage = undefined, now = null } = {}) {
+  if (enabled()) return createDeviceSource()
+  _offCleanup({ offReason, afterPaint, idle, storage, now })
+  return null
 }

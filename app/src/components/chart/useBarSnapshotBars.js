@@ -28,7 +28,7 @@ import { useBarSnapshot } from '../../data/barStore/useBarSnapshot'
 import { useLatestCallback } from './latestCallback'
 import { getBarStore } from '../../data/barStore/index'
 import { legacyBars, legacyDevelopingOf, newestBarIsFormingOf } from '../../data/barStore/adapter'
-import { prefetch as storePrefetch, viewKeyFor, LAKE_JOIN_WAIT_MS } from '../../data/barStore/prefetch'
+import { prefetch as storePrefetch, viewKeyFor, LAKE_JOIN_WAIT_MS, deviceRefusalOf } from '../../data/barStore/prefetch'
 import { keyOf, parseKey, STATUS, isDateTf, dateLabelToUnix } from '../../data/barStore/types'
 import { isNativeTf, fetchTf, resampleSpec } from './timeframes'
 import { resolveDailyTodaySeed, useCompareBars } from './useLegacyChartBars'
@@ -193,9 +193,25 @@ export function useBarSnapshotBars({
     const d = _dSnap ? legacyBars(_dSnap) : null
     return d?.length ? resample(d, 'D', resolvedTf) : null
   }, [_dSnap, resolvedTf])
+  // ⛔ THE DEVICE'S ONE REFUSAL HERE TOO (review of #2554, P3-M2). A chart's FIRST MOUNT (a new widget, a grid cell, the
+  // phone workspace) and a same-symbol timeframe change are decided here, not at the switch's doors, and here the status
+  // alone let a device copy paint that the switch refuses: short of its current bucket (a rolled bucket, a 1m copy
+  // missing the minute that just closed), an extended view of a shared key (no pre-market bars in it), a stale copy. A
+  // refused copy is not chosen: a first mount shows the loading state it shows with no local copy, and a timeframe
+  // change holds the previous timeframe until the new key is answered (`_edgeProvisional`). A chart that has already
+  // SHOWN this key's device copy in this view is never blanked by it: the answer replaces it. D / W / M keep the daily
+  // paint authority above (a device D copy holds official rows only). `deviceRows` is set only by a device copy: with the
+  // store off the first test is false and nothing below it runs.
+  const _devicePaintedRef = useRef(null)
+  const _deviceView = snap?.deviceRows === true && key ? `${key}|${showExtended ? 'eth' : 'rth'}` : null
+  const _deviceRefused = snap?.deviceRows === true && _intradayLike && !_hasOverride && !replayCutoff
+    && _devicePaintedRef.current !== _deviceView
+    // eslint-disable-next-line react-hooks/purity
+    && !!deviceRefusalOf(snap, { extended: !!showExtended, through: store.persist?.deviceThroughOf?.(key) ?? null, nowMs: Date.now() })
   let chosen = null
   if (_overrideArr) chosen = barsOverride
   else if (barsOverridePending || _econId) chosen = null
+  else if (_deviceRefused) chosen = null
   else if (_isCustomTf) chosen = _customBars
   else if (all?.length) {
     if (isDateTf(resolvedTf)) chosen = _dailyLocalRefused ? null : all
@@ -274,6 +290,8 @@ export function useBarSnapshotBars({
   const _tfSwitchHold = _isTfSwitch && !!snap && ((!_answered && _edgeProvisional) || _lakeHold)
   tfSwitchHoldRef.current = _tfSwitchHold
   const bars = _tfSwitchHold ? null : chosen
+  // (what this chart has shown of a device copy, per key and view: see `_deviceRefused`)
+  if (bars?.length && snap?.deviceRows === true) _devicePaintedRef.current = _deviceView
 
   // ── `data` / `error`: the server's answer as the legacy SWR surfaced it ─────────
   const data = useMemo(() => {

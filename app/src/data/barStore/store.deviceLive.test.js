@@ -131,8 +131,11 @@ describe('a device copy current to the last closed minute', () => {
     const early = DEVICE.slice(0, -1)                                    // through the 11:20 bucket
     const dev = fakeDevice(early, { through: OPEN + 116 * 60 })          // complete through 11:26
     const { store, pf, key } = boot({ device: dev })
-    expect(pf.peekDisplayable('NEWB', '5')).toBe(true)                   // current by status (one bucket)
-    expect(pf.devicePaints('NEWB', '5')).toBe(false)                     // but 5 minutes old: not by stamp
+    // current by status (one bucket), but 5 minutes old by its stamp: no door paints it (review of #2549 P2-M1: the
+    // status rule alone used to let peekDisplayable commit it, for a key the lake does not carry)
+    expect(pf.peekDisplayable('NEWB', '5')).toBe(false)
+    expect(store.peek(key).status).toBe(STATUS.CONTEXT)
+    expect(pf.devicePaints('NEWB', '5')).toBe(false)
     dev.swap(DEVICE, THROUGH)                                            // the device has moved on
     expect(pf.devicePaints('NEWB', '5')).toBe(true)                      // re-read on the switch, in the same call
     expect(store.peek(key).bars.length).toBe(DEVICE.length)
