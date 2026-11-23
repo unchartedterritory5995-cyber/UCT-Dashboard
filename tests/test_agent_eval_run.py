@@ -197,3 +197,22 @@ def test_the_real_eval_now_fits_the_shipped_60_limit_and_shares_the_cached_core(
     assert est["requests"] == 4 and est["distinct_system_prompts"] == 4
     assert est["usd_cached"] < est["usd_uncached"] < est["usd_worst_case"]
     assert est["system_tokens_per_request_high"] < whole["system_tokens_per_request_high"]
+
+
+def test_a_legacy_reroute_replays_the_tabled_routing_or_stops_as_the_panel_does():
+    # the real-model bench: the legacy routed panel's ONE reroute, rebuilt from catalog positions (testing/capture.js)
+    full = [{"name": f"a.{i}"} for i in range(6)]
+    groups = [{"id": "charts", "title": "Charts"}, {"id": "drawings", "title": "Drawings"}, {"id": "layouts", "title": "Layouts"}]
+    it = _item(mode="legacy")
+    it["body"]["routing"] = {"version": 1, "groups": groups, "selected": ["charts"]}
+    it["catalog"] = "cat-1"
+    it["legacyReroutes"] = {"drawings": {"idx": [0, 3, 4], "routing": {"version": 1, "selected": ["charts", "drawings"]}},
+                            "layouts": None}
+    cats = {"cat-1": {"catalog": "cat-1", "kind": "legacy", "manifest": full}}
+    b2 = r.legacy_reroute_request(it, cats, ["drawings", "charts"])          # a group already carried is not a need
+    assert [c["name"] for c in b2["capabilities"]] == ["a.0", "a.3", "a.4"]
+    assert b2["routing"] == {"version": 1, "selected": ["charts", "drawings"], "groups": groups}
+    assert b2["message"] == it["body"]["message"]
+    assert r.legacy_reroute_request(it, cats, ["layouts"]) is None             # does not fit: the panel stops
+    assert r.legacy_reroute_request(it, cats, ["drawings", "layouts"]) is None  # not tabled
+    assert r.legacy_reroute_request(it, cats, ["charts"]) is None              # nothing new: no reroute

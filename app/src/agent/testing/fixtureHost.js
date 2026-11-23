@@ -9,7 +9,7 @@
 //   libExtra: { watchlists?: [...], layouts?: [...] }                       extra named things (e.g. an
 //                                                                           injection attempt in a name)
 import { makeBoard } from '../__fixtures__/board'
-import { buildChartSource } from '../host'
+import { buildChartSource, buildDrawingSource } from '../host'
 import { mergeChartSettings, CHART_DEFAULTS } from '../../components/chart/chartDefaults'
 
 // The fixture boards' charts carry NO indicators — what the corpus, the dev sets and the blind writer's notes all
@@ -44,6 +44,9 @@ export function hostFor(spec, fxName, { state = null, libExtra = null } = {}) {
   // actions are not AVAILABLE, and the model would be asked with 81 of the 91 actions (proxy smoke, 2026-10-16)
   b.host.charts.canManageIndicators = () => true
   b.host.charts.canCreateIndicator = () => true
+  // a fixture with `drawings: true` (the real-model bench's boards) has the real drawing source over the in-memory
+  // drawings store, so drawing requests have their per-symbol targets; the older sets' fixtures never set it
+  if (base.drawings) b.host.drawings = buildDrawingSource(b.host.charts)
   const snap = b.host.layouts.snapshot
   b.host.layouts = { ...b.host.layouts, snapshot: () => ({ ...snap(), recent: lib.recentLayouts }) }
   return { host: b.host, board: b, selected, lib }

@@ -1,6 +1,9 @@
 // NL-1 EVAL — request capture for the paid replay. Runs ONLY with AGENT_EVAL_OUT set; makes no model call.
 //
 //   AGENT_EVAL_OUT=<file> [AGENT_EVAL_MODE=nl1|legacy|both] [AGENT_EVAL_SETS=corpus.json,sealed-v3.json]
+//   [AGENT_EVAL_FILES=realModelBench.v1.json,<abs path>@sealed]  other corpus files instead of SETS (testing/bench.js)
+//   [AGENT_EVAL_ROUTER=v1|v2]       the legacy request's router (default v1; production's panel = v2, nlm1/flag.js)
+//   [AGENT_EVAL_LEGACY_REROUTES=1]  table the legacy panel's need_groups reroute for the replay (testing/capture.js)
 //   npx vitest run src/agent/agentNl1EvalCapture.test.js
 //
 // Writes one item per turn: { key, set, split, caseId, turn, mode, body, history, refMap } — NL-1 items also
@@ -11,7 +14,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { registerBuiltins } from './builtins'
-import { SETS } from './testing/sets'
+import { evalSets, specFor } from './testing/bench'
 import { captureCase } from './testing/capture'
 import { isProtected } from './protectedLayouts'
 import { loadMeta, loadOptions, loadSaved, _resetScreenerCache } from './capabilities/screener'
@@ -40,11 +43,14 @@ it.skipIf(!OUT)('captures the eval requests', async () => {
   const only = env.AGENT_EVAL_SETS ? new Set(env.AGENT_EVAL_SETS.split(',')) : null
   const items = []
   const catalogs = new Map()             // NL-1: each distinct full catalog once (the reroute replay assembles from it)
-  for (const s of SETS.filter(x => !only || only.has(x.file))) {
-    const data = JSON.parse(fs.readFileSync(path.join(DIR, s.file), 'utf8'))
+  const router = env.AGENT_EVAL_ROUTER || 'v1'
+  const legacyReroutes = env.AGENT_EVAL_LEGACY_REROUTES === '1'
+  for (const s of evalSets(env, DIR).filter(x => !only || only.has(x.file))) {
+    const data = s.data || JSON.parse(fs.readFileSync(s.path, 'utf8'))
+    const sp = specFor(spec, data)
     for (const c of data.cases) {
       for (const mode of modes) {
-        for (const t of captureCase(spec, c, mode, { isProtectedLayout: (e) => isProtected(e), catalogs })) items.push({ ...t, set: s.file, split: s.split })
+        for (const t of captureCase(sp, c, mode, { isProtectedLayout: (e) => isProtected(e), catalogs, router, legacyReroutes })) items.push({ ...t, set: s.file, split: s.split })
       }
     }
   }

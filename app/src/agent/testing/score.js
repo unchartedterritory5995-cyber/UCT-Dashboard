@@ -32,6 +32,39 @@ function dispositionFits(kind, disp, env) {
 }
 
 /**
+ * The op matchers scoreTurn judges a plan with, for one captured request — also used by testing/bench.js, so an
+ * outcome is judged by exactly the same target / argument rules. Pure.
+ * An expected argument may also be { $has: [...] } (the planned list contains each, compared as JSON) or
+ * { $in: [...] } (the planned value is one of these), for arguments a member's words leave open.
+ */
+export function matchers({ refMap = {}, host, selectedLabel = null, names = {} }) {
+  const labelOf = (t) => {
+    const m = refMap[t]
+    if (!m) return null
+    try { return getTargetKind(m.kind)?.list(host)?.find(s => s.ref === m.ref)?.label ?? null } catch { return null }
+  }
+  const canon = (v) => (typeof v === 'string' && names[v.toLowerCase()] ? names[v.toLowerCase()] : v)
+  const same = (a, b) => JSON.stringify(canon(a)) === JSON.stringify(canon(b))
+  const isOp = (v, k) => !!v && typeof v === 'object' && !Array.isArray(v) && Array.isArray(v[k])
+  const argFits = (v, got) => {
+    if (isOp(v, '$has')) return Array.isArray(got) && v.$has.every(w => got.some(g => same(g, w)))
+    if (isOp(v, '$in')) return v.$in.some(w => same(got, w))
+    return same(got, v)
+  }
+  const argsFit = (want = {}, got = {}) => Object.entries(want || {}).every(([k, v]) => argFits(v, got?.[k]))
+  const targetFits = (t, op) => {
+    if (!t) return true
+    const want = t === 'selected' ? selectedLabel : t
+    const lbl = labelOf(op.target)
+    if (lbl && want && lbl.toLowerCase() === String(want).toLowerCase()) return true
+    const kind = refMap[op.target]?.kind || getCapability(op.action)?.target
+    return !!kind && String(t).toLowerCase() === String(kind).toLowerCase()      // a kind hint ('layouts', 'board')
+  }
+  const opFits = (w, o) => !!o && w.a === o.action && argsFit(w.args, o.args) && targetFits(w.t, o)
+  return { labelOf, canon, argsFit, targetFits, opFits }
+}
+
+/**
  * @param {object} p
  * @param {object} p.expect      the case's expectation
  * @param {object} p.env         the sanitized envelope (as the browser receives it)
@@ -44,22 +77,7 @@ export function scoreTurn({ expect: e, env, refMap = {}, host, selectedLabel = n
   const disp = env?.disposition || null
   const ops = MUTATING.has(disp) && Array.isArray(env?.ops) ? env.ops : []
   const realRef = (t) => refMap[t]?.ref ?? t                // a transaction alias (new1…) passes through
-  const labelOf = (t) => {
-    const m = refMap[t]
-    if (!m) return null
-    try { return getTargetKind(m.kind)?.list(host)?.find(s => s.ref === m.ref)?.label ?? null } catch { return null }
-  }
-  const canon = (v) => (typeof v === 'string' && names[v.toLowerCase()] ? names[v.toLowerCase()] : v)
-  const argsFit = (want = {}, got = {}) => Object.entries(want).every(([k, v]) => JSON.stringify(canon(got?.[k])) === JSON.stringify(canon(v)))
-  const targetFits = (t, op) => {
-    if (!t) return true
-    const want = t === 'selected' ? selectedLabel : t
-    const lbl = labelOf(op.target)
-    if (lbl && want && lbl.toLowerCase() === String(want).toLowerCase()) return true
-    const kind = refMap[op.target]?.kind || getCapability(op.action)?.target
-    return !!kind && String(t).toLowerCase() === String(kind).toLowerCase()      // a kind hint ('layouts', 'board')
-  }
-  const opFits = (w, o) => o && w.a === o.action && argsFit(w.args, o.args) && targetFits(w.t, o)
+  const { canon, opFits } = matchers({ refMap, host, selectedLabel, names })
   const planFits = (want) => {
     if (!Array.isArray(want) || want.length !== ops.length) return false
     if (e.ordered) return want.every((w, i) => opFits(w, ops[i]))

@@ -6,6 +6,11 @@
   #    UCT_AGENT_EVAL_API_KEY=... python tools/agent_eval_run.py bodies.json --model M --mode nl1 --keys trial --run --max-usd 0.50 --out r.json
   # 4. score (free):    AGENT_EVAL_BODIES=bodies.json AGENT_EVAL_RESULTS=r.json npx vitest run src/agent/agentNl1EvalScore.test.js
 
+REAL-MODEL BENCH (docs/agent/program/EVAL.md section 4): the same four steps with the production request shape —
+  capture with AGENT_EVAL_MODE=legacy AGENT_EVAL_FILES=realModelBench.v1.json AGENT_EVAL_ROUTER=v2 AGENT_EVAL_LEGACY_REROUTES=1,
+  run/score with --mode legacy. Each result row carries `model_ms` (the request's model wall time, all calls), `rounds`
+  (its model calls: 1, or 2 with the repair / the legacy panel's need_groups reroute) and `call_ms` (per call).
+
 Each captured request goes through the server's OWN `turn.run_turn` — same prompt, schema, sanitizer, NL-1 gate and
 repair as production — on a SEPARATE eval key. NL-1 requests carry the hybrid action selection the panel sends
 (app/src/agent/nl1/selection.js); when the model asks for more action groups (`need_groups`), the panel's ONE reroute
@@ -193,6 +198,26 @@ def reroute_request(item: dict, catalogs: dict, need: list) -> dict | None:
     return {**item["body"], "capabilities": manifest, "routing": routing}
 
 
+def legacy_reroute_request(item: dict, catalogs: dict, need: list) -> dict | None:
+    """The LEGACY routed panel's ONE reroute (useAgent: `route(full, text, routeOpts, need)`, then the same request with
+    `reroute: true`), as the capture tabled it (testing/capture.js legacyRerouteRecord: the routed manifest's positions
+    in the full catalog, and its routing). None when the panel would stop ("That touches too many parts of UCT..."):
+    a needed group still did not fit, or the need was not tabled (more groups than the capture's LEGACY_MAX_NEED)."""
+    sel = ((item.get("body") or {}).get("routing") or {}).get("selected") or []
+    need = sorted({str(g) for g in need or [] if g not in sel})
+    if not need:
+        return None
+    rr = (item.get("legacyReroutes") or {}).get("+".join(need))
+    cat = catalogs.get(item.get("catalog"))
+    if not rr or not cat:
+        return None
+    full = cat["manifest"]
+    routing = rr["routing"]
+    if routing is not None and "groups" not in routing:     # the capture leaves out a `groups` equal to the body's
+        routing = {**routing, "groups": (item["body"].get("routing") or {}).get("groups")}
+    return {**item["body"], "capabilities": [full[i] for i in rr["idx"]], "routing": routing}
+
+
 class CeilingMeter:
     """The /turn route's CALL CEILING for one member request (budget.py: 2 paid calls, a reroute included),
     without the ledgers: the replay makes exactly the calls production would — a reroute that is the request's
@@ -371,15 +396,21 @@ def _run(a, items: list[dict], prices: dict) -> int:  # pragma: no cover - paid 
     for it in items:
         b = it["body"]
         t0 = time.monotonic()
+        first_call = len(calls)
         need, rerouted = [], False
         meter = CeilingMeter()
         try:
             r = one(it, b, meter)
             env, err, usage = r["envelope"], None, dict(r["usage"])
-            need = list(env.get("need_groups") or []) if a.mode == "nl1" else []
+            # legacy: the routed panel's reroute only when the capture tabled it (AGENT_EVAL_LEGACY_REROUTES=1)
+            need = list(env.get("need_groups") or []) if (a.mode == "nl1" or it.get("legacyReroutes") is not None) else []
+            if a.mode != "nl1":                 # the legacy panel reroutes only for groups the request did not carry
+                carried = set(((b.get("routing") or {}).get("selected")) or [])
+                need = [g for g in need if g not in carried]
             if need:
                 # the panel's ONE reroute (useAgent), inside the request's 2-call ceiling
-                b2 = reroute_request(it, a.catalogs, need) if meter.calls_left() >= 1 else None
+                reroute = reroute_request if a.mode == "nl1" else legacy_reroute_request
+                b2 = reroute(it, a.catalogs, need) if meter.calls_left() >= 1 else None
                 if b2 is None:
                     env = stopped_envelope(TOO_MANY_PARTS)
                 else:
@@ -397,7 +428,10 @@ def _run(a, items: list[dict], prices: dict) -> int:  # pragma: no cover - paid 
             env, err, usage = {}, str(e), {}
         except Exception as e:  # noqa: BLE001 -- an API error on one request (the monitor decides whether to stop)
             env, err, usage = {}, f"{type(e).__name__}", {}
+        mine = calls[first_call:]               # this request's model calls (the latency baseline: wall time + rounds)
         out.append({"key": it["key"], "set": it["set"], "mode": it["mode"], "ms": int((time.monotonic() - t0) * 1000),
+                    "model_ms": sum(int(c.get("ms") or 0) for c in mine), "rounds": len(mine),
+                    "call_ms": [int(c.get("ms") or 0) for c in mine],
                     "envelope": env, "error": err, "need": sorted(set(need)), "rerouted": rerouted,
                     "usage": {k: usage.get(k) for k in ("input_tokens", "output_tokens", "cache_read_tokens", "cache_write_tokens", "model_calls", "repaired")}})
     reads = [c for c in calls if "cache_read" in c]

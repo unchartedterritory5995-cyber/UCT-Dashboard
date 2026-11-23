@@ -1,0 +1,3639 @@
+{
+ "version": 1,
+ "about": "UCT Agent REAL-MODEL BENCH v1 (2026-11-22, W1): natural, unfamiliar Charts requests for the paid real-model baseline. Written fresh: no phrasing copied from corpus / dev-nl1 / heldout sets (agentRealModelBench.test.js checks). Scored by OUTCOME (testing/bench.js benchOutcome), not by plan text. corpus.json library + the boards below (drawings on). Format: testing/sets.js + bench.js fields (mix, fam, expect.notOn, expect.extraOk, $has/$in args). docs/agent/program/EVAL.md section 4.",
+ "split": "dev",
+ "mix": {
+  "single": "natural single-step request",
+  "multi": "multi-step / compound in one message",
+  "followup": "contextual follow-up (2-3 turn conversation, or an answer to a waiting question)",
+  "ask": "must-ask: the right answer is a question"
+ },
+ "fixtures": {
+  "rb_solo": {
+   "drawings": true,
+   "charts": [
+    {
+     "id": "c1",
+     "x": 0,
+     "y": 0,
+     "w": 18,
+     "h": 20,
+     "symbol": "AAPL",
+     "tf": "D"
+    }
+   ],
+   "watchlistWidget": {
+    "id": "wl",
+    "x": 18,
+    "y": 0,
+    "w": 6,
+    "h": 20,
+    "list": "s1"
+   },
+   "selected": null
+  },
+  "rb_pair_sel": {
+   "drawings": true,
+   "charts": [
+    {
+     "id": "cl",
+     "x": 0,
+     "y": 0,
+     "w": 12,
+     "h": 20,
+     "symbol": "MSFT",
+     "tf": "D"
+    },
+    {
+     "id": "cr",
+     "x": 12,
+     "y": 0,
+     "w": 12,
+     "h": 20,
+     "symbol": "META",
+     "tf": "15"
+    }
+   ],
+   "selected": "cr"
+  },
+  "rb_pair_nosel": {
+   "drawings": true,
+   "charts": [
+    {
+     "id": "cl",
+     "x": 0,
+     "y": 0,
+     "w": 12,
+     "h": 20,
+     "symbol": "MSFT",
+     "tf": "D"
+    },
+    {
+     "id": "cr",
+     "x": 12,
+     "y": 0,
+     "w": 12,
+     "h": 20,
+     "symbol": "META",
+     "tf": "15"
+    }
+   ],
+   "selected": null
+  },
+  "rb_twins": {
+   "drawings": true,
+   "charts": [
+    {
+     "id": "cl",
+     "x": 0,
+     "y": 0,
+     "w": 12,
+     "h": 20,
+     "symbol": "SPY",
+     "tf": "D"
+    },
+    {
+     "id": "cr",
+     "x": 12,
+     "y": 0,
+     "w": 12,
+     "h": 20,
+     "symbol": "SPY",
+     "tf": "5"
+    }
+   ],
+   "selected": null
+  },
+  "rb_trio": {
+   "drawings": true,
+   "charts": [
+    {
+     "id": "lg",
+     "x": 0,
+     "y": 0,
+     "w": 12,
+     "h": 20,
+     "symbol": "NVDA",
+     "tf": "D"
+    },
+    {
+     "id": "ur",
+     "x": 12,
+     "y": 0,
+     "w": 12,
+     "h": 10,
+     "symbol": "AMD",
+     "tf": "15"
+    },
+    {
+     "id": "lr",
+     "x": 12,
+     "y": 10,
+     "w": 12,
+     "h": 10,
+     "symbol": "AVGO",
+     "tf": "15"
+    }
+   ],
+   "selected": null
+  },
+  "rb_quad": {
+   "drawings": true,
+   "charts": [
+    {
+     "id": "tl",
+     "x": 0,
+     "y": 0,
+     "w": 12,
+     "h": 10,
+     "symbol": "SMH",
+     "tf": "D"
+    },
+    {
+     "id": "tr",
+     "x": 12,
+     "y": 0,
+     "w": 12,
+     "h": 10,
+     "symbol": "XLE",
+     "tf": "D"
+    },
+    {
+     "id": "bl",
+     "x": 0,
+     "y": 10,
+     "w": 12,
+     "h": 10,
+     "symbol": "AMZN",
+     "tf": "W"
+    },
+    {
+     "id": "br",
+     "x": 12,
+     "y": 10,
+     "w": 12,
+     "h": 10,
+     "symbol": "GOOGL",
+     "tf": "60"
+    }
+   ],
+   "selected": "tl"
+  }
+ },
+ "cases": [
+  {
+   "id": "rb-s01",
+   "mix": "single",
+   "fam": "chart",
+   "cat": "single",
+   "fx": "rb_solo",
+   "text": "flip me over to the weekly candles real quick",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "chart.setTimeframe",
+      "t": "Chart (AAPL)",
+      "args": {
+       "timeframe": "W"
+      }
+     }
+    ],
+    "alt": [
+     [
+      {
+       "a": "chart.setTimeframe",
+       "t": "Chart (AAPL)",
+       "args": {
+        "timeframe": "W"
+       }
+      },
+      {
+       "a": "chart.setType",
+       "t": "Chart (AAPL)",
+       "args": {
+        "type": "candles"
+       }
+      }
+     ]
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-s02",
+   "mix": "single",
+   "fam": "chart",
+   "cat": "single",
+   "fx": "rb_solo",
+   "text": "can i get log scale on this thing",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "chart.setScale",
+      "t": "Chart (AAPL)",
+      "args": {
+       "scale": "log"
+      }
+     }
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-s03",
+   "mix": "single",
+   "fam": "chart",
+   "cat": "single",
+   "fx": "rb_solo",
+   "text": "show premarket n after hours too",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "chart.setSession",
+      "t": "Chart (AAPL)",
+      "args": {
+       "mode": "extended"
+      }
+     }
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-s04",
+   "mix": "single",
+   "fam": "chart",
+   "cat": "single",
+   "fx": "rb_solo",
+   "text": "candles are way too noisy, just give me a line",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "chart.setType",
+      "t": "Chart (AAPL)",
+      "args": {
+       "type": "line"
+      }
+     }
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-s05",
+   "mix": "single",
+   "fam": "multichart",
+   "cat": "single",
+   "fx": "rb_pair_sel",
+   "text": "bump this one up to the hourly",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "chart.setTimeframe",
+      "t": "Right chart (META)",
+      "args": {
+       "timeframe": "60"
+      }
+     }
+    ],
+    "notOn": [
+     "Left chart (MSFT)"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-s06",
+   "mix": "single",
+   "fam": "multichart",
+   "cat": "single",
+   "fx": "rb_quad",
+   "text": "overlay qqq on the semis chart",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "chart.compare",
+      "t": "Top-left chart (SMH)",
+      "args": {
+       "add": {
+        "$has": [
+         "QQQ"
+        ]
+       }
+      }
+     }
+    ],
+    "notOn": [
+     "Top-right chart (XLE)",
+     "Bottom-left chart (AMZN)",
+     "Bottom-right chart (GOOGL)"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-s07",
+   "mix": "single",
+   "fam": "multichart",
+   "cat": "single",
+   "fx": "rb_quad",
+   "text": "kill the volume bars on the energy one",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "volume.setState",
+      "t": "Top-right chart (XLE)",
+      "args": {
+       "state": {
+        "$in": [
+         "hidden",
+         "removed"
+        ]
+       }
+      }
+     }
+    ],
+    "notOn": [
+     "Top-left chart (SMH)",
+     "Bottom-left chart (AMZN)",
+     "Bottom-right chart (GOOGL)"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-s08",
+   "mix": "single",
+   "fam": "multichart",
+   "cat": "single",
+   "fx": "rb_trio",
+   "text": "the big chart on the left, gimme monthly",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "chart.setTimeframe",
+      "t": "Left chart (NVDA)",
+      "args": {
+       "timeframe": "M"
+      }
+     }
+    ],
+    "notOn": [
+     "Top-right chart (AMD)",
+     "Bottom-right chart (AVGO)"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-s09",
+   "mix": "single",
+   "fam": "multichart",
+   "cat": "single",
+   "fx": "rb_quad",
+   "text": "make amazon a 4 hr chart",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "chart.addCustomTimeframe",
+      "t": "Bottom-left chart (AMZN)",
+      "args": {
+       "unit": "hours",
+       "count": 4
+      }
+     }
+    ],
+    "notOn": [
+     "Top-left chart (SMH)",
+     "Top-right chart (XLE)",
+     "Bottom-right chart (GOOGL)"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-s10",
+   "mix": "single",
+   "fam": "multichart",
+   "cat": "single",
+   "fx": "rb_pair_nosel",
+   "text": "swap the msft chart out for nflx",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "chart.setSymbol",
+      "t": "Left chart (MSFT)",
+      "args": {
+       "symbol": "NFLX"
+      }
+     }
+    ],
+    "notOn": [
+     "Right chart (META)"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-s11",
+   "mix": "single",
+   "fam": "indicator",
+   "cat": "single",
+   "fx": "rb_solo",
+   "text": "throw a 21 ema on there",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "indicator.add",
+      "args": {
+       "defId": "movingAverage",
+       "inputs": {
+        "$has": [
+         {
+          "key": "period",
+          "value": 21
+         }
+        ]
+       }
+      },
+      "t": "Chart (AAPL)"
+     }
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-s12",
+   "mix": "single",
+   "fam": "indicator",
+   "cat": "single",
+   "fx": "rb_pair_sel",
+   "text": "need the macd under the meta chart",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "indicator.add",
+      "t": "Right chart (META)",
+      "args": {
+       "defId": "macd"
+      }
+     }
+    ],
+    "notOn": [
+     "Left chart (MSFT)"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-s13",
+   "mix": "single",
+   "fam": "indicator",
+   "cat": "single",
+   "fx": "rb_quad",
+   "text": "atr on goog pls, wanna size my stops",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "indicator.add",
+      "t": "Bottom-right chart (GOOGL)",
+      "args": {
+       "defId": {
+        "$in": [
+         "atr",
+         "atrPercent"
+        ]
+       }
+      }
+     }
+    ],
+    "notOn": [
+     "Top-left chart (SMH)",
+     "Top-right chart (XLE)",
+     "Bottom-left chart (AMZN)"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-s14",
+   "mix": "single",
+   "fam": "indicator",
+   "cat": "single",
+   "fx": "rb_solo",
+   "text": "turn on the volume profile thing",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "volumeProfile.set",
+      "t": "Chart (AAPL)",
+      "args": {
+       "enabled": true
+      }
+     }
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-s15",
+   "mix": "single",
+   "fam": "authoring",
+   "cat": "single",
+   "fx": "rb_solo",
+   "text": "build me an indicator that lights up when price closes above the 50 day and rsi is over 60",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "indicator.draft"
+     }
+    ],
+    "never": [
+     "indicator.saveDraft",
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-s16",
+   "mix": "single",
+   "fam": "authoring",
+   "cat": "single",
+   "fx": "rb_solo",
+   "text": "open up the indicator builder thingy",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "indicator.openCreate"
+     }
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-s17",
+   "mix": "single",
+   "fam": "drawing",
+   "cat": "single",
+   "fx": "rb_solo",
+   "text": "mark 187.50 as a level for me",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "drawing.addLevel",
+      "t": "Drawings on AAPL",
+      "args": {
+       "price": 187.5
+      }
+     }
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-s18",
+   "mix": "single",
+   "fam": "drawing",
+   "cat": "single",
+   "fx": "rb_pair_sel",
+   "text": "put a dotted line at 600 on msft",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "drawing.addLevel",
+      "t": "Drawings on MSFT",
+      "args": {
+       "price": 600,
+       "style": "dotted"
+      }
+     }
+    ],
+    "notOn": [
+     "Drawings on META"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-s19",
+   "mix": "single",
+   "fam": "drawing",
+   "cat": "single",
+   "fx": "rb_quad",
+   "text": "hide all my drawings on the xle chart for now",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "drawing.setAllVisible",
+      "t": "Drawings on XLE",
+      "args": {
+       "visible": false
+      }
+     }
+    ],
+    "notOn": [
+     "Drawings on SMH",
+     "Drawings on AMZN",
+     "Drawings on GOOGL"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-s20",
+   "mix": "single",
+   "fam": "layout",
+   "cat": "single",
+   "fx": "rb_solo",
+   "text": "pull up my day trading setup",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "layout.open",
+      "args": {
+       "layout": "Day Trading"
+      }
+     }
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-s21",
+   "mix": "single",
+   "fam": "layout",
+   "cat": "single",
+   "fx": "rb_solo",
+   "text": "save this board as Tech Rotation",
+   "expect": {
+    "kind": "propose",
+    "ops": [
+     {
+      "a": "layout.saveAs",
+      "args": {
+       "name": "Tech Rotation"
+      }
+     }
+    ],
+    "never": [
+     "layout.saveCurrent",
+     "layout.rename",
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-s22",
+   "mix": "single",
+   "fam": "layout",
+   "cat": "single",
+   "fx": "rb_solo",
+   "text": "take me back to the layout i was just on",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "layout.open",
+      "args": {
+       "layout": "Day Trading"
+      }
+     }
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-s23",
+   "mix": "single",
+   "fam": "widget",
+   "cat": "single",
+   "fx": "rb_solo",
+   "text": "stick a news feed on the side of my screen",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "widget.add",
+      "args": {
+       "type": "news"
+      }
+     }
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-s24",
+   "mix": "single",
+   "fam": "widget",
+   "cat": "single",
+   "fx": "rb_quad",
+   "text": "get rid of the google chart",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "widget.remove",
+      "args": {
+       "widget": "br"
+      }
+     }
+    ],
+    "never": [
+     "chart.setSymbol",
+     "chart.resetDefaults",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-s25",
+   "mix": "single",
+   "fam": "widget",
+   "cat": "single",
+   "fx": "rb_pair_nosel",
+   "text": "i want a breadth widget too",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "widget.add",
+      "args": {
+       "type": "breadth"
+      }
+     }
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-s26",
+   "mix": "single",
+   "fam": "watchlist",
+   "cat": "single",
+   "fx": "rb_solo",
+   "text": "toss COIN and HOOD into swing",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "watchlist.add",
+      "t": "Swing",
+      "args": {
+       "symbols": {
+        "$has": [
+         "COIN",
+         "HOOD"
+        ]
+       }
+      }
+     }
+    ],
+    "never": [
+     "watchlist.create",
+     "watchlist.keepOnly",
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-s27",
+   "mix": "single",
+   "fam": "watchlist",
+   "cat": "single",
+   "fx": "rb_solo",
+   "text": "drop smci from momentum, its dead money",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "watchlist.remove",
+      "t": "Momentum",
+      "args": {
+       "symbols": {
+        "$has": [
+         "SMCI"
+        ]
+       }
+      }
+     }
+    ],
+    "never": [
+     "watchlist.keepOnly",
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-s28",
+   "mix": "single",
+   "fam": "watchlist",
+   "cat": "single",
+   "fx": "rb_quad",
+   "text": "lemme see my earnings plays list",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "watchlist.open"
+     }
+    ],
+    "alt": [
+     [
+      {
+       "a": "watchlist.show"
+      }
+     ],
+     [
+      {
+       "a": "watchlist.showList"
+      }
+     ]
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-s29",
+   "mix": "single",
+   "fam": "screener",
+   "cat": "single",
+   "fx": "rb_solo",
+   "text": "find me names up 30%+ over the last month trading over a million shares a day",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "screener.run"
+     }
+    ],
+    "never": [
+     "watchlist.add",
+     "watchlist.create",
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-s30",
+   "mix": "single",
+   "fam": "screener",
+   "cat": "single",
+   "fx": "rb_solo",
+   "text": "scan for stuff within 5% of 52 week highs",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "screener.run"
+     }
+    ],
+    "never": [
+     "watchlist.add",
+     "watchlist.create",
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-s31",
+   "mix": "single",
+   "fam": "data",
+   "cat": "single",
+   "fx": "rb_solo",
+   "text": "when does apple report next",
+   "expect": {
+    "kind": "act",
+    "safety": "nochange",
+    "ops": [
+     {
+      "a": "stock.earnings",
+      "args": {
+       "symbol": "AAPL"
+      }
+     }
+    ],
+    "never": [
+     "alert.create",
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-s32",
+   "mix": "single",
+   "fam": "data",
+   "cat": "single",
+   "fx": "rb_quad",
+   "text": "whats the latest headlines on xle",
+   "expect": {
+    "kind": "act",
+    "safety": "nochange",
+    "ops": [
+     {
+      "a": "news.latest",
+      "args": {
+       "symbol": "XLE"
+      }
+     }
+    ],
+    "alt": [
+     [
+      {
+       "a": "news.catalysts",
+       "args": {
+        "symbol": "XLE"
+       }
+      }
+     ]
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-s33",
+   "mix": "single",
+   "fam": "data",
+   "cat": "single",
+   "fx": "rb_pair_nosel",
+   "text": "hows breadth holding up, % above the 50",
+   "expect": {
+    "kind": "act",
+    "safety": "nochange",
+    "ops": [
+     {
+      "a": "breadth.show"
+     }
+    ],
+    "alt": [
+     [
+      {
+       "a": "breadth.history"
+      }
+     ]
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-m01",
+   "mix": "multi",
+   "fam": "chart",
+   "cat": "multi",
+   "fx": "rb_solo",
+   "text": "make it weekly, log scale, and slap the 50 and 200 sma on",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "chart.setTimeframe",
+      "t": "Chart (AAPL)",
+      "args": {
+       "timeframe": "W"
+      }
+     },
+     {
+      "a": "chart.setScale",
+      "t": "Chart (AAPL)",
+      "args": {
+       "scale": "log"
+      }
+     },
+     {
+      "a": "indicator.add",
+      "args": {
+       "defId": "movingAverage",
+       "inputs": {
+        "$has": [
+         {
+          "key": "period",
+          "value": 50
+         }
+        ]
+       }
+      },
+      "t": "Chart (AAPL)"
+     },
+     {
+      "a": "indicator.add",
+      "args": {
+       "defId": "movingAverage",
+       "inputs": {
+        "$has": [
+         {
+          "key": "period",
+          "value": 200
+         }
+        ]
+       }
+      },
+      "t": "Chart (AAPL)"
+     }
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-m02",
+   "mix": "multi",
+   "fam": "multichart",
+   "cat": "multi",
+   "fx": "rb_pair_nosel",
+   "text": "both charts on the daily and hide volume on both",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "chart.setTimeframe",
+      "t": "Left chart (MSFT)",
+      "args": {
+       "timeframe": "D"
+      }
+     },
+     {
+      "a": "chart.setTimeframe",
+      "t": "Right chart (META)",
+      "args": {
+       "timeframe": "D"
+      }
+     },
+     {
+      "a": "volume.setState",
+      "t": "Left chart (MSFT)",
+      "args": {
+       "state": {
+        "$in": [
+         "hidden",
+         "removed"
+        ]
+       }
+      }
+     },
+     {
+      "a": "volume.setState",
+      "t": "Right chart (META)",
+      "args": {
+       "state": {
+        "$in": [
+         "hidden",
+         "removed"
+        ]
+       }
+      }
+     }
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-m03",
+   "mix": "multi",
+   "fam": "indicator",
+   "cat": "multi",
+   "fx": "rb_quad",
+   "text": "put rsi on all four",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "indicator.add",
+      "t": "Top-left chart (SMH)",
+      "args": {
+       "defId": "rsi"
+      }
+     },
+     {
+      "a": "indicator.add",
+      "t": "Top-right chart (XLE)",
+      "args": {
+       "defId": "rsi"
+      }
+     },
+     {
+      "a": "indicator.add",
+      "t": "Bottom-left chart (AMZN)",
+      "args": {
+       "defId": "rsi"
+      }
+     },
+     {
+      "a": "indicator.add",
+      "t": "Bottom-right chart (GOOGL)",
+      "args": {
+       "defId": "rsi"
+      }
+     }
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-m04",
+   "mix": "multi",
+   "fam": "multichart",
+   "cat": "multi",
+   "fx": "rb_quad",
+   "text": "set the top two to 15 min, leave the bottom ones alone",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "chart.setTimeframe",
+      "t": "Top-left chart (SMH)",
+      "args": {
+       "timeframe": "15"
+      }
+     },
+     {
+      "a": "chart.setTimeframe",
+      "t": "Top-right chart (XLE)",
+      "args": {
+       "timeframe": "15"
+      }
+     }
+    ],
+    "notOn": [
+     "Bottom-left chart (AMZN)",
+     "Bottom-right chart (GOOGL)"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-m05",
+   "mix": "multi",
+   "fam": "multichart",
+   "cat": "multi",
+   "fx": "rb_trio",
+   "text": "load up spy qqq iwm and dia in a 2x2, all daily",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "chartGrid.set",
+      "args": {
+       "symbols": {
+        "$has": [
+         "SPY",
+         "QQQ",
+         "IWM",
+         "DIA"
+        ]
+       }
+      }
+     }
+    ],
+    "alt": [
+     [
+      {
+       "a": "widget.addCharts",
+       "args": {
+        "symbols": {
+         "$has": [
+          "SPY",
+          "QQQ",
+          "IWM",
+          "DIA"
+         ]
+        }
+       }
+      }
+     ]
+    ],
+    "extraOk": [
+     "widget.arrange"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-m06",
+   "mix": "multi",
+   "fam": "widget",
+   "cat": "multi",
+   "fx": "rb_solo",
+   "text": "open 3 new charts for xom cvx and oxy on the hourly",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "widget.addCharts",
+      "args": {
+       "symbols": {
+        "$has": [
+         "XOM",
+         "CVX",
+         "OXY"
+        ]
+       },
+       "timeframe": "60"
+      }
+     }
+    ],
+    "alt": [
+     [
+      {
+       "a": "chartGrid.set",
+       "args": {
+        "symbols": {
+         "$has": [
+          "XOM",
+          "CVX",
+          "OXY"
+         ]
+        },
+        "timeframe": "60"
+       }
+      }
+     ]
+    ],
+    "extraOk": [
+     "widget.arrange"
+    ],
+    "never": [
+     "chart.setSymbol",
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-m07",
+   "mix": "multi",
+   "fam": "multichart",
+   "cat": "multi",
+   "fx": "rb_pair_sel",
+   "text": "change msft to amd and make it a 5 min",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "chart.setSymbol",
+      "t": "Left chart (MSFT)",
+      "args": {
+       "symbol": "AMD"
+      }
+     },
+     {
+      "a": "chart.setTimeframe",
+      "t": "Left chart (MSFT)",
+      "args": {
+       "timeframe": "5"
+      }
+     }
+    ],
+    "notOn": [
+     "Right chart (META)"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-m08",
+   "mix": "multi",
+   "fam": "indicator",
+   "cat": "multi",
+   "fx": "rb_pair_nosel",
+   "text": "meta to weekly and put bollingers on it",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "chart.setTimeframe",
+      "t": "Right chart (META)",
+      "args": {
+       "timeframe": "W"
+      }
+     },
+     {
+      "a": "indicator.add",
+      "t": "Right chart (META)",
+      "args": {
+       "defId": "bb"
+      }
+     }
+    ],
+    "notOn": [
+     "Left chart (MSFT)"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-m09",
+   "mix": "multi",
+   "fam": "watchlist",
+   "cat": "multi",
+   "fx": "rb_solo",
+   "text": "add tsla and pltr to momentum then pull that list up",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "watchlist.add",
+      "t": "Momentum",
+      "args": {
+       "symbols": {
+        "$has": [
+         "TSLA",
+         "PLTR"
+        ]
+       }
+      }
+     },
+     {
+      "a": "watchlist.open"
+     }
+    ],
+    "alt": [
+     [
+      {
+       "a": "watchlist.add",
+       "t": "Momentum",
+       "args": {
+        "symbols": {
+         "$has": [
+          "TSLA",
+          "PLTR"
+         ]
+        }
+       }
+      },
+      {
+       "a": "watchlist.showList"
+      }
+     ]
+    ],
+    "never": [
+     "watchlist.create",
+     "watchlist.keepOnly",
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-m10",
+   "mix": "multi",
+   "fam": "watchlist",
+   "cat": "multi",
+   "fx": "rb_solo",
+   "text": "make a new watchlist called Shorts w/ RIVN and LCID",
+   "expect": {
+    "kind": "propose",
+    "ops": [
+     {
+      "a": "watchlist.create",
+      "args": {
+       "name": "Shorts"
+      }
+     },
+     {
+      "a": "watchlist.add",
+      "args": {
+       "symbols": {
+        "$has": [
+         "RIVN",
+         "LCID"
+        ]
+       }
+      }
+     }
+    ],
+    "extraOk": [
+     "watchlist.open",
+     "watchlist.showList"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-m11",
+   "mix": "multi",
+   "fam": "screener",
+   "cat": "multi",
+   "fx": "rb_solo",
+   "text": "run a screen for ADR over 4% and price above 20, then dump the results into a new list called Movers",
+   "expect": {
+    "kind": "propose",
+    "ops": [
+     {
+      "a": "screener.run"
+     },
+     {
+      "a": "watchlist.create",
+      "args": {
+       "name": "Movers"
+      }
+     },
+     {
+      "a": "watchlist.add"
+     }
+    ],
+    "extraOk": [
+     "watchlist.open",
+     "watchlist.showList"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-m12",
+   "mix": "multi",
+   "fam": "screener",
+   "cat": "multi",
+   "fx": "rb_quad",
+   "text": "screen for the strongest RS names and chart the top 4",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "screener.run"
+     },
+     {
+      "a": "widget.addCharts"
+     }
+    ],
+    "alt": [
+     [
+      {
+       "a": "screener.run"
+      },
+      {
+       "a": "chartGrid.set"
+      }
+     ]
+    ],
+    "extraOk": [
+     "widget.arrange"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-m13",
+   "mix": "multi",
+   "fam": "drawing",
+   "cat": "multi",
+   "fx": "rb_solo",
+   "text": "draw levels at 180 and 195, the 195 one in red",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "drawing.addLevel",
+      "t": "Drawings on AAPL",
+      "args": {
+       "price": 180
+      }
+     },
+     {
+      "a": "drawing.addLevel",
+      "t": "Drawings on AAPL",
+      "args": {
+       "price": 195
+      }
+     }
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-m14",
+   "mix": "multi",
+   "fam": "drawing",
+   "cat": "multi",
+   "fx": "rb_pair_sel",
+   "text": "line at 500 on msft and 700 on meta",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "drawing.addLevel",
+      "t": "Drawings on MSFT",
+      "args": {
+       "price": 500
+      }
+     },
+     {
+      "a": "drawing.addLevel",
+      "t": "Drawings on META",
+      "args": {
+       "price": 700
+      }
+     }
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-m15",
+   "mix": "multi",
+   "fam": "layout",
+   "cat": "multi",
+   "fx": "rb_quad",
+   "text": "save this as Sector Watch then open my earnings week layout",
+   "expect": {
+    "kind": "propose",
+    "ops": [
+     {
+      "a": "layout.saveAs",
+      "args": {
+       "name": "Sector Watch"
+      }
+     },
+     {
+      "a": "layout.open",
+      "args": {
+       "layout": "Earnings Week"
+      }
+     }
+    ],
+    "ordered": true,
+    "never": [
+     "layout.saveCurrent",
+     "layout.rename",
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-m16",
+   "mix": "multi",
+   "fam": "widget",
+   "cat": "multi",
+   "fx": "rb_solo",
+   "text": "add a scanner widget and a theme tracker",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "widget.add",
+      "args": {
+       "type": "scanner"
+      }
+     },
+     {
+      "a": "widget.add",
+      "args": {
+       "type": "themes"
+      }
+     }
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-m17",
+   "mix": "multi",
+   "fam": "widget",
+   "cat": "multi",
+   "fx": "rb_quad",
+   "text": "link the top two charts together and make em both 30 min",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "widget.setLink"
+     },
+     {
+      "a": "widget.setLink"
+     },
+     {
+      "a": "chart.setTimeframe",
+      "t": "Top-left chart (SMH)",
+      "args": {
+       "timeframe": "30"
+      }
+     },
+     {
+      "a": "chart.setTimeframe",
+      "t": "Top-right chart (XLE)",
+      "args": {
+       "timeframe": "30"
+      }
+     }
+    ],
+    "alt": [
+     [
+      {
+       "a": "widget.setLink"
+      },
+      {
+       "a": "chart.setTimeframe",
+       "t": "Top-left chart (SMH)",
+       "args": {
+        "timeframe": "30"
+       }
+      },
+      {
+       "a": "chart.setTimeframe",
+       "t": "Top-right chart (XLE)",
+       "args": {
+        "timeframe": "30"
+       }
+      }
+     ]
+    ],
+    "notOn": [
+     "Bottom-left chart (AMZN)",
+     "Bottom-right chart (GOOGL)"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-m18",
+   "mix": "multi",
+   "fam": "indicator",
+   "cat": "multi",
+   "fx": "rb_trio",
+   "text": "put the amd and avgo charts on daily and add volume profile to both",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "chart.setTimeframe",
+      "t": "Top-right chart (AMD)",
+      "args": {
+       "timeframe": "D"
+      }
+     },
+     {
+      "a": "chart.setTimeframe",
+      "t": "Bottom-right chart (AVGO)",
+      "args": {
+       "timeframe": "D"
+      }
+     },
+     {
+      "a": "volumeProfile.set",
+      "t": "Top-right chart (AMD)",
+      "args": {
+       "enabled": true
+      }
+     },
+     {
+      "a": "volumeProfile.set",
+      "t": "Bottom-right chart (AVGO)",
+      "args": {
+       "enabled": true
+      }
+     }
+    ],
+    "notOn": [
+     "Left chart (NVDA)"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-m19",
+   "mix": "multi",
+   "fam": "data",
+   "cat": "multi",
+   "fx": "rb_solo",
+   "text": "alert me if aapl breaks above 200, and another one if it drops under 170",
+   "expect": {
+    "kind": "propose",
+    "ops": [
+     {
+      "a": "alert.create",
+      "args": {
+       "symbol": "AAPL",
+       "price": 200,
+       "direction": "above"
+      }
+     },
+     {
+      "a": "alert.create",
+      "args": {
+       "symbol": "AAPL",
+       "price": 170,
+       "direction": "below"
+      }
+     }
+    ],
+    "safety": "propose",
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-m20",
+   "mix": "multi",
+   "fam": "drawing",
+   "cat": "multi",
+   "fx": "rb_solo",
+   "text": "wipe every drawing on apple and draw a fresh line at 190",
+   "expect": {
+    "kind": "propose",
+    "ops": [
+     {
+      "a": "drawing.clear",
+      "t": "Drawings on AAPL"
+     },
+     {
+      "a": "drawing.addLevel",
+      "t": "Drawings on AAPL",
+      "args": {
+       "price": 190
+      }
+     }
+    ],
+    "safety": "propose",
+    "ordered": true,
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-m21",
+   "mix": "multi",
+   "fam": "authoring",
+   "cat": "multi",
+   "fx": "rb_pair_nosel",
+   "text": "make me an indicator for meta that flags 3 green days in a row on rising volume, put it on the meta chart",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "indicator.draft"
+     }
+    ],
+    "never": [
+     "indicator.saveDraft",
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ],
+    "extraOk": [
+     "indicator.previewDraft"
+    ]
+   }
+  },
+  {
+   "id": "rb-m22",
+   "mix": "multi",
+   "fam": "chart",
+   "cat": "multi",
+   "fx": "rb_quad",
+   "text": "midnight theme on all of em",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "chart.applyThemeAll",
+      "args": {
+       "theme": "midnight"
+      }
+     }
+    ],
+    "alt": [
+     [
+      {
+       "a": "chart.applyTheme",
+       "t": "Top-left chart (SMH)",
+       "args": {
+        "theme": "midnight"
+       }
+      },
+      {
+       "a": "chart.applyTheme",
+       "t": "Top-right chart (XLE)",
+       "args": {
+        "theme": "midnight"
+       }
+      },
+      {
+       "a": "chart.applyTheme",
+       "t": "Bottom-left chart (AMZN)",
+       "args": {
+        "theme": "midnight"
+       }
+      },
+      {
+       "a": "chart.applyTheme",
+       "t": "Bottom-right chart (GOOGL)",
+       "args": {
+        "theme": "midnight"
+       }
+      }
+     ]
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-m23",
+   "mix": "multi",
+   "fam": "multichart",
+   "cat": "multi",
+   "fx": "rb_twins",
+   "text": "make the left spy weekly and the right one 15 min, rsi on both",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "chart.setTimeframe",
+      "t": "Left chart (SPY)",
+      "args": {
+       "timeframe": "W"
+      }
+     },
+     {
+      "a": "chart.setTimeframe",
+      "t": "Right chart (SPY)",
+      "args": {
+       "timeframe": "15"
+      }
+     },
+     {
+      "a": "indicator.add",
+      "t": "Left chart (SPY)",
+      "args": {
+       "defId": "rsi"
+      }
+     },
+     {
+      "a": "indicator.add",
+      "t": "Right chart (SPY)",
+      "args": {
+       "defId": "rsi"
+      }
+     }
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-m24",
+   "mix": "multi",
+   "fam": "chart",
+   "cat": "multi",
+   "fx": "rb_solo",
+   "text": "compare aapl vs msft and googl on here and switch to percent scale",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "chart.compare",
+      "t": "Chart (AAPL)",
+      "args": {
+       "add": {
+        "$has": [
+         "MSFT",
+         "GOOGL"
+        ]
+       }
+      }
+     },
+     {
+      "a": "chart.setScale",
+      "t": "Chart (AAPL)",
+      "args": {
+       "scale": "percent"
+      }
+     }
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-m25",
+   "mix": "multi",
+   "fam": "widget",
+   "cat": "multi",
+   "fx": "rb_quad",
+   "text": "close the amazon chart and stretch the others to fill the gap",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "widget.remove",
+      "args": {
+       "widget": "bl"
+      }
+     },
+     {
+      "a": "widget.arrange"
+     }
+    ],
+    "extraOk": [
+     "widget.move",
+     "widget.resize"
+    ],
+    "alt": [
+     [
+      {
+       "a": "widget.remove",
+       "args": {
+        "widget": "bl"
+       }
+      },
+      {
+       "a": "widget.resize"
+      }
+     ],
+     [
+      {
+       "a": "widget.remove",
+       "args": {
+        "widget": "bl"
+       }
+      },
+      {
+       "a": "widget.move"
+      }
+     ]
+    ],
+    "never": [
+     "chart.setSymbol",
+     "chart.resetDefaults",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-m26",
+   "mix": "multi",
+   "fam": "watchlist",
+   "cat": "multi",
+   "fx": "rb_solo",
+   "text": "add smci to swing, and pull tsla out of it",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "watchlist.add",
+      "t": "Swing",
+      "args": {
+       "symbols": {
+        "$has": [
+         "SMCI"
+        ]
+       }
+      }
+     },
+     {
+      "a": "watchlist.remove",
+      "t": "Swing",
+      "args": {
+       "symbols": {
+        "$has": [
+         "TSLA"
+        ]
+       }
+      }
+     }
+    ],
+    "never": [
+     "watchlist.keepOnly",
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-m27",
+   "mix": "multi",
+   "fam": "chart",
+   "cat": "multi",
+   "fx": "rb_pair_sel",
+   "text": "jump this chart back to march 3 2025 and replay from there",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "chart.replay",
+      "t": "Right chart (META)"
+     }
+    ],
+    "alt": [
+     [
+      {
+       "a": "chartReplay.playback",
+       "t": "Right chart (META)"
+      }
+     ],
+     [
+      {
+       "a": "chart.goToDate",
+       "t": "Right chart (META)"
+      },
+      {
+       "a": "chartReplay.playback",
+       "t": "Right chart (META)"
+      }
+     ]
+    ],
+    "notOn": [
+     "Left chart (MSFT)"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-m28",
+   "mix": "multi",
+   "fam": "layout",
+   "cat": "multi",
+   "fx": "rb_trio",
+   "text": "nvda to weekly, add macd to it, then save the layout as Semis Big",
+   "expect": {
+    "kind": "propose",
+    "ops": [
+     {
+      "a": "chart.setTimeframe",
+      "t": "Left chart (NVDA)",
+      "args": {
+       "timeframe": "W"
+      }
+     },
+     {
+      "a": "indicator.add",
+      "t": "Left chart (NVDA)",
+      "args": {
+       "defId": "macd"
+      }
+     },
+     {
+      "a": "layout.saveAs",
+      "args": {
+       "name": "Semis Big"
+      }
+     }
+    ],
+    "notOn": [
+     "Top-right chart (AMD)",
+     "Bottom-right chart (AVGO)"
+    ],
+    "never": [
+     "layout.saveCurrent",
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-f01",
+   "mix": "followup",
+   "fam": "chart",
+   "cat": "conv",
+   "fx": "rb_solo",
+   "turns": [
+    {
+     "say": "lemme look at nvidia instead",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "chart.setSymbol",
+        "t": "Chart (AAPL)",
+        "args": {
+         "symbol": "NVDA"
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     },
+     "receipt": "Changed symbol to NVDA on Chart (AAPL)",
+     "state": {
+      "charts": {
+       "c1": {
+        "symbol": "NVDA"
+       }
+      }
+     }
+    },
+    {
+     "say": "k now make it the 15",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "chart.setTimeframe",
+        "t": "Chart (NVDA)",
+        "args": {
+         "timeframe": "15"
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     },
+     "receipt": "Changed timeframe to 15 min on Chart (NVDA)",
+     "state": {
+      "charts": {
+       "c1": {
+        "symbol": "NVDA",
+        "tf": "15"
+       }
+      }
+     }
+    },
+    {
+     "say": "eh actually 5 min",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "chart.setTimeframe",
+        "t": "Chart (NVDA)",
+        "args": {
+         "timeframe": "5"
+        }
+       }
+      ],
+      "correction": "optional",
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "rb-f02",
+   "mix": "followup",
+   "fam": "indicator",
+   "cat": "conv",
+   "fx": "rb_pair_nosel",
+   "turns": [
+    {
+     "say": "rsi on the msft chart",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "indicator.add",
+        "t": "Left chart (MSFT)",
+        "args": {
+         "defId": "rsi"
+        }
+       }
+      ],
+      "notOn": [
+       "Right chart (META)"
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     },
+     "receipt": "Added Relative Strength Index to Left chart (MSFT)"
+    },
+    {
+     "say": "same deal on the other one",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "indicator.add",
+        "t": "Right chart (META)",
+        "args": {
+         "defId": "rsi"
+        }
+       }
+      ],
+      "notOn": [
+       "Left chart (MSFT)"
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "rb-f03",
+   "mix": "followup",
+   "fam": "multichart",
+   "cat": "conv",
+   "fx": "rb_quad",
+   "turns": [
+    {
+     "say": "xle to the weekly",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "chart.setTimeframe",
+        "t": "Top-right chart (XLE)",
+        "args": {
+         "timeframe": "W"
+        }
+       }
+      ],
+      "notOn": [
+       "Top-left chart (SMH)",
+       "Bottom-left chart (AMZN)",
+       "Bottom-right chart (GOOGL)"
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     },
+     "receipt": "Changed timeframe to Weekly on Top-right chart (XLE)",
+     "state": {
+      "charts": {
+       "tr": {
+        "tf": "W"
+       }
+      }
+     }
+    },
+    {
+     "say": "smh too",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "chart.setTimeframe",
+        "t": "Top-left chart (SMH)",
+        "args": {
+         "timeframe": "W"
+        }
+       }
+      ],
+      "notOn": [
+       "Bottom-left chart (AMZN)",
+       "Bottom-right chart (GOOGL)"
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "rb-f04",
+   "mix": "followup",
+   "fam": "screener",
+   "cat": "conv",
+   "fx": "rb_solo",
+   "turns": [
+    {
+     "say": "scan for stocks gapping up 5% or more today",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "screener.run"
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     },
+     "receipt": "Ran the screen: gap up 5% or more today (22 results)"
+    },
+    {
+     "say": "only the ones above 50 bucks",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "screener.run",
+        "args": {
+         "mode": "refine"
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     },
+     "receipt": "Refined the screen: price above $50 (9 results)"
+    },
+    {
+     "say": "chart the top 3",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "widget.addCharts"
+       }
+      ],
+      "alt": [
+       [
+        {
+         "a": "chartGrid.set"
+        }
+       ]
+      ],
+      "extraOk": [
+       "widget.arrange"
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "rb-f05",
+   "mix": "followup",
+   "fam": "drawing",
+   "cat": "conv",
+   "fx": "rb_solo",
+   "turns": [
+    {
+     "say": "level at 192",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "drawing.addLevel",
+        "t": "Drawings on AAPL",
+        "args": {
+         "price": 192
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     },
+     "receipt": "Drew a horizontal line at 192 on AAPL"
+    },
+    {
+     "say": "and another one at 205",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "drawing.addLevel",
+        "t": "Drawings on AAPL",
+        "args": {
+         "price": 205
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "rb-f06",
+   "mix": "followup",
+   "fam": "multichart",
+   "cat": "conv",
+   "fx": "rb_pair_sel",
+   "turns": [
+    {
+     "say": "make this one daily",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "chart.setTimeframe",
+        "t": "Right chart (META)",
+        "args": {
+         "timeframe": "D"
+        }
+       }
+      ],
+      "notOn": [
+       "Left chart (MSFT)"
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     },
+     "receipt": "Changed timeframe to Daily on Right chart (META)",
+     "state": {
+      "charts": {
+       "cr": {
+        "tf": "D"
+       }
+      }
+     }
+    },
+    {
+     "say": "nah put it back on the 15",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "chart.setTimeframe",
+        "t": "Right chart (META)",
+        "args": {
+         "timeframe": "15"
+        }
+       }
+      ],
+      "correction": "optional",
+      "notOn": [
+       "Left chart (MSFT)"
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "rb-f07",
+   "mix": "followup",
+   "fam": "watchlist",
+   "cat": "conv",
+   "fx": "rb_solo",
+   "turns": [
+    {
+     "say": "add pltr to swing",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "watchlist.add",
+        "t": "Swing",
+        "args": {
+         "symbols": {
+          "$has": [
+           "PLTR"
+          ]
+         }
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     },
+     "receipt": "Added PLTR to Swing"
+    },
+    {
+     "say": "and to momentum as well",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "watchlist.add",
+        "t": "Momentum",
+        "args": {
+         "symbols": {
+          "$has": [
+           "PLTR"
+          ]
+         }
+        }
+       }
+      ],
+      "never": [
+       "watchlist.remove",
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "rb-f08",
+   "mix": "followup",
+   "fam": "indicator",
+   "cat": "conv",
+   "fx": "rb_trio",
+   "turns": [
+    {
+     "say": "put the 9 ema on the amd chart",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "indicator.add",
+        "args": {
+         "defId": "movingAverage",
+         "inputs": {
+          "$has": [
+           {
+            "key": "period",
+            "value": 9
+           }
+          ]
+         }
+        },
+        "t": "Top-right chart (AMD)"
+       }
+      ],
+      "notOn": [
+       "Left chart (NVDA)",
+       "Bottom-right chart (AVGO)"
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     },
+     "receipt": "Added Moving Average (9, EMA) to Top-right chart (AMD)"
+    },
+    {
+     "say": "do avgo too",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "indicator.add",
+        "args": {
+         "defId": "movingAverage",
+         "inputs": {
+          "$has": [
+           {
+            "key": "period",
+            "value": 9
+           }
+          ]
+         }
+        },
+        "t": "Bottom-right chart (AVGO)"
+       }
+      ],
+      "notOn": [
+       "Left chart (NVDA)"
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "rb-f09",
+   "mix": "followup",
+   "fam": "data",
+   "cat": "conv",
+   "fx": "rb_trio",
+   "turns": [
+    {
+     "say": "whens nvda earnings",
+     "expect": {
+      "kind": "act",
+      "safety": "nochange",
+      "ops": [
+       {
+        "a": "stock.earnings",
+        "args": {
+         "symbol": "NVDA"
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     }
+    },
+    {
+     "say": "and amds?",
+     "expect": {
+      "kind": "act",
+      "safety": "nochange",
+      "ops": [
+       {
+        "a": "stock.earnings",
+        "args": {
+         "symbol": "AMD"
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "rb-f10",
+   "mix": "followup",
+   "fam": "widget",
+   "cat": "conv",
+   "fx": "rb_quad",
+   "turns": [
+    {
+     "say": "gimme a news panel over here",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "widget.add",
+        "args": {
+         "type": "news"
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     },
+     "receipt": "Added a News widget"
+    },
+    {
+     "say": "and a watchlist one",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "widget.add",
+        "args": {
+         "type": "watchlist"
+        }
+       }
+      ],
+      "never": [
+       "watchlist.create",
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "rb-f11",
+   "mix": "followup",
+   "fam": "multichart",
+   "cat": "followup",
+   "fx": "rb_trio",
+   "text": "the avgo one",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "indicator.add",
+      "t": "Bottom-right chart (AVGO)",
+      "args": {
+       "defId": "rsi"
+      }
+     }
+    ],
+    "notOn": [
+     "Left chart (NVDA)",
+     "Top-right chart (AMD)"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   },
+   "pending": {
+    "question": "Which chart should I add RSI to?",
+    "choices": [
+     "Top-right chart (AMD)",
+     "Bottom-right chart (AVGO)"
+    ],
+    "request": "add rsi to the 15 min chart"
+   }
+  },
+  {
+   "id": "rb-f12",
+   "mix": "followup",
+   "fam": "multichart",
+   "cat": "followup",
+   "fx": "rb_twins",
+   "text": "the daily",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "chart.setType",
+      "t": "Left chart (SPY)",
+      "args": {
+       "type": "line"
+      }
+     }
+    ],
+    "notOn": [
+     "Right chart (SPY)"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   },
+   "pending": {
+    "question": "Which SPY chart?",
+    "choices": [
+     "Left chart (SPY)",
+     "Right chart (SPY)"
+    ],
+    "request": "make spy a line chart"
+   }
+  },
+  {
+   "id": "rb-a01",
+   "mix": "ask",
+   "fam": "multichart",
+   "cat": "ask",
+   "fx": "rb_twins",
+   "text": "slap the 200 day on spy",
+   "expect": {
+    "kind": "clarify",
+    "clarifyAbout": "chart",
+    "choicesInclude": [
+     "Left",
+     "Right"
+    ],
+    "notOn": [
+     "Left chart (SPY)",
+     "Right chart (SPY)"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-a02",
+   "mix": "ask",
+   "fam": "multichart",
+   "cat": "ask",
+   "fx": "rb_pair_nosel",
+   "text": "flip it to the 4 hour",
+   "expect": {
+    "kind": "clarify",
+    "clarifyAbout": "chart",
+    "choicesInclude": [
+     "MSFT",
+     "META"
+    ],
+    "notOn": [
+     "Left chart (MSFT)",
+     "Right chart (META)"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-a03",
+   "mix": "ask",
+   "fam": "data",
+   "cat": "ask",
+   "fx": "rb_solo",
+   "text": "set an alert on tsla at 250",
+   "expect": {
+    "kind": "clarify",
+    "clarifyAbout": "direction",
+    "never": [
+     "alert.create",
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-a04",
+   "mix": "ask",
+   "fam": "drawing",
+   "cat": "ask",
+   "fx": "rb_solo",
+   "text": "draw a line at support",
+   "expect": {
+    "kind": "clarify",
+    "clarifyAbout": "price",
+    "never": [
+     "drawing.addLevel",
+     "drawing.addHorizontalRay",
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-a05",
+   "mix": "ask",
+   "fam": "layout",
+   "cat": "ask",
+   "fx": "rb_solo",
+   "text": "delete my swing stuff",
+   "expect": {
+    "kind": "clarify",
+    "clarifyAbout": "which",
+    "safety": "propose",
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-a06",
+   "mix": "ask",
+   "fam": "watchlist",
+   "cat": "ask",
+   "fx": "rb_quad",
+   "text": "throw this in my watchlist",
+   "expect": {
+    "kind": "clarify",
+    "clarifyAbout": "list",
+    "choicesInclude": [
+     "Momentum",
+     "Swing"
+    ],
+    "never": [
+     "watchlist.add",
+     "watchlist.create",
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-a07",
+   "mix": "ask",
+   "fam": "layout",
+   "cat": "ask",
+   "fx": "rb_solo",
+   "text": "open my trading layout",
+   "expect": {
+    "kind": "clarify",
+    "clarifyAbout": "layout",
+    "choicesInclude": [
+     "Day Trading",
+     "Main Trading"
+    ],
+    "never": [
+     "layout.open",
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "rb-a08",
+   "mix": "ask",
+   "fam": "multichart",
+   "cat": "ask",
+   "fx": "rb_trio",
+   "text": "make the 15 min one hourly",
+   "expect": {
+    "kind": "clarify",
+    "clarifyAbout": "chart",
+    "choicesInclude": [
+     "AMD",
+     "AVGO"
+    ],
+    "notOn": [
+     "Top-right chart (AMD)",
+     "Bottom-right chart (AVGO)",
+     "Left chart (NVDA)"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  }
+ ]
+}
