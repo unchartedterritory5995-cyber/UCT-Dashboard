@@ -160,9 +160,15 @@ describe('P3-M2 the chart\'s first mount and timeframe change consult the device
     let p = params()
     const h = await mount(p)
     expect(h.result.current.bars?.length).toBeGreaterThan(0)           // the regular view paints the device copy
+    const sent = w.request.mock.calls.length
     p = { ...p, showExtended: true }                                    // the member turns extended hours on: same key
     h.rerender(p)
     expect(h.result.current.bars).toBeNull()                           // no pre-market bars in it: not shown
+    // the session change re-subscribes the key: the regular-session request is dropped and an extended one goes out
+    await act(async () => { await vi.advanceTimersByTimeAsync(5) })
+    h.rerender(p)
+    expect(w.request.mock.calls.length).toBeGreaterThan(sent)
+    expect(h.result.current.bars).toBeNull()                           // still not shown while it is unanswered
     await answered(w, h, p)
     expect(h.result.current.bars?.some((b) => b.t === et(9, 0))).toBe(true)
   })
