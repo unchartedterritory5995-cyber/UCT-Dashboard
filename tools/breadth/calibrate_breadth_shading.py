@@ -83,6 +83,29 @@ def load_rows(universe: str = "uct", uct_deep: str = "", uct_backtest: str = "",
     return [r for r in rows if not r.get("_live")]
 
 
+def apply_uct_pit(rows: list, series_path: str) -> int:
+    """The Monitor's own overlay (`breadth_uct_pit.overlay`) and derive pass on the back-tested
+    rows, so the ranking sees exactly what the cells show with BREADTH_UCT_PIT on. Only the rebuilt
+    rows take the re-derived fields; every other row stays as exported."""
+    sys.path.insert(0, ROOT)
+    import copy
+    from api.services import breadth_uct_pit as pit  # noqa: E402
+    from api.services import breadth_monitor as svc  # noqa: E402
+    os.environ["BREADTH_UCT_PIT"] = "1"
+    pit.SERIES_PATH = series_path
+    pit._view.clear()
+    n = pit.overlay(rows)
+    work = copy.deepcopy(rows)
+    svc._derive_ascending(work, 0)
+    for r, w in zip(rows, work):
+        if r.get("_uct_pit"):
+            for k, v in w.items():
+                if k != "adv_decline_cum":
+                    r[k] = v
+        r.pop("_ad_back", None)
+    return n
+
+
 def spec_for(spec: dict, universe: str) -> dict:
     """UCT: the whole spec. Elsewhere: only the per-universe columns."""
     if universe == "uct":
@@ -184,6 +207,8 @@ def main(argv=None) -> int:
     ap.add_argument("--uct-deep", default="", help="UCT: the Monitor's deep rows (read-only production export)")
     ap.add_argument("--uct-backtest", default="", help="UCT: the V2 uct_backtest series (read-only production export)")
     ap.add_argument("--exposure-db", default="", help="UCT: a local monitor copy whose uct_exposure wins")
+    ap.add_argument("--uct-pit", default="", help="UCT: the point-in-time history series (breadth_uct_pit) "
+                                                  "laid over the back-tested rows, as the Monitor serves it")
     args = ap.parse_args(argv)
     with open(SPEC, encoding="utf-8") as f:
         spec = json.load(f)
@@ -193,6 +218,10 @@ def main(argv=None) -> int:
             return 2
     uspec = spec_for(spec, args.universe)
     rows = load_rows(args.universe, args.uct_deep, args.uct_backtest, args.exposure_db)
+    if args.uct_pit:
+        if args.universe != "uct":
+            raise SystemExit("--uct-pit is UCT only")
+        print(f"uct pit rows laid over: {apply_uct_pit(rows, args.uct_pit)}")
     # ⭐ THE WINDOW (owner 2026-11-19): every universe over ALL of its point-in-time history —
     # UCT (uct_backtest), US and Nasdaq from 2008-01-02, NYSE from 2009-06-11. Nothing before
     # 2008-01-02 is used, whatever a source holds (extending earlier is an owner decision).
