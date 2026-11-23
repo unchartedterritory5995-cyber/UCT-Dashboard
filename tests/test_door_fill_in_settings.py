@@ -39,7 +39,9 @@ DATA = json.loads((ROOT / "tests" / "fixtures" / "authoring" / "value_cases.json
 CASES = DATA["cases"]
 CASE = next(c for c in CASES if c["id"] == "wall-18")
 WORDS = CASE["words"]
-LIVE = CASE["answer"]
+#: the build a member was given live (a line at price 0 until filled): the case's record while it is recorded WRONG,
+#: its `found` specimen once the door gets it right
+LIVE = G.specimen(CASE)["answer"]
 CHART = {"sym": "NVDA", "tf": "D"}
 ZERO_OVER_ZERO = {"type": "op", "name": "/", "args": [{"type": "num", "value": 0}, {"type": "num", "value": 0}]}
 
@@ -196,17 +198,20 @@ def test_a_case_may_hold_what_the_member_is_told():
 # ── the record ──
 
 def test_the_case_moved_to_the_build_lane_with_its_reason_and_is_recorded_WRONG():
-    assert CASE["lane"] == "formula" and "wall" not in CASE and CASE["recorded_verdict"] == "wrong"
+    assert CASE["lane"] == "formula" and "wall" not in CASE and G.specimen(CASE) is not None
     assert CASE["provenance"].startswith("corrected on review 11-22: the words ask for the member's own numbers, not an account read")
     assert G.rule_digest("wall-18") == CASE["rule"]["digest"]
-    got = G.grade_case(CASE)
+    got = G.grade_case(CASE, LIVE)
     assert got["verdict"] == "wrong" and "has a value on the chart" in " ".join(got["lines"])
     assert "the reply says none of" not in " ".join(got["lines"])                 # what it SAID was right; what it drew was not
 
 
 def test_the_wall_lane_keeps_a_request_that_truly_needs_the_account():
-    sibling = next(c for c in DATA["pending"] if c["id"] == "wall-33")
-    assert sibling["lane"] == "wall" and "brokerage account" in sibling["words"] and "answer" not in sibling
+    # (written words and rule first, as a pending case; it holds its first live answer since the thresholds PR)
+    sibling = next(c for c in (DATA.get("pending") or []) + DATA["cases"] if c["id"] == "wall-33")
+    assert sibling["lane"] == "wall" and "brokerage account" in sibling["words"]
+    if "answer" in sibling:
+        assert sibling["recorded"]["front"] and G.grade_wall(sibling, sibling["answer"])["verdict"] == sibling.get("recorded_verdict", "right")
     assert G.grade_wall(sibling, {"disposition": "unsupported", "reply": "I can't read a brokerage account from here."})["verdict"] == "right"
     assert G.grade_wall(sibling, {"disposition": "unsupported", "reply": "I can't build that."})["verdict"] == "wrong"
     assert G.grade_wall(sibling, {"disposition": "change", "reply": "your account", "ops": [FILLED]})["verdict"] == "wrong"

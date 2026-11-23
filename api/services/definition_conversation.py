@@ -2358,7 +2358,8 @@ def refused_names(not_understood: Any) -> List[str]:
     catalogue ids and they go no further."""
     return [n["phrase"] for n in not_understood or []
             if isinstance(n, Mapping) and isinstance(n.get("phrase"), str)
-            and n.get("reason") == UNKNOWN_NAME_REASON.format(name=n["phrase"])]
+            and (n.get("reason") == UNKNOWN_NAME_REASON.format(name=n["phrase"])
+                 or named_indicators.is_their_unknown_name(n.get("reason"), n["phrase"]))]
 
 
 def asked_names(message: Any, refused: Any = ()) -> List[str]:
@@ -5486,6 +5487,13 @@ def understand_turn(message: str, chart: Any) -> Dict[str, Any]:
                             name_refusal=UNKNOWN_NAME_REASON) if plain.strip() else \
         {"understood": "", "not_understood": [], "unavailable": [], "concepts": []}
     not_understood = understanding["not_understood"]
+    # ⭐ 2026-11-22 -- AN UNKNOWN NAME THAT IS ANOTHER PUBLISHER'S OWN NUMBER ("Zacks Rank", "IBD's Composite Rating") is
+    # told so FIRST: it is theirs and is not available here. The usual sentence invites the member to describe the
+    # rule, which reads as "you can have it if you explain it" (`named_indicators.their_unknown_name`).
+    not_understood = [
+        {**n, "reason": named_indicators.their_unknown_name(message, n.get("phrase")) or n["reason"]}
+        if isinstance(n, Mapping) and n.get("reason") == UNKNOWN_NAME_REASON.format(name=n.get("phrase")) else n
+        for n in not_understood]
     unavailable = understanding["unavailable"]
     discussed: List[dict] = []
     if advisory and not_understood:

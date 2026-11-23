@@ -162,6 +162,8 @@ def _run_folder(tmp_path, changed=None):
     for case in [c for c in CASES if c["lane"] != "script"]:
         answer = (changed or {}).get(case["id"], case["answer"])
         body = {"disposition": answer.get("disposition", "change"), "reply": answer.get("reply", ""), "envelope": {"ops": answer.get("ops")}} if "ops" in answer else dict(answer)
+        if body.get("questions"):                                    # the door sends a question's choices in the envelope
+            body["envelope"] = {"questions": body.pop("questions")}
         (tmp_path / f"{case['id']}-0.body.json").write_text(json.dumps(body), encoding="utf-8")
     return tmp_path
 

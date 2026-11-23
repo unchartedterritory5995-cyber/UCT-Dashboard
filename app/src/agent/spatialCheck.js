@@ -431,6 +431,9 @@ const sepButMatches = (text) => (WHOLE_BOARD.test(String(text || '')) ? [...Stri
  * left one") is no place the request is aimed at (deixis.screenUnnamedTargets' said positions). */
 export function withoutExclusions(text) {
   let s = exceptForm(text)
+  // (H-RDR-1 follow-up) an anchor-relative exclusion first, WHOLE: the "except X" blank below stops at "to" / "on", and would
+  // leave "… to AMD" / "… to NVDA's right" — the anchor — read as a place or a ticker the request aims at
+  s = blankAnchorRel(s, anchorRelSpans(s))
   for (const m of [...s.matchAll(EXCEPT), ...s.matchAll(NEG_EXCEPT), ...sepButMatches(s)]) s = s.slice(0, m.index) + ' '.repeat(m[0].length) + s.slice(m.index + m[0].length)
   // (hotfix) a negated-ticker clause ("…, but leave NVDA's alone") names no place either
   for (const m of [...s.matchAll(NEG_CUE_RE), ...s.matchAll(NEG_ANY_RE), ...s.matchAll(NEG_STAY_RE)]) {
@@ -773,7 +776,9 @@ export function additiveRefs(text, charts = []) {
 export function blankNegChartRefs(text, charts = []) {
   let s = String(text || '')
   for (const r of [...negChartRefs(s, charts), ...negActionRefs(s, charts), ...additiveRefs(s, charts)]) s = s.slice(0, r.index) + ' '.repeat(Math.max(0, r.end - r.index)) + s.slice(r.end)
-  return s
+  // (H-RDR-1 follow-up) …and every anchor-relative exclusion ("except the one left of AAPL"): neither its anchor nor its
+  // relation is a place the request aims at
+  return blankAnchorRel(s, anchorRelSpans(s))
 }
 /** …and every negated TICKER clause too (negTickerRefs' clauses): the words with no negated clause about a chart left. */
 export function blankNegatedClauses(text, charts = []) {
@@ -783,8 +788,234 @@ export function blankNegatedClauses(text, charts = []) {
   }
   return s
 }
+// ── H-RDR-1 follow-up: ANCHOR-RELATIVE EXCLUSIONS ──
+// ROOT CAUSE: a chart EXCLUDED by a relation from ANOTHER chart — "switch all of them to weekly except the one left of AAPL",
+// "leave the chart below the NVDA one alone and set the rest to 1h", "everything but the one next to SPY" — was read by readers
+// that each saw only part of the phrase. The "except X" resolver placed the ANCHOR ("the one above AMD" → the AMD chart, by its
+// ticker), the named-relation reader (REL_NAMED) made the excluded chart an ALLOWED target, the click-relation reader read
+// "below SPY" as "below the click", and "<every chart> … but the one next to SPY" was read by nothing. So the anchor was
+// excluded and the chart the member excluded was changed (or offered by the question).
+// Here the phrase is read WHOLE: <the one | the chart | …> <relation> <anchor>, in an exclusion's scope (an exception keyword,
+// a negation cue, "leave / keep … alone", "but" after a whole-board quantifier, or "<it> stays as it is"), and resolved on the
+// board's own geometry:
+//   relation   left of · right of · above / over / on top of · below / under / underneath / beneath · next to / beside /
+//              alongside (either side in the row) · adjacent to / near (any side) · "to / on <anchor's> left / right"
+//   anchor     a TICKER on the board · a POSITION or ORDER ("the top-right one", "the centre chart", "chart 2") · the chart an
+//              EARLIER TURN changed ("it" / "that one" with nothing clicked, "the one I just changed" — the session subject)
+//              (the click itself — "this one", "it" with a chart clicked — stays with the click-relation readers, as before)
+//   result     exactly one anchor and exactly one chart on that side → that chart is EXCLUDED (and only it: never the anchor);
+//              a plural head ("the charts left of AAPL") → every chart on that side. Anything else — the anchor on several
+//              charts (two AAPL charts), no such anchor, nothing on that side, "next to" with two neighbours, an anchor word
+//              the board cannot read — is UNPLACED (the plan is asked), and every chart the phrase MAY mean is `unoffered`.
+// The phrase is then blanked for every other reader, so none of them reads its anchor or relation as anything else.
+const AR_NOUN = String.raw`(?:ones?|charts?|cells?|panes?|panels?|graphs?)`
+const AR_HEAD = String.raw`\b(?:the|that)\s+(?:(?:single|other)\s+)?(${AR_NOUN})`
+const AR_LINK = String.raw`(?:\s+(?:that['’]s|that\s+is|which\s+is|sitting|located|placed|positioned))?(?:\s+(?:right|directly|immediately|just))?`
+// (anchor-diagonal follow-up) the DIAGONAL family: diagonal(ly) from / to / of / across from / opposite, catty- / kitty- / cater-
+// corner (from / to), across from, opposite (to / from) — read by grid arithmetic (arDiagonal below), never by the side readers
+const AR_DIAG_REL = String.raw`diagonal(?:ly)?\s+(?:across\s+from|opposite(?:\s+(?:to|from))?|from|to|of)|(?:catty|kitty|cater)[\s-]?corner(?:ed|s)?(?:\s+(?:from|to|of))?|across\s+from|opposite(?:\s+(?:to|from))?`
+const AR_REL = String.raw`(${AR_DIAG_REL}|to\s+the\s+left\s+of|on\s+the\s+left\s+of|left\s+of|to\s+the\s+right\s+of|on\s+the\s+right\s+of|right\s+of|on\s+top\s+of|above|over|below|under(?:neath)?|beneath|next\s+to|beside|alongside|adjacent\s+to|near(?:est)?(?:\s+to)?)`
+// the anchor: a short run of words, lazily, up to a tail / destination / clause end (the resolver below says what it names)
+const AR_ANCHOR_END = String.raw`(?=\s+(?:alone|as|the\s+same|untouched|unchanged|be|out|where|stays?|remains?|is|are|can|should|will|must|to|on|in|into|onto|at|for|from|with|please|thanks|though|too|either|also|and|or|nor|but|then|so|while|because|weekly|daily|monthly|hourly)\b|\s*[,;:.!?—–()]|\s*$)`
+const AR_RE = new RegExp(String.raw`${AR_HEAD}${AR_LINK}\s+${AR_REL}\s+((?:the\s+|my\s+)?[$A-Za-z0-9][^,;:.!?—–()]{0,40}?)${AR_ANCHOR_END}`, 'gi')
+// "the one to AAPL's left", "the chart on its right" ("the one to the left of it" is AR_RE's)
+const AR_POSS_RE = new RegExp(String.raw`${AR_HEAD}${AR_LINK}\s+(?:to|on)\s+((?:the\s+)?(?:its|\$?[A-Za-z]{1,5}(?:\.[A-Za-z])?['’]s|[a-z -]{1,24}?\s+(?:one|chart)['’]s))\s+(left|right)(?:[\s-]+hand)?(?:\s+side)?\b`, 'gi')
+// "the corner opposite AAPL", "the one in the opposite corner from AAPL", "the chart in the far corner to SPY", "the corner
+// diagonally across from NVDA": the board corner opposite the anchor (rel 'corner')
+const AR_CORNER_RE = new RegExp(String.raw`\b(?:the|that)\s+((?:(?:one|chart|cell|pane|panel|graph)\s+(?:in|at)\s+the\s+)?(?:(?:opposite|far|other|diagonal)\s+corner(?:\s+(?:one|chart|cell))?\s+(?:from|to|of)|corner(?:\s+(?:one|chart|cell))?\s+(?:diagonal(?:ly)?\s+(?:across\s+from|opposite(?:\s+(?:to|from))?|from|to)|(?:directly\s+)?(?:opposite(?:\s+(?:to|from))?|across\s+from))))\s+((?:the\s+|my\s+)?[$A-Za-z0-9][^,;:.!?—–()]{0,40}?)${AR_ANCHOR_END}`, 'gi')
+/** The diagonal-family kind of a relation: 'corner' | 'diag' | 'across' | null (a side relation). */
+const AR_DIAG_KIND = (rel) => {
+  const s = String(rel || '').toLowerCase()
+  if (s === 'corner') return 'corner'
+  if (/diagonal|catty|kitty|cater/.test(s)) return 'diag'
+  if (/across|opposite/.test(s)) return 'across'
+  return null
+}
+const AR_SIDES = (rel) => {
+  const s = String(rel || '').toLowerCase()
+  if (/left/.test(s)) return ['left']
+  if (/right/.test(s)) return ['right']
+  if (/above|over|top/.test(s)) return ['above']
+  if (/below|under|beneath/.test(s)) return ['below']
+  if (/adjacent|near/.test(s)) return ['left', 'right', 'above', 'below']
+  return ['left', 'right']                                         // next to / beside / alongside
+}
+// the scope: what governs the phrase in its own clause
+const AR_BOUND = /[,;:.!?—–()]|\b(?:and|then|while|so|also|plus|though|although|because)\b/gi
+const AR_CUE = /\b(?:except(?:\s+for)?|apart\s+from|aside\s+from|other\s+than|excluding|besides|save\s+for|minus|but\s+not|not|never|without|with\s+the\s+exception\s+of|skip(?:ping)?|ignor(?:e|ing)|exclud(?:e|ing)|spar(?:e|ing)|hands\s+off(?:\s+of)?|leav(?:e|ing)\s+out|keep(?:ing)?\s+out|don['’]?t|dont|do\s+not|no\s+need\s+to|refrain\s+from|under\s+no\s+circumstances|on\s+no\s+account|by\s+no\s+means)\b/gi
+const AR_NOT_FORBID = /\b(?:don['’]?t|dont|do\s+not|never|not)\s+(?:forget|hesitate|worry|mind|wait|sure|know|think|understand|only)\b/gi
+const AR_KEEP_CUE = /\b(?:leav(?:e|ing)|keep(?:ing)?|let)\s*$/i
+const AR_STRONG_TAIL = /^\s*(?:alone|be\b|as\s+(?:it\s+|they\s+)?(?:is|are|was)|as\s+is|the\s+same|untouched|unchanged|out(?:\s+of\s+(?:it|this|that|them))?|where\s+(?:it\s+is|they\s+are))/i
+const AR_STAY_TAIL = /^\s*(?:(?:can|should|will|must|may|could)\s+)?(?:stays?|remains?|(?:is|are)\s+(?:(?:just|already)\s+)?(?:fine|good|ok(?:ay)?|perfect|alright|done))\b/i
+const AR_LEAD = /^\s*(?:(?:but|and|though|just|please|oh|ok(?:ay)?)\s+)*$/i
+const AR_BUT_LEAD = /\bbut\s*$/i
+const AR_CLICK = new RegExp('^(?:the\\s+)?(?:this(?:\\s+(?:one|chart|cell|pane))?|here|the\\s+(?:selected|clicked|current|active|highlighted|focused)\\s+(?:one|chart)|(?:the\\s+)?(?:selected|clicked)\\s+(?:one|chart)|mine|my\\s+(?:own\\s+)?(?:one|chart)|' + CLICK_ACT_NP + ')$', 'i')
+const AR_PRONOUN = /^(?:it|its|that(?:\s+(?:one|chart))?)$/i
+const AR_PRIOR = /^(?:the\s+)?(?:same\s+(?:one|chart)(?:\s+as\s+(?:before|last\s+time))?|(?:last|previous)\s+(?:one|chart)(?:\s+(?:I|you)\s+(?:just\s+)?[a-z]+)?|(?:one|chart)\s+(?:I|you)\s+(?:just\s+)?(?:changed|made|set|switched|touched|updated|edited|picked|chose|used)(?:\s+(?:earlier|before|last\s+time|a\s+moment\s+ago))?|(?:one|chart)\s+from\s+(?:before|earlier|last\s+time)|(?:one|chart)\s+we\s+(?:just\s+)?(?:changed|did))$/i
+const AR_TICKER = /^(?:the\s+|my\s+)?\$?([A-Za-z]{1,5}(?:\.[A-Za-z]{1,2})?)(?:['’]s)?(?:\s+(?:chart|one|cell|pane|panel|graph))?$/
+const AR_PLACE = /\b(?:top|bottom|upper|lower|left|right|middle|cent(?:er|re)|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|last|1st|2nd|3rd|[4-9]th|leftmost|rightmost|topmost|bottommost)\b|^(?:the\s+)?chart\s+(?:#\s*)?[1-9]$/i
+/** Every anchor-relative phrase in an exclusion's scope → [{ index, end, phrase, head, rel, anchor, plural }] (not resolved).
+ *  A phrase anchored on the CLICK or on a pronoun ("the one left of this one", "… next to it") is the click-relation readers'
+ *  (and, for a pronoun with nothing clicked, anchorRelExclusions'): returned only with `clickToo`. */
+export function anchorRelSpans(text, { clickToo = false } = {}) {
+  const s = String(text || '')
+  const out = []
+  const scan = (m, rel, anchor, head = m[1]) => {
+    const i = m.index, e = m.index + m[0].length
+    if (out.some(o => i < o.end && o.index < e)) return
+    // the clause the phrase sits in: back to the last boundary before it, on to the next one after it
+    let a = 0
+    for (const b of s.slice(0, i).matchAll(AR_BOUND)) a = b.index + b[0].length
+    const pre = s.slice(a, i)
+    const nb = new RegExp(AR_BOUND.source, 'i').exec(s.slice(e))
+    const post = nb ? s.slice(e, e + nb.index) : s.slice(e)
+    const cleaned = pre.replace(AR_NOT_FORBID, ' ')
+    let scoped = false
+    // (1) a cue governing it closely: an exception keyword / negation / skip … at most six words before the phrase
+    for (const c of cleaned.matchAll(AR_CUE)) {
+      const between = cleaned.slice(c.index + c[0].length).trim()
+      if (between.split(/\s+/).filter(Boolean).length <= 6) { scoped = true; break }
+    }
+    // (2) "leave / keep <it> alone | as it is | the same | untouched" (a bare "leave / keep X" is no exclusion)
+    if (!scoped && AR_KEEP_CUE.test(pre) && AR_STRONG_TAIL.test(post)) scoped = true
+    // (3) "<every chart> …, but the one next to SPY": "but" glued to the phrase after a whole-board quantifier
+    if (!scoped && AR_BUT_LEAD.test(pre) && (WHOLE_BOARD.test(s) || EVERY_Q.test(s))) scoped = true
+    // (4) a stated keep: "the one below NVDA stays as it is / is fine"
+    if (!scoped && AR_LEAD.test(pre) && AR_STAY_TAIL.test(post)) scoped = true
+    if (!scoped) return
+    const an = ordinalDigits(String(anchor || '').trim()).replace(/\s+/g, ' ')
+    if (!clickToo && (AR_CLICK.test(an) || AR_PRONOUN.test(an))) return
+    out.push({ index: i, end: e, phrase: m[0], head, rel, anchor: String(anchor || '').trim(), plural: rel !== 'corner' && /s$/i.test(head) })
+  }
+  for (const m of s.matchAll(AR_CORNER_RE)) scan(m, 'corner', m[2])
+  for (const m of s.matchAll(AR_POSS_RE)) scan(m, m[3], String(m[2]).replace(/['’]s$/i, ''))
+  for (const m of s.matchAll(AR_RE)) scan(m, m[2], m[3])
+  return out.sort((x, y) => x.index - y.index)
+}
+/** What an anchor phrase names on the board → { kind, charts } (kind: ticker | place | prior | click | unknown). */
+function anchorOf(anchor0, charts, sel, subject) {
+  const anchor = ordinalDigits(String(anchor0 || '').trim()).replace(/\s+/g, ' ')
+  const byRef = (r) => charts.filter(c => c.ref === r)
+  if (AR_CLICK.test(anchor)) return { kind: 'click', charts: sel ? byRef(sel) : [] }
+  if (AR_PRIOR.test(anchor)) return { kind: 'prior', charts: subject ? byRef(subject) : [] }
+  // "it" / "that one": the click when a chart is clicked (S6: a click outranks memory), else the chart an earlier turn changed
+  if (AR_PRONOUN.test(anchor)) return sel ? { kind: 'click', charts: byRef(sel) } : { kind: 'prior', charts: subject ? byRef(subject) : [] }
+  const t = AR_TICKER.exec(anchor)
+  if (t) {
+    const tok = t[1]
+    const list = charts.filter(c => String(c?.symbol || '').toUpperCase() === tok.toUpperCase())
+    const caps = tok === tok.toUpperCase()
+    if (list.length && (caps || (tok.length >= 3 && !LOWER_STOP.test(tok)))) return { kind: 'ticker', charts: list }
+    if (caps && /[A-Z]/.test(tok) && !AR_PLACE.test(anchor)) return { kind: 'ticker', charts: [] }   // a ticker the board does not show
+  }
+  if (AR_PLACE.test(anchor)) {
+    const a = namedAnchor(/\b(?:chart|one|cell|pane|panel|graph)$/i.test(anchor) || /^(?:the\s+)?chart\s+/i.test(anchor) ? anchor : `${anchor} chart`, charts)
+    return { kind: 'place', charts: a ? [a] : [] }
+  }
+  return { kind: 'unknown', charts: [] }
+}
+/** The charts on `sides` of `a` (plural: every chart on that side in line with it; else the nearest neighbours). */
+function sideCharts(charts, a, sides, plural) {
+  const out = []
+  for (const side of sides) {
+    if (!plural) { out.push(...neighbours(charts, a, side)); continue }
+    let at = [a]
+    const seen = new Set([a.ref])
+    for (let i = 0; i < charts.length && at.length; i++) {
+      const next = at.flatMap(x => neighbours(charts, x, side)).filter(x => !seen.has(x.ref))
+      for (const x of next) { seen.add(x.ref); out.push(x) }
+      at = next
+    }
+  }
+  return [...new Map(out.map(c => [c.ref, c])).values()]
+}
+/** The board as a REGULAR lattice (every chart one equal cell, every row × column filled) → Map(ref → {r, c}, R, C) | null. */
+function latticeOf(charts) {
+  const all = charts.filter(Boolean)
+  if (!all.length || all.some(c => !c.cell)) return null
+  const w = all[0].cell.w, h = all[0].cell.h
+  if (all.some(c => c.cell.w !== w || c.cell.h !== h)) return null
+  const xs = [...new Set(all.map(c => c.cell.x))].sort((a, b) => a - b), ys = [...new Set(all.map(c => c.cell.y))].sort((a, b) => a - b)
+  if (xs.length * ys.length !== all.length) return null
+  const at = new Map(all.map(c => [c.ref, { r: ys.indexOf(c.cell.y), c: xs.indexOf(c.cell.x) }]))
+  if (new Set([...at.values()].map(p => `${p.r},${p.c}`)).size !== all.length) return null
+  return { at, R: ys.length, C: xs.length }
+}
+/**
+ * (anchor-diagonal follow-up) A DIAGONAL-family relation from `anchors` → { refs, unplaced, unoffered }. On a regular lattice:
+ *   diag    (diagonal / catty-corner / kitty-corner) every chart with |Δrow| = |Δcol| > 0: exactly one → that chart (a plural head:
+ *           all of them); several (the centre of a 3×3, a 3×3 corner: the centre AND the far corner) or none (one row) → asked
+ *   across  (across from / opposite) the row, the column or the diagonal: exactly one such chart (a 1×2 / 2×1 board) → it; else
+ *           (a 2×2: the row-mate, the column-mate or the diagonal?) asked — never a guess between row and diagonal
+ *   corner  ("the corner opposite X") the anchor is a board corner of a board at least 2×2 → the mirrored corner; else asked
+ * An irregular board, no anchor, or the anchor on several charts → asked. Every chart the phrase MAY mean is `unoffered`
+ * (an irregular board: every chart sharing no row / column with the anchor, or any chart for "across").
+ */
+function arDiagonal(charts, anchors, kind, plural) {
+  const L = latticeOf(charts)
+  const others = (a) => charts.filter(c => c && c.ref !== a.ref)
+  let may
+  if (!L) {
+    may = anchors.flatMap(a => others(a).filter(c => kind === 'across' || !c.cell || !a.cell
+      || (!overlaps(c.cell.x, c.cell.x + c.cell.w, a.cell.x, a.cell.x + a.cell.w) && !overlaps(c.cell.y, c.cell.y + c.cell.h, a.cell.y, a.cell.y + a.cell.h))))
+  } else {
+    const fits = (a, c) => {
+      const p = L.at.get(a.ref), q = L.at.get(c.ref)
+      const dr = Math.abs(p.r - q.r), dc = Math.abs(p.c - q.c)
+      if (kind === 'diag') return dr === dc && dr > 0
+      if (kind === 'across') return (dr === 0) !== (dc === 0) || (dr === dc && dr > 0)
+      const corner = (x) => (x.r === 0 || x.r === L.R - 1) && (x.c === 0 || x.c === L.C - 1)
+      if (L.R < 2 || L.C < 2 || !corner(p)) return corner(q)                      // no single opposite corner: every corner may be meant
+      return q.r === L.R - 1 - p.r && q.c === L.C - 1 - p.c
+    }
+    may = anchors.flatMap(a => others(a).filter(c => fits(a, c)))
+  }
+  may = [...new Set(may.map(c => c.ref))]
+  const a = anchors[0]
+  const exact = !!L && anchors.length === 1 && may.length >= 1 && (may.length === 1 || (plural && kind === 'diag'))
+    && (kind !== 'corner' || (L.R >= 2 && L.C >= 2 && (() => { const p = L.at.get(a.ref); return (p.r === 0 || p.r === L.R - 1) && (p.c === 0 || p.c === L.C - 1) })()))
+  const refs = exact ? may.filter(r => r !== a.ref) : []
+  return refs.length ? { refs, unplaced: false, unoffered: [] } : { refs: [], unplaced: true, unoffered: may }
+}
+/**
+ * The anchor-relative exclusions the words state, resolved → [{ index, end, phrase, refs: [chart refs], unplaced, unoffered }].
+ * A phrase anchored on the CLICK is left to the click-relation readers (not returned). `subject`: the chart ref an earlier turn
+ * changed (session memory), the anchor of "it" / "that one" with nothing clicked and of "the one I just changed".
+ */
+export function anchorRelExclusions(text, charts = [], sel = null, subject = null) {
+  const out = []
+  for (const sp of anchorRelSpans(text, { clickToo: true })) {
+    const an = anchorOf(sp.anchor, charts, sel, subject)
+    if (an.kind === 'click') continue
+    const dk = AR_DIAG_KIND(sp.rel)
+    if (dk) { out.push({ ...sp, kind: an.kind, anchorRefs: an.charts.map(c => c.ref), ...arDiagonal(charts, an.charts, dk, sp.plural) }); continue }
+    const sides = AR_SIDES(sp.rel)
+    const may = [...new Set(an.charts.flatMap(a => sideCharts(charts, a, sides, sp.plural)).map(c => c.ref))]
+    let refs = [], unplaced = false
+    if (an.charts.length !== 1) unplaced = true                                   // no such anchor, or on several charts
+    else if (!may.length) unplaced = true                                         // nothing on that side
+    else if (!sp.plural && may.length > 1) unplaced = true                        // "next to" with two neighbours: which one?
+    else refs = may.filter(r => r !== an.charts[0].ref)
+    if (!unplaced && !refs.length) unplaced = true
+    out.push({ ...sp, kind: an.kind, anchorRefs: an.charts.map(c => c.ref), refs, unplaced, unoffered: unplaced ? may : [] })
+  }
+  return out
+}
+/** The words with every anchor-relative exclusion phrase blanked, position for position. */
+// a function DECLARATION (hoisted): deixis.relationMatch calls it across the deixis ⇄ spatialCheck import cycle, where a module
+// mock spreading the in-progress module (agentNegatedTickerLayers) would copy an uninitialised const
+export function withoutAnchorRel(text) { return blankAnchorRel(text, anchorRelSpans(text)) }
+function blankAnchorRel(text, list) {
+  let s = String(text || '')
+  for (const r of list) s = s.slice(0, r.index) + ' '.repeat(r.end - r.index) + s.slice(r.end)
+  return s
+}
 /** The charts an exclusion in the words names (by symbol, position, order, or "this one" = the click). */
-export function excludedCharts(text, charts = [], sel = null) {
+export function excludedCharts(text0, charts = [], sel = null, opts = {}) {
+  // (H-RDR-1 follow-up) an ANCHOR-RELATIVE exclusion ("except the one left of AAPL") is read whole, first, and blanked for every
+  // reader below — none of them may read its anchor as the exclusion or its relation as one from the click
+  const anchorRel = anchorRelExclusions(text0, charts, sel, opts?.subject || null)
+  const text = anchorRel.length ? blankAnchorRel(text0, anchorRel) : text0
   const out = new Set()
   // the exception PHRASES a reader below placed (added a chart or UNPLACED), normalized — matched by phrase, not by index: the
   // readers run on exceptForm(text), the unplaced scan on the words as said
@@ -939,6 +1170,12 @@ export function excludedCharts(text, charts = [], sel = null) {
   // ⛔ (AUDIT finding 1) a ticker the words CHANGE is never one they exclude: "AAPL instead of SPY" / "AAPL rather than SPY" name
   // SPY as the chart to change (AAPL its new symbol) — an exclusion reading of it would protect SPY and aim the change elsewhere
   for (const c of charts) if (c?.ref && out.has(c.ref) && !forbidden.has(c.ref) && c.symbol && changed(String(c.symbol).toUpperCase())) out.delete(c.ref)
+  // (H-RDR-1 follow-up) the anchor-relative exclusions: exactly the chart(s) the relation lands on, or UNPLACED (asked) with every
+  // chart the phrase may mean never offered — after the changed-ticker rule (the anchor is no ticker the words change)
+  for (const r of anchorRel) {
+    for (const x of r.refs) add(x)
+    if (r.unplaced) { add(UNPLACED); for (const x of r.unoffered) unoffered.add(x) }
+  }
   out.add = add
   // the charts an UNPLACED exception may mean (a ticker on several charts): never offered by a question (`unoffered`)
   Object.defineProperty(out, 'unoffered', { value: unoffered, enumerable: false })
@@ -1054,8 +1291,12 @@ export function relationAnchor(text, charts = [], sel = null) {
  * The constraints the words state over a board → { allowed: Set|null, excluded: Set, count: N|null, plural: bool, notes }.
  * `allowed` null = the words state no target set (the plan is left to the screens before this one).
  */
-export function spatialConstraints(text, charts = [], sel = null) {
+export function spatialConstraints(text0, charts = [], sel = null, opts = {}) {
   const out = { allowed: null, excluded: new Set(), count: null, plural: false, why: [] }
+  // (H-RDR-1 follow-up) an ANCHOR-RELATIVE exclusion ("except the chart under the top-right one") states no target and no
+  // relation from the click: blanked for every reader here (its chart is excludedCharts' — read on the words as said, below)
+  const anchorRel = anchorRelExclusions(text0, charts, sel, opts?.subject || null)
+  const text = anchorRel.length ? blankAnchorRel(text0, anchorRel) : text0
   const add = (refs, why) => { out.allowed = out.allowed || new Set(); for (const r of refs) out.allowed.add(r); out.why.push(why) }
   // (H-RDR-1) a negated chart clause names an EXCLUSION, never an allowed target ("hands off the top-left one" is no place to aim)
   const clauses = targetClauses(blankNegChartRefs(text, charts))
@@ -1115,7 +1356,7 @@ export function spatialConstraints(text, charts = [], sel = null) {
     }
   }
   // (G3) an exclusion is never a target, whatever else the words name
-  const exc = excludedCharts(text, charts, sel)
+  const exc = excludedCharts(text0, charts, sel, opts)
   for (const r of exc) out.excluded.add(r)
   out.unoffered = exc.unoffered
   // (AUDIT probe 3) "leave this alone …", "don't touch this chart …": the click is excluded, whatever the plan
@@ -1145,7 +1386,7 @@ const SCOPE_WORD = /\b(?:above|below|under|over|beneath|underneath|left|right|ne
 const REL_TO_CLICK = /\b(?:above|below|under|over|beneath|underneath|left|right|next|beside|near|nearest|closest|adjacent|across|opposite|diagonal\w*|corner|around|surrounding|kitty|catty)\b/i
 const CLICK_WORD = new RegExp('\\b(?:this|it|its|here)\\b|' + CLICK_ACT_NP, 'i')
 export const quantifierCoversClick = (scoped) => !scoped
-export function everyExceptSet(text, charts = [], sel = null) {
+export function everyExceptSet(text, charts = [], sel = null, opts = {}) {
   const t = exceptForm(text)
   const q = EVERY_Q.exec(t)
   if (!q) return null
@@ -1154,12 +1395,12 @@ export function everyExceptSet(text, charts = [], sel = null) {
   // (hotfix) a negated-TICKER clause beside the quantifier ("every chart weekly, but leave NVDA's alone") is this family too:
   // the quantifier's own words run to its clause's end, and the exclusion is the ticker the clause names
   // (H-RDR-1) …and a negated CHART clause ("every chart weekly, but leave the top-left one alone", "…; skip chart 2")
-  const ex = ex0 || ((negTickerRefs(text, charts).length || negChartRefs(text, charts).length || negActionRefs(text, charts).length)
+  const ex = ex0 || ((negTickerRefs(text, charts).length || negChartRefs(text, charts).length || negActionRefs(text, charts).length || anchorRelSpans(text).length)
     ? { index: t.slice(after).split(/[,;:.!?—–]|\s+(?:but|and|then|though)\s+/i)[0].length, neg: true } : null)
   if (!ex) return null
   const seg = t.slice(after, after + ex.index).replace(BOARD_PP, ' ')
   const phrase = ex.neg ? '' : t.slice(after + ex.index).split(/[,;.!?]|\s+(?:and|then)\s+/i)[0]
-  const excluded = new Set(excludedCharts(text, charts, sel))
+  const excluded = new Set(excludedCharts(text, charts, sel, opts))
   if (sel && negatedClick(text).excludes) excluded.add(sel)
   // a RELATION to the click inside the exclusion ("except the one diagonally across from this"): its target is excluded; a
   // relation the board cannot place is no reading of this family (null: the gates ask as before)
@@ -1174,7 +1415,7 @@ export function everyExceptSet(text, charts = [], sel = null) {
   // scope places, and never the click (its anchor)
   let pool = charts
   if (!quantifierCoversClick(SCOPE_WORD.test(seg))) {
-    const sc = spatialConstraints(t.slice(0, after + ex.index), charts, sel)
+    const sc = spatialConstraints(t.slice(0, after + ex.index), charts, sel, opts)
     if (!sc.allowed?.size) return null
     pool = charts.filter(c => sc.allowed.has(c.ref) && c.ref !== sel)
   }
@@ -1187,14 +1428,14 @@ export function everyExceptSet(text, charts = [], sel = null) {
  * The plan without its chart-backed ops on a chart the words EXCLUDE (each text read on its own: the request, and a question's
  * own request on its answer) → { ops, dropped }. An exclusion the board cannot place is the constraint check's (asked), not this.
  */
-export function withoutExcludedCharts(ops, texts, { host, getTargetKind, getCapability }) {
+export function withoutExcludedCharts(ops, texts, { host, getTargetKind, getCapability, subject = null }) {
   const charts = host?.charts?.list?.() || []
   if (charts.length < 2 || !Array.isArray(ops) || !ops.length) return { ops, dropped: 0 }
   const sel = selectedChart(host)
   const ex = new Set()
   for (const t of new Set((texts || []).filter(x => typeof x === 'string' && x.trim()))) {
-    for (const r of excludedCharts(t, charts, sel)) ex.add(r)
-    for (const r of spatialConstraints(t, charts, sel).excluded) ex.add(r)
+    for (const r of excludedCharts(t, charts, sel, { subject })) ex.add(r)
+    for (const r of spatialConstraints(t, charts, sel, { subject }).excluded) ex.add(r)
   }
   ex.delete(UNPLACED)
   if (!ex.size) return { ops, dropped: 0 }
@@ -1229,12 +1470,12 @@ export function withoutExcludedCharts(ops, texts, { host, getTargetKind, getCapa
  * The final check on a model plan (useAgent, after the deictic and unnamed-target screens). → null (every target satisfies
  * every constraint, or there are none) | { ask: { text, choices } } (a violation: nothing runs).
  */
-export function checkSpatialConstraints({ host, ops, text, pickedRefs = [], getTargetKind, getCapability }) {
+export function checkSpatialConstraints({ host, ops, text, pickedRefs = [], getTargetKind, getCapability, subject = null }) {
   if ((pickedRefs || []).some(Boolean)) return null                         // the member picked from UCT's own question
   const charts = host?.charts?.list?.() || []
   if (charts.length < 2) return null
   const sel = selectedChart(host)
-  const k = spatialConstraints(text, charts, sel)
+  const k = spatialConstraints(text, charts, sel, { subject })
   if (!k.allowed && !k.excluded.size && !k.count) return null
   const planned = new Set()
   let first = null                                                          // the plan's first chart-backed kind (for the choices)

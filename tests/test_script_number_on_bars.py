@@ -23,12 +23,15 @@ from pathlib import Path
 import pytest
 
 from api.services import pine_authoring as pa
+from tools.value_cases import grade as G
 from tools.value_cases import script_rules
 
 ROOT = Path(__file__).resolve().parents[1]
 CASES = json.loads((ROOT / "tests" / "fixtures" / "authoring" / "value_cases.json").read_text(encoding="utf-8"))["cases"]
 CASE = next(c for c in CASES if c["id"] == "count-on-bars-01")
-RECORDED = CASE["answer"]["script"]["pine"]
+#: the script the finding rests on: the case's record while it is recorded WRONG, its `found` specimen after
+FOUND = G.specimen(CASE)
+RECORDED = FOUND["answer"]["script"]["pine"]
 
 HEAD = '//@version=5\nindicator("Run count", overlay=true, max_labels_count=500)\n'
 HEAD_50 = '//@version=5\nindicator("Run count", overlay=true)\n'
@@ -150,6 +153,6 @@ def test_labels_are_held_on_every_bar_they_are_kept_on(ran):
 
 
 def test_the_recorded_answer_is_a_case_recorded_WRONG():
-    assert CASE["lane"] == "script" and CASE["recorded_verdict"] == "wrong" and "writes NO number" in CASE["defect"]
+    assert CASE["lane"] == "script" and "writes NO number" in FOUND["defect"]
     assert 'plotchar(cnt > 0 ? cnt : na, "Count", ""' in RECORDED
     assert script_rules.has_rule("count-on-bars-01") and "count-on-bars-01" not in script_rules.RULES      # held by what is DRAWN

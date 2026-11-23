@@ -82,6 +82,7 @@ _DOMAIN_OF = {
     "drawing": "drawing", "alert": "alert", "indicatorAlert": "alert", "screener": "screener",
     "stock": "data", "index": "data", "commodity": "data", "crypto": "data", "news": "news", "research": "research",
     "newsLibrary": "news",                                # the member's UCT News library: saved headlines, notes, collections
+    "recentlyDeleted": "board",                           # Recently deleted: bring back a deleted watchlist / layout / saved screen
     "playbook": "data",                                   # KN-1 knowledge capabilities
     "cot": "data",                                        # Phase 2: CFTC Commitments of Traders positioning (cot.positioning)
     "rs": "data",                                         # Phase 2: relative strength + sector / industry leadership (rs.compare)

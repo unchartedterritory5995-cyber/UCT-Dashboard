@@ -98,7 +98,8 @@ ROOT = Path(__file__).resolve().parents[1]
 #: because the unguessable token IS the credential. The new route resolves to
 #: `paid`, which is what it must be: it returns the full criteria library
 #: including verbatim source quotes.
-EXPECTED_SCANS_ROUTES = 16
+EXPECTED_SCANS_ROUTES = 17  # +1 2026-11-22: GET /api/scans/ipo-lockups (IPO LOCKUP), paid with the same
+#   `require_paid` as every other scan route (checked by the walk below, UNGATED == 0 on scans).
 EXPECTED_SCREENER_ROUTES = 29  # +1 2026-11-14: GET /api/screener/rows (RS screens unit U12, the
 #   "N dropped" popover's reasons: the single-row read below, batched, at most 25 names).
 #   PAID like /scan; 404 while RS_SCREENS_ENABLED is off.

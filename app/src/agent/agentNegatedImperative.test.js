@@ -107,9 +107,19 @@ describe('the reader: the charts a negated imperative names are excluded (or unp
     expect(read(t, sel)).toEqual(refs)
   })
   it.each([
-    ["don't change the big chart to weekly"], ['do not add RSI to the one beside NVDA'], ["don't change it to weekly"],
+    ["don't change the big chart to weekly"], ['do not add RSI to the one beside TSLA'], ["don't change it to weekly"],
+    // (H-RDR-1 follow-up) anchor-relative, but the board cannot place it exactly: no such anchor / nothing on that side
+    ['do not add RSI to the one above SPY'], ['never set the chart next to the middle one to weekly'],
   ])('unplaceable: "%s" → UNPLACED (asked)', (t) => {
     expect(read(t)).toContain('UNPLACED')
+  })
+  // (H-RDR-1 follow-up) a relation from a NAMED anchor the board places exactly is that chart — never its anchor, never asked
+  // (it was UNPLACED before: "do not add RSI to the one beside NVDA" is AMD on this board, its only side neighbour)
+  it.each([
+    ['do not add RSI to the one beside NVDA', ['c3']], ["don't change the chart below SPY to weekly", ['c2']],
+    ['never put RSI on the one left of AMD', ['c2']],
+  ])('anchor-relative, placed exactly: "%s" → %j', (t, refs) => {
+    expect(read(t)).toEqual(refs)
   })
   it.each([
     ["don't forget to add RSI to the second chart"], ["don't hesitate to put the top-left one on weekly"], ['never mind, make the second chart weekly'],

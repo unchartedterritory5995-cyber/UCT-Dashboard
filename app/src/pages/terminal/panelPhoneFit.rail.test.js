@@ -213,6 +213,10 @@ const MEASURED = [
   // MKTH, measured 2026-11-21 in the 462px panel of an 1180px two-panel board: the declines table is 507px with
   // every column (507 + 29). Below the step "Down" and "3 months on" fold; both are repeated in the open row.
   ['MarketHistoryPanel.jsx', 'MKTH (the declines table)', [536], [550]],
+  // COT's board with its sixth column (the funds column by trader type), measured 2026-11-22 at 780 to 461px (sample
+  // data): 443px with every column showing and its cells wrapped (443 + 29). From the step down the commercials and
+  // funds columns fold together, as they do on a phone; from 481 to 780px all six show and nothing scrolls.
+  ['CotPanel.jsx', 'COT (the board)', [472], [480]],
 ]
 /** RSS draws five screens in one table, each with its own columns: every screen names its own step (rsScreensModel.js). */
 const RSS_MEASURED = { starter_rs_leaders: [552, 570], starter_rs_nh_before_price: [513, 530], starter_rs_new_high: [511, 530],
@@ -232,8 +236,8 @@ const FITS_THE_BOTTOM = [
   // 467px one) and IPO 505px (33px over in a 467px one). Both now wrap in a snug panel instead of folding, as
   // CEOS: the COT board's four value headers and its two net cells, IPO's price range and company name
   // (snugWrap, snugTight). Wrapped, each keeps every column down to the bottom of the ladder. The other four
-  // never overflowed.
-  ['CotPanel.jsx', 'COT (the board 401; one market, COT ES, 428 and 449)', 449],
+  // never overflowed. (COT's board took a sixth column on 2026-11-22, the funds column by trader type, and now
+  // names a step: it is in MEASURED. Its one-market tables still name none: the COT test below.)
   ['IpoCalendarPanel.jsx', 'IPO (today and ahead 404; earlier 355)', 404],
   ['AnaloguesPanel.jsx', 'ANLG', 388], ['MarketsBoardPanel.jsx', 'MKTS', 315],
   ['DividendCalendarPanel.jsx', 'DVD', 284], ['CorporateActionsPanel.jsx', 'CACT', 252],
@@ -257,6 +261,11 @@ const FITS_THE_BOTTOM = [
   // snugWrap); in the 640, 462 and 340px panels the panel's scroll width is its width, every column shows and none
   // scrolls in a 340px screen, so each needs at most 316 + 29. Nothing folds.
   ['VolumeFootprintPanel.jsx', 'VFP (its four tables)', 345],
+  // OSCR RICH / CHEAP and IPO LOCKUP, measured 2026-11-22 at 1536, 1180 and 340px (sample data): the IV rank table's least
+  // width with every column showing is 354px in a 640px panel (+ 29), the lockup table's 333px (+ 29); in 640, 462 and
+  // 340px panels the panel's scroll width is its width. On a phone the IV rank list's sessions and open interest fold
+  // (phoneHide); the lockup table's three columns of two- and three-line cells wrap between words and nothing folds.
+  ['IvRankPanel.jsx', 'OSCR RICH / OSCR CHEAP', 383], ['IpoLockupPanel.jsx', 'IPO LOCKUP', 362],
   // ERNSC, measured 2026-11-22 at 1536, 1180 and 340px (sample data, a sector open and closed): five columns of two-line
   // cells whose headers and reaction words wrap in a snug panel (snugWrap) and whose sector name gives back its floor
   // (snugTight); the least width with every column showing is 414px (+ 29). In the 640, 462 and 340px panels the panel's
@@ -348,7 +357,7 @@ describe('the fold ladder: a table folds only from its own step down', () => {
       expect([code, need, step, step - need >= 5]).toEqual([code, need, step, true])
       expect([code, need, step, step - need <= 30]).toEqual([code, need, step, true])
     }
-    expect(pairs.length).toBe(26)   // 26 since MKTH was measured (2026-11-21; 25 since INS)
+    expect(pairs.length).toBe(27)   // 27 since COT's board took its funds column (2026-11-22; 26 since MKTH, 25 since INS)
   })
 
   it('RSS: each of its five screens names its own step, and a screen nobody measured names none', () => {
@@ -380,12 +389,13 @@ describe('the fold ladder: a table folds only from its own step down', () => {
     }
   })
 
-  it('COT: none of its three tables names a step; wrapped, each fits the bottom of the ladder', () => {
+  it('COT: the board names its step; one market\'s three tables name none and, wrapped, each fits the bottom of the ladder', () => {
     const boxes = read('CotPanel.jsx').split('\n').map((l, i, all) => [l, all[i + 1] || '']).filter(([l]) => l.includes('styles.tableBox'))
     expect(boxes.map(([box, table]) => [/data-testid="([\w-]+)"/.exec(table)?.[1], /data-fold="(\d+)"/.exec(box)?.[1]]))
-      .toEqual([['terminal-cot-board', undefined], ['terminal-cot-classes', undefined], ['terminal-cot-history', undefined]])
-    // each is measured: the board 401px with its headers wrapped, one market's two tables 428 and 449px
-    for (const need of [401, 428, 449]) expect([need, NARROW_MAX - need >= 10]).toEqual([need, true])
+      .toEqual([['terminal-cot-board', '480'], ['terminal-cot-finer-classes', undefined], ['terminal-cot-classes', undefined], ['terminal-cot-history', undefined]])
+    // each is measured (2026-11-22, sample data, COT GC and COT ES): the classes table 429px, the by-trader-type table
+    // 360px with its cells wrapped, the history 449px
+    for (const need of [429, 360, 449]) expect([need, NARROW_MAX - need >= 10]).toEqual([need, true])
   })
 
   it('COT and IPO wrap before they fold: the net cells and value headers, the price range and the company name take the squeeze in a snug panel', () => {
@@ -398,8 +408,11 @@ describe('the fold ladder: a table folds only from its own step down', () => {
     const start = cot.indexOf('data-testid="terminal-cot-board"')
     const heads = [...cot.slice(start, cot.indexOf('</thead>', start)).matchAll(/<th scope="col"([^>]*)>([^<]+)<\/th>/g)]
       .map((m) => [m[2], /styles\.snugWrap\b/.test(m[1])])
-    expect(heads).toEqual([['Market', false], ['Large specs, net', true], ['Commercials, net', true], ['Week&apos;s move', true], ['3-year range', true]])
-    expect([count(cot, 'snugWrap'), count(cot, 'snugTight')]).toEqual([6, 0])
+    expect(heads).toEqual([['Market', false], ['Large specs, net', true], ['Commercials, net', true], ['Week&apos;s move', true], ['3-year range', true],
+      ['Funds, net', true]])
+    // 15: the board's five value headers, its two net cells and the funds cell (8), and the by-trader-type table's
+    // four value headers, class names, net cells and sides (7)
+    expect([count(cot, 'snugWrap'), count(cot, 'snugTight')]).toEqual([15, 0])
     const ipo = read('IpoCalendarPanel.jsx')
     expect(ipo).toContain('<td className={`${styles.wrapCell} ${styles.snugTight}`}>')
     expect(ipo).toContain('<td className={`${styles.phoneWrap} ${styles.snugWrap}`}>{priceWords(r.price)}</td>')
@@ -547,7 +560,7 @@ describe('each fitted panel still opts in', () => {
     ['FlowListsPanel.jsx', { snugTight: 8, snugWrap: 2, mediumTight: 0, mediumWrap: 0 }],         // FLWL and FLWL OPEN
     ['RsScreensPanel.jsx', { snugTight: 0, snugWrap: 0, mediumTight: 2, mediumWrap: 1 }],         // RSS (its columns are mapped)
     ['CallThemesPanel.jsx', { snugTight: 4, snugWrap: 0, mediumTight: 0, mediumWrap: 0 }],        // CEOS: Phrase, Companies (it then fits a 461px panel and never folds on a laptop)
-    ['CotPanel.jsx', { snugTight: 0, snugWrap: 6, mediumTight: 0, mediumWrap: 0 }],               // COT: the board's four value headers and two net cells
+    ['CotPanel.jsx', { snugTight: 0, snugWrap: 15, mediumTight: 0, mediumWrap: 0 }],              // COT: the board's value headers, net and funds cells; the by-trader-type table
     ['IpoCalendarPanel.jsx', { snugTight: 1, snugWrap: 1, mediumTight: 0, mediumWrap: 0 }],       // IPO: Company, Price (it then fits a 461px panel too)
     ['InsiderClustersPanel.jsx', { snugTight: 2, snugWrap: 3, mediumTight: 0, mediumWrap: 0 }],   // INS CLUSTER: stock, insiders; money, close
   ])('snug and medium: %s', (file, want) => {

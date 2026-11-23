@@ -116,6 +116,9 @@ const REPLAY_WARM_TFS = Object.freeze(['5', '15', '30', '60'])
 // The typed warm's re-ask window is the legacy module's TYPED_REASK_MS (imported above), never a
 // number of this module's: both warmers skip a re-ask on the same rule.
 const COOLDOWN_MAX_KEYS = 400
+/** The lane of the member's own ask (see `_hydrate`). */
+const URGENT = Object.freeze({ urgent: true })
+
 /** TERM-033: what a FAILED device-cache hydrate resolves to (`_hydrate`). "Nothing was hydrated",
  *  never an answer: the caller takes its verdict on the store as it stands, so the key is asked of
  *  the server like any key the cache does not hold. */
@@ -285,19 +288,35 @@ export function createPrefetch(o = {}) {
   /** `p`, or undefined when it has not settled within `ms` (the read goes on; nothing waits on it). */
   const _raced = (p, ms) => Promise.race([p, new Promise((resolve) => setTimer(() => resolve(undefined), ms))])
 
-  /** Hydrate a key nothing has loaded yet (mem part synchronous, IDB part async). */
-  function _hydrate(key) {
+  /**
+   * ⭐ THE SWITCH'S OWN DEVICE READ, for a key that already holds rows (review of #2438, M2). `_hydrate` returns an
+   * entry that holds anything without reading the device, and the commonest such entry is the universe pack's rows
+   * (no claim: a fresh device copy joins them, persist `_joinRefused`). On /charts the key press has already asked
+   * (deviceWarm, from handoffGroups.primeGroup). A host with no linked group never primes (the screener's focus
+   * chart, the breadth drill), so its switch's read was whatever a warm had queued on the background lane, behind
+   * every other warm, through the whole D/W/M hold. The two prepares ask here, urgently, exactly as deviceWarm
+   * does. Nothing with the device store off (persist.refreshDevice: no source).
+   */
+  function _deviceNow(key) {
+    try { S().persist?.refreshDevice?.(key, URGENT) } catch { /* a device copy is optional */ }
+  }
+
+  /** Hydrate a key nothing has loaded yet (mem part synchronous, IDB part async).
+   *  ⭐ `URGENT` (2026-11-22): the member's own ask, whose device read goes ahead of every warm's (deviceStore/
+   *  client.js, TWO LANES). Passed only by the switch itself (deviceWarm at the key press, the two prepares, the
+   *  device rule); every warm passes nothing, so the ~80 keys a scrolled list asks for wait their turn. */
+  function _hydrate(key, lane) {
     const st = S()
     const s = st.peek(key)
     // a held DEVICE copy (no server answer) is brought forward to the device's newest first
-    if (_deviceHeld(s)) return Promise.resolve(st.persist.refreshDevice?.(key)).catch(() => false).then(() => st.peek(key))
+    if (_deviceHeld(s)) return Promise.resolve(st.persist.refreshDevice?.(key, lane)).catch(() => false).then(() => st.peek(key))
     if (s && (s.depth || s.restSeen || s.developing)) return Promise.resolve(s)
     // Pinned while it reads, so a herd hydrating more keys than the LRU holds cannot evict
     // the entry between its cache read and the verdict taken on it.
     st.registry.acquire(key)
     // TERM-033: a FAILED device-cache read hydrates nothing (NOTHING_HYDRATED). It is never read as
     // an answer: the verdict below is taken on what the store holds, so the warm asks the server.
-    return st.persist.hydrate(key).catch(nothingHydrated)
+    return st.persist.hydrate(key, lane).catch(nothingHydrated)
       .then(() => st.peek(key))
       .finally(() => st.registry.release(key))
   }
@@ -564,7 +583,8 @@ export function createPrefetch(o = {}) {
       // otherwise the request leaves now and a local copy that paints still commits if it lands
       // before the answer.
       const t0 = now()
-      const hyd = _hydrate(key)
+      const hyd = _hydrate(key, URGENT)
+      _deviceNow(key)
       // The lake's whole depth loads from here, in parallel with the server (after the saved-copy
       // read: a saved copy is never overtaken). See _lakeAlone / _joined.
       const lake = date ? Promise.resolve(false) : _lakeLoad(key, hyd)
@@ -711,7 +731,7 @@ export function createPrefetch(o = {}) {
     if (!p) return { paints: false, reason: 'no-key', held: 'none' }
     // a held copy that is not fresh is brought forward first (its synchronous half lands now)
     if (_deviceHeld(S().peek(key)) && !deviceCopyFresh(S().persist.deviceThroughOf?.(key), p.tf, now())) {
-      try { S().persist.refreshDevice?.(key) } catch { /* optional */ }
+      try { S().persist.refreshDevice?.(key, URGENT) } catch { /* optional */ }
     }
     const s = S().peek(key)
     const held = !s ? 'none' : s.source === 'device' ? (s.restSeen ? 'server' : 'device') : String(s.source || 'unknown')
@@ -721,6 +741,54 @@ export function createPrefetch(o = {}) {
     if (!HANDOFF_PAINTS.includes(s.status)) return { paints: false, reason: `status:${s.status}`, held }
     if (!deviceCopyFresh(S().persist.deviceThroughOf?.(key), p.tf, now())) return { paints: false, reason: 'stale', held }
     return { paints: true, reason: 'paints', held }
+  }
+
+  /**
+   * ⭐ (2026-11-21, the cold switch) START THE DEVICE READ NOW: the key handler's, before the chart has rendered
+   * the request (hooks/handoffGroups.primeGroup). A copy the device client already holds lands synchronously (its
+   * recently-read cache); otherwise one worker read leaves now and lands when it lands, instead of after the
+   * render and the handoff's effect (persist.refreshDevice: only an entry with no server answer). Resolves true
+   * when the entry moved. Nothing when the device store is off (no source).
+   */
+  //
+  // ⛔ THE HYDRATE FIRST, FOR A KEY THE REGISTRY DOES NOT HOLD (review of #2407). refreshDevice makes the entry, and
+  // every first look hydrates only a key that has none (holdsBars, peekBars, peekDisplayable): made empty here, a
+  // deep copy in the mem cache (a row visited earlier whose entry the LRU evicted) was no longer found by the
+  // decision that follows in the same key press, the switch read "deep history still due" and the whole linked
+  // group took the round instead of one same-task render. So the hydrate runs here exactly as the first look would
+  // have run it (its mem half in this call; IndexedDB and the device read beside it), and the device read below is
+  // for an entry that already exists.
+  function deviceWarm(sym, tf, { showExtended } = {}) {
+    const key = keyFor(sym, tf, { showExtended })
+    if (!key) return Promise.resolve(false)
+    const st = S()
+    try { if (!st.peek(key)) _hydrate(key, URGENT) } catch { /* a store with no registry: the read below still leaves */ }
+    try { return Promise.resolve(st.persist?.refreshDevice?.(key, URGENT)).catch(() => false) } catch { return Promise.resolve(false) }
+  }
+
+  /**
+   * ⭐ (2026-11-21) Call `cb` on every change of the entry `sym` / `tf` would show, WITHOUT starting its life cycle
+   * (the registry's own subscription: no hydrate, no network). For a waiter that used to poll the entry (the
+   * handoff's POLL_MS). Returns the unsubscribe, or null when this store has no registry to watch.
+   * ⛔ ...AND WHEN THE KEY'S ANSWER IS NOTED (review of #2407). A poll reads whatever is true at its tick; a waiter
+   * woken by the entry reads what is true INSIDE the dispatch. The network notes "a tail answer of this life has
+   * landed" (network.answered, what `heldRows(..., { answered })` and the D/W/M hold's "the answer covers the
+   * view" read) AFTER the dispatch that lands the answer, so the waiter read "not answered" and nothing woke it
+   * again until the deep history joined or its wait ran out (devgates typed-onB, LPX: tail in at +223 ms,
+   * committed at +392). The network's own signal for that moment wakes it too.
+   */
+  function watch(sym, tf, { showExtended } = {}, cb) {
+    const key = keyFor(sym, tf, { showExtended })
+    const st = S()
+    const reg = st.registry
+    if (!key || !reg?.subscribe) return null
+    const wake = () => { try { cb() } catch { /* the watcher's */ } }
+    try {
+      const offEntry = reg.subscribe(key, wake, { wake: 'all' })
+      let offAnswered = null
+      try { offAnswered = st.network?.subscribeAnswered?.(key, wake) || null } catch { offAnswered = null }
+      return () => { try { offEntry() } finally { if (offAnswered) offAnswered() } }
+    } catch { return null }
   }
 
   /** Is the lake's whole depth still due for the chart `sym` / `tf` would show (store.lakePending)?
@@ -778,7 +846,8 @@ export function createPrefetch(o = {}) {
       // (its history joined on an earlier visit) is not due, and takes the old path.
       const t0 = now()
       if (S().peek(key)?.bars?.length && S().deepPending?.(key)) S().deepPrime?.(key, { priority: 'visible', want: true })
-      const hyd = _hydrate(key)
+      const hyd = _hydrate(key, URGENT)
+      _deviceNow(key)
       const s0 = await Promise.race([hyd, new Promise((resolve) => setTimer(() => resolve(undefined), HYDRATE_WAIT_MS))])
       if (!S().deepPending?.(key)) {
         const s = await ensure(key, { until: DAILY_PREPARED, priority: 'urgent', signal, _s0: s0 ?? null })
@@ -1218,7 +1287,7 @@ export function createPrefetch(o = {}) {
   }
 
   return {
-    keyFor, peek, ensure, prefetch, peekDisplayable, peekBars, holdsBars, heldRows, prepareForDisplay, prepareDailyForDisplay, lakePending, deepPending, devicePaints, deviceVerdict,
+    keyFor, peek, ensure, prefetch, peekDisplayable, peekBars, holdsBars, heldRows, prepareForDisplay, prepareDailyForDisplay, lakePending, deepPending, devicePaints, deviceVerdict, deviceWarm, watch,
     prefetchBars, prefetchBar, prefetchBarsToIDB, prefetchAllTimeframes, prefetchListAllTimeframes,
     prefetchGridWarm, warmMemFromIDB, prewarmVisibleList, prefetchListDeep, prefetchReplayTimeframes,
     prefetchBarOnIntent, warmTypedSymbol, createNeighborHold, edgeWarmList,
@@ -1244,6 +1313,8 @@ export function lakePending(sym, tf, opts = {}) { return _f().lakePending(sym, t
 export function deepPending(sym, tf, opts = {}) { return _f().deepPending(sym, tf, opts) }
 export function devicePaints(sym, tf, opts = {}) { return _f().devicePaints(sym, tf, opts) }
 export function deviceVerdict(sym, tf, opts = {}) { return _f().deviceVerdict(sym, tf, opts) }
+export function deviceWarm(sym, tf, opts = {}) { return _f().deviceWarm(sym, tf, opts) }
+export function watch(sym, tf, opts = {}, cb) { return _f().watch(sym, tf, opts, cb) }
 export function prepareDailyForDisplay(sym, tf, opts = {}) { return _f().prepareDailyForDisplay(sym, tf, opts) }
 export function prefetchBars(tickers, tf = 'D', opts = {}) { return _f().prefetchBars(tickers, tf, opts) }
 export function prefetchBar(sym, tf = 'D') { return _f().prefetchBar(sym, tf) }

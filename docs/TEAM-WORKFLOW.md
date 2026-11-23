@@ -46,11 +46,15 @@ For: Patrick, Manrav (Ravi), Bracco. Public since 2026-11-08. Not open source: s
   blocks the commit for a secret, **do not click "allow"**: take the key out and put it in Railway.
   Since 2026-11-22 a change reaches `master` through a pull request only. On the upload page choose
   **"Create a new branch for this commit and start a pull request"**, open the pull request, wait for the
-  check `master gate static checks` to turn green (about 5 to 8 minutes), then press **Merge pull request**.
+  check `master gate static checks` to turn green (about 5 to 10 minutes), then press **Merge when ready**.
+  Since 2026-11-22 that button puts the pull request in a queue and GitHub merges it for you a few minutes later;
+  the page then shows **Merged**.
 - **Bracco / Patrick / Claude sessions:** work on a branch, run the focused tests locally, push once per
   finished unit. Every master push runs the full deploy gate and a deploy.
-  Merge into `master` once `master gate static checks` is green; GitHub refuses the merge before that.
-  Never pass `--admin` to get around it.
+  Since 2026-11-22 `master` has a merge queue: `gh pr merge <n> --merge` (or the **Merge when ready** button)
+  QUEUES the pull request, and GitHub lands it when its checks pass on top of the pull requests ahead of
+  it. It has landed when its state is MERGED. If GitHub removes it from the queue, a check failed there:
+  fix and queue again. Nobody needs to wait for a quiet `master`. Never pass `--admin`.
 
 ## The guards
 
@@ -68,13 +72,17 @@ For: Patrick, Manrav (Ravi), Bracco. Public since 2026-11-08. Not open source: s
    - **If GitHub Actions is down** and a fix must land: an organization owner or repo admin sets the ruleset
      "master merges need the static check green" to Disabled (Settings -> Rules -> Rulesets), merges, turns
      it back on, and says so in the pull request.
+   - **Merge queue (since 2026-11-22).** Pull requests into `master` land through GitHub's merge queue: each is
+     tested on top of the ones ahead of it, and the commit that was tested is the commit that lands. Its
+     rule is its own ruleset, so switching it off is one step: `docs/merge-queue/CUTOVER.md`.
 5. **`bars rails (PR)`**: the deploy gate's bars checks, run on pull requests that touch `api/`, `services/`,
    `tools/` or the bars tests. Advisory, 6 to 8 minutes. It tests the merge with `master`, so it is red
    whenever `master` itself is red on a bars check.
 
 Why these exist: of the 18 times `master` went red between 2026-11-14 and 11-22, 12 were one pull request whose
 failing check had only ever run in the deploy gate, after the merge. None was traced to two pull requests
-breaking each other, so there is no merge queue.
+breaking each other. The merge queue is there for a different reason: the Agent program needs the tested tree
+to be the tree that lands, and a 30-minute stretch with no merge into `master` existed 12% of the time.
 
 ## If a secret lands in the repo
 

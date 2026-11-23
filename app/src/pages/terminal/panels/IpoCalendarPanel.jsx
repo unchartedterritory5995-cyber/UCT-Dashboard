@@ -18,6 +18,9 @@
 //
 // WIDTH. Five columns at 592px. Where the table folds (a phone, a panel at most 460px wide) the
 // share count folds away and the price may take two lines, so four columns fit 340px.
+//
+// IPO LOCKUP (2026-11-22): the view word swaps this body for the lockups ending in the next 30 days, each an
+// estimate (IpoLockupPanel.jsx, its own route). The calendar below is unchanged.
 import { useMemo, useState } from 'react'
 import {
   PanelCommand, PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, usePanelFreshness,
@@ -25,6 +28,8 @@ import {
 import { formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import { todayIso } from '../../calendar/earningsModalRow'
 import { useCalendarEventsRead } from './calendarEventsRead'
+import IpoLockupPanel from './IpoLockupPanel'
+import { normIpoView } from './ipoLockupModel'
 import { canRetry, failureKind, failureText } from './marketRead'
 import {
   IPO_CODE, IPO_EARLIER_SHOWN, IPO_LISTINGS_COMMAND, IPO_SOURCE, IPO_WHAT, countLine, cutDays, dayWords, ipoRead, ipoUrl,
@@ -94,6 +99,8 @@ function Notes({ receivedAt }) {
       <p className={styles.muted} data-testid="terminal-ipo-links">
         Stocks listed in the last year, with their prices:{' '}
         <PanelCommand cmd={IPO_LISTINGS_COMMAND} label="Open the new listings list">New listings ({IPO_LISTINGS_COMMAND})</PanelCommand>
+        . Their lockups ending in the next 30 days, estimated:{' '}
+        <PanelCommand cmd="IPO LOCKUP" label="Open the IPO lockups ending">Lockups (IPO LOCKUP)</PanelCommand>
       </p>
       <p className={styles.muted} data-testid="terminal-ipo-method">
         Source: the Finnhub and FMP IPO calendars, merged by the server. The calendars give no as-of time of their own.
@@ -106,7 +113,14 @@ function Notes({ receivedAt }) {
   )
 }
 
-export default function IpoCalendarPanel() {
+/** `IPO` (the calendar, below) or `IPO LOCKUP` (the lockups ending). Outside the shell the lockup view's chip back to
+ *  the calendar switches here, in this panel's own state. */
+export default function IpoCalendarPanel({ view: viewProp } = {}) {
+  const [view, setView] = useState(() => normIpoView(viewProp))
+  return view === 'lockup' ? <IpoLockupPanel onView={setView} /> : <IpoCalendarView />
+}
+
+function IpoCalendarView() {
   const inPanel = useInTerminalPanel()
   const code = inPanel?.code || IPO_CODE
   const [today] = useState(todayIso)

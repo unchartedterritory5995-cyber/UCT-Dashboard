@@ -286,6 +286,8 @@ describe('a device copy current to the last closed minute', () => {
     expect(await run(false)).toBe('current')
     expect(await run(true)).toBe('pending')                              // it waits for the server instead
   })
+  // (2026-11-21: the HYDRATE applies the device copy again over a saved copy that makes no claim, so the key stays
+  // the device's there: store.deviceFirstPaint.test.js P2. Any entry that is not sourced 'device' still stops the rule.)
   it('L9 once a saved copy joins the device copy, the entry is no longer the device copy: the rule stops', () => {
     const { store, pf, key } = boot({ device: fakeDevice(DEVICE) })
     pf.peekDisplayable('NEWB', '5')

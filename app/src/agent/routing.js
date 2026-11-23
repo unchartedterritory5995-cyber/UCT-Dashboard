@@ -35,6 +35,17 @@ const DATA_HISTORY = new RegExp(`^(?!.*(?:${UNIVERSE_WORDS.source}))(?!.*(?:${CO
 const GRID_CELLS = /\b(two|three|four|five|six|seven|eight|nine|[2-9]) (?:\w+ )?(?:panels|cells|boxes|windows|quadrants)\b|\bequal (?:panels|cells|boxes|windows|quadrants)\b/
 const EQUAL_SIZE = /\b(same|equal|even|identical) (size|sizes|sized|width|height)\b|\bequal(ly)?[\s-]?sized?\b|\bevenly\b|\bequally\b|\bsplit\b|\btile\b|\btiled\b/
 
+// Charts family (2026-11-19): recentlyDeleted.* (Recently deleted: bring back a deleted watchlist, saved layout or saved screen)
+// rides in the EXISTING words-only `layoutBar` group (by action name; never a filler), never a group of its own: the server
+// keeps only MAX_GROUPS groups, a budget every team shares. These words only ADD `layoutBar`: "recently deleted" / "undelete",
+// what was deleted, or a bring-back / restore / recover verb with "deleted" / "removed" and a list / layout / screen noun, or
+// "bring back" with that noun. Never "delete my list", "restore my layout to yesterday" (a version), "bring back the volume".
+export const RECENTLY_DELETED_WORDS = [
+  /\b(?:recently deleted|undelet\w*|un-delet\w*)\b/,
+  /\bwhat (?:have|did) i (?:just |recently )?(?:delete|deleted|remove|removed)\b|\b(?:my |the )?deleted (?:watch ?lists?|lists|layouts?|saved screens?|screens?|scans?|items|stuff)\b/,
+  /\bbring\b(?=[^.;!?]*\bback\b)(?=[^.;!?]*\b(?:watch ?lists?|layouts?|saved screens?|screens?|scans?)\b)/,
+  /\b(?:restore|recover|retrieve|bring back|get back)\b[^.;!?]*\b(?:deleted|removed)\b[^.;!?]*\b(?:watch ?lists?|lists?|layouts?|screens?|scans?)\b|\b(?:restore|recover|retrieve|bring back|get back)\b[^.;!?]*\b(?:watch ?lists?|lists?|layouts?|screens?|scans?)\b[^.;!?]*\b(?:deleted|removed)\b/
+]
 /** Action groups, keyed by capability DOMAIN (the name prefix). Titles are shown to the model. */
 export const GROUPS = [
   { id: 'charts', title: 'Chart symbol, timeframe, type, scale, session, theme, colors, display settings, volume', domains: ['chart', 'volume'],
@@ -181,9 +192,9 @@ export const GROUPS = [
   // its first call), and the bar words made `layouts` ride on the chart header's bar-info readout (C1-065, chart.setSetting).
   // Words: a place on the bar or dock ("take Swing off the bar", "move Swing to the left on the bar"), but never a bar-info noun
   // after "bar" ("hide the close in the bar info": the chart's readout, not the dock); "unpin"; "pin" with "layout".
-  { id: 'layoutBar', title: 'The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it',
-    domains: [], actions: ['layout.pinToBar', 'layout.unpinFromBar', 'layout.moveOnBar'], fillLast: true, wordsOnly: true,
-    words: [/\b(?:off|from|to|on|onto|of|in) (?:the |my )?(?:layouts? )?(?:bar|dock)\b(?! (?:info|readouts?|data|values?|legend|strip)\b)/, /\bunpin\b/, /\bpin\b.*\blayout/] },
+  { id: 'layoutBar', title: 'The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it; Recently deleted: bring back a deleted list, layout or screen',
+    domains: [], actions: ['layout.pinToBar', 'layout.unpinFromBar', 'layout.moveOnBar', 'recentlyDeleted.list', 'recentlyDeleted.restore'], fillLast: true, wordsOnly: true,
+    words: [...RECENTLY_DELETED_WORDS, /\b(?:off|from|to|on|onto|of|in) (?:the |my )?(?:layouts? )?(?:bar|dock)\b(?! (?:info|readouts?|data|values?|legend|strip)\b)/, /\bunpin\b/, /\bpin\b.*\blayout/] },
   // INDICATORS M1 (agreed with Indicators, AGENT-INTEGRATION-HANDOFF §11). A message matching an
   // indicators word AND a charts word routes BOTH; the hints decide.
   { id: 'indicators', title: 'Indicators on a chart (list, add, remove, show, hide; build, preview and save indicator drafts)', domains: ['indicator'],

@@ -318,7 +318,13 @@ def stock_breadth(days, vals, targets: dict, line_days) -> dict:
     def above(i: int, w: int) -> Optional[bool]:
         if i is None or i < w - 1:
             return None
-        return vals[i] > (pre[i + 1] - pre[i + 1 - w]) / w
+        c = vals[i]
+        d = c * w - (pre[i + 1] - pre[i + 1 - w])
+        # the running sums carry binary rounding (a stock flat at 7.77 read "above" its own average); inside that
+        # rounding the sign of (w x close - the window's sum) is taken exactly: fsum of exact doubles rounds correctly
+        if abs(d) > 1e-15 * (i + 2) * (abs(pre[i + 1]) + abs(c) * w):
+            return d > 0
+        return math.fsum([c] * w + [-v for v in vals[i + 1 - w:i + 1]]) > 0
 
     def at(i: Optional[int]) -> dict:
         if i is None:

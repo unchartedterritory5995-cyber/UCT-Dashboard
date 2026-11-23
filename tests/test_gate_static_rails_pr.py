@@ -58,6 +58,13 @@ PR_ONLY = {
     "Every test file lands in a lane, a queued domain, or EXEMPT":
         "tests/test_domain_test_census.py, the lane census (2026-11-20: 2,741 of 3,450 test files ran in no lane); "
         "a PR adding a test file is the one that must say where it runs",
+    "The Agent CI workflows, queue verdict and evidence tools keep their rails":
+        "tests/test_ci_agent_merge_ref.py, tests/test_agent_ci_required.py and tests/test_agent_ci_evidence.py hold the "
+        "Agent CI workflows, the merge-queue verdict and the evidence tools to their rules, and no pull-request job ran "
+        "them (agent ci's server job runs tests/test_uct_agent*.py only): #2501's 176 new tests were checked by nothing",
+    "Every CI mutant manifest still names text that exists":
+        "tests/test_ci_mutant_manifests.py: a manifest in ci/mutants is run only on dispatch, so an edit to a target "
+        "file left 45 of 849 mutants (2026-11-23) with a `from` that matched nothing, and no job said so",
     "This job mirrors the gate's static steps":
         "this file",
 }
@@ -125,6 +132,9 @@ def test_the_mirror_is_not_vacuous_and_holds_the_checks_that_went_red():
                          ("Install the gate's dependencies", "pip install"),
                          ("Tools that import api.* pin the shared-data-root census", "tests/test_tools_pin_the_root.py"),
                          ("The capture queue's reviewed dispositions", "tests/test_queue_dispositions.py"),
+                         ("The Agent CI workflows, queue verdict and evidence tools keep their rails", "tests/test_agent_ci_required.py"),
+                         ("The Agent CI workflows, queue verdict and evidence tools keep their rails", "tests/test_ci_agent_merge_ref.py"),
+                         ("The Agent CI workflows, queue verdict and evidence tools keep their rails", "tests/test_agent_ci_evidence.py"),
                          ("This job mirrors the gate's static steps", "tests/test_gate_static_rails_pr.py")):
         assert needle in pr.get(name, ""), f"the PR job no longer runs {needle} as {name!r}"
 

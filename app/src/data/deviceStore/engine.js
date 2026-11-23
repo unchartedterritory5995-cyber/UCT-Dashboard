@@ -40,7 +40,8 @@ import { parseDelta, applyDelta, newSetOf } from './delta'
 import { createSha256 } from './sha256'
 import { deriveFromDaily } from './resample'
 import { isoOfYmd, nextSessionISO } from './sessions'
-import { etDateLabel } from '../../components/chart/barTime'
+import { closeMinuteOf } from './fresh'
+import { etDateLabel, etMinuteOfDay } from '../../components/chart/barTime'
 
 import { STORED_TFS, DERIVED_TFS } from './tfs'
 
@@ -112,6 +113,7 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
   let names = null
   const inflight = new Map()   // tf → ingest promise
   let opening = null
+  const tfOpening = new Map()  // stored tf → the promise of its own open (openTf)
 
   // A handle the previous leader's worker still held is released when that worker goes away; the new
   // leader may get there a moment first.
@@ -166,6 +168,23 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
     h.read(tb, dataEnd)
     return parseTrailer(tb, dataEnd, { tf })
   }
+  /** Open the newest valid generation of one stored timeframe (`gens`: _scan's map for it). */
+  async function _openTf(tf, gens) {
+    if (!gens) return
+    const ready = [...gens.keys()].filter((g) => gens.get(g).has('ok') && gens.get(g).has('pack')).sort((a, b) => b - a)
+    for (const gen of ready) {
+      let h = null
+      try {
+        const ok = await _readJson(okName(tf, gen))
+        h = await _open(packName(tf, gen))
+        if (h.size() !== ok.bytes) throw new DeviceFormatError('pack: size does not match its marker')
+        const index = _indexOf(h, tf)
+        _install(tf, { gen, build: ok.build, handle: h, index, bytes: ok.bytes, src: _srcOf(ok), via: ok.via === 'delta' ? 'delta' : 'full' })
+        h = null
+        return
+      } catch { /* unreadable: the next older generation */ } finally { if (h) h.close() }
+    }
+  }
   function _install(tf, entry) {
     names = null
     const old = live.get(tf)
@@ -185,6 +204,31 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
     const next = nextSessionISO(asof)
     if (!splits || splits.session !== next || today > next) return false
     return !splits.symbols.has(sym.replace(/\./g, '-'))
+  }
+  /**
+   * ⛔ A SEED COPY THAT STOPS BEFORE ITS AS-OF SESSION'S LAST BUCKET IS NOT COMPLETE THROUGH THAT SESSION
+   * (2026-11-21). The file says `asof`, and the builder checks only that the newest row is OF that day
+   * (api/services/ffseed.py build_tf `stale`): it packs whatever intraday rows the worker's store holds. Measured
+   * on the published build 20261121T0137Z (as of Friday 2026-11-20): 3,535 of 3,541 30m rows stopped short, 3,530 of them by 13:00 ET
+   * of that day (60m and 15m alike, 5m mostly ~12:10), their last row a bucket caught while it was forming; the
+   * build before it was the same for Thursday. Stamped through the end of the as-of day, such a copy passed
+   * fresh.js, and with today's bars appended it read current mid-session: a chart with a hole in yesterday.
+   * For an intraday copy (D is one bar a day: never short), by its LAST row:
+   *   'cut'     it is not the last bucket of its own session (the page's completeness rule,
+   *             marketSession.classifyIntradayTail): the copy stops mid-session, and that row is the one the
+   *             store caught while its bucket was forming. It is not handed out (_lookup).
+   *   'behind'  it is the last bucket of an EARLIER session than `asof` (the builder leaves such a symbol out as
+   *             stale; a file that carries one anyway holds nothing of its as-of session): its rows are whole
+   *             buckets, but the copy is not complete through `asof`.
+   *   null      the last bucket of `asof`'s session: the copy is whole.
+   */
+  function _shortOfClose(seed, tf, asof) {
+    const mins = Number(tf)
+    if (!Number.isFinite(mins) || mins <= 0 || !seed.t.length) return null
+    const last = seed.t[seed.t.length - 1]
+    const day = etDateLabel(last)
+    if (etMinuteOfDay(last) < closeMinuteOf(day) - mins) return 'cut'
+    return day !== asof ? 'behind' : null
   }
   /** The key `sym` is held under in L ('BRK-B' or its 'BRK.B' spelling), or null. */
   function _rowName(L, sym) {
@@ -218,6 +262,25 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
     if (!seed) return { out: null, why: 'bad' }
     // the seed is complete through the end of its as-of day (built after that day's 20:00 ET close)
     seed.through = Date.UTC(+asof.slice(0, 4), +asof.slice(5, 7) - 1, +asof.slice(8, 10)) / 1000 + 86400
+    // ...unless its rows stop before that session's last bucket (_shortOfClose). Then:
+    //  - A LAST ROW THAT STOPS MID-SESSION IS NOT HANDED OUT (review of #2407). That row was caught while its
+    //    bucket was forming, and in the store an incoming local row replaces a held one: it would overwrite a
+    //    complete bucket the lake or the pack holds, whatever its stamp says;
+    //  - the copy is complete, at most, to where its last row starts, so every rule that reads `through` refuses it;
+    //  - today is NEVER appended to it (the join would hide the missing hours behind a current tail).
+    const short = _shortOfClose(seed, String(tf), asof)
+    if (short === 'cut') {
+      const n = seed.t.length - 1
+      if (n <= 0) return { out: null, why: 'seed-short' }
+      const cut = {}
+      for (const c of ['t', 'o', 'h', 'l', 'c', 'v']) cut[c] = seed[c].slice(0, n)
+      cut.through = seed.t[n]
+      return { out: cut, why: 'seed-short' }
+    }
+    if (short === 'behind') {
+      seed.through = seed.t[seed.t.length - 1]
+      return { out: seed, why: 'seed-short' }
+    }
     if (!overlay) return { out: seed, why: 'seed-only:no-overlay' }
     // TODAY, to the last COMPLETE minute (live.js): appended only where the overlay vouches for every
     // bar and continues this symbol's window across exactly one night.
@@ -255,35 +318,30 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
   }
 
   const api = {
-    /** Open every committed generation (newest valid one per timeframe). Idempotent. */
+    /**
+     * Open every committed generation (newest valid one per timeframe). Idempotent.
+     * ⭐ (2026-11-21, the cold switch) EVERY TIMEFRAME OPENS AT ONCE: one listing, then each timeframe's marker,
+     * pack and trailer read in parallel (they were read one after another, 1m last, and a page's first read
+     * waited for all six). A read waits only for its own timeframe (openTf).
+     */
     open() {
       if (opening) return opening
-      opening = (async () => {
+      const listing = (async () => {
         const all = await io.list()
         if (all.includes(SPLITS_FILE)) {
           try { const j = await _readJson(SPLITS_FILE); splits = _splitsOf({ splits: j && { session: j.session, symbols: Object.fromEntries((j.symbols || []).map((x) => [x, 1])) } }) } catch { splits = null }
         }
-        const by = _scan(all)
-        for (const tf of STORED_TFS) {
-          const gens = by.get(tf)
-          if (!gens) continue
-          const ready = [...gens.keys()].filter((g) => gens.get(g).has('ok') && gens.get(g).has('pack')).sort((a, b) => b - a)
-          for (const gen of ready) {
-            let h = null
-            try {
-              const ok = await _readJson(okName(tf, gen))
-              h = await _open(packName(tf, gen))
-              if (h.size() !== ok.bytes) throw new DeviceFormatError('pack: size does not match its marker')
-              const index = _indexOf(h, tf)
-              _install(tf, { gen, build: ok.build, handle: h, index, bytes: ok.bytes, src: _srcOf(ok), via: ok.via === 'delta' ? 'delta' : 'full' })
-              h = null
-              break
-            } catch { /* unreadable: the next older generation */ } finally { if (h) h.close() }
-          }
-        }
-        return api.info()
+        return _scan(all)
       })()
+      for (const tf of STORED_TFS) tfOpening.set(tf, listing.then((by) => _openTf(tf, by.get(tf)), () => {}))
+      opening = Promise.all([listing, ...tfOpening.values()]).then(() => api.info())
       return opening
+    },
+
+    /** Resolves once the timeframe `tf` serves from (a derived W/M: its D) is open; opens the store if needed. */
+    openTf(tf) {
+      const o = api.open()
+      return tfOpening.get(DERIVED_TFS[tf] ?? String(tf)) || o
     },
 
     /**
@@ -294,7 +352,9 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
 
     /**
      * Diagnostics: why read(sym, tf) answers what it does. 'ok' (seed and today's overlay), 'seed-only:<rule>'
-     * (the seed alone: the overlay is absent or refused, live.js why()), or the rule that made it null:
+     * (the seed alone: the overlay is absent or refused, live.js why()), 'seed-short' (the seed alone and not
+     * complete through its as-of session, _shortOfClose: without its last row when it stops mid-session, null when
+     * that was its only row), or the rule that made it null:
      * no-file (that timeframe is not held) | missing (not in the seed) | split (the split guard) | bad (the
      * row failed its checks).
      */
@@ -375,6 +435,7 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
       for (const L of live.values()) { try { L.handle.close() } catch { /* gone */ } }
       live.clear()
       opening = null
+      tfOpening.clear()
     },
   }
 

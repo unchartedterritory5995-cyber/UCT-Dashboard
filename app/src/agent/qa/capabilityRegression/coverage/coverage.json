@@ -1,41 +1,41 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 253,
-  "withProductionKinds": 205,
+  "all": 255,
+  "withProductionKinds": 207,
   "darkGated": 48
  },
  "totals": {
-  "capabilities": 253,
-  "withAnyRegressionCase": 201,
+  "capabilities": 255,
+  "withAnyRegressionCase": 203,
   "perProtection": {
    "nl": {
-    "covered": 198,
-    "applicable": 253
+    "covered": 200,
+    "applicable": 255
    },
    "routing": {
-    "covered": 195,
-    "applicable": 253
+    "covered": 197,
+    "applicable": 255
    },
    "args": {
-    "covered": 201,
-    "applicable": 253
+    "covered": 203,
+    "applicable": 255
    },
    "execution": {
-    "covered": 198,
-    "applicable": 253
+    "covered": 200,
+    "applicable": 255
    },
    "receipt": {
-    "covered": 170,
-    "applicable": 253
+    "covered": 171,
+    "applicable": 255
    },
    "refusal": {
     "covered": 35,
-    "applicable": 253
+    "applicable": 255
    },
    "permission": {
-    "covered": 246,
-    "applicable": 253
+    "covered": 248,
+    "applicable": 255
    },
    "undo": {
     "covered": 84,
@@ -43,11 +43,11 @@
    },
    "multiStep": {
     "covered": 40,
-    "applicable": 253
+    "applicable": 255
    },
    "phrasings": {
-    "covered": 194,
-    "applicable": 253
+    "covered": 196,
+    "applicable": 255
    }
   }
  },
@@ -8422,6 +8422,114 @@
     "receipt": [],
     "refusal": [],
     "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "recentlyDeleted.list": {
+   "domain": "recentlyDeleted",
+   "group": "layoutBar",
+   "target": "recentlyDeleted",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "recentlyDeleted.list: \"what have I deleted\"",
+     "recentlyDeleted.list: \"show my recently deleted screens\"",
+     "recentlyDeleted.list: \"what is in recently deleted\"",
+     "recentlyDeleted.list: \"show my deleted layouts\""
+    ],
+    "routing": [
+     "recentlyDeleted.list: \"what have I deleted\"",
+     "recentlyDeleted.list: \"show my recently deleted screens\"",
+     "recentlyDeleted.list: \"what is in recently deleted\"",
+     "recentlyDeleted.list: \"show my deleted layouts\""
+    ],
+    "args": [
+     "corpus recentlyDeleted.list"
+    ],
+    "execution": [
+     "recentlyDeleted.list (c)"
+    ],
+    "receipt": [
+     "recentlyDeleted.list (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "recentlyDeleted.restore": {
+   "domain": "recentlyDeleted",
+   "group": "layoutBar",
+   "target": "recentlyDeleted",
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "none",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": false,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "recentlyDeleted.restore: \"bring back my Old Breakouts screen\"",
+     "recentlyDeleted.restore: \"undelete the Old Breakouts screen\"",
+     "recentlyDeleted.restore: \"restore my deleted Old Breakouts screen\"",
+     "recentlyDeleted.restore: \"recover the Old Breakouts screen I deleted\""
+    ],
+    "routing": [
+     "recentlyDeleted.restore: \"bring back my Old Breakouts screen\"",
+     "recentlyDeleted.restore: \"undelete the Old Breakouts screen\"",
+     "recentlyDeleted.restore: \"restore my deleted Old Breakouts screen\"",
+     "recentlyDeleted.restore: \"recover the Old Breakouts screen I deleted\""
+    ],
+    "args": [
+     "corpus recentlyDeleted.restore"
+    ],
+    "execution": [
+     "recentlyDeleted.restore (c)"
+    ],
+    "receipt": [],
+    "refusal": [],
+    "permission": [
+     "recentlyDeleted.restore: waits for Apply"
+    ],
     "undo": [],
     "multiStep": [],
     "phrasings": []

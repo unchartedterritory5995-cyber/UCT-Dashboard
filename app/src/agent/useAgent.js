@@ -402,10 +402,10 @@ const kindsOf = (ops) => [...new Set(ops.map(o => getCapability(o?.action)?.targ
 // choice that names every chart — never one chart of it, so a partial set can't be picked. Only where a gate was about to ask
 // (an ask is never added). The plan must be one uniform change (the same ops on each of its charts), so the set's ops are that
 // change on each chart of the set, nothing else. → { text, choice: { ref, label, ops } } or null.
-function everyExceptQuestion(host, ops, text) {
+function everyExceptQuestion(host, ops, text, subject = null) {
   try {
     const live = host?.charts?.list?.() || []
-    const ev = everyExceptSet(text, live, selectedChart(host))
+    const ev = everyExceptSet(text, live, selectedChart(host), { subject })
     if (!ev || !ops?.length) return null
     const kinds = kindsOf(ops)
     if (kinds.length !== 1) return null
@@ -478,6 +478,9 @@ const FOLLOW_CUES = /\b(?:it|that|this|them|those|these|both|first|second|third|
 const CORRECTION = /^(?:no|nope|nah|not that|not those|wrong|that's wrong|that is wrong|actually,? i meant|i meant|i said|i asked for)\b/i
 // Which board the host is showing (null for hosts without layouts).
 const epochOf = (host) => (typeof host?.epoch === 'function' ? host.epoch() : null)
+// (H-RDR-1 follow-up) the chart an EARLIER TURN changed (GATE C session memory): the anchor of an anchor-relative exclusion
+// said with "it" / "that one" and nothing clicked, or "the one I just changed" ("…except the one next to it") — spatialCheck
+const chartSubjectOf = (memory, host) => { try { return memory?.subject?.('chart', epochOf(host))?.ref || null } catch { return null } }
 // How many times a layout has been opened in this tab (null for hosts without layouts).
 const visitOf = (host) => (typeof host?.boardVisit === 'function' ? host.boardVisit() : null)
 // A proposal is pinned to the board only if it touches something ON the board.
@@ -1668,7 +1671,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     // (AUDIT, #988 GO) an APPROVED card is re-checked too (idempotent: its card was built behind this gate) — should it ever
     // carry an excluded chart, nothing of it runs; the follow-ups a change makes (runFollowUps) pass the same check
     {
-      const g = withoutExcludedCharts(opsIn, gateWords, { host, getTargetKind, getCapability })
+      const g = withoutExcludedCharts(opsIn, gateWords, { host, getTargetKind, getCapability, subject: chartSubjectOf(memoryRef.current, host) })
       if (g.dropped && path === 'approved') {
         const text = boundRefusal('it includes a chart your request excludes')
         push({ role: 'refusal', text })
@@ -1940,7 +1943,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         one = r.op
       }
       // ⛔ #988 (AUDIT GO): a follow-up never lands on a chart the member's words exclude (the same gate as execute's)
-      if (withoutExcludedCharts([one], gateWords, { host, getTargetKind, getCapability }).dropped) {
+      if (withoutExcludedCharts([one], gateWords, { host, getTargetKind, getCapability, subject: chartSubjectOf(memoryRef.current, host) }).dropped) {
         record({ member, outcome: 'excluded chart skipped', outcomeData: { kind: 'refused-excluded', actions: [one.action] }, telemetry: { path: 'followup', refused: true, voice } })
         continue
       }
@@ -3404,9 +3407,9 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       const dropExcluded = (ask) => {
         try {
           const live = host?.charts?.list?.() || []
-          const exc = excludedCharts(text, live, selectedChart(host))
+          const exc = excludedCharts(text, live, selectedChart(host), { subject: chartSubjectOf(memoryRef.current, host) })
           // ⛔ (hotfix) …nor a chart an UNPLACED exclusion may mean (a ticker on several charts: `unoffered`)
-          const ex = new Set([...exc, ...(exc.unoffered || []), ...spatialConstraints(text, live, selectedChart(host)).excluded])
+          const ex = new Set([...exc, ...(exc.unoffered || []), ...spatialConstraints(text, live, selectedChart(host), { subject: chartSubjectOf(memoryRef.current, host) }).excluded])
           ex.delete(UNPLACED)
           if (!ex.size || !Array.isArray(ask?.choices)) return ask
           const k = getTargetKind(getCapability(screened.ops[0]?.action)?.target)
@@ -3423,7 +3426,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         return
       }
       const askEveryExcept = (mode) => {
-        const q = everyExceptQuestion(host, screened.ops, text)
+        const q = everyExceptQuestion(host, screened.ops, text, chartSubjectOf(memoryRef.current, host))
         if (!q) return false
         pendingRef.current = { kind: 'target', ops: [], path: 'model', mode, member: text, voice, epoch: epochOf(host), setChoice: q.choice }
         push({ role: 'question', text: q.text, choices: [{ ref: q.choice.ref, label: q.choice.label }, { label: 'Cancel', cancel: true }], local: true })
@@ -3477,7 +3480,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       // ⛔ #988 (AUDIT probe 17): the LAST safety net behind the resolvers — every spatial constraint the words state (a line, a
       // place, a relation from a named anchor or the click, a count), checked on the plan's own targets. A violation is asked
       // (only the cells that satisfy them are offered, never an anchor) and nothing runs. spatialCheck.js
-      const spatial = onSubject ? null : checkSpatialConstraints({ host, ops: screened.ops, text, pickedRefs: answeredRefs, getTargetKind, getCapability })
+      const spatial = onSubject ? null : checkSpatialConstraints({ host, ops: screened.ops, text, pickedRefs: answeredRefs, getTargetKind, getCapability, subject: chartSubjectOf(memoryRef.current, host) })
       if (spatial?.ask && askEveryExcept(disposition)) return
       if (spatial?.ask) {
         const kinds = kindsOf(screened.ops)

@@ -10935,6 +10935,55 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             print(f"[startup] fund holders (N-PORT) job registration failed (non-fatal): {e}")
 
+        # OSCR RICH / OSCR CHEAP (2026-11-22): the highest and lowest IV rank across the options log, built once
+        # an evening from the summary files the IVH store already mirrors (api/services/research/iv_rank_leaders.py).
+        # Daily at 20:45 ET: after the 16:30 log and its screen build, inside scan_period's quiet span (from 20:15
+        # on a weekday, all day at a weekend), clear of the 20:30 jobs. One file at a time, one small float array a
+        # symbol; measured on an invented log of the real log's size (iv_rank_leaders.MEASURED_PEAK_MB). The job only
+        # starts the module's own thread (one at a time, and only while OPTIONS_SCREENER_ENABLED is on) and returns;
+        # nothing on a member's request builds it.
+        _boot_mark("S10239R")
+        try:
+            def _iv_rank_leaders_job():
+                from api.services.research import iv_rank_leaders as _ivrl
+                print(f"[scheduler] IV rank leaders (options log) build: {_ivrl.run_scheduled()}")
+
+            from api.services.research import iv_rank_leaders as _ivrl_mod
+            _scheduler.add_job(
+                _iv_rank_leaders_job,
+                trigger=CronTrigger(hour=_ivrl_mod.RUN_AT_ET[0], minute=_ivrl_mod.RUN_AT_ET[1], timezone=_ET),
+                id="iv_rank_leaders_evening", max_instances=1, replace_existing=True, coalesce=True,
+                misfire_grace_time=1800,
+            )
+            print("[startup] IV rank leaders (options log) scheduled -- daily 20:45 ET")
+        except Exception as e:
+            print(f"[startup] IV rank leaders job registration failed (non-fatal): {e}")
+
+        # COT BY TRADER TYPE (2026-11-22): the CFTC's Traders in Financial Futures and Disaggregated futures-only
+        # reports beside the legacy COT (api/services/cot_finer.py). 05:10 and 21:10 ET, both inside scan_period's
+        # quiet span: 21:10 on the Friday the CFTC publishes (15:30 ET) and the evening of a holiday week's Monday
+        # release, 05:10 the retry. A run asks for nothing while both reports hold the report due by now (the legacy
+        # reader's holiday-aware rule) and every seed year is held; otherwise one yearly zip at a time (about 0.7 and
+        # 2.3 MB, streamed to disk and deleted when read, a read adding at most cot_finer.MEASURED_PEAK_MB), on the
+        # module's own thread, bounded by its budget and the end of the quiet span. Nothing on a member's request.
+        _boot_mark("S10239C")
+        try:
+            def _cot_finer_job():
+                from api.services import cot_finer as _cf
+                print(f"[scheduler] COT by trader type (CFTC TFF / Disaggregated) check: {_cf.run_scheduled()}")
+
+            from api.services import cot_finer as _cf_mod
+            _scheduler.add_job(
+                _cot_finer_job,
+                trigger=CronTrigger(hour=",".join(str(h) for h in _cf_mod.RUN_HOURS_ET),
+                                    minute=_cf_mod.RUN_MINUTE_ET, timezone=_ET),
+                id="cot_finer_reports", max_instances=1, replace_existing=True, coalesce=True,
+                misfire_grace_time=1800,
+            )
+            print("[startup] COT by trader type scheduled -- daily 05:10 and 21:10 ET")
+        except Exception as e:
+            print(f"[startup] COT by trader type job registration failed (non-fatal): {e}")
+
         # Pine support loop, Phase B — the daily digest (docs/pine/support-loop/PHASE-B.md).
         # Light: two indexed SELECTs + one JSON read, cached per ET day; posts one admin
         # Discord line only when there is work (PINE_SUPPORT_DIGEST_POST=off silences it).
@@ -12349,7 +12398,9 @@ from api.routers import corporate_actions as corporate_actions_router  # noqa: E
 app.include_router(corporate_actions_router.router)  # /api/research/corporate-actions/{ticker}
 from api.routers import pine_events as pine_events_router  # noqa: E402  (track 4 E1: a chart symbol's earnings, dividends and splits for Pine, paid, DARK: admins unless PINE_EVENTS_SUPPLY_ENABLED=all)
 app.include_router(pine_events_router.router)  # /api/pine/events/{ticker}
-from api.routers import pine_breadth as pine_breadth_router  # noqa: E402  (track 4 B1: UCT breadth under USI: spellings for Pine, paid, DARK: admins unless PINE_BREADTH_SUPPLY_ENABLED=all; members refused by the licence until ESC-03)
+from api.routers import pine_financial as pine_financial_router  # noqa: E402  (track 4 F1a: a chart symbol's SEC-filing figures for Pine's request.financial, as UCT data, paid, DARK: admins unless PINE_FINANCIAL_SUPPLY_ENABLED=all)
+app.include_router(pine_financial_router.router)  # /api/pine/financial/{ticker}
+from api.routers import pine_breadth as pine_breadth_router  # noqa: E402  (track 4 B1: UCT breadth under USI: spellings for Pine, paid, DARK: admins unless PINE_BREADTH_SUPPLY_ENABLED=all; members served at `all` since ESC-03 was answered 2026-11-22)
 app.include_router(pine_breadth_router.router)  # /api/pine/breadth/{spelling}
 from api.routers import fed_watch as fed_watch_router  # noqa: E402  (FED: Fed statements, speeches, headlines, the next meeting, paid)
 app.include_router(fed_watch_router.router)  # /api/research/fed-watch
@@ -12371,6 +12422,8 @@ from api.routers import setup_history as setup_history_router  # noqa: E402  (SE
 app.include_router(setup_history_router.router)  # /api/research/setup-history, /api/research/setup-history/{ticker}
 from api.routers import volume_footprint as volume_footprint_router  # noqa: E402  (VFP: one stock's accumulation and distribution, biggest volume days, pocket pivots, gaps, paid)
 app.include_router(volume_footprint_router.router)  # /api/research/volume-footprint/{ticker}
+from api.routers import factor_exposure as factor_exposure_router  # noqa: E402  (FCTX: one stock's loadings on the market, size, growth vs value, momentum, quality and low volatility, paid)
+app.include_router(factor_exposure_router.router)  # /api/research/factor-exposure/{ticker}
 from api.routers import public_records as public_records_router  # noqa: E402  (PUBR: one company's contracts, trials, FDA approvals and lobbying from government records, paid)
 app.include_router(public_records_router.router)  # /api/research/public-records/{ticker}
 from api.routers import event_study as event_study_router  # noqa: E402  (EVST: a member's own historical event study over stored series, paid)

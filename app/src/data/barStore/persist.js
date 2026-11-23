@@ -53,6 +53,7 @@ import { TAIL_ENTRY_MAX_BARS, HIST_PERSIST_MAX_BARS, historyLagsTail } from '../
 import { ACTION, parseKey, isDateTf, isIntradayTf, unixToDateLabel, keyOf } from './types'
 import { isSealedRow, bucketEnd, normT } from './reducer'
 import { deviceSource as _defaultDeviceSource } from '../deviceStore/source'
+import { deviceCopyFresh } from '../deviceStore/fresh'
 
 export const PERSIST_DEBOUNCE_MS = 1000
 export const META_VERSION = 1
@@ -175,10 +176,60 @@ export function createPersist({
   const DEV = device === undefined ? _defaultDeviceSource() : device
   // (which cache-tfs it holds is the source's own answer: deviceStore/tfs.SERVED_TFS)
   const _devKey = (p) => !!DEV && !p.window
-  /** May a device copy land on this entry? Nothing held, or only a device copy (no server answer):
-   *  a device copy seeds an entry, or moves its own copy FORWARD (review of #2189: a copy warmed at
-   *  09:35 must not paint its 09:35 bars at 15:55, so the switch re-reads it, refreshDevice). */
-  const _deviceMay = (s) => !s || (!s.restSeen && ((!s.bars.length && !s.developing) || s.source === 'device'))
+  /** Does the entry carry a stamp a save wrote (persist's envelope: identity, a seal, a completeness claim)? A
+   *  saved answer of the BarStore's always does (the server sends cache_key, bar_contract.py). */
+  const _stamped = (s) => s.cacheKey != null || s.historyRev != null || s.completeThrough != null
+    || !!(s.sealedSpans && s.sealedSpans.length)
+  const _empty = (s) => !s.bars.length && !s.developing
+  /** A held LOCAL copy with no stamp and no forming bar: the store can read no claim off it. ⚠️ That is WIDER
+   *  than "the pack's rows": it is the universe pack's rows read back from IndexedDB, the lake's newest bars,
+   *  AND a full server answer a legacy writer saved without an envelope (utils/prefetchBars, useLegacyChartBars;
+   *  barsIDB drops the envelope when another writer touches a record). Nothing here can tell those apart, so the
+   *  join below is held to rules that are safe for all three (`_joinRefused`), not to a guess at which it is. */
+  const _claimless = (s) => !s.restSeen && !s.developing && !_stamped(s)
+  /** One device read of `p`'s key. `urgent` (the member's own ask: a key press, the chart on screen) goes ahead of
+   *  every background read (deviceStore/client.js, TWO LANES); a warm passes nothing and waits its turn. */
+  const _devRead = (p, urgent) => (urgent === true ? DEV.read(p.sym, p.cacheTf, { urgent: true }) : DEV.read(p.sym, p.cacheTf))
+  /** Is a device READ worth making for this entry? Nothing held, only a device copy (it moves its own copy
+   *  FORWARD: review of #2189, a copy warmed at 09:35 must not paint its 09:35 bars at 15:55), or a copy with no
+   *  claim, which a FRESH device copy may join (`_joinRefused` decides when the copy is in hand). */
+  const _deviceMay = (s) => !s || (!s.restSeen && (_empty(s) || s.source === 'device' || _claimless(s)))
+  const _devEq = (a, b) => !!a && !!b && a.t === b.t && a.o === b.o && a.h === b.h && a.l === b.l && a.c === b.c && a.v === b.v
+  /**
+   * ⭐ (2026-11-21) THE JOIN: a device copy landing on a held copy that is not its own. Every universe symbol holds
+   * the daily pack's ~300 rows in IndexedDB once the pack is ingested, and that read answers in a few ms: it took
+   * the key first (or joined the device copy a moment later, making the entry 'idb'), and the device copy was then
+   * never consulted (devgates 2026-11-21: 3 of 14 typed switches painted from the device, the three made while the
+   * pack was still being written). A device copy now joins such a copy under the reducer's bulk rules (applyLocal:
+   * only where the rows they share prove one price basis, never across a hole), and the key is the device's.
+   * Returns null when it may, else the rule that refuses (seeding an empty entry and the device moving its own
+   * copy forward are not joins: null). ⛔ In the reducer an incoming local row REPLACES a held one of the same
+   * bucket, and the merged entry is judged under the device's stamp, so a join is refused unless ALL of:
+   *   answered  no server answer holds the key
+   *   stamped   the held copy carries no stamp (a saved answer of the BarStore's: its own paint rule, may be deeper)
+   *   forming   it holds no forming bar, or only the device's own (`ownDev`: a saved copy that joined a device
+   *             copy mid-session leaves the device's forming bar in place); a saved copy's own forming bar is as
+   *             old as its save
+   *   not-fresh the device copy is fresh by its stamp (deviceStore/fresh.js): only then are its rows the ones to
+   *             overwrite a held bucket with. A seed that stops short of its as-of close (engine 'seed-short') is
+   *             never fresh, so its last row, caught while forming, can never replace a complete bucket the lake
+   *             or the pack holds (review of #2407)
+   *   held-newer the held copy's tail is not newer than the device copy's last row, so the merged tail IS the
+   *             device's and every rule that reads the entry as the device's (status, fresh.js, the handoff's
+   *             behind-the-clock rule) is reading the copy its stamp describes
+   */
+  function _joinRefused(before, p, got, ownDev) {
+    if (!before) return null
+    if (before.restSeen) return 'answered'
+    if (_empty(before) || before.source === 'device') return null
+    if (_stamped(before)) return 'stamped'
+    if (before.developing && !_devEq(before.developing, ownDev)) return 'forming'
+    if (!deviceCopyFresh(got.through, p.tf, now())) return 'not-fresh'
+    const last = normT(got.rows[got.rows.length - 1].t, p.tf)
+    const tail = Math.max(before.bars.length ? before.bars[before.bars.length - 1].t : -Infinity, before.developing ? before.developing.t : -Infinity)
+    if (!(last >= tail)) return 'held-newer'
+    return null
+  }
   /** key → `through` (unix s) of the device copy the entry holds: how far it is complete (deviceStore
    *  fresh.js / prefetch.devicePaints read it). Bounded, oldest out. */
   const devThrough = new Map()
@@ -188,18 +239,48 @@ export function createPersist({
     if (devThrough.size > 1000) devThrough.delete(devThrough.keys().next().value)
   }
   /** Dispatch a device copy; true when it changed the entry. Its saved time is the moment it is complete
-   *  up to (`savedAt`, from `through`): what every local-copy age rule reads, the daily gate included. */
-  function _deviceHit(key, p, gen, got) {
-    if (!got?.rows?.length) return false
+   *  up to (`savedAt`, from `through`): what every local-copy age rule reads, the daily gate included.
+   *  ⛔ THE STAMPS ARE WRITTEN BEFORE THE DISPATCH (2026-11-21). The registry wakes the key's subscribers INSIDE
+   *  the dispatch, and the symbol handoff's waiter is one of them (prefetch.watch, the cold gates): it asks the
+   *  device rule in that wake, the only one a switch gets before the server answers. Written after the dispatch,
+   *  the rule read `through` as unknown, answered 'stale', and the copy that had just landed was never painted
+   *  (devgates 2026-11-21, 0 of 28 with the watcher against 3 of 28 with the 25 ms poll it replaced). A copy the
+   *  reducer refuses, or one that does not leave the key the device's, puts both stamps back as they were. */
+  function _deviceHit(key, p, gen, got, ownDev = null) {
+    // (`n`: the copy's row count without building its rows, deviceStore/source.js; a copy with no `n` has rows)
+    if (!got || !(got.n ?? got.rows?.length)) return false
     const before = registry.peek(key)
-    if (!_deviceMay(before)) return false
     const held = devThrough.get(key)
+    // What nearly every warm of a device-held key ends in. It reads no row: the count above is `got.n`, and for an
+    // entry the device already holds `_joinRefused` returns before it reads one either. (The saving is the lazy
+    // `rows` of deviceStore/source.js, not this check's place in the order.)
     if (before?.source === 'device' && held != null && !(got.through > held)) return false   // not newer
+    if (_joinRefused(before, p, got, ownDev)) return false
+    const was = { dev: devThrough.has(key), through: held, saved: savedAt.has(key), savedAt: savedAt.get(key) }
+    _noteDev(key, got.through ?? null)
+    _noteSaved(key, got.savedAt ?? null)
     registry.dispatch(key, { type: ACTION.DEVICE_HIT, key, gen, payload: { sym: p.sym, bars: got.rows, saved_at: got.savedAt ?? null } })
     const after = registry.peek(key)
-    if (after === before) return false
-    if (after?.source === 'device') { _noteDev(key, got.through ?? null); _noteSaved(key, got.savedAt ?? null) }
-    return true
+    if (after === before || after?.source !== 'device') {
+      if (was.dev) _noteDev(key, was.through); else devThrough.delete(key)
+      if (was.saved) _noteSaved(key, was.savedAt); else savedAt.delete(key)
+    }
+    return after !== before
+  }
+  /** A saved copy just landed on a key the device copy held: when it JOINED it (the entry is now 'idb' / 'mem'),
+   *  the device copy is applied again, as a join (`_joinRefused`), so the key and its saved time stay the
+   *  device's: synchronously from the device's recent-read cache, else by one read. `ownDev`: the forming bar the
+   *  device copy had put there (mid-session), which is not the saved copy's. ⛔ Without this the chart's daily gate
+   *  read the PACK's saved time for an entry the handoff had just committed as the device's, and refused it: a
+   *  blank chart (review of #2407). A saved copy that REPLACED the device's rows (another price basis: reducer
+   *  applyLocal) refuses the device copy again there, and the key stays the saved copy's. */
+  function _deviceAgain(key, p, gen, ownDev, urgent = false) {
+    const cur = registry.peek(key)
+    if (!cur || cur.source === 'device' || !_devKey(p)) return
+    let got = null
+    try { got = DEV.peek(p.sym, p.cacheTf) } catch { got = null }
+    if (got) { _deviceHit(key, p, gen, got, ownDev); return }
+    Promise.resolve().then(() => _devRead(p, urgent)).then((g) => _deviceHit(key, p, gen, g, ownDev)).catch(() => {})
   }
   /** key → {first, last} of the deep-history segment last written / read (bounded). */
   const hist = new Map()
@@ -319,14 +400,14 @@ export function createPersist({
      * Bring a held DEVICE copy (no server answer yet) forward to the device's newest: synchronously
      * from the device's recent-read cache, else one worker read. The switch calls it on every peek of
      * such an entry (prefetch), so a copy warmed long ago is re-read before it is shown. Resolves true
-     * when the entry moved.
+     * when the entry moved. `urgent`: the member's own ask (`_devRead`).
      */
-    refreshDevice(key) {
+    refreshDevice(key, { urgent = false } = {}) {
       const p = parseKey(key)
       if (!p || p.window || !_devKey(p) || !_deviceMay(registry.peek(key))) return Promise.resolve(false)
       const gen = registry.getSnapshot(key).gen
       try { if (_deviceHit(key, p, gen, DEV.peek(p.sym, p.cacheTf))) return Promise.resolve(true) } catch { /* optional */ }
-      return Promise.resolve().then(() => DEV.read(p.sym, p.cacheTf)).then((got) => _deviceHit(key, p, gen, got)).catch(() => false)
+      return Promise.resolve().then(() => _devRead(p, urgent)).then((got) => _deviceHit(key, p, gen, got)).catch(() => false)
     },
     /** Write every pending key now (page hide / tests). */
     async flush() {
@@ -355,12 +436,14 @@ export function createPersist({
         const repair = isIntradayTf(p.tf) ? _intradayGapStart(m.bars, p.cacheTf) : null
         registry.dispatch(key, { type: ACTION.MEM_HIT, key, gen, payload: { ...decodeEntry(key, m), saved_at: m.savedAt ?? null, repair_from: repair } })
         _noteSaved(key, m.savedAt)
-      } else if (_devKey(p) && _deviceMay(registry.peek(key))) {
+      }
+      // (after a mem record too: one that makes no claim, the pack's rows promoted from IndexedDB, is joined)
+      if (_devKey(p) && _deviceMay(registry.peek(key))) {
         try { _deviceHit(key, p, gen, DEV.peek(p.sym, p.cacheTf)) } catch { /* a device copy is optional */ }
       }
       return m?.bars?.length ? m : null
     },
-    async hydrate(key) {
+    async hydrate(key, { urgent = false } = {}) {
       const p = parseKey(key)
       if (!p || p.window) return registry.getSnapshot(key)
       const gen = registry.getSnapshot(key).gen
@@ -368,12 +451,15 @@ export function createPersist({
       // The on-device read leaves NOW, beside the IndexedDB read below, and lands when it lands (a
       // busy IndexedDB can take hundreds of ms; the device answers in ~1). Only for an entry that
       // holds no server answer and nothing but (at most) an older device copy.
-      const dev = !m?.bars?.length && _devKey(p) && _deviceMay(registry.peek(key))
-        ? Promise.resolve().then(() => DEV.read(p.sym, p.cacheTf)).then((got) => _deviceHit(key, p, gen, got)).catch(() => false)
+      // (`_deviceMay` is the whole rule: a mem record that makes no claim is joined, any other shuts the read out)
+      const dev = _devKey(p) && _deviceMay(registry.peek(key))
+        ? Promise.resolve().then(() => _devRead(p, urgent)).then((got) => _deviceHit(key, p, gen, got)).catch(() => false)
         : null
       let e = null
       try { e = await IO.idbGet(p.sym, p.cacheTf) } catch { e = null }
       if (e?.bars?.length) {
+        const held0 = registry.peek(key)
+        const deviceHeld = !!held0 && held0.source === 'device' && !held0.restSeen
         registry.dispatch(key, { type: ACTION.IDB_HIT, key, gen, payload: { ...decodeEntry(key, e), saved_at: e.savedAt ?? null, repair_from: e.repairFromT ?? null } })
         // IDB → mem promotion (the legacy warmers' `_promote`): the synchronous readers (the
         // handoff's mem fast path, useDayFacts) see a disk copy once it is hydrated. With its
@@ -383,6 +469,8 @@ export function createPersist({
           try { IO.memPutMonotonic(p.sym, p.cacheTf, e.bars, { savedAt: e.savedAt ?? null, meta: e.meta ?? null }) } catch { /* derived */ }
           _noteSaved(key, e.savedAt)
         }
+        // the device copy held the key and this saved copy joined it: the key stays the device's (_deviceAgain)
+        if (deviceHeld) _deviceAgain(key, p, gen, held0.developing, urgent)
       }
       // The deep-history segment, after the tail (prepend-only; the reducer judges reach,
       // identity — cache_key / history_rev / adj_basis from its stamp — and basis). An interior

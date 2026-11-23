@@ -24,7 +24,10 @@ from api.services.scan_volume import (
 )
 
 _LOCK = threading.Lock()
-_state = {"date": None, "map": None, "building": False, "built_at": 0.0}
+# `sources` ({TICKER: 'first_bar' | 'relisting' | 'reference'}, where each listing date came from) and `live` (the
+# last non-empty answer of the live pass) are held here for IPO LOCKUP (`ipo_lockups.py`), read through
+# `held_listings()`; nothing else reads them.
+_state = {"date": None, "map": None, "building": False, "built_at": 0.0, "sources": None, "live": None}
 _TTL = 120                     # live-scan cache (s) — the IPO set is daily; only price moves
 _CACHE_KEY = "scan_ipo1y"
 _LOOKBACK_DAYS = 365
@@ -181,9 +184,10 @@ def _whole_market_ipos(since_ymd: int) -> dict:
     return out
 
 
-def _build_ipo_set() -> dict:
+def _build_ipo_set(sources: dict | None = None) -> dict:
     """{TICKER: listing YYYYMMDD} for stocks whose CURRENT listing began in the last
-    _LOOKBACK_DAYS.
+    _LOOKBACK_DAYS. With `sources`, each ticker's winning date source is written into it
+    ('first_bar', 'relisting' or 'reference'): the same order of precedence as the map.
 
     Base = recent_first_trade (MIN daily ts) for ordinary IPOs. Overlay = recycled tickers
     (SPCX = SpaceX now, a SPAC ETF before) whose old bars make MIN(ts) look old but whose
@@ -194,21 +198,27 @@ def _build_ipo_set() -> dict:
     now = _now_et()
     since = int((now - timedelta(days=_LOOKBACK_DAYS)).strftime("%Y%m%d"))
     m: dict = {}
+    src = sources if sources is not None else {}
+
+    def _take(part, kind):
+        part = part or {}
+        m.update(part)
+        src.update({t: kind for t in part})
     # Base: bars.db first-trade (exact, for charted / cap-universe names).
     try:
-        m.update(_sqlite.recent_first_trade(since))
+        _take(_sqlite.recent_first_trade(since), "first_bar")
     except Exception:
         pass
     # Overlay recycled tickers whose CURRENT listing is recent (SPCX) — their old bars hide
     # them from MIN(ts); the sanitize-verified date wins.
     try:
-        m.update(_recent_relistings(since))
+        _take(_recent_relistings(since), "relisting")
     except Exception:
         pass
     # Whole-market overlay: common-stock IPOs that AREN'T in bars.db (never charted) — the
     # exact list_date wins over a bars.db first-bar where both are known.
     try:
-        m.update(_whole_market_ipos(since))
+        _take(_whole_market_ipos(since), "reference")
     except Exception:
         pass
     return m
@@ -225,12 +235,13 @@ def _ensure_ipo_set() -> dict | None:
         _state["building"] = True
 
     def _job():
+        src: dict = {}
         try:
-            m = _build_ipo_set()
+            m = _build_ipo_set(src)
         except Exception:
-            m = {}
+            m, src = {}, {}
         with _LOCK:
-            _state.update(date=date, map=m, built_at=_time.time(), building=False)
+            _state.update(date=date, map=m, built_at=_time.time(), building=False, sources=src)
 
     threading.Thread(target=_job, daemon=True, name="ipo-scan-ref").start()
     return None
@@ -297,7 +308,19 @@ def get_ipo_last_1y() -> dict:
            "as_of": _now_et().isoformat(), "coverage": tally.receipt()}
     # Don't pin an empty set (transient snapshot miss) for the full TTL.
     cache.set(_CACHE_KEY, out, ttl=_TTL if results else 15)
+    if results:
+        with _LOCK:
+            _state["live"] = out
     return out
+
+
+def held_listings() -> dict:
+    """READ ONLY, for IPO LOCKUP (`ipo_lockups.py`): what this module holds now, never a build and never a
+    vendor call. `live` is the last non-empty answer of the live pass (`get_ipo_last_1y`, which the scanner
+    warmer runs all day), `sources` where each listing date came from, `date` the ET day the set was built for."""
+    with _LOCK:
+        return {"live": _state.get("live"), "sources": dict(_state.get("sources") or {}),
+                "date": _state["date"], "built_at": _state["built_at"], "building": _state["building"]}
 
 
 def status() -> dict:

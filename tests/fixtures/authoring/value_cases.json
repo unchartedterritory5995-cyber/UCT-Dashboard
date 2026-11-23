@@ -4,8 +4,6 @@
  "capabilities_without_a_case": [
   "collections:array",
   "conditional-ta",
-  "fn-multi",
-  "fn-single",
   "for-in",
   "generics",
   "max_bars_back",
@@ -11691,7 +11689,8 @@
      }
     ],
     "reply": "I've added a trailing stop on the price chart: from the first bar on or after 2 June 2026 it sits two 14-bar ATRs below the close, and after that it only ever ratchets up, holding its level whenever two ATRs below the close is lower. It shows nothing before that date."
-   }
+   },
+   "from": "2026-06-02"
   },
   {
    "id": "wall-18",
@@ -11819,6 +11818,352 @@
    }
   },
   {
+   "id": "date-start-02",
+   "lane": "formula",
+   "words": "Plot the highest high since 3 March 2026",
+   "from": "2026-03-03",
+   "rule": {
+    "digest": "b03855ac5d265b6c",
+    "history": [
+     {
+      "digest": "b03855ac5d265b6c",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "recorded": {
+    "on": "2026-11-22",
+    "front": "59a1fd697f"
+   },
+   "answer": {
+    "contract": "uct.authoring.patch/1",
+    "ops": [
+     {
+      "op": "create",
+      "name": "Highest High Since 3 Mar 2026",
+      "placement": "price",
+      "primary": "hh",
+      "outputs": [
+       {
+        "key": "hh",
+        "label": "Highest high since 3 Mar 2026",
+        "tree": {
+         "type": "op",
+         "name": "?:",
+         "args": [
+          {
+           "type": "op",
+           "name": "<",
+           "args": [
+            {
+             "type": "series",
+             "name": "time"
+            },
+            {
+             "type": "num",
+             "value": 1772514000
+            }
+           ]
+          },
+          {
+           "type": "op",
+           "name": "/",
+           "args": [
+            {
+             "type": "num",
+             "value": 0
+            },
+            {
+             "type": "num",
+             "value": 0
+            }
+           ]
+          },
+          {
+           "type": "call",
+           "name": "accum",
+           "args": [
+            {
+             "type": "series",
+             "name": "high"
+            },
+            {
+             "type": "op",
+             "name": "?:",
+             "args": [
+              {
+               "type": "op",
+               "name": "<",
+               "args": [
+                {
+                 "type": "offset",
+                 "value": 1,
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "time"
+                  }
+                 ]
+                },
+                {
+                 "type": "num",
+                 "value": 1772514000
+                }
+               ]
+              },
+              {
+               "type": "series",
+               "name": "high"
+              },
+              {
+               "type": "call",
+               "name": "max",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "self"
+                },
+                {
+                 "type": "series",
+                 "name": "high"
+                }
+               ]
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 900
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "date-start-03",
+   "lane": "formula",
+   "words": "Count the up closes since 1 September 2026, where an up close is a close above the prior close",
+   "from": "2026-09-01",
+   "rule": {
+    "digest": "aec0a37125f2e8dd",
+    "history": [
+     {
+      "digest": "aec0a37125f2e8dd",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "recorded": {
+    "on": "2026-11-22",
+    "front": "59a1fd697f"
+   },
+   "answer": {
+    "contract": "uct.authoring.patch/1",
+    "ops": [
+     {
+      "op": "create",
+      "name": "Up Closes Since 1 Sep 2026",
+      "placement": "pane",
+      "primary": "upcount",
+      "outputs": [
+       {
+        "key": "upcount",
+        "label": "Up closes since 1 Sep 2026",
+        "tree": {
+         "type": "op",
+         "name": "?:",
+         "args": [
+          {
+           "type": "op",
+           "name": "<",
+           "args": [
+            {
+             "type": "series",
+             "name": "time"
+            },
+            {
+             "type": "num",
+             "value": 1788235200
+            }
+           ]
+          },
+          {
+           "type": "op",
+           "name": "/",
+           "args": [
+            {
+             "type": "num",
+             "value": 0
+            },
+            {
+             "type": "num",
+             "value": 0
+            }
+           ]
+          },
+          {
+           "type": "call",
+           "name": "accum",
+           "args": [
+            {
+             "type": "op",
+             "name": "?:",
+             "args": [
+              {
+               "type": "op",
+               "name": ">",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                },
+                {
+                 "type": "offset",
+                 "value": 1,
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "close"
+                  }
+                 ]
+                }
+               ]
+              },
+              {
+               "type": "num",
+               "value": 1
+              },
+              {
+               "type": "num",
+               "value": 0
+              }
+             ]
+            },
+            {
+             "type": "op",
+             "name": "?:",
+             "args": [
+              {
+               "type": "op",
+               "name": "<",
+               "args": [
+                {
+                 "type": "offset",
+                 "value": 1,
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "time"
+                  }
+                 ]
+                },
+                {
+                 "type": "num",
+                 "value": 1788235200
+                }
+               ]
+              },
+              {
+               "type": "op",
+               "name": "?:",
+               "args": [
+                {
+                 "type": "op",
+                 "name": ">",
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "close"
+                  },
+                  {
+                   "type": "offset",
+                   "value": 1,
+                   "args": [
+                    {
+                     "type": "series",
+                     "name": "close"
+                    }
+                   ]
+                  }
+                 ]
+                },
+                {
+                 "type": "num",
+                 "value": 1
+                },
+                {
+                 "type": "num",
+                 "value": 0
+                }
+               ]
+              },
+              {
+               "type": "op",
+               "name": "+",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "self"
+                },
+                {
+                 "type": "op",
+                 "name": "?:",
+                 "args": [
+                  {
+                   "type": "op",
+                   "name": ">",
+                   "args": [
+                    {
+                     "type": "series",
+                     "name": "close"
+                    },
+                    {
+                     "type": "offset",
+                     "value": 1,
+                     "args": [
+                      {
+                       "type": "series",
+                       "name": "close"
+                      }
+                     ]
+                    }
+                   ]
+                  },
+                  {
+                   "type": "num",
+                   "value": 1
+                  },
+                  {
+                   "type": "num",
+                   "value": 0
+                  }
+                 ]
+                }
+               ]
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 900
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
    "id": "h03",
    "lane": "script",
    "chart": "daily",
@@ -11833,8 +12178,9 @@
     ]
    },
    "recorded": {
-    "on": "2026-11-21",
-    "front": "a1b5b0439c"
+    "on": "2026-11-22",
+    "front": "3d2cdfd2b4",
+    "model": "claude-opus-5"
    },
    "answer": {
     "turn": "script",
@@ -11858,13 +12204,14 @@
     ]
    },
    "recorded": {
-    "on": "2026-11-21",
-    "front": "a1b5b0439c"
+    "on": "2026-11-22",
+    "front": "3d2cdfd2b4",
+    "model": "claude-opus-5"
    },
    "answer": {
     "turn": "script",
     "script": {
-     "pine": "//@version=5\nindicator(\"Rally attempt follow-through\", overlay=true)\nlookback    = input.int(60, \"Highest-close lookback (bars)\", minval=2)\ndrawdownPct = input.float(5.0, \"Percent below the highest close\", minval=0.0, step=0.25)\nminDay      = input.int(4, \"Earliest bar of the attempt\", minval=1)\ngainPct     = input.float(1.25, \"Minimum gain on the bar (%)\", minval=0.0, step=0.05)\n// at least drawdownPct percent below the highest close of the last `lookback` bars (this bar included)\nhiClose = ta.highest(close, lookback)\ninCorrection = close <= hiClose * (1 - drawdownPct / 100)\n// ONE attempt at a time, kept across bars: whether it is live, which bar of it this is, and the low it started on\nvar bool  active   = false\nvar int   dayCount = 0\nvar float startLow = na\nif active\n    // the attempt ends when a later bar's low is below the low of the bar it started on\n    if low < startLow\n        active := false\n        dayCount := 0\n        startLow := na\n    else\n        dayCount += 1\n// it starts on a bar that closes above the prior close while in the correction (a new one may start on the bar the old one ended)\nif not active and close > close[1] and inCorrection\n    active := true\n    dayCount := 1\n    startLow := low\n// the signal: bar minDay or later of a live attempt, up at least gainPct percent on more volume than the prior bar\nfollowThrough = active and dayCount >= minDay and close >= close[1] * (1 + gainPct / 100) and volume > volume[1]\nplotshape(followThrough, \"Follow-through bar\", shape.triangleup, location.belowbar, color.green, size=size.small)\n"
+     "pine": "//@version=5\nindicator(\"Follow-through day\", overlay=true)\nlookback    = input.int(60, \"Highest-close lookback (bars)\", minval=2)\ndrawdownPct = input.float(5.0, \"Correction: percent below the highest close\", minval=0.0, step=0.25)\nminDay      = input.int(4, \"Earliest day of the attempt\", minval=1)\ngainPct     = input.float(1.25, \"Minimum gain on the day (%)\", minval=0.0, step=0.05)\n// in a correction: the close is at least drawdownPct percent below the highest close of the lookback (this bar included)\nhiClose = ta.highest(close, lookback)\ninCorrection = close <= hiClose * (1 - drawdownPct / 100)\n// ONE rally attempt at a time, kept across bars: whether it is live, which day of it this is, and the low it started on\nvar bool  active   = false\nvar int   dayCount = 0\nvar float startLow = na\nif active\n    // the attempt ends when a later bar trades below the low of the bar it started on\n    if low < startLow\n        active := false\n        dayCount := 0\n        startLow := na\n    else\n        dayCount += 1\n// it starts on a bar that closes above the prior close while in a correction (a new one may start on the bar the old one ended)\nif not active and close > close[1] and inCorrection\n    active := true\n    dayCount := 1\n    startLow := low\n// a follow-through day: day minDay or later of a live attempt, up at least gainPct percent on more volume than the prior bar\nfollowThrough = active and dayCount >= minDay and close >= close[1] * (1 + gainPct / 100) and volume > volume[1]\nplotshape(followThrough, \"Follow-through day\", shape.triangleup, location.belowbar, color.green, size=size.small)\n"
     }
    }
   },
@@ -11888,13 +12235,14 @@
     ]
    },
    "recorded": {
-    "on": "2026-11-21",
-    "front": "851d47c723"
+    "on": "2026-11-22",
+    "front": "3d2cdfd2b4",
+    "model": "claude-opus-5"
    },
    "answer": {
     "turn": "script",
     "script": {
-     "pine": "//@version=5\nindicator(\"ATR % of close\", overlay=false)\n\nlen = input.int(14, \"ATR length\", minval=1)\nshowPct = input.bool(true, \"Show value in table\")\n\n// ATR by Wilder's definition: RMA of True Range\natrVal = ta.rma(ta.tr, len)\natrPct = atrVal / close * 100\n\nplot(atrPct, \"ATR % of close\", color=color.teal, linewidth=2)\nplot(ta.sma(atrPct, len), \"Average of ATR %\", color=color.orange)\n\nvar table t = table.new(position.top_right, 2, 3, border_width=1)\nif showPct\n    table.cell(t, 0, 0, \"ATR(\" + str.tostring(len) + \")\", text_color=color.white, bgcolor=color.gray)\n    table.cell(t, 1, 0, str.tostring(atrVal, \"#.####\"), text_color=color.white)\n    table.cell(t, 0, 1, \"ATR %\", text_color=color.white, bgcolor=color.gray)\n    table.cell(t, 1, 1, str.tostring(atrPct, \"#.##\") + \"%\", text_color=color.white)\n    table.cell(t, 0, 2, \"Close\", text_color=color.white, bgcolor=color.gray)\n    table.cell(t, 1, 2, str.tostring(close, \"#.####\"), text_color=color.white)\n"
+     "pine": "//@version=5\nindicator(\"ATR % of close\", overlay=false)\n\nlen = input.int(14, \"ATR length\", minval=1)\n\n// ATR by Wilder's smoothing of True Range\natrVal = ta.rma(ta.tr, len)\natrPct = atrVal / close * 100\n\nplot(atrPct, \"ATR % of close\", color=color.teal, linewidth=2)\n\nvar table t = table.new(position.top_right, 2, 1, border_width=1)\ntable.cell(t, 0, 0, \"ATR \" + str.tostring(len) + \" %\", text_color=color.white, bgcolor=color.gray)\ntable.cell(t, 1, 0, str.tostring(atrPct, \"#.##\") + \"%\", text_color=color.white)"
     }
    }
   },
@@ -11913,13 +12261,14 @@
     ]
    },
    "recorded": {
-    "on": "2026-11-21",
-    "front": "104db22eb5"
+    "on": "2026-11-22",
+    "front": "3d2cdfd2b4",
+    "model": "claude-opus-5"
    },
    "answer": {
     "turn": "script",
     "script": {
-     "pine": "//@version=5\nindicator(\"Relative volume vs 50-day average\", overlay=false)\n\nlen = input.int(50, \"Average volume length\", minval=1)\n\navgVol = ta.sma(volume, len)\nrvol = avgVol > 0 ? volume / avgVol : na\n\nplot(rvol, \"Relative volume\", color=color.blue, style=plot.style_columns)\nplot(1.0, \"1.0x (average)\", color=color.gray)\n\nvar table t = table.new(position.top_right, 2, 2, border_width=1)\ntable.cell(t, 0, 0, \"Rel volume\", text_color=color.white, bgcolor=color.gray)\ntable.cell(t, 1, 0, str.tostring(rvol, \"#.##\") + \"x\", text_color=color.white)\ntable.cell(t, 0, 1, str.tostring(len) + \" bar avg vol\", text_color=color.white, bgcolor=color.gray)\ntable.cell(t, 1, 1, str.tostring(avgVol, \"#\"), text_color=color.white)"
+     "pine": "//@version=5\nindicator(\"Relative Volume vs 50-day average\", overlay=false)\n\nlen = input.int(50, \"Average volume length\", minval=1)\n\navgVol = ta.sma(volume, len)\nrvol = volume / avgVol\n\nplot(rvol, \"Relative volume\", color=color.blue, linewidth=2)\nplot(1.0, \"Average (1.0)\", color=color.gray)\n\nvar table t = table.new(position.top_right, 2, 2, border_width=1)\ntable.cell(t, 0, 0, \"Rel volume\", text_color=color.white, bgcolor=color.gray)\ntable.cell(t, 1, 0, str.tostring(rvol, \"#.##\") + \"x\", text_color=color.white)\ntable.cell(t, 0, 1, str.tostring(len) + \"-bar avg vol\", text_color=color.white, bgcolor=color.gray)\ntable.cell(t, 1, 1, str.tostring(avgVol, \"#\"), text_color=color.white)\n"
     }
    }
   },
@@ -11938,13 +12287,14 @@
     ]
    },
    "recorded": {
-    "on": "2026-11-21",
-    "front": "104db22eb5"
+    "on": "2026-11-22",
+    "front": "3d2cdfd2b4",
+    "model": "claude-opus-5"
    },
    "answer": {
     "turn": "script",
     "script": {
-     "pine": "//@version=5\nindicator(\"Distribution Day Count\", overlay=false)\n\nlookback = input.int(25, \"Lookback bars\", minval=1)\ndropPct  = input.float(0.2, \"Minimum close drop (%)\", minval=0.0, step=0.1)\nthreshold = input.int(5, \"Pressure threshold (days)\", minval=1)\n\n// A distribution day: close down at least dropPct% from the prior close,\n// on volume higher than the prior bar's volume.\npctChange = (close - close[1]) / close[1] * 100\nisDist = pctChange <= -dropPct and volume > volume[1]\n\nint ddCount = 0\nfor i = 0 to lookback - 1\n    ddCount += isDist[i] ? 1 : 0\n\nunderPressure = ddCount >= threshold\n\nplot(ddCount, \"Distribution days\", color=color.red, style=plot.style_columns)\nplot(threshold, \"Threshold\", color=color.gray)\n\nvar table t = table.new(position.top_right, 2, 2, border_width=1)\ntable.cell(t, 0, 0, \"Distribution days\", text_color=color.white, bgcolor=color.gray)\ntable.cell(t, 1, 0, str.tostring(ddCount), text_color=color.white, bgcolor=color.new(color.black, 40))\ntable.cell(t, 0, 1, \"Status\", text_color=color.white, bgcolor=color.gray)\ntable.cell(t, 1, 1, underPressure ? \"Under pressure\" : \"Normal\", text_color=color.white, bgcolor=underPressure ? color.red : color.green)\n"
+     "pine": "//@version=5\nindicator(\"Distribution day count\", overlay=false)\nwin     = input.int(25, \"Window (bars)\", minval=1, maxval=200)\ndropPct = input.float(0.2, \"Minimum close drop (%)\", minval=0.0, step=0.1)\nalertAt = input.int(5, \"Under pressure at count\", minval=1)\n// a distribution day: close down at least dropPct percent from the prior close, on more volume than the prior bar\nisDist = close <= close[1] * (1 - dropPct / 100) and volume > volume[1]\ncount = 0\nfor i = 0 to win - 1\n    if isDist[i]\n        count += 1\npressured = count >= alertAt\nvar table t = table.new(position.top_right, 2, 2, border_width=1)\ntable.cell(t, 0, 0, \"Dist. days\", text_color=color.white, bgcolor=color.gray)\ntable.cell(t, 1, 0, str.tostring(count), text_color=color.white, bgcolor=color.new(color.black, 30))\ntable.cell(t, 0, 1, \"Status\", text_color=color.white, bgcolor=color.gray)\ntable.cell(t, 1, 1, pressured ? \"Under pressure\" : \"Normal\", text_color=color.white, bgcolor=pressured ? color.red : color.green)\nplot(count, \"Distribution days\", color=color.red, style=plot.style_stepline)\n"
     }
    }
   },
@@ -11963,13 +12313,14 @@
     ]
    },
    "recorded": {
-    "on": "2026-11-21",
-    "front": "104db22eb5"
+    "on": "2026-11-22",
+    "front": "3d2cdfd2b4",
+    "model": "claude-opus-5"
    },
    "answer": {
     "turn": "script",
     "script": {
-     "pine": "//@version=5\nindicator(\"50 SMA with cross labels\", overlay=true)\nlen = input.int(50, \"SMA length\", minval=1)\nsrc = input.source(close, \"Source\")\nma = ta.sma(src, len)\nplot(ma, \"50 SMA\", color=color.blue, linewidth=2)\nif ta.crossover(close, ma)\n    label.new(bar_index, low, \"Cross\", style=label.style_label_up, color=color.green, textcolor=color.white)\n"
+     "pine": "//@version=5\nindicator(\"50 SMA with cross labels\", overlay=true, max_labels_count=500)\nlen = input.int(50, \"SMA length\", minval=1)\nsrc = input.source(close, \"Source\")\nma = ta.sma(src, len)\nplot(ma, \"50 SMA\", color=color.blue, linewidth=2)\ncrossUp = ta.crossover(close, ma)\nif crossUp\n    label.new(bar_index, low, \"Cross\", style=label.style_label_up, color=color.green, textcolor=color.white, size=size.small)\n"
     }
    }
   },
@@ -11988,13 +12339,14 @@
     ]
    },
    "recorded": {
-    "on": "2026-11-21",
-    "front": "851d47c723"
+    "on": "2026-11-22",
+    "front": "3d2cdfd2b4",
+    "model": "claude-opus-5"
    },
    "answer": {
     "turn": "script",
     "script": {
-     "pine": "//@version=5\nindicator(\"% above 10/21/50 SMA\", overlay=false)\n\nsrc = input.source(close, \"Source\")\nlen1 = input.int(10, \"Fast SMA length\", minval=1)\nlen2 = input.int(21, \"Mid SMA length\", minval=1)\nlen3 = input.int(50, \"Slow SMA length\", minval=1)\n\nsma1 = ta.sma(src, len1)\nsma2 = ta.sma(src, len2)\nsma3 = ta.sma(src, len3)\n\npct1 = (src - sma1) / sma1 * 100\npct2 = (src - sma2) / sma2 * 100\npct3 = (src - sma3) / sma3 * 100\n\nplot(pct1, \"% above fast SMA\", color=color.green, linewidth=2)\nplot(pct2, \"% above mid SMA\", color=color.orange, linewidth=2)\nplot(pct3, \"% above slow SMA\", color=color.red, linewidth=2)\nplot(0, \"Zero\", color=color.gray)\n\nvar table t = table.new(position.top_right, 2, 4, border_width=1)\ntable.cell(t, 0, 0, \"SMA\", text_color=color.white, bgcolor=color.gray)\ntable.cell(t, 1, 0, \"% from close\", text_color=color.white, bgcolor=color.gray)\ntable.cell(t, 0, 1, str.tostring(len1) + \" day\", text_color=color.white)\ntable.cell(t, 1, 1, str.tostring(pct1, \"#.##\") + \"%\", text_color=pct1 >= 0 ? color.lime : color.red)\ntable.cell(t, 0, 2, str.tostring(len2) + \" day\", text_color=color.white)\ntable.cell(t, 1, 2, str.tostring(pct2, \"#.##\") + \"%\", text_color=pct2 >= 0 ? color.lime : color.red)\ntable.cell(t, 0, 3, str.tostring(len3) + \" day\", text_color=color.white)\ntable.cell(t, 1, 3, str.tostring(pct3, \"#.##\") + \"%\", text_color=pct3 >= 0 ? color.lime : color.red)\n"
+     "pine": "//@version=5\nindicator(\"% above 10/21/50 SMA\", overlay=false)\n\nlen1 = input.int(10, \"Fast SMA length\", minval=1)\nlen2 = input.int(21, \"Mid SMA length\", minval=1)\nlen3 = input.int(50, \"Slow SMA length\", minval=1)\nsrc = input.source(close, \"Source\")\n\ns1 = ta.sma(src, len1)\ns2 = ta.sma(src, len2)\ns3 = ta.sma(src, len3)\n\np1 = (src - s1) / s1 * 100\np2 = (src - s2) / s2 * 100\np3 = (src - s3) / s3 * 100\n\nplot(p1, \"% above fast SMA\", color=color.green, linewidth=2)\nplot(p2, \"% above mid SMA\", color=color.orange, linewidth=2)\nplot(p3, \"% above slow SMA\", color=color.red, linewidth=2)\nplot(0, \"Zero\", color=color.gray)\n\nvar table t = table.new(position.top_right, 2, 4, border_width=1)\ntable.cell(t, 0, 0, \"SMA\", text_color=color.white, bgcolor=color.gray)\ntable.cell(t, 1, 0, \"% above\", text_color=color.white, bgcolor=color.gray)\ntable.cell(t, 0, 1, str.tostring(len1), text_color=color.white)\ntable.cell(t, 1, 1, str.tostring(p1, \"#.##\") + \"%\", text_color=p1 >= 0 ? color.green : color.red)\ntable.cell(t, 0, 2, str.tostring(len2), text_color=color.white)\ntable.cell(t, 1, 2, str.tostring(p2, \"#.##\") + \"%\", text_color=p2 >= 0 ? color.green : color.red)\ntable.cell(t, 0, 3, str.tostring(len3), text_color=color.white)\ntable.cell(t, 1, 3, str.tostring(p3, \"#.##\") + \"%\", text_color=p3 >= 0 ? color.green : color.red)\n"
     }
    }
   },
@@ -12013,13 +12365,14 @@
     ]
    },
    "recorded": {
-    "on": "2026-11-21",
-    "front": "851d47c723"
+    "on": "2026-11-22",
+    "front": "3d2cdfd2b4",
+    "model": "claude-opus-5"
    },
    "answer": {
     "turn": "script",
     "script": {
-     "pine": "//@version=5\nindicator(\"252-bar closing high\", overlay=true, max_labels_count=500)\n\nlen = input.int(252, \"Lookback bars\", minval=1)\nlblColor = input.color(color.green, \"Label colour\")\n\nhh = ta.highest(close, len)\n\nisNewHigh = close >= hh\n\nif isNewHigh\n    label.new(bar_index, close, str.tostring(close, format.mintick), style=label.style_label_down, color=lblColor, textcolor=color.white, size=size.small)\n\nplot(hh, \"Highest close (252)\", color=color.orange, linewidth=2)\n"
+     "pine": "//@version=5\nindicator(\"252-bar closing high\", overlay=true, max_labels_count=500)\n\nlen = input.int(252, \"Lookback bars\", minval=1)\n\nhh = ta.highest(close, len)\n\nisNewHigh = close >= hh\n\nif isNewHigh\n    label.new(bar_index, high, str.tostring(close, format.mintick), style=label.style_label_down, color=color.new(color.green, 20), textcolor=color.white, size=size.tiny)\n\nplot(hh, \"Highest close\", color=color.blue, linewidth=2)"
     }
    }
   },
@@ -12099,13 +12452,14 @@
     ]
    },
    "recorded": {
-    "on": "2026-11-21",
-    "front": "104db22eb5"
+    "on": "2026-11-22",
+    "front": "59a1fd697f",
+    "model": "claude-opus-5"
    },
    "answer": {
     "turn": "script",
     "script": {
-     "pine": "//@version=5\nindicator(\"SPY + QQQ risk on/off\", overlay=false)\n\nlen = input.int(50, \"SMA length\", minval=1)\nsym1 = input.string(\"SPY\", \"Symbol 1\")\nsym2 = input.string(\"QQQ\", \"Symbol 2\")\n\nc1 = request.security(sym1, timeframe.period, close)\nm1 = request.security(sym1, timeframe.period, ta.sma(close, len))\nc2 = request.security(sym2, timeframe.period, close)\nm2 = request.security(sym2, timeframe.period, ta.sma(close, len))\n\nriskOn = c1 > m1 and c2 > m2\nsig = riskOn ? 1 : 0\n\nplot(sig, \"Risk on (1/0)\", color=color.teal, style=plot.style_stepline, linewidth=2)\n\nvar table t = table.new(position.top_right, 1, 1, border_width=1)\ntable.cell(t, 0, 0, riskOn ? \"Risk on\" : \"Risk off\", text_color=color.white, bgcolor=riskOn ? color.green : color.red)"
+     "pine": "//@version=5\nindicator(\"SPY + QQQ Risk On/Off\", overlay=false)\n\nmaLen = input.int(50, \"SMA length\", minval=1)\nspySym = input.string(\"SPY\", \"First symbol\")\nqqqSym = input.string(\"QQQ\", \"Second symbol\")\n\nspyAbove = request.security(spySym, timeframe.period, close > ta.sma(close, maLen) ? 1 : 0)\nqqqAbove = request.security(qqqSym, timeframe.period, close > ta.sma(close, maLen) ? 1 : 0)\n\nriskOn = (spyAbove == 1 and qqqAbove == 1) ? 1 : 0\n\nplot(riskOn, \"Risk on (1/0)\", color=color.teal, style=plot.style_stepline, linewidth=2)\n\nvar table t = table.new(position.top_right, 2, 1, border_width=1)\ntable.cell(t, 0, 0, \"State\", text_color=color.white, bgcolor=color.gray)\ntable.cell(t, 1, 0, riskOn == 1 ? \"Risk on\" : \"Risk off\", text_color=color.white, bgcolor=riskOn == 1 ? color.green : color.red)\n"
     }
    }
   },
@@ -12128,8 +12482,9 @@
     ]
    },
    "recorded": {
-    "on": "2026-11-21",
-    "front": "104db22eb5"
+    "on": "2026-11-22",
+    "front": "59a1fd697f",
+    "model": "claude-opus-5"
    },
    "answer": {
     "turn": "script",
@@ -12153,13 +12508,14 @@
     ]
    },
    "recorded": {
-    "on": "2026-11-21",
-    "front": "6f243a3321"
+    "on": "2026-11-22",
+    "front": "59a1fd697f",
+    "model": "claude-opus-5"
    },
    "answer": {
     "turn": "script",
     "script": {
-     "pine": "//@version=5\nindicator(\"20-bar range box\", overlay=true)\nn = input.int(20, \"Bars in range\", minval=1)\nhi = ta.highest(high, n)\nlo = ta.lowest(low, n)\nvar box b = box.new(bar_index, high, bar_index, low, bgcolor=color.new(color.blue, 88), border_color=color.blue, border_width=1)\nif not na(hi) and not na(lo)\n    box.set_lefttop(b, bar_index - (n - 1), hi)\n    box.set_rightbottom(b, bar_index, lo)\nplot(hi, \"Range high\", color=color.new(color.blue, 100))\nplot(lo, \"Range low\", color=color.new(color.blue, 100))\n"
+     "pine": "//@version=5\nindicator(\"20-bar range box\", overlay=true)\nn = input.int(20, \"Bars in range\", minval=1)\nhi = ta.highest(high, n)\nlo = ta.lowest(low, n)\nvar box b = box.new(bar_index, high, bar_index, low, bgcolor=color.new(color.blue, 88), border_color=color.blue, border_width=1)\nif not na(hi) and not na(lo)\n    box.set_lefttop(b, bar_index - (n - 1), hi)\n    box.set_rightbottom(b, bar_index, lo)\nplot(hi, \"Range high\", color=color.new(color.blue, 100))\nplot(lo, \"Range low\", color=color.new(color.blue, 100))"
     }
    }
   },
@@ -12182,13 +12538,14 @@
     ]
    },
    "recorded": {
-    "on": "2026-11-21",
-    "front": "6f243a3321"
+    "on": "2026-11-22",
+    "front": "3d2cdfd2b4",
+    "model": "claude-opus-5"
    },
    "answer": {
     "turn": "script",
     "script": {
-     "pine": "//@version=5\nindicator(\"Low-to-close line\", overlay=true)\n\nn = input.int(60, \"Lookback bars\", minval=2)\nlineColor = input.color(color.blue, \"Line colour\")\nlineWidth = input.int(2, \"Line width\", minval=1)\n\n// lowest low of the last n bars and how many bars back it sits\nll = ta.lowest(low, n)\noffset = ta.lowestbars(low, n)   // 0 or negative\n\nvar line conn = line.new(bar_index, low, bar_index, close, color=lineColor, width=lineWidth)\n\nif not na(ll)\n    line.set_xy1(conn, bar_index + offset, ll)\n    line.set_xy2(conn, bar_index, close)\n    line.set_color(conn, lineColor)\n    line.set_width(conn, lineWidth)\n\n// hidden plot so the script can be used in alerts\nplot(ll, \"Lowest low\", color=color.new(color.gray, 100))"
+     "pine": "//@version=5\nindicator(\"Low to close line\", overlay=true)\n\nlen = input.int(60, \"Lookback bars\", minval=2)\nlineColor = input.color(color.blue, \"Line colour\")\nlineWidth = input.int(2, \"Line width\", minval=1, maxval=10)\n\n// lowest low of the last `len` bars, and how many bars back it sits\nll = ta.lowest(low, len)\noffset = ta.lowestbars(low, len)   // 0 or negative: bars back to that low\n\nvar line ln = line.new(bar_index, close, bar_index, close, color=lineColor, width=lineWidth)\n\nif not na(ll)\n    line.set_xy1(ln, bar_index + offset, ll)\n    line.set_xy2(ln, bar_index, close)\n    line.set_color(ln, lineColor)\n    line.set_width(ln, lineWidth)\n\nplot(ll, \"Lowest low\", color=color.new(color.gray, 100))\n"
     }
    }
   },
@@ -12207,13 +12564,14 @@
     ]
    },
    "recorded": {
-    "on": "2026-11-21",
-    "front": "104db22eb5"
+    "on": "2026-11-22",
+    "front": "3d2cdfd2b4",
+    "model": "claude-opus-5"
    },
    "answer": {
     "turn": "script",
     "script": {
-     "pine": "//@version=5\nindicator(\"Inside bar boxes\", overlay=true, max_boxes_count=500)\n\nborderCol = input.color(color.orange, \"Border colour\")\nfillCol = input.color(color.new(color.orange, 85), \"Fill colour\")\nborderW = input.int(1, \"Border width\", minval=1)\n\nisInside = high < high[1] and low > low[1]\n\nif isInside\n    box.new(bar_index, high, bar_index, low, border_color=borderCol, border_width=borderW, bgcolor=fillCol)\n\nplot(isInside ? high : na, \"Inside bar high\", color=color.new(borderCol, 100), style=plot.style_circles)"
+     "pine": "//@version=5\nindicator(\"Inside bar boxes\", overlay=true, max_boxes_count=500)\n\nborderWidth = input.int(1, \"Border width\", minval=1)\nborderCol = input.color(color.orange, \"Border colour\")\nfillCol = input.color(color.new(color.orange, 85), \"Fill colour\")\n\nisInside = high < high[1] and low > low[1]\n\nif isInside\n    box.new(bar_index, high, bar_index, low, border_color=borderCol, border_width=borderWidth, bgcolor=fillCol)\n\nplot(isInside ? high : na, \"Inside bar high\", color=color.new(color.orange, 100))"
     }
    }
   },
@@ -12232,13 +12590,14 @@
     ]
    },
    "recorded": {
-    "on": "2026-11-21",
-    "front": "104db22eb5"
+    "on": "2026-11-22",
+    "front": "3d2cdfd2b4",
+    "model": "claude-opus-5"
    },
    "answer": {
     "turn": "script",
     "script": {
-     "pine": "//@version=5\nindicator(\"Prior bar high/low lines\", overlay=true)\n\nhiColor = input.color(color.red, \"High line colour\")\nloColor = input.color(color.green, \"Low line colour\")\nlineWidth = input.int(1, \"Line width\", minval=1, maxval=5)\n\nph = high[1]\npl = low[1]\n\nvar line hiLine = line.new(bar_index, ph, bar_index + 1, ph, extend=extend.right, color=hiColor, width=lineWidth)\nvar line loLine = line.new(bar_index, pl, bar_index + 1, pl, extend=extend.right, color=loColor, width=lineWidth)\n\nif not na(ph)\n    line.set_xy1(hiLine, bar_index - 1, ph)\n    line.set_xy2(hiLine, bar_index, ph)\n    line.set_color(hiLine, hiColor)\n    line.set_width(hiLine, lineWidth)\n\nif not na(pl)\n    line.set_xy1(loLine, bar_index - 1, pl)\n    line.set_xy2(loLine, bar_index, pl)\n    line.set_color(loLine, loColor)\n    line.set_width(loLine, lineWidth)\n\nplot(ph, \"Prior bar high\", color=hiColor)\nplot(pl, \"Prior bar low\", color=loColor)\n"
+     "pine": "//@version=5\nindicator(\"Prior bar high & low\", overlay=true)\n\nhiColor = input.color(color.red, \"High line colour\")\nloColor = input.color(color.green, \"Low line colour\")\nlineWidth = input.int(1, \"Line width\", minval=1, maxval=5)\n\nprevHigh = high[1]\nprevLow = low[1]\n\nvar line hiLine = line.new(bar_index, prevHigh, bar_index + 1, prevHigh, extend=extend.right, color=hiColor, width=lineWidth)\nvar line loLine = line.new(bar_index, prevLow, bar_index + 1, prevLow, extend=extend.right, color=loColor, width=lineWidth)\n\nif not na(prevHigh)\n    line.set_xy1(hiLine, bar_index, prevHigh)\n    line.set_xy2(hiLine, bar_index + 1, prevHigh)\n    line.set_color(hiLine, hiColor)\n    line.set_width(hiLine, lineWidth)\n\nif not na(prevLow)\n    line.set_xy1(loLine, bar_index, prevLow)\n    line.set_xy2(loLine, bar_index + 1, prevLow)\n    line.set_color(loLine, loColor)\n    line.set_width(loLine, lineWidth)\n\nplot(prevHigh, \"Prior bar high\", color=color.new(color.gray, 100))\nplot(prevLow, \"Prior bar low\", color=color.new(color.gray, 100))"
     }
    }
   },
@@ -12262,13 +12621,14 @@
     ]
    },
    "recorded": {
-    "on": "2026-11-21",
-    "front": "6f243a3321"
+    "on": "2026-11-22",
+    "front": "3d2cdfd2b4",
+    "model": "claude-opus-5"
    },
    "answer": {
     "turn": "script",
     "script": {
-     "pine": "//@version=5\nindicator(\"100-bar high & low labels\", overlay=true)\n\nn = input.int(100, \"Lookback bars\", minval=2)\n\nhh = ta.highest(high, n)\nll = ta.lowest(low, n)\n\n// how many bars back the extreme sits (0 = current bar)\nhiOffset = -ta.highestbars(high, n)\nloOffset = -ta.lowestbars(low, n)\n\nvar label hiLbl = label.new(bar_index, high, \"\", style=label.style_label_down, color=color.green, textcolor=color.white, size=size.small)\nvar label loLbl = label.new(bar_index, low, \"\", style=label.style_label_up, color=color.red, textcolor=color.white, size=size.small)\n\nif not na(hh)\n    label.set_xy(hiLbl, bar_index - hiOffset, hh)\n    label.set_text(hiLbl, str.tostring(hh, format.mintick))\n\nif not na(ll)\n    label.set_xy(loLbl, bar_index - loOffset, ll)\n    label.set_text(loLbl, str.tostring(ll, format.mintick))\n\nplot(hh, \"Highest high\", color=color.new(color.green, 100))\nplot(ll, \"Lowest low\", color=color.new(color.red, 100))"
+     "pine": "//@version=5\nindicator(\"100-bar high & low labels\", overlay=true)\n\nn = input.int(100, \"Lookback bars\", minval=2)\n\nhh = ta.highest(high, n)\nll = ta.lowest(low, n)\n\n// offset (in bars back) of where the extreme occurred inside the window\nhiOff = ta.highestbars(high, n)\nloOff = ta.lowestbars(low, n)\n\nvar label hiLab = label.new(bar_index, hh, \"\", style=label.style_label_down, color=color.red, textcolor=color.white, size=size.small)\nvar label loLab = label.new(bar_index, ll, \"\", style=label.style_label_up, color=color.green, textcolor=color.white, size=size.small)\n\nif not na(hh)\n    label.set_xy(hiLab, bar_index + nz(hiOff), hh)\n    label.set_text(hiLab, str.tostring(hh, format.mintick))\n\nif not na(ll)\n    label.set_xy(loLab, bar_index + nz(loOff), ll)\n    label.set_text(loLab, str.tostring(ll, format.mintick))\n\nplot(hh, \"Highest high\", color=color.new(color.red, 100))\nplot(ll, \"Lowest low\", color=color.new(color.green, 100))"
     }
    }
   },
@@ -12287,17 +12647,35 @@
     ]
    },
    "recorded": {
-    "on": "2026-11-21",
-    "front": "6783fe2c1a"
+    "on": "2026-11-22",
+    "front": "3d2cdfd2b4",
+    "model": "claude-opus-5"
    },
-   "recorded_verdict": "wrong",
-   "defect": "The script writes NO number: `plotchar(cnt > 0 ? cnt : na, \"Count\", \"\", location.abovebar)` draws one fixed mark on every bar of the run (an empty character is the engine's default mark), so every bar reads the same and none reads its count. The count itself is right. The script document now says a number that changes bar to bar is written with a label, and that plotchar and plotshape draw one fixed character per call.",
    "answer": {
     "turn": "script",
     "script": {
-     "pine": "//@version=5\nindicator(\"TD-style setup count\", overlay=true)\nlookback = input.int(4, \"Bars back to compare\", minval=1)\nmaxCount = input.int(9, \"Count resets after\", minval=1)\nup = close > close[lookback]\nvar int cnt = 0\nif up\n    cnt := cnt >= maxCount ? 1 : cnt + 1\nelse\n    cnt := 0\nplotchar(cnt > 0 ? cnt : na, \"Count\", \"\", location.abovebar, color=color.green, size=size.tiny)\nplot(cnt, \"Count value\", color=color.new(color.gray, 100))\n"
+     "pine": "//@version=5\nindicator(\"TD-style setup count\", overlay=true, max_labels_count=500)\n\nlookback = input.int(4, \"Compare with close N bars earlier\", minval=1)\nmaxCount = input.int(9, \"Count resets after\", minval=1)\nupColor = input.color(color.green, \"Count colour\")\n\ncond = close > close[lookback]\n\nvar int cnt = 0\nif cond\n    cnt := cnt >= maxCount ? 1 : cnt + 1\nelse\n    cnt := 0\n\nif cnt > 0\n    label.new(bar_index, high, str.tostring(cnt), style=label.style_none, textcolor=upColor, size=size.small)\n\nplot(cnt, \"Count\", color=color.new(color.gray, 100))\n"
     }
-   }
+   },
+   "found": [
+    {
+     "answer": {
+      "turn": "script",
+      "script": {
+       "pine": "//@version=5\nindicator(\"TD-style setup count\", overlay=true)\nlookback = input.int(4, \"Bars back to compare\", minval=1)\nmaxCount = input.int(9, \"Count resets after\", minval=1)\nup = close > close[lookback]\nvar int cnt = 0\nif up\n    cnt := cnt >= maxCount ? 1 : cnt + 1\nelse\n    cnt := 0\nplotchar(cnt > 0 ? cnt : na, \"Count\", \"\", location.abovebar, color=color.green, size=size.tiny)\nplot(cnt, \"Count value\", color=color.new(color.gray, 100))\n"
+      }
+     },
+     "defect": "The script writes NO number: `plotchar(cnt > 0 ? cnt : na, \"Count\", \"\", location.abovebar)` draws one fixed mark on every bar of the run (an empty character is the engine's default mark), so every bar reads the same and none reads its count. The count itself is right. The script document now says a number that changes bar to bar is written with a label, and that plotchar and plotshape draw one fixed character per call.",
+     "recorded": {
+      "on": "2026-11-21",
+      "front": "6783fe2c1a"
+     },
+     "fixed_by": {
+      "pr": "#2432",
+      "merge": "82ab4c233a6a56c9473d66973cc0d1488725700f"
+     }
+    }
+   ]
   },
   {
    "id": "table-format-01",
@@ -12315,16 +12693,34 @@
    },
    "recorded": {
     "on": "2026-11-22",
-    "front": "6a532bd3a0"
+    "front": "3d2cdfd2b4",
+    "model": "claude-opus-5"
    },
-   "recorded_verdict": "wrong",
-   "defect": "The table shows its two labels and NO VALUES. The script adds a \"Decimal places\" setting and builds the number format from text (`fmt = \"#.\" + str.replace_all(...)`, then `str.tostring(pdh, fmt)`); the engine withholds a text whose format is not a string literal, with no error and no word to the member. What it reads is right (the prior bar, with no request for another timeframe). The script document now says to write the format as a string literal, until the engine serves a computed one.",
    "answer": {
     "turn": "script",
     "script": {
-     "pine": "//@version=5\nindicator(\"Yesterday's High & Low Table\", overlay=true)\n\ndigits = input.int(2, \"Decimal places\", minval=0, maxval=8)\nfmt = digits == 0 ? \"#\" : \"#.\" + str.replace_all(str.substring(\"00000000\", 0, digits), \"0\", \"#\")\n\npdh = high[1]\npdl = low[1]\n\nvar table t = table.new(position.top_right, 2, 2, border_width=1)\ntable.cell(t, 0, 0, \"Yesterday High\", text_color=color.white, bgcolor=color.gray)\ntable.cell(t, 1, 0, str.tostring(pdh, fmt), text_color=color.white)\ntable.cell(t, 0, 1, \"Yesterday Low\", text_color=color.white, bgcolor=color.gray)\ntable.cell(t, 1, 1, str.tostring(pdl, fmt), text_color=color.white)\n\nplot(pdh, \"Yesterday high\", color=color.new(color.gray, 100))\nplot(pdl, \"Yesterday low\", color=color.new(color.gray, 100))"
+     "pine": "//@version=5\nindicator(\"Yesterday's High & Low Table\", overlay=true)\n\ndigits = input.int(2, \"Decimals\", minval=0, maxval=2)\npos = input.string(\"Top right\", \"Table position\", options=[\"Top right\", \"Top left\", \"Bottom right\", \"Bottom left\"])\n\nfmt(x) =>\n    digits == 0 ? str.tostring(x, \"#\") : digits == 1 ? str.tostring(x, \"#.#\") : str.tostring(x, \"#.##\")\n\npdh = high[1]\npdl = low[1]\n\ntpos = pos == \"Top right\" ? position.top_right : pos == \"Top left\" ? position.top_left : pos == \"Bottom right\" ? position.bottom_right : position.bottom_left\n\nvar table t = table.new(tpos, 2, 2, border_width=1)\ntable.cell(t, 0, 0, \"Yesterday High\", text_color=color.white, bgcolor=color.new(color.green, 40))\ntable.cell(t, 1, 0, na(pdh) ? \"n/a\" : fmt(pdh), text_color=color.white, bgcolor=color.new(color.black, 60))\ntable.cell(t, 0, 1, \"Yesterday Low\", text_color=color.white, bgcolor=color.new(color.red, 40))\ntable.cell(t, 1, 1, na(pdl) ? \"n/a\" : fmt(pdl), text_color=color.white, bgcolor=color.new(color.black, 60))\n\nplot(pdh, \"Yesterday high\", color=color.new(color.gray, 100))\nplot(pdl, \"Yesterday low\", color=color.new(color.gray, 100))"
     }
-   }
+   },
+   "found": [
+    {
+     "answer": {
+      "turn": "script",
+      "script": {
+       "pine": "//@version=5\nindicator(\"Yesterday's High & Low Table\", overlay=true)\n\ndigits = input.int(2, \"Decimal places\", minval=0, maxval=8)\nfmt = digits == 0 ? \"#\" : \"#.\" + str.replace_all(str.substring(\"00000000\", 0, digits), \"0\", \"#\")\n\npdh = high[1]\npdl = low[1]\n\nvar table t = table.new(position.top_right, 2, 2, border_width=1)\ntable.cell(t, 0, 0, \"Yesterday High\", text_color=color.white, bgcolor=color.gray)\ntable.cell(t, 1, 0, str.tostring(pdh, fmt), text_color=color.white)\ntable.cell(t, 0, 1, \"Yesterday Low\", text_color=color.white, bgcolor=color.gray)\ntable.cell(t, 1, 1, str.tostring(pdl, fmt), text_color=color.white)\n\nplot(pdh, \"Yesterday high\", color=color.new(color.gray, 100))\nplot(pdl, \"Yesterday low\", color=color.new(color.gray, 100))"
+      }
+     },
+     "defect": "The table shows its two labels and NO VALUES. The script adds a \"Decimal places\" setting and builds the number format from text (`fmt = \"#.\" + str.replace_all(...)`, then `str.tostring(pdh, fmt)`); the engine withholds a text whose format is not a string literal, with no error and no word to the member. What it reads is right (the prior bar, with no request for another timeframe). The script document now says to write the format as a string literal, until the engine serves a computed one.",
+     "recorded": {
+      "on": "2026-11-22",
+      "front": "6a532bd3a0"
+     },
+     "fixed_by": {
+      "pr": "#2433",
+      "merge": "301886e3a76623abc276626eb6f5b88e8fdb9be1"
+     }
+    }
+   ]
   },
   {
    "id": "intraday-04",
@@ -12349,6 +12745,32 @@
     "script": {
      "pine": "//@version=5\nindicator(\"Stop risk vs today's low\", overlay=true)\n\nshares = input.int(100, \"Shares\", minval=1)\n\n// Today's low: resets on each new day, updates through the session\nnewDay = ta.change(time(\"D\")) != 0\nvar float dayLow = na\nif newDay\n    dayLow := low\nelse\n    dayLow := na(dayLow) ? low : math.min(dayLow, low)\n\nriskPerShare = close - dayLow\nriskTotal = riskPerShare * shares\n\nvar table t = table.new(position.top_right, 2, 4, border_width=1)\ntable.cell(t, 0, 0, \"Today's low\", text_color=color.white, bgcolor=color.gray)\ntable.cell(t, 1, 0, str.tostring(dayLow, \"#.##\"), text_color=color.white)\ntable.cell(t, 0, 1, \"Latest price\", text_color=color.white, bgcolor=color.gray)\ntable.cell(t, 1, 1, str.tostring(close, \"#.##\"), text_color=color.white)\ntable.cell(t, 0, 2, \"Risk / share\", text_color=color.white, bgcolor=color.gray)\ntable.cell(t, 1, 2, str.tostring(riskPerShare, \"#.##\"), text_color=color.white)\ntable.cell(t, 0, 3, \"Risk on \" + str.tostring(shares) + \" shares\", text_color=color.white, bgcolor=color.gray)\ntable.cell(t, 1, 3, str.tostring(riskTotal, \"#.##\"), text_color=color.white, bgcolor=riskPerShare > 0 ? color.new(color.red, 70) : color.new(color.green, 70))\n\nplot(riskTotal, \"Dollar risk\", color=color.new(color.gray, 100))\n"
     }
+   },
+   "keep_record": "tests/test_value_cases_intraday.py changes this script's own lines, one at a time, to prove the rule can fail (the low that never starts again with a new day, 200 shares, the distance to the high)"
+  },
+  {
+   "id": "weekly-plot-01",
+   "lane": "script",
+   "chart": "daily",
+   "words": "Plot the 10 week simple moving average of the weekly close on my daily chart, and put a label with the text Cross on each bar where the close crosses above it",
+   "rule": {
+    "digest": "7ff9bf10ef31cbee",
+    "history": [
+     {
+      "digest": "7ff9bf10ef31cbee",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "recorded": {
+    "on": "2026-11-22",
+    "front": "b95ee9c9a3"
+   },
+   "answer": {
+    "turn": "script",
+    "script": {
+     "pine": "//@version=5\nindicator(\"Weekly 10 SMA + cross labels\", overlay=true, max_labels_count=500)\n\nlen = input.int(10, \"Weekly SMA length\", minval=1)\n\nwsma = request.security(syminfo.tickerid, \"W\", ta.sma(close, len))\n\nplot(wsma, \"Weekly 10 SMA\", color=color.purple, linewidth=2)\n\ncrossUp = ta.crossover(close, wsma)\nif crossUp\n    label.new(bar_index, high, \"Cross\", style=label.style_label_down, color=color.green, textcolor=color.white)\n"
+    }
    }
   },
   {
@@ -12361,12 +12783,13 @@
     ]
    },
    "recorded": {
-    "on": "2026-11-14",
-    "front": null
+    "on": "2026-11-22",
+    "front": "ba74a9fdc0",
+    "model": "claude-opus-5"
    },
    "answer": {
     "disposition": "unsupported",
-    "reply": "I can't build that — options data (put and call volume or open interest) isn't available here. I can only work with the bars themselves: open, high, low, close and volume, on this symbol or another symbol you name. If you'd like a volume-based sentiment proxy from price and volume instead — say on-balance volume, money flow index, or a volume ratio versus its average in a lower pane — tell me which and I'll put it together."
+    "reply": "I can't build that: indicators here read only price and volume bars, and options data (put and call volume or open interest) isn't available, so a put/call ratio can't be computed. If you want a sentiment-style gauge from the stock's own bars, I could instead plot something like a volume-based measure — say on-balance volume or money flow index — in a pane under the chart; just say which."
    }
   },
   {
@@ -12379,12 +12802,13 @@
     ]
    },
    "recorded": {
-    "on": "2026-11-14",
-    "front": null
+    "on": "2026-11-22",
+    "front": "ba74a9fdc0",
+    "model": "claude-opus-5"
    },
    "answer": {
     "disposition": "unsupported",
-    "reply": "I can't build that: institutional ownership percent is fundamental ownership data, not price/volume bar history, so there's nothing here to plot it from — and quarterly ownership figures aren't available as a per-bar series. I can only work with the chart's open, high, low, close and volume (plus weekly/monthly reads and other tickers' price data). If it helps, I could build something volume-based instead, such as money flow, on-balance volume or a relative-volume line — just say the word."
+    "reply": "Institutional ownership percent is fundamental ownership data, not price or volume history, so I can't plot it here — indicators I build only read the chart's bars (and, where you name one, another symbol's bars). If something price-based would help, I could build a line of accumulation pressure instead, such as on-balance volume or a volume-weighted average price, and you could ask for that next."
    }
   },
   {
@@ -12398,12 +12822,13 @@
     ]
    },
    "recorded": {
-    "on": "2026-11-14",
-    "front": null
+    "on": "2026-11-22",
+    "front": "ba74a9fdc0",
+    "model": "claude-opus-5"
    },
    "answer": {
     "disposition": "unsupported",
-    "reply": "I can't place orders or connect to a brokerage — everything built here is informational only, drawn on your chart. What I can do is build an RSI indicator that signals when RSI crosses above 30 and crosses below 70, mark those bars on the chart, and set alerts so you get notified. Say the word and I'll build that."
+    "reply": "I can't place or route orders — nothing here touches a brokerage account; it only draws and alerts on a chart. I can build the same RSI signals as an indicator instead: a 14-bar RSI with a buy mark and alert when it crosses above 30 and a sell mark and alert when it crosses below 70. Just say the word and I'll put it together."
    }
   },
   {
@@ -12416,12 +12841,13 @@
     ]
    },
    "recorded": {
-    "on": "2026-11-14",
-    "front": null
+    "on": "2026-11-22",
+    "front": "ba74a9fdc0",
+    "model": "claude-opus-5"
    },
    "answer": {
     "disposition": "unsupported",
-    "reply": "I can't send text messages — I can only set an alert on a condition inside the indicator, which your charting platform then delivers however you've set up notifications. There's also no indicator here yet, so there's no pattern defined to alert on. Tell me the pattern you want (for example a moving-average crossover, or RSI crossing 30) and I'll build it and attach an alert to it."
+    "reply": "A chart script can't send text messages — that's done by your broker/platform's alert delivery, and I'd also need to know which pattern you mean (engulfing, double top, a crossover?). Tell me the pattern and I can build a script that marks it on AGL's daily chart and exposes an alert condition you can attach your own SMS notification to."
    }
   },
   {
@@ -12435,12 +12861,13 @@
     ]
    },
    "recorded": {
-    "on": "2026-11-14",
-    "front": null
+    "on": "2026-11-22",
+    "front": "ba74a9fdc0",
+    "model": "claude-opus-5"
    },
    "answer": {
     "disposition": "unsupported",
-    "reply": "I can't do that here — indicators are built only on bar data (open, high, low, close, volume), with no access to tick-by-tick trades or bid/ask quotes, so true order-flow imbalance inside a bar isn't available. What I can build are bar-based proxies, such as where each bar closes within its own range (a buying-pressure measure), up-volume versus down-volume over a window, or an on-balance-volume style running total. Tell me which of those you'd like and I'll set it up."
+    "reply": "I can only read finished bars here — open, high, low, close and volume — so there's no tick-by-tick trade or bid/ask data to measure imbalance inside a bar. The closest thing I can build from bar data is a bar-pressure measure: where each bar closes within its own range, averaged over a few bars, drawn as a histogram above and below zero (that's Balance of Power). Say the word and I'll add it, with a length of your choosing."
    }
   },
   {
@@ -12453,12 +12880,13 @@
     ]
    },
    "recorded": {
-    "on": "2026-11-14",
-    "front": null
+    "on": "2026-11-22",
+    "front": "ba74a9fdc0",
+    "model": "claude-opus-5"
    },
    "answer": {
     "disposition": "unsupported",
-    "reply": "I can't do that — indicators here only read price and volume bars (and other symbols or higher timeframes), so there's no way to fetch news text from the web or display arbitrary text from outside the chart. What I can put on the chart is a table of values computed from price data — for example trend status, RSI, or ATR — or markers and alerts on conditions you describe. Tell me what you'd like to track and I'll build it."
+    "reply": "I can't do that — indicators here only read price and volume bars, so there's no way to fetch news text or print words from outside the chart. The closest I can build is an on-chart table showing values computed from this symbol's bars (for example today's open, high, low and close, or whether a trend condition is true), if you'd like that instead."
    }
   },
   {
@@ -12472,12 +12900,13 @@
     ]
    },
    "recorded": {
-    "on": "2026-11-14",
-    "front": null
+    "on": "2026-11-22",
+    "front": "ba74a9fdc0",
+    "model": "claude-opus-5"
    },
    "answer": {
     "disposition": "unsupported",
-    "reply": "I can't build that — there's no machine-learning or neural-network forecasting here, and nothing can read a future bar. Indicators here are formulas over past and current bars only. If it's useful, I can build something trend-projecting instead, such as a linear-regression line fitted to recent closes, or a moving average with a band around it — just say which and over how many bars."
+    "reply": "I can't build a neural network or any trained forecasting model here — formulas only read the bars that have already happened, so there's no way to learn from history and project tomorrow's close. The closest thing I can build is a projection line from the recent trend: a linear regression of the close over the last N bars extended one bar ahead, drawn on the price chart. Say the word (and a length, e.g. 20) and I'll add it."
    }
   },
   {
@@ -12490,12 +12919,13 @@
     ]
    },
    "recorded": {
-    "on": "2026-11-14",
-    "front": null
+    "on": "2026-11-22",
+    "front": "ba74a9fdc0",
+    "model": "claude-opus-5"
    },
    "answer": {
     "disposition": "unsupported",
-    "reply": "I can't do that one — dark pool (off-exchange) volume isn't available here. I only have each bar's open, high, low, close and total volume from the chart's own data feed, so there's no way to split out off-exchange activity. If it helps, I can build something from regular volume instead — for example daily volume plotted as a histogram with its 20-day average, or a highlight when volume is unusually heavy."
+    "reply": "Dark pool (off-exchange) volume isn't available here — the bars only carry the consolidated volume for each day, with no breakdown of where the trades printed. If it helps, I can build a daily volume histogram of total volume, optionally highlighting days whose volume is well above its 50-day average."
    }
   },
   {
@@ -12508,12 +12938,13 @@
     ]
    },
    "recorded": {
-    "on": "2026-11-14",
-    "front": null
+    "on": "2026-11-22",
+    "front": "ba74a9fdc0",
+    "model": "claude-opus-5"
    },
    "answer": {
     "disposition": "unsupported",
-    "reply": "I can't build that here. Short interest and float are company data reported outside the price series — this builder only works with each bar's open, high, low, close and volume (plus other tickers' bars and higher timeframes), so there's no short-interest or share-count series to read. If it's crowding or pressure you're after, I could instead plot something volume-based, such as on-balance volume or a volume-versus-average ratio — just say the word."
+    "reply": "Short interest and float aren't available here — I can only build formulas from the chart's own price and volume bars (plus weekly/monthly reads and other tickers' bars), so there's no short-interest data to plot. If you want a volume-based stand-in on the same chart, I could build something like volume against its 50-bar average, or a running total of signed volume (on-balance volume) — just say which and I'll add it."
    }
   },
   {
@@ -12526,12 +12957,13 @@
     ]
    },
    "recorded": {
-    "on": "2026-11-14",
-    "front": null
+    "on": "2026-11-22",
+    "front": "ba74a9fdc0",
+    "model": "claude-opus-5"
    },
    "answer": {
     "disposition": "unsupported",
-    "reply": "I can't do that here — max pain needs options-chain data (strikes, open interest, expiry dates), and this builder only works with the chart's price and volume bars, plus weekly/monthly reads and other symbols' bars. There's no options data available, so any line I drew would be a guess rather than the real max pain level. If it helps, I can build price-based levels instead — for example recent swing highs/lows, a volume-weighted average price, or horizontal lines at strike prices you give me."
+    "reply": "Max pain can't be built here: it needs the full option chain (open interest at every strike for Friday's expiry), and this engine only reads price, volume and other chart symbols — there is no options-data source. The closest I can build is a price-magnet style level from the chart itself, such as the volume-weighted average price since a chosen anchor date, or the highest-volume price level over the last N bars (a volume-profile point of control) drawn as a line; say which you'd like and I'll write it."
    }
   },
   {
@@ -12544,12 +12976,13 @@
     ]
    },
    "recorded": {
-    "on": "2026-11-14",
-    "front": null
+    "on": "2026-11-22",
+    "front": "ba74a9fdc0",
+    "model": "claude-opus-5"
    },
    "answer": {
     "disposition": "unsupported",
-    "reply": "I can't do that — indicators here are built only from bar data (open, high, low, close, volume), so there's no access to level 2 order book / depth-of-market data, and no heatmap drawing. If it helps, I could build volume-based proxies instead, such as a volume-weighted average price with bands, a volume histogram coloured by buying/selling pressure, or price levels where the most volume traded over a lookback."
+    "reply": "I can't build that: indicators here are written from the bar's open, high, low, close and volume only, and there's no level 2 order book data to draw a depth heatmap from. The closest thing I can build is a volume-based picture of where trading is heaviest — for example a volume histogram with its heavy bars coloured, or VWAP drawn on price as the volume-weighted reference level. Just say which you'd like."
    }
   },
   {
@@ -12562,12 +12995,13 @@
     ]
    },
    "recorded": {
-    "on": "2026-11-14",
-    "front": null
+    "on": "2026-11-22",
+    "front": "ba74a9fdc0",
+    "model": "claude-opus-5"
    },
    "answer": {
     "disposition": "unsupported",
-    "reply": "I can't read an external trade journal — indicators here only work from the chart's own price and volume data (plus other symbols or higher timeframes), so there's no way to import a list of your fills. What I can do is let you type specific levels into the indicator's settings — for example an entry price and a stop — and mark the bars where price touches them, or mark entries/exits generated by a rule you describe (e.g. a moving-average cross). Just tell me which you'd like."
+    "reply": "I can't read an outside file or trade journal — an indicator here can only work from the chart's own price and volume plus numbers you type into its settings. The closest thing I can build is a marker indicator with settings for one entry price and one exit price that you fill in yourself, marking the bars where price trades through each; say the word and I'll set that up, and we can add a second pair if you want two trades at once."
    }
   },
   {
@@ -12580,12 +13014,13 @@
     ]
    },
    "recorded": {
-    "on": "2026-11-14",
-    "front": null
+    "on": "2026-11-22",
+    "front": "ba74a9fdc0",
+    "model": "claude-opus-5"
    },
    "answer": {
     "disposition": "unsupported",
-    "reply": "I can't do that one — analyst price targets are fundamental/estimate data, and I only have the chart's own price and volume history to work with, so there's nothing here to draw them from. If it helps, I can plot horizontal lines at levels you give me yourself (you'd type the numbers in the indicator's settings), or draw price-based references such as recent swing highs/lows or a Donchian channel. Just say which you'd like."
+    "reply": "Analyst price targets aren't something I can draw here — a formula only reads the chart's own bars (and, where asked, another ticker's bars), not analyst estimates or any other outside data. The closest I can build is a horizontal line at a price level you set yourself in the indicator's settings — one, two or three of them — so you can type in the targets you care about; just say the word and I'll add it."
    }
   },
   {
@@ -12598,12 +13033,13 @@
     ]
    },
    "recorded": {
-    "on": "2026-11-14",
-    "front": null
+    "on": "2026-11-22",
+    "front": "ba74a9fdc0",
+    "model": "claude-opus-5"
    },
    "answer": {
     "disposition": "unsupported",
-    "reply": "I can't build that here — indicators are calculated only from price and volume bars, and insider filing data (Form 4 buys and sells) isn't available to them. If it helps, I can plot things that often accompany insider activity, such as unusual volume spikes or big gaps, as arrows on the chart — just say the word."
+    "reply": "Insider transaction filings aren't available here — indicators are built only from the chart's price and volume bars, so there's no Form 4 data to place arrows from. The closest thing I can build is a price-and-volume signal that often accompanies notable buying or selling, such as arrows on days when volume is well above its 50-day average and the bar closes strongly up or down; say the word and I'll set that up."
    }
   },
   {
@@ -12616,12 +13052,13 @@
     ]
    },
    "recorded": {
-    "on": "2026-11-14",
-    "front": null
+    "on": "2026-11-22",
+    "front": "ba74a9fdc0",
+    "model": "claude-opus-5"
    },
    "answer": {
     "disposition": "unsupported",
-    "reply": "I can't run backtests here — this builder makes indicators that calculate and plot values on the chart, not strategies that simulate entries, exits and position sizing, so there's no trade list to compute a profit factor or max drawdown from. There's also nothing in this indicator yet to test. If you tell me the rules you had in mind, I can build them as a yes/no signal with markers or alerts on the chart, and you could take it from there."
+    "reply": "I can't backtest here — this builds indicators that draw on the chart, so there are no simulated trades, and no profit factor or max drawdown to report. There's also no indicator yet to work from. If you tell me the entry and exit rules you had in mind, I can build them as an indicator that marks the bars where each is true and can alert you on them."
    }
   },
   {
@@ -12634,12 +13071,13 @@
     ]
    },
    "recorded": {
-    "on": "2026-11-14",
-    "front": null
+    "on": "2026-11-22",
+    "front": "ba74a9fdc0",
+    "model": "claude-opus-5"
    },
    "answer": {
     "disposition": "unsupported",
-    "reply": "I can't write files to your computer — an indicator here only draws on the chart (lines, markers, shading, an on-chart table) and can raise alerts; it has no file export. If it's the numbers you want to see, I can put the latest values in a table on the chart or show one in the chart header. There's nothing built yet, so just tell me what the indicator should calculate and I'll start it."
+    "reply": "I can't write files to your computer — an indicator here only draws on the chart and can't export data. The closest thing I can build is an on-chart table showing the indicator's latest values each bar, which you could read or screenshot; just tell me which values you want in it (there's no indicator defined yet, so say what to build first)."
    }
   },
   {
@@ -12653,12 +13091,13 @@
     ]
    },
    "recorded": {
-    "on": "2026-11-14",
-    "front": null
+    "on": "2026-11-22",
+    "front": "ba74a9fdc0",
+    "model": "claude-opus-5"
    },
    "answer": {
     "disposition": "unsupported",
-    "reply": "I can't do that one — indicators here are built only from the chart's own price and volume history (and optionally another ticker's or a higher timeframe's bars). There's no social-media or sentiment data feed available, so there's nothing to plot. If you want a proxy for crowd activity, I could build something from price and volume instead, such as a volume surge measure, money flow index, or on-balance volume — just say the word."
+    "reply": "I can only build indicators from price and volume bars, so there's no social-media sentiment data available here. The closest thing I can offer is a crowd-pressure read from the tape itself — for example a money flow index or an on-balance volume line showing whether buyers or sellers are pressing — if you'd like me to build one of those."
    }
   },
   {
@@ -12671,12 +13110,13 @@
     ]
    },
    "recorded": {
-    "on": "2026-11-14",
-    "front": null
+    "on": "2026-11-22",
+    "front": "ba74a9fdc0",
+    "model": "claude-opus-5"
    },
    "answer": {
     "disposition": "unsupported",
-    "reply": "I can't do that here — indicators only read the chart's own bars or a higher timeframe (weekly, monthly, or running the whole indicator on a higher period), never a lower one like one-second bars, so true intrabar buy/sell volume isn't available. If it helps, I can build a bar-by-bar volume measure from the chart's own bars instead — for example signed volume (up-bar volume minus down-bar volume) accumulated over a window, or where each bar closed within its range weighted by volume. Just say which you'd like and on what lookback."
+    "reply": "I can't read bars shorter than the chart's own timeframe here — only the chart's bars or a higher timeframe — so true intrabar (one-second) volume delta can't be built. The closest I can offer on the chart's bars is a signed-volume line that counts each bar's volume as positive when it closes up and negative when it closes down, as a histogram or as a running total (on-balance volume); say the word and I'll add it."
    }
   },
   {
@@ -12689,12 +13129,13 @@
     ]
    },
    "recorded": {
-    "on": "2026-11-14",
-    "front": null
+    "on": "2026-11-22",
+    "front": "ba74a9fdc0",
+    "model": "claude-opus-5"
    },
    "answer": {
     "disposition": "unsupported",
-    "reply": "I can't do that one: an indicator here can hold at most 8 lines, and it can read at most two symbols besides the chart's own, so 500 constituent lines isn't possible. What I can build is something like a handful of named tickers you care about (say SPY and QQQ) plotted as relative strength against the chart's symbol, or a breadth-style read on one index proxy. Tell me which symbols you'd like and how you'd like them compared."
+    "reply": "I can't do that: an indicator here can hold at most 8 lines and can read at most two symbols other than the chart's, so 500 stocks is well beyond it. The closest thing I can build is a comparison of this chart's stock against one or two symbols you name (for example SPY, as a relative-strength line or a correlation) — just tell me which symbols and I'll set it up."
    }
   },
   {
@@ -12708,12 +13149,13 @@
     ]
    },
    "recorded": {
-    "on": "2026-11-14",
-    "front": null
+    "on": "2026-11-22",
+    "front": "ba74a9fdc0",
+    "model": "claude-opus-5"
    },
    "answer": {
     "disposition": "unsupported",
-    "reply": "An indicator can't control the chart — it can't change the symbol you're looking at or take any action on the platform. It can only calculate values, draw lines or markers, colour bars, show a table, and raise an alert when a condition fires. If you tell me the signal you have in mind, I can build it and set an alert (or a marker) so you know when to switch tickers yourself."
+    "reply": "An indicator here can only draw and alert — it can't control the chart, so it can't switch the chart to another ticker when a signal fires. The closest thing I can build is the signal itself with an alert on it (and a marker or background shading), so you get notified and can switch symbols yourself; tell me the condition you want and I'll set it up."
    }
   },
   {
@@ -12727,12 +13169,13 @@
     ]
    },
    "recorded": {
-    "on": "2026-11-14",
-    "front": null
+    "on": "2026-11-22",
+    "front": "ba74a9fdc0",
+    "model": "claude-opus-5"
    },
    "answer": {
     "disposition": "unsupported",
-    "reply": "I can't plot GDP growth or CPI here — this builder only works with price and volume bars for a symbol (and higher-timeframe or other-symbol reads of those), not macroeconomic data series. If there's a tradable ticker that tracks what you're after, I can plot something from its bars instead, or I can build price-based indicators on this pane."
+    "reply": "I can't plot GDP growth or CPI here: indicators are built only from the chart's own price and volume bars (and, if you name one, another ticker's bars), and economic data series aren't available. The closest thing I can build is a price-based measure of growth or inflation-sensitivity on the chart — for example the rate of change of the close over a chosen period, or a ratio against a symbol you name such as TIP or GLD — just say which and I'll add it."
    }
   },
   {
@@ -12745,12 +13188,13 @@
     ]
    },
    "recorded": {
-    "on": "2026-11-14",
-    "front": null
+    "on": "2026-11-22",
+    "front": "ba74a9fdc0",
+    "model": "claude-opus-5"
    },
    "answer": {
     "disposition": "unsupported",
-    "reply": "I can't do that one — holdings data (the constituents of an ETF and their weights) isn't something I can read here. I only work from price and volume bars, plus other symbols you name by ticker and weekly/monthly reads of them. If it helps, I could build a chart table comparing the ETF with a few tickers you name — say their last close, percent change or relative strength — just tell me which symbols."
+    "reply": "This engine has no access to fund holdings or constituent data — there's no built-in that returns an ETF's basket, so a top-ten holdings table can't be built here. The closest I can do is a table you fill in yourself: you type up to ten ticker symbols as inputs, and the script pulls each one's last price and daily percent change with request.security and shows them in a corner table. Say the word and I'll write that."
    }
   },
   {
@@ -12763,12 +13207,13 @@
     ]
    },
    "recorded": {
-    "on": "2026-11-14",
-    "front": null
+    "on": "2026-11-22",
+    "front": "ba74a9fdc0",
+    "model": "claude-opus-5"
    },
    "answer": {
     "disposition": "unsupported",
-    "reply": "I can't do that one — indicators here are built only from the price bars themselves (price, volume, dates on the chart), and there's no calendar of scheduled FOMC meeting dates available, nor any way to mark bars in the future. If it helps, I could mark past or current bars by their own date or time instead — for example highlighting a specific weekday, the first bar of each month, or days you tell me the dates of."
+    "reply": "I can only build indicators from the chart's own price, volume and calendar data, so I have no FOMC meeting schedule to mark — and future dates have no bars to mark yet. If it helps, I could mark fixed dates you give me yourself (for example shading the bars on specific dates you list), or flag a condition around them once those bars exist; just tell me the dates."
    }
   },
   {
@@ -12783,15 +13228,31 @@
    },
    "recorded": {
     "on": "2026-11-22",
-    "front": "ba74a9fdc0",
-    "model": null
+    "front": "b95ee9c9a3",
+    "model": "claude-opus-5"
    },
    "answer": {
     "disposition": "answer",
-    "reply": "RS Rating is one of UCT's own indicators, UCT RS Rating: the stock's RS Rating, 1 to 99, session by session on daily charts. It is not a formula to build here."
+    "reply": "IBD's RS Rating is IBD's own and is not available here. UCT has its own, UCT RS Rating: the stock's RS Rating, 1 to 99, session by session on daily charts. It is not IBD's number, and it is not a formula to build here."
    },
-   "recorded_verdict": "wrong",
-   "defect": "Asked for the proprietary number another publisher prints, the door answered by name with an offer of UCT's own indicator and never said it is NOT that publisher's number: under those words a named offer reads as a yes. The right answer says first that IBD's number is IBD's own and is not available here, and only then names UCT's own, as UCT's and as not IBD's. Found by the first full live run as a member (2026-11-22); the door's own sentence now says it."
+   "found": [
+    {
+     "answer": {
+      "disposition": "answer",
+      "reply": "RS Rating is one of UCT's own indicators, UCT RS Rating: the stock's RS Rating, 1 to 99, session by session on daily charts. It is not a formula to build here."
+     },
+     "defect": "Asked for the proprietary number another publisher prints, the door answered by name with an offer of UCT's own indicator and never said it is NOT that publisher's number: under those words a named offer reads as a yes. The right answer says first that IBD's number is IBD's own and is not available here, and only then names UCT's own, as UCT's and as not IBD's. Found by the first full live run as a member (2026-11-22); the door's own sentence now says it.",
+     "recorded": {
+      "on": "2026-11-22",
+      "front": "ba74a9fdc0",
+      "model": null
+     },
+     "fixed_by": {
+      "pr": "#2435",
+      "merge": "ff022c3bcd58d0e5fb2e040d45875b7680135fc7"
+     }
+    }
+   ]
   },
   {
    "id": "wall-27",
@@ -12803,12 +13264,13 @@
     ]
    },
    "recorded": {
-    "on": "2026-11-14",
-    "front": null
+    "on": "2026-11-22",
+    "front": "ba74a9fdc0",
+    "model": "claude-opus-5"
    },
    "answer": {
     "disposition": "unsupported",
-    "reply": "I can't do that — indicators here have no persistent memory or saved state between sessions; every value is recalculated from the chart's bar history each time it loads. What I can do is compute a value from the bars themselves (for example the last close, a running total over the loaded history, or the value at the most recent time some condition was true), which will show the same number whenever the chart reopens. Tell me what value you want kept and I'll build it that way."
+    "reply": "An indicator here can't store anything between sessions — every value is recomputed from the chart's bars each time it loads, so there's no memory that survives closing the browser. The closest thing is a running value computed from the bar history itself (a cumulative total, a ratcheting level, or a value held until the next event), which comes back identical every time the chart opens; tell me which value you want carried forward and I can build that. There's also nothing in this indicator yet — say what it should calculate and I'll start it."
    }
   },
   {
@@ -12821,12 +13283,13 @@
     ]
    },
    "recorded": {
-    "on": "2026-11-14",
-    "front": null
+    "on": "2026-11-22",
+    "front": "ba74a9fdc0",
+    "model": "claude-opus-5"
    },
    "answer": {
     "disposition": "unsupported",
-    "reply": "I can't do that one — indicators here are built only from the chart's price and volume bars (and clock fields like the date), so there's no way to read a company's earnings calendar or fetch anything from an investor relations page. If a countdown to a date is what you're after, I'd need the date itself as something you type into the indicator's settings, and I could count the bars or days until it. Just say the word and I'll build that instead."
+    "reply": "I can't do this one: indicators here are built only from the chart's price and volume bars, so there's no earnings calendar and no way to read a company's investor relations page. The closest thing I can build is a countdown you control yourself — a settings box where you type the earnings date and a line or on-chart table showing the days remaining — if you'd like that, just say the word and give me the date."
    }
   },
   {
@@ -12839,12 +13302,13 @@
     ]
    },
    "recorded": {
-    "on": "2026-11-14",
-    "front": null
+    "on": "2026-11-22",
+    "front": "ba74a9fdc0",
+    "model": "claude-opus-5"
    },
    "answer": {
     "disposition": "unsupported",
-    "reply": "I can't send emails or chart images — I only build indicators and their on-chart alerts here. What I can do is build a condition and attach an alert to it, which your charting platform can then deliver however you have alert notifications set up. Tell me what condition should fire at the daily close and I'll set it up."
+    "reply": "I can't send emails or chart images — indicators here only draw on the chart and can raise alerts. The closest thing I can build is an indicator with a daily-close alert, so your platform's alert delivery notifies you when each day's bar closes; say the word and I'll set that up."
    }
   },
   {
@@ -12873,80 +13337,39 @@
     ]
    },
    "recorded": {
-    "on": "2026-11-21",
-    "front": "c7f99ed2c3"
+    "on": "2026-11-22",
+    "front": "b95ee9c9a3",
+    "model": "claude-opus-5"
    },
-   "recorded_verdict": "wrong",
-   "defect": "A STAND-IN WAS BUILT where the member should have been asked: the line uses the ATR of fourteen 5 MINUTE bars where the words ask for the 14 DAY ATR, under a note that says so. By value it is not what was asked on any bar, and a member reads the chart, not the note. The words add today's own low to a DAILY measure in one line, which cannot be built below a day yet. The right answer builds nothing, says that plainly, and offers what can be drawn: the 14 day ATR as a line on daily bars, and the same line with the ATR of this chart's own bars, named for what they span. When a daily read below a day can be built, this becomes a formula case again and must build right.",
    "answer": {
-    "disposition": "change",
-    "reply": "I've put a line on the price chart at today's session low so far plus 0.6 times the 14-bar ATR, with a dot above each bar that closes above it. One thing to confirm: the ATR is measured on the chart's 5-minute bars — if you meant a true 14-day ATR, say so and I'll change it.",
-    "ops": [
+    "disposition": "clarify",
+    "reply": "Today's low so far is a 5 minute session value, while the 14 day ATR is a daily measure, and I can't combine the two on one 5 minute chart yet. Tell me which version you want and I'll build it exactly as named, dots and all.",
+    "questions": [
      {
-      "op": "create",
-      "name": "Session Low + 0.6 ATR",
-      "placement": "price",
-      "primary": "trigger",
-      "outputs": [
+      "text": "I can't yet mix today's low so far on a 5 minute chart with a daily measure like the 14 day ATR. Which would you like?",
+      "choices": [
+       "Use the ATR of 14 five-minute bars (about 1 hour 10 minutes)",
+       "Build it on daily bars with the 14 day ATR"
+      ]
+     }
+    ]
+   },
+   "found": [
+    {
+     "answer": {
+      "disposition": "change",
+      "reply": "I've put a line on the price chart at today's session low so far plus 0.6 times the 14-bar ATR, with a dot above each bar that closes above it. One thing to confirm: the ATR is measured on the chart's 5-minute bars — if you meant a true 14-day ATR, say so and I'll change it.",
+      "ops": [
        {
-        "key": "trigger",
-        "label": "Low + 0.6 ATR",
-        "tree": {
-         "type": "op",
-         "name": "+",
-         "args": [
-          {
-           "type": "call",
-           "name": "sessionLow",
-           "args": []
-          },
-          {
-           "type": "op",
-           "name": "*",
-           "args": [
-            {
-             "type": "num",
-             "value": 0.6
-            },
-            {
-             "type": "call",
-             "name": "atr",
-             "args": [
-              {
-               "type": "series",
-               "name": "high"
-              },
-              {
-               "type": "series",
-               "name": "low"
-              },
-              {
-               "type": "series",
-               "name": "close"
-              },
-              {
-               "type": "num",
-               "value": 14
-              }
-             ]
-            }
-           ]
-          }
-         ]
-        }
-       },
-       {
-        "key": "above",
-        "label": "Close above line",
-        "tree": {
-         "type": "op",
-         "name": ">",
-         "args": [
-          {
-           "type": "series",
-           "name": "close"
-          },
-          {
+        "op": "create",
+        "name": "Session Low + 0.6 ATR",
+        "placement": "price",
+        "primary": "trigger",
+        "outputs": [
+         {
+          "key": "trigger",
+          "label": "Low + 0.6 ATR",
+          "tree": {
            "type": "op",
            "name": "+",
            "args": [
@@ -12989,28 +13412,86 @@
             }
            ]
           }
-         ]
-        }
+         },
+         {
+          "key": "above",
+          "label": "Close above line",
+          "tree": {
+           "type": "op",
+           "name": ">",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "op",
+             "name": "+",
+             "args": [
+              {
+               "type": "call",
+               "name": "sessionLow",
+               "args": []
+              },
+              {
+               "type": "op",
+               "name": "*",
+               "args": [
+                {
+                 "type": "num",
+                 "value": 0.6
+                },
+                {
+                 "type": "call",
+                 "name": "atr",
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "high"
+                  },
+                  {
+                   "type": "series",
+                   "name": "low"
+                  },
+                  {
+                   "type": "series",
+                   "name": "close"
+                  },
+                  {
+                   "type": "num",
+                   "value": 14
+                  }
+                 ]
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "op": "set_marker",
+        "output": "above",
+        "shape": "circle",
+        "position": "aboveBar"
        }
       ]
      },
-     {
-      "op": "set_marker",
-      "output": "above",
-      "shape": "circle",
-      "position": "aboveBar"
+     "defect": "A STAND-IN WAS BUILT where the member should have been asked: the line uses the ATR of fourteen 5 MINUTE bars where the words ask for the 14 DAY ATR, under a note that says so. By value it is not what was asked on any bar, and a member reads the chart, not the note. The words add today's own low to a DAILY measure in one line, which cannot be built below a day yet. The right answer builds nothing, says that plainly, and offers what can be drawn: the 14 day ATR as a line on daily bars, and the same line with the ATR of this chart's own bars, named for what they span. When a daily read below a day can be built, this becomes a formula case again and must build right.",
+     "recorded": {
+      "on": "2026-11-21",
+      "front": "c7f99ed2c3"
+     },
+     "fixed_by": {
+      "pr": "#2471",
+      "merge": "b071e3d2cdda6333d0fa1a5cac33ac9fec819feb"
      }
-    ]
-   }
-  }
- ],
- "thresholds": {
-  "_": "How many cases of a lane a FULL live run must get right. Written by the first full live run (tools/value_eval.py --answers <dir> --full), never typed; a later full run below it is red. Raising one is a deliberate commit; lowering one needs the coordinator.",
-  "formula": null,
-  "wall": null,
-  "script": null
- },
- "pending": [
+    }
+   ]
+  },
   {
    "id": "wall-31",
    "lane": "wall",
@@ -13020,7 +13501,33 @@
      "Zacks"
     ],
     "theirs": "Zacks"
-   }
+   },
+   "recorded": {
+    "on": "2026-11-22",
+    "front": "b95ee9c9a3",
+    "model": "claude-opus-5"
+   },
+   "answer": {
+    "disposition": "unsupported",
+    "reply": "\"Zacks Rank\" is Zacks's own number and is not available here. UCT has nothing by that name. To build something of your own, describe the rule (what it measures, over how many bars) and the assistant will build exactly that."
+   },
+   "found": [
+    {
+     "answer": {
+      "disposition": null,
+      "reply": "\"Zacks Rank\" is not an indicator UCT knows by name. Describe the rule itself in your own words (what it measures, over how many bars) and the assistant will build exactly that."
+     },
+     "defect": "The door answered with its unknown-name sentence: \"Zacks Rank\" is not an indicator UCT knows by name, describe the rule itself and the assistant will build exactly that. It never says the number is the publisher's own and is not available here, so the reply reads as \"you can have Zacks Rank if you explain it\". UCT holds nothing by that name, so the fix of the first case of this family (a name UCT holds, #2435) does not reach it. Refused at the door with no model call.",
+     "recorded": {
+      "on": "2026-11-22",
+      "front": "07b9615296"
+     },
+     "fixed_by": {
+      "pr": "#2517",
+      "merge": "39ec3530c171590a9265d0b74ad764f314d87aca"
+     }
+    }
+   ]
   },
   {
    "id": "wall-32",
@@ -13031,24 +13538,62 @@
      "IBD"
     ],
     "theirs": "IBD"
-   }
+   },
+   "recorded": {
+    "on": "2026-11-22",
+    "front": "b95ee9c9a3",
+    "model": "claude-opus-5"
+   },
+   "answer": {
+    "disposition": "unsupported",
+    "reply": "\"Composite Rating\" is IBD's own number and is not available here. UCT has nothing by that name. To build something of your own, describe the rule (what it measures, over how many bars) and the assistant will build exactly that."
+   },
+   "found": [
+    {
+     "answer": {
+      "disposition": null,
+      "reply": "\"Composite Rating\" is not an indicator UCT knows by name. Describe the rule itself in your own words (what it measures, over how many bars) and the assistant will build exactly that."
+     },
+     "defect": "The door answered with its unknown-name sentence: \"Composite Rating\" is not an indicator UCT knows by name, describe the rule itself and the assistant will build exactly that. It never says the rating is the publisher's own and is not available here, and it does not name the publisher at all, so the reply reads as \"you can have it if you explain it\". UCT holds nothing by that name, so the fix of the first case of this family (#2435) does not reach it. Refused at the door with no model call.",
+     "recorded": {
+      "on": "2026-11-22",
+      "front": "07b9615296"
+     },
+     "fixed_by": {
+      "pr": "#2517",
+      "merge": "39ec3530c171590a9265d0b74ad764f314d87aca"
+     }
+    }
+   ]
   },
   {
-   "id": "weekly-plot-01",
-   "lane": "script",
-   "chart": "daily",
-   "words": "Plot the 10 week simple moving average of the weekly close on my daily chart, and put a label with the text Cross on each bar where the close crosses above it",
-   "rule": {
-    "digest": "7ff9bf10ef31cbee",
-    "history": [
-     {
-      "digest": "7ff9bf10ef31cbee",
-      "reason": "written from the request's words before the answer was read"
-     }
+   "id": "wall-33",
+   "lane": "wall",
+   "words": "Show my live P&L from my brokerage account on the chart, updating as I trade.",
+   "wall": {
+    "names": [
+     "brokerage account",
+     "account",
+     "P&L"
     ]
    },
-   "why": "No recorded script PLOTS a weekly or monthly value: the measurement that removed the other-timeframe rule (2026-11-22) could not see whether a script plot of another timeframe comes out right. This case asks it. The line is held by value to every honest reading of a weekly average on a daily bar; the labels to the line the script itself plots."
-  },
+   "recorded": {
+    "on": "2026-11-22",
+    "front": "b95ee9c9a3"
+   },
+   "answer": {
+    "disposition": "unsupported",
+    "reply": "I can't connect to your brokerage account, so live positions and account P&L aren't available here — an indicator only reads chart price and volume. The closest thing I can build is a P&L tracker you fill in yourself: you'd set your share size and average entry price in the indicator's settings, and it would draw your entry line on the chart and show the open profit or loss (per share, total dollars, or percent) in a corner table that updates with each new bar. Just say the word and tell me which figures you'd like shown."
+   }
+  }
+ ],
+ "thresholds": {
+  "_": "How many cases of a lane a FULL live run must get right. Written by the first full live run (tools/value_eval.py --answers <dir> --full), never typed; a later full run below it is red. Raising one is a deliberate commit; lowering one needs the coordinator.",
+  "formula": null,
+  "wall": 30,
+  "script": 19
+ },
+ "pending": [
   {
    "id": "udaily-01",
    "lane": "wall",
@@ -13431,18 +13976,6 @@
    "held": "Not an acceptance case by value yet: on the built 5 minute chart this condition is true on NO bar under any reading of the 14 day ATR, so a rule could not tell a right answer from a formula that is never true. Re-admit if the fixture gains a session where it can be true. The member's words are not changed to make it one."
   },
   {
-   "id": "wall-33",
-   "lane": "wall",
-   "words": "Show my live P&L from my brokerage account on the chart, updating as I trade.",
-   "wall": {
-    "names": [
-     "brokerage account",
-     "account",
-     "P&L"
-    ]
-   }
-  },
-  {
    "id": "cap-01",
    "lane": "script",
    "chart": "daily",
@@ -13594,6 +14127,105 @@
    },
    "needs": "a list filled only on some bars, averaged (`array.*`, `for ... in`)",
    "distinguishes": "differs from the plain 10 bar average volume on 1,974 of 2,000 bars"
+  },
+  {
+   "id": "fund-01",
+   "lane": "script",
+   "chart": "daily",
+   "words": "Plot quarterly revenue growth in a pane under the chart",
+   "rule": {
+    "digest": "e41a747d1bf7519b",
+    "history": [
+     {
+      "digest": "e41a747d1bf7519b",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "needs": "quarterly revenue read from the filings, and REPORTS counted (the same quarter a year before is four reports back, never a number of bars)",
+   "distinguishes": "31 reports over 2,000 bars; against the same quarter a year before the line has a value on 1,704 bars and is exactly 0 on 61 of them; against the quarter before, on 1,902 bars; a reading 252 BARS back differs from the four-reports reading on 144 bars",
+   "waits_for": "the engine serving a company's filed figures to members (`request.financial` as UCT data)"
+  },
+  {
+   "id": "fund-02",
+   "lane": "script",
+   "chart": "daily",
+   "words": "Plot diluted EPS over the trailing twelve months as a line under the chart",
+   "rule": {
+    "digest": "f43fd320e70bfef1",
+    "history": [
+     {
+      "digest": "f43fd320e70bfef1",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "needs": "diluted EPS of the trailing twelve months read from the filings, left empty where no figure is public yet",
+   "distinguishes": "a value on 1,781 of 2,000 bars and nothing on the first 219; the single-quarter figure differs from it on 1,960 bars",
+   "waits_for": "the engine serving a company's filed figures to members (`request.financial` as UCT data)"
+  },
+  {
+   "id": "fund-03",
+   "lane": "script",
+   "chart": "daily",
+   "words": "Plot free cash flow per share under the chart",
+   "rule": {
+    "digest": "698a0421d68b2179",
+    "history": [
+     {
+      "digest": "698a0421d68b2179",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "needs": "two figures read from the filings and divided, left empty wherever either one is withheld (never filled with a zero or an older value)",
+   "distinguishes": "a value on 1,524 of 2,000 bars; a line that carries the older cash flow across the report that left it unknown differs on 257 bars",
+   "waits_for": "the engine serving a company's filed figures to members (`request.financial` as UCT data)"
+  },
+  {
+   "id": "fund-04",
+   "lane": "script",
+   "chart": "daily",
+   "words": "Plot book value per share under the chart",
+   "rule": {
+    "digest": "c29b479df42ae374",
+    "history": [
+     {
+      "digest": "c29b479df42ae374",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "needs": "total equity over shares outstanding, both from the filings, said to be computed from filings (it is not a figure a data vendor publishes under that name)",
+   "distinguishes": "a value on 1,843 of 2,000 bars and nothing on the first 157 (the share count is first reported two reports after the equity)",
+   "waits_for": "the engine serving a company's filed figures to members (`request.financial` as UCT data)",
+   "says": [
+    [
+     "filings",
+     "filed"
+    ]
+   ]
+  },
+  {
+   "id": "fund-05",
+   "lane": "wall",
+   "words": "Plot the analyst EPS estimate for each quarter under the chart",
+   "wall": {
+    "names": [
+     "analyst",
+     "estimate"
+    ],
+    "offers": [
+     {
+      "what": "EPS as the company filed it (the figure UCT does hold)",
+      "words": [
+       "eps",
+       "fil"
+      ]
+     }
+    ]
+   },
+   "waits_for": "the engine serving a company's filed figures to members (`request.financial` as UCT data)"
   }
  ]
 }

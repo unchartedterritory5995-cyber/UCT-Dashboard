@@ -23,8 +23,8 @@ Bus/DDLA column in force" and its row.
 
 ⛔ **A restated LA is MEMBER DISPLAY ONLY.** Every restated note says so in the
 same words: "member display; AI use, external publication and attribution are
-their own rows". AI processing (T-14 Massive, Bus LA but ESC-03 open; T-44
-FMP, U), publication beyond members (T-02, T-16 to T-22, T-45) and naming FMP
+their own rows". AI processing (T-14 Massive: ESC-03 no longer holds it, but its
+class is not moved, AI use being its own gate; T-44 FMP, U), publication beyond members (T-02, T-16 to T-22, T-45) and naming FMP
 as a source (T-46) are separate register rows with their own classes, and the
 storage/caching duties (T-09/T-10, T-42 §6.3/§2.8) persist under LA. Every
 other reader of this table STAMPS or ECHOES a class; exactly two GATE on one:
@@ -34,9 +34,17 @@ can reach a model), which read no member-display row. Neither is an AI-use or
 external-publication gate on a restated row, and
 tests/test_provider_licensing_restate.py keeps it that way.
 
-**Held, not restated (owner questions):** Massive `derived_analytics` (T-11:
-the Bus column reads LA, but whether the Business grant reaches Derived Works
-is ESC-03, still open) and FMP `transcripts` (T-43: ESC-11, transcript AI).
+**Held, not restated (owner question):** FMP `transcripts` (T-43: ESC-11,
+transcript AI).
+
+⭐ **ESC-03 ANSWERED BY THE OWNER, 2026-11-22** (verbatim: "the license we are
+good on and fully approved and verified. DO it all"; an owner answer, quoted and
+dated, recorded in the register's ESC-03 row). The Business grant reaches Derived
+Works, so Massive `derived_analytics` (T-11) moves R -> LA in the same scope as
+the restated rows: member display. Its note carries the scope sentence in the
+same words and cites the answer (`register 2026-11-22: ESC-03 answered by the
+owner`), not the 2026-09-19 note. AI processing (T-14), external publication
+(T-12, T-16 to T-22) and attribution stay their own rows, unchanged.
 
 Changing an owner input later is still a one-line change to this table's data,
 per spec §20's reversibility requirement — touching zero adapter code.
@@ -103,10 +111,12 @@ _TABLE: dict[tuple[str, str], LicensingClassEntry] = {
               "display; AI use, external publication and attribution are their own rows.", "T-07",
     ),
     ("massive", "derived_analytics"): LicensingClassEntry(
-        "R", "Breadth/RS/correlation/sector-flow style derived analytics. HELD at R, not restated 2026-11-19: T-11's "
-             "Bus column reads LA, but whether the Business grant reaches Derived Works at all (rather than display "
-             "of the underlying data) is ESC-03, still an open owner question; the register's default is "
-             "display-only until the grant's text says otherwise.", "T-11",
+        "LA", "Breadth/RS/correlation/sector-flow style derived analytics (UCT's own calculations over Massive "
+              "aggregates). Moved R->LA 2026-11-22: register 2026-11-22: ESC-03 answered by the owner (the Business "
+              "grant reaches Derived Works; T-11: Ind R, Bus LA). Held at R from 2026-11-19 until then. Scope: member "
+              "display; AI use, external publication and attribution are their own rows (AI processing T-14, whose "
+              "class this answer does not move; composites T-12 / ESC-04 and public surfaces T-16 to T-22, R; "
+              "retention N-25 with T-09/T-10's deletion duty).", "T-11",
     ),
     ("fmp", "fundamentals"): LicensingClassEntry(
         "LA", "Key metrics, ratios, financial statements (and fmp_client.get_quote, which stamps this class). "
@@ -181,7 +191,8 @@ _TABLE: dict[tuple[str, str], LicensingClassEntry] = {
     # carry, so each fell to `_DEFAULT` ("U"). They restate the register's rows; none is a ruling. ⚰️ This said the
     # stale rows above (the FMP "no DDLA assumed" rows, Massive "reference" / "derived_analytics") were NOT restated
     # here, because that switches other consumers and is its own unit (coordinator ruling C1, 2026-11-19). That unit
-    # landed the same day: see the "RESTATED 2026-11-19" note above the table ("derived_analytics" is still held).
+    # landed the same day: see the "RESTATED 2026-11-19" note above the table ("derived_analytics" was held until ESC-03 was
+# answered by the owner, 2026-11-22).
     ("sec_edgar", "fundamentals"): LicensingClassEntry(
         "A", "XBRL company facts and the submissions index read from EDGAR into the point-in-time fundamentals store "
              "(api/services/fundamentals_pit) — public domain, the same row as Form 4 / 13F; the declared User-Agent and "
