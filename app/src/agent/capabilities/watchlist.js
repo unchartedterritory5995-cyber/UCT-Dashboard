@@ -44,6 +44,7 @@ import { isPronounToken, isReservedWord, groundSymbols, groundingOf, resolvedTic
 import { matchName } from '../nl/match'
 import { afterRender } from '../frames'
 import { MAX_TOP } from '../compose'
+import { headlineTickers } from './newsLibrary'
 // Each list's tickers ARE shown to the model (removing "TSLA from Momentum" needs it:
 // without them the production model asked whether TSLA was in the list, 0/5 —
 // measured 2026-10-08). Provenance does not depend on hiding them: a copied list
@@ -93,6 +94,45 @@ const listsOf = (host) => (host?.watchlists ? host.watchlists.snapshot() : [])
 const sigOf = (items) => JSON.stringify(items.map(i => [i.id, i.sym]))
 
 /** One list by name (exact, case/quote-insensitive), or the one visible list for "my/this/the watchlist". */
+// C3-144 (News family): "add <a headline's ticker(s)> to <list>". The headline is resolved by newsLibrary's ONE resolver over
+// what the News widget shows (headlineTickers: selected / previous / a ticker / a quoted phrase / "the headline about …");
+// the tickers are that row's own `tickers` field (what Trade Exchange linked), never a word of its text. A SINGULAR noun
+// ("ticker", "stock") on a headline that names several asks which one; nothing is ever guessed. → { symbols, __target } |
+// { __say } (a fixed answer, nothing changed) | null (not this shape: the other readers and the model).
+const HL_NOUN_RE = '(?:headlines?|stor(?:y|ies)|articles?|news items?)'
+const SYM_NOUN_RE = '(tickers?|symbols?|stocks?|names?|compan(?:y|ies))'
+const INTO_RE = '(?:to|in|into|on|onto)'
+const HEADLINE_SHAPES = [
+  // "add the ticker(s) from this headline to Semis", "put the stocks mentioned in the AMD story on my Core list"
+  new RegExp(`^(?:please )?(?:add|put|drop|stick|throw) (?:the |its |their |all (?:the |of the )?)?${SYM_NOUN_RE}(?: (?:mentioned|named|tagged|linked))? (?:from|in|of|on) (.+? ${HL_NOUN_RE}(?: about .+?)?|[“"][^”"]{3,200}[”"](?: ${HL_NOUN_RE})?) ${INTO_RE} (.+?)[.!]?$`, 'i'),
+  // "add this headline's ticker to Semis", "add the selected story's tickers to the Core watchlist"
+  new RegExp(`^(?:please )?(?:add|put|drop|stick|throw) (.+? ${HL_NOUN_RE})(?:'s|’s) ${SYM_NOUN_RE} ${INTO_RE} (.+?)[.!]?$`, 'i'),
+  // "add this headline to my Semis watchlist" (the list must SAY watchlist / list: a bare name could be a collection)
+  new RegExp(`^(?:please )?(?:add|put|drop|stick|throw|watchlist) (.+? ${HL_NOUN_RE}) ${INTO_RE} (.+? (?:watch ?list|list))[.!]?$`, 'i'),
+]
+export function readHeadlineTickers(text, host, typed = text) {
+  const s = String(text || '').trim()
+  let noun = null, ref = null, list = null
+  const a = HEADLINE_SHAPES[0].exec(s)
+  if (a) [, noun, ref, list] = a
+  else {
+    const b = HEADLINE_SHAPES[1].exec(s)
+    if (b) [, ref, noun, list] = b
+    else { const c = HEADLINE_SHAPES[2].exec(s); if (c) [, ref, list] = c }
+  }
+  if (!ref || !list) return null
+  const l = resolveList(host, String(list).replace(/^(?:my|the|our) /i, ''))
+  if (!l) return null                                  // not one of their lists (a collection, a widget…): the other readers
+  const hit = headlineTickers(host, ref, typed)
+  if (!hit) return null
+  if (hit.say) return { __say: hit.say }
+  const plural = !!noun && /(?:s|ies)$/i.test(noun)
+  if (hit.tickers.length > 1 && !plural) {
+    return { __say: `That headline names ${andList(hit.tickers)} — which one should go on ${quote(l.name)}? (Say “add its tickers” for all of them.) Nothing was changed.` }
+  }
+  return { symbols: hit.tickers, __target: l.id }
+}
+
 function resolveList(host, phrase, { level = 'safe' } = {}) {
   const lists = listsOf(host)
   const p = norm(phrase).replace(/ (watch ?list|list)$/, '')
@@ -492,7 +532,11 @@ export function registerWatchlistCapabilities() {
     },
     // A typed-output input (compose.js): a screen's ordered tickers may feed it.
     inputs: { symbols: SYMBOLS },
-    fast: ({ raw, host }) => {
+    fast: ({ raw, lower, typed, host }) => {
+      // C3-144: a News headline's ticker(s) — "add this headline's ticker to Semis", "add the tickers from the AMD story to my
+      // Core list" — the headline named by the newsLibrary resolver (the one open in the News widget / a ticker / a quoted phrase)
+      const fromHeadline = host?.watchlists ? readHeadlineTickers(lower ?? raw, host, typed || raw) : null
+      if (fromHeadline) return fromHeadline
       const m = /^(?:please )?(?:add|put|throw|stick) (.+?) (?:to|in|into|on|onto) (.+?)[.!]?$/i.exec(String(raw).trim())
       if (!m || !host?.watchlists) return null
       const syms = parseTickers(m[1], raw)
