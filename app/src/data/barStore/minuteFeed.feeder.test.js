@@ -11,6 +11,7 @@
 //   SERVER WINS F14 a later answer replaces a fed bar   F15 a sealed span removes one    F16 a REPLACE never beats the server
 //               F17 an answer built BEFORE the minute closed does not turn the closed bar back into a partial one
 //   LEFT ALONE  F18 a key a chart is on     F19 a key with no answer / no entry     F20 a saved (local) copy
+//               F20c an answered copy the store holds for a full re-read
 //   COST        F21 the appends give the thread back and still all land
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { createRegistry } from './registry'
@@ -287,10 +288,29 @@ describe('minute feed · what is left exactly as it is', () => {
 
   it('F20 a saved (local) copy the server has not answered in this page life is not fed', () => {
     const w = world()
-    w.registry.dispatch(key('AAA'), { type: ACTION.MEM_HIT, payload: { bars: Array.from({ length: 30 }, (_, n) => bar(n)) } })
-    expect(w.tail('AAA').t).toBe(T(29))
+    // a copy persist wrote from an earlier answer: its rows AND its seals come back, so the store would accept a
+    // delta for it (`needsFull` false). Only "no answer in this page's life" keeps the feed off it.
+    w.registry.dispatch(key('AAA'), { type: ACTION.MEM_HIT, payload: {
+      bars: Array.from({ length: 30 }, (_, n) => bar(n)), sealed_spans: [[T(0), T(29)]], complete_through: T(29),
+      cache_key: 'b1:AAA:1:eth-clock', history_rev: 1, series_rev: at(29, 30),
+    } })
+    expect(w.snap('AAA')).toMatchObject({ restSeen: false, needsFull: false })
+    expect(w.tail('AAA')).toMatchObject({ t: T(29), src: 'local' })
     w.frame(30); w.frame(31)
     expect(w.tail('AAA')).toMatchObject({ t: T(29), src: 'local' })
+  })
+
+  it('F20c an answered copy the store holds for a FULL re-read (its history changed) is not fed', () => {
+    const w = world()
+    w.answer('AAA', { through: 29 })
+    // a delta that names a newer history: the held window is no longer the server's, a full read is pending
+    w.registry.dispatch(key('AAA'), { type: ACTION.REST_DELTA, payload: {
+      ticker: 'AAA', tf: '1', contract: 1, grid: 'eth-clock', cache_key: 'b1:AAA:1:eth-clock', series_rev: at(30, 25),
+      history_rev: 2, complete_through: null, developing: null, bars: [], since: T(29),
+    } })
+    expect(w.snap('AAA')).toMatchObject({ restSeen: true, needsFull: true })
+    w.frame(30); w.frame(31)
+    expect(w.tail('AAA').t).toBe(T(29))
   })
 
   it('F20b only 1-minute keys: a 5m key of the same symbol is untouched', () => {

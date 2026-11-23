@@ -44,8 +44,8 @@
 //   • extended-hours minutes (only regular-session minutes are fed, and nothing is polled outside the regular session);
 //   • 5m-60m and D keys (no rollup here);
 //   • the quiet-name stamp (`fedThrough`): a name that did not trade in the newest minute still reads "behind";
-//   • a copy the server has not answered in this page's life (a saved or lake copy), a windowed (replay) key, a key a
-//     chart is on (its own stream and requests keep it current), a key holding device rows;
+//   • a copy the server has not answered in this page's life (a saved, lake or device copy), a copy the store holds
+//     for a full re-read, a windowed (replay) key, a key a chart is on (its own stream and requests keep it current);
 //   • a key whose newest closed row is from an earlier session (the first minutes after the open, until its answer);
 //   • the device store ON: this does not run at all then (minuteFeedSwitch.js).
 //
@@ -145,10 +145,11 @@ export function createMinuteFeeder({
   function _feedKey(sym, st) {
     const key = st.key
     let s = registry.peek(key)
-    // Only a copy the SERVER answered in this page's life, with rows to meet, that no chart is on, and that the store
-    // itself does not already call incomplete. Everything else is left exactly as it is (see the header).
-    if (!s || !s.restSeen || !s.bars.length || s.deviceRows === true || s.needsFull || s.liveGapFrom != null
-        || s.pendingHistoryRev != null || isActive(key)) {
+    // Only a copy the SERVER answered in this page's life (`restSeen`: never a saved copy, the lake's or the device's
+    // rows alone), that the store does not itself hold for a full re-read (`needsFull`: its history or its price basis
+    // changed, or it has a hole a delta cannot reach), and that no chart is on. Everything else is left exactly as it
+    // is (see the header). One clause per rule, each proved by its own mutant (a rule stated twice cannot be).
+    if (!s || !s.restSeen || s.needsFull || !s.bars.length || isActive(key)) {
       st.redo.clear()
       return
     }
