@@ -1164,12 +1164,6 @@
   "title": "Linking charts and widgets"
  },
  {
-  "id": "C3-009",
-  "say": "how do I drag or resize a floating widget",
-  "feature": "widgetResize",
-  "title": "Resizing a chart or widget"
- },
- {
   "id": "C3-012",
   "say": "how do I pop a widget into its own window",
   "feature": "widgetHeader",

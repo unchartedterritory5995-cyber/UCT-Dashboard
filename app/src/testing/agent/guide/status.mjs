@@ -22,9 +22,10 @@ const rows = probe.report.map(r => {
   const exp = expected[r.id]
   const res = byId.get(r.id)
   let status, evidence
-  if (res?.pass) { status = 'VERIFIED'; evidence = `Browser ${run.at.slice(0, 10)}: "${res.say}" → ring on the last step's control${exp?.withheld ? ` (withheld for members: ${exp.withheld})` : ''}` }
-  // ⚰️ a row whose control the owner switched off or hid from the add menus: not a failure of the guide, and never a pass
-  else if (exp?.withheld) { status = 'WITHHELD'; evidence = exp.withheld }
+  // ⚰️ a row whose control the owner switched off or hid from the add menus: not a failure of the guide, and never a pass, even
+  // where a generic walkthrough happens to ring something (PL 11-23: C3-009, C3-011)
+  if (exp?.withheld) { status = 'WITHHELD'; evidence = exp.withheld }
+  else if (res?.pass) { status = 'VERIFIED'; evidence = `Browser ${run.at.slice(0, 10)}: "${res.say}" → ring on the last step's control` }
   else if (res) { const last = (res.steps || []).at(-1); status = 'ROUTED / BROWSER FAILED'; evidence = `"${res.say}" reaches it; browser: ${res.why || res.error || (last ? `step ${last.i + 1} was not completed by the runner's input (card: ${last.text})` : 'failed')}` }
   else if (exp) { status = 'ASSIGNED / NOT REACHED'; evidence = `Assigned ${exp.feature}${exp.title ? ` (${exp.title})` : ''}; the inventory's own words do not reach it` }
   else if (r.a || r.b) { status = 'NO ASSIGNED WALKTHROUGH'; evidence = `The words reach ${(r.a || r.b).feature}${(r.a || r.b).ask ? ' (asks which)' : ''}; nobody has judged it right` }

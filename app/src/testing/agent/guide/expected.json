@@ -1558,7 +1558,8 @@
  },
  "C3-009": {
   "feature": "widgetResize",
-  "from": "cov-5 row reviewed by hand 2026-11-09 (not assigned before: Resizing a chart or widget ends on the widget’s resize handle)"
+  "from": "cov-5 row reviewed by hand 2026-11-09 (not assigned before: Resizing a chart or widget ends on the widget’s resize handle)",
+  "withheld": "owner 2026-11-14: the widget Float button is switched off (ChartsWorkspace FLOAT_BUTTON_ON = false); a generic resize walkthrough is not this row (PL decision 11-23)"
  },
  "C3-011": {
   "feature": "widgetMove",

@@ -12,8 +12,8 @@ This replaces the 2026-11-05 count (283 VERIFIED). Its runner was never committe
 |---|---|---|---|---|---|---|
 | C1 | 135 | 2 | 13 | 0 | 14 | 11 |
 | C2 | 44 | 6 | 16 | 0 | 23 | 12 |
-| C3 | 109 | 11 | 22 | 20 | 37 | 24 |
-| All | 288 | 19 | 51 | 20 | 74 | 47 |
+| C3 | 108 | 11 | 22 | 21 | 37 | 24 |
+| All | 287 | 19 | 51 | 21 | 74 | 47 |
 
 - VERIFIED: proved in the browser, as above.
 - ROUTED / BROWSER FAILED: the words reach the right walkthrough, but the browser run did not end on its control. Routing only; the reason is in the row.
@@ -308,7 +308,7 @@ This replaces the 2026-11-05 count (283 VERIFIED). Its runner was never committe
 | C3-006 | Link | Cycle a widget's link colour | VERIFIED | link | Browser 2026-11-23: "how do I cycle a widget's link colour" → ring on the last step's control | VERIFIED |
 | C3-007 | Link | Change a tool panel's colour group | VERIFIED | link | Browser 2026-11-23: "how do I change a tool panel's colour group" → ring on the last step's control | VERIFIED |
 | C3-008 | Float | Float a widget over another | WITHHELD | widgetHeader | owner 2026-11-14: the widget Float button is switched off (ChartsWorkspace FLOAT_BUTTON_ON = false); the guide says so | VERIFIED |
-| C3-009 | Float | Drag or resize a floating widget | VERIFIED | widgetResize | Browser 2026-11-23: "how do I drag or resize a floating widget" → ring on the last step's control | VERIFIED |
+| C3-009 | Float | Drag or resize a floating widget | WITHHELD | widgetResize | owner 2026-11-14: the widget Float button is switched off (ChartsWorkspace FLOAT_BUTTON_ON = false); a generic resize walkthrough is not this row (PL decision 11-23) | VERIFIED |
 | C3-010 | Float | Dock a floating widget back into the grid | NO ASSIGNED WALKTHROUGH |  | The words reach chartSetting; nobody has judged it right | NO ASSIGNED WALKTHROUGH |
 | C3-011 | Float | Move a floating widget into another widget's tabs | WITHHELD | widgetMove | owner 2026-11-14: the widget Float button is switched off (ChartsWorkspace FLOAT_BUTTON_ON = false); the guide says so | VERIFIED |
 | C3-012 | Popout | Pop a widget into its own window | VERIFIED | widgetHeader | Browser 2026-11-23: "how do I pop a widget into its own window" → ring on the last step's control | VERIFIED |
