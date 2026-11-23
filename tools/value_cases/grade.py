@@ -141,7 +141,7 @@ def grade(case_id, answer, chart='daily'):
     lines, right = [], True
     fill = want.pop('__fill_in__', None)
     if fill is not None:
-        return _grade_fill_in(fill, built, inputs, cols, chart, calc)
+        return _grade_fill_in(fill, built, inputs, cols, chart, calc, hidden_outputs(answer))
     expect_n = want.pop('__outputs__', None)
     outputs = [n for n, _ in built if n.startswith('output ')]
     if expect_n is not None and len(outputs) != expect_n:
@@ -173,10 +173,18 @@ def grade(case_id, answer, chart='daily'):
     return {'verdict': 'right' if right else 'wrong', 'lines': lines}
 
 
-def _grade_fill_in(fill, built, inputs, cols, chart, calc):
+def hidden_outputs(answer):
+    """The outputs the door marked HIDDEN, as `trees_of` names them: computed and read elsewhere (a table cell), never
+    drawn on a bar."""
+    return {f"output {o.get('key')}" for op in (answer or {}).get('ops') or [] for o in (op.get('outputs') or [])
+            if isinstance(o, dict) and o.get('hidden')}
+
+
+def _grade_fill_in(fill, built, inputs, cols, chart, calc, hidden=()):
     """A rule about SETTINGS the member fills in: `fill` is [(what, a value to try)]. Right when
     (1) there is a setting for each, every one defaulting to 0 or to nothing (the member's own figures are never invented);
-    (2) with nothing filled in, NOTHING has a value on any bar (no line at 0, no example position);
+    (2) with nothing filled in, NOTHING IS DRAWN ON ANY BAR (no line at 0, no example position). Only what is drawn
+        counts: a HIDDEN output (a figure a table cell reads) may hold its 0, the chart is not squeezed by it;
     (3) with the settings filled in, each value is shown by some output on every bar (whichever setting holds which)."""
     import itertools
     lines, right = [], True
@@ -187,12 +195,14 @@ def _grade_fill_in(fill, built, inputs, cols, chart, calc):
     if invented:
         right = False
         lines.append(f'a figure of the member is INVENTED as a default: {invented}')
-    drawn = [name for name, got, _err in cols if got is not None and any(_ok(v) for v in got)]
+    valued = [name for name, got, _err in cols if got is not None and any(_ok(v) for v in got)]
+    drawn = [name for name in valued if name not in hidden]
     if drawn:
         right = False
         lines.append(f'with nothing filled in, {drawn} has a value on the chart (a setting at 0 is drawn as a level at 0)')
     else:
-        lines.append('with nothing filled in, nothing is drawn')
+        kept = [name for name in valued if name in hidden]
+        lines.append('with nothing filled in, nothing is drawn' + (f' (hidden, not drawn: {kept})' if kept else ''))
     values = [v for _w, v in fill]
     shown = None
     for chosen in itertools.permutations(names, len(values)):
@@ -287,7 +297,7 @@ def grade_case(case, answer=None):
     elif case['lane'] == 'formula':
         result = grade(case['id'], answer, case.get('chart', 'daily'))
         # a formula case may also hold what the member is TOLD (`says`: each group needs one of its phrases)
-        told = ' '.join(str(answer.get('reply') or '').lower().split())
+        told = ' '.join(str(answer.get('reply') or '').lower().replace('\u2019', "'").split())      # (a typographic apostrophe is a plain one)
         for group in case.get('says') or []:
             if not any(p.lower() in told for p in group):
                 result = {'verdict': 'wrong' if result['verdict'] == 'right' else result['verdict'],

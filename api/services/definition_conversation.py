@@ -796,7 +796,8 @@ CONVERSE_SYSTEM_PROMPT = (
     "whole-number literals; `capabilities.formulaFunctions` lists them). A number the "
     "MEMBER sets (account size, risk %, entry, stop): declare it as an input (create `inputs`, "
     "or set_input) and read it in a tree as a series named by its key. NEVER invent the member's "
-    "own figures -- default 0 and tell them to set it in the indicator's settings. A setting that "
+    "own figures -- default 0, say in `reply` that you cannot read them (their account, their holdings) "
+    "and tell them to set them in the indicator's settings. A setting that "
     "is DRAWN on the price chart (an entry, a stop, an average cost) draws NOTHING until the member "
     "fills it in: write `avgCost > 0 ? avgCost : 0 / 0`, never the bare setting, which is a line at "
     "price 0 that squeezes the member's chart to fit it. Changing a "
@@ -3128,6 +3129,12 @@ def _refuse_a_placeholder_reply(envelope: Mapping[str, Any]) -> None:
             "sentences saying what was built; and check the formulas for a number left standing in for a value.")
 
 
+def _unfilled_settings(create: Mapping[str, Any]) -> set:
+    """The settings a `create` declares with NO REAL DEFAULT (0, or none): the member's own figures, to fill in."""
+    return {x["key"] for x in create.get("inputs") or []
+            if isinstance(x, Mapping) and isinstance(x.get("key"), str) and x.get("default") in (0, 0.0, None)}
+
+
 def _refuse_a_bare_fill_in_setting(envelope: Mapping[str, Any]) -> None:
     """2026-11-22 -- A SETTING AT 0 DRAWN AS A LEVEL AT 0. Found by the first full live run of the value cases.
 
@@ -3145,8 +3152,7 @@ def _refuse_a_bare_fill_in_setting(envelope: Mapping[str, Any]) -> None:
     for o in envelope.get("ops") or []:
         if not isinstance(o, Mapping) or o.get("op") != "create" or o.get("placement") != "price":
             continue
-        unfilled = {x["key"] for x in o.get("inputs") or []
-                    if isinstance(x, Mapping) and isinstance(x.get("key"), str) and x.get("default") in (0, 0.0, None)}
+        unfilled = _unfilled_settings(o)
         for i, out in enumerate(o.get("outputs") or []):
             tree = out.get("tree") if isinstance(out, Mapping) else None
             if (isinstance(tree, Mapping) and tree.get("type") == "series" and tree.get("name") in unfilled
@@ -3157,6 +3163,74 @@ def _refuse_a_bare_fill_in_setting(envelope: Mapping[str, Any]) -> None:
                     f"outputs[{i}] draws the setting `{key}` bare on the price chart. Until the member fills it in "
                     "it is 0: a line at price 0, and the chart is squeezed to fit it. Draw nothing until it is "
                     f"filled: `{key} > 0 ? {key} : 0 / 0`.")
+
+
+#: how a reply says the door cannot read or know something
+_SAYS_IT_CANNOT = ("can't", "cannot", "can not", "no way to", "unable to", "not able to", "no access to",
+                   "don't have access", "do not have access")
+
+
+def _only_a_setting(tree: Any, unfilled: set) -> Optional[str]:
+    """The setting a tree is NOTHING BUT: `shares`, or `shares > 0 ? shares : <no value>` (drawn only once filled)."""
+    if not isinstance(tree, Mapping):
+        return None
+    if tree.get("type") == "series":
+        return tree.get("name") if tree.get("name") in unfilled else None
+    args = tree.get("args") or []
+    if tree.get("type") == "op" and tree.get("name") == "?:" and len(args) == 3:
+        key = _only_a_setting(args[1], unfilled)
+        cond = args[0] if isinstance(args[0], Mapping) else {}
+        asks_if_filled = (cond.get("type") == "op" and cond.get("name") in (">", "!=", ">=")
+                          and any(isinstance(a, Mapping) and a.get("type") == "series" and a.get("name") == key
+                                  for a in cond.get("args") or []))
+        return key if key and isinstance(args[1], Mapping) and args[1].get("type") == "series" and asks_if_filled else None
+    return None
+
+
+def member_filled_outputs(envelope: Mapping[str, Any]) -> List[Tuple[str, str]]:
+    """[(output key, setting key)]: the outputs that are nothing but a figure ONLY THE MEMBER HAS: a setting of the
+    same `create` with no real default, shown bare (drawn or hidden) or only once it is filled."""
+    found = []
+    for o in envelope.get("ops") or []:
+        if not isinstance(o, Mapping) or o.get("op") != "create":
+            continue
+        unfilled = _unfilled_settings(o)
+        for out in o.get("outputs") or []:
+            key = _only_a_setting(out.get("tree"), unfilled) if isinstance(out, Mapping) else None
+            if key:
+                found.append((str(out.get("key")), key))
+    return found
+
+
+def _refuse_a_reply_silent_on_a_figure_only_the_member_has(envelope: Mapping[str, Any]) -> None:
+    """2026-11-23 -- THE MEMBER WAS ASKED TO TYPE THEIR SHARES AND NOT TOLD WHY. Found by the live re-check of the
+    guard above, as a member.
+
+    Asked to "plot the number of shares I own and my average cost", the door built two settings and drew nothing at
+    price 0 (right). The reply said "two settings you fill in yourself ... default to 0 until you enter your own
+    numbers" and never that it cannot read the member's holdings. The first live answer had said it; nothing held it.
+
+    Refused, for the one repair: a turn that shows a figure only the member has (`member_filled_outputs`) with a
+    `reply` that does not say the door cannot read or know it. It passes when the reply says so in any of the plain
+    ways (`_SAYS_IT_CANNOT`), when no output is such a figure (a setting with a real default, a setting inside a
+    calculation), and when there is no reply at all (left as it was, as the placeholder guard leaves it: the member
+    then reads what was built). No model call is added, and no list of account words: what makes a figure the
+    member's own is that the door declared it as theirs to fill in.
+    """
+    theirs = member_filled_outputs(envelope)
+    reply = envelope.get("reply")
+    if not theirs or not isinstance(reply, str) or not reply.strip():
+        return
+    told = " ".join(reply.lower().replace("\u2019", "'").split())
+    if any(phrase in told for phrase in _SAYS_IT_CANNOT):
+        return
+    keys = sorted({key for _out, key in theirs})
+    named = ", ".join(f"`{k}`" for k in keys)
+    raise _Refused(
+        "envelope:reference",
+        f"`reply` does not say that UCT cannot read {named} for the member. They asked for a figure only they have, "
+        "so they are owed the reason they must type it. Say it in one plain sentence (for example: \"I can't read "
+        "your account, so enter them in the indicator's settings\") and keep the rest of the reply.")
 
 
 def _refuse_scalars(trees: List[Tuple[str, Any]]) -> None:
@@ -4457,6 +4531,7 @@ def check_envelope(envelope: Any, revision: int, view: Any = None) -> Dict[str, 
     _refuse_a_scope_read_of_nothing(_trees_of(envelope))
     _refuse_a_placeholder_reply(envelope)
     _refuse_a_bare_fill_in_setting(envelope)
+    _refuse_a_reply_silent_on_a_figure_only_the_member_has(envelope)
     _refuse_scalars(_trees_of(envelope))
     errors = _schema_errors(envelope)
     if errors:

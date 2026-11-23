@@ -27,6 +27,7 @@
 // around the selection and the rows on screen, each on every linked timeframe), and the chart the member then
 // clicked waited behind all of them: measured on a D + 30m board, its copy landed 100 to 830 ms after the click
 // (18 ms with nothing else asked), the D/W/M hold ran out, and the switch was slower than with the store off.
+// A read the worker does not answer within READ_TIMEOUT_MS gives up (null) and frees its place, on either lane.
 //   urgent      the member's own ask (a key press, the chart on screen): sent at once, always, and never counted
 //   background  everything else (the default): at most BACKGROUND_READS_MAX in the worker at a time, the next
 //               one sent when an answer comes back. A key that is still waiting when an urgent ask for it
@@ -60,6 +61,12 @@ export const SYNC_CACHE_TTL_MS = 20_000
 export const VISIBLE_HEARTBEAT_MS = 60_000
 /** Background reads in the worker at a time (the urgent lane is never counted and never waits). */
 export const BACKGROUND_READS_MAX = 2
+/** How long a read waits for the worker's answer before it gives up (answers null) and frees its place. A real
+ *  read answers in 1 to 20 ms, a cold open of a timeframe in a few hundred; this is for a worker that hangs (its
+ *  storage open never settling, a leader tab frozen in the background), which otherwise held every asker of the
+ *  key, and with two such reads the whole background lane, for the page's life. Only reads time out: an ingest
+ *  downloads for minutes. */
+export const READ_TIMEOUT_MS = 8000
 /** Background reads that may wait their turn; past it the oldest is dropped (answers null). */
 export const WAITING_READS_MAX = 256
 const SERVED = new Set(SERVED_TFS)
@@ -96,12 +103,15 @@ export function createDeviceClient({
   backgroundMax = BACKGROUND_READS_MAX,
   waitingMax = WAITING_READS_MAX,
   setTimer = (fn, ms) => setTimeout(fn, ms),
+  clearTimer = (h) => clearTimeout(h),
+  readTimeoutMs = READ_TIMEOUT_MS,
 } = {}) {
   let worker = null
   let dead = false
   let nextId = 1
   let ingestAsked = false
   const pending = new Map()      // id → resolve
+  let readTimeouts = 0           // reads the worker did not answer in time (diagnostics)
   const cache = new Map()        // `${tf}|${SYM}` → {cols, at} (LRU: Map order)
   const reads = new Map()        // `${tf}|${SYM}` → in-flight read
   // background reads not sent yet: one Map per ASK (the reads of one task), oldest ask first; each Map
@@ -162,13 +172,26 @@ export function createDeviceClient({
     return worker
   }
 
-  function _call(msg) {
+  /** One message to the worker and its answer. `timeoutMs` > 0: unanswered after that long, it resolves null and is
+   *  forgotten (an answer that arrives later finds no entry and is ignored). The timer never outlives its answer. */
+  function _call(msg, timeoutMs = 0) {
     const w = _worker()
     if (!w) return Promise.resolve(null)
     const id = nextId++
     return new Promise((resolve) => {
-      pending.set(id, resolve)
-      try { w.postMessage({ ...msg, id }) } catch { pending.delete(id); resolve(null) }
+      let timer = null
+      const done = (v) => { if (timer != null) { clearTimer(timer); timer = null } resolve(v) }
+      pending.set(id, done)
+      if (timeoutMs > 0) {
+        timer = setTimer(() => {
+          timer = null
+          if (pending.get(id) !== done) return
+          pending.delete(id)
+          readTimeouts++
+          resolve(null)
+        }, timeoutMs)
+      }
+      try { w.postMessage({ ...msg, id }) } catch { pending.delete(id); done(null) }
     })
   }
 
@@ -226,7 +249,7 @@ export function createDeviceClient({
     const raw = new Promise((resolve) => { settle = resolve })
     const send = (background) => {
       if (background) backgroundOut++
-      _call({ op: 'read', sym, tf }).then((res) => {
+      _call({ op: 'read', sym, tf }, readTimeoutMs).then((res) => {
         if (background) backgroundOut--
         settle(res)
         _pump()
@@ -312,6 +335,8 @@ export function createDeviceClient({
     inFlight() { return pending.size + askOf.size },
     /** Diagnostics: the asks held (each with a read still waiting, plus the one this task is filling). */
     asksHeld() { return asks.length },
+    /** Diagnostics: reads the worker did not answer within READ_TIMEOUT_MS. */
+    readTimeouts() { return readTimeouts },
     /** Diagnostics: the worker's rule behind what getBars answers (engine.why), or null with no engine yet. */
     why(sym, tf) { return sym ? _call({ op: 'why', sym: String(sym).toUpperCase(), tf: String(tf) }) : Promise.resolve(null) },
     status: () => ({ ...(status || {}), storage: { ...persist } }),
