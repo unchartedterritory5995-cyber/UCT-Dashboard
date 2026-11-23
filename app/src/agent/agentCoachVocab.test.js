@@ -363,6 +363,7 @@ describe('planner v2 browser: coach messages are served on the v1 path (their ac
       return base(url, init)
     })
     const { say } = p.mount(...ONE('NVDA'))
+    await loadAgentConfig()                  // P0.3: the panel's own config read (and the coach's registration on it) has settled
     await loadConcepts()
     expect(isCoachMessage('coach, I keep cutting my winners early')).toBe(true)
     expect(isCoachMessage('switch to weekly')).toBe(false)

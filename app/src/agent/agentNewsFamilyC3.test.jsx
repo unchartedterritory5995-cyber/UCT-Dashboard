@@ -168,7 +168,7 @@ describe('C3-139: the first model call for a category / linked filter carries wi
     it(`routing ${v2 ? 'v2' : 'v1'}: ${REACH_CASES.length} generated phrasings`, async () => {
       const miss = []
       for (const text of REACH_CASES) {
-        const p = setupPanel()
+        const p = setupPanel({ routingV2: v2 })               // P0.3: the harness asserts the panel runs exactly this routing
         const base = globalThis.fetch
         globalThis.fetch = async (url, init) => (url === '/api/agent/config'
           ? new Response(JSON.stringify({ conversations: [], routing_v2: v2 }), { status: 200, headers: { 'content-type': 'application/json' } }) : base(url, init))

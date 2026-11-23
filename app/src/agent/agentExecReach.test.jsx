@@ -24,7 +24,7 @@ const BOARD = () => {
 async function measure(cases, { v2, want }) {
   const out = []
   for (const c of cases) {
-    const p = setupPanel()
+    const p = setupPanel({ routingV2: v2 })                 // P0.3: the harness asserts the panel runs exactly this routing
     const base = globalThis.fetch
     globalThis.fetch = async (url, init) => (url === '/api/agent/config'
       ? new Response(JSON.stringify({ conversations: [], routing_v2: v2 }), { status: 200, headers: { 'content-type': 'application/json' } }) : base(url, init))

@@ -22,6 +22,8 @@ import { _simulateReload, STORAGE_KEY } from '../../components/chart/builder/aut
 import { _resetDraftPreview } from '../../components/chart/builder/agentAuthoring'
 import { AuthContext } from '../../context/AuthContext'
 import AgentPanel from '../AgentPanel'
+import { _resetAgentConfig, loadAgentConfig } from '../agentClient'
+import { routingV2Active } from '../nlm1/flag'
 
 /** What the model "said" when a test queued nothing: visible in the transcript, so a test can assert on it. */
 export const MODEL_SENTINEL = '«the model was asked»'
@@ -69,14 +71,27 @@ function tickerSearch(raw, st) {
   return [...exact, ...prefix, ...named].slice(0, 20)
 }
 
-export function setupPanel({ tickerEcho = false, tickers = [] } = {}) {
+// ⭐ P0.3 (assessment 2026-11-23): ROUTING V2 IS ON HERE, AS IN PRODUCTION (UCT_AGENT_ROUTING_V2 defaults on: api/routers/uct_agent.py).
+// This harness used to leave /api/agent/config unanswered, so every panel test silently ran routing v1 — and the config cached by
+// one test (agentClient: a 5-minute TTL) was the next test's config. Now:
+//   • GET /api/agent/config answers `routing_v2: true` (`setupPanel({ routingV2: false })` is the explicit v1 opt-out: the server's
+//     kill switch, `routing_v2: false`);
+//   • a test's OWN config answer (its fetch wrapper: data kinds, scan, planner v2…) that does not say `routing_v2` says what
+//     production says — the harness adds `routing_v2: <this setup>` to it. A config that SAYS routing_v2 is left exactly as said;
+//   • the cached config is cleared here and NOT read here: the panel reads it when it mounts, through whatever fetch is installed
+//     then — so a test's own fetch wrapper, installed between setupPanel() and mount(), answers it. A config the test read itself
+//     before mounting (outside the harness) is read once more at the first turn, through the same wrapper;
+//   • the first say / click of each mount waits for that config and ASSERTS routingV2Active() is what this setup asked for — a
+//     test can never believe it is on v2 (or v1) when it is not.
+export function setupPanel({ tickerEcho = false, tickers = [], routingV2 = true } = {}) {
   // `tickers`: extra tickers the server knows in this test (a screen's own result rows, a fixture list's symbols)
-  const st = { envelopes: [], calls: [], selected: null, tickerEcho, known: new Set(tickers.map(t => String(t).toUpperCase())) }
+  const st = { envelopes: [], calls: [], selected: null, tickerEcho, routingV2: !!routingV2, configSeen: false, known: new Set(tickers.map(t => String(t).toUpperCase())) }
   const env = (disposition, ops, reply = '') => ({ disposition, reply, question: null, ops, unsupported_category: null })
   _simulateReload()
   try { sessionStorage.removeItem(STORAGE_KEY) } catch { /* */ }
   try { localStorage.clear() } catch { /* */ }
   _resetAuthoring(); _resetDraftPreview(); _resetProposedPlans()
+  _resetAgentConfig()
   globalThis.fetch = vi.fn(async (url, init = {}) => {
     const body = init.body ? JSON.parse(init.body) : null
     st.calls.push([init.method || 'GET', String(url), body])
@@ -86,6 +101,7 @@ export function setupPanel({ tickerEcho = false, tickers = [] } = {}) {
       return json({ conversationId: 'ac_1', envelope: typeof e === 'function' ? e(body) : e, usage: { research_calls: 0, citations: [] } })
     }
     if (url === '/api/agent/record') return json({ conversationId: 'ac_1' })
+    if (url === '/api/agent/config') return json({ conversations: [], routing_v2: st.routingV2 })
     if (String(url).startsWith('/api/user-definitions')) return json({ definitions: [] })
     const q = /ticker-search\?q=([^&]+)/.exec(String(url))
     if (q) return json({ results: tickerSearch(decodeURIComponent(q[1]), st) })
@@ -111,10 +127,43 @@ export function setupPanel({ tickerEcho = false, tickers = [] } = {}) {
       charts: { ...base, list: () => base.list().map(d), read: (ref) => d(base.read(ref)), canManageIndicators: () => true, canCreateIndicator: () => true, previewHost: () => null, selected: () => st.selected },
       persist: async (...a) => (st.persist ? st.persist(...a) : { ok: true }),   // st.persist: a test's own save
     }
+    // P0.3: whatever fetch the test installed answers the config; one that does not say routing_v2 says what production says
+    // (a PLAIN function, not a vi.fn: a test's own vi.spyOn(globalThis, 'fetch') then wraps it instead of re-implementing it — a
+    // spy re-implemented to call "the real fetch" it captured would call itself; `.mock` still reads the test's own mock)
+    const inner = globalThis.fetch
+    if (!inner.__p03) {
+      const outer = async (url, init) => {
+        const r = await inner(url, init)
+        if (String(url) !== '/api/agent/config') return r
+        st.configSeen = true
+        let c = null
+        try { c = await r.clone().json() } catch { c = null }
+        if (!r.ok || !c || typeof c !== 'object' || Array.isArray(c) || 'routing_v2' in c) return r
+        return new Response(JSON.stringify({ ...c, routing_v2: st.routingV2 }), { status: r.status, headers: { 'content-type': 'application/json' } })
+      }
+      outer.__p03 = true
+      Object.defineProperty(outer, 'mock', { get: () => inner.mock, configurable: true })
+      globalThis.fetch = outer
+    }
     render(<AuthContext.Provider value={{ user: { id: 1, role: admin ? 'admin' : 'member' } }}><AgentPanel host={h} onClose={() => {}} /></AuthContext.Provider>)
     const box = screen.getByLabelText('Message UCT Agent')
+    // P0.3: the routing this mount runs is the one this setup asked for (checked once, before its first turn)
+    let routingChecked = false
+    const checkRouting = async () => {
+      if (routingChecked) return
+      routingChecked = true
+      await loadAgentConfig()
+      // the test read the config itself before mounting (outside the harness): read it once more, through the same answer
+      if (!st.configSeen) { _resetAgentConfig(); await loadAgentConfig() }
+      const on = routingV2Active()
+      if (on !== st.routingV2) {
+        throw new Error(`panelHarness: this test asked for routing ${st.routingV2 ? 'v2' : 'v1'} but the panel runs ${on ? 'v2' : 'v1'} — ` +
+          'pass setupPanel({ routingV2 }) to match the config / browser key the test sets')
+      }
+    }
     // → the text the turn added to the transcript (after the member's own line)
     const say = async (t) => {
+      await checkRouting()
       await idle()
       const before = transcript().length
       fireEvent.change(box, { target: { value: t } }); fireEvent.keyDown(box, { key: 'Enter' })
@@ -127,6 +176,7 @@ export function setupPanel({ tickerEcho = false, tickers = [] } = {}) {
       return at >= 0 ? all.slice(at + t.length) : all.slice(before)
     }
     const click = async (name) => {
+      await checkRouting()
       await idle()
       const before = transcript().length
       fireEvent.click(screen.getByRole('button', { name }))
@@ -156,5 +206,5 @@ export function setupPanel({ tickerEcho = false, tickers = [] } = {}) {
     const i = instancesOn(board, id).find(pred)
     return i?.presentation || null
   }
-  return { st, env, mount, idle, turns, lastTurnBody, transcript, proposals, summaries, instancesOn, brief, presentationOf, select: (ref) => { st.selected = ref } }
+  return { st, env, routingV2: st.routingV2, mount, idle, turns, lastTurnBody, transcript, proposals, summaries, instancesOn, brief, presentationOf, select: (ref) => { st.selected = ref } }
 }

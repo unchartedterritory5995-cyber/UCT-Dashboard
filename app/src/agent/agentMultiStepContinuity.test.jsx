@@ -68,16 +68,27 @@ describe('B · an exclusion in the request a question was about holds on the ans
     if (p.proposals().length) await m.say('do it')
     expect(logged(m.board), p.transcript()).toEqual(['c0', 'c1', 'c2', 'c3'])
   }, 40000)
-  it('control: a NEW request typed instead of an answer carries nothing of the set-aside one', async () => {
-    const m = p.mount(...FOUR())
-    p.st.envelopes.push(clarify(QUESTION))
-    await m.say('Change the price scale on all my charts except the TSLA one')
-    p.st.envelopes.push(b => p.env('apply', b.context.indicatorEdits.map(e => ({ action: 'indicator.add', target: e.ref, args: { defId: 'rsi', inputs: null } }))))
-    await m.say('Put the RSI on all my charts')
-    if (p.proposals().length) await m.say('do it')
-    expect(p.lastTurnBody()?.context?.conversation_memory?.question_set_aside, p.transcript()).toBe(true)
-    expect(['c0', 'c1', 'c2', 'c3'].filter(id => p.instancesOn(m.board, id).some(i => i.defId === 'rsi')), p.transcript()).toEqual(['c0', 'c1', 'c2', 'c3'])
-  }, 40000)
+  // P0.3: on both routings. Routing v1 sends the new request to the model, whose request says the question was set aside; routing
+  // v2 (production) reads it on the instant path — no model call, so the flag has no request to ride on — and the question is
+  // withdrawn ("Withdrawn — nothing was changed"). Either way the new request runs on all four charts, carrying no exclusion.
+  for (const v2 of [false, true]) {
+    it(`control: a NEW request typed instead of an answer carries nothing of the set-aside one (routing ${v2 ? 'v2' : 'v1'})`, async () => {
+      p = setupPanel({ routingV2: v2 })
+      const m = p.mount(...FOUR())
+      p.st.envelopes.push(clarify(QUESTION))
+      await m.say('Change the price scale on all my charts except the TSLA one')
+      const t0 = p.turns()
+      p.st.envelopes.push(b => p.env('apply', b.context.indicatorEdits.map(e => ({ action: 'indicator.add', target: e.ref, args: { defId: 'rsi', inputs: null } }))))
+      await m.say('Put the RSI on all my charts')
+      if (p.proposals().length) await m.say('do it')
+      if (!v2) expect(p.lastTurnBody()?.context?.conversation_memory?.question_set_aside, p.transcript()).toBe(true)
+      else {
+        expect(p.turns(), p.transcript()).toBe(t0)
+        expect(p.transcript()).toContain('Withdrawn — nothing was changed')
+      }
+      expect(['c0', 'c1', 'c2', 'c3'].filter(id => p.instancesOn(m.board, id).some(i => i.defId === 'rsi')), p.transcript()).toEqual(['c0', 'c1', 'c2', 'c3'])
+    }, 40000)
+  }
 })
 
 // ── C · "the new charts" = the set the latest creating request made ───────────────────────────────────────────────────

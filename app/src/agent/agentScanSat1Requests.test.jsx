@@ -30,7 +30,9 @@ const reroutes = {}
 let p
 beforeEach(async () => {
   _resetScreenerCache(); _resetAgentConfig(); _resetTurns()
-  p = setupPanel()
+  // P0.3: routing v1, explicitly — this is a FROZEN capture (section_b_requests.json, replayed by section_b.py) taken under v1.
+  // Production routes with v2: re-capturing under v2 (UPDATE_SAT1_REQUESTS=1) is the SC owner's follow-up, not done here.
+  p = setupPanel({ routingV2: false })
   const harness = globalThis.fetch
   globalThis.fetch = vi.fn(async (url, init = {}) => {
     const u = String(url)

@@ -166,6 +166,9 @@ describe('through the REAL panel (panelHarness)', () => {
     expect(p.turns()).toBe(1)
   }, 40000)
   it('⛔ a reroute to the group brings the control list: not on the first call, on the second, and the write lands', async () => {
+    // P0.3: routing v1, explicitly — the reroute mechanism needs a first call WITHOUT the group, and routing v2 (production) routes
+    // "only the up ones" to boardEdit on the first call already (that path: the 'routing v2' describe below)
+    p = setupPanel({ routingV2: false })
     const [[chart], syms] = ONE('NVDA')
     const { say, board } = p.mount([{ ...chart, w: 18 }, w('nw', 'news', 18, 0, {})], syms)
     p.st.envelopes.push({ disposition: 'clarify', reply: '', ops: [], unsupported_category: null, question: { text: 'Looking at more of UCT…', choices: [] }, need_groups: ['boardEdit'] })
