@@ -27,6 +27,7 @@ import { viewCacheTf, resolveShowExtended } from '../../../utils/viewSession'
 import { fetchTf } from '../../../components/chart/timeframes'
 import useSymbolHandoff from '../../../hooks/useSymbolHandoff'
 import { chartGroupKey } from '../../../hooks/handoffGroups'
+import { primeTypedIntent } from './typedIntentPrime'
 import { memHas } from '../../../utils/barsMemCache'
 import {
   sanitizeChartTabs, chartTabList, addChartTab, closeChartTab,
@@ -448,6 +449,9 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
     }
     setGroupSym(activeColor, s)
   }, [activeColor, setGroupSym, persistActiveSettings])
+  // ⭐ (2026-11-23, the typed ticker) the settled typed text starts the linked group's device reads (the same ones the
+  // Enter's setGroupSym starts: handoffGroups.primeGroup), so Enter can show it in its own task (typedIntentPrime.js)
+  const handleTypedIntent = useCallback((s) => { primeTypedIntent(groupSymsStore, activeColor, s) }, [groupSymsStore, activeColor])
 
   // ── Detail Dock (Profile / News / Fundamentals as inline chart panels) ──────
   // The three stock-specific widgets, docked into THIS chart instead of floating
@@ -742,6 +746,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
         sym={sym}
         tf={tf}
         onSymbolChange={handleSymbolChange}
+        onTypedIntent={handleTypedIntent}
         onTfChange={setTf}
         allowEconomic
         chartFeatures={chartFeatures}

@@ -114,6 +114,8 @@ const SHIFT_F = chordById('SHIFT_F')
  *   sym, tf                required; the host owns both
  *   onSymbolChange         omit to LOCK the symbol — the identity row then
  *                          renders a static label (trade drawer, drill modal)
+ *   onTypedIntent          (sym) => void, optional: told the settled typed text beside the
+ *                          chart's own typed warm (ChartWidget: the linked group's device reads)
  *   onTfChange             (code) => void
  *   density                "full" | "compact" | "mini"; compact drops the meta
  *                          row, the session toggle and the clock (keeps
@@ -161,6 +163,7 @@ function ChartPane({
   sym,
   tf,
   onSymbolChange = null,
+  onTypedIntent = null,
   onTfChange = null,
   density = 'full',
   // Host features for the settings modal's Indicators tab (a ChartWidget's
@@ -1042,7 +1045,15 @@ function ChartPane({
   // Type-to-search: start fetching the typed D/W/M symbol before Enter (warmTypedSymbol).
   // P3-S1: the chart's own source warms (chart/barStoreSwitch.js). The store's typed warm never
   // answers 'stale-answer' (a late answer is merged by the reducer) — and nothing here reads it.
-  const handleTypedIntent = useCallback((s) => { (BARSTORE ? storeWarmTypedSymbol : legacyWarmTypedSymbol)(s, effectiveTf) }, [effectiveTf])
+  // ⭐ (2026-11-23, the typed ticker) ...and its HOST is told the same settled text: on /charts, ChartWidget starts the
+  // linked group's device reads then (pages/charts/widgets/typedIntentPrime.js), so Enter finds the copies in and can
+  // show the ticker in its own task, as a list pick does. A host that throws never breaks this chart's warm.
+  const hostTypedIntentRef = useRef(onTypedIntent)
+  hostTypedIntentRef.current = onTypedIntent
+  const handleTypedIntent = useCallback((s) => {
+    (BARSTORE ? storeWarmTypedSymbol : legacyWarmTypedSymbol)(s, effectiveTf)
+    try { hostTypedIntentRef.current?.(s) } catch { /* a warm never breaks search */ }
+  }, [effectiveTf])
 
   const handleChartClick = useCallback((e) => {
     // ⛔ A PORTAL CLICK IS NOT A CHART CLICK (a11y gate §12.2, 2026-11-08). React
