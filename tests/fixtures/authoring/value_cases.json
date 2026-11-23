@@ -2,18 +2,14 @@
  "schema": "uct.value-cases/1",
  "about": "Plain-words requests, each with the answer the Create Indicator door gave on production (recorded as a synthetic test account). Lane \"formula\": an independent calculation in tools/value_cases/rules.py must equal what was built on every bar. Lane \"script\": the recorded script is run through the member pane's own path and held to tools/value_cases/script_rules.py, columns and drawn things alike. Lane \"wall\": the request cannot be served, and the right answer refuses and names the wall. tests/test_value_cases.py and tests/test_value_cases_scripts.py hold every recorded answer.",
  "capabilities_without_a_case": [
-  "collections:array",
   "conditional-ta",
   "for-in",
   "generics",
   "max_bars_back",
   "method-call",
-  "obj:collection",
-  "obj:delete",
   "obj:getter",
   "realtime-state",
   "switch",
-  "typed-array",
   "udt",
   "while"
  ],
@@ -13347,6 +13343,60 @@
    }
   },
   {
+   "id": "cap-06",
+   "lane": "script",
+   "chart": "daily",
+   "words": "Put one label on the latest bar only, showing how far the close is above or below its 50 day simple moving average, in percent with two decimals",
+   "rule": {
+    "digest": "56f7b3baac9d8eea",
+    "history": [
+     {
+      "digest": "56f7b3baac9d8eea",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "needs": "the newest bar known as such (`barstate.islast`)",
+   "distinguishes": "one label, on 2027-01-29, reading -0.76 percent",
+   "recorded": {
+    "on": "2026-11-23",
+    "front": "fe04e2fb72"
+   },
+   "answer": {
+    "turn": "script",
+    "script": {
+     "pine": "//@version=5\nindicator(\"Close vs 50 SMA %\", overlay=true)\n\nlen = input.int(50, \"SMA length\", minval=1)\n\nma = ta.sma(close, len)\npct = (close - ma) / ma * 100\n\nvar label tag = label.new(bar_index, close, \"\", style=label.style_label_left, color=color.new(color.blue, 20), textcolor=color.white)\n\nif not na(ma)\n    label.set_xy(tag, bar_index, close)\n    label.set_text(tag, (pct >= 0 ? \"+\" : \"\") + str.tostring(pct, \"#.##\") + \"% vs \" + str.tostring(len) + \" SMA\")\n    label.set_color(tag, pct >= 0 ? color.new(color.green, 20) : color.new(color.red, 20))\n\nplot(pct, \"Distance from SMA (%)\", color=color.new(color.gray, 100))"
+    }
+   }
+  },
+  {
+   "id": "cap-08",
+   "lane": "script",
+   "chart": "daily",
+   "words": "Whenever a bar's low is above the prior bar's high, draw a box from the prior bar's high up to that bar's low, starting at that bar and extended to the right until a later bar's low drops below the top of the box, then end the box at that bar. Keep the 10 newest boxes",
+   "rule": {
+    "digest": "6572457c3b35e2d8",
+    "history": [
+     {
+      "digest": "6572457c3b35e2d8",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "needs": "a record per zone that lives until it is filled (your own type or parallel arrays, `box.delete`)",
+   "distinguishes": "30 gap bars over the chart; of the 10 newest boxes 2 end on the newest bar",
+   "recorded": {
+    "on": "2026-11-23",
+    "front": "fe04e2fb72"
+   },
+   "answer": {
+    "turn": "script",
+    "script": {
+     "pine": "//@version=5\nindicator(\"Gap-up boxes\", overlay=true, max_boxes_count=500)\n\nkeep     = input.int(10, \"Boxes to keep\", minval=1, maxval=500)\nbgTransp = input.int(85, \"Box fill transparency\", minval=0, maxval=100)\n\n// a gap: this bar's low is above the prior bar's high\nisGap = low > high[1]\n\nvar box[]   boxes  = array.new_box(0)\nvar float[] tops   = array.new_float(0)\nvar bool[]  live   = array.new_bool(0)\n\n// new box on a gap bar: from the prior bar's high up to this bar's low\nif isGap\n    array.push(boxes, box.new(bar_index, low, bar_index, high[1], border_color=color.teal, bgcolor=color.new(color.teal, bgTransp)))\n    array.push(tops, low)\n    array.push(live, true)\n    if array.size(boxes) > keep\n        box.delete(array.shift(boxes))\n        array.shift(tops)\n        array.shift(live)\n\n// extend every still-open box; end it at the bar whose low drops below its top\nif array.size(boxes) > 0\n    for i = 0 to array.size(boxes) - 1\n        if array.get(live, i)\n            b = array.get(boxes, i)\n            box.set_right(b, bar_index)\n            if low < array.get(tops, i) and not (isGap and i == array.size(boxes) - 1)\n                array.set(live, i, false)\n\n// hidden plot so the script can be used in alerts\nplot(array.size(tops) > 0 ? array.last(tops) : na, \"Latest gap top\", color=color.new(color.gray, 100))\n"
+    }
+   }
+  },
+  {
    "id": "wall-01",
    "lane": "wall",
    "words": "Plot the put/call ratio for this stock's options under the chart.",
@@ -14563,7 +14613,8 @@
     ]
    },
    "needs": "a loop that stops when it finds the bar (`while`, or `for` with a break)",
-   "distinguishes": "a value on 1,951 of 2,000 bars, 140 distinct counts, the largest 248; nothing on 49 bars, of which 19 have a higher close further back than 250 bars (those are the bars a look-back with no limit would get wrong)"
+   "distinguishes": "a value on 1,951 of 2,000 bars, 140 distinct counts, the largest 248; nothing on 49 bars, of which 19 have a higher close further back than 250 bars (those are the bars a look-back with no limit would get wrong)",
+   "found_live": "Live 2026-11-23: answered on the FORMULA lane with a DISCLOSED STAND-IN, wrong by value on 1,267 of 1,700 bars. The reply says so itself: it counts back to the last bar that closed above the bar before it, not above today's close. The honest answer needs a loop, which is a script. A disclosed stand-in is not a build: the door's routing between its two lanes is the next unit."
   },
   {
    "id": "cap-02",
@@ -14580,7 +14631,8 @@
     ]
    },
    "needs": "a choice among three calculations by a setting (`switch`)",
-   "distinguishes": "the default line has a value on 1,981 of 2,000 bars; only the DEFAULT choice is held (the script runs with its defaults)"
+   "distinguishes": "the default line has a value on 1,981 of 2,000 bars; only the DEFAULT choice is held (the script runs with its defaults)",
+   "found_live": "Live 2026-11-23: answered on the FORMULA lane, RIGHT by value on every bar (the default 20 bar average; the type is a numbered setting). No script was needed, so `switch` is still held by no case. It moves to the formula lane with its rule in the next unit."
   },
   {
    "id": "cap-03",
@@ -14597,7 +14649,8 @@
     ]
    },
    "needs": "a list that keeps the last five values (`array.*`)",
-   "distinguishes": "203 swing highs; the average has a value on 1,960 bars and changes on 199 of them"
+   "distinguishes": "203 swing highs; the average has a value on 1,960 bars and changes on 199 of them",
+   "found_live": "Live 2026-11-23: answered on the FORMULA lane from pivothigh; values differ on 1,261 of 1,643 bars. The member said a high ABOVE the three bars before and after; equal highs are not read the same way. Rule against engine on ties is still to be split."
   },
   {
    "id": "cap-04",
@@ -14614,7 +14667,8 @@
     ]
    },
    "needs": "a list of drawings, the oldest deleted (`array<line>`, `line.delete`)",
-   "distinguishes": "189 swing lows over the chart; on the newest bar the three lines are at [113.4, 112.19, 108.65]"
+   "distinguishes": "189 swing lows over the chart; on the newest bar the three lines are at [113.4, 112.19, 108.65]",
+   "found_live": "Live 2026-11-23: answered with a SCRIPT, RIGHT by value (three lines at the last three swing lows, the oldest deleted; it uses an array of lines). Not recorded yet: on the plain bars a script that reads every window one bar longer draws the same three lines, so the record could not tell an off-by-one window. It needs an EDGE first, like the other drawings held on the newest bar."
   },
   {
    "id": "cap-05",
@@ -14631,24 +14685,8 @@
     ]
    },
    "needs": "a drawing read back, or the same two numbers kept (`line.get_*`)",
-   "distinguishes": "the line runs from 2026-11-17 (105.03) to 2027-01-29 (113.09); the rise is 8.06"
-  },
-  {
-   "id": "cap-06",
-   "lane": "script",
-   "chart": "daily",
-   "words": "Put one label on the latest bar only, showing how far the close is above or below its 50 day simple moving average, in percent with two decimals",
-   "rule": {
-    "digest": "56f7b3baac9d8eea",
-    "history": [
-     {
-      "digest": "56f7b3baac9d8eea",
-      "reason": "written from the request's words before the answer was read"
-     }
-    ]
-   },
-   "needs": "the newest bar known as such (`barstate.islast`)",
-   "distinguishes": "one label, on 2027-01-29, reading -0.76 percent"
+   "distinguishes": "the line runs from 2026-11-17 (105.03) to 2027-01-29 (113.09); the rise is 8.06",
+   "found_live": "Live 2026-11-23: answered with a SCRIPT, RIGHT by value (a line from the lowest low of 60 bars to the newest close, a label with its rise). Not recorded yet: on the plain bars the lowest low of 61 bars IS the lowest of 60, so the record could not tell an off-by-one window. It needs an EDGE first, like the other drawings held on the newest bar."
   },
   {
    "id": "cap-07",
@@ -14665,24 +14703,8 @@
     ]
    },
    "needs": "a moving average under a condition",
-   "distinguishes": "the line is shown on 922 bars and must be empty on 1,078"
-  },
-  {
-   "id": "cap-08",
-   "lane": "script",
-   "chart": "daily",
-   "words": "Whenever a bar's low is above the prior bar's high, draw a box from the prior bar's high up to that bar's low, starting at that bar and extended to the right until a later bar's low drops below the top of the box, then end the box at that bar. Keep the 10 newest boxes",
-   "rule": {
-    "digest": "6572457c3b35e2d8",
-    "history": [
-     {
-      "digest": "6572457c3b35e2d8",
-      "reason": "written from the request's words before the answer was read"
-     }
-    ]
-   },
-   "needs": "a record per zone that lives until it is filled (your own type or parallel arrays, `box.delete`)",
-   "distinguishes": "30 gap bars over the chart; of the 10 newest boxes 2 end on the newest bar"
+   "distinguishes": "the line is shown on 922 bars and must be empty on 1,078",
+   "found_live": "Live 2026-11-23: answered on the FORMULA lane, RIGHT by value on every bar, nothing on the other bars. No script was needed. It moves to the formula lane with its rule in the next unit (the formula grader must first hold 'nothing on the other bars')."
   },
   {
    "id": "cap-09",
@@ -14699,7 +14721,8 @@
     ]
    },
    "needs": "a list filled only on some bars, averaged (`array.*`, `for ... in`)",
-   "distinguishes": "differs from the plain 10 bar average volume on 1,974 of 2,000 bars"
+   "distinguishes": "differs from the plain 10 bar average volume on 1,974 of 2,000 bars",
+   "found_live": "Live 2026-11-23: answered on the FORMULA lane, RIGHT by value on every bar (the average volume of the last 10 up days). No script was needed, so a filtered list is still held by no case. It moves to the formula lane with its rule in the next unit."
   },
   {
    "id": "fund-01",

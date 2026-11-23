@@ -33,6 +33,9 @@ from tools.value_cases.market import STOCK
 ROOT = Path(__file__).resolve().parents[1]
 DATA = json.loads((ROOT / "tests" / "fixtures" / "authoring" / "value_cases.json").read_text(encoding="utf-8"))
 PENDING = {c["id"]: c for c in DATA.get("pending") or [] if c["id"].startswith("cap-")}
+#: the cases of this round that hold their first live answer (2026-11-23): each was answered with a script, right
+RECORDED = {c["id"]: c for c in DATA["cases"] if c["id"].startswith("cap-")}
+EVERY = {**PENDING, **RECORDED}
 IDS = [f"cap-0{n}" for n in range(1, 10)]
 CHART = {"bars": STOCK}
 COLUMN_RULES = ("cap-01", "cap-02", "cap-03", "cap-07", "cap-09")
@@ -72,11 +75,15 @@ def graded(cid, *, columns=None, labels=(), lines=(), boxes=(), source="plot(x)"
 # ── the cases ──
 
 def test_nine_cases_wait_with_their_words_and_their_rule_and_no_answer():
-    assert sorted(PENDING) == IDS
-    recorded = {c["id"] for c in DATA["cases"]}
-    for cid, case in PENDING.items():
-        assert cid not in recorded and case["lane"] == "script" and case["chart"] == "daily"
-        assert "answer" not in case and "recorded" not in case and "recorded_verdict" not in case
+    assert sorted(EVERY) == IDS and not set(PENDING) & set(RECORDED)
+    assert sorted(RECORDED) == ["cap-06", "cap-08"]      # answered with a script, right, and held by every control of the script lane
+    for cid, case in EVERY.items():
+        assert case["lane"] == "script" and case["chart"] == "daily"
+        if cid in PENDING:
+            assert "answer" not in case and "recorded" not in case and "recorded_verdict" not in case
+            assert len(case["found_live"]) > 60                       # what the live pass found is written beside it
+        else:
+            assert case["answer"]["script"]["pine"] and case["recorded"]["front"] and "recorded_verdict" not in case
         assert len(case["rule"]["history"]) == 1 and case["rule"]["history"][0]["digest"] == case["rule"]["digest"]
         assert case["rule"]["history"][0]["reason"] == "written from the request's words before the answer was read"
         assert case["needs"] and case["distinguishes"] and R.has_rule(cid)
@@ -85,14 +92,20 @@ def test_nine_cases_wait_with_their_words_and_their_rule_and_no_answer():
     assert all(R.drawn_rules_known(cid) for cid in DRAWN_RULES) and not any(cid in R.RULES for cid in DRAWN_RULES)
     # the member's words, each by the part its rule rests on
     for cid, part in KEY_WORDS.items():
-        assert part in PENDING[cid]["words"], cid
+        assert part in EVERY[cid]["words"], cid
 
 
 def test_a_pending_case_is_in_no_lane_count_and_no_threshold():
     counted = {c["id"] for c in DATA["cases"]}
-    assert not counted & set(IDS)
+    assert counted & set(IDS) == set(RECORDED) and not counted & set(PENDING)
     # the capability list is untouched by words alone: it shrinks only when a RECORDED answer uses the capability
-    assert "while" in DATA["capabilities_without_a_case"] and "collections:array" in DATA["capabilities_without_a_case"]
+    without = DATA["capabilities_without_a_case"]
+    assert "while" in without and "switch" in without                 # asked for, and no recorded script uses them yet
+    for cap in ("collections:array", "typed-array", "obj:collection", "obj:delete"):
+        assert cap not in without, cap                                # held since cap-08 was recorded
+    from api.services import pine_capabilities
+    held = set(pine_capabilities.capabilities_of(RECORDED["cap-08"]["answer"]["script"]["pine"]))
+    assert {"collections:array", "typed-array", "obj:collection", "obj:delete"} <= held
 
 
 # ── each rule, against a second calculation of the same words ──
@@ -333,15 +346,15 @@ def lane_chart():
 
 def test_each_fingerprint_is_its_rules_on_the_lanes_bars(lane_chart):
     from tools.value_cases import script_grade
-    digests = script_grade.rule_digests([PENDING[cid] for cid in IDS])
-    assert {cid: PENDING[cid]["rule"]["digest"] for cid in IDS} == digests
+    digests = script_grade.rule_digests([EVERY[cid] for cid in IDS])
+    assert {cid: EVERY[cid]["rule"]["digest"] for cid in IDS} == digests
     assert len(set(digests.values())) == 9
 
 
 def test_what_each_case_says_its_rule_distinguishes_is_true(lane_chart):
     R.bind(lane_chart)
     n = R.N
-    said = {cid: PENDING[cid]["distinguishes"] for cid in IDS}
+    said = {cid: EVERY[cid]["distinguishes"] for cid in IDS}
     c1, c3, c7, c9 = R.rule_cap01()[0][1], R.rule_cap03()[0][1], R.rule_cap07()[0][1], R.rule_cap09()[0][1]
     has = lambda col: sum(1 for v in col if v is not None)  # noqa: E731
     beyond = sum(1 for i in range(n) if c1[i] is None and any(R.C[j] > R.C[i] for j in range(0, max(0, i - 250))))

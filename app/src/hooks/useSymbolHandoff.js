@@ -38,7 +38,7 @@ import { isNativeTf, fetchTf } from '../components/chart/timeframes'
 import { columnsReadyFor, whenColumnsReady, warmColumnsFor } from '../components/chart/engine/serverCompute'
 import { deviceStoreEnabled } from '../data/deviceStore/switch'
 import { deviceSource } from '../data/deviceStore/source'
-import { noteDeviceSwitch, exposeDeviceDiag } from '../data/deviceStore/diag'
+import { noteDeviceSwitch, exposeDeviceDiag, deviceDiagOn } from '../data/deviceStore/diag'
 
 const INTRADAY = new Set(['1', '5', '15', '30', '60'])
 /** The longest a switch waits for its panes' server columns before it commits anyway. */
@@ -62,7 +62,10 @@ const deviceHoldFor = (sym, tf, opts) => {
 }
 // the worker's rule for a switch the device did not paint (diag.js); null source (the page's store is off): nothing loads
 const deviceWhy = (sym, tf) => { const src = deviceSource(); return src ? src.why(sym, tf) : Promise.resolve('no-client') }
-if (DEVICE) exposeDeviceDiag()
+// ⭐ DIAGNOSTICS FOR A TESTER ONLY (review of #2537, L2: diag.deviceDiagOn): a record costs a worker lookup per switch
+// the device did not paint, which no member on the default should pay. Read once per page load, like DEVICE.
+const DIAG = DEVICE && deviceDiagOn()
+if (DIAG) exposeDeviceDiag()
 /**
  * ⭐ (2026-11-20, the owner's cold path) ROWS THAT COVER THE VIEW PAINT AT ONCE. A cold switch reproduced in
  * the owner's layout (D + 30m, four averages): every 30m handoff took the intraday prepare with the lake's
@@ -161,11 +164,12 @@ function sameTaskRoute(sym, tf, sess) {
   return 'prepare'
 }
 
-/** ⭐ DIAGNOSTICS (device store on only): ONE record per switch, at its commit, of what the first frame is built
+/** ⭐ DIAGNOSTICS (a tester's page only: DIAG, the device store on AND diag.deviceDiagOn): ONE record per switch, at
+ *  its commit, of what the first frame is built
  *  from and, when it is not the device copy, which rule refused it (data/deviceStore/diag.js). Read by no
  *  decision; a failure here never costs the switch. */
 function noteDeviceFor(sym, tf, sess, outcome, pre = null) {
-  if (!DEVICE) return
+  if (!DIAG) return
   try {
     const intraday = INTRADAY.has(String(tf))
     const vtf = intraday ? fetchTf(tf) : tf
@@ -179,11 +183,11 @@ function noteDeviceFor(sym, tf, sess, outcome, pre = null) {
 }
 
 /** ⭐ DIAGNOSTICS (2026-11-21): the device rule's answer for this chart's key NOW, while no server answer holds it
- *  (null once one does, and with the device store off). A switch that waited commits after the server answered, and
+ *  (null once one does, and without DIAG). A switch that waited commits after the server answered, and
  *  its record's own verdict then reads 'held:rest' whatever kept the device copy from painting in the meantime
  *  (devgates 2026-11-21: 107 of 116 typed and 70-row records said only that). The last answer seen here is the record's `pre`. */
 function deviceRuleBeforeAnswer(sym, tf, sess) {
-  if (!DEVICE) return null
+  if (!DIAG) return null
   try {
     const intraday = INTRADAY.has(String(tf))
     const v = storePrefetch.deviceVerdict(sym, intraday ? fetchTf(tf) : tf, intraday ? sess : {})

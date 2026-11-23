@@ -34,14 +34,14 @@ def test_the_negative_form_costs_the_repair_and_the_note_states_the_convention(c
     r = conv.converse("mark day 4 to 12 after the 50 day low", user_id="u1", view=EMPTY())
     assert r["ok"] is True and r["attempts"] == 2
     note = client.calls[1]["messages"][-1]["content"][0]["content"]
-    assert note.startswith("[envelope:reference]")
+    assert note.startswith("[envelope:bars-back-sign]")
     assert "lowestbars" in note and "never negative" in note and ">= 3" in note
 
 
 def test_twice_negative_is_refused_and_never_reaches_the_browser(conv, clean_env, model):
     model([emits(create(PINE_WAY)), emits(create(PINE_WAY))])
     r = conv.converse("mark day 4 to 12 after the 50 day low", user_id="u1", view=EMPTY())
-    assert r["ok"] is False and r["gate"] == "envelope:reference"
+    assert r["ok"] is False and r["gate"] == "envelope:bars-back-sign"
 
 
 def test_each_shape_of_the_mistake_is_seen(conv, clean_env, model):
@@ -56,7 +56,7 @@ def test_each_shape_of_the_mistake_is_seen(conv, clean_env, model):
     for tree in shapes:
         model([emits(create(tree)), emits(create(tree))])
         r = conv.converse("x", user_id="u1", view=EMPTY())
-        assert r["ok"] is False and r["gate"] == "envelope:reference", tree
+        assert r["ok"] is False and r["gate"] == "envelope:bars-back-sign", tree
 
 
 def test_CONTROL_the_positive_form_and_other_negatives_pass_first_time(conv, clean_env, model):
