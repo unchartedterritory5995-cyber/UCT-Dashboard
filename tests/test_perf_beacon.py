@@ -282,6 +282,9 @@ _BAD_SWITCHES = [
     ("a negative count", lambda r: r["switches"]["cells"][0].__setitem__(7, -1)),
     ("a too-large count", lambda r: r["switches"]["cells"][0].__setitem__(7, pb.MAX_SWITCH_COUNT + 1)),
     ("too many cells", lambda r: r["switches"].__setitem__("cells", _distinct_cells(pb.MAX_SWITCH_CELLS + 1))),
+    # every count is within its own bound; together they are one more switch than a page can make between two sends
+    ("more switches in all than a page can make", lambda r: r["switches"].__setitem__("cells", [
+        _cell(counts=[pb.MAX_SWITCH_TOTAL] + [0] * 10), _cell(tf=1, counts=[1] + [0] * 10)])),
     ("a short cell", lambda r: r["switches"]["cells"][0].pop()),
     ("a long cell", lambda r: r["switches"]["cells"][0].append(0)),
     ("a timeframe class outside the list", lambda r: r["switches"]["cells"][0].__setitem__(0, len(pb.SWITCH_TF))),
@@ -319,12 +322,17 @@ def test_a_malformed_switches_report_is_refused_whole(store, why, mutate):
 
 
 def test_the_most_a_page_may_send_is_accepted_and_fits_the_body_limit(store):
-    # control for "too many cells" and "a too-large count": one fewer / the largest itself is stored
-    cells = [c[:5] + [pb.MAX_SWITCH_COUNT] * 11 for c in _distinct_cells(pb.MAX_SWITCH_CELLS)]
+    # control for "too many cells", "a too-large counter" and "more switches in all": the largest itself is stored
+    each = pb.MAX_SWITCH_TOTAL // (pb.MAX_SWITCH_CELLS * 11)
+    cells = [c[:5] + [each] * 11 for c in _distinct_cells(pb.MAX_SWITCH_CELLS)]
+    cells[0][5] += pb.MAX_SWITCH_TOTAL - each * 11 * pb.MAX_SWITCH_CELLS          # exactly the total, not one under
+    assert sum(sum(c[5:]) for c in cells) == pb.MAX_SWITCH_TOTAL
     biggest = _switch_report(cells=cells, counters=[pb.MAX_SWITCH_COUNT] * len(pb.SWITCH_COUNTERS))
-    assert len(json.dumps(biggest, separators=(",", ":")).encode()) <= pb.MAX_BODY_BYTES
     assert pb.record(biggest, ip="1.1.1.1", country_header="US", now=_T)["stored"] == 1
     assert len(_rows(store, "perf_switch_days")) == pb.MAX_SWITCH_CELLS
+    # ...and the longest body a legal report can be (every count at the total's digits) is inside the door's limit
+    widest = _switch_report(cells=[c[:5] + [pb.MAX_SWITCH_TOTAL] * 11 for c in cells], counters=[pb.MAX_SWITCH_COUNT] * len(pb.SWITCH_COUNTERS))
+    assert len(json.dumps(widest, separators=(",", ":")).encode()) <= pb.MAX_BODY_BYTES
 
 
 def test_a_report_of_counters_alone_is_stored(store):
@@ -406,3 +414,4 @@ def test_the_servers_switch_lists_are_the_pages_own():
     assert js("SWITCH_VERSION") == pb.SWITCH_VERSION
     assert js("MAX_SWITCH_CELLS") == pb.MAX_SWITCH_CELLS
     assert js("MAX_SWITCH_COUNT") == pb.MAX_SWITCH_COUNT
+    assert js("MAX_SWITCH_TOTAL") == pb.MAX_SWITCH_TOTAL <= pb.MAX_SWITCH_COUNT

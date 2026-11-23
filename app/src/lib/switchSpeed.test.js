@@ -4,7 +4,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import {
   SWITCH_BUCKET_EDGES_MS, SWITCH_UNDER_MS, SWITCH_TF, SWITCH_TRIGGER, SWITCH_ROUTE, SWITCH_COUNTERS, SWITCH_SPEED_GLOBAL,
-  MAX_SWITCH_CELLS, MAX_SWITCH_MS, TRIGGER_LIST_KEY, ROUTE_OTHER,
+  MAX_SWITCH_CELLS, MAX_SWITCH_MS, MAX_SWITCH_TOTAL, TRIGGER_LIST_KEY, ROUTE_OTHER,
   switchObserver, chartPainted, noteSwitchRoute, hintSwitchTrigger, setSwitchEnv, takeSwitchCounts, peekSwitchCounts,
   switchBucketOf, switchTfClass, __resetSwitchSpeedForTests, __setSwitchClockForTests,
 } from './switchSpeed'
@@ -222,6 +222,28 @@ describe('a switch that gives no sample is counted by why, and never in a bucket
     expect(got.counters[SWITCH_COUNTERS.indexOf('overflow')]).toBe(72 - MAX_SWITCH_CELLS)
     expect(new Set(got.cells.map((c) => c.slice(0, 5).join())).size).toBe(MAX_SWITCH_CELLS)
   })
+})
+
+describe('one page cannot outweigh the rest', () => {
+  it('at most MAX_SWITCH_TOTAL samples between two sends; the next ones are `overflow`, and a send starts the count again', async () => {
+    const CAP = 20000                                 // the number itself, so a cap that is absent reads as 20003, not as NaN
+    const m = member()
+    const members = group(m)
+    for (let i = 0; i < CAP + 3; i++) {
+      const t0 = arrow(i % 2 ? 'BBB' : 'CCC', members)
+      chartPainted(m.key, i % 2 ? 'BBB' : 'CCC', 300, 'full')
+      await frame(t0 + 10)
+    }
+    const got = takeSwitchCounts()
+    expect(got.cells).toHaveLength(1)
+    expect(got.cells[0].slice(5).reduce((a, b) => a + b, 0)).toBe(CAP)
+    expect(got.counters[SWITCH_COUNTERS.indexOf('overflow')]).toBe(3)
+    expect(MAX_SWITCH_TOTAL).toBe(CAP)
+    const t0 = arrow('DDD', members)
+    chartPainted(m.key, 'DDD', 300, 'full')
+    await frame(t0 + 10)
+    expect(takeSwitchCounts().cells[0].slice(5).reduce((a, b) => a + b, 0)).toBe(1)
+  }, 120000)
 })
 
 describe('the press does no measuring', () => {
