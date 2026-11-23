@@ -103,8 +103,15 @@ import { ENGINE_ERROR } from './ast/parse'
 // symbol folds it differently, so the second symbol of a sweep would inherit the
 // first's lengths. That shows as a WRONG NUMBER, not an error.
 import { bindConstsFor } from './ast/bind'
-import { isPineOriginDoc, otherSymbolPending, staticOtherSymbolMessage } from './otherSymbols'
-import { OTHER_SYMBOL_BEFORE_HELD_CODE, otherSymbolBeforeHeldSentence } from './ast/interpret'
+// ⭐⭐ T4 E2 — `otherSymbolLabel`: an event read's own label; the words for a bar before UCT's record of an event family
+import { isPineOriginDoc, otherSymbolPending, staticOtherSymbolMessage, otherSymbolLabel } from './otherSymbols'
+import { eventBeforeRecordSentence, EVENT_BEFORE_RECORD_CODE } from './pineEvents'
+// ⭐⭐ T4 F1b — a financial read's withheld bars, under their own code
+// ⭐⭐ T4 B2 — a breadth spelling's record names its own per-bar code and words
+import { recordCode, recordBeforeSentence } from './pineBreadth'
+import {
+  FINANCIAL_UNKNOWN_CODE, BREADTH_BEFORE_RECORD_CODE, OTHER_SYMBOL_BEFORE_HELD_CODE, otherSymbolBeforeHeldSentence,
+} from './ast/interpret'
 // ⭐⭐ P1 — the chart lane's pre-compute refusals and its other-symbol decision
 // are the SHARED EVALUABILITY GATE's (`evaluability.js`); this module applies them.
 import { FORMULA_LTF_GUARD, FORMULA_LTF_MESSAGE } from './evaluability'
@@ -190,7 +197,7 @@ import {
   columnErrors, registerRuntimeErrorStop, RUNTIME_ERROR_GUARD, runtimeErrorStopOf, lowerTfFor, lowerTfReport,
   otherSymbolsFor, otherSymbolReport, withheldBarsReport, chartClockReport, PINE_RECURRENCE_ORIGIN,
   historyFromListingFor, listingOptsFor, listingSeedUnpinnedFor, varOriginAbsoluteFor, barIndexAbsoluteFor,
-  resolveInputs, enumIndexOf, treeScalars, PARAM_SETTING_GUARD, SYMBOL_SETTING_GUARD,
+  resolveInputs, enumIndexOf, treeScalars, PARAM_SETTING_GUARD, SYMBOL_SETTING_GUARD, defaultBoundDocument,
 } from './astColumns.js'
 import { FIRST_PAGE_CODE, FIRST_PAGE_NOTE } from './firstPage.js'
 // ⭐⭐ HEADLESS (R6) — `computeFor` dispatches on the ONE router the headless export asks too.
@@ -2374,11 +2381,27 @@ export function externalReadNotices(def, columns) {
     for (const r of (other && other.refused) || []) {
       if (otherSymbolPending(r)) continue
       out.push({ code: r.code, reason: r.static === true ? staticOtherSymbolMessage(r.ticker, r)
-        : `This indicator reads \`${r.ticker}\`: ${r.reason}` })
+        : `This indicator reads ${otherSymbolLabel(r.ticker)}: ${r.reason}` })
+    }
+    // ⭐⭐ T4 E2 — the bars before UCT's record of an event family are named per bar (`EVENT_BEFORE_RECORD_CODE`); where a
+    // plot carries them, the member reads why, once per family
+    const held = withheldBarsReport(columns) || {}
+    // ⭐⭐ T4 F1b / T4 B2 — per code: an event family's record, a financial read's (`FINANCIAL_UNKNOWN_CODE`), and a
+    // breadth spelling's (`pineBreadth.js::recordCode`, which reads `interpret.js::beforeRecordCodeOf`)
+    for (const code of [EVENT_BEFORE_RECORD_CODE, FINANCIAL_UNKNOWN_CODE, BREADTH_BEFORE_RECORD_CODE]) {
+      if (!Object.values(held).some((codes) => codes && codes[code])) continue
+      const said = new Set()
+      for (const e of (other && other.events) || []) {
+        if (!e || recordCode(e) !== code) continue
+        const reason = code === EVENT_BEFORE_RECORD_CODE ? eventBeforeRecordSentence(e) : recordBeforeSentence(e)
+        if (!reason || said.has(reason)) continue
+        said.add(reason)
+        out.push({ code, reason })
+      }
     }
     // ⭐⭐ (engine 94, coordinator ruling 2026-11-22) — the bars a series withholds before its first row are named
     // per bar (`OTHER_SYMBOL_BEFORE_HELD_CODE`); where a plot carries them, the member reads why, once per series
-    const held = withheldBarsReport(columns) || {}
+    // (train e95: the same per-bar report T4 E2 read above, `held`, one reading)
     if (Object.values(held).some((codes) => codes && codes[OTHER_SYMBOL_BEFORE_HELD_CODE])) {
       for (const b of (other && other.beforeHeld) || []) {
         out.push({ code: OTHER_SYMBOL_BEFORE_HELD_CODE, reason: otherSymbolBeforeHeldSentence(b.ticker, b.from) })
@@ -3520,6 +3543,9 @@ export function validateAstLane(def) {
   // anywhere near it. `treesLane.test.js` pins the empty-list aggregation AND
   // the single-tree document side by side so the shortcut cannot come back.
   const lanes = trees ? dataPlots.map((k) => [k, trees[k]]) : [[dataPlots[0], def.compute.ast]]
+  // ⭐⭐ e95 unit 2b — the install budget of the program the member's chart draws: the trees bound at the defaults
+  const atDefaults = defaultBoundDocument(def)
+  const budgetTreeOf = (key) => (trees ? atDefaults.compute.trees[key] : atDefaults.compute.ast)
 
   // ⭐ THE DEFINITION'S OWN DECLARED INPUTS, DERIVED — the same set
   // `lintDefinition` (and therefore `repaintVerdict`, and therefore the legend
@@ -3537,7 +3563,9 @@ export function validateAstLane(def) {
     const treePath = trees ? `compute.trees.${key}` : 'compute.ast'
     let budget
     try {
-      budget = checkBudget(ast, def.compute.budget)
+      // ⭐⭐ e95 unit 2b — the tree the member's chart draws at the knobs' defaults (`defaultBoundDocument`): an arm a
+      // knob does not pick at its default is measured when a binding picks it (the compute-time budget)
+      budget = checkBudget(budgetTreeOf(key), def.compute.budget)
     } catch (err) {
       errors.push(
         `${treePath}: refused at registration by ${JSON.stringify(err && err.guard ? err.guard : 'an unnamed guard')} ` +

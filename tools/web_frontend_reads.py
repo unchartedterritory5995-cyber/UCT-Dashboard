@@ -68,6 +68,7 @@ DECLARED_READS = {
     "app/src/components/chart/engine/ast/pineRuntimeFrontend.js": "api/services/pine_runtime_client.py: engine identity",
     "app/src/components/chart/engine/ast/pineLibraryDeny.json": "api/services/pine_library_store.py: the library deny list (unreadable = every library denied)",
     "app/src/components/chart/supportLoop/assistantPineReference.json": "api/services/pine_authoring.py: what the assistant may write in a script (unreadable = no script turn is made)",
+    "app/src/components/chart/engine/requestWitnesses.json": "api/services/pine_authoring.py (track 4 B2): which `USI:` breadth spellings the engine serves (rows of kind breadth whose capture is in), handed to the assistant only while the breadth door serves members",
     "app/src/components/chart/supportLoop/assistantRecipes.json": "api/services/pine_authoring.py: the proven scripts a script turn is handed, and the run's standing stops",
     "app/src/components/chart/supportLoop/pineBuiltins.json": "api/services/indicator_support.py",
     "app/src/components/chart/supportLoop/doorNameCoverage.json": "api/services/indicator_support_loop.py",

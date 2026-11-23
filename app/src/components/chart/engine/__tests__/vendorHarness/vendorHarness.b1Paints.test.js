@@ -201,8 +201,10 @@ describe('B1 — paints graded against the captures that record them', () => {
     'volume-profile-auto-line-v2-rddt-1d-2026-11-14.json': ['refused pine:no-output'],
     'volume-spikes-growing-volume-signals-with-alerts-scanner-rddt-1d-2026-11-14.json': ['refused member door refused (budget:lookback): this script is not drawn: its plot `Volume Up Spike Marker` needs 1000 bars of history behind every bar, and one plot may reach back at most 960 here'],
     'volume-spikes-growing-volume-signals-with-alerts-scanner-spy-1d-2026-11-14.json': ['refused member door refused (budget:lookback): this script is not drawn: its plot `Volume Up Spike Marker` needs 1000 bars of history behind every bar, and one plot may reach back at most 960 here'],
-    'volume-suite-by-leviathan-rddt-1d-2026-11-15.json': ['refused pine:tuple'],
-    'volume-suite-by-leviathan-spy-1d-2026-11-15.json': ['refused pine:tuple'],
+    // ⭐⭐ e95 unit 2 (2026-11-22): its `[_, u, l] = ta.vwap(src, anchor, mult)` is Pine's anchored VWAP, which both lanes
+    // carry now (was `pine:tuple`); the script translates, and its paint is withheld by name, never drawn unpinned
+    'volume-suite-by-leviathan-rddt-1d-2026-11-15.json': ['supply bar0 warmup=0', 'plot_28 withheld'],
+    'volume-suite-by-leviathan-spy-1d-2026-11-15.json': ['supply bar0 warmup=0', 'plot_28 withheld'],
     // ⭐ ENGINE 58 COLOURS (landing train 1): a v1-v3 `bgcolor` with no `transp` draws at 90 (S1), so the three
     // transparency probes' paint is drawn and agrees on all 666 bars (was withheld).
     'vw-cs1-transp-v1-rddt-1d-2026-11-14.json': ['supply bar0 warmup=0', 'plot_2 agree 666/666 painted=666'],

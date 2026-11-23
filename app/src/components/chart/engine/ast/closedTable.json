@@ -1658,6 +1658,47 @@
       "yields": "num",
       "sentence": "the volume-weighted average of {0} so far this session"
     },
+    "vwapAnchor": {
+      "args": [
+        "series",
+        "series",
+        "series"
+      ],
+      "argRoles": [
+        "source",
+        "condition",
+        "volume"
+      ],
+      "lookback": "series",
+      "yields": "num",
+      "sentence": "the volume-weighted average of {0}, weighted by {2}, since the last bar where {1} was true"
+    },
+    "vwapAnchorDev": {
+      "args": [
+        "series",
+        "series",
+        "series"
+      ],
+      "argRoles": [
+        "source",
+        "condition",
+        "volume"
+      ],
+      "lookback": "series",
+      "yields": "num",
+      "sentence": "the volume-weighted standard deviation of {0}, weighted by {2}, since the last bar where {1} was true"
+    },
+    "refusedArm": {
+      "args": [
+        "series"
+      ],
+      "argRoles": [
+        "source"
+      ],
+      "lookback": 0,
+      "yields": "num",
+      "sentence": "a branch this engine does not compute (refusal {0} of the document)"
+    },
     "williamsR": {
       "args": [
         "series",
@@ -3661,8 +3702,17 @@
       "sessionLow",
       "openingRangeHigh",
       "openingRangeLow",
-      "asin"
+      "asin",
+      "vwapAnchor",
+      "vwapAnchorDev",
+      "refusedArm"
     ]
+  },
+  "_functions_refusal_leaves": {
+    "_": "⭐⭐ e95 unit 2b (2026-11-22, the coordinator's ruling (B)): THE TABLE ENTRIES THAT NEVER COMPUTE A NUMBER. `refusedArm` is the leaf the member door writes for an arm of a knob `switch` the translator refused (`pine.js::Resolver.refusedArmLeaf`); the bind prunes it away unless the member's setting picks it (`bind.js::pruneKnobArms`), and evaluated it refuses by name (`interpret:refused-arm`, both evaluators). So it has no value for the conformance corpus to pin: `tools/ast_conformance.py::assert_corpus_covers_the_table` requires each name here to REFUSE in the Python lane with `guard` instead (the JS half: `ast/knobArmsParity.test.js`). ⛔ Only an entry that refuses on every bar may be listed: a name here that computed would be a table entry no corpus covers.",
+    "names": {
+      "refusedArm": "interpret:refused-arm"
+    }
   },
   "_functions_excluded": {
     "_supertrend_was_here": "⭐ SUPERTREND LEFT THIS LIST ON 2026-10-29, AND THE RULING ABOVE IT WAS RIGHT WHEN IT WAS WRITTEN. It refused the name because the grammar had no self-reference; `accum` (`_functions_recurrence`) is that self-reference, and `ta.supertrend(factor, atrPeriod)` is exactly three of them composed — the upper band's ratchet, the lower band's, and the direction flip — over `atrPine` (Pine's own ATR seed) and `hl2`. So it ships as an EXPANSION (`callExpansions.js::supertrendTrees`, mirrored by `call_expansions.py`), never as an entry here: no interpreter, alert lane, budget or linter learns a new name, and the ratchet and the flip are KEPT rather than dropped, which is the look-alike this ruling forbade. ⛔ It is bounded like every `accum`: each recurrence re-seeds 200 bars back, and the value is WITHHELD until both bands were known 200 bars earlier, so a published bar never reads a band that did not exist. ⭐ Measured against an independent full-history implementation of Pine's published source: 0 of 77,820 published bars differ (30 series × 3 settings, `supertrend.test.js`, re-measured every run).",
@@ -3971,6 +4021,25 @@
       "why_the_pane_may": "A pane is ONE symbol and ONE fetch, and where the occurrence lies before the first bar loaded the pane draws a HOLE: nothing there is compared with another symbol or with yesterday's run, and nothing reads the hole as false. ⚠️ NO `memberNote` IS DECLARED, ON PURPOSE. `window_dependent` owes a badge because a running total puts a NUMBER on screen that more history would change; this puts nothing on screen that more history would change — only bars that would fill in. `parse.js::requirementNotesOf` yields nothing for a tag without a sentence, so the pane is exactly what it was.",
       "_why_its_own_tag": "⭐⭐ C45 (2026-10-01). `valuewhenOccurrence` declared `lookback: \"series\"` from the day it landed (PR #166, 2026-09-20) and no tag named it, so `user_definitions.requirement_tags` returned nothing and nothing stopped it reaching the screener, the sweep, an alert, a share or a listing — the two rails in `tests/test_requirement_tags.py` were red on it from that day. ⛔ IT IS NOT ADDED TO `window_dependent`, AND THE REASON IS THE SENTENCE A MEMBER READS. That tag's `what` and `memberNote` describe a running total (\"every value moves by the same amount\"), which is false of this function: `_functions_valuewhen_occurrence` is right that widening the fetch does not SHIFT its answer for a bar it can answer. What it got wrong is the conclusion. The fetch-dependence is not ordinary warm-up — a 200-bar SMA needs 200 bars and `maxLookback` says so, while how far back the n-th occurrence lies is unbounded and declared nowhere — and on a comparability consumer the hole it leaves is laundered into a confident `false` by the first comparison above it (X23, `_functions_bounded_state`). A refusal must say the true thing, so the true thing has its own tag.",
       "_not_the_period_anchor": "⛔ ONE SHAPE IS NOT THIS: `valuewhenOccurrence(<a period's first bar>, time, 0)`, the tree `time(\"W\" | \"M\" | \"3M\" | \"12M\")` translates to (C30). Occurrence 0 of a condition that recurs every period is bounded by the period, and both interpreters withhold exactly the bars it cannot answer (`interpret.js::periodAnchorMask` / `ast_interpret.period_anchor_mask`, C36). The stamping walk recognises that shape with the interpreter's OWN recogniser (`ast_interpret.is_period_anchor`) and does not tag it. ⭐ What a SERVER lane does with an anchor is a different question with ONE answer of its own: a lane whose bars carry no clock withholds it on every bar, and `scan_definition.assert_scannable` and the alert arm refuse it under the gate `withheld` (C45), naming the clock — never under this tag, which would tell a member their `time(\"W\")` depends on how much history was loaded when it does not."
+    },
+    "anchor_dependent": {
+      "what": "The script reads an anchored VWAP: sums of price times volume, and of volume, that start again on every bar the anchor fires. Before the first anchor inside the loaded history there is no value (TradingView carries a total from an earlier anchor there), and a comparison reads a missing value as false, so the same script can answer differently with more or less history, for a reason that is about the request and not about the market.",
+      "calls": [
+        "vwapAnchor",
+        "vwapAnchorDev"
+      ],
+      "refused_by": [
+        "screener",
+        "sweep",
+        "alert",
+        "share",
+        "listing"
+      ],
+      "accepted_by": [
+        "pane"
+      ],
+      "why_the_pane_may": "A pane is ONE symbol and ONE fetch. Before the first anchor inside the loaded history the pane draws a HOLE, named per bar (`vwap:before-first-anchor`), and from that anchor on every value is TradingView's whatever the history depth: nothing on screen would change with more history, only bars that would fill in. ⚠️ NO `memberNote` IS DECLARED, ON PURPOSE (`occurrence_dependent`'s reason): the per-bar withholding already says, on the chart, that the VWAP starts at the first anchor shown on the chart, so a badge on every anchored VWAP would repeat it.",
+      "_why_its_own_tag": "⭐⭐ e95 unit 2 (2026-11-22, the coordinator's hazard ruling). `vwapAnchor` / `vwapAnchorDev` declare `lookback: \"series\"` (their sums reach back to the last anchor, however far), and every `series` entry must be named by some tag. ⛔ NOT `window_dependent`: that tag's sentence says every value moves by the same amount with more history, which is false here. An anchored VWAP is not a running total from the first bar: from the first anchor inside the loaded history on, every value is the same however much history was loaded, because the sums start again there (`barIndexShift.js::ANCHOR_RESET_CALLS` keeps it out of `RUNNING_TOTAL_CALLS` and out of the additive-constant algebra), and the bars before it are withheld by name, per bar (`vwap:before-first-anchor`, `interpret.js::builtinWitnessMask`). ⛔ NOT `occurrence_dependent` either: its sentence describes an occurrence counted back, which this is not. A refusal must say the true thing, so the true thing has its own tag. ⭐ `calls` is also the roster `ANCHOR_RESET_CALLS` reads (both lanes), so the class and its containment cannot drift apart."
     }
   },
   "_bind_time_constants": {

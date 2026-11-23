@@ -24,6 +24,7 @@
 
 import { declaredInputs } from '../engine/ast/lint'
 import { checkBudget, DEFAULT_BUDGET } from '../engine/ast/budget'
+import { pruneAtLeafDefaults } from '../engine/ast/bind'
 import { LINE_WIDTH_HARD_MAX } from '../engine/defSchema'
 
 /** ⭐ THE WIDTH CONTROL'S CEILING: 10, or a script's own `linewidth` when larger.
@@ -905,16 +906,18 @@ export function memberInputTranslation(translate, source, opts = {}) {
   // to. ⛔ A script no output of which is over the cap is untouched, so this can only turn a
   // definition the registry refuses into one it installs.
   {
+    // ⭐⭐ e95 unit 2b — measured at the knobs' DEFAULTS (`bind.js::pruneAtLeafDefaults`), as the install measures it
+    // (`nativeRegistry.validateAstLane`): an arm a knob does not pick at its default is measured when a binding picks it
     const overSeries = (o) => {
       if (!o || o.refusal || !o.ast) return false
       let b = null
-      try { b = checkBudget(o.ast) } catch { return false }
+      try { b = checkBudget(pruneAtLeafDefaults(o.ast)) } catch { return false }
       return !!b && !b.ok && b.guard === 'budget:series'
     }
     for (let round = 0; round < 4; round += 1) {
       const over = (attempt.outputs || []).filter(overSeries)
       if (!over.length) break
-      const read = new Set(over.flatMap((o) => [...seriesNamesOf(o.ast)]))
+      const read = new Set(over.flatMap((o) => [...seriesNamesOf(pruneAtLeafDefaults(o.ast))]))
       const give = attempt.declaredNames.filter((n) => read.has(n))
       if (!give.length) break
       for (const n of give) budgetBound.add(n)

@@ -37,10 +37,13 @@ const CASES = [
   ['running-total:early-bars', src('plot(ta.cum(1) > 5 ? close : na)'), LAST, 5],
   ['window-extreme:left-edge', src('plot(ta.highest(close > open ? high : na, 5))'), LAST, 5],
   ['request:htf-newest-unconfirmed', src('plot(request.security(syminfo.tickerid, "W", close))'), MID, 1],
+  // ⭐⭐ e95 unit 2 (2026-11-22): an anchored VWAP's bars before the first anchor inside the loaded history
+  ['vwap:before-first-anchor', src('plot(ta.vwap(hlc3, close > open * 1.01))'), LAST, LAST.findIndex((b) => b.c > b.o * 1.01)],
 ]
 
 describe('the audit after (A): a code that withholds some bars computes the script, named per output', () => {
-  it('the list is the engine\'s own and holds these five beside history:before-chart', () => {
+  it('the list is the engine\'s own and holds these six beside history:before-chart', () => {
+    expect(CASES.every((c) => c[3] > 0), 'every case withholds at least one bar').toBe(true)
     expect([...PER_BAR_CLOCK_CODES].sort()).toEqual(['history:before-chart', ...CASES.map((c) => c[0])].sort())
   })
   for (const [code, source, bars, held] of CASES) {

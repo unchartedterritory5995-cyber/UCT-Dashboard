@@ -1,0 +1,24 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "Train e95 x train e94 (engine 95): a bar is named ONCE, by the reason that is true. A series placed from a record (T4 E2's event family, T4 F1b's financial read, T4 B2's breadth spelling) is marked unknown-before-first, the mark #2429's before-held unit names; its bars before its first row stay in the alignment mask and are named by the record's own code alone, never also `other-symbol:before-held` (\"UCT's intraday history of <ticker> starts there\", with the engine's internal EV-... ticker). Each rule, broken once, must turn its rail red.",
+ "mutants": [
+  {
+   "id": "TI1",
+   "mutant": "a record-placed series feeds the before-held mask too (named twice on the per-bar channel)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "      if (before && !namedByRecord) lastBefore = i",
+   "to": "      if (before) lastBefore = i",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/e95TrainRecordCodes.test.js",
+   "expectRed": "its bars before the record are withheld under the record code"
+  },
+  {
+   "id": "TI2",
+   "mutant": "the strip's before-held list takes a series keyed by session day (a record-placed one)",
+   "file": "app/src/components/chart/engine/astColumns.js",
+   "from": "      if (typeof t === 'number' && Number.isFinite(t) && (from === null || t < from)) from = t",
+   "to": "      if (t !== undefined && t !== null && (from === null || t < from)) from = t",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/e95TrainRecordCodes.test.js",
+   "expectRed": "the strip carries no before-held entry"
+  }
+ ]
+}

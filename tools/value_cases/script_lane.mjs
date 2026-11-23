@@ -123,6 +123,10 @@ function runOne({ id, source, chart, edge }) {
         const run = evaluateObjects(reader.program, { barCount: bars.length, readNode: reader.readNode, readUnknown: reader.readUnknown, readTime: (i) => bars[i].t })
         state = toRenderState(run.live, { bars })
         drawn.via = 'object program'
+        // ⭐ e95 (computed number formats) — what the run withheld and SAYS to the member (the drawing note's
+        // sentences, `objectRuntime.js::withheldWhy`), so a value case can read why a cell is empty. Additive:
+        // present only when the run says something, so every other output is unchanged.
+        if (run.withheldWhy && Object.keys(run.withheldWhy).length) drawn.why = { ...run.withheldWhy }
       }
     } else if (cols.__runtimeObjects) {
       const ro = cols.__runtimeObjects

@@ -1,0 +1,168 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "T4 E2 (engine 95, train e95): `request.earnings` / `request.dividends` / `request.splits` on the chart's own symbol, rewritten at parse into an event read (`pine.js::eventAsSecurity`), supplied by the events door only (`eventSupply.js`, never `/api/bars`), placed as TradingView places them (`pineEvents.js::placeEvents`, E0's R1 and R2), withheld by name before UCT's record and before the earnings window, and `na` on every bar for a fund. Every rule, broken once, must turn its rail red.",
+ "mutants": [
+  {
+   "id": "EV1",
+   "mutant": "a script's own string spelling the engine's internal event name is no longer recognised early (it falls to the punctuation rule)",
+   "file": "app/src/components/chart/engine/otherSymbols.js",
+   "from": "  if (EVENT_TICKER.test(t)) return { code: OTHER_SYMBOL_REFUSAL.EVENT_SPELLING, reason: eventSpellingReason(t) }",
+   "to": "  if (false) return { code: OTHER_SYMBOL_REFUSAL.EVENT_SPELLING, reason: eventSpellingReason(t) }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestEvents.test.js",
+   "expectRed": "other-symbol:event-spelling"
+  },
+  {
+   "id": "EV2",
+   "mutant": "a raw symbol string carrying the internal event name is no longer recognised",
+   "file": "app/src/components/chart/engine/otherSymbols.js",
+   "from": "  if (EVENT_TICKER.test(tail)) return { ticker: tail, code: OTHER_SYMBOL_REFUSAL.EVENT_SPELLING, reason: eventSpellingReason(tail) }",
+   "to": "  if (false) return { ticker: tail, code: OTHER_SYMBOL_REFUSAL.EVENT_SPELLING, reason: eventSpellingReason(tail) }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestEvents.test.js",
+   "expectRed": "other-symbol:event-spelling"
+  },
+  {
+   "id": "EV3",
+   "mutant": "a formula naming the internal event name is fetched as a ticker",
+   "file": "app/src/components/chart/engine/otherSymbols.js",
+   "from": "  return [...new Set(symTickersOf(def).filter((t) => !BARE_AMBIGUOUS.has(t) && !EVENT_TICKER.test(t)).map(storeTickerOf))].sort()",
+   "to": "  return [...new Set(symTickersOf(def).filter((t) => !BARE_AMBIGUOUS.has(t)).map(storeTickerOf))].sort()",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestEvents.test.js",
+   "expectRed": "never fetched"
+  },
+  {
+   "id": "EV4",
+   "mutant": "the events key is asked of the bars door too",
+   "file": "app/src/components/chart/engine/useSecondarySources.js",
+   "from": "&& k !== EVENTS_KEY && k !== FINANCIAL_KEY && !isBreadthKey(k)),",
+   "to": "&& k !== FINANCIAL_KEY && !isBreadthKey(k)),",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/eventSupply.test.js",
+   "expectRed": "bars door nothing"
+  },
+  {
+   "id": "EV5",
+   "mutant": "lookahead_off lands an event on its own bar (R1 broken: the first bar OPENING after the stamp)",
+   "file": "app/src/components/chart/engine/pineEvents.js",
+   "from": "firstWhere(n, (j) => sessions[j].open > e.day)",
+   "to": "firstWhere(n, (j) => sessions[j].open >= e.day)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestEvents.test.js",
+   "expectRed": "lookahead_off"
+  },
+  {
+   "id": "EV6",
+   "mutant": "gaps_off no longer carries (R2 broken)",
+   "file": "app/src/components/chart/engine/pineEvents.js",
+   "from": "    const v = landed[i] !== undefined ? landed[i] : (gaps ? NaN : carried)",
+   "to": "    const v = landed[i] !== undefined ? landed[i] : NaN",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestEvents.test.js",
+   "expectRed": "gaps_off"
+  },
+  {
+   "id": "EV7",
+   "mutant": "a bar before UCT's record reads `na` instead of being withheld (ruling (1) broken)",
+   "file": "app/src/components/chart/engine/pineEvents.js",
+   "from": "  Object.defineProperty(series, SERIES_UNKNOWN_BEFORE_FIRST, { value: true, enumerable: false })",
+   "to": "  Object.defineProperty(series, SERIES_UNKNOWN_BEFORE_FIRST, { value: false, enumerable: false })",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestEvents.test.js",
+   "expectRed": "host lane"
+  },
+  {
+   "id": "EV8",
+   "mutant": "earnings before TradingView's window are drawn (E2 ruling 1 broken)",
+   "file": "app/src/components/chart/engine/otherSymbols.js",
+   "from": "  const cut = family === 'earnings' && fam.knownFrom < EARNINGS_WINDOW_FROM ? EARNINGS_WINDOW_FROM : null",
+   "to": "  const cut = null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestEvents.test.js",
+   "expectRed": "cut"
+  },
+  {
+   "id": "EV9",
+   "mutant": "a fund's stray earnings row draws (E2 ruling 3 broken)",
+   "file": "app/src/components/chart/engine/otherSymbols.js",
+   "from": "  if (family === 'earnings' && ctx.symbol && String(ctx.symbol.securityType || '').toUpperCase() === 'ETF'",
+   "to": "  if (false && family === 'earnings' && ctx.symbol && String(ctx.symbol.securityType || '').toUpperCase() === 'ETF'",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestEvents.test.js",
+   "expectRed": "a fund"
+  },
+  {
+   "id": "EV10",
+   "mutant": "the bars before UCT's record are withheld unnamed (the per-bar words dropped on the host lane)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "  sinkPerBar(opts, EVENT_BEFORE_RECORD_CODE, eventBeforeRecordMask(ast, bars, opts))",
+   "to": "  void eventBeforeRecordMask",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestEvents.test.js",
+   "expectRed": "per-bar words"
+  },
+  {
+   "id": "EV11",
+   "mutant": "the run's depth before UCT's record loses its own words (the generic depth sentence and code instead)",
+   "file": "app/src/components/chart/engine/runtime/requestSupply.js",
+   "from": "      const record = Array.isArray(srcBars) ? srcBars[SERIES_EVENT_RECORD] : null",
+   "to": "      const record = null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestEvents.test.js",
+   "expectRed": "runtime lane"
+  },
+  {
+   "id": "EV12",
+   "mutant": "the door dark for this member (404) reads as an error, retried, not a named refusal (coordinator ruling (3))",
+   "file": "app/src/components/chart/engine/eventSupply.js",
+   "from": "const DARK = new Set([401, 402, 403, 404])",
+   "to": "const DARK = new Set([])",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/eventSupply.test.js",
+   "expectRed": "dark"
+  },
+  {
+   "id": "EV13",
+   "mutant": "dividends.gross is read at double precision, not TradingView's float32",
+   "file": "app/src/components/chart/engine/pineEvents.js",
+   "from": "(float32 ? Math.fround(e.v) : e.v)",
+   "to": "(float32 ? e.v : e.v)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestEvents.test.js",
+   "expectRed": "float32"
+  },
+  {
+   "id": "EV14",
+   "mutant": "the parse rewrite is gone: `request.earnings` is no event read at all",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "  if (_eventRewriteOff) return node",
+   "to": "  return node",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestEvents.test.js",
+   "expectRed": "EV-EA-11"
+  },
+  {
+   "id": "EV15",
+   "mutant": "a name bound to an event read, read inside a call (`not na(e)`), goes to the columnar lane again (na on every bar, no supply); since the named-request follow the event read rides the general follow",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "      return readsOtherSeriesRequest(bound.node, depth + 1)",
+   "to": "      return false",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestEvents.test.js",
+   "expectRed": "anchor idiom"
+  },
+  {
+   "id": "EV16",
+   "mutant": "the assistant is handed the event reads (and their gaps read served) while the events door is dark for members",
+   "file": "api/services/pine_authoring.py",
+   "from": "    return pine_events.stage() == \"all\"",
+   "to": "    return True",
+   "rail": "python -m pytest -q tests/test_pine_authoring.py",
+   "expectRed": "request.earnings"
+  },
+  {
+   "id": "EV17",
+   "mutant": "a monthly bar is read as a daily one (its month's sessions ignored): W-E2's placement lost",
+   "file": "app/src/components/chart/engine/pineEvents.js",
+   "from": "tfCode === 'M' ? monthSessionsOf(day) : { open: day, close: day }",
+   "to": "tfCode === 'M' ? { open: day, close: day } : { open: day, close: day }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestEvents.test.js",
+   "expectRed": "monthly (W-E2)"
+  },
+  {
+   "id": "EV18",
+   "mutant": "a monthly chart has no event timeframe again (refused before its witness is asked)",
+   "file": "app/src/components/chart/engine/pineEvents.js",
+   "from": "  if (isMonthlyTf(s)) return 'M'",
+   "to": "",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestEvents.test.js",
+   "expectRed": "a monthly chart is served since its witness"
+  }
+ ]
+}

@@ -551,10 +551,18 @@ describe('5. the worker computes the main thread\'s function on the main thread\
     // the translator's own compile context (`pine.js`) and the presentation helpers name a `ctx` of
     // their own; the values' readers are these modules
     const readers = ['astColumns.js', 'otherSymbols.js', 'lowerTf.js', 'evaluability.js', 'calcBarsWindow.js']
+    // ⭐ (train e95, the 2b bind audit) `ctx.inputs` is the GATE's binding (`evaluability.js::evaluability` ->
+    // `gateDocument`), which the values never call: the worker's compute takes the instance's inputs as `computeFor`'s
+    // own argument. Exempt in that module only, so a values reader that read it would still be red here.
+    const GATE_ONLY = new Map([['inputs', 'evaluability.js']])
     const read = new Set()
     for (const [m, info] of closure.modules) {
       if (!readers.some((r) => m.endsWith(`/engine/${r}`))) continue
-      for (const x of info.source.matchAll(re)) read.add(x[1] || x[2])
+      for (const x of info.source.matchAll(re)) {
+        const f = x[1] || x[2]
+        if (GATE_ONLY.has(f) && m.endsWith(`/engine/${GATE_ONLY.get(f)}`)) continue
+        read.add(f)
+      }
     }
     expect(read.size).toBeGreaterThan(6)
     const carried = new Set([...HOST_CTX_FIELDS, ...HOST_CTX_CARRIED, 'newest_bar_is_forming'])

@@ -717,7 +717,8 @@ def record_evaluation(alert_id: int, last_value: float, *,
 
 def record_trigger(alert_id: int, last_value: float, *,
                    bar_time: Any = None,
-                   now: Optional[float] = None) -> bool:
+                   now: Optional[float] = None,
+                   message: Optional[str] = None) -> bool:
     """The condition is TRUE. **Returns True when a NEW fire row landed.**
 
     ⭐ THE RETURN VALUE IS THE FIRE-ONCE GUARD. The decision is not made here by
@@ -781,7 +782,10 @@ def record_trigger(alert_id: int, last_value: float, *,
         _rearm(alert_id, now_i, detail="the snooze window expired")
         row = get(alert_id) or row
 
-    key = alert_fired_log.fire_key(row["condition"], bar_time, row["arm_epoch"])
+    # ⭐ AL3: a runtime document's alert() target fires once per closed bar with an event
+    from api.services import alert_user_series as _aus
+    key = alert_fired_log.fire_key(row["condition"], bar_time, row["arm_epoch"],
+                                   per_bar=_aus.is_alert_calls_address(row["indicator"]))
     landed = alert_fired_log.record_fire(
         alert_id=int(alert_id),
         user_id=str(row["user_id"]),
@@ -794,6 +798,7 @@ def record_trigger(alert_id: int, last_value: float, *,
         bar_time=bar_time,
         threshold=row["threshold"],
         fired_at=float(now_i),
+        message=message,
     )
     if not landed:
         return False
