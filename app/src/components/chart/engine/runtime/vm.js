@@ -43,6 +43,8 @@ import { makeObjectStore } from './objectStore.js'
 import { makeBroker, BrokerRefusal, BrokerStart, BROKER_ORDER_OPS } from './broker.js'
 import { isDrawingHandle } from './handles.js'
 import { Budget, RuntimeLimitError, LIVE_OBJECT_BYTES } from './limits.js'
+// ⭐⭐ e96 — the member door's worker's heartbeat, driven from each bar's instruction charge (a leaf: no clock of its own)
+import { workPulse } from '../workPulse.js'
 
 /** ⭐ P1 HARDENING — the clock `WALL_TIME` reads. Injected through `opts.now` by a
  *  test; otherwise the AMBIENT clock while one is installed (e94: the member door's own runs,
@@ -1895,6 +1897,9 @@ export function execute(program, ctx, limits, opts) {
     flushHot()
     budget.charge('TOTAL_INSTRUCTIONS', perBar)
     budget.peak('INSTRUCTIONS_PER_BAR', perBar)
+    // ⭐⭐ e96 — THE HEARTBEAT'S BAR: the bar's instructions are a pulse of work (`../workPulse.js`), so the member door's
+    // worker says it is working through a long probe run. No pulse installed (a chart, the server): one null test.
+    workPulse(perBar)
 
     // ⛔⛔ A BAR MUST LEAVE THE STACK AS IT FOUND IT. The stack is allocated ONCE
     // for the whole run, so a value pushed and never popped is not a leak that

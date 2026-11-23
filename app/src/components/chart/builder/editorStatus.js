@@ -126,8 +126,9 @@ export const FAMILIES = Object.freeze([
       'runtime:not-from-listing', 'runtime:output-map', 'runtime:document',
       // door robustness: the host document the door built did not pass the install door's own check
       'pine:install',
-      // the paste worker (2026-11-20): the worker building the script died, or the door threw inside it
-      'pine:door-worker', 'pine:door-failed'],
+      // the paste worker (2026-11-20): the worker building the script died, or the door threw inside it;
+      // e96: or it went silent (no heartbeat and no answer for the silence bound, `memberDoorAsync.js`)
+      'pine:door-worker', 'pine:door-failed', 'pine:door-silent'],
     prefix: ['runtime:worker-'],
     label: 'Engine fault',
     why: 'Our engine could not finish this script. That is on us, not your script.',

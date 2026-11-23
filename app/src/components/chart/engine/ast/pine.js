@@ -113,6 +113,9 @@ import { timeInputDefaultOf, isTimeInputCall } from '../runtime/runtimeInputs.js
 // `parse.js`, neither of which imports this file.
 import { checkBudget, DEFAULT_BUDGET, REFUSALS as BUDGET_REFUSALS } from './budget.js'
 import { openDoorWindow, closeDoorWindow, doorWindowOpen, doorTripped, openDoor, doorDeadlinePassed } from './doorDeadline.js'
+// ⭐⭐ e96 — THE WORK PULSE (`../workPulse.js`, a leaf): the step loop below (`countCallStep`) and the door window this
+// module opens (`withDoorDeadline`) drive the member door's worker's heartbeat, so a slow check is told from a hung one.
+import { workPulse, WORK_PULSE_PERIOD } from '../workPulse.js'
 // ⭐⭐ C3B — the OBJECT half of a Pine script. `pineObjects.js` reads the
 // statements; `objectProgram.js` owns the canonical shape they become. Neither
 // imports this file, so there is no cycle and the object model stays authorable
@@ -8529,6 +8532,9 @@ function tripWindow(refusal) {
 /** e94 — one step of the call: counted against the call's budget; a tripped window refuses at once. Asked by every
  *  Resolver step and every printer tick while a window is open. */
 function countCallStep(tok) {
+  // ⭐⭐ e96 — THE HEARTBEAT'S STEP: every step counts toward the worker's pulse, inside a window or not (a Resolver the
+  // runtime lane builds outside one steps here too). No pulse installed (the page, the server, a rail): one null test.
+  workPulse()
   if (!WINDOW_OPEN) return
   if (WINDOW_TRIP) throw WINDOW_TRIP
   CALL_STEPS += 1
@@ -8588,14 +8594,20 @@ function wholeScriptTimeout(sourcePath) {
 
 /**
  * Runs `fn` inside a door window of `budgetMs` on `now` (default the wall clock, `wallNow`). A window opened inside
- * another never outlives it: each check asks every open window, innermost first.
+ * another never outlives it: each check asks every open window, innermost first. (e96: the window's clock reads pulse
+ * the worker's heartbeat, `doorWindowPulse`.)
  * @returns {{value: *, tripped: boolean, elapsedMs: number}} `tripped` when the deadline passed while `fn` ran (a
  *   throw after the trip is caught here: `value` is then `null`); any other throw propagates unchanged.
  */
+/** e96 — a door window's clock read, as a pulse of work (`../workPulse.js`): every read counts as a full period, so each
+ *  one asks the pulse's clock (the reads are sampled already: one per 4,096 ticks of a walk). */
+const doorWindowPulse = () => workPulse(WORK_PULSE_PERIOD)
+
 export function withDoorDeadline(budgetMs, fn, now) {
   const clock = clockOrNull(now) || wallNow
   const t0 = clock()
-  const win = openDoorWindow(budgetMs, clock)
+  // ⭐⭐ e96 — each of the window's clock reads (a walk's sampled tick, a phase checkpoint) is a pulse of the work
+  const win = openDoorWindow(budgetMs, clock, doorWindowPulse)
   let value = null
   try {
     value = fn()

@@ -55,10 +55,10 @@ import {
 } from '../../engine/runtimeKill'
 import { requirementNote } from '../../engine/ast/parse'
 import { MEMBER_PANE_DEF_PREFIX } from './memberPaneDefinition'
-import { useMemberDoor } from './useMemberDoor'
+import { useMemberDoor, useElapsedSince } from './useMemberDoor'
 import { doorFailedAnswer } from './memberDoorAsync'
 import { keptForAdd, addSendsFor, addReady } from './addAuthority'
-import { CHECKING_TEXT } from '../PineEditorStatus'
+import { CheckingLine } from '../PineEditorStatus'
 import { usePineLibraries } from '../usePineLibraries'
 import { logRefusalCodes } from '../../supportLoop/supportApi'
 import styles from './MemberPane.module.css'
@@ -182,6 +182,8 @@ export default function MemberPane({
   const libRevision = usePineLibraries(live ? source : '')
   const door = useMemberDoor(live ? { source, id: defId } : null, `${libRevision}:${killVersion}`)
   const building = door.pending
+  // ⭐ e96: while it builds, for how long ("Checking your script... 0:42"): a slow script never looks like nothing happens
+  const buildingFor = useElapsedSince(building ? door.since : null)
   // the build on screen: of THIS pane's id (a stale build of another id never draws under this one)
   const doorArgs = live && door.args && door.args.id === defId ? door.args : null
   const doorSource = doorArgs ? doorArgs.source : null
@@ -394,7 +396,7 @@ export default function MemberPane({
   if (!live) return null
   // ⭐ THE PASTE WORKER — a build of the box's text is running: said (the editor's own words), never a frozen tab
   const checking = building ? (
-    <p data-testid="pine-member-pane-building" role="status" className={styles.building}>{CHECKING_TEXT}</p>
+    <p data-testid="pine-member-pane-building" role="status" className={styles.building}><CheckingLine elapsedMs={buildingFor} /></p>
   ) : null
   // ⭐ A REFUSAL IS A SENTENCE, NEVER A BLANK. `paneGate` already produced one;
   // this renders it verbatim rather than inventing a second wording.
