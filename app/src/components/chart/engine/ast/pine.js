@@ -30465,7 +30465,7 @@ function translatePineResult(source, opts = {}) {
       // chart's candle reads per bar (`binder.computedOhlcPayload`), or why it cannot be carried. The member door
       // asks the one candle rule both doors share (`memberPaneDefinition.js::candleRule`) whether it is drawn.
       if (out.role === 'close' && Object.prototype.hasOwnProperty.call(MULTI_OUTPUT_CALLS, out.kind)) {
-        row.candle = candleFactsOf(args, out.kind, { env, resolver })
+        row.candle = candleFactsOf(args, out.kind, { env, resolver, bodyPres: row.presentation })
       }
       Object.defineProperty(row, '_bareRole', { value: bareRole, enumerable: false })
       // ⭐ C29 — this plot folded a chart-period value (`periodReads.js` refuses
@@ -34000,10 +34000,21 @@ function candleFactsOf(args, kind, ctx) {
     const tok = f && f.type === 'number' && f.tok ? f.tok.value : null
     facts.forceOverlay = tok === 'true' ? true : tok === 'false' ? false : 'unread'
   }
+  // ⭐ ONE READ PER DISTINCT COLOUR: the body's is the row's own (`bodyPres`, read once already), and a wick or
+  // border written as the same name as the body (`color = c, wickcolor = c`) is that same read, not a second one
+  const sameAsBody = (param) => {
+    const a = byName.get(param) && byName.get(param).value
+    const b = byName.get('color') && byName.get('color').value
+    return !!(a && b && a.type === 'name' && b.type === 'name' && a.name === b.name)
+  }
   for (const param of CANDLE_COLOUR_PARAMS[kind]) {
     if (!byName.has(param)) continue
+    if (param !== 'color' && sameAsBody(param) && facts.colours.color) { facts.colours[param] = facts.colours.color; continue }
     let pres = null
-    try { pres = outputPresentation([{ ...byName.get(param), name: 'color' }], { env: ctx.env, resolver: ctx.resolver, kind }) } catch { pres = null }
+    if (param === 'color' && ctx.bodyPres) pres = ctx.bodyPres
+    else {
+      try { pres = outputPresentation([{ ...byName.get(param), name: 'color' }], { env: ctx.env, resolver: ctx.resolver, kind }) } catch { pres = null }
+    }
     try { facts.colours[param] = packedColourTreeOf(pres) } catch { facts.colours[param] = { withheld: 'its colour could not be read' } }
   }
   return facts

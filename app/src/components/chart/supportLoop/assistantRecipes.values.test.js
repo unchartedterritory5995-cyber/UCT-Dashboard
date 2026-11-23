@@ -20,6 +20,7 @@ import path from 'node:path'
 import process from 'node:process'
 
 import * as registry from '../engine/nativeRegistry'
+import { objectHexToPacked } from '../engine/runtime/colours.js'
 import { memberPaneDefinition } from '../builder/memberPane/memberPaneDefinition'
 import { __permitRuntimePaneForTests } from '../engine/runtimePaneGate'
 import { __allowEveryRuntimeScriptForTests } from '../engine/runtimeKill'
@@ -496,13 +497,20 @@ const CHECKS = {
       o = ho; c = hc
     }
     const cols = engineColumns('heikin-ashi-candles')
-    expect(cols).toHaveLength(5)                                    // open, high, low, close, and which colour
+    // open, high, low, close, which colour, and (e96: the candle is DRAWN, one candle authority) the packed colours
+    // the chart's candle reads for its body, wick and border (`pine.js::candleFactsOf`), each the v5 green or red
+    expect(cols.length).toBeGreaterThanOrEqual(6)
     same(cols[0], wantO, 'HA open', { rel: 1e-9 })
     same(cols[1], wantH, 'HA high', { rel: 1e-9 })
     same(cols[2], wantL, 'HA low', { rel: 1e-9 })
     same(cols[3], wantC, 'HA close', { rel: 1e-9 })
     // the colour of each candle: up (green) when its close is at or above its open
     expect(cols[4]).toEqual(wantC.map((v, i) => (v >= wantO[i] ? 1 : 0)))
+    const packedGreen = objectHexToPacked('#4CAF50')   // v5 `color.green`, packed as the runtime lane packs it
+    const packedRed = objectHexToPacked('#FF5252')     // v5 `color.red`
+    for (const pc of cols.slice(5)) {
+      expect(pc).toEqual(wantC.map((v, i) => (v >= wantO[i] ? packedGreen : packedRed)))
+    }
     expect(new Set(cols[4]).size).toBe(2)                           // both colours occur on these bars
     // not the bar's own candles: on most bars the open differs from the bar's open
     expect(cols[0].filter((v, i) => Math.abs(v - b[i].o) > 1e-9).length).toBeGreaterThan(b.length * 0.9)

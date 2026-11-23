@@ -221,7 +221,7 @@ export const FAMILIES = Object.freeze([
       'pine:colour-unread', 'pine:colour-default-unwitnessed',
       // a `plotarrow` (TradingView's up and down arrows) is not drawn as a line of its value: withheld by name
       'pine:plotarrow-not-drawn',
-      // e96 — a candle or bar the one candle rule withholds (never four lines in its place): by name
+      // e96: a candle or bar the one candle rule withholds (never four lines in its place), by name
       'pine:candle-not-drawn'],
     prefix: ['pine:offset-negative', 'paint:', 'runtime:fill-', 'format:'],
     label: 'How it is drawn',
@@ -621,7 +621,7 @@ export function statusItems(report, pane = null) {
     for (const n of pane.notes) {
       if (!n || !n.note || said(n.note)) continue
       if (items.some((x) => x.kind === 'paint' && x.reason && n.note.includes(x.reason))) continue
-      // ⭐ e96 — a note the door marks WITHHELD (a level drawn with a style TradingView's default for which is not
+      // ⭐ e96: a note the door marks WITHHELD (a level drawn with a style TradingView's default for which is not
       // captured, or not drawn: `memberPaneDefinition.js::levelNotesOf`) is a withheld part, by its guard
       if (typeof n.withheld === 'string' && n.withheld) {
         items.push(item({ severity: SEVERITY.WITHHELD, kind: 'part', name: noteHeading(n.name), guard: n.withheld, reason: n.note }))
