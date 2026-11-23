@@ -31,6 +31,14 @@ export function closeMinuteOf(iso) {
 
 const dayUnix = (iso) => Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10)) / 1000
 
+/** Is the regular session open at `nowMs` (a session day, 09:30 to its close: 13:00 on an early-close day)? */
+export function inRegularSession(nowMs = Date.now()) {
+  const nowSec = Math.floor(nowMs / 1000)
+  const today = etDateLabel(nowSec)
+  const mod = etMinuteOfDay(nowSec)
+  return !!sessionISO(today) && mod >= RTH_OPEN_MIN && mod < closeMinuteOf(today)
+}
+
 /**
  * @param {number} through   unix s the copy is complete up to
  * @param {string} tf        store tf ('1' ... '60', 'D', 'W', 'M')
@@ -42,7 +50,7 @@ export function deviceCopyFresh(through, tf, nowMs = Date.now()) {
   const today = etDateLabel(nowSec)
   const mod = etMinuteOfDay(nowSec)
   const close = closeMinuteOf(today)
-  if (sessionISO(today) && mod >= RTH_OPEN_MIN && mod < close) {
+  if (inRegularSession(nowMs)) {
     // ⛔ D/W/M: NEVER FRESHER THAN THE CHART WILL PAINT (review of #2407). The chart has its own age rule for a
     // today-dated daily bar (marketSession.isDailyTodayBarStaleForPaint, read with the copy's saved time, which
     // is this `through`): DAILY_TODAY_MAX_AGE_MS. A daily copy older than that and inside DEVICE_FRESH_MS was

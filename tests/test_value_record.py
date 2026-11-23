@@ -198,7 +198,9 @@ def test_a_fresh_run_reports_each_cases_verdict_and_answer(tmp_path):
     graded_here = [c["id"] for c in CASES if c["lane"] != "script"]
     # each case's verdict is the one its record holds: right, or the known defect's WRONG (named in the case)
     assert report["verdicts"] == {c["id"]: c.get("recorded_verdict", "right") for c in CASES if c["lane"] != "script"}
-    assert set(report["verdicts"]) == set(graded_here) and "wrong" in report["verdicts"].values()
+    # (a wrong verdict is there exactly when a case graded here is recorded WRONG; today the fixture may hold none)
+    assert set(report["verdicts"]) == set(graded_here)
+    assert ("wrong" in report["verdicts"].values()) == any(c.get("recorded_verdict") == "wrong" for c in CASES if c["lane"] != "script")
     assert set(report["answers"]) == set(graded_here)
 
 
