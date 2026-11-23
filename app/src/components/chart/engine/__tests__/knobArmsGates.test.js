@@ -90,7 +90,8 @@ describe('the header custom stat binds at the stat\'s settings', () => {
 describe('the import screen needs no bind: its translation folds every switch at the default', () => {
   it('no output is listed missing for an unpicked arm, and the translation it reads holds no event read', () => {
     const report = inspectSource(SRC, 'pine')
-    expect(report.ok).toBe(true)
+    expect(report.ok, JSON.stringify({ refusal: report.refusal || null, error: report.error || null,
+      foreign: report.foreign || null, keys: Object.keys(report) })).toBe(true)
     expect(JSON.stringify(report.outputs)).not.toContain('EV-ES')
     expect(importOutcome(report).missing).toEqual([])
   })
