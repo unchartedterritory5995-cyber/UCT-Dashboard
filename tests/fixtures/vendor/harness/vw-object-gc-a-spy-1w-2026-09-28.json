@@ -178,9 +178,9 @@
     "id": "text",
     "name": "ILScript",
     "type": "text",
-    "defval": "bmI9Ks46_p/48pngVTpmN2hHsp5KolA==_ChKzyRA5yI1o5MfqjlosQheskyNZDrxLoPLeL7wf74o1ET4xs9kbYza6w4c+xS+CCcDC5JeHsGssSoeXdOOD/VcmSfksTyMNO55WgdUud4GZK/yaByj9xX08eeHWV1hbspY5LPj+L8yNQ5joWPVuQAtWmd0TEQjTbRRjiXbL+aR7at3qTOVXqBffFISWakwsBeNNmEVVk/nKx9LvAffzlMrWwY+W8R3xF86JTsndbrhfLbVx13lwWo0lJAcRZFQpPOVfo4uwaKSuT3bnMXUN86cuIO4HodVh0crPP7eUPqtvKhZmiscFa7xiG7TiiV/8zanEYGdbBQcplM1Yhu35PRBWJamdBj4q+YtfdCORM3w9ZuEIh2yteqK6cf3u8xAOfH5CIAonqTLvDV9r7zlgjdrCtj7/UIwAZFKzaApKJvAsU5WlTIoC1rSpLJD6q5Td3kCDXQmxv4e5mixHCnEOhB+kNFCtMSCOAIWFp1c5SYaK7tAgdno9lZg+UZbVg19HBQhYb0d8b3ZnWkZDTMrdzrzBmcfDecRuluelQTx5AYANpqoflnbH6vs6GGtYjqml6aNO6WVUiIi8uel4btLv+k6tT+57fPJte91+r9V2nTf1kHaSEbmK1c6bm6KAgLuoabaUmYci0SkaLCRG9bNDi/HxbacU8//Z4kXIgaG+UZqISj5OiF2AWpuEbqJDtKNfaZ8apfeO/sefxBR7vtNB/wVdKVnWNOpfvMu3N8CyqFVW0xt4oAeSao8JcMzJO0CQhEGayeY5AxhBy13PVY0cTto0HlbQpUfi125JE+BXGfRM81IuUVd/XSJBViZ829VS6Xe36cm0J3+lOVCWLQQAsuWHrRLsfy1SV6ajhJhf3viyXD+RgSjvW001kqqIExNl+6IgXyp45WJeTCyFAXKbSKR98Ghg8HFTyphDvDeUfMuQJu4z5vrKZxlPR0mE8L8u9OKPcawFQ1NT6IJynzIwIvYORv2/3Vr9tuJFJ67oWVS8S1A4ogDkiZNAfAnWpXvhpU1jLwD2saPj5lXgKpLKETPWwr1p+7hOZgVJYfdqgXKttrP81Uo6m5GUPbVv0pvT917ZZ7B3bCN/0e5X7+U69DRxZMRr3lqTfSKZosGD3WCdojfKa4TUFfb3l2BpMkkb958rQOkWCIX223/VmjW31LTGjyEaeLtWDgSK9aEoAs+rLGbl86D5byLpx9wP4ewrVtI4NVpOvW/VlADPHm8VhJaW7BzHHjkL0lHcbxwPHcUcKT91eg9Vjnquc0KGPxoPn3zIMRL89gYHseJScTckhe+t0Gaq9/HA/hBPqZSwVwL/hBKDCnA2Wvc6HG/BDHhTvyZKUGFXTpXnEQssznR6g4YZfBpkcerMpTdRrDvaao9ZdUp7cowxlIoL4WI62+vVXf5bs2+e+fHvgw==",
+    "defval": "[redacted: TradingView compiled script]",
     "isHidden": true,
-    "value": "bmI9Ks46_p/48pngVTpmN2hHsp5KolA==_ChKzyRA5yI1o5MfqjlosQheskyNZDrxLoPLeL7wf74o1ET4xs9kbYza6w4c+xS+CCcDC5JeHsGssSoeXdOOD/VcmSfksTyMNO55WgdUud4GZK/yaByj9xX08eeHWV1hbspY5LPj+L8yNQ5joWPVuQAtWmd0TEQjTbRRjiXbL+aR7at3qTOVXqBffFISWakwsBeNNmEVVk/nKx9LvAffzlMrWwY+W8R3xF86JTsndbrhfLbVx13lwWo0lJAcRZFQpPOVfo4uwaKSuT3bnMXUN86cuIO4HodVh0crPP7eUPqtvKhZmiscFa7xiG7TiiV/8zanEYGdbBQcplM1Yhu35PRBWJamdBj4q+YtfdCORM3w9ZuEIh2yteqK6cf3u8xAOfH5CIAonqTLvDV9r7zlgjdrCtj7/UIwAZFKzaApKJvAsU5WlTIoC1rSpLJD6q5Td3kCDXQmxv4e5mixHCnEOhB+kNFCtMSCOAIWFp1c5SYaK7tAgdno9lZg+UZbVg19HBQhYb0d8b3ZnWkZDTMrdzrzBmcfDecRuluelQTx5AYANpqoflnbH6vs6GGtYjqml6aNO6WVUiIi8uel4btLv+k6tT+57fPJte91+r9V2nTf1kHaSEbmK1c6bm6KAgLuoabaUmYci0SkaLCRG9bNDi/HxbacU8//Z4kXIgaG+UZqISj5OiF2AWpuEbqJDtKNfaZ8apfeO/sefxBR7vtNB/wVdKVnWNOpfvMu3N8CyqFVW0xt4oAeSao8JcMzJO0CQhEGayeY5AxhBy13PVY0cTto0HlbQpUfi125JE+BXGfRM81IuUVd/XSJBViZ829VS6Xe36cm0J3+lOVCWLQQAsuWHrRLsfy1SV6ajhJhf3viyXD+RgSjvW001kqqIExNl+6IgXyp45WJeTCyFAXKbSKR98Ghg8HFTyphDvDeUfMuQJu4z5vrKZxlPR0mE8L8u9OKPcawFQ1NT6IJynzIwIvYORv2/3Vr9tuJFJ67oWVS8S1A4ogDkiZNAfAnWpXvhpU1jLwD2saPj5lXgKpLKETPWwr1p+7hOZgVJYfdqgXKttrP81Uo6m5GUPbVv0pvT917ZZ7B3bCN/0e5X7+U69DRxZMRr3lqTfSKZosGD3WCdojfKa4TUFfb3l2BpMkkb958rQOkWCIX223/VmjW31LTGjyEaeLtWDgSK9aEoAs+rLGbl86D5byLpx9wP4ewrVtI4NVpOvW/VlADPHm8VhJaW7BzHHjkL0lHcbxwPHcUcKT91eg9Vjnquc0KGPxoPn3zIMRL89gYHseJScTckhe+t0Gaq9/HA/hBPqZSwVwL/hBKDCnA2Wvc6HG/BDHhTvyZKUGFXTpXnEQssznR6g4YZfBpkcerMpTdRrDvaao9ZdUp7cowxlIoL4WI62+vVXf5bs2+e+fHvgw=="
+    "value": "[redacted: TradingView compiled script]"
    },
    {
     "id": "pineId",
@@ -28933,10 +28933,38 @@
   "unreadable": []
  },
  "warnings": [],
+ "redactions": [
+  {
+   "field": "study.inputs[name=ILScript].value",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 1458,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 164620,
+    "fnv1a": 314986965
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:47Z"
+  },
+  {
+   "field": "study.inputs[name=ILScript].defval",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 1458,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 164620,
+    "fnv1a": 314986965
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:47Z"
+  }
+ ],
  "receipt": {
   "algo": "fnv1a32-utf16",
   "over": "JSON.stringify(capture without its receipt key)",
-  "chars": 164620,
-  "fnv1a": 314986965
+  "chars": 162368,
+  "fnv1a": 213231478
  }
 }

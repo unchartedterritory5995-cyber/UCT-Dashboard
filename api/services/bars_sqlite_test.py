@@ -192,7 +192,16 @@ def test_put_bars_triggers_recovery_on_malformed(tmp_path, monkeypatch):
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
     bars_sqlite = _reload_bars_sqlite()
 
+    # ⭐ put_bars reads through the connection before it writes (`_history_keys`, `_drop_stale_sealed`) and bumps the
+    # series' revs after (`bump_series_revs`), so a poisoned image answers EVERY statement with the same error, as a
+    # malformed file does. (It used to answer only `executemany`, and the first `execute` read an AttributeError
+    # instead of the corruption this test is about.)
     class _PoisonedConn:
+        total_changes = 0
+
+        def execute(self, *_a, **_kw):
+            raise sqlite3.DatabaseError("database disk image is malformed")
+
         def executemany(self, *_a, **_kw):
             raise sqlite3.DatabaseError("database disk image is malformed")
 
@@ -236,26 +245,34 @@ def test_put_bars_retries_on_locked_then_succeeds(tmp_path, monkeypatch):
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
     bars_sqlite = _reload_bars_sqlite()
 
-    real_conn = sqlite3.connect(os.path.join(str(tmp_path), "bars.db"))
-    real_conn.execute(
-        "CREATE TABLE IF NOT EXISTS ohlcv ("
-        "ticker TEXT, tf TEXT, ts INTEGER, o REAL, h REAL, l REAL, c REAL, v INTEGER, "
-        "PRIMARY KEY(ticker, tf, ts))"
-    )
-    real_conn.commit()
+    # The store's real schema (ohlcv AND series_meta: put_bars bumps the series' revs in the same transaction).
+    bars_sqlite.init_db()
+    real_conn = sqlite3.connect(bars_sqlite._DB_PATH)
 
     # sqlite3.Connection methods are read-only attributes, so we wrap the
     # real connection in a thin proxy whose executemany is monkeypatchable.
+    # ⭐ Everything else put_bars uses (its reads before the write, the rev bump after it) goes to the real
+    # connection unchanged; only the write itself is locked, once.
+    # ⭐ It counts the attempts at the OHLCV WRITE, not every executemany: the rev bump after a successful write
+    # (bump_series_revs) is an executemany too, so counting them all read 3 for one retry.
     class _FlakyConn:
         def __init__(self, real):
             self._real = real
-            self.calls = 0
+            self.ohlcv_write_attempts = 0
 
-        def executemany(self, *args, **kwargs):
-            self.calls += 1
-            if self.calls == 1:
-                raise sqlite3.OperationalError("database is locked")
-            return self._real.executemany(*args, **kwargs)
+        @property
+        def total_changes(self):
+            return self._real.total_changes
+
+        def execute(self, *args, **kwargs):
+            return self._real.execute(*args, **kwargs)
+
+        def executemany(self, sql, *args, **kwargs):
+            if "INTO ohlcv" in sql:
+                self.ohlcv_write_attempts += 1
+                if self.ohlcv_write_attempts == 1:
+                    raise sqlite3.OperationalError("database is locked")
+            return self._real.executemany(sql, *args, **kwargs)
 
         def commit(self):
             return self._real.commit()
@@ -268,7 +285,9 @@ def test_put_bars_retries_on_locked_then_succeeds(tmp_path, monkeypatch):
         [{"t": 20240102, "o": 1, "h": 2, "l": 1, "c": 2, "v": 100}],
     )
     assert n == 1
-    assert flaky.calls == 2, "expected one retry after a single locked error"
+    assert flaky.ohlcv_write_attempts == 2, "expected one retry after a single locked error"
+    stored = real_conn.execute("SELECT COUNT(*) FROM ohlcv WHERE ticker = 'AAPL' AND tf = 'D'").fetchone()[0]
+    assert stored == 1, "the retried write must land"
 
 
 # ⚰️ SIX CASES FOR `bars_provenance` LIVED HERE UNTIL 2026-08-09 and they were

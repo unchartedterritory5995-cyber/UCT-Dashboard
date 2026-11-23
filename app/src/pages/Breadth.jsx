@@ -19,6 +19,10 @@ import { useLiveBreadth } from '../hooks/useLiveBreadth'
 import { drillTarget } from './breadth/liveDrill'
 import { shadeFor, SHADE_SPEC, isBacktestedRow } from './breadth/shading'
 
+// (2026-11-23) UCT Exp before 2026-08-22 is the Exposure Rating formula run on history
+// (breadth_uct_exposure_model.py), not a rating the Morning Wire published.
+const UCT_EXP_MODEL_TITLE = "Rebuilt by the UCT Agent: today's Exposure Rating formula, run on the SPY and QQQ bars "
+  + 'through the session before. The Morning Wire did not publish a rating that day.'
 // A UCT session before the collector's first live list (owner 2026-11-22): its numbers are kept,
 // unshaded, and the date says why.
 const BACKTEST_TITLE = "Back-tested list — UCT before 2026 is today's UCT list run backward, "
@@ -1993,6 +1997,7 @@ export default function Breadth() {
                               ? 'Provisional, reconciles to roughly 10%'
                               : liveBreadth.partial?.has(col.key) && row._live
                                 ? 'Builds through the session — only complete at the close'
+                                : (col.key === 'uct_exposure' && row.uct_exposure_model && val != null) ? UCT_EXP_MODEL_TITLE
                                 : carried ? undefined   // its as-of shows in the age tooltip below
                                   : isStaleAaii ? `Survey: ${row.aaii_survey_date}`
                                     : hasList ? 'Click to see stocks'

@@ -202,9 +202,9 @@
     "id": "text",
     "name": "ILScript",
     "type": "text",
-    "defval": "bmI9Ks46_SUjgF5UDe9IV/IoytAMswg==_k1IGdU3npg0YI5dU1BaVDK+QhBAoPzFB6PiKtSU4R086Uh/DmWRtP3qPjfAdNS4bAz4KSyzcJ4OJmSXrhywohEU3j+IVBcYjRVGdBP32nc13S5vF10uJ+PjNcPrQYkT7xYtObDlyHZI3+QsZOtzcZMWNlz3O28C30rVoVSQfRmv8PfqEPhsklLU6hf91b4AgNtpi6qQ0r+HptQrbYcKfxwEuWgUx/l7jZCikC4NUalyiarweWboTxVXn53XSSJkIPCyZgsWEGgNkfxA9RQbM/VUJ4f0I7z6y+2pq7lOhwrlJP1vwhqIuXa6S3QEI3giI/vZevflQnJLahV8WlIXQZFJZXPeaFNzTny4UVqwPN5rzB9rQbhjh02lWfesrsYSImOgTihezKiBIxqpzIFC6Rf5b+amnVCih5upKNC4oPsqkBoC4aqe7H2jSdNlYrCNvhwaoiliXJotigHLCIfZXszhap9wh9A0RwkFGr7hOQ6uaJ1z7ojMae+Z78DwXUBohD2HYkpDKlIeOvfyQXpUyaxQgxPVdqaxqcL/4MgMO5jpziJsB2K9ZUcw/eO1Wj341GOY3uhtKPrC2Xp6cw5UM7qbbmWJNR58nhdM9pNrq5s511fdiGThQ8bwxsF9paYSmDbwZMB47tyWdXZM+V2CgQqmrxUVIQHjwrZ9O5NBdqqM0ZaP+bR/iKVQt",
+    "defval": "[redacted: TradingView compiled script]",
     "isHidden": true,
-    "value": "bmI9Ks46_SUjgF5UDe9IV/IoytAMswg==_k1IGdU3npg0YI5dU1BaVDK+QhBAoPzFB6PiKtSU4R086Uh/DmWRtP3qPjfAdNS4bAz4KSyzcJ4OJmSXrhywohEU3j+IVBcYjRVGdBP32nc13S5vF10uJ+PjNcPrQYkT7xYtObDlyHZI3+QsZOtzcZMWNlz3O28C30rVoVSQfRmv8PfqEPhsklLU6hf91b4AgNtpi6qQ0r+HptQrbYcKfxwEuWgUx/l7jZCikC4NUalyiarweWboTxVXn53XSSJkIPCyZgsWEGgNkfxA9RQbM/VUJ4f0I7z6y+2pq7lOhwrlJP1vwhqIuXa6S3QEI3giI/vZevflQnJLahV8WlIXQZFJZXPeaFNzTny4UVqwPN5rzB9rQbhjh02lWfesrsYSImOgTihezKiBIxqpzIFC6Rf5b+amnVCih5upKNC4oPsqkBoC4aqe7H2jSdNlYrCNvhwaoiliXJotigHLCIfZXszhap9wh9A0RwkFGr7hOQ6uaJ1z7ojMae+Z78DwXUBohD2HYkpDKlIeOvfyQXpUyaxQgxPVdqaxqcL/4MgMO5jpziJsB2K9ZUcw/eO1Wj341GOY3uhtKPrC2Xp6cw5UM7qbbmWJNR58nhdM9pNrq5s511fdiGThQ8bwxsF9paYSmDbwZMB47tyWdXZM+V2CgQqmrxUVIQHjwrZ9O5NBdqqM0ZaP+bR/iKVQt"
+    "value": "[redacted: TradingView compiled script]"
    },
    {
     "id": "pineId",
@@ -11119,10 +11119,38 @@
  "warnings": [
   "the newest D/W/M bar closed less than 5 h before this capture: TradingView confirms such a bar hours after the regular close (measured between 19:22 and 20:55 ET, docs/pine/barstate.md ruling 3.1), so the vendor's own barstate.isconfirmed may still read 0 on it"
  ],
+ "redactions": [
+  {
+   "field": "study.inputs[name=ILScript].value",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 730,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 54879,
+    "fnv1a": 1570358855
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:36Z"
+  },
+  {
+   "field": "study.inputs[name=ILScript].defval",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 730,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 54879,
+    "fnv1a": 1570358855
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:36Z"
+  }
+ ],
  "receipt": {
   "algo": "fnv1a32-utf16",
   "over": "JSON.stringify(capture without its receipt key)",
-  "chars": 54879,
-  "fnv1a": 1570358855
+  "chars": 54081,
+  "fnv1a": 2287748042
  }
 }

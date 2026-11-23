@@ -315,9 +315,9 @@
     "id": "text",
     "name": "ILScript",
     "type": "text",
-    "defval": "bmI9Ks46_ajaivExt36ae45dOna8wIg==_WOKR2R6AGNKKM4CuCN0atauJtjbx5ZO6vLKbNRFXTnM1gqfvzy3Di4x/hN+Z/Uyopx1L4JcfI3S6xi2qlOvpkqAJGMxaCB0CCk3PUJf5tx3Cv1gUQSfCp+Z9LH8KvQ8MSNuDzPFt3KUxgROQMvSPJG9RIfI7XDrxIompooJOulQ1yZsRggQtIFFb5NTJYOzdjYrgqzFP3udCNFFbrzKiyJAp304f1XMRgQc1PFg/90c8KZ1kZEq+DjN5hd2p/UPeqmY1UWVZ9Eiekz6erEHczTw5DlT9gyAkIlQIpXHo9NLSOUc4vpCmfyGL6AHKHWYRGL3Qg0WKawtGXAKMhf+QEyhCF9u/9S0o437joh+Eq2EH2ptNwcdf1QDICQs5GWqkiS1AmNFfoZ6MD0Fr6pMoGjIhCiviL2OhVywIYlK9gUEd5guynxF4Ky6CWk9o+IvQ8up8BnOb4lZ0EB1Hxl67pzcpAGIK3oS8PIhG8LxllK1vjoXrKV8Z9zwifd4XRI2pr/3U0C3/5P9AzDhN3jERSpx/gCbJRuK+UHRBh++ZcJ8UmlDrdfGyfdZrSbk9cWNjX57lOk76XgUVl1uswnqyBpPLGtMS7dGZUnnhe3BNwO/lAnkWxoTyCeQXDRQbXXogOajIQrIQdRgNY7yt8cpaWpKkFh6UW5M8eQEJg27FOpLO/+fRIsEd1V8QTEjS7BwLPEcw11dEOdbxIU0zZQQKA+3+TELDws3jJppijo1CoCeY1/zAlw2PB5MTBb8o+RRTD+P5G1IqL3mp61BBfjht+Uv9N0i9+NwISVXa+mIGMHcEFJLq7rDiqCY1VaKqt2ZfpaEFyy25ctUFSe0S62voXCZDwdPp++8lJAQTy+aPQGhCGu4ywm4oQSUQgtm0Uoasqrb+ikW77XbOPoYF0qL22AGqSJgdGeqmJKCY706Q8jvCGsy0ojzJIzQbtHS2y6qROMfN6wqnuqLc0IfHmEIfhGtfsHKG2lx4mNYga9rJFth3l85QzBzU3japfrO7/9i64t7wN8DMVIhMZsXuSsMTrCh8pXNFdsstkATkc//sFTbmJ5WOCRtCqTyaT9fi9HSEALHsBJBeCF72o9ZvR59GOwtfHeHAiAmjkI9Kz8ygy5+L6JQCjkHiPmryLuZLZEhgl+NANr1MCBUCdtrtOO3pXGyrvPMoN3mmrYMotQtXgpUYGjbeSENis7NsQIcQwZQ+z7fdNX9Bme5aClW+g/cElu7bI4kTeH9U7C3DLfPRzAOAcSzosbb9IPsT1wWxbSXVPLTsJJqXd7nkK3TZay5l62nwMrlvHV4m9i6dU5oCXSYuBZPA9DlBWWweRWR428Y1cHHioVZBph4j83KjH+o9DBCqpAqLC9qYQQdG6vC7+1hkAavi9XT3R9IbDL/d",
+    "defval": "[redacted: TradingView compiled script]",
     "isHidden": true,
-    "value": "bmI9Ks46_ajaivExt36ae45dOna8wIg==_WOKR2R6AGNKKM4CuCN0atauJtjbx5ZO6vLKbNRFXTnM1gqfvzy3Di4x/hN+Z/Uyopx1L4JcfI3S6xi2qlOvpkqAJGMxaCB0CCk3PUJf5tx3Cv1gUQSfCp+Z9LH8KvQ8MSNuDzPFt3KUxgROQMvSPJG9RIfI7XDrxIompooJOulQ1yZsRggQtIFFb5NTJYOzdjYrgqzFP3udCNFFbrzKiyJAp304f1XMRgQc1PFg/90c8KZ1kZEq+DjN5hd2p/UPeqmY1UWVZ9Eiekz6erEHczTw5DlT9gyAkIlQIpXHo9NLSOUc4vpCmfyGL6AHKHWYRGL3Qg0WKawtGXAKMhf+QEyhCF9u/9S0o437joh+Eq2EH2ptNwcdf1QDICQs5GWqkiS1AmNFfoZ6MD0Fr6pMoGjIhCiviL2OhVywIYlK9gUEd5guynxF4Ky6CWk9o+IvQ8up8BnOb4lZ0EB1Hxl67pzcpAGIK3oS8PIhG8LxllK1vjoXrKV8Z9zwifd4XRI2pr/3U0C3/5P9AzDhN3jERSpx/gCbJRuK+UHRBh++ZcJ8UmlDrdfGyfdZrSbk9cWNjX57lOk76XgUVl1uswnqyBpPLGtMS7dGZUnnhe3BNwO/lAnkWxoTyCeQXDRQbXXogOajIQrIQdRgNY7yt8cpaWpKkFh6UW5M8eQEJg27FOpLO/+fRIsEd1V8QTEjS7BwLPEcw11dEOdbxIU0zZQQKA+3+TELDws3jJppijo1CoCeY1/zAlw2PB5MTBb8o+RRTD+P5G1IqL3mp61BBfjht+Uv9N0i9+NwISVXa+mIGMHcEFJLq7rDiqCY1VaKqt2ZfpaEFyy25ctUFSe0S62voXCZDwdPp++8lJAQTy+aPQGhCGu4ywm4oQSUQgtm0Uoasqrb+ikW77XbOPoYF0qL22AGqSJgdGeqmJKCY706Q8jvCGsy0ojzJIzQbtHS2y6qROMfN6wqnuqLc0IfHmEIfhGtfsHKG2lx4mNYga9rJFth3l85QzBzU3japfrO7/9i64t7wN8DMVIhMZsXuSsMTrCh8pXNFdsstkATkc//sFTbmJ5WOCRtCqTyaT9fi9HSEALHsBJBeCF72o9ZvR59GOwtfHeHAiAmjkI9Kz8ygy5+L6JQCjkHiPmryLuZLZEhgl+NANr1MCBUCdtrtOO3pXGyrvPMoN3mmrYMotQtXgpUYGjbeSENis7NsQIcQwZQ+z7fdNX9Bme5aClW+g/cElu7bI4kTeH9U7C3DLfPRzAOAcSzosbb9IPsT1wWxbSXVPLTsJJqXd7nkK3TZay5l62nwMrlvHV4m9i6dU5oCXSYuBZPA9DlBWWweRWR428Y1cHHioVZBph4j83KjH+o9DBCqpAqLC9qYQQdG6vC7+1hkAavi9XT3R9IbDL/d"
+    "value": "[redacted: TradingView compiled script]"
    },
    {
     "id": "pineId",
@@ -40037,10 +40037,38 @@
  "warnings": [
   "the newest D/W/M bar closed less than 5 h before this capture: TradingView confirms such a bar hours after the regular close (measured between 19:22 and 20:55 ET, docs/pine/barstate.md ruling 3.1), so the vendor's own barstate.isconfirmed may still read 0 on it"
  ],
+ "redactions": [
+  {
+   "field": "study.inputs[name=ILScript].value",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 1438,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 243109,
+    "fnv1a": 3193383694
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:46Z"
+  },
+  {
+   "field": "study.inputs[name=ILScript].defval",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 1438,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 243109,
+    "fnv1a": 3193383694
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:46Z"
+  }
+ ],
  "receipt": {
   "algo": "fnv1a32-utf16",
   "over": "JSON.stringify(capture without its receipt key)",
-  "chars": 243109,
-  "fnv1a": 3193383694
+  "chars": 240899,
+  "fnv1a": 809454601
  }
 }

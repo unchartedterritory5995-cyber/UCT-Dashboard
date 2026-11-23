@@ -258,7 +258,7 @@
     "type": "text",
     "defval": "",
     "isHidden": true,
-    "value": "bmI9Ks46_B1mi2XGCVcifMgWxvMhGVA==_XTCX4s2+glf5/PBEE/H+DGA4ft6ZmHg45wfoMXhMyH6Anet8Cq/W7Wc4iYP12zkWc2yzeZhcJHvjA/7mwbrMACDb6Q9GbQsUh1dXp2Q8XcN3SEogPDsSnq2A9NWdBRmFxl/+WKhz3QgWEOFN0mFXUxmeXO8krDRfKOqGEH+Qj5O6VcR3lwiOQIgkSk12J4i3AaEXCuaq4OQwCJhCea+P+S4xgznBDKJyVF4yIux91roxG9T6EquIOC6nKBe1FtAZZQ1HYcvO/3XjU9JWr5F45IZ7DjJ0EZA5USvLffafUVTrU2R1NpB8AfMftnClCfrbkBZXgAUIMvMN7Yr0GP5je5CZUBDNSkmhAr/4E06MJJad7bqSlbOuxXFybcrSA416GDt8/ThjPKVoypMrmo6l7yJAEWwnlL7nx5sofMyJCAh5JNMp8p2BYyxLtoo/GC6gNDIY901evac6MqfAtHGirAb7EoHnbz9Jg3G2kqbqkRmtNpnqHJZthBtedHZT2+iO2X+YVYO0pfRPvMW8ifgZMfUKi+mutGxyyXU+MJ1YSJOJMASBql8LDH/MqPYgp95eJ2a42cFMSeyaOn9CoD2Yg4HW8jZND48nC5tFqyv0KclambGfA6j5WSzLavL7/tpLVEPEDzM33Jmln1j+7tiwTyAxhSMV0mSjM+yxhWgx0KKqO+iPqit8CptPAKB1YakdvwMF2JNfMtoW72Z1WF2PWPq5FPBRfwwQ2p5sPV0VE87NniTRaKJPrZBTRanNWWeuRdChkorS43EuBHHQvuHOqVf8Zlszgf5rf5ZOOyskZSg7qy3hrXcxbE7+Z8NqvjdEnyX+Rl2lV4hISNk0yUn7O2gRKu/aLZ+OpclT2jgKzYhr+9Utm7h3RLHkffzacx0BWpWXCqf3K/rk4zuHGznm4O9ZrUZH/T8Bj7nACnYeYkzO3dXkzdVFa5BbenZAsjIRN+jyiSGlvMwl4luEZpCalQq6IEwCip+xwe15H4I8TlhKN2OWmGQRfR3l4DOM5pckuXkQkkcJRKWIys9Yywscwa0HdNNFI1MfpDQz4uQQiBDS8v1NFSAHyDNoT0It3Uwb6uv89kcYLe1ja+AtDnSa9/L+pQvtA5e/Wn92qAzUgv43vA=="
+    "value": "[redacted: TradingView compiled script]"
    },
    {
     "id": "pineId",
@@ -170547,10 +170547,25 @@
  "warnings": [
   "the newest D/W/M bar closed less than 5 h before this capture: TradingView confirms such a bar hours after the regular close (measured between 19:22 and 20:55 ET, docs/pine/barstate.md ruling 3.1), so the vendor's own barstate.isconfirmed may still read 0 on it"
  ],
+ "redactions": [
+  {
+   "field": "study.inputs[name=ILScript].value",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 1170,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 754688,
+    "fnv1a": 660644912
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:52Z"
+  }
+ ],
  "receipt": {
   "algo": "fnv1a32-utf16",
   "over": "JSON.stringify(capture without its receipt key)",
-  "chars": 754688,
-  "fnv1a": 660644912
+  "chars": 753857,
+  "fnv1a": 3935562664
  }
 }

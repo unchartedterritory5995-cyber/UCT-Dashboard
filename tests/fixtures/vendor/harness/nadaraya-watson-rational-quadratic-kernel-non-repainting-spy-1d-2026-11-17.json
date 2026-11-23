@@ -197,7 +197,7 @@
     "type": "text",
     "defval": "",
     "isHidden": true,
-    "value": "bmI9Ks46_8sSXa50BoVUCvfCL2gfvvQ==_w7U31TPGco209YDtV09QDcR3688ItqRWQ1THhz6RhBC74J8RoA4qbU2ITioV0HKg8fLvxdw/ERtgvdPFll2wpbFjkvYWhZSaVWBb/XC/JC10eZLAIqzS1vhDp/6lL/Te4uS8bZW9iqWBVIrzkPqRIJEEVniKVl7Gk8ZwQXag/zzVzs90zgC5Kh2z0TCEIybGNmKcsWfLQ3SPRd3+wM1AHjv3IOBHm03lDzvWqGUb1JxcAZkwvsPz1KwotRb3plhbUbM+b56ahm1e/P0H7F9bBUZTtafE6UOlBin55almH86AIEknT+uGkEJTGu9JYhzIw9hTdAbQInSIiC256+6xG9gTVNePPlbOWF9e3X+1+iVU1z7jAms0TI+X0ednfKhybc2AFw7XibC2Y+rD93za45EaYmNcqjkz+tT54hoxqpOTm1PdHsbC8zIRbu7NVBxxQfJL3dm/VIX+FwmbU7tFv2y/PuSg3yV1WtrUDqcLl/6yFdjAH2exReSUH/T1gpotwN1Nq+HoQnQjqi+ByCPV/Q7IrEddHqXfhegNxrmsmT5iArqQUTi/P0j+zGCBDtd5jOVVh2Wm0Dna+mw2m6SyAjXN+urVUtRTkwJX99H4GxJUma5i0F+B33vISBEjq2zAz0nZnA4sRFfObhMnCcMBX/dHWEqMb9KwTk7h3SPJAsUaLp0M3zylnVsgIMICBxJ7vQI2yJVoOaO1vTzbU2XNyxRlwxivHyF0hwM4QU8QdAWROl4h+44WDR/5erZwooHXNokYjbeOyxfBCq4qVRvue9OX7Q+s2ptBAIDFFO1a6OY9y7R9soMXT+CcW2Tcp4Bs8PB0XZ7EJjkI8jOYYrwWljrTeRQyHjAbVrajJf3SraWarAtZTAMHyV6rdOYpS9SXvBjH/XyRwFYrKguMi/fFwfjKF7XBNe8nktG+BxEmg6gXL3wA211PbTI5TwvjYWmYs8Mgsy2zpY8uVLWhmuzhSL1IKdnktJRpIifjGrknomoIVdKFNb+w2Xu8MX0T282X4bWhQr8SphlLmiE8HIE73Mz1L4JsMj+T6zxtGDO/aRae1UHx0rQ/r3g0K5elc7iQ9njAA8WGe42w38CO4qo9jVKMMMwm0L2QeR9I7iiUU9uVU7LrntAGtUKksuajTIsOZEdTByQVBo/U/JmmZ7hlEW3EhoeVHJg8U85qFckErHiZ7/9yscTQ17QHAbMCKaZRYDJZLXd5A/FNgYe6zDIo6X8p//Rhibm9bEp/wi3J8gVac6cKBjJEpZfMkUrtRpL8g/lPxmWkKNPF3XD/rd0V8RXs/yAk/xNn/QvVUWu5CdkCZpwy3eaZNHWBcjiMNX70+ZA09yfnyce/5i9jKJnI0VxrL1m3gtAW5PfcRIlhnYFGv7L97rGZ5wBkRO8P48MIJlTuO9P7B2iaTwD7JAuCjwE+Z9k8ggJFWiaQyWusdXKk/YqlPxKOc5uY1Lx+4y2SYAMUNktLDbPkWPqddc0+BNF0+tDd+Moyj6fPGaTGrM1kJ7/6SmZIpqD7tHTFa9t0MdlxPQqaC7UwjIuk1pyH+hQVAZApD5MViiEj1j5taOh6TFpK5isTEo4ovNhwSOq9L+ym6tlw1HhgP58lJ7SAsqXDDMfSBqjTAI1Y8UKBlUCo89+HBY3NMoM+n5mtfpen/UbEOuWRs/99LenanBQtOOL69FxTFZ+4qJxli9zahM/pBocn4wdNo7icM6TZcJHu2JmYjIfKam7XKhE5QDOz/0xVY4czCE+zvAGVisRK0vcKjeHyU9CqG+dBWjKcycBuAhIi8flM7OqFgmHxg8tQSIsGYtHEFXikwBmGcACS9nExlOGYGapndakyZPsC3ADmVR8j3n8tA2quogQTpcJTVWj2O8XvxhBsng8uzXhpytY/zmTzEbTdFUw28GSipTU="
+    "value": "[redacted: TradingView compiled script]"
    },
    {
     "id": "pineId",
@@ -136530,10 +136530,25 @@
  "warnings": [
   "the newest D/W/M bar closed less than 5 h before this capture: TradingView confirms such a bar hours after the regular close (measured between 19:22 and 20:55 ET, docs/pine/barstate.md ruling 3.1), so the vendor's own barstate.isconfirmed may still read 0 on it"
  ],
+ "redactions": [
+  {
+   "field": "study.inputs[name=ILScript].value",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 1954,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 787774,
+    "fnv1a": 4265673183
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:33Z"
+  }
+ ],
  "receipt": {
   "algo": "fnv1a32-utf16",
   "over": "JSON.stringify(capture without its receipt key)",
-  "chars": 787774,
-  "fnv1a": 4265673183
+  "chars": 786160,
+  "fnv1a": 1397989438
  }
 }

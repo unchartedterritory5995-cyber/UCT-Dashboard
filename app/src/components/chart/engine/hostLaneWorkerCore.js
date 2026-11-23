@@ -18,6 +18,7 @@
 // that touches `self`, so a test can run this exact code over a structured clone of the exact message.
 import { astColumnsGiven, astSideRecordsOf } from './astColumns.js'
 import { hostObjectRun } from './hostObjects.js'
+import { firstPageWindow } from './firstPage.js'
 import { unpackRows, ctxFromImage, answerImageOf, errorImageOf } from './hostLaneWire.js'
 
 const _docs = new Map()
@@ -41,6 +42,7 @@ export function answerHostLaneJob(msg, docs = _docs) {
   if (!def) return { reply: { id: m.id, ok: false, missing: true }, transfer: [] }
   const t0 = clock()
   if (m.kind === 'objects') return answerObjects(m, def, t0)
+  if (m.kind === 'firstPage') return answerFirstPage(m, def, t0)
   try {
     const out = astColumnsGiven(def, unpackRows(m.rows), m.scalars, ctxFromImage(m.ctx), m.stop || null)
     const { answer, transfer } = answerImageOf(out, astSideRecordsOf)
@@ -48,6 +50,18 @@ export function answerHostLaneJob(msg, docs = _docs) {
   } catch (err) {
     // ⭐ THE COMPUTE'S OWN THROW (a refusal of a single-tree document, a document defect): the chart's
     // thread rethrows it, as `astColumnsFor` would have thrown it there.
+    return { reply: { id: m.id, ok: false, error: errorImageOf(err), ms: clock() - t0 }, transfer: [] }
+  }
+}
+
+/** ⭐ A cold pane's FIRST PAGE (`firstPage.js`): the newest bars computed from two starts here, off the chart's
+ *  thread; only the page window comes back (an exact plot's page values, transferred, and each plot's verdict). */
+function answerFirstPage(m, def, t0) {
+  try {
+    const page = firstPageWindow(def, unpackRows(m.rows), m.scalars, ctxFromImage(m.ctx), m.stop || null)
+    const transfer = page.values.filter(Boolean).map((v) => v.buffer)
+    return { reply: { id: m.id, ok: true, page, ms: clock() - t0 }, transfer }
+  } catch (err) {
     return { reply: { id: m.id, ok: false, error: errorImageOf(err), ms: clock() - t0 }, transfer: [] }
   }
 }

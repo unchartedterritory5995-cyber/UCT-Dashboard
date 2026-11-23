@@ -198,7 +198,7 @@
     "type": "text",
     "defval": "",
     "isHidden": true,
-    "value": "bmI9Ks46_09KnskjJc9FExTxTrq7UNA==_v5STSWwZa0A7TmQSIiAjWFjPNXPQD6rAQBeRhKK9hXQ6cMU8G86KU8Ct7ZYN8zKVuojcq4njRZJ6A2Tok2LwrTfoJZDTaitw9pYXOvMN3dx4qSFERQ6xUH7BU3dtVubRN+rFw8rh80yEJTM4Pr6H09j/DKuT8YM2Yah+BYmeO+9khxZb6aDqdSdvRRti4cWFNodSveirsMZoz2omJ6J/wRfSxMhqVefTK2DSoX79vnqcK5ujjCzTSfThi3ONCCkYSiVZZ9kBePxfXxwWvPjj9OOqwiL+j/xTawDe0/yZRb2ejKtC9jQ99Hg6I3N6o7prC854vJRLkiRPYZL5pXOKmuAwxigvf+SdjS6BqtvnihQn38OfeYQQE6nGf4iYV923BnOb+hJBfiziGmwuUH6Wg2ID/s2tlfwrWZ2Bqk/IbYajVU61T7hz66wP14WnhqqGk0ckdxgduBPFIh7shAJvjSlWbXZyxoYA1WXRtfwAaJaqTBsWwKOsJMVfQlgB7ByE7Uvk0s051mPM7AzOFLmTcOYvZKPGNAaN28TaPJkPLOFH99tUwtmslAdAi5PTKyyn8qttf3huEm9cf8WckUqkhTsMTRNe9grE3Kj7llgBcQtV0pKD2qc3ILhV0YNyUVmJAvCEPMPFh8rIbPPXOYoIdEyjjEYIWxlo3HhvoB/XqE7Y1h3yaNv8zwGmK9c29X8AS0pUAw5tCVAYH7p6BNZ6+AmrSzaWp7BcAU344KZDRSfl1anYG1lpeVoMr0UibB2psydQU2CfHEQQH2TK/ZgSXUm/RrcUAKqEdv9hpUsM+AaZ0crUmX3D7s0da/nzvXdZsVtYnFETwRoSWQymdnstinJ1HZtJBkmrgKbuybTLtMMfFuhIDl+jtLVk2UuTkI1udCJ/1GNBoPvE9cO2EpPE3wi0pl8qv06xx40Yz+WSPhNUBkKFwHL66tIgXLBt3rXaxSbHZ6LE/NUDPs6oauG7qV6qlH3DsUfkY1m676ylbkfJfpAHu36rOZ3Kiefs8thItJiZAJGkeNjdSq4LWIHKAUJbOwdkLNfNzskhPWOd37fVoQx1GsVfH+kgSPsmXmMnGkaNs9nPzMk1NYu5KAfhVsvDy0nLfgM1E3RaX258UKkaqj6m9NzibLQYOOedngb502GGL7gEP8YGljMCjjYksq8VeZvVCqJ23pt1dOhJGdrUV1pyEEGFq1xAI+9Mzb8vFLwBEezN1PeDAbX5JrWfuF3tyXpf45P4knnhl9f82RRlodJE3bBbzidrD39td5sDrAmL3Z1v1yeb+1S9juJp6u6ulRr7pjeYRnC+JIZWiRM/riF/D1xkOkSUTRkY7N/6MmFhq+qkAcgyYZTAHkxk9b6NWhdiCmRVzbw2pGR2zUNLOBnGTE11jdxvl4uwwrU8ET8bpihQWfXHyivKqh80IXhWf7TWzWSD1q/P0HgkIg=="
+    "value": "[redacted: TradingView compiled script]"
    },
    {
     "id": "pineId",
@@ -144950,10 +144950,25 @@
   }
  },
  "warnings": [],
+ "redactions": [
+  {
+   "field": "study.inputs[name=ILScript].value",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 1486,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 794532,
+    "fnv1a": 725724145
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:46Z"
+  }
+ ],
  "receipt": {
   "algo": "fnv1a32-utf16",
   "over": "JSON.stringify(capture without its receipt key)",
-  "chars": 794532,
-  "fnv1a": 725724145
+  "chars": 793385,
+  "fnv1a": 1517447543
  }
 }

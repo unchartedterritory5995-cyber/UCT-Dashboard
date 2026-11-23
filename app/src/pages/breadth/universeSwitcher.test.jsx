@@ -1,7 +1,7 @@
 /**
  * The Breadth Monitor's universe switcher, on the page: the dropdown before Columns (the
  * chart's Signature menu, gold ✓ on the chosen one), `?universe=` in the URL, the grid asked
- * for the chosen universe, Health hidden and the Phase 3 columns "n/a" off UCT, no drill off
+ * for the chosen universe, Health on its own bands and the Phase 3 columns "n/a" off UCT, no drill off
  * UCT, and the header menus' universe notes. Same shell-mocking pattern as monitorGridError.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
@@ -48,7 +48,7 @@ const seen = vi.hoisted(() => ({ universes: [] }))
 vi.mock('./useMonitorGrid', () => ({
   default: ({ universe }) => {
     seen.universes.push(universe)
-    const row = { date: '2026-11-17', breadth_score: universe === 'uct' ? 61 : null, up_vol_ratio: 1.4,
+    const row = { date: '2026-11-17', breadth_score: universe === 'uct' ? 61 : 57, up_vol_ratio: 1.4,
                   hvc_52w: 3, atr_ext_7: 2, new_ath: 5, pct_above_50sma: 44, up_4pct_today: 120,
                   universe_count: universe === 'uct' ? 3700 : 2900, vix: 18 }
     return {
@@ -112,16 +112,16 @@ describe('the universe switcher', () => {
     expect(seen.universes.every(u => u === 'uct')).toBe(true)
   })
 
-  it('off UCT: Health is hidden (—), Up Vol / HVC / >7×ATR / ATH read n/a, and no cell opens a list', () => {
+  it('off UCT: Health shows its own score, Up Vol / HVC / >7×ATR / ATH read n/a, and no cell opens a list', () => {
     mount('&universe=us')
-    expect(cellOf('breadth_score')).toHaveTextContent('—')
+    expect(cellOf('breadth_score')).toBeNull()                    // a real cell, not an override
+    expect(document.querySelector('[data-universe-na="breadth_score"]')).toBeNull()
     for (const k of ['up_vol_ratio', 'hvc_52w', 'atr_ext_7', 'new_ath']) {
       expect(cellOf(k)).toHaveTextContent('n/a')
       expect(cellOf(k)).toHaveAttribute('title', 'Not available for this universe yet.')
     }
     // No lists off UCT yet: no cell opens one. Every value cell still opens its reading.
     expect(document.querySelector('td[data-drill-list]')).toBeNull()
-    expect(cellOf('breadth_score').hasAttribute('data-drill')).toBe(false)
   })
 
   it('UCT cells drill as before', () => {
@@ -137,7 +137,7 @@ describe('the universe switcher', () => {
     fireEvent.click(screen.getByTestId('col-menu-mcclellan_osc'))
     expect(screen.getByTestId('col-universe-note')).toHaveTextContent('Ratio-adjusted on Nasdaq')
     fireEvent.click(screen.getByTestId('col-menu-breadth_score'))
-    expect(screen.getByTestId('col-universe-note')).toHaveTextContent('UCT-calibrated')
+    expect(screen.getByTestId('col-universe-note')).toHaveTextContent('Nasdaq’s own bands')
   })
 
   it('on UCT a header menu carries no universe note', () => {

@@ -436,9 +436,9 @@
     "id": "text",
     "name": "ILScript",
     "type": "text",
-    "defval": "bmI9Ks46_BWgQBjRHzadthavZhh2qVQ==_FyEy7vs4f1tMS7ONoOrvjS40jkMLJ33dMMZz4UKeClh3addHlDeOKqeggIp+Mvff0GYkhLwsSGTzTgEgcN6/Leg+0ZaAUq3mWokUeeYpBedy+PVq3ln5kfrZ8kexziQUNZsiaQgaiFUgHRBVIYQ11Gzlr8JmNHyrfLm3HqcR+UPjpEFBjUhq0u5Za44sENt9h2XIh5Ql+kbuoGUYfw9IUsPeeuxEcoErYW8coeMbget758DDxU+g7EW2hBLkALiVmCRroWfgDiYG/etqakcHYBaHqQaciEaUG56gh6duSvh9CZF+b+m2Xne25AIyluUvaUiUdAip6UUK0KV8jHzQuic271eezRf2J5gsi0G2FwMRUwAo7gzxMfP7wNsp4ubsBNOBG56p8/KZLR+ePPreNO/y0Nt4FfhSKByVbvlWpfns3p84vtrZVash4VAXGPZiEkcQkbAGfZijqVdj4qXn78O/OE1fnqcEaAOnPccmy59szsjAQGcG2JHK/fs+KmDgF63+xgrjKjM3g7/Otne80m5xw9pNYFH5NgG8snqHPXZgVM1KhqOPP+R8cAf2UGlncxLVRgssS4GJ2PovI4Hv6pzhV+640tHtnVdrgCk6eHozWIbuccC6V8xhxiB2FPYY1JCO2Lb+Un1gBUrN8feH9m1pqDFMONMr0aiEWylsB5U+nfC7fvqO2pTqLohJ/kTUvc0avP/SCIPbMMiZRIoP7zfErNSWKCdurhxgFqH/CR5y1dtv4g0N7QkD1GhMT0ffjACXNliQEF6iN8z+jjumSiBYp8BehLBAC9LW3pgFvoxqbUcuhuq9Nbm+C5LCbP3ES6AOClypie15y8U/r+dGNYVHStnd1foOB5A9oGDDUy+qy6Ic6v3RJ1fo5/xuinmeMD9vYn+QbtbL9zRSF3iPAfEefOUPjUpPwYH4b85kHuMHqPq6NyKhE4JPzT9ksfUMTA4jD4w9kEMnD6dJf1pP8vk3hDbzHnRn2IPsyyGNuB624Wi71TNs12fBAqsr0K+YSKbqFPDbDNf/N4fVkqn/5FSOW6WutbmlkHXJzaA/BrE+TBbKhLc1yjtCX6uM8dEWzmsFhoitt/T/A+rmz5KSrTb3BSuvk4t2/nej2w5WeRMXleWkjhL7Pj+FkAD3HqPoevxfF0AlHW9ycCMMHLsvOdyBH8lpUyABatAllQtjblJ1LYbBf+/d3Xqz59pskXKKwhMoteB4+Wcd9jnYsr/0wxTlQ3c1XvvIO16mb1dV2Qu7Iq/3vWA8cGEPoRqAa4vl2R/8GgLf4iq7nuw=",
+    "defval": "[redacted: TradingView compiled script]",
     "isHidden": true,
-    "value": "bmI9Ks46_BWgQBjRHzadthavZhh2qVQ==_FyEy7vs4f1tMS7ONoOrvjS40jkMLJ33dMMZz4UKeClh3addHlDeOKqeggIp+Mvff0GYkhLwsSGTzTgEgcN6/Leg+0ZaAUq3mWokUeeYpBedy+PVq3ln5kfrZ8kexziQUNZsiaQgaiFUgHRBVIYQ11Gzlr8JmNHyrfLm3HqcR+UPjpEFBjUhq0u5Za44sENt9h2XIh5Ql+kbuoGUYfw9IUsPeeuxEcoErYW8coeMbget758DDxU+g7EW2hBLkALiVmCRroWfgDiYG/etqakcHYBaHqQaciEaUG56gh6duSvh9CZF+b+m2Xne25AIyluUvaUiUdAip6UUK0KV8jHzQuic271eezRf2J5gsi0G2FwMRUwAo7gzxMfP7wNsp4ubsBNOBG56p8/KZLR+ePPreNO/y0Nt4FfhSKByVbvlWpfns3p84vtrZVash4VAXGPZiEkcQkbAGfZijqVdj4qXn78O/OE1fnqcEaAOnPccmy59szsjAQGcG2JHK/fs+KmDgF63+xgrjKjM3g7/Otne80m5xw9pNYFH5NgG8snqHPXZgVM1KhqOPP+R8cAf2UGlncxLVRgssS4GJ2PovI4Hv6pzhV+640tHtnVdrgCk6eHozWIbuccC6V8xhxiB2FPYY1JCO2Lb+Un1gBUrN8feH9m1pqDFMONMr0aiEWylsB5U+nfC7fvqO2pTqLohJ/kTUvc0avP/SCIPbMMiZRIoP7zfErNSWKCdurhxgFqH/CR5y1dtv4g0N7QkD1GhMT0ffjACXNliQEF6iN8z+jjumSiBYp8BehLBAC9LW3pgFvoxqbUcuhuq9Nbm+C5LCbP3ES6AOClypie15y8U/r+dGNYVHStnd1foOB5A9oGDDUy+qy6Ic6v3RJ1fo5/xuinmeMD9vYn+QbtbL9zRSF3iPAfEefOUPjUpPwYH4b85kHuMHqPq6NyKhE4JPzT9ksfUMTA4jD4w9kEMnD6dJf1pP8vk3hDbzHnRn2IPsyyGNuB624Wi71TNs12fBAqsr0K+YSKbqFPDbDNf/N4fVkqn/5FSOW6WutbmlkHXJzaA/BrE+TBbKhLc1yjtCX6uM8dEWzmsFhoitt/T/A+rmz5KSrTb3BSuvk4t2/nej2w5WeRMXleWkjhL7Pj+FkAD3HqPoevxfF0AlHW9ycCMMHLsvOdyBH8lpUyABatAllQtjblJ1LYbBf+/d3Xqz59pskXKKwhMoteB4+Wcd9jnYsr/0wxTlQ3c1XvvIO16mb1dV2Qu7Iq/3vWA8cGEPoRqAa4vl2R/8GgLf4iq7nuw="
+    "value": "[redacted: TradingView compiled script]"
    },
    {
     "id": "pineId",
@@ -19005,10 +19005,38 @@
  "warnings": [
   "the newest D/W/M bar closed less than 5 h before this capture: TradingView confirms such a bar hours after the regular close (measured between 19:22 and 20:55 ET, docs/pine/barstate.md ruling 3.1), so the vendor's own barstate.isconfirmed may still read 0 on it"
  ],
+ "redactions": [
+  {
+   "field": "study.inputs[name=ILScript].value",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 1330,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 109796,
+    "fnv1a": 3255492436
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:50Z"
+  },
+  {
+   "field": "study.inputs[name=ILScript].defval",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 1330,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 109796,
+    "fnv1a": 3255492436
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:50Z"
+  }
+ ],
  "receipt": {
   "algo": "fnv1a32-utf16",
   "over": "JSON.stringify(capture without its receipt key)",
-  "chars": 109796,
-  "fnv1a": 3255492436
+  "chars": 107802,
+  "fnv1a": 1899426469
  }
 }
