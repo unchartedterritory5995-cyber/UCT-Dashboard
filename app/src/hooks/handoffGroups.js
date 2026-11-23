@@ -51,6 +51,49 @@ export function registerMember(scope, group, id, member) {
   }
 }
 
+/**
+ * ⭐ (2026-11-21, the cold switch) START EVERY MEMBER'S DEVICE READ NOW, in the key press, before the decision
+ * and before any chart renders the request (`member.prime(sym)`, optional; a throw is ignored). A copy the device
+ * client already holds lands synchronously, so the decision can show it in this task; otherwise the read is in
+ * flight while React renders, instead of starting in the handoff's effect after it.
+ */
+export function primeGroup(scope, group, sym) {
+  if (!scope || !group || !sym) return
+  const members = _groupsOf(scope).get(group)
+  if (!members) return
+  for (const m of members.values()) { try { m.prime?.(sym) } catch { /* optional */ } }
+}
+
+/**
+ * ⛔ A HELD ARROW IS ~25 ROWS A SECOND, PER LINKED CHART. `latestOnly(fn)` runs `fn(arg)` for the newest request
+ * only: while one call is in flight a newer request WAITS (replacing any older waiting one, which is dropped,
+ * never run), and starts the moment the call in flight settles. So a chart's device reads never queue up rows the
+ * member has already left, and the row it lands on is behind at most the one read already in flight.
+ */
+export function latestOnly(fn) {
+  let busy = false
+  let next = null   // { arg } | null: the newest request waiting
+  const run = (arg) => {
+    if (busy) { next = { arg }; return }
+    busy = true
+    let p
+    try { p = Promise.resolve(fn(arg)) } catch { p = Promise.resolve() }
+    p.catch(() => {}).then(() => {
+      busy = false
+      if (next) { const n = next; next = null; run(n.arg) }
+    })
+  }
+  return run
+}
+
+/** THE KEY PRESS, in the order it must run (the board's setGroupSym calls this one function): every member's
+ *  device read starts (primeGroup), THEN the group decides (decideGroupShow), so a copy the device already holds
+ *  can be shown in this task. Returns the decision's answer. */
+export function beginGroupSwitch(scope, group, sym) {
+  primeGroup(scope, group, sym)
+  return decideGroupShow(scope, group, sym)
+}
+
 // ── the settle clock: the settle rule's state per group, shared by the decision and the round ───────────────
 /**
  * A clock of the settle rule (useSymbolSettle.settleAction). `request(sym, now)` notes a request and returns the
@@ -153,7 +196,8 @@ export function subscribeDecisions(fn) { _subs.add(fn); return () => { _subs.del
  * that never gets ready at all (a defect, not a slow answer) is let go, past GROUP_HANG_MS: then the ready ones show.
  *  - A member is a chart of the group whose request moved to `sym` and is not showing it yet; it joins in a
  *    LAYOUT effect, so every sibling of one commit has joined before any of them can be ready.
- *  - A chart leaving the round (a newer symbol, unmounted) never holds the others.
+ *  - A chart leaving the round (closed, unlinked) never holds the others: the ready ones show in that task. A newer
+ *    symbol is not that: every member leaves for it, and nothing of the round it replaces is shown (groupLeave).
  *  - No group (a host that passes none): the chart shows itself, as before.
  *  - `show` is called with { sym, tf }: the symbol and the timeframe the member had when it became ready.
  */
@@ -180,8 +224,21 @@ export function groupLeave(group, sym, id) {
   const round = _rounds.get(group)
   if (!round || round.sym !== sym || !round.members.delete(id)) return
   if (!round.members.size) { if (round.timer) clearTimeout(round.timer); _rounds.delete(group); return }
-  // the siblings left may all be ready now
-  if ([...round.members.values()].every((m) => m.ready)) _flushRound(group, round)
+  // the siblings left may all be ready now.
+  // ⛔⛔ (2026-11-21, the held key) ...BUT THAT IS DECIDED AFTER THE COMMIT THIS LEAVE RUNS IN, NEVER INSIDE IT. A
+  // newer symbol makes EVERY member leave in one commit, one after the other (layout cleanups, in tree order). Decided
+  // here, the first to leave (the daily chart) found its sibling ready and showed it: the 30m chart, alone, on the row
+  // the PREVIOUS key asked for, in the frame of the NEXT key (three held-key runs: 33 of 33 such paints, the landing
+  // row of two). After the commit the answer is known: every member left (the round is gone, or a newer symbol's
+  // took its place) and nothing shows; or one really went (closed, unlinked) and the ready ones show, still in this
+  // task; or it came back (its timeframe changed) and the round waits for it again.
+  if (round.leaving) return
+  round.leaving = true
+  Promise.resolve().then(() => {
+    round.leaving = false
+    if (_rounds.get(group) !== round || !round.members.size) return
+    if ([...round.members.values()].every((m) => m.ready)) _flushRound(group, round)
+  })
 }
 export function groupReady(group, sym, id, show, tf = null) {
   const round = group ? _rounds.get(group) : null

@@ -4539,7 +4539,7 @@
     {
       "limit": "600/minute",
       "method": "GET",
-      "params": "kind=sector, name",
+      "params": "kind=sector, name, part",
       "path": "/api/research/group-stats",
       "rate_limit_family": "research",
       "tier": "paid"
