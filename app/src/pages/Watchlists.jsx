@@ -656,6 +656,22 @@ const WatchRow = React.memo(function WatchRow({
 // shared `.listBody` scroll container (the sticky column header sits above it), and reports
 // the visible symbols up so ONLY those get live-streamed — the whole point that lets a
 // ~5,000-row scan render without opening ~100 SSE streams or mounting 5,000 DOM rows.
+// Would centring row `idx` keep the whole viewport inside the rows this render drew (`drawn`, the render's virtual
+// items)? Read from the virtualizer's cached state only: `getMeasurements()` (sizes measured or estimated, kept in
+// itemSizeCache) and `getSize()` (the viewport from its last rect report). Neither reads layout (virtual-core 3.14.0
+// index.js 366-373 and 439-523). `top` is where `scrollToIndex(idx, { align: 'center' })` puts the viewport before the
+// max-offset clamp (getOffsetForAlignment); that clamp only moves it back toward the rows already drawn.
+function centredViewStaysDrawn(virt, idx, drawn) {
+  try {
+    if (!drawn || !drawn.length) return false
+    const m = virt.getMeasurements()[idx]
+    const size = virt.getSize()
+    if (!m || !(size > 0)) return false
+    const top = Math.max(0, m.start + (m.size - size) / 2)
+    return drawn[0].start <= top && drawn[drawn.length - 1].end >= top + size
+  } catch { return false }
+}
+
 export function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChange, scrollToSym, noScrollRef, keyMoveRef = null, measureOffset = false }) {
   // ⭐ WHY AN OFFSET EXISTS AT ALL. The virtualizer places rows absolutely and
   // measures against the SCROLL element, so its arithmetic is only right when this
@@ -743,6 +759,11 @@ export function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChan
   // selection, a search, a symbol set from elsewhere snap here in the commit exactly as before. A held key snaps
   // once per frame, to the newest row. The snap is marked done when it RUNS: a row missing then is snapped by the
   // next list change, and StrictMode's simulated unmount cannot lose it.
+  // ⛔ A FAR KEY MOVE SNAPS IN THE COMMIT, AS BEFORE (F3): a wrap from the first row to the last, or a press after the
+  // member scrolled the list away. Centring there shows rows this render did not draw; the virtualizer draws them only
+  // after its scroll event (delivered in the frame after the scroll), so a scroll made in the frame callback would leave
+  // them blank one frame longer than a scroll made in the commit. Near or far is decided from cached state, no layout
+  // (`centredViewStaysDrawn`).
   const itemsRef = useRef(items)
   itemsRef.current = items
   const snapSlotRef = useRef(null)
@@ -760,7 +781,7 @@ export function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChan
     if (noScrollRef?.current === scrollToSym) { scrolledForRef.current = scrollToSym; noScrollRef.current = null; return }
     const idx = items.findIndex((it) => it?.sym === scrollToSym && !it.isGroup)
     if (idx < 0) return                                  // row not rendered yet — retry on next items change
-    if (keyMoveRef?.current !== scrollToSym) {           // not an arrow key's move: in the commit, as always
+    if (keyMoveRef?.current !== scrollToSym || !centredViewStaysDrawn(virt, idx, vItems)) {   // not a key move, or a far one: in the commit, as always
       try { virt.scrollToIndex(idx, { align: 'center' }) } catch { /* mid-mount */ }
       scrolledForRef.current = scrollToSym
       return
