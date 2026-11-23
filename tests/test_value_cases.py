@@ -193,9 +193,12 @@ def test_CONTROL_a_rule_read_one_bar_late_fails_the_right_answer(monkeypatch):
         want = real(cid)
         return None if want is None else {what: (readings if what in ("__outputs__", "__fill_in__") else [(name, [G.NAN] + list(col[:-1])) for name, col in readings])
                                           for what, readings in want.items()}
+    # (a rule about SETTINGS reads no bar, so nothing of it can be read late: it is not counted here)
+    by_value = [c for c in FORMULA if "__fill_in__" not in (real(c["id"]) or {})]
+    assert len(by_value) >= len(FORMULA) - 1
     monkeypatch.setattr(rules, "rules", late)
-    wrong = sum(G.grade_case(c)["verdict"] == "wrong" for c in FORMULA)
-    assert wrong >= len(FORMULA) - 3, wrong
+    wrong = sum(G.grade_case(c)["verdict"] == "wrong" for c in by_value)
+    assert wrong >= len(by_value) - 3, wrong                          # (the three weekly values that hold all week)
 
 
 def test_CONTROL_an_empty_answer_and_an_unknown_id_are_named_never_passed():
