@@ -30,7 +30,9 @@ table (`cot_service._NAME_TO_SYMBOL`, SYMBOL_MAP plus its rename aliases), with 
 match always beats a name match for the same market and week. Each stored week keeps the code, the CFTC's name and
 which way it matched, and a market answer lists the records its weeks came from. Found in the 2026 files: Hard Red
 Spring wheat (MW) now reads "WHEAT-HRSpring - MIAX FUTURES EXCHANGE" and Micro Ether (TA) carries two spaces before
-its hyphen, so the legacy name table no longer finds either; their codes (001626, 146022) still do.
+its hyphen in the TFF file, so the legacy name table as it stood found neither; their codes (001626, 146022) still do.
+THE LEGACY READER MATCHES THROUGH THIS SAME RULE (`cot_service._parse_cftc_stream` calls `symbol_for`, 2026-11-22):
+a change to `CONTRACT_CODES` or `symbol_for` changes what the legacy report stores too.
 
 WHEN (never on a member's request). The scheduler calls `run_scheduled` at 05:10 and 21:10 New York time
 (`RUN_HOURS_ET`, `RUN_MINUTE_ET`), both inside scan_period's quiet span (`scan_period._reuse_quiet_now`, read, never
