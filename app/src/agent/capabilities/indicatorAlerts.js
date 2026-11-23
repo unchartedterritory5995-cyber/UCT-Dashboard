@@ -59,8 +59,9 @@ function paramsOf(raw) {
 const rowSig = (a) => JSON.stringify([a.id, a.sym, a.indicator, a.condition, a.threshold, a.tf, a.active])
 
 // ── the server's list and catalog, cached for planning; every write re-reads the list first ──
-const cache = { rows: null, catalog: null, p: null }
-export function _resetIndicatorAlertCache() { cache.rows = null; cache.catalog = null; cache.p = null }
+// `src`: the hook source the rows were read from — an instant reading trusts only a book read from ITS host's source
+const cache = { rows: null, catalog: null, p: null, src: null }
+export function _resetIndicatorAlertCache() { cache.rows = null; cache.catalog = null; cache.p = null; cache.src = null }
 let hostRef = null
 export async function loadIndicatorAlerts(host = hostRef, { force = false } = {}) {
   const src = host?.indicatorAlerts
@@ -70,6 +71,7 @@ export async function loadIndicatorAlerts(host = hostRef, { force = false } = {}
   if (!cache.p) {
     cache.p = Promise.resolve(src.list()).then(async rows => {
       cache.rows = (Array.isArray(rows) ? rows : []).map(slim)
+      cache.src = src
       // the catalog names each alert's plot ("RSI", "MACD signal"); read once, never required for the list itself
       if (!cache.catalog) { try { await loadCatalog(host) } catch { /* labels fall back to the stored address */ } }
       return cache.rows
@@ -278,6 +280,8 @@ export const indicatorAlertLibraryKind = {
   plotsOf: (inst) => alertPlotsOf(inst),
   // an instant reading plans on THIS host, as the context build does before a model plan (hostRef: the board instances are looked up on)
   noteHost: (host) => { if (host?.indicatorAlerts) hostRef = host },
+  // alertPhrases: the book in hand was read from this host's own source (never another board's / session's list)
+  bookReadFor: (host) => !!cache.rows && !!host?.indicatorAlerts && cache.src === host.indicatorAlerts,
   crossPlotOf: (inst) => crossPlotOf(inst),
   fingerprint: () => 'indicatorAlerts',
   fingerprintFor(host, snap, item) {
@@ -361,7 +365,8 @@ export function registerIndicatorAlertCapabilities() {
   registerContextProvider({
     key: 'indicatorAlertLibrary',
     refreshGroup: 'alerts',
-    refresh: () => loadIndicatorAlerts(hostRef, { force: true }),
+    // the turn's own host when it carries the hook's source (refreshContext hands it over), else the one last noted
+    refresh: ({ host } = {}) => loadIndicatorAlerts(host?.indicatorAlerts ? host : hostRef, { force: true }),
     build: (host, refFor) => {
       if (!host?.indicatorAlerts) return undefined
       hostRef = host                                   // the board the next plan's instances are looked up on

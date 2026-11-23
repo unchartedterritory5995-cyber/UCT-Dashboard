@@ -480,7 +480,7 @@ function readBook(ctx) {
   const wantPrice = ref.kind !== 'indicator', wantInd = ref.kind !== 'price'
   if (wantPrice && !loaded('alertLibrary')) return null
   // a book that isn't read yet is never read as empty: the model (which re-reads it) decides
-  if (wantInd && ctx.host?.indicatorAlerts && !loaded('indicatorAlertLibrary')) return null
+  if (wantInd && ctx.host?.indicatorAlerts && !(loaded('indicatorAlertLibrary') && getTargetKind('indicatorAlertLibrary')?.bookReadFor?.(ctx.host))) return null
   if (ref.kind === 'indicator' && !ctx.host?.indicatorAlerts) return null
   const prices = wantPrice && !ref.ind ? priceRows(ref) : []
   const inds = wantInd ? indicatorRows(ref) : []
