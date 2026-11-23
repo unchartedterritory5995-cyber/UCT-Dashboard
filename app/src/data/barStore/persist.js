@@ -430,10 +430,11 @@ export function createPersist({
     soon.delete(key)
     if (e.timer != null) { clearTimer(e.timer); e.timer = null }
     if (watched.has(key)) return Promise.resolve(false)            // a chart took the key meanwhile: its watcher writes
-    // the registry's snapshot when it still holds this life of the key and it is no older; else the one kept
-    const cur = registry.peek(key)
-    const s = cur && cur.restSeen && cur.bars.length && cur.gen === e.s.gen && cur.baseRev >= e.s.baseRev ? cur : e.s
-    return _put(key, s, e.startedAt).then(() => true, () => false)
+    // ⛔ THE ANSWER'S OWN SNAPSHOT, never the registry's at write time (review of #2630, MEDIUM-1). Inside the debounce the
+    // neighbour hold's deepening (NEIGHBOR_DEEP_MS after the press) or a lake join prepends history WITHOUT moving the
+    // generation; written now, that deep series (and an @hist record) would land for rows the member never opened, under
+    // the older answer's stamp. `writeOnce` wrote the answer-time snapshot: so does this. Only WHEN changes.
+    return _put(key, e.s, e.startedAt).then(() => true, () => false)
   }
 
   function detach(key) {
@@ -488,10 +489,13 @@ export function createPersist({
      * ⭐ (2026-11-23, live-session CPU profile) `writeOnce`, AFTER THE DEBOUNCE AND AT IDLE, like a watched key's write: what
      * the store does with a warm's answer (store.ensure for a key nobody subscribes to). Written at once, its mem merge and
      * the IDB read-modify-write of the whole stored record ran 75-200 ms after the press that sent the warm, in the window
-     * the charts draw in. Coalesced per key (a second answer inside the debounce moves it and the newest snapshot is
-     * written), at most WRITE_SOON_MAX waiting (past it the oldest is written at once), and written at once by `flush`
-     * (the app's store flushes on pagehide and when the app is hidden: index.js). The write is the same `_put`: the
-     * cache's contents, caps and eviction are what `writeOnce` makes. Returns whether it was scheduled.
+     * the charts draw in. Coalesced per key (a second answer inside the debounce moves it, and the newest ANSWER's own
+     * snapshot is written: never the registry's at write time, see _writeSoonNow), at most WRITE_SOON_MAX waiting (past it
+     * the oldest is written at once), and written at once by `flush` (the app's store flushes on pagehide and when the app
+     * is hidden: index.js). The write is the same `_put` of the same snapshot: the cache's contents, caps and eviction are
+     * what `writeOnce` makes. Known limit: on `pagehide` the flush's IndexedDB read-modify-write (and the @hist write after
+     * it) may not finish before the page goes; a warm answer of the last ~1-3 s is then missing from the cache (derived
+     * data, fetched again next session; nothing is corrupted). Returns whether it was scheduled.
      */
     writeSoon(key, { startedAt = null } = {}) {
       const p = parseKey(key)
