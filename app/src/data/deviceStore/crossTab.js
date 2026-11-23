@@ -36,6 +36,17 @@ export function createCrossTab({
   const pending = new Map()
   let ch = null
   try { ch = makeChannel ? makeChannel(CHANNEL_NAME) : null } catch { ch = null }
+  // The leader's own serve threw (an engine that cannot read its file, a handler bug): a MISS, never an error. The
+  // read answers null and the chart asks the server, as when no copy is held. COUNTED (TERM-033,
+  // lib/swallowedFetch.census.test.js) on both paths, this worker's own read and a follower's over the channel, and
+  // carried by the worker's `info` answer (workerCore), so a failing store is visible instead of reading as empty.
+  let serveFailures = 0
+  let lastServeError = null
+  // Noting a failure must never fail the read it belongs to: an error that cannot be turned into text
+  // (String(Object.create(null)) throws) is still counted, with a placeholder for its cause.
+  const _errText = (err) => { try { return String(err?.message || err).slice(0, 120) } catch { return '(unprintable error)' } }
+  const _noteServeFailure = (err) => { serveFailures += 1; lastServeError = _errText(err) }
+  const _servedNothing = (err) => { _noteServeFailure(err); return null }
 
   const _become = () => {
     leader = true
@@ -51,7 +62,10 @@ export function createCrossTab({
         if (!leader) return
         Promise.resolve(leaderReady).then(() => serve(m.req)).then(
           (res) => { try { ch.postMessage({ type: 'res', to: m.from, id: m.id, res: res ?? null }) } catch { /* closed */ } },
-          (err) => { try { ch.postMessage({ type: 'res', to: m.from, id: m.id, res: null, error: String(err?.message || err) }) } catch { /* closed */ } },
+          (err) => {
+            _noteServeFailure(err)
+            try { ch.postMessage({ type: 'res', to: m.from, id: m.id, res: null, error: _errText(err) }) } catch { /* closed */ }
+          },
         )
       } else if (m.type === 'res') {
         if (m.to !== tabId) return
@@ -95,7 +109,7 @@ export function createCrossTab({
 
   function route(req) {
     if (closed) return Promise.resolve(null)
-    if (leader) return Promise.resolve(leaderReady).then(() => serve(req)).catch(() => null)
+    if (leader) return Promise.resolve(leaderReady).then(() => serve(req)).catch(_servedNothing)
     if (!ch) return Promise.resolve(null)
     const id = `${tabId}:${++seq}`
     return new Promise((resolve) => {
@@ -107,6 +121,8 @@ export function createCrossTab({
 
   return {
     isLeader: () => leader,
+    /** Diagnostics: the leader's serve failures (each answered null), and the last one's cause. */
+    stats: () => ({ serveFailures, lastServeError }),
     /** Resolves once this worker knows whether it leads (tests, diagnostics). */
     roleKnown: () => roleKnown,
     /** Ask the leader (this worker itself when it leads). Resolves the answer, or null. Never rejects. */
