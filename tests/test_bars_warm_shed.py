@@ -26,6 +26,20 @@ def _paid_bars_caller(monkeypatch):
     sign_in_bars_caller(monkeypatch)
 
 
+@pytest.fixture(autouse=True)
+def _own_bars_store(tmp_path, monkeypatch):
+    """Each case reads ITS OWN bars.db (review of #2601, W-6). The cold-warm case assumes AAPL is cold and clears only
+    the memory key, so in a process where something earlier wrote AAPL daily rows into the shared store (a real
+    lifespan's background work, in a mixed test list) it read 200 instead of 503. Seen once, in a 136-file run with two
+    lifespan tests first."""
+    from api.services import bars_sqlite
+    monkeypatch.setattr(bars_sqlite, "_DB_PATH", str(tmp_path / "bars.db"))
+    bars_sqlite.bump_db_epoch()
+    bars_sqlite.init_db()
+    yield
+    bars_sqlite.bump_db_epoch()
+
+
 
 
 def _client():

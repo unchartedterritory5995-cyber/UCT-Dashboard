@@ -51,11 +51,14 @@ def _fresh(monkeypatch, pool=None):
     monkeypatch.setattr(bars_fetch, "_bars_warm_closed", False, raising=False)
 
 
-def _no_disk(monkeypatch):
-    """The universe warms skip what the disk cache holds: here it holds nothing."""
+def _no_disk(monkeypatch, probes=None):
+    """The universe warms skip what the disk cache holds: here it holds nothing. `probes` (a list) records every
+    (symbol, tf) the warm looks up."""
     class _Disk:
         @staticmethod
-        def get(*_a, **_k):
+        def get(sym, tf, *_a, **_k):
+            if probes is not None:
+                probes.append((sym, tf))
             return None
 
         @staticmethod
@@ -288,8 +291,72 @@ def test_R3_the_admin_stop_does_not_leave_a_running_universe_warm_hung(monkeypat
         fresh.shutdown(wait=False)
     assert not runner.is_alive(), "the universe warm's runner is still waiting on the jobs the stop cancelled"
     st = bars_fetch._warm_state
-    assert (st["running"], st["done"], st["errors"]) == (False, 3, 2)
+    # the stop superseded the run (review of #2601, MEDIUM-1): the stopped runner no longer counts into the status
+    assert (st["running"], st["done"], st["errors"]) == (False, 0, 0)
     assert ran == ["AAA"]
+
+
+def test_R4_the_admin_stop_ends_a_multi_timeframe_warm_and_a_new_run_is_not_disturbed(monkeypatch):
+    """Review of #2601, MEDIUM-1. The admin route always runs the MULTI-timeframe warm (all 8 by default). Stopped
+    mid-way through its first timeframe, the run must end there: no job of a later timeframe is submitted or run (and
+    no later timeframe is even looked up), the runner thread ends, and a second run started right after the stop is
+    neither counted into nor ended by the first runner."""
+    from api.routers import bars as bars_router
+    pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="bars-warm-r4")
+    monkeypatch.setattr(bars_fetch, "_bars_warm_pool", pool)
+    monkeypatch.setattr(bars_fetch, "_bars_warm_closed", False, raising=False)
+    probes = []
+    _no_disk(monkeypatch, probes)
+    _fresh_warm_state(monkeypatch)
+    monkeypatch.setenv("PUSH_SECRET", "s3cret")
+    gate1, gate2, started1, started2 = threading.Event(), threading.Event(), threading.Event(), threading.Event()
+    calls = []
+
+    def _inner(sym, tf, bars):
+        calls.append((sym, tf))
+        if sym == "AAA":
+            started1.set()
+            gate1.wait(5)
+        if sym == "NEW":
+            started2.set()
+            gate2.wait(5)
+
+    monkeypatch.setattr(bars_fetch, "_get_bars_inner", _inner)
+    first = threading.Thread(target=bars_fetch._run_universe_warm_multi_tf,
+                             args=(["AAA", "BBB", "CCC"], ["60", "30", "15"], 10), daemon=True, name="r4-first")
+    second = threading.Thread(target=bars_fetch._run_universe_warm_multi_tf,
+                              args=(["NEW"], ["60"], 10), daemon=True, name="r4-second")
+    fresh = None
+    first.start()
+    try:
+        assert started1.wait(2)
+        deadline = time.monotonic() + 2
+        while pool._work_queue.qsize() < 2 and time.monotonic() < deadline:   # BBB and CCC queued
+            time.sleep(0.01)
+        assert pool._work_queue.qsize() == 2
+        assert bars_router.warm_universe_stop(_Admin())["status"] == "stopped"
+        fresh = bars_fetch._bars_warm_pool
+        assert fresh is not pool and bars_fetch._warm_state["running"] is False
+        second.start()                                                  # what /warm-universe now accepts
+        assert started2.wait(2)
+        assert bars_fetch._warm_state["running"] is True
+        gate1.set()                                                     # the stopped runner wakes
+        first.join(5)
+        assert not first.is_alive(), "the stopped runner is still going"
+        st = bars_fetch._warm_state
+        assert (st["running"], st["done"], st["errors"], st["total"], st["tf"]) == (True, 0, 0, 1, "60"), \
+            "the stopped runner counted into, or ended, the run started after it"
+    finally:
+        gate1.set()
+        gate2.set()
+    second.join(5)
+    assert not second.is_alive()
+    st = bars_fetch._warm_state
+    assert (st["running"], st["done"], st["errors"]) == (False, 1, 0)
+    assert calls == [("AAA", "60"), ("NEW", "60")], "a job of the stopped run ran after the stop"
+    assert not [p for p in probes if p[1] == "15"], "the stopped run went on to a later timeframe"
+    if fresh is not None:
+        fresh.shutdown(wait=True)
 
 
 def test_T7a_a_test_that_leaves_the_pool_stopped():
