@@ -590,8 +590,14 @@ export const PARTIAL_LEAD = 'The change above went through, but I didn’t do th
 // the change above that went through: never as nothing changed, never as done
 export const FOLLOWUP_WAITS_CARD = 'The change above went through; the next part is waiting for your approval on the card below.'
 export const FOLLOWUP_WAITS_ANSWER = 'The change above went through; the next part needs your answer first.'
-export function partialStepText(text) {
+// ⛔ INV2: a follow-up whose change is ON SCREEN but not saved is never said as "didn't do" — the change above stands, and
+// this step's own sentence says it is on screen and NOT saved
+export const FOLLOWUP_UNSAVED_LEAD = 'The change above went through.'
+// …and the follow-up loop STOPS after a step that failed or was not saved (the split loop's rule): the rest never runs
+export const followUpsStopped = (n) => `I stopped there, so I didn’t start the next ${n === 1 ? 'step' : `${n} steps`} of your request.`
+export function partialStepText(text, { onScreen = false } = {}) {
   const t = String(text || '').trim()
+  if (onScreen) return !t || t.startsWith(FOLLOWUP_UNSAVED_LEAD) ? t : `${FOLLOWUP_UNSAVED_LEAD} ${t}`
   if (!t || t.startsWith(PARTIAL_LEAD)) return t
   const rest = t.replace(/^I didn['’]t change anything:\s*/i, '')
   return `${PARTIAL_LEAD} ${rest}`
@@ -1120,12 +1126,12 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     // 2026-10-12): the held receipt of the step before it (a Save) — said in THIS step's message,
     // first, so "save + apply" reads as ONE confirmation; `lead.used` tells the caller it was said.
     const leadLines = lead && !lead.used ? lead.lines : []
-    const refusalPush = (text) => {
+    const refusalPush = (text, { onScreen = false } = {}) => {
       const full = boardRefusalIn(text)
       if (full) { try { host?.widgets?.raiseBound?.(full) } catch { /* the words below still say it */ } }
       const before = leadLines.length ? `${leadLines.join(' ')} ` : ''
       if (lead) lead.used = true
-      const said = path === 'followup' ? partialStepText(text) : text
+      const said = path === 'followup' ? partialStepText(text, { onScreen }) : text
       push({ role: 'refusal', text: `${before}${note ? `${said} ${note}` : said}` })
     }
     let allOps = opsIn
@@ -1655,9 +1661,11 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       const text = res.failed.every(f => f.say) ? res.failed.map(f => f.say).join(' ')
         : `Some of that didn't take effect: ${res.failed.map(f => f.say || `${f.label} ${f.reason}`).join('; ')}.`
       if (res.lines.length) push({ role: 'receipt', lines: res.lines, undoId: res.undo?.id || null })
-      refusalPush(text)
+      // ⛔ INV2: a failed save its kind could NOT put back is on screen, unsaved — recorded (and stopped on) as exactly that
+      const onScreen = res.failed.some(f => f.onScreen)
+      refusalPush(text, { onScreen })
       const gates = res.failed.map(f => f.gate).filter(Boolean)            // diagnostics only, never shown
-      record({ member, outcome: [res.lines.join(' · '), text].filter(Boolean).join(' · '), outcomeData: { kind: 'failed', actions, ...(gates.length ? { gates } : {}) }, telemetry: { path, refused: true, actions, voice } })
+      record({ member, outcome: [res.lines.join(' · '), text].filter(Boolean).join(' · '), outcomeData: { kind: onScreen ? 'applied-unsaved' : 'failed', actions, ...(onScreen ? { reason: 'not-saved' } : {}), ...(gates.length ? { gates } : {}) }, telemetry: { path, refused: true, actions, voice } })
     }
   }, [host, push, patchItem, record, capCtx, withdrawPending])
 
@@ -1917,7 +1925,9 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     // persisted, confirmed and receipted on its own (a failure never undoes another chart or the Save)
     async function runFollowUps(out) {
     const held = out?.held || null                    // a Save's receipt waiting to lead its chart add
-    for (const { awaitDefinition, ...op } of out?.followUps || []) {
+    const steps = out?.followUps || []
+    for (let si = 0; si < steps.length; si++) {
+      const { awaitDefinition, ...op } = steps[si]
       if (awaitDefinition && !(await definitionListed(awaitDefinition))) {
         const chart = (() => { try { return host.charts.read(String(op.target).replace(/^ixe:/, ''))?.label || 'that chart' } catch { return 'that chart' } })()
         // refinement B: the SAVED definition is kept (context `lastSaved`) — a retry adds the same one, never a second Save
@@ -1962,7 +1972,19 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       traceStart('followup:apply')
       const pickBefore = railPickedRef.current
       if (pinnedPick) railPickedRef.current = new Set([...(pickBefore || []), pinnedPick])
-      try { await executeInner([one], { path: 'followup', mode: approvedStep ? 'approved' : 'apply', member, voice, note: followNote || null, lead: held }) } finally { railPickedRef.current = pickBefore; traceEnd('done') }
+      // ⛔ INV2: what this step came to (the record tap, as the split loop reads it): a step that FAILED or is on screen but NOT
+      // saved stops the rest — later steps never run behind it (under a sticky conflict each would only add unsaved residue)
+      const outerTap = tapRef.current
+      const kinds = []
+      tapRef.current = kinds
+      try { await executeInner([one], { path: 'followup', mode: approvedStep ? 'approved' : 'apply', member, voice, note: followNote || null, lead: held }) } finally { tapRef.current = outerTap; if (outerTap) outerTap.push(...kinds); railPickedRef.current = pickBefore; traceEnd('done') }
+      const left = steps.length - si - 1
+      if (left > 0 && (kinds.includes('failed') || kinds.includes('applied-unsaved'))) {
+        const text = followUpsStopped(left)
+        push({ role: 'agent', text })
+        record({ member: null, outcome: text, outcomeData: { kind: 'followups-stopped', step: si + 1, of: steps.length }, telemetry: { path: 'followup', refused: true, voice } })
+        break
+      }
     }
     // a held Save receipt is ALWAYS said — on its own if no step used it (never a silent save)
     if (held && !held.used) push({ role: 'receipt', lines: held.lines, undoId: null })
@@ -2073,8 +2095,13 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       rerender()
       return true                             // NL-1 corrections apply their new change only after this
     }
+    // ⛔ INV2: an Undo whose own write is on screen but NOT saved is spent — never offered again (no false Undo)
+    if (res.spent) {
+      undoRef.current = stack.filter(e => e.id !== entry.id)
+      setItems(xs => xs.map(x => (x.undoId === entry.id ? { ...x, undoId: null } : x)))
+    }
     push({ role: 'refusal', text: res.reason })
-    record({ member, outcome: res.reason, outcomeData: { kind: 'undo-refused' }, telemetry: { path: 'fast', undo: true, refused: true, voice } })
+    record({ member, outcome: res.reason, outcomeData: { kind: res.spent ? 'undo-unsaved' : 'undo-refused' }, telemetry: { path: 'fast', undo: true, refused: true, voice } })
     rerender()
     return false
   }, [host, push, record, withdrawPending])
