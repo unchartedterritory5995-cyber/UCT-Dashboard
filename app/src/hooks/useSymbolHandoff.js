@@ -50,12 +50,12 @@ export const COLUMNS_WAIT_MS = 300
 // its peek is the store's status, and the held-set test reads the store (`peekBars`) instead of
 // the mem cache alone.
 const P = BARSTORE ? storePrefetch : legacyPrefetch
-// ⭐ The on-device store (data/deviceStore, per-browser switch 'uct.deviceStore', read once like the
-// store's own): a CURRENT device copy paints at once (storePrefetch.devicePaints), not after the deep
-// joins the switch otherwise waits for.
+// ⭐ The on-device store (data/deviceStore, per-browser switch 'uct.deviceStore'): a CURRENT device copy paints at
+// once (storePrefetch.devicePaints), not after the deep joins the switch otherwise waits for. The switch is ONE
+// decision per page load (switch.js, review of #2537 M3): this read, the BarStore's and the diagnostics' below agree.
 const DEVICE = BARSTORE && deviceStoreEnabled()
 const devicePaints = (sym, tf, opts) => DEVICE && storePrefetch.devicePaints(sym, tf, opts)
-// the worker's rule for a switch the device did not paint (diag.js); the source loads nothing new
+// the worker's rule for a switch the device did not paint (diag.js); null source (the page's store is off): nothing loads
 const deviceWhy = (sym, tf) => { const src = deviceSource(); return src ? src.why(sym, tf) : Promise.resolve('no-client') }
 if (DEVICE) exposeDeviceDiag()
 /**

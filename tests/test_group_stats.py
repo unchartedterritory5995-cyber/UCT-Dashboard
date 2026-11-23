@@ -181,6 +181,24 @@ def test_the_averages_use_the_stocks_own_last_closes_and_too_little_history_is_n
     assert under["now"]["near_high"] is False
 
 
+def test_a_close_equal_to_its_own_average_is_not_above_it_at_any_price():
+    """A close that EQUALS its average is not above it. The averages come from running sums, whose binary rounding
+    once read a stock flat at 7.77 (or 0.3, 33.3, 101.01) for a year as above its own 20, 50 and 200-day average and
+    above its 50-day on the line (2026-11-22 review); 10.0, exactly representable, never showed it."""
+    for price in (0.3, 7.77, 33.3, 101.01, 10.0):
+        days, vals = C.tail(closes_of([price * 0.5] * 74 + [price] * 250))
+        ords = list(days)
+        b = C.stock_breadth(days, vals, {"now": ords[-1]}, ords[-3:])
+        assert (b["now"]["above20"], b["now"]["above50"], b["now"]["above200"]) == (False, False, False), price
+        assert b["line"] == [False, False, False], price
+    # one step of binary precision above or below its average is still told apart, exactly
+    up, down = math.nextafter(7.77, math.inf), math.nextafter(7.77, -math.inf)
+    above, _ = _breadth([7.77] * 259 + [up])
+    below, _ = _breadth([7.77] * 259 + [down])
+    assert (above["now"]["above20"], above["now"]["above200"]) == (True, True)
+    assert (below["now"]["above20"], below["now"]["above200"]) == (False, False)
+
+
 def test_a_session_the_stock_did_not_trade_is_no_answer_and_the_line_follows_the_sessions():
     b, ords = _breadth(list(range(1, 301)), targets=None)
     missing = C.stock_breadth(*C.tail(closes_of(list(range(1, 301)))), {"now": ords[-1] + 1}, [ords[-1], ords[-1] + 1])
@@ -522,7 +540,8 @@ def _client(user):
 def test_the_route_is_one_paid_get_and_a_refused_caller_never_reaches_the_service(monkeypatch):
     asked = []
     monkeypatch.setattr(gs, "get_group_stats", lambda kind, name: asked.append((kind, name)) or {"status": "ok"})
-    (r,) = route.router.routes
+    # the router also carries ERNSC's season read (tests/test_sector_earnings.py)
+    (r,) = [x for x in route.router.routes if x.path == "/api/research/group-stats"]
     assert r.path == "/api/research/group-stats" and r.methods == {"GET"}
     assert route.require_paid in {d.call for d in r.dependant.dependencies}
     assert route.require_paid.__module__ == "api.routers.group_stats"
