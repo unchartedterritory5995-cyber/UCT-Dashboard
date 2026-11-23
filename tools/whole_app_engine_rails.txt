@@ -30,6 +30,9 @@
 # 2026-11-23 (#2570, the ILScript redaction): + vendorHarness/redactions.test.js, which reads every JSON under
 # tests/fixtures (every committed capture must be redacted and verify): a PR that adds a capture and never touches the
 # engine must run it.
+# 2026-11-23 (#2594, the index-history disclosure): + indexHistoryNotice.test.jsx, which reads
+# app/src/components/StockChart.jsx (the effect that decides the disclosure per instance): a PR that changes the
+# chart and never touches the engine must run it.
 src/components/chart/engine/__tests__/bindSymbolFields.rail.test.js
 src/components/chart/engine/__tests__/binderSeriesDataSpread.rail.test.js
 src/components/chart/engine/__tests__/controlDoorCensus.test.js
@@ -41,6 +44,7 @@ src/components/chart/engine/__tests__/flipB.test.jsx
 src/components/chart/engine/__tests__/flipCGeometry.test.jsx
 src/components/chart/engine/__tests__/flipCRecord.test.js
 src/components/chart/engine/__tests__/hostLaneWorker.rail.test.js
+src/components/chart/engine/__tests__/indexHistoryNotice.test.jsx
 src/components/chart/engine/__tests__/jsdocParams.test.js
 src/components/chart/engine/__tests__/legendFromDefinitions.test.jsx
 src/components/chart/engine/__tests__/listingDeepen.test.js

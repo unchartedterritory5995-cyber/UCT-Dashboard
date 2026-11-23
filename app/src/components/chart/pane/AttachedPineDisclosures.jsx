@@ -55,6 +55,7 @@ import { anyPaneScaled, onPaneScaleChange } from '../engine/paneFitNotice'
 import { runtimeErrorNoticeFor, onRuntimeErrorNoticeChange } from '../engine/runtimeErrorNotice'
 import { runtimeBudgetStoppedFor, retryRuntimeBudgetStops, onRuntimeBudgetStopsChange } from '../engine/runtimeBudgetStops'
 import { chartClockNotesFor, onChartClockChange } from '../engine/chartClockNotice'
+import { indexHistoryNotesFor, onIndexHistoryChange } from '../engine/indexHistoryNotice'
 import { objectRenderDropsFor, onObjectRenderDropsChange } from '../engine/objectRenderNotice'
 import { DRAWING_NOTE_NAME, withRenderDrops } from '../engine/ast/objectLoss'
 import { TABLES_FIT } from '../engine/objectTableDom'
@@ -293,6 +294,18 @@ export default function AttachedPineDisclosures({
     return onChartClockChange(read)
   }, [drawnIds, noticeScope])
 
+  // ⭐⭐ (2026-11-23) THE INDEX-HISTORY DISCLOSURE: one sentence when an attached instance reads SPX / NDX intraday history
+  // from our data vendor's older sessions (`engine/indexHistoryNotice.js` owns the decision and the words).
+  const [indexNotes, setIndexNotes] = useState(() => indexHistoryNotesFor(drawnIds, noticeScope))
+  useEffect(() => {
+    const read = () => setIndexNotes((prev) => {
+      const next = indexHistoryNotesFor(drawnIds, noticeScope)
+      return prev.length === next.length ? prev : next
+    })
+    read()
+    return onIndexHistoryChange(read)
+  }, [drawnIds, noticeScope])
+
   // ⛔ ONCE, however many panes scaled. Two attached documents on one phone are
   // one fact about the screen, not two sentences.
   // ⭐ C43 — a stopped script leads: it is why its pane is empty.
@@ -303,6 +316,7 @@ export default function AttachedPineDisclosures({
     ...rows,
     // C49 — a withheld `request.security` rides the same store; it is named as what it is
     ...clockNotes.map((n) => ({ name: `${n.code.startsWith('request:') ? 'Request' : 'Time'} (${n.code})`, note: n.reason })),
+    ...indexNotes.map((n) => ({ name: 'Index history', note: n.reason })),
     ...(scaled && TABLES_FIT.memberNote ? [{ name: 'Tables', note: TABLES_FIT.memberNote }] : []),
   ]
   if (!all.length) return null

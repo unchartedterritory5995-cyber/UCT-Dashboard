@@ -44,6 +44,7 @@ import { RANGE_OPTS } from '../../components/chart/rangeOptions'
 import { averageCount, withAveragesShown } from '../../components/chart/averageVisibility'
 import * as nativeRegistry from '../../components/chart/engine/nativeRegistry'
 import { prefWriteFailed, readsBack } from '../prefFailure'
+import { compareDisplayOfWords, groupOnlyOfWords } from './comparePhrases'
 
 const sameJson = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
 const clone = (v) => (v === undefined ? undefined : JSON.parse(JSON.stringify(v)))
@@ -246,6 +247,9 @@ export function registerChartSetupCapabilities() {
   registerCapability({
     ...chartCommon,
     name: 'chartSetup.compareDisplay',
+    // Compare family (11-23): the general reader (comparePhrases) — whole sentences, since a list is inside them
+    fastWhole: true,
+    fast: (p) => compareDisplayOfWords(p) || groupOnlyOfWords(p),
     summary: 'Change how ONE chart\'s comparison overlays are shown (Tools → Compare Symbols): each overlay\'s scale ("same" = share the main price scale, "new" = its own % scale), showing or hiding an overlay, and "Group only" (hide the chart\'s own symbol). To add or remove overlays use chart.compare.',
     hints: 'symbols = the compared tickers this applies to ([] = every comparison on the chart); scale = same | new | null (keep); visible = true | false | null (keep); groupOnly = true | false | null (keep).',
     args: { type: 'object', properties: {
