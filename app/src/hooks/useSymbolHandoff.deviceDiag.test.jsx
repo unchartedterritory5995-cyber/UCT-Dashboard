@@ -1,6 +1,11 @@
 // DIAGNOSTICS (device store on): one record per switch, at its commit, of what the first frame is built
 // from and, when it is not the device copy, which rule refused it (data/deviceStore/diag.js). Off, nothing
 // is recorded and nothing is exposed.
+// L2 (review of #2537): ONLY FOR A TESTER, never for every member the store is on for. A record asks the worker for
+// a full engine lookup per switch the device did not paint (deviceWhy), so they run when the debug key
+// 'uct.deviceStore.diag' is '1', or when the member switched the store on BY HAND ('uct.deviceStore' = '1': the
+// proofs' setup) and the debug key does not say '0'. A member on the default (no key) gets neither the records nor
+// window.__uctDeviceDiag. The tests above the L2 block run as a tester (load() sets the debug key).
 import { renderHook, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
@@ -29,9 +34,13 @@ vi.mock('../data/deviceStore/source', () => ({ deviceSource: () => ({ why: (...a
 
 let useSymbolHandoff
 let diag
-async function load() {
+const DIAG_KEY = 'uct.deviceStore.diag'
+const STORE_KEY = 'uct.deviceStore'
+/** A new page load; `tester` (the default): the debug key says '1'. */
+async function load({ tester = true } = {}) {
   vi.resetModules()
   delete window.__uctDeviceDiag
+  if (tester) localStorage.setItem(DIAG_KEY, '1')
   diag = await import('../data/deviceStore/diag')
   diag.clearDeviceDiag()
   useSymbolHandoff = (await import('./useSymbolHandoff')).default
@@ -47,7 +56,7 @@ beforeEach(() => {
   sw.on = true
   why.mockClear()
 })
-afterEach(() => { vi.useRealTimers() })
+afterEach(() => { vi.useRealTimers(); localStorage.removeItem(DIAG_KEY); localStorage.removeItem(STORE_KEY) })
 
 describe('the switch records whether the device painted it', () => {
   it('a device-painted switch: one record, painted device, no worker question', async () => {
@@ -114,5 +123,35 @@ describe('the switch records whether the device painted it', () => {
     await load()
     const { result } = switchTo('5')
     expect(result.current).toBe('B')
+  })
+  // L2: the store on for EVERY desktop member must not cost each of them a worker lookup per switch
+  it('L2 a member on the default (no key): no record, no worker question, nothing exposed', async () => {
+    st.verdict = { paints: false, reason: 'held:idb', held: 'idb' }
+    st.device = false
+    await load({ tester: false })
+    switchTo('60')
+    await act(async () => { await Promise.resolve(); await Promise.resolve() })
+    expect(why).not.toHaveBeenCalled()
+    expect(window.__uctDeviceDiag).toBeUndefined()
+    expect(diag.deviceDiagLog()).toEqual([])
+  })
+
+  it("L2 a tester who switched the store on by hand ('1') gets them; the debug key's '0' silences them", async () => {
+    st.verdict = { paints: false, reason: 'held:idb', held: 'idb' }
+    st.device = false
+    localStorage.setItem(STORE_KEY, '1')
+    await load({ tester: false })
+    const first = switchTo('60')
+    await act(async () => { await Promise.resolve(); await Promise.resolve() })
+    expect(why).toHaveBeenCalledWith('B', '60')
+    expect(window.__uctDeviceDiag.log()).toHaveLength(1)
+    first.unmount()
+    why.mockClear()
+    localStorage.setItem(DIAG_KEY, '0')
+    await load({ tester: false })
+    switchTo('60')
+    await act(async () => { await Promise.resolve(); await Promise.resolve() })
+    expect(why).not.toHaveBeenCalled()
+    expect(window.__uctDeviceDiag).toBeUndefined()
   })
 })
