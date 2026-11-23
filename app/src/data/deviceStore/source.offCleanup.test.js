@@ -25,6 +25,7 @@ vi.mock('./client', () => ({ getDeviceClient }))
 
 const FILES_KEY = 'uct.deviceStore.files'
 const LAST_RUN_KEY = 'uct.deviceStore.lastRun'
+const STALE_SINCE_KEY = 'uct.deviceStore.staleSince'
 const STORE_KEY = 'uct.deviceStore'
 const DIR = 'uct-device-store'
 const DAY = 86_400_000
@@ -211,18 +212,76 @@ describe('OFF BY DEFAULT: the packs are kept, unused', () => {
     expect(await off(NOW + 31 * DAY)).toBe(1)                            // confirmed a day later: deleted
   })
 
-  it('no stamp (a seed from before the stamp existed), or a stamp from the future (a clock set back): KEPT', async () => {
+  // (review of #2537 head f16a87dd98, Q-1.4: this case said "+40 days: KEPT" and pinned the residual) A stamp from the
+  // future is kept only within DEVICE_LAST_RUN_FUTURE_MAX_MS (7 days): a clock set back after a run. Each stamp gets the
+  // two off loads a day apart that a stale deletion needs, so "kept" means kept, not "only marked on one load".
+  it('no stamp (a seed from before the stamp existed), a stamp up to 7 days ahead (a clock set back), or garbage: KEPT, never even marked', async () => {
     localStorage.setItem(FILES_KEY, '1')
-    for (const stamp of [null, String(NOW + 40 * DAY), 'garbage']) {
+    for (const stamp of [null, String(NOW + 1), String(NOW + 7 * DAY), 'garbage']) {
       if (stamp == null) localStorage.removeItem(LAST_RUN_KEY); else localStorage.setItem(LAST_RUN_KEY, stamp)
-      const src = await pageLoad({ defaultOn: false })
-      const s = scheduler()
-      const o = opfs()
-      look(src, s, o)
-      await paintAndIdle(s)
-      expect(o.storage.getDirectory, String(stamp)).not.toHaveBeenCalled()
+      for (const at of [NOW, NOW + DAY]) {
+        const src = await pageLoad({ defaultOn: false })
+        const s = scheduler()
+        const o = opfs()
+        look(src, s, o, { now: () => at })
+        await paintAndIdle(s)
+        expect(o.storage.getDirectory, `${stamp} at +${(at - NOW) / DAY} d`).not.toHaveBeenCalled()
+      }
+      expect(localStorage.getItem(STALE_SINCE_KEY), String(stamp)).toBeNull()
     }
     expect(localStorage.getItem(FILES_KEY)).toBe('1')
+  })
+
+  // (review of #2537 head f16a87dd98, Q-1.4, LOW) A run overwrites a stamp more than 7 days ahead of its clock, but a
+  // browser whose LAST run wrote one (its clock far ahead then) and that never runs the store again had no run to do it:
+  // the seed read "not stale" until real time passed the stamp. To the stale rule such a stamp is corrupt too: stale-
+  // ELIGIBLE, still deleted only by two off-by-default loads at least 24 h apart.
+  it('the stale rule draws the future line where the run does: up to 7 days ahead is not stale, beyond it is', async () => {
+    const { deviceFilesStale, DEVICE_LAST_RUN_FUTURE_MAX_MS, DEVICE_FILES_STALE_MS } = await import('./residue')
+    expect([DEVICE_LAST_RUN_FUTURE_MAX_MS, DEVICE_FILES_STALE_MS]).toEqual([7 * DAY, 30 * DAY])
+    const staleWith = (stamp) => { localStorage.setItem(LAST_RUN_KEY, String(stamp)); return deviceFilesStale(NOW) }
+    expect(staleWith(NOW + 1)).toBe(false)
+    expect(staleWith(NOW + 7 * DAY)).toBe(false)
+    expect(staleWith(NOW + 7 * DAY + 1)).toBe(true)
+    expect(staleWith(Date.UTC(2099, 0, 1))).toBe(true)
+    expect(staleWith(NOW - 30 * DAY + 1)).toBe(false)                  // the past side is unchanged
+    expect(staleWith(NOW - 30 * DAY)).toBe(true)
+    localStorage.removeItem(LAST_RUN_KEY)
+    expect(deviceFilesStale(NOW)).toBe(false)
+  })
+
+  it('a stamp just past the 7-day line is MARKED on an off load (the first of the two a deletion needs)', async () => {
+    localStorage.setItem(FILES_KEY, '1')
+    localStorage.setItem(LAST_RUN_KEY, String(NOW + 7 * DAY + 1))
+    const src = await pageLoad({ defaultOn: false })
+    const s = scheduler()
+    const o = opfs()
+    look(src, s, o)
+    await paintAndIdle(s)
+    expect(o.storage.getDirectory).not.toHaveBeenCalled()                // one load never deletes
+    expect(localStorage.getItem(STALE_SINCE_KEY)).toBe(String(NOW))
+  })
+
+  it('a seed whose LAST run stamped it far ahead (+40 days, 2099), then abandoned: marked, then deleted on the off load a day later', async () => {
+    for (const stamp of [NOW + 40 * DAY, Date.UTC(2099, 0, 1)]) {
+      localStorage.clear()
+      localStorage.setItem(FILES_KEY, '1')
+      localStorage.setItem(LAST_RUN_KEY, String(stamp))                  // no run comes after it to overwrite it
+      const off = async (at) => {
+        const src = await pageLoad({ defaultOn: false })
+        const s = scheduler()
+        const o = opfs()
+        look(src, s, o, { now: () => at })
+        await paintAndIdle(s)
+        return o.root.removeEntry.mock.calls.filter((c) => c[0] === DIR).length
+      }
+      const label = new Date(stamp).toISOString()
+      expect(await off(NOW), label).toBe(0)                              // stale-eligible: marked only
+      expect(localStorage.getItem(STALE_SINCE_KEY), label).toBe(String(NOW))
+      expect(await off(NOW + DAY - 1), label).toBe(0)                    // under 24 h: still only marked
+      expect(await off(NOW + DAY), label).toBe(1)                        // confirmed: deleted
+      expect(localStorage.getItem(FILES_KEY), label).toBe('0')
+    }
   })
 
   it('a stored value that is not a choice ("off") is OFF and keeps the packs, even long unused', async () => {
