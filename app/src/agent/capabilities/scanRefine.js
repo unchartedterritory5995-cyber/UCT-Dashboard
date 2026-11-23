@@ -87,13 +87,21 @@ const slim = (last) => ({
 export function persistLastScreen(last) {
   const id = activeConversationId()
   if (!id || !last?.spec) return null
-  return agentConversationStateSet(id, STATE_KEY, slim(last)).catch(() => null)
+  // TERM-033: agentClient's send() never rejects (a failure is { ok: false, … }), so the old catch-to-null caught
+  // nothing and a failed save went unseen. It is logged now; the value returned is the same, and no answer waits on it.
+  return agentConversationStateSet(id, STATE_KEY, slim(last)).then((r) => {
+    if (!r?.ok) console.warn(`[uct-agent] screener: this chat's last screen was not saved (${r?.status ? `HTTP ${r.status}` : r?.error || 'error'})`)
+    return r
+  })
 }
 /** The last screen stored for the current conversation → the screener's `last` shape, or null. */
 export async function restoreLastScreen() {
   const id = activeConversationId()
   if (!id) return null
-  const r = await agentConversationState(id, STATE_KEY).catch(() => null)
+  const r = await agentConversationState(id, STATE_KEY)          // never rejects: a failure is { ok: false, … }
+  // TERM-033: a failed read is logged. What the member is told is unchanged here (no last screen); saying "I couldn't
+  // read it back" instead is the Agent team's draft #1033.
+  if (!r?.ok) console.warn(`[uct-agent] screener: this chat's last screen could not be read back (${r?.status ? `HTTP ${r.status}` : r?.error || 'error'})`)
   const v = r && r.ok ? r.data?.value : null
   if (!v || typeof v !== 'object' || !v.spec || !Array.isArray(v.spec.filters)) return null
   return { spec: { filters: v.spec.filters, post: Array.isArray(v.spec.post) ? v.spec.post : [], sort: v.spec.sort || null,
