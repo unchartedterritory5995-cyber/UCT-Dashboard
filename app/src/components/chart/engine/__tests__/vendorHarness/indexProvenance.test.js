@@ -95,7 +95,7 @@ describe('the capture grade wires it (code, not prose)', () => {
   it('compareCapture builds ONE mask from our side’s `indexProvenance` and hands it to every plot’s comparison', () => {
     const src = fs.readFileSync(path.resolve(globalThis.process.cwd(), '../tools/vendor_harness/compare.mjs'), 'utf8')
     expect(src).toMatch(/const provenanceBars = provenanceBarsOf\(times, ours\.indexProvenance, \{ intraday: /)
-    const args = src.match(/const plotArgs = \{[\s\S]*?\}\n/)
+    const args = src.match(/const plotArgs = \{[\s\S]*?\}\r?\n/)   // \r?: a Windows checkout reads CRLF
     expect(args && args[0]).toMatch(/behindBars, provenanceBars, indexRead \}/)
   })
 

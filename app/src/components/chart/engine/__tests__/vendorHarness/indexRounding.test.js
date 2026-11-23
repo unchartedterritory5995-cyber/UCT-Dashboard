@@ -185,7 +185,7 @@ describe('the capture grade wires it (code, not prose)', () => {
     expect(src).toMatch(/\r?\n {6}indexReadValues,\r?\n/)
     expect(src).toContain('registry.otherSymbolsFor(doc, withChartNewestDay(ctx, bars))')
     const cmp = fs.readFileSync(path.resolve(process.cwd(), '../tools/vendor_harness/compare.mjs'), 'utf8')
-    const args = cmp.match(/const plotArgs = \{[\s\S]*?\}\n/)
+    const args = cmp.match(/const plotArgs = \{[\s\S]*?\}\r?\n/)   // \r?: a Windows checkout reads CRLF
     expect(args && args[0]).toMatch(/provenanceBars, indexRead \}/)
   })
 

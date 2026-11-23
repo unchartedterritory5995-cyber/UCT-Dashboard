@@ -1229,10 +1229,14 @@ export function compareCapture(capture, ours, opts = {}) {
         oursUnreadAfter: unreadAfter.length ? Math.min(...unreadAfter) : null,
         withheldBars: leadBy(co.withheldBars, treeShift) || null, floatOrderFloor: leadBy(co.floatOrderFloor, treeShift) || null, behindBars }) : null
       if (cr && cr.steady.divergent === 0 && cr.steady.compared > 0) {
-        const n = r.steady.divergent
+        // ⭐ THE ROUNDING-EQUAL BARS ARE ATTRIBUTED TOO: the counterfactual run (no rounding bound: it is compared
+        // without `indexRead`) agrees on EVERY bar, those included, so every steady bar that differed is the supply's;
+        // the rounding column only says how many of them differed by no more than an index tick
+        const rounded = r.roundingEqual ? r.roundingEqual.steady : 0
+        const n = r.steady.divergent + rounded
         pv = {
           verdict: MATCH_SUBSTITUTED,
-          reason: `${n} steady-state bars differ, every one a value on a date where UCT's ${sa.record.symbol} `
+          reason: `${n} steady-state bars differ${rounded ? ` (${rounded} of them only by index rounding)` : ''}, every one a value on a date where UCT's ${sa.record.symbol} `
             + `(${sa.record.source}) differs from TradingView's (witness ${sa.record.witness.join(', ')}: `
             + `${sa.record.datesDiffer} of ${sa.record.datesCompared} dates differ); on the witness's values every bar agrees`,
           supplyAttributed: { ...sa.record, bars: n },
