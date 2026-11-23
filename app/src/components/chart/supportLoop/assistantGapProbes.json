@@ -150,6 +150,30 @@
    "cannot": "A multi-line text setting (input.text_area)",
    "kind": "language",
    "source": "//@version=5\nindicator(\"probe\", overlay=true)\nnote = input.text_area(\"hello\", \"Note\")\nif barstate.islast\n    label.new(bar_index, high, note)\n"
+  },
+  {
+   "id": "getter-function-in-text",
+   "cannot": "A label whose text is a function (such as `math.abs`, `math.round`, `math.max`) of a value read back from a drawing",
+   "kind": "drawing",
+   "source": "//@version=5\nindicator(\"probe\", overlay=true)\nvar line l = na\nvar label lb = na\nif barstate.islast\n    line.delete(l)\n    label.delete(lb)\n    l := line.new(bar_index - 5, low[5], bar_index, close)\n    lb := label.new(bar_index, close, str.tostring(math.abs(line.get_y2(l) - line.get_y1(l)), \"#.00\"))\n"
+  },
+  {
+   "id": "getter-local-with-series",
+   "cannot": "A label whose text reads a local that mixes a value read back from a drawing with a price series",
+   "kind": "drawing",
+   "source": "//@version=5\nindicator(\"probe\", overlay=true)\nvar line l = na\nvar label lb = na\nif barstate.islast\n    line.delete(l)\n    label.delete(lb)\n    l := line.new(bar_index - 5, low[5], bar_index, close)\n    float above = line.get_y2(l) - low\n    lb := label.new(bar_index, close, str.tostring(above, \"#.00\"))\n"
+  },
+  {
+   "id": "getter-named-format",
+   "cannot": "A value read back from a drawing printed with a named format (`format.mintick`)",
+   "kind": "drawing",
+   "source": "//@version=5\nindicator(\"probe\", overlay=true)\nvar line l = na\nvar label lb = na\nif barstate.islast\n    line.delete(l)\n    label.delete(lb)\n    l := line.new(bar_index - 5, low[5], bar_index, close)\n    lb := label.new(bar_index, close, str.tostring(line.get_y2(l), format.mintick))\n"
+  },
+  {
+   "id": "getter-in-table-cell",
+   "cannot": "A table cell whose text is a value read back from a drawing",
+   "kind": "drawing",
+   "source": "//@version=5\nindicator(\"probe\", overlay=true)\nvar line l = na\nvar table t = table.new(position.top_right, 1, 1)\nif barstate.islast\n    line.delete(l)\n    l := line.new(bar_index - 5, low[5], bar_index, close)\n    table.cell(t, 0, 0, str.tostring(line.get_y2(l) - line.get_y1(l), \"#.00\"))\n"
   }
  ]
 }

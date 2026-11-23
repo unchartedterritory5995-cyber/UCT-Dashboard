@@ -97,6 +97,25 @@ describe('A — every probe, graded by value on the member\'s own route', () => 
     })
   }
 
+  // ⛔⛔ THE OLD REFUSAL MAY NEVER QUIETLY RETURN. Three rails (c33ObjectReads (6)/(8),
+  // objectCollectorLostCreates, builder/objectCorpus) used a getter in arithmetic as "the text the door
+  // cannot read" and were re-pinned to `math.abs(...)` over it, which is still unread (a named gap:
+  // `supportLoop/assistantGapProbes.json`, `getter-function-in-text`). THIS holds the arithmetic itself,
+  // by value: the line's own rise, and one end of it read on top of a number.
+  it('`line.get_y2(l) - line.get_y1(l)` and `line.get_y1(l) + 1` in a label\'s text draw the right numbers', () => {
+    const src = ['//@version=5', 'indicator("t", overlay=true)', 'var line l = na', 'var label lb = na',
+      'if barstate.islast', '    line.delete(l)', '    label.delete(lb)',
+      '    l := line.new(bar_index - 5, low[5], bar_index, close)',
+      '    lb := label.new(bar_index, close, str.tostring(line.get_y2(l) - line.get_y1(l), "#.00") + " | " + str.tostring(line.get_y1(l) + 1, "#.00"))',
+    ].join(LF) + LF
+    const got = drawn(src)
+    expect(got.pane.ok, got.pane.reason).toBe(true)
+    expect(got.labels).toEqual([`${fmt2(CLOSE - LOW5)} | ${fmt2(LOW5 + 1)}`])
+    const d = diag(src)
+    expect(d.droppedOps).toBe(0)
+    expect(d.getters).toEqual([])
+  })
+
   it('the values the studio recorded for the controls are the values here (README, master 037e8d75b6)', () => {
     expect(fmt2(CLOSE)).toBe('113.09')
     expect(fmt2(LOW5)).toBe('111.49')
