@@ -181,6 +181,8 @@ export function createNetwork({
   // historyFeed.js: older intraday bars from the history lake at the edge, asked before the
   // server's window on every scroll-back (null: the server only, as before).
   history = null,
+  // called just before a key's answer is dispatched (index.js: persist.flushJoins, review of #2615)
+  beforeAnswer = null,
 } = {}) {
   /** key → per-key slot + loop state */
   const keys = new Map()
@@ -287,6 +289,8 @@ export function createNetwork({
         return { error: true, retryAfterSec: json?.retry_after ?? null }
       }
       const type = delta ? ACTION.REST_DELTA : ACTION.REST_FULL
+      // a device join waiting for idle on this key goes first, in this task (persist.flushJoins)
+      try { beforeAnswer?.(r.key) } catch { /* a device copy is optional */ }
       const after = registry.dispatch(r.key, { type, key: r.key, gen, payload: delta ? { ...json, since: from } : json })
       // only when more was wanted than the capped tail asked for (today's bar is the developing one,
       // never a row, so `depth` alone would read a full first-paint answer as one bar short).

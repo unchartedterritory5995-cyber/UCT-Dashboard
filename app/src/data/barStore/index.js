@@ -48,7 +48,9 @@ export function createBarStore(o = {}) {
   const active = new Map()
   // the history lake (per-browser switch until its edge route is live; historyFeed.js)
   const history = o.history !== undefined ? o.history : (historyLakeEnabled() ? createHistoryFeed() : null)
+  // `beforeAnswer` names `persist`, created below: it is called only when an answer lands, long after both exist.
   const network = o.network ?? createNetwork({
+    beforeAnswer: (key) => persist?.flushJoins?.(key),
     history,
     registry, request: o.request, setTimer, clearTimer, now,
     ...(o.isHidden ? { isHidden: o.isHidden } : {}), ...(o.onVisible ? { onVisible: o.onVisible } : {}),

@@ -55,7 +55,7 @@ import { isSealedRow, bucketEnd, normT } from './reducer'
 import { deviceSource as _defaultDeviceSource } from '../deviceStore/source'
 import { deviceCopyFresh } from '../deviceStore/fresh'
 import { deviceServesTf } from '../deviceStore/tfs'
-import { onDeviceStoreKill } from '../../lib/chartSpeed'
+import { onDeviceStoreKill, deviceStoreKillSeen } from '../../lib/chartSpeed'
 
 export const PERSIST_DEBOUNCE_MS = 1000
 export const META_VERSION = 1
@@ -265,6 +265,32 @@ export function createPersist({
     if (!before || before.restSeen || before.source !== 'lake') return false
     try { return onScreen?.(key) === true && answerPending?.(key) === true } catch { return false }
   }
+  /** key → the device copies whose join waits for idle (_joinWaits), in arrival order. Bounded by the keys a chart shows
+   *  with a request in flight: each is run at idle, or by `flushJoins` just before the key's answer. */
+  const joinsWaiting = new Map()
+  function _runWaiting(key, job) {
+    const list = joinsWaiting.get(key)
+    const i = list ? list.indexOf(job) : -1
+    if (i < 0) return                                    // already run (the answer's flush came first)
+    list.splice(i, 1)
+    if (!list.length) joinsWaiting.delete(key)
+    try { _deviceHit(key, job.p, job.gen, job.got, job.ownDev, true) } catch { /* a device copy is optional */ }
+  }
+  /**
+   * ⭐ A WAITING JOIN GOES RIGHT BEFORE ITS KEY'S ANSWER (review of #2615, item 1). An answer that LAGS the device copy (its
+   * tail older than the copy's newest complete bucket: seal lag at a bucket roll, a stale-while-revalidate serve) landing
+   * before idle made the waiting join refuse ('answered'), so the device's vouched newer candle was lost until the stream
+   * or the next poll: the hole of seconds #2558 P4-L3 closed (reducer: the first answer keeps the device rows newer than
+   * itself that the copy's stamp vouches for). The network calls this just before it dispatches the key's answer (index.js
+   * `beforeAnswer`), in the same task, so the join and the answer reach the chart together and P4-L3 applies as on master.
+   * A key with nothing waiting: one Map lookup (always, with the store off).
+   */
+  function flushJoins(key) {
+    const list = joinsWaiting.get(key)
+    if (!list) return
+    joinsWaiting.delete(key)
+    for (const job of list) { try { _deviceHit(key, job.p, job.gen, job.got, job.ownDev, true) } catch { /* optional */ } }
+  }
   /** key → `through` (unix s) of the device copy the entry holds: how far it is complete (deviceStore
    *  fresh.js / prefetch.devicePaints read it). Bounded, oldest out. */
   const devThrough = new Map()
@@ -313,6 +339,10 @@ export function createPersist({
   function _deviceHit(key, p, gen, got, ownDev = null, atIdle = false) {
     // (`n`: the copy's row count without building its rows, deviceStore/source.js; a copy with no `n` has rows)
     if (!got || !(got.n ?? got.rows?.length)) return false
+    // ⛔ NOTHING JOINS ONCE THE PAGE HAS SEEN A KILL (review of #2615, item 2). The kill marks only the entries holding
+    // device rows at that moment (onDeviceStoreKill above); a copy read before it whose join waited for idle would join
+    // after it, unmarked, and its rows would read as vouched.
+    if (deviceStoreKillSeen()) return false
     const before = registry.peek(key)
     const held = devThrough.get(key)
     // What nearly every warm of a device-held key ends in. It reads no row: the count above is `got.n`, and for an
@@ -321,7 +351,10 @@ export function createPersist({
     if (before?.source === 'device' && held != null && !(got.through > held)) return false   // not newer
     // a join onto the lake's rows on a chart already showing them, its answer on the way: at idle (_joinWaits)
     if (!atIdle && _joinWaits(key, before)) {
-      idle(() => { try { _deviceHit(key, p, gen, got, ownDev, true) } catch { /* a device copy is optional */ } })
+      const job = { p, gen, got, ownDev }
+      if (!joinsWaiting.has(key)) joinsWaiting.set(key, [])
+      joinsWaiting.get(key).push(job)
+      idle(() => _runWaiting(key, job))
       return false
     }
     if (_joinRefused(before, p, got, ownDev)) return false
@@ -496,6 +529,10 @@ export function createPersist({
     },
     /** Stop listening for a kill (the store's dispose). */
     dispose() { try { offKill?.() } catch { /* gone */ } },
+    /** Run the device joins waiting for idle on `key` now: the network calls it just before the key's answer (index.js).
+     *  Only with a device source: with the store off it is not there at all, so the network's call reads one missing
+     *  property and stops (index.js `beforeAnswer`). */
+    ...(DEV ? { flushJoins } : {}),
     /** Write every pending key now (page hide / tests). */
     async flush() {
       const keys = [...watched.keys()]
