@@ -91,10 +91,16 @@ export function withMarketWide(universeRow, uctRow) {
   return out
 }
 
-/** Columns with no per-universe source yet (Phase 3): "n/a" off UCT. */
-export const UNAVAILABLE_COLS = new Set(['up_vol_ratio', 'hvc_52w', 'atr_ext_7', 'new_ath'])
+/** Columns with no per-universe source at all: "n/a" off UCT. (ATH needs every stock's whole price
+ *  history, which the provider's bars do not reach.) */
+export const UNAVAILABLE_COLS = new Set(['new_ath'])
 
-/** Health is UCT-calibrated: hidden ("—") off UCT. */
+/** Rebuilt per universe (breadth_universe_extras, 2026-11-23): a value where the series has the
+ *  session, "n/a" where it does not. */
+export const REBUILT_COLS = new Set(['up_vol_ratio', 'hvc_52w', 'atr_ext_7'])
+export const NOT_IN_SERIES_NOTE = 'No reading for this session yet.'
+
+/** Health: scored off UCT with that universe's own bands (breadth_health_bands, 2026-11-23). */
 export const HEALTH_COL = 'breadth_score'
 
 export const NOT_AVAILABLE_NOTE = 'Not available for this universe yet.'
@@ -106,8 +112,13 @@ export const NOT_AVAILABLE_NOTE = 'Not available for this universe yet.'
 export function universeColumnNote(key, universe) {
   if (!universe || universe === DEFAULT_UNIVERSE) return null
   const label = universeLabel(universe)
-  if (key === HEALTH_COL) return `UCT-calibrated, so it is not yet available for ${label}.`
+  if (key === HEALTH_COL) {
+    return `Scored with ${label}’s own bands: each band edge sits at the same percentile of ${label}’s history as UCT’s does in UCT’s.`
+  }
   if (UNAVAILABLE_COLS.has(key)) return NOT_AVAILABLE_NOTE
+  if (REBUILT_COLS.has(key)) {
+    return `Computed by the breadth engine over ${label}’s own list for each session (the list as it stood that day).`
+  }
   if (MARKET_WIDE_COLS.has(key)) return 'Market-wide: the same reading on every universe.'
   if (key === 'mcclellan_osc') {
     return `Ratio-adjusted on ${label}: net advances as a share of advancers plus decliners, so it differs from UCT’s raw version.`
@@ -119,23 +130,23 @@ export function universeColumnNote(key, universe) {
   return null
 }
 
-/** What a cell shows instead of its value on this universe ('n/a' / '—'), or null. */
-export function universeCellOverride(key, universe) {
+/** What a cell shows instead of its value on this universe ('n/a'), or null. */
+export function universeCellOverride(key, universe, row) {
   if (!universe || universe === DEFAULT_UNIVERSE) return null
-  if (key === HEALTH_COL) return '—'
   if (UNAVAILABLE_COLS.has(key)) return 'n/a'
+  if (REBUILT_COLS.has(key) && (row?.[key] === null || row?.[key] === undefined)) return 'n/a'
   return null
 }
 
 /**
  * The Columns menu's tag for a column on this universe (ColumnsMenu `columnTag`): null on UCT;
  * "Market-wide" for a column that is the same everywhere; "n/a for <universe>" (dimmed) for
- * Health and the not-yet-available columns.
+ * the not-yet-available columns.
  */
 export function columnTagFor(key, universe) {
   if (!universe || universe === DEFAULT_UNIVERSE) return null
   const label = universeLabel(universe)
-  if (key === HEALTH_COL || UNAVAILABLE_COLS.has(key)) {
+  if (UNAVAILABLE_COLS.has(key)) {
     return { label: `n/a for ${label}`, title: universeColumnNote(key, universe), na: true }
   }
   if (MARKET_WIDE_COLS.has(key)) {
