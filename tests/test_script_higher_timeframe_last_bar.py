@@ -136,9 +136,11 @@ def test_i01_asks_for_the_latest_value_of_the_PERCENT_and_no_more():
     assert history[-1]["quote"] == "show its latest value"
 
 
-def test_the_pending_case_plots_a_weekly_value_words_and_rule_first():
-    case = PENDING["weekly-plot-01"]
-    assert case["lane"] == "script" and case["chart"] == "daily" and "answer" not in case and "recorded" not in case
+def test_the_case_that_plots_a_weekly_value_was_written_words_and_rule_first():
+    # (a pending case until its first live answer was read; it holds that answer since the thresholds PR)
+    case = PENDING.get("weekly-plot-01") or BY_ID["weekly-plot-01"]
+    assert case["lane"] == "script" and case["chart"] == "daily" and ("answer" in case) == ("recorded" in case)
+    assert case["rule"]["history"][0]["reason"] == "written from the request's words before the answer was read"
     assert case["words"] == ("Plot the 10 week simple moving average of the weekly close on my daily chart, and put a label with the "
                              "text Cross on each bar where the close crosses above it")
     assert len(case["rule"]["history"]) == 1 and case["rule"]["digest"] == case["rule"]["history"][0]["digest"]

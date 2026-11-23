@@ -4484,6 +4484,46 @@
     }
    }
   },
+  "newsLibrary.toNotebook": {
+   "digest": "91fcb753985b9311",
+   "phrasings": {
+    "send the NVDA headline to my notebook": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "put the NVDA story in my journal": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "clip the NVDA headline into my notebook": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "watchlist.add.fromHeadline": {
+   "digest": "f6d2e48edecd2375",
+   "phrasings": {
+    "add this headline's ticker to Momentum": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "add the ticker from the selected headline to my Momentum list": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "put the stock from this story on the Momentum watchlist": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
   "newsLibrary.save": {
    "digest": "0a7b6822479210fa",
    "phrasings": {
@@ -6067,6 +6107,56 @@
      "modes": {}
     },
     "show me the fed dot plot": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "recentlyDeleted.restore": {
+   "digest": "f6602f95f8c2a866",
+   "phrasings": {
+    "bring back my Old Breakouts screen": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "undelete the Old Breakouts screen": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "restore my deleted Old Breakouts screen": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "recover the Old Breakouts screen I deleted": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "recentlyDeleted.list": {
+   "digest": "8417baf3567c69cd",
+   "phrasings": {
+    "what have I deleted": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show my recently deleted screens": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "what is in recently deleted": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show my deleted layouts": {
      "digest": "44136fa355b3678a",
      "gaps": [],
      "modes": {}

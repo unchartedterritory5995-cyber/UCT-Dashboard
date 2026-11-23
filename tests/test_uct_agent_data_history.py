@@ -232,6 +232,31 @@ def test_a_stale_store_is_said_and_a_symbol_without_history_is_unavailable(world
     assert "UCT has no stored daily history" in out["notes"][0]
 
 
+def test_a_window_ending_on_todays_unfinished_bar_is_never_counted(monkeypatch):
+    """The store can hold today's unfinished daily bar (a chart view writes it). The study reads no outcome close
+    after the newest COMPLETED session (`sessions.last_completed_session`, the session bars.daily ends on), so a
+    window ending on that bar is incomplete, never a counted return, and the answer is as of the last finished close."""
+    gap_up = {30, len(S) - 2}                     # the second gap is ON the last completed session
+    bars = []
+    for i, d in enumerate(S):
+        c = 100.0 + i * 0.1
+        prev = 100.0 + (i - 1) * 0.1 if i else c
+        o = prev * 1.06 if i in gap_up else prev * 1.001
+        bars.append({"t": d, "o": round(o, 4), "h": max(o, c) + 1, "l": min(o, c) - 1, "c": c, "v": 1000})
+    fx.install(monkeypatch, bars=bars)
+    # the newest completed session is S[-2]; the store ALSO holds S[-1], a session that has not closed yet
+    monkeypatch.setattr(sessions, "last_completed_session", lambda now=None: int(S[-2].replace("-", "")))
+    out = _read({"symbol": "QQQ", "indicator": "gap_pct", "op": "above", "threshold": 5, "horizons": [1]})
+    assert out["status"] == "ok" and env.validate_envelope(out) == [], out["notes"]
+    s = out["data"]["summary"]
+    assert s["price_last"] == S[-2] == "2024-12-30" and out["stale"] is False
+    assert out["as_of"] == "2024-12-30T21:00:00Z"            # the last finished close, never the unfinished one
+    assert s["events_used"] == 2
+    # the event on S[-2] has a 1-session window ending on the unfinished S[-1]: incomplete, not a counted return
+    assert s["horizons"] == [{"label": "1 trading session", "n": 1, "incomplete": 1}]
+    assert out["data"]["study"]["table"]["rows"][0]["n"] == "1"
+
+
 def test_rsi_and_pct_from_sma_conditions_run_through_the_same_adapter(world):
     out = _read({"symbol": "QQQ", "indicator": "pct_from_sma", "period": 10, "op": "above", "threshold": 0.3, "horizons": [5]})
     assert out["status"] == "ok" and out["data"]["summary"]["series_label"] == "QQQ % from its 10-day SMA"

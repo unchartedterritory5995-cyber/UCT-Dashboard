@@ -5,10 +5,10 @@
 // Every fund, trust, ticker and figure here is INVENTED.
 import { describe, it, expect } from 'vitest'
 import {
-  DEFAULT_SORT, NOT_KNOWN, NOT_REPORTED, NPORT_SOURCE, changePctText, changeText, checkTimeWords, nextNportSort,
-  nportCheckLine, nportColumns, nportCoverageLine, nportHeldLine, nportMatchLine, nportPeriodLine, nportRows,
-  nportSoldRows, nportSortWords, nportStateWords, nportSummaryLines, nportTableName, quarterWords, soldMoreLine,
-  soldText, sortNportRows, toneOf, NPORT_COLUMN_BY_KEY,
+  DEFAULT_SORT, NOT_COMPARABLE, NOT_KNOWN, NOT_REPORTED, NPORT_SOURCE, STATE_WORDS, changePctText, changeText,
+  checkTimeWords, nextNportSort, nportCheckLine, nportColumns, nportCoverageLine, nportHeldLine, nportMatchLine,
+  nportPeriodLine, nportRows, nportSoldRows, nportSortWords, nportStateWords, nportSummaryLines, nportTableName,
+  quarterWords, soldMoreLine, soldText, sortNportRows, splitWords, toneOf, NPORT_COLUMN_BY_KEY,
 } from './fundNportModel'
 
 const fund = (i, over = {}) => ({
@@ -68,6 +68,40 @@ describe('change words', () => {
     expect(rows.map((r) => toneOf(ch, r))).toEqual(['up', null, 'down', 'up', null])
     expect(toneOf(NPORT_COLUMN_BY_KEY.shares, rows[0])).toBeNull()
     expect(toneOf(NPORT_COLUMN_BY_KEY.changePct, { ...rows[0], changePct: -0.04 })).toBeNull()
+  })
+})
+
+describe('a stock split between the reports (2026-11-22)', () => {
+  it('a change that could not be checked reads "not comparable", has no colour, and sinks in a sort', () => {
+    const rows = nportRows({ holders: [fund(0), fund(1, { state: 'not_comparable', prior_shares: 250, change_shares: null, change_pct: null })] })
+    expect(rows[1].state).toBe('not_comparable')
+    expect(changeText(rows[1])).toBe(NOT_COMPARABLE)
+    expect(changePctText(rows[1])).toBe('not comparable')
+    expect(toneOf(NPORT_COLUMN_BY_KEY.change, rows[1])).toBeNull()
+    expect(sortNportRows(rows, { key: 'change', dir: 'asc' }).at(-1).name).toBe('Invented Fund 1')
+    expect(STATE_WORDS.not_comparable).toEqual({ text: 'Change not comparable', tone: null })
+  })
+
+  it('the summary counts them apart and says why, and says which split the earlier shares were put through', () => {
+    const s = { ...BLOCK.summary, added: 2, cut: 1, unchanged: 1, new: 1, no_prior: 0, sold_out: 1, not_comparable: 3,
+      splits: [['2031-07-15', 4], ['2031-08-02', 0.1], ['bad', 2], ['2031-08-09', null]] }
+    expect(nportSummaryLines({ summary: s }).slice(1, 3)).toEqual([
+      "Since each fund's previous report: 2 added, 1 cut, 1 unchanged, 1 new, 1 sold out, 3 not comparable. 3 funds' changes are not comparable: a stock split may fall between the two reports and could not be checked, so they are not counted as added or cut.",
+      "A stock split fell between some funds' two reports (4-for-1 on Jul 15, 2031; 1-for-10 on Aug 2, 2031): their shares before are counted in post-split shares, so a fund that held still reads unchanged.",
+    ])
+    expect(nportSummaryLines({ summary: { ...s, not_comparable: 1, splits: [] } })[1]).toMatch(/1 not comparable\. 1 fund's change is not comparable: .* so it is not counted as added or cut\.$/)
+    expect(nportSummaryLines(BLOCK).join(' ')).not.toMatch(/comparable|split/)          // none: nothing said
+  })
+
+  it('the period line says when the split list could not be read', () => {
+    const down = { ...BLOCK, data_set: { ...BLOCK.data_set, splits: { state: 'unavailable', reason: 'RuntimeError' } } }
+    expect(nportPeriodLine(down)).toMatch(/Read on Oct 6, 2031\. The list of stock splits could not be read for this data set, so a change a split may have touched is not compared\. A fund files/)
+    expect(nportPeriodLine({ ...BLOCK, data_set: { ...BLOCK.data_set, splits: { state: 'ok' } } })).toBe(nportPeriodLine(BLOCK))
+  })
+
+  it('split ratios in words', () => {
+    expect([4, 0.1, 1.5, 2, 0.25, 3 / 2].map(splitWords)).toEqual(['4-for-1', '1-for-10', '1.5-for-1', '2-for-1', '1-for-4', '1.5-for-1'])
+    expect([null, 0, -2, 'x'].map(splitWords)).toEqual([null, null, null, null])
   })
 })
 

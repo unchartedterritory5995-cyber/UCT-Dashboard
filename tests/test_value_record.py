@@ -162,6 +162,8 @@ def _run_folder(tmp_path, changed=None):
     for case in [c for c in CASES if c["lane"] != "script"]:
         answer = (changed or {}).get(case["id"], case["answer"])
         body = {"disposition": answer.get("disposition", "change"), "reply": answer.get("reply", ""), "envelope": {"ops": answer.get("ops")}} if "ops" in answer else dict(answer)
+        if body.get("questions"):                                    # the door sends a question's choices in the envelope
+            body["envelope"] = {"questions": body.pop("questions")}
         (tmp_path / f"{case['id']}-0.body.json").write_text(json.dumps(body), encoding="utf-8")
     return tmp_path
 
@@ -196,7 +198,9 @@ def test_a_fresh_run_reports_each_cases_verdict_and_answer(tmp_path):
     graded_here = [c["id"] for c in CASES if c["lane"] != "script"]
     # each case's verdict is the one its record holds: right, or the known defect's WRONG (named in the case)
     assert report["verdicts"] == {c["id"]: c.get("recorded_verdict", "right") for c in CASES if c["lane"] != "script"}
-    assert set(report["verdicts"]) == set(graded_here) and "wrong" in report["verdicts"].values()
+    # (a wrong verdict is there exactly when a case graded here is recorded WRONG; today the fixture may hold none)
+    assert set(report["verdicts"]) == set(graded_here)
+    assert ("wrong" in report["verdicts"].values()) == any(c.get("recorded_verdict") == "wrong" for c in CASES if c["lane"] != "script")
     assert set(report["answers"]) == set(graded_here)
 
 
@@ -220,3 +224,37 @@ def test_the_door_files_named_for_staleness_exist():
     for path in value_eval.DOOR_PATHS:
         assert (ROOT / path).exists(), path
     assert any("definition_conversation" in p for p in value_eval.DOOR_PATHS) and any("scriptEngineVersion" in p for p in value_eval.DOOR_PATHS)
+
+
+# ── which guard refused each attempt (2026-11-23) ──
+
+def test_the_record_keeps_which_guard_refused_each_attempt_of_each_answer():
+    """⚰️ A build that went wrong on its repair call was on record as `attempts: 2` and nothing else."""
+    gate = {"attempt": 1, "gate": "envelope:compared-with-itself"}
+    plain = {"status": 200, "body": {"ok": True, "attempts": 1}}
+    repaired = {"status": 200, "body": {"ok": True, "attempts": 2, "refused_attempts": [gate]}}
+    told = {"attempt": 1, "gate": "envelope:reference", "detail": "set_style names output `x`, which the indicator does not have"}
+    by_an_admin = {"status": 200, "body": {"ok": True, "attempts": 2, "refused_attempts": [{"attempt": 1, "gate": "envelope:reference"}], "diagnostic": [told]}}
+    before = {"status": 200, "body": {"ok": True, "attempts": 2}}          # answered before the door said which guard
+    assert value_record.repairs_of([plain]) == [] and value_record.repairs_of([]) == []
+    assert value_record.repairs_of([plain, repaired]) == [{"answer": 1, "attempts": 2, "refused": [gate]}]
+    assert value_record.repairs_of([by_an_admin]) == [{"answer": 0, "attempts": 2, "refused": [{"attempt": 1, "gate": "envelope:reference"}], "told": [told]}]
+    # a repair whose guard the door did not name is kept as a repair with NO guard named, never dropped as "none"
+    assert value_record.repairs_of([before]) == [{"answer": 0, "attempts": 2, "refused": []}]
+    assert value_record.repairs_of([{"status": 500, "body": None}, {"status": 200, "body": "text"}]) == []
+    # a refusal of the whole turn names both attempts
+    twice = {"status": 200, "body": {"ok": False, "gate": "envelope:compared-with-itself", "attempts": 2,
+                                     "refused_attempts": [gate, {"attempt": 2, "gate": "envelope:compared-with-itself"}]}}
+    assert [r["attempt"] for r in value_record.repairs_of([twice])[0]["refused"]] == [1, 2]
+
+
+def test_every_row_the_recorder_writes_carries_it():
+    tree = ast.parse((ROOT / "tools" / "value_record.py").read_text(encoding="utf-8"))
+    rows = [node for node in ast.walk(tree) if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "update" and isinstance(node.func.value, ast.Name) and node.func.value.id == "row"
+            and any(k.arg == "done" for k in node.keywords)]
+    assert len(rows) == 1                                              # the one place a request's row is written
+    repairs = [k.value for k in rows[0].keywords if k.arg == "repairs"]
+    assert len(repairs) == 1 and isinstance(repairs[0], ast.Call) and repairs[0].func.id == "repairs_of"
+    assert [a.id for a in repairs[0].args] == ["answers"]              # of every answer of the request, not the last one
+

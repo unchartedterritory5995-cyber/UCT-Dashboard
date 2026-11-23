@@ -10959,6 +10959,53 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             print(f"[startup] IV rank leaders job registration failed (non-fatal): {e}")
 
+        # COT BY TRADER TYPE (2026-11-22): the CFTC's Traders in Financial Futures and Disaggregated futures-only
+        # reports beside the legacy COT (api/services/cot_finer.py). 05:10 and 21:10 ET, both inside scan_period's
+        # quiet span: 21:10 on the Friday the CFTC publishes (15:30 ET) and the evening of a holiday week's Monday
+        # release, 05:10 the retry. A run asks for nothing while both reports hold the report due by now (the legacy
+        # reader's holiday-aware rule) and every seed year is held; otherwise one yearly zip at a time (about 0.7 and
+        # 2.3 MB, streamed to disk and deleted when read, a read adding at most cot_finer.MEASURED_PEAK_MB), on the
+        # module's own thread, bounded by its budget and the end of the quiet span. Nothing on a member's request.
+        _boot_mark("S10239C")
+        try:
+            def _cot_finer_job():
+                from api.services import cot_finer as _cf
+                print(f"[scheduler] COT by trader type (CFTC TFF / Disaggregated) check: {_cf.run_scheduled()}")
+
+            from api.services import cot_finer as _cf_mod
+            _scheduler.add_job(
+                _cot_finer_job,
+                trigger=CronTrigger(hour=",".join(str(h) for h in _cf_mod.RUN_HOURS_ET),
+                                    minute=_cf_mod.RUN_MINUTE_ET, timezone=_ET),
+                id="cot_finer_reports", max_instances=1, replace_existing=True, coalesce=True,
+                misfire_grace_time=1800,
+            )
+            print("[startup] COT by trader type scheduled -- daily 05:10 and 21:10 ET")
+        except Exception as e:
+            print(f"[startup] COT by trader type job registration failed (non-fatal): {e}")
+
+        # COT LEGACY BACKFILL (2026-11-22): the legacy store re-reads its ten seed years ONCE, so the weeks the
+        # code-first parser (PR #2533) now matches in past years (Hard Red Spring wheat, MW) are filled without the
+        # admin reseed. cot_service.legacy_backfill: daily at BACKFILL_RUN_AT_ET (22:40 ET, inside scan_period's quiet
+        # span every day, after the 21:10 trader-type run); one indexed read and nothing else once its marker
+        # (`legacy_backfill_v1` in cot.db) is written; an empty store stays the boot seed's job; a run that did not
+        # complete is asked again on a later day, at most once a day. Never on a member's request.
+        _boot_mark("COT-legacy-backfill")
+        try:
+            def _cot_legacy_backfill_job():
+                print(f"[scheduler] COT legacy one-time backfill check: {_cot_service.legacy_backfill()}")
+
+            _scheduler.add_job(
+                _cot_legacy_backfill_job,
+                trigger=CronTrigger(hour=_cot_service.BACKFILL_RUN_AT_ET[0],
+                                    minute=_cot_service.BACKFILL_RUN_AT_ET[1], timezone=_ET),
+                id="cot_legacy_backfill", max_instances=1, replace_existing=True, coalesce=True,
+                misfire_grace_time=1800,
+            )
+            print("[startup] COT legacy one-time backfill check scheduled -- daily 22:40 ET until it completes")
+        except Exception as e:
+            print(f"[startup] COT legacy backfill job registration failed (non-fatal): {e}")
+
         # Pine support loop, Phase B — the daily digest (docs/pine/support-loop/PHASE-B.md).
         # Light: two indexed SELECTs + one JSON read, cached per ET day; posts one admin
         # Discord line only when there is work (PINE_SUPPORT_DIGEST_POST=off silences it).

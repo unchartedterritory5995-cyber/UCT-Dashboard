@@ -52,8 +52,8 @@ GRID = [0.5, 1, 2, 3, 4, 5, 7.5, 10, 12.5, 15, 20, 25, 30]
 # drill window's reading endpoint; re-exported here under the names this tool always had.
 sys.path.insert(0, ROOT)
 from api.services.breadth_shade_rule import (  # noqa: E402,F401
-    LEVELS, MARKET_WIDE_COLS, NOT_PER_UNIVERSE, UCT_BACKTEST_KEYS, WINDOW_FLOOR, _paired, cut_key,
-    load_uct_rows, numeric, quantile, read_export as _read_export, shade, shade_value,
+    LEVELS, MARKET_WIDE_COLS, NOT_PER_UNIVERSE, WINDOW_FLOOR, _paired, cut_key, is_backtested_cell,
+    load_uct_deep_rows, numeric, quantile, read_export as _read_export, shade, shade_value,
 )
 
 
@@ -65,9 +65,14 @@ def sig(x: float) -> float:
 
 
 def load_rows(universe: str = "uct", uct_deep: str = "", uct_backtest: str = "", exposure_db: str = "") -> list:
+    """The rows the Monitor SHOWS. ⛔ (2026-11-22) UCT is never calibrated on the V2 `uct_backtest`
+    series any more: it is today's list run backward, and it is not what the cells display."""
     sys.path.insert(0, ROOT)
-    if universe == "uct" and uct_deep and uct_backtest:
-        return load_uct_rows(uct_deep, uct_backtest, exposure_db)
+    if uct_backtest:
+        raise SystemExit("--uct-backtest is retired: UCT is calibrated on the Monitor's own rows "
+                         "(--uct-deep), its back-tested sessions excluded")
+    if universe == "uct" and uct_deep:
+        return load_uct_deep_rows(uct_deep, exposure_db)
     if universe != "uct":
         from api.services import breadth_universe_monitor as bum  # noqa: E402
         ds = bum.dates(universe)
@@ -109,17 +114,19 @@ def write_all(by_universe: dict) -> None:
         f.write("\n")
 
 
-def build_cutoffs(rows: list, spec: dict) -> dict:
+def build_cutoffs(rows: list, spec: dict, universe: str = "uct") -> dict:
     cols = {}
     fields = {}
     for key, c in spec["cols"].items():
         if c.get("kind"):
             continue
         field = c.get("basis") or key
-        fields[cut_key(c, field)] = (c, field)
+        fields[cut_key(c, field)] = (c, field, key)
     for ck in sorted(fields):
-        c, field = fields[ck]
-        vals = sorted(v for v in (shade_value(c, field, r) for r in rows) if v is not None)
+        c, field, key = fields[ck]
+        # ⛔ a back-tested UCT session is never part of the ranking (breadth_shade_rule)
+        vals = sorted(v for v in (shade_value(c, field, r) for r in rows
+                                  if not is_backtested_cell(key, r, universe)) if v is not None)
         if len(vals) < 20:
             continue  # too thin to rank — the UI leaves the column unshaded
         cols[ck] = {
@@ -129,10 +136,14 @@ def build_cutoffs(rows: list, spec: dict) -> dict:
             "hi": [sig(quantile(vals, 1 - p / 100)) for p in GRID],
         }
     dates = sorted(r["date"] for r in rows if r.get("date"))
+    # the first session a PER-UNIVERSE column is ranked over (UCT: its first real, not back-tested,
+    # session; the market-wide columns keep the whole window from `from`)
+    real = [r["date"] for r in rows if r.get("date") and not is_backtested_cell("", r, universe)]
     return {
         "generated": _date.today().isoformat(),
         "sessions": len(dates),
         "from": dates[0] if dates else None,
+        "ranked_from": min(real) if real else None,
         "to": dates[-1] if dates else None,
         "grid": GRID,
         # every count column is ranked as a share of the row's universe (shadeSpec `per`)
@@ -194,7 +205,7 @@ def main(argv=None) -> int:
             print(f"no cutoffs for {args.universe} in {os.path.relpath(OUT, ROOT)}")
             return 2
     else:
-        cut = build_cutoffs(rows, uspec)
+        cut = build_cutoffs(rows, uspec, args.universe)
         every[args.universe] = cut
         write_all(every)
         print(f"wrote {os.path.relpath(OUT, ROOT)} [{args.universe}] ({len(cut['cols'])} columns)")

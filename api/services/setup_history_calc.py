@@ -112,6 +112,8 @@ def high_of_year(src: dict) -> dict:
 _HIGH52 = high_of_year(_C)
 #: one node object each, read twice (the evaluator's left-edge check visits a node object once)
 _HIGH5, _LOW5 = _call("highest", _H, _num(5)), _call("lowest", _L, _num(5))
+#: a down day (a close below the session before's), read by both of the pocket pivot's down-day clauses
+_DOWN = _op("<", _C, _ago(1, _C))
 
 
 @dataclass(frozen=True)
@@ -163,10 +165,15 @@ LIBRARY: Tuple[Setup, ...] = (
                _op(">", _C, _SMA50))),
     Setup("pocket_pivot", "Pocket pivot",
           "An up close on volume above the largest down-day volume of the 10 sessions before, closing above its "
-          "50-day average.",
+          "10-day moving average. With no down day among those 10 there is nothing to beat, so it does not count.",
+          # VFP's reading (`volume_footprint_calc.pocket_pivots`), the published definition: no down day among the
+          # 10 sessions before is not a pocket pivot (the second clause), and the close is above the 10-day simple
+          # average of the 10 closes through that day (integrator, 2026-11-23: was the 50-day, so SETH and VFP
+          # named different days)
           _and(_op(">", _C, _ago(1, _C)),
-               _op(">", _V, _ago(1, _call("highest", _op("*", _op("<", _C, _ago(1, _C)), _V), _num(10)))),
-               _op(">", _C, _SMA50))),
+               _op(">", _ago(1, _call("highest", _DOWN, _num(10))), _num(0)),
+               _op(">", _V, _ago(1, _call("highest", _op("*", _DOWN, _V), _num(10)))),
+               _op(">", _C, _call("sma", _C, _num(10))))),
 )
 
 BY_ID: Dict[str, Setup] = {s.id: s for s in LIBRARY}

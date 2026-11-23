@@ -9,7 +9,9 @@ Three kinds of case, one evidence tier:
 `grade(case_id, answer)` evaluates every formula the answer holds (each output, each condition of a colour state
 or a marker) with the SERVER'S OWN interpreter on the built market, and compares each with the readings of
 `rules.rules(case_id)`. The answer is right when every named thing of the rule is equalled by one formula on
-every bar both have a value, and no formula holds an absurd number.
+every bar both have a value, and no formula holds an absurd number. Where the request's words make NOTHING part of
+what was asked ("only while", "plot nothing when"), the rule says so (`rules.exact`) and the formula must also hold
+nothing on every bar the rule holds nothing.
 
 The interpreter is the product's (that is the point: it is what a member's chart computes); the rule is not.
 """
@@ -128,8 +130,9 @@ def grade(case_id, answer, chart='daily'):
     lines, right = [], True
     fill = want.pop('__fill_in__', None)
     if fill is not None:
-        return _grade_fill_in(fill, built, inputs, cols, chart, calc)
+        return _grade_fill_in(fill, built, inputs, cols, chart, calc, hidden_outputs(answer))
     expect_n = want.pop('__outputs__', None)
+    exact = _rules.exact(case_id)
     outputs = [n for n, _ in built if n.startswith('output ')]
     if expect_n is not None and len(outputs) != expect_n:
         right = False
@@ -141,16 +144,19 @@ def grade(case_id, answer, chart='daily'):
                 if got is None:
                     continue
                 both, bad, lop = compare(got, column)
+                if what in exact:
+                    bad += sum(lop)                    # NOTHING is asked for too: a bar only one of the two holds a value on differs
                 if both and (best is None or (bad, sum(lop)) < (best[0], sum(best[1]))):
                     best = (bad, lop, both, name, reading)
         if best is None:
             right = False
             lines.append(f'{what}: NOTHING TO COMPARE (no formula has a value where the rule has one)')
         elif best[0] == 0:
-            lines.append(f'{what} = {best[3]} [{best[4]}] on {best[2]} bars')
+            lines.append(f'{what} = {best[3]} [{best[4]}]' + (', and nothing where the rule holds nothing,' if what in exact else '') + f' on {best[2]} bars')
         else:
             right = False
-            lines.append(f'{what}: NO FORMULA EQUALS IT. closest {best[3]} [{best[4]}], {best[0]} of {best[2]} bars differ')
+            lines.append(f'{what}: NO FORMULA EQUALS IT. closest {best[3]} [{best[4]}], {best[0]} of {best[2]} bars differ'
+                         + (f' ({sum(best[1])} of them hold a value on one side only: nothing is part of what was asked)' if what in exact and sum(best[1]) else ''))
     for name, got, err in cols:
         if err:
             lines.append(f'could not compute {name}: {err}')
@@ -160,10 +166,18 @@ def grade(case_id, answer, chart='daily'):
     return {'verdict': 'right' if right else 'wrong', 'lines': lines}
 
 
-def _grade_fill_in(fill, built, inputs, cols, chart, calc):
+def hidden_outputs(answer):
+    """The outputs the door marked HIDDEN, as `trees_of` names them: computed and read elsewhere (a table cell), never
+    drawn on a bar."""
+    return {f"output {o.get('key')}" for op in (answer or {}).get('ops') or [] for o in (op.get('outputs') or [])
+            if isinstance(o, dict) and o.get('hidden')}
+
+
+def _grade_fill_in(fill, built, inputs, cols, chart, calc, hidden=()):
     """A rule about SETTINGS the member fills in: `fill` is [(what, a value to try)]. Right when
     (1) there is a setting for each, every one defaulting to 0 or to nothing (the member's own figures are never invented);
-    (2) with nothing filled in, NOTHING has a value on any bar (no line at 0, no example position);
+    (2) with nothing filled in, NOTHING IS DRAWN ON ANY BAR (no line at 0, no example position). Only what is drawn
+        counts: a HIDDEN output (a figure a table cell reads) may hold its 0, the chart is not squeezed by it;
     (3) with the settings filled in, each value is shown by some output on every bar (whichever setting holds which)."""
     import itertools
     lines, right = [], True
@@ -174,12 +188,14 @@ def _grade_fill_in(fill, built, inputs, cols, chart, calc):
     if invented:
         right = False
         lines.append(f'a figure of the member is INVENTED as a default: {invented}')
-    drawn = [name for name, got, _err in cols if got is not None and any(_ok(v) for v in got)]
+    valued = [name for name, got, _err in cols if got is not None and any(_ok(v) for v in got)]
+    drawn = [name for name in valued if name not in hidden]
     if drawn:
         right = False
         lines.append(f'with nothing filled in, {drawn} has a value on the chart (a setting at 0 is drawn as a level at 0)')
     else:
-        lines.append('with nothing filled in, nothing is drawn')
+        kept = [name for name in valued if name in hidden]
+        lines.append('with nothing filled in, nothing is drawn' + (f' (hidden, not drawn: {kept})' if kept else ''))
     values = [v for _w, v in fill]
     shown = None
     for chosen in itertools.permutations(names, len(values)):
@@ -274,7 +290,7 @@ def grade_case(case, answer=None):
     elif case['lane'] == 'formula':
         result = grade(case['id'], answer, case.get('chart', 'daily'))
         # a formula case may also hold what the member is TOLD (`says`: each group needs one of its phrases)
-        told = ' '.join(str(answer.get('reply') or '').lower().split())
+        told = ' '.join(str(answer.get('reply') or '').lower().replace('\u2019', "'").split())      # (a typographic apostrophe is a plain one)
         for group in case.get('says') or []:
             if not any(p.lower() in told for p in group):
                 result = {'verdict': 'wrong' if result['verdict'] == 'right' else result['verdict'],
@@ -315,6 +331,9 @@ def rule_digest(case_id):
         for reading, column in want[what]:
             h.update(repr(reading).encode())
             h.update(','.join('n' if not _ok(v) else '%.6g' % v for v in column).encode())
+    held_exactly = sorted(_rules.exact(case_id))
+    if held_exactly:                                            # a rule that starts (or stops) holding NOTHING has changed
+        h.update(('nothing is held: ' + repr(held_exactly)).encode())
     return h.hexdigest()[:16]
 
 

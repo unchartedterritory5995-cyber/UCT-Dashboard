@@ -1302,7 +1302,7 @@
       "lookback": "arg1",
       "forward": "arg2",
       "yields": "num",
-      "sentence": "the {0} of a bar that is the highest in the {1} bars before it and the {2} bars after it"
+      "sentence": "the {0} of a bar that is at least as high as each of the {1} bars before it and higher than each of the {2} bars after it, written on that bar itself and known only once those later bars exist"
     },
     "pivotlow": {
       "args": [
@@ -1318,7 +1318,7 @@
       "lookback": "arg1",
       "forward": "arg2",
       "yields": "num",
-      "sentence": "the {0} of a bar that is the lowest in the {1} bars before it and the {2} bars after it"
+      "sentence": "the {0} of a bar that is at least as low as each of the {1} bars before it and lower than each of the {2} bars after it, written on that bar itself and known only once those later bars exist"
     },
     "plusDI": {
       "args": [
@@ -1581,7 +1581,7 @@
       ],
       "lookback": "series",
       "yields": "num",
-      "sentence": "the value of {1} the {2}-from-the-end time {0} was true, counting occurrences backward"
+      "sentence": "the value of {1} the {2}-from-the-end time {0} was true, counting occurrences backward from 0 for the most recent one"
     },
     "sessionOpen": {
       "args": [],

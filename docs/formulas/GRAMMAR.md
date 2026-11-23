@@ -163,8 +163,8 @@ decide whether a formula can run at all.
 | `percentileLinearInterpolation(source, period, percentage)` | a number | whatever `period` asks for | the `percentage`th percentile of `source` over the last `period` bars, linearly interpolated between the two nearest ranks |
 | `percentileNearestRank(source, period, percentage)` | a number | whatever `period` asks for | the nearest-rank `percentage`th percentile of `source` over the last `period` bars |
 | `percentrank(source, period)` | a number | whatever `period` asks for | the `period`-bar percent rank of `source` |
-| `pivothigh(source, leftPeriod, rightPeriod)` | a number | whatever `leftPeriod` asks for | the `source` of a bar that is the highest in the `leftPeriod` bars before it and the `rightPeriod` bars after it |
-| `pivotlow(source, leftPeriod, rightPeriod)` | a number | whatever `leftPeriod` asks for | the `source` of a bar that is the lowest in the `leftPeriod` bars before it and the `rightPeriod` bars after it |
+| `pivothigh(source, leftPeriod, rightPeriod)` | a number | whatever `leftPeriod` asks for | the `source` of a bar that is at least as high as each of the `leftPeriod` bars before it and higher than each of the `rightPeriod` bars after it, written on that bar itself and known only once those later bars exist |
+| `pivotlow(source, leftPeriod, rightPeriod)` | a number | whatever `leftPeriod` asks for | the `source` of a bar that is at least as low as each of the `leftPeriod` bars before it and lower than each of the `rightPeriod` bars after it, written on that bar itself and known only once those later bars exist |
 | `plusDI(high, low, close, period)` | a number | whatever `period` asks for | the `period`-bar +DI of `high`, `low` and `close` |
 | `pow(left, right)` | a number | 0 bars | `left` raised to the power `right` |
 | `pvtN(period)` | a number | whatever `period` asks for | the change in price-volume trend across the last `period` bars |
@@ -189,7 +189,7 @@ decide whether a formula can run at all.
 | `tan(source)` | a number | 0 bars | the tangent of `source` |
 | `tieNewest(source)` | a number | 0 bars | `source`, where a tie in a highest or lowest bars window names its newest bar |
 | `valuewhen(condition, source, period)` | a number | whatever `period` asks for | the value of `source` on the most recent of the last `period` bars where `condition` was true |
-| `valuewhenOccurrence(condition, source, occurrence)` | a number | series | the value of `source` the `occurrence`-from-the-end time `condition` was true, counting occurrences backward |
+| `valuewhenOccurrence(condition, source, occurrence)` | a number | series | the value of `source` the `occurrence`-from-the-end time `condition` was true, counting occurrences backward from 0 for the most recent one |
 | `vwap()` | a number | a session (960 bars) | the volume-weighted average price so far this session |
 | `vwapAnchor(source, condition, volume)` | a number | series | the volume-weighted average of `source`, weighted by `volume`, since the last bar where `condition` was true |
 | `vwapAnchorDev(source, condition, volume)` | a number | series | the volume-weighted standard deviation of `source`, weighted by `volume`, since the last bar where `condition` was true |

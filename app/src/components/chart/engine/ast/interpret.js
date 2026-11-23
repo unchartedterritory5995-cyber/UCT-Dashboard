@@ -9519,6 +9519,22 @@ export const BREADTH_BEFORE_RECORD_CODE = 'other-symbol:breadth-before-record'
  *  `pineBreadth.js::recordCode` reads through this. */
 export const beforeRecordCodeOf = (record) => (record && typeof record.code === 'string' ? record.code
   : record && record.family === 'financial' ? FINANCIAL_UNKNOWN_CODE : EVENT_BEFORE_RECORD_CODE)
+/** ⭐⭐ (engine 94, coordinator ruling 2026-11-22) — THE BARS A `SERIES_UNKNOWN_BEFORE_FIRST` SERIES WITHHOLDS, BY NAME,
+ *  PER BAR: the chart bars before that series' first row, and every bar within the tree's reach of one
+ *  (`symAlignmentMasks`). `withSymAlignment` writes them to the plot's per-bar channel (`opts.withheldBarsSink`, the
+ *  plot's `__withheldBars`), so the vendor harness grades them "not compared" and the headless lane reports them per
+ *  output, never as Pine's `na`. ⚰️ MEASURED ON THE WIRE (Fred RS, AMEX:SPY 5m, 2026-11-21 capture): the series reached
+ *  the mask with its mark, the mask blanked all 9,203 bars before our first SP:SPX 5m row, and none was named, so the
+ *  harness graded each one `na` against TradingView's value (9,203 `na` mismatches, 0 withheld). The member's words:
+ *  `otherSymbolBeforeHeldSentence`, on the strip (`nativeRegistry.externalReadNotices`). Holes after the first row
+ *  keep their unnamed withholding (a later unit). */
+export const OTHER_SYMBOL_BEFORE_HELD_CODE = 'other-symbol:before-held'
+/** The member's sentence for `OTHER_SYMBOL_BEFORE_HELD_CODE`: `ticker` the series read, `from` its first row's time. */
+export function otherSymbolBeforeHeldSentence(ticker, from) {
+  const day = isoDay(from)
+  return `Not drawn before ${day || 'the first bar UCT holds'}: UCT's intraday history of \`${ticker}\` starts there, `
+    + 'so what this indicator reads from it on earlier bars is not known here.'
+}
 
 /** ⭐⭐ C26 — THE BARS OF A TREE WHOSE ANSWER DEPENDS ON AN OTHER-SYMBOL BAR WE
  *  DO NOT HOLD, as a 0/1 column (1 = withheld), or null when nothing is withheld.
@@ -9539,6 +9555,14 @@ export const beforeRecordCodeOf = (record) => (record && typeof record.code === 
  *  `engine/otherSymbols.js`): a caller that supplies nothing gets the column it
  *  always got. */
 export function symAlignmentMask(tree, bars, opts) {
+  return symAlignmentMasks(tree, bars, opts).mask
+}
+
+/** `symAlignmentMask`'s column (`mask`), and the part of it a `SERIES_UNKNOWN_BEFORE_FIRST` series withholds
+ *  (`beforeHeld`: its bars before that series' first row and every bar within the tree's reach of one, a 0/1 column
+ *  inside `mask`, or null when there is none): the bars `withSymAlignment` names per bar
+ *  (`OTHER_SYMBOL_BEFORE_HELD_CODE`). */
+export function symAlignmentMasks(tree, bars, opts) {
   const n = Array.isArray(bars) ? bars.length : 0
   const supplied = (opts && opts.symbols) || {}
   const nodes = []
@@ -9556,19 +9580,20 @@ export function symAlignmentMask(tree, bars, opts) {
     const into = under || node.type === 'sym' || node.type === 'tf' || node.type === 'tf_live' || node.type === TF_MERGE || node.type === LTF
     if (Array.isArray(node.args)) for (const a of node.args) stack.push([a, into])
   }
-  if (!nodes.length) return null
+  if (!nodes.length) return { mask: null, beforeHeld: null }
   // a Float64Array of 0/1 — the only typed array this pure module uses
   const mask = new Float64Array(n)
   // ⛔ A `sym` read on OTHER bars (inside a `tf` / another `sym`) is not aligned
   // on this chart's bars at all: the whole tree is withheld, sound and named.
-  if (nested) { mask.fill(1); return mask }
+  if (nested) { mask.fill(1); return { mask, beforeHeld: null } }
   // ⛔ NO `try` (`budget.test.js`): the tree was measured before it was
   // interpreted, and a refusal here must reach the caller as the refusal it is.
   const rootReach = maxLookback(tree)
   let any = false
+  let beforeHeld = null
   for (const a of nodes) {
     const series = supplied[String(a.value).trim().toUpperCase()]
-    if (!Array.isArray(series) || series.length === 0) { mask.fill(1); return mask }
+    if (!Array.isArray(series) || series.length === 0) { mask.fill(1); return { mask, beforeHeld: null } }
     // ⭐ RS RATING L6b — a series whose WITNESS says a chart bar with no bar of its date reads
     // `na` (`SERIES_GAPS_READ_NA`: Q-RS2, a Pine seed) has no unknown bar: its gaps are known.
     if (series[SERIES_GAPS_READ_NA] === true) continue
@@ -9576,6 +9601,12 @@ export function symAlignmentMask(tree, bars, opts) {
     // (`SERIES_UNKNOWN_BEFORE_FIRST`: an index's intraday bars, 60 days deep): a chart bar before it is
     // UNKNOWN (withheld), never read as `na` (TradingView holds those bars and draws there).
     const unknownBefore = series[SERIES_UNKNOWN_BEFORE_FIRST] === true
+    // ⭐⭐ (train e95: T4 E2 / F1b / B2 with the before-held unit) a series placed from a RECORD (an event family's, a
+    // financial read's, a breadth spelling's: `SERIES_EVENT_RECORD`) is marked unknown-before-first too, and its bars
+    // before its first row are named by its record's own code (`eventBeforeRecordMask`, `beforeRecordCodeOf`). They stay
+    // in `mask`; they are never ALSO named `other-symbol:before-held`, whose sentence ("UCT's intraday history of ...")
+    // is not theirs.
+    const namedByRecord = !!series[SERIES_EVENT_RECORD]
     let reach = Math.max(0, rootReach - maxLookback(a))
     if (!Number.isFinite(reach)) reach = n
     const held = new Set()
@@ -9587,18 +9618,21 @@ export function symAlignmentMask(tree, bars, opts) {
       if (first === undefined || key < first) first = key
     }
     let last = -Infinity
+    let lastBefore = -Infinity
     for (let i = 0; i < n; i++) {
       const b = bars[i]
       const key = b && typeof b === 'object' ? b.t : undefined
-      const missing = key === undefined || key === null || first === undefined
-        || typeof key !== typeof first
-        || (!held.has(key) && key > first)
-        || (unknownBefore && key < first)
+      const unreadable = key === undefined || key === null || first === undefined || typeof key !== typeof first
+      // before the first row of a series whose first row is our store's depth (named per bar, below)
+      const before = !unreadable && unknownBefore && key < first
+      const missing = unreadable || (!held.has(key) && key > first) || before
       if (missing) last = i
+      if (before && !namedByRecord) lastBefore = i
       if (i - last <= reach) { mask[i] = 1; any = true }
+      if (i - lastBefore <= reach) (beforeHeld = beforeHeld || new Float64Array(n))[i] = 1
     }
   }
-  return any ? mask : null
+  return { mask: any ? mask : null, beforeHeld }
 }
 
 /** ⭐⭐ T4 E2 — THE BARS A TREE WITHHOLDS BECAUSE THEY LIE BEFORE UCT'S RECORD OF AN EVENT FAMILY: the chart bars before
@@ -9809,7 +9843,11 @@ function withSymAlignment(ast, bars, out, opts) {
   sinkPerBar(opts, FINANCIAL_UNKNOWN_CODE, eventBeforeRecordMask(ast, bars, opts, FINANCIAL_UNKNOWN_CODE))
   // ⭐⭐ T4 B2 — and the bars before UCT's breadth counts begin, by their own name
   sinkPerBar(opts, BREADTH_BEFORE_RECORD_CODE, eventBeforeRecordMask(ast, bars, opts, BREADTH_BEFORE_RECORD_CODE))
-  const mask = symAlignmentMask(ast, bars, opts)
+  const { mask, beforeHeld } = symAlignmentMasks(ast, bars, opts)
+  // ⭐⭐ (engine 94, coordinator ruling 2026-11-22) — the bars a series withholds before its first row, BY NAME,
+  // per bar (`OTHER_SYMBOL_BEFORE_HELD_CODE`): every one is inside `mask`, so the channel never names a drawn bar
+  // (a series placed from a record is named above by its record's code, never here: `symAlignmentMasks`)
+  if (beforeHeld) sinkPerBar(opts, OTHER_SYMBOL_BEFORE_HELD_CODE, beforeHeld)
   if (!mask) return out
   const copy = Float64Array.from(out)
   for (let i = 0; i < copy.length; i++) if (mask[i]) copy[i] = NaN

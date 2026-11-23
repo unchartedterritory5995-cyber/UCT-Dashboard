@@ -32,7 +32,7 @@
    "id": "H4",
    "mutant": "the pine-twins pytest leg is dropped (section-8 rails no longer run)",
    "file": ".github/workflows/pine-heavy.yml",
-   "from": "          - { leg: pine-twins, tests: 'tests/test_pine_*.py' }\n",
+   "from": "          - { leg: pine-twins, tests: 'tests/test_pine_*.py tests/test_w9_probes.py tests/test_c45_withheld_doors.py' }\n",
    "to": "",
    "rail": "python -m pytest tests/test_ci_pine_heavy.py tests/test_ci_cost_rails.py -q -p no:cacheprovider -x"
   },
@@ -48,8 +48,8 @@
    "id": "H6",
    "mutant": "a job outgrows the 30-minute budget",
    "file": ".github/workflows/pine-heavy.yml",
-   "from": "    name: vendor harness, runtime-on lane\n    runs-on: ubuntu-latest\n    timeout-minutes: 30",
-   "to": "    name: vendor harness, runtime-on lane\n    runs-on: ubuntu-latest\n    timeout-minutes: 45",
+   "from": "    name: vendor harness, runtime-on lane\n    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.skip_legs) }}\n    runs-on: ubuntu-latest\n    timeout-minutes: 30",
+   "to": "    name: vendor harness, runtime-on lane\n    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.skip_legs) }}\n    runs-on: ubuntu-latest\n    timeout-minutes: 45",
    "rail": "python -m pytest tests/test_ci_pine_heavy.py tests/test_ci_cost_rails.py -q -p no:cacheprovider -x"
   },
   {

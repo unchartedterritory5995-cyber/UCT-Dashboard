@@ -33,7 +33,7 @@ import { makeGridControl } from './gridStub'
 import * as nativeRegistry from '../../../../components/chart/engine/nativeRegistry'
 import { _resetAgentConfig, loadAgentConfig } from '../../../agentClient'
 import { publishWidgetDoor } from '../../../../pages/charts/widgetDoors'
-import { _resetNewsLibraryForTests } from '../../../capabilities/newsLibrary'
+import { _resetNewsLibraryForTests, _setNewsFeedForTests } from '../../../capabilities/newsLibrary'
 
 const chart = (id, x, y, w, h) => ({ id, type: 'chart', x, y, w, h, color: 'N', opts: { settings: bareSettings() } })
 /** Named fixture boards. Charts are bare (the default 9/20/50/200 overlays removed, as a member's removal leaves them). */
@@ -74,6 +74,9 @@ export const BOARDS = {
   WATERMARK: () => [[{ ...chart('c1', 0, 0, 24, 20), opts: { settings: bareSettings(), watermarkPos: { x: 0.2, y: 0.8, anchor: null } } }], { 'N:c1': 'NVDA' }],
   // newsLibrary.*: a chart beside a UCT News widget (its door: three rendered rows), over a library stand-in seeded per case
   NEWS_LIB: () => [[chart('c1', 0, 0, 12, 20), { id: 'n1', type: 'tradeExchangeNews', x: 12, y: 0, w: 12, h: 20, color: 'A', opts: {} }], { 'N:c1': 'NVDA' }, { newsLibrary: true }],
+  // C3-144 (pl-newsfam): the same News widget, its AMD headline OPEN (its ⋯ menu: the door's `selected`), beside the saved watchlists
+  NEWS_WL: () => [[chart('c1', 0, 0, 12, 20), { id: 'n1', type: 'tradeExchangeNews', x: 12, y: 0, w: 12, h: 20, color: 'A', opts: {} }], { 'N:c1': 'NVDA' },
+    { newsLibrary: true, newsSelected: 'h1', watchlists: [{ id: 'w1', name: 'Momentum', symbols: ['NVDA', 'TSLA'] }, { id: 'w2', name: 'Earnings', symbols: ['AAPL'] }] }],
   // a chart drawn with a GRADIENT background (live LT-3: "turn the gradient off on this chart")
   GRADIENT: () => [[{ ...chart('c1', 0, 0, 24, 20), opts: { settings: { ...bareSettings(), bgMode: 'gradient' } } }], { 'N:c1': 'NVDA' }],
   // one chart on its DEFAULT settings (EMA 9/20, SMA 50/200) with the indicator-alert library
@@ -570,7 +573,7 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
   // NLM-1's third key (in-plan rules, nlm1/inplan.js): ON only for a case seeded nlm1Inplan, cleared otherwise
   try { if (seed.nlm1Inplan) localStorage.setItem('uct.agent.nlm1.inplan', '1'); else localStorage.removeItem('uct.agent.nlm1.inplan') } catch { /* */ }
   const srv = stepScript ? installStepServer(p, stepScript, { planner: 'v2' }) : null
-  const st = { log: [], replay: null, views: {}, screens: seed.screens || [{ id: 7, name: 'Momentum Screen', spec: { filters: [{ key: 'adr_pct', op: 'gt', min: 5 }] } }], prefs: { theme: 'dark', default_chart_tf: 'D', alert_sound: 'on', alert_sound_type: 'chime', ...(seed.prefs || {}) }, builderCalls: [], defs: new Map(), ialerts: (seed.indicatorAlerts || []).map(a => ({ user_id: 1, active: true, state: 'armed', created_at: 1, scope: null, ...a })), alerts: (seed.alerts || []).map(a => ({ user_id: 'me', is_active: 1, triggered_at: null, created_at: '2026-11-03T13:00:00Z', alert_type: 'price', drawing_id: null, ...a })) }
+  const st = { log: [], replay: null, views: {}, deletedScreens: seed.deletedScreens || [], screenHeads: {}, screens: seed.screens || [{ id: 7, name: 'Momentum Screen', spec: { filters: [{ key: 'adr_pct', op: 'gt', min: 5 }] } }], prefs: { theme: 'dark', default_chart_tf: 'D', alert_sound: 'on', alert_sound_type: 'chime', ...(seed.prefs || {}) }, builderCalls: [], defs: new Map(), ialerts: (seed.indicatorAlerts || []).map(a => ({ user_id: 1, active: true, state: 'armed', created_at: 1, scope: null, ...a })), alerts: (seed.alerts || []).map(a => ({ user_id: 'me', is_active: 1, triggered_at: null, created_at: '2026-11-03T13:00:00Z', alert_type: 'price', drawing_id: null, ...a })) }
   const base = globalThis.fetch
   globalThis.fetch = async (url, init = {}) => {
     const u = String(url); const method = init.method || 'GET'
@@ -632,6 +635,26 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
     if (u.startsWith('/api/compare/group-members?')) return json(u.includes('name=AI%20Chips') ? { name: 'AI Chips', symbols: ['NVDA', 'AMD', 'AVGO'], total: 3, truncated: false } : { name: '', symbols: [], total: 0, truncated: false })
     if (u === '/api/screener/fields?options=1') return json({ fields: FIELDS, options: FIELD_OPTIONS })
     if (u === '/api/screener/fields' || u.startsWith('/api/screener/fields?')) return json({ fields: FIELDS })
+    // Recently deleted (recentlyDeleted.*): the artifact-versions routes as api/routers/artifact_versions.py answers them —
+    // seed.deletedScreens are the member's deleted saved screens (tombstones); undelete is compare-and-set on the head and
+    // recreates the screen under its old id; a recreated screen's versions answer its new head (the Undo's check)
+    if (u.startsWith('/api/artifact-versions/')) {
+      const head = (s) => s.head || 2
+      const dm = /^\/api\/artifact-versions\/(\w+)\/deleted$/.exec(u)
+      if (dm) return json({ kind: dm[1], deleted: dm[1] === 'screen' ? st.deletedScreens.map(s => ({ artifact_id: s.id, label: s.name, head: head(s), deleted_at: 1795000000 })) : [] })
+      const um = /^\/api\/artifact-versions\/screen\/(\d+)\/undelete$/.exec(u)
+      if (um && method === 'POST') {
+        const s = st.deletedScreens.find(x => String(x.id) === um[1])
+        if (!s || body.base_version !== head(s)) return json({ detail: { error: 'exists' } }, 409)
+        st.deletedScreens = st.deletedScreens.filter(x => x !== s)
+        st.screens = [...st.screens, { id: s.id, name: s.name, spec: s.spec || { filters: [] } }]
+        st.screenHeads[String(s.id)] = head(s) + 1
+        return json({ kind: 'screen', artifact_id: s.id, restored_from: body.version, version: head(s) + 1, recorded: true, artifact: { id: s.id, name: s.name } })
+      }
+      const hm = /^\/api\/artifact-versions\/screen\/(\d+)$/.exec(u)
+      if (hm && st.screenHeads[hm[1]]) return json({ kind: 'screen', artifact_id: Number(hm[1]), head: st.screenHeads[hm[1]], versions: [] })
+      return json({ detail: 'Not Found' }, 404)
+    }
     // the saved screens behind the real routes' semantics (screener saved-screens: GET list, POST create, PUT rename, DELETE)
     if (u === '/api/screener/saved-screens' && method === 'GET') return json({ saved: st.screens, starters: [] })
     if (u === '/api/screener/saved-screens' && method === 'POST') { const row = { id: 100 + st.screens.length, name: body.name, spec: body.spec }; st.screens = [...st.screens, row]; return json(row) }
@@ -899,8 +922,10 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
     _resetNewsLibraryForTests()
     const rows = [{ id: 'h1', text: 'SYNTHETIC: AMD guidance raised', tickers: ['AMD'], time: 1 }, { id: 'h2', text: 'SYNTHETIC: Fed minutes due', tickers: [], time: 2 },
       { id: 'h3', text: 'SYNTHETIC: NVDA beats estimates', tickers: ['NVDA'], time: 3 }]
-    publishWidgetDoor('n1', () => ({ read: () => ({ search: '', visible: rows, selected: null }) }))
+    publishWidgetDoor('n1', () => ({ read: () => ({ search: '', visible: rows, selected: extra.newsSelected || null }) }))
     mounted.h.newsLibrary = newsLibraryStandIn(seed.newsLibrary || {})
+    // C3-147: the live feed's pool, as the stream manager holds it (the headline WHOLE: the Notebook capture's source)
+    _setNewsFeedForTests(() => rows.map(r => ({ id: r.id, content: r.text, tickers: r.tickers, received_at_ms: r.time })))
   }
   // uctIntelligence.set: each chart's UCT Intelligence gates as StockChart publishes them (ChartPane → ChartWidget agent.uctIntelligence)
   if (extra.uctIntel) {

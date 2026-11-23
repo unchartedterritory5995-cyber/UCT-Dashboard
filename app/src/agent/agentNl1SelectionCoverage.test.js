@@ -141,8 +141,15 @@ it('holds the selection invariants on every dev / exposed request, and reports f
   console.log(`\nNL-1 selection coverage (dev / exposed only; budget ${NL1_BUDGET} shipped, ${NL1_LIMIT} for comparison)\n` +
     `budget ${NL1_BUDGET}:\n${fmt(at55)}\nbudget ${NL1_LIMIT}:\n${fmt(at60)}\n`)
   // regression floors (measured 2026-10-20: 97.5–100% first call, 100% with one reroute, on these sets)
+  // ⭐ heldout-v2 was SEALED (never measured here) until it was marked exposed 2026-11-22 (Gate C). Its first
+  // measurement is 140/150 (93.3%) at budget 55, the same with or without the two expectations amended that day; the
+  // floor is that measurement, a ratchet (may only rise), and the gap below 95% is an open routing finding.
+  // ⭐ RATCHETED 2026-11-23 (first-call routing, agentFirstCallRouting.test.js): the ten misses were seven routing classes
+  // (member names as vocabulary, navigation verbs, "what %", one stock's yearly high, keep-and-add, board things vs lists,
+  // follow-ups that name nothing) — fixed by class, measured 150/150 at budget 55. The floor is that measurement.
+  const FIRST_CALL_FLOOR = { 'heldout-v2.json': 150 / 150 }
   for (const [f, b] of Object.entries(at55)) {
     expect(b.lost, `${f}: a request whose actions no reroute can supply`).toBe(0)
-    expect(b.first / b.n, `${f}: first-call coverage`).toBeGreaterThanOrEqual(0.95)
+    expect(b.first / b.n, `${f}: first-call coverage`).toBeGreaterThanOrEqual(FIRST_CALL_FLOOR[f] ?? 0.95)
   }
 }, 300000)

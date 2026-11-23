@@ -293,8 +293,10 @@ const FORMS = [
   // separates them at the very next token.
   { kind: 'call',
     name: 'valuewhenOccurrence',
+    // ⭐ 2026-11-23: the sentence now says WHICH end the count starts at. Occurrence 0 is the most recent one, so "the
+    // last N" is 0 to N - 1. A build that read 1 to 5 for "the last 5" was one event late on 1,192 of 1,639 bars.
     parts: ['the value of ', 1, ' the ', 2, '-from-the-end time ', 0,
-            ' was true, counting occurrences backward'] },
+            ' was true, counting occurrences backward from 0 for the most recent one'] },
   // ⚰️ THESE READ "most recent" UNTIL 2026-09-08, and the tie-break correction
   // moved the manifest's words to "oldest". Re-typing them here is the DESIGN
   // working, not friction: this oracle is hand-typed precisely so a wording
@@ -315,12 +317,18 @@ const FORMS = [
   // construction and the round trip would prove nothing.
   { kind: 'call',
     name: 'pivothigh',
-    parts: ['the ', 0, ' of a bar that is the highest in the ', 1,
-            ' bars before it and the ', 2, ' bars after it'] },
+    // ⭐ 2026-11-23: RE-TYPED, the design working again. The words said "the highest in the N bars before it and the M
+    // bars after it" and left out two things the engine does (`interpret.js::pivotCol`, H1): a bar that EQUALS a bar
+    // before it still pivots (it must beat every bar after it), and the value sits ON the swing bar, which is only
+    // known once the later bars exist.
+    parts: ['the ', 0, ' of a bar that is at least as high as each of the ', 1,
+            ' bars before it and higher than each of the ', 2,
+            ' bars after it, written on that bar itself and known only once those later bars exist'] },
   { kind: 'call',
     name: 'pivotlow',
-    parts: ['the ', 0, ' of a bar that is the lowest in the ', 1,
-            ' bars before it and the ', 2, ' bars after it'] },
+    parts: ['the ', 0, ' of a bar that is at least as low as each of the ', 1,
+            ' bars before it and lower than each of the ', 2,
+            ' bars after it, written on that bar itself and known only once those later bars exist'] },
   // ⭐ THE TC2000 REMAINDER (2026-08-27), hand-typed from the manifest's words
   // like every row here — this grammar is a DELIBERATE second authority, so
   // deriving it would make the round trip agree by construction.
