@@ -63,6 +63,9 @@ _INJECTION = re.compile(
     # Charts family (2026-11-15): the newsLibrary domain (newsLibrary.save / setNote / collection / deleteCollection / place as
     # bare names), on its own line; stricter only. Prose ("save the headline", "my news library") has no dotted name and passes.
     r"|\bnewsLibrary\.[a-z][A-Za-z]*\b"
+    # Charts family (2026-11-19): the recentlyDeleted domain (recentlyDeleted.list / restore as bare names), on its own line;
+    # stricter only. Prose ("my recently deleted lists", "Recently deleted.") has no camel-case dotted name and passes.
+    r"|\brecentlyDeleted\.[a-z][A-Za-z]*\b"
     # Charts family (2026-11-12): the volumeProfile domain (volumeProfile.set as a bare name — any volumeProfile.<verb>); its
     # own branch, so the domain list above is untouched; stricter only. Prose "volume profile" has no dot and passes.
     r"|\bvolumeProfile\.[a-z][A-Za-z]*\b"
