@@ -19,15 +19,19 @@ import { render, act } from '@testing-library/react'
 import { useLayoutEffect, useRef } from 'react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
-const S = vi.hoisted(() => ({ store: null, colsMs: 300, calls: () => [] }))
+const S = vi.hoisted(() => ({ store: null, colsMs: 300, colsAt: new Map(), calls: () => [] }))
 vi.mock('../components/chart/barStoreSwitch', async (orig) => ({ ...(await orig()), BARSTORE: true }))
 vi.mock('../data/deviceStore/source', async (orig) => ({ ...(await orig()), deviceSource: () => null }))
 vi.mock('../data/barStore/index', async (orig) => ({ ...(await orig()), getBarStore: () => S.store }))
+// the panes' server columns: asked at the press (warmColumnsFor), landed COLUMNS_WAIT_MS later; ready from then on
 vi.mock('../components/chart/engine/serverCompute', async (orig) => ({
   ...(await orig()),
-  columnsReadyFor: () => false,
-  whenColumnsReady: () => new Promise((resolve) => setTimeout(() => resolve(true), S.colsMs)),
-  warmColumnsFor: () => {},
+  warmColumnsFor: (sym, tf) => { const k = `${sym}|${tf}`; if (!S.colsAt.has(k)) S.colsAt.set(k, Date.now() + S.colsMs) },
+  columnsReadyFor: (sym, tf) => { const at = S.colsAt.get(`${sym}|${tf}`); return at != null && Date.now() >= at },
+  whenColumnsReady: (sym, tf) => {
+    const at = S.colsAt.get(`${sym}|${tf}`) ?? Date.now() + S.colsMs
+    return new Promise((resolve) => setTimeout(() => resolve(true), Math.max(0, at - Date.now())))
+  },
 }))
 
 // THE DEFAULT, BEFORE ANYTHING READS THE SWITCH: no key stored, the default ON (the switch's own test seam)
@@ -167,6 +171,7 @@ beforeEach(() => {
   PF._resetPrefetchForTests()
   __resetHandoffGroupsForTests()
   S.colsMs = 300
+  S.colsAt.clear()
 })
 afterEach(() => { S.store?.dispose(); vi.useRealTimers() })
 
