@@ -67,7 +67,7 @@ def test_the_fixture_is_whole():
         # a case may be recorded WRONG: a known defect of the door, named, never silently passed
         assert case.get("recorded_verdict", "wrong" if "defect" in case else None) in (None, "wrong"), case["id"]
         assert ("defect" in case) == (case.get("recorded_verdict") == "wrong") and len(case.get("defect") or "x" * 99) > 80, case["id"]
-    assert [c["id"] for c in CASES if c.get("recorded_verdict") == "wrong"] == ["j06"]     # every one is named here, on purpose
+    assert sorted(c["id"] for c in CASES if c.get("recorded_verdict") == "wrong") == ["cap-03", "j06"]     # every one is named here, on purpose
 
 
 def _floor(case):
@@ -291,7 +291,9 @@ def test_the_calculations_import_nothing_of_the_product(module):
         elif isinstance(node, ast.ImportFrom):
             names.append(("." * node.level) + (node.module or ""))
     # `zoneinfo` is the standard library: the 5 minute chart's sessions open at 09:30 New York time, summer and winter
-    allowed = {"math", "datetime", "zoneinfo", ".market", ".event_rules", ".stat_rules", ".intraday_rules", ".udaily_rules"}
+    # `.script_rules`: the script lane's rules, held to the standard library alone by their own rail. A request the door
+    # answers on EITHER lane has ONE rule, and the formula lane reads it from there (never a second copy).
+    allowed = {"math", "datetime", "zoneinfo", ".market", ".event_rules", ".stat_rules", ".intraday_rules", ".udaily_rules", ".script_rules"}
     assert set(names) <= allowed, sorted(set(names) - allowed)
 
 
