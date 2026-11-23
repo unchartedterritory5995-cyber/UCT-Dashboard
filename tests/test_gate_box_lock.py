@@ -87,6 +87,8 @@ def test_a_LIVE_holder_refuses_and_the_holder_is_NAMED(tmp_path):
         proc.kill(); proc.wait(timeout=10)
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="holder liveness is a `tasklist` query: off Windows every pid reads as alive, "
+                    "so a dead holder cannot be shown there")
 def test_a_DEAD_holder_is_reclaimed_AND_the_reclaim_is_recorded(tmp_path):
     """⭐ RECORDED, NOT SILENTLY FORGOTTEN. A crashed gate that leaves a lock behind is how you
     learn a run died without anybody noticing; swallowing it loses that entirely."""
@@ -130,6 +132,7 @@ def test_an_idle_but_LIVE_holder_is_NOT_stale(tmp_path):
 
 # ── bypass ────────────────────────────────────────────────────────────────────────────────────
 
+@pytest.mark.skipif(sys.platform != "win32", reason="the snapshot is a Win32_Process query")
 def test_R3_a_bypassed_run_under_a_live_holder_still_lands_INCONCLUSIVE_CONTENDED(tmp_path,
                                                                                   monkeypatch):
     """⛔⛔ OWNER RULING R3, AND IT IS THE POINT OF THE WHOLE BYPASS DESIGN.
@@ -483,6 +486,8 @@ def test_a_probe_that_CANNOT_RUN_is_unreadable_and_never_a_count_of_zero(tmp_pat
     assert n["load"]["total"] is None
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="holder liveness is a `tasklist` query: off Windows every pid reads as alive, "
+                    "so a dead holder cannot be shown there")
 def test_the_load_reading_NEVER_changes_the_holder_contract(tmp_path, monkeypatch):
     """⛔⛔ OWNER RULING R1 SURVIVES C-4 INTACT: the lock is ADVISORY, has NO TTL, and is stale
     ONLY when the bound pid is dead. "pid alive but idle" is a Live-session-in-waiting.
@@ -620,6 +625,8 @@ def test_a_gate_does_not_see_ITS_OWN_children_as_foreign_load():
         child.wait(timeout=10)
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="holder liveness is a `tasklist` query: off Windows every pid reads as alive, "
+                    "so a dead holder cannot be shown there")
 def test_the_lock_self_check_still_passes_end_to_end():
     """⛔ A SELF-CHECK NOBODY HAS RUN IS NOT A SELF-CHECK — and it now rehearses all four load
     states against an injected box, so each is reachable on demand rather than whenever the

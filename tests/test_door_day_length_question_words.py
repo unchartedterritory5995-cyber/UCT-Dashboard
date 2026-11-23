@@ -17,6 +17,14 @@ Held here, with no model call:
   * the assistant is told the limit, and it is the schema's own number;
   * a guard that demands exact words must fit its field, or the module does not import;
   * ONE function says whether a chart below a day can build a daily measure. It says no today.
+
+SECOND UNIT (2026-11-23), after the 24 day-length requests were sent again: 0 refused (3 before), and 8 questions
+still paid for a second call. Seven were choices of 82 to 96 characters: the assistant's own words (27 to 58) plus
+the time range, with the bar counts put back where the door's phrase had dropped them. Raising the limit was ruled
+out by the window (its column shows about 50 to 60 characters a line; a tab on an older bundle would refuse a longer
+choice). So the door's phrase has SHORT FORMS from the same spans, counts kept and time compact; the turn is TOLD
+how many characters of its own a choice may hold; the guard accepts exactly the forms the door can write. The
+eighth was the guard reading "its 21-bar EMA on a daily chart" as the bars version: that is the daily version.
 """
 from __future__ import annotations
 
@@ -66,13 +74,15 @@ def every_set():
 
 def test_the_phrase_is_the_span_for_one_length_and_one_range_for_several():
     assert dc.bars_phrase(words_for((50,)), FIVE) == "50 five-minute bars, about 4 hours"
-    # several lengths: the counts in the order the member wrote them, the times from the shortest to the longest
-    assert dc.bars_phrase(words_for((10, 50)), FIVE) == "10 and 50 five-minute bars, about 50 minutes to 4 hours"
-    assert dc.bars_phrase(words_for((9, 10)), FIVE) == "9 and 10 five-minute bars, about 45 minutes to 50 minutes"
-    # when that would not fit, the counts go and the times stay
-    assert dc.bars_phrase(words_for((10, 14)), FIVE) == "five-minute bars, about 50 minutes to 1 hour 10 minutes"
-    assert dc.bars_phrase(words_for((10, 21, 50, 14)), FIVE) == "five-minute bars, about 50 minutes to 4 hours"
-    assert dc.bars_phrase(words_for((20, 50), 60), {"sym": "NVDA", "tf": "60"}) == "hourly bars, about 3 trading days to 7.5 trading days"
+    # several lengths: the counts in the order the member wrote them, the times from the shortest to the longest.
+    # The COUNTS ARE KEPT and the time is written short when the full words would not leave the assistant its room
+    assert dc.bars_phrase(words_for((10, 50)), FIVE) == "10 and 50 five-minute bars (50 min to 4 h)"
+    assert dc.bars_phrase(words_for((9, 10)), FIVE) == "9 and 10 five-minute bars (45 min to 50 min)"
+    assert dc.bars_phrase(words_for((10, 14)), FIVE) == "10 and 14 five-minute bars (50 min to 1 h 10 min)"
+    assert dc.bars_phrase(words_for((10, 21, 50, 14)), FIVE) == "10, 21, 50 and 14 five-minute bars (50 min to 4 h)"
+    # only when even that would not fit do the counts go; trading days are never shortened
+    assert dc.bars_phrase(words_for((20, 50), 60), {"sym": "NVDA", "tf": "60"}) == "hourly bars (3 trading days to 7.5 trading days)"
+    assert dc.bars_phrase(words_for((21,)), FIVE) == "21 five-minute bars, about 1 hour 45 minutes"
     # the order the member wrote the lengths in does not move the range: shortest to longest
     assert dc.bars_phrase(words_for((50, 10)), FIVE) == dc.bars_phrase(words_for((10, 50)), FIVE).replace("10 and 50", "50 and 10")
     # nothing to say on a daily chart, or with no length in days
@@ -107,6 +117,8 @@ def test_every_set_of_lengths_on_record_has_a_question_both_rules_accept(lengths
     notes = dc.day_length_turn_notes(words, FIVE)
     assert [n["days"] for n in notes["day_lengths"]] == list(lengths)
     phrase = notes["day_lengths_bars_phrase"]
+    # the turn is TOLD its room, as a number: the schema's limit less the phrase, never under the room the door keeps
+    assert notes["day_lengths_choice_room"] == LIMIT - len(phrase) >= dc.ROOM_FOR_THE_ASSISTANTS_WORDS
     choices = ["The same lines, on daily bars", "The same on " + phrase]
     envelope = asked(*choices)
     assert dc._schema_errors(envelope) == [], dc._schema_errors(envelope)       # the schema
@@ -123,7 +135,7 @@ def test_THE_FINDING_what_the_note_asks_for_is_accepted_and_fits_a_choice():
     assert exc is not None and exc.gate == "envelope:days-choice-in-days"
     told = exc.for_model()
     phrase = dc.bars_phrase(words, FIVE)
-    assert f'put these words in it as given: "{phrase}"' in told
+    assert f'put these words in it as given: "{phrase}", and at most {LIMIT - len(phrase)} characters of your own beside them' in told
     assert f"Keep the whole choice within {LIMIT} characters" in told and "never call it by its number of days" in told
     # ⚰️ it used to ask for every span "exactly": 165 characters where 80 are allowed
     every_span = "; ".join(n["on_this_chart"] for n in dc.day_length_notes(words, FIVE))
@@ -168,6 +180,8 @@ def test_the_instructions_state_the_limit_the_schema_holds():
     assert "two `choices` that each name what they draw IN TIME. " + rule in dc.CONVERSE_SYSTEM_PROMPT
     for part in (f"A choice is at most {LIMIT} characters, and a longer one is refused",
                  "put `uct_language_notes.day_lengths_bars_phrase` as given", "Never call that version by its number of days",
+                 "`uct_language_notes.day_lengths_choice_room` is how many characters of your own", "Count them",
+                 "Do not say the counts or the times again in your own words",
                  "`uct_language_notes.daily_measure_inside`"):
         assert part in rule, part
     # the number is not typed: the module reads it where the schema keeps it
@@ -181,11 +195,16 @@ def test_the_instructions_state_the_limit_the_schema_holds():
 
 def test_the_module_does_not_start_when_the_guards_words_would_not_fit_a_choice():
     dc.require_room_in_a_choice(LIMIT)                                    # as it stands
-    assert dc.BARS_PHRASE_MAX_CHARS + dc.ROOM_FOR_THE_ASSISTANTS_WORDS <= LIMIT
+    # the phrase's budget is DERIVED: what the schema's limit leaves once the assistant's room is kept
+    assert dc.BARS_PHRASE_MAX_CHARS == LIMIT - dc.ROOM_FOR_THE_ASSISTANTS_WORDS
+    source = (ROOT / "api" / "services" / "definition_conversation.py").read_text(encoding="utf-8")
+    assert "BARS_PHRASE_MAX_CHARS = CHOICE_MAX_CHARS - ROOM_FOR_THE_ASSISTANTS_WORDS" in source
+    least = len(dc.BARS_PHRASE_LAST_RESORT)
+    dc.require_room_in_a_choice(dc.ROOM_FOR_THE_ASSISTANTS_WORDS + least)             # the smallest limit that still works
     with pytest.raises(RuntimeError, match="cannot both hold"):
-        dc.require_room_in_a_choice(dc.BARS_PHRASE_MAX_CHARS + dc.ROOM_FOR_THE_ASSISTANTS_WORDS - 1)
+        dc.require_room_in_a_choice(dc.ROOM_FOR_THE_ASSISTANTS_WORDS + least - 1)     # one character under it
     with pytest.raises(RuntimeError):
-        dc.require_room_in_a_choice(LIMIT, required=LIMIT)                # words that leave the assistant none of its own
+        dc.require_room_in_a_choice(LIMIT, room=LIMIT)                    # a room that leaves the door no words at all
     # and it IS called when the module is read, with the schema's own limit
     tree = ast.parse((ROOT / "api" / "services" / "definition_conversation.py").read_text(encoding="utf-8"))
     at_import = [node for node in tree.body if isinstance(node, ast.Expr) and isinstance(node.value, ast.Call)
@@ -198,7 +217,7 @@ def test_the_module_does_not_start_when_the_guards_words_would_not_fit_a_choice(
 def test_one_function_says_whether_a_daily_measure_builds_below_a_day_and_it_says_no(monkeypatch):
     assert dc.daily_values_below_a_day() is False and dc.daily_values_below_a_day(FIVE) is False
     notes = dc.day_length_turn_notes(words_for((50,)), FIVE)
-    assert set(notes) == {"day_lengths", "day_lengths_bars_phrase"}     # nothing is promised today
+    assert set(notes) == {"day_lengths", "day_lengths_bars_phrase", "day_lengths_choice_room"}     # nothing is promised today
     assert dc.day_length_turn_notes("the 50 day average", {"sym": "NVDA", "tf": "D"}) == {}
     # the ONE place: nothing else in the module decides it, and the turn's notes read it by name
     source = (ROOT / "api" / "services" / "definition_conversation.py").read_text(encoding="utf-8")
@@ -210,3 +229,80 @@ def test_one_function_says_whether_a_daily_measure_builds_below_a_day_and_it_say
     # when the engine unit points the function at its capability, the assistant is told, with nothing else edited
     monkeypatch.setattr(dc, "daily_values_below_a_day", lambda chart=None: True)
     assert dc.day_length_turn_notes(words_for((50,)), FIVE)["daily_measure_inside"] is True
+
+
+# ── second unit: short forms from the same spans, the room as a number, one function for what is accepted ──
+
+def test_every_form_the_door_can_write_comes_from_one_function_fullest_first():
+    forms = dc.bars_phrases(words_for((10, 21, 50, 14)), FIVE)
+    assert forms == ["10, 21, 50 and 14 five-minute bars, about 50 minutes to 4 hours",
+                     "10, 21, 50 and 14 five-minute bars (50 min to 4 h)",
+                     "five-minute bars, about 50 minutes to 4 hours",
+                     "five-minute bars (50 min to 4 h)",
+                     "these bars (50 min to 4 h)",
+                     "these bars in place of days"]
+    assert dc.bars_phrases(words_for((50,)), FIVE) == ["50 five-minute bars, about 4 hours", "50 five-minute bars (4 h)",
+                                                       "these bars (4 h)", "these bars in place of days"]
+    assert dc.bars_phrases("the 50 day average", {"sym": "NVDA", "tf": "D"}) == []
+    # the door's phrase is the FIRST form that leaves the assistant its room
+    for lengths in ON_RECORD:
+        words = words_for(lengths)
+        forms = dc.bars_phrases(words, FIVE)
+        fits = [f for f in forms if len(f) <= dc.BARS_PHRASE_MAX_CHARS]
+        assert dc.bars_phrase(words, FIVE) == fits[0] and forms[-1] == dc.BARS_PHRASE_LAST_RESORT, lengths
+        # the counts are kept whenever a form WITH them fits: never dropped for nothing
+        with_counts = [f for f in forms[:2] if len(f) <= dc.BARS_PHRASE_MAX_CHARS]
+        assert (not with_counts) or dc.bars_phrase(words, FIVE) == with_counts[0], lengths
+
+
+def test_the_guard_accepts_exactly_the_forms_the_door_can_write():
+    words = words_for((10, 21, 50, 14))
+    for form in dc.bars_phrases(words, FIVE):
+        choice = "The same from " + form
+        assert len(choice) <= LIMIT or form == dc.bars_phrases(words, FIVE)[0], form       # (only the fullest can run over)
+        if len(choice) <= LIMIT:
+            assert refused(asked("The same lines, on daily bars", choice), words) is None, form
+    # and nothing near them: a time the door did not write, or the door's time with other counts
+    for near in ("The same from 10, 21, 50 and 14 five-minute bars (to 4 hours)",
+                 "The same from five-minute bars (about an hour to 4 h)",
+                 "The same from the last few bars of this chart"):
+        assert refused(asked("The same lines, on daily bars", near), words) is not None, near
+
+
+def test_the_seven_choices_that_ran_over_would_fit_with_the_phrase_and_the_room():
+    """The measured failures, by their numbers alone (the requests are private): the assistant's own words ran 27 to
+    58 characters. With the door's phrase and the room it is told, a choice whose own words keep to the room fits."""
+    for lengths in ON_RECORD:
+        notes = dc.day_length_turn_notes(words_for(lengths), FIVE)
+        own = "x" * notes["day_lengths_choice_room"]                     # as many of its own characters as it was told
+        assert len(own + notes["day_lengths_bars_phrase"]) == LIMIT
+        assert notes["day_lengths_choice_room"] >= 28                     # the shortest own words measured were 27
+    # one character more than it was told is what the schema refuses: the number told is the true one
+    notes = dc.day_length_turn_notes(words_for((10, 21, 50, 14)), FIVE)
+    over = asked("On daily bars", "y" * (notes["day_lengths_choice_room"] + 1) + notes["day_lengths_bars_phrase"])
+    assert any("too long" in e for e in dc._schema_errors(over))
+
+
+def test_a_choice_that_says_on_a_daily_chart_is_the_daily_version():
+    """⚰️ Live 2026-11-23: "The ratio with a 21 day EMA, which is its 21-bar EMA on a daily chart" was refused as a
+    bars version called by its days. It is the DAILY version, described with the word "bar"."""
+    words = "On a 5 minute chart, plot the ratio against SPY with its 21 day EMA"
+    daily = "The ratio with a 21 day EMA, which is its 21-bar EMA on a daily chart"
+    bars = "The ratio with an EMA of " + dc.bars_phrase(words, FIVE)
+    assert refused(asked(daily, bars), words) is None
+    for also in ("The same line on daily bars", "A 21-bar EMA on the daily chart", "Its 21 bar average on a daily chart"):
+        assert refused(asked(also, bars), words) is None, also
+    # CONTROL: a bars version is still caught, whatever else it says
+    for caught in ("The ratio with a 21 day EMA on this chart's bars", "A 21-bar EMA of this chart", "A 21 bar EMA, daily style"):
+        assert refused(asked(daily, caught), words) is not None, caught
+
+
+def test_the_schema_says_what_a_change_to_one_of_its_limits_needs():
+    """The browser validates against the copy of the schema bundled into the page. A raised limit makes a tab on the
+    older bundle refuse the newer server's answer: found before a limit was raised, written where the next person
+    to raise one will read it."""
+    said = SCHEMA["description"]
+    for part in ("bundled into the page", "a tab still on the older bundle", "`accepts` handshake"):
+        assert part in said, part
+    assert LIMIT == 80                                                    # and the limit itself did not move
+

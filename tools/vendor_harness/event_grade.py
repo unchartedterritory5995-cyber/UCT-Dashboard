@@ -17,7 +17,9 @@ For each (symbol, family) it answers the questions E2 needs before it places a s
 
     python tools/vendor_harness/event_grade.py --captures <run dir> --ours <dir of {SYM}.json> --out <report.json>
     python tools/vendor_harness/event_grade.py --captures <run dir> --base https://uctintelligence.com --out ...
-        (--base signs in with SMOKE_EMAIL / SMOKE_PASSWORD from the operator's environment, never printed)
+        (--base signs in as the synthetic admin through tools/synthetic_session.py, which reads SMOKE_EMAIL /
+         SMOKE_PASSWORD from the operator's environment by name, never printed, and signs the session OUT when the
+         read ends, however it ends)
 """
 from __future__ import annotations
 
@@ -170,27 +172,49 @@ def ours_from_dir(d: str, sym: str) -> Optional[dict]:
         return json.load(fh)
 
 
+def _synthetic_session():
+    """tools/synthetic_session.py: the ONE sign-in for a synthetic account. This tool never posts a login itself and
+    never reads the credential; the helper does both, and every session it opens is signed out."""
+    try:
+        from tools import synthetic_session as S  # noqa: PLC0415 -- package import (repo root on sys.path)
+    except ImportError:
+        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # tools/
+        import synthetic_session as S  # noqa: PLC0415 -- script import (tools/ on sys.path)
+    return S
+
+
 def ours_from_base(base: str, syms: Iterable[str], wait_s: int = 120) -> dict:
-    """Sign in as the operator's synthetic admin (SMOKE_EMAIL / SMOKE_PASSWORD, never printed) and read each
-    symbol, waiting out `pending` (202) while the background lane fetches."""
-    import httpx
-    email, password = os.environ.get("SMOKE_EMAIL"), os.environ.get("SMOKE_PASSWORD")
-    if not email or not password:
+    """Sign in as the operator's synthetic admin through tools/synthetic_session.py and read each symbol, waiting
+    out `pending` (202) while the background lane fetches. The session is signed out when the read ends: on a
+    normal return, a refusal, an exception or Ctrl-C (the `with` below; the helper's atexit is the backstop)."""
+    S = _synthetic_session()
+    if not S.has_credentials("smoke"):
         raise SystemExit("SMOKE_EMAIL / SMOKE_PASSWORD are not set in this environment")
+    import httpx
     out = {}
     with httpx.Client(base_url=base, timeout=30, follow_redirects=True) as cl:
-        r = cl.post("/api/auth/login", json={"email": email, "password": password})
-        if r.status_code != 200:
-            raise SystemExit(f"sign-in refused: HTTP {r.status_code}")
-        for sym in syms:
-            deadline = time.time() + wait_s
-            while True:
-                r = cl.get(f"/api/pine/events/{sym}")
-                if r.status_code == 202 and time.time() < deadline:
-                    time.sleep(5)
-                    continue
-                out[sym] = r.json() if r.status_code in (200, 202) else {"state": f"http-{r.status_code}"}
-                break
+        try:
+            session = S.sign_in_client(cl, base, "smoke")
+        except S.SignInError as exc:  # the helper left no session behind; its message names no secret
+            raise SystemExit(f"sign-in refused: {exc}") from None
+        with session:
+            if not session.ok:
+                raise SystemExit(f"sign-in refused: HTTP {session.status}")
+            out = _read_events(cl, syms, wait_s)
+    return out
+
+
+def _read_events(cl, syms: Iterable[str], wait_s: int) -> dict:
+    out = {}
+    for sym in syms:
+        deadline = time.time() + wait_s
+        while True:
+            r = cl.get(f"/api/pine/events/{sym}")
+            if r.status_code == 202 and time.time() < deadline:
+                time.sleep(5)
+                continue
+            out[sym] = r.json() if r.status_code in (200, 202) else {"state": f"http-{r.status_code}"}
+            break
     return out
 
 

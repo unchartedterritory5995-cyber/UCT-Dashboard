@@ -131,6 +131,8 @@ The acceptance gates are unchanged: zero unsafe plans and ≥ 90% interpretation
 |---|---|
 | `agentNl1Selection.test.js` | Core composition and availability, ≤ 60, whole groups, pins, soft expansion, reroute fit, determinism, Python parity fixture |
 | `agentNl1SelectionPanel.test.jsx` | Through the real panel: reroute (nothing runs in between), its bounds, no repair after a reroute, no third call, the substitution guard, pins. Each mechanism was disabled once to confirm its test fails |
-| `agentNl1SelectionCoverage.test.js` | Invariants on every dev/exposed request, coverage with regression floors |
+| `agentNl1SelectionCoverage.test.js` | Invariants on every dev/exposed request, coverage with regression floors (the shipped budget, 55) |
+| `agentNl1SelectionCoverageLimit.test.js` | The same capture at the per-request limit (60), reported for comparison (split from the file above 2026-11-23; shared capture in `testing/nl1SelectionCoverage.js`) |
+| `agentNl1SelectionMemo.test.js` | A request's word reading and group counts are read once across its reroutes (`nl1WordsReader`): first call and reroutes byte-identical to a fresh selection on every dev/exposed turn |
 | `tests/test_uct_agent_nl1_selection.py` | Server: limit 60, block layout and cache stability, hidden actions never run, need_groups never repaired, malformed `stable`, flag OFF = legacy |
 | `tests/test_agent_eval_run.py` | Assembly parity, reroute replay, call ceiling, routed estimates under the shipped 60 |

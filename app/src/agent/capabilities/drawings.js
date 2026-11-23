@@ -80,6 +80,8 @@ export const drawingKind = {
   // Drawings are keyed by SYMBOL (and Drawing Board), not by the open layout: a layout switch
   // does not change what a drawing id means, so it neither pins a proposal nor blocks an Undo.
   boardScoped: false,
+  // the drawing "it" / "that line" means (the Alerts family's instant reader, alertPhrases, reads it here)
+  lastTouched: () => lastTouched,
   // host.drawings: one entry per SYMBOL shown on a chart (agent/host.js buildDrawingSource)
   list: (host) => host?.drawings?.list() || [],
   read: (host, ref) => host?.drawings?.read(ref) || null,
