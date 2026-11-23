@@ -44,7 +44,9 @@ def test_a_sandbox_inside_this_worktree_is_REFUSED():
     # the path it resolved, because "REFUSED" alone sends nobody anywhere.
     assert "REFUSED" in msg
     assert "UCT_RIG_DATA" in msg
-    assert str(REPO) in msg.replace("/", "\\")
+    # Both sides to one separator: on Linux str(REPO) has forward slashes, and replacing them on the message alone
+    # made this unmatchable there. On Windows str(REPO) has none, so nothing changes.
+    assert str(REPO).replace("/", "\\") in msg.replace("/", "\\")
 
 
 def test_the_repo_root_itself_is_REFUSED():

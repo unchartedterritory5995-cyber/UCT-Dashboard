@@ -45,8 +45,18 @@ import { isDrawingHandle } from './handles.js'
 import { Budget, RuntimeLimitError, LIVE_OBJECT_BYTES } from './limits.js'
 
 /** ⭐ P1 HARDENING — the clock `WALL_TIME` reads. Injected through `opts.now` by a
- *  test; otherwise the platform's monotonic clock. */
+ *  test; otherwise the AMBIENT clock while one is installed (e94: the member door's own runs,
+ *  `runtimeColumns.withMemberDoorClock`), else the platform's monotonic clock. */
 const defaultNow = () => (typeof performance !== 'undefined' ? performance.now() : Date.now())
+let AMBIENT_NOW = null
+/** (the injected clock's default, `defaultNow`, is the closure's one allowed wall-clock read here: H5) */
+const runNow = () => (AMBIENT_NOW ? AMBIENT_NOW() : defaultNow())
+/** e94 — the clock every run without an injected one reads, for the length of `fn` (restored after, nesting-safe). */
+export function withAmbientRunClock(now, fn) {
+  const prior = AMBIENT_NOW
+  AMBIENT_NOW = typeof now === 'function' ? now : null
+  try { return fn() } finally { AMBIENT_NOW = prior }
+}
 import { etClockAt } from '../../indicators.js'
 import { encodeState, cloneValues } from './vmState.js'
 
@@ -458,7 +468,7 @@ export function execute(program, ctx, limits, opts) {
   // outermost run, and every nested run is measured against the same start.
   const requestDepth = (opts && Number.isInteger(opts.requestDepth)) ? opts.requestDepth : 0
   if (requestDepth > 0) budget.peak('REQUEST_FANOUT', requestDepth)
-  const now = (opts && typeof opts.now === 'function') ? opts.now : defaultNow
+  const now = (opts && typeof opts.now === 'function') ? opts.now : runNow
   if (!budget.startedAt) budget.startedAt = now() || 1e-9
   const wallCap = budget.limits.WALL_TIME
   // ⭐ RT7 — the script's `//@version`, for the one collection rule that depends on it

@@ -19,7 +19,8 @@ job, or a changed-file list too long to read whole.
 
 WHO MAY REACH THE APP (2026-11-22, AUDIT review 2 of #2501): workflow_problems() below is the ONE judge of a commit's
 .github/workflows tree: no file but the two posters may declare an `environment` (the key, whatever its value), call a
-reusable workflow from outside this repository, or name the App's variables or the context. It runs from master's copy of
+reusable workflow that is not a file directly in this repository's .github/workflows, or name the App's variables or the
+context. It runs from master's copy of
 this file over git objects, for every merge group entry (the follower) and every pull-request head (this side); a
 finding is a failure, an unreadable or unparsable file included.
 
@@ -451,6 +452,17 @@ def _is(key, name: str) -> bool:
     return isinstance(key, str) and key.strip().casefold() == name
 
 
+def _local_reusable(value) -> bool:
+    """`uses: ./.github/workflows/<file>`: one file directly in this repository's workflow folder, the tree this scan
+    reads. The prefix alone is not enough (AUDIT review 3 of #2501, finding B): ./.github/workflows/../../other/x.yml
+    has it and names a file outside that tree. So what follows the prefix may hold no `/` and no `..`. GitHub accepts a
+    local reusable workflow only at the top of .github/workflows, so nothing it would run is refused by this."""
+    if not (isinstance(value, str) and value.startswith(LOCAL_REUSABLE)):
+        return False
+    rest = value[len(LOCAL_REUSABLE):]
+    return "/" not in rest and ".." not in rest
+
+
 def workflow_problems(files: dict) -> list[str]:
     """Every way the workflow tree `files` ({repo path under .github/workflows: its bytes / text, or None when it could
     not be read}) could reach the App that posts agent-ci-required, or post that context by accident. [] = none.
@@ -464,10 +476,12 @@ def workflow_problems(files: dict) -> list[str]:
           - in any file but the two posters, a mapping key `environment` at ANY depth is a finding (a job's, and also
             a step's `with:` input of that name: refused rather than told apart);
           - in a poster, exactly one such key is allowed: jobs.<poster job>.environment, the literal agent-ci-verdict.
-    (b) REUSABLE WORKFLOWS. A job may `uses:` a workflow only from ./.github/workflows/ of this repository. One taken
-        from another repository runs here, with what this repository grants it, and no scan of these files sees it.
-        Refused: a `uses` directly under a job that does not start with ./.github/workflows/, and a `uses` at any
-        depth that names a .github/workflows/ path any other way (owner/repo/.github/workflows/x.yml@ref).
+    (b) REUSABLE WORKFLOWS. A job may `uses:` a workflow only as ./.github/workflows/<file>: one file DIRECTLY in this
+        repository's workflow folder (_local_reusable). One taken from another repository runs here, with what this
+        repository grants it, and no scan of these files sees it; the same holds for a path that starts right and
+        then leaves the folder (./.github/workflows/../../other/x.yml).
+        Refused: a `uses` directly under a job that is not of that form, and a `uses` at any depth that names a
+        .github/workflows/ path any other way (owner/repo/.github/workflows/x.yml@ref).
     (c) BACKSTOP, the names. In any file but the posters, a YAML string (a key or a value, at any depth) that contains
         AGENT_CI_VERDICT_ (any case), or the context agent-ci-required other than inside the file name
         agent-ci-required.yml, is a finding. "Outside a comment" means exactly this: a YAML comment is not a string
@@ -505,11 +519,12 @@ def workflow_problems(files: dict) -> list[str]:
                 elif value != VERDICT_ENVIRONMENT or key != "environment":
                     bad.append(f"{name}: job {poster_job}'s environment is not the literal {VERDICT_ENVIRONMENT}")
             if _is(key, "uses"):                                                               # (b)
-                local = isinstance(value, str) and value.startswith(LOCAL_REUSABLE)
                 job_level = len(where) == 2 and where[0] == "jobs"
-                if (job_level or (WORKFLOW_DIR + "/") in str(value).casefold()) and not local:
+                if (job_level or (WORKFLOW_DIR + "/") in str(value).casefold()) and not _local_reusable(value):
                     job = where[1] if len(where) >= 2 and where[0] == "jobs" else "?"
-                    bad.append(f"{name}: job {job} calls a reusable workflow outside this repository's tree ({str(value)[:50]})")
+                    why = ("by a path that is not a file directly in .github/workflows" if str(value).startswith(LOCAL_REUSABLE)
+                           else "outside this repository's tree")
+                    bad.append(f"{name}: job {job} calls a reusable workflow {why} ({str(value)[:50]})")
             if poster_job is None:                                                             # (c)
                 for s in (key, value):
                     if not isinstance(s, str):

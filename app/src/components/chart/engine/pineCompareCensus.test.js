@@ -31,7 +31,8 @@ const DECLARED = Object.freeze({
   'components/chart/engine/runtime/lower.js': { role: 'inherits', calls: 1 },
   'components/chart/builder/criteria.js': { role: 'native', calls: 2 },
   'components/chart/builder/toCondition.js': { role: 'native', calls: 1 },
-  'components/chart/builder/FormulaField.jsx': { role: 'native', calls: 1 },
+  // the paste worker moved `evaluateFormula` out of `FormulaField.jsx`, verbatim (the member door's worker holds no React)
+  'components/chart/builder/evaluateFormula.js': { role: 'native', calls: 1 },
 })
 /** Does the file USE the document's rule — a call to `semanticsOptsFor` / `pineCompareOptsOf`, or a spread of
  *  `pineCompareOpts` — and not merely import it? (An import alone is what a lost spread leaves behind.) */

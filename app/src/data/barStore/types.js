@@ -57,6 +57,7 @@ export const ACTION = Object.freeze({
   TICK_FALLBACK: 'tick-fallback',
   SCROLL_BACK: 'scroll-back',
   INVALIDATE: 'invalidate',
+  DEVICE_KILLED: 'device-killed', // a kill seen on this page: the device copy's stamp vouches for nothing (persist)
 })
 
 /** Where the developing bar's current value came from. */

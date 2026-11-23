@@ -352,3 +352,76 @@ export function visibilityOfWords(lower, visible, host) {
   // referent reader names it; else the words, resolved again on each chart
   return { instance: ids.size === 1 ? [...ids][0] : subject }
 }
+
+// ── LEGEND family (pl-legend): the legend's chords and its menu's definition verbs ──
+/**
+ * "toggle rsi", "toggle the vwap off" — the chord's own meaning (StockChart.toggleIndicatorById: a shown study hides, a
+ * hidden one shows, an absent one is added), read ONLY when the whole board agrees which of the three it is. `want` is the
+ * capability asking ('hide' | 'show' | 'add'); a board where the indicator is shown on one chart and hidden or absent on
+ * another goes to the model, as before. An explicit "on" / "off" narrows it ("toggle rsi off" never adds or shows).
+ */
+export function toggleOfWords(lower, want, host) {
+  const m = /^(?:toggle|flip) (?:on |off )?(.+?)(?: (on|off))?(?: again)?$/.exec(lc(lower))
+  if (!m || !host) return null
+  const lead = /^toggle (on|off) /.exec(lc(lower))
+  const dir = m[2] || lead?.[1] || null
+  const subject = subjectOf(m[1])
+  if (!subject) return null
+  let snaps = []
+  try { snaps = indicatorEditsKind.list(host) || [] } catch { snaps = [] }
+  if (!snaps.length) return null
+  const states = new Set()
+  const ids = new Set()
+  for (const snap of snaps) {
+    const st = indicatorEditsKind.stateOf(snap)
+    const t = targetOf(st, subject)
+    if (!t.ok) { states.add(t.reason === 'not-found' || /not.?found/i.test(String(t.reason)) ? 'absent' : 'unclear'); continue }
+    const row = (st.rows || []).find(r => r.instanceId === t.instanceId)
+    if (!row) { states.add('unclear'); continue }
+    states.add(row.hidden ? 'hidden' : 'shown')
+    ids.add(row.instanceId)
+  }
+  if (states.size !== 1) return null
+  const [state] = states
+  const does = state === 'shown' ? 'hide' : state === 'hidden' ? 'show' : state === 'absent' ? 'add' : null
+  if (!does || does !== want) return null
+  if (dir === 'off' && does !== 'hide') return null
+  if (dir === 'on' && does === 'hide') return null
+  if (does === 'add') return subject.startsWith('#') ? null : { defId: subject, inputs: null }
+  return { instance: ids.size === 1 ? [...ids][0] : subject }
+}
+
+/**
+ * "create a custom copy of the rsi", "make my own copy of macd", "save trend strength as my own indicator" → the legend's
+ * "Create custom copy" (definition.duplicate {defId}). The word "custom" / "own" / "editable" / "personal" is what makes it
+ * a NEW definition — "make a copy of the rsi" is "Duplicate on chart" (duplicateOfWords). A moving average named by its
+ * length ("the 20 ema") is a chart's instance, not a definition: not read here.
+ */
+export function customCopyOfWords(lower) {
+  const s = lc(lower)
+  const m = /^(?:create|make|save|give me|build) (?:a |an |my |me a |me an )?(?:own |custom |editable |personal |private )+(?:copy|version|clone|fork) of (.+?)(?: (?:that|which) i can edit| to edit| for me)?$/.exec(s)
+    || /^(?:make|create) my own (?:copy|version) of (.+)$/.exec(s)
+    || /^(?:save|copy|fork|clone) (.+?) (?:as|into) (?:my own|a custom|an editable|my)(?: indicator| copy| formula| version)?$/.exec(s)
+    || /^(?:fork|customi[sz]e) (.+?)(?: into my own(?: indicator)?)?$/.exec(s)
+  if (!m) return null
+  const subject = subjectOf(m[1])
+  return subject && !subject.startsWith('#') ? { defId: subject } : null
+}
+
+/**
+ * "modify trend strength with the uct agent", "open modify on my breakout dots", "open trend strength in create indicator"
+ * → the legend's "Modify with the UCT Agent" (indicator.openCreate {defId}), for one of the member's OWN saved formulas
+ * (`ownedIds`): a built-in has no Modify (chipMenu.js offers it only for a user definition).
+ */
+export function modifyOfWords(lower, ownedIds) {
+  const s = lc(lower)
+  const AGENT = '(?:the )?(?:uct )?(?:agent|intelligence|ai|create indicator|indicator studio|studio|indicator builder)'
+  const m = new RegExp(`^(?:modify|edit|change|tweak|rework|improve) (.+?) (?:with|in|using|through) ${AGENT}$`).exec(s)
+    || /^open (?:the )?modify (?:on|for) (.+)$/.exec(s)
+    || new RegExp(`^open (.+?) in ${AGENT}(?: to (?:modify|edit) it)?$`).exec(s)
+  if (!m) return null
+  const subject = subjectOf(m[1])
+  let owned = []
+  try { owned = typeof ownedIds === 'function' ? ownedIds() : [] } catch { owned = [] }
+  return subject && owned.includes(subject) ? { request: null, defId: subject } : null
+}

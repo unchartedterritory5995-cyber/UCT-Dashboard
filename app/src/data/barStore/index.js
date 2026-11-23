@@ -53,6 +53,8 @@ export function createBarStore(o = {}) {
   })
   // `o.device`: the on-device bar store (deviceStore/source); omitted = the app's, off unless switched on
   const persist = o.persist ?? createPersist({ registry, io: o.io, setTimer, clearTimer, now, ...(o.idle ? { idle: o.idle } : {}),
+    // a kill seen on this page re-asks the keys holding device rows now (network.kick: only a key a chart is on)
+    onDeviceKill: (keys) => { for (const k of keys) network.kick(k) },
     ...(o.device !== undefined ? { device: o.device } : {}) })
   const live = o.liveFeed ?? createLiveFeed({
     registry, now, onReconnect: (key) => network.kick(key), onReanchor: (key) => network.kick(key),
@@ -201,6 +203,7 @@ export function createBarStore(o = {}) {
       active.clear()
       if (statusTimer != null) { clearTimer(statusTimer); statusTimer = null }
       network.dispose()
+      try { persist.dispose?.() } catch { /* ignore */ }
     },
   }
   return api

@@ -21,6 +21,8 @@
 import { registerCapability, registerTargetKind, registerContextProvider } from '../capabilities'
 import { instancesOf, seedFrom, SEED_MAX } from '../../components/chart/builder/agentSeams'
 import * as nativeRegistry from '../../components/chart/engine/nativeRegistry'
+import { modifyOfWords } from './indicatorPhrases'
+import { ownedDefinitionIds } from './indicatorEdits'
 
 const REF = 'ind:'
 const refOf = (chartRef) => `${REF}${chartRef}`
@@ -185,7 +187,9 @@ export function registerIndicatorCapabilities() {
       properties: { request: { type: ['string', 'null'] }, defId: { type: ['string', 'null'] } },
       required: ['request', 'defId'], additionalProperties: false,
     },
-    fast: ({ core }) => (/^(?:open|show|bring up|launch)(?: the)? (?:create indicator|indicator builder)(?: panel)?$/.test(core) ? { request: null, defId: null } : null),
+    // LEGEND family: "modify my breakout dots with the uct agent" (the legend menu's Modify, one of the member's own formulas)
+    fast: ({ core, lower }) => (/^(?:open|show|bring up|launch)(?: the)? (?:create indicator|indicator builder)(?: panel)?$/.test(core) ? { request: null, defId: null }
+      : modifyOfWords(lower, ownedDefinitionIds)),
     check(st, { request, defId }) {
       if (!st.canCreate) return 'Create Indicator isn’t available for your account on this chart.'
       if (request != null && typeof request !== 'string') return 'Describe the indicator in words.'

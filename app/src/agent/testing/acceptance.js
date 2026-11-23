@@ -1,6 +1,7 @@
 // ── NL-1 ACCEPTANCE GATES — fixed BEFORE any paid evaluation (owner rule D, 2026-10-16) ─────────────
 //
-// Judged on the SEALED sets only (heldout-v2 + sealed-v3), never on sets anyone tuned against.
+// Judged on the SEALED sets only (sealed-v3; heldout-v2 was until it was marked exposed 2026-11-22), never on sets
+// anyone tuned against.
 // `hard` gates block NL-1 outright; the others must all pass for NL-1 to be proposed for release.
 // Changing a bar after seeing results requires the owner's decision, recorded in NL1-EVAL.md.
 

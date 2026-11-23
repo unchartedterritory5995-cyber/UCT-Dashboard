@@ -12,9 +12,10 @@ stamps (the build served, the model, what was spent, why it stopped).
 
 ⛔ PRODUCTION, PAID, AND A REAL BROWSER:
   * it signs in ONLY as a synthetic account (`<ACCOUNT>_EMAIL` / `<ACCOUNT>_PASSWORD` in the environment; an address
-    outside the synthetic domain is refused before anything is sent) and signs out at the end. The default is BENCH,
-    the MEMBER-role test account: an admin skips checks a member hits, and this measures what a member gets. Every
-    row says which account answered it;
+    outside the synthetic domain is refused before anything is sent), through `tools/synthetic_session.py`, which
+    signs the session out HOWEVER THE RUN ENDS (a refusal, an exception, Ctrl-C) and proves it is refused afterwards.
+    The default is BENCH, the MEMBER-role test account: an admin skips checks a member hits, and this measures what
+    a member gets. Every row says which account answered it;
   * it runs in CHUNKS: it stops sending after `--max-minutes` (18 by default) and is resumable, so a crowded machine
     lock is never held for an hour;
   * NOTHING IS SAVED: every write to definitions, preferences, the workspace and charts is stopped and named in the
@@ -28,6 +29,7 @@ This file sends; it grades nothing. Nothing here is imported by the product.
 """
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import sys
@@ -35,11 +37,16 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+try:
+    from tools import synthetic_session            # package import (the tests)
+except ImportError:
+    import synthetic_session                       # script import (`python tools/value_record.py`: tools/ is on sys.path)
+
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = ROOT / "tests" / "fixtures" / "authoring" / "value_cases.json"
 BASE = "https://uctintelligence.com"
-#: the only accounts an automated production tool signs in as end in this (CLAUDE.md, "the ONE synthetic account")
-SYNTHETIC_DOMAIN = "@uctintelligence.internal"
+#: the only accounts an automated production tool signs in as end in this. The helper's own value, never a second one.
+SYNTHETIC_DOMAIN = synthetic_session.SYNTHETIC_DOMAIN
 #: the first answer and the window's repairs of it (the window's own limit is two repair rounds)
 MAX_ANSWERS = 3
 CONVERSE = "/api/user-definitions/converse"
@@ -91,6 +98,26 @@ def account_refusal(answers: List[Dict[str, Any]]) -> Optional[str]:
     return None
 
 
+def repairs_of(answers: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """What the door refused of its OWN attempts before each answer it gave: [{answer, attempts, refused: [{attempt,
+    gate}], told: [...]}], one entry per answer that paid for more than one attempt or names a refused one.
+    `refused` is the door's `refused_attempts` (every account); `told` is what the repair turn was told, which the
+    door gives to an admin only (`diagnostic`). ⚰️ 2026-11-23: a build that went wrong on its repair call was on
+    record as `attempts: 2` and nothing else, so which guard sent it there could not be measured."""
+    out = []
+    for n, a in enumerate(answers):
+        body = a.get("body")
+        if not isinstance(body, dict):
+            continue
+        refused = [r for r in body.get("refused_attempts") or [] if isinstance(r, dict) and r.get("gate")]
+        told = [r for r in body.get("diagnostic") or [] if isinstance(r, dict) and r.get("gate")]
+        attempts = body.get("attempts")
+        if refused or told or (isinstance(attempts, int) and attempts > 1):
+            out.append({"answer": n, "attempts": attempts, "refused": [{"attempt": r.get("attempt"), "gate": r["gate"]} for r in refused],
+                        **({"told": [{"attempt": r.get("attempt"), "gate": r["gate"], "detail": r.get("detail")} for r in told]} if told else {})})
+    return out
+
+
 def is_answer(answers: List[Dict[str, Any]]) -> bool:
     """A request is ANSWERED (and never sent again) when the door answered every turn of it with status 200 and none
     of those turns was a refusal about the account. A refusal about the REQUEST (an unknown name, a wall) is an
@@ -129,8 +156,11 @@ def main(argv: List[str]) -> int:
     max_usd = float(_opt(argv, "--max-usd", "5"))
     max_minutes = float(_opt(argv, "--max-minutes", "18"))
     account = _opt(argv, "--account", "BENCH").upper()
-    email, password = os.environ.get(account + "_EMAIL"), os.environ.get(account + "_PASSWORD")
-    if not is_synthetic(email) or not password:
+    name = account.lower()                                    # the helper's name for it; it reads the password, this tool never does
+    if name not in synthetic_session.ACCOUNTS:
+        print(f"REFUSED: {account} is not one of the synthetic accounts ({', '.join(sorted(synthetic_session.ACCOUNTS))})")
+        return 2
+    if not is_synthetic(os.environ.get(account + "_EMAIL")) or not synthetic_session.has_credentials(name):
         print(f"REFUSED: {account}_EMAIL is not a synthetic account ({SYNTHETIC_DOMAIN}) or {account}_PASSWORD is not set")
         return 2
     cases = json.loads(FIXTURE.read_text(encoding="utf-8"))["cases"]
@@ -152,15 +182,23 @@ def main(argv: List[str]) -> int:
     stamps: Dict[str, Any] = {"account": account, "started": time.strftime("%Y-%m-%dT%H:%MZ", time.gmtime())}
     stopped = None
     began = time.time()
-    with sync_playwright() as pw:
+    # ⚰️ 2026-11-23: this run POSTed the login itself and signed out on its LAST line, so a run that left early (a
+    # refusal below, an exception, Ctrl-C) left a live 30-day session to a production account. Everything opened here
+    # is now handed to `leave`, which closes it however this block is left: the session first (a plain HTTPS request
+    # of the helper's own, which then proves the session is refused), the browser after it.
+    session = None
+    with sync_playwright() as pw, contextlib.ExitStack() as leave:
         browser = pw.chromium.launch()
+        leave.callback(browser.close)
         page = browser.new_context(viewport={"width": 1280, "height": 900}).new_page()
         page.goto(BASE + "/login", wait_until="domcontentloaded")
-        page.request.post(BASE + "/api/auth/login", data={"email": email, "password": password})
-        me = (page.request.get(BASE + "/api/auth/me").json().get("user") or {})
-        if not is_synthetic(me.get("email")):
-            browser.close()
-            print("REFUSED: the session is not a synthetic account's (sign-in did not answer, or answered as someone else)")
+        try:
+            session = leave.enter_context(synthetic_session.sign_in_playwright(page, BASE, name))
+        except synthetic_session.SignInError as exc:          # no session is left behind: the helper signed it out
+            print(f"REFUSED: the sign-in did not give this synthetic account's session ({exc})")
+            return 2
+        if not session.ok:
+            print(f"REFUSED: the sign-in was not accepted (HTTP {session.status})")
             return 2
         stamps["front"] = (page.request.get(BASE + "/build.json").json().get("commit") or "")[:10]
         stamps["backend"] = (page.request.get(BASE + "/api/health").json().get("commit") or "")[:10]
@@ -249,7 +287,7 @@ def main(argv: List[str]) -> int:
                 row.update(seconds=round(time.time() - t0, 1), usd=round(usd, 6), answers=len(answers),
                            statuses=[a["status"] for a in answers], turn=(body or {}).get("turn"), disposition=(body or {}).get("disposition"),
                            writes_stopped=sorted(set(state["stopped"])), turns_nobody_sent=state["unsent"],
-                           done=is_answer(answers))
+                           repairs=repairs_of(answers), done=is_answer(answers))
                 if any(a["status"] == 429 for a in answers):
                     stopped = "the door's hourly limit (429)"
                 if refused:
@@ -263,9 +301,10 @@ def main(argv: List[str]) -> int:
             if stopped:
                 break
         held_after = page.request.get(BASE + "/api/user-definitions").text()
-        page.request.post(BASE + "/api/auth/logout")
-        browser.close()
+    if session.signed_out is not True:                         # the helper has already said so on stderr, by session id prefix
+        print("SIGN-OUT NOT PROVED: the session may still be live; it must be revoked")
     stamps.update(spent_usd=round(spent, 4), stopped=stopped, left_the_account_as_it_was=held_after == held_before,
+                  signed_out=session.signed_out is True,
                   ended=time.strftime("%Y-%m-%dT%H:%MZ", time.gmtime()))
     stamps["answered_by"] = answered_by(raw_path.read_text(encoding="utf-8").splitlines())
     previous = out / "run.json"

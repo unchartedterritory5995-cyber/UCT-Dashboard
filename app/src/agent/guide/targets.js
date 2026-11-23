@@ -8,6 +8,10 @@
 //   { widgetType: 'watchlist' }               a board cell of that widget type (data-widget-type)
 //   { widgetType: 'watchlist', guide: '…' }   a `data-guide` id inside a board cell of that type (for a control the
 //                                             shared list view also renders for other widgets — a Scanner's back button)
+//   { within: '@menu', label: '…' }           a control inside any OPEN menu (role="menu") the product portals to the page
+//                                             without an attribute of ours (the Watchlist library's ⋯ menu)
+//   { grab: true, within: '@chart' }          the element the board drags a widget by (its react-grid-layout handle class,
+//                                             a behaviour contract, not a style): the chart's own header row
 //   { inWidget: 'watchlist.addSymbol' }       a `data-guide` id inside the cell the walkthrough pinned (a `pin` step), and
 //                                             nowhere else: the same control on another widget proves nothing
 //   ['a', 'b']                                any of these (for a `waitFor` that more than one route satisfies)
@@ -99,6 +103,9 @@ function inside(box, t) {
     // `lead`: the label STARTS with these words ("Remove starred (3)" carries its count)
     return [...box.querySelectorAll('span, div, label, h2, h3, h4, button')].filter(el => (t.lead ? own(el).startsWith(want) : own(el) === want))
   }
+  // the board's drag handle (ChartsWorkspace draggableHandle=".charts-widget-drag-handle"): what the grid itself moves a widget
+  // by. An integrated chart header has no header bar of ours; its identity row carries the handle (ChartIdentityRow)
+  if (t.grab) return [...box.querySelectorAll('.charts-widget-drag-handle')]
   if (t.cursor) {
     const lines = [...box.querySelectorAll('div')].filter(el => { try { return getComputedStyle(el).cursor === t.cursor } catch { return false } })
     return t.above ? dividerAbove(lines, box, t.above) : lines
@@ -140,6 +147,16 @@ export function findTarget(target, { chartRef = null, widgetRef = null } = {}) {
     if (!cell) return chartRef ? pick(inside(document.body, target).filter(el => !el.closest?.('[data-widget-id]')), target) : pick(inside(document.body, target), target)
     // …never the same control on ANOTHER chart: outside this cell, only what sits in no board cell at all (a portal)
     return pick(inside(cell, target), target) || pick(inside(document.body, target).filter(el => !el.closest?.('[data-widget-id]')), target)
+  }
+  // ⭐ '@menu': an OPEN menu the product portals to the page with no attribute of ours (role="menu": the Watchlist library's
+  // per-list ⋯ menu, LibraryRail.jsx RailMenu). Only a menu is a box here, never the button that opens one
+  if (typeof target === 'object' && target.within === '@menu') {
+    for (const box of document.querySelectorAll('[role="menu"]')) {
+      if (box.matches?.('button,[aria-haspopup]')) continue
+      const hit = pick(inside(box, target), target)
+      if (hit) return hit
+    }
+    return null
   }
   if (typeof target === 'object' && target.within) {
     // a box on a chart: the chart being talked about, when it has one (a menu it opened may be portalled)

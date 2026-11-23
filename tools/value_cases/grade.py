@@ -9,7 +9,9 @@ Three kinds of case, one evidence tier:
 `grade(case_id, answer)` evaluates every formula the answer holds (each output, each condition of a colour state
 or a marker) with the SERVER'S OWN interpreter on the built market, and compares each with the readings of
 `rules.rules(case_id)`. The answer is right when every named thing of the rule is equalled by one formula on
-every bar both have a value, and no formula holds an absurd number.
+every bar both have a value, and no formula holds an absurd number. Where the request's words make NOTHING part of
+what was asked ("only while", "plot nothing when"), the rule says so (`rules.exact`) and the formula must also hold
+nothing on every bar the rule holds nothing.
 
 The interpreter is the product's (that is the point: it is what a member's chart computes); the rule is not.
 """
@@ -130,6 +132,7 @@ def grade(case_id, answer, chart='daily'):
     if fill is not None:
         return _grade_fill_in(fill, built, inputs, cols, chart, calc, hidden_outputs(answer))
     expect_n = want.pop('__outputs__', None)
+    exact = _rules.exact(case_id)
     outputs = [n for n, _ in built if n.startswith('output ')]
     if expect_n is not None and len(outputs) != expect_n:
         right = False
@@ -141,16 +144,19 @@ def grade(case_id, answer, chart='daily'):
                 if got is None:
                     continue
                 both, bad, lop = compare(got, column)
+                if what in exact:
+                    bad += sum(lop)                    # NOTHING is asked for too: a bar only one of the two holds a value on differs
                 if both and (best is None or (bad, sum(lop)) < (best[0], sum(best[1]))):
                     best = (bad, lop, both, name, reading)
         if best is None:
             right = False
             lines.append(f'{what}: NOTHING TO COMPARE (no formula has a value where the rule has one)')
         elif best[0] == 0:
-            lines.append(f'{what} = {best[3]} [{best[4]}] on {best[2]} bars')
+            lines.append(f'{what} = {best[3]} [{best[4]}]' + (', and nothing where the rule holds nothing,' if what in exact else '') + f' on {best[2]} bars')
         else:
             right = False
-            lines.append(f'{what}: NO FORMULA EQUALS IT. closest {best[3]} [{best[4]}], {best[0]} of {best[2]} bars differ')
+            lines.append(f'{what}: NO FORMULA EQUALS IT. closest {best[3]} [{best[4]}], {best[0]} of {best[2]} bars differ'
+                         + (f' ({sum(best[1])} of them hold a value on one side only: nothing is part of what was asked)' if what in exact and sum(best[1]) else ''))
     for name, got, err in cols:
         if err:
             lines.append(f'could not compute {name}: {err}')
@@ -325,6 +331,9 @@ def rule_digest(case_id):
         for reading, column in want[what]:
             h.update(repr(reading).encode())
             h.update(','.join('n' if not _ok(v) else '%.6g' % v for v in column).encode())
+    held_exactly = sorted(_rules.exact(case_id))
+    if held_exactly:                                            # a rule that starts (or stops) holding NOTHING has changed
+        h.update(('nothing is held: ' + repr(held_exactly)).encode())
     return h.hexdigest()[:16]
 
 
