@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "uct.authoring.patch/1",
   "title": "UCT conversational authoring patch",
-  "description": "The model's whole answer for ONE conversational turn: a structured patch against the current canonical definition. The engine (builder/authoring/applyPatch.js) re-validates EVERYTHING deterministically and applies atomically; this schema is a structural pre-check only. See scratchpad P2-DESIGN.md. Prose fields (note, reply, *.text) never reach the definition.",
+  "description": "The model's whole answer for ONE conversational turn: a structured patch against the current canonical definition. The engine (builder/authoring/applyPatch.js) re-validates EVERYTHING deterministically and applies atomically; this schema is a structural pre-check only. See scratchpad P2-DESIGN.md. Prose fields (note, reply, *.text) never reach the definition. A LIMIT IN THIS FILE IS ALSO IN EVERY OPEN TAB: the browser validates an answer against the copy of this file bundled into the page, so raising a limit (a longer choice, more ops) makes a tab still on the older bundle refuse the newer server's answer. Any such change needs the `accepts` handshake (converseClient.js and the door) first.",
   "type": "object",
   "additionalProperties": false,
   "required": ["contract", "baseRevision", "ops"],
