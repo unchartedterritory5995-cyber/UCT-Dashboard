@@ -143,6 +143,21 @@ def test_T7b_the_next_test_finds_the_pool_open_again():
             stream._seed_pool = None
 
 
+def test_T8a_a_test_that_stops_the_pool_and_only_then_patches_it_open(monkeypatch):
+    """First half of a PAIR (T8b). The pattern the after-test reset cannot cover: the first patch of the
+    state is made while it is closed, so monkeypatch's undo (which runs after the conftest fixture's
+    teardown) puts "closed" back."""
+    stream.shutdown_seed_pool()
+    monkeypatch.setattr(stream, "_seed_closed", False)
+    monkeypatch.setattr(stream, "_seed_pool", None)
+    assert stream._seed_closed is False
+
+
+def test_T8b_the_next_test_still_finds_the_pool_open():
+    """The conftest fixture's BEFORE half reopens what T8a's undo closed again."""
+    assert stream._seed_closed is False
+
+
 def test_T4_the_lifespan_stops_the_seed_pool_after_it_serves():
     """The call sits in the lifespan's shutdown half (after its one `yield`), and is the stream router's own."""
     tree = ast.parse((ROOT / "api" / "main.py").read_text(encoding="utf-8"))
