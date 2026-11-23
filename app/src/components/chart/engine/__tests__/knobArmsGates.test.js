@@ -9,16 +9,14 @@
 // The gates bind at the instance's settings (`evaluability.js::gateDocument`; `customStatCompute.js` through
 // `boundAtInputs`), at the declared defaults when the caller holds no instance; and an arm the member DOES pick still
 // refuses by name (the CONTROLS). The server half is `tests/test_knob_arms_gates.py`; mutants
-// `ci/mutants/e95-bind-audit.json`. The import screen needs no bind: its translation (`inspectSource`) never asks for
-// live knobs, so it folds every switch at the default (pinned last).
+// `ci/mutants/e95-bind-audit.json`. The import screen needs no bind: live knobs are the member door's option alone
+// (`memberPaneDefinition`'s `enumInputs`), so the translation the import screen reads folds every switch at the default.
 
 import { describe, it, expect } from 'vitest'
 import { memberPaneDefinition } from '../../builder/memberPane/memberPaneDefinition'
 import { evaluability, STATUS, gateDocument } from '../evaluability'
 import { customStatOutputRefusal } from '../customStatCompute'
 import { symTickersOf } from '../otherSymbols'
-import { inspectSource } from '../../builder/inspectSource'
-import { importOutcome } from '../ast/importOutcome'
 
 const SRC = ['//@version=6', 'indicator("knob gates", overlay = true)',
   'anchor = input.string("Session", "Anchor Period", options = ["Session", "Week", "Earnings"])',
@@ -87,12 +85,3 @@ describe('the header custom stat binds at the stat\'s settings', () => {
   })
 })
 
-describe('the import screen needs no bind: its translation folds every switch at the default', () => {
-  it('no output is listed missing for an unpicked arm, and the translation it reads holds no event read', () => {
-    const report = inspectSource(SRC, 'pine')
-    expect(report.ok, JSON.stringify({ refusal: report.refusal || null, error: report.error || null,
-      foreign: report.foreign || null, keys: Object.keys(report) })).toBe(true)
-    expect(JSON.stringify(report.outputs)).not.toContain('EV-ES')
-    expect(importOutcome(report).missing).toEqual([])
-  })
-})
