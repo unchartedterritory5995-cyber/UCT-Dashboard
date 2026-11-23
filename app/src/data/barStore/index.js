@@ -50,7 +50,7 @@ export function createBarStore(o = {}) {
   const history = o.history !== undefined ? o.history : (historyLakeEnabled() ? createHistoryFeed() : null)
   // `beforeAnswer` names `persist`, created below: it is called only when an answer lands, long after both exist.
   const network = o.network ?? createNetwork({
-    beforeAnswer: (key) => persist?.flushJoins?.(key),
+    beforeAnswer: (key, answer) => persist?.flushJoins?.(key, answer),
     history,
     registry, request: o.request, setTimer, clearTimer, now,
     ...(o.isHidden ? { isHidden: o.isHidden } : {}), ...(o.onVisible ? { onVisible: o.onVisible } : {}),
