@@ -25,6 +25,11 @@
  *   K11 the row is gone when the frame comes: nothing scrolls, and when it is back the snap happens (it was not
  *       marked done) (F5)
  *   K12 under StrictMode a list opened on a selection still snaps (F4)
+ *   K13 a FAR key move on a virtualized list (a wrap from the first row to the last) is centred in the commit, as on
+ *       the parent: centring there would show rows the list has not drawn, and in the frame callback they would be
+ *       drawn a frame later than on the parent (review of the rAF variant, F3)
+ *   K14 a key press after the member scrolled the list away is centred in the commit, likewise
+ *   K15 the ordinary press, its centred view inside the drawn rows, still waits for the frame callback
  *
  * Mutation proof (each run before calling these done): see the PR body.
  *
@@ -296,6 +301,38 @@ describe('a virtualized list', () => {
     hoisted.prebuilt = [{ id: 'big', name: 'Big', items: mkItems(SYMS) }]
     await act(() => { rerender(listEl('big', 'Big', ctx)) })
     expect(seen.scrollTo).toEqual([{ top: 1 * ROW, behavior: 'auto' }])   // back: snapped (in its commit, as before)
+  })
+
+  it('K13: a wrap (first row -> last) is centred in the commit, with no frame', async () => {
+    const { container } = await mount('big', 'Big')
+    await press(); await frame(); await settle(); clearSeen()   // on S0, the list at its top
+    await press('ArrowUp')                               // wraps to S399, far below every drawn row
+    expect(selectedSyms(container)).toEqual([])          // S399 is not drawn yet ...
+    expect(seen.scrollTo).toHaveLength(1)                // ... and the list was centred on it in the commit
+    expect(seen.scrollTo[0].top).toBeGreaterThan(20 * ROW)
+    await frame(() => expect(seen.scrollTo).toHaveLength(1))   // and not again in the frame
+  })
+
+  it('K14: a press after the list was scrolled away is centred in the commit, with no frame', async () => {
+    const { container } = await mount('big', 'Big')
+    await press(); await frame(); await settle(); clearSeen()   // on S0
+    const scroller = container.querySelector('[class*="listBody"]')
+    expect(scroller, 'the list scroller').toBeTruthy()
+    Object.defineProperty(scroller, 'scrollTop', { configurable: true, value: 20 * ROW })   // rows past the 14 measured ones are ~30 px
+    await act(() => { scroller.dispatchEvent(new Event('scroll')) })   // the member scrolled ~120 rows down
+    await settle()
+    expect(container.querySelector('[data-watch-sym="S1"]')).toBeNull()   // row 1 is no longer drawn
+    clearSeen()
+    await press()                                        // S0 -> S1, far above every drawn row
+    expect(seen.scrollTo).toEqual([{ top: 1 * ROW, behavior: 'auto' }])   // centred in the commit, as on the parent
+  })
+
+  it('K15: the ordinary press (its centred view inside the drawn rows) still waits for the frame callback', async () => {
+    await mount('big', 'Big')
+    await press(); await frame(); await settle(); clearSeen()   // on S0
+    await press()                                        // S1: one row on
+    expect(seen.scrollTo).toEqual([])
+    await frame(() => expect(seen.scrollTo).toEqual([{ top: 1 * ROW, behavior: 'auto' }]))
   })
 
   it('K12: under StrictMode a list opened on a selection still snaps', async () => {
