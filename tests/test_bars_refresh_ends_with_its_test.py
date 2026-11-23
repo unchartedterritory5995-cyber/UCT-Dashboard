@@ -17,11 +17,11 @@ THE CAUSE, each step measured (the runs are in the pull request that added this 
      temp store. Nothing knew the thread was still running: it registers in `bars_fetch._inflight`, and that
      file's own `fresh` fixture clears `_inflight` before the next test (which is why a drain that waited on
      `_inflight`, #2365, did not hold: reverted in bd8ce6e230).
-  3. About forty tests later test_bars_since_index_scan re-points the store, writes 06-10 .. 06-16 and reads
-     `since` 06-12. Whenever the write of step 2 landed between its `init_db` and its read, the store held its five
-     rows AND the last session, the read returned 06-15, 06-16, 11-20, and the serve path's listing cutoff
-     (`bars_sanitize._apply_listing_cutoff`: a hole of 150 days or more starts a new listing) kept only what
-     follows the hole. Hence exactly one bar, the last session's, and neither of the stored ones.
+  3. 39 tests later test_bars_since_index_scan re-points the store, writes 06-10 .. 06-16 and reads `since` 06-12.
+     Whenever the write of step 2 landed between its `init_db` and its read, the store held its five rows AND the
+     last session, the read returned 06-15, 06-16, 11-20, and the serve path's listing cutoff
+     (`bars_sanitize._apply_listing_cutoff`: a long hole in the dates starts a new listing) kept only what follows
+     the hole. Hence exactly one bar, the last session's, and neither of the stored ones.
 
 THE RULE (tests/conftest.py `pytest_runtest_call`): when a test's body returns, pytest waits for every bars refresh
 thread still running (`BARS_REFRESH_THREADS`) before any fixture is undone, so its write lands in the store of the
@@ -122,3 +122,23 @@ def test_2_the_next_test_reads_only_what_it_wrote(tmp_path, monkeypatch):
     assert [ts for ts, _c in _aapl_daily(mine)] == [int(d.replace("-", "")) for d in JUNE]
     # ...and the refresh did run: its row (close 9) replaced the stored one (close 1.5) in the store it started in.
     assert _aapl_daily(_STARTED["store"]) == [(session, 9.0)]
+
+
+def test_3_the_rule_sees_both_refreshes_by_the_names_bars_fetch_gives_them(tmp_path, monkeypatch, request):
+    """`BARS_REFRESH_THREADS` is two name prefixes. test_1 started the first through `_get_bars_inner`; this starts
+    the second through the `since=` poll's own door, and reads both off the module pytest itself runs."""
+    import tests.conftest as rule
+    assert request.config.pluginmanager.is_registered(rule), "a second copy of tests/conftest.py, not the plugin"
+    assert _STARTED.get("thread") is None or _STARTED["thread"].name.startswith(rule.BARS_REFRESH_THREADS)
+    _own_store(tmp_path, monkeypatch)
+    asked, answer = threading.Event(), threading.Event()
+    monkeypatch.setattr(bars_fetch, "_delta_daily", lambda *a, **k: (asked.set(), answer.wait(10), [])[-1])
+    try:
+        bars_fetch._enqueue_since_bg_heal("bars_AAPL_D_5000", "AAPL", "D", 20260616, True)
+        assert asked.wait(5), "the since= refresh never asked its provider"
+        assert [t.name for t in rule.live_bars_refreshes()] == ["bars-sincebg-AAPL-D"]
+        # A refresh whose provider is held is NAMED when the wait runs out (the hook fails the test with it).
+        assert rule.end_bars_refreshes(timeout_s=0.05) == ["bars-sincebg-AAPL-D"]
+    finally:
+        answer.set()
+    assert rule.end_bars_refreshes(timeout_s=10) == []

@@ -664,6 +664,74 @@ def pytest_runtest_teardown(item, nextitem):
     return result
 
 
+# ─── a bars background refresh ends with the test that started it ───────────
+#
+# `bars_fetch` answers a stale stored series at once and refreshes it on a daemon thread: the thread asks a
+# provider, and when the provider answers it writes the rows with `bars_sqlite.put_bars`, into whatever
+# `bars_sqlite._DB_PATH` names AT THAT MOMENT. A test that starts one and returns leaves it running, and every
+# bars rail re-points `_DB_PATH` at a temp file of its own: the write lands in a LATER test's store.
+#
+# ⚰️ MEASURED 2026-11-22/23 (gate 45085093354, PR runs 45056547092 and 45015805620; about 1 run in 100):
+# tests/test_bars_since_index_scan.py stored AAPL daily 06-10 .. 06-16, read `since` 06-12 and was served
+# ['2026-11-20']. tests/test_bars_server_timing.py::test_layer_stale_swr_on_daily_rows, 39 tests earlier, had
+# started `bars-bg-AAPL-D` with no provider stubbed: on a runner that is a real request to Yahoo, and its
+# answer (the last session's AAPL bar and nothing else) came back about a second later. On the census run
+# 45265666676 that thread lived 1.13 s and ended four tests AFTER the one that failed in those three runs.
+# With that row beside its own five, the serve path's listing cutoff (`listing_break.is_break`: a long hole in
+# the dates starts a new listing) kept only the row after the hole.
+#
+# ⛔ `bars_fetch._inflight` IS NOT A REGISTER OF THEM. tests/test_bars_server_timing.py's own fixture clears it
+# before the next test, while the thread is still asking. That is why #2365's drain, which waited on it, did
+# not hold on a runner (reverted in bd8ce6e230). The threads themselves are the only complete list.
+#
+# So a test's body is not over until its refreshes are: they are joined here, after the body returns and BEFORE
+# any fixture is undone, so the write lands in the store, and through the stubs, of the test that started it.
+# One still running after BARS_REFRESH_ENDS_WITHIN_S fails THAT test by name. The rail is
+# tests/test_bars_refresh_ends_with_its_test.py.
+#
+#: The refresh threads, by the names `bars_fetch` gives them:
+#:   bars-bg-<SYM>-<tf>[-partial]   `_get_bars_inner`'s stale-while-revalidate refresh
+#:   bars-sincebg-<SYM>-<tf>        `_enqueue_since_bg_heal`: the same refresh, started by the `since=` poll
+BARS_REFRESH_THREADS = ("bars-bg-", "bars-sincebg-")
+#: A refresh ends when its provider answers or gives up (the daily tail-fill gives Yahoo 3.5 s, a deep fetch
+#: 20 s). One that outlasts this is not slow: its provider is held and nothing will release it.
+BARS_REFRESH_ENDS_WITHIN_S = 30.0
+
+
+def live_bars_refreshes() -> list:
+    """Every bars refresh thread running in this process right now."""
+    import threading
+    return [t for t in threading.enumerate() if t.name.startswith(BARS_REFRESH_THREADS)]
+
+
+def end_bars_refreshes(timeout_s: float = BARS_REFRESH_ENDS_WITHIN_S) -> list:
+    """Wait for every running bars refresh thread, `timeout_s` in all. Returns the names of those still running."""
+    import time
+    deadline = time.monotonic() + timeout_s
+    for t in live_bars_refreshes():
+        t.join(max(0.0, deadline - time.monotonic()))
+    return sorted(t.name for t in live_bars_refreshes())
+
+
+@pytest.hookimpl(wrapper=True)
+def pytest_runtest_call(item):
+    try:
+        result = yield
+    except (KeyboardInterrupt, SystemExit):
+        raise
+    except BaseException:
+        end_bars_refreshes()                               # the test's own outcome is the report
+        raise
+    left = end_bars_refreshes()
+    if left:
+        pytest.fail(
+            f"a bars background refresh was still running {BARS_REFRESH_ENDS_WITHIN_S:.0f} s after this test's "
+            f"body returned: {', '.join(left)}. When its provider answers it writes into whatever store a LATER "
+            "test owns: stub the provider it asks, or release it before the test returns.",
+            pytrace=False)
+    return result
+
+
 @pytest.fixture
 def routed_schema(monkeypatch):
     """The kill switch (UCT_AGENT_CONSTANT_SCHEMA=0): for tests of the routed schema, which it must keep restoring exactly."""
