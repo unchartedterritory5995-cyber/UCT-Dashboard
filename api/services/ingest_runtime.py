@@ -135,6 +135,7 @@ class _Sink:
 class IngestRuntime:
     def __init__(self, *, broadcaster_kw: Optional[dict] = None,
                  seed_fetcher: Optional[Callable[[str], list]] = None,
+                 trades_fetcher: Optional[Callable[[str, int, int], list]] = None,
                  seeding: Optional[bool] = None,
                  policy: Optional[massive_reconnect.MaxConnLadder] = None,
                  snapshot_lookback_ms: Optional[int] = None):
@@ -146,6 +147,9 @@ class IngestRuntime:
                                      on_last_unsubscribe=self._symbol_cleared,
                                      publisher=self._publish, **(broadcaster_kw or {}))
         self._fetch = seed_fetcher or bbm._default_seed_fetcher
+        # coverage: the vendor's trades of a gap [M, B) as [(t ms, price, size, conditions)]
+        self._fetch_trades = trades_fetcher or bbm._default_trades_fetcher
+        self._flow_events: dict = {}             # sym -> asyncio.Event set by its first trade
         # Seeds only when the socket will really open (no live data = nothing to merge into).
         self.seeding = connect_decision()[0] if seeding is None else bool(seeding)
         self.policy = policy or massive_reconnect.MaxConnLadder()
@@ -188,7 +192,8 @@ class IngestRuntime:
                          "bars_invalid": 0, "prices_invalid": 0, "keys_without_channels": 0,
                          "seed_reoffers": 0, "bars_held_for_seed": 0, "seed_hold_expired": 0,
                          "seeds_superseded": 0, "seeds_empty": 0, "seed_retries": 0,
-                         "seed_retry_exhausted": 0, "reseeds_on_flow": 0}
+                         "seed_retry_exhausted": 0, "reseeds_on_flow": 0,
+                         "seeds_before_flow": 0}
 
     def attach(self, server) -> None:
         self.server = server
@@ -329,12 +334,17 @@ class IngestRuntime:
         """bar_stream's callback: the broadcaster first (it routes bars through
         `_publish` synchronously), then mark the quote dirty."""
         self.bc.push_aggregate(sym, payload, kind)
+        su = sym.upper()
         if kind == "T":
-            # coverage: a seed that ran before this symbol's trades began to flow is redone
+            # coverage: wake a seed waiting for this symbol's first trade, and redo a seed that
+            # ran before the flow began (both cheap no-ops when nothing waits)
+            if self._flow_events:
+                ev = self._flow_events.pop(su, None)
+                if ev is not None:
+                    ev.set()
             for s in self.bc.take_reseeds():
                 self.counters["reseeds_on_flow"] += 1
                 self._schedule_seed(s)
-        su = sym.upper()
         self._price_dirty.add(su)
         self.side.on_event(su, payload, kind)
 
@@ -435,33 +445,47 @@ class IngestRuntime:
         plus SEED_LAG_S for the vendor's aggregates to catch up, so REST and T overlap and no
         trade falls between them. A name with no trade within SEED_WAIT_T_S is fetched anyway:
         T was requested long before, so it is flowing; there was just nothing to send."""
-        loop = asyncio.get_running_loop()
-        end = loop.time() + SEED_WAIT_T_S
-        while (not self.bc.trades_flowing(sym) and loop.time() < end
-               and gen == self._seed_gen.get(sym, 0)):
-            await asyncio.sleep(0.05)
-        if SEED_LAG_S > 0:
+        if not self.bc.trades_flowing(sym):
+            ev = self._flow_events.setdefault(sym, asyncio.Event())
+            try:
+                await asyncio.wait_for(ev.wait(), SEED_WAIT_T_S)
+            except asyncio.TimeoutError:
+                pass
+            finally:
+                if self._flow_events.get(sym) is ev and not ev.is_set():
+                    self._flow_events.pop(sym, None)
+        if SEED_LAG_S > 0 and gen == self._seed_gen.get(sym, 0):
             await asyncio.sleep(SEED_LAG_S)
 
+    def _fetch_seed(self, sym: str, gap):
+        """Off the loop: the day's minute bars and, for a declared gap (M, B), the vendor's trades
+        in [M, B). Raises on any vendor error."""
+        bars = self._fetch(sym) or []
+        trades = None if gap is None else list(self._fetch_trades(sym, gap[0], gap[1]) or [])
+        return bars, trades
+
     async def _seed(self, sym: str, gen: int) -> None:
-        if not self.bc.covered(sym):
+        coverage = not self.bc.covered(sym)
+        if coverage:
             await self._await_trades_flowing(sym, gen)
         async with self._seed_sem:
             if gen != self._seed_gen.get(sym, 0):
                 return                        # T restarted while queued: the newer seed runs
             if not self.bc.begin_seed(sym):
                 self._release_hold(sym)       # already seeded today: nothing partial to hide
-                if not self.bc.covered(sym):
+                if not self.bc.covered(sym) and self.bc.trades_flowing(sym):
                     self._retry_seed(sym, gen)    # a recent failure gates it: try again later
                 return
             self.counters["seeds_started"] += 1
+            gap = self.bc.gap_window(sym) if coverage else None
             fetched = True
             try:
-                bars = await asyncio.get_running_loop().run_in_executor(self._pool, self._fetch, sym)
+                bars, trades = await asyncio.get_running_loop().run_in_executor(
+                    self._pool, self._fetch_seed, sym, gap)
             except Exception as e:  # noqa: BLE001
                 self.counters["seed_errors"] += 1
                 log.warning("[stream-ingest] seed(%s) failed: %s", sym, type(e).__name__)
-                bars, fetched = [], False
+                bars, trades, fetched = [], None, False
             # back on the loop: the apply (and the frames it emits) is ordered with the reader
             if gen != self._seed_gen.get(sym, 0):
                 # T restarted mid-fetch: this fetch predates the restart. Drop it whole (an
@@ -469,13 +493,26 @@ class IngestRuntime:
                 # hold, the first-seed mark and the re-offer belong to the newer seed.
                 self.counters["seeds_superseded"] += 1
                 return
-            if fetched and not bars:
-                # the vendor answered and the symbol has no bar today: no trade was missed
-                self.counters["seeds_empty"] += 1
-                self.bc.mark_covered(sym)
+            if coverage:
+                closed = fetched and self.bc.apply_seed(sym, bars, gap_trades=trades)
+                if closed:
+                    self.counters["seeds_applied"] += 1
+                    self._seed_attempts.pop(sym, None)
+                    self._seed_hold.pop(sym, None)
+                    self._first_seed.discard(sym)
+                    self._reoffer(sym)
+                    return
                 self._release_hold(sym)
-                if self.bc.covered(sym):
-                    self._reoffer(sym)            # the bucket refused until now goes out whole
+                if fetched and not self.bc.trades_flowing(sym):
+                    # no trade yet: the first one asks for the real seed (take_reseeds)
+                    self.counters["seeds_before_flow"] += 1
+                    return
+                self.bc.seed_failed(sym)          # arms the failure gate (a reopen won't refetch)
+                self._retry_seed(sym, gen)
+                return
+            if fetched and not bars:
+                self.counters["seeds_empty"] += 1
+                self._release_hold(sym)
                 return
             if self.bc.apply_seed(sym, bars):
                 self.counters["seeds_applied"] += 1

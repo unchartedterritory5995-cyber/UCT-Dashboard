@@ -2275,6 +2275,34 @@ def _fetch_intraday_range(ticker: str, tf: str, from_ymd: str, to_ymd: str,
         return []
 
 
+def fetch_trades_between(ticker: str, from_ms: int, to_ms: int, timeout: float = 5.0,
+                         page_cap: int = 10) -> list:
+    """The vendor's trades with SIP timestamp in [from_ms, to_ms) (ms), oldest first, as
+    [(t ms, price, size, conditions)] — the fields the live T feed carries, so the stream's
+    coverage seed (bar_broadcaster) classifies and folds them exactly as it does the feed's.
+    At most one minute is asked for. RAISES on any vendor error or a truncated answer: a
+    partial list would make a wrong candle look whole."""
+    client = _get_client()
+    lo, hi = int(from_ms) * 1_000_000, int(to_ms) * 1_000_000
+    url = (f"{_REST_BASE}/v3/trades/{to_polygon_symbol(ticker)}"
+           f"?timestamp.gte={lo}&timestamp.lt={hi}&order=asc&sort=timestamp&limit=50000"
+           f"&apiKey={client._api_key}")
+    out = []
+    for _ in range(page_cap):
+        data = client._get(url, timeout=timeout)
+        for r in data.get("results") or []:
+            ts = r.get("sip_timestamp") or r.get("participant_timestamp")
+            if ts is None or r.get("price") is None:
+                continue
+            out.append((int(ts) // 1_000_000, float(r["price"]), r.get("size") or 0,
+                        r.get("conditions") or []))
+        nxt = data.get("next_url")
+        if not nxt:
+            return out
+        url = f"{nxt}{'&' if '?' in nxt else '?'}apiKey={client._api_key}"
+    raise RuntimeError("trades answer truncated")
+
+
 def _paginate_massive_aggs(client, url: str) -> list[dict]:
     """Follow Massive/Polygon ``next_url`` pagination, returning ALL raw
     result dicts across pages.
