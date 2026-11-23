@@ -1,0 +1,51 @@
+{
+  "schema": "uct.ci-mutants/v1",
+  "about": "Train e96 x train e95 (engine 96): U-DAILY part A (#2550) meets master's one-sentence-per-guard (#2559) and day-length question words (#2578). The ONE function (`daily_values_below_a_day`) reads U-DAILY's capability (D in crossContext.json's tfBelowADayCodes, on a chart whose own timeframe is below a day); the ONE day-length sentence promises what that capability does, and THE TIE holds it; the daily read's door check raises gates of its own, never `envelope:reference`; the prompt and the guard's repair teach the daily read and keep master's rule for a question. Each rule, broken once, must turn its rail red.",
+  "mutants": [
+    {
+      "id": "TJ1",
+      "mutant": "the ONE function answers no again: a chart below a day is told it cannot build a daily measure",
+      "file": "api/services/definition_conversation.py",
+      "from": "    return \"D\" in cross_context()[\"tfBelowADayCodes\"] and ast_interpret.is_below_a_day(tf)",
+      "to": "    return False",
+      "rail": "python -B -m pytest tests/test_door_each_guard_says_what_happened.py -q -p no:cacheprovider",
+      "expectRed": "cannot build a daily measure"
+    },
+    {
+      "id": "TJ2",
+      "mutant": "the day-length sentence goes back to the old promise (a daily chart), untied from the capability",
+      "file": "api/services/definition_conversation.py",
+      "from": "    \"nothing was offered to apply. Below a day it builds each daily measure on daily bars, as of the last \"",
+      "to": "    \"nothing was offered to apply. On a daily chart this builds as asked \"",
+      "rail": "python -B -m pytest tests/test_door_each_guard_says_what_happened.py -q -p no:cacheprovider",
+      "expectRed": "PROMISE in dc.DAYS_BELOW_A_DAY_MEMBER"
+    },
+    {
+      "id": "TJ3",
+      "mutant": "the daily read's door check borrows `envelope:reference` again (the member reads a false sentence)",
+      "file": "api/services/definition_conversation.py",
+      "from": "            \"envelope:daily-read-on-days\",",
+      "to": "            \"envelope:reference\",",
+      "rail": "python -B -m pytest tests/test_door_each_guard_says_what_happened.py -q -p no:cacheprovider",
+      "expectRed": "is raised by"
+    },
+    {
+      "id": "TJ4",
+      "mutant": "the prompt drops master's question rule (the choice limit, the door's bars phrase) after the daily-read teaching",
+      "file": "api/services/definition_conversation.py",
+      "from": "    + DAY_LENGTH_CHOICE_RULE +",
+      "to": "    + \"\" +",
+      "rail": "python -B -m pytest tests/test_door_day_length_question_words.py -q -p no:cacheprovider",
+      "expectRed": "CONVERSE_SYSTEM_PROMPT.count(rule) == 1"
+    },
+    {
+      "id": "TJ5",
+      "mutant": "the day-length guard's repair loses the question it may ask instead (disposition clarify, ONE question)",
+      "file": "api/services/definition_conversation.py",
+      "from": "                        \"If the member's words leave that open, answer with disposition clarify, `ops: []`, and ONE question \"",
+      "to": "                        \"If the member's words leave that open, ask \"",
+      "rail": "python -B -m pytest tests/test_door_days_on_an_intraday_chart.py -q -p no:cacheprovider",
+      "expectRed": "answer with disposition clarify"
+    }
+  ]
+}
