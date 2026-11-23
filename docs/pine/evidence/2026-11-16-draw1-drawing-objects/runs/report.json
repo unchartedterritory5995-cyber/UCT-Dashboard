@@ -1,10 +1,10 @@
 {
  "populations": {
   "capture": {
-   "scripts": 1027,
-   "admitted": 828,
+   "scripts": 1029,
+   "admitted": 830,
    "runtimeLane": 227,
-   "hostLane": 312,
+   "hostLane": 314,
    "refused": 289,
    "coreOnly": 47
   },
@@ -12,8 +12,8 @@
    "scripts": 266,
    "admitted": 195,
    "runtimeLane": 50,
-   "hostLane": 62,
-   "refused": 83,
+   "hostLane": 63,
+   "refused": 82,
    "coreOnly": 4
   },
   "reference": {
@@ -34,7 +34,7 @@
   }
  },
  "populationSizes": {
-  "capture": 1027,
+  "capture": 1029,
   "committed": 266,
   "reference": 271,
   "builtin": 142
@@ -10009,6 +10009,32 @@
    ]
   },
   {
+   "capture": "vw-format-percent-rddt-1d-2026-11-23-preopen",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:table",
+    "realtime-state",
+    "var"
+   ]
+  },
+  {
+   "capture": "vw-format-percent-spy-1d-2026-11-23-preopen",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:table",
+    "realtime-state",
+    "var"
+   ]
+  },
+  {
    "capture": "vw-getter-history-2-spy-1d-2026-10-02",
    "lane": null,
    "runtimeOn": "INCONCLUSIVE",
@@ -15771,7 +15797,7 @@
    "key": "reference:multi-timeframe-rolling-bitmex-liquidation-levels__6luLopNPPH",
    "lane": null,
    "guard": "pine:request",
-   "declined": "pine:request",
+   "declined": "lower-tf:store-unmeasured",
    "caps": [
     "core",
     "request-other",
@@ -17975,7 +18001,7 @@
    "key": "builtin:cumulative-volume-index__Cumulative1V",
    "lane": null,
    "guard": "pine:request",
-   "declined": "pine:request",
+   "declined": "runtime:request",
    "caps": [
     "core",
     "request-other",
@@ -21832,7 +21858,7 @@
   },
   {
    "key": "committed:volume-suite-by-leviathan__48da793360",
-   "lane": null,
+   "lane": "host",
    "caps": [
     "collections:array",
     "conditional-ta",
@@ -22097,7 +22123,38 @@
    ]
   }
  ],
- "refusedByName": [],
+ "refusedByName": [
+  {
+   "capture": "vw-format-percent-rddt-1d-2026-11-23-preopen",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:table",
+    "realtime-state",
+    "var"
+   ],
+   "guard": "pine:known-divergence",
+   "slug": "vw-format-percent"
+  },
+  {
+   "capture": "vw-format-percent-spy-1d-2026-11-23-preopen",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:table",
+    "realtime-state",
+    "var"
+   ],
+   "guard": "pine:known-divergence",
+   "slug": "vw-format-percent"
+  }
+ ],
  "matchToDiverge": [],
  "substitutedToDiverge": []
 }
