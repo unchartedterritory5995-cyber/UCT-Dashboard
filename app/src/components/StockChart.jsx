@@ -1890,10 +1890,11 @@ import { useBarSnapshotBars } from './chart/useBarSnapshotBars'
 // ⭐⭐ NEIGHBOR FRAMES (2026-11-20, `localStorage['uct.neighborframes']`): the per-bar arrays below are pure
 // functions (`chart/chartDerived.js`), and with the switch on they are filed under the array they came from,
 // so the rows a member is about to reach are derived in idle time and found on the switch.
-import { sessionBarsOf, ohlcBaseOf, closeDataOf, volDataOf, volMaDataOf, computeHVC } from './chart/chartDerived'
+import { sessionBarsOf, ohlcBaseOf, closeDataOf, volDataOf, volMaDataOf, computeHVC, volExtremesOf } from './chart/chartDerived'
 import { neighborFramesOn, stableSig, identitySig } from './chart/neighborFrames'
 import {
   useNeighborFrames, deriveSession, deriveDisplay, deriveHvc, deriveOhlcBase, deriveClose, deriveVol, deriveVolMa,
+  volRecipeOf, volExtremesRecipeOf, deriveVolExtremes,
 } from './chart/useNeighborFrames'
 import { BARSTORE } from './chart/barStoreSwitch'
 import {
@@ -11195,13 +11196,12 @@ function StockChartBody({
   )
   // Highest-Volume-Ever bar (across all loaded bars). Coloured gold, no label —
   // only highlighted when it falls within the visible year.
+  // (`chartDerived.volExtremesOf`; with the switch on, through the neighbor-frames recipe `vx`)
+  if (_nfRecipes) _nfRecipes.vx = volExtremesRecipeOf(markVolumeExtremes, entryDate, exitDate)
   const volExtremes = useMemo(() => {
+    if (_nfRecipes) return deriveVolExtremes(__heavy.filteredBars, _nfRecipes)
     if (!markVolumeExtremes || !__heavy.filteredBars?.length) return null
-    const inYear = b => (!entryDate || b.t >= entryDate) && (!exitDate || b.t <= exitDate)
-    let hve = null
-    for (const b of __heavy.filteredBars) if (b.v != null && (!hve || b.v > hve.v)) hve = b
-    if (!hve || !inYear(hve)) return null
-    return { goldTimes: new Set([hve.t]) }
+    return volExtremesOf(__heavy.filteredBars, entryDate, exitDate)
   }, [markVolumeExtremes, filteredBars, entryDate, exitDate])  /* eslint-disable-line react-hooks/exhaustive-deps -- the box (__heavy) is read at use time; the deps above are the values */
   // Live day volume for THIS symbol (RTH day.v / pre-market aggregate). Used to
   // keep the developing volume bar + its pane label live instead of frozen at the
@@ -11223,7 +11223,7 @@ function StockChartBody({
     liveVol: liveVolForSym,
     bold: !!boldCandles,
   }
-  if (_nfRecipes) _nfRecipes.vol = { on: !markVolumeExtremes, p: _nfVolP, sig: `${stableSig(_nfVolP)}|at${_nfAtSig}` }
+  if (_nfRecipes) _nfRecipes.vol = volRecipeOf(_nfVolP, _nfAtSig, markVolumeExtremes)
   const volData = useMemo(() => {
     if (!__heavy.sessionAppliedBars?.length) return []
     return _nfRecipes ? deriveVol(__heavy.sessionAppliedBars, hvcSet, volExtremes, _nfRecipes)

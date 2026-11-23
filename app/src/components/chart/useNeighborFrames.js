@@ -29,11 +29,11 @@ import { BARSTORE } from './barStoreSwitch'
 import { legacyBars, newestBarIsFormingOf } from '../../data/barStore/adapter'
 import { STATUS } from '../../data/barStore/types'
 import { chartKeyFor } from './useBarSnapshotBars'
-import { sessionBarsOf, ohlcBaseOf, closeDataOf, volDataOf, volMaDataOf, computeHVC } from './chartDerived'
+import { sessionBarsOf, ohlcBaseOf, closeDataOf, volDataOf, volMaDataOf, computeHVC, volExtremesOf } from './chartDerived'
 import { toHeikinAshi } from './indicators'
 import {
   neighborFramesOn, scanNeighborsFor, subscribeScanNeighbors, scheduleIdle, cancelIdleFor,
-  deriveFrom, hasDerived, identitySig, chartTimesFor, nfCount, idleSupported,
+  deriveFrom, hasDerived, identitySig, stableSig, chartTimesFor, nfCount, idleSupported,
 } from './neighborFrames'
 
 /** The statuses a chart paints its snapshot as it stands (useBarSnapshotBars `PAINTS`). */
@@ -70,6 +70,19 @@ export function deriveClose(display, r) {
 export function deriveVol(sessionApplied, hvcSet, volExtremes, r) {
   const sig = `${r.vol.sig}|hvc${identitySig(hvcSet)}|vx${identitySig(volExtremes)}`
   return deriveFrom(sessionApplied, 'vol', sig, () => volDataOf(sessionApplied, r.vol.p, hvcSet, volExtremes, r.adjustTime, chartTimesFor(sessionApplied, r.adjustTime)))
+}
+/** The chart's volume recipe (`p`: chartDerived.volDataOf's plain values; `at`: the adjustTime signature). */
+export function volRecipeOf(p, at, markVolumeExtremes) {
+  return { on: !markVolumeExtremes, p, sig: `${stableSig(p)}|at${at}` }
+}
+/** The chart's highest-volume-ever recipe (`markVolumeExtremes`, and the year it is shown in). */
+export function volExtremesRecipeOf(markVolumeExtremes, entryDate, exitDate) {
+  return { on: !!markVolumeExtremes, entryDate: entryDate ?? null, exitDate: exitDate ?? null }
+}
+/** StockChart `volExtremes` (chartDerived.volExtremesOf), or null when the chart does not mark it. */
+export function deriveVolExtremes(filtered, r) {
+  if (!r.vx || !r.vx.on || !filtered?.length) return null
+  return volExtremesOf(filtered, r.vx.entryDate, r.vx.exitDate)
 }
 export function deriveVolMa(sessionApplied, r) {
   return deriveFrom(sessionApplied, 'volMa', r.volMa.sig, () => volMaDataOf(sessionApplied, r.volMa.period, r.adjustTime, chartTimesFor(sessionApplied, r.adjustTime)))
