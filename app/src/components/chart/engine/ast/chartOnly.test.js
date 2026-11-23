@@ -57,13 +57,22 @@ describe('HOST lane — `bgcolor` / `barcolor` say how they draw, or why they do
 })
 
 describe('HOST lane — `hline` and `fill` are said precisely', () => {
-  it('⭐ `hline` is NOT drawn on the host lane, and the member document indeed carries no level', () => {
+  it('⭐⭐ e96 — an `hline` IS drawn on the host lane, and the member document indeed carries its level', () => {
     const src = v5('plot(ta.rsi(close, 14))\nhline(70, "Upper")', false)
     const t = translatePine(src, HOST)
-    expect(sayAt(t, 4)).toMatch(/^`hline` is not drawn on this chart/)
+    expect(sayAt(t, 4)).toMatch(/^`hline` is drawn: a horizontal level at 70 across this script's pane/)
     const b = memberPaneDefinition({ source: src, id: 'u_chart-only-2' })
     expect(b.ok).toBe(true)
-    expect(JSON.stringify(b.definition)).not.toMatch(/"levels"|"hlines"/)
+    expect(b.definition.plots.filter((p) => p.style === 'hlines').map((p) => [p.key, p.levels])).toEqual([['hline1', [70]]])
+  })
+
+  it('⭐ e96 — an `hline` whose price is not one number or one setting is NOT drawn, said by name', () => {
+    const src = v5('plot(ta.rsi(close, 14))\nhline(ta.sma(close, 20))', false)
+    const t = translatePine(src, HOST)
+    expect(sayAt(t, 4)).toBe('`hline` is not drawn: its price is not one fixed number or one setting this door can read, '
+      + 'and a screen reads plot() and alertcondition() and nothing else, so a screen built from this script does not read it either')
+    const b = memberPaneDefinition({ source: src, id: 'u_chart-only-2b' })
+    expect(b.definition.plots.some((p) => p.style === 'hlines')).toBe(false)
   })
 
   it('⭐ a `fill` whose two edges are carried plots is CARRIED as a band, and the document draws it', () => {
@@ -107,11 +116,12 @@ describe('SCREENER lane — the screen statement stays, and what the builder car
     expect(sayAt(t, 5)).toMatch(/^`barcolor` paints a chart's candles; this door does not carry it/)
   })
 
-  it('a folded `hline` is carried as a level line; one that is not, says it is not', () => {
-    const t = translatePine(v5('plot(close)\nhline(70)\nh = hline(30)'), {})
-    expect(t.presentation.levels.map((l) => l.value)).toEqual([70])
+  it('a folded `hline` is carried as a level line, bound to a name or not (e96); one that is not, says it is not', () => {
+    const t = translatePine(v5('plot(close)\nhline(70)\nh = hline(30)\nhline(close)'), {})
+    expect(t.presentation.levels.map((l) => l.value)).toEqual([70, 30])
     expect(sayAt(t, 4)).toMatch(/^`hline` draws a horizontal level; this door carries it as a level line for a chart/)
-    expect(sayAt(t, 5)).toMatch(/assigned to a name it is not carried/)
+    expect(sayAt(t, 5)).toMatch(/^`hline` draws a horizontal level; this door carries it as a level line for a chart/)
+    expect(sayAt(t, 6)).toMatch(/^`hline` draws a horizontal level; its price is not one fixed number or one setting this door can read, so it is not carried/)
   })
 
   it('a carried `fill` is said as that band', () => {

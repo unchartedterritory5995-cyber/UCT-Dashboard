@@ -71,7 +71,9 @@ import { applyParamEdit } from '../paramEdit'
 import { buildDefinition } from '../BuilderSheet'
 import { DOOR_VERSION } from '../../engine/memberDocumentMigration'
 import { evaluateFormula } from '../FormulaField'
-import { BUILDER_INPUT_SCOPE, seriesNamesOf, memberInputKey } from '../builderInputs'
+import { BUILDER_INPUT_SCOPE, seriesNamesOf, memberInputKey, inputsFromFolded } from '../builderInputs'
+// ⭐⭐ e96 — a Pine `hline` drawn as the level it is, one authority for both doors.
+import { hlineGuides, hlineNotReproducedNote, hlineWithheldNote } from '../../engine/hlineLevels'
 // ⭐ RS RATING L3 — the substituted-value disclosure (`syminfo.industry` / `sector` from UCT data).
 import { substitutionNotesFor, otherSymbolSourceNotesFor } from '../../engine/ast/symbolSubstitution'
 
@@ -283,6 +285,53 @@ function colourWithheldNotes(rows) {
     })
   }
   return out
+}
+
+/** ⭐⭐ e96 — the member's sentences for the levels a document draws in the neutral presentation or does not
+ *  draw (`hlineLevels.js`), in the order the script writes them. */
+function levelNotesOf(plan) {
+  const out = []
+  for (const n of (plan && plan.notReproduced) || []) out.push({ name: n.title, note: hlineNotReproducedNote(n), line: n.line })
+  for (const w of (plan && plan.withheld) || []) out.push({ name: w.title, note: hlineWithheldNote(w), line: w.line })
+  return out.sort((a, b) => (a.line ?? 1e9) - (b.line ?? 1e9)).map(({ name, note }) => ({ name, note }))
+}
+
+/** ⭐⭐ e96 — THE HOST DOCUMENT'S KEY FOR A LEVEL'S SETTING (`hlineLevels.hlineGuides`' `bindInput`): the member
+ *  input a value row already declares, or one declared here for the level alone (the setting's own folded entry,
+ *  through the same `inputsFromFolded` every member input goes through). ⛔ A setting this document edits as a
+ *  PARAMETER of its formulas (`paramManifest`: an edit rewrites the trees) is not a member input, and a level would
+ *  not follow that edit: withheld by name, never drawn at a value the member's edit leaves behind. */
+function hostLevelInputKey(entry, { t, declared, extra }) {
+  const name = entry && entry.name
+  const key = memberInputKey(name)
+  if (!key) return { withheld: `its price is the setting \`${name}\`, whose name cannot key a setting here` }
+  const has = (list) => (list || []).find((s) => s && s.key === key)
+  const got = has(declared) || has(extra)
+  if (got) {
+    return got.type === 'int' || got.type === 'float' ? key
+      : { withheld: `its price is the setting \`${key}\`, which is not a number setting here` }
+  }
+  if ((t.inputParams || []).some((p) => p && p.sourceName === name)) {
+    return { withheld: `its price is the setting \`${key}\`, which this chart changes by rewriting the script's `
+      + 'formulas, and a level does not follow that edit yet' }
+  }
+  // the level's own formula IS the setting, so the input is admitted where it lands
+  const { inputs } = inputsFromFolded([entry], key)
+  const spec = inputs[0]
+  if (!spec || (spec.type !== 'int' && spec.type !== 'float')) {
+    return { withheld: `its price is the setting \`${key}\`, which this chart cannot offer as a number setting` }
+  }
+  extra.push(spec)
+  return key
+}
+
+/** ⭐⭐ e96 — the RUNTIME document's key for a level's setting: the run's own input of that name
+ *  (`runtimeInputs.js`, keyed by the Pine name), when it is a number setting. */
+function runtimeLevelInputKey(entry, specs) {
+  const name = entry && entry.name
+  const spec = (specs || []).find((s) => s && s.key === name)
+  if (spec && (spec.type === 'int' || spec.type === 'float')) return name
+  return { withheld: `its price is the setting \`${name}\`, which this run does not offer as a number setting` }
 }
 
 /** ⭐⭐ CBC-FMT — the drawings note of a `calc_bars_count` document whose host object
@@ -1094,8 +1143,17 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
   // keep their order. One the value or colour lanes already declare is not added twice.
   const priorKeys = new Set([...(memberSpecs || []), ...colourDeclared, ...guardDeclared].map((x) => x && x.key))
   const fillDeclared = [...fillColourSpecs.values()].filter((x) => !priorKeys.has(x.key))
-  const docInputs = (colourDeclared.length || guardDeclared.length || fillDeclared.length)
+  const docInputsBase = (colourDeclared.length || guardDeclared.length || fillDeclared.length)
     ? [...(memberSpecs || []), ...colourDeclared, ...guardDeclared, ...fillDeclared] : memberSpecs
+  // ⭐⭐ e96 — THE LEVELS (`hline`), drawn as guides by `hlineLevels.js`, the function the runtime document asks
+  // too. A level bound to a setting names that setting's key; a setting no other line of this document reads is
+  // declared here, after every other input, so the inputs a document already declared keep their order.
+  const levelSpecs = []
+  const levelPlan = hlineGuides((t.presentation || {}).levels, {
+    version: t.version, neutralInk: WITHHELD_COLOUR_INK, withAlphaByte,
+    bindInput: (entry) => hostLevelInputKey(entry, { t, declared: docInputsBase, extra: levelSpecs }),
+  })
+  const docInputs = levelSpecs.length ? [...(docInputsBase || []), ...levelSpecs] : docInputsBase
   let definition = null
   try {
     definition = buildDefinition({
@@ -1150,6 +1208,8 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
   // ⭐⭐ ENGINE 58 — a withheld colour's name rides on its built plot
   // (`buildDefinition` projects only the fields it knows).
   definition.plots = withColourWithheld(definition.plots, rows)
+  // ⭐⭐ e96 — the levels ride after every data row (`pool.planBindings` hangs them on the first visible one).
+  if (levelPlan.guides.length) definition.plots = [...definition.plots, ...levelPlan.guides]
   // ⭐⭐ DIV-4 — A `barcolor` WHOSE COLOUR THE HOST LANE WITHHELD, READ FROM THE
   // PER-BAR RUN (`runtimeReadPaints`). Behind the runtime pane's own switch: off,
   // the document is exactly what it was.
@@ -1259,6 +1319,13 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
   }
   // ⭐⭐ ENGINE 58 — A COLOUR WITHHELD BY NAME IS SAID SO, row by row.
   for (const n of colourWithheldNotes(rows)) {
+    const key = `${n.name} :: ${n.note}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    notes.push(n)
+  }
+  // ⭐⭐ e96 — A LEVEL DRAWN IN THE NEUTRAL PRESENTATION, OR NOT DRAWN, IS SAID SO, level by level.
+  for (const n of levelNotesOf(levelPlan)) {
     const key = `${n.name} :: ${n.note}`
     if (seen.has(key)) continue
     seen.add(key)
@@ -2711,6 +2778,13 @@ function runtimeLaneDocument({ source, id, name, t, hostReason, hostGuard = null
       }
     }
   }
+  // ⭐⭐ e96 — THE LEVELS (`hline`), the same `hlineLevels.hlineGuides` the host document asks, bound to the run's own
+  // setting of the same name (`runtimeInputs.js` keys a setting by its Pine name).
+  const runDocInputs = runtimeDocInputs(withObjectInputs(memberInputSpecs([]), drawsObjects ? t : null), runtimeInputs.specs)
+  const levelPlan = hlineGuides((t.presentation || {}).levels, {
+    version: t.version, neutralInk: WITHHELD_COLOUR_INK, withAlphaByte,
+    bindInput: (entry) => runtimeLevelInputKey(entry, runDocInputs),
+  })
   let definition
   try {
     definition = buildDefinition({
@@ -2720,7 +2794,7 @@ function runtimeLaneDocument({ source, id, name, t, hostReason, hostGuard = null
       ast: rows[0].ast,
       mode: repaint.mode,
       readback: '',
-      inputs: runtimeDocInputs(withObjectInputs(memberInputSpecs([]), drawsObjects ? t : null), runtimeInputs.specs),
+      inputs: runDocInputs,
       plots: [...rows, ...colourRows],
       placement: (t.presentation && t.presentation.overlay === true) || brokerOnly
         ? { target: 'price', ...(joinsPriceScale(t) ? { joinPriceScale: true } : {}) }
@@ -2747,6 +2821,8 @@ function runtimeLaneDocument({ source, id, name, t, hostReason, hostGuard = null
   definition.plots = definition.plots.map((pl) => (pl && candleOf.has(pl.key) ? { ...pl, ...candleOf.get(pl.key) } : pl))
   // ⭐⭐ ENGINE 58 — and a withheld colour's name (see the host lane's).
   definition.plots = withColourWithheld(definition.plots, rows)
+  // ⭐⭐ e96 — the levels, after every row, as on the host document.
+  if (levelPlan.guides.length) definition.plots = [...definition.plots, ...levelPlan.guides]
   // ⭐⭐ RT6 — the paints ride on the document (`defSchema.validatePaints`), only
   // when there are any, so every other runtime document keeps its exact shape.
   if (docPaints.length) definition.paints = docPaints
@@ -2789,6 +2865,8 @@ function runtimeLaneDocument({ source, id, name, t, hostReason, hostGuard = null
       note: `\`${w.label}\` is not drawn: ${w.why}. Nothing is drawn for it rather than a guess.`,
     })
   }
+  // ⭐⭐ e96 — the levels drawn in the neutral presentation, or not drawn (see the host document's).
+  for (const n of levelNotesOf(levelPlan)) notes.push(n)
   // ⭐ RT2 — a document that repaints says so, naming what it reads, in the
   // member's terms. A non-repainting one says nothing (the badge is silent on
   // the clean case by design, `repaintVerdict.js`).
@@ -2831,13 +2909,21 @@ function runtimeLaneDocument({ source, id, name, t, hostReason, hostGuard = null
   // branch was written for left the document silently: luxalgo's market-structure drew its two plots and said
   // nothing of its lines and labels (the run's drawing build refused, the host held no program). Named here, in the
   // same note the undrawn kinds use; a document with nothing unnamed keeps its exact note.
+  // ⭐⭐ e96 — the levels are accounted for as the rows are: drawn (a guide), named (a level withheld by the
+  // translation, `presentation.levelsWithheld`, or by this document), or hidden by their author (`display.none`).
+  const levelsRead = ((t.presentation || {}).levels) || []
+  const levelsUnread = ((t.presentation || {}).levelsWithheld) || []
+  const levelsNamed = levelPlan.withheld.length > 0 || levelsUnread.length > 0
+  if (levelsRead.length && !levelsNamed && levelsRead.every((l) => l && l.hidden === true)) authorSkipped.add('hline')
   const familyLedger = runtimeFamilyLedger({
     source,
     t,
     runOutputs: probe.outputs,
-    drawn: [...drawnRows.map((r) => r.candle || (r.o && r.o.kind)), ...docPaints.map((p) => p.kind)],
+    drawn: [...drawnRows.map((r) => r.candle || (r.o && r.o.kind)), ...docPaints.map((p) => p.kind),
+      ...(levelPlan.guides.length ? ['hline'] : [])],
     authorSkipped,
-    named: [...withheld.map((w) => w.o && w.o.kind), ...paintWithheld.map(({ p }) => p.kind), ...undrawn],
+    named: [...withheld.map((w) => w.o && w.o.kind), ...paintWithheld.map(({ p }) => p.kind), ...undrawn,
+      ...(levelsNamed ? ['hline'] : [])],
     objectsAccounted: drawsObjects || ownObjects || !!drawingNote || (!ownObjects && !!own.hostWithheld && hostWouldDraw),
   })
   const unnamedFamilies = familyLedger.unnamed.filter((f) => !undrawn.includes(f))

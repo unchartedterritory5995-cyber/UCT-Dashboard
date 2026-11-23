@@ -1250,9 +1250,11 @@ export function planBindings(instances, registry, prevBindings, opts) {
     if (serverDeclares && hasServerGate(def)) {
       try { declared = serverDeclares(def.id) } catch { declared = null }
     }
+    // ⭐ e96 — a guide's colour may be a THEME REFERENCE (a Pine `hline` whose style is not reproduced is
+    // drawn in the chart's neutral ink, `hlineLevels.js`), resolved against this chart as a plot's is.
     const guides = guidePlots(def)
       .filter(p => plotActiveFor(p, def, inst.inputs, declared))
-      .map(p => resolvePlotForInstance(p, inst.inputs))
+      .map(p => withThemeColour(resolvePlotForInstance(p, inst.inputs), theme))
     const guideSig = guideSignature(guides)
     let first = true
 
