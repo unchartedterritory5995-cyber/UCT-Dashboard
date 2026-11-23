@@ -94,7 +94,7 @@
     "type": "text",
     "defval": "",
     "isHidden": true,
-    "value": "bmI9Ks46_A/1CGykLutHqRBGfZPbh3A==_1y/Sbiemf/zsy5qEupjMFrw41v/bkar6kFImA0fuLYN6f6mZpXKK6WpF+lyHKb20s3/pz9jsV2WDNr8kE+Rmt4iW1pWZ4EFggChUQrOCQ3fsPEoPOQwGANaGLGRs/qD1XmWzI2v8jEpqxkpkVvjXHOndFASTc95Ace6Fd18CTUiXvWJCjUJ3R8FI9XkUvNbIuhck66hUVIfF1ypmuzUvGOtFHUgzcbkAisftmMQsXsxrWOnow72dJog38kOCOpLdBHIQ+PEBc62Z/T9oxCjY2EcsViqincTNW6lLlaqQfzVZexko3/QfbAGRZZXuOzb0KpA1BDcGJfCHiAXYGqCFYGw8PQqmrCoRye8WrtzUdDv2hvOIQAIEdlcpuqIIUTCUBCArTk+hbQfYAEkPxmeXFBgeM+21EsBCavbD6qxMMQgoRqCQJsGxfLk/QzWTVoGbZ1rxVjpSIs3zNP3ET5qm4+4Elv003EtQKqDyRBa2+z0NsqGtTcCYsqWBzNxDEIk20WyUZVfCv7uE2RFiDSTv3ysVDeV6li4UY4Z4024JBkopgE3sT/wfSK7bak6/6Z7qDof9XEZb9Q0HwVwITIaFfLeWdfVn/sQc5J/IPPvHasDR8SkCsW4ZLi/FkT9DBVhRdixQFG3GBpuBcRdSB9X7wz/HLt86k+qYYo3aYOTxFpIdyuxXWl4Pk6dRJ1+UjWgcp/99Cz/2C0b+zfNxrUWozllz9HuQHRNNgYekEgeQF/65/CfR6nGM2bBfB+cuMvl3U8js4eW/u6MPlJcEwdvSaJj6+ShH+YdR+6zra/EIGxTTb9LCXfAVWhlmjzTugn5n2XiLfIT4PyMSgQsxPghgy76/+9XgtjnjuZubEkq4gwkgWCrO4Q/VD2AvTYOVvXWj+RR8BX+PnudBFJpIZw/Irk12xeebqqmFLViYPqdSISqBRXGEvAS34iL+K2tBom6yiQZmBSSSP/9XERMqdACEKoeQZb61UnQaW5ujun2Vx/3pbRFYY+OlCJtLGxfTeW/0JYwIBAdv2czAYhcX2TU592xhfT40ALdfJdF9263z5OBLKmAPje1/V1uhkJxmCF54KW0YMP22FVr2O+YlNNt3ikde73gK27zhdipo9vEgPNyMgixIAI2Ze+nQT8EIj2ZYWC/NBH09wVR4icBWBJrw0NKTqmVKq/VSGaDo9lkqnvH9waI3sDAcwLHhFxhdwB7CkWorJnHNQjicAwhbZyu6kzAfRuwKiog="
+    "value": "[redacted: TradingView compiled script]"
    },
    {
     "id": "pineId",
@@ -68427,10 +68427,25 @@
  "warnings": [
   "objects-only study: it declares no plots, so plotValues is empty and its drawings are the whole answer"
  ],
+ "redactions": [
+  {
+   "field": "study.inputs[name=ILScript].value",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 1282,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 449172,
+    "fnv1a": 292012000
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:51Z"
+  }
+ ],
  "receipt": {
   "algo": "fnv1a32-utf16",
   "over": "JSON.stringify(capture without its receipt key)",
-  "chars": 449172,
-  "fnv1a": 292012000
+  "chars": 448229,
+  "fnv1a": 515498116
  }
 }

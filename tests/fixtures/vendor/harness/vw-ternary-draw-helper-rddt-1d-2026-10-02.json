@@ -130,9 +130,9 @@
     "id": "text",
     "name": "ILScript",
     "type": "text",
-    "defval": "bmI9Ks46_Ge7g4DSuiGa6eC026fmwyA==_YITrV4jcZ1j+Q9qP1iDEutnbsQOlOsvXmiszDWOxTKXtcpVsWErYr6VgcOANCHPUstTL4BTOv9NsFZk9f7AgcMaLhyL8B9tHWyJDbIY2R7/0Ynpy6EWnchRXSdL83SUcQ4KxqWTcesvU6FGgMON5GK154Pg6k76PRrgKDnZ8tBY1nxXg0/sgtZZgZndQuvtjBY11fgf6U+3+0daTiH/bCb8Yv188avlJtQ+n+27KKfBf9lqHuz5usXJBX6brqmcoPntN3GPLsDh50YqIx/CvZoUHH9ytk+f70yo8DeJzPDy2tNX8KPqDxNPYoSGi1xlI3MIqYkzg004NSLhYR4ZeLtRyZDT5Tqc1SmE9xOp43GioijpU5p0GncGeVIYHF6v6xblYobf7r15XVGNq9yovbjBQYwaVOZbC5DrDcpZHEoGvpo6g7lY76pUhB4GkBhAdjDOLQL+PmWK6RNqOM6XGRsd0+6UIvafdGm6Twjw7Z3Ipj3Yz6o6rawvcoBuBm+cF4tknldibgy0xjnRMN/PRMmmYM1WcH8ExIkoz0cWV3L10oZbmyB0g5sXCg49xfmT4N0ZC0R4+7GflGQWqaabBPHg4mDScBSPRBKT3L213BHW/ajoRmX7TMJMkLx1KC5R0w59wOkxaJfh7FgJCYyTVayVQXzMAHkP5yZTYvapqKqeo8rG8vnKmSUZbTDF4AmDV/9nG/TgIAajBq11epHhHb4doZb9Aj4BriNkS1oxlWXUIsejFlVP8QrENb3CQ7EHf4RlUuDCwNuqLAxxtgg7hINlkvQRjadfS7IkXdwxdeQIHtrKG4PPCl+KJEhRtgpijUYqh8aHuGYoZ5VxM+B5TSE5EpSWAhMTqZJhsighM2YUJXh9zgvq376p86sm50aPuqo2O8zVybbnSal0zG7DENw+V2UYqEthauNZ6JXFLWa5MGDmAacf29ti06AS23TkLgXsVG7yecptAdPHbDwy4v6bmgx72kFYoaHzfQgTDNkMEY5yGX/c1Sf7JBGcPQEtQwdmceXkHnHL1viX98NjC98CgeM+0IpE1y/hTwXBSvUHy9FuCsfOJhaatCA7b4dvBjlitZNjWlmPqJYhAHg==",
+    "defval": "[redacted: TradingView compiled script]",
     "isHidden": true,
-    "value": "bmI9Ks46_Ge7g4DSuiGa6eC026fmwyA==_YITrV4jcZ1j+Q9qP1iDEutnbsQOlOsvXmiszDWOxTKXtcpVsWErYr6VgcOANCHPUstTL4BTOv9NsFZk9f7AgcMaLhyL8B9tHWyJDbIY2R7/0Ynpy6EWnchRXSdL83SUcQ4KxqWTcesvU6FGgMON5GK154Pg6k76PRrgKDnZ8tBY1nxXg0/sgtZZgZndQuvtjBY11fgf6U+3+0daTiH/bCb8Yv188avlJtQ+n+27KKfBf9lqHuz5usXJBX6brqmcoPntN3GPLsDh50YqIx/CvZoUHH9ytk+f70yo8DeJzPDy2tNX8KPqDxNPYoSGi1xlI3MIqYkzg004NSLhYR4ZeLtRyZDT5Tqc1SmE9xOp43GioijpU5p0GncGeVIYHF6v6xblYobf7r15XVGNq9yovbjBQYwaVOZbC5DrDcpZHEoGvpo6g7lY76pUhB4GkBhAdjDOLQL+PmWK6RNqOM6XGRsd0+6UIvafdGm6Twjw7Z3Ipj3Yz6o6rawvcoBuBm+cF4tknldibgy0xjnRMN/PRMmmYM1WcH8ExIkoz0cWV3L10oZbmyB0g5sXCg49xfmT4N0ZC0R4+7GflGQWqaabBPHg4mDScBSPRBKT3L213BHW/ajoRmX7TMJMkLx1KC5R0w59wOkxaJfh7FgJCYyTVayVQXzMAHkP5yZTYvapqKqeo8rG8vnKmSUZbTDF4AmDV/9nG/TgIAajBq11epHhHb4doZb9Aj4BriNkS1oxlWXUIsejFlVP8QrENb3CQ7EHf4RlUuDCwNuqLAxxtgg7hINlkvQRjadfS7IkXdwxdeQIHtrKG4PPCl+KJEhRtgpijUYqh8aHuGYoZ5VxM+B5TSE5EpSWAhMTqZJhsighM2YUJXh9zgvq376p86sm50aPuqo2O8zVybbnSal0zG7DENw+V2UYqEthauNZ6JXFLWa5MGDmAacf29ti06AS23TkLgXsVG7yecptAdPHbDwy4v6bmgx72kFYoaHzfQgTDNkMEY5yGX/c1Sf7JBGcPQEtQwdmceXkHnHL1viX98NjC98CgeM+0IpE1y/hTwXBSvUHy9FuCsfOJhaatCA7b4dvBjlitZNjWlmPqJYhAHg=="
+    "value": "[redacted: TradingView compiled script]"
    },
    {
     "id": "pineId",
@@ -14932,10 +14932,38 @@
  "warnings": [
   "the newest D/W/M bar closed less than 5 h before this capture: TradingView confirms such a bar hours after the regular close (measured between 19:22 and 20:55 ET, docs/pine/barstate.md ruling 3.1), so the vendor's own barstate.isconfirmed may still read 0 on it"
  ],
+ "redactions": [
+  {
+   "field": "study.inputs[name=ILScript].value",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 1142,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 107827,
+    "fnv1a": 2133129091
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:49Z"
+  },
+  {
+   "field": "study.inputs[name=ILScript].defval",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 1142,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 107827,
+    "fnv1a": 2133129091
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:49Z"
+  }
+ ],
  "receipt": {
   "algo": "fnv1a32-utf16",
   "over": "JSON.stringify(capture without its receipt key)",
-  "chars": 107827,
-  "fnv1a": 2133129091
+  "chars": 106209,
+  "fnv1a": 828398266
  }
 }

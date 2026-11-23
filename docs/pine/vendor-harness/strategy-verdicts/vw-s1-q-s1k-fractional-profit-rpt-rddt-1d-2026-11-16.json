@@ -1,8 +1,8 @@
 {
  "schema": "uct.strategy-verdict/v1",
  "captureId": "vw-s1-q-s1k-fractional-profit-rpt-rddt-1d-2026-11-16",
- "captureSha256": "b89df2956f0675ad5d75b1982607c2dd3a639d275cc0b4eff3c2b9255f5dcb23",
- "receipt": 1241842630,
+ "captureSha256": "0c4d458475a5a61b38de659cfb63776d7bd1af87419b866bb51d48f2f8fc6c21",
+ "receipt": 2669020548,
  "sourceSha256": "3671d76cb4798bb86dd85847ced4ff02b8cd92fc5669dd4cc04a148cbef2669e",
  "queueTargetId": "Q-S1k",
  "symbol": "NYSE:RDDT",

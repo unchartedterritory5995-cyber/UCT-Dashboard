@@ -358,7 +358,7 @@
     "type": "text",
     "defval": "",
     "isHidden": true,
-    "value": "bmI9Ks46_8lxOhSvXbyBa29yQAPEg9A==_poXVGV+uIIN36ek0A0ah4/tKlD7xULI1Aqd0S/sVwKVkxVX03yeteItCenrWFRGwmEWS/U9p1OX8hD15atNt01E89CNwR6yU7v6n4wu3q/t1Nd8jb9DFNqhTX+aS7XyHFyu6NWuKoczoXz/OPWfsy+7HOejI5LvG6MLQ2Z/MUbgbAd+am7dkpfUPG5dDN39ZHdsdym3DT+InJQ2xJY1L8NSQsh/OGkYxMRlwFG1ugER3EcgpTB2ehyGNUZcJ9SczPcKOFRFho4m30eb5Fu9VM5uy5sLG/SQd3EJ9aif5UwTle/9fRkNMCEeveoj4fNqx48VhV/MDUUI6J95qG63Sc6+TxSrliNK27lLXUELF4oSaMbEXSNjzxZ4ulxeeFdiRBeNk5JQfo1BYBItgIl9673UQ+wj+YmpX2uc0583yptsjKAFSDC4kHMyZsWzHy4nHnJiR77VW/MGpgTMVOXWPOvpefWFNlO47XXJy/07Ev4Kfas+w9M8r+gaB2a4PV9LquEiWA5sBfX9zxmin8cOHVcQclyqgDSa9GQYFka5FaF9s01kgFzLRBVceaiWRKV7h2bpOTQxpJf1SPFA7gZG6nVCMe2+7vsoSdGOeP5FOaAlv6w4ggj8COt1GnYkNojwKtQtJC62chb3Bk3QsYqgvv2SwOTJcY2WgZQM/tlTisvaTwTI0s+m3IldhdA9jUavWJj+jFanky/twhMUlwwG7IJW2NMvSsXYqssB65lPqV7+ysY8fsbecjmhLwYmNmkM3lmZXR8+Wmh2Lv2QzMGfbHeS8rZIA+lVuosxGgDtYxN/6+v8NRO+XDQ6DJgCJ9tRsJsDc6UnHwpU5PT1F13IreX4mq7Se4YimSlwUxhZGHyn3BJ2+jToTn4LqwuEEnj39kRIs9p4d24rKldNskrzEVtKkqFvYPbEkIkEjfqzUNPlnmgXEAq2Sd6iMBwUCQDkIa7U27rc5id1/0uYFp9rczsSxtKGdIfbdKcv3XQ39UF8y8+OTe2V6tpiGLlzLsv+ARND0evxlHgvm98gRph574gfeLqHaW6g7FPcctjh7bwsgzUHcHIp0e3+V+L2e731kZ+y4NHxdjKvG6uElQsxnzpqWwAWzx/RPD8piUc0nw02YmkP4zgkuI9V5boXRzy/n0uY0w7QPi+GAKA0iWKDmzG9VNtV78YnqpAGUqVCcXq/Jb5pgDODHMz0CY/DooLnI4sDvmzWlMPNBJlHfanDz4kZFrjRIZx4SAsjlaLQMOeNmbyUyR9Vb2skZOdV78yNrn2SHJWn3dSCwyIcifV7QvjUi0F2iwd6wPJlobo+BdFNwgbU="
+    "value": "[redacted: TradingView compiled script]"
    },
    {
     "id": "pineId",
@@ -17157,10 +17157,25 @@
   }
  },
  "warnings": [],
+ "redactions": [
+  {
+   "field": "study.inputs[name=ILScript].value",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 1362,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 132224,
+    "fnv1a": 2903592507
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:51Z"
+  }
+ ],
  "receipt": {
   "algo": "fnv1a32-utf16",
   "over": "JSON.stringify(capture without its receipt key)",
-  "chars": 132224,
-  "fnv1a": 2903592507
+  "chars": 131202,
+  "fnv1a": 4154263308
  }
 }

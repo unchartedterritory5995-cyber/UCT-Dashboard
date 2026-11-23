@@ -1,8 +1,8 @@
 {
  "schema": "uct.strategy-verdict/v1",
  "captureId": "w9-p2-order-fills-rddt-1d-2026-11-15",
- "captureSha256": "b626a78e5ea5dc5936ac92c9c189527895871c635283af4ffc24d1a0551b69fa",
- "receipt": 1825605176,
+ "captureSha256": "2eda65d1cfc62a7753049d80237b3cfd34023c0c230d6067dcd36b90b6087a10",
+ "receipt": 1779421433,
  "sourceSha256": "c10e8848fda972d6fe9691e098b369f4b13063bccd3e0321b1f3e2650660ee1e",
  "queueTargetId": "W9-P2",
  "symbol": "NYSE:RDDT",

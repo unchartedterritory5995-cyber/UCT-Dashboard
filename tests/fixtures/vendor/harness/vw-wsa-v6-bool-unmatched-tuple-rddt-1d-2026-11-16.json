@@ -218,7 +218,7 @@
     "type": "text",
     "defval": "",
     "isHidden": true,
-    "value": "bmI9Ks46_YSy9d+nPKTFSrcAeeU567w==_GLaEEohQBpZcQ8XcQM83x2pb8l09mi1k9dcTFmAJeo+hhhk6VFfffHQg94XwPPzhODFIP+pC67mz/iaL9Njh51RR/9bOTK06wOg6HtZeGxBb+HR2KWBOa5BKx6Iwv893rfb1yi0SDw40I0VBtBJNscLBlKkZlhfDUF6+4Rgft7RFHsBs7i1jzXY7eFmw9xzw0ZsD5NyVsEciIb7uGJd/ukcTOV2kyh21vak5ffHv4snuR0ERulr5gw3Tyb+Rp3+Y2FE8Bvn4o01Ms0qwHDDbG4m2EOOnpCi22wCTxTgbVWCkeH+4pZLpU9F7euxFmsKubiAQPbOIlpL6yHwYeR/2+uWAc/7R7sh4SaLd1HoBaY204YAvznSSnrmVilHUaLSGGrb9iJTbjmDPBfBw0nVajCNkkh/+LUEPXR4msN8uwRfNkzWKMXZgA6rYnTeAk/1WpYJ9egJsQaGq3XAoPvdBlB7Zlk6x1DRy3c/AnsKMRyEn9WRhlRlbFqTmV43zepHNaxMzdnOG2PQ+YOT5Z1liLveckREOJvZ6YiyYT6dvWxuY0Um3o2ZZLI+EX/EiYYIxp994D8qjfdWasnvXRq6NLpFJYFvCvu85Vf24fMq7wLN8jpEZcF3XlVbIs26GUgIcOSNLrhVItQhB0P34k24H41NiPHc+vUOBu3Qlqih5Qd9A28m29Tm9ACo9WOG62polekwgfyllhwJ0kry3IF/9uHo9exe5+9Amx27uHRELu2v+6oq7ixwTQ+QtaF6SlZ86TPaX2t+OpddqcRVcg1NiOfPE2zmQmS+/6TVtWY7JBv3205XcOdIrOG7UGi0zM0usVAPtrDMO8FMaOolsSUDAHzCy/TYBa3jG+GZpMKHl7cCBBB0NifMpcjtrg10/eZ/UfqBtdtxzGTe9JdvI1FryHncEI0/FY0CNei5pCEo4Om2ctfoStxJ28dQarvv2CtnNk3z00ZwBNqUC1ln40leOAJOEx7qTt5OkpNUXyfS8lXWsFwSpokzszDj7QgYLC92sqj443JRoVMG9lNUCAg+lQmRBkDELLoCXSG0eSQ=="
+    "value": "[redacted: TradingView compiled script]"
    },
    {
     "id": "pineId",
@@ -12343,10 +12343,25 @@
  "warnings": [
   "the newest D/W/M bar closed less than 5 h before this capture: TradingView confirms such a bar hours after the regular close (measured between 19:22 and 20:55 ET, docs/pine/barstate.md ruling 3.1), so the vendor's own barstate.isconfirmed may still read 0 on it"
  ],
+ "redactions": [
+  {
+   "field": "study.inputs[name=ILScript].value",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 1098,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 59174,
+    "fnv1a": 3983706614
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:53Z"
+  }
+ ],
  "receipt": {
   "algo": "fnv1a32-utf16",
   "over": "JSON.stringify(capture without its receipt key)",
-  "chars": 59174,
-  "fnv1a": 3983706614
+  "chars": 58415,
+  "fnv1a": 1263414505
  }
 }

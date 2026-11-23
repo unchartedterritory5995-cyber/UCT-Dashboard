@@ -65,9 +65,9 @@
     "id": "text",
     "name": "ILScript",
     "type": "text",
-    "defval": "bmI9Ks46_TwSkiDHiSzsP0SdBKLKklQ==_HJjnIgHZpSOvFxWziwSQ/Q45eE97dB6DCIp9cGmGIT9ZnN70aV3XPouIof+OAEyn+1agTROTqBAg5pO+Y5rtP4Em+XMdzT8Qyab/ZdGRGWjHTIcWMA/G3wV8TLB3gIsZZSRfjM9eFnsPbCHVjwmHwRFpdZ0+GYoiLuy3agZDo0AHHf4Y6VOjvLDmUcWEx/UADeHmA1pG696gmCb2TTOFu3GQy0y003Ge/HfE/Su+Nj7g6pW5UeoZKJX6ruQpS0aQZv7LIXU67KYks42VB934Z4L4bMxAKx/RFhyR581L+Bp0+DvuCEOm957KYzxHRovvXbSRynINZpa8FkefLfZ08YxJPm2ncv/+4mGTYEhvsMLKqnRHobcmBPhj9vG9bdOy9RnJ13bt/514XEWnGJticeHu9ZBu9qFSNvsSu6ciWKiJzNcE6ygZ1r9fCnTFvXb1XMk/seCRmDg5S2y9+F/LA6+GdGcMlQuRJcHqa5FZaQLZflhTALXZytihRY+D/nFyfF/7kga565MvN+NyiFXc8zbqxvz9ijxkS1g=",
+    "defval": "[redacted: TradingView compiled script]",
     "isHidden": true,
-    "value": "bmI9Ks46_TwSkiDHiSzsP0SdBKLKklQ==_HJjnIgHZpSOvFxWziwSQ/Q45eE97dB6DCIp9cGmGIT9ZnN70aV3XPouIof+OAEyn+1agTROTqBAg5pO+Y5rtP4Em+XMdzT8Qyab/ZdGRGWjHTIcWMA/G3wV8TLB3gIsZZSRfjM9eFnsPbCHVjwmHwRFpdZ0+GYoiLuy3agZDo0AHHf4Y6VOjvLDmUcWEx/UADeHmA1pG696gmCb2TTOFu3GQy0y003Ge/HfE/Su+Nj7g6pW5UeoZKJX6ruQpS0aQZv7LIXU67KYks42VB934Z4L4bMxAKx/RFhyR581L+Bp0+DvuCEOm957KYzxHRovvXbSRynINZpa8FkefLfZ08YxJPm2ncv/+4mGTYEhvsMLKqnRHobcmBPhj9vG9bdOy9RnJ13bt/514XEWnGJticeHu9ZBu9qFSNvsSu6ciWKiJzNcE6ygZ1r9fCnTFvXb1XMk/seCRmDg5S2y9+F/LA6+GdGcMlQuRJcHqa5FZaQLZflhTALXZytihRY+D/nFyfF/7kga565MvN+NyiFXc8zbqxvz9ijxkS1g="
+    "value": "[redacted: TradingView compiled script]"
    },
    {
     "id": "pineId",
@@ -6130,10 +6130,38 @@
  "warnings": [
   "objects-only study: it declares no plots, so plotValues is empty and its drawings are the whole answer"
  ],
+ "redactions": [
+  {
+   "field": "study.inputs[name=ILScript].value",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 582,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 43898,
+    "fnv1a": 830930593
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:32Z"
+  },
+  {
+   "field": "study.inputs[name=ILScript].defval",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 582,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 43898,
+    "fnv1a": 830930593
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:32Z"
+  }
+ ],
  "receipt": {
   "algo": "fnv1a32-utf16",
   "over": "JSON.stringify(capture without its receipt key)",
-  "chars": 43898,
-  "fnv1a": 830930593
+  "chars": 43394,
+  "fnv1a": 875279900
  }
 }

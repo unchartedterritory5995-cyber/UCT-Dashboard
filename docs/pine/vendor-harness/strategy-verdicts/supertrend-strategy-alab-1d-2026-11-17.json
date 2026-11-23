@@ -1,8 +1,8 @@
 {
  "schema": "uct.strategy-verdict/v1",
  "captureId": "supertrend-strategy-alab-1d-2026-11-17",
- "captureSha256": "e061e97c6749a087c1ec501cca37b27071b287d12826f0d05aa709b3189cc7be",
- "receipt": 2003467306,
+ "captureSha256": "6db3a7d46cd655cb999c861c56c888624f8e72d0c7e06758c95d4d6b65d69a48",
+ "receipt": 1307250375,
  "sourceSha256": "7e343cf8b46cb5aab4eb84ee28dcd76c1af2e2af8461dec02271b6a89133c00a",
  "queueTargetId": "Q-SD2",
  "symbol": "NASDAQ:ALAB",

@@ -310,9 +310,9 @@
     "id": "text",
     "name": "ILScript",
     "type": "text",
-    "defval": "bmI9Ks46_JNPcdpmoauOIMzjannyjPg==_QqUKXfQ7tRx0MaRxiO++dRu59xZTsA2vBpb4NnrccpyZApcj5wD9eBUOi7CQWJZiVE3qFoxbBLxcS5QCw+KsO33h7WJx/d2884pqiY/n4aQJwhho0SZRG1Ep5ue3c8uV38nRKH2HQ/oLBQkBQe6nxfkmAcSXCjHy2noh+bB17xvvNpfSZbeqVvQgO2NIyRY9Qrx1xHUF7e92vukHx/7atDSHjG2Yvy04vM9WEUFd70FwkwpHQC3HpBooaaT35DY+to3XfPvZTrG8WvR8tGUQPdZRvsZknnkytNBvH/pGnB7WE3LxfdTrqTjyTvqrKpYmuqFcPlm/NO4+8smmKRheOC59pIBT2whkKd1iFZC8LSyAE22saJoH4D2gKZnbXYMagMPWXHfjfBkvAs1cbuw2pWxs0XljFvsRPnc39zQaFu1kLpCQukN62YeCODbjSsoP5KfJJ+VT4tRDc5AoBLqzapU0FkDazU5LS/Z2/h9NbukCgqnVZ8PxukPkrNWNo1JKn/R2QjzKEXujYmRLVICK/0r2dAesLq0dJIGzjYpX5kpnBD1jCG3s6s8=",
+    "defval": "[redacted: TradingView compiled script]",
     "isHidden": true,
-    "value": "bmI9Ks46_JNPcdpmoauOIMzjannyjPg==_QqUKXfQ7tRx0MaRxiO++dRu59xZTsA2vBpb4NnrccpyZApcj5wD9eBUOi7CQWJZiVE3qFoxbBLxcS5QCw+KsO33h7WJx/d2884pqiY/n4aQJwhho0SZRG1Ep5ue3c8uV38nRKH2HQ/oLBQkBQe6nxfkmAcSXCjHy2noh+bB17xvvNpfSZbeqVvQgO2NIyRY9Qrx1xHUF7e92vukHx/7atDSHjG2Yvy04vM9WEUFd70FwkwpHQC3HpBooaaT35DY+to3XfPvZTrG8WvR8tGUQPdZRvsZknnkytNBvH/pGnB7WE3LxfdTrqTjyTvqrKpYmuqFcPlm/NO4+8smmKRheOC59pIBT2whkKd1iFZC8LSyAE22saJoH4D2gKZnbXYMagMPWXHfjfBkvAs1cbuw2pWxs0XljFvsRPnc39zQaFu1kLpCQukN62YeCODbjSsoP5KfJJ+VT4tRDc5AoBLqzapU0FkDazU5LS/Z2/h9NbukCgqnVZ8PxukPkrNWNo1JKn/R2QjzKEXujYmRLVICK/0r2dAesLq0dJIGzjYpX5kpnBD1jCG3s6s8="
+    "value": "[redacted: TradingView compiled script]"
    },
    {
     "id": "pineId",
@@ -453946,10 +453946,38 @@
   "unreadable": []
  },
  "warnings": [],
+ "redactions": [
+  {
+   "field": "study.inputs[name=ILScript].value",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 602,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 1897005,
+    "fnv1a": 667232820
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:43Z"
+  },
+  {
+   "field": "study.inputs[name=ILScript].defval",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 602,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 1897005,
+    "fnv1a": 667232820
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:43Z"
+  }
+ ],
  "receipt": {
   "algo": "fnv1a32-utf16",
   "over": "JSON.stringify(capture without its receipt key)",
-  "chars": 1897005,
-  "fnv1a": 667232820
+  "chars": 1896465,
+  "fnv1a": 3873572515
  }
 }

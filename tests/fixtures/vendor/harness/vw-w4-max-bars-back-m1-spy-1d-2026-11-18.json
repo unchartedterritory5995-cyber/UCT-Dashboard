@@ -138,7 +138,7 @@
     "type": "text",
     "defval": "",
     "isHidden": true,
-    "value": "bmI9Ks46_/xqxsWqEya54YSHhVE58MQ==_nPFATZy0pE8RGUuDTCKBv+NjRG8Ji+VaPu+tbGT+PBuiviuGiKdCNHfvlO3n1XIkXld5waUUtMUj3ndeJISk8QvteLA66C3Cw0gYIUaWimaCW7iAAUXpz3y+VkXUYvnTYVfltbyWdVt25QYHZQRqbLs1vgTyoT1vmxrUL9jpPTJDMyC9bBOW86t+bh/D+u06yr+shMXvh0F5hGpBP1Lcjfdkj7rCBiGwSkz/KQBc7zyJIQGFI2+7lY6GNWpy2uHWmksxM0Zm7qD/zxnSVe1FgJ2XJJ1OlR7CQaU0xheAjanw7rm7uf3brz9wKIE8LEmbsSKjUtoPuahaa4F4MBu1idPoG+tB0dSHvWya/HcIC/S4Vb3aWJ13d7tpgapn+kzXpoHC9qhn/aJtOffDJk8hmlYoC2wz2+sXFm1xwkl8fIBLenQpU1gDvXxZhDYIru5ucCp4NsnUpvuTI8YM2ESvd6hqSdxy6r1sdbex9z2EFD2UsFidwGB8OAktgUDBOG2xbMog5MtXljip9++ZHuFYzx0699JuPHs="
+    "value": "[redacted: TradingView compiled script]"
    },
    {
     "id": "pineId",
@@ -119394,10 +119394,25 @@
   "newestBarIsForming: the caller asserted true, but the newest bar's period (the session close of the bar's trading day (session_holidays read)) ends 2026-11-18T21:00:00.000Z and the capture is at 2026-11-18T22:25:18.041Z — recorded false, the chart's own answer",
   "the newest D/W/M bar closed less than 5 h before this capture: TradingView confirms such a bar hours after the regular close (measured between 19:22 and 20:55 ET, docs/pine/barstate.md ruling 3.1), so the vendor's own barstate.isconfirmed may still read 0 on it"
  ],
+ "redactions": [
+  {
+   "field": "study.inputs[name=ILScript].value",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 578,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 679565,
+    "fnv1a": 3581458080
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:51Z"
+  }
+ ],
  "receipt": {
   "algo": "fnv1a32-utf16",
   "over": "JSON.stringify(capture without its receipt key)",
-  "chars": 679565,
-  "fnv1a": 3581458080
+  "chars": 679326,
+  "fnv1a": 2818525972
  }
 }

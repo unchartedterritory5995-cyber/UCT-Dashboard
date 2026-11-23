@@ -219,7 +219,7 @@
     "type": "text",
     "defval": "",
     "isHidden": true,
-    "value": "bmI9Ks46_wAAGAQINaqM00FyLk+DMNg==_VFzzopBfC7/41TinuI+6APbnLsyN7KhliLMkksFzs4/++V/4kl5jnRd1+zjYMkVEIvWokhSj+Fcg8VdM6G7vmGD9WvgtS2qWQIEZY4HnGE6ebe2xYASLw1BCW9ulgNHW9AuPBanrehNbZQV1YFqkigxM1Z5RPeQdtUUs01N7V573DKIQ258i7U1zM6VQHsQg29cdl6/NygRavSgpfbwteslorxv39+lWDRDckjXQrSzYjie1leGQ0W9Ll3qAUuzNzwnFkKWtjIynB9p40cIqDMrIkzVpNKj924Ca/qaOLpanlFHqWFsdfLRQ2/AfyVM+rk2WS5UcxuXqpTZ9s0QGrY05dMkrb92HGYZ1U5n7aXmjFGycaguaz+a3r0wg9ocR4eSMK5qRsYL9QxYjieyTHaAmHq4pEm4rlJe51Xk7hLoy4aHGVmjzBopSCse2q3HjzJ83ooimGoNeAV7+Ai14VZTdUZ3OCKpOkdv2QYoXS0OCWmxAFZ1SWVfx7MsV2QL02iuWOWI2a1LC0OPTVdS2ML1wOy+mZXEw8hNf92fswWm66FfomWBt9VLIqpvx24sKR8A0mghs2rgiNsDV7wQn90T8QHID84p/arsVXJ1FDdDZQtjYyVbqjnfhKaqoWM4cYHjbyc2aelYPMHCXNwMjzBZ/AVSAeLUZuK+iqMcjrHf/TgfHTXrqWgaIUcTtfEpBcU4YGhA2Z52OIwvCwQXV9HaNncodsGH8tTJhDdGMBD1IwX+NlC9eRg6sWOVY/dQPDw0yX7w+w94Z7WVEbeH/rMz9xxT4bt60e2ztmw5RUdAarE624kyFnz+OSvuZ87PoAltoeAXAKgo99JBgBPn2IHE+ITKUq2tL2HBeCdcpCiYFryCY91UAa7tUZxxo/2coo+eY6jIn4ltV93FU0sUWXUVAXZgwqSjUWLkqkAPj5gLEYwSqsG7viDeeL2Oh2HrsaHElzfN8iV2C9AMZGVo7SI62oPHcWHGIlXfQO08iHm4GDghtrjsxNhM6YUIUIyYevEDz0clI22CwDWBWpMCDT88pFqqQdPqJRdgiOtJkmvtekG8KRp82AneMr9osoN3AsmkC4GJMTpRIFj4YoHV2r5JFnVEFBgbStcfK6qjvyK6LZU6Bu1cPvbO7WDi+Az0qhYQalVVzE3HQYSD6pDdoy5u0V+XernTmEfWIK1KQf/oH+b0LjmbBLoAXsNO3f/C6NvQjAebpCKE/iWkWRRbn95VKzrsY9G+Ma5trRHkdWMZCP2WT1GIGlBBgKGMpvwJS+oK7mtMwBxSCRhhscxrE2AcukEvTyhcAHjmQbP16WJZtQyJmv3n1RHRrypBMdjLq9u5nuwYiiducfOjo8DlUTKf3zjPoAGgBFaqztYWS4dy7B9eyak4="
+    "value": "[redacted: TradingView compiled script]"
    },
    {
     "id": "pineId",
@@ -11183,10 +11183,25 @@
   }
  },
  "warnings": [],
+ "redactions": [
+  {
+   "field": "study.inputs[name=ILScript].value",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 1430,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 69841,
+    "fnv1a": 1306447883
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:34Z"
+  }
+ ],
  "receipt": {
   "algo": "fnv1a32-utf16",
   "over": "JSON.stringify(capture without its receipt key)",
-  "chars": 69841,
-  "fnv1a": 1306447883
+  "chars": 68750,
+  "fnv1a": 3491049687
  }
 }

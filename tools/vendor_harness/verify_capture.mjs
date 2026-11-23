@@ -19,7 +19,7 @@
 
 import fs from 'node:fs'
 import path from 'node:path'
-import { fnv1a, validateCapture } from './schema.mjs'
+import { fnv1a, validateCapture, verifyRedactions } from './schema.mjs'
 import { isStrategyCapture, settingsAgreement, STRATEGY_TOOL_VERSION } from './strategy_capture.mjs'
 
 function fail(msg) {
@@ -63,6 +63,9 @@ function verifyFiles(paths) {
   for (const p of paths) {
     let c
     try { c = JSON.parse(fs.readFileSync(p, 'utf8')) } catch (e) { console.error(`FAIL ${p}: ${e.message}`); bad += 1; continue }
+    // ⛔⛔ a redacted FILE verifies only through its `redactions` note (schema.mjs::verifyRedactions)
+    const rd = verifyRedactions(c)
+    if (!rd.ok) { console.error(`FAIL ${p}: redactions: ${rd.reason}`); bad += 1; continue }
     const v = validateCapture(c)
     if (v.ok) {
       console.log(`OK   ${p} — ${c.id} · ${c.symbol.pro_name || c.symbol.name} ${c.timeframe} · ${c.bars.count} bars · ${c.study.plots.length} plots`)
