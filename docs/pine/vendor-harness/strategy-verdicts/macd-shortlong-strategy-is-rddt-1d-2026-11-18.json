@@ -1,8 +1,8 @@
 {
  "schema": "uct.strategy-verdict/v1",
  "captureId": "macd-shortlong-strategy-is-rddt-1d-2026-11-18",
- "captureSha256": "235493b765d91364d474291867a947a6f0fc4b2b1561ed1a684f53188c5738e1",
- "receipt": 2826851250,
+ "captureSha256": "e5535092efbe138bacad6359b369e07e4b2ce12ba8cc76aa756a2c10ec52cc91",
+ "receipt": 4111373751,
  "sourceSha256": "bd5fb7b6870ca67060d77a47f70254c4f0ce52f0416b841745dea03ca8f73f00",
  "queueTargetId": "Q-S1p",
  "symbol": "NYSE:RDDT",

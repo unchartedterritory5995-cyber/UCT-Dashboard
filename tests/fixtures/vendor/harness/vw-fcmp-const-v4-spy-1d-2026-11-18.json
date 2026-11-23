@@ -408,7 +408,7 @@
     "type": "text",
     "defval": "",
     "isHidden": true,
-    "value": "bmI9Ks46_5gV7x6u5kOBQvkM7cERwgw==_KEoLVudJkHcwRvWIIW/t7oXWD9596puBttjUOAl/s2DFNVSDaoF8i30fYpFLJWxfQjJ55FwU6ZV79mYkK6DiHKcEAa6JoaavJVQ3MqavwvIvGg1PRr7n/eVKVFdS0e0n1k+iS3byV2SsZn3mT8x3uei4gacmOJESNCq293GSe5lv9VEEYeWFJlBgdgKBc7A5ybnIC4dzlD+EvDaU4F3aiA9CMj/cTRSTfiemiToeM58uVMCqYl1gHVI4pR5eJTWWbNUpyJFLMhIe0oNevgTDz7Bi9p6A3azK6+ONDQrUTLQ+FIASwYYmrIpxeyE9+AUBj+OyZDpcBtZQSSqwISK+JyzCB2tNJGc4O4txggQP6Zye65g2XH6WqdPAZBXkbnXAwpV4gGFYsE/659A+znjoZK5luoQEh7+b9dofKqj2PK2Vhy7tL5jXc+8dHxRjf4P7v6d0AhW8Tobl1YUw7X/S29amqJx8cnAZ6A2ZW9+Zj+N0/D53WWcWnJzsQ9V5cWdZxCgI5PMcV28eoY39jmrwYxyRhqbgGBqzJKpk4JzpZoE+ZEOIIxzsPkCOPKRpNL7wPnBNjelkEVwRzfros4/36KG/M4mRI8i0WZEeqwVT+HDCVoPje1gT18OvUcgu0qON+1Kx9/XAFzvoTxYajGrooHc1zdMJN0z6cIsMYmDy3RSP0eqX6T9caTFnLS+SL5McYGEE2dqGoQ7CJ7iivs5gywzk4OzpCbjw3/KmtDy1uE31dqfHjGtrjIADTonZ9b+Ab1GvqnCKlg7oJKs82hj125giKU/TPXPggFlJb3YCniehZFD6TmlEpcidGBlDJ1vqv73qgu3vdZ7LQnDr31XF6HLC6Yo9ahnKnBgwUgKOugYhRQKxuoSBmO0Pz9/0ptCNsF4GQenmcefjzm0t6hpYs/LOPbMMrhkIsGZtMCQ+Hm8DRKU8+d6mtpH0YY9dvj/5By6Us9/NxhzDEdwQbof43yh5/eEAsZQyTcSOSniDdYhSSEkA5CaxF8C0sQCHpnz0j8g6kfarlCDPqVp8zwKgUoUXVoA+j75i6P/J1lpwupC7yXfgcR570eH8PbqPh64+fhrRMXKqJT7SNQi4boeguEaAwhg8M+6I7v4o0F2oz2ga9O23Z/bfWJQDQWMIPvqcGbccqbkAO0AvOXLq54voFfh0+qhsJ27Vyj1iGagmHoCNEKuoQdh9PshRZ2me4IpLuOiN2yseN9vtOC8CB0ctZqcSox4WjEG9zBVQEjvpa8PugR8jZ4QG7QL0N7VpCL3PntJEHCoCdzvN3cZz8BWHmBzF+zMK9nwMF4zOjylW5J+jwf4LoDGsSfhxm8iVWjIi44OC"
+    "value": "[redacted: TradingView compiled script]"
    },
    {
     "id": "pineId",
@@ -221759,10 +221759,25 @@
   }
  },
  "warnings": [],
+ "redactions": [
+  {
+   "field": "study.inputs[name=ILScript].value",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 1382,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 963218,
+    "fnv1a": 2704569798
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:45Z"
+  }
+ ],
  "receipt": {
   "algo": "fnv1a32-utf16",
   "over": "JSON.stringify(capture without its receipt key)",
-  "chars": 963218,
-  "fnv1a": 2704569798
+  "chars": 962176,
+  "fnv1a": 161946186
  }
 }

@@ -1497,6 +1497,26 @@ def write_packet(run_dir: pathlib.Path, body: dict) -> str:
 
 
 # ─── F: promote + file ───────────────────────────────────────────────────────
+# ⛔⛔ TRADINGVIEW'S COMPILED SCRIPT NEVER ENTERS THIS PUBLIC REPO (coordinator ruling 2026-11-23): a capture's hidden
+# `ILScript` input is TradingView's encrypted compiled form of the script. PROMOTE refuses a capture that carries it in
+# the clear; `node tools/vendor_harness/redact_capture.mjs <file>` redacts and re-seals it first. The marker is READ from
+# schema.mjs (the one authority), never restated here.
+_REDACTED_MARK = re.search(r"export const REDACTED_COMPILED_SCRIPT = '([^']+)'",
+                           (pathlib.Path(__file__).with_name("schema.mjs")).read_text(encoding="utf-8")).group(1)
+
+
+def compiled_script_in_clear(capture) -> bool:
+    """True when the capture carries TradingView's compiled script (a non-empty, unredacted ILScript value)."""
+    st = capture.get("study") if isinstance(capture, dict) else None
+    for inp in (st.get("inputs") or []) if isinstance(st, dict) else []:
+        if isinstance(inp, dict) and inp.get("name") == "ILScript":
+            for k in ("value", "defval"):       # the compiled script sits in both on many captures
+                v = inp.get(k)
+                if isinstance(v, str) and v and v != _REDACTED_MARK:
+                    return True
+    return False
+
+
 class PromoteRefused(Exception):
     pass
 
@@ -1545,8 +1565,12 @@ def promote(run_dir: pathlib.Path, packet_sha: str, world: World | None = None, 
             if dst.exists():
                 refused.append(i["id"])
                 continue
+            src = REPO / i["file"] if not pathlib.Path(i["file"]).is_absolute() else pathlib.Path(i["file"])
+            if compiled_script_in_clear(json.loads(pathlib.Path(src).read_text(encoding="utf-8"))):
+                raise PromoteRefused(f"{i['id']}: the capture carries TradingView's compiled script (ILScript) in the "
+                                     f"clear; redact it first: node tools/vendor_harness/redact_capture.mjs {src}")
             dst.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(REPO / i["file"] if not pathlib.Path(i["file"]).is_absolute() else i["file"], dst)
+            shutil.copyfile(src, dst)
             promoted.append(i["id"])
         else:
             filed.append(i["id"])

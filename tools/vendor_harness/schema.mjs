@@ -98,6 +98,86 @@ export function verifyReceipt(capture) {
 
 const isObj = (x) => !!x && typeof x === 'object' && !Array.isArray(x)
 
+// ─── ⛔⛔ TRADINGVIEW'S COMPILED SCRIPT NEVER ENTERS THIS PUBLIC REPO (coordinator ruling 2026-11-23) ─────────────────
+// Every capture records the study's inputs as TradingView lists them, and that list carries a hidden input
+// (`id: 'text'`, `name: 'ILScript'`) whose value is TradingView's own ENCRYPTED COMPILED FORM of the script: their
+// artifact, not the script author's source. A committed capture carries it REDACTED: the value replaced by
+// REDACTED_COMPILED_SCRIPT, the capture RE-SEALED by `redact_capture.mjs`, and a `redactions` note naming the field, the
+// original receipt and the tool. ⛔ A re-seal is accepted ONLY through that note, and the note is checked against the
+// original receipt's LENGTH: putting back `originalChars` characters at the field and dropping the note must reproduce
+// `originalReceipt.chars` exactly, so no other edit can hide inside a re-seal. (The original fnv1a cannot be re-checked
+// without the value itself; that is the price of not holding it.) No grade reads this input: `captureInputs.js` reads
+// only `in_N` inputs and `compare.mjs::nonDefaultInputs` skips hidden ones.
+// ⭐ ENFORCED AT THE FILE BOUNDARY, not in `validateCapture`: every capture FILE a grade reads goes through
+// `harness.js::loadCapture` (and `verify_capture.mjs`), which refuse a redacted file whose note does not verify; the
+// rail `redactions.test.js` walks every committed fixture. An in-memory capture a test perturbs and re-seals is not a
+// file and is not held to its original receipt.
+export const COMPILED_SCRIPT_INPUT = 'ILScript'
+export const REDACTED_COMPILED_SCRIPT = '[redacted: TradingView compiled script]'
+export const REDACTION_TOOL = 'tools/vendor_harness/redact_capture.mjs'
+// the input carries the compiled script in its `value` and, on many captures, again in its `defval`: both are redacted
+export const REDACTION_FIELDS = Object.freeze({ value: 'study.inputs[name=ILScript].value', defval: 'study.inputs[name=ILScript].defval' })
+
+/** Indexes of `study.inputs` entries that are TradingView's compiled script. */
+export function compiledScriptInputs(capture) {
+  const list = capture && capture.study && Array.isArray(capture.study.inputs) ? capture.study.inputs : []
+  const out = []
+  list.forEach((x, i) => { if (x && typeof x === 'object' && x.name === COMPILED_SCRIPT_INPUT) out.push(i) })
+  return out
+}
+
+const clearText = (v) => typeof v === 'string' && v !== '' && v !== REDACTED_COMPILED_SCRIPT
+
+/** True when the capture carries TradingView's compiled script in the clear (a non-empty, unredacted value or defval). */
+export function carriesCompiledScript(capture) {
+  return compiledScriptInputs(capture).some((i) => Object.keys(REDACTION_FIELDS).some((k) => clearText(capture.study.inputs[i][k])))
+}
+
+/** [{index, prop}] of every redacted slot, in input order then REDACTION_FIELDS order. */
+function redactedSlots(capture) {
+  const out = []
+  for (const i of compiledScriptInputs(capture)) {
+    for (const k of Object.keys(REDACTION_FIELDS)) if (capture.study.inputs[i][k] === REDACTED_COMPILED_SCRIPT) out.push({ index: i, prop: k })
+  }
+  return out
+}
+
+/** Checks a capture's `redactions` note (see above). `{ok, reason}`; a capture with no note and no redacted value is ok. */
+export function verifyRedactions(capture) {
+  const redacted = redactedSlots(capture)
+  const notes = capture ? capture.redactions : undefined
+  if (notes === undefined) {
+    return redacted.length ? { ok: false, reason: `study.inputs[${redacted[0].index}].${redacted[0].prop} is ${JSON.stringify(REDACTED_COMPILED_SCRIPT)} but the capture carries no redactions note: an unexplained re-seal` } : { ok: true, reason: null }
+  }
+  if (!Array.isArray(notes) || notes.length === 0) return { ok: false, reason: 'redactions must be a non-empty list' }
+  if (notes.length !== redacted.length) return { ok: false, reason: `redactions names ${notes.length} field(s) but ${redacted.length} value(s) are redacted` }
+  const restored = JSON.parse(JSON.stringify(capture))
+  for (let k = 0; k < notes.length; k++) {
+    const n = notes[k]
+    if (!isObj(n)) return { ok: false, reason: `redactions[${k}] is not an object` }
+    const keys = Object.keys(n).sort().join(',')
+    if (keys !== 'at,by,field,index,originalChars,originalReceipt,replacedWith') return { ok: false, reason: `redactions[${k}] keys are ${keys}` }
+    if (n.field !== REDACTION_FIELDS[redacted[k].prop]) return { ok: false, reason: `redactions[${k}].field ${JSON.stringify(n.field)} is not ${REDACTION_FIELDS[redacted[k].prop]}: no other field may be redacted` }
+    if (n.replacedWith !== REDACTED_COMPILED_SCRIPT) return { ok: false, reason: `redactions[${k}].replacedWith is not the marker` }
+    if (n.by !== REDACTION_TOOL) return { ok: false, reason: `redactions[${k}].by ${JSON.stringify(n.by)} is not ${REDACTION_TOOL}` }
+    if (typeof n.at !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/.test(n.at)) return { ok: false, reason: `redactions[${k}].at is not an ISO UTC time` }
+    if (!Number.isInteger(n.index) || n.index !== redacted[k].index) return { ok: false, reason: `redactions[${k}].index ${n.index} is not the redacted input ${redacted[k].index}` }
+    if (!Number.isInteger(n.originalChars) || n.originalChars <= 0) return { ok: false, reason: `redactions[${k}].originalChars must be a positive integer` }
+    const r = n.originalReceipt
+    if (!isObj(r) || r.algo !== 'fnv1a32-utf16' || !Number.isInteger(r.chars) || !Number.isInteger(r.fnv1a)) return { ok: false, reason: `redactions[${k}].originalReceipt is not a receipt` }
+    // the stand-in has the original's JSON length: base64 needs no escaping, and `originalChars` is the escaped length
+    restored.study.inputs[n.index][redacted[k].prop] = 'x'.repeat(n.originalChars)
+  }
+  if (new Set(notes.map((n) => JSON.stringify(n.originalReceipt))).size !== 1) return { ok: false, reason: 'the notes disagree on the original receipt' }
+  delete restored.redactions
+  const len = canonicalBody(restored).length
+  if (len !== notes[0].originalReceipt.chars) {
+    return { ok: false, reason: `the redaction does not account for the change: restored at the field the body is ${len} chars, the original receipt says ${notes[0].originalReceipt.chars}` }
+  }
+  return { ok: true, reason: null }
+}
+
+
 /** A TradingView filled-area id (`fill_0`, `fill_1`, …) — what a per-bar fill
  *  colour's colorer plot targets. Exported so the comparator classifies with
  *  the same rule the validator admits with. */

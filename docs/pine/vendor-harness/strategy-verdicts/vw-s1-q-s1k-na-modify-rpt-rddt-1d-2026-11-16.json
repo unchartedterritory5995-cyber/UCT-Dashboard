@@ -1,8 +1,8 @@
 {
  "schema": "uct.strategy-verdict/v1",
  "captureId": "vw-s1-q-s1k-na-modify-rpt-rddt-1d-2026-11-16",
- "captureSha256": "6fc7a940e1bacf5b9af2a7b1990b7170c44063262de00d510d0d8f5d2c8bfe24",
- "receipt": 892818064,
+ "captureSha256": "8e27daaed4809836ee93d0d3d92edeb69466fdb60be37eafbd14bbc43077983c",
+ "receipt": 4082625021,
  "sourceSha256": "47344bb4c78afb9de2720abd0a00450a1973af9abedfca4e26bbf5ae4f01772e",
  "queueTargetId": "Q-S1k",
  "symbol": "NYSE:RDDT",

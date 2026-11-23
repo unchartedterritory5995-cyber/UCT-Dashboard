@@ -35,9 +35,18 @@ export function heldRowsFor(tf, rows, newestT) {
   return (typeof newestT === 'number') === intradayLikeTf(tf) ? rows : 0
 }
 
-/** The held span on `tf`: the full target, raised only by `tf`'s own loaded rows (`loadedTf` = the timeframe `loaded`
- *  was counted on), and never below the chart's requested `barCount`. */
+/** ⭐⭐ (2026-11-23, the first-draw unit) HEADROOM over the target before the rung is chosen. ⚰️ 1m's target (20,000) sat
+ *  EXACTLY on a ladder rung, so the first page asked 20,000; the chart's own 1m rows then bound at 20,000 PLUS the live
+ *  minutes since the backfill, which raised the span to the next rung (40,000): a SECOND SPX fetch and a second Fred run
+ *  on every first 1m visit (production 2026-11-23: the 40,000-row ask started 606 ms after the switch). Every other
+ *  timeframe's target already sat below its rung. A 2% headroom puts 1m on 40,000 from the first render and leaves every
+ *  other timeframe's rung unchanged (5m/15m 30,600 -> 40,000; 30m/60m 32,640 -> 40,000; D 12,750 -> 20,000). */
+export const HELD_FLOOR_HEADROOM = 0.02
+
+/** The held span on `tf`: the full target plus headroom, raised only by `tf`'s own loaded rows (`loadedTf` = the
+ *  timeframe `loaded` was counted on), and never below the chart's requested `barCount`. */
 export function heldSpanOn(tf, loaded, loadedTf, barCount) {
   const own = loadedTf === tf ? loaded : 0
-  return heldSpanFor(Math.max(own || 0, heldFloorFor(tf)), barCount)
+  const floor = heldFloorFor(tf)
+  return heldSpanFor(Math.max(own || 0, Math.ceil(floor * (1 + HELD_FLOOR_HEADROOM))), barCount)
 }

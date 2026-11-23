@@ -236,9 +236,9 @@
     "id": "text",
     "name": "ILScript",
     "type": "text",
-    "defval": "bmI9Ks46_JlEo0CONFUfQECcHARA5Vg==_W46tKXl402ia8uI5F3y4DkXVH8uFL2ZuKXb3MQic6ybZvdSie7z8lZoGphv6a+EbEOxk6O5VVanD75j8SfxISJ9JW3ZXY7ENJsjMaPe/Qw6odniOZ5CcAY1qU50kVMvksMzWmqjklDW0tuleqr79Or6ZvxR31Ae36g+WUAacNXU/MS9QRRp4T5Wz4DNb50w/cdCHXmzZ0ZFlfQM5DDel+Eigs7nqbiOQHJmlZVQg0uuvRI1UK5NN71Df9fCN6PJUxzazz/I+5tku02L81NPSFDSmPQl78iy36pT0bdyVFgmfNo7uV6RMyKHPnSLA2yMELhWm2ugLxT9w+63Tdp3UlR+UF5loROjrrLxcFPuG8PfgaTANEwoYuZCl7QcTth29opDkDIKJZwF2B3nJkzxcBdDqeyszRX/9Cdp41IRn5Xw8Dqxkc7FpX8rqZl5HLRvnfxI74IbZXsJNqreHHCliltYmEj9fuKUX2ACJUgr9W+atwt1b01wGeaHVhfNFcOccFDEAn75qDEYUXu2lSUagaocnx6JZWz8Vc44kxlFH2a8IMiBVpQEHKIIM9D8J1V07fnOuYrlgD41ASx7n4emetxK/2dd+g4WqYcrNY6cld49v3IXEFt8URaB3xOc8dFydqb5/3OGMV1VM3AxtzEzhSqFHkeNHSb+vKFKyj4SqHl7rNhxFecvp+rh9Z239yp7yZ9T4uzP7fz1wmbIqdlI7vtK++BsIx9kwPg==",
+    "defval": "[redacted: TradingView compiled script]",
     "isHidden": true,
-    "value": "bmI9Ks46_JlEo0CONFUfQECcHARA5Vg==_W46tKXl402ia8uI5F3y4DkXVH8uFL2ZuKXb3MQic6ybZvdSie7z8lZoGphv6a+EbEOxk6O5VVanD75j8SfxISJ9JW3ZXY7ENJsjMaPe/Qw6odniOZ5CcAY1qU50kVMvksMzWmqjklDW0tuleqr79Or6ZvxR31Ae36g+WUAacNXU/MS9QRRp4T5Wz4DNb50w/cdCHXmzZ0ZFlfQM5DDel+Eigs7nqbiOQHJmlZVQg0uuvRI1UK5NN71Df9fCN6PJUxzazz/I+5tku02L81NPSFDSmPQl78iy36pT0bdyVFgmfNo7uV6RMyKHPnSLA2yMELhWm2ugLxT9w+63Tdp3UlR+UF5loROjrrLxcFPuG8PfgaTANEwoYuZCl7QcTth29opDkDIKJZwF2B3nJkzxcBdDqeyszRX/9Cdp41IRn5Xw8Dqxkc7FpX8rqZl5HLRvnfxI74IbZXsJNqreHHCliltYmEj9fuKUX2ACJUgr9W+atwt1b01wGeaHVhfNFcOccFDEAn75qDEYUXu2lSUagaocnx6JZWz8Vc44kxlFH2a8IMiBVpQEHKIIM9D8J1V07fnOuYrlgD41ASx7n4emetxK/2dd+g4WqYcrNY6cld49v3IXEFt8URaB3xOc8dFydqb5/3OGMV1VM3AxtzEzhSqFHkeNHSb+vKFKyj4SqHl7rNhxFecvp+rh9Z239yp7yZ9T4uzP7fz1wmbIqdlI7vtK++BsIx9kwPg=="
+    "value": "[redacted: TradingView compiled script]"
    },
    {
     "id": "pineId",
@@ -12389,10 +12389,38 @@
  "warnings": [
   "the newest D/W/M bar closed less than 5 h before this capture: TradingView confirms such a bar hours after the regular close (measured between 19:22 and 20:55 ET, docs/pine/barstate.md ruling 3.1), so the vendor's own barstate.isconfirmed may still read 0 on it"
  ],
+ "redactions": [
+  {
+   "field": "study.inputs[name=ILScript].value",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 774,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 63730,
+    "fnv1a": 182470486
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:40Z"
+  },
+  {
+   "field": "study.inputs[name=ILScript].defval",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 774,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 63730,
+    "fnv1a": 182470486
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:40Z"
+  }
+ ],
  "receipt": {
   "algo": "fnv1a32-utf16",
   "over": "JSON.stringify(capture without its receipt key)",
-  "chars": 63730,
-  "fnv1a": 182470486
+  "chars": 62842,
+  "fnv1a": 841453691
  }
 }

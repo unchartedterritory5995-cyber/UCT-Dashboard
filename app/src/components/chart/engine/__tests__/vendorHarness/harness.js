@@ -10,7 +10,7 @@
 
 import fs from 'node:fs'
 import path from 'node:path'
-import { validateCapture } from '../../../../../../../tools/vendor_harness/schema.mjs'
+import { validateCapture, verifyRedactions } from '../../../../../../../tools/vendor_harness/schema.mjs'
 import { compareCapture, renderSummary, compareObjectsV2, MATCH_SUBSTITUTED } from '../../../../../../../tools/vendor_harness/compare.mjs'
 import { detectFormat, fromObservation, fromProbeRows } from '../../../../../../../tools/vendor_harness/adapters.mjs'
 import { runOurSide } from './ourSide'
@@ -50,6 +50,10 @@ export function loadCapture(file) {
     return { file: rel, format: 'unreadable', reason: `not JSON: ${err.message}` }
   }
   const { format, reason } = detectFormat(json, path.basename(file))
+  // ⛔⛔ a committed capture carries TradingView's compiled script REDACTED, and a redacted FILE is accepted only through
+  // its `redactions` note (`schema.mjs::verifyRedactions`): an unexplained re-seal is refused here, by name
+  const rd = format === 'harness-v1' ? verifyRedactions(json) : { ok: true }
+  if (!rd.ok) return { file: rel, format: 'refused', reason: `redactions: ${rd.reason}` }
   if (format === 'harness-v1') {
     // ⭐ U13 — a capture taken before tv_capture.js recorded the x table may have an xmap
     // sidecar at `<run>/xmap/<id>.json` (capture session S10): attached BESIDE it
