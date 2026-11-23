@@ -205,6 +205,7 @@ describe('the app store', () => {
     localStorage.setItem('uct.minuteFeed', '1')
     const { s, done } = await appStore()
     expect(live1m()).toEqual([])                                 // not before a chart is on the page
+    s.registry.acquire('BBB_1')                                  // a row a list warmed: an idle 1m key to feed
     s.subscribe('AAA_1', () => {})
     const feed = await s.minuteFeed().ready
     expect(feed.running()).toBe(true)

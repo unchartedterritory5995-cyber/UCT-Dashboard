@@ -9,9 +9,14 @@
 //   P6 a member the edge REFUSES (401): quiet, and a handful of requests an hour, not one a minute
 //   P7 a feed that is not there (404 every minute): bounded the same way
 //   P8 one frame clears the backoff
+//   ONLY WHILE THERE IS SOMETHING TO FEED (an idle regular 1m key is held):
+//   G1 no 1m key held: no request at all                     G2 only a 1m key a chart is on: none
+//   G3 only 5m / 15m / D keys: none                          G4 only a windowed (replay) 1m key: none
+//   G5 the first idle 1m key held starts it within seconds, at the minute then due (no backlog)
+//   G6 the last one gone (a chart is now on it, or it was evicted) stops it within one minute; held again, it resumes
 import { describe, it, expect, afterEach } from 'vitest'
 import { createRegistry } from './registry'
-import { createPageMinuteFeed, FAIL_PAUSE_MS, REFUSED_PAUSE_MS } from './minuteFeed'
+import { createPageMinuteFeed, FAIL_PAUSE_MS, REFUSED_PAUSE_MS, WANT_RECHECK_MS } from './minuteFeed'
 import { ACTION, keyOf } from './types'
 import { DEFAULT_BASE } from '../../lib/minuteFrames/consumer'
 import { writeFrame, framePath, frameResponse, statusResponse } from '../../lib/minuteFrames/testing/frameWriter'
@@ -42,13 +47,16 @@ function edge({ status = null } = {}) {
   return { fetchImpl, asked, st, paths: () => asked.map((a) => a.path) }
 }
 
-function page(e, nowMs, extra = {}) {
+/** `hold` (default true): the page holds one idle regular 1m key (a warmed row), so there is something to feed. */
+function page(e, nowMs, { hold = true, maxKeys, ...extra } = {}) {
   const clock = { ms: nowMs }
   const env = { visible: true, wake: null }
+  const active = new Set()
   let pending = null
-  const registry = createRegistry({ ctx: () => ({ nowMs: clock.ms }) })
+  const registry = createRegistry({ ctx: () => ({ nowMs: clock.ms }), ...(maxKeys != null ? { maxKeys } : {}) })
+  if (hold) registry.acquire(keyOf({ sym: 'HOLD', tf: '1' }))
   const feed = createPageMinuteFeed({
-    store: { registry, isActive: () => false },
+    store: { registry, isActive: (k) => active.has(k) },
     fetchImpl: e.fetchImpl, now: () => clock.ms, visible: () => env.visible,
     onVisible: (cb) => { env.wake = cb; return () => { env.wake = null } },
     consumerOpts: {
@@ -59,7 +67,7 @@ function page(e, nowMs, extra = {}) {
     ...extra,
   })
   return {
-    clock, env, registry, feed,
+    clock, env, registry, feed, active,
     delay: () => pending?.ms ?? null,
     /** Fire the pending timer (the clock moves by its delay first). */
     async run() { const t = pending; pending = null; clock.ms += t.ms; await t.fn() },
@@ -193,5 +201,87 @@ describe('the page minute feed', () => {
     const n = e.asked.length
     await p.runUntil(at(40, 20))
     expect(e.asked.length).toBe(n + 4)                           // one a minute again
+  })
+})
+
+describe('the page minute feed polls only while an idle regular 1m key is held', () => {
+  const k1 = (sym) => keyOf({ sym, tf: '1' })
+
+  it('G1 no 1m key held: no request at all (it looks again every few seconds, and asks nothing)', async () => {
+    const e = edge()
+    const p = page(e, at(32, 20), { hold: false })
+    p.feed.start()
+    await p.run()
+    expect(p.delay()).toBe(WANT_RECHECK_MS)
+    await p.runUntil(at(40, 20))                                 // eight minutes
+    expect(e.asked).toEqual([])
+    expect(p.feed.status()).toMatchObject({ running: true, waiting: true, requests: 0 })
+  })
+
+  it('G2 only a 1m key a chart is on (its own stream keeps it current): none', async () => {
+    const e = edge()
+    const p = page(e, at(32, 20), { hold: false })
+    p.registry.acquire(k1('AAA'))
+    p.active.add(k1('AAA'))
+    p.feed.start()
+    await p.runUntil(at(36, 20))
+    expect(e.asked).toEqual([])
+  })
+
+  it('G3 only 5m, 15m and D keys held (no 1m chart anywhere): none', async () => {
+    const e = edge()
+    const p = page(e, at(32, 20), { hold: false })
+    for (const tf of ['5', '15', '60', 'D']) p.registry.acquire(keyOf({ sym: 'AAA', tf }))
+    p.feed.start()
+    await p.runUntil(at(36, 20))
+    expect(e.asked).toEqual([])
+  })
+
+  it('G4 only a windowed (replay) 1m key: none', async () => {
+    const e = edge()
+    const p = page(e, at(32, 20), { hold: false })
+    p.registry.acquire(keyOf({ sym: 'AAA', tf: '1', window: { to: T(10) } }))
+    p.feed.start()
+    await p.runUntil(at(36, 20))
+    expect(e.asked).toEqual([])
+  })
+
+  it('G5 the first idle 1m key held starts it within seconds, at the minute then due (no backlog)', async () => {
+    const e = edge()
+    const p = page(e, at(32, 20), { hold: false })
+    p.feed.start()
+    await p.runUntil(at(35, 10))                                 // 10:05:10: nothing asked so far
+    expect(e.asked).toEqual([])
+    p.registry.acquire(k1('AAA'))                                // a list warms a row
+    await p.run()
+    expect(p.clock.ms).toBeLessThanOrEqual(at(35, 10) + WANT_RECHECK_MS)
+    expect(e.paths()).toEqual([name(34)])                        // the minute due at 10:05:1x, and only it
+    expect(p.feed.status().waiting).toBe(false)
+    await p.run()
+    expect(e.paths()).toEqual([name(34), name(35)])              // then one a minute
+    expect(p.clock.ms).toBe(at(36, 7))
+  })
+
+  it('G6 the last one gone stops it within one minute; held again, it resumes at the minute then due', async () => {
+    const e = edge()
+    const p = page(e, at(32, 20), { hold: false, maxKeys: 0 })   // (maxKeys 0: a released key is evicted at once)
+    p.registry.acquire(k1('AAA'))
+    p.registry.acquire(k1('BBB'))
+    p.feed.start()
+    await p.run(); await p.run()
+    expect(e.paths()).toEqual([name(31), name(32)])
+    p.active.add(k1('AAA'))                                      // a chart is now on one...
+    p.registry.release(k1('BBB'))                                // ...and the other left the registry
+    expect(p.registry.has(k1('BBB'))).toBe(false)
+    const due = p.clock.ms + p.delay()
+    expect(p.delay()).toBeLessThanOrEqual(60_000)                // its next look is at most a minute away
+    await p.run()
+    expect(p.clock.ms).toBe(due)
+    expect(e.asked).toHaveLength(2)                              // ...and it asks nothing
+    await p.runUntil(at(38, 0))
+    expect(e.asked).toHaveLength(2)
+    p.active.delete(k1('AAA'))                                   // the chart leaves: an idle 1m key again
+    await p.run()
+    expect(e.paths()).toEqual([name(31), name(32), name(36)])    // the minute then due; 10:03 to 10:05 are not fetched
   })
 })

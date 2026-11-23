@@ -92,6 +92,8 @@ class HttpError extends Error {
  * @param {Function} [o.elapsed]           a monotonic ms clock for the slices (default performance.now)
  * @param {boolean} [o.tailOnly]           follow the newest minute only: never head.json, never today.bin (see the header)
  * @param {number} [o.tailRetries]         tailOnly: asks again for a minute file that is not there yet, before giving it up
+ * @param {number|Function} [o.recheckMs]  while `isVisible` says no: when to look again (default a minute; a function
+ *                                         is asked each time, so a caller can look sooner for a reason it knows)
  */
 export function createMinuteFrameConsumer({
   sink, base = DEFAULT_BASE, fetchImpl = (...a) => fetch(...a), now = () => Date.now(),
@@ -100,7 +102,7 @@ export function createMinuteFrameConsumer({
   clearTimer = (t) => clearTimeout(t), random = Math.random,
   sliceMs = 8, yieldTo = () => new Promise((r) => setTimeout(r, 0)),
   elapsed = () => (typeof performance !== 'undefined' ? performance.now() : Date.now()),
-  tailOnly = false, tailRetries = 3,
+  tailOnly = false, tailRetries = 3, recheckMs = 60_000,
 } = {}) {
   const rollup = createMinuteRollup({ sink, ...rollupOpts })
   let day = null            // 'YYYY-MM-DD' being followed
@@ -331,10 +333,17 @@ export function createMinuteFrameConsumer({
     return nextMinuteEnd - t + pollDelayMs + Math.floor(random() * jitterMs)
   }
 
+  /** How long until the next look while `isVisible` says no (see `recheckMs`); a minute when it cannot be read. */
+  function recheck() {
+    let ms = recheckMs
+    if (typeof recheckMs === 'function') { try { ms = recheckMs() } catch { ms = 60_000 } }
+    return Number.isFinite(ms) && ms > 0 ? ms : 60_000
+  }
+
   async function tick() {
     timer = null
     if (!running) return
-    if (!visible()) { schedule(60_000); return }
+    if (!visible()) { schedule(recheck()); return }
     let result = null
     try {
       busy = step()

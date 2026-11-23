@@ -54,7 +54,10 @@
 //   • the device store ON: this does not run at all then (minuteFeedSwitch.js).
 //
 // COST, ON: one GET a minute per PAGE (the minute file, `immutable` in the browser cache, so a second tab reads the
-// first tab's copy), at low priority, only while the app is visible and the regular session is open. Never head.json,
+// first tab's copy), at low priority, only while the app is visible, the regular session is open AND THERE IS
+// SOMETHING TO FEED: at least one idle regular 1m key is held (a row a list warmed, a chart the member left). No 1m
+// chart anywhere, or only the one a chart is on: no request at all. The first such key starts the polls within
+// WANT_RECHECK_MS, at the minute then due; the last one gone stops them at the next look (within a minute). Never head.json,
 // never today.bin, never a backlog: back from hidden the run starts again at the minute now due, and every key whose
 // walk stops at a minute that was missed is simply behind, as today. A member the edge refuses (401/403), or a feed that is not
 // there, backs off (BOUNDED: see `_failed`) and nothing surfaces. OFF: this module is never loaded.
@@ -77,6 +80,10 @@ export const DRAIN_SLICE_MS = 4
 /** When a minute's frame is asked for, after the minute's end (the consumer's own default: the publisher builds it
  *  5 s after the minute ends), plus the consumer's 0-3 s jitter. */
 export const POLL_DELAY_MS = 7000
+/** With nothing to feed (no idle regular 1m key held) the feed looks again this often: a registry read, no request. */
+export const WANT_RECHECK_MS = 5_000
+/** Hidden, outside the session or paused: it looks again once a minute (the consumer's own default). */
+export const IDLE_RECHECK_MS = 60_000
 /** A minute file that is not there yet is asked again this many times (every 2 s), then given up. */
 export const TAIL_RETRIES = 3
 /** Answers in a row that were not a frame before the feed pauses (one whole minute: the ask and its retries). */
@@ -119,12 +126,13 @@ export function createMinuteFeeder({
   let done = Promise.resolve()
   const stats = { frames: 0, breaks: 0, appended: 0, corrected: 0, rejected: 0 }
 
-  function _heldNow() {
+  /** The regular 1m keys the registry holds (those `only` accepts, when given), as Map<sym, key>. */
+  function _heldNow(only = null) {
     const m = new Map()
     for (const key of registry.keys()) {
       if (!key.endsWith(`_${FEED_TF}`)) continue      // (a windowed key ends in its `@to=`; parseKey has the last word)
       const p = parseKey(key)
-      if (p && p.tf === FEED_TF && !p.window) m.set(p.sym, key)
+      if (p && p.tf === FEED_TF && !p.window && (!only || only(key))) m.set(p.sym, key)
     }
     return m
   }
@@ -267,6 +275,9 @@ export function createMinuteFeeder({
       if (!held) held = _heldNow()
       return held.has(sym)
     },
+    /** Is there anything to feed: a regular 1m key that is held and that no chart is on? (The page's gate asks before
+     *  every poll: with none, a frame would be downloaded for nothing.) */
+    wanted: () => _heldNow((key) => !isActive(key)).size > 0,
     /** Resolves when the appends of every frame applied so far are done (tests). */
     settled: () => done,
     stop() { stopped = true; syms.clear(); pend = []; held = null },
@@ -312,7 +323,7 @@ export function createPageMinuteFeed({
   const pollDelayMs = consumerOpts.pollDelayMs ?? POLL_DELAY_MS
   /** The backoff: answers in a row that were not a frame, pauses in a row, and until when the feed is paused. */
   const back = { fails: 0, pauses: 0, until: 0 }
-  const st = { requests: 0, answered: 0, refused: 0, stopped: null }
+  const st = { requests: 0, answered: 0, refused: 0, stopped: null, waiting: false }
   let consumer = null
   let offVisible = null
 
@@ -343,21 +354,27 @@ export function createPageMinuteFeed({
 
   const api = {
     feeder,
-    /** May a poll go now? The consumer asks before every step (its `isVisible`); false = look again in a minute. */
+    /** May a poll go now? The consumer asks before every step (its `isVisible`); false = look again later (a minute;
+     *  WANT_RECHECK_MS when the only reason is that there is nothing to feed yet). */
     gate() {
+      st.waiting = false
       if (st.stopped) return false
       if (killed()) { api.stop('killed'); return false }        // the server's kill, on a page left open: for good
       const t = now()
       if (t < back.until) return false
       if (!visible()) return false
       // regular session only: the minute now due (it ended `pollDelayMs` ago) must be a regular-session minute
-      return inSession(t - pollDelayMs - 60_000)
+      if (!inSession(t - pollDelayMs - 60_000)) return false
+      // ...and only while there is something to feed (the header: COST). Last, so `waiting` means exactly that.
+      if (!feeder.wanted()) { st.waiting = true; return false }
+      return true
     },
     start() {
       if (consumer || st.stopped) return
       consumer = createMinuteFrameConsumer({
         sink: feeder.sink, fetchImpl: watchedFetch, now, isVisible: api.gate,
         tailOnly: true, tailRetries: TAIL_RETRIES, pollDelayMs,
+        recheckMs: () => (st.waiting ? WANT_RECHECK_MS : IDLE_RECHECK_MS),
         rollup: { tfs: [FEED_TF], accept: feeder.accept },
         ...consumerOpts,
       })
@@ -378,7 +395,7 @@ export function createPageMinuteFeed({
       const c = consumer?.status?.()
       return {
         running: !!consumer && !st.stopped, stopped: st.stopped, requests: st.requests, answered: st.answered,
-        refused: st.refused, pausedUntil: back.until, pauses: back.pauses,
+        refused: st.refused, pausedUntil: back.until, pauses: back.pauses, waiting: st.waiting,
         lastSeq: c?.lastSeq ?? null, lastAppliedAt: c?.lastAppliedAt ?? 0, bytes: c?.bytes ?? 0, ...feeder.stats(),
       }
     },

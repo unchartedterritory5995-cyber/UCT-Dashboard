@@ -212,6 +212,9 @@ describe('a 200-second scan of a 100-row list on a 1-minute chart', () => {
     const minutes = (T0 + PRESSES * STEP_MS - PAGE_OPEN_MS) / 60_000
     expect(on.log.frames.length).toBeLessThanOrEqual(Math.ceil(minutes) + 2)  // one a minute for the PAGE (100 rows held)
     expect(new Set(on.log.frames).size).toBe(on.log.frames.length)           // no minute asked twice
+    // ...and nothing was asked while the page held no idle 1m key: it opened at 09:58:00 with one chart and no list
+    // row (09:56 was due then); the first row was warmed at 09:59:15, when 09:58 was the minute due
+    expect(on.log.frames[0]).toMatch(/\/0958\.bin$/)
     expect(on.status).toMatchObject({ running: true, refused: 0, pauses: 0, breaks: 0 })
     expect(on.status.appended).toBeGreaterThan(100)
   }, 120_000)

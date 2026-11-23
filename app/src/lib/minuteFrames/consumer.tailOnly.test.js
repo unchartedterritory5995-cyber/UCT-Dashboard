@@ -12,6 +12,7 @@
 //   T7 a failing edge (503) is bounded the same way
 //   T8 an INCOMPLETE frame reaches the sink as a gap of its own minute (the shared check)
 //   T9 wake(): the next step now; no request when nothing is due; nothing when stopped
+//   T10 while its caller says "not now" it asks nothing and looks again after `recheckMs` (a number or a function)
 import { describe, it, expect } from 'vitest'
 import { createMinuteFrameConsumer, DEFAULT_BASE } from './consumer'
 import { createMemorySink } from './memorySink'
@@ -175,5 +176,28 @@ describe('tailOnly: one minute file a minute, never the day', () => {
     d.c.stop()
     d.c.wake()
     expect(d.delay()).toBe(null)
+  })
+
+  it('T10 while its caller says not now: nothing is asked, and it looks again after recheckMs', async () => {
+    const e = edge()
+    const gate = { open: false, ms: 5_000 }
+    const d = device(e, at(32, 20), { isVisible: () => gate.open, recheckMs: () => gate.ms })
+    d.c.start()
+    await d.run()
+    expect(d.delay()).toBe(5_000)
+    gate.ms = 1_500
+    await d.run()
+    expect(d.delay()).toBe(1_500)
+    expect(e.asked).toEqual([])
+    gate.open = true
+    await d.run()
+    expect(e.asked).toEqual([name(31)])
+    // the default is a minute (the device store's consumer: unchanged), and a plain number is taken as it is
+    const d2 = device(edge(), at(32, 20), { isVisible: () => false })
+    d2.c.start(); await d2.run()
+    expect(d2.delay()).toBe(60_000)
+    const d3 = device(edge(), at(32, 20), { isVisible: () => false, recheckMs: 7_000 })
+    d3.c.start(); await d3.run()
+    expect(d3.delay()).toBe(7_000)
   })
 })
