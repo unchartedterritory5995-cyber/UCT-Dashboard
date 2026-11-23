@@ -59,8 +59,8 @@
 // the list from the app's import graph), plus `peekBars` (the memPeek readers' replacement).
 
 import { getBarStore } from './index'
-import { keyOf, parseKey, normTf, isIntradayTf, isDateTf, PERIOD_SEC, STATUS, unixToDateLabel, DEV_SRC } from './types'
-import { bucketEnd } from './reducer'
+import { keyOf, parseKey, normTf, isIntradayTf, isDateTf, PERIOD_SEC, STATUS, unixToDateLabel } from './types'
+import { bucketOf } from './reducer'
 import { DAILY_POLL_MS } from './network'
 import { legacyBars } from './adapter'
 import { fullBarsFor, firstPaintBarsFor } from '../../utils/barsBackfill'
@@ -68,7 +68,7 @@ import { PREFETCH_WINDOWS, prefetchTargetBars } from '../../utils/historyPrepend
 import { viewShowExtended } from '../../utils/viewSession'
 import { isNativeTf, fetchTf } from '../../components/chart/timeframes'
 import { isCacheCurrentForView, expectedBarsBehind } from '../../utils/marketSession'
-import { deviceCopyFresh } from '../deviceStore/fresh'
+import { deviceCopyFresh, inRegularSession } from '../deviceStore/fresh'
 import { deviceServesTf } from '../deviceStore/tfs'
 import { BARSTORE } from '../../components/chart/barStoreSwitch'
 import { prefetchTickerMeta as _defaultTickerMeta } from '../../hooks/useTickerMeta'
@@ -235,6 +235,34 @@ export const EDGE_WARM_REFUSED = -1
  *  ticker?" (its index: one edge round trip) before the warm gives up on it. */
 export const INTENT_LAKE_INDEX_WAIT_MS = 400
 const SHORT_FULL_MAX = 4000
+
+/**
+ * ⛔ THE ONE DEVICE REFUSAL (reviews of #2549 P2-M1, #2554 P3-M1 / P3-M2): why an entry holding a device copy's rows
+ * (reducer `deviceRows`) and no server answer may not be a first frame now, or null. PURE: the snapshot, the view's
+ * session, the stamp of the device copy the entry holds (persist.deviceThroughOf) and the clock. Asked by every door of
+ * the switch (createPrefetch `_deviceRefusal`) AND by the chart's own paint rule (useBarSnapshotBars: a first mount, a
+ * timeframe change), so the two can never disagree. Null for an entry with no device rows: never anything with the
+ * store off.
+ *   'ext-hours' an EXTENDED view of a key both sessions share (1/5/15/30): the device copy is the regular-session view
+ *               (review of #2189), and the server's answer would add the pre/post-market bars after the paint
+ *   'stale'     not complete through the last 2 minutes / the last closed session (deviceStore/fresh.js), and, while
+ *               the regular session is open, not complete through the START of the key's current bucket (P3-M1): the
+ *               device then lacks (part of) the bucket that just ended. A 1m copy never carries a forming row, so in
+ *               the first seconds of every minute it simply LACKED the minute that just closed and painted; a 5m-60m
+ *               copy short of the bucket that just rolled is the same case, which a separate 'rolling' rule used to
+ *               catch: this one covers it (the push-closed short row included: its bucket ended at the current
+ *               bucket's start, after the stamp), so 'rolling' is gone.
+ */
+export function deviceRefusalOf(s, { extended = false, through = null, nowMs = Date.now() } = {}) {
+  if (!s || s.deviceRows !== true || s.restSeen) return null
+  const p = parseKey(s.key)
+  if (!p) return null
+  const intraday = isIntradayTf(p.tf)
+  if (intraday && p.session == null && extended) return 'ext-hours'
+  if (!deviceCopyFresh(through, p.tf, nowMs)) return 'stale'
+  if (intraday && inRegularSession(nowMs) && !(through >= bucketOf(Math.floor(nowMs / 1000), s))) return 'stale'
+  return null
+}
 
 export function createPrefetch(o = {}) {
   const S = () => o.store ?? getBarStore()
@@ -481,44 +509,13 @@ export function createPrefetch(o = {}) {
    *  copy)? (reducer `deviceRows`: set by a device copy, gone with its rows: a replacing copy, an invalidate, an
    *  eviction.) Never with the store off. */
   function _deviceRows(s) { return !!s && s.deviceRows === true && !s.restSeen }
-  /**
-   * ⛔ THE ONE DEVICE REFUSAL (review of #2549, P2-M1 and the rolling bucket): why an entry holding device rows may not
-   * be a first frame now, or null. Checked at every door that commits a held copy: peekDisplayable (the switch's
-   * same-task route and its waiter), _localPaints (the intraday prepare, the warm's flip rule, the lake-alone commit),
-   * the lake-alone commit's fallback, and deviceVerdict. It keyed on `source === 'device'`, which the lake's join
-   * (network.lakeSeed, on every normal intraday switch) rewrites to 'lake': from then on the switch committed on status
-   * alone. And for a key the lake does not carry the status rule alone let a stale device copy through
-   * (peekDisplayable never read its stamp, and `_behindClock` skips a device copy).
-   *   'ext-hours' an EXTENDED view of a key both sessions share (1/5/15/30): the device copy is the regular-session
-   *               view (review of #2189), and the server's answer would add the pre/post-market bars after the paint
-   *   'stale'     not complete through the last 2 minutes / the last closed session (deviceStore/fresh.js), on the
-   *               stamp of the device copy the entry holds (persist.deviceThroughOf)
-   *   'rolling'   a LOCAL bar (the device's forming bar, or a row the clock or a push closed from it) in a bucket that
-   *               has ENDED by the clock and that the device's stamp does not cover: the bucket short of its last
-   *               minute(s), the forming candle a member would see change when the answer lands
-   */
+  /** The one device refusal (`deviceRefusalOf`, module level), for this facade's view, stamps and clock. Checked at every
+   *  door that commits a held copy: peekDisplayable (the switch's same-task route and its waiter), _localPaints (the
+   *  intraday prepare, the warm's flip rule, the lake-alone commit), the lake-alone commit's fallback, and
+   *  deviceVerdict. The chart's own paint rule asks the same function (useBarSnapshotBars). */
   function _deviceRefusal(s, showExtended) {
     if (!_deviceRows(s)) return null
-    const p = parseKey(s.key)
-    if (!p) return null
-    if (isIntradayTf(p.tf) && p.session == null && extOf(showExtended)) return 'ext-hours'
-    const through = S().persist?.deviceThroughOf?.(s.key) ?? null
-    if (!deviceCopyFresh(through, p.tf, now())) return 'stale'
-    return _deviceRolling(s, through) ? 'rolling' : null
-  }
-  /** Does the entry hold a LOCAL bar in an ended bucket the device's `through` does not cover? Only the newest rows
-   *  can (a row ending after `through` is newer than everything the device completed). */
-  function _deviceRolling(s, through) {
-    const nowSec = Math.floor(now() / 1000)
-    const ended = (t) => { const e = bucketEnd(t, s); return e <= nowSec && e > through }
-    const d = s.developing
-    if (d && d.src === DEV_SRC.LOCAL && ended(d.t)) return true
-    for (let i = s.bars.length - 1; i >= 0; i--) {
-      const b = s.bars[i]
-      if (!(bucketEnd(b.t, s) > through)) break
-      if (b.src === 'local' && ended(b.t)) return true
-    }
-    return false
+    return deviceRefusalOf(s, { extended: extOf(showExtended), through: S().persist?.deviceThroughOf?.(s.key) ?? null, nowMs: now() })
   }
 
   /**
@@ -768,8 +765,8 @@ export function createPrefetch(o = {}) {
     // a held copy the device rule refuses for its age or a rolled bucket is brought forward first (its synchronous half
     // lands now): the device may hold a newer one
     const s0 = S().peek(key)
-    const r0 = _deviceHeld(s0) ? _deviceRefusal(s0, false) : null   // (its age and its buckets, whatever the view)
-    if (r0 === 'stale' || r0 === 'rolling') {
+    const r0 = _deviceHeld(s0) ? _deviceRefusal(s0, false) : null   // (its age, whatever the view)
+    if (r0 === 'stale') {
       try { S().persist.refreshDevice?.(key, URGENT) } catch { /* optional */ }
     }
     const s = S().peek(key)
