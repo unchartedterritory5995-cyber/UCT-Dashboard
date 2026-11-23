@@ -3008,8 +3008,13 @@ function runtimeLaneDocument({ source, id, name, t, hostReason, hostGuard = null
       note: `\`${w.label}\` is not drawn: ${w.why}. Nothing is drawn for it rather than a guess.`,
     })
   }
-  // ⭐⭐ e96 — the levels drawn in the neutral presentation, or not drawn (see the host document's).
+  // ⭐⭐ e96 — the levels drawn in the neutral presentation, or not drawn (see the host document's), and each level
+  // the translation could not read, in the translation's own words (the editor's status lists that sentence once)
   for (const n of levelNotesOf(levelPlan)) notes.push(n)
+  for (const u of ((t.presentation || {}).levelsWithheld || [])) {
+    const said = (t.notes || []).find((x) => x && x.code === 'pine:chart-only' && x.line === u.line && /^`hline` is not drawn/.test(x.message || ''))
+    notes.push({ name: '`hline`', note: said ? said.message : `\`hline\` is not drawn: ${u.reason}` })
+  }
   // ⭐ RT2 — a document that repaints says so, naming what it reads, in the
   // member's terms. A non-repainting one says nothing (the badge is silent on
   // the clean case by design, `repaintVerdict.js`).

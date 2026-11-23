@@ -33,8 +33,9 @@ const BARS = [
   { t: 1700172800, o: 10.5, h: 14, l: 8.5, c: 13, v: 1 },
   { t: 1700259200, o: 13, h: 13.5, l: 11, c: 12, v: 1 },
 ]
+// the v5 palette (`pinePalette.js`, captured): the GAPS probe is a v5 script
 const GREEN = '#4CAF50'
-const RED = '#F23645'
+const RED = '#FF5252'
 
 /** The candle series' bars, as the chart library is handed them. */
 function drawnBars(d, id) {
@@ -61,9 +62,9 @@ function drawnBars(d, id) {
 const hexOfPacked = (c) => c
 
 describe('the host door draws a candle or bar as ONE row, never four lines', () => {
-  const HA = '//@version=5\nindicator("ha")\nhaClose = (open + high + low + close) / 4\nvar float haOpen = na\n'
-    + 'haOpen := na(haOpen[1]) ? (open + close) / 2 : (haOpen[1] + haClose[1]) / 2\n'
-    + 'plotbar(haOpen, math.max(high, haOpen, haClose), math.min(low, haOpen, haClose), haClose, "HA bars", color = haClose > haOpen ? color.green : color.red)\n'
+  // a computed bar with no recurrence, so the host door (not a cost route to the run) is the one asked
+  const HA = '//@version=5\nindicator("ha")\nm = ta.sma(close, 3)\n'
+    + 'plotbar(m[1], math.max(high, m), math.min(low, m), m, "HA bars", color = m > m[1] ? color.green : color.red)\n'
   it('a computed plotbar is one ohlcBars row naming three hidden price columns and a body colour column', () => {
     const d = door(HA, 'u_e96_c1')
     expect(d.ok).toBe(true)
