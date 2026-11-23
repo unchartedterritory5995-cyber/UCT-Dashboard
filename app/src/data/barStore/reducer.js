@@ -700,6 +700,25 @@ function applyRest(state, action, ctx, kind) {
     rows = ingestRows([...rows, devIn], working, { rev, fin: false, src: 'rest' })
     devIn = null
   }
+  // ⛔ DEVICE ROWS NEVER OUTLIVE THE FIRST ANSWER AS ANSWERED ROWS (review of #2554, P3-L1). An answer whose tail LAGS the
+  // device (an unverified or stale-while-revalidate serve) left the device's newer closed rows and its newer forming bar
+  // in place, under `restSeen`: painted with every device rule off, and written by persist as a server-backed copy that
+  // a later page reads back unmarked. They go: the rows newer than this answer's newest bar are the server's to send
+  // (the stream and the next poll do). Only LOCAL rows and a LOCAL forming bar no tick touched; a live bar is kept.
+  // Only on the first answer to an entry holding device rows: never with the store off.
+  const newestIn = state.deviceRows && !state.restSeen
+    ? Math.max(rows.length ? rows[rows.length - 1].t : -Infinity, devIn ? devIn.t : -Infinity) : null
+  if (finite(newestIn)) {
+    const kept = working.bars.filter((b) => !(b.src === 'local' && b.t > newestIn))
+    const d = state.developing
+    const dropDev = !!d && d.src === DEV_SRC.LOCAL && !d.ticked && d.t > newestIn
+    if (kept.length !== working.bars.length || dropDev) {
+      state = Object.freeze({ ...state, bars: Object.freeze(kept), developing: dropDev ? null : d,
+        baseRev: state.baseRev + 1, devRev: state.devRev + (dropDev ? 1 : 0) })
+      working.bars = state.bars
+      working.developing = state.developing
+    }
+  }
 
   // What this answer seals.
   // A contract answer seals exactly its `complete_through`; NULL means nothing is
@@ -1214,6 +1233,13 @@ function applyError(state, action, ctx) {
   if (action.gen != null && action.gen !== state.gen) return state
   const error = p.terminal || p.error === 'no_data' ? 'no_data' : String(p.error || p.status || 'error')
   if (error === state.error) return state
+  // ⛔ (review of #2554, P3-L1) THE SERVER HAS NO DATA FOR A KEY HOLDING DEVICE ROWS (a seed symbol renamed or delisted
+  // after the build): those rows go with the answer. Kept, they read as answered (`restSeen`: every device rule off),
+  // painted, and persist wrote them as a server-backed copy. Only an entry holding device rows and no answer yet: never
+  // with the store off, where the held rows stay exactly as before.
+  if (error === 'no_data' && state.deviceRows && !state.restSeen) {
+    return finalize(state, { error, restSeen: true, bars: EMPTY_BARS, developing: null, deviceRows: false }, ctx)
+  }
   // A terminal no-data answer IS a server answer (the entry never returns to local-only).
   return finalize(state, error === 'no_data' ? { error, restSeen: true } : { error }, ctx)
 }
