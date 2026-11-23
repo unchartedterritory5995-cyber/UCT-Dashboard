@@ -511,15 +511,19 @@ def test_F3_seed_kicks_are_bounded_and_use_a_dedicated_pool(monkeypatch):
     monkeypatch.setattr(stream, "_seed_closed", False, raising=False)
     monkeypatch.setattr(stream, "_seed_pool", None)
     fn = lambda sym: (started.append(threading.current_thread().name), gate.wait(5))
-    results = [stream._kick_seed(fn, f"S{i}") for i in range(6)]
-    assert results == [True, True, True, False, False, False]
-    gate.set()
-    deadline = __import__("time").time() + 5
-    while stream._seed_inflight and __import__("time").time() < deadline:
-        __import__("time").sleep(0.01)
-    assert stream._seed_inflight == 0
-    assert all(n.startswith("bars-seed") for n in started)
-    stream._seed_pool.shutdown(wait=False)        # this test's pool: leave no idle worker behind
+    try:
+        results = [stream._kick_seed(fn, f"S{i}") for i in range(6)]
+        assert results == [True, True, True, False, False, False]
+        gate.set()
+        deadline = __import__("time").time() + 5
+        while stream._seed_inflight and __import__("time").time() < deadline:
+            __import__("time").sleep(0.01)
+        assert stream._seed_inflight == 0
+        assert all(n.startswith("bars-seed") for n in started)
+    finally:
+        gate.set()
+        if stream._seed_pool is not None:
+            stream._seed_pool.shutdown(wait=False)    # this test's pool: leave no idle worker behind
 
 
 def test_F4_half_day_rth_buckets_end_at_1300():

@@ -120,6 +120,29 @@ def test_T6_a_test_that_wants_seeds_can_reopen_the_state_after_a_lifespan_stoppe
     assert stream._seed_inflight == 0
 
 
+def test_T7a_a_test_that_leaves_the_pool_stopped():
+    """First half of a PAIR (T7b reads what this leaves). What a lifespan test does: stop the pool and
+    put nothing back. No monkeypatch here on purpose."""
+    stream.shutdown_seed_pool()
+    assert stream._seed_closed is True
+
+
+def test_T7b_the_next_test_finds_the_pool_open_again():
+    """tests/conftest.py reopens a pool the previous test left stopped; without it this test, and every
+    later test whose stream kicks a seed, would be refused. (Run alone it passes trivially: T7a is what
+    arms it.)"""
+    assert stream._seed_closed is False
+    done = threading.Event()
+    try:
+        assert stream._kick_seed(lambda s: done.set(), "X") is True
+        assert done.wait(5)
+    finally:
+        pool = stream._seed_pool
+        if pool is not None:
+            pool.shutdown(wait=True)
+            stream._seed_pool = None
+
+
 def test_T4_the_lifespan_stops_the_seed_pool_after_it_serves():
     """The call sits in the lifespan's shutdown half (after its one `yield`), and is the stream router's own."""
     tree = ast.parse((ROOT / "api" / "main.py").read_text(encoding="utf-8"))

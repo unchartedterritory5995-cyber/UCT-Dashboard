@@ -202,6 +202,23 @@ def _reset_uct_agent_meters():
 
 
 @pytest.fixture(autouse=True)
+def _reopen_the_bars_seed_pool_a_lifespan_test_stopped():
+    """A test that runs the real `api.main` lifespan through its shutdown half (the boot time box, the SPA
+    HEAD rail, any `with TestClient(app)` over api.main) stops the bars-seed pool for good, as a process
+    shutdown should (stream.shutdown_seed_pool). One pytest process is many "processes" in a row: without
+    this, every later test whose stream kicks a seed is silently refused (seen: a seed-kick test reading six
+    refusals, and `api/routers/stream_bars_test.py` expecting `seeded == ["AAPL"]`). After each test, a pool
+    left closed is reopened. A test that patches the state itself is untouched: monkeypatch undoes its
+    patches before this runs. Looked up via sys.modules (no forced import)."""
+    yield
+    import sys
+    mod = sys.modules.get("api.routers.stream")
+    if mod is not None and getattr(mod, "_seed_closed", False):
+        mod._seed_closed = False
+        mod._seed_pool = None
+
+
+@pytest.fixture(autouse=True)
 def _reset_calendar_serve_stale():
     """Clear the Calendar's serve-stale slots between tests.
 
