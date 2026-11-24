@@ -88,7 +88,9 @@ describe('the app theme', () => {
     await m.say('switch to light mode', (c) => [THEME(c, 'light')])
     await waitFor(() => expect(m.server.posts.length).toBeGreaterThan(0))
     await m.p.idle()
-    await waitFor(() => expect(m.p.transcript()).toMatch(/not saved \(this tab may keep showing it until you reload\)/))
+    // ⛔ INV2: the tab still holds the refused value, so the receipt never says "nothing was left changed" (agentPrefFailure.test.js)
+    await waitFor(() => expect(m.p.transcript()).toMatch(/not saved\) — this tab may keep showing it until you reload, but it is NOT saved/))
+    expect(m.p.transcript()).not.toMatch(/nothing was left changed/)
     expect(m.server.theme).toBe('dark')
     expect(m.live.current.prefs.theme).toBe('light')              // usePreferences setPref: "the optimistic value deliberately survives a failed write"
     expect(m.p.summaries().join(' ')).not.toMatch(/→ Light/)

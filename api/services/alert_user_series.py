@@ -793,6 +793,12 @@ def _make_value_fn(def_id: str, plot_key: str,
         tree = compute.get("ast")
     budget = compute.get("budget")
     address = f"{def_id}.{plot_key}"
+    # ⭐⭐ (train e95, the 2b bind audit) THE GATES BELOW READ THE TREE A BINDING DRAWS: at the declared defaults here
+    # (``ast_bind.tree_at_settings``, as the member door decides), and at each instance's own settings in
+    # ``instance_gate`` (a knob arm the member picked). ``tree`` itself stays the SAVED tree: the column evaluates it
+    # with the instance's inputs, and ``interpret`` prunes it at them.
+    from api.services.ast_bind import tree_at_settings
+    gate_tree = tree_at_settings(tree, definition)
     # ⭐⭐ SETTINGS PARITY (2a) - THE INSTANCE'S PARAMETER SETTINGS. A folded Pine length is a
     # chart setting (`param<N>`, `api/services/param_inputs.py`); the alert row's `params_json`
     # holds the value the member set on the chart. The plot is evaluated with that value written
@@ -823,6 +829,10 @@ def _make_value_fn(def_id: str, plot_key: str,
         sym_why = symbol_moved(params)
         if sym_why:
             return None, sym_why
+        # ⭐⭐ (train e95, the 2b bind audit) a knob arm the member picked, asked the admission's gates
+        knob_why = instance_gate(params)
+        if knob_why:
+            return None, knob_why
         if not param_specs:
             return tree, None
         sig = tuple((s["key"], (params or {}).get(s["key"])) for s in param_specs)
@@ -862,15 +872,15 @@ def _make_value_fn(def_id: str, plot_key: str,
     # bars would fabricate a history. Refused by name instead of arming an alert
     # that reads a hole through a comparison as a permanent "no".
     # ⚠️ Only of a real tree: a missing/falsy one keeps ITS own refusal below.
-    scalars_read = (_lane.unresolved_scalars(tree, None)
-                    if isinstance(tree, Mapping) else [])
+    scalars_read = (_lane.unresolved_scalars(gate_tree, None)
+                    if isinstance(gate_tree, Mapping) else [])
     if scalars_read:
         raise AdmissionRefused(
             "scalar",
             f"{address} {REFUSAL_FRAGMENTS['scalar']} ({', '.join(scalars_read)}): "
             "it is one number per symbol from the nightly snapshot, so an alert "
             "on it would arm and never fire. It works as a screen.")
-    withheld = _lane.whole_series_withheld(tree, [], budget=budget, opts=lane_opts)
+    withheld = _lane.whole_series_withheld(gate_tree, [], budget=budget, opts=lane_opts)
     # ⭐⭐ P0 — AND A PLOT THAT READS A SERIES THIS LANE IS NEVER SUPPLIED. A
     # `sym('SPY', …)` or `ltf(…, '60')` evaluates off `opts["symbols"]` /
     # `opts["lowerTf"]`, and `lane_opts_for` supplies neither — so before P0 the
@@ -882,12 +892,12 @@ def _make_value_fn(def_id: str, plot_key: str,
     # reads (`_symbol_bars`), at the alert's own timeframe; anything else keeps a
     # named refusal. The supply check below is asked with the tickers marked
     # supplied, so `ltf` keeps its own refusal unchanged.
-    tickers, _lower = _external_reads(tree)
+    tickers, _lower = _external_reads(gate_tree)
     cross_code = cross_symbol_refusal(tickers)
     supplied_syms = tuple(tickers) if tickers and cross_code is None else ()
     check_opts = (dict(lane_opts, symbols={t: (True,) for t in supplied_syms})
                   if supplied_syms else lane_opts)
-    unsupplied = unsupplied_reads(tree, check_opts)
+    unsupplied = unsupplied_reads(gate_tree, check_opts)
     if cross_code:
         unsupplied = [cross_code] + [c for c in unsupplied if c != UNSUPPLIED_OTHER_SYMBOL]
     # ⭐⭐ ENGINE 55 — PINE'S MERGED HIGHER-TIMEFRAME READ (`tf_merge`): the week's
@@ -898,13 +908,13 @@ def _make_value_fn(def_id: str, plot_key: str,
     # ⭐⭐ ALERT TF_MERGE (coordinator ruling 2026-11-19, option A) — UNLESS EVERY MERGE IS READ
     # THROUGH A HISTORY OFFSET k >= 1 (`merge_newest_unproven`, static): `x[1]` reads the bar
     # before's merge, which is settled, and the drawing lane draws it on the newest bar (#1996).
-    if merge_newest_unproven(tree, compute):
+    if merge_newest_unproven(gate_tree, compute):
         unsupplied = list(unsupplied) + [_lane.TF_MERGE_NEWEST_CODE]
     if unsupplied:
         raise AdmissionRefused(
             "withheld",
             f"{address} {REFUSAL_FRAGMENTS['withheld']} ({', '.join(unsupplied)}): "
-            + _unsupplied_reason(tree, unsupplied)
+            + _unsupplied_reason(gate_tree, unsupplied)
             + " An alert on it would arm and never fire. It still draws on a "
             "chart that can supply it.")
     if withheld:
@@ -925,6 +935,43 @@ def _make_value_fn(def_id: str, plot_key: str,
     # bars change is honoured the moment they arrive. Captured with the tree.
     from api.services import block_runs as _block_runs
     gates = _block_runs.block_runs_for(definition, plot_key)
+
+    _instance_gates: dict = {}
+
+    def instance_gate(params: Optional[Mapping]) -> Optional[str]:
+        """⭐⭐ (train e95, the 2b bind audit) the admission's gates re-asked of the tree THIS instance's settings bind,
+        or None: the scalar, other-symbol, lower-timeframe, merged-timeframe and whole-series gates above. A knob arm
+        the member picked that reads what this lane cannot answer is withheld BY NAME, never armed to stay silent.
+        None when the settings bind the tree admission was decided on."""
+        knobs = _inputs_for(definition, params)
+        sig = tuple(sorted(knobs.items()))
+        if sig in _instance_gates:
+            return _instance_gates[sig]
+        bound = tree_at_settings(tree, definition, params)
+        why = None
+        if bound is not gate_tree and bound != gate_tree:
+            codes: list = []
+            if isinstance(bound, Mapping) and _lane.unresolved_scalars(bound, None):
+                codes.append("scalar")
+            mine, _low = _external_reads(bound)
+            extra = [t for t in mine if t not in supplied_syms]
+            if extra:
+                codes.append(cross_symbol_refusal(extra) or UNSUPPLIED_OTHER_SYMBOL)
+            codes += [c for c in unsupplied_reads(bound, dict(lane_opts, symbols={t: (True,) for t in mine}))
+                      if c not in codes]
+            if merge_newest_unproven(bound, compute):
+                codes.append(_lane.TF_MERGE_NEWEST_CODE)
+            codes += [c for c in _lane.whole_series_withheld(bound, [], budget=budget, opts=lane_opts)
+                      if c not in codes]
+            if codes:
+                why = (f"{address} {REFUSAL_FRAGMENTS['withheld']} ({', '.join(codes)}): at this setting the "
+                       "indicator reads what the alert lane cannot answer ("
+                       + (_unsupplied_reason(bound, codes) or "a series it is never handed")
+                       + "). An alert on it would arm and never fire. It still draws on a chart that can supply it.")
+        if len(_instance_gates) > 32:
+            _instance_gates.clear()
+        _instance_gates[sig] = why
+        return why
 
     def block_runs_refusal(bars: list, params: dict, opts: Optional[Mapping] = None) -> Optional[str]:
         """Why this plot is withheld on ``bars`` (the gate's own sentence), or None."""
@@ -984,7 +1031,9 @@ def _make_value_fn(def_id: str, plot_key: str,
         run_tree, param_why = tree_for(params)
         if param_why:
             return [None] * len(bars)
-        short = ast_interpret.unresolved_lookback(run_tree, bars)
+        # ⭐ (train e95, the 2b bind audit) the history THIS setting's arm reads: an unpicked knob arm's longer lookback
+        # never withholds the column (the evaluator prunes it at these inputs)
+        short = ast_interpret.unresolved_lookback(tree_at_settings(run_tree, definition, params), bars)
         if short:
             return [None] * len(bars)
         # ⛔ NO TIMEFRAME, NO OTHER SYMBOL: its bars cannot be read at the alert's
@@ -1108,6 +1157,48 @@ def runtime_output_keys(definition: Mapping[str, Any]) -> list:
     with no output (drawn by the run's objects) is not a value an alert can watch."""
     outputs = (definition.get("compute") or {}).get("outputs") or {}
     return [str(k) for k in outputs]
+
+
+#: ⭐ TRACK 6, AL3 -- THE ALERT TARGET FOR A RUNTIME DOCUMENT'S alert() CALLS: ``<def_id>.__alert``.
+#: No stored plot can be spelled so (a plot key starts with a letter: `runtime_definitions._PLOT_KEY_RE`),
+#: so it never collides with a real plot. Its value on a closed bar is 1 when the script called alert()
+#: on that bar, else 0; the trigger is ``is_true`` only (`alert_trigger_policy.admit_request`), and each
+#: closed bar with an event is its OWN fire (`alert_fired_log.fire_key(per_bar=True)`), carrying the
+#: script's message (`alert_calls_message`), truncated to ``ALERT_CALLS_MESSAGE_MAX``.
+ALERT_CALLS_KEY = "__alert"
+ALERT_CALLS_MESSAGE_MAX = 512
+_ALERT_CALL_RE = re.compile(r"(?<![\w.])alert\s*\(")
+
+
+def is_alert_calls_address(address: Any) -> bool:
+    """Is ``address`` a runtime document's alert() target (``<def_id>.__alert``)?"""
+    return isinstance(address, str) and is_user_address(address) \
+        and split_user_address(address)[1] == ALERT_CALLS_KEY
+
+
+def runtime_offers_alert_calls(definition: Mapping[str, Any]) -> bool:
+    """Does this runtime document's source call ``alert()``? Read off the source with its ``//``
+    comments cut (``alertcondition`` is not ``alert``). It decides only whether the target is
+    OFFERED: the run's own record decides whether it ever fires."""
+    if not is_runtime_document(definition):
+        return False
+    src = (definition.get("compute") or {}).get("source")
+    if not isinstance(src, str):
+        return False
+    code = "\n".join(line.split("//", 1)[0] for line in src.splitlines())
+    return bool(_ALERT_CALL_RE.search(code))
+
+
+def runtime_alert_keys(definition: Mapping[str, Any]) -> list:
+    """Every target an alert on a runtime document may watch: its plots (`runtime_output_keys`),
+    then ``ALERT_CALLS_KEY`` when its source calls alert()."""
+    return runtime_output_keys(definition) + ([ALERT_CALLS_KEY] if runtime_offers_alert_calls(definition) else [])
+
+
+def _runtime_want(key: str) -> str:
+    """The ``want`` entry a target is asked under: a plot by its key, the alert() target as ``#alerts``."""
+    from api.services import pine_runtime_codec as codec
+    return codec.ALERTS_WANT if key == ALERT_CALLS_KEY else key
 
 
 def runtime_inputs_for(definition: Mapping[str, Any], params: Optional[Mapping]) -> dict:
@@ -1354,6 +1445,101 @@ def _make_runtime_value_fn(row: Mapping[str, Any], def_id: str, plot_key: str,
     return fn
 
 
+class RuntimeAlertColumn(list):
+    """The alert() target's column: 1.0 on a closed bar the script called alert() on, 0.0 on every
+    other closed bar, ``None`` after the newest closed one; ``.messages`` = ``{bar index: text or
+    None}`` (None: the script's message could not be read, AL1's ``messageWithheld``)."""
+
+    def __init__(self, values: Any, messages: Mapping[int, Optional[str]]):
+        super().__init__(values)
+        self.messages = dict(messages)
+
+
+def _make_runtime_alert_fn(row: Mapping[str, Any], def_id: str,
+                           definition: Mapping[str, Any]) -> Callable[..., Optional[float]]:
+    """TRACK 6, AL3: one admitted runtime document -> "did the script call alert() on this bar".
+    The `_make_runtime_value_fn` shape and prelude (symbol, timeframe, closed bars, the timeframe
+    setting, the admission asked on every call); the run asks ``want=('#alerts',)``
+    (`runtime_server_lane.runtime_alerts_fn`) and its record becomes a 0/1 column."""
+    from api.services import pine_runtime_client as prc
+    from api.services import runtime_server_lane as rsl
+
+    address = f"{def_id}.{ALERT_CALLS_KEY}"
+
+    def column(bars: list, params: Optional[Mapping] = None, tf: Optional[str] = None,
+               sym: Optional[str] = None) -> list:
+        if not sym or not tf:
+            raise rsl.ServerLaneWithheld(
+                prc.INTEGRITY, f"{address}: a script drawn bar by bar runs on one symbol and "
+                "timeframe, and this call named none")
+        batch = _RUNTIME_BATCH.get()
+        now = batch.now if batch is not None and (batch.sym, batch.tf) == (sym, tf) else time.time()
+        try:
+            wire, k = runtime_wire_bars(bars, tf, now)
+        except RuntimeBarsRefused as exc:
+            raise rsl.ServerLaneWithheld(exc.guard, exc.sentence) from exc
+        if k < 0:
+            return RuntimeAlertColumn([None] * len(bars or []), {})
+        tf_why = runtime_timeframe_moved(definition, params)
+        if tf_why:
+            raise rsl.ServerLaneWithheld(TIMEFRAME_SETTING_GUARD, f"{address}: {tf_why}")
+        run = rsl.runtime_alerts_fn(row, RUNTIME_LANE, client_factory=_client_factory())
+        record = run(wire, runtime_inputs_for(definition, params), tf=str(tf), ticker=str(sym))
+        n = len(wire)
+        values: list = [0.0] * n + [None] * (len(bars or []) - n)
+        texts: dict = {}
+        for event in (record or {}).get("events") or []:
+            bar = event.get("bar")
+            if not isinstance(bar, int) or isinstance(bar, bool) or not 0 <= bar < n:
+                continue                     # an event the record could not place on a bar
+            values[bar] = 1.0
+            msg = event.get("message")
+            texts.setdefault(bar, []).append(msg if isinstance(msg, str) else None)
+        messages = {}
+        for bar, parts in texts.items():
+            said = [p for p in parts if p]
+            messages[bar] = "; ".join(said)[:ALERT_CALLS_MESSAGE_MAX] if said else None
+        return RuntimeAlertColumn(values, messages)
+
+    def fn(bars: list, params: Optional[Mapping] = None, tf: Optional[str] = None,
+           sym: Optional[str] = None) -> Optional[float]:
+        return _last_finite(column(bars, params, tf, sym))
+
+    def withheld(bars: list, params: Optional[Mapping] = None, tf: Optional[str] = None) -> Optional[str]:
+        return None
+
+    column.__name__ = f"_runtime_alert_calls_column_{def_id}"
+    fn.__name__ = f"_runtime_alert_calls_{def_id}"
+    for f in (fn, column):
+        f.runtime_plot = ALERT_CALLS_KEY                 # type: ignore[attr-defined]
+        f.runtime_row = row                             # type: ignore[attr-defined]
+        f.reads_symbols = ()                            # type: ignore[attr-defined]
+    fn.column = column                                  # type: ignore[attr-defined]
+    fn.withheld = withheld                              # type: ignore[attr-defined]
+    fn.block_runs_refusal = lambda *a, **k: None        # type: ignore[attr-defined]
+    fn.lookback = None                                  # type: ignore[attr-defined]
+    return fn
+
+
+def alert_calls_message(alert: Mapping[str, Any], bars: list, index: int) -> Optional[str]:
+    """The script's alert() message on closed bar ``index`` for an alert() target, or ``None``
+    (not such a target, no message, or anything unreadable: a fire is NEVER held for its text).
+    Inside the cycle the column is answered from the group's batch, so this costs no request."""
+    try:
+        address = str(alert.get("indicator") or "")
+        if not is_alert_calls_address(address):
+            return None
+        fn = USER_FUNCS.get(scoped_key(alert.get("user_id"), address))
+        column = getattr(fn, "column", None)
+        if column is None:
+            return None
+        from api.services import indicator_alert_evaluator as ev
+        col = column(bars, ev._parse_params(dict(alert)), alert.get("tf"), alert.get("sym"))
+        return (getattr(col, "messages", None) or {}).get(index)
+    except Exception:  # noqa: BLE001 -- the fire is delivered without its text
+        return None
+
+
 def call_series(f: Any, bars: list, params: Mapping, *, tf: Optional[str] = None,
                 sym: Optional[str] = None) -> Any:
     """⭐ THE ONE CALL SHAPE for an alert value function or column: a runtime plot takes
@@ -1470,8 +1656,9 @@ def _gate_runtime_service(row: Mapping[str, Any], definition: Mapping[str, Any],
     tf_why = runtime_timeframe_moved(definition, params)
     if tf_why:
         raise _server_run_refusal(def_id, "", TIMEFRAME_SETTING_GUARD, tf_why)
-    keys = runtime_output_keys(definition)
-    job = prc.Job(job=f"{sym}|{tf}|arm", ticker=str(sym), tf=str(tf), bars=wire, want=tuple(keys),
+    keys = runtime_alert_keys(definition)
+    job = prc.Job(job=f"{sym}|{tf}|arm", ticker=str(sym), tf=str(tf), bars=wire,
+                  want=tuple(_runtime_want(k) for k in keys),
                   runtime_inputs=runtime_inputs_for(definition, params))
     [res] = _runtime_client().run(def_id=def_id, version=row.get("version"), doc=definition,
                                   owner_id=row.get("user_id"), profile=RUNTIME_LANE, jobs=[job])
@@ -1480,7 +1667,7 @@ def _gate_runtime_service(row: Mapping[str, Any], definition: Mapping[str, Any],
         run = prc.Refusal("*", prc.INTEGRITY, "the job is withheld with no run-wide reason")
     if run is not None:
         raise _server_run_refusal(def_id, "", run.guard, run.sentence)
-    return {"plots": {key: res.refusal_for(key) for key in keys}, "compared": len(wire),
+    return {"plots": {key: res.refusal_for(_runtime_want(key)) for key in keys}, "compared": len(wire),
             "rel_tol": None, "digest": res.digest}
 
 
@@ -1559,7 +1746,8 @@ def _prime_runtime_batch(batch: RuntimeBatch, alerts: Sequence[Mapping[str, Any]
                               default=str)
             jobs.setdefault(ikey, (inputs, set()))[1].add(plot)
         batch_jobs = [prc.Job(job=f"{batch.sym}|{batch.tf}|{i}", ticker=batch.sym, tf=batch.tf,
-                              bars=wire, want=tuple(sorted(plots)), runtime_inputs=inputs)
+                              bars=wire, want=tuple(sorted(_runtime_want(p) for p in plots)),
+                              runtime_inputs=inputs)
                       for i, (inputs, plots) in enumerate(jobs.values())]
         batch.requests += 1
         results = _runtime_client().run(def_id=def_id, version=version, doc=definition,
@@ -2027,7 +2215,8 @@ def _admit_runtime_definition(user_id: Any, row: Mapping[str, Any], def_id: str,
         if refusal is not None:
             withheld[address] = _server_run_refusal(def_id, plot_key, refusal.guard, refusal.sentence)
             continue
-        fn = _make_runtime_value_fn(row, def_id, plot_key, definition)
+        fn = (_make_runtime_alert_fn(row, def_id, definition) if plot_key == ALERT_CALLS_KEY
+              else _make_runtime_value_fn(row, def_id, plot_key, definition))
         _with_line(fn, user_id, def_id, plot_key, row.get("version"))
         fns.append((address, fn))
         addresses.append(address)
@@ -2089,14 +2278,15 @@ def user_value_function(user_id: Any, address: str
     if is_runtime_document(definition):
         # ⭐ W5-T13 -- the prefill's (and `create`'s line read's) runtime plot. No service
         # call here: the function asks the verdict and the admission on every call.
-        keys = set(runtime_output_keys(definition))
+        keys = set(runtime_alert_keys(definition))
         if plot_key not in keys:
             raise AdmissionRefused(
                 "definition",
                 f"{address!r} {REFUSAL_FRAGMENTS['definition']} — "
                 f"{def_id} computes plots {sorted(keys)}")
-        return _with_line(_make_runtime_value_fn(row, def_id, plot_key, definition), user_id,
-                          def_id, plot_key, row.get("version"))
+        made = (_make_runtime_alert_fn(row, def_id, definition) if plot_key == ALERT_CALLS_KEY
+                else _make_runtime_value_fn(row, def_id, plot_key, definition))
+        return _with_line(made, user_id, def_id, plot_key, row.get("version"))
     keys = {str(p.get("key")) if isinstance(p, dict) else str(p)
             for p in (definition.get("plots") or [])}
     if plot_key not in keys:
@@ -2399,7 +2589,9 @@ def user_catalog(user_id: Any) -> list[dict]:
             # ⭐ W5-T13 -- a runtime document lists the plots its run computes.
             outputs = set(runtime_output_keys(definition))
             pairs = [(p, k) for p, k in pairs if k in outputs]
-        if not pairs:
+        # ⭐ AL3 -- and, when its source calls alert(), "the script's alert() calls"
+        alert_calls = runtime_offers_alert_calls(definition)
+        if not pairs and not alert_calls:
             continue
         plots = [
             {
@@ -2424,6 +2616,17 @@ def user_catalog(user_id: Any) -> list[dict]:
             }
             for plot, plot_key in pairs
         ]
+        if alert_calls:
+            plots.append({
+                "value": f"{def_id}.{ALERT_CALLS_KEY}",
+                "label": f"{_definition_label(definition, def_id)}: the script's alert() calls",
+                "conditions": [dict(c) for c in conditions],
+                "default_threshold": None,
+                "inputs": _inputs_for(definition, None),
+                "instance_label": _instance_label(definition, def_id),
+                # an event per closed bar: offered as a trigger policy, and only `is true` is admitted
+                "output_type": "events",
+            })
         entries.append({
             "indicator": def_id,
             "label": _definition_label(definition, def_id),

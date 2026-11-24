@@ -122,6 +122,17 @@ export function customBaseBarsOf(base) {
   return ['1', '5', '15', '30', '60'].includes(String(base)) ? 5000 : 6000
 }
 
+/** ⭐ (e95, 2026-11-22) The NATIVE base rows a custom timeframe's window of `bars` rows asks for: an upper bound of base
+ *  rows per output row (a 4h bucket holds at most four 60m rows; an N-day window at most N daily rows), capped at `cap`
+ *  (the route's 60,000). `bars` for a native code. The ONE ratio every reader of another symbol's custom-timeframe bars
+ *  uses (`engine/secondaryBars.js`, `engine/liveTail.js`). */
+export function baseBarsFor(code, bars, cap = 60000) {
+  const spec = resampleSpec(code)
+  if (!spec) return bars
+  const per = spec.kind === 'intradaySession' ? Math.ceil(spec.minutes / Number(spec.base)) : Math.max(1, spec.n || 1)
+  return Math.min(cap, bars * per)
+}
+
 // The full menu, grouped as the user specified. Codes only; labels via tfLabel.
 export const TF_MENU = [
   { group: 'Minutes', codes: ['1', '2', '3', '5', '10', '15', '30', '45', '65', '195'] },

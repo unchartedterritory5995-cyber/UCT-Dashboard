@@ -43,6 +43,7 @@ import { MAX_CHART_TEMPLATES } from '../../components/chart/chartCeilings'
 import { RANGE_OPTS } from '../../components/chart/rangeOptions'
 import { averageCount, withAveragesShown } from '../../components/chart/averageVisibility'
 import * as nativeRegistry from '../../components/chart/engine/nativeRegistry'
+import { prefWriteFailed, readsBack } from '../prefFailure'
 import { compareDisplayOfWords, groupOnlyOfWords } from './comparePhrases'
 
 const sameJson = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
@@ -149,7 +150,8 @@ export const chartTemplatesKind = {
   async commit(host, ref, patch) {
     // the member's own preference writer (setPref → true only once the server accepted it)
     const ok = await host.prefs.write('chart_templates', JSON.stringify(patch.write))
-    if (!ok) throw new Error('the server did not confirm the change, so it is not saved')
+    // ⛔ INV2: the refused value may still be in this tab's cache — "nothing was left changed" only on a read-back of the old list
+    if (!ok) throw prefWriteFailed('the server did not confirm the change, so it is not saved', { unchanged: readsBack(() => rawTemplates(host), patch.prev ?? []) })
     return true
   },
   landed: (s, patch) => !!s && tplSig(s.templates) === tplSig(patch.write),

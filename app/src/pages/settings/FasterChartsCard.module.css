@@ -1,0 +1,60 @@
+/* Settings → Faster charts on this device. UCT Signature (docs/uct-signature-style.md): one card row with a hairline
+   card on the panel, sentence case, two greys, no gold of its own (the dropdown's ✓ is the mark). */
+
+.lede {
+  margin: 0 0 10px;
+  max-width: 68ch;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #93939a;
+}
+
+.card {
+  background: #1a1b1f;
+  border-radius: 9px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 40px;
+  padding: 8px 12px;
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #ededed;
+}
+
+.hint {
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: #93939a;
+}
+
+.note {
+  margin: 8px 0 0;
+  min-height: 16px;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: #93939a;
+}
+
+/* Phone: the dropdown drops under the words. */
+@media (max-width: 640px) {
+  .row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+}

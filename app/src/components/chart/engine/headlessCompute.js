@@ -176,7 +176,11 @@ function drawnOutputs(def, out) {
       const bars = countOnes(mask)
       if (bars) withheld.push({ code, bars })
     }
-    if (warm && warm.withheldBars > 0) withheld.push({ code: RUNTIME_HISTORY_GUARD, bars: warm.withheldBars })
+    // ⭐⭐ T4 E2 — a depth cut with its own words (an event family's record) names its bars by its own code
+    const named = warm && typeof warm.knownFromCode === 'string' && Number.isInteger(warm.knownFrom) && warm.knownFrom > 0
+      ? Math.min(warm.knownFrom, warm.withheldBars) : 0
+    if (named) withheld.push({ code: warm.knownFromCode, bars: named })
+    if (warm && warm.withheldBars - named > 0) withheld.push({ code: RUNTIME_HISTORY_GUARD, bars: warm.withheldBars - named })
     // ⭐⭐ HTF-NEWEST-NARROW — only the plots the run blanked (`keys`; `null` = every column)
     if (newest && (!Array.isArray(newest.keys) || newest.keys.includes(p.key))) {
       for (const code of newest.codes || []) withheld.push({ code, bars: 1 })

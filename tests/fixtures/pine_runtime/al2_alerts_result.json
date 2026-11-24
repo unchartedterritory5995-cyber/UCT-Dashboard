@@ -1,0 +1,28 @@
+{
+ "identity": {
+  "script_engine": "fixture",
+  "runtime_language": "pine",
+  "runtime_frontend": 1,
+  "runtime_ir": 1,
+  "bundle_sha256": "abababababababababababababababababababababababababababababababab"
+ },
+ "job": {
+  "job": "SPY",
+  "n": 12,
+  "want": [
+   "#alerts"
+  ]
+ },
+ "result": {
+  "job": "SPY",
+  "status": "ok",
+  "columns": {},
+  "refusals": [],
+  "warmup": {
+   "withheldBars": 0
+  },
+  "alerts": "{\"fromBar\":0,\"events\":[{\"bar\":3,\"message\":\"hit\",\"freq\":\"once_per_bar_close\"},{\"bar\":7,\"message\":null,\"freq\":\"all\"}],\"dropped\":0}",
+  "alerts_sha256": "f1fa208ae25844e316b831a7235b9fe34c8454fa10ae2cce270607bfbae79d17",
+  "digest": "85233a2bef33e31573bbd406cff39b78859bc96704a23b87dafea049b52322df"
+ }
+}

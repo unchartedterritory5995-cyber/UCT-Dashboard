@@ -142,6 +142,9 @@ export const KEEP = Object.freeze([
  *  naming the key.
  */
 export const DROP = Object.freeze([
+  // ⭐ e95 unit 2b (2026-11-22) — `_functions_refusal_leaves` is read by the conformance TOOL alone
+  // (`tools/ast_conformance.py::assert_corpus_covers_the_table`, off the file on disk): no lane the browser runs reads it.
+  '_functions_refusal_leaves',
   // ⚰️ `_` — THE DOCUMENT'S OWN HEADER, 1,176 CHARACTERS OF PROSE, AND THE SECOND
   // PASSENGER FOUND THE SAME HOUR. Its entry read `// the document's own header,
   // read server-side`, and no lane reads it: there is no `["_"]`, no `get("_")`

@@ -16,6 +16,7 @@ import { memberPaneDefinition } from './memberPaneDefinition'
 import { __permitRuntimePaneForTests } from '../../engine/runtimePaneGate'
 import { __allowEveryRuntimeScriptForTests } from '../../engine/runtimeKill'
 import { runtimeColumnsFor } from '../../engine/runtime/runtimeColumns.js'
+import { EVENTS_KEY } from '../../engine/pineEvents.js'
 
 const flagOf = (rel) => (fs.readFileSync(path.resolve(process.cwd(), rel), 'utf8')
   .match(/source\.(VITE_[A-Z0-9_]+)\s*===\s*'1'/) || [])[1]
@@ -62,12 +63,33 @@ describe('S4-1 on the product path (member door, then the run with the member\'s
     expect(values[BARS.length - 1]).toBe(BARS.length / 2)
   })
 
-  it('⛔ the member moves the anchor to Earnings: the run refuses by name, never a count', () => {
+  // ⭐⭐ T4 E2 (engine 95) — the Earnings arm reads the chart's own events through the events door
+  // (`eventSupply.js`, under `pineEvents.EVENTS_KEY`): never a count drawn without them, refused by name where the door is
+  // dark, and the count stepping on each report's bar where they are served. ⚰️ Before E2 the run refused the read.
+  it('⛔ the member moves the anchor to Earnings: never a count without the events, refused by name where the door is dark', () => {
     const d = memberPaneDefinition({ source: SOURCE, id: 'u_s4door2', name: 's4' })
     expect(d.ok).toBe(true)
     const keys = (d.definition.inputs || []).map((s) => s && s.key)
     expect(keys).toContain('anchor')
-    expect(() => runtimeColumnsFor(d.definition, BARS, { anchor: 'Earnings' }, { tf: 'D', historyFromListing: true }))
-      .toThrow(/request\.earnings/)
+    const ctx = { tf: 'D', historyFromListing: true, symbol: { ticker: 'AAPL', exchange: 'NASDAQ' } }
+    // the events not landed yet: the run WAITS (a pending stop, in the events' own words), and no count is drawn
+    let wait = null
+    try { runtimeColumnsFor(d.definition, BARS, { anchor: 'Earnings' }, ctx) } catch (e) { wait = e }
+    expect(wait && wait.pending).toBe(true)
+    expect(String(wait.message)).toMatch(/UCT is gathering AAPL's earnings/)
+    // the door dark for this member: refused by name, never a count
+    expect(() => runtimeColumnsFor(d.definition, BARS, { anchor: 'Earnings' },
+      { ...ctx, secondary: new Map([[EVENTS_KEY, { status: 'dark', symbol: 'AAPL' }]]) })).toThrow(/earnings data is not available on this chart yet/)
+  })
+
+  it('⭐ (T4 E2) the events served: the count steps once on each report bar, as TradingView draws the anchor', () => {
+    const d = memberPaneDefinition({ source: SOURCE, id: 'u_s4door3', name: 's4' })
+    const daily = BARS.map((b) => ({ ...b, t: new Date(b.t * 1000).toISOString().slice(0, 10) }))
+    const doc = { symbol: 'AAPL', families: { earnings: { state: 'ok', knownFrom: daily[0].t, rows: [
+      { date: daily[5].t, actual: 1.1 }, { date: daily[20].t, actual: 1.3 }] } } }
+    const cols = runtimeColumnsFor(d.definition, daily, { anchor: 'Earnings' }, { tf: 'D', historyFromListing: true,
+      symbol: { ticker: 'AAPL', exchange: 'NASDAQ' }, secondary: new Map([[EVENTS_KEY, { status: 'available', events: doc, symbol: 'AAPL', rev: '1' }]]) })
+    const values = Object.values(cols).find((c) => c && typeof c.length === 'number' && c.length === BARS.length)
+    expect([values[4], values[5], values[19], values[20], values[BARS.length - 1]]).toEqual([0, 1, 1, 2, 2])
   })
 })
