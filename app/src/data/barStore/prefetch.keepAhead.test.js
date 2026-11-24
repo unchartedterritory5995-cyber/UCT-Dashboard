@@ -14,8 +14,12 @@
 //   K1b the same with EXTRA_KEYS more entries a press that no request shows (`peekBars` of unseen symbols).
 //   With `keep` (the hold pins the next NEIGHBOR_KEEP_AHEAD rows), none is evicted.
 //   K3 the pins never stick: reversing the scan releases the rows that were ahead (only the new direction's are kept), a
-//      70-row jump releases all of them, and clear() releases what is left. And a keep never MAKES an entry: a row the
-//      list has not warmed yet is not pinned (an empty entry would hide its cached copies from every first look).
+//      70-row jump releases all of them, and clear() releases what is left. A keep pins only a row the list's warm has
+//      FILLED (the server's answer here): never an absent key (it would make an empty entry) and never an existing EMPTY
+//      one (a read in flight, a shed or failed warm): pinned, either would hide the row's cached copies from the first
+//      looks that hydrate only a key the registry does not hold. A row that stays kept never passes through 0 refs (the
+//      registry could evict it there), and a row both held (+-6) and kept holds both pins: it keeps the hold's once the
+//      member is past it.
 // Real store, real network, real facade, real registry and reducer, a fake server answering within 100 ms.
 import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest'
 import { installFakeIndexedDB } from './testing/fakeIndexedDB'
@@ -146,11 +150,28 @@ describe('the rows kept ahead are released as the member moves', () => {
     const refs = (sym) => w.store.registry.refs(k(sym))
     press(40, 1)                                               // nothing warmed yet: nothing kept, no entry made
     expect(w.store.registry.has(k(flat[60]))).toBe(false)
-    for (const sym of flat) w.store.registry.getSnapshot(k(sym))   // the list's warm makes the entries
+    // the list's warm: the server answers every row but one, which is left an EMPTY entry (a read in flight, a shed warm)
+    w.pf.prefetchBarsToIDB(flat.filter((_, i) => i !== 61), '1', { priority: true, visible: true })
+    await serve(w, 20_000)
+    expect(w.store.peek(k(flat[60]))?.restSeen).toBe(true)
+    w.store.registry.getSnapshot(k(flat[61]))
+    expect(w.store.peek(k(flat[61]))?.bars?.length ?? 0).toBe(0)
     press(40, 1)                                               // scanning down at row 40
     expect(refs(flat[60])).toBe(1)                             // a row 20 ahead is pinned (kept, outside +-6)
     expect(refs(flat[70])).toBe(1)
+    expect(refs(flat[61])).toBe(0)                             // an empty entry is not
     expect(refs(flat[20])).toBe(0)                             // a row 20 behind is not
+    expect(refs(flat[41])).toBe(2)                             // held (+-6) and kept: both pins
+    expect(refs(flat[45])).toBe(2)
+    // two rows down: a row that stays kept never drops to 0 refs on the way (released before it is pinned again)
+    const release = w.store.registry.release
+    const zeroed = []
+    w.store.registry.release = (key) => { release(key); if (key === k(flat[65]) && w.store.registry.refs(key) === 0) zeroed.push(key) }
+    press(42, 1)
+    w.store.registry.release = release
+    expect(zeroed).toEqual([])
+    expect(refs(flat[65])).toBe(1)
+    expect(refs(flat[41])).toBe(1)                             // passed: out of the keep, still inside the hold's +-6
     press(39, -1)                                              // the member turns back up
     expect(refs(flat[60])).toBe(0)                             // the rows that were ahead are released...
     expect(refs(flat[70])).toBe(0)
@@ -162,5 +183,5 @@ describe('the rows kept ahead are released as the member moves', () => {
     hold.clear()
     expect(refs(flat[130])).toBe(0)
     w.store.dispose()
-  })
+  }, 60_000)
 })
