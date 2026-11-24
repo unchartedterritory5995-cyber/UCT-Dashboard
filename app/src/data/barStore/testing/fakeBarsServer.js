@@ -41,7 +41,12 @@ export function intradayRows(tf, now, { since = null, from = OPEN } = {}) {
  *  is stored only LAGGING_S after it ends: the server's write lag at a boundary) | lag:<seconds> (the same, with that
  *  lag, fractional: `lag:1.5`) | lag-unverified:<seconds> (the same, its tail marked `unverified` by the server) |
  *  pending-seal (contract: the bucket that just CLOSED sent as the developing bar, its seal not landed yet, no forming
- *  row) | behind (legacy, 09:40) | behind-unsealed (contract, 09:40, no seal) | nodata | shed | fail */
+ *  row: a MODEL, the real contract never sends a closed bucket as developing) | unsealed-row (the real counterpart: the
+ *  just-closed bucket as a stored ROW not final yet, its close 10.4 where the final is 10.5, sealed through the bucket
+ *  before) | thin:<buckets> (a name with no trade in its newest <buckets> closed buckets: closed rows ending that far
+ *  back, and the server's PROOF `verified_through` = now) | behind (legacy, 09:40) | behind-unsealed (contract, 09:40,
+ *  no seal) | nodata | shed | fail
+ *  ⚠️ `lag:` modes prove only what the store holds: `verified_through` is the store's horizon (now - lag), never now. */
 export function serverAnswer(q, mode = 'ok') {
   if (mode === 'nodata') return { body: { bars: [], no_data: true } }
   if (mode === 'shed') return { body: { error: 'warming' }, status: 503, headers: { 'Retry-After': '3' } }
@@ -84,6 +89,32 @@ export function serverAnswer(q, mode = 'ok') {
       },
     }
   }
+  if (mode === 'unsealed-row') {
+    const closed = intradayRows(tf, now, { since: q.since }).filter((b) => bucketEndUnix(b.t, tf, {}) <= now)
+    const last = closed[closed.length - 1]
+    const rows = last ? [...closed.slice(0, -1), { ...last, c: 10.4 }] : closed
+    const end = rows.length >= 2 ? bucketEndUnix(rows[rows.length - 2].t, tf, {}) : null
+    return {
+      body: {
+        ticker: q.sym, tf: q.tf, bars: rows, contract: 1, grid: 'eth-clock', session: 'rth',
+        cache_key: `b1:${q.sym}:${q.tf}:eth-clock`, series_rev: Date.now(), history_rev: 1,
+        verified_through: now, complete_through: end, tail_status: 'current', developing: null,
+      },
+    }
+  }
+  const thin = /^thin:(\d+)$/.exec(String(mode))
+  if (thin) {
+    const closed = intradayRows(tf, now, { since: q.since }).filter((b) => bucketEndUnix(b.t, tf, {}) <= now)
+    const rows = closed.slice(0, Math.max(0, closed.length - Number(thin[1])))
+    const end = rows.length ? bucketEndUnix(rows[rows.length - 1].t, tf, {}) : null
+    return {
+      body: {
+        ticker: q.sym, tf: q.tf, bars: rows, contract: 1, grid: 'eth-clock', session: 'rth',
+        cache_key: `b1:${q.sym}:${q.tf}:eth-clock`, series_rev: Date.now(), history_rev: 1,
+        verified_through: now, complete_through: end, tail_status: 'verified', developing: null,
+      },
+    }
+  }
   const lag = /^lag(-unverified)?:(\d+(?:\.\d+)?)$/.exec(String(mode))
   if (mode === 'closed' || mode === 'lagging' || lag) {
     // The store holds the CLOSED buckets only (its forming minute not written yet, no live partial in this process):
@@ -96,7 +127,8 @@ export function serverAnswer(q, mode = 'ok') {
       body: {
         ticker: q.sym, tf: q.tf, bars: rows, contract: 1, grid: 'eth-clock', session: 'rth',
         cache_key: `b1:${q.sym}:${q.tf}:eth-clock`, series_rev: Date.now(), history_rev: 1,
-        verified_through: unverified ? null : now, complete_through: end, tail_status: unverified ? 'unverified' : 'verified',
+        verified_through: unverified ? null : (lag ? Math.floor(stored) : now), complete_through: end,
+        tail_status: unverified ? 'unverified' : 'verified',
         developing: null,
       },
     }

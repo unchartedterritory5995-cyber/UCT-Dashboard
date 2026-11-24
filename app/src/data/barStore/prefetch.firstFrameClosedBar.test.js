@@ -17,6 +17,16 @@
 //       C3  the own answer still behind: ONE more ask, WITHOUT since=, inside the BEHIND_HOLD_MAX_MS hold (the held copy)
 //       C4  ...and on the path with no paintable copy (RDDT's)
 //       C5  an own answer the server marked `unverified` lends no grace either (the client half of the server's fix)
+// ...and from the review of #2708:
+//       C6  MEDIUM-1: a name that did not trade, its answer N buckets behind WITH the server's proof (`verified_through`
+//           past the newest closed bucket), is the name not printing at any N and inside the lag window: the grace, one
+//           ask (C6, C6b); WITHOUT that proof it waits (C6c)
+//       C4  LOW (a): a first ask that was already a full read is not asked again in full; C4b the RDDT path (a held local
+//           copy, its first ask a since= delta) is
+//       B1c LOW (b): a developing bar written exactly at its bucket's end holds the frontier (the comparison is >=, in ms)
+//       B1d LOW (c): what the real server sends after a roll (B1b cannot happen: the contract never sends a closed bucket
+//           as developing): the just-closed bucket as a stored ROW not final yet. It is the frontier (the key task), its
+//           close is the provisional one, and the next answer replaces it with the final close
 // Real store, real network, real facade, a held fake server.
 import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest'
 import { installFakeIndexedDB } from './testing/fakeIndexedDB'
@@ -36,14 +46,16 @@ beforeEach(() => {
 })
 afterEach(() => { vi.useRealTimers(); localStorage.removeItem('barspack.version') })
 
-async function boot(modeFor) {
+async function boot(modeFor, { maxKeys = null } = {}) {
   vi.resetModules()
   const server = installFakeBarsServer({ modeFor: typeof modeFor === 'function' ? modeFor : () => modeFor })
   const { createBarStore } = await import('./index')
   const P = await import('./prefetch')
+  const R = await import('./registry')
   const store = createBarStore({
     stream: fakeStream(), candle: fakeCandle(), prices: fakePrices(),
     isHidden: () => false, onVisible: () => () => {}, idle: (fn) => fn(),
+    ...(maxKeys ? { registry: R.createRegistry({ maxKeys, ctx: () => ({ nowMs: Date.now() }) }) } : {}),
   })
   const pf = P.createPrefetch({ store, tickerMeta: () => {}, extended: () => false, visible: () => true, random: () => 0, deepNeighbors: () => false })
   return { server, store, P, pf, k: (sym) => pf.keyFor(sym, '1') }
@@ -95,6 +107,36 @@ describe('B: a copy read before a minute roll is not the frontier', () => {
     expect(w.store.peek(w.k('AAA')).developing?.t).toBe(T(10, 0))
     vi.setSystemTime(at(10, 1, 2))
     expect(w.pf.peekDisplayable('AAA', '1')).toBe(true)
+    w.store.dispose()
+  })
+
+  it("B1c a developing bar written EXACTLY at its bucket's end holds the frontier (>=, ms)", async () => {
+    vi.setSystemTime(at(10, 1, 0))                                    // the answer lands at the close, to the ms
+    const w = await boot('pending-seal')
+    w.pf.prefetchBars(['AAA'], '1', { urgent: true })
+    for (let i = 0; i < 6; i++) { await tick(0); for (const c of w.server.open()) c.respond(); await w.server.flush() }
+    const dev = w.store.peek(w.k('AAA')).developing
+    expect(dev?.t).toBe(T(10, 0))
+    expect(dev?.rev).toBe(at(10, 1, 0))                               // (precondition) written at the bucket's end
+    vi.setSystemTime(at(10, 1, 0) + 500)
+    expect(w.pf.peekDisplayable('AAA', '1')).toBe(true)
+    w.store.dispose()
+  })
+
+  it('B1d the real counterpart: the just-closed bucket as a stored row not final yet is the frontier; the next answer finalises its close', async () => {
+    vi.setSystemTime(at(10, 1, 1))
+    let mode = 'unsealed-row'
+    const w = await boot(() => mode)
+    await warmNext(w, ['AAA'])
+    const row = () => w.store.peek(w.k('AAA')).bars.find((b) => b.t === T(10, 0))
+    expect(row()?.c).toBe(10.4)                                       // the 10:00 row as stored before its final write
+    vi.setSystemTime(at(10, 1, 2))
+    expect(w.pf.peekDisplayable('AAA', '1')).toBe(true)               // the key task: no closed bar is missing
+    mode = 'ok'
+    const sub = w.store.subscribe(w.k('AAA'), () => {})               // the chart, shown: its own request
+    await serve(w, 300)
+    expect(row()?.c).toBe(10.5)                                       // ...brings the final close
+    sub()
     w.store.dispose()
   })
 
@@ -219,19 +261,75 @@ describe("C: the switch's own answer still behind", () => {
     w.store.dispose()
   })
 
-  it('C4 ...and with no paintable copy held (the plain path): an answer behind is asked once more, in full', async () => {
+  it('C4 a cold key: its first ask was already a full read, so it is NOT asked again in full (review of #2708, LOW a)', async () => {
     vi.setSystemTime(at(10, 1, 12))
-    let n = 0
-    const w = await boot(() => (n++ === 0 ? 'lag:180' : 'ok'))       // the first answer three minutes behind, then healed
+    const w = await boot('lag:180')                                   // three minutes behind, no proof
     const n0 = w.server.calls.length
     let out = 'pending'
     w.pf.prepareForDisplay('RRR', '1').then((o) => { out = o })
     await serve(w, w.P.BEHIND_HOLD_MAX_MS + 50)
     const asks = callsOf(w, 'RRR', n0)
-    expect(asks.length, 'an own answer three buckets behind was painted as it was').toBe(2)
-    expect(asks[1].q.since).toBe(null)
+    expect(asks.map((c) => c.q.since)).toEqual([null])                // one full read; a second would hit the same path
+    expect(out).toBe('current')                                       // painted as it is
+    w.store.dispose()
+  })
+
+  it('C4b the RDDT path: a held LOCAL copy (no paintable copy), its first ask a since= delta still behind: asked once more, in full', async () => {
+    vi.setSystemTime(at(9, 45, 10))
+    const w = await boot((q) => (q.since != null ? 'lag:180' : 'ok'), { maxKeys: 4 })
+    await warmNext(w, ['RRR'])                                        // answered at 09:45, written to the caches
+    await w.store.persist.flush()
+    const R = w.store.registry
+    for (let i = 0; i < 8; i++) R.getSnapshot(w.pf.keyFor(`PAD${i}`, '1'))
+    R.acquire(w.pf.keyFor('PAD0', '1')); R.release(w.pf.keyFor('PAD0', '1'))
+    expect(R.has(w.k('RRR'))).toBe(false)                             // (precondition) the registry let it go
+    vi.setSystemTime(at(10, 1, 12))
+    const n0 = w.server.calls.length
+    let out = 'pending'
+    w.pf.prepareForDisplay('RRR', '1').then((o) => { out = o })
+    await serve(w, w.P.BEHIND_HOLD_MAX_MS + 50)
+    const asks = callsOf(w, 'RRR', n0)
+    expect(asks[0]?.q.since, '(precondition) the first ask was a since= delta from the local copy').not.toBe(null)
+    expect(asks.map((c) => c.q.since == null), 'the since= answer behind was not asked again in full').toEqual([false, true])
     expect(out).toBe('current')
     expect(holds(w, 'RRR', T(10, 0))).toBe(true)
+    w.store.dispose()
+  })
+
+  it("C6 MEDIUM-1: a name that did not trade, 5 buckets behind WITH the server's proof: the grace, one ask", async () => {
+    vi.setSystemTime(at(10, 5, 15))
+    const w = await boot('thin:5')                                    // no trade since 09:59, verified through now
+    await warmNext(w, ['THN'])
+    vi.setSystemTime(at(10, 5, 20))
+    const n0 = w.server.calls.length
+    w.pf.prepareForDisplay('THN', '1').catch(() => {})
+    await serve(w, w.P.BEHIND_HOLD_MAX_MS + 50)
+    expect(tailOf(w, 'THN')).toBe(T(9, 59))
+    expect(w.pf.peekDisplayable('THN', '1'), 'a name proven not to have traded waits on every press').toBe(true)
+    expect(callsOf(w, 'THN', n0).length).toBe(1)
+    w.store.dispose()
+  })
+
+  it('C6b ...one bucket behind inside the lag window WITH that proof: the grace too (the window is the fallback)', async () => {
+    vi.setSystemTime(at(10, 0, 55))
+    const w = await boot('thin:1')
+    await warmNext(w, ['THN'])
+    vi.setSystemTime(at(10, 1, 2))
+    w.pf.prepareForDisplay('THN', '1').catch(() => {})
+    await serve(w, w.P.BEHIND_HOLD_MAX_MS + 50)
+    expect(tailOf(w, 'THN')).toBe(T(9, 59))
+    expect(w.pf.peekDisplayable('THN', '1')).toBe(true)
+    w.store.dispose()
+  })
+
+  it('C6c (control) the same gap WITHOUT the proof (a store five minutes behind) lends no grace', async () => {
+    vi.setSystemTime(at(10, 5, 15))
+    const w = await boot('lag:300')
+    await warmNext(w, ['THN'])
+    vi.setSystemTime(at(10, 5, 20))
+    w.pf.prepareForDisplay('THN', '1').catch(() => {})
+    await serve(w, w.P.BEHIND_HOLD_MAX_MS + 50)
+    expect(w.pf.peekDisplayable('THN', '1')).toBe(false)
     w.store.dispose()
   })
 
