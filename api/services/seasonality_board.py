@@ -19,8 +19,17 @@ Cost. Fifteen 8,000-bar reads are too heavy to repeat on every request, so ONE a
 this module, keyed by the New York date:
   * a settled answer (no fund still pending or failed) is reused for the rest of that day;
   * an answer with a fund pending or failed is reused for INCOMPLETE_REUSE_S only, so it heals;
-  * one build at a time: a second caller waits for the build in flight (at most BUILD_WAIT_S)
-    and gets the same answer.
+  * THE REQUEST NEVER BUILDS (builder rule 5, speed pass 2026-11-23). Live, the board took over 30
+    seconds and a member got nothing: the request ran the build itself, and each of the fifteen
+    8,000-bar reads can take the bar store's synchronous full-history fetch (a fund with fewer than
+    7,200 sessions held depends on the store's 6-hour "this is all there is" marker, which lives in
+    the shared cache and is soon evicted). Now ONE background thread builds (`BUILD_THREAD`) and the
+    request answers at once: the held board while it may be reused, else today's last board (past
+    its minute) while the new one is built, else every fund `pending` with `building: true`. The
+    panel asks again;
+  * the newest board is also kept on this server's disk (`DISK`, a few tens of kB), so a restart
+    answers at once for the rest of the same New York day. A copy for another day, another fund
+    list, another `MIN_YEARS` or in another shape is never served.
 It is deliberately NOT in the shared `cache`: that is a 1,000-entry LRU a busy pod turns over in
 minutes, so an answer parked there is gone before the next reader arrives (see the comment on
 `_REUSE_MEM` in `api/services/scan_period.py`).
@@ -29,6 +38,10 @@ Never raises: a fund that throws is `unavailable` with the exception's class nam
 """
 from __future__ import annotations
 
+import json
+import logging
+import os
+import tempfile
 import threading
 import time
 from datetime import date, datetime
@@ -36,6 +49,8 @@ from datetime import date, datetime
 from api.services import seasonality as svc
 from api.services import session_calendar
 from api.services.sector_strength import SECTOR_ETFS
+
+_log = logging.getLogger(__name__)
 
 SOURCE = "UCT daily bar store, close to close"
 
@@ -57,10 +72,11 @@ EMPTY_READ = "empty_read"    # the serve answered 200 with no bars and did not s
 # enough that a board on several screens costs one build, and short enough that a cold start
 # (every fund pending) fills in while the member is still looking at it.
 INCOMPLETE_REUSE_S = 60.0
-# How long a second caller waits for the build in flight. Half the client's 30 second read
-# deadline: a waiter that runs out is answered (with what is held, or every fund pending) well
-# before its own request would be given up on.
-BUILD_WAIT_S = 15.0
+# The one background build's thread name, and the board's copy on this server's disk
+# (`<DATA_DIR>/<DISK[0]>/<DISK[1]>`), whose `v` must equal DISK_VERSION to be read back.
+BUILD_THREAD = "seasonality-board-build"
+DISK = ("seasonality_board", "board_v1.json")
+DISK_VERSION = 1
 
 _MONTH_KEYS = ("month", "label", "n", "avg_pct", "median_pct", "pct_up", "thin")
 
@@ -180,8 +196,8 @@ def build(today: date | None = None) -> dict:
 
 
 def placeholder(today: date) -> dict:
-    """Every fund pending. What a caller gets when a build is still running after BUILD_WAIT_S
-    and nothing is held for today: the truth (it is being read), and the panel asks again."""
+    """Every fund pending. What a caller gets while the background build runs and nothing is held
+    for today: the truth (it is being read), and the panel asks again."""
     board = assemble([fund_without(f, PENDING) for f in funds()], today, _now_et().isoformat(timespec="seconds"))
     board["building"] = True
     return board
@@ -190,13 +206,132 @@ def placeholder(today: date) -> dict:
 # ── the one held answer ──────────────────────────────────────────────────────────────────────
 
 _held: tuple | None = None            # (new_york_date, monotonic_seconds_when_built, answer)
-_build_lock = threading.Lock()
+_build_lock = threading.Lock()        # held by the one background build while it reads
+_state_lock = threading.Lock()        # guards the three below
+_inflight: threading.Event | None = None
+_loaded = False                       # the disk copy has been looked for (once per process)
+_generation = 0                       # bumped by reset(): a build started before it holds nothing
 
 
 def reset() -> None:
-    """Forget the held answer (tests)."""
-    global _held
-    _held = None
+    """Forget the held answer and the disk look (tests: a restart). The disk copy is kept."""
+    global _held, _inflight, _loaded, _generation
+    with _state_lock:
+        _held, _inflight, _loaded = None, None, False
+        _generation += 1
+
+
+def drain(timeout: float = 10.0) -> None:
+    """Tests: wait for the build in flight, if any."""
+    with _state_lock:
+        done = _inflight
+    if done is not None:
+        done.wait(timeout)
+
+
+def _disk_path() -> str | None:
+    base = os.environ.get("DATA_DIR", "/data")
+    return os.path.join(base, DISK[0], DISK[1]) if os.path.isdir(base) else None
+
+
+def _valid_board(answer, day: date) -> bool:
+    """A board this build would serve for `day`: today's date, this fund list in this order,
+    this MIN_YEARS, and the fields the panel reads. Anything else is not read back."""
+    if not isinstance(answer, dict) or answer.get("et_date") != day.isoformat():
+        return False
+    rows = answer.get("funds")
+    if not isinstance(rows, list) or not all(isinstance(r, dict) for r in rows):
+        return False
+    if [r.get("symbol") for r in rows] != [f["symbol"] for f in funds()]:
+        return False
+    return (answer.get("min_years") == svc.MIN_YEARS and isinstance(answer.get("settled"), bool)
+            and isinstance(answer.get("complete"), bool) and answer.get("source") == SOURCE
+            and "building" not in answer)
+
+
+def _save(day: date, answer: dict) -> None:
+    path = _disk_path()
+    if not path:
+        return
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        fd, tmp = tempfile.mkstemp(prefix=".board_", suffix=".tmp", dir=os.path.dirname(path))
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                json.dump({"v": DISK_VERSION, "day": day.isoformat(), "answer": answer}, fh)
+            os.replace(tmp, path)
+        except Exception:
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+            raise
+    except Exception as exc:  # noqa: BLE001 -- the board is still held in memory
+        _log.warning("[seasonality-board] the board could not be written to disk (%s)", type(exc).__name__)
+
+
+def _ensure_loaded(day: date) -> None:
+    """Look for the disk copy once per process. A copy for `day` is held as built long ago: a
+    settled one is served for the rest of the day; an unsettled one is served while a new build
+    runs, and never counts as fresh."""
+    global _held, _loaded
+    with _state_lock:
+        if _loaded:
+            return
+        _loaded = True
+        gen = _generation
+    path = _disk_path()
+    if not path:
+        return
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            doc = json.load(fh)
+    except (OSError, ValueError):
+        return
+    if not isinstance(doc, dict) or doc.get("v") != DISK_VERSION or doc.get("day") != day.isoformat():
+        return
+    answer = doc.get("answer")
+    if not _valid_board(answer, day):
+        return
+    with _state_lock:
+        if _held is None and gen == _generation:
+            _held = (day, float("-inf"), answer)
+
+
+def _build_bg(day: date, gen: int, done: threading.Event) -> None:
+    global _held, _inflight
+    started = time.time()
+    try:
+        with _build_lock:
+            if reusable(_held, day, _clock()) is None:
+                answer = build(day)
+                with _state_lock:
+                    keep = gen == _generation
+                    if keep:
+                        _held = (day, _clock(), answer)
+                if keep:
+                    _save(day, answer)
+                    _log.info("[seasonality-board] built for %s (complete=%s settled=%s); %.1fs", day,
+                              answer.get("complete"), answer.get("settled"), time.time() - started)
+    except Exception as exc:  # noqa: BLE001 -- a failed build is never held; the next request starts one
+        _log.warning("[seasonality-board] the build failed (%s); %.1fs", type(exc).__name__, time.time() - started)
+    finally:
+        with _state_lock:
+            if _inflight is done:
+                _inflight = None
+        done.set()
+
+
+def _start(day: date) -> threading.Event:
+    """The build in flight, or a new one on ONE background thread."""
+    global _inflight
+    with _state_lock:
+        if _inflight is not None:
+            return _inflight
+        done = _inflight = threading.Event()
+        gen = _generation
+    threading.Thread(target=_build_bg, args=(day, gen, done), name=BUILD_THREAD, daemon=True).start()
+    return done
 
 
 def held(today: date | None = None) -> dict | None:
@@ -204,26 +339,28 @@ def held(today: date | None = None) -> dict | None:
     None. It never builds, never reads a fund and never takes the build lock, so it can say
     "nothing held": nothing was read on this pod today, or the last board had a fund pending or
     failed and is older than INCOMPLETE_REUSE_S (the route would rebuild it; this does not).
+    The board kept on disk counts as held (a settled one for its own day only).
     The answer is the held object itself: a caller reads it and changes nothing in it."""
-    return reusable(_held, today or _now_et().date(), _clock())
-
-
-def serve(today: date | None = None) -> dict:
-    """The board for the route: the held answer while it may be reused, else one build."""
-    global _held
     day = today or _now_et().date()
+    _ensure_loaded(day)
+    return reusable(_held, day, _clock())
+
+
+def serve(today: date | None = None, *, wait_s: float = 0.0) -> dict:
+    """The board for the route. NEVER builds on the caller's thread: the held answer while it may
+    be reused; else the one background build is started (or joined) and the caller is answered at
+    once with today's last board, or every fund pending. `wait_s` (the route passes none) waits that
+    long for the build first."""
+    day = today or _now_et().date()
+    _ensure_loaded(day)
     hit = reusable(_held, day, _clock())
     if hit is not None:
         return hit
-    if not _build_lock.acquire(timeout=BUILD_WAIT_S):
-        held = _held
-        return held[2] if held and held[0] == day else placeholder(day)
-    try:
-        hit = reusable(_held, day, _clock())      # the build this caller waited for
+    done = _start(day)
+    if wait_s > 0:
+        done.wait(wait_s)
+        hit = reusable(_held, day, _clock())
         if hit is not None:
             return hit
-        answer = build(day)
-        _held = (day, _clock(), answer)
-        return answer
-    finally:
-        _build_lock.release()
+    last = _held
+    return last[2] if last and last[0] == day else placeholder(day)

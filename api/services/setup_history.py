@@ -84,7 +84,9 @@ NOT_HELD_RETRY_S = 1800.0       # with no index declines held, the build is trie
 STOCK_SLOTS = 2                 # one-stock reads worked out at once, whatever the number of members
 STOCK_SLOT_WAIT_S = 20.0        # a one-stock build waits this long for a slot, then says busy
 STOCK_KEYS = 128                # one-stock answers held (least recently asked dropped first)
-STOCK_WAIT_S = 3.0              # the longest a request waits for its one-stock build, then `computing`
+# The longest a request waits for its one-stock build, then `computing`. NONE (speed pass 2026-11-23): live, a
+# cold stock waited the full 3 seconds and then said `computing` anyway; the panel asks again every 3 seconds.
+STOCK_WAIT_S = 0.0
 STOCK_MAX_ROWS = 300            # signals one stock's answer lists (the newest; the cut is said)
 LAG_RECHECK_S = 1800.0          # a stock whose bars stop short of the session is read again after this
 DISK = ("setup_history", "setup_history_v1.json")
