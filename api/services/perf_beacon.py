@@ -461,16 +461,23 @@ _boot_done = threading.Event()       # set once the thread's start-of-process wo
 def migrate() -> int:
     """Blank every `perf_loads.rate_key` an older build stored (a SHA-256 of the IP under a constant in the public repo,
     kept 30 days), drop their index, and rebuild the file so the old values leave its PAGES and its write-ahead log, not
-    only its rows. Idempotent: the second run finds nothing. Returns how many rows it blanked; no store, nothing to do."""
+    only its rows. Idempotent: the second run finds nothing. Returns how many rows it blanked; no store, nothing to do.
+
+    ⛔ THE REBUILD DOES NOT DEPEND ON A ROW BEING BLANKED. An older build pruned rows (30-day retention, the row ceiling)
+    without zeroing them, so their keys sit in the file's FREE space with no row holding them; a store whose keyed rows
+    were all pruned has nothing to blank and everything to rebuild. What marks a store an older build wrote is the old
+    index: it is rebuilt once, when that index is found, and never again."""
     if not os.path.exists(_db_path()):
         return 0
     with _lock:
         conn = _connect()
         try:
             with conn:
+                older_build = conn.execute(
+                    "SELECT 1 FROM sqlite_master WHERE type='index' AND name='ix_perf_loads_rate'").fetchone() is not None
                 n = conn.execute("UPDATE perf_loads SET rate_key='' WHERE rate_key<>''").rowcount
                 conn.execute("DROP INDEX IF EXISTS ix_perf_loads_rate")
-            if n:
+            if n or older_build:
                 conn.execute("VACUUM")
                 conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
             return n
