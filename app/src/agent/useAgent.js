@@ -33,7 +33,7 @@ import { setOwnedDefinitionSource } from './capabilities/indicatorEdits'
 import { setAuthoringSources, setExceptSetReader, draftAmbiguity, selectDraft, isDraftAction, lastSaved, screenModelOps, PROPOSAL_TTL_MS, saveReferent, splitSaveAs, renameBeforeSave, explicitIndicatorCreate } from './capabilities/indicatorAuthoring'
 import { fastParse, matchPosition } from './fastPath'
 import { screenNewChart, screenEmptyBoardChart } from './capabilities/workspace'
-import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf, selectedChart, chartNameWord, clausesNameDifferentCharts, targetTickerConflict, lowerTickerCandidates, TARGET_CHECK_FAILED, timeframeSetOf, chartsNamedBy, changeWordsOf, pointsAtClick, wordsNameASet, wordsNameAChart, wordsGroundWrites } from './deixis'
+import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf, selectedChart, chartNameWord, clausesNameDifferentCharts, targetTickerConflict, lowerTickerCandidates, TARGET_CHECK_FAILED, timeframeSetOf, chartsNamedBy, changeWordsOf, pointsAtClick, wordsNameASet, wordsNameAChart, wordsGroundWrites, anaphorsOnSubject, targetTickers } from './deixis'
 import { screenWatchlistWidget } from './watchlistTarget'
 import { whichListView, LIST_VIEW_WHICH } from './whichWidget'
 import { checkSpatialConstraints, excludedCharts, spatialConstraints, UNPLACED, withoutExcludedCharts, everyExceptSet, everyExceptNothing, nothingLeftText } from './spatialCheck'
@@ -2475,13 +2475,18 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         const named = chartsNamedBy(changeWordsOf(typed), live, sel)
         if (sel && (pointsAtClick(typed) || !named.size)) named.add(sel)
         const subj = subjectAt !== undefined ? subjectAt : chartSubjectOf(memoryRef.current, host)
-        if (subj && /\b(?:it|its)\b/i.test(typed)) named.add(subj)
+        // the live subject a prior turn left: what a pronoun or an elided clause ("…and switch to bars") means with no click
+        if (subj && (!sel || /\b(?:it|its)\b/i.test(typed))) named.add(subj)
         if ([...landed].some(c => !named.has(c))) return 'split-charts'
       }
       if (!ops?.length) return null
       const onSubject = rails.onSubject(ops)
+      const written = chartsWrittenOn(host, ops)
+      const subjNow = subjectAt !== undefined ? subjectAt : chartSubjectOf(memoryRef.current, host)
+      // AUDIT R2: a pronoun clause that names no chart means the live subject, whatever another clause names (per clause)
+      const bySubject = anaphorsOnSubject(typed, live, selectedChart(host), subjNow, written)
       // the words themselves name every chart written (nothing points without naming, no click elsewhere): nothing to settle
-      const grounded = wordsGroundWrites(typed, live, selectedChart(host), chartsWrittenOn(host, ops))
+      const grounded = bySubject || wordsGroundWrites(typed, live, selectedChart(host), written)
       if (!onSubject && !grounded) {
         if (rails.sw0.changed) return 'deictic'
         const d = rails.deictic(ops)
@@ -2489,7 +2494,24 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         if (d?.aim && d.aim.some((o, i) => o.target !== ops[i]?.target)) return 'deictic-aim'
       }
       if (!onSubject && rails.spatial(ops)?.ask) return 'spatial'
-      if (ticker && (await rails.ticker(ops))?.ask) return 'ticker'
+      // the target ticker, on the writes the words do not already account for: a chart a SET word covers ("…, add a 20 EMA to both",
+      // AUDIT R1 — every chart it covers stays in), and the live subject a pronoun or an elided clause means with no click (R2) — the
+      // subject only BESIDE another write the check still reads ("change AMD to weekly" alone, on the subject, is still asked)
+      // (the whole plan first; only when that asks are the accounted-for writes set aside — and then every ticker the words name must
+      // still be written by the plan, so nothing named is dropped)
+      if (ticker && (await rails.ticker(ops))?.ask) {
+        const chartOf = (o) => [...chartsWrittenOn(host, [o])][0] || null
+        const setCovered = new Set(wordsNameASet(typed) ? live.map(c => c.ref) : [])
+        let rest = setCovered.size ? ops.filter(o => !setCovered.has(chartOf(o))) : ops
+        if (subjNow && !selectedChart(host) && written.has(subjNow)) {
+          const besides = rest.filter(o => chartOf(o) !== subjNow)
+          if (besides.length) rest = besides
+        }
+        const symOf = (ref) => String(live.find(c => c.ref === ref)?.symbol || '').toUpperCase()
+        const shown = new Set([...written].map(symOf))
+        const allNamedWritten = targetTickers(typed, live, new Map(), lexiconFor(host).words).every(t => shown.has(t))
+        if (rest.length === ops.length || !allNamedWritten || (rest.length && (await rails.ticker(rest))?.ask)) return 'ticker'
+      }
       return null
     } catch { return 'failed' }                                          // ⛔ fail closed: an unread gate never writes instantly
   }
@@ -2757,9 +2779,17 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
           const subjectAt = chartSubjectOf(memoryRef.current, host)
           if (rw) {
             const parts = rw.steps?.length > 1 ? rw.steps : [rw.text]
-            const ops = parts.flatMap(x => { try { return readStepRef.current({ kind: 'fast', text: x }, null)?.ops || [] } catch { return [] } })
+            // (AUDIT sweep 11-24) a LATER part is judged now only when it reads the same now as when it runs: it names its own chart
+            // or a set, or a click decides it (the click outranks memory either way). One that leans on what the parts before it do
+            // ("…and make it weekly", "…and switch to bars": the chart step 1 just changed) is judged when it runs (runCompound gate)
+            const sel0 = selectedChart(host)
+            const live0 = host?.charts?.list?.() || []
+            const readsNow = (x, i) => i === 0 || !!sel0 || wordsNameASet(x) || chartsNamedBy(changeWordsOf(x), live0, sel0).size > 0
+            const ops = parts.flatMap((x, i) => { if (!readsNow(x, i)) return []; try { return readStepRef.current({ kind: 'fast', text: x }, null)?.ops || [] } catch { return [] } })
             const why = await instantGateRef.current(ops, typedWords, { landed: parts.length > 1 ? chartsWrittenOn(host, ops) : null, subjectAt })
-            if (why) { mark('nlm1:rewrite-declined', `${rw.rule}:gate:${why}`); rw = null }
+            // (AUDIT R1) a reading the gate declines is declined WHOLE: no other NLM-1 reading of the same words runs instead (a
+            // follow-up over a part of them would drop the rest silently) — the message goes on as v1 sends it
+            if (why) { mark('nlm1:rewrite-declined', `${rw.rule}:gate:${why}`); rw = null; nlm1FellBack = true }
           }
           if (rw) { mark('nlm1:rewrite', rw.rule); text = rw.text }
           // D2.2: a request whose parts must each run on their own ("<request>, then do the same for QQQ": each part's "it" is

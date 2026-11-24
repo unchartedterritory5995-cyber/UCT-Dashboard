@@ -829,10 +829,34 @@ export function wordsGroundWrites(text, charts = [], sel = null, written = new S
     return [...written].every(c => named.has(c))
   } catch { return false }
 }
+/** AUDIT R2 (11-23): sole grounding PER CLAUSE. A pronoun clause ("add a 20 EMA to it") that names no chart itself, with no chart
+ *  named before it in the words, means the conversation's live SUBJECT — even when ANOTHER clause names a chart ("… and switch SPY
+ *  to bars"). True when every chart written is that subject or a chart the change words name, and the subject is written. Never with
+ *  a click (the click outranks memory), a pointer that is not an anaphor ("this one", "here", a relation), an anaphor in a keep or
+ *  additive clause, or an in-message antecedent before the first anaphor (then the words, not memory, say what "it" is). */
+export function anaphorsOnSubject(text, charts = [], sel = null, subject = null, written = new Set()) {
+  try {
+    if (!subject || sel || !written?.size || !written.has(subject)) return false
+    const s = String(text || '')
+    const hits = [...s.matchAll(ANAPHOR)]
+    if (!hits.length) return false
+    if (pointsAtChart(s.replace(ANAPHOR, (m) => ' '.repeat(m.length)), { chartOp: false, charts })) return false
+    if (chartsNamedBy(changeWordsOf(s.slice(0, hits[0].index)), charts, null).size) return false
+    const cuts = [0, ...[...s.matchAll(ANA_SPLIT)].flatMap(m => [m.index, m.index + m[0].length]), s.length].sort((a, b) => a - b)
+    const clauseAt = (i) => { let a = 0, b = s.length; for (const c of cuts) { if (c <= i) a = c; else { b = c; break } } return s.slice(a, b) }
+    for (const h of hits) {
+      const c = clauseAt(h.index)
+      if (KEEP_CLAUSE.test(c) || STAYS_CLAUSE.test(c) || additiveClause(c) || chartsNamedBy(c, charts, null).size) return false
+    }
+    const named = chartsNamedBy(changeWordsOf(s), charts, null)
+    named.add(subject)
+    return [...written].every(c => named.has(c))
+  } catch { return false }
+}
 /** G1/G2: do the words name a SET of charts ("both", "all charts", "the others", "them") — a split may then land on several. */
 export const wordsNameASet = (text) => {
   const s = String(text || '')
-  return MANY_COUNT.test(s) || OTHER_CHARTS.test(s) || REST_OF_BOARD.test(s) || /\b(?:them|both|charts)\b/i.test(s)
+  return MANY_COUNT.test(s) || OTHER_CHARTS.test(s) || REST_OF_BOARD.test(s) || /\b(?:them|both|charts|all|each|every)\b/i.test(s)
 }
 const TGT_ANCHOR_BEFORE = /\b(?:above|below|under|underneath|beneath|over|beside|alongside|near|nearest|by|next\s+(?:door\s+)?to|left\s+of|right\s+of|across\s+from|opposite|adjacent\s+to|diagonal(?:ly)?(?:\s+(?:from|to|across\s+from))?|kitty[\s-]?corner\s+(?:from|to)|catty[\s-]?corner\s+(?:from|to))\s+(?:the\s+|my\s+)?\$?$/i
 // ordinary words — typed in capitals for emphasis, or not in capitals at all — are words, never tickers (unless on the board):

@@ -59,6 +59,18 @@ const G1_BASES = [
 ]
 export const G1 = G1_BASES.flatMap(([base, ops]) => TAILS.map(tail => [`${base}, ${tail}.`, ops]))
 export const G1B = G1.slice(0, 40)
+// AUDIT R1: a set word × the named change (timeframe / bars) × the chart it names (ticker or place) × clause order
+const SETS = ['both', 'all', 'all charts', 'each chart', 'every chart']
+const NAMED = [['SPY', 'SPY'], ['NVDA', 'NVDA'], ['the left chart', 'SPY'], ['the right chart', 'NVDA']]
+const NAMED_OPS = [['timeframe', (X) => `change ${X} to 1h`], ['bars', (X) => `switch ${X} to bars`]]
+export const R1 = SETS.flatMap(set => NAMED_OPS.flatMap(([tf, say]) => NAMED.flatMap(([X, sym]) => [
+  [`${say(X)} and add a 20 EMA to ${set}`, sym, tf], [`add a 20 EMA to ${set} and ${say(X)}`, sym, tf]])))
+// AUDIT R2: the live subject on each chart × "it / that one" × the pronoun's change × the named chart in its own clause × order
+const PRONOUN_OPS = [['ema', (a) => `add a 20 EMA to ${a}`], ['timeframe', (a) => `make ${a} 1-hour`]]
+// ("make that one 1-hour" is left out: on master too that step is unread and the message goes to the model — not a case master gets right)
+export const R2 = ['SPY', 'NVDA'].flatMap(subj => ['it', 'that one'].flatMap(a => PRONOUN_OPS.filter(([op]) => a === 'it' || op === 'ema').flatMap(([op, say]) => ['SPY', 'NVDA'].flatMap(named => [
+  [subj, `${say(a)} and switch ${named} to bars`, subj, named, op],
+  [subj, `switch ${named} to bars and ${say(a)}`, named, named, op]]))))
 
 export function targetGateG1G2Suite(SLICE) {
 if (!(Number.isInteger(SLICE) && SLICE >= 0 && SLICE < SLICES)) throw new Error(`slice must be 0..${SLICES - 1} (got ${SLICE})`)
@@ -112,8 +124,9 @@ for (const v2 of [false, true]) describe(`G1/G2 target gate [routing ${v2 ? 'v2'
   // CONTROL rows are about routing v2 (production): v1 has no NLM-1 instant reading of them
   const controlV2 = SLICE === 0 && v2 ? it : it.skip
 
-  only0('the families are generated: G2 24 (4 pairs × 6 anaphors), F2 9, G1 120 (15 bases × 8 tails), G1b 40', () => {
+  only0('the families are generated: G2 24 (4 pairs × 6 anaphors), F2 9, G1 120 (15 bases × 8 tails), G1b 40, R1 80, R2 24', () => {
     expect(G2).toHaveLength(24); expect(F2).toHaveLength(9); expect(G1).toHaveLength(120); expect(G1B).toHaveLength(40)
+    expect(R1).toHaveLength(80); expect(R2).toHaveLength(24)
   })
 
   // ── F1 · G2: the NVDA chart clicked. A second clause with its own reference: the click is never silently overruled, and a split
@@ -244,6 +257,41 @@ for (const v2 of [false, true]) describe(`G1/G2 target gate [routing ${v2 ? 'v2'
     await say(m, 'add a 20 EMA here')
     expect(stored(m.board, 'w0'), transcript()).toBe(spy0)
     expect(effect.ema(m.board, 'w1') || asked(), transcript()).toBe(true)
+  }, 60000)
+
+  // ── AUDIT R1 · a SET word keeps every chart it covers: "<named change>, and add a 20 EMA to both / all charts / each chart / every
+  // chart" (and the set clause first) — the named change on its chart AND the EMA on every chart, instantly on v2 as master did;
+  // never a part of it silently (asked with nothing changed is the only other outcome, on v1)
+  it.each(mine(R1))('R1 set word: "%s"', async (t, named, tf) => {
+    const m = mount(['SPY', 'NVDA'])
+    const before = snapshot(m.board, 2)
+    const id = named === 'SPY' ? 'w0' : 'w1'
+    p.st.envelopes.push((body) => p.env('apply', [OPS[tf](body, named), OPS.ema(body, 'SPY'), OPS.ema(body, 'NVDA')]))
+    const calls = p.turns()
+    await say(m, t)
+    const done = effect[tf](m.board, id) && effect.ema(m.board, 'w0') && effect.ema(m.board, 'w1')
+    const untouched = snapshot(m.board, 2).every((s, i) => s === before[i])
+    expect(done || (!v2 && untouched && (asked() || p.turns() > calls)), transcript()).toBe(true)
+    if (v2) expect(p.turns(), transcript()).toBe(calls)
+  }, 60000)
+
+  // ── AUDIT R2 · sole grounding PER CLAUSE: a live subject (a prior turn changed it) and a pronoun clause that names no chart, beside
+  // a clause that names a chart: the pronoun is the subject when it comes FIRST, the named chart when the name comes first (its
+  // in-message antecedent) — instantly on v2 as master did
+  it.each(mine(R2))('R2 subject %s: "%s"', async (subj, t, meant, named, op) => {
+    const m = mount(['SPY', 'NVDA'])
+    await say(m, `make ${subj} weekly`)
+    const before = snapshot(m.board, 2)
+    p.st.envelopes.length = 0
+    p.st.envelopes.push((body) => p.env('apply', [OPS[op](body, meant), OPS.bars(body, named)]))
+    const calls = p.turns()
+    await say(m, t)
+    const idOf = (s) => (s === 'SPY' ? 'w0' : 'w1')
+    const done = effect[op](m.board, idOf(meant)) && effect.bars(m.board, idOf(named))
+      && (meant === named || !effect[op](m.board, idOf(meant === 'SPY' ? 'NVDA' : 'SPY')))
+    const untouched = snapshot(m.board, 2).every((s, i) => s === before[i])
+    expect(done || (!v2 && untouched && (asked() || p.turns() > calls)), transcript()).toBe(true)
+    if (v2) expect(p.turns(), transcript()).toBe(calls)
   }, 60000)
 })
 }
