@@ -180,6 +180,21 @@ def test_the_setup_reader_returns_the_newest_sessions_answer(monkeypatch):
     assert shh.held_signals("QZSA")[0]["session"] == later.isoformat()
 
 
+def test_the_setup_reader_returns_the_answer_the_route_last_served_when_mkths_stamp_moved_within_a_session(monkeypatch):
+    # One session, two MKTH stamps: asked while MKTH was still computing (no phases), then again once MKTH held its
+    # answer (phases). The route now serves the second; the held reader must too, never the first.
+    monkeypatch.setattr(SH, "_read_bars", T_SH._reader())
+    monkeypatch.setattr(SH, "_market", lambda wait_s: T_SH._market("computing"))
+    first = _stock()
+    monkeypatch.setattr(SH, "_market", lambda wait_s: T_SH._market())
+    second = _stock()
+    assert first["session"] == second["session"] == T_SH.KEY
+    assert first["phases"]["state"] == "not_held" and second["phases"]["state"] == "ok"
+    assert len([k for k in SH._STOCK.keys() if k[0] == "QZSA"]) == 2
+    got, how = shh.held_signals("QZSA")
+    assert how == "held" and got["phases"] == second["phases"]
+
+
 def test_each_reader_says_read_only():
     for reader, _sym in READERS:
         assert reader.__doc__.startswith("READ ONLY"), reader.__qualname__
