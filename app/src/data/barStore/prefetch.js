@@ -537,18 +537,19 @@ export function createPrefetch(o = {}) {
     // (the chart draws no forming bar of a bucket that has closed) and the minute came 34-250 ms later.
     let tailT = rows[rows.length - 1].t
     const dev = s.developing
-    if (dev && Number.isFinite(dev.t) && _devHoldsFrontier(key, s, dev.t, p.tf)) tailT = Math.max(tailT, dev.t)
+    if (dev && Number.isFinite(dev.t) && _devHoldsFrontier(dev, p.tf)) tailT = Math.max(tailT, dev.t)
     const n = expectedBarsBehind(tailT, p.tf, now(), { session: ext ? 'extended' : 'rth' })
     return n == null || n < 1 ? 0 : n
   }
-  /** Does `s`'s developing bar (bucket `devT`) hold the frontier: its bucket still open, or the copy read after it closed
-   *  (the server's proof `verified_through`, or an answer of this facade, at or after the bucket's end)? */
-  function _devHoldsFrontier(key, s, devT, tf) {
-    const end = bucketEndUnix(devT, tf)
+  /** Does the developing bar `dev` hold the frontier: its bucket still open, or the bar itself written at or after its
+   *  bucket's end (its `rev`, ms: the store's write of a server bar, a tick's time)? ⛔ Not "an answer of the key landed
+   *  after the roll": an answer with no developing bar (the store's closed buckets only) leaves the OLD one in place, and
+   *  it vouches for nothing. A `rev` that is not a time (absent, a counter) never passes: the copy is then behind and
+   *  the switch asks, which is the safe side. */
+  function _devHoldsFrontier(dev, tf) {
+    const end = bucketEndUnix(dev.t, tf)
     if (!(end <= now() / 1000)) return true
-    if (Number.isFinite(s.verifiedThrough) && s.verifiedThrough >= end) return true
-    const a = asked.get(key)
-    return !!(a?.answered && a.at >= end * 1000)
+    return Number.isFinite(dev.rev) && dev.rev >= end * 1000
   }
   /** When the current bucket of `tf` opened (ms): the roll the server's write lag is measured from. */
   const _rollMs = (tf) => bucketEndUnix(Math.floor(now() / 1000), tf) * 1000 - Number(tf) * 60_000

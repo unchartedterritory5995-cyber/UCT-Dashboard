@@ -124,20 +124,23 @@ describe('the hold keeps the next, the one after and the previous row current ac
     w.store.dispose()
   })
 
+  // ⛔ CHANGED 2026-11-24 (prefetch.firstFrameClosedBar.test.js B2): the next-row warm now asks again, once per bucket, a
+  // next row whose answer predates the current bucket; the press's tail then asks only the row it did not cover.
   it('TC2 a row that fell behind while it waited in the window is asked again at the next press', async () => {
     vi.setSystemTime(at(10, 0, 50))
     const w = await boot('closed')
     await warmAll(w, ['AAA', 'BBB', 'DDD'], '1')
     await tick(14_000)                                         // 10:01:04: one bucket behind, inside its cooldown
     expect(w.pf.peekDisplayable('AAA', '1')).toBe(false)
-    w.pf.prefetchBars(['AAA', 'BBB'], '1', { urgent: true })   // today's next-row warm asks nothing for it
-    await w.server.flush(40)
-    expect(w.server.open()).toHaveLength(0)
+    const n0 = w.server.calls.length
+    w.pf.prefetchBars(['AAA', 'BBB'], '1', { urgent: true })   // the next-row warm asks its two rows again (once a bucket)
+    await w.server.drain()
+    expect(w.server.calls.length - n0).toBe(2)
     const before = w.server.calls.length
     const hold = w.pf.createNeighborHold()
     navigate(hold, ['AAA', 'BBB', 'DDD'], '1', ['AAA', 'BBB', 'DDD'])   // the press, after its paint
     await w.server.drain()
-    expect(w.server.calls.length - before).toBe(3)
+    expect(w.server.calls.slice(before).map((c) => c.q.sym)).toEqual(['DDD'])
     await tick(6_000)
     expect(w.pf.peekDisplayable('AAA', '1')).toBe(true)
     hold.clear()
