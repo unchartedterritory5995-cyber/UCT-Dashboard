@@ -40,7 +40,13 @@ vi.mock('lightweight-charts', async () => {
     S.calls.push({ m: 'add', id, kind, pane: Number.isInteger(pane) ? pane : 0, scale: options?.priceScaleId ?? null })
     const setData = s.setData.bind(s)
     const update = s.update.bind(s)
-    s.setData = (d) => { S.calls.push({ m: 'setData', id, rows: slim(d) }); return setData(d) }
+    s.setData = (d) => {
+      // which code handed the candles their rows (function names on the stack, outside the library and this file)
+      const from = kind === 'candle' ? String(new Error().stack).split('\n').slice(2)
+        .map((l) => /at (?:Object\.|Proxy\.)?([\w$.]+)/.exec(l)?.[1]).filter((n) => n && !/^(?:s\.setData|counted|Array|Map|new)$/.test(n)).slice(0, 7).join('<') : null
+      S.calls.push({ m: 'setData', id, rows: slim(d), from })
+      return setData(d)
+    }
     s.update = (p, hist) => { S.calls.push({ m: 'update', id, rows: slim([p]), hist: !!hist }); return update(p, hist) }
     return s
   }
@@ -55,6 +61,20 @@ vi.mock('lightweight-charts', async () => {
     return chart
   }
   return { ...lib, createChart }
+})
+// the render window's decisions: every setWindow (rows asked for) and every move of its start
+vi.mock('./chart/windowedChart', async (orig) => {
+  const real = await orig()
+  return { ...real, createWindowedChart: (chart, o) => {
+    const f = real.createWindowedChart(chart, o)
+    const ctl = f.window
+    if (ctl && typeof ctl.setWindow === 'function') {
+      const setWindow = ctl.setWindow
+      ctl.setWindow = (rows, opts) => { S.calls.push({ m: 'window', what: `setWindow ${rows} span ${opts?.span ?? '-'}` }); return setWindow(rows, opts) }
+      ctl.onChange?.(() => S.calls.push({ m: 'window', what: `start moved to ${ctl.windowStart()} (${ctl.windowStartTime()})` }))
+    }
+    return f
+  } }
 })
 // every updateChart pass: its bars plan and the paint it recorded (chart/paintLog.js), to say WHY a switch paints
 vi.mock('./chart/renderPlan', async (orig) => {
@@ -165,6 +185,7 @@ async function recordSwitches() {
       await wait(1000)
     }
   } finally { JSON.stringify = realStringify }
+  S.calls.push({ m: 'mark', label: 'unmount' })
   cleanup()
   for (const key of held) M.store.registry.release(key)
   vi.unstubAllGlobals()
@@ -194,6 +215,7 @@ function replay(lib, calls) {
       if (c.m === 'mark') { step = { label: c.label, calls: 0, updates: 0, full: 0, fullByUpdate: 0, sorts0: counter.sorts, set: [], passes: [], threw: 0 }; steps.push(step); continue }
       if (c.m === 'plan') { step?.passes.push(`plan ${c.mode} ${c.prevN}->${c.nextN}${c.sameRows ? ' same rows' : ''}`); continue }
       if (c.m === 'paint') { step?.passes.push(`paint ${c.mode} ${c.sym} ${c.tf} ${c.bars}`); continue }
+      if (c.m === 'window') { step?.passes.push(`window: ${c.what}`); step?.set.push(`window: ${c.what}`); continue }
       if (c.m === 'sig') {
         const now = JSON.parse(c.sig)
         const moved = lastSig ? Object.keys({ ...lastSig, ...now }).filter((k) => JSON.stringify(lastSig[k]) !== JSON.stringify(now[k])) : ['(first)']
@@ -215,7 +237,7 @@ function replay(lib, calls) {
         if (c.m === 'setData') {
           s.setData(c.rows.map((r) => rowFor(kinds.get(c.id), r)))
           const changed = counter.setData(c.id, c.rows.map((r) => r[0]))
-          if (step) { step.calls += 1; step.set.push(`${kinds.get(c.id)}#${c.id}:${c.rows.length}${changed ? ' FULL' : ''} s${counter.sorts - before}`); if (changed) step.full += 1 }
+          if (step) { step.calls += 1; step.set.push(`${kinds.get(c.id)}#${c.id}:${c.rows.length}${changed ? ' FULL' : ''} s${counter.sorts - before}${c.from ? ` from ${c.from}` : ''}`); if (changed) step.full += 1 }
         } else if (c.m === 'update') {
           s.update(rowFor(kinds.get(c.id), c.rows[0]), c.hist)
           const changed = counter.update(c.id, c.rows[0][0])
@@ -224,6 +246,7 @@ function replay(lib, calls) {
           chart.removeSeries(s)
           series.delete(c.id)
           const changed = counter.remove(c.id)
+          if (changed && step) step.full += 1
           step?.set.push(`remove ${kinds.get(c.id)}#${c.id}${changed ? ' FULL' : ''} s${counter.sorts - before}`)
         }
       } catch { if (step) step.threw += 1 }
@@ -259,8 +282,8 @@ describe('what a list switch hands the chart library, and what each build of the
   }, 180_000)
 
   it('every step drew the name it landed on (the recording is not vacuous) and the library took every call', () => {
-    expect(patched.map((s) => s.label)).toEqual(['first load: AAA daily (8,003 bars)', ...STEPS.map((s) => s[0])])
-    for (const s of patched) {
+    expect(patched.map((s) => s.label)).toEqual(['first load: AAA daily (8,003 bars)', ...STEPS.map((s) => s[0]), 'unmount'])
+    for (const s of patched.filter((x) => x.label !== 'unmount')) {
       expect(s.set.some((x) => x.startsWith('candle')), s.label).toBe(true)
       expect(s.threw, s.label).toBe(0)
     }
@@ -273,7 +296,7 @@ describe('what a list switch hands the chart library, and what each build of the
 
   it('the counts per step (pinned: a change to the switch path shows here)', () => {
     // per step: setData calls, update calls, FULL updates, rebuild sorts as published, rebuild sorts as members run it
-    const got = Object.fromEntries(patched.map((p, i) => [p.label, [p.calls, p.updates, p.full, shipped[i].sorts, p.sorts]]))
+    const got = Object.fromEntries(patched.filter((p) => p.label !== 'unmount').map((p, i) => [p.label, [p.calls, p.updates, p.full, shipped[i].sorts, p.sorts]]))
     expect(got).toEqual({
       'first load: AAA daily (8,003 bars)': [7, 0, 2, 2, 2],
       [STEPS[0][0]]: [6, 0, 1, 6, 1],
