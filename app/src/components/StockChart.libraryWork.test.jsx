@@ -14,6 +14,11 @@
 //            library's model, the time scale's points and tick marks redone); on the patched build, sorts == full.
 // Each step also says why the chart painted (every updateChart pass: its bars plan, its paint, which part of its render
 // signature moved). The table is written to remote-out/library-work.json on the remote lane. Counts, not milliseconds.
+//
+// What it found (2026-11-24), on the build members run: a daily switch hands the library 6 `setData` (candles, volume,
+// the four averages; the future-axis line keeps its slots); the time scale is rebuilt only by the call that changes its
+// points (the build's edit 6, scripts/chartLibraryPatch.mjs): once when the window's first date moves, never when it
+// does not. As published, the library would rebuild on every one of the 6. The 30-minute switch hands it 13 (below).
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -309,14 +314,37 @@ describe('what a list switch hands the chart library, and what each build of the
   it('the counts per step (pinned: a change to the switch path shows here)', () => {
     // per step: setData calls, update calls, FULL updates, rebuild sorts as published, rebuild sorts as members run it
     const got = Object.fromEntries(patched.filter((p) => p.label !== 'unmount').map((p, i) => [p.label, [p.calls, p.updates, p.full, shipped[i].sorts, p.sorts]]))
+    // measured 2026-11-24 (runs 45462654674 and after: the same counts with the chart unsized and sized)
     expect(got).toEqual({
-      'first load: AAA daily (8,003 bars)': [7, 0, 2, 2, 2],
-      [STEPS[0][0]]: [6, 0, 1, 6, 1],
+      // candles, volume, the four averages; the future-axis line is not set yet (its effect ran before the chart existed)
+      'first load: AAA daily (8,003 bars)': [6, 0, 1, 1, 1],
+      // the future-axis line's first set (40 slots past the newest day: a FULL update), then the board; the window's
+      // first date moved (another depth, an index-stepped start): one more FULL update
+      [STEPS[0][0]]: [7, 0, 2, 7, 2],
+      // the same window: the library's time points do not change, nothing is rebuilt
       [STEPS[1][0]]: [6, 0, 0, 6, 0],
       [STEPS[2][0]]: [6, 0, 1, 6, 1],
       [STEPS[3][0]]: [6, 0, 1, 6, 1],
+      // a timeframe change: the candles add the 30-minute points, the last average drops the daily ones, the
+      // future-axis line trades daily slots for 30-minute ones
       [STEPS[4][0]]: [7, 0, 3, 7, 3],
-      [STEPS[5][0]]: [6, 0, 1, 6, 1],
+      // 7 of the 13 are the OUTGOING board extended and re-set (the next test)
+      [STEPS[5][0]]: [13, 0, 2, 13, 2],
     })
+  })
+
+  // ⛔ KNOWN, 2026-11-24, PINNED SO ITS FIX SHOWS. On the 30-minute switch, before the switch's own pass hands the library
+  // the new name's board, a metadata answer lands (the feed publishes in its layout effect, ahead of the switch's) and
+  // `_onMetaLanded` -> `settleOnMetaLanded` re-asserts the settling frame with THIS render's bars (the new name's: its
+  // newest bar is index 3,899) on the chart that still holds the OLD board (index 3,899 there is 1,300 bars back): the
+  // render window reaches left for it, and the old board is extended and re-set (2,200 rows on every series) only to be
+  // replaced a moment later. Daily switches do not reach it here (their settling frame is already released).
+  it('KNOWN: on the 30-minute switch a metadata answer first sets the new frame on the old board', () => {
+    const step = patched.find((p) => p.label === STEPS[5][0])
+    const firstCandle = calls.slice(calls.findIndex((c) => c.m === 'mark' && c.label === STEPS[5][0]))
+      .find((c) => c.m === 'setData' && c.from != null)
+    expect(firstCandle.rows.length).toBe(2200)
+    expect(firstCandle.from).toContain('settleOnMetaLanded')
+    expect(step.set.filter((x) => /:2200 /.test(x)).length).toBe(6)
   })
 })
