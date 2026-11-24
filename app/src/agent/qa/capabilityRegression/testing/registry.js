@@ -37,7 +37,9 @@ export const ALL_KINDS = [...PROD_KINDS, 'history.eventStudy', 'research.company
   // terminal data wave 10 (dark): the Agent half of the STAT / VFP / FCTX / SETH / PUBR panels and the OWN panel's N-PORT block
   'stock.stats', 'stock.volumeFootprint', 'stock.factorExposure', 'stock.setupHistory', 'company.publicRecords', 'ownership.funds',
   // terminal data wave 11 (dark): the Agent half of GRPS RANK, GRPS CROWDING, ERNSC, EEHSC, OSCR RICH / CHEAP, IPO LOCKUP and COT by trader type
-  'groups.rank', 'groups.crowding', 'earnings.seasonBySector', 'estimates.revisionBreadth', 'options.ivRankLeaders', 'ipo.lockups', 'cot.byTrader']
+  'groups.rank', 'groups.crowding', 'earnings.seasonBySector', 'estimates.revisionBreadth', 'options.ivRankLeaders', 'ipo.lockups', 'cot.byTrader',
+  // terminal data wave 12 (dark): the Agent half of RTG, EEH, ANR, SEG, FTD and one stock's MNA / IDXC
+  'ratings', 'estimates.history', 'analyst.ratings', 'company.segments', 'stock.failsToDeliver', 'company.deals']
 
 /** PKG2: the data kinds an entry runs under. `"kinds": "ALL"` marks a DARK entry (its kind is not in production's list yet:
  *  history.eventStudy, the asset quotes), run only by corpus.dark.test.jsx with every gated kind on; every other entry
