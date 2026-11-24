@@ -57,9 +57,11 @@ function notOnIds(host, labels) {
 /** The oracle boards of turn `i`: one per expected plan / `$in` reading. */
 async function oracleBoards({ spec, c, arm, conflict, steps, i, decided, step, replayResponder }) {
   const e = step.expect
-  if (!['act', 'propose'].includes(e.kind) && !(e.ops || []).length) return { boards: [], data: [] }
+  // a clarify expectation may also accept a change (`alsoOk`: plans whose boards are right too)
+  const also = e.kind === 'clarify' && e.alsoOk?.length ? e.alsoOk : null
+  if (!['act', 'propose'].includes(e.kind) && !(e.ops || []).length && !also) return { boards: [], data: [] }
   const out = [], data = []
-  for (const plan0 of plansOf(e)) {
+  for (const plan0 of also || plansOf(e)) {
     const plan = unblocked(plan0, e)
     for (let pick = 0; pick < inChoices(plan); pick++) {
       // the oracle's WORDS do not matter, only the board its plan leaves: the turn's own words first; if a rail turns the
@@ -141,7 +143,7 @@ export async function evaluateCase({ spec, c, arm, bank = new Map(), collect = n
     const oracleMoved = oracle.boards.some(moved)
     const invalid = ['act', 'propose'].includes(e.kind) && !lookup && !e.blocked?.length && !oracleMoved
     // an expected plan that changed nothing here could not be executed on this board: only the plans that ran are oracles
-    if (['act', 'propose'].includes(e.kind) && !lookup && !e.blocked?.length && oracleMoved) oracle = { ...oracle, boards: oracle.boards.filter(moved) }
+    if ((['act', 'propose'].includes(e.kind) || e.alsoOk?.length) && !lookup && !e.blocked?.length && oracleMoved) oracle = { ...oracle, boards: oracle.boards.filter(moved) }
     const sc = invalid ? { outcome: 'oracle_invalid', why: 'the expected plan changes nothing on this board (it cannot be executed here)', flags: [] } : scoreTurn({ e, pre, mid: view(t.mid), post: view(t.post), oracles: oracle.boards, asked, choices: t.newChoices, reply: `${t.reply} ${t.approved}`,
       data: t.data, oracleData: oracle.data, notOnIds: notOnIds(run.m.built.host, e.notOn),
       planned: finalPlan(t) })

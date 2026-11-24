@@ -5126,7 +5126,8 @@
      "indicator.remove",
      "definition.delete",
      "chart.setSymbol",
-     "widget.addCharts"
+     "widget.addCharts",
+     "chartGrid.set"
     ]
    },
    "cls": "side-by-side",
@@ -5141,6 +5142,9 @@
    "expect": {
     "kind": "clarify",
     "compare": "semantic",
+    "notOn": [
+     "Chart (AAPL)"
+    ],
     "never": [
      "chart.resetDefaults",
      "widget.remove",
@@ -5151,7 +5155,40 @@
      "indicator.remove",
      "definition.delete",
      "chart.setSymbol"
-    ]
+    ],
+    "alsoOk": [
+     [
+      {
+       "a": "chartGrid.set",
+       "args": {
+        "symbols": [
+         "NVDA",
+         "AMD"
+        ],
+        "timeframe": null,
+        "layout": null,
+        "new_charts": true,
+        "watchlist": null,
+        "replace": null
+       }
+      }
+     ],
+     [
+      {
+       "a": "widget.addCharts",
+       "args": {
+        "symbols": [
+         "NVDA",
+         "AMD"
+        ],
+        "timeframe": null,
+        "chart_type": null,
+        "exact": null
+       }
+      }
+     ]
+    ],
+    "why": "ask (add beside, or replace); adding BOTH beside AAPL with zero changes to AAPL is also right"
    },
    "cls": "side-by-side",
    "mix": "multi",
@@ -5165,7 +5202,7 @@
    "expect": {
     "kind": "act",
     "compare": "semantic",
-    "clarifyOk": true,
+    "clarifyOk": false,
     "oracleChoose": "replacing",
     "ops": [
      {
@@ -5232,8 +5269,43 @@
    "fx": "rb_twins",
    "text": "spy and qqq side by side",
    "expect": {
-    "kind": "clarify",
+    "kind": "act",
     "compare": "semantic",
+    "clarifyOk": true,
+    "ops": [
+     {
+      "a": "chartGrid.set",
+      "args": {
+       "symbols": [
+        "QQQ"
+       ],
+       "timeframe": null,
+       "layout": null,
+       "new_charts": true,
+       "watchlist": null,
+       "replace": null
+      }
+     }
+    ],
+    "alt": [
+     [
+      {
+       "a": "widget.addCharts",
+       "args": {
+        "symbols": [
+         "QQQ"
+        ],
+        "timeframe": null,
+        "chart_type": null,
+        "exact": null
+       }
+      }
+     ]
+    ],
+    "notOn": [
+     "Left chart (SPY)",
+     "Right chart (SPY)"
+    ],
     "never": [
      "chart.resetDefaults",
      "widget.remove",
@@ -5244,7 +5316,8 @@
      "indicator.remove",
      "definition.delete",
      "chart.setSymbol"
-    ]
+    ],
+    "why": "QQQ added beside, both SPY charts untouched; asking which SPY chart first is also right"
    },
    "cls": "side-by-side",
    "mix": "multi",

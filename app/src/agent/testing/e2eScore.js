@@ -67,6 +67,10 @@ export function scoreTurn({ e, pre, mid, post, oracles = [], asked = false, choi
   const onForbidden = [...cmp.extra, ...cmp.wrong].filter(k => notOn.has(k))
 
   if (kind === 'clarify') {
+    // `alsoOk`: acting is right too when the board equals one of those plans' boards (and nothing forbidden changed)
+    if (changed && e.alsoOk?.length && !onForbidden.length && oracles.some(o => compareBoards(pre, post, o).equal)) {
+      return { outcome: 'success', why: 'acted: an accepted alternative (alsoOk)', flags: flags.filter(f => f !== 'wrongChartWrite') }
+    }
     if (changed) return done(onForbidden.length ? 'wrong_chart' : 'missed_ask', 'acted instead of asking')
     if (!asked) return done('missed_ask', 'no question')
     const want = (e.choicesInclude || []).map(s => String(s).toLowerCase())

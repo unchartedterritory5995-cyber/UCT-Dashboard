@@ -5,7 +5,8 @@
   "head": "a284724248"
  },
  "suspect": {
-  "e2-t05#1": "G1/G2 asks \"Did you mean Right chart (META)?\" although the words name msft explicitly; turn 1 log scale stays on META"
+  "e2-t05#1": "G1/G2 asks \"Did you mean Right chart (META)?\" although the words name msft explicitly; turn 1 log scale stays on META",
+  "e2-sb05#0": "the side-by-side screen asks \"Do you want NVDA added beside your chart, or put in place of the AAPL chart?\" although the member said swap: with clarifyOk false (AUDIT 11-24) that ask is unneeded"
  },
  "ceilings": {
   "e2-b01#1": [
@@ -58,6 +59,9 @@
   ],
   "e2-fc10#1": [
    "wrong_action"
+  ],
+  "e2-sb05#0": [
+   "unnecessary_ask"
   ],
   "e2-t01#1": [
    "wrong_chart"

@@ -304,6 +304,13 @@ describe('scoreTurn', () => {
     const replaced = { ...before, charts: { c1: { symbol: 'NVDA', tf: 'D' } } }
     expect(JSON.stringify(semanticView(replaced, ids))).not.toBe(JSON.stringify(semanticView(added(12, 'w-chart-1'), ids)))
   })
+  it('alsoOk: a clarify case may accept a named change; any other change is still a missed ask', () => {
+    const both = B({ a: { tf: 'D' }, b: { tf: 'D' }, n: { tf: 'D' } })
+    const e = { kind: 'clarify', alsoOk: [[{ a: 'widget.addCharts' }]] }
+    expect(scoreTurn({ e, pre, mid: both, post: both, oracles: [both] })).toMatchObject({ outcome: 'success', flags: [] })
+    expect(scoreTurn({ e, pre, mid: want, post: want, oracles: [both] }).outcome).toBe('missed_ask')
+    expect(scoreTurn({ e, pre, mid: pre, post: pre, oracles: [both], asked: true }).outcome).toBe('success')
+  })
   it('a save conflict: right only with no residue AND the refusal said', () => {
     const e = { ...act, blocked: ['chart.setTimeframe'] }
     expect(scoreTurn({ e, pre, mid: pre, post: pre, oracles: [pre], reply: "the save was not confirmed (conflict), so it is not done" }).outcome).toBe('success')

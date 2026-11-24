@@ -90,6 +90,8 @@ it.skipIf(!ARM)('e2e arm', async () => {
     for (const [k, t] of Object.entries(byCls)) console.log(line(k, t))
     console.log(`  dialogues ${table.dialogues} complete, ${table.dialogueSuccessPct ?? '-'}% wholly right · lanes deterministic ${table.lanes.deterministic} (${table.deterministicSuccessPct ?? '-'}% ok) model ${table.lanes.model} (${table.modelSuccessPct ?? '-'}% ok)`)
     console.log(`  latency model p50 ${table.latency.modelMsP50 ?? '-'} ms p95 ${table.latency.modelMsP95 ?? '-'} ms rounds mean ${table.latency.roundsMean ?? '-'} max ${table.latency.roundsMax ?? '-'} · cost $${table.cost.usd} (${table.cost.requests} requests, $${table.cost.perRequest ?? '-'}/request, $${table.cost.perTurn ?? '-'}/turn)`)
+    // e2-sb05 (explicit replace + side by side): ask vs act, its own line (AUDIT 11-24: an ask is not wrong, but unneeded)
+    for (const r of rows.filter(x => x.key === 'e2-sb05#0')) console.log(`  e2-sb05 ask/act split   ${r.asked ? 'ASKED' : 'ACTED'} -> ${r.outcome}${r.why ? ` (${r.why})` : ''}`)
     if (!sealed && env.AGENT_E2E_VERBOSE) for (const r of rows.filter(x => x.outcome !== 'success')) console.log(`    ${r.key} ${r.outcome} ${r.why || ''}`)
   }
   const items = [...collect.values()]
