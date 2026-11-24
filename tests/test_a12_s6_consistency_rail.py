@@ -247,7 +247,10 @@ def test_column_presets_have_a_typed_store_now():
         "visiblePerf is plain session state again -- A12 CP2's persistence was reverted")
     assert "const WATCHLIST_PERF_COLS_KEY = 'watchlist_perf_cols'" in src
     assert "parsePref(prefs?.[WATCHLIST_PERF_COLS_KEY], null)" in src, "the read side is gone"
-    assert "setPref(WATCHLIST_PERF_COLS_KEY, serialized)" in src, "the write side is gone"
+    # The write names the key as a LITERAL since 342119eb29 (S5 CP2: the setPref census reads keys from the
+    # parse tree and cannot follow a constant). The stored key is unchanged: the constant pinned above is the
+    # same string, so the read and the write still name one preference.
+    assert "setPref('watchlist_perf_cols', serialized)" in src, "the write side is gone"
     assert "COL_PRESETS" in src
 
 
