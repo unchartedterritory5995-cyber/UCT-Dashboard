@@ -12,6 +12,7 @@
 //               H8 a LATE record that completes a bucket after its end
 //               H15 1m, 5m, 15m and 30m keys of one symbol, from the same frames
 //   NOTHING     H3b a forming bar at the open the server did NOT name: no bridge over the night
+//               H3d ...nor when the answer does not say the server was current at the open (verified_through: review N2)
 //   APPENDED    H3c a named forming bar two buckets ahead INSIDE the session: no bridge (a quiet bucket is not proved)
 //               H5 a minute with no bar inside the bucket (a complete frame without the symbol)
 //               H6 an INCOMPLETE frame, a missed frame inside the bucket
@@ -83,7 +84,7 @@ function world({ open = TUE, start = [30, 20], feederOpts = {} } = {}) {
     /** The SERVER's answer for (sym, tf), built at `builtAt`: the closed buckets `closed` ([first minute, last minute]
      *  each), sealed up to minute `seal` (default: all but the newest), an optional forming bar starting at minute
      *  `dev`. `named`: as the route sends it, the forming bar is also the LAST of `bars` and `newest_bar_is_forming`. */
-    answer(sym, tf, { closed, dev = null, named = false, builtAt = clock.ms, seal, px = 0, seriesRev = builtAt } = {}) {
+    answer(sym, tf, { closed, dev = null, named = false, builtAt = clock.ms, seal, px = 0, seriesRev = builtAt, verified } = {}) {
       const grid = tf === '60' ? 'rth-tv' : 'eth-clock'
       const bars = closed.map(([a, b]) => agg(a, b, { px }))
       // a forming bar is a PARTIAL observation: a narrower range and less volume than the bucket ends with
@@ -94,7 +95,9 @@ function world({ open = TUE, start = [30, 20], feederOpts = {} } = {}) {
         type: ACTION.REST_FULL,
         payload: {
           ticker: sym, tf, contract: 1, grid, session: 'rth', cache_key: `b1:${sym}:${tf}:${grid}`,
-          series_rev: seriesRev, history_rev: 1, verified_through: Math.floor(builtAt / 1000), tail_status: 'verified',
+          series_rev: seriesRev, history_rev: 1, tail_status: 'verified',
+          // when the provider / stream last proved the series current: by default, as the answer was built
+          verified_through: verified === undefined ? Math.floor(builtAt / 1000) : verified,
           complete_through: sealAt == null ? null : T(sealAt), bars, ...(named ? { newest_bar_is_forming: true } : {}),
           developing: forming ? { ...forming, rev: builtAt } : null,
         },
@@ -188,6 +191,22 @@ describe('minute feed · 5m-60m: a closed bucket is appended when every one of i
     w.frames(10, 59)
     expect(w.snap('AAA', '60')).toBe(before)                      // yesterday's 15:30 bar is still its newest closed row
     expect(before.developing).toMatchObject({ t: w.T(0), v: 7 })
+  })
+
+  it.each([
+    ['proved current only up to 09:29 (its store lagged at the open)', (w) => w.T(-1)],
+    ['that does not say when it was last proved current', () => null],
+  ])('H3d a named forming bar at the open from an answer %s: no bridge (a bar before the open may be missing from it)', (_name, verified) => {
+    const w = world({ start: [-2, 20] })
+    w.hold('AAA', '60')
+    w.frames(0, 9)
+    w.clock.ms = w.at(10, 20)
+    w.answer('AAA', '60', { closed: [[Y1430, Y1430 + 59], [Y1530, Y1530 + 29]], dev: 0, named: true, verified: verified(w) })
+    const before = w.snap('AAA', '60')
+    expect(before.developing).toMatchObject({ t: w.T(0), v: 7 })
+    w.frames(10, 59)
+    expect(w.snap('AAA', '60')).toBe(before)
+    expect(w.feeder.stats()).toMatchObject({ appended: 0, rejected: 0 })
   })
 
   it('H3c a named forming bar two buckets ahead INSIDE the session: no bridge (the server having no bar there does not prove the bucket empty for good)', () => {

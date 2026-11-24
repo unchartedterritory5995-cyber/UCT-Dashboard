@@ -75,7 +75,8 @@
 // THE NIGHT. The bucket after yesterday's last one does not start where that one ended, so the rule above alone would
 // never append today's first bucket (a whole hour on 60m). It is appended when the server's own answer NAMED the
 // forming bar the copy holds as its newest bar (`newestForming`) and that bar is the session's first regular bucket:
-// the answer itself then says nothing lies between. Only over the night: inside the session a bucket the server had
+// the answer itself then says nothing lies between, provided it also says the server was proved current at or after
+// the open (`verifiedThrough`). Only over the night: inside the session a bucket the server had
 // no bar for is not proved empty (a late bar), so no bucket is ever stepped over there. A copy whose answer carried
 // no forming bar (a symbol no stream is on) is not bridged and stays behind at the first boundary, as today.
 //
@@ -309,7 +310,11 @@ export function createMinuteFeeder({
       const nf = s.newestForming
       // THE NIGHT (the header): the forming bar the server's answer named as its newest bar, at the session's first
       // regular bucket, IS the next bucket
+      // ...when that answer also says the server was proved current at or after the open (`verifiedThrough`): 5m-30m
+      // rows are shared with the extended view, and a store that lagged at 09:30 could have left a pre-market bucket
+      // out of the answer (review of #2680, N2). An answer that does not say is not bridged.
       const atOpen = dev && nf && nf.forming === true && nf.t === dev.t && isRthBar(dev.t) && !isRthBar(dev.t - 60)
+        && s.verifiedThrough >= dev.t
       const row = _whole(st, tf, atOpen ? dev.t : bucketOf(s.bars[s.bars.length - 1].t, tf)[1])
       if (!row) return
       s = _append(key, sym, tf, s, row)
