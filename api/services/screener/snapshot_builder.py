@@ -2127,6 +2127,10 @@ def _run_build_locked(max_tickers=None, through_ymd=None) -> dict:
     # see that helper's docstring). See each reader's own module docstring
     # for its honesty contract (absent key = not computable, never a
     # fabricated value).
+    # The five 02:xx side files as this build reads them: the receipt names every one older than
+    # tonight's pull (a fire lost to a restart). `side_pulls.build_read` never raises.
+    from api.services.screener import side_pulls
+    side_files = side_pulls.build_read()
     finviz_map = _read_market_source(
         "finviz_universe", finviz_universe.read_finviz_fields, targets, sources)
     # The two short-interest columns have ONE writer of their own: the FINRA
@@ -2497,7 +2501,8 @@ def _run_build_locked(max_tickers=None, through_ymd=None) -> dict:
              "sources": sources, "identity_refusals": identity_state,
              "settled_bars": settled_receipt, "bars_rs": rs_timing,
              "short_columns": short_receipt, "fund_trends": fund_receipt,
-             "volume_volatility": vv_receipt, "beats_insiders_funds": bif_receipt}
+             "volume_volatility": vv_receipt, "beats_insiders_funds": bif_receipt,
+             "side_files": side_files}
     if rs_post is not None:
         stats["rs_post_pass"] = rs_post
     return stats
