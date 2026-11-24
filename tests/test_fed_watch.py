@@ -652,9 +652,11 @@ def test_the_calendar_block_reads_held_weeks_only_and_counts_the_days(monkeypatc
     from datetime import date
     from api.services.cache import cache
     fw.reset_for_tests()
+    # Each held day carries the earnings buckets every calendar builder emits (`_empty_day`): the panel's
+    # weeks now pass the shared TERM-030 week assertion, which refuses a day without `bmo`/`amc` as malformed.
     monkeypatch.setattr(cache, "get", lambda key: {
-        "calendar_weekly": {"days": {"2031-03-19": {"econ": [], "fed": [{"time": "9:00 AM", "event": "Fed Brindlewood Speech"}]}}},
-        "calendar_week_2031-03-31": {"days": {"2031-04-01": {"econ": [{"time": "2:00 PM", "event": "FOMC Statement"}], "fed": []}}},
+        "calendar_weekly": {"days": {"2031-03-19": {"bmo": [], "amc": [], "econ": [], "fed": [{"time": "9:00 AM", "event": "Fed Brindlewood Speech"}]}}},
+        "calendar_week_2031-03-31": {"days": {"2031-04-01": {"bmo": [], "amc": [], "econ": [{"time": "2:00 PM", "event": "FOMC Statement"}], "fed": []}}},
     }.get(key))
     got = fw.calendar_block(date(2031, 3, 20), None)
     assert got["next_meeting"] == {"state": "ok", "date": "2031-04-01", "time": "2:00 PM", "event": "FOMC Statement",
