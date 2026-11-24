@@ -218,6 +218,8 @@ export function registerListViewCapabilities() {
 
   registerCapability({
     name: 'watchlist.setColumns',
+    // `verbs`: the words that name THIS action (P0.2: a revert-only plan runs without the revert card only when they are said)
+    verbs: ['reset'],
     surfaces: ['charts'],
     target: 'listView',
     summary: 'Add or hide columns on a Watchlist or Scanner widget, or reset them to the defaults (the right-click column menu). Undo puts the old columns back.',
