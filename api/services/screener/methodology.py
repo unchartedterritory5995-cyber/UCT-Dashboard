@@ -2081,6 +2081,171 @@ def store_columns_section() -> dict:
     }
 
 
+# ── Row columns (2026-11-24) ──────────────────────────────────────────────────────────────────
+# ⛔ THE SAME RULE AS EVERY SECTION HERE: each number is read from the module that owns the definition
+# (`ipo_lockups`, `seasonality`, `earnings_reaction_panel`, `factor_exposure_calc`, `factor_exposure`,
+# `stock_stats_calc`, `stock_stats`, `fundamentals_pit.beta`, `snapshot_builder`) or from the writer
+# (`row_columns`) at call time, so a re-tuned rule moves this page on the same deploy.
+# `test_the_row_methods_are_read_from_the_owners` proves it by moving one of each.
+ROW_FAMILY = "row_columns"
+
+
+def _row_params() -> dict:
+    from api.services import earnings_reaction_panel as _erx           # noqa: PLC0415
+    from api.services import factor_exposure as _fx                    # noqa: PLC0415
+    from api.services import factor_exposure_calc as _fc               # noqa: PLC0415
+    from api.services import ipo_lockups as _ipo                       # noqa: PLC0415
+    from api.services import seasonality as _seas                      # noqa: PLC0415
+    from api.services import stock_stats as _stat                      # noqa: PLC0415
+    from api.services import stock_stats_calc as _sc                   # noqa: PLC0415
+    from api.services.fundamentals_pit import beta as _beta            # noqa: PLC0415
+    from api.services.screener import row_columns as _rc               # noqa: PLC0415
+    from api.services.screener import snapshot_builder as _sb          # noqa: PLC0415
+    return {"erx": _erx, "fx": _fx, "fc": _fc, "ipo": _ipo, "seas": _seas, "stat": _stat, "sc": _sc,
+            "beta": _beta, "rc": _rc, "sb": _sb}
+
+
+def _fund_words(fc) -> str:
+    """FCTX's six spreads and their alternatives, in FCTX's order, from `factor_exposure_calc.FACTORS`."""
+    def leg(f, opt):
+        if len(opt) == 2:
+            return f"{opt[0]} minus {opt[1]}"
+        return f"{opt[0]} minus the market fund" if f["less_market"] else opt[0]
+    return "; ".join(f"{f['name'].lower()} {leg(f, f['options'][0])} (else {leg(f, f['options'][1])})"
+                     for f in fc.FACTORS)
+
+
+def _row_methods() -> list:
+    """The twelve row columns (`row_columns.COLUMNS`), every number read from the module that owns it."""
+    p = _row_params()
+    erx, fx, fc, ipo, seas, stat, sc, beta, sb = (p[k] for k in ("erx", "fx", "fc", "ipo", "seas", "stat", "sc",
+                                                                 "beta", "sb"))
+    common = _vv_common(p)
+    deep = sb.DEEP_BARS
+    window = ipo.LOCKUP_DAYS + ipo.BEHIND_DAYS
+    lock_how = (f"IPO LOCKUP's estimate: the listing date plus {ipo.LOCKUP_DAYS} calendar days, moved forward to the "
+                f"next NYSE session; insiders are usually free to sell from about then. The listing date is this row's "
+                f"IPO Date. Counted in calendar days from the row's date, as IPO LOCKUP counts its days to go. Worked "
+                f"out by the nightly 03:00 ET build; never a vendor.")
+    lock_blank = (f"Every value is an estimate: the real date is in the company's prospectus, which UCT does not hold, "
+                  f"and terms vary (some lockups end early or in stages). Blank with no listing date, for a row whose "
+                  f"Type is not Stock (funds and ADRs are left out), and once the estimated date is more than "
+                  f"{ipo.BEHIND_DAYS} days past (IPO LOCKUP's own window), so only about the last {window} days of "
+                  f"listings carry one. IPO LOCKUP dates a listing from its own scan (the first daily bar UCT holds, a "
+                  f"reused ticker's relisting day or the reference data), which can differ from the IPO Date by a few "
+                  f"days; its list also leaves out names under its price and dollar volume floor, this column does "
+                  f"not. " + _BLANK)
+    seas_how = (f"SEAS's month figures, never worked out a second way: a month's return is its last close over the "
+                f"prior month's last close, taken over every year the stock's held daily bars cover the month end to "
+                f"end; the month is the calendar month of the build's session in New York time, and the month still "
+                f"running is never counted. " + common)
+    seas_blank = (f"Blank with fewer than {seas.MIN_YEARS} such years (SEAS shows those marked thin), and all three "
+                  f"together. The build holds up to {deep:,} sessions of a stock (about {deep // 252} years), so for an "
+                  f"older stock it counts fewer years than SEAS, which reads a longer history. A past pattern is not a "
+                  f"forecast. " + _BLANK)
+    d = erx.DRIFT
+    drift_how = (f"ERX's drift: the close {d} sessions after the reacting session over the reacting session's close. "
+                 f"The reacting session is ERX's: of the report day and the next session, the one that opened furthest "
+                 f"from its prior close (a report date on a weekend or holiday moves to the next session). The last "
+                 f"report is the newest reported quarter with a report date on or before the build's session in the "
+                 f"held copy of the Research Earnings results, from the same read EPS Surprise, Last Report uses. "
+                 + common)
+    drift_blank = (f"Blank while the {d} sessions after the reacting session have not all traded (pending, never 0), "
+                   f"while the session after the report date has not traded (the reacting session cannot be chosen "
+                   f"yet), for a stock with no held earnings copy or no dated report, and while the copy is behind "
+                   f"(its next report date has passed with no result in it). Not Last Report Move, which is the "
+                   f"wire's peak move on the report. " + _BLANK)
+    fctx_how = (f"FCTX's regression, never fitted a second way: the stock's simple daily returns on the newest "
+                f"{fc.WINDOW} sessions it and every fund of the model traded, regressed on six fund spreads at once "
+                f"({_fund_words(fc)}); the market fund is SPY, or IVV where IVV stood in. An alternative is used only "
+                f"when the first fund is not held with at least {fc.FUND_MIN_CLOSES} closes, as FCTX does. The funds' "
+                f"closes are UCT's stored ones, read once per build (the newest {fx.READ_SESSIONS}, FCTX's read). "
+                + common)
+    tbar = f"{fc.T_BAR:g}"
+    fctx_short = (f"Blank with fewer than {fc.MIN_OBS} shared returns, when the funds' returns cannot be told apart (a "
+                  f"singular fit), and while UCT holds no market fund. It describes how the stock traded over the "
+                  f"year, not a forecast. ")
+    load_blank = (f"Published only when FCTX shows the loading clearing its bar: |t| above {tbar}, the loading over "
+                  f"its standard error. A loading under the bar is blank, never its estimate, because FCTX calls those "
+                  f"too uncertain to read. " + fctx_short + f"{tbar} is FCTX's default, not an owner ruling. " + _BLANK)
+    cap_how = (f"STAT's capture: the stock's mean daily return on those days over SPY's mean on the same days, x 100, "
+               f"over the newest {beta.WINDOW} daily returns both traded (a return spans two sessions both traded), "
+               f"against SPY's newest {stat.BENCH_TAIL} closes as STAT reads them. Daily, not the monthly convention "
+               f"fund reports use. " + common)
+    cap_blank = (f"Blank with fewer than {beta.MIN_OBS} shared returns, or fewer than {sc.CAPTURE_MIN_DAYS} such days. "
+                 + _BLANK)
+    out = [
+        {"column": "days_to_lockup", "label": "Days to Lockup Expiry (Estimated)",
+         "one_line": "Calendar days to the estimated end of the IPO lockup: negative means it ended that many days ago.",
+         "scale": "calendar days (negative = days since)", "how": lock_how, "caveat": lock_blank},
+        {"column": "seas_month_avg", "label": "Seasonality, Average Return This Month",
+         "one_line": "The stock's average return in this calendar month, over the past years its history covers.",
+         "scale": "percent (2.5 = +2.5% in an average year)",
+         "how": seas_how + " This column is the average of those years' returns for the month.", "caveat": seas_blank},
+        {"column": "seas_month_up_pct", "label": "Seasonality, Up Years This Month",
+         "one_line": "The share of those years in which the stock rose in this calendar month.",
+         "scale": "percent of years (60 = rose in 6 of 10)",
+         "how": seas_how + " This column is the share of those years whose return for the month was above 0.",
+         "caveat": seas_blank},
+        {"column": "seas_month_years", "label": "Seasonality, Years Counted This Month",
+         "one_line": "How many years the average and the share of up years rest on.",
+         "scale": "years", "how": seas_how + " This column counts those years.", "caveat": seas_blank},
+        {"column": "post_earn_drift_5d", "label": f"Drift {d} Days After Last Report",
+         "one_line": f"How far the stock moved in the {d} sessions after the last report's reacting session.",
+         "scale": "percent (3.2 = +3.2%)", "how": drift_how, "caveat": drift_blank},
+        {"column": "factor_mkt", "label": "Factor Loading, Market",
+         "one_line": "How much the stock moves with the market, holding the style spreads fixed: 1 is the market's own.",
+         "scale": "a loading (1.2 = 1.2 times the market's move)",
+         "how": fctx_how + " This column is the market fund's loading.", "caveat": load_blank},
+        {"column": "factor_size", "label": "Factor Loading, Size",
+         "one_line": "Positive: the stock trades like small caps; negative: like large caps.",
+         "scale": "a loading (positive = small caps)",
+         "how": fctx_how + " This column is the size spread's loading.", "caveat": load_blank},
+        {"column": "factor_growth", "label": "Factor Loading, Growth vs Value",
+         "one_line": "Positive: the stock trades like growth stocks; negative: like value stocks.",
+         "scale": "a loading (positive = growth)",
+         "how": fctx_how + " This column is the growth vs value spread's loading.", "caveat": load_blank},
+        {"column": "factor_mom", "label": "Factor Loading, Momentum",
+         "one_line": "Positive: the stock trades like recent winners; negative: like recent losers.",
+         "scale": "a loading (positive = recent winners)",
+         "how": fctx_how + " This column is the momentum spread's loading.", "caveat": load_blank},
+        {"column": "factor_r2", "label": "Factor Model R-Squared",
+         "one_line": "The share of the stock's daily moves the six factors explain, from 0 to 1.",
+         "scale": "0 to 1 (0.6 = 60% explained)",
+         "how": fctx_how + " This column is the fit's R-squared: 1 less the residual sum of squares over the total.",
+         "caveat": ("Published whether or not a loading clears the bar: a low R-squared means the stock mostly moves "
+                    "on its own. " + fctx_short + _BLANK)},
+        {"column": "up_capture_1y", "label": "Up Capture vs SPY, 1 Year",
+         "one_line": "On the days SPY rose over the last year, the stock's average move as a percent of SPY's.",
+         "scale": "percent (120 = moved 1.2 times as far as SPY on its up days)",
+         "how": "On the days SPY rose. " + cap_how, "caveat": cap_blank},
+        {"column": "down_capture_1y", "label": "Down Capture vs SPY, 1 Year",
+         "one_line": "On the days SPY fell over the last year, the stock's average move as a percent of SPY's.",
+         "scale": "percent (80 = fell 0.8 times as far as SPY on its down days)",
+         "how": "On the days SPY fell. " + cap_how, "caveat": cap_blank},
+    ]
+    for m in out:
+        m["family"] = ROW_FAMILY
+    return out
+
+
+def row_columns_section() -> dict:
+    """The shared paragraph for the twelve row columns."""
+    p = _row_params()
+    return {
+        "label": "Days to lockup, seasonality, post-earnings drift, factor loadings and up / down capture",
+        "columns": list(p["rc"].COLUMNS),
+        "timing": ("Worked out by the nightly 03:00 ET build from each stock's own daily bars, as of its newest "
+                   "session, inside the same pass that works out every other bar column; the factor funds are read "
+                   "once per build, and the last report's date comes from the build's one read of the held earnings "
+                   "copies."),
+        "sources": ["IPO LOCKUP (the estimated lockup end)", "SEAS (the month's seasonality)",
+                    "ERX (the drift after a report)", "FCTX (factor loadings)", "STAT (up and down capture)"],
+        "honesty": ("A lockup date is an estimate, a seasonal average and a factor loading describe the past, and a "
+                    "drift is one report's; none of these columns is a forecast or a recommendation."),
+    }
+
+
 def all_methods(user=None) -> dict:
     """Every composite column we publish, with how it is computed.
 
@@ -2122,6 +2287,7 @@ def all_methods(user=None) -> dict:
     out.extend(_volume_volatility_methods())
     out.extend(_beats_methods())
     out.extend(_store_methods())
+    out.extend(_row_methods())
     evening = _fund_trend_params()["ft"].REBUILD_AT_ET
     doc = {
         "methods": out,
@@ -2130,6 +2296,7 @@ def all_methods(user=None) -> dict:
         "volume_volatility": volume_volatility_section(),
         "beats_insiders_funds": beats_insiders_funds_section(),
         "held_store_columns": store_columns_section(),
+        "row_columns": row_columns_section(),
         "as_of_note": (
             "Every column here is recomputed by the nightly 03:00 ET build; the "
             "IBD-style RS Rating columns are read by that build from the 04:15 ET "

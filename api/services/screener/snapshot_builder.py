@@ -64,6 +64,17 @@ The ``_read_*`` wrappers reuse data we ALREADY store — NO yfinance:
                 S&P 500 declines (``volume_volatility.index_context``, MKTH's own
                 first stage: the stored index closes, never a stock read). Its
                 receipt (rows, time) is ``stats["volume_volatility"]``.
+  - row columns -> NOT a reader: ``row_columns.row_fields`` inside
+                ``build_row``'s bars pass (the ``bars_row_columns`` step,
+                2026-11-24), from the row's own deep series: days to the
+                estimated IPO lockup (IPO LOCKUP's rule, from the row's listing
+                date), this month's seasonality (SEAS), the last report's
+                5-session drift (ERX, the report date from the earnings read's
+                own pass, ``reports``), FCTX's factor loadings and STAT's up /
+                down capture. ONE context per build (``row_columns.build_context``:
+                the build's SPY read and FCTX's other factor funds, read once
+                from the same store, never a vendor). Receipt (rows, time per
+                part, the funds used): ``stats["row_columns"]``.
   - held-store columns -> ``store_columns``'s four readers (2026-11-23), ONE
                 read per build each, same ``market_row`` merge, each the sole
                 writer of its columns: OSCR's IV rank and percentile from the IV
@@ -153,7 +164,7 @@ from . import (snapshot_db, candles, bar_character, bases, technicals, enrich, s
               context_joins, finviz_universe, earnings_dates, earnings_context,
               analyst_pass, insider_capture, pattern_join, darkpool_agg, opt_flow,
               archive_join, rs_columns, rs_setup, short_columns, fund_trends,
-              volume_volatility, beats_insiders_funds, store_columns)
+              volume_volatility, beats_insiders_funds, store_columns, row_columns)
 
 log = logging.getLogger(__name__)
 
@@ -609,7 +620,8 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
               bulk_row=None, spy_closes=None, context_row=None,
               market_row=None, failures=None, identity_state=None,
               spy_bars=None, rsp_bars=None, rs_timing=None,
-              rs_weekly_cache=None, shadow_out=None, vv_context=None) -> dict:
+              rs_weekly_cache=None, shadow_out=None, vv_context=None,
+              rc_context=None) -> dict:
     """Merge all field groups into one snapshot row. Inputs are dicts whose
     keys are already snapshot COLUMNS (the readers do source-name mapping).
 
@@ -689,6 +701,12 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
     ``rows`` / ``ms`` / ``seam_withheld`` accumulate here. ``None`` (a direct caller):
     the other five volume and volatility columns are still worked out from the bars,
     ``corr_rel_last`` stays NULL.
+
+    ``rc_context`` (2026-11-24) is the build's ONE ``row_columns.build_context`` (the
+    session's month, SPY's closes, FCTX's fund set, the reports map) for the twelve row
+    columns, and the step's receipt: ``rows`` / ``ms`` / ``part_ms`` / ``seam_withheld``
+    accumulate here. ``None`` (a direct caller): only ``days_to_lockup`` is worked out
+    (counted from today); the other eleven stay NULL.
 
     ``failures`` is the same optional ``{source: {outcome: count}}`` out-dict
     every ``_read_*`` in this file already reports into; ``run_build`` passes
@@ -939,11 +957,11 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
         # label, never computed across two price regimes. Its own label, so a raise
         # costs these six and is counted by name. Timed into `vv_context`.
         _vv_t0 = time.perf_counter()
+        _seam_since = (technicals.series_contradicts_itself(bars)[1]
+                       if _seam_cols else None)
         row.update(_step("bars_volume_volatility",
                          lambda: volume_volatility.row_fields(
-                             bars, bars_full, vv_context,
-                             seam_since=(technicals.series_contradicts_itself(bars)[1]
-                                         if _seam_cols else None))))
+                             bars, bars_full, vv_context, seam_since=_seam_since)))
         if _seam_cols and failures is not None:
             _c = failures.setdefault("bars_volume_volatility", {})
             _c["series_contradicts_itself"] = _c.get("series_contradicts_itself", 0) + 1
@@ -952,6 +970,29 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
             vv_context["ms"] = vv_context.get("ms", 0.0) + (time.perf_counter() - _vv_t0) * 1000.0
             if _seam_cols:
                 vv_context["seam_withheld"] = vv_context.get("seam_withheld", 0) + 1
+        # ⭐ ROW COLUMNS (2026-11-24): days to the estimated IPO lockup (IPO LOCKUP's
+        # rule, from this row's listing date and Type), this month's seasonality (SEAS),
+        # the last report's 5-session drift (ERX), FCTX's factor loadings and STAT's up /
+        # down capture, from THIS row's deep series, never a second read; the build's one
+        # context holds the funds and the report dates. AFTER the seam scan, for the
+        # same reason as the step above: a column whose read reaches the newest seam is
+        # withheld and counted. Its own label, so a raise costs these twelve and is
+        # counted by name. Timed into `rc_context` (each part apart).
+        _rc_t0 = time.perf_counter()
+        row.update(_step("bars_row_columns",
+                         lambda: row_columns.row_fields(
+                             bars_full, rc_context, ticker=row["ticker"],
+                             ipo_date=row.get("ipo_date"),
+                             security_type=row.get("security_type"),
+                             seam_since=_seam_since)))
+        if _seam_cols and failures is not None:
+            _c = failures.setdefault("bars_row_columns", {})
+            _c["series_contradicts_itself"] = _c.get("series_contradicts_itself", 0) + 1
+        if rc_context is not None:
+            rc_context["rows"] = rc_context.get("rows", 0) + 1
+            rc_context["ms"] = rc_context.get("ms", 0.0) + (time.perf_counter() - _rc_t0) * 1000.0
+            if _seam_cols:
+                rc_context["seam_withheld"] = rc_context.get("seam_withheld", 0) + 1
         # ⭐ RS SCREENS, the Setup label (unit U4; plan section 3). AFTER
         # `bars_structure`, `bars_multi_candle` and the seam scan, because it reads
         # two values this row already holds (`base_pivot_px`, `tight_consolidation`)
@@ -1447,6 +1488,31 @@ def _volume_volatility_context(failures=None) -> dict:
         log.warning("[screener] S&P 500 declines unavailable; corr_rel_last is NULL "
                     "this build", exc_info=True)
         return {"state": "failed", "rows": 0, "ms": 0.0, "seam_withheld": 0}
+
+
+def _row_columns_context(session, spy_bars, through_ymd=None, failures=None) -> dict:
+    """The build's ONE ``row_columns.build_context``: the session's month, SPY's closes
+    (this build's own SPY read, handed in), and FCTX's fund set, each other fund read once
+    through ``_read_benchmark_bars`` (the store, current listing, never a vendor) and cut
+    at ``through_ymd`` like every ticker. Guarded like ``_volume_volatility_context``: a
+    raise is COUNTED under ``row_columns_context`` and never costs the build; the rows
+    then get only ``days_to_lockup`` (which needs no context but the row's date)."""
+    try:
+        return row_columns.build_context(
+            session, spy_bars,
+            lambda sym: bars_through(_read_benchmark_bars(sym), through_ymd))
+    except Exception as e:                                     # noqa: BLE001
+        if failures is not None:
+            failures.setdefault("row_columns_context", {})
+            k = type(e).__name__
+            failures["row_columns_context"][k] = \
+                failures["row_columns_context"].get(k, 0) + 1
+        log.warning("[screener] row columns context failed; only days_to_lockup is "
+                    "worked out this build", exc_info=True)
+        return {"session": None, "month": None, "today": datetime.date.today(),
+                "reports": {}, "spy_stat": [], "factors": None, "rows": 0, "ms": 0.0,
+                "seam_withheld": 0, "part_ms": {p: 0.0 for p in row_columns.PARTS},
+                "state": "failed"}
 
 
 def _volume_volatility_receipt(ctx: dict) -> dict:
@@ -2267,11 +2333,15 @@ def _run_build_locked(max_tickers=None, through_ymd=None) -> dict:
     # (counts, states and each read's seconds) are kept in the stats.
     bif_session = settled_session()
     bif_receipt: dict = {"earnings": {}, "insider": {}, "funds": {}}
+    # The newest dated report of each held copy, from the SAME pass (2026-11-24): the row
+    # columns' post-earnings drift reads it, so no store is read twice.
+    earn_reports: dict = {}
     _bif_t0 = time.perf_counter()
     earn_map = _read_market_source(
         "earnings_beats",
         lambda t, failures=None: beats_insiders_funds.read_earnings_fields(
-            t, failures=failures, session=bif_session, receipt=bif_receipt["earnings"]),
+            t, failures=failures, session=bif_session, receipt=bif_receipt["earnings"],
+            reports=earn_reports),
         targets, sources)
     bif_receipt["earnings"]["seconds"] = round(time.perf_counter() - _bif_t0, 2)
     _bif_t0 = time.perf_counter()
@@ -2361,6 +2431,11 @@ def _run_build_locked(max_tickers=None, through_ymd=None) -> dict:
                 entry["current"] = False
             bench_receipt[_sym] = entry
         settled_receipt["benchmarks"] = bench_receipt
+    # ⭐ Row columns (2026-11-24): ONE context per build, AFTER the benchmarks are settled so
+    # the factor model's SPY is the RS step's: FCTX's other funds read once from the store,
+    # the session's month, and the report dates the earnings read just handed over.
+    rc_ctx = _row_columns_context(s_date, spy_bars, through_ymd, sources)
+    rc_ctx["reports"] = earn_reports
     from api.services import massive as _massive  # symbol mapping only; no I/O
     for t in targets:
         try:
@@ -2463,7 +2538,8 @@ def _run_build_locked(max_tickers=None, through_ymd=None) -> dict:
                             failures=sources, identity_state=identity_state,
                             spy_bars=spy_bars, rsp_bars=rsp_bars,
                             rs_timing=rs_timing, rs_weekly_cache=rs_weekly_cache,
-                            shadow_out=shadow_rows, vv_context=vv_context)
+                            shadow_out=shadow_rows, vv_context=vv_context,
+                            rc_context=rc_ctx)
             for col, val in row.items():
                 if val is not None and col in populated:
                     populated[col] += 1
@@ -2537,6 +2613,8 @@ def _run_build_locked(max_tickers=None, through_ymd=None) -> dict:
     log.info("[screener] volume & volatility step: %s; beats, insiders & funds: %s",
              vv_receipt, bif_receipt)
     log.info("[screener] held-store columns: %s", store_receipt)
+    rc_receipt = row_columns.receipt(rc_ctx)
+    log.info("[screener] row columns step: %s", rc_receipt)
     stats = {"built": built, "skipped": skipped, "errors": errors,
              "targets": len(targets), "sector_rs": sector_rs,
              "populated": populated, "empty_columns": empty_columns,
@@ -2544,7 +2622,8 @@ def _run_build_locked(max_tickers=None, through_ymd=None) -> dict:
              "settled_bars": settled_receipt, "bars_rs": rs_timing,
              "short_columns": short_receipt, "fund_trends": fund_receipt,
              "volume_volatility": vv_receipt, "beats_insiders_funds": bif_receipt,
-             "store_columns": store_receipt, "side_files": side_files}
+             "store_columns": store_receipt, "side_files": side_files,
+             "row_columns": rc_receipt}
     if rs_post is not None:
         stats["rs_post_pass"] = rs_post
     return stats
