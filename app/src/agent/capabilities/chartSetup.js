@@ -43,6 +43,8 @@ import { MAX_CHART_TEMPLATES } from '../../components/chart/chartCeilings'
 import { RANGE_OPTS } from '../../components/chart/rangeOptions'
 import { averageCount, withAveragesShown } from '../../components/chart/averageVisibility'
 import * as nativeRegistry from '../../components/chart/engine/nativeRegistry'
+import { prefWriteFailed, readsBack } from '../prefFailure'
+import { compareDisplayOfWords, groupOnlyOfWords } from './comparePhrases'
 
 const sameJson = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
 const clone = (v) => (v === undefined ? undefined : JSON.parse(JSON.stringify(v)))
@@ -148,7 +150,8 @@ export const chartTemplatesKind = {
   async commit(host, ref, patch) {
     // the member's own preference writer (setPref → true only once the server accepted it)
     const ok = await host.prefs.write('chart_templates', JSON.stringify(patch.write))
-    if (!ok) throw new Error('the server did not confirm the change, so it is not saved')
+    // ⛔ INV2: the refused value may still be in this tab's cache — "nothing was left changed" only on a read-back of the old list
+    if (!ok) throw prefWriteFailed('the server did not confirm the change, so it is not saved', { unchanged: readsBack(() => rawTemplates(host), patch.prev ?? []) })
     return true
   },
   landed: (s, patch) => !!s && tplSig(s.templates) === tplSig(patch.write),
@@ -244,6 +247,9 @@ export function registerChartSetupCapabilities() {
   registerCapability({
     ...chartCommon,
     name: 'chartSetup.compareDisplay',
+    // Compare family (11-23): the general reader (comparePhrases) — whole sentences, since a list is inside them
+    fastWhole: true,
+    fast: (p) => compareDisplayOfWords(p) || groupOnlyOfWords(p),
     summary: 'Change how ONE chart\'s comparison overlays are shown (Tools → Compare Symbols): each overlay\'s scale ("same" = share the main price scale, "new" = its own % scale), showing or hiding an overlay, and "Group only" (hide the chart\'s own symbol). To add or remove overlays use chart.compare.',
     hints: 'symbols = the compared tickers this applies to ([] = every comparison on the chart); scale = same | new | null (keep); visible = true | false | null (keep); groupOnly = true | false | null (keep).',
     args: { type: 'object', properties: {

@@ -253,9 +253,11 @@ describe('the fail-closed default', () => {
     // `PINE_INEXPRESSIBLE` sentence and its literal spelling now refuses
     // `pine:function` with that sentence rather than `pine:role-order`. Pinned
     // as the exact roster, so a second such name is a deliberate edit here.
+    // ⭐⭐ e95 unit 2 (2026-11-22) — and the anchored VWAP's two entries, tagged `anchor_dependent`: their literal
+    // spelling (`ta.vwapAnchor(...)`, which no Pine script writes) refuses `pine:function` with that sentence.
     expect(multi.filter((k) => Object.prototype.hasOwnProperty.call(PINE_INEXPRESSIBLE, k)),
       'the multi-series names carrying a PINE_INEXPRESSIBLE reason changed -- update this roster')
-      .toEqual(['valuewhenOccurrence'])
+      .toEqual(['valuewhenOccurrence', 'vwapAnchor', 'vwapAnchorDev'])
   })
 
   it('a shape that no longer fits the manifest refuses instead of filling what it can', () => {

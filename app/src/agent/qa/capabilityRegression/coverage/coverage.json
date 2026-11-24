@@ -1,57 +1,97 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 256,
+  "all": 269,
   "withProductionKinds": 208,
-  "darkGated": 48
+  "darkGated": 61
  },
  "totals": {
-  "capabilities": 256,
-  "withAnyRegressionCase": 204,
+  "capabilities": 269,
+  "withAnyRegressionCase": 218,
   "perProtection": {
    "nl": {
-    "covered": 201,
-    "applicable": 256
+    "covered": 215,
+    "applicable": 269
    },
    "routing": {
-    "covered": 198,
-    "applicable": 256
+    "covered": 212,
+    "applicable": 269
    },
    "args": {
-    "covered": 204,
-    "applicable": 256
+    "covered": 218,
+    "applicable": 269
    },
    "execution": {
-    "covered": 201,
-    "applicable": 256
+    "covered": 215,
+    "applicable": 269
    },
    "receipt": {
-    "covered": 171,
-    "applicable": 256
+    "covered": 185,
+    "applicable": 269
    },
    "refusal": {
     "covered": 35,
-    "applicable": 256
+    "applicable": 269
    },
    "permission": {
-    "covered": 248,
-    "applicable": 256
+    "covered": 261,
+    "applicable": 269
    },
    "undo": {
     "covered": 84,
     "applicable": 143
    },
    "multiStep": {
-    "covered": 40,
-    "applicable": 256
+    "covered": 43,
+    "applicable": 269
    },
    "phrasings": {
-    "covered": 197,
-    "applicable": 256
+    "covered": 211,
+    "applicable": 269
    }
   }
  },
  "knownGaps": [
+  {
+   "id": "GAP-COMPARE-DISPLAY-ROUTE",
+   "router": "v1",
+   "owner": "pl-compare",
+   "reason": "the fast path reads these with no model whenever the chart HAS comparisons (the only state they mean anything in: capreg (c) and the panel tests pass); a MODEL-routed paraphrase names no chartSetup word — chartSetup carries no scale / comparison words, and this branch adds none to an existing group (routing budget). Follow-up: comparison-display words for the chartSetup group, with a budget re-check.",
+   "mode": "\"put QQQ on the same scale\" → chartSetup.compareDisplay",
+   "level": "a",
+   "intent": "compare.display.sameScale",
+   "phrasing": "put QQQ on the same scale"
+  },
+  {
+   "id": "GAP-COMPARE-DISPLAY-ROUTE",
+   "router": "v1+v2",
+   "owner": "pl-compare",
+   "reason": "the fast path reads these with no model whenever the chart HAS comparisons (the only state they mean anything in: capreg (c) and the panel tests pass); a MODEL-routed paraphrase names no chartSetup word — chartSetup carries no scale / comparison words, and this branch adds none to an existing group (routing budget). Follow-up: comparison-display words for the chartSetup group, with a budget re-check.",
+   "mode": "\"move QQQ to the main price scale\" → chartSetup.compareDisplay",
+   "level": "a",
+   "intent": "compare.display.sameScale",
+   "phrasing": "move QQQ to the main price scale"
+  },
+  {
+   "id": "GAP-COMPARE-DISPLAY-ROUTE",
+   "router": "v1",
+   "owner": "pl-compare",
+   "reason": "the fast path reads these with no model whenever the chart HAS comparisons (the only state they mean anything in: capreg (c) and the panel tests pass); a MODEL-routed paraphrase names no chartSetup word — chartSetup carries no scale / comparison words, and this branch adds none to an existing group (routing budget). Follow-up: comparison-display words for the chartSetup group, with a budget re-check.",
+   "mode": "\"make QQQ share the price scale\" → chartSetup.compareDisplay",
+   "level": "a",
+   "intent": "compare.display.sameScale",
+   "phrasing": "make QQQ share the price scale"
+  },
+  {
+   "id": "GAP-COMPARE-DISPLAY-ROUTE",
+   "router": "v1",
+   "owner": "pl-compare",
+   "reason": "the fast path reads these with no model whenever the chart HAS comparisons (the only state they mean anything in: capreg (c) and the panel tests pass); a MODEL-routed paraphrase names no chartSetup word — chartSetup carries no scale / comparison words, and this branch adds none to an existing group (routing budget). Follow-up: comparison-display words for the chartSetup group, with a budget re-check.",
+   "mode": "\"show only the comparisons\" → chartSetup.compareDisplay",
+   "level": "a",
+   "intent": "compare.display.groupOnly",
+   "phrasing": "show only the comparisons"
+  },
   {
    "id": "GAP-HISTORY-PERIODS-ROUTE",
    "router": "v1+v2",
@@ -1158,7 +1198,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false,
+   "fast": true,
    "protections": {
     "nl": true,
     "routing": true,
@@ -1168,38 +1208,59 @@
     "refusal": false,
     "permission": true,
     "undo": true,
-    "multiStep": false,
+    "multiStep": true,
     "phrasings": true
    },
-   "phrasings": 4,
+   "phrasings": 22,
    "evidence": {
     "nl": [
      "compare.amd: \"compare with AMD\"",
      "compare.amd: \"overlay AMD on this chart\"",
      "compare.amd: \"compare NVDA to AMD\"",
-     "compare.amd: \"add AMD as a comparison\""
+     "compare.amd: \"add AMD as a comparison\"",
+     "compare.list.self: \"compare it with MSFT and QQQ\"",
+     "compare.list.self: \"overlay MSFT and QQQ on this chart\""
     ],
     "routing": [
      "compare.amd: \"compare with AMD\"",
      "compare.amd: \"overlay AMD on this chart\"",
      "compare.amd: \"compare NVDA to AMD\"",
-     "compare.amd: \"add AMD as a comparison\""
+     "compare.amd: \"add AMD as a comparison\"",
+     "compare.list.self: \"compare it with MSFT and QQQ\"",
+     "compare.list.self: \"overlay MSFT and QQQ on this chart\""
     ],
     "args": [
-     "corpus compare.amd"
+     "corpus compare.amd",
+     "corpus compare.list.self",
+     "corpus compare.base.other-chart",
+     "corpus compare.remove.one",
+     "corpus compare.clear.all"
     ],
     "execution": [
-     "compare.amd (c)"
+     "compare.amd (c)",
+     "compare.list.self (c)",
+     "compare.base.other-chart (c)",
+     "compare.remove.one (c)",
+     "compare.clear.all (c)"
     ],
     "receipt": [
-     "compare.amd (c)"
+     "compare.amd (c)",
+     "compare.list.self (c)",
+     "compare.base.other-chart (c)",
+     "compare.remove.one (c)",
+     "compare.clear.all (c)"
     ],
     "refusal": [],
     "permission": [],
     "undo": [
-     "compare.amd: undo restores"
+     "compare.amd: undo restores",
+     "compare.list.self: undo restores",
+     "compare.base.other-chart: undo restores"
     ],
-    "multiStep": [],
+    "multiStep": [
+     "compare.remove.one: after an earlier turn",
+     "compare.clear.all: after an earlier turn"
+    ],
     "phrasings": []
    }
   },
@@ -1684,7 +1745,7 @@
     "multiStep": true,
     "phrasings": true
    },
-   "phrasings": 5,
+   "phrasings": 8,
    "evidence": {
     "nl": [
      "scale.log: \"log scale\"",
@@ -1692,31 +1753,36 @@
      "scale.log: \"use a logarithmic price scale\"",
      "scale.log: \"make the chart log\"",
      "scale.log: \"turn on log scale\"",
-     "GW-01.symbol-weekly-emas-log-undo"
+     "scale.percent.words: \"show it as percent\""
     ],
     "routing": [
      "scale.log: \"log scale\"",
      "scale.log: \"switch to log scale\"",
      "scale.log: \"use a logarithmic price scale\"",
      "scale.log: \"make the chart log\"",
-     "scale.log: \"turn on log scale\""
+     "scale.log: \"turn on log scale\"",
+     "scale.percent.words: \"show it as percent\""
     ],
     "args": [
      "corpus scale.log",
+     "corpus scale.percent.words",
      "GW-01.symbol-weekly-emas-log-undo"
     ],
     "execution": [
      "scale.log (c)",
+     "scale.percent.words (c)",
      "GW-01.symbol-weekly-emas-log-undo"
     ],
     "receipt": [
      "scale.log (c)",
+     "scale.percent.words (c)",
      "GW-01.symbol-weekly-emas-log-undo"
     ],
     "refusal": [],
     "permission": [],
     "undo": [
      "scale.log: undo restores",
+     "scale.percent.words: undo restores",
      "GW-01.symbol-weekly-emas-log-undo"
     ],
     "multiStep": [
@@ -2509,30 +2575,52 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false,
+   "fast": true,
    "protections": {
-    "nl": false,
-    "routing": false,
-    "args": false,
-    "execution": false,
-    "receipt": false,
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
     "refusal": false,
     "permission": true,
     "undo": false,
-    "multiStep": false,
-    "phrasings": false
+    "multiStep": true,
+    "phrasings": true
    },
-   "phrasings": 0,
+   "phrasings": 6,
    "evidence": {
-    "nl": [],
-    "routing": [],
-    "args": [],
-    "execution": [],
-    "receipt": [],
+    "nl": [
+     "compare.display.sameScale: \"put QQQ on the same scale\"",
+     "compare.display.sameScale: \"move QQQ to the main price scale\"",
+     "compare.display.sameScale: \"make QQQ share the price scale\"",
+     "compare.display.groupOnly: \"hide the base symbol\"",
+     "compare.display.groupOnly: \"group only\"",
+     "compare.display.groupOnly: \"show only the comparisons\""
+    ],
+    "routing": [
+     "compare.display.groupOnly: \"hide the base symbol\"",
+     "compare.display.groupOnly: \"group only\""
+    ],
+    "args": [
+     "corpus compare.display.sameScale",
+     "corpus compare.display.groupOnly"
+    ],
+    "execution": [
+     "compare.display.sameScale (c)",
+     "compare.display.groupOnly (c)"
+    ],
+    "receipt": [
+     "compare.display.sameScale (c)",
+     "compare.display.groupOnly (c)"
+    ],
     "refusal": [],
     "permission": [],
     "undo": [],
-    "multiStep": [],
+    "multiStep": [
+     "compare.display.sameScale: after an earlier turn",
+     "compare.display.groupOnly: after an earlier turn"
+    ],
     "phrasings": []
    }
   },
@@ -2547,7 +2635,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false,
+   "fast": true,
    "protections": {
     "nl": true,
     "routing": true,
@@ -2557,36 +2645,45 @@
     "refusal": false,
     "permission": true,
     "undo": true,
-    "multiStep": false,
+    "multiStep": true,
     "phrasings": true
    },
-   "phrasings": 3,
+   "phrasings": 5,
    "evidence": {
     "nl": [
      "compare.group.aiChips: \"compare this chart against the AI Chips theme\"",
      "compare.group.aiChips: \"overlay the AI Chips group on this chart\"",
-     "compare.group.aiChips: \"compare NVDA with the AI Chips theme\""
+     "compare.group.aiChips: \"compare NVDA with the AI Chips theme\"",
+     "compare.group.remove: \"remove the AI Chips group\"",
+     "compare.group.remove: \"drop the ai chips theme from the comparisons\""
     ],
     "routing": [
      "compare.group.aiChips: \"compare this chart against the AI Chips theme\"",
      "compare.group.aiChips: \"overlay the AI Chips group on this chart\"",
-     "compare.group.aiChips: \"compare NVDA with the AI Chips theme\""
+     "compare.group.aiChips: \"compare NVDA with the AI Chips theme\"",
+     "compare.group.remove: \"remove the AI Chips group\"",
+     "compare.group.remove: \"drop the ai chips theme from the comparisons\""
     ],
     "args": [
-     "corpus compare.group.aiChips"
+     "corpus compare.group.aiChips",
+     "corpus compare.group.remove"
     ],
     "execution": [
-     "compare.group.aiChips (c)"
+     "compare.group.aiChips (c)",
+     "compare.group.remove (c)"
     ],
     "receipt": [
-     "compare.group.aiChips (c)"
+     "compare.group.aiChips (c)",
+     "compare.group.remove (c)"
     ],
     "refusal": [],
     "permission": [],
     "undo": [
      "compare.group.aiChips: undo restores"
     ],
-    "multiStep": [],
+    "multiStep": [
+     "compare.group.remove: after an earlier turn"
+    ],
     "phrasings": []
    }
   },
@@ -3294,7 +3391,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false,
+   "fast": true,
    "protections": {
     "nl": true,
     "routing": true,
@@ -9711,6 +9808,60 @@
     "phrasings": []
    }
   },
+  "stock.companyRecord": {
+   "domain": "stock",
+   "group": "stockStudies",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.companyRecord: \"NVDA government contracts\"",
+     "stock.companyRecord: \"clinical trials for NVDA\"",
+     "stock.companyRecord: \"FDA approvals for NVDA\"",
+     "stock.companyRecord: \"lobbying by NVDA\""
+    ],
+    "routing": [
+     "stock.companyRecord: \"NVDA government contracts\"",
+     "stock.companyRecord: \"clinical trials for NVDA\"",
+     "stock.companyRecord: \"FDA approvals for NVDA\"",
+     "stock.companyRecord: \"lobbying by NVDA\""
+    ],
+    "args": [
+     "corpus stock.companyRecord"
+    ],
+    "execution": [
+     "stock.companyRecord (c)"
+    ],
+    "receipt": [
+     "stock.companyRecord (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "stock.compare": {
    "domain": "stock",
    "group": "data",
@@ -10222,6 +10373,60 @@
     "phrasings": []
    }
   },
+  "stock.estimatesBreadth": {
+   "domain": "stock",
+   "group": "marketTables",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.estimatesBreadth: \"estimate revisions by sector\"",
+     "stock.estimatesBreadth: \"revision breadth\"",
+     "stock.estimatesBreadth: \"earnings revisions by sector\"",
+     "stock.estimatesBreadth: \"estimate breadth across sectors\""
+    ],
+    "routing": [
+     "stock.estimatesBreadth: \"estimate revisions by sector\"",
+     "stock.estimatesBreadth: \"revision breadth\"",
+     "stock.estimatesBreadth: \"earnings revisions by sector\"",
+     "stock.estimatesBreadth: \"estimate breadth across sectors\""
+    ],
+    "args": [
+     "corpus stock.estimatesBreadth"
+    ],
+    "execution": [
+     "stock.estimatesBreadth (c)"
+    ],
+    "receipt": [
+     "stock.estimatesBreadth (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "stock.eventsTimeline": {
    "domain": "stock",
    "group": "marketReads",
@@ -10322,6 +10527,60 @@
     ],
     "receipt": [
      "stock.expectedMove (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.factorExposure": {
+   "domain": "stock",
+   "group": "stockStudies",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.factorExposure: \"NVDA factor exposure\"",
+     "stock.factorExposure: \"is NVDA a growth or value stock\"",
+     "stock.factorExposure: \"factor loadings for NVDA\"",
+     "stock.factorExposure: \"style tilt of NVDA\""
+    ],
+    "routing": [
+     "stock.factorExposure: \"NVDA factor exposure\"",
+     "stock.factorExposure: \"is NVDA a growth or value stock\"",
+     "stock.factorExposure: \"factor loadings for NVDA\"",
+     "stock.factorExposure: \"style tilt of NVDA\""
+    ],
+    "args": [
+     "corpus stock.factorExposure"
+    ],
+    "execution": [
+     "stock.factorExposure (c)"
+    ],
+    "receipt": [
+     "stock.factorExposure (c)"
     ],
     "refusal": [],
     "permission": [],
@@ -10546,6 +10805,114 @@
     "phrasings": []
    }
   },
+  "stock.groupOwnership": {
+   "domain": "stock",
+   "group": "marketTables",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.groupOwnership: \"sector crowding\"",
+     "stock.groupOwnership: \"most crowded industries\"",
+     "stock.groupOwnership: \"insider buying by sector\"",
+     "stock.groupOwnership: \"crowding by industry\""
+    ],
+    "routing": [
+     "stock.groupOwnership: \"sector crowding\"",
+     "stock.groupOwnership: \"most crowded industries\"",
+     "stock.groupOwnership: \"insider buying by sector\"",
+     "stock.groupOwnership: \"crowding by industry\""
+    ],
+    "args": [
+     "corpus stock.groupOwnership"
+    ],
+    "execution": [
+     "stock.groupOwnership (c)"
+    ],
+    "receipt": [
+     "stock.groupOwnership (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.groupRank": {
+   "domain": "stock",
+   "group": "marketTables",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.groupRank: \"show me the sectors by weekly rank\"",
+     "stock.groupRank: \"industry group rank\"",
+     "stock.groupRank: \"top ranked industries\"",
+     "stock.groupRank: \"which sectors climbed the most in the weekly rank\""
+    ],
+    "routing": [
+     "stock.groupRank: \"show me the sectors by weekly rank\"",
+     "stock.groupRank: \"industry group rank\"",
+     "stock.groupRank: \"top ranked industries\"",
+     "stock.groupRank: \"which sectors climbed the most in the weekly rank\""
+    ],
+    "args": [
+     "corpus stock.groupRank"
+    ],
+    "execution": [
+     "stock.groupRank (c)"
+    ],
+    "receipt": [
+     "stock.groupRank (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "stock.ipoCalendar": {
    "domain": "stock",
    "group": "marketCalendars",
@@ -10600,6 +10967,60 @@
     "phrasings": []
    }
   },
+  "stock.ipoUnlock": {
+   "domain": "stock",
+   "group": "marketTables",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.ipoUnlock: \"IPO lockups\"",
+     "stock.ipoUnlock: \"upcoming lockup expirations\"",
+     "stock.ipoUnlock: \"lockups ending soon\"",
+     "stock.ipoUnlock: \"IPO unlocks this month\""
+    ],
+    "routing": [
+     "stock.ipoUnlock: \"IPO lockups\"",
+     "stock.ipoUnlock: \"upcoming lockup expirations\"",
+     "stock.ipoUnlock: \"lockups ending soon\"",
+     "stock.ipoUnlock: \"IPO unlocks this month\""
+    ],
+    "args": [
+     "corpus stock.ipoUnlock"
+    ],
+    "execution": [
+     "stock.ipoUnlock (c)"
+    ],
+    "receipt": [
+     "stock.ipoUnlock (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "stock.ivHistory": {
    "domain": "stock",
    "group": "marketReads",
@@ -10646,6 +11067,60 @@
     ],
     "receipt": [
      "stock.ivHistory (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.ivRankLeaders": {
+   "domain": "stock",
+   "group": "marketTables",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.ivRankLeaders: \"richest options\"",
+     "stock.ivRankLeaders: \"cheapest options\"",
+     "stock.ivRankLeaders: \"most expensive options in the market\"",
+     "stock.ivRankLeaders: \"which options are the cheapest\""
+    ],
+    "routing": [
+     "stock.ivRankLeaders: \"richest options\"",
+     "stock.ivRankLeaders: \"cheapest options\"",
+     "stock.ivRankLeaders: \"most expensive options in the market\"",
+     "stock.ivRankLeaders: \"which options are the cheapest\""
+    ],
+    "args": [
+     "corpus stock.ivRankLeaders"
+    ],
+    "execution": [
+     "stock.ivRankLeaders (c)"
+    ],
+    "receipt": [
+     "stock.ivRankLeaders (c)"
     ],
     "refusal": [],
     "permission": [],
@@ -10808,6 +11283,114 @@
     ],
     "receipt": [
      "stock.oiChange (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.ownershipReport": {
+   "domain": "stock",
+   "group": "stockStudies",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.ownershipReport: \"which funds hold NVDA\"",
+     "stock.ownershipReport: \"mutual funds holding NVDA\"",
+     "stock.ownershipReport: \"NVDA fund holders\"",
+     "stock.ownershipReport: \"ETFs that own NVDA\""
+    ],
+    "routing": [
+     "stock.ownershipReport: \"which funds hold NVDA\"",
+     "stock.ownershipReport: \"mutual funds holding NVDA\"",
+     "stock.ownershipReport: \"NVDA fund holders\"",
+     "stock.ownershipReport: \"ETFs that own NVDA\""
+    ],
+    "args": [
+     "corpus stock.ownershipReport"
+    ],
+    "execution": [
+     "stock.ownershipReport (c)"
+    ],
+    "receipt": [
+     "stock.ownershipReport (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.positionTypes": {
+   "domain": "stock",
+   "group": "marketTables",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.positionTypes: \"futures by trader type\"",
+     "stock.positionTypes: \"what are leveraged funds doing\"",
+     "stock.positionTypes: \"swap dealers and asset managers in futures\"",
+     "stock.positionTypes: \"the traders in financial futures report\""
+    ],
+    "routing": [
+     "stock.positionTypes: \"futures by trader type\"",
+     "stock.positionTypes: \"what are leveraged funds doing\"",
+     "stock.positionTypes: \"swap dealers and asset managers in futures\"",
+     "stock.positionTypes: \"the traders in financial futures report\""
+    ],
+    "args": [
+     "corpus stock.positionTypes"
+    ],
+    "execution": [
+     "stock.positionTypes (c)"
+    ],
+    "receipt": [
+     "stock.positionTypes (c)"
     ],
     "refusal": [],
     "permission": [],
@@ -10985,6 +11568,60 @@
     "phrasings": []
    }
   },
+  "stock.riskProfile": {
+   "domain": "stock",
+   "group": "stockStudies",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.riskProfile: \"NVDA stock stats\"",
+     "stock.riskProfile: \"what is NVDA's beta\"",
+     "stock.riskProfile: \"how volatile is NVDA\"",
+     "stock.riskProfile: \"how did NVDA hold up in corrections\""
+    ],
+    "routing": [
+     "stock.riskProfile: \"NVDA stock stats\"",
+     "stock.riskProfile: \"what is NVDA's beta\"",
+     "stock.riskProfile: \"how volatile is NVDA\"",
+     "stock.riskProfile: \"how did NVDA hold up in corrections\""
+    ],
+    "args": [
+     "corpus stock.riskProfile"
+    ],
+    "execution": [
+     "stock.riskProfile (c)"
+    ],
+    "receipt": [
+     "stock.riskProfile (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "stock.seasonality": {
    "domain": "stock",
    "group": "marketRecords",
@@ -11093,6 +11730,60 @@
     "phrasings": []
    }
   },
+  "stock.sectorEarnings": {
+   "domain": "stock",
+   "group": "marketTables",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.sectorEarnings: \"earnings by sector\"",
+     "stock.sectorEarnings: \"which sector is beating\"",
+     "stock.sectorEarnings: \"sector beat rates\"",
+     "stock.sectorEarnings: \"beats and misses by sector\""
+    ],
+    "routing": [
+     "stock.sectorEarnings: \"earnings by sector\"",
+     "stock.sectorEarnings: \"which sector is beating\"",
+     "stock.sectorEarnings: \"sector beat rates\"",
+     "stock.sectorEarnings: \"beats and misses by sector\""
+    ],
+    "args": [
+     "corpus stock.sectorEarnings"
+    ],
+    "execution": [
+     "stock.sectorEarnings (c)"
+    ],
+    "receipt": [
+     "stock.sectorEarnings (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "stock.sectorPerformance": {
    "domain": "stock",
    "group": "data",
@@ -11193,6 +11884,60 @@
     ],
     "receipt": [
      "stock.sessionHighsLows (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.setupHistory": {
+   "domain": "stock",
+   "group": "stockStudies",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.setupHistory: \"NVDA setup history\"",
+     "stock.setupHistory: \"setups that fired on NVDA\"",
+     "stock.setupHistory: \"past signals on NVDA\"",
+     "stock.setupHistory: \"how have NVDA's setups done\""
+    ],
+    "routing": [
+     "stock.setupHistory: \"NVDA setup history\"",
+     "stock.setupHistory: \"setups that fired on NVDA\"",
+     "stock.setupHistory: \"past signals on NVDA\"",
+     "stock.setupHistory: \"how have NVDA's setups done\""
+    ],
+    "args": [
+     "corpus stock.setupHistory"
+    ],
+    "execution": [
+     "stock.setupHistory (c)"
+    ],
+    "receipt": [
+     "stock.setupHistory (c)"
     ],
     "refusal": [],
     "permission": [],
@@ -11717,6 +12462,60 @@
     ],
     "receipt": [
      "stock.uct20List (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.volumeFootprint": {
+   "domain": "stock",
+   "group": "stockStudies",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.volumeFootprint: \"NVDA volume footprint\"",
+     "stock.volumeFootprint: \"accumulation days in NVDA\"",
+     "stock.volumeFootprint: \"pocket pivots on NVDA\"",
+     "stock.volumeFootprint: \"unfilled gaps on NVDA\""
+    ],
+    "routing": [
+     "stock.volumeFootprint: \"NVDA volume footprint\"",
+     "stock.volumeFootprint: \"accumulation days in NVDA\"",
+     "stock.volumeFootprint: \"pocket pivots on NVDA\"",
+     "stock.volumeFootprint: \"unfilled gaps on NVDA\""
+    ],
+    "args": [
+     "corpus stock.volumeFootprint"
+    ],
+    "execution": [
+     "stock.volumeFootprint (c)"
+    ],
+    "receipt": [
+     "stock.volumeFootprint (c)"
     ],
     "refusal": [],
     "permission": [],

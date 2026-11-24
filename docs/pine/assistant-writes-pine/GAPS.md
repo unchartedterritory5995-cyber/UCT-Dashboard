@@ -19,12 +19,6 @@ This file holds capabilities only: no member's request, no answer and no count f
 | Up and down arrows in their own colours (plotarrow) | this script is not drawn: TradingView draws a `plotarrow` as up and down arrows at its positive and negative values, which this chart does not draw yet, so it is not drawn as a line of its value | `pine:plotarrow-not-drawn` | `plotarrow-colours` |
 | Bars drawn from computed values (plotbar) | this script declares nothing a chart can draw | `withheld` | `plotbar` |
 
-## Calculations
-
-| a member cannot get | what the engine says | refused as | probe |
-|---|---|---|---|
-| VWAP with its own standard deviation bands | this Pine call answers with several values at once and a column carries one — `v` — this engine has no tuple form for `ta.vwap` — the ones it can take apart are `ta.bb`, `ta.dmi`, `ta.kc`, `ta.macd`, `ta.supertrend`. Writing it WITHOUT the brackets says more about why | `pine:tuple` | `vwap-deviation-bands` |
-
 ## Drawings
 
 | a member cannot get | what the engine says | refused as | probe |
@@ -36,9 +30,9 @@ This file holds capabilities only: no member's request, no answer and no count f
 
 | a member cannot get | what the engine says | refused as | probe |
 |---|---|---|---|
-| Earnings dates or earnings numbers on the chart | this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.earnings` | `pine:request` | `earnings-data` |
-| A fundamental number on the chart (sales, margins) | this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.financial` | `pine:request` | `financial-data` |
-| Dividends on the chart | this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.dividends` | `pine:request` | `dividends-data` |
+| Earnings dates or earnings numbers on the chart | the engine reads it, and the data is not available on a member's chart yet | `other-symbol:event-not-available` | `earnings-data` |
+| A fundamental number on the chart (sales, margins) | the engine reads it, and the data is not available on a member's chart yet | `other-symbol:financial-not-available` | `financial-data` |
+| Dividends on the chart | the engine reads it, and the data is not available on a member's chart yet | `other-symbol:event-not-available` | `dividends-data` |
 | A value read from a lower timeframe than the chart's | this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`: this engine resamples weekly and monthly from the daily bars it holds, and `5` is not one of th | `pine:request` | `lower-timeframe` |
 
 ## Language
@@ -53,7 +47,7 @@ This file holds capabilities only: no member's request, no answer and no count f
 
 ## Probes the engine serves today
 
-Asked the same way, and not a gap: `plotcandle` (candles drawn from computed values (Heikin Ashi, plotcandle)), `regression-channel-deviation` (a regression channel whose bands are the deviation around the line), `schaff-trend-cycle` (the Schaff Trend Cycle in its published two-stage form), `rsi-divergence-pivots` (a divergence between price and an oscillator, read pivot to pivot), `regression-channel-residual` (a regression channel whose bands are the deviation of price around the line), `zigzag-lines` (a zigzag that joins swing highs and lows with lines), `zones-extended-right` (zones as boxes that start at a past bar and extend to the right), `linefill` (a shaded area between two drawn lines (linefill)), `input-text-area` (a multi-line text setting (input.text_area)).
+Asked the same way, and not a gap: `plotcandle` (candles drawn from computed values (Heikin Ashi, plotcandle)), `vwap-deviation-bands` (vWAP with its own standard deviation bands), `regression-channel-deviation` (a regression channel whose bands are the deviation around the line), `schaff-trend-cycle` (the Schaff Trend Cycle in its published two-stage form), `rsi-divergence-pivots` (a divergence between price and an oscillator, read pivot to pivot), `regression-channel-residual` (a regression channel whose bands are the deviation of price around the line), `zigzag-lines` (a zigzag that joins swing highs and lows with lines), `zones-extended-right` (zones as boxes that start at a past bar and extend to the right), `linefill` (a shaded area between two drawn lines (linefill)), `input-text-area` (a multi-line text setting (input.text_area)).
 
 ## The probes
 

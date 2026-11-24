@@ -58,6 +58,8 @@ import { registerTerminalWave6Capabilities } from './capabilities/terminalDataWa
 import { registerTerminalWave7Capabilities } from './capabilities/terminalDataWave7'
 import { registerTerminalWave8Capabilities } from './capabilities/terminalDataWave8'
 import { registerTerminalWave9Capabilities } from './capabilities/terminalDataWave9'
+import { registerTerminalWave10Capabilities } from './capabilities/terminalDataWave10'
+import { registerTerminalWave11Capabilities } from './capabilities/terminalDataWave11'
 import { registerChartDescribeCapability } from './capabilities/chartDescribe'
 import { registerMultiChartCapabilities } from './capabilities/multiChart'
 // ⭐ W2-C1 (multi-page host): the pages' own capabilities — offered only on their surface (AgentProvider)
@@ -151,4 +153,6 @@ export function registerServerGatedBuiltins() {
   registerTerminalWave7Capabilities()    // Terminal data wave 7: six local-only answers (market regime, confirmed setups, events timeline, UCT 20 list, IV history, dilution watch), each while the server serves its own isolated kind
   registerTerminalWave8Capabilities()    // Terminal data wave 8: three local-only answers (corporate actions, the IPO calendar, dividends and splits ahead), each while the server serves its own isolated kind
   registerTerminalWave9Capabilities()    // Terminal data wave 9: three local-only answers (Treasury auctions, real yields and breakevens, the Fed watch), each while the server serves its own isolated kind
+  registerTerminalWave10Capabilities()   // Terminal data wave 10: six local-only answers (stock statistics, volume footprint, factor exposure, setup history, public records, fund holders), each while the server serves its own isolated kind
+  registerTerminalWave11Capabilities()   // Terminal data wave 11: seven local-only answers (group rank, group crowding, earnings by sector, revisions by sector, IV rank leaders, IPO lockups, COT by trader type), each while the server serves its own isolated kind
 }

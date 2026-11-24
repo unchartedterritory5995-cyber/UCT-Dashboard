@@ -791,6 +791,9 @@ describe('the refusals', () => {
           { type: 'symtext', name: 'tickerid' },
           { type: 'str', value: '/' }] },
         BARS, {}),
+      // ⭐⭐ e95 unit 2b (2026-11-22) — a knob arm the translator refused, kept by the bind because the member's setting
+      // picked it (`bind.js::pruneKnobArms` prunes it away otherwise): never a number.
+      'interpret:refused-arm': () => interpret({ type: 'call', name: 'refusedArm', args: [{ type: 'num', value: 1 }] }, BARS, {}),
     }
     expect(Object.keys(triggers).sort()).toEqual(Object.keys(REFUSALS).sort())
     for (const [guard, fire] of Object.entries(triggers)) {

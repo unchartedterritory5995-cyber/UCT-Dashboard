@@ -40,7 +40,8 @@ import {
   vendorPlotRoles,
 } from '../../../../../../../tools/vendor_harness/compare.mjs'
 import { detectFormat, fromObservation, declaredPlotTitles } from '../../../../../../../tools/vendor_harness/adapters.mjs'
-import { runOurSide, toProductBars, tfCodeOf, isoDateIn } from './ourSide'
+import { runOurSide, toProductBars, tfCodeOf, isoDateIn, uctDataReadsOf } from './ourSide'
+import { translatePine } from '../../ast/pine'
 import { gradeCapture, loadCapture, REPO, VENDOR_DIR } from './harness'
 
 const read = (rel) => JSON.parse(fs.readFileSync(path.join(REPO, rel), 'utf8'))
@@ -844,6 +845,30 @@ describe('4 · end to end on REAL vendor bars, through the member door', () => {
       { name: 'syminfo.ticker', source: 'uct:test', vendorValueFrom: 'capture.symbol.name', value: SMA_CAPTURE.symbol.name }] }).verdict)
     expect([...seen].sort()).toEqual([...VERDICTS].sort())
   })
+
+  it('⭐⭐ T4 F1b — a run that read UCT data (`request.financial`) never reads MATCH: the agreement is a named UCT-data substitution', () => {
+    const graded = gradeCapture(SMA_CAPTURE)
+    expect(graded.verdict.verdict).toBe('MATCH')                       // CONTROL: the same run without the read
+    const uct = [{ name: 'request.financial', source: 'UCT data (company filings)' }]
+    const r = compareCapture(SMA_CAPTURE, { ...graded.ours, uctData: uct })
+    expect(r.verdict).toBe('INCONCLUSIVE')
+    expect(r.reason).toMatch(/^a UCT-data substitution: request\.financial reads UCT data \(company filings\)/)
+    expect(r.uctData).toEqual(uct)
+    expect(r.plots.length).toBeGreaterThan(0)
+    for (const p of r.plots) {
+      expect(['MATCH', 'MATCH_SUBSTITUTED']).not.toContain(p.verdict)
+      expect(p).toMatchObject({ uctData: true })
+    }
+    // a DIVERGE stays a DIVERGE: the rule only ever takes a MATCH away
+    // (the same run of our side against a vendor value moved by 1 on one bar)
+    const d = sealCapture((() => { const c = clone(SMA_CAPTURE); c.plotValues.rows[1500][1] += 1; return c })())
+    expect(compareCapture(d, { ...graded.ours, uctData: uct }).verdict).toBe('DIVERGE')
+    // our side names the read for a document that makes one, and nothing for one that does not
+    const docOf = (src) => { const t = translatePine(src, { strict: true }); return { meta: { recurrenceOrigin: 'pine', otherSymbols: t.otherSymbols } } }
+    expect(uctDataReadsOf(docOf('//@version=5\nindicator("f")\nplot(request.financial(syminfo.tickerid, "TOTAL_REVENUE", "FQ"))')))
+      .toEqual([{ name: 'request.financial', source: expect.stringMatching(/^UCT data \(company filings\)/) }])
+    expect(uctDataReadsOf(docOf('//@version=5\nindicator("e")\nplot(request.earnings(syminfo.tickerid))'))).toEqual([])
+  }, 120_000)
 
   describe('colour and objects — SYNTHETIC vendor state over real vendor bars', () => {
     // ⚠️ The per-bar values below are TradingView's own (the SMA observation);

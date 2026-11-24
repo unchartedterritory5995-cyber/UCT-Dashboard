@@ -22,6 +22,7 @@ import {
 } from '../../../lib/presentation/presentationPrimitives'
 import { quarterEnd, quarterLabel } from '../../charts/widgets/ownershipModel'
 import { dayText } from './shortInterestModel'
+import { ASC, DESC, nextSort as seedNextSort } from '../../../lib/presentation/dataGrid'
 
 export const FUNDS_TITLE = 'Funds (13F)'
 export const FUNDS_SOURCE = 'Form 13F filings, through FMP'
@@ -179,24 +180,25 @@ const sortKeyOf = (column, row) => {
  *  keep the vendor's order, so a re-sort never shuffles equal rows. */
 export function sortFundRows(rows, sort = DEFAULT_SORT) {
   const column = COLUMN_BY_KEY[sort?.key] || COLUMN_BY_KEY[DEFAULT_SORT.key]
-  const dir = sort?.dir === 'asc' ? 1 : -1
+  const dir = sort?.dir === ASC ? 1 : -1
   return [...rows].sort((a, b) => {
     const x = sortKeyOf(column, a)
     const y = sortKeyOf(column, b)
     if (x == null || y == null) return x == null && y == null ? a.rank - b.rank : x == null ? 1 : -1
-    if (x < y) return -dir
-    if (x > y) return dir
+    // the comparator is this grid's own (TERM-065 keeps comparators); the order is applied as the seed's
+    // sortRows applies it. Two equal figures (two new positions are both Infinity) fall to the vendor's order.
+    if (x < y || x > y) return (x < y ? -1 : 1) * dir
     return a.rank - b.rank
   })
 }
 
 /** The sort after a header press: the same column flips; a new column starts largest / newest
- *  first for figures and dates, A to Z for names. */
+ *  first for figures and dates, A to Z for names. The decision is the DataGrid seed's (TERM-065); this
+ *  only says which way a new column starts. */
 export function nextSort(current, key) {
   const column = COLUMN_BY_KEY[key]
   if (!column) return current || DEFAULT_SORT
-  if (current?.key === key) return { key, dir: current.dir === 'asc' ? 'desc' : 'asc' }
-  return { key, dir: column.kind === 'text' ? 'asc' : 'desc' }
+  return seedNextSort(current, key, () => (column.kind === 'text' ? ASC : DESC))
 }
 
 /** The sort in words, for the line under the table. */

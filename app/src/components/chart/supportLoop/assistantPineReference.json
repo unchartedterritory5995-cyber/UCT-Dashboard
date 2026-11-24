@@ -1045,10 +1045,6 @@
    "call": "lowestbars(close, 14)"
   },
   {
-   "name": "macd",
-   "call": "macd(close, 14, 2)"
-  },
-  {
    "name": "math.abs",
    "call": "math.abs(close)"
   },
@@ -1186,15 +1182,31 @@
   },
   {
    "name": "pivothigh",
-   "call": "pivothigh(close, 14)"
+   "call": "pivothigh(close, 14, 2)"
   },
   {
    "name": "pivotlow",
-   "call": "pivotlow(close, 14)"
+   "call": "pivotlow(close, 14, 2)"
   },
   {
    "name": "pow",
    "call": "pow(close, 14)"
+  },
+  {
+   "name": "request.dividends",
+   "call": "request.dividends(syminfo.tickerid, dividends.gross)"
+  },
+  {
+   "name": "request.earnings",
+   "call": "request.earnings(syminfo.tickerid, earnings.actual, barmerge.gaps_off, barmerge.lookahead_on)"
+  },
+  {
+   "name": "request.financial",
+   "call": "request.financial(syminfo.tickerid, \"TOTAL_REVENUE\", \"FQ\")"
+  },
+  {
+   "name": "request.splits",
+   "call": "request.splits(syminfo.tickerid, splits.denominator)"
   },
   {
    "name": "rising",
@@ -1310,7 +1322,7 @@
   },
   {
    "name": "ta.highestbars",
-   "call": "ta.highestbars(close)"
+   "call": "ta.highestbars(close, 14)"
   },
   {
    "name": "ta.hma",
@@ -1334,11 +1346,7 @@
   },
   {
    "name": "ta.lowestbars",
-   "call": "ta.lowestbars(close)"
-  },
-  {
-   "name": "ta.macd",
-   "call": "ta.macd(close, 14, 2)"
+   "call": "ta.lowestbars(close, 14)"
   },
   {
    "name": "ta.max",
@@ -1370,11 +1378,11 @@
   },
   {
    "name": "ta.pivothigh",
-   "call": "ta.pivothigh(close, 14)"
+   "call": "ta.pivothigh(close, 14, 2)"
   },
   {
    "name": "ta.pivotlow",
-   "call": "ta.pivotlow(close, 14)"
+   "call": "ta.pivotlow(close, 14, 2)"
   },
   {
    "name": "ta.rci",

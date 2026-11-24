@@ -99,8 +99,17 @@ def census_capabilities(src, inv):
             caps.add("collections:" + head)
         if head == "request":
             caps.add("request-other")
+            # T4 E2: the chart's own corporate events (`pine_capabilities.EVENT_CALLS`)
+            if i in pc.EVENT_CALLS:
+                caps.add("request-events")
+            # T4 F1b: the chart's own figures from company filings (`pine_capabilities.FINANCIAL_CALLS`)
+            if i in pc.FINANCIAL_CALLS:
+                caps.add("request-financial")
         if (head == "barstate" and last != "isfirst") or i == "timenow":
             caps.add("realtime-state")
+    # T4 B2: a request beside a `USI:` string reads UCT breadth (`pine_capabilities.reads_breadth`)
+    if "request-other" in caps and pc.reads_breadth(pc.strip_code(src)[1]):
+        caps.add("request-breadth")
     return caps
 
 

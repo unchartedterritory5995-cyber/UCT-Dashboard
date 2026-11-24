@@ -1965,6 +1965,94 @@
    "agent_omit": true
   },
   {
+   "key": "hv_20",
+   "label": "Realized Volatility, 20 Days",
+   "type": "range",
+   "unit": "%",
+   "category": "volume_volatility",
+   "agent_omit": true
+  },
+  {
+   "key": "hv_60",
+   "label": "Realized Volatility, 60 Days",
+   "type": "range",
+   "unit": "%",
+   "category": "volume_volatility",
+   "agent_omit": true
+  },
+  {
+   "key": "ad_net_25",
+   "label": "Accumulation Minus Distribution Days (25)",
+   "type": "range",
+   "unit": null,
+   "category": "volume_volatility",
+   "agent_omit": true
+  },
+  {
+   "key": "pocket_pivots_20",
+   "label": "Pocket Pivots, Last 20 Sessions",
+   "type": "range",
+   "unit": null,
+   "category": "volume_volatility",
+   "agent_omit": true
+  },
+  {
+   "key": "days_since_pocket_pivot",
+   "label": "Sessions Since Last Pocket Pivot",
+   "type": "range",
+   "unit": null,
+   "category": "volume_volatility",
+   "agent_omit": true
+  },
+  {
+   "key": "corr_rel_last",
+   "label": "Drawdown vs S&P 500, Last Correction",
+   "type": "range",
+   "unit": "\u00d7",
+   "category": "volume_volatility",
+   "agent_omit": true
+  },
+  {
+   "key": "eps_surprise_last",
+   "label": "EPS Surprise, Last Report",
+   "type": "range",
+   "unit": "%",
+   "category": "beats_insiders_funds",
+   "agent_omit": true
+  },
+  {
+   "key": "eps_beat_streak",
+   "label": "EPS Beat Streak (quarters)",
+   "type": "range",
+   "unit": null,
+   "category": "beats_insiders_funds",
+   "agent_omit": true
+  },
+  {
+   "key": "insider_buys_30d",
+   "label": "Insider Buy Filings, Last 30 Days",
+   "type": "range",
+   "unit": null,
+   "category": "beats_insiders_funds",
+   "agent_omit": true
+  },
+  {
+   "key": "insider_buy_value_30d",
+   "label": "Insider Buy Value, Last 30 Days",
+   "type": "range",
+   "unit": "$",
+   "category": "beats_insiders_funds",
+   "agent_omit": true
+  },
+  {
+   "key": "fund_net_adds",
+   "label": "Funds Adding Minus Funds Cutting",
+   "type": "range",
+   "unit": null,
+   "category": "beats_insiders_funds",
+   "agent_omit": true
+  },
+  {
    "key": "security_type",
    "label": "Type",
    "type": "enum",

@@ -58,7 +58,7 @@ def test_rule_12_is_gone_and_the_rules_after_it_moved_up():
     assert not hasattr(pa, "OTHER_TIMEFRAME_RULE") and "{other_timeframe}" not in doc
     assert "AS IT STANDS with `request.security" not in doc and "put the look-back INSIDE the request" not in doc
     assert doc.split("\n12. ")[1].split("\n")[0] == pa.NUMBER_ON_BARS_RULE
-    assert doc.split("\n13. ")[1].split("\n")[0] == pa.FORMAT_LITERAL_RULE
+    assert doc.split("\n13. ")[1].split("\n")[0] == pa.PERCENT_FORMAT_RULE
     assert doc.index("\n11. Draw ONLY what the member asked for") < doc.index("\n12. ") < doc.index("\n13. ")
 
 

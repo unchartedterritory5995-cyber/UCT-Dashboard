@@ -1140,6 +1140,45 @@ FILTERS = dict([
                             "fundamental_trends", "gross_margin_chg_1y", unit="pts")),
     _agent_omit(_open_range("shares_chg_1y", "Share Count Change vs Year Ago",
                             "fundamental_trends", "shares_chg_1y", unit="%")),
+    # ── volume & volatility (2026-11-23): from each row's own stored daily bars, inside the
+    # build's bars pass (`volume_volatility`, one writer), each the definition a Terminal panel
+    # already prints: STAT's realized volatility, VFP's accumulation / distribution days and
+    # pocket pivots, STAT's drawdown against the S&P 500 in MKTH's newest completed decline. ──
+    # NOT DUPLICATES, checked: `atr_pct` / `adr_pct` are ranges, not close-to-close
+    # volatility; `accdis` is a letter grade from a 65-session up/down VOLUME RATIO
+    # (`ratings._accdis_ratio`) and `vol_updown_ratio` a 10-session one, neither a COUNT of
+    # accumulation and distribution days; `beta` is a slope against SPY, not a drawdown.
+    # All bare (E-8) and `_agent_omit`: member controls; UCT Agent's field list (sent with
+    # every screen request under a fixed context budget) is unchanged.
+    _agent_omit(_open_range("hv_20", "Realized Volatility, 20 Days", "volume_volatility",
+                            "hv_20", unit="%")),
+    _agent_omit(_open_range("hv_60", "Realized Volatility, 60 Days", "volume_volatility",
+                            "hv_60", unit="%")),
+    _agent_omit(_open_range("ad_net_25", "Accumulation Minus Distribution Days (25)",
+                            "volume_volatility", "ad_net_25")),
+    _agent_omit(_open_range("pocket_pivots_20", "Pocket Pivots, Last 20 Sessions",
+                            "volume_volatility", "pocket_pivots_20")),
+    _agent_omit(_open_range("days_since_pocket_pivot", "Sessions Since Last Pocket Pivot",
+                            "volume_volatility", "days_since_pocket_pivot")),
+    _agent_omit(_open_range("corr_rel_last", "Drawdown vs S&P 500, Last Correction",
+                            "volume_volatility", "corr_rel_last", unit="×")),
+    # ── beats, insiders & funds (2026-11-23): one read per build of three held stores
+    # (`beats_insiders_funds`, a writer per store): the newest report's EPS surprise and the
+    # beat streak (ERNSC's beat rule), Form 4 open-market purchases filed in the last 30 days
+    # (INS CLUSTER's store), funds adding less funds cutting (the N-PORT index, GRPS's rule).
+    # NOT DUPLICATES, checked: `insider_cluster_days` is the age of a cluster buy, not a
+    # count; `insider_trans_pct` / `inst_trans_pct` are a provider's percent changes in
+    # holdings; `last_report_move_pct` is the price move, not the surprise. Bare, `_agent_omit`. ──
+    _agent_omit(_open_range("eps_surprise_last", "EPS Surprise, Last Report",
+                            "beats_insiders_funds", "eps_surprise_last", unit="%")),
+    _agent_omit(_open_range("eps_beat_streak", "EPS Beat Streak (quarters)",
+                            "beats_insiders_funds", "eps_beat_streak")),
+    _agent_omit(_open_range("insider_buys_30d", "Insider Buy Filings, Last 30 Days",
+                            "beats_insiders_funds", "insider_buys_30d")),
+    _agent_omit(_open_range("insider_buy_value_30d", "Insider Buy Value, Last 30 Days",
+                            "beats_insiders_funds", "insider_buy_value_30d", unit="$")),
+    _agent_omit(_open_range("fund_net_adds", "Funds Adding Minus Funds Cutting",
+                            "beats_insiders_funds", "fund_net_adds")),
 ])
 
 # ⚠️ `gt`/`lt`/`eq` JOINED "range" FOR THE FACTUAL PRESETS, and the strictness
@@ -1422,6 +1461,17 @@ VIEWS = {
         "ticker", "company", "price", "chg_pct_1d", "rev_growth", "rev_accel_q",
         "eps_growth", "eps_streak_25", "eps_growth_min_2q", "eps_growth_min_3q",
         "eps_growth_min_4q", "net_margin_chg_1y", "gross_margin_chg_1y", "shares_chg_1y"]},
+    # VOLUME & VOLATILITY (2026-11-23): every column of the family has its seat here, beside
+    # the range and volume columns the Screener already carries (ATR %, ADR %, relative volume).
+    "volume_volatility": {"label": "Volume & Volatility", "columns": [
+        "ticker", "company", "price", "chg_pct_1d", "atr_pct", "adr_pct", "hv_20", "hv_60",
+        "vol_ratio", "ad_net_25", "pocket_pivots_20", "days_since_pocket_pivot", "corr_rel_last"]},
+    # BEATS, INSIDERS & FUNDS (2026-11-23): every column of the family, beside the next report
+    # date and the last report's move the Screener already carries.
+    "beats_insiders_funds": {"label": "Beats, Insiders & Funds", "columns": [
+        "ticker", "company", "price", "chg_pct_1d", "next_earnings_date", "eps_surprise_last",
+        "eps_beat_streak", "last_report_move_pct", "insider_buys_30d", "insider_buy_value_30d",
+        "fund_net_adds"]},
 }
 
 # ── The Type filter (instrument class) ──────────────────────────────────────
@@ -1464,6 +1514,11 @@ CATEGORIES = [
     # Fundamental trends (2026-11-21): the eight point-in-time trend columns from SEC
     # filings (`fund_trends`). Appended for the same reason `flow` was.
     {"key": "fundamental_trends", "label": "Fundamental Trends"},
+    # Volume & volatility, and beats, insiders & funds (2026-11-23): the bar-derived and the
+    # store-derived columns of that unit (`volume_volatility`, `beats_insiders_funds`).
+    # Appended for the same reason `flow` was; neither label is a word another category uses.
+    {"key": "volume_volatility", "label": "Volume & Volatility"},
+    {"key": "beats_insiders_funds", "label": "Beats, Insiders & Funds"},
 ]
 
 
