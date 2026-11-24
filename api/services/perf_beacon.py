@@ -484,6 +484,9 @@ def housekeep(now: float | None = None) -> dict[str, int]:
 
 
 HOUSEKEEP_EVERY_S = 600
+#: Set to "1" and `startup()` starts nothing. The root conftest sets it for every pytest process: a test that runs the
+#: real lifespan must not leave a thread that deletes from, blanks or rebuilds whatever store the environment points at.
+HOUSEKEEPING_SWITCH = "PERF_BEACON_HOUSEKEEPING_DISABLED"
 _housekeeper: threading.Thread | None = None
 _housekeeper_stop = threading.Event()
 _boot_done = threading.Event()       # set once the thread's start-of-process work is done
@@ -618,9 +621,12 @@ def _housekeeping(every_s: float, stop: threading.Event) -> None:
 
 
 def startup(every_s: float = HOUSEKEEP_EVERY_S) -> bool:
-    """Start this process's ONE housekeeping thread (api/main.py's lifespan calls it): a daemon that does the
-    start-of-process work off the boot path, then `housekeep()` every `every_s`. True when this call started it."""
+    """Start this process's ONE housekeeping thread (api/main.py's lifespan calls it, and stops it with `shutdown`): a
+    daemon that does the start-of-process work off the boot path, then `housekeep()` every `every_s`. True when this
+    call started it; False when one is running, or PERF_BEACON_HOUSEKEEPING_DISABLED=1 says not to."""
     global _housekeeper, _housekeeper_stop
+    if os.environ.get("PERF_BEACON_HOUSEKEEPING_DISABLED") == "1":
+        return False
     with _keys_lock:
         if _housekeeper is not None and _housekeeper.is_alive():
             return False
@@ -632,13 +638,15 @@ def startup(every_s: float = HOUSEKEEP_EVERY_S) -> bool:
         return True
 
 
-def _stop_housekeeping() -> None:
-    """Tests: stop the thread and wait for it."""
+def shutdown(wait_s: float = 2.0) -> None:
+    """Stop the housekeeping thread (the lifespan's shutdown half calls it). It wakes at once from its beat and from the
+    settle wait; one in the middle of a delete or the rebuild finishes that first, and this waits at most `wait_s` for
+    it (it is a daemon: the process never waits for it to exit)."""
     global _housekeeper
     t = _housekeeper
     _housekeeper_stop.set()
     if t is not None:
-        t.join(timeout=10)
+        t.join(timeout=wait_s)
     _housekeeper = None
 
 

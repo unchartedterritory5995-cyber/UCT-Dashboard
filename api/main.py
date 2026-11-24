@@ -4957,7 +4957,8 @@ async def lifespan(app: FastAPI):
     # and nothing else. See api/services/perf_beacon.py "What is deleted, and when" and `migrate`.
     try:
         from api.services import perf_beacon as _perf_beacon
-        print(f"[startup] perf beacon housekeeping: {'started' if _perf_beacon.startup() else 'already running'} "
+        print(f"[startup] perf beacon housekeeping: "
+              f"{'started' if _perf_beacon.startup() else 'not started (running already, or switched off)'} "
               f"(every {_perf_beacon.HOUSEKEEP_EVERY_S} s)")
     except Exception as e:
         print(f"[startup] perf beacon housekeeping failed to start (non-fatal): {e}")
@@ -11567,6 +11568,12 @@ async def lifespan(app: FastAPI):
         _pcw_stop.shutdown()
     except Exception as e:
         print(f"[shutdown] capability detector stop failed (non-fatal): {type(e).__name__}")
+    # the beacon's housekeeping thread (started above): a thread this lifespan started is stopped by this lifespan
+    try:
+        from api.services import perf_beacon as _perf_beacon_stop
+        _perf_beacon_stop.shutdown()
+    except Exception as e:
+        print(f"[shutdown] perf beacon housekeeping stop failed (non-fatal): {type(e).__name__}")
     try:
         trade_exchange_news_router.stop_background()
     except Exception as e:
