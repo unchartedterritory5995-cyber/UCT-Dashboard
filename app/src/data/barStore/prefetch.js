@@ -570,15 +570,22 @@ export function createPrefetch(o = {}) {
     // here: the press asks for itself (at most BEHIND_HOLD_MAX_MS, then the copy paints as it is). Its own answer, still
     // behind, is what says the name is not printing: the next presses inside BEHIND_RECHECK_MS paint it at once.
     if (!(a?.answered && a.own && now() - a.at < BEHIND_RECHECK_MS)) return false
-    // ⛔ ...BUT NOT WHERE IT CANNOT MEAN THAT (live session 2026-11-24: AMD and AMAT 3-5 s after a roll, RDDT two closed bars
-    // short; each painted short for 166 ms to ~1 s):
+    if (s?.tailStatus === 'unverified') return false
+    // ⭐ ...AND BY EVIDENCE FIRST (review of #2708, MEDIUM-1): the server's proof that it was asked after the newest closed
+    // bucket and had nothing newer (`verified_through` past that bucket's end) says the name did not trade, at ANY number
+    // of buckets behind and inside the lag window alike: a thin name's complete copy paints at once with one ask, never
+    // the hold and a full read on every press. Without that proof the rules below decide (a bucket count and the lag
+    // window are only a fallback).
+    const tf0 = parseKey(key)?.tf
+    if (tf0 && Number.isFinite(s?.verifiedThrough) && s.verifiedThrough * 1000 >= _rollMs(tf0)) return true
+    // ⛔ ...BUT, WITHOUT THAT PROOF, NOT WHERE IT CANNOT MEAN THAT (live session 2026-11-24: AMD and AMAT 3-5 s after a roll,
+    // RDDT two closed bars short; each painted short for 166 ms to ~1 s):
     //   * one bucket behind inside TAIL_LAG_WINDOW_MS of the roll: the server has not stored the bucket that just closed
     //     (its since= path reads the store, the heal lands later); that is the server's lag, not the name;
-    //   * two buckets or more behind: never (the price feed of a name this far behind is a server that lags or failed);
-    //   * the server itself marked the tail `unverified` (it served the store without its pending repair).
+    //   * two buckets or more behind (a server that lags or failed, until it proves otherwise);
+    //   * (above) the server itself marked the tail `unverified` (it served the store without its pending repair).
     // The press then holds at most BEHIND_HOLD_MAX_MS for its re-ask (_askOwn) and paints what it has.
     if (n >= 2) return false
-    if (s?.tailStatus === 'unverified') return false
     const tf = parseKey(key)?.tf
     if (tf && now() - _rollMs(tf) < TAIL_LAG_WINDOW_MS) return false
     return true
@@ -606,6 +613,8 @@ export function createPrefetch(o = {}) {
   function _reaskWhole(key, s1, { signal = null, showExtended } = {}) {
     const cur = S().peek(key)
     if (signal?.aborted || !s1 || !cur || s1.error || !_behindClock(key, cur, showExtended)) return null
+    // only after a `since=` delta: a full read would meet the same serve path again (review of #2708, LOW a)
+    if (S().network?.askedDelta?.(key) === false) return null
     return ensure(key, { until: ASK_AGAIN, priority: 'visible', signal, warm: false, local: false, _s0: cur, session: session(showExtended), own: true, full: true })
   }
 
