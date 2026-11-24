@@ -2524,18 +2524,21 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
   const runCompound = useCallback(async (steps, { member, voice, working: working0 = null, whole = false, gate = null }) => {
     const idsAtStart = undoRef.current.map(e => e.id)    // NLM-1 D2 (dark): the whole request's Undo entries, grouped at the end
     const wroteCharts = new Set()                        // G1/G2: every existing chart this whole reading has written so far
+    // ⛔ G1 (AUDIT 11-23): a whole reading that is taken back leaves no referent — what the conversation pointed at before it
+    // ran (subject, last change, turn, indicator sets) is put back, so a later "it" never means a change that is gone
+    const referentsAtStart = whole ? memoryRef.current.snapshotReferents() : null
     let working = working0
     let done = 0
     const fallBack = async () => {
       mark('nlm1:whole-fallback', String(done))
       const fresh = undoRef.current.map(e => e.id).filter(id => !idsAtStart.includes(id))
-      if (!fresh.length) return { fallback: true, rolledBack: 0 }
+      if (!fresh.length) { memoryRef.current.restoreReferents(referentsAtStart); return { fallback: true, rolledBack: 0 } }
       // #806 LOW-1: the request's own entries are taken back as ONE group (newest first, each through its own exact Undo
       // and checks; one receipt) — never entry by entry through the plain Undo, which already takes the whole request
       // and then said "nothing of mine to undo" for the rest
       const ok = fresh.length === 1 ? await doUndoOne(fresh[0], { member: null, voice }) : await undoIds(fresh, { member: null, voice, what: 'from the steps I had started' })
       const left = fresh.filter(id => undoRef.current.some(e => e.id === id))
-      if (ok && !left.length && lastUndoRef.current !== 'unsaved') return { fallback: true, rolledBack: fresh.length }
+      if (ok && !left.length && lastUndoRef.current !== 'unsaved') { memoryRef.current.restoreReferents(referentsAtStart); return { fallback: true, rolledBack: fresh.length } }
       // the take-back did not fully go through: the board is NOT as the member left it, so the planner is never asked
       // to plan over it — said plainly, and nothing else runs
       const text = left.length

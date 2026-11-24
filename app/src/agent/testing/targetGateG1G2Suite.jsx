@@ -194,5 +194,21 @@ for (const v2 of [false, true]) describe(`G1/G2 target gate [routing ${v2 ? 'v2'
     expect(stored(m.board, 'w1')).toBe(nvda0)
     expect(p.turns()).toBe(0)
   }, 60000)
+  // ── F2 · A TAKEN-BACK STEP LEAVES NO REFERENT. A message read as steps commits step 1, the last step does not go through
+  // (refused), and the whole reading is taken back — the message then goes to the model, which only answers. The chart step 1
+  // touched is no "it" afterwards: nothing the conversation did is still on the board, so a bare pronoun is asked (or read by the
+  // model), never written there instantly.
+  it.each(mine(F2))('F2: "%s" taken back, then "%s" → nothing written', async (first, next) => {
+    const m = mount(['SPY', 'NVDA'])
+    const before = snapshot(m.board, 2)
+    await say(m, first)
+    expect(snapshot(m.board, 2), transcript()).toEqual(before)
+    p.st.envelopes.length = 0
+    const calls = p.turns()
+    await say(m, next)
+    // never written on the taken-back chart: asked here, or read by the model (which answers in words here) — nothing changed
+    expect(snapshot(m.board, 2), transcript()).toEqual(before)
+    expect(asked() || p.turns() > calls, transcript()).toBe(true)
+  }, 60000)
 })
 }
