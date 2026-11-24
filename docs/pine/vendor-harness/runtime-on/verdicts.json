@@ -1,6 +1,6 @@
 {
  "generatedBy": "app/src/components/chart/engine/__tests__/vendorHarness/vendorHarness.corpus.test.js",
- "scriptEngineVersion": 95,
+ "scriptEngineVersion": 96,
  "dirs": [
   "tests/fixtures/vendor"
  ],
@@ -11,9 +11,9 @@
   "gateOpen": true,
   "declined": 348,
   "gated": 0,
-  "runtimeDrawn": 277,
-  "hostRefused": 674,
-  "reachedRuntime": 625,
+  "runtimeDrawn": 279,
+  "hostRefused": 676,
+  "reachedRuntime": 627,
   "declines": {
    "pine:builtin": 43,
    "pine:function": 34,
@@ -99410,7 +99410,7 @@
      "ours": "value",
      "rule": "M1-title",
      "verdict": "MATCH_SUBSTITUTED",
-     "reason": "70 steady-state bars differ, every one a value on a date where UCT's SPX (FMP ^GSPC as PRODUCTION served it (`/api/bars/SPX?tf=D&bars=12500`, the served shape), read on the rig as smoke@ with GETs only at 2026-11-18T12:47:00Z, minutes before the capture (scratchpad fetch_spx_daily.py); the route answered newest_bar_is_forming false (pre-market)) differs from TradingView's (witness rs-spx-daily-pm-alab-1d-2026-11-16, rs-spx-daily-pm-rddt-1d-2026-11-16, rs-spx-daily-pm-spy-1d-2026-11-16, rs-spx-daily-rddt-1d-2026-11-15, rs-spx-daily-spy-1d-2026-11-15: 70 of 334 dates differ); on the witness's values every bar agrees",
+     "reason": "70 steady-state bars differ (41 of them only by index rounding), every one a value on a date where UCT's SPX (FMP ^GSPC as PRODUCTION served it (`/api/bars/SPX?tf=D&bars=12500`, the served shape), read on the rig as smoke@ with GETs only at 2026-11-18T12:47:00Z, minutes before the capture (scratchpad fetch_spx_daily.py); the route answered newest_bar_is_forming false (pre-market)) differs from TradingView's (witness rs-spx-daily-pm-alab-1d-2026-11-16, rs-spx-daily-pm-rddt-1d-2026-11-16, rs-spx-daily-pm-spy-1d-2026-11-16, rs-spx-daily-rddt-1d-2026-11-15, rs-spx-daily-spy-1d-2026-11-15: 70 of 334 dates differ); on the witness's values every bar agrees",
      "supplyAttributed": {
       "symbol": "SPX",
       "source": "FMP ^GSPC as PRODUCTION served it (`/api/bars/SPX?tf=D&bars=12500`, the served shape), read on the rig as smoke@ with GETs only at 2026-11-18T12:47:00Z, minutes before the capture (scratchpad fetch_spx_daily.py); the route answered newest_bar_is_forming false (pre-market)",
@@ -99440,7 +99440,7 @@
       "matching": 265,
       "vendorRowsMissing": 0,
       "naMismatches": 0,
-      "valueMismatches": 70,
+      "valueMismatches": 29,
       "colorMismatches": 0,
       "colorCompared": 265,
       "colorWithheld": 0,
@@ -99464,7 +99464,7 @@
       "steady": {
        "bars": 335,
        "compared": 335,
-       "divergent": 70,
+       "divergent": 29,
        "first": {
         "bar": 3,
         "time": 922977000,
@@ -99482,6 +99482,20 @@
        "pattern": {
         "kind": "scattered",
         "lastDivergentBar": 299
+       }
+      },
+      "roundingEqual": {
+       "compared": 41,
+       "subTick": 1,
+       "steady": 41,
+       "worst": 1.0000000000779883,
+       "first": {
+        "bar": 19,
+        "time": 965136600,
+        "vendor": 0.7766455285007408,
+        "ours": 0.7766509564378717,
+        "index": 1430.83,
+        "ticks": 1.0000000000156568
        }
       },
       "vendorRowGapsAfterStart": 0
@@ -100585,7 +100599,7 @@
      "ours": "value",
      "rule": "M1-title",
      "verdict": "MATCH_SUBSTITUTED",
-     "reason": "1292 steady-state bars differ, every one a value on a date where UCT's SPX (FMP ^GSPC, the server's PRIMARY: fmp_client.get_index_history_eod_full('^GSPC'), paged in 5-year windows, recorded by the owner under `railway run` at 2026-11-15T13:50:55.537466+00:00; read back through api/index_bars.py::_fetch_fmp_daily('^GSPC', 1.0) (the served shape)) differs from TradingView's (witness rs-spx-daily-pm-alab-1d-2026-11-16, rs-spx-daily-pm-rddt-1d-2026-11-16, rs-spx-daily-pm-spy-1d-2026-11-16, rs-spx-daily-rddt-1d-2026-11-15, rs-spx-daily-spy-1d-2026-11-15: 1292 of 6997 dates differ); on the witness's values every bar agrees",
+     "reason": "1292 steady-state bars differ (918 of them only by index rounding), every one a value on a date where UCT's SPX (FMP ^GSPC, the server's PRIMARY: fmp_client.get_index_history_eod_full('^GSPC'), paged in 5-year windows, recorded by the owner under `railway run` at 2026-11-15T13:50:55.537466+00:00; read back through api/index_bars.py::_fetch_fmp_daily('^GSPC', 1.0) (the served shape)) differs from TradingView's (witness rs-spx-daily-pm-alab-1d-2026-11-16, rs-spx-daily-pm-rddt-1d-2026-11-16, rs-spx-daily-pm-spy-1d-2026-11-16, rs-spx-daily-rddt-1d-2026-11-15, rs-spx-daily-spy-1d-2026-11-15: 1292 of 6997 dates differ); on the witness's values every bar agrees",
      "supplyAttributed": {
       "symbol": "SPX",
       "source": "FMP ^GSPC, the server's PRIMARY: fmp_client.get_index_history_eod_full('^GSPC'), paged in 5-year windows, recorded by the owner under `railway run` at 2026-11-15T13:50:55.537466+00:00; read back through api/index_bars.py::_fetch_fmp_daily('^GSPC', 1.0) (the served shape)",
@@ -100615,7 +100629,7 @@
       "matching": 5705,
       "vendorRowsMissing": 0,
       "naMismatches": 0,
-      "valueMismatches": 1292,
+      "valueMismatches": 374,
       "colorMismatches": 0,
       "colorCompared": 5705,
       "colorWithheld": 0,
@@ -100639,7 +100653,7 @@
       "steady": {
        "bars": 6997,
        "compared": 6997,
-       "divergent": 1292,
+       "divergent": 374,
        "first": {
         "bar": 4,
         "time": 917533800,
@@ -100657,6 +100671,20 @@
        "pattern": {
         "kind": "scattered",
         "lastDivergentBar": 6257
+       }
+      },
+      "roundingEqual": {
+       "compared": 918,
+       "subTick": 14,
+       "steady": 918,
+       "worst": 1.0099999999427407,
+       "first": {
+        "bar": 63,
+        "time": 924874200,
+        "vendor": 0.08886370774857784,
+        "ours": 0.08886436172561489,
+        "index": 1358.82,
+        "ticks": 1.0000000000009492
        }
       },
       "vendorRowGapsAfterStart": 0
@@ -110991,7 +111019,7 @@
      "ours": "value",
      "rule": "M1-title",
      "verdict": "MATCH_SUBSTITUTED",
-     "reason": "266 steady-state bars differ, every one a value on a date where UCT's SPX (FMP ^GSPC, the server's PRIMARY, recorded by the owner under `railway run` at 2026-11-16T23:13:34.138857+00:00 with tools/vendor_harness/record_rs_supply.py --spx; read through api/index_bars.py::_fetch_fmp_daily('^GSPC', 1.0) (the served shape)) differs from TradingView's (witness rs-spx-daily-pm-alab-1d-2026-11-16, rs-spx-daily-pm-rddt-1d-2026-11-16, rs-spx-daily-pm-spy-1d-2026-11-16, rs-spx-daily-rddt-1d-2026-11-15, rs-spx-daily-spy-1d-2026-11-15: 266 of 1447 dates differ); on the witness's values every bar agrees; the newest bar INCONCLUSIVE by name: the SPX supply recorded beside this capture (recorded 2026-11-16T23:13:34.138857+00:00, newest row 2026-11-16) predates session 2026-11-17, which this capture's forming newest bar read (captured 2026-11-17T21:17:14.371Z): our side cannot answer that bar from it (supplyBehind)",
+     "reason": "266 steady-state bars differ (192 of them only by index rounding), every one a value on a date where UCT's SPX (FMP ^GSPC, the server's PRIMARY, recorded by the owner under `railway run` at 2026-11-16T23:13:34.138857+00:00 with tools/vendor_harness/record_rs_supply.py --spx; read through api/index_bars.py::_fetch_fmp_daily('^GSPC', 1.0) (the served shape)) differs from TradingView's (witness rs-spx-daily-pm-alab-1d-2026-11-16, rs-spx-daily-pm-rddt-1d-2026-11-16, rs-spx-daily-pm-spy-1d-2026-11-16, rs-spx-daily-rddt-1d-2026-11-15, rs-spx-daily-spy-1d-2026-11-15: 266 of 1447 dates differ); on the witness's values every bar agrees; the newest bar INCONCLUSIVE by name: the SPX supply recorded beside this capture (recorded 2026-11-16T23:13:34.138857+00:00, newest row 2026-11-16) predates session 2026-11-17, which this capture's forming newest bar read (captured 2026-11-17T21:17:14.371Z): our side cannot answer that bar from it (supplyBehind)",
      "supplyAttributed": {
       "symbol": "SPX",
       "source": "FMP ^GSPC, the server's PRIMARY, recorded by the owner under `railway run` at 2026-11-16T23:13:34.138857+00:00 with tools/vendor_harness/record_rs_supply.py --spx; read through api/index_bars.py::_fetch_fmp_daily('^GSPC', 1.0) (the served shape)",
@@ -111031,7 +111059,7 @@
       "matching": 1186,
       "vendorRowsMissing": 0,
       "naMismatches": 0,
-      "valueMismatches": 266,
+      "valueMismatches": 74,
       "colorMismatches": 0,
       "colorCompared": 1186,
       "colorWithheld": 0,
@@ -111055,7 +111083,7 @@
       "steady": {
        "bars": 1453,
        "compared": 1452,
-       "divergent": 266,
+       "divergent": 74,
        "first": {
         "bar": 5,
         "time": 919693800,
@@ -111073,6 +111101,20 @@
        "pattern": {
         "kind": "scattered",
         "lastDivergentBar": 1298
+       }
+      },
+      "roundingEqual": {
+       "compared": 192,
+       "subTick": 3,
+       "steady": 192,
+       "worst": 1.0000000001070108,
+       "first": {
+        "bar": 54,
+        "time": 949329000,
+        "vendor": 0.18266107708708598,
+        "ours": 0.18265973414892364,
+        "index": 1360.16,
+        "ticks": 1.000000000010243
        }
       },
       "supplyBehindBars": 1,
@@ -111651,7 +111693,7 @@
      "ours": "value",
      "rule": "M1-title",
      "verdict": "MATCH_SUBSTITUTED",
-     "reason": "266 steady-state bars differ, every one a value on a date where UCT's SPX (`/api/bars/SPX?tf=D&bars=12500` as PRODUCTION served it, read on the rig as smoke@ with GETs only at 2026-11-21T17:01:03Z, right before the capture (scratchpad fetch_spx_daily.py), and again at 17:02:34Z right after it, the two reads byte-identical; the route answered newest_bar_is_forming False. ASSEMBLED into this record on 2026-11-21T17:03:08Z from those bracketing reads (run dir ours-before-170103Z.json / ours-after-170234Z.json)) differs from TradingView's (witness rs-spx-daily-pm-alab-1d-2026-11-16, rs-spx-daily-pm-rddt-1d-2026-11-16, rs-spx-daily-pm-spy-1d-2026-11-16, rs-spx-daily-rddt-1d-2026-11-15, rs-spx-daily-spy-1d-2026-11-15: 266 of 1447 dates differ); on the witness's values every bar agrees",
+     "reason": "266 steady-state bars differ (192 of them only by index rounding), every one a value on a date where UCT's SPX (`/api/bars/SPX?tf=D&bars=12500` as PRODUCTION served it, read on the rig as smoke@ with GETs only at 2026-11-21T17:01:03Z, right before the capture (scratchpad fetch_spx_daily.py), and again at 17:02:34Z right after it, the two reads byte-identical; the route answered newest_bar_is_forming False. ASSEMBLED into this record on 2026-11-21T17:03:08Z from those bracketing reads (run dir ours-before-170103Z.json / ours-after-170234Z.json)) differs from TradingView's (witness rs-spx-daily-pm-alab-1d-2026-11-16, rs-spx-daily-pm-rddt-1d-2026-11-16, rs-spx-daily-pm-spy-1d-2026-11-16, rs-spx-daily-rddt-1d-2026-11-15, rs-spx-daily-spy-1d-2026-11-15: 266 of 1447 dates differ); on the witness's values every bar agrees",
      "supplyAttributed": {
       "symbol": "SPX",
       "source": "`/api/bars/SPX?tf=D&bars=12500` as PRODUCTION served it, read on the rig as smoke@ with GETs only at 2026-11-21T17:01:03Z, right before the capture (scratchpad fetch_spx_daily.py), and again at 17:02:34Z right after it, the two reads byte-identical; the route answered newest_bar_is_forming False. ASSEMBLED into this record on 2026-11-21T17:03:08Z from those bracketing reads (run dir ours-before-170103Z.json / ours-after-170234Z.json)",
@@ -111681,7 +111723,7 @@
       "matching": 1187,
       "vendorRowsMissing": 0,
       "naMismatches": 0,
-      "valueMismatches": 266,
+      "valueMismatches": 74,
       "colorMismatches": 0,
       "colorCompared": 1187,
       "colorWithheld": 0,
@@ -111705,7 +111747,7 @@
       "steady": {
        "bars": 1453,
        "compared": 1453,
-       "divergent": 266,
+       "divergent": 74,
        "first": {
         "bar": 5,
         "time": 919693800,
@@ -111723,6 +111765,20 @@
        "pattern": {
         "kind": "scattered",
         "lastDivergentBar": 1298
+       }
+      },
+      "roundingEqual": {
+       "compared": 192,
+       "subTick": 3,
+       "steady": 192,
+       "worst": 1.0000000001070108,
+       "first": {
+        "bar": 54,
+        "time": 949329000,
+        "vendor": 0.18266107708708598,
+        "ours": 0.18265973414892364,
+        "index": 1360.16,
+        "ticks": 1.000000000010243
        }
       },
       "vendorRowGapsAfterStart": 0
@@ -227126,7 +227182,7 @@
    "ourNotes": [
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
    ],
-   "ourDoor": "host",
+   "ourDoor": "runtime",
    "objectsV2": {
     "verdict": "DIVERGE",
     "verdictWithoutX": "DIVERGE",
@@ -227609,7 +227665,7 @@
    "ourNotes": [
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
    ],
-   "ourDoor": "host",
+   "ourDoor": "runtime",
    "objectsV2": {
     "verdict": "DIVERGE",
     "verdictWithoutX": "DIVERGE",
@@ -229749,8 +229805,60 @@
     "verdict": "MATCH",
     "reason": "neither side draws an object"
    },
+   "bands": {
+    "verdict": "MATCH",
+    "reason": "7 bands agree in level, colour, style and width",
+    "agreeing": 7,
+    "differing": 0,
+    "withheld": 0,
+    "rows": [
+     {
+      "id": "hline_0",
+      "ordinal": 0,
+      "title": "H1_solid_red_w1",
+      "state": "agrees"
+     },
+     {
+      "id": "hline_1",
+      "ordinal": 1,
+      "title": "H2_dashed_blue_w2",
+      "state": "agrees"
+     },
+     {
+      "id": "hline_2",
+      "ordinal": 2,
+      "title": "H3_dotted_green_w3",
+      "state": "agrees"
+     },
+     {
+      "id": "hline_3",
+      "ordinal": 3,
+      "title": "H4_orange_t40_w4",
+      "state": "agrees"
+     },
+     {
+      "id": "hline_4",
+      "ordinal": 4,
+      "title": "H5_defaults",
+      "state": "agrees"
+     },
+     {
+      "id": "hline_5",
+      "ordinal": 5,
+      "title": "H6_negative_purple",
+      "state": "agrees"
+     },
+     {
+      "id": "hline_6",
+      "ordinal": 6,
+      "title": "H7_transparent",
+      "state": "agrees"
+     }
+    ]
+   },
    "verdict": "MATCH",
-   "reason": "all 2 items agree",
+   "reason": "all 3 items agree",
+   "verdictWithoutBands": "MATCH",
    "ourNotes": [
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
    ],
