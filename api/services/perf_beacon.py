@@ -498,7 +498,7 @@ _boot_done = threading.Event()       # set once the thread's start-of-process wo
 LANE = "perf-beacon-migrate"
 #: A rebuild writes a whole copy of the store to the temp directory and then through the write-ahead log on the store's
 #: own volume: about twice the file at its peak. It is not started with less than this many times the file free in
-#: BOTH places (this volume has filled before).
+#: EVERY place it may write (this volume has filled before).
 REBUILD_FREE_FACTOR = 3
 _OLDER_INDEX = "ix_perf_loads_rate"
 
@@ -507,15 +507,35 @@ def _free_bytes(directory: str) -> int:
     return shutil.disk_usage(directory).free
 
 
+def _temp_dirs() -> list[str]:
+    """Every directory the rebuild's temporary copy may land in, that exists. ⛔ NOT JUST PYTHON'S. SQLite picks its temp
+    directory in its own order (SQLITE_TMPDIR, TMPDIR, /var/tmp, /tmp ...), Python's `tempfile` in another, and which
+    one a given build uses is not worth guessing: every candidate is asked, and the least free decides."""
+    out: list[str] = []
+    seen: set[str] = set()
+    for d in (os.environ.get("SQLITE_TMPDIR"), os.environ.get("TMPDIR"), "/var/tmp", "/tmp", tempfile.gettempdir()):
+        if not d or not os.path.isdir(d):
+            continue
+        key = os.path.normcase(os.path.abspath(d))
+        if key not in seen:
+            seen.add(key)
+            out.append(d)
+    return out
+
+
 def _room_to_rebuild(path: str) -> tuple[bool, int, int]:
-    """(is there room, the store's bytes, the least free bytes of the two places a rebuild writes)."""
+    """(is there room, the store's bytes, the least free bytes over every place a rebuild may write: the store's own
+    volume and each candidate temp directory)."""
     size = sum(os.path.getsize(p) for p in (path, path + "-wal") if os.path.exists(p))
-    free = min(_free_bytes(os.path.dirname(path) or "."), _free_bytes(tempfile.gettempdir()))
+    free = min([_free_bytes(os.path.dirname(path) or ".")] + [_free_bytes(d) for d in _temp_dirs()])
     return free >= REBUILD_FREE_FACTOR * size, size, free
 
 
 def _rebuild(conn: sqlite3.Connection) -> None:
-    """Rewrite the whole file and empty its write-ahead log, so nothing an older build left in its pages survives."""
+    """Rewrite the whole file and empty its write-ahead log, so nothing an older build left in its pages survives.
+    Its temporary copy goes to DISK whatever this build or this connection defaults to: a copy of the whole store in
+    memory is RAM the pod does not have to spare, and nothing the space check above could see."""
+    conn.execute("PRAGMA temp_store=FILE")
     conn.execute("VACUUM")
     conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
 
