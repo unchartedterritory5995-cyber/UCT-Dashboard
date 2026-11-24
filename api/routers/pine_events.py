@@ -6,6 +6,13 @@ as `api/services/pine_events.py` holds them, for the Pine event supply (E2).
 * Paid, like every member data read; and DARK by stage (`PINE_EVENTS_SUPPLY_ENABLED`): unset or `admins` answers
   admins only, `all` every paid member, `off` nobody. Any other caller gets 404, so a dark route is not an oracle.
 * The paid gate is defined here, never imported from another router (the note in `api/routers/cot.py`).
+
+THE ANSWER (schema `uct.pine-events/v1`): `families.<earnings|dividends|splits>` each hold `state` (`ok`, `empty`,
+`unavailable`, `refused`), `rows`, `knownFrom` (the first held event's date, null when none), and, for earnings only,
+`notReported`: `"etf"` or `"fund"` when the company profile says the symbol is one. Such a family is `empty` because
+a fund reports no earnings (TradingView's `request.earnings` is na on every bar of one), not because the vendor's
+record is missing, so a coverage rule may read it as na (W-E3; nothing in the engine reads it yet). Absent on a
+company, and on a symbol whose profile could not say.
 """
 from __future__ import annotations
 

@@ -10,7 +10,8 @@ WHAT IT HOLDS, per family (the placements these feed are witnessed in
 docs/pine/evidence/2026-11-22-t4-e0-event-placement/EVIDENCE.md):
   earnings   every REPORTED quarter: report date, actual EPS, estimated EPS, as the vendor gives them. A
              scheduled report with no actual yet is not an event (TradingView places a report only once it
-             exists). The vendor's share basis is recorded unmeasured; event_grade.py measures it.
+             exists). The vendor's share basis is recorded unmeasured; event_grade.py measures it. An ETF or a
+             fund (by the company profile) holds none and says so (`notReported`): it reports no earnings.
   dividends  every cash dividend: ex-date and the amount AS DECLARED (TradingView's `dividends.gross` is as
              declared, never split-adjusted), with the vendor's type (regular / special) and currency.
   splits     every split: execution date, numerator = the new shares, denominator = the old (TradingView's
@@ -54,6 +55,10 @@ from typing import Any, Callable, Optional
 log = logging.getLogger("pine_events")
 
 SCHEMA = "uct.pine-events/v1"
+#: The version of the rules a held copy was built under. A copy on disk under other rules is read as no copy, so a
+#: rule change reaches every symbol on deploy. 2 (2026-11-24): a fund's earnings hold no events (`notReported`).
+#: The answer's shape is unchanged (`schema` stays v1): a rule changes what a family holds, not how it is said.
+RULES = 2
 FAMILIES = ("earnings", "dividends", "splits")
 TTL_S = 12 * 3600
 MEM_MAX = 512
@@ -97,7 +102,59 @@ def _num(v) -> Optional[float]:
     return f if f == f and f not in (float("inf"), float("-inf")) else None
 
 
+def _fund_kind(sym: str) -> Optional[str]:
+    """What the company profile says `sym` is: "etf", "fund", "company" (both flags false), or None when it cannot
+    say (no row, a failed read, a flag missing). The profile is the shared once-a-day read
+    (`catalyst.ticker_metadata.profile_facts`, never raises), so asking costs at most one vendor call a day."""
+    from api.services.catalyst import ticker_metadata
+    facts = ticker_metadata.profile_facts(sym) or {}
+    etf, fund = facts.get("is_etf"), facts.get("is_fund")
+    if etf is True:
+        return "etf"
+    if fund is True:
+        return "fund"
+    if etf is False and fund is False:
+        return "company"
+    return None
+
+
+#: The symbols whose earnings were read with no answer from the profile, logged once per symbol per ET day
+#: (coordinator 2026-11-24: count the unknowns). A FUND among them is the residual this rule cannot catch: its
+#: vendor rows are kept, as before the rule.
+_UNKNOWN_PROFILE: dict = {}
+_UNKNOWN_LOCK = threading.Lock()
+
+
+def _et_day() -> str:
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    return datetime.now(ZoneInfo("America/New_York")).date().isoformat()
+
+
+def _note_unknown_profile(sym: str) -> None:
+    day = _et_day()
+    with _UNKNOWN_LOCK:
+        if _UNKNOWN_PROFILE.get(sym) == day:
+            return
+        if any(d != day for d in _UNKNOWN_PROFILE.values()):
+            for k in [k for k, d in _UNKNOWN_PROFILE.items() if d != day]:
+                del _UNKNOWN_PROFILE[k]
+        _UNKNOWN_PROFILE[sym] = day
+        count = len(_UNKNOWN_PROFILE)
+    log.info("pine_events earnings read with NO fund answer from the profile: %s (%d such symbols today)", sym, count)
+
+
 def _fetch_earnings(sym: str) -> dict:
+    # (2026-11-24) A fund reports no earnings, and TradingView's `request.earnings` is na on every bar of one. The
+    # vendor still answers a few with rows (read on production: SPY one 2005 row, XLK one, GLD seven, one of them an
+    # "EPS" of 15,071.92), which would place a report TradingView never places. So a fund's family holds no events,
+    # and says why (`notReported`), without asking the vendor. A profile that cannot say keeps the read below, and
+    # is counted.
+    kind = _fund_kind(sym)
+    if kind in ("etf", "fund"):
+        return {"rows": [], "notReported": kind, "basis": "a fund reports no earnings"}
+    if kind is None:
+        _note_unknown_profile(sym)
     from api.services import fmp_client
     from api.services.provider_errors import ProviderNotFound
     try:
@@ -190,8 +247,8 @@ def build_family(family: str, sym: str, previous: Optional[dict], now: float) ->
 def refresh(sym: str, now: Optional[float] = None) -> dict:
     """Fetch every family for `sym` and write the snapshot atomically. Runs on the background pool only."""
     now = time.time() if now is None else now
-    prev = _read_disk(sym) or {}
-    doc = {"schema": SCHEMA, "symbol": sym, "refreshedAt": now,
+    prev = _read_disk(sym, any_rules=True) or {}
+    doc = {"schema": SCHEMA, "rules": RULES, "symbol": sym, "refreshedAt": now,
            "families": {f: build_family(f, sym, (prev.get("families") or {}).get(f), now) for f in FAMILIES}}
     _write_atomic(_path(sym), doc)
     _remember(sym, doc)
@@ -211,13 +268,20 @@ def _remember(sym: str, doc: dict) -> None:
             _MEM.popitem(last=False)
 
 
-def _read_disk(sym: str) -> Optional[dict]:
+def _read_disk(sym: str, any_rules: bool = False) -> Optional[dict]:
     try:
         with open(_path(sym), encoding="utf-8") as fh:
             doc = json.load(fh)
     except (OSError, ValueError):
         return None
-    return doc if isinstance(doc, dict) and doc.get("schema") == SCHEMA else None
+    if not isinstance(doc, dict) or doc.get("schema") != SCHEMA:
+        return None
+    # a copy made under older rules is not SERVED: it answers as no copy (pending, one refresh kicked), so a rule
+    # takes effect on deploy, not when each symbol's copy happens to expire. The refresh itself still reads it
+    # (`any_rules`), as the copy a family keeps when its vendor read fails.
+    if not any_rules and doc.get("rules") != RULES:
+        return None
+    return doc
 
 
 def _write_atomic(path: str, doc: dict) -> None:

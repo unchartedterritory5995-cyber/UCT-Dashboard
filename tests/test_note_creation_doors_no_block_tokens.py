@@ -36,6 +36,8 @@ DOORS = {
     "api/services/journal_two/note_daily.py": "NOTE: the daily note from the member's daily template",
     "api/services/journal_two/journal_styles.py": "a style's linked outline: compose places every placeholder",
     "api/services/journal_two/template_gallery.py": "publish to the gallery: card lines by W11-R76, previews named",
+    "api/services/journal_two/notebook_today.py": "GET /api/j2/notes/today: reads the daily template for its NAME "
+        "only (`templateName`); the day's note itself is made by note_daily.open_daily_note",
 }
 
 

@@ -191,6 +191,18 @@ def failing_tests(junit_dir: Path) -> list[str]:
             if bad is not None:
                 msg = (bad.get("message") or (bad.text or "")).strip().splitlines()
                 out.append(f"{case.get('classname', '')}::{case.get('name', '')} - {msg[0][:160] if msg else ''}")
+        # 2026-11-24: a suite can be red with no failing test case in it (a vitest file that cannot be imported, an
+        # unhandled error, a pytest collection error). Its `errors` / `failures` attributes still count them; name the
+        # suite so such a run never reads as "0 failing tests".
+        for suite in root.iter("testsuite"):
+            counted = sum(int(suite.get(k) or 0) for k in ("errors", "failures") if str(suite.get(k) or "0").isdigit())
+            cases = sum(1 for c in suite.findall("testcase") if c.find("failure") is not None or c.find("error") is not None)
+            own = suite.find("error") if suite.find("error") is not None else suite.find("failure")
+            if counted > cases or own is not None:
+                msg = ((own.get("message") or own.text or "") if own is not None else "").strip().splitlines()
+                n = max(counted - cases, 1)
+                out.append(f"{suite.get('name', f.name)}: {n} error(s) outside any test case"
+                           + (f" - {msg[0][:160]}" if msg else ""))
     return out
 
 
@@ -215,6 +227,23 @@ def collect_outputs(artifact_dir: Path, dest: Path | None) -> list[Path]:
         shutil.copytree(p, target, dirs_exist_ok=True)
         out.append(target)
     return out
+
+
+def job_lines(jobs: list[dict], verdicts: dict[str, str]) -> str:
+    """One line per job. A TEST job (pytest, vitest shards) shows its verdict, read from the file it uploaded: its
+    GitHub conclusion is always "success" because the test step is continue-on-error, so printing that conclusion
+    showed a red job as success (2026-11-24, reported by CHART SPEED). Other jobs show their conclusion."""
+    lines = []
+    for j in sorted(jobs, key=lambda j: j.get("name", "")):
+        name = j.get("name", "")
+        if name.startswith(("pytest", "vitest")) and j.get("conclusion") != "skipped":
+            v = [verdicts[k] for k in verdicts if name.startswith(k.split("-")[0])
+                 and (k.split("-")[1:] == [] or f"shard {k.split('-')[1]}/" in name)]
+            shown = v[0] if len(v) == 1 else "no verdict"
+            lines.append(f"  {('tests ' + shown):<15} {name}")
+        else:
+            lines.append(f"  {(j.get('conclusion') or j.get('status') or ''):<15} {name}")
+    return "\n".join(lines)
 
 
 def decide(run_conclusion: str | None, test_jobs: int, verdicts: dict[str, str]) -> tuple[int, str]:
@@ -731,14 +760,19 @@ def release_ref(api: GitHubApi, ref: str, state: RunState, keep_ref: bool, delet
     return "deleted"
 
 
-def _download(api: GitHubApi, run_id: str, dest: Path, artifacts_hint: int) -> None:
-    """`gh run download`: one request to list the artifacts plus one per artifact, none conditional."""
+def _download(api: GitHubApi, run_id: str, dest: Path, artifacts_hint: int) -> str | None:
+    """`gh run download`: one request to list the artifacts plus one per artifact, none conditional.
+    None when every artifact arrived; otherwise what went wrong (2026-11-24: a partial download used to pass
+    silently, and the failing tests in the missing artifacts were never counted)."""
     api.wait_for_budget(artifacts_hint + 2)
     r = _run(["gh", "run", "download", run_id, "-D", str(dest)], check=False)
     if r.returncode != 0 and "rate limit" in f"{r.stdout}{r.stderr}".lower():
         api.quota()
         api.wait_for_budget(10 ** 6)                       # sleep to the reset, then one more try
-        _run(["gh", "run", "download", run_id, "-D", str(dest)], check=False)
+        r = _run(["gh", "run", "download", run_id, "-D", str(dest)], check=False)
+    if r.returncode != 0:
+        return (f"{r.stderr or r.stdout}".strip().splitlines() or ["gh run download failed"])[-1][:200]
+    return None
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -793,16 +827,17 @@ def main(argv: list[str] | None = None) -> int:
         test_jobs = [j for j in jobs if j.get("name", "").startswith(("pytest", "vitest"))
                      and j.get("conclusion") != "skipped"]
         tmp = Path(tempfile.mkdtemp(prefix="remote-tests-"))
-        _download(api, run_id, tmp, 2 * len(test_jobs))
+        partial = _download(api, run_id, tmp, 2 * len(test_jobs))
         verdicts = read_verdicts(tmp)
         outs = collect_outputs(tmp, Path(a.download) if a.download else None)
         if outs:
             print(f"remote tests: {OUT_DIR}/ outputs: " + ", ".join(str(o) for o in outs))
-        for j in sorted(jobs, key=lambda j: j.get("name", "")):
-            print(f"  {j.get('conclusion') or j.get('status'):<9} {j.get('name')}")
-        for k in sorted(verdicts):
-            print(f"  verdict   {k}: {verdicts[k]}")
+        print(job_lines(jobs, verdicts))
         code, why = decide(run.get("conclusion"), len(test_jobs), verdicts)
+        if partial:
+            print(f"remote tests: the artifacts did not all download ({partial}); failing tests may be missing below")
+            if code == OK:
+                code, why = LANE, "the artifacts did not all download, so a green verdict cannot be trusted"
         if code == OK:
             print(f"remote tests: GREEN ({why})"); return OK
         bad = failing_tests(tmp)

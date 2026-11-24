@@ -73,8 +73,9 @@ MUTATIONS = [
      "new": "                             cid=job.corr_id, **extra)\n",
      "tests": [Y + "test_the_v2_flow_handler_passes_the_resolved_partition"]},
     {"name": "S14 the flow job ignores the partition it is given", "file": "api/routers/discord_interactions.py",
-     "old": '                params = {"symbol": ticker, "days": days, "source": source}\n',
-     "new": '                params = {"symbol": ticker, "days": days, "source": "stocks"}\n',
+     # re-aimed: 74beea1d28 added `"widen": "1"` to the same params line (/flow never answers blank)
+     "old": '                params = {"symbol": ticker, "days": days, "source": source, "widen": "1"}\n',
+     "new": '                params = {"symbol": ticker, "days": days, "source": "stocks", "widen": "1"}\n',
      "tests": [Y + "test_the_flow_job_reads_the_partition_it_is_given_and_defaults_to_stocks"]},
     {"name": "S15 /flow skips the symbol check", "file": CMD,
      "old": "        refusal = await _symbol_refusal(interaction, [tkr])\n        if refusal:\n            return refusal\n",

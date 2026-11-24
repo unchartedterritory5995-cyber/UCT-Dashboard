@@ -316,6 +316,15 @@ WARM_ENABLED = True
 def _warm_soon(rows: list) -> None:
     if not WARM_ENABLED:
         return
+    # ⛔ THE WARMER GETS ITS OWN COPY. The snapshot `_day_rows` passes here is the same list it
+    # returns to `day_slice` / `history_slice`, which hand it straight to `_filter_day`, and that
+    # SORTS IT IN PLACE. CPython empties a list while sorting it, so the warmer, iterating the
+    # shared list, saw it end part-way and stopped: on a 60-headline day the cache held 43 of the
+    # 51 derivations when the warmer finished (tests/test_trade_exchange_news_archive.py, red on
+    # master 2026-11-23, run 45321831045, and
+    # alone in run 45323826883). A shallow copy of the index tuples costs microseconds and leaves
+    # the request path exactly as it was.
+    rows = list(rows)
     with _lock:
         _warm["pending"] = rows
         t = _warm["thread"]

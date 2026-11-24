@@ -434,6 +434,16 @@
       "files": []
     },
     {
+      "key": "notebook_chart_sets",
+      "store": "server-preference",
+      "scope": "cross-device",
+      "surface": "Notebook",
+      "kind": "work",
+      "label": "Saved chart sets and widget presets",
+      "serverAllowlisted": true,
+      "files": []
+    },
+    {
       "key": "notebook_daily_template",
       "store": "server-preference",
       "scope": "cross-device",
@@ -464,6 +474,16 @@
       "surface": "Notebook",
       "kind": "state",
       "label": "Kind of note offer answer",
+      "serverAllowlisted": true,
+      "files": []
+    },
+    {
+      "key": "notebook_landing",
+      "store": "server-preference",
+      "scope": "cross-device",
+      "surface": "Notebook",
+      "kind": "setting",
+      "label": "Notebook start page (an earlier choice, no longer used)",
       "serverAllowlisted": true,
       "files": []
     },
@@ -623,6 +643,30 @@
       "serverAllowlisted": true,
       "files": [
         "app/src/pages/screener/focus/FocusScreener.jsx"
+      ]
+    },
+    {
+      "key": "screener_scan_board",
+      "store": "server-preference",
+      "scope": "cross-device",
+      "surface": "Screener",
+      "kind": "work",
+      "label": "Scan board and your saved layouts",
+      "serverAllowlisted": true,
+      "files": [
+        "app/src/pages/screener/focus/board/useScanBoard.js"
+      ]
+    },
+    {
+      "key": "screener_scan_board_tablet",
+      "store": "server-preference",
+      "scope": "cross-device",
+      "surface": "Screener",
+      "kind": "work",
+      "label": "Scan board on a tablet (its own layout)",
+      "serverAllowlisted": true,
+      "files": [
+        "app/src/pages/screener/focus/board/useScanBoard.js"
       ]
     },
     {
