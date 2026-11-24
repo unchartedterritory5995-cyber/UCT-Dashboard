@@ -2463,6 +2463,19 @@
    ],
    "fast": false
   },
+  "stock.estimatesBreadth": {
+   "domain": "stock",
+   "group": "marketTables",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
   "stock.eventsTimeline": {
    "domain": "stock",
    "group": "marketReads",
@@ -2554,6 +2567,32 @@
    ],
    "fast": false
   },
+  "stock.groupOwnership": {
+   "domain": "stock",
+   "group": "marketTables",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
+  "stock.groupRank": {
+   "domain": "stock",
+   "group": "marketTables",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
   "stock.ipoCalendar": {
    "domain": "stock",
    "group": "marketCalendars",
@@ -2567,9 +2606,35 @@
    ],
    "fast": false
   },
+  "stock.ipoUnlock": {
+   "domain": "stock",
+   "group": "marketTables",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
   "stock.ivHistory": {
    "domain": "stock",
    "group": "marketReads",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
+  "stock.ivRankLeaders": {
+   "domain": "stock",
+   "group": "marketTables",
    "target": "market",
    "risk": "local",
    "reversible": true,
@@ -2622,6 +2687,19 @@
   "stock.ownershipReport": {
    "domain": "stock",
    "group": "stockStudies",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
+  "stock.positionTypes": {
+   "domain": "stock",
+   "group": "marketTables",
    "target": "market",
    "risk": "local",
    "reversible": true,
@@ -2700,6 +2778,19 @@
   "stock.seasonalityBoard": {
    "domain": "stock",
    "group": "marketRecords",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
+  "stock.sectorEarnings": {
+   "domain": "stock",
+   "group": "marketTables",
    "target": "market",
    "risk": "local",
    "reversible": true,
