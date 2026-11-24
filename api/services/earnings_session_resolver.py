@@ -256,11 +256,7 @@ def _sec_fetch(cik: str) -> dict:
 def _yahoo_fetch(sym: str) -> dict | None:
     """Yahoo's `info` for one symbol, through the shared bounded yfinance pool."""
     from api.services import yf_util
-
-    def _info():
-        import yfinance as yf
-        return yf.Ticker(sym).get_info()
-    return yf_util.bounded_call(_info, None, timeout=10, reraise=True, lane="earnings")
+    return yf_util.ticker_info(sym, timeout=10, reraise=True, lane="earnings")
 
 
 def _cik_for(sym: str) -> str | None:

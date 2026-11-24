@@ -298,6 +298,37 @@ def _marked(fn):
     return _run
 
 
+# ── The requests themselves, made HERE ───────────────────────────────────────
+# TERM-022's retirement queue (`tools/vendor_callsite_census.py`) counts every
+# module outside this file that imports yfinance. A caller that needs one of
+# these reads asks here instead: the library is imported, and the request made,
+# only inside `bounded_call` (same pool, deadline, breaker and lanes), and the
+# day yfinance is retired these are the reads left to replace. NOT a second
+# guard: each is ONE `bounded_call`, with the caller's own default, timeout,
+# reraise and lane passed through unchanged.
+
+def download(tickers, *, then=None, default=None, timeout: float = 12.0,
+             reraise: bool = False, lane: str = "default", **yf_kwargs):
+    """`yfinance.download(tickers, **yf_kwargs)` under the guard. `then(frame)`,
+    when given, runs INSIDE the guarded call -- so anything it raises is handled
+    exactly like a failed download -- and its value is returned instead of the
+    frame. `timeout` is the guard's deadline, never yfinance's own."""
+    def _download():
+        import yfinance as yf
+        frame = yf.download(tickers, **yf_kwargs)
+        return then(frame) if then is not None else frame
+    return bounded_call(_download, default, timeout=timeout, reraise=reraise, lane=lane)
+
+
+def ticker_info(symbol: str, *, default=None, timeout: float = 12.0,
+                reraise: bool = False, lane: str = "default"):
+    """`yfinance.Ticker(symbol).get_info()` under the guard."""
+    def _ticker_info():
+        import yfinance as yf
+        return yf.Ticker(symbol).get_info()
+    return bounded_call(_ticker_info, default, timeout=timeout, reraise=reraise, lane=lane)
+
+
 def guard_status() -> dict:
     """Diagnostics. `cooldown_seconds_remaining` > 0 means every yfinance call
     in this process is currently being short-circuited."""

@@ -123,7 +123,8 @@ def connect_decision() -> tuple[bool, str]:
     ok, reason = vendor_socket_guard.may_open("massive-bars")
     if not ok:
         return False, reason
-    if not os.environ.get("MASSIVE_API_KEY"):
+    from api.services import massive_adapter
+    if not massive_adapter.is_configured():
         return False, "MASSIVE_API_KEY is not set"
     return True, ""
 
