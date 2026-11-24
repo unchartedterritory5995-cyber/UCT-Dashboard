@@ -239,6 +239,9 @@ export const EDGE_WARM_REFUSED = -1
 /** How long a typed text the daily pack does not know may wait for the lake's answer to "is it a
  *  ticker?" (its index: one edge round trip) before the warm gives up on it. */
 export const INTENT_LAKE_INDEX_WAIT_MS = 400
+/** A caller joins a hydrate already in flight for its key (`_hydrate`) for at most this long; past it, it starts its own
+ *  (a read that never settles must not hold the key: review of #2630). Well past a busy IndexedDB's 400-900 ms. */
+export const HYDRATE_JOIN_MAX_MS = 2000
 const SHORT_FULL_MAX = 4000
 
 /**
@@ -347,20 +350,36 @@ export function createPrefetch(o = {}) {
    *  ⭐ `URGENT` (2026-11-22): the member's own ask, whose device read goes ahead of every warm's (deviceStore/
    *  client.js, TWO LANES). Passed only by the switch itself (deviceWarm at the key press, the two prepares, the
    *  device rule); every warm passes nothing, so the ~80 keys a scrolled list asks for wait their turn. */
+  //
+  // ⭐ ONE HYDRATE IN FLIGHT PER KEY AND LANE (2026-11-23, live-session CPU profile). A row entering a list's window is
+  // hydrated by three callers in one task (the neighbour hold's `set`, `warmMemFromIDB`, the list warm's deferred
+  // prefetch), and until its cache read lands the entry holds nothing, so each started its own persist.hydrate: the
+  // whole tail record and the whole deep-history record read three times. A caller now gets the hydrate already in
+  // flight for the key. Per LANE: an URGENT caller (the switch) never joins a background one, so its device read keeps
+  // its lane exactly as before. Once that hydrate settles the next caller reads again (prefetch.hydrateDedupe).
+  const hydrating = new Map()   // key (or `u|key` on the urgent lane) → { p: the hydrate in flight, at: when it started }
   function _hydrate(key, lane) {
     const st = S()
     const s = st.peek(key)
     // a held DEVICE copy (no server answer) is brought forward to the device's newest first
     if (_deviceHeld(s)) return Promise.resolve(st.persist.refreshDevice?.(key, lane)).catch(() => false).then(() => st.peek(key))
     if (s && (s.depth || s.restSeen || s.developing)) return Promise.resolve(s)
+    const id = lane?.urgent === true ? `u|${key}` : key
+    const running = hydrating.get(id)
+    // (review of #2630) joined for HYDRATE_JOIN_MAX_MS at most: a read that never settles (an IndexedDB callback lost)
+    // would otherwise hold the key for every later caller for the page's life; past it a caller starts its own
+    if (running && now() - running.at < HYDRATE_JOIN_MAX_MS) return running.p
     // Pinned while it reads, so a herd hydrating more keys than the LRU holds cannot evict
     // the entry between its cache read and the verdict taken on it.
     st.registry.acquire(key)
     // TERM-033: a FAILED device-cache read hydrates nothing (NOTHING_HYDRATED). It is never read as
     // an answer: the verdict below is taken on what the store holds, so the warm asks the server.
-    return st.persist.hydrate(key, lane).catch(nothingHydrated)
+    const entry = { p: null, at: now() }
+    entry.p = st.persist.hydrate(key, lane).catch(nothingHydrated)
       .then(() => st.peek(key))
-      .finally(() => st.registry.release(key))
+      .finally(() => { st.registry.release(key); if (hydrating.get(id) === entry) hydrating.delete(id) })
+    hydrating.set(id, entry)
+    return entry.p
   }
 
   /**
