@@ -346,6 +346,32 @@ def _with_a_known_defect():
     return data, case
 
 
+#: (case, answer) -> its grade, shared by the run-folder tests below (the `graded_once` fixture).
+#: ⚰️ A run folder grades EVERY case, about 37 s on a CI runner, and the ratchet test makes four runs over the
+#: same answers: it hit the 120 s timeout in the 2026-11-23 full suite while its neighbours took 37-77 s. A grade
+#: is a pure function of the case and the answer (the market is built, never fetched:
+#: test_the_market_is_the_same_every_run_long_enough_and_has_ties), so each pair is interpreted once here. The key
+#: is the WHOLE case plus the answer, so an answer a test changes (a formula made late, a defect put back) is a
+#: new key and is graded for real; the ratchet's "below the line" assertion is red if it were not.
+#: ⛔ Never for the CONTROL tests above: they patch the rules, and a grade remembered from the real rules would
+#: hide exactly what they prove.
+_GRADED: dict = {}
+
+
+@pytest.fixture
+def graded_once(monkeypatch):
+    real = G.grade_case
+
+    def grade_case(case, answer=None):
+        answer = case["answer"] if answer is None else answer
+        key = json.dumps([case, answer], sort_keys=True)
+        if key not in _GRADED:
+            _GRADED[key] = real(case, answer)
+        return copy.deepcopy(_GRADED[key])
+
+    monkeypatch.setattr(G, "grade_case", grade_case)
+
+
 def _answers_dir(tmp_path, changed=None, missing=(), data=None):
     """A run folder as the recorder writes one: <id>-0.body.json per request, the door's whole answer."""
     for case in (HERE if data is None else [c for c in data["cases"] if c["lane"] != "script"]):
@@ -370,7 +396,7 @@ def test_a_record_read_back_as_the_door_sends_it_is_the_record():
     assert value_eval.answer_of(_body_of(built))["ops"] == built["ops"]
 
 
-def test_a_fresh_run_equal_to_the_record_scores_every_case(tmp_path):
+def test_a_fresh_run_equal_to_the_record_scores_every_case(tmp_path, graded_once):
     report = value_eval.grade_run(DATA, _answers_dir(tmp_path))
     assert len(RIGHT) + len(KNOWN_WRONG) == len(FORMULA)
     assert report["scores"] == {"formula": {"right": len(RIGHT), "of": len(FORMULA), "answered": len(FORMULA)},
@@ -384,7 +410,7 @@ def test_a_fresh_run_equal_to_the_record_scores_every_case(tmp_path):
     assert again["verdicts"][case["id"]] == "wrong" and again["changed"] == [] and again["full_lanes"] == ["formula", "wall"]
 
 
-def test_a_known_defect_the_door_now_gets_right_is_named_as_a_change(tmp_path):
+def test_a_known_defect_the_door_now_gets_right_is_named_as_a_change(tmp_path, graded_once):
     """wrong -> RIGHT is reported (it is how a fix shows in a live run), and it is never counted as worse."""
     data, case = _with_a_known_defect()
     fixed = copy.deepcopy(BY_ID[case["id"]]["answer"])                # the right answer the repository records for it today
@@ -393,7 +419,7 @@ def test_a_known_defect_the_door_now_gets_right_is_named_as_a_change(tmp_path):
     assert report["scores"]["formula"]["right"] == len(RIGHT)         # one more than the fixture with the defect holds right
 
 
-def test_a_fresh_run_names_what_went_wrong_and_what_was_not_answered(tmp_path):
+def test_a_fresh_run_names_what_went_wrong_and_what_was_not_answered(tmp_path, graded_once):
     late = copy.deepcopy(RIGHT[3]["answer"])
     for o in _outputs(late):
         o["tree"] = _late(o["tree"])
@@ -403,7 +429,7 @@ def test_a_fresh_run_names_what_went_wrong_and_what_was_not_answered(tmp_path):
     assert [(row["id"], row["was"], row["now"]) for row in report["changed"]] == [(RIGHT[3]["id"], "right", "wrong"), (RIGHT_WALL[1]["id"], "right", "no answer")]
 
 
-def test_THE_RATCHET_the_first_full_run_writes_the_threshold_and_a_later_run_below_it_is_red(tmp_path):
+def test_THE_RATCHET_the_first_full_run_writes_the_threshold_and_a_later_run_below_it_is_red(tmp_path, graded_once):
     data = _unset(DATA)
     assert data["thresholds"]["formula"] is None and data["thresholds"]["wall"] is None
     (tmp_path / "a").mkdir()

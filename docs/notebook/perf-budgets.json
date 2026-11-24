@@ -9,8 +9,9 @@
       ],
       "baseline": 2153137,
       "baseline_from": "Fix round 1, ruling D-I1 (vendor-echarts removed from manualChunks): measured with tools/notebook_perf_budgets.py --dist on a clean build of the tree of 0189bca13 plus that vite.config.js; docs/notebook/perf-budgets.md section 1, 'Decision D-I1'. The I3 baseline was 2,145,850 (section 4); +7,237 B came from the commits after I3, +50 B from D-I1 itself.",
-      "max": 2260993,
-      "max_rule": "floor(baseline * 1.05). Restored 2026-11-09 by owner approval: both same-day hand raises are withdrawn because measured first open fits the rule. perf-budgets.md, last section. 2026-11-16: raised +200 B by owner approval for UCT Signature R2 (#1477), measured 2,260,840."
+      "max": 2263041,
+      "max_rule": "floor(baseline * 1.05). Restored 2026-11-09 by owner approval: both same-day hand raises are withdrawn because measured first open fits the rule. perf-budgets.md, last section. 2026-11-16: raised +200 B by owner approval for UCT Signature R2 (#1477), measured 2,260,840. 2026-11-24: raised +2,048 B by owner approval for the UCT Agent's data wave 11 (#2651): master read 2,261,202 B at c836139b3f and production promotion was refused on it. Every raise above the rule is listed in owner_raises, which tests/test_notebook_perf_budgets.py sums.",
+      "owner_raises": [{"bytes": 200, "on": "2026-11-16", "approved_by": "owner", "for": "UCT Signature R2 (#1477); measured 2,260,840 B"}, {"bytes": 2048, "on": "2026-11-24", "approved_by": "owner", "for": "UCT Agent data wave 11 (#2651) put the Notebook first open 209 B over and production promotion was refused; +2,048 B leaves headroom. Bracco's team was asked to move wave 11 off the Notebook's first open, after which this raise is withdrawn"}]
     }
   },
   "search": {

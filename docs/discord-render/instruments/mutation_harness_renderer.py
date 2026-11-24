@@ -26,8 +26,10 @@ IDS = "api/services/discord_render/ids.py"
 
 MUTATIONS = [
     {"name": "A1 scrub is a no-op", "file": APP,
+     # re-aimed: c84c5d0317 added the third (header-shaped credential) substitution to scrub()
      "old": '    s = _URL_QUERY.sub(lambda m: m.group(1) + "?[redacted]", str(text))\n'
-            '    return _SECRET_PARAM.sub(lambda m: m.group(1) + "=[redacted]", s)\n',
+            '    s = _SECRET_PARAM.sub(lambda m: m.group(1) + "=[redacted]", s)\n'
+            '    return _SECRET_HEADER.sub(lambda m: m.group(1) + m.group(2) + "[redacted]", s)\n',
      "new": "    return str(text)\n",
      "tests": [P + "test_scrub_removes_every_query_string_and_named_secret",
                P + "test_a_browser_error_never_puts_the_token_in_a_log_or_the_response",

@@ -63,6 +63,7 @@ def test_CONTROL_a_dropped_section_is_counted(sections):
 
 def test_the_agent_lists_the_two_rs_exit_fields_and_not_the_three_member_only_ages(sections):
     from api.services.screener import filters, fund_trends, volume_volatility, beats_insiders_funds
+    from api.services.screener import store_columns, short_columns
     omitted = {f["key"] for f in filters.field_catalog() if f.get("agent_omit")}
     # Pin moved 2026-11-14 (RS screens U1): every key the RS screens programme adds is kept out
     # of the Agent's list (`filters.RS_SCREENS_KEYS`); the budget has no room for them.
@@ -76,8 +77,12 @@ def test_the_agent_lists_the_two_rs_exit_fields_and_not_the_three_member_only_ag
     # way: the budget sat 77 bytes under the line on 2026-11-13 and has no room for eleven more
     # fields; the recorded requests did not move.
     vv, bif = set(volume_volatility.COLUMNS), set(beats_insiders_funds.COLUMNS)
+    # Pin moved 2026-11-23 (held-store columns): the ten `store_columns.COLUMNS` and the short interest change
+    # (`short_columns.CHANGE_COLUMN`) are member controls kept out of the Agent's list the same way; the
+    # recorded requests did not move.
+    held = dict(store_columns.CATEGORY, **{short_columns.CHANGE_COLUMN: "ownership"})
     assert omitted == ({"rs_quick_break_bars_ago", "rs_quicksand_bars_ago", "rs_dead_break_bars_ago"}
-                       | set(filters.RS_SCREENS_KEYS) | trends | vv | bif)
+                       | set(filters.RS_SCREENS_KEYS) | trends | vv | bif | set(held))
     full = [s["fields"] for s in sections if isinstance(s.get("fields"), str) and ":" in s["fields"]]
     assert full, "no full field list was recorded"
     for line in full:
@@ -88,5 +93,6 @@ def test_the_agent_lists_the_two_rs_exit_fields_and_not_the_three_member_only_ag
     # still member filters: the screener, starters and saved screens keep every one
     for key in omitted:
         family = ("fundamental_trends" if key in trends else "volume_volatility" if key in vv
-                  else "beats_insiders_funds" if key in bif else "relative_strength")
+                  else "beats_insiders_funds" if key in bif else held[key] if key in held
+                  else "relative_strength")
         assert key in filters.FILTERS and filters.FILTERS[key]["category"] == family

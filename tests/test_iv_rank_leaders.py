@@ -118,9 +118,128 @@ def test_every_ranked_symbol_reads_exactly_as_its_own_ivh_rank(seeded):
 def test_what_is_left_out_is_counted_in_numbers(seeded):
     build_25(seeded)
     c = ivr.build(now=NOW)["counts"]
-    # EEQX 19 sessions; GGQX flat; FFQX not in the latest session; HHQX no ATM IV in the latest session
+    # EEQX 19 sessions; GGQX flat; FFQX not in the latest session; HHQX no ATM IV in the latest session.
+    # (2026-11-23) No placeholder IV (under iv_history.IV_FLOOR) and nothing above iv_history.IV_WATCH here.
     assert c == {"ranked": 4, "below_min": 1, "flat": 1, "not_in_latest": 1, "latest_rows": 7,
-                 "latest_no_atm_iv": 1, "symbols_logged": 7}
+                 "latest_no_atm_iv": 1, "symbols_logged": 7, "implausible_iv": 0, "iv_above_watch": 0}
+
+
+# ── placeholder IVs (2026-11-23): under the floor is never a point ──────────────────────────────
+
+def test_a_placeholder_atm_iv_is_never_a_point_and_is_counted(seeded):
+    """Invented series: a placeholder in the latest session (PLQA), one inside the history (PLQB), a symbol whose
+    every point is a placeholder (PLQC), and one real very high reading (PLQD: kept, only counted)."""
+    days = trading_days("2026-10-01", 25)
+    tiny = round(iv_history.IV_FLOOR / 5, 6)                  # a placeholder-sized value, under the floor
+    for i, d in enumerate(days):
+        seeded.day(d, [row("PLQA", tiny if i == len(days) - 1 else 0.30 + i / 1000),
+                       row("PLQB", tiny if i == 7 else 0.40 + (i % 5) / 100),
+                       row("PLQC", tiny),
+                       row("PLQD", iv_history.IV_WATCH + 1.5 if i == 3 else 0.90 + i / 100)])
+    out = ivr.build(now=NOW)
+    ranked = {r["symbol"]: r for r in out["high"]}
+    # PLQA has no reading in the latest session, so it is not ranked on a placeholder
+    assert set(ranked) == {"PLQB", "PLQD"}
+    # PLQB: the placeholder neither sets the low nor counts as a session; its other 24 sessions still count
+    b = ranked["PLQB"]
+    assert b["sessions"] == 24 and b["low"] == 0.40 and b["low"] >= iv_history.IV_FLOOR
+    own = iv_history.iv_history("PLQB", now=NOW)["rank"]
+    assert (b["iv_rank"], b["iv_percentile"], b["low"], b["sessions"]) == (
+        own["iv_rank"], own["iv_percentile"], own["low"], own["window_sessions"]), "IVH reads it the same way"
+    # PLQD: no ceiling, the very high reading is a real point (its high) and is counted
+    assert ranked["PLQD"]["high"] == iv_history.IV_WATCH + 1.5
+    c = out["counts"]
+    assert c["implausible_iv"] == 1 + 1 + len(days) and c["iv_above_watch"] == 1
+    assert c["not_in_latest"] == 1 and c["latest_no_atm_iv"] == 2 and c["symbols_logged"] == 3
+    assert out["iv_floor"] == iv_history.IV_FLOOR and out["iv_watch"] == iv_history.IV_WATCH
+
+
+def test_the_floor_is_read_from_the_one_reader(seeded):
+    assert iv_history.atm_iv("0.35") == (0.35, False)
+    assert iv_history.atm_iv(str(iv_history.IV_FLOOR / 2)) == (None, True)
+    assert iv_history.atm_iv(str(iv_history.IV_FLOOR)) == (iv_history.IV_FLOOR, False), "the floor itself is a reading"
+    assert iv_history.atm_iv("") == (None, False) and iv_history.atm_iv("nan") == (None, False)
+    assert iv_history.atm_iv("12.0") == (12.0, False), "no ceiling"
+    import inspect
+    assert "iv_history.atm_iv(" in inspect.getsource(ivr._read_day)
+
+
+# ── the full map (2026-11-23): every ranked symbol, beside the held answer ──────────────────────
+
+def test_the_build_keeps_the_full_map_and_the_panels_answer_is_the_same_with_or_without_it(seeded):
+    days = build_25(seeded)
+    full: dict = {}
+    out = ivr.build(now=NOW, map_out=full)
+    plain = ivr.build(now=NOW)
+    assert {k: v for k, v in out.items() if k != "built_at"} == {k: v for k, v in plain.items() if k != "built_at"}
+    assert full["session"] == days[-1] and full["built_at"] == out["built_at"] and full["v"] == ivr.MAP_VERSION
+    assert set(full["symbols"]) == {"AAQX", "BBQX", "CCQX", "DDQX"}
+    for r in out["high"]:
+        assert full["symbols"][r["symbol"]] == [r["iv_rank"], r["iv_percentile"], r["sessions"]], r["symbol"]
+    # under the minimum, flat, or not in the latest session: absent (blank), never a 0
+    assert not {"EEQX", "GGQX", "FFQX", "HHQX"} & set(full["symbols"])
+    assert full["counts"] == {"ranked": 4, "kept": 4, "cut": 0, "below_min": 1, "flat": 1, "not_in_latest": 1,
+                              "implausible_iv": 0}
+    empty: dict = {}
+    ivr.build(now=NOW, store=iv_history.LocalStore(str(seeded.root) + "-none"), map_out=empty)
+    assert empty["session"] is None and empty["symbols"] == {}
+
+
+def test_the_map_is_bounded_most_open_interest_first(seeded, monkeypatch):
+    build_25(seeded)
+    monkeypatch.setattr(ivr, "MAP_MAX", 2)
+    full: dict = {}
+    out = ivr.build(now=NOW, map_out=full)
+    assert sorted(full["symbols"]) == ["AAQX", "BBQX"], "BBQX has the most open interest; the tie goes by symbol"
+    assert full["counts"]["kept"] == 2 and full["counts"]["cut"] == 2 and full["counts"]["ranked"] == 4
+    assert len(out["high"]) == 4, "the panel's lists are not cut by the map's bound"
+    # the read is bounded too: a file over the byte cap, or holding more symbols than MAP_MAX, is not read
+    ivr._save_map(full)
+    assert ivr.read_rank_map()[1] == "held"
+    monkeypatch.setattr(ivr, "MAP_MAX_BYTES", 10)
+    assert ivr.read_rank_map() == (None, "unreadable")
+    monkeypatch.setattr(ivr, "MAP_MAX_BYTES", 4_000_000)
+    monkeypatch.setattr(ivr, "MAP_MAX", 1)
+    assert ivr.read_rank_map() == (None, "unreadable")
+
+
+def test_the_map_is_written_atomically_and_a_failed_write_keeps_the_last_good_one(seeded, monkeypatch):
+    build_25(seeded)
+    assert ivr.read_rank_map() == (None, "not_held")
+    good: dict = {}
+    ivr.build(now=NOW, map_out=good)
+    ivr._save_map(good)
+    assert ivr.read_rank_map() == (good, "held")
+
+    def broken(doc, fh, **kw):
+        fh.write('{"v": 1, "sess')                 # half a file, then the disk fills
+        raise OSError("no space left on device")
+    with monkeypatch.context() as m:
+        m.setattr(ivr.json, "dump", broken)
+        ivr._save_map({**good, "session": "2026-11-05"})
+    assert ivr.read_rank_map() == (good, "held"), "a reader sees the old file whole, never half of the new one"
+    folder = os.path.dirname(ivr._map_path())
+    assert [n for n in os.listdir(folder) if n.startswith(".rank_map_")] == [], "no temporary file is left behind"
+    with open(ivr._map_path(), "w") as fh:
+        fh.write("{not json")
+    assert ivr.read_rank_map() == (None, "unreadable")
+
+
+def test_the_scheduled_build_writes_the_map_and_a_failed_build_leaves_the_last_good_one(seeded, monkeypatch):
+    build_25(seeded)
+    monkeypatch.setenv(FLAG, "1")
+    assert ivr.run_scheduled(NOW) == {"started": True}
+    ivr.drain()
+    doc, how = ivr.read_rank_map()
+    assert how == "held" and doc["counts"]["ranked"] == 4 and doc["session"] == ivr.get_leaders(NOW)["session"]
+
+    class Broken(iv_history.LocalStore):
+        def sessions(self):
+            raise RuntimeError("no R2 credentials")
+    monkeypatch.setattr(iv_history, "_store_override", Broken("x"))
+    ivr.run_scheduled(NOW)
+    ivr.drain()
+    assert ivr.read_rank_map() == (doc, "held")
 
 
 def test_highest_and_lowest_are_the_two_ends_with_the_service_order(seeded, monkeypatch):
