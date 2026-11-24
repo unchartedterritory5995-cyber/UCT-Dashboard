@@ -139,7 +139,9 @@ RATE_LIMITED_HOLD_S = 900.0   # a 429
 SHAPE_HOLD_S = 900.0          # the source answered, but not with rows this module can read
 FAILED_S = 60.0               # a failed build is said briefly, then tried again
 PARTIAL_KEEP_S = 1800.0       # periods read before a build failed are kept this long for the next try
-WAIT_S = 3.0                  # the longest a request waits on the build it started
+# The longest a request waits on the build it started. NONE (speed pass 2026-11-23): live, a request with nothing
+# held waited the full 3 seconds and then said `computing` anyway; the panel asks again every 3 seconds.
+WAIT_S = 0.0
 DISK_VERSION = 2
 
 _ISO_DAY = re.compile(r"^\d{4}-\d{2}-\d{2}$")

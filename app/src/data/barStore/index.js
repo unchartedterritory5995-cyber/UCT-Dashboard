@@ -24,6 +24,7 @@ import { createNetwork } from './network'
 import { createHistoryFeed, historyLakeEnabled, appHistoryFeed } from './historyFeed'
 import { createLiveFeed } from './liveFeed'
 import { STATUS } from './types'
+import { onDeskHiddenChange } from '../../lib/deskVisibility'
 
 export { keyOf, parseKey } from './types'
 
@@ -156,7 +157,8 @@ export function createBarStore(o = {}) {
         const req = network.fetchOnce(key, { priority, depth, session, signal, warm, front })
         req.then(() => {
           const cur = registry.peek(key)
-          if (cur && cur.baseRev !== rev0 && !active.has(key)) persist.writeOnce?.(key, { startedAt })
+          // (after the debounce and at idle, never in the task that handled the answer: persist.writeSoon)
+          if (cur && cur.baseRev !== rev0 && !active.has(key)) persist.writeSoon?.(key, { startedAt })
         })
         await Promise.race([
           req,
@@ -215,14 +217,36 @@ export function createBarStore(o = {}) {
 }
 
 let _default = null
+let _unwireFlush = null
+/**
+ * ⭐ NO WRITE IS LOST ON A TAB CLOSE (2026-11-23). A watched key's write waits PERSIST_DEBOUNCE_MS and then idle, and a warm
+ * answer's too (persist.writeSoon): a tab closed or hidden in between used to drop them. The app's store writes everything
+ * pending at once on `pagehide`, when the document becomes hidden, and when the desktop desk is hidden
+ * (lib/deskVisibility). Wired once, for the app's store only.
+ */
+function _wireFlush() {
+  if (_unwireFlush || typeof window === 'undefined') return
+  const flush = () => { try { Promise.resolve(_default?.flush()).catch(() => {}) } catch { /* best-effort */ } }
+  const onVisibility = () => { try { if (document.visibilityState === 'hidden') flush() } catch { /* no document */ } }
+  window.addEventListener('pagehide', flush)
+  try { document.addEventListener('visibilitychange', onVisibility) } catch { /* no document */ }
+  let offDesk = null
+  try { offDesk = onDeskHiddenChange((hidden) => { if (hidden) flush() }) } catch { offDesk = null }
+  _unwireFlush = () => {
+    window.removeEventListener('pagehide', flush)
+    try { document.removeEventListener('visibilitychange', onVisibility) } catch { /* no document */ }
+    try { offDesk?.() } catch { /* gone */ }
+    _unwireFlush = null
+  }
+}
 /** The app's one store (created on first use). */
 export function getBarStore() {
   // The history lake is ON for the app's store unless this browser says '0' (historyFeed.js).
-  if (!_default) _default = createBarStore({ history: appHistoryFeed() })
+  if (!_default) { _default = createBarStore({ history: appHistoryFeed() }); _wireFlush() }
   return _default
 }
 /** Test hook. */
-export function _resetBarStoreForTests() { _default?.dispose(); _default = null }
+export function _resetBarStoreForTests() { _unwireFlush?.(); _default?.dispose(); _default = null }
 
 export const subscribe = (key, cb, opts) => getBarStore().subscribe(key, cb, opts)
 export const getSnapshot = (key) => getBarStore().getSnapshot(key)

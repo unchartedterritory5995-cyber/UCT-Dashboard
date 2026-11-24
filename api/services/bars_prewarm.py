@@ -239,20 +239,58 @@ def _expected_session() -> int:
     return _expected_latest_session_yyyymmdd()
 
 
-def _last_completed_session() -> int:
-    """ET date (YYYYMMDD) of the most recent COMPLETED session (yesterday during RTH,
-    today after close). `_expected_session()` returns TODAY during market hours — whose
-    daily bar is still evolving — so grading the boot against it forces a re-fetch of
-    every warm daily on a mid-session restart (the 68k churn that competed with the web
-    and reset the re-warm to a slow crawl). A daily that already has the last COMPLETED
-    session is warm enough for the boot; the steady refresh loop + the on-demand serve
-    own today's evolving bar. Computed by evaluating the session authority as-if
-    pre-open, which rolls to the prior trading day (holiday/weekend-aware)."""
-    from api.services.bars_fetch import _expected_latest_session_yyyymmdd
+def _now_et():
+    """The ET wall clock, in one place so a test can hold it still."""
     from datetime import datetime
     from zoneinfo import ZoneInfo
-    pre_open = datetime.now(ZoneInfo("America/New_York")).replace(
-        hour=8, minute=0, second=0, microsecond=0)
+    return datetime.now(ZoneInfo("America/New_York"))
+
+
+def _settle_hour_et() -> int:
+    """`PERMANENT_FRESHNESS_HOUR_ET` (default 17): the ET hour from which today's DAILY bar
+    is taken as published by the provider. ONE knob, two readers that must agree: the
+    after-close sweep is due from it (`_after_close_daily_sweep_due`), and today becomes
+    the last completed session at it (`_last_completed_session`)."""
+    return int(os.environ.get("PERMANENT_FRESHNESS_HOUR_ET", "17"))
+
+
+def _last_completed_session(now=None) -> int:
+    """ET date (YYYYMMDD) of the most recent COMPLETED session: the previous trading day
+    during RTH, today from the settle hour after today's close. `_expected_session()`
+    returns TODAY during market hours — whose daily bar is still evolving — so grading
+    the boot against it forces a re-fetch of every warm daily on a mid-session restart
+    (the 68k churn that competed with the web and reset the re-warm to a slow crawl). A
+    daily that already has the last COMPLETED session is warm enough for the boot; the
+    steady refresh loop + the on-demand serve own today's evolving bar.
+
+    Until the settle instant: the session authority as-if pre-open, which rolls to the
+    prior trading day (holiday/weekend-aware). From it on: TODAY. The settle instant is
+    `max(today's regular close, _settle_hour_et())`: 17:00 ET by default, on an early
+    close too (13:00 close, still 17:00), and never before the close whatever the knob
+    says. A weekend or a holiday has no close, so it keeps the prior trading day all day.
+
+    ⛔ NOT AT THE CLOSE. The first fetch of today's daily is the only one: the row is then
+    dated today, `_boot_can_skip` calls it settled for the rest of the day (before
+    `_needs_fresh` is asked) and the sweep counts it done. So what the provider answers
+    at that instant is what the night's device-store seed ships as the last daily candle.
+    At 16:05 ET the provider may not have published the closing daily bar yet, which is
+    what the sweep's buffer hour exists for. Flipping at the close would let the steady
+    refresh fetch every `ticker_list` daily at about 16:05 and freeze it.
+
+    ⚰️ 2026-11-23: THIS RETURNED THE AS-IF-PRE-OPEN ANSWER AT EVERY HOUR, so at 17:00 ET
+    Monday it said Friday. Inside the data window (to 20:00 ET) `_boot_can_skip` therefore
+    skipped every daily that held Friday's bar, and the after-close sweep, which runs the
+    same job, refreshed 712 of 13,279 dailies and marked the session done. The
+    device-store seed for that session was refused four times (tf D: 0 symbols).
+    Rails: tests/test_prewarm_after_close_session.py."""
+    from api.services.bars_fetch import _expected_latest_session_yyyymmdd, _session_close_minutes
+    now = now or _now_et()
+    today = int(now.strftime("%Y%m%d"))
+    settle = max(_session_close_minutes(today), _settle_hour_et() * 60)
+    if (now.hour * 60 + now.minute >= settle
+            and _expected_latest_session_yyyymmdd(now) == today):
+        return today
+    pre_open = now.replace(hour=8, minute=0, second=0, microsecond=0)
     return _expected_latest_session_yyyymmdd(pre_open)
 
 
@@ -462,6 +500,101 @@ def _daily_first_boot_jobs(jobs, shallow_5m, dwm_extra) -> list:
     daily_first = [j for j in jobs if j[1] == 'D'] + lt_D
     rest = [j for j in jobs if j[1] != 'D'] + list(shallow_5m) + lt_WM
     return daily_first + rest
+
+
+def _warm_job(args, *, get_last_ts, needs_fresh, fetch, _set_background_caller):
+    """ONE prewarm job `(sym, tf, bar_count)`: skip it when the store already holds what the
+    pass wants, else fetch. The boot pass, the steady refresh and the after-close daily
+    sweep all run this (`run_prewarmer_forever` binds the store, the freshness rule and the
+    fetch; a test binds its own). Returns ('warmed' | 'skipped' | 'failed', sym, tf)."""
+    sym, tf, bar_count = args
+    # Background caller: the D/W/M delta pool counts it against the warm share,
+    # so the prewarm can never hold the slots a member's click needs (N1).
+    _set_background_caller(True)
+    try:
+        last_ts = get_last_ts(sym.upper(), tf)
+        # Settled D/W/M outside the data window: provably nothing to fetch.
+        if _boot_can_skip(last_ts, tf):
+            return ('skipped', sym, tf)
+        if not needs_fresh(last_ts, tf):
+            return ('skipped', sym, tf)
+        fetch(sym.upper(), tf, bar_count)
+        return ('warmed', sym, tf)
+    except Exception:
+        pass
+    finally:
+        _set_background_caller(False)
+    return ('failed', sym, tf)
+
+
+def _dailies_behind(jobs, sess: int, last_ts) -> list:
+    """The daily jobs whose stored series does not reach `sess`: no row at all, or a newest
+    row older than it. Read from the store, never from what a pass reported. Beats as it
+    walks, like `_scan_stale`."""
+    out = []
+    for i, j in enumerate(jobs, start=1):
+        ts = last_ts(j[0].upper(), j[1])
+        if ts is None or int(ts) < int(sess):
+            out.append(j)
+        if i % 500 == 0:
+            _beat(refresh_done=0)
+    return out
+
+
+def _daily_freshness_tick(state: dict, *, full_daily, warm_one, needs_fresh, last_ts,
+                          workers: int) -> None:
+    """One look at the after-close full-universe DAILY sweep, from the steady loop: run a
+    pass when one is due (`_after_close_daily_sweep_due`). `state["swept"]` is the session
+    the sweep is DONE for (0 at boot).
+
+    ⛔ A PASS IS NOT A FINISHED SWEEP. After each pass the store is read again
+    (`_dailies_behind`), and the session is marked done only when no daily is behind it.
+    Otherwise it stays due and the next turn of the steady loop runs another pass, which
+    costs a provider call only for the dailies still behind (`_warm_job` skips the rest).
+    ⚰️ 2026-11-23: this marked the session done right after its one pass, whatever the pass
+    had done. That pass fetched 712 of 13,279 dailies (see `_last_completed_session`) and
+    nothing looked again until the next morning.
+
+    Bounded: some dailies never reach the session (delisted, halted, nothing printed), so
+    after `PERMANENT_FRESHNESS_MAX_PASSES` passes for one session (default 3) the sweep is
+    closed with a line that counts what it left behind."""
+    from concurrent.futures import ThreadPoolExecutor as _PrewarmTPE
+    _now = _now_et()
+    _sess = _expected_session()
+    if not _after_close_daily_sweep_due(
+        _sess, int(_now.strftime("%Y%m%d")), _now.hour, state.get("swept", 0),
+        enabled=os.environ.get("PERMANENT_DAILY_FRESHNESS_ENABLED", "0") == "1",
+        hour_et=_settle_hour_et(),
+    ):
+        return
+    if state.get("pass_session") != _sess:
+        state["pass_session"], state["passes"] = _sess, 0
+    state["passes"] += 1
+    _max_passes = max(1, int(os.environ.get("PERMANENT_FRESHNESS_MAX_PASSES", "3") or 3))
+    _fd_stale = _scan_stale(full_daily, needs_fresh, last_ts)
+    print(f"[prewarm] DAILY FRESHNESS: after-close full-universe sweep "
+          f"for session {_sess} — {len(_fd_stale)} of {len(full_daily)} "
+          f"dailies stale (pass {state['passes']} of at most {_max_passes})")
+    if _fd_stale:
+        with _PrewarmTPE(max_workers=workers,
+                         thread_name_prefix="prewarm-freshness") as _fx:
+            _fd_done = _run_refresh_pass(
+                _fx.map(warm_one, _fd_stale), len(_fd_stale))
+        print(f"[prewarm] DAILY FRESHNESS: refreshed {_fd_done} of "
+              f"{len(_fd_stale)} dailies to session {_sess}")
+    _behind = _dailies_behind(full_daily, _sess, last_ts)
+    if not _behind:
+        state["swept"] = _sess
+        return
+    if state["passes"] >= _max_passes:
+        print(f"[prewarm] DAILY FRESHNESS: GAVE UP — {len(_behind)} of {len(full_daily)} "
+              f"dailies still behind session {_sess} after {state['passes']} passes "
+              f"(first: {', '.join(j[0] for j in _behind[:8])})")
+        state["swept"] = _sess
+        return
+    print(f"[prewarm] DAILY FRESHNESS: NOT done — {len(_behind)} of {len(full_daily)} "
+          f"dailies still behind session {_sess} after pass {state['passes']}; "
+          f"the next loop runs another pass")
 
 
 def _after_close_daily_sweep_due(
@@ -980,24 +1113,8 @@ def run_prewarmer_forever():
         _ONEMIN_TICKERS = ticker_list[:200]
         _PREWARM_WORKERS = 2
     def _warm_one(args):
-        sym, tf, bar_count = args
-        # Background caller: the D/W/M delta pool counts it against the warm share,
-        # so the prewarm can never hold the slots a member's click needs (N1).
-        _set_background_caller(True)
-        try:
-            last_ts = _sqlite.get_last_ts(sym.upper(), tf)
-            # Settled D/W/M outside the data window: provably nothing to fetch.
-            if _boot_can_skip(last_ts, tf):
-                return ('skipped', sym, tf)
-            if not _needs_fresh(last_ts, tf):
-                return ('skipped', sym, tf)
-            _get_bars_inner(sym.upper(), tf, bar_count)
-            return ('warmed', sym, tf)
-        except Exception:
-            pass
-        finally:
-            _set_background_caller(False)
-        return ('failed', sym, tf)
+        return _warm_job(args, get_last_ts=_sqlite.get_last_ts, needs_fresh=_needs_fresh,
+                         fetch=_get_bars_inner, _set_background_caller=_set_background_caller)
     jobs = []
     for sym in ticker_list: jobs.append((sym, 'D', 5000))
     for sym in ticker_list: jobs.append((sym, 'W', 5000))
@@ -1050,7 +1167,7 @@ def run_prewarmer_forever():
     # full-universe daily sweep. In-memory (resets to 0 on restart → the sweep
     # re-runs and _scan_stale skips whatever is already fresh). See the sweep block
     # below and `_after_close_daily_sweep_due`.
-    _last_full_daily_session = 0
+    _daily_freshness = {"swept": 0}
     while True:
         # Beat FIRST so liveness is proven every iteration; the whole body is then
         # GUARDED so a single stale-read / DB-locked raise can never kill warming
@@ -1071,32 +1188,15 @@ def run_prewarmer_forever():
         # delta). Gated dark by PERMANENT_DAILY_FRESHNESS_ENABLED; the buffer hour past
         # the close is PERMANENT_FRESHNESS_HOUR_ET (default 17 = 5pm ET). `_run_refresh_pass`
         # beats on every job, so a long sweep never trips the liveness watchdog.
+        # The session is marked done only when the store has no daily behind it; until then
+        # each turn of this loop runs another pass (`_daily_freshness_tick`, bounded).
         try:
             if _IS_WORKER and _dwm_extra:
-                from datetime import datetime as _fdt
-                from zoneinfo import ZoneInfo as _fzi
-                _now_et = _fdt.now(_fzi("America/New_York"))
-                _sess = _expected_session()
-                if _after_close_daily_sweep_due(
-                    _sess, int(_now_et.strftime("%Y%m%d")), _now_et.hour,
-                    _last_full_daily_session,
-                    enabled=os.environ.get("PERMANENT_DAILY_FRESHNESS_ENABLED", "0") == "1",
-                    hour_et=int(os.environ.get("PERMANENT_FRESHNESS_HOUR_ET", "17")),
-                ):
-                    _full_daily = [(s, 'D', 5000) for s in (ticker_list + _dwm_extra)]
-                    _fd_stale = _scan_stale(_full_daily, _needs_fresh, _sqlite.get_last_ts)
-                    print(f"[prewarm] DAILY FRESHNESS: after-close full-universe sweep "
-                          f"for session {_sess} — {len(_fd_stale)} of {len(_full_daily)} "
-                          f"dailies stale")
-                    if _fd_stale:
-                        with _PrewarmTPE(max_workers=_PREWARM_WORKERS,
-                                         thread_name_prefix="prewarm-freshness") as _fx:
-                            _fd_done = _run_refresh_pass(
-                                _fx.map(_warm_one, _fd_stale), len(_fd_stale))
-                        print(f"[prewarm] DAILY FRESHNESS: refreshed {_fd_done} of "
-                              f"{len(_fd_stale)} dailies to session {_sess}")
-                    # Mark done even when 0 were stale (nothing to do this session).
-                    _last_full_daily_session = _sess
+                _daily_freshness_tick(
+                    _daily_freshness,
+                    full_daily=[(s, 'D', 5000) for s in (ticker_list + _dwm_extra)],
+                    warm_one=_warm_one, needs_fresh=_needs_fresh,
+                    last_ts=_sqlite.get_last_ts, workers=_PREWARM_WORKERS)
         except Exception as _fresh_err:
             print(f"[prewarm] daily-freshness sweep crashed (non-fatal): {_fresh_err}")
         try:

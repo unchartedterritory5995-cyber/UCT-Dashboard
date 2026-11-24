@@ -131,6 +131,18 @@ export const PLAIN_COLUMN_LABELS = {
   insider_buys_30d: 'Insider buy filings, last 30 days',
   insider_buy_value_30d: 'Insider buying in dollars, last 30 days',
   fund_net_adds: 'Funds adding minus funds cutting',
+  // Held-store columns (2026-11-23): from stores UCT already holds, once a night.
+  iv_rank: 'IV rank against its own history',
+  iv_percentile: 'IV percentile against its own history',
+  group_rank: 'Industry group rank',
+  group_rank_of: 'Industry groups ranked',
+  group_rank_chg_4w: 'Industry group rank change, 4 weeks',
+  short_interest_chg_pct: 'Short interest change since the prior report',
+  next_ex_div_date: 'Next ex-dividend date',
+  days_to_ex_div: 'Days to the next ex-dividend date',
+  eps_rev_up_30d: 'EPS estimate raised, last 30 days',
+  eps_rev_down_30d: 'EPS estimate cut, last 30 days',
+  eps_rev_net_30d: 'EPS estimate revision, net, last 30 days',
 }
 
 export const plainColumnLabel = key => PLAIN_COLUMN_LABELS[key] || null

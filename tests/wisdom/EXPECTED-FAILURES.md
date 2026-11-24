@@ -25,7 +25,17 @@ not a courtesy.
 
 ## Entries
 
-### 1–2. `mutation_harness_flipgate.py` anchor checks
+**None open** (2026-11-24). Entries 1–2 below are RETIRED and kept as the record; the baseline in
+`tests/conftest.py` (`WISDOM_EXPECTED_FAILURES`) is empty.
+
+### 1–2. `mutation_harness_flipgate.py` anchor checks — ⚰️ RETIRED 2026-11-24
+
+**Resolved by the owning programme's path, not by a Wisdom session:** #2687 renamed the instrument to
+`docs/discord-render/instruments/flip_gate_mutations.py` (it plants evidence in `mkdtemp()` and has no
+source anchors by design, so it is not a mutation harness the anchor rail should read; its `main()` still
+calls `require_throwaway_worktree`). The two test ids below no longer exist, so the strict-xfail entries
+were inert and were removed. #2686 converted the other six harnesses, and both rail files ran green
+together (338 passed).
 
 | | |
 |---|---|

@@ -6,6 +6,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import handshake from './__fixtures__/program/isolation.json'
 import { registerBuiltins, registerServerGatedBuiltins } from './builtins'
+import './terminalWaves'  // the Terminal data waves: registerServerGatedBuiltins() runs them only once this module has loaded (terminalWavesHook.js)
 import { allCapabilityNames, manifestFor } from './capabilities'
 import { loadAgentConfig, _resetAgentConfig, serverDataKinds } from './agentClient'
 import { match as describeMatch } from './capabilities/chartDescribe'

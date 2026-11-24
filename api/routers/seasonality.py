@@ -158,8 +158,9 @@ def seasonality_board(_user: dict = Depends(require_paid)):
 
     Same switch and same paid gate as the single-stock route above. It takes no parameters, and
     its path is its own segment (`seasonality-board`), so it is never read as a symbol of
-    `/api/research/seasonality/{sym}`. A plain `def`: the first read of a day is fifteen blocking
-    daily reads; after that the service answers from the one board it holds
+    `/api/research/seasonality/{sym}`. A plain `def` (it may read the board's small copy on disk).
+    The request never builds: the service answers from the board it holds, else starts its one
+    background build (fifteen daily reads) and answers at once with every fund `pending`
     (`api.services.seasonality_board`). A fund without numbers is listed with its reason in a
     200, so the board never answers 503 for one fund's cold read."""
     from api.services import seasonality_board as board

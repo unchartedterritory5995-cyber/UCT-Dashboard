@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url'
 import { loadAgentConfig, _resetAgentConfig, noteConversation } from './agentClient'
 import { getCapability, getTargetKind, manifestFor } from './capabilities'
 import { registerBuiltins, registerServerGatedBuiltins } from './builtins'
+import './terminalWaves'  // the Terminal data waves: registerServerGatedBuiltins() runs them only once this module has loaded (terminalWavesHook.js)
 import { reviewTrades, noteBody, _resetCoachForTest, _lastReview, JOURNAL_MARKER } from './capabilities/coach'
 import { reviewStats, reviewText, modelView, clampN } from './coach/review'
 import { consentState, readConsent, writeConsent, _resetConsentForTest } from './coach/consent'
