@@ -20,9 +20,20 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { importPathsOf, pineLibraryEntry } from '../../ast/pineLibraryStore.js'
 import { recordedSupplyFileOf, supplyHeldDir } from './ourSide.js'
+import { builtinStudyOf, builtinPins, heldBuiltinSourceOf } from './builtinSource.js'
 
 const SUPPLY_PIN = /^supply\/([a-z0-9][a-z0-9.!-]*)@([0-9a-f]{64})$/
+// ⭐⭐ e95 (unit 2, ruling F1) — the THIRD held kind: a hand-added built-in graded on its published source
+// (`builtinSource.js`), `source/<STD id>@<sha256>` (`sourceHeld`), named "source-held" where it is not held.
+const SOURCE_PIN = /^source\/(STD;[A-Za-z0-9_%;.!-]+)@([0-9a-f]{64})$/
 const sha256Of = (file) => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex')
+
+/** `[source/<id>@sha256]` for a hand-added built-in the population pins (held here or not), else []. */
+export function sourceHeldOf(capture) {
+  const id = builtinStudyOf(capture)
+  const pin = id ? builtinPins().get(id) : null
+  return pin ? [`source/${id}@${pin}`] : []
+}
 
 /** `[supply/<id>@sha256]` when this capture's recorded supply is a HELD record, else []. */
 export function supplyHeldOf(captureId) {
@@ -44,6 +55,11 @@ export function supplyHeldStorePins() {
 /** Is every pin (library `path@sha` or supply `supply/<id>@sha`) held here at exactly that sha? */
 export function heldHolds(pins) {
   return (pins || []).every((pin) => {
+    const src = SOURCE_PIN.exec(String(pin))
+    if (src) {
+      const held = heldBuiltinSourceOf({ study: { id: `Script$${src[1]}@tv-scripting` }, source: { text: '' } })
+      return !!held && typeof held.text === 'string' && held.sha256 === src[2]
+    }
     const s = SUPPLY_PIN.exec(String(pin))
     if (!s) return storeHolds([pin])
     const at = recordedSupplyFileOf(s[1])
@@ -93,13 +109,16 @@ export function itNeedsStore(pins, name, fn, timeout) {
 /** The name of a held row, as `store_held.reading` spells it: "store-held: …", "supply-held: …", or both. */
 export function heldReading(pins) {
   const supply = (pins || []).filter((p) => SUPPLY_PIN.test(String(p)))
-  const store = (pins || []).filter((p) => !SUPPLY_PIN.test(String(p)))
-  return [store.length ? `store-held: ${store.join(', ')}` : null, supply.length ? `supply-held: ${supply.join(', ')}` : null]
+  const source = (pins || []).filter((p) => SOURCE_PIN.test(String(p)))
+  const store = (pins || []).filter((p) => !SUPPLY_PIN.test(String(p)) && !SOURCE_PIN.test(String(p)))
+  return [store.length ? `store-held: ${store.join(', ')}` : null, supply.length ? `supply-held: ${supply.join(', ')}` : null,
+    source.length ? `source-held: ${source.join(', ')}` : null]
     .filter(Boolean).join('; ')
 }
 
 /** A row's held pins, both kinds, as `store_held.pins_of` reads them. */
 export function heldPinsOf(row) {
   return [...(Array.isArray(row && row.storeHeld) ? row.storeHeld : []),
-    ...(Array.isArray(row && row.supplyHeld) ? row.supplyHeld : [])].sort()
+    ...(Array.isArray(row && row.supplyHeld) ? row.supplyHeld : []),
+    ...(Array.isArray(row && row.sourceHeld) ? row.sourceHeld : [])].sort()
 }

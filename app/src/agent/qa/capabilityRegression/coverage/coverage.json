@@ -1,41 +1,41 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 256,
+  "all": 262,
   "withProductionKinds": 208,
-  "darkGated": 48
+  "darkGated": 54
  },
  "totals": {
-  "capabilities": 256,
-  "withAnyRegressionCase": 205,
+  "capabilities": 262,
+  "withAnyRegressionCase": 211,
   "perProtection": {
    "nl": {
-    "covered": 202,
-    "applicable": 256
+    "covered": 208,
+    "applicable": 262
    },
    "routing": {
-    "covered": 199,
-    "applicable": 256
+    "covered": 205,
+    "applicable": 262
    },
    "args": {
-    "covered": 205,
-    "applicable": 256
+    "covered": 211,
+    "applicable": 262
    },
    "execution": {
-    "covered": 202,
-    "applicable": 256
+    "covered": 208,
+    "applicable": 262
    },
    "receipt": {
-    "covered": 172,
-    "applicable": 256
+    "covered": 178,
+    "applicable": 262
    },
    "refusal": {
     "covered": 35,
-    "applicable": 256
+    "applicable": 262
    },
    "permission": {
-    "covered": 248,
-    "applicable": 256
+    "covered": 254,
+    "applicable": 262
    },
    "undo": {
     "covered": 84,
@@ -43,11 +43,11 @@
    },
    "multiStep": {
     "covered": 43,
-    "applicable": 256
+    "applicable": 262
    },
    "phrasings": {
-    "covered": 198,
-    "applicable": 256
+    "covered": 204,
+    "applicable": 262
    }
   }
  },
@@ -9808,6 +9808,60 @@
     "phrasings": []
    }
   },
+  "stock.companyRecord": {
+   "domain": "stock",
+   "group": "stockStudies",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.companyRecord: \"NVDA government contracts\"",
+     "stock.companyRecord: \"clinical trials for NVDA\"",
+     "stock.companyRecord: \"FDA approvals for NVDA\"",
+     "stock.companyRecord: \"lobbying by NVDA\""
+    ],
+    "routing": [
+     "stock.companyRecord: \"NVDA government contracts\"",
+     "stock.companyRecord: \"clinical trials for NVDA\"",
+     "stock.companyRecord: \"FDA approvals for NVDA\"",
+     "stock.companyRecord: \"lobbying by NVDA\""
+    ],
+    "args": [
+     "corpus stock.companyRecord"
+    ],
+    "execution": [
+     "stock.companyRecord (c)"
+    ],
+    "receipt": [
+     "stock.companyRecord (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "stock.compare": {
    "domain": "stock",
    "group": "data",
@@ -10427,6 +10481,60 @@
     "phrasings": []
    }
   },
+  "stock.factorExposure": {
+   "domain": "stock",
+   "group": "stockStudies",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.factorExposure: \"NVDA factor exposure\"",
+     "stock.factorExposure: \"is NVDA a growth or value stock\"",
+     "stock.factorExposure: \"factor loadings for NVDA\"",
+     "stock.factorExposure: \"style tilt of NVDA\""
+    ],
+    "routing": [
+     "stock.factorExposure: \"NVDA factor exposure\"",
+     "stock.factorExposure: \"is NVDA a growth or value stock\"",
+     "stock.factorExposure: \"factor loadings for NVDA\"",
+     "stock.factorExposure: \"style tilt of NVDA\""
+    ],
+    "args": [
+     "corpus stock.factorExposure"
+    ],
+    "execution": [
+     "stock.factorExposure (c)"
+    ],
+    "receipt": [
+     "stock.factorExposure (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "stock.flowRecord": {
    "domain": "stock",
    "group": "marketBoards",
@@ -10913,6 +11021,60 @@
     "phrasings": []
    }
   },
+  "stock.ownershipReport": {
+   "domain": "stock",
+   "group": "stockStudies",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.ownershipReport: \"which funds hold NVDA\"",
+     "stock.ownershipReport: \"mutual funds holding NVDA\"",
+     "stock.ownershipReport: \"NVDA fund holders\"",
+     "stock.ownershipReport: \"ETFs that own NVDA\""
+    ],
+    "routing": [
+     "stock.ownershipReport: \"which funds hold NVDA\"",
+     "stock.ownershipReport: \"mutual funds holding NVDA\"",
+     "stock.ownershipReport: \"NVDA fund holders\"",
+     "stock.ownershipReport: \"ETFs that own NVDA\""
+    ],
+    "args": [
+     "corpus stock.ownershipReport"
+    ],
+    "execution": [
+     "stock.ownershipReport (c)"
+    ],
+    "receipt": [
+     "stock.ownershipReport (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "stock.profile": {
    "domain": "stock",
    "group": "data",
@@ -11074,6 +11236,60 @@
     ],
     "receipt": [
      "stock.realCurve (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.riskProfile": {
+   "domain": "stock",
+   "group": "stockStudies",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.riskProfile: \"NVDA stock stats\"",
+     "stock.riskProfile: \"what is NVDA's beta\"",
+     "stock.riskProfile: \"how volatile is NVDA\"",
+     "stock.riskProfile: \"how did NVDA hold up in corrections\""
+    ],
+    "routing": [
+     "stock.riskProfile: \"NVDA stock stats\"",
+     "stock.riskProfile: \"what is NVDA's beta\"",
+     "stock.riskProfile: \"how volatile is NVDA\"",
+     "stock.riskProfile: \"how did NVDA hold up in corrections\""
+    ],
+    "args": [
+     "corpus stock.riskProfile"
+    ],
+    "execution": [
+     "stock.riskProfile (c)"
+    ],
+    "receipt": [
+     "stock.riskProfile (c)"
     ],
     "refusal": [],
     "permission": [],
@@ -11290,6 +11506,60 @@
     ],
     "receipt": [
      "stock.sessionHighsLows (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.setupHistory": {
+   "domain": "stock",
+   "group": "stockStudies",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.setupHistory: \"NVDA setup history\"",
+     "stock.setupHistory: \"setups that fired on NVDA\"",
+     "stock.setupHistory: \"past signals on NVDA\"",
+     "stock.setupHistory: \"how have NVDA's setups done\""
+    ],
+    "routing": [
+     "stock.setupHistory: \"NVDA setup history\"",
+     "stock.setupHistory: \"setups that fired on NVDA\"",
+     "stock.setupHistory: \"past signals on NVDA\"",
+     "stock.setupHistory: \"how have NVDA's setups done\""
+    ],
+    "args": [
+     "corpus stock.setupHistory"
+    ],
+    "execution": [
+     "stock.setupHistory (c)"
+    ],
+    "receipt": [
+     "stock.setupHistory (c)"
     ],
     "refusal": [],
     "permission": [],
@@ -11814,6 +12084,60 @@
     ],
     "receipt": [
      "stock.uct20List (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.volumeFootprint": {
+   "domain": "stock",
+   "group": "stockStudies",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.volumeFootprint: \"NVDA volume footprint\"",
+     "stock.volumeFootprint: \"accumulation days in NVDA\"",
+     "stock.volumeFootprint: \"pocket pivots on NVDA\"",
+     "stock.volumeFootprint: \"unfilled gaps on NVDA\""
+    ],
+    "routing": [
+     "stock.volumeFootprint: \"NVDA volume footprint\"",
+     "stock.volumeFootprint: \"accumulation days in NVDA\"",
+     "stock.volumeFootprint: \"pocket pivots on NVDA\"",
+     "stock.volumeFootprint: \"unfilled gaps on NVDA\""
+    ],
+    "args": [
+     "corpus stock.volumeFootprint"
+    ],
+    "execution": [
+     "stock.volumeFootprint (c)"
+    ],
+    "receipt": [
+     "stock.volumeFootprint (c)"
     ],
     "refusal": [],
     "permission": [],

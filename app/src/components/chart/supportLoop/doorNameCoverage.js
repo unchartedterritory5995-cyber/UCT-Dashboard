@@ -17,7 +17,8 @@
 // `token` IS that name: the same attribution `importGaps.js` uses when it logs a
 // member's gap, so the two classifications cannot drift apart.
 //
-//   • `reachable`     — some probe translated with no refusal at all.
+//   • `reachable`     — some probe translated with no refusal at all, and (train e95) the
+//                       member's paste path serves that probe (`probeName`'s `serves`).
 //   • `call-unmapped` — the door refused the name with a guard that is NOT a
 //                       name-unknown guard: it KNOWS the name.
 //   • `name-unknown`  — every refusal naming it is a name-unknown guard
@@ -61,7 +62,23 @@ export function probeScript(expr) {
   return `//@version=5\nindicator("probe")\nplot(${expr})\n`
 }
 
+/** ⭐⭐ (train e95) THE DATA READS WHOSE BARE CALL TRANSLATES AND IS REFUSED WHEN IT RUNS. The parse rewrites each of
+ *  these into a read of the chart's own data (`request.earnings` / `request.dividends` / `request.splits`, T4 E2;
+ *  `request.financial`, T4 F1b), and the rewrite takes even an empty argument list: `request.earnings()` translates
+ *  with no refusal, so the generic probes below reached it first and the reference handed the assistant that call,
+ *  which the bind refuses on every chart (`other-symbol:event-argument` / `other-symbol:financial-argument`: no symbol
+ *  is written). Each is probed with the ONE call a member's door serves on a daily chart of its own symbol, and with
+ *  that call only: if it ever stops translating, the name is not reachable, never reached through an argument list
+ *  the run refuses. `assistantPineReference.test.js` runs every listed call on a daily chart with the doors answering. */
+export const NAMED_PROBE_ARGS = Object.freeze({
+  'request.earnings': '(syminfo.tickerid, earnings.actual, barmerge.gaps_off, barmerge.lookahead_on)',
+  'request.dividends': '(syminfo.tickerid, dividends.gross)',
+  'request.splits': '(syminfo.tickerid, splits.denominator)',
+  'request.financial': '(syminfo.tickerid, "TOTAL_REVENUE", "FQ")',
+})
+
 export function probeExpressions(name) {
+  if (Object.prototype.hasOwnProperty.call(NAMED_PROBE_ARGS, name)) return [`${name}${NAMED_PROBE_ARGS[name]}`]
   return PROBE_ARGS.map((a) => (a == null ? name : `${name}${a}`))
 }
 
@@ -80,8 +97,14 @@ export function refusalsOf(t) {
 const tokenOf = (r) => (r && typeof r.token === 'string' ? r.token
   : (r && r.at && typeof r.at.token === 'string' ? r.at.token : null))
 
-/** Ask the door about one name. `translate` is injected (`translatePine`). */
-export function probeName(name, translate) {
+/** Ask the door about one name. `translate` is injected (`translatePine`).
+ *  ⭐⭐ (train e95) `serves` (optional, injected by the generator: the member's paste path, `{ok, guard}` for a whole
+ *  script) is asked of a probe that translates with no refusal. A probe it does not serve is NOT the name's call: the
+ *  next argument list is tried. ⚰️ The reference handed the assistant `ta.pivothigh(close, 14)`, `ta.highestbars(close)`
+ *  and `ta.macd(close, 14, 2)`: each translated, and the member's install refused it (`pine:install`, a window or a
+ *  period the engine's own check rejects). A name the door translates but serves on no probe is `call-unmapped`, with
+ *  the paste path's guard. */
+export function probeName(name, translate, serves = null) {
   let known = false
   let unknownSeen = false
   let guard = null
@@ -90,7 +113,15 @@ export function probeName(name, translate) {
     try { t = translate(probeScript(expr)) } catch { continue }
     const refusals = refusalsOf(t)
     const usable = (t && Array.isArray(t.outputs) ? t.outputs : []).some((o) => o && !o.refusal && o.formula)
-    if (usable && refusals.length === 0) return { status: 'reachable', probe: expr, guard: null }
+    if (usable && refusals.length === 0) {
+      if (typeof serves !== 'function') return { status: 'reachable', probe: expr, guard: null }
+      let s = null
+      try { s = serves(probeScript(expr)) } catch (err) { s = { ok: false, guard: `THROW:${(err && err.message) || err}` } }
+      if (s && s.ok === true) return { status: 'reachable', probe: expr, guard: null }
+      // the door translated the name; the paste path refuses this call of it: it KNOWS the name
+      if (!known) { known = true; guard = (s && s.guard) || null }
+      continue
+    }
     for (const r of refusals) {
       if (tokenOf(r) !== name) continue
       if (UNKNOWN_NAME_GUARDS.includes(r.guard)) { unknownSeen = true; guard = guard || r.guard }
@@ -118,10 +149,10 @@ export function probeFix(entry, translate) {
  * The whole manifest, deterministic (sorted keys, no clock), so the committed
  * file can be compared byte for byte.
  */
-export function buildDoorNameCoverage({ names, fixes = [], translate }) {
+export function buildDoorNameCoverage({ names, fixes = [], translate, serves = null }) {
   const out = {}
   for (const n of [...new Set(names)].sort()) {
-    const r = probeName(n, translate)
+    const r = probeName(n, translate, serves)
     out[n] = r.status === 'reachable' ? { status: r.status, probe: r.probe }
       : (r.guard ? { status: r.status, guard: r.guard } : { status: r.status })
   }

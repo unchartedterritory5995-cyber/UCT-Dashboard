@@ -39,6 +39,7 @@ import { registerCapability, registerTargetKind, registerContextProvider } from 
 import { hasUsableDraft } from './indicatorAuthoring'
 import { afterRender } from '../frames'
 import { matchName } from '../nl/match'
+import { prefWriteFailed } from '../prefFailure'
 
 const MAX_NAME = 60
 const norm = (s) => String(s || '').toLowerCase().replace(/[“”"'`‘’]/g, '').replace(/\s+/g, ' ').trim()
@@ -204,8 +205,10 @@ export const layoutsKind = {
       const e = snap().entries.find(x => String(x.id) === String(patch.saveCurrent.id))
       if (!a || String(a.id) !== String(patch.saveCurrent.id) || !e || e.kind !== 'yours') throw new Error('the open layout changed since I read it — ask again')
       const res = await L.saveCurrent()
-      if (!res?.ok) throw new Error(res?.named === 'failed' ? `the board was saved but ${quote(e.name)} could not be updated` : 'the board could not be saved (it changed in another tab or device)')
-      if (res.named !== 'saved') throw new Error(`${quote(e.name)} could not be updated`)
+      // ⛔ INV2: when the board WAS saved and only the named layout was not, that is said — never "nothing was left changed"
+      const boardSaved = 'the board itself was saved; the layout keeps its previous arrangement'
+      if (!res?.ok) throw (res?.named === 'failed' ? prefWriteFailed(`the board was saved but ${quote(e.name)} could not be updated`, { note: boardSaved }) : new Error('the board could not be saved (it changed in another tab or device)'))
+      if (res.named !== 'saved') throw prefWriteFailed(`${quote(e.name)} could not be updated`, { note: boardSaved })
       return true
     }
     if (patch.duplicate) {

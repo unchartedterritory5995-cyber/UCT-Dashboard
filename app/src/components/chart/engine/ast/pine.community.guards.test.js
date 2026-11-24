@@ -88,7 +88,10 @@ const REFUSES = Object.freeze({
   // convergence gate, which read a SCALAR coefficient and answered "unknown" the
   // moment a second lag appeared. Both are widened now and it TRANSLATES, so its
   // row moved to `pine.community.test.js`'s roster.
-  '14-earnings-gap-ups.pine': ['pine:no-output', null, null],
+  // ⭐ MOVED (T4 E2, engine 95, train e95), refused to refused: `request.earnings` on the chart's own symbol is
+  // served, so the script's drawings are reached, and its first wall is an enum method's line style
+  // (`hvcStyle.styler()`, line 99), withheld by name. It was `pine:no-output`: nothing drawable was reached.
+  '14-earnings-gap-ups.pine': ['pine:enum-unreadable', 99, null],
   // 🔴🔴 ADDED (RISK-043, 2026-09-07) — WAS MISSING FROM THIS MAP ENTIRELY,
   // because it used to sit in `pine.community.test.js`'s TRANSLATES roster,
   // and it should never have: `ppchk` is mutated inside a top-level `for`

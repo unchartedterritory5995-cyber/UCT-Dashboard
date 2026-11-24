@@ -165,7 +165,14 @@ def test_no_order_asked_means_market_cap_desc_never_the_composite():
 # Screener commit at the time, a9936b447a (#1964, the short-interest columns: finviz_universe.py, short_columns.py,
 # snapshot_builder.py); whoever commits this may move it to that commit (the rail reads pin...F16_HEAD, so either
 # is green). Re-pinned in the same PR.
-SCREENER_PIN = "a9936b447a18a0eb67b0bb910adfd479b9439397"
+# Re-pinned 2026-11-23 (new Screener columns): this change edits volume_volatility.py and
+# beats_insiders_funds.py (both new), filters.py, methodology.py, snapshot_builder.py and snapshot_db.py on
+# purpose (six bar-derived volume and volatility columns and five store-derived earnings beat, insider buy and
+# fund add columns, their filters, two views and methodology). It was written uncommitted, so the pin moves to
+# master's newest Screener commit at the time, 36f6ec4fa2 (track 6, the nightly sweep's runtime sub-groups:
+# scan_evaluator.py); whoever commits this may move it to that commit (the rail reads pin...F16_HEAD, so either
+# is green). Re-pinned in the same PR.
+SCREENER_PIN = "36f6ec4fa2e2607976190555f292b85be1171fa4"
 SCREENER_PATHS = ("api/services/screener", "api/routers/screener.py", "api/routers/scan_results.py")
 # The F16 change set is immutable: #1029's own PR head (merged as 4dacc81529). The rail compares the pin against THIS commit,
 # never HEAD, so a later Screener change by another team (e.g. #1021, the RS split) can no longer turn master's deploy gate
@@ -257,7 +264,7 @@ def test_the_guard_can_say_no():
         pytest.skip("the pinned commit %s is not in this checkout" % SCREENER_PIN)
     r = _screener_diff(SCREENER_PIN + "~1", SCREENER_PIN)
     assert r.returncode == 0, r.stderr
-    assert "api/services/screener/short_columns.py" in r.stdout.split()  # a file the pinned commit changed (#1964)
+    assert "api/services/screener/scan_evaluator.py" in r.stdout.split()  # a file the pinned commit changed (track 6)
 
 
 def test_no_UCT_weight_or_formula_is_named_in_the_models_instructions():

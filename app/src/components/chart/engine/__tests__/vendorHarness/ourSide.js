@@ -42,7 +42,11 @@ import { runtimeDeclinedTag } from '../../../../../../../tools/pine_coverage/run
 import { maxLookback, CHART_CLOCK_WHOLE, TF_MERGE_NEWEST_CODE, TF_MERGE_FIRST_CODE, interpret as interpretTree } from '../../ast/interpret'
 import { setRuntimeDoorClock, RUNTIME_REQUEST_WITHHELD_KEY } from '../../runtime/runtimeColumns'
 import { paneObjectsGate } from '../../ast/paneGate'
-import { otherSymbolRequestsOf, storeTickerOf, witnessRowOf, heldFetchOf, heldFetchesOf, OWN_DAILY_KEY, withChartNewestDay } from '../../otherSymbols'
+import { otherSymbolRequestsOf, storeTickerOf, witnessRowOf, heldFetchOf, heldFetchesOf, OWN_DAILY_KEY, isEventRequest,
+  breadthReadsOf, withChartNewestDay } from '../../otherSymbols'
+import { EVENTS_KEY } from '../../pineEvents'
+// ⭐⭐ T4 F1b — the chart's own financial figures (UCT data, never graded as TradingView's)
+import { FINANCIAL_KEY, financialReadOf } from '../../pineFinancial'
 import { lowerTfCodesOf, LOWER_TF_SOURCE } from '../../lowerTf'
 import { storeExchangeOfCapture } from './storeExchange.js'
 import { createFakeChart } from '../fakeChart'
@@ -56,6 +60,7 @@ import { startsAtBar0Holds, startsAtBar0Refuted, BAR_INDEX_CONTROL } from '../..
 import { fullBarsFor } from '../../../../../utils/barsBackfill'
 // ⭐ SETTINGS PARITY (2c): a capture is graded at the settings TradingView recorded in it
 import { captureInstanceInputs } from './captureInputs.js'
+import { heldBuiltinSourceOf } from './builtinSource.js'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -374,6 +379,26 @@ export function recordedSupplyOf(capture, dir = _supplyDir) {
     }
     if (forms[1]) e.bars = outOfGitRows(ticker, e, bad)            // [] -> e.notOnThisMachine
   }
+  // ⭐⭐ T4 E2 — the chart symbol's corporate events as OUR server's events door answered them beside the capture
+  // (`tools/vendor_harness/record_event_supply.py`): licensed vendor data, so only ever a HELD record
+  if (rec.events !== undefined) {
+    const ev = rec.events
+    if (!ev || typeof ev !== 'object' || !ev.doc || typeof ev.doc !== 'object') bad('events.doc is not the events door\'s answer')
+    if (!(typeof ev.source === 'string' && ev.source && typeof ev.servedBy === 'string' && ev.servedBy)) {
+      bad('events records an answer without naming `source` and `servedBy`')
+    }
+    if (!at.held) bad('events is licensed vendor data and is read from the held supply directory only, never a committed record')
+  }
+  // ⭐⭐ T4 F1b — the chart symbol's financial figures as OUR server's financial door answered them beside the capture:
+  // held, never committed (member-specific supply)
+  if (rec.financial !== undefined) {
+    const fin = rec.financial
+    if (!fin || typeof fin !== 'object' || !fin.doc || typeof fin.doc !== 'object') bad('financial.doc is not the financial door\'s answer')
+    if (!(typeof fin.source === 'string' && fin.source && typeof fin.servedBy === 'string' && fin.servedBy)) {
+      bad('financial records an answer without naming `source` and `servedBy`')
+    }
+    if (!at.held) bad('financial is read from the held supply directory only, never a committed record')
+  }
   for (const [field, e] of Object.entries(rec.symbol || {})) {
     if (!CLASSIFICATION_PROBE_KEY[field]) bad(`symbol.${field} is not a classification field`)
     if (!e || typeof e.value !== 'string' || !e.value) bad(`symbol.${field} carries no value`)
@@ -440,6 +465,12 @@ function recordedStoreOf(capture) {
   return e ? { securityType: e.value } : {}
 }
 
+/** ⭐⭐ T4 F1b — `[{name, source}]` for each UCT-data read a document makes (today `request.financial`), else []. */
+export function uctDataReadsOf(def) {
+  const reads = otherSymbolRequestsOf(def).filter(({ ticker, spellings }) => isEventRequest(ticker, spellings) && financialReadOf(ticker))
+  return reads.length ? [{ name: 'request.financial', source: 'UCT data (company filings), GET /api/pine/financial/<symbol>' }] : []
+}
+
 /** The classification fields the recorded supply feeds, and the committed capture each cites. */
 function recordedClassificationOf(capture) {
   const rec = recordedSupplyOf(capture)
@@ -487,7 +518,39 @@ export function otherSymbolSupply(def, capture) {
   const recorded = recordedSupplyOf(capture)
   const unrecorded = []
   const indexProvenance = []
+  // ⭐⭐ T4 E2 — the chart's own corporate events: ONE entry, the events door's answer for the capture's symbol, under
+  // the key the chart files it (`pineEvents.EVENTS_KEY`), never a bars entry
+  if (requests.some(({ ticker, spellings }) => isEventRequest(ticker, spellings) && !financialReadOf(ticker))) {
+    const ev = recorded && recorded.events
+    if (ev && ev.doc) {
+      const sym = String(ev.symbol || ev.doc.symbol || '').toUpperCase()
+      secondary.set(EVENTS_KEY, { status: 'available', events: ev.doc, symbol: sym,
+        rev: ev.doc.refreshedAt == null ? '' : String(ev.doc.refreshedAt) })
+      notes.push(`corporate events: what our server's events door answered for ${sym}, recorded beside the capture `
+        + `(${ev.servedBy}; ${ev.source}; held, never committed)`)
+    } else {
+      secondary.set(EVENTS_KEY, { status: 'error', symbol: '' })
+      notes.push('corporate events: not supplied: our server\'s events answer was not recorded beside this capture')
+      unrecorded.push('corporate events: our server\'s events answer was not recorded beside this capture')
+    }
+  }
+  // ⭐⭐ T4 F1b — the chart's own financial figures: ONE entry, the financial door's answer for the capture's symbol
+  if (requests.some(({ ticker, spellings }) => isEventRequest(ticker, spellings) && financialReadOf(ticker))) {
+    const fin = recorded && recorded.financial
+    if (fin && fin.doc) {
+      const sym = String(fin.symbol || fin.doc.symbol || '').toUpperCase()
+      secondary.set(FINANCIAL_KEY, { status: 'available', financial: fin.doc, symbol: sym,
+        rev: fin.doc.refreshedAt == null ? '' : String(fin.doc.refreshedAt) })
+      notes.push(`financial figures: what our server's financial door answered for ${sym} (UCT data from company `
+        + `filings), recorded beside the capture (${fin.servedBy}; ${fin.source}; held, never committed)`)
+    } else {
+      secondary.set(FINANCIAL_KEY, { status: 'error', symbol: '' })
+      notes.push('financial figures: not supplied: our server\'s financial answer was not recorded beside this capture')
+      unrecorded.push('financial figures: our server\'s financial answer was not recorded beside this capture')
+    }
+  }
   for (const { ticker, spellings } of requests) {
+    if (isEventRequest(ticker, spellings)) continue
     // the key the chart fetches it under: a witnessed spelling's row's store key (`SPX`,
     // `SEED_FRED6725_RS_RATING:RSRATING`), else our store's ticker (`fetchableOtherSymbols`)
     const row = (spellings || []).map((v) => witnessRowOf(v, ticker)).find(Boolean)
@@ -1727,7 +1790,15 @@ export function runOurSide(capture) {
 
 function runOurSideOnTheParityClock(capture) {
   const notes = []
-  const source = capture && capture.source && capture.source.text
+  // ⭐⭐ e95 (unit 2, coordinator ruling F1) — a built-in added by hand holds no Pine in its capture: our side runs
+  // the built-in's published source, held locally at the census population's pin (`builtinSource.js`), or the row
+  // is not graded and says why ("source-held").
+  const held = heldBuiltinSourceOf(capture)
+  if (held && typeof held.text !== 'string') {
+    return { ok: false, refusal: `source-held: ${held.id} is a built-in captured with no Pine, and ${held.why}`, plots: [], notes }
+  }
+  if (held) notes.push(`source: the built-in ${held.id}'s published source, held locally (sha256 ${held.sha256})`)
+  const source = held ? held.text : (capture && capture.source && capture.source.text)
   const door = enterMemberDoor(source)
   const built = door.built
   if (!built.ok) {
@@ -1741,7 +1812,7 @@ function runOurSideOnTheParityClock(capture) {
     // ⭐⭐ SETTINGS PARITY (2c) — THE SETTINGS THE CAPTURE WAS TAKEN AT. At every default this is
     // `undefined` and our side computes exactly as it always has; a capture with a setting moved is
     // computed with the same setting moved, or refused by name (`captureInputs.js`).
-    const taken = captureInstanceInputs(capture, def)
+    const taken = captureInstanceInputs(capture, def, source)
     if (!taken.ok) {
       return { ok: false, refusal: `the capture was taken at settings our side cannot set: ${taken.why}`, plots: [], notes }
     }
@@ -2137,6 +2208,12 @@ function runOurSideOnTheParityClock(capture) {
       // (`substitutedInputsOf`); `[]` until a lane feeds one.
       // ⭐ RS RATING L3 — `syminfo.industry` / `sector`, fed the capture's value (`symbolOf`).
       substituted: substitutedInputsOf(capture, classificationSubstitutions(source, ctx.symbol, capture)),
+      // ⭐⭐ T4 F1b — the reads this run answered from UCT data and NEVER from the vendor's figures: the grade names
+      // them and never counts MATCH (`compare.mjs::uctDataOf`)
+      uctData: uctDataReadsOf(def),
+      // ⭐⭐ T4 B2 — the `USI:` spellings this run read from UCT breadth (`otherSymbols.breadthReadsOf`): the grade never
+      // reads MATCH on them (`compare.mjs`, coordinator ruling 2026-11-22)
+      breadth: breadthReadsOf(def),
       // ⭐⭐ INDEX PROVENANCE — where each recorded index series came from (`compare.mjs::provenanceBarsOf`)
       indexProvenance: supply.indexProvenance || [],
       // ⭐⭐ INDEX ROUNDING — the index close this run read on each capture bar, or null (`compare.mjs::indexRoundingOf`)

@@ -244,9 +244,10 @@ test('the pool refuses to start on a bundle with no runtimeWarmupOf, and an ok j
 test('W5-INT: the closed schema admits `cache` (design 3.2) by name and value only; `instructions` stays refused', () => {
   assert.deepEqual(CACHE_STATES, ['hit', 'miss'])
   // W9-T14: an ok result may also carry the run's strategy record (and the seal adds its hash);
-  // a withheld one never does (strategy.test.mjs holds the record's own rules)
-  assert.deepEqual(RUNNER_RESULT_FIELDS.ok.optional, ['ms', 'cache', 'strategy'])
-  assert.deepEqual(RESULT_FIELDS.ok.optional, ['ms', 'cache', 'strategy', 'strategy_sha256'])
+  // a withheld one never does (strategy.test.mjs holds the record's own rules). TRACK 6, AL2: and the run's
+  // alert() record, the same way (alerts.test.mjs holds its rules)
+  assert.deepEqual(RUNNER_RESULT_FIELDS.ok.optional, ['ms', 'cache', 'strategy', 'alerts'])
+  assert.deepEqual(RESULT_FIELDS.ok.optional, ['ms', 'cache', 'strategy', 'alerts', 'strategy_sha256', 'alerts_sha256'])
   assert.deepEqual(RUNNER_RESULT_FIELDS.withheld.optional, ['ms', 'cache'])
   assert.deepEqual(RESULT_FIELDS.withheld.optional, ['ms', 'cache'])
   for (const state of CACHE_STATES) {

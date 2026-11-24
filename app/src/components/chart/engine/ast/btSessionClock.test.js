@@ -198,12 +198,14 @@ describe('a membership read is the membership tree (the install budget)', () => 
     const src = fs.readFileSync(path.join(REPO, 'corpus', 'committed', 'session-hilo__WM2g5GtC4h.pine'), 'utf8')
     const d = memberPaneDefinition({ source: src, id: 'u_bt_hilo', name: 'session-hilo' })
     expect(d.ok, d.reason).toBe(true)
-    // the toggles are given back, not declared; `s_useSess` folded to its default (false) folds the
-    // session test away, so `s_incWE` is never reached and is not listed (measured: s_lines, s_useSess)
+    // ⭐⭐ e95 unit 2b (2026-11-22, coordinator ruling) — the install budget is the DEFAULTS' program now
+    // (`astColumns.js::defaultBoundDocument`, `bind.js::pruneAtLeafDefaults`): `s_useSess` at its default (false)
+    // prunes the session arm away, so the toggles are no longer given back. They stay the member's settings, and
+    // each binding is measured by its own compute budget. ⚰️ Before: given back (measured: s_lines, s_useSess).
     const given = new Set((d.translation.outputs || []).flatMap((o) => o.skippedInputs || [])
       .filter((e) => e && e.budgetBound).map((e) => e.name))
-    expect(given.has('s_useSess'), JSON.stringify([...given])).toBe(true)
-    for (const knob of ['s_useSess', 's_incWE', 's_lines']) expect(d.translation.declared || []).not.toContain(knob)
+    expect([...given]).toEqual([])
+    for (const knob of ['s_useSess', 's_incWE', 's_lines']) expect(d.translation.declared || []).toContain(knob)
     try {
       const r = registry.installUserDefinitions([d.definition])
       expect(r.errors, JSON.stringify(r.errors)).toEqual([])

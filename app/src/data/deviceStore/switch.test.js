@@ -49,9 +49,9 @@ describe('the device store switch', () => {
     expect(buildTimeMs(null)).toBeNull()
   })
 
-  it('is OFF by default in this PR; "1" turns it on, "0" off (each read on its own page load)', async () => {
-    expect(DEVICE_STORE_DEFAULT_ON).toBe(false)
-    expect((await pageLoad()).sw.deviceStoreEnabled()).toBe(false)
+  it('the default is ON for desktops only (#2537, switch.default.test.js): jsdom is no desktop, so OFF; "1" on, "0" off (each read on its own page load)', async () => {
+    expect(DEVICE_STORE_DEFAULT_ON).toBe(true)
+    expect((await pageLoad()).sw.deviceStoreEnabled()).toBe(false)     // jsdom's matchMedia matches no desktop
     localStorage.setItem(DEVICE_STORE_KEY, '1')
     expect((await pageLoad()).sw.deviceStoreEnabled()).toBe(true)
     localStorage.setItem(DEVICE_STORE_KEY, '0')
@@ -60,9 +60,8 @@ describe('the device store switch', () => {
 
   // L1 (review of #2537): only '1' means on. Anything else stored is OFF, so a member who typed 'off', 'false' or 'true'
   // is never switched ON by it; with today's default OFF that reads the same as an absent key.
-  it('L1 with the default OFF (today): a key that is neither "1" nor "0" reads OFF, as an absent key does', async () => {
+  it('L1 where the default reads OFF (jsdom: no desktop): a key that is neither "1" nor "0" reads OFF, as an absent key does', async () => {
     const absent = (await pageLoad()).sw.deviceStoreEnabled()
-    expect(absent).toBe(DEVICE_STORE_DEFAULT_ON)
     expect(absent).toBe(false)
     for (const v of ['true', 'on', 'yes', 'off', 'false', '', ' 1', '1 ', '01', 'null']) {
       localStorage.setItem(DEVICE_STORE_KEY, v)
@@ -84,7 +83,7 @@ describe('the device store switch', () => {
     }
     localStorage.removeItem(DEVICE_STORE_KEY)
     const { sw } = await pageLoad()
-    expect(sw.deviceStoreEnabled()).toBe(DEVICE_STORE_DEFAULT_ON)      // (the seam lives and dies with its page load)
+    expect(sw.deviceStoreEnabled()).toBe(false)      // (the seam lives and dies with its page load: jsdom's own default is OFF)
   })
 
   it('M3 ONE decision per page load: a key that changes after the first read changes nothing until the next load', async () => {

@@ -101,6 +101,7 @@ import { tradingViewCloseMinute, SESSION_OPEN_MINUTE } from '../../../lib/market
 import { interpret, isoDay, maxLookback, tfBucket } from './ast/interpret.js'
 // ⭐ W5-T2 — the gate through its leaf seam: the flag itself is read at the door (`lowerTfGate.js`)
 import { lowerTfServingEnabled } from './lowerTfServing.js'
+import { boundAtInputs } from './knobBind.js'
 
 /** Why a lower-timeframe request is not served — one code per sentence, so a
  *  rail and a surface can name the reason without matching prose. */
@@ -514,7 +515,10 @@ export function lowerTfWindowsNeeded(instances, defOf, chartTf, chartBarCount) {
   const best = new Map()
   for (const inst of Array.isArray(instances) ? instances : []) {
     if (!inst || inst.hidden === true) continue
-    const def = typeof defOf === 'function' ? defOf(inst.defId) : null
+    const saved = typeof defOf === 'function' ? defOf(inst.defId) : null
+    // ⭐ (train e95, the 2b bind audit) as THIS instance's settings make the document: an unpicked knob arm's lower
+    // timeframe is not fetched for (`knobBind.boundDocument` narrows `meta.lowerTf` with the pruned arms)
+    const def = saved ? boundAtInputs(saved, inst.inputs) : null
     if (!def || !def.meta || !Array.isArray(def.meta.lowerTf) || !def.meta.lowerTf.length) continue
     for (const w of lowerTfWindowsOf(def, chartTf, chartBarCount)) {
       if (!best.has(w.tf) || best.get(w.tf) < w.bars) best.set(w.tf, w.bars)
