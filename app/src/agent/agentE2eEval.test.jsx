@@ -46,7 +46,7 @@ const DIR = path.resolve(HERE, '__fixtures__/nlIntent')
 const PRICES = path.resolve(HERE, '../../../tools/agent_eval_prices.json')
 
 const groupBy = (rows, f) => { const m = {}; for (const r of rows) { const k = f(r) || '-'; (m[k] ||= []).push(r) } return m }
-const line = (k, t) => `  ${k.padEnd(22)} n ${String(t.turns).padStart(3)}  ok ${String(t.successPct ?? '-').padStart(5)}%  wrongChart ${t.wrong_chart} wrongAct ${t.wrong_action} unsafe ${t.unsafe}  partial ${t.partial_reported}+${t.partial_silent}silent residue ${t.residue}  ask- ${t.unnecessary_ask} ask+ ${t.missed_ask} refusal ${t.refusal}  pending ${t.pending}`
+const line = (k, t) => `  ${k.padEnd(22)} n ${String(t.turns).padStart(3)}  ok ${String(t.successPct ?? '-').padStart(5)}%  SILENT-DROPS ${t.silentDrops} WRONG-CHART-WRITES ${t.wrongChartWrites}  wrongChart ${t.wrong_chart} wrongAct ${t.wrong_action} unsafe ${t.unsafe}  partial ${t.partial_reported}+${t.partial_silent}silent residue ${t.residue}  ask- ${t.unnecessary_ask} ask+ ${t.missed_ask} refusal ${t.refusal}  pending ${t.pending}`
 
 it.skipIf(!ARM)('e2e arm', async () => {
   if (!ARMS[ARM]) throw new Error(`AGENT_E2E_ARM must be one of ${Object.keys(ARMS).join(', ')}`)

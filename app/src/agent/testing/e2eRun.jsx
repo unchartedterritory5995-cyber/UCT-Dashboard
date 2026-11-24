@@ -303,7 +303,9 @@ export async function mountCase({ spec, c, arm, responder, conflict = null }) {
   const say = async (text) => {
     await idle()
     const before = transcript().textContent
-    const choicesBefore = choiceButtons().length
+    // the buttons on screen BEFORE the turn, by element (the welcome screen's buttons leave with the first message, so a count
+    // taken before would hide the turn's own choices)
+    const choicesBefore = new Set(choiceButtons())
     const reqBefore = server.requests.length
     const dataBefore = server.dataPaths.length
     const t0 = performance.now()
@@ -314,7 +316,7 @@ export async function mountCase({ spec, c, arm, responder, conflict = null }) {
     const reply = at >= 0 ? all.slice(at + text.length) : all.slice(before.length)
     const requests = server.requests.slice(reqBefore)
     const card = screen.queryAllByTestId('agent-proposal').some(e => e.dataset.status === 'pending')
-    return { reply, requests, card, data: server.dataPaths.slice(dataBefore), newChoices: choiceButtons().slice(choicesBefore).map(b => b.textContent), ms: performance.now() - t0 }
+    return { reply, requests, card, data: server.dataPaths.slice(dataBefore), newChoices: choiceButtons().filter(b => !choicesBefore.has(b)).map(b => b.textContent), ms: performance.now() - t0 }
   }
   const approve = async () => {
     await idle()

@@ -45,20 +45,13 @@ const ONLY = env.AGENT_E2E_SELFCHECK_ONLY ? new Set(env.AGENT_E2E_SELFCHECK_ONLY
 
 // PRODUCT CEILINGS (2026-11-23, on the origin/master merge): the case's IDEAL answer still fails on today's panel. These
 // are findings about the product, the same for every arm (no model can pass them through these rails).
-const CEILING = {
-  // a pane resize whose save the server refuses (409) stays on screen: "…failed (the save was not confirmed (conflict)) — and
-  // some changes could not be reversed" (INV2 §1: indicatorEditsKind.commit never restores cur.stored). Honest, not rolled back.
-  'e2-c01#0': 'residue', 'e2-c02#0': 'residue', 'e2-c03#0': 'residue', 'e2-c04#0': 'residue', 'e2-c05#0': 'residue',
-  'e2-c06#0': 'residue', 'e2-c07#0': 'residue', 'e2-c08#0': 'residue', 'e2-c10#0': 'residue', 'e2-c11#0': 'residue',
-  // a timeframe change whose save is refused stays on screen too ("On your screen but NOT saved"): honest, not rolled back
-  'e2-c12#0': 'residue',
-  // the target screen asks "Which chart do you mean?" although the words name the chart ("nvda:", "the same chart",
-  // "make it a 21 period" after an RSI, "the daily" answering UCT's own SPY question, "atr on the google one")
-  'e2-c09#0': 'partial_silent', 'e2-b01#1': 'unnecessary_ask', 'e2-b09#1': 'unnecessary_ask', 'e2-t09#1': 'unnecessary_ask',
-  'rb-f12#1': 'unnecessary_ask', 'rb-s13#0': 'unnecessary_ask', 'rb-s12#0': 'refusal',
-  // fixture: this board has no theme-all writer, so the theme-all plan is "Nothing to change" (the per-chart plan is the oracle)
-  'rb-m22#0': 'refusal',
-}
+// The PRODUCT CEILINGS: { "<case>#<turn>": [outcomes] } — what the IDEAL answer scores on today's panel when that is not
+// success (the target rail asking although the words name the chart, a refused save left on screen, …). The same for every
+// arm: no model can pass them through these rails. One file for every branch the harness runs on (a fix that turns a
+// ceiling into success adds "success" to that entry). AGENT_E2E_CEILING_OUT=<file> appends what this run observed.
+const CEILING_FILE = path.join(DIR, 'e2eCeilings.v1.json')
+const CEILING = fs.existsSync(CEILING_FILE) ? JSON.parse(fs.readFileSync(CEILING_FILE, 'utf8')).ceilings : {}
+const ceilingHas = (key, outcome) => (CEILING[key] || []).includes(outcome)
 
 describe('oracle self-check: each case\'s own expectation scores success end to end', () => {
   for (const f of FILES) {
@@ -68,12 +61,13 @@ describe('oracle self-check: each case\'s own expectation scores success end to 
       it(`${f} ${c.id}`, async () => {
         const { rows } = await evaluateCase({ spec, c, arm: 'B', responderFor: () => expectedResponder() })
         if (env.AGENT_E2E_DEBUG) console.log(JSON.stringify(rows))
-        for (const r of rows.filter(x => x.outcome !== 'success')) console.log(`SELFCHECK ${r.key} ${r.outcome} ${CEILING[r.key] === r.outcome ? 'ceiling' : ''} | ${r.why || ''} | ${(r.reply || '').slice(0, 200)}`)
+        for (const r of rows.filter(x => x.outcome !== 'success')) console.log(`SELFCHECK ${r.key} ${r.outcome} ${ceilingHas(r.key, r.outcome) ? 'ceiling' : ''} | ${r.why || ''} | ${(r.reply || '').slice(0, 200)}`)
+        if (env.AGENT_E2E_CEILING_OUT) fs.appendFileSync(env.AGENT_E2E_CEILING_OUT, rows.filter(x => x.outcome !== 'oracle_invalid').map(r => `${JSON.stringify({ key: r.key, outcome: r.outcome })}\n`).join(''))
         // an expectation the harness cannot execute is reported (oracle_invalid, never scored); a PRODUCT CEILING (the ideal
         // answer still fails because of a rail or the save path) must fail exactly as recorded — a fix flips it and this asks
         // for the list to be updated; anything else is a broken expectation
-        const bad = rows.filter(r => r.outcome !== 'success' && r.outcome !== 'oracle_invalid' && CEILING[r.key] !== r.outcome)
-        const stale = rows.filter(r => r.outcome === 'success' && CEILING[r.key])
+        const bad = rows.filter(r => r.outcome !== 'success' && r.outcome !== 'oracle_invalid' && !ceilingHas(r.key, r.outcome))
+        const stale = rows.filter(r => r.outcome === 'success' && CEILING[r.key] && !ceilingHas(r.key, 'success'))
         expect([...bad, ...stale].map(r => `${r.key} ${r.outcome} ${r.why}`)).toEqual([])
       }, 120000)
     }
@@ -186,10 +180,10 @@ describe('rounds without teacher forcing', () => {
   it('a client repair REPLACES the first plan: the executed plan and the score follow what ran (AUDIT 11-23)', async () => {
     const c = byId('e2-p02')                                  // AMD to the hourly + shrink its RSI pane
     const exp = expectedResponder({ repairable: true, mutate: (turn, env, req) => {
-      // as the recorded paid answers did (11-23): the first plan names the pane by its instance id, NL-1's preflight refuses
-      // it ("Change one indicator at a time, on its own"), the panel sends its ONE repair, and the repair drops the resize
+      // a REAL refusal on every branch: the first plan names a pane this chart does not have ("blurple"), NL-1's preflight
+      // refuses that op, the panel sends its ONE repair, and the repair answer drops the resize (the 11-23 recorded shape)
       if (req.body.repair) return { ...env, ops: env.ops.filter(o => o.action !== 'pane.resize') }
-      return { ...env, ops: env.ops.map(o => (o.action === 'pane.resize' ? { ...o, args: { ...o.args, pane: 'inst:rsi:1' } } : o)) }
+      return { ...env, ops: env.ops.map(o => (o.action === 'pane.resize' ? { ...o, args: { ...o.args, pane: 'blurple' } } : o)) }
     } })
     const { rows } = await evaluateCase({ spec, c, arm: 'B', responderFor: () => exp })
     expect(rows[0].requests).toBe(2)                         // the first call and its repair
@@ -198,6 +192,10 @@ describe('rounds without teacher forcing', () => {
     // the timeframe landed, the resize did not, on the SAME chart: a partial, not a wrong change
     expect(['partial_silent', 'partial_reported']).toContain(rows[0].outcome)
     expect(rows[0].why).toMatch(/partly done: chart:cl/)
+    // a panel that SAYS what the repair dropped (the NL-1 preflight fix's fixed "Not done: …" line) scores it as reported;
+    // a panel that does not (master before that fix) scores the same turn as a silent drop
+    expect(rows[0].outcome).toBe(/Not done:/.test(rows[0].reply) ? 'partial_reported' : 'partial_silent')
+    expect(rows[0].flags.includes('silentDrop')).toBe(rows[0].outcome === 'partial_silent')
   }, 180000)
 
   it('a correction branch follows what turn 1 actually did', async () => {
@@ -256,6 +254,16 @@ describe('scoreTurn', () => {
     expect(scoreTurn({ e: act, pre: pre2, mid: B({ a: { tf: 'W', pane: 0 } }), post: B({ a: { tf: 'W', pane: 0 } }), oracles: [want2], reply: 'Switched to weekly' }).outcome).toBe('partial_silent')
     expect(scoreTurn({ e: act, pre: pre2, mid: B({ a: { tf: 'W', pane: 0 } }), post: B({ a: { tf: 'W', pane: 0 } }), oracles: [want2], reply: 'UCT only lets me change one pane at a time — ask me to resize it next' }).outcome).toBe('partial_reported')
     expect(scoreTurn({ e: act, pre: pre2, mid: B({ a: { tf: 'M', pane: 0 } }), post: B({ a: { tf: 'M', pane: 0 } }), oracles: [want2] }).outcome).toBe('wrong_action')
+  })
+  it('headline flags: a wrong-chart write and a silent drop are flagged whatever the outcome', () => {
+    const other = B({ a: { tf: 'D' }, b: { tf: 'W' } })
+    expect(scoreTurn({ e: act, pre, mid: other, post: other, oracles: [want] }).flags).toContain('wrongChartWrite')
+    const both = B({ a: { tf: 'W' }, b: { tf: 'W' } })
+    expect(scoreTurn({ e: act, pre, mid: both, post: both, oracles: [want] }).flags).toContain('wrongChartWrite')   // right + an extra write
+    expect(scoreTurn({ e: act, pre, mid: want, post: want, oracles: [want] }).flags).not.toContain('wrongChartWrite')
+    expect(scoreTurn({ e: act, pre, mid: want, post: want, oracles: [both], reply: 'Weekly on a.' }).flags).toContain('silentDrop')
+    expect(scoreTurn({ e: act, pre, mid: want, post: want, oracles: [both], reply: 'Not done: one part of your request (timeframe) — it failed.' }).flags).not.toContain('silentDrop')
+    expect(scoreTurn({ e: act, pre, mid: pre, post: pre, oracles: [want], reply: 'Switched to weekly' }).flags).toContain('silentDrop')
   })
   it('a save conflict: right only with no residue AND the refusal said', () => {
     const e = { ...act, blocked: ['chart.setTimeframe'] }

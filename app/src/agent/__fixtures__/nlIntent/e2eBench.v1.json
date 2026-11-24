@@ -1,6 +1,6 @@
 {
  "version": 1,
- "about": "UCT Agent E2E BENCH v1 (2026-11-23, pl-e2e): scored END TO END on the final board (testing/e2eEval.jsx), never teacher-forced. Four classes, written fresh as classes (no production sentence reused): pane-multistep (multi-step with an indicator pane edit), ticker-correction (a correction whose first word is also a ticker), pane-conflict (a pane resize whose save the server refuses with a 409 revision conflict; host.conflict), correction-branch (dialogues whose second line depends on what the first turn did). Expectation fields beyond the bench format: from: \"start\" (the final board is compared with the dialogue's first board + these ops), blocked (actions whose save is refused), branch: { success | wrongChart | ask | fail: turn }, host: { conflict }. Fixture tickers and numbers only.",
+ "about": "UCT Agent E2E BENCH v1 (2026-11-23, pl-e2e): scored END TO END on the final board (testing/e2eEval.jsx), never teacher-forced. Seven classes, written fresh as classes (no production sentence reused): pane-multistep (multi-step with an indicator pane edit), ticker-correction (a correction whose first word is also a ticker), pane-conflict (a pane resize whose save the server refuses with a 409 revision conflict; host.conflict), correction-branch (dialogues whose second line depends on what the first turn did); v1.1 (11-23): exclusion (all/every ... except, everything but, leave X alone, negated relative clauses), followup-correction, targeting (a chart named by what it shows or where it sits). Expectation fields beyond the bench format: from: \"start\" (the final board is compared with the dialogue's first board + these ops), blocked (actions whose save is refused), branch: { success | wrongChart | ask | fail: turn }, host: { conflict }. Fixture tickers and numbers only.",
  "split": "dev",
  "fixtures": {
   "rb_solo": {
@@ -336,6 +336,48 @@
      "w": 12,
      "h": 20,
      "symbol": "NOW",
+     "tf": "D"
+    }
+   ],
+   "selected": null
+  },
+  "e2_idx4": {
+   "drawings": true,
+   "charts": [
+    {
+     "id": "tl",
+     "x": 0,
+     "y": 0,
+     "w": 12,
+     "h": 10,
+     "symbol": "SPY",
+     "tf": "D"
+    },
+    {
+     "id": "tr",
+     "x": 12,
+     "y": 0,
+     "w": 12,
+     "h": 10,
+     "symbol": "QQQ",
+     "tf": "D"
+    },
+    {
+     "id": "bl",
+     "x": 0,
+     "y": 10,
+     "w": 12,
+     "h": 10,
+     "symbol": "IWM",
+     "tf": "D"
+    },
+    {
+     "id": "br",
+     "x": 12,
+     "y": 10,
+     "w": 12,
+     "h": 10,
+     "symbol": "DIA",
      "tf": "D"
     }
    ],
@@ -3379,6 +3421,1574 @@
      }
     }
    ]
+  },
+  {
+   "id": "e2-x01",
+   "cls": "exclusion",
+   "mix": "multi",
+   "fam": "multichart",
+   "fx": "rb_quad",
+   "text": "rsi on every chart but the amazon one",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "indicator.add",
+      "t": "Top-left chart (SMH)",
+      "args": {
+       "defId": "rsi",
+       "inputs": null
+      }
+     },
+     {
+      "a": "indicator.add",
+      "t": "Top-right chart (XLE)",
+      "args": {
+       "defId": "rsi",
+       "inputs": null
+      }
+     },
+     {
+      "a": "indicator.add",
+      "t": "Bottom-right chart (GOOGL)",
+      "args": {
+       "defId": "rsi",
+       "inputs": null
+      }
+     }
+    ],
+    "notOn": [
+     "Bottom-left chart (AMZN)"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ],
+    "why": "the excluded chart(s) must not change; every other named chart must"
+   }
+  },
+  {
+   "id": "e2-x02",
+   "cls": "exclusion",
+   "mix": "multi",
+   "fam": "multichart",
+   "fx": "rb_quad",
+   "text": "log scale on all charts except the top left",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "chart.setScale",
+      "t": "Top-right chart (XLE)",
+      "args": {
+       "scale": "log"
+      }
+     },
+     {
+      "a": "chart.setScale",
+      "t": "Bottom-left chart (AMZN)",
+      "args": {
+       "scale": "log"
+      }
+     },
+     {
+      "a": "chart.setScale",
+      "t": "Bottom-right chart (GOOGL)",
+      "args": {
+       "scale": "log"
+      }
+     }
+    ],
+    "notOn": [
+     "Top-left chart (SMH)"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ],
+    "why": "the excluded chart(s) must not change; every other named chart must"
+   }
+  },
+  {
+   "id": "e2-x03",
+   "cls": "exclusion",
+   "mix": "multi",
+   "fam": "multichart",
+   "fx": "rb_quad",
+   "text": "hide volume everywhere apart from xle",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "volume.setState",
+      "t": "Top-left chart (SMH)",
+      "args": {
+       "state": {
+        "$in": [
+         "hidden",
+         "removed"
+        ]
+       }
+      }
+     },
+     {
+      "a": "volume.setState",
+      "t": "Bottom-left chart (AMZN)",
+      "args": {
+       "state": {
+        "$in": [
+         "hidden",
+         "removed"
+        ]
+       }
+      }
+     },
+     {
+      "a": "volume.setState",
+      "t": "Bottom-right chart (GOOGL)",
+      "args": {
+       "state": {
+        "$in": [
+         "hidden",
+         "removed"
+        ]
+       }
+      }
+     }
+    ],
+    "notOn": [
+     "Top-right chart (XLE)"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ],
+    "why": "the excluded chart(s) must not change; every other named chart must"
+   }
+  },
+  {
+   "id": "e2-x04",
+   "cls": "exclusion",
+   "mix": "multi",
+   "fam": "multichart",
+   "fx": "rb_trio",
+   "text": "macd on everything but the big one on the left",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "indicator.add",
+      "t": "Top-right chart (AMD)",
+      "args": {
+       "defId": "macd",
+       "inputs": null
+      }
+     },
+     {
+      "a": "indicator.add",
+      "t": "Bottom-right chart (AVGO)",
+      "args": {
+       "defId": "macd",
+       "inputs": null
+      }
+     }
+    ],
+    "notOn": [
+     "Left chart (NVDA)"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ],
+    "why": "the excluded chart(s) must not change; every other named chart must"
+   }
+  },
+  {
+   "id": "e2-x05",
+   "cls": "exclusion",
+   "mix": "multi",
+   "fam": "multichart",
+   "fx": "rb_trio",
+   "text": "line charts for all of them, leave nvda alone though",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "chart.setType",
+      "t": "Top-right chart (AMD)",
+      "args": {
+       "type": "line"
+      }
+     },
+     {
+      "a": "chart.setType",
+      "t": "Bottom-right chart (AVGO)",
+      "args": {
+       "type": "line"
+      }
+     }
+    ],
+    "notOn": [
+     "Left chart (NVDA)"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ],
+    "why": "the excluded chart(s) must not change; every other named chart must"
+   }
+  },
+  {
+   "id": "e2-x06",
+   "cls": "exclusion",
+   "mix": "multi",
+   "fam": "multichart",
+   "fx": "rb_pair_nosel",
+   "text": "everything but the left one to the hourly",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "chart.setTimeframe",
+      "t": "Right chart (META)",
+      "args": {
+       "timeframe": "60"
+      }
+     }
+    ],
+    "notOn": [
+     "Left chart (MSFT)"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ],
+    "why": "the excluded chart(s) must not change; every other named chart must"
+   }
+  },
+  {
+   "id": "e2-x07",
+   "cls": "exclusion",
+   "mix": "multi",
+   "fam": "multichart",
+   "fx": "e2_idx4",
+   "text": "weekly on all four, leave qqq alone",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "chart.setTimeframe",
+      "t": "Top-left chart (SPY)",
+      "args": {
+       "timeframe": "W"
+      }
+     },
+     {
+      "a": "chart.setTimeframe",
+      "t": "Bottom-left chart (IWM)",
+      "args": {
+       "timeframe": "W"
+      }
+     },
+     {
+      "a": "chart.setTimeframe",
+      "t": "Bottom-right chart (DIA)",
+      "args": {
+       "timeframe": "W"
+      }
+     }
+    ],
+    "notOn": [
+     "Top-right chart (QQQ)"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ],
+    "why": "the excluded chart(s) must not change; every other named chart must"
+   }
+  },
+  {
+   "id": "e2-x08",
+   "cls": "exclusion",
+   "mix": "multi",
+   "fam": "multichart",
+   "fx": "e2_idx4",
+   "text": "add the 50 sma to the charts that arent qqq or spy",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "indicator.add",
+      "t": "Bottom-left chart (IWM)",
+      "args": {
+       "defId": "movingAverage",
+       "inputs": {
+        "$has": [
+         {
+          "key": "period",
+          "value": 50
+         }
+        ]
+       }
+      }
+     },
+     {
+      "a": "indicator.add",
+      "t": "Bottom-right chart (DIA)",
+      "args": {
+       "defId": "movingAverage",
+       "inputs": {
+        "$has": [
+         {
+          "key": "period",
+          "value": 50
+         }
+        ]
+       }
+      }
+     }
+    ],
+    "notOn": [
+     "Top-right chart (QQQ)",
+     "Top-left chart (SPY)"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ],
+    "why": "the excluded chart(s) must not change; every other named chart must"
+   }
+  },
+  {
+   "id": "e2-x09",
+   "cls": "exclusion",
+   "mix": "multi",
+   "fam": "multichart",
+   "fx": "e2_idx4",
+   "text": "every chart except the one showing dia gets log scale",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "chart.setScale",
+      "t": "Top-left chart (SPY)",
+      "args": {
+       "scale": "log"
+      }
+     },
+     {
+      "a": "chart.setScale",
+      "t": "Top-right chart (QQQ)",
+      "args": {
+       "scale": "log"
+      }
+     },
+     {
+      "a": "chart.setScale",
+      "t": "Bottom-left chart (IWM)",
+      "args": {
+       "scale": "log"
+      }
+     }
+    ],
+    "notOn": [
+     "Bottom-right chart (DIA)"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ],
+    "why": "the excluded chart(s) must not change; every other named chart must"
+   }
+  },
+  {
+   "id": "e2-x10",
+   "cls": "exclusion",
+   "mix": "multi",
+   "fam": "multichart",
+   "fx": "rb_quad",
+   "text": "the ones that arent on the daily, flip them to daily",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "chart.setTimeframe",
+      "t": "Bottom-left chart (AMZN)",
+      "args": {
+       "timeframe": "D"
+      }
+     },
+     {
+      "a": "chart.setTimeframe",
+      "t": "Bottom-right chart (GOOGL)",
+      "args": {
+       "timeframe": "D"
+      }
+     }
+    ],
+    "notOn": [
+     "Top-left chart (SMH)",
+     "Top-right chart (XLE)"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ],
+    "why": "the excluded chart(s) must not change; every other named chart must"
+   }
+  },
+  {
+   "id": "e2-x11",
+   "cls": "exclusion",
+   "mix": "multi",
+   "fam": "multichart",
+   "fx": "rb_trio",
+   "text": "dont touch amd, but put the 20 ema on the other two",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "indicator.add",
+      "t": "Left chart (NVDA)",
+      "args": {
+       "defId": "movingAverage",
+       "inputs": [
+        {
+         "key": "period",
+         "value": 20
+        },
+        {
+         "key": "maType",
+         "value": "ema"
+        }
+       ]
+      }
+     },
+     {
+      "a": "indicator.add",
+      "t": "Bottom-right chart (AVGO)",
+      "args": {
+       "defId": "movingAverage",
+       "inputs": [
+        {
+         "key": "period",
+         "value": 20
+        },
+        {
+         "key": "maType",
+         "value": "ema"
+        }
+       ]
+      }
+     }
+    ],
+    "notOn": [
+     "Top-right chart (AMD)"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ],
+    "why": "the excluded chart(s) must not change; every other named chart must"
+   }
+  },
+  {
+   "id": "e2-x12",
+   "cls": "exclusion",
+   "mix": "multi",
+   "fam": "multichart",
+   "fx": "rb_quad",
+   "text": "bollinger bands on all the charts other than the ones on the bottom row",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "indicator.add",
+      "t": "Top-left chart (SMH)",
+      "args": {
+       "defId": "bb",
+       "inputs": null
+      }
+     },
+     {
+      "a": "indicator.add",
+      "t": "Top-right chart (XLE)",
+      "args": {
+       "defId": "bb",
+       "inputs": null
+      }
+     }
+    ],
+    "notOn": [
+     "Bottom-left chart (AMZN)",
+     "Bottom-right chart (GOOGL)"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ],
+    "why": "the excluded chart(s) must not change; every other named chart must"
+   }
+  },
+  {
+   "id": "e2-fc01",
+   "cls": "followup-correction",
+   "mix": "followup",
+   "fam": "correction",
+   "fx": "rb_trio",
+   "turns": [
+    {
+     "say": "hourly on nvda",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "chart.setTimeframe",
+        "t": "Left chart (NVDA)",
+        "args": {
+         "timeframe": "60"
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     }
+    },
+    {
+     "say": "wrong one, i meant the one under amd",
+     "expect": {
+      "kind": "act",
+      "from": "start",
+      "ops": [
+       {
+        "a": "chart.setTimeframe",
+        "t": "Bottom-right chart (AVGO)",
+        "args": {
+         "timeframe": "60"
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "e2-fc02",
+   "cls": "followup-correction",
+   "mix": "followup",
+   "fam": "correction",
+   "fx": "rb_pair_nosel",
+   "turns": [
+    {
+     "say": "rsi on msft",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "indicator.add",
+        "t": "Left chart (MSFT)",
+        "args": {
+         "defId": "rsi",
+         "inputs": null
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     }
+    },
+    {
+     "say": "oops, meant meta, take it off msft",
+     "expect": {
+      "kind": "act",
+      "from": "start",
+      "ops": [
+       {
+        "a": "indicator.add",
+        "t": "Right chart (META)",
+        "args": {
+         "defId": "rsi",
+         "inputs": null
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "e2-fc03",
+   "cls": "followup-correction",
+   "mix": "followup",
+   "fam": "correction",
+   "fx": "rb_quad",
+   "turns": [
+    {
+     "say": "make xle weekly",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "chart.setTimeframe",
+        "t": "Top-right chart (XLE)",
+        "args": {
+         "timeframe": "W"
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     }
+    },
+    {
+     "say": "and actually monthly, not weekly",
+     "expect": {
+      "kind": "act",
+      "from": "start",
+      "ops": [
+       {
+        "a": "chart.setTimeframe",
+        "t": "Top-right chart (XLE)",
+        "args": {
+         "timeframe": "M"
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "e2-fc04",
+   "cls": "followup-correction",
+   "mix": "followup",
+   "fam": "correction",
+   "fx": "rb_solo",
+   "turns": [
+    {
+     "say": "add the 100 sma",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "indicator.add",
+        "t": "Chart (AAPL)",
+        "args": {
+         "defId": "movingAverage",
+         "inputs": {
+          "$has": [
+           {
+            "key": "period",
+            "value": 100
+           }
+          ]
+         }
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     }
+    },
+    {
+     "say": "make that a 150 instead",
+     "expect": {
+      "kind": "act",
+      "from": "start",
+      "ops": [
+       {
+        "a": "indicator.add",
+        "t": "Chart (AAPL)",
+        "args": {
+         "defId": "movingAverage",
+         "inputs": {
+          "$has": [
+           {
+            "key": "period",
+            "value": 150
+           }
+          ]
+         }
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "e2-fc05",
+   "cls": "followup-correction",
+   "mix": "followup",
+   "fam": "correction",
+   "fx": "e2_idx4",
+   "turns": [
+    {
+     "say": "log scale on spy",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "chart.setScale",
+        "t": "Top-left chart (SPY)",
+        "args": {
+         "scale": "log"
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     }
+    },
+    {
+     "say": "scratch that, put it on iwm instead",
+     "expect": {
+      "kind": "act",
+      "from": "start",
+      "ops": [
+       {
+        "a": "chart.setScale",
+        "t": "Bottom-left chart (IWM)",
+        "args": {
+         "scale": "log"
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "e2-fc06",
+   "cls": "followup-correction",
+   "mix": "followup",
+   "fam": "correction",
+   "fx": "rb_trio",
+   "turns": [
+    {
+     "say": "line chart on amd",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "chart.setType",
+        "t": "Top-right chart (AMD)",
+        "args": {
+         "type": "line"
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     }
+    },
+    {
+     "say": "hmm go back to candles there and do avgo as a line",
+     "expect": {
+      "kind": "act",
+      "from": "start",
+      "ops": [
+       {
+        "a": "chart.setType",
+        "t": "Bottom-right chart (AVGO)",
+        "args": {
+         "type": "line"
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "e2-fc07",
+   "cls": "followup-correction",
+   "mix": "followup",
+   "fam": "correction",
+   "fx": "rb_pair_sel",
+   "turns": [
+    {
+     "say": "this one to weekly",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "chart.setTimeframe",
+        "t": "Right chart (META)",
+        "args": {
+         "timeframe": "W"
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     }
+    },
+    {
+     "say": "sorry, the other chart",
+     "expect": {
+      "kind": "act",
+      "from": "start",
+      "ops": [
+       {
+        "a": "chart.setTimeframe",
+        "t": "Left chart (MSFT)",
+        "args": {
+         "timeframe": "W"
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "e2-fc08",
+   "cls": "followup-correction",
+   "mix": "followup",
+   "fam": "correction",
+   "fx": "rb_quad",
+   "turns": [
+    {
+     "say": "macd on googl",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "indicator.add",
+        "t": "Bottom-right chart (GOOGL)",
+        "args": {
+         "defId": "macd",
+         "inputs": null
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     }
+    },
+    {
+     "say": "put it on amzn too",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "indicator.add",
+        "t": "Bottom-left chart (AMZN)",
+        "args": {
+         "defId": "macd",
+         "inputs": null
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "e2-fc09",
+   "cls": "followup-correction",
+   "mix": "followup",
+   "fam": "correction",
+   "fx": "e2_idx4",
+   "turns": [
+    {
+     "say": "hide volume on dia",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "volume.setState",
+        "t": "Bottom-right chart (DIA)",
+        "args": {
+         "state": {
+          "$in": [
+           "hidden",
+           "removed"
+          ]
+         }
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     }
+    },
+    {
+     "say": "undo that, hide it on qqq",
+     "expect": {
+      "kind": "act",
+      "from": "start",
+      "ops": [
+       {
+        "a": "volume.setState",
+        "t": "Top-right chart (QQQ)",
+        "args": {
+         "state": {
+          "$in": [
+           "hidden",
+           "removed"
+          ]
+         }
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "e2-fc10",
+   "cls": "followup-correction",
+   "mix": "followup",
+   "fam": "correction",
+   "fx": "rb_solo",
+   "turns": [
+    {
+     "say": "level at 210",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "drawing.addLevel",
+        "t": "Drawings on AAPL",
+        "args": {
+         "price": 210
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     }
+    },
+    {
+     "say": "move that line to 215",
+     "expect": {
+      "kind": "act",
+      "from": "start",
+      "ops": [
+       {
+        "a": "drawing.addLevel",
+        "t": "Drawings on AAPL",
+        "args": {
+         "price": 215
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "e2-tg01",
+   "cls": "targeting",
+   "mix": "single",
+   "fam": "multichart",
+   "fx": "rb_quad",
+   "text": "the chart showing the energy etf to weekly",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "chart.setTimeframe",
+      "t": "Top-right chart (XLE)",
+      "args": {
+       "timeframe": "W"
+      }
+     }
+    ],
+    "notOn": [
+     "Top-left chart (SMH)",
+     "Bottom-left chart (AMZN)",
+     "Bottom-right chart (GOOGL)"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "e2-tg02",
+   "cls": "targeting",
+   "mix": "single",
+   "fam": "multichart",
+   "fx": "rb_trio",
+   "text": "the small chart on top, give it an rsi",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "indicator.add",
+      "t": "Top-right chart (AMD)",
+      "args": {
+       "defId": "rsi",
+       "inputs": null
+      }
+     }
+    ],
+    "notOn": [
+     "Left chart (NVDA)",
+     "Bottom-right chart (AVGO)"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "e2-tg03",
+   "cls": "targeting",
+   "mix": "single",
+   "fam": "multichart",
+   "fx": "rb_quad",
+   "text": "bottom right one, log scale",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "chart.setScale",
+      "t": "Bottom-right chart (GOOGL)",
+      "args": {
+       "scale": "log"
+      }
+     }
+    ],
+    "notOn": [
+     "Top-left chart (SMH)",
+     "Top-right chart (XLE)",
+     "Bottom-left chart (AMZN)"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "e2-tg04",
+   "cls": "targeting",
+   "mix": "single",
+   "fam": "multichart",
+   "fx": "e2_idx4",
+   "text": "put the 20 ema on the russell chart",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "indicator.add",
+      "t": "Bottom-left chart (IWM)",
+      "args": {
+       "defId": "movingAverage",
+       "inputs": [
+        {
+         "key": "period",
+         "value": 20
+        },
+        {
+         "key": "maType",
+         "value": "ema"
+        }
+       ]
+      }
+     }
+    ],
+    "notOn": [
+     "Top-left chart (SPY)",
+     "Top-right chart (QQQ)",
+     "Bottom-right chart (DIA)"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "e2-tg05",
+   "cls": "targeting",
+   "mix": "single",
+   "fam": "multichart",
+   "fx": "e2_idx4",
+   "text": "dow chart to the hourly",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "chart.setTimeframe",
+      "t": "Bottom-right chart (DIA)",
+      "args": {
+       "timeframe": "60"
+      }
+     }
+    ],
+    "notOn": [
+     "Top-left chart (SPY)",
+     "Top-right chart (QQQ)",
+     "Bottom-left chart (IWM)"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "e2-tg06",
+   "cls": "targeting",
+   "mix": "single",
+   "fam": "multichart",
+   "fx": "rb_trio",
+   "text": "the chart under amd, make it a line chart",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "chart.setType",
+      "t": "Bottom-right chart (AVGO)",
+      "args": {
+       "type": "line"
+      }
+     }
+    ],
+    "notOn": [
+     "Left chart (NVDA)",
+     "Top-right chart (AMD)"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "e2-tg07",
+   "cls": "targeting",
+   "mix": "single",
+   "fam": "multichart",
+   "fx": "rb_pair_nosel",
+   "text": "the facebook chart to 5 min",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "chart.setTimeframe",
+      "t": "Right chart (META)",
+      "args": {
+       "timeframe": "5"
+      }
+     }
+    ],
+    "notOn": [
+     "Left chart (MSFT)"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "e2-tg08",
+   "cls": "targeting",
+   "mix": "single",
+   "fam": "multichart",
+   "fx": "rb_quad",
+   "text": "whichever chart is on the hourly, switch it to daily",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "chart.setTimeframe",
+      "t": "Bottom-right chart (GOOGL)",
+      "args": {
+       "timeframe": "D"
+      }
+     }
+    ],
+    "notOn": [
+     "Top-left chart (SMH)",
+     "Top-right chart (XLE)",
+     "Bottom-left chart (AMZN)"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "e2-tg09",
+   "cls": "targeting",
+   "mix": "single",
+   "fam": "multichart",
+   "fx": "rb_quad",
+   "text": "the semis one gets macd",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "indicator.add",
+      "t": "Top-left chart (SMH)",
+      "args": {
+       "defId": "macd",
+       "inputs": null
+      }
+     }
+    ],
+    "notOn": [
+     "Top-right chart (XLE)",
+     "Bottom-left chart (AMZN)",
+     "Bottom-right chart (GOOGL)"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
+  },
+  {
+   "id": "e2-tg10",
+   "cls": "targeting",
+   "mix": "single",
+   "fam": "multichart",
+   "fx": "e2_idx4",
+   "text": "the one next to spy, weekly please",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "chart.setTimeframe",
+      "t": "Top-right chart (QQQ)",
+      "args": {
+       "timeframe": "W"
+      }
+     }
+    ],
+    "notOn": [
+     "Top-left chart (SPY)",
+     "Bottom-left chart (IWM)",
+     "Bottom-right chart (DIA)"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   }
   }
  ]
 }

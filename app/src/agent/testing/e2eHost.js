@@ -233,8 +233,12 @@ export function compareBoards(pre, actual, oracle) {
         const lp = leaves(P[k]), la = leaves(A[k]), lo = O[k] === undefined ? {} : leaves(O[k])
         // a leaf the board had that is gone (an empty {} / [] that gained children is not a loss)
         const kept = (x) => Object.keys(la).some(y => y.startsWith(`${x}.`))
-        // only things of value count (an indicator, a drawing, a list item); a setting going back to its default does not
-        const gone = Object.keys(lp).filter(x => !(x in la) && (x in lo) && !(['{}', '[]'].includes(lp[x]) && kept(x)) && /(^|\.)indicatorInstances\./.test(x))
+        // only things of value count: a LIVE indicator instance the board had and no longer has (compared as a multiset — the
+        // snapshot sorts the array, so an added instance shifts the others' indexes and an index path is no evidence)
+        void kept
+        const live = (v) => ((v?.settings?.indicatorInstances) || []).filter(x => x && !x.deleted).map(x => JSON.stringify(x))
+        const lostLive = (() => { const left = [...live(A[k])]; const ok = new Set(live(O[k])); return live(P[k]).filter(x => { const i = left.indexOf(x); if (i >= 0) { left.splice(i, 1); return false } return ok.has(x) }) })()
+        const gone = lostLive.map(() => 'indicatorInstances (a live indicator)')
         const marked = Object.keys(la).filter(x => /(^|\.)(deleted|removed)$/.test(x) && la[x] === 'true' && lp[x] !== 'true' && lo[x] !== 'true')
         if (Array.isArray(P[k]) && Array.isArray(A[k]) && A[k].length < P[k].length && !(Array.isArray(O[k]) && O[k].length < P[k].length)) r.destructive.push(`${k} shrank`)
         else if (gone.length) r.destructive.push(`${k} lost ${gone.slice(0, 2).join(',')}`)
