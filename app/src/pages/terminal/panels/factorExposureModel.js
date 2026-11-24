@@ -22,6 +22,11 @@ export const FCTX_WHAT = 'The factor exposure'
 export const FCTX_SOURCE = "UCT's stored daily prices"
 /** The answer changes once a session. */
 export const HELD_POLL_MS = 30 * 60 * 1000
+/** The first ask of a stock this session is worked out on the server while the panel waits (`computing`): ask again
+ *  soon, as SETH does for one stock. */
+export const COMPUTING_POLL_MS = 3000
+/** How soon the panel asks again: soon while the stock is being worked out, else once a half hour. */
+export const fctxPollMs = (view) => (view?.state === 'computing' ? COMPUTING_POLL_MS : HELD_POLL_MS)
 
 export const fctxUrl = (sym) => `/api/research/factor-exposure/${encodeURIComponent(sym)}`
 
@@ -117,12 +122,14 @@ function readMethod(raw) {
  * The route's body -> the panel's view. `state`:
  *   'ok'           the regression, the plain line and the funds
  *   'not_held'     the server stores no daily prices for the stock (`detail`)
+ *   'computing'    the server is working the stock out for the first time this session; ask again soon
  *   'busy'         the server is working out other stocks; ask again
  *   'unavailable'  the read failed on the server, or no market fund is held (`detail`)
  *   'failed'       not the route's shape
  */
 export function fctxRead(body) {
   if (!isObj(body)) return { state: 'failed' }
+  if (body.status === 'computing') return { state: 'computing' }
   if (body.status === 'not_held') return { state: 'not_held', detail: text(body.detail) }
   if (body.status === 'busy') return { state: 'busy', detail: text(body.detail) }
   if (body.status === 'unavailable' || body.status === 'refused') return { state: 'unavailable', detail: text(body.detail) }

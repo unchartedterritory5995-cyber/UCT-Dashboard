@@ -23,7 +23,11 @@ older than that session is read again at most every `LAG_RECHECK_S`. The held ea
 looked at again at most every `EARNINGS_RECHECK_S` (a cache or one-row disk read); only when they
 changed is the stock worked out again. The held answers are capped (`CACHE_MAX`, the least recently
 asked dropped first); one request per symbol builds at a time (a second waits for it), and at most
-`BUILD_SLOTS` symbols build at once (past `BUILD_WAIT_S` the request says `busy`).
+`BUILD_SLOTS` symbols build at once (a build that waits past `BUILD_WAIT_S` for a slot says `busy`).
+THE FIRST ASK NEVER BUILDS ON THE REQUEST (speed pass 2, 2026-11-24; live, a first open took 1.6 s): with
+nothing held the request starts the stock's ONE background build (`BUILD_THREAD`; at most `MAX_PENDING`
+started and unfinished, past that `busy`) and answers `computing` at once; the panel asks again. A build
+that holds nothing (a failed read, `busy`) is said ONCE to the next request (`_said`), never held.
 
 MEASURED (2026-11-22, invented bars through the real read path on the dev PC, not production): one stock
 of 6,011 daily rows costs about 0.14 to 0.16 s of CPU the first time it is asked for in a session (the
@@ -60,12 +64,17 @@ CACHE_MAX = 128                 # held answers (one per symbol), least recently 
 LAG_RECHECK_S = 1800.0          # a stock whose bars stop short of the session is read again after this
 EARNINGS_RECHECK_S = 1800.0     # the held earnings dates are looked at again after this
 BUILD_SLOTS = 4                 # symbols built at once, whatever the number of members
-BUILD_WAIT_S = 10.0             # the longest a request waits for a slot (or for the same symbol's build)
+BUILD_WAIT_S = 10.0             # the longest a build waits for a slot
+WAIT_S = 0.0                    # the longest a request waits for the build it started: none, the panel asks again
+MAX_PENDING = 4 * BUILD_SLOTS   # builds started and not finished, at most; past it a request says busy
+BUILD_THREAD = "volume-footprint-build"
 
 _lock = threading.Lock()
 _cache: "OrderedDict[str, dict]" = OrderedDict()   # sym -> {key, at, recheck_at, earn_stamp, earn_check_at, answer}
 _inflight: dict[str, threading.Event] = {}
 _slots = threading.BoundedSemaphore(BUILD_SLOTS)
+_said: "OrderedDict[str, dict]" = OrderedDict()    # sym -> {key, answer}: a build that held nothing, said once
+_gen = 0                                            # bumped by reset_for_tests: a build started before it keeps nothing
 
 
 # ── the reads (each indirected so tests replace it) ─────────────────────────────────────────
@@ -194,48 +203,105 @@ def _held(sym: str, key: str, now: float) -> Optional[dict]:
         return entry["answer"]
 
 
-def get_volume_footprint(sym: str, now: Optional[datetime] = None) -> dict:
-    """The answer for one canonical symbol (the route has already refused anything else)."""
-    now = now or now_et()
-    key = session_key(now)
-    held = _held(sym, key, time.time())
-    if held is not None:
-        return held
-    # one build per symbol at a time: a second request for it waits for that build
+def _say(sym: str, key: str, answer: dict, gen: int) -> None:
+    """Keep the outcome of a build that held nothing, to say it once to the next request for the stock."""
     with _lock:
-        ev = _inflight.get(sym)
-        mine = ev is None
-        if mine:
-            ev = _inflight[sym] = threading.Event()
-    if not mine:
-        ev.wait(BUILD_WAIT_S)
-        held = _peek(sym, key, time.time())
-        return held if held is not None else {"status": "busy", "symbol": sym, "detail": BUSY}
+        if gen != _gen:
+            return
+        _said[sym] = {"key": key, "answer": answer}
+        _said.move_to_end(sym)
+        while len(_said) > CACHE_MAX:
+            _said.popitem(last=False)
+
+
+def _take_said(sym: str, key: str) -> Optional[dict]:
+    with _lock:
+        said = _said.pop(sym, None)
+    return said["answer"] if said and said["key"] == key else None
+
+
+def _build_bg(sym: str, key: str, ev: threading.Event, gen: int) -> None:
+    """The stock's one build, on its own thread: held when it may be (`_keep`), else said once (`_say`)."""
     try:
         if not _slots.acquire(timeout=BUILD_WAIT_S):
-            return {"status": "busy", "symbol": sym, "detail": BUSY}
+            _say(sym, key, {"status": "busy", "symbol": sym, "detail": BUSY}, gen)
+            return
         try:
             started = time.thread_time()
             answer, stamp = build(sym, key)
             _log.debug("[volume-footprint] %s built in %.0f ms of CPU", sym, (time.thread_time() - started) * 1000)
         finally:
             _slots.release()
-        _keep(sym, key, answer, stamp, time.time())
-        return answer
+        if gen == _gen:
+            _keep(sym, key, answer, stamp, time.time())
+        if answer.get("status") not in ("ok", "not_held"):
+            _say(sym, key, answer, gen)
     except Exception as exc:  # noqa: BLE001 -- one stock never fails the route with a 500
         _log.warning("[volume-footprint] %s failed (%s)", sym, type(exc).__name__)
-        return {"status": "unavailable", "symbol": sym, "reason": "failed",
-                "detail": f"The volume footprint for {sym} could not be worked out just now."}
+        _say(sym, key, {"status": "unavailable", "symbol": sym, "reason": "failed",
+                        "detail": f"The volume footprint for {sym} could not be worked out just now."}, gen)
     finally:
         with _lock:
-            _inflight.pop(sym, None)
+            if _inflight.get(sym) is ev:
+                del _inflight[sym]
         ev.set()
+
+
+def _start(sym: str, key: str) -> Optional[threading.Event]:
+    """The stock's build in flight, or a new one on its own thread; None when `MAX_PENDING` are already running."""
+    with _lock:
+        ev = _inflight.get(sym)
+        if ev is not None:
+            return ev
+        if len(_inflight) >= MAX_PENDING:
+            return None
+        ev = _inflight[sym] = threading.Event()
+        gen = _gen
+    threading.Thread(target=_build_bg, args=(sym, key, ev, gen), name=BUILD_THREAD, daemon=True).start()
+    return ev
+
+
+def get_volume_footprint(sym: str, now: Optional[datetime] = None, *, wait_s: Optional[float] = None) -> dict:
+    """The answer for one canonical symbol (the route has already refused anything else). NEVER builds on the
+    caller's thread: the held answer, else `computing` while the stock's one background build runs (`wait_s`, by
+    default `WAIT_S`: none, waits that long for it first)."""
+    now = now or now_et()
+    key = session_key(now)
+    held = _held(sym, key, time.time())
+    if held is not None:
+        return held
+    said = _take_said(sym, key)
+    if said is not None:
+        return said
+    ev = _start(sym, key)
+    if ev is None:
+        return {"status": "busy", "symbol": sym, "detail": BUSY}
+    wait = WAIT_S if wait_s is None else wait_s
+    if wait > 0:
+        ev.wait(wait)
+        held = _peek(sym, key, time.time())
+        if held is not None:
+            return held
+        said = _take_said(sym, key)
+        if said is not None:
+            return said
+    return {"status": "computing", "symbol": sym}
+
+
+def drain_for_tests(timeout: float = 10.0) -> None:
+    """Tests only: wait for every build in flight."""
+    with _lock:
+        evs = list(_inflight.values())
+    for ev in evs:
+        ev.wait(timeout)
 
 
 def reset_for_tests() -> None:
     """Tests only: forget everything this module holds."""
-    global _slots
+    global _slots, _gen
     with _lock:
         _cache.clear()
         _inflight.clear()
+        _said.clear()
+        _gen += 1
     _slots = threading.BoundedSemaphore(BUILD_SLOTS)

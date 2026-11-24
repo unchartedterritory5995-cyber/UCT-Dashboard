@@ -38,7 +38,7 @@ import { screenWatchlistWidget } from './watchlistTarget'
 import { whichListView, LIST_VIEW_WHICH } from './whichWidget'
 import { checkSpatialConstraints, excludedCharts, spatialConstraints, UNPLACED, withoutExcludedCharts, everyExceptSet, everyExceptNothing, nothingLeftText } from './spatialCheck'
 import { groundSymbols, groundingOf } from './nl/tickers'
-import { multiChartPlan, screenChartGrid, isWorkspaceRequest, gridChoiceFor } from './multiChart'
+import { multiChartPlan, screenChartGrid, isWorkspaceRequest, gridChoiceFor, sideBySideScreen } from './multiChart'
 import { scopeHostToGrid } from './host'
 import { screenGridOps, watchGridSync } from './gridMode'
 import { boardRefusalIn } from '../pages/charts/boardBound'
@@ -3467,6 +3467,16 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         return
       }
       for (const n of screened.notes) push({ role: 'agent', text: n })
+      // ⛔ SIDE BY SIDE PRESERVES (owner ruling 11-23): before the chart-target checks read "next to / beside" as a chart's address —
+      // a side-by-side plan that would replace a chart becomes the add beside it, or is asked with choices (multiChart.sideBySideScreen)
+      const side0 = stepPlan ? null : sideBySideScreen(screened.ops, `${askedFor || ''} ${text}`, host)
+      if (side0?.ops) screened.ops = side0.ops
+      if (side0?.ask) {
+        pendingRef.current = { kind: 'target', ops: [], path: 'model', member: text, voice, epoch: epochOf(host), gridChoice: side0.ask.options }
+        push({ role: 'question', text: side0.ask.text, choices: [...side0.ask.choices, { label: 'Cancel', cancel: true }], local: true })
+        record({ member: null, outcome: side0.ask.text, outcomeData: { kind: 'clarify-multichart' }, telemetry: { path: 'model', disposition: 'clarify', voice } })
+        return
+      }
       // "the nvidia chart": the ticker search says which chart a company's name means, before the gates read the sentence
       {
         const nameWord = chartNameWord(text, host?.charts?.list?.() || [])
@@ -3639,7 +3649,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       const gridAsk0 = gridChoiceFor(gridded.ops, `${askedFor || ''} ${text}`, host)
       // a grid that could not run either way (an unknown ticker, no room) is never asked about — its refusal is said as before
       const gridAsk = gridAsk0 && await (async () => {
-        try { const a = gridAsk0.options.add; return planOps(collectTargets(host, kindsOf(a)), a, await prepareOps(a), capCtx).ok } catch { return false }
+        try { const a = gridAsk0.options.add || gridAsk0.options.replace; return planOps(collectTargets(host, kindsOf(a)), a, await prepareOps(a), capCtx).ok } catch { return false }
       })() ? gridAsk0 : null
       if (gridAsk) {
         // review t4 M5: "…charts, each with a 50 SMA" — the per-chart steps ride with BOTH choices (they run on the charts the

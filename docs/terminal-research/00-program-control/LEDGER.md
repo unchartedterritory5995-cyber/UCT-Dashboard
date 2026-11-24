@@ -5232,11 +5232,32 @@ the unchanged full path. There are 2 deleted `api/` lines, both the rewritten ro
   offenders, nothing else).
 - **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.
 
+## Terminal speed pass 2 (IVH off the request with a local index; the IV floor in OSCR and the log history; EEHSC, RSL, OWN; the first open of STAT / FCTX / VFP) · `perf/terminal-speed-pass-2` · 2026-11-24
 ## Screener row columns (days to lockup, seasonality, post-earnings drift, factor loadings, up / down capture) · `feat/screener-row-columns` · 2026-11-24
 
 | | |
 |---|---|
 | classification | **flow-worker stranded: NOT EXERCISED, safe; NO marker bump** |
+| stranded files | `api/services/research/iv_history.py`, `api/services/research/iv_history_index.py` (new), `api/services/research/options_screener.py`, `api/services/research/ownership.py` |
+
+- **What changed.** IVH's production store lists and downloads on ONE background refresh (`iv_history.R2Store.listing`;
+  `sessions()` keeps the old blocking behaviour for the background builds that call it), a day's manifest is opened
+  once while its file is unchanged, and a day's row comes from a background-built SQLite index on this server's disk
+  (`iv_history_index.py`) while that day's file is the one indexed, else from the file as before (same answers).
+  OSCR's IV percentile (`options_screener.iv_percentile`) and the log history's daily move and IV crush
+  (`options_analytics/log_history.py`) read ATM IV through `iv_history.atm_iv` (the IV floor). EEHSC never waits and
+  keeps its answer on disk for its New York day (`estimate_revisions.py`); `/api/rs-rankings` makes its bytes once per
+  input (`routers/rs_ranking.py`); OWN holds its record in its own module, not the shared cache (`research/ownership.py`);
+  STAT, FCTX and VFP build a stock's first answer on one background thread and answer `computing` at once
+  (`stock_stats.py`, `factor_exposure.py`, `volume_footprint.py`), and their panels ask again on `computing`.
+- **Flow-worker.** Reaches `iv_history.py` and `options_screener.py` only through `routers.auth`'s function-level
+  imports inside `/api/auth/me`'s flag readout, which call `iv_history.is_enabled()` and `options_screener.is_enabled()`
+  (both unchanged); `iv_history_index.py` only through `iv_history`'s function-level imports on the IVH read path;
+  `ownership.py` only through `coach_chat_tools` -> `voice_tool_impls` -> `institutional_holdings` (function-level
+  hops), a Compass / voice turn flow-worker never answers. Flow-worker mounts only its debug-dump and build-vouch
+  routers: it never serves an IV history, an options screen, the auth payload or an ownership record. The other
+  changed modules are not in its closure (`tools/flow_worker_watch_coverage.py` `verdict()` on this change: those four
+  offenders, nothing else).
 | stranded files | `api/services/screener/filters.py`, `api/services/screener/snapshot_builder.py`, `api/services/screener/snapshot_db.py` |
 
 - **Additive.** Twelve new snapshot columns (`snapshot_db.COLUMNS`, ALTER-added on init) and their twelve bare filters
