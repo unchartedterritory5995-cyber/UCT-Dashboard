@@ -18,8 +18,11 @@
 //   · v6 (`vw-hline-written-rddt-1d-2026-11-20`, H5): colour #808080, line style 2 = dashed, width 1;
 //   · v1-v3 (`transparency-defaults-by-version-rddt-1d-2026-11-14`, the S1 probes `vw-cs1-transp-v{1,2,3}`): a WRITTEN
 //     colour is kept opaque (`bands` carry no transparency key), line style dashed, width 1. The default COLOUR of an
-//     unstyled v1-v3 hline is not captured (each S1 hline names one).
-//   · v4, v5: nothing yet.
+//     unstyled v1-v2 hline is not captured (each S1 hline names one).
+//   · v3, v4, v5 (Q-HLINE-3, #2596: `vw-hline-defaults-v{3,4,5}-rddt-1d-2026-11-23-preopen`, an unstyled `hline` and
+//     one per missing field; `bandDefaults` null -> `bandState`): colour #808080, line style 2 = dashed, width 1.
+//     ⭐ e96 (coordinator ruling 2026-11-24): #2548's band grading needs them, or those witnessed captures fall
+//     MATCH -> INCONCLUSIVE ("styleNotReproduced").
 // Where the author wrote no colour, style or width and the version's default for it is not in `HLINE_DEFAULTS`, or
 // wrote one in a form the translation could not read (`level.unread`), the line is drawn in the chart's NEUTRAL INK
 // (solid, width 1) and that is NAMED (`notReproduced`). When the version-default captures land (Q-HLINE-3), each
@@ -31,7 +34,9 @@ const S1 = 'transparency-defaults-by-version-rddt-1d-2026-11-14'
 export const HLINE_DEFAULTS = Object.freeze({
   1: Object.freeze({ lineStyle: 'dashed', width: 1, witness: S1 }),
   2: Object.freeze({ lineStyle: 'dashed', width: 1, witness: S1 }),
-  3: Object.freeze({ lineStyle: 'dashed', width: 1, witness: S1 }),
+  3: Object.freeze({ color: '#808080', lineStyle: 'dashed', width: 1, witness: 'vw-hline-defaults-v3-rddt-1d-2026-11-23-preopen' }),
+  4: Object.freeze({ color: '#808080', lineStyle: 'dashed', width: 1, witness: 'vw-hline-defaults-v4-rddt-1d-2026-11-23-preopen' }),
+  5: Object.freeze({ color: '#808080', lineStyle: 'dashed', width: 1, witness: 'vw-hline-defaults-v5-rddt-1d-2026-11-23-preopen' }),
   6: Object.freeze({ color: '#808080', lineStyle: 'dashed', width: 1, witness: 'vw-hline-written-rddt-1d-2026-11-20' }),
 })
 

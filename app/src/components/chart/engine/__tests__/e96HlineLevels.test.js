@@ -72,23 +72,43 @@ describe('the guides: the author\'s style where written, a witnessed default, el
     expect(guides).toEqual([{ key: 'hline5', label: 'H5', style: 'hlines', levels: [140.25], color: '#808080', width: 1, lineStyle: 'dashed' }])
     expect(notReproduced).toEqual([])
   })
-  it('v1-v3: a written colour opaque, dashed, 1 (the S1 bands); the default colour is not captured', () => {
+  it('v1-v3: a written colour opaque, dashed, 1 (the S1 bands); the default colour of v1-v2 is not captured', () => {
     const s1 = JSON.parse(fs.readFileSync(path.join(REPO, 'tests/fixtures/vendor/transparency-defaults-by-version-rddt-1d-2026-11-14.json'), 'utf8'))
     for (const ver of [1, 2, 3]) {
       const band = s1.versions[String(ver)].state.bands[0]
       const { guides } = hlineGuides([{ value: 100, ordinal: 0, color: '#800080' }], opts(ver))
       expect(guides[0]).toMatchObject({ color: band.color, lineStyle: ['solid', 'dotted', 'dashed'][band.linestyle], width: band.linewidth })
     }
-    const unstyled = hlineGuides([{ value: 100, ordinal: 0 }], opts(3))
+    const unstyled = hlineGuides([{ value: 100, ordinal: 0 }], opts(2))
     expect(unstyled.guides[0]).toMatchObject({ color: 'INK', lineStyle: 'solid', width: 1 })
     expect(unstyled.notReproduced[0].fields).toEqual(['color'])
   })
-  it('v5 with nothing written: drawn at its exact level in the neutral ink, each unwitnessed field named', () => {
-    const { guides, notReproduced } = hlineGuides([{ value: 70, ordinal: 0, title: 'OB' }], opts(5))
+  it('v2 with nothing written: drawn at its exact level in the neutral ink, its unwitnessed colour named', () => {
+    const { guides, notReproduced } = hlineGuides([{ value: 70, ordinal: 0, title: 'OB' }], opts(2))
     expect(guides[0]).toMatchObject({ levels: [70], color: 'INK', lineStyle: 'solid', width: 1 })
-    expect(notReproduced[0]).toMatchObject({ title: 'OB', fields: ['color', 'lineStyle', 'width'] })
-    expect(notReproduced[0].reason).toMatch(/default colour for a v5 `hline` is not captured/)
+    expect(notReproduced[0]).toMatchObject({ title: 'OB', fields: ['color'] })
+    expect(notReproduced[0].reason).toMatch(/default colour for a v2 `hline` is not captured/)
   })
+  // ⭐ e96 (Q-HLINE-3, #2596): each version's defaults are ITS OWN capture's `bandState` for the unstyled `D0_nothing`
+  // (`bandDefaults` null) and for the colour D3 leaves out: one claim per version, one rail case each.
+  const witnessed = (ver) => {
+    const cap = JSON.parse(fs.readFileSync(path.join(REPO, `tests/fixtures/vendor/harness/vw-hline-defaults-v${ver}-rddt-1d-2026-11-23-preopen.json`), 'utf8'))
+    return { defaults: cap.study.bandDefaults, state: cap.study.bandState }
+  }
+  const STYLE = ['solid', 'dotted', 'dashed']
+  for (const ver of [3, 4, 5]) {
+    it(`v${ver} unstyled: TradingView's witnessed default (vw-hline-defaults-v${ver}), every field the author left out`, () => {
+      const { defaults, state } = witnessed(ver)
+      expect(defaults[0]).toMatchObject({ color: null })
+      const { guides, notReproduced } = hlineGuides([{ value: 100, ordinal: 0, title: 'D0_nothing' }], opts(ver))
+      expect(guides[0]).toMatchObject({ levels: [100], color: state[0].color, lineStyle: STYLE[state[0].linestyle], width: state[0].linewidth })
+      expect(notReproduced).toEqual([])
+      // D3 writes a style and a width only: its colour is the version's default
+      const d3 = hlineGuides([{ value: 130, ordinal: 3, lineStyle: 'solid', width: 3 }], opts(ver))
+      expect(d3.guides[0]).toMatchObject({ color: state[3].color, lineStyle: 'solid', width: 3 })
+      expect(HLINE_DEFAULTS[ver].witness).toBe(`vw-hline-defaults-v${ver}-rddt-1d-2026-11-23-preopen`)
+    })
+  }
   it('v5 written in full is the author\'s; a colour with transparency draws at that alpha', () => {
     const { guides, notReproduced } = hlineGuides([{ value: 70, ordinal: 0, color: '#FF8800', opacity: 0.6, lineStyle: 'dotted', width: 2 }], opts(5))
     expect(guides[0]).toMatchObject({ color: '#FF880099', lineStyle: 'dotted', width: 2 })
@@ -136,7 +156,8 @@ describe('the member door draws them, on both doors', () => {
   })
   it('the neutral ink is the CHART\'s text colour, resolved where the guide is planned (`pool.planBindings`)', () => {
     withPanes()
-    const d = memberPaneDefinition({ source: v(5, 'plot(ta.rsi(close, 14), "RSI")\nhline(70, "Overbought")'), id: 'u_e96_h3t', name: 't' })
+    // a v2 level: its default colour is not witnessed, so it is drawn in the neutral ink
+    const d = memberPaneDefinition({ source: v(2, 'plot(rsi(close, 14), "RSI")\nhline(70, "Overbought")', 'study("t")'), id: 'u_e96_h3t', name: 't' })
     const { installed } = registry.installUserDefinitions([d.definition])
     try {
       const reg = { getDefinition: (id) => (id === installed[0].id ? installed[0] : null) }
@@ -147,17 +168,23 @@ describe('the member door draws them, on both doors', () => {
       registry.uninstallUserDefinition(installed[0].id)
     }
   })
-  it('a v5 unstyled level is drawn in the neutral ink, and the door says so by name', () => {
+  it('a v2 unstyled level is drawn in the neutral ink, and the door says so by name', () => {
     withPanes()
-    const d = memberPaneDefinition({ source: v(5, 'plot(ta.rsi(close, 14), "RSI")\nhline(70, "Overbought")'), id: 'u_e96_h3', name: 't' })
+    const d = memberPaneDefinition({ source: v(2, 'plot(rsi(close, 14), "RSI")\nhline(70, "Overbought")', 'study("t")'), id: 'u_e96_h3', name: 't' })
     expect(guidesOf(d)).toEqual([{ key: 'hline1', label: 'Overbought', style: 'hlines', levels: [70], color: WITHHELD_COLOUR_INK, width: 1, lineStyle: 'solid' }])
-    expect(d.notes.find((n) => n.name === 'Overbought').note).toMatch(/^`Overbought`: style not reproduced: TradingView's default colour for a v5 `hline` is not captured/)
+    expect(d.notes.find((n) => n.name === 'Overbought').note).toMatch(/^`Overbought`: style not reproduced: TradingView's default colour for a v2 `hline` is not captured/)
   })
-  it('⭐ the editor\'s status lists a style not reproduced as a WITHHELD part (the GAPS probe stays listed until Q-HLINE-3)', async () => {
+  it('⭐ a v5 unstyled level is drawn in TradingView\'s witnessed default (#808080, dashed, 1), with no note', () => {
+    withPanes()
+    const d = memberPaneDefinition({ source: v(5, 'plot(ta.rsi(close, 14), "RSI")\nhline(70, "Overbought")'), id: 'u_e96_h3b', name: 't' })
+    expect(guidesOf(d)).toEqual([{ key: 'hline1', label: 'Overbought', style: 'hlines', levels: [70], color: '#808080', width: 1, lineStyle: 'dashed' }])
+    expect(d.notes.find((n) => n.name === 'Overbought')).toBeUndefined()
+  })
+  it('⭐ the editor\'s status lists a style not reproduced as a WITHHELD part (a v2 level: its default colour is not captured)', async () => {
     withPanes()
     const { inspectSource } = await import('../../builder/PineBox')
     const { editorStatus } = await import('../../builder/editorStatus')
-    const source = v(5, 'plot(ta.rsi(close, 14), "RSI")\nhline(70, "Overbought")')
+    const source = v(2, 'plot(rsi(close, 14), "RSI")\nhline(70, "Overbought")', 'study("t")')
     const pane = memberPaneDefinition({ source, id: 'u_e96_h3s', name: 't' })
     const status = editorStatus({ report: inspectSource(source, 'pine'), pane, savedRow: null, inspectedSource: source })
     expect(status.state).toBe('runs-withheld')
