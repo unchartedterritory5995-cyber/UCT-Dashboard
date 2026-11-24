@@ -18,7 +18,7 @@
 //   5. `input.color`                           — `inputColourDefaultNode`
 //   6. `syminfo.mintick`                       — settled at BIND from
 //      `symbolScope.json`'s tick table; vendor: the `vw-mintick-*` captures
-//   7. `alert()`                               — a presentation no-op
+//   7. `alert()`                               — draws nothing; since TRACK 6 AL1 one record call where it stands
 //   8. v6 `and` / `or`                         — lazy for every operand
 //
 // ⛔ Each rail below was mutation-proved when it landed (see the commit).
@@ -34,6 +34,7 @@ import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
 import { runtimeClockOpts } from '../../ast/pineRuntimeClock.js'
 import { lowerIrProgram } from '../lowerIr.js'
 import { execute } from '../vm.js'
+import { ALERT_EMIT } from '../collections.js'
 import { probeRuntimeProgram } from '../runtimeColumns.js'
 import { toProductBars } from '../../__tests__/vendorHarness/ourSide.js'
 import { memberPaneDefinition } from '../../../builder/memberPane/memberPaneDefinition'
@@ -338,13 +339,33 @@ describe('⭐ 6b — on the product path the run settles `syminfo.mintick` from 
   })
 })
 
-describe('⭐ 7 — `alert()` is a presentation call: nothing drawn, arguments evaluated as Pine does', () => {
-  it('⭐ a message of values is the same program as no alert at all', () => {
-    const plain = shape(laneBuild(`${V6}plot(close)\n`).ir)
-    expect(shape(laneBuild(`${V6}alert("hi")\nplot(close)\n`).ir)).toBe(plain)
-    expect(shape(laneBuild(`${V6}alert("c " + str.tostring(close), alert.freq_once_per_bar_close)\nplot(close)\n`).ir)).toBe(plain)
-    expect(shape(laneBuild(`${V6}lab(s) =>\n    string r = s\n    r := r + "!"\n    r\nalert(lab("x"))\nplot(close)\n`).ir))
-      .toBe(shape(laneBuild(`${V6}lab(s) =>\n    string r = s\n    r := r + "!"\n    r\nplot(close)\n`).ir))
+describe('⭐ 7 — `alert()` draws nothing, arguments evaluated as Pine does', () => {
+  // ⭐⭐ TRACK 6, AL1 (engine 95, coordinator ruling 2026-11-22): the call is now RECORDED where it stands (one
+  // `ALERT_EMIT` statement on the run's alert log, `collections.js`), so the program differs from "no alert at all" by
+  // exactly that statement and the `bar_index` column it reads, and by nothing the run draws. This rail said "the same
+  // program as no alert at all" until then; it now says the same thing about everything but the record call.
+  const isAlert = (x) => !!(x && typeof x === 'object' && x.value && x.value.fn === ALERT_EMIT)
+  const alertCount = (ir) => (JSON.stringify(ir).match(new RegExp(`"fn":"${ALERT_EMIT}"`, 'g')) || []).length
+  const shapeNoAlerts = (ir) => JSON.stringify(ir, (k, v) => {
+    if (k === 'line' || k === 'column' || k === 'index' || k === 'columns') return undefined
+    return Array.isArray(v) ? v.filter((x) => !isAlert(x)) : v
+  })
+  it('⭐ a message of values is the same program as no alert at all, but for ONE record call', () => {
+    const plainSrc = `${V6}plot(close)\n`
+    const plain = shapeNoAlerts(laneBuild(plainSrc).ir)
+    for (const src of [`${V6}alert("hi")\nplot(close)\n`,
+      `${V6}alert("c " + str.tostring(close), alert.freq_once_per_bar_close)\nplot(close)\n`]) {
+      const ir = laneBuild(src).ir
+      expect(alertCount(ir), src).toBe(1)
+      expect(shapeNoAlerts(ir), src).toBe(plain)
+      expect(lane(src), src).toEqual(lane(plainSrc))
+    }
+    const labSrc = `${V6}lab(s) =>\n    string r = s\n    r := r + "!"\n    r\nalert(lab("x"))\nplot(close)\n`
+    const labPlain = `${V6}lab(s) =>\n    string r = s\n    r := r + "!"\n    r\nplot(close)\n`
+    expect(alertCount(laneBuild(labSrc).ir)).toBe(1)
+    expect(lane(labSrc)).toEqual(lane(labPlain))
+    // CONTROL: a script with no alert() carries no record call
+    expect(alertCount(laneBuild(plainSrc).ir)).toBe(0)
   })
 
   it('⭐ a message whose evaluation CHANGES something is evaluated where the call stands', () => {

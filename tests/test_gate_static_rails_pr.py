@@ -65,6 +65,9 @@ PR_ONLY = {
     "Every CI mutant manifest still names text that exists":
         "tests/test_ci_mutant_manifests.py: a manifest in ci/mutants is run only on dispatch, so an edit to a target "
         "file left 45 of 849 mutants (2026-11-23) with a `from` that matched nothing, and no job said so",
+    "The refusal codes the client writes are on the list the server stores":
+        "tools/support_loop/refusal_codes.py --check: refusalCodes.json is generated from app/src, and it sat stale on "
+        "master by two codes on 2026-11-23 because only an advisory job checked it; the gate does not run it",
     "This job mirrors the gate's static steps":
         "this file",
 }

@@ -265,10 +265,18 @@ def test_blocking2_public_rs_line_and_nasdaq_composite_are_not_hidden(text):
 def test_no_public_ad_line_field_exists_so_the_ad_phrase_stays_refused():
     # owner 2026-11-03: a conventional OHLCV A/D line would be public; if one is ever added to the catalog, this fails
     # and the accdis phrase must be narrowed to the rating words
+    # 2026-11-23: the Screener gained ad_net_25 (accumulation minus distribution DAYS over 25 sessions, VFP's day count,
+    # not an OHLCV A/D line) and it is agent_omit, so the agent cannot screen on it and the A/D-line phrase must still be
+    # refused. The rail therefore reads the fields the agent can see; an agent-visible A/D field still fails it.
     from api.services.screener import filters
-    ad = [f["key"] for f in filters.field_catalog()
-          if any(w in (f["key"] + " " + str(f.get("label") or "")).lower() for w in ("accum", "distrib", "a/d", "acc/dis", "accdis"))]
+    catalog = filters.field_catalog()
+    words = ("accum", "distrib", "a/d", "acc/dis", "accdis")
+    ad = [f["key"] for f in catalog if not f.get("agent_omit")
+          if any(w in (f["key"] + " " + str(f.get("label") or "")).lower() for w in words)]
     assert ad == ["accdis"] and "accdis" in hidden.hidden_keys()
+    omitted = {f["key"] for f in catalog if f.get("agent_omit")
+               and any(w in (f["key"] + " " + str(f.get("label") or "")).lower() for w in words)}
+    assert omitted <= {"ad_net_25"}, omitted   # a new agent_omit A/D field is a decision to record here, not a silent pass
 
 
 @pytest.mark.parametrize("text,key", PHRASES)

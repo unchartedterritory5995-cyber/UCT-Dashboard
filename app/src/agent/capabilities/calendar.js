@@ -40,7 +40,10 @@ export const calendarKind = {
   fingerprint: () => 'calendar',
 }
 
-const request = (u) => fetch(u, { credentials: 'include' }).then(r => (r.ok ? r.json() : null)).catch(() => null)
+// TERM-033: a read that fails is null, and both callers below say null as "I couldn't read the calendar" (never as an
+// empty calendar). The failure is now logged with its cause instead of disappearing.
+const request = (u) => fetch(u, { credentials: 'include' }).then(r => (r.ok ? r.json() : null))
+  .catch((e) => { console.warn(`[uct-agent] calendar: ${u} failed (${e?.message || "the request didn't reach UCT"})`); return null })
 const isoOf = (d) => (d ? new Date(d).toISOString().slice(0, 10) : null)
 const mondayOf = (iso) => {
   const d = new Date(`${iso}T12:00:00Z`)

@@ -6,6 +6,8 @@
 // already persistent, never asked.
 // ⛔ The bars pack's own ask (lib/barsPackClient.js `_run`) is NOT changed here: it runs for every member with the store
 // off, in first-open code, and the brief allows a store-off member no change but the seed-cleanup check. See the PR.
+// ⭐ ONLY FOR A HAND-SET '1' (review of #2537 head 107dea1ee1, P-7 MEDIUM 2): a member on the desktop DEFAULT (no key) is
+// never asked (client.defaultMember.test.js). Every page load here is a tester's '1'.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 const MARKER = 'uct.storage.persistAsked'
@@ -30,7 +32,7 @@ async function clientHoldingASeed(m, storage) {
   return c
 }
 
-beforeEach(() => { localStorage.clear() })
+beforeEach(() => { localStorage.clear(); localStorage.setItem('uct.deviceStore', '1') })
 afterEach(() => { localStorage.clear() })
 
 describe('persistent storage: the device store asks once per browser profile', () => {

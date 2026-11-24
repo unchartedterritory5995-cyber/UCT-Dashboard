@@ -62,7 +62,8 @@ afterEach(() => { setRequestWitnessRows(null) })
 
 describe('the committed rows are WITNESSED (Q-RS2 / Q-RS3 landed, 2026-11-15)', () => {
   it('both rows carry a witness and a known alignment, so both serve', () => {
-    const rows = requestWitnessRows()
+    // ⭐ T4 B2 — the `breadth` rows (USI spellings) are PENDING their capture (Q-T4-B1): requestBreadth.test.js holds them
+    const rows = Object.fromEntries(Object.entries(requestWitnessRows()).filter(([, v]) => v.kind !== 'breadth'))
     expect(Object.keys(rows).sort()).toEqual(['SEED_FRED6725_RS_RATING:RSRATING', 'SP:SPX'])
     for (const row of Object.values(rows)) expect(witnessRowServes(row)).toBe(true)
     expect(rows['SP:SPX'].alignment).toBe('previous-session')
@@ -74,7 +75,7 @@ describe('a PENDING row: refused by name, citing the queue row', () => {
   beforeEach(() => { setRequestWitnessRows(PENDING) })
 
   it('every pending row refuses to serve, and the pending state is not vacuous', () => {
-    const rows = requestWitnessRows()
+    const rows = Object.fromEntries(Object.entries(requestWitnessRows()).filter(([, v]) => v.kind !== 'breadth'))
     expect(Object.keys(rows).sort()).toEqual(['SEED_FRED6725_RS_RATING:RSRATING', 'SP:SPX'])
     for (const row of Object.values(rows)) expect(witnessRowServes(row)).toBe(false)
   })

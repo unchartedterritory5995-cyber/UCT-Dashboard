@@ -34,7 +34,8 @@ and reads the weekdays BEFORE that date. It is registered in `api/main.py`. A fi
 pod restarts for a deploy is lost (the new container schedules the NEXT slot, never the missed one),
 so `catch_up`, registered beside it (`CATCHUP_BOOT_DELAY_S` after boot, and hourly at
 `CATCHUP_MINUTE_ET` past the hours `CATCHUP_HOURS_ET`), starts the same run when the held answer was
-built before the last slot (`behind`). Nothing else starts it.
+built before the last slot (`behind`), and only inside scan_period's quiet span (`quiet`): a boot during
+the weekday busy span starts nothing. Nothing else starts it.
 
 WHAT EACH RUN DOES (one at a time, on its own thread, never on a member's request):
   * reads the index of each of the last `SCAN_WEEKDAYS` weekdays, newest first (12 weekdays hold
@@ -864,12 +865,22 @@ def behind(held: Optional[dict], now: Optional[datetime] = None) -> bool:
     return built < last_slot(now)
 
 
+def quiet(now: datetime) -> bool:
+    """scan_period's quiet span (weekends; weekdays before 07:00 or from 20:15 New York time), read from scan_period
+    itself, as the IV rank and COT catch-ups read it: never retyped here."""
+    from zoneinfo import ZoneInfo
+    from api.services import scan_period
+    return bool(scan_period._reuse_quiet_now(now.astimezone(ZoneInfo("America/New_York"))))
+
+
 def catch_up(now: Optional[datetime] = None) -> dict:
     """THE CATCH-UP ENTRY (`api/main.py`: a DATE job `CATCHUP_BOOT_DELAY_S` after boot and an hourly
     check): start the scheduled read, `run_nightly` itself (the same SEC client, user agent, limiter and
-    caps), only when `behind`; otherwise it reads the held answer (from disk once) and nothing else.
-    Never on a member's request. Returns at once: `{"started": bool, "reason": "running" | "current"}`
-    when it starts nothing, `run_nightly`'s answer when it does."""
+    caps), only when `behind` AND inside scan_period's quiet span (`quiet`; member speed first: a boot during
+    the weekday busy span starts nothing, and the hourly checks or the next boot in the quiet hours start it);
+    otherwise it reads the held answer (from disk once) and nothing else. Never on a member's request. Returns
+    at once: `{"started": bool, "reason": "running" | "current" | "not_quiet"}` when it starts nothing,
+    `run_nightly`'s answer when it does. The 01:20 nightly job itself is not gated here."""
     _ensure_loaded()
     with _lock:
         held, running = _state["held"], _state["inflight"] is not None
@@ -877,6 +888,8 @@ def catch_up(now: Optional[datetime] = None) -> dict:
         return {"started": False, "reason": "running"}
     if not behind(held, now):
         return {"started": False, "reason": "current"}
+    if not quiet(now or now_et()):
+        return {"started": False, "reason": "not_quiet"}
     return run_nightly(now)
 
 

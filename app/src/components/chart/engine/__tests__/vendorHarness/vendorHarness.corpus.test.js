@@ -59,7 +59,8 @@ import {
 } from '../../../../../../../tools/pine_coverage/runtime_lane.mjs'
 import { runHarness, loadCapture, VENDOR_DIR, REPO } from './harness'
 import { loadPineLibraryStoreFromEnv } from '../../ast/__tests__/pineLibraryStoreLoader.js'
-import { storeHeldOf, libraryStorePins, supplyHeldOf, supplyHeldStorePins } from './storeHeld.js'
+import { storeHeldOf, libraryStorePins, supplyHeldOf, supplyHeldStorePins, sourceHeldOf } from './storeHeld.js'
+import { builtinSourceStorePins } from './builtinSource.js'
 import { fixturePath } from '../../ast/__tests__/licenceHeld'
 import { strategyBrokerFlag, strategyEvidenceOf, assertStrategyLaneMeasured } from './strategyLane.js'
 import { runtimePaneEnabled, __permitRuntimePaneForTests } from '../../runtimePaneGate'
@@ -181,7 +182,22 @@ function markStoreHeld(results) {
     const pins = supplyHeldOf(r.id)
     return pins.length ? { ...r, supplyHeld: pins } : r
   })
-  return markLibraryHeld(supplied)
+  return markSourceHeld(markLibraryHeld(supplied))
+}
+// ⭐⭐ e95 (unit 2, ruling F1) — a hand-added BUILT-IN (no Pine in its capture) is graded on its published source,
+// held locally (`builtinSource.js`): its row records the pin (`sourceHeld`: `source/<STD id>@sha256`) whether or not
+// this run holds the source, and the run names what it held (`sourceHeldStore`), so a run without it names the row
+// "source-held" (`store_held.py`).
+const SOURCE_HELD_LOADED = builtinSourceStorePins()
+function markSourceHeld(results) {
+  return results.map((r) => {
+    if (!/^builtin-/.test(path.basename(String(r.file || '')))) return r
+    const at = fixturePath(r.file) || path.join(REPO, r.file)
+    let loaded = null
+    try { loaded = loadCapture(at) } catch { return r }
+    const pins = loaded && loaded.capture ? sourceHeldOf(loaded.capture) : []
+    return pins.length ? { ...r, sourceHeld: pins } : r
+  })
 }
 function markLibraryHeld(results) {
   if (!LIBRARIES_LOADED.length) return results
@@ -246,6 +262,7 @@ describe('the vendor harness over the captures on disk', () => {
         laneEvidence: { requested: REQUESTED, objectsOnlyPane: objectsOnly, ...evidence, strategy: strategyEvidence },
         ...(LIBRARIES_LOADED.length ? { libraryStore: libraryStorePins(LIBRARIES_LOADED) } : {}),
         ...(SUPPLY_HELD_LOADED.length ? { supplyHeldStore: SUPPLY_HELD_LOADED } : {}),
+        ...(SOURCE_HELD_LOADED.length ? { sourceHeldStore: SOURCE_HELD_LOADED } : {}),
         results: markStoreHeld(run.results),
         inventory: run.inventory,
       }, null, 1) + '\n')

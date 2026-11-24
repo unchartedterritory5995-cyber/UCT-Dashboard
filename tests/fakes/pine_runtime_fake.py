@@ -65,6 +65,9 @@ class PineRuntimeFake:
         self.refuse_output: Dict[str, Tuple[str, str]] = {}
         self.tamper: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None
         self.withheld_bars = 0
+        #: AL3: ``alerts(cols) -> [{bar, message, freq}]`` answers want '#alerts' on profile `alert` (AL1's
+        #: record, AL2's wire: JSON text + its sha256); None answers it as an absent output.
+        self.alerts: Optional[Callable[[Mapping[str, List[float]]], List[Dict[str, Any]]]] = None
         self.calls: List[Dict[str, Any]] = []
         self.seen: set = set()
         self.urls: List[str] = []
@@ -176,8 +179,13 @@ class PineRuntimeFake:
         # the engine's curtain (runtimeWarmupCurtain.test.js): bars [0, withheldBars) are na in every column
         out = {key: [float("nan")] * min(k, len(col)) + list(col[k:]) for key, col in out.items()}
         keys = job.get("want") or list(out)
-        columns, refusals, plain = {}, [], {}
+        columns, refusals, plain, extra = {}, [], {}, {}
         for key in keys:
+            if key == codec.ALERTS_WANT and key not in self.refuse_output and self.alerts is not None:
+                text = json.dumps({"fromBar": 0, "events": list(self.alerts(cols)), "dropped": 0},
+                                  separators=(",", ":"))
+                extra = {"alerts": text, "alerts_sha256": codec.alerts_record_sha256(text)}
+                continue
             if key in self.refuse_output:
                 g, s = self.refuse_output[key]
                 refusals.append({"key": key, "guard": g, "sentence": s, "bar": None})
@@ -189,7 +197,8 @@ class PineRuntimeFake:
                 columns[key] = b64_column(out[key])
         return {"job": job["job"], "status": "ok", "columns": columns, "refusals": refusals,
                 "warmup": {"withheldBars": self.withheld_bars},
-                "digest": codec.column_digest(self.identity, plain, refusals, rows=n), "cache": "miss", "ms": 1}
+                "digest": codec.column_digest(self.identity, plain, refusals, rows=n), "cache": "miss", "ms": 1,
+                **extra}
 
 
 def bars_fixture(n: int = 5, start: float = 100.0, t0: float = 1_700_000_000.0) -> List[Dict[str, float]]:

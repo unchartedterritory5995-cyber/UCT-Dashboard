@@ -69,12 +69,11 @@ describe('S4-1: a data read in a switch arm the inputs never take', () => {
     expect(run(PLAIN_INPUT)).toEqual(SESSION)
   })
 
-  it.each(['Earnings', 'Dividends', 'Splits'])('⛔ the member picks %s: the arm that reads data is built and refused by name', (pick) => {
-    const call = { Earnings: 'request.earnings', Dividends: 'request.dividends', Splits: 'request.splits' }[pick]
-    for (const src of [VWAP_SHAPE, PLAIN_INPUT]) {
-      const r = refusal(src, { anchor: pick })
-      expect(`${r.guard} ${r.message}`).toContain(call)
-    }
+  // ⭐⭐ T4 E2 (engine 95) — the arm that reads the chart's own events is BUILT: its read is the run's request of the
+  // events door (`pine.js::eventAsSecurity`), served or refused by name per chart by its supply
+  // (`otherSymbols.js::eventDecision`; railed in `engine/requestEvents.test.js`). ⚰️ Before E2 it refused at the build.
+  it.each(['Earnings', 'Dividends', 'Splits'])('⭐ the member picks %s: the arm that reads the chart events is built (its supply decides)', (pick) => {
+    for (const src of [VWAP_SHAPE, PLAIN_INPUT]) expect(build(src, { anchor: pick }).ok).toBe(true)
   })
 
   it('the member picking the default arm by name draws it', () => {
@@ -86,14 +85,15 @@ describe('S4-1: a data read in a switch arm the inputs never take', () => {
     expect(r.message).toContain('Quarter')
   })
 
-  it('⛔ a `var` the script reassigns is not fixed text: the data arm keeps its refusal', () => {
+  // ⭐⭐ T4 E2 — a subject that is not fixed text lowers every arm, as before; since E2 the data arm builds too (an event read)
+  it('⭐ a `var` the script reassigns is not fixed text: every arm is built, the event read included (T4 E2)', () => {
     const src = VWAP_SHAPE.replace('isNew = switch anchor', 'if bar_index == 2\n    anchor := "Earnings"\nisNew = switch anchor')
-    expect(refusal(src).message).toContain('request.earnings')
+    expect(build(src).ok).toBe(true)
   })
 
-  it('⛔ a per-bar subject is not fixed text: the data arm keeps its refusal', () => {
+  it('⭐ a per-bar subject is not fixed text: every arm is built, the event read included (T4 E2)', () => {
     const src = ARMS.join('\n').replace('isNew = switch anchor', 'anchor = close > open ? "Session" : "Earnings"\nisNew = switch anchor')
-    expect(refusal(src).message).toContain('request.earnings')
+    expect(build(src).ok).toBe(true)
   })
 
   it('⛔ NARROW: a fixed switch whose untaken arm holds a non-data wall keeps that wall', () => {
@@ -118,7 +118,8 @@ describe('S4-1: a data read in a switch arm the inputs never take', () => {
       'plot(close + q, "a")',
     ].join('\n')
     expect(run(src)).toEqual(BARS.map((b) => b.c))
-    expect(`${refusal(src, { usediv: 1 }).message}`).toContain('request.dividends')
+    // ⭐⭐ T4 E2 — the member's `usediv` builds the dividend read (served by the events door; before E2 it refused here)
+    expect(build(src, { usediv: 1 }).ok).toBe(true)
   })
 })
 

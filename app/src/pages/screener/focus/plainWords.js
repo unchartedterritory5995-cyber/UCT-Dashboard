@@ -118,6 +118,19 @@ export const PLAIN_COLUMN_LABELS = {
   net_margin_chg_1y: 'Net margin change vs a year ago',
   gross_margin_chg_1y: 'Gross margin change vs a year ago',
   shares_chg_1y: 'Share count change vs a year ago',
+  // Volume & volatility (2026-11-23): from the daily bars.
+  hv_20: 'Realized volatility, last 20 sessions',
+  hv_60: 'Realized volatility, last 60 sessions',
+  ad_net_25: 'Accumulation minus distribution days, 25 sessions',
+  pocket_pivots_20: 'Pocket pivots, last 20 sessions',
+  days_since_pocket_pivot: 'Sessions since the last pocket pivot',
+  corr_rel_last: 'Drawdown vs the S&P 500 in the last correction',
+  // Beats, insiders & funds (2026-11-23): from held stores, once a night.
+  eps_surprise_last: 'EPS surprise, last report',
+  eps_beat_streak: 'Quarters in a row beating EPS estimates',
+  insider_buys_30d: 'Insider buy filings, last 30 days',
+  insider_buy_value_30d: 'Insider buying in dollars, last 30 days',
+  fund_net_adds: 'Funds adding minus funds cutting',
 }
 
 export const plainColumnLabel = key => PLAIN_COLUMN_LABELS[key] || null

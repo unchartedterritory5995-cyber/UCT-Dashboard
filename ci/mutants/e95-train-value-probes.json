@@ -1,0 +1,33 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "Train e95, the assistant reference's value calls (engine 95 until the train is numbered): every call the reference hands the assistant (`assistantPineReference.json` values[].call, read from `doorNameCoverage.json`'s probes) translates and is SERVED on the member's path. The data reads the parse rewrites (request.earnings / dividends / splits / financial) are probed with the call their door serves, never the bare call the bind refuses; a probe the member's paste path refuses is not a name's call. Each rule, broken once, must turn its rail red.",
+ "mutants": [
+  {
+   "id": "VP1",
+   "mutant": "the named probes are skipped: the generic probes reach the bare `request.earnings()` first (the defect)",
+   "file": "app/src/components/chart/supportLoop/doorNameCoverage.js",
+   "from": "  if (Object.prototype.hasOwnProperty.call(NAMED_PROBE_ARGS, name)) return [`${name}${NAMED_PROBE_ARGS[name]}`]",
+   "to": "",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/supportLoop/doorNameCoverage.test.js",
+   "expectRed": "a data read is probed with the call a member"
+  },
+  {
+   "id": "VP2",
+   "mutant": "the paste path's answer is ignored: a translating probe the member's install refuses is listed",
+   "file": "app/src/components/chart/supportLoop/doorNameCoverage.js",
+   "from": "      if (s && s.ok === true) return { status: 'reachable', probe: expr, guard: null }",
+   "to": "      return { status: 'reachable', probe: expr, guard: null }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/supportLoop/doorNameCoverage.test.js",
+   "expectRed": "a probe the member"
+  },
+  {
+   "id": "VP3",
+   "mutant": "the committed reference hands the assistant the bare `request.earnings()` again",
+   "file": "app/src/components/chart/supportLoop/assistantPineReference.json",
+   "from": "\"call\": \"request.earnings(syminfo.tickerid, earnings.actual, barmerge.gaps_off, barmerge.lookahead_on)\"",
+   "to": "\"call\": \"request.earnings()\"",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/supportLoop/assistantPineReference.test.js",
+   "expectRed": "request.earnings: request.earnings(): the run refuses it (pine:request)"
+  }
+ ]
+}

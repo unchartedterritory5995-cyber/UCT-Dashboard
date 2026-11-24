@@ -69,13 +69,10 @@
    "kind": "calculation",
    "cannot": "VWAP with its own standard deviation bands",
    "source": "//@version=5\nindicator(\"probe\", overlay=true)\n[v, up, dn] = ta.vwap(hlc3, timeframe.change(\"D\"), 1)\nplot(v, \"VWAP\")\nplot(up, \"Upper\")\nplot(dn, \"Lower\")\n",
-   "runs": false,
+   "runs": true,
    "lane": "host",
-   "state": "not-yet",
-   "headline": "Not yet: Arrays, maps and custom types",
-   "guard": "pine:tuple",
-   "family": "collection",
-   "why": "this Pine call answers with several values at once and a column carries one — `v` — this engine has no tuple form for `ta.vwap` — the ones it can take apart are `ta.bb`, `ta.dmi`, `ta.kc`, `ta.macd`, `ta.supertrend`. Writing it WITHOUT the brackets says more about why"
+   "state": "runs",
+   "headline": "Runs on the chart; not in alerts, screens or scans"
   },
   {
    "id": "regression-channel-deviation",
@@ -168,39 +165,30 @@
    "kind": "data",
    "cannot": "Earnings dates or earnings numbers on the chart",
    "source": "//@version=5\nindicator(\"probe\")\ne = request.earnings(syminfo.tickerid, earnings.actual)\nplot(e, \"EPS\")\n",
-   "runs": false,
+   "runs": true,
    "lane": "host",
-   "state": "not-yet",
-   "headline": "Not yet: Data from another symbol or timeframe",
-   "guard": "pine:request",
-   "family": "request",
-   "why": "this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.earnings`"
+   "state": "runs-with-notes",
+   "headline": "Runs on the chart, with 1 note"
   },
   {
    "id": "financial-data",
    "kind": "data",
    "cannot": "A fundamental number on the chart (sales, margins)",
    "source": "//@version=5\nindicator(\"probe\")\ns = request.financial(syminfo.tickerid, \"TOTAL_REVENUE\", \"FQ\")\nplot(s, \"Revenue\")\n",
-   "runs": false,
+   "runs": true,
    "lane": "host",
-   "state": "not-yet",
-   "headline": "Not yet: Data from another symbol or timeframe",
-   "guard": "pine:request",
-   "family": "request",
-   "why": "this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.financial`"
+   "state": "runs-with-notes",
+   "headline": "Runs on the chart, with 1 note"
   },
   {
    "id": "dividends-data",
    "kind": "data",
    "cannot": "Dividends on the chart",
    "source": "//@version=5\nindicator(\"probe\")\nd = request.dividends(syminfo.tickerid)\nplot(d, \"Dividend\")\n",
-   "runs": false,
+   "runs": true,
    "lane": "host",
-   "state": "not-yet",
-   "headline": "Not yet: Data from another symbol or timeframe",
-   "guard": "pine:request",
-   "family": "request",
-   "why": "this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.dividends`"
+   "state": "runs-with-notes",
+   "headline": "Runs on the chart, with 1 note"
   },
   {
    "id": "lower-timeframe",

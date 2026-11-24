@@ -182,6 +182,36 @@ def test_a_file_that_breaks_half_way_is_unread_never_half_a_day(seeded):
         r["symbol"]: r["sessions"] - 1 for r in good["high"]}
 
 
+def test_a_file_whose_compressed_data_is_damaged_is_unread_never_a_failed_build(seeded):
+    # A damaged deflate stream raises zlib.error, which is not an OSError: it must cost that one day, like a file
+    # cut short, and never the whole evening's list.
+    import io
+    import zlib
+    days = build_25(seeded)
+    good = ivr.build(now=NOW)
+    path = os.path.join(seeded.root, "options_log", days[10][:4], f"{days[10]}.underlyings.csv.gz")
+    raw = open(path, "rb").read()
+    damaged = None
+    for k in range(12, len(raw) - 8):
+        cand = bytearray(raw)
+        cand[k] ^= 0xFF
+        try:
+            with gzip.open(io.BytesIO(bytes(cand)), "rt", newline="", encoding="utf-8") as fh:
+                fh.read()
+        except zlib.error:
+            damaged = bytes(cand)
+            break
+        except Exception:  # noqa: BLE001 -- another kind of damage: try the next byte
+            continue
+    assert damaged is not None, "no single-byte change gave a damaged deflate stream"
+    with open(path, "wb") as fh:
+        fh.write(damaged)
+    out = ivr.build(now=NOW)
+    assert out["unread_sessions"] == [days[10]] and out["rankable_sessions"] == 24
+    assert {r["symbol"]: r["sessions"] for r in out["high"]} == {
+        r["symbol"]: r["sessions"] - 1 for r in good["high"]}
+
+
 def test_an_empty_log_is_no_log(seeded):
     out = ivr.build(now=NOW)
     assert out["status"] == "no_log" and out["high"] == [] and out["low"] == [] and out["counts"]["ranked"] == 0

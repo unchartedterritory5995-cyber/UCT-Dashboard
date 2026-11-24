@@ -876,6 +876,152 @@
       }
     },
     {
+      "id": "vwap_anchor_hlc3_at_sma_cross",
+      "source": "vwapAnchor((high + low + close) / 3, crossOver(close, sma(close, 20)), volume)",
+      "why": "(2026-11-22, e95 unit 2) Pine's anchored `ta.vwap(hlc3, anchor)`: TradingView's published computeVWAP, the sums from each bar the anchor fires, `na` before the first. Pinned bit for bit against the body written out by hand in `vwapAnchored.test.js` and `tests/test_vwap_anchor_parity.py`.",
+      "ast": {
+        "type": "call",
+        "name": "vwapAnchor",
+        "args": [
+          {
+            "type": "op",
+            "name": "/",
+            "args": [
+              {
+                "type": "op",
+                "name": "+",
+                "args": [
+                  {
+                    "type": "op",
+                    "name": "+",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "high"
+                      },
+                      {
+                        "type": "series",
+                        "name": "low"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "series",
+                    "name": "close"
+                  }
+                ]
+              },
+              {
+                "type": "num",
+                "value": 3
+              }
+            ]
+          },
+          {
+            "type": "call",
+            "name": "crossOver",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "call",
+                "name": "sma",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "close"
+                  },
+                  {
+                    "type": "num",
+                    "value": 20
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "series",
+            "name": "volume"
+          }
+        ]
+      }
+    },
+    {
+      "id": "vwap_anchor_dev_hlc3_at_sma_cross",
+      "source": "vwapAnchorDev((high + low + close) / 3, crossOver(close, sma(close, 20)), volume)",
+      "why": "(2026-11-22, e95 unit 2) the standard deviation since the anchor that `ta.vwap(src, anchor, mult)` draws its bands from: max(sum(v*p^2)/sum(v) - vwap^2, 0), square-rooted.",
+      "ast": {
+        "type": "call",
+        "name": "vwapAnchorDev",
+        "args": [
+          {
+            "type": "op",
+            "name": "/",
+            "args": [
+              {
+                "type": "op",
+                "name": "+",
+                "args": [
+                  {
+                    "type": "op",
+                    "name": "+",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "high"
+                      },
+                      {
+                        "type": "series",
+                        "name": "low"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "series",
+                    "name": "close"
+                  }
+                ]
+              },
+              {
+                "type": "num",
+                "value": 3
+              }
+            ]
+          },
+          {
+            "type": "call",
+            "name": "crossOver",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "call",
+                "name": "sma",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "close"
+                  },
+                  {
+                    "type": "num",
+                    "value": 20
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "series",
+            "name": "volume"
+          }
+        ]
+      }
+    },
+    {
       "id": "cci_20",
       "source": "cci(high, low, close, 20)",
       "why": "the commodity channel index -- the one bound indicator whose maths runs on the TYPICAL price `(h + l + c) / 3` rather than on a single column, so it is the case that would notice a binding packing the three columns in the wrong order.",

@@ -2635,7 +2635,7 @@ def _fire_bar_time(bars: list[dict], index: int) -> Any:
 
 
 def _dispatch_delivery(alert: dict, value: float, *,
-                       bar_time: Any = None) -> None:
+                       bar_time: Any = None, script_message: Optional[str] = None) -> None:
     """Send the alert through the multi-channel watchlist delivery hook.
 
     Uses ``watchlist_alert_service.deliver_alert_payload`` — exposed as a
@@ -2713,6 +2713,16 @@ def _dispatch_delivery(alert: dict, value: float, *,
             + (f" at {when}" if when else "")
             + f" ({_tf_label(alert.get('tf'))} bar)"
         )
+        # ⭐ TRACK 6, AL3: a runtime document's alert() target says what the SCRIPT said
+        # (its alert() message, at most 512 characters), on the bar it said it.
+        from api.services import alert_user_series as _aus_d
+        if _aus_d.is_alert_calls_address(alert.get("indicator")):
+            message = (
+                f"{sym} {label}: "
+                + (script_message if script_message else "the script called alert()")
+                + (f" at {when}" if when else "")
+                + f" ({_tf_label(alert.get('tf'))} bar)"
+            )
         outcome = wls.deliver_alert_payload(
             user_id=alert["user_id"],
             sym=sym,
@@ -2728,6 +2738,7 @@ def _dispatch_delivery(alert: dict, value: float, *,
                 "tf": alert.get("tf"),
                 "bar_time": bar_time,
                 "alert_id": alert.get("id"),
+                **({"script_message": script_message} if script_message else {}),
             },
         )
         _record_delivery_channels(alert, fire_id, outcome)
@@ -3001,9 +3012,11 @@ def _run_one_cycle() -> dict[str, Any]:
                             # and they would stop agreeing the first time the wall clock
                             # ticked between them.
                             bar_time = _fire_bar_time(bars_of, judged_index)
+                            # ⭐ AL3: the script's alert() text, for its alert() target only
+                            said = _aus.alert_calls_message(alert, bars_of, judged_index)
                             recorded = ias.record_trigger(alert["id"], last_value=value,
-                                                          bar_time=bar_time)
-                            _dispatch_delivery(alert, value, bar_time=bar_time)
+                                                          bar_time=bar_time, message=said)
+                            _dispatch_delivery(alert, value, bar_time=bar_time, script_message=said)
                             # ⭐ THE LEDGER DOOR, OPENED — GATED ON THE FIRE-ONCE
                             # GUARANTEE ITSELF RATHER THAN ON A SECOND RULE BESIDE IT.
                             # `record_trigger` returns True exactly when a new row landed

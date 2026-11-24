@@ -402,6 +402,9 @@ describe('C36 · parity with the Python lane — one fixture, both lanes', () =>
         // ⭐⭐ Q-CLOSURE (2026-11-21) — a week the exchange's own calendar decides is a `request.security` read too;
         // `htfSessionWeek.test.js` / `tests/test_pine_htf_session_week.py` rail it
         && k !== 'request:htf-venue-calendar'
+        // ⭐⭐ e95 unit 2 (2026-11-22) — an anchored VWAP before the first anchor inside the loaded history reads no
+        // clock of its own; `vwapAnchored.test.js` / `tests/test_vwap_anchor_parity.py` rail it on both lanes
+        && !k.startsWith('vwap:')
         // ⭐ PERIOD −1 (2026-11-19) — a history read before the chart's first bar is not a `time(<timeframe>)` reading;
         // `historyBeforeChart.test.js` / `tests/test_pine_history_before_chart.py` rail it
         && !k.startsWith('history:')).sort())

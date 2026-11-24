@@ -119,3 +119,31 @@ describe('P6-L2 a kill seen on an open page stops device paints', () => {
     store.dispose()
   })
 })
+
+// (review of #2537 head 24fe13dc8f, Z-1) A MEMBER'S OFF that reaches an open page (the device client's fresh read of the
+// key, deviceStore/client.js) is told through the same latch: lib/chartSpeed.noteDeviceStoreStopped. The bar store then
+// does exactly what it does at a kill: the device copy stops painting at every door, the keys holding device rows are
+// re-asked, nothing is blanked, and a later kill tells it nothing again.
+describe("Z-1 a member's Off seen on an open page stops device paints exactly as a kill", () => {
+  it('DK5 before the Off the copy paints; once it is seen, no door paints it, the key is re-asked once, and a kill after it adds nothing', async () => {
+    const { store, request, pf, key } = boot()
+    expect(pf.peekDisplayable('NEWB', '5')).toBe(true)
+    const kick = vi.spyOn(store.network, 'kick')
+    speed.noteDeviceStoreStopped()
+    expect(speed.deviceStoreKillSeen()).toBe(true)
+    expect(pf.deviceVerdict('NEWB', '5', { showExtended: false })).toMatchObject({ paints: false, reason: 'killed', held: 'device' })
+    expect(pf.peekDisplayable('NEWB', '5')).toBe(false)
+    expect(pf.devicePaints('NEWB', '5')).toBe(false)
+    expect(kick.mock.calls.map((c) => c[0])).toEqual([key])
+    expect(store.peek(key).deviceThrough ?? null).toBeNull()
+    speed.noteDeviceStoreStopped()
+    expect(KILL()).toBe(true)
+    expect(kick).toHaveBeenCalledTimes(1)                            // told once, whichever came first
+    let outcome = null
+    pf.prepareForDisplay('NEWB', '5').then((o) => { outcome = o })
+    await vi.advanceTimersByTimeAsync(200)
+    expect(outcome).toBeNull()
+    expect(request.mock.calls.some((c) => String(c[0]).includes('/api/bars/NEWB'))).toBe(true)
+    store.dispose()
+  })
+})

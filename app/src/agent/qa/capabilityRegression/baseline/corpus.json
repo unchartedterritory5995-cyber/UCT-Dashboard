@@ -15323,6 +15323,623 @@
       ]
     },
     {
+      "id": "stock.riskProfile",
+      "source": "Terminal data wave 10 (11-23): the Agent half of the STAT, VFP, FCTX, SETH and PUBR panels and the OWN panel's N-PORT block (stock statistics, volume footprint, factor exposure, setup history, public records, fund holders), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.riskProfile"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.riskProfile"
+      ],
+      "ownWords": [
+        "stockStudies"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.riskProfile",
+            "target": "$stockData",
+            "args": {
+              "symbol": "NVDA",
+              "rows": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*stock\\.stats.*\"params\":\\{\"symbol\":\"NVDA\",\"rows\":5\\}"
+        ],
+        "says": [
+          "NVDA's statistics as UCT holds them, from its stored daily prices \\(1720 sessions, Thu, Jan 2, 2020 to Fri, Oct 30, 2026\\):",
+          "• Against SPY: 1\\.42, correlation 0\\.71",
+          "Returns: 1 week \\+3\\.1%",
+          "it fell less than the index in 1 and more in 2",
+          "UCT's own time"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "NVDA stock stats",
+        "what is NVDA's beta",
+        "how volatile is NVDA",
+        "how did NVDA hold up in corrections"
+      ]
+    },
+    {
+      "id": "stock.volumeFootprint",
+      "source": "Terminal data wave 10 (11-23): the Agent half of the STAT, VFP, FCTX, SETH and PUBR panels and the OWN panel's N-PORT block (stock statistics, volume footprint, factor exposure, setup history, public records, fund holders), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.volumeFootprint"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.volumeFootprint"
+      ],
+      "ownWords": [
+        "stockStudies"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.volumeFootprint",
+            "target": "$stockData",
+            "args": {
+              "symbol": "NVDA",
+              "rows": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*stock\\.volumeFootprint.*\"params\":\\{\"symbol\":\"NVDA\",\"rows\":5\\}"
+        ],
+        "says": [
+          "NVDA's volume footprint as UCT holds it, from its stored daily bars through Fri, Oct 30, 2026",
+          "• Last 25 sessions: 7 accumulation days, 4 distribution days: net \\+3",
+          "• Pocket pivots: 2 pocket pivots",
+          "UCT's own time"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "NVDA volume footprint",
+        "accumulation days in NVDA",
+        "pocket pivots on NVDA",
+        "unfilled gaps on NVDA"
+      ]
+    },
+    {
+      "id": "stock.factorExposure",
+      "source": "Terminal data wave 10 (11-23): the Agent half of the STAT, VFP, FCTX, SETH and PUBR panels and the OWN panel's N-PORT block (stock statistics, volume footprint, factor exposure, setup history, public records, fund holders), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.factorExposure"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.factorExposure"
+      ],
+      "ownWords": [
+        "stockStudies"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.factorExposure",
+            "target": "$stockData",
+            "args": {
+              "symbol": "NVDA"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*stock\\.factorExposure.*\"params\":\\{\"symbol\":\"NVDA\"\\}"
+        ],
+        "says": [
+          "How NVDA traded against six fund spreads",
+          "The server's reading: Made-up reading",
+          "• Market: \\+1\\.31 \\(t 12\\.4, above 2\\)",
+          "UCT's own time"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "NVDA factor exposure",
+        "is NVDA a growth or value stock",
+        "factor loadings for NVDA",
+        "style tilt of NVDA"
+      ]
+    },
+    {
+      "id": "stock.setupHistory",
+      "source": "Terminal data wave 10 (11-23): the Agent half of the STAT, VFP, FCTX, SETH and PUBR panels and the OWN panel's N-PORT block (stock statistics, volume footprint, factor exposure, setup history, public records, fund holders), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.setupHistory"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.setupHistory"
+      ],
+      "ownWords": [
+        "stockStudies"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.setupHistory",
+            "target": "$stockData",
+            "args": {
+              "symbol": "NVDA",
+              "rows": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*stock\\.setupHistory.*\"params\":\\{\"symbol\":\"NVDA\",\"rows\":3\\}"
+        ],
+        "says": [
+          "NVDA had 2 signals of the 2 setups over its held history",
+          "• Oct 14, 2026: Made-up breakout \\(Later in an uptrend\\): \\+2\\.1% / n/a / n/a",
+          "• Made-up breakout, later in an uptrend: up 56% of the time over 880 signals",
+          "UCT's own time"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "NVDA setup history",
+        "setups that fired on NVDA",
+        "past signals on NVDA",
+        "how have NVDA's setups done"
+      ]
+    },
+    {
+      "id": "stock.companyRecord",
+      "source": "Terminal data wave 10 (11-23): the Agent half of the STAT, VFP, FCTX, SETH and PUBR panels and the OWN panel's N-PORT block (stock statistics, volume footprint, factor exposure, setup history, public records, fund holders), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.companyRecord"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.companyRecord"
+      ],
+      "ownWords": [
+        "stockStudies"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.companyRecord",
+            "target": "$stockData",
+            "args": {
+              "symbol": "NVDA",
+              "rows": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*company\\.publicRecords.*\"params\":\\{\"symbol\":\"NVDA\",\"rows\":5\\}"
+        ],
+        "says": [
+          "Made-up Dynamics Corp's public records as UCT holds them \\(NVDA\\), section by section:",
+          "Federal contracts \\(USAspending\\.gov\\): Obligated to the matched names",
+          "Recipient names come in part from D&B Open Data \\(Dun & Bradstreet\\)\\.",
+          "FDA drug approvals \\(openFDA, Drugs@FDA\\): not held on the server yet"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "NVDA government contracts",
+        "clinical trials for NVDA",
+        "FDA approvals for NVDA",
+        "lobbying by NVDA"
+      ]
+    },
+    {
+      "id": "stock.ownershipReport",
+      "source": "Terminal data wave 10 (11-23): the Agent half of the STAT, VFP, FCTX, SETH and PUBR panels and the OWN panel's N-PORT block (stock statistics, volume footprint, factor exposure, setup history, public records, fund holders), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.ownershipReport"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.ownershipReport"
+      ],
+      "ownWords": [
+        "stockStudies"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.ownershipReport",
+            "target": "$stockData",
+            "args": {
+              "symbol": "NVDA",
+              "rows": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*ownership\\.funds.*\"params\":\\{\"symbol\":\"NVDA\",\"rows\":10\\}"
+        ],
+        "says": [
+          "The registered funds \\(mutual funds and ETFs\\) holding NVDA, from the SEC's Form N-PORT data sets as UCT holds them \\(the 2026 Q3 data set\\):",
+          "2 funds reported a position",
+          "• Made-up Total Market Index Fund: 1\\.0M shares",
+          "Source: SEC Form N-PORT"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "which funds hold NVDA",
+        "mutual funds holding NVDA",
+        "NVDA fund holders",
+        "ETFs that own NVDA"
+      ]
+    },
+    {
+      "id": "stock.groupRank",
+      "source": "Terminal data wave 11 (11-23): the Agent half of GRPS RANK, GRPS CROWDING, ERNSC, EEHSC, OSCR RICH / CHEAP, IPO LOCKUP and the COT panel's \"By trader type\" view (group rank and crowding, earnings season by sector, revisions by sector, IV rank leaders, IPO lockups, COT by trader type), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.groupRank"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.groupRank"
+      ],
+      "ownWords": [
+        "marketTables"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.groupRank",
+            "target": "$stockData",
+            "args": {
+              "kind": null,
+              "name": null,
+              "rows": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*groups\\.rank.*\"params\":\\{\"kind\":\"sector\",\"name\":null,\"rows\":10\\}"
+        ],
+        "says": [
+          "Sectors by weekly rank as UCT holds it \\(each sector's place by the median 6-month price change of its stocks\\)",
+          "• 1st of 3 Made-up Software: median \\+14\\.2% over 6 months on 118 stocks",
+          "• Made-up Utilities: 4 stocks with a 6-month change, fewer than 5: no rank",
+          "Climbed the most over 4 weeks: Made-up Software \\(\\+2, 3rd to 1st\\)",
+          "UCT's own time"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "show me the sectors by weekly rank",
+        "industry group rank",
+        "top ranked industries",
+        "which sectors climbed the most in the weekly rank"
+      ]
+    },
+    {
+      "id": "stock.groupOwnership",
+      "source": "Terminal data wave 11 (11-23): the Agent half of GRPS RANK, GRPS CROWDING, ERNSC, EEHSC, OSCR RICH / CHEAP, IPO LOCKUP and the COT panel's \"By trader type\" view (group rank and crowding, earnings season by sector, revisions by sector, IV rank leaders, IPO lockups, COT by trader type), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.groupOwnership"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.groupOwnership"
+      ],
+      "ownWords": [
+        "marketTables"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.groupOwnership",
+            "target": "$stockData",
+            "args": {
+              "kind": null,
+              "name": null,
+              "rows": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*groups\\.crowding.*\"params\":\\{\"kind\":\"sector\",\"name\":null,\"rows\":10\\}"
+        ],
+        "says": [
+          "Sectors by positioning as UCT holds it, the highest median short interest first",
+          "• Made-up Software \\(120 stocks\\): median short interest 6\\.4% of float on 118",
+          "• Made-up Utilities \\(4 stocks\\): 4 in the short interest report, fewer than 5: no median",
+          "Short interest: FINRA's report for settlement Oct 15, 2026",
+          "Institutions \\(13F\\) are not in this answer"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "sector crowding",
+        "most crowded industries",
+        "insider buying by sector",
+        "crowding by industry"
+      ]
+    },
+    {
+      "id": "stock.sectorEarnings",
+      "source": "Terminal data wave 11 (11-23): the Agent half of GRPS RANK, GRPS CROWDING, ERNSC, EEHSC, OSCR RICH / CHEAP, IPO LOCKUP and the COT panel's \"By trader type\" view (group rank and crowding, earnings season by sector, revisions by sector, IV rank leaders, IPO lockups, COT by trader type), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.sectorEarnings"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.sectorEarnings"
+      ],
+      "ownWords": [
+        "marketTables"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.sectorEarnings",
+            "target": "$stockData",
+            "args": {
+              "season": null,
+              "metric": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*earnings\\.seasonBySector.*\"params\":\\{\"season\":\"current\"\\}"
+        ],
+        "says": [
+          "Only the stocks UCT holds earnings results for: 3,300 of the 3,500 stocks in its universe",
+          "• Made-up Software \\(40 reported, 2 to come, 1 pending\\): 80% beat, 10% in line, 10% missed; median surprise \\+5\\.2%",
+          "• Made-up Utilities \\(3 reported, 2 to come, 1 pending\\): 3 with a consensus, fewer than 5: no share",
+          "UCT's own time"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "earnings by sector",
+        "which sector is beating",
+        "sector beat rates",
+        "beats and misses by sector"
+      ]
+    },
+    {
+      "id": "stock.estimatesBreadth",
+      "source": "Terminal data wave 11 (11-23): the Agent half of GRPS RANK, GRPS CROWDING, ERNSC, EEHSC, OSCR RICH / CHEAP, IPO LOCKUP and the COT panel's \"By trader type\" view (group rank and crowding, earnings season by sector, revisions by sector, IV rank leaders, IPO lockups, COT by trader type), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.estimatesBreadth"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.estimatesBreadth"
+      ],
+      "ownWords": [
+        "marketTables"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.estimatesBreadth",
+            "target": "$stockData",
+            "args": {
+              "metric": null,
+              "window": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*estimates\\.revisionBreadth.*\"params\":\\{\"metric\":\"eps\",\"window\":30\\}"
+        ],
+        "says": [
+          "Among the 52 stocks UCT tracks \\(the S&P 500 list and stocks members have looked at\\), not the whole market\\.",
+          "All tracked stocks: net \\+42% \\(30 raised, 10 cut, 8 held; 48 counted\\)",
+          "• Made-up Software: net \\+57% \\(20 raised, 4 cut, 4 held; 28 counted\\); largest raises QZRA \\+12\\.5%",
+          "• Made-up Utilities: 3 stocks counted, fewer than 5, so no net figure",
+          "UCT's own time"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "estimate revisions by sector",
+        "revision breadth",
+        "earnings revisions by sector",
+        "estimate breadth across sectors"
+      ]
+    },
+    {
+      "id": "stock.ivRankLeaders",
+      "source": "Terminal data wave 11 (11-23): the Agent half of GRPS RANK, GRPS CROWDING, ERNSC, EEHSC, OSCR RICH / CHEAP, IPO LOCKUP and the COT panel's \"By trader type\" view (group rank and crowding, earnings season by sector, revisions by sector, IV rank leaders, IPO lockups, COT by trader type), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.ivRankLeaders"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.ivRankLeaders"
+      ],
+      "ownWords": [
+        "marketTables"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.ivRankLeaders",
+            "target": "$stockData",
+            "args": {
+              "side": null,
+              "rows": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*options\\.ivRankLeaders.*\"params\":\\{\"side\":\"both\",\"rows\":10\\}"
+        ],
+        "says": [
+          "The highest IV rank across UCT's own options log",
+          "• QZHA: IV rank 98 \\(high\\), IV percentile 97, ATM IV 82\\.0%",
+          "• QZLA: IV rank 1 \\(low\\)",
+          "the list is cut from the middle of the ranking",
+          "An end-of-day snapshot from UCT's own options log"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "richest options",
+        "cheapest options",
+        "most expensive options in the market",
+        "which options are the cheapest"
+      ]
+    },
+    {
+      "id": "stock.ipoUnlock",
+      "source": "Terminal data wave 11 (11-23): the Agent half of GRPS RANK, GRPS CROWDING, ERNSC, EEHSC, OSCR RICH / CHEAP, IPO LOCKUP and the COT panel's \"By trader type\" view (group rank and crowding, earnings season by sector, revisions by sector, IV rank leaders, IPO lockups, COT by trader type), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.ipoUnlock"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.ipoUnlock"
+      ],
+      "ownWords": [
+        "marketTables"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.ipoUnlock",
+            "target": "$stockData",
+            "args": {
+              "rows": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*ipo\\.lockups.*\"params\":\\{\"rows\":10\\}"
+        ],
+        "says": [
+          "2 estimated IPO lockup expiries fall from",
+          "The days to go are counted from Tue, Nov 3, 2026\\.",
+          "\\(in 21 days\\), estimated: QZIA \\(Made-up Robotics Inc\\)",
+          "\\+23\\.0% since its first close",
+          "Every date here is an ESTIMATE"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "IPO lockups",
+        "upcoming lockup expirations",
+        "lockups ending soon",
+        "IPO unlocks this month"
+      ]
+    },
+    {
+      "id": "stock.positionTypes",
+      "source": "Terminal data wave 11 (11-23): the Agent half of GRPS RANK, GRPS CROWDING, ERNSC, EEHSC, OSCR RICH / CHEAP, IPO LOCKUP and the COT panel's \"By trader type\" view (group rank and crowding, earnings season by sector, revisions by sector, IV rank leaders, IPO lockups, COT by trader type), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.positionTypes"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.positionTypes"
+      ],
+      "ownWords": [
+        "marketTables"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.positionTypes",
+            "target": "$stockData",
+            "args": {
+              "market": "ES",
+              "rows": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*cot\\.byTrader.*\"params\":\\{\"market\":\"ES\"\\}"
+        ],
+        "says": [
+          "Made-up Index Future \\(ES\\) positioning by trader type, from the CFTC's Traders in Financial Futures report as UCT stores it",
+          "• Leveraged funds \\(the class traders watch most in this report\\): net -",
+          "-10\\.0% of open interest",
+          "Source: CFTC Commitments of Traders"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "futures by trader type",
+        "what are leveraged funds doing",
+        "swap dealers and asset managers in futures",
+        "the traders in financial futures report"
+      ]
+    },
+    {
       "id": "recentlyDeleted.restore",
       "source": "Charts family (2026-11-19): Recently deleted — bring back a deleted watchlist, saved layout or saved screen through the artifact-versions routes the Recently deleted panel uses",
       "capabilities": [

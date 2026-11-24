@@ -124,6 +124,59 @@ def test_a_drawing_family_is_printed_only_when_the_reference_admits_it():
         assert banned not in doc, banned
 
 
+def test_an_event_read_is_handed_over_only_while_its_door_answers_members(monkeypatch):
+    """T4 E2 (engine 95, train e95): the engine reads `request.earnings` / `.dividends` / `.splits`, and ONE door
+    supplies them, staged by `PINE_EVENTS_SUPPLY_ENABLED`. Dark for members (unset, `admins`, `off`), the assistant is
+    never handed them and their gaps stay gaps; at `all` both move. The stage the door reads is the only authority."""
+    ref = copy.deepcopy(REF)
+    names = {v["name"] for v in ref.get("values") or []}
+    assert set(pa.EVENT_READS) <= names, "the engine's reference no longer lists the event reads (premise moved)"
+    rows = {r["id"]: r for r in pa.gap_rows()}
+    for stage in ("", "admins", "off"):
+        monkeypatch.setenv("PINE_EVENTS_SUPPLY_ENABLED", stage)
+        values = section(pa.document(ref), "VALUE FUNCTIONS AND VARIABLES")
+        assert not any(f"`{n}`" in values for n in pa.EVENT_READS), stage
+        assert not set(pa.EVENT_READS) & pa.served_names(ref), stage
+        rows = {r["id"]: r for r in pa.gap_rows()}
+        assert rows["earnings-data"]["served"] is False and rows["earnings-data"]["guard"] == pa.EVENTS_DARK_GUARD, stage
+    monkeypatch.setenv("PINE_EVENTS_SUPPLY_ENABLED", "all")
+    values = section(pa.document(ref), "VALUE FUNCTIONS AND VARIABLES")
+    assert all(f"`{n}`" in values for n in pa.EVENT_READS)
+    rows = {r["id"]: r for r in pa.gap_rows()}
+    assert rows["earnings-data"]["served"] is True and rows["dividends-data"]["served"] is True
+
+
+def test_a_financial_read_is_handed_over_only_while_its_door_answers_members(monkeypatch):
+    """T4 F1b (engine 95, train e95): the engine reads `request.financial` as UCT data from company filings, and
+    ONE door supplies it, staged by `PINE_FINANCIAL_SUPPLY_ENABLED`. Dark for members (unset, `admins`, `off`), the
+    assistant is never handed it and its gap stays a gap; at `all` both move. The door's own stage is the authority."""
+    # the engine's answer, as the generated reference and gap probes hold it once F1b serves the read (stated here, so
+    # this rail does not wait on the generated files: the gate under test is the door's stage)
+    ref = copy.deepcopy(REF)
+    if "request.financial" not in {v["name"] for v in ref.get("values") or []}:
+        ref["values"] = list(ref.get("values") or []) + [
+            {"name": "request.financial", "call": 'request.financial(syminfo.tickerid, "TOTAL_REVENUE", "FQ")'}]
+    probe = {"id": "financial-data", "kind": "data", "cannot": "A fundamental number on the chart (sales, margins)",
+             "source": '//@version=5\nindicator("probe")\ns = request.financial(syminfo.tickerid, "TOTAL_REVENUE", "FQ")\n'
+                       'plot(s, "Revenue")\n', "runs": True, "lane": "host"}
+    doc = {"probes": [probe]}
+    for stage in ("", "admins", "off"):
+        monkeypatch.setenv("PINE_FINANCIAL_SUPPLY_ENABLED", stage)
+        values = section(pa.document(ref), "VALUE FUNCTIONS AND VARIABLES")
+        assert "`request.financial`" not in values, stage
+        assert not set(pa.FINANCIAL_READS) & pa.served_names(ref), stage
+        row = pa.gap_rows(doc)[0]
+        assert row["served"] is False and row["guard"] == pa.FINANCIAL_DARK_GUARD, stage
+    monkeypatch.setenv("PINE_FINANCIAL_SUPPLY_ENABLED", "all")
+    values = section(pa.document(ref), "VALUE FUNCTIONS AND VARIABLES")
+    assert "`request.financial`" in values
+    assert pa.gap_rows(doc)[0]["served"] is True
+    # the two doors are separate: the events stage never hands over request.financial
+    monkeypatch.setenv("PINE_FINANCIAL_SUPPLY_ENABLED", "")
+    monkeypatch.setenv("PINE_EVENTS_SUPPLY_ENABLED", "all")
+    assert "`request.financial`" not in section(pa.document(ref), "VALUE FUNCTIONS AND VARIABLES")
+
+
 def test_a_pitfall_is_warned_about_only_while_it_stands():
     assert set(pa.standing_pitfalls()) <= set(pa.PITFALL_WORDS), "a standing pitfall has no sentence"
     never = section(pa.document(), "NEVER")
