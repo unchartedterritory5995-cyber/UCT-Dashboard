@@ -55,6 +55,8 @@ import { buildContext, refreshContext, manifestFor, getCapability, getTargetKind
 import { UNDO_ACTION } from './capabilities/about'
 // the widget's own filter chips are not set from the Agent here (open owner decision); the member is pointed at the control itself
 import { registerBuiltins, registerServerGatedBuiltins } from './builtins'
+// the Terminal data waves, in their own chunk, after the config (builtins.js no longer imports them: the Notebook byte budget)
+import { loadTerminalWaves } from './terminalWavesLoader'
 import { routingEnabled, routingNames, GROUPS as ROUTE_GROUPS, wordsSelect } from './routing'
 import { pickRouter, routingV2Active } from './nlm1/flag'   // NLM-1 D1 (dark, two keys): routing v2, else v1's routeManifest
 import { nlm1Rewrite, createReferents } from './nlm1/followups'   // NLM-1 D2/D3 (same two keys)
@@ -1064,7 +1066,9 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
   }, [setConversationId])
 
   // Features warm their data (catalogs) once the Agent is open; so does the server's streaming flag.
-  useEffect(() => { runWarmups(host); loadAgentConfig().then(() => registerServerGatedBuiltins()) }, [host])
+  // The Terminal data waves load next (their own chunk; each registers only while the server serves its kind;
+  // a chunk that fails to load is logged, never thrown): terminalWavesLoader.js.
+  useEffect(() => { runWarmups(host); loadAgentConfig().then(() => { registerServerGatedBuiltins(); return loadTerminalWaves() }) }, [host])
 
   useEffect(() => {
     let mark = null
