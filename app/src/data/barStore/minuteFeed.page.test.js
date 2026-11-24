@@ -18,9 +18,11 @@
 //   C4 told while a poll may not go (hidden, outside the session, nothing to feed, killed): no read
 //   C5 anything else on the channel is ignored; no BroadcastChannel: nothing is read
 //   (P3 / P4 also pin WHEN it looks again after a "not now": when the next minute file is due, never a minute late)
-//   ONLY WHILE THERE IS SOMETHING TO FEED (an idle regular 1m key is held):
+//   P2h end to end: fifteen minute files later the 15m bucket lands on a held, answered 15m key (C6: cache-only)
+//   ONLY WHILE THERE IS SOMETHING TO FEED (an idle regular 1m / 5m / 15m / 30m / 60m key is held):
 //   G1 no 1m key held: no request at all                     G2 only a 1m key a chart is on: none
-//   G3 only 5m / 15m / D keys: none                          G4 only a windowed (replay) 1m key: none
+//   G3 only D, extended-60m and windowed keys: none          G4 only a windowed (replay) 1m key: none
+//   G3b an idle regular 15m key alone: it polls
 //   G5 the first idle 1m key held starts it within seconds, at the minute then due (no backlog)
 //   G6 the last one gone (a chart is now on it, or it was evicted) stops it within one minute; held again, it resumes
 import { describe, it, expect, afterEach } from 'vitest'
@@ -39,6 +41,17 @@ const at = (n, sec = 0) => M(n) * 60_000 + sec * 1000
 const name = (n) => framePath(M(n))
 const bar = (n) => ({ t: T(n), o: 10 + n, h: 11 + n, l: 9 + n, c: 10.5 + n, v: 100 + n })
 const rec = (sym, n) => { const { t: _t, ...b } = bar(n); return { sym, ...b } }
+/** The 15m bucket of minutes a..b, and the server's answer for a 15m key whose rows end with the 09:45 bucket. */
+const agg = (a, b) => {
+  let v = 0
+  for (let n = a; n <= b; n++) v += 100 + n
+  return { t: T(a), o: 10 + a, h: 11 + b, l: 9 + a, c: 10.5 + b, v }
+}
+const answer15 = (sym) => ({ type: ACTION.REST_FULL, payload: {
+  ticker: sym, tf: '15', contract: 1, grid: 'eth-clock', cache_key: `b1:${sym}:15:eth-clock`, series_rev: at(30, 5), history_rev: 1,
+  verified_through: at(30, 5) / 1000, complete_through: T(15), tail_status: 'verified', developing: null,
+  bars: [agg(0, 14), agg(15, 29)],
+} })
 
 afterEach(() => { document.cookie = 'uct_chart_speed=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/' })
 
@@ -126,6 +139,24 @@ describe('the page minute feed', () => {
     const s = p.registry.peek(key)
     expect(s.bars[s.bars.length - 1]).toMatchObject({ ...bar(30), src: 'final' })
     expect(p.registry.has(keyOf({ sym: 'BBB', tf: '1' }))).toBe(false)   // a symbol nobody holds costs nothing
+  })
+
+  it('P2h end to end: fifteen minute files later, the 15m bucket that just closed lands on a held, answered 15m key', async () => {
+    const e = edge()
+    const p = page(e, at(30, 8), { hold: false })                // 10:00:08
+    const key = keyOf({ sym: 'AAA', tf: '15' })
+    p.registry.dispatch(key, answer15('AAA'))
+    p.feed.start()
+    await p.runUntil(at(44, 30))                                 // 10:14:30: the 10:13 file was the last
+    await p.feed.feeder.settled()
+    expect(p.registry.peek(key).bars).toHaveLength(2)            // 10:00-10:15 is forming: nothing yet
+    expect(p.registry.peek(key).developing).toBe(null)
+    await p.runUntil(at(45, 30))                                 // 10:15:30
+    await p.feed.feeder.settled()
+    const s = p.registry.peek(key)
+    expect(s.bars[s.bars.length - 1]).toMatchObject({ ...agg(30, 44), src: 'final', fin: true })
+    expect(s.developing).toBe(null)
+    expect(e.paths()).toEqual(Array.from({ length: 16 }, (_, i) => name(29 + i)))   // one file a minute, nothing else
   })
 
   it('P3 hidden: no request at all; visible again: ONE request, for the minute now due', async () => {
@@ -291,6 +322,22 @@ describe('the page minute feed with the device store ON reads the browser cache 
     expect(s.bars[s.bars.length - 1]).toMatchObject({ ...bar(30), src: 'final' })
   })
 
+  it('C6 end to end: told of fifteen minutes, the 15m bucket lands on a held 15m key, with not one request that can reach the network', async () => {
+    const e = cache({ have: Array.from({ length: 15 }, (_, i) => 30 + i) })
+    const p = page(e, at(31, 1), { cacheOnly: true, hold: false })
+    const key = keyOf({ sym: 'AAA', tf: '15' })
+    p.registry.dispatch(key, answer15('AAA'))
+    p.feed.start()
+    for (let n = 30; n <= 44; n++) await told(p, n)
+    await p.feed.feeder.settled()
+    const s = p.registry.peek(key)
+    expect(s.bars[s.bars.length - 1]).toMatchObject({ ...agg(30, 44), src: 'final', fin: true })
+    expect(e.paths()).toEqual(Array.from({ length: 15 }, (_, i) => name(30 + i)))
+    expect(onlyCache(e)).toBe(true)
+    expect(e.st.net).toBe(0)
+    expect(p.delay()).toBe(null)
+  })
+
   for (const reject of [false, true]) {
     it(`C2${reject ? 'b' : ''} a miss (${reject ? 'a failed fetch' : 'a 504 answer'}) is looked for ONCE more half a second later, the same way`, async () => {
       const e = cache({ have: [31], reject })
@@ -388,7 +435,7 @@ describe('the page minute feed gate fails closed', () => {
   })
 })
 
-describe('the page minute feed polls only while an idle regular 1m key is held', () => {
+describe('the page minute feed polls only while an idle regular 1m / 5m / 15m / 30m / 60m key is held', () => {
   const k1 = (sym) => keyOf({ sym, tf: '1' })
 
   it('G1 no 1m key held: no request at all (it looks again every few seconds, and asks nothing)', async () => {
@@ -412,13 +459,25 @@ describe('the page minute feed polls only while an idle regular 1m key is held',
     expect(e.asked).toEqual([])
   })
 
-  it('G3 only 5m, 15m and D keys held (no 1m chart anywhere): none', async () => {
+  it('G3 only a D key, the extended 60m key and a windowed (replay) 15m key held: none', async () => {
     const e = edge()
     const p = page(e, at(32, 20), { hold: false })
-    for (const tf of ['5', '15', '60', 'D']) p.registry.acquire(keyOf({ sym: 'AAA', tf }))
+    p.registry.acquire(keyOf({ sym: 'AAA', tf: 'D' }))
+    p.registry.acquire(keyOf({ sym: 'AAA', tf: '60', session: 'eth' }))
+    p.registry.acquire(keyOf({ sym: 'AAA', tf: '15', window: { to: T(10) } }))
     p.feed.start()
     await p.runUntil(at(36, 20))
     expect(e.asked).toEqual([])
+  })
+
+  it('G3b an idle regular 15m key alone (no 1m chart anywhere): it polls, one file a minute', async () => {
+    const e = edge()
+    const p = page(e, at(32, 20), { hold: false })
+    p.registry.acquire(keyOf({ sym: 'AAA', tf: '15' }))
+    p.feed.start()
+    await p.run(); await p.run()
+    expect(e.paths()).toEqual([name(31), name(32)])
+    expect(p.feed.status().waiting).toBe(false)
   })
 
   it('G4 only a windowed (replay) 1m key: none', async () => {

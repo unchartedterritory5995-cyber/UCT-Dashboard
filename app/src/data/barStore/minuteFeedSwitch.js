@@ -3,7 +3,9 @@
 // WHAT IT SWITCHES (minuteFeed.js, 2026-11-23). During the regular session the page reads the universe minute frame
 // stream-ingest publishes each minute (one small GET a minute, the same file the device store's worker reads) and
 // appends the bar that just closed to every regular 1-minute key the bar store already HOLDS, so a row warmed a minute
-// ago is still current when the member presses it and the switch does not have to ask the server first.
+// ago is still current when the member presses it and the switch does not have to ask the server first. Since
+// 2026-11-24 it also appends each closed 5m / 15m / 30m / 60m bucket to the held regular key of that timeframe, when
+// every minute of the bucket came through the feed (minuteFeed.js: the rule, and what it does not reach).
 //
 // localStorage 'uct.minuteFeed', the device store's rule (deviceStore/switch.js):
 //   '1'                      on
