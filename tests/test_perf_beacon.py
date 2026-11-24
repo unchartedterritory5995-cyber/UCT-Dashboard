@@ -4,9 +4,13 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import os
 import re
 import sqlite3
+import tempfile
+import threading
 import time
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -660,16 +664,49 @@ def test_the_admin_read_deletes_what_has_outlived_its_use_without_waiting_for_a_
     assert pb.housekeep(now=_T + 86400) == {"load_sends": 0, "switch_sends": 0, "senders": 0}
 
 
-def test_startup_blanks_old_keys_and_a_timer_deletes_on_time_with_no_report(store, monkeypatch, capsys):
+def _perf_beacon_threads():
+    return [t.name for t in threading.enumerate() if t.name.startswith("perf-beacon") and t.is_alive()]
+
+
+def test_at_boot_blanks_old_keys_inside_the_background_lane_and_logs_a_count(store, monkeypatch, capsys):
+    """The start-of-process work, called directly (no thread): the one-time rebuild takes a turn of the repo's background
+    lane, which is what makes it wait for the boot to settle (BG_LANE_SETTLE_S) and run one sweep at a time."""
+    _an_older_builds_store(store, 3)
+    monkeypatch.setattr(pb, "_migrated", set())
+    blank = lambda: {r["rate_key"] for r in _rows(store)} == {""}
+    turns = []
+
+    @contextmanager
+    def turn(name):
+        turns.append(("in", name, blank()))
+        yield
+        turns.append(("out", name, blank()))
+
+    monkeypatch.setattr(pb.bg_lane, "turn", turn)
+    pb._at_boot()
+    assert turns == [("in", "perf-beacon-migrate", False), ("out", "perf-beacon-migrate", True)]
+    assert not pb.rebuild_pending()
+    out = capsys.readouterr().out
+    assert "blanked 3 " in out and _old_load_key(_IP) not in out and _IP not in out          # the log says a count, nothing else
+
+
+def test_the_housekeeping_thread_is_off_under_pytest_and_when_opted_in_stops_when_told(store, monkeypatch):
+    # OFF under pytest (the root conftest's switch): a lifespan test starts nothing that works on a store
+    assert os.environ.get(pb.HOUSEKEEPING_SWITCH) == "1" and pb.HOUSEKEEPING_SWITCH == "PERF_BEACON_HOUSEKEEPING_DISABLED"
+    assert pb.startup(every_s=0.05) is False
+    assert _perf_beacon_threads() == [] and pb._housekeeper is None
+    # opted in, on this test's own tmp store
+    monkeypatch.delenv(pb.HOUSEKEEPING_SWITCH)
+    monkeypatch.setattr(pb.bg_lane, "turn", contextmanager(lambda name: (yield)))      # (the lane's pacing is its own tests')
     _an_older_builds_store(store, 3)
     monkeypatch.setattr(pb, "_migrated", set())
     try:
         assert pb.startup(every_s=0.05) is True
         assert pb.startup(every_s=0.05) is False                           # one housekeeper per process
+        thread = pb._housekeeper
+        assert thread.daemon and _perf_beacon_threads() == ["perf-beacon-housekeeping"]
         assert pb._boot_done.wait(15)
         assert {r["rate_key"] for r in _rows(store)} == {""}
-        thread = pb._housekeeper
-        assert thread.daemon and thread.name == "perf-beacon-housekeeping"
         # a quota row over an hour old, and no report arriving: the timer deletes it
         conn = sqlite3.connect(store)
         conn.execute("INSERT INTO perf_load_sends (created_at, rate_key) VALUES (?,?)", (time.time() - 7200, "k" * 24))
@@ -680,10 +717,118 @@ def test_startup_blanks_old_keys_and_a_timer_deletes_on_time_with_no_report(stor
             time.sleep(0.05)
         assert _rows(store, "perf_load_sends") == []
     finally:
-        pb._stop_housekeeping()
-    assert not thread.is_alive()
+        pb.shutdown()
+    assert not thread.is_alive() and _perf_beacon_threads() == [] and pb._housekeeper is None
+
+
+def test_a_thread_waiting_for_the_boot_to_settle_stops_at_once_when_told(store, monkeypatch):
+    # the pod restarts inside its first ten minutes: shutdown must not wait out the settle window
+    monkeypatch.delenv(pb.HOUSEKEEPING_SWITCH)
+    monkeypatch.setattr(pb.bg_lane, "enabled", lambda *a, **k: True)
+    monkeypatch.setattr(pb.bg_lane, "settle_remaining", lambda *a, **k: 600.0)
+    _an_older_builds_store(store, 3)
+    monkeypatch.setattr(pb, "_migrated", set())
+    assert pb.startup(every_s=0.05) is True
+    thread = pb._housekeeper
+    time.sleep(0.2)
+    assert thread.is_alive() and not pb._boot_done.is_set()                # waiting: nothing was migrated in the boot
+    assert {r["rate_key"] for r in _rows(store)} == {_old_load_key(_IP)}
+    t = time.time()
+    pb.shutdown()
+    assert time.time() - t < 3 and not thread.is_alive()
+
+
+def test_the_rebuild_is_skipped_when_the_disk_has_no_room_and_tried_again_at_the_next_start(store, monkeypatch, capsys):
+    _an_older_builds_store(store, 2000)
+    conn = sqlite3.connect(store)
+    conn.execute("PRAGMA secure_delete=OFF")
+    # keys in free space too (whole pages of pruned rows, which the blanking below never touches): only a rebuild removes those
+    conn.execute("DELETE FROM perf_loads WHERE id > 1000")
+    conn.commit()
+    conn.close()
+    old = _old_load_key(_IP).encode()
+    monkeypatch.setattr(pb, "_migrated", set())
+    asked = []
+    room = {"free": 10}
+    monkeypatch.setattr(pb, "_free_bytes", lambda d: (asked.append(os.path.normcase(os.path.abspath(d))), room["free"])[1])
+    assert pb.migrate() == 1000                                            # the blanking happens AT ONCE, room or not
+    assert {r["rate_key"] for r in _rows(store)} == {""}
+    assert pb.rebuild_pending() and old in _file_bytes(store)              # ...the rebuild did not, and the store remembers
+    assert "SKIPPED" in capsys.readouterr().out
+    # both places a rebuild writes are asked: the store's own volume and the temp directory
+    assert set(asked) == {os.path.normcase(os.path.abspath(p)) for p in (str(store.parent), tempfile.gettempdir())}
+    assert pb.migrate() == 0 and pb.rebuild_pending()                      # still no room: still pending, nothing lost
+    # room on the volume but not in the temp directory is still no room
+    tmp = os.path.normcase(os.path.abspath(tempfile.gettempdir()))
+    monkeypatch.setattr(pb, "_free_bytes", lambda d: 10 if os.path.normcase(os.path.abspath(d)) == tmp else 10 ** 12)
+    assert pb.migrate() == 0 and pb.rebuild_pending()
+    # the next start, with room: rebuilt, and the marker goes
+    monkeypatch.setattr(pb, "_free_bytes", lambda d: 10 ** 12)
+    assert pb.migrate() == 0
+    assert not pb.rebuild_pending() and old not in _file_bytes(store)
+    assert pb.REBUILD_FREE_FACTOR >= 3
+
+
+def test_a_rebuild_that_fails_is_tried_again_and_the_blanking_is_kept(store, monkeypatch, capsys):
+    _an_older_builds_store(store, 5)
+    monkeypatch.setattr(pb, "_migrated", set())
+    real = pb._rebuild
+
+    def full(conn):
+        raise sqlite3.OperationalError("database or disk is full")
+
+    monkeypatch.setattr(pb, "_rebuild", full)
+    assert pb.migrate() == 5                                               # no exception reaches the caller
+    assert {r["rate_key"] for r in _rows(store)} == {""} and pb.rebuild_pending()
     out = capsys.readouterr().out
-    assert "blanked 3 " in out and _old_load_key(_IP) not in out and _IP not in out          # the log says a count, nothing else
+    assert "FAILED" in out and "OperationalError" in out and "disk is full" not in out       # the type, never the message
+    monkeypatch.setattr(pb, "_rebuild", real)
+    assert pb.migrate() == 0 and not pb.rebuild_pending()
+    assert pb.record(_report(), ip=_IP, country_header="US", now=_T)["stored"] == 1
+
+
+def test_a_report_arriving_during_the_rebuild_is_dropped_at_once_never_parked_behind_it(store, monkeypatch):
+    """Every beacon POST runs in the app's shared threadpool. A report that WAITED for the rebuild would hold a worker
+    for as long as it runs; a reload spike after a deploy would park the pool every sync route shares."""
+    _an_older_builds_store(store, 5)
+    monkeypatch.setattr(pb, "_migrated", set())
+    inside, go = threading.Event(), threading.Event()
+    real = pb._rebuild
+
+    def slow(conn):
+        inside.set()
+        assert go.wait(20)
+        real(conn)
+
+    monkeypatch.setattr(pb, "_rebuild", slow)
+    worker = threading.Thread(target=pb.migrate, daemon=True)
+    worker.start()
+    try:
+        assert inside.wait(15)                                             # the rebuild is running and holds the store
+        t = time.time()
+        assert pb.record(_report(), ip=_IP, country_header="US") == {"stored": 0, "dropped": 1, "invalid": 0}
+        assert pb.record(_switch_report(), ip=_IP, country_header="US") == {"stored": 0, "dropped": 1, "invalid": 0}
+        assert pb.housekeep() == {"load_sends": 0, "switch_sends": 0, "senders": 0}           # the timer does not wait either
+        assert time.time() - t < 2, "they were answered at once, not after the rebuild"
+        assert worker.is_alive()                                           # control: the rebuild really was still running
+        assert pb.record(_report(lcp="x"), ip=_IP, country_header="US")["invalid"] == 1       # a bad report is still called bad
+    finally:
+        go.set()
+        worker.join(20)
+    assert not worker.is_alive() and not pb.rebuild_pending()
+    assert pb.record(_report(), ip=_IP, country_header="US")["stored"] == 1                  # afterwards reports are stored again
+    assert len(_rows(store)) == 6
+
+
+def test_the_lifespan_starts_the_housekeeping_after_the_background_lane_and_stops_it_on_the_way_down():
+    # Before `bg_lane.activate` the lane is a plain pass-through: a thread started above it could run the rebuild
+    # inside the boot. And a thread the startup half starts is stopped by the shutdown half.
+    src = (Path(__file__).resolve().parents[1] / "api" / "main.py").read_text(encoding="utf-8")
+    body = src[src.index("async def lifespan(app"):]
+    up, down = body.split("\n    yield\n", 1)[0], body.split("\n    yield\n", 1)[1]
+    assert "bg_lane.activate(" in up and ".startup()" in up.split("bg_lane.activate(", 1)[1].split("perf_beacon", 1)[1][:400]
+    assert "perf_beacon" not in up.split("bg_lane.activate(", 1)[0]       # nothing of it above the activation
+    assert re.search(r"perf_beacon as (\w+)\n\s+\1\.shutdown\(\)", down)
 
 
 def test_a_restart_mid_day_counts_a_returning_sender_again_and_the_legend_says_so(store):
@@ -695,3 +840,22 @@ def test_a_restart_mid_day_counts_a_returning_sender_again_and_the_legend_says_s
     s = pb.switch_summary(1, now=_T + 4)
     assert s["cells"][0]["senders"] == 2                                   # an over-count, never an under-count
     assert "restart" in s["legend"]["senders"] and "memory" in s["legend"]["senders"]
+    # ...and said as what it is: an upper bound across restarts and processes; the quota is each process's own
+    assert "upper bound" in s["legend"]["senders"] and "process" in s["legend"]["senders"]
+    assert "per process" in s["legend"]["quota"] and "restart" in s["legend"]["quota"]
+
+
+def test_the_real_lifespan_leaves_no_perf_beacon_thread_and_touches_no_store(store, monkeypatch):
+    """LAST in this file: it runs the whole app's boot and shutdown, as every lifespan test does (the root conftest's
+    switch on). No housekeeping thread during or after it, and the beacon's store path is never even asked for, so no
+    lifespan test can prune or rebuild a store, on this PC's data volume or anywhere else."""
+    from api.main import app
+    assert os.environ.get(pb.HOUSEKEEPING_SWITCH) == "1"
+    asked = []
+    real_path = pb._db_path
+    monkeypatch.setattr(pb, "_db_path", lambda: (asked.append(real_path()), asked[-1])[1])
+    assert _perf_beacon_threads() == []
+    with TestClient(app):
+        assert _perf_beacon_threads() == []
+    assert _perf_beacon_threads() == [] and pb._housekeeper is None
+    assert asked == []
