@@ -39,19 +39,23 @@ describe('a knob never costs the script its install', () => {
     expect(b.guard).toBe('budget:series')
     expect(b.measured.maxSeriesRefs).toBe(9)
   })
-  it('the inputs an over-budget column reads are given back, by name, and the script installs', () => {
+  // ⭐⭐ e95 unit 2b (2026-11-22, coordinator ruling) — THE INSTALL BUDGET IS THE DEFAULTS' PROGRAM. Every install-time
+  // measurement reads the tree pruned at the knobs' defaults (`astColumns.js::defaultBoundDocument`,
+  // `bind.js::pruneAtLeafDefaults`): here `useO ? open : …` at `useO = true` is `open`, one series. So the four knobs
+  // stay live and the script installs; each binding is measured by its own compute budget, and none of this script's
+  // settings reaches the cap (the widest, `useO` off, reads seven series). ⚰️ Before, the saved tree (nine series,
+  // every arm) was measured and the four knobs were given back, folded to the author's defaults.
+  it('its knobs stay live: the install measures the program at the defaults, and each setting draws its own branch', () => {
     const d = memberPaneDefinition({ source: OVER, id: 'u_bt_knobs_over', name: 'over' })
     expect(d.ok, d.reason).toBe(true)
     expect(install(d, 'u_bt_knobs_over')).toEqual({ errors: [], installed: 1 })
-    // all four are given back; `useO` folded to its default (true) takes the first branch, so the
-    // other three are never reached and only `useO` is listed (measured on GitHub runners)
-    const back = givenBack(d)
-    expect(back.map((e) => e.name)).toEqual(['useO'])
-    for (const e of back) expect(e.reason).toMatch(/install budget[\s\S]*`budget:series`/)
-    for (const knob of ['useO', 'useH', 'useL', 'useC']) expect(d.translation.declared || []).not.toContain(knob)
-    // the column is drawn as the author's defaults draw it
-    expect(d.translation.outputs[0].formula).not.toMatch(/use[OHLC]/)
-    expect(d.translation.outputs[0].formula).toMatch(/\bopen\b/)
+    expect(givenBack(d)).toEqual([])
+    for (const knob of ['useO', 'useH', 'useL', 'useC']) expect(d.translation.declared || []).toContain(knob)
+    const BARS = Array.from({ length: 5 }, (_, i) => ({ t: `2026-01-0${i + 5}`, o: 10 + i, h: 20 + i, l: 5 + i, c: 15 + i, v: 100 + i }))
+    const col = (inputs) => Array.from(Object.values(registry.computeFor(d.definition, BARS, inputs, { tf: 'D' }))[0])
+    expect(col(undefined)).toEqual(BARS.map((b) => b.o))
+    expect(col({ useO: 0 })).toEqual(BARS.map((b) => b.h))
+    expect(col({ useO: 0, useH: 0, useL: 0, useC: 0 })).toEqual(BARS.map((b) => b.v))
   })
   it('CONTROL: a script under the cap keeps its knob', () => {
     const d = memberPaneDefinition({ source: UNDER, id: 'u_bt_knobs_under', name: 'under' })

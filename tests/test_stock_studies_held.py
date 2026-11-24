@@ -46,6 +46,11 @@ def fresh(monkeypatch, tmp_path):
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
     for svc in (SS, VF, FX, SH):
         svc.reset_for_tests()
+    # Speed pass 2 (2026-11-24): the price studies' route readers never build on the request; they answer
+    # `computing` while one background build runs. These rails read the services' own answers back, so each route
+    # read here waits for the build it started (the held readers themselves are unchanged and start nothing).
+    for svc in (SS, VF, FX):
+        monkeypatch.setattr(svc, "WAIT_S", 10.0)
     monkeypatch.setattr(SS, "_is_trading_day", lambda d: d.weekday() < 5)
     monkeypatch.setattr(SH, "_universe", lambda: list(T_SH.SYMS))
     monkeypatch.setattr(SH, "_market", lambda wait_s: T_SH._market())
@@ -55,6 +60,8 @@ def fresh(monkeypatch, tmp_path):
     yield tmp_path
     SH._STUDY.drain(10)
     SH._STOCK.drain(10)
+    for svc in (SS, VF, FX):
+        svc.drain_for_tests()
     for svc in (SS, VF, FX, SH):
         svc.reset_for_tests()
 
@@ -178,6 +185,21 @@ def test_the_setup_reader_returns_the_newest_sessions_answer(monkeypatch):
     assert first["session"] == T_SH.KEY and second["session"] == later.isoformat()
     assert len([k for k in SH._STOCK.keys() if k[0] == "QZSA"]) == 2
     assert shh.held_signals("QZSA")[0]["session"] == later.isoformat()
+
+
+def test_the_setup_reader_returns_the_answer_the_route_last_served_when_mkths_stamp_moved_within_a_session(monkeypatch):
+    # One session, two MKTH stamps: asked while MKTH was still computing (no phases), then again once MKTH held its
+    # answer (phases). The route now serves the second; the held reader must too, never the first.
+    monkeypatch.setattr(SH, "_read_bars", T_SH._reader())
+    monkeypatch.setattr(SH, "_market", lambda wait_s: T_SH._market("computing"))
+    first = _stock()
+    monkeypatch.setattr(SH, "_market", lambda wait_s: T_SH._market())
+    second = _stock()
+    assert first["session"] == second["session"] == T_SH.KEY
+    assert first["phases"]["state"] == "not_held" and second["phases"]["state"] == "ok"
+    assert len([k for k in SH._STOCK.keys() if k[0] == "QZSA"]) == 2
+    got, how = shh.held_signals("QZSA")
+    assert how == "held" and got["phases"] == second["phases"]
 
 
 def test_each_reader_says_read_only():

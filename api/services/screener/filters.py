@@ -1140,6 +1140,100 @@ FILTERS = dict([
                             "fundamental_trends", "gross_margin_chg_1y", unit="pts")),
     _agent_omit(_open_range("shares_chg_1y", "Share Count Change vs Year Ago",
                             "fundamental_trends", "shares_chg_1y", unit="%")),
+    # ── volume & volatility (2026-11-23): from each row's own stored daily bars, inside the
+    # build's bars pass (`volume_volatility`, one writer), each the definition a Terminal panel
+    # already prints: STAT's realized volatility, VFP's accumulation / distribution days and
+    # pocket pivots, STAT's drawdown against the S&P 500 in MKTH's newest completed decline. ──
+    # NOT DUPLICATES, checked: `atr_pct` / `adr_pct` are ranges, not close-to-close
+    # volatility; `accdis` is a letter grade from a 65-session up/down VOLUME RATIO
+    # (`ratings._accdis_ratio`) and `vol_updown_ratio` a 10-session one, neither a COUNT of
+    # accumulation and distribution days; `beta` is a slope against SPY, not a drawdown.
+    # All bare (E-8) and `_agent_omit`: member controls; UCT Agent's field list (sent with
+    # every screen request under a fixed context budget) is unchanged.
+    _agent_omit(_open_range("hv_20", "Realized Volatility, 20 Days", "volume_volatility",
+                            "hv_20", unit="%")),
+    _agent_omit(_open_range("hv_60", "Realized Volatility, 60 Days", "volume_volatility",
+                            "hv_60", unit="%")),
+    _agent_omit(_open_range("ad_net_25", "Accumulation Minus Distribution Days (25)",
+                            "volume_volatility", "ad_net_25")),
+    _agent_omit(_open_range("pocket_pivots_20", "Pocket Pivots, Last 20 Sessions",
+                            "volume_volatility", "pocket_pivots_20")),
+    _agent_omit(_open_range("days_since_pocket_pivot", "Sessions Since Last Pocket Pivot",
+                            "volume_volatility", "days_since_pocket_pivot")),
+    _agent_omit(_open_range("corr_rel_last", "Drawdown vs S&P 500, Last Correction",
+                            "volume_volatility", "corr_rel_last", unit="×")),
+    # ── beats, insiders & funds (2026-11-23): one read per build of three held stores
+    # (`beats_insiders_funds`, a writer per store): the newest report's EPS surprise and the
+    # beat streak (ERNSC's beat rule), Form 4 open-market purchases filed in the last 30 days
+    # (INS CLUSTER's store), funds adding less funds cutting (the N-PORT index, GRPS's rule).
+    # NOT DUPLICATES, checked: `insider_cluster_days` is the age of a cluster buy, not a
+    # count; `insider_trans_pct` / `inst_trans_pct` are a provider's percent changes in
+    # holdings; `last_report_move_pct` is the price move, not the surprise. Bare, `_agent_omit`. ──
+    _agent_omit(_open_range("eps_surprise_last", "EPS Surprise, Last Report",
+                            "beats_insiders_funds", "eps_surprise_last", unit="%")),
+    _agent_omit(_open_range("eps_beat_streak", "EPS Beat Streak (quarters)",
+                            "beats_insiders_funds", "eps_beat_streak")),
+    _agent_omit(_open_range("insider_buys_30d", "Insider Buy Filings, Last 30 Days",
+                            "beats_insiders_funds", "insider_buys_30d")),
+    _agent_omit(_open_range("insider_buy_value_30d", "Insider Buy Value, Last 30 Days",
+                            "beats_insiders_funds", "insider_buy_value_30d", unit="$")),
+    _agent_omit(_open_range("fund_net_adds", "Funds Adding Minus Funds Cutting",
+                            "beats_insiders_funds", "fund_net_adds")),
+    # ── held-store columns (2026-11-23): one read per build of four held stores (`store_columns`, a
+    # writer per store) and the FINRA list's change since the prior report (`short_columns`, its own
+    # one read), each in the family a member looks in: OSCR's IV rank and percentile beside the
+    # realized volatility, GRPS's industry group rank in Context, SHINT's change in shares short beside
+    # the short columns, DVD MARKET's next ex-dividend date and EEHSC's estimate revisions beside the
+    # earnings dates and the rating changes.
+    # NOT DUPLICATES, checked: `hv_20` / `hv_60` are REALIZED volatility, not implied; `implied_move_pct`
+    # is one report's straddle, not a rank; `sector_rs_pct` ranks a stock within its SECTOR by RS, not its
+    # industry among industries; `short_float_pct` / `short_ratio` are levels, not a change;
+    # `dividend_yield` is a yield, not a date; `upgrades_30d` / `downgrades_30d` are RATING changes, not
+    # estimate revisions. Bare (E-8), `_agent_omit`: the Agent's field list has no room (the budget). ──
+    _agent_omit(_open_range("iv_rank", "IV Rank", "volume_volatility", "iv_rank")),
+    _agent_omit(_open_range("iv_percentile", "IV Percentile", "volume_volatility", "iv_percentile")),
+    _agent_omit(_open_range("group_rank", "Industry Group Rank", "context", "group_rank")),
+    _agent_omit(_open_range("group_rank_of", "Industry Groups Ranked", "context", "group_rank_of")),
+    _agent_omit(_open_range("group_rank_chg_4w", "Industry Group Rank Change, 4 Weeks", "context",
+                            "group_rank_chg_4w")),
+    _agent_omit(_open_range("short_interest_chg_pct", "Short Interest Change", "ownership",
+                            "short_interest_chg_pct", unit="%")),
+    _agent_omit(_open_range("next_ex_div_date", "Next Ex-Dividend Date", "events", "next_ex_div_date")),
+    _agent_omit(_open_range("days_to_ex_div", "Days to Ex-Dividend", "events", "days_to_ex_div")),
+    _agent_omit(_open_range("eps_rev_up_30d", "EPS Estimate Raised, 30 Days", "events", "eps_rev_up_30d")),
+    _agent_omit(_open_range("eps_rev_down_30d", "EPS Estimate Cut, 30 Days", "events", "eps_rev_down_30d")),
+    _agent_omit(_open_range("eps_rev_net_30d", "EPS Estimate Revision, Net, 30 Days", "events",
+                            "eps_rev_net_30d")),
+    # ── row columns (2026-11-24): from each row's own stored daily bars inside the build's bars
+    # pass (`row_columns`, one writer), each the definition a Terminal panel already prints: IPO
+    # LOCKUP's estimated expiry from the row's listing date beside the other event dates, SEAS's
+    # month beside the returns, ERX's drift beside the last report's move, FCTX's loadings and
+    # STAT's up / down capture in their own family (`row_columns.FACTOR_CATEGORY`).
+    # NOT DUPLICATES, checked: `ipo_date` / `ipo_age_days` are the listing and its age, not the
+    # lockup; `last_report_move_pct` is the wire's peak move on the report, not the 5 sessions
+    # after it; `beta` is the vendor's single-factor slope, not FCTX's multi-factor loading, and no
+    # column held capture or seasonality. Bare (E-8), `_agent_omit`: the Agent's field list has no
+    # room (the budget). ──
+    _agent_omit(_open_range("days_to_lockup", "Days to Lockup Expiry (Estimated)", "events",
+                            "days_to_lockup")),
+    _agent_omit(_open_range("seas_month_avg", "Seasonality, Average Return This Month", "performance",
+                            "seas_month_avg", unit="%")),
+    _agent_omit(_open_range("seas_month_up_pct", "Seasonality, Up Years This Month", "performance",
+                            "seas_month_up_pct", unit="%")),
+    _agent_omit(_open_range("seas_month_years", "Seasonality, Years Counted This Month", "performance",
+                            "seas_month_years")),
+    _agent_omit(_open_range("post_earn_drift_5d", "Drift 5 Days After Last Report", "events",
+                            "post_earn_drift_5d", unit="%")),
+    _agent_omit(_open_range("factor_mkt", "Factor Loading, Market", "factors_capture", "factor_mkt")),
+    _agent_omit(_open_range("factor_size", "Factor Loading, Size", "factors_capture", "factor_size")),
+    _agent_omit(_open_range("factor_growth", "Factor Loading, Growth vs Value", "factors_capture",
+                            "factor_growth")),
+    _agent_omit(_open_range("factor_mom", "Factor Loading, Momentum", "factors_capture", "factor_mom")),
+    _agent_omit(_open_range("factor_r2", "Factor Model R-Squared", "factors_capture", "factor_r2")),
+    _agent_omit(_open_range("up_capture_1y", "Up Capture vs SPY, 1 Year", "factors_capture",
+                            "up_capture_1y", unit="%")),
+    _agent_omit(_open_range("down_capture_1y", "Down Capture vs SPY, 1 Year", "factors_capture",
+                            "down_capture_1y", unit="%")),
 ])
 
 # ⚠️ `gt`/`lt`/`eq` JOINED "range" FOR THE FACTUAL PRESETS, and the strictness
@@ -1285,7 +1379,9 @@ VIEWS = {
     "performance": {"label": "Performance", "columns": [
         "ticker", "company", "chg_pct_1d", "chg_pct_1w", "chg_pct_1m",
         "chg_pct_3m", "chg_pct_6m", "chg_pct_1y", "chg_pct_ytd",
-        "dist_52w_high_pct", "dist_ath_pct"]},
+        "dist_52w_high_pct", "dist_ath_pct",
+        # SEAS's month (2026-11-24): this calendar month's average return, up years, years counted
+        "seas_month_avg", "seas_month_up_pct", "seas_month_years"]},
     "momentum": {"label": "Momentum", "columns": [
         "ticker", "company", "candle_score", "pct_vs_ema20", "close_cv_pct",
         "avg_body_pct_5", "pole_pct", "adr_pct", "vol_nweek_low",
@@ -1320,7 +1416,7 @@ VIEWS = {
     "ownership": {"label": "Ownership & Short", "columns": [
         "ticker", "company", "shares_outstanding", "float_shares", "float_pct",
         "inst_pct", "inst_trans_pct", "insider_own_pct", "insider_trans_pct",
-        "short_float_pct", "short_ratio", "optionable", "shortable"]},
+        "short_float_pct", "short_ratio", "short_interest_chg_pct", "optionable", "shortable"]},
     # …and measuring the gap found three MORE families in the same state —
     # `context`, `events` and `multi_candle` were filterable-but-unviewable
     # since Waves 1-2. Closing all six makes the invariant below TRUE, which is
@@ -1328,12 +1424,19 @@ VIEWS = {
     "events": {"label": "Events & Analysts", "columns": [
         "ticker", "company", "next_earnings_date", "days_to_earnings",
         "earnings_session", "implied_move_pct", "last_report_move_pct",
+        # ERX's drift after the last report and IPO LOCKUP's estimate (2026-11-24)
+        "post_earn_drift_5d",
+        "next_ex_div_date", "days_to_ex_div", "days_to_lockup",
         "earnings_setup_grade", "analyst_consensus", "pt_upside_pct",
-        "upgrades_30d", "downgrades_30d"]},
+        "upgrades_30d", "downgrades_30d",
+        "eps_rev_up_30d", "eps_rev_down_30d", "eps_rev_net_30d"]},
     "context": {"label": "Context", "columns": [
         # `security_type` (2026-10-17): the Type filter's family had no view, so a member
         # could filter Stocks / ADRs / ETFs and never see which a row is.
-        "ticker", "company", "security_type", "theme", "in_uct20", "index_sp500", "index_ndx",
+        "ticker", "company", "security_type", "theme",
+        # GRPS's industry group rank (2026-11-23): the place, how many were ranked, the move.
+        "group_rank", "group_rank_of", "group_rank_chg_4w",
+        "in_uct20", "index_sp500", "index_ndx",
         "index_r2k", "is_etf", "is_leveraged", "stage2", "stage4",
         "hvc_52w"]},
     "candles": {"label": "Candles", "columns": [
@@ -1422,6 +1525,24 @@ VIEWS = {
         "ticker", "company", "price", "chg_pct_1d", "rev_growth", "rev_accel_q",
         "eps_growth", "eps_streak_25", "eps_growth_min_2q", "eps_growth_min_3q",
         "eps_growth_min_4q", "net_margin_chg_1y", "gross_margin_chg_1y", "shares_chg_1y"]},
+    # VOLUME & VOLATILITY (2026-11-23): every column of the family has its seat here, beside
+    # the range and volume columns the Screener already carries (ATR %, ADR %, relative volume).
+    "volume_volatility": {"label": "Volume & Volatility", "columns": [
+        "ticker", "company", "price", "chg_pct_1d", "atr_pct", "adr_pct", "hv_20", "hv_60",
+        # OSCR's IV rank and percentile (2026-11-23), beside the realized volatility
+        "iv_rank", "iv_percentile",
+        "vol_ratio", "ad_net_25", "pocket_pivots_20", "days_since_pocket_pivot", "corr_rel_last"]},
+    # BEATS, INSIDERS & FUNDS (2026-11-23): every column of the family, beside the next report
+    # date and the last report's move the Screener already carries.
+    "beats_insiders_funds": {"label": "Beats, Insiders & Funds", "columns": [
+        "ticker", "company", "price", "chg_pct_1d", "next_earnings_date", "eps_surprise_last",
+        "eps_beat_streak", "last_report_move_pct", "post_earn_drift_5d", "insider_buys_30d",
+        "insider_buy_value_30d", "fund_net_adds"]},
+    # FACTORS & CAPTURE (2026-11-24): FCTX's loadings and R-squared and STAT's up / down capture,
+    # beside the vendor's beta the Screener already carries (one slope against the market).
+    "factors_capture": {"label": "Factors & Capture", "columns": [
+        "ticker", "company", "price", "chg_pct_1d", "beta", "factor_mkt", "factor_size",
+        "factor_growth", "factor_mom", "factor_r2", "up_capture_1y", "down_capture_1y"]},
 }
 
 # ── The Type filter (instrument class) ──────────────────────────────────────
@@ -1464,6 +1585,15 @@ CATEGORIES = [
     # Fundamental trends (2026-11-21): the eight point-in-time trend columns from SEC
     # filings (`fund_trends`). Appended for the same reason `flow` was.
     {"key": "fundamental_trends", "label": "Fundamental Trends"},
+    # Volume & volatility, and beats, insiders & funds (2026-11-23): the bar-derived and the
+    # store-derived columns of that unit (`volume_volatility`, `beats_insiders_funds`).
+    # Appended for the same reason `flow` was; neither label is a word another category uses.
+    {"key": "volume_volatility", "label": "Volume & Volatility"},
+    {"key": "beats_insiders_funds", "label": "Beats, Insiders & Funds"},
+    # Factors & capture (2026-11-24): FCTX's loadings and STAT's capture (`row_columns`), how a stock
+    # moves with the market and the style funds; no existing family is about that, and the label is
+    # a word no other category uses. Appended for the same reason `flow` was.
+    {"key": "factors_capture", "label": "Factors & Capture"},
 ]
 
 
@@ -2170,10 +2300,11 @@ def meta(user_id=None, user=None) -> dict:
     test_a_measured_band_is_not_an_editorial_preset` for the rail.
 
     ⚠️ Only `type == "range"` controls get one, and only over a column the live
-    table declares INTEGER/REAL. `ipo_date` and `next_earnings_date` are range
-    controls over TEXT columns — a "typical range" of an earnings date is not a
-    thing — and they are excluded by that gate rather than by name. Those two
-    are the ONLY range controls that carry no `distribution` key at all:
+    table declares INTEGER/REAL. `ipo_date`, `next_earnings_date` and (2026-11-23)
+    `next_ex_div_date` are range controls over TEXT columns — a "typical range" of
+    an earnings date is not a thing — and they are excluded by that gate rather
+    than by name. Those three are the ONLY range controls that carry no
+    `distribution` key at all:
     everything else gets one, and a column this pod's table has not been ALTERed
     to hold yet arrives REFUSED as `column_absent` rather than dropping out of
     the payload, where "not migrated" and "not applicable" look identical.

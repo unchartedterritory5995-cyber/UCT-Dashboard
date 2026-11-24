@@ -176,6 +176,29 @@ describe('FED states', () => {
     await screen.findByTestId('terminal-fed-redline', {}, { timeout: 6000 })
     expect(n).toBeGreaterThanOrEqual(2)
   })
+
+  it('headlines and rates the server is still reading say so, never "could not be read", and fill in on their own', async () => {
+    const pending = { value: null, date: null, reason: 'computing' }
+    let n = 0
+    jsonFetcher.mockImplementation(async () => {
+      n += 1
+      return n === 1
+        ? answer({ headlines: { state: 'computing', source: 'TradeXchange', items: [] },
+          rates: { state: 'computing', source: 'Federal Reserve Bank of New York', notice: 'The invented notice names newyorkfed.org.',
+            effective: pending, upper: pending, lower: pending } })
+        : answer()
+    })
+    renderPanel()
+    const reading = await screen.findByTestId('terminal-fed-headlines-computing')
+    expect(reading.textContent).toBe('Reading the newest headlines on the news wire. This fills in on its own.')
+    expect(screen.queryByTestId('terminal-fed-headlines-error')).toBeNull()
+    expect(block('terminal-fed-computing').textContent).toContain('Some blocks are still being read; they fill in on their own.')
+    expect(block('terminal-fed-range').textContent).toBe('No figure. No figure is held yet.')       // never 0
+    await screen.findAllByTestId('terminal-fed-headline', {}, { timeout: 6000 })
+    expect(n).toBeGreaterThanOrEqual(2)
+    expect(block('terminal-fed-range').textContent).toBe('9.00% to 9.25% (Mar 18, 2031)')
+    expect(screen.queryByTestId('terminal-fed-computing')).toBeNull()
+  })
 })
 
 describe('FED with every block', () => {

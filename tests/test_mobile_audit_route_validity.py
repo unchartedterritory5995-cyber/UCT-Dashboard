@@ -16,7 +16,6 @@ can only be exercised by a full Playwright sweep is a guard nobody runs.
 from __future__ import annotations
 
 import importlib.util
-import sys
 from pathlib import Path
 
 import pytest
@@ -27,7 +26,9 @@ _SPEC = importlib.util.spec_from_file_location(
     "mobile_audit", Path(__file__).resolve().parents[1] / "tools" / "mobile_audit.py"
 )
 mobile_audit = importlib.util.module_from_spec(_SPEC)
-sys.modules["mobile_audit"] = mobile_audit
+# Not registered in sys.modules: nothing imports it by that name (it defines no dataclass, pickles
+# nothing and never imports itself), and a module-level bind is process-wide state that no test
+# removes (tests/test_shared_state_landmines.py).
 try:
     _SPEC.loader.exec_module(mobile_audit)
 except ImportError as exc:  # playwright absent in some environments

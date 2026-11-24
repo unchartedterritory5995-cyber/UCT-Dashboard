@@ -9,7 +9,7 @@
   ],
   "summary": {
     "named_access_count": 2,
-    "positional_count": 58,
+    "positional_count": 59,
     "named_access": [
       "api/services/canonical/resolver.py",
       "api/services/ticker_returns.py"
@@ -63,6 +63,7 @@
       "api/services/single_stock_etfs.py",
       "api/services/theme_engine/comovement.py",
       "api/services/theme_index.py",
+      "api/services/uct_agent/marketdata/analyst_ratings_read.py",
       "api/services/uct_agent/marketdata/bars_daily.py",
       "api/services/uct_agent/marketdata/rs_leadership.py",
       "api/services/uct_agent/marketdata/seasonality_stock.py",
@@ -723,7 +724,7 @@
       ],
       "evidence": {
         "pattern": "int-subscript",
-        "index": 0
+        "index": 1
       }
     },
     "api/services/screener/sparks.py": {
@@ -798,6 +799,18 @@
       ],
       "evidence": {
         "pattern": "row_position"
+      }
+    },
+    "api/services/uct_agent/marketdata/analyst_ratings_read.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars_before"
+        }
+      ],
+      "evidence": {
+        "pattern": "int-subscript",
+        "index": 0
       }
     },
     "api/services/uct_agent/marketdata/bars_daily.py": {

@@ -2,6 +2,12 @@
 
 Run with: python -m api.flow_worker_main  (Railway: FLOW_WORKER_ENABLED=1)
 
+Redeploy trigger 2026-11-22 (engine train e95): the alert() delivery chain (AL1-AL3, #2461 / #2476 / #2487) and the e95
+units change modules this worker reaches but does not watch (alert_fired_log, alert_taxonomy/indicator_condition,
+alert_trigger_policy, alert_user_series, indicator_alert_evaluator, indicator_alert_service, runtime_server_lane,
+pine_runtime_client, pine_runtime_codec, ast_interpret, ast_bar_index_shift, pine_authoring, pine_capabilities,
+rollout_gate). `tests/test_flow_worker_watch_coverage.py` named them; this header edit is the trigger it prescribes.
+
 Redeploy trigger 2026-11-08 (video + YouTube embeds): substack_article.py is statically reachable from this worker but off
 its watch list. The Substack poller runs on web, so this only keeps the rail honest.
 

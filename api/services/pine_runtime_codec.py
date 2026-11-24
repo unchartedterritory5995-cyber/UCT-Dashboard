@@ -319,6 +319,67 @@ STRATEGY_WINDOW_HISTORY = "strategy-window"
 STRATEGY_START_GUARD = "runtime:strategy-start"
 
 
+# ─── TRACK 6, AL2: the run's alert() record on the wire ─────────────────────────────
+#
+# Under profile ``alert`` a job may ask for the run's alert() record (AL1, ``runtimeColumns.js::runtimeAlertsOf``:
+# ``{fromBar: 0, events: [{bar, message, freq}], dropped}``) with ``want: ["#alerts"]``. The service writes it as JSON
+# TEXT; its seal (``protocol.mjs::alertsRecordShapeErrors``) checks the closed shape and adds ``alerts_sha256`` =
+# sha256 of the text's UTF-8 bytes. Mirrored here, and read by ``tests/test_pine_runtime_alerts_wire.py`` from the JS.
+
+#: ``protocol.mjs::ALERTS_WANT``: the ``want`` entry that asks for the record (never a plot key).
+ALERTS_WANT = "#alerts"
+#: ``protocol.mjs::ALERTS_PROFILE``: the one profile that may ask for it.
+ALERTS_PROFILE = "alert"
+#: ``protocol.mjs`` ALERTS_MAX_EVENTS / ALERTS_MAX_MESSAGE / ALERTS_MAX_FREQ (AL1's caps).
+ALERTS_MAX_EVENTS = 500
+ALERTS_MAX_MESSAGE = 512
+ALERTS_MAX_FREQ = 64
+
+
+def alerts_record_sha256(text: Any) -> str:
+    """sha256 (lowercase hex) of the record text's UTF-8 bytes, exactly as the seal computes it."""
+    return hashlib.sha256(_utf8(text, "alerts")).hexdigest()
+
+
+def _int_index(v: Any) -> bool:
+    return isinstance(v, int) and not isinstance(v, bool)
+
+
+def decode_alerts_record(text: Any, sha256: Any, rows: int) -> Dict[str, Any]:
+    """The alert record a result carries, or ``CodecError``: the hash is checked over the RECEIVED text before it is
+    parsed, then the closed shape the seal holds it to (every bar one of this job's ``rows``)."""
+    if not isinstance(sha256, str) or len(sha256) != 64 or not set(sha256) <= _HEX64:
+        raise CodecError("alerts_sha256 must be 64 lowercase hex digits")
+    if alerts_record_sha256(text) != sha256:
+        raise CodecError("the alert record does not match its alerts_sha256")
+    import json
+    try:
+        rec = json.loads(text, parse_constant=_no_constant)
+    except ValueError as e:
+        raise CodecError(f"the alert record is not JSON ({e})") from None
+    if not isinstance(rec, dict) or set(rec) != {"fromBar", "events", "dropped"}:
+        raise CodecError("the alert record is not {fromBar, events, dropped}")
+    if rec["fromBar"] != 0 or not _int_index(rec["fromBar"]):
+        raise CodecError("the alert record does not start at bar 0")
+    if not _int_index(rec["dropped"]) or rec["dropped"] < 0:
+        raise CodecError("the alert record's dropped is not a count")
+    events = rec["events"]
+    if not isinstance(events, list) or len(events) > ALERTS_MAX_EVENTS:
+        raise CodecError(f"the alert record's events is not a list of at most {ALERTS_MAX_EVENTS}")
+    for i, e in enumerate(events):
+        if not isinstance(e, dict) or set(e) != {"bar", "message", "freq"}:
+            raise CodecError(f"alert event {i} is not {{bar, message, freq}}")
+        bar = e["bar"]
+        if bar is not None and (not _int_index(bar) or bar < 0 or bar >= rows):
+            raise CodecError(f"alert event {i} names no bar of this run")
+        msg = e["message"]
+        if msg is not None and (not isinstance(msg, str) or len(msg) > ALERTS_MAX_MESSAGE):
+            raise CodecError(f"alert event {i}'s message is not null or a string of at most {ALERTS_MAX_MESSAGE}")
+        if not isinstance(e["freq"], str) or len(e["freq"]) > ALERTS_MAX_FREQ:
+            raise CodecError(f"alert event {i}'s freq is not a string of at most {ALERTS_MAX_FREQ}")
+    return rec
+
+
 def strategy_record_sha256(text: Any) -> str:
     """sha256 (lowercase hex) of the record text's UTF-8 bytes, exactly as the seal computes it."""
     return hashlib.sha256(_utf8(text, "strategy")).hexdigest()

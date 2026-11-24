@@ -20,7 +20,10 @@ vi.mock('../../../utils/jsonFetcher', () => ({ default: vi.fn() }))
 import jsonFetcher from '../../../utils/jsonFetcher'
 import { PanelFreshnessContext, PanelListContext, TerminalPanelContext } from '../../../components/terminal'
 import StockStatsPanel from './StockStatsPanel'
-import { STAT_CODE, STAT_SOURCE, statUrl } from './stockStatsModel'
+import {
+  COMPUTING_POLL_MS, HELD_POLL_MS, STAT_CODE, STAT_SOURCE, STOCK_COMPUTING_POLL_MS, statPollMs, statRead, statUrl,
+} from './stockStatsModel'
+import { WARMING_TITLE } from './marketRead'
 import { statAnswer } from './__fixtures__/stockStatsFixture'
 import { colourLiteralsIn } from '../__tests__/themeScope'
 import { expectNoAxeViolations } from '../../journal-2-0/a11y/axeHarness'
@@ -108,7 +111,7 @@ describe('STAT states', () => {
     renderPanel({ sym: '$$', code: 'STAT' })
     expect((await screen.findByTestId('terminal-stat-bad-symbol')).textContent).toContain('Type one first, e.g. NVDA STAT')
     cleanup()
-    for (const b of [{ items: [] }, { status: 'computing' }, []]) {
+    for (const b of [{ items: [] }, { status: 'pending' }, []]) {
       serve(b)
       renderPanel()
       const err = await screen.findByTestId('terminal-stat-error')
@@ -263,6 +266,41 @@ describe('STAT sections', () => {
     expect(screen.getByTestId('terminal-stat-volatility')).toBeTruthy()            // the other sections stand
     await screen.findByTestId('terminal-stat-corrections-table', {}, { timeout: 9000 })
     expect(n).toBeGreaterThanOrEqual(2)
+  })
+
+  it('the first ask being worked out says the server is preparing it, asks again by itself, and stops once it is ready', async () => {
+    // speed pass 2 (2026-11-24): the server answers `computing` at once while it works the stock out
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      let n = 0
+      jsonFetcher.mockImplementation(async () => {
+        n += 1
+        return n === 1 ? { status: 'computing', symbol: 'NVDA' } : statAnswer()
+      })
+      renderPanel()
+      const working = await screen.findByTestId('terminal-stat-computing')
+      expect(working.textContent).toBe(WARMING_TITLE)
+      expect(working.getAttribute('role')).toBe('status')
+      expect(root().getAttribute('data-state')).toBe('computing')
+      expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull()
+      expect(n).toBe(1)
+      await vi.advanceTimersByTimeAsync(STOCK_COMPUTING_POLL_MS + 100)
+      await screen.findByTestId('terminal-stat-volatility')
+      expect(n).toBe(2)
+      await vi.advanceTimersByTimeAsync(STOCK_COMPUTING_POLL_MS * 3)
+      expect(n).toBe(2)                                                    // ready: back to the half-hour pace
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('the pace: soon while the stock or the corrections are being worked out, else once a half hour', () => {
+    expect(statPollMs(statRead({ status: 'computing', symbol: 'NVDA' }))).toBe(STOCK_COMPUTING_POLL_MS)
+    const working = statAnswer()
+    working.corrections = { state: 'computing', index: 'S&P 500', first: '2004-01-02', as_of: '2026-11-20' }
+    expect(statPollMs(statRead(working))).toBe(COMPUTING_POLL_MS)
+    expect(statPollMs(statRead(statAnswer()))).toBe(HELD_POLL_MS)
+    expect(statPollMs(statRead({ status: 'busy' }))).toBe(HELD_POLL_MS)
   })
 
   it('an index not held and a failed read of the corrections are words; the other sections stand', async () => {

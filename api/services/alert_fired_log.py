@@ -154,6 +154,7 @@ CREATE TABLE IF NOT EXISTS indicator_alert_fires (
   delivery_error TEXT,
   delivery_channels TEXT,
   channels_failed INTEGER NOT NULL DEFAULT 0,
+  message TEXT,
   UNIQUE(alert_id, fire_key)
 );
 CREATE INDEX IF NOT EXISTS idx_alert_fires_user ON indicator_alert_fires(user_id, fired_at DESC);
@@ -178,12 +179,15 @@ _MIGRATIONS: tuple[tuple[str, str], ...] = (
     ("channels_failed",
      "ALTER TABLE indicator_alert_fires ADD COLUMN channels_failed "
      "INTEGER NOT NULL DEFAULT 0"),
+    # TRACK 6, AL3: the script's alert() message a fire carries (NULL for every other fire)
+    ("message",
+     "ALTER TABLE indicator_alert_fires ADD COLUMN message TEXT"),
 )
 
 _COLS = ("id, alert_id, user_id, sym, indicator, condition, tf, fire_key, "
          "bar_time, value, threshold, fired_at, delivered_at, "
          "delivery_attempts, delivery_failed_at, delivery_error, "
-         "delivery_channels, channels_failed")
+         "delivery_channels, channels_failed, message")
 
 
 def db_path() -> str:
@@ -255,14 +259,19 @@ def condition_kind(condition: Optional[str]) -> str:
     return CONDITION_KIND.get(condition or "", KIND_LEVEL)
 
 
-def fire_key(condition: Optional[str], bar_time: Any, arm_epoch: int) -> str:
+def fire_key(condition: Optional[str], bar_time: Any, arm_epoch: int, *,
+             per_bar: bool = False) -> str:
     """The identity of ONE fire — the thing `UNIQUE(alert_id, fire_key)` dedups.
 
     `bar:<t>` for a cross condition that knows its bar; `ep:<n>` otherwise. See
     the module docstring: the two families genuinely need different answers, and
     a single answer is wrong for one of them in a direction a user cannot see.
+
+    ⭐ ``per_bar`` (TRACK 6, AL3): a runtime document's alert() target is an EVENT per closed
+    bar, not a level, so two consecutive closed bars with an alert() call are two fires, each
+    once: keyed by its bar like a cross.
     """
-    if condition_kind(condition) == KIND_EDGE and bar_time is not None:
+    if (per_bar or condition_kind(condition) == KIND_EDGE) and bar_time is not None:
         return f"bar:{_norm_bar_time(bar_time)}"
     return f"ep:{int(arm_epoch or 0)}"
 
@@ -301,8 +310,11 @@ _TEXT_FIELDS = ("user_id", "sym", "indicator", "condition", "tf", "fire_key")
 def record_fire(alert_id: int, user_id: str, sym: str, indicator: str,
                 condition: str, tf: str, key: str, value: float, *,
                 bar_time: Any = None, threshold: Optional[float] = None,
-                fired_at: Optional[float] = None) -> bool:
+                fired_at: Optional[float] = None, message: Optional[str] = None) -> bool:
     """Record ONE fire. **True = a new fire (DELIVER). False = already recorded.**
+
+    ``message``: the script's alert() text a runtime document's alert() target fired with
+    (TRACK 6, AL3), at most 512 characters; ``None`` for every other fire.
 
     ⛔ ONLY the UNIQUE collision may become False. A NOT NULL failure swallowed
     as a duplicate is the one lie this store cannot survive, and it is worse here
@@ -340,6 +352,9 @@ def record_fire(alert_id: int, user_id: str, sym: str, indicator: str,
         if not math.isfinite(thr):
             raise ValueError(f"non-finite threshold: {threshold!r}")
 
+    if message is not None and not isinstance(message, str):
+        raise ValueError(f"message must be a str or None, got {message!r}")
+    msg = None if message is None else message[:512]
     bt = None if bar_time is None else _norm_bar_time(bar_time)
     at = time.time() if fired_at is None else float(fired_at)
     if not math.isfinite(at):
@@ -351,10 +366,10 @@ def record_fire(alert_id: int, user_id: str, sym: str, indicator: str,
             c.execute(
                 "INSERT INTO indicator_alert_fires"
                 " (alert_id, user_id, sym, indicator, condition, tf, fire_key,"
-                "  bar_time, value, threshold, fired_at)"
-                " VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                "  bar_time, value, threshold, fired_at, message)"
+                " VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
                 (aid, str(user_id), sym.upper(), indicator, condition, tf,
-                 key, bt, v, thr, at),
+                 key, bt, v, thr, at, msg),
             )
             c.commit()
             landed = True

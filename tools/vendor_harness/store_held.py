@@ -37,11 +37,17 @@ SUPPLY_STORE = "supplyHeldStore"
 _PIN = re.compile(r"^([A-Za-z0-9_]+/[A-Za-z0-9_]+/[1-9][0-9]*)@([0-9a-f]{64})$")
 #: a capture id (`evidence_engine.ID_RX`'s alphabet, a phase suffix included), behind the `supply/` kind
 _SUPPLY_PIN = re.compile(r"^(supply/[a-z0-9][a-z0-9.!-]*)@([0-9a-f]{64})$")
+#: e95 (unit 2, ruling F1) -- the THIRD held kind: a hand-added built-in graded on its published source, held locally
+#: (`vendorHarness/builtinSource.js`), `source/<STD id>@<sha256>` (`sourceHeld`); a run names what it held in
+#: `sourceHeldStore` ([{id, sha256}]). Never committed: it is TradingView's code.
+SOURCE_FIELD = "sourceHeld"
+SOURCE_STORE = "sourceHeldStore"
+_SOURCE_PIN = re.compile(r"^(source/STD;[A-Za-z0-9_%;.!-]+)@([0-9a-f]{64})$")
 
 
 def parse_pin(pin):
     """`path@sha256` -> (path, sha256), or None for anything else. A supply pin's path is `supply/<captureId>`."""
-    m = _PIN.match(str(pin or "")) or _SUPPLY_PIN.match(str(pin or ""))
+    m = _PIN.match(str(pin or "")) or _SUPPLY_PIN.match(str(pin or "")) or _SOURCE_PIN.match(str(pin or ""))
     return (m.group(1), m.group(2)) if m else None
 
 
@@ -49,6 +55,8 @@ def kind_of(pin):
     """'store' (a library version), 'supply' (a local supply record) or None (malformed)."""
     if _SUPPLY_PIN.match(str(pin or "")):
         return "supply"
+    if _SOURCE_PIN.match(str(pin or "")):
+        return "source"
     return "store" if _PIN.match(str(pin or "")) else None
 
 
@@ -66,7 +74,7 @@ def pins_of(row):
     if not isinstance(row, dict):
         return []
     out = []
-    for field in (FIELD, SUPPLY_FIELD):
+    for field in (FIELD, SUPPLY_FIELD, SOURCE_FIELD):
         v = row.get(field)
         if isinstance(v, list):
             out.extend(v)
@@ -77,13 +85,17 @@ def store_pins(store):
     """{pin} a run holds: its `libraryStore` ([{path, sha256}]) and, for a run document, its `supplyHeldStore`
     ([{captureId, sha256}]); a bare `libraryStore` list gives its library pins alone."""
     supply = []
+    source = []
     if isinstance(store, dict):
         supply = store.get(SUPPLY_STORE) or []
+        source = store.get(SOURCE_STORE) or []
         store = store.get("libraryStore")
     out = {pin_of(e["path"], e["sha256"]) for e in (store or [])
            if isinstance(e, dict) and isinstance(e.get("path"), str) and isinstance(e.get("sha256"), str)}
     out |= {supply_pin_of(e["captureId"], e["sha256"]) for e in supply
             if isinstance(e, dict) and isinstance(e.get("captureId"), str) and isinstance(e.get("sha256"), str)}
+    out |= {pin_of("source/%s" % e["id"], e["sha256"]) for e in source
+            if isinstance(e, dict) and isinstance(e.get("id"), str) and isinstance(e.get("sha256"), str)}
     return out
 
 
@@ -95,9 +107,11 @@ def held_from(row, loaded):
 def reading(pins):
     """The name a consumer gives a held row: "store-held: …" for library versions, "supply-held: …" for local supply
     records, both when it needs both (a store-only row reads exactly as it always did)."""
-    store = [p for p in pins if kind_of(p) != "supply"]
+    store = [p for p in pins if kind_of(p) not in ("supply", "source")]
     supply = [p for p in pins if kind_of(p) == "supply"]
+    source = [p for p in pins if kind_of(p) == "source"]
     parts = (["store-held: " + ", ".join(store)] if store else []) + (["supply-held: " + ", ".join(supply)] if supply else [])
+    parts += ["source-held: " + ", ".join(source)] if source else []
     return "; ".join(parts) if parts else "store-held: "
 
 

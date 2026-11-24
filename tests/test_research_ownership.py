@@ -209,9 +209,9 @@ class TestHeldShort:
         monkeypatch.setattr(own, "_thirteen_f", lambda sym: None)
         monkeypatch.setattr(own, "_fmp_share_counts", lambda sym: ({}, None))
         monkeypatch.setattr(own, "get_insider_activity", lambda sym: [])
-        cache.invalidate("research_own::ZZNEVER")
+        own.forget_for_tests("ZZNEVER")
         out = own.get_ownership("zznever")
-        cache.invalidate("research_own::ZZNEVER")
+        own.forget_for_tests("ZZNEVER")
         assert out["short"]["state"] == "not_held"
         assert started == [] and not short_data._stock_inflight
 
@@ -258,7 +258,7 @@ class TestInstitutional:
 
 class TestGetOwnership:
     def setup_method(self):
-        cache.invalidate("research_own::TEST")
+        own.forget_for_tests("TEST")
 
     def _tf(self):
         return {"quarter": "2026Q3", "summary": {"ownership_pct": 60.0, "investors_holding": 10},
@@ -284,7 +284,7 @@ class TestGetOwnership:
         # present in the shape, even when Entity Master/FMP have nothing.
         assert "entity" in out and out["entity"]["status"] in ("resolved", "not_found", "ambiguous")
         assert set(out["share_counts"].keys()) == {"float_shares", "shares_outstanding", "_meta"}
-        assert cache.get("research_own::TEST") is not None
+        assert own._recall("TEST") is not None
 
     def test_the_short_block_is_never_cached_so_a_later_held_report_appears_at_once(self, monkeypatch):
         """A member opens OWN (nothing held), opens SHINT (the service now holds the report), and
@@ -294,7 +294,7 @@ class TestGetOwnership:
         monkeypatch.setattr(short_data, "held_stock", lambda sym: held["now"])
         first = own.get_ownership("test")
         assert first["short"]["state"] == "not_held"
-        assert "short" not in cache.get("research_own::TEST")
+        assert "short" not in own._recall("TEST")
 
         def never(sym):
             raise AssertionError("rebuilt despite a cache hit")
@@ -313,15 +313,15 @@ class TestGetOwnership:
 
     def _captured_ttl(self, monkeypatch, **wire):
         seen = {}
-        real_set = cache.set
+        real_remember = own._remember
 
-        def spy(key, value, ttl=None):
-            if key == "research_own::TEST":
+        def spy(sym, record, ttl):              # the record is held in the module (speed pass 2), not the shared cache
+            if sym == "TEST":
                 seen["ttl"] = ttl
-            return real_set(key, value, ttl)
+            return real_remember(sym, record, ttl)
 
         self._wire(monkeypatch, **wire)
-        monkeypatch.setattr(cache, "set", spy)
+        monkeypatch.setattr(own, "_remember", spy)
         out = own.get_ownership("test")
         return out, seen.get("ttl")
 
@@ -363,18 +363,18 @@ class TestAFailedProviderReadIsNotNothingOnFile:
     as "no 13F on file". The vendor answering "nothing" (NotFound) is still not a failure."""
 
     def setup_method(self):
-        cache.invalidate("research_own::TEST")
+        own.forget_for_tests("TEST")
 
     def _run(self, monkeypatch, *, summary, holders=None, share_float=None):
         seen = {}
-        real_set = cache.set
+        real_remember = own._remember
 
-        def spy(key, value, ttl=None):
-            if key == "research_own::TEST":
+        def spy(sym, record, ttl):              # the record is held in the module (speed pass 2), not the shared cache
+            if sym == "TEST":
                 seen["ttl"] = ttl
-            return real_set(key, value, ttl)
+            return real_remember(sym, record, ttl)
 
-        monkeypatch.setattr(cache, "set", spy)
+        monkeypatch.setattr(own, "_remember", spy)
         monkeypatch.setattr(own, "resolve_entity", lambda sym, vendor=None: ({"status": "resolved"}, sym))
         monkeypatch.setattr(own, "get_insider_activity", lambda sym: [])
         monkeypatch.setattr(short_data, "held_stock", lambda sym: (None, "not_held"))
@@ -445,8 +445,8 @@ class TestEntityResolutionAndD1:
     route param) is what reaches fmp_client and the insider-activity leg."""
 
     def setup_method(self):
-        cache.invalidate("research_own::BRK-B")
-        cache.invalidate("research_own::ZZZZ")
+        own.forget_for_tests("BRK-B")
+        own.forget_for_tests("ZZZZ")
 
     def test_fmp_effective_symbol_reaches_share_counts_and_insider(self, monkeypatch):
         monkeypatch.setattr(own, "resolve_entity",
@@ -510,7 +510,7 @@ class TestNoOtherSourceIsRead:
         assert "run_in_pool" not in src and "import yfinance" not in src
 
     def test_the_record_carries_no_holders_list_outside_the_13f_block(self, monkeypatch):
-        cache.invalidate("research_own::TEST")
+        own.forget_for_tests("TEST")
         monkeypatch.setattr(own, "_thirteen_f", lambda sym: None)
         monkeypatch.setattr(own, "_fmp_share_counts", lambda sym: ({}, None))
         monkeypatch.setattr(own, "get_insider_activity", lambda sym: [])
@@ -519,12 +519,12 @@ class TestNoOtherSourceIsRead:
         assert set(out) == {"sym", "entity", "institutional", "share_counts", "insider", "thirteen_f",
                             "legs_failed", "short"}
         assert set(out["institutional"]) == {"state", "pct_held", "quarter", "source"}
-        cache.invalidate("research_own::TEST")
+        own.forget_for_tests("TEST")
 
 
 class TestRoute:
     def setup_method(self):
-        cache.invalidate("research_own::AAPL")
+        own.forget_for_tests("AAPL")
 
     def _client(self):
         from fastapi.testclient import TestClient

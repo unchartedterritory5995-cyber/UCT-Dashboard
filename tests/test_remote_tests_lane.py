@@ -106,6 +106,56 @@ def test_failing_tests_reads_junit(tmp_path):
     assert rt.failing_tests(tmp_path) == ["tests.t::bad - boom", "tests.u::err - E"]
 
 
+def test_failing_tests_names_a_suite_error_that_no_test_case_carries(tmp_path):
+    """2026-11-24: a vitest file that cannot be imported is a red suite with no failed test case. It printed
+    "0 failing tests" before; it is named now. Control: a clean suite and a suite whose count matches its cases add
+    nothing."""
+    (tmp_path / "j.xml").write_text(
+        '<testsuites>'
+        '<testsuite name="src/a.test.js" errors="1" failures="0" tests="0"><error message="Cannot find module x"/></testsuite>'
+        '<testsuite name="src/b.test.js" errors="0" failures="1" tests="1">'
+        '<testcase classname="src/b.test.js" name="one"><failure message="no"/></testcase></testsuite>'
+        '<testsuite name="src/c.test.js" errors="2" failures="0" tests="1"><testcase classname="c" name="ok"/></testsuite>'
+        '<testsuite name="src/d.test.js" errors="0" failures="0" tests="1"><testcase classname="d" name="ok"/></testsuite>'
+        '</testsuites>', encoding="utf-8")
+    assert rt.failing_tests(tmp_path) == [
+        "src/b.test.js::one - no",
+        "src/a.test.js: 1 error(s) outside any test case - Cannot find module x",
+        "src/c.test.js: 2 error(s) outside any test case",
+    ]
+
+
+def test_a_test_job_line_shows_its_verdict_never_the_jobs_conclusion():
+    """The test jobs' conclusion is always "success" (continue-on-error). 2026-11-24: a run printed pytest and a
+    vitest shard as success while their artifacts held failing tests. The line now shows the verdict."""
+    jobs = [{"name": "pytest", "conclusion": "success"},
+            {"name": "vitest (shard 1/2)", "conclusion": "success"},
+            {"name": "vitest (shard 2/2)", "conclusion": "success"},
+            {"name": "validate the request", "conclusion": "success"}]
+    text = rt.job_lines(jobs, {"pytest": "failure", "vitest-1": "success", "vitest-2": "failure"})
+    names = [j["name"] for j in jobs]
+    lines = {n: next(ln for ln in text.splitlines() if ln.endswith(" " + n)) for n in names}
+    assert "tests failure" in lines["pytest"]
+    assert "tests success" in lines["vitest (shard 1/2)"]
+    assert "tests failure" in lines["vitest (shard 2/2)"]
+    assert "success" in lines["validate the request"] and "tests" not in lines["validate the request"]
+    assert "tests no verdict" in rt.job_lines([{"name": "pytest", "conclusion": "success"}], {})
+
+
+def test_a_partial_download_is_reported_and_never_green(monkeypatch, tmp_path):
+    class Api:
+        def wait_for_budget(self, n): pass
+        def quota(self): return None
+    calls = []
+
+    class R:
+        def __init__(self, rc, err): self.returncode, self.stdout, self.stderr = rc, "", err
+    monkeypatch.setattr(rt, "_run", lambda cmd, check=True, capture=True: calls.append(cmd) or R(1, "error downloading pytest-junit"))
+    assert "pytest-junit" in rt._download(Api(), "1", tmp_path, 2)
+    monkeypatch.setattr(rt, "_run", lambda cmd, check=True, capture=True: R(0, ""))
+    assert rt._download(Api(), "1", tmp_path, 2) is None
+
+
 # ---- the workflow ------------------------------------------------------------------------------------------------
 def test_dispatch_only_never_a_push_or_pr():
     doc = _wf()

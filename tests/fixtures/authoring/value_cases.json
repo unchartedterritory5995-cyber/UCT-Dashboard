@@ -14632,6 +14632,10 @@
      "fixed_by": {
       "pr": "#2433",
       "merge": "301886e3a76623abc276626eb6f5b88e8fdb9be1"
+     },
+     "engine_fixed": {
+      "by": "#2607 927aa5dc95 (e95 unit 1, #2483)",
+      "since_engine": 95
      }
     }
    ]

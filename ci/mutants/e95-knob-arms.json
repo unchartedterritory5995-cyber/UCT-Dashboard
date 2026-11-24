@@ -1,0 +1,132 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "engine 95 (train e95), unit 2b: a `switch` on a member's input.string is a LIVE setting. The member door builds every arm (a refused one stands as the refusing leaf `refusedArm(k)`), the bind prunes each ternary whose test compares knobs to constants before anything per binding reads the tree (JS chart lane, Python twin, the Python interpreter's entry), and the install budgets are measured at the knobs' defaults (registry, door, server save gate). Every rule, broken once, must turn its rail red.",
+ "mutants": [
+  {
+   "id": "KA1",
+   "mutant": "the member door folds a knob `switch` to its default again (no arm is built, the anchor is no setting)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "  enumSwitch(bound, tok, name) {\n    if (!this.enumInputs || !this.declareInputs) return null\n",
+   "to": "  enumSwitch(bound, tok, name) {\n    if (this || !this.enumInputs || !this.declareInputs) return null\n",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/knobArms.test.js",
+   "expectRed": "failed"
+  },
+  {
+   "id": "KA2",
+   "mutant": "an arm the translator refuses aborts the knob instead of standing as a refusing leaf",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "        if (!(err instanceof PineRefusal) || err.guard === 'pine:timeout') throw err\n        return { refused: err }",
+   "to": "        if (err) throw err\n        return { refused: err }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/knobArms.test.js",
+   "expectRed": "failed"
+  },
+  {
+   "id": "KA3",
+   "mutant": "a PICKED refusing leaf does not refuse at bind (the chart lane never quotes the translator's refusal)",
+   "file": "app/src/components/chart/engine/knobBind.js",
+   "from": "export function armRefusalOfTree(tree, def) {\n  const stack = [tree]\n",
+   "to": "export function armRefusalOfTree(tree, def) {\n  if (tree) return null\n  const stack = [tree]\n",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/knobArms.test.js",
+   "expectRed": "failed"
+  },
+  {
+   "id": "KA4",
+   "mutant": "the JS evaluator computes a refusing leaf as na instead of refusing",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "  refusedArm: (k) => refuse('interpret:refused-arm', `(refusal ${k && k.length ? k[0] : k} of the document)`),\n",
+   "to": "  refusedArm: (k) => new Float64Array(0),\n",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/knobArmsParity.test.js",
+   "expectRed": "failed"
+  },
+  {
+   "id": "KA5",
+   "mutant": "the Python evaluator computes a refusing leaf as na instead of refusing",
+   "file": "api/services/ast_interpret.py",
+   "from": "    \"refusedArm\": lambda k: _refuse(\"interpret:refused-arm\", f\"(refusal {_show_k(k)} of the document)\"),\n    \"cci\":",
+   "to": "    \"refusedArm\": lambda k: [],\n    \"cci\":",
+   "rail": "python -m pytest -q -p no:warnings tests/test_knob_arms_parity.py",
+   "expectRed": "failed"
+  },
+  {
+   "id": "KA6",
+   "mutant": "the JS bind never prunes a knob ternary (every arm stays bound)",
+   "file": "app/src/components/chart/engine/ast/bind.js",
+   "from": "  if (!ok(test) || !knob) return null\n  try {\n    const v = foldScalar(test, consts)",
+   "to": "  if (test || !ok(test) || !knob) return null\n  try {\n    const v = foldScalar(test, consts)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/knobArmsParity.test.js",
+   "expectRed": "failed"
+  },
+  {
+   "id": "KA7",
+   "mutant": "the Python bind never prunes a knob ternary",
+   "file": "api/services/ast_bind.py",
+   "from": "    if not ok(test) or not seen[\"knob\"]:\n        return None\n    try:\n        v = fold_scalar(test, consts)",
+   "to": "    if test or not ok(test) or not seen[\"knob\"]:\n        return None\n    try:\n        v = fold_scalar(test, consts)",
+   "rail": "python -m pytest -q -p no:warnings tests/test_knob_arms_parity.py",
+   "expectRed": "failed"
+  },
+  {
+   "id": "KA8",
+   "mutant": "the Python interpreter evaluates every arm (no prune at its entry): an unpicked refused arm refuses",
+   "file": "api/services/ast_interpret.py",
+   "from": "    ast = prune_knob_arms(ast, {k: v for k, v in (inputs or {}).items() if _is_number(v)})\n",
+   "to": "    ast = prune_knob_arms(ast, {})\n",
+   "rail": "python -m pytest -q -p no:warnings tests/test_knob_arms_parity.py",
+   "expectRed": "failed"
+  },
+  {
+   "id": "KA9",
+   "mutant": "the chart lane decides per binding on the SAVED document (every arm): an unpicked event read refuses",
+   "file": "app/src/components/chart/engine/astColumns.js",
+   "from": "  const def = boundDocument(savedDef, bindConsts)\n",
+   "to": "  const def = savedDef\n",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/knobArms.test.js",
+   "expectRed": "failed"
+  },
+  {
+   "id": "KA10",
+   "mutant": "the install budget measures the saved tree (every arm) instead of the defaults' program",
+   "file": "app/src/components/chart/engine/nativeRegistry.js",
+   "from": "  const atDefaults = defaultBoundDocument(def)\n  const budgetTreeOf",
+   "to": "  const atDefaults = def\n  const budgetTreeOf",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/knobArms.test.js",
+   "expectRed": "failed"
+  },
+  {
+   "id": "KA11",
+   "mutant": "the door's budget pass measures the saved tree (every arm), so it hands the knob back",
+   "file": "app/src/components/chart/builder/builderInputs.js",
+   "from": "      try { b = checkBudget(pruneAtLeafDefaults(o.ast)) } catch { return false }\n      return !!b && !b.ok && b.guard === 'budget:series'\n    }\n    for (let round = 0; round < 4; round += 1) {\n      const over = (attempt.outputs || []).filter(overSeries)\n      if (!over.length) break\n      const read = new Set(over.flatMap((o) => [...seriesNamesOf(pruneAtLeafDefaults(o.ast))]))\n",
+   "to": "      try { b = checkBudget(o.ast) } catch { return false }\n      return !!b && !b.ok && b.guard === 'budget:series'\n    }\n    for (let round = 0; round < 4; round += 1) {\n      const over = (attempt.outputs || []).filter(overSeries)\n      if (!over.length) break\n      const read = new Set(over.flatMap((o) => [...seriesNamesOf(o.ast)]))\n",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/knobArms.test.js",
+   "expectRed": "failed"
+  },
+  {
+   "id": "KA12",
+   "mutant": "the server save gate measures the saved tree, so it refuses a document the browser installs",
+   "file": "api/services/user_definitions.py",
+   "from": "            result = ast_budget.budget_result(prune_knob_arms(tree, knobs), compute.get(\"budget\"))\n",
+   "to": "            result = ast_budget.budget_result(tree, compute.get(\"budget\"))\n",
+   "rail": "python -m pytest -q -p no:warnings tests/test_knob_arms_parity.py",
+   "expectRed": "failed"
+  },
+  {
+   "id": "KA13",
+   "mutant": "a Pine script may spell the refusing leaf itself",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    if (base === REFUSED_ARM_CALL || pineName === REFUSED_ARM_CALL) {\n",
+   "to": "    if (base === REFUSED_ARM_CALL && pineName === 'never') {\n",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/knobArms.test.js",
+   "expectRed": "failed"
+  },
+  {
+   "id": "KA14",
+   "mutant": "the fetch plan reads the SAVED document (every arm): an instance at Session asks for the events of an arm it did not pick (and a grade wants a supply it does not read)",
+   "file": "app/src/components/chart/engine/symbolInputs.js",
+   "from": "  const bound = boundAtInputs(def, inst && inst.inputs)\n",
+   "to": "  const bound = def\n",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/knobArms.test.js",
+   "expectRed": "failed"
+  }
+ ]
+}

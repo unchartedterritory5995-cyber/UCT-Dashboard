@@ -194,7 +194,19 @@ describe('the closed table declares scalars, and both lanes read the same one', 
     //                                by `fund_trends.read_fields` from the evening job's side table, NULL
     //                                until the first build after the first evening run (R8).
     //                                Python pin: (149, 148) -> (149, 156).
-    expect(Object.keys(excluded).length).toBe(156)
+    //   excluded 156 + 11 = 167      the six volume & volatility columns (2026-11-23, the build's
+    //                                `bars_volume_volatility` step) and the five beats, insiders & funds
+    //                                columns (`beats_insiders_funds`'s three readers), NULL until the
+    //                                first build after they land (R8). Python pin: (149, 156) -> (149, 167).
+    //   excluded 167 + 11 = 178      the eleven held-store columns (2026-11-23, `store_columns`'s four
+    //                                readers and `short_columns`' change since the prior report), NULL until
+    //                                the first build after they land (R8); `next_ex_div_date` is also TEXT.
+    //                                Python pin: (149, 167) -> (149, 178).
+    //   excluded 178 + 12 = 190      the twelve row columns (2026-11-24, the build's `bars_row_columns` step:
+    //                                days to lockup, this month's seasonality, the post-earnings drift,
+    //                                factor loadings, up / down capture), NULL until the first build after
+    //                                they land (R8). Python pin: (149, 178) -> (149, 190).
+    expect(Object.keys(excluded).length).toBe(190)
     for (const [column, why] of Object.entries(excluded)) {
       expect(names, `${column} is in BOTH halves of the partition`).not.toContain(column)
       expect(String(why).length).toBeGreaterThan(20)

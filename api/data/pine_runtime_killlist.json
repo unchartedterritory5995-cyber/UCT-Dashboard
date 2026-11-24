@@ -582,6 +582,22 @@
       },
       "liftWhen": "an engine change that rounds the sin/asin composition as TradingView does, then a runtime-on re-grade to MATCH on vw-bi-sin-spy-1d-2026-11-21; or a ruling that the named one-ulp divergence is a tolerance the grade applies",
       "addedBy": "e93 snapshots (coordinator ruling 2026-11-22): our own probe, new to the snapshot, graded DIVERGE on the runtime lane by the named divergence transcendental-composition-differs-by-one-ulp; no member script moves"
+    },
+    {
+      "slug": "vw-format-percent",
+      "sha256": "6247706113c9bc98b4007c02b8ba05c4e4a64882160a13eea2c6658ee8d7d106",
+      "source": "tools/visual_conformance/probes/vw-format-percent.pine",
+      "reason": "a probe script: its format.percent cells are withheld by name (e95 unit 1 #2483 keeps format.percent withheld until a community script grades MATCH); its \"#.##\" cells agree",
+      "evidence": {
+        "capture": "vw-format-percent-spy-1d-2026-11-23-preopen",
+        "verdict": "DIVERGE",
+        "production": "DIVERGE",
+        "divergence": "format.percent withheld by name (the 11 finite format.percent cells are not drawn)",
+        "lanes": "host lane DIVERGE and member's runtime lane DIVERGE on both captures (this one and vw-format-percent-rddt-1d-2026-11-23-preopen), on the table's format.percent column only: ours draws 28 of the 39 cells, none that TradingView does not (no text only ours); the \"#.##\" column and P12's \"NaN%\" agree. The captures are #2564's (tests/fixtures/vendor/harness)",
+        "session": "vendor harness snapshots regenerated at engine 95 (train e95's regen guard), where these probe captures were first graded; host-listed (host_divergence.py --write), and drawn by the runtime lane under admission, so the DRAW-1 rule kills it (its runtime-on captures do not grade MATCH)"
+      },
+      "liftWhen": "remove this entry when format.percent is served (its own unit, after a community capture grades MATCH)",
+      "addedBy": "train e95 (coordinator ruling 2026-11-23, \"KILL\"): our own probe, new to the snapshot, graded DIVERGE on both lanes by the withheld format.percent cells; no member script moves"
     }
   ]
 }

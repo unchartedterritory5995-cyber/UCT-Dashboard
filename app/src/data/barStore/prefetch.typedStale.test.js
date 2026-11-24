@@ -122,16 +122,24 @@ describe('the handoff (Enter) · a copy behind the clock waits for its tail', ()
     expect(done).toBe('current')
   })
 
-  it('a name that did not print (its answer is still behind) paints as it is and is not asked on every keystroke', async () => {
+  // ⭐ (re-review of #2619 (A), 2026-11-23) the typed warm's answer lends NO grace: still behind, it may be a name that did
+  // not print or a server that has not stored the bucket that just closed, and only the switch's own ask may say which
+  // (`_behindClock`). So Enter asks once (at most BEHIND_HOLD_MAX_MS) and THAT answer, still behind, is the grace.
+  it('a name that did not print (its answer is still behind): not asked on every keystroke; Enter asks once, then it paints as it is', async () => {
     const w = await boot({ modeFor: (q) => (q.sym === 'THIN' ? 'behind' : 'ok') })
     const { BEHIND_RECHECK_MS } = await import('./prefetch')
     await w.known('THIN')
     w.pf.warmTypedSymbol('THIN', '1'); await w.server.drain()
     const n = w.server.calls.length
-    expect(w.pf.peekDisplayable('THIN', '1')).toBe(true)           // just answered: the name did not print
-    expect(w.pf.warmTypedSymbol('THIN', '1')).toBe(null)
+    expect(w.pf.warmTypedSymbol('THIN', '1')).toBe(null)           // the same text again: no second ask
     await w.server.drain()
     expect(w.server.calls.length).toBe(n)
+    expect(w.pf.peekDisplayable('THIN', '1')).toBe(false)          // the typed warm's answer lends no grace...
+    const enter = w.pf.prepareForDisplay('THIN', '1')
+    await w.server.drain()
+    await expect(enter).resolves.toBe('current')
+    expect(w.server.calls.length).toBe(n + 1)                      // ...Enter asks once
+    expect(w.pf.peekDisplayable('THIN', '1')).toBe(true)           // its own answer, still behind: the name did not print
     vi.setSystemTime(Date.now() + BEHIND_RECHECK_MS + 1000)
     expect(w.pf.peekDisplayable('THIN', '1')).toBe(false)          // later it is asked again
   })

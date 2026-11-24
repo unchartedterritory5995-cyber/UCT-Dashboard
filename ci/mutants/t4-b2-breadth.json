@@ -1,0 +1,168 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "T4 B2 (engine 95, train e95): TradingView's `USI:` breadth spellings read from UCT's own breadth counts (`pineBreadth.js`), each behind its capture witness, supplied by the breadth door only (`breadthSupply.js`, never `/api/bars` nor `/api/ticker-meta`), withheld by name before UCT's counts, disclosed as UCT breadth data, never graded MATCH, handed to the assistant only while its door serves members. Every rule, broken once, must turn its rail red.",
+ "mutants": [
+  {
+   "id": "BR1",
+   "mutant": "a breadth key reaches the bars fetch (the ensureAll filter forgets it)",
+   "file": "app/src/components/chart/engine/useSecondarySources.js",
+   "from": "k !== FINANCIAL_KEY && !isBreadthKey(k)),",
+   "to": "k !== FINANCIAL_KEY),",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestBreadth.test.js",
+   "expectRed": "ISOLATION"
+  },
+  {
+   "id": "BR2",
+   "mutant": "the exchange lookup (`/api/ticker-meta`) is asked about a breadth key",
+   "file": "app/src/components/chart/engine/useSecondarySources.js",
+   "from": "for (const t of fetchableOtherSymbols(instanceDocumentForFetch(def, inst))) if (!isBreadthKey(t)) tickers.add(t)",
+   "to": "for (const t of fetchableOtherSymbols(instanceDocumentForFetch(def, inst))) tickers.add(t)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestBreadth.test.js",
+   "expectRed": "exchange lookup"
+  },
+  {
+   "id": "BR3",
+   "mutant": "a `USI:` spelling with no row is refused as a foreign exchange, not by its own name",
+   "file": "app/src/components/chart/engine/otherSymbols.js",
+   "from": "  const usi = m && venue === BREADTH_VENUE ? breadthStaticRefusal(ticker, OTHER_SYMBOL_REFUSAL) : null",
+   "to": "  const usi = null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestBreadth.test.js",
+   "expectRed": "breadth-not-held"
+  },
+  {
+   "id": "BR4",
+   "mutant": "a spread string of breadth spellings is no longer recognised",
+   "file": "app/src/components/chart/engine/otherSymbols.js",
+   "from": "  if (isBreadthSpread(s)) return { ticker: s, ...breadthSpreadRefusal(raw, OTHER_SYMBOL_REFUSAL) }",
+   "to": "  if (false) return { ticker: s, ...breadthSpreadRefusal(raw, OTHER_SYMBOL_REFUSAL) }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestBreadth.test.js",
+   "expectRed": "breadth-spread"
+  },
+  {
+   "id": "BR5",
+   "mutant": "a breadth spelling on an intraday chart is read as a daily one",
+   "file": "app/src/components/chart/engine/otherSymbols.js",
+   "from": "      if (row.kind === 'breadth' && /^\\d+$/.test(tf)) {",
+   "to": "      if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestBreadth.test.js",
+   "expectRed": "breadth-intraday"
+  },
+  {
+   "id": "BR6",
+   "mutant": "the breadth door dark for the member is read as bars not in hand",
+   "file": "app/src/components/chart/engine/otherSymbols.js",
+   "from": "      if (row.kind === 'breadth' && entry && (entry.status === 'dark' || entry.status === 'refused')) {",
+   "to": "      if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestBreadth.test.js",
+   "expectRed": "breadth-not-available"
+  },
+  {
+   "id": "BR7",
+   "mutant": "a served breadth series carries no record (bars before UCT's counts unnamed)",
+   "file": "app/src/components/chart/engine/otherSymbols.js",
+   "from": "      if (row.kind === 'breadth') markBreadthSeries(symbols[ticker], ticker, entry)",
+   "to": "",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestBreadth.test.js",
+   "expectRed": "breadth"
+  },
+  {
+   "id": "BR8",
+   "mutant": "every record is read as an event family's (the breadth code is lost)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "(record && typeof record.code === 'string' ? record.code",
+   "to": "(record && false ? record.code",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestBreadth.test.js",
+   "expectRed": "breadth-before-record"
+  },
+  {
+   "id": "BR9",
+   "mutant": "a run that reads UCT breadth may grade MATCH",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "  const breadth = ours && ours.breadth && Array.isArray(ours.breadth.spellings) && ours.breadth.spellings.length ? ours.breadth : null",
+   "to": "  const breadth = null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.b2Breadth.test.js",
+   "expectRed": "MATCH_SUBSTITUTED"
+  },
+  {
+   "id": "BR10",
+   "mutant": "our side never tags a breadth read",
+   "file": "app/src/components/chart/engine/otherSymbols.js",
+   "from": "  return spellings.length ? { spellings: [...new Set(spellings)].sort(), words: BREADTH_DATA_WORDS } : null",
+   "to": "  return null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestBreadth.test.js",
+   "expectRed": "tags every run"
+  },
+  {
+   "id": "BR11",
+   "mutant": "ADD's open / high / low repeat the close",
+   "file": "app/src/components/chart/engine/breadthSupply.js",
+   "from": "  const closeOnly = !!(BREADTH_SPELLINGS[base] && BREADTH_SPELLINGS[base].closeOnly)",
+   "to": "  const closeOnly = false",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/breadthSupply.test.js",
+   "expectRed": "close only"
+  },
+  {
+   "id": "BR12",
+   "mutant": "the assistant is handed breadth whatever the door's stage",
+   "file": "api/services/pine_authoring.py",
+   "from": "    return breadth_spellings_served(path) if breadth_open_to_members() else []",
+   "to": "    return breadth_spellings_served(path)",
+   "rail": "python -m pytest -q -p no:cacheprovider tests/test_pine_breadth_b2.py",
+   "expectRed": "below_all"
+  },
+  {
+   "id": "BR13",
+   "mutant": "a request beside a `USI:` string is not declared `request-breadth`",
+   "file": "api/services/pine_capabilities.py",
+   "from": "    return any(_BREADTH_STR_RX.search(s) for s in strings or ())",
+   "to": "    return False",
+   "rail": "python -m pytest -q -p no:cacheprovider tests/test_pine_breadth_b2.py",
+   "expectRed": "request_breadth"
+  },
+  {
+   "id": "BR14",
+   "mutant": "the alignment constant moves without the rows (a guess, not a witness edit)",
+   "file": "app/src/components/chart/engine/pineBreadth.js",
+   "from": "export const BREADTH_DAILY_ALIGNMENT = 'same-date'",
+   "to": "export const BREADTH_DAILY_ALIGNMENT = 'previous-session'",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestBreadth.test.js",
+   "expectRed": "breadthWitnessRow"
+  },
+  {
+   "id": "BR15",
+   "mutant": "the same-week fold reads the previous week",
+   "file": "app/src/components/chart/engine/otherSymbols.js",
+   "from": "  if (fold === WITNESS_PERIOD_READS.SAME_WEEK) return previousWeekBarsOf(held).map((w) => ({ ...w, t: isoDayPlus(w.t, -7) }))",
+   "to": "  if (fold === WITNESS_PERIOD_READS.SAME_WEEK) return previousWeekBarsOf(held)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestBreadth.test.js",
+   "expectRed": "resampler"
+  },
+  {
+   "id": "BR16",
+   "mutant": "a breadth read is disclosed as an ordinary other symbol, not as UCT breadth data",
+   "file": "app/src/components/chart/engine/ast/symbolSubstitution.js",
+   "from": "    if (spelled && spelled.trim().toUpperCase() === BREADTH_VENUE && isBreadthTicker(ticker)) {",
+   "to": "    if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestBreadth.test.js",
+   "expectRed": "UCT breadth data"
+  },
+  {
+   "id": "BR17",
+   "mutant": "W-B1 never lands in the template: a witnessed spelling's row reads pending again",
+   "file": "app/src/components/chart/engine/pineBreadth.js",
+   "from": "  const landed = base === t && BREADTH_DAILY_WITNESS.spellings.includes(t) && alignment === BREADTH_DAILY_ALIGNMENT",
+   "to": "  const landed = false",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestBreadth.test.js",
+   "expectRed": "exactly W-B1"
+  },
+  {
+   "id": "BR18",
+   "mutant": "the member's note no longer says how far our counts are from TradingView's",
+   "file": "app/src/components/chart/engine/pineBreadth.js",
+   "from": "  const gap = base && base === t ? BREADTH_DIVERGENCE[base] : null",
+   "to": "  const gap = null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestBreadth.test.js",
+   "expectRed": "the member's words"
+  }
+ ]
+}

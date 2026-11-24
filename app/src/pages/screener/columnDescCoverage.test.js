@@ -20,7 +20,13 @@ import { COLUMN_DEFS, descFor } from './columnDefs'
 // 144 → 147 on 2026-11-07: the three Phase 3 RS columns (unit 3-11) landed WITH theirs.
 // 147 → 149 on 2026-11-18: the two short-interest columns got theirs when their source moved.
 // 149 → 157 on 2026-11-21: the eight fundamental trend columns landed WITH their text.
-const RATCHET_FLOOR = 157
+// 157 → 168 on 2026-11-23: the six volume & volatility and five beats, insiders & funds columns
+// landed WITH theirs.
+// 168 → 179 on 2026-11-23: the eleven held-store columns (IV rank, industry group rank, short interest
+// change, ex-dividend dates, estimate revisions) landed WITH theirs.
+// 179 → 191 on 2026-11-24: the twelve row columns (days to lockup, this month's seasonality, the
+// post-earnings drift, factor loadings, up / down capture) landed WITH theirs.
+const RATCHET_FLOOR = 191
 
 // The columns whose DEFINITION is not guessable from the label, or where the
 // audit measured a member-visible trap. Every one of these must carry text.
@@ -69,6 +75,22 @@ const MUST_DOCUMENT = [
   // before the RS family, for the same reason as the short-interest pair.)
   'rev_accel_q', 'eps_streak_25', 'eps_growth_min_2q', 'eps_growth_min_3q',
   'eps_growth_min_4q', 'net_margin_chg_1y', 'gross_margin_chg_1y', 'shares_chg_1y',
+  // 2026-11-23 volume & volatility — each is a definition another tool computes
+  // differently (sample vs population volatility, the 0.2% move, which down days a
+  // pocket pivot must beat), so each names whose definition it is. (Before the RS
+  // family, for the same reason as the short-interest pair.)
+  'hv_20', 'hv_60', 'ad_net_25', 'pocket_pivots_20', 'days_since_pocket_pivot', 'corr_rel_last',
+  // 2026-11-23 beats, insiders & funds — three held stores with three different
+  // clocks (a report date, a filing date, a quarterly fund report).
+  'eps_surprise_last', 'eps_beat_streak', 'insider_buys_30d', 'insider_buy_value_30d', 'fund_net_adds',
+  // 2026-11-23 held-store columns — each read from a store with its own population and clock (the options
+  // log, GRPS's industries, the FINRA list, a two-week dividend window, a tracked subset of stocks).
+  'iv_rank', 'iv_percentile', 'group_rank', 'group_rank_of', 'group_rank_chg_4w', 'short_interest_chg_pct',
+  'next_ex_div_date', 'days_to_ex_div', 'eps_rev_up_30d', 'eps_rev_down_30d', 'eps_rev_net_30d',
+  // 2026-11-24 row columns — an estimated date, a month that changes with the calendar, a drift that is pending
+  // until its sessions trade, loadings shown only past a bar, and capture ratios with their own minimums.
+  'days_to_lockup', 'seas_month_avg', 'seas_month_up_pct', 'seas_month_years', 'post_earn_drift_5d',
+  'factor_mkt', 'factor_size', 'factor_growth', 'factor_mom', 'factor_r2', 'up_capture_1y', 'down_capture_1y',
   // 2026-11-06 UCT Relative Strength (Phase 2a, 2a-08) — every one is daily-bar
   // based where a chart reader may be on another timeframe, Mansfield is a DAILY
   // 200 where the textbook is a weekly 52, and the rating is IBD-STYLE, ours,
@@ -195,6 +217,120 @@ describe('member-facing column descriptions', () => {
     expect(COLUMN_DEFS.short_ratio.fmt(6)).toBe('6.0')
     expect(COLUMN_DEFS.short_float_pct.label).toBe('Short%')
     expect(COLUMN_DEFS.short_ratio.label).toBe('Days2Cvr')
+  })
+
+  it('says where each volume & volatility column comes from, and prints counts, ages and ratios plainly', () => {
+    const VV = MUST_DOCUMENT.slice(MUST_DOCUMENT.indexOf('hv_20'), MUST_DOCUMENT.indexOf('corr_rel_last') + 1)
+    expect(VV).toHaveLength(6)
+    for (const key of VV) {
+      expect(descFor(key), key).toMatch(/daily bars/)
+      expect(descFor(key), key).toMatch(/Blank/)
+    }
+    // whose definition each one is
+    for (const key of ['hv_20', 'hv_60']) expect(descFor(key), key).toMatch(/same number STAT prints/)
+    for (const key of ['ad_net_25', 'pocket_pivots_20', 'days_since_pocket_pivot']) {
+      expect(descFor(key), key).toMatch(/as VFP (counts|finds) them/)
+    }
+    expect(descFor('corr_rel_last')).toMatch(/as MKTH finds them/)
+    expect(descFor('ad_net_25')).toMatch(/Not the Acc\/Dis grade/)
+    expect(COLUMN_DEFS.hv_20.fmt(45.3)).toBe('45.3%')
+    expect(COLUMN_DEFS.hv_60.fmt(null)).toBe('—')
+    expect(COLUMN_DEFS.ad_net_25.fmt(5)).toBe('+5')
+    expect(COLUMN_DEFS.ad_net_25.fmt(-3)).toBe('-3')
+    expect(COLUMN_DEFS.ad_net_25.fmt(0)).toBe('0')
+    expect(COLUMN_DEFS.pocket_pivots_20.fmt(2)).toBe('2')
+    expect(COLUMN_DEFS.pocket_pivots_20.fmt(null)).toBe('—')
+    expect(COLUMN_DEFS.days_since_pocket_pivot.fmt(0)).toBe('today')
+    expect(COLUMN_DEFS.days_since_pocket_pivot.fmt(27)).toBe('27 bars ago')
+    expect(COLUMN_DEFS.corr_rel_last.fmt(0.625)).toBe('0.63×')
+    expect(COLUMN_DEFS.corr_rel_last.fmt(0)).toBe('0.00×')
+    expect(COLUMN_DEFS.corr_rel_last.fmt(null)).toBe('—')
+  })
+
+  it('says each beats, insiders & funds column\'s store and clock, and never prints a missing value as 0', () => {
+    const BIF = MUST_DOCUMENT.slice(MUST_DOCUMENT.indexOf('eps_surprise_last'), MUST_DOCUMENT.indexOf('fund_net_adds') + 1)
+    expect(BIF).toHaveLength(5)
+    for (const key of BIF) expect(descFor(key), key).toMatch(/Blank/)
+    expect(descFor('eps_beat_streak')).toMatch(/same rule as the earnings season view/)
+    expect(descFor('insider_buys_30d')).toMatch(/0 means none was filed/)
+    expect(descFor('insider_buys_30d')).toMatch(/sales are not counted/)
+    expect(descFor('insider_buy_value_30d')).toMatch(/never valued at \$0/)
+    expect(descFor('fund_net_adds')).toMatch(/N-PORT/)
+    expect(COLUMN_DEFS.eps_surprise_last.fmt(8.33)).toBe('+8.3%')
+    expect(COLUMN_DEFS.eps_surprise_last.fmt(-2.5)).toBe('-2.5%')
+    expect(COLUMN_DEFS.eps_beat_streak.fmt(1)).toBe('1 qtr')
+    expect(COLUMN_DEFS.eps_beat_streak.fmt(4)).toBe('4 qtrs')
+    expect(COLUMN_DEFS.insider_buys_30d.fmt(0)).toBe('0')
+    expect(COLUMN_DEFS.insider_buy_value_30d.fmt(1250000)).toBe('$1M')
+    expect(COLUMN_DEFS.insider_buy_value_30d.fmt(null)).toBe('—')
+    expect(COLUMN_DEFS.fund_net_adds.fmt(12)).toBe('+12')
+    expect(COLUMN_DEFS.fund_net_adds.fmt(-4)).toBe('-4')
+    expect(COLUMN_DEFS.fund_net_adds.fmt(null)).toBe('—')
+  })
+
+  it('says each row column\'s panel and its blank, and prints values plainly', () => {
+    const RC = MUST_DOCUMENT.slice(MUST_DOCUMENT.indexOf('days_to_lockup'), MUST_DOCUMENT.indexOf('down_capture_1y') + 1)
+    expect(RC).toHaveLength(12)
+    for (const key of RC) expect(descFor(key), key).toMatch(/Blank|blank/)
+    expect(descFor('days_to_lockup')).toMatch(/the estimate IPO LOCKUP shows/)
+    expect(descFor('days_to_lockup')).toMatch(/Every value is an estimate/)
+    for (const key of ['seas_month_avg', 'seas_month_up_pct']) expect(descFor(key), key).toMatch(/the figure SEAS shows/)
+    expect(descFor('post_earn_drift_5d')).toMatch(/pending, never 0/)
+    for (const key of ['factor_mkt', 'factor_size', 'factor_growth', 'factor_mom']) {
+      expect(descFor(key), key).toMatch(/too uncertain to read/)
+    }
+    expect(descFor('up_capture_1y')).toMatch(/the up capture STAT shows/)
+    expect(descFor('down_capture_1y')).toMatch(/the down capture STAT shows/)
+    expect(COLUMN_DEFS.days_to_lockup.fmt(42)).toBe('42')
+    expect(COLUMN_DEFS.days_to_lockup.fmt(-3)).toBe('-3')
+    expect(COLUMN_DEFS.days_to_lockup.fmt(null)).toBe('—')
+    expect(COLUMN_DEFS.seas_month_avg.fmt(2.47)).toBe('+2.5%')
+    expect(COLUMN_DEFS.seas_month_avg.fmt(-1.2)).toBe('-1.2%')
+    expect(COLUMN_DEFS.seas_month_up_pct.fmt(60)).toBe('60%')
+    expect(COLUMN_DEFS.seas_month_years.fmt(12)).toBe('12')
+    expect(COLUMN_DEFS.post_earn_drift_5d.fmt(3.21)).toBe('+3.2%')
+    expect(COLUMN_DEFS.post_earn_drift_5d.fmt(null)).toBe('—')
+    expect(COLUMN_DEFS.factor_mkt.fmt(1.234)).toBe('1.23')
+    expect(COLUMN_DEFS.factor_size.fmt(-0.456)).toBe('-0.46')
+    expect(COLUMN_DEFS.factor_growth.fmt(null)).toBe('—')
+    expect(COLUMN_DEFS.factor_r2.fmt(0.612)).toBe('0.61')
+    expect(COLUMN_DEFS.up_capture_1y.fmt(118.6)).toBe('119%')
+    expect(COLUMN_DEFS.down_capture_1y.fmt(null)).toBe('—')
+  })
+
+  it('says each held-store column\'s source and population, and prints a blank as a dash', () => {
+    const HS = MUST_DOCUMENT.slice(MUST_DOCUMENT.indexOf('iv_rank'), MUST_DOCUMENT.indexOf('eps_rev_net_30d') + 1)
+    expect(HS).toHaveLength(11)
+    for (const key of HS) expect(descFor(key), key).toMatch(/Blank|blank/)
+    for (const key of ['iv_rank', 'iv_percentile']) {
+      expect(descFor(key), key).toMatch(/same number OSCR and IVH print/)
+      expect(descFor(key), key).toMatch(/data placeholder/)
+    }
+    expect(descFor('group_rank')).toMatch(/as GRPS ranks them/)
+    expect(descFor('group_rank')).toMatch(/can spell an industry differently from the Industry column/)
+    expect(descFor('short_interest_chg_pct')).toMatch(/No floor/)
+    for (const key of ['next_ex_div_date', 'days_to_ex_div']) expect(descFor(key), key).toMatch(/never no dividend|never that the stock pays no dividend/)
+    for (const key of ['eps_rev_up_30d', 'eps_rev_down_30d', 'eps_rev_net_30d']) {
+      expect(descFor(key), key).toMatch(/as EEHSC counts it/)
+      expect(descFor(key), key).toMatch(/S&P 500 plus any stock a member opened EEH for/)
+    }
+    expect(COLUMN_DEFS.iv_rank.fmt(87.4)).toBe('87')
+    expect(COLUMN_DEFS.iv_percentile.fmt(null)).toBe('—')
+    expect(COLUMN_DEFS.group_rank.fmt(12)).toBe('12')
+    expect(COLUMN_DEFS.group_rank_chg_4w.fmt(5)).toBe('+5')
+    expect(COLUMN_DEFS.group_rank_chg_4w.fmt(-3)).toBe('-3')
+    expect(COLUMN_DEFS.group_rank_chg_4w.fmt(null)).toBe('—')
+    expect(COLUMN_DEFS.short_interest_chg_pct.fmt(25.04)).toBe('+25.0%')
+    expect(COLUMN_DEFS.short_interest_chg_pct.fmt(-12.5)).toBe('-12.5%')
+    expect(COLUMN_DEFS.next_ex_div_date.fmt('2026-12-04')).toBe('12-04')
+    expect(COLUMN_DEFS.next_ex_div_date.fmt(null)).toBe('—')
+    expect(COLUMN_DEFS.next_earnings_date.fmt('2026-12-04')).toBe('12-04')
+    expect(COLUMN_DEFS.days_to_ex_div.fmt(0)).toBe('0')
+    expect(COLUMN_DEFS.eps_rev_up_30d.fmt(1)).toBe('1')
+    expect(COLUMN_DEFS.eps_rev_down_30d.fmt(0)).toBe('0')
+    expect(COLUMN_DEFS.eps_rev_net_30d.fmt(-1)).toBe('-1')
+    expect(COLUMN_DEFS.eps_rev_net_30d.fmt(0)).toBe('0')
+    expect(COLUMN_DEFS.eps_rev_net_30d.fmt(null)).toBe('—')
   })
 
   it('says the fundamental trend columns come from SEC filings, and prints counts and points plainly', () => {

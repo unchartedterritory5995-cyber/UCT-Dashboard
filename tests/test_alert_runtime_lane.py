@@ -541,3 +541,138 @@ def test_a_runtime_plot_is_judged_on_the_closed_lane_even_under_the_forming_roll
     [(fid, value, bar_time)] = world["fires"]
     assert fid == aid and value == pytest.approx(2 * closed["c"])
     assert bar_time == closed["t"], (bar_time, closed["t"], world["bars"]["5"][-1]["t"])
+
+
+# ── TRACK 6, AL3: the alert lane on `<def>.__alert` (the script's alert() calls) ──────────────────
+#
+# A runtime document whose source calls alert() offers one more target, `<def_id>.__alert`. The cycle asks
+# want '#alerts' (AL2) on the group's closed bars and fires on `is true` when the newest closed bar holds an
+# event; each closed bar with an event is its own fire (keyed by its bar), and the script's message rides
+# into the fire row and the delivery. Mutation proof: see the last line of each test.
+
+_REAL_DISPATCH = ev._dispatch_delivery
+ALERT_SOURCE = SOURCE + "if close > open\n    alert('closed up: ' + str.tostring(close), alert.freq_once_per_bar_close)\n"
+CALLS = f"{DEF_ID}.__alert"
+
+
+def _with_alert_calls(world, events=lambda cols: [{"bar": len(cols["c"]) - 1, "message": "closed up",
+                                                    "freq": "once_per_bar_close"}]):
+    ud.save(USER, DEF_ID, runtime_doc(source=ALERT_SOURCE), role="admin")
+    world["fake"].alerts = events
+
+
+def _calls_alert(world, **kw):
+    return ias.create(user_id=USER, sym="AAPL", indicator=CALLS, condition="above", threshold=0.5, tf="D", **kw)
+
+
+def _next_bar(world):
+    import datetime as dt
+    bars = world["bars"]["D"]
+    d = dt.datetime.strptime(str(bars[-1]["t"]), "%Y%m%d").date() + dt.timedelta(days=1)
+    while d.weekday() >= 5:
+        d += dt.timedelta(days=1)
+    c = bars[-1]["c"] + 1
+    bars.append({"t": int(d.strftime("%Y%m%d")), "o": c, "h": c + 1, "l": c - 1, "c": c, "v": 1000})
+
+
+def test_AL3_the_target_is_offered_only_when_the_source_calls_alert(world):
+    assert CALLS not in [p["value"] for e in aus.user_catalog(USER) for p in e["plots"]]
+    for src, offered in ((SOURCE + "alertcondition(close > open, 'up')\n", False),
+                         (SOURCE + "// alert('not code')\n", False),
+                         (ALERT_SOURCE, True)):
+        ud.save(USER, DEF_ID, runtime_doc(source=src), role="admin")
+        plots = [p for e in aus.user_catalog(USER) if e["indicator"] == DEF_ID for p in e["plots"]]
+        got = [p for p in plots if p["value"] == CALLS]
+        assert bool(got) is offered, src
+        if offered:
+            assert got[0]["output_type"] == "events" and got[0]["default_threshold"] is None
+            assert [p["value"] for p in plots][:2] == [VALUE, SIGNAL], "the plots are listed as before"
+
+
+def test_AL3_the_arm_asks_the_alert_record_beside_the_plots_in_ONE_run(world):
+    _with_alert_calls(world)
+    fake = world["fake"]
+    aid = _calls_alert(world)
+    assert ias.get(aid)["def_source"] == ias.DEF_SOURCE_USER
+    assert len(fake.calls) == 1 and fake.calls[0]["profile"] == "alert"
+    want = fake.calls[0]["jobs"][0]["want"]
+    assert sorted(want[:-1]) == ["signal", "value"] and want[-1] == "#alerts"
+    # mutant A1 (the arm asks the plots only) -> RED here
+
+
+def test_AL3_only_is_true_is_admitted_on_the_alert_target(world):
+    from api.services import alert_trigger_policy as tp
+    _with_alert_calls(world)
+    assert tp.admit_request(USER, CALLS, None, None, "is_true") == ("above", 0.5)
+    assert tp.admit_request(USER, CALLS, "above", 0.5, None) == ("above", 0.5)
+    for cond, thr, pol in (("below", 5.0, None), ("cross_above", 0.5, None), (None, None, "becomes_true"),
+                           ("above", 0.0, None)):
+        with pytest.raises(tp.PolicyRefused) as e:
+            tp.admit_request(USER, CALLS, cond, thr, pol)
+        assert e.value.guard == tp.GUARD_ALERT_CALLS
+    # mutant A2 (the target takes any rule) -> RED here
+
+
+def test_AL3_each_closed_bar_with_an_event_fires_once_with_the_scripts_message(world, monkeypatch):
+    from api.services import alert_fired_log as afl
+    said = []
+    monkeypatch.setattr(ev, "_dispatch_delivery",
+                        lambda alert, value, **k: said.append((alert["id"], k.get("bar_time"), k.get("script_message"))))
+    _with_alert_calls(world)
+    fake = world["fake"]
+    aid = _calls_alert(world)
+    before = len(fake.calls)
+    s1 = ev._run_one_cycle()
+    assert len(fake.calls) - before == 1, "the cycle's one group request"
+    assert fake.calls[-1]["jobs"][0]["want"] == ["#alerts"]
+    assert s1["triggered"] == 1
+    bar1 = world["bars"]["D"][-1]["t"]
+    # the same closed bar again: no second fire row
+    ev._run_one_cycle()
+    # the NEXT closed bar also has an event: its own fire (a level would stay quiet here)
+    _next_bar(world)
+    ev._run_one_cycle()
+    bar2 = world["bars"]["D"][-1]["t"]
+    rows = None
+    import sqlite3
+    with sqlite3.connect(afl.db_path()) as c:
+        got = c.execute("SELECT fire_key, bar_time, message FROM indicator_alert_fires WHERE alert_id=? ORDER BY id",
+                        (aid,)).fetchall()
+    assert got == [(f"bar:{bar1}", bar1, "closed up"), (f"bar:{bar2}", bar2, "closed up")], (got, rows)
+    assert [m for _a, _b, m in said] and all(m == "closed up" for _a, _b, m in said)
+    # mutants A3 (a level key: one fire for both bars) and A4 (the message dropped) -> RED here
+
+
+def test_AL3_a_closed_bar_without_an_event_does_not_fire(world):
+    _with_alert_calls(world, events=lambda cols: [{"bar": 0, "message": "long ago", "freq": "all"}])
+    aid = _calls_alert(world)
+    s = ev._run_one_cycle()
+    assert s["evaluated"] == 1 and s["triggered"] == 0
+    assert ias.get(aid)["last_value"] == 0.0
+
+
+def test_AL3_the_delivered_text_is_the_scripts_message(world, monkeypatch):
+    from api.services import watchlist_alert_service as wls
+    sent = []
+    monkeypatch.setattr(wls, "deliver_alert_payload", lambda **kw: sent.append(kw) or {"ok": True})
+    monkeypatch.setattr(ev, "_record_delivery_channels", lambda *a, **k: None)
+    _with_alert_calls(world)
+    aid = _calls_alert(world)
+    alert = ias.get(aid)
+    _REAL_DISPATCH(alert, 1.0, bar_time=20240105, script_message="closed up: 105")
+    _REAL_DISPATCH(ias.get(_alert(VALUE)), 2.0, bar_time=20240105)
+    assert "closed up: 105" in sent[0]["message"] and sent[0]["extra_data"]["script_message"] == "closed up: 105"
+    assert "closed up" not in sent[1]["message"] and "script_message" not in sent[1]["extra_data"]
+    # mutant A5 (the delivery ignores the script's message) -> RED here
+
+
+def test_AL3_the_message_column_is_truncated_and_null_elsewhere(world):
+    from api.services import alert_fired_log as afl
+    assert afl.record_fire(7, USER, "AAPL", VALUE, "above", "D", "ep:0", 1.0) is True
+    assert afl.record_fire(8, USER, "AAPL", CALLS, "above", "D", "bar:1", 1.0, message="x" * 600) is True
+    import sqlite3
+    with sqlite3.connect(afl.db_path()) as c:
+        got = dict(c.execute("SELECT alert_id, message FROM indicator_alert_fires WHERE alert_id IN (7, 8)").fetchall())
+    assert got[7] is None and got[8] == "x" * 512
+    assert afl.fire_key("above", 20240105, 3) == "ep:3"
+    assert afl.fire_key("above", 20240105, 3, per_bar=True) == "bar:20240105"

@@ -5,6 +5,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { loadAgentConfig, serverDataKinds, _resetAgentConfig } from './agentClient'
 import { registerServerGatedBuiltins } from './builtins'
+import './terminalWaves'  // the Terminal data waves: registerServerGatedBuiltins() runs them only once this module has loaded (terminalWavesHook.js)
 import { getCapability } from './capabilities'
 import { _resetForTest } from './capabilities/marketDataQuote'
 

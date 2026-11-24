@@ -19,11 +19,36 @@ WHY THIS READS OUR LOG AND NOTHING ELSE
   left OUT of a rank (one method per statistic).
 ⛔ NO RANK BELOW 20 SESSIONS. IV rank / percentile need `RANK_MIN_SESSIONS` points; below
   that the answer is the sentence "N sessions logged, rank needs 20", never a number.
+⛔ AN ATM IV UNDER `IV_FLOOR` IS A PLACEHOLDER, NEVER A POINT (2026-11-23). The log has carried
+  the same tiny value for many unrelated symbols on one session, and such values inside a
+  symbol's history; read as real, one made the CHEAP list lead with sub-1% IVs and pinned every
+  real reading near rank 100. `atm_iv` is the ONE reader of the column for IVH and the
+  market-wide IV rank list (`iv_rank_leaders.py`): a reading under the floor is unreadable, it
+  neither ranks nor sets a low or a high, and the symbol's other sessions still count. There is
+  no ceiling: a distressed name can really trade at a very high IV; readings above `IV_WATCH`
+  are only counted, so they can be looked at.
 ⛔ NO CALIBRATION IT CANNOT SUPPORT (BRK-10). The implied-vs-realized reliability summary
   needs `CALIBRATION_MIN_PRINTS` paired prints; below that it lists what it has and says
   how many it needs. With zero it says when the first comparison can exist.
 
 ⛔ DARK behind `IV_HISTORY_ENABLED` (read per call, unset = OFF).
+
+⚡ A REQUEST NEVER LISTS, DOWNLOADS OR SCANS THE WHOLE LOG (speed pass 2, 2026-11-24; live, one answer took 10 s).
+  * The production store's listing and downloads run on ONE background refresh (`R2Store.listing`); the request
+    reads the files already mirrored (the last listing's copy). Until this process's first refresh has finished an
+    answer is `partial` and says so (`R2Store.COLD_NOTE`), and with nothing mirrored yet the route says the log is
+    unavailable right now (`LogNotReady`) rather than "the log holds no sessions".
+  * A day's manifest is opened once while its file is unchanged (`_manifest`).
+  * A day's row for a symbol comes from the local index (`iv_history_index`, SQLite on this server's disk, built in
+    the background) while that day's file is the one indexed, else from the file exactly as before (`_day_row`):
+    the index changes the speed, never the answer.
+⚡ THE FIRST MEMBER AFTER A DEPLOY GETS AN ANSWER (speed pass 3, 2026-11-24; live, a cold process with nothing mirrored
+  answered 503 `LogNotReady` 45 minutes after a deploy, until a member asked). `warm_mirror`, a boot DATE job
+  (`WARM_BOOT_DELAY_S`, past the boot's busy minutes), starts the mirror's one background refresh and, after it, the
+  index check. The IV rank header (FT-006, `options_analytics/vol.py`) and the log history (OHIS,
+  `options_analytics/log_history.py`), which listed the bucket on their own request, read the same mirror
+  (`mirror_sessions`) once this process's first refresh has finished, and the store's own listing before that, as
+  before: the same answers, no listing on the request once the mirror is ready.
 """
 from __future__ import annotations
 
@@ -31,6 +56,8 @@ import csv
 import datetime as _dt
 import gzip
 import json
+import logging
+import math
 import os
 import re
 import tempfile
@@ -41,6 +68,12 @@ from typing import Callable, Optional
 from zoneinfo import ZoneInfo
 
 FLAG = "IV_HISTORY_ENABLED"
+#: The option analytics switches whose answers are read from this module's store (FT-006 and OHIS); the boot warm runs
+#: while IVH's own flag or any one of them is armed.
+MIRROR_READERS = ("OPTIONS_IV_RANK_ENABLED", "OPTIONS_STRADDLE_HISTORY_ENABLED", "OPTIONS_DAILY_MOVE_ENABLED",
+                  "OPTIONS_IV_CRUSH_ENABLED")
+#: The boot DATE job's offset (`api/main.py`): past the boot's busy minutes, on an offset no other boot job uses.
+WARM_BOOT_DELAY_S = 480
 RANK_MIN_SESSIONS = 20
 RANK_WINDOW = 252
 CALIBRATION_MIN_PRINTS = 4
@@ -49,16 +82,27 @@ CALIBRATION_MIN_PRINTS = 4
 LOG_DUE_ET = _dt.time(17, 15)
 CURRENT_RULE = "closest-30"
 LEGACY_RULE = "legacy-20-45"
+#: An ATM IV under this (a fraction a year: 0.01 is 1%) is a vendor placeholder, never a reading.
+#: No listed stock or fund has an annualized ATM IV under 1%, and the log has carried the same
+#: value of about 0.002 for ten or more unrelated symbols on one session. The ONE floor: IVH and
+#: the market-wide IV rank list both read the column through `atm_iv`.
+IV_FLOOR = 0.01
+#: No ceiling (a distressed name can really trade there): a reading above this (500% a year) is
+#: kept and only counted (`iv_rank_leaders` counts.iv_above_watch), so it can be looked at.
+IV_WATCH = 5.0
 SOURCE = "UCT options log (Massive /v3/snapshot?type=options, recorded daily at 16:30 ET)"
 METHOD = ("ATM IV is the mean of the call and put implied volatility at the strike closest "
           "to the underlying, on the expiry closest to 30 days out (7-90 days); the "
-          "days-to-expiry it was read at is shown with each point.")
+          "days-to-expiry it was read at is shown with each point. "
+          f"A logged ATM IV under {IV_FLOOR * 100:g}% a year is a data placeholder, not a reading: "
+          "it is never a point, so it neither ranks nor sets a low or a high.")
 IMPLIED_METHOD = ("Implied move = the front straddle (call + put bid/ask mids, first expiry "
                   "after the session, strike closest to the underlying) divided by the "
                   "underlying price, read at the close of the session before the "
                   "announcement date. Realized move = the earnings gap (larger of the "
                   "pre-market and after-hours gap when the timing is not known).")
 
+_log = logging.getLogger(__name__)
 _ET = ZoneInfo("America/New_York")
 _SYM_RE = re.compile(r"^[A-Z][A-Z0-9.\-]{0,9}$")
 _KEY_RE = re.compile(r"options_log/\d{4}/(\d{4}-\d{2}-\d{2})\.(manifest\.json|underlyings\.csv\.gz)$")
@@ -84,7 +128,8 @@ class LocalStore:
         self.root = root
 
     def sessions(self) -> dict:
-        """{session_iso: manifest dict} for every day with a summary file."""
+        """{session_iso: manifest dict} for every day with a summary file. A manifest comes from `_manifest`
+        (read once while its file is unchanged): callers read it and change nothing in it."""
         out = {}
         base = os.path.join(self.root, "options_log")
         if not os.path.isdir(base):
@@ -97,27 +142,41 @@ class LocalStore:
                 m = re.match(r"^(\d{4}-\d{2}-\d{2})\.underlyings\.csv\.gz$", name)
                 if not m:
                     continue
-                manifest = {}
-                mp = os.path.join(ydir, f"{m.group(1)}.manifest.json")
-                try:
-                    with open(mp, encoding="utf-8") as fh:
-                        manifest = json.load(fh)
-                except (OSError, ValueError):
-                    manifest = {"complete": False, "reason": "no readable manifest"}
-                out[m.group(1)] = manifest
+                out[m.group(1)] = _manifest(os.path.join(ydir, f"{m.group(1)}.manifest.json"))
         return out
+
+    def listing(self, *, partial_ok: bool = True) -> tuple[dict, Optional[str]]:
+        """`(sessions(), None)`: what a request reads. A local store has nothing to wait for."""
+        return self.sessions(), None
 
     def summary_path(self, session: str) -> Optional[str]:
         p = os.path.join(self.root, "options_log", session[:4], f"{session}.underlyings.csv.gz")
         return p if os.path.exists(p) else None
 
 
+class LogNotReady(RuntimeError):
+    """The production store has not finished its first listing in this process and has nothing mirrored on this
+    server to answer from yet: the route says the log is unavailable right now (never "it holds no sessions"),
+    and the panel's Retry asks again."""
+
+
 class R2Store(LocalStore):
     """The production log in R2, mirrored on demand into a local cache directory.
     The listing is cached `LIST_TTL_S`; a day's file is re-fetched only when its ETag
-    changes (a `resummarize()` replaces a summary in place)."""
+    changes (a `resummarize()` replaces a summary in place).
+
+    A REQUEST NEVER LISTS OR DOWNLOADS (speed pass 2, 2026-11-24): `listing()` answers from the files already
+    mirrored (the last listing's copy) and starts ONE background refresh (`REFRESH_THREAD`) when the listing is
+    older than `LIST_TTL_S`; after a failed refresh, requests are told so (the old 503) without a new try for
+    `RETRY_S` while no listing has worked in this process or the last one that did is older than twice the TTL,
+    and are answered from the mirror otherwise. `sessions()` keeps listing and downloading on the caller's thread,
+    for the background builds that call it (the market-wide IV rank list)."""
 
     LIST_TTL_S = 600
+    RETRY_S = 60.0
+    REFRESH_THREAD = "iv-history-refresh"
+    COLD_NOTE = ("This server is still copying the options log, so sessions logged since its last copy may be "
+                 "missing here.")
 
     def __init__(self, cache_dir: Optional[str] = None):
         super().__init__(cache_dir or os.environ.get("IV_HISTORY_CACHE_DIR")
@@ -125,6 +184,10 @@ class R2Store(LocalStore):
         self._lock = threading.Lock()
         self._listed_at = 0.0
         self._etags: dict = {}
+        self._state = threading.Lock()                      # guards the three below
+        self._ready = False                                 # a listing has worked in this process
+        self._failed: Optional[tuple] = None                # (monotonic, error) of the newest listing, when it failed
+        self._refreshing: Optional[threading.Event] = None
 
     def _client(self):
         from api import flow_backup
@@ -155,9 +218,82 @@ class R2Store(LocalStore):
                 self._etags[key] = etag
             self._listed_at = time.monotonic()
 
+    def _note(self, exc: Optional[BaseException]) -> None:
+        with self._state:
+            if exc is None:
+                self._ready, self._failed = True, None
+            else:
+                self._failed = (time.monotonic(), exc)
+
     def sessions(self) -> dict:
-        self._sync()
+        try:
+            self._sync()
+        except Exception as exc:
+            self._note(exc)
+            raise
+        self._note(None)
         return super().sessions()
+
+    def _kick(self) -> bool:
+        """Start ONE background refresh when the listing is due (never listed in this process, or older than
+        `LIST_TTL_S`) and no failed one is inside `RETRY_S`. True when this call started it. Never waits."""
+        now = time.monotonic()
+        with self._state:
+            due = not self._listed_at or now - self._listed_at >= self.LIST_TTL_S
+            if self._failed is not None and now - self._failed[0] < self.RETRY_S:
+                due = False
+            if not due or self._refreshing is not None:
+                return False
+            done = self._refreshing = threading.Event()
+        threading.Thread(target=self._refresh_bg, args=(done,), name=self.REFRESH_THREAD, daemon=True).start()
+        return True
+
+    def warm(self) -> bool:
+        """The boot warm (`warm_mirror`): the refresh `listing()` would start, without reading the mirror. True when
+        this call started it; a no-op while one runs, while the listing is fresh and inside `RETRY_S` of a failure."""
+        return self._kick()
+
+    def _refresh_bg(self, done: threading.Event) -> None:
+        started = time.time()
+        try:
+            self._sync()
+        except Exception as exc:  # noqa: BLE001 -- said to the next requests (the old 503), tried again later
+            self._note(exc)
+            _log.warning("[iv-history] the options log could not be listed (%s); %.1fs", type(exc).__name__,
+                         time.time() - started)
+        else:
+            self._note(None)
+            from api.services.research import iv_history_index
+            iv_history_index.for_root(self.root).kick()
+        finally:
+            with self._state:
+                if self._refreshing is done:
+                    self._refreshing = None
+            done.set()
+
+    def listing(self, *, partial_ok: bool = True) -> tuple[dict, Optional[str]]:
+        """`(sessions, note)` for a request. NEVER lists or downloads on the caller's thread (see the class
+        docstring). `note` is `COLD_NOTE` while this process's first listing has not finished; with nothing
+        mirrored yet, or with `partial_ok` False, that state raises `LogNotReady` instead."""
+        now = time.monotonic()
+        with self._state:                                   # what this request answers from: read before the refresh
+            ready, failed, listed = self._ready, self._failed, self._listed_at
+        self._kick()
+        if failed is not None and (not ready or not listed or now - listed >= 2 * self.LIST_TTL_S):
+            raise failed[1].with_traceback(None)
+        have = LocalStore.sessions(self)
+        if ready:
+            return have, None
+        if not have or not partial_ok:
+            raise LogNotReady("the options log is still being copied to this server")
+        return have, self.COLD_NOTE
+
+    def drain(self, timeout: float = 10.0) -> None:
+        """Tests: wait for the refresh in flight, if any."""
+        with self._state:
+            done = self._refreshing
+        if done is not None:
+            done.wait(timeout)
 
 
 _store_override: Optional[LocalStore] = None
@@ -172,6 +308,45 @@ def get_store() -> LocalStore:
     if _default_store is None:
         _default_store = R2Store()
     return _default_store
+
+
+def _mirror_wanted() -> bool:
+    """IVH's own flag, or any switch whose answer is read from this store (`MIRROR_READERS`)."""
+    if is_enabled():
+        return True
+    try:
+        from api.services.options_analytics import flags
+        return any(flags.is_on(name) for name in MIRROR_READERS)
+    except Exception:  # noqa: BLE001 -- a flag that cannot be read is off
+        return False
+
+
+def warm_mirror() -> str:
+    """Boot (a DATE job in `api/main.py`, `WARM_BOOT_DELAY_S` after boot): start the production store's ONE background
+    refresh -- the listing, the downloads and, once they are in, the index check (`R2Store._refresh_bg` kicks
+    `iv_history_index`) -- so the first member after a deploy reads a mirror instead of `LogNotReady`. Returns what it
+    did. A no-op while no reader of the log is armed, for a store a test handed in, while a refresh runs, while the
+    listing is fresh, and inside `R2Store.RETRY_S` of a failed one."""
+    if not _mirror_wanted():
+        return "off"
+    store = get_store()
+    if not isinstance(store, R2Store):
+        return "local store"
+    return "started" if store.warm() else "warm"
+
+
+def mirror_sessions(store: LocalStore) -> dict:
+    """`{session: manifest}` for a reader whose answer carries no partial sentence (the IV rank header FT-006, the log
+    history OHIS). From the production store: the mirror's copy once this process's first refresh has finished
+    (`listing(partial_ok=False)`: never a listing or a download on the caller's thread), else the store's own
+    `sessions()` as these readers read it before (it lists and downloads, or waits for the refresh that does). Any
+    other store: its own `sessions()`."""
+    if isinstance(store, R2Store):
+        try:
+            return store.listing(partial_ok=False)[0]
+        except LogNotReady:
+            return store.sessions()
+    return store.sessions()
 
 
 # ── one day's row for one symbol ────────────────────────────────────────────────
@@ -205,6 +380,32 @@ class _LRU(OrderedDict):
 _MISS = object()
 _ROW_CACHE_MAX = 4096
 _ROW_CACHE = _LRU(_ROW_CACHE_MAX)
+#: {manifest path: ((size, mtime_ns), manifest)}: a few hundred bytes a day; bounded far above the log's length.
+_MANIFEST_CACHE_MAX = 4096
+_MANIFESTS = _LRU(_MANIFEST_CACHE_MAX)
+
+
+def _manifest(path: str) -> dict:
+    """One day's manifest, opened once while its file is unchanged (its size and modification time). A file
+    written in the last `iv_history_index.RACY_S` seconds is opened each time: two writes in one clock tick can
+    carry the same stamp. A manifest that cannot be read says so, as before."""
+    from api.services.research.iv_history_index import RACY_S
+    try:
+        st = os.stat(path)
+    except OSError:
+        return {"complete": False, "reason": "no readable manifest"}
+    stamp = (st.st_size, st.st_mtime_ns)
+    hit = _MANIFESTS.lookup(path, _MISS)
+    if hit is not _MISS and hit[0] == stamp:
+        return hit[1]
+    try:
+        with open(path, encoding="utf-8") as fh:
+            manifest = json.load(fh)
+    except (OSError, ValueError):
+        return {"complete": False, "reason": "no readable manifest"}
+    if time.time() - st.st_mtime_ns / 1e9 >= RACY_S:
+        _MANIFESTS.store(path, (stamp, manifest))
+    return manifest
 
 
 def _num(v):
@@ -214,6 +415,19 @@ def _num(v):
         return float(v)
     except (TypeError, ValueError):
         return None
+
+
+def atm_iv(v) -> tuple[Optional[float], bool]:
+    """`(ATM IV, implausible)` of one summary row's `atm_iv` cell: the number, or None. None with
+    `implausible` True for a reading under `IV_FLOOR` (a placeholder, never a point); None with
+    False for a cell that is blank or not a finite number. The ONE reader of the column for IVH and
+    for the market-wide IV rank list (`iv_rank_leaders._read_day`)."""
+    n = _num(v)
+    if n is None or not math.isfinite(n):
+        return None, False
+    if n < IV_FLOOR:
+        return None, True
+    return n, False
 
 
 def summary_rule(fieldnames) -> str:
@@ -254,8 +468,47 @@ def _day_row(store: LocalStore, session: str, sym: str) -> Optional[dict]:
     return found
 
 
+def _rows_for(store: LocalStore, sym: str, sessions: list, *, kick: bool) -> dict:
+    """{session: the row `_point` reads, or None} for `sym` on each session: from the local index
+    (`iv_history_index`) for a day whose file is the very file indexed, else `_day_row` (the file, exactly as
+    before). `kick` starts the index's one background build when a recent day is not indexed as it is now: the
+    route's own store only; a reader that hands in its own store never starts work."""
+    from api.services.research import iv_history_index as IX
+    idx = IX.for_root(store.root)
+    got = idx.lookup(sym)
+    days, rows = got if got is not None else ({}, {})
+    recent = set(sessions[-IX.MAX_SESSIONS:])
+    out, stale = {}, False
+    for d in sessions:
+        meta = days.get(d)
+        path = store.summary_path(d) if meta is not None else None
+        if path is not None:
+            try:
+                st = os.stat(path)
+            except OSError:
+                st = None
+            if st is not None and (st.st_size, st.st_mtime_ns) == (meta[0], meta[1]):
+                cells = rows.get(d)
+                out[d] = None if cells is None else {**dict(zip(IX.CELLS, cells)), "_rule": meta[2]}
+                continue
+        out[d] = _day_row(store, d, sym)
+        stale = stale or d in recent
+    if kick and stale:
+        idx.kick()
+    return out
+
+
+def _listing(store: LocalStore, *, own: bool, partial_ok: bool = True) -> tuple[dict, Optional[str]]:
+    """`(sessions, note)` for a request. The route's own store (`get_store()`): its `listing()`, which never lists
+    or downloads on the caller's thread. A store handed in by a caller: `mirror_sessions` (the production store's
+    mirror once it is ready, its own listing before that; any other store as it is), with no note."""
+    if own:
+        return store.listing(partial_ok=partial_ok)
+    return mirror_sessions(store), None
+
+
 def _point(session: str, r: dict) -> dict:
-    iv = _num(r.get("atm_iv"))
+    iv, implausible = atm_iv(r.get("atm_iv"))
     dte = _num(r.get("atm_dte"))
     if dte is None and r.get("atm_expiration"):
         # a legacy (20-45 rule) day has no atm_dte column; the DTE it was read at is
@@ -266,7 +519,8 @@ def _point(session: str, r: dict) -> dict:
             dte = None
     return {"date": session, "atm_iv": iv, "atm_dte": int(dte) if dte is not None else None,
             "atm_expiration": r.get("atm_expiration") or None,
-            "underlying_price": _num(r.get("underlying_price")), "rule": r["_rule"]}
+            "underlying_price": _num(r.get("underlying_price")), "rule": r["_rule"],
+            "implausible_iv": implausible}
 
 
 # ── sessions the log should hold ────────────────────────────────────────────────
@@ -321,8 +575,9 @@ def rank_of(values: list) -> dict:
 
 def iv_history(sym: str, *, now: Optional[_dt.datetime] = None,
                store: Optional[LocalStore] = None) -> dict:
+    own = store is None
     store = store or get_store()
-    manifests = store.sessions()
+    manifests, note = _listing(store, own=own)
     base = {"symbol": sym, "source": SOURCE, "method": METHOD,
             "rank_min_sessions": RANK_MIN_SESSIONS}
     if not manifests:
@@ -336,8 +591,9 @@ def iv_history(sym: str, *, now: Optional[_dt.datetime] = None,
     expected = expected_sessions(began, now)
     missing = [d for d in expected if d not in manifests]
     points, absent_days = [], []
+    rows = _rows_for(store, sym, sessions, kick=own)
     for d in sessions:
-        r = _day_row(store, d, sym)
+        r = rows[d]
         if r is None:
             absent_days.append(d)
             continue
@@ -356,7 +612,8 @@ def iv_history(sym: str, *, now: Optional[_dt.datetime] = None,
         inc = [p["date"] for p in with_iv if not p["complete"]]
         if inc:
             reasons.append(f"The log was incomplete on {', '.join(inc)}.")
-        no_iv = [p["date"] for p in points if p["atm_iv"] is None and p["date"] >= covers_from]
+        no_iv = [p["date"] for p in points if p["atm_iv"] is None and p["date"] >= covers_from
+                 and not p["implausible_iv"]]
         no_row = [d for d in absent_days if d >= covers_from]
         if no_iv or no_row:
             reasons.append(f"No ATM IV for {sym} on {', '.join(sorted(no_iv + no_row))}.")
@@ -364,6 +621,13 @@ def iv_history(sym: str, *, now: Optional[_dt.datetime] = None,
         if legacy:
             reasons.append(f"{', '.join(legacy)} {'were' if len(legacy) > 1 else 'was'} read under "
                            "the first run's 20-45 day rule and is left out of any rank.")
+    odd = [p["date"] for p in points if p["implausible_iv"]]
+    if odd:
+        reasons.append(f"The log's ATM IV for {sym} on {', '.join(odd[-5:])}{' ...' if len(odd) > 5 else ''} "
+                       f"was under {IV_FLOOR * 100:g}% a year, a placeholder rather than a reading, and is "
+                       "left out of the series and the rank.")
+    if note:
+        reasons.append(note)
     ranked = [p["atm_iv"] for p in with_iv if p["rule"] == CURRENT_RULE][-RANK_WINDOW:]
     n = len(with_iv)
     if len(ranked) >= RANK_MIN_SESSIONS:
@@ -462,10 +726,11 @@ def implied_vs_realized(sym: str, *, now: Optional[_dt.datetime] = None,
                         store: Optional[LocalStore] = None,
                         prints: Optional[Callable[[str], list]] = None,
                         realized: Optional[Callable[[str, list], list]] = None) -> dict:
+    own = store is None
     store = store or get_store()
     prints = prints or _default_prints
     realized = realized or _default_realized
-    manifests = store.sessions()
+    manifests, _ = _listing(store, own=own, partial_ok=False)
     began = min(manifests) if manifests else None
     base = {"symbol": sym, "logging_began": began, "method": IMPLIED_METHOD, "source": SOURCE,
             "calibration_min_prints": CALIBRATION_MIN_PRINTS}

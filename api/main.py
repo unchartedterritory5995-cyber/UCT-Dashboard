@@ -2761,6 +2761,17 @@ def _run_rs_screen_alerts(source: str, pass_receipt: dict) -> None:
         print(f"[scheduler] rs screen alerts ({source}) error: {type(e).__name__}: {e}")
 
 
+#: The 04:40 ET fire time of `rs_lists_nightly` (its registration and its catch-up read it).
+RS_LISTS_NIGHTLY_ET = (4, 40)
+#: Its catch-up (2026-11-23): a boot check this long after registration (after the estimate history's 1500 s) and a
+#: daily evening retry, both run only inside scan_period's quiet span.
+RS_LISTS_CATCHUP_BOOT_DELAY_S = 1800
+RS_LISTS_CATCHUP_AT_ET = (20, 25)
+#: ONE lists run per process at a time, whichever door it came through (the 04:40 cron, the rating catch-up that
+#: stored, the lists' own catch-up). Non-blocking: a second caller skips.
+_RS_LISTS_RUN_LOCK = threading.Lock()
+
+
 def _run_rs_lists() -> None:
     """The `rs_lists_nightly` job (Phase 4 unit 4-01, 04:40 ET). Never raises.
 
@@ -2773,20 +2784,97 @@ def _run_rs_lists() -> None:
     must have caught up to the screener session; an empty list never replaces a full one
     unless the session is fresh), rebuilds RS Leaders and RS Emerging in place through
     `watchlist_prebuilt.write_rs_list`, and records its receipt (read back on
-    `snapshot_db.status()` as `rs_lists`). One log line here.
+    `snapshot_db.status()` as `rs_lists`). One log line here. One run at a time
+    (`_RS_LISTS_RUN_LOCK`).
     """
-    _run_rs_post_pass("lists")
+    if not _RS_LISTS_RUN_LOCK.acquire(blocking=False):
+        print("[scheduler] rs lists: skipped, a run is already going in this process")
+        return
     try:
+        _run_rs_post_pass("lists")
+        try:
+            from api.services import rs_lists
+            r = rs_lists.nightly_job()
+            lists = r.get("lists") or {}
+            print(f"[scheduler] rs lists: enabled={r.get('enabled')} session={r.get('session')} "
+                  f"rs_session={r.get('rs_session')} fresh={r.get('fresh')} "
+                  f"skipped={r.get('skipped')} "
+                  + " ".join(f"{k.replace(' ', '_')}={v.get('status')}:{v.get('names')}"
+                             for k, v in lists.items()))
+        except Exception as e:  # noqa: BLE001
+            print(f"[scheduler] rs lists error: {e}")
+    finally:
+        _RS_LISTS_RUN_LOCK.release()
+
+
+# -- the lists' own catch-up (2026-11-23) ------------------------------------------
+#
+# `_run_rs_history_catchup` re-runs the lists only when the 04:15 rating ALSO missed and its
+# catch-up stored. A LONE missed 04:40 (a deploy at that minute) left the ready-made RS lists
+# a session old all day. So the lists get their own: a boot DATE job and an evening retry,
+# both running `_run_rs_lists` (the same door, the same lock) only when the lists hold an
+# older session than the last 04:40 slot's AND no fire has run since that slot, and only
+# inside scan_period's quiet span. A fire that ran and was refused by a guard (the rating
+# history behind) is the rating catch-up's to re-run; one that ERRORED did not run the job,
+# so the lists stay behind and the retry tries again.
+
+def _rs_lists_last_slot(now=None):
+    """The most recent 04:40 ET slot at or before `now` (New York)."""
+    from api.services import catchup_slots as cs
+    return cs.last_fire(cs.trigger(RS_LISTS_NIGHTLY_ET), now)
+
+
+def _rs_lists_target_session(now=None) -> str | None:
+    """The session the 04:40 run at the last slot writes: the settled session at that slot (the screener's own
+    clock, `rs_history.settled_session`, which knows the holidays). None when the calendar cannot say."""
+    from api.services.screener import rs_history
+    slot = _rs_lists_last_slot(now)
+    d = rs_history.settled_session(slot) if slot is not None else None
+    return rs_history.session_key(d) if d else None
+
+
+def _rs_lists_behind(last_run, wrote, now=None) -> bool:
+    """Pure over its inputs: should the lists' catch-up run? `last_run` is the newest receipt
+    (`rs_lists.last_run()`), `wrote` the newest session the lists were written for. True when `wrote` is older than
+    the last slot's session AND no fire has run since that slot (a receipt from before it, or one since it that
+    ERRORED: a skip by a guard ran)."""
+    target = _rs_lists_target_session(now)
+    if not target:
+        return False
+    if wrote and str(wrote) >= target:
+        return False
+    run = last_run if isinstance(last_run, dict) else {}
+    ran_at = run.get("ran_at")
+    errored = str(run.get("skipped") or "").startswith("error")
+    slot = _rs_lists_last_slot(now)
+    if isinstance(ran_at, (int, float)) and ran_at >= slot.timestamp() and not errored:
+        return False
+    return True
+
+
+def _run_rs_lists_catchup(source: str = "catchup", now=None) -> dict:
+    """The `rs_lists_catchup_boot` and `rs_lists_catchup` jobs. Never raises. Off: nothing read. Current: two
+    reads of the receipt table. Behind and inside the quiet span: one `_run_rs_lists` (its receipt is the record)."""
+    try:
+        from api.services import catchup_slots as cs
         from api.services import rs_lists
-        r = rs_lists.nightly_job()
-        lists = r.get("lists") or {}
-        print(f"[scheduler] rs lists: enabled={r.get('enabled')} session={r.get('session')} "
-              f"rs_session={r.get('rs_session')} fresh={r.get('fresh')} "
-              f"skipped={r.get('skipped')} "
-              + " ".join(f"{k.replace(' ', '_')}={v.get('status')}:{v.get('names')}"
-                         for k, v in lists.items()))
+        if not rs_lists.enabled():
+            return {"started": False, "reason": "off"}
+        now = cs.as_ny(now)
+        if not _rs_lists_behind(rs_lists.last_run(), rs_lists._last_written_session(), now):
+            return {"started": False, "reason": "current"}
+        if not cs.quiet(now):
+            print(f"[scheduler] rs lists catch-up ({source}): behind, but outside the quiet span; not run")
+            return {"started": False, "reason": "not_quiet"}
+        if _RS_LISTS_RUN_LOCK.locked():
+            return {"started": False, "reason": "running"}
+        print(f"[scheduler] rs lists catch-up ({source}): the lists are behind "
+              f"{_rs_lists_target_session(now)}; running")
+        _run_rs_lists()
+        return {"started": True, "reason": "behind"}
     except Exception as e:  # noqa: BLE001
-        print(f"[scheduler] rs lists error: {e}")
+        print(f"[scheduler] rs lists catch-up ({source}) error: {e}")
+        return {"started": False, "reason": f"error: {type(e).__name__}"}
 
 
 # -- UCT Relative Strength: the nightly Discord leaders post (engineering map ----
@@ -2987,6 +3075,38 @@ def _rs_discord_post_boot_line(scheduler=None) -> str:
         return f"[startup] rs-discord-post: status unavailable ({type(e).__name__})"
 
 
+#: The 03:00 ET fire time of `screener_snapshot_nightly` (its registration reads it, and so does the 02:xx side
+#: pulls' catch-up, which never runs across the build's start).
+SCREENER_NIGHTLY_ET = (3, 0)
+#: DVD MARKET's scheduled warm (2026-11-23). The Screener's ex-dividend columns read DVD MARKET's held list once per
+#: 03:00 build, and that list was built only when a member opened DVD MARKET, so on a night nobody had, the columns
+#: would be blank. 02:25 ET: inside scan_period's quiet span, before the build, and clear of the 02:30 jobs, the
+#: 02:35 fund-trends tick and the 02:40-02:55 side pulls.
+DVD_MARKET_WARM_ET = (2, 25)
+
+
+def _run_dividends_market_warm(source: str = "nightly", now=None) -> dict:
+    """The `dividends_market_warm` job, and the last step of the side inputs' boot catch-up. Never raises.
+
+    Only inside scan_period's quiet span. It calls the route's own off-request start
+    (`dividends_market.get_market_dividends` with no wait): DVD MARKET's ONE background build starts only when
+    nothing is held or the held list is due by DVD MARKET's own rule (`refresh_due`: a new week, or its lifetime
+    passed), so the warm never makes a read the route would not, and a current list costs nothing. Never a new
+    vendor path."""
+    try:
+        from api.services import catchup_slots as cs
+        if not cs.quiet(now):
+            return {"started": False, "reason": "not_quiet"}
+        from api.services import dividends_market
+        got = dividends_market.get_market_dividends(wait_s=0)
+        print(f"[scheduler] DVD MARKET warm ({source}): status={got.get('status')} "
+              f"window={got.get('window')} read_at={got.get('read_at')}")
+        return {"started": True, "status": got.get("status"), "read_at": got.get("read_at")}
+    except Exception as e:  # noqa: BLE001
+        print(f"[scheduler] DVD MARKET warm ({source}) error: {type(e).__name__}: {e}")
+        return {"started": False, "reason": f"error: {type(e).__name__}"}
+
+
 def register_screener_jobs(scheduler):
     """Register the nightly full-market screener snapshot build (03:00 ET, after
     the ratings nightly at 02:30). Gated by SCREENER_SNAPSHOT_ENABLED (default on).
@@ -3012,7 +3132,8 @@ def register_screener_jobs(scheduler):
             else:
                 print(f"[scheduler] screener snapshot build: "
                       f"built={stats.get('built')} skipped={stats.get('skipped')} "
-                      f"errors={stats.get('errors')} targets={stats.get('targets')}")
+                      f"errors={stats.get('errors')} targets={stats.get('targets')} "
+                      f"stale_side_files={(stats.get('side_files') or {}).get('stale')}")
                 # L9: a rebuilt snapshot is a new vintage, so the screener panel's
                 # bands go cold with it. Compute them here, not on the first open.
                 from api.services.screener import distribution
@@ -3042,7 +3163,8 @@ def register_screener_jobs(scheduler):
         except Exception as e:
             print(f"[scheduler] screener snapshot build error: {e}")
             _alert_if_nightly_short({"crashed": f"{type(e).__name__}: {e}"})
-    scheduler.add_job(_run, trigger=CronTrigger(hour=3, minute=0, timezone=_ET),
+    scheduler.add_job(_run, trigger=CronTrigger(hour=SCREENER_NIGHTLY_ET[0], minute=SCREENER_NIGHTLY_ET[1],
+                                                timezone=_ET),
                       id="screener_snapshot_nightly", max_instances=1,
                       replace_existing=True)
     # The watchdog for a nightly that never finished (see `_nightly_missing`). Its
@@ -3169,9 +3291,21 @@ def register_screener_jobs(scheduler):
     # `rs_lists.enabled()` (`RS_LISTS_ENABLED`, read per call), so arming and rollback are
     # one Railway variable with no deploy.
     scheduler.add_job(_run_rs_lists,
-                      trigger=CronTrigger(hour=4, minute=40, timezone=_ET),
+                      trigger=CronTrigger(hour=RS_LISTS_NIGHTLY_ET[0], minute=RS_LISTS_NIGHTLY_ET[1],
+                                          timezone=_ET),
                       id="rs_lists_nightly", max_instances=1,
                       replace_existing=True, coalesce=True, misfire_grace_time=3600)
+    # ... and its own catch-up (`_run_rs_lists_catchup`): a lone missed 04:40 no longer leaves the lists a session
+    # old. A DATE job after boot (never inline) and an evening retry, both UNCONDITIONAL (depth 0) like the job.
+    scheduler.add_job(_run_rs_lists_catchup, kwargs={"source": "boot"}, trigger="date",
+                      run_date=datetime.now(_ET) + _td(seconds=RS_LISTS_CATCHUP_BOOT_DELAY_S),
+                      id="rs_lists_catchup_boot", max_instances=1,
+                      replace_existing=True, misfire_grace_time=3600)
+    scheduler.add_job(_run_rs_lists_catchup, kwargs={"source": "retry"},
+                      trigger=CronTrigger(hour=RS_LISTS_CATCHUP_AT_ET[0], minute=RS_LISTS_CATCHUP_AT_ET[1],
+                                          timezone=_ET),
+                      id="rs_lists_catchup", max_instances=1,
+                      replace_existing=True, coalesce=True, misfire_grace_time=1800)
 
     # -- UCT Relative Strength: the nightly Discord leaders post (unit 2b-08) --
     #
@@ -3460,14 +3594,18 @@ def register_screener_jobs(scheduler):
     # joined after this comment first said "four"). Deliberate: the
     # 03:00 build is their only consumer, so pulling without it just burns
     # provider quota into artifacts nothing reads.
+    # ⭐ 2026-11-23: each wrapper runs its pull through `side_pulls.run_nightly` (the pull's own runner,
+    # under the lock its catch-up shares, its start and end recorded), and each cron's time is
+    # `side_pulls.PULLS[...].run_at`, the one copy the catch-up also reads. `side_registered` names
+    # the pulls registered here, so the boot catch-up below covers exactly those.
     log = logging.getLogger(__name__)
-    from api.services.screener import (
-        finviz_universe, earnings_dates, insider_capture, analyst_pass,
-    )
+    from api.services.screener import analyst_pass
+    from api.services.screener import side_pulls as _sp
+    side_registered = []
 
     def _run_finviz_universe():
         try:
-            receipt = finviz_universe.run_pull()
+            receipt = _sp.run_nightly("finviz_universe")
             log.info("[screener] %s receipt: %s", "screener_finviz_universe", receipt)
         except Exception as e:
             print(f"[scheduler] screener finviz universe error: {e}")
@@ -3475,21 +3613,25 @@ def register_screener_jobs(scheduler):
     if os.environ.get("SCREENER_FINVIZ_ENABLED", "1") == "1":
         scheduler.add_job(
             _run_finviz_universe,
-            trigger=CronTrigger(hour=2, minute=45, timezone=_ET),
+            trigger=CronTrigger(hour=_sp.PULLS["finviz_universe"].run_at[0],
+                                minute=_sp.PULLS["finviz_universe"].run_at[1], timezone=_ET),
             id="screener_finviz_universe", max_instances=1, replace_existing=True)
+        side_registered.append("finviz_universe")
 
     def _run_earnings_dates():
         try:
-            receipt = earnings_dates.run_pull()
-            log.info("[screener] %s receipt: %s", "screener_earnings_dates", receipt)
+            receipt = _sp.run_nightly("earnings_dates")
+            log.info("[screener] %s receipt: %s", "screener_earnings_dates", _sp._summary(receipt))
         except Exception as e:
             print(f"[scheduler] screener earnings dates error: {e}")
 
     if os.environ.get("SCREENER_EDATES_ENABLED", "1") == "1":
         scheduler.add_job(
             _run_earnings_dates,
-            trigger=CronTrigger(hour=2, minute=50, timezone=_ET),
+            trigger=CronTrigger(hour=_sp.PULLS["earnings_dates"].run_at[0],
+                                minute=_sp.PULLS["earnings_dates"].run_at[1], timezone=_ET),
             id="screener_earnings_dates", max_instances=1, replace_existing=True)
+        side_registered.append("earnings_dates")
 
     # -- Wave 5: pull the flow-worker's nightly per-ticker options aggregate
     # (screener/opt_flow_agg.json, written by api/flow_opt_aggregate.py) down
@@ -3498,11 +3640,9 @@ def register_screener_jobs(scheduler):
     # SCREENER_SNAPSHOT_ENABLED=0). Defaults ON like its Wave-2 siblings: a
     # local run with R2 unconfigured is harmless — `data_sync.get_bytes`
     # never raises, returns None, and `opt_flow.run_pull` refuses cleanly.
-    from api.services.screener import opt_flow
-
     def _run_opt_flow_pull():
         try:
-            receipt = opt_flow.run_pull()
+            receipt = _sp.run_nightly("opt_flow")
             log.info("[screener] %s receipt: %s", "screener_opt_flow_pull", receipt)
         except Exception as e:
             print(f"[scheduler] screener opt flow pull error: {e}")
@@ -3510,12 +3650,14 @@ def register_screener_jobs(scheduler):
     if os.environ.get("SCREENER_OPTFLOW_PULL_ENABLED", "1") == "1":
         scheduler.add_job(
             _run_opt_flow_pull,
-            trigger=CronTrigger(hour=2, minute=55, timezone=_ET),
+            trigger=CronTrigger(hour=_sp.PULLS["opt_flow"].run_at[0],
+                                minute=_sp.PULLS["opt_flow"].run_at[1], timezone=_ET),
             id="screener_opt_flow_pull", max_instances=1, replace_existing=True)
+        side_registered.append("opt_flow")
 
     def _run_insider_capture():
         try:
-            receipt = insider_capture.run_capture()
+            receipt = _sp.run_nightly("insider_capture")
             log.info("[screener] %s receipt: %s", "screener_insider_capture", receipt)
         except Exception as e:
             print(f"[scheduler] screener insider capture error: {e}")
@@ -3523,12 +3665,14 @@ def register_screener_jobs(scheduler):
     if os.environ.get("SCREENER_INSIDER_ENABLED", "1") == "1":
         scheduler.add_job(
             _run_insider_capture,
-            trigger=CronTrigger(hour=2, minute=40, timezone=_ET),
+            trigger=CronTrigger(hour=_sp.PULLS["insider_capture"].run_at[0],
+                                minute=_sp.PULLS["insider_capture"].run_at[1], timezone=_ET),
             id="screener_insider_capture", max_instances=1, replace_existing=True)
+        side_registered.append("insider_capture")
 
     def _run_analyst_pass():
         try:
-            receipt = analyst_pass.run_pass()
+            receipt = _sp.run_nightly("analyst_pass")
             log.info("[screener] %s receipt: %s", "screener_analyst_pass", receipt)
         except Exception as e:
             print(f"[scheduler] screener analyst pass error: {e}")
@@ -3536,8 +3680,42 @@ def register_screener_jobs(scheduler):
     if analyst_pass.enabled():
         scheduler.add_job(
             _run_analyst_pass,
-            trigger=CronTrigger(hour=2, minute=0, timezone=_ET),
+            trigger=CronTrigger(hour=_sp.PULLS["analyst_pass"].run_at[0],
+                                minute=_sp.PULLS["analyst_pass"].run_at[1], timezone=_ET),
             id="screener_analyst_pass", max_instances=1, replace_existing=True)
+        side_registered.append("analyst_pass")
+
+    # -- ... and their ONE boot catch-up (2026-11-23): a 02:xx fire lost to a pod restart left
+    # the 03:00 build reading yesterday's file. `side_pulls.catch_up_all` repeats each MISSED
+    # read (never one its nightly made and was refused), once per night, inside scan_period's
+    # quiet span, one pull after another, never across the build's start (`SCREENER_NIGHTLY_ET`)
+    # or inside its first minutes; the build's receipt names any side file it read stale.
+    # A DATE job `side_pulls.CATCHUP_BOOT_DELAY_S` after boot (never inline), covering only the
+    # pulls registered above. Registered under no flag of its own: each pull's flag decided above.
+    def _run_side_pulls_catchup(names):
+        try:
+            print(f"[scheduler] screener side pulls catch-up (boot): "
+                  f"{_sp.catch_up_all(names, build_at=SCREENER_NIGHTLY_ET)}")
+        except Exception as e:  # noqa: BLE001
+            print(f"[scheduler] screener side pulls catch-up error: {e}")
+        # ... and DVD MARKET's warm (below), after the pulls: a no-op while its held list is current.
+        _run_dividends_market_warm("boot")
+
+    scheduler.add_job(
+        _run_side_pulls_catchup, kwargs={"names": tuple(side_registered)}, trigger="date",
+        run_date=datetime.now(_ET) + _td(seconds=_sp.CATCHUP_BOOT_DELAY_S),
+        id="screener_side_pulls_catchup_boot", max_instances=1, replace_existing=True,
+        misfire_grace_time=3600)
+
+    # -- DVD MARKET's warm before the build (`_run_dividends_market_warm`, 2026-11-23): the
+    # Screener's ex-dividend columns read DVD MARKET's held list, which only a member's open
+    # used to build. Daily at DVD_MARKET_WARM_ET; its grace ends before the 03:00 build.
+    # Registered under no flag of its own (DVD MARKET has none; its build decides when to read).
+    scheduler.add_job(
+        _run_dividends_market_warm,
+        trigger=CronTrigger(hour=DVD_MARKET_WARM_ET[0], minute=DVD_MARKET_WARM_ET[1], timezone=_ET),
+        id="dividends_market_warm", max_instances=1, replace_existing=True, coalesce=True,
+        misfire_grace_time=1200)
 
     # -- the LIVE TIER sweep: the ONLY intraday screener job ------------------
     #
@@ -10838,7 +11016,7 @@ async def lifespan(app: FastAPI):
 
             def _estimate_history_job():
                 from api.services import estimate_history as _eh
-                r = _eh.run_daily()
+                r = _eh.run_scheduled()
                 if not r.get("skipped"):
                     print(f"[scheduler] estimate history snapshot: {r}")
 
@@ -10846,9 +11024,11 @@ async def lifespan(app: FastAPI):
                 from api.services import filings_feed as _ff
                 _ff.poll_market()
 
+            from api.services import estimate_history as _eh_mod
             _scheduler.add_job(
                 _estimate_history_job,
-                trigger=CronTrigger(day_of_week="mon-fri", hour=18, minute=20, timezone=_ET),
+                trigger=CronTrigger(day_of_week=_eh_mod.RUN_DAYS, hour=_eh_mod.RUN_AT_ET[0],
+                                    minute=_eh_mod.RUN_AT_ET[1], timezone=_ET),
                 id="estimate_history_daily", max_instances=1, replace_existing=True, coalesce=True,
             )
             from api.services import filings_feed as _ff_mod
@@ -10860,6 +11040,39 @@ async def lifespan(app: FastAPI):
             print("[startup] estimate history (weekdays 18:20 ET) + filings feed poll scheduled (flag-gated per run)")
         except Exception as e:
             print(f"[startup] COV-07/09 job registration failed (non-fatal): {e}")
+
+        # ... AND THE ESTIMATE SNAPSHOT'S CATCH-UP (2026-11-23, the INS CLUSTER incident's shape): an 18:20 fire that
+        # lands while the pod restarts for a deploy (a likely deploy time) was lost for good, a permanent one-day hole
+        # in EEH and EEHSC. `estimate_history.catch_up` runs the SAME run (`run_scheduled`: the flag, one run at a
+        # time) only while the missed snapshot still stands for its session, after that evening's 18:20 and before
+        # the next session's open; past it the hole is recorded and said, never filled under the earlier date. It
+        # keeps the JOB's evening window, not scan_period's quiet span (the snapshot runs in the busy span by design).
+        # A DATE job CATCHUP_BOOT_DELAY_S after boot (never inline; after N-PORT's 1200 s) and a daily retry at
+        # CATCHUP_AT_ET.
+        _boot_mark("EEH-catch-up")
+        try:
+            def _estimate_history_catch_up_job(source):
+                from api.services import estimate_history as _eh
+                print(f"[scheduler] estimate history catch-up ({source}): {_eh.catch_up()}")
+
+            from datetime import datetime as _eh_dt, timedelta as _eh_td
+            from api.services import estimate_history as _eh_cu
+            _scheduler.add_job(
+                _estimate_history_catch_up_job, kwargs={"source": "boot"}, trigger="date",
+                run_date=_eh_dt.now(_ET) + _eh_td(seconds=_eh_cu.CATCHUP_BOOT_DELAY_S),
+                id="estimate_history_catchup_boot", max_instances=1, replace_existing=True,
+                misfire_grace_time=3600,
+            )
+            _scheduler.add_job(
+                _estimate_history_catch_up_job, kwargs={"source": "retry"},
+                trigger=CronTrigger(hour=_eh_cu.CATCHUP_AT_ET[0], minute=_eh_cu.CATCHUP_AT_ET[1], timezone=_ET),
+                id="estimate_history_catchup", max_instances=1, replace_existing=True, coalesce=True,
+                misfire_grace_time=1800,
+            )
+            print(f"[startup] estimate history catch-up scheduled -- {_eh_cu.CATCHUP_BOOT_DELAY_S}s after boot, "
+                  f"daily {_eh_cu.CATCHUP_AT_ET[0]:02d}:{_eh_cu.CATCHUP_AT_ET[1]:02d} ET, when behind")
+        except Exception as e:
+            print(f"[startup] estimate history catch-up registration failed (non-fatal): {e}")
         # Research depth (lane gaps-research): each job is ALWAYS registered and checks its
         # own surface flag on every run, so arming takes effect without a scheduler change
         # and unset does nothing at all.
@@ -10871,9 +11084,10 @@ async def lifespan(app: FastAPI):
                 if not r.get("skipped"):
                     print(f"[scheduler] filing search reindex: {r}")
 
+            from api.services import filing_search as _fs_mod
             _scheduler.add_job(
                 _filing_search_reindex_job,
-                trigger=CronTrigger(day_of_week="mon-sun", hour=3, minute=40, timezone=_ET),
+                trigger=CronTrigger(hour=_fs_mod.RUN_AT_ET[0], minute=_fs_mod.RUN_AT_ET[1], timezone=_ET),
                 id="filing_search_reindex", max_instances=1, replace_existing=True, coalesce=True,
             )
 
@@ -10883,9 +11097,10 @@ async def lifespan(app: FastAPI):
                 if not r.get("skipped"):
                     print(f"[scheduler] SEC fails-to-deliver ingest: {r}")
 
+            from api.services import ftd_dataset as _ftd_mod
             _scheduler.add_job(
                 _ftd_ingest_job,
-                trigger=CronTrigger(day_of_week="mon-sun", hour=6, minute=10, timezone=_ET),
+                trigger=CronTrigger(hour=_ftd_mod.RUN_AT_ET[0], minute=_ftd_mod.RUN_AT_ET[1], timezone=_ET),
                 id="ftd_ingest", max_instances=1, replace_existing=True, coalesce=True,
             )
 
@@ -10904,6 +11119,60 @@ async def lifespan(app: FastAPI):
             print("[startup] research depth jobs scheduled (flag-gated per run)")
         except Exception as e:
             print(f"[startup] research depth job registration failed (non-fatal): {e}")
+
+        # ... AND THE CATCH-UPS OF TWO OF THEM (2026-11-23, the INS CLUSTER incident's shape; low priority): a 03:40
+        # filing search re-read or a 06:10 fails-to-deliver ingest that lands while the pod restarts is lost until the
+        # next night. `filing_search.catch_up` / `ftd_dataset.catch_up` run the SAME job (its flag, its own run lock)
+        # only when no run has finished since the last slot (`behind`, from the run's own receipt) and only inside
+        # scan_period's quiet span. Each: a DATE job CATCHUP_BOOT_DELAY_S after boot (never inline; after the
+        # estimate history's 1500 s and the RS lists' 1800 s) and a daily evening retry at CATCHUP_AT_ET.
+        _boot_mark("FSR-catch-up")
+        try:
+            def _filing_search_catch_up_job(source):
+                from api.services import filing_search as _fs
+                print(f"[scheduler] filing search reindex catch-up ({source}): {_fs.catch_up()}")
+
+            from datetime import datetime as _fs_dt, timedelta as _fs_td
+            from api.services import filing_search as _fs_cu
+            _scheduler.add_job(
+                _filing_search_catch_up_job, kwargs={"source": "boot"}, trigger="date",
+                run_date=_fs_dt.now(_ET) + _fs_td(seconds=_fs_cu.CATCHUP_BOOT_DELAY_S),
+                id="filing_search_reindex_catchup_boot", max_instances=1, replace_existing=True,
+                misfire_grace_time=3600,
+            )
+            _scheduler.add_job(
+                _filing_search_catch_up_job, kwargs={"source": "retry"},
+                trigger=CronTrigger(hour=_fs_cu.CATCHUP_AT_ET[0], minute=_fs_cu.CATCHUP_AT_ET[1], timezone=_ET),
+                id="filing_search_reindex_catchup", max_instances=1, replace_existing=True, coalesce=True,
+                misfire_grace_time=1800,
+            )
+        except Exception as e:
+            print(f"[startup] filing search catch-up registration failed (non-fatal): {e}")
+        _boot_mark("FTD-catch-up")
+        try:
+            def _ftd_ingest_catch_up_job(source):
+                from api.services import ftd_dataset as _ftd
+                print(f"[scheduler] SEC fails-to-deliver ingest catch-up ({source}): {_ftd.catch_up()}")
+
+            from datetime import datetime as _ftd_dt, timedelta as _ftd_td
+            from api.services import ftd_dataset as _ftd_cu
+            _scheduler.add_job(
+                _ftd_ingest_catch_up_job, kwargs={"source": "boot"}, trigger="date",
+                run_date=_ftd_dt.now(_ET) + _ftd_td(seconds=_ftd_cu.CATCHUP_BOOT_DELAY_S),
+                id="ftd_ingest_catchup_boot", max_instances=1, replace_existing=True,
+                misfire_grace_time=3600,
+            )
+            _scheduler.add_job(
+                _ftd_ingest_catch_up_job, kwargs={"source": "retry"},
+                trigger=CronTrigger(hour=_ftd_cu.CATCHUP_AT_ET[0], minute=_ftd_cu.CATCHUP_AT_ET[1], timezone=_ET),
+                id="ftd_ingest_catchup", max_instances=1, replace_existing=True, coalesce=True,
+                misfire_grace_time=1800,
+            )
+            print(f"[startup] filing search / fails-to-deliver catch-ups scheduled -- fails-to-deliver "
+                  f"{_ftd_cu.CATCHUP_BOOT_DELAY_S}s after boot, daily {_ftd_cu.CATCHUP_AT_ET[0]:02d}:"
+                  f"{_ftd_cu.CATCHUP_AT_ET[1]:02d} ET, when behind")
+        except Exception as e:
+            print(f"[startup] fails-to-deliver catch-up registration failed (non-fatal): {e}")
 
         # INS CLUSTER (2026-11-21): insider cluster buys read from the SEC's own Form 4 filings
         # (api/services/insider_clusters_sec.py). EDGAR's daily indexes are "updated nightly starting
@@ -10935,10 +11204,11 @@ async def lifespan(app: FastAPI):
         # the new container's memory job store schedules the NEXT slot (`misfire_grace_time` covers only a scheduler
         # that was ALIVE at the fire time, as the rs_history catch-up's note says). So, as rs_history does: a one-hour
         # grace on the job above, and `insider_clusters_sec.catch_up`, which starts the SAME run only when the held
-        # answer was built before the last slot (`insider_clusters_sec.behind`): a DATE job CATCHUP_BOOT_DELAY_S after
-        # boot (never inline: the boot is not slowed) and an hourly check (CATCHUP_HOURS_ET at CATCHUP_MINUTE_ET, every
-        # day; `behind` knows the schedule). A run a restart killed resumes from the store's per-day checkpoint, and the
-        # module's own guard runs one at a time. Nothing on a member's request starts it.
+        # answer was built before the last slot (`insider_clusters_sec.behind`), and only inside scan_period's quiet
+        # span (`insider_clusters_sec.quiet`: a boot during the weekday busy span starts nothing): a DATE job
+        # CATCHUP_BOOT_DELAY_S after boot (never inline: the boot is not slowed) and an hourly check (CATCHUP_HOURS_ET
+        # at CATCHUP_MINUTE_ET, every day; `behind` knows the schedule). A run a restart killed resumes from the store's
+        # per-day checkpoint, and the module's own guard runs one at a time. Nothing on a member's request starts it.
         _boot_mark("INS-catch-up")
         try:
             def _insider_clusters_sec_catch_up_job(source):
@@ -11075,6 +11345,49 @@ async def lifespan(app: FastAPI):
                   f"daily {_ivrl_cu.CATCHUP_AT_ET[0]:02d}:{_ivrl_cu.CATCHUP_AT_ET[1]:02d} ET, when behind")
         except Exception as e:
             print(f"[startup] IV rank leaders catch-up registration failed (non-fatal): {e}")
+
+        # THE TERMINAL'S FIRST ANSWERS AFTER A DEPLOY (speed pass 3, 2026-11-24). Three light warms, each a DATE job on an
+        # offset of its own past the boot's busy minutes (never inline): IVH's R2 mirror and, after it, its index check
+        # (`iv_history.warm_mirror`, 480 s; live, a process with nothing mirrored answered 503 `LogNotReady` 45 minutes
+        # after a deploy, until a member asked), FED's rates and headlines (`fed_watch.warm`, 540 s), and the RS list's
+        # finished bytes (`routers.rs_ranking.warm_body`, 660 s). Each is a no-op when already warm.
+        _boot_mark("terminal-warms")
+        try:
+            def _iv_history_warm_job():
+                from api.services.research import iv_history as _ivh_w
+                print(f"[scheduler] IV history mirror warm: {_ivh_w.warm_mirror()}")
+
+            def _fed_watch_warm_job():
+                from api.services import fed_watch as _fed_w
+                print(f"[scheduler] Fed watch warm: {_fed_w.warm()}")
+
+            def _rs_rankings_body_warm_job():
+                from api.routers import rs_ranking as _rsl_w
+                print(f"[scheduler] RS list bytes warm: {_rsl_w.warm_body()}")
+
+            from datetime import datetime as _tw_dt, timedelta as _tw_td
+            from api.services.research import iv_history as _tw_ivh
+            from api.services import fed_watch as _tw_fed
+            from api.routers import rs_ranking as _tw_rsl
+            _scheduler.add_job(
+                _iv_history_warm_job, trigger="date",
+                run_date=_tw_dt.now(_ET) + _tw_td(seconds=_tw_ivh.WARM_BOOT_DELAY_S),
+                id="iv_history_warm_boot", max_instances=1, replace_existing=True, misfire_grace_time=3600,
+            )
+            _scheduler.add_job(
+                _fed_watch_warm_job, trigger="date",
+                run_date=_tw_dt.now(_ET) + _tw_td(seconds=_tw_fed.WARM_BOOT_DELAY_S),
+                id="fed_watch_warm_boot", max_instances=1, replace_existing=True, misfire_grace_time=3600,
+            )
+            _scheduler.add_job(
+                _rs_rankings_body_warm_job, trigger="date",
+                run_date=_tw_dt.now(_ET) + _tw_td(seconds=_tw_rsl.WARM_BOOT_DELAY_S),
+                id="rs_rankings_body_warm_boot", max_instances=1, replace_existing=True, misfire_grace_time=3600,
+            )
+            print(f"[startup] terminal warms scheduled -- IVH {_tw_ivh.WARM_BOOT_DELAY_S}s, FED "
+                  f"{_tw_fed.WARM_BOOT_DELAY_S}s, RSL {_tw_rsl.WARM_BOOT_DELAY_S}s after boot")
+        except Exception as e:
+            print(f"[startup] terminal warm registration failed (non-fatal): {e}")
 
         # COT BY TRADER TYPE (2026-11-22): the CFTC's Traders in Financial Futures and Disaggregated futures-only
         # reports beside the legacy COT (api/services/cot_finer.py). 05:10 and 21:10 ET, both inside scan_period's
