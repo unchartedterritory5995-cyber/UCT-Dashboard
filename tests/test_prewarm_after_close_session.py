@@ -1,5 +1,5 @@
-"""After the close, "the last completed session" is TODAY, and the after-close daily sweep is not done
-until the store says so.
+"""From the settle hour after the close, "the last completed session" is TODAY, and the after-close daily
+sweep is not done until the store says so.
 
 ⚰️ PRODUCTION, Monday 2026-11-23. The worker's after-close DAILY sweep ran at 17:00 ET, printed
 "refreshed 712 of 13279 dailies", marked the session done, and nothing looked again. The device-store
@@ -9,7 +9,7 @@ dark for every desktop member until the next morning's refresh.
 Two defects, one on top of the other:
 
   1. `bars_prewarm._last_completed_session()` asked the session calendar "as of 08:00 ET today", at
-     every hour. Its own docstring says "yesterday during RTH, today after close". At 17:00 ET Monday it
+     every hour. Its own docstring said "yesterday during RTH, today after close". At 17:00 ET Monday it
      answered FRIDAY. Inside the data window (weekdays 04:00 to 20:00 ET) `_boot_can_skip` compares a
      daily's newest row with it, so every daily already holding Friday's bar was skipped as "has the
      last completed session". Only the 712 older than Friday were fetched.
@@ -44,11 +44,24 @@ def _et(ymd: int, hh: int, mm: int = 0) -> datetime:
 
 # ── 1. the calendar answer ───────────────────────────────────────────────────────────────────────
 
+@pytest.fixture(autouse=True)
+def _the_settle_hour_is_the_default(monkeypatch):
+    """17:00 ET unless a test sets it: the worker's own `PERMANENT_FRESHNESS_HOUR_ET` is not this file's."""
+    monkeypatch.delenv("PERMANENT_FRESHNESS_HOUR_ET", raising=False)
+
+
+# ⛔ TODAY BECOMES "COMPLETED" AT THE SETTLE HOUR, NOT AT THE CLOSE. A daily fetched once is dated today and
+# is then treated as settled for the rest of the day (`_boot_can_skip` answers before `_needs_fresh` is
+# asked), so whatever the vendor says at the first fetch ships in that night's seed. At 16:05 ET the vendor
+# may not have published the closing daily bar yet. `PERMANENT_FRESHNESS_HOUR_ET` (default 17) is the hour
+# the after-close sweep already waits for, and it is the one knob for both.
 @pytest.mark.parametrize("now, want, why", [
-    (_et(MON, 17, 0), MON, "17:00 ET on a trading day, the sweep's own hour: today"),
-    (_et(MON, 16, 0), MON, "the close itself: the regular session is over"),
+    (_et(MON, 17, 0), MON, "17:00 ET on a trading day, the settle hour and the sweep's own: today"),
     (_et(MON, 19, 59), MON, "post-market, still inside the data window"),
     (_et(MON, 23, 30), MON, "late evening"),
+    (_et(MON, 16, 59), FRI, "one minute before the settle hour"),
+    (_et(MON, 16, 30), FRI, "half an hour after the close: the vendor's daily is not settled yet"),
+    (_et(MON, 16, 0), FRI, "the close itself: not yet"),
     (_et(MON, 15, 59), FRI, "one minute before the close: Friday -> Monday"),
     (_et(MON, 10, 0), FRI, "mid-session: Friday -> Monday"),
     (_et(MON, 8, 0), FRI, "pre-open"),
@@ -60,10 +73,28 @@ def _et(ymd: int, hh: int, mm: int = 0) -> datetime:
     (_et(THANKSGIVING, 10, 0), WED, "a holiday morning"),
     (_et(THANKSGIVING, 17, 0), WED, "a holiday evening: no session closed today"),
     (_et(HALF_DAY, 12, 59), WED, "half day, one minute before its 13:00 close (Thursday was closed)"),
-    (_et(HALF_DAY, 13, 0), HALF_DAY, "half day, at its 13:00 close"),
-    (_et(HALF_DAY, 15, 0), HALF_DAY, "half day, the afternoon: the session closed two hours ago"),
+    (_et(HALF_DAY, 13, 0), WED, "half day, at its 13:00 close: not yet"),
+    (_et(HALF_DAY, 15, 0), WED, "half day, the afternoon: closed two hours ago, still before the settle hour"),
+    (_et(HALF_DAY, 16, 59), WED, "half day, one minute before the settle hour"),
+    (_et(HALF_DAY, 17, 0), HALF_DAY, "half day, the settle hour"),
 ])
 def test_the_last_completed_session_at(now, want, why):
+    assert bp._last_completed_session(now) == want, why
+
+
+@pytest.mark.parametrize("hour_et, now, want, why", [
+    ("20", _et(MON, 17, 0), FRI, "settle hour 20: 17:00 is too early"),
+    ("20", _et(MON, 19, 59), FRI, "settle hour 20: one minute before"),
+    ("20", _et(MON, 20, 0), MON, "settle hour 20: at it"),
+    ("18", _et(MON, 17, 30), FRI, "settle hour 18: before"),
+    ("18", _et(MON, 18, 0), MON, "settle hour 18: at it"),
+    ("15", _et(MON, 15, 30), FRI, "a settle hour BEFORE the close never beats the close: mid-session"),
+    ("15", _et(MON, 16, 0), MON, "a settle hour before the close: today from the close"),
+    ("12", _et(HALF_DAY, 12, 30), WED, "half day, settle hour 12: still before its 13:00 close"),
+    ("12", _et(HALF_DAY, 13, 0), HALF_DAY, "half day, settle hour 12: today from the 13:00 close"),
+])
+def test_the_settle_hour_is_the_sweeps_own_knob(monkeypatch, hour_et, now, want, why):
+    monkeypatch.setenv("PERMANENT_FRESHNESS_HOUR_ET", hour_et)
     assert bp._last_completed_session(now) == want, why
 
 
@@ -74,35 +105,37 @@ def _every_half_hour(first_ymd: int, days: int):
         t += timedelta(minutes=30)
 
 
-def test_before_the_close_the_answer_is_the_one_the_boot_pass_always_had():
-    """Unchanged where it was right: until today's regular close (and all day on a day with no session)
-    the answer is the calendar's "as of 08:00 ET today", the rule the mid-session boot skip was built on."""
+def _settled(now: datetime) -> bool:
+    """Has today's session closed AND the settle hour (17:00 ET) passed? Derived from the calendar."""
+    today = int(now.strftime("%Y%m%d"))
+    session_today = _expected_latest_session_yyyymmdd(now.replace(hour=12, minute=0)) == today
+    return session_today and now.hour * 60 + now.minute >= max(_session_close_minutes(today), 17 * 60)
+
+
+def test_before_the_settle_hour_the_answer_is_the_one_the_boot_pass_always_had():
+    """Unchanged where it was right: until the settle hour of a session day (and all day on a day with no
+    session) the answer is the calendar's "as of 08:00 ET today", the rule the mid-session boot skip was
+    built on."""
     checked = 0
     for now in _every_half_hour(THU, 11):                    # Thu 11-19 .. Sun 11-29, every half hour
-        today = int(now.strftime("%Y%m%d"))
-        session_today = _expected_latest_session_yyyymmdd(now.replace(hour=12, minute=0)) == today
-        closed = session_today and now.hour * 60 + now.minute >= _session_close_minutes(today)
-        if not closed:
+        if not _settled(now):
             assert bp._last_completed_session(now) == _expected_latest_session_yyyymmdd(
                 now.replace(hour=8, minute=0)), now
             checked += 1
     assert checked > 300
 
 
-def test_it_is_never_ahead_of_the_expected_session_and_is_today_exactly_after_a_close():
+def test_it_is_never_ahead_of_the_expected_session_and_is_today_exactly_from_the_settle_hour():
     todays = 0
     for now in _every_half_hour(THU, 11):
         today = int(now.strftime("%Y%m%d"))
         got = bp._last_completed_session(now)
         assert got <= _expected_latest_session_yyyymmdd(now) or now.hour * 100 + now.minute < 935, now
         assert got <= today, now
-        session_today = _expected_latest_session_yyyymmdd(now.replace(hour=12, minute=0)) == today
-        closed = session_today and now.hour * 60 + now.minute >= _session_close_minutes(today)
-        assert (got == today) is closed, now
-        todays += closed
-    # 6 sessions in the range (Thu, Fri, Mon, Tue, Wed full days: 16 half hours each after the close;
-    # the half day: 22).
-    assert todays == 5 * 16 + 22
+        assert (got == today) is _settled(now), now
+        todays += _settled(now)
+    # 6 sessions in the range (Thu, Fri, Mon, Tue, Wed and the half day): 17:00 .. 23:30 = 14 half hours each.
+    assert todays == 6 * 14
 
 
 # ── 2. the skip, inside the data window ──────────────────────────────────────────────────────────
@@ -120,7 +153,7 @@ def clock(monkeypatch):
     return _set
 
 
-def test_after_the_close_a_daily_holding_the_previous_session_is_NOT_skipped(clock):
+def test_from_the_settle_hour_a_daily_holding_the_previous_session_is_NOT_skipped(clock):
     now = clock(_et(MON, 17, 0))
     assert data_sync.in_active_data_window(now), "17:00 ET on a weekday is inside the data window"
     assert bp._boot_can_skip(FRI, "D") is False, "Friday's bar at 17:00 Monday is a session behind"
@@ -136,12 +169,33 @@ def test_before_the_close_the_boot_pass_still_skips_a_daily_holding_the_previous
     assert bp._boot_can_skip(THU, "D") is False, "missing a completed session: still fetched"
 
 
-def test_on_a_half_day_the_skip_turns_at_the_early_close(clock):
-    clock(_et(HALF_DAY, 12, 30))
-    assert bp._boot_can_skip(WED, "D") is True
-    clock(_et(HALF_DAY, 13, 30))
+def test_between_the_close_and_the_settle_hour_a_daily_holding_the_previous_session_is_STILL_skipped(clock):
+    """16:30 ET Monday: the session is over and the vendor's daily may not be. Nothing is fetched yet."""
+    for hh, mm in ((16, 0), (16, 5), (16, 30), (16, 59)):
+        clock(_et(MON, hh, mm))
+        assert bp._boot_can_skip(FRI, "D") is True, (hh, mm)
+    clock(_et(MON, 17, 0))
+    assert bp._boot_can_skip(FRI, "D") is False
+
+
+def test_on_a_half_day_the_skip_holds_through_the_early_close_until_the_settle_hour(clock):
+    for hh, mm in ((12, 30), (13, 0), (13, 30), (15, 0), (16, 59)):
+        clock(_et(HALF_DAY, hh, mm))
+        assert bp._boot_can_skip(WED, "D") is True, (hh, mm)
+    clock(_et(HALF_DAY, 17, 0))
     assert bp._boot_can_skip(WED, "D") is False
     assert bp._boot_can_skip(HALF_DAY, "D") is True
+
+
+def test_with_the_settle_hour_at_20_nothing_turns_inside_the_data_window(clock, monkeypatch):
+    """`PERMANENT_FRESHNESS_HOUR_ET=20`: the flip and the window's end coincide, so inside the window a daily
+    holding the previous session is skipped all evening, and from 20:00 the outside rule (today) fetches it."""
+    monkeypatch.setenv("PERMANENT_FRESHNESS_HOUR_ET", "20")
+    for hh, mm in ((17, 0), (18, 30), (19, 59)):
+        clock(_et(MON, hh, mm))
+        assert bp._boot_can_skip(FRI, "D") is True, (hh, mm)
+    clock(_et(MON, 20, 0))
+    assert bp._boot_can_skip(FRI, "D") is False and bp._boot_can_skip(MON, "D") is True
 
 
 def test_outside_the_window_the_skip_is_as_it_was(clock):
@@ -277,6 +331,43 @@ def test_before_the_buffer_hour_the_sweep_does_not_run(clock, sweep_on):
     state = {"swept": 0}
     store.tick(state)
     assert store.asked == [] and state == {"swept": 0}
+
+
+@pytest.mark.parametrize("day, prev, times", [
+    (MON, FRI, ((16, 0), (16, 5), (16, 30), (16, 59))),
+    (HALF_DAY, WED, ((13, 0), (13, 5), (15, 0), (16, 59))),
+])
+def test_NO_daily_is_fetched_between_the_close_and_the_settle_hour(clock, sweep_on, day, prev, times):
+    """⛔ A daily fetched once is dated today and never asked for again that day, so the first fetch is the
+    one the night's seed ships. The steady refresh (every job through `_warm_job`) and the sweep must both
+    leave a daily holding the previous session alone until the settle hour, then fetch it."""
+    store = _Store({"A": prev, "B": prev, "C": prev}, day)
+    jobs = [(s, "D", 5000) for s in sorted(store.rows)]
+    state = {"swept": 0}
+    for hh, mm in times:
+        clock(_et(day, hh, mm))
+        assert [store.warm_one(j)[0] for j in jobs] == ["skipped"] * 3, (hh, mm)   # the steady refresh's job
+        store.tick(state)                                                          # the sweep
+        assert store.asked == [] and state == {"swept": 0}, (hh, mm)
+        assert set(store.rows.values()) == {prev}
+    clock(_et(day, 17, 0))
+    assert [store.warm_one(j)[0] for j in jobs] == ["warmed"] * 3
+    assert sorted(store.asked) == ["A", "B", "C"] and set(store.rows.values()) == {day}
+
+
+def test_with_the_settle_hour_at_20_the_sweep_and_the_refresh_wait_for_it(clock, sweep_on, monkeypatch):
+    monkeypatch.setenv("PERMANENT_FRESHNESS_HOUR_ET", "20")
+    store = _Store({"A": FRI, "B": FRI}, MON)
+    jobs = [(s, "D", 5000) for s in sorted(store.rows)]
+    state = {"swept": 0}
+    for hh, mm in ((17, 0), (19, 59)):
+        clock(_et(MON, hh, mm))
+        assert [store.warm_one(j)[0] for j in jobs] == ["skipped"] * 2, (hh, mm)
+        store.tick(state)
+        assert store.asked == [] and state == {"swept": 0}, (hh, mm)
+    clock(_et(MON, 20, 0))
+    store.tick(state)
+    assert sorted(store.asked) == ["A", "B"] and state["swept"] == MON
 
 
 def test_on_a_half_day_the_1700_sweep_refreshes_the_dailies_behind_it(clock, sweep_on):
