@@ -5,6 +5,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { screen, fireEvent } from '@testing-library/react'
 import { loadAgentConfig, _resetAgentConfig, noteConversation } from './agentClient'
 import { registerBuiltins, registerServerGatedBuiltins } from './builtins'
+import './terminalWaves'  // the Terminal data waves: registerServerGatedBuiltins() runs them only once this module has loaded (terminalWavesHook.js)
 import { explainConcept, reviewTrades, _resetCoachForTest } from './capabilities/coach'
 import { nextFor, MAX_NEXT } from './coach/next'
 import { loadConcepts, _resetConceptsForTest } from './coach/concepts'

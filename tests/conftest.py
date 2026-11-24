@@ -516,14 +516,13 @@ def _setup_j2_database():
 # test_wisdom_* file. The Discord render programme running its own suite sees these exactly as it
 # always has — red and unmarked. Silencing another programme's failures inside THEIR runs would be
 # a defect, not a courtesy.
-WISDOM_EXPECTED_FAILURES = {
-    "tests/test_mutation_harness_anchors.py::"
-    "test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_flipgate.py]":
-        "docs/discord-render harness: anchor_check extracts zero controls (a failed read)",
-    "tests/test_mutation_harness_anchors.py::"
-    "test_a_not_applied_mutation_fails_the_harness_rather_than_printing[mutation_harness_flipgate.py]":
-        "docs/discord-render harness: no recognised path from a NOT-APPLIED mutation to a non-zero exit",
-}
+#
+# ⚰️ EMPTY since 2026-11-24. Its two entries (both `mutation_harness_flipgate.py` anchor checks) stopped
+# naming any collected test when #2687 renamed that instrument to `flip_gate_mutations.py`: it plants
+# evidence in a temp dir, has no source anchors by design, and is no longer collected as a mutation
+# harness. #2686 made the other six harnesses' anchor checks green. The mechanism stays for the next
+# baseline entry; the record of the two retired ones is in tests/wisdom/EXPECTED-FAILURES.md.
+WISDOM_EXPECTED_FAILURES: dict = {}
 
 
 def pytest_collection_modifyitems(config, items):
@@ -661,6 +660,133 @@ def pytest_runtest_teardown(item, nextitem):
                 "`auth_db._DB_PATH`, or import the module before patching): "
                 + "; ".join(captured[:8]) + (f" (+{len(captured) - 8} more)" if len(captured) > 8 else ""),
                 pytrace=False)
+    return result
+
+
+# ─── a bars background refresh ends with the test that started it ───────────
+#
+# `bars_fetch` answers a stale stored series at once and refreshes it on a daemon thread: the thread asks a
+# provider, and when the provider answers it writes the rows with `bars_sqlite.put_bars`, into whatever
+# `bars_sqlite._DB_PATH` names AT THAT MOMENT. A test that starts one and returns leaves it running, and every
+# bars rail re-points `_DB_PATH` at a temp file of its own: the write lands in a LATER test's store.
+#
+# ⚰️ MEASURED 2026-11-22/23 (gate 45085093354, PR runs 45056547092 and 45015805620; about 1 run in 100):
+# tests/test_bars_since_index_scan.py stored AAPL daily 06-10 .. 06-16, read `since` 06-12 and was served
+# ['2026-11-20']. tests/test_bars_server_timing.py::test_layer_stale_swr_on_daily_rows, 39 tests earlier, had
+# started `bars-bg-AAPL-D` with no provider stubbed: on a runner that is a real request to Yahoo, and its
+# answer (the last session's AAPL bar and nothing else) came back about a second later. On the census run
+# 45265666676 that thread lived 1.13 s and ended four tests AFTER the one that failed in those three runs.
+# With that row beside its own five, the serve path's listing cutoff (`listing_break.is_break`: a long hole in
+# the dates starts a new listing) kept only the row after the hole.
+#
+# ⛔ `bars_fetch._inflight` IS NOT A REGISTER OF THEM. tests/test_bars_server_timing.py's own fixture clears it
+# before the next test, while the thread is still asking. That is why #2365's drain, which waited on it, did
+# not hold on a runner (reverted in bd8ce6e230). The threads themselves are the only complete list.
+#
+# So a test's body is not over until its refreshes are: they are joined here, after the body returns and BEFORE
+# any fixture is undone, so the write lands in the store, and through the stubs, of the test that started it.
+# One still running after BARS_REFRESH_ENDS_WITHIN_S fails THAT test by name. The rail is
+# tests/test_bars_refresh_ends_with_its_test.py.
+#
+#: The refresh threads, by the names `bars_fetch` gives them:
+#:   bars-bg-<SYM>-<tf>[-partial]   `_get_bars_inner`'s stale-while-revalidate refresh
+#:   bars-sincebg-<SYM>-<tf>        `_enqueue_since_bg_heal`: the same refresh, started by the `since=` poll
+BARS_REFRESH_THREADS = ("bars-bg-", "bars-sincebg-")
+#: A refresh ends when its provider answers or gives up (the daily tail-fill gives Yahoo 3.5 s, a deep fetch
+#: 20 s). One that outlasts this is not slow: its provider is held and nothing will release it.
+BARS_REFRESH_ENDS_WITHIN_S = 30.0
+#: ⛔ THE RULE'S ONLY CLOCK, HELD FROM CONFTEST IMPORT. The rule runs after a test's body and BEFORE its patches are
+#: undone, so `time.monotonic()` looked up then is whatever the test left there. ⚰️ 2026-11-23:
+#: tests/test_polygon_options_chain.py::test_get_chain_pagination_stops_at_wall_clock_budget patches it with a
+#: two-value iterator and uses both, and the rule's deadline raised "RuntimeError: generator raised StopIteration"
+#: in that test. Nothing else here reads a clock: `Thread.join` and `Event.wait` time their own waits (`threading`
+#: holds its clock from its own import). The same goes for the other names the rule needs from a module a test
+#: may patch: all are held from here. Rail: test_7 / test_8 of tests/test_bars_refresh_ends_with_its_test.py.
+from concurrent.futures import ThreadPoolExecutor as _REAL_POOL  # noqa: E402
+from threading import Event as _REAL_EVENT, enumerate as _REAL_THREADS  # noqa: E402
+from time import monotonic as _REAL_MONOTONIC  # noqa: E402
+
+
+def live_bars_refreshes() -> list:
+    """Every bars refresh thread running in this process right now."""
+    return [t for t in _REAL_THREADS() if t.name.startswith(BARS_REFRESH_THREADS)]
+
+
+def end_bars_refreshes(timeout_s: float = BARS_REFRESH_ENDS_WITHIN_S) -> list:
+    """Wait for every running bars refresh thread, `timeout_s` in all. Returns the names of those still running."""
+    deadline = _REAL_MONOTONIC() + timeout_s
+    for t in live_bars_refreshes():
+        t.join(max(0.0, deadline - _REAL_MONOTONIC()))
+    return sorted(t.name for t in live_bars_refreshes())
+
+
+# ⚰️ THE SAME LEAK THROUGH A POOL (merge-queue run 45274569039, 2026-11-23): tests/test_bars_derived_tail_local_first
+# .py::test_Z2, whose fresh store must stay empty, held "[('AAPL', 'D'), ('QQQ', 'D')], 6 bars".
+# tests/test_bars_data_auth.py, five files earlier, had asked `/api/bars/AAPL?tf=D&bars=3` and the same for QQQ:
+# a cold symbol, so `bars_fetch._kick_cold_fetch` queued its first fetch on the cold pool with no provider
+# stubbed, and the pool wrote the provider's three bars per symbol when it answered.
+# A pool's worker threads never end, so its work cannot be joined by name. And `bars_fetch._cold_bg_inflight` is
+# no register either (tests replace and clear it). What a first-in-first-out pool does allow is exact: one gate
+# job per worker. All of them can be running at once only when every job accepted before them has finished.
+#
+#: (module, the pool's name in it, its worker threads' name prefix): pools whose jobs fetch from a provider and
+#: write the store when it answers.
+#:   bars_fetch._cold_bg_pool   `_kick_cold_fetch`: a cold symbol's first fetch
+BARS_WORK_POOLS = (("api.services.bars_fetch", "_cold_bg_pool", "bars-cold-bg"),)
+
+
+def end_bars_pool_work(timeout_s: float = BARS_REFRESH_ENDS_WITHIN_S) -> list:
+    """Wait until every job the bars work pools have accepted so far has finished, `timeout_s` in all. Returns the
+    names of the pools still busy. A pool that never started a worker has never had a job and is left alone, as is
+    a test's stand-in for one, and a pool that has been stopped (it accepts no gate, and dropped what it had queued)."""
+    deadline = _REAL_MONOTONIC() + timeout_s
+    busy = []
+    for mod_name, attr, prefix in BARS_WORK_POOLS:
+        pool = getattr(sys.modules.get(mod_name), attr, None)
+        if not isinstance(pool, _REAL_POOL):
+            continue
+        if not any(t.name.startswith(prefix) for t in _REAL_THREADS()):
+            continue
+        release = _REAL_EVENT()
+        running = [_REAL_EVENT() for _ in range(pool._max_workers)]
+
+        def _gate(mine, _release=release):
+            mine.set()
+            _release.wait()
+
+        try:
+            for ev in running:
+                pool.submit(_gate, ev)
+            if not all(ev.wait(max(0.0, deadline - _REAL_MONOTONIC())) for ev in running):
+                busy.append(f"{attr} ({prefix})")
+        except RuntimeError:
+            pass
+        finally:
+            release.set()                                  # a gate still queued behind a held job returns at once
+    return busy
+
+
+def end_bars_background_work() -> list:
+    """Everything the rule waits for when a test's body returns. Returns what is still running after the wait."""
+    return end_bars_refreshes() + end_bars_pool_work()
+
+
+@pytest.hookimpl(wrapper=True)
+def pytest_runtest_call(item):
+    try:
+        result = yield
+    except (KeyboardInterrupt, SystemExit):
+        raise
+    except BaseException:
+        end_bars_background_work()                         # the test's own outcome is the report
+        raise
+    left = end_bars_background_work()
+    if left:
+        pytest.fail(
+            f"bars background work was still running {BARS_REFRESH_ENDS_WITHIN_S:.0f} s after this test's body "
+            f"returned: {', '.join(left)}. When its provider answers it writes into whatever store a LATER test "
+            "owns: stub the provider it asks, or release it before the test returns.",
+            pytrace=False)
     return result
 
 

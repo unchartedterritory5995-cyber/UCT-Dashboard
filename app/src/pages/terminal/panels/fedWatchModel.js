@@ -180,7 +180,10 @@ export function fedRead(body) {
     boardCite: str(body.board_cite) || BOARD_CITE,
     builtAt: str(body.built_at),
   }
-  view.computing = [view.statement, view.speeches, view.projections, view.survey].some((b) => b.state === 'computing')
+  // The headlines and the rates are served from what the server holds and refreshed off the request (speed pass 3):
+  // until the first copy is held they say `computing` too, and the panel asks again sooner.
+  view.computing = [view.statement, view.speeches, view.projections, view.survey, view.headlines, view.rates]
+    .some((b) => b.state === 'computing')
     || view.statement.redline?.state === 'computing'
   return view
 }

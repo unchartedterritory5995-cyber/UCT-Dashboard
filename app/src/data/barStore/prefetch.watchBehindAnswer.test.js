@@ -52,8 +52,10 @@ describe('prefetch.watch wakes the waiter once the answer is noted (behind-the-c
     await tick(130)
     await w.server.drain()
     await first
-    expect(w.pf.peekDisplayable('SPY', '5')).toBe(true)        // just answered: a name not printing paints as it is
-    await tick(6000)                                            // past BEHIND_RECHECK_MS: behind the clock again
+    // (#2619 (A): the grace is the switch's OWN answer's, never a warm's: this one lends none. The prepare's own answer
+    // below is what starts it, and what the waiter must read.)
+    expect(w.pf.peekDisplayable('SPY', '5')).toBe(false)
+    await tick(6000)                                            // past BEHIND_RECHECK_MS
     expect(w.pf.peekDisplayable('SPY', '5')).toBe(false)       // (precondition: the switch prepares it)
 
     const seen = []

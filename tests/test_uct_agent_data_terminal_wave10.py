@@ -160,6 +160,9 @@ def world(monkeypatch, tmp_path):
     for svc in (SS, VF, FX):
         monkeypatch.setattr(svc, "session_key", lambda now: "2031-06-02")
         monkeypatch.setattr(svc, "now_et", lambda: dt.datetime(2031, 6, 3, 12, 0))
+        # speed pass 2 (2026-11-24): the route readers answer `computing` while one background build runs; these
+        # rails read the services' own answers back, so each route read here waits for the build it started
+        monkeypatch.setattr(svc, "WAIT_S", 10.0)
     monkeypatch.setattr(SH, "evening_key", lambda now: T_SH.KEY)
     monkeypatch.setattr(SH, "now_et", lambda: T_SH.SATURDAY)
     _forget()
@@ -168,6 +171,8 @@ def world(monkeypatch, tmp_path):
     SH._STUDY.drain(10)
     SH._STOCK.drain(10)
     PR.drain_for_tests(10)
+    for svc in (SS, VF, FX):
+        svc.drain_for_tests()
     _forget()
     gw._reset_for_test(None)
 

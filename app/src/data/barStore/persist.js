@@ -58,6 +58,10 @@ import { deviceServesTf } from '../deviceStore/tfs'
 import { onDeviceStoreKill, deviceStoreKillSeen } from '../../lib/chartSpeed'
 
 export const PERSIST_DEBOUNCE_MS = 1000
+/** At most this many warm answers wait for their write (`writeSoon`); past it the oldest is written at once. Each one waiting
+ *  holds a REFERENCE to its frozen snapshot (the store's own rows, never a copy), so this bounds what a fast scan keeps
+ *  alive for a write after the store let it go. */
+export const WRITE_SOON_MAX = 32
 export const META_VERSION = 1
 /** How long a hydrate waits, after its saved-copy reads, for an on-device read still in flight (a
  *  ready device store answers in ~1 ms; a later answer still lands, it just does not hold the caller). */
@@ -429,6 +433,8 @@ export function createPersist({
   }
   /** key → { refs, unsub, written (baseRev), timer, writing, again, changedAt } */
   const watched = new Map()
+  /** key → { s (the frozen snapshot, by reference), startedAt, timer }: a warm answer's write waiting (writeSoon) */
+  const soon = new Map()
   /** key → savedAt of the record the last hydrate read (bounded, oldest out). */
   const savedAt = new Map()
   const _noteSaved = (key, at) => {
@@ -481,6 +487,20 @@ export function createPersist({
     if (w.again) { w.again = false; const cur = registry.peek(key); if (cur) _changed(key, cur) }
   }
 
+  /** Write the warm answer waiting for `key` now (the newest server-backed snapshot of it). */
+  function _writeSoonNow(key) {
+    const e = soon.get(key)
+    if (!e) return Promise.resolve(false)
+    soon.delete(key)
+    if (e.timer != null) { clearTimer(e.timer); e.timer = null }
+    if (watched.has(key)) return Promise.resolve(false)            // a chart took the key meanwhile: its watcher writes
+    // ⛔ THE ANSWER'S OWN SNAPSHOT, never the registry's at write time (review of #2630, MEDIUM-1). Inside the debounce the
+    // neighbour hold's deepening (NEIGHBOR_DEEP_MS after the press) or a lake join prepends history WITHOUT moving the
+    // generation; written now, that deep series (and an @hist record) would land for rows the member never opened, under
+    // the older answer's stamp. `writeOnce` wrote the answer-time snapshot: so does this. Only WHEN changes.
+    return _put(key, e.s, e.startedAt).then(() => true, () => false)
+  }
+
   function detach(key) {
     const w = watched.get(key)
     if (!w) return
@@ -529,6 +549,30 @@ export function createPersist({
       if (!p || p.window || watched.has(key) || !s || !s.restSeen || !s.bars.length) return Promise.resolve(false)
       return _put(key, s, startedAt ?? now()).then(() => true, () => false)
     },
+    /**
+     * ⭐ (2026-11-23, live-session CPU profile) `writeOnce`, AFTER THE DEBOUNCE AND AT IDLE, like a watched key's write: what
+     * the store does with a warm's answer (store.ensure for a key nobody subscribes to). Written at once, its mem merge and
+     * the IDB read-modify-write of the whole stored record ran 75-200 ms after the press that sent the warm, in the window
+     * the charts draw in. Coalesced per key (a second answer inside the debounce moves it, and the newest ANSWER's own
+     * snapshot is written: never the registry's at write time, see _writeSoonNow), at most WRITE_SOON_MAX waiting (past it
+     * the oldest is written at once), and written at once by `flush` (the app's store flushes on pagehide and when the app
+     * is hidden: index.js). The write is the same `_put` of the same snapshot: the cache's contents, caps and eviction are
+     * what `writeOnce` makes. Known limit: on `pagehide` the flush's IndexedDB read-modify-write (and the @hist write after
+     * it) may not finish before the page goes; a warm answer of the last ~1-3 s is then missing from the cache (derived
+     * data, fetched again next session; nothing is corrupted). Returns whether it was scheduled.
+     */
+    writeSoon(key, { startedAt = null } = {}) {
+      const p = parseKey(key)
+      const s = registry.peek(key)
+      if (!p || p.window || watched.has(key) || !s || !s.restSeen || !s.bars.length) return false
+      const prev = soon.get(key)
+      if (prev) { soon.delete(key); if (prev.timer != null) clearTimer(prev.timer) }
+      const e = { s, startedAt: startedAt ?? now(), timer: null }
+      soon.set(key, e)                                              // (newest last: the oldest is first out)
+      while (soon.size > WRITE_SOON_MAX) _writeSoonNow(soon.keys().next().value)
+      e.timer = setTimer(() => { e.timer = null; idle(() => { if (soon.get(key) === e) _writeSoonNow(key) }) }, debounceMs)
+      return true
+    },
     /** savedAt of the cache record the last hydrate of `key` read (mem, else IDB; the device copy's
      *  `through` for a device hit), or null. */
     savedAtOf(key) { return savedAt.get(key) ?? null },
@@ -564,11 +608,11 @@ export function createPersist({
      *  Only with a device source: with the store off it is not there at all, so the network's call reads one missing
      *  property and stops (index.js `beforeAnswer`). */
     ...(DEV ? { flushJoins } : {}),
-    /** Write every pending key now (page hide / tests). */
+    /** Write every pending key now (page hide / the app hidden / tests): the watched keys' and the warm answers' (writeSoon). */
     async flush() {
       const keys = [...watched.keys()]
       for (const k of keys) { const w = watched.get(k); if (w?.timer != null) { clearTimer(w.timer); w.timer = null } }
-      await Promise.all(keys.map((k) => _write(k)))
+      await Promise.all([...keys.map((k) => _write(k)), ...[...soon.keys()].map((k) => _writeSoonNow(k))])
     },
     /**
      * Hydrate `key` from the caches: the mem record first (same frame), then IDB. Each hit is
@@ -667,6 +711,6 @@ export function createPersist({
       return res
     },
     /** Test / diagnostics. */
-    stats() { return { watched: watched.size, writing: [...watched.values()].filter((w) => w.writing).length } },
+    stats() { return { watched: watched.size, writing: [...watched.values()].filter((w) => w.writing).length, soon: soon.size } },
   }
 }

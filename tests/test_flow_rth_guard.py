@@ -170,10 +170,16 @@ def test_concurrent_persists_of_one_name_never_collide(monkeypatch, tmp_path):
     monkeypatch.setenv("FLOW_PRODUCT_PERSIST_DIR", str(tmp_path))
     names = []
     real_open = open
+    # ⛔ HOLD ALL FOUR WRITERS UNTIL EACH HAS NAMED ITS TEMP FILE. Four threads that never overlap can
+    # be handed the SAME thread ident -- CPython reuses a finished thread's ident -- so two writers
+    # that ran one after the other looked like a collision (`assert 3 == 4`, red on master
+    # 2026-11-23). The property is about writers that run AT THE SAME TIME; this makes them do so.
+    together = threading.Barrier(4)
 
     def spy_open(path, *a, **k):
         if ".tmp" in str(path):
             names.append(str(path))
+            together.wait(timeout=10)
         return real_open(path, *a, **k)
     monkeypatch.setattr("builtins.open", spy_open)
     ts = [threading.Thread(target=wf.persisted_json_put, args=("board_x", 1.0, {"n": i})) for i in range(4)]

@@ -14,8 +14,12 @@ serves it only for purpose "answer" and refuses any other purpose before admissi
   service carries. The fundamental and ownership legs are undated, and a note says so.
 * freshness `periodic`; `stale` when `price_as_of` predates the last completed session (MD-1 §4: 1 day).
 * `complete=False` (an input leg failed) → `partial`, with a note.
-* `provider_calls`: 3 per read, one per input leg. The service's cache state is not visible, so this is
-  conservative (MD-1 §6.3).
+* `provider_calls`: 0 since v1.18 (terminal data wave 12). Until then this adapter called `get_ratings`, which on a
+  cache miss BUILDS the rating (three vendor reads on the caller's thread) and was counted 3 per read. It now reads
+  ONLY what the server already holds, through `research.ratings_held.held_ratings` (the same cache entry
+  `get_ratings` answers from, never a build): nothing held is `unavailable` ("not held"), a fund is `unavailable`
+  with the RTG route's own reason. Narrowed by the wave 12 builder so the first capability over this kind
+  (`stock.uctRating`, local-only) adds no vendor read to a turn; not an owner decision (MD-1 §4.4, §9 v1.18).
 """
 from __future__ import annotations
 
@@ -27,7 +31,7 @@ from zoneinfo import ZoneInfo
 from api.services.uct_agent.marketdata import envelope as env
 
 SOURCE = "uct-ratings"
-PROVIDER_CALLS = 3
+PROVIDER_CALLS = 0          # a held read never asks a vendor (v1.18; was 3 while the adapter could build)
 COMPONENTS = ("eps", "rs", "growth", "value", "smr", "accdis", "sponsorship")
 DATA_FIELDS = ("symbol", "composite", "components", "checkup", "method", "basis", "coverage", "universe_n",
                "sector", "group_rs", "price_as_of", "complete")
@@ -39,6 +43,10 @@ NOTE_UCT_DERIVED = "UCT Ratings are UCT's own computed scores (1–99), not a th
 NOTE_UNDATED_LEGS = "the fundamental and ownership inputs carry no date; as_of is the price data's last session"
 NOTE_INCOMPLETE = "one or more inputs could not be read; the scores are built on what was available"
 NOTE_PRICE_BEHIND = "the price data ends {date}, before the last completed session ({session})"
+NOTE_NOT_HELD = ("{symbol}'s UCT Rating is not held on this server yet, and this read never works it out. That is not "
+                 "the same as no rating. Open RTG for {symbol} in UCT, then ask again")
+NOTE_FUND = "{reason}, so no UCT Rating is stated. That is not the same as a low rating"
+NOTE_FAILED = "the UCT Rating read failed; nothing is stated. That is not the same as no rating"
 
 
 def validate(params: dict) -> Optional[str]:
@@ -61,6 +69,13 @@ def _session_close_utc(ymd: int) -> str:
     return env.utc_iso(close)
 
 
+def held_answer(sym: str) -> tuple[Optional[dict], str]:
+    """READ ONLY: (the route's own record, 'held' | 'fund' | 'not_held'), WITHOUT building it
+    (`research.ratings_held.held_ratings`)."""
+    from api.services.research import ratings_held
+    return ratings_held.held_ratings(sym)
+
+
 def read_ratings(params: dict, ctx: dict) -> dict:  # noqa: ARG001 — no per-user state
     kind = "ratings"
     why = validate(params)
@@ -68,9 +83,15 @@ def read_ratings(params: dict, ctx: dict) -> dict:  # noqa: ARG001 — no per-us
         return env.unavailable(kind, params, SOURCE, why)
     sym = str(params["symbol"]).strip().upper()
 
-    from api.services import bars_fetch
-    from api.services.research import ratings as svc
-    r = svc.get_ratings(sym)
+    try:
+        r, how = held_answer(sym)
+    except Exception:  # noqa: BLE001 — a failed read is said, never an empty record
+        return env.unavailable(kind, params, SOURCE, NOTE_FAILED)
+    if how == "fund":
+        reason = r.get("reason") if isinstance(r, dict) and isinstance(r.get("reason"), str) else f"{sym} is a fund"
+        return env.unavailable(kind, params, SOURCE, NOTE_FUND.format(reason=reason))
+    if how != "held":
+        return env.unavailable(kind, params, SOURCE, NOTE_NOT_HELD.format(symbol=sym))
     if not isinstance(r, dict) or _num(r.get("composite")) is None:
         return env.unavailable(kind, params, SOURCE, f"no UCT Rating is available for {sym}", PROVIDER_CALLS)
 
