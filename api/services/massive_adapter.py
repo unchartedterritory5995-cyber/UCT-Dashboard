@@ -36,6 +36,7 @@ around this boundary, and that count only goes down.
 """
 from __future__ import annotations
 
+import os
 import threading
 from typing import Any, Mapping, Optional
 from urllib.parse import urlencode
@@ -95,6 +96,14 @@ def _client():
         return _massive._get_client()
     except RuntimeError:
         raise _ERR.not_configured("MASSIVE_API_KEY not set") from None
+
+
+def is_configured() -> bool:
+    """Whether this process holds Massive's API key, asked of the ADAPTER (TERM-022: no
+    module outside it reads the key). The same test `massive._get_client()` makes, without
+    building a client -- for a caller that decides BEFORE it would reach Massive (the
+    stream-ingest connect gate). `get`/`get_pages` still refuse by name when it is absent."""
+    return bool(os.environ.get("MASSIVE_API_KEY"))
 
 
 def _encode(params: Optional[Mapping[str, Any]], api_key: str) -> str:

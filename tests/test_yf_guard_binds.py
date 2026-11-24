@@ -218,15 +218,32 @@ def test_yfinance_pool_run_in_pool_reaches_the_shared_guard(spy):
     assert spy.calls[0]["reraise"] is True
 
 
+def test_yf_util_request_helpers_reach_yfinance_only_through_the_guard(spy):
+    """TERM-022: `yf_util.download` / `yf_util.ticker_info` are where
+    breadth_eod_extras and earnings_session_resolver now make their yfinance reads,
+    so neither module imports yfinance itself. Each helper is ONE `bounded_call`
+    with the caller's default, timeout, reraise and lane passed through, and a
+    suppressed call is that default (or the raise the caller asked for)."""
+    assert yf_util.download("^GSPC", period="1mo", then=lambda df: 1.0,
+                            default="no-close", timeout=20.0) == "no-close"
+    with pytest.raises(RuntimeError):
+        yf_util.ticker_info("AAPL", timeout=10, reraise=True, lane="earnings")
+    assert spy.calls == [
+        {"timeout": 20.0, "reraise": False, "lane": "default"},
+        {"timeout": 10, "reraise": True, "lane": "earnings"},
+    ]
+
+
 # ── coverage: the table above is DERIVED-CHECKED, not trusted ────────────────
 
 # Modules covered by a behavioural binding test in THIS file.
+# (breadth_eod_extras / earnings_session_resolver left this set when TERM-022 moved
+# their yfinance reads into yf_util's request helpers: they import no yfinance now,
+# and their tests above still prove the guard fires from those call sites.)
 BOUND_HERE = {
     "api/index_bars.py",
     "api/routers/charts.py",
-    "api/services/breadth_eod_extras.py",
     "api/services/catalyst/ticker_metadata.py",
-    "api/services/earnings_session_resolver.py",
     "api/services/engine.py",
     "api/services/financial_statements.py",
     "api/services/fundamentals.py",
@@ -236,6 +253,7 @@ BOUND_HERE = {
     "api/services/short_interest.py",
     "api/services/ticker_logos.py",
     "api/services/ticker_meta.py",
+    "api/services/yf_util.py",
     "api/services/yfinance_pool.py",
 }
 
