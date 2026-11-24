@@ -324,9 +324,11 @@ export function registerDrawingCapabilities() {
   registerCapability({
     ...common,
     name: 'drawing.remove',
-    // `verbs`: the words that name THIS action (P0.2: a plan that is nothing but a revert of the last change runs without the revert card
-    // only when the member's words name its action — deixis.actionNamedIn). Declared by the capability; any capability may add them.
+    // `verbs` + `nouns` (P0.2 / owner 10-27: a visible drawing is deleted at once): a plan that is nothing but a revert of the last change
+    // runs without the revert card only when the verb heads an imperative clause and governs one of these nouns, or a lone pronoun
+    // (deixis.actionNamedIn). Only the drawing kinds declare them; every other kind's revert-only plan is the card.
     verbs: ['remove', 'delete', 'erase', 'get rid of', 'take off', 'take down'],
+    nouns: ['line', 'lines', 'drawing', 'drawings', 'trendline', 'trend', 'level', 'ray', 'annotation', 'box', 'rectangle', 'arrow', 'note'],
     // ⭐ OWNER 2026-10-27 (Charts operator P1): approval is for BROAD destructive drawing operations
     // (drawing.clear), not every single removal. One visible drawing is removed at once, with Undo; a
     // HIDDEN one is still shown first (the member cannot see what would go).
@@ -449,9 +451,11 @@ export function registerDrawingCapabilities() {
   registerCapability({
     ...common,
     name: 'drawing.clear',
-    // `verbs`: the words that name THIS action (P0.2: a plan that is nothing but a revert of the last change runs without the revert card
-    // only when the member's words name its action — deixis.actionNamedIn). Declared by the capability; any capability may add them.
+    // `verbs` + `nouns` (P0.2 / owner 10-27: a visible drawing is deleted at once): a plan that is nothing but a revert of the last change
+    // runs without the revert card only when the verb heads an imperative clause and governs one of these nouns, or a lone pronoun
+    // (deixis.actionNamedIn). Only the drawing kinds declare them; every other kind's revert-only plan is the card.
     verbs: ['clear', 'remove', 'delete', 'erase', 'wipe', 'get rid of'],
+    nouns: ['drawings', 'drawing', 'lines', 'line', 'annotations', 'everything'],
     // ⭐ OWNER 2026-10-27: a BROAD destructive drawing operation — always shown first
     risk: 'confirm',
     summary: 'Remove EVERY drawing on a chart\'s symbol (every chart and layout showing it) — always shown as a proposal first. Locked drawings and drawings with an alert attached are kept (and said). Undo puts them all back.',

@@ -249,3 +249,66 @@ describe('a revert-only plan with an EXPLICIT revert runs with no card', () => {
     expect(tfOf(m.board, 'cl')).toBe('D')
   }, 40000)
 })
+
+// ── AUDIT NO-GO X (11-24): an explicit revert licenses ONLY the revert ops bound to it ──────────────────────────────────────────
+// Turn 1 changes BOTH charts. A NAMED explicit revert ("put A back") licenses only A's revert op: a crossed plan [B back] or a plan that
+// puts both back is the card, nothing changed before the pick; the correct plan [A back] runs. "undo that / my last change" licenses only
+// the EXACT last change set (both charts); a plan that puts back only part of it is the card. Boards × routing × mode.
+const X_PAIRS = [['real', 'META', 'NVDA'], ['real', 'AAPL', 'TSLA'], ['word', 'ON', 'NOW']]
+const NAMED_FORMS = [(A) => `put ${A} back`, (A) => `undo ${A}`, (A) => `revert ${A}`, (A) => `put the ${A} chart back`]
+const LAST_FORMS = ['undo that', 'undo my last change', 'revert it', 'undo the last change']
+async function bothThen({ A, B, v2, mode, text, ops }) {
+  const m = mountPair(A, B, { v2 })
+  p.st.envelopes.push(plan('apply', tf(A, 'W'), tf(B, 'W')))
+  await m.say('make both charts weekly')
+  expect(tfs(m)).toEqual(['W', 'W'])
+  const a0 = widget(m, 'cl'), b0 = widget(m, 'cr')
+  p.st.envelopes.length = 0
+  const t0 = p.turns()
+  p.st.envelopes.push(plan(mode, ...ops))
+  const reply = await m.say(text)
+  return { m, reply, model: p.turns() - t0, a0, b0 }
+}
+const xCombos = []
+for (const [kind, A, B] of X_PAIRS) for (const v2 of [false, true]) for (const mode of ['apply', 'propose']) xCombos.push({ kind, A, B, v2, mode })
+describe('X: a named explicit revert licenses only the named chart; "undo that" only the exact last change set', () => {
+  const rows = []
+  xCombos.forEach((c, i) => {
+    const named = NAMED_FORMS[i % NAMED_FORMS.length](cased(c.kind, c.A, i))
+    rows.push([`crossed · ${tag(c)}`, named, c, 'crossed'], [`both · ${tag(c)}`, named, c, 'both'], [`correct · ${tag(c)}`, named, c, 'correct'])
+    const last = LAST_FORMS[i % LAST_FORMS.length]
+    rows.push([`last-exact · ${tag(c)}`, last, c, 'last-exact'], [`last-partial · ${tag(c)}`, last, c, 'last-partial'])
+  })
+  it.each(rows)('%s: "%s"', async (_t, text, c, shape) => {
+    const ops = { crossed: [tf(c.B, 'D')], both: [tf(c.A, 'D'), tf(c.B, 'D')], correct: [tf(c.A, 'D')],
+      'last-exact': [tf(c.A, 'D'), tf(c.B, 'D')], 'last-partial': [tf(c.A, 'D')] }[shape]
+    const { m, reply, model, a0, b0 } = await bothThen({ ...c, text, ops })
+    if (!model) return
+    if (shape === 'correct' || shape === 'last-exact') {
+      expect(reply).not.toContain(CARD)
+      if (c.mode === 'propose' && p.proposals().length) await m.click('Apply')
+      expect(tfs(m)).toEqual(shape === 'correct' ? ['D', 'W'] : ['D', 'D'])
+      return
+    }
+    // a revert the words did not license: the card, and NOTHING changed before the pick (field by field)
+    expect(reply).toContain(CARD)
+    expect(widget(m, 'cl')).toBe(a0)
+    expect(widget(m, 'cr')).toBe(b0)
+    await m.click('Cancel')
+    expect(tfs(m)).toEqual(['W', 'W'])
+  }, 40000)
+})
+
+// ── board drift: a card picked on a board whose carded target changed since is refused ─────────────────────────────────────────
+describe('drift: the pick re-reads each carded op\'s own target and refuses on a change', () => {
+  const rows = combos.filter(c => c.kind === 'real').map(c => [tag(c), c])
+  it.each(rows)('%s: the chart moved to monthly after the card → Apply refused, nothing applied', async (_t, c) => {
+    const { m, reply, model } = await dialogue({ ...c, text: 'fix that', ops: [tf(c.A, 'D')] })
+    if (!model) return
+    expect(reply).toContain(CARD)
+    m.board.state.widgets.find(w => w.id === 'cl').opts.tf = 'M'                  // the board drifts under the card
+    await m.click('Apply')
+    expect(p.transcript()).toContain('Your board changed since I asked')
+    expect(tfOf(m.board, 'cl')).toBe('M')
+  }, 40000)
+})

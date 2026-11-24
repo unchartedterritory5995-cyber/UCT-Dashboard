@@ -70,26 +70,100 @@ describe('revertsLastChange: only an op that puts the earlier chart back exactly
 
 // ── actionNamedIn: a verb the op's OWN capability declares, never negated, never asked ──
 registerBuiltins()
-describe('actionNamedIn: the words name the op\'s own action (its capability\'s declared verbs)', () => {
-  const NAMED = [['drawing.remove', ['delete that line', 'delete it', 'erase the 200 line', 'get rid of the horizontal line', 'remove the line at 200']],
-    ['drawing.clear', ['clear all my drawings', 'wipe the drawings off this chart', 'remove all drawings', 'clear every drawing on NVDA']],
-    ['chart.replay', ['leave replay mode', 'exit replay', 'turn off replay']], ['widget.closeTab', ['close it', 'close the calendar tab']],
-    ['widget.setOption', ['collapse the tbd section on the terminal', 'hide the tbd list']], ['widget.selectTab', ['flip the news widget to its calendar tab', 'switch back to the news tab']]]
-  it('every declared capability names its own action in these words', () => {
-    const wrong = []
-    for (const [a, texts] of NAMED) { const v = getCapability(a)?.verbs; if (!v?.length) wrong.push(`${a}: no verbs`); for (const t of texts) if (!actionNamedIn(t, v)) wrong.push(`${a}: ${t}`) }
-    expect(wrong).toEqual([])
+// ⭐ AUDIT NO-GO R (11-24) + PL: only the drawing kinds (owner 10-27) declare verbs AND nouns; the verb must HEAD an imperative clause
+// and GOVERN the declared noun (after a few modifiers) or a lone pronoun. Generated: every declared verb × governing frames (noun /
+// pronoun) vs the same verb used as a NOUN, as an ADJECTIVE / other part of speech, with ANOTHER object, bare, negated, asked —
+// in vague-complaint frames. Every other kind declares none (its revert-only plan is the card).
+const KINDS = ['drawing.remove', 'drawing.clear']
+const GOVERNED = [(v, n) => `${v} the ${n}`, (v, n) => `${v} that ${n}`, (v, n) => `ok, ${v} the ${n} please`, (v, n) => `please ${v} my ${n}`,
+  (v, n) => `${v} the 200 ${n}`, (v, n) => `go ahead and ${v} the old ${n}`, (v) => `${v} it`, (v) => `${v} that`, (v) => `now ${v} it please`]
+const NOT_GOVERNED = [
+  // the verb as a NOUN or another part of speech, in a complaint
+  (v) => `the ${v} was wrong`, (v) => `that ${v} is not right`, (v) => `no, the ${v} part is off`, (v) => `hmm, ${v} is not what I meant`,
+  // as an ADJECTIVE / modifier
+  (v) => `that's not ${v}`, (v) => `${v}, but not quite`, (v) => `it was a ${v} mistake`, (v) => `no — ${v} enough?`,
+  // with ANOTHER object
+  (v) => `${v} the guesswork`, (v) => `${v} my doubts`, (v) => `${v} the rsi`, (v) => `${v} the weekly timeframe`, (v) => `${v} the confusion`,
+  // bare, negated, asked, hypothetical
+  (v) => `no, wrong, ${v}`, (v) => `don't ${v} it`, (v, n) => `never ${v} the ${n}`, (v, n) => `should I ${v} the ${n}?`, (v) => `can you ${v} it?`,
+  (v, n) => `if you ${v} the ${n} I will be upset`,
+  // vague complaints with no verb
+  () => 'fix that', () => "that's wrong", () => 'hmm, try again', () => 'not like that', () => 'redo it',
+]
+describe('actionNamedIn: a drawing verb that GOVERNS a drawing object, and nothing else', () => {
+  it('only the drawing kinds declare verbs and nouns; every other kind with a revert-only path declares none', () => {
+    for (const a of KINDS) { expect(getCapability(a)?.verbs?.length).toBeGreaterThan(0); expect(getCapability(a)?.nouns?.length).toBeGreaterThan(0) }
+    for (const a of ['chart.replay', 'widget.closeTab', 'widget.setOption', 'widget.selectTab', 'watchlist.setColumns', 'chart.setTimeframe', 'chart.setSymbol', 'chart.setScale', 'indicatorStyle.set'])
+      expect([a, getCapability(a)?.verbs || null, getCapability(a)?.nouns || null]).toEqual([a, null, null])
   })
-  it('vague corrections name no action; a verb of ANOTHER action names nothing; negated / asked verbs name nothing', () => {
-    const vague = ['fix that', "that's wrong", 'no', 'hmm, try again', 'not like that', 'redo it', 'nope', 'wrong', 'again please']
+  it('every declared verb × governing frames × declared nouns → named', () => {
     const wrong = []
-    for (const [a] of NAMED) for (const t of vague) if (actionNamedIn(t, getCapability(a)?.verbs)) wrong.push(`${a}: ${t}`)
-    // the op reverts the timeframe; the words name another action
-    for (const a of ['chart.setTimeframe', 'chart.setSymbol', 'chart.setScale', 'indicatorStyle.set']) {
-      for (const t of ['close the indicator panel', 'delete that line', 'leave replay mode', 'fix that']) if (actionNamedIn(t, getCapability(a)?.verbs)) wrong.push(`${a}: ${t}`)
+    for (const a of KINDS) {
+      const { verbs, nouns } = getCapability(a)
+      for (const v of verbs) for (const n of nouns) for (const f of GOVERNED) { const t = f(v, n); if (!actionNamedIn(t, verbs, nouns)) wrong.push(`${a}: ${t}`) }
     }
-    for (const t of ["don't delete that line", 'do not remove it', 'never erase the 200 line', 'should I delete that line?', 'can you remove it?', 'if you delete it'])
-      if (actionNamedIn(t, getCapability('drawing.remove').verbs)) wrong.push(`negated/asked: ${t}`)
     expect(wrong).toEqual([])
   })
+  it('the same verbs as a noun / adjective / with another object / bare / negated / asked, and vague complaints → NOT named', () => {
+    const wrong = []
+    for (const a of KINDS) {
+      const { verbs, nouns } = getCapability(a)
+      for (const v of verbs) for (const f of NOT_GOVERNED) { const t = f(v, nouns[0]); if (actionNamedIn(t, verbs, nouns)) wrong.push(`${a}: ${t}`) }
+    }
+    expect(wrong).toEqual([])
+  })
+  it('a capability that declares no nouns names nothing, whatever the words', () => {
+    expect(actionNamedIn('delete that line', ['delete'], undefined)).toBe(false)
+    expect(actionNamedIn('leave replay mode', undefined, undefined)).toBe(false)
+  })
+})
+
+// ── AUDIT NO-GO X (11-24): the explicit span licenses only the revert ops bound to it (structure, not words) ─────────────────────
+import { licensedReverts, explicitRevertSpan as spanOf, boardPrintOf } from './deixis'
+describe('licensedReverts: a named revert licenses the named chart only; "undo that" only the exact last change set', () => {
+  const charts = [{ ref: 'cl', symbol: 'META' }, { ref: 'cr', symbol: 'NVDA' }]
+  const host = { charts: { list: () => charts } }
+  const kind = { list: () => charts.map(c => ({ ref: c.ref })) }
+  const gk = () => kind
+  const gc = () => ({ target: 'chart' })
+  const items = [{ ref: 'cl', before: { symbol: 'META', tf: 'D' } }, { ref: 'cr', before: { symbol: 'NVDA', tf: 'D' } }]
+  const A = { action: 'chart.setTimeframe', target: 'cl', args: { timeframe: 'D' } }
+  const B = { action: 'chart.setTimeframe', target: 'cr', args: { timeframe: 'D' } }
+  const lic = (text, reverts) => licensedReverts({ span: spanOf(text, ['META', 'NVDA']), reverts, items, host, getCapability: gc, getTargetKind: gk })
+  it('named: only the named chart\'s revert op', () => {
+    for (const t of ['put META back', 'undo META', 'revert META', 'put the META chart back', 'undo meta please', 'revert $META']) {
+      expect([t, lic(t, [B])]).toEqual([t, []])                              // crossed: NVDA is not licensed
+      expect([t, lic(t, [A, B])]).toEqual([t, [A]])                          // both: only META
+      expect([t, lic(t, [A])]).toEqual([t, [A]])                             // correct
+    }
+  })
+  it('"undo that / it / my last change": only the exact last change set (every chart of it, nothing else)', () => {
+    for (const t of ['undo that', 'undo it', 'revert it', 'undo my last change', 'undo the last change']) {
+      expect([t, lic(t, [A, B])]).toEqual([t, [A, B]])
+      expect([t, lic(t, [A])]).toEqual([t, []])                              // part of the change set is not "that"
+      expect([t, licensedReverts({ span: spanOf(t, ['META']), reverts: [A], items: [items[0]], host, getCapability: gc, getTargetKind: gk })]).toEqual([t, [A]])
+    }
+  })
+})
+
+// ── board drift: the print covers each carded op's OWN target state, per kind ───────────────────────────────────────────────────
+describe('boardPrintOf: a change to the carded op\'s own target (any kind) changes the print', () => {
+  const host = { charts: { list: () => [{ ref: 'c', symbol: 'SPY', label: 'Chart (SPY)', tf: 'D' }] } }
+  for (const [name, target, a, b] of [
+    ['widget option', 'board', { tbdOpen: true }, { tbdOpen: false }],
+    ['drawing set', 'drawings:SPY', { ids: ['d1'] }, { ids: ['d1', 'd2'] }],
+    ['replay', 'chart:c', { replay: '2026-10-15' }, { replay: null }],
+    ['list columns', 'watchlist:w', { columns: ['rvol'] }, { columns: [] }],
+  ]) {
+    it(name, () => {
+      let state = a
+      const kind = { read: () => ({ ...state }), stateOf: (x) => x }
+      const opts = { getCapability: () => ({ target: 'k' }), getTargetKind: () => kind }
+      const ops = [{ action: 'x.y', target, args: {} }]
+      const p0 = boardPrintOf(host, ops, opts)
+      expect(boardPrintOf(host, ops, opts)).toBe(p0)
+      state = b
+      expect(boardPrintOf(host, ops, opts)).not.toBe(p0)
+    })
+  }
 })

@@ -1114,21 +1114,37 @@ export function revertsLastChange({ items, host, getCapability, getTargetKind })
 const REVERT_NEGATION = /\b(?:don'?t|do\s+not|does\s+not|doesn'?t|didn'?t|never|no\s+need\s+to|without|not|nor|rather\s+than|instead\s+of|stop|avoid|if|unless|before|whether)\b/i
 const REVERT_QUESTION = /\?|^\s*(?:should|shall|can|could|would|will|do|does|did|is|are|may|might|must|why|how|what|when)\b|\b(?:should|shall)\s+(?:i|we)\b/i
 /**
- * Do the words NAME this action — one of the verbs its capability declares (`cap.verbs`: "delete that line" for drawing.remove,
- * "leave replay mode" for chart.replay)? Never when the verb is negated / hypothetical in its clause, nor in a question. A plan that is
- * nothing but a revert of the last change runs without the revert card only then (or on an explicit revert): "fix that" / "try again"
- * name no action, so their revert-only plan is the card. No capability verbs → nothing is named.
+ * ⭐ AUDIT NO-GO R (11-24) + PL: the ONE no-card path for a plan that is nothing but a revert — the owner's 10-27 rule ("a visible
+ * drawing is deleted at once"). Only a capability that declares BOTH `verbs` and `nouns` (drawing.remove / drawing.clear) takes it, and
+ * only when, in one clause of the words, the verb HEADS the clause as an imperative (after fillers like "ok", "please", "now", "can you")
+ * and GOVERNS that capability's own object: a declared noun after at most a few modifiers ("delete that line", "erase the 200 line",
+ * "clear all my drawings"), or a lone pronoun ("delete it", "remove that"). Never negated, never a question. A verb used as a noun or
+ * an adjective, or with another object, governs nothing — the card. Every other kind's revert-only plan is the card.
  */
-export function actionNamedIn(text, verbs) {
-  const s = String(text || '').replace(/[’‘]/g, '\'')
-  if (!s.trim() || !Array.isArray(verbs) || !verbs.length || REVERT_QUESTION.test(s)) return false
-  for (const v of verbs) {
-    const re = new RegExp(`\\b${String(v).trim().split(/\s+/).map(escRe).join('\\s+')}\\b`, 'i')
-    const m = re.exec(s)
-    if (!m) continue
-    const before = s.slice(0, m.index).split(/[.;!]|,\s*(?:and|then|but)?\s*|\b(?:and|then|but)\b/i).pop() || ''
-    if (REVERT_NEGATION.test(before)) continue
-    return true
+const GOVERN_FILLERS = new Set(['ok', 'okay', 'now', 'just', 'please', 'pls', 'so', 'yes', 'yeah', 'sure', 'go', 'ahead', 'and', 'then',
+  'can', 'could', 'would', 'will', 'you', 'u', 'let', "let's", 'lets', 'me', 'i', 'want', 'to', 'oh'])
+const GOVERN_MODS = new Set(['the', 'that', 'this', 'those', 'these', 'my', 'your', 'our', 'its', 'all', 'every', 'each', 'both', 'a', 'an', 'of'])
+const GOVERN_PRONOUNS = new Set(['it', 'that', 'this', 'them', 'those', 'these'])
+export function actionNamedIn(text, verbs, nouns) {
+  const s = String(text || '').replace(/[’‘]/g, '\'').toLowerCase()
+  if (!s.trim() || !Array.isArray(verbs) || !verbs.length || !Array.isArray(nouns) || !nouns.length || REVERT_QUESTION.test(s)) return false
+  const nounSet = new Set(nouns.map(n => String(n).toLowerCase()))
+  const verbToks = verbs.map(v => String(v).toLowerCase().trim().split(/\s+/))
+  for (const clause of s.split(/[.;!?,]|\b(?:but|and then)\b/)) {
+    const toks = clause.match(/[a-z0-9']+/g) || []
+    let i = 0
+    while (i < toks.length && GOVERN_FILLERS.has(toks[i])) i++
+    const v = verbToks.find(vt => vt.every((w, k) => toks[i + k] === w))
+    if (!v) continue
+    if (REVERT_NEGATION.test(toks.slice(0, i).join(' '))) continue
+    const rest = toks.slice(i + v.length).filter(t => t !== 'please' && t !== 'now')
+    if (!rest.length) continue                                            // a bare verb governs nothing
+    if (rest.length === 1 && GOVERN_PRONOUNS.has(rest[0])) return true      // "delete it", "remove that"
+    // a determiner / quantifier / number / up to two adjectives, then the declared noun
+    let j = 0, mods = 0
+    while (j < rest.length && (GOVERN_MODS.has(rest[j]) || /^\d/.test(rest[j]))) j++
+    while (j < rest.length && !nounSet.has(rest[j]) && mods < 2 && !GOVERN_PRONOUNS.has(rest[j])) { j++; mods++ }
+    if (j < rest.length && nounSet.has(rest[j])) return true
   }
   return false
 }
@@ -1151,9 +1167,43 @@ export function explicitRevertSpan(text, earlier = []) {
     // the clause the revert stands in must not be negated / hypothetical before it
     const before = s.slice(0, m.index).split(/[.;!]|,\s*(?:and|then|but)?\s*|\b(?:and|then|but)\b/i).pop() || ''
     if (REVERT_NEGATION.test(before)) continue
-    return { start: m.index, end: m.index + m[0].length }
+    const said = m[0].toUpperCase()
+    const named = (earlier || []).filter(e => new RegExp(`(?:^|[^A-Z0-9])\\$?${escRe(String(e).toUpperCase())}(?![A-Z0-9])`).test(said))
+    return { start: m.index, end: m.index + m[0].length, named: named.length ? named : null }
   }
   return null
+}
+/**
+ * ⭐ AUDIT NO-GO X (11-24): WHICH revert ops an explicit revert licenses — by STRUCTURE, never by the words alone.
+ *  • a revert that NAMES the earlier chart ("put META back") licenses only the revert ops on THAT chart: the op's own target, bound to
+ *    the chart whose symbol the span names (as the Undo entry holds it, or as it shows now);
+ *  • "undo that / it / my last change" licenses only when the revert ops are EXACTLY the last turn's change set — the same targets as
+ *    its Undo entries, every one (each op already equals its entry's values field by field: revertsLastChange).
+ * → the licensed ops (a subset of `reverts`). Anything not licensed goes on the card.
+ */
+export function licensedReverts({ span, reverts, items, host, getCapability, getTargetKind }) {
+  if (!span || !Array.isArray(reverts) || !reverts.length) return []
+  const entries = (items || []).filter(i => i && i.before && i.ref)
+  if (!span.named) {
+    const want = new Set(entries.map(i => i.ref))
+    const got = new Set(reverts.map(o => o?.target))
+    return want.size && want.size === got.size && [...want].every(r => got.has(r)) ? [...reverts] : []
+  }
+  const names = new Set(span.named.map(n => String(n).toUpperCase()))
+  const charts = (() => { try { return host?.charts?.list?.() || [] } catch { return [] } })()
+  const chartOf = (o) => {
+    try {
+      const kind = getTargetKind(getCapability(o?.action)?.target)
+      const snap = (kind?.list?.(host) || []).find(x => x.ref === o.target)
+      return (snap && kind ? chartRefOf(kind, snap) : null) || o?.target
+    } catch { return o?.target }
+  }
+  return reverts.filter(o => {
+    const entry = entries.find(i => i.ref === o?.target)
+    const was = String(entry?.before?.symbol || '').toUpperCase()
+    const now = String(charts.find(c => c.ref === chartOf(o))?.symbol || '').toUpperCase()
+    return (was && names.has(was)) || (now && names.has(now))
+  })
 }
 // The revert card: FIXED UCT sentences only (never the model's prose) — what goes back, what else changes — and the three choices.
 export function chartRevertCard({ host, reverted, others, getCapability, getTargetKind }) {
@@ -1176,7 +1226,20 @@ export function chartRevertCard({ host, reverted, others, getCapability, getTarg
   }
 }
 /** The board as a revert card was asked on (its charts, symbols and labels): a pick on another board is refused. */
-export const boardPrintOf = (host) => { try { return JSON.stringify((host?.charts?.list?.() || []).map(c => [c.ref, c.symbol, c.label, c.tf ?? null])) } catch { return '' } }
+export function boardPrintOf(host, ops = [], { getCapability = null, getTargetKind = null } = {}) {
+  try {
+    const charts = (host?.charts?.list?.() || []).map(c => [c.ref, c.symbol, c.label, c.tf ?? null])
+    // (AUDIT 11-24: a widget option, a drawing set, replay, a list's columns drift too — each op's own target, as its kind reads it)
+    const targets = (ops || []).map(o => {
+      try {
+        const kind = getTargetKind?.(getCapability?.(o?.action)?.target)
+        const snap = kind?.read?.(host, o.target)
+        return [o?.action, o?.target, snap && typeof kind.stateOf === 'function' ? canonJson(kind.stateOf(snap)) : canonJson(snap ?? null)]
+      } catch { return [o?.action, o?.target, 'unreadable'] }
+    })
+    return JSON.stringify([charts, targets])
+  } catch { return '' }
+}
 const valuesOf = (ops) => {
   const out = new Set()
   const walk = (v) => {

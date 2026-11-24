@@ -33,7 +33,7 @@ import { setOwnedDefinitionSource } from './capabilities/indicatorEdits'
 import { setAuthoringSources, setExceptSetReader, draftAmbiguity, selectDraft, isDraftAction, lastSaved, screenModelOps, PROPOSAL_TTL_MS, saveReferent, splitSaveAs, renameBeforeSave, explicitIndicatorCreate } from './capabilities/indicatorAuthoring'
 import { fastParse, matchPosition } from './fastPath'
 import { screenNewChart, screenEmptyBoardChart } from './capabilities/workspace'
-import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf, selectedChart, chartNameWord, clausesNameDifferentCharts, targetTickerConflict, lowerTickerCandidates, wordOnlyTickers, wordTickerQuestion, revertsLastChange, explicitRevertSpan, actionNamedIn, earlierSymbolsOf, chartRevertCard, boardPrintOf, TARGET_CHECK_FAILED, timeframeSetOf, chartsNamedBy, changeWordsOf, pointsAtClick, wordsNameASet, wordsNameAChart, wordsGroundWrites, anaphorsOnSubject, targetTickers } from './deixis'
+import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf, selectedChart, chartNameWord, clausesNameDifferentCharts, targetTickerConflict, lowerTickerCandidates, wordOnlyTickers, wordTickerQuestion, revertsLastChange, explicitRevertSpan, licensedReverts, actionNamedIn, earlierSymbolsOf, chartRevertCard, boardPrintOf, TARGET_CHECK_FAILED, timeframeSetOf, chartsNamedBy, changeWordsOf, pointsAtClick, wordsNameASet, wordsNameAChart, wordsGroundWrites, anaphorsOnSubject, targetTickers } from './deixis'
 import { screenWatchlistWidget } from './watchlistTarget'
 import { whichListView, LIST_VIEW_WHICH } from './whichWidget'
 import { checkSpatialConstraints, excludedCharts, spatialConstraints, UNPLACED, withoutExcludedCharts, everyExceptSet, everyExceptNothing, nothingLeftText } from './spatialCheck'
@@ -2343,7 +2343,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       // and only on the board it was asked on (the rest passed every target rail there)
       const ops = ref === 'revert:all' ? p.revertChoice.all : ref === 'revert:just' ? p.revertChoice.others : null
       if (!ops || !ops.length) return
-      if (boardPrintOf(host) !== p.revertChoice.board) {
+      if (boardPrintOf(host, p.revertChoice.all, { getCapability, getTargetKind }) !== p.revertChoice.board) {
         const text = 'Your board changed since I asked, so I didn’t change anything — ask again.'
         push({ role: 'refusal', text })
         record({ member: label, outcome: text, outcomeData: { kind: 'refused-stale-pick' }, telemetry: { path: p.path, refused: true } })
@@ -3712,11 +3712,14 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         // negated or asked). That is the member's request, run as before with its Undo (owner rule 2026-10-27: a visible drawing is
         // deleted at once). "fix that" / "that's wrong" / "try again" name no action: their revert-only plan is the card, as is every
         // revert that rides WITH another change. (An explicit "undo that" / "put META back" runs below, as always.)
-        if (undoHalf.length && undoHalf.length === (screened.ops || []).length && undoHalf.every(o => actionNamedIn(String(raw || text), getCapability(o?.action)?.verbs))) undoHalf = []
-        // the words the member TYPED (NLM-1 may have rewritten `text` into its explicit form)
+        if (undoHalf.length && undoHalf.length === (screened.ops || []).length && undoHalf.every(o => actionNamedIn(String(raw || text), getCapability(o?.action)?.verbs, getCapability(o?.action)?.nouns))) undoHalf = []
+        // the words the member TYPED (NLM-1 may have rewritten `text` into its explicit form). ⭐ AUDIT X: the span licenses only the
+        // revert ops it is bound to (the named chart, or exactly the last turn's Undo set — deixis.licensedReverts); one revert it
+        // does not license puts every revert on the card
         const span = undoHalf.length > 0 ? explicitRevertSpan(String(raw || text), earlierSymbolsOf(undoItems, host)) : null
-        undoExplicit = !!span
-        if (span && String(raw || text) === text) railText = `${text.slice(0, span.start)}${' '.repeat(span.end - span.start)}${text.slice(span.end)}`
+        const licensed = span ? licensedReverts({ span, reverts: undoHalf, items: undoItems, host, getCapability, getTargetKind }) : []
+        undoExplicit = undoHalf.length > 0 && licensed.length === undoHalf.length
+        if (undoExplicit && String(raw || text) === text) railText = `${text.slice(0, span.start)}${' '.repeat(span.end - span.start)}${text.slice(span.end)}`
       } catch { undoHalf = []; undoExplicit = false; railText = text }
       if (undoHalf.length) mark('correction', `${undoExplicit ? 'explicit' : 'card'}:${undoHalf.length}`)
       const forRails = () => (undoHalf.length ? (screened.ops || []).filter(o => !undoHalf.includes(o)) : screened.ops)
@@ -3847,7 +3850,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         const all = canonicalIndicatorAdds(screened.ops || [])
         const others = all.filter(o => !undoHalf.some(u => u.action === o.action && u.target === o.target && JSON.stringify(u.args) === JSON.stringify(o.args)))
         const card = chartRevertCard({ host, reverted: undoHalf, others, getCapability, getTargetKind })
-        pendingRef.current = { kind: 'target', ops: [], path: 'model', member: text, voice, epoch: epochOf(host), revertChoice: { all, others, board: boardPrintOf(host) } }
+        pendingRef.current = { kind: 'target', ops: [], path: 'model', member: text, voice, epoch: epochOf(host), revertChoice: { all, others, board: boardPrintOf(host, all, { getCapability, getTargetKind }) } }
         push({ role: 'question', text: card.text, choices: card.choices, local: true })
         record({ member: null, outcome: card.text, outcomeData: { kind: 'clarify-revert', actions: all.map(o => o?.action) }, telemetry: { path: 'model', disposition: 'clarify', voice } })
         if (globalThis.process?.env?.UCT_AGENT_COUNT_REVERT_CARDS) console.info(`[revert-card] ${JSON.stringify(String(raw || text))}`)

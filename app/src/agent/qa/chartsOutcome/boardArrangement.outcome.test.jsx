@@ -61,7 +61,10 @@ describe('the board, through the real panel', () => {
     const tabRef = (c, type) => must((c.board?.[0]?.widgets || []).find(w => w.type === 'news')?.widgetTabs?.find(t => t.type === type), `a ${type} tab`).tab
     await m.say('show the news on the news widget again', (c) => [{ action: 'widget.selectTab', target: boardRef(c), args: { widget: wOf(c, 'news'), tab: 'main' } }])
     await waitFor(() => expect(on(m, 'nw').activeWtab).toBe(0))
-    await m.say(H['C3-017'], (c) => [{ action: 'widget.selectTab', target: boardRef(c), args: { widget: wOf(c, 'news'), tab: tabRef(c, 'UCT Terminal') } }])
+    // P0.2 (11-24): a plan that is nothing but a revert of the last change is the revert card (only a drawing verb governing a drawing
+    // skips it) — the card, then the pick
+    expect(await m.say(H['C3-017'], (c) => [{ action: 'widget.selectTab', target: boardRef(c), args: { widget: wOf(c, 'news'), tab: tabRef(c, 'UCT Terminal') } }])).toMatch(/back the way it was before my last change/)
+    await m.apply()
     await waitFor(() => expect(on(m, 'nw').activeWtab).toBe(1))
     await m.say(H['C3-019'], (c) => [{ action: 'widget.closeTab', target: boardRef(c), args: { widget: wOf(c, 'news'), tab: tabRef(c, 'UCT Terminal') } }])
     await waitFor(() => expect(tabs().some(t => t.type === 'calendar')).toBe(false))
