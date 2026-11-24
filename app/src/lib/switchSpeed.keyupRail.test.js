@@ -1,10 +1,10 @@
 // ⛔ NO KEY-UP HANDLER SWITCHES A CHART'S SYMBOL (2026-11-23, review of #2641).
 //
 // The switch-speed instrument (lib/switchSpeed.js) times a switch from "the input event in flight" when the board's
-// setGroupSym ran, and it knows a key event by its SHAPE, not its name (it spells no key event's name: the raw
-// key-listener census counts those). So a key-UP in flight is a press to it as much as a key-down. Today that is
-// harmless, because nothing switches a symbol from a key-up. If something ever did, the sample would start when the
-// member LET GO of the key, up to a whole key-hold late, and the instrument would report the switch faster than it was.
+// setGroupSym ran. A switch made on a key's RELEASE cannot be timed honestly: the sample would start when the member
+// LET GO of the key, up to a whole key-hold late. So the instrument does not time one: it counts it (`released`) and
+// that switch is simply missing from the histograms. Today nothing switches a symbol from a key-up, and this rail is
+// the tripwire that says so before the field data has to.
 //
 // This rail holds "nothing does", from the SOURCE (an AST, comments are not in the tree):
 //   · every key-up handler in app/src: a listener call with the literal name, a property assignment, a JSX prop
@@ -237,7 +237,7 @@ describe('no key-up handler in app/src switches a symbol', () => {
   it('none of them switches a symbol, itself or through a same-file function', () => {
     const bad = []
     for (const [file, r] of tree().withHandlers) for (const s of r.switches) bad.push(`${file} :: ${s}`)
-    expect(bad, 'A KEY-UP HANDLER SWITCHES A SYMBOL. The switch-speed instrument would time it from the key\'s RELEASE. Switch on the key-down, or teach lib/switchSpeed.js to tell them apart first.').toEqual([])
+    expect(bad, 'A KEY-UP HANDLER SWITCHES A SYMBOL. The switch-speed instrument does not time a switch made on a key\'s release (it counts it `released`), so these switches would be missing from the field data. Switch on the key-down.').toEqual([])
   })
 
   it('every one of them is a function this rail can see into (or has been read, and listed with why)', () => {

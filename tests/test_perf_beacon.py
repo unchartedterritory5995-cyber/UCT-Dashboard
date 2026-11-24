@@ -1,6 +1,8 @@
 """Real-user speed beacon (desktop speed plan 10.1): api/services/perf_beacon.py + its router."""
 from __future__ import annotations
 
+import hashlib
+import hmac
 import json
 import re
 import sqlite3
@@ -22,6 +24,7 @@ def store(tmp_path, monkeypatch):
     monkeypatch.setenv("PERF_BEACON_DB_PATH", str(path))
     monkeypatch.delenv(pb.KILL_SWITCH, raising=False)
     monkeypatch.setattr(pb, "_last_prune", 0.0)
+    monkeypatch.setattr(pb, "_keys", {}, raising=False)       # a fresh process: no key in memory yet
     return path
 
 
@@ -48,7 +51,7 @@ def test_a_valid_report_is_stored_with_country_and_no_ip(store):
     assert pb.record(_report(), ip="203.0.113.9", country_header="us") == {"stored": 1, "dropped": 0, "invalid": 0}
     (row,) = _rows(store)
     assert row["page"] == "/charts" and row["client"] == "browser" and row["country"] == "US" and row["lcp"] == 900
-    assert "203.0.113.9" not in str(row) and len(row["rate_key"]) == 24
+    assert "203.0.113.9" not in str(row) and row["rate_key"] == ""      # a page-load row holds nothing derived from the IP
     assert [(a["route"], a["ms"], a["ok"]) for a in _rows(store, "perf_api")] == [("/api/bars", 140, 1), ("/api/breadth-monitor/session", 60, 0)]
 
 
@@ -260,7 +263,7 @@ def test_the_switch_store_holds_whole_numbers_a_day_and_fixed_names_only(store):
     conn = sqlite3.connect(store)
     try:
         cols = {t: {r[1]: r[2].upper() for r in conn.execute(f"PRAGMA table_info({t})")}
-                for t in ("perf_switch_days", "perf_switch_counters", "perf_switch_sends", "perf_switch_senders")}
+                for t in ("perf_switch_days", "perf_switch_counters", "perf_switch_sends", "perf_switch_senders", "perf_load_sends")}
         dump = "\n".join(str(r) for t in cols for r in conn.execute(f"SELECT * FROM {t}"))
     finally:
         conn.close()
@@ -268,6 +271,7 @@ def test_the_switch_store_holds_whole_numbers_a_day_and_fixed_names_only(store):
     assert sorted(c for c, t in cols["perf_switch_counters"].items() if t != "INTEGER") == ["client", "day", "name"]
     # for the quota: a time, the salted hash and how many switches the report held (kept one hour)
     assert set(cols["perf_switch_sends"]) == {"created_at", "rate_key", "switches"}
+    assert set(cols["perf_load_sends"]) == {"created_at", "rate_key"}         # the page-load quota: the same, kept one hour
     # to count a day's DISTINCT senders per cell: a hash salted with the day (kept until the day is over)
     assert sorted(c for c, t in cols["perf_switch_senders"].items() if t != "INTEGER") == ["client", "day", "sender"]
     assert "203.0.113.9" not in dump and "/charts" not in dump
@@ -460,7 +464,7 @@ def test_distinct_senders_per_day_and_cell_show_when_one_page_is_the_pool(store)
     # a day's hash is its own: the same sender on two days cannot be joined through it
     pb.record(_switch_report(), ip="10.9.0.1", country_header="US", now=_T + 86400 + 5)
     assert len(_rows(store, "perf_switch_senders")) == 1
-    assert pb._sender_key("10.9.0.1", "2026-11-18") != pb._sender_key("10.9.0.1", "2026-11-19") != pb._rate_key("10.9.0.1")
+    assert pb._sender_key("10.9.0.1", "2026-11-18") != pb._sender_key("10.9.0.1", "2026-11-19")
 
 
 def test_the_read_says_what_each_name_means_and_what_is_not_sampled(store):
@@ -473,3 +477,204 @@ def test_the_read_says_what_each_name_means_and_what_is_not_sampled(store):
     gaps = " | ".join(legend["not_sampled"])
     assert "pop-out" in gaps and "unpressed" in gaps
     assert isinstance(legend["sample"], str) and isinstance(legend["senders"], str)
+
+
+# ── review of #2641, round 2: NOTHING DERIVED FROM AN IP UNDER A KEY THE REPO HOLDS, OR PAST ITS USE ─────────
+# The quota and the distinct-sender count need "the same sender again", which is a function of the IP. It was a
+# SHA-256 under a constant in this public repo: anyone holding a copy of the file could recompute every row over all
+# of IPv4 in minutes, and page-load rows kept theirs for 30 days. Now: an HMAC under a random key that exists only in
+# the process's memory (an hour's for the quota, an ET day's for the senders), rows deleted when their use is over
+# (on a write, on the admin read, and on a timer), and the keys older builds stored blanked at startup.
+
+_IP = "203.0.113.77"
+_OLD_SCHEMA = """
+CREATE TABLE perf_loads (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at   REAL NOT NULL,
+    page         TEXT NOT NULL,
+    client       TEXT NOT NULL,
+    country      TEXT NOT NULL DEFAULT '',
+    ttfb         INTEGER, fcp INTEGER, lcp INTEGER, dom_ready INTEGER, load INTEGER,
+    long_task_ms INTEGER, long_tasks INTEGER, candles INTEGER,
+    rate_key     TEXT NOT NULL
+);
+CREATE INDEX ix_perf_loads_created ON perf_loads(created_at);
+CREATE INDEX ix_perf_loads_rate ON perf_loads(rate_key, created_at);
+CREATE TABLE perf_api (load_id INTEGER NOT NULL REFERENCES perf_loads(id) ON DELETE CASCADE, route TEXT NOT NULL, ms INTEGER NOT NULL, ok INTEGER NOT NULL);
+"""
+
+
+def _old_load_key(ip):
+    """What every build before this one stored in perf_loads.rate_key, for 30 days."""
+    return hashlib.sha256(f"perf_beacon:{ip}".encode()).hexdigest()[:24]
+
+
+def _an_older_builds_store(path, n, ip=_IP):
+    conn = sqlite3.connect(path)
+    try:
+        conn.executescript(_OLD_SCHEMA)
+        conn.executemany("INSERT INTO perf_loads (created_at,page,client,lcp,rate_key) VALUES (?,?,?,?,?)",
+                         [(_T + i, "/charts", "browser", 900 + i, _old_load_key(ip)) for i in range(n)])
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _from_the_repo(ip, days):
+    """Every value someone holding the REPO could compute from an IP: the address, what older builds stored, and the
+    same shapes (a hash, an HMAC) under every string the module spells as a salt, with and without the day."""
+    out = {ip}
+    for salt in ("perf_beacon", "", "senders", "perf_beacon:senders"):
+        out.add(hashlib.sha256(f"{salt}:{ip}".encode()).hexdigest())
+        out.add(hmac.new(salt.encode(), ip.encode(), hashlib.sha256).hexdigest())
+        for day in days:
+            out.add(hashlib.sha256(f"{salt}:senders:{day}:{ip}".encode()).hexdigest())
+            out.add(hashlib.sha256(f"{salt}:{day}:{ip}".encode()).hexdigest())
+            out.add(hmac.new(salt.encode(), f"{day}:{ip}".encode(), hashlib.sha256).hexdigest())
+            out.add(hmac.new(f"{salt}:{day}".encode(), ip.encode(), hashlib.sha256).hexdigest())
+    return out
+
+
+def _stored_text(path):
+    """Every text value of every table: what a copy of the file hands over, row by row."""
+    conn = sqlite3.connect(path)
+    try:
+        tables = [r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")]
+        return [v for t in tables for row in conn.execute(f"SELECT * FROM {t}") for v in row if isinstance(v, str) and v]
+    finally:
+        conn.close()
+
+
+def _file_bytes(path):
+    """The store as it lies on disk: the file, its write-ahead log and anything else beside it under its name."""
+    return b"".join(p.read_bytes() for p in sorted(path.parent.glob(path.name + "*")))
+
+
+def test_nothing_stored_can_be_recomputed_from_an_ip_with_what_the_repo_holds(store):
+    guesses = _from_the_repo(_IP, ["2026-11-18", "2026-11-19"])
+    # control: this very search FINDS what older builds stored, so a clean result below is not a blind one
+    old_sender = hashlib.sha256(f"perf_beacon:senders:2026-11-18:{_IP}".encode()).hexdigest()[:16]
+    assert any(g.startswith(_old_load_key(_IP)) for g in guesses) and any(g.startswith(old_sender) for g in guesses)
+
+    def nothing_matches(at_least):
+        keys = [v for v in _stored_text(store) if re.fullmatch(r"[0-9a-f]{16,}", v)]
+        assert len(keys) >= at_least, "the quota rows and the sender row do hold keys: there is something to try"
+        assert [k for k in keys if any(g.startswith(k) for g in guesses)] == []
+        raw = _file_bytes(store)
+        assert _IP.encode() not in raw
+        assert [g for g in guesses if g != _IP and g[:16].encode() in raw] == []
+
+    pb.record(_report(), ip=_IP, country_header="US", now=_T)
+    pb.record(_switch_report(), ip=_IP, country_header="US", now=_T + 5)
+    nothing_matches(3)                                                     # a page-load quota row, a switch quota row, a sender row
+    pb.record(_switch_report(), ip=_IP, country_header="US", now=_T + 86400)
+    nothing_matches(2)                                                     # the next day's
+
+
+def test_the_keys_live_in_memory_only_and_a_restart_makes_new_ones(store):
+    assert not hasattr(pb, "_SALT")                                        # no constant keys anything any more
+    read = lambda: (pb._rate_keys(_IP, _T)[0], pb._sender_key(_IP, "2026-11-18"))
+    first = read()
+    assert first == read()                                                 # the same sender again, within the period
+    assert (len(first[0]), len(first[1])) == (24, 16)
+    assert all(isinstance(k, bytes) and len(k) == 32 for k in pb._keys.values()) and len(set(pb._keys.values())) == len(pb._keys)
+    pb._keys.clear()                                                       # what a restart does
+    second = read()
+    assert first[0] != second[0] and first[1] != second[1]
+    # an hour's key is its own, and the quota can still see the hour before; a day's key is its own
+    now_key, _ = pb._rate_keys(_IP, _T)
+    next_key, before = pb._rate_keys(_IP, _T + 3600)
+    assert next_key != now_key and before == now_key
+    assert pb._sender_key(_IP, "2026-11-18") != pb._sender_key(_IP, "2026-11-19")
+    # ...and each is forgotten when its use is over: an hour's once the NEXT hour is over too, a day's at the day change
+    hour = int(_T // 3600)
+    pb._forget_keys(_T + 3600)
+    assert ("hour", hour) in pb._keys and ("day", "2026-11-18") in pb._keys
+    pb._forget_keys(_T + 2 * 3600)
+    assert ("hour", hour) not in pb._keys and ("hour", hour + 1) in pb._keys
+    pb._forget_keys(_T + 86400)
+    assert ("day", "2026-11-18") not in pb._keys
+
+
+def test_keys_an_older_build_stored_are_blanked_and_leave_the_file(store, monkeypatch):
+    assert pb.migrate() == 0 and not store.exists()                        # no store: nothing to do, and none is made
+    _an_older_builds_store(store, 40)
+    old = _old_load_key(_IP).encode()
+    assert old in _file_bytes(store)                                       # control: it IS on disk before
+    monkeypatch.setattr(pb, "_migrated", set())
+    assert pb.migrate() == 40
+    assert pb.migrate() == 0                                               # idempotent
+    rows = _rows(store)
+    assert len(rows) == 40 and {r["rate_key"] for r in rows} == {""} and [r["lcp"] for r in rows[:2]] == [900, 901]
+    assert old not in _file_bytes(store)                                   # gone from the pages and the log, not only the rows
+    assert "ix_perf_loads_rate" not in {r["name"] for r in _rows(store, "sqlite_master")}
+    assert pb.record(_report(), ip=_IP, country_header="US", now=_T)["stored"] == 1       # and the store still takes reports
+    assert pb.summary(24, now=_T + 100)["loads"] == 41
+
+
+def test_the_page_load_quota_holds_across_a_clock_hour_and_its_keys_are_gone_after_one(store):
+    edge = (int(_T // 3600) + 1) * 3600                                    # the next clock hour: the quota's key rotates there
+    for _ in range(pb.RATE_LIMIT):
+        assert pb.record(_report(), ip="9.9.9.9", country_header="US", now=edge - 10)["stored"] == 1
+    # another clock hour (another key), the same hour of reports: the quota still sees them
+    assert pb.record(_report(), ip="9.9.9.9", country_header="US", now=edge + 10) == {"stored": 0, "dropped": 1, "invalid": 0}
+    assert pb.record(_report(), ip="8.8.8.8", country_header="US", now=edge + 10)["stored"] == 1
+    assert {r["rate_key"] for r in _rows(store)} == {""}                   # the page-load rows themselves hold no key at all
+    assert len(_rows(store, "perf_load_sends")) == pb.RATE_LIMIT + 1
+    assert pb.record(_report(), ip="9.9.9.9", country_header="US", now=edge - 10 + 3601)["stored"] == 1
+    assert len(_rows(store, "perf_load_sends")) == 2                       # that write deleted every quota row over an hour old
+
+
+def test_the_switch_quota_holds_across_a_clock_hour(store):
+    edge = (int(_T // 3600) + 1) * 3600
+    for _ in range(pb.SWITCH_RATE_LIMIT):
+        assert pb.record(_switch_report(), ip="9.9.9.9", country_header="US", now=edge - 10)["stored"] == 1
+    assert pb.record(_switch_report(), ip="9.9.9.9", country_header="US", now=edge + 10)["dropped"] == 1
+    assert pb.record(_switch_report(), ip="9.9.9.9", country_header="US", now=edge - 10 + 3601)["stored"] == 1
+
+
+def test_the_admin_read_deletes_what_has_outlived_its_use_without_waiting_for_a_report(store):
+    pb.record(_report(), ip="10.8.0.1", country_header="US", now=_T)
+    pb.record(_switch_report(), ip="10.8.0.1", country_header="US", now=_T)
+    assert [len(_rows(store, t)) for t in ("perf_load_sends", "perf_switch_sends", "perf_switch_senders")] == [1, 1, 1]
+    s = pb.switch_summary(2, now=_T + 86400)                               # the next ET day; no report has arrived since
+    assert [len(_rows(store, t)) for t in ("perf_load_sends", "perf_switch_sends", "perf_switch_senders")] == [0, 0, 0]
+    assert [(c["day"], c["senders"], c["switches"]) for c in s["cells"]] == [("2026-11-18", 1, 28)]     # the counts stay
+    assert pb.housekeep(now=_T + 86400) == {"load_sends": 0, "switch_sends": 0, "senders": 0}
+
+
+def test_startup_blanks_old_keys_and_a_timer_deletes_on_time_with_no_report(store, monkeypatch, capsys):
+    _an_older_builds_store(store, 3)
+    monkeypatch.setattr(pb, "_migrated", set())
+    try:
+        assert pb.startup(every_s=0.05) is True
+        assert pb.startup(every_s=0.05) is False                           # one housekeeper per process
+        assert pb._boot_done.wait(15)
+        assert {r["rate_key"] for r in _rows(store)} == {""}
+        thread = pb._housekeeper
+        assert thread.daemon and thread.name == "perf-beacon-housekeeping"
+        # a quota row over an hour old, and no report arriving: the timer deletes it
+        conn = sqlite3.connect(store)
+        conn.execute("INSERT INTO perf_load_sends (created_at, rate_key) VALUES (?,?)", (time.time() - 7200, "k" * 24))
+        conn.commit()
+        conn.close()
+        deadline = time.time() + 15
+        while _rows(store, "perf_load_sends") and time.time() < deadline:
+            time.sleep(0.05)
+        assert _rows(store, "perf_load_sends") == []
+    finally:
+        pb._stop_housekeeping()
+    assert not thread.is_alive()
+    out = capsys.readouterr().out
+    assert "blanked 3 " in out and _old_load_key(_IP) not in out and _IP not in out          # the log says a count, nothing else
+
+
+def test_a_restart_mid_day_counts_a_returning_sender_again_and_the_legend_says_so(store):
+    pb.record(_switch_report(), ip="10.7.0.1", country_header="US", now=_T)
+    pb.record(_switch_report(), ip="10.7.0.1", country_header="US", now=_T + 1)
+    assert pb.switch_summary(1, now=_T + 2)["cells"][0]["senders"] == 1    # exact within a process and a day
+    pb._keys.clear()                                                       # the server restarts
+    pb.record(_switch_report(), ip="10.7.0.1", country_header="US", now=_T + 3)
+    s = pb.switch_summary(1, now=_T + 4)
+    assert s["cells"][0]["senders"] == 2                                   # an over-count, never an under-count
+    assert "restart" in s["legend"]["senders"] and "memory" in s["legend"]["senders"]
