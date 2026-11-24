@@ -185,25 +185,28 @@ export function writePendingShare(share) {
   }
 }
 
-/** Read AND clear, from both carriers. Consumed exactly once — a share that
- *  reopened every time the app mounted would be a capture the member cannot
- *  dismiss. */
-export function takePendingShare() {
-  const fromMemory = _pendingShare
-  _pendingShare = null
-
+/** Read WITHOUT clearing: memory first, then the session copy. CaptureHost opens a parked share with this and takes it
+ *  only once the dialog has MOUNTED (review of #2624): the dialog loads on its first open, and a chunk that fails, then
+ *  Close or a reload, must leave the share parked instead of losing it. */
+export function peekPendingShare() {
+  if (_pendingShare) return _pendingShare
   let raw = null
-  try {
-    raw = sessionStorage.getItem(PENDING_SHARE_KEY)
-    sessionStorage.removeItem(PENDING_SHARE_KEY)
-  } catch { /* storage refused; memory may still hold it */ }
-
-  if (fromMemory) return fromMemory
+  try { raw = sessionStorage.getItem(PENDING_SHARE_KEY) } catch { return null }
   if (!raw) return null
   try {
     const parsed = JSON.parse(raw)
     return parsed && typeof parsed === 'object' ? parsed : null
   } catch { return null }
+}
+
+/** Read AND clear, from both carriers. Consumed exactly once — a share that
+ *  reopened every time the app mounted would be a capture the member cannot
+ *  dismiss. */
+export function takePendingShare() {
+  const share = peekPendingShare()
+  _pendingShare = null
+  try { sessionStorage.removeItem(PENDING_SHARE_KEY) } catch { /* storage refused; memory is cleared */ }
+  return share
 }
 
 /**

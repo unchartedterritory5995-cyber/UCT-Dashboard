@@ -38,7 +38,7 @@ export const EXEMPT = Object.freeze({
   'components/notebook/GettingStartedChecklist.jsx':
     'the eager gate: renders the lazy GettingStartedList (a named section) or null; no markup or control of its own',
   'components/notebook/CaptureHost.jsx':
-    'mounts CaptureDialog (itself a named dialog) and a global key listener; no markup of its own',
+    'mounts CaptureDialogDoor, which renders CaptureDialog (itself a named dialog), and a global key listener; no markup of its own',
   'components/notebook/NoteStats.jsx':
     'one line of plain text (word count, reading time) read as text; deliberately NOT a live region, which would talk over typing',
   'components/notebook/TranscriptDoors.jsx':

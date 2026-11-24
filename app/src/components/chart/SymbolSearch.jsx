@@ -85,15 +85,37 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
   // symbol (typing TSLA + Enter goes to TSLA even if the cursor sits on another row).
   const navByKbdRef = useRef(false)
   const lastIntentRef = useRef(null)   // the text last reported through onTypedIntent
+  // The typing pause's timer. `submit` clears it: the Enter commit no longer re-renders the search (its teardown waits
+  // for the frame), so a pause still running at Enter would otherwise report the entered text after the switch.
+  const intentTimerRef = useRef(0)
 
   // Imperative open-with-text — used by ChartPane so typing a letter on the
   // chart opens the search with that letter already entered.
   const openRef = useRef(false)
-  openRef.current = open
+  // ⭐ (2026-11-23, item 2, review of #2624 section 5) ENTER TAKES THE DIALOG OFF SCREEN IN ITS OWN TASK AND UNMOUNTS IT
+  // AFTER THE CHARTS' FRAME. `submit` hides the portal root (display:none: out of rendering and out of the
+  // accessibility tree) and takes the dialog's role and aria-modal off, so every reader of "a dialog is open"
+  // (utils/modalOpen, the pane's type-to-search and the chart shortcuts; lib/topLayer) reads it closed from the Enter
+  // task on; the React teardown (40 rows, the input, the blur layer's node) runs after the paint. `closingRef` holds
+  // that pending teardown (a token; false when none, and on unmount). A reopen inside the gap (a letter typed on the
+  // chart, the badge, the notebook embed's door, which calls openWith from an effect) cancels it and mounts a FRESH
+  // dialog through a normal render (`mountKey`), which is what a reopen after the teardown shows. Not flushSync: inside
+  // an effect React refuses to flush (react-dom 19 logs an error), and that door calls openWith from one.
+  const closingRef = useRef(false)
+  const [mountKey, setMountKey] = useState(0)
+  openRef.current = open && !closingRef.current
+  const reshow = () => {
+    if (!closingRef.current) return
+    closingRef.current = false
+    setMountKey(k => k + 1)
+    lastIntentRef.current = null
+  }
+  useEffect(() => () => { closingRef.current = false }, [])
   useImperativeHandle(ref, () => ({
     openWith: (text = '') => {
       // Append when already open so fast chart type-to-search keystrokes during the
       // async focus gap don't reset the query; fresh start when the box was closed.
+      reshow()
       const wasOpen = openRef.current
       openRef.current = true
       setOpen(true)
@@ -109,12 +131,12 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
       const len = inputRef.current.value.length
       try { inputRef.current.setSelectionRange(len, len) } catch { /* */ }
     }
-  }, [open])
+  }, [open, mountKey])
 
   // Close on Escape
   useEffect(() => {
     if (!open) return undefined
-    const handler = (e) => { if (e.key === 'Escape') { e.stopPropagation(); setOpen(false) } }
+    const handler = (e) => { if (e.key === 'Escape' && !closingRef.current) { e.stopPropagation(); setOpen(false) } }
     document.addEventListener('keydown', handler, true)
     return () => document.removeEventListener('keydown', handler, true)
   }, [open])
@@ -201,6 +223,9 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
       fetch(url, { signal: ctl.signal })
         .then(r => r.ok ? r.json() : Promise.reject(r.status))
         .then(j => {
+          // ⛔ A SUPERSEDED OR ABORTED REQUEST IS NOT A RESULT (2026-11-23). A newer keystroke, Enter or the dialog
+          // closing aborts it (this effect's cleanup); an answer that lands anyway must not replace the newer list.
+          if (ctl.signal.aborted) return
           let arr = Array.isArray(j?.results) ? j.results : []
           // Client-side safety net: if a category is active AND the server labeled
           // types, keep only that type (so a stale/typeless server can't leak the
@@ -212,6 +237,9 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
           setActiveIdx(0)
         })
         .catch(() => {
+          // ...and its AbortError is not a failure: written, it rendered the search again right after Enter's switch,
+          // and while typing it put "Go to {earlier text}" back under the newer text. A real failure still clears.
+          if (ctl.signal.aborted) return
           setResults(typeParam ? [] : [{ ticker: q.toUpperCase(), name: null, _typed: true }])
           setActiveIdx(0)
         })
@@ -235,6 +263,7 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
       lastIntentRef.current = text
       try { onTypedIntent(text) } catch { /* a warm never breaks search */ }
     }, TYPED_INTENT_SETTLE_MS)
+    intentTimerRef.current = t
     return () => clearTimeout(t)
   }, [query, open, chip, onTypedIntent, breadthAll, sym])
   // A new search session may warm the same text again.
@@ -249,9 +278,22 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
   const submit = useCallback((ticker) => {
     // ⭐ A typed member-facing `UCT:A50` opens the canonical `UCTA50`.
     const clean = canonicalTicker(ticker, breadthAll)
+    // hidden and closed to every reader FIRST (see closingRef), then the symbol, then the teardown after the paint
+    const token = {}
+    closingRef.current = token
+    openRef.current = false
+    abortRef.current?.abort()
+    clearTimeout(intentTimerRef.current)
+    const d = dialogRef.current
+    if (d) {
+      d.parentElement.style.display = 'none'   // the portal root (the backdrop)
+      d.removeAttribute('role')
+      d.removeAttribute('aria-modal')
+    }
     if (clean && clean !== sym) onSymbolChange(clean)
-    setOpen(false)
-    setQuery('')
+    const close = () => { if (closingRef.current === token) { closingRef.current = false; setOpen(false); setQuery('') } }
+    if (document.hidden) close()
+    else requestAnimationFrame(() => setTimeout(close, 0))
   }, [sym, onSymbolChange, breadthAll])
 
   const handleInputKey = useCallback((e) => {
@@ -289,7 +331,7 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
       <button
         className={styles.badge}
         style={hideIcon ? { justifyContent: fullLabel ? 'flex-start' : 'center', width: fullLabel ? 'auto' : '100%' } : undefined}
-        onClick={() => { if (open) { setOpen(false) } else { setQuery(''); setChip('all'); setOpen(true) } }}
+        onClick={() => { if (openRef.current) { setOpen(false) } else { reshow(); setQuery(''); setChip('all'); setOpen(true) } }}
         title={displayLabel ? `${sym} — click to search` : 'Search ticker'}
         // `ariaLabel`: a caller whose badge does something OTHER than retarget this
         // chart (the "+ Compare" doors) names that action; omitted = unchanged.
@@ -326,6 +368,7 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
 
       {open && createPortal(
         <div
+          key={mountKey}
           className={styles.backdrop}
           onMouseDown={(e) => { if (e.target === e.currentTarget) setOpen(false) }}
         >
