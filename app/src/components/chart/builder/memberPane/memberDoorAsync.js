@@ -378,7 +378,7 @@ export function createKeyedWorkerService({ job, factory = null, watchdogMs = MEM
     running = null
     if (r.timer !== null) clearTimeout(r.timer)
     // the answer is for the state the build was asked in; a subscriber asking in a newer one has asked again
-    if (entries.get(r.entry.key) === r.entry) land(r.entry, r.version, landed)
+    if (entries.get(r.entry.key) === r.entry) setTimeout(() => land(r.entry, r.version, landed), 1500)
     next()
   }
 
