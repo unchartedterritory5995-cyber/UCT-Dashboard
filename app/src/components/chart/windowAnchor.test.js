@@ -82,7 +82,7 @@ function board(anchor) {
   chart.window.setPrimary(S.candles)
   const b = { anchor, raw, chart, S, full: 0, futSet: false }
   /** A new load, as updateChart hands it over, then the frame the chart opens on (newest bar near the right). */
-  b.load = async (sym) => {
+  b.load = (sym) => {
     const d = NAMES[sym]
     chart.window.setWindow(renderWindowRows(67, 0), { span: 67 })
     S.candles.setData(d.candles)
@@ -90,7 +90,6 @@ function board(anchor) {
     d.ma.forEach((rows, i) => S.ma[i].setData(rows))
     if (!b.futSet) { S.fut.setData(FUTURE); b.futSet = true }   // same last session: the future axis is set once
     chart.timeScale().setVisibleLogicalRange({ from: d.n - 1 - 64, to: d.n - 1 + 3 })
-    await frame()
   }
   return b
 }
@@ -113,20 +112,32 @@ function picture(b, sym) {
   }
 }
 
+// ⛔ The boards are loaded together and settle together (the library's first paint measures the price axis and can
+// move the plot's left edge): a picture taken one frame later on one board than on the other differs on IDENTICAL
+// boards (the first run of this file, both boards on the index step: the visible time range's first bar differed).
+// The CONTROL board (`ctl`, the index step like `idx`) must draw exactly what `idx` draws: the comparison is fair.
+async function loadAll(boards, sym) {
+  for (const b of boards) b.load(sym)
+  await frame()
+  await frame()
+}
+
 describe('the window start anchored to a date: the same picture, fewer library rebuilds', () => {
   const rows = []
   let idx
   let date
+  let ctl
   beforeAll(async () => {
     idx = board('index')
     date = board('date')
+    ctl = board('index')
     for (const sym of STEPS) {
       const f0 = { index: idx.full, date: date.full }
-      await idx.load(sym)
-      await date.load(sym)
+      await loadAll([idx, date, ctl], sym)
       rows.push({
         sym,
         pics: [picture(idx, sym), picture(date, sym)],
+        control: picture(ctl, sym),
         held: [rawOf(idx.S.candles).data().length, rawOf(date.S.candles).data().length],
         starts: [idx.chart.window.windowStartTime(), date.chart.window.windowStartTime()],
         full: [idx.full - f0.index, date.full - f0.date],
@@ -135,6 +146,10 @@ describe('the window start anchored to a date: the same picture, fewer library r
     // eslint-disable-next-line no-console
     console.log('[window anchor]\n' + rows.map((r) => `${r.sym}: held ${r.held.join(' / ')} starts ${r.starts.join(' / ')} FULL ${r.full.join(' / ')} drawing calls ${r.pics[0].drawing.length}`).join('\n'))
   }, 120_000)
+
+  it('CONTROL: two boards on the same anchor draw the same picture (the comparison is fair)', () => {
+    for (const r of rows) expect(r.control, r.sym).toEqual(r.pics[0])
+  })
 
   it('1. every step draws the same picture: canvas calls, visible range (full indices), times, rows in view, price scales', () => {
     for (const r of rows) {
@@ -184,6 +199,7 @@ describe('the window start anchored to a date: the same picture, fewer library r
       const next = { from: r.from - 40, to: r.to - 40 }
       idx.chart.timeScale().setVisibleLogicalRange(next)
       date.chart.timeScale().setVisibleLogicalRange(next)
+      await frame()
       await frame()
       const [a, b] = [picture(idx, 'BBB'), picture(date, 'BBB')]
       expect(b.range, `step ${k}`).toEqual(a.range)
