@@ -15,10 +15,13 @@
 //   T10 while its caller says "not now" it asks nothing and looks again after `recheckMs` (a number or a function)
 //   T11 a `recheckMs` that names no time: tailOnly looks again WHEN THE NEXT MINUTE FILE IS DUE (never a minute late)
 //   T12 a gate that THROWS: tailOnly fails CLOSED (its gate is also the kill); the device store's consumer as before
+//   T13 a frame read as its own minute file says so to the sink (`file: true`); one handed in another way does not
+//   T14 askMinute: ONE named minute file, applied through the same check; no schedule, no retry, no timer
 import { describe, it, expect } from 'vitest'
 import { createMinuteFrameConsumer, DEFAULT_BASE } from './consumer'
 import { createMemorySink } from './memorySink'
 import { writeFrame, framePath, frameResponse, statusResponse } from './testing/frameWriter'
+import { decodeFrame } from './codec'
 
 const OPEN_MIN = Date.UTC(2026, 10, 10, 14, 30) / 60000          // Tue 2026-11-10 09:30 ET, as a unix minute
 /** unix minute of 09:30 + n minutes, and ms of that minute + sec. */
@@ -235,5 +238,39 @@ describe('tailOnly: one minute file a minute, never the day', () => {
     const d2 = device(e2, at(32, 20), { tailOnly: false, isVisible: boom })
     d2.c.start(); await d2.run()
     expect(e2.asked[0]).toBe('2026-11-10/head.json')
+  })
+
+  it('T13 a frame read as its own minute file says so to the sink; a frame handed in another way does not', async () => {
+    const e = edge()
+    const d = device(e, at(32, 20))
+    d.c.start()
+    await d.run()
+    await d.run()
+    expect(d.sink.frames.map((f) => [f.seq, f.file])).toEqual([[361, true], [362, true]])
+    d.c.applyFrame(decodeFrame(writeFrame({ minute: M(33), blocks: [{ rows: [row('AAA', 33)] }] })))
+    expect(d.sink.frames[2]).toMatchObject({ seq: 363, file: false })
+  })
+
+  it('T14 askMinute: one named minute file, applied through the same check; no schedule, no retry, no timer', async () => {
+    const e = edge({ missing: [34], failing: [35] })
+    const d = device(e, at(32, 20))
+    expect(await d.c.askMinute('2026-11-10', 361)).toEqual({ current: true })
+    expect(e.asked).toEqual([name(31)])
+    expect(d.sink.series('AAA', '1').map((b) => b.t)).toEqual([M(31) * 60])
+    expect(d.sink.frames[0]).toMatchObject({ seq: 361, file: true })
+    expect(await d.c.askMinute('2026-11-10', 361)).toEqual({ current: true })      // already held: nothing is asked
+    expect(e.asked).toHaveLength(1)
+    // two asked at once are read one after the other, in the order asked
+    const both = [d.c.askMinute('2026-11-10', 362), d.c.askMinute('2026-11-10', 363)]
+    await Promise.all(both)
+    expect(e.asked).toEqual([31, 32, 33].map(name))
+    expect(d.sink.gaps).toHaveLength(1)                              // only the one before the first frame
+    expect(await d.c.askMinute('2026-11-10', 364)).toEqual({ missing: true })      // not there: said so, not retried
+    await expect(d.c.askMinute('2026-11-10', 365)).rejects.toThrow()               // a failed read: the caller's to count
+    expect(e.asked).toEqual([31, 32, 33, 34, 35].map(name))
+    await d.c.askMinute('2026-11-10', 366)                           // a minute skipped is a gap the sink hears
+    expect(d.sink.gaps[1]).toMatchObject({ fromMinute: M(34), toMinute: M(35) })
+    expect(d.delay()).toBe(null)                                     // never a timer
+    expect(d.c.status().running).toBe(false)
   })
 })

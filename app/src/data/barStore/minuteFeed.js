@@ -66,6 +66,7 @@
 // there, backs off (BOUNDED: see `_failed`) and nothing surfaces. OFF: this module is never loaded.
 
 import { createMinuteFrameConsumer } from '../../lib/minuteFrames/consumer'
+import { MINUTE_APPLIED_CHANNEL, readAppliedSignal } from '../../lib/minuteFrames/applied'
 import { isRthBar } from '../../components/chart/barTime'
 import { isAppVisible, onDeskHiddenChange } from '../../lib/deskVisibility'
 import { cookieKillsChartSpeed } from '../../lib/chartSpeed'
@@ -84,19 +85,23 @@ export const DRAIN_SLICE_MS = 4
  *  5 s after the minute ends), plus the consumer's 0-3 s jitter. */
 export const POLL_DELAY_MS = 7000
 /**
- * ⭐ WITH THE DEVICE STORE ON (`cacheOnly`): THE PAGE NEVER DOWNLOADS A MINUTE FILE. The device store's worker downloads
- * it (the same URL, built by the same consumer) 7-10 s after the minute ends, and the edge answers it `private,
- * max-age=86400, immutable`, so the browser's HTTP cache holds it for every tab of the site. The page asks with
- * `cache: 'only-if-cached'` (and the `mode: 'same-origin'` that mode requires): by the Fetch standard such a request
- * is answered from the cache or fails; it cannot reach the network. A miss (a 504 answer in Firefox, a failed fetch in
- * Chrome) means the worker's copy is not there yet: looked for again every CACHE_RETRY_MS, CACHE_RETRIES times, then
- * the minute is given up like any other and the strict walk stops there. No jitter (nothing reaches a server).
- * If the worker is not downloading (no seed yet, a seed the split guard refuses, the store stopped on this page), the
- * page reads nothing and every key is behind exactly as today.
+ * ⭐ WITH THE DEVICE STORE ON (`cacheOnly`): THE PAGE NEVER DOWNLOADS A MINUTE FILE, AND READS IT ONCE, WHEN TOLD.
+ * The device store's worker downloads each minute file (the same URL, built by the same consumer) 7-10 s after the
+ * minute ends, and the edge answers it `private, max-age=86400, immutable`, so the browser's HTTP cache holds it for
+ * every tab of the site. The page asks with `cache: 'only-if-cached'` (and the `mode: 'same-origin'` that mode
+ * requires): by the Fetch standard such a request is answered from the cache or fails; it cannot reach the network.
+ * WHEN: the worker tells every page the moment it has applied a minute it read as its own file
+ * (lib/minuteFrames/applied.js, a BroadcastChannel). The page then reads that one file. It keeps NO schedule of its
+ * own in this mode: no timer, no polling, so in steady state no look comes too early (each one that did was a failed
+ * request in the browser's console). A read that misses all the same (the cache was cleared, DevTools "Disable
+ * cache") is looked for ONCE more after CACHE_RETRY_MS, then the minute is given up like any other and the strict walk
+ * stops there; two misses pause the feed (the backoff below).
+ * If nobody tells (the worker is not downloading: no seed yet, a seed the split guard refuses, the store stopped on
+ * this page; a leader tab still on a build without the message; no BroadcastChannel), the page reads nothing and
+ * every key is behind exactly as today.
  */
-export const CACHE_POLL_DELAY_MS = 7500
 export const CACHE_RETRY_MS = 500
-export const CACHE_RETRIES = 15
+export const CACHE_RETRIES = 1
 /** With nothing to feed (no idle regular 1m key held) the feed looks again this often: a registry read, no request. */
 export const WANT_RECHECK_MS = 5_000
 /** A minute file that is not there yet is asked again this many times (every 2 s), then given up. */
@@ -335,25 +340,33 @@ function _onVisible(cb) {
  * @param {Function} [o.killed]         has the server killed the chart speed switches NOW (a fresh cookie read)?
  * @param {Function} [o.inSession]      is the regular session open at `ms` (deviceStore/fresh.inRegularSession)?
  * @param {Function} [o.onVisible]      (cb) => unsubscribe: when the app may have become visible
- * @param {boolean} [o.cacheOnly]       the device store is on: read the browser's copy only, never the network (above)
+ * @param {boolean} [o.cacheOnly]       the device store is on: read the browser's copy only, never the network, and
+ *                                      only when the device store's worker says a minute is there (above)
+ * @param {Function} [o.makeChannel]    (name) => BroadcastChannel-like | null (cacheOnly: where the worker tells)
+ * @param {Function} [o.setTimer] / [o.clearTimer]   cacheOnly: the one retry after a miss
  * @param {object} [o.consumerOpts] / [o.feederOpts]   tests
  */
 export function createPageMinuteFeed({
   store, fetchImpl = (...a) => fetch(...a), now = () => Date.now(), visible = isAppVisible, killed = _killedNow,
   inSession = inRegularSession, onVisible = _onVisible, cacheOnly = false, consumerOpts = {}, feederOpts = {},
+  makeChannel = (name) => (typeof BroadcastChannel === 'function' ? new BroadcastChannel(name) : null),
+  setTimer = (fn, ms) => setTimeout(fn, ms), clearTimer = (h) => clearTimeout(h),
 } = {}) {
   const feeder = createMinuteFeeder({
     registry: store.registry, isActive: (key) => !!store.isActive?.(key), ...feederOpts,
   })
-  const pollDelayMs = consumerOpts.pollDelayMs ?? (cacheOnly ? CACHE_POLL_DELAY_MS : POLL_DELAY_MS)
+  const pollDelayMs = consumerOpts.pollDelayMs ?? POLL_DELAY_MS
   const retries = cacheOnly ? CACHE_RETRIES : TAIL_RETRIES
   /** Answers in a row that were not a frame before the feed pauses: one whole minute of asking (the ask and its retries). */
   const failLimit = retries + 1
   /** The backoff: answers in a row that were not a frame, pauses in a row, and until when the feed is paused. */
   const back = { fails: 0, pauses: 0, until: 0 }
-  const st = { requests: 0, answered: 0, refused: 0, stopped: null, waiting: false }
+  const st = { requests: 0, answered: 0, refused: 0, stopped: null, waiting: false, told: 0 }
   let consumer = null
   let offVisible = null
+  let channel = null         // cacheOnly: where the device store's worker tells (lib/minuteFrames/applied.js)
+  let retryTimer = null      // cacheOnly: the one look after a miss
+  let reading = Promise.resolve()
 
   /**
    * ⛔ BOUNDED, AND QUIET. An answer that is not a frame (the minute is not out, the edge is down, the network failed)
@@ -373,7 +386,7 @@ export function createPageMinuteFeed({
   async function watchedFetch(url, init) {
     st.requests++
     let r
-    // ⛔ cacheOnly: the browser may answer this from its HTTP cache or not at all (see CACHE_POLL_DELAY_MS)
+    // ⛔ cacheOnly: the browser may answer this from its HTTP cache or not at all (see CACHE_RETRY_MS)
     const req = cacheOnly ? { ...init, cache: 'only-if-cached', mode: 'same-origin' } : init
     try { r = await fetchImpl(url, req) } catch (e) { _failed(false); throw e }
     if (r.ok) { st.answered++; back.fails = 0; back.pauses = 0; back.until = 0 }
@@ -382,21 +395,43 @@ export function createPageMinuteFeed({
     return r
   }
 
+  /** cacheOnly: read ONE minute file from the cache; after a miss, once more, then the minute is given up. */
+  function _read(sig, left) {
+    reading = consumer.askMinute(sig.day, sig.seq).then((r) => r?.current === true, () => false).then((got) => {
+      if (got || left <= 0 || st.stopped) return
+      retryTimer = setTimer(() => { retryTimer = null; if (!st.stopped) _read(sig, left - 1) }, CACHE_RETRY_MS)
+    })
+  }
+
+  /** cacheOnly: the device store's worker says a minute file is in the cache. Read it, if a poll may go now; a minute
+   *  told while it may not (hidden, outside the session, paused, nothing to feed) is skipped, and the walk stops there. */
+  function _told(msg) {
+    const sig = readAppliedSignal(msg)
+    if (!sig || !consumer) return
+    st.told++
+    let ok = false
+    try { ok = api.gate(sig.minute * 60_000) } catch { ok = false }   // the gate fails closed here too
+    if (!ok) return
+    if (retryTimer != null) { clearTimer(retryTimer); retryTimer = null }   // a newer minute: the older one is given up
+    _read(sig, CACHE_RETRIES)
+  }
+
   const api = {
     feeder,
     /** May a poll go now? The consumer asks before every step (its `isVisible`); false = look again later: when the
      *  next minute file is due (hidden, outside the session, paused: so the first poll after it is never a minute
      *  late), or after WANT_RECHECK_MS when the only reason is that there is nothing to feed yet. A throw from
      *  anything it reads counts as "no" (the consumer's tail mode fails closed). */
-    gate() {
+    gate(minuteMs = null) {
       st.waiting = false
       if (st.stopped) return false
       if (killed()) { api.stop('killed'); return false }        // the server's kill, on a page left open: for good
       const t = now()
       if (t < back.until) return false
       if (!visible()) return false
-      // regular session only: the minute now due (it ended `pollDelayMs` ago) must be a regular-session minute
-      if (!inSession(t - pollDelayMs - 60_000)) return false
+      // regular session only: the minute now due (it ended `pollDelayMs` ago), or the minute the caller names (the
+      // one the device store's worker just told of), must be a regular-session minute
+      if (!inSession(minuteMs ?? t - pollDelayMs - 60_000)) return false
       // ...and only while there is something to feed (the header: COST). Last, so `waiting` means exactly that.
       if (!feeder.wanted()) { st.waiting = true; return false }
       return true
@@ -405,11 +440,17 @@ export function createPageMinuteFeed({
       if (consumer || st.stopped) return
       consumer = createMinuteFrameConsumer({
         sink: feeder.sink, fetchImpl: watchedFetch, now, isVisible: api.gate,
-        tailOnly: true, tailRetries: retries, pollDelayMs, ...(cacheOnly ? { retryMs: CACHE_RETRY_MS, jitterMs: 0 } : {}),
+        tailOnly: true, tailRetries: retries, pollDelayMs,
         recheckMs: () => (st.waiting ? WANT_RECHECK_MS : null),
         rollup: { tfs: [FEED_TF], accept: feeder.accept },
         ...consumerOpts,
       })
+      if (cacheOnly) {
+        // TOLD when to read (the device store's worker): the consumer is never started, so it keeps no schedule
+        try { channel = makeChannel(MINUTE_APPLIED_CHANNEL) } catch { channel = null }
+        if (channel) channel.onmessage = (e) => _told(e?.data)
+        return
+      }
       offVisible = onVisible(() => { if (!st.stopped && visible()) consumer?.wake() })
       consumer.start()
     },
@@ -419,14 +460,20 @@ export function createPageMinuteFeed({
       try { consumer?.stop() } catch { /* ignore */ }
       try { offVisible?.() } catch { /* ignore */ }
       offVisible = null
+      if (retryTimer != null) { try { clearTimer(retryTimer) } catch { /* ignore */ } retryTimer = null }
+      try { if (channel) { channel.onmessage = null; channel.close() } } catch { /* ignore */ }
+      channel = null
       feeder.stop()
     },
+    /** cacheOnly: resolves when the read a message started has settled (tests). */
+    settledRead: () => reading,
     running: () => !!consumer && !st.stopped,
     /** Numbers only (a measurement harness reads them: window.__uctMinuteFeed.status()). */
     status: () => {
       const c = consumer?.status?.()
       return {
         running: !!consumer && !st.stopped, stopped: st.stopped, cacheOnly, requests: st.requests, answered: st.answered,
+        told: st.told, listening: !!channel,
         refused: st.refused, pausedUntil: back.until, pauses: back.pauses, waiting: st.waiting,
         lastSeq: c?.lastSeq ?? null, lastAppliedAt: c?.lastAppliedAt ?? 0, bytes: c?.bytes ?? 0, ...feeder.stats(),
       }

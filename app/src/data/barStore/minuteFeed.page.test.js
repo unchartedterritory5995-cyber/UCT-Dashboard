@@ -10,11 +10,13 @@
 //   P7 a feed that is not there (404 every minute): bounded the same way
 //   P8 one frame clears the backoff
 //   P9 a gate that throws asks nothing (it is also the kill: it fails closed)
-//   WITH THE DEVICE STORE ON (`cacheOnly`: the worker downloads each minute file; the page reads the browser's copy):
-//   C1 every request is `cache: 'only-if-cached'`, `mode: 'same-origin'`: the browser may not use the network for it
-//   C2 a miss (the worker's copy is not there yet) is looked for again half a second later, the same way, and applied
-//   C2b ...whether the browser reports the miss as a 504 answer (Firefox) or as a failed fetch (Chrome)
-//   C3 a minute never cached is given up after a bounded number of looks; never a download; then the feed pauses
+//   WITH THE DEVICE STORE ON (`cacheOnly`: the worker downloads each minute file and TELLS the pages; the page reads
+//   the browser's copy, once):
+//   C1 told of a minute: ONE read of that file, `cache: 'only-if-cached'` + `mode: 'same-origin'`; never untold, never a timer
+//   C2 a miss is looked for ONCE more half a second later, the same way (a 504 answer, or C2b a failed fetch)
+//   C3 two misses: the minute is given up, never downloaded, and the feed pauses; told again later, it reads again
+//   C4 told while a poll may not go (hidden, outside the session, nothing to feed, killed): no read
+//   C5 anything else on the channel is ignored; no BroadcastChannel: nothing is read
 //   (P3 / P4 also pin WHEN it looks again after a "not now": when the next minute file is due, never a minute late)
 //   ONLY WHILE THERE IS SOMETHING TO FEED (an idle regular 1m key is held):
 //   G1 no 1m key held: no request at all                     G2 only a 1m key a chart is on: none
@@ -64,10 +66,19 @@ function page(e, nowMs, { hold = true, maxKeys, ...extra } = {}) {
   let pending = null
   const registry = createRegistry({ ctx: () => ({ nowMs: clock.ms }), ...(maxKeys != null ? { maxKeys } : {}) })
   if (hold) registry.acquire(keyOf({ sym: 'HOLD', tf: '1' }))
+  /** The channel the device store's worker tells the pages on: `env.tell(n)` is the worker's message for minute n. */
+  const channel = { onmessage: null, closed: false, postMessage() {}, close() { this.closed = true } }
+  env.channel = channel
+  env.tell = (n, over = {}) => channel.onmessage?.({ data: {
+    type: 'minute-applied', day: '2026-11-10', seq: 330 + n, minute: M(n),
+    hhmm: `${String(Math.floor((570 + n) / 60)).padStart(2, '0')}${String((570 + n) % 60).padStart(2, '0')}`, ...over,
+  } })
   const feed = createPageMinuteFeed({
     store: { registry, isActive: (k) => active.has(k) },
     fetchImpl: e.fetchImpl, now: () => clock.ms, visible: () => env.visible,
     onVisible: (cb) => { env.wake = cb; return () => { env.wake = null } },
+    makeChannel: () => channel,
+    setTimer: (fn, ms) => { pending = { fn, ms }; return pending }, clearTimer: (t) => { if (pending === t) pending = null },
     consumerOpts: {
       random: () => 0,
       setTimer: (fn, ms) => { pending = { fn, ms }; return pending }, clearTimer: (t) => { if (pending === t) pending = null },
@@ -238,50 +249,130 @@ describe('the page minute feed with the device store ON reads the browser cache 
     return { fetchImpl, asked, st, paths: () => asked.map((a) => a.path) }
   }
   const onlyCache = (e) => e.asked.every((a) => a.init.cache === 'only-if-cached' && a.init.mode === 'same-origin')
+  /** The worker tells of minute n at `sec` seconds past the minute after it; resolves when the page's read settled. */
+  async function told(p, n, sec = 8.2) {
+    p.clock.ms = at(n + 1, sec)
+    p.env.tell(n)
+    await p.feed.settledRead()
+  }
 
-  it('C1 every request is cache-only and same-origin: the browser may not use the network for it', async () => {
-    const e = cache({ have: [31, 32, 33, 34, 35, 36] })
-    const p = page(e, at(32, 20), { cacheOnly: true })
+  it('C1 told of a minute: ONE cache-only read of that file; never untold, never a timer', async () => {
+    const e = cache({ have: [31, 32, 33] })
+    const p = page(e, at(32, 1), { cacheOnly: true })
     p.feed.start()
-    await p.run()
-    await p.runUntil(at(36, 20))
-    expect(e.paths()).toEqual([31, 32, 33, 34, 35].map(name))    // still one look a minute when the copy is there
+    expect(p.delay()).toBe(null)                                 // no schedule of its own
+    expect(e.asked).toEqual([])                                  // and nothing read before it is told
+    await told(p, 31)
+    expect(e.paths()).toEqual([name(31)])
     for (const a of e.asked) expect(a.init).toMatchObject({ cache: 'only-if-cached', mode: 'same-origin', priority: 'low', credentials: 'same-origin' })
+    await told(p, 32)
+    p.env.tell(32)                                               // told twice (it is already held): nothing is read
+    await p.feed.settledRead()
+    await told(p, 33)
+    expect(e.paths()).toEqual([31, 32, 33].map(name))
+    expect(p.delay()).toBe(null)
     expect(e.st.net).toBe(0)
-    expect(p.feed.status()).toMatchObject({ running: true, cacheOnly: true, requests: 5, answered: 5, pauses: 0, frames: 5 })
+    expect(p.feed.status()).toMatchObject({ running: true, cacheOnly: true, listening: true, told: 4, requests: 3, answered: 3, pauses: 0, frames: 3, breaks: 0 })
+  })
+
+  it('C1b end to end: the minute it was told of lands on a held, answered 1m key', async () => {
+    const e = cache({ have: [30] })
+    const p = page(e, at(31, 1), { cacheOnly: true })
+    const key = keyOf({ sym: 'AAA', tf: '1' })
+    p.registry.dispatch(key, { type: ACTION.REST_FULL, payload: {
+      ticker: 'AAA', tf: '1', contract: 1, grid: 'eth-clock', cache_key: 'b1:AAA:1:eth-clock', series_rev: at(30, 20), history_rev: 1,
+      verified_through: at(30, 20) / 1000, complete_through: T(29), tail_status: 'verified', developing: null,
+      bars: Array.from({ length: 30 }, (_, n) => bar(n)),
+    } })
+    p.feed.start()
+    await told(p, 30)
+    await p.feed.feeder.settled()
+    const s = p.registry.peek(key)
+    expect(s.bars[s.bars.length - 1]).toMatchObject({ ...bar(30), src: 'final' })
   })
 
   for (const reject of [false, true]) {
-    it(`C2${reject ? 'b' : ''} a miss (${reject ? 'a failed fetch' : 'a 504 answer'}) is looked for again half a second later, the same way, then applied`, async () => {
+    it(`C2${reject ? 'b' : ''} a miss (${reject ? 'a failed fetch' : 'a 504 answer'}) is looked for ONCE more half a second later, the same way`, async () => {
       const e = cache({ have: [31], reject })
-      const p = page(e, at(32, 20), { cacheOnly: true })
+      const p = page(e, at(32, 1), { cacheOnly: true })
       p.feed.start()
-      await p.run()                                              // 10:01 is there
-      await p.run()                                              // 10:02 is not: the worker has not downloaded it yet
+      await told(p, 31)
+      await told(p, 32)                                          // told, yet not in the cache (it was cleared)
       expect(p.delay()).toBe(CACHE_RETRY_MS)
+      e.st.have.add(32)
       await p.run()
-      expect(p.delay()).toBe(CACHE_RETRY_MS)
-      e.st.have.add(32)                                          // the worker's download lands in the cache
-      await p.run()
-      expect(e.paths()).toEqual([31, 32, 32, 32].map(name))
+      await p.feed.settledRead()
+      expect(e.paths()).toEqual([31, 32, 32].map(name))
+      expect(p.delay()).toBe(null)
       expect(onlyCache(e)).toBe(true)                            // a miss never turns into a download
       expect(e.st.net).toBe(0)
       expect(p.feed.status()).toMatchObject({ answered: 2, pauses: 0, frames: 2, breaks: 0 })
     })
   }
 
-  it('C3 a minute never cached is given up after a bounded number of looks, never downloaded; then the feed pauses', async () => {
-    const e = cache({ have: [31] })
-    const p = page(e, at(32, 20), { cacheOnly: true })
+  it('C3 two misses: the minute is given up, never downloaded, the feed pauses; told again after the pause, it reads', async () => {
+    expect(CACHE_RETRIES).toBe(1)
+    const e = cache({ have: [31, 36] })
+    const p = page(e, at(32, 1), { cacheOnly: true })
     p.feed.start()
-    await p.run()
-    for (let i = 0; i <= CACHE_RETRIES; i++) await p.run()
-    expect(e.asked.filter((a) => a.path === name(32))).toHaveLength(CACHE_RETRIES + 1)
+    await told(p, 31)
+    await told(p, 32)
+    await p.run()                                                // the one retry
+    await p.feed.settledRead()
+    expect(e.asked.filter((a) => a.path === name(32))).toHaveLength(2)
+    expect(p.delay()).toBe(null)                                 // given up: no third look
     expect(p.feed.status().pausedUntil).toBe(p.clock.ms + FAIL_PAUSE_MS)
-    await p.runUntil(at(92, 20))                                 // one hour with nothing in the cache
-    expect(e.asked.length).toBeLessThanOrEqual(6 * (CACHE_RETRIES + 1))
+    await told(p, 33)                                            // paused: told, and nothing is read
+    expect(e.asked).toHaveLength(3)
+    await told(p, 36)                                            // 10:07:08: the pause is over
+    expect(e.paths()).toEqual([31, 32, 32, 36].map(name))
     expect(onlyCache(e)).toBe(true)
     expect(e.st.net).toBe(0)
+    expect(p.feed.status()).toMatchObject({ pauses: 0, pausedUntil: 0, breaks: 1 })
+  })
+
+  it('C4 told while a poll may not go: hidden, outside the session, nothing to feed, killed: no read', async () => {
+    const e = cache({ have: [-1, 31, 32, 33, 34] })
+    const p = page(e, at(32, 1), { cacheOnly: true })
+    p.feed.start()
+    p.env.visible = false
+    await told(p, 31)
+    expect(e.asked).toEqual([])                                  // hidden
+    p.env.visible = true
+    p.clock.ms = at(0, 8); p.env.tell(-1); await p.feed.settledRead()
+    expect(e.asked).toEqual([])                                  // 09:29 is not a regular-session minute
+    const q = page(cache({ have: [31] }), at(32, 1), { cacheOnly: true, hold: false })
+    q.feed.start()
+    await told(q, 31)
+    expect(q.feed.status()).toMatchObject({ requests: 0, waiting: true, told: 1 })   // nothing to feed
+    await told(p, 32)
+    expect(e.paths()).toEqual([name(32)])                        // (the control: it does read when it may)
+    document.cookie = 'uct_chart_speed=0; path=/'
+    await told(p, 33)
+    expect(e.paths()).toEqual([name(32)])                        // killed...
+    expect(p.feed.status()).toMatchObject({ running: false, stopped: 'killed', listening: false })
+    expect(p.env.channel.closed).toBe(true)                      // ...and it stopped listening for good
+    expect(p.env.channel.onmessage).toBe(null)
+  })
+
+  it('C5 anything else on the channel is ignored; with no BroadcastChannel nothing is read', async () => {
+    const e = cache({ have: [31, 32] })
+    const p = page(e, at(32, 1), { cacheOnly: true })
+    p.feed.start()
+    p.clock.ms = at(32, 8)
+    for (const bad of [{ type: 'event' }, { day: 20261110 }, { seq: 361.5 }, { hhmm: '0959' }, { day: 'today' }, { minute: 'x' }]) p.env.tell(31, bad)
+    p.env.channel.onmessage?.({ data: null })
+    p.env.channel.onmessage?.({})
+    await p.feed.settledRead()
+    expect(e.asked).toEqual([])
+    expect(p.feed.status().told).toBe(0)
+    const q = page(cache({ have: [31] }), at(32, 1), { cacheOnly: true, makeChannel: () => null })
+    q.feed.start()
+    expect(q.delay()).toBe(null)
+    expect(q.feed.status()).toMatchObject({ running: true, listening: false, requests: 0 })
+    const r = page(cache({ have: [31] }), at(32, 1), { cacheOnly: true, makeChannel: () => { throw new Error('no channel') } })
+    r.feed.start()
+    expect(r.feed.status()).toMatchObject({ listening: false, requests: 0 })
   })
 })
 

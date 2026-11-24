@@ -117,6 +117,8 @@ export function createMinuteFrameConsumer({
   const dly = { epoch: null, knownStart: false, seen: false, ok: false }
   /** tailOnly: the seq being asked for and how often it was not there. */
   const tail = { want: null, tries: 0 }
+  /** askMinute: the reads asked so far, one after the other. */
+  let asking = Promise.resolve()
 
   const visible = () => {
     // A gate that THROWS: the device store's consumer goes on as it always did (its gate is only "is a tab visible").
@@ -150,7 +152,7 @@ export function createMinuteFrameConsumer({
 
   /** Apply one decoded frame (or a refused one: `{ refused: true, ...header }`) after checking it follows what
    *  this device holds. */
-  function applyChecked(f) {
+  function applyChecked(f, file = false) {
     const fd = `${Math.floor(f.day / 10000)}-${String(Math.floor(f.day / 100) % 100).padStart(2, '0')}-${String(f.day % 100).padStart(2, '0')}`
     if (fd !== day) startDay(fd)                                     // a frame of another day starts it
     if (lastSeq != null && f.seq <= lastSeq) return false            // already applied
@@ -192,7 +194,9 @@ export function createMinuteFrameConsumer({
     // withAv: the frame carried the vendor's accumulated day volume (FLAG_AV); the device store's forming
     // daily bar is painted only when every frame of the day did (deviceStore/forming.js). dailyOk: the DAILY
     // rows this device holds are the server's current ones (see the header).
-    sink.frameDone?.({ day, seq: f.seq, minute: f.minute, withAv: !f.refused && !!f.withAv, dailyOk: dly.ok })
+    // file: this frame was read as ITS OWN minute file (a step, the catch-up's minute files), not replayed from
+    // today.bin. Only such a minute is in the browser's HTTP cache under its own URL (lib/minuteFrames/applied.js).
+    sink.frameDone?.({ day, seq: f.seq, minute: f.minute, withAv: !f.refused && !!f.withAv, dailyOk: dly.ok, file: file === true })
     return true
   }
 
@@ -254,7 +258,7 @@ export function createMinuteFrameConsumer({
     if (target - from + 1 > maxMinuteFetches) from = target - maxMinuteFetches + 1
     for (let s = from; s <= target; s++) {
       const f = await fetchFrame(s)
-      if (f) applyChecked(f)        // a seq that is not there becomes a gap when the next one lands
+      if (f) applyChecked(f, true)  // a seq that is not there becomes a gap when the next one lands
     }
     return { current: lastSeq != null && lastSeq >= target }
   }
@@ -290,7 +294,7 @@ export function createMinuteFrameConsumer({
       if (++tail.tries > tailRetries) return { current: true }
       throw e
     }
-    if (f) { applyChecked(f); return { current: true } }
+    if (f) { applyChecked(f, true); return { current: true } }
     // not there yet: asked again a bounded number of times, then this minute is given up (the next one is a new run)
     return ++tail.tries <= tailRetries ? { retry: true } : { current: true }
   }
@@ -304,7 +308,7 @@ export function createMinuteFrameConsumer({
     if (due < 0 || lastSeq >= due) return { current: true }
     if (due - lastSeq > 1) return catchUp()             // more than one behind: let head decide
     const f = await fetchFrame(lastSeq + 1)
-    if (f) { applyChecked(f); return { current: true } }
+    if (f) { applyChecked(f, true); return { current: true } }
     return { retry: true }
   }
 
@@ -382,6 +386,25 @@ export function createMinuteFrameConsumer({
     /** Take the next step now instead of at its timer (the page is visible again). Nothing while a step is in flight
      *  or when stopped. */
     wake() { if (running && !busy) schedule(0) },
+    /**
+     * Read ONE minute file because the caller was TOLD it is there (data/barStore/minuteFeed.js with the device store
+     * on: lib/minuteFrames/applied.js), and apply it through the same check as every other frame. No schedule, no
+     * retry, no timer: a consumer used this way is never started. One read at a time, in the order asked. Resolves
+     * { current: true } (applied, or already held), { missing: true } (a 404); rejects when the read failed (a cache-only
+     * miss, a 5xx, damaged bytes).
+     */
+    askMinute(d, seq) {
+      const run = asking.then(async () => {
+        if (d !== day) startDay(d)
+        if (lastSeq != null && seq <= lastSeq) return { current: true }
+        const f = await fetchFrame(seq)
+        if (!f) return { missing: true }
+        applyChecked(f, true)
+        return { current: true }
+      })
+      asking = run.catch(() => {})
+      return run
+    },
     /** Apply one already-decoded frame (tests, or a frame the device got another way). */
     applyFrame: (f) => applyChecked(f),
     status: () => ({ day, lastSeq, running, ...st, gaps: st.gaps.map((g) => ({ ...g })), rollup: rollup.stats() }),
