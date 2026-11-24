@@ -118,7 +118,7 @@ const effect = {
 }
 
 for (const v2 of [false, true]) describe(`G1/G2 target gate [routing ${v2 ? 'v2' : 'v1'}]`, () => {
-  beforeEach(async () => { p = setupPanel(); _resetTurns(); await routing(v2) })
+  beforeEach(async () => { p = setupPanel({ routingV2: v2 }); _resetTurns(); await routing(v2) })
   afterEach(() => { vi.restoreAllMocks(); cleanup() })
   const say = async (m, t) => { expect(routingV2Active()).toBe(v2); return m.say(t) }
   const only0 = SLICE === 0 ? it : it.skip
@@ -304,7 +304,7 @@ for (const v2 of [false, true]) describe(`G1/G2 target gate · first turn after 
   beforeEach(async () => {
     wavesAsked = 0
     _setTerminalWavesImportForTest(() => { wavesAsked += 1; return new Promise(() => {}) })   // never resolves during the turn
-    p = setupPanel(); _resetTurns(); await routing(v2)
+    p = setupPanel({ routingV2: v2 }); _resetTurns(); await routing(v2)
   })
   afterEach(() => { _resetTerminalWavesLoaderForTest(); vi.restoreAllMocks(); cleanup() })
   const say = async (m, t) => { expect(routingV2Active()).toBe(v2); return m.say(t) }
