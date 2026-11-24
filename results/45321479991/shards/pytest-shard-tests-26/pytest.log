@@ -1,0 +1,194 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  1%]
+....................F................................................... [  2%]
+........................................................................ [  3%]
+..................................................................
+[txn latency, in-process, n=200] webhook->subscriber p50=1.71ms p95=2.22ms p99=2.78ms max=3.00ms | ack incl. journal fsync p50=1.93ms p95=2.41ms | store commit last=0.66ms
+...... [  4%]
+........................................................................ [  5%]
+........................................................................ [  6%]
+........................................................................ [  7%]
+........................................................................ [  8%]
+........................................................................ [  9%]
+........................................................................ [ 10%]
+........................................................................ [ 11%]
+........................................................................ [ 12%]
+........................................................................ [ 13%]
+........................................................................ [ 14%]
+........................................................................ [ 15%]
+........................................................................ [ 16%]
+........................................................................ [ 17%]
+........................................................................ [ 18%]
+........................................................................ [ 19%]
+........................................................................ [ 20%]
+...............................................................F........ [ 21%]
+........................................................................ [ 22%]
+........................................................................ [ 23%]
+........................................................................ [ 24%]
+........................................................................ [ 25%]
+........................................................................ [ 26%]
+........................................................................ [ 27%]
+........................................................................ [ 28%]
+........................................................................ [ 29%]
+........................................................................ [ 30%]
+........................................................................ [ 31%]
+........................................................................ [ 32%]
+........................................................................ [ 33%]
+........................................................................ [ 34%]
+........................................................................ [ 35%]
+........................................................................ [ 36%]
+........................................................................ [ 37%]
+........................................................................ [ 38%]
+........................................................................ [ 39%]
+........................................................................ [ 40%]
+........................................................................ [ 41%]
+........................................................................ [ 42%]
+........................................................................ [ 43%]
+........................................................................ [ 44%]
+........................................................................ [ 45%]
+........................................................................ [ 46%]
+........................................................................ [ 47%]
+........................................................................ [ 48%]
+........................................................................ [ 49%]
+........................................................................ [ 50%]
+........................................................................ [ 51%]
+........................................................................ [ 52%]
+........................................................................ [ 53%]
+........................................................................ [ 54%]
+........................................................................ [ 55%]
+........................................................................ [ 56%]
+........................................................................ [ 57%]
+........................................................................ [ 58%]
+........................................................................ [ 59%]
+........................................................................ [ 60%]
+........................................................................ [ 61%]
+........................................................................ [ 63%]
+........................................................................ [ 64%]
+........................................................................ [ 65%]
+........................................................................ [ 66%]
+........................................................................ [ 67%]
+........................................................................ [ 68%]
+........................................................................ [ 69%]
+........................................................................ [ 70%]
+........................................................................ [ 71%]
+........................................................................ [ 72%]
+........................................................................ [ 73%]
+........................................................................ [ 74%]
+........................................................................ [ 75%]
+........................................................................ [ 76%]
+........................................................................ [ 77%]
+........................................................................ [ 78%]
+........................................................................ [ 79%]
+........................................................................ [ 80%]
+........................................................................ [ 81%]
+........................................................................ [ 82%]
+........................................................................ [ 83%]
+........................................................................ [ 84%]
+........................................................................ [ 85%]
+........................................................................ [ 86%]
+........................................................................ [ 87%]
+........................................................................ [ 88%]
+........................................................................ [ 89%]
+........................................................................ [ 90%]
+........................................................................ [ 91%]
+........................................................................ [ 92%]
+........................................................................ [ 93%]
+........................................................................ [ 94%]
+........................................................................ [ 95%]
+........................................................................ [ 96%]
+........................................................................ [ 97%]
+........................................................................ [ 98%]
+........................................................................ [ 99%]
+.............................                                            [100%]
+=================================== FAILURES ===================================
+____ test_the_warmer_derives_the_archive_in_the_background_and_never_raises ____
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7b61050d7200>
+
+    async def test_the_warmer_derives_the_archive_in_the_background_and_never_raises(monkeypatch):
+        monkeypatch.setattr(arc, "WARM_ENABLED", True)
+        monkeypatch.setattr(arc, "WARM_PAUSE_S", 0)
+        await _fill_day(n=60)
+        await _day({"date": DAY.isoformat(), "limit": 5})
+        assert arc.warm_wait(10)
+>       assert arc.cache_stats()["derived_full"] == len({_content(i) for i in range(60)})
+E       AssertionError: assert 43 == 51
+E        +  where 51 = len({('CRYPTO', 'TXNews1'), ('SYNTHETIC AAPL REPORTS THIRD QUARTER RESULTS TEST 14', 'TXNews1'), ('SYNTHETIC AAPL REPORTS ...S THIRD QUARTER RESULTS TEST 26', 'TXNews1'), ('SYNTHETIC AAPL REPORTS THIRD QUARTER RESULTS TEST 32', 'TXNews1'), ...})
+
+tests/test_trade_exchange_news_archive.py:404: AssertionError
+__________________ test_the_shipped_thresholds_have_not_moved __________________
+
+    def test_the_shipped_thresholds_have_not_moved():
+        """⭐ THE TABLE IS ONLY TRUE OF THESE VALUES. Both sides, either direction:
+        a knob added, removed or changed means the measurement describes detectors
+        that are no longer running."""
+        drift = {}
+        for key, want in MEASURED_AGAINST.items():
+            got_engine = _module_constants(
+                "api/services/pattern_engine/detectors/" + ENGINE_SOURCE[key])
+            rel, prefix = BASE_SOURCE[key]
+            got_base = _module_constants(rel, prefix)
+            if got_engine != want["engine"]:
+                drift[f"{key}/engine"] = sorted(
+                    set(got_engine.items()) ^ set(want["engine"].items()))
+            if got_base != want["base"]:
+                drift[f"{key}/base"] = sorted(
+                    set(got_base.items()) ^ set(want["base"].items()))
+>       assert not drift, (
+            "these thresholds changed since the agreement table was measured:\n"
+            + "\n".join(f"  {k}: {v}" for k, v in sorted(drift.items()))
+            + "\n\nRE-MEASURE. Update both the docstring table and "
+              "MEASURED_AGAINST — never one without the other.")
+E       AssertionError: these thresholds changed since the agreement table was measured:
+E           vcp/engine: [('_TREND_TEMPLATE_SMA_LONG', 200), ('_TREND_TEMPLATE_SMA_SHORT', 150)]
+E         
+E         RE-MEASURE. Update both the docstring table and MEASURED_AGAINST — never one without the other.
+E       assert not {'vcp/engine': [('_TREND_TEMPLATE_SMA_LONG', 200), ('_TREND_TEMPLATE_SMA_SHORT', 150)]}
+
+tests/test_two_engines_do_not_agree.py:596: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+tests/test_trade_exchange_news_receiver_lifecycle.py::test_startup_is_fast_and_answers_on_both_ip_families
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/websockets/legacy/__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+    warnings.warn(  # deprecated in 14.0 - 2024-11-09
+
+tests/test_trade_exchange_news_receiver_lifecycle.py::test_startup_is_fast_and_answers_on_both_ip_families
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/uvicorn/protocols/websockets/websockets_impl.py:17: DeprecationWarning: websockets.server.WebSocketServerProtocol is deprecated
+    from websockets.server import WebSocketServerProtocol
+
+tests/test_trade_exchange_news_stream.py::test_the_stream_path_is_gzip_exempt
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_trader_blocks_no_note_door.py::test_the_writer_derivation_reaches_the_floor
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+tests/test_uct_agent_qa_member_refused.py: 20 warnings
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:484: DeprecationWarning: Setting per-request cookies=<...> is being deprecated, because the expected behaviour on cookie persistence is ambiguous. Set cookies directly on the client instance instead.
+    return super().request(
+
+tests/test_uct_agent_v2_cost_measure.py::test_the_flagship_worst_case_is_over_the_cap_and_may_not_grow_while_v2_is_off
+  tests/test_uct_agent_v2_cost_measure.py:97: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    def test_the_flagship_worst_case_is_over_the_cap_and_may_not_grow_while_v2_is_off(record_property):
+
+tests/test_uct_agent_v2_cost_measure.py::test_the_flagship_worst_case_is_over_the_cap_and_may_not_grow_while_v2_is_off
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_uct_agent_v2_cost_measure.py:114: UserWarning: planner v2 flagship worst case $0.3641 is over the $0.25 cap: v2 cannot be enabled until an owner decision
+    warnings.warn(f"planner v2 flagship worst case ${r['worst_turn_usd']:.4f} is over the ${v2.DEFAULT_TURN_USD} cap: "
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+FAILED tests/test_trade_exchange_news_archive.py::test_the_warmer_derives_the_archive_in_the_background_and_never_raises - AssertionError: assert 43 == 51
+ +  where 51 = len({('CRYPTO', 'TXNews1'), ('SYNTHETIC AAPL REPORTS THIRD QUARTER RESULTS TEST 14', 'TXNews1'), ('SYNTHETIC AAPL REPORTS ...S THIRD QUARTER RESULTS TEST 26', 'TXNews1'), ('SYNTHETIC AAPL REPORTS THIRD QUARTER RESULTS TEST 32', 'TXNews1'), ...})
+FAILED tests/test_two_engines_do_not_agree.py::test_the_shipped_thresholds_have_not_moved - AssertionError: these thresholds changed since the agreement table was measured:
+    vcp/engine: [('_TREND_TEMPLATE_SMA_LONG', 200), ('_TREND_TEMPLATE_SMA_SHORT', 150)]
+  
+  RE-MEASURE. Update both the docstring table and MEASURED_AGAINST — never one without the other.
+assert not {'vcp/engine': [('_TREND_TEMPLATE_SMA_LONG', 200), ('_TREND_TEMPLATE_SMA_SHORT', 150)]}
+2 failed, 7083 passed, 27 warnings in 628.49s (0:10:28)

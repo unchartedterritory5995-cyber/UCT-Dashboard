@@ -1,0 +1,92 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  6%]
+........................................................................ [ 12%]
+........................................................................ [ 18%]
+........................................................................ [ 24%]
+........................................................................ [ 30%]
+........................................................................ [ 36%]
+........................................................................ [ 43%]
+........................................................................ [ 49%]
+........................................................................ [ 55%]
+........................................................................ [ 61%]
+........................................................................ [ 67%]
+........................................................................ [ 73%]
+............[mem] rss_mb=1114.1 threads=59
+[darkpool_agg] prewarm: cold windows [1, 5, 20, 60, 90, None] — building in background
+[darkpool_agg] days=90 all=False rows=4516 tickers=1250 dates=3 took=2097ms
+[darkpool_agg] days=60 all=False rows=4516 tickers=1250 dates=3 took=477ms
+...............[darkpool_agg] days=5 all=False rows=4516 tickers=1250 dates=3 took=318ms
+............................................. [ 80%]
+........................................................................ [ 86%]
+........................................................................ [ 92%]
+........................................................................ [ 98%]
+................                                                         [100%]
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+tests/test_spa_head_reachability.py::test_head_on_the_root_is_not_a_405
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_single_authority_rails.py::test_no_rolling_subtract_moving_average_survives_in_the_backend
+tests/test_single_authority_rails.py::test_every_rolling_shape_exemption_is_live_and_one_sentence
+tests/test_single_authority_rails.py::test_the_former_setup_history_exemption_is_gone_and_baseline_does_not_match
+tests/test_single_authority_rails.py::test_the_zero_movement_rsi_decision_is_made_in_exactly_one_function
+tests/test_single_authority_rails.py::test_no_module_carries_atr_pct_as_a_second_name_for_adr_pct
+tests/test_single_authority_rails.py::test_the_rs_lookbacks_and_weights_live_in_exactly_one_module
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+tests/test_spa_head_reachability.py::test_head_on_the_root_is_not_a_405
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_reconciliation.py:483: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _state["started_at"] = datetime.utcnow().isoformat() + "Z"
+
+tests/test_spa_head_reachability.py: 12 warnings
+tests/test_sr_levels_member_path.py: 53 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3492: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_spa_head_reachability.py: 12 warnings
+tests/test_sr_levels_member_path.py: 53 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3495: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=lookback)).strftime("%Y-%m-%d")
+
+tests/test_spa_head_reachability.py::test_head_on_the_root_is_not_a_405
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/journal_two/note_connectors/providers/obsidian.py:964: SyntaxWarning: invalid escape sequence '\`'
+    taken off, cut at the first `?` or `#`, percent-decoded ONCE and every `\` read as `/`
+
+tests/test_sr_levels_member_path.py::test_the_serving_adapter_reproduces_the_lab_on_every_case_in_frame
+tests/test_sr_levels_member_path.py::test_the_serving_adapter_reproduces_the_lab_on_every_case_in_frame
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:539: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    d = datetime.utcnow()
+
+tests/test_sr_levels_member_path.py::test_the_serving_adapter_reproduces_the_lab_on_every_case_in_frame
+tests/test_sr_levels_member_path.py::test_the_serving_adapter_reproduces_the_lab_on_every_case_in_frame
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:2856: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d")
+
+tests/test_sr_levels_member_path.py::test_the_serving_adapter_reproduces_the_lab_on_every_case_in_frame
+tests/test_sr_levels_member_path.py::test_the_serving_adapter_reproduces_the_lab_on_every_case_in_frame
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:2857: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date   = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_sr_levels_parity.py: 3639 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/rs_ranking.py:158: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_sr_levels_parity.py: 3639 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/rs_ranking.py:159: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=200)).strftime("%Y-%m-%d")
+
+tests/test_sr_levels_parity.py::test_control_moving_one_parameter_goes_red[VIS_GAP-0.1]
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_reconciliation.py:457: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _state["last_cycle_at"] = datetime.utcnow().isoformat() + "Z"
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+1168 passed, 7426 warnings in 836.74s (0:13:56)

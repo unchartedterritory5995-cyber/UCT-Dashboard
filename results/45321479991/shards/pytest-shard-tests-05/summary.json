@@ -1,0 +1,16 @@
+{
+  "suite": "pytest",
+  "collected": 3342,
+  "passed": 3338,
+  "failed": 3,
+  "errored": 0,
+  "skipped": 1,
+  "wall_s": 795.89,
+  "failed_files": [
+    "tests/test_calendar_week_contract.py",
+    "tests/test_calendar_week_post.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "3 failed, 3338 passed, 1 skipped, 1 xfailed, 247 warnings in 795.89s (0:13:15)",
+  "ok": true
+}

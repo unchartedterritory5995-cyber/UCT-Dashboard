@@ -1,0 +1,220 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  2%]
+........................................................................ [  4%]
+........................................................................ [  7%]
+........................................................................ [  9%]
+........................................................................ [ 11%]
+........................................................................ [ 14%]
+........................................................................ [ 16%]
+........................................................................ [ 19%]
+........................................................................ [ 21%]
+........................................................................ [ 23%]
+........................................................................ [ 26%]
+........................................................................ [ 28%]
+........................................................................ [ 30%]
+........................................................................ [ 33%]
+........................................................................ [ 35%]
+........................................................................ [ 38%]
+........................................................................ [ 40%]
+........................................................................ [ 42%]
+........................................................................ [ 45%]
+........................................................................ [ 47%]
+........................................................................ [ 49%]
+........................................................................ [ 52%]
+........................................................................ [ 54%]
+........................................................................ [ 57%]
+........................................................................ [ 59%]
+........................................................................ [ 61%]
+..............................F......................................... [ 64%]
+........................................................................ [ 66%]
+.........................................[activity] Failed to log j2:notebook_writing_help_used for u1: FOREIGN KEY constraint failed
+............................... [ 68%]
+........................................................................ [ 71%]
+............................................s........................... [ 73%]
+........................................................................ [ 76%]
+........................................................................ [ 78%]
+........................................................................ [ 80%]
+........................................................................ [ 83%]
+........................................................................ [ 85%]
+........................................................................ [ 88%]
+........................................................................ [ 90%]
+........................................................................ [ 92%]
+........................................................................ [ 95%]
+........................................................................ [ 97%]
+........................................................................ [ 99%]
+...                                                                      [100%]
+=================================== FAILURES ===================================
+________ test_every_sha_cited_in_every_program_doc_resolves_against_git ________
+
+tool = <module 'verify_doc_shas' from '/home/runner/work/UCT-Dashboard/UCT-Dashboard/tools/verify_doc_shas.py'>
+
+    def test_every_sha_cited_in_every_program_doc_resolves_against_git(tool):
+        _found, bad, _phantom = tool.scan(_ROOT)
+        if bad:
+            lines = []
+            for sha, sites in bad:
+                for rel, line in sites:
+                    lines.append(f"  {sha}  ->  {rel}:{line}")
+>           pytest.fail(
+                "SHA(s) cited in program docs that git cannot resolve.\n"
+                "Resolve each one before it is written, or add it to FOREIGN_REPO "
+                "(another repo's SHA) or QUOTED_DEAD (a tombstoned fabrication) with a "
+                "reason, in tools/verify_doc_shas.py:\n" + "\n".join(lines))
+E           Failed: SHA(s) cited in program docs that git cannot resolve.
+E           Resolve each one before it is written, or add it to FOREIGN_REPO (another repo's SHA) or QUOTED_DEAD (a tombstoned fabrication) with a reason, in tools/verify_doc_shas.py:
+E             026a6693f  ->  docs/terminal-research/reports/SESSION_REPORT_2026-09-17_2.md:77
+E             026a6693f  ->  docs/terminal-research/reports/SESSION_REPORT_2026-09-17_2.md:146
+E             043faec  ->  docs/terminal-research/COMPLETION-LEDGER.md:109
+E             087ee696  ->  docs/terminal-research/COMPLETION-LEDGER.md:269
+E             0accfee6  ->  docs/terminal-research/COMPLETION-LEDGER.md:147
+E             0df595b83  ->  docs/terminal-research/COMPLETION-LEDGER.md:172
+E             18a564a  ->  docs/terminal-research/COMPLETION-LEDGER.md:109
+E             25fade0  ->  docs/terminal-research/00-program-control/RESUME.md:277
+E             25fade0  ->  docs/terminal-research/00-program-control/RESUME.md:312
+E             2c7f8a520  ->  docs/terminal-research/00-program-control/readiness-test.md:18
+E             2c7f8a520  ->  docs/terminal-research/00-program-control/readiness-test.md:19
+E             2c7f8a520  ->  docs/terminal-research/00-program-control/readiness-test.md:60
+E             2c7f8a520  ->  docs/terminal-research/COMPLETION-LEDGER.md:74
+E             2e8cbe5f1  ->  docs/terminal-research/00-program-control/readiness-test.md:17
+E             2e8cbe5f1  ->  docs/terminal-research/00-program-control/readiness-test.md:18
+E             2e8cbe5f1  ->  docs/terminal-research/00-program-control/readiness-test.md:52
+E             2e8cbe5f1  ->  docs/terminal-research/COMPLETION-LEDGER.md:74
+E             33b9148  ->  docs/terminal-research/COMPLETION-LEDGER.md:109
+E             37cba8111  ->  docs/terminal-research/00-program-control/LEDGER.md:2899
+E             3a15625  ->  docs/terminal-research/00-program-control/RESUME.md:313
+E             3fea34f  ->  docs/terminal-research/COMPLETION-LEDGER.md:109
+E             428caa2cf  ->  docs/terminal-research/COMPLETION-LEDGER.md:155
+E             47013a182  ->  docs/terminal-research/COMPLETION-LEDGER.md:267
+E             4b18a1a58  ->  docs/terminal-research/COMPLETION-LEDGER.md:138
+E             4fcaafc60  ->  docs/terminal-research/00-program-control/readiness-test.md:16
+E             4fcaafc60  ->  docs/terminal-research/00-program-control/readiness-test.md:17
+E             4fcaafc60  ->  docs/terminal-research/00-program-control/readiness-test.md:44
+E             4fcaafc60  ->  docs/terminal-research/COMPLETION-LEDGER.md:74
+E             5a16a10e9  ->  docs/terminal-research/COMPLETION-LEDGER.md:152
+E             5a905e30e  ->  docs/terminal-research/00-program-control/readiness-test.md:14
+E             5d1885576  ->  docs/terminal-research/00-program-control/LEDGER.md:4489
+E             614a72e  ->  docs/terminal-research/00-program-control/RESUME.md:278
+E             6c187ca6c  ->  docs/terminal-research/COMPLETION-LEDGER.md:228
+E             6d2dfa952  ->  docs/terminal-research/RESUME-HERE.md:118
+E             74deefa87  ->  docs/terminal-research/COMPLETION-LEDGER.md:123
+E             80080e7ac  ->  docs/terminal-research/COMPLETION-LEDGER.md:171
+E             801fd1e  ->  docs/terminal-research/00-program-control/RESUME.md:313
+E             801fd1e  ->  docs/terminal-research/COMPLETION-LEDGER.md:190
+E             8145f55  ->  docs/terminal-research/COMPLETION-LEDGER.md:109
+E             89c138c  ->  docs/terminal-research/10-roadmap/backlog.md:430
+E             906c11039  ->  docs/terminal-research/00-program-control/readiness-test.md:15
+E             906c11039  ->  docs/terminal-research/00-program-control/readiness-test.md:16
+E             906c11039  ->  docs/terminal-research/00-program-control/readiness-test.md:31
+E             906c11039  ->  docs/terminal-research/00-program-control/readiness-test.md:42
+E             906c11039  ->  docs/terminal-research/COMPLETION-LEDGER.md:74
+E             92c440478  ->  docs/terminal-research/00-program-control/readiness-test.md:14
+E             92c440478  ->  docs/terminal-research/00-program-control/readiness-test.md:15
+E             92c440478  ->  docs/terminal-research/00-program-control/readiness-test.md:25
+E             92c440478  ->  docs/terminal-research/COMPLETION-LEDGER.md:74
+E             94d46235  ->  docs/terminal-research/10-roadmap/evidence/2026-10-02-quiet-window/results.md:11
+E             9e099427a  ->  docs/terminal-research/COMPLETION-LEDGER.md:123
+E             a0a7e363f  ->  docs/terminal-research/10-roadmap/evidence/2026-09-25-s7-arming-inventory/results.md:3
+E             a3eecd9  ->  docs/terminal-research/COMPLETION-LEDGER.md:109
+E             ab70b21ac  ->  docs/terminal-research/COMPLETION-LEDGER.md:170
+E             b31109ba8  ->  docs/terminal-research/RESUME-HERE.md:117
+E             b8eb51a0  ->  docs/terminal-research/10-roadmap/evidence/2026-10-02-quiet-window/results.md:49
+E             bcdadacb  ->  docs/terminal-research/COMPLETION-LEDGER.md:112
+E             db45b154  ->  docs/terminal-research/10-roadmap/evidence/2026-10-02-quiet-window/results.md:47
+E             dd326973b  ->  docs/terminal-research/COMPLETION-LEDGER.md:171
+E             de2726473  ->  docs/terminal-research/00-program-control/LEDGER.md:3945
+E             de2726473  ->  docs/terminal-research/00-program-control/RESUME.md:839
+E             f26cf6d4e  ->  docs/terminal-research/COMPLETION-LEDGER.md:123
+E             f311b2992  ->  docs/terminal-research/00-program-control/MASTER_CHECKLIST.md:7
+E             fbe983304  ->  docs/terminal-research/COMPLETION-LEDGER.md:130
+E             fbe983304  ->  docs/terminal-research/COMPLETION-LEDGER.md:269
+
+tests/test_program_doc_shas_resolve.py:84: Failed
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_pine_runtime_switch_on.py::test_D1_the_default_is_pinned_in_SOURCE_not_only_in_behaviour
+tests/test_pine_strategy_backtest.py::test_E3_walks_the_new_route_and_it_cannot_reach_the_sweep
+tests/test_placeholder_stop_is_one_definition.py::test_only_ONE_module_defines_a_placeholder_stop_test
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_public_note_headers.py:206: app/dist not built here, so the real app registers no SPA catch-all; legs (1) and (2) above carry the proof (the gate builds dist and runs this leg)
+FAILED tests/test_program_doc_shas_resolve.py::test_every_sha_cited_in_every_program_doc_resolves_against_git - Failed: SHA(s) cited in program docs that git cannot resolve.
+Resolve each one before it is written, or add it to FOREIGN_REPO (another repo's SHA) or QUOTED_DEAD (a tombstoned fabrication) with a reason, in tools/verify_doc_shas.py:
+  026a6693f  ->  docs/terminal-research/reports/SESSION_REPORT_2026-09-17_2.md:77
+  026a6693f  ->  docs/terminal-research/reports/SESSION_REPORT_2026-09-17_2.md:146
+  043faec  ->  docs/terminal-research/COMPLETION-LEDGER.md:109
+  087ee696  ->  docs/terminal-research/COMPLETION-LEDGER.md:269
+  0accfee6  ->  docs/terminal-research/COMPLETION-LEDGER.md:147
+  0df595b83  ->  docs/terminal-research/COMPLETION-LEDGER.md:172
+  18a564a  ->  docs/terminal-research/COMPLETION-LEDGER.md:109
+  25fade0  ->  docs/terminal-research/00-program-control/RESUME.md:277
+  25fade0  ->  docs/terminal-research/00-program-control/RESUME.md:312
+  2c7f8a520  ->  docs/terminal-research/00-program-control/readiness-test.md:18
+  2c7f8a520  ->  docs/terminal-research/00-program-control/readiness-test.md:19
+  2c7f8a520  ->  docs/terminal-research/00-program-control/readiness-test.md:60
+  2c7f8a520  ->  docs/terminal-research/COMPLETION-LEDGER.md:74
+  2e8cbe5f1  ->  docs/terminal-research/00-program-control/readiness-test.md:17
+  2e8cbe5f1  ->  docs/terminal-research/00-program-control/readiness-test.md:18
+  2e8cbe5f1  ->  docs/terminal-research/00-program-control/readiness-test.md:52
+  2e8cbe5f1  ->  docs/terminal-research/COMPLETION-LEDGER.md:74
+  33b9148  ->  docs/terminal-research/COMPLETION-LEDGER.md:109
+  37cba8111  ->  docs/terminal-research/00-program-control/LEDGER.md:2899
+  3a15625  ->  docs/terminal-research/00-program-control/RESUME.md:313
+  3fea34f  ->  docs/terminal-research/COMPLETION-LEDGER.md:109
+  428caa2cf  ->  docs/terminal-research/COMPLETION-LEDGER.md:155
+  47013a182  ->  docs/terminal-research/COMPLETION-LEDGER.md:267
+  4b18a1a58  ->  docs/terminal-research/COMPLETION-LEDGER.md:138
+  4fcaafc60  ->  docs/terminal-research/00-program-control/readiness-test.md:16
+  4fcaafc60  ->  docs/terminal-research/00-program-control/readiness-test.md:17
+  4fcaafc60  ->  docs/terminal-research/00-program-control/readiness-test.md:44
+  4fcaafc60  ->  docs/terminal-research/COMPLETION-LEDGER.md:74
+  5a16a10e9  ->  docs/terminal-research/COMPLETION-LEDGER.md:152
+  5a905e30e  ->  docs/terminal-research/00-program-control/readiness-test.md:14
+  5d1885576  ->  docs/terminal-research/00-program-control/LEDGER.md:4489
+  614a72e  ->  docs/terminal-research/00-program-control/RESUME.md:278
+  6c187ca6c  ->  docs/terminal-research/COMPLETION-LEDGER.md:228
+  6d2dfa952  ->  docs/terminal-research/RESUME-HERE.md:118
+  74deefa87  ->  docs/terminal-research/COMPLETION-LEDGER.md:123
+  80080e7ac  ->  docs/terminal-research/COMPLETION-LEDGER.md:171
+  801fd1e  ->  docs/terminal-research/00-program-control/RESUME.md:313
+  801fd1e  ->  docs/terminal-research/COMPLETION-LEDGER.md:190
+  8145f55  ->  docs/terminal-research/COMPLETION-LEDGER.md:109
+  89c138c  ->  docs/terminal-research/10-roadmap/backlog.md:430
+  906c11039  ->  docs/terminal-research/00-program-control/readiness-test.md:15
+  906c11039  ->  docs/terminal-research/00-program-control/readiness-test.md:16
+  906c11039  ->  docs/terminal-research/00-program-control/readiness-test.md:31
+  906c11039  ->  docs/terminal-research/00-program-control/readiness-test.md:42
+  906c11039  ->  docs/terminal-research/COMPLETION-LEDGER.md:74
+  92c440478  ->  docs/terminal-research/00-program-control/readiness-test.md:14
+  92c440478  ->  docs/terminal-research/00-program-control/readiness-test.md:15
+  92c440478  ->  docs/terminal-research/00-program-control/readiness-test.md:25
+  92c440478  ->  docs/terminal-research/COMPLETION-LEDGER.md:74
+  94d46235  ->  docs/terminal-research/10-roadmap/evidence/2026-10-02-quiet-window/results.md:11
+  9e099427a  ->  docs/terminal-research/COMPLETION-LEDGER.md:123
+  a0a7e363f  ->  docs/terminal-research/10-roadmap/evidence/2026-09-25-s7-arming-inventory/results.md:3
+  a3eecd9  ->  docs/terminal-research/COMPLETION-LEDGER.md:109
+  ab70b21ac  ->  docs/terminal-research/COMPLETION-LEDGER.md:170
+  b31109ba8  ->  docs/terminal-research/RESUME-HERE.md:117
+  b8eb51a0  ->  docs/terminal-research/10-roadmap/evidence/2026-10-02-quiet-window/results.md:49
+  bcdadacb  ->  docs/terminal-research/COMPLETION-LEDGER.md:112
+  db45b154  ->  docs/terminal-research/10-roadmap/evidence/2026-10-02-quiet-window/results.md:47
+  dd326973b  ->  docs/terminal-research/COMPLETION-LEDGER.md:171
+  de2726473  ->  docs/terminal-research/00-program-control/LEDGER.md:3945
+  de2726473  ->  docs/terminal-research/00-program-control/RESUME.md:839
+  f26cf6d4e  ->  docs/terminal-research/COMPLETION-LEDGER.md:123
+  f311b2992  ->  docs/terminal-research/00-program-control/MASTER_CHECKLIST.md:7
+  fbe983304  ->  docs/terminal-research/COMPLETION-LEDGER.md:130
+  fbe983304  ->  docs/terminal-research/COMPLETION-LEDGER.md:269
+1 failed, 3025 passed, 1 skipped, 5 warnings in 434.58s (0:07:14)

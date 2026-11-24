@@ -1,0 +1,179 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  1%]
+........................................................................ [  3%]
+........................................................................ [  5%]
+........................................................................ [  7%]
+........................................................................ [  9%]
+........................................................................ [ 11%]
+........................................................................ [ 13%]
+........................................................................ [ 15%]
+........................................................................ [ 17%]
+........................................................................ [ 19%]
+........................................................................ [ 21%]
+........................................................................ [ 23%]
+........................................................................ [ 25%]
+.....................ssss............................................... [ 27%]
+........................................................................ [ 28%]
+........................................................................ [ 30%]
+........................................................................ [ 32%]
+...............ss.............ss...s.................................... [ 34%]
+........................................................................ [ 36%]
+........................................................................ [ 38%]
+........................................................................ [ 40%]
+........................................................................ [ 42%]
+........................................................................ [ 44%]
+........................................................................ [ 46%]
+........................................................................ [ 48%]
+........................................................................ [ 50%]
+........................................................................ [ 52%]
+........................................................................ [ 54%]
+........................................................................ [ 56%]
+........................................................................ [ 57%]
+........................................................................ [ 59%]
+........................................................................ [ 61%]
+........................................................................ [ 63%]
+........................................................................ [ 65%]
+............................................ssss........................ [ 67%]
+........................................................................ [ 69%]
+........................................................................ [ 71%]
+........................................................................ [ 73%]
+........................................................................ [ 75%]
+........................................................................ [ 77%]
+........................................................................ [ 79%]
+........................................................................ [ 81%]
+........................................................................ [ 83%]
+........................................................................ [ 85%]
+........................................................................ [ 86%]
+........................................................................ [ 88%]
+........................................................................ [ 90%]
+........................................................................ [ 92%]
+........................................................................ [ 94%]
+........................................................................ [ 96%]
+........................................................................ [ 98%]
+.....................................................                    [100%]
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_alert_taxonomy_regime_change_schema.py::test_the_type_IS_wired_now_that_CP3_is_signed
+tests/test_alert_taxonomy_scan_membership_change_compare.py::test_the_harness_is_the_only_caller_of_would_fire
+tests/test_alert_taxonomy_scan_membership_change_schema.py::test_scan_store_prune_has_ZERO_CALLERS_and_the_search_CAN_SEE_ONE
+tests/test_async_routes_do_not_block.py::test_no_new_async_route_that_never_awaits
+tests/test_async_routes_do_not_block.py::test_the_two_desk_diagnostics_that_stalled_the_loop_are_plain_def
+tests/test_async_routes_do_not_block.py::test_the_flow_and_dark_pool_reads_measured_stalling_the_loop_are_plain_def
+tests/test_bars_bydate_index_build.py::test_no_boot_or_request_path_starts_the_build
+tests/test_bars_extended_hours_scope.py::test_only_ONE_site_in_the_repo_asks_for_extended_hours
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+tests/test_alpha_gold_eod.py::test_render_card_returns_png
+tests/test_alpha_gold_eod.py::test_render_card_empty_day_ok
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/alpha_gold_eod.py:478: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+    for (r, g, b, a) in _logo.getdata()])
+
+tests/test_bars_clustered_snapshot.py::test_snapshot_ships_clustered_with_every_index
+tests/test_bars_clustered_snapshot.py::test_snapshot_ships_unchanged_when_disabled_or_conversion_fails
+tests/test_bars_clustered_snapshot.py::test_snapshot_ships_unchanged_when_disabled_or_conversion_fails
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_bars_clustered_snapshot.py:184: DeprecationWarning: Python 3.14 will, by default, filter extracted tar archives and reject files or modify their metadata. Use the filter argument to control this behavior.
+    tar.extractall(out)
+
+tests/test_bars_clustered_snapshot.py: 16 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/data_sync.py:326: DeprecationWarning: Python 3.14 will, by default, filter extracted tar archives and reject files or modify their metadata. Use the filter argument to control this behavior.
+    tar.extractall(dest)
+
+tests/test_bars_cold_delta_window.py::test_a_cold_ticker_does_not_reach_back_to_1969
+tests/test_bars_cold_delta_window.py::test_a_cold_window_is_small_enough_that_the_vendor_accepts_it
+tests/test_bars_cold_delta_window.py::test_a_WARM_ticker_still_gets_its_full_heal_window
+tests/test_bars_delta_gapfill.py::test_delta_intraday_restores_interior_hole_but_not_stored_bars
+tests/test_bars_delta_gapfill.py::test_delta_intraday_clean_data_only_reemits_trailing_window
+tests/test_bars_delta_gapfill.py::test_delta_intraday_killswitch_disables_gapfill
+tests/test_bars_delta_gapfill.py::test_delta_30m_resamples_from_15m
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3121: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=gap_days)).strftime("%Y-%m-%d")
+
+tests/test_bars_cold_delta_window.py::test_a_cold_ticker_does_not_reach_back_to_1969
+tests/test_bars_cold_delta_window.py::test_a_cold_window_is_small_enough_that_the_vendor_accepts_it
+tests/test_bars_cold_delta_window.py::test_a_WARM_ticker_still_gets_its_full_heal_window
+tests/test_bars_delta_gapfill.py::test_delta_intraday_restores_interior_hole_but_not_stored_bars
+tests/test_bars_delta_gapfill.py::test_delta_intraday_clean_data_only_reemits_trailing_window
+tests/test_bars_delta_gapfill.py::test_delta_intraday_killswitch_disables_gapfill
+tests/test_bars_delta_gapfill.py::test_delta_30m_resamples_from_15m
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3128: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date   = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_bars_cold_delta_window.py::test_a_cold_ticker_does_not_reach_back_to_1969
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_bars_cold_delta_window.py:62: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    assert year >= _dt.datetime.utcnow().year - 1, f"from_date {d} is unbounded"
+
+tests/test_bars_cold_delta_window.py::test_a_cold_window_is_small_enough_that_the_vendor_accepts_it
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_bars_cold_delta_window.py:72: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    span_days = (_dt.datetime.utcnow() - start).days
+
+tests/test_bars_cold_delta_window.py::test_a_WARM_ticker_still_gets_its_full_heal_window
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_bars_cold_delta_window.py:79: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    eight_days_ago = int(_dt.datetime.utcnow().timestamp()) - 8 * 86400
+
+tests/test_bars_cold_delta_window.py::test_a_WARM_ticker_still_gets_its_full_heal_window
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_bars_cold_delta_window.py:83: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    span_days = (_dt.datetime.utcnow() - start).days
+
+tests/test_bars_cold_negative_cache.py: 11 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3492: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_bars_cold_negative_cache.py: 11 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3495: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=lookback)).strftime("%Y-%m-%d")
+
+tests/test_bars_cold_negative_cache.py::test_an_INTRADAY_fetch_every_source_answered_empty_is_cached
+tests/test_bars_log_redaction_services.py::test_fetch_intraday_massive_error_log_is_redacted
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:2171: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_bars_cold_negative_cache.py::test_an_INTRADAY_fetch_every_source_answered_empty_is_cached
+tests/test_bars_log_redaction_services.py::test_fetch_intraday_massive_error_log_is_redacted
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:2172: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=lookback_days)).strftime("%Y-%m-%d")
+
+tests/test_bars_cold_negative_cache.py::test_a_REAL_but_cold_symbol_still_warms_and_its_fetch_writes_rows
+tests/test_bars_cold_negative_cache.py::test_a_REAL_but_cold_symbol_still_warms_and_its_fetch_writes_rows
+tests/test_bars_cold_negative_cache.py::test_a_REAL_but_cold_symbol_still_warms_and_its_fetch_writes_rows
+tests/test_bars_cold_negative_cache.py::test_a_REAL_but_cold_symbol_still_warms_and_its_fetch_writes_rows
+tests/test_bars_cold_negative_cache.py::test_a_REAL_but_cold_symbol_still_warms_and_its_fetch_writes_rows
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:2784: DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+    dt = datetime.utcfromtimestamp(bar["t"] / 1000)
+
+tests/test_bars_coverage.py::test_coverage_stats_probes_freshness_by_list
+tests/test_bars_data_auth.py::test_the_tier_admits_the_SERVICE_TOKEN_on_the_gated_route
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_sqlite.py:1294: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    cutoff = int((datetime.utcnow() - timedelta(days=fresh_within_days)).strftime("%Y%m%d"))
+
+tests/test_bars_data_auth.py: 50 warnings
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:484: DeprecationWarning: Setting per-request cookies=<...> is being deprecated, because the expected behaviour on cookie persistence is ambiguous. Set cookies directly on the client instance instead.
+    return super().request(
+
+tests/test_bars_ordinal_census.py::test_the_census_is_NON_EMPTY_and_names_a_module_we_can_point_at
+tests/test_bars_ordinal_census.py::test_bars_ordinal_census_matches_a_fresh_derivation
+tests/test_bars_ordinal_census.py::test_bars_ordinal_census_CAN_FAIL
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/journal_two/note_connectors/providers/obsidian.py:964: SyntaxWarning: invalid escape sequence '\`'
+    taken off, cut at the first `?` or `#`, percent-decoded ONCE and every `\` read as `/`
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [4] tests/test_ast_bar_index_shift_parity.py:50: JS-only: the listing pass
+SKIPPED [1] tests/test_ast_conformance.py:663: Task 4 has landed; this rail is superseded by --check
+SKIPPED [1] tests/test_ast_conformance.py:670: Task 5 has landed; this rail is superseded by --check
+SKIPPED [1] tests/test_ast_conformance.py:785: both lanes exist; Task 5 owns --record from here
+SKIPPED [1] tests/test_ast_conformance.py:791: the conformance log exists; --check is the real gate now
+SKIPPED [1] tests/test_ast_conformance.py:898: a guarded interpreter exists; Task 6 owns this exit code
+SKIPPED [1] tests/test_auto_draw.py:88: AUTO_DRAW_LAB_DIR unset
+SKIPPED [3] tests/test_auto_draw.py:36: AUTO_DRAW_LAB_DIR unset
+3712 passed, 13 skipped, 135 warnings in 530.54s (0:08:50)

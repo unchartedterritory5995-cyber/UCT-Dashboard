@@ -1,0 +1,15 @@
+{
+  "suite": "pytest",
+  "collected": 1811,
+  "passed": 1803,
+  "failed": 1,
+  "errored": 0,
+  "skipped": 7,
+  "wall_s": 545.88,
+  "failed_files": [
+    "tests/test_journal_two_derivation_versions.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "1 failed, 1803 passed, 7 skipped, 4 warnings in 545.88s (0:09:05)",
+  "ok": true
+}

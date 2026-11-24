@@ -1,0 +1,215 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+.....................................................F.................. [  3%]
+........................................................................ [  7%]
+........................................................................ [ 11%]
+........................................................................ [ 15%]
+........................................................................ [ 19%]
+........................................................................ [ 23%]
+........................................................................ [ 27%]
+........................................................................ [ 31%]
+........................................................................ [ 35%]
+........................................................................ [ 39%]
+........................................................................ [ 43%]
+.................................................ss..................... [ 47%]
+..........................................ssss.......................... [ 51%]
+........................................................................ [ 55%]
+........................................................................ [ 59%]
+........................................................................ [ 63%]
+........................................................................ [ 67%]
+........................
+BEFORE   200 users x  50 tickers ( 2567 distinct) cap=1000   steady-state upstream fetches=6922    tier1 hits=0     per-ticker miss=13836/16860 (82.1%)
+.
+BEFORE   250 users x  50 tickers ( 3000 distinct) cap=1000   steady-state upstream fetches=9124    tier1 hits=0     per-ticker miss=18158/21509 (84.4%)
+.
+BEFORE   200 users x 250 tickers ( 4000 distinct) cap=1000   steady-state upstream fetches=37272   tier1 hits=0     per-ticker miss=74548/85891 (86.8%)
+.AFTER    200 users x  50 tickers ( 2567 distinct) cap=9000   steady-state upstream fetches=0       tier1 hits=200   per-ticker miss=0/9892 (0.0%)
+.AFTER    250 users x  50 tickers ( 3000 distinct) cap=9000   steady-state upstream fetches=0       tier1 hits=250   per-ticker miss=0/12430 (0.0%)
+.AFTER    200 users x 250 tickers ( 4000 distinct) cap=9000   steady-state upstream fetches=0       tier1 hits=200   per-ticker miss=0/48372 (0.0%)
+........
+MEMORY  live-prices cache at full saturation (9000 entries): 21.0 MB
+................................... [ 71%]
+.............................................................s.......... [ 75%]
+........................................................................ [ 79%]
+........................................................................ [ 83%]
+........................................................................ [ 87%]
+........................................................................ [ 91%]
+........................................................................ [ 95%]
+........................................................................ [ 99%]
+...........                                                              [100%]
+=================================== FAILURES ===================================
+__________ test_every_door_keeps_both_indexes_after_a_version_rebuild __________
+
+conn = <sqlite3.Connection object at 0x7e222acdd120>
+
+    def test_every_door_keeps_both_indexes_after_a_version_rebuild(conn):
+        """The brief's hard constraint: every write door keeps updating the FTS map and the task
+        index. A database recorded by OTHER versions of both families, carrying older trigger
+        bodies that ignore a body write, is booted -- then ONE write goes through each door the
+        task-index census derives from the code (`DRIVEN`, tests/test_journal_two_task_digest.py),
+        and both indexes must describe the note as it now stands."""
+        from api.services.journal_two.note_connectors import engine
+        from tests.test_journal_two_task_digest import DRIVEN
+        conn.execute("DROP TRIGGER j2_notes_fts_au")
+        conn.execute(_OLDER_FTS_AU)
+        conn.execute("DROP TRIGGER j2_note_task_digest_au")
+        conn.execute(_OLDER_TASK_AU)
+        _as_if_fts_recorded_by(conn, "j2_notes_fts_map.note_rowid")
+        _as_if_built_by_version_0(conn, j2db._TASK_DIGEST_FAMILY)
+        j2db.ensure_schema(conn)                                        # the boot
+        assert notes_svc._fts_map_ready(conn) and j2db.schema_built(conn, j2db._TASK_DIGEST_BUILD)
+    
+        def new(text="keep"):
+            return notes_svc.create_note(U, {"title": "n", "bodyJson": _doc((text, False))}, conn=conn)["id"]
+    
+        def update():
+            nid = new()
+            notes_svc.update_note(U, nid, {"bodyJson": _doc(("edited", True), ("added", False))}, conn=conn)
+            return nid
+    
+        def appender(fn, *args):
+            def door():
+                nid = new()
+                fn(U, nid, *args, conn=conn)
+                return nid
+            return door
+    
+        def imported():
+            note = {"importKey": "k1", "title": "imported", "bodyJson": _doc(("from notion", False)), "tags": []}
+            nid = notes_svc.import_confirm(U, {"source": "notion", "notes": [note]}, conn=conn)["created"][0]["id"]
+            note2 = {**note, "bodyJson": _doc(("from notion", True), ("added later", False))}
+            assert [i["id"] for i in notes_svc.import_confirm(
+                U, {"source": "notion", "notes": [note2]}, conn=conn)["updated"]] == [nid]
+            return nid
+    
+        def resolved():
+            nid = new("old text")
+            upd = conn.execute("SELECT updated_at FROM j2_notes WHERE id = ?", (nid,)).fetchone()[0]
+            assert engine._apply_resolved_body(conn, U, nid, _doc(("resolved text", False)), expected_updated_at=upd)
+            return nid
+    
+        nb = "api/services/journal_two/notes.py"
+        doors = {
+            (nb, "create_note"): new,
+            (nb, "update_note"): update,
+            (nb, "append_widget_embed"): appender(notes_svc.append_widget_embed,
+                                                  {"widgetId": "chart", "params": {"symbol": "AMD"}}),
+            (nb, "append_financial_fact"): appender(notes_svc.append_financial_fact, "fact-1"),
+            (nb, "append_document_excerpt"): appender(notes_svc.append_document_excerpt, "exc-1"),
+            (nb, "import_confirm"): imported,
+            ("api/services/journal_two/note_connectors/engine.py", "_apply_resolved_body"): resolved,
+        }
+>       assert set(doors) == DRIVEN, "a door the census knows is not driven here, or the reverse"
+E       AssertionError: a door the census knows is not driven here, or the reverse
+E       assert {('api/servic...onfirm'), ...} == {('api/servic...e_note'), ...}
+E         
+E         Extra items in the right set:
+E         ('api/services/journal_two/note_connectors/engine.py', '_write_into_trashed_row')
+E         
+E         Full diff:
+E           {
+E               (
+E                   'api/services/journal_two/note_connectors/engine.py',
+E                   '_apply_resolved_body',
+E         -     ),
+E         -     (
+E         -         'api/services/journal_two/note_connectors/engine.py',
+E         -         '_write_into_trashed_row',
+E               ),
+E               (
+E                   'api/services/journal_two/notes.py',
+E                   'append_document_excerpt',
+E               ),
+E               (
+E                   'api/services/journal_two/notes.py',
+E                   'append_financial_fact',
+E               ),
+E               (
+E                   'api/services/journal_two/notes.py',
+E                   'append_widget_embed',
+E               ),
+E               (
+E                   'api/services/journal_two/notes.py',
+E                   'create_note',
+E               ),
+E               (
+E                   'api/services/journal_two/notes.py',
+E                   'import_confirm',
+E               ),
+E               (
+E                   'api/services/journal_two/notes.py',
+E                   'update_note',
+E               ),
+E           }
+
+tests/test_journal_two_derivation_versions.py:498: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_journal_two_task_digest.py::test_every_body_writer_in_the_code_is_driven_here_or_exempt_with_a_reason
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+tests/test_llm_timeout_census.py::test_no_llm_client_is_constructed_without_an_explicit_timeout
+  api/services/journal_two/note_connectors/providers/obsidian.py:964: SyntaxWarning: invalid escape sequence '\`'
+    taken off, cut at the first `?` or `#`, percent-decoded ONCE and every `\` read as `/`
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_levels_v2_lab_parity.py:40: UCT_LAB_DIR unset, or lab/levels_v2 or bars.db not present
+SKIPPED [1] tests/test_levels_v2_lab_parity.py:60: UCT_LAB_DIR unset, or lab/levels_v2 or bars.db not present
+SKIPPED [1] tests/test_levels_v3_lab_parity.py:49: UCT_LAB_DIR unset, or lab/levels_v3, its keys or bars.db not present
+SKIPPED [1] tests/test_levels_v3_lab_parity.py:95: UCT_LAB_DIR unset, or lab/levels_v3, its keys or bars.db not present
+SKIPPED [1] tests/test_levels_v3_lab_parity.py:101: UCT_LAB_DIR unset, or lab/levels_v3, its keys or bars.db not present
+SKIPPED [1] tests/test_levels_v3_lab_parity.py:109: UCT_LAB_DIR unset, or lab/levels_v3, its keys or bars.db not present
+SKIPPED [1] tests/test_live_trading_room_page.py:483: app/dist not built (the gate builds it)
+FAILED tests/test_journal_two_derivation_versions.py::test_every_door_keeps_both_indexes_after_a_version_rebuild - AssertionError: a door the census knows is not driven here, or the reverse
+assert {('api/servic...onfirm'), ...} == {('api/servic...e_note'), ...}
+  
+  Extra items in the right set:
+  ('api/services/journal_two/note_connectors/engine.py', '_write_into_trashed_row')
+  
+  Full diff:
+    {
+        (
+            'api/services/journal_two/note_connectors/engine.py',
+            '_apply_resolved_body',
+  -     ),
+  -     (
+  -         'api/services/journal_two/note_connectors/engine.py',
+  -         '_write_into_trashed_row',
+        ),
+        (
+            'api/services/journal_two/notes.py',
+            'append_document_excerpt',
+        ),
+        (
+            'api/services/journal_two/notes.py',
+            'append_financial_fact',
+        ),
+        (
+            'api/services/journal_two/notes.py',
+            'append_widget_embed',
+        ),
+        (
+            'api/services/journal_two/notes.py',
+            'create_note',
+        ),
+        (
+            'api/services/journal_two/notes.py',
+            'import_confirm',
+        ),
+        (
+            'api/services/journal_two/notes.py',
+            'update_note',
+        ),
+    }
+1 failed, 1803 passed, 7 skipped, 4 warnings in 545.88s (0:09:05)

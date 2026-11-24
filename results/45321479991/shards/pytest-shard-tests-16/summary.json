@@ -1,0 +1,15 @@
+{
+  "suite": "pytest",
+  "collected": 1504,
+  "passed": 1498,
+  "failed": 4,
+  "errored": 0,
+  "skipped": 2,
+  "wall_s": 508.95,
+  "failed_files": [
+    "tests/test_notebook_upload_cap_2.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "4 failed, 1498 passed, 2 skipped, 49 warnings in 508.95s (0:08:28)",
+  "ok": true
+}

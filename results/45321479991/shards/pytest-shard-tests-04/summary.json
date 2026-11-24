@@ -1,0 +1,15 @@
+{
+  "suite": "pytest",
+  "collected": 4950,
+  "passed": 4883,
+  "failed": 1,
+  "errored": 0,
+  "skipped": 66,
+  "wall_s": 796.63,
+  "failed_files": [
+    "tests/test_breadth_pipeline_current.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "1 failed, 4883 passed, 66 skipped, 7673 warnings in 796.63s (0:13:16)",
+  "ok": true
+}

@@ -1,0 +1,16 @@
+{
+  "suite": "pytest",
+  "collected": 2738,
+  "passed": 2728,
+  "failed": 2,
+  "errored": 0,
+  "skipped": 8,
+  "wall_s": 502.9,
+  "failed_files": [
+    "tests/test_discord_chart_prefs.py",
+    "tests/test_discord_chart_weekly_stats.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "2 failed, 2728 passed, 8 skipped, 29 warnings in 502.90s (0:08:22)",
+  "ok": true
+}
