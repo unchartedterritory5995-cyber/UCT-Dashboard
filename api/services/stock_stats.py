@@ -56,6 +56,7 @@ from collections import OrderedDict
 from datetime import date, datetime, timezone
 from typing import Optional
 
+from api.services import held_build
 from api.services import held_bytes
 from api.services import stock_stats_calc as C
 
@@ -76,11 +77,15 @@ WAIT_S = 0.0                    # the longest a request waits for the build it s
 MAX_PENDING = 4 * BUILD_SLOTS   # builds started and not finished, at most; past it a request says busy
 BUILD_THREAD = "stock-stats-build"
 BUSY = "The server is busy working out stock statistics. Try again in a moment."
+# How long the word of a build that held nothing is kept for the panel waiting on it (it asks again every few seconds):
+# held_build's own span for a failed build. Older, the next request starts a new build (review 2026-11-24: an untaken
+# failure was told to the next member to open the stock hours later).
+SAID_S = held_build.FAILED_S
 
 _lock = threading.Lock()
 _cache: "OrderedDict[str, dict]" = OrderedDict()   # sym -> {key, stamp, at, recheck_at, answer}
 _inflight: dict[str, threading.Event] = {}
-_said: "OrderedDict[str, dict]" = OrderedDict()    # sym -> {key, answer}: a build that held nothing, said once
+_said: "OrderedDict[str, dict]" = OrderedDict()    # sym -> {key, answer, at}: a build that held nothing, said once
 _gen = 0                                            # bumped by reset_for_tests: a build started before it keeps nothing
 _bench: dict[str, dict] = {}                        # fund -> {key, at, closes | None, why | None}
 _slots = threading.BoundedSemaphore(BUILD_SLOTS)
@@ -302,7 +307,7 @@ def _say(sym: str, key: str, answer: dict, gen: int) -> None:
     with _lock:
         if gen != _gen:
             return
-        _said[sym] = {"key": key, "answer": answer}
+        _said[sym] = {"key": key, "answer": answer, "at": time.time()}
         _said.move_to_end(sym)
         while len(_said) > CACHE_MAX:
             _said.popitem(last=False)
@@ -311,7 +316,7 @@ def _say(sym: str, key: str, answer: dict, gen: int) -> None:
 def _take_said(sym: str, key: str) -> Optional[dict]:
     with _lock:
         said = _said.pop(sym, None)
-    return said["answer"] if said and said["key"] == key else None
+    return said["answer"] if said and said["key"] == key and 0 <= time.time() - said["at"] < SAID_S else None
 
 
 def _build_bg(sym: str, key: str, market: dict, stamp: tuple, ev: threading.Event, gen: int) -> None:

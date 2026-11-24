@@ -5275,6 +5275,7 @@ the unchanged full path. There are 2 deleted `api/` lines, both the rewritten ro
 - **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.
 
 ## Terminal speed pass 3 (FED's rates and headlines off the request; IVH, FED and RSL warmed at boot; FT-006 and OHIS on IVH's mirror; the ready answers' bytes made once) · `perf/terminal-speed-pass-3` · 2026-11-24
+## Terminal review rev4 (a failed build's word kept only briefly in STAT / FCTX / VFP; the estimate snapshot's catch-up stops reading at the next open) · `fix/terminal-review-rev4` · 2026-11-24
 
 | | |
 |---|---|
@@ -5297,4 +5298,16 @@ the unchanged full path. There are 2 deleted `api/` lines, both the rewritten ro
   routers: it never serves the calendar, ERNS, an IV history, the RS list or a groups read. The other changed modules
   are not in its closure (`tools/flow_worker_watch_coverage.py` `verdict()` on this change: those five offenders,
   nothing else).
+| stranded files | `api/services/estimate_history.py` |
+
+- **What changed.** STAT, FCTX and VFP keep the word of a build that held nothing (a failed read, `busy`) only for
+  `held_build.FAILED_S`, the span held_build says a failed build: an older word is dropped and the request starts a new
+  build (`stock_stats.py`, `factor_exposure.py`, `volume_footprint.py`, `SAID_S`). The estimate snapshot's run stops
+  reading at the next session's open (`run_daily`'s `window_s`, from `run_scheduled`) and a run cut there is recorded
+  as its session's hole (`_close_window`), never finished under the earlier date (`estimate_history.py`).
+- **Flow-worker.** Reaches `estimate_history.py` only through `... -> journal_two.notebook_widgets ->
+  routers.live_prices -> routers.auth -> estimate_history`, a function-level import inside `/api/auth/me`'s flag
+  readout that calls `estimate_history.is_enabled` (unchanged), as the nightly catch-ups unit recorded; it registers no
+  estimate job and never takes a snapshot. The other changed modules are not in its closure
+  (`tools/flow_worker_watch_coverage.py` `verdict()` on this change: that one offender, nothing else).
 - **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.
