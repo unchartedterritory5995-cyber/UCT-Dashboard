@@ -244,12 +244,24 @@ NON_MODEL_KEYS = (
 # literal anywhere in api/ -- so the `*_API_KEY` derivation above cannot see
 # them. Kept OUT of MODEL_PROVIDER_KEYS so that tuple's "every name has a read
 # site in api/" check stays true. Derived from the SDK clients api/ constructs
-# (anthropic.Anthropic / AsyncAnthropic, openai.OpenAI) by
-# tests/test_hub_sandbox_model_keys.py, which reads the installed SDK source:
+# (anthropic.Anthropic / AsyncAnthropic, openai.OpenAI) AND from the credential
+# chain the anthropic client runs when it is handed no credential
+# (anthropic/lib/credentials, new since SDK 0.83.0; `anthropic>=0.49.0,<1` lets CI
+# install 0.125.0) by tests/test_hub_sandbox_model_keys.py, which reads the
+# installed SDK source:
 #   anthropic/_client.py  ANTHROPIC_AUTH_TOKEN -- a Bearer credential. An
 #     api_key of "" plus this token still SENDS a request (reviewer-verified,
 #     SDK 0.83.0), and ai_search_personal.py:273-274 / wisdom/evals/
 #     grounding.py:155 construct a client without checking the key first.
+#   anthropic/_client.py  ANTHROPIC_CUSTOM_HEADERS -- "Name: value" lines the
+#     client merges into EVERY request, api_key= passed or not, and AFTER its auth
+#     headers (anthropic/_base_client.py `default_headers`). An `Authorization:` or
+#     `X-Api-Key:` line there authenticates a request whose key this policy
+#     blanked. A credential carrier; "" parses to no header at all.
+#   anthropic/lib/credentials  ANTHROPIC_IDENTITY_TOKEN / ANTHROPIC_IDENTITY_TOKEN_FILE
+#     -- the workload-identity JWT (or the path to it) the chain exchanges for an
+#     access token; ANTHROPIC_PROFILE -- names the on-disk credentials file the
+#     chain loads. The SDK reads "" as unset for all three.
 #
 # ⛔ BLANK IS NOT "NO REQUEST" FOR THIS ONE (measured, SDK 0.83.0): the SDK only
 # defaults a None token, keeps "" and sends `Authorization: Bearer `, which passes
@@ -257,17 +269,50 @@ NON_MODEL_KEYS = (
 # CREDENTIAL-LESS request (a 401, never billed). Only an UNSET token refuses
 # before sending, and an unset token can be re-supplied by a setdefault .env
 # loader and then billed. Controller ruling, lane SK fix round 1 (2026-09-29):
-# KEEP BLANK -- a billable re-supply is the worse failure.
+# KEEP BLANK -- a billable re-supply is the worse failure. (SDK 0.125.0 reads ""
+# as unset and treats an explicit api_key= as total -- it then never reads this
+# token at all -- so it sends nothing; the ruling stands for both.)
 SDK_IMPLICIT_KEYS = (
     "ANTHROPIC_AUTH_TOKEN",
+    "ANTHROPIC_CUSTOM_HEADERS",
+    "ANTHROPIC_IDENTITY_TOKEN",
+    "ANTHROPIC_IDENTITY_TOKEN_FILE",
+    "ANTHROPIC_PROFILE",
 )
 
-# Read implicitly by those same SDK clients and deliberately NOT blanked: none
-# of them authorises a request. A base URL only redirects (and blanking it to ""
-# would hand the SDK an empty URL); OpenAI org/project ids only scope a key that
-# is already blanked; the webhook secret verifies inbound webhooks.
+# ⛔ REDIRECTED, NEVER BLANKED: the anthropic SDK's PROFILE DIRECTORY. With both
+# env names blank, a client handed no credential argument (wisdom/evals/
+# grounding.py:155) runs the SDK's credential chain (anthropic/lib/credentials/
+# _chain.py `default_credentials`), which loads the ACTIVE PROFILE FROM DISK
+# (`active_config`, `configs/`, `credentials/` under %APPDATA%\Anthropic on
+# Windows, ~/.config/anthropic elsewhere) and sends its access token: a third
+# credential source after the two env names, like the keyring below. Blanking
+# cannot close it -- the SDK reads a BLANK ANTHROPIC_CONFIG_DIR as unset and falls
+# back to exactly that default directory. So the policy points it at a directory
+# that cannot exist: a child of this launcher's own FILE, under which nothing can
+# ever be created. The chain then treats the profile as explicitly selected,
+# cannot read it, and raises AnthropicError while the client is being CONSTRUCTED,
+# before any request. Every other construction site in api/ passes api_key=, which
+# the SDK treats as total: they never run the chain and are unaffected.
+NO_ANTHROPIC_PROFILE_DIR = os.path.join(os.path.abspath(__file__), "no-anthropic-profile")
+SDK_REDIRECTED_ENV = {
+    "ANTHROPIC_CONFIG_DIR": NO_ANTHROPIC_PROFILE_DIR,
+}
+
+# Read implicitly by those same SDK clients (and the chain) and deliberately NOT
+# blanked: none of them authorises a request. A base URL only redirects (and
+# blanking it to "" would hand the SDK an empty URL); OpenAI org/project ids only
+# scope a key that is already blanked; the two webhook secrets only VERIFY an
+# inbound webhook's signature (the SDKs' `webhooks.unwrap`) and are never sent;
+# the federation rule / organization / service-account / workspace ids and the
+# scope are identifiers the chain pairs with an identity token this policy blanks,
+# on a step the profile-dir redirect never lets it reach; APPDATA is only the
+# Windows default for the profile dir, consulted when ANTHROPIC_CONFIG_DIR is unset.
 SDK_NON_CREDENTIAL_ENV = (
-    "ANTHROPIC_BASE_URL",
+    "ANTHROPIC_BASE_URL", "ANTHROPIC_WEBHOOK_SIGNING_KEY",
+    "ANTHROPIC_FEDERATION_RULE_ID", "ANTHROPIC_ORGANIZATION_ID",
+    "ANTHROPIC_SERVICE_ACCOUNT_ID", "ANTHROPIC_WORKSPACE_ID", "ANTHROPIC_SCOPE",
+    "APPDATA",
     "OPENAI_BASE_URL", "OPENAI_ORG_ID", "OPENAI_PROJECT_ID", "OPENAI_WEBHOOK_SECRET",
 )
 
@@ -295,15 +340,17 @@ def apply_model_key_policy(environ, allow):
     if allow:
         return ("  Model keys   : OPT-IN -- passed through unchanged "
                 f"({', '.join(MODEL_PROVIDER_KEYS + SDK_IMPLICIT_KEYS)}; keyring "
-                "untouched); paid model calls are POSSIBLE")
+                "and Anthropic profile dir untouched); paid model calls are POSSIBLE")
     for key in MODEL_PROVIDER_KEYS:
         environ[key] = ""
     for key in SDK_IMPLICIT_KEYS:
         environ[key] = ""
+    for key, value in SDK_REDIRECTED_ENV.items():
+        environ[key] = value
     environ["PYTHON_KEYRING_BACKEND"] = KEYRING_NULL_BACKEND
     return ("  Model keys   : BLANKED "
             + ", ".join(MODEL_PROVIDER_KEYS + SDK_IMPLICIT_KEYS)
-            + "; keyring -> null backend"
+            + "; keyring -> null backend; Anthropic profile dir -> none"
             + f" (opt in: --allow-model-keys or {ALLOW_MODEL_KEYS_ENV}=1)")
 
 
