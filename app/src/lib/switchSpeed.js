@@ -50,10 +50,10 @@ export const SWITCH_COUNTERS = ['superseded', 'abandoned', 'unpressed', 'untrack
 export const MAX_SWITCH_CELLS = 64
 /** No count grows past this (the server refuses a larger one). */
 export const MAX_SWITCH_COUNT = 100000
-/** ...and no more than this many samples in all are counted between two sends (one every 1.2 s for a whole
- *  session, without a pause): the rest are `overflow`. The server refuses a report that holds more, so one
- *  sender cannot outweigh every member in a pooled share. */
-export const MAX_SWITCH_TOTAL = 20000
+/** ...and no more than this many samples in all are counted between two sends (one every 1.2 s for two hours,
+ *  without a pause): the rest are `overflow`. The server refuses a report that holds more, and takes no more
+ *  than this from one sender in an hour, so one sender cannot outweigh every member in a pooled share. */
+export const MAX_SWITCH_TOTAL = 6000
 /** A sample outside 0..this is not a switch time (a clock mismatch, a page that slept): counted `unclocked`. */
 export const MAX_SWITCH_MS = 60000
 /** Where lib/perfBeacon.js finds `{take, peek}`. perfBeacon holds the same literal; its test pins them equal. */

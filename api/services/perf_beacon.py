@@ -50,9 +50,17 @@ its list, a cell twice or too many cells REFUSES the whole report. The lists
 here are the page's own, pinned equal by tests/test_perf_beacon.py.
 
 The door is anonymous, so a sender can invent counts. What bounds one sender's
-weight in a pooled share: SWITCH_RATE_LIMIT reports an hour, each of at most
-MAX_SWITCH_TOTAL switches. `reports` / `reports_all_under` count each report
-once whatever it claims, so they are the read that an inflated report cannot move.
+weight in a pooled share: SWITCH_RATE_LIMIT reports an hour holding no more than
+SWITCH_TOTAL_PER_HOUR switches together (about twice what a real page can make;
+a report that would pass it is dropped whole). And what shows it: `senders`,
+the DISTINCT senders that added to a cell that day. One sender behind most of a
+cell is one page, not the membership. `reports` / `reports_all_under` count
+each report once whatever it claims.
+
+To count distinct senders, `perf_switch_senders` keeps one row per day, cell and
+sender, where the sender is a hash salted with the DAY (so it joins nothing
+across days, and is not the quota's hash). Rows of an earlier day are deleted
+with the hourly prune; the count stays in `perf_switch_days.senders`.
 
 What is kept is a MERGE, never a report: per ET day, client and combination, the
 summed counts, how many reports added to them and in how many of those every
@@ -116,8 +124,11 @@ SWITCH_UNDER_MS = 40
 SWITCH_COUNTERS = ("superseded", "abandoned", "unpressed", "untracked", "unclocked", "overflow")
 MAX_SWITCH_CELLS = 64
 MAX_SWITCH_COUNT = 100_000
-MAX_SWITCH_TOTAL = 20_000      # every count of one report together: more than a page can make between two sends
+MAX_SWITCH_TOTAL = 6_000       # every count of one report together: more than a page can make between two sends
 SWITCH_RATE_LIMIT = 30         # switch reports per IP hash per hour (the page sends at most one per 5 minutes)
+# ...and the SWITCHES those reports may hold together, per IP hash per hour: about twice what a real page can make
+# (one every 1.2 s is 3,000 an hour). Never under MAX_SWITCH_TOTAL, so a legal report alone is never over it.
+SWITCH_TOTAL_PER_HOUR = MAX_SWITCH_TOTAL
 SWITCH_RETENTION_DAYS = 90
 _SWITCH_DIMS = (len(SWITCH_TF), 2, len(SWITCH_TRIGGER), len(SWITCH_ROUTE), 2)
 _SWITCH_NB = len(SWITCH_BUCKET_EDGES_MS) + 1
@@ -162,7 +173,19 @@ CREATE TABLE IF NOT EXISTS perf_switch_days (
     {", ".join(f"{b} INTEGER NOT NULL" for b in _SWITCH_B)},
     reports    INTEGER NOT NULL,
     reports_all_under INTEGER NOT NULL,
+    senders    INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY ({", ".join(_SWITCH_KEY)})
+);
+CREATE TABLE IF NOT EXISTS perf_switch_senders (
+    day        TEXT NOT NULL,
+    client     TEXT NOT NULL,
+    tf         INTEGER NOT NULL,
+    dev_store  INTEGER NOT NULL,
+    trig       INTEGER NOT NULL,
+    route      INTEGER NOT NULL,
+    rth        INTEGER NOT NULL,
+    sender     TEXT NOT NULL,
+    PRIMARY KEY ({", ".join(_SWITCH_KEY)}, sender)
 );
 CREATE TABLE IF NOT EXISTS perf_switch_counters (
     day     TEXT NOT NULL,
@@ -173,7 +196,8 @@ CREATE TABLE IF NOT EXISTS perf_switch_counters (
 );
 CREATE TABLE IF NOT EXISTS perf_switch_sends (
     created_at REAL NOT NULL,
-    rate_key   TEXT NOT NULL
+    rate_key   TEXT NOT NULL,
+    switches   INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS ix_perf_switch_sends ON perf_switch_sends(rate_key, created_at);
 """
@@ -327,11 +351,18 @@ def _rate_key(ip: str | None) -> str:
     return hashlib.sha256(f"{_SALT}:{ip or 'unknown'}".encode()).hexdigest()[:24]
 
 
+def _sender_key(ip: str | None, day: str) -> str:
+    """A sender, for ONE day's distinct count: salted with the day, so it joins nothing across days."""
+    return hashlib.sha256(f"{_SALT}:senders:{day}:{ip or 'unknown'}".encode()).hexdigest()[:16]
+
+
 def _prune(conn: sqlite3.Connection, now: float) -> None:
     conn.execute("DELETE FROM perf_loads WHERE created_at < ?", (now - RETENTION_DAYS * 86400,))
     first = switch_day(now - SWITCH_RETENTION_DAYS * 86400)
     conn.execute("DELETE FROM perf_switch_days WHERE day < ?", (first,))
     conn.execute("DELETE FROM perf_switch_counters WHERE day < ?", (first,))
+    # a day's sender hashes are only for counting that day: gone once it is over (the count stays in the day's row)
+    conn.execute("DELETE FROM perf_switch_senders WHERE day < ?", (switch_day(now),))
 
 
 _SWITCH_UPSERT = (
@@ -343,26 +374,41 @@ _SWITCH_UPSERT = (
 )
 
 
-def _record_switches(row: dict[str, Any], key: str, now: float) -> dict[str, int]:
-    """Merge one switches report into its day. Its own hourly quota per IP hash, and the global one."""
+_SWITCH_CELL_WHERE = " AND ".join(f"{k}=?" for k in _SWITCH_KEY)
+
+
+def _record_switches(row: dict[str, Any], key: str, ip: str | None, now: float) -> dict[str, int]:
+    """Merge one switches report into its day. Its own hourly quota per IP hash (reports, and the switches they hold
+    together), and the global one. A report over a quota is dropped whole, never trimmed."""
     global _last_prune
+    held = sum(sum(counts) for _, counts in row["cells"])
     with _lock:
         conn = _connect()
         try:
             hour_ago = now - 3600
-            mine = conn.execute("SELECT COUNT(*) FROM perf_switch_sends WHERE rate_key=? AND created_at>?", (key, hour_ago)).fetchone()[0]
-            if mine >= SWITCH_RATE_LIMIT:
+            mine, mine_held = conn.execute(
+                "SELECT COUNT(*), COALESCE(SUM(switches), 0) FROM perf_switch_sends WHERE rate_key=? AND created_at>?",
+                (key, hour_ago)).fetchone()
+            if mine >= SWITCH_RATE_LIMIT or mine_held + held > SWITCH_TOTAL_PER_HOUR:
                 return {"stored": 0, "dropped": 1, "invalid": 0}
             total = conn.execute("SELECT COUNT(*) FROM perf_switch_sends WHERE created_at>?", (hour_ago,)).fetchone()[0]
             if total >= GLOBAL_LIMIT_PER_HOUR:
                 return {"stored": 0, "dropped": 1, "invalid": 0}
             day, client = switch_day(now), row["client"]
+            sender = _sender_key(ip, day)
             with conn:
                 conn.execute("DELETE FROM perf_switch_sends WHERE created_at <= ?", (hour_ago,))
-                conn.execute("INSERT INTO perf_switch_sends (created_at, rate_key) VALUES (?,?)", (now, key))
+                conn.execute("INSERT INTO perf_switch_sends (created_at, rate_key, switches) VALUES (?,?,?)", (now, key, held))
                 for cell, counts in row["cells"]:
                     all_under = 0 if any(counts[_SWITCH_UNDER:]) else 1
                     conn.execute(_SWITCH_UPSERT, (day, client, *cell, *counts, all_under))
+                    # this sender's first report into this cell today: one more distinct sender
+                    first = conn.execute(
+                        f"INSERT OR IGNORE INTO perf_switch_senders ({', '.join(_SWITCH_KEY)}, sender)"
+                        f" VALUES ({', '.join('?' * (len(_SWITCH_KEY) + 1))})", (day, client, *cell, sender)).rowcount
+                    if first:
+                        conn.execute(f"UPDATE perf_switch_days SET senders = senders + 1 WHERE {_SWITCH_CELL_WHERE}",
+                                     (day, client, *cell))
                 conn.executemany(
                     "INSERT INTO perf_switch_counters (day, client, name, n) VALUES (?,?,?,?)"
                     " ON CONFLICT(day, client, name) DO UPDATE SET n = n + excluded.n",
@@ -387,7 +433,7 @@ def record(report: Any, *, ip: str | None, country_header: str | None, now: floa
         return {"stored": 0, "dropped": 0, "invalid": 1}
     key = _rate_key(ip)
     if kind == "switches":
-        return _record_switches(row, key, now)
+        return _record_switches(row, key, ip, now)
     with _lock:
         conn = _connect()
         try:
@@ -465,6 +511,54 @@ def summary(hours: int = 24, now: float | None = None) -> dict[str, Any]:
     return {"hours": hours, "loads": len(loads), "pages": page_rows, "api": api_rows, "countries": country_rows}
 
 
+#: What the read's names mean, and what it does NOT hold. Fixed text: nothing here comes from a report.
+SWITCH_LEGEND: dict[str, Any] = {
+    "sample": "ms from the time of the input event in flight when the board switched the symbol to the first animation "
+              "frame after every chart of the linked group had drawn it. Not in it: the rest of that frame, the "
+              "compositor, vsync, the display (about one refresh interval more).",
+    "tf": {
+        "intraday-1m": "the group's finest chart is on 1 minute",
+        "intraday-other": "its finest chart is on another count of minutes (5m to 4h, custom ones included)",
+        "daily-plus": "every chart of the group is on D, W, M or a multiple",
+    },
+    "trigger": {
+        "list-key": "ArrowUp, ArrowDown or Space outside a text field: walking a list",
+        "click": "any pointer event that changed the symbol: a list row, an alert row, a menu, a badge on the chart. "
+                 "It is NOT only lists; do not read its share as list behaviour",
+        "typed": "a key pressed in a text field (the Enter of a typed ticker), or the chart header's search, a picked "
+                 "result included",
+        "other": "any other input event (a hotkey outside a text field)",
+    },
+    "route": {
+        "other": "nothing reported how the charts were shown",
+        "decision": "decided in the press: every chart could show it at once, one synchronous render",
+        "now": "not decided in the press, but every chart held its rows (at most the wait for its panes' columns)",
+        "deferred": "held first by the burst rule (a press inside a run of presses), then shown as `now`",
+        "daily-hold": "a D/W/M chart had to promote or join its set first",
+        "prepare": "an intraday chart had to wait for its rows (the server, the lake or the device)",
+    },
+    "counters": {
+        "superseded": "switches the next press on the same group replaced before their frame; a held arrow makes many",
+        "abandoned": "switches still waiting when the page was hidden",
+        "unpressed": "the symbol changed with no input event in flight (a link, a layout restore, a list that sets it "
+                     "from an effect): not timed. It should stay near zero for list presses",
+        "untracked": "a chart of the group had no paint identity, so its draw could not be seen",
+        "unclocked": "the press or the sample had no usable time (under 0 or over 60 s)",
+        "overflow": f"past the page's own caps ({MAX_SWITCH_CELLS} combinations or {MAX_SWITCH_TOTAL:,} samples between two sends)",
+    },
+    "senders": "distinct senders (a hash of the IP salted with the day, deleted when the day is over) that added to the "
+               "cell that day. One sender behind most of a cell's switches is one page, not the membership.",
+    "not_sampled": [
+        "every chart host but the /charts board: the breadth drill, the terminal, the screener, the phone workspace",
+        "pop-out windows, mostly: a click or a ticker typed INSIDE a pop-out is `unpressed` (never timed); a key relayed "
+        "from a pop-out to the main window IS timed, from the relay (a little after the real key) to the MAIN window's "
+        "frame. Treat a pop-out's switches as a coverage gap",
+        "a symbol changed with no input event in flight: counted `unpressed`, not timed",
+        "a switch whose chart never draws (a ticker with no data, a chart closed mid-switch): `superseded` at the next press",
+    ],
+}
+
+
 def _under(counts: list[int]) -> tuple[int, int, float | None]:
     total, under = sum(counts), sum(counts[:_SWITCH_UNDER])
     return total, under, (round(100 * under / total, 1) if total else None)
@@ -476,14 +570,16 @@ def switch_summary(days: int = 7, now: float | None = None) -> dict[str, Any]:
 
     `cells[]`: day, client, tf, store, trigger, route, rth (the names, never the indexes), `n` (a count per bucket of
     `bucket_edges_ms`, the last being "that and above"), `switches`, `under_40`, `under_40_pct`, `reports` (how many
-    reports added to the cell) and `reports_all_under_40` (in how many of them EVERY switch of the cell was under).
-    `by_day[]`: the same totals over every combination and client, and each SWITCH_COUNTERS sum."""
+    reports added to the cell), `reports_all_under_40` (in how many of them EVERY switch of the cell was under) and
+    `senders` (how many DISTINCT senders added to it that day).
+    `by_day[]`: the same totals over every combination and client, and each SWITCH_COUNTERS sum.
+    `legend`: what each name means and what is NOT sampled (SWITCH_LEGEND)."""
     now = time.time() if now is None else now
     first = switch_day(now - (max(1, days) - 1) * 86400)
     conn = _connect()
     try:
         rows = conn.execute(
-            f"SELECT {', '.join(_SWITCH_KEY)}, {', '.join(_SWITCH_B)}, reports, reports_all_under FROM perf_switch_days"
+            f"SELECT {', '.join(_SWITCH_KEY)}, {', '.join(_SWITCH_B)}, reports, reports_all_under, senders FROM perf_switch_days"
             f" WHERE day >= ? ORDER BY day DESC, {', '.join(_SWITCH_KEY[1:])}", (first,)).fetchall()
         counter_rows = conn.execute(
             "SELECT day, name, SUM(n) FROM perf_switch_counters WHERE day >= ? GROUP BY day, name", (first,)).fetchall()
@@ -492,12 +588,12 @@ def switch_summary(days: int = 7, now: float | None = None) -> dict[str, Any]:
     cells: list[dict[str, Any]] = []
     day_counts: dict[str, list[int]] = {}
     for day, client, tf, dev_store, trig, route, rth, *rest in rows:
-        counts, reports, all_under = list(rest[:_SWITCH_NB]), rest[_SWITCH_NB], rest[_SWITCH_NB + 1]
+        counts, reports, all_under, senders = list(rest[:_SWITCH_NB]), rest[_SWITCH_NB], rest[_SWITCH_NB + 1], rest[_SWITCH_NB + 2]
         total, under, pct = _under(counts)
         cells.append({
             "day": day, "client": client, "tf": SWITCH_TF[tf], "store": bool(dev_store), "trigger": SWITCH_TRIGGER[trig],
             "route": SWITCH_ROUTE[route], "rth": bool(rth), "n": counts, "switches": total, "under_40": under,
-            "under_40_pct": pct, "reports": reports, "reports_all_under_40": all_under})
+            "under_40_pct": pct, "reports": reports, "reports_all_under_40": all_under, "senders": senders})
         merged = day_counts.setdefault(day, [0] * _SWITCH_NB)
         for i, n in enumerate(counts):
             merged[i] += n
@@ -510,4 +606,4 @@ def switch_summary(days: int = 7, now: float | None = None) -> dict[str, Any]:
         by_day.append({"day": day, "switches": total, "under_40": under, "under_40_pct": pct,
                        **{name: counters.get(day, {}).get(name, 0) for name in SWITCH_COUNTERS}})
     return {"days": days, "bucket_edges_ms": list(SWITCH_BUCKET_EDGES_MS), "under_ms": SWITCH_UNDER_MS,
-            "by_day": by_day, "cells": cells}
+            "by_day": by_day, "cells": cells, "legend": SWITCH_LEGEND}
