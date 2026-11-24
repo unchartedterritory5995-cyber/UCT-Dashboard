@@ -246,30 +246,48 @@ def _now_et():
     return datetime.now(ZoneInfo("America/New_York"))
 
 
+def _settle_hour_et() -> int:
+    """`PERMANENT_FRESHNESS_HOUR_ET` (default 17): the ET hour from which today's DAILY bar
+    is taken as published by the provider. ONE knob, two readers that must agree: the
+    after-close sweep is due from it (`_after_close_daily_sweep_due`), and today becomes
+    the last completed session at it (`_last_completed_session`)."""
+    return int(os.environ.get("PERMANENT_FRESHNESS_HOUR_ET", "17"))
+
+
 def _last_completed_session(now=None) -> int:
-    """ET date (YYYYMMDD) of the most recent COMPLETED session (yesterday during RTH,
-    today after close). `_expected_session()` returns TODAY during market hours — whose
-    daily bar is still evolving — so grading the boot against it forces a re-fetch of
-    every warm daily on a mid-session restart (the 68k churn that competed with the web
-    and reset the re-warm to a slow crawl). A daily that already has the last COMPLETED
-    session is warm enough for the boot; the steady refresh loop + the on-demand serve
-    own today's evolving bar.
+    """ET date (YYYYMMDD) of the most recent COMPLETED session: the previous trading day
+    during RTH, today from the settle hour after today's close. `_expected_session()`
+    returns TODAY during market hours — whose daily bar is still evolving — so grading
+    the boot against it forces a re-fetch of every warm daily on a mid-session restart
+    (the 68k churn that competed with the web and reset the re-warm to a slow crawl). A
+    daily that already has the last COMPLETED session is warm enough for the boot; the
+    steady refresh loop + the on-demand serve own today's evolving bar.
 
-    Until today's regular session closes: the session authority as-if pre-open, which
-    rolls to the prior trading day (holiday/weekend-aware). From the close on (16:00 ET,
-    13:00 on an early close: `bars_fetch._session_close_minutes`, the one calendar): TODAY.
-    A weekend or a holiday has no close, so it keeps the prior trading day all day.
+    Until the settle instant: the session authority as-if pre-open, which rolls to the
+    prior trading day (holiday/weekend-aware). From it on: TODAY. The settle instant is
+    `max(today's regular close, _settle_hour_et())`: 17:00 ET by default, on an early
+    close too (13:00 close, still 17:00), and never before the close whatever the knob
+    says. A weekend or a holiday has no close, so it keeps the prior trading day all day.
 
-    ⚰️ 2026-11-23: THE SECOND HALF OF THAT WAS ONLY IN THE DOCSTRING. This returned the
-    as-if-pre-open answer at EVERY hour, so at 17:00 ET Monday it said Friday. Inside the
-    data window (to 20:00 ET) `_boot_can_skip` therefore skipped every daily that held
-    Friday's bar, and the after-close sweep, which runs the same job, refreshed 712 of
-    13,279 dailies and marked the session done. The device-store seed for that session
-    was refused four times (tf D: 0 symbols). Rails: tests/test_prewarm_after_close_session.py."""
+    ⛔ NOT AT THE CLOSE. The first fetch of today's daily is the only one: the row is then
+    dated today, `_boot_can_skip` calls it settled for the rest of the day (before
+    `_needs_fresh` is asked) and the sweep counts it done. So what the provider answers
+    at that instant is what the night's device-store seed ships as the last daily candle.
+    At 16:05 ET the provider may not have published the closing daily bar yet, which is
+    what the sweep's buffer hour exists for. Flipping at the close would let the steady
+    refresh fetch every `ticker_list` daily at about 16:05 and freeze it.
+
+    ⚰️ 2026-11-23: THIS RETURNED THE AS-IF-PRE-OPEN ANSWER AT EVERY HOUR, so at 17:00 ET
+    Monday it said Friday. Inside the data window (to 20:00 ET) `_boot_can_skip` therefore
+    skipped every daily that held Friday's bar, and the after-close sweep, which runs the
+    same job, refreshed 712 of 13,279 dailies and marked the session done. The
+    device-store seed for that session was refused four times (tf D: 0 symbols).
+    Rails: tests/test_prewarm_after_close_session.py."""
     from api.services.bars_fetch import _expected_latest_session_yyyymmdd, _session_close_minutes
     now = now or _now_et()
     today = int(now.strftime("%Y%m%d"))
-    if (now.hour * 60 + now.minute >= _session_close_minutes(today)
+    settle = max(_session_close_minutes(today), _settle_hour_et() * 60)
+    if (now.hour * 60 + now.minute >= settle
             and _expected_latest_session_yyyymmdd(now) == today):
         return today
     pre_open = now.replace(hour=8, minute=0, second=0, microsecond=0)
@@ -546,7 +564,7 @@ def _daily_freshness_tick(state: dict, *, full_daily, warm_one, needs_fresh, las
     if not _after_close_daily_sweep_due(
         _sess, int(_now.strftime("%Y%m%d")), _now.hour, state.get("swept", 0),
         enabled=os.environ.get("PERMANENT_DAILY_FRESHNESS_ENABLED", "0") == "1",
-        hour_et=int(os.environ.get("PERMANENT_FRESHNESS_HOUR_ET", "17")),
+        hour_et=_settle_hour_et(),
     ):
         return
     if state.get("pass_session") != _sess:
