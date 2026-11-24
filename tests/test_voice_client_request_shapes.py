@@ -55,6 +55,10 @@ DECLARED_UNATTRIBUTED = {
     ("src/components/voice/VoiceTelemetryPanel.jsx", "/api/voice/transcripts/export"),  # download link
     ("src/hooks/useReadAloud.js", "/api/voice/tts/stream"),                       # <audio> source
     ("src/hub/voiceNote.js", "/api/voice/transcribe"),                            # a constant, see below
+    # Research Home's Notices box (1d9add264b): the insights list is an SWR key held in a constant, and the
+    # dismiss URL is chosen into a variable beside the alerts one, then POSTed with no body (the route reads none)
+    ("src/pages/journal-2-0/components/notebook/NoticesBox.jsx", "/api/voice/insights"),
+    ("src/pages/journal-2-0/components/notebook/NoticesBox.jsx", "/api/voice/insights/{}/dismiss"),
     # master's agent test harness: a fetch stand-in that ANSWERS for the server (a string test on
     # the path), never a request the client sends
     ("src/testing/agent/agentHarness.jsx", "/api/voice/transcribe"),

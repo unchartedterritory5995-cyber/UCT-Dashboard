@@ -27,8 +27,9 @@ OBS = "api/services/discord_render/observe.py"
 MUTATIONS = [
     {"name": "M0 /flow dropped from the default command set (the corrected stale assertion can fire)",
      "file": "api/services/discord_interactions.py",
-     "old": "            build_settings_command(), build_buzz_command(), build_flow_command()]\n",
-     "new": "            build_settings_command(), build_buzz_command()]\n",
+     # re-aimed: /lesson (e4f2c52147) and later doors moved the list's close off this line
+     "old": "            build_settings_command(), build_buzz_command(), build_flow_command(),\n",
+     "new": "            build_settings_command(), build_buzz_command(),\n",
      "tests": [A + "test_launch_command_is_an_admin_only_entry_point_registered_only_on_request"]},
     {"name": "M1 /renderhealth admin check bypassed", "file": CMD,
      "old": "    if not is_render_admin(interaction):\n", "new": "    if False:\n",
