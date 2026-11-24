@@ -21,7 +21,8 @@ vi.mock('../../../utils/jsonFetcher', () => ({ default: vi.fn() }))
 import jsonFetcher from '../../../utils/jsonFetcher'
 import { PanelFreshnessContext, PanelListContext, TerminalPanelContext } from '../../../components/terminal'
 import FactorExposurePanel from './FactorExposurePanel'
-import { FCTX_CODE, FCTX_SOURCE, HELD_POLL_MS, fctxUrl } from './factorExposureModel'
+import { COMPUTING_POLL_MS, FCTX_CODE, FCTX_SOURCE, HELD_POLL_MS, fctxPollMs, fctxRead, fctxUrl } from './factorExposureModel'
+import { WARMING_TITLE } from './marketRead'
 import { fctxAnswer } from './__fixtures__/factorExposureFixture'
 import { colourLiteralsIn } from '../__tests__/themeScope'
 import { expectNoAxeViolations } from '../../journal-2-0/a11y/axeHarness'
@@ -109,7 +110,7 @@ describe('FCTX states', () => {
     renderPanel({ sym: '$$', code: 'FCTX' })
     expect((await screen.findByTestId('terminal-fctx-bad-symbol')).textContent).toContain('Type one first, e.g. NVDA FCTX')
     cleanup()
-    for (const b of [{ items: [] }, { status: 'computing' }, []]) {
+    for (const b of [{ items: [] }, { status: 'pending' }, []]) {
       serve(b)
       renderPanel()
       expect((await screen.findByTestId('terminal-fctx-error')).textContent).toContain('The factor exposure for NVDA could not be read just now.')
@@ -265,6 +266,39 @@ describe('FCTX sections', () => {
     expect(textOf('terminal-fctx-fund-quality')).toContain('QUAL: not held on this server')
   })
 
+  it('the first ask being worked out says the server is preparing it, asks again by itself, and stops once it is ready', async () => {
+    // speed pass 2 (2026-11-24): the server answers `computing` at once while it works the stock out
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      let n = 0
+      jsonFetcher.mockImplementation(async () => {
+        n += 1
+        return n === 1 ? { status: 'computing', symbol: 'NVDA' } : fctxAnswer()
+      })
+      renderPanel()
+      const working = await screen.findByTestId('terminal-fctx-computing')
+      expect(working.textContent).toBe(WARMING_TITLE)
+      expect(working.getAttribute('role')).toBe('status')
+      expect(root().getAttribute('data-state')).toBe('computing')
+      expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull()
+      expect(n).toBe(1)
+      await vi.advanceTimersByTimeAsync(COMPUTING_POLL_MS + 100)
+      await screen.findByTestId('terminal-fctx-table')
+      expect(n).toBe(2)
+      await vi.advanceTimersByTimeAsync(COMPUTING_POLL_MS * 3)
+      expect(n).toBe(2)                                                    // ready: back to the half-hour pace
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('the pace: soon while the stock is being worked out, else once a half hour', () => {
+    expect(fctxPollMs(fctxRead({ status: 'computing', symbol: 'NVDA' }))).toBe(COMPUTING_POLL_MS)
+    expect(fctxPollMs(fctxRead(fctxAnswer()))).toBe(HELD_POLL_MS)
+    expect(fctxPollMs(fctxRead({ status: 'busy' }))).toBe(HELD_POLL_MS)
+    expect(fctxPollMs(fctxRead(undefined))).toBe(HELD_POLL_MS)
+  })
+
   it('asks again after half an hour; a later read that fails keeps the last answer and says so', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     try {
@@ -313,7 +347,7 @@ describe('FCTX rails', () => {
 
   it('reads through the terminal\'s one reader and reports the data\'s date through the panel header', () => {
     const src = fs.readFileSync(path.join(HERE, 'FactorExposurePanel.jsx'), 'utf8')
-    expect(src).toMatch(/useMarketRead\(fctxUrl\(s\), \{ refreshInterval: HELD_POLL_MS \}\)/)
+    expect(src).toMatch(/useMarketRead\(fctxUrl\(s\), \{ refreshInterval: \(latest\) => fctxPollMs\(fctxRead\(latest\?\.body\)\) \}\)/)
     expect(src).toMatch(/usePanelFreshness\(ok \? panelAsOf\(FCTX_SOURCE, view\.dataThrough\) : null\)/)
     expect(src).not.toMatch(/setInterval|setTimeout|fetch\(/)
     expect(src).not.toMatch(/srOnly|visually-?hidden/i)

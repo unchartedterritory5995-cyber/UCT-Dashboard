@@ -137,12 +137,19 @@ def test_a_note_that_cannot_be_written_still_posts_the_charts(monkeypatch, tmp_p
     monkeypatch.setenv("DISCORD_INDEX_CLOSE_ENABLED", "1")
     monkeypatch.setenv("DISCORD_TSDR_WEBHOOK_URL", "https://discord.test/hook")
     monkeypatch.setattr(idx, "pick_notable", lambda **k: [])
+    # ⚰️ This call once passed no `sleep_fn`, so `wait_until_warm` slept for real: whenever another test had
+    # imported api.main less than WARM_MIN_UPTIME_S (300 s) earlier, the "pod" was young and the test waited
+    # out the rest (Timeout >120 s in the 2026-11-23 full suite). It also asked the live snapshot vendor for
+    # the session moves. Both are pinned here, as the test below already pins them.
+    import api.services.massive as massive
+    monkeypatch.setattr(massive, "get_etf_snapshots",
+                        lambda pool, **k: {s: 1.0 for s in pool}, raising=False)
     posts = []
     rep = idx.run_close_post(
         bars_fn=lambda s, tf, n: [{"t": 20260827, "o": 1, "h": 2, "l": 1, "c": 1.5, "v": 9}],
         house_fn=lambda *a: b"png", stats_fn=lambda b: {}, name_fn=lambda s, tf, t: f"{s}.png",
         note_fn=lambda moves: (_ for _ in ()).throw(RuntimeError("model down")),
-        post_fn=lambda url, p, f: posts.append(p["content"]) or True,
+        post_fn=lambda url, p, f: posts.append(p["content"]) or True, sleep_fn=lambda s: None,
         now_et=_dt.datetime(2026, 8, 27, 15, 45))
     assert rep["posted"] == 2 and rep["note"] == ""
     assert posts and "Into the close" in posts[0]

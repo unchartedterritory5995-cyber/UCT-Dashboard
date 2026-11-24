@@ -215,6 +215,15 @@ def _drive_agent_earnings_reactions(payload, monkeypatch):
     return er.cached_day(DAY)
 
 
+def _drive_fed_watch(payload, monkeypatch):
+    """The Terminal's FED panel (9e62d6c19e, 2026-11-21): the current week from the cache, then the
+    weeks ahead (held empty here, so only the injected week is read)."""
+    from api.services import fed_watch as fw
+    from api.services.cache import cache
+    monkeypatch.setattr(cache, "get", lambda k, *a, **kw: payload if k == "calendar_weekly" else None)
+    return fw._calendar_payloads(MONDAY)
+
+
 DRIVERS = {
     "api.services.earnings_season.read_week": _drive_earnings_season,
     "api.services.uct_agent.marketdata.earnings_reactions.cached_day": _drive_agent_earnings_reactions,
@@ -225,6 +234,7 @@ DRIVERS = {
     "api.services.wire.detector.todays_reporters": _drive_wire_detector,
     "api.services.earnings_preview_warm._rank": _drive_preview_warm,
     "api.services.research.earnings_ai_adapter._cross_check_live_window": _drive_ai_adapter,
+    "api.services.fed_watch._calendar_payloads": _drive_fed_watch,
 }
 
 

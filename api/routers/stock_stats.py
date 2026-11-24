@@ -35,6 +35,7 @@ def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
 
 @router.get("/api/research/stock-stats/{ticker}")
 def get_stock_stats(ticker: str, user: dict = Depends(require_paid)):
-    """Stock statistics for one ticker (see `api/services/stock_stats.py`)."""
-    from api.services import stock_stats
-    return stock_stats.get_stock_stats(require_route_symbol(ticker))
+    """Stock statistics for one ticker (see `api/services/stock_stats.py`). A held answer is sent as the bytes made for
+    it on its build thread (`held_bytes`, speed pass 3): the same bytes, never re-made on the event loop."""
+    from api.services import held_bytes, stock_stats
+    return held_bytes.response(stock_stats.get_stock_stats(require_route_symbol(ticker)))

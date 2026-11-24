@@ -32,6 +32,7 @@ const FAILS = reachableFailures(FILES, THEMES)
 
 /** JS/JSX lines that name --loss/--gain beside `color`/`fill` and are NOT text. Exact file → count. */
 const JS_NOT_TEXT = {
+  'components/Sparkline.jsx': { count: 1, why: 'the trend line STROKE and its gradient-fill stops (an aria-hidden SVG path); the component draws no text' },
   'components/TickerPopup.jsx': { count: 1, why: 'the flow badge BACKGROUND is --gain/--loss; its text is --on-gain/--on-loss (TickerPopup.flowBadge.test.js)' },
   'components/calendar/CallRecapSection.jsx': { count: 2, why: 'stacked-bar SERIES colours for the analyst-rating chart (bars, not text)' },
   'components/tiles/MARelationship.jsx': { count: 1, why: 'the chip BORDER hue; the chip text uses the separate `ink` (--success-ink/--danger-ink)' },

@@ -1,41 +1,41 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 269,
+  "all": 281,
   "withProductionKinds": 208,
-  "darkGated": 61
+  "darkGated": 73
  },
  "totals": {
-  "capabilities": 269,
-  "withAnyRegressionCase": 218,
+  "capabilities": 281,
+  "withAnyRegressionCase": 230,
   "perProtection": {
    "nl": {
-    "covered": 215,
-    "applicable": 269
+    "covered": 227,
+    "applicable": 281
    },
    "routing": {
-    "covered": 212,
-    "applicable": 269
+    "covered": 224,
+    "applicable": 281
    },
    "args": {
-    "covered": 218,
-    "applicable": 269
+    "covered": 230,
+    "applicable": 281
    },
    "execution": {
-    "covered": 215,
-    "applicable": 269
+    "covered": 227,
+    "applicable": 281
    },
    "receipt": {
-    "covered": 185,
-    "applicable": 269
+    "covered": 197,
+    "applicable": 281
    },
    "refusal": {
     "covered": 35,
-    "applicable": 269
+    "applicable": 281
    },
    "permission": {
-    "covered": 261,
-    "applicable": 269
+    "covered": 273,
+    "applicable": 281
    },
    "undo": {
     "covered": 84,
@@ -43,11 +43,11 @@
    },
    "multiStep": {
     "covered": 43,
-    "applicable": 269
+    "applicable": 281
    },
    "phrasings": {
-    "covered": 211,
-    "applicable": 269
+    "covered": 223,
+    "applicable": 281
    }
   }
  },
@@ -9808,6 +9808,60 @@
     "phrasings": []
    }
   },
+  "stock.companyDeals": {
+   "domain": "stock",
+   "group": "stockResearch",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.companyDeals: \"mergers involving NVDA\"",
+     "stock.companyDeals: \"has NVDA been acquired\"",
+     "stock.companyDeals: \"when was NVDA added to the dow\"",
+     "stock.companyDeals: \"acquisitions by NVDA\""
+    ],
+    "routing": [
+     "stock.companyDeals: \"mergers involving NVDA\"",
+     "stock.companyDeals: \"has NVDA been acquired\"",
+     "stock.companyDeals: \"when was NVDA added to the dow\"",
+     "stock.companyDeals: \"acquisitions by NVDA\""
+    ],
+    "args": [
+     "corpus stock.companyDeals"
+    ],
+    "execution": [
+     "stock.companyDeals (c)"
+    ],
+    "receipt": [
+     "stock.companyDeals (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "stock.companyRecord": {
    "domain": "stock",
    "group": "stockStudies",
@@ -9970,6 +10024,60 @@
     "phrasings": []
    }
   },
+  "stock.consensusRating": {
+   "domain": "stock",
+   "group": "stockResearch",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.consensusRating: \"price target for NVDA\"",
+     "stock.consensusRating: \"what's the consensus target on NVDA\"",
+     "stock.consensusRating: \"consensus rating on NVDA\"",
+     "stock.consensusRating: \"how many analysts rate NVDA a buy\""
+    ],
+    "routing": [
+     "stock.consensusRating: \"price target for NVDA\"",
+     "stock.consensusRating: \"what's the consensus target on NVDA\"",
+     "stock.consensusRating: \"consensus rating on NVDA\"",
+     "stock.consensusRating: \"how many analysts rate NVDA a buy\""
+    ],
+    "args": [
+     "corpus stock.consensusRating"
+    ],
+    "execution": [
+     "stock.consensusRating (c)"
+    ],
+    "receipt": [
+     "stock.consensusRating (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "stock.dailyBars": {
    "domain": "stock",
    "group": "data",
@@ -10083,6 +10191,60 @@
     ],
     "receipt": [
      "stock.darkPoolLevels (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.daysLikeToday": {
+   "domain": "stock",
+   "group": "marketMacro",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.daysLikeToday: \"days like today\"",
+     "stock.daysLikeToday: \"breadth analogues\"",
+     "stock.daysLikeToday: \"when did the market look like this\"",
+     "stock.daysLikeToday: \"past sessions like this\""
+    ],
+    "routing": [
+     "stock.daysLikeToday: \"days like today\"",
+     "stock.daysLikeToday: \"breadth analogues\"",
+     "stock.daysLikeToday: \"when did the market look like this\"",
+     "stock.daysLikeToday: \"past sessions like this\""
+    ],
+    "args": [
+     "corpus stock.daysLikeToday"
+    ],
+    "execution": [
+     "stock.daysLikeToday (c)"
+    ],
+    "receipt": [
+     "stock.daysLikeToday (c)"
     ],
     "refusal": [],
     "permission": [],
@@ -10373,6 +10535,60 @@
     "phrasings": []
    }
   },
+  "stock.economyBoard": {
+   "domain": "stock",
+   "group": "marketMacro",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.economyBoard: \"economic data\"",
+     "stock.economyBoard: \"the latest cpi\"",
+     "stock.economyBoard: \"jobs report\"",
+     "stock.economyBoard: \"show me the economy board\""
+    ],
+    "routing": [
+     "stock.economyBoard: \"economic data\"",
+     "stock.economyBoard: \"the latest cpi\"",
+     "stock.economyBoard: \"jobs report\"",
+     "stock.economyBoard: \"show me the economy board\""
+    ],
+    "args": [
+     "corpus stock.economyBoard"
+    ],
+    "execution": [
+     "stock.economyBoard (c)"
+    ],
+    "receipt": [
+     "stock.economyBoard (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "stock.estimatesBreadth": {
    "domain": "stock",
    "group": "marketTables",
@@ -10419,6 +10635,60 @@
     ],
     "receipt": [
      "stock.estimatesBreadth (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.estimatesHistory": {
+   "domain": "stock",
+   "group": "stockResearch",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.estimatesHistory: \"NVDA estimate history\"",
+     "stock.estimatesHistory: \"how have NVDA's estimates changed\"",
+     "stock.estimatesHistory: \"eps estimate revisions for NVDA\"",
+     "stock.estimatesHistory: \"the revenue estimate trend for NVDA\""
+    ],
+    "routing": [
+     "stock.estimatesHistory: \"NVDA estimate history\"",
+     "stock.estimatesHistory: \"how have NVDA's estimates changed\"",
+     "stock.estimatesHistory: \"eps estimate revisions for NVDA\"",
+     "stock.estimatesHistory: \"the revenue estimate trend for NVDA\""
+    ],
+    "args": [
+     "corpus stock.estimatesHistory"
+    ],
+    "execution": [
+     "stock.estimatesHistory (c)"
+    ],
+    "receipt": [
+     "stock.estimatesHistory (c)"
     ],
     "refusal": [],
     "permission": [],
@@ -10581,6 +10851,60 @@
     ],
     "receipt": [
      "stock.factorExposure (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.failsToDeliver": {
+   "domain": "stock",
+   "group": "stockResearch",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.failsToDeliver: \"NVDA fails to deliver\"",
+     "stock.failsToDeliver: \"fails-to-deliver for NVDA\"",
+     "stock.failsToDeliver: \"failures to deliver in NVDA\"",
+     "stock.failsToDeliver: \"show me the fail to deliver data for NVDA\""
+    ],
+    "routing": [
+     "stock.failsToDeliver: \"NVDA fails to deliver\"",
+     "stock.failsToDeliver: \"fails-to-deliver for NVDA\"",
+     "stock.failsToDeliver: \"failures to deliver in NVDA\"",
+     "stock.failsToDeliver: \"show me the fail to deliver data for NVDA\""
+    ],
+    "args": [
+     "corpus stock.failsToDeliver"
+    ],
+    "execution": [
+     "stock.failsToDeliver (c)"
+    ],
+    "receipt": [
+     "stock.failsToDeliver (c)"
     ],
     "refusal": [],
     "permission": [],
@@ -10913,6 +11237,60 @@
     "phrasings": []
    }
   },
+  "stock.insiderBuying": {
+   "domain": "stock",
+   "group": "marketMacro",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.insiderBuying: \"insider buying\"",
+     "stock.insiderBuying: \"what are insiders buying\"",
+     "stock.insiderBuying: \"show me the insider clusters\"",
+     "stock.insiderBuying: \"latest insider purchases\""
+    ],
+    "routing": [
+     "stock.insiderBuying: \"insider buying\"",
+     "stock.insiderBuying: \"what are insiders buying\"",
+     "stock.insiderBuying: \"show me the insider clusters\"",
+     "stock.insiderBuying: \"latest insider purchases\""
+    ],
+    "args": [
+     "corpus stock.insiderBuying"
+    ],
+    "execution": [
+     "stock.insiderBuying (c)"
+    ],
+    "receipt": [
+     "stock.insiderBuying (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "stock.ipoCalendar": {
    "domain": "stock",
    "group": "marketCalendars",
@@ -11129,6 +11507,60 @@
     "phrasings": []
    }
   },
+  "stock.liquidityBoard": {
+   "domain": "stock",
+   "group": "marketMacro",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.liquidityBoard: \"net liquidity\"",
+     "stock.liquidityBoard: \"the fed balance sheet\"",
+     "stock.liquidityBoard: \"reverse repo\"",
+     "stock.liquidityBoard: \"money supply\""
+    ],
+    "routing": [
+     "stock.liquidityBoard: \"net liquidity\"",
+     "stock.liquidityBoard: \"the fed balance sheet\"",
+     "stock.liquidityBoard: \"reverse repo\"",
+     "stock.liquidityBoard: \"money supply\""
+    ],
+    "args": [
+     "corpus stock.liquidityBoard"
+    ],
+    "execution": [
+     "stock.liquidityBoard (c)"
+    ],
+    "receipt": [
+     "stock.liquidityBoard (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "stock.longRunLeaders": {
    "domain": "stock",
    "group": "data",
@@ -11175,6 +11607,60 @@
     ],
     "receipt": [
      "stock.longRunLeaders (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.marketHistory": {
+   "domain": "stock",
+   "group": "marketMacro",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.marketHistory: \"market corrections and bear markets\"",
+     "stock.marketHistory: \"how long do bear markets last\"",
+     "stock.marketHistory: \"history of bear markets\"",
+     "stock.marketHistory: \"nasdaq corrections\""
+    ],
+    "routing": [
+     "stock.marketHistory: \"market corrections and bear markets\"",
+     "stock.marketHistory: \"how long do bear markets last\"",
+     "stock.marketHistory: \"history of bear markets\"",
+     "stock.marketHistory: \"nasdaq corrections\""
+    ],
+    "args": [
+     "corpus stock.marketHistory"
+    ],
+    "execution": [
+     "stock.marketHistory (c)"
+    ],
+    "receipt": [
+     "stock.marketHistory (c)"
     ],
     "refusal": [],
     "permission": [],
@@ -11283,6 +11769,60 @@
     ],
     "receipt": [
      "stock.oiChange (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.oilReport": {
+   "domain": "stock",
+   "group": "marketMacro",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.oilReport: \"weekly oil report\"",
+     "stock.oilReport: \"crude inventories\"",
+     "stock.oilReport: \"eia report\"",
+     "stock.oilReport: \"refinery utilization\""
+    ],
+    "routing": [
+     "stock.oilReport: \"weekly oil report\"",
+     "stock.oilReport: \"crude inventories\"",
+     "stock.oilReport: \"eia report\"",
+     "stock.oilReport: \"refinery utilization\""
+    ],
+    "args": [
+     "corpus stock.oilReport"
+    ],
+    "execution": [
+     "stock.oilReport (c)"
+    ],
+    "receipt": [
+     "stock.oilReport (c)"
     ],
     "refusal": [],
     "permission": [],
@@ -11560,6 +12100,60 @@
     ],
     "receipt": [
      "stock.realCurve (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.revenueSplit": {
+   "domain": "stock",
+   "group": "stockResearch",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.revenueSplit: \"NVDA revenue by segment\"",
+     "stock.revenueSplit: \"NVDA revenue by region\"",
+     "stock.revenueSplit: \"segment revenue for NVDA\"",
+     "stock.revenueSplit: \"where does NVDA make its money\""
+    ],
+    "routing": [
+     "stock.revenueSplit: \"NVDA revenue by segment\"",
+     "stock.revenueSplit: \"NVDA revenue by region\"",
+     "stock.revenueSplit: \"segment revenue for NVDA\"",
+     "stock.revenueSplit: \"where does NVDA make its money\""
+    ],
+    "args": [
+     "corpus stock.revenueSplit"
+    ],
+    "execution": [
+     "stock.revenueSplit (c)"
+    ],
+    "receipt": [
+     "stock.revenueSplit (c)"
     ],
     "refusal": [],
     "permission": [],
@@ -12462,6 +13056,60 @@
     ],
     "receipt": [
      "stock.uct20List (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.uctRating": {
+   "domain": "stock",
+   "group": "stockResearch",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.uctRating: \"NVDA UCT rating\"",
+     "stock.uctRating: \"what is NVDA's composite rating\"",
+     "stock.uctRating: \"UCT composite rating of NVDA\"",
+     "stock.uctRating: \"show me the stock checkup for NVDA\""
+    ],
+    "routing": [
+     "stock.uctRating: \"NVDA UCT rating\"",
+     "stock.uctRating: \"what is NVDA's composite rating\"",
+     "stock.uctRating: \"UCT composite rating of NVDA\"",
+     "stock.uctRating: \"show me the stock checkup for NVDA\""
+    ],
+    "args": [
+     "corpus stock.uctRating"
+    ],
+    "execution": [
+     "stock.uctRating (c)"
+    ],
+    "receipt": [
+     "stock.uctRating (c)"
     ],
     "refusal": [],
     "permission": [],

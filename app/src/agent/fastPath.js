@@ -21,6 +21,7 @@ import { allCapabilityNames, getCapability, onSurface } from './capabilities'
 import { lexiconFor, correctTypos, setBaseSources } from './nl/lexicon'
 import { chartQualifier, ordinalChart, ORD_RE, timeframeSetOf } from './deixis'
 import { spatialTargetSpan } from './spatialCheck'
+import { sideBySideWords, SIDE_REPLACE } from './sideBySideWords'
 
 // Phase 1: "change MY chart to 15 minutes", "change the timeframe to daily", "switch to the 15 minute"
 // are the same obvious commands as "15 minute chart" — no model call.
@@ -226,6 +227,13 @@ function safeCorrected(r) {
   })
 }
 export function fastParse(text, opts = {}) {
+  const r = fastParseAny(text, opts)
+  // ⛔ SIDE BY SIDE PRESERVES (owner ruling 11-23): "put QQQ next to the SPY chart" is no symbol change of the chart next to SPY —
+  // a re-symbol read from side-by-side words (no replace word) is left to the plan, whose screen adds the chart beside it or asks
+  if (r?.kind === 'ops' && (r.ops || []).some(o => o?.action === 'chart.setSymbol') && sideBySideWords(text) && !SIDE_REPLACE.test(String(text || ''))) return null
+  return r
+}
+function fastParseAny(text, opts = {}) {
   const exact = fastParseExact(text, opts)
   if (exact) return exact
   const variants = correctTypos(text, lexiconFor(opts.host || null))

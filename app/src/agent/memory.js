@@ -103,6 +103,19 @@ export function createMemory({ now = () => Date.now() } = {}) {
       }
     },
 
+    /** ⛔ G1 (AUDIT 11-23): what the conversation points at, as it stands — taken before a whole NLM-1 reading runs, so a
+     *  reading that is taken back (restoreReferents) leaves no referent behind: no subject, last change, turn or indicator
+     *  set from a change that is no longer on the board. Copies (a step mutates the live turn / sets in place). */
+    snapshotReferents() {
+      const copyList = (x) => (x ? { ...x, list: [...x.list] } : x)
+      return { subjects: { ...subjects }, last, turn: turn ? { ...turn, steps: [...turn.steps] } : null, indSet: copyList(indSet),
+        priorInd: copyList(priorInd), pick, ment: copyList(ment), engaged }
+    },
+    restoreReferents(s) {
+      if (!s) return
+      subjects = { ...s.subjects }; last = s.last; turn = s.turn; indSet = s.indSet; priorInd = s.priorInd; pick = s.pick; ment = s.ment; engaged = s.engaged
+    },
+
     /** ⭐ PHASE 2: a new member message is being answered — its committed steps form one turn. */
     beginTurn() { turnId += 1; return turnId },
     /** PLANNER v2: the turn now open, and re-opening a paused turn so the card's outcome joins ITS Undo group. */

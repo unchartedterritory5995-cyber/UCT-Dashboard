@@ -24,6 +24,14 @@ falls back to the hourly value ONLY for a name without a row, saying which in
 references in 149 files, a rename is out of proportion. Flag off, every reader
 answers byte for byte what it did before. :func:`fast_rank_map` is the hourly
 rank whatever the flag says, for the one caller that must store it as such.
+
+THE LIST'S SOURCES TELL WHO LISTENS (speed pass 3, 2026-11-24). A new ranking
+cached (computed or seeded from the snapshot) and a rating table that CHANGED
+call every function registered with :func:`on_change`, on the thread that saw
+it (`/api/rs-rankings` makes its finished bytes then, off the request). A
+re-read of the rating table that finds the same table hands back the SAME
+object, so what was made from it stays valid; :func:`ibd_latest_nowait` is the
+read that never waits on the table's re-read.
 """
 
 import json
@@ -251,6 +259,7 @@ def compute_rs_scores(force: bool = False) -> list[dict]:
     last_seed_remaining_s = None
     _write_snapshot(ranked)
     logger.info(f"[rs_ranking] Cached {len(ranked)} RS rankings")
+    _notify()
     return ranked
 
 
@@ -309,6 +318,7 @@ def _seed_from_snapshot(now: float | None = None) -> list[dict] | None:
     last_seed_remaining_s = remaining
     logger.info("[rs_ranking] seeded %d rankings from the snapshot (%.0f s old, %.0f s left)",
                 len(rows), age, remaining)
+    _notify()
     return rows
 
 
@@ -404,18 +414,45 @@ SOURCE_FAST = "fast"
 
 
 def invalidate_ibd_cache() -> None:
-    """Drop the memoised nightly ratings (tests, and a rerun of the nightly)."""
+    """Drop the memoised nightly ratings (tests, and a rerun of the nightly), the table handed out last included."""
+    global _ibd_last
     _ibd_cache.invalidate(_IBD_KEY)
+    with _ibd_lock:
+        _ibd_last = None
 
 
-def _ibd_latest() -> tuple:
-    """``(session, {TICKER: ibd})`` for the newest stored rating session, memoised
-    for :data:`_IBD_TTL`. Read-only on ``rs_rating_history``: no table, no rows or a
-    failed read is ``(None, {})`` (memoised too, so a dark store is not re-asked
-    on every request), and the caller falls back to the hourly rank."""
-    hit = _ibd_cache.get(_IBD_KEY)
-    if hit is not None:
-        return hit
+# ── who listens to the list's sources (speed pass 3) ─────────────────────────
+_listeners: list = []
+_listeners_lock = threading.Lock()
+#: The newest rating table handed out; a re-read that finds an EQUAL table hands back this same object.
+_ibd_last: tuple | None = None
+_ibd_lock = threading.Lock()
+_ibd_rereading = False
+IBD_REREAD_THREAD = "rs-ibd-reread"
+
+
+def on_change(fn) -> None:
+    """Call ``fn()`` whenever a new ranking is cached or the rating table changes, on the thread that saw it. ``fn``
+    must return at once (start its own thread for work). Registered once per function."""
+    with _listeners_lock:
+        if fn not in _listeners:
+            _listeners.append(fn)
+
+
+def _notify() -> None:
+    with _listeners_lock:
+        fns = list(_listeners)
+    for fn in fns:
+        try:
+            fn()
+        except Exception:                                    # noqa: BLE001 - a listener never costs the source
+            logger.warning("[rs_ranking] a change listener failed", exc_info=True)
+
+
+def _ibd_read() -> tuple:
+    """The re-read itself (see :func:`_ibd_latest`): an EQUAL table comes back as the object handed out before, and a
+    changed one tells the listeners."""
+    global _ibd_last
     try:
         from api.services.screener import rs_history
         session, ratings = rs_history.newest_ibd_ratings()
@@ -424,11 +461,59 @@ def _ibd_latest() -> tuple:
                        exc_info=True)
         session, ratings = None, {}
     out = (session, dict(ratings or {}))
+    with _ibd_lock:
+        prev = _ibd_last
+        if prev is not None and prev == out:
+            out = prev                                       # the same table: the same object
+        _ibd_last = out
     _ibd_cache.set(_IBD_KEY, out, ttl=_IBD_TTL)
+    if out is not prev:
+        _notify()
     return out
 
 
-def _unify(items: list, *, append_missing: bool = True) -> list:
+def _ibd_latest() -> tuple:
+    """``(session, {TICKER: ibd})`` for the newest stored rating session, memoised
+    for :data:`_IBD_TTL`. Read-only on ``rs_rating_history``: no table, no rows or a
+    failed read is ``(None, {})`` (memoised too, so a dark store is not re-asked
+    on every request), and the caller falls back to the hourly rank. A re-read that
+    finds the same table hands back the same object (speed pass 3)."""
+    hit = _ibd_cache.get(_IBD_KEY)
+    if hit is not None:
+        return hit
+    return _ibd_read()
+
+
+def _ibd_reread_bg() -> None:
+    global _ibd_rereading
+    try:
+        _ibd_read()
+    finally:
+        with _ibd_lock:
+            _ibd_rereading = False
+
+
+def ibd_latest_nowait() -> tuple:
+    """The rating table without waiting on its re-read (speed pass 3, for ``/api/rs-rankings``): the memo while it is
+    fresh; past :data:`_IBD_TTL`, the table read last while ONE background re-read (:data:`IBD_REREAD_THREAD`) looks
+    again, a changed table telling the listeners; the blocking read only when none was read yet in this process. A
+    pod may print yesterday's number for :data:`_IBD_TTL` plus that re-read, never longer."""
+    global _ibd_rereading
+    if _ibd_cache.get(_IBD_KEY) is not None:
+        return _ibd_latest()                                 # the memo is fresh: the read answers from it at once
+    with _ibd_lock:
+        last = _ibd_last
+        start = last is not None and not _ibd_rereading
+        if start:
+            _ibd_rereading = True
+    if last is None:
+        return _ibd_latest()
+    if start:
+        threading.Thread(target=_ibd_reread_bg, name=IBD_REREAD_THREAD, daemon=True).start()
+    return last
+
+
+def _unify(items: list, *, append_missing: bool = True, table: tuple | None = None) -> list:
     """The overlay itself: a NEW list of NEW dicts, never the cached objects.
 
     An entry with a nightly row gets ``rs_rank = ibd``, ``rs_rank_source = "ibd"``,
@@ -443,9 +528,10 @@ def _unify(items: list, *, append_missing: bool = True) -> list:
     it too. The ranked LIST (:func:`unified_rankings`) passes ``False``: such a
     row has no score and no returns, so in the RS leaders panel it is a blank
     line (RS split F3, 2026-11-10). Sorted best first like the hourly list (a
-    stable sort, so equal ratings keep the hourly order).
+    stable sort, so equal ratings keep the hourly order). ``table``: the rating table to lay over
+    (`/api/rs-rankings` hands in the very table its bytes are keyed on); without one, :func:`_ibd_latest`.
     """
-    session, ibd = _ibd_latest()
+    session, ibd = table if table is not None else _ibd_latest()
     out = []
     seen = set()
     for item in items or ():
@@ -470,7 +556,7 @@ def _unify(items: list, *, append_missing: bool = True) -> list:
     return out
 
 
-def unified_rankings(items: list) -> list:
+def unified_rankings(items: list, table: tuple | None = None) -> list:
     """The ranked LIST as the site should show it: ``items`` untouched (the same
     object) when the flag is off or the list is empty; the overlay otherwise.
     ``/api/rs-rankings`` and the groups gate's list read go through here.
@@ -482,7 +568,7 @@ def unified_rankings(items: list) -> list:
     """
     if not items or not rs_rank_ibd_enabled():
         return items
-    return _unify(items, append_missing=False)
+    return _unify(items, append_missing=False, table=table)
 
 
 def cached_rank_map() -> dict:

@@ -1250,3 +1250,21 @@ Master went red on the `notebook bytes` gate after PR #1037 (intraday time bucke
 The editor warms both chunks once idle, like the widget palette, so a press opens without a wait and still opens offline once the warm has landed. ResearchHome and TickerResearchWorkspace still import both statically; they are lazy views, off first open. The rail was mutation-checked: an eager import put back turns it red.
 
 **Local measurement** (`vite build`, then `tools/notebook_perf_budgets.py --dist app/dist`, tree of `220ee36545`): **2,263,106 B** before, **2,251,636 B** after, −11,470 B, so 9,157 B under the 2,260,793 B line.
+
+## Agent data wave 11 put first open 209 B over; +2,048 B by owner approval (2026-11-24)
+
+The UCT Agent's data wave 11 (#2651, merged 2026-11-24 02:20Z) added a capability module to the Agent's registry,
+which the Notebook's first open loads. CI then read **2,261,202 B** at `c836139b3f` against the **2,260,993 B**
+line (+209 B), the `notebook bytes` gate went red on master, and production promotion was refused on it
+(promote run 45313873000, "its own gate did not succeed"); the site stayed on `5ab3df9a31`.
+
+The owner approved a raise ("raise it to whatever we need to keep functioning and working instant and properly and
+quickly in our workflow"). `notebook_first_open.max` moves to **2,263,041 B**: +2,048 B, so the next small merge
+does not stop promotion again. That is about 0.09% of first open.
+
+Every raise above the rule is now listed in the budget file's `owner_raises` (bytes, date, who approved, what for),
+and `tests/test_notebook_perf_budgets.py` allows exactly the rule plus those raises. Before, the 2026-11-16 +200 B
+(#1477) could not be recorded there, and that test had been red on master since.
+
+Not done here, and still worth doing: move wave 11's capability module off the Notebook's first open (a lazy import
+in the Agent's registry), then withdraw this raise. Bracco's team was asked (#2651).

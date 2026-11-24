@@ -47,6 +47,7 @@ def get_setup_history(user: dict = Depends(require_paid)):
 
 @router.get("/api/research/setup-history/{ticker}")
 def get_setup_history_stock(ticker: str, user: dict = Depends(require_paid)):
-    """Every signal of each setup on one stock, newest first, with the universe line for its phase."""
-    from api.services import setup_history
-    return setup_history.get_stock(require_route_symbol(ticker))
+    """Every signal of each setup on one stock, newest first, with the universe line for its phase. A held answer is
+    sent as the bytes made for it once (`held_bytes`, speed pass 3): the same bytes."""
+    from api.services import held_bytes, setup_history
+    return held_bytes.response(setup_history.get_stock(require_route_symbol(ticker)))

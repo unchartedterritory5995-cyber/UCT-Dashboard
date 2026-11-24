@@ -25,7 +25,13 @@ that session is read again at most every `LAG_RECHECK_S`; so is the fund set whe
 replaced or left out (an answer follows the fund set: `stamp`). The held answers are capped
 (`CACHE_MAX`, the least recently asked dropped first); one request per symbol builds at a time (a second
 waits for it), and at most `BUILD_SLOTS` symbols build at once (past `BUILD_WAIT_S` the request says
-`busy`). The fund set is read by one request at a time (`_funds_read`), never twice for one session.
+`busy`). The fund set is read by one build at a time (`_funds_read`), never twice for one session.
+THE FIRST ASK NEVER BUILDS ON THE REQUEST (speed pass 2, 2026-11-24; live, a first open took 2.1 s): the
+request reads only what is held (the session's fund set, then the stock's answer for it); anything else
+starts the stock's ONE background build (`BUILD_THREAD`: the fund set when it is not held fresh, then the
+stock; at most `MAX_PENDING` started and unfinished, past that `busy`) and the request answers
+`computing` at once; the panel asks again. A build that holds nothing (a failed read, `busy`) is said
+ONCE to the next request (`_said`), never held.
 
 MEASURED (2026-11-22, invented bars through the real read path on the dev PC, not production): one stock
 with 6,011 stored daily rows costs about 23 ms of CPU the first time it is asked for in a session (the
@@ -48,6 +54,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from api.services import factor_exposure_calc as C
+from api.services import held_build
 
 _log = logging.getLogger(__name__)
 
@@ -59,8 +66,15 @@ BUSY = "The server is busy working out factor exposures. Try again in a moment."
 CACHE_MAX = 256                 # held answers (one per symbol), least recently asked dropped first
 LAG_RECHECK_S = 1800.0          # a stock (or the fund set) that stops short of the session is read again after this
 BUILD_SLOTS = 4                 # symbols built at once, whatever the number of members
-BUILD_WAIT_S = 10.0             # the longest a request waits for a slot (or for the same symbol's build)
+BUILD_WAIT_S = 10.0             # the longest a build waits for a slot
 READ_SESSIONS = 2 * C.WINDOW + 60   # newest stored rows read for the stock and for each fund
+WAIT_S = 0.0                    # the longest a request waits for the build it started: none, the panel asks again
+MAX_PENDING = 4 * BUILD_SLOTS   # builds started and not finished, at most; past it a request says busy
+BUILD_THREAD = "factor-exposure-build"
+# How long the word of a build that held nothing is kept for the panel waiting on it (it asks again every few seconds):
+# held_build's own span for a failed build. Older, the next request starts a new build (review 2026-11-24: an untaken
+# failure was told to the next member to open the stock hours later).
+SAID_S = held_build.FAILED_S
 
 #: what one first read cost (see the module docstring)
 MEASURED = ("dev PC, invented bars through the real read: a first read about 23 ms of CPU and a 0.47 MB "
@@ -72,6 +86,8 @@ _cache: "OrderedDict[str, dict]" = OrderedDict()   # sym -> {key, stamp, at, rec
 _inflight: dict[str, threading.Event] = {}
 _funds: dict = {}                                   # {"held": the fund set}
 _slots = threading.BoundedSemaphore(BUILD_SLOTS)
+_said: "OrderedDict[str, dict]" = OrderedDict()    # sym -> {key, answer, at}: a build that held nothing, said once
+_gen = 0                                            # bumped by reset_for_tests: a build started before it keeps nothing
 
 
 # ── the reads (each indirected so tests replace it) ─────────────────────────────────────────
@@ -142,6 +158,13 @@ def read_funds(key: str) -> dict:
 
 def _fresh_funds(held: Optional[dict], key: str, now: float) -> bool:
     return bool(held) and held["key"] == key and (held["recheck_at"] is None or now < held["recheck_at"])
+
+
+def held_funds(key: str) -> Optional[dict]:
+    """The fund set for session `key` while it is held fresh, else None. Never reads a price."""
+    with _lock:
+        held = _funds.get("held")
+        return held if _fresh_funds(held, key, time.time()) else None
 
 
 def fund_set(key: str) -> dict:
@@ -250,56 +273,125 @@ def _keep(sym: str, key: str, stamp: tuple, answer: dict, now: float) -> None:
             _cache.popitem(last=False)
 
 
-def get_factor_exposure(sym: str, now: Optional[datetime] = None) -> dict:
-    """The answer for one canonical symbol (the route has already refused anything else)."""
-    now = now or now_et()
-    key = session_key(now)
-    try:
-        funds = fund_set(key)
-    except Exception as exc:  # noqa: BLE001 -- one bad fund read never fails the route with a 500
-        _log.warning("[factor-exposure] the fund set failed (%s)", type(exc).__name__)
-        return {"status": "unavailable", "symbol": sym, "reason": "failed",
-                "detail": f"The factor exposure for {sym} could not be worked out just now."}
-    stamp = funds["stamp"]
-    held = _held(sym, key, stamp, time.time())
-    if held is not None:
-        return held
-    # one build per symbol at a time: a second request for it waits for that build
+def _failed(sym: str) -> dict:
+    return {"status": "unavailable", "symbol": sym, "reason": "failed",
+            "detail": f"The factor exposure for {sym} could not be worked out just now."}
+
+
+def _say(sym: str, key: str, answer: dict, gen: int) -> None:
+    """Keep the outcome of a build that held nothing, to say it once to the next request for the stock."""
     with _lock:
-        ev = _inflight.get(sym)
-        mine = ev is None
-        if mine:
-            ev = _inflight[sym] = threading.Event()
-    if not mine:
-        ev.wait(BUILD_WAIT_S)
-        held = _held(sym, key, stamp, time.time())
-        return held if held is not None else {"status": "busy", "symbol": sym, "detail": BUSY}
+        if gen != _gen:
+            return
+        _said[sym] = {"key": key, "answer": answer, "at": time.time()}
+        _said.move_to_end(sym)
+        while len(_said) > CACHE_MAX:
+            _said.popitem(last=False)
+
+
+def _take_said(sym: str, key: str) -> Optional[dict]:
+    with _lock:
+        said = _said.pop(sym, None)
+    return said["answer"] if said and said["key"] == key and 0 <= time.time() - said["at"] < SAID_S else None
+
+
+def _build_bg(sym: str, key: str, ev: threading.Event, gen: int) -> None:
+    """The stock's one build, on its own thread: the session's fund set when it is not held fresh, then the stock
+    unless an answer for that fund set is held; held when it may be (`_keep`), else said once (`_say`)."""
     try:
+        try:
+            funds = fund_set(key)
+        except Exception as exc:  # noqa: BLE001 -- one bad fund read never fails the route with a 500
+            _log.warning("[factor-exposure] the fund set failed (%s)", type(exc).__name__)
+            _say(sym, key, _failed(sym), gen)
+            return
+        stamp = funds["stamp"]
+        if _held(sym, key, stamp, time.time()) is not None:
+            return
         if not _slots.acquire(timeout=BUILD_WAIT_S):
-            return {"status": "busy", "symbol": sym, "detail": BUSY}
+            _say(sym, key, {"status": "busy", "symbol": sym, "detail": BUSY}, gen)
+            return
         try:
             started = time.thread_time()
             answer = build(sym, key, funds)
             _log.debug("[factor-exposure] %s built in %.0f ms of CPU", sym, (time.thread_time() - started) * 1000)
         finally:
             _slots.release()
-        _keep(sym, key, stamp, answer, time.time())
-        return answer
+        if gen == _gen:
+            _keep(sym, key, stamp, answer, time.time())
+        if answer.get("status") not in ("ok", "not_held"):
+            _say(sym, key, answer, gen)
     except Exception as exc:  # noqa: BLE001 -- one stock never fails the route with a 500
         _log.warning("[factor-exposure] %s failed (%s)", sym, type(exc).__name__)
-        return {"status": "unavailable", "symbol": sym, "reason": "failed",
-                "detail": f"The factor exposure for {sym} could not be worked out just now."}
+        _say(sym, key, _failed(sym), gen)
     finally:
         with _lock:
-            _inflight.pop(sym, None)
+            if _inflight.get(sym) is ev:
+                del _inflight[sym]
         ev.set()
+
+
+def _start(sym: str, key: str) -> Optional[threading.Event]:
+    """The stock's build in flight, or a new one on its own thread; None when `MAX_PENDING` are already running."""
+    with _lock:
+        ev = _inflight.get(sym)
+        if ev is not None:
+            return ev
+        if len(_inflight) >= MAX_PENDING:
+            return None
+        ev = _inflight[sym] = threading.Event()
+        gen = _gen
+    threading.Thread(target=_build_bg, args=(sym, key, ev, gen), name=BUILD_THREAD, daemon=True).start()
+    return ev
+
+
+def _answer_held(sym: str, key: str) -> Optional[dict]:
+    funds = held_funds(key)
+    return _held(sym, key, funds["stamp"], time.time()) if funds is not None else None
+
+
+def get_factor_exposure(sym: str, now: Optional[datetime] = None, *, wait_s: Optional[float] = None) -> dict:
+    """The answer for one canonical symbol (the route has already refused anything else). NEVER reads a price on the
+    caller's thread: the answer held for the session's held fund set, else `computing` while the stock's one
+    background build runs (`wait_s`, by default `WAIT_S`: none, waits that long for it first)."""
+    now = now or now_et()
+    key = session_key(now)
+    held = _answer_held(sym, key)
+    if held is not None:
+        return held
+    said = _take_said(sym, key)
+    if said is not None:
+        return said
+    ev = _start(sym, key)
+    if ev is None:
+        return {"status": "busy", "symbol": sym, "detail": BUSY}
+    wait = WAIT_S if wait_s is None else wait_s
+    if wait > 0:
+        ev.wait(wait)
+        held = _answer_held(sym, key)
+        if held is not None:
+            return held
+        said = _take_said(sym, key)
+        if said is not None:
+            return said
+    return {"status": "computing", "symbol": sym}
+
+
+def drain_for_tests(timeout: float = 10.0) -> None:
+    """Tests only: wait for every build in flight."""
+    with _lock:
+        evs = list(_inflight.values())
+    for ev in evs:
+        ev.wait(timeout)
 
 
 def reset_for_tests() -> None:
     """Tests only: forget everything this module holds."""
-    global _slots
+    global _slots, _gen
     with _lock:
         _cache.clear()
         _inflight.clear()
         _funds.clear()
+        _said.clear()
+        _gen += 1
     _slots = threading.BoundedSemaphore(BUILD_SLOTS)
