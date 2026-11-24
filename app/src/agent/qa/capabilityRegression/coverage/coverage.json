@@ -12769,13 +12769,13 @@
     "nl": [
      "stock.uctRating: \"NVDA UCT rating\"",
      "stock.uctRating: \"what is NVDA's composite rating\"",
-     "stock.uctRating: \"uct score for NVDA\"",
+     "stock.uctRating: \"UCT composite rating of NVDA\"",
      "stock.uctRating: \"show me the stock checkup for NVDA\""
     ],
     "routing": [
      "stock.uctRating: \"NVDA UCT rating\"",
      "stock.uctRating: \"what is NVDA's composite rating\"",
-     "stock.uctRating: \"uct score for NVDA\"",
+     "stock.uctRating: \"UCT composite rating of NVDA\"",
      "stock.uctRating: \"show me the stock checkup for NVDA\""
     ],
     "args": [
