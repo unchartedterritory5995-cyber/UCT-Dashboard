@@ -149,7 +149,7 @@ Evidence gathered this cycle (all point the same way):
 
 ## 6. Open owner decisions
 
-1. **URGENT before the PC goes off:** hold or allow auto-promotion of master (it includes #2698 Agent code with no AUDIT GO) while AUDIT can't prod-verify. AUDIT recommends holding. Stopping it is an owner act, e.g. disabling the "promote to production" workflow until return.
+1. **Promotion hold (DECIDED; see section 12):** promote-production.yml is disabled until the owner returns. Re-enabling is the owner's call; after it, AUDIT reviews and prod-verifies #2698 and the rest of master.
 2. `chart.replay.exit` locked corpus entry: card + Apply, or a no-card path (section 3.1).
 3. If the P0.2 resend still relies on wording: accept "explicit undo only via the Undo stack, everything else cards". This means some one-click costs, for example closing a just-opened tab or leaving replay.
 4. Approve or reject the architecture proposal once the eval evidence arrives.
@@ -241,3 +241,24 @@ RESUME UCT AGENT. You are the UCT Agent Program Lead (PL). Development was pause
 4. Resume in handoff §8 step 5 order: finish P0.2 "fix that", then the eval card-pick rule, then P0.2 T2 and the queue, then the 3-arm eval (rolling caps, sealed last), then the architecture proposal with the evidence. Follow every rule in §7. No architecture build without my approval, no recurring spend.
 5. Give me a short status and the decisions you need from me (§6) before starting work.
 ```
+
+## 12. Production promotion HOLD (owner decision, 2026-11-24)
+
+The owner decided, in their own words: "Hold automatic production promotions until I return. Please disable the promote-production.yml workflow for northstar-quarry/UCT-Dashboard."
+
+- **Before:** workflow "promote to production" (`.github/workflows/promote-production.yml`, id 358287792) was **active**.
+- **Action:** `gh workflow disable promote-production.yml -R northstar-quarry/UCT-Dashboard`, run by the PL at 16:25Z on 2026-11-24 on the owner's instruction.
+- **After:** the state is **disabled_manually** (checked through the API and `gh workflow list --all`).
+- **Production during the hold:** `6d50f4662b35cbcfb4b0c9146a6827885e8d48d4`, unchanged and AUDIT prod-verified.
+- **No other workflow writes `refs/heads/production`.** master-deploy-gate.yml and term018-guards.yml only read it.
+- **Promote runs at the time of the hold:**
+  - none in progress;
+  - the latest runs (15:33–16:07Z) had all completed, and production did not move;
+  - **one stale queued run, 43097842088**: a schedule run created 2026-11-11 for d745a1a4a1, with 0 jobs, stuck since then. Cancelling it is an owner act: `gh run cancel 43097842088 -R northstar-quarry/UCT-Dashboard`.
+- **Not touched:** normal CI, master-deploy-gate, the PR checks, the merge queue, Railway and other teams' work. Master keeps moving; only promotion is held.
+- **Re-enable on return** (owner decision; then AUDIT reviews and prod-verifies everything master gained, including #2698):
+  ```
+  gh workflow enable promote-production.yml -R northstar-quarry/UCT-Dashboard
+  gh api repos/northstar-quarry/UCT-Dashboard/actions/workflows/358287792 --jq .state   # expect "active"
+  ```
+  After re-enabling, the next master-gate completion or cron (weekday 13:50/14:50Z, 20:20/21:20Z) promotes master's tip.
