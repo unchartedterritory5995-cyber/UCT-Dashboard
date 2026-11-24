@@ -25,6 +25,7 @@
 //
 // Pure: reads the plan, the words and the live board through `host`; never writes.
 import { tickersIn } from './multiChart'
+import { sideBySideWords, SIDE_REPLACE } from './sideBySideWords'
 import { matchPosition } from './fastPath'
 import { readCopyIntent } from './copyIntent'
 import { ordinalChart, thingWord, chartishWord, relativeChart, relationMatch } from './deixis'
@@ -958,6 +959,15 @@ export function chartRailRefusal(plan, { words = '', host = null, mode = 'apply'
       // a chart addressed by position is exempt for "too / as well" — never for an ADD verb (add = new charts)
       const bad = effects.filter(e => addsCharts(w, known) || !named(w, e, host))
       if (bad.length) return `I didn’t change anything: you asked for more charts, but this would have changed the ones you have (${listOf([...new Set(bad.map(said))])}). I only replace a chart when you say which one — ask to add them as new charts, or say which chart to replace.`
+    }
+    // ⛔ SIDE BY SIDE PRESERVES (OWNER RULING 2026-11-23: "preserve the existing chart and add the comparison chart beside it by
+    // default. Never silently replace an existing chart."): side-by-side words with no replace word, no count or grid shape (the
+    // GRID-REUSE ruling's), never re-symbol a chart the words don't address by position — whatever reader or plan made it.
+    // (The readers and the plan screen add beside it or ask first — multiChart sidePlan / sideBySideScreen; this is the net.)
+    if (mode !== 'approved' && sideBySideWords(w) && !REPLACE.test(w) && !SIDE_REPLACE.test(w) && !CHART_COUNT.test(w) && requestedPanels(w) == null) {
+      // (a re-symbol only — a removal is the REMOVAL rail's: "shrink this down to just two side by side" is shown first there)
+      const bad = effects.filter(e => e.type === 'symbol' && e.to && !e.linked && !named(w, e, host))
+      if (bad.length) return `I didn’t change anything: you asked for charts side by side, and this would have replaced ${listOf([...new Set(bad.map(said))])}. I keep your chart and add the other beside it — say “add …” for a new chart, or “replace the … chart with …” to replace it.`
     }
     // MULTI: two or more existing charts re-symbolled in one turn only on explicit words (structural)
     const resym = [...new Map(effects.filter(e => e.type === 'symbol' && !e.linked && e.to).map(e => [e.ref, e])).values()]
