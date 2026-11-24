@@ -15,7 +15,6 @@ exercised manually per the module docstring's `railway ssh` instruction, not
 here — a fixture faking `fetch_bars`/`get_live_prices`/`buzz_boards` would only
 prove the plumbing calls its own mocks correctly, not anything about accuracy.
 """
-import sys
 import pathlib
 import importlib.util
 
@@ -23,7 +22,9 @@ _MODULE_PATH = (pathlib.Path(__file__).resolve().parent.parent
                 / "docs" / "discord-render" / "instruments" / "w8_accuracy_audit.py")
 _spec = importlib.util.spec_from_file_location("w8_accuracy_audit", _MODULE_PATH)
 _w8 = importlib.util.module_from_spec(_spec)
-sys.modules["w8_accuracy_audit"] = _w8
+# Not registered in sys.modules: nothing imports it by that name (it defines no dataclass, pickles
+# nothing and never imports itself), and a module-level bind is process-wide state that no test
+# removes (tests/test_shared_state_landmines.py).
 _spec.loader.exec_module(_w8)
 
 check_ohlc_invariants = _w8.check_ohlc_invariants
