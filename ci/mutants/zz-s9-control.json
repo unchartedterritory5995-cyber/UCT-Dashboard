@@ -1,0 +1,15 @@
+{
+  "schema": "uct.ci-mutants/v1",
+  "about": "PASTE WORKER (feat/pine-paste-worker): the member door builds a paste in a Web Worker, once per script and page state, and answers byte for byte as the main thread did. Every rule, broken once, must turn its rail red: off-thread equality (the image, the answer's plain copy), one build per paste, cancel-on-rebuild, the watchdog, a dead worker, the fast control, and the page effects the build makes. The hub and the light report: the status is made in the report's worker from the full report and the full door answer (a MessageChannel between the two workers), the page is sent what it reads, and a Use asks the worker for the object program. (train e96: the 30 not reached by pine-heavy 45208974798 in its 30-min job)",
+  "mutants": [
+    {
+      "id": "S9",
+      "mutant": "the answer is held back after it lands (the fast control's 'at once')",
+      "file": "app/src/components/chart/builder/memberPane/memberDoorAsync.js",
+      "from": "    if (entries.get(r.entry.key) === r.entry) land(r.entry, r.version, landed)",
+      "to": "    if (entries.get(r.entry.key) === r.entry) setTimeout(() => land(r.entry, r.version, landed), 1500)",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/memberDoorService.test.js",
+      "expectRed": "ONE door call per script and state"
+    }
+  ]
+}
