@@ -24,12 +24,32 @@ import { createNetwork } from './network'
 import { createHistoryFeed, historyLakeEnabled, appHistoryFeed } from './historyFeed'
 import { createLiveFeed } from './liveFeed'
 import { STATUS } from './types'
+import { afterPaint as _afterPaint } from '../../utils/afterPaint'
 
 export { keyOf, parseKey } from './types'
 
 /** How often time-dependent status (provisional → behind, current → updating) is re-derived. */
 export const STATUS_TICK_MS = 15_000
 const DEFAULT_UNTIL = Object.freeze([STATUS.CONTEXT, STATUS.CURRENT, STATUS.UNAVAILABLE])
+/**
+ * ⭐ A KEY THAT ALREADY PAINTS IS READ FROM THE CACHE AFTER THE FRAME (2026-11-23, live-session CPU profile: the bar
+ * cache's IndexedDB result handlers ran ~24 ms per next-row press inside the window the charts draw in). The first
+ * subscriber of a key hydrates it (`_start`): the mem record, the IDB tail record (up to 3,000 rows) and the IDB
+ * deep-history record (up to 20,000 rows), each a whole structured-clone read on the main thread.
+ * ⛔ THE FIRST FRAME IS TODAY'S (review of #2630): the MEM record (synchronous) still joins in the subscribe's own task,
+ * exactly as before, so a deeper mem copy is in the first frame whatever the chart draws from it (an EMA's unbounded
+ * memory, a long MA, a cumulative series, a pinned or zoomed-out view). Only the two IndexedDB reads, asynchronous today
+ * too (their results already land in a later task), wait for the frame. For a key that already
+ * holds a SERVER ANSWER of at least this many rows (closed + the forming one), those reads can only add rows OLDER than
+ * the answer: the reducer never lets a saved copy move an answer's rows, restores seals only before an answer, and
+ * prepends history only below the oldest row held. This many rows covers the chart's default view: the switch's own
+ * rule for "rows that cover the view paint at once" (hooks/useSymbolHandoff COVER_ROWS: ~200 visible bars plus the
+ * longest average lookback, with a margin; pinned equal by store.hydrateAfterFrame H6). So such a key's hydrate (and the
+ * lake join after it) waits for the frame (utils/afterPaint: the first slot after the next paint, at once on a hidden
+ * page), one wait for every key subscribed in that task, and never runs for a key released before it. A key with no
+ * answer, or a shorter one, is hydrated at once, exactly as before: its first frame is what the cache holds.
+ */
+export const HYDRATE_AFTER_FRAME_MIN_ROWS = 600
 
 /**
  * @param {object} [o]
@@ -63,6 +83,10 @@ export function createBarStore(o = {}) {
     onScreen: (key) => active.has(key),
     answerPending: (key) => (network.inflight?.(key) ?? 0) > 0,
     ...(o.device !== undefined ? { device: o.device } : {}) })
+  const afterFrame = o.afterPaint ?? _afterPaint
+  /** keys whose hydrate waits for the frame (HYDRATE_AFTER_FRAME_MIN_ROWS), and that frame's cancel */
+  const laterHydrate = new Set()
+  let laterFrame = null
   const live = o.liveFeed ?? createLiveFeed({
     registry, now, onReconnect: (key) => network.kick(key), onReanchor: (key) => network.kick(key),
     ...(o.stream ? { stream: o.stream } : {}), ...(o.candle !== undefined ? { candle: o.candle } : {}),
@@ -81,16 +105,43 @@ export function createBarStore(o = {}) {
     }, STATUS_TICK_MS)
   }
 
+  /** Saved copy first; with none (and no server answer yet) the lake's newest bars paint at once
+   *  (network.lakeSeed: never persisted, kept only where the server's answer proves them).
+   *  (urgent: a subscriber is a chart on screen, so its device read goes ahead of every warm's) */
+  function _hydrateNow(key) {
+    persist.hydrate(key, { urgent: true }).catch(() => {}).then(() => { try { network.lakeSeed?.(key) } catch { /* paint only */ } })
+  }
+  function _hydrateLater() {
+    laterFrame = null
+    const keys = [...laterHydrate]
+    laterHydrate.clear()
+    for (const k of keys) if (active.has(k)) _hydrateNow(k)
+  }
+
   function _start(key, { session = 'rth', priority = 'visible', depth = 0 } = {}) {
     let a = active.get(key)
     if (!a) {
       a = { n: 0, stops: [] }
       active.set(key, a)
       registry.acquire(key)
-      // Saved copy first; with none (and no server answer yet) the lake's newest bars paint at once
-      // (network.lakeSeed: never persisted, kept only where the server's answer proves them).
-      // (urgent: a subscriber is a chart on screen, so its device read goes ahead of every warm's)
-      persist.hydrate(key, { urgent: true }).catch(() => {}).then(() => { try { network.lakeSeed?.(key) } catch { /* paint only */ } })
+      // a key that already paints from its server answer is read from the cache after the frame
+      // (HYDRATE_AFTER_FRAME_MIN_ROWS); any other at once
+      const s0 = registry.peek(key)
+      const held = s0?.restSeen ? s0.bars.length + (s0.developing ? 1 : 0) : 0
+      if (held >= HYDRATE_AFTER_FRAME_MIN_ROWS) {
+        // the mem record now, in this task, exactly as before (the first frame); the IndexedDB reads after the frame
+        try { persist.hydrateMem?.(key) } catch { /* derived */ }
+        laterHydrate.add(key)
+        if (!laterFrame) {
+          // (afterPaint runs at once on a hidden page: `_hydrateLater` then clears this before it returns)
+          laterFrame = true
+          const cancel = afterFrame(_hydrateLater)
+          if (laterFrame === true) laterFrame = cancel || true
+        }
+        a.stops.push(() => { laterHydrate.delete(key) })
+      } else {
+        _hydrateNow(key)
+      }
       a.stops.push(persist.attach(key))
       a.stops.push(live.attach(key, { session }))
       // P3-S2b: a live gap (reducer.liveGapStart) asks the server NOW — once per gap; the answer
@@ -206,6 +257,9 @@ export function createBarStore(o = {}) {
         registry.release(k)
       }
       active.clear()
+      laterHydrate.clear()
+      if (typeof laterFrame === 'function') { try { laterFrame() } catch { /* gone */ } }
+      laterFrame = null
       if (statusTimer != null) { clearTimer(statusTimer); statusTimer = null }
       network.dispose()
       try { persist.dispose?.() } catch { /* ignore */ }
