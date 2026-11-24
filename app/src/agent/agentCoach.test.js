@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url'
 import { loadAgentConfig, _resetAgentConfig, serverServesCoach } from './agentClient'
 import { allCapabilityNames, getCapability, manifestFor, buildContext } from './capabilities'
 import { registerBuiltins, registerServerGatedBuiltins } from './builtins'
+import './terminalWaves'  // the Terminal data waves: registerServerGatedBuiltins() runs them only once this module has loaded (terminalWavesHook.js)
 import { registerCoachCapabilities, explainConcept, coachTopic, _resetCoachForTest, COACH_WORDS } from './capabilities/coach'
 import { conceptFor, loadConcepts, conceptsLoaded, _resetConceptsForTest } from './coach/concepts'
 import { observationFromEnvelope, _resetObserveForTest } from './coach/observe'

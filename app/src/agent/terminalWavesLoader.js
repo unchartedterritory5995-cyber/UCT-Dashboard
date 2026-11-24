@@ -1,6 +1,7 @@
 // Loads the UCT Agent's Terminal data waves (terminalWaves.js) in their OWN chunk, after /api/agent/config has
 // answered, and registers them. useAgent.js chains it right after registerServerGatedBuiltins(), the point where
 // builtins.js used to register the waves itself; each wave registers nothing unless the server serves its kind.
+// Loading the chunk also hands the waves to terminalWavesHook.js, so later registerServerGatedBuiltins() calls run them.
 //
 // ⛔ The import() below is the ONLY door to terminalWaves.js in the app. A static import of it, or of any wave, from
 // builtins.js or anything else the AgentPanel chunk imports puts the waves' panel-model chunks back into the entry

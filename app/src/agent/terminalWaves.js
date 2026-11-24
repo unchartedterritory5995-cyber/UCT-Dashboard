@@ -11,8 +11,13 @@
 // first-open byte budget (notebook-bytes.yml, a promotion gate) 209 B over. agentTerminalWavesLazy.test.js keeps
 // builtins.js and the AgentPanel chunk free of any static path to this module or to a wave.
 //
-// Under vitest, app/vite.config.js aliases builtins.js's './terminalWavesEager' to THIS file, so the ~25 test files
-// that call registerServerGatedBuiltins() synchronously still get the waves at once, in the same order as before.
+// ⭐ THE HOOK (2026-11-24): when this module is evaluated it hands registerTerminalWaves() to terminalWavesHook.js, and
+// from then on builtins.js's registerServerGatedBuiltins() runs it at its end, where the waves always ran (the hook
+// imports nothing, so builtins.js keeps no static path here). In the app that happens when the loader import()s this
+// chunk. A TEST that calls registerServerGatedBuiltins() and expects a served wave's capability at once imports this
+// file itself (`import './terminalWaves'`): the same calls, in the same order, synchronously, as before the split.
+// (No vitest alias: the queue's agent-ci-required check treats app/vite.config.js as self-protected.)
+import { setTerminalWavesRegistrar } from './terminalWavesHook'
 import { registerTerminalLocalCapabilities } from './capabilities/terminalDataLocal'
 import { registerTerminalWave2Capabilities } from './capabilities/terminalDataWave2'
 import { registerTerminalWave3Capabilities } from './capabilities/terminalDataWave3'
@@ -41,3 +46,5 @@ export function registerTerminalWaves() {
     ...registerTerminalWave11Capabilities(),  // Terminal data wave 11: seven local-only answers (group rank, group crowding, earnings by sector, revisions by sector, IV rank leaders, IPO lockups, COT by trader type)
   ]
 }
+
+setTerminalWavesRegistrar(registerTerminalWaves)

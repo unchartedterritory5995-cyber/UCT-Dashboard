@@ -4,15 +4,20 @@
 // reuse were static dependencies of the lazy AgentPanel chunk, so every model chunk's file name sat in the ENTRY
 // chunk's preload list for that import. Wave 11 added six (+243 B) and put the Notebook first-open byte budget
 // (.github/workflows/notebook-bytes.yml, a promotion gate) 209 B over. Now the waves live in terminalWaves.js, reached
-// only by terminalWavesLoader.js's import(), which useAgent.js chains after registerServerGatedBuiltins().
+// only by terminalWavesLoader.js's import(), which useAgent.js chains after registerServerGatedBuiltins(); builtins.js
+// reaches them only through terminalWavesHook.js, which imports nothing and which terminalWaves.js fills when it loads.
 //
-//   (a) builtins.js, the stub it imports, useAgent.js and the whole static graph of AgentPanel.jsx (the production graph,
-//       read from the files: no vitest alias applies to a text walk) name no wave module and not terminalWaves.js, and
-//       nothing else in app/src imports one statically.
+//   (a) builtins.js, the hook, the loader, useAgent.js and the whole static graph of AgentPanel.jsx (read from the files)
+//       name no wave module and not terminalWaves.js; terminalWaves.js reaches all eleven; nothing else outside tests
+//       imports one statically (the capability-regression registry, test infrastructure, imports terminalWaves.js).
 //   (b) the loader asks for the chunk ONCE, re-runs the idempotent registration on every call, survives a rejected
 //       import (logs, resolves null, the next call retries) and a register that throws.
-//   (c) under vitest, app/vite.config.js aliases builtins.js's './terminalWavesEager' to terminalWaves.js, so
-//       registerServerGatedBuiltins() registers a served wave-11 kind SYNCHRONOUSLY, as the ~25 older test files expect.
+//   (c) before anything in this file has loaded terminalWaves.js, registerServerGatedBuiltins() registers no wave even
+//       when the server serves one; once it is imported, the same call registers the served wave-11 kind SYNCHRONOUSLY;
+//       with the hook cleared it registers none again. So the hook is the only path from builtins.js to the waves, and
+//       the test files that import './terminalWaves' get exactly the behaviour they had before the split. (c) runs
+//       BEFORE (b): (b)'s real-chunk case loads terminalWaves.js into this file's module graph, and this file imports
+//       it nowhere else.
 // No model, no provider: /api/agent/config is stubbed with a synthetic shape.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import fs from 'node:fs'
@@ -21,13 +26,9 @@ import { Parser } from 'acorn'
 import jsx from 'acorn-jsx'
 import { allCapabilityNames } from './capabilities'
 import { registerServerGatedBuiltins } from './builtins'
+import { runTerminalWaves, setTerminalWavesRegistrar } from './terminalWavesHook'
 import { loadAgentConfig, _resetAgentConfig } from './agentClient'
 import { loadTerminalWaves, _setTerminalWavesImportForTest, _resetTerminalWavesLoaderForTest } from './terminalWavesLoader'
-import { registerTerminalWaves as realWaves } from './terminalWaves'
-// the SAME specifier builtins.js writes: under vitest the alias turns it into terminalWaves.js
-import { registerTerminalWaves as viaBuiltinsSpecifier } from './terminalWavesEager'
-// with the extension the alias key does not match: this is the module the app ships
-import { registerTerminalWaves as shippedStub } from './terminalWavesEager.js'
 import { _resetTerminalWave11ForTest, KINDS as W11_KINDS, CAPABILITIES as W11_CAPS } from './capabilities/terminalDataWave11'
 
 const HERE = __dirname
@@ -39,6 +40,7 @@ const parse = (src) => Parser.extend(jsx()).parse(src, { ecmaVersion: 'latest', 
 
 const WAVE_MODULES = ['terminalDataLocal', ...Array.from({ length: 10 }, (_, i) => `terminalDataWave${i + 2}`)].map(n => `agent/capabilities/${n}.js`)
 const WAVES_MODULE = 'agent/terminalWaves.js'
+const HOOK_MODULE = 'agent/terminalWavesHook.js'
 const isWaveSpec = (spec) => /(^|\/)(terminalDataLocal|terminalDataWave\d+|terminalWaves)(\.js)?$/.test(spec.split('?')[0])
 
 function walkAll(n, fn) {
@@ -86,19 +88,20 @@ function staticClosure(roots) {
 
 // ── (a) the production graph ────────────────────────────────────────────────────────────────────────────────────────────
 describe('(a) builtins.js and the AgentPanel chunk hold no static path to the waves', () => {
-  it('builtins.js imports no wave and not terminalWaves.js, statically or dynamically; it imports the stub by the exact aliased specifier', () => {
+  it('builtins.js imports no wave and not terminalWaves.js, statically or dynamically; it reaches them through the hook alone', () => {
     const { stat, dyn } = specsOf(at('agent/builtins.js'))
     expect(stat.length).toBeGreaterThan(40)                                  // non-vacuity: the real import list was read
     expect(stat).toContain('./capabilities/terminalData')                    // wave 1's sector answer stays (not local-only, no panel model)
     expect([...stat, ...dyn].filter(isWaveSpec)).toEqual([])
-    expect(stat.filter(s => /terminalWavesEager/.test(s))).toEqual(['./terminalWavesEager'])
+    expect(stat.filter(s => /terminalWaves/.test(s))).toEqual(['./terminalWavesHook'])
+    expect(read(at('agent/builtins.js'))).toMatch(/\n\s*runTerminalWaves\(\)[^\n]*\r?\n\}/)   // the last call of registerServerGatedBuiltins
   })
 
-  it('the stub builtins.js imports imports nothing at all, and the shipped one registers nothing', () => {
-    const { stat, dyn } = specsOf(at('agent/terminalWavesEager.js'))
-    expect([...stat, ...dyn]).toEqual([])
-    expect(shippedStub).not.toBe(realWaves)
-    expect(shippedStub()).toEqual([])
+  it('the hook imports nothing at all; terminalWaves.js imports the hook and hands it registerTerminalWaves', () => {
+    const hook = specsOf(at(HOOK_MODULE))
+    expect([...hook.stat, ...hook.dyn]).toEqual([])
+    expect(specsOf(at(WAVES_MODULE)).stat).toContain('./terminalWavesHook')
+    expect(read(at(WAVES_MODULE))).toMatch(/^setTerminalWavesRegistrar\(registerTerminalWaves\)\r?$/m)
   })
 
   it('the loader reaches terminalWaves.js ONLY through one import(), and useAgent.js only through the loader', () => {
@@ -115,7 +118,7 @@ describe('(a) builtins.js and the AgentPanel chunk hold no static path to the wa
     const closure = staticClosure(['agent/AgentPanel.jsx'])
     // non-vacuity: the walk really crossed the Agent (and would see a wave if one were imported)
     expect(closure.size).toBeGreaterThan(300)
-    for (const f of ['agent/useAgent.js', 'agent/builtins.js', 'agent/terminalWavesLoader.js', 'agent/terminalWavesEager.js',
+    for (const f of ['agent/useAgent.js', 'agent/builtins.js', 'agent/terminalWavesLoader.js', HOOK_MODULE,
       'agent/capabilities.js', 'agent/capabilities/terminalData.js', 'agent/routing.js']) expect(closure, f).toContain(f)
     expect([...closure].filter(f => WAVE_MODULES.includes(f) || f === WAVES_MODULE)).toEqual([])
   }, 60000)
@@ -144,6 +147,8 @@ describe('(a) builtins.js and the AgentPanel chunk hold no static path to the wa
     expect(importers.sort()).toEqual([
       ...WAVE_MODULES.map(m => `${WAVES_MODULE} -> ./capabilities/${path.basename(m, '.js')}`),
       'agent/capabilities/terminalDataWave9.js -> ./terminalDataWave6',
+      // test infrastructure, imported only by test files (capability inventory, golden workflows, corpus)
+      'agent/qa/capabilityRegression/testing/registry.js -> ../../../terminalWaves',
     ].sort())
   }, 60000)
 })
@@ -159,6 +164,38 @@ function wire(kinds) {
 const realFetch = globalThis.fetch
 const reset = () => { _resetAgentConfig(); _resetTerminalWave11ForTest(); _resetTerminalWavesLoaderForTest() }
 const count = (name) => allCapabilityNames().filter(n => n === name).length
+
+// ── (c) the hook (runs before (b): see the header) ────────────────────────────────────────────────────────────────────
+describe('(c) registerServerGatedBuiltins() runs the waves through the hook, and only through it', () => {
+  beforeEach(reset)
+  afterEach(() => { reset(); globalThis.fetch = realFetch })
+
+  it('dark before terminalWaves.js loads, SYNCHRONOUS once it is imported, dark again with the hook cleared', async () => {
+    const others = Object.values(W11_CAPS).filter(n => n !== W11_CAPS.lockups)
+    wire([W11_KINDS.lockups])
+    await loadAgentConfig()
+
+    // 1. terminalWaves.js has not loaded in this module graph: the served kind registers nothing, the hook answers []
+    expect(runTerminalWaves()).toEqual([])
+    expect(registerServerGatedBuiltins()).toBeUndefined()
+    expect(count(W11_CAPS.lockups)).toBe(0)
+
+    // 2. what a test file's `import './terminalWaves'` does: the same call now registers it before it returns, once
+    const waves = await import('./terminalWaves')
+    registerServerGatedBuiltins()
+    expect(count(W11_CAPS.lockups)).toBe(1)                                  // no await between the call and this line
+    registerServerGatedBuiltins()
+    expect(count(W11_CAPS.lockups)).toBe(1)
+    for (const n of others) expect(count(n), n).toBe(0)
+
+    // 3. the hook cleared (the wave unregistered): builtins.js has no other way to the waves
+    _resetTerminalWave11ForTest()
+    setTerminalWavesRegistrar(null)
+    registerServerGatedBuiltins()
+    expect(count(W11_CAPS.lockups)).toBe(0)
+    setTerminalWavesRegistrar(waves.registerTerminalWaves)                   // as the app leaves it once the chunk has loaded
+  })
+})
 
 // ── (b) the loader ──────────────────────────────────────────────────────────────────────────────────────────────────────
 describe('(b) terminalWavesLoader: one chunk request, idempotent registration, never throws', () => {
@@ -212,25 +249,5 @@ describe('(b) terminalWavesLoader: one chunk request, idempotent registration, n
     await expect(loadTerminalWaves()).resolves.toEqual([])
     for (const n of Object.values(W11_CAPS)) expect(count(n), n).toBe(0)
     expect(warn).not.toHaveBeenCalled()
-  })
-})
-
-// ── (c) the vitest path ─────────────────────────────────────────────────────────────────────────────────────────────────
-describe('(c) under vitest, registerServerGatedBuiltins() still registers the waves synchronously', () => {
-  beforeEach(reset)
-  afterEach(() => { reset(); globalThis.fetch = realFetch })
-
-  it('the alias: builtins.js\'s specifier resolves to the real terminalWaves.js here (and to the no-op stub in the app)', () => {
-    expect(viaBuiltinsSpecifier).toBe(realWaves)
-  })
-
-  it('a served wave-11 kind is registered by the time registerServerGatedBuiltins() returns, once, and dark stays dark', async () => {
-    wire([W11_KINDS.lockups])
-    await loadAgentConfig()
-    expect(registerServerGatedBuiltins()).toBeUndefined()
-    expect(count(W11_CAPS.lockups)).toBe(1)                                  // no await between the call and this line
-    registerServerGatedBuiltins()
-    expect(count(W11_CAPS.lockups)).toBe(1)
-    for (const n of Object.values(W11_CAPS).filter(n => n !== W11_CAPS.lockups)) expect(count(n), n).toBe(0)
   })
 })
