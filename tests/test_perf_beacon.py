@@ -748,20 +748,35 @@ def test_the_rebuild_is_skipped_when_the_disk_has_no_room_and_tried_again_at_the
     conn.close()
     old = _old_load_key(_IP).encode()
     monkeypatch.setattr(pb, "_migrated", set())
+    # SQLite picks the directory of the rebuild's temporary copy in ITS order (SQLITE_TMPDIR, TMPDIR, /var/tmp, /tmp ...),
+    # Python in another. Two of them are set here to directories of their own, one to a directory that does not exist.
+    norm = lambda p: os.path.normcase(os.path.abspath(str(p)))
+    sq, td = store.parent / "sqlite-tmp", store.parent / "env-tmp"
+    sq.mkdir()
+    td.mkdir()
+    monkeypatch.setenv("SQLITE_TMPDIR", str(sq))
+    monkeypatch.setenv("TMPDIR", str(td))
     asked = []
     room = {"free": 10}
-    monkeypatch.setattr(pb, "_free_bytes", lambda d: (asked.append(os.path.normcase(os.path.abspath(d))), room["free"])[1])
+    monkeypatch.setattr(pb, "_free_bytes", lambda d: (asked.append(norm(d)), room["free"])[1])
     assert pb.migrate() == 1000                                            # the blanking happens AT ONCE, room or not
     assert {r["rate_key"] for r in _rows(store)} == {""}
     assert pb.rebuild_pending() and old in _file_bytes(store)              # ...the rebuild did not, and the store remembers
     assert "SKIPPED" in capsys.readouterr().out
-    # both places a rebuild writes are asked: the store's own volume and the temp directory
-    assert set(asked) == {os.path.normcase(os.path.abspath(p)) for p in (str(store.parent), tempfile.gettempdir())}
+    # every place a rebuild may write is asked: the store's own volume, and EVERY candidate temp directory that exists
+    candidates = [str(sq), str(td), "/var/tmp", "/tmp", tempfile.gettempdir()]
+    assert set(asked) == {norm(store.parent)} | {norm(d) for d in candidates if os.path.isdir(d)}
+    assert {norm(sq), norm(td), norm(tempfile.gettempdir())} <= set(asked)
     assert pb.migrate() == 0 and pb.rebuild_pending()                      # still no room: still pending, nothing lost
-    # room on the volume but not in the temp directory is still no room
-    tmp = os.path.normcase(os.path.abspath(tempfile.gettempdir()))
-    monkeypatch.setattr(pb, "_free_bytes", lambda d: 10 if os.path.normcase(os.path.abspath(d)) == tmp else 10 ** 12)
-    assert pb.migrate() == 0 and pb.rebuild_pending()
+    # room everywhere but in ONE candidate is still no room, whichever one it is (the least free decides)
+    for tight in (sq, td, tempfile.gettempdir()):
+        monkeypatch.setattr(pb, "_free_bytes", lambda d, tight=norm(tight): 10 if norm(d) == tight else 10 ** 12)
+        assert pb.migrate() == 0 and pb.rebuild_pending(), tight
+    # a candidate that does not exist is not asked, and does not stop a rebuild
+    monkeypatch.setenv("SQLITE_TMPDIR", str(store.parent / "no-such-dir"))
+    asked.clear()
+    monkeypatch.setattr(pb, "_free_bytes", lambda d: (asked.append(norm(d)), 10)[1])
+    assert pb.migrate() == 0 and norm(store.parent / "no-such-dir") not in asked and norm(sq) not in asked
     # the next start, with room: rebuilt, and the marker goes
     monkeypatch.setattr(pb, "_free_bytes", lambda d: 10 ** 12)
     assert pb.migrate() == 0
@@ -785,6 +800,21 @@ def test_a_rebuild_that_fails_is_tried_again_and_the_blanking_is_kept(store, mon
     monkeypatch.setattr(pb, "_rebuild", real)
     assert pb.migrate() == 0 and not pb.rebuild_pending()
     assert pb.record(_report(), ip=_IP, country_header="US", now=_T)["stored"] == 1
+
+
+def test_the_rebuild_keeps_its_temporary_copy_on_disk_never_in_memory(store):
+    # A build of SQLite (or a connection) may keep temporary files in MEMORY: the rebuild's copy of the whole store would
+    # then be RAM on the pod, which the space check cannot see. The rebuild says FILE itself.
+    pb.record(_report(), ip=_IP, country_header="US", now=_T)
+    conn = sqlite3.connect(store)
+    try:
+        conn.execute("PRAGMA temp_store=MEMORY")
+        assert conn.execute("PRAGMA temp_store").fetchone()[0] == 2          # control: this connection said MEMORY
+        pb._rebuild(conn)
+        assert conn.execute("PRAGMA temp_store").fetchone()[0] == 1          # FILE, whatever it said
+    finally:
+        conn.close()
+    assert pb.summary(24, now=_T + 10)["loads"] == 1                         # and the store is whole
 
 
 def test_a_report_arriving_during_the_rebuild_is_dropped_at_once_never_parked_behind_it(store, monkeypatch):
