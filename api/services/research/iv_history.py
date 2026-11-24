@@ -32,6 +32,16 @@ WHY THIS READS OUR LOG AND NOTHING ELSE
   how many it needs. With zero it says when the first comparison can exist.
 
 ⛔ DARK behind `IV_HISTORY_ENABLED` (read per call, unset = OFF).
+
+⚡ A REQUEST NEVER LISTS, DOWNLOADS OR SCANS THE WHOLE LOG (speed pass 2, 2026-11-24; live, one answer took 10 s).
+  * The production store's listing and downloads run on ONE background refresh (`R2Store.listing`); the request
+    reads the files already mirrored (the last listing's copy). Until this process's first refresh has finished an
+    answer is `partial` and says so (`R2Store.COLD_NOTE`), and with nothing mirrored yet the route says the log is
+    unavailable right now (`LogNotReady`) rather than "the log holds no sessions".
+  * A day's manifest is opened once while its file is unchanged (`_manifest`).
+  * A day's row for a symbol comes from the local index (`iv_history_index`, SQLite on this server's disk, built in
+    the background) while that day's file is the one indexed, else from the file exactly as before (`_day_row`):
+    the index changes the speed, never the answer.
 """
 from __future__ import annotations
 
@@ -39,6 +49,7 @@ import csv
 import datetime as _dt
 import gzip
 import json
+import logging
 import math
 import os
 import re
@@ -78,6 +89,7 @@ IMPLIED_METHOD = ("Implied move = the front straddle (call + put bid/ask mids, f
                   "announcement date. Realized move = the earnings gap (larger of the "
                   "pre-market and after-hours gap when the timing is not known).")
 
+_log = logging.getLogger(__name__)
 _ET = ZoneInfo("America/New_York")
 _SYM_RE = re.compile(r"^[A-Z][A-Z0-9.\-]{0,9}$")
 _KEY_RE = re.compile(r"options_log/\d{4}/(\d{4}-\d{2}-\d{2})\.(manifest\.json|underlyings\.csv\.gz)$")
@@ -103,7 +115,8 @@ class LocalStore:
         self.root = root
 
     def sessions(self) -> dict:
-        """{session_iso: manifest dict} for every day with a summary file."""
+        """{session_iso: manifest dict} for every day with a summary file. A manifest comes from `_manifest`
+        (read once while its file is unchanged): callers read it and change nothing in it."""
         out = {}
         base = os.path.join(self.root, "options_log")
         if not os.path.isdir(base):
@@ -116,27 +129,41 @@ class LocalStore:
                 m = re.match(r"^(\d{4}-\d{2}-\d{2})\.underlyings\.csv\.gz$", name)
                 if not m:
                     continue
-                manifest = {}
-                mp = os.path.join(ydir, f"{m.group(1)}.manifest.json")
-                try:
-                    with open(mp, encoding="utf-8") as fh:
-                        manifest = json.load(fh)
-                except (OSError, ValueError):
-                    manifest = {"complete": False, "reason": "no readable manifest"}
-                out[m.group(1)] = manifest
+                out[m.group(1)] = _manifest(os.path.join(ydir, f"{m.group(1)}.manifest.json"))
         return out
+
+    def listing(self, *, partial_ok: bool = True) -> tuple[dict, Optional[str]]:
+        """`(sessions(), None)`: what a request reads. A local store has nothing to wait for."""
+        return self.sessions(), None
 
     def summary_path(self, session: str) -> Optional[str]:
         p = os.path.join(self.root, "options_log", session[:4], f"{session}.underlyings.csv.gz")
         return p if os.path.exists(p) else None
 
 
+class LogNotReady(RuntimeError):
+    """The production store has not finished its first listing in this process and has nothing mirrored on this
+    server to answer from yet: the route says the log is unavailable right now (never "it holds no sessions"),
+    and the panel's Retry asks again."""
+
+
 class R2Store(LocalStore):
     """The production log in R2, mirrored on demand into a local cache directory.
     The listing is cached `LIST_TTL_S`; a day's file is re-fetched only when its ETag
-    changes (a `resummarize()` replaces a summary in place)."""
+    changes (a `resummarize()` replaces a summary in place).
+
+    A REQUEST NEVER LISTS OR DOWNLOADS (speed pass 2, 2026-11-24): `listing()` answers from the files already
+    mirrored (the last listing's copy) and starts ONE background refresh (`REFRESH_THREAD`) when the listing is
+    older than `LIST_TTL_S`; after a failed refresh, requests are told so (the old 503) without a new try for
+    `RETRY_S` while no listing has worked in this process or the last one that did is older than twice the TTL,
+    and are answered from the mirror otherwise. `sessions()` keeps listing and downloading on the caller's thread,
+    for the background builds that call it (the market-wide IV rank list)."""
 
     LIST_TTL_S = 600
+    RETRY_S = 60.0
+    REFRESH_THREAD = "iv-history-refresh"
+    COLD_NOTE = ("This server is still copying the options log, so sessions logged since its last copy may be "
+                 "missing here.")
 
     def __init__(self, cache_dir: Optional[str] = None):
         super().__init__(cache_dir or os.environ.get("IV_HISTORY_CACHE_DIR")
@@ -144,6 +171,10 @@ class R2Store(LocalStore):
         self._lock = threading.Lock()
         self._listed_at = 0.0
         self._etags: dict = {}
+        self._state = threading.Lock()                      # guards the three below
+        self._ready = False                                 # a listing has worked in this process
+        self._failed: Optional[tuple] = None                # (monotonic, error) of the newest listing, when it failed
+        self._refreshing: Optional[threading.Event] = None
 
     def _client(self):
         from api import flow_backup
@@ -174,9 +205,68 @@ class R2Store(LocalStore):
                 self._etags[key] = etag
             self._listed_at = time.monotonic()
 
+    def _note(self, exc: Optional[BaseException]) -> None:
+        with self._state:
+            if exc is None:
+                self._ready, self._failed = True, None
+            else:
+                self._failed = (time.monotonic(), exc)
+
     def sessions(self) -> dict:
-        self._sync()
+        try:
+            self._sync()
+        except Exception as exc:
+            self._note(exc)
+            raise
+        self._note(None)
         return super().sessions()
+
+    def _refresh_bg(self, done: threading.Event) -> None:
+        started = time.time()
+        try:
+            self._sync()
+        except Exception as exc:  # noqa: BLE001 -- said to the next requests (the old 503), tried again later
+            self._note(exc)
+            _log.warning("[iv-history] the options log could not be listed (%s); %.1fs", type(exc).__name__,
+                         time.time() - started)
+        else:
+            self._note(None)
+            from api.services.research import iv_history_index
+            iv_history_index.for_root(self.root).kick()
+        finally:
+            with self._state:
+                if self._refreshing is done:
+                    self._refreshing = None
+            done.set()
+
+    def listing(self, *, partial_ok: bool = True) -> tuple[dict, Optional[str]]:
+        """`(sessions, note)` for a request. NEVER lists or downloads on the caller's thread (see the class
+        docstring). `note` is `COLD_NOTE` while this process's first listing has not finished; with nothing
+        mirrored yet, or with `partial_ok` False, that state raises `LogNotReady` instead."""
+        now = time.monotonic()
+        with self._state:
+            ready, failed, listed = self._ready, self._failed, self._listed_at
+            due = not listed or now - listed >= self.LIST_TTL_S
+            if failed is not None and now - failed[0] < self.RETRY_S:
+                due = False
+            if due and self._refreshing is None:
+                done = self._refreshing = threading.Event()
+                threading.Thread(target=self._refresh_bg, args=(done,), name=self.REFRESH_THREAD, daemon=True).start()
+        if failed is not None and (not ready or not listed or now - listed >= 2 * self.LIST_TTL_S):
+            raise failed[1].with_traceback(None)
+        have = LocalStore.sessions(self)
+        if ready:
+            return have, None
+        if not have or not partial_ok:
+            raise LogNotReady("the options log is still being copied to this server")
+        return have, self.COLD_NOTE
+
+    def drain(self, timeout: float = 10.0) -> None:
+        """Tests: wait for the refresh in flight, if any."""
+        with self._state:
+            done = self._refreshing
+        if done is not None:
+            done.wait(timeout)
 
 
 _store_override: Optional[LocalStore] = None
@@ -224,6 +314,32 @@ class _LRU(OrderedDict):
 _MISS = object()
 _ROW_CACHE_MAX = 4096
 _ROW_CACHE = _LRU(_ROW_CACHE_MAX)
+#: {manifest path: ((size, mtime_ns), manifest)}: a few hundred bytes a day; bounded far above the log's length.
+_MANIFEST_CACHE_MAX = 4096
+_MANIFESTS = _LRU(_MANIFEST_CACHE_MAX)
+
+
+def _manifest(path: str) -> dict:
+    """One day's manifest, opened once while its file is unchanged (its size and modification time). A file
+    written in the last `iv_history_index.RACY_S` seconds is opened each time: two writes in one clock tick can
+    carry the same stamp. A manifest that cannot be read says so, as before."""
+    from api.services.research.iv_history_index import RACY_S
+    try:
+        st = os.stat(path)
+    except OSError:
+        return {"complete": False, "reason": "no readable manifest"}
+    stamp = (st.st_size, st.st_mtime_ns)
+    hit = _MANIFESTS.lookup(path, _MISS)
+    if hit is not _MISS and hit[0] == stamp:
+        return hit[1]
+    try:
+        with open(path, encoding="utf-8") as fh:
+            manifest = json.load(fh)
+    except (OSError, ValueError):
+        return {"complete": False, "reason": "no readable manifest"}
+    if time.time() - st.st_mtime_ns / 1e9 >= RACY_S:
+        _MANIFESTS.store(path, (stamp, manifest))
+    return manifest
 
 
 def _num(v):
@@ -284,6 +400,44 @@ def _day_row(store: LocalStore, session: str, sym: str) -> Optional[dict]:
                 break
     _ROW_CACHE.store(ck, found)
     return found
+
+
+def _rows_for(store: LocalStore, sym: str, sessions: list, *, kick: bool) -> dict:
+    """{session: the row `_point` reads, or None} for `sym` on each session: from the local index
+    (`iv_history_index`) for a day whose file is the very file indexed, else `_day_row` (the file, exactly as
+    before). `kick` starts the index's one background build when a recent day is not indexed as it is now: the
+    route's own store only; a reader that hands in its own store never starts work."""
+    from api.services.research import iv_history_index as IX
+    idx = IX.for_root(store.root)
+    got = idx.lookup(sym)
+    days, rows = got if got is not None else ({}, {})
+    recent = set(sessions[-IX.MAX_SESSIONS:])
+    out, stale = {}, False
+    for d in sessions:
+        meta = days.get(d)
+        path = store.summary_path(d) if meta is not None else None
+        if path is not None:
+            try:
+                st = os.stat(path)
+            except OSError:
+                st = None
+            if st is not None and (st.st_size, st.st_mtime_ns) == (meta[0], meta[1]):
+                cells = rows.get(d)
+                out[d] = None if cells is None else {**dict(zip(IX.CELLS, cells)), "_rule": meta[2]}
+                continue
+        out[d] = _day_row(store, d, sym)
+        stale = stale or d in recent
+    if kick and stale:
+        idx.kick()
+    return out
+
+
+def _listing(store: LocalStore, *, own: bool, partial_ok: bool = True) -> tuple[dict, Optional[str]]:
+    """`(sessions, note)` for a request. The route's own store (`get_store()`): its `listing()`, which never lists
+    or downloads on the caller's thread. A store handed in by a caller is read as it is (`sessions()`, no note)."""
+    if own:
+        return store.listing(partial_ok=partial_ok)
+    return store.sessions(), None
 
 
 def _point(session: str, r: dict) -> dict:
@@ -354,8 +508,9 @@ def rank_of(values: list) -> dict:
 
 def iv_history(sym: str, *, now: Optional[_dt.datetime] = None,
                store: Optional[LocalStore] = None) -> dict:
+    own = store is None
     store = store or get_store()
-    manifests = store.sessions()
+    manifests, note = _listing(store, own=own)
     base = {"symbol": sym, "source": SOURCE, "method": METHOD,
             "rank_min_sessions": RANK_MIN_SESSIONS}
     if not manifests:
@@ -369,8 +524,9 @@ def iv_history(sym: str, *, now: Optional[_dt.datetime] = None,
     expected = expected_sessions(began, now)
     missing = [d for d in expected if d not in manifests]
     points, absent_days = [], []
+    rows = _rows_for(store, sym, sessions, kick=own)
     for d in sessions:
-        r = _day_row(store, d, sym)
+        r = rows[d]
         if r is None:
             absent_days.append(d)
             continue
@@ -403,6 +559,8 @@ def iv_history(sym: str, *, now: Optional[_dt.datetime] = None,
         reasons.append(f"The log's ATM IV for {sym} on {', '.join(odd[-5:])}{' ...' if len(odd) > 5 else ''} "
                        f"was under {IV_FLOOR * 100:g}% a year, a placeholder rather than a reading, and is "
                        "left out of the series and the rank.")
+    if note:
+        reasons.append(note)
     ranked = [p["atm_iv"] for p in with_iv if p["rule"] == CURRENT_RULE][-RANK_WINDOW:]
     n = len(with_iv)
     if len(ranked) >= RANK_MIN_SESSIONS:
@@ -501,10 +659,11 @@ def implied_vs_realized(sym: str, *, now: Optional[_dt.datetime] = None,
                         store: Optional[LocalStore] = None,
                         prints: Optional[Callable[[str], list]] = None,
                         realized: Optional[Callable[[str, list], list]] = None) -> dict:
+    own = store is None
     store = store or get_store()
     prints = prints or _default_prints
     realized = realized or _default_realized
-    manifests = store.sessions()
+    manifests, _ = _listing(store, own=own, partial_ok=False)
     began = min(manifests) if manifests else None
     base = {"symbol": sym, "logging_began": began, "method": IMPLIED_METHOD, "source": SOURCE,
             "calibration_min_prints": CALIBRATION_MIN_PRINTS}
