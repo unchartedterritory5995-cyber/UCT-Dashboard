@@ -516,14 +516,13 @@ def _setup_j2_database():
 # test_wisdom_* file. The Discord render programme running its own suite sees these exactly as it
 # always has — red and unmarked. Silencing another programme's failures inside THEIR runs would be
 # a defect, not a courtesy.
-WISDOM_EXPECTED_FAILURES = {
-    "tests/test_mutation_harness_anchors.py::"
-    "test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_flipgate.py]":
-        "docs/discord-render harness: anchor_check extracts zero controls (a failed read)",
-    "tests/test_mutation_harness_anchors.py::"
-    "test_a_not_applied_mutation_fails_the_harness_rather_than_printing[mutation_harness_flipgate.py]":
-        "docs/discord-render harness: no recognised path from a NOT-APPLIED mutation to a non-zero exit",
-}
+#
+# ⚰️ EMPTY since 2026-11-24. Its two entries (both `mutation_harness_flipgate.py` anchor checks) stopped
+# naming any collected test when #2687 renamed that instrument to `flip_gate_mutations.py`: it plants
+# evidence in a temp dir, has no source anchors by design, and is no longer collected as a mutation
+# harness. #2686 made the other six harnesses' anchor checks green. The mechanism stays for the next
+# baseline entry; the record of the two retired ones is in tests/wisdom/EXPECTED-FAILURES.md.
+WISDOM_EXPECTED_FAILURES: dict = {}
 
 
 def pytest_collection_modifyitems(config, items):

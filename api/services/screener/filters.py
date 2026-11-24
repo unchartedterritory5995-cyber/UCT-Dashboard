@@ -1179,6 +1179,31 @@ FILTERS = dict([
                             "beats_insiders_funds", "insider_buy_value_30d", unit="$")),
     _agent_omit(_open_range("fund_net_adds", "Funds Adding Minus Funds Cutting",
                             "beats_insiders_funds", "fund_net_adds")),
+    # ── held-store columns (2026-11-23): one read per build of four held stores (`store_columns`, a
+    # writer per store) and the FINRA list's change since the prior report (`short_columns`, its own
+    # one read), each in the family a member looks in: OSCR's IV rank and percentile beside the
+    # realized volatility, GRPS's industry group rank in Context, SHINT's change in shares short beside
+    # the short columns, DVD MARKET's next ex-dividend date and EEHSC's estimate revisions beside the
+    # earnings dates and the rating changes.
+    # NOT DUPLICATES, checked: `hv_20` / `hv_60` are REALIZED volatility, not implied; `implied_move_pct`
+    # is one report's straddle, not a rank; `sector_rs_pct` ranks a stock within its SECTOR by RS, not its
+    # industry among industries; `short_float_pct` / `short_ratio` are levels, not a change;
+    # `dividend_yield` is a yield, not a date; `upgrades_30d` / `downgrades_30d` are RATING changes, not
+    # estimate revisions. Bare (E-8), `_agent_omit`: the Agent's field list has no room (the budget). ──
+    _agent_omit(_open_range("iv_rank", "IV Rank", "volume_volatility", "iv_rank")),
+    _agent_omit(_open_range("iv_percentile", "IV Percentile", "volume_volatility", "iv_percentile")),
+    _agent_omit(_open_range("group_rank", "Industry Group Rank", "context", "group_rank")),
+    _agent_omit(_open_range("group_rank_of", "Industry Groups Ranked", "context", "group_rank_of")),
+    _agent_omit(_open_range("group_rank_chg_4w", "Industry Group Rank Change, 4 Weeks", "context",
+                            "group_rank_chg_4w")),
+    _agent_omit(_open_range("short_interest_chg_pct", "Short Interest Change", "ownership",
+                            "short_interest_chg_pct", unit="%")),
+    _agent_omit(_open_range("next_ex_div_date", "Next Ex-Dividend Date", "events", "next_ex_div_date")),
+    _agent_omit(_open_range("days_to_ex_div", "Days to Ex-Dividend", "events", "days_to_ex_div")),
+    _agent_omit(_open_range("eps_rev_up_30d", "EPS Estimate Raised, 30 Days", "events", "eps_rev_up_30d")),
+    _agent_omit(_open_range("eps_rev_down_30d", "EPS Estimate Cut, 30 Days", "events", "eps_rev_down_30d")),
+    _agent_omit(_open_range("eps_rev_net_30d", "EPS Estimate Revision, Net, 30 Days", "events",
+                            "eps_rev_net_30d")),
 ])
 
 # ⚠️ `gt`/`lt`/`eq` JOINED "range" FOR THE FACTUAL PRESETS, and the strictness
@@ -1359,7 +1384,7 @@ VIEWS = {
     "ownership": {"label": "Ownership & Short", "columns": [
         "ticker", "company", "shares_outstanding", "float_shares", "float_pct",
         "inst_pct", "inst_trans_pct", "insider_own_pct", "insider_trans_pct",
-        "short_float_pct", "short_ratio", "optionable", "shortable"]},
+        "short_float_pct", "short_ratio", "short_interest_chg_pct", "optionable", "shortable"]},
     # …and measuring the gap found three MORE families in the same state —
     # `context`, `events` and `multi_candle` were filterable-but-unviewable
     # since Waves 1-2. Closing all six makes the invariant below TRUE, which is
@@ -1367,12 +1392,17 @@ VIEWS = {
     "events": {"label": "Events & Analysts", "columns": [
         "ticker", "company", "next_earnings_date", "days_to_earnings",
         "earnings_session", "implied_move_pct", "last_report_move_pct",
+        "next_ex_div_date", "days_to_ex_div",
         "earnings_setup_grade", "analyst_consensus", "pt_upside_pct",
-        "upgrades_30d", "downgrades_30d"]},
+        "upgrades_30d", "downgrades_30d",
+        "eps_rev_up_30d", "eps_rev_down_30d", "eps_rev_net_30d"]},
     "context": {"label": "Context", "columns": [
         # `security_type` (2026-10-17): the Type filter's family had no view, so a member
         # could filter Stocks / ADRs / ETFs and never see which a row is.
-        "ticker", "company", "security_type", "theme", "in_uct20", "index_sp500", "index_ndx",
+        "ticker", "company", "security_type", "theme",
+        # GRPS's industry group rank (2026-11-23): the place, how many were ranked, the move.
+        "group_rank", "group_rank_of", "group_rank_chg_4w",
+        "in_uct20", "index_sp500", "index_ndx",
         "index_r2k", "is_etf", "is_leveraged", "stage2", "stage4",
         "hvc_52w"]},
     "candles": {"label": "Candles", "columns": [
@@ -1465,6 +1495,8 @@ VIEWS = {
     # the range and volume columns the Screener already carries (ATR %, ADR %, relative volume).
     "volume_volatility": {"label": "Volume & Volatility", "columns": [
         "ticker", "company", "price", "chg_pct_1d", "atr_pct", "adr_pct", "hv_20", "hv_60",
+        # OSCR's IV rank and percentile (2026-11-23), beside the realized volatility
+        "iv_rank", "iv_percentile",
         "vol_ratio", "ad_net_25", "pocket_pivots_20", "days_since_pocket_pivot", "corr_rel_last"]},
     # BEATS, INSIDERS & FUNDS (2026-11-23): every column of the family, beside the next report
     # date and the last report's move the Screener already carries.
@@ -2225,10 +2257,11 @@ def meta(user_id=None, user=None) -> dict:
     test_a_measured_band_is_not_an_editorial_preset` for the rail.
 
     ⚠️ Only `type == "range"` controls get one, and only over a column the live
-    table declares INTEGER/REAL. `ipo_date` and `next_earnings_date` are range
-    controls over TEXT columns — a "typical range" of an earnings date is not a
-    thing — and they are excluded by that gate rather than by name. Those two
-    are the ONLY range controls that carry no `distribution` key at all:
+    table declares INTEGER/REAL. `ipo_date`, `next_earnings_date` and (2026-11-23)
+    `next_ex_div_date` are range controls over TEXT columns — a "typical range" of
+    an earnings date is not a thing — and they are excluded by that gate rather
+    than by name. Those three are the ONLY range controls that carry no
+    `distribution` key at all:
     everything else gets one, and a column this pod's table has not been ALTERed
     to hold yet arrives REFUSED as `column_absent` rather than dropping out of
     the payload, where "not migrated" and "not applicable" look identical.
