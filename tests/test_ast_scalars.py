@@ -396,7 +396,11 @@ def test_the_scalar_section_PARTITIONS_snapshot_db_COLUMNS_exactly():
     # `group_rank_of`, `group_rank_chg_4w`, `next_ex_div_date` (also TEXT), `days_to_ex_div`, `eps_rev_up_30d`,
     # `eps_rev_down_30d`, `eps_rev_net_30d` (`store_columns`'s four readers) and `short_interest_chg_pct`
     # (`short_columns`), NULL until the first build after they land (R8). The declared half did not move.
-    assert (len(declared), len(excluded)) == (149, 178)
+    # ⭐ (149, 178) → (149, 190) on 2026-11-24 (row columns): `days_to_lockup`, `seas_month_avg`,
+    # `seas_month_up_pct`, `seas_month_years`, `post_earn_drift_5d`, `factor_mkt`, `factor_size`, `factor_growth`,
+    # `factor_mom`, `factor_r2`, `up_capture_1y`, `down_capture_1y` (the build's `bars_row_columns` step), NULL until
+    # the first build after they land (R8). The declared half did not move.
+    assert (len(declared), len(excluded)) == (149, 190)
 
 
 def test_a_scalar_tree_is_non_repainting_AND_as_of_snapshot__both_verdicts_or_neither():

@@ -329,6 +329,19 @@ COLUMNS = [
     "iv_rank", "iv_percentile", "group_rank", "group_rank_of", "group_rank_chg_4w",
     "short_interest_chg_pct", "next_ex_div_date", "days_to_ex_div",
     "eps_rev_up_30d", "eps_rev_down_30d", "eps_rev_net_30d",
+    # ⭐ ROW COLUMNS (2026-11-24). ONE writer, `row_columns.row_fields`, the builder's `bars_row_columns` step inside
+    # the same per-stock bars pass, from the row's own stored daily bars (and, for the drift, the report date the
+    # earnings read's own pass hands over): days to IPO LOCKUP's estimated expiry from the row's listing date
+    # (INTEGER, signed: negative = days since it, within IPO LOCKUP's recent window); SEAS's average return (REAL,
+    # percent) and share of up years (INTEGER, percent) for the build session's calendar month, and how many years
+    # (INTEGER); ERX's 5-session drift after the last report's reacting session (REAL, percent); FCTX's market, size,
+    # growth vs value and momentum loadings (REAL, only when FCTX shows them clearing its bar) and R-squared (REAL,
+    # 0 to 1); STAT's up / down capture against SPY over a year (REAL, x 100). NULL when it cannot be worked out, a
+    # drift's sessions have not traded, a loading does not clear the bar, or the series contradicts itself inside the
+    # column's read, never a guessed 0. Additive: ALTER-added on init, NULL until the next build.
+    "days_to_lockup", "seas_month_avg", "seas_month_up_pct", "seas_month_years", "post_earn_drift_5d",
+    "factor_mkt", "factor_size", "factor_growth", "factor_mom", "factor_r2",
+    "up_capture_1y", "down_capture_1y",
     # meta
     "snapshot_date", "bars_asof", "built_at",
 ]
@@ -449,7 +462,10 @@ _INT = {"uct_composite", "rs_rank", "inside_bar_run", "higher_lows_run",
         # ex-dividend date; EEHSC's up / down (0/1) and their net (-1 / 0 / +1). The IV pair and the short
         # interest change are REAL.
         "group_rank", "group_rank_of", "group_rank_chg_4w", "days_to_ex_div",
-        "eps_rev_up_30d", "eps_rev_down_30d", "eps_rev_net_30d"}
+        "eps_rev_up_30d", "eps_rev_down_30d", "eps_rev_net_30d",
+        # Row columns: the days to the estimated lockup (signed), SEAS's share of up years (a whole percent) and its
+        # years. The averages, the drift, the loadings, R-squared and the captures are REAL.
+        "days_to_lockup", "seas_month_up_pct", "seas_month_years"}
 
 
 # ---------------------------------------------------------------------------

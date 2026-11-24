@@ -178,7 +178,13 @@ def test_no_order_asked_means_market_cap_desc_never_the_composite():
 # methodology). It was written uncommitted, so the pin moves to master's newest Screener commit at the time,
 # e2bf906405 (#2635, the volume & volatility and beats, insiders & funds columns); whoever commits this may move it
 # to that commit (the rail reads pin...F16_HEAD, so either is green). Re-pinned in the same PR.
-SCREENER_PIN = "e2bf906405686cca354acda5935895440c491357"
+# Re-pinned 2026-11-24 (row columns): this change edits row_columns.py (new), beats_insiders_funds.py, filters.py,
+# methodology.py, snapshot_builder.py and snapshot_db.py on purpose (days to the estimated IPO lockup, this month's
+# seasonality, the post-earnings drift, factor loadings and up / down capture, worked out in the build's bars pass,
+# their filters, views and methodology). It was written uncommitted, so the pin moves to master's newest Screener
+# commit at the time, 792c781fec (#2688, the nightly catch-ups: side_pulls.py, snapshot_builder.py); whoever commits
+# this may move it to that commit (the rail reads pin...F16_HEAD, so either is green). Re-pinned in the same PR.
+SCREENER_PIN = "792c781fec53d2ffa169f9b59160516b1dec7a7a"
 SCREENER_PATHS = ("api/services/screener", "api/routers/screener.py", "api/routers/scan_results.py")
 # The F16 change set is immutable: #1029's own PR head (merged as 4dacc81529). The rail compares the pin against THIS commit,
 # never HEAD, so a later Screener change by another team (e.g. #1021, the RS split) can no longer turn master's deploy gate
@@ -270,7 +276,7 @@ def test_the_guard_can_say_no():
         pytest.skip("the pinned commit %s is not in this checkout" % SCREENER_PIN)
     r = _screener_diff(SCREENER_PIN + "~1", SCREENER_PIN)
     assert r.returncode == 0, r.stderr
-    assert "api/services/screener/volume_volatility.py" in r.stdout.split()  # a file the pinned commit changed (#2635)
+    assert "api/services/screener/side_pulls.py" in r.stdout.split()  # a file the pinned commit changed (#2688)
 
 
 def test_no_UCT_weight_or_formula_is_named_in_the_models_instructions():

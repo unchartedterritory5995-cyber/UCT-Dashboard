@@ -5231,3 +5231,24 @@ the unchanged full path. There are 2 deleted `api/` lines, both the rewritten ro
   modules are not in its closure (`tools/flow_worker_watch_coverage.py` `verdict()` on this change: those two
   offenders, nothing else).
 - **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.
+
+## Screener row columns (days to lockup, seasonality, post-earnings drift, factor loadings, up / down capture) · `feat/screener-row-columns` · 2026-11-24
+
+| | |
+|---|---|
+| classification | **flow-worker stranded: NOT EXERCISED, safe; NO marker bump** |
+| stranded files | `api/services/screener/filters.py`, `api/services/screener/snapshot_builder.py`, `api/services/screener/snapshot_db.py` |
+
+- **Additive.** Twelve new snapshot columns (`snapshot_db.COLUMNS`, ALTER-added on init) and their twelve bare filters
+  (`filters.py`) in three existing categories and one new one (`factors_capture`, with its own view), one more step in
+  the nightly build's per-row bars pass (`bars_row_columns`) and one guarded per-build context that reads FCTX's
+  factor funds once from the bar store (`snapshot_builder.py`), served by the new `row_columns.py` (web).
+  `beats_insiders_funds.read_earnings_fields` gains an optional `reports` out-dict filled from its same one pass
+  (default unchanged); `methodology.py` gains the twelve methods. Nothing existing changes shape.
+- **Flow-worker.** Reaches the three Screener files only through the static chains the last three Screener units
+  recorded (function-level hops into `rs_ranking` -> `screener.snapshot_builder`, `notebook_widgets` ->
+  `routers.scan_results` -> `screener.snapshot_db`, `coach_chat_tools` -> `rs_screens_service` -> `screener.filters`);
+  it never builds the snapshot and never runs a Screener query, so the older files it keeps running lack only what it
+  never invokes. `row_columns.py`, `beats_insiders_funds.py` and `methodology.py` are not in its closure
+  (`tools/flow_worker_watch_coverage.py` `verdict()` on this change: those three offenders, nothing else).
+- **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.

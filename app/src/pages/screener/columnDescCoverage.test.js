@@ -24,7 +24,9 @@ import { COLUMN_DEFS, descFor } from './columnDefs'
 // landed WITH theirs.
 // 168 → 179 on 2026-11-23: the eleven held-store columns (IV rank, industry group rank, short interest
 // change, ex-dividend dates, estimate revisions) landed WITH theirs.
-const RATCHET_FLOOR = 179
+// 179 → 191 on 2026-11-24: the twelve row columns (days to lockup, this month's seasonality, the
+// post-earnings drift, factor loadings, up / down capture) landed WITH theirs.
+const RATCHET_FLOOR = 191
 
 // The columns whose DEFINITION is not guessable from the label, or where the
 // audit measured a member-visible trap. Every one of these must carry text.
@@ -85,6 +87,10 @@ const MUST_DOCUMENT = [
   // log, GRPS's industries, the FINRA list, a two-week dividend window, a tracked subset of stocks).
   'iv_rank', 'iv_percentile', 'group_rank', 'group_rank_of', 'group_rank_chg_4w', 'short_interest_chg_pct',
   'next_ex_div_date', 'days_to_ex_div', 'eps_rev_up_30d', 'eps_rev_down_30d', 'eps_rev_net_30d',
+  // 2026-11-24 row columns — an estimated date, a month that changes with the calendar, a drift that is pending
+  // until its sessions trade, loadings shown only past a bar, and capture ratios with their own minimums.
+  'days_to_lockup', 'seas_month_avg', 'seas_month_up_pct', 'seas_month_years', 'post_earn_drift_5d',
+  'factor_mkt', 'factor_size', 'factor_growth', 'factor_mom', 'factor_r2', 'up_capture_1y', 'down_capture_1y',
   // 2026-11-06 UCT Relative Strength (Phase 2a, 2a-08) — every one is daily-bar
   // based where a chart reader may be on another timeframe, Mansfield is a DAILY
   // 200 where the textbook is a weekly 52, and the rating is IBD-STYLE, ours,
@@ -260,6 +266,36 @@ describe('member-facing column descriptions', () => {
     expect(COLUMN_DEFS.fund_net_adds.fmt(12)).toBe('+12')
     expect(COLUMN_DEFS.fund_net_adds.fmt(-4)).toBe('-4')
     expect(COLUMN_DEFS.fund_net_adds.fmt(null)).toBe('—')
+  })
+
+  it('says each row column\'s panel and its blank, and prints values plainly', () => {
+    const RC = MUST_DOCUMENT.slice(MUST_DOCUMENT.indexOf('days_to_lockup'), MUST_DOCUMENT.indexOf('down_capture_1y') + 1)
+    expect(RC).toHaveLength(12)
+    for (const key of RC) expect(descFor(key), key).toMatch(/Blank|blank/)
+    expect(descFor('days_to_lockup')).toMatch(/the estimate IPO LOCKUP shows/)
+    expect(descFor('days_to_lockup')).toMatch(/Every value is an estimate/)
+    for (const key of ['seas_month_avg', 'seas_month_up_pct']) expect(descFor(key), key).toMatch(/the figure SEAS shows/)
+    expect(descFor('post_earn_drift_5d')).toMatch(/pending, never 0/)
+    for (const key of ['factor_mkt', 'factor_size', 'factor_growth', 'factor_mom']) {
+      expect(descFor(key), key).toMatch(/too uncertain to read/)
+    }
+    expect(descFor('up_capture_1y')).toMatch(/the up capture STAT shows/)
+    expect(descFor('down_capture_1y')).toMatch(/the down capture STAT shows/)
+    expect(COLUMN_DEFS.days_to_lockup.fmt(42)).toBe('42')
+    expect(COLUMN_DEFS.days_to_lockup.fmt(-3)).toBe('-3')
+    expect(COLUMN_DEFS.days_to_lockup.fmt(null)).toBe('—')
+    expect(COLUMN_DEFS.seas_month_avg.fmt(2.47)).toBe('+2.5%')
+    expect(COLUMN_DEFS.seas_month_avg.fmt(-1.2)).toBe('-1.2%')
+    expect(COLUMN_DEFS.seas_month_up_pct.fmt(60)).toBe('60%')
+    expect(COLUMN_DEFS.seas_month_years.fmt(12)).toBe('12')
+    expect(COLUMN_DEFS.post_earn_drift_5d.fmt(3.21)).toBe('+3.2%')
+    expect(COLUMN_DEFS.post_earn_drift_5d.fmt(null)).toBe('—')
+    expect(COLUMN_DEFS.factor_mkt.fmt(1.234)).toBe('1.23')
+    expect(COLUMN_DEFS.factor_size.fmt(-0.456)).toBe('-0.46')
+    expect(COLUMN_DEFS.factor_growth.fmt(null)).toBe('—')
+    expect(COLUMN_DEFS.factor_r2.fmt(0.612)).toBe('0.61')
+    expect(COLUMN_DEFS.up_capture_1y.fmt(118.6)).toBe('119%')
+    expect(COLUMN_DEFS.down_capture_1y.fmt(null)).toBe('—')
   })
 
   it('says each held-store column\'s source and population, and prints a blank as a dash', () => {

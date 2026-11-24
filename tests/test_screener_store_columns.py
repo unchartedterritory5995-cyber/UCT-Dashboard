@@ -328,7 +328,7 @@ def test_the_build_reads_each_store_once_and_writes_the_eleven_columns(tmp_path,
                         lambda t, failures=None, receipt=None: {"ZZQC": {"short_interest_chg_pct": 12.5}})
     monkeypatch.setattr(fund_trends, "read_fields", lambda t, failures=None, settled=None, receipt=None: {})
     for fn in ("read_earnings_fields", "read_insider_fields"):
-        monkeypatch.setattr(BIF, fn, lambda t, failures=None, session=None, receipt=None: {})
+        monkeypatch.setattr(BIF, fn, lambda t, failures=None, session=None, receipt=None, reports=None: {})
     monkeypatch.setattr(BIF, "read_fund_fields", lambda t, failures=None, receipt=None: {})
     monkeypatch.setattr(VV, "index_context", lambda now=None: {"state": "not_held", "rows": 0, "ms": 0.0,
                                                                "seam_withheld": 0})

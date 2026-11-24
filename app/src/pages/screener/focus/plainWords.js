@@ -143,6 +143,19 @@ export const PLAIN_COLUMN_LABELS = {
   eps_rev_up_30d: 'EPS estimate raised, last 30 days',
   eps_rev_down_30d: 'EPS estimate cut, last 30 days',
   eps_rev_net_30d: 'EPS estimate revision, net, last 30 days',
+  // Row columns (2026-11-24): from each stock's own daily bars, once a night.
+  days_to_lockup: 'Days to the estimated IPO lockup end',
+  seas_month_avg: 'Average return this month, past years',
+  seas_month_up_pct: 'Share of past years up this month',
+  seas_month_years: 'Years counted for this month',
+  post_earn_drift_5d: 'Move in the 5 sessions after the last report',
+  factor_mkt: 'Market factor loading',
+  factor_size: 'Size factor loading (small caps positive)',
+  factor_growth: 'Growth vs value factor loading (growth positive)',
+  factor_mom: 'Momentum factor loading',
+  factor_r2: 'Share of moves the factors explain',
+  up_capture_1y: 'Up capture against SPY, last year',
+  down_capture_1y: 'Down capture against SPY, last year',
 }
 
 export const plainColumnLabel = key => PLAIN_COLUMN_LABELS[key] || null

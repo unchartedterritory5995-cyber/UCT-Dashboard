@@ -1204,6 +1204,36 @@ FILTERS = dict([
     _agent_omit(_open_range("eps_rev_down_30d", "EPS Estimate Cut, 30 Days", "events", "eps_rev_down_30d")),
     _agent_omit(_open_range("eps_rev_net_30d", "EPS Estimate Revision, Net, 30 Days", "events",
                             "eps_rev_net_30d")),
+    # ── row columns (2026-11-24): from each row's own stored daily bars inside the build's bars
+    # pass (`row_columns`, one writer), each the definition a Terminal panel already prints: IPO
+    # LOCKUP's estimated expiry from the row's listing date beside the other event dates, SEAS's
+    # month beside the returns, ERX's drift beside the last report's move, FCTX's loadings and
+    # STAT's up / down capture in their own family (`row_columns.FACTOR_CATEGORY`).
+    # NOT DUPLICATES, checked: `ipo_date` / `ipo_age_days` are the listing and its age, not the
+    # lockup; `last_report_move_pct` is the wire's peak move on the report, not the 5 sessions
+    # after it; `beta` is the vendor's single-factor slope, not FCTX's multi-factor loading, and no
+    # column held capture or seasonality. Bare (E-8), `_agent_omit`: the Agent's field list has no
+    # room (the budget). ──
+    _agent_omit(_open_range("days_to_lockup", "Days to Lockup Expiry (Estimated)", "events",
+                            "days_to_lockup")),
+    _agent_omit(_open_range("seas_month_avg", "Seasonality, Average Return This Month", "performance",
+                            "seas_month_avg", unit="%")),
+    _agent_omit(_open_range("seas_month_up_pct", "Seasonality, Up Years This Month", "performance",
+                            "seas_month_up_pct", unit="%")),
+    _agent_omit(_open_range("seas_month_years", "Seasonality, Years Counted This Month", "performance",
+                            "seas_month_years")),
+    _agent_omit(_open_range("post_earn_drift_5d", "Drift 5 Days After Last Report", "events",
+                            "post_earn_drift_5d", unit="%")),
+    _agent_omit(_open_range("factor_mkt", "Factor Loading, Market", "factors_capture", "factor_mkt")),
+    _agent_omit(_open_range("factor_size", "Factor Loading, Size", "factors_capture", "factor_size")),
+    _agent_omit(_open_range("factor_growth", "Factor Loading, Growth vs Value", "factors_capture",
+                            "factor_growth")),
+    _agent_omit(_open_range("factor_mom", "Factor Loading, Momentum", "factors_capture", "factor_mom")),
+    _agent_omit(_open_range("factor_r2", "Factor Model R-Squared", "factors_capture", "factor_r2")),
+    _agent_omit(_open_range("up_capture_1y", "Up Capture vs SPY, 1 Year", "factors_capture",
+                            "up_capture_1y", unit="%")),
+    _agent_omit(_open_range("down_capture_1y", "Down Capture vs SPY, 1 Year", "factors_capture",
+                            "down_capture_1y", unit="%")),
 ])
 
 # ⚠️ `gt`/`lt`/`eq` JOINED "range" FOR THE FACTUAL PRESETS, and the strictness
@@ -1349,7 +1379,9 @@ VIEWS = {
     "performance": {"label": "Performance", "columns": [
         "ticker", "company", "chg_pct_1d", "chg_pct_1w", "chg_pct_1m",
         "chg_pct_3m", "chg_pct_6m", "chg_pct_1y", "chg_pct_ytd",
-        "dist_52w_high_pct", "dist_ath_pct"]},
+        "dist_52w_high_pct", "dist_ath_pct",
+        # SEAS's month (2026-11-24): this calendar month's average return, up years, years counted
+        "seas_month_avg", "seas_month_up_pct", "seas_month_years"]},
     "momentum": {"label": "Momentum", "columns": [
         "ticker", "company", "candle_score", "pct_vs_ema20", "close_cv_pct",
         "avg_body_pct_5", "pole_pct", "adr_pct", "vol_nweek_low",
@@ -1392,7 +1424,9 @@ VIEWS = {
     "events": {"label": "Events & Analysts", "columns": [
         "ticker", "company", "next_earnings_date", "days_to_earnings",
         "earnings_session", "implied_move_pct", "last_report_move_pct",
-        "next_ex_div_date", "days_to_ex_div",
+        # ERX's drift after the last report and IPO LOCKUP's estimate (2026-11-24)
+        "post_earn_drift_5d",
+        "next_ex_div_date", "days_to_ex_div", "days_to_lockup",
         "earnings_setup_grade", "analyst_consensus", "pt_upside_pct",
         "upgrades_30d", "downgrades_30d",
         "eps_rev_up_30d", "eps_rev_down_30d", "eps_rev_net_30d"]},
@@ -1502,8 +1536,13 @@ VIEWS = {
     # date and the last report's move the Screener already carries.
     "beats_insiders_funds": {"label": "Beats, Insiders & Funds", "columns": [
         "ticker", "company", "price", "chg_pct_1d", "next_earnings_date", "eps_surprise_last",
-        "eps_beat_streak", "last_report_move_pct", "insider_buys_30d", "insider_buy_value_30d",
-        "fund_net_adds"]},
+        "eps_beat_streak", "last_report_move_pct", "post_earn_drift_5d", "insider_buys_30d",
+        "insider_buy_value_30d", "fund_net_adds"]},
+    # FACTORS & CAPTURE (2026-11-24): FCTX's loadings and R-squared and STAT's up / down capture,
+    # beside the vendor's beta the Screener already carries (one slope against the market).
+    "factors_capture": {"label": "Factors & Capture", "columns": [
+        "ticker", "company", "price", "chg_pct_1d", "beta", "factor_mkt", "factor_size",
+        "factor_growth", "factor_mom", "factor_r2", "up_capture_1y", "down_capture_1y"]},
 }
 
 # ── The Type filter (instrument class) ──────────────────────────────────────
@@ -1551,6 +1590,10 @@ CATEGORIES = [
     # Appended for the same reason `flow` was; neither label is a word another category uses.
     {"key": "volume_volatility", "label": "Volume & Volatility"},
     {"key": "beats_insiders_funds", "label": "Beats, Insiders & Funds"},
+    # Factors & capture (2026-11-24): FCTX's loadings and STAT's capture (`row_columns`), how a stock
+    # moves with the market and the style funds; no existing family is about that, and the label is
+    # a word no other category uses. Appended for the same reason `flow` was.
+    {"key": "factors_capture", "label": "Factors & Capture"},
 ]
 
 
