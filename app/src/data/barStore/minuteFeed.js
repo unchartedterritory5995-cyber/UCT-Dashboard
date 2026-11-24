@@ -54,7 +54,7 @@
 //   • a copy the server has not answered in this page's life (a saved, lake or device copy), a copy the store holds
 //     for a full re-read, a windowed (replay) key, a key a chart is on (its own stream and requests keep it current);
 //   • a key whose newest closed row is from an earlier session (the first minutes after the open, until its answer);
-//   • the device store ON: this does not run at all then (minuteFeedSwitch.js).
+//   • the device store's own copies: untouched (with it ON this reads the worker's download from the cache, below).
 //
 // COST, ON: one GET a minute per PAGE (the minute file, `immutable` in the browser cache, so a second tab reads the
 // first tab's copy), at low priority, only while the app is visible, the regular session is open AND THERE IS
@@ -83,6 +83,20 @@ export const DRAIN_SLICE_MS = 4
 /** When a minute's frame is asked for, after the minute's end (the consumer's own default: the publisher builds it
  *  5 s after the minute ends), plus the consumer's 0-3 s jitter. */
 export const POLL_DELAY_MS = 7000
+/**
+ * ⭐ WITH THE DEVICE STORE ON (`cacheOnly`): THE PAGE NEVER DOWNLOADS A MINUTE FILE. The device store's worker downloads
+ * it (the same URL, built by the same consumer) 7-10 s after the minute ends, and the edge answers it `private,
+ * max-age=86400, immutable`, so the browser's HTTP cache holds it for every tab of the site. The page asks with
+ * `cache: 'only-if-cached'` (and the `mode: 'same-origin'` that mode requires): by the Fetch standard such a request
+ * is answered from the cache or fails; it cannot reach the network. A miss (a 504 answer in Firefox, a failed fetch in
+ * Chrome) means the worker's copy is not there yet: looked for again every CACHE_RETRY_MS, CACHE_RETRIES times, then
+ * the minute is given up like any other and the strict walk stops there. No jitter (nothing reaches a server).
+ * If the worker is not downloading (no seed yet, a seed the split guard refuses, the store stopped on this page), the
+ * page reads nothing and every key is behind exactly as today.
+ */
+export const CACHE_POLL_DELAY_MS = 7500
+export const CACHE_RETRY_MS = 500
+export const CACHE_RETRIES = 15
 /** With nothing to feed (no idle regular 1m key held) the feed looks again this often: a registry read, no request. */
 export const WANT_RECHECK_MS = 5_000
 /** A minute file that is not there yet is asked again this many times (every 2 s), then given up. */
@@ -318,16 +332,20 @@ function _onVisible(cb) {
  * @param {Function} [o.killed]         has the server killed the chart speed switches NOW (a fresh cookie read)?
  * @param {Function} [o.inSession]      is the regular session open at `ms` (deviceStore/fresh.inRegularSession)?
  * @param {Function} [o.onVisible]      (cb) => unsubscribe: when the app may have become visible
+ * @param {boolean} [o.cacheOnly]       the device store is on: read the browser's copy only, never the network (above)
  * @param {object} [o.consumerOpts] / [o.feederOpts]   tests
  */
 export function createPageMinuteFeed({
   store, fetchImpl = (...a) => fetch(...a), now = () => Date.now(), visible = isAppVisible, killed = _killedNow,
-  inSession = inRegularSession, onVisible = _onVisible, consumerOpts = {}, feederOpts = {},
+  inSession = inRegularSession, onVisible = _onVisible, cacheOnly = false, consumerOpts = {}, feederOpts = {},
 } = {}) {
   const feeder = createMinuteFeeder({
     registry: store.registry, isActive: (key) => !!store.isActive?.(key), ...feederOpts,
   })
-  const pollDelayMs = consumerOpts.pollDelayMs ?? POLL_DELAY_MS
+  const pollDelayMs = consumerOpts.pollDelayMs ?? (cacheOnly ? CACHE_POLL_DELAY_MS : POLL_DELAY_MS)
+  const retries = cacheOnly ? CACHE_RETRIES : TAIL_RETRIES
+  /** Answers in a row that were not a frame before the feed pauses: one whole minute of asking (the ask and its retries). */
+  const failLimit = retries + 1
   /** The backoff: answers in a row that were not a frame, pauses in a row, and until when the feed is paused. */
   const back = { fails: 0, pauses: 0, until: 0 }
   const st = { requests: 0, answered: 0, refused: 0, stopped: null, waiting: false }
@@ -343,7 +361,7 @@ export function createPageMinuteFeed({
    */
   function _failed(refused) {
     back.fails++
-    if (!refused && back.fails < FAIL_LIMIT) return
+    if (!refused && back.fails < failLimit) return
     back.fails = 0
     back.pauses++
     back.until = now() + Math.min(MAX_PAUSE_MS, (refused ? REFUSED_PAUSE_MS : FAIL_PAUSE_MS) * 2 ** (back.pauses - 1))
@@ -352,7 +370,9 @@ export function createPageMinuteFeed({
   async function watchedFetch(url, init) {
     st.requests++
     let r
-    try { r = await fetchImpl(url, init) } catch (e) { _failed(false); throw e }
+    // ⛔ cacheOnly: the browser may answer this from its HTTP cache or not at all (see CACHE_POLL_DELAY_MS)
+    const req = cacheOnly ? { ...init, cache: 'only-if-cached', mode: 'same-origin' } : init
+    try { r = await fetchImpl(url, req) } catch (e) { _failed(false); throw e }
     if (r.ok) { st.answered++; back.fails = 0; back.pauses = 0; back.until = 0 }
     else if (r.status === 401 || r.status === 403) { st.refused++; _failed(true) }
     else _failed(false)
@@ -382,7 +402,7 @@ export function createPageMinuteFeed({
       if (consumer || st.stopped) return
       consumer = createMinuteFrameConsumer({
         sink: feeder.sink, fetchImpl: watchedFetch, now, isVisible: api.gate,
-        tailOnly: true, tailRetries: TAIL_RETRIES, pollDelayMs,
+        tailOnly: true, tailRetries: retries, pollDelayMs, ...(cacheOnly ? { retryMs: CACHE_RETRY_MS, jitterMs: 0 } : {}),
         recheckMs: () => (st.waiting ? WANT_RECHECK_MS : null),
         rollup: { tfs: [FEED_TF], accept: feeder.accept },
         ...consumerOpts,
@@ -403,7 +423,7 @@ export function createPageMinuteFeed({
     status: () => {
       const c = consumer?.status?.()
       return {
-        running: !!consumer && !st.stopped, stopped: st.stopped, requests: st.requests, answered: st.answered,
+        running: !!consumer && !st.stopped, stopped: st.stopped, cacheOnly, requests: st.requests, answered: st.answered,
         refused: st.refused, pausedUntil: back.until, pauses: back.pauses, waiting: st.waiting,
         lastSeq: c?.lastSeq ?? null, lastAppliedAt: c?.lastAppliedAt ?? 0, bytes: c?.bytes ?? 0, ...feeder.stats(),
       }

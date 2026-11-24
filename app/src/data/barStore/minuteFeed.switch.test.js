@@ -4,7 +4,8 @@
 //
 //   S1 no key: off; the chunk is never loaded (so nothing can be asked for)        S2 '1': on, started once, stoppable
 //   S3 '0' and any value that is not a choice: off                                 S4 CHART_SPEED_ENABLED=0 (the cookie): off over '1'
-//   S5 the device store ON: off over '1' (no second download)                      S6 one decision per page load
+//   S5 the device store ON: it runs CACHE-ONLY (it may not use the network: no second download)
+//   S5b the device store ON and the feed key OFF: nothing new happens              S6 one decision per page load
 //   S7 the store asks for it ONCE, at its first chart; never at creation, never for a warm; dispose stops it
 //   S8 THE APP'S STORE, OFF: a chart mounts, three minutes pass, and not one request goes to the minute frames
 //   S9 THE APP'S STORE, ON: the first chart starts it; it asks for a minute file, never for the day
@@ -67,6 +68,7 @@ describe('the switch', () => {
     expect(await h.ready).toBe(c.made[0])
     expect(c.load).toHaveBeenCalledTimes(1)
     expect(c.made[0].o.store).toBe(STORE)
+    expect(c.made[0].o.cacheOnly).toBe(false)                      // the device store is off here: the page downloads
     expect(c.made[0].start).toHaveBeenCalledTimes(1)
     expect(h.status()).toEqual({ running: true })
     expect(window.__uctMinuteFeed.status()).toEqual({ running: true })   // what a measurement harness reads
@@ -110,14 +112,38 @@ describe('the switch', () => {
     expect(sw.minuteFeedEnabled()).toBe(true)
   })
 
-  it('S5 the device store ON: this does not run at all (its worker already downloads the frames)', async () => {
+  it('S5 the device store ON: the feed runs CACHE-ONLY (its worker already downloads the frames; the page may not)', async () => {
     localStorage.setItem('uct.minuteFeed', '1')
+    localStorage.setItem('uct.deviceStore', '1')
+    const sw = await import('./minuteFeedSwitch')
+    const c = chunk()
+    expect(sw.minuteFeedEnabled()).toBe(true)
+    const h = sw.appMinuteFeed(STORE, { load: c.load })
+    await h.ready
+    expect(c.made).toHaveLength(1)
+    expect(c.made[0].o.cacheOnly).toBe(true)
+    expect(c.made[0].start).toHaveBeenCalledTimes(1)
+    h.stop()
+  })
+
+  it('S5b the device store ON and the feed key OFF (every desktop member today): nothing new happens', async () => {
     localStorage.setItem('uct.deviceStore', '1')
     const sw = await import('./minuteFeedSwitch')
     const c = chunk()
     expect(sw.minuteFeedEnabled()).toBe(false)
     expect(sw.appMinuteFeed(STORE, { load: c.load })).toBe(null)
     await Promise.resolve()
+    expect(c.load).not.toHaveBeenCalled()
+    expect(window.__uctMinuteFeed).toBeUndefined()
+  })
+
+  it('S5c the device store ON, the feed key ON, and the chart-speed kill: off', async () => {
+    localStorage.setItem('uct.minuteFeed', '1')
+    localStorage.setItem('uct.deviceStore', '1')
+    document.cookie = 'uct_chart_speed=0; path=/'
+    const sw = await import('./minuteFeedSwitch')
+    const c = chunk()
+    expect(sw.appMinuteFeed(STORE, { load: c.load })).toBe(null)
     expect(c.load).not.toHaveBeenCalled()
   })
 

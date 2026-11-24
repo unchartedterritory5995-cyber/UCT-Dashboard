@@ -10,6 +10,11 @@
 //   P7 a feed that is not there (404 every minute): bounded the same way
 //   P8 one frame clears the backoff
 //   P9 a gate that throws asks nothing (it is also the kill: it fails closed)
+//   WITH THE DEVICE STORE ON (`cacheOnly`: the worker downloads each minute file; the page reads the browser's copy):
+//   C1 every request is `cache: 'only-if-cached'`, `mode: 'same-origin'`: the browser may not use the network for it
+//   C2 a miss (the worker's copy is not there yet) is looked for again half a second later, the same way, and applied
+//   C2b ...whether the browser reports the miss as a 504 answer (Firefox) or as a failed fetch (Chrome)
+//   C3 a minute never cached is given up after a bounded number of looks; never a download; then the feed pauses
 //   (P3 / P4 also pin WHEN it looks again after a "not now": when the next minute file is due, never a minute late)
 //   ONLY WHILE THERE IS SOMETHING TO FEED (an idle regular 1m key is held):
 //   G1 no 1m key held: no request at all                     G2 only a 1m key a chart is on: none
@@ -18,7 +23,9 @@
 //   G6 the last one gone (a chart is now on it, or it was evicted) stops it within one minute; held again, it resumes
 import { describe, it, expect, afterEach } from 'vitest'
 import { createRegistry } from './registry'
-import { createPageMinuteFeed, FAIL_PAUSE_MS, REFUSED_PAUSE_MS, WANT_RECHECK_MS } from './minuteFeed'
+import {
+  createPageMinuteFeed, FAIL_PAUSE_MS, REFUSED_PAUSE_MS, WANT_RECHECK_MS, CACHE_RETRY_MS, CACHE_RETRIES,
+} from './minuteFeed'
 import { ACTION, keyOf } from './types'
 import { DEFAULT_BASE } from '../../lib/minuteFrames/consumer'
 import { writeFrame, framePath, frameResponse, statusResponse } from '../../lib/minuteFrames/testing/frameWriter'
@@ -88,6 +95,8 @@ describe('the page minute feed', () => {
     await p.runUntil(at(40, 20))
     expect(e.paths()).toEqual([31, 32, 33, 34, 35, 36, 37, 38, 39].map(name))   // 8 minutes later: 8 more
     for (const a of e.asked) expect(a.init).toMatchObject({ priority: 'low', credentials: 'same-origin' })
+    for (const a of e.asked) expect([a.init.cache, a.init.mode]).toEqual([undefined, undefined])   // the page downloads: the default cache mode
+    expect(p.feed.status().cacheOnly).toBe(false)
     expect(p.feed.status()).toMatchObject({ running: true, requests: 9, answered: 9, refused: 0, pauses: 0, frames: 9, breaks: 0 })
   })
 
@@ -205,6 +214,74 @@ describe('the page minute feed', () => {
     const n = e.asked.length
     await p.runUntil(at(40, 20))
     expect(e.asked.length).toBe(n + 4)                           // one a minute again
+  })
+})
+
+describe('the page minute feed with the device store ON reads the browser cache only', () => {
+  /** The browser's HTTP cache as the page sees it: minute n is there once the device store's worker downloaded it
+   *  (`have`). A request that is NOT cache-only would be a second download: counted in `net`. A miss answers 504, or
+   *  with `reject` fails as Chrome's does. */
+  function cache({ have = [], reject = false } = {}) {
+    const st = { have: new Set(have), reject, net: 0 }
+    const asked = []
+    const fetchImpl = async (url, init) => {
+      const path = String(url).slice(DEFAULT_BASE.length + 1)
+      asked.push({ path, init: { ...(init || {}) } })
+      const m = /\/(\d{2})(\d{2})\.bin$/.exec(path)
+      const n = m ? Number(m[1]) * 60 + Number(m[2]) - 570 : NaN
+      const frame = () => frameResponse(writeFrame({ minute: M(n), blocks: [{ rows: [rec('AAA', n), rec('BBB', n)] }] }))
+      if (init?.cache !== 'only-if-cached') { st.net++; return frame() }
+      if (st.have.has(n)) return frame()
+      if (st.reject) throw new TypeError('Failed to fetch')
+      return statusResponse(504)
+    }
+    return { fetchImpl, asked, st, paths: () => asked.map((a) => a.path) }
+  }
+  const onlyCache = (e) => e.asked.every((a) => a.init.cache === 'only-if-cached' && a.init.mode === 'same-origin')
+
+  it('C1 every request is cache-only and same-origin: the browser may not use the network for it', async () => {
+    const e = cache({ have: [31, 32, 33, 34, 35, 36] })
+    const p = page(e, at(32, 20), { cacheOnly: true })
+    p.feed.start()
+    await p.run()
+    await p.runUntil(at(36, 20))
+    expect(e.paths()).toEqual([31, 32, 33, 34, 35].map(name))    // still one look a minute when the copy is there
+    for (const a of e.asked) expect(a.init).toMatchObject({ cache: 'only-if-cached', mode: 'same-origin', priority: 'low', credentials: 'same-origin' })
+    expect(e.st.net).toBe(0)
+    expect(p.feed.status()).toMatchObject({ running: true, cacheOnly: true, requests: 5, answered: 5, pauses: 0, frames: 5 })
+  })
+
+  for (const reject of [false, true]) {
+    it(`C2${reject ? 'b' : ''} a miss (${reject ? 'a failed fetch' : 'a 504 answer'}) is looked for again half a second later, the same way, then applied`, async () => {
+      const e = cache({ have: [31], reject })
+      const p = page(e, at(32, 20), { cacheOnly: true })
+      p.feed.start()
+      await p.run()                                              // 10:01 is there
+      await p.run()                                              // 10:02 is not: the worker has not downloaded it yet
+      expect(p.delay()).toBe(CACHE_RETRY_MS)
+      await p.run()
+      expect(p.delay()).toBe(CACHE_RETRY_MS)
+      e.st.have.add(32)                                          // the worker's download lands in the cache
+      await p.run()
+      expect(e.paths()).toEqual([31, 32, 32, 32].map(name))
+      expect(onlyCache(e)).toBe(true)                            // a miss never turns into a download
+      expect(e.st.net).toBe(0)
+      expect(p.feed.status()).toMatchObject({ answered: 2, pauses: 0, frames: 2, breaks: 0 })
+    })
+  }
+
+  it('C3 a minute never cached is given up after a bounded number of looks, never downloaded; then the feed pauses', async () => {
+    const e = cache({ have: [31] })
+    const p = page(e, at(32, 20), { cacheOnly: true })
+    p.feed.start()
+    await p.run()
+    for (let i = 0; i <= CACHE_RETRIES; i++) await p.run()
+    expect(e.asked.filter((a) => a.path === name(32))).toHaveLength(CACHE_RETRIES + 1)
+    expect(p.feed.status().pausedUntil).toBe(p.clock.ms + FAIL_PAUSE_MS)
+    await p.runUntil(at(92, 20))                                 // one hour with nothing in the cache
+    expect(e.asked.length).toBeLessThanOrEqual(6 * (CACHE_RETRIES + 1))
+    expect(onlyCache(e)).toBe(true)
+    expect(e.st.net).toBe(0)
   })
 })
 

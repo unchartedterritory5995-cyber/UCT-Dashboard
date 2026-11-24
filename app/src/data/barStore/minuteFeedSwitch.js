@@ -16,9 +16,12 @@
 // `uct_chart_speed=0`) turns this off over a member's own '1'. At page load through `chartSpeedKilled()` here; on a
 // page left open the feed reads the cookie FRESH before every poll (minuteFeed.js) and stops for good.
 //
-// ⛔ NOT WITH THE DEVICE STORE ON (first slice). The device store's worker already downloads the same frames; a page
-// that also ran this would download them twice. So with `uct.deviceStore` on this does not run at all (the worker
-// forwarding its frames to the page is a later slice), and a member with the store on is exactly where they were.
+// ⭐ WITH THE DEVICE STORE ON (every desktop browser by default since #2537): NO SECOND DOWNLOAD. The device store's
+// worker already downloads each minute file, and the edge answers it `private, max-age=86400, immutable`, so the
+// browser's HTTP cache holds it for every tab of the site. There the page's feed runs CACHE-ONLY (`cacheOnly`:
+// every request is `cache: 'only-if-cached'`, which the Fetch standard forbids from using the network): it reads the
+// worker's copy, or nothing. The device store itself is not touched: no new message, no change to its worker.
+// With the device store on and this key off, nothing new happens.
 //
 // Tiny on purpose: index.js imports this statically; the feed itself (the frame decoder, the consumer, the applier) is
 // one lazy chunk loaded only when the switch is on. Off, the whole cost is one localStorage read when the first chart
@@ -47,7 +50,6 @@ function _read() {
 /** Is the minute feed into the registry on for this page load? Never throws. */
 export function minuteFeedEnabled() {
   if (chartSpeedKilled()) return false      // the server's kill, over a local '1'
-  if (deviceStoreEnabled()) return false    // the device store's worker already reads the frames (see the header)
   if (_decided === null) _decided = _read()
   return _decided
 }
@@ -65,7 +67,8 @@ export function appMinuteFeed(store, { load = () => import('./minuteFeed.js'), f
   let stopped = false
   const ready = Promise.resolve().then(load).then((m) => {
     if (stopped) return null
-    feed = m.createPageMinuteFeed({ store, ...feedOpts })
+    // with the device store on, the page reads the worker's copy from the browser's cache and may not download (the header)
+    feed = m.createPageMinuteFeed({ store, cacheOnly: deviceStoreEnabled(), ...feedOpts })
     feed.start()
     // numbers only, for a measurement harness (the page has it only where the switch is on)
     try { if (typeof window !== 'undefined') window.__uctMinuteFeed = { status: () => feed.status() } } catch { /* none */ }

@@ -20,6 +20,9 @@
 //   E. COST: on, one minute file a minute for the whole page and never the day; off, not one request to the feed.
 //   F. NEVER "FORMING" ON A CLOSED BAR (review M1): a pressed copy whose newest row is a closed bar is never handed to
 //      the chart's runs as newest_bar_is_forming = true.
+//   G. THE DEVICE STORE ON (every desktop member): the page never downloads a minute file. The device store's worker
+//      downloads it 7-10 s after the boundary (modelled); the page reads the browser's copy, cache-only, and the same
+//      presses switch in the key press.
 import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest'
 import { installFakeIndexedDB } from './testing/fakeIndexedDB'
 import { fakeStream, fakeCandle, fakePrices } from './testing/fakeFeeds'
@@ -62,11 +65,16 @@ beforeAll(() => { fakeDb = installFakeIndexedDB() })
 afterEach(() => {
   for (const f of undo.splice(0)) { try { f() } catch { /* already gone */ } }
   vi.useRealTimers(); vi.restoreAllMocks(); localStorage.removeItem('uct.minuteFeed'); localStorage.removeItem('barspack.version')
+  localStorage.removeItem('uct.deviceStore')
 })
 
 /** The modelled network (see the header). Records what was asked. */
-function installNetwork(model) {
-  const log = { bars: [], frames: [], other: [], served: new Map() }
+/** STORE ON: when the device store's worker has minute `t` in the browser cache: its own ask (the minute's end + 7 s +
+ *  its 0-3 s jitter, here a fixed spread per minute) plus the download. */
+const workerHasAt = (t) => (t + 60) * 1000 + 7000 + ((t / 60) * 7919) % 3000 + 150
+
+function installNetwork(model, storeOn = false) {
+  const log = { bars: [], frames: [], other: [], served: new Map(), second: [], lookups: 0 }
   globalThis.fetch = vi.fn((url, opts) => {
     const u = String(url)
     const now = Date.now()
@@ -76,6 +84,16 @@ function installNetwork(model) {
       const m = /\/(\d{2})(\d{2})\.bin$/.exec(u)
       if (!m) return Promise.resolve(statusResponse(404))        // head.json / today.bin: never asked (E)
       const t = OPEN + (Number(m[1]) * 60 + Number(m[2]) - 570) * 60
+      if (storeOn) {
+        // the page may only READ THE CACHE: anything else is a second download of a file the worker already fetches
+        if (opts?.cache !== 'only-if-cached' || opts?.mode !== 'same-origin') log.second.push(u)
+        else {
+          log.lookups++
+          if (now < workerHasAt(t)) {                              // not cached yet: a miss, as each browser reports it
+            return (t / 60) % 2 ? Promise.reject(new TypeError('Failed to fetch')) : Promise.resolve(statusResponse(504))
+          }
+        }
+      }
       if (!u.endsWith(framePath(t / 60)) || nowS < t + 60 + GRACE_S) return Promise.resolve(statusResponse(404))
       if (!log.served.has(t)) log.served.set(t, now)
       const rows = SYMS.map((sym, i) => { const { t: _t, ...b } = truth(i, t); return { sym, ...b } })
@@ -114,7 +132,7 @@ function installNetwork(model) {
 }
 
 /** One scan. Returns, per press: { i, at, sec, ok, tail, frontier }. */
-async function scan({ feedOn, model }) {
+async function scan({ feedOn, model, storeOn = false }) {
   fakeDb._clear()
   vi.resetModules()                                              // a new page load
   vi.useFakeTimers()
@@ -123,12 +141,14 @@ async function scan({ feedOn, model }) {
   vi.spyOn(Math, 'random').mockImplementation(() => jitter.next())   // the consumer's 0-3 s jitter, the same every run
   localStorage.setItem('barspack.version', 'test')
   if (feedOn) localStorage.setItem('uct.minuteFeed', '1'); else localStorage.removeItem('uct.minuteFeed')
-  const log = installNetwork(model)
+  // the device store's SWITCH is on; its worker is the model above (the bar store here is handed no device source)
+  if (storeOn) localStorage.setItem('uct.deviceStore', '1'); else localStorage.removeItem('uct.deviceStore')
+  const log = installNetwork(model, storeOn)
   const { createBarStore } = await import('./index')
   const { createPrefetch } = await import('./prefetch')
   const { appMinuteFeed } = await import('./minuteFeedSwitch')
   const store = createBarStore({
-    stream: fakeStream(), candle: fakeCandle(), prices: fakePrices(), history: null,
+    stream: fakeStream(), candle: fakeCandle(), prices: fakePrices(), history: null, device: null,
     isHidden: () => false, onVisible: () => () => {}, idle: (fn) => fn(), minuteFeed: appMinuteFeed,
   })
   undo.push(() => store.dispose())
@@ -224,6 +244,30 @@ describe('a 200-second scan of a 100-row list on a 1-minute chart', () => {
     // row (09:56 was due then); the first row was warmed at 09:59:15, when 09:58 was the minute due
     expect(on.log.frames[0]).toMatch(/\/0958\.bin$/)
     expect(on.status).toMatchObject({ running: true, refused: 0, pauses: 0, breaks: 0 })
+    expect(on.status.appended).toBeGreaterThan(100)
+  }, 120_000)
+
+  it('the device store ON: the page never downloads a minute file, and the same presses switch in the key press', async () => {
+    const on = await scan({ feedOn: true, model: 'closed', storeOn: true })
+    expect(on.presses).toHaveLength(PRESSES)
+    // G: not one request that could reach the network; every look is cache-only
+    expect(on.log.second).toEqual([])
+    expect(on.log.lookups).toBe(on.log.frames.length)
+    expect(on.log.frames.every((u) => /\/\d{4}\.bin$/.test(u))).toBe(true)
+    // A, as with the store off: displayable exactly when the minute that just closed had been read
+    for (const p of on.presses) {
+      const landed = on.log.served.get(p.frontier)
+      if (landed === p.at) continue                               // read in the very millisecond of the press: either
+      expect(p.ok, `press ${p.i} at second ${p.sec}`).toBe(landed != null && landed <= p.at)
+    }
+    // the page reads each minute within half a second of the worker's download landing in the cache
+    for (const [t, at] of on.log.served) if (at >= T0) expect(at - workerHasAt(t)).toBeLessThanOrEqual(500)
+    const sOn = share(on.presses)
+    console.log(`MINUTE-FEED-SCAN model=closed device-store=ON presses=${PRESSES} feed-on=${(sOn * 100).toFixed(1)}% `
+      + `(${on.presses.filter((p) => p.ok).length}/${PRESSES}) cache lookups=${on.log.lookups} hits=${on.log.served.size} downloads by the page=${on.log.second.length}`)
+    expect(sOn).toBeGreaterThanOrEqual(0.78)
+    expect(sOn).toBeLessThanOrEqual(0.90)
+    expect(on.status).toMatchObject({ running: true, cacheOnly: true, refused: 0, pauses: 0, breaks: 0 })
     expect(on.status.appended).toBeGreaterThan(100)
   }, 120_000)
 
