@@ -523,7 +523,12 @@ def build(*, tfs: Iterable[str] = SEED_TFS, symbols: Optional[List[str]] = None,
         why = unfit(tf, stats, floor)
         if why is not None:
             if tf not in GATED_TFS:
-                raise SeedBuildError(f"tf {tf}: {why}: refusing to publish")
+                # What left the symbols out, so a stale store reads differently from an empty or an
+                # unreadable one (2026-11-24: "tf D: 0 symbols, floor 1500" four times, every daily stale).
+                raise SeedBuildError(
+                    f"tf {tf}: {why}: refusing to publish (left out of {len(symbols)}: {stats['stale']} stale, "
+                    f"{stats['no_bars']} with no bars, {stats['error']} read errors, "
+                    f"{stats['inexact']} not encodable)")
             refused[tf] = {"reason": why, "symbols": stats["symbols"], "symbol_floor": floor,
                            "incomplete": stats["incomplete"], "complete": done}
             log.warning("[ffseed] tf=%s REFUSED, not published (%s): the other timeframes build on and "

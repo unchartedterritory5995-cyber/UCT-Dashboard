@@ -64,6 +64,16 @@ The ``_read_*`` wrappers reuse data we ALREADY store — NO yfinance:
                 S&P 500 declines (``volume_volatility.index_context``, MKTH's own
                 first stage: the stored index closes, never a stock read). Its
                 receipt (rows, time) is ``stats["volume_volatility"]``.
+  - held-store columns -> ``store_columns``'s four readers (2026-11-23), ONE
+                read per build each, same ``market_row`` merge, each the sole
+                writer of its columns: OSCR's IV rank and percentile from the IV
+                rank build's full map, GRPS's industry group rank (its own map
+                of stocks to industries), DVD MARKET's next ex-dividend date and
+                EEHSC's estimate revision classification. Each as known at the
+                build's settled session; a store not held, behind or ahead
+                leaves its columns NULL. The change in shares short since the
+                prior report rides ``short_columns``' own read of the FINRA list.
+                Receipts: ``stats["store_columns"]``.
   - patterns/flow -> three Wave 5 readers, same ``market_row`` merge, ONE
                 read per build each: ``pattern_join`` (active 7-day
                 pattern-engine detections + regime-blind expectancy — its two
@@ -143,7 +153,7 @@ from . import (snapshot_db, candles, bar_character, bases, technicals, enrich, s
               context_joins, finviz_universe, earnings_dates, earnings_context,
               analyst_pass, insider_capture, pattern_join, darkpool_agg, opt_flow,
               archive_join, rs_columns, rs_setup, short_columns, fund_trends,
-              volume_volatility, beats_insiders_funds)
+              volume_volatility, beats_insiders_funds, store_columns)
 
 log = logging.getLogger(__name__)
 
@@ -1450,6 +1460,34 @@ def _volume_volatility_receipt(ctx: dict) -> dict:
             "seam_withheld": ctx.get("seam_withheld") or 0}
 
 
+def _read_store_columns(targets, failures, session) -> tuple:
+    """The four held-store readers (`store_columns`), ONE read each, each wrapped by
+    ``_read_market_source`` so a dead store costs only its own columns and is COUNTED under
+    its label. Returns ``({TICKER: columns}, receipt)``: the four writers own disjoint
+    columns, so their answers merge into one map; the receipt keeps each read's own
+    receipt and seconds. ``session`` is the build's settled session; the ex-dividend days
+    count from today, the row's ``snapshot_date``."""
+    today = datetime.date.today()
+    reads = (("iv_rank", "iv", store_columns.read_iv_fields, {}),
+             ("group_rank", "groups", store_columns.read_group_fields, {}),
+             ("ex_dividend", "ex_div", store_columns.read_ex_div_fields, {"today": today}),
+             ("eps_revisions", "eps_rev", store_columns.read_eps_revision_fields, {}))
+    merged: dict = {}
+    receipt: dict = {}
+    for label, part, reader, extra in reads:
+        mine = receipt[part] = {}
+        t0 = time.perf_counter()
+        got = _read_market_source(
+            label,
+            lambda t, failures=None, _r=reader, _m=mine, _x=extra: _r(
+                t, failures=failures, session=session, receipt=_m, **_x),
+            targets, failures)
+        mine["seconds"] = round(time.perf_counter() - t0, 2)
+        for tick, cols in got.items():
+            merged.setdefault(tick, {}).update(cols)
+    return merged, receipt
+
+
 #: `rs_history.read_fields` field -> snapshot column, for the seven
 #: history-derived UCT RS rating columns (plan §10.1; map §2.5, unit 2a-06).
 #: COLUMN NAMES ARE THE KEYS on purpose: `tests/test_scalar_population_rail.py`
@@ -2127,6 +2165,10 @@ def _run_build_locked(max_tickers=None, through_ymd=None) -> dict:
     # see that helper's docstring). See each reader's own module docstring
     # for its honesty contract (absent key = not computable, never a
     # fabricated value).
+    # The five 02:xx side files as this build reads them: the receipt names every one older than
+    # tonight's pull (a fire lost to a restart). `side_pulls.build_read` never raises.
+    from api.services.screener import side_pulls
+    side_files = side_pulls.build_read()
     finviz_map = _read_market_source(
         "finviz_universe", finviz_universe.read_finviz_fields, targets, sources)
     # The two short-interest columns have ONE writer of their own: the FINRA
@@ -2246,6 +2288,9 @@ def _run_build_locked(max_tickers=None, through_ymd=None) -> dict:
             t, failures=failures, receipt=bif_receipt["funds"]),
         targets, sources)
     bif_receipt["funds"]["seconds"] = round(time.perf_counter() - _bif_t0, 2)
+    # ⭐ Held-store columns (2026-11-23): ONE read per build of each of four held stores
+    # (`store_columns`), each the sole writer of its own columns, wrapped and counted by name.
+    store_map, store_receipt = _read_store_columns(targets, sources, bif_session)
     # ⭐ Volume & volatility (2026-11-23): MKTH's S&P 500 declines, ONE read per build,
     # handed to every row's `bars_volume_volatility` step (and its receipt).
     vv_context = _volume_volatility_context(sources)
@@ -2409,7 +2454,7 @@ def _run_build_locked(max_tickers=None, through_ymd=None) -> dict:
                           **optflow_map.get(T, {}), **archive_map.get(T, {}),
                           **rs_hist, **fund_map.get(T, {}),
                           **earn_map.get(T, {}), **ins_map.get(T, {}),
-                          **fadd_map.get(T, {})}
+                          **fadd_map.get(T, {}), **store_map.get(T, {})}
             row = build_row(t, bars,
                             _read_ratings(t, failures=sources),
                             _read_fundamentals(t, mc_price, failures=sources),
@@ -2491,13 +2536,15 @@ def _run_build_locked(max_tickers=None, through_ymd=None) -> dict:
     vv_receipt = _volume_volatility_receipt(vv_context)
     log.info("[screener] volume & volatility step: %s; beats, insiders & funds: %s",
              vv_receipt, bif_receipt)
+    log.info("[screener] held-store columns: %s", store_receipt)
     stats = {"built": built, "skipped": skipped, "errors": errors,
              "targets": len(targets), "sector_rs": sector_rs,
              "populated": populated, "empty_columns": empty_columns,
              "sources": sources, "identity_refusals": identity_state,
              "settled_bars": settled_receipt, "bars_rs": rs_timing,
              "short_columns": short_receipt, "fund_trends": fund_receipt,
-             "volume_volatility": vv_receipt, "beats_insiders_funds": bif_receipt}
+             "volume_volatility": vv_receipt, "beats_insiders_funds": bif_receipt,
+             "store_columns": store_receipt, "side_files": side_files}
     if rs_post is not None:
         stats["rs_post_pass"] = rs_post
     return stats

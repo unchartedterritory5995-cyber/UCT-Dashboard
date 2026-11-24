@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { HOME_VIEW, LANDING_PREF, TODAY_VIEW, resolveLanding, __setTodayLandingForTests } from './todayHome'
+import { HOME_VIEW, TODAY_VIEW, resolveLanding, __setTodayLandingForTests } from './todayHome'
 
 // Notebook simplify, Task 5: the Notebook opens on the notes list, whatever the stored `notebook_landing` says.
 describe('resolveLanding', () => {
@@ -18,9 +18,8 @@ describe('resolveLanding', () => {
     expect(resolveLanding(undefined)).toBe('all')
   })
 
-  it('keeps the view ids and the preference key other files import', () => {
+  it('keeps the view ids other files import', () => {
     expect(TODAY_VIEW).toBe('today')
     expect(HOME_VIEW).toBe('home')
-    expect(LANDING_PREF).toBe('notebook_landing')
   })
 })

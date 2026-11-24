@@ -421,7 +421,10 @@ def test_each_column_is_a_bare_member_control_in_its_own_family_with_a_seat_in_i
     labels = [c["label"] for c in filters.CATEGORIES]
     assert len(labels) == len(set(labels)), "no two categories share a label"
     family = {k for k, f in filters.FILTERS.items() if f["category"] == "volume_volatility"}
-    assert family == set(VV.COLUMNS)
+    # 2026-11-23: OSCR's IV rank and percentile (`store_columns.IV_COLUMNS`, read from a held store, not the bars)
+    # sit in this family beside the realized volatility; every other member is this module's.
+    from api.services.screener import store_columns
+    assert family == set(VV.COLUMNS) | set(store_columns.IV_COLUMNS)
     view = filters.VIEWS["volume_volatility"]["columns"]
     catalog = {f["key"]: f for f in filters.field_catalog()}
     for c in VV.COLUMNS:

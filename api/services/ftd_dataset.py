@@ -24,11 +24,19 @@ Honesty rules, railed in tests/test_ftd_dataset.py:
     never treated as an empty half-month.
 
 DARK behind FTD_DATASET_ENABLED: unset, the route 404s and the job does nothing.
+
+The ingest runs daily at `RUN_AT_ET` (06:10 New York time, inside scan_period's
+quiet span) and leaves a receipt (`ftd_job`). A fire lost to a pod restart is taken
+by `catch_up` (a DATE job `CATCHUP_BOOT_DELAY_S` after boot and a daily retry at
+`CATCHUP_AT_ET`): the same run, only when no run has finished since the last slot
+(`behind`), only inside the quiet span, and one run at a time (`_ingest_lock`,
+which the 06:10 job takes too).
 """
 from __future__ import annotations
 
 import contextlib
 import io
+import json
 import logging
 import os
 import sqlite3
@@ -47,7 +55,14 @@ SOURCE = ("SEC fails-to-deliver data (cnsfails files, NSCC Continuous Net Settle
 MONTHS_BACK = 6
 MAX_FILES_PER_RUN = 3
 _RETRY_NOT_PUBLISHED_S = 20 * 3600
+#: THE SCHEDULE, read by `api/main.py` (`ftd_ingest`) and by the catch-up: daily, New York time.
+RUN_AT_ET = (6, 10)
+#: The catch-up's boot check, this long after registration (after the filing search's 2100 s), and its daily retry,
+#: both inside scan_period's quiet span (`behind` knows the schedule).
+CATCHUP_BOOT_DELAY_S = 2400
+CATCHUP_AT_ET = (21, 35)
 _write_lock = threading.Lock()
+_ingest_lock = threading.Lock()   # one ingest at a time: the 06:10 job and the catch-up
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS ftd (
@@ -59,6 +74,9 @@ CREATE INDEX IF NOT EXISTS idx_ftd_symbol ON ftd(symbol, settle_date);
 CREATE TABLE IF NOT EXISTS ftd_file (
   name TEXT PRIMARY KEY, url TEXT NOT NULL, fetched_at INTEGER NOT NULL, state TEXT NOT NULL,
   rows INTEGER, trailer_rows INTEGER, first_date TEXT, last_date TEXT, reason TEXT
+);
+CREATE TABLE IF NOT EXISTS ftd_job (
+  job TEXT PRIMARY KEY, finished_at INTEGER NOT NULL, summary TEXT
 );
 """
 
@@ -175,17 +193,72 @@ def run_ingest(today: Optional[date] = None, get=None) -> dict:
     newest first. A no-op while the flag is off."""
     if not is_enabled():
         return {"skipped": "flag off"}
-    today = today or date.today()
+    if not _ingest_lock.acquire(blocking=False):
+        return {"skipped": "running"}
+    try:
+        today = today or date.today()
+        with _conn() as c:
+            have = {r[0]: (r[1], r[2]) for r in c.execute("SELECT name, state, fetched_at FROM ftd_file")}
+        due = []
+        for name in file_names(today):
+            st = have.get(name)
+            if st is None or st[0] == "error" or (st[0] == "not_published"
+                                                   and time.time() - st[1] > _RETRY_NOT_PUBLISHED_S):
+                due.append(name)
+        done = [ingest_file(n, get) for n in due[:MAX_FILES_PER_RUN]]
+        out = {"due": len(due), "fetched": [(d["name"], d["state"]) for d in done]}
+        with _write_lock, _conn() as c:
+            c.execute("INSERT OR REPLACE INTO ftd_job (job, finished_at, summary) VALUES ('ingest', ?, ?)",
+                      (int(time.time()), json.dumps(out, sort_keys=True)))
+            c.commit()
+        return out
+    finally:
+        _ingest_lock.release()
+
+
+def receipt() -> Optional[dict]:
+    """The last finished ingest's receipt ({finished_at (epoch seconds), summary}), or None."""
     with _conn() as c:
-        have = {r[0]: (r[1], r[2]) for r in c.execute("SELECT name, state, fetched_at FROM ftd_file")}
-    due = []
-    for name in file_names(today):
-        st = have.get(name)
-        if st is None or st[0] == "error" or (st[0] == "not_published"
-                                               and time.time() - st[1] > _RETRY_NOT_PUBLISHED_S):
-            due.append(name)
-    done = [ingest_file(n, get) for n in due[:MAX_FILES_PER_RUN]]
-    return {"due": len(due), "fetched": [(d["name"], d["state"]) for d in done]}
+        r = c.execute("SELECT finished_at, summary FROM ftd_job WHERE job='ingest'").fetchone()
+    return None if r is None else {"finished_at": r[0], "summary": json.loads(r[1] or "{}")}
+
+
+def last_slot(now=None):
+    """The most recent scheduled ingest at or before `now` (New York), from the job's own schedule."""
+    from api.services import catchup_slots as cs
+    return cs.last_fire(cs.trigger(RUN_AT_ET), now)
+
+
+def behind(rec: Optional[dict], now=None) -> bool:
+    """Pure: True when no ingest has finished since the last slot (no receipt, or one from before it)."""
+    if not isinstance(rec, dict) or not isinstance(rec.get("finished_at"), (int, float)):
+        return True
+    return rec["finished_at"] < last_slot(now).timestamp()
+
+
+def catch_up(now=None, get=None) -> dict:
+    """THE CATCH-UP ENTRY (`api/main.py`: a DATE job `CATCHUP_BOOT_DELAY_S` after boot and a daily retry at
+    `CATCHUP_AT_ET`): `run_ingest` itself, only when `behind` and inside scan_period's quiet span. Never on a member's
+    request. Returns `{"started": bool, "reason": "off" | "current" | "not_quiet" | "running" | "behind"}` (and the
+    run's counts under `run` when it ran)."""
+    from api.services import catchup_slots as cs
+    if not is_enabled():
+        return {"started": False, "reason": "off"}
+    now = cs.as_ny(now)
+    if not behind(receipt(), now):
+        return {"started": False, "reason": "current"}
+    if not cs.quiet(now):
+        return {"started": False, "reason": "not_quiet"}
+    if _ingest_lock.locked():
+        return {"started": False, "reason": "running"}
+    try:
+        out = run_ingest(get=get)
+    except Exception as exc:  # noqa: BLE001 -- said; no receipt is written, so the job stays behind
+        _logger.warning("ftd ingest catch-up failed: %s", exc)
+        return {"started": True, "reason": "behind", "error": type(exc).__name__}
+    if out.get("skipped"):
+        return {"started": False, "reason": "running" if out["skipped"] == "running" else out["skipped"]}
+    return {"started": True, "reason": "behind", "run": out}
 
 
 def series(sym: str) -> dict:
