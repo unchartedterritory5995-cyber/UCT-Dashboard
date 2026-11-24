@@ -343,7 +343,9 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # `regularfirst`) and five bar readers beside `vwap` (`sessionOpen`, `sessionHigh`,
     # `sessionLow`, `openingRangeHigh`, `openingRangeLow`). The scalar half is untouched.
     # (2026-11-19, U-BUILTIN B3) 148 -> 149: `asin`, Pine's `math.asin`, pointwise, acos's twin.
-    assert len(ast_table.bar_names()) == 149, len(ast_table.bar_names())
+    # (2026-11-22, e95 unit 2) 149 -> 151: `vwapAnchor` and `vwapAnchorDev`, Pine's anchored `ta.vwap`.
+    # (2026-11-22, e95 unit 2b) 151 -> 152: `refusedArm`, the leaf a refused knob arm stands as.
+    assert len(ast_table.bar_names()) == 152, len(ast_table.bar_names())
     # +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     # +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     # ⭐ 111 -> 137 (2026-09-02): the TWENTY-SIX Wave-1 screener columns promoted
@@ -412,7 +414,9 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # the scalar half is untouched at 149; this is their sum.
     # 289 -> 290 (2026-11-14, engine 56 S1): `tieNewest`; the bar half moved 140 -> 141.
     # (2026-11-19, U-BUILTIN B3) 297 -> 298: `asin`.
-    assert len(declared) == 298, f"the table declares {len(declared)} names, not 298"
+    # (2026-11-22, e95 unit 2) 298 -> 300: `vwapAnchor`, `vwapAnchorDev`.
+    # (2026-11-22, e95 unit 2b) 300 -> 301: `refusedArm`.
+    assert len(declared) == 301, f"the table declares {len(declared)} names, not 301"
     # +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     # +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     leaked = sorted(_string_constants(pathlib.Path(ast_table.__file__)) & declared)
@@ -935,6 +939,10 @@ def test_every_declared_guard_is_REACHABLE_and_every_reachable_guard_is_DECLARED
             {"type": "textop", "name": "contains",
              "args": [{"type": "symtext", "name": "tickerid"},
                       {"type": "str", "value": "/"}]}),
+        # ⭐⭐ e95 unit 2b (2026-11-22) -- a knob arm the translator refused, kept because the member's setting picked
+        # it (``ast_bind.prune_knob_arms`` prunes it away otherwise): never a number.
+        "interpret:refused-arm": lambda: run(
+            {"type": "call", "name": "refusedArm", "args": [{"type": "num", "value": 1}]}),
     }
     assert sorted(triggers) == sorted(ast_interpret.REFUSALS)
     for guard, fire in triggers.items():

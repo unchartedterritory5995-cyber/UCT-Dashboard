@@ -1,0 +1,35 @@
+# promotion-gate: no — pull-request only, and it runs nothing: it posts a name.
+#
+# THE PULL-REQUEST HALF OF THE CHECK `merge queue gate rails`.
+#
+# gate-rails-queue.yml runs the deploy gate's engine and bars rails on every merge group and reports one check of
+# this name; the merge queue's ruleset requires it. A required check must ALSO have reported on the pull request's
+# head, or the pull request cannot enter the queue at all (docs/merge-queue/DESIGN.md, 3.2). The two rails cannot be
+# that report: on a pull request they are path-filtered (86% and 60% of merges match), so a pull request outside
+# the filters would wait for ever. This job is that report. It is unfiltered and always green, and says so.
+#
+# It protects nothing by itself and is not meant to: the test runs on the merge group. Do not add a step here.
+name: gate rails (merge queue, PR notice)
+
+on:
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+
+# CI COST: a newer push to the same pull request cancels its older run. tests/test_ci_cost_rails.py pins this.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  notice:
+    name: merge queue gate rails
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Where this check really runs
+        run: |
+          echo "The engine and bars rails of the deploy gate run on this pull request's MERGE GROUP, once it is queued."
+          echo "This job runs nothing. A red engine or bars rail removes the entry from the merge queue."

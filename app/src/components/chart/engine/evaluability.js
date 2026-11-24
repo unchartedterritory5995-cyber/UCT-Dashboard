@@ -47,6 +47,7 @@ import { scalarsIn } from './ast/freshness'
 import { TF_MERGE_NEWEST_CODE, SCOPE_TYPES } from './ast/interpret'
 import { TABLE } from './ast/parse'
 import { readAt } from './paramLiteral'
+import { boundAtInputs } from './knobBind.js'
 import CROSS from '../builder/authoring/crossContext.json'
 
 export const STATUS = Object.freeze({ SUPPORTED: 'supported', REFUSED: 'refused', DISCLOSED: 'disclosed' })
@@ -415,6 +416,29 @@ function alertAnswer(def, key, base) {
       + 'two-lane proof on the alert\'s own bars.' })
 }
 
+const _gateMemo = new WeakMap()
+/** ⭐⭐ (train e95, the 2b bind audit) THE DOCUMENT A GATE READS: `def` bound at the binding's settings (`ctx.inputs`;
+ *  the declared defaults for a caller that holds no instance), every knob ternary's unpicked arm pruned
+ *  (`knobBind.js::boundAtInputs`, the chart lane's own bind). Since 2b the SAVED document keeps every arm of a
+ *  `switch` on a member's `input.string`, so a gate that read it refused a knob script on an arm the member never
+ *  picked (an event field UCT does not hold, another symbol, a lower timeframe); a picked arm still refuses by name.
+ *  Memoised per document and settings; the document itself when nothing prunes. */
+export function gateDocument(def, ctx) {
+  if (!isObj(def) || !isObj(def.compute)) return def
+  const inputs = ctx && isObj(ctx.inputs) ? ctx.inputs : null
+  const sig = inputs ? JSON.stringify(inputs) : ''
+  let byDef = _gateMemo.get(def)
+  if (byDef && byDef.has(sig)) return byDef.get(sig)
+  const out = boundAtInputs(def, inputs || {})
+  if (!byDef) {
+    byDef = new Map()
+    _gateMemo.set(def, byDef)
+  }
+  if (byDef.size > 16) byDef.clear()
+  byDef.set(sig, out)
+  return out
+}
+
 /** The chart family's computability for one output on THIS binding. */
 function chartAnswer(def, key, base, ctx) {
   const compute = (def && def.compute) || {}
@@ -456,7 +480,9 @@ function outputTreeFor(def, key) {
  * @param {string} lane  one of `LANES`
  * @param {object} [ctx] the binding: `tf`, `secondary`, `framed`, `exchangeOf`, `symbol`
  */
-export function evaluability(def, key, lane, ctx) {
+export function evaluability(savedDef, key, lane, ctx) {
+  // ⭐⭐ (train e95, the 2b bind audit) every lane below decides on what this binding draws (`gateDocument`)
+  const def = gateDocument(savedDef, ctx)
   const typed = outputTypeOf(def, key)
   const base = { lane, key, type: typed.type }
   if (!Object.values(LANES).includes(lane)) {

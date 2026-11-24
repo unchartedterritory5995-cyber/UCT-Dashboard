@@ -18,7 +18,7 @@
 
 import { deviceStoreEnabled, deviceStoreOffReason, deviceStoreKeyState } from './switch'
 import { SERVED_TFS } from './tfs'
-import { deviceFilesMayExist, deviceFilesStale, removeDeviceFiles, whenIdle } from './residue'
+import { deviceFilesMayExist, deviceFilesStaleConfirmed, removeDeviceFiles, whenIdle } from './residue'
 import { afterFirstChartPaint } from '../../lib/barsPackClient'
 
 const _TFS = new Set(SERVED_TFS)
@@ -78,7 +78,9 @@ const _hit = (cols) => {
   const formingT = cols.forming ? cols.t[n - 1] : null
   let rows = null
   return {
-    n, through, savedAt: through != null ? through * 1000 : buildTimeMs(cols.build), formingT,
+    // `lastT`: the time of the copy's newest row, read without building rows (persist.flushJoins: a copy whose newest row
+    // is no newer than an answer's newest has nothing that answer could keep, whatever its stamp says; review of #2620)
+    n, through, savedAt: through != null ? through * 1000 : buildTimeMs(cols.build), formingT, lastT: cols.t[n - 1],
     get rows() { return rows || (rows = columnsToRows(cols)) },
   }
 }
@@ -151,7 +153,7 @@ function _offCleanup({ offReason, afterPaint, idle, storage, now }) {
     keyStored = k === 'on' || k === 'off' || k === 'not-a-choice'
   } catch { return }
   if (!deviceFilesMayExist(keyStored)) return
-  if (rule === 'stale' && !deviceFilesStale((now || Date.now)())) return
+  if (rule === 'stale' && !deviceFilesStaleConfirmed((now || Date.now)())) return
   // (the defaults are taken only here, on the rare path: a page that never needs them never touches them)
   const paint = afterPaint || afterFirstChartPaint
   const whenFree = idle || whenIdle

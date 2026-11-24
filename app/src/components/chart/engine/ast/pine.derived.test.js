@@ -508,7 +508,11 @@ describe('🔴 the two that CANNOT be expressed, and say so by name', () => {
     // ANSWER, so a third collision of either kind classifies itself.
     const laneOnly = hostAdmissible(TABLE)
     const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k)
-    const HOST_SPELLING = { valuewhenOccurrence: 'ta.valuewhen(close > open, volume, 1)' }
+    const HOST_SPELLING = { valuewhenOccurrence: 'ta.valuewhen(close > open, volume, 1)',
+      // e95 unit 2: the anchored VWAP is reached only through Pine's `ta.vwap(source, anchor[, stdev_mult])`
+      vwapAnchor: 'ta.vwap(hlc3, close > open)' }
+    // ...and its band leg only through the three-value form, which is a statement, not a plot argument
+    const HOST_BODY = { vwapAnchorDev: '[m, u, l] = ta.vwap(hlc3, close > open, 1)\nplot(u)' }
     for (const name of collisions) {
       const spec = TABLE.functions[name]
       // The PINE spelling, with PINE's arity — one argument for `ta.barssince`.
@@ -534,10 +538,11 @@ describe('🔴 the two that CANNOT be expressed, and say so by name', () => {
         // no measured argument order for it). The claim is unchanged: the lane
         // the tag accepts really serves the function.
         const hostCall = own(HOST_SPELLING, name) ? HOST_SPELLING[name] : `${name}(volume)`
+        const hostBody = own(HOST_BODY, name) ? HOST_BODY[name] : `plot(${hostCall})`
         expect(translatePine(
           `//@version=6
 indicator("x")
-plot(${hostCall})
+${hostBody}
 `,
           { strict: true },
         ).ok, `${name} refuses on the HOST lane too — then nothing serves it`).toBe(true)

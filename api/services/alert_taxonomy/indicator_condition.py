@@ -16,14 +16,17 @@ string constant plus the `_MIGRATIONS` tuple in each owning module — never
 retyped from a document. `test_the_docstring_reports_the_legacy_columns_as_
 derived_by_AST` re-derives them on every run and fails if this block drifts.
 
-**`indicator_alert_fires`** — `api/services/alert_fired_log.py`, EIGHTEEN
-columns (`_SCHEMA` CREATE, plus six `_MIGRATIONS` ALTERs that re-add columns the
+**`indicator_alert_fires`** — `api/services/alert_fired_log.py`, NINETEEN
+columns (`_SCHEMA` CREATE, plus seven `_MIGRATIONS` ALTERs that re-add columns the
 CREATE already names on a fresh box):
 
     id · alert_id · user_id · sym · indicator · condition · tf · fire_key ·
     bar_time · value · threshold · fired_at · delivered_at ·
     delivery_attempts · delivery_failed_at · delivery_error ·
-    delivery_channels · channels_failed
+    delivery_channels · channels_failed · message
+
+(`message`, track 6 AL3: the script's alert() text a runtime document's alert()
+target fired with; NULL on every other fire.)
 
 plus the table constraint `UNIQUE(alert_id, fire_key)`, which is not a column
 and is the fire-once guard AND the history at the same time.

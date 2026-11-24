@@ -27,7 +27,11 @@ WHEN (never on a member's request)
   streaming its rows, and keeps one small float array per symbol (at most `RANK_WINDOW` values).
   Measured on an invented log of 6,034 underlyings (the real log's count, 2026-09-30): see
   `MEASURED_PEAK_MB`. The answer is held in this module and in one file on the data disk, so a
-  restart serves the last evening's list at once.
+  restart serves the last evening's list at once. A fire that lands while the pod restarts for a deploy
+  is lost (the new container schedules the NEXT evening), so `catch_up`, registered beside it
+  (`CATCHUP_BOOT_DELAY_S` after boot, and daily at `CATCHUP_AT_ET`), starts the same build when the held
+  list is behind the session the last 20:45 build should have read (`behind`), through `run_scheduled`
+  and so through every one of its guards.
 
 ⛔ NO VENDOR CALL. It reads only the log this server already holds (our own R2 copy).
 ⛔ A SYMBOL UNDER THE MINIMUM IS LEFT OUT AND COUNTED, never ranked on fewer sessions.
@@ -55,6 +59,10 @@ _log = logging.getLogger(__name__)
 SOURCE = iv_history.SOURCE
 MAX_PER_SIDE = 100
 RUN_AT_ET = (20, 45)                 # daily, New York time (scan_period's quiet span starts 20:15 on a weekday)
+CATCHUP_BOOT_DELAY_S = 900           # the catch-up's boot check: this long after registration (INS CLUSTER's is 600 s)
+CATCHUP_AT_ET = (23, 20)             # and its daily retry, inside the quiet span every day, clear of the 23:00 jobs
+#: A span of days that always holds an NYSE session (no closure this century ran past four sessions).
+SESSION_LOOKBACK_DAYS = 14
 DISK_DIR = "iv_rank_leaders"
 DISK_FILE = "leaders_v1.json"
 DISK_VERSION = 1
@@ -90,6 +98,62 @@ def next_run(now: Optional[datetime] = None) -> datetime:
     now = now or now_et()
     slot = now.replace(hour=RUN_AT_ET[0], minute=RUN_AT_ET[1], second=0, microsecond=0)
     return slot if slot > now else slot + timedelta(days=1)
+
+
+def last_slot(now: Optional[datetime] = None) -> datetime:
+    """The most recent scheduled build at or before `now` (New York): stepped forward with `next_run` from two
+    days earlier, so the schedule is stated once (`next_run`, `RUN_AT_ET`)."""
+    from zoneinfo import ZoneInfo
+    now = (now or now_et()).astimezone(ZoneInfo("America/New_York"))
+    slot = next_run(now - timedelta(days=2))          # a day holds one slot, so this one is before `now`
+    while (following := next_run(slot)) <= now:
+        slot = following
+    return slot
+
+
+def target_session(now: Optional[datetime] = None) -> Optional[str]:
+    """The newest session the build at the last slot should have read: the last session whose log was due then
+    (`iv_history.expected_sessions`, the IVH store's own rule and calendar). None when it cannot be worked out."""
+    slot = last_slot(now)
+    try:
+        due = iv_history.expected_sessions((slot.date() - timedelta(days=SESSION_LOOKBACK_DAYS)).isoformat(), slot)
+    except Exception:  # noqa: BLE001 -- past the calendar: no target, never a guess
+        return None
+    return due[-1] if due else None
+
+
+def _is_day(v: Any) -> bool:
+    try:
+        datetime.strptime(v, "%Y-%m-%d")
+    except (TypeError, ValueError):
+        return False
+    return True
+
+
+def _moment(v: Any) -> Optional[datetime]:
+    try:
+        got = datetime.fromisoformat(str(v or ""))
+    except ValueError:
+        return None
+    return got if got.tzinfo is not None else None
+
+
+def behind(held: Optional[dict], now: Optional[datetime] = None) -> bool:
+    """Pure: should the catch-up start a build? True when no list is held, or when the held list's session is older
+    than `target_session` and the list was built before the last slot. A list built since that slot IS that slot's
+    build (the log held nothing newer then), so it is not rebuilt until the next evening: no rebuild on every boot
+    while a day is missing from the log. A session or build time that cannot be read counts as older. No target
+    (the calendar cannot say) keeps the held list."""
+    if not isinstance(held, dict):
+        return True
+    target = target_session(now)
+    if target is None:
+        return False
+    session = held.get("session")
+    if _is_day(session) and session >= target:
+        return False
+    built = _moment(held.get("built_at"))
+    return built is None or built < last_slot(now)
 
 
 # ── the build ───────────────────────────────────────────────────────────────────────────────────
@@ -341,6 +405,21 @@ def run_scheduled(now: Optional[datetime] = None) -> dict:
         done = _state["inflight"] = threading.Event()
     threading.Thread(target=_run, args=(done, now), daemon=True, name="iv-rank-leaders").start()
     return {"started": True}
+
+
+def catch_up(now: Optional[datetime] = None) -> dict:
+    """THE CATCH-UP ENTRY (`api/main.py`: a DATE job `CATCHUP_BOOT_DELAY_S` after boot and a daily retry at
+    `CATCHUP_AT_ET`): `run_scheduled` itself (the switch, the quiet span, one build at a time) only when `behind`;
+    otherwise it reads the held list (from disk once) and nothing else, never the log. Never on a member's request.
+    Returns at once: `{"started": False, "reason": "current"}`, or `run_scheduled`'s answer (which says "running"
+    while a build is in flight)."""
+    now = now or now_et()
+    _ensure_loaded()
+    with _lock:
+        held = _state["held"]
+    if not behind(held, now):
+        return {"started": False, "reason": "current"}
+    return run_scheduled(now)
 
 
 def get_leaders(now: Optional[datetime] = None) -> dict:

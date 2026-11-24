@@ -28,6 +28,12 @@
 // lib/storagePersist.askPersistOnce: after checking `persisted()`, and never again once this browser was asked
 // (a marker in localStorage; Firefox asks the member, and a refusal or a dismissal stands). The bars pack keeps its own
 // ask for now (see lib/storagePersist.js). Never awaited by anything. The answer is in `status().storage`.
+// ⛔ ONLY FOR A HAND-SET '1' (review of #2537 head 107dea1ee1, P-7 MEDIUM 2). A member on the desktop DEFAULT (no key:
+// switch.deviceStoreKeyState 'absent') never chose the store, and Firefox would show them a permission prompt with no
+// context: never asked (`status().storage.skipped` 'default'; no storage call, no marker, so a later '1' is asked once).
+// Without it the browser may evict the packs under disk pressure; the cost is one download, never data: the leader's
+// next open finds no generation (engine.js `_scan`), reads answer null (the charts ask the server), and the next ingest
+// downloads the full packs again under #2563's room check and backoffs.
 //
 // ⭐ A PAGE LEFT OPEN FOR DAYS (review of #2537, M2: a tab, the desktop app). The ingest used to be asked once per page
 // load, so such a page never took the next night's build, and after the next session the split guard refused every
@@ -41,6 +47,14 @@
 // kept its worker and feed until a reload. The same visible beat reads them FRESH (lib/chartSpeed.deviceStoreKilledNow;
 // an auth answer refreshes them, and AuthContext re-asks /api/auth/me when a tab becomes visible): killed, the client
 // stops its worker for good (shutdown). Every read then answers null, and the charts ask the server.
+// ⭐ A MEMBER'S OFF IN THE SAME PAGE LOAD (review of #2537 head 24fe13dc8f, Z-1). The switch decides once per load, so a
+// member on the default who picked Off in Settings (the key becomes '0') and then opened a chart still started the store,
+// and its first paint began the ~80 MB download the next load deletes. The client reads the key FRESH
+// (switch.deviceStoreKeyNow, one localStorage read) where it already looks: before its FIRST start (a '0': it never starts,
+// no worker, no request, no marker), at the first paint's idle before the ingest, and on the visible beat beside the
+// kills. A '0' stops it exactly as a kill does, and tells the page through the kill's latch
+// (lib/chartSpeed.noteDeviceStoreStopped: device rows already held stop painting, #2580). Nothing else is read fresh:
+// Automatic, a tester's '1' or any other value change nothing until the next load, and a stopped client stays stopped.
 //
 // ⭐ THE SYNCHRONOUS CACHE EXPIRES (SYNC_CACHE_TTL_MS). Today's bars grow every minute, so a copy read
 // a while ago is behind (never WRONG: it holds complete buckets only, live.js); past the TTL `peekBars`
@@ -75,8 +89,9 @@
 
 import { afterFirstChartPaint } from '../../lib/barsPackClient'
 import { isAppVisible, onDeskHiddenChange } from '../../lib/deskVisibility'
-import { deviceStoreKilledNow } from '../../lib/chartSpeed'
+import { deviceStoreKilledNow, noteDeviceStoreStopped } from '../../lib/chartSpeed'
 import { askPersistOnce } from '../../lib/storagePersist'
+import { deviceStoreKeyNow, deviceStoreKeyState } from './switch'
 import { SERVED_TFS } from './tfs'
 import { noteDeviceFiles } from './residue'
 
@@ -102,6 +117,9 @@ export const READ_TIMEOUT_MS = 8000
 /** Background reads that may wait their turn; past it the oldest is dropped (answers null). */
 export const WAITING_READS_MAX = 256
 const SERVED = new Set(SERVED_TFS)
+
+/** Did this browser's member hand-set the store ON ('1')? Only then is persistence asked (see the header). */
+const _choseOn = () => { try { return deviceStoreKeyState() === 'on' } catch { return false } }
 
 const _whenIdle = (fn) => {
   try { if (typeof requestIdleCallback === 'function') { requestIdleCallback(() => fn(), { timeout: 8000 }); return } } catch { /* fall through */ }
@@ -141,9 +159,13 @@ export function createDeviceClient({
   recheckMs = RECHECK_MS,
   killed = deviceStoreKilledNow,
   noteFiles = noteDeviceFiles,
+  askPersist = _choseOn,
+  keyNow = deviceStoreKeyNow,
+  onStop = noteDeviceStoreStopped,
 } = {}) {
   let worker = null
   let dead = false
+  let offStopped = false         // the member's Off stopped this client (never started again in this page load)
   let nextId = 1
   let ingestAsked = false
   let lastIngestAt = -Infinity   // when this page last asked the leader for an ingest (M2)
@@ -167,14 +189,18 @@ export function createDeviceClient({
   function _maybePersist() {
     if (persistLooked || !storage) return
     persistLooked = true
+    let ask = false
+    try { ask = askPersist() === true } catch { ask = false }
+    if (!ask) { persist.skipped = 'default'; return }   // the member is on the default: never asked
     Promise.resolve()
       .then(() => askPersistOnce({ storage }))
       .then((r) => { if (r) Object.assign(persist, r) }, (e) => { persist.error = String(e?.message || e).slice(0, 120) })
   }
   const _holdsSeed = (info) => !!info?.tfs && Object.keys(info.tfs).length > 0
   /** Files are held here: say so again (review of #2563, LOW-1: an off tab's removal that settled just after this tab
-   *  started wrote '0' over the marker start() wrote, and this tab then downloaded a seed nothing would clean up). */
-  const _noteFiles = () => { try { noteFiles() } catch { /* storage blocked */ } }
+   *  started wrote '0' over the marker start() wrote, and this tab then downloaded a seed nothing would clean up), and
+   *  stamp the run (round 2: a page left on for 30+ days must not read as stale to an off tab; never backwards). */
+  const _noteFiles = () => { try { noteFiles(now()) } catch { /* storage blocked */ } }
 
   const keyOf = (sym, tf) => `${tf}|${String(sym).toUpperCase()}`
 
@@ -314,16 +340,30 @@ export function createDeviceClient({
   /** Ask the leader to bring the seed up to date (`recheck`: a long-lived page's periodic ask, which the leader bounds). */
   function _askIngest(recheck) {
     lastIngestAt = now()
+    // a page left on for days keeps the run stamp fresh on this beat (review of #2563 round 2), no timer of its own
+    if (recheck) _noteFiles()
     return _call({ op: 'ingest', manifestUrl: manifestUrl(), ...(recheck ? { recheck: true } : {}) })
   }
 
-  /** On every visible beat (and on becoming visible): a kill read fresh stops this client for good (M9); else a
-   *  re-check that is due is asked at idle (M2). Never while hidden: the callers ask only when visible. */
+  /** The member's own Off, read FRESH (the key exactly '0': switch.deviceStoreKeyNow 'off'). Never throws. */
+  const _memberOff = () => { try { return keyNow() === 'off' } catch { return false } }
+  /** The member's Off reached this page load: stop exactly as for a kill (shutdown), and tell the page (the kill's latch:
+   *  device rows already held stop painting). For good: nothing starts it again in this load. */
+  function _stopForOff() {
+    offStopped = true
+    try { onStop() } catch { /* the latch is a speed-up of the refusal only */ }
+    api.shutdown()
+  }
+
+  /** On every visible beat (and on becoming visible): a kill read fresh stops this client for good (M9), and so does the
+   *  member's Off read fresh (Z-1); else a re-check that is due is asked at idle (M2). Never while hidden: the callers
+   *  ask only when visible. */
   function _whileVisible() {
     if (dead) return
     let k = false
     try { k = killed() === true } catch { k = false }
     if (k) { api.shutdown(); return }
+    if (_memberOff()) { _stopForOff(); return }
     if (recheckQueued || now() - lastIngestAt < recheckMs) return
     recheckQueued = true
     idle(() => {
@@ -347,6 +387,9 @@ export function createDeviceClient({
 
   const api = {
     start() {
+      if (offStopped) return api
+      // the FIRST start of this page load: the member picked Off since the switch decided ON (Z-1): never start
+      if (!ingestAsked && _memberOff()) { _stopForOff(); return api }
       _worker()
       if (!ingestAsked) {
         ingestAsked = true
@@ -355,6 +398,7 @@ export function createDeviceClient({
         try { noteFiles(now()) } catch { /* storage blocked */ }
         afterPaint(() => idle(() => {
           if (dead) return
+          if (_memberOff()) { _stopForOff(); return }     // Off picked before the first paint: the download never begins
           _askIngest(false)
           _report()
           // hidden: reported at once (the leader's feed keeps polling until 90 s after the last visible report: liveFeed

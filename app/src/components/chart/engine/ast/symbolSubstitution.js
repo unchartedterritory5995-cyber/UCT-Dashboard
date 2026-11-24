@@ -13,6 +13,12 @@
 // chosen, so it says what the field MAY be, by name, wherever the script reads one.
 import { lexPine } from './pine.js'
 import { CLASSIFICATION_FIELD_NAMES, symbolSubstitutions } from './bind.js'
+// ⭐⭐ T4 E2 — a corporate-events read is disclosed by its family, never by the engine's internal name
+import { EVENT_VENUE, eventReadOf } from '../pineEvents.js'
+// ⭐⭐ T4 F1b — a financial read is disclosed as UCT data from company filings, never TradingView's figures
+import { FINANCIAL_SOURCE_NOTE } from '../pineFinancial.js'
+// ⭐⭐ T4 B2 — a `USI:` breadth read is disclosed as UCT breadth data (our own counts), never as TradingView's series
+import { BREADTH_VENUE, isBreadthTicker, breadthSourceNote } from '../pineBreadth.js'
 
 const CLASSIFICATION_NAMES = CLASSIFICATION_FIELD_NAMES.map((f) => `syminfo.${f}`)
 
@@ -55,18 +61,39 @@ export const OTHER_SYMBOL_SOURCE_NOTE = (name) => `This script reads \`${name}\`
   + 'not TradingView\'s feed. The two agree on most dates but not all, so values built from it can differ from '
   + 'TradingView\'s chart, most often on older bars.'
 
+/** ⭐⭐ T4 E2 — THE DISCLOSURE FOR A SCRIPT THAT READS THE CHART'S CORPORATE EVENTS (`request.earnings` / `dividends` /
+ *  `splits`, `pineEvents.js`): one note per family, served from UCT's own event data (E1), never TradingView's. The grade
+ *  of such a plot names the same words (`UCT earnings data`, `UCT dividend data`, `UCT split data`). */
+export const EVENT_DATA_WORDS = Object.freeze({ earnings: 'UCT earnings data', dividends: 'UCT dividend data', splits: 'UCT split data' })
+export const EVENT_SOURCE_NOTE = (family) => `This script reads \`request.${family}\`. It uses ${EVENT_DATA_WORDS[family]}, not `
+  + "TradingView's feed: each event is placed on the chart's bars as TradingView places it, and the two sources agree on "
+  + `most ${family === 'earnings' ? 'reports' : 'events'} but not all, so values built from it can differ from TradingView's chart.`
+
 /** `[{name, note}]`, one per other symbol in `otherSymbols` (`[{ticker, spellings}]`), named by the script's own spelling. */
 export function otherSymbolSourceNotesFor(otherSymbols) {
   const out = []
   const seen = new Set()
   for (const r of Array.isArray(otherSymbols) ? otherSymbols : []) {
     if (!r || typeof r.ticker !== 'string' || !r.ticker.trim()) continue
+    // ⭐⭐ T4 E2 — an event read: one note per family it reads, in the member's words
+    if (Array.isArray(r.spellings) && r.spellings.includes(EVENT_VENUE)) {
+      const read = eventReadOf(r.ticker)
+      const name = read ? `request.${read.family}` : null
+      const note = read && read.family === 'financial' ? FINANCIAL_SOURCE_NOTE : read ? EVENT_SOURCE_NOTE(read.family) : null
+      if (name && !seen.has(name)) { seen.add(name); out.push({ name, note }) }
+      continue
+    }
     // a spelling is the PREFIX the script wrote before the ticker (`SP` of `SP:SPX`, `AMEX` of `AMEX:SPY`; '' when bare)
     const spelled = Array.isArray(r.spellings) ? r.spellings.find((s) => typeof s === 'string' && s.trim()) : null
     const ticker = r.ticker.trim()
     const name = !spelled ? ticker : (spelled.includes(':') ? spelled.trim() : `${spelled.trim()}:${ticker}`)
     if (seen.has(name)) continue
     seen.add(name)
+    // ⭐⭐ T4 B2 — a breadth spelling: UCT breadth data (our own counts), not the exchange's official figures
+    if (spelled && spelled.trim().toUpperCase() === BREADTH_VENUE && isBreadthTicker(ticker)) {
+      out.push({ name, note: breadthSourceNote(ticker) })
+      continue
+    }
     out.push({ name, note: OTHER_SYMBOL_SOURCE_NOTE(name) })
   }
   return out

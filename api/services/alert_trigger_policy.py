@@ -55,6 +55,8 @@ GUARD_UNKNOWN = "trigger-policy:unknown"
 GUARD_CONFLICT = "trigger-policy:conflict"
 GUARD_NOT_A_FORMULA = "trigger-policy:not-a-user-output"
 GUARD_DEAD_THRESHOLD = "signal:threshold-never-fires"
+#: TRACK 6, AL3: a runtime document's alert() target (``<def>.__alert``) fires on `is true` only.
+GUARD_ALERT_CALLS = "trigger-policy:alert-calls-is-true"
 
 #: ``evaluability.js`` lane ``signal``'s refusal of a SERIES, VERBATIM.
 NUMERIC_SENTENCE = (
@@ -131,6 +133,9 @@ def output_type_of(definition: Mapping[str, Any], plot_key: str) -> Optional[str
     tree = plot_tree(definition, plot_key)
     if not isinstance(tree, Mapping):
         return None
+    # ⭐⭐ (train e95, the 2b bind audit) the type of what the chart draws at the defaults, never of an unpicked knob arm
+    from api.services.ast_bind import tree_at_settings
+    tree = tree_at_settings(tree, definition)
     if ast_interpret.unresolved_scalars(tree, None):
         return "scalar"
     return "condition" if scan_definition.is_boolean_tree(tree) else "series"
@@ -181,6 +186,18 @@ def admit_request(user_id: Any, indicator: str, condition: Optional[str],
         except Exception:  # noqa: BLE001 -- the admission chain names it
             row = None
         definition = (row or {}).get("definition") if row else None
+
+    if plot_key is not None and aus.is_alert_calls_address(indicator):
+        # ⭐ AL3: an event per closed bar; there is no threshold and no other rule.
+        want = compile_policy("is_true")
+        got = compile_policy(trigger_policy) if trigger_policy is not None else (
+            condition, None if threshold is None else float(threshold))
+        if got != want:
+            raise PolicyRefused(
+                GUARD_ALERT_CALLS,
+                "an alert on the script's alert() calls fires on every closed bar the script "
+                "calls alert() on, with its message; its only rule is `is true`.")
+        return want
 
     if trigger_policy is not None:
         cond, thr = compile_policy(trigger_policy)

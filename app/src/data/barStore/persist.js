@@ -308,12 +308,19 @@ export function createPersist({
    * The answer's newest row is its last bar or its forming bar, whichever is later (applyRest `newestIn`), in the frame
    * applyRest reads the answer in (`answerFrame`: the server's grid when it names one). An answer with no rows, or a copy
    * with no stamp (it vouches for nothing), is not flushed.
+   * ⛔ AND THE COPY MUST HOLD A ROW NEWER THAN THE ANSWER'S NEWEST (review of #2620, J11). Outside the session the copy's
+   * stamp is the FEED's (the device applied minutes up to the evening), not the key's session, so the stamp test alone
+   * passes for every answer and the flush spent the join #2615 moved off the key path on a copy with nothing newer to
+   * keep. `lastT` (deviceStore/source.js) names the copy's newest row without building its rows; a hit without it
+   * (none from the device source) keeps the stamp test alone.
    */
   function _answerKeeps(answer, got, st) {
     const frame = answerFrame(st, answer || {})
     const rows = Array.isArray(answer?.bars) ? answer.bars : null
     const newest = Math.max(_rowT(rows?.length ? rows[rows.length - 1] : null, frame.tf), _rowT(answer?.developing, frame.tf))
-    return Number.isFinite(newest) && Number.isFinite(got?.through) && bucketEnd(bucketEnd(newest, frame), frame) <= got.through
+    if (!Number.isFinite(newest) || !Number.isFinite(got?.through)) return false
+    if (got.lastT != null && !(_rowT({ t: got.lastT }, frame.tf) > newest)) return false
+    return bucketEnd(bucketEnd(newest, frame), frame) <= got.through
   }
   /** key → `through` (unix s) of the device copy the entry holds: how far it is complete (deviceStore
    *  fresh.js / prefetch.devicePaints read it). Bounded, oldest out. */

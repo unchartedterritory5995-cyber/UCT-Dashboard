@@ -133,3 +133,37 @@ def runtime_column_fn(row: Mapping[str, Any], plot_key: str, lane: str, *,
 
     fn.__name__ = f"_runtime_{plot_key}_{lane}"
     return fn
+
+
+def runtime_alerts_fn(row: Mapping[str, Any], lane: str, *,
+                      client_factory: Optional[Callable[[], client_mod.PineRuntimeClient]] = None,
+                      cache: Optional[client_mod.RunCache] = None) -> Callable[..., Mapping[str, Any]]:
+    """TRACK 6, AL3: the run's alert() record (AL1/AL2: ``{fromBar, events: [{bar, message, freq}],
+    dropped}``) for one stored runtime row, in the ``alert`` lane only (``codec.ALERTS_PROFILE``).
+
+    The same admission as ``runtime_column_fn`` (asked on every call, under the key
+    ``codec.ALERTS_WANT``) and the same door; the job asks ``want=('#alerts',)``. Returns the
+    decoded, hash-checked record, or raises ``ServerLaneWithheld`` by name."""
+    from api.services import pine_runtime_codec as codec
+    if lane != codec.ALERTS_PROFILE:
+        raise ValueError(f"the alert record is served on profile {codec.ALERTS_PROFILE!r} only, not {lane!r}")
+    make_client = client_factory or client_mod.client_from_env
+
+    def fn(bars: Any, params: Optional[Mapping[str, Any]], *, tf: str, ticker: str,
+           exchange: str = "", history_from_listing: bool = False) -> Mapping[str, Any]:
+        refused = admission(row, codec.ALERTS_WANT, lane)
+        if refused is not None:
+            raise ServerLaneWithheld(*refused)
+        job = client_mod.Job(job=f"{ticker}|{tf}", ticker=ticker, exchange=exchange, tf=tf, bars=bars,
+                             want=(codec.ALERTS_WANT,), runtime_inputs=dict(params or {}),
+                             history_from_listing=history_from_listing)
+        [res] = make_client().run(def_id=row.get("def_id"), version=row.get("version"),
+                                  doc=row.get("definition"), owner_id=row.get("user_id"),
+                                  profile=lane, jobs=[job], cache=cache)
+        why = res.refusal_for(codec.ALERTS_WANT)
+        if why is not None:
+            raise ServerLaneWithheld(why.guard, why.sentence)
+        return res.alerts
+
+    fn.__name__ = f"_runtime_alerts_{lane}"
+    return fn
