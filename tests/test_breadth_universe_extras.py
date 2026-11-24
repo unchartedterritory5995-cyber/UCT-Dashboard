@@ -14,6 +14,10 @@ def _write(tmp_path, monkeypatch, rows=SERIES, version=uex.VERSION):
     p.write_text(json.dumps({"version": version, "rows": rows}))
     monkeypatch.setattr(uex, "SERIES_PATH", str(p))
     uex._view.clear()
+    from api.services import breadth_universe_extras_forward as fwd
+    monkeypatch.setattr(fwd, "STORE_PATH", str(tmp_path / "fwd.json"))
+    monkeypatch.setattr(fwd, "_restore_from_r2", lambda: False)
+    fwd._view.clear()
 
 
 def test_off_by_default_the_columns_stay_blank(tmp_path, monkeypatch):

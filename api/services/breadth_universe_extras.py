@@ -13,6 +13,10 @@ so the Monitor showed "n/a" for them off UCT, even in 2026.
     (`breadth_live.compute_metrics` via `breadth_history_recon.recompute_from_frame`, and
     `breadth_eod_extras.atr_extended` line for line) over the provider's day files.
 
+⭐ AFTER THE SERIES ENDS (US 2026-11-20, Nasdaq / NYSE 2026-10-01): the nightly job
+`breadth_universe_extras_forward` measures each new session with the same engine over the
+authority's own member list; `values()` falls through to it.
+
 ⛔ ONLY THESE THREE KEYS, ONLY WHERE THE SERIES HAS THE SESSION. Every other per-universe column
 still comes from the authorities. A session the series does not hold stays blank ("n/a").
 
@@ -83,16 +87,33 @@ def active() -> bool:
     return enabled() and bool(_series().get("rows"))
 
 
+def _forward():
+    from api.services import breadth_universe_extras_forward as fwd
+    return fwd
+
+
 def token() -> str:
-    """'' when off (every cache key byte-identical to before), else the series' content hash."""
+    """'' when off (every cache key byte-identical to before), else the series' content hash
+    (plus the forward store's, once the nightly job has written a session)."""
     if not enabled():
         return ""
     s = _series()
-    return f"_uex{s['_token']}" if s.get("rows") else ""
+    try:
+        f = _forward().token()
+    except Exception:
+        f = ""
+    return f"_uex{s['_token']}{f}" if s.get("rows") else ""
 
 
 def values(universe: str, date_iso: str) -> Optional[dict]:
-    """{key: value} for the session, or None (off / not in the series)."""
+    """{key: value} for the session, or None (off / in neither store). The rebuilt series wins;
+    a later session comes from the nightly job (`breadth_universe_extras_forward`)."""
     if not active():
         return None
-    return ((_series().get("rows") or {}).get(universe) or {}).get(date_iso)
+    hit = ((_series().get("rows") or {}).get(universe) or {}).get(date_iso)
+    if hit is not None:
+        return hit
+    try:
+        return _forward().values(universe, date_iso)
+    except Exception:
+        return None
