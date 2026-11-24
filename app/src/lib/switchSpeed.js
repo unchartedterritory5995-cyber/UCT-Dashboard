@@ -45,7 +45,7 @@ export const SWITCH_UNDER_MS = 40
 export const SWITCH_TF = ['intraday-1m', 'intraday-other', 'daily-plus']
 export const SWITCH_TRIGGER = ['list-key', 'click', 'typed', 'other']
 export const SWITCH_ROUTE = ['other', 'decision', 'now', 'deferred', 'daily-hold', 'prepare']
-export const SWITCH_COUNTERS = ['superseded', 'abandoned', 'unpressed', 'untracked', 'unclocked', 'overflow']
+export const SWITCH_COUNTERS = ['superseded', 'abandoned', 'unpressed', 'untracked', 'unclocked', 'overflow', 'released']
 /** At most this many cells are ever opened between two sends; a sample for one more is counted `overflow`. */
 export const MAX_SWITCH_CELLS = 64
 /** No count grows past this (the server refuses a larger one). */
@@ -91,6 +91,7 @@ const C_UNPRESSED = 2    // the symbol changed with no input event in flight (a 
 const C_UNTRACKED = 3    // a chart of the group carries no paint identity, so its draw cannot be seen
 const C_UNCLOCKED = 4    // the press or the sample had no usable time (see MAX_SWITCH_MS)
 const C_OVERFLOW = 5     // more than MAX_SWITCH_CELLS combinations, or MAX_SWITCH_TOTAL samples, between two sends
+const C_RELEASED = 6     // the event in flight was a key's RELEASE: never timed (the sample would start a key-hold late)
 
 const NB = SWITCH_BUCKET_EDGES_MS.length + 1
 const N_TF = SWITCH_TF.length
@@ -174,6 +175,10 @@ function _onVisibility() {
 function switchPress(scope, group, sym, members) {
   if (_pending.size && _pending.delete(group)) _bump(C_SUPERSEDED)
   const ev = _eventInFlight()
+  // A key's RELEASE is not a press. Nothing switches a symbol on one today (lib/switchSpeed.keyupRail.test.js reads the
+  // source for it); if something ever does, the field data says so here instead of reporting the switch faster than it
+  // was. Known by shape and by how its name ends: this file spells no key event's name (see _classify).
+  if (ev && typeof ev.key === 'string' && typeof ev.repeat === 'boolean' && String(ev.type).endsWith('up')) { _bump(C_RELEASED); return }
   let trig = ev ? _classify(ev) : -1
   if (trig < 0) { _bump(C_UNPRESSED); return }
   if (_hint >= 0) trig = _hint

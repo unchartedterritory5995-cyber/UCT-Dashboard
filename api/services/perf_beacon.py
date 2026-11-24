@@ -121,7 +121,7 @@ SWITCH_TRIGGER = ("list-key", "click", "typed", "other")
 SWITCH_ROUTE = ("other", "decision", "now", "deferred", "daily-hold", "prepare")
 SWITCH_BUCKET_EDGES_MS = (16, 25, 33, 40, 50, 66, 100, 150, 250, 500)
 SWITCH_UNDER_MS = 40
-SWITCH_COUNTERS = ("superseded", "abandoned", "unpressed", "untracked", "unclocked", "overflow")
+SWITCH_COUNTERS = ("superseded", "abandoned", "unpressed", "untracked", "unclocked", "overflow", "released")
 MAX_SWITCH_CELLS = 64
 MAX_SWITCH_COUNT = 100_000
 MAX_SWITCH_TOTAL = 6_000       # every count of one report together: more than a page can make between two sends
@@ -545,6 +545,9 @@ SWITCH_LEGEND: dict[str, Any] = {
         "untracked": "a chart of the group had no paint identity, so its draw could not be seen",
         "unclocked": "the press or the sample had no usable time (under 0 or over 60 s)",
         "overflow": f"past the page's own caps ({MAX_SWITCH_CELLS} combinations or {MAX_SWITCH_TOTAL:,} samples between two sends)",
+        "released": "the symbol was switched while a key's release was the event in flight: never timed (the sample would "
+                    "start when the key was let go). Nothing does this today; anything above zero is a new key-up handler "
+                    "that switches a symbol",
     },
     "senders": "distinct senders (a hash of the IP salted with the day, deleted when the day is over) that added to the "
                "cell that day. One sender behind most of a cell's switches is one page, not the membership.",
