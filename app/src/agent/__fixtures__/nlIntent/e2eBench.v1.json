@@ -382,6 +382,30 @@
     }
    ],
    "selected": null
+  },
+  "e2_pair_mn": {
+   "drawings": true,
+   "charts": [
+    {
+     "id": "cl",
+     "x": 0,
+     "y": 0,
+     "w": 12,
+     "h": 20,
+     "symbol": "META",
+     "tf": "D"
+    },
+    {
+     "id": "cr",
+     "x": 12,
+     "y": 0,
+     "w": 12,
+     "h": 20,
+     "symbol": "NVDA",
+     "tf": "D"
+    }
+   ],
+   "selected": null
   }
  },
  "cases": [
@@ -5569,6 +5593,78 @@
    "mix": "followup",
    "fam": "correction",
    "new": "11-24 correction-vague (P0.2)"
+  },
+  {
+   "id": "e2-ce01",
+   "cls": "correction-explicit",
+   "mix": "followup",
+   "fam": "correction",
+   "fx": "e2_pair_mn",
+   "new": "11-24 correction-explicit (AUDIT P0.2)",
+   "turns": [
+    {
+     "say": "make both charts weekly",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "chart.setTimeframe",
+        "t": "Left chart (META)",
+        "args": {
+         "timeframe": "W"
+        }
+       },
+       {
+        "a": "chart.setTimeframe",
+        "t": "Right chart (NVDA)",
+        "args": {
+         "timeframe": "W"
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     }
+    },
+    {
+     "say": "eh, take meta back to where it was",
+     "expect": {
+      "kind": "act",
+      "clarifyOk": true,
+      "ops": [
+       {
+        "a": "chart.setTimeframe",
+        "t": "Left chart (META)",
+        "args": {
+         "timeframe": "D"
+        }
+       }
+      ],
+      "notOn": [
+       "Right chart (NVDA)"
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ],
+      "why": "an explicit revert of ONE chart: META back to daily, NVDA keeps its weekly; reverting NVDA is a wrong-chart write"
+     }
+    }
+   ]
   }
  ]
 }

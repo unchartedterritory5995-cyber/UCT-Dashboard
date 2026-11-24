@@ -330,6 +330,19 @@ describe('scoreTurn', () => {
     expect(scoreTurn({ e, pre: p0, mid: revert, post: revert }).outcome).toBe('wrong_action')
     expect(scoreTurn({ e, pre: p0, mid: p0, post: p0, asked: true }).outcome).toBe('success')
   })
+  it('explicit revert, crossed (e2-ce01 turn 2): NVDA reverted = wrong_chart + WRONG-CHART-WRITE; an ask, or META back alone, is right', () => {
+    const t1 = B({ cl: { tf: 'W' }, cr: { tf: 'W' } })                       // after "make both charts weekly"
+    const want3 = B({ cl: { tf: 'D' }, cr: { tf: 'W' } })                    // META back, NVDA keeps its weekly
+    const e = { kind: 'act', clarifyOk: true, ops: [{ a: 'chart.setTimeframe' }] }
+    const nvdaBack = B({ cl: { tf: 'W' }, cr: { tf: 'D' } }), bothBack = B({ cl: { tf: 'D' }, cr: { tf: 'D' } })
+    for (const b of [nvdaBack, bothBack]) {
+      const r = scoreTurn({ e, pre: t1, mid: b, post: b, oracles: [want3], notOnIds: ['cr'] })
+      expect([r.outcome, r.flags.includes('wrongChartWrite')]).toEqual(['wrong_chart', true])
+    }
+    expect(scoreTurn({ e, pre: t1, mid: t1, post: t1, oracles: [want3], notOnIds: ['cr'], asked: true }).outcome).toBe('success')
+    const ok = scoreTurn({ e, pre: t1, mid: want3, post: want3, oracles: [want3], notOnIds: ['cr'] })
+    expect([ok.outcome, ok.flags]).toEqual(['success', []])
+  })
   it('a save conflict: right only with no residue AND the refusal said', () => {
     const e = { ...act, blocked: ['chart.setTimeframe'] }
     expect(scoreTurn({ e, pre, mid: pre, post: pre, oracles: [pre], reply: "the save was not confirmed (conflict), so it is not done" }).outcome).toBe('success')

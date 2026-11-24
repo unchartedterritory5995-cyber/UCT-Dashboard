@@ -1,6 +1,6 @@
 {
- "version": 2,
- "about": "E2E line set (a) PROPOSED SWAP SCOPE e2e3s (11-24): the full e2eBench minus pane-conflict; correction-branch KEPT for its P0.2 shapes (b02 b03 b05 b07 b08 b10: \"undo that and ... instead\" + \"fix that, ...\"), the 4 branch cases without them dropped; 6 ticker-correction cases whose shape followup-correction already covers dropped (t02 t03 t04 t06 t08 t10); the 3 NEW crossed-target cases added; tg01 tg09 x05 x11 dropped to hold the cost. The SAME cases on every arm. v2 (11-24): + the 2 NEW correction-vague cases (e2-cv01 bare \"fix that\", e2-cv02 negated undo); the 4 cheapest cases outside correction-branch / followup-correction / crossed-target / correction-vague dropped to hold $3.92 (tg07 tg06 x06 p05).",
+ "version": 3,
+ "about": "E2E line set (a) PROPOSED SWAP SCOPE e2e3s (11-24): the full e2eBench minus pane-conflict; correction-branch KEPT for its P0.2 shapes (b02 b03 b05 b07 b08 b10: \"undo that and ... instead\" + \"fix that, ...\"), the 4 branch cases without them dropped; 6 ticker-correction cases whose shape followup-correction already covers dropped (t02 t03 t04 t06 t08 t10); the 3 NEW crossed-target cases added; tg01 tg09 x05 x11 dropped to hold the cost. The SAME cases on every arm. v2 (11-24): + the 2 NEW correction-vague cases (e2-cv01 bare \"fix that\", e2-cv02 negated undo); the 4 cheapest cases outside correction-branch / followup-correction / crossed-target / correction-vague dropped to hold $3.92 (tg07 tg06 x06 p05). v3 (11-24): + the NEW correction-explicit case e2-ce01 (both charts weekly, then revert ONE by name); it replaces e2-fc08 (an extension, not a revert), and e2-p10 (the next cheapest non-protected case) is dropped to hold $3.91.",
  "dropped_classes": [
   "pane-conflict"
  ],
@@ -9,7 +9,9 @@
   "e2-b04",
   "e2-b06",
   "e2-b09",
+  "e2-fc08",
   "e2-p05",
+  "e2-p10",
   "e2-t02",
   "e2-t03",
   "e2-t04",
@@ -25,15 +27,16 @@
   "e2-x11"
  ],
  "strata": {
-  "pane-multistep": 11,
+  "pane-multistep": 10,
   "ticker-correction": 12,
   "correction-branch": 12,
   "exclusion": 9,
-  "followup-correction": 20,
+  "followup-correction": 18,
   "targeting": 6,
   "side-by-side": 6,
   "crossed-target": 3,
-  "correction-vague": 4
+  "correction-vague": 4,
+  "correction-explicit": 2
  },
  "cases": {
   "e2eBench.v1.json": [
@@ -45,7 +48,6 @@
    "e2-p07",
    "e2-p08",
    "e2-p09",
-   "e2-p10",
    "e2-p11",
    "e2-p12",
    "e2-t01",
@@ -76,7 +78,6 @@
    "e2-fc05",
    "e2-fc06",
    "e2-fc07",
-   "e2-fc08",
    "e2-fc09",
    "e2-fc10",
    "e2-tg02",
@@ -95,11 +96,12 @@
    "e2-xt02",
    "e2-xt03",
    "e2-cv01",
-   "e2-cv02"
+   "e2-cv02",
+   "e2-ce01"
   ]
  },
  "total": {
-  "cases": 59,
-  "turns": 83
+  "cases": 58,
+  "turns": 82
  }
 }
