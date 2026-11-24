@@ -36,8 +36,8 @@ any published limit) process-wide, whatever the number of companies or members.
 
 WHEN IT ASKS (the house rule, builder rule 5): NEVER on a member's request. One answer per company per
 section is held in this module (`held_reads.KeyedHeld`, at most `MAX_KEYS` companies); the FIRST member
-read of a company starts ONE background build per section (and one for the company's names), waits up to
-`WAIT_S` and otherwise says `computing`. A held answer is refreshed after `TTL_S` (a day: these records
+read of a company starts ONE background build per section (and one for the company's names) and says
+`computing` at once (`WAIT_S` is none). A held answer is refreshed after `TTL_S` (a day: these records
 change daily at most), after `RETRY_S` when its read failed. Not on a schedule. A refusal (a 403 or a
 redirect, never followed) or a 429 stops that HOST for every company (`REFUSED_HOLD_S`,
 `RATE_LIMITED_HOLD_S`, or the agency's own Retry-After); a spent daily budget stops it until the next UTC
@@ -87,7 +87,10 @@ REFUSED_HOLD_S = 6 * 3600.0     # a host that refused (a 4xx other than 429, or 
 RATE_LIMITED_HOLD_S = 900.0     # a 429 without a Retry-After
 RETRY_AFTER_CAP_S = 3600.0      # the longest Retry-After honoured
 SHAPE_HOLD_S = 3600.0           # an answer that is not the shape this module reads
-WAIT_S = 3.0                    # the longest a member's request waits on the builds it started
+# The longest a member's request waits on the builds it started. NONE (speed pass 2026-11-23): live, a company not
+# yet held waited the full 3 seconds on the agency reads; each section now says `computing` at once and the panel
+# asks again every 3 seconds.
+WAIT_S = 0.0
 IDENTITY_WAIT_S = 60.0          # a section's build waits this long for the company's names (background only)
 MAX_KEYS = 150                  # companies held per section
 MAX_WAITING = 24                # builds queued for one source past which a new one is told to come back

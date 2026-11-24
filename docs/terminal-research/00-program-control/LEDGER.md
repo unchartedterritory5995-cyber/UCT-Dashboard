@@ -5177,6 +5177,8 @@ the unchanged full path. There are 2 deleted `api/` lines, both the rewritten ro
 - **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.
 
 ## Screener held-store columns (IV rank, group rank, short interest change, ex-dividend dates, estimate revisions) · `feat/screener-store-columns` · 2026-11-23
+## Catch-ups for the nightly and evening jobs that had none · `fix/nightly-catchups` · 2026-11-23
+## Terminal speed pass (SEASB off the request; no waits before `computing`; FED headline filter) · `perf/terminal-speed-pass` · 2026-11-23
 
 | | |
 |---|---|
@@ -5197,6 +5199,37 @@ the unchanged full path. There are 2 deleted `api/` lines, both the rewritten ro
   (unchanged); flow-worker never builds an IV history or the IV rank list. `store_columns.py`, `short_columns.py`,
   `methodology.py`, `dividends_market.py` and `iv_rank_leaders.py` are not in its closure
   (`tools/flow_worker_watch_coverage.py` `verdict()` on this change: those four offenders, nothing else).
+| stranded files | `api/services/catchup_slots.py`, `api/services/estimate_history.py`, `api/services/filing_search.py`, `api/services/screener/side_pulls.py`, `api/services/screener/snapshot_builder.py` |
+
+- **Additive.** `catchup_slots.py` is new (a job's last scheduled fire, read from the same CronTrigger the job is
+  registered with, and scan_period's quiet span). `estimate_history.py` gains its schedule constants, an
+  `estimate_job` receipt table (`CREATE TABLE IF NOT EXISTS`), `last_slot` / `target_session` / `behind` /
+  `run_scheduled` / `catch_up` / `missed_days`, a `reread_errors` keyword on `run_daily` (default unchanged) and a
+  `missed_days` key in `history()`. `filing_search.py` gains `RUN_AT_ET`, an `fs_job` receipt table, a run lock and its
+  receipt in `run_reindex`, and `receipt` / `last_slot` / `behind` / `catch_up`. `side_pulls.py` is new (the five 02:xx
+  side pulls' schedule, receipts and catch-up). `snapshot_builder.py` reads `side_pulls.build_read()` once per build and
+  adds `side_files` to the build's stats. Nothing existing changes shape.
+- **Flow-worker.** Reaches the files only through static chains whose hops are function-level imports
+  (`reachable_paths`): `... -> alerts -> alert_taxonomy.news_match -> transcript_keyword_alerts -> transcript_index ->
+  filing_search -> catchup_slots` (it calls only `filing_search.compile_query` / `passes` / `QueryError`, unchanged),
+  `... -> journal_two.notebook_widgets -> routers.live_prices -> routers.auth -> estimate_history` (it calls only
+  `estimate_history.is_enabled`, unchanged), and `... -> notebook_widgets -> groups -> rs_ranking ->
+  screener.snapshot_builder -> screener.side_pulls`, as the Screener new columns unit recorded. It registers no
+  scheduler job of these modules, never builds the snapshot and never runs a catch-up; the older files it keeps
+  running lack only what it never invokes. `ftd_dataset.py` and `api/main.py` are not in its closure.
+| stranded files | `api/services/seasonality_board.py`, `api/routers/seasonality.py` (its docstring only) |
+
+- **What changed.** The seasonality board's build moved off the request onto one background thread
+  (`seasonality-board-build`) and the board is kept on this server's disk for the rest of its New York day
+  (`seasonality_board.serve`, `held`); five request-path waits before `computing` became none (`setup_history.STOCK_WAIT_S`,
+  `treasury_yields.WAIT_S`, `oi_change.WAIT_S`, `public_records.WAIT_S`, `fed_watch.WAIT_S`); the Fed headline filter
+  compiles one pattern per roster (`fed_watch_parse._roster_patterns`, same answers). No figure, field or word changes.
+- **Flow-worker.** Reaches `seasonality_board.py` only through static chains whose last hops are function-level imports
+  (`api/routers/seasonality.py` `seasonality_board()` and the UCT Agent's `seasonality_board_read.read_seasonality_board`).
+  It mounts no seasonality router and answers no Agent turn, so it never serves the board; the older file it keeps
+  running lacks only what it never invokes; the router's change is its board route's docstring. The other changed
+  modules are not in its closure (`tools/flow_worker_watch_coverage.py` `verdict()` on this change: those two
+  offenders, nothing else).
 - **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.
 
 ## Terminal speed pass 2 (IVH off the request with a local index; the IV floor in OSCR and the log history; EEHSC, RSL, OWN; the first open of STAT / FCTX / VFP) · `perf/terminal-speed-pass-2` · 2026-11-24
