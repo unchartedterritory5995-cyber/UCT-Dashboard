@@ -42,6 +42,10 @@ history makes; the statistics about 0.05 s), and well under a millisecond when h
 sector fund are read once per session for every stock. An answer is about 13 to 22 KB.
 
 Never the shared cache: the answers are held in this module.
+
+THE READY ANSWER'S BYTES ARE MADE ONCE, ON THE BUILD THREAD (speed pass 3, 2026-11-24; live, a held answer still took
+1.25 s): `_keep` hands each held answer to `held_bytes.remember`, and the route sends those bytes; FastAPI no longer
+turns the dict into JSON on the event loop for every request. Same bytes (`held_bytes.render` is FastAPI's own path).
 """
 from __future__ import annotations
 
@@ -52,6 +56,7 @@ from collections import OrderedDict
 from datetime import date, datetime, timezone
 from typing import Optional
 
+from api.services import held_bytes
 from api.services import stock_stats_calc as C
 
 _log = logging.getLogger(__name__)
@@ -277,12 +282,19 @@ def _keep(sym: str, key: str, stamp: tuple, answer: dict, now: float) -> None:
     if status not in ("ok", "not_held"):
         return                                        # a failed read is never held
     lagging = status == "not_held" or (answer.get("data_through") or "") < key or _bench_missing(answer)
+    held_bytes.remember(answer)                       # its bytes, made here on the build thread, never on a request
+    dropped = []
     with _lock:
+        old = _cache.get(sym)
+        if old is not None and old["answer"] is not answer:
+            dropped.append(old["answer"])
         _cache[sym] = {"key": key, "stamp": stamp, "at": now, "answer": answer,
                        "recheck_at": now + LAG_RECHECK_S if lagging else None}
         _cache.move_to_end(sym)
         while len(_cache) > CACHE_MAX:
-            _cache.popitem(last=False)
+            dropped.append(_cache.popitem(last=False)[1]["answer"])
+    for gone in dropped:
+        held_bytes.forget(gone)
 
 
 def _say(sym: str, key: str, answer: dict, gen: int) -> None:
@@ -383,6 +395,8 @@ def reset_for_tests() -> None:
     """Tests only: forget everything this module holds."""
     global _slots, _gen
     with _lock:
+        for entry in _cache.values():
+            held_bytes.forget(entry["answer"])
         _cache.clear()
         _inflight.clear()
         _bench.clear()

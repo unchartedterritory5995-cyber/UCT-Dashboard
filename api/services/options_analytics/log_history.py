@@ -14,7 +14,9 @@
   CONSECUTIVE trading sessions both logged; a missed day breaks the pair, it is not bridged.
 ⛔ Computed values say so (`label`); the inputs (ATM IV, straddle mids, underlying price) are the
   vendor's, recorded by `options_universe_log.py` at 16:30 ET.
-⛔ Blocking reads (R2 mirror, gzip): callers are plain `def` routes.
+⛔ Blocking reads (R2 mirror, gzip): callers are plain `def` routes. The sessions come from IVH's mirror once this
+  process's first refresh has finished (`iv_history.mirror_sessions`, speed pass 3): no listing of the bucket on the
+  request then; before it, the store's own listing as before.
 ⛔ An ATM IV is read through `iv_history.atm_iv`, the one reader of the column (2026-11-24): a reading under
   `iv_history.IV_FLOOR` is a vendor placeholder, never a figure, so it neither makes an implied move nor fills an
   IV crush cell.
@@ -42,7 +44,7 @@ def _rows(sym: str, store=None) -> tuple:
     """(manifests, [(session, row|None)]) for every logged session, oldest first."""
     ivh = _ivh()
     store = store or ivh.get_store()
-    manifests = store.sessions()
+    manifests = ivh.mirror_sessions(store)
     return store, manifests, [(d, ivh._day_row(store, d, sym)) for d in sorted(manifests)]
 
 

@@ -56,6 +56,12 @@ describe('fedRead', () => {
     expect(fedRead(body({ statement: { state: 'ok', redline: { state: 'computing' } } })).computing).toBe(true)
     expect(fedRead(body({ headlines: { state: 'off' } })).computing).toBe(false)
   })
+
+  it('is computing while the server still reads its first headlines or rates (speed pass 3), never while they are off', () => {
+    expect(fedRead(body({ headlines: { state: 'computing', items: [] } })).computing).toBe(true)
+    expect(fedRead(body({ rates: { state: 'computing' } })).computing).toBe(true)
+    expect(fedRead(body({ rates: { state: 'off' }, headlines: { state: 'not_started' } })).computing).toBe(false)
+  })
 })
 
 describe('words', () => {

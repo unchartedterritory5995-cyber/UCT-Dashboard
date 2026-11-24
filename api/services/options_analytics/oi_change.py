@@ -40,11 +40,19 @@ HONEST LIMITS, CARRIED IN THE ANSWER
 
 Gate: the route (`api/routers/options_screener.py`) sits behind the screener's own switch and
 paid dependency. This module adds no switch.
+
+THE READY ANSWER (speed pass 3, 2026-11-24; live, the first answer once the pair was held took 1.07 s)
+  A stock's first read for a pair still runs on the request (its two indexed lookups), but `compute`
+  makes a row's dict only for the rows an answer can carry (`MAX_ROWS` a side) and counts the rest
+  from light tuples (the same answer; on 6,000 invented contracts a side about a third of the time),
+  and the answer for each (pair, stock, side) is kept with its bytes (`_served`, `held_bytes`), so a
+  repeat is neither rebuilt nor turned into JSON on the event loop.
 """
 from __future__ import annotations
 
 import datetime as _dt
 import gzip
+import heapq
 import os
 import shutil
 import sqlite3
@@ -160,7 +168,23 @@ _held_at = 0.0
 _inflight: Optional[threading.Event] = None
 _failed: Optional[tuple] = None          # (monotonic seconds, the exception's type name)
 _answers: "OrderedDict[tuple, dict]" = OrderedDict()
+#: (session, prior session, stock, side) -> (the stock's record in `_answers`, the pair, the `ok` answer served): kept
+#: with its bytes (`held_bytes`) and served only while that very record and that very pair are still the ones held
+_served: "OrderedDict[tuple, tuple]" = OrderedDict()
 builds_started = 0                        # read by the tests: one build, however many requests
+
+
+def _clear_served() -> list:
+    """Empty `_served` (caller holds `_lock`); the answers it held, for `held_bytes.forget` outside the lock."""
+    gone = [v[2] for v in _served.values()]
+    _served.clear()
+    return gone
+
+
+def _forget(answers: list) -> None:
+    from api.services import held_bytes
+    for a in answers:
+        held_bytes.forget(a)
 
 
 def reset() -> None:
@@ -169,17 +193,22 @@ def reset() -> None:
     with _lock:
         _held, _held_at, _inflight, _failed, builds_started = None, 0.0, None, None, 0
         _answers.clear()
+        gone = _clear_served()
+    _forget(gone)
 
 
 def _build_bg(store, done: threading.Event) -> None:
     global _held, _held_at, _inflight, _failed
     try:
         pair = prepare(store)
+        gone: list = []
         with _lock:
             if _held is None or (_held.get("session"), _held.get("prior_session")) != (
                     pair.get("session"), pair.get("prior_session")):
                 _answers.clear()
+                gone = _clear_served()
             _held, _held_at, _failed = pair, time.monotonic(), None
+        _forget(gone)
     except Exception as e:  # noqa: BLE001 -- held by name for ERROR_HOLD_S, then tried again
         with _lock:
             _failed = (time.monotonic(), type(e).__name__)
@@ -223,6 +252,8 @@ def _drop_held() -> None:
     with _lock:
         _held, _held_at = None, 0.0
         _answers.clear()
+        gone = _clear_served()
+    _forget(gone)
 
 
 # ── one stock ───────────────────────────────────────────────────────────────────
@@ -249,7 +280,9 @@ def _side() -> dict:
 
 def compute(sym: str, pair: dict) -> dict:
     """Everything one stock's answer needs: the changed and new contracts ranked, cut to the
-    `MAX_ROWS` biggest for each side, and counted in full. Pure over the two files."""
+    `MAX_ROWS` biggest for each side, and counted in full. Pure over the two files. A ranked
+    contract is a light tuple; its row's dict is made only when the row is among those an answer
+    carries (speed pass 3: the same rows, in the same order, with the same fields)."""
     cur, meta = _read(pair["path"], sym)
     prev, prev_meta = _read(pair["prior_path"], sym)
     newer_day = int(pair["session"].replace("-", ""))
@@ -257,19 +290,16 @@ def compute(sym: str, pair: dict) -> dict:
     totals = {"C": _side(), "P": _side()}
     new = {"contracts": 0, "oi": 0}
     not_reported = unchanged = 0
-    ranked = []
+    ranked = []      # (size of the change, contract, cp, exp, strike_m, oi, prior_oi or None for a new contract, volume)
     for contract, (_, exp, cp, strike_m, oi, _vol) in cur.items():
         before = prev.get(contract)
-        base = {"contract": contract, "expiration": _iso(exp), "strike": strike_m / 1000,
-                "type": "call" if cp == "C" else "put", "oi": oi}
         if before is None:
             if oi is None:
                 not_reported += 1
             elif oi > 0:
                 new["contracts"] += 1
                 new["oi"] += oi
-                ranked.append((oi, contract, {**base, "kind": "new", "prior_oi": None,
-                                              "change": None, "change_pct": None, "volume": None}))
+                ranked.append((oi, contract, cp, exp, strike_m, oi, None, None))
             continue
         prior_oi, vol = before[4], before[5]
         if oi is None or prior_oi is None:
@@ -284,10 +314,7 @@ def compute(sym: str, pair: dict) -> dict:
         if change == 0:
             unchanged += 1
             continue
-        ranked.append((abs(change), contract, {
-            **base, "kind": "change", "prior_oi": prior_oi, "change": change,
-            "change_pct": round(change / prior_oi * 100, 1) if prior_oi > 0 else None,
-            "volume": vol if volume_present else None}))
+        ranked.append((abs(change), contract, cp, exp, strike_m, oi, prior_oi, vol))
     gone = {"contracts": 0, "prior_oi": 0, "expired": 0}
     for contract, before in prev.items():
         if contract in cur:
@@ -295,14 +322,31 @@ def compute(sym: str, pair: dict) -> dict:
         gone["contracts"] += 1
         gone["prior_oi"] += before[4] or 0
         gone["expired"] += before[1] < newer_day      # its last day was before the newer session
-    ranked.sort(key=lambda t: (-t[0], t[1]))
-    every = [r for _, _, r in ranked]
-    by_side = {"any": every,
-               "call": [r for r in every if r["type"] == "call"],
-               "put": [r for r in every if r["type"] == "put"]}
+    order = lambda t: (-t[0], t[1])                   # noqa: E731 -- biggest change first, then the contract
+    calls = [t for t in ranked if t[2] == "C"]
+    puts = [t for t in ranked if t[2] != "C"]
+    made: dict = {}
+
+    def row(t: tuple) -> dict:
+        r = made.get(t[1])
+        if r is None:
+            _size, contract, cp, exp, strike_m, oi, prior_oi, vol = t
+            base = {"contract": contract, "expiration": _iso(exp), "strike": strike_m / 1000,
+                    "type": "call" if cp == "C" else "put", "oi": oi}
+            if prior_oi is None:
+                r = {**base, "kind": "new", "prior_oi": None, "change": None, "change_pct": None, "volume": None}
+            else:
+                change = oi - prior_oi
+                r = {**base, "kind": "change", "prior_oi": prior_oi, "change": change,
+                     "change_pct": round(change / prior_oi * 100, 1) if prior_oi > 0 else None,
+                     "volume": vol if volume_present else None}
+            made[t[1]] = r
+        return r
+
     return {"known": bool(cur or prev), "prior_has_symbol": bool(prev), "has_symbol": bool(cur),
-            "rows": {k: v[:MAX_ROWS] for k, v in by_side.items()},
-            "matched": {k: len(v) for k, v in by_side.items()},
+            "rows": {k: [row(t) for t in heapq.nsmallest(MAX_ROWS, v, key=order)]
+                     for k, v in (("any", ranked), ("call", calls), ("put", puts))},
+            "matched": {"any": len(ranked), "call": len(calls), "put": len(puts)},
             "summary": {"call": totals["C"], "put": totals["P"],
                         "contracts": totals["C"]["contracts"] + totals["P"]["contracts"],
                         "unchanged": unchanged},
@@ -333,6 +377,10 @@ def oi_change(sym: str, side: Optional[str] = None, *, store=None, wait_s: Optio
         got = _answers.get(key)
         if got is not None:
             _answers.move_to_end(key)
+            served = _served.get((*key, sd))
+            if served is not None and served[0] is got and served[1] is pair:
+                _served.move_to_end((*key, sd))
+                return served[2]
     if got is None:
         try:
             got = compute(s, pair)
@@ -345,7 +393,23 @@ def oi_change(sym: str, side: Optional[str] = None, *, store=None, wait_s: Optio
             _answers[key] = got
             while len(_answers) > ANSWERS_KEPT:
                 _answers.popitem(last=False)
-    return _answer(base, pair, got, sd)
+    out = _answer(base, pair, got, sd)
+    from api.services import held_bytes
+    held_bytes.remember(out)                       # once per (pair, stock, side); a repeat is the kept bytes
+    gone = []
+    with _lock:
+        if _held is pair and _answers.get(key) is got:    # never kept for a pair or a record replaced meanwhile
+            old = _served.get((*key, sd))
+            if old is not None:
+                gone.append(old[2])
+            _served[(*key, sd)] = (got, pair, out)
+            _served.move_to_end((*key, sd))
+            while len(_served) > ANSWERS_KEPT * len(SIDES):
+                gone.append(_served.popitem(last=False)[1][2])
+        else:
+            gone.append(out)
+    _forget(gone)
+    return out
 
 
 def _answer(base: dict, pair: dict, got: dict, sd: str) -> dict:
