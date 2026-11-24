@@ -1,0 +1,15 @@
+{
+  "schema": "uct.ci-mutants/v1",
+  "about": "scratch: S9 alone at the train head",
+  "mutants": [
+    {
+      "id": "S9",
+      "mutant": "the answer is held back after it lands (the fast control's 'at once')",
+      "file": "app/src/components/chart/builder/memberPane/memberDoorAsync.js",
+      "from": "    if (entries.get(r.entry.key) === r.entry) land(r.entry, r.version, landed)",
+      "to": "    if (entries.get(r.entry.key) === r.entry) setTimeout(() => land(r.entry, r.version, landed), 1500)",
+      "rail": "cd app && NO_COLOR=1 npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/memberDoorService.test.js -t \"share ONE build\"",
+      "expectRed": "Tests  1 failed | 13 skipped (14)"
+    }
+  ]
+}
