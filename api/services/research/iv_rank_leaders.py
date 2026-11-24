@@ -48,6 +48,7 @@ import os
 import tempfile
 import threading
 import time
+import zlib
 from array import array
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
@@ -222,7 +223,7 @@ def build(*, store=None, now: Optional[datetime] = None) -> dict:
             rule, rows = _read_day(path)
             # the whole day is read before any of it counts: a file that breaks half way is unread, not half a day
             day = list(rows) if rows is not None else None
-        except (OSError, EOFError, csv.Error, UnicodeDecodeError):
+        except (OSError, EOFError, zlib.error, csv.Error, UnicodeDecodeError):   # zlib.error: a damaged deflate stream
             unread.append(d)
             continue
         if day is None:
