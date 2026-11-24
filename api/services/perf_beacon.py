@@ -71,8 +71,10 @@ sender. The sender is an HMAC of the IP under a random key that exists ONLY IN
 THIS PROCESS'S MEMORY and only for that ET day (`_key`): never on disk, in the
 repo or in the environment. Someone holding a copy of the file cannot recompute
 a row from an address, and once the day is over nobody can, the server included.
-A restart mid-day makes a new key, so a returning sender is counted again that
-day: `senders` is exact within a process, and an upper bound across a restart.
+A restart mid-day makes a new key, and so does a second server process, so a
+returning sender is counted again that day: `senders` is exact within one
+process between restarts, and an upper bound across restarts and processes.
+The quotas are per process in the same way (the admin read's legend says both).
 Rows of an earlier day are deleted (see "What is deleted, and when"); the count
 stays in `perf_switch_days.senders`.
 
@@ -848,8 +850,11 @@ SWITCH_LEGEND: dict[str, Any] = {
     },
     "senders": "distinct senders that added to the cell that day. One sender behind most of a cell's switches is one "
                "page, not the membership. Counted with a key held only in the server's memory for that day, so a "
-               "restart of the server mid-day counts a returning sender again: exact within a process, an upper "
-               "bound across a restart.",
+               "restart of the server mid-day, or a second server process, counts a returning sender again: exact "
+               "within one process between restarts, and an upper bound across restarts and processes.",
+    "quota": "what one sender may add: reports and switches per hour, counted per process with a key held only in that "
+             "process's memory. A restart starts the count again, and each server process counts for itself, so the "
+             "bound is per process and per restart.",
     "not_sampled": [
         "every chart host but the /charts board: the breadth drill, the terminal, the screener, the phone workspace",
         "pop-out windows, mostly: a click or a ticker typed INSIDE a pop-out is `unpressed` (never timed); a key relayed "
