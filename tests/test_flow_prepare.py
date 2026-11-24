@@ -19,6 +19,7 @@ Both are pinned below, each with a control proving the probe can see the thing
 it is looking for.
 """
 import ast
+import sys
 import threading
 import pathlib
 import time
@@ -226,9 +227,27 @@ def _clean_caches():
     fa._PARTS_CACHE.clear()
 
 
-def test_warm_is_FALSE_when_the_parts_transport_is_on_but_cold(monkeypatch, _clean_caches):
+@pytest.fixture
+def _fast_path_machinery(monkeypatch, tmp_path):
+    """The three things `health()` checks before it grades any cache: the flag, the bundle on
+    disk, node on PATH.
+
+    ⛔ These tests used to patch `fa.available`, which `health()` never calls: it reads
+    `enabled()`, `os.path.exists(bundle_path())` and `shutil.which(node_bin())` itself. So the
+    verdicts were graded against whatever box ran them -- green where `app/dist` had been built,
+    and on a runner with no bundle `health()` returned early (`reason: bundle_missing`, no
+    `warm_whole` at all) before reaching the branch under test (red on master, run
+    45321831045). Each check now points at something real: the flag on, a bundle file that
+    exists, and an executable that is on disk."""
+    bundle = tmp_path / "flow-facts-bundle.cjs"
+    bundle.write_text("// stand-in: health() only asks whether the bundle exists\n", encoding="utf-8")
+    monkeypatch.setenv("FLOW_AGGREGATE_ENABLED", "1")
+    monkeypatch.setenv("FLOW_FACTS_BUNDLE", str(bundle))
+    monkeypatch.setenv("FLOW_NODE_BIN", sys.executable)
+
+
+def test_warm_is_FALSE_when_the_parts_transport_is_on_but_cold(monkeypatch, _clean_caches, _fast_path_machinery):
     monkeypatch.setattr(fa, "parts_enabled", lambda: True)
-    monkeypatch.setattr(fa, "available", lambda: True)
     fa._CACHE[fa.DEFAULT_VIEW] = (7, b"whole")      # whole-D warm...
     # ...and no parts at all, which is precisely the prod reading.
 
@@ -241,20 +260,18 @@ def test_warm_is_FALSE_when_the_parts_transport_is_on_but_cold(monkeypatch, _cle
     assert "cold" in (h["reason"] or "")
 
 
-def test_CONTROL_with_parts_off_the_whole_D_verdict_is_unchanged(monkeypatch, _clean_caches):
+def test_CONTROL_with_parts_off_the_whole_D_verdict_is_unchanged(monkeypatch, _clean_caches, _fast_path_machinery):
     """Without this the test above would pass on a health() that always says
     cold, and the long-standing behaviour would be silently broken."""
     monkeypatch.setattr(fa, "parts_enabled", lambda: False)
-    monkeypatch.setattr(fa, "available", lambda: True)
     fa._CACHE[fa.DEFAULT_VIEW] = (7, b"whole")
 
     h = fa.health(current_version=7)
     assert h["warm"] is True and h["reason"] is None
 
 
-def test_warm_is_TRUE_once_the_parts_for_the_default_view_are_built(monkeypatch, _clean_caches):
+def test_warm_is_TRUE_once_the_parts_for_the_default_view_are_built(monkeypatch, _clean_caches, _fast_path_machinery):
     monkeypatch.setattr(fa, "parts_enabled", lambda: True)
-    monkeypatch.setattr(fa, "available", lambda: True)
     fa._CACHE[fa.DEFAULT_VIEW] = (7, b"whole")
     fa._PARTS_CACHE[fa.DEFAULT_VIEW + ("bootstrap",)] = (7, b"gz")
 
@@ -262,11 +279,10 @@ def test_warm_is_TRUE_once_the_parts_for_the_default_view_are_built(monkeypatch,
     assert h["warm"] is True and h["warm_parts"] is True
 
 
-def test_parts_built_for_a_SUPERSEDED_version_are_not_warm(monkeypatch, _clean_caches):
+def test_parts_built_for_a_SUPERSEDED_version_are_not_warm(monkeypatch, _clean_caches, _fast_path_machinery):
     """The next caller rebuilds, so reporting warm is how a stalled preparer
     would hide -- the same rule the whole-D path already had."""
     monkeypatch.setattr(fa, "parts_enabled", lambda: True)
-    monkeypatch.setattr(fa, "available", lambda: True)
     fa._PARTS_CACHE[fa.DEFAULT_VIEW + ("bootstrap",)] = (6, b"gz")
 
     h = fa.health(current_version=7)
@@ -666,12 +682,17 @@ def test_a_BURST_of_bumps_collapses_to_ONE_roll(monkeypatch):
                         lambda source, days: (state["v"],
                                               __import__("gzip").compress(b"csv")))
 
+    # ⛔ THE BURST LANDS BEFORE THE LOOP'S FIRST READ. Started first, the loop could read `base`
+    # -- the version from BEFORE the burst -- ahead of the main thread's bumps and prepare it as a
+    # roll of its own, then prepare `base + 5` as a second: two rolls from a start-up race in this
+    # test, not from the burst (red on master, run 45321831045). What this pins is that the loop
+    # prepares the LATEST version a read returns and never replays the versions between reads.
+    for i in range(1, 6):        # five bumps, back to back
+        state["v"] = base + i
     fr._PREPARE_STOP.clear()
     t = threading.Thread(target=fr._prepare_loop, daemon=True)
     t.start()
     try:
-        for i in range(1, 6):        # five bumps, back to back
-            state["v"] = base + i
         time.sleep(1.2)
     finally:
         fr._PREPARE_STOP.set()       # ⛔ never leak the thread into a neighbour
