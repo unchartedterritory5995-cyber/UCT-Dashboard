@@ -124,8 +124,10 @@ const HIGHER_TFS = new Set(FEED_TFS.filter((tf) => tf !== FEED_TF))
 export const RING_MINUTES = 75
 /** The consumer's rollup as this feed needs it (ONE place: the page feed and its rails use it): the fed timeframes,
  *  only for symbols a fed key is held for, keeping each symbol's minutes for as long as the feed does, so a correction
- *  anywhere inside a 60m bucket is still settled exactly (the rollup's default keeps 15). */
-export const feedRollup = (feeder) => ({ tfs: [...FEED_TFS], accept: feeder.accept, recentMinutes: RING_MINUTES })
+ *  anywhere inside a 60m bucket is still settled exactly (the rollup's default keeps 15); and forgetting a symbol
+ *  once none of its fed keys is held (`forgetRefused`: the held keys change all day, and the rollup would otherwise keep
+ *  every symbol ever held until the day's reset; review of #2680). */
+export const feedRollup = (feeder) => ({ tfs: [...FEED_TFS], accept: feeder.accept, recentMinutes: RING_MINUTES, forgetRefused: true })
 /** The appends of one frame give the thread back after this much work (a held 1m copy is up to 20,000 rows, and a
  *  list holds a hundred of them). */
 export const DRAIN_SLICE_MS = 4

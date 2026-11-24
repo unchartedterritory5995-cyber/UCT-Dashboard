@@ -30,6 +30,7 @@
 //               H12 ...one 29 minutes back inside a 60m bucket is still settled exactly
 //   LEFT ALONE  H13 a key a chart is on (fed once the chart leaves)      H13b no answer, a saved copy, a pending full re-read
 //               H14 the extended 60m key, a windowed key, a D key        H14b what makes the feed poll
+//   COST        H18 a symbol no longer held is forgotten by the rollup too (its minutes and buckets are not kept all day)
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { createRegistry } from './registry'
 import * as feedModule from './minuteFeed'
@@ -55,7 +56,7 @@ afterEach(() => { vi.useRealTimers() })
 const bar1 = (n) => ({ o: 2000 + n, h: 2001 + n, l: 1999 + n, c: 2000.5 + n, v: 100 + n })
 const rec = (sym, n, over = {}) => ({ sym, ...bar1(n), ...over })
 
-function world({ open = TUE, start = [30, 20], feederOpts = {} } = {}) {
+function world({ open = TUE, start = [30, 20], feederOpts = {}, registryOpts = {} } = {}) {
   const M = (n) => open + n
   const T = (n) => M(n) * 60
   const at = (n, sec = 0) => M(n) * 60_000 + sec * 1000
@@ -63,7 +64,7 @@ function world({ open = TUE, start = [30, 20], feederOpts = {} } = {}) {
   vi.useFakeTimers({ toFake: ['Date'] })
   vi.setSystemTime(clock.ms)
   const active = new Set()
-  const registry = createRegistry({ ctx: () => ({ nowMs: clock.ms }) })
+  const registry = createRegistry({ ctx: () => ({ nowMs: clock.ms }), ...registryOpts })
   const feeder = createMinuteFeeder({ registry, isActive: (k) => active.has(k), sliceMs: Infinity, ...feederOpts })
   const consumer = createMinuteFrameConsumer({
     sink: feeder.sink, tailOnly: true, rollup: rollupOf(feeder),
@@ -78,7 +79,7 @@ function world({ open = TUE, start = [30, 20], feederOpts = {} } = {}) {
     return { t: T(a), o: 2000 + a + px, h: 2001 + b + px, l: 1999 + a + px, c: 2000.5 + b + px, v: v ?? sum }
   }
   const w = {
-    M, T, at, clock, active, registry, feeder, key, agg,
+    M, T, at, clock, active, registry, feeder, key, agg, consumer,
     /** A list warms the row: the key exists, no answer yet. */
     hold(sym, tf) { registry.acquire(key(sym, tf)) },
     /** The SERVER's answer for (sym, tf), built at `builtAt`: the closed buckets `closed` ([first minute, last minute]
@@ -542,6 +543,21 @@ describe('minute feed · 5m-60m: what is left exactly as it is', () => {
     expect(w.registry.peek(win)).toBe(before[1])
     expect(w.feeder.stats()).toMatchObject({ appended: 0, rejected: 0, symbols: 0 })
     expect(w.feeder.wanted()).toBe(false)                         // ...and none of them makes the feed poll
+  })
+
+  it('H18 a symbol whose keys left the registry is forgotten by the rollup too; held again, it starts from nothing', () => {
+    const w = world({ registryOpts: { maxKeys: 0 } })             // (maxKeys 0: a released key is evicted at once)
+    w.hold('AAA', '15'); w.hold('BBB', '15')
+    w.frames(30, 31)
+    expect(w.consumer.status().rollup.symbols).toBe(2)
+    w.registry.release(w.key('BBB', '15'))
+    expect(w.registry.has(w.key('BBB', '15'))).toBe(false)
+    w.frame(32)
+    expect(w.consumer.status().rollup.symbols).toBe(1)            // BBB's minutes and buckets are gone, not kept until the day ends
+    expect(w.feeder.stats().symbols).toBe(1)
+    w.hold('BBB', '15')
+    w.frames(33, 34)
+    expect(w.consumer.status().rollup.symbols).toBe(2)
   })
 
   it('H14b the feed has something to feed while an idle regular 5m / 15m / 30m / 60m key is held', () => {
