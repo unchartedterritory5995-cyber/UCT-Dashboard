@@ -127,6 +127,36 @@ describe('B: a copy read before a minute roll is not the frontier', () => {
     expect(callsOf(w, 'AAA', n1).length + callsOf(w, 'BBB', n1).length).toBe(0)
     w.store.dispose()
   })
+
+  it('B3b ...and a re-ask that FAILED is not repeated in the bucket either', async () => {
+    vi.setSystemTime(at(10, 0, 55))
+    let mode = 'ok'
+    const w = await boot(() => mode)
+    await warmNext(w, ['AAA'])
+    mode = 'fail'
+    vi.setSystemTime(at(10, 1, 1))
+    const n0 = w.server.calls.length
+    await warmNext(w, ['AAA'])
+    expect(callsOf(w, 'AAA', n0).length).toBe(1)                      // asked again after the roll, and it failed
+    mode = 'ok'
+    vi.setSystemTime(at(10, 1, 3))
+    const n1 = w.server.calls.length
+    await warmNext(w, ['AAA'])
+    expect(callsOf(w, 'AAA', n1).length, 'a next row was asked again twice in one bucket').toBe(0)
+    w.store.dispose()
+  })
+
+  it('B4 a next row answered after the roll (still behind: the server lags) is not asked again by the next-row warm', async () => {
+    vi.setSystemTime(at(10, 1, 1))
+    const w = await boot('lag:5')
+    await warmNext(w, ['AAA'])                                        // the row enters `next`: asked, answered behind
+    expect(tailOf(w, 'AAA')).toBe(T(9, 59))
+    vi.setSystemTime(at(10, 1, 3))
+    const n0 = w.server.calls.length
+    await warmNext(w, ['AAA'])
+    expect(callsOf(w, 'AAA', n0).length, 'a row answered in this bucket was asked again').toBe(0)
+    w.store.dispose()
+  })
 })
 
 describe("C: the switch's own answer still behind", () => {
