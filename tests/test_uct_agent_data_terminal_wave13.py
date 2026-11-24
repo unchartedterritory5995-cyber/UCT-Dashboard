@@ -49,11 +49,15 @@ ACTIONS = {"stock.insiderBuying", "stock.marketHistory", "stock.economyBoard", "
            "stock.daysLikeToday"}
 DOC = REPO / "docs/agent/program/contracts/MD-1-market-data.md"
 REGISTER = REPO / "docs/terminal-research/09-security-licensing-cost/licensing-register.md"
-RECENT = (dt.date.today() - dt.timedelta(days=1)).isoformat()        # inside the INS feed's own 7-day window
+def _recent():
+    """Yesterday, read when a test runs (never at import: tests/test_uct_agent_qa_clock.py); inside the INS feed's own
+    7-day window."""
+    return (dt.date.today() - dt.timedelta(days=1)).isoformat()
 
 
 # ── invented worlds, each held by its own service ─────────────────────────────────────────────────────────────────
-def _fmp_row(sym, name, shares, price, day=RECENT, kind="P-Purchase", ad="A"):
+def _fmp_row(sym, name, shares, price, day=None, kind="P-Purchase", ad="A"):
+    day = day or _recent()
     return {"symbol": sym, "transactionType": kind, "acquisitionOrDisposition": ad, "securitiesTransacted": shares,
             "price": price, "reportingName": name, "typeOfOwner": "director", "transactionDate": day, "filingDate": day}
 
@@ -378,10 +382,10 @@ def test_insider_reads_both_held_parts_no_price_is_no_amount_never_0_and_each_cu
     d = _plain(out["data"])
     assert out["status"] == "ok" and out["as_of"] is None
     buys = d["purchases"]
-    assert buys["state"] == "held" and buys["total"] == 3 and buys["unpriced"] == 1 and buys["newest_filing"] == RECENT
+    assert buys["state"] == "held" and buys["total"] == 3 and buys["unpriced"] == 1 and buys["newest_filing"] == _recent()
     assert [b["symbol"] for b in buys["rows"]] == ["QZCC", "QZAA"]                 # the route's order: largest amount first
     assert buys["rows"][1] == {"symbol": "QZAA", "name": "Made-up Person One", "title": "director", "shares": 1000, "price": 12.5,
-                               "amount": 12500.0, "date": RECENT, "filing_date": RECENT}
+                               "amount": 12500.0, "date": _recent(), "filing_date": _recent()}
     full = _plain(_read(imr.KIND)["data"])["purchases"]["rows"]
     unpriced = next(b for b in full if b["symbol"] == "QZBB")
     assert unpriced["price"] is None and unpriced["amount"] is None                # the vendor's 0 is no price, never $0
