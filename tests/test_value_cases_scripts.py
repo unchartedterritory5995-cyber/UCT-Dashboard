@@ -233,13 +233,20 @@ def test_the_close_edge_makes_cap01s_window_decisive_on_the_newest_bar():
     source = case["answer"]["script"]["pine"]
     longer, hit = _every_window_one_longer(source, SHORT_WINDOWS.get(case["id"]))
     assert hit and "251" in longer and "251" not in source
+    # "above" is strict in the words; the same script counting a close AT LEAST today's (coordinator 2026-11-24)
+    at_least = source.replace("if close[i] > close", "if close[i] >= close")
+    assert at_least != source
     run = _lane(script_lane.run, [{"id": "recorded@edge", "source": source, "chart": "daily", "edge": case["edge"]},
                                   {"id": "longer@edge", "source": longer, "chart": "daily", "edge": case["edge"]},
+                                  {"id": "at-least@edge", "source": at_least, "chart": "daily", "edge": case["edge"]},
                                   {"id": "recorded@plain", "source": source, "chart": "daily"},
-                                  {"id": "longer@plain", "source": longer, "chart": "daily"}])
+                                  {"id": "longer@plain", "source": longer, "chart": "daily"},
+                                  {"id": "at-least@plain", "source": at_least, "chart": "daily"}])
     column = lambda job: next(iter(run["scripts"][job]["columns"].values()))   # noqa: E731 -- the script's one plot
     assert column("recorded@edge")[-1] is None and column("longer@edge")[-1] == 251
-    assert column("recorded@plain") == column("longer@plain")
+    assert column("at-least@edge")[-1] == 2                                   # the tie, 2 bars back
+    # on the plain bars neither slip can be told apart: why the edge exists
+    assert column("recorded@plain") == column("longer@plain") == column("at-least@plain")
 
 
 # ── the rules stand apart from the product ──
