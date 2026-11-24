@@ -6,7 +6,10 @@
  },
  "suspect": {
   "e2-t05#1": "G1/G2 asks \"Did you mean Right chart (META)?\" although the words name msft explicitly; turn 1 log scale stays on META",
-  "e2-sb05#0": "the side-by-side screen asks \"Do you want NVDA added beside your chart, or put in place of the AAPL chart?\" although the member said swap: with clarifyOk false (AUDIT 11-24) that ask is unneeded"
+  "e2-sb05#0": "the side-by-side screen asks \"Do you want NVDA added beside your chart, or put in place of the AAPL chart?\" although the member said swap: with clarifyOk false (AUDIT 11-24) that ask is unneeded",
+  "e2-xt01#0": "G1/G2 gate asks (\"Did you mean …?\" / \"Which chart do you mean? …ask again\") on a click + a chart named in its own clause with two DIFFERENT changes, even for the right plan (the e2-t05 class)",
+  "e2-xt02#0": "G1/G2 gate asks (\"Did you mean …?\" / \"Which chart do you mean? …ask again\") on a click + a chart named in its own clause with two DIFFERENT changes, even for the right plan (the e2-t05 class)",
+  "e2-xt03#0": "G1/G2 gate asks (\"Did you mean …?\" / \"Which chart do you mean? …ask again\") on a click + a chart named in its own clause with two DIFFERENT changes, even for the right plan (the e2-t05 class)"
  },
  "ceilings": {
   "e2-b01#1": [
@@ -121,6 +124,15 @@
    "unnecessary_ask"
   ],
   "e2-x12#0": [
+   "unnecessary_ask"
+  ],
+  "e2-xt01#0": [
+   "unnecessary_ask"
+  ],
+  "e2-xt02#0": [
+   "unnecessary_ask"
+  ],
+  "e2-xt03#0": [
    "unnecessary_ask"
   ],
   "rb-f12#1": [

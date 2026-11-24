@@ -271,6 +271,26 @@ export function compareBoards(pre, actual, oracle) {
   return r
 }
 
+/**
+ * CROSSED changes (a click + a named chart, two different changes): a change that landed on chart X is one the oracle makes on
+ * ANOTHER chart Y and not on X — the plan put Y's change on X. Leaf-level ("tf=W", "indicator added"), so a full swap and a
+ * half swap (one right, the other on the wrong chart) are both found. → [[X, Y, leaf]]
+ */
+export function crossedChanges(pre, actual, oracle) {
+  const P = entities(pre), A = entities(actual), O = entities(oracle)
+  const charts = [...new Set([...Object.keys(A), ...Object.keys(O)])].filter(k => k.startsWith('chart:'))
+  const pairs = (d) => Object.keys(d).filter(p => p !== 'symbol').map(p => `${p}=${d[p][1]}`)
+  const got = Object.fromEntries(charts.map(k => [k, pairs(leafDelta(P[k], A[k]))]))
+  const meant = Object.fromEntries(charts.map(k => [k, new Set(pairs(leafDelta(P[k], O[k])))]))
+  const out = []
+  for (const x of charts) for (const leaf of got[x]) {
+    if (meant[x].has(leaf)) continue
+    const y = charts.find(k => k !== x && meant[k].has(leaf))
+    if (y) out.push([x, y, leaf])
+  }
+  return out
+}
+
 /** Same change, other chart: the actual changes on charts the oracle left alone match the oracle's on the charts it changed. */
 export function changeOnOtherChart(pre, actual, oracle, cmp) {
   const P = entities(pre), A = entities(actual), O = entities(oracle)

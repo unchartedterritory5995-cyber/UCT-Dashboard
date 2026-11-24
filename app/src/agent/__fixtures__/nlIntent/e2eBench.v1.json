@@ -5323,6 +5323,131 @@
    "mix": "multi",
    "fam": "multichart",
    "new": "11-24 side-by-side (owner ruling 11-23)"
+  },
+  {
+   "id": "e2-xt01",
+   "fx": "rb_pair_sel",
+   "text": "make this one weekly and put rsi on msft",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "chart.setTimeframe",
+      "t": "Right chart (META)",
+      "args": {
+       "timeframe": "W"
+      }
+     },
+     {
+      "a": "indicator.add",
+      "t": "Left chart (MSFT)",
+      "args": {
+       "defId": "rsi",
+       "inputs": null
+      }
+     }
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ],
+    "oracleSay": "make the right chart (META) weekly and put rsi on the left chart (MSFT)"
+   },
+   "cls": "crossed-target",
+   "mix": "multi",
+   "fam": "multichart",
+   "new": "11-24 crossed-target (AUDIT)"
+  },
+  {
+   "id": "e2-xt02",
+   "fx": "rb_quad",
+   "text": "log scale here, and hide the volume on the google chart",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "chart.setScale",
+      "t": "Top-left chart (SMH)",
+      "args": {
+       "scale": "log"
+      }
+     },
+     {
+      "a": "volume.setState",
+      "t": "Bottom-right chart (GOOGL)",
+      "args": {
+       "state": {
+        "$in": [
+         "hidden",
+         "removed"
+        ]
+       }
+      }
+     }
+    ],
+    "notOn": [
+     "Top-right chart (XLE)",
+     "Bottom-left chart (AMZN)"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   },
+   "cls": "crossed-target",
+   "mix": "multi",
+   "fam": "multichart",
+   "new": "11-24 crossed-target (AUDIT)"
+  },
+  {
+   "id": "e2-xt03",
+   "fx": "rb_pair_sel",
+   "text": "msft as a line chart, and this one to the hourly",
+   "expect": {
+    "kind": "act",
+    "ops": [
+     {
+      "a": "chart.setType",
+      "t": "Left chart (MSFT)",
+      "args": {
+       "type": "line"
+      }
+     },
+     {
+      "a": "chart.setTimeframe",
+      "t": "Right chart (META)",
+      "args": {
+       "timeframe": "60"
+      }
+     }
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   },
+   "cls": "crossed-target",
+   "mix": "multi",
+   "fam": "multichart",
+   "new": "11-24 crossed-target (AUDIT)"
   }
  ]
 }

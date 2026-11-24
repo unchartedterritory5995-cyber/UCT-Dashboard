@@ -23,7 +23,7 @@
 //   error            the turn failed (API error, harness error)
 // Flags beside the outcome: silent (a failure not reported), destructiveViaCard, cardOnAct (an unasked approval step).
 import { getCapability } from '../capabilities'
-import { compareBoards, changeOnOtherChart, entities } from './e2eHost'
+import { compareBoards, changeOnOtherChart, crossedChanges, entities } from './e2eHost'
 
 export const E2E_OUTCOMES = ['success', 'partial_reported', 'partial_silent', 'residue', 'wrong_chart', 'wrong_action', 'unnecessary_ask', 'missed_ask', 'refusal', 'unsafe', 'error']
 
@@ -52,7 +52,9 @@ export function scoreTurn({ e, pre, mid, post, oracles = [], asked = false, choi
   const cmps = boards.map(o => ({ o, c: compareBoards(pre, post, o), m: compareBoards(pre, mid, o) }))
   cmps.sort((a, b) => (a.c.missing.length + a.c.wrong.length + a.c.extra.length) - (b.c.missing.length + b.c.wrong.length + b.c.extra.length))
   const { o: oracle, c: cmp, m: cmpMid } = cmps[0]
-  if ([...cmp.extra, ...cmpMid.extra].some(k => k.startsWith('chart:'))) flags.push('wrongChartWrite')
+  // a WRONG-CHART WRITE: a change on a chart the oracle leaves alone, or (crossed) a change the oracle makes on ANOTHER chart
+  const crossed = wantsChange ? crossedChanges(pre, post, oracle).concat(crossedChanges(pre, mid, oracle)) : []
+  if ([...cmp.extra, ...cmpMid.extra].some(k => k.startsWith('chart:')) || crossed.length) flags.push('wrongChartWrite')
   // HEADLINE flags: a SILENT DROP (part of the request missing and the reply never says so) and a WRONG-CHART WRITE (a
   // change landed on a chart the expected board leaves alone — before or after a card, whatever the turn's outcome)
   const done = (outcome, why = '') => ({ outcome, why, flags: flags.includes('silent') && !flags.includes('silentDrop') ? [...flags, 'silentDrop'] : flags })
@@ -101,6 +103,7 @@ export function scoreTurn({ e, pre, mid, post, oracles = [], asked = false, choi
     return done('refusal', honest ? 'said it could not' : 'nothing changed and nothing said')
   }
   if (onForbidden.length) return done('wrong_chart', `changed ${onForbidden.join(',')}`)
+  if (crossed.length) return done('wrong_chart', `crossed: ${[...new Set(crossed.map(([x, y]) => `${y}'s change on ${x}`))].join('; ')}`)
   if (changeOnOtherChart(pre, post, oracle, cmp)) return done('wrong_chart', `on ${cmp.extra.join(',')} instead of ${[...cmp.missing, ...cmp.wrong].join(',')}`)
   if (post.residue) { if (!honest) flags.push('silent'); return done('residue', 'the screen shows a change the save refused') }
   if (cmp.equal) {

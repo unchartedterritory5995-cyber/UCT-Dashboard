@@ -311,6 +311,17 @@ describe('scoreTurn', () => {
     expect(scoreTurn({ e, pre, mid: want, post: want, oracles: [both] }).outcome).toBe('missed_ask')
     expect(scoreTurn({ e, pre, mid: pre, post: pre, oracles: [both], asked: true }).outcome).toBe('success')
   })
+  it('crossed plan: a click + a named chart, two different changes swapped between them, is a WRONG-CHART-WRITE', () => {
+    const pre2 = B({ a: { tf: 'D', rsi: 0 }, b: { tf: 'D', rsi: 0 } })
+    const want2 = B({ a: { tf: 'W', rsi: 0 }, b: { tf: 'D', rsi: 1 } })          // "this one (a) weekly, rsi on b"
+    const crossed = B({ a: { tf: 'D', rsi: 1 }, b: { tf: 'W', rsi: 0 } })        // each change on the other chart
+    const r = scoreTurn({ e: act, pre: pre2, mid: crossed, post: crossed, oracles: [want2] })
+    expect([r.outcome, r.flags.includes('wrongChartWrite')]).toEqual(['wrong_chart', true])
+    const half = B({ a: { tf: 'W', rsi: 0 }, b: { tf: 'W', rsi: 0 } })          // one right, the other change on the wrong chart
+    const h = scoreTurn({ e: act, pre: pre2, mid: half, post: half, oracles: [want2] })
+    expect([h.outcome, h.flags.includes('wrongChartWrite')]).toEqual(['wrong_chart', true])
+    expect(scoreTurn({ e: act, pre: pre2, mid: want2, post: want2, oracles: [want2] }).flags).not.toContain('wrongChartWrite')
+  })
   it('a save conflict: right only with no residue AND the refusal said', () => {
     const e = { ...act, blocked: ['chart.setTimeframe'] }
     expect(scoreTurn({ e, pre, mid: pre, post: pre, oracles: [pre], reply: "the save was not confirmed (conflict), so it is not done" }).outcome).toBe('success')
