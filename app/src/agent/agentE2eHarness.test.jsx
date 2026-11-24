@@ -17,6 +17,7 @@ import { specFor } from './testing/bench'
 import { evaluateCase, expectedResponder } from './testing/e2eEval'
 import { bankResponder, requestKey, mountCase, stepsOf } from './testing/e2eRun'
 import { scoreTurn, armTable, paired } from './testing/e2eScore'
+import { memberPick, lyingCharts } from './testing/e2eMember'
 import { buildBoard, snapshot, compareBoards, semanticView } from './testing/e2eHost'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
@@ -239,6 +240,41 @@ describe('the pipeline asks score as asks', () => {
       }, 120000)
     }
   }
+})
+
+// ── the SIMULATED MEMBER's pick on a card (testing/e2eMember.memberPick, AUDIT 11-24): one test per branch ────────────
+describe('member pick', () => {
+  const charts = [{ ref: 'cl', label: 'Left chart (META)', symbol: 'META' }, { ref: 'cr', label: 'Right chart (NVDA)', symbol: 'NVDA' }]
+  const ce01 = { charts, expectedRefs: ['cl'] }                                   // e2-ce01 turn 2: only META changes
+  it('match: the choice naming only the expected chart, or an Apply whose text names only it', () => {
+    expect(memberPick({ ...ce01, choices: ['Both charts', 'Just Left chart (META)', 'Cancel'] })).toMatchObject({ action: 'choose', label: 'Just Left chart (META)', named: ['cl'] })
+    expect(memberPick({ ...ce01, cardLines: 'Left chart (META): Switched timeframe to Daily' })).toMatchObject({ action: 'apply', named: ['cl'] })
+    expect(memberPick({ ...ce01, choices: ['Just META', 'Cancel'] })).toMatchObject({ action: 'choose', label: 'Just META' })   // a unique ticker names its chart
+  })
+  it('no match: Cancel, and the turn scores cancelled (safe, incomplete: never success, never WRONG)', () => {
+    expect(memberPick({ ...ce01, choices: ['Both charts', 'Keep both as they are', 'Cancel'] })).toMatchObject({ action: 'cancel' })
+    const B2 = (c) => ({ charts: c, widgets: {}, layouts: null, watchlists: {}, drawings: {}, residue: false })
+    const pre2 = B2({ cl: { tf: 'W' }, cr: { tf: 'W' } })
+    const r = scoreTurn({ e: { kind: 'act', ops: [{ a: 'chart.setTimeframe' }] }, pre: pre2, mid: pre2, post: pre2, oracles: [B2({ cl: { tf: 'D' }, cr: { tf: 'W' } })], pick: { action: 'cancel', why: 'no option matches' } })
+    expect([r.outcome, r.flags.includes('wrongChartWrite'), r.flags.includes('silentDrop')]).toEqual(['cancelled', false, false])
+  })
+  it('a lying card (it named one chart, another changed) is a WRONG-CHART-WRITE whatever was picked', () => {
+    expect(lyingCharts(['cl'], ['cl', 'cr'])).toEqual(['cr'])
+    expect(lyingCharts(['cl'], ['cl'])).toEqual([])
+    const B2 = (c) => ({ charts: c, widgets: {}, layouts: null, watchlists: {}, drawings: {}, residue: false })
+    const pre2 = B2({ cl: { tf: 'W' }, cr: { tf: 'W' } }), both = B2({ cl: { tf: 'D' }, cr: { tf: 'D' } })
+    const r = scoreTurn({ e: { kind: 'act', ops: [{ a: 'chart.setTimeframe' }] }, pre: pre2, mid: pre2, post: both, oracles: [both], lying: ['cr'] })
+    expect([r.outcome, r.flags.includes('wrongChartWrite')]).toEqual(['wrong_chart', true])   // even though the board matched
+  })
+  it('an Apply (or a choice) naming a chart the case does not expect changed is never picked', () => {
+    expect(memberPick({ ...ce01, cardLines: 'Left chart (META): Daily | Right chart (NVDA): Daily' })).toMatchObject({ action: 'cancel' })
+    expect(memberPick({ ...ce01, choices: ['Right chart (NVDA)', 'Cancel'] })).toMatchObject({ action: 'cancel' })
+    expect(memberPick({ ...ce01, cardLines: 'Right chart (NVDA): Switched timeframe to Daily' })).toMatchObject({ action: 'cancel' })
+  })
+  it('reads only UCT text: the model reply is not an input (a card with no chart named, on a case that changes no chart, is applied)', () => {
+    expect(memberPick({ charts, expectedRefs: [], targetWords: ['Swing'], cardLines: 'Add NFLX to Swing' })).toMatchObject({ action: 'apply' })
+    expect(memberPick({ charts, expectedRefs: [], targetWords: ['Swing'], cardLines: 'Add NFLX to Momentum' })).toMatchObject({ action: 'cancel' })
+  })
 })
 
 // ── the save-conflict host (409 workspace_conflict, sticky) ─────────────────────────────────────────────────

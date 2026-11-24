@@ -37,7 +37,8 @@ import { _resetDraftPreview } from '../../components/chart/builder/agentAuthorin
 import * as drawingsStore from '../../components/chart/drawingsStore'
 import { TICKERS } from './panelHarness'
 import { selectionRecord, legacyRerouteRecord } from './capture'
-import { buildBoard, snapshot } from './e2eHost'
+import { buildBoard, snapshot, entities } from './e2eHost'
+import { memberPick, lyingCharts } from './e2eMember'
 
 // ── arms ────────────────────────────────────────────────────────────────────────────────────────────────
 // A = production today: the legacy interpreter (fast paths + compound + readers, then the routed model request) on
@@ -316,7 +317,10 @@ export async function mountCase({ spec, c, arm, responder, conflict = null }) {
     const reply = at >= 0 ? all.slice(at + text.length) : all.slice(before.length)
     const requests = server.requests.slice(reqBefore)
     const card = screen.queryAllByTestId('agent-proposal').some(e => e.dataset.status === 'pending')
-    return { reply, requests, card, data: server.dataPaths.slice(dataBefore), newChoices: choiceButtons().filter(b => !choicesBefore.has(b)).map(b => b.textContent), ms: performance.now() - t0 }
+    // the pending card's FIXED text (its lines, as UCT wrote them), the only card text the simulated member reads
+    const pendingCard = screen.queryAllByTestId('agent-proposal').filter(e => e.dataset.status === 'pending').pop()
+    const cardText = pendingCard ? [...pendingCard.querySelectorAll('li')].map(li => li.textContent).join(' | ') : null
+    return { reply, requests, card, cardText, data: server.dataPaths.slice(dataBefore), newChoices: choiceButtons().filter(b => !choicesBefore.has(b)).map(b => b.textContent), ms: performance.now() - t0 }
   }
   const approve = async () => {
     await idle()
@@ -324,6 +328,16 @@ export async function mountCase({ spec, c, arm, responder, conflict = null }) {
     if (!card) return ''
     const before = transcript().textContent.length
     fireEvent.click([...card.querySelectorAll('button')].find(b => b.textContent === 'Apply'))
+    await idle(); await new Promise(r => setTimeout(r, 0)); await idle()
+    return transcript().textContent.slice(before)
+  }
+  // Dismiss the pending card (a member saying no)
+  const dismiss = async () => {
+    await idle()
+    const card = screen.queryAllByTestId('agent-proposal').filter(e => e.dataset.status === 'pending').pop()
+    if (!card) return ''
+    const before = transcript().textContent.length
+    fireEvent.click([...card.querySelectorAll('button')].find(b => b.textContent === 'Dismiss'))
     await idle(); await new Promise(r => setTimeout(r, 0)); await idle()
     return transcript().textContent.slice(before)
   }
@@ -336,7 +350,7 @@ export async function mountCase({ spec, c, arm, responder, conflict = null }) {
     await idle(); await new Promise(r => setTimeout(r, 0)); await idle()
     return { card: screen.queryAllByTestId('agent-proposal').some(e => e.dataset.status === 'pending') }
   }
-  return { say, approve, choose, snap: () => snapshot(built), built, server, setNl1: (on) => (on ? localStorage.setItem(NL1_KEY, '1') : localStorage.removeItem(NL1_KEY)) }
+  return { say, approve, dismiss, choose, snap: () => snapshot(built), built, server, setNl1: (on) => (on ? localStorage.setItem(NL1_KEY, '1') : localStorage.removeItem(NL1_KEY)) }
 }
 
 // ── the dialogue ────────────────────────────────────────────────────────────────────────────────────────────
@@ -373,11 +387,37 @@ export async function replay({ spec, c, arm, responder, conflict, steps, upTo, d
     const r = await m.say(step.say)
     if (r.requests.some(q => q.miss)) return { m, start, turns, missAt: i }
     const mid = m.snap()
-    let approved = ''
-    if (r.card && ['act', 'propose'].includes(step.expect?.kind)) approved = await m.approve()
+    let approved = '', pick = null, lying = []
+    const e = step.expect || {}
+    const acting = ['act', 'propose'].includes(e.kind)
+    // the SIMULATED MEMBER answers an approval card on an act/propose turn, and a choice question when asking is an accepted
+    // answer for this case (clarifyOk): testing/e2eMember.memberPick, from UCT's fixed card text and choice labels only
+    const choices = acting && e.clarifyOk ? r.newChoices : []
+    if (acting && (r.card || choices.length)) {
+      const host = m.built.host
+      const charts = host.charts.list().map(c => ({ ref: c.ref, label: c.label, symbol: c.symbol }))
+      const expectedRefs = [], targetWords = []
+      for (const o of [...(e.ops || []), ...(e.alt || []).flat()]) {
+        const tg = targetOf(host, o.a, o.t)
+        if (!tg) continue
+        const ch = charts.find(c => c.label === tg.label) || charts.find(c => tg.symbol && c.symbol === tg.symbol && charts.filter(x => x.symbol === tg.symbol).length === 1)
+        if (ch) { if (!expectedRefs.includes(ch.ref)) expectedRefs.push(ch.ref) } else if (tg.label) targetWords.push(tg.label)
+      }
+      pick = memberPick({ charts, expectedRefs, targetWords, cardLines: r.card ? r.cardText : null, choices })
+      const before = m.snap()
+      if (pick.action === 'apply') approved = await m.approve()
+      else if (pick.action === 'choose') await m.choose(pick.label)
+      else if (pick.action === 'cancel') { if (choices.some(c => /^cancel$/i.test(c))) await m.choose(choices.find(c => /^cancel$/i.test(c))); else if (r.card) await m.dismiss() }
+      // rule 5: a chart the picked text did not name changed anyway -> a lying card
+      if (pick.action === 'apply' || pick.action === 'choose') {
+        const B0 = entities(before), A0 = entities(m.snap())
+        const changed = Object.keys({ ...B0, ...A0 }).filter(k => k.startsWith('chart:') && JSON.stringify(B0[k]) !== JSON.stringify(A0[k])).map(k => k.slice(6))
+        lying = lyingCharts(pick.named, changed)
+      }
+    }
     // the EXECUTED plan: what the runtime committed in this turn (a repair REPLACES the first plan; approvals included)
     const commits = (tap.committed || []).slice(committedBefore)
-    turns.push({ step, pre, mid, post: m.snap(), ...r, approved, executed: commits.filter(x => x.ok).flatMap(x => x.ops), failedCommits: commits.filter(x => !x.ok).flatMap(x => x.ops) })
+    turns.push({ step, pre, mid, post: m.snap(), ...r, approved, pick, lying, executed: commits.filter(x => x.ok).flatMap(x => x.ops), failedCommits: commits.filter(x => !x.ok).flatMap(x => x.ops) })
   }
   return { m, start, turns, missAt: null }
 }

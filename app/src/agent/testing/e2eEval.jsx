@@ -148,11 +148,11 @@ export async function evaluateCase({ spec, c, arm, bank = new Map(), collect = n
     if ((['act', 'propose'].includes(e.kind) || e.alsoOk?.length) && !lookup && !e.blocked?.length && oracleMoved) oracle = { ...oracle, boards: oracle.boards.filter(moved) }
     const sc = invalid ? { outcome: 'oracle_invalid', why: 'the expected plan changes nothing on this board (it cannot be executed here)', flags: [] } : scoreTurn({ e, pre, mid: view(t.mid), post: view(t.post), oracles: oracle.boards, asked, choices: t.newChoices, reply: `${t.reply} ${t.approved}`,
       data: t.data, oracleData: oracle.data, notOnIds: notOnIds(run.m.built.host, e.notOn),
-      planned: finalPlan(t) })
+      planned: finalPlan(t), pick: t.pick, lying: t.lying })
     decided[i] = { outcome: sc.outcome, asked }
     const reqs = t.requests.filter(q => !q.miss)
     const P = JSON.stringify(entities(pre))
-    rows.push({ ...base, outcome: sc.outcome, why: sc.why, flags: sc.flags, asked, reply: `${t.reply} ${t.approved}`.replace(/\s+/g, ' ').trim().slice(0, 400),
+    rows.push({ ...base, outcome: sc.outcome, why: sc.why, flags: sc.flags, asked, pick: t.pick ? `${t.pick.action}${t.pick.label ? `: ${t.pick.label}` : ''}` : null, reply: `${t.reply} ${t.approved}`.replace(/\s+/g, ' ').trim().slice(0, 400),
       oracleChanged: oracle.boards.some(b => JSON.stringify(entities(b)) !== P), oracleReads: oracle.data.flat().length,
       lookup, blocked: !!e.blocked?.length, planScored: lookup && !oracle.data.flat().length,
       lane: t.requests.length ? 'model' : 'deterministic', requests: reqs.length,
