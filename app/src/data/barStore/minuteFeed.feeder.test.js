@@ -4,6 +4,7 @@
 //
 //   APPEND      F1 the minute that just closed lands on a held, answered key        F2 a forming bar is closed by the feed's bar
 //               F2b ...and is then no longer reported as forming (review M1)
+//               F2c a forming bar stamped AT OR AFTER the fed bar's revision is still closed with the FEED's bar (review L1)
 //   NEVER A HOLE (ONE RULE: a minute the feed holds no bar for STOPS the walk; the key stays behind until its answer)
 //               F3 a forming bar with no feed bar is never stepped past            F4 a MISSED frame
 //               F5 an INCOMPLETE frame      F6 a frame the publisher never wrote   F7 a symbol held only after its frame
@@ -12,6 +13,8 @@
 //   RECORDS     F11 a LATE record in the next frame    F12 a LATE record a frame later lets the walk continue
 //               F12b a LATE record for a minute the answer lacks is inserted       F13 a REPLACE record
 //   SERVER WINS F14 a later answer replaces a fed bar   F15 a sealed span removes one    F16 a REPLACE never beats the server
+//               F14b an answer whose series_rev is OLDER than the fed bar (the series' last write, not the answer's build
+//                    time): its unsealed row waits, its SEALED row wins (review L1)
 //               F17 an answer built BEFORE the minute closed does not turn the closed bar back into a partial one
 //   LEFT ALONE  F18 a key a chart is on     F19 a key with no answer / no entry     F20 a saved (local) copy
 //               F20c an answered copy the store holds for a full re-read
@@ -52,7 +55,7 @@ function world({ feederOpts = {} } = {}) {
     /** The SERVER's answer for `sym`, built at `builtAt`: closed rows `from`..`through` (minus `skip`), sealed through
      *  minute `seal` (default: all but the newest), an optional forming bar `dev`. `named`: as the route sends it, the
      *  forming bar is also the LAST of `bars` and `newest_bar_is_forming` says so. */
-    answer(sym, { through, from = 0, skip = [], dev = null, seal = through - 1, px = 0, builtAt = clock.ms, named = false } = {}) {
+    answer(sym, { through, from = 0, skip = [], dev = null, seal = through - 1, px = 0, builtAt = clock.ms, named = false, seriesRev = builtAt } = {}) {
       const bars = []
       for (let n = from; n <= through; n++) if (!skip.includes(n)) bars.push(bar(n, px))
       if (named) bars.push({ t: T(dev), o: 10 + dev, h: 10.2 + dev, l: 9.9 + dev, c: 10.1 + dev, v: 7 })
@@ -60,7 +63,7 @@ function world({ feederOpts = {} } = {}) {
         type: ACTION.REST_FULL,
         payload: {
           ticker: sym, tf: '1', contract: 1, grid: 'eth-clock', session: 'rth', cache_key: `b1:${sym}:1:eth-clock`,
-          series_rev: builtAt, history_rev: 1, verified_through: Math.floor(builtAt / 1000), tail_status: 'verified',
+          series_rev: seriesRev, history_rev: 1, verified_through: Math.floor(builtAt / 1000), tail_status: 'verified',
           complete_through: seal == null ? null : T(seal) + 60, bars, ...(named ? { newest_bar_is_forming: true } : {}),
           // a forming bar is a PARTIAL observation: a narrower range and less volume than the minute ends with
           developing: dev == null ? null : { t: T(dev), o: 10 + dev, h: 10.2 + dev, l: 9.9 + dev, c: 10.1 + dev, v: 7, rev: builtAt },
@@ -103,6 +106,22 @@ describe('minute feed · append', () => {
     w.frame(30)
     expect(w.snap('AAA').developing).toBe(null)
     expect(w.tail('AAA')).toMatchObject({ ...bar(30), src: 'final' })
+  })
+
+  it('F2c a forming bar stamped at or after the fed bar revision is still closed with the FEED bar, never the partial one', () => {
+    const w = world()
+    // 10:01:02: the answer still shows 10:00 as forming (its seal is late), stamped AFTER that minute ended
+    w.clock.ms = at(31, 2)
+    w.answer('AAA', { through: 29, dev: 30 })
+    expect(w.snap('AAA').developing).toMatchObject({ t: T(30), v: 7, rev: at(31, 2) })
+    w.frame(30)                                                   // the feed's 10:00 bar: revision 10:01:00.000, OLDER
+    expect(w.snap('AAA').developing).toBe(null)
+    expect(w.tail('AAA')).toMatchObject({ ...bar(30), src: 'final' })   // the closed bar, not the partial (v 7)
+    expect(w.feeder.stats()).toMatchObject({ appended: 1, rejected: 0 })
+    // ...and the server still has the last word on it
+    w.clock.ms = at(31, 30)
+    w.answer('AAA', { through: 30, seal: 29, px: 0.5 })
+    expect(w.row('AAA', 30)).toMatchObject({ ...bar(30, 0.5), src: 'rest' })
   })
 
   it('F2b the bar the server NAMED as forming is not reported as forming once the feed closed it', () => {
@@ -261,6 +280,22 @@ describe('minute feed · the server keeps the last word', () => {
     w.frame(30)
     w.clock.ms = at(31, 30)
     w.answer('AAA', { through: 30, seal: 29, px: 0.5 })           // unsealed at 10:00, and different there
+    expect(w.row('AAA', 30)).toMatchObject({ ...bar(30, 0.5), src: 'rest' })
+  })
+
+  it('F14b an answer whose series_rev is OLDER than the fed bar: its unsealed row waits, its sealed row wins', () => {
+    const w = world()
+    w.answer('AAA', { through: 29 })
+    w.clock.ms = at(31, 8)
+    w.frame(30)                                                   // fed 10:00, revision 10:01:00.000
+    // Built at 10:01:30, AFTER 10:00 closed, yet stamped with the series' LAST WRITE (10:00:40): production's
+    // series_rev is that, not the answer's build time (api/services/bars_sqlite._now_ms). Its 10:00 row is unsealed.
+    w.clock.ms = at(31, 30)
+    w.answer('AAA', { through: 30, seal: 29, px: 0.5, seriesRev: at(30, 40) })
+    expect(w.row('AAA', 30)).toMatchObject({ ...bar(30), src: 'final' })      // the fed bar stands for now...
+    // ...until the server SEALS that minute (45 s after it ended): a sealed row wins whatever the revisions say
+    w.clock.ms = at(32, 20)
+    w.answer('AAA', { through: 31, seal: 30, px: 0.5, seriesRev: at(30, 40) })
     expect(w.row('AAA', 30)).toMatchObject({ ...bar(30, 0.5), src: 'rest' })
   })
 

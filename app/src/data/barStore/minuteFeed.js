@@ -34,9 +34,12 @@
 //
 // THE SERVER KEEPS THE LAST WORD. A fed row is a push FINAL: it ranks below a REST seal, never enters a sealed span,
 // and carries as its revision the EARLIEST instant it can have been observed (the end of its minute; for a LATE or
-// REPLACE record the start of the frame's minute). So an answer the server built after that minute closed wins over
-// it, an answer built BEFORE the minute closed (a partial bar still in flight) does not replace the closed bar with a
-// partial one, and a REPLACE replaces what an earlier frame fed.
+// REPLACE record the start of the frame's minute). So an answer whose rows were written after that minute closed
+// wins over it, an answer built BEFORE the minute closed (a partial bar still in flight) does not replace the closed
+// bar with a partial one, and a REPLACE replaces what an earlier frame fed. (The server's `series_rev` is the series'
+// LAST WRITE, not the answer's build time: an answer built later can still carry an older one. Its UNSEALED row for
+// that minute then waits behind the fed bar, normally the same values from the same vendor bar; its SEALED row, 45 s
+// after the minute, always wins. Rail F14b.)
 //
 // LATE AND REPLACE RECORDS, as the device store applies them: the rollup (lib/minuteFrames/rollup.js) hands every
 // record to the sink as the 1m bar of ITS minute, an identical repeat dropped. A record for a minute at or before a
@@ -145,10 +148,10 @@ export function createMinuteFeeder({
     return i >= 0 && b[i].t === t
   }
 
-  function _offer(key, sym, row) {
+  function _offer(key, sym, row, rev = row.rev) {
     return registry.feed(key, {
       type: ACTION.PUSH_FINAL,
-      event: { sym, tf: FEED_TF, t: row.t, o: row.o, h: row.h, l: row.l, c: row.c, v: row.v, rev: row.rev },
+      event: { sym, tf: FEED_TF, t: row.t, o: row.o, h: row.h, l: row.l, c: row.c, v: row.v, rev },
     })
   }
 
@@ -183,7 +186,13 @@ export function createMinuteFeeder({
     for (let m = s.bars[s.bars.length - 1].t / 60 + 1; m <= through; m++) {
       const row = st.bars.get(m)
       if (!row) return
-      const next = _offer(key, sym, row)
+      // A FORMING bar is a partial observation of its minute, whatever instant it is stamped with; the feed's bar is
+      // that minute CLOSED. So the closed bar outranks a forming bar the copy holds for the same minute (review of
+      // #2639, L1): stamped at or after the fed revision (a late seal, a clock that runs ahead), the reducer would
+      // otherwise close the bucket with the PARTIAL values and rank the feed's bar below them.
+      const dev = s.developing
+      const rev = dev && dev.t === row.t && Number.isFinite(dev.rev) && dev.rev >= row.rev ? dev.rev + 1 : row.rev
+      const next = _offer(key, sym, row, rev)
       // the minute must now be a closed row, with no forming bar left at or before it; anything else (the reducer
       // refused it: a sealed span, a foreign identity) ends this key's feed until its next answer
       if (!next || !_hasRow(next, row.t) || (next.developing && next.developing.t <= row.t)) { stats.rejected++; return }
