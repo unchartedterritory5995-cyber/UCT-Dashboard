@@ -1,4 +1,5 @@
-"""The Screener's two short-interest columns, `short_float_pct` and `short_ratio`: ONE writer.
+"""The Screener's three short-interest columns, `short_float_pct`, `short_ratio` and (2026-11-23)
+`short_interest_chg_pct`: ONE writer.
 
 Where each value comes from, per stock and PER COLUMN, in this order:
 
@@ -26,6 +27,15 @@ by the float it found on the day the report was first read and keeps that figure
 report, about two weeks. The row beside it carries tonight's float. Dividing by tonight's float
 keeps the three numbers on one row in agreement (short percent x float = FINRA's shares short) and
 keeps ONE float on the row instead of two vintages of it.
+
+THE CHANGE SINCE THE PRIOR REPORT (2026-11-23), `short_interest_chg_pct`: the list row's own `change_pct`, the
+percent change in shares short from the report before (the previous settlement date) to the newest one, worked
+out once when the list is read (`short_data.change_of`, the figure SHINT shows per stock). From the same one read
+of the list as the two columns above, the list first as for `short_float_pct`; the nightly export has no previous
+report, so there is no second source: a stock the list does not have, one with no previous report, or one whose
+previous report was 0 shares (a change from 0 has no percent) has the key ABSENT. SHINT's up / down ranking also
+asks for at least `short_data.FLOOR_SHARES` shares short in the previous report; this column has no floor, so a
+small base can give a large percent. The receipt counts it (`short_interest_chg_pct`), and names both dates.
 
 A percent above `PCT_MAX` (100) is not written from the list: the Screener holds this column to
 [0, 100] (`identities._SHARE_OF_TOTAL`), and a larger figure means the float and the short
@@ -60,6 +70,8 @@ PCT_MAX = 100.0
 #: Where a value came from, for the receipt.
 FROM_LIST = "list"
 FROM_EXPORT = "export"
+#: The change in shares short since the prior report: from the list only (2026-11-23).
+CHANGE_COLUMN = "short_interest_chg_pct"
 
 
 def _note(failures, outcome) -> None:
@@ -77,6 +89,14 @@ def _number(v):
     if f != f or f in (float("inf"), float("-inf")) or f < 0:
         return None
     return f
+
+
+def _signed(v):
+    """A finite number of either sign, as a float; anything else is None."""
+    if isinstance(v, bool) or not isinstance(v, (int, float)):
+        return None
+    f = float(v)
+    return None if f != f or f in (float("inf"), float("-inf")) else f
 
 
 def _read_held_list(failures):
@@ -126,12 +146,14 @@ def _settle(tally: dict, row: dict, column: str, listed, exported, in_list: bool
 
 
 def read_short_columns(targets, failures=None, receipt=None) -> dict:
-    """{TICKER: {"short_float_pct"?, "short_ratio"?}} with PER-COLUMN presence: a key is there
-    only when a source gave a number for it. Units: `short_float_pct` PERCENT, `short_ratio` DAYS.
+    """{TICKER: {"short_float_pct"?, "short_ratio"?, "short_interest_chg_pct"?}} with PER-COLUMN presence: a
+    key is there only when a source gave a number for it. Units: `short_float_pct` PERCENT, `short_ratio`
+    DAYS, `short_interest_chg_pct` PERCENT CHANGE in shares short since the prior report (the list only).
 
     `receipt`, when a dict is passed, is filled with what this call did (counts only):
       list                 'held' | 'not_held' | 'unavailable' | 'failed' | 'error'
       settlement_date      the held report's settlement date (None when no list is held)
+      previous_settlement_date  the report's the change is measured from (None when none is held)
       publication_estimate when FINRA's schedule published that report
       list_read_at         when the server read it from the vendor
       targets, in_list     stocks asked for; how many of them the held list has
@@ -143,6 +165,7 @@ def read_short_columns(targets, failures=None, receipt=None) -> dict:
                            `both` is how many stocks have a figure from both sources and
                            `median_abs_diff` the median absolute difference across those (percent
                            points; days), None when there are none
+      short_interest_chg_pct  {list, none}: stocks that took the list's change, and stocks with none
     """
     names = [str(t).upper() for t in (targets or ())]
     exported = finviz_universe.read_short_export(names, failures)
@@ -150,6 +173,7 @@ def read_short_columns(targets, failures=None, receipt=None) -> dict:
 
     out: dict = {}
     pct_tally, ratio_tally = _tally(), _tally()
+    chg_tally = {FROM_LIST: 0, "none": 0}
     pct_diffs: list = []
     ratio_diffs: list = []
     in_list = withheld = 0
@@ -160,8 +184,9 @@ def read_short_columns(targets, failures=None, receipt=None) -> dict:
             li = None
         in_list += 1 if li is not None else 0
 
-        list_pct = list_ratio = None
+        list_pct = list_ratio = list_chg = None
         if li is not None:
+            list_chg = _signed(li.get("change_pct"))
             list_ratio = _number(li.get("days_to_cover"))
             if list_ratio is not None:
                 list_ratio = round(list_ratio, 2)
@@ -177,6 +202,9 @@ def read_short_columns(targets, failures=None, receipt=None) -> dict:
                 li is not None, pct_diffs)
         _settle(ratio_tally, row, "short_ratio", list_ratio, _number(ex.get("short_ratio")),
                 li is not None, ratio_diffs)
+        if list_chg is not None:
+            row["short_interest_chg_pct"] = list_chg          # CHANGE_COLUMN, spelled out for the scalar census
+        chg_tally[FROM_LIST if list_chg is not None else "none"] += 1
         out[name] = row
 
     pct_tally["median_abs_diff"] = round(statistics.median(pct_diffs), 3) if pct_diffs else None
@@ -184,10 +212,11 @@ def read_short_columns(targets, failures=None, receipt=None) -> dict:
     said = {
         "list": state,
         "settlement_date": held.get("settlement_date") if held else None,
+        "previous_settlement_date": held.get("previous_settlement_date") if held else None,
         "publication_estimate": held.get("publication_estimate") if held else None,
         "list_read_at": held.get("read_at") if held else None,
         "targets": len(names), "in_list": in_list, "withheld": withheld,
-        "short_float_pct": pct_tally, "short_ratio": ratio_tally,
+        "short_float_pct": pct_tally, "short_ratio": ratio_tally, CHANGE_COLUMN: chg_tally,
     }
     if receipt is not None:
         receipt.clear()

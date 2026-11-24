@@ -119,6 +119,12 @@ def test_a_not_applied_mutation_fails_the_harness_rather_than_printing(harness):
             "ok_all = False" in src and "count != 1" in src,
         'an `ok` flag cleared on a bad match count':
             "ok = False" in src and "!= 1" in src,
+        # ⭐ THE FOURTH, named 2026-11-24 when the D-02/R30-era harnesses (contract, load_model,
+        # push_guard, render_gate, stall_record) became readable here: a NOT-APPLIED mutation is
+        # added to a `failed` count, and the harness exits non-zero while that count is. All three
+        # parts are required, so a harness that counts and then exits 0 anyway does not match.
+        'a `failed` count raised on a bad match count, and the exit follows it':
+            "failed += 1" in src and "!= 1" in src and "0 if not failed else 1" in src,
     }
     assert any(idioms.values()), (
         f"{harness} has no recognised path from a NOT-APPLIED mutation to a non-zero exit — a "

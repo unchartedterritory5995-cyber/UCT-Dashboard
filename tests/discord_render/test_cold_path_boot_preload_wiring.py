@@ -6,9 +6,36 @@
 (`hub/rule12Paths.test.js`'s own history, `lesson_a_second_authority_over_one_value`'s
 cousins): a perfect mechanism nobody wires into startup warms nothing.
 """
+import ast
 import time
 
 from api.services.discord_render import cold_start_guard as g
+
+
+def _preload_call_sites(src: str) -> list[tuple[int, bool]]:
+    """(line, guarded) for every call of `_start_cold_path_boot_preload()` in `src`, from the parse
+    tree. `guarded` is True when the call sits in the BODY of a `try:` (in the same function) one
+    of whose handlers catches Exception (or everything). A text offset cannot answer this: it broke
+    the day the call moved under `if not _light_skip("cold-preload"):` inside the same try."""
+    tree = ast.parse(src)
+    parents = {child: node for node in ast.walk(tree) for child in ast.iter_child_nodes(node)}
+    catches_all = lambda h: h.type is None or (  # noqa: E731
+        isinstance(h.type, ast.Name) and h.type.id in ("Exception", "BaseException"))
+    out = []
+    for call in ast.walk(tree):
+        if not (isinstance(call, ast.Call) and isinstance(call.func, ast.Name)
+                and call.func.id == "_start_cold_path_boot_preload"):
+            continue
+        node, guarded = call, False
+        while node in parents and not guarded:
+            parent = parents[node]
+            if isinstance(parent, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda, ast.ClassDef)):
+                break                       # a try outside the enclosing function does not guard this call
+            if isinstance(parent, ast.Try) and node in parent.body:
+                guarded = any(catches_all(h) for h in parent.handlers)
+            node = parent
+        out.append((call.lineno, guarded))
+    return out
 
 
 def test_start_cold_path_boot_preload_registers_and_warms_cap_universe(monkeypatch):
@@ -137,16 +164,26 @@ def test_a_preload_failure_never_raises_out_of_startup(monkeypatch):
     else:
         raise AssertionError("fault injection did not actually break the call")
 
-    # Now prove api.main's startup wraps it — i.e. the SAME shape of try/except used in
-    # the lifespan is present verbatim around the real call site.
+    # Now prove api.main's startup wraps it: every real call site sits inside a try whose handler
+    # catches Exception. ⚰️ This was a text offset, `src.index("try:\n        _start_cold_path_
+    # boot_preload()")`, and it went red (ValueError: substring not found) when 9f8d8ff1fa put the
+    # call under `if not _light_skip("cold-preload"):` INSIDE the same try — the guard it pins was
+    # still there. The parse tree answers the question the offset stood in for.
     import inspect
     src = inspect.getsource(m)
-    assert "_start_cold_path_boot_preload" in src
-    idx = src.index("try:\n        _start_cold_path_boot_preload()")
-    guarded = src[idx:idx + 200]
-    assert "except Exception" in guarded, (
-        "the boot preload call site is not wrapped in try/except — a preload wiring bug "
-        "would take down the whole app at startup")
+    sites = _preload_call_sites(src)
+    assert sites, "api.main never calls _start_cold_path_boot_preload() — the boot preload is unwired"
+    unguarded = [line for line, ok in sites if not ok]
+    assert not unguarded, (
+        f"the boot preload call at api/main.py line(s) {unguarded} is not wrapped in try/except "
+        "Exception — a preload wiring bug would take down the whole app at startup")
+    # CONTROL: the probe can say no, and can say yes, on the shapes it judges.
+    assert _preload_call_sites("def f():\n    _start_cold_path_boot_preload()\n") == [(2, False)]
+    assert _preload_call_sites("def f():\n    try:\n        if x:\n            "
+                               "_start_cold_path_boot_preload()\n    except Exception:\n"
+                               "        pass\n") == [(4, True)]
+    assert _preload_call_sites("def f():\n    try:\n        _start_cold_path_boot_preload()\n"
+                               "    except ValueError:\n        pass\n") == [(3, False)]
     g._reset_for_tests()
 
 

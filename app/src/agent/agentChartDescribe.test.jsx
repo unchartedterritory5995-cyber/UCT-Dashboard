@@ -12,6 +12,7 @@ import KN1 from './__fixtures__/kn1-measurables-v1.json'
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 import { setupPanel, ONE, FOUR } from './testing/panelHarness'
 import { registerBuiltins, registerServerGatedBuiltins } from './builtins'
+import './terminalWaves'  // the Terminal data waves: registerServerGatedBuiltins() runs them only once this module has loaded (terminalWavesHook.js)
 import { allCapabilityNames, getCapability, manifestFor, registerCapability } from './capabilities'
 import { loadAgentConfig, _resetAgentConfig } from './agentClient'
 import { fastParse } from './fastPath'

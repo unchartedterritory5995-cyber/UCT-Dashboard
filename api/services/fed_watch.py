@@ -43,8 +43,8 @@ writes ONE log line, prefix `[fed-watch]`, naming each request's status.
 
 HOW OFTEN (the house pattern of `api/services/treasury_yields.py`): a request NEVER fetches. It
 answers from what this module holds at once and, when something is due, starts ONE background
-build (one at a time, whatever the number of members). With nothing held yet it waits up to
-`WAIT_S` for that build, else the Board's blocks say `computing` and the panel asks again.
+build (one at a time, whatever the number of members). With nothing held yet the Board's blocks say
+`computing` at once (`WAIT_S` is none) and the panel asks again every 3 seconds.
   * each Board feed: at most once per `feed_ttl` (10 minutes on weekdays 07:00-20:00 New York time,
     an hour otherwise), counted from the last ATTEMPT, so a failing feed is not asked more often;
   * a statement page, a projections page, a survey data file: once each, ever (held in memory and
@@ -113,7 +113,7 @@ MAX_FEED_BYTES = 1_000_000      # a feed is about 10 kB
 MAX_PAGE_BYTES = 3_000_000      # a statement page is about 85 kB, the projections page about 250 kB
 MAX_FILE_BYTES = 8_000_000      # a survey data file is about 180 kB
 PAUSE_S = 1.0                   # between two requests of one build
-WAIT_S = 3.0                    # the longest a request waits on the build it started
+WAIT_S = 0.0                    # the longest a request waits on the build it started: none (speed pass 2026-11-23)
 KEEP_STATEMENTS = 6
 KEEP_PROJECTIONS = 2
 KEEP_SURVEYS = 2
@@ -715,6 +715,17 @@ def _calendar_payloads(today: date) -> list[Optional[dict]]:
     monday = today - timedelta(days=today.weekday())
     for i in range(1, CALENDAR_WEEKS_AHEAD + 1):
         out.append(cache.get(f"calendar_week_{(monday + timedelta(weeks=i)).isoformat()}"))
+    # ⛔ TERM-030: every week this panel reads goes through the ONE shape assertion every other week
+    # reader calls. A malformed week is counted, logged at ERROR and sent to the ops feed by name
+    # (week_days does all three before it raises), then dropped HERE, so the panel treats it as a
+    # week it does not hold ("not held" for this week; the survey's dates for the next meeting)
+    # and never as a week with no Fed events. A well-formed or absent week passes through untouched.
+    from api.services.calendar_week_contract import WeekContractViolation, week_days
+    for i, payload in enumerate(out):
+        try:
+            week_days(payload, reader="api.services.fed_watch._calendar_payloads")
+        except WeekContractViolation:
+            out[i] = None
     return out
 
 

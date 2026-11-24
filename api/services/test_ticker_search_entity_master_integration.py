@@ -221,6 +221,11 @@ def test_router_breadth_row_carries_null_entity_id(monkeypatch):
         breadth_symbols, "search",
         lambda qq, limit: [{"ticker": "UCTA50", "name": "Above 50-day", "symbol_hit": True}],
     )
+    # ⛔ Breadth rows are PAID (2d121371f0, 2026-09-13): the route answers them only to a caller
+    # `_bars_entitled` accepts, and a direct call carries no session cookie, so since then this
+    # asked as a signed-out visitor and got no rows at all. The question here is the row's
+    # entity_id, so ask as an entitled member.
+    monkeypatch.setattr(router_mod, "_bars_entitled", lambda _session: True)
     resp = router_mod.ticker_search(q="UCTA50", limit=20, type="breadth")
     assert resp["results"]
     row = resp["results"][0]
