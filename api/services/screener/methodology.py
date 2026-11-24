@@ -1699,6 +1699,225 @@ def fund_trends_section() -> dict:
     }
 
 
+# ── Volume & volatility, and beats, insiders & funds (2026-11-23) ─────────────────────────────
+# ⛔ THE SAME RULE AS EVERY SECTION HERE: each number is read from the module that owns the
+# definition (`realized_vol`, `stock_stats_calc`, `volume_footprint_calc`, `market_history`,
+# `sector_earnings_calc`, `earnings_intel`, `insider_clusters_sec`, `fund_trends`) or from the
+# writer (`volume_volatility`, `beats_insiders_funds`) at call time, so a re-tuned window moves
+# this page on the same deploy. `test_the_new_methods_are_read_from_the_owners` proves it by
+# moving one of each.
+VOLUME_VOLATILITY_FAMILY = "volume_volatility"
+BEATS_FAMILY = "beats_insiders_funds"
+
+_BLANK = "Blank, never 0, when it cannot be worked out, and a filter on it leaves the stock out."
+
+
+def _vv_params() -> dict:
+    from api.services import market_history as _mkt                    # noqa: PLC0415
+    from api.services import market_history_calc as _mh                # noqa: PLC0415
+    from api.services import realized_vol as _rv                       # noqa: PLC0415
+    from api.services import stock_stats_calc as _sc                   # noqa: PLC0415
+    from api.services import volume_footprint_calc as _vf              # noqa: PLC0415
+    from api.services.screener import volume_volatility as _vv         # noqa: PLC0415
+    return {"vv": _vv, "rv": _rv, "sc": _sc, "vf": _vf, "mh": _mh, "mkt_text": _mkt._definition()["text"]}
+
+
+def _vv_common(p: dict) -> str:
+    return ("From UCT's stored daily bars (split-adjusted, price only), the same bars every other bar column of "
+            "this row reads, worked out by the nightly 03:00 ET build as of the row's newest session; never a "
+            "vendor. A stock whose own closes contradict themselves (two price regimes merged into one series) has "
+            "the column withheld when its window reaches the newest break.")
+
+
+def _volume_volatility_methods() -> list:
+    """The six volume and volatility columns (`volume_volatility.COLUMNS`), every number read from the module
+    that owns the definition."""
+    p = _vv_params()
+    vv, rv, sc, vf, mh = p["vv"], p["rv"], p["sc"], p["vf"], p["mh"]
+    common = _vv_common(p)
+    move = f"{vf.AD_MIN_MOVE * 100:g}%"
+    pivot_rule = (f"an up day (a close above the session before's) whose volume is above the largest volume of the "
+                  f"down days among the {vf.PIVOT_LOOKBACK} sessions before it, closing above its {vf.PIVOT_MA}-day "
+                  f"simple average (the mean of the {vf.PIVOT_MA} closes through that day); with no down day among "
+                  f"those {vf.PIVOT_LOOKBACK} there is nothing to exceed, so it is not one")
+    need_pp = vv.PIVOT_SESSIONS + vf.PIVOT_LOOKBACK + 1
+    out = []
+    for col, k in vv.HV_SESSIONS.items():
+        out.append({
+            "column": col, "label": f"Realized Volatility, {k} Days",
+            "one_line": f"How much the stock has moved from close to close over the last {k} sessions, annualized.",
+            "scale": "percent a year (42 = 42%)",
+            "how": (f"STAT's realized volatility: {rv.METHOD}, over the last {k} daily returns ({k + 1} closes), "
+                    f"to one decimal, the number STAT prints for it. " + common),
+            "caveat": (f"Blank with fewer than {k + 1} sessions held. Close to close: an overnight gap counts, the "
+                       f"range inside a day does not (that is ATR % and ADR %). " + _BLANK)})
+    out.extend([
+        {"column": "ad_net_25", "label": f"Accumulation Minus Distribution Days ({vv.AD_SESSIONS})",
+         "one_line": f"Accumulation days less distribution days over the last {vv.AD_SESSIONS} sessions.",
+         "scale": f"a count of days, -{vv.AD_SESSIONS} to {vv.AD_SESSIONS}",
+         "how": (f"VFP's definition: an accumulation day closes at least {move} above the session before's close "
+                 f"on more volume than the session before; a distribution day closes at least {move} below it on "
+                 f"more volume. This column is the accumulation days less the distribution days of the last "
+                 f"{vv.AD_SESSIONS} sessions, the net VFP prints for that window. " + common),
+         "caveat": (f"Blank with fewer than {vv.AD_SESSIONS + 1} sessions held, or when a session of the "
+                    f"{vv.AD_SESSIONS} cannot be judged (its volume or the session before's is not held): it always "
+                    f"counts all {vv.AD_SESSIONS}. {move} is VFP's default, not an owner ruling. Not the Acc/Dis "
+                    f"grade, which is a letter from an up/down volume ratio. " + _BLANK)},
+        {"column": "pocket_pivots_20", "label": f"Pocket Pivots, Last {vv.PIVOT_SESSIONS} Sessions",
+         "one_line": f"How many pocket pivots the last {vv.PIVOT_SESSIONS} sessions held.",
+         "scale": f"a count, 0 to {vv.PIVOT_SESSIONS}",
+         "how": (f"VFP's pocket pivot (the published definition): {pivot_rule}. Counted over the last "
+                 f"{vv.PIVOT_SESSIONS} sessions. " + common),
+         "caveat": (f"Blank with fewer than {need_pp} sessions held (each of the {vv.PIVOT_SESSIONS} needs its "
+                    f"{vf.PIVOT_LOOKBACK} sessions before it), or when an up day of the {vv.PIVOT_SESSIONS} has a "
+                    f"volume not held (on the day or on one of those down days). {vv.PIVOT_SESSIONS} sessions is "
+                    f"UCT's default here, not an owner ruling. " + _BLANK)},
+        {"column": "days_since_pocket_pivot", "label": "Sessions Since Last Pocket Pivot",
+         "one_line": "Sessions since the newest pocket pivot of the last year: 0 means the newest session is one.",
+         "scale": "sessions",
+         "how": (f"VFP's pocket pivot (the published definition): {pivot_rule}. This column counts the stock's own "
+                 f"sessions from the newest one of the last year (sessions after the same calendar day "
+                 f"{sc.YEAR_MONTHS} months before the newest, STAT's and VFP's year) to the newest session. "
+                 + common),
+         "caveat": ("Blank when the last year holds no pocket pivot, or when an up day of that year has a volume "
+                    "not held. A stock with less than a year of history is read over what is held. " + _BLANK)},
+        {"column": "corr_rel_last", "label": "Drawdown vs S&P 500, Last Correction",
+         "one_line": ("In the newest S&P 500 correction that has ended, how far the stock fell against how far the "
+                      "index fell: under 1 means it held up better."),
+         "scale": "a ratio (0.5 = fell half as far as the index; 0 = did not fall)",
+         "how": (f"MKTH's one definition: {p['mkt_text']} This column takes the newest S&P 500 decline of "
+                 f"{round(mh.CORRECTION_MIN * 100)}% or more (a correction, or a bear market at "
+                 f"{round(mh.BEAR_MIN * 100)}%) that had regained its peak by the row's newest session. Inside "
+                 f"the index's own window, its peak close to its lowest close, the stock's deepest fall from the "
+                 f"highest close it had made in the window so far (STAT's drawdown in each correction), over the "
+                 f"index's fall, to two decimals. The index closes are MKTH's own (UCT's stored S&P 500 closes), "
+                 f"read once per build. " + common),
+         "caveat": (f"Blank when the stock's history does not reach the index's peak (no close within "
+                    f"{sc.MAX_GAP_DAYS} days on or before it), or when UCT does not hold the index's closes. One "
+                    f"decline only; STAT shows the stock in every one. A past decline says nothing certain about "
+                    f"the next. " + _BLANK)},
+    ])
+    for m in out:
+        m["family"] = VOLUME_VOLATILITY_FAMILY
+    return out
+
+
+def volume_volatility_section() -> dict:
+    """The shared paragraph for the six volume and volatility columns."""
+    vv = _vv_params()["vv"]
+    return {
+        "label": "Volume and volatility columns",
+        "columns": list(vv.COLUMNS),
+        "timing": ("Worked out by the nightly 03:00 ET build from each stock's own daily bars, as of its newest "
+                   "session, inside the same pass that works out every other bar column; the S&P 500 declines are "
+                   "read once per build."),
+        "sources": ["STAT (realized volatility, drawdown in a correction)", "VFP (accumulation and distribution "
+                    "days, pocket pivots)", "MKTH (the S&P 500 declines)"],
+        "honesty": ("Each column describes what the stock already did. A count of accumulation days or pocket "
+                    "pivots is not a forecast, and none of these columns is a recommendation."),
+    }
+
+
+def _bif_params() -> dict:
+    from api.services import earnings_intel as _ei                     # noqa: PLC0415
+    from api.services import fund_holders_nport as _fhn                # noqa: PLC0415
+    from api.services import insider_clusters_sec as _ics              # noqa: PLC0415
+    from api.services import sector_earnings as _se                    # noqa: PLC0415
+    from api.services import sector_earnings_calc as _ec               # noqa: PLC0415
+    from api.services.screener import beats_insiders_funds as _bif     # noqa: PLC0415
+    from api.services.screener import fund_trends as _ft               # noqa: PLC0415
+    return {"bif": _bif, "ei": _ei, "ec": _ec, "se": _se, "ics": _ics, "fhn": _fhn, "ft": _ft}
+
+
+def _beats_methods() -> list:
+    """The five beats, insiders and funds columns (`beats_insiders_funds.COLUMNS`), every number read from the
+    module that owns it."""
+    p = _bif_params()
+    bif, ei, ec, se, ics, fhn, ft = p["bif"], p["ei"], p["ec"], p["se"], p["ics"], p["fhn"], p["ft"]
+    copy = (f"From {se.SOURCE}, the copy UCT already holds for each stock (at most {ei._STALE_MAX // 86400} days "
+            f"old), read once per build by the nightly 03:00 ET build: only reported quarters with a report date "
+            f"on or before the build's session count, newest fiscal quarter first. Never a vendor call.")
+    behind = ("Blank while the copy is behind: its own next report date has passed (on or before the session) with "
+              "no result for it in the copy yet; and when UCT holds no copy.")
+    band = (f"a surprise above {ec.IN_LINE_PCT:g}% (or, for a consensus under 5 cents, above "
+            f"{ec.IN_LINE_ABS:g} dollars) is a beat, within that band either way is in line")
+    window = (f"FILED in the {bif.INSIDER_DAYS} calendar days ending on the build's session, from INS CLUSTER's "
+              f"store of {ics.SOURCE}: transaction code P, acquired; the store keeps purchases, not sales. Read "
+              f"once per build, each filing matched to the stock by the trading symbol it names")
+    ins_blank = (f"Blank for every stock while that store is not held, does not yet reach back over all "
+                 f"{bif.INSIDER_DAYS} days (it keeps {ics.KEEP_DAYS} calendar days counted from its own nightly "
+                 f"read, so it is short in its first weeks and can be for one build after a market holiday), or "
+                 f"its newest read filing day is more than {ft.MAX_LAG_SESSIONS} sessions behind. A filing that "
+                 f"names no trading symbol, or spells it another way, is not matched.")
+    out = [
+        {"column": "eps_surprise_last", "label": "EPS Surprise, Last Report",
+         "one_line": "The newest report's EPS against the consensus, in percent.",
+         "scale": "percent (8 = 8% above the consensus)",
+         "how": ("(actual - consensus) / |consensus| for the newest reported quarter, on a consensus-comparable "
+                 "basis, to two decimals: the copy's own figure, the one the Research Earnings tab and ERNSC show. "
+                 + copy),
+         "caveat": ("Blank when the copy holds no comparable consensus for that quarter, or the consensus is under "
+                    "5 cents (the copy then gives only the difference in dollars). " + behind + " " + _BLANK)},
+        {"column": "eps_beat_streak", "label": "EPS Beat Streak (quarters)",
+         "one_line": "How many reported quarters in a row beat the EPS consensus.",
+         "scale": f"0 to {ei._QUARTERS_BACK} quarters",
+         "how": (f"ERNSC's beat rule: {band}. Counted from the newest reported quarter back while each quarter "
+                 f"beat and is the fiscal quarter right before the last one counted. " + copy),
+         "caveat": (f"The count stops at the first quarter in line, missed, with no comparable consensus, or "
+                    f"missing; at most the {ei._QUARTERS_BACK} quarters the copy holds, so {ei._QUARTERS_BACK} "
+                    f"means at least {ei._QUARTERS_BACK}. Blank when the newest quarter has no comparable "
+                    f"consensus. {ec.IN_LINE_PCT:g}% is ERNSC's default band, not an owner ruling. " + behind
+                    + " " + _BLANK)},
+        {"column": "insider_buys_30d", "label": f"Insider Buy Filings, Last {bif.INSIDER_DAYS} Days",
+         "one_line": f"How many Form 4 filings reported an open-market purchase in the last {bif.INSIDER_DAYS} days.",
+         "scale": "a count of filings",
+         "how": (f"Every Form 4 filing with at least one open-market purchase {window}. One filing is one insider's "
+                 f"report and can hold several purchases. The store reads every Form 4 in EDGAR's daily index each "
+                 f"night, so 0 means none was filed."),
+         "caveat": ins_blank + " " + _BLANK},
+        {"column": "insider_buy_value_30d", "label": f"Insider Buy Value, Last {bif.INSIDER_DAYS} Days",
+         "one_line": "The dollars of those open-market purchases.",
+         "scale": "US dollars",
+         "how": (f"The total of the purchases that state a price, as the filer stated them, in the filings "
+                 f"{window}."),
+         "caveat": ("A purchase with no stated price is counted in Insider Buy Filings and never valued at $0. Blank "
+                    "when no purchase in the window states a price, including when there was none. " + ins_blank
+                    + " " + _BLANK)},
+        {"column": "fund_net_adds", "label": "Funds Adding Minus Funds Cutting",
+         "one_line": "Funds that added to or opened a position, less funds that cut or sold out.",
+         "scale": "a count of funds (12 = twelve more funds added than cut)",
+         "how": (f"From the Funds (N-PORT) index ({fhn.SOURCE}), read once per build: for each registered fund "
+                 f"(mutual funds and ETFs) holding the stock, its newest report against its previous one, the "
+                 f"earlier report's shares put in post-split terms across a stock split between them; the funds "
+                 f"that added or opened, less the funds that cut or sold out, GRPS CROWDING's rule read the same way. "
+                 f"Quarterly: the SEC posts one data set a quarter."),
+         "caveat": ("Blank when the index is not built, the stock is not in it, no fund's change is known (no fund "
+                    "holding or having held it has a previous report in the data), or any fund's change is not "
+                    "comparable (a split between its reports that could not be checked): never a guessed add or "
+                    "cut. Registered funds only, not 13F institutions. " + _BLANK)},
+    ]
+    for m in out:
+        m["family"] = BEATS_FAMILY
+    return out
+
+
+def beats_insiders_funds_section() -> dict:
+    """The shared paragraph for the five beats, insiders and funds columns."""
+    bif = _bif_params()["bif"]
+    return {
+        "label": "Earnings beats, insider buys and fund adds",
+        "columns": list(bif.COLUMNS),
+        "timing": ("Read by the nightly 03:00 ET build from three stores UCT already holds, once each, as of the "
+                   "build's session: the held earnings copies, INS CLUSTER's Form 4 purchases and the N-PORT fund "
+                   "index. A store that is not held, too thin or behind leaves its columns blank."),
+        "sources": ["the Research Earnings tab's earnings copies (ERNSC's read and beat rule)",
+                    "INS CLUSTER (SEC Form 4 open-market purchases)", "the Funds (N-PORT) index (GRPS CROWDING's "
+                    "rule)"],
+        "honesty": ("A beat streak ends, insiders buy for their own reasons, and funds report months after they "
+                    "trade. None of these columns is a recommendation."),
+    }
+
+
 def all_methods(user=None) -> dict:
     """Every composite column we publish, with how it is computed.
 
@@ -1737,11 +1956,15 @@ def all_methods(user=None) -> dict:
         out.append(m)
     out.extend(_rs_column_methods())
     out.extend(_fund_trend_methods())
+    out.extend(_volume_volatility_methods())
+    out.extend(_beats_methods())
     evening = _fund_trend_params()["ft"].REBUILD_AT_ET
     doc = {
         "methods": out,
         "rs_columns": rs_columns_section(),
         "fundamental_trends": fund_trends_section(),
+        "volume_volatility": volume_volatility_section(),
+        "beats_insiders_funds": beats_insiders_funds_section(),
         "as_of_note": (
             "Every column here is recomputed by the nightly 03:00 ET build; the "
             "IBD-style RS Rating columns are read by that build from the 04:15 ET "

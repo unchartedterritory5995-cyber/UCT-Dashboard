@@ -49,6 +49,13 @@
 //             verified by its own hash, the way `definition.doc` is: both languages hash the SAME
 //             bytes and no second canonical-JSON emitter has to agree. A job that asks for the record
 //             and gets none carries a refusal keyed '#strategy' instead; never both, never neither.
+//   alerts    (TRACK 6, AL2) ONLY on an ok result of a job whose `want` names ALERTS_WANT
+//             ('#alerts'), which only profile `alert` may ask: the run's alert() record (AL1,
+//             `runtimeAlertsOf`: `{fromBar: 0, events: [{bar, message, freq}], dropped}`) as JSON
+//             TEXT, exactly as the job adapter wrote it, checked here against that closed shape
+//             (`alertsRecordShapeErrors`: AL1's caps, every bar one of this job's). The seal adds
+//             `alerts_sha256` = sha256 of the text's UTF-8 bytes; the T3 digest is not changed. A
+//             job that asks and gets none carries a refusal keyed '#alerts'; never both, never neither.
 // A field outside these sets, a missing one, or a column that does not decode is not a reply:
 // the whole request is refused (500 runtime:server-failed). Nothing is passed through unread.
 import { createHash } from 'node:crypto'
@@ -85,6 +92,17 @@ export const STRATEGY_WANT = '#strategy'
 /** W9-T14: the one profile that may ask for the record (design 3.4: "returns the record under
  *  profile `backtest`"). Any other profile naming STRATEGY_WANT is a schema refusal. */
 export const STRATEGY_PROFILE = 'backtest'
+/** TRACK 6, AL2: the `want` entry that asks for the run's alert() record (AL1 `runtimeAlertsOf`) instead of
+ *  a column. Not a plot key (a plot key starts with a letter). `pine_runtime_codec.py` ALERTS_WANT mirrors it. */
+export const ALERTS_WANT = '#alerts'
+/** AL2: the one profile that may ask for the alert record (the alert lane, AL3). Any other profile naming
+ *  ALERTS_WANT is a schema refusal. */
+export const ALERTS_PROFILE = 'alert'
+/** AL1's caps (collections.js ALERT_LOG_CAP / ALERT_MESSAGE_CAP), which the seal holds a record to; a rail
+ *  reads collections.js, so the two cannot drift. A freq is the script's own string, bounded here. */
+export const ALERTS_MAX_EVENTS = 500
+export const ALERTS_MAX_MESSAGE = 512
+export const ALERTS_MAX_FREQ = 64
 
 const HEX64 = /^[0-9a-f]{64}$/
 const PRINTABLE = (min, max) => new RegExp(`^[\\x20-\\x7e]{${min},${max}}$`)
@@ -241,6 +259,9 @@ function jobOf(v, path, { tfSet, maxBars, profile }) {
   if (want.includes(STRATEGY_WANT) && profile !== STRATEGY_PROFILE) {
     throw bad(`${path}.want`, `names ${JSON.stringify(STRATEGY_WANT)}, which only profile ${JSON.stringify(STRATEGY_PROFILE)} may ask for`)
   }
+  if (want.includes(ALERTS_WANT) && profile !== ALERTS_PROFILE) {
+    throw bad(`${path}.want`, `names ${JSON.stringify(ALERTS_WANT)}, which only profile ${JSON.stringify(ALERTS_PROFILE)} may ask for`)
+  }
   return { job, symbol, tf: v.tf, bars, ctx, want }
 }
 
@@ -365,7 +386,7 @@ function librariesOf(v) {
 
 /** The closed key sets of one result as the RUNNER returns it, by status (before the seal). */
 export const RUNNER_RESULT_FIELDS = Object.freeze({
-  ok: Object.freeze({ required: Object.freeze(['job', 'status', 'columns', 'refusals', 'warmup']), optional: Object.freeze(['ms', 'cache', 'strategy']) }),
+  ok: Object.freeze({ required: Object.freeze(['job', 'status', 'columns', 'refusals', 'warmup']), optional: Object.freeze(['ms', 'cache', 'strategy', 'alerts']) }),
   withheld: Object.freeze({ required: Object.freeze(['job', 'status', 'refusals']), optional: Object.freeze(['ms', 'cache']) }),
 })
 /** W5-INT: the values of a result's `cache` field (design 3.2). */
@@ -373,7 +394,7 @@ export const CACHE_STATES = Object.freeze(['hit', 'miss'])
 /** The closed key sets of one result ON THE WIRE: the runner's, plus the digest the seal adds.
  *  `sealOne` builds each result from these fields only (a rail holds its output to this set). */
 export const RESULT_FIELDS = Object.freeze({
-  ok: Object.freeze({ required: Object.freeze([...RUNNER_RESULT_FIELDS.ok.required, 'digest']), optional: Object.freeze([...RUNNER_RESULT_FIELDS.ok.optional, 'strategy_sha256']) }),
+  ok: Object.freeze({ required: Object.freeze([...RUNNER_RESULT_FIELDS.ok.required, 'digest']), optional: Object.freeze([...RUNNER_RESULT_FIELDS.ok.optional, 'strategy_sha256', 'alerts_sha256']) }),
   withheld: Object.freeze({ required: Object.freeze([...RUNNER_RESULT_FIELDS.withheld.required, 'digest']), optional: RUNNER_RESULT_FIELDS.withheld.optional }),
 })
 export const REFUSAL_FIELDS = Object.freeze(['key', 'guard', 'sentence', 'bar'])
@@ -429,6 +450,49 @@ function strategyOf(codec, job, r, refusals, path) {
   return { text, sha256: createHash('sha256').update(bytes).digest('hex') }
 }
 
+/** AL2: why `rec` is not an alert record for a run over `n` bars (AL1's closed shape and caps); [] when it is. */
+export function alertsRecordShapeErrors(rec, n) {
+  if (!isPlain(rec)) return ['the record is not an object']
+  const errs = []
+  const keys = Object.keys(rec).sort().join(',')
+  if (keys !== 'dropped,events,fromBar') errs.push(`its keys are ${keys || 'none'}, not dropped, events, fromBar`)
+  if (rec.fromBar !== 0) errs.push('fromBar is not 0 (a record covers the run from its first bar)')
+  if (!Number.isSafeInteger(rec.dropped) || rec.dropped < 0) errs.push('dropped is not a count')
+  if (!Array.isArray(rec.events)) return [...errs, 'events is not an array']
+  if (rec.events.length > ALERTS_MAX_EVENTS) errs.push(`events holds ${rec.events.length}, more than ${ALERTS_MAX_EVENTS}`)
+  rec.events.forEach((e, i) => {
+    if (!isPlain(e) || Object.keys(e).sort().join(',') !== 'bar,freq,message') { errs.push(`events[${i}] is not {bar, message, freq}`); return }
+    if (e.bar !== null && (!Number.isSafeInteger(e.bar) || e.bar < 0 || e.bar >= n)) errs.push(`events[${i}].bar is not a bar of this run`)
+    if (e.message !== null && (typeof e.message !== 'string' || e.message.length > ALERTS_MAX_MESSAGE)) {
+      errs.push(`events[${i}].message is not null or a string of at most ${ALERTS_MAX_MESSAGE}`)
+    }
+    if (typeof e.freq !== 'string' || e.freq.length > ALERTS_MAX_FREQ) errs.push(`events[${i}].freq is not a string of at most ${ALERTS_MAX_FREQ}`)
+  })
+  return errs
+}
+
+/** AL2: the ok result's `alerts` text, checked against the closed shape, with its sha256; or null when the result
+ *  carries none, which is allowed only when the job did not ask for it or refuses it. */
+function alertsOf(job, r, refusals, path) {
+  const asked = Array.isArray(job.want) && job.want.includes(ALERTS_WANT)
+  const refused = refusals.some((x) => x.key === ALERTS_WANT)
+  if (!Object.hasOwn(r, 'alerts')) {
+    if (asked && !refused) throw bad(`${path}.alerts`, 'the job asked for the alert record and the run neither serves nor refuses it')
+    return null
+  }
+  if (!asked) throw bad(`${path}.alerts`, 'serves an alert record the job did not ask for')
+  if (refused) throw bad(`${path}.alerts`, 'both serves and refuses the alert record')
+  const text = r.alerts
+  if (typeof text !== 'string') throw bad(`${path}.alerts`, "must be the record's JSON text")
+  const bytes = Buffer.from(text, 'utf8')
+  if (bytes.toString('utf8') !== text) throw bad(`${path}.alerts`, 'has no UTF-8 form (a lone surrogate), so its hash could not be checked')
+  let rec
+  try { rec = JSON.parse(text) } catch { throw bad(`${path}.alerts`, 'is not JSON') }
+  const errs = alertsRecordShapeErrors(rec, job.bars.n)
+  if (errs.length) throw bad(`${path}.alerts`, `is not an alert record (${errs.slice(0, 5).join('; ')})`)
+  return { text, sha256: createHash('sha256').update(bytes).digest('hex') }
+}
+
 function sealOne(codec, identity, job, r, path) {
   if (!isPlain(r)) throw bad(path, 'must be an object')
   const shape = Object.hasOwn(RUNNER_RESULT_FIELDS, r.status) ? RUNNER_RESULT_FIELDS[r.status] : null
@@ -448,6 +512,7 @@ function sealOne(codec, identity, job, r, path) {
     const columns = {}
     for (const [k, text] of Object.entries(r.columns)) {
       if (k === STRATEGY_WANT) throw bad(`${path}.columns`, `serves the strategy record as a column`)
+      if (k === ALERTS_WANT) throw bad(`${path}.columns`, `serves the alert record as a column`)
       if (refusals.some((x) => x.key === k)) throw bad(`${path}.columns`, `both serves and refuses ${JSON.stringify(k)}`)
       const bytes = b64Bytes(text, `${path}.columns.${JSON.stringify(k)}`)
       try {
@@ -468,6 +533,8 @@ function sealOne(codec, identity, job, r, path) {
   if (r.status === 'ok') {
     const record = strategyOf(codec, job, r, refusals, path)
     if (record !== null) { out.strategy = record.text; out.strategy_sha256 = record.sha256 }
+    const alerts = alertsOf(job, r, refusals, path)
+    if (alerts !== null) { out.alerts = alerts.text; out.alerts_sha256 = alerts.sha256 }
   }
   out.digest = codec.columnDigest({ engine: identity, columns: decoded, refusals, rows: job.bars.n })
   if (Object.hasOwn(r, 'ms')) out.ms = nonNegInt(r.ms, `${path}.ms`)

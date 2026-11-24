@@ -21,6 +21,7 @@ licensed only by a capture:
 | id | probe | chart | question | live | phase |
 |---|---|---|---|---|---|
 | Q-T4-B1 | `vw-data-usi.pine` | AMEX:SPY 1D, NYSE:RDDT 1D | per spelling (U01-U18): the daily close TradingView serves on each chart bar; U01 vs U02 (`"D"` vs `timeframe.period`) and each row against our own session counts settle the alignment; U05/U06 vs U01/U03 and U09/U10 vs U07/U08 settle whether the short spellings are the exchange ones; U11 vs U01-U03 whether ADD is the difference; U19 the built-in Advance Decline Line's spread | no | preopen |
+| Q-T4-B2 | `vw-data-usi.pine` | AMEX:SPY 1W, AMEX:SPY 1M | (added 2026-11-22 by B2) the same probe on a weekly and a monthly chart: U02 (`timeframe.period`) is the weekly / monthly read our resampler folds (`same-week` / `same-month` if Q-T4-B1 shows the same session, `previous-week` / `previous-month` if it shows the previous one), U01 (`"D"`) the daily read sampled at the period's last row (`week-last-row` / `month-last-row`); each breadth row's `periods.W` / `periods.M` block cites this row | no | preopen |
 
 ## By hand
 
@@ -30,6 +31,9 @@ licensed only by a capture:
 
 ## What each answer moves
 
-- Q-T4-B1 is the witness the breadth unit's `requestWitnesses.json` rows cite (B2). A spelling with no witness is
+- Q-T4-B1 is the witness the breadth unit's `requestWitnesses.json` rows cite (B2). Its landing is one data edit: each row's `witness` + `captured`, and
+  `pineBreadth.js::BREADTH_DAILY_ALIGNMENT` if the capture shows the previous session (it is `same-date` until then).
+- Q-T4-B2 is the witness of each row's weekly and monthly block (B2); until it lands a weekly or monthly chart refuses a
+  `USI:` read by name (`other-symbol:witness-timeframe`). A spelling with no witness is
   refused by name, never guessed. A spelling TradingView answers `na` on every bar is recorded as such and stays
   refused.

@@ -5,8 +5,10 @@
 //       a partial file the disk refused is removed (never resumed), and a persisted "not here" marker with an expiry
 //       keeps the next page loads from trying again for a while
 //   M7  a pack that fails its checks is retried with a backoff across page loads (1 h, then 6 h, then never again
-//       for that build); a new build clears it
-//   L3  pack and delta downloads never keep a second copy in the browser's HTTP cache
+//       for that build); a new build clears it, and so does a new CLIENT (the record names the worker code that
+//       failed it: review of #2537 head 107dea1ee1, P-5)
+//   L3  pack and delta downloads never keep a second copy in the browser's HTTP cache, and ask for LOW priority
+//       (review of #2537 head 107dea1ee1, P-4: the first ~80 MB download must yield to the charts' own requests)
 //   M2  serves(): does any held timeframe still pass the split guard today (the leader stops the minute feed when not)
 // The numbers are LITERALS here, pinned once against the engine's exports, so a changed constant is a red line by name.
 import { describe, it, expect, vi } from 'vitest'
@@ -377,14 +379,89 @@ describe('LOW-4 (review of #2563): the records never lock a browser out past the
   })
 })
 
-describe('L3 no second copy in the HTTP cache', () => {
-  it('the pack download and the delta download are both cache: no-store', async () => {
+describe('L3 no second copy in the HTTP cache, and the downloads yield to the charts', () => {
+  // `priority: 'low'` (review of #2537 head 107dea1ee1, P-4): default ON starts ~80 MB of packs in a desktop member's
+  // first charting minute; at low priority the browser sends the charts' own bars and stream requests first. A hint,
+  // not a cap. A browser that does not know the member ignores it (an unknown dictionary member), and the edge keys
+  // its copy on the URL alone (edge/bars-edge-router/seed.js edgeCacheKey), so it changes nothing there.
+  it('the pack download and the delta download are both cache: no-store and priority: low', async () => {
     const k = caseOf('5')
     const edge = fakeEdge(k.files)
     const eng = createDeviceEngine({ now: FIX_NOW, io: memoryIO(), fetchFn: edge })
     await eng.ingest(k.baseEntry)
     await eng.ingest(k.newEntry)
-    expect(edge.calls.map(([u, init]) => [u, init?.cache])).toEqual([[k.baseEntry.url, 'no-store'], [k.newEntry.delta.url, 'no-store']])
+    expect(edge.calls.map(([u, init]) => [u, init?.cache, init?.priority])).toEqual([
+      [k.baseEntry.url, 'no-store', 'low'],
+      [k.newEntry.delta.url, 'no-store', 'low'],
+    ])
+  })
+
+  it('a resumed pack download (a Range request) is low priority too', async () => {
+    const pack = packOf(UNIVERSE)
+    const disk = new Map()
+    const CUT = 3000
+    let cut = true
+    const inits = []
+    const edge = vi.fn(async (url, init = {}) => {
+      inits.push(init)
+      const m = /bytes=(\d+)-/.exec(init.headers?.Range || '')
+      const start = m ? Number(m[1]) : 0
+      if (cut) {
+        cut = false
+        let sent = false
+        return new Response(new ReadableStream({ pull(ctl) { if (!sent) { sent = true; ctl.enqueue(pack.slice(0, CUT)) } else ctl.error(new Error('network gone')) } }), { status: 200 })
+      }
+      return new Response(pack.slice(start), { status: 206, headers: { 'content-range': `bytes ${start}-${pack.length - 1}/${pack.length}` } })
+    })
+    const first = createDeviceEngine({ now: () => T0, io: memoryIO(disk), fetchFn: edge })
+    await expect(first.ingest(entryOf('D', 'u', pack))).rejects.toThrow(/network gone/)
+    const next = createDeviceEngine({ now: () => T0, io: memoryIO(disk), fetchFn: edge })
+    expect(await next.ingest(entryOf('D', 'u', pack))).toMatchObject({ status: 'ingested' })
+    expect(inits.map((i) => [i.headers?.Range ?? null, i.priority, i.cache])).toEqual([[null, 'low', 'no-store'], [`bytes=${CUT}-`, 'low', 'no-store']])
+  })
+})
+
+describe('M7 (review of #2537 head 107dea1ee1, P-5): the record names the client code that failed the pack', () => {
+  // The worker passes its own chunk's path (deviceStore.worker.js; the name carries the bundle's content hash), so a
+  // deploy that changes the engine is a new client: "never again for this build" (which can last a weekend, when no
+  // build lands) does not hold a FIXED client to a broken one's failures. A client that cannot name its code ('') keeps
+  // the rule as it was.
+  const A = '/assets/deviceStore.worker-AAAA1111.js'
+  const B = '/assets/deviceStore.worker-BBBB2222.js'
+
+  it('"never again" holds for the same client across page loads; a new client tries the build again and counts afresh', async () => {
+    const good = packOf(UNIVERSE)
+    const disk = new Map()
+    let t = T0
+    const edge = fakeEdge({ u: good })
+    const lying = { ...entryOf('D', 'u', good), sha256: 'f'.repeat(64) }
+    const eng = createDeviceEngine({ now: () => t, io: memoryIO(disk), fetchFn: edge, codeId: A })
+    for (const wait of [0, HOUR, 6 * HOUR]) { t += wait; await expect(eng.ingest(lying)).rejects.toThrow(/sha256/) }
+    expect(edge).toHaveBeenCalledTimes(3)
+    const same = createDeviceEngine({ now: () => t, io: memoryIO(disk), fetchFn: edge, codeId: A })   // the next page load
+    expect(await same.ingest(lying)).toMatchObject({ status: 'backoff', tries: 3, until: null })
+    expect(edge).toHaveBeenCalledTimes(3)
+    const fixed = createDeviceEngine({ now: () => t, io: memoryIO(disk), fetchFn: edge, codeId: B })  // a deploy later
+    await expect(fixed.ingest(lying)).rejects.toThrow(/sha256/)
+    expect(edge).toHaveBeenCalledTimes(4)
+    expect(await fixed.ingest(lying)).toMatchObject({ status: 'backoff', tries: 1, until: t + HOUR })
+    expect(edge).toHaveBeenCalledTimes(4)
+  })
+
+  it('a record written before the code was recorded is tried again once by a client that names its code', async () => {
+    const good = packOf(UNIVERSE)
+    const disk = new Map()
+    const lying = { ...entryOf('D', 'u', good), sha256: 'f'.repeat(64) }
+    const old = createDeviceEngine({ now: () => T0, io: memoryIO(disk), fetchFn: fakeEdge({ u: good }) })   // names no code
+    await expect(old.ingest(lying)).rejects.toThrow(/sha256/)
+    const edge = fakeEdge({ u: good })
+    const at = T0 + HOUR - 1
+    const unnamed = createDeviceEngine({ now: () => at, io: memoryIO(disk), fetchFn: edge })
+    expect(await unnamed.ingest(lying)).toMatchObject({ status: 'backoff', tries: 1, until: T0 + HOUR })   // CONTROL: as before
+    expect(edge).not.toHaveBeenCalled()
+    const named = createDeviceEngine({ now: () => at, io: memoryIO(disk), fetchFn: edge, codeId: A })
+    await expect(named.ingest(lying)).rejects.toThrow(/sha256/)
+    expect(edge).toHaveBeenCalledTimes(1)
   })
 })
 

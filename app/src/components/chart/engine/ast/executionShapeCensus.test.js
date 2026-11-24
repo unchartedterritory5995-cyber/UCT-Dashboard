@@ -104,6 +104,11 @@ const CARRIED_SHAPE = {
   vwap: 'computeVWAP — running Σpv / Σv',
   vwapOf: 'computeVWAP — the same running Σpv / Σv, weighting a bar price (H3)',
   avwap: 'barAvwap — the same accumulator, re-anchored',
+  // ⭐⭐ e95 unit 2 (2026-11-22) — Pine's anchored `ta.vwap(source, anchor[, stdev_mult])`: ONE family, one
+  // accumulator (`vwapAnchorAccumulate`, three cells Σpv / Σv / Σp²v, reset where the anchor fires), the average and
+  // the standard deviation its bands are drawn from (`CARRIED2.vwapAnchorPine` / `vwapAnchorDevPine` on the run).
+  vwapAnchor: 'vwapAnchorAccumulate — Σpv / Σv / Σp²v, reset where the anchor fires',
+  vwapAnchorDev: 'vwapAnchorAccumulate — the same three cells, their standard deviation',
   // ⭐ 2026-11-17 — the regular session's own values: ONE cell each, started on the session's first
   // regular bar and stepped on the regular bars after it (`computeSessionRegular`).
   sessionOpen: 'computeSessionRegular — the first regular bar\'s open, held',

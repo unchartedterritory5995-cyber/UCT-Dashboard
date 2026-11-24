@@ -201,10 +201,13 @@ describe('⭐⭐ review L5 — a spelling the host cannot turn into a listing: O
 })
 
 describe('⭐ review L6 — only a real breadth spelling gets the breadth sentence', () => {
-  it('ADVN, TICK.NY and USI:ADD are breadth; DECKXX, ADDYYX and TSX:ADDYY are not', () => {
+  it('ADVN, TICK.NY and USI:ADDQ are breadth; DECKXX, ADDYYX and TSX:ADDYY are not', () => {
     expect(staticallyUnservable('ADVN', '').reason).toMatch(/breadth/)
     expect(staticallyUnservable('TICK.NY', '').reason).toMatch(/breadth/)
-    expect(spellingUnservable('USI:ADD').reason).toMatch(/breadth/)
+    // (B2 W-B1, 2026-11-22: USI:ADD is witnessed and served, so it is refused by no sentence; USI:ADDQ, not in the
+    // probe, still refuses with the breadth sentence)
+    expect(spellingUnservable('USI:ADDQ').reason).toMatch(/breadth/)
+    expect(spellingUnservable('USI:ADD')).toBeFalsy()
     for (const [t, v] of [['DECKXX', ''], ['ADDYYX', '']]) {
       const why = staticallyUnservable(t, v)
       expect(why && why.code, t).toBe(R.BARE)
@@ -307,7 +310,25 @@ describe('⭐⭐ review F1 — a plot whose colour reads a refused symbol is ref
     expect(screen.info).toContainEqual(expect.objectContaining({ name: 'quiet', note: HIDDEN_BY_SCRIPT }))
   })
 
-  it.each(['close', 'mode == "B" ? close : na'])('CONTROL: the same plot with value `%s` (drawable) is refused by name at every door', (value) => {
+  // ⭐⭐ e95 unit 2b (2026-11-22, the coordinator's ruling: prune at BIND time) — a value that is na only for the
+  // member's setting (`mode == "B" ? close : na`, mode a live input) is decided per BINDING now: at the default "A" the
+  // bound value IS the na literal (TradingView draws nothing there either), so it is not refused; set to "B" it reads
+  // `close` and is refused by name exactly as the plain `close` control is.
+  it('a plot whose value is na at the member setting and whose colour reads SPX is refused only when the setting draws it', () => {
+    const lines = ['mode = input.string("A", "Mode", options = ["A", "B"])', ...QUIET('mode == "B" ? close : na')]
+    const d = doorOf(lines)
+    expect(d.ok, d.reason).toBe(true)
+    const quiet = keyOf(d.definition, 'quiet')
+    expect(plotValueIsNaLiteral(d.definition.compute.trees[quiet])).toBe(false)     // the saved tree keeps both arms
+    const atDefault = computeFor(d.definition, BARS, undefined, CTX)
+    expect(columnErrors(atDefault)[quiet]).toBeUndefined()
+    expect(Array.from(atDefault[quiet]).some(Number.isFinite)).toBe(false)
+    expect((d.staticRefusals || {})[quiet]).toBeUndefined()
+    const atB = computeFor(d.definition, BARS, { mode: 'B' }, CTX)
+    expect(columnErrors(atB)[quiet]).toEqual({ guard: 'pine:request', code: R.BARE, message: colourReaderMessage('`quiet`', spx) })
+  })
+
+  it.each(['close'])('CONTROL: the same plot with value `%s` (drawable) is refused by name at every door', (value) => {
     const lines = value === 'close' ? QUIET(value) : ['mode = input.string("A", "Mode", options = ["A", "B"])', ...QUIET(value)]
     const d = doorOf(lines)
     expect(d.ok, d.reason).toBe(true)
