@@ -10,7 +10,7 @@ printed `TOTALS load_harness FAIL` — S2 p50 14,855 ms against a 2,500 ms targe
 and the row flipped from NOT MEASURABLE to **MET**, because five files now existed. Producing
 FAILING evidence made the gate GREENER. Two sibling rows had the identical shape.
 
-⛔⛔ THE MUTATION SET IS THE PRODUCT HERE, NOT A SIDE-CAR. `mutation_harness_flipgate.py` proves
+⛔⛔ THE MUTATION SET IS THE PRODUCT HERE, NOT A SIDE-CAR. `flip_gate_mutations.py` proves
 every row in three states — MET on planted passing evidence, NOT MET on planted failing evidence,
 NOT MEASURABLE with the evidence gone — and this file runs that set IN-PROCESS so it is caught by
 `pytest tests/test_flip_gate_cannot_lie.py` and not only by somebody remembering to run a harness.
@@ -36,7 +36,7 @@ INSTRUMENTS = (pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(INSTRUMENTS))
 
 import flip_preconditions as fp            # noqa: E402
-import mutation_harness_flipgate as mh     # noqa: E402
+import flip_gate_mutations as mh          # noqa: E402
 
 
 # ── the mutation set, one pytest case per control ───────────────────────────
@@ -108,7 +108,7 @@ def test_self_check_still_runs_and_passes(capsys):
     rc = fp.self_check()
     out = capsys.readouterr().out
     assert "TOTALS flip_preconditions --self-check" in out, "no TOTALS line is not a run"
-    assert "TOTALS mutation_harness_flipgate" in out, "--self-check no longer runs the mutation set"
+    assert "TOTALS flip_gate_mutations" in out, "--self-check no longer runs the mutation set"
     assert rc == 0, out
 
 

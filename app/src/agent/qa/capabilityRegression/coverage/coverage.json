@@ -1,41 +1,41 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 262,
+  "all": 269,
   "withProductionKinds": 208,
-  "darkGated": 54
+  "darkGated": 61
  },
  "totals": {
-  "capabilities": 262,
-  "withAnyRegressionCase": 211,
+  "capabilities": 269,
+  "withAnyRegressionCase": 218,
   "perProtection": {
    "nl": {
-    "covered": 208,
-    "applicable": 262
+    "covered": 215,
+    "applicable": 269
    },
    "routing": {
-    "covered": 205,
-    "applicable": 262
+    "covered": 212,
+    "applicable": 269
    },
    "args": {
-    "covered": 211,
-    "applicable": 262
+    "covered": 218,
+    "applicable": 269
    },
    "execution": {
-    "covered": 208,
-    "applicable": 262
+    "covered": 215,
+    "applicable": 269
    },
    "receipt": {
-    "covered": 178,
-    "applicable": 262
+    "covered": 185,
+    "applicable": 269
    },
    "refusal": {
     "covered": 35,
-    "applicable": 262
+    "applicable": 269
    },
    "permission": {
-    "covered": 254,
-    "applicable": 262
+    "covered": 261,
+    "applicable": 269
    },
    "undo": {
     "covered": 84,
@@ -43,11 +43,11 @@
    },
    "multiStep": {
     "covered": 43,
-    "applicable": 262
+    "applicable": 269
    },
    "phrasings": {
-    "covered": 204,
-    "applicable": 262
+    "covered": 211,
+    "applicable": 269
    }
   }
  },
@@ -10373,6 +10373,60 @@
     "phrasings": []
    }
   },
+  "stock.estimatesBreadth": {
+   "domain": "stock",
+   "group": "marketTables",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.estimatesBreadth: \"estimate revisions by sector\"",
+     "stock.estimatesBreadth: \"revision breadth\"",
+     "stock.estimatesBreadth: \"earnings revisions by sector\"",
+     "stock.estimatesBreadth: \"estimate breadth across sectors\""
+    ],
+    "routing": [
+     "stock.estimatesBreadth: \"estimate revisions by sector\"",
+     "stock.estimatesBreadth: \"revision breadth\"",
+     "stock.estimatesBreadth: \"earnings revisions by sector\"",
+     "stock.estimatesBreadth: \"estimate breadth across sectors\""
+    ],
+    "args": [
+     "corpus stock.estimatesBreadth"
+    ],
+    "execution": [
+     "stock.estimatesBreadth (c)"
+    ],
+    "receipt": [
+     "stock.estimatesBreadth (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "stock.eventsTimeline": {
    "domain": "stock",
    "group": "marketReads",
@@ -10751,6 +10805,114 @@
     "phrasings": []
    }
   },
+  "stock.groupOwnership": {
+   "domain": "stock",
+   "group": "marketTables",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.groupOwnership: \"sector crowding\"",
+     "stock.groupOwnership: \"most crowded industries\"",
+     "stock.groupOwnership: \"insider buying by sector\"",
+     "stock.groupOwnership: \"crowding by industry\""
+    ],
+    "routing": [
+     "stock.groupOwnership: \"sector crowding\"",
+     "stock.groupOwnership: \"most crowded industries\"",
+     "stock.groupOwnership: \"insider buying by sector\"",
+     "stock.groupOwnership: \"crowding by industry\""
+    ],
+    "args": [
+     "corpus stock.groupOwnership"
+    ],
+    "execution": [
+     "stock.groupOwnership (c)"
+    ],
+    "receipt": [
+     "stock.groupOwnership (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.groupRank": {
+   "domain": "stock",
+   "group": "marketTables",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.groupRank: \"show me the sectors by weekly rank\"",
+     "stock.groupRank: \"industry group rank\"",
+     "stock.groupRank: \"top ranked industries\"",
+     "stock.groupRank: \"which sectors climbed the most in the weekly rank\""
+    ],
+    "routing": [
+     "stock.groupRank: \"show me the sectors by weekly rank\"",
+     "stock.groupRank: \"industry group rank\"",
+     "stock.groupRank: \"top ranked industries\"",
+     "stock.groupRank: \"which sectors climbed the most in the weekly rank\""
+    ],
+    "args": [
+     "corpus stock.groupRank"
+    ],
+    "execution": [
+     "stock.groupRank (c)"
+    ],
+    "receipt": [
+     "stock.groupRank (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "stock.ipoCalendar": {
    "domain": "stock",
    "group": "marketCalendars",
@@ -10805,6 +10967,60 @@
     "phrasings": []
    }
   },
+  "stock.ipoUnlock": {
+   "domain": "stock",
+   "group": "marketTables",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.ipoUnlock: \"IPO lockups\"",
+     "stock.ipoUnlock: \"upcoming lockup expirations\"",
+     "stock.ipoUnlock: \"lockups ending soon\"",
+     "stock.ipoUnlock: \"IPO unlocks this month\""
+    ],
+    "routing": [
+     "stock.ipoUnlock: \"IPO lockups\"",
+     "stock.ipoUnlock: \"upcoming lockup expirations\"",
+     "stock.ipoUnlock: \"lockups ending soon\"",
+     "stock.ipoUnlock: \"IPO unlocks this month\""
+    ],
+    "args": [
+     "corpus stock.ipoUnlock"
+    ],
+    "execution": [
+     "stock.ipoUnlock (c)"
+    ],
+    "receipt": [
+     "stock.ipoUnlock (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "stock.ivHistory": {
    "domain": "stock",
    "group": "marketReads",
@@ -10851,6 +11067,60 @@
     ],
     "receipt": [
      "stock.ivHistory (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.ivRankLeaders": {
+   "domain": "stock",
+   "group": "marketTables",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.ivRankLeaders: \"richest options\"",
+     "stock.ivRankLeaders: \"cheapest options\"",
+     "stock.ivRankLeaders: \"most expensive options in the market\"",
+     "stock.ivRankLeaders: \"which options are the cheapest\""
+    ],
+    "routing": [
+     "stock.ivRankLeaders: \"richest options\"",
+     "stock.ivRankLeaders: \"cheapest options\"",
+     "stock.ivRankLeaders: \"most expensive options in the market\"",
+     "stock.ivRankLeaders: \"which options are the cheapest\""
+    ],
+    "args": [
+     "corpus stock.ivRankLeaders"
+    ],
+    "execution": [
+     "stock.ivRankLeaders (c)"
+    ],
+    "receipt": [
+     "stock.ivRankLeaders (c)"
     ],
     "refusal": [],
     "permission": [],
@@ -11067,6 +11337,60 @@
     ],
     "receipt": [
      "stock.ownershipReport (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.positionTypes": {
+   "domain": "stock",
+   "group": "marketTables",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.positionTypes: \"futures by trader type\"",
+     "stock.positionTypes: \"what are leveraged funds doing\"",
+     "stock.positionTypes: \"swap dealers and asset managers in futures\"",
+     "stock.positionTypes: \"the traders in financial futures report\""
+    ],
+    "routing": [
+     "stock.positionTypes: \"futures by trader type\"",
+     "stock.positionTypes: \"what are leveraged funds doing\"",
+     "stock.positionTypes: \"swap dealers and asset managers in futures\"",
+     "stock.positionTypes: \"the traders in financial futures report\""
+    ],
+    "args": [
+     "corpus stock.positionTypes"
+    ],
+    "execution": [
+     "stock.positionTypes (c)"
+    ],
+    "receipt": [
+     "stock.positionTypes (c)"
     ],
     "refusal": [],
     "permission": [],
@@ -11398,6 +11722,60 @@
     ],
     "receipt": [
      "stock.seasonalityBoard (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.sectorEarnings": {
+   "domain": "stock",
+   "group": "marketTables",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.sectorEarnings: \"earnings by sector\"",
+     "stock.sectorEarnings: \"which sector is beating\"",
+     "stock.sectorEarnings: \"sector beat rates\"",
+     "stock.sectorEarnings: \"beats and misses by sector\""
+    ],
+    "routing": [
+     "stock.sectorEarnings: \"earnings by sector\"",
+     "stock.sectorEarnings: \"which sector is beating\"",
+     "stock.sectorEarnings: \"sector beat rates\"",
+     "stock.sectorEarnings: \"beats and misses by sector\""
+    ],
+    "args": [
+     "corpus stock.sectorEarnings"
+    ],
+    "execution": [
+     "stock.sectorEarnings (c)"
+    ],
+    "receipt": [
+     "stock.sectorEarnings (c)"
     ],
     "refusal": [],
     "permission": [],

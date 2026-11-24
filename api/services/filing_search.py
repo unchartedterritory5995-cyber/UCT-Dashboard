@@ -38,6 +38,13 @@ Request path: reads the local FTS5 store only. A symbol not yet indexed is
 queued on this module's own one-thread worker (the same shape as
 `filing_blackline._schedule`); the request never waits on SEC.
 DARK behind FILING_SEARCH_ENABLED: unset, the route 404s and nothing is queued.
+
+The weekly re-read (`run_reindex`) runs daily at `RUN_AT_ET` (03:40 New York time,
+inside scan_period's quiet span) and leaves a receipt (`fs_job`). A fire lost to a
+pod restart is taken by `catch_up` (a DATE job `CATCHUP_BOOT_DELAY_S` after boot and
+a daily retry at `CATCHUP_AT_ET`): the same run, only when no run has finished since
+the last slot (`behind`), only inside the quiet span, and one run at a time
+(`_reindex_lock`, which the 03:40 job takes too).
 """
 from __future__ import annotations
 
@@ -66,6 +73,12 @@ MAX_QUERY_CHARS = 400
 _MAX_QUEUED = 8
 _MAX_TRACKED_PER_RUN = int(os.environ.get("FILING_SEARCH_MAX_PER_RUN", "40"))
 _REINDEX_AFTER_S = 7 * 24 * 3600   # a weekly re-read picks up a newer 10-Q / 10-K
+#: THE SCHEDULE, read by `api/main.py` (`filing_search_reindex`) and by the catch-up: daily, New York time.
+RUN_AT_ET = (3, 40)
+#: The catch-up's boot check, this long after registration (after the estimate history's 1500 s and the RS lists'
+#: 1800 s), and its daily retry, both inside scan_period's quiet span (`behind` knows the schedule).
+CATCHUP_BOOT_DELAY_S = 2100
+CATCHUP_AT_ET = (21, 25)
 SNIP_OPEN, SNIP_CLOSE = "\u0001", "\u0002"
 
 SECTION_LABELS = {
@@ -130,6 +143,9 @@ CREATE VIRTUAL TABLE IF NOT EXISTS fs_para USING fts5(
 CREATE TABLE IF NOT EXISTS fs_tracked (
   sym TEXT PRIMARY KEY, added_at INTEGER NOT NULL, last_try INTEGER,
   last_state TEXT, last_reason TEXT
+);
+CREATE TABLE IF NOT EXISTS fs_job (
+  job TEXT PRIMARY KEY, finished_at INTEGER NOT NULL, summary TEXT
 );
 """
 
@@ -529,17 +545,76 @@ def schedule_index(sym: str) -> bool:
     return True
 
 
+_reindex_lock = threading.Lock()   # one re-read at a time: the 03:40 job and the catch-up
+
+
 def run_reindex() -> dict:
     """Scheduled job: re-read tracked symbols whose index is older than a week,
-    oldest first, bounded per run. A no-op while the flag is off."""
+    oldest first, bounded per run. A no-op while the flag is off. A run that
+    returns leaves its receipt (`receipt`); one a restart kills leaves none."""
     if not is_enabled():
         return {"skipped": "flag off"}
-    cutoff = int(time.time()) - _REINDEX_AFTER_S
+    if not _reindex_lock.acquire(blocking=False):
+        return {"skipped": "running"}
+    try:
+        cutoff = int(time.time()) - _REINDEX_AFTER_S
+        with _conn() as c:
+            rows = c.execute("SELECT sym FROM fs_tracked WHERE COALESCE(last_try, 0) < ? "
+                             "ORDER BY COALESCE(last_try, 0) LIMIT ?", (cutoff, _MAX_TRACKED_PER_RUN)).fetchall()
+        done = [index_symbol(r[0])["state"] for r in rows]
+        out = {"symbols": len(done), "ok": done.count("ok")}
+        with _write_lock, _conn() as c:
+            c.execute("INSERT OR REPLACE INTO fs_job (job, finished_at, summary) VALUES ('reindex', ?, ?)",
+                      (int(time.time()), json.dumps(out, sort_keys=True)))
+            c.commit()
+        return out
+    finally:
+        _reindex_lock.release()
+
+
+def receipt() -> Optional[dict]:
+    """The last finished re-read's receipt ({finished_at (epoch seconds), summary}), or None."""
     with _conn() as c:
-        rows = c.execute("SELECT sym FROM fs_tracked WHERE COALESCE(last_try, 0) < ? "
-                         "ORDER BY COALESCE(last_try, 0) LIMIT ?", (cutoff, _MAX_TRACKED_PER_RUN)).fetchall()
-    done = [index_symbol(r[0])["state"] for r in rows]
-    return {"symbols": len(done), "ok": done.count("ok")}
+        r = c.execute("SELECT finished_at, summary FROM fs_job WHERE job='reindex'").fetchone()
+    return None if r is None else {"finished_at": r[0], "summary": json.loads(r[1] or "{}")}
+
+
+def last_slot(now=None):
+    """The most recent scheduled re-read at or before `now` (New York), from the job's own schedule."""
+    from api.services import catchup_slots as cs
+    return cs.last_fire(cs.trigger(RUN_AT_ET), now)
+
+
+def behind(rec: Optional[dict], now=None) -> bool:
+    """Pure: True when no re-read has finished since the last slot (no receipt, or one from before it)."""
+    if not isinstance(rec, dict) or not isinstance(rec.get("finished_at"), (int, float)):
+        return True
+    return rec["finished_at"] < last_slot(now).timestamp()
+
+
+def catch_up(now=None) -> dict:
+    """THE CATCH-UP ENTRY (`api/main.py`: a DATE job `CATCHUP_BOOT_DELAY_S` after boot and a daily retry at
+    `CATCHUP_AT_ET`): `run_reindex` itself, only when `behind` and inside scan_period's quiet span. Never on a member's
+    request. Returns `{"started": bool, "reason": "off" | "current" | "not_quiet" | "running" | "behind"}` (and the
+    run's counts under `run` when it ran)."""
+    from api.services import catchup_slots as cs
+    if not is_enabled():
+        return {"started": False, "reason": "off"}
+    now = cs.as_ny(now)
+    if not behind(receipt(), now):
+        return {"started": False, "reason": "current"}
+    if not cs.quiet(now):
+        return {"started": False, "reason": "not_quiet"}
+    if _reindex_lock.locked():
+        return {"started": False, "reason": "running"}
+    try:
+        out = run_reindex()
+    except Exception as exc:  # noqa: BLE001 -- said; no receipt is written, so the job stays behind
+        _logger.warning("filing search reindex catch-up failed: %s", exc)
+        return {"started": True, "reason": "behind", "error": type(exc).__name__}
+    if out.get("skipped"):
+        return {"started": False, "reason": "running" if out["skipped"] == "running" else out["skipped"]}
+    return {"started": True, "reason": "behind", "run": out}
 
 
 # ── search (REQUEST PATH: the local store only) ─────────────────────────────

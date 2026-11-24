@@ -84,6 +84,12 @@ DECLARED_DOORS = {
     # 2026-10-20: it also tells the client whether the nav's Trader Archive entry exists,
     # through core.flags.archive_enabled() alone (the archive routes' own 404 gate). Flag only.
     "api/routers/auth.py": ("archive.team_history + core.flags", "MEMBER", "WISDOM_TICKER_HISTORY_ENABLED"),
+    # 2026-11-03 (1e95267442, KN-1 knowledge kinds): the UCT agent's setup resolver reads ONE key of the
+    # committed vocabulary FILE: core.vocab.load_vocabulary() parses docs/wisdom/vocabulary/
+    # setup-vocabulary-v1.json and never opens wisdom.db; it takes `ambiguous_aliases` only, to REFUSE an
+    # ambiguous setup name with a fixed sentence and no candidates. No record is read, none of the file's
+    # text reaches a member. Railed below by test_the_agent_setup_resolver_door_reads_no_record.
+    "api/services/uct_agent/knowledge/kinds.py": ("core.vocab", "NO_RECORD_READ", ""),
 }
 
 
@@ -179,6 +185,22 @@ def test_the_auth_me_archive_nav_switch_reads_no_record(monkeypatch):
     assert auth._wisdom_archive_enabled() is False                # unset = dark
     src = (REPO / "api" / "routers" / "auth.py").read_text(encoding="utf-8")
     assert '"wisdom_archive_enabled": _wisdom_archive_enabled(),' in src
+
+
+def test_the_agent_setup_resolver_door_reads_no_record(monkeypatch):
+    """The agent door is declared NO_RECORD_READ: the only wisdom name it touches is
+    vocab.load_vocabulary, and that reads the vocabulary file with the store unopenable."""
+    from api.services.wisdom.core import vocab
+
+    door = REPO / "api" / "services" / "uct_agent" / "knowledge" / "kinds.py"
+    tree = ast.parse(door.read_text(encoding="utf-8"))
+    used = {n.attr for n in ast.walk(tree)
+            if isinstance(n, ast.Attribute) and isinstance(n.value, ast.Name) and n.value.id == "vocab"}
+    assert used == {"load_vocabulary"}, f"the agent door now reaches more of core.vocab: {used}"
+    monkeypatch.setattr("api.services.wisdom.core.store.read", _never_called)
+    monkeypatch.setattr("api.services.wisdom.core.store.write", _never_called)
+    monkeypatch.setattr(vocab, "_raw", vocab._raw.__wrapped__)      # the file itself, not a cached copy
+    assert isinstance(vocab.load_vocabulary().get("ambiguous_aliases"), list)
 
 
 def test_the_team_call_door_reads_nothing_with_either_gate_off(monkeypatch):

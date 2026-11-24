@@ -68,7 +68,7 @@ import { resolveReference, subjectTarget, pluralTarget, retargetCorrection } fro
 import { resolveFollowUp, resolvePicked } from './conversation'
 import { planCompound, resolveStep, chartsShowing, MAX_STEP_OPS, workspaceConflict, workspaceQuestion, workspaceSteps, WORKSPACE_CHOICES } from './compound'
 import { screenDuplicateAdds, wantsCopy } from './duplicates'
-import { nl1Enabled, exactLane, buildNl1Request, correctionPlan, preflightRefusals, repairedDisposition, withoutWordingApprovals } from './nl1/interpreter'
+import { nl1Enabled, exactLane, buildNl1Request, correctionPlan, preflightFindings, repairDropped, repairDroppedLines, repairedDisposition, withoutWordingApprovals } from './nl1/interpreter'
 import { NL1_MAX_NEED } from './nl1/selection'
 import { takeIndicatorTouches, takeIndicatorMentions, canonicalIndicatorAdds, indicatorRowsOf } from './capabilities/indicatorEdits'
 import { correctTypos, lexiconFor, plainSymbolWord } from './nl/lexicon'
@@ -570,6 +570,28 @@ function saveRunsLast(ops) {
     const c = getCapability(o?.action)
     return !!c && c.target !== 'layouts' && (!c.exclusive || c.sequential)
   })
+}
+// ⛔ NL-1 PREFLIGHT (AUDIT 11-23, the silent drop): a plan in the PARTS execute() runs it as — the rest, then the steps it
+// queues after the rest (a deferred step, a save that runs last, and each SEQUENTIAL indicator edit as its own next step,
+// in request order; the same change on several charts keeps its fan-out). NL-1's preflight checks each part as the runtime
+// will (nl1/interpreter.preflightFindings), so the sequential rule is a deferral there too, never a refusal sent back for
+// repair. Pure; the same rules as execute()'s split, which is left as it is (the legacy path is unchanged).
+export function preflightParts(opsIn) {
+  let all = Array.isArray(opsIn) ? opsIn : []
+  let steps = []
+  if (all.some(isDeferred) && !all.every(isDeferred)) { steps = all.filter(isDeferred); all = all.filter(o => !isDeferred(o)) }
+  if (saveRunsLast(all)) { steps = [...steps, all[all.length - 1]]; all = all.slice(0, -1) }
+  const seq = (o) => !!getCapability(o?.action)?.sequential
+  if (all.length > 1 && all.some(seq) && !fanOutOf(all)) {
+    const rest = all.filter(o => !seq(o))
+    const queued = all.filter(seq)
+    const keep = rest.length ? rest : [queued.shift()]
+    steps = [...queued, ...steps]
+    all = keep
+  }
+  // ⛔ AUDIT NO-GO F1 (11-23): the same change on several charts (the F5 fan-out) is planned and refused PER CHART by
+  // execute(), never as one plan — `fanOut` says the rest is that, so the preflight checks each of its ops on its own
+  return { rest: all, steps, fanOut: !!fanOutOf(all) }
 }
 // ⛔ LT-15: what a query that came back with NOTHING to show says (never an empty row after a reply that announced it)
 export const NO_RESULT = "I couldn't get a result for that, so there is nothing to show. Try asking again."
@@ -3254,8 +3276,14 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       // 2-call ceiling bounds it (and a plan the server already repaired is never repaired again). The new
       // plan then passes every check below exactly like a first answer, and never asks for less approval.
       // A REROUTED request has spent its second call: no repair (a refused plan is refused by the planner).
+      // ⛔ AUDIT 11-23 (the silent drop): the plan is checked in the parts the runtime runs it as (preflightParts) — a
+      // sequential indicator edit beside a chart change is QUEUED as the next step, never refused — and a repair answer that
+      // leaves out an op the first plan asked for never hides it: what it dropped is said as NOT DONE after whatever ran.
+      let repairLines = []
       if (nl1 && nl1Body && !rerouted && ['apply', 'propose'].includes(env.disposition) && res.data.usage?.repaired == null) {
-        const refused = preflightRefusals(host, translateRefs(env.ops || [], refMap))
+        const firstOps = translateRefs(env.ops || [], refMap)
+        const findings = preflightFindings(host, firstOps, { parts: preflightParts })
+        const refused = [...new Set(findings.map(f => f.reason))].slice(0, 5)
         if (refused.length) {
           mark('repair')
           const first = env.disposition
@@ -3264,9 +3292,16 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
           if (r2.ok) {
             res = r2
             env = { ...r2.data.envelope, disposition: repairedDisposition(first, r2.data.envelope.disposition) }
+            // a QUESTION back is not a drop (nothing runs; the answer continues the request); an answer in words drops all
+            if (env.disposition !== 'clarify') {
+              const dropped = repairDropped(firstOps, ['apply', 'propose'].includes(env.disposition) ? env.ops : [])
+              repairLines = repairDroppedLines(dropped, refused, findings, firstOps)
+              if (dropped.length) mark('repair:dropped', dropped.map(o => o?.action).join(','))
+            }
           }
         }
       }
+      if (nl1) notDoneRef.current = repairLines
       // ⛔ NO SUBSTITUTION WITHOUT APPROVAL (owner 2026-10-20): the member's words pointed at a group of actions
       // this request could not carry (they did not fit beside the core). A plan made without them may be a
       // stand-in for what was asked — so it is only PROPOSED, never run at once. Words only ADD this caution.
@@ -3365,7 +3400,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       }
       // ⭐ W2 audit (live 2026-11-04: "…to weekly and email me a screenshot of it" said only the weekly receipt): the parts
       // of THIS request no planned action covers are said after whatever runs — fixed sentences (notDone.js), never prose
-      notDoneRef.current = (env.ops || []).length ? notDoneLines(`${askedFor || ''} ${text}`, { actions: env.ops.map(o => o?.action) }) : []
+      notDoneRef.current = [...repairLines, ...((env.ops || []).length ? notDoneLines(`${askedFor || ''} ${text}`, { actions: env.ops.map(o => o?.action) }) : [])]
       // ⛔ hotfix 2026-11-03 (live: "Put SPY, QQQ, NVDA, and TSLA on four charts…" planned as four TABS of the one chart,
       // overwriting its ticker): a plan that adds chart tabs when the member never said "tab" is a stand-in for what was
       // asked — nothing runs, said plainly (the member can ask for tabs, or for the charts again)

@@ -95,6 +95,15 @@ function firstAtOrAfter(rows, t) {
 
 const RAW = Symbol('raw')
 const WINDOW_CTL = Symbol('windowControl')
+/**
+ * ⭐ (2026-11-23, next-row chart walks, item ii) A facade series' `[SET_DATA_PAINTED](rows, paint)`: `setData(rows)`, but
+ * the library is handed `paint(rows, from)` (rows `from..end`, transformed) instead of the cut `rows.slice(from)`, on
+ * this setData and on every re-cut after it (an extension left, a consistency re-cut), until the next setData. So a
+ * per-row transform (the candles' net-change colours, chart/netChangePaint.js) runs on the rows the library is handed,
+ * not on every row: `paint(rows, from)` must equal `transformAll(rows).slice(from)`. `data()` keeps the rows as given.
+ * A plain `setData` drops the paint. Absent on the pass-through (window off): there `setData` takes every row.
+ */
+export const SET_DATA_PAINTED = Symbol('setDataPainted')
 /** The library object behind a facade object (or the object itself). */
 export function rawOf(x) { return (x && x[RAW]) || x }
 
@@ -135,10 +144,15 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled } =
 
   function cutFor(w, rows) {
     if (!Array.isArray(rows) || !rows.length) return rows
-    if (w === primary) return st.ws > 0 ? rows.slice(st.ws) : rows
-    if (st.wsTime == null) return rows
-    const k = firstAtOrAfter(rows, st.wsTime)
-    return k == null || k === 0 ? rows : rows.slice(k)
+    const paint = series.get(w)?.paint || null   // (SET_DATA_PAINTED: the rows handed over, transformed)
+    let from = 0
+    if (w === primary) from = st.ws > 0 ? st.ws : 0
+    else if (st.wsTime != null) {
+      const k = firstAtOrAfter(rows, st.wsTime)
+      from = k == null ? 0 : k
+    }
+    if (paint) return paint(rows, from)
+    return from > 0 ? rows.slice(from) : rows
   }
   function applyOne(w) {
     const rec = series.get(w)
@@ -306,7 +320,7 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled } =
   }
 
   function wrapSeries(raw, isPrimary) {
-    const rec = { raw, full: null, tail: new Map(), primary: isPrimary }
+    const rec = { raw, full: null, tail: new Map(), primary: isPrimary, paint: null }
     // ⛔ THE FACADE CALLS THE LIBRARY'S ORIGINAL METHODS, CAPTURED HERE. Code wraps series methods by assignment
     // (barColours' `series.setData = (d) => realSet(...)`, the volume dimmer, the price-series colouring), reading
     // the method it wraps through this facade; the assignment lands on the library series. Had the facade called
@@ -320,6 +334,20 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled } =
     const origUpdateFn = raw.update
     rec.set = (rows) => origSetData(rows)
     rec.upd = (item, ...rest) => origUpdate(item, ...rest)
+    /** The series' setData: keep `rows`, hand the library the cut (painted when `paint` is given). */
+    function setFull(rows, paint) {
+      rec.full = rows
+      rec.paint = paint
+      rec.tail.clear()
+      const before = st.wsTime
+      if (w === primary) placeWindow()
+      const cut = cutFor(w, rows)
+      rec.cutFirst = cut && cut.length ? cut[0].time : null
+      rec.set(cut)
+      // the window moved (a new load): the other series are normally re-set in this same pass; any that is
+      // not is re-cut before the frame paints
+      if (w === primary && before !== st.wsTime) { queueConsistency(); fireChange() }
+    }
     const w = new Proxy(raw, {
       get(target, prop) {
         if (prop === 'setData' && target.setData !== origSetDataFn) return target.setData       // a wrapper installed
@@ -328,18 +356,8 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled } =
         switch (prop) {
           case RAW: return target
           case WINDOW_CTL: return control
-          case 'setData': return (rows) => {
-            rec.full = rows
-            rec.tail.clear()
-            const before = st.wsTime
-            if (w === primary) placeWindow()
-            const cut = cutFor(w, rows)
-            rec.cutFirst = cut && cut.length ? cut[0].time : null
-            rec.set(cut)
-            // the window moved (a new load): the other series are normally re-set in this same pass; any that is
-            // not is re-cut before the frame paints
-            if (w === primary && before !== st.wsTime) { queueConsistency(); fireChange() }
-          }
+          case 'setData': return (rows) => setFull(rows, null)
+          case SET_DATA_PAINTED: return (rows, paint) => setFull(rows, typeof paint === 'function' ? paint : null)
           case 'update': return (item, ...rest) => {
             const r = rec.upd(item, ...rest)
             if (item && item.time != null) {
@@ -350,6 +368,10 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled } =
             return r
           }
           case 'dataByIndex': return (i, mismatch) => target.dataByIndex(i - st.ws, mismatch)
+          // `data()`: the rows the app handed `setData`, AS GIVEN, plus the live tail. A series set through
+          // SET_DATA_PAINTED (the candles with net-change colours) holds them UNPAINTED here: the colours exist only
+          // in what the library holds, so read a colour through `dataByIndex` (the library's rows), never `data()`.
+          // Every candle `data()` reader is listed, with what it reads, in netChangePaint.dataReaders.test.js.
           case 'data': return () => {
             if (!rec.full) return target.data()
             if (!rec.tail.size) return rec.full

@@ -130,20 +130,42 @@ describe('the chart\'s own Parabolic SAR, bar for bar', () => {
     expect(published).toBeGreaterThan(40000)
   }, 120000)
 
-  it('real: every distinct captured series in the vendor harness', () => {
-    const series = realSeries()
-    // ⛔ NON-VACUITY — the harness must actually be there.
-    expect(series.length).toBeGreaterThan(20)
-    // the series that broke the 200-bar window is graded here like every other (never skipped)
-    expect(series.some((b) => b.file === SAR_WINDOW_WITNESS), SAR_WINDOW_WITNESS).toBe(true)
-    let published = 0
-    for (const bars of series) {
-      const g = grade(bars, 0.02, 0.2)
-      expect(g.bad, bars.source).toBe(0)
-      published += g.published
+  // ⭐ SHARDED (2026-11-24): one case grading every series took ~125 s on a loaded runner, over
+  // its own 120 s limit, so it could red any PR at random. The SAME assertions now run over
+  // SAR_REAL_SHARDS slices (series i goes to shard i % SAR_REAL_SHARDS), each under the limit.
+  // The harness is read once. A last case proves every shard ran, and keeps the total.
+  describe('real: every distinct captured series in the vendor harness', () => {
+    const SAR_REAL_SHARDS = 6
+    let series = null
+    const seriesOnce = () => (series ??= realSeries())
+    const publishedByShard = new Array(SAR_REAL_SHARDS).fill(null)
+
+    it('the harness is there, and the series that broke the 200-bar window is among it', () => {
+      const all = seriesOnce()
+      // ⛔ NON-VACUITY — the harness must actually be there.
+      expect(all.length).toBeGreaterThan(20)
+      // the series that broke the 200-bar window is graded here like every other (never skipped)
+      expect(all.some((b) => b.file === SAR_WINDOW_WITNESS), SAR_WINDOW_WITNESS).toBe(true)
+    }, 120000)
+
+    for (let k = 0; k < SAR_REAL_SHARDS; k++) {
+      it(`shard ${k + 1} of ${SAR_REAL_SHARDS}: each series equals the chart's SAR on every published bar`, () => {
+        let published = 0
+        seriesOnce().forEach((bars, i) => {
+          if (i % SAR_REAL_SHARDS !== k) return
+          const g = grade(bars, 0.02, 0.2)
+          expect(g.bad, bars.source).toBe(0)
+          published += g.published
+        })
+        publishedByShard[k] = published
+      }, 120000)
     }
-    expect(published).toBeGreaterThan(5000)
-  }, 120000)
+
+    it('every shard ran, and together they published more than 5000 bars', () => {
+      expect(publishedByShard.every((n) => n !== null), 'a shard did not run').toBe(true)
+      expect(publishedByShard.reduce((a, b) => a + b, 0)).toBeGreaterThan(5000)
+    })
+  })
 
   it('FLIPPED (sar() window, 2026-11-16): vw-lower-tf-bars-rddt-15 equals the full-history SAR on every published bar', () => {
     const bars = seriesOf(SAR_WINDOW_WITNESS)
