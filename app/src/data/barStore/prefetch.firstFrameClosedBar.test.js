@@ -270,7 +270,7 @@ describe("C: the switch's own answer still behind", () => {
     await serve(w, w.P.BEHIND_HOLD_MAX_MS + 50)
     const asks = callsOf(w, 'RRR', n0)
     expect(asks.map((c) => c.q.since)).toEqual([null])                // one full read; a second would hit the same path
-    expect(out).toBe('current')                                       // painted as it is
+    expect(out).toBe('authoritative')                                 // the server's own tail: painted as it is
     w.store.dispose()
   })
 
