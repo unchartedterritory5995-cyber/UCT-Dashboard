@@ -80,9 +80,14 @@ def fex_market(days, seed=5, loads=None, noise=0.012, alt=False):
 
 
 @pytest.fixture(autouse=True)
-def _fex_fresh():
+def _fex_fresh(monkeypatch):
     V.reset_for_tests()
+    # Speed pass 2 (2026-11-24): a request never reads a price; it answers `computing` while the stock's one
+    # background build runs (`tests/test_terminal_speed_pass2.py` proves that with the module's own WAIT_S of 0).
+    # These tests prove what the build works out, holds and reads, so each request here waits for its build.
+    monkeypatch.setattr(V, "WAIT_S", 10.0)
     yield
+    V.drain_for_tests()
     V.reset_for_tests()
 
 

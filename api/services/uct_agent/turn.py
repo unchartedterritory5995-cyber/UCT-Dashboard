@@ -1319,6 +1319,12 @@ _OUTCOME_LABEL = {
 # numbers, whose AI rows are U or R; options.ivRankLeaders: the vendor's options chain; ipo.lockups: the vendor's listings and
 # bars; cot.byTrader: the CFTC's finer reports, whose row T-105 names no AI lane), so the member sees the card and a model
 # never sees a value
+# stock.uctRating / stock.estimatesHistory / stock.consensusRating / stock.revenueSplit / stock.failsToDeliver /
+# stock.companyDeals (terminal data wave 12): each reads a model-isolated kind (ratings: UCT-derived, ADR-005;
+# estimates.history and analyst.ratings: the estimates vendor's consensus, targets and actions, rows T-34 / T-44;
+# company.segments and company.deals: the vendor's company lists, which no register row names, T-33 / T-39 / T-44 the
+# nearest; stock.failsToDeliver: the SEC's NSCC-derived files, whose nearest row T-83 names no model lane), so the member
+# sees the card and a model never sees a value
 LOCAL_ONLY_ACTIONS = frozenset({"breadth.show", "breadth.history", "history.afterEvent", "journal.reviewTrades", "news.movers",
                                 "rs.compare", "stock.analystActions", "stock.sessionHighsLows", "stock.longRunLeaders",
                                 "stock.darkPoolLevels", "stock.yearlyHighsLows", "stock.themeRotation",
@@ -1335,7 +1341,9 @@ LOCAL_ONLY_ACTIONS = frozenset({"breadth.show", "breadth.history", "history.afte
                                 "stock.riskProfile", "stock.volumeFootprint", "stock.factorExposure", "stock.setupHistory",
                                 "stock.companyRecord", "stock.ownershipReport",
                                 "stock.groupRank", "stock.groupOwnership", "stock.sectorEarnings", "stock.estimatesBreadth",
-                                "stock.ivRankLeaders", "stock.ipoUnlock", "stock.positionTypes"})
+                                "stock.ivRankLeaders", "stock.ipoUnlock", "stock.positionTypes",
+                                "stock.uctRating", "stock.estimatesHistory", "stock.consensusRating", "stock.revenueSplit",
+                                "stock.failsToDeliver", "stock.companyDeals"})
 #: ⛔ DATA-READ ANSWERS (hotfix 2026-11-03, live: "when does nvda report" got a reply inventing a date and a
 #: beat while the stock.earnings card said the date was not in UCT's data). These read-only actions (manifest
 #: `query: true`, market / screen data) answer with UCT's own deterministic card; the model's `reply` is written

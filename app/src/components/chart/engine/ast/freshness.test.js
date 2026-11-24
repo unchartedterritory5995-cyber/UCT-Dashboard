@@ -202,7 +202,11 @@ describe('the closed table declares scalars, and both lanes read the same one', 
     //                                readers and `short_columns`' change since the prior report), NULL until
     //                                the first build after they land (R8); `next_ex_div_date` is also TEXT.
     //                                Python pin: (149, 167) -> (149, 178).
-    expect(Object.keys(excluded).length).toBe(178)
+    //   excluded 178 + 12 = 190      the twelve row columns (2026-11-24, the build's `bars_row_columns` step:
+    //                                days to lockup, this month's seasonality, the post-earnings drift,
+    //                                factor loadings, up / down capture), NULL until the first build after
+    //                                they land (R8). Python pin: (149, 178) -> (149, 190).
+    expect(Object.keys(excluded).length).toBe(190)
     for (const [column, why] of Object.entries(excluded)) {
       expect(names, `${column} is in BOTH halves of the partition`).not.toContain(column)
       expect(String(why).length).toBeGreaterThan(20)

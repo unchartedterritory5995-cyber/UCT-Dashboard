@@ -700,6 +700,51 @@ const TERMINAL_DATA = {
       credit: 'Source: CFTC Commitments of Traders (Traders in Financial Futures / Disaggregated), as of the Tuesday it covers, published the following Friday.',
       stale_for: [], left_out: ['range'] } }
   },
+  // Terminal data wave 12 (dark kinds `estimates.history`, `analyst.ratings`, `company.segments`, `stock.failsToDeliver`,
+  // `company.deals`, and the existing `ratings`; MD-1 §4.21, §4.4): the same rule — each adapter's own data shape, made-up
+  // figures, dates, names and words. `as_of` is the data's own date, or null where each part carries its own read time.
+  'ratings': (p) => ({ freshness: 'periodic', as_of: '2026-10-30T20:00:00Z', data: { symbol: String(p.symbol || '').toUpperCase(), composite: 81,
+    components: { eps: 88, rs: 76, growth: 69, value: 41, smr: 'B', accdis: 'B-', sponsorship: 58 }, checkup: [{ label: 'Made-up check', status: 'pass', value: 1 }],
+    method: 'made-up method words', basis: 'percentile', coverage: null, universe_n: 3700, sector: 'Made-up Sector', group_rs: 70, price_as_of: '2026-10-30', complete: true } }),
+  'estimates.history': (p) => {
+    const mv = (state, pct) => ({ state, reason: null, pct, from: null, to: null, from_date: null, to_date: null })
+    return { freshness: 'periodic', as_of: '2026-11-02T05:00:00Z', data: { symbol: String(p.symbol || '').toUpperCase(), state: 'ok', covers_from: '2026-03-02',
+      last_snapshot: '2026-11-02', store_newest: '2026-11-02', snapshot_days: 170, currency: null, tracked: { origin: 'sp500', count: 510, cap: 600 }, windows: [7, 30, 90],
+      tolerance_pct: 0.5, slack_days: 4, failed_days: 0, failed_newest: [], left_out: ['points', 'year'],
+      periods: [{ period_end: '2026-12-31', n: 170, first_snapshot: '2026-03-02', upcoming: true,
+        newest: { snap_date: '2026-11-02', eps_avg: 1.25, eps_low: 1.1, eps_high: 1.4, n_eps: 30, rev_avg: 35000000000, rev_low: null, rev_high: null, n_rev: 28 },
+        moves: { eps: { 7: mv('held', 0.1), 30: mv('up', 3.2), 90: mv('up', 8.7) }, revenue: { 7: mv('held', 0), 30: mv('up', 1.5), 90: mv('collecting', null) } } }] } }
+  },
+  'analyst.ratings': (p) => ({ freshness: 'periodic', as_of: '2026-11-02T14:00:00Z', data: { symbol: String(p.symbol || '').toUpperCase(), covered: true, outage: false,
+    consensus: { strongBuy: 5, buy: 20, hold: 6, sell: 1, strongSell: 0, total: 32, label: 'Buy', observed_at: '2026-11-02T14:00:00Z' },
+    price_target: { high: 260, low: 120, median: 200, consensus: 205, last_month: { count: 6, avg: 210 }, last_quarter: { count: 15, avg: 198 }, last_year: { count: 40, avg: 180 },
+      observed_at: '2026-11-02T14:00:00Z' },
+    upside: { target: 'consensus', target_value: 205, close: 180, close_date: '2026-10-30', pct: 13.89, basis: 'stored_close' },
+    recent_actions: [{ date: '2026-10-29', company: 'Made-up Securities', action: 'upgrade', from_grade: 'Hold', to_grade: 'Buy' }].slice(0, p.rows || 5),
+    actions_total: 1, left_out: ['trend', 'revisions'] } }),
+  'company.segments': (p) => ({ freshness: 'periodic', as_of: '2026-01-25T05:00:00Z', data: { symbol: String(p.symbol || '').toUpperCase(), rows: p.rows || 8,
+    growth_basis: 'a year earlier, from held periods', left_out: ['earlier_periods'],
+    splits: { annual: { state: 'held', read_at: '2026-11-03T15:00:00Z',
+      product: { state: 'ok', latest: { date: '2026-01-25', label: 'FY2026', currency: 'USD', total: 130000000000, segments_total: 2, cut: false,
+        segments: [{ name: 'Made-up Compute', revenue: 115000000000, share: 88.5, prior: 47000000000, growth_pct: 144.7 }, { name: 'Made-up Graphics', revenue: 15000000000, share: 11.5, prior: null, growth_pct: null }] },
+        prior: { date: '2025-01-26', label: 'FY2025' } },
+      region: { state: 'none', latest: null, prior: null } },
+    quarter: { state: 'not_held' } } } }),
+  'stock.failsToDeliver': (p) => ({ freshness: 'historical', as_of: '2026-10-15T04:00:00Z', data: { symbol: String(p.symbol || '').toUpperCase(), state: 'ok',
+    window: { from: '2026-05-01', through: '2026-10-15' }, basis: 'made-up basis words', description: 'MADE-UP CO',
+    latest: { settle_date: '2026-10-15', quantity: 250000, price: 20, value: 5000000 },
+    trend: { previous: { settle_date: '2026-10-14', quantity: 100000, price: 19.5, value: 1950000 }, change: 150000,
+      peak: { settle_date: '2026-08-03', quantity: 400000, price: 15, value: 6000000 }, latest_vs_peak_pct: 62.5 },
+    days_reported: 2, rows: [{ settle_date: '2026-10-15', quantity: 250000, price: 20, value: 5000000 }, { settle_date: '2026-10-14', quantity: 100000, price: 19.5, value: 1950000 }].slice(0, p.rows || 10),
+    files_ingested: 11, mismatched_files: [], newest_file: 'cnsfails202610a' } }),
+  'company.deals': (p) => {
+    const sym = String(p.symbol || '').toUpperCase()
+    return { freshness: 'periodic', as_of: null, data: { symbol: sym,
+      deals: { state: 'held', read_at: '2026-11-03T14:00:00Z', search: 'ok', name: 'Made-up Company Inc', total: 1, cut: false, other_companies: 0, from_latest: 0,
+        deals: [{ date: '2026-09-15', accepted_at: null, role: 'acquirer', acquirer: { sym, name: 'Made-up Company Inc' }, target: { sym: null, name: 'Made-up Startup Ltd' }, link: 'https://www.sec.gov/made-up' }] },
+      index_changes: { state: 'held', read_at: '2026-11-03T14:00:00Z', indexes: { sp500: 'ok', nasdaq100: 'ok', dow: 'ok' }, total: 1, cut: false,
+        changes: [{ index: 'dow', index_name: 'Dow 30', date: '2024-11-08', side: 'added', added: { sym, name: 'Made-up Company Inc' }, removed: { sym: 'QZOLD', name: 'Made-up Old Co' }, reason: 'Made-up reason.' }] } } }
+  },
 }
 /** Wave 6's made-up calendar months: ten years each, except a month nobody counted (February) and a thin one (March). */
 function SEASON_MONTHS(shift) {
@@ -918,7 +963,7 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
     if (u === '/api/agent/data' && ['index.quote', 'commodity.quote', 'crypto.quote'].includes(body?.kind)) {
       return json({ contract: 'MD-1.0', kind: body.kind, params_echo: body.params, status: 'refused', freshness: 'unavailable', as_of: null, stale: false, notes: ['no licensed source'], data: null })
     }
-    // terminal data waves 1 to 11 (dark): a SYNTHETIC answer in each kind's own data shape (TERMINAL_DATA above; no market value)
+    // terminal data waves 1 to 12 (dark): a SYNTHETIC answer in each kind's own data shape (TERMINAL_DATA above; no market value)
     if (u === '/api/agent/data' && TERMINAL_DATA[body?.kind]) {
       return json({ contract: 'MD-1.0', kind: body.kind, params_echo: body.params, status: 'ok', freshness: 'periodic', as_of: null, fetched_at: '2026-11-03T16:00:00Z', delay_s: null,
         stale: false, source: 'fixture', coverage: null, notes: [], provider_calls: 0, ...TERMINAL_DATA[body.kind](body.params || {}) })

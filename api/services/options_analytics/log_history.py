@@ -15,6 +15,9 @@
 ⛔ Computed values say so (`label`); the inputs (ATM IV, straddle mids, underlying price) are the
   vendor's, recorded by `options_universe_log.py` at 16:30 ET.
 ⛔ Blocking reads (R2 mirror, gzip): callers are plain `def` routes.
+⛔ An ATM IV is read through `iv_history.atm_iv`, the one reader of the column (2026-11-24): a reading under
+  `iv_history.IV_FLOOR` is a vendor placeholder, never a figure, so it neither makes an implied move nor fills an
+  IV crush cell.
 """
 from __future__ import annotations
 
@@ -112,7 +115,7 @@ def daily_move(sym: str, *, now: Optional[_dt.datetime] = None, store=None) -> d
         if r is None:
             continue
         nxt = ivh._next_trading_day(_dt.date.fromisoformat(d)).isoformat()
-        iv, px = ivh._num(r.get("atm_iv")), ivh._num(r.get("underlying_price"))
+        iv, px = ivh.atm_iv(r.get("atm_iv"))[0], ivh._num(r.get("underlying_price"))
         if nxt not in by_date:
             if nxt in manifests or nxt < max(manifests):
                 broken.append({"date": d, "next": nxt, "reason": "the next session has no row for this symbol"
@@ -168,7 +171,7 @@ def _shift(d: _dt.date, k: int) -> _dt.date:
 def iv_crush(sym: str, *, now: Optional[_dt.datetime] = None, store=None) -> dict:
     ivh = _ivh()
     _, manifests, rows = _rows(sym, store)
-    iv_by = {d: ivh._num(r.get("atm_iv")) for d, r in rows if r is not None}
+    iv_by = {d: ivh.atm_iv(r.get("atm_iv"))[0] for d, r in rows if r is not None}
     began = min(manifests) if manifests else None
     today = (now or _dt.datetime.now(ivh._ET)).astimezone(ivh._ET).date()
     out_rows, before_log = [], 0
