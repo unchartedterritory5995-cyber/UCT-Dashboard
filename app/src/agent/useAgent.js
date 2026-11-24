@@ -2466,8 +2466,10 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
   const instantGateRef = useRef(null)
   // (`ticker: false`: one step of a whole reading at run time — the target-ticker check ran over EVERY part's ops before it began;
   // a single step never writes every ticker the message names)
-  instantGateRef.current = async (ops, typed, { landed = null, subjectAt, ticker = true } = {}) => {
+  instantGateRef.current = async (ops, typed, { landed = null, subjectAt, ticker = true, tickerOps = null } = {}) => {
     try {
+      // (`tickerOps`: the ops the target-ticker check reads — every part of a whole reading, a chart it creates included)
+      const tops = tickerOps || ops
       const rails = targetRailsRef.current(typed, { subjectAt })
       const live = host?.charts?.list?.() || []
       if (landed && landed.size > 1 && !wordsNameASet(typed)) {
@@ -2499,18 +2501,19 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       // subject only BESIDE another write the check still reads ("change AMD to weekly" alone, on the subject, is still asked)
       // (the whole plan first; only when that asks are the accounted-for writes set aside — and then every ticker the words name must
       // still be written by the plan, so nothing named is dropped)
-      if (ticker && (await rails.ticker(ops))?.ask) {
+      if (ticker && (await rails.ticker(tops))?.ask) {
+        const twritten = chartsWrittenOn(host, tops)
         const chartOf = (o) => [...chartsWrittenOn(host, [o])][0] || null
         const setCovered = new Set(wordsNameASet(typed) ? live.map(c => c.ref) : [])
-        let rest = setCovered.size ? ops.filter(o => !setCovered.has(chartOf(o))) : ops
-        if (subjNow && !selectedChart(host) && written.has(subjNow)) {
+        let rest = setCovered.size ? tops.filter(o => !setCovered.has(chartOf(o))) : tops
+        if (subjNow && !selectedChart(host) && twritten.has(subjNow)) {
           const besides = rest.filter(o => chartOf(o) !== subjNow)
           if (besides.length) rest = besides
         }
         const symOf = (ref) => String(live.find(c => c.ref === ref)?.symbol || '').toUpperCase()
-        const shown = new Set([...written].map(symOf))
+        const shown = new Set([...twritten].map(symOf))
         const allNamedWritten = targetTickers(typed, live, new Map(), lexiconFor(host).words).every(t => shown.has(t))
-        if (rest.length === ops.length || !allNamedWritten || (rest.length && (await rails.ticker(rest))?.ask)) return 'ticker'
+        if (rest.length === tops.length || !allNamedWritten || (rest.length && (await rails.ticker(rest))?.ask)) return 'ticker'
       }
       return null
     } catch { return 'failed' }                                          // ⛔ fail closed: an unread gate never writes instantly
@@ -2785,8 +2788,10 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
             const sel0 = selectedChart(host)
             const live0 = host?.charts?.list?.() || []
             const readsNow = (x, i) => i === 0 || !!sel0 || wordsNameASet(x) || chartsNamedBy(changeWordsOf(x), live0, sel0).size > 0
-            const ops = parts.flatMap((x, i) => { if (!readsNow(x, i)) return []; try { return readStepRef.current({ kind: 'fast', text: x }, null)?.ops || [] } catch { return [] } })
-            const why = await instantGateRef.current(ops, typedWords, { landed: parts.length > 1 ? chartsWrittenOn(host, ops) : null, subjectAt })
+            const read = parts.map((x) => { try { return readStepRef.current({ kind: 'fast', text: x }, null)?.ops || [] } catch { return [] } })
+            const ops = read.flatMap((o, i) => (readsNow(parts[i], i) ? o : []))
+            // (the target-ticker check reads EVERY part: a ticker the words name may be what a later part creates or sets)
+            const why = await instantGateRef.current(ops, typedWords, { landed: parts.length > 1 ? chartsWrittenOn(host, ops) : null, subjectAt, tickerOps: read.flat() })
             // (AUDIT R1) a reading the gate declines is declined WHOLE: no other NLM-1 reading of the same words runs instead (a
             // follow-up over a part of them would drop the rest silently) — the message goes on as v1 sends it
             if (why) { mark('nlm1:rewrite-declined', `${rw.rule}:gate:${why}`); rw = null; nlm1FellBack = true }
