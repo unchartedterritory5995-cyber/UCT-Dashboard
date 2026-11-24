@@ -739,7 +739,7 @@ def test_a_thread_waiting_for_the_boot_to_settle_stops_at_once_when_told(store, 
 
 
 def test_the_rebuild_is_skipped_when_the_disk_has_no_room_and_tried_again_at_the_next_start(store, monkeypatch, capsys):
-    _an_older_builds_store(store, 2000)
+    _an_older_builds_store(store, 6000)       # (many pages of pruned rows: more than the new tables' first pages can reuse)
     conn = sqlite3.connect(store)
     conn.execute("PRAGMA secure_delete=OFF")
     # keys in free space too (whole pages of pruned rows, which the blanking below never touches): only a rebuild removes those
