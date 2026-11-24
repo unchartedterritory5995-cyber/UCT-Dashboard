@@ -1312,6 +1312,7 @@ def test_the_member_paths_own_readers_do_that_work_in_the_same_state_so_the_rail
     _hold_iv(world, n=3)
     assert _read(ivr.KIND)["status"] == "ok" and hits[4:] == []
     assert ivs.iv_history("AAA")["status"] == "ok"
+    ivs._default_store.drain(10)        # speed pass 2: the route's listing runs on the store's one background refresh
     assert hits[4:] == ["remote listing"]
     # the dilution watch: nothing held starts a background build
     def bg(sym, done):

@@ -21,7 +21,8 @@ vi.mock('../../../utils/jsonFetcher', () => ({ default: vi.fn() }))
 import jsonFetcher from '../../../utils/jsonFetcher'
 import { PanelFreshnessContext, PanelListContext, TerminalPanelContext } from '../../../components/terminal'
 import VolumeFootprintPanel from './VolumeFootprintPanel'
-import { HELD_POLL_MS, VFP_CODE, VFP_SOURCE, vfpUrl } from './volumeFootprintModel'
+import { COMPUTING_POLL_MS, HELD_POLL_MS, VFP_CODE, VFP_SOURCE, vfpPollMs, vfpRead, vfpUrl } from './volumeFootprintModel'
+import { WARMING_TITLE } from './marketRead'
 import { vfpAnswer } from './__fixtures__/volumeFootprintFixture'
 import { colourLiteralsIn } from '../__tests__/themeScope'
 import { expectNoAxeViolations } from '../../journal-2-0/a11y/axeHarness'
@@ -109,7 +110,7 @@ describe('VFP states', () => {
     renderPanel({ sym: '$$', code: 'VFP' })
     expect((await screen.findByTestId('terminal-vfp-bad-symbol')).textContent).toContain('Type one first, e.g. NVDA VFP')
     cleanup()
-    for (const b of [{ items: [] }, { status: 'computing' }, []]) {
+    for (const b of [{ items: [] }, { status: 'pending' }, []]) {
       serve(b)
       renderPanel()
       expect((await screen.findByTestId('terminal-vfp-error')).textContent).toContain('The volume footprint for NVDA could not be read just now.')
@@ -242,6 +243,39 @@ describe('VFP sections', () => {
     expect(textOf('terminal-vfp-check-note')).toContain('can be a split the history did not adjust')
   })
 
+  it('the first ask being worked out says the server is preparing it, asks again by itself, and stops once it is ready', async () => {
+    // speed pass 2 (2026-11-24): the server answers `computing` at once while it works the stock out
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      let n = 0
+      jsonFetcher.mockImplementation(async () => {
+        n += 1
+        return n === 1 ? { status: 'computing', symbol: 'NVDA' } : vfpAnswer()
+      })
+      renderPanel()
+      const working = await screen.findByTestId('terminal-vfp-computing')
+      expect(working.textContent).toBe(WARMING_TITLE)
+      expect(working.getAttribute('role')).toBe('status')
+      expect(root().getAttribute('data-state')).toBe('computing')
+      expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull()
+      expect(n).toBe(1)
+      await vi.advanceTimersByTimeAsync(COMPUTING_POLL_MS + 100)
+      await screen.findByTestId('terminal-vfp-accumulation')
+      expect(n).toBe(2)
+      await vi.advanceTimersByTimeAsync(COMPUTING_POLL_MS * 3)
+      expect(n).toBe(2)                                                    // ready: back to the half-hour pace
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('the pace: soon while the stock is being worked out, else once a half hour', () => {
+    expect(vfpPollMs(vfpRead({ status: 'computing', symbol: 'NVDA' }))).toBe(COMPUTING_POLL_MS)
+    expect(vfpPollMs(vfpRead(vfpAnswer()))).toBe(HELD_POLL_MS)
+    expect(vfpPollMs(vfpRead({ status: 'busy' }))).toBe(HELD_POLL_MS)
+    expect(vfpPollMs(vfpRead(undefined))).toBe(HELD_POLL_MS)
+  })
+
   it('asks again after half an hour; a later read that fails keeps the last answer and says so', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     try {
@@ -289,7 +323,7 @@ describe('VFP rails', () => {
 
   it('reads through the terminal\'s one reader and reports the data\'s date through the panel header', () => {
     const src = fs.readFileSync(path.join(HERE, 'VolumeFootprintPanel.jsx'), 'utf8')
-    expect(src).toMatch(/useMarketRead\(vfpUrl\(s\), \{ refreshInterval: HELD_POLL_MS \}\)/)
+    expect(src).toMatch(/useMarketRead\(vfpUrl\(s\), \{ refreshInterval: \(latest\) => vfpPollMs\(vfpRead\(latest\?\.body\)\) \}\)/)
     expect(src).toMatch(/usePanelFreshness\(ok \? panelAsOf\(VFP_SOURCE, view\.dataThrough\) : null\)/)
     expect(src).not.toMatch(/setInterval|setTimeout|fetch\(/)
     expect(src).not.toMatch(/srOnly|visually-?hidden/i)

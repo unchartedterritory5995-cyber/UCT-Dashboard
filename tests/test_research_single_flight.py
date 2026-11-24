@@ -13,6 +13,21 @@ MODS = [("financials", "research_fin::v2"), ("estimates", "research_est"),
         ("ownership", "research_own"), ("ratings", "research_rat")]
 
 
+def _hold(m, mod, key, sym, record):
+    """Put a record where the getter looks first: OWN holds its record in its own module since speed pass 2
+    (2026-11-24); the other three still use the shared cache."""
+    if mod == "ownership":
+        m._remember(sym, record, 60)
+    else:
+        cache.set(f"{key}::{sym}", record, ttl=60)
+
+
+def _forget(m, mod, key, sym):
+    if mod == "ownership":
+        m.forget_for_tests(sym)
+    cache.invalidate(f"{key}::{sym}")
+
+
 def _record(result):
     """The built / cached record a getter returned. `get_ownership` attaches the short interest
     block on every read (it is never part of the built record), so it is set aside here."""
@@ -23,7 +38,7 @@ def _record(result):
 def test_concurrent_cold_opens_share_one_build(monkeypatch, mod, key):
     m = importlib.import_module(f"api.services.research.{mod}")
     sym = "ZZSF" + mod[:2].upper()
-    cache.invalidate(f"{key}::{sym}")
+    _forget(m, mod, key, sym)
     calls, gate = [], threading.Event()
 
     def slow_build(s):
@@ -49,7 +64,7 @@ def test_concurrent_cold_opens_share_one_build(monkeypatch, mod, key):
 def test_a_cache_hit_never_enters_the_flight(monkeypatch, mod, key):
     m = importlib.import_module(f"api.services.research.{mod}")
     sym = "ZZSH" + mod[:2].upper()
-    cache.set(f"{key}::{sym}", {"sym": sym, "cached": True}, ttl=60)
+    _hold(m, mod, key, sym, {"sym": sym, "cached": True})
 
     def never(s):
         raise AssertionError("built despite a cache hit")
@@ -58,7 +73,7 @@ def test_a_cache_hit_never_enters_the_flight(monkeypatch, mod, key):
     try:
         assert _record(getattr(m, f"get_{mod}")(sym)) == {"sym": sym, "cached": True}
     finally:
-        cache.invalidate(f"{key}::{sym}")
+        _forget(m, mod, key, sym)
 
 
 def test_the_ratings_reads_run_side_by_side(monkeypatch):

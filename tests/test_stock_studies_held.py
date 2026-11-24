@@ -46,6 +46,11 @@ def fresh(monkeypatch, tmp_path):
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
     for svc in (SS, VF, FX, SH):
         svc.reset_for_tests()
+    # Speed pass 2 (2026-11-24): the price studies' route readers never build on the request; they answer
+    # `computing` while one background build runs. These rails read the services' own answers back, so each route
+    # read here waits for the build it started (the held readers themselves are unchanged and start nothing).
+    for svc in (SS, VF, FX):
+        monkeypatch.setattr(svc, "WAIT_S", 10.0)
     monkeypatch.setattr(SS, "_is_trading_day", lambda d: d.weekday() < 5)
     monkeypatch.setattr(SH, "_universe", lambda: list(T_SH.SYMS))
     monkeypatch.setattr(SH, "_market", lambda wait_s: T_SH._market())
@@ -55,6 +60,8 @@ def fresh(monkeypatch, tmp_path):
     yield tmp_path
     SH._STUDY.drain(10)
     SH._STOCK.drain(10)
+    for svc in (SS, VF, FX):
+        svc.drain_for_tests()
     for svc in (SS, VF, FX, SH):
         svc.reset_for_tests()
 
