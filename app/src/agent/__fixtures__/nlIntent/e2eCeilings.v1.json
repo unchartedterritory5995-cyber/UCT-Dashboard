@@ -1,9 +1,11 @@
 {
- "version": 1,
- "about": "E2E PRODUCT CEILINGS (agentE2eHarness.test.jsx oracle self-check): what the IDEAL answer scores on the panel when that is not success, as observed on origin/master (agent/pl/e2e-eval) AND on the NL-1 preflight fix (agent/pl/nl1-preflight-defer merged): the union per turn. The same for every arm: no model passes these through the rails. A fix that turns one into success adds \"success\".",
+ "version": 2,
+ "about": "E2E PRODUCT CEILINGS (agentE2eHarness.test.jsx oracle self-check): what the IDEAL answer scores on the panel when that is not success, observed on agent/pl/e2e-eval merged with origin/master 6d50f4662b (#2664 NL-1 preflight, #2692 side-by-side, #2697 G1/G2). The same for every arm. Refreshed from that head alone (11-24): 8 pane-conflict turns left (master rolls a refused pane save back), e2-t05#1 entered (the G1/G2 gate asks on a correction that names its chart: reported to PL as a suspected over-ask, not an expectation change).",
  "observed": {
-  "master": "578122571e",
-  "fix": "7ecec91e8f"
+  "head": "a284724248"
+ },
+ "suspect": {
+  "e2-t05#1": "G1/G2 asks \"Did you mean Right chart (META)?\" although the words name msft explicitly; turn 1 log scale stays on META"
  },
  "ceilings": {
   "e2-b01#1": [
@@ -24,48 +26,14 @@
   "e2-b09#1": [
    "unnecessary_ask"
   ],
-  "e2-c01#0": [
-   "residue",
-   "success"
-  ],
-  "e2-c02#0": [
-   "residue",
-   "success"
-  ],
-  "e2-c03#0": [
-   "residue",
-   "success"
-  ],
-  "e2-c04#0": [
-   "residue",
-   "success"
-  ],
   "e2-c05#0": [
-   "refusal",
-   "residue"
+   "refusal"
   ],
   "e2-c06#0": [
-   "refusal",
-   "residue"
-  ],
-  "e2-c07#0": [
-   "residue",
-   "success"
-  ],
-  "e2-c08#0": [
-   "residue",
-   "success"
+   "refusal"
   ],
   "e2-c09#0": [
    "partial_silent"
-  ],
-  "e2-c10#0": [
-   "residue",
-   "success"
-  ],
-  "e2-c11#0": [
-   "residue",
-   "success"
   ],
   "e2-c12#0": [
    "residue"
@@ -96,6 +64,9 @@
   ],
   "e2-t02#1": [
    "unsafe"
+  ],
+  "e2-t05#1": [
+   "wrong_chart"
   ],
   "e2-t08#1": [
    "wrong_action"

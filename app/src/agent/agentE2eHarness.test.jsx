@@ -211,6 +211,33 @@ describe('rounds without teacher forcing', () => {
   }, 180000)
 })
 
+// ── the shared pipeline's new ASKS are scored as asks, never as drops (side-by-side ruling #2692, G1/G2 gate #2697) ──────────
+// Inline cases (not corpus rows): what the panel itself does with these words on the deterministic path (arm A) and with an
+// expected clarify on NL-1 (arm B). A question with nothing changed must score `success` for a clarify expectation, and the
+// headline columns must stay empty for it.
+describe('the pipeline asks score as asks', () => {
+  const data = load('e2eBench.v1.json')
+  const spec = specFor(SPEC, data)
+  const NEVER = ['chart.setSymbol', 'chart.resetDefaults', 'widget.remove', 'indicator.remove']
+  const CASES = [
+    // side by side with tickers no chart shows: which chart they go beside is unclear -> ASKED (add beside, or replace)
+    { id: 'ask-sbs-1', fx: 'rb_solo', text: 'show nvda and amd side by side', expect: { kind: 'clarify', never: NEVER } },
+    // G1: "this one" with nothing clicked has no grounded referent -> ASKED, nothing changes
+    { id: 'ask-g1-1', fx: 'rb_pair_nosel', text: 'Change MSFT to the 1-hour timeframe, add a 20 EMA to it, and do the same on this one', expect: { kind: 'clarify', never: NEVER } },
+  ]
+  for (const arm of ['A', 'B']) {
+    for (const c of CASES) {
+      it(`${arm} ${c.id}: "${c.text}"`, async () => {
+        const { rows } = await evaluateCase({ spec, c, arm, responderFor: () => expectedResponder() })
+        const r = rows[0]
+        if (env.AGENT_E2E_DEBUG) console.log(`ASKCASE ${arm} ${c.id} ${r.outcome} asked=${r.asked} lane=${r.lane} | ${r.reply}`)
+        expect([r.outcome, r.asked]).toEqual(['success', true])
+        expect(r.flags.filter(f => f === 'silentDrop' || f === 'wrongChartWrite')).toEqual([])
+      }, 120000)
+    }
+  }
+})
+
 // ── the save-conflict host (409 workspace_conflict, sticky) ─────────────────────────────────────────────────
 describe('save conflict host', () => {
   const data = load('e2eBench.v1.json')
