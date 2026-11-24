@@ -1,41 +1,41 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 275,
+  "all": 281,
   "withProductionKinds": 208,
-  "darkGated": 67
+  "darkGated": 73
  },
  "totals": {
-  "capabilities": 275,
-  "withAnyRegressionCase": 224,
+  "capabilities": 281,
+  "withAnyRegressionCase": 230,
   "perProtection": {
    "nl": {
-    "covered": 221,
-    "applicable": 275
+    "covered": 227,
+    "applicable": 281
    },
    "routing": {
-    "covered": 218,
-    "applicable": 275
+    "covered": 224,
+    "applicable": 281
    },
    "args": {
-    "covered": 224,
-    "applicable": 275
+    "covered": 230,
+    "applicable": 281
    },
    "execution": {
-    "covered": 221,
-    "applicable": 275
+    "covered": 227,
+    "applicable": 281
    },
    "receipt": {
-    "covered": 191,
-    "applicable": 275
+    "covered": 197,
+    "applicable": 281
    },
    "refusal": {
     "covered": 35,
-    "applicable": 275
+    "applicable": 281
    },
    "permission": {
-    "covered": 267,
-    "applicable": 275
+    "covered": 273,
+    "applicable": 281
    },
    "undo": {
     "covered": 84,
@@ -43,11 +43,11 @@
    },
    "multiStep": {
     "covered": 43,
-    "applicable": 275
+    "applicable": 281
    },
    "phrasings": {
-    "covered": 217,
-    "applicable": 275
+    "covered": 223,
+    "applicable": 281
    }
   }
  },
@@ -10199,6 +10199,60 @@
     "phrasings": []
    }
   },
+  "stock.daysLikeToday": {
+   "domain": "stock",
+   "group": "marketMacro",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.daysLikeToday: \"days like today\"",
+     "stock.daysLikeToday: \"breadth analogues\"",
+     "stock.daysLikeToday: \"when did the market look like this\"",
+     "stock.daysLikeToday: \"past sessions like this\""
+    ],
+    "routing": [
+     "stock.daysLikeToday: \"days like today\"",
+     "stock.daysLikeToday: \"breadth analogues\"",
+     "stock.daysLikeToday: \"when did the market look like this\"",
+     "stock.daysLikeToday: \"past sessions like this\""
+    ],
+    "args": [
+     "corpus stock.daysLikeToday"
+    ],
+    "execution": [
+     "stock.daysLikeToday (c)"
+    ],
+    "receipt": [
+     "stock.daysLikeToday (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "stock.dilutionWatch": {
    "domain": "stock",
    "group": "marketReads",
@@ -10473,6 +10527,60 @@
     ],
     "receipt": [
      "stock.earningsSeason (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.economyBoard": {
+   "domain": "stock",
+   "group": "marketMacro",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.economyBoard: \"economic data\"",
+     "stock.economyBoard: \"the latest cpi\"",
+     "stock.economyBoard: \"jobs report\"",
+     "stock.economyBoard: \"show me the economy board\""
+    ],
+    "routing": [
+     "stock.economyBoard: \"economic data\"",
+     "stock.economyBoard: \"the latest cpi\"",
+     "stock.economyBoard: \"jobs report\"",
+     "stock.economyBoard: \"show me the economy board\""
+    ],
+    "args": [
+     "corpus stock.economyBoard"
+    ],
+    "execution": [
+     "stock.economyBoard (c)"
+    ],
+    "receipt": [
+     "stock.economyBoard (c)"
     ],
     "refusal": [],
     "permission": [],
@@ -11129,6 +11237,60 @@
     "phrasings": []
    }
   },
+  "stock.insiderBuying": {
+   "domain": "stock",
+   "group": "marketMacro",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.insiderBuying: \"insider buying\"",
+     "stock.insiderBuying: \"what are insiders buying\"",
+     "stock.insiderBuying: \"show me the insider clusters\"",
+     "stock.insiderBuying: \"latest insider purchases\""
+    ],
+    "routing": [
+     "stock.insiderBuying: \"insider buying\"",
+     "stock.insiderBuying: \"what are insiders buying\"",
+     "stock.insiderBuying: \"show me the insider clusters\"",
+     "stock.insiderBuying: \"latest insider purchases\""
+    ],
+    "args": [
+     "corpus stock.insiderBuying"
+    ],
+    "execution": [
+     "stock.insiderBuying (c)"
+    ],
+    "receipt": [
+     "stock.insiderBuying (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "stock.ipoCalendar": {
    "domain": "stock",
    "group": "marketCalendars",
@@ -11345,6 +11507,60 @@
     "phrasings": []
    }
   },
+  "stock.liquidityBoard": {
+   "domain": "stock",
+   "group": "marketMacro",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.liquidityBoard: \"net liquidity\"",
+     "stock.liquidityBoard: \"the fed balance sheet\"",
+     "stock.liquidityBoard: \"reverse repo\"",
+     "stock.liquidityBoard: \"money supply\""
+    ],
+    "routing": [
+     "stock.liquidityBoard: \"net liquidity\"",
+     "stock.liquidityBoard: \"the fed balance sheet\"",
+     "stock.liquidityBoard: \"reverse repo\"",
+     "stock.liquidityBoard: \"money supply\""
+    ],
+    "args": [
+     "corpus stock.liquidityBoard"
+    ],
+    "execution": [
+     "stock.liquidityBoard (c)"
+    ],
+    "receipt": [
+     "stock.liquidityBoard (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "stock.longRunLeaders": {
    "domain": "stock",
    "group": "data",
@@ -11391,6 +11607,60 @@
     ],
     "receipt": [
      "stock.longRunLeaders (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.marketHistory": {
+   "domain": "stock",
+   "group": "marketMacro",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.marketHistory: \"market corrections and bear markets\"",
+     "stock.marketHistory: \"how long do bear markets last\"",
+     "stock.marketHistory: \"history of bear markets\"",
+     "stock.marketHistory: \"nasdaq corrections\""
+    ],
+    "routing": [
+     "stock.marketHistory: \"market corrections and bear markets\"",
+     "stock.marketHistory: \"how long do bear markets last\"",
+     "stock.marketHistory: \"history of bear markets\"",
+     "stock.marketHistory: \"nasdaq corrections\""
+    ],
+    "args": [
+     "corpus stock.marketHistory"
+    ],
+    "execution": [
+     "stock.marketHistory (c)"
+    ],
+    "receipt": [
+     "stock.marketHistory (c)"
     ],
     "refusal": [],
     "permission": [],
@@ -11499,6 +11769,60 @@
     ],
     "receipt": [
      "stock.oiChange (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.oilReport": {
+   "domain": "stock",
+   "group": "marketMacro",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.oilReport: \"weekly oil report\"",
+     "stock.oilReport: \"crude inventories\"",
+     "stock.oilReport: \"eia report\"",
+     "stock.oilReport: \"refinery utilization\""
+    ],
+    "routing": [
+     "stock.oilReport: \"weekly oil report\"",
+     "stock.oilReport: \"crude inventories\"",
+     "stock.oilReport: \"eia report\"",
+     "stock.oilReport: \"refinery utilization\""
+    ],
+    "args": [
+     "corpus stock.oilReport"
+    ],
+    "execution": [
+     "stock.oilReport (c)"
+    ],
+    "receipt": [
+     "stock.oilReport (c)"
     ],
     "refusal": [],
     "permission": [],

@@ -117,9 +117,10 @@ def _nth_session_after(start: _dt.date, n: int) -> Optional[str]:
 
 def iv_rank(sym: str, *, now: Optional[_dt.datetime] = None) -> dict:
     from api.services.research import iv_history as ivh
-    # The store handed in explicitly (speed pass 2, 2026-11-24): this answer carries no `partial` sentence, so it reads
-    # the production store's own listing as before (`sessions()`), never IVH's request-path copy, which may still be
-    # catching up after a restart.
+    # The store handed in explicitly (speed pass 2, 2026-11-24): this answer carries no `partial` sentence, so it never
+    # reads IVH's request-path copy while that may still be catching up after a restart. Since speed pass 3 it reads the
+    # mirror once this process's first refresh has finished (`iv_history.mirror_sessions`: no listing on the request),
+    # and the store's own listing before that, as before.
     h = ivh.iv_history(sym, now=now, store=ivh.get_store())
     current_rule = [p for p in h.get("points") or [] if p.get("atm_iv") is not None and p.get("rule") == ivh.CURRENT_RULE]
     n = len(current_rule)

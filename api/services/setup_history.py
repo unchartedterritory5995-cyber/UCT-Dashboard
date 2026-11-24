@@ -43,6 +43,11 @@ stocks (one stock's bars at a time, the per-day cells, a 29-byte record per sign
 460,000 signals, so about 20 MB held and about 35 MB at the peak while the summaries sort the largest group,
 well under the 150 MB budget beside the web process.
 
+THE READY ANSWER IS PUT TOGETHER ONCE (speed pass 3, 2026-11-24; live, a held stock still took 0.78 s): the stock's
+answer with its universe lines (`universe_lines` over the held study) is kept per stock key (`_served`) while the same
+stock answer and the same study build are held, with its bytes (`held_bytes`); the stock's background build prepares it
+when a study is held, so the request neither walks the study nor turns 60 KB into JSON on the event loop. Same answer.
+
 WINDOW, set by the integrator (2026-11-22): 8 years, not the 3 the builder measured against a 20-minute bound.
 The owner asked how setups acted in other corrections and rallies; 3 years held only a couple, 8 years hold
 the 2018 fourth-quarter decline's end, the 2020 crash, the 2022 bear market and the 2025 decline. The cost is
@@ -58,10 +63,11 @@ import json
 import logging
 import threading
 import time
+from collections import OrderedDict
 from datetime import date, datetime, timedelta, timezone
 from typing import Callable, Optional
 
-from api.services import held_build, held_reads
+from api.services import held_build, held_bytes, held_reads
 from api.services import setup_history_calc as C
 from api.services.screener import backtest as bt
 
@@ -363,6 +369,10 @@ def _stock_builder(key):
 
     def build(previous):
         answer = _build_stock(sym, session)
+        if answer.get("status") == "ok":
+            # what `_STOCK.get` will hand out for it (a build that worked carries no check), put together with the
+            # study held now, here on the build thread (`_STUDY.peek` never starts a build)
+            _served_answer(key, {**answer, "check": None}, _STUDY.peek())
         return answer, f"{sym} {answer.get('status')} signals={answer.get('total')}"
     return build
 
@@ -399,16 +409,58 @@ def universe_lines(stock: dict, study: dict) -> dict:
             "min_signals": study.get("min_signals"), "note": (study.get("universe") or {}).get("caveat")}
 
 
+_served_lock = threading.Lock()
+#: stock key -> (the stock answer, the study build's mark, the answer served): one per held stock key
+_served: "OrderedDict[tuple, tuple]" = OrderedDict()
+
+
+def _study_mark(study) -> Optional[tuple]:
+    """Which study build `universe_lines` reads (each build is one answer, replaced whole), or None when no study is
+    held (nothing is kept then: those lines say `computing`, `waiting` or `unavailable` and cost nothing)."""
+    if not isinstance(study, dict) or study.get("status") != "ok":
+        return None
+    return (study.get("built_for"), study.get("built_at"), study.get("library"), study.get("session"))
+
+
+def _served_answer(key: tuple, ans: dict, study) -> dict:
+    """The answer for one held stock answer and the study held now: the one put together before while the SAME stock
+    answer (equal, field for field) and the same study build are held, else put together now, kept with its bytes."""
+    mark = _study_mark(study)
+    if mark is not None:
+        with _served_lock:
+            hit = _served.get(key)
+            if hit is not None and hit[1] == mark and hit[0] == ans:
+                _served.move_to_end(key)
+                return hit[2]
+    out = {**ans, "universe": universe_lines(ans, study)}
+    if mark is None:
+        return out
+    held_bytes.remember(out)
+    dropped = []
+    with _served_lock:
+        old = _served.get(key)
+        if old is not None:
+            dropped.append(old[2])
+        _served[key] = (ans, mark, out)
+        _served.move_to_end(key)
+        while len(_served) > STOCK_KEYS:
+            dropped.append(_served.popitem(last=False)[1][2])
+    for gone in dropped:
+        held_bytes.forget(gone)
+    return out
+
+
 def get_stock(sym: str, now: Optional[datetime] = None) -> dict:
     """One canonical symbol's signals (the route has already refused anything else)."""
     now = now or now_et()
     session = evening_key(now)
     market = _market(0.0)
     stamp = (market.get("status"), market.get("built_at")) if isinstance(market, dict) else (None, None)
-    ans = _STOCK.get((sym, session, stamp), wait_s=STOCK_WAIT_S)
+    key = (sym, session, stamp)
+    ans = _STOCK.get(key, wait_s=STOCK_WAIT_S)
     if ans.get("status") != "ok":
         return {**ans, "symbol": ans.get("symbol") or sym}
-    return {**ans, "universe": universe_lines(ans, get_study(now))}
+    return _served_answer(key, ans, get_study(now))
 
 
 def reset_for_tests() -> None:
@@ -416,5 +468,9 @@ def reset_for_tests() -> None:
     global _slots
     _STUDY.reset()
     _STOCK.reset()
+    with _served_lock:
+        for _ans, _mark, out in _served.values():
+            held_bytes.forget(out)
+        _served.clear()
     _building.clear()
     _slots = threading.BoundedSemaphore(STOCK_SLOTS)

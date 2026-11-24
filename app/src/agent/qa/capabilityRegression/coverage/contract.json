@@ -2424,6 +2424,19 @@
    ],
    "fast": false
   },
+  "stock.daysLikeToday": {
+   "domain": "stock",
+   "group": "marketMacro",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
   "stock.dilutionWatch": {
    "domain": "stock",
    "group": "marketReads",
@@ -2479,6 +2492,19 @@
   "stock.earningsSeason": {
    "domain": "stock",
    "group": "marketViews",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
+  "stock.economyBoard": {
+   "domain": "stock",
+   "group": "marketMacro",
    "target": "market",
    "risk": "local",
    "reversible": true,
@@ -2645,6 +2671,19 @@
    ],
    "fast": false
   },
+  "stock.insiderBuying": {
+   "domain": "stock",
+   "group": "marketMacro",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
   "stock.ipoCalendar": {
    "domain": "stock",
    "group": "marketCalendars",
@@ -2697,9 +2736,35 @@
    ],
    "fast": false
   },
+  "stock.liquidityBoard": {
+   "domain": "stock",
+   "group": "marketMacro",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
   "stock.longRunLeaders": {
    "domain": "stock",
    "group": "data",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
+  "stock.marketHistory": {
+   "domain": "stock",
+   "group": "marketMacro",
    "target": "market",
    "risk": "local",
    "reversible": true,
@@ -2726,6 +2791,19 @@
   "stock.oiChange": {
    "domain": "stock",
    "group": "marketRecords",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
+  "stock.oilReport": {
+   "domain": "stock",
+   "group": "marketMacro",
    "target": "market",
    "risk": "local",
    "reversible": true,

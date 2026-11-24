@@ -42,6 +42,13 @@ WHY THIS READS OUR LOG AND NOTHING ELSE
   * A day's row for a symbol comes from the local index (`iv_history_index`, SQLite on this server's disk, built in
     the background) while that day's file is the one indexed, else from the file exactly as before (`_day_row`):
     the index changes the speed, never the answer.
+⚡ THE FIRST MEMBER AFTER A DEPLOY GETS AN ANSWER (speed pass 3, 2026-11-24; live, a cold process with nothing mirrored
+  answered 503 `LogNotReady` 45 minutes after a deploy, until a member asked). `warm_mirror`, a boot DATE job
+  (`WARM_BOOT_DELAY_S`, past the boot's busy minutes), starts the mirror's one background refresh and, after it, the
+  index check. The IV rank header (FT-006, `options_analytics/vol.py`) and the log history (OHIS,
+  `options_analytics/log_history.py`), which listed the bucket on their own request, read the same mirror
+  (`mirror_sessions`) once this process's first refresh has finished, and the store's own listing before that, as
+  before: the same answers, no listing on the request once the mirror is ready.
 """
 from __future__ import annotations
 
@@ -61,6 +68,12 @@ from typing import Callable, Optional
 from zoneinfo import ZoneInfo
 
 FLAG = "IV_HISTORY_ENABLED"
+#: The option analytics switches whose answers are read from this module's store (FT-006 and OHIS); the boot warm runs
+#: while IVH's own flag or any one of them is armed.
+MIRROR_READERS = ("OPTIONS_IV_RANK_ENABLED", "OPTIONS_STRADDLE_HISTORY_ENABLED", "OPTIONS_DAILY_MOVE_ENABLED",
+                  "OPTIONS_IV_CRUSH_ENABLED")
+#: The boot DATE job's offset (`api/main.py`): past the boot's busy minutes, on an offset no other boot job uses.
+WARM_BOOT_DELAY_S = 480
 RANK_MIN_SESSIONS = 20
 RANK_WINDOW = 252
 CALIBRATION_MIN_PRINTS = 4
@@ -221,6 +234,25 @@ class R2Store(LocalStore):
         self._note(None)
         return super().sessions()
 
+    def _kick(self) -> bool:
+        """Start ONE background refresh when the listing is due (never listed in this process, or older than
+        `LIST_TTL_S`) and no failed one is inside `RETRY_S`. True when this call started it. Never waits."""
+        now = time.monotonic()
+        with self._state:
+            due = not self._listed_at or now - self._listed_at >= self.LIST_TTL_S
+            if self._failed is not None and now - self._failed[0] < self.RETRY_S:
+                due = False
+            if not due or self._refreshing is not None:
+                return False
+            done = self._refreshing = threading.Event()
+        threading.Thread(target=self._refresh_bg, args=(done,), name=self.REFRESH_THREAD, daemon=True).start()
+        return True
+
+    def warm(self) -> bool:
+        """The boot warm (`warm_mirror`): the refresh `listing()` would start, without reading the mirror. True when
+        this call started it; a no-op while one runs, while the listing is fresh and inside `RETRY_S` of a failure."""
+        return self._kick()
+
     def _refresh_bg(self, done: threading.Event) -> None:
         started = time.time()
         try:
@@ -244,14 +276,9 @@ class R2Store(LocalStore):
         docstring). `note` is `COLD_NOTE` while this process's first listing has not finished; with nothing
         mirrored yet, or with `partial_ok` False, that state raises `LogNotReady` instead."""
         now = time.monotonic()
-        with self._state:
+        with self._state:                                   # what this request answers from: read before the refresh
             ready, failed, listed = self._ready, self._failed, self._listed_at
-            due = not listed or now - listed >= self.LIST_TTL_S
-            if failed is not None and now - failed[0] < self.RETRY_S:
-                due = False
-            if due and self._refreshing is None:
-                done = self._refreshing = threading.Event()
-                threading.Thread(target=self._refresh_bg, args=(done,), name=self.REFRESH_THREAD, daemon=True).start()
+        self._kick()
         if failed is not None and (not ready or not listed or now - listed >= 2 * self.LIST_TTL_S):
             raise failed[1].with_traceback(None)
         have = LocalStore.sessions(self)
@@ -281,6 +308,45 @@ def get_store() -> LocalStore:
     if _default_store is None:
         _default_store = R2Store()
     return _default_store
+
+
+def _mirror_wanted() -> bool:
+    """IVH's own flag, or any switch whose answer is read from this store (`MIRROR_READERS`)."""
+    if is_enabled():
+        return True
+    try:
+        from api.services.options_analytics import flags
+        return any(flags.is_on(name) for name in MIRROR_READERS)
+    except Exception:  # noqa: BLE001 -- a flag that cannot be read is off
+        return False
+
+
+def warm_mirror() -> str:
+    """Boot (a DATE job in `api/main.py`, `WARM_BOOT_DELAY_S` after boot): start the production store's ONE background
+    refresh -- the listing, the downloads and, once they are in, the index check (`R2Store._refresh_bg` kicks
+    `iv_history_index`) -- so the first member after a deploy reads a mirror instead of `LogNotReady`. Returns what it
+    did. A no-op while no reader of the log is armed, for a store a test handed in, while a refresh runs, while the
+    listing is fresh, and inside `R2Store.RETRY_S` of a failed one."""
+    if not _mirror_wanted():
+        return "off"
+    store = get_store()
+    if not isinstance(store, R2Store):
+        return "local store"
+    return "started" if store.warm() else "warm"
+
+
+def mirror_sessions(store: LocalStore) -> dict:
+    """`{session: manifest}` for a reader whose answer carries no partial sentence (the IV rank header FT-006, the log
+    history OHIS). From the production store: the mirror's copy once this process's first refresh has finished
+    (`listing(partial_ok=False)`: never a listing or a download on the caller's thread), else the store's own
+    `sessions()` as these readers read it before (it lists and downloads, or waits for the refresh that does). Any
+    other store: its own `sessions()`."""
+    if isinstance(store, R2Store):
+        try:
+            return store.listing(partial_ok=False)[0]
+        except LogNotReady:
+            return store.sessions()
+    return store.sessions()
 
 
 # ── one day's row for one symbol ────────────────────────────────────────────────
@@ -434,10 +500,11 @@ def _rows_for(store: LocalStore, sym: str, sessions: list, *, kick: bool) -> dic
 
 def _listing(store: LocalStore, *, own: bool, partial_ok: bool = True) -> tuple[dict, Optional[str]]:
     """`(sessions, note)` for a request. The route's own store (`get_store()`): its `listing()`, which never lists
-    or downloads on the caller's thread. A store handed in by a caller is read as it is (`sessions()`, no note)."""
+    or downloads on the caller's thread. A store handed in by a caller: `mirror_sessions` (the production store's
+    mirror once it is ready, its own listing before that; any other store as it is), with no note."""
     if own:
         return store.listing(partial_ok=partial_ok)
-    return store.sessions(), None
+    return mirror_sessions(store), None
 
 
 def _point(session: str, r: dict) -> dict:

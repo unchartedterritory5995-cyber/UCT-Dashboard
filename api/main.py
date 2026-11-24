@@ -11346,6 +11346,49 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             print(f"[startup] IV rank leaders catch-up registration failed (non-fatal): {e}")
 
+        # THE TERMINAL'S FIRST ANSWERS AFTER A DEPLOY (speed pass 3, 2026-11-24). Three light warms, each a DATE job on an
+        # offset of its own past the boot's busy minutes (never inline): IVH's R2 mirror and, after it, its index check
+        # (`iv_history.warm_mirror`, 480 s; live, a process with nothing mirrored answered 503 `LogNotReady` 45 minutes
+        # after a deploy, until a member asked), FED's rates and headlines (`fed_watch.warm`, 540 s), and the RS list's
+        # finished bytes (`routers.rs_ranking.warm_body`, 660 s). Each is a no-op when already warm.
+        _boot_mark("terminal-warms")
+        try:
+            def _iv_history_warm_job():
+                from api.services.research import iv_history as _ivh_w
+                print(f"[scheduler] IV history mirror warm: {_ivh_w.warm_mirror()}")
+
+            def _fed_watch_warm_job():
+                from api.services import fed_watch as _fed_w
+                print(f"[scheduler] Fed watch warm: {_fed_w.warm()}")
+
+            def _rs_rankings_body_warm_job():
+                from api.routers import rs_ranking as _rsl_w
+                print(f"[scheduler] RS list bytes warm: {_rsl_w.warm_body()}")
+
+            from datetime import datetime as _tw_dt, timedelta as _tw_td
+            from api.services.research import iv_history as _tw_ivh
+            from api.services import fed_watch as _tw_fed
+            from api.routers import rs_ranking as _tw_rsl
+            _scheduler.add_job(
+                _iv_history_warm_job, trigger="date",
+                run_date=_tw_dt.now(_ET) + _tw_td(seconds=_tw_ivh.WARM_BOOT_DELAY_S),
+                id="iv_history_warm_boot", max_instances=1, replace_existing=True, misfire_grace_time=3600,
+            )
+            _scheduler.add_job(
+                _fed_watch_warm_job, trigger="date",
+                run_date=_tw_dt.now(_ET) + _tw_td(seconds=_tw_fed.WARM_BOOT_DELAY_S),
+                id="fed_watch_warm_boot", max_instances=1, replace_existing=True, misfire_grace_time=3600,
+            )
+            _scheduler.add_job(
+                _rs_rankings_body_warm_job, trigger="date",
+                run_date=_tw_dt.now(_ET) + _tw_td(seconds=_tw_rsl.WARM_BOOT_DELAY_S),
+                id="rs_rankings_body_warm_boot", max_instances=1, replace_existing=True, misfire_grace_time=3600,
+            )
+            print(f"[startup] terminal warms scheduled -- IVH {_tw_ivh.WARM_BOOT_DELAY_S}s, FED "
+                  f"{_tw_fed.WARM_BOOT_DELAY_S}s, RSL {_tw_rsl.WARM_BOOT_DELAY_S}s after boot")
+        except Exception as e:
+            print(f"[startup] terminal warm registration failed (non-fatal): {e}")
+
         # COT BY TRADER TYPE (2026-11-22): the CFTC's Traders in Financial Futures and Disaggregated futures-only
         # reports beside the legacy COT (api/services/cot_finer.py). 05:10 and 21:10 ET, both inside scan_period's
         # quiet span: 21:10 on the Friday the CFTC publishes (15:30 ET) and the evening of a holiday week's Monday

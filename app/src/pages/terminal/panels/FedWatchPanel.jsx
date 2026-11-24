@@ -147,6 +147,7 @@ function Headlines({ h }) {
   let body
   if (h.state === 'off') body = <p className={styles.muted} data-testid="terminal-fed-headlines-off">The news wire is switched off for this server, so there are no live Fed headlines here.</p>
   else if (h.state === 'not_started') body = <p className={styles.muted} data-testid="terminal-fed-headlines-off">The news wire has not started on the server yet. This fills in once it has.</p>
+  else if (h.state === 'computing') body = <p className={styles.muted} role="status" data-testid="terminal-fed-headlines-computing">Reading the newest headlines on the news wire. This fills in on its own.</p>
   else if (h.state !== 'ok') body = <p className={styles.note} role="status" data-testid="terminal-fed-headlines-error">The news wire could not be read just now. That is not the same as no Fed headlines.</p>
   else if (!h.items.length) body = <p className={styles.muted} data-testid="terminal-fed-headlines-none">No headline about the Fed is among the newest on the wire.</p>
   else {
