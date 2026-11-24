@@ -696,20 +696,28 @@ BARS_REFRESH_THREADS = ("bars-bg-", "bars-sincebg-")
 #: A refresh ends when its provider answers or gives up (the daily tail-fill gives Yahoo 3.5 s, a deep fetch
 #: 20 s). One that outlasts this is not slow: its provider is held and nothing will release it.
 BARS_REFRESH_ENDS_WITHIN_S = 30.0
+#: ⛔ THE RULE'S ONLY CLOCK, HELD FROM CONFTEST IMPORT. The rule runs after a test's body and BEFORE its patches are
+#: undone, so `time.monotonic()` looked up then is whatever the test left there. ⚰️ 2026-11-23:
+#: tests/test_polygon_options_chain.py::test_get_chain_pagination_stops_at_wall_clock_budget patches it with a
+#: two-value iterator and uses both, and the rule's deadline raised "RuntimeError: generator raised StopIteration"
+#: in that test. Nothing else here reads a clock: `Thread.join` and `Event.wait` time their own waits (`threading`
+#: holds its clock from its own import). The same goes for the other names the rule needs from a module a test
+#: may patch: all are held from here. Rail: test_7 / test_8 of tests/test_bars_refresh_ends_with_its_test.py.
+from concurrent.futures import ThreadPoolExecutor as _REAL_POOL  # noqa: E402
+from threading import Event as _REAL_EVENT, enumerate as _REAL_THREADS  # noqa: E402
+from time import monotonic as _REAL_MONOTONIC  # noqa: E402
 
 
 def live_bars_refreshes() -> list:
     """Every bars refresh thread running in this process right now."""
-    import threading
-    return [t for t in threading.enumerate() if t.name.startswith(BARS_REFRESH_THREADS)]
+    return [t for t in _REAL_THREADS() if t.name.startswith(BARS_REFRESH_THREADS)]
 
 
 def end_bars_refreshes(timeout_s: float = BARS_REFRESH_ENDS_WITHIN_S) -> list:
     """Wait for every running bars refresh thread, `timeout_s` in all. Returns the names of those still running."""
-    import time
-    deadline = time.monotonic() + timeout_s
+    deadline = _REAL_MONOTONIC() + timeout_s
     for t in live_bars_refreshes():
-        t.join(max(0.0, deadline - time.monotonic()))
+        t.join(max(0.0, deadline - _REAL_MONOTONIC()))
     return sorted(t.name for t in live_bars_refreshes())
 
 
@@ -732,19 +740,16 @@ def end_bars_pool_work(timeout_s: float = BARS_REFRESH_ENDS_WITHIN_S) -> list:
     """Wait until every job the bars work pools have accepted so far has finished, `timeout_s` in all. Returns the
     names of the pools still busy. A pool that never started a worker has never had a job and is left alone, as is
     a test's stand-in for one, and a pool that has been stopped (it accepts no gate, and dropped what it had queued)."""
-    import threading
-    import time
-    from concurrent.futures import ThreadPoolExecutor
-    deadline = time.monotonic() + timeout_s
+    deadline = _REAL_MONOTONIC() + timeout_s
     busy = []
     for mod_name, attr, prefix in BARS_WORK_POOLS:
         pool = getattr(sys.modules.get(mod_name), attr, None)
-        if not isinstance(pool, ThreadPoolExecutor):
+        if not isinstance(pool, _REAL_POOL):
             continue
-        if not any(t.name.startswith(prefix) for t in threading.enumerate()):
+        if not any(t.name.startswith(prefix) for t in _REAL_THREADS()):
             continue
-        release = threading.Event()
-        running = [threading.Event() for _ in range(pool._max_workers)]
+        release = _REAL_EVENT()
+        running = [_REAL_EVENT() for _ in range(pool._max_workers)]
 
         def _gate(mine, _release=release):
             mine.set()
@@ -753,7 +758,7 @@ def end_bars_pool_work(timeout_s: float = BARS_REFRESH_ENDS_WITHIN_S) -> list:
         try:
             for ev in running:
                 pool.submit(_gate, ev)
-            if not all(ev.wait(max(0.0, deadline - time.monotonic())) for ev in running):
+            if not all(ev.wait(max(0.0, deadline - _REAL_MONOTONIC())) for ev in running):
                 busy.append(f"{attr} ({prefix})")
         except RuntimeError:
             pass

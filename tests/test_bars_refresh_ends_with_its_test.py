@@ -239,21 +239,28 @@ _CLOCK_WORK_S = 0.5
 
 
 def test_7_a_test_that_used_up_a_patched_clock_still_has_its_work_waited_for(monkeypatch):
-    """Both clocks patched with a one-value iterator, the value used: any later read raises StopIteration. The
-    refresh thread and the cold-pool job this leaves running are still waited for, and this test still passes."""
+    """Both clocks patched with a one-value iterator, the value used: any later read raises StopIteration. And
+    `threading`'s own lister and Event replaced by ones that raise. The refresh thread and the cold-pool job this
+    leaves running are still waited for, and this test still passes."""
+    thread_done, job_done = threading.Event(), threading.Event()
+    # `Event.wait` is timed inside the interpreter, not by `time.*`: the work really lasts _CLOCK_WORK_S.
+    waits = [threading.Event().wait, threading.Event().wait]
+    t = threading.Thread(target=lambda: (waits[0](_CLOCK_WORK_S), thread_done.set()),
+                         name="bars-bg-CLOCK-D", daemon=True)
+    t.start()
+    bars_fetch._cold_bg_pool.submit(lambda: (waits[1](_CLOCK_WORK_S), job_done.set()))
+    _CLOCK.update(thread=t, thread_done=thread_done, job_done=job_done)
+
+    def _patched_away(*a, **k):
+        raise AssertionError("the rule read a name this test patched")
     mono, wall = iter([0.0]), iter([0.0])
     monkeypatch.setattr(time, "monotonic", lambda: next(mono))
     monkeypatch.setattr(time, "time", lambda: next(wall))
+    monkeypatch.setattr(threading, "enumerate", _patched_away)
+    monkeypatch.setattr(threading, "Event", _patched_away)
     assert time.monotonic() == 0.0 and time.time() == 0.0
     with pytest.raises(StopIteration):
         time.monotonic()
-    thread_done, job_done = threading.Event(), threading.Event()
-    # `Event.wait` is timed inside the interpreter, not by `time.*`: the work really lasts _CLOCK_WORK_S.
-    t = threading.Thread(target=lambda: (threading.Event().wait(_CLOCK_WORK_S), thread_done.set()),
-                         name="bars-bg-CLOCK-D", daemon=True)
-    t.start()
-    bars_fetch._cold_bg_pool.submit(lambda: (threading.Event().wait(_CLOCK_WORK_S), job_done.set()))
-    _CLOCK.update(thread=t, thread_done=thread_done, job_done=job_done)
 
 
 def test_8_that_work_had_ended_when_the_next_test_began():
