@@ -95,6 +95,17 @@ Daily, from the Actions and pull request APIs: queue wait (median, p90) from `ad
 `removed_from_merge_queue` events and their cause, queue-timeout removals of Agent entries in particular; Agent pull requests' open-to-merge time against the 13.4 hour
 median measured before; runner minutes; peak jobs against the organization's limit.
 
+## 2026-11-24: the second required check
+
+`merge queue gate rails` was added to the queue ruleset (27866282) at 03:39:41Z, with the queue empty.
+- Before: the ruleset body is saved outside the repo (the owner's reports folder,
+  `merge-queue-tools/ruleset-27866282-before-gate-rails-2026-11-24.json`).
+- A pull request opened or last pushed before 2026-11-23 21:23Z (when #2631 landed) does not carry the check on
+  its head, and the queue will not take it until it is pushed once, updated from master, or closed and reopened.
+  The four sessions and the Agent Lead (#2480) were told.
+- Rollback of this step only: remove that one context from the ruleset's `required_status_checks` (PUT the saved
+  body). The queue itself stays on.
+
 ## Abort and rollback
 
 **Abort rule:** queue wait p90 over 45 minutes, or the queue stuck for 30 minutes.

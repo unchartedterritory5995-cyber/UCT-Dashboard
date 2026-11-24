@@ -296,6 +296,12 @@ def test_aggregate_heat_has_NO_scheduled_or_delivering_legacy_path():
         # journal-styles render of the same builder), a request-time reader. Read-only since
         # 2026-10-23: it passes its own size, so heat's migrating default reader never runs.
         "api/services/journal_two/notebook_widgets.py",
+        # Notebook shelf widget "Risk left today" (30c4905102, wave 10): built per POST
+        # /api/j2/notebook-shelf-widgets/{kind} (and the journal-styles apply-time fill, and the Game
+        # plan widget through `open_risk`), a request-time reader. It hands heat the positions and size it
+        # already read (positions_fn / account_size_fn / regime_fn / cap_fn injected), so heat's own
+        # readers never run; nothing scheduled, nothing delivering.
+        "api/services/journal_two/shelf_discipline.py",
         "api/services/portfolio_heat.py",
         "api/services/test_portfolio_heat.py",
         "api/services/voice_tool_impls.py",

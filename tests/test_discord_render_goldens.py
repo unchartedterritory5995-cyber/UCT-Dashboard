@@ -25,7 +25,6 @@ import datetime as dt
 import importlib.util
 import json
 import os
-import sys
 from pathlib import Path
 
 import pytest
@@ -34,7 +33,9 @@ ROOT = Path(__file__).resolve().parents[1]
 _SPEC = importlib.util.spec_from_file_location(
     "drender_golden_capture", ROOT / "docs" / "discord-render" / "instruments" / "golden_capture.py")
 gc = importlib.util.module_from_spec(_SPEC)
-sys.modules["drender_golden_capture"] = gc
+# Not registered in sys.modules: nothing imports it by that name (it defines no dataclass, pickles
+# nothing and never imports itself), and a module-level bind is process-wide state that no test
+# removes (tests/test_shared_state_landmines.py).
 _SPEC.loader.exec_module(gc)
 
 
