@@ -69,6 +69,19 @@ vi.mock('lightweight-charts', async (importOriginal) => {
   }
   return { ...real, createChart: () => chart, createSeriesMarkers: () => ({ setMarkers: () => {} }) }
 })
+// every updateChart pass: its bars plan and the paint it recorded (chart/paintLog.js), to say WHY a switch paints
+vi.mock('./chart/renderPlan', async (orig) => {
+  const real = await orig()
+  return { ...real, barsRenderPlan: (prev, next) => {
+    const p = real.barsRenderPlan(prev, next)
+    S.calls.push({ m: 'plan', mode: p.mode, prevN: prev ? prev.length : null, nextN: next ? next.length : null, sameRows: prev === next })
+    return p
+  } }
+})
+vi.mock('./chart/paintLog', async (orig) => {
+  const real = await orig()
+  return { ...real, recordPaint: (sym, tf, bars, mode) => { S.calls.push({ m: 'paint', sym, tf, bars, mode }); return real.recordPaint(sym, tf, bars, mode) } }
+})
 vi.mock('../utils/barsIDB', async (orig) => ({ ...(await orig()), idbGet: async () => null, idbPut: async () => {}, idbPutMonotonic: async () => {} }))
 vi.mock('../hooks/useRealtimePrices', () => ({ default: () => ({ prices: {}, status: 'idle' }) }))
 vi.mock('../hooks/useRealtimeBars', () => ({ default: () => ({}) }))
@@ -146,16 +159,25 @@ async function recordSwitches() {
     await act(async () => { await M.store.ensure(key, { priority: 'urgent' }) })
   }
   const chartOf = (sym, tf) => <M.StockChart sym={sym} tf={tf} backgroundWarm={false} />
-  S.calls.push({ m: 'mark', label: 'first load: AAA daily (8,003 bars)' })
-  const view = render(chartOf('AAA', 'D'))
-  await wait(1500)
-  for (const [label, sym, tf] of STEPS) {
-    await hold(sym, tf)
-    await wait(200)
-    S.calls.push({ m: 'mark', label })
-    view.rerender(chartOf(sym, tf))
-    await wait(1000)
+  // the render signature of each updateChart pass (the object it stringifies to decide noop / full)
+  const realStringify = JSON.stringify
+  JSON.stringify = function sigSpy(v, ...rest) {
+    const out = realStringify.call(JSON, v, ...rest)
+    if (v && typeof v === 'object' && !Array.isArray(v) && 'plotWin' in v && 'defsGen' in v) S.calls.push({ m: 'sig', sig: out })
+    return out
   }
+  try {
+    S.calls.push({ m: 'mark', label: 'first load: AAA daily (8,003 bars)' })
+    const view = render(chartOf('AAA', 'D'))
+    await wait(1500)
+    for (const [label, sym, tf] of STEPS) {
+      await hold(sym, tf)
+      await wait(200)
+      S.calls.push({ m: 'mark', label })
+      view.rerender(chartOf(sym, tf))
+      await wait(1000)
+    }
+  } finally { JSON.stringify = realStringify }
   cleanup()
   for (const key of held) M.store.registry.release(key)
   vi.unstubAllGlobals()
@@ -179,22 +201,34 @@ function replay(lib, calls) {
     if (flag === 'w') return { time }
     return kind === 'candle' || kind === 'bar' ? { time, open: 10, high: 11, low: 9, close: 10.5 } : { time, value: 1 }
   }
+  let lastSig = null
   counter.counted(() => {
     for (const c of calls) {
-      if (c.m === 'mark') { step = { label: c.label, calls: 0, updates: 0, full: 0, fullByUpdate: 0, sorts0: counter.sorts, set: [], threw: 0 }; steps.push(step); continue }
+      if (c.m === 'mark') { step = { label: c.label, calls: 0, updates: 0, full: 0, fullByUpdate: 0, sorts0: counter.sorts, set: [], passes: [], threw: 0 }; steps.push(step); continue }
+      if (c.m === 'plan') { step?.passes.push(`plan ${c.mode} ${c.prevN}->${c.nextN}${c.sameRows ? ' same rows' : ''}`); continue }
+      if (c.m === 'paint') { step?.passes.push(`paint ${c.mode} ${c.sym} ${c.tf} ${c.bars}`); continue }
+      if (c.m === 'sig') {
+        const now = JSON.parse(c.sig)
+        const moved = lastSig ? Object.keys({ ...lastSig, ...now }).filter((k) => JSON.stringify(lastSig[k]) !== JSON.stringify(now[k])) : ['(first)']
+        step?.passes.push(`sig changed: ${moved.join(',') || '(none)'}`)
+        lastSig = now
+        continue
+      }
       if (c.m === 'add') {
         const opts = c.scale != null ? { priceScaleId: c.scale } : {}
         series.set(c.id, chart.addSeries(DEF[c.kind] || lib.LineSeries, opts, c.pane))
         kinds.set(c.id, c.kind)
+        step?.set.push(`add ${c.kind}#${c.id} pane ${c.pane}`)
         continue
       }
       const s = series.get(c.id)
       if (!s) continue
+      const before = counter.sorts
       try {
         if (c.m === 'setData') {
           s.setData(c.rows.map((r) => rowFor(kinds.get(c.id), r)))
           const changed = counter.setData(c.id, c.rows.map((r) => r[0]))
-          if (step) { step.calls += 1; step.set.push(`${kinds.get(c.id)}#${c.id}:${c.rows.length}`); if (changed) step.full += 1 }
+          if (step) { step.calls += 1; step.set.push(`${kinds.get(c.id)}#${c.id}:${c.rows.length}${changed ? ' FULL' : ''} s${counter.sorts - before}`); if (changed) step.full += 1 }
         } else if (c.m === 'update') {
           s.update(rowFor(kinds.get(c.id), c.rows[0]), c.hist)
           const changed = counter.update(c.id, c.rows[0][0])
@@ -202,7 +236,8 @@ function replay(lib, calls) {
         } else if (c.m === 'remove') {
           chart.removeSeries(s)
           series.delete(c.id)
-          counter.remove(c.id)
+          const changed = counter.remove(c.id)
+          step?.set.push(`remove ${kinds.get(c.id)}#${c.id}${changed ? ' FULL' : ''} s${counter.sorts - before}`)
         }
       } catch { if (step) step.threw += 1 }
       if (step) step.sorts = counter.sorts - step.sorts0
@@ -224,7 +259,8 @@ describe('what a list switch hands the chart library, and what each build of the
     patched = replay(libs.patched, calls)
     const table = patched.map((p, i) => ({
       step: p.label, setData: p.calls, update: p.updates, full: p.full, fullByUpdate: p.fullByUpdate,
-      sortsShipped: shipped[i].sorts, sortsPatched: p.sorts, threw: p.threw, series: p.set,
+      sortsShipped: shipped[i].sorts, sortsPatched: p.sorts, threw: p.threw, passes: p.passes,
+      callsPatched: p.set, callsShipped: shipped[i].set,
     }))
     // eslint-disable-next-line no-console
     console.log('[library work per switch]\n' + table.map((r) => JSON.stringify(r)).join('\n'))
