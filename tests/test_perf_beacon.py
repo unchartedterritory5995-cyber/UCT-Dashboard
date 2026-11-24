@@ -198,7 +198,7 @@ def _cell(tf=0, store=1, trig=0, route=1, rth=1, counts=None):
 def _switch_report(cells=None, counters=None, **over):
     r = {"page": "/charts", "client": "desktop", "kind": "switches",
          "switches": {"v": 1, "cells": [_cell()] if cells is None else cells,
-                      "counters": [4, 0, 2, 0, 0, 0] if counters is None else counters}}
+                      "counters": [4, 0, 2, 0, 0, 0, 0] if counters is None else counters}}
     r.update(over)
     return r
 
@@ -211,7 +211,7 @@ def _distinct_cells(n):
 
 def test_switch_reports_merge_into_one_row_per_day_and_combination_and_write_no_page_load(store):
     assert pb.record(_switch_report(), ip="203.0.113.9", country_header="US", now=_T) == {"stored": 1, "dropped": 0, "invalid": 0}
-    second = _switch_report(cells=[_cell(counts=_SOME_OVER)], counters=[1, 0, 0, 0, 0, 0])
+    second = _switch_report(cells=[_cell(counts=_SOME_OVER)], counters=[1, 0, 0, 0, 0, 0, 0])
     assert pb.record(second, ip="203.0.113.10", country_header="US", now=_T + 60)["stored"] == 1
     assert _rows(store) == [] and _rows(store, "perf_api") == []          # no page-load row
     assert pb.summary(24, now=_T + 120)["loads"] == 0
@@ -224,10 +224,10 @@ def test_switch_reports_merge_into_one_row_per_day_and_combination_and_write_no_
 
 def test_the_switch_read_gives_each_combination_its_histogram_and_share_under_40_per_day(store):
     pb.record(_switch_report(), ip="10.1.0.1", country_header="US", now=_T)
-    pb.record(_switch_report(cells=[_cell(counts=_SOME_OVER)], counters=[1, 0, 0, 0, 0, 0]), ip="10.1.0.2", country_header="US", now=_T + 60)
+    pb.record(_switch_report(cells=[_cell(counts=_SOME_OVER)], counters=[1, 0, 0, 0, 0, 0, 0]), ip="10.1.0.2", country_header="US", now=_T + 60)
     # the next ET day, another combination, from a browser
     pb.record(_switch_report(cells=[_cell(tf=2, store=0, trig=2, route=5, rth=0, counts=[0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0])],
-                             counters=[0, 0, 0, 0, 0, 0], client="browser"), ip="10.1.0.3", country_header="US", now=_T + 86400)
+                             counters=[0, 0, 0, 0, 0, 0, 0], client="browser"), ip="10.1.0.3", country_header="US", now=_T + 86400)
     s = pb.switch_summary(7, now=_T + 86400 + 60)
     assert s["bucket_edges_ms"] == [16, 25, 33, 40, 50, 66, 100, 150, 250, 500] and s["under_ms"] == 40
     assert s["cells"] == [
@@ -240,9 +240,9 @@ def test_the_switch_read_gives_each_combination_its_histogram_and_share_under_40
     ]
     assert s["by_day"] == [
         {"day": "2026-11-19", "switches": 1, "under_40": 0, "under_40_pct": 0.0,
-         "superseded": 0, "abandoned": 0, "unpressed": 0, "untracked": 0, "unclocked": 0, "overflow": 0},
+         "superseded": 0, "abandoned": 0, "unpressed": 0, "untracked": 0, "unclocked": 0, "overflow": 0, "released": 0},
         {"day": "2026-11-18", "switches": 31, "under_40": 29, "under_40_pct": 93.5,
-         "superseded": 5, "abandoned": 0, "unpressed": 2, "untracked": 0, "unclocked": 0, "overflow": 0},
+         "superseded": 5, "abandoned": 0, "unpressed": 2, "untracked": 0, "unclocked": 0, "overflow": 0, "released": 0},
     ]
     # the window is counted in ET days, today included
     assert [c["day"] for c in pb.switch_summary(1, now=_T + 86400 + 60)["cells"]] == ["2026-11-19"]
@@ -250,7 +250,7 @@ def test_the_switch_read_gives_each_combination_its_histogram_and_share_under_40
 
 def test_a_sample_of_exactly_40_ms_is_not_under_40(store):
     # the bucket edges are lower bounds: 33-40 is the last bucket under, 40-50 the first one not
-    pb.record(_switch_report(cells=[_cell(counts=[0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0])], counters=[0] * 6), ip="10.2.0.1", country_header="US", now=_T)
+    pb.record(_switch_report(cells=[_cell(counts=[0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0])], counters=[0] * 7), ip="10.2.0.1", country_header="US", now=_T)
     (cell,) = pb.switch_summary(1, now=_T)["cells"]
     assert (cell["switches"], cell["under_40"], cell["under_40_pct"], cell["reports_all_under_40"]) == (2, 1, 50.0, 0)
 
@@ -306,7 +306,7 @@ _BAD_SWITCHES = [
     ("too many counters", lambda r: r["switches"]["counters"].append(0)),
     ("a string counter", lambda r: r["switches"]["counters"].__setitem__(0, "many")),
     ("a too-large counter", lambda r: r["switches"]["counters"].__setitem__(0, pb.MAX_SWITCH_COUNT + 1)),
-    ("nothing counted at all", lambda r: r["switches"].update(cells=[], counters=[0] * 6)),
+    ("nothing counted at all", lambda r: r["switches"].update(cells=[], counters=[0] * 7)),
     ("switches that are a list", lambda r: r.__setitem__("switches", [1])),
     ("no switches", lambda r: r.pop("switches")),
     ("an unknown kind", lambda r: r.__setitem__("kind", "switch")),
@@ -340,7 +340,7 @@ def test_the_most_a_page_may_send_is_accepted_and_fits_the_body_limit(store):
 
 def test_a_report_of_counters_alone_is_stored(store):
     # a page whose switches were all superseded (a held arrow that never landed in time) still says so
-    assert pb.record(_switch_report(cells=[], counters=[7, 0, 0, 0, 0, 0]), ip="1.1.1.1", country_header="US", now=_T)["stored"] == 1
+    assert pb.record(_switch_report(cells=[], counters=[7, 0, 0, 0, 0, 0, 0]), ip="1.1.1.1", country_header="US", now=_T)["stored"] == 1
     assert pb.switch_summary(1, now=_T)["by_day"][0]["superseded"] == 7
 
 
@@ -413,6 +413,7 @@ def test_the_servers_switch_lists_are_the_pages_own():
     assert tuple(js("SWITCH_TRIGGER")) == pb.SWITCH_TRIGGER == ("list-key", "click", "typed", "other")
     assert tuple(js("SWITCH_ROUTE")) == pb.SWITCH_ROUTE
     assert tuple(js("SWITCH_COUNTERS")) == pb.SWITCH_COUNTERS
+    assert pb.SWITCH_COUNTERS[-1] == "released"       # appended: the six before it keep their places
     assert tuple(js("SWITCH_BUCKET_EDGES_MS")) == pb.SWITCH_BUCKET_EDGES_MS
     assert js("SWITCH_UNDER_MS") == pb.SWITCH_UNDER_MS and pb.SWITCH_UNDER_MS in pb.SWITCH_BUCKET_EDGES_MS
     assert js("SWITCH_VERSION") == pb.SWITCH_VERSION
@@ -425,7 +426,7 @@ def test_the_servers_switch_lists_are_the_pages_own():
 
 def _one(n, **cell):
     """A report of n switches in one cell, nothing else."""
-    return _switch_report(cells=[_cell(counts=[n] + [0] * 10, **cell)], counters=[0] * 6)
+    return _switch_report(cells=[_cell(counts=[n] + [0] * 10, **cell)], counters=[0] * 7)
 
 
 def test_one_sender_cannot_add_more_switches_in_an_hour_than_a_real_page_makes(store):
@@ -468,6 +469,7 @@ def test_the_read_says_what_each_name_means_and_what_is_not_sampled(store):
     assert set(legend["route"]) == set(pb.SWITCH_ROUTE) and set(legend["counters"]) == set(pb.SWITCH_COUNTERS)
     assert all(isinstance(v, str) and len(v) > 15 for part in ("tf", "trigger", "route", "counters") for v in legend[part].values())
     assert "any" in legend["trigger"]["click"] and "list" in legend["trigger"]["click"]          # it is not only lists, and says so
+    assert "release" in legend["counters"]["released"] and "never timed" in legend["counters"]["released"]
     gaps = " | ".join(legend["not_sampled"])
     assert "pop-out" in gaps and "unpressed" in gaps
     assert isinstance(legend["sample"], str) and isinstance(legend["senders"], str)

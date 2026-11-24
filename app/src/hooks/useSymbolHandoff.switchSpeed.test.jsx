@@ -97,7 +97,7 @@ function Board({ charts }) {
   const on = (e) => board.on?.(e, setGroupSym)
   return (
     <>
-      <ul data-testid="list" tabIndex={0} onKeyDown={on} onClick={on}><li data-testid="row">row</li></ul>
+      <ul data-testid="list" tabIndex={0} onKeyDown={on} onKeyUp={on} onClick={on}><li data-testid="row">row</li></ul>
       <input data-testid="search" onKeyDown={on} />
       {charts.map((c) => <Chart key={c.id} c={c} s={sym} />)}
     </>
@@ -114,6 +114,7 @@ function press(el, sym, how = 'ArrowDown', around = (go) => go()) {
   let t0 = null
   board.on = (e, setGroupSym) => { t0 = e.nativeEvent.timeStamp; around(() => setGroupSym(sym)) }
   if (how === 'click') fireEvent.click(el)
+  else if (how.startsWith('release:')) fireEvent.keyUp(el, { key: how.slice(8) })
   else fireEvent.keyDown(el, { key: how })
   board.on = null
   expect(typeof t0).toBe('number')
@@ -223,6 +224,20 @@ describe('every trigger, from a real event', () => {
     t0 = press(row, 'CCC', 'click')
     await frame(t0 + 10)
     expect(cells().map((c) => c.trigger).sort()).toEqual(['click', 'typed'])
+  })
+
+  it("a switch made on a key's RELEASE is not timed: it is counted `released` (lib/switchSpeed.keyupRail holds that none exists)", async () => {
+    const a = chart(1, '30')
+    const b = chart(2, '60')
+    const { list } = mount([a, b])
+    press(list, 'BBB', 'release:ArrowDown')
+    expect(shownBy(a, b)).toEqual(['BBB', 'BBB'])            // the switch itself happens as any other
+    expect(await frame(clock + 20)).toBe(0)
+    expect(total()).toBe(0)
+    const t0 = press(list, 'CCC')                            // control: the press of the same key is timed
+    await frame(t0 + 10)
+    expect(total()).toBe(1)
+    expect(counters()).toMatchObject({ released: 1, unpressed: 0, superseded: 0 })
   })
 
   it('a symbol that changes with no input in flight is not a press: nothing is measured, and it is counted', async () => {

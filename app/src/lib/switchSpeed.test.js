@@ -87,7 +87,7 @@ describe('one switch, one count', () => {
       v: 1,
       //       tf 1m, store off, list-key, route other (nothing said how), outside the session; 21 ms -> bucket 16-25
       cells: [[0, 0, TRIGGER_LIST_KEY, ROUTE_OTHER, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]],
-      counters: [0, 0, 0, 0, 0, 0],
+      counters: [0, 0, 0, 0, 0, 0, 0],
     })
     const leaves = [got.v, ...got.cells.flat(), ...got.counters]
     expect(leaves.every((n) => Number.isInteger(n) && n >= 0)).toBe(true)
@@ -178,7 +178,7 @@ describe('a switch that gives no sample is counted by why, and never in a bucket
     arrow('CCC', new Map())
     arrow('DDD', null)
     expect(await frame(99)).toBe(0)
-    expect(takeSwitchCounts()).toEqual({ v: 1, cells: [], counters: [0, 0, 0, 3, 0, 0] })
+    expect(takeSwitchCounts()).toEqual({ v: 1, cells: [], counters: [0, 0, 0, 3, 0, 0, 0] })
   })
 
   it('unclocked: a frame before its press, or longer after it than any switch takes', async () => {
@@ -189,7 +189,7 @@ describe('a switch that gives no sample is counted by why, and never in a bucket
     const t1 = arrow('CCC', group(m))
     chartPainted(m.key, 'CCC', 300, 'full')
     await frame(t1 + MAX_SWITCH_MS + 1)
-    expect(takeSwitchCounts()).toEqual({ v: 1, cells: [], counters: [0, 0, 0, 0, 2, 0] })
+    expect(takeSwitchCounts()).toEqual({ v: 1, cells: [], counters: [0, 0, 0, 0, 2, 0, 0] })
   })
 
   it('abandoned: the page was hidden while it waited; the frame it gets on coming back is not a switch time', async () => {
@@ -202,7 +202,22 @@ describe('a switch that gives no sample is counted by why, and never in a bucket
     Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' })
     try { document.dispatchEvent(new Event('visibilitychange')) } finally { delete document.visibilityState }
     await frame(t0 + 9000)
-    expect(takeSwitchCounts()).toEqual({ v: 1, cells: [], counters: [0, 1, 0, 0, 0, 0] })
+    expect(takeSwitchCounts()).toEqual({ v: 1, cells: [], counters: [0, 1, 0, 0, 0, 0, 0] })
+  })
+
+  it('released: a key\'s RELEASE in flight is counted and never timed (the sample would start a key-hold late)', async () => {
+    const m = member()
+    // the same key, the same handler, the same group: only the event is the release
+    during('key' + 'up', { key: 'ArrowDown' }, () => switchObserver.press(SCOPE, G, 'BBB', group(m)))
+    chartPainted(m.key, 'BBB', 300, 'full')
+    expect(await frame(5)).toBe(0)                    // nothing waits for a frame
+    expect(takeSwitchCounts()).toEqual({ v: 1, cells: [], counters: [0, 0, 0, 0, 0, 0, 1] })
+    expect(SWITCH_COUNTERS.indexOf('released')).toBe(6)
+    // control: the press of that key IS timed
+    const t0 = arrow('CCC', group(m))
+    chartPainted(m.key, 'CCC', 300, 'full')
+    expect(await frame(t0 + 10)).toBe(1)
+    expect(takeSwitchCounts()).toMatchObject({ counters: [0, 0, 0, 0, 0, 0, 0] })
   })
 
   it('overflow: at most MAX_SWITCH_CELLS combinations between two sends', async () => {
