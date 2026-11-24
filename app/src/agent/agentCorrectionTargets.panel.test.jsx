@@ -218,11 +218,10 @@ describe('a revert-only plan after a vague correction is the one-change card, 0 
   it.each(rows)('%s: "%s"', async (_t, text, c, f, pick) => {
     const { m, reply, model, a0 } = await dialogueField({ ...c, text, field: f })
     if (!model) return
-    if (!reply.includes(CARD)) {                                                   // a rail asked first: still nothing changed
-      expect(ASKED.test(reply) || p.proposals().length > 0, reply).toBe(true)
-      expect(widget(m, 'cl')).toBe(a0)
-      return
-    }
+    // the plan is ONLY the revert: no rest for a rail to ask about — the card, always (never a silent revert, never a rail's guess).
+    // (P0.2's ticker-word question comes first when the revert's symbol IS the verb typed: "fix that" → FIX — nothing changed either)
+    if (reply.includes('Did you mean the ticker')) { expect(widget(m, 'cl')).toBe(a0); return }
+    expect(reply).toContain(CARD)
     expect(reply).toContain(`That would put Chart (`)
     expect(reply).toContain('back the way it was before my last change. Nothing has changed yet.')   // the one-change sentence
     expect(reply).not.toContain('and also change')
