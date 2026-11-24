@@ -28,7 +28,7 @@ member text ─► fastPath (capability phrases) ─┐
 | `capabilities/chart.js` | the chart target kind, context, 9 chart capabilities | charts only |
 | `capabilities/workspace.js` | the workspace target kind, widget context, `widget.add` | widgets only |
 | `builtins.js` | which capability modules load | one line per module |
-| `terminalWaves.js` / `terminalWavesLoader.js` | the Terminal data waves (wave 1's local-only answers, waves 2-11), in their OWN chunk, loaded after the config; never imported from `builtins.js` (the Notebook first-open byte budget; `agentTerminalWavesLazy.test.js`) | a new wave adds its line to `terminalWaves.js` |
+| `terminalWaves.js` / `terminalWavesLoader.js` / `terminalWavesHook.js` | the Terminal data waves (wave 1's local-only answers, waves 2-11), in their OWN chunk, loaded after the config; `builtins.js` reaches them only through the hook (the Notebook first-open byte budget; `agentTerminalWavesLazy.test.js`); a test that needs a wave from `registerServerGatedBuiltins()` imports `./terminalWaves` | a new wave adds its line to `terminalWaves.js` |
 | `host.js` | the Charts workspace's binding (chart adapters + visible board) | workspace wiring |
 | `AgentProvider.jsx` / `agentApp.js` | the APP-LEVEL host (W2-C1): one provider in App.jsx (admin + switch, dark otherwise) owning the panel on pages other than /charts, the open state and the cross-page handoff; `useAgentPageHost(surface, host)` is how a page hands its host in (/charts hands its own as `owned`) | no |
 | `hosts/pageHosts.js` / `hosts/usePageAgentHosts.js` | each page's binding (screener, breadth, calendar, journal), built from the page's own hooks and doors; one hook call per page | page wiring |

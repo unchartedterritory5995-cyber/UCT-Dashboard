@@ -56,7 +56,8 @@ MISSING_SHOWN = 10
 #: one row, by the service's own names (iv_rank_leaders.build)
 ROW_FIELDS = ("symbol", "atm_iv", "iv_rank", "iv_percentile", "rank_word", "low", "high", "sessions", "atm_dte", "open_interest")
 #: the counts, by the service's own names (iv_rank_leaders._counts)
-COUNT_FIELDS = ("ranked", "below_min", "flat", "not_in_latest", "latest_rows", "latest_no_atm_iv", "symbols_logged")
+COUNT_FIELDS = ("ranked", "below_min", "flat", "not_in_latest", "latest_rows", "latest_no_atm_iv", "symbols_logged",
+                "implausible_iv", "iv_above_watch")   # the last two: readings under iv_history.IV_FLOOR (never points) / above IV_WATCH
 SIDE_WORDS = {"high": "highest", "low": "lowest"}
 
 NOTE_WHAT = ("the IV rank list UCT built from its own options log for OSCR RICH and OSCR CHEAP: each symbol's latest "

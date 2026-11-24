@@ -619,12 +619,12 @@ def test_MQ_the_scope_stage_writes_three_plain_outputs_and_needs_no_token(tmp_pa
 def test_MQ_an_output_is_one_plain_line_whatever_a_file_is_called(tmp_path, monkeypatch):
     """The detail names a path from the queued PR, and a job output is a `key=value` LINE: a newline in a file name must
     never become a second output (e.g. a forged `code=`)."""
-    hostile = "1 self-protected path(s), e.g. a\ncode=no-agent-paths\r\npr=1<<EOF$(id)`id`\x00 x"
+    hostile = "1 self-protected path(s), e.g. a\ncode=no-agent-paths\r\npr=1<<EOF$(id)`id`\x00\u2028x"
     out = tmp_path / "o.txt"
     acr.write_outputs({"code": "self-protected", "pr": 7, "detail": hostile}, out)
     lines = out.read_bytes().decode("utf-8").split("\n")
     assert lines[:2] == ["code=self-protected", "pr=7"] and lines[3:] == [""] and lines[2].startswith("detail=1 self-protected path(s), e.g. a?code")
-    assert not set(lines[2]) & set("\r\n\x00$`<> ") and len(lines[2]) <= len("detail=") + 100
+    assert not set(lines[2]) & set("\r\n\x00$`<>\u2028") and len(lines[2]) <= len("detail=") + 100
     assert acr._safe("AUDIT's (x), y: z/a.b_c-d@e+f") == "AUDIT's (x), y: z/a.b_c-d@e+f"        # control: ordinary text is kept
     monkeypatch.delenv("GITHUB_OUTPUT", raising=False)      # (inside Actions the variable is set: never write to the real one)
     acr.write_outputs({"code": "x"}, None)                                                       # no GITHUB_OUTPUT: writes nothing

@@ -69,7 +69,7 @@ LAST = 20261118                                         # the newest completed s
 LAST_DAY, PRIOR_DAY, TODAY = "2026-11-18", "2026-11-17", dt.date(2026, 11, 19)
 NOW_ET = dt.datetime(2026, 11, 19, 10, 0, tzinfo=ET)   # Thursday morning: Wednesday is the newest completed session
 #: the threads the member routes start when they hold nothing (the services' own thread names)
-BUILD_THREADS = ("options-oi-change", "rates-data-build")
+BUILD_THREADS = ("options-oi-change", "rates-data-build", "seasonality-board-build")
 #: every module that holds a provider client under its own name
 PROVIDER_DOORS = (massive, bars_fetch, live_prices)
 #: what a turn must never reach, per service: every builder, job starter, fetch, capture and route reader
@@ -325,7 +325,7 @@ def _hold_bars(world, sym="AAA", first="2014-11-03", last=LAST_DAY, complete=Fal
 
 def _hold_board(world, **by_sym):
     world.funds.by_sym = dict(by_sym)
-    return sb.serve()
+    return sb.serve(wait_s=10)                                          # the route answers at once; this waits for its build
 
 
 def _tide(session, i, unreadable=0):
@@ -675,13 +675,13 @@ def test_board_nothing_held_is_unavailable_and_no_build_is_started_serve_builds_
     assert _read(sbr.KIND)["notes"] == [sbr.NOTE_NOT_HELD] and world.funds.asked == []
     world.funds.by_sym = {}
     sb.reset()
-    sb.serve()
+    sb.serve(wait_s=10)
     assert _read(sbr.KIND)["status"] == "ok"
     monkeypatch.setattr(sb, "_now_et", lambda: NOW_ET + dt.timedelta(days=1))
     world.funds.asked.clear()
     assert _read(sbr.KIND)["notes"] == [sbr.NOTE_NOT_HELD] and world.funds.asked == []
-    # the member route's own reader, in the same state, DOES build (fifteen daily reads)
-    sb.serve()
+    # the member route's own reader, in the same state, DOES build (fifteen daily reads, off the request)
+    sb.serve(wait_s=10)
     assert len(world.funds.asked) == 15
 
 

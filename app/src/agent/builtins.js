@@ -52,10 +52,11 @@ import { registerTerminalDataCapability } from './capabilities/terminalData'
 // ⛔ The Terminal data waves (wave 1's local-only answers, waves 2-11) are NOT imported here (2026-11-23). They load in
 // their own chunk (terminalWavesLoader.js, chained by useAgent.js after registerServerGatedBuiltins()); a static import
 // of terminalWaves.js or of any wave from this file puts their panel-model chunks back into the entry chunk's preload
-// list and breaks the Notebook first-open byte budget. './terminalWavesEager' is a no-op in the app; under vitest
-// app/vite.config.js aliases it to ./terminalWaves.js so tests still get the waves synchronously. A NEW WAVE adds its
-// line to terminalWaves.js, not here. Railed by agentTerminalWavesLazy.test.js.
-import { registerTerminalWaves } from './terminalWavesEager'
+// list and breaks the Notebook first-open byte budget. This file reaches them only through terminalWavesHook.js (which
+// imports nothing): once terminalWaves.js has loaded it hands its register function in, and registerServerGatedBuiltins()
+// runs it at its end. A test that needs a wave from registerServerGatedBuiltins() imports './terminalWaves' itself.
+// A NEW WAVE adds its line to terminalWaves.js, not here. Railed by agentTerminalWavesLazy.test.js.
+import { runTerminalWaves } from './terminalWavesHook'
 import { registerChartDescribeCapability } from './capabilities/chartDescribe'
 import { registerMultiChartCapabilities } from './capabilities/multiChart'
 // ⭐ W2-C1 (multi-page host): the pages' own capabilities — offered only on their surface (AgentProvider)
@@ -140,5 +141,5 @@ export function registerServerGatedBuiltins() {
   registerCatalystsCapability()          // Phase 2: news.movers while the server serves `catalysts.board`
   registerRsCapability()                 // Phase 2: rs.compare while the server serves `rs.leadership`
   registerTerminalDataCapability()       // Terminal data wave 1: stock.sectorPerformance while the server serves `sectors.performance`
-  registerTerminalWaves()                // Terminal data waves 1 (local-only) to 11: a no-op in the app, where terminalWavesLoader.js loads and registers them next; the real ones under vitest (the alias above)
+  runTerminalWaves()                     // Terminal data waves 1 (local-only) to 11, once terminalWaves.js has loaded (terminalWavesHook.js); nothing before that
 }

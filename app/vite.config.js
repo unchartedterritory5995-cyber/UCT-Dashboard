@@ -371,18 +371,6 @@ export default defineConfig({
       '@picovoice/porcupine-web': fileURLToPath(
         new URL('./src/test-stubs/porcupine-web.js', import.meta.url)
       ),
-      // ⭐ THE TERMINAL DATA WAVES, EAGER UNDER VITEST ONLY (2026-11-23). In the app, builtins.js imports
-      // './terminalWavesEager', a no-op, and the waves load in their own chunk after /api/agent/config answers
-      // (src/agent/terminalWavesLoader.js, chained by useAgent.js): a static path from builtins.js to the waves put
-      // their panel-model chunks in the entry chunk's preload list and broke the Notebook first-open byte budget.
-      // ~25 test files call registerServerGatedBuiltins() and expect a served wave's capability AT ONCE, so here that
-      // exact specifier resolves to the real src/agent/terminalWaves.js instead: the same calls, in the same order,
-      // synchronously, as when builtins.js imported the waves itself. The key matches ONLY the exact string
-      // './terminalWavesEager' (Vite's alias: equal, or that plus '/'), which only builtins.js writes. This block is
-      // `test` config, so the build and the dev server never see it. Railed by src/agent/agentTerminalWavesLazy.test.js.
-      './terminalWavesEager': fileURLToPath(
-        new URL('./src/agent/terminalWaves.js', import.meta.url)
-      ),
     },
   },
 })

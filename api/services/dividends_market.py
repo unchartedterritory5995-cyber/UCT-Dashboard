@@ -245,6 +245,13 @@ _held = held_build.HeldBuild("market-dividends", build, lambda answer, checked: 
                              version=DISK_VERSION, valid=_valid)
 
 
+def peek() -> Optional[dict]:
+    """READ ONLY: the held list (memory, else this server's disk copy) or None. It never starts a build and never asks
+    the vendor: the Screener's nightly build reads the next ex-dividend dates from it
+    (`api/services/screener/store_columns.py`)."""
+    return _held.peek()
+
+
 def get_market_dividends(*, wait_s: Optional[float] = None) -> dict:
     """The route's body. Never builds on the caller's thread."""
     got = _held.get(wait_s=wait_s)

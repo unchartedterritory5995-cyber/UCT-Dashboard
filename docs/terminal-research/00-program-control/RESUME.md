@@ -836,7 +836,7 @@ INSIDE the window. Per-type staleness bounds, **derived from the sweep table, ne
 `PRICE-LEVEL=180s · EVENT-PROXIMITY=26h · POSITION-RISK=180s · SCAN-MEMBERSHIP=26h ·
 CATALYST-MATCH=26h · REGIME-CHANGE=1h · INDICATOR-COND=180s`.
 
-✅ **F-S7-TICK-1, FIXED `de2726473` — read this before chasing a `NO` on a Monday.** Until
+✅ **F-S7-TICK-1, FIXED `3b2e285ff` (landed; was de2726473 before replay) — read this before chasing a `NO` on a Monday.** Until
 2026-09-14 the window model treated a sweep with no declared hours as *"inside the window all
 weekday"*, so the three sweeps that fire at FIXED times (`event-proximity` 07:05/18:05 weekdays,
 `scan-membership` 05:20 nightly, `catalyst-match` 17:30 weekdays) reported a hard **NO** whenever

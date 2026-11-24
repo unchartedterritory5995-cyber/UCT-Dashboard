@@ -8,6 +8,7 @@
 //     ships dark is caught the day it ships, not the day its flag flips.
 import { vi } from 'vitest'
 import { registerBuiltins, registerServerGatedBuiltins } from '../../../builtins'
+import '../../../terminalWaves'  // the Terminal data waves: registerServerGatedBuiltins() runs them only once this module has loaded (terminalWavesHook.js)
 import { allCapabilityNames } from '../../../capabilities'
 import { loadAgentConfig, _resetAgentConfig } from '../../../agentClient'
 
