@@ -8,7 +8,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { resolve, dirname } from 'node:path'
-import { tickerWordRole, wordOnlyTickers, targetTickers, tickerTokens, ENGLISH_TICKER_WORDS, isEnglishWord, correctionLicensed } from './deixis'
+import { tickerWordRole, wordOnlyTickers, targetTickers, tickerTokens, ENGLISH_TICKER_WORDS, isEnglishWord } from './deixis'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const UNIVERSE = new Set(JSON.parse(readFileSync(resolve(here, '../../../api/data/cap_universe.json'), 'utf8')).map(s => String(s).toUpperCase()))
@@ -156,60 +156,3 @@ describe('F2: a ticker that is no English word is never asked, whatever its posi
   })
 })
 
-// ── AUDIT NO-GO F1 (11-23): an undo half must be POSITIVELY licensed by words that reject the earlier change ───────────────────
-const ADDITIVE_FRAMES = [
-  // AUDIT's seven (A = the earlier chart, B = the named one)
-  (B) => `actually make ${B} weekly too`, (B) => `wait, also make ${B} weekly`, (B, A) => `${B} weekly as well, not just ${A}`,
-  (B) => `no problem, now do ${B} weekly too`, (B) => `make the ${B} one weekly too, not monthly`, (B) => `${B} weekly too rather than daily`,
-  (B, A) => `do ${B} weekly too, keep ${A} weekly, not daily`,
-  // variations: additive cues, and a bare "not" / "rather" / "actually" / "wait" with nothing rejected
-  (B) => `also ${B}`, (B, A) => `both ${A} and ${B} weekly`, (B) => `and ${B} as well`, (B) => `plus ${B} weekly`, (B) => `${B} too`,
-  (B, A) => `keep ${A} and do ${B}`, (B, A) => `not only ${A}, ${B} weekly`, (B) => `in addition, ${B} weekly`, (B) => `now do ${B} weekly`,
-  (B) => `actually, ${B} weekly`, (B) => `wait, ${B} weekly`, (B) => `${B} weekly, not monthly`, (B) => `${B} weekly rather than daily`,
-  (B) => `no worries, ${B} weekly`, (B) => `no rush — ${B} weekly`, (B) => `another one: ${B} weekly`,
-]
-const LICENSED_FRAMES = [
-  (B) => `no, the ${B} one`, (B) => `no wait, ${B} instead`, (B) => `i meant ${B}`, (B) => `wrong chart, ${B}`, (B) => `nope, do ${B} instead`,
-  (B) => `sorry, I meant the ${B} chart`, (B) => `no — ${B}, not that`, (B, A) => `${B}, not ${A}`, (B, A) => `put ${A} back and do ${B}`,
-  (B, A) => `${B} instead of ${A}`, (B, A) => `${B} rather than ${A}`, (B) => `not that one, ${B}`, (B) => `undo that and do ${B}`,
-  (B) => `that's wrong, ${B}`, (B) => `oops, ${B}`,
-]
-const PAIRS = [['META', 'MSFT'], ['NVDA', 'AMD'], ['ON', 'NOW'], ['FIX', 'RUN']]
-describe('F1: correctionLicensed — the words must reject the earlier change', () => {
-  for (const [A, B] of PAIRS) {
-    it(`${A}→${B}: every additive / unlicensed wording licenses nothing; every rejecting wording does`, () => {
-      for (const f of ADDITIVE_FRAMES) for (const c of [s => s, s => s.toLowerCase()]) { const t = c(f(B, A)); expect([t, correctionLicensed(t, [A], [A, B])]).toEqual([t, false]) }
-      for (const f of LICENSED_FRAMES) { const t = f(B, A); expect([t, correctionLicensed(t, [A], [A, B])]).toEqual([t, true]) }
-    })
-  }
-  it('"not <a chart the last turn did NOT change>" licenses nothing', () => {
-    expect(correctionLicensed('MSFT, not QQQ', ['META'])).toBe(false)
-    expect(correctionLicensed('MSFT, not META', ['META'], ['META', 'MSFT'])).toBe(true)
-    // a correction that carries its own new change ("MSFT weekly, not META") is not licensed: asked — the safe direction
-    expect(correctionLicensed('MSFT weekly, not META', ['META'])).toBe(false)
-  })
-})
-
-// ── AUDIT NO-GO F1, round 2 (11-23): UNLICENSED BY DEFAULT — a rejection licenses the undo half only before a bare REPLACEMENT POINTER ─
-// AUDIT's four classes of paraphrased additive wordings that still licensed it on 7f333fa40a, each with variations:
-const FRESH_AFTER_REJECTION = [
-  // D1: a leading rejection, then "add" + the new change
-  (B) => `no, add RSI to ${B}`, (B) => `nope, add the 20 EMA on ${B}`, (B) => `no — add volume to the ${B} chart`, (B) => `nah, add a 50 SMA to ${B}`,
-  // D2: a leading "nope", praise, then "now <other chart> <change>"
-  (B) => `nope, looks great, now ${B} weekly`, (B) => `no, that's perfect, now ${B} on log`, (B) => `nope, love it — now the ${B} one weekly`,
-  (B) => `no, all good, ${B} monthly next`,
-  // D3: "what I meant was add <change>"
-  (B) => `what I meant was add RSI to ${B}`, (B) => `I meant add the MACD on ${B}`, (B) => `what i meant was make ${B} weekly`,
-  (B) => `meant to say ${B} weekly as well`,
-  // D4: a polite leading "sorry," then a plain new request
-  (B) => `sorry, make ${B} weekly`, (B) => `sorry, can you put ${B} on log`, (B) => `sorry — switch ${B} to monthly please`, (B) => `oops sorry, add RSI to ${B}`,
-]
-describe('F1 round 2: a rejection followed by a FRESH instruction licenses nothing', () => {
-  for (const [A, B] of PAIRS) {
-    it(`${A}→${B}: D1–D4 and variations → not licensed; replacement pointers → licensed`, () => {
-      for (const f of FRESH_AFTER_REJECTION) for (const c of [s => s, s => s.toLowerCase()]) { const t = c(f(B)); expect([t, correctionLicensed(t, [A], [A, B])]).toEqual([t, false]) }
-      for (const t of [`no, the ${B} one`, `I meant ${B}`, `wrong chart, ${B}`, `not ${A}, ${B}`, `put ${A} back`, `undo ${A}`, `revert that`,
-        `no, the right one`, `sorry, I meant the one on the right`, `nope, do ${B} instead`]) expect([t, correctionLicensed(t, [A], [A, B])]).toEqual([t, true])
-    })
-  }
-})

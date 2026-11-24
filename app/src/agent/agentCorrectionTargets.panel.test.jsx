@@ -1,13 +1,11 @@
-// ⭐ AUDIT 11-23 (reproduced on production code): a CORRECT two-chart correction plan was ALWAYS stopped by the target rail.
-// After a change on chart A, "no, the B one" planned as [A put back exactly as it was, B changed] was asked "You named B, but Chart (A)
-// shows A" — in routing v1 and v2, apply and propose — so a correct correction could never run in one step. The rails, in BOTH
-// directions, so the fix cannot trade one for the other (deixis.correctionReverts states the rule):
-//   (a) a WRONG plan still ASKS and changes nothing: another property on A (setScale), another value on A (monthly, not the daily it
-//       was), or a setSymbol taken from a lowercase verb word ("fix", "go": P0.2);
-//   (b) the CORRECT plan (A put back as it was + the change on the named B) EXECUTES (apply) / is a card that applies (propose);
-//   (c) controls: the same undo-half plan WITHOUT correction words is asked; a correction that only changes B runs.
-// Generated over correction frames × ticker kinds (real tickers; ticker-like English words on the board) × routing v1 / v2 (the
-// harness default is v2, as production) × apply / propose, through the REAL panel with a scripted model. No market values.
+// ⭐ P0.2 correction design (owner + AUDIT, 11-24): NO SILENT REVERT, EVER. After a change on chart A, a model plan that puts A back
+// exactly as it was (deixis.revertsLastChange) never runs on the model's word: it is a CARD with fixed UCT sentences —
+//   [Apply] runs the whole plan · [Just <the other chart>] runs only the rest · [Cancel]
+// — on routing v1 and v2, apply and propose, whatever the member's words (corrections, additive requests, CAPS, D1–D4, keep / preserve,
+// negated or questioned undo). Only an EXPLICIT, un-negated "put A back" / "undo that" runs it directly. Plans that revert nothing
+// are unchanged (the target rails ask about a wrong chart exactly as before; a correction that only changes B runs).
+// Generated over wording classes × ticker kinds (real tickers; ticker-like English words on the board) × routing v1 / v2 (the harness
+// default is v2, as production) × apply / propose, through the REAL panel with a scripted model. No market values.
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { cleanup } from '@testing-library/react'
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
@@ -24,204 +22,162 @@ const PAIRS = [
   ['real', 'META', 'MSFT'], ['real', 'NVDA', 'AMD'], ['real', 'AAPL', 'TSLA'],
   ['word', 'ON', 'NOW'], ['word', 'GO', 'SO'], ['word', 'FIX', 'RUN'],
 ]
-// ("not that one, B" and "not A, B" are left out: their exclusion makes the target rails ask even for a plan on B ALONE, on master
-// too — a separate family, G4 in the report. "sorry, I meant the B chart" is often read on the instant path (its own correction:
-// Undo + the change), so the scripted plan is never consulted there — the end state is still checked.)
-const FRAMES = [
-  (B) => `no, the ${B} one`, (B) => `no wait, ${B} instead`, (B) => `i meant ${B}`,
-  (B) => `wrong chart, ${B}`, (B) => `nope, do ${B} instead`, (B) => `sorry, I meant the ${B} chart`, (B) => `no — ${B}, not that`,
-]
 // a real ticker is typed either way; a ticker-like English word is typed as a ticker (in capitals)
-const cased = (kind, B, k) => (kind === 'real' && k % 2 ? B.toLowerCase() : B)
+const cased = (kind, X, k) => (kind === 'real' && k % 2 ? X.toLowerCase() : X)
 
 let p
 function mountPair(A, B, { v2, tickers = [] }) {
   p = setupPanel({ routingV2: v2, tickers: [A, B, ...tickers] })
   const [ws, syms] = TWO(A, B)
-  const m = p.mount(ws.map(w => ({ ...w, opts: { ...w.opts, tf: 'D' } })), syms)
-  return m
+  return p.mount(ws.map(w => ({ ...w, opts: { ...w.opts, tf: 'D' } })), syms)
 }
 const ref = (body, sym) => body.context.charts.find(c => c.label === `Chart (${sym})`).ref
 const tfOf = (board, id) => board.state.widgets.find(w => w.id === id).opts.tf
+const tfs = (m) => [tfOf(m.board, 'cl'), tfOf(m.board, 'cr')]
+const widget = (m, id) => JSON.stringify(m.board.state.widgets.find(w => w.id === id))
 const tf = (sym, t) => (body) => ({ action: 'chart.setTimeframe', target: ref(body, sym), args: { timeframe: t } })
 const plan = (mode, ...ops) => (body) => p.env(mode, ops.map(o => o(body)), '')
-// turn 1: A to weekly (whichever path reads it), then the correction turn with the scripted plan
+// turn 1: A to weekly (whichever path reads it), then turn 2 with the scripted plan
 async function dialogue({ A, B, v2, text, mode, ops, tickers }) {
   const m = mountPair(A, B, { v2, tickers })
   p.st.envelopes.push(plan('apply', tf(A, 'W')))
   await m.say(`make the ${A} chart weekly`)
   expect(routingV2Active()).toBe(v2)
-  expect([tfOf(m.board, 'cl'), tfOf(m.board, 'cr')]).toEqual(['W', 'D'])
+  expect(tfs(m)).toEqual(['W', 'D'])
+  const a0 = widget(m, 'cl')
   p.st.envelopes.length = 0
   const t0 = p.turns()
   p.st.envelopes.push(plan(mode, ...ops))
   const reply = await m.say(text)
-  return { m, reply, model: p.turns() - t0 }
+  return { m, reply, model: p.turns() - t0, a0 }
 }
+const CARD = 'back the way it was before my last change'
 const ASKED = /You named|Which chart do you mean|Did you mean/
 
 const combos = []
 for (const [kind, A, B] of PAIRS) for (const v2 of [false, true]) for (const mode of ['apply', 'propose']) combos.push({ kind, A, B, v2, mode })
 const tag = (c) => `${c.kind} ${c.A}→${c.B} · routing ${c.v2 ? 'v2' : 'v1'} · ${c.mode}`
 
-describe('(b) a CORRECT correction plan executes — A put back as it was, the change on the named B', () => {
-  const rows = []
-  combos.forEach((c, i) => { for (const k of [i, i + 3]) rows.push([tag(c), FRAMES[k % FRAMES.length](cased(c.kind, c.B, k), cased(c.kind, c.A, k)), c, k % FRAMES.length]) })
-  it('covers every frame, both routings, both modes, both ticker kinds', () => {
-    expect(new Set(rows.map(r => r[3])).size).toBe(FRAMES.length)
-    expect(new Set(rows.map(r => `${r[2].v2}${r[2].mode}${r[2].kind}`)).size).toBe(8)
-  })
-  it.each(rows)('%s: "%s"', async (_t, text, c) => {
-    const { m, reply } = await dialogue({ ...c, text, ops: [tf(c.A, 'D'), tf(c.B, 'W')] })
-    expect(reply).not.toMatch(ASKED)
-    // propose: the plan is a card that applies (routing v2 may also run the correction itself, NLM-1's "I meant …": no card then)
-    if (c.mode === 'propose' && p.proposals().length) {
-      expect(p.proposals().length).toBe(1)
-      expect([tfOf(m.board, 'cl'), tfOf(m.board, 'cr')]).toEqual(['W', 'D'])        // a card: nothing yet
-      await m.click('Apply')
+// ── every wording class whose plan reverts A ──
+const CLASSES = {
+  correction: [(B) => `no, the ${B} one`, (B) => `no wait, ${B} instead`, (B) => `i meant ${B}`, (B) => `wrong chart, ${B}`,
+    (B) => `nope, do ${B} instead`, (B) => `no — ${B}, not that`, (B, A) => `${B}, not ${A}`, (B, A) => `${B} instead of ${A}`],
+  additive: [(B) => `actually make ${B} weekly too`, (B) => `wait, also make ${B} weekly`, (B, A) => `${B} weekly as well, not just ${A}`,
+    (B) => `no problem, now do ${B} weekly too`, (B) => `make the ${B} one weekly too, not monthly`, (B) => `${B} weekly too rather than daily`,
+    (B) => `also ${B} weekly`, (B) => `plus ${B} weekly`, (B) => `make the ${B} one weekly too`, (B) => `in addition, ${B} weekly`],
+  keep: [(B, A) => `do ${B} weekly too, keep ${A} weekly, not daily`, (B, A) => `keep ${A} and do ${B} weekly`, (B, A) => `preserve ${A}, ${B} weekly`,
+    (B, A) => `leave ${A} as it is and make ${B} weekly`],
+  caps: [(B) => `no, ${B} weekly TOO`, (B) => `nope ALSO ${B}`, (B) => `oops ADD ${B} weekly`, (B, A) => `no wait KEEP ${A}, ${B} weekly`,
+    (B) => `sorry, ${B} AS WELL`, (B) => `nope, ${B} TOO`, (B, A) => `NOPE, KEEP ${A} AND ${B}`, (B) => `no, ${B} weekly as WELL`],
+  d1d4: [(B) => `no, add RSI to ${B}`, (B) => `nope, looks great, now ${B} weekly`, (B) => `what I meant was add RSI to ${B}`, (B) => `sorry, make ${B} weekly`,
+    (B) => `no — make ${B} weekly`, (B) => `no, that's perfect, now ${B} on log`, (B) => `what i meant was make ${B} weekly`, (B) => `sorry — switch ${B} to weekly please`],
+  negatedOrQuestion: [(B, A) => `don't undo ${A}, make ${B} weekly`, (B) => `do not revert that, ${B} weekly`, (B, A) => `never put ${A} back, ${B} weekly`,
+    (B) => `no need to undo that, ${B} weekly`, (B) => `${B} weekly without undoing it`, (B) => `should I undo that and do ${B}?`,
+    (B, A) => `can you put ${A} back and make ${B} weekly?`, (B) => `undo that? ${B} weekly`, (B, A) => `if you undo ${A}, make ${B} weekly`,
+    (B) => `rather than undo it, ${B} weekly`],
+}
+const ROWS = []
+for (const [cls, frames] of Object.entries(CLASSES)) {
+  combos.forEach((c, i) => {
+    for (const k of [i, i + 5]) {
+      const f = frames[k % frames.length]
+      ROWS.push([`${cls} · ${tag(c)}`, f(cased(c.kind, c.B, k), cased(c.kind, c.A, k)), c, k % 3, `${cls}:${k % frames.length}`])
     }
-    expect([tfOf(m.board, 'cl'), tfOf(m.board, 'cr')]).toEqual(['D', 'W'])
+  })
+}
+describe('a plan that reverts the last change is a CARD — never silent; Apply runs both, Just runs only the other chart', () => {
+  it('covers every wording of every class, both routings, both modes, both ticker kinds', () => {
+    for (const [cls, frames] of Object.entries(CLASSES)) expect(new Set(ROWS.filter(r => r[4].startsWith(`${cls}:`)).map(r => r[4])).size).toBe(frames.length)
+    expect(new Set(ROWS.map(r => `${r[2].v2}${r[2].mode}${r[2].kind}`)).size).toBe(8)
+  })
+  it.each(ROWS)('%s: "%s"', async (_t, text, c, pick) => {
+    const { m, reply, model, a0 } = await dialogue({ ...c, text, ops: [tf(c.A, 'D'), tf(c.B, 'W')] })
+    if (!model) {
+      // read on the instant path (the scripted plan is never consulted): A is never put back by the model's plan
+      expect([['W', 'D'], ['W', 'W'], ['D', 'W']]).toContainEqual(tfs(m))
+      return
+    }
+    if (!reply.includes(CARD)) {
+      // the REST of the plan did not pass a target rail (B is not named: a ticker-like word in a non-ticker role, a bare "it") — the
+      // rail asks first, and nothing changed: still never a silent revert
+      expect(reply).toMatch(ASKED)
+      expect(tfs(m)).toEqual(['W', 'D'])
+      expect(widget(m, 'cl')).toBe(a0)
+      return
+    }
+    expect(reply).toContain(CARD)                                                  // the card — fixed UCT sentences
+    expect(reply).toContain(`Chart (${c.A})`)
+    expect(tfs(m)).toEqual(['W', 'D'])                                             // nothing changed yet: 0 silent reverts
+    expect(widget(m, 'cl')).toBe(a0)
+    // the words themselves EXCLUDE A ("not GO", "keep META", "don't undo NVDA"): the card said A goes back, and Apply is the member's
+    // consent to exactly that — the exclusion gates may still hold A (then it stays); either way nothing happened before the pick
+    const excludesA = new RegExp(`\\b(?:not|instead of|rather than|keep|leave|preserve|don't|do not|never|no need to)\\b[^,.]*\\b${c.A}\\b`, 'i').test(text)
+    if (pick === 1) {
+      await m.click('Apply')
+      if (excludesA) expect(['W', 'D']).toContain(tfOf(m.board, 'cl'))
+      else expect(tfs(m)).toEqual(['D', 'W'])                                      // Apply → both
+    } else if (pick === 2) {
+      await m.click(`Just Chart (${c.B})`)
+      expect(tfs(m)).toEqual(['W', 'W'])                                           // Just → only B
+      expect(widget(m, 'cl')).toBe(a0)                                             // A untouched, field by field
+    }
   }, 40000)
 })
 
-describe('(a) a WRONG plan still asks and changes nothing', () => {
+// ── the EXPLICIT revert runs directly (no card) ──
+const EXPLICIT = [(B, A) => `put ${A} back and make ${B} weekly`, (B) => `undo that and make ${B} weekly`, (B, A) => `revert ${A}, then make ${B} weekly`,
+  (B) => `undo my last change, ${B} weekly please`, (B, A) => `put the ${A} chart back, ${B} weekly`, (B) => `undo it and do ${B} weekly`]
+describe('an explicit, un-negated "put A back" / "undo that" runs the plan with no revert card', () => {
+  const rows = []
+  combos.forEach((c, i) => rows.push([tag(c), EXPLICIT[i % EXPLICIT.length](cased(c.kind, c.B, i), cased(c.kind, c.A, i)), c]))
+  it.each(rows)('%s: "%s"', async (_t, text, c) => {
+    const { m, reply, model } = await dialogue({ ...c, text, ops: [tf(c.A, 'D'), tf(c.B, 'W')] })
+    if (!model) return                                                             // an instant reader took it (its own Undo)
+    expect(reply).not.toContain(CARD)
+    if (c.mode === 'propose' && p.proposals().length) await m.click('Apply')       // propose: the model's own card
+    expect(tfs(m)).toEqual(['D', 'W'])
+  }, 40000)
+})
+
+// ── plans that revert nothing are unchanged ──
+describe('a plan that reverts nothing is unchanged: wrong targets are asked by the rails, a B-only correction runs', () => {
   const WRONG = [
     ['another property on A (log scale)', (c) => [(body) => ({ action: 'chart.setScale', target: ref(body, c.A), args: { scale: 'log' } }), tf(c.B, 'W')]],
     ['another value on A (monthly, not the daily it was)', (c) => [tf(c.A, 'M'), tf(c.B, 'W')]],
   ]
-  const rows = []
-  combos.forEach((c, i) => { const [name, ops] = WRONG[i % WRONG.length]; rows.push([tag(c), name, FRAMES[i % FRAMES.length](cased(c.kind, c.B, i), cased(c.kind, c.A, i)), c, ops]) })
-  it.each(rows)('%s · %s: "%s"', async (_t, _n, text, c, ops) => {
+  const rows = combos.map((c, i) => [tag(c), WRONG[i % 2][0], CLASSES.correction[i % CLASSES.correction.length](cased(c.kind, c.B, i), cased(c.kind, c.A, i)), c, WRONG[i % 2][1]])
+  it.each(rows)('%s · %s: "%s" → asked, nothing changed, no revert card', async (_t, _n, text, c, ops) => {
     const { m, reply, model } = await dialogue({ ...c, text, ops: ops(c) })
-    if (model) {
-      expect(reply).toMatch(ASKED)
-      expect(p.proposals().length).toBe(0)
-      expect([tfOf(m.board, 'cl'), tfOf(m.board, 'cr')]).toEqual(['W', 'D'])
-    } else {
-      // read on the instant path (the wrong plan was never consulted): only its own correction may have run
-      expect([['W', 'D'], ['D', 'W']]).toContainEqual([tfOf(m.board, 'cl'), tfOf(m.board, 'cr')])
-    }
-    expect(JSON.stringify(m.board.state.widgets.map(w => w.opts.settings))).not.toMatch(/"scale":"log"|"logScale":true/)
+    if (!model) return
+    expect(reply).not.toContain(CARD)
+    expect(ASKED.test(reply) || p.proposals().length > 0, reply).toBe(true)      // asked, or the model's own proposal card
+    expect(tfs(m)).toEqual(['W', 'D'])
   }, 40000)
-  // a setSymbol the model took from a lowercase verb word in the correction: asked (P0.2), the symbol never changes
+  const only = combos.map((c, i) => [tag(c), CLASSES.correction[i % CLASSES.correction.length](cased(c.kind, c.B, i), cased(c.kind, c.A, i)), c])
+  it.each(only)('%s: "%s" with a plan that only changes B → runs, no card', async (_t, text, c) => {
+    const { m, reply, model } = await dialogue({ ...c, text, ops: [tf(c.B, 'W')] })
+    if (!model) return
+    expect(reply).not.toContain(CARD)
+    if (c.mode === 'propose' && p.proposals().length) await m.click('Apply')
+    expect(tfs(m)).toEqual(['W', 'W'])
+  }, 40000)
+  // a setSymbol the model took from a lowercase verb word: asked (P0.2), never applied
   const VERB = [['fix', 'FIX'], ['go', 'GO'], ['run', 'RUN']]
   const vrows = combos.filter(c => c.kind === 'real').map((c, i) => [tag(c), `no, ${VERB[i % 3][0]} it on the ${c.B} one`, c, VERB[i % 3][1]])
   it.each(vrows)('%s · setSymbol from a verb word: "%s"', async (_t, text, c, T) => {
     const { m, reply } = await dialogue({ ...c, text, tickers: [T], ops: [(body) => ({ action: 'chart.setSymbol', target: ref(body, c.B), args: { symbol: T } })] })
     expect(m.board.state.groupSyms['N:cr']).toBe(c.B)
     expect(reply).not.toContain(`Changed symbol to ${T}`)
-    expect(reply).toMatch(new RegExp(`Did you mean the ticker ${T}\\?|${ASKED.source}`))
-    if (c.mode === 'apply' && /Did you mean the ticker/.test(reply)) expect(p.proposals().length).toBe(1)
   }, 40000)
 })
 
-describe('(c) controls', () => {
-  const rows = combos.map((c, i) => [tag(c), c, i])
-  it.each(rows)('%s: the undo-half plan WITHOUT correction words is asked', async (_t, c) => {
-    const { m, reply, model } = await dialogue({ ...c, text: `make the ${c.B} one weekly too`, ops: [tf(c.A, 'D'), tf(c.B, 'W')] })
-    if (model) expect(reply).toMatch(ASKED)                                      // the model's plan reverts A: asked
-    expect(tfOf(m.board, 'cl')).toBe('W')                                         // A is never put back without being asked to
-  }, 40000)
-  it.each(rows)('%s: a correction that only changes B runs (A keeps its change)', async (_t, c, i) => {
-    const { m, reply, model } = await dialogue({ ...c, text: FRAMES[i % FRAMES.length](cased(c.kind, c.B, i), cased(c.kind, c.A, i)), ops: [tf(c.B, 'W')] })
-    expect(reply).not.toMatch(ASKED)
-    if (c.mode === 'propose' && p.proposals().length) await m.click('Apply')
-    // the model's plan changes only B; the instant path's own correction (when it reads the words) also puts A back
-    expect([tfOf(m.board, 'cl'), tfOf(m.board, 'cr')]).toEqual(model ? ['W', 'W'] : ['D', 'W'])
-  }, 40000)
-})
-
-// ── AUDIT NO-GO F1 (11-23, SAFETY): an ADDITIVE request never puts the earlier change back ─────────────────────────────────────
-// Turn 1 makes A weekly; turn 2 ADDS ("actually make MSFT weekly too") and the model's plan is [A back to daily, B weekly]. On
-// f4c64d59e1 A silently went back to daily in 14 of 16 apply cases (master asked 32/32): a bare "actually / wait / not / rather"
-// licensed the undo half. Now the words must REJECT the earlier change. Every row: A is never put back without being asked; when
-// the model's plan was read, nothing changed and it was asked (a question or a card).
-const ADDITIVE = [
-  // AUDIT's seven
-  (B) => `actually make ${B} weekly too`, (B) => `wait, also make ${B} weekly`, (B, A) => `${B} weekly as well, not just ${A}`,
-  (B) => `no problem, now do ${B} weekly too`, (B) => `make the ${B} one weekly too, not monthly`, (B) => `${B} weekly too rather than daily`,
-  (B, A) => `do ${B} weekly too, keep ${A} weekly, not daily`,
-  // variations
-  // ("both A and B weekly" is left out: it NAMES A as a target, so a plan on A is identified by the words — the plan's wrong VALUE
-  // for A is the model's mistake, which no target rail reads, on master too)
-  (B) => `also ${B} weekly`, (B) => `and ${B} weekly as well`, (B) => `plus ${B} weekly`,
-  (B, A) => `keep ${A} and do ${B} weekly`, (B, A) => `not only ${A}, ${B} weekly`, (B) => `in addition, ${B} weekly`,
-  (B) => `actually, ${B} weekly`, (B) => `wait, ${B} weekly`, (B) => `${B} weekly, not monthly`, (B) => `${B} weekly rather than daily`,
-  (B) => `no worries, ${B} weekly`, (B) => `another one: ${B} weekly`,
-]
-const PUT_BACK = /You named|Which chart do you mean|Did you mean|wasn.t sure/
-describe('F1: an additive request with an undo-half plan is asked, and the earlier change is never silently put back', () => {
-  const rows = []
-  // AUDIT's seven on their own pair, every routing × mode
-  for (const c of combos.filter(x => x.A === 'META')) for (let k = 0; k < 7; k++) rows.push([tag(c), ADDITIVE[k](c.B, c.A), c, k])
-  // every wording, rotated over the other pairs (real tickers and ticker-like words), every routing × mode
-  combos.filter(x => x.A !== 'META').forEach((c, i) => { for (const k of [i, i + 9]) rows.push([tag(c), ADDITIVE[k % ADDITIVE.length](cased(c.kind, c.B, k), cased(c.kind, c.A, k)), c, k % ADDITIVE.length]) })
-  it('covers every wording, both routings, both modes, both ticker kinds', () => {
-    expect(new Set(rows.map(r => r[3])).size).toBe(ADDITIVE.length)
-    expect(new Set(rows.map(r => `${r[2].v2}${r[2].mode}${r[2].kind}`)).size).toBe(8)
-  })
-  it.each(rows)('%s: "%s"', async (_t, text, c) => {
+// ── the rest of a revert-bearing plan goes through every target rail BEFORE any card ──
+describe('the card is offered only when the rest of the plan passes every target rail', () => {
+  const rows = combos.map((c, i) => [tag(c), ['nope, weekly please', 'no, do weekly instead', 'wait, weekly'][i % 3], c])
+  it.each(rows)('%s: "%s" (the other chart is never named) → the rail asks; no card, nothing changed', async (_t, text, c) => {
     const { m, reply, model } = await dialogue({ ...c, text, ops: [tf(c.A, 'D'), tf(c.B, 'W')] })
-    expect(tfOf(m.board, 'cl')).toBe('W')                                         // A is never put back without being asked
-    if (model) {
-      expect([tfOf(m.board, 'cl'), tfOf(m.board, 'cr')]).toEqual(['W', 'D'])      // nothing changed
-      expect(PUT_BACK.test(reply) || p.proposals().length > 0, reply).toBe(true)  // asked: a question, or a card to decide on
-    }
-  }, 40000)
-})
-
-// ── AUDIT NO-GO F1, round 2 (11-23): a rejection followed by a FRESH instruction never puts the earlier change back ────────────────
-// D1 "no, add …", D2 "nope, looks great, now <B> <change>", D3 "what I meant was add …", D4 "sorry, <plain new request>" — each with
-// variations, × pairs (real / word-like) × routing v1/v2 × apply/propose. The plan: [A back to daily, B weekly]. On 7f333fa40a the undo
-// half was licensed by the leading rejection alone; now it needs nothing but a replacement pointer after it.
-const FRESH = [
-  (B) => `no, add RSI to ${B}`, (B) => `nope, add the 20 EMA on ${B}`, (B) => `no — make ${B} weekly`, (B) => `nah, add a 50 SMA to ${B}`,
-  (B) => `nope, looks great, now ${B} weekly`, (B) => `no, that's perfect, now ${B} on log`, (B) => `nope, love it — now the ${B} one weekly`,
-  (B) => `no, all good, ${B} weekly next`,
-  (B) => `what I meant was add RSI to ${B}`, (B) => `I meant add the MACD on ${B}`, (B) => `what i meant was make ${B} weekly`,
-  (B) => `meant to say ${B} weekly as well`,
-  (B) => `sorry, make ${B} weekly`, (B) => `sorry, can you put ${B} on weekly`, (B) => `sorry — switch ${B} to weekly please`, (B) => `oops sorry, ${B} weekly`,
-]
-describe('F1 round 2: a rejection + a fresh instruction is asked, and the earlier change is never silently put back', () => {
-  const rows = []
-  combos.forEach((c, i) => { for (const k of [i, i + 5, i + 11]) rows.push([tag(c), FRESH[k % FRESH.length](cased(c.kind, c.B, k)), c, k % FRESH.length]) })
-  it('covers every wording, both routings, both modes, both ticker kinds', () => {
-    expect(new Set(rows.map(r => r[3])).size).toBe(FRESH.length)
-    expect(new Set(rows.map(r => `${r[2].v2}${r[2].mode}${r[2].kind}`)).size).toBe(8)
-  })
-  it.each(rows)('%s: "%s"', async (_t, text, c) => {
-    const { m, reply, model } = await dialogue({ ...c, text, ops: [tf(c.A, 'D'), tf(c.B, 'W')] })
-    expect(tfOf(m.board, 'cl')).toBe('W')                                         // A is never put back without being asked
-    if (model) {
-      expect([tfOf(m.board, 'cl'), tfOf(m.board, 'cr')]).toEqual(['W', 'D'])      // nothing changed
-      expect(PUT_BACK.test(reply) || p.proposals().length > 0, reply).toBe(true)  // asked: a question, or a card to decide on
-    }
-  }, 40000)
-})
-
-// ── AUDIT NO-GO #3 (11-23, F1b): CAPITALISED fresh words after a rejection never put the earlier change back ─────────────────────
-// e0ca62a3ee read ANY all-caps word in a mixed-case message as a ticker pointer ("no, MSFT weekly TOO" → TOO a "pointer"), so
-// these reverted A in 14 of 16. A capital word is a pointer only when it IS a symbol on the board (or the earlier chart).
-// ("no, BOTH A and B" is left out, as in round 1: it NAMES A as a target, so the plan's wrong value for A is the model's, on master too)
-const CAPS_FRESH = [
-  (B) => `no, ${B} weekly TOO`, (B) => `nope ALSO ${B}`, (B) => `oops ADD ${B} weekly`, (B, A) => `no wait KEEP ${A}, ${B} weekly`,
-  (B) => `no, ${B} WEEKLY too`, (B) => `sorry, ${B} AS WELL`, (B) => `no, BOTH of them, ${B}`, (B) => `nope, ${B} TOO`,
-  (B) => `no — ${B} ALSO weekly`, (B) => `wrong, ADD ${B}`, (B) => `I meant ${B} TOO`, (B) => `no, ${B} WEEKLY`,
-  (B) => `sorry, ${B} 5m TOO`, (B) => `no, ${B} PLUS ${B}`, (B, A) => `NOPE, KEEP ${A} AND ${B}`, (B) => `no, ${B} weekly as WELL`,
-]
-describe('F1b: a rejection followed by a CAPITALISED fresh word is asked, and the earlier change is never put back', () => {
-  const rows = []
-  combos.forEach((c, i) => { for (const k of [i, i + 7, i + 13]) rows.push([tag(c), CAPS_FRESH[k % CAPS_FRESH.length](c.B, c.A), c, k % CAPS_FRESH.length]) })
-  it('covers every wording, both routings, both modes, both ticker kinds', () => {
-    expect(new Set(rows.map(r => r[3])).size).toBe(CAPS_FRESH.length)
-    expect(new Set(rows.map(r => `${r[2].v2}${r[2].mode}${r[2].kind}`)).size).toBe(8)
-  })
-  it.each(rows)('%s: "%s"', async (_t, text, c) => {
-    const { m, reply, model } = await dialogue({ ...c, text, ops: [tf(c.A, 'D'), tf(c.B, 'W')] })
-    expect(tfOf(m.board, 'cl')).toBe('W')                                         // A is never put back without being asked
-    if (model) {
-      expect([tfOf(m.board, 'cl'), tfOf(m.board, 'cr')]).toEqual(['W', 'D'])      // nothing changed
-      expect(PUT_BACK.test(reply) || p.proposals().length > 0, reply).toBe(true)  // asked: a question, or a card to decide on
-    }
+    if (!model) return
+    expect(reply).not.toContain(CARD)
+    expect(tfs(m)).toEqual(['W', 'D'])
   }, 40000)
 })

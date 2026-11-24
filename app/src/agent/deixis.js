@@ -993,88 +993,26 @@ export function wordInVerbRole(text, ticker, ordinary = false) {
   } catch { return false }
 }
 
-// ── ⭐ AUDIT 11-23 (the false-conflict half, reproduced on production code): a CORRECT correction plan was always asked ──
-// After a change on the META chart, "no, the MSFT one" planned as [META put back as it was, MSFT changed] was ALWAYS stopped with
-// "You named MSFT, but Chart (META) shows META" (v1 and v2, apply and propose): the write on META is not a target choice, it is the
-// UNDO HALF of the correction. It is recognised — and only it — when ALL hold:
-//   (1) the words REJECT the earlier change (correctionLicensed, below — AUDIT NO-GO F1: a bare "actually / wait / not / rather"
-//       anywhere licensed it, so "actually make MSFT weekly too" silently put META back);
-//   (2) the Agent's LAST turn changed that chart: its Undo entry holds the chart as it was (`items`: the entries' landed items);
-//   (3) the op puts back EXACTLY what that change changed: read through the capability's own `apply` and the kind's own `patch`,
-//       the op's change equals the change from the chart now back to the chart as it was (same fields, same values).
-// Anything else on that chart (another property, another value, a chart the last turn did not change, no correction words) is not
-// the undo half — the target rail asks, as before. Fails closed (an unreadable check is no revert).
-// ⭐ AUDIT NO-GO F1 (11-23, twice): UNLICENSED BY DEFAULT. A correction's undo half runs only when the words do nothing but REJECT
-// the earlier change and POINT at the replacement — no fresh instruction of their own. Licensed when EITHER:
-//   (1) an explicit revert of the earlier change: "put <earlier> back", "undo / revert (that | it | <earlier>)"; OR
-//   (2) EVERY word is a rejection or a pointer, and at least one rejection is there:
-//       rejection  no / nope / nah / wrong / oops / sorry / my bad / "that's wrong" / (I) meant / instead /
-//                  "not | rather than | instead of" + <earlier> or that / this;
-//       pointer    a symbol on the board (or a ticker typed in capitals / with "$"), a position (left, right, top…), the / that /
-//                  this / one / chart / other / same, "do" / "it" / "on" (the same change, elsewhere), fillers (wait, please, ok…).
-// So "no, the MSFT one", "I meant MSFT", "wrong chart, MSFT", "not META, MSFT", "nope, do msft instead" are licensed; "no, add RSI
-// to MSFT", "nope, looks great, now MSFT weekly", "what I meant was add MSFT weekly", "sorry, make MSFT weekly", "actually make MSFT
-// weekly too" are not: a word that is no rejection and no pointer (a verb, a value, praise, "too") is a fresh instruction, and the
-// rails ask about a plan that would put the earlier chart back. No list of additive words decides it — the structure does.
-const REJECT_WORDS = new Set(['no', 'nope', 'nah', 'wrong', 'oops', 'sorry', 'meant', 'instead'])
-const POINTER_WORDS = new Set(['the', 'a', 'an', 'that', 'this', 'these', 'those', 'one', 'ones', 'chart', 'charts', 'other', 'same',
-  'do', 'it', 'on', 'for', 'there', 'i', 'my', 'bad', 'mean', 'what', 'was', 'is', "that's", 'thats', "it's", 'not', 'rather', 'than', 'of',
-  'wait', 'oh', 'ok', 'okay', 'please', 'pls', 'yeah', 'hmm', 'um', 'uh', 'just', 'so', 'then', 'actually',
-  'left', 'right', 'top', 'bottom', 'middle', 'center', 'centre', 'upper', 'lower', 'first', 'second', 'third', 'fourth', 'last'])
-const escRe = (x) => String(x).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-/** Do the words only reject the earlier change on `earlier` (symbols the last turn changed) and point at a replacement? `board`:
- *  every symbol on the board. */
-export function correctionLicensed(text, earlier = [], board = []) {
-  const s = String(text || '').replace(/[’‘]/g, '\'')
-  if (!s.trim()) return false
-  const syms = (earlier || []).map(x => escRe(String(x || '').trim())).filter(Boolean)
-  const earlierRe = syms.length ? `(?:the\\s+)?\\$?(?:${syms.join('|')})\\b(?:\\s+(?:chart|one))?` : null
-  // (1) an explicit revert of the earlier change
-  if (earlierRe && new RegExp(`\\bput\\s+${earlierRe}\\s+back\\b`, 'i').test(s)) return true
-  if (new RegExp(`\\b(?:undo|revert)\\s+(?:that|it|this|the\\s+last(?:\\s+change)?${earlierRe ? `|${earlierRe}` : ''})\\b`, 'i').test(s)) return true
-  // (2) only rejection and pointer words, with a rejection among them. DEFAULT-DENY (AUDIT NO-GO #3, F1b): a token is a pointer only
-  // when it is positively classified — a pointer word in its ordinary spelling, or a symbol that IS on the board / the earlier chart.
-  // A word typed in capitals or with "$" is a pointer only as such a symbol ("no, MSFT weekly TOO": TOO is no symbol here → fresh); a
-  // pointer word typed in capitals (in any message) is read as a would-be ticker, so it too must be on the board. Anything that
-  // is not letters (a number, a timeframe like 5m, an emoji, a mixed token) is a fresh word. Punctuation and quotes only separate.
-  const known = new Set([...(earlier || []), ...(board || [])].map(x => String(x || '').toUpperCase()).filter(Boolean))
-  const toks = s.split(/[\s,.;:!?()[\]{}"“”«»<>\-–—…/\\|*+=~`^_]+/).map(t => t.replace(/^'+|'+$/g, '')).filter(Boolean)
-  let rejected = false
-  for (let i = 0; i < toks.length; i++) {
-    const raw = toks[i]
-    const dollar = raw.startsWith('$')
-    const bare = dollar ? raw.slice(1) : raw
-    if (!/^[A-Za-z]+(?:'[A-Za-z]+)?$/.test(bare)) return false             // a number, a timeframe, an emoji, a mixed token
-    const w = bare.toLowerCase()
-    // (property pass, 11-23) a word typed in capitals is a would-be ticker even in a message typed all in capitals ("NO, IT." — IT
-    // may be the symbol), so a capitalised pointer word is never positively classified unless it IS a symbol here
-    const capsTyped = dollar || (bare.length >= 2 && bare === bare.toUpperCase())
-    if (known.has(bare.toUpperCase())) continue                             // a symbol on the board / the earlier chart, any case
-    if (!dollar && REJECT_WORDS.has(w)) { rejected = true; continue }
-    // "not / rather than / instead of" + the earlier chart (or that / this) is a rejection of it
-    if (!capsTyped && (w === 'not' || w === 'than' || w === 'of') && i + 1 < toks.length) {
-      const nx = toks[i + 1].replace(/^\$/, '').toUpperCase()
-      const nx2 = i + 2 < toks.length ? toks[i + 2].replace(/^\$/, '').toUpperCase() : ''
-      if ((earlier || []).some(e => [nx, nx2].includes(String(e).toUpperCase())) || ['THAT', 'THIS'].includes(nx)) rejected = true
-    }
-    if (!capsTyped && POINTER_WORDS.has(w)) continue
-    return false                                          // not positively a rejection or a pointer: a fresh word, no license
-  }
-  return rejected
-}
+// ── ⭐ P0.2 correction design (owner + AUDIT, 11-24): NO SILENT REVERT, EVER ──────────────────────────────────────────────────────
+// After three NO-GOs on a correction GRAMMAR (which words "license" putting the earlier change back), the design is: the browser never
+// reads the member's words to decide that the model may undo its last change. A model-plan op that REVERSES the last turn's change
+// (revertsLastChange: the chart the last turn changed, put back exactly as its Undo entry holds it, field by field) goes on a CARD —
+// "Apply" runs the whole plan, "Just <the other chart>" runs only the rest — on v1 and v2, apply and propose. The only words that run
+// it directly are an EXPLICIT revert of that change (explicitRevertRequested), never negated, never a question.
 const canonJson = (v) => JSON.stringify(v, (k, x) => (x && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries(Object.keys(x).sort().map(key => [key, x[key]])) : x))
-/** → (op) => true when `op` is the undo half of a correction (rules above), or null when the words are no correction / nothing to undo. */
-export function correctionReverts({ text, items, host, getCapability, getTargetKind }) {
-  if (!Array.isArray(items) || !items.length) return null
-  // the symbols of the charts the last turn changed (as they were, and as they are now)
-  const earlier = []
-  for (const i of items) {
+const escRe = (x) => String(x).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+/** The symbols of the charts the last turn changed (`items`: its Undo entries' landed items), as they were or as they are now. */
+export function earlierSymbolsOf(items, host) {
+  const out = []
+  for (const i of items || []) {
     const sym = i?.before?.symbol || (() => { try { return (host?.charts?.list?.() || []).find(c => c.ref === i?.ref)?.symbol } catch { return null } })()
-    if (sym && !earlier.includes(sym)) earlier.push(sym)
+    if (sym && !out.includes(sym)) out.push(sym)
   }
-  let board = []
-  try { board = (host?.charts?.list?.() || []).map(c => c?.symbol).filter(Boolean) } catch { board = [] }
-  if (!correctionLicensed(text, earlier, board)) return null
+  return out
+}
+/** → (op) => true when `op` puts a chart the LAST turn changed back exactly as that turn's Undo entry holds it; null when nothing to undo. */
+export function revertsLastChange({ items, host, getCapability, getTargetKind }) {
+  if (!Array.isArray(items) || !items.length) return null
   return (o) => {
     try {
       const cap = getCapability(o?.action)
@@ -1096,6 +1034,58 @@ export function correctionReverts({ text, items, host, getCapability, getTargetK
     } catch { return false }
   }
 }
+// The EXPLICIT revert: the words ask, in the imperative, for that change to be undone — "put <earlier> back", "undo / revert that | it |
+// this | the / my / your last change | <earlier>". Never when NEGATED or hypothetical ("don't undo META", "do not revert it", "never put
+// META back", "no need to undo that", "without undoing it", "rather than undo…", "if you undo…") or a QUESTION ("should I undo that?",
+// "can you put META back?"): those are asked on the card like any other revert. (The old hole: "don't undo META, make MSFT weekly"
+// matched "undo META".)
+const REVERT_NEGATION = /\b(?:don'?t|do\s+not|does\s+not|doesn'?t|didn'?t|never|no\s+need\s+to|without|not|nor|rather\s+than|instead\s+of|stop|avoid|if|unless|before|whether)\b/i
+const REVERT_QUESTION = /\?|^\s*(?:should|shall|can|could|would|will|do|does|did|is|are|may|might|must|why|how|what|when)\b|\b(?:should|shall)\s+(?:i|we)\b/i
+/** Do the words EXPLICITLY ask to undo the last change on `earlier` (its chart symbols)? */
+export const explicitRevertRequested = (text, earlier = []) => !!explicitRevertSpan(text, earlier)
+/** …and where: { start, end } of the revert clause in the words, or null. (The rails read the words without it: they are about the
+ *  undo, not about where the rest of the plan goes — "put the NVDA chart back, AMD weekly" must not aim AMD's change at NVDA.) */
+export function explicitRevertSpan(text, earlier = []) {
+  const s = String(text || '').replace(/[’‘]/g, '\'')
+  if (!s.trim() || REVERT_QUESTION.test(s)) return null
+  const syms = (earlier || []).map(x => escRe(String(x || '').trim())).filter(Boolean)
+  const earlierRe = syms.length ? `(?:the\\s+)?\\$?(?:${syms.join('|')})\\b(?:\\s+(?:chart|one))?` : null
+  const forms = [
+    ...(earlierRe ? [new RegExp(`\\bput\\s+${earlierRe}\\s+back\\b`, 'i')] : []),
+    new RegExp(`\\b(?:undo|revert)\\s+(?:that|it|this|(?:the|my|your)\\s+last(?:\\s+change)?${earlierRe ? `|${earlierRe}` : ''})\\b`, 'i'),
+  ]
+  for (const re of forms) {
+    const m = re.exec(s)
+    if (!m) continue
+    // the clause the revert stands in must not be negated / hypothetical before it
+    const before = s.slice(0, m.index).split(/[.;!]|,\s*(?:and|then|but)?\s*|\b(?:and|then|but)\b/i).pop() || ''
+    if (REVERT_NEGATION.test(before)) continue
+    return { start: m.index, end: m.index + m[0].length }
+  }
+  return null
+}
+// The revert card: FIXED UCT sentences only (never the model's prose) — what goes back, what else changes — and the three choices.
+export function chartRevertCard({ host, reverted, others, getCapability, getTargetKind }) {
+  const charts = (() => { try { return host?.charts?.list?.() || [] } catch { return [] } })()
+  const labelOf = (o) => {
+    try {
+      const kind = getTargetKind(getCapability(o?.action)?.target)
+      const snap = (kind?.list?.(host) || []).find(x => x.ref === o.target)
+      const ref = snap && kind ? chartRefOf(kind, snap) : o?.target
+      return charts.find(c => c.ref === ref)?.label || snap?.label || 'a chart'
+    } catch { return 'a chart' }
+  }
+  const uniq = (xs) => [...new Set(xs)]
+  const join = (xs) => (xs.length < 2 ? (xs[0] || '') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`)
+  const back = uniq((reverted || []).map(labelOf))
+  const rest = uniq((others || []).map(labelOf))
+  return {
+    text: `That would put ${join(back)} back the way it was before my last change${rest.length ? `, and also change ${join(rest)}` : ''}. Nothing has changed yet.`,
+    choices: [{ ref: 'revert:all', label: 'Apply' }, ...(rest.length ? [{ ref: 'revert:just', label: `Just ${join(rest)}` }] : []), { label: 'Cancel', cancel: true }],
+  }
+}
+/** The board as a revert card was asked on (its charts, symbols and labels): a pick on another board is refused. */
+export const boardPrintOf = (host) => { try { return JSON.stringify((host?.charts?.list?.() || []).map(c => [c.ref, c.symbol, c.label, c.tf ?? null])) } catch { return '' } }
 const valuesOf = (ops) => {
   const out = new Set()
   const walk = (v) => {
