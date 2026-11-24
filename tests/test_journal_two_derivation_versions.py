@@ -484,6 +484,14 @@ def test_every_door_keeps_both_indexes_after_a_version_rebuild(conn):
         assert engine._apply_resolved_body(conn, U, nid, _doc(("resolved text", False)), expected_updated_at=upd)
         return nid
 
+    def trashed():
+        # the connector writing the remote's new content into a note the member trashed (ddcad9c107, #756); a door
+        # since it calls `_sync_note_sidecars`, DRIVEN in the task-index census since dfb449ea42 (2026-11-20)
+        nid = new("old text")
+        notes_svc.delete_note(U, nid, conn=conn)
+        engine._write_into_trashed_row(conn, U, nid, {"title": "n", "bodyJson": _doc(("remote text", False))})
+        return nid
+
     nb = "api/services/journal_two/notes.py"
     doors = {
         (nb, "create_note"): new,
@@ -494,6 +502,7 @@ def test_every_door_keeps_both_indexes_after_a_version_rebuild(conn):
         (nb, "append_document_excerpt"): appender(notes_svc.append_document_excerpt, "exc-1"),
         (nb, "import_confirm"): imported,
         ("api/services/journal_two/note_connectors/engine.py", "_apply_resolved_body"): resolved,
+        ("api/services/journal_two/note_connectors/engine.py", "_write_into_trashed_row"): trashed,
     }
     assert set(doors) == DRIVEN, "a door the census knows is not driven here, or the reverse"
     nids = {}
