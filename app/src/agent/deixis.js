@@ -789,6 +789,35 @@ function changeWords(text) {
   }
   return withoutExclusions(change)
 }
+/** The CHANGE words of a message (keep / negated clauses and exclusions blanked) — what names a TARGET. */
+export const changeWordsOf = (text) => { try { return changeWords(text) } catch { return String(text || '') } }
+/** G1/G2 (AUDIT 11-23): do the words point at the CLICKED chart ("this", "here", "the selected / clicked one")? */
+export const pointsAtClick = (text) => /\b(?:this|here|selected|clicked|highlighted)\b/i.test(String(text || ''))
+/** G1/G2 (AUDIT 11-23): do the member's words THEMSELVES identify every chart a plan writes? — nothing in them points at a chart
+ *  without naming it ("this one", "that chart", "here", a relation, a description: a bare "it" may stand for a chart they named or
+ *  for a thing, never for a chart they did not name), no click outside what is written, and each written chart is one the change
+ *  words name by ticker, place, order or relation, or a plural place ("the bottom two", "the left charts"). The deictic screen then
+ *  has nothing to settle: the plan lands exactly where the words say. Anything else → false (the deictic screen reads them). */
+export function wordsGroundWrites(text, charts = [], sel = null, written = new Set()) {
+  try {
+    if (!written?.size) return false
+    const s = String(text || '')
+    if (pointsAtChart(s, { chartOp: false, charts })) return false
+    if (sel && [...written].some(c => c !== sel)) return false
+    const w = changeWordsOf(s)
+    const named = chartsNamedBy(w, charts, sel)
+    for (const m of w.matchAll(/\b(top|bottom|upper|lower|left|right)(?:[\s-]+(left|right))?\s+(?:two|three|four|both|charts|ones)\b/gi)) {
+      const parts = [m[1], m[2]].filter(Boolean).map(x => x.toLowerCase().replace('upper', 'top').replace('lower', 'bottom'))
+      for (const c of charts) if (c.position && parts.every(x => c.position.split('-').includes(x))) named.add(c.ref)
+    }
+    return [...written].every(c => named.has(c))
+  } catch { return false }
+}
+/** G1/G2: do the words name a SET of charts ("both", "all charts", "the others", "them") — a split may then land on several. */
+export const wordsNameASet = (text) => {
+  const s = String(text || '')
+  return MANY_COUNT.test(s) || OTHER_CHARTS.test(s) || REST_OF_BOARD.test(s) || /\b(?:them|both|charts)\b/i.test(s)
+}
 const TGT_ANCHOR_BEFORE = /\b(?:above|below|under|underneath|beneath|over|beside|alongside|near|nearest|by|next\s+(?:door\s+)?to|left\s+of|right\s+of|across\s+from|opposite|adjacent\s+to|diagonal(?:ly)?(?:\s+(?:from|to|across\s+from))?|kitty[\s-]?corner\s+(?:from|to)|catty[\s-]?corner\s+(?:from|to))\s+(?:the\s+|my\s+)?\$?$/i
 // ordinary words — typed in capitals for emphasis, or not in capitals at all — are words, never tickers (unless on the board):
 // the ticker pronouns and the short words of an ordinary request (spatialCheck's negated-ticker stop list among them)
