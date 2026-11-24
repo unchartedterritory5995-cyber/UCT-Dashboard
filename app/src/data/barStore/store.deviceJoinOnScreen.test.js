@@ -26,6 +26,9 @@
 //   J8b the copy stamped exactly at the end of the bucket after the answer's newest row: flushed, that candle kept (`<=`)
 //   J10 an answer lagging only by the bucket the copy is still forming: nothing flushed (the answer would drop that bar),
 //      the join refused at idle
+// review of #2620:
+//   J11 a copy STAMPED past the answer's next bucket (outside the session the stamp is the feed's) whose newest row is NO
+//       newer than the answer's newest: nothing flushed (it has nothing the answer could keep), refused at idle
 import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest'
 import { createBarStore } from './index'
 import { createPrefetch } from './prefetch'
@@ -60,7 +63,7 @@ function answer() {
 /** A device source whose recently-read cache is empty (peek: null) and whose reads land when the test says. */
 function fakeDevice(rows, through, formingT = null) {
   const pending = []
-  const hit = { n: rows.length, rows, through, savedAt: through * 1000, formingT }
+  const hit = { n: rows.length, rows, through, savedAt: through * 1000, formingT, lastT: rows.length ? rows[rows.length - 1].t : null }
   return {
     pending,
     land: () => { for (const r of pending.splice(0)) r(hit) },
@@ -313,6 +316,28 @@ describe("a device copy joining the lake's rows on a chart already showing them,
     expect(chart.seen).not.toContain('device')               // no join, and no device render, in the answer's task
     expect(s.bars.some((b) => b.t === T(685))).toBe(false)   // nothing lost: the answer drops a bar the stamp does not
     expect(s.developing?.t).not.toBe(T(685))                 // vouch for (P3-L1), joined or not
+    w.runIdle()
+    expect(w.store.peek(w.key)).toBe(s)                       // refused at idle ('answered')
+    chart.off()
+    w.store.dispose()
+  })
+
+  it('J11 a copy stamped past the answer\'s next bucket but with no row newer than the answer\'s newest: not flushed', async () => {
+    const OLD = [...YESTERDAY, ...session(OPEN, T(675))]       // newest row 11:15: the answer's newest is its 11:20 forming bar
+    const dev = fakeDevice(OLD, THROUGH)                       // stamped 11:31, past the end of the 11:25 bucket
+    const w = boot({ device: dev, reply: laggingAnswer })     // the answer: closed to 11:15, 11:20 forming
+    lakeHeld(w)
+    const chart = await onScreen(w)
+    w.pf.deviceWarm('NEWB', '5')
+    dev.land()
+    await vi.advanceTimersByTimeAsync(5)
+    expect(w.store.peek(w.key).source).toBe('lake')          // deferred (or this proves nothing)
+    expect(w.idleQ.length).toBeGreaterThan(0)
+    w.release()
+    await vi.advanceTimersByTimeAsync(5)
+    const s = w.store.peek(w.key)
+    expect(s.restSeen).toBe(true)
+    expect(chart.seen).not.toContain('device')               // no join, and no device render, in the answer's task
     w.runIdle()
     expect(w.store.peek(w.key)).toBe(s)                       // refused at idle ('answered')
     chart.off()

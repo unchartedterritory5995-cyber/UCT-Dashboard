@@ -386,7 +386,21 @@ def test_the_scalar_section_PARTITIONS_snapshot_db_COLUMNS_exactly():
     # (`rev_accel_q`, `eps_streak_25`, `eps_growth_min_2q`/`3q`/`4q`, `net_margin_chg_1y`,
     # `gross_margin_chg_1y`, `shares_chg_1y`) from `fund_trends.read_fields`, NULL until the first
     # build after the first evening run (R8). The declared half did not move.
-    assert (len(declared), len(excluded)) == (149, 156)
+    # ⭐ (149, 156) → (149, 167) on 2026-11-23 (new Screener columns): the six volume & volatility
+    # columns (`hv_20`, `hv_60`, `ad_net_25`, `pocket_pivots_20`, `days_since_pocket_pivot`,
+    # `corr_rel_last`, the build's `bars_volume_volatility` step) and the five beats, insiders & funds
+    # columns (`eps_surprise_last`, `eps_beat_streak`, `insider_buys_30d`, `insider_buy_value_30d`,
+    # `fund_net_adds`, `beats_insiders_funds`'s three readers), NULL until the first build after they
+    # land (R8). The declared half did not move.
+    # ⭐ (149, 167) → (149, 178) on 2026-11-23 (held-store columns): `iv_rank`, `iv_percentile`, `group_rank`,
+    # `group_rank_of`, `group_rank_chg_4w`, `next_ex_div_date` (also TEXT), `days_to_ex_div`, `eps_rev_up_30d`,
+    # `eps_rev_down_30d`, `eps_rev_net_30d` (`store_columns`'s four readers) and `short_interest_chg_pct`
+    # (`short_columns`), NULL until the first build after they land (R8). The declared half did not move.
+    # ⭐ (149, 178) → (149, 190) on 2026-11-24 (row columns): `days_to_lockup`, `seas_month_avg`,
+    # `seas_month_up_pct`, `seas_month_years`, `post_earn_drift_5d`, `factor_mkt`, `factor_size`, `factor_growth`,
+    # `factor_mom`, `factor_r2`, `up_capture_1y`, `down_capture_1y` (the build's `bars_row_columns` step), NULL until
+    # the first build after they land (R8). The declared half did not move.
+    assert (len(declared), len(excluded)) == (149, 190)
 
 
 def test_a_scalar_tree_is_non_repainting_AND_as_of_snapshot__both_verdicts_or_neither():
@@ -946,7 +960,9 @@ def test_the_scalar_floor_is_ITS_OWN_and_folding_it_in_ABORTS_the_recorder():
     # ⭐ bar half 140 -> 141 (2026-11-14, engine 56 S1): `tieNewest`, with its own bar-corpus case
     # (`pine_tie_newest_is_its_operand`).
     # (2026-11-19, U-BUILTIN B3) bar 148 -> 149: `asin`.
-    assert len(parts["bar"]) == 149 and len(parts["scalar"]) == 149
+    # e95 unit 2 (2026-11-22): the bar half 149 -> 151 (`vwapAnchor`, `vwapAnchorDev`); the scalar half untouched.
+    # e95 unit 2b (2026-11-22): the bar half 151 -> 152 (`refusedArm`); the scalar half untouched.
+    assert len(parts["bar"]) == 152 and len(parts["scalar"]) == 149
     # +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     # +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     assert not (parts["bar"] & parts["scalar"])

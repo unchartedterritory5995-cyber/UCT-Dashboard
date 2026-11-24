@@ -581,8 +581,111 @@ def int_slots(name: Any) -> list:
     return [i for i, kind in enumerate(spec.get("args") or ()) if kind == "int"]
 
 
+# ─── ⭐⭐ e95 unit 2b -- A KNOB'S UNPICKED ARMS ARE PRUNED AT BIND ────────────────────────────────────────────
+#
+# The mirror of ``bind.js::pruneKnobArms`` (see its header for the coordinator's ruling): a ternary whose test is made of
+# knobs and constants takes the same arm on every bar of one binding, so the bound tree keeps that arm only. A KNOB is
+# an input: a name ``consts`` holds as a finite number that is not a clock flag and not a symbol field.
+
+_KNOB_LOGIC_OPS = frozenset(("&&", "||", "!"))
+
+
+def is_knob_name(name: Any, consts: Mapping[str, Any]) -> bool:
+    """Is ``name`` a knob of this binding (an input ``consts`` fixes as a finite number)?"""
+    if not isinstance(name, str) or name in BIND_TIME_CLOCK or name.startswith("syminfo."):
+        return False
+    if not consts or name not in consts:
+        return False
+    v = consts[name]
+    return _is_number(v) and math.isfinite(float(v))
+
+
+def knob_test_value(test: Any, consts: Mapping[str, Any]):
+    """The value of a ternary TEST made of KNOBS AND CONSTANTS: a knob, ``knob == c`` / ``knob != c`` (either side), and
+    ``and`` / ``or`` / ``not`` over those and numbers, with at least one knob, for this binding; ``None`` for any other
+    test (a bar, a clock flag, an ordering, arithmetic). The mirror of ``bind.js::knobTestValue``."""
+    seen = {"knob": False}
+
+    def is_knob(n: Any) -> bool:
+        return isinstance(n, Mapping) and n.get("type") == "series" and is_knob_name(n.get("name"), consts)
+
+    def is_num(n: Any) -> bool:
+        return isinstance(n, Mapping) and n.get("type") == "num"
+
+    def ok(n: Any) -> bool:
+        if is_knob(n):
+            seen["knob"] = True
+            return True
+        if is_num(n):
+            return True
+        if not isinstance(n, Mapping) or n.get("type") != "op" or not isinstance(n.get("args"), (list, tuple)):
+            return False
+        args = n["args"]
+        name = n.get("name")
+        if name in ("==", "!="):
+            fits = len(args) == 2 and ((is_knob(args[0]) and is_num(args[1])) or (is_num(args[0]) and is_knob(args[1])))
+            if fits:
+                seen["knob"] = True
+            return fits
+        return name in _KNOB_LOGIC_OPS and len(args) == (1 if name == "!" else 2) and all(ok(a) for a in args)
+
+    if not ok(test) or not seen["knob"]:
+        return None
+    try:
+        v = fold_scalar(test, consts)
+    except NotFoldable:
+        return None
+    return v if math.isfinite(v) else None
+
+
+def prune_knob_arms(ast: Any, consts: Mapping[str, Any] = None) -> Any:
+    """The tree with every knob ternary replaced by the arm this binding's knobs pick, and NOTHING else changed.
+    Mutates nothing; a subtree with nothing to prune is returned as is (the same object).
+
+    ⛔ A binding with no knob prunes nothing and walks nothing (the tree itself), and a tree too deep to walk is left as
+    it is: its own budget refuses it by name downstream (``budget:nodes``), never a ``RecursionError`` here."""
+    consts = consts or {}
+    if not any(is_knob_name(k, consts) for k in consts):
+        return ast
+
+    def walk(node: Any) -> Any:
+        if not isinstance(node, Mapping) or not isinstance(node.get("args"), (list, tuple)):
+            return node
+        args = node["args"]
+        if node.get("type") == "op" and node.get("name") == "?:" and len(args) == 3:
+            v = knob_test_value(args[0], consts)
+            if v is not None:
+                return walk(args[1] if v else args[2])
+        out_args = [walk(a) for a in args]
+        if all(x is y for x, y in zip(out_args, args)):
+            return node
+        out = dict(node)
+        out["args"] = out_args
+        return out
+
+    try:
+        return walk(ast)
+    except RecursionError:
+        return ast
+
+
+def tree_at_settings(tree: Any, definition: Mapping[str, Any], params: Mapping[str, Any] = None) -> Any:
+    """⭐⭐ (train e95, the 2b bind audit) ``tree`` as ONE binding draws it: the instance's settings ``params`` over the
+    definition's declared defaults (``alert_user_series._inputs_for``: a text option as its index, the rule the chart
+    shares), every knob ternary's unpicked arm pruned (``prune_knob_arms``). ``params=None``: the defaults, for a
+    reader with no instance (a screen, the alert admission, the trigger policy). The tree itself when nothing prunes.
+
+    Since 2b the SAVED document keeps every arm of a ``switch`` on a member's ``input.string``; a gate that read the
+    saved tree refused a knob script on an arm the member never picked."""
+    from api.services.alert_user_series import _inputs_for  # noqa: PLC0415 (alert_user_series reaches this module)
+    return prune_knob_arms(tree, _inputs_for(definition, params))
+
+
 def fold_bound(ast: Any, consts: Mapping[str, Any] = None) -> Any:
     """The tree with every foldable INT-slot argument replaced by its literal.
+
+    ⭐ e95 unit 2b -- and every knob ternary replaced by the arm this binding picks (``prune_knob_arms``, the same
+    test).
 
     ⭐ RETURNS A NEW TREE AND MUTATES NOTHING. The stored definition must go on
     meaning what it said, because the NEXT symbol folds it differently. A pass
@@ -606,6 +709,11 @@ def fold_bound(ast: Any, consts: Mapping[str, Any] = None) -> Any:
             return node
         if not isinstance(node.get("args"), (list, tuple)):
             return node
+        # ⭐⭐ e95 unit 2b -- a knob ternary is the arm this binding picks (``prune_knob_arms``)
+        if node.get("type") == "op" and node.get("name") == "?:" and len(node["args"]) == 3:
+            v = knob_test_value(node["args"][0], consts)
+            if v is not None:
+                return walk(node["args"][1] if v else node["args"][2])
         # ⭐⭐ A ``textop`` FOLDS WHEREVER IT SITS, not only in an int slot -- and
         # that is not symmetry for its own sake. ``Uncharted Volume`` line 222
         # feeds its answer to a BOOLEAN (``isRatioSymbol``), never to a window

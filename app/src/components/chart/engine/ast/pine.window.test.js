@@ -233,7 +233,19 @@ describe('the fold computes what the ENGINE computes, derived', () => {
     const PROBE_2 = [['2', '3'], ['2.5', '2'], ['0 - 7', '2'], ['0', '0'], ['7', '2']]
 
     const checked = []
+    // ⭐⭐ e95 unit 2b — a REFUSAL LEAF (`_functions_refusal_leaves`) is pointwise and never a number: the engine
+    // refuses it by its own guard, and the fold declines it (fails closed), which is the contract's second half
+    const leaves = (TABLE._functions_refusal_leaves && TABLE._functions_refusal_leaves.names) || {}
+    for (const [name, guard] of Object.entries(leaves)) {
+      const parsed = parseFormula(`${name}(2)`)
+      expect(parsed.ok, `${name}(2) :: ${parsed.error}`).toBe(true)
+      let err = null
+      try { interpret(parsed.ast, BARS, {}, BUDGET) } catch (e) { err = e }
+      expect(err && err.guard, name).toBe(guard)
+      expect(constantValueOf(parsed.ast), `${name} — a refusal must fail closed`).toBe(null)
+    }
     for (const name of POINTWISE_KEYS) {
+      if (Object.prototype.hasOwnProperty.call(leaves, name)) continue
       const arity = TABLE.functions[name].args.length
       const probes = arity === 1 ? PROBE_1.map((a) => [a]) : PROBE_2
       for (const args of probes) {
@@ -281,7 +293,10 @@ describe('the fold computes what the ENGINE computes, derived', () => {
     // ⭐ ENGINE 56 — `boolNaWithheld(operand, flag)` is the one pointwise entry the 0.5 probe cannot
     // fold: a flag that is not 0 withholds the bar (the engine answers no number), so the fold
     // declines, as R1 requires. With a 0 flag it folds to its operand.
-    expect(accepted.sort()).toEqual(POINTWISE_KEYS.filter((k) => k !== 'boolNaWithheld'))
+    // ⭐ e95 unit 2b — and a refusal leaf (`_functions_refusal_leaves`) is never folded at all
+    const leaves = (TABLE._functions_refusal_leaves && TABLE._functions_refusal_leaves.names) || {}
+    expect(accepted.sort()).toEqual(POINTWISE_KEYS.filter((k) => k !== 'boolNaWithheld'
+      && !Object.prototype.hasOwnProperty.call(leaves, k)))
     expect(constantValueOf(cCallNode('boolNaWithheld', [cNumNode(0.5), cNumNode(0)]))).toBe(0.5)
     expect(constantValueOf(cCallNode('boolNaWithheld', [cNumNode(0.5), cNumNode(0.5)]))).toBe(null)
   })

@@ -26,6 +26,14 @@ import { mountedWidgetDoor } from '../pages/charts/widgetDoors'
 import { createIndicatorAlert, toggleIndicatorAlert, deleteIndicatorAlert, alertsKey } from '../hooks/useIndicatorAlerts'
 import { chartTabList } from '../pages/charts/chartTabs'
 import { GRID_BOARD_KEY, gridCellKey } from '../pages/charts/grid/gridAgentAdapter'
+import { hasWorkspaceConflict } from '../lib/workspaceConflict'
+
+// ⛔ STICKY CONFLICT (INV2): the revision-checked preference keys each persist path reports a conflict on. Once a save of any
+// of them was refused in this tab (lib/workspaceConflict, read only), every later save through that path is refused too
+// until a reload — so `saveBlocked()` lets a writer refuse BEFORE touching the screen. The board's list is exactly the keys
+// ChartsWorkspace.persist checks; the Multi Chart grid saves one key of its own.
+export const BOARD_SAVE_KEYS = ['charts_workspace_layout', 'charts_workspace_groups', 'charts_active_template', 'chart_settings']
+export const GRID_SAVE_KEYS = ['multichart_state']
 
 const refOf = (r) => (r.tabId ? `${r.chartId}~${r.tabId}` : r.chartId)
 
@@ -861,6 +869,7 @@ export function scopeHostToGrid(host, { readCells = readServerCells } = {}) {
     boardVisit: () => `multichart:${host.boardVisit?.() ?? 0}`,
     otherWidgets: () => [],
     persist: async () => (await grid()?.persist()) || { ok: false, reason: 'not-saved' },
+    saveBlocked: (keys = GRID_SAVE_KEYS) => hasWorkspaceConflict(keys),
     widgetInSync: buildCellSync({ readCells, localCell: (id) => grid()?.cells().find(c => c.id === id) || null }),
   }
 }
@@ -893,6 +902,8 @@ export function buildWorkspaceHost({ chartApiById, getWidgets, selectedChart, bo
     // The board's persistence acknowledgment (ChartsWorkspace `persist`): resolves once the
     // server has accepted — or refused — this tab's current board. → { ok, conflict, reason }
     ...(widgetOps?.persist ? { persist: (opts) => widgetOps.persist(opts) } : {}),
+    // a save that persist would refuse as a conflict already — asked before a write touches the screen
+    saveBlocked: (keys = BOARD_SAVE_KEYS) => hasWorkspaceConflict(keys),
     otherWidgets: () => (getWidgets() || []).filter(w => w.type !== 'chart').map(w => widgetLabel(w.type)),
     // The member's own preferences, through the Settings page's writer: read() → the
     // current values; write(key, value) → true only once the server accepted it.

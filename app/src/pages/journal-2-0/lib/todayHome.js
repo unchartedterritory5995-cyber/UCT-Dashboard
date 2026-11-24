@@ -13,11 +13,11 @@
 //    note", the list's "Today's note", Ctrl+Alt+D, the phone row (all one door, NotebookTab's `openToday`).
 // ⚰️ The landing used to be a choice ("Open the Notebook on", the `notebook_landing` preference: Today, Research home
 //    or All notes, default Today). The stored value is no longer read for the landing; `resolveLanding` answers
-//    'all' whatever it holds. The names stay exported for the files that still import them.
+//    'all' whatever it holds. The view ids stay exported for the files that still import them.
+// ⚰️ `LANDING_PREF` left 2026-11-24 with the server's `notebook_landing` row (api/routers/auth.py): nothing wrote it.
 
 export const TODAY_VIEW = 'today'
 export const HOME_VIEW = 'home'
-export const LANDING_PREF = 'notebook_landing'
 /** The Daily brief's one read (B1): today's note is read, never made, in every state. Here, in the eager half, so the
  *  door that makes the note (`openToday`) can revalidate the brief's answer without fetching the brief's chunk. */
 export const TODAY_READ_URL = '/api/j2/notes/today?make=0'

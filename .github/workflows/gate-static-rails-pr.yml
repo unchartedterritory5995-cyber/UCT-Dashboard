@@ -166,6 +166,15 @@ jobs:
         if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
         run: python -m pytest tests/test_ci_mutant_manifests.py -q -p no:cacheprovider
 
+      # 2026-11-23: app/src/components/chart/supportLoop/refusalCodes.json is GENERATED from the refusal-guard literals
+      # in app/src, and the server stores a code that is not on it as `_unlisted`. The check ran only in the advisory
+      # whole-app engine rails, so on 2026-11-23 the file sat stale by two codes on master (runtime:server-integrity,
+      # runtime:server-output-absent) until the e95 train regenerated it. Here it is required, before the merge and
+      # in the merge queue. Standard library, reads app/src only, a second or two.
+      - name: The refusal codes the client writes are on the list the server stores
+        if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
+        run: python tools/support_loop/refusal_codes.py --check
+
       - name: This job mirrors the gate's static steps
         if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
         run: python -m pytest tests/test_gate_static_rails_pr.py -q -p no:cacheprovider

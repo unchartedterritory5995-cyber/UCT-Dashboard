@@ -22,7 +22,10 @@ key loses to and a blank key does not.
 """
 
 import ast
+import importlib
+import importlib.metadata
 import importlib.util
+import json
 import os
 import pathlib
 import re
@@ -214,29 +217,78 @@ def test_c_derivation_can_see_a_new_key(tmp_path):
 # ─────────────────────────────────────────────────────────────────────────────
 #  Fix round 1 -- credentials the SDK reads ON ITS OWN, the keyring, the wisdom
 #  job flags. (a)/(b)/(c) labels as above.
+#
+#  SDK move (2026-11-23): `anthropic>=0.49.0,<1` let CI install 0.125.0, whose
+#  client reads ANTHROPIC_CUSTOM_HEADERS and ANTHROPIC_WEBHOOK_SIGNING_KEY and,
+#  when handed no credential, runs a credential CHAIN (anthropic/lib/credentials)
+#  that reads more env names AND the operator's on-disk profile. The derivation
+#  below now reads that chain too; the on-disk profile has its own behavioural rail.
 # ─────────────────────────────────────────────────────────────────────────────
 
 # The SDK client modules api/ constructs from (anthropic.Anthropic/AsyncAnthropic,
 # openai.OpenAI). Read as SOURCE, from the installed package, never re-typed.
 SDK_CLIENT_FILES = (("anthropic", "_client.py"), ("openai", "_client.py"))
+# The credential chain a client runs when it is handed no credential, read when
+# (and only when) that client imports it. It reads env through module constants
+# (`ENV_PROFILE = "ANTHROPIC_PROFILE"`), which ENV_GET alone cannot see.
+SDK_CREDENTIAL_CHAINS = (("anthropic", "lib/credentials"),)
 ENV_GET = re.compile(r"""os\.environ\.get\(\s*["']([A-Z0-9_]+)["']""")
+ENV_CONST = re.compile(r"""^ENV_[A-Z0-9_]+\s*=\s*["']([A-Z0-9_]+)["']""", re.M)
 CREDENTIAL_SHAPE = re.compile(r"(TOKEN|API_KEY)$")
-# Client classes that read credentials the two files above do not (AWS, GCP,
-# Azure, Foundry). None is constructed in api/ today; one appearing reds (c).
+# Client classes that read credentials the files above do not (AWS, GCP, Azure,
+# Foundry). None is constructed in api/ today; one appearing reds (c). Typed, so
+# it is checked against the classes the installed SDKs actually export.
 OTHER_SDK_CLIENTS = re.compile(
-    r"\b(AnthropicBedrock|AsyncAnthropicBedrock|AnthropicVertex|AsyncAnthropicVertex|"
-    r"AnthropicFoundry|AsyncAnthropicFoundry|AzureOpenAI|AsyncAzureOpenAI)\b")
+    r"\b(AnthropicBedrock|AsyncAnthropicBedrock|AnthropicBedrockMantle|AsyncAnthropicBedrockMantle|"
+    r"AnthropicVertex|AsyncAnthropicVertex|AnthropicFoundry|AsyncAnthropicFoundry|"
+    r"AnthropicAWS|AsyncAnthropicAWS|AnthropicGoogleCloud|AsyncAnthropicGoogleCloud|"
+    r"AzureOpenAI|AsyncAzureOpenAI)\b")
+SDK_BASE_CLIENTS = (("anthropic", ("Anthropic", "AsyncAnthropic")), ("openai", ("OpenAI", "AsyncOpenAI")))
+
+
+def _sdk_dir(pkg):
+    spec = importlib.util.find_spec(pkg)
+    assert spec and spec.submodule_search_locations, f"{pkg} SDK not installed"
+    return pathlib.Path(list(spec.submodule_search_locations)[0])
+
+
+def _sdk_version(pkg):
+    try:
+        return importlib.metadata.version(pkg)
+    except importlib.metadata.PackageNotFoundError:
+        return "?"
+
+
+def _env_reads(src):
+    return [m.group(1) for rx in (ENV_GET, ENV_CONST) for m in rx.finditer(src)]
 
 
 def derive_sdk_implicit_env():
     names = {}
     for pkg, rel in SDK_CLIENT_FILES:
-        spec = importlib.util.find_spec(pkg)
-        assert spec and spec.submodule_search_locations, f"{pkg} SDK not installed"
-        path = pathlib.Path(list(spec.submodule_search_locations)[0]) / rel
-        for m in ENV_GET.finditer(path.read_text(encoding="utf-8")):
-            names.setdefault(m.group(1), f"{pkg}/{rel}")
+        for name in _env_reads((_sdk_dir(pkg) / rel).read_text(encoding="utf-8")):
+            names.setdefault(name, f"{pkg}/{rel}")
+    for pkg, rel in SDK_CREDENTIAL_CHAINS:
+        client_src = (_sdk_dir(pkg) / "_client.py").read_text(encoding="utf-8")
+        if f"from .{rel.replace('/', '.')} import" not in client_src:
+            continue                    # this SDK's client runs no such chain (anthropic 0.83.0)
+        found = 0
+        for path in sorted((_sdk_dir(pkg) / rel).glob("*.py")):
+            for name in _env_reads(path.read_text(encoding="utf-8")):
+                names.setdefault(name, f"{pkg}/{rel}/{path.name}")
+                found += 1
+        # Non-vacuity: the client imports the chain, so the walk must see what it reads.
+        assert found, f"{pkg}/_client.py imports {rel}, but the walk found no env read in it"
     return names
+
+
+def test_c_sdk_scan_sees_both_read_shapes():
+    """Non-vacuity of the two patterns: a literal read and a module constant, never
+    a comment."""
+    src = ('ENV_PROFILE = "ANTHROPIC_PROFILE"\n'
+           'v = os.environ.get("ANTHROPIC_CUSTOM_HEADERS")\n'
+           '# ENV_NOT_A_READ = "IN_A_COMMENT"\n')
+    assert sorted(_env_reads(src)) == ["ANTHROPIC_CUSTOM_HEADERS", "ANTHROPIC_PROFILE"]
 
 
 def test_c_sdk_implicit_env_is_fully_classified(launcher):
@@ -244,10 +296,15 @@ def test_c_sdk_implicit_env_is_fully_classified(launcher):
     # Non-vacuity: the scan must see the explicit keys it is reading past.
     assert {"ANTHROPIC_API_KEY", "OPENAI_API_KEY"} <= set(derived), derived
     implicit = set(derived) - set(launcher.MODEL_PROVIDER_KEYS)
-    classified = set(launcher.SDK_IMPLICIT_KEYS) | set(launcher.SDK_NON_CREDENTIAL_ENV)
-    assert not (set(launcher.SDK_IMPLICIT_KEYS) & set(launcher.SDK_NON_CREDENTIAL_ENV))
+    buckets = (set(launcher.SDK_IMPLICIT_KEYS), set(launcher.SDK_NON_CREDENTIAL_ENV),
+               set(launcher.SDK_REDIRECTED_ENV))
+    for i, a in enumerate(buckets):
+        for b in buckets[i + 1:]:
+            assert not (a & b), f"classified two ways: {sorted(a & b)}"
+    classified = set().union(*buckets)
     assert implicit == classified, (
-        f"unclassified SDK env reads: {sorted(implicit - classified)}; "
+        f"anthropic {_sdk_version('anthropic')} / openai {_sdk_version('openai')}: "
+        f"unclassified SDK env reads: { {n: derived[n] for n in sorted(implicit - classified)} }; "
         f"classified but not read by the SDK: {sorted(classified - implicit)}")
 
 
@@ -272,6 +329,28 @@ def test_c_api_constructs_no_sdk_client_with_other_credentials():
     assert OTHER_SDK_CLIENTS.search("client = anthropic.AnthropicBedrock()")  # control
 
 
+def test_c_other_sdk_clients_names_every_client_the_sdks_export():
+    """OTHER_SDK_CLIENTS is typed; the installed SDKs are the authority. Every public
+    API client class they export, other than the two base clients the rails above
+    model, must be in it -- so a client family added tomorrow reds here. (Private
+    names such as openai's `_ModuleClient` are the module-level client, which no
+    constructor call in api/ could name.)"""
+    missing = []
+    for pkg, base_names in SDK_BASE_CLIENTS:
+        mod = pytest.importorskip(pkg)
+        base_client = importlib.import_module(f"{pkg}._base_client").BaseClient
+        bases = tuple(getattr(mod, n) for n in base_names)
+        for name, obj in sorted(vars(mod).items()):
+            if (not name.startswith("_") and isinstance(obj, type)
+                    and issubclass(obj, base_client) and obj not in bases
+                    and not OTHER_SDK_CLIENTS.fullmatch(name)):
+                missing.append(f"{pkg}.{name}")
+    assert not missing, (f"SDK client classes OTHER_SDK_CLIENTS does not name, so the api/ "
+                         f"scan above cannot see them: {missing}")
+    assert OTHER_SDK_CLIENTS.fullmatch("AnthropicBedrock")                 # control
+    assert not OTHER_SDK_CLIENTS.fullmatch("AnthropicBedrockFuture")       # control
+
+
 def test_a_sdk_implicit_keys_and_keyring_are_neutralised(launcher, restore_env, tmp_path):
     for key in launcher.MODEL_PROVIDER_KEYS + launcher.SDK_IMPLICIT_KEYS:
         os.environ[key] = SENTINEL
@@ -284,6 +363,15 @@ def test_a_sdk_implicit_keys_and_keyring_are_neutralised(launcher, restore_env, 
     # keyring core reads PYTHON_KEYRING_BACKEND at first use (keyring/core.py:151 in
     # keyring 25.6.0); the null backend answers every get_password with None.
     assert os.environ.get("PYTHON_KEYRING_BACKEND") == "keyring.backends.null.Keyring"
+    assert {k: os.environ.get(k) for k in launcher.SDK_REDIRECTED_ENV} == launcher.SDK_REDIRECTED_ENV
+
+
+def test_a_the_profile_dir_redirect_can_never_hold_a_profile(launcher):
+    """The redirect target's parent is the launcher FILE: no directory, so no
+    profile, pointer or credentials file, can ever exist under it."""
+    target = launcher.SDK_REDIRECTED_ENV["ANTHROPIC_CONFIG_DIR"]
+    assert os.path.isfile(os.path.dirname(target)), target
+    assert not os.path.exists(target), target
 
 
 def test_b_opt_in_leaves_sdk_implicit_keys_and_keyring_alone(launcher):
@@ -291,6 +379,7 @@ def test_b_opt_in_leaves_sdk_implicit_keys_and_keyring_alone(launcher):
     launcher.apply_model_key_policy(env, allow=True)
     assert all(env[k] == SENTINEL for k in launcher.SDK_IMPLICIT_KEYS)
     assert "PYTHON_KEYRING_BACKEND" not in env
+    assert not set(launcher.SDK_REDIRECTED_ENV) & set(env), env
 
 
 def test_a_wisdom_model_jobs_are_pinned_off(launcher, restore_env, tmp_path):
@@ -347,9 +436,31 @@ def _capture_requests(run):
     return seen
 
 
+def _call_with_the_env_key(base):
+    """ai_search_personal.py:275 / note_ask.py:337: the env's key handed over
+    explicitly, with no check first."""
+    import anthropic
+    c = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""),
+                            base_url=base, max_retries=0, timeout=2)
+    return c.messages.create(model="x", max_tokens=1,
+                             messages=[{"role": "user", "content": "hi"}])
+
+
+def _call_with_no_credential_argument(base):
+    """wisdom/evals/grounding.py:155: no credential argument at all, so the SDK
+    resolves one ITSELF (the env names; in newer SDKs, then its credential chain)."""
+    import anthropic
+    c = anthropic.Anthropic(base_url=base, max_retries=0, timeout=2)
+    return c.messages.create(model="x", max_tokens=1,
+                             messages=[{"role": "user", "content": "hi"}])
+
+
+CALL_SHAPES = {"env-key": _call_with_the_env_key,
+               "no-credential-arg": _call_with_no_credential_argument}
+
+
 def test_a_no_request_leaves_with_a_credential_after_the_policy(launcher, restore_env):
-    """Behavioural, on the shape of ai_search_personal.py:273 -- a client built from
-    the env's key with no check first.
+    """Behavioural, on BOTH client shapes api/ builds with no key check first.
 
     MEASURED, SDK 0.83.0: a blank ANTHROPIC_AUTH_TOKEN does NOT stop the request.
     The SDK keeps "" (it only defaults on None) and sends `Authorization: Bearer `,
@@ -357,23 +468,91 @@ def test_a_no_request_leaves_with_a_credential_after_the_policy(launcher, restor
     What blanking guarantees is that nothing it sends can authenticate (a 401,
     never a billed call), and a setdefault .env loader cannot put a token back.
     So the rail asserts on the CREDENTIAL carried, not on whether a socket opened.
-    CONTROL: the same call with the operator's token left in place carries it."""
-    anthropic = pytest.importorskip("anthropic")
 
-    def call(base):
-        c = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""),
-                                base_url=base, max_retries=0, timeout=2)
-        return c.messages.create(model="x", max_tokens=1,
-                                 messages=[{"role": "user", "content": "hi"}])
+    MEASURED, SDK 0.125.0 (what `anthropic>=0.49.0,<1` installed in CI on
+    2026-11-23): an explicit api_key= -- even "" -- is TOTAL. The client never reads
+    ANTHROPIC_AUTH_TOKEN then, and "" fails its header check, so the env-key shape
+    sends NOTHING. That is why this rail's old single control (the token restored,
+    on the env-key shape) went blind. The token is still read by the no-credential-
+    argument shape, so that control now lives there, unchanged; the env-key shape
+    gets the control it can carry (the key). ANTHROPIC_CUSTOM_HEADERS, which 0.125.0
+    merges into every request after the auth headers, is planted where the SDK
+    reads it.
 
-    os.environ["ANTHROPIC_API_KEY"] = SENTINEL
+    CONTROLS: after the policy, each credential restored ALONE reaches the
+    listener through a shape that reads it, so an empty capture above means
+    "nothing carried", never "the listener is blind"."""
+    pytest.importorskip("anthropic")
+    reads_custom_headers = "ANTHROPIC_CUSTOM_HEADERS" in derive_sdk_implicit_env()
+    custom = f"Authorization: Bearer {SENTINEL}"
+
+    os.environ["ANTHROPIC_API_KEY"] = SENTINEL             # the operator's shell
     os.environ["ANTHROPIC_AUTH_TOKEN"] = SENTINEL
+    if reads_custom_headers:
+        os.environ["ANTHROPIC_CUSTOM_HEADERS"] = custom
     launcher.apply_model_key_policy(os.environ, allow=False)
-    carried = _capture_requests(call)
-    assert all(k == "" and b == "" for k, b in carried), (
-        f"a request left the process carrying a credential: {carried}")
+    for shape, call in CALL_SHAPES.items():
+        carried = _capture_requests(call)
+        assert all(k == "" and b == "" for k, b in carried), (
+            f"[{shape}] a request left the process carrying a credential: {carried}")
 
-    os.environ["ANTHROPIC_AUTH_TOKEN"] = SENTINEL          # control: token back
-    control = _capture_requests(call)
-    assert (("", SENTINEL) in control), (
-        f"CONTROL FAILED: the listener did not see the token it was handed: {control}")
+    controls = [("ANTHROPIC_AUTH_TOKEN", SENTINEL, "no-credential-arg", ("", SENTINEL)),
+                ("ANTHROPIC_API_KEY", SENTINEL, "env-key", (SENTINEL, ""))]
+    if reads_custom_headers:
+        controls.append(("ANTHROPIC_CUSTOM_HEADERS", custom, "env-key", ("", SENTINEL)))
+    for var, value, shape, expect in controls:
+        launcher.apply_model_key_policy(os.environ, allow=False)
+        os.environ[var] = value                            # control: this one back
+        control = _capture_requests(CALL_SHAPES[shape])
+        assert expect in control, (
+            f"CONTROL FAILED: {var} restored, [{shape}] shape: the listener did not see "
+            f"the credential it was handed: {control}")
+
+
+def test_a_an_on_disk_anthropic_profile_is_unreachable_after_the_policy(launcher, restore_env,
+                                                                       tmp_path):
+    """The SDK's credential chain (anthropic/lib/credentials, not in 0.83.0) loads the
+    ACTIVE PROFILE FROM DISK when a client is handed no credential and both env
+    names are blank -- exactly the state the policy leaves. A profile is planted
+    where the SDK looks by default (its own `_config_dir()`, with HOME / APPDATA
+    pointed into tmp_path), with an `active_config` pointer, then the no-credential-
+    argument shape is called.
+
+    CONTROL: the same call with the profile-dir redirect lifted -- blanking alone,
+    which is all the policy did before this rail -- carries the profile's token."""
+    pytest.importorskip("anthropic")
+    try:
+        from anthropic.lib.credentials import _constants as chain
+    except ImportError:
+        pytest.skip(f"anthropic {_sdk_version('anthropic')} has no credential chain, "
+                    "so there is no on-disk profile for a client to reach")
+    for name in [n for n in os.environ if n.startswith("ANTHROPIC_")]:
+        del os.environ[name]                               # the shell selects no profile
+    home = tmp_path / "home"
+    os.environ["HOME"] = os.environ["USERPROFILE"] = str(home)
+    os.environ["APPDATA"] = str(home / "AppData" / "Roaming")
+    cfg = chain._config_dir()
+    assert tmp_path.resolve() in cfg.resolve().parents, (
+        f"refusing to plant a profile outside tmp_path: {cfg}")
+    (cfg / "configs").mkdir(parents=True)
+    (cfg / "credentials").mkdir()
+    (cfg / "active_config").write_text("default\n", encoding="utf-8")
+    (cfg / "configs" / "default.json").write_text(
+        json.dumps({"authentication": {"type": "user_oauth"}}), encoding="utf-8")
+    cred = cfg / "credentials" / "default.json"
+    cred.write_text(json.dumps({"type": "oauth_token", "access_token": SENTINEL}),
+                    encoding="utf-8")
+    os.chmod(cred, 0o600)
+
+    os.environ["ANTHROPIC_API_KEY"] = SENTINEL             # the operator's shell
+    launcher.apply_model_key_policy(os.environ, allow=False)
+    carried = _capture_requests(_call_with_no_credential_argument)
+    assert all(k == "" and b == "" for k, b in carried), (
+        f"the operator's on-disk Anthropic profile authenticated a sandbox request: {carried}")
+
+    for name in launcher.SDK_REDIRECTED_ENV:               # control: redirect lifted
+        del os.environ[name]
+    control = _capture_requests(_call_with_no_credential_argument)
+    assert ("", SENTINEL) in control, (
+        "CONTROL FAILED: with the profile dir NOT redirected, the planted profile did not "
+        f"reach the listener, so the empty capture above proves nothing: {control}")

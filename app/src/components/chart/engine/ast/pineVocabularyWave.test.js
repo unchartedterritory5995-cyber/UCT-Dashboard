@@ -83,11 +83,14 @@ describe('ta.vwap(hlc3) is the zero-argument vwap — vendor-pinned', () => {
     }
   })
 
-  it('the anchored two-argument form is untouched — still the arity refusal', () => {
+  // ⭐⭐ e95 unit 2 (2026-11-22) — THIS CONTROL FLIPS BY DESIGN. It held the two-argument form to the arity refusal
+  // while no anchored VWAP existed; Pine's anchored `ta.vwap(source, anchor)` is now `vwapAnchor`, summed from each
+  // bar the anchor fires (`vwapAnchored.test.js`). The one-argument form above is untouched.
+  it('the anchored two-argument form is the anchored VWAP now (e95 unit 2), not the session one', () => {
     const t = tr(`${V6}plot(ta.vwap(hlc3, timeframe.change("D")))`)
-    expect(t.ok).toBe(false)
-    expect(t.refusal.guard).toBe('pine:arity')
-    expect(t.refusal.message).toMatch(/was given 2 arguments/)
+    expect(t.ok, JSON.stringify(t.refusal || {})).toBe(true)
+    expect(t.outputs[t.selected].formula).toMatch(/^vwapAnchor\(/)
+    expect(t.outputs[t.selected].formula).not.toMatch(/vwapOf\(/)
   })
 })
 

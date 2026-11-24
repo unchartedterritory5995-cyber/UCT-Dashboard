@@ -482,6 +482,269 @@ const TERMINAL_DATA = {
         credit: 'Invented credit line for the New York Fed survey fixture.', file_url: null, read_at: '2026-10-21T12:00:00Z' },
       as_of: null, board_cite: 'Source: Board of Governors of the Federal Reserve System.', left_out: ['statement_text', 'this_week_speakers', 'survey_distributions'] } }
   },
+  // Terminal data wave 10 (dark kinds `stock.stats`, `stock.volumeFootprint`, `stock.factorExposure`, `stock.setupHistory`,
+  // `company.publicRecords`, `ownership.funds`; MD-1 §4.19): the same rule — each adapter's own data shape, made-up figures,
+  // dates, names and words. `as_of` is the data's own date (the newest session's close, a fund's newest report period), or
+  // null where each section carries its own read time (the public records); never the day of the read.
+  'stock.stats': (p) => {
+    const sym = String(p.symbol || '').toUpperCase()
+    const ok = (key, label, from, ret, yearly) => ({ key, label, target: from, state: 'ok', from, base_close: 10, return_pct: ret, ...(yearly == null ? {} : { yearly_pct: yearly }) })
+    const episodes = [{ id: `${sym}-2025-02-03`, peak: { date: '2025-02-03', close: 52.0 }, trough: { date: '2025-04-08', close: 33.8 }, depth_pct: -35.0, sessions_down: 44,
+      recovered: '2025-09-12', sessions_to_recover: 108, ongoing: false, peak_at_history_start: false, below_peak_now_pct: null, check: false }].slice(0, p.rows || 5)
+    return { freshness: 'historical', as_of: '2026-10-30T20:00:00Z', data: { symbol: sym, session: '2026-10-30', data_through: '2026-10-30', first: '2020-01-02', sessions: 1720,
+      read_at: '2026-11-03T15:40:00Z', source: 'UCT stored daily prices (made-up fixture)', basis: 'daily close, split-adjusted, not dividend-adjusted (price return)', suspect_jump_pct: 40, suspect_jumps: [],
+      volatility: { as_of: '2026-10-30', close: 41.25, sessions: 1720, atr: { state: 'ok', period: 14, value: 1.2345, pct: 2.99 },
+        realized: [{ state: 'ok', sessions: 20, pct: 38.4 }, { state: 'ok', sessions: 60, pct: 41.2 }], realized_method: 'made-up method words',
+        adr: { state: 'ok', sessions: 21, pct: 3.41, dollars: 1.3 },
+        range_52w: { state: 'ok', high: 48.5, high_date: '2026-07-14', low: 30.1, low_date: '2026-01-08', from_high_pct: -14.95, from_low_pct: 37.04 },
+        volume: { last: 1200000, last_date: '2026-10-30', avg: { 20: 1500000, 50: 1400000 }, rel: 0.8, rel_base_sessions: 30 },
+        days_1y: { state: 'ok', from: '2025-10-30', total: 251, up: 130, down: 118, flat: 3, up_pct: 51.8, down_pct: 47.0 } },
+      beta: { as_of: '2026-10-30', window: 252, min: 200, capture_min_days: 20,
+        spy: { symbol: 'SPY', state: 'ok', returns: 252, from: '2025-10-30', to: '2026-10-30', beta: 1.42, correlation: 0.71, up_capture: 131.5, up_capture_days: 133, down_capture: 118.2, down_capture_days: 119 },
+        sector: { state: 'not_mapped', sector: 'Made-up Sector' } },
+      returns: { as_of: '2026-10-30', close: 41.25, week_complete: true,
+        periods: [ok('1W', '1 week', '2026-10-23', 3.13), ok('1M', '1 month', '2026-09-30', -2.4), ok('3M', '3 months', '2026-07-30', 8.9), ok('6M', '6 months', '2026-04-30', 12.0),
+          ok('YTD', 'Year to date', '2025-12-31', 15.5), ok('1Y', '1 year', '2025-10-30', 21.7), ok('3Y', '3 years', '2023-10-30', 60.2, 17.0),
+          { key: '5Y', label: '5 years', target: '2021-10-29', state: 'short', needed_from: '2021-10-29', held_from: '2020-01-02' }],
+        extremes: { year: { state: 'ok', from: '2025-10-30', best_day: { date: '2026-04-09', return_pct: 9.8, check: false }, worst_day: { date: '2026-03-10', return_pct: -7.1, check: false } },
+          all: { state: 'ok', from: '2020-01-02', best_day: { date: '2020-03-24', return_pct: 14.2, check: false }, worst_day: { date: '2020-03-16', return_pct: -12.9, check: false } } } },
+      drawdowns: { as_of: '2026-10-30', first: '2020-01-02', min_depth_pct: 20, high: { date: '2026-07-14', close: 48.1, from_high_pct: -14.24 }, total: 1, shown: episodes.length,
+        ongoing: 0, recovered: 1, median_depth_pct: -35.0, median_recovery_sessions: 108, deepest: episodes[0] || null, episodes },
+      corrections: { index: 'S&P 500', first: '2020-01-02', as_of: '2026-10-30', state: 'ok', index_first: '1990-01-02', index_through: '2026-10-30', built_at: '2026-10-31T00:20:00+00:00',
+        definition: 'Made-up definition words.', before_history: 2,
+        summary: { count: 3, fell_less: 1, fell_more: 2, median_ratio: 1.6, new_high_first: 1, new_high_judged: 3, after_beat: 2, after_count: 3, median_after_vs_index_pts: 4.2 } },
+      stale_for: [], left_out: ['correction_episodes'] } }
+  },
+  'stock.volumeFootprint': (p) => {
+    const pivots = [{ date: '2026-10-27', change_pct: 3.4, volume: 2100000, down_max: 1500000, vs_down_max: 1.4, ma: 40.1, above_ma_pct: 2.1, earnings: false },
+      { date: '2026-09-15', change_pct: 2.2, volume: 1800000, down_max: 1600000, vs_down_max: 1.13, ma: 38.0, above_ma_pct: 1.4, earnings: null }].slice(0, p.rows || 5)
+    const gaps = [{ date: '2026-10-21', up: true, gap_pct: 4.1, prior_date: '2026-10-20', prior_close: 39.0, open: 40.6, close: 41.0, close_vs_open_pct: 1.0, filled: null,
+      sessions_to_fill: null, sessions_since: 7, earnings: true, check: false }].slice(0, p.rows || 5)
+    const side = (count, open) => ({ count, open, within_5: { filled: count - open, judged: count, pct: count ? Math.round((count - open) / count * 1000) / 10 : null },
+      within_20: { filled: count - open, judged: count, pct: count ? Math.round((count - open) / count * 1000) / 10 : null }, earnings: 1, earnings_known: count })
+    return { freshness: 'historical', as_of: '2026-10-30T20:00:00Z', data: { symbol: String(p.symbol || '').toUpperCase(), session: '2026-10-30', data_through: '2026-10-30', first: '2020-01-02',
+      sessions: 1720, read_at: '2026-11-03T15:40:00Z', source: 'UCT stored daily prices and volumes (made-up fixture)', basis: 'made-up basis words', suspect_jump_pct: 40,
+      earnings: { state: 'not_held', source: 'made-up earnings source' },
+      accumulation: { as_of: '2026-10-30', min_move_pct: 0.2, windows: [{ state: 'ok', sessions: 25, from: '2026-09-25', accumulation: 7, distribution: 4, net: 3, not_judged: 0 },
+        { state: 'ok', sessions: 50, from: '2026-08-20', accumulation: 12, distribution: 9, net: 3, not_judged: 0 }],
+        updown: { state: 'ok', sessions: 50, from: '2026-08-20', up_volume: 41000000, down_volume: 30000000, up_sessions: 27, down_sessions: 22, flat_sessions: 1, no_volume: 0, ratio: 1.37 } },
+      pivots: { as_of: '2026-10-30', from: '2025-10-30', full_year: true, held_from: '2020-01-02', lookback: 10, ma: 10, state: 'ok', judged_from: '2025-10-31', count: 2, up_days: 130,
+        not_judged: 0, earnings: 0, rows: pivots, last: pivots[0] ? pivots[0].date : null },
+      gaps: { as_of: '2026-10-30', first: '2020-01-02', min_gap_pct: 3.0, windows: [5, 20], shown_max: 60, state: 'ok', total: 1, shown: gaps.length, rows: gaps,
+        summary: { all: side(1, 1), up: side(1, 1), down: side(0, 0) } },
+      stale_for: [], left_out: ['big_days', 'ad_days'] } }
+  },
+  'stock.factorExposure': (p) => {
+    const row = (key, loading, t, clears, extra = {}) => ({ key, loading, se: 0.1, t, clears, correlation: 0.5, vif: 2.1, ...extra })
+    return { freshness: 'historical', as_of: '2026-10-30T20:00:00Z', data: { symbol: String(p.symbol || '').toUpperCase(), session: '2026-10-30', data_through: '2026-10-30',
+      read_from: '2024-08-01', sessions_read: 564, read_at: '2026-11-03T15:40:00Z', source: 'UCT stored daily prices (made-up fixture)', basis: 'made-up basis words', suspect_jump_pct: 40,
+      method: { window: 252, min: 200, t_bar: 2.0, vif_unstable: 5.0, fund_min_closes: 201, fund_full_closes: 505, index: 'S&P 500', annualise_days: 252, max_lag_days: 10 },
+      factors: ['market', 'size', 'growth', 'momentum', 'quality', 'lowvol'].map(key => ({ key, name: { market: 'Market', size: 'Size', growth: 'Growth vs value', momentum: 'Momentum', quality: 'Quality', lowvol: 'Low volatility' }[key],
+        state: 'ok', funds: key === 'market' ? ['SPY'] : key === 'growth' ? ['IWF', 'IWD'] : [{ size: 'IWM', momentum: 'MTUM', quality: 'QUAL', lowvol: 'USMV' }[key], 'SPY'],
+        primary: [], alternative: [], positive: 'made-up positive', negative: 'made-up negative' })),
+      common_returns: 520, common_from: '2024-08-02', common_to: '2026-10-30',
+      now: { state: 'ok', returns: 252, from: '2025-10-30', to: '2026-10-30', full: true, exact: false,
+        loadings: [row('market', 1.31, 12.4, true, { t_vs_one: 2.9, side: 'more' }), row('size', 0.05, 0.4, false), row('growth', 0.88, 3.1, true), row('momentum', 0.71, 2.6, true),
+          row('quality', -0.1, -0.6, false), row('lowvol', 0.02, 0.1, false)],
+        constant: { daily_pct: 0.021, yearly_pct: 5.3, t: 0.9, clears: false }, r2: 0.61, adj_r2: 0.6, explained_pct: 61.0, own_pct: 39.0,
+        volatility: { total_pct: 42.0, factors_pct: 32.8, own_pct: 26.2 }, market_beta_alone: 1.36, max_vif: { key: 'momentum', value: 2.8 }, unstable: false, check: [] },
+      reading: { text: 'Made-up reading: it trades like a high-momentum growth stock with more market sensitivity than the S&P 500.', basis: [], uncertain: ['size', 'quality', 'lowvol'], exact: false },
+      stale_for: [], left_out: ['then', 'change', 'reading_then', 'fund_checks'] } }
+  },
+  'stock.setupHistory': (p) => {
+    const sig = (date, setup, phase, r5, r20, r60) => ({ date, setup, phase, returns: { 5: r5, 20: r20, 60: r60 } })
+    const signals = [sig('2026-10-14', 'made_up_breakout', 'uptrend', 2.1, null, null), sig('2026-06-02', 'made_up_pullback', 'after_low', -1.2, 4.4, 9.8)]
+    return { freshness: 'historical', as_of: '2026-10-30T20:00:00Z', data: { symbol: String(p.symbol || '').toUpperCase(), session: '2026-10-30', data_through: '2026-10-30', first: '2020-01-02',
+      sessions: 1720, read_at: '2026-11-03T15:40:00Z', source: 'UCT stored daily prices (made-up fixture)', horizons: [5, 20, 60],
+      phases: { state: 'ok', index: 'S&P 500', first: '1990-01-02', last: '2026-10-30', episodes: 9, hindsight: 'Made-up hindsight words.' },
+      total: 2, shown: 2, signals, per_setup: { made_up_breakout: 1, made_up_pullback: 1 },
+      library: [{ id: 'made_up_breakout', name: 'Made-up breakout', words: 'made-up rule words' }, { id: 'made_up_pullback', name: 'Made-up pullback', words: 'made-up rule words' }],
+      setups: [{ id: 'made_up_breakout', state: 'ok', signals: 1 }, { id: 'made_up_pullback', state: 'ok', signals: 1 }],
+      universe: { state: 'ok', window: { from: '2018-10-27', to: '2026-10-30', first_day: '2018-10-29', years: 8 }, built_at: '2026-11-01T02:00:00+00:00', min_signals: 30, note: 'made-up caveat',
+        lines: { 'made_up_breakout|uptrend': { signals: 900, horizons: { 20: { n: 880, below_floor: false, win_rate: 56.0, avg_pct: 1.9, median_pct: 1.1, excess_pct: 0.6 } } },
+          'made_up_pullback|after_low': { signals: 12, horizons: { 20: { n: 12, below_floor: true, win_rate: null, avg_pct: null, median_pct: null, excess_pct: null } } } } },
+      one_signal_per_run: 'Made-up run words.', fill: 'Made-up fill words.', stale_for: [] } }
+  },
+  'company.publicRecords': (p) => {
+    const credit = { contracts: 'Recipient names come in part from D&B Open Data (Dun & Bradstreet).', trials: 'Data from ClinicalTrials.gov; the titles, statuses, phases, conditions, dates and enrollment are shown as registered, and no text is changed.',
+      fda: 'Data provided by the U.S. Food and Drug Administration.', lobbying: 'Senate Office of Public Records cannot vouch for the data or analyses derived from these data after the data have been retrieved from LDA.gov.' }
+    const names = [{ name: 'Made-up Dynamics Corp', source: 'sec', source_words: 'the SEC name', until: null }]
+    const base = (k, state) => ({ source: `${k} source (made-up)`, source_url: null, credit: credit[k], state, read_at: '2026-11-03T15:40:00Z', searched_for: 'MADE-UP DYNAMICS', names,
+      counted: state === 'matched' ? [{ name: 'MADE-UP DYNAMICS CORP', how: 'same', how_words: 'the same name', against: 'Made-up Dynamics Corp', amount: null, prior_amount: null, records: 1 }] : [],
+      counted_total: state === 'matched' ? 1 : 0, not_counted_total: 0, dropped: 0, check: null })
+    return { freshness: 'periodic', as_of: null, data: { symbol: String(p.symbol || '').toUpperCase(), as_of: null,
+      company: { state: 'ok', cik: '0009990001', names, read_at: '2026-11-03T15:30:00Z', source: 'made-up company source' },
+      contracts: { ...base('contracts', 'matched'), recent_total: 4200000.0, prior_total: 3100000.0, windows: { recent: ['2025-11-03', '2026-11-03'], prior: ['2024-11-03', '2025-11-02'] },
+        recipients_more: false, awards_more: false, awards: [{ award_id: 'MADE1', recipient: 'MADE-UP DYNAMICS CORP', date: '2026-08-14', amount: 1500000.0, agency: 'Department of Made-up Affairs',
+          sub_agency: null, description: 'Made-up widgets', description_cut: false, place: null, kind: 'Definitive contract', url: null }], awards_held: 1 },
+      trials: { ...base('trials', 'no_match'), active_matched: 0, closed_matched: 0, active_total: 0, active_read: 0, by_phase: {}, by_status: {}, data_processed: '2026-11-02T10:00:05', closed_since: '2025-11-03', active: [], active_held: 0 },
+      fda: { source: 'fda source (made-up)', source_url: null, credit: credit.fda, state: 'not_held' },
+      lobbying: { ...base('lobbying', 'matched'), quarters: [{ year: 2026, quarter: 3, label: 'Q3 2026', ends: '2026-09-30', due: '2026-10-20', reports_due: false, filings: 2, own: 120000.0,
+        own_reports: 1, own_no_figure: 0, firms: 40000.0, firm_reports: 1, firms_no_figure: 0, firm_names: ['MADE-UP FIRM'], issues: [{ issue: 'Made-up issue', filings: 2 }], issues_more: 0 }],
+        cut: false, filings_read: 2 } } }
+  },
+  'ownership.funds': (p) => {
+    const holders = [{ name: 'Made-up Total Market Index Fund', family: 'Made-up Trust', shares: 1000000, value: 41000000, pct: 0.42, period: '2026-06-30', prior_shares: 900000,
+      prior_value: 36000000, prior_period: '2026-03-31', change_shares: 100000, change_pct: 11.11, state: 'added', url: null },
+      { name: 'Made-up Growth Fund', family: 'Made-up Funds', shares: 500000, value: 20500000, pct: 1.9, period: '2026-07-31', prior_shares: null, prior_value: null, prior_period: null,
+        change_shares: null, change_pct: null, state: 'new', url: null }].slice(0, p.rows || 10)
+    return { freshness: 'periodic', as_of: '2026-07-31T04:00:00Z', data: { symbol: String(p.symbol || '').toUpperCase(), state: 'ok', source: 'SEC Form N-PORT (public; filed 60 days after each quarter-end month)',
+      data_set: { quarter: '2026Q3', prior_quarter: '2026Q2', built_at: '2026-11-01T05:10:00+00:00', periods: { from: '2026-06-30', to: '2026-07-31', funds: 2, funds_with_previous: 1 }, prior_missing: null,
+        splits: { state: 'ok' } },
+      coverage: { matched_value_pct: 91.4, matched_rows_pct: 80.0, pct_units: 'assumed_percent' },
+      summary: { funds: 2, shares: 1500000, value: 61500000, value_complete: true, added: 1, cut: 0, unchanged: 0, new: 1, no_prior: 0, not_comparable: 0, sold_out: 0,
+        both_now: 1500000, both_prior: 900000, period_from: '2026-06-30', period_to: '2026-07-31', tier: 'fund_ticker', votes: 2 },
+      holders, holders_total: 2, holders_limit: 50, sold_out: [], sold_out_total: 0, check: null } }
+  },
+  // Terminal data wave 11 (dark kinds `groups.rank`, `groups.crowding`, `earnings.seasonBySector`, `estimates.revisionBreadth`,
+  // `options.ivRankLeaders`, `ipo.lockups`, `cot.byTrader`; MD-1 §4.20): the same rule — each adapter's own data shape, made-up
+  // figures, dates, names and words. `as_of` is the data's own date (the newest session's close, the newest held copy or
+  // snapshot, the listings scan's time, the report's Tuesday), or null where each part carries its own (the crowding).
+  'groups.rank': (p) => {
+    const pt = (position, of, n, median, date, change) => ({ position, of, n, median, date, ...(change === undefined ? {} : { change }) })
+    const measure = (now, w4, w13, w52, best, worst) => ({ now, w4, w13, w52, best, worst, weeks_ranked: 50 })
+    const g = (name, members, m6) => ({ name, members, rank: { m6, m3: m6 } })
+    const groups = [
+      g('Made-up Software', 120, measure(pt(1, 3, 118, 14.2, '2026-10-30'), pt(3, 3, 117, 6.1, '2026-10-02', 2), pt(2, 3, 115, 4.0, '2026-07-31', 1), pt(3, 3, 110, -2.0, '2025-10-31', 2),
+        pt(1, 3, 118, 14.2, '2026-10-30'), pt(3, 3, 110, -2.0, '2025-10-31'))),
+      g('Made-up Energy', 60, measure(pt(2, 3, 58, 3.3, '2026-10-30'), pt(1, 3, 58, 9.0, '2026-10-02', -1), pt(1, 3, 57, 8.0, '2026-07-31', -1), pt(1, 3, 55, 7.0, '2025-10-31', -1),
+        pt(1, 3, 55, 7.0, '2025-10-31'), pt(3, 3, 50, -5.0, '2026-03-06'))),
+      g('Made-up Utilities', 4, measure(pt(null, 3, 4, null, '2026-10-30'), null, null, null, null, null)),
+    ].slice(0, p.rows || 10)
+    const mover = (name, change, from, to) => ({ name, change, from: pt(from, 3, 100, 1.0, '2026-10-02', change), to: pt(to, 3, 100, 2.0, '2026-10-30') })
+    return { freshness: 'historical', as_of: '2026-10-30T20:00:00Z', data: { kind: p.kind || 'sector', session: '2026-10-30', built_for: '2026-10-30', built_at: '2026-10-31T00:40:00Z',
+      rank: { state: 'ok', weeks: 52, min_members: 5, measures: [{ id: 'm6', sessions: 126 }, { id: 'm3', sessions: 63 }], first_week: '2025-10-31' },
+      universe: { symbols: 3500, mapped: 3400, not_mapped: 100 }, stale_for: [], left_out: ['weekly_line', 'fundamentals', 'breadth'],
+      groups, groups_total: 3, ranked_now: 2,
+      movers: { w4: { up: [mover('Made-up Software', 2, 3, 1)], down: [mover('Made-up Energy', -1, 1, 2)], counted: 2 }, w13: { up: [mover('Made-up Software', 1, 2, 1)], down: [], counted: 2 } } } }
+  },
+  'groups.crowding': (p) => {
+    const sum = (n, median) => ({ n, median, q1: null, q3: null })
+    const groups = [
+      { name: 'Made-up Software', members: 120, positioning: { short: { reported: 118, pct_float: sum(118, 6.4), days_to_cover: sum(118, 2.5), change: sum(110, 3.1),
+        top: [{ sym: 'QZSA', pct_float: 31.5, days_to_cover: 6.2 }] }, insider: { members: 120, buyers: { n: 120, count: 9, share: 7.5 }, purchases: 14, value: 4200000, unpriced: 1,
+        top: [{ sym: 'QZSB', value: 1500000, date: '2026-10-20', role: 'director' }] }, funds: { held: 118, known: 110, adding: { n: 110, count: 66, share: 60.0 }, net: sum(110, 2.2) } } },
+      { name: 'Made-up Utilities', members: 4, positioning: { short: { reported: 4, pct_float: sum(4, null), days_to_cover: sum(4, null), change: sum(4, null), top: [] },
+        insider: { members: 4, buyers: { n: 4, count: 0, share: null }, purchases: 0, value: null, unpriced: 0, top: [] }, funds: { held: 4, known: 4, adding: { n: 4, count: 2, share: null }, net: sum(4, null) } } },
+    ].slice(0, p.rows || 10)
+    return { freshness: 'periodic', as_of: null, data: { kind: p.kind || 'sector', built_for: '2026-10-30', built_at: '2026-10-31T00:40:00Z', session: '2026-10-30',
+      parts: { short: { state: 'ok', settlement_date: '2026-10-15', previous_settlement_date: '2026-09-30', covered: 3000, universe: 3400 },
+        insider: { state: 'ok', from: '2026-10-01', to: '2026-10-30', complete: true, keep_days: 30, matched: 400, universe: 3400 },
+        funds: { state: 'ok', quarter: '2026Q3', prior_quarter: '2026Q2', period_from: '2026-06-30', period_to: '2026-07-31', covered: 2900, known: 2700, universe: 3400 } },
+      min_members: 5, top_n: 3, institutions: 'not_held', stale_for: [], left_out: ['institutions', 'rank', 'fundamentals', 'breadth'],
+      groups, groups_total: 2, with_figure: 1 } }
+  },
+  'earnings.seasonBySector': (p) => {
+    const m = (n, beat, inl, miss, median) => ({ n, beat, in_line: inl, miss, none: 0, beat_pct: n >= 5 ? Math.round(beat / n * 1000) / 10 : null, in_line_pct: n >= 5 ? Math.round(inl / n * 1000) / 10 : null,
+      miss_pct: n >= 5 ? Math.round(miss / n * 1000) / 10 : null, median: n >= 5 ? median : null, median_n: n })
+    const fig = (name, reported, eps, rev, move, yearAgo) => ({ ...(name ? { name, on_file: true } : {}), reported, to_report: 2, awaiting: 1, eps, rev,
+      move: { n: reported, median: reported >= 5 ? move : null, rose: Math.floor(reported / 2), rose_pct: reported >= 5 ? 50.0 : null, not_settled: 0, not_measured: 0 }, year_ago: yearAgo })
+    const ago = (name) => fig(name, 40, m(40, 28, 4, 8, 3.0), m(40, 24, 6, 10, 1.0), 0.5, undefined)
+    const sectors = [fig('Made-up Software', 40, m(40, 32, 4, 4, 5.2), m(40, 30, 5, 5, 1.8), 1.4, ago('Made-up Software')),
+      fig('Made-up Utilities', 3, m(3, 2, 1, 0, 1.0), m(3, 2, 1, 0, 0.4), 0.2, ago('Made-up Utilities'))]
+    const season = p.season || 'current'
+    return { freshness: 'periodic', as_of: '2026-11-02T05:00:00Z', data: { season,
+      seasons: { current: { label: 'Q3 2026', from: '2026-10-01', to: '2026-12-31', through: '2026-11-02', complete: false },
+        previous: { label: 'Q2 2026', from: '2026-07-01', to: '2026-09-30', through: '2026-09-30', complete: true },
+        year_ago: { label: 'Q3 2025', from: '2025-10-01', to: '2025-12-31', through: '2025-12-31', complete: true } },
+      today: '2026-11-03', built_at: '2026-11-03T15:30:00Z',
+      coverage: { universe: 3500, held: 3300, not_held: 200, no_sector: 0, oldest_copy: '2026-10-28', newest_copy: '2026-11-02', copies_old: 0, old_days: 7 },
+      total: fig(null, 43, m(43, 34, 5, 4, 5.0), m(43, 32, 6, 5, 1.7), 1.3, season === 'current' ? ago(null) : null), sectors, count: 2,
+      in_line_pct: 0.5, in_line_abs: 0.005, min_reporters: 5, season_rule: 'Made-up season rule words.', stale_for: [], left_out: ['reporters', 'upcoming', 'late'] } }
+  },
+  'estimates.revisionBreadth': (p) => {
+    const c = (name, up, down, held, net, raises, cuts) => ({ ...(name ? { name, on_file: true } : {}), members: up + down + held + 1, counted: up + down + held, up, down, held,
+      not_counted: { collecting: 1, gap: 0, not_comparable: 0 }, net, raises, cuts })
+    return { freshness: 'periodic', as_of: '2026-11-02T05:00:00Z', data: { metric: p.metric || 'eps', window: p.window || 30, asof: '2026-11-02', covers_from: '2026-03-02',
+      built_at: '2026-11-03T15:30:00Z', tracked: { n: 52, cap: 600, origins: { sp500: 50, viewed: 2 }, no_sector: 0 }, tolerance_pct: 0.5, slack_days: 4, min_counted: 5, top_n: 3,
+      total: c(null, 30, 10, 8, 41.7, [], []),
+      sectors: [c('Made-up Software', 20, 4, 4, 57.1, [{ symbol: 'QZRA', pct: 12.5 }], [{ symbol: 'QZRB', pct: -3.0 }]), c('Made-up Utilities', 1, 1, 1, null, [], [])],
+      count: 2, left_out: ['symbols'] } }
+  },
+  'options.ivRankLeaders': (p) => {
+    const row = (symbol, rank, pctile, iv, low, high) => ({ symbol, atm_iv: iv, iv_rank: rank, iv_percentile: pctile, rank_word: rank >= 50 ? 'high' : 'low', low, high, sessions: 180, atm_dte: 30, open_interest: 150000 })
+    const side = p.side || 'both'
+    return { freshness: 'historical', as_of: '2026-10-30T20:00:00Z', data: { side, session: '2026-10-30', built_at: '2026-10-31T00:45:00Z', data_basis: 'end-of-day snapshot',
+      logging_began: '2026-03-02', sessions_logged: 170, rankable_sessions: 168, legacy_sessions: [], unread_sessions: [], missing_sessions: [], missing_total: 0,
+      counts: { ranked: 4100, below_min: 300, flat: 12, not_in_latest: 40, latest_rows: 4500, latest_no_atm_iv: 60, symbols_logged: 4452 },
+      high: side === 'low' ? [] : [row('QZHA', 98, 97, 0.82, 0.35, 0.84)].slice(0, p.rows || 10), low: side === 'high' ? [] : [row('QZLA', 1, 2, 0.15, 0.14, 0.6)].slice(0, p.rows || 10),
+      rank_min_sessions: 20, rank_window: 252, max_per_side: 100, next_run: '2026-11-03T20:45-05:00', last_run: { ok: true, at: '2026-10-31T00:45:00Z' }, stale_for: [] } }
+  },
+  'ipo.lockups': (p) => {
+    const row = (symbol, company, listing, expiry, days, pct, reason) => ({ symbol, company, listing_date: listing, listing_source: 'first_bar', estimated_expiry: expiry, days_to_go: days, basis: 'estimated',
+      change_since_listing: { pct, first_close: pct === null ? null : 10.0, first_date: pct === null ? null : listing, last_close: pct === null ? null : 12.3, last_date: pct === null ? null : '2026-11-02', reason } })
+    return { freshness: 'periodic', as_of: '2026-11-03T14:58:00Z', data: { today: '2026-11-03', window: { from: '2026-10-27', to: '2026-12-03', behind_days: 7, ahead_days: 30 },
+      lockup_days: 180, basis: 'estimated', basis_words: 'estimated: 180 days after listing; the prospectus sets the actual date', built_at: '2026-11-03T15:00:00Z',
+      listings_as_of: '2026-11-03T14:58:00Z', counts: { listings: 140, with_listing_date: 138, without_listing_date: 2, in_window: 2, by_source: { first_bar: 2, relisting: 0, reference: 0, unknown: 0 } },
+      rows: [row('QZIB', null, '2026-04-30', '2026-10-27', -7, null, 'no_closes'), row('QZIA', 'Made-up Robotics Inc', '2026-05-28', '2026-11-24', 21, 23.0, null)].slice(0, p.rows || 10),
+      stale_for: [] } }
+  },
+  'cot.byTrader': (p) => {
+    const cls = (long, short, spread) => ({ long, short, spread, traders_long: 40, traders_short: 30, traders_spread: spread === null ? null : 10 })
+    if (!p.market) {
+      return { freshness: 'periodic', as_of: '2026-10-27T04:00:00Z', data: { market: null, watch: { tff: 'leveraged_funds', disaggregated: 'managed_money' },
+        markets: { ES: { report: 'tff', watch: 'leveraged_funds', name: 'Made-up Index Future', date: '2026-10-27', open_interest: 2000000, long: 300000, short: 500000, spread: 10000,
+          previous: { date: '2026-10-20', open_interest: 1990000, long: 310000, short: 480000, spread: 9000 } },
+        GC: { report: 'disaggregated', watch: 'managed_money', name: 'Made-up Metal Future', date: '2026-10-27', open_interest: 500000, long: 200000, short: 50000, spread: 20000, previous: null } },
+        no_record: [], newest: '2026-10-27', credit: 'Source: CFTC Commitments of Traders (Traders in Financial Futures / Disaggregated), as of the Tuesday it covers, published the following Friday.',
+        stale_for: [], left_out: ['range'] } }
+    }
+    const keys = ['dealer', 'asset_manager', 'leveraged_funds', 'other_reportable', 'nonreportable']
+    const week = (date, oi, lev) => ({ date, open_interest: oi, traders_total: 500, classes: { dealer: cls(100000, 400000, 20000), asset_manager: cls(900000, 200000, 30000),
+      leveraged_funds: lev, other_reportable: cls(150000, 120000, 5000), nonreportable: { long: 80000, short: 90000, spread: null, traders_long: null, traders_short: null, traders_spread: null } } })
+    return { freshness: 'periodic', as_of: '2026-10-27T04:00:00Z', data: { market: 'ES', name: 'Made-up Index Future', report: 'tff', report_name: 'Traders in Financial Futures', watch: 'leveraged_funds',
+      classes: keys.map(key => ({ key, cftc: `made-up ${key} words`, spread: key !== 'nonreportable', traders: key !== 'nonreportable' })),
+      rows: [week('2026-10-20', 1990000, cls(310000, 480000, 9000)), week('2026-10-27', 2000000, cls(300000, 500000, 10000))],
+      records: [{ cftc_code: '000000', market_name: 'MADE-UP INDEX - MADE-UP EXCHANGE', match: 'code', first: '2026-10-20', last: '2026-10-27' }],
+      concentration: { date: '2026-10-27', gross_4_long: 21.7, gross_4_short: 18.0, gross_8_long: 30.1, gross_8_short: 27.2, net_4_long: 15.0, net_4_short: 12.0, net_8_long: 22.0, net_8_short: 19.0 },
+      credit: 'Source: CFTC Commitments of Traders (Traders in Financial Futures / Disaggregated), as of the Tuesday it covers, published the following Friday.',
+      stale_for: [], left_out: ['range'] } }
+  },
+  // Terminal data wave 12 (dark kinds `estimates.history`, `analyst.ratings`, `company.segments`, `stock.failsToDeliver`,
+  // `company.deals`, and the existing `ratings`; MD-1 §4.21, §4.4): the same rule — each adapter's own data shape, made-up
+  // figures, dates, names and words. `as_of` is the data's own date, or null where each part carries its own read time.
+  'ratings': (p) => ({ freshness: 'periodic', as_of: '2026-10-30T20:00:00Z', data: { symbol: String(p.symbol || '').toUpperCase(), composite: 81,
+    components: { eps: 88, rs: 76, growth: 69, value: 41, smr: 'B', accdis: 'B-', sponsorship: 58 }, checkup: [{ label: 'Made-up check', status: 'pass', value: 1 }],
+    method: 'made-up method words', basis: 'percentile', coverage: null, universe_n: 3700, sector: 'Made-up Sector', group_rs: 70, price_as_of: '2026-10-30', complete: true } }),
+  'estimates.history': (p) => {
+    const mv = (state, pct) => ({ state, reason: null, pct, from: null, to: null, from_date: null, to_date: null })
+    return { freshness: 'periodic', as_of: '2026-11-02T05:00:00Z', data: { symbol: String(p.symbol || '').toUpperCase(), state: 'ok', covers_from: '2026-03-02',
+      last_snapshot: '2026-11-02', store_newest: '2026-11-02', snapshot_days: 170, currency: null, tracked: { origin: 'sp500', count: 510, cap: 600 }, windows: [7, 30, 90],
+      tolerance_pct: 0.5, slack_days: 4, failed_days: 0, failed_newest: [], left_out: ['points', 'year'],
+      periods: [{ period_end: '2026-12-31', n: 170, first_snapshot: '2026-03-02', upcoming: true,
+        newest: { snap_date: '2026-11-02', eps_avg: 1.25, eps_low: 1.1, eps_high: 1.4, n_eps: 30, rev_avg: 35000000000, rev_low: null, rev_high: null, n_rev: 28 },
+        moves: { eps: { 7: mv('held', 0.1), 30: mv('up', 3.2), 90: mv('up', 8.7) }, revenue: { 7: mv('held', 0), 30: mv('up', 1.5), 90: mv('collecting', null) } } }] } }
+  },
+  'analyst.ratings': (p) => ({ freshness: 'periodic', as_of: '2026-11-02T14:00:00Z', data: { symbol: String(p.symbol || '').toUpperCase(), covered: true, outage: false,
+    consensus: { strongBuy: 5, buy: 20, hold: 6, sell: 1, strongSell: 0, total: 32, label: 'Buy', observed_at: '2026-11-02T14:00:00Z' },
+    price_target: { high: 260, low: 120, median: 200, consensus: 205, last_month: { count: 6, avg: 210 }, last_quarter: { count: 15, avg: 198 }, last_year: { count: 40, avg: 180 },
+      observed_at: '2026-11-02T14:00:00Z' },
+    upside: { target: 'consensus', target_value: 205, close: 180, close_date: '2026-10-30', pct: 13.89, basis: 'stored_close' },
+    recent_actions: [{ date: '2026-10-29', company: 'Made-up Securities', action: 'upgrade', from_grade: 'Hold', to_grade: 'Buy' }].slice(0, p.rows || 5),
+    actions_total: 1, left_out: ['trend', 'revisions'] } }),
+  'company.segments': (p) => ({ freshness: 'periodic', as_of: '2026-01-25T05:00:00Z', data: { symbol: String(p.symbol || '').toUpperCase(), rows: p.rows || 8,
+    growth_basis: 'a year earlier, from held periods', left_out: ['earlier_periods'],
+    splits: { annual: { state: 'held', read_at: '2026-11-03T15:00:00Z',
+      product: { state: 'ok', latest: { date: '2026-01-25', label: 'FY2026', currency: 'USD', total: 130000000000, segments_total: 2, cut: false,
+        segments: [{ name: 'Made-up Compute', revenue: 115000000000, share: 88.5, prior: 47000000000, growth_pct: 144.7 }, { name: 'Made-up Graphics', revenue: 15000000000, share: 11.5, prior: null, growth_pct: null }] },
+        prior: { date: '2025-01-26', label: 'FY2025' } },
+      region: { state: 'none', latest: null, prior: null } },
+    quarter: { state: 'not_held' } } } }),
+  'stock.failsToDeliver': (p) => ({ freshness: 'historical', as_of: '2026-10-15T04:00:00Z', data: { symbol: String(p.symbol || '').toUpperCase(), state: 'ok',
+    window: { from: '2026-05-01', through: '2026-10-15' }, basis: 'made-up basis words', description: 'MADE-UP CO',
+    latest: { settle_date: '2026-10-15', quantity: 250000, price: 20, value: 5000000 },
+    trend: { previous: { settle_date: '2026-10-14', quantity: 100000, price: 19.5, value: 1950000 }, change: 150000,
+      peak: { settle_date: '2026-08-03', quantity: 400000, price: 15, value: 6000000 }, latest_vs_peak_pct: 62.5 },
+    days_reported: 2, rows: [{ settle_date: '2026-10-15', quantity: 250000, price: 20, value: 5000000 }, { settle_date: '2026-10-14', quantity: 100000, price: 19.5, value: 1950000 }].slice(0, p.rows || 10),
+    files_ingested: 11, mismatched_files: [], newest_file: 'cnsfails202610a' } }),
+  'company.deals': (p) => {
+    const sym = String(p.symbol || '').toUpperCase()
+    return { freshness: 'periodic', as_of: null, data: { symbol: sym,
+      deals: { state: 'held', read_at: '2026-11-03T14:00:00Z', search: 'ok', name: 'Made-up Company Inc', total: 1, cut: false, other_companies: 0, from_latest: 0,
+        deals: [{ date: '2026-09-15', accepted_at: null, role: 'acquirer', acquirer: { sym, name: 'Made-up Company Inc' }, target: { sym: null, name: 'Made-up Startup Ltd' }, link: 'https://www.sec.gov/made-up' }] },
+      index_changes: { state: 'held', read_at: '2026-11-03T14:00:00Z', indexes: { sp500: 'ok', nasdaq100: 'ok', dow: 'ok' }, total: 1, cut: false,
+        changes: [{ index: 'dow', index_name: 'Dow 30', date: '2024-11-08', side: 'added', added: { sym, name: 'Made-up Company Inc' }, removed: { sym: 'QZOLD', name: 'Made-up Old Co' }, reason: 'Made-up reason.' }] } } }
+  },
 }
 /** Wave 6's made-up calendar months: ten years each, except a month nobody counted (February) and a thin one (March). */
 function SEASON_MONTHS(shift) {
@@ -700,7 +963,7 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
     if (u === '/api/agent/data' && ['index.quote', 'commodity.quote', 'crypto.quote'].includes(body?.kind)) {
       return json({ contract: 'MD-1.0', kind: body.kind, params_echo: body.params, status: 'refused', freshness: 'unavailable', as_of: null, stale: false, notes: ['no licensed source'], data: null })
     }
-    // terminal data waves 1 to 9 (dark): a SYNTHETIC answer in each kind's own data shape (TERMINAL_DATA above; no market value)
+    // terminal data waves 1 to 12 (dark): a SYNTHETIC answer in each kind's own data shape (TERMINAL_DATA above; no market value)
     if (u === '/api/agent/data' && TERMINAL_DATA[body?.kind]) {
       return json({ contract: 'MD-1.0', kind: body.kind, params_echo: body.params, status: 'ok', freshness: 'periodic', as_of: null, fetched_at: '2026-11-03T16:00:00Z', delay_s: null,
         stale: false, source: 'fixture', coverage: null, notes: [], provider_calls: 0, ...TERMINAL_DATA[body.kind](body.params || {}) })

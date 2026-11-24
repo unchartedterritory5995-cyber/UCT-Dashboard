@@ -33,12 +33,12 @@ import { setOwnedDefinitionSource } from './capabilities/indicatorEdits'
 import { setAuthoringSources, setExceptSetReader, draftAmbiguity, selectDraft, isDraftAction, lastSaved, screenModelOps, PROPOSAL_TTL_MS, saveReferent, splitSaveAs, renameBeforeSave, explicitIndicatorCreate } from './capabilities/indicatorAuthoring'
 import { fastParse, matchPosition } from './fastPath'
 import { screenNewChart, screenEmptyBoardChart } from './capabilities/workspace'
-import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf, selectedChart, chartNameWord, clausesNameDifferentCharts, targetTickerConflict, lowerTickerCandidates, TARGET_CHECK_FAILED, timeframeSetOf } from './deixis'
+import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf, selectedChart, chartNameWord, clausesNameDifferentCharts, targetTickerConflict, lowerTickerCandidates, TARGET_CHECK_FAILED, timeframeSetOf, chartsNamedBy, changeWordsOf, pointsAtClick, wordsNameASet, wordsNameAChart, wordsGroundWrites, anaphorsOnSubject, targetTickers } from './deixis'
 import { screenWatchlistWidget } from './watchlistTarget'
 import { whichListView, LIST_VIEW_WHICH } from './whichWidget'
 import { checkSpatialConstraints, excludedCharts, spatialConstraints, UNPLACED, withoutExcludedCharts, everyExceptSet, everyExceptNothing, nothingLeftText } from './spatialCheck'
 import { groundSymbols, groundingOf } from './nl/tickers'
-import { multiChartPlan, screenChartGrid, isWorkspaceRequest, gridChoiceFor } from './multiChart'
+import { multiChartPlan, screenChartGrid, isWorkspaceRequest, gridChoiceFor, sideBySideScreen } from './multiChart'
 import { scopeHostToGrid } from './host'
 import { screenGridOps, watchGridSync } from './gridMode'
 import { boardRefusalIn } from '../pages/charts/boardBound'
@@ -55,6 +55,8 @@ import { buildContext, refreshContext, manifestFor, getCapability, getTargetKind
 import { UNDO_ACTION } from './capabilities/about'
 // the widget's own filter chips are not set from the Agent here (open owner decision); the member is pointed at the control itself
 import { registerBuiltins, registerServerGatedBuiltins } from './builtins'
+// the Terminal data waves, in their own chunk, after the config (builtins.js no longer imports them: the Notebook byte budget)
+import { loadTerminalWaves } from './terminalWavesLoader'
 import { routingEnabled, routingNames, GROUPS as ROUTE_GROUPS, wordsSelect } from './routing'
 import { pickRouter, routingV2Active } from './nlm1/flag'   // NLM-1 D1 (dark, two keys): routing v2, else v1's routeManifest
 import { nlm1Rewrite, createReferents } from './nlm1/followups'   // NLM-1 D2/D3 (same two keys)
@@ -68,7 +70,7 @@ import { resolveReference, subjectTarget, pluralTarget, retargetCorrection } fro
 import { resolveFollowUp, resolvePicked } from './conversation'
 import { planCompound, resolveStep, chartsShowing, MAX_STEP_OPS, workspaceConflict, workspaceQuestion, workspaceSteps, WORKSPACE_CHOICES } from './compound'
 import { screenDuplicateAdds, wantsCopy } from './duplicates'
-import { nl1Enabled, exactLane, buildNl1Request, correctionPlan, preflightRefusals, repairedDisposition, withoutWordingApprovals } from './nl1/interpreter'
+import { nl1Enabled, exactLane, buildNl1Request, correctionPlan, preflightFindings, repairDropped, repairDroppedLines, repairedDisposition, withoutWordingApprovals } from './nl1/interpreter'
 import { NL1_MAX_NEED } from './nl1/selection'
 import { takeIndicatorTouches, takeIndicatorMentions, canonicalIndicatorAdds, indicatorRowsOf } from './capabilities/indicatorEdits'
 import { correctTypos, lexiconFor, plainSymbolWord } from './nl/lexicon'
@@ -571,6 +573,28 @@ function saveRunsLast(ops) {
     return !!c && c.target !== 'layouts' && (!c.exclusive || c.sequential)
   })
 }
+// ⛔ NL-1 PREFLIGHT (AUDIT 11-23, the silent drop): a plan in the PARTS execute() runs it as — the rest, then the steps it
+// queues after the rest (a deferred step, a save that runs last, and each SEQUENTIAL indicator edit as its own next step,
+// in request order; the same change on several charts keeps its fan-out). NL-1's preflight checks each part as the runtime
+// will (nl1/interpreter.preflightFindings), so the sequential rule is a deferral there too, never a refusal sent back for
+// repair. Pure; the same rules as execute()'s split, which is left as it is (the legacy path is unchanged).
+export function preflightParts(opsIn) {
+  let all = Array.isArray(opsIn) ? opsIn : []
+  let steps = []
+  if (all.some(isDeferred) && !all.every(isDeferred)) { steps = all.filter(isDeferred); all = all.filter(o => !isDeferred(o)) }
+  if (saveRunsLast(all)) { steps = [...steps, all[all.length - 1]]; all = all.slice(0, -1) }
+  const seq = (o) => !!getCapability(o?.action)?.sequential
+  if (all.length > 1 && all.some(seq) && !fanOutOf(all)) {
+    const rest = all.filter(o => !seq(o))
+    const queued = all.filter(seq)
+    const keep = rest.length ? rest : [queued.shift()]
+    steps = [...queued, ...steps]
+    all = keep
+  }
+  // ⛔ AUDIT NO-GO F1 (11-23): the same change on several charts (the F5 fan-out) is planned and refused PER CHART by
+  // execute(), never as one plan — `fanOut` says the rest is that, so the preflight checks each of its ops on its own
+  return { rest: all, steps, fanOut: !!fanOutOf(all) }
+}
 // ⛔ LT-15: what a query that came back with NOTHING to show says (never an empty row after a reply that announced it)
 export const NO_RESULT = "I couldn't get a result for that, so there is nothing to show. Try asking again."
 /** True when a capability's answer carries nothing the member could see (no text, table, view, link or chart). */
@@ -604,8 +628,14 @@ export const PARTIAL_LEAD = 'The change above went through, but I didn’t do th
 // the change above that went through: never as nothing changed, never as done
 export const FOLLOWUP_WAITS_CARD = 'The change above went through; the next part is waiting for your approval on the card below.'
 export const FOLLOWUP_WAITS_ANSWER = 'The change above went through; the next part needs your answer first.'
-export function partialStepText(text) {
+// ⛔ INV2: a follow-up whose change is ON SCREEN but not saved is never said as "didn't do" — the change above stands, and
+// this step's own sentence says it is on screen and NOT saved
+export const FOLLOWUP_UNSAVED_LEAD = 'The change above went through.'
+// …and the follow-up loop STOPS after a step that failed or was not saved (the split loop's rule): the rest never runs
+export const followUpsStopped = (n) => `I stopped there, so I didn’t start the next ${n === 1 ? 'step' : `${n} steps`} of your request.`
+export function partialStepText(text, { onScreen = false } = {}) {
   const t = String(text || '').trim()
+  if (onScreen) return !t || t.startsWith(FOLLOWUP_UNSAVED_LEAD) ? t : `${FOLLOWUP_UNSAVED_LEAD} ${t}`
   if (!t || t.startsWith(PARTIAL_LEAD)) return t
   const rest = t.replace(/^I didn['’]t change anything:\s*/i, '')
   return `${PARTIAL_LEAD} ${rest}`
@@ -745,6 +775,20 @@ const stepUnread = (r) => !!r && !r.noop && (!!r.say || !r.ops?.length || r.ops.
 const refersBack = (t) => /\b(?:it|its|them|they|that|those|this|these|the new one|the new chart|the same)\b/i.test(String(t || ""))
 // (`read`: the panel's own step reader — the same one the run uses)
 const preUnread = (step, read) => step.kind !== 'undo' && !refersBack(step.text) && stepUnread(read(step, null))
+// G1/G2: the existing charts a list of ops writes (an op on a chart a step is about to make has none yet)
+const chartsWrittenOn = (host, ops) => {
+  const out = new Set()
+  for (const o of ops || []) {
+    try {
+      const cap = getCapability(o?.action)
+      const k = cap && !cap.query ? getTargetKind(cap.target) : null
+      const snap = k ? (k.list(host) || []).find(x => x.ref === o.target) : null
+      const c = snap ? chartRefOf(k, snap) : null
+      if (c) out.add(c)
+    } catch { /* not a chart write */ }
+  }
+  return out
+}
 
 export default function useAgent({ host: workspaceHost, gridMode = false, surface = 'charts' }) {
   // ⭐ Multi Chart: while the grid is on screen the Agent's charts are its cells, and the hidden board is not a target
@@ -1058,7 +1102,9 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
   }, [setConversationId])
 
   // Features warm their data (catalogs) once the Agent is open; so does the server's streaming flag.
-  useEffect(() => { runWarmups(host); loadAgentConfig().then(() => registerServerGatedBuiltins()) }, [host])
+  // The Terminal data waves load next (their own chunk; each registers only while the server serves its kind;
+  // a chunk that fails to load is logged, never thrown): terminalWavesLoader.js.
+  useEffect(() => { runWarmups(host); loadAgentConfig().then(() => { registerServerGatedBuiltins(); return loadTerminalWaves() }) }, [host])
 
   useEffect(() => {
     let mark = null
@@ -1134,12 +1180,12 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     // 2026-10-12): the held receipt of the step before it (a Save) — said in THIS step's message,
     // first, so "save + apply" reads as ONE confirmation; `lead.used` tells the caller it was said.
     const leadLines = lead && !lead.used ? lead.lines : []
-    const refusalPush = (text) => {
+    const refusalPush = (text, { onScreen = false } = {}) => {
       const full = boardRefusalIn(text)
       if (full) { try { host?.widgets?.raiseBound?.(full) } catch { /* the words below still say it */ } }
       const before = leadLines.length ? `${leadLines.join(' ')} ` : ''
       if (lead) lead.used = true
-      const said = path === 'followup' ? partialStepText(text) : text
+      const said = path === 'followup' ? partialStepText(text, { onScreen }) : text
       push({ role: 'refusal', text: `${before}${note ? `${said} ${note}` : said}` })
     }
     let allOps = opsIn
@@ -1669,9 +1715,11 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       const text = res.failed.every(f => f.say) ? res.failed.map(f => f.say).join(' ')
         : `Some of that didn't take effect: ${res.failed.map(f => f.say || `${f.label} ${f.reason}`).join('; ')}.`
       if (res.lines.length) push({ role: 'receipt', lines: res.lines, undoId: res.undo?.id || null })
-      refusalPush(text)
+      // ⛔ INV2: a failed save its kind could NOT put back is on screen, unsaved — recorded (and stopped on) as exactly that
+      const onScreen = res.failed.some(f => f.onScreen)
+      refusalPush(text, { onScreen })
       const gates = res.failed.map(f => f.gate).filter(Boolean)            // diagnostics only, never shown
-      record({ member, outcome: [res.lines.join(' · '), text].filter(Boolean).join(' · '), outcomeData: { kind: 'failed', actions, ...(gates.length ? { gates } : {}) }, telemetry: { path, refused: true, actions, voice } })
+      record({ member, outcome: [res.lines.join(' · '), text].filter(Boolean).join(' · '), outcomeData: { kind: onScreen ? 'applied-unsaved' : 'failed', actions, ...(onScreen ? { reason: 'not-saved' } : {}), ...(gates.length ? { gates } : {}) }, telemetry: { path, refused: true, actions, voice } })
     }
   }, [host, push, patchItem, record, capCtx, withdrawPending])
 
@@ -1931,7 +1979,9 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     // persisted, confirmed and receipted on its own (a failure never undoes another chart or the Save)
     async function runFollowUps(out) {
     const held = out?.held || null                    // a Save's receipt waiting to lead its chart add
-    for (const { awaitDefinition, ...op } of out?.followUps || []) {
+    const steps = out?.followUps || []
+    for (let si = 0; si < steps.length; si++) {
+      const { awaitDefinition, ...op } = steps[si]
       if (awaitDefinition && !(await definitionListed(awaitDefinition))) {
         const chart = (() => { try { return host.charts.read(String(op.target).replace(/^ixe:/, ''))?.label || 'that chart' } catch { return 'that chart' } })()
         // refinement B: the SAVED definition is kept (context `lastSaved`) — a retry adds the same one, never a second Save
@@ -1976,7 +2026,19 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       traceStart('followup:apply')
       const pickBefore = railPickedRef.current
       if (pinnedPick) railPickedRef.current = new Set([...(pickBefore || []), pinnedPick])
-      try { await executeInner([one], { path: 'followup', mode: approvedStep ? 'approved' : 'apply', member, voice, note: followNote || null, lead: held }) } finally { railPickedRef.current = pickBefore; traceEnd('done') }
+      // ⛔ INV2: what this step came to (the record tap, as the split loop reads it): a step that FAILED or is on screen but NOT
+      // saved stops the rest — later steps never run behind it (under a sticky conflict each would only add unsaved residue)
+      const outerTap = tapRef.current
+      const kinds = []
+      tapRef.current = kinds
+      try { await executeInner([one], { path: 'followup', mode: approvedStep ? 'approved' : 'apply', member, voice, note: followNote || null, lead: held }) } finally { tapRef.current = outerTap; if (outerTap) outerTap.push(...kinds); railPickedRef.current = pickBefore; traceEnd('done') }
+      const left = steps.length - si - 1
+      if (left > 0 && (kinds.includes('failed') || kinds.includes('applied-unsaved'))) {
+        const text = followUpsStopped(left)
+        push({ role: 'agent', text })
+        record({ member: null, outcome: text, outcomeData: { kind: 'followups-stopped', step: si + 1, of: steps.length }, telemetry: { path: 'followup', refused: true, voice } })
+        break
+      }
     }
     // a held Save receipt is ALWAYS said — on its own if no step used it (never a silent save)
     if (held && !held.used) push({ role: 'receipt', lines: held.lines, undoId: null })
@@ -2087,8 +2149,13 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       rerender()
       return true                             // NL-1 corrections apply their new change only after this
     }
+    // ⛔ INV2: an Undo whose own write is on screen but NOT saved is spent — never offered again (no false Undo)
+    if (res.spent) {
+      undoRef.current = stack.filter(e => e.id !== entry.id)
+      setItems(xs => xs.map(x => (x.undoId === entry.id ? { ...x, undoId: null } : x)))
+    }
     push({ role: 'refusal', text: res.reason })
-    record({ member, outcome: res.reason, outcomeData: { kind: 'undo-refused' }, telemetry: { path: 'fast', undo: true, refused: true, voice } })
+    record({ member, outcome: res.reason, outcomeData: { kind: res.spent ? 'undo-unsaved' : 'undo-refused' }, telemetry: { path: 'fast', undo: true, refused: true, voice } })
     rerender()
     return false
   }, [host, push, record, withdrawPending])
@@ -2361,6 +2428,123 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     } finally { railPickedRef.current = null }
   }, [execute, push, host])
 
+  // ⛔ G1/G2 (AUDIT 11-23) THE TARGET RAILS, defined ONCE. The model plan's checks (send, below) and the gate in front of every
+  // NLM-1 instant write (instantGateRef) are these same calls, always on the member's TYPED words: the conversation subject
+  // exemption, the deictic screen, the unnamed-chart screen, the spatial constraints and the target ticker (fail closed).
+  const targetRailsRef = useRef(null)
+  // (`subjectAt`: the subject as it stood BEFORE a multi-step request began — a step of the request itself is no prior referent)
+  targetRailsRef.current = (text, { pickedRefs = [], context = null, subjectAt } = {}) => {
+    const atStart = subjectAt !== undefined
+    const subject = () => (atStart ? subjectAt : chartSubjectOf(memoryRef.current, host))
+    const sw0 = asSubjectWords(text, createdRef.current?.refs || null, gridChanged(host))
+    return {
+      sw0,
+      // ⭐ W2 (context across turns): a plan whose every op is on the conversation's SUBJECT chart (memory, the same referent the
+      // instant path uses) is not asked about again. A clicked chart still outranks memory (S6).
+      onSubject: (ops) => {
+        try {
+          if (host?.charts?.selected?.() && !sw0.changed) return false
+          if (sw0.changed && !sw0.subject) return false
+          const sw = sw0
+          if (sw.text === text && !/\bit\b/i.test(text)) return false
+          const s = sw.subject ? { ref: sw.subject } : atStart ? (subjectAt ? { ref: subjectAt } : null) : memoryRef.current.subject('chart', epochOf(host))
+          if (!s?.ref || !ops.length) return false
+          // ⛔ G1b (AUDIT 11-23): only when the subject is the SOLE grounding — words that also name a chart (by ticker, place,
+          // order, relation) are read by the rails, never "satisfied" by the subject
+          if (!sw.subject && wordsNameAChart(text, host?.charts?.list?.() || [], selectedChart(host))) return false
+          return ops.every(o => {
+            const k = getTargetKind(getCapability(o?.action)?.target)
+            const snap = k?.list(host)?.find(x => x.ref === o.target)
+            return !!snap && chartRefOf(k, snap) === s.ref
+          })
+        } catch { return false }
+      },
+      deictic: (ops) => screenDeicticOps({ host, ops, text, getTargetKind, getCapability, parse: fastParse, subject: subject() }),
+      unnamed: (ops) => screenUnnamedTargets({ host, ops, text, context, pickedRefs, getTargetKind, getCapability, subject: subject() }),
+      spatial: (ops) => checkSpatialConstraints({ host, ops, text, pickedRefs, getTargetKind, getCapability, subject: subject() }),
+      // ⭐ AUDIT ruling (11-13): a ticker the words name as the TARGET outranks the only chart, the click and "the one left". A word NOT
+      // in capitals counts as a ticker only when the client knows it as one: a board symbol, or the ticker search's own verdict
+      // (groundSymbols, cached; bounded like nameSearch — no answer in time is "not known here")
+      ticker: async (ops) => {
+        try {
+          const known = new Map()
+          const live = host?.charts?.list?.() || []
+          const writesChart = (ops || []).some(o => { const cap = getCapability(o?.action); return !!cap && !cap.query && !!getTargetKind(cap.target) })
+          const lower = writesChart ? lowerTickerCandidates(text, live, (w) => plainSymbolWord(w, host)) : []
+          if (lower.length) {
+            await nameSearchAll(lower)
+            for (const w of lower) { const v = groundingOf(w); if (v && (v.kind === 'ticker' || v.kind === 'name') && v.ticker) known.set(w, v.ticker) }
+          }
+          return targetTickerConflict({ host, ops, text, pickedRefs, getTargetKind, getCapability, known, ordinary: lexiconFor(host).words })
+        } catch {
+          return { failed: true, ask: { text: TARGET_CHECK_FAILED } }        // ⛔ fail closed: an unread check never writes
+        }
+      },
+    }
+  }
+  // ⛔ G1/G2 (AUDIT 11-23): THE GATE IN FRONT OF EVERY NLM-1 INSTANT WRITE. NLM-1 reads a message the readers do not take as an
+  // explicit form (a rewrite, steps, a follow-up over referents) and writes it instantly — it never ran the rails the model's plan
+  // runs, so a deictic with no referent, or a click the words do not name, was written over silently. The same rails, on the
+  // member's TYPED words (never NLM-1's rewrite of them): the first one that would ask (or re-aim the plan) names itself, and the
+  // caller DECLINES the NLM-1 reading — the message goes on exactly as v1 sends it, whose own rails ask. No new question here.
+  // `landed`: the charts every step of a whole reading writes — a split that lands on a chart the words (or the click they point
+  // at, or the live subject their pronoun means) do not name, with no set in the words, is declined the same way.
+  const instantGateRef = useRef(null)
+  // (`ticker: false`: one step of a whole reading at run time — the target-ticker check ran over EVERY part's ops before it began;
+  // a single step never writes every ticker the message names)
+  instantGateRef.current = async (ops, typed, { landed = null, subjectAt, ticker = true, tickerOps = null } = {}) => {
+    try {
+      // (`tickerOps`: the ops the target-ticker check reads — every part of a whole reading, a chart it creates included)
+      const tops = tickerOps || ops
+      const rails = targetRailsRef.current(typed, { subjectAt })
+      const live = host?.charts?.list?.() || []
+      if (landed && landed.size > 1 && !wordsNameASet(typed)) {
+        const sel = selectedChart(host)
+        const named = chartsNamedBy(changeWordsOf(typed), live, sel)
+        if (sel && (pointsAtClick(typed) || !named.size)) named.add(sel)
+        const subj = subjectAt !== undefined ? subjectAt : chartSubjectOf(memoryRef.current, host)
+        // the live subject a prior turn left: what a pronoun or an elided clause ("…and switch to bars") means with no click
+        if (subj && (!sel || /\b(?:it|its)\b/i.test(typed))) named.add(subj)
+        if ([...landed].some(c => !named.has(c))) return 'split-charts'
+      }
+      if (!ops?.length) return null
+      const onSubject = rails.onSubject(ops)
+      const written = chartsWrittenOn(host, ops)
+      const subjNow = subjectAt !== undefined ? subjectAt : chartSubjectOf(memoryRef.current, host)
+      // AUDIT R2: a pronoun clause that names no chart means the live subject, whatever another clause names (per clause)
+      const bySubject = anaphorsOnSubject(typed, live, selectedChart(host), subjNow, written)
+      // the words themselves name every chart written (nothing points without naming, no click elsewhere): nothing to settle
+      const grounded = bySubject || wordsGroundWrites(typed, live, selectedChart(host), written)
+      if (!onSubject && !grounded) {
+        if (rails.sw0.changed) return 'deictic'
+        const d = rails.deictic(ops)
+        if (d?.ask || d?.refuse) return 'deictic'
+        if (d?.aim && d.aim.some((o, i) => o.target !== ops[i]?.target)) return 'deictic-aim'
+      }
+      if (!onSubject && rails.spatial(ops)?.ask) return 'spatial'
+      // the target ticker, on the writes the words do not already account for: a chart a SET word covers ("…, add a 20 EMA to both",
+      // AUDIT R1 — every chart it covers stays in), and the live subject a pronoun or an elided clause means with no click (R2) — the
+      // subject only BESIDE another write the check still reads ("change AMD to weekly" alone, on the subject, is still asked)
+      // (the whole plan first; only when that asks are the accounted-for writes set aside — and then every ticker the words name must
+      // still be written by the plan, so nothing named is dropped)
+      if (ticker && (await rails.ticker(tops))?.ask) {
+        const twritten = chartsWrittenOn(host, tops)
+        const chartOf = (o) => [...chartsWrittenOn(host, [o])][0] || null
+        const setCovered = new Set(wordsNameASet(typed) ? live.map(c => c.ref) : [])
+        let rest = setCovered.size ? tops.filter(o => !setCovered.has(chartOf(o))) : tops
+        if (subjNow && !selectedChart(host) && twritten.has(subjNow)) {
+          const besides = rest.filter(o => chartOf(o) !== subjNow)
+          if (besides.length) rest = besides
+        }
+        const symOf = (ref) => String(live.find(c => c.ref === ref)?.symbol || '').toUpperCase()
+        const shown = new Set([...twritten].map(symOf))
+        const allNamedWritten = targetTickers(typed, live, new Map(), lexiconFor(host).words).every(t => shown.has(t))
+        if (rest.length === tops.length || !allNamedWritten || (rest.length && (await rails.ticker(rest))?.ask)) return 'ticker'
+      }
+      return null
+    } catch { return 'failed' }                                          // ⛔ fail closed: an unread gate never writes instantly
+  }
+
   // ⭐ PHASE 2 — A MULTI-STEP REQUEST (agent/compound.js): read in full before anything runs, then step by step on the
   // live board, each step through the ordinary execute (own plan, policy, receipt, Undo). A step that does not fully
   // land — refused, failed, asking, or waiting for approval — STOPS the request: what was done and what was not is
@@ -2389,20 +2573,26 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
   // run returns { fallback: true } (the caller hands the member's ORIGINAL message to the planner, exactly as v1 does);
   // steps already run → they are taken back first (this request's own Undo entries, newest first), then the same.
   // A step that waits on an approval card or an answer is not a failure: it stops there as before.
-  const runCompound = useCallback(async (steps, { member, voice, working: working0 = null, whole = false }) => {
+  // `gate` (whole only; G1/G2): the target gate on the member's TYPED words, run on each step's ops right before it executes —
+  // a step that would land where the words do not point is never written: the whole reading falls back
+  const runCompound = useCallback(async (steps, { member, voice, working: working0 = null, whole = false, gate = null }) => {
     const idsAtStart = undoRef.current.map(e => e.id)    // NLM-1 D2 (dark): the whole request's Undo entries, grouped at the end
+    const wroteCharts = new Set()                        // G1/G2: every existing chart this whole reading has written so far
+    // ⛔ G1 (AUDIT 11-23): a whole reading that is taken back leaves no referent — what the conversation pointed at before it
+    // ran (subject, last change, turn, indicator sets) is put back, so a later "it" never means a change that is gone
+    const referentsAtStart = whole ? memoryRef.current.snapshotReferents() : null
     let working = working0
     let done = 0
     const fallBack = async () => {
       mark('nlm1:whole-fallback', String(done))
       const fresh = undoRef.current.map(e => e.id).filter(id => !idsAtStart.includes(id))
-      if (!fresh.length) return { fallback: true, rolledBack: 0 }
+      if (!fresh.length) { memoryRef.current.restoreReferents(referentsAtStart); return { fallback: true, rolledBack: 0 } }
       // #806 LOW-1: the request's own entries are taken back as ONE group (newest first, each through its own exact Undo
       // and checks; one receipt) — never entry by entry through the plain Undo, which already takes the whole request
       // and then said "nothing of mine to undo" for the rest
       const ok = fresh.length === 1 ? await doUndoOne(fresh[0], { member: null, voice }) : await undoIds(fresh, { member: null, voice, what: 'from the steps I had started' })
       const left = fresh.filter(id => undoRef.current.some(e => e.id === id))
-      if (ok && !left.length && lastUndoRef.current !== 'unsaved') return { fallback: true, rolledBack: fresh.length }
+      if (ok && !left.length && lastUndoRef.current !== 'unsaved') { memoryRef.current.restoreReferents(referentsAtStart); return { fallback: true, rolledBack: fresh.length } }
       // the take-back did not fully go through: the board is NOT as the member left it, so the planner is never asked
       // to plan over it — said plainly, and nothing else runs
       const text = left.length
@@ -2444,6 +2634,11 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       if (r.note) push({ role: 'outcome', text: r.note })
       if (r.say || !r.ops?.length) { stop(i, String(r.say || 'there was nothing to do there').replace(/[.]+$/, '')); return }
       if (r.ops.length > MAX_STEP_OPS) { stop(i, `that step would make ${r.ops.length} changes, and UCT makes at most ${MAX_STEP_OPS} in one step`); return }
+      if (whole && gate) {
+        for (const c of chartsWrittenOn(host, r.ops)) wroteCharts.add(c)
+        const why = await gate(r.ops, wroteCharts)
+        if (why) { mark('nlm1:target-gate', `step${i}:${why}`); return await fallBack() }
+      }
       if (r.pick) memoryRef.current.notePick(r.pick)
       lastActionsRef.current = r.ops.map(o => o.action)
       const kinds = []
@@ -2578,8 +2773,15 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       // (readers, planner, policy, runtime, receipts, grouped Undo) is unchanged. The transcript keeps the member's words.
       if (routingV2Active()) {
         if (!answering && !continuing && !pendingRef.current) {
+          // ⛔ G1/G2 (AUDIT 11-23): the member's TYPED words — what every NLM-1 instant write is gated on (instantGateRef), never
+          // NLM-1's own rewrite of them. A reading the gate would ask about is DECLINED: the message goes on exactly as v1 sends it
+          const typedWords = text
           // D2/D3.1: "make the first one weekly" right after a request that CREATED several charts — counted among them
-          const ord = rescopeOrdinal(text, { host, order: createdRef.current?.refs || [] })
+          let ord = rescopeOrdinal(text, { host, order: createdRef.current?.refs || [] })
+          if (ord?.ops) {
+            const why = await instantGateRef.current(ord.ops, typedWords)
+            if (why) { mark('nlm1:target-gate', `ordinal:${why}`); ord = null }
+          }
           if (ord?.ops) {
             mark('nlm1:ordinal', ord.rule)
             referentsRef.current.noteState(memoryRef.current.currentTurn(), snapshotOf(host))
@@ -2601,6 +2803,25 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
           // NLM-1 never stops a request v1 would have handed to the planner.
           const unreadStep = rw?.steps?.length > 1 ? rw.steps.findIndex(x => preUnread({ kind: 'fast', text: x }, readStepRef.current)) : -1
           if (unreadStep >= 0) { mark('nlm1:rewrite-declined', `${rw.rule}:${unreadStep}`); rw = null }
+          // ⛔ G1/G2: …and only when the gate takes it — every part of it read now (the same reader the run uses), their ops gated on
+          // the TYPED words together; a reading of steps also never lands on a chart those words (or their click) do not name
+          const subjectAt = chartSubjectOf(memoryRef.current, host)
+          if (rw) {
+            const parts = rw.steps?.length > 1 ? rw.steps : [rw.text]
+            // (AUDIT sweep 11-24) a LATER part is judged now only when it reads the same now as when it runs: it names its own chart
+            // or a set, or a click decides it (the click outranks memory either way). One that leans on what the parts before it do
+            // ("…and make it weekly", "…and switch to bars": the chart step 1 just changed) is judged when it runs (runCompound gate)
+            const sel0 = selectedChart(host)
+            const live0 = host?.charts?.list?.() || []
+            const readsNow = (x, i) => i === 0 || !!sel0 || wordsNameASet(x) || chartsNamedBy(changeWordsOf(x), live0, sel0).size > 0
+            const read = parts.map((x) => { try { return readStepRef.current({ kind: 'fast', text: x }, null)?.ops || [] } catch { return [] } })
+            const ops = read.flatMap((o, i) => (readsNow(parts[i], i) ? o : []))
+            // (the target-ticker check reads EVERY part: a ticker the words name may be what a later part creates or sets)
+            const why = await instantGateRef.current(ops, typedWords, { landed: parts.length > 1 ? chartsWrittenOn(host, ops) : null, subjectAt, tickerOps: read.flat() })
+            // (AUDIT R1) a reading the gate declines is declined WHOLE: no other NLM-1 reading of the same words runs instead (a
+            // follow-up over a part of them would drop the rest silently) — the message goes on as v1 sends it
+            if (why) { mark('nlm1:rewrite-declined', `${rw.rule}:gate:${why}`); rw = null; nlm1FellBack = true }
+          }
           if (rw) { mark('nlm1:rewrite', rw.rule); text = rw.text }
           // D2.2: a request whose parts must each run on their own ("<request>, then do the same for QQQ": each part's "it" is
           // the chart THAT part creates) — the ordinary multi-step run (runCompound): each part read, executed, receipted,
@@ -2608,7 +2829,8 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
           if (rw?.steps?.length > 1) {
             referentsRef.current.noteState(memoryRef.current.currentTurn(), snapshotOf(host))
             referentsRef.current.note(memoryRef.current.currentTurn(), rw.steps[rw.steps.length - 1])
-            const ran = await runCompoundRef.current?.(rw.steps.map(x => ({ kind: 'fast', text: x })), { member: text, voice, whole: true })
+            const ran = await runCompoundRef.current?.(rw.steps.map(x => ({ kind: 'fast', text: x })), { member: text, voice, whole: true,
+              gate: (ops, landed) => instantGateRef.current(ops, typedWords, { landed, subjectAt, ticker: false }) })
             if (!ran?.fallback) return ran
             // a step did not go through after all (anything run was taken back): the member's ORIGINAL message, as v1 sends
             // it — never through the NLM-1 mechanisms again (#806 LOW-2); the taken-back request is no referent
@@ -2631,7 +2853,10 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
               record({ member: text, outcome: fo.say, outcomeData: { kind: 'clarify-referent' }, telemetry: { path: 'fast', disposition: 'clarify', voice } })
               return
             }
-            if (fo?.ops) {
+            // ⛔ G1/G2: gated on the TYPED words; declined → the message as typed goes on, as v1 sends it
+            const foWhy = fo?.ops ? await instantGateRef.current(fo.ops, typedWords) : null
+            if (foWhy) { mark('nlm1:target-gate', `followup-ops:${foWhy}`); text = typedWords }
+            else if (fo?.ops) {
               mark('nlm1:followup-ops', fo.rule)
               referentsRef.current.noteState(memoryRef.current.currentTurn(), snapshotOf(host))
               referentsRef.current.note(memoryRef.current.currentTurn(), text)
@@ -3227,8 +3452,14 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       // 2-call ceiling bounds it (and a plan the server already repaired is never repaired again). The new
       // plan then passes every check below exactly like a first answer, and never asks for less approval.
       // A REROUTED request has spent its second call: no repair (a refused plan is refused by the planner).
+      // ⛔ AUDIT 11-23 (the silent drop): the plan is checked in the parts the runtime runs it as (preflightParts) — a
+      // sequential indicator edit beside a chart change is QUEUED as the next step, never refused — and a repair answer that
+      // leaves out an op the first plan asked for never hides it: what it dropped is said as NOT DONE after whatever ran.
+      let repairLines = []
       if (nl1 && nl1Body && !rerouted && ['apply', 'propose'].includes(env.disposition) && res.data.usage?.repaired == null) {
-        const refused = preflightRefusals(host, translateRefs(env.ops || [], refMap))
+        const firstOps = translateRefs(env.ops || [], refMap)
+        const findings = preflightFindings(host, firstOps, { parts: preflightParts })
+        const refused = [...new Set(findings.map(f => f.reason))].slice(0, 5)
         if (refused.length) {
           mark('repair')
           const first = env.disposition
@@ -3237,9 +3468,16 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
           if (r2.ok) {
             res = r2
             env = { ...r2.data.envelope, disposition: repairedDisposition(first, r2.data.envelope.disposition) }
+            // a QUESTION back is not a drop (nothing runs; the answer continues the request); an answer in words drops all
+            if (env.disposition !== 'clarify') {
+              const dropped = repairDropped(firstOps, ['apply', 'propose'].includes(env.disposition) ? env.ops : [])
+              repairLines = repairDroppedLines(dropped, refused, findings, firstOps)
+              if (dropped.length) mark('repair:dropped', dropped.map(o => o?.action).join(','))
+            }
           }
         }
       }
+      if (nl1) notDoneRef.current = repairLines
       // ⛔ NO SUBSTITUTION WITHOUT APPROVAL (owner 2026-10-20): the member's words pointed at a group of actions
       // this request could not carry (they did not fit beside the core). A plan made without them may be a
       // stand-in for what was asked — so it is only PROPOSED, never run at once. Words only ADD this caution.
@@ -3338,7 +3576,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       }
       // ⭐ W2 audit (live 2026-11-04: "…to weekly and email me a screenshot of it" said only the weekly receipt): the parts
       // of THIS request no planned action covers are said after whatever runs — fixed sentences (notDone.js), never prose
-      notDoneRef.current = (env.ops || []).length ? notDoneLines(`${askedFor || ''} ${text}`, { actions: env.ops.map(o => o?.action) }) : []
+      notDoneRef.current = [...repairLines, ...((env.ops || []).length ? notDoneLines(`${askedFor || ''} ${text}`, { actions: env.ops.map(o => o?.action) }) : [])]
       // ⛔ hotfix 2026-11-03 (live: "Put SPY, QQQ, NVDA, and TSLA on four charts…" planned as four TABS of the one chart,
       // overwriting its ticker): a plan that adds chart tabs when the member never said "tab" is a stand-in for what was
       // asked — nothing runs, said plainly (the member can ask for tabs, or for the charts again)
@@ -3401,6 +3639,16 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         return
       }
       for (const n of screened.notes) push({ role: 'agent', text: n })
+      // ⛔ SIDE BY SIDE PRESERVES (owner ruling 11-23): before the chart-target checks read "next to / beside" as a chart's address —
+      // a side-by-side plan that would replace a chart becomes the add beside it, or is asked with choices (multiChart.sideBySideScreen)
+      const side0 = stepPlan ? null : sideBySideScreen(screened.ops, `${askedFor || ''} ${text}`, host)
+      if (side0?.ops) screened.ops = side0.ops
+      if (side0?.ask) {
+        pendingRef.current = { kind: 'target', ops: [], path: 'model', member: text, voice, epoch: epochOf(host), gridChoice: side0.ask.options }
+        push({ role: 'question', text: side0.ask.text, choices: [...side0.ask.choices, { label: 'Cancel', cancel: true }], local: true })
+        record({ member: null, outcome: side0.ask.text, outcomeData: { kind: 'clarify-multichart' }, telemetry: { path: 'model', disposition: 'clarify', voice } })
+        return
+      }
       // "the nvidia chart": the ticker search says which chart a company's name means, before the gates read the sentence
       {
         const nameWord = chartNameWord(text, host?.charts?.list?.() || [])
@@ -3412,22 +3660,10 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       // ⭐ W2 (context across turns): "add the RSI to that one" / "make it weekly" right after a chart was made or changed —
       // the conversation's SUBJECT chart (memory, the same referent the instant path uses) identifies the chart, so a plan
       // whose every op is on exactly that chart is not asked about again. A clicked chart still outranks memory (S6).
-      const sw0 = asSubjectWords(text, createdRef.current?.refs || null, gridChanged(host))
-      const onSubject = (() => {
-        try {
-          if (host?.charts?.selected?.() && !sw0.changed) return false
-          if (sw0.changed && !sw0.subject) return false
-          const sw = sw0
-          if (sw.text === text && !/\bit\b/i.test(text)) return false
-          const s = sw.subject ? { ref: sw.subject } : memoryRef.current.subject('chart', epochOf(host))
-          if (!s?.ref || !screened.ops.length) return false
-          return screened.ops.every(o => {
-            const k = getTargetKind(getCapability(o?.action)?.target)
-            const snap = k?.list(host)?.find(x => x.ref === o.target)
-            return !!snap && chartRefOf(k, snap) === s.ref
-          })
-        } catch { return false }
-      })()
+      // (G1/G2: the rails are defined once — targetRailsRef — and every NLM-1 instant write runs the same ones)
+      const rails = targetRailsRef.current(text, { pickedRefs: answeredRefs, context: askedFor })
+      const sw0 = rails.sw0
+      const onSubject = rails.onSubject(screened.ops)
       if (onSubject) mark('subject', 'memory')
       // (AUDIT 11-23) an exclusion that covers EVERY chart ("set all to weekly but leave the daily ones alone", every chart daily):
       // the plan changes nothing and the member is told so in one plain sentence — never a question whose every choice is a
@@ -3443,7 +3679,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       // ⭐ Multi Chart: a plan aimed anywhere but "the one I just changed" is asked about, even when it aims at the clicked chart
       const deictic = onSubject ? null : sw0.changed
         ? { ask: { text: 'Which chart do you mean?', choices: (host?.charts?.list?.() || []).map(c => ({ ref: c.ref, label: c.label })) } }
-        : screenDeicticOps({ host, ops: screened.ops, text, getTargetKind, getCapability, parse: fastParse, subject: chartSubjectOf(memoryRef.current, host) })
+        : rails.deictic(screened.ops)
       // ⛔ AUDIT probe 18 (G3) / GO bar (3): a chart the words EXCLUDE ("everything in this row except SPY"), or a relation's ANCHOR
       // that is not a target, is never offered by any question — the constraint check's own exclusions (spatialCheck)
       const dropExcluded = (ask) => {
@@ -3496,7 +3732,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       // (indicatorAuthoring.explicitIndicatorCreate: decided from their words, never by the model) is applied; its Save
       // still stops at a ready draft when an R1 condition fails after the build (an acknowledgement, a name they already use)
       if (!nl1 && disposition === 'propose' && explicitIndicatorCreate(screened.ops)) { mark('deescalate', 'explicit-create'); disposition = 'apply' }
-      const unnamed = onSubject ? null : screenUnnamedTargets({ host, ops: screened.ops, text, context: askedFor, pickedRefs: answeredRefs, getTargetKind, getCapability, subject: chartSubjectOf(memoryRef.current, host) })
+      const unnamed = onSubject ? null : rails.unnamed(screened.ops)
       if (unnamed?.ask) unnamed.ask = dropExcluded(unnamed.ask)
       if (unnamed?.ask && askEveryExcept(disposition)) return
       if (unnamed?.ask) {
@@ -3522,7 +3758,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       // ⛔ #988 (AUDIT probe 17): the LAST safety net behind the resolvers — every spatial constraint the words state (a line, a
       // place, a relation from a named anchor or the click, a count), checked on the plan's own targets. A violation is asked
       // (only the cells that satisfy them are offered, never an anchor) and nothing runs. spatialCheck.js
-      const spatial = onSubject ? null : checkSpatialConstraints({ host, ops: screened.ops, text, pickedRefs: answeredRefs, getTargetKind, getCapability, subject: chartSubjectOf(memoryRef.current, host) })
+      const spatial = onSubject ? null : rails.spatial(screened.ops)
       if (spatial?.ask && askEveryExcept(disposition)) return
       if (spatial?.ask) {
         const kinds = kindsOf(screened.ops)
@@ -3539,20 +3775,8 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       // that writes a chart showing another symbol is asked, and nothing runs (a ticker that is a VALUE of the plan is no target).
       // A word NOT in capitals counts as a ticker only when the client knows it as one: a board symbol, or the ticker search's own
       // verdict (groundSymbols, cached; bounded like nameSearch — no answer in time is "not known here").
-      let tgtTicker = null
-      try {
-        const known = new Map()
-        const live = host?.charts?.list?.() || []
-        const writesChart = (screened.ops || []).some(o => { const cap = getCapability(o?.action); return !!cap && !cap.query && !!getTargetKind(cap.target) })
-        const lower = writesChart ? lowerTickerCandidates(text, live, (w) => plainSymbolWord(w, host)) : []
-        if (lower.length) {
-          await nameSearchAll(lower)
-          for (const w of lower) { const v = groundingOf(w); if (v && (v.kind === 'ticker' || v.kind === 'name') && v.ticker) known.set(w, v.ticker) }
-        }
-        tgtTicker = targetTickerConflict({ host, ops: screened.ops, text, pickedRefs: answeredRefs, getTargetKind, getCapability, known, ordinary: lexiconFor(host).words })
-      } catch {
-        tgtTicker = { failed: true, ask: { text: TARGET_CHECK_FAILED } }        // ⛔ fail closed: an unread check never writes
-      }
+      // (targetRailsRef: the grounding of lowercase words first; ⛔ fail closed — an unread check never writes)
+      const tgtTicker = await rails.ticker(screened.ops)
       if (tgtTicker?.ask) {
         push({ role: 'agent', text: tgtTicker.ask.text })
         record({ member: null, outcome: tgtTicker.ask.text, outcomeData: { kind: 'clarify-target-ticker', actions: screened.ops.map(o => o?.action) }, telemetry: { path: 'model', disposition: 'clarify', voice } })
@@ -3573,7 +3797,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       const gridAsk0 = gridChoiceFor(gridded.ops, `${askedFor || ''} ${text}`, host)
       // a grid that could not run either way (an unknown ticker, no room) is never asked about — its refusal is said as before
       const gridAsk = gridAsk0 && await (async () => {
-        try { const a = gridAsk0.options.add; return planOps(collectTargets(host, kindsOf(a)), a, await prepareOps(a), capCtx).ok } catch { return false }
+        try { const a = gridAsk0.options.add || gridAsk0.options.replace; return planOps(collectTargets(host, kindsOf(a)), a, await prepareOps(a), capCtx).ok } catch { return false }
       })() ? gridAsk0 : null
       if (gridAsk) {
         // review t4 M5: "…charts, each with a 50 SMA" — the per-chart steps ride with BOTH choices (they run on the charts the

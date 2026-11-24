@@ -19,7 +19,9 @@ pytest-timeout==2.4.0
 requests==2.32.5
 yfinance==1.2.0
 pandas==3.0.1
-anthropic>=0.49.0,<1  # 1.0.0 dropped temperature= from messages.create (2026-08-20); 10 call sites in api/ pass it
+anthropic==0.125.0  # PINNED 2026-11-24 (owner): the version `>=0.49.0,<1` already resolved to on CI and in production.
+#   A floating SDK turned tests/test_hub_sandbox_model_keys.py red overnight (0.125.0 added credential sources, #2668).
+#   Raise it on purpose, with that rail run. Still <1: 1.0.0 dropped temperature= from messages.create (2026-08-20).
 openai>=1.30,<2
 boto3==1.42.54
 pydantic==2.12.5
@@ -60,7 +62,9 @@ markdown-it-py>=4.0.0,<5  # server-side markdown->TipTap converter (api/services
 mdit-py-plugins>=0.6.0,<1  # GFM tables + tasklists plugin, used alongside markdown-it-py above
 numpy>=1.26.0
 scipy>=1.13.0
-Pillow>=11.3.0  # AVIF decode ships in the wheels from 11.3 (bundled libavif)
+Pillow==13.0.0  # PINNED 2026-11-24 (owner): the version `>=11.3.0` already resolved to on CI and in production.
+#   Image hashes pinned by tests moved with it (obsidian_messy corpus #2665, calendar week post #2674). AVIF decode
+#   ships in the wheels from 11.3 (bundled libavif). Raise it on purpose, with those rails run.
 pi-heif>=0.18,<2  # HEIC/HEIF decode for imported photos (api/services/journal_two/media_policy.py); decode-only build of pillow-heif, no x265 encoder
 linkify-it-py>=2.0,<3  # bare-URL linkify for server imports (note_connectors/convert/linkify.py), the Python port of the client's linkify-it
 # PDF text extraction. Was ALREADY a real runtime dependency of

@@ -1,0 +1,132 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "engine 95 (train e95), unit 1, computed number formats: a `str.tostring` format that is a pure function of literals and inputs is folded to its text on both lanes (`pine.js::Resolver.formatTextOf`, `pineRuntimeFrontend.js::fixedFormatOf`, one `formatTextCall`), and a text still withheld for its format is said to the member (`objectRuntime.js`, `FORMAT_WITHHELD_KEY`). Every rule, broken once, must turn its rail red.",
+ "mutants": [
+  {
+   "id": "FF1",
+   "mutant": "the host lane never uses the fold (the defect: an alias of a literal leaves the cell empty)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "if (folded && (typeof folded.text === 'string' || typeof folded.named === 'string')) {",
+   "to": "if (false && folded && (typeof folded.text === 'string' || typeof folded.named === 'string')) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/formatFold.test.js",
+   "expectRed": "an alias of a literal"
+  },
+  {
+   "id": "FF2",
+   "mutant": "the runtime lane never uses the fold (it keeps refusing runtime:call-text-state)",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "const folded = fixedFormatOf(f, scope)",
+   "to": "const folded = null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/formatFold.test.js",
+   "expectRed": "an alias of a literal"
+  },
+  {
+   "id": "FF3",
+   "mutant": "the host fold takes a ternary's first arm without asking whether its test is fixed (a per-bar format folded)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "try { taken = this.constantBranchOf(node) } catch (err) { if (isStackOverflow(err)) throw err; return null }",
+   "to": "taken = node.yes",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/formatFold.test.js",
+   "expectRed": "a per-bar format"
+  },
+  {
+   "id": "FF4",
+   "mutant": "the runtime fold takes a ternary's first arm without asking whether its test is fixed",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "const v = fixedTestOf(node.test, scope)",
+   "to": "const v = true",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/formatFold.test.js",
+   "expectRed": "keeps its refusal for a per-bar format"
+  },
+  {
+   "id": "FF5",
+   "mutant": "a substring past the end of its text is clamped instead of left unfolded (a guess)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "begin > end || end > source.length) return null",
+   "to": "begin > end) return null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/formatFold.test.js",
+   "expectRed": "past the end"
+  },
+  {
+   "id": "FF6",
+   "mutant": "the run withholds the text but says nothing to the member (the silent defect's other half)",
+   "file": "app/src/components/chart/engine/objectRuntime.js",
+   "from": "...(fmtWhy ? { [FORMAT_WITHHELD_KEY]: fmtWhy } : {}),",
+   "to": "",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/formatFold.test.js",
+   "expectRed": "names why"
+  },
+  {
+   "id": "FF7",
+   "mutant": "a clean rewrite does not clear the mark (a drawn text is named as withheld)",
+   "file": "app/src/components/chart/engine/objectRuntime.js",
+   "from": "    else fmtMarks.delete(key)",
+   "to": "    else { /* the mark is kept */ }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/formatFold.test.js",
+   "expectRed": "ANOTHER reason"
+  },
+  {
+   "id": "FF8",
+   "mutant": "a text input declared as a live knob is folded to its default (a knob the format would not follow)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "if (viaName && d && (d === 'all' || (typeof d.has === 'function' && d.has(viaName)))) return null",
+   "to": "if (false) return null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/formatFold.test.js",
+   "expectRed": "live knob is not folded"
+  },
+  {
+   "id": "FF9",
+   "mutant": "a number the formatter withholds under a written-out pattern is withheld silently (no mark, no sentence)",
+   "file": "app/src/components/chart/engine/objectRuntime.js",
+   "from": "const why = formatNumberWhy(n, fmt) || 'format:withheld'\n    textsWithheldWhy[why] = (textsWithheldWhy[why] || 0) + 1\n    fmtWhyNow = `number:${why}`",
+   "to": "const why = formatNumberWhy(n, fmt) || 'format:withheld'\n    textsWithheldWhy[why] = (textsWithheldWhy[why] || 0) + 1",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/formatFold.test.js",
+   "expectRed": "never silent"
+  },
+  {
+   "id": "FF10",
+   "mutant": "the host lane never uses the fold again: table-format-01's engine-fixed specimen (its computed format) must grade WRONG once more, and the value-case invariant go red (coordinator ruling 2026-11-22)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "if (folded && (typeof folded.text === 'string' || typeof folded.named === 'string')) {",
+   "to": "if (false && folded && (typeof folded.text === 'string' || typeof folded.named === 'string')) {",
+   "rail": "python -m pytest -q -p no:warnings tests/test_value_cases_found.py -k script_cases_through_the_engine",
+   "expectRed": "a specimen the engine fixed is wrong again"
+  },
+  {
+   "id": "FF11",
+   "mutant": "the specimen claims an engine above the one the lane runs and is not the pending train's number (studio condition 1)",
+   "file": "tests/fixtures/authoring/value_cases.json",
+   "from": "\"since_engine\": 95",
+   "to": "\"since_engine\": 96",
+   "rail": "python -m pytest -q -p no:warnings tests/test_value_cases_found.py -k never_claimed_AHEAD",
+   "expectRed": "claimed ahead of the engine"
+  },
+  {
+   "id": "FF12",
+   "mutant": "the specimen's fixed_by no longer names #2433, the assistant-side fix engine_fixed sits beside (studio condition 2)",
+   "file": "tests/fixtures/authoring/value_cases.json",
+   "from": "\"pr\": \"#2433\"",
+   "to": "\"pr\": \"#2483\"",
+   "rail": "python -m pytest -q -p no:warnings tests/test_value_cases_found.py -k keeps_its_defect_and_its_fixed_by",
+   "expectRed": "assert"
+  },
+  {
+   "id": "FF13",
+   "mutant": "--adopt writes engine_fixed itself on a fixed defect (studio condition 1: hand-marked only)",
+   "file": "tools/value_eval.py",
+   "from": "\"fixed_by\": {\"pr\": fix[\"pr\"], \"merge\": fix[\"merge\"]}})",
+   "to": "\"fixed_by\": {\"pr\": fix[\"pr\"], \"merge\": fix[\"merge\"]}, \"engine_fixed\": {\"by\": fix[\"pr\"], \"since_engine\": 1}})",
+   "rail": "python -m pytest -q -p no:warnings tests/test_value_cases_found.py -k HAND_MARKED_only",
+   "expectRed": "assert"
+  },
+  {
+   "id": "FF14",
+   "mutant": "--adopt strips a hand-marked engine_fixed when it adopts the case again (studio condition 1: it leaves a marked one as it was)",
+   "file": "tools/value_eval.py",
+   "from": "case.setdefault(\"found\", []).append(",
+   "to": "[k.pop(\"engine_fixed\", None) for k in case.get(\"found\", [])]; case.setdefault(\"found\", []).append(",
+   "rail": "python -m pytest -q -p no:warnings tests/test_value_cases_found.py -k HAND_MARKED_only",
+   "expectRed": "assert"
+  }
+ ]
+}

@@ -28,6 +28,24 @@
  *  "what are QQQ's bars", and the two would drift. */
 const BARS_PATH = '/api/bars/'
 
+// ─── ⭐⭐ (e95, 2026-11-22) A CUSTOM TIMEFRAME IS BUILT HERE, THE WAY THE CHART BUILDS ITS OWN ─────────────────────────────
+// ⚰️ Measured on production 2026-11-22 (the every-timeframe Fred RS run): on a 4h chart the Fred RS legend was ABSENT.
+// `/api/bars/SPX?tf=240` answers `bars: []` with no note: the route serves the NATIVE timeframes only, and the chart
+// builds every other one (2 / 3 / 10 / 45 / 65 / 195 minutes, 2h, 4h, 2D, 3D, 5D, 2W, 3M, 6M, 12M) in the browser:
+// `useLegacyChartBars` fetches `fetchTf(tf)` and resamples with `resampleForSpec(resampleSpec(tf))`. This lane asked the
+// route for the custom code itself, so every `request.security` of another symbol on a custom timeframe read nothing.
+// So a custom timeframe's entry is FETCHED at its native base (`fetchTf`, at the depth x the ratio, `baseAskOf`) and
+// RESAMPLED by the SAME `resampleForSpec` the chart's own bars go through: one rule, so the other symbol's rows land on
+// the chart's grid and project by exact time. The CACHE KEY stays the custom code's URL (`secondaryBarsUrl`): a 4h
+// entry and a 60m entry of one symbol are different answers. Native timeframes are untouched (fetch URL = key).
+// ⛔ THE OTHER SYMBOL'S OWN SESSION (coordinator ruling 2026-11-22): TradingView builds the other symbol's bars on ITS
+// session, then projects by time. The chart's rule anchors the US equity session (09:30 ET, weekdays). A base row
+// off that session (a weekend, outside 04:00-20:00 ET, or an intraday row off the base grid anchored at 09:30: crypto,
+// futures, a clock-hour series) is REFUSED by name (`UNSUPPORTED` + note), never resampled on a grid it does not have,
+// until a capture witnesses how TradingView builds it.
+import { baseBarsFor, fetchTf, resampleSpec } from '../timeframes'
+import { resampleForSpec } from '../../../utils/resampleBars'
+
 /**
  * The request URL for one (symbol, timeframe, count).
  *
@@ -57,6 +75,94 @@ export function secondaryBarsUrl(symbol, tf, bars) {
 /** The `bars=` a window asks for (what `secondaryBarsUrl` puts in its URL). */
 function askedBarsOf(bars) {
   return Number.isFinite(bars) && bars > 0 ? Math.floor(bars) : 200
+}
+
+/** ⛔ The deepest window `/api/bars` answers (`otherSymbols.js::BARS_ASK_MAX`, repeated here as a literal only because
+ *  this client module may not import the run's closure; `secondaryBars.customTf.test.js` holds the two equal). */
+const BASE_ASK_MAX = 60000
+
+/** The native base rows a custom timeframe's window of `bars` rows asks for: an upper bound of base rows per output
+ *  row (a 4h bucket holds at most four 60m rows; an N-day window at most N daily rows), capped at the route's limit. */
+export function baseAskOf(tf, bars) {
+  return baseBarsFor(tf == null || tf === '' ? 'D' : String(tf), askedBarsOf(bars), BASE_ASK_MAX)
+}
+
+/**
+ * ⭐ (e95) WHERE a window is fetched: the key itself for a native timeframe; for a custom one, its native base at
+ * `baseAskOf` rows. One function, so the fetch and the tail fetch can never disagree about the base.
+ * @returns {{url: string, fetchUrl: string, spec: object|null, baseAsk: number}|null}
+ */
+export function secondaryFetchOf(symbol, tf, bars) {
+  const url = secondaryBarsUrl(symbol, tf, bars)
+  if (!url) return null
+  const code = tf == null || tf === '' ? 'D' : String(tf)
+  const spec = resampleSpec(code)
+  if (!spec) return { url, fetchUrl: url, spec: null, baseAsk: askedBarsOf(bars) }
+  const baseAsk = baseAskOf(code, bars)
+  return { url, fetchUrl: secondaryBarsUrl(symbol, fetchTf(code), baseAsk), spec, baseAsk }
+}
+
+const _ET_PARTS = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'America/New_York', weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false,
+})
+/** ET weekday + minutes after midnight of unix seconds. */
+function _etWhen(t) {
+  const parts = _ET_PARTS.formatToParts(new Date(t * 1000))
+  const get = (type) => (parts.find((p) => p.type === type) || {}).value
+  const h = Number(get('hour')) % 24
+  return { wd: get('weekday'), min: h * 60 + Number(get('minute')) }
+}
+const _WEEKEND = new Set(['Sat', 'Sun'])
+
+/** The first base row OFF the US equity session the chart's resample anchors (above), as words, or null. */
+export function offSessionRowOf(baseBars, spec) {
+  if (!spec || !Array.isArray(baseBars)) return null
+  if (spec.kind === 'intradaySession') {
+    const step = Number(spec.base)
+    for (const b of baseBars) {
+      if (!b || typeof b.t !== 'number') continue
+      const { wd, min } = _etWhen(b.t)
+      if (_WEEKEND.has(wd) || min < 240 || min >= 1200 || (((min - 570) % step) + step) % step !== 0) {
+        return `a ${step}-minute bar at ${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')} ET on a ${wd}`
+      }
+    }
+    return null
+  }
+  for (const b of baseBars) {
+    const day = b && typeof b.t === 'string' ? b.t.slice(0, 10) : null
+    if (!day) continue
+    const wd = new Date(`${day}T00:00:00Z`).getUTCDay()
+    if (wd === 0 || wd === 6) return `a daily bar on ${day}, a ${wd === 0 ? 'Sunday' : 'Saturday'}`
+  }
+  return null
+}
+
+/**
+ * ⭐ (e95) A custom timeframe's entry from its BASE payload: the base rows resampled by the chart's own rule.
+ * - A base page that FILLED its ask (as many rows as asked, below the route's limit) may begin inside a bucket: its
+ *   first output row is dropped (never a partial period shown as whole), and the entry names `askedBars` = its own
+ *   row count, so the run knows a deeper page can reach older rows (`otherSymbols.js::filledPageOf`).
+ * - A page that did not fill (the store's whole depth), or one at the route's limit, names no ask: nothing deeper is
+ *   coming, and the run's depth rule keeps its `knownFrom`.
+ * - A base row off the US equity session refuses the window by name (`offSessionRowOf`).
+ */
+function _readCustom(payload, symbol, tf, wire, trimFirst = true) {
+  const base = payload && Array.isArray(payload.bars) ? payload.bars : []
+  const off = offSessionRowOf(base, wire.spec)
+  if (off) {
+    return {
+      bars: [],
+      status: SOURCE_STATUS.UNSUPPORTED,
+      note: `${String(symbol).toUpperCase()}'s ${tf} bars are not built here: its own session is not the US equity `
+        + `session the chart's ${tf} bars are built on (${off}), and how TradingView builds them is not yet witnessed`,
+    }
+  }
+  const filled = base.length >= wire.baseAsk && wire.baseAsk < BASE_ASK_MAX
+  let rows = resampleForSpec(base, wire.spec)
+  if (filled && trimFirst && rows.length) rows = rows.slice(1)
+  const entry = _read({ ...(payload || {}), bars: rows })
+  if (filled && entry.status === SOURCE_STATUS.AVAILABLE) entry.askedBars = rows.length
+  return entry
 }
 
 // ─── ⭐⭐ (e90, the e88 live capture, 2026-11-20) — WHAT DEPTH AN ENTRY WAS ASKED AT ───────────────────────────────────
@@ -350,16 +456,17 @@ export function anyCachedBars(symbol) {
  * means "ask now", and a caller reaching for it directly has already decided to.
  */
 export function fetchSecondaryBars(symbol, tf, bars, fetcher) {
-  const url = secondaryBarsUrl(symbol, tf, bars)
-  if (!url) return Promise.resolve(null)
+  const wire = secondaryFetchOf(symbol, tf, bars)
+  if (!wire) return Promise.resolve(null)
+  const { url } = wire
   const existing = _inflight.get(url)
   if (existing) return existing
 
   const get = typeof fetcher === 'function' ? fetcher : _defaultFetch
   const p = Promise.resolve()
-    .then(() => get(url))
+    .then(() => get(wire.fetchUrl))
     .then((payload) => {
-      const entry = _read(payload, bars)
+      const entry = wire.spec ? _readCustom(payload, symbol, tf, wire) : _read(payload, bars)
       _cache.set(url, entry)
       // ⭐ A SUCCESS RESETS THE BACKOFF. Otherwise one bad afternoon leaves the
       // rest of the session waiting a minute for every later blip.
@@ -489,8 +596,11 @@ export function ensureAll(symbols, tf, bars, fetcher) {
  * for exactly these stakes.
  */
 export function primeSecondaryBars(symbol, tf, bars, payload) {
-  const url = secondaryBarsUrl(symbol, tf, bars)
-  if (!url) return null
+  const wire = secondaryFetchOf(symbol, tf, bars)
+  if (!wire) return null
+  const { url } = wire
+  // ⛔ (e95) a custom timeframe is never primed: the payload a caller holds is not known to be this window's base page
+  if (wire.spec) return _cache.get(url) || null
   const entry = _read(payload, bars)
   // ⛔ An empty prime does NOT overwrite a good entry: Compare's SWR hands back
   // `undefined` on its first render, and caching that would blank a series that
@@ -542,8 +652,12 @@ export function mergeTail(held, tail) {
  * @returns {boolean} whether a fetch was started
  */
 export function refreshSecondaryTail(symbol, tf, bars, fetcher) {
-  const url = secondaryBarsUrl(symbol, tf, bars)
-  const tailUrl = secondaryBarsUrl(symbol, tf, TAIL_BARS)
+  const wire = secondaryFetchOf(symbol, tf, bars)
+  const tailWire = secondaryFetchOf(symbol, tf, TAIL_BARS)
+  const url = wire && wire.url
+  // ⭐ (e95) a custom timeframe's tail is its base's newest rows, resampled: its first bucket may be partial and is
+  // dropped (`_readCustom`), so the merged tail starts on a whole bucket the held rows already hold
+  const tailUrl = tailWire && tailWire.fetchUrl
   if (!url || !tailUrl || url === tailUrl || _inflight.has(url) || _inflight.has(tailUrl)) return false
   const held = _cache.get(url)
   if (!held || held.status !== SOURCE_STATUS.AVAILABLE || !held.bars.length) return false
@@ -555,7 +669,7 @@ export function refreshSecondaryTail(symbol, tf, bars, fetcher) {
   const p = Promise.resolve()
     .then(() => get(tailUrl))
     .then((payload) => {
-      const tail = _read(payload)
+      const tail = tailWire.spec ? _readCustomTail(payload, symbol, tf, tailWire) : _read(payload)
       const cur = _cache.get(url) || held
       if (!tail.bars.length) return cur
       const merged = mergeTail(cur.bars, tail.bars)
@@ -587,6 +701,17 @@ export function refreshSecondaryTail(symbol, tf, bars, fetcher) {
   return true
 }
 
+/** ⭐ (e95) a custom timeframe's TAIL: its base's newest rows resampled, the first (maybe partial) bucket dropped, and
+ *  no ask named (a tail is merged into the held entry, which keeps its own). An off-session base refuses as above. */
+function _readCustomTail(payload, symbol, tf, wire) {
+  const entry = _readCustom(payload, symbol, tf, { ...wire, baseAsk: 0 }, false)
+  if (entry.status !== SOURCE_STATUS.AVAILABLE) return entry
+  const rows = entry.bars.slice(1)
+  const out = { ...entry, bars: rows }
+  delete out.askedBars
+  return rows.length ? out : { bars: [], status: SOURCE_STATUS.NO_DATA }
+}
+
 /** How many requests are in flight — a test seam for the dedup rail. */
 export function inflightCount() {
   return _inflight.size
@@ -614,7 +739,8 @@ const _lastRefresh = new Map()   // url -> ms
  * @returns {boolean} whether a fetch was started
  */
 export function refreshSecondaryBars(symbol, tf, bars, fetcher) {
-  const url = secondaryBarsUrl(symbol, tf, bars)
+  const wire = secondaryFetchOf(symbol, tf, bars)
+  const url = wire && wire.url
   if (!url || _inflight.has(url)) return false
   const now = Date.now()
   const last = _lastRefresh.get(url) || 0
@@ -623,9 +749,9 @@ export function refreshSecondaryBars(symbol, tf, bars, fetcher) {
   const keep = _cache.get(url)
   const get = typeof fetcher === 'function' ? fetcher : _defaultFetch
   const p = Promise.resolve()
-    .then(() => get(url))
+    .then(() => get(wire.fetchUrl))
     .then((payload) => {
-      const entry = _read(payload, bars)
+      const entry = wire.spec ? _readCustom(payload, symbol, tf, wire) : _read(payload, bars)
       // ⛔ AN EMPTY ANSWER DOES NOT REPLACE BARS WE HAVE — same rule as
       // `primeSecondaryBars`: a transient empty payload is not "no history".
       if (!entry.bars.length && keep && keep.bars && keep.bars.length) return keep

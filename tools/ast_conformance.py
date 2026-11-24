@@ -476,6 +476,23 @@ def assert_corpus_covers_the_table(manifest: dict, corpus: dict) -> set:
         "wiring defect, not a formula the table refuses -- so a case declaring "
         "one measures the wrong thing in the direction that looks like coverage."
     )
+    # ⭐⭐ e95 unit 2b -- A REFUSAL LEAF IS COVERED BY ITS REFUSAL, NOT BY A VALUE. The manifest names the entries that
+    # never compute a number (`_functions_refusal_leaves`: `refusedArm`, a knob arm the translator refused); each must
+    # REFUSE here, in the Python lane, with its declared guard (the JS half is `ast/knobArmsParity.test.js`), and only
+    # then does it leave the obligation. A listed name that computed fails by name.
+    leaves = ((manifest.get("_functions_refusal_leaves") or {}).get("names") or {})
+    if leaves:
+        from api.services import ast_interpret as _ai
+        bars = [{"t": f"2026-01-0{i + 1}", "o": 1.0, "h": 2.0, "l": 0.5, "c": 1.0, "v": 10.0} for i in range(3)]
+        for name, guard in sorted(leaves.items()):
+            assert name in (manifest.get("functions") or {}), f"refusal leaf {name!r} is not a table function"
+            try:
+                _ai.interpret({"type": "call", "name": name, "args": [{"type": "num", "value": 1}]}, bars, {})
+            except _ai.TableRefusal as exc:
+                assert exc.guard == guard, f"refusal leaf {name!r} refused as {exc.guard!r}, not {guard!r}"
+            else:
+                raise AssertionError(f"refusal leaf {name!r} COMPUTED a value: it is no refusal leaf")
+        used = used | set(leaves)
     missing = sorted(declared - used)
     assert not missing, (
         f"{len(missing)} table entries have NO corpus coverage: {missing}. The "

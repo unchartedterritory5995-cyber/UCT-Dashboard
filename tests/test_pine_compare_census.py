@@ -23,7 +23,8 @@ DECLARED = {
     "api/services/screener/scan_evaluator.py": ("pine", 2),
     "api/routers/screener_backtest.py": ("pine", 1),
     "api/services/screener/backtest.py": ("inherits", 1),
-    "api/services/ast_interpret.py": ("inherits", 4),
+    # e95 unit 2: +1, ``builtin_witness_mask`` reads an anchored VWAP's anchor as the chart can know it
+    "api/services/ast_interpret.py": ("inherits", 5),
     "api/services/definition_concierge.py": ("native", 1),
     # SETH (#2491): the fixed LIBRARY's hand-built screen trees (the persisted native shape), never a Pine document
     "api/services/setup_history_calc.py": ("native", 1),

@@ -58,8 +58,10 @@ from api.services.research import options_screener as osc
 
 #: The most rows one answer carries (the panel draws fewer at first). The rest are counted.
 MAX_ROWS = 50
-#: How long a request waits for the one background build before it answers `computing`.
-WAIT_S = 2.0
+#: How long a request waits for the one background build before it answers `computing`. NONE (speed pass
+#: 2026-11-23): live, a request waited the full 2 seconds and then said `computing` anyway (mirroring a screen
+#: file takes far longer); the panel asks again every 5 seconds.
+WAIT_S = 0.0
 #: How long the held pair is served before the listing is looked at again (in the background).
 RECHECK_S = 600.0
 #: After a failed build, how long requests are told so before another build is tried.

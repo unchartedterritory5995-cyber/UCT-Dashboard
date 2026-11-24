@@ -32,6 +32,7 @@
 
 import * as shippedRegistry from './nativeRegistry'
 import { evaluability, STATUS } from './evaluability'
+import { boundAtInputs } from './knobBind.js'
 import { outputTypeOf, OUTPUT_TYPES } from './outputType'
 import { chipValueText } from './readout'
 import { instanceLabel, parseSource, barFieldSeries } from './sourceRef'
@@ -71,7 +72,11 @@ function treeReadsOtherBars(def) {
 }
 
 /** Why `def` can never be a header stat (a sentence), or null when some of its outputs may be. */
-export function customStatDefRefusal(def, registry = shippedRegistry) {
+export function customStatDefRefusal(savedDef, registry = shippedRegistry, inputs = null) {
+  // ⭐⭐ (train e95, the 2b bind audit) what the header would compute: the document bound at the stat's settings (the
+  // declared defaults without any, `knobBind.js::boundAtInputs`), so a knob arm the setting does not pick never
+  // refuses the stat, and one it picks still does
+  const def = isObj(savedDef) ? boundAtInputs(savedDef, inputs || {}) : savedDef
   if (!def || !isObj(def)) return 'This indicator is not available.'
   const kind = (def.compute && def.compute.kind) || 'native'
   if (kind === 'server') return 'This indicator is computed on the server, so it cannot be a header stat.'
@@ -94,9 +99,11 @@ export function customStatDefRefusal(def, registry = shippedRegistry) {
 }
 
 /** Why output `key` of `def` cannot be a header stat, or null when it can. */
-export function customStatOutputRefusal(def, key, registry = shippedRegistry) {
-  const why = customStatDefRefusal(def, registry)
+export function customStatOutputRefusal(savedDef, key, registry = shippedRegistry, inputs = null) {
+  const why = customStatDefRefusal(savedDef, registry, inputs)
   if (why) return why
+  // ⭐⭐ (train e95, the 2b bind audit) the output's type on the same bound document
+  const def = boundAtInputs(savedDef, inputs || {})
   const plot = (Array.isArray(def.plots) ? def.plots : []).find((p) => p && p.key === key)
   if (!plot) return 'This indicator has no such output.'
   if (plot.style === 'hlines') return 'This is a guide line, which carries no value per bar.'
@@ -208,12 +215,13 @@ export function computeCustomStat(entry, bars, ctx = {}, registry = shippedRegis
   const names = customStatLabel(def, entry)
   const signed = customStatSigned(def)
   const base = { ...names, signed }
-  const why = customStatOutputRefusal(def, entry.plotKey, registry)
+  const why = customStatOutputRefusal(def, entry.plotKey, registry, entry.inputs)
   if (why) return answer(entry, { ...base, state: CUSTOM_STAT_STATES.REFUSED, text: 'n/a', reason: why })
   const rows = Array.isArray(bars) ? bars : []
   if (!rows.length) return answer(entry, { ...base, state: CUSTOM_STAT_STATES.PENDING, text: UNKNOWN_TEXT })
 
-  const gate = evaluability(def, entry.plotKey, 'info-value', { tf: ctx.tf, symbol: ctx.symbol || null })
+  const gate = evaluability(def, entry.plotKey, 'info-value', { tf: ctx.tf, symbol: ctx.symbol || null,
+    inputs: entry.inputs || {} })
   if (gate.status === STATUS.REFUSED) {
     return answer(entry, { ...base, state: gate.pending ? CUSTOM_STAT_STATES.PENDING : CUSTOM_STAT_STATES.REFUSED,
       text: gate.pending ? UNKNOWN_TEXT : 'n/a', reason: gate.reason })

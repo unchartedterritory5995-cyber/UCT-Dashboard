@@ -58,6 +58,7 @@ const ASK_AI_DELAY_MS = 900
 import { readFavoriteTools, writeFavoriteTools } from '../../components/chart/drawToolFavorites'
 import { normalizeDock } from '../../pages/charts/widgets/chartDock'
 import { replayDone, replaySig, replayContext, bareExitFast, exitGuard, isCutoffExit, replayStopped } from './chartReplay'
+import { prefWriteFailed, readsBack } from '../prefFailure'
 
 // The chart types and the timeframes UCT charts natively are the PRODUCT's lists
 // (chartDefaults.CHART_TYPE_OPTIONS, timeframes.NATIVE_TFS) — imported, never copied, so a new
@@ -424,10 +425,15 @@ export const chartKind = {
   async commit(host, ref, patch) {
     const { goto, replay, volPanePref, viewDo, openSettings, askAi, favoriteTools, ...rest } = patch
     let ok = true
+    const volBefore = 'volPanePref' in patch ? (chartKind.read(host, ref)?.volPanePref ?? null) : null
     if (Object.keys(rest).length) ok = host.charts.commit(ref, rest)
     // The drag's own pref (setPref → true only once the server accepted it); '' clears it, as Reset does (ChartsWorkspace)
     if ('volPanePref' in patch && ok) {
-      if (!await host.prefs.write(VOL_PANE_PREF, volPanePref ?? '')) throw new Error('the server did not confirm the change, so it is not saved')
+      // ⛔ INV2: a refused write keeps its optimistic value in this tab — "nothing was left changed" only on a read-back of the old
+      // height with nothing else of this step written
+      if (!await host.prefs.write(VOL_PANE_PREF, volPanePref ?? '')) {
+        throw prefWriteFailed('the server did not confirm the change, so it is not saved', { unchanged: !Object.keys(rest).length && readsBack(() => chartKind.read(host, ref)?.volPanePref ?? null, volBefore) })
+      }
       const t0 = Date.now()
       while (Date.now() - t0 < 2000 && (chartKind.read(host, ref)?.volPanePref ?? null) !== (volPanePref ?? null)) await new Promise(r => setTimeout(r, 50))
     }

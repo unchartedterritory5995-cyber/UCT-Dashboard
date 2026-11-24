@@ -65,9 +65,17 @@ _SERIES_INDEX_CALLS = ("valuewhenOccurrence",)
 #: That file owns the reasoning: off the listing a running total moves by the unseen
 #: bars' total -- ``k * D`` for a constant source, ``D * mu`` (an atom the same on
 #: every bar) for any other.
+#: e95 (unit 2) -- ``barIndexShift.js::ANCHOR_RESET_CALLS``: the anchored sums (Pine's anchored ``ta.vwap``),
+#: which start again on every bar their anchor fires. Not a running total: exact from the first anchor inside the
+#: loaded history, unknown before it (withheld per bar, ``ast_interpret.builtin_witness_mask``), never in the
+#: additive-constant algebra. Read off the manifest's own roster (``_requirement_tags.anchor_dependent.calls``).
+ANCHOR_RESET_CALLS = tuple(
+    ((TABLE.get("_requirement_tags") or {}).get("anchor_dependent") or {}).get("calls") or ())
+
 RUNNING_TOTAL_CALLS = tuple(
     name for name, spec in TABLE[FUNCTIONS_SECTION].items()
-    if isinstance(spec, Mapping) and spec.get("lookback") == "series" and name not in _SERIES_INDEX_CALLS)
+    if isinstance(spec, Mapping) and spec.get("lookback") == "series" and name not in _SERIES_INDEX_CALLS
+    and name not in ANCHOR_RESET_CALLS)
 
 _BI_MONO_SEP = "\x02"
 _BI_INV_PREFIX = "1/"

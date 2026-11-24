@@ -189,7 +189,8 @@ describe('routing v2: a words-only group never rides the fill, and is still sent
     ['marketBoards', 'agentTerminalDataWave3.test.js'], ['marketViews', 'agentTerminalDataWave4.test.js'],
     ['shortInterest', 'agentTerminalDataWave5.test.js'], ['marketRecords', 'agentTerminalDataWave6.test.js'],
     ['marketReads', 'agentTerminalDataWave7.test.js'], ['marketCalendars', 'agentTerminalDataWave8.test.js'],
-    ['marketRates', 'agentTerminalDataWave9.test.js']])
+    ['marketRates', 'agentTerminalDataWave9.test.js'], ['stockStudies', 'agentTerminalDataWave10.test.js'],
+    ['marketTables', 'agentTerminalDataWave11.test.js'], ['stockResearch', 'agentTerminalDataWave12.test.js']])
   it.each([...SERVER_ARMED])('server-armed words-only group %s: its words are empty until armed, and %s pins its own words / fill', (id, file) => {
     const g = GROUPS.find(x => x.id === id)
     expect(g, `${id} is not a routing group`).toBeTruthy()

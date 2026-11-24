@@ -2,10 +2,11 @@
 // planner, policy, runtime, receipts and Undo) on a fixture board. Legacy lane: no model call is made unless
 // a test scripts one (the model stand-in below), and then the same request runs in the NL-1 lane too.
 //   A1  "NVDA on the left and AMD on the right" → both charts, ONE receipt, ONE Undo
-//   A2  "show TSLA and AAPL side by side" → the two charts are reused (no new chart)
+//   A2  "show TSLA and AAPL side by side" on two charts showing neither → ASKED, nothing changed; "Add …" keeps both
+//       charts and adds TSLA and AAPL beside them (OWNER RULING 2026-11-23: side by side preserves)
 //   A3  "make the left chart look like the right one" → proposal → do it → applied → Undo
 //   A4  "switch the second chart to weekly" → exactly that chart
-//   A5  one chart + "side by side" → it shows the first; a new chart for the second is PROPOSED
+//   A5  one chart + "side by side" → the chart is KEPT and the comparison chart added beside it (OWNER RULING 2026-11-23)
 //   A6  a model question with malformed choices never crashes the panel (both lanes)
 //   A7  a model plan over 12 changes is refused before anything runs (both lanes)
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
@@ -84,13 +85,23 @@ describe('Charts operator P1 — through the real panel (legacy lane, no model)'
     expect(errors).toEqual([])
   })
 
-  it('A2 · "show TSLA and AAPL side by side" → the two charts are reused, nothing created', async () => {
+  // ⛔ OWNER RULING 2026-11-23: "For 'side by side,' preserve the existing chart and add the comparison chart beside it by default.
+  // Never silently replace an existing chart. If the request or layout makes the intended behavior ambiguous, clarify."
+  // (This test pinned the opposite — both charts silently re-symbolled — and disagreed with A5's own header; resolved to the ruling.)
+  it('A2 · "show TSLA and AAPL side by side" on SPY + QQQ → asked (nothing changed); "Add …" keeps both charts, adds the two beside them', async () => {
     const b = LR()
-    const { say } = mount(b)
+    const { say, transcript } = mount(b)
+    const raw0 = JSON.stringify(b.state)
     await say('show TSLA and AAPL side by side, both weekly')
-    await waitFor(() => { expect(sym(b, 'L')).toBe('TSLA'); expect(sym(b, 'R')).toBe('AAPL') })
-    expect(tf(b, 'L')).toBe('W'); expect(tf(b, 'R')).toBe('W')
-    expect(b.state.widgets.filter(w => w.type === 'chart')).toHaveLength(2)
+    expect(JSON.stringify(b.state)).toBe(raw0)
+    expect(transcript()).toMatch(/None of your charts shows TSLA and AAPL/)
+    fireEvent.click(screen.getAllByRole('button', { name: /^Add TSLA and AAPL beside/ }).at(-1))
+    await waitFor(() => expect(b.state.widgets.filter(w => w.type === 'chart')).toHaveLength(4), { timeout: 8000 })
+    expect(sym(b, 'L')).toBe('SPY'); expect(sym(b, 'R')).toBe('QQQ')
+    expect(tf(b, 'L')).toBe('D'); expect(tf(b, 'R')).toBe('D')
+    const added = b.state.widgets.filter(w => w.type === 'chart' && !['L', 'R'].includes(w.id))
+    expect(added.map(w => b.host.charts.read(w.id).symbol)).toEqual(['TSLA', 'AAPL'])
+    expect(added.map(w => b.host.charts.read(w.id).tf)).toEqual(['W', 'W'])
     expect(turns).toHaveLength(0)
   })
 
@@ -124,14 +135,18 @@ describe('Charts operator P1 — through the real panel (legacy lane, no model)'
     expect(turns).toHaveLength(0)
   })
 
-  // ⭐ live test 2026-10-28: no card — ONE grid change (the chart reused, the other added beside it), ONE Undo
-  it('A5 · one full-width chart + "side by side" → it shows the first symbol, the second is added beside it; applied; one Undo', async () => {
-    const b = makeBoard([{ id: 'L', type: 'chart', x: 0, y: 0, w: 24, h: 20, color: 'N' }], { 'N:L': 'SPY' })
+  // ⛔ OWNER RULING 2026-11-23 (side by side preserves): the one chart is KEPT and the comparison chart added beside it — ONE grid
+  // change, ONE Undo; a request naming neither of the chart's tickers is ASKED, never a silent replace (was: SPY became NVDA)
+  it('A5 · one full-width chart + "side by side" → the chart is kept, the comparison chart added beside it; applied; one Undo', async () => {
+    const b = makeBoard([{ id: 'L', type: 'chart', x: 0, y: 0, w: 24, h: 20, color: 'N', opts: { tf: 'W', settings: { background: '#000000' } } }], { 'N:L': 'SPY' })
     const { say } = mount(b)
-    await say('NVDA and AMD side by side')
+    const opts0 = JSON.stringify(b.state.widgets[0].opts)
+    await say('put AMD side by side with SPY')
     await waitFor(() => expect(b.state.widgets.filter(w => w.type === 'chart')).toHaveLength(2))
     expect(screen.queryAllByTestId('agent-proposal')).toHaveLength(0)
-    expect(sym(b, 'L')).toBe('NVDA')
+    expect(sym(b, 'L')).toBe('SPY')
+    expect(tf(b, 'L')).toBe('W')
+    expect(JSON.stringify(b.state.widgets.find(w => w.id === 'L').opts)).toBe(opts0)
     const added = b.state.widgets.find(w => w.type === 'chart' && w.id !== 'L')
     expect(b.state.groupSyms[`N:${added.id}`]).toBe('AMD')
     expect(b.state.widgets.find(w => w.id === 'L')).toMatchObject({ x: 0, y: 0, w: 12, h: 20 })
@@ -141,6 +156,15 @@ describe('Charts operator P1 — through the real panel (legacy lane, no model)'
     await waitFor(() => expect(b.state.widgets.filter(w => w.type === 'chart')).toHaveLength(1))
     expect(b.state.widgets[0]).toMatchObject({ id: 'L', x: 0, y: 0, w: 24, h: 20 })
     expect(sym(b, 'L')).toBe('SPY')
+  })
+  it('A5b · one chart + "NVDA and AMD side by side" (neither on it) → asked, nothing changed, no model call', async () => {
+    const b = makeBoard([{ id: 'L', type: 'chart', x: 0, y: 0, w: 24, h: 20, color: 'N' }], { 'N:L': 'SPY' })
+    const { say, transcript } = mount(b)
+    const raw0 = JSON.stringify(b.state)
+    await say('NVDA and AMD side by side')
+    expect(JSON.stringify(b.state)).toBe(raw0)
+    expect(transcript()).toMatch(/Add them beside your chart, or replace the SPY chart\? Nothing has changed yet/)
+    expect(turns).toHaveLength(0)
   })
 })
 

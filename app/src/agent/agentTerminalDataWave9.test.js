@@ -14,6 +14,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { getCapability, allCapabilityNames, manifestFor, MANIFEST_CONTRACT } from './capabilities'
 import { registerBuiltins, registerServerGatedBuiltins } from './builtins'
+import './terminalWaves'  // the Terminal data waves: registerServerGatedBuiltins() runs them only once this module has loaded (terminalWavesHook.js)
 import { loadAgentConfig, _resetAgentConfig } from './agentClient'
 import { turnStart, turnEnd, _resetTurns } from './trace'
 import { GROUPS, groupOfAction, routeManifest, selectGroups, wordsSelect } from './routing'
@@ -508,7 +509,7 @@ describe('routing words', () => {
   beforeEach(() => { reset(); vi.restoreAllMocks() })
   afterEach(() => { reset(); globalThis.fetch = realFetch })
 
-  it('the group is words-only and never a filler, routing.js lists the three by action with no word of its own, and it is the 51st of the 56 the server keeps', () => {
+  it('the group is words-only and never a filler, routing.js lists the three by action with no word of its own, and it is the 51st group', () => {
     const g = ownGroup()
     expect(g.wordsOnly && g.fillLast).toBe(true)
     expect(g.words).toEqual([])                                      // server-armed: empty until a capability registers
@@ -517,10 +518,10 @@ describe('routing words', () => {
     expect(g.id).toMatch(/^[a-z][a-zA-Z]{1,23}$/)
     expect(g.title.length).toBeLessThanOrEqual(160)                  // the server cuts a group title at 160 characters (turn.py validate_routing)
     // the server keeps only MAX_GROUPS groups (56 since the integrator's wave 7 build); this wave's is the 51st, and the cap is
-    // not changed here
+    // not changed here. A later wave's group comes after it (agentTerminalDataWave10.test.js pins its own place)
     const max = Number(/^MAX_GROUPS\s*=\s*(\d+)\s*$/m.exec(py('api/services/uct_agent/turn.py'))[1])
-    expect([GROUPS.length, max, max - GROUPS.length]).toEqual([51, 56, 5])
-    expect(GROUPS.map(x => x.id).slice(-6)).toEqual([WAVE4_GROUP, WAVE5_GROUP, WAVE6_GROUP, WAVE7_GROUP, WAVE8_GROUP, ROUTE_GROUP])
+    expect([GROUPS.map(x => x.id).indexOf(ROUTE_GROUP) + 1, max, GROUPS.length <= max]).toEqual([51, 56, true])
+    expect(GROUPS.map(x => x.id).slice(45, 51)).toEqual([WAVE4_GROUP, WAVE5_GROUP, WAVE6_GROUP, WAVE7_GROUP, WAVE8_GROUP, ROUTE_GROUP])
     expect(new Set(GROUPS.map(x => x.id)).size).toBe(GROUPS.length)
     // no action of this wave is in any other group's list, and the earlier waves' groups keep theirs
     for (const other of GROUPS.filter(x => x.id !== ROUTE_GROUP)) for (const n of ALL) expect(other.actions || [], `${other.id}: ${n}`).not.toContain(n)

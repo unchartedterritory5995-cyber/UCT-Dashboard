@@ -296,6 +296,52 @@ COLUMNS = [
     # build after the first evening run.
     "rev_accel_q", "eps_streak_25", "eps_growth_min_2q", "eps_growth_min_3q",
     "eps_growth_min_4q", "net_margin_chg_1y", "gross_margin_chg_1y", "shares_chg_1y",
+    # ⭐ VOLUME & VOLATILITY (2026-11-23). ONE writer, `volume_volatility.row_fields`, the
+    # builder's `bars_volume_volatility` step inside the same per-stock bars pass, from the
+    # row's own stored daily bars: STAT's realized volatility over 20 / 60 returns (REAL,
+    # percent), VFP's accumulation less distribution days over 25 sessions (INTEGER, signed),
+    # VFP's pocket pivots in the last 20 sessions and the sessions since the newest one of
+    # the last year (INTEGER), and STAT's drawdown against the S&P 500's in the newest
+    # completed MKTH decline (REAL, a ratio). NULL when the history is short, a session
+    # cannot be judged, or the series contradicts itself inside the column's window, never
+    # a guessed 0. Additive: ALTER-added on init, NULL until the next build.
+    "hv_20", "hv_60", "ad_net_25", "pocket_pivots_20", "days_since_pocket_pivot",
+    "corr_rel_last",
+    # ⭐ BEATS, INSIDERS & FUNDS (2026-11-23). Three writers, one per store, each a
+    # `_read_market_source` peer read ONCE per build (`beats_insiders_funds`): the newest
+    # report's EPS surprise (REAL, percent) and the EPS beat streak (INTEGER) from the held
+    # earnings copies; Form 4 open-market purchase filings in the last 30 days (INTEGER) and
+    # their priced dollars (REAL) from INS CLUSTER's store; funds adding less funds cutting
+    # (INTEGER, signed) from the N-PORT index. NULL while a store is not held, too thin or
+    # behind, never a guessed 0. Additive: ALTER-added on init, NULL until the next build.
+    "eps_surprise_last", "eps_beat_streak", "insider_buys_30d", "insider_buy_value_30d",
+    "fund_net_adds",
+    # ⭐ HELD-STORE COLUMNS (2026-11-23). Four writers, one per store, each a `_read_market_source` peer read
+    # ONCE per build (`store_columns`): OSCR's IV rank and IV percentile (REAL, 0-100) from the IV rank build's
+    # full per-symbol map; GRPS's industry group rank, how many industries it ranked, and the places moved over 4
+    # weeks (INTEGER, the change signed: positive = climbed) from GRPS's held answer; the next ex-dividend date
+    # (TEXT, YYYY-MM-DD) and the days to it (INTEGER) from DVD MARKET's held list; EEHSC's estimate revision
+    # classification of the next quarter's EPS over 30 days as up / down (INTEGER 0/1) and their net (INTEGER,
+    # -1 / 0 / +1). A fifth, the change in shares short since the prior FINRA report (REAL, a percent change), is
+    # written by `short_columns`, the short-interest columns' own one read of the list. NULL while a store is not
+    # held, behind or ahead of the build's session, or has no value for the stock, never a guessed 0. Additive:
+    # ALTER-added on init, NULL until the next build.
+    "iv_rank", "iv_percentile", "group_rank", "group_rank_of", "group_rank_chg_4w",
+    "short_interest_chg_pct", "next_ex_div_date", "days_to_ex_div",
+    "eps_rev_up_30d", "eps_rev_down_30d", "eps_rev_net_30d",
+    # ⭐ ROW COLUMNS (2026-11-24). ONE writer, `row_columns.row_fields`, the builder's `bars_row_columns` step inside
+    # the same per-stock bars pass, from the row's own stored daily bars (and, for the drift, the report date the
+    # earnings read's own pass hands over): days to IPO LOCKUP's estimated expiry from the row's listing date
+    # (INTEGER, signed: negative = days since it, within IPO LOCKUP's recent window); SEAS's average return (REAL,
+    # percent) and share of up years (INTEGER, percent) for the build session's calendar month, and how many years
+    # (INTEGER); ERX's 5-session drift after the last report's reacting session (REAL, percent); FCTX's market, size,
+    # growth vs value and momentum loadings (REAL, only when FCTX shows them clearing its bar) and R-squared (REAL,
+    # 0 to 1); STAT's up / down capture against SPY over a year (REAL, x 100). NULL when it cannot be worked out, a
+    # drift's sessions have not traded, a loading does not clear the bar, or the series contradicts itself inside the
+    # column's read, never a guessed 0. Additive: ALTER-added on init, NULL until the next build.
+    "days_to_lockup", "seas_month_avg", "seas_month_up_pct", "seas_month_years", "post_earn_drift_5d",
+    "factor_mkt", "factor_size", "factor_growth", "factor_mom", "factor_r2",
+    "up_capture_1y", "down_capture_1y",
     # meta
     "snapshot_date", "bars_asof", "built_at",
 ]
@@ -348,7 +394,9 @@ _TEXT = {"ticker", "company", "sector", "industry", "exchange", "security_type",
          # this table (ruling D4) -- see `_INT` below.
          "pattern_engine_ids",
          # trader archive (display only)
-         "archive_last_call_date", "archive_last_setup", "archive_setup"}
+         "archive_last_call_date", "archive_last_setup", "archive_setup",
+         # held-store columns (2026-11-23): DVD MARKET's next ex-dividend date, YYYY-MM-DD
+         "next_ex_div_date"}
 _INT = {"uct_composite", "rs_rank", "inside_bar_run", "higher_lows_run",
         "candle_recent_bars_ago",
         "consecutive_up", "consecutive_down", "built_at",
@@ -405,7 +453,19 @@ _INT = {"uct_composite", "rs_rank", "inside_bar_run", "higher_lows_run",
         # Leaders' list: a 0/1 flag and a count of sessions.
         "rs_nh_weekly", "rs_nhbp_weekly", "rs_leaders_member", "rs_leaders_days",
         # Fundamental trends: two counts of quarters (the other six are REAL).
-        "rev_accel_q", "eps_streak_25"}
+        "rev_accel_q", "eps_streak_25",
+        # Volume & volatility: a signed day count, a count and an age in sessions.
+        "ad_net_25", "pocket_pivots_20", "days_since_pocket_pivot",
+        # Beats, insiders & funds: a count of quarters, a count of filings, a signed count of funds.
+        "eps_beat_streak", "insider_buys_30d", "fund_net_adds",
+        # Held-store columns: GRPS's place, the industries ranked, the places moved; the days to the next
+        # ex-dividend date; EEHSC's up / down (0/1) and their net (-1 / 0 / +1). The IV pair and the short
+        # interest change are REAL.
+        "group_rank", "group_rank_of", "group_rank_chg_4w", "days_to_ex_div",
+        "eps_rev_up_30d", "eps_rev_down_30d", "eps_rev_net_30d",
+        # Row columns: the days to the estimated lockup (signed), SEAS's share of up years (a whole percent) and its
+        # years. The averages, the drift, the loadings, R-squared and the captures are REAL.
+        "days_to_lockup", "seas_month_up_pct", "seas_month_years"}
 
 
 # ---------------------------------------------------------------------------

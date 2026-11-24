@@ -45,10 +45,20 @@
 //     keeps its refusal (`other-symbol:class-share`).
 
 import { SYMBOL_EXCHANGE_CONFIRMED } from './ast/bind'
-import { isoDay, SERIES_GAPS_READ_NA, SERIES_UNKNOWN_BEFORE_FIRST, isoWeekDayOf, isoDayPlus, tfBucket } from './ast/interpret'
+import { isoDay, SERIES_GAPS_READ_NA, SERIES_UNKNOWN_BEFORE_FIRST, isoWeekDayOf, isoDayPlus, tfBucket, EVENT_BEFORE_RECORD_CODE,
+  SERIES_EVENT_RECORD, BREADTH_BEFORE_RECORD_CODE } from './ast/interpret'
 // ⭐ RS RATING L13 — the exchange's sessions (a month's first session, a row's next session)
 import { isTradingDay, closeTime, isHalfDay } from '../../../lib/marketClock/sessionCalendar.js'
 import REQUEST_WITNESSES from './requestWitnesses.json'
+// ⭐⭐ T4 B2 — TradingView's `USI:` breadth spellings, served from UCT's own breadth (`pineBreadth.js`)
+import { BREADTH_VENUE, BREADTH_SPELLINGS, BREADTH_COVERAGE_FROM, BREADTH_DATA_WORDS, breadthBaseOf, breadthStaticRefusal, isBreadthSpread,
+  breadthSpreadRefusal, breadthIntradayReason, breadthNotAvailableReason } from './pineBreadth.js'
+// ⭐⭐ T4 E2 — the chart's own corporate events (`request.earnings` / `request.dividends` / `request.splits`)
+import { EVENT_VENUE, EVENTS_KEY, EVENT_TICKER, eventReadOf, eventStaticRefusal, eventSpellingReason, eventLabel,
+  eventTimeframeCode, placeEvents, markEventSeries, EARNINGS_WINDOW_FROM, EVENT_DATE_KEY } from './pineEvents.js'
+// ⭐⭐ T4 F1b — the chart's own financial figures (`request.financial`), as UCT data from company filings
+import { FINANCIAL_KEY, FINANCIAL_UNKNOWN_CODE, financialReadOf, financialLabel, financialTimeframeCode, placeFinancial,
+  markFinancialSeries } from './pineFinancial.js'
 
 /** The venue spelling `pine.js::otherSymbolOf` records for the chart's own
  *  exchange (`ticker.new(syminfo.prefix, …)`). */
@@ -78,6 +88,37 @@ export const OTHER_SYMBOL_REFUSAL = Object.freeze({
   // ⭐ RS RATING L6b — `request.seed(source, symbol, …)` naming a seed our store does not
   // register (`requestWitnesses.json`'s `seed` rows = `pine_seed_store.py::SEEDS`).
   SEED_UNREGISTERED: 'other-symbol:seed-unregistered',
+  // ⭐⭐ T4 E2 — a corporate-events read (`pineEvents.js`), each refused by its own name:
+  EVENT_SPELLING: 'other-symbol:event-spelling',        // a script WROTE the engine's internal event name as a symbol
+  EVENT_FIELD: 'other-symbol:event-field',              // a field UCT does not hold (standardized, net)
+  EVENT_SYMBOL: 'other-symbol:event-symbol',            // another symbol's events
+  EVENT_CURRENCY: 'other-symbol:event-currency',        // converted into another currency
+  EVENT_ARGUMENT: 'other-symbol:event-argument',        // an argument the door cannot read before the run
+  EVENT_TIMEFRAME: 'other-symbol:event-timeframe',      // a chart timeframe no capture witnesses the placement on
+  EVENT_NOT_AVAILABLE: 'other-symbol:event-not-available', // the events door is dark or refused for this member
+  EVENT_NONE: 'other-symbol:event-none',                // UCT holds no event of the family for this symbol
+  EVENT_UNAVAILABLE: 'other-symbol:event-unavailable',  // the events could not be read just now
+  EVENT_BEFORE_RECORD: EVENT_BEFORE_RECORD_CODE,         // PER BAR: a bar before UCT's record of the family
+  // ⭐⭐ T4 F1b — a financial read (`pineFinancial.js`, UCT data from company filings), each refused by its own name:
+  FINANCIAL_FIELD: 'other-symbol:financial-field',          // an id UCT does not serve (named, with its reason)
+  FINANCIAL_PERIOD: 'other-symbol:financial-period',        // a period UCT does not serve for the id, or not readable
+  FINANCIAL_SYMBOL: 'other-symbol:financial-symbol',        // another symbol's figures
+  FINANCIAL_CURRENCY: 'other-symbol:financial-currency',    // converted into another currency
+  FINANCIAL_ARGUMENT: 'other-symbol:financial-argument',    // an argument the door cannot read before the run
+  FINANCIAL_TIMEFRAME: 'other-symbol:financial-timeframe',  // an intraday chart (a figure is dated by session)
+  FINANCIAL_NOT_AVAILABLE: 'other-symbol:financial-not-available', // the door is dark or refused for this member
+  FINANCIAL_NONE: 'other-symbol:financial-none',            // the company's filings do not yield the figure
+  FINANCIAL_WITHHELD: 'other-symbol:financial-withheld',    // a per-share figure while the split history is unverified
+  FINANCIAL_UNAVAILABLE: 'other-symbol:financial-unavailable', // the figures could not be read just now
+  FINANCIAL_UNKNOWN: FINANCIAL_UNKNOWN_CODE,                // PER BAR: a bar UCT knows no current figure on
+  // ⭐⭐ T4 B2 — a `USI:` breadth read (`pineBreadth.js`), each refused by its own name:
+  BREADTH_NOT_HELD: 'other-symbol:breadth-not-held',    // volume breadth, TICK / TRIN: UCT holds none
+  BREADTH_EXCHANGE: 'other-symbol:breadth-exchange',    // another exchange's counts (AMEX, Arca, the US composite, the Dow)
+  BREADTH_UNKNOWN: 'other-symbol:breadth-unknown',      // any other `USI:` series
+  BREADTH_SPREAD: 'other-symbol:breadth-spread',        // several breadth spellings in one string (the built-in ADL's)
+  BREADTH_INTRADAY: 'other-symbol:breadth-intraday',    // an intraday chart: UCT holds one count per session
+  BREADTH_NOT_AVAILABLE: 'other-symbol:breadth-not-available', // the breadth door is dark or refused for this member
+  BREADTH_BEFORE_RECORD: BREADTH_BEFORE_RECORD_CODE,     // PER BAR: a bar before UCT's breadth counts begin
 })
 
 const CONFIRMED_PINE = new Set(Object.values(SYMBOL_EXCHANGE_CONFIRMED))
@@ -210,6 +251,11 @@ export const WITNESS_PERIOD_READS = Object.freeze({
   // 10,353 of 10,353 bars, values and na, three fields; "the oldest wins" is off on the 2 weekend bars, a bar that
   // CONTAINS the instant on 21, ET midnight on 18. `utcMidnightAtOrAfterOf`.
   UTC_MIDNIGHT_AT_OR_AFTER: 'utc-midnight-at-or-after',
+  // ⭐⭐ T4 B2 — FOLD (a `period` read), for a series whose DAILY read is `same-date` (`pineBreadth.js`, pending Q-T4-B2):
+  // the held daily rows folded into Monday-to-Sunday weeks / calendar months exactly as `previous-week` /
+  // `previous-month` fold them, each read on the chart bar of its OWN week / month (no shift)
+  SAME_WEEK: 'same-week',
+  SAME_MONTH: 'same-month',
 })
 /** ⭐ RS RATING L12 — the intraday chart timeframes a block may stand on, and their bar step in minutes. */
 const INTRADAY_STEP_MIN = Object.freeze({ 1: 1, 5: 5, 15: 15, 30: 30, 60: 60 })
@@ -218,9 +264,9 @@ const INTRADAY_STEP_MIN = Object.freeze({ 1: 1, 5: 5, 15: 15, 30: 30, 60: 60 })
  *  samples (a read below the chart) a block on it may name. A daily read on a weekly or a monthly chart
  *  are the witnessed shapes; a week's reads never stand on a month, nor the other way. */
 const PERIOD_READS_OF = Object.freeze({
-  W: Object.freeze({ held: 'D', folds: [WITNESS_PERIOD_READS.PREVIOUS_WEEK],
+  W: Object.freeze({ held: 'D', folds: [WITNESS_PERIOD_READS.PREVIOUS_WEEK, WITNESS_PERIOD_READS.SAME_WEEK],
     samples: [WITNESS_PERIOD_READS.WEEK_LAST_ROW, WITNESS_PERIOD_READS.WEEK_FIRST_DAY] }),
-  M: Object.freeze({ held: 'D', folds: [WITNESS_PERIOD_READS.PREVIOUS_MONTH],
+  M: Object.freeze({ held: 'D', folds: [WITNESS_PERIOD_READS.PREVIOUS_MONTH, WITNESS_PERIOD_READS.SAME_MONTH],
     samples: [WITNESS_PERIOD_READS.MONTH_LAST_ROW, WITNESS_PERIOD_READS.MONTH_FIRST_SESSION] }),
   // ⭐ RS RATING L12 — each intraday timeframe is held at ITSELF (the index's own bars of the chart's period)
   // and ALSO at D (its official daily closes, for the extended-hours bars)
@@ -264,7 +310,8 @@ export function heldKeyParts(key) {
 function witnessRowsOf(rows) {
   const out = {}
   for (const [k, v] of Object.entries(rows || {})) {
-    if (k.startsWith('_') || !v || typeof v !== 'object' || typeof v.store !== 'string') continue
+    // ⛔ T4 E2 — an `event` row is never a spelling: it names no bars a symbol string could fetch (`eventRowsOf`)
+    if (k.startsWith('_') || !v || typeof v !== 'object' || typeof v.store !== 'string' || v.kind === 'event') continue
     const spelling = k.trim().toUpperCase()
     out[spelling] = Object.freeze({ ...v, spelling,
       timeframes: Object.freeze(Array.isArray(v.timeframes) ? v.timeframes.map(String) : []) })
@@ -273,6 +320,29 @@ function witnessRowsOf(rows) {
 }
 let _witnessRows = witnessRowsOf(REQUEST_WITNESSES && REQUEST_WITNESSES.rows)
 
+/** ⭐⭐ T4 E2 — the `event` rows, by family (`earnings` / `dividends` / `splits`): the timeframes E0's captures
+ *  witness the placement on, and the capture. ⛔ Read only for a read the parse rewrite made (`EVENT_VENUE`). */
+function eventRowsOf(rows) {
+  const out = {}
+  for (const [k, v] of Object.entries(rows || {})) {
+    if (k.startsWith('_') || !v || typeof v !== 'object' || v.kind !== 'event' || typeof v.family !== 'string') continue
+    out[v.family] = Object.freeze({ ...v, spelling: k.trim().toUpperCase(),
+      timeframes: Object.freeze(Array.isArray(v.timeframes) ? v.timeframes.map(String) : []) })
+  }
+  return Object.freeze(out)
+}
+let _eventRows = eventRowsOf(REQUEST_WITNESSES && REQUEST_WITNESSES.rows)
+/** The placements an event row may name (`pineEvents.js::placeEvents`). ⛔ An unknown name serves nothing. */
+export const EVENT_PLACEMENTS = Object.freeze({ SESSION_CLOSE_STAMP: 'session-close-stamp' })
+/** Is this event row's capture in, and does it witness this chart timeframe with a placement this module knows? */
+export function eventRowServes(row, tfCode) {
+  return !!row && typeof row.witness === 'string' && row.witness.trim() !== ''
+    && typeof row.captured === 'string' && row.captured.trim() !== ''
+    && Object.values(EVENT_PLACEMENTS).includes(row.placement) && row.timeframes.includes(tfCode)
+}
+/** The event row of a family, or null. */
+export function eventRowOf(family) { return _eventRows[family] || null }
+
 /** Every witness row, keyed by spelling. */
 export function requestWitnessRows() { return _witnessRows }
 
@@ -280,6 +350,7 @@ export function requestWitnessRows() { return _witnessRows }
  *  witnessed row exactly as the landed capture's one data edit writes it. */
 export function setRequestWitnessRows(rows) {
   _witnessRows = witnessRowsOf(rows || (REQUEST_WITNESSES && REQUEST_WITNESSES.rows))
+  _eventRows = eventRowsOf(rows || (REQUEST_WITNESSES && REQUEST_WITNESSES.rows))
 }
 
 /** The witness row a `venue` + `ticker` spelling names, or null. */
@@ -303,7 +374,10 @@ export function witnessRowServes(row) {
 function witnessPendingWhy(row) {
   return { code: OTHER_SYMBOL_REFUSAL.WITNESS_PENDING, reason: `\`${row.spelling}\` is served only once a `
     + `TradingView capture witnesses it (capture-queue row ${row.queue_row}, probe \`${row.probe}\`), and that `
-    + 'capture has not been matched, so what this indicator draws from it is not computed.' }
+    + 'capture has not been matched, so what this indicator draws from it is not computed.'
+    // ⭐ T4 B2 — and a breadth spelling says what it will be when it is served
+    + (row.kind === 'breadth' ? ` It is a market breadth series, which UCT serves from ${BREADTH_DATA_WORDS} once that `
+      + 'capture lands.' : '') }
 }
 
 /** ⭐ RS RATING L11 — is this chart timeframe's block in (`witness` + `captured`), held at the one
@@ -855,10 +929,20 @@ export function __sessionCloseMemoSizeForTests(reset = false) {
 export function periodFoldOf(fold, held, own = null, also = null) {
   if (fold === WITNESS_PERIOD_READS.PREVIOUS_WEEK) return previousWeekBarsOf(held, own)
   if (fold === WITNESS_PERIOD_READS.PREVIOUS_MONTH) return previousMonthBarsOf(held, own)
+  // ⭐⭐ T4 B2 — the same folds, each period read on its OWN chart bar
+  if (fold === WITNESS_PERIOD_READS.SAME_WEEK) return previousWeekBarsOf(held).map((w) => ({ ...w, t: isoDayPlus(w.t, -7) }))
+  if (fold === WITNESS_PERIOD_READS.SAME_MONTH) return previousMonthBarsOf(held).map((m) => ({ ...m, t: previousMonthFirst(m.t) }))
   if (fold === WITNESS_PERIOD_READS.AT_OR_BEFORE) {
     return atOrBeforeGridOf(held, also && also.daily, also && also.tf, { dailyForming: !!(also && also.dailyForming) })
   }
   return null
+}
+
+/** ⭐ T4 B2 — the 1st of the month before the month whose 1st is `first` (`YYYY-MM-01`). */
+function previousMonthFirst(first) {
+  const y = Number(first.slice(0, 4))
+  const m = Number(first.slice(5, 7))
+  return m === 1 ? `${String(y - 1).padStart(4, '0')}-12-01` : `${first.slice(0, 5)}${String(m - 1).padStart(2, '0')}-01`
 }
 
 /** The first trading session on or after `day` (the exchange calendar, `sessionCalendar.js`), or null. */
@@ -963,9 +1047,16 @@ export const weekSampleOf = periodSampleOf
 export function staticallyUnservable(ticker, venue) {
   const t = String(ticker || '').trim().toUpperCase()
   if (!t) return null
+  // ⭐⭐ T4 E2 — A CORPORATE-EVENTS READ: decided by its own ticker (the parse rewrite's `EVENT_VENUE` only). ⛔ The
+  // engine's internal event name spelled by a SCRIPT (any other venue) is refused by name, before any fetch.
+  if (venue === EVENT_VENUE) return eventStaticRefusal(t, OTHER_SYMBOL_REFUSAL)
+  if (EVENT_TICKER.test(t)) return { code: OTHER_SYMBOL_REFUSAL.EVENT_SPELLING, reason: eventSpellingReason(t) }
   // ⭐ RS RATING L1b — a spelling with a witness row is decided by its row alone
   const row = witnessRowOf(venue, t)
   if (row) return witnessRowServes(row) ? null : witnessPendingWhy(row)
+  // ⭐⭐ T4 B2 — any other `USI:` spelling: refused by its own name (`pineBreadth.js::breadthStaticRefusal`)
+  const usi = String(venue || '').trim().toUpperCase() === BREADTH_VENUE ? breadthStaticRefusal(t, OTHER_SYMBOL_REFUSAL) : null
+  if (usi) return usi
   const breadth = BREADTH_SHAPE.test(t)
   const notYet = breadth
     ? ' It is a market breadth series (advancing / declining issues or volume), and this breadth symbol is not available yet.'
@@ -998,6 +1089,9 @@ export function staticallyUnservable(ticker, venue) {
 export function spellingUnservable(raw) {
   const s = String(raw == null ? '' : raw).trim().toUpperCase()
   if (!s) return null
+  // ⭐⭐ T4 E2 — the engine's internal event name, written by a script as a symbol (with or without a venue)
+  const tail = s.slice(s.lastIndexOf(':') + 1).trim()
+  if (EVENT_TICKER.test(tail)) return { ticker: tail, code: OTHER_SYMBOL_REFUSAL.EVENT_SPELLING, reason: eventSpellingReason(tail) }
   // ⭐ RS RATING L6b — a Pine seed (`request.seed` reads `<SOURCE>:<SYMBOL>`, the source
   // `SEED_…`): its row's decision, or `other-symbol:seed-unregistered`
   const seed = SEED_SPELLING.exec(s)
@@ -1010,6 +1104,9 @@ export function spellingUnservable(raw) {
       + 'store does not hold (the seeds it serves are listed in `requestWitnesses.json`), so what this indicator draws '
       + 'from it is not computed.' }
   }
+  // ⭐⭐ T4 B2 — several breadth spellings combined in one string (TradingView's built-in Advance Decline Line):
+  // refused by name (`pineBreadth.js::breadthSpreadRefusal`)
+  if (isBreadthSpread(s)) return { ticker: s, ...breadthSpreadRefusal(raw, OTHER_SYMBOL_REFUSAL) }
   const m = /^([A-Z][A-Z0-9_.]{0,15}):(.*)$/.exec(s)
   const venue = m ? m[1] : ''
   const ticker = m ? m[2].trim() : s
@@ -1018,6 +1115,9 @@ export function spellingUnservable(raw) {
     const why = staticallyUnservable(ticker, venue)
     return why ? { ticker, ...why } : null
   }
+  // ⭐⭐ T4 B2 — a `USI:` spelling with no row: refused by its own name, never as a foreign exchange
+  const usi = m && venue === BREADTH_VENUE ? breadthStaticRefusal(ticker, OTHER_SYMBOL_REFUSAL) : null
+  if (usi) return { ticker: s, ...usi }
   if (m && !US_EQUITY_VENUES.has(venue)) {
     const notYet = BREADTH_SHAPE.test(ticker)
       ? ' It is a market breadth series (advancing / declining issues or volume), and this breadth symbol is not available yet.'
@@ -1033,7 +1133,14 @@ export function spellingUnservable(raw) {
 /** ⭐⭐ ENGINE 55 (review M1) — THE ONE SENTENCE for a read no binding can serve, said
  *  identically by the bind (`columnErrors`, the strip) and the runtime lane's refusal. */
 export function staticOtherSymbolMessage(ticker, why) {
-  return `This indicator reads \`${String(ticker).trim().toUpperCase()}\`: ${why.code} — ${why.reason}`
+  return `This indicator reads ${otherSymbolLabel(ticker)}: ${why.code} — ${why.reason}`
+}
+
+/** ⭐ T4 E2 — how a sentence names what a read reads: `\`TICKER\``, or an event read in the member's own words
+ *  (`request.earnings` and its field), never the engine's internal event name. */
+export function otherSymbolLabel(ticker) {
+  const t = String(ticker).trim().toUpperCase()
+  return eventReadOf(t) ? eventLabel(t) : `\`${t}\``
 }
 
 /** ⭐⭐ ENGINE 55 (review M1) — what ONE tree reading a spelling no binding can serve is
@@ -1197,7 +1304,8 @@ export function isPineOriginDoc(def) {
  *  [] for a Pine document: its tickers are decided by its spellings above. */
 export function formulaOtherSymbols(def) {
   if (!def || isPineOriginDoc(def)) return []
-  return [...new Set(symTickersOf(def).filter((t) => !BARE_AMBIGUOUS.has(t)).map(storeTickerOf))].sort()
+  // ⛔ T4 E2 — the engine's internal event name is never a ticker to fetch (`resolveFormulaSymbols` refuses it)
+  return [...new Set(symTickersOf(def).filter((t) => !BARE_AMBIGUOUS.has(t) && !EVENT_TICKER.test(t)).map(storeTickerOf))].sort()
 }
 
 /** Is a refusal row a bind that is still WAITING for its bars (the secondary
@@ -1232,6 +1340,11 @@ export function resolveFormulaSymbols(def, ctx = {}) {
     // finding 2), so `sym('ADVN', …)` here may be a TradingView `"ADVN"` — NYSE
     // breadth — and our store's listing under those letters would be the wrong
     // instrument under the right name. Refused by name, never fetched.
+    if (EVENT_TICKER.test(ticker)) {
+      refused.push({ ticker, code: OTHER_SYMBOL_REFUSAL.EVENT_SPELLING, reason: `This indicator reads \`${ticker}\`: `
+        + eventSpellingReason(ticker) })
+      continue
+    }
     if (BARE_AMBIGUOUS.has(ticker)) {
       refused.push({ ticker, code: OTHER_SYMBOL_REFUSAL.BARE, reason: `This indicator reads \`${ticker}\`, `
         + 'a spelling that also names a market index or commodity outside our bar store, so which instrument '
@@ -1266,6 +1379,10 @@ export function fetchableOtherSymbols(def) {
   if (!def || !def.meta || !Array.isArray(def.meta.otherSymbols)) return []
   const out = []
   for (const { ticker, spellings } of otherSymbolRequestsOf(def)) {
+    // ⛔⛔ T4 E2 (coordinator ruling 2026-11-22 (2)) — AN EVENT READ IS NEVER A BARS FETCH, nor an exchange lookup
+    // (`useOtherSymbolExchanges` asks this list): the rewrite's reads come from `/api/pine/events/<chart symbol>`
+    // (`eventsNeeded`, `eventSupply.js`), and the internal name written by a script is refused by name
+    if (isEventRequest(ticker, spellings)) continue
     // ⭐ RS RATING L1b — a witnessed row is fetched under its store key, and only when every
     // spelling of the ticker is that one served row
     const rows = spellings.map((v) => witnessRowOf(v, ticker))
@@ -1284,6 +1401,234 @@ export function fetchableOtherSymbols(def) {
     }
   }
   return [...new Set(out)]
+}
+
+/** ⭐⭐ T4 B2 — the `USI:` breadth spellings a Pine document reads (`{spellings: ['USI:ADVN.NY', ...], words}`), or null:
+ *  what the grade tags a run with (a run that reads UCT breadth never grades MATCH, `compare.mjs`). Pending or served:
+ *  either way what it draws is UCT's count, never TradingView's. */
+export function breadthReadsOf(def) {
+  if (!def || !isPineOriginDoc(def)) return null
+  const spellings = otherSymbolRequestsOf(def)
+    .filter(({ ticker, spellings }) => spellings.includes(BREADTH_VENUE) && breadthBaseOf(ticker))
+    .map(({ ticker }) => `${BREADTH_VENUE}:${ticker}`)
+  return spellings.length ? { spellings: [...new Set(spellings)].sort(), words: BREADTH_DATA_WORDS } : null
+}
+
+/** ⭐⭐ T4 E2 — is this request an event read (the rewrite's, or the internal name a script spelled)? */
+export function isEventRequest(ticker, spellings) {
+  return EVENT_TICKER.test(String(ticker || '').trim().toUpperCase())
+    || (Array.isArray(spellings) && spellings.includes(EVENT_VENUE))
+}
+
+/** ⭐⭐ T4 E2 — does this document read the chart's own events (a rewrite's read the static gate does not refuse)? The
+ *  chart then asks `/api/pine/events/<its symbol>` once (`useSecondarySources` → `eventSupply.js`), and nothing else. */
+export function eventsNeeded(def) {
+  return dataReadsNeeded(def, false)
+}
+
+/** ⭐⭐ T4 F1b — does this document read the chart's own financial figures (a rewrite's `request.financial` the static
+ *  gate does not refuse)? The chart then asks `/api/pine/financial/<its symbol>` once (`financialSupply.js`), and nothing else. */
+export function financialNeeded(def) {
+  return dataReadsNeeded(def, true)
+}
+
+function dataReadsNeeded(def, financial) {
+  if (!def || !isPineOriginDoc(def) || !def.meta || !Array.isArray(def.meta.otherSymbols)) return false
+  return otherSymbolRequestsOf(def).some(({ ticker, spellings }) => spellings.length > 0
+    && spellings.every((v) => v === EVENT_VENUE) && !!financialReadOf(ticker) === financial
+    && !staticallyUnservable(ticker, EVENT_VENUE))
+}
+
+/** ⭐⭐ T4 B2 — mark a served breadth series with its record (`SERIES_EVENT_RECORD`, code `BREADTH_BEFORE_RECORD_CODE`): the
+ *  chart bars before its first row are withheld (`SERIES_UNKNOWN_BEFORE_FIRST`) and NAMED per bar (`interpret.js::
+ *  recordBeforeMask`), in the words `pineBreadth.js::breadthBeforeRecordSentence` says. `knownFrom` is the door's own
+ *  (B1: the first session UCT counts), else the exchange's coverage start. */
+export function markBreadthSeries(series, ticker, entry) {
+  if (!Array.isArray(series)) return series
+  const base = breadthBaseOf(ticker) || String(ticker).trim().toUpperCase()
+  const spec = BREADTH_SPELLINGS[base] || null
+  const exchange = spec ? spec.exchange : null
+  const knownFrom = (entry && typeof entry.knownFrom === 'string' && entry.knownFrom)
+    || (exchange ? BREADTH_COVERAGE_FROM[exchange] : null)
+  const first = series.length ? isoDay(series[0].t) : null
+  if (!series[SERIES_UNKNOWN_BEFORE_FIRST]) Object.defineProperty(series, SERIES_UNKNOWN_BEFORE_FIRST, { value: true, enumerable: false })
+  Object.defineProperty(series, SERIES_EVENT_RECORD, { value: Object.freeze({ code: BREADTH_BEFORE_RECORD_CODE,
+    family: 'breadth', ticker: String(ticker).trim().toUpperCase(), spelling: base, exchange, knownFrom, from: first }),
+  enumerable: false, configurable: true })
+  return series
+}
+
+/** The sentences the bind says for an event read on a chart timeframe its placement is not witnessed on. */
+function eventTimeframeWhy(family, tf) {
+  const s = String(tf == null ? '' : tf).trim().toUpperCase()
+  // (a monthly chart is served since W-E2: `pineEvents.js::eventTimeframeCode`; the witness row gates it)
+  return `\`request.${family}\` on a \`${s || '?'}\` chart: UCT holds the date of each ${family === 'earnings' ? 'report' : 'event'}, not `
+    + 'its time of day, so the intraday bar it lands on is not known; it is served on daily and weekly charts'
+}
+
+/**
+ * ⭐⭐ T4 E2 — THE BIND'S DECISION FOR ONE EVENT READ (the rewrite's, its static refusals already asked):
+ * `{series}` (placed on the chart's bars, `pineEvents.js::placeEvents`) or `{code, reason, pending?}`. ONE function for
+ * both lanes: the host bind (`resolveOtherSymbols`) and the run's supply (`requestSupply.js::decideOther`) ask it.
+ * `ctx.secondary.get(EVENTS_KEY)` is the chart's events entry (`eventSupply.js`): `{status, events, symbol}`.
+ */
+export function eventDecision(ticker, ctx = {}) {
+  // ⭐⭐ T4 F1b — a financial read is decided by its own supply and placement (`financialDecision`)
+  if (financialReadOf(ticker)) return financialDecision(ticker, ctx)
+  const read = eventReadOf(ticker)
+  const R = OTHER_SYMBOL_REFUSAL
+  if (!read || read.gaps === null) return { code: R.EVENT_ARGUMENT, reason: `${eventLabel(ticker)} is not a read UCT serves` }
+  const family = read.family
+  const tfCode = eventTimeframeCode(ctx.tf)
+  if (!tfCode) return { code: R.EVENT_TIMEFRAME, reason: eventTimeframeWhy(family, ctx.tf) }
+  const row = eventRowOf(family)
+  if (!eventRowServes(row, tfCode)) {
+    return { code: R.EVENT_TIMEFRAME, reason: `\`request.${family}\` on a \`${tfCode}\` chart is served only once a TradingView `
+      + `capture witnesses where it places each event there${row && row.queue_row ? ` (capture-queue row ${row.queue_row})` : ''}, `
+      + 'so what this indicator draws from it is not computed' }
+  }
+  const secondary = ctx.secondary && typeof ctx.secondary.get === 'function' ? ctx.secondary : null
+  const entry = secondary ? secondary.get(EVENTS_KEY) : null
+  const chart = ctx.symbol && typeof ctx.symbol.ticker === 'string' && ctx.symbol.ticker.trim() ? storeTickerOf(ctx.symbol.ticker) : null
+  const loading = { code: R.EVENT_UNAVAILABLE, pending: true,
+    reason: `UCT is gathering ${chart ? `${chart}'s ` : 'this symbol\'s '}${family}; it is drawn when it lands` }
+  if (!entry || entry.status === 'loading' || entry.status === 'pending') return loading
+  if (entry.status === 'dark') {
+    return { code: R.EVENT_NOT_AVAILABLE, reason: `${family} data is not available on this chart yet, so what this indicator `
+      + `draws from \`request.${family}\` is not computed` }
+  }
+  const doc = entry.status === 'available' && entry.events && typeof entry.events === 'object' ? entry.events : null
+  if (!doc) {
+    return { code: R.EVENT_UNAVAILABLE, reason: `UCT could not read ${chart ? `${chart}'s ` : 'this symbol\'s '}${family} just now `
+      + `(${entry.status || 'no answer'}), so what this indicator draws from \`request.${family}\` is not computed` }
+  }
+  // ⛔ an answer for another symbol (a chart that switched while it was in flight) is no answer for this one
+  if (chart && typeof doc.symbol === 'string' && storeTickerOf(doc.symbol) !== chart) return loading
+  const who = chart || (typeof doc.symbol === 'string' ? doc.symbol : 'this symbol')
+  const fam = doc.families && typeof doc.families === 'object' ? doc.families[family] : null
+  const state = fam && typeof fam.state === 'string' ? fam.state : 'missing'
+  if (state === 'refused') {
+    const said = fam.refusal && typeof fam.refusal.sentence === 'string' ? ` (${fam.refusal.sentence})` : ''
+    return { code: R.EVENT_NOT_AVAILABLE, reason: `${family} data is not available on this chart${said}, so what this `
+      + `indicator draws from \`request.${family}\` is not computed` }
+  }
+  // ⭐⭐ (coordinator ruling 2026-11-22, E2 ruling 3) A FUND REPORTS NO EARNINGS: on a chart whose store class is ETF
+  // (the bind's `symbol.securityType`) an earnings read is `na` on every bar, as TradingView draws it (AMEX:SPY 1D, the E0
+  // probe: `na` on all 8,000+ bars), and any row the vendor holds for the fund is ignored (SPY's one, 2005-02-15)
+  if (family === 'earnings' && ctx.symbol && String(ctx.symbol.securityType || '').toUpperCase() === 'ETF'
+      && Array.isArray(ctx.chartBars)) {
+    const series = ctx.chartBars.map((b) => ({ t: b.t, o: NaN, h: NaN, l: NaN, c: NaN, v: 0 }))
+    return { series: markEventSeries(series, { ticker, family, symbol: who, knownFrom: null, fund: true }) }
+  }
+  if (state === 'empty' || state === 'missing') {
+    const one = family === 'earnings' ? 'earnings report' : family === 'dividends' ? 'dividend' : 'split'
+    return { code: R.EVENT_NONE, reason: `UCT holds no ${one} for ${who}, and whether that means it has none (TradingView then `
+      + `draws \`na\`) is not settled here, so what this indicator draws from \`request.${family}\` is not computed` }
+  }
+  if (state !== 'ok' || !Array.isArray(fam.rows) || typeof fam.knownFrom !== 'string') {
+    return { code: R.EVENT_UNAVAILABLE, reason: `UCT could not refresh ${who}'s ${family} just now, so what this indicator `
+      + `draws from \`request.${family}\` is not computed` }
+  }
+  if (family === 'dividends') {
+    const foreign = fam.rows.find((r) => r && typeof r.currency === 'string' && r.currency.trim()
+      && r.currency.trim().toUpperCase() !== 'USD')
+    if (foreign) {
+      return { code: R.EVENT_CURRENCY, reason: `${who} declares dividends in ${foreign.currency.trim().toUpperCase()}, and UCT `
+        + 'serves `request.dividends` in US dollars only, so what this indicator draws from it is not computed' }
+    }
+  }
+  const bars = Array.isArray(ctx.chartBars) ? ctx.chartBars : null
+  if (!bars) {
+    return { code: R.EVENT_ARGUMENT, reason: `${eventLabel(ticker)} lands each event on one of the chart's own bars, and this `
+      + 'read is not handed them, so what it reads is not computed' }
+  }
+  // ⭐⭐ (coordinator ruling 2026-11-22, E2 ruling 1) EARNINGS ARE DRAWN FROM TRADINGVIEW'S WINDOW ON
+  // (`pineEvents.js::EARNINGS_WINDOW_FROM`): knownFrom = max(our first held report, the cut), and under `gaps_off` the
+  // bars from the cut to the first report after it are withheld too (a cut is not a coverage start)
+  const cut = family === 'earnings' && fam.knownFrom < EARNINGS_WINDOW_FROM ? EARNINGS_WINDOW_FROM : null
+  const knownFrom = cut || fam.knownFrom
+  // ⭐ ruling (1): a `knownFrom` BEFORE our first held event is a coverage start (nothing before it); E1's own `knownFrom`
+  // is its first held event, which is not (an older event may exist), and neither is the window's cut
+  const firstHeld = fam.rows.map((r) => r && r[EVENT_DATE_KEY[family]]).filter((d) => typeof d === 'string').sort()[0] || null
+  const coverageStart = !cut && firstHeld !== null && fam.knownFrom < firstHeld.slice(0, 10)
+  const placed = placeEvents(read, read.gaps, read.lookahead, fam.rows, knownFrom, bars, tfCode, { coverageStart })
+  if (placed.why) return { code: R.EVENT_ARGUMENT, reason: `${eventLabel(ticker)} cannot be placed: ${placed.why}` }
+  const first = placed.series.length ? isoDay(placed.series[0].t) : null
+  return { series: markEventSeries(placed.series, { ticker, family, symbol: who, knownFrom, from: first,
+    ...(cut ? { window: cut } : {}) }) }
+}
+
+/**
+ * ⭐⭐ T4 F1b — THE BIND'S DECISION FOR ONE FINANCIAL READ (the rewrite's `request.financial`, its static refusals
+ * already asked): `{series}` (placed on the chart's bars, `pineFinancial.js::placeFinancial`) or `{code, reason, pending?}`.
+ * ONE function for both lanes (`eventDecision` hands it every financial read). `ctx.secondary.get(FINANCIAL_KEY)` is the
+ * chart's financial entry (`financialSupply.js`): `{status, financial, symbol}`, F1a's answer under `financial`.
+ * ⛔ The values are UCT data (company filings), never TradingView's figures: the plot's note says so, and no grade of it
+ * counts MATCH.
+ */
+export function financialDecision(ticker, ctx = {}) {
+  const read = financialReadOf(ticker)
+  const R = OTHER_SYMBOL_REFUSAL
+  const label = financialLabel(ticker)
+  if (!read || read.gaps === null || !read.series) return { code: R.FINANCIAL_ARGUMENT, reason: `${label} is not a read UCT serves` }
+  const tfCode = financialTimeframeCode(ctx.tf)
+  const notComputed = `so what this indicator draws from ${label} is not computed`
+  if (!tfCode) {
+    return { code: R.FINANCIAL_TIMEFRAME, reason: `${label} on a \`${String(ctx.tf == null ? '?' : ctx.tf).trim().toUpperCase() || '?'}\` `
+      + 'chart: UCT dates each figure by the session its company filing became public in, so it is served on daily, weekly '
+      + `and monthly charts; ${notComputed}` }
+  }
+  const secondary = ctx.secondary && typeof ctx.secondary.get === 'function' ? ctx.secondary : null
+  const entry = secondary ? secondary.get(FINANCIAL_KEY) : null
+  const chart = ctx.symbol && typeof ctx.symbol.ticker === 'string' && ctx.symbol.ticker.trim() ? storeTickerOf(ctx.symbol.ticker) : null
+  const loading = { code: R.FINANCIAL_UNAVAILABLE, pending: true,
+    reason: `UCT is gathering ${chart ? `${chart}'s ` : 'this symbol\'s '}figures from company filings; they are drawn when they land` }
+  if (!entry || entry.status === 'loading' || entry.status === 'pending') return loading
+  if (entry.status === 'dark') {
+    return { code: R.FINANCIAL_NOT_AVAILABLE, reason: `financial figures are not available on this chart yet, ${notComputed}` }
+  }
+  const doc = entry.status === 'available' && entry.financial && typeof entry.financial === 'object' ? entry.financial : null
+  if (!doc) {
+    return { code: R.FINANCIAL_UNAVAILABLE, reason: `UCT could not read ${chart ? `${chart}'s ` : 'this symbol\'s '}figures just now `
+      + `(${entry.status || 'no answer'}), ${notComputed}` }
+  }
+  // ⛔ an answer for another symbol (a chart that switched while it was in flight) is no answer for this one
+  if (chart && typeof doc.symbol === 'string' && storeTickerOf(doc.symbol) !== chart) return loading
+  const who = chart || (typeof doc.symbol === 'string' ? doc.symbol : 'this symbol')
+  const state = typeof doc.familyState === 'string' ? doc.familyState : 'missing'
+  if (state === 'refused') {
+    const said = doc.refusal && typeof doc.refusal.sentence === 'string' ? ` (${doc.refusal.sentence})` : ''
+    return { code: R.FINANCIAL_NOT_AVAILABLE, reason: `financial figures are not available on this chart${said}, ${notComputed}` }
+  }
+  if (state === 'none') {
+    return { code: R.FINANCIAL_NONE, reason: `UCT holds no figures from company filings for ${who} (it reads US company filings; `
+      + `a fund or a company filing in another format has none there), ${notComputed}` }
+  }
+  const field = doc.fields && typeof doc.fields === 'object' ? doc.fields[`${read.field}:${read.period}`] : null
+  if (!field || typeof field !== 'object') {
+    return { code: R.FINANCIAL_UNAVAILABLE, reason: `UCT could not read ${who}'s \`${read.field}\` (\`${read.period}\`) just now, ${notComputed}` }
+  }
+  if (field.state === 'withheld') {
+    return { code: R.FINANCIAL_WITHHELD, reason: `${who}'s split history could not be verified, so UCT withholds its per-share `
+      + `figures and share counts, ${notComputed}` }
+  }
+  if (field.state === 'missing' || field.state === 'none') {
+    return { code: R.FINANCIAL_NONE, reason: `${who}'s company filings do not yield \`${read.field}\` (\`${read.period}\`) in UCT's `
+      + `store, ${notComputed}` }
+  }
+  if (field.state !== 'ok' || !Array.isArray(field.points)) {
+    return { code: R.FINANCIAL_UNAVAILABLE, reason: `UCT could not refresh ${who}'s figures just now, ${notComputed}` }
+  }
+  const bars = Array.isArray(ctx.chartBars) ? ctx.chartBars : null
+  if (!bars) {
+    return { code: R.FINANCIAL_ARGUMENT, reason: `${label} lands each figure on one of the chart's own bars, and this read is `
+      + 'not handed them, so what it reads is not computed' }
+  }
+  const placed = placeFinancial(read.gaps, field, bars, tfCode)
+  if (placed.why) return { code: R.FINANCIAL_ARGUMENT, reason: `${label} cannot be placed: ${placed.why}` }
+  const first = placed.series.length ? isoDay(placed.series[0].t) : null
+  return { series: markFinancialSeries(placed.series, { ticker, symbol: who, field: read.field, period: read.period,
+    knownFrom: typeof field.knownFrom === 'string' ? field.knownFrom : null, from: first, unknown: placed.unknown || null }) }
 }
 
 /** The Pine prefix a STORE exchange spelling answers to, or null. */
@@ -1341,6 +1686,18 @@ export function resolveOtherSymbols(def, ctx = {}, confirmed = SYMBOL_EXCHANGE_C
       refused.push({ ticker, code: hopeless.code, reason: hopeless.reason, static: true })
       continue
     }
+    // ⭐⭐ T4 E2 — A CORPORATE-EVENTS READ (the rewrite's): the chart's own events, placed on its bars
+    // (`eventDecision`). Never a listing, never a witness row's bars.
+    if (spellings.includes(EVENT_VENUE)) {
+      const d = eventDecision(ticker, ctx)
+      if (d.series) {
+        symbols[ticker] = d.series
+        served.push(ticker)
+      } else {
+        refused.push({ ticker, code: d.code, reason: d.reason, event: true, ...(d.pending ? { pending: true } : {}) })
+      }
+      continue
+    }
     // ⭐⭐ RS RATING L1b — A WITNESSED SPELLING (`SP:SPX`) IS ITS ROW'S: no exchange to match,
     // served from the row's store key on the timeframes its witness covers, its bars keyed by
     // session date and placed as the witness places them (`witnessedBarsOf`). A pending row
@@ -1354,6 +1711,11 @@ export function resolveOtherSymbols(def, ctx = {}, confirmed = SYMBOL_EXCHANGE_C
         continue
       }
       const tf = ctx.tf == null ? '' : String(ctx.tf)
+      // ⭐⭐ T4 B2 — a breadth spelling on an intraday chart: UCT holds one count per session, never intraday breadth
+      if (row.kind === 'breadth' && /^\d+$/.test(tf)) {
+        no(ticker, OTHER_SYMBOL_REFUSAL.BREADTH_INTRADAY, breadthIntradayReason(ticker, tf))
+        continue
+      }
       // ⭐⭐ RS RATING L11 — WHICH READ OF THE ROW THIS CHART IS (`witnessReadOf`): the row's own
       // timeframe as before, or a block's (a weekly chart: the series held at `D`, folded for a
       // `timeframe.period` read, sampled for a daily one). `ctx.requestCode` is the run's request
@@ -1364,11 +1726,19 @@ export function resolveOtherSymbols(def, ctx = {}, confirmed = SYMBOL_EXCHANGE_C
         continue
       }
       const entry = secondary ? secondary.get(read.key) : null
+      // ⭐⭐ T4 B2 — the breadth door dark for this member (B1's stage) or refusing it (the licence): named, never a wait
+      if (row.kind === 'breadth' && entry && (entry.status === 'dark' || entry.status === 'refused')) {
+        no(ticker, OTHER_SYMBOL_REFUSAL.BREADTH_NOT_AVAILABLE, breadthNotAvailableReason(ticker, entry.said || ''))
+        continue
+      }
       const held = entry && Array.isArray(entry.bars) ? entry.bars : null
       if (!held || !held.length) {
         no(ticker, OTHER_SYMBOL_REFUSAL.NO_BARS, `\`${row.spelling}\`'s bars for this timeframe are not in hand`
           + (entry && entry.status ? ` (${entry.status})` : ''))
-        if (!entry || String(entry.status || '') === 'loading') refused[refused.length - 1].pending = true
+        // ⭐ T4 B2 — and a breadth door still gathering (202 `pending`) is a wait, as a load is
+        if (!entry || String(entry.status || '') === 'loading' || (row.kind === 'breadth' && entry.status === 'pending')) {
+          refused[refused.length - 1].pending = true
+        }
         continue
       }
       // ⭐ RS RATING L12 — a block held at a second timeframe too (an intraday chart's daily rows)
@@ -1407,6 +1777,8 @@ export function resolveOtherSymbols(def, ctx = {}, confirmed = SYMBOL_EXCHANGE_C
       const page = !landed && read.fold === WITNESS_PERIOD_READS.AT_OR_BEFORE ? filledPageOf(entry, held) : null
       if (page) Object.defineProperty(symbols[ticker], SERIES_PAGE_FILLED, { value: page, enumerable: false })
       if (read.sample) samples[ticker] = read.sample
+      // ⭐⭐ T4 B2 — a breadth series carries its record: the bars before UCT's counts begin are withheld BY NAME, per bar
+      if (row.kind === 'breadth') markBreadthSeries(symbols[ticker], ticker, entry)
       served.push(ticker)
       continue
     }
@@ -1503,7 +1875,7 @@ export function otherSymbolRefusalOfTree(tree, decision) {
   if (hit.static === true) {
     return { guard: 'pine:request', code: hit.code, message: staticOtherSymbolMessage(hit.ticker, hit) }
   }
-  return { guard: hit.code, message: `This indicator reads \`${hit.ticker}\`: ${hit.reason}` }
+  return { guard: hit.code, message: `This indicator reads ${otherSymbolLabel(hit.ticker)}: ${hit.reason}` }
 }
 
 /** A stable signature of what `resolveOtherSymbols` would supply — for a
@@ -1528,6 +1900,14 @@ export function otherSymbolsSignature(def, secondary, chartTf) {
   const ownSig = ownE ? `|own:${ownE.status || ''}:${ownBars ? ownBars.length : 0}:${ownLast ? `${ownLast.t}/${ownLast.c}` : ''}`
     + `${ownE.newestBarIsForming === true ? ':forming' : ''}` : ''
   if (!requests.length) return ownSig
+  // ⭐⭐ T4 E2 — the chart's events entry landing, failing or refreshing is a recompute of every event read
+  const evE = requests.some((r) => (r.spellings || []).includes(EVENT_VENUE)) && secondary && typeof secondary.get === 'function'
+    ? secondary.get(EVENTS_KEY) : null
+  const evSig = evE ? `|events:${evE.status || ''}:${evE.symbol || ''}:${evE.rev || ''}` : ''
+  // ⭐⭐ T4 F1b — and the chart's financial entry, for a document that reads `request.financial`
+  const finE = requests.some((r) => (r.spellings || []).includes(EVENT_VENUE) && financialReadOf(r.ticker)) && secondary
+    && typeof secondary.get === 'function' ? secondary.get(FINANCIAL_KEY) : null
+  const finSig = finE ? `|financial:${finE.status || ''}:${finE.symbol || ''}:${finE.rev || ''}` : ''
   // ⭐ RS RATING L6b — a witnessed spelling's series is held under its row's store key
   // ⭐ RS RATING L11 — and, on a chart that holds it at another timeframe, under its held key
   // (`SPX@D` on a weekly chart: `heldFetchOf`, the key the chart's fetch files it under)
@@ -1547,5 +1927,5 @@ export function otherSymbolsSignature(def, secondary, chartTf) {
     // ⭐ RS RATING L12 — every held key of the ticker (an intraday chart's daily rows landing is a recompute)
     return `${t}:${e ? e.status || '' : '-'}:${bars ? bars.length : 0}:${last ? `${last.t}/${last.c}` : ''}`
       + `${e && e.newestBarIsForming === true ? ':forming' : ''}`
-  }).join('+')).join(',') + ownSig
+  }).join('+')).join(',') + ownSig + evSig + finSig
 }

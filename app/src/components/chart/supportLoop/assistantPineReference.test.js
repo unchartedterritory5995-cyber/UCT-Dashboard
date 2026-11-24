@@ -39,6 +39,10 @@ import * as nativeRegistry from '../engine/nativeRegistry'
 import { RUNTIME_OBJECTS_KEY } from '../engine/runtime/runtimeObjects'
 import { drawingLossOf, LOST_DRAWINGS_HEADLINE } from '../builder/authoring/scriptAnswer'
 import { DRAWING_NOTE_NAME } from '../engine/ast/objectLoss'
+import { translatePine } from '../engine/ast/pine'
+import { EVENTS_KEY } from '../engine/pineEvents'
+import { FINANCIAL_KEY } from '../engine/pineFinancial'
+import { probeScript, refusalsOf } from './doorNameCoverage'
 import {
   buildAssistantPineReference, servedOutputs, outputProbeScript, OUTPUT_PROBES, PITFALL_PROBES, RUNS_STATES, DRAWING_FAMILIES,
 } from './assistantPineReference'
@@ -662,6 +666,65 @@ describe('assistantPineReference.json is the current build\'s answer', () => {
     // a name the door does not reach is not listed, whatever TradingView has
     const unreached = Object.entries(DOOR_NAMES.names).find(([, v]) => v.status !== 'reachable')[0]
     expect(ref.values.some((v) => v.name === unreached)).toBe(false)
+  }, 300_000)
+
+  /** ⭐⭐ (train e95) A daily chart of the recipe symbol with EVERY data door answering: the corporate-events door
+   *  (T4 E2, E1's record shape) and the financial door (T4 F1b, F1a's), each holding one row from the first bar. */
+  function doorsAnsweringContext() {
+    const bars = RECIPE_BARS.daily
+    const sym = recipeContext('daily', 'fromListing').symbol.ticker
+    const day = (i) => bars[i].t
+    const events = { schema: 'uct.pine-events/v1', symbol: sym, state: 'ready', families: {
+      earnings: { state: 'ok', knownFrom: day(0), rows: [{ date: day(100), actual: 1.5, estimate: 1.4 }] },
+      dividends: { state: 'ok', knownFrom: day(0), rows: [{ exDate: day(120), gross: 0.77, currency: 'USD' }] },
+      splits: { state: 'ok', knownFrom: day(0), rows: [{ date: day(140), numerator: 4, denominator: 1 }] } } }
+    const financial = { schema: 'uct.pine-financial/v1', symbol: sym, family: 'financial', familyState: 'ok', state: 'ready',
+      refreshedAt: 1, fields: { 'TOTAL_REVENUE:FQ': { state: 'ok', knownFrom: day(0), points: [
+        { publicAt: 0, knownFrom: day(0), v: 100, periodEnd: day(0), method: 'direct', staleFrom: '2099-12-31' }] } } }
+    return { bars, ctx: { ...recipeContext('daily', 'fromListing'), exchangeOf: () => null, secondary: new Map([
+      [EVENTS_KEY, { status: 'available', events, symbol: sym, rev: 1 }],
+      [FINANCIAL_KEY, { status: 'available', financial, symbol: sym, rev: '1' }]]) } }
+  }
+
+  /** The member's path on one value call: it translates, the paste check runs it, and a real run refuses nothing. */
+  function valueCallServed(call, { bars, ctx }) {
+    const source = probeScript(call)
+    const t = translatePine(source)
+    const translated = refusalsOf(t).length === 0 && (t.outputs || []).some((o) => o && !o.refusal && o.formula)
+    if (!translated) return `does not translate (${(refusalsOf(t)[0] || {}).guard || 'no output'})`
+    const v = verdictOf(source)
+    if (!v.ok || !RUNS_STATES.includes(v.state)) return `the paste check does not run it (${v.state}: ${v.headline})`
+    const pane = memberPaneDefinition({ source, id: `u_val_${n += 1}`, name: 'probe' })
+    let cols
+    try { cols = nativeRegistry.computeFor(pane.definition, bars, undefined, ctx) } catch (e) { return `the run threw (${(e && e.guard) || (e && e.message)})` }
+    const errs = Object.values(nativeRegistry.columnErrors(cols) || {})
+    return errs.length ? `the run refuses it (${errs.map((e) => e.guard).join(', ')})` : null
+  }
+
+  it('⭐⭐ (train e95) every value call it hands the assistant translates and is SERVED on the member\'s path', () => {
+    // the COMMITTED reference: what the assistant is actually handed, not a rebuild of it
+    const committed = JSON.parse(fs.readFileSync(FILE, 'utf8'))
+    const doors = doorsAnsweringContext()
+    expect(committed.values.length).toBeGreaterThan(100)
+    const refused = committed.values.map((v) => [v.name, v.call, valueCallServed(v.call, doors)]).filter(([, , why]) => why)
+    expect(refused, refused.map(([name, call, why]) => `${name}: ${call}: ${why}`).join(LF)).toEqual([])
+    // each data read the parse rewrites is listed with its whole call, the one its door serves
+    for (const name of ['request.earnings', 'request.dividends', 'request.splits', 'request.financial']) {
+      const v = committed.values.find((x) => x.name === name)
+      if (v) expect(v.call, name).toMatch(/^request\.[a-z]+\(syminfo\.tickerid, /)
+    }
+  }, 300_000)
+
+  it('CONTROL (train e95): the bare data read the reference once listed passes the paste check and is refused when it runs', () => {
+    const doors = doorsAnsweringContext()
+    for (const call of ['request.earnings()', 'request.dividends()', 'request.splits()', 'request.financial()']) {
+      expect(verdictOf(probeScript(call)).ok, call).toBe(true)
+      expect(valueCallServed(call, doors), call).toMatch(/^the run refuses it \(pine:request\)$/)
+    }
+    // and the same read with its arguments written is served (the control can say yes)
+    expect(valueCallServed('request.earnings(syminfo.tickerid, earnings.actual, barmerge.gaps_off, barmerge.lookahead_on)', doors)).toBe(null)
+    // CONTROL: a call the member's install refuses is caught by the paste check
+    expect(valueCallServed('ta.highestbars(close)', doors)).toMatch(/^the paste check does not run it/)
   }, 300_000)
 
   it('an output call is asked of the paste path, and only one that runs is served', () => {

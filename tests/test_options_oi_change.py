@@ -359,7 +359,10 @@ def test_switched_on_it_is_paid_only(client, monkeypatch, seed):
     monkeypatch.setenv(FLAG, "1")
     client.who["user"] = FREE
     assert client.get(URL + "AAA").status_code == 402
+    assert oic.builds_started == 0                              # a free plan starts nothing
     client.who["user"] = PAID
+    assert client.get(URL + "AAA").json()["status"] in ("computing", "ok")   # at once (WAIT_S is none); the pair is read behind it
+    read("AAA")                                                 # the panel asks again once the pair is held
     r = client.get(URL + "AAA?side=put")
     assert r.status_code == 200 and r.json()["rows"][0]["change"] == -500
     assert client.get(URL + "AAA?side=both").status_code == 422
