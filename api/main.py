@@ -10935,10 +10935,11 @@ async def lifespan(app: FastAPI):
         # the new container's memory job store schedules the NEXT slot (`misfire_grace_time` covers only a scheduler
         # that was ALIVE at the fire time, as the rs_history catch-up's note says). So, as rs_history does: a one-hour
         # grace on the job above, and `insider_clusters_sec.catch_up`, which starts the SAME run only when the held
-        # answer was built before the last slot (`insider_clusters_sec.behind`): a DATE job CATCHUP_BOOT_DELAY_S after
-        # boot (never inline: the boot is not slowed) and an hourly check (CATCHUP_HOURS_ET at CATCHUP_MINUTE_ET, every
-        # day; `behind` knows the schedule). A run a restart killed resumes from the store's per-day checkpoint, and the
-        # module's own guard runs one at a time. Nothing on a member's request starts it.
+        # answer was built before the last slot (`insider_clusters_sec.behind`), and only inside scan_period's quiet
+        # span (`insider_clusters_sec.quiet`: a boot during the weekday busy span starts nothing): a DATE job
+        # CATCHUP_BOOT_DELAY_S after boot (never inline: the boot is not slowed) and an hourly check (CATCHUP_HOURS_ET
+        # at CATCHUP_MINUTE_ET, every day; `behind` knows the schedule). A run a restart killed resumes from the store's
+        # per-day checkpoint, and the module's own guard runs one at a time. Nothing on a member's request starts it.
         _boot_mark("INS-catch-up")
         try:
             def _insider_clusters_sec_catch_up_job(source):
