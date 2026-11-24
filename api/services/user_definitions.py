@@ -1975,12 +1975,18 @@ def _admit_new_maths(definition: dict, verdict: Mapping[str, str],
     formula the browser's Save would admit. Called by `save()` for NEW MATHS
     only. `verdict` is `lint_verdict(definition)`, already computed there."""
     from api.services import ast_budget
+    from api.services.alert_user_series import _inputs_for
+    from api.services.ast_bind import prune_knob_arms
     from api.services.ast_interpret import TableRefusal
 
     compute = definition.get("compute") or {}
+    # ⭐⭐ e95 unit 2b -- the budget of the program the member's chart draws: every knob ternary bound at the inputs'
+    # DEFAULTS (``nativeRegistry.validateAstLane``'s ``defaultBoundDocument``); an arm a knob picks later is measured by
+    # that binding's own compute-time budget, which refuses that plot by name.
+    knobs = _inputs_for(definition, None)
     for key, tree in _lanes(definition):
         try:
-            result = ast_budget.budget_result(tree, compute.get("budget"))
+            result = ast_budget.budget_result(prune_knob_arms(tree, knobs), compute.get("budget"))
         except TableRefusal as exc:
             raise SaveRefused(
                 "tree",

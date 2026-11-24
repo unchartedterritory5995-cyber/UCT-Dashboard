@@ -104,6 +104,8 @@ import { yieldsOf, compileRules, SENTENCE_RULES, didYouMean } from './sentence.j
 import { FN, MAX_SELF_LAG, SEED_RESIDUAL_TOLERANCE, TF_RESAMPLABLE, TF_LADDER, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, heldFalseSeed, naConditionIsFalse, periodFirstCondition, readingSeed, chartOwnTimeNode, OWN_TIME_WITNESSED_TF, periodCloseNode, PERIOD_CLOSE_CODES, periodAnchorNode, chartSixtyTimeNode, dayAnchorNode, sessionDayGateNode, sessionDayWindowNode, SIXTY_WITNESSED_TF, PERIOD_ANCHOR_WITNESSED_TF, PERIOD_CLOSE_WITNESSED_TF, requestBaseNode, treeReadsLowerTf, listingSeedIsUnpinned, isBarPriceTree } from './interpret.js'
 import { isLowerTfRequest, lowerTfRefusal, LOWER_TF_REFUSAL } from '../lowerTf.js'
 import { staticallyUnservable, spellingUnservable, staticOtherSymbolMessage, US_EQUITY_VENUES, witnessRowOf, SEED_SPELLING } from '../otherSymbols.js'
+// ⭐⭐ T4 E2 — `request.earnings` / `request.dividends` / `request.splits` (`eventAsSecurity`, `otherSymbolOf`)
+import { eventCallParts, eventOtherSymbolTicker, eventReadOf, EVENT_VENUE } from '../pineEvents.js'
 import { memberNumber } from './memberValue.js'
 // ⭐⭐ CBC-FMT — the request reads a `calc_bars_count` window refuses (pure, imports nothing).
 import { CALC_BARS_REQUEST_SOURCE } from '../calcBarsWindow.js'
@@ -168,7 +170,7 @@ import { compileMessagePattern, tostringPatternOf, literalTostringText } from '.
 // copies of "does an empty needle match" is the second-authority defect this repo
 // keeps paying for. The exchange-witness map lives there too: it is consulted per
 // BINDING, which is not a question a door that runs once per script can answer.
-import { TEXT_PREDICATE_FN, foldScalar } from './bind.js'
+import { TEXT_PREDICATE_FN, foldScalar, REFUSED_ARM_CALL } from './bind.js'
 import { constCompareFold, pineCompareAmbiguous, constantTreeValue } from '../pineCompare.js'
 // ⭐ THE SHARED WINDOW PREDICATE — from `parse.js`, the one module the SAVE
 // door, the bind stage and the repaint LINTER can all see. See L2 in
@@ -3025,6 +3027,18 @@ export const PINE_INEXPRESSIBLE = Object.freeze({
     + 'differently for the same stock on the same day. A pane may draw '
     + '`ta.valuewhen(condition, source, occurrence)`; the bar-window '
     + '`valuewhen(condition, source, bars)` translates for a screen.',
+  // ⭐⭐ e95 (unit 2) — the table's anchored VWAP, tagged `anchor_dependent` in the manifest (`_requirement_tags`):
+  // accepted by the pane, refused by the five comparability consumers. This is the sentence a screen gets when a
+  // script spells the TABLE name itself; Pine's own `ta.vwap(source, anchor)` translates and is contained one door
+  // later by the tag (the `ta.valuewhen` precedent, § C45 decision 12).
+  vwapAnchor: 'an anchored VWAP: sums that start again at every bar the anchor fires. Before the first anchor '
+    + 'inside the loaded history there is no value (TradingView carries a total from an earlier anchor), and on a '
+    + 'screen the first comparison above it would read the missing value as "no match" — so it could answer '
+    + 'differently for the same stock on the same day. A pane may draw `ta.vwap(source, anchor)`.',
+  vwapAnchorDev: 'the standard deviation an anchored VWAP\'s bands are drawn from, summed from the last bar the '
+    + 'anchor fired. Before the first anchor inside the loaded history there is no value, and on a screen the first '
+    + 'comparison above it would read the missing value as "no match". A pane may draw '
+    + '`ta.vwap(source, anchor, stdev_mult)`.',
   isfirst: 'the OLDEST bar the fetch delivered, which moves whenever the request '
     + 'reaches further back — so on a screen it would answer differently for the '
     + 'same stock on the same day. `barstate.islast` is the other end and IS '
@@ -4189,7 +4203,31 @@ const ARITY_HINTS = Object.freeze({
     + 'and this engine translates the `ta.mom` spelling',
 })
 
+/** ⭐⭐ e95 (unit 2) — the internal call the anchored VWAP's band leg is written as (`PINE_TUPLE_BUILTINS.vwap`):
+ *  the standard deviation since the anchor, `vwapAnchorDev`. It holds a space, so no script can spell it, and
+ *  both lanes answer it beside `ta.vwap(source, anchor)` (`Resolver.anchoredVwapTree`,
+ *  `pineRuntimeFrontend.js`'s anchored-VWAP kernel). */
+export const VWAP_DEV_CALL = 'ta.vwap stdev'
+// ⭐⭐ e95 unit 2b — `REFUSED_ARM_CALL` (`bind.js`) is the table function a refused knob arm stands as
+// (`Resolver.refusedArmLeaf`); it is re-exported for the rails.
+export { REFUSED_ARM_CALL }
+
 const PINE_TUPLE_BUILTINS = Object.freeze({
+  // ⭐⭐ e95 (unit 2) — `[vwap, upper, lower] = ta.vwap(source, anchor, stdev_mult)`: TradingView's built-in VWAP
+  // reads it so (`[_vwap, _stdevUpper, _] = ta.vwap(src, isNewPeriod, 1)`). The average is `ta.vwap(source, anchor)`
+  // and each band is it plus or minus the standard deviation since the anchor times the multiplier, TradingView's
+  // published `computeVWAP` (`interpret.js::vwapAnchorAccumulate`): `_vwap + stDev * stDevMultiplier`.
+  vwap: {
+    arity: 3,
+    parts: 3,
+    build: (a, tok) => {
+      const pc = (n, args) => ({ type: 'call', name: n, args: args.map((v) => ({ value: v })), tok })
+      const bin = (op, left, right) => ({ type: 'binary', op, left, right, tok })
+      const mid = pc('ta.vwap', [a[0], a[1]])
+      const band = bin('*', pc(VWAP_DEV_CALL, [a[0], a[1]]), a[2])
+      return [mid, bin('+', mid, band), bin('-', mid, band)]
+    },
+  },
   bb: {
     arity: 3,
     parts: 3,
@@ -6436,7 +6474,7 @@ function parsePostfix(cur) {
       if (node.type === 'name') {
         const joined = `${node.name}.${member}`
         node = isCall
-          ? seedAsSecurity({ type: 'call', name: joined, args, tok: node.tok, endTok })
+          ? requestRewrite({ type: 'call', name: joined, args, tok: node.tok, endTok })
           : { type: 'name', name: joined, tok: node.tok }
         continue
       }
@@ -6609,7 +6647,7 @@ function parsePrimary(cur) {
       // `endTok` is the whole of what would change this." This is that.
       // `parseArguments` consumes through the `)`, so the last token it ate IS
       // the closing paren — the same way `thinkscript.js::parseCall` gets it.
-      return seedAsSecurity({ type: 'call', name: tok.value, args, tok, endTok: cur.toks[cur.i - 1] || null })
+      return requestRewrite({ type: 'call', name: tok.value, args, tok, endTok: cur.toks[cur.i - 1] || null })
     }
     return { type: 'name', name: tok.value, tok }
   }
@@ -6674,6 +6712,37 @@ function seedAsSecurity(node) {
       { name: null, value: expr },
     ],
   }
+}
+
+/** ⭐⭐ T4 E2 — `request.earnings` / `request.dividends` / `request.splits` ARE OTHER-SYMBOL READS TOO, of the chart's
+ *  own corporate events (E1, `GET /api/pine/events/<symbol>`). Each call is rewritten here, once, beside the seed's, into
+ *  `request.security(<event read>, timeframe.period, close)`: both lanes parse with this module, so neither can read an
+ *  event differently. The event read is a STRING node marked `event` (`{family, symbol}`): its value is the read's ticker
+ *  (`pineEvents.js::eventCallParts`: the field and the gaps x lookahead pairing, which is the series' placement, never an
+ *  argument a `sym` read carries), and only this rewrite makes one, so the translator (`Resolver.otherSymbolOf`) names it
+ *  with `EVENT_VENUE` and checks its symbol argument is the chart's own. ⛔ A member's string spelling the same ticker
+ *  is no event read: it is refused by name (`otherSymbols.js::staticallyUnservable`), never fetched. */
+let _eventRewriteOff = false
+/** ⛔ TEST SEAM — the parse as it was before E2 (no event read): the grade diff's "before" and a mutant's control. */
+export function __eventRewriteOffForTests(off) { _eventRewriteOff = !!off }
+function eventAsSecurity(node) {
+  if (_eventRewriteOff) return node
+  const parts = eventCallParts(node)
+  if (!parts) return node
+  const tok = node.tok
+  return {
+    type: 'call', name: 'request.security', tok, endTok: node.endTok, event: true,
+    args: [
+      { name: null, value: { type: 'string', value: parts.ticker, tok, event: { family: parts.family, symbol: parts.symbol } } },
+      { name: null, value: { type: 'name', name: 'timeframe.period', tok } },
+      { name: null, value: { type: 'name', name: 'close', tok } },
+    ],
+  }
+}
+
+/** The parse's request rewrites, in one place: a seed, then a corporate-events read. */
+function requestRewrite(node) {
+  return eventAsSecurity(seedAsSecurity(node))
 }
 
 export function parseWholeExpression(toks) {
@@ -6803,6 +6872,9 @@ export function constantValueOf(node, budget = { left: MAX_FOLD_NODES }) {
     // stops a malformed tree reaching an implementation that would read
     // `undefined` and answer NaN rather than refusing.
     if (!spec || !isPointwise(spec) || typeof FN[node.name] !== 'function') return null
+    // ⛔ e95 unit 2b — a refused knob arm (`REFUSED_ARM_CALL`) is never a number: the fold declines it (its evaluation
+    // refuses by name, which is the bind's to say, never a translation's)
+    if (node.name === REFUSED_ARM_CALL) return null
     // ⛔ ENGINE 56 — the A3 marker is its operand where its flag is 0 and WITHHELD elsewhere
     // (`interpret.js::boolNaMask`): a constant flag that is not 0 withholds every bar, so it
     // folds only where the flag folds to 0
@@ -8291,6 +8363,57 @@ export function colourBlockRunsOf(t, table) {
  *  corpus tops out at two). */
 const MAX_CALL_DEPTH = 24
 
+/** ⭐⭐ e95 (computed number formats) — Pine's own `format.*` constants, as `Resolver.formatTextOf` hands them
+ *  back when a name the script binds holds one (`f = format.mintick`). Only `format.mintick` and
+ *  `format.volume` have a printed form here; the rest stay withheld, named. */
+export const PINE_NAMED_FORMATS = Object.freeze({
+  'format.mintick': true, 'format.volume': true, 'format.percent': true, 'format.price': true, 'format.inherit': true,
+})
+/** The text calls `formatTextOf` folds, with their parameter names in Pine's order. */
+const FORMAT_TEXT_CALLS = Object.freeze({
+  'str.substring': Object.freeze(['source', 'begin_pos', 'end_pos']),
+  'str.replace_all': Object.freeze(['source', 'target', 'replacement']),
+  'str.repeat': Object.freeze(['source', 'repeat', 'separator']),
+})
+/** A bound on `str.repeat`'s count in a format (a number pattern has at most a few dozen characters). */
+const FORMAT_TEXT_MAX_REPEAT = 64
+
+/** ⭐⭐ e95 — `str.substring` / `str.replace_all` / `str.repeat` of fixed texts, as Pine answers them, or null:
+ *  ONE reading for both lanes (`Resolver.formatTextOf`, `pineRuntimeFrontend.js::fixedFormatOf`), each lane
+ *  handing in how IT fixes a text (`textOf`) and a whole number (`intOf`, a non-negative integer or null).
+ *  ⛔ Only where Pine's answer is plain: an index outside the text, `begin > end`, an empty target or a count
+ *  past `FORMAT_TEXT_MAX_REPEAT` is null (not folded), never a clamp or a guess. */
+export function formatTextCall(node, textOf, intOf) {
+  if (!node || node.type !== 'call' || !own(FORMAT_TEXT_CALLS, node.name) || !Array.isArray(node.args)) return null
+  const params = FORMAT_TEXT_CALLS[node.name]
+  const given = {}
+  let k = 0
+  for (const a of node.args) {
+    const key = a.name || params[k]
+    if (!a.name) k += 1
+    if (!key || !params.includes(key) || own(given, key)) return null
+    given[key] = a.value
+  }
+  const source = given[params[0]] ? textOf(given[params[0]]) : null
+  if (typeof source !== 'string') return null
+  if (node.name === 'str.substring') {
+    const begin = given.begin_pos ? intOf(given.begin_pos) : null
+    const end = given.end_pos ? intOf(given.end_pos) : source.length
+    if (!Number.isInteger(begin) || !Number.isInteger(end) || begin < 0 || begin > end || end > source.length) return null
+    return source.slice(begin, end)
+  }
+  if (node.name === 'str.replace_all') {
+    const target = given.target ? textOf(given.target) : null
+    const replacement = given.replacement ? textOf(given.replacement) : null
+    if (typeof target !== 'string' || target === '' || typeof replacement !== 'string') return null
+    return source.split(target).join(replacement)
+  }
+  const times = given.repeat ? intOf(given.repeat) : null
+  const sep = given.separator ? textOf(given.separator) : ''
+  if (!Number.isInteger(times) || times < 0 || times > FORMAT_TEXT_MAX_REPEAT || typeof sep !== 'string') return null
+  return Array.from({ length: times }, () => source).join(sep)
+}
+
 /**
  * ⭐⭐ THE WALL-CLOCK BUDGET — a hang becomes a refusal, and never takes the batch.
  *
@@ -8915,6 +9038,10 @@ export class Resolver {
      *  entries depend only on the `var`'s own bindings, never on the output
      *  being resolved. Absent, each Resolver keeps its own. */
     this.partialReadCache = opts.partialReadCache || null
+    /** ⭐⭐ e95 unit 2b — the arms of a knob `switch` this translator refused (`enumSwitch`), SHARED by every Resolver
+     *  of one translation (`translatePine` hands one list in): a `refusedArm(k)` leaf names its entry `k - 1`, and the
+     *  member door stamps the list on the document (`meta.knobArmRefusals`) for the bind to quote. */
+    this.knobArmRefusals = opts.knobArmRefusals || null
     /** ⭐⭐ C10 (2026-09-29) — THE OBJECT PASS. Set by the object pass's factory
      *  and by nothing else, and it widens two reads there only:
      *   · a ternary or an `and`/`or` whose test is a constant EXPRESSION
@@ -8997,6 +9124,9 @@ export class Resolver {
     this.readAt = undefined
     /** name → the mutator tokens found by the raw-token scan. */
     this.mutated = opts.mutated || new Map()
+    /** ⭐ (engine 95, input-kind) whether that scan was handed in: only then is a `var` nothing reassigns known
+     *  to be one (`fixedVarBinding`); a Resolver built without it (the runtime frontend's) reads every `var` as before. */
+    this.mutatedKnown = !!opts.mutated
     /** name → the binding in scope where its own `[1]` was read: the SEED. */
     this.recurrenceSeeds = new Map()
     /** name → the location of the `[` that read it. ⛔ THE REFUSAL MUST LAND ON
@@ -9670,6 +9800,10 @@ export class Resolver {
     // Anything else and every arm would have to exist at once, which is a menu
     // rather than a column, and it keeps refusing at `pine:block`.
     if (bound.kind === 'switch') {
+      // ⭐⭐ e95 unit 2b — A SUBJECT THAT IS A MEMBER'S `input.string` KNOB (`enumCompare`'s door) builds EVERY arm;
+      // the bind keeps the one the knob picks (`bind.js::pruneKnobArms`). Null for anything else.
+      const byKnob = this.enumSwitch(bound, tok, name)
+      if (byKnob) return byKnob
       const subject = this.stringValueOf(bound.subject)
       // ⭐⭐ C47 — A SUBJECT THE SYMBOL FIXES (`switch syminfo.root`, or a helper's
       // parameter bound to it) is fixed per BINDING, which is the same basis the
@@ -10465,6 +10599,9 @@ export class Resolver {
     if (node.type === 'name') {
       if (own(this.table.series, node.name)) return null
       const bound = this.env && this.env.get(node.name)
+      // ⭐ (input-kind) a `var` nothing reassigns is its initializer: the member's knob reaches it as the plain binding's
+      const fixed = this.fixedVarBinding(bound, node.name)
+      if (fixed) return this.enumInputCallOf(fixed.node, depth + 1)
       if (!bound || bound.kind !== 'expr') return null
       return this.enumInputCallOf(bound.node, depth + 1)
     }
@@ -10504,8 +10641,12 @@ export class Resolver {
     const en = this.enumInputCallOf(side)
     if (!en) return null
     if (this.declareInputs !== 'all' && !this.declareInputs.has(en.name)) return null
-    const want = node.op === '=='
-    const idx = en.options.indexOf(lit)
+    return this.enumKnobTest(en, en.options.indexOf(lit), node.op === '==')
+  }
+
+  /** The knob `en` (an `enumInputCallOf` answer) compared with its option `idx` (`want`: `==`, else `!=`), as a live
+   *  per-bar number, and the knob recorded among the inputs used. An `idx` outside the options never matches. */
+  enumKnobTest(en, idx, want) {
     const tok = en.call.tok
     this.usedInputs.set(`${tok.line}:${tok.column}`, {
       call: 'input.string',
@@ -10523,6 +10664,126 @@ export class Resolver {
     Object.defineProperty(leaf, 'inputName', { value: en.name, enumerable: false })
     Object.defineProperty(leaf, 'inputDefault', { value: en.options.indexOf(en.def), enumerable: false })
     return cOp(want ? '==' : '!=', [leaf, cNum(idx)])
+  }
+
+  /** ⭐⭐ e95 unit 2b (coordinator ruling 2026-11-22: prune at BIND time) — A `switch` WHOSE SUBJECT IS A MEMBER'S
+   *  `input.string(…, options = [...])` KNOB, AS A LIVE SETTING.
+   *
+   *      isNewPeriod = switch anchor          // anchor = input.string("Session", options = [...])
+   *          "Earnings" => <earnings arm>
+   *          "Session"  => timeframe.change("D")
+   *          => false
+   *
+   *  is built as the chain Pine's own rule describes (the first arm whose label equals the subject, else the bare `=>`
+   *  arm), each test the knob compared with its option's index (`enumKnobTest`, `enumCompare`'s leaf):
+   *
+   *      anchor == 7 ? <earnings arm> : anchor == 0 ? timeframe.change("D") : false
+   *
+   *  ⛔⛔ EVERY ARM IS IN THE SAVED TREE, AND ONLY THE PICKED ONE IS IN THE BOUND ONE. The bind (`bind.js::
+   *  pruneKnobArms`, `foldBound`, and the Python twin) replaces each ternary whose test is made of knobs and
+   *  constants by the arm the binding's knob value picks, BEFORE anything per binding reads the tree (the
+   *  other-symbol and event decisions, the static gates, the evaluator). So an arm the knob does not pick never
+   *  withholds or refuses the chart: a refused arm (an event read on an intraday chart, a field UCT does not hold)
+   *  refuses only when the knob picks it. Before this, the subject folded to its default here and the setting was
+   *  no member setting at all ("not a setting of our document").
+   *
+   *  ⭐ AN ARM THIS TRANSLATOR REFUSES (coordinator ruling (B), 2026-11-22) stands as the refusing leaf
+   *  `refusedArm(k)` (`refusedArmLeaf`): pruned away unless the knob picks it, and then THAT plot is refused by name.
+   *
+   *  ⛔ NARROW, and null (today's fold to the default arm, unchanged) otherwise: the member door's knobs only
+   *  (`enumInputs`, a declared name); every label a string the script fixes; a no-match covered (a default arm, or
+   *  every option labelled); the arm the knob's DEFAULT picks translates (a knob is offered only on a chart that
+   *  draws); and a refused arm only where the translation keeps the list its leaves quote (`knobArmRefusals`). A label
+   *  outside the options can never match (Pine's comparison would not) and is dropped, as is a repeated label
+   *  (the first one wins). */
+  enumSwitch(bound, tok, name) {
+    if (!this.enumInputs || !this.declareInputs) return null
+    const en = this.enumInputCallOf(bound.subject)
+    if (!en) return null
+    if (this.declareInputs !== 'all' && !this.declareInputs.has(en.name)) return null
+    const arms = []
+    const seen = new Set()
+    for (const arm of bound.arms) {
+      const label = this.stringValueOf(parseWholeExpression(arm.match))
+      if (label === null) return null
+      const idx = en.options.indexOf(label)
+      if (idx < 0 || seen.has(idx)) continue
+      seen.add(idx)
+      arms.push({ idx, binding: arm.binding })
+    }
+    if (!arms.length) return null
+    const covered = seen.size === en.options.length
+    if (!covered && !bound.fallback) return null
+    // ⭐ (approved 2026-11-22, the refusing leaf) an arm this translator refuses is carried as `refusedArm(k)`: the bind
+    // prunes it away unless the knob picks it, and then refuses THAT plot by name, quoting the refusal it had here
+    const armOf = (binding) => {
+      try {
+        return { node: this.resolveBinding(binding, tok, name) }
+      } catch (err) {
+        // ⛔ the step budget and the door's clock are the translation's, never an arm's: they propagate
+        if (!(err instanceof PineRefusal) || err.guard === 'pine:timeout') throw err
+        return { refused: err }
+      }
+    }
+    // every option labelled: the last arm is the chain's end (its test can only be true there)
+    const last = covered ? arms.pop() : null
+    const end = { ...armOf(last ? last.binding : bound.fallback), label: last ? en.options[last.idx] : null,
+      idx: last ? last.idx : -1 }
+    const built = arms.map((a) => ({ ...armOf(a.binding), label: en.options[a.idx], idx: a.idx }))
+    // ⛔ THE DEFAULT'S PROGRAM MUST TRANSLATE: an arm the knob's default picks that this translator refused keeps the
+    // switch folded to its default, refused as it always was (a knob is offered only on a chart that draws)
+    const defIdx = en.options.indexOf(en.def)
+    const atDefault = built.find((a) => a.idx === defIdx) || end
+    if (atDefault.refused) return null
+    // ⛔ a Resolver whose translation keeps no list for the leaves to quote folds as before
+    if (!this.knobArmRefusals && (end.refused || built.some((a) => a.refused))) return null
+    const nodeOf = (a) => (a.refused ? this.refusedArmLeaf(en, a.label, a.refused) : a.node)
+    let out = nodeOf(end)
+    for (let k = built.length - 1; k >= 0; k -= 1) {
+      out = cOp('?:', [this.enumKnobTest(en, built[k].idx, true), nodeOf(built[k]), out])
+    }
+    return out
+  }
+
+  /** ⭐⭐ e95 unit 2b — the leaf an arm this translator refused stands as (`enumSwitch`): `refusedArm(k)`, `k` the
+   *  1-based entry of the translation's `knobArmRefusals`, which keeps the refusal's own guard and a sentence naming the
+   *  setting and the option that picks it. ⛔ No Pine spelling reaches it (only this method builds the node). */
+  refusedArmLeaf(en, label, err) {
+    const setting = en.title ? `"${en.title}"` : `\`${en.name}\``
+    const which = label === null ? 'an option no arm of its `switch` names' : `"${label}"`
+    const at = err.at || null
+    const entry = {
+      guard: err.guard,
+      message: `the setting ${setting} set to ${which} picks a branch of this script that this engine does not `
+        + `compute: ${err.message}`,
+      knob: en.name,
+      option: label,
+      ...(at && Number.isInteger(at.line) ? { line: at.line, column: at.column } : {}),
+    }
+    const list = this.knobArmRefusals
+    let k = list.findIndex((r) => r.guard === entry.guard && r.message === entry.message)
+    if (k < 0) { list.push(entry); k = list.length - 1 }
+    return cCall(REFUSED_ARM_CALL, [cNum(k + 1)])
+  }
+
+  /** ⭐⭐ (engine 95, coordinator ruling 2026-11-22, the input-kind unit) — A `var` NOTHING REASSIGNS, HOLDING AN
+   *  `input.string`, READ AS TEXT, IS ITS INITIALIZER. `var anchor = input.string(defval = "Session", options = [...])` holds its initializer on every bar
+   *  (Pine runs it once, on bar 0, and nothing writes it again), so as a `switch` subject or an `==` operand it is the
+   *  same text the plain binding `anchor = input.string(...)` is, which this door has always read. ⚰️ The `var` form
+   *  refused: `pine:input-kind` at `anchor == "Earnings"` and `pine:block` at `switch anchor` (TradingView's own VWAP
+   *  shape, written by two corpus scripts), while the runtime lane already read it (`dataTextInputVars`). An expr binding
+   *  over the seed, or null. ⛔ Only where the script-wide reassignment scan was handed in (`mutatedKnown`) and names no
+   *  write of it anywhere (`neverReassignedVarSeed`, the predicate the plot and paint lanes share). ⛔ Asked only by the
+   *  readers that return text fixed before bar 0 (`stringValueOf`) or an `input.string` call (`enumInputCallOf`): a `var`
+   *  holding per-bar text (`var t = close > open ? "up" : "down"`) holds bar 0's value and is never read per bar. */
+  fixedVarBinding(bound, name) {
+    if (!this.mutatedKnown || !bound || bound.kind !== 'state') return null
+    const seed = neverReassignedVarSeed(bound, name, this.mutated)
+    // ⛔ SCOPE: the `var`'s initializer IS an `input.string` (the input-kind unit). A `var` holding a string literal
+    // (`var string TF2 = "Fixed Timeframe"`) would read the same way, soundly, but it reaches far more scripts than this
+    // unit measured (563 corpus scripts declare a `var` with text, against 41 with an `input.string`): it is its own unit.
+    if (!seed || !isStringInputCall(seed.node)) return null
+    return { kind: 'expr', node: seed.node, env: seed.env || this.env }
   }
 
   stringValueOf(node, depth = 0) {
@@ -10547,6 +10808,9 @@ export class Resolver {
     if (node.type === 'name') {
       if (own(this.table.series, node.name)) return null
       const bound = this.env.get(node.name)
+      // ⭐ (input-kind) a `var` nothing reassigns is its initializer's text
+      const fixed = this.fixedVarBinding(bound, node.name)
+      if (fixed) return this.stringValueOf(fixed.node, depth + 1)
       if (bound) {
         return this.throughBinding(bound, (b) => this.stringValueOf(b.node, depth + 1))
       }
@@ -10585,6 +10849,114 @@ export class Resolver {
       return defval ? this.stringValueOf(defval, depth + 1) : null
     }
     return null
+  }
+
+  /** ⭐⭐ e95 (computed number formats) — A `str.tostring` FORMAT THAT IS FIXED BEFORE BAR 0: `{text}` for a
+   *  pattern, `{named}` for one of Pine's `format.*` constants, or null.
+   *
+   *  ⚰️ A format that was not a string literal at the call (`fmt = "#.##"; str.tostring(x, fmt)`) was carried
+   *  as `fmtUnread` and every finite value was WITHHELD: an empty table cell or a label not drawn, for a format
+   *  the script fixed before its first bar. This folds what is a pure function of literals and of inputs at the
+   *  value this translation holds them at, so the text is printed through the SAME one formatter a literal is
+   *  (`objectRuntime.formatNumber`, which still withholds a pattern it does not read):
+   *    · a literal; a name bound once (a function's parameter too: `throughBinding` reads the frame);
+   *    · `a + b` of two fixed texts;
+   *    · `str.substring` / `str.replace_all` / `str.repeat` of fixed texts and whole numbers, only where Pine's
+   *      answer is plain (an index outside the text, an empty target: not folded, never guessed);
+   *    · a ternary whose test is fixed (`constantBranchOf`: a constant, or an input this translation folds);
+   *      a `switch` binding on a fixed subject; a one-expression function of the script's own;
+   *    · `format.mintick` / `format.volume` / `format.percent` / ... reached through a name, as that format.
+   *  ⛔ An input is fixed only where this Resolver folds it: a NUMBER through `resolve` (a declared knob resolves
+   *  to a series and is not fixed), a TEXT input only when its name is not a declared knob (`declareInputs`).
+   *  ⛔ Anything read per bar or per symbol (`syminfo.mintick`, `syminfo.ticker == ...`) is not fixed here: such
+   *  a format stays withheld, and the run names it to the member (`objectRuntime.js`, `FORMAT_WITHHELD_KEY`). */
+  formatTextOf(node, depth = 0, viaName = null) {
+    if (!node || typeof node !== 'object' || depth > 64) return null
+    if (node.type === 'string') return { text: String(node.value) }
+    if (node.type === 'name' && own(PINE_NAMED_FORMATS, node.name) && !this.env.get(node.name)) return { named: node.name }
+    const viaBinding = (name) => (b) => {
+      if (!b) return null
+      if (b.kind === 'expr' && b.node) return this.formatTextOf(b.node, depth + 1, name)
+      if (b.kind === 'switch') return this.formatSwitchOf(b, depth + 1)
+      return null
+    }
+    if (node.type === 'bound') return this.throughBinding(node.binding, viaBinding(viaName))
+    if (node.type === 'name') {
+      if (own(this.table.series, node.name)) return null
+      const b = this.env.get(node.name)
+      return b ? this.throughBinding(b, viaBinding(node.name)) : null
+    }
+    const textOf = (n) => {
+      const f = this.formatTextOf(n, depth + 1)
+      return f && typeof f.text === 'string' ? f.text : null
+    }
+    if (node.type === 'binary' && node.op === '+') {
+      const l = textOf(node.left)
+      if (l === null) return null
+      const r = textOf(node.right)
+      return r === null ? null : { text: l + r }
+    }
+    if (node.type === 'ternary') {
+      let taken = null
+      try { taken = this.constantBranchOf(node) } catch (err) { if (isStackOverflow(err)) throw err; return null }
+      return taken ? this.formatTextOf(taken, depth + 1, viaName) : null
+    }
+    if (node.type !== 'call' || !Array.isArray(node.args) || typeof node.name !== 'string') return null
+    if (node.name === 'input' || node.name.startsWith('input.')) {
+      // ⛔ a declared text knob moves without a re-translation: its default is not its only value
+      const d = this.declareInputs
+      if (viaName && d && (d === 'all' || (typeof d.has === 'function' && d.has(viaName)))) return null
+      if (!(node.name === 'input' || node.name === 'input.string' || node.name === 'input.text_area')) return null
+      const s = this.stringValueOf(node)
+      return s === null ? null : { text: s }
+    }
+    if (own(FORMAT_TEXT_CALLS, node.name)) {
+      const int = (n) => {
+        try { return this.constIntOf(n) } catch (err) { if (isStackOverflow(err)) throw err; return null }
+      }
+      const t = formatTextCall(node, textOf, int)
+      return t === null ? null : { text: t }
+    }
+    // a function of the script's own whose body is one expression, called positionally (`textEqTree`'s rule)
+    const fn = this.env.get(node.name)
+    if (!fn || fn.kind !== 'fn' || !fn.value || fn.value.kind !== 'expr' || !fn.value.node) return null
+    if (node.args.some((a) => a.name) || !Array.isArray(fn.params) || node.args.length !== fn.params.length) return null
+    if (this.frames.length >= MAX_CALL_DEPTH) return null
+    const callerEnv = this.env
+    this.frames.push(node.args.map((a) => ({ kind: 'expr', node: a.value, env: callerEnv })))
+    this.env = fn.value.env || callerEnv
+    try { return this.formatTextOf(fn.value.node, depth + 1) } finally { this.frames.pop(); this.env = callerEnv }
+  }
+
+  /** ⭐⭐ e95 — a `switch` binding as a format: the arm its fixed subject takes (a text this Resolver fixes, or
+   *  a fixed whole number against numeric labels), else its default, folded by `formatTextOf`; null otherwise. */
+  formatSwitchOf(bound, depth) {
+    if (!bound || !Array.isArray(bound.arms)) return null
+    const subjectText = bound.subject ? this.stringValueOf(bound.subject) : null
+    let subjectNum = null
+    if (subjectText === null && bound.subject) {
+      let r = null
+      try { r = this.resolve(bound.subject) } catch (err) { if (isStackOverflow(err)) throw err; return null }
+      if (!r || r.type !== 'num' || !Number.isFinite(r.value)) return null
+      subjectNum = r.value
+    }
+    if (subjectText === null && subjectNum === null) return null
+    let picked = null
+    for (const arm of bound.arms) {
+      let label = null
+      try { label = parseWholeExpression(arm.match) } catch { return null }
+      if (subjectText !== null) {
+        const s = this.stringValueOf(label)
+        if (s === null) return null
+        if (s === subjectText) { picked = arm.binding; break }
+      } else {
+        if (!label || label.type !== 'number') return null
+        if (Number(label.value) === subjectNum) { picked = arm.binding; break }
+      }
+    }
+    if (!picked) picked = bound.fallback
+    if (!picked) return null
+    return this.throughBinding(picked, (b) => (b && b.kind === 'expr' && b.node ? this.formatTextOf(b.node, depth + 1) : null))
   }
 
   /** ⭐⭐ C22 — `node == lit` (`want`) or `node != lit` (`!want`) as a per-bar
@@ -15014,6 +15386,9 @@ export class Resolver {
     // ⭐ REQ — `ticker.modify(<symbol>)` with nothing modified (`unmodifiedTickerArg`)
     const unmodified = this.unmodifiedTickerArg(node)
     if (unmodified) return this.otherSymbolOf(unmodified, depth + 1)
+    // ⭐⭐ T4 E2 — the parse rewrite's event read (`eventAsSecurity`): its ticker under `EVENT_VENUE`, or, when its
+    // symbol argument is not the chart's own, the read of ANOTHER symbol's events (refused by name, `pineEvents.js`)
+    if (node.type === 'string' && node.event) return this.eventSymbolOf(node)
     if (node.type === 'string') return pineSymbolSpelling(node.value)
     if (node.type === 'name') {
       const bound = this.env && this.env.get(node.name)
@@ -15054,6 +15429,18 @@ export class Resolver {
       return folded
     }
     return null
+  }
+
+  /** ⭐⭐ T4 E2 — `{ticker, venue: EVENT_VENUE}` for the parse rewrite's event read: the chart's own symbol's events
+   *  (`syminfo.tickerid`, `''`, a binding to either: `ownSymbolNameOf`, the reader every request asks), else the
+   *  ticker of another symbol's events (`EV-<field>-XS`, refused by name on both lanes). */
+  eventSymbolOf(node) {
+    const ticker = String(node.value).trim().toUpperCase()
+    const read = eventReadOf(ticker)
+    if (!read || read.gaps === null) return { ticker, venue: EVENT_VENUE }
+    const symbol = node.event && node.event.symbol
+    const own = symbol ? this.ownSymbolNameOf(symbol) : null
+    return { ticker: own === null ? eventOtherSymbolTicker(ticker) : ticker, venue: EVENT_VENUE }
   }
 
   /** ⭐⭐ RS RATING L2 — THE DEFAULT AN INPUT HANDS A REQUEST'S SYMBOL ARGUMENT: the
@@ -15735,7 +16122,10 @@ export class Resolver {
    *  @param {Map} callerEnv the scope those arguments read
    *  @param {object} node the node to resolve, from inside the function
    */
-  resolveInFrame(inline, node) {
+  resolveInFrame(inline, node) { return this.inFrame(inline, node, () => this.resolve(node)) }
+
+  /** `resolveInFrame`'s frame protocol, asking `ask` in it (⭐ e95: `formatTextOf` asks the same frame). */
+  inFrame(inline, node, ask) {
     // ⛔ EXACTLY ONE FRAME, because exactly one level is inlined. A text
     // expression that calls a helper from inside another helper is REFUSED BY
     // NAME in `textNodeOf` before it ever reaches here (see
@@ -15764,7 +16154,7 @@ export class Resolver {
     // condition of `f_getVolumeUnit` failed to resolve while looking correct.
     this.env = bodyEnv || (bound.value && bound.value.env) || prevEnv
     try {
-      return this.resolve(node)
+      return ask()
     } finally {
       for (let k = 0; k < chain.length; k += 1) this.frames.pop()
       this.env = prevEnv
@@ -15816,7 +16206,40 @@ export class Resolver {
    *  value namespace stripped; the MANIFEST decides whether the name exists, how
    *  many arguments it takes and what kind each one is. The only thing this
    *  module supplies is a ROLE ORDER, and only where one has been measured. */
+  /** ⭐⭐ e95 (unit 2) — PINE'S ANCHORED `ta.vwap(source, anchor)` (and, with `dev`, the standard deviation its
+   *  `stdev_mult` bands are drawn from): `vwapAnchor(source, anchor, volume)` / `vwapAnchorDev(…)`, summed from
+   *  each bar the anchor fires as TradingView sums them (`interpret.js::vwapAnchorAccumulate`), `na` before the
+   *  first. ⛔ The source is a price the bar itself holds (`isBarPriceSource`, the one-argument form's own rule):
+   *  a computed source can be `na`, and what TradingView's sums do with an `na` term is not measured, so it is
+   *  refused by name. */
+  anchoredVwapTree(args, dev, tok) {
+    const val = (a) => (a && a.value !== undefined ? a.value : a)
+    const src = this.resolve(val(args[0]))
+    if (!isBarPriceSource(src, this.table) || !own(this.table.functions, 'vwapAnchor')
+        || !own((this.table && this.table.series) || {}, 'volume')) {
+      throw new PineRefusal('pine:arity',
+        REFUSALS['pine:arity'] + ' — `ta.vwap(source, anchor)` was given a source this engine cannot weigh: the '
+        + 'anchored VWAP is carried for a price the bar itself holds (`close`, `open`, `high`, `low`, `hl2`, '
+        + '`hlc3`, `ohlc4`, `hlcc4`). A computed source can be `na` on a bar, and what TradingView\'s sums do with '
+        + 'an `na` term has not been measured. TO UNBLOCK: weigh a bar price, e.g. `ta.vwap(hlc3, anchor)`',
+        locate(tok))
+    }
+    const anchor = this.condition(this.resolve(val(args[1])), 'ta.vwap', tok)
+    return cCall(dev ? 'vwapAnchorDev' : 'vwapAnchor', [src, anchor, cSeries('volume')])
+  }
+
   resolveTableCall(pineName, base, args, tok) {
+    // ⛔⛔ e95 unit 2b — `refusedArm` is the leaf this translator writes for a knob arm it refused
+    // (`Resolver.refusedArmLeaf`), never a call a script may spell: written by a script it is refused, by name
+    if (base === REFUSED_ARM_CALL || pineName === REFUSED_ARM_CALL) {
+      throw new PineRefusal('pine:builtin', `${REFUSALS['pine:builtin']} — \`${pineName}\` (the name this engine gives a `
+        + 'branch of a setting it refused; a script cannot call it)', locate(tok))
+    }
+    // ⭐⭐ e95 (unit 2) — `ta.vwap(source, anchor)` and its band leg (`VWAP_DEV_CALL`): the anchored VWAP.
+    if ((pineName === 'ta.vwap' || pineName === VWAP_DEV_CALL) && Array.isArray(args) && args.length === 2
+      && !args.some((a) => a && a.name)) {
+      return this.anchoredVwapTree(args, pineName === VWAP_DEV_CALL, tok)
+    }
     // ⭐⭐ H5 (step 84) — `math.round_to_mintick(x)` IS `math.round(x * (1 /
     // syminfo.mintick)) * syminfo.mintick`: Pine's reference, "the value rounded to
     // the symbol's mintick … with ties rounding up", which is `math.round` on the
@@ -18025,6 +18448,12 @@ export const STRING_VAR_NA_SEED_WHY = 'still holding the `na` it was declared wi
  *  for a number in a text slot) is not reopened. Measured on mtf-key-levels-support-and-resistance:
  *  `var DNoSpaces = " "`, read through `DailySpaces + "pdOpen"`, dropped 22 name labels TradingView draws
  *  (" pdOpen", " pdHigh" ...): the per-bar lane drew 3 labels of TradingView's 27, now 25. */
+/** ⭐ (engine 95, input-kind) a `var` whose initializer IS an `input.string` names its knob the way the plain binding
+ *  does (`stampInputName`), so a member's choice reaches it (`Resolver.enumCompare`) where it is read as text
+ *  (`Resolver.fixedVarBinding`). ⛔ `input.string` only: every other `var` input is left exactly as it was. */
+const isStringInputCall = (node) => !!(node && node.type === 'call' && node.name === 'input.string')
+const stampVarStringInput = (seed, name) => (isStringInputCall(seed) ? stampInputName(seed, name) : seed)
+
 const markStringVarSeed = (toks, seed) => {
   const typed = toks && toks[1]
   const declaredString = typed && typed.kind === 'ident' && typed.value === 'string'
@@ -20603,7 +21032,7 @@ function foldStatements(stmts, ctx, env, trace = null, { declarationIsValue = fa
         throw new PineRefusal('pine:state',
           `${REFUSALS['pine:state']} — \`${first.value}\``, locate(first))
       }
-      const seedNode = markStringVarSeed(toks, parseWholeExpression(toks.slice(eqAt + 1)))
+      const seedNode = stampVarStringInput(markStringVarSeed(toks, parseWholeExpression(toks.slice(eqAt + 1))), varName.value)
       env.set(varName.value, stateBinding(
         seedNode, new Map(env), selfNode(varName), new Map(env), locate(varName)))
       // ⭐ C48 — a `var` declared in a block that does not run on every bar keeps
@@ -22931,6 +23360,36 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // understands WHOLE (`objectRuntime.js::formatNumber`); `format.mintick`, a
       // pattern with a thousands comma or with words in it
       // (swing-highlow-zigzag's `"Swing H  (#,###.####)"`) keeps its refusal.
+      // ⭐⭐ e95 (computed number formats) — A FORMAT THE SCRIPT FIXES BEFORE BAR 0 IS READ AS THE TEXT IT
+      // FOLDS TO (`Resolver.formatTextOf`: an alias, a join, `str.substring` / `str.replace_all` / `str.repeat`
+      // of literals, a ternary or `switch` on an input, an alias of `format.mintick`), and the call goes on
+      // below exactly as if that text had been written there: the same one formatter prints it, and still
+      // withholds a pattern it does not read. ⛔ A format read per bar or per symbol is not folded: it keeps
+      // `fmtUnread` below, and the run names the withheld text to the member.
+      {
+        const fmtArg = node.args && node.args[1]
+        const given = fmtArg && fmtArg.value
+        if (given && given.type !== 'string'
+            && !(given.type === 'name' && (given.name === 'format.mintick' || given.name === 'format.volume'))) {
+          let folded = null
+          try {
+            const r = makeResolver(scopeEnv)
+            folded = inline ? r.inFrame(inline, given, () => r.formatTextOf(given)) : r.formatTextOf(given)
+          } catch (err) {
+            if (isStackOverflow(err)) throw err
+            folded = null
+          }
+          if (folded && (typeof folded.text === 'string' || typeof folded.named === 'string')) {
+            const value = typeof folded.text === 'string'
+              ? { type: 'string', value: folded.text, tok: given.tok }
+              : { type: 'name', name: folded.named, tok: given.tok }
+            const kind = typeof folded.text === 'string' ? 'text' : folded.named
+            diagnostics.textFormatFolded = diagnostics.textFormatFolded || {}
+            diagnostics.textFormatFolded[kind] = (diagnostics.textFormatFolded[kind] || 0) + 1
+            node = { ...node, args: node.args.map((a, k) => (k === 1 ? { ...a, value } : a)) }
+          }
+        }
+      }
       const stateFmt = node.args && node.args[1] ? node.args[1].value : null
       // ⭐ F3 — a pattern with literal words around it (`"Swing H  (#,###.####)"`)
       // is read by the same grammar the runtime renders with
@@ -29213,7 +29672,7 @@ function translatePineResult(source, opts = {}) {
         }
         try {
           env.set(nameTok.value, stateBinding(
-            markStringVarSeed(toks, parseWholeExpression(toks.slice(eq + 1))),
+            stampVarStringInput(markStringVarSeed(toks, parseWholeExpression(toks.slice(eq + 1))), nameTok.value),
             new Map(env), selfNode(nameTok), new Map(env), locate(nameTok)))
           hangSwitch()
           continue
@@ -30154,6 +30613,8 @@ function translatePineResult(source, opts = {}) {
   // ⭐ ONE `var`-read memo for the whole translation — see `Resolver.partialReadCache`.
   const partialReadCache = new Map()
   const objectPartialReadCache = new Map()
+  // ⭐⭐ e95 unit 2b — the knob arms this translation refused, one list for every Resolver (`Resolver.knobArmRefusals`)
+  const knobArmRefusals = []
   // ⭐ C11c — the object pass's read methods and window-reduction ambiguity
   // registry (see `Resolver.methodDefs` / `Resolver.windowAmbiguity`).
   const objectMethodDefs = readMethodDefs(stmts)
@@ -30161,7 +30622,7 @@ function translatePineResult(source, opts = {}) {
   const makeResolver = (scopeEnv = env) => {
     const r = new Resolver(scopeEnv, table, declaredTypes,
       { finalBindings, finalLocals, mutated: reassigned, source, rawOffsetMap, paramMint,
-        partialReadCache,
+        partialReadCache, knobArmRefusals,
         // ⭐⭐ C45 — the arm reader asks which script functions read their own history
         historyFns: historyFnsOf,
         strict: opts.strict === true, screen: !isHostLane(opts), pineVersion: version, pineScript: true, pineV1,
@@ -31438,6 +31899,8 @@ function translatePineResult(source, opts = {}) {
   // so nothing else moved: no parameter id, no note, no period read, no memo.
   const runtimeErrors = runtimeErrorPlan ? resolveRuntimeErrors() : null
   if (runtimeErrors) result.runtimeErrors = runtimeErrors
+  // ⭐⭐ e95 unit 2b — present only when a knob `switch` carries an arm this translator refused (`enumSwitch`)
+  if (knobArmRefusals.length) result.knobArmRefusals = knobArmRefusals.map((r) => ({ ...r }))
   return result
   } finally {
     // ⛔ ALWAYS CLOSED. A budget left open would make the NEXT standalone

@@ -5154,3 +5154,24 @@ the unchanged full path. There are 2 deleted `api/` lines, both the rewritten ro
   same: they import serve functions from `api.routers.bars` and mount no router.
 - **No marker bump.** flow-worker deploys only by hand, and it executes none of the altered code; a restart drops the
   OPRA socket for zero behavioural difference.
+
+## Screener new columns (volume & volatility; beats, insiders & funds) · `feat/screener-new-columns` · 2026-11-23
+
+| | |
+|---|---|
+| classification | **flow-worker stranded: NOT EXERCISED, safe; NO marker bump** |
+| stranded files | `api/services/screener/filters.py`, `api/services/screener/snapshot_builder.py`, `api/services/screener/snapshot_db.py` |
+
+- **Additive.** Eleven new snapshot columns (`snapshot_db.COLUMNS`, ALTER-added on init), their eleven bare filters in two
+  new categories and views (`volume_volatility`, `beats_insiders_funds`; `filters.py`), one more `build_row` bars step
+  (`bars_volume_volatility`, after the seam scan), one per-build read of MKTH's S&P 500 declines and three more
+  `_read_market_source` reads in the nightly build (`snapshot_builder.py`), each served by the new
+  `volume_volatility.py` / `beats_insiders_funds.py` (web). Existing columns, filters and build steps are unchanged.
+- **Flow-worker.** Reaches the three files only through the same static import chains whose hops into the Screener are
+  function-level imports as the fundamental trend unit recorded (`flow_worker_main` -> ... -> `rs_ranking` ->
+  `screener.snapshot_builder`; `... -> notebook_widgets` -> `screener.scan_store` -> `screener.snapshot_db`;
+  `... -> coach_chat_tools` -> `rs_screens_service` -> the Screener query and registry). It never builds the snapshot
+  and never runs a Screener query; the older files it keeps running lack only what it never invokes.
+  `volume_volatility.py`, `beats_insiders_funds.py` and `methodology.py` are not in its closure
+  (`tools/flow_worker_watch_coverage.py` `verdict()` on this change: those three offenders, nothing else).
+- **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.

@@ -349,7 +349,8 @@ CORE_ID = "core"
 #: runtime:conditional-history ...) and the graph/runtime differential are that net (EVIDENCE).
 COLLECTION_IDS = ("collections:array", "collections:matrix", "collections:map")
 #: What only the per-bar run can do, and no historical capture grades.
-RUNTIME_ONLY_IDS = ("varip", "calc-bars", "realtime-state", "request-other")
+RUNTIME_ONLY_IDS = ("varip", "calc-bars", "realtime-state", "request-other", "request-events", "request-financial",
+                    "request-breadth")
 #: ⛔ THE CLOSED WORLD: every id `capabilities_of` may return except `UNREADABLE`.
 CAPABILITY_IDS = frozenset((CORE_ID,) + FEATURE_IDS + OBJ_IDS + COLLECTION_IDS + RUNTIME_ONLY_IDS)
 #: B1/e: the largest source the detector reads: the runtime document's own cap
@@ -390,6 +391,25 @@ _COLLECTION_RX = {
     "collections:map": re.compile(r"(?<![\w.])map\s*[.<]"),
 }
 _CALC_BARS_RX = re.compile(r"\bcalc_bars_count\b")
+#: ⭐⭐ T4 E2 (2026-11-22) -- the chart's own corporate events (`request.earnings` / `request.dividends` /
+#: `request.splits`): served from UCT's event data (E1) on daily and weekly charts, placed as captured on CLOSED bars
+#: (E0); an event landing on a forming bar is not graded, so this capability is history-only
+#: (`rollout_gate.PINE_CAPABILITY_FORMING_UNGRADED`) until the forming-bar witness (W-E5). It is declared BESIDE
+#: `request-other` (the request prefix still names that one too: over-declared, never under).
+EVENT_CALLS = ("request.earnings", "request.dividends", "request.splits")
+_EVENTS_RX = re.compile(r"(?<![\w.])request\s*\.\s*(?:earnings|dividends|splits)\s*\(")
+#: ⭐⭐ T4 F1b (2026-11-22) -- the chart's own figures from company filings (`request.financial`): served as UCT data
+#: (F1a, `GET /api/pine/financial/<symbol>`), never graded as TradingView's figures, so it is admitted on the UCT-data
+#: rule by the coordinator, never by a MATCH; a filing can become public while a bar forms, so history-only
+#: (`rollout_gate.PINE_CAPABILITY_FORMING_UNGRADED`). Declared BESIDE `request-other` (over-declared, never under).
+FINANCIAL_CALLS = ("request.financial",)
+_FINANCIAL_RX = re.compile(r"(?<![\w.])request\s*\.\s*financial\s*\(")
+#: ⭐⭐ T4 B2 (2026-11-22, engine 95) -- TradingView's `USI:` breadth spellings, served from UCT's own breadth counts
+#: (B1, `GET /api/pine/breadth/<spelling>`) as `app/src/components/chart/engine/pineBreadth.js` names them: a request
+#: whose script carries a `USI:` string. Read off the STRING contents (`strip_code`), and only beside `request-other`
+#: (a title that merely says "USI:" is no read). Over-declares, never under. History-only
+#: (`rollout_gate.PINE_CAPABILITY_FORMING_UNGRADED`): a forming session's count is not witnessed.
+_BREADTH_STR_RX = re.compile(r"(?i)(?<![A-Za-z0-9_])USI\s*:")
 #: Every `barstate.*` but `isfirst` (each other one answers differently on a live or forming
 #: bar), and the wall clock.
 _REALTIME_RX = re.compile(r"(?<![\w.])barstate\s*\.\s*(?!isfirst\b)[A-Za-z_]\w*|(?<![\w.])timenow\b")
@@ -455,6 +475,10 @@ def capabilities_of(source):
         found.add("realtime-state")
     if _REQUEST_RX.search(code):
         found.add("request-other")
+    if _EVENTS_RX.search(code):
+        found.add("request-events")
+    if _FINANCIAL_RX.search(code):
+        found.add("request-financial")
     # ⭐⭐ U15 -- and each library version it imports, by its own id
     found |= library_capabilities_of(code)
     # ⭐ AND THE REPAINT CLASSIFIER'S OWN READS (derived from its rule table, never a copy): a
@@ -475,10 +499,17 @@ def capabilities_of(source):
                 found.add(UNREADABLE)
             elif name in req["calls"] or name.startswith(req["prefix"]):
                 found.add("request-other")
+                if name in EVENT_CALLS:
+                    found.add("request-events")
+                if name in FINANCIAL_CALLS:
+                    found.add("request-financial")
             elif name == "varip":
                 found.add("varip")
             else:
                 found.add("realtime-state")
+    # ⭐⭐ T4 B2 -- a request beside a `USI:` string reads UCT breadth (`reads_breadth`)
+    if "request-other" in found and reads_breadth(_strings):
+        found.add("request-breadth")
     return frozenset(found)
 
 
@@ -490,10 +521,23 @@ def capabilities_of(source):
 # CHANGE, and record the new `detector_fingerprint()` beside it: the rail
 # (`tests/test_pine_capabilities.py`) goes red while the fingerprint and the version disagree, so a
 # changed regex can never be served from sets an older detector computed.
-DETECTOR_VERSION = 2
+DETECTOR_VERSION = 5
 DETECTOR_FINGERPRINTS = {1: "797670b04011de780dc26555ee667c87098abb697632e422988b96b5681a5bbf",
                          # U15: one `library:Author/Library/N` capability per imported version
-                         2: "339c2da47bb157266da82837801cc1695ae7a00bcd38ad692d53aefa694039cf"}
+                         2: "339c2da47bb157266da82837801cc1695ae7a00bcd38ad692d53aefa694039cf",
+                         # T4 E2: `request-events`, the chart's own corporate events
+                         3: "1ca37384c2a209429d2d31144cdcdc41e6330c25b2560299e3793ab05abd4b1f",
+                         # T4 F1b: `request-financial`, the chart's own figures from company filings (UCT data)
+                         4: "19fc98a6bc325ce7e53b769a7fb6bb06441a643cefc41da77ad68825cadc6a77",
+                         # train e95: T4 B2's `request-breadth` (a request beside a `USI:` string, UCT breadth) on F1b's
+                         # detector. Both units stepped 3 -> 4 alone (B2's own 4 was 964450591c...); merged, the detector
+                         # answers both, so it is a fifth version with its own fingerprint.
+                         5: "4af56e7beb4b9dad082b681c31df132464c5ef66bcd9d25bfd23b764dfc74fc8"}
+
+
+def reads_breadth(strings) -> bool:
+    """⭐⭐ T4 B2 -- does a script's string contents (`strip_code`'s second answer) name a `USI:` spelling?"""
+    return any(_BREADTH_STR_RX.search(s) for s in strings or ())
 
 
 def detector_fingerprint():

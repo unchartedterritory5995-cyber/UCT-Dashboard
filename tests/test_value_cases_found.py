@@ -8,6 +8,10 @@ test of that finding rests on. Now it keeps them: the wrong answer is APPENDED t
 Held here:
   * THE INVARIANT, for every case that carries a `found`: each specimen is graded WRONG and the record is graded
     RIGHT, by the SAME rule. A specimen the rule would pass is no specimen; a record the rule fails is no fix;
+  * ⭐ (e95 unit 1, coordinator ruling 2026-11-22; a schema extension for the studio's review) A SPECIMEN THE ENGINE
+    FIXED: a wrong answer whose ONLY fault was what the engine drew carries `engine_fixed: {by, since_engine}`, and the
+    invariant is two-sided: such a specimen must grade RIGHT through the engine (the engine fix, held), every other
+    specimen WRONG. The specimen stays the regression test it was: an engine that blanks it again turns this red;
   * adopt keeps the specimen, appends (a second defect on the same case is a second entry, the first is untouched),
     and adopts a fixed defect ONLY with what fixed it (a PR and its merge commit): without that the old record stands;
   * `grade.specimen(case)` is the wrong answer a finding rests on, before and after adoption;
@@ -32,6 +36,8 @@ DATA = json.loads((ROOT / "tests" / "fixtures" / "authoring" / "value_cases.json
 CASES = DATA["cases"]
 WITH_FOUND = [c for c in CASES if c.get("found")]
 KEYS = {"answer", "defect", "recorded", "fixed_by"}
+#: ⭐ e95 unit 1 — the one optional key: a specimen the ENGINE fixed (`{by, since_engine}`), graded RIGHT, never WRONG
+ENGINE_FIXED = "engine_fixed"
 FIX = {"pr": "#0000", "merge": "0123456789abcdef"}
 STAMPS = {"started": "2026-11-22T10:00Z", "front": "abcdef0123", "model": "m"}
 #: a wall case and an answer its rule passes, and one it fails (the yes that names nothing)
@@ -171,7 +177,11 @@ def test_every_specimen_in_the_fixture_is_whole_and_names_what_fixed_it():
     for case in WITH_FOUND:
         assert isinstance(case["found"], list) and case["found"], case["id"]
         for kept in case["found"]:
-            assert set(kept) == KEYS, (case["id"], sorted(kept))
+            assert set(kept) - {ENGINE_FIXED} == KEYS, (case["id"], sorted(kept))
+            if ENGINE_FIXED in kept:
+                ef = kept[ENGINE_FIXED]
+                assert set(ef) == {"by", "since_engine"} and str(ef["by"]).strip(), (case["id"], ef)
+                assert isinstance(ef["since_engine"], int) and ef["since_engine"] > 0, (case["id"], ef)
             assert len(kept["defect"] or "") > 80 and (kept["recorded"] or {}).get("front"), case["id"]
             assert str(kept["fixed_by"].get("pr", "")).startswith("#") and len(str(kept["fixed_by"].get("merge", ""))) >= 10, case["id"]
         assert case.get("recorded_verdict") != "wrong" or "defect" in case       # a case wrong AGAIN still names its standing defect
@@ -180,12 +190,77 @@ def test_every_specimen_in_the_fixture_is_whole_and_names_what_fixed_it():
         assert len(G.specimens(case)) == len(case.get("found") or []) + (case.get("recorded_verdict") == "wrong"), case["id"]
 
 
+# ── ⭐ e95 unit 1 — `engine_fixed`, the studio's conditions (DEEPVUE via the coordinator, 2026-11-22) ──
+
+def test_engine_fixed_is_HAND_MARKED_only_adopt_never_writes_it():
+    """Condition 1: like `fixed_by`, `engine_fixed` is written by hand, never by `--adopt`. Adopting a fixed defect
+    appends exactly {answer, defect, recorded, fixed_by}, and a second adoption leaves a hand-marked one as it was."""
+    case = wrong_case()
+    value_eval.adopt({"cases": [case]}, report_right(case), STAMPS, {case["id"]: FIX})
+    assert [set(k) for k in case["found"]] == [KEYS]
+    case["found"][0][ENGINE_FIXED] = {"by": "#0000 0123456789", "since_engine": 1}
+    marked = copy.deepcopy(case["found"][0])
+    again = copy.deepcopy(WRONG_ANSWER)
+    case.update({"answer": again, "recorded_verdict": "wrong", "defect": DEFECT})
+    value_eval.adopt({"cases": [case]}, report_right(case), STAMPS, {case["id"]: FIX})
+    assert case["found"][0] == marked and set(case["found"][1]) == KEYS
+
+
+#: The version file's tag for a unit's line that awaits its engine number, BUILT FROM TWO PIECES. A train's retag
+#: rewrites every literal copy of the tag to "engine <n>" (train e95 rewrote this rail's own regex that way and left
+#: its allowance matching nothing); a split literal is not a tag, so no retag can reach it.
+PENDING_TAG = "NUMBER " + "PENDING"
+
+
+def _pending_trains(text: str) -> set:
+    """The trains whose lines in `text` (the version file) still await their number: `train e<n>` in the header."""
+    import re
+    return {int(n) for n in re.findall(re.escape(PENDING_TAG) + r" = \([^)]*\btrain e(\d+)\b", text)}
+
+
+def test_the_pending_allowance_can_fire():
+    """CONTROL (train e95, e96's finding): the allowance below reads a synthetic pending line; a numbered entry or a
+    retagged line is not one."""
+    line = f"/** {PENDING_TAG} = (feat/synthetic, train e96) a unit's sentence */"
+    assert _pending_trains(line) == {96}
+    assert _pending_trains("/** 96 = (engine 96 train, feat/synthetic, train e96) a unit's sentence */") == set()
+    assert _pending_trains(line.replace(PENDING_TAG, "engine 96")) == set()
+
+
+def test_engine_fixed_is_never_claimed_AHEAD_of_the_engine_that_earns_it():
+    """Condition 1: `since_engine` is not above the engine version the lane runs (`scriptEngineVersion.js`, read by
+    `user_definitions.read_script_engine_version`, the one reader). ⚠️ ONE ALLOWANCE, NAMED: while the fixing train
+    is not numbered yet (the version file carries its pending lines, `PENDING_TAG`, with `train e<n>`), its own number
+    `n` may be claimed; the day the coordinator numbers it, the version is `n` and the plain rule holds."""
+    from api.services import user_definitions as ud
+    engine = ud.read_script_engine_version()
+    assert isinstance(engine, int) and engine > 0
+    text = (ROOT / "app" / "src" / "components" / "chart" / "engine" / "scriptEngineVersion.js").read_text(encoding="utf-8")
+    pending = _pending_trains(text)
+    marked = [(c["id"], k[ENGINE_FIXED]) for c in WITH_FOUND for k in c["found"] if ENGINE_FIXED in k]
+    assert marked, "no specimen carries engine_fixed: this rail would read nothing"
+    for cid, ef in marked:
+        n = ef["since_engine"]
+        assert n <= engine or (n in pending and n > engine), (cid, ef, "claimed ahead of the engine", engine, sorted(pending))
+
+
+def test_an_engine_fixed_specimen_keeps_its_defect_and_its_fixed_by():
+    """Condition 2: `engine_fixed` is ADDED beside what the specimen already says, never in place of it: #2433 fixed
+    what the assistant writes, e95 fixes what the engine draws, and both stay true."""
+    case = next(c for c in WITH_FOUND if c["id"] == "table-format-01")
+    kept = next(k for k in case["found"] if ENGINE_FIXED in k)
+    assert "NO VALUES" in kept["defect"] and kept["fixed_by"]["pr"] == "#2433"
+    assert kept[ENGINE_FIXED] == {"by": "#2607 927aa5dc95 (e95 unit 1, #2483)", "since_engine": 95}
+
+
 def test_THE_INVARIANT_each_specimen_is_WRONG_and_its_record_RIGHT_by_the_same_rule():
     for case in WITH_FOUND:
         if case["lane"] == "script":
             continue                                               # through the engine, below
         for kept in case["found"]:
             got = G.grade_case(case, kept["answer"])
+            # ⛔ an engine fix is a statement about the ENGINE: only a script-lane specimen (graded through it) may carry one
+            assert ENGINE_FIXED not in kept, (case["id"], "an engine fix on a lane the engine does not draw")
             assert got["verdict"] == "wrong", (case["id"], "a specimen the rule passes is no specimen", got["lines"])
         if case.get("recorded_verdict") != "wrong":
             got = G.grade_case(case)
@@ -202,6 +277,12 @@ def test_THE_INVARIANT_for_the_script_cases_through_the_engine():
         try:
             for kept in case["found"]:
                 got = script_grade.grade_all([case], {case["id"]: kept["answer"]})[case["id"]]
+                if ENGINE_FIXED in kept:
+                    # ⭐ the engine fixed what made this answer wrong: through the engine it is RIGHT now, and an engine
+                    # that blanks it again (a reverted fix) turns it back to WRONG, here
+                    assert got["verdict"] == "right", (case["id"], "a specimen the engine fixed is wrong again",
+                                                       kept[ENGINE_FIXED], got["lines"])
+                    continue
                 assert got["verdict"] == "wrong", (case["id"], "a specimen the rule passes is no specimen", got["lines"])
             if case.get("recorded_verdict") != "wrong":
                 got = script_grade.grade_all([case])[case["id"]]

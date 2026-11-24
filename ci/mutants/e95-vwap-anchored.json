@@ -1,0 +1,141 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "engine 95 (train e95), unit 2, the built-in VWAP: Pine's anchored ta.vwap(source, anchor[, stdev_mult]) on both lanes and in the Python twin (TradingView's published computeVWAP, summed from each reset, na before the first), the 3-value form, and the harness grading a hand-added built-in on its held published source (ruling F1). Every rule, broken once, must turn its rail red. Plus the hazard ruling (coordinator, 2026-11-22): the anchored sums are their own class, never a running total, and are served per bar from the first anchor inside the loaded history, the bars before it withheld by name.",
+ "mutants": [
+  {
+   "id": "VA1",
+   "mutant": "the JS sums run from the first anchor on and never reset again (from the series start, not the reset)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "  if (Number.isFinite(anchor) && anchor !== 0) {\n    st[off] = pv",
+   "to": "  if (Number.isFinite(anchor) && anchor !== 0 && !(st[off + 1] > 0)) {\n    st[off] = pv",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vwapAnchored.test.js",
+   "expectRed": "bar"
+  },
+  {
+   "id": "VA2",
+   "mutant": "the Python twin's sums never reset after the first anchor",
+   "file": "api/services/ast_interpret.py",
+   "from": "        if isinstance(a, (int, float)) and math.isfinite(a) and a != 0:\n            s_pv, s_v, s_ppv = pv, v, ppv",
+   "to": "        if isinstance(a, (int, float)) and math.isfinite(a) and a != 0 and not (s_v > 0):\n            s_pv, s_v, s_ppv = pv, v, ppv",
+   "rail": "python -m pytest -q -p no:warnings tests/test_vwap_anchor_parity.py",
+   "expectRed": "failed"
+  },
+  {
+   "id": "VA3",
+   "mutant": "the sums start at 0, so a value is drawn before the first anchor (TradingView draws na there)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "  st[off] = NaN         // sum of price * volume since the reset\n  st[off + 1] = NaN     // sum of volume\n  st[off + 2] = NaN     // sum of volume * price^2",
+   "to": "  st[off] = 0         // sum of price * volume since the reset\n  st[off + 1] = 0     // sum of volume\n  st[off + 2] = 0     // sum of volume * price^2",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vwapAnchored.test.js",
+   "expectRed": "want na"
+  },
+  {
+   "id": "VA4",
+   "mutant": "the runtime lane does not own the anchored form (it keeps refusing runtime:call-windowed-state)",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "  ['ta.vwap', 'session-vwap', [1, 2], false],",
+   "to": "  ['ta.vwap', 'session-vwap', [1], false],",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vwapAnchored.test.js",
+   "expectRed": "runtime"
+  },
+  {
+   "id": "VA5",
+   "mutant": "the bands are drawn from the average, not the standard deviation since the anchor",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "      const band = bin('*', pc(VWAP_DEV_CALL, [a[0], a[1]]), a[2])",
+   "to": "      const band = bin('*', pc('ta.vwap', [a[0], a[1]]), a[2])",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vwapAnchored.test.js",
+   "expectRed": "upper"
+  },
+  {
+   "id": "VA6",
+   "mutant": "a held built-in source at other bytes than the population's pin is graded anyway",
+   "file": "app/src/components/chart/engine/__tests__/vendorHarness/builtinSource.js",
+   "from": "  if (got !== sha256) return { id, sha256, why:",
+   "to": "  if (false) return { id, sha256, why:",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/builtinSource.test.js",
+   "expectRed": "pinned source"
+  },
+  {
+   "id": "VA7",
+   "mutant": "a moved declaration timeframe setting is dropped as if at its default",
+   "file": "app/src/components/chart/engine/__tests__/vendorHarness/captureInputs.js",
+   "from": "    if (movedTail.length) return { ok: false,",
+   "to": "    if (false) return { ok: false,",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/builtinSource.test.js",
+   "expectRed": "timeframe setting"
+  },
+  {
+   "id": "VA8",
+   "mutant": "a source-held row is read as a store-held one (the third kind is lost)",
+   "file": "tools/vendor_harness/store_held.py",
+   "from": "    if _SOURCE_PIN.match(str(pin or \"\")):\n        return \"source\"",
+   "to": "    if _SOURCE_PIN.match(str(pin or \"\")):\n        return \"store\"",
+   "rail": "python -m pytest -q -p no:warnings tests/test_store_held_source.py",
+   "expectRed": "failed"
+  },
+  {
+   "id": "VA9",
+   "mutant": "the anchored VWAP is put back among the running totals (JS): withheld whole off the listing, and fed to the additive-constant algebra",
+   "file": "app/src/components/chart/engine/ast/barIndexShift.js",
+   "from": "    && !ANCHOR_RESET_CALLS.includes(name))\n  .map(([name]) => name))",
+   "to": "    && true)\n  .map(([name]) => name))",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vwapAnchored.test.js",
+   "expectRed": "running-total"
+  },
+  {
+   "id": "VA10",
+   "mutant": "the anchored VWAP is put back among the running totals (Python twin)",
+   "file": "api/services/ast_bar_index_shift.py",
+   "from": "    and name not in ANCHOR_RESET_CALLS)",
+   "to": "    and True)",
+   "rail": "python -m pytest -q -p no:warnings tests/test_vwap_anchor_parity.py",
+   "expectRed": "failed"
+  },
+  {
+   "id": "VA11",
+   "mutant": "the bars before the first in-window anchor are served (JS): nz(vwap) draws 0 there, unnamed",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "      codeAt = (i) => (i < first ? VWAP_BEFORE_FIRST_ANCHOR : null)",
+   "to": "      codeAt = (i) => (i < 0 ? VWAP_BEFORE_FIRST_ANCHOR : null)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vwapAnchored.test.js",
+   "expectRed": "bar 0"
+  },
+  {
+   "id": "VA12",
+   "mutant": "the bars before the first in-window anchor are served (Python twin)",
+   "file": "api/services/ast_interpret.py",
+   "from": "            code_at = [VWAP_BEFORE_FIRST_ANCHOR if i < first else None for i in range(n)]",
+   "to": "            code_at = [VWAP_BEFORE_FIRST_ANCHOR if i < 0 else None for i in range(n)]",
+   "rail": "python -m pytest -q -p no:warnings tests/test_vwap_anchor_parity.py",
+   "expectRed": "failed"
+  },
+  {
+   "id": "VA13",
+   "mutant": "the anchor is read raw, not as this chart can know it (JS): the built-in's na(src[1]) restart on bar 0 off the listing is taken as a reset, and the bars after it are summed from a bar TradingView did not restart on. (On a Pine document the bars before the first known anchor are then still withheld, but under history:before-chart's name and sentence, not the VWAP's: the rail holds the name.)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "firstAnchorBar(known(args[1]), n)",
+   "to": "firstAnchorBar(colOf(args[1]), n)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vwapAnchored.test.js",
+   "expectRed": "vwap:before-first-anchor"
+  },
+  {
+   "id": "VA14",
+   "mutant": "the anchor is read raw, not as this chart can know it (Python twin)",
+   "file": "api/services/ast_interpret.py",
+   "from": "                first = _first_anchor_bar([NAN if v is None else v for v in known], n)",
+   "to": "                first = _first_anchor_bar(col_of(args[1]), n)",
+   "rail": "python -m pytest -q -p no:warnings tests/test_vwap_anchor_parity.py",
+   "expectRed": "failed"
+  },
+  {
+   "id": "VA15",
+   "mutant": "the bar-index mask carries a threshold forever under an anchored sum again: the built-in's own na(src[1]) restart (isfirst) blanks every bar off the listing",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "    const open = unbounded || !!(spec && spec.lookback === SERIES_LOOKBACK && !ANCHOR_RESET_CALLS.includes(node.name))",
+   "to": "    const open = unbounded || !!(spec && spec.lookback === SERIES_LOOKBACK)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vwapAnchored.test.js",
+   "expectRed": "withheld on (nearly) every bar"
+  }
+ ]
+}

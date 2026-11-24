@@ -690,6 +690,29 @@ def _source_key_sets(monkeypatch, tmp_path) -> dict:
     monkeypatch.setenv("FUNDAMENTALS_PIT_ENABLED", "1")
     fund_trends.store("2026-11-20", {"AAA": {c: 1 for c in fund_trends.COLUMNS}}, {}, stored=True)
 
+    # ── beats_insiders_funds (2026-11-23): its three readers, each over its own held store
+    # stubbed at the store's read-only accessor (never a vendor, never the SEC), every input
+    # filled so each reader emits every column it can: a reported quarter that beat with a
+    # percent surprise; a priced Form 4 purchase inside a fully held 30-day window; an N-PORT
+    # summary whose funds' changes are all known. ──
+    from api.services import sector_earnings, insider_clusters_sec, group_positioning
+    from api.services.screener import beats_insiders_funds as bif
+    _bif_session = _dt.date(2026, 11, 20)
+    monkeypatch.setattr(sector_earnings, "held_copies", lambda syms: iter([("AAA", {"quarters": [
+        {"reported": True, "report_date": "2026-11-05", "fiscal_year": 2026, "fiscal_quarter": 3,
+         "eps_basis": "consensus_comparable", "eps_actual": 1.10, "eps_estimate": 1.00,
+         "eps_surprise_pct": 10.0, "eps_surprise_abs": 0.10}]})]))
+    _held_days = [{"date": (_bif_session - _dt.timedelta(days=k)).isoformat(), "state": "complete"}
+                  for k in range(40) if (_bif_session - _dt.timedelta(days=k)).weekday() < 5]
+    monkeypatch.setattr(insider_clusters_sec, "held_purchases", lambda today=None: ({
+        "purchases": [{"ticker": "AAA", "filed": "2026-11-18", "date": "2026-11-17", "shares": 100.0,
+                       "value": 2500.0, "unpriced": 0, "roles": ["director"]}],
+        "coverage": {"days": _held_days}}, "held"))
+    monkeypatch.setattr(group_positioning, "read_nport", lambda symbols: {
+        "state": "ok", "meta": {}, "rows": {"AAA": {"funds": 9, "added": 4, "new": 1, "cut": 2, "sold_out": 1,
+                                                    "unchanged": 1, "both_now": 10.0, "both_prior": 8.0,
+                                                    "not_comparable": 0}}})
+
     return {
         "fundamentals_bulk": set(fb.COLUMNS_WRITTEN),
         "rs_fields": set(b.rs_fields({"rs_rank": 90, "rs_score": 12.5})),
@@ -716,6 +739,9 @@ def _source_key_sets(monkeypatch, tmp_path) -> dict:
             ["AAA"], best_ids={"AAA": "bull_flag"})["AAA"]),
         "rs_history": set(b._read_rs_history_fields(["AAA"])["AAA"]),
         "fund_trends": set(fund_trends.read_fields(["AAA"])["AAA"]),
+        "earnings_beats": set(bif.read_earnings_fields(["AAA"], session=_bif_session)["AAA"]),
+        "insider_buys": set(bif.read_insider_fields(["AAA"], session=_bif_session)["AAA"]),
+        "fund_adds": set(bif.read_fund_fields(["AAA"])["AAA"]),
     }
 
 
@@ -754,8 +780,11 @@ def test_no_two_screener_sources_write_the_same_column(monkeypatch, tmp_path):
     # (`finviz_universe.SHORT_EXPORT_COLUMNS`); no shared-column allowance.
     # 20 -> 21 (2026-11-21): fund_trends, the one writer of the eight fundamental
     # trend columns (the evening job's side table); no shared-column allowance.
-    assert len(sets) == 21, (
-        f"_source_key_sets returned {len(sets)} sources, expected 21 — a "
+    # 21 -> 24 (2026-11-23): beats_insiders_funds' three readers, one per held store,
+    # each the one writer of its own columns; no shared-column allowance. (The six
+    # volume & volatility columns are a `build_row` bars step, not a source.)
+    assert len(sets) == 24, (
+        f"_source_key_sets returned {len(sets)} sources, expected 24 — a "
         f"source was added or removed from the fixture; bump this pin "
         f"deliberately")
     assert "rs_history" in sets, "the 19th source is rs_history, by name"
@@ -763,6 +792,11 @@ def test_no_two_screener_sources_write_the_same_column(monkeypatch, tmp_path):
     from api.services.screener import fund_trends
     assert sets["fund_trends"] == set(fund_trends.COLUMNS), \
         "the 21st source is fund_trends, and it writes exactly its eight columns"
+    from api.services.screener import beats_insiders_funds as bif
+    assert sets["earnings_beats"] == set(bif.EARNINGS_COLUMNS)
+    assert sets["insider_buys"] == set(bif.INSIDER_COLUMNS)
+    assert sets["fund_adds"] == set(bif.FUND_COLUMNS), \
+        "sources 22-24 are beats_insiders_funds' readers, each writing exactly its own columns"
     assert not (sets["finviz_universe"] & sets["short_columns"]),         "finviz_universe must not hand build_row the two short-interest columns"
     # The derivation proves nothing if a source emitted nothing.
     for label, keys in sets.items():
