@@ -267,13 +267,16 @@ export const TAIL_MAX_INFLIGHT = 3
  * PINS the next NEIGHBOR_KEEP_AHEAD rows in the scan direction (`keep`), released as the member passes them, on a reversal
  * (only the new direction's rows are kept) and on a jump: the eviction takes the rows the member has passed and the keys
  * no list is about to show, never the ones ahead.
- * ⛔ ONLY AN ENTRY THE REGISTRY ALREADY HOLDS IS PINNED. `acquire` of an absent key makes an EMPTY entry, and every first
- * look hydrates only a key that has none (peekBars, holdsBars, peekDisplayable): an empty pin ahead of the list's warm
- * would hide that row's mem and IndexedDB copies from every later look. A row not warmed yet is pinned at the first
- * `set` after its warm made it. Nothing is read or asked for a kept row: the list's own warm fills it.
+ * ⛔ ONLY AN ENTRY HOLDING ROWS IS PINNED (the list's warm filled it). `acquire` of an absent key makes an EMPTY entry,
+ * and an entry can exist EMPTY (a hydrate's IndexedDB read in flight, a shed or failed warm: review of #2691, LOW-2); the
+ * first looks that hydrate only a key the registry does not hold (peekBars, holdsBars) would never see that row's mem
+ * and IndexedDB copies past a pinned empty entry. A row not filled yet is pinned at the first `set` after its warm
+ * filled it. Nothing is read or asked for a kept row: the list's own warm fills it.
  * No cap changes: at most this many more entries per hold (each the warm's first-paint bars, 960-1,199 rows).
  */
 export const NEIGHBOR_KEEP_AHEAD = 30
+/** Does the entry hold rows (closed or the developing one)? What a kept row must hold to be pinned (see above). */
+const _holdsRows = (s) => !!s && (s.bars.length > 0 || !!s.developing)
 /** (review of fb6fed4328, MEDIUM-1) THE SERVER'S WRITE LAG. A tail answer that lands exactly ONE bucket behind within
  *  TAIL_LAG_WINDOW_MS of the boundary means the server has not stored the bucket that just closed: the hold asks that row
  *  again TAIL_LAG_RETRY_MS after the landing, then twice that, at most TAIL_LAG_RETRIES times per row per bucket, on its
@@ -1391,13 +1394,13 @@ export function createPrefetch(o = {}) {
         for (const k of held.keys()) if (!want.has(k)) st.registry.release(k)
         held = want
         // the rows ahead: pinned only (no read, no ask: the list's warm fills them), released once the member is past them;
-        // only an entry the registry already holds (an empty pin would hide the row's copies from every first look)
+        // only an entry holding rows (an empty pin would hide the row's copies from the first looks: see NEIGHBOR_KEEP_AHEAD)
         const keepWant = new Map()
         for (const sym of (keepSyms || []).slice(0, NEIGHBOR_KEEP_AHEAD)) {
           const k = keyFor(sym, tf, { showExtended })
           if (!k || keepWant.has(k)) continue
           if (kept.has(k)) keepWant.set(k, true)
-          else if (st.registry.has(k)) { st.registry.acquire(k); keepWant.set(k, true) }
+          else if (_holdsRows(st.peek(k))) { st.registry.acquire(k); keepWant.set(k, true) }
         }
         for (const k of kept.keys()) if (!keepWant.has(k)) st.registry.release(k)
         kept = keepWant
