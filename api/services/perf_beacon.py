@@ -74,6 +74,13 @@ switch was under 40 ms (`perf_switch_days`), and the summed counters
 exists to be read back. `perf_switch_sends` holds a time and the salted hash for
 one hour, only to count the quota (SWITCH_RATE_LIMIT).
 
+What is deleted, and when
+-------------------------
+Quota rows once an hour old; a day's sender rows once that ET day is over.
+Three things do it, so it does not wait for a report to arrive: every write,
+the admin read (`switch_summary`), and a timer (`startup`: one daemon thread per
+process, every HOUSEKEEP_EVERY_S). A quiet weekend does not keep Friday's rows.
+
 Storage and bounds
 ------------------
 Own SQLite file `PERF_BEACON_DB_PATH` (default `<DATA_DIR>/perf_beacon.db`,
@@ -394,13 +401,85 @@ def _sender_key(ip: str | None, day: str) -> str:
     return _mac(_key("day", day), ip, 16)
 
 
+def _delete_outlived(conn: sqlite3.Connection, now: float) -> dict[str, int]:
+    """Delete every row whose use is over: quota rows an hour old, sender rows of an earlier ET day (their counts stay
+    in the day's row). How many of each."""
+    return {
+        "switch_sends": conn.execute("DELETE FROM perf_switch_sends WHERE created_at <= ?", (now - 3600,)).rowcount,
+        "senders": conn.execute("DELETE FROM perf_switch_senders WHERE day < ?", (switch_day(now),)).rowcount,
+    }
+
+
 def _prune(conn: sqlite3.Connection, now: float) -> None:
     conn.execute("DELETE FROM perf_loads WHERE created_at < ?", (now - RETENTION_DAYS * 86400,))
     first = switch_day(now - SWITCH_RETENTION_DAYS * 86400)
     conn.execute("DELETE FROM perf_switch_days WHERE day < ?", (first,))
     conn.execute("DELETE FROM perf_switch_counters WHERE day < ?", (first,))
-    # a day's sender hashes are only for counting that day: gone once it is over (the count stays in the day's row)
-    conn.execute("DELETE FROM perf_switch_senders WHERE day < ?", (switch_day(now),))
+    _delete_outlived(conn, now)
+
+
+def housekeep(now: float | None = None) -> dict[str, int]:
+    """Delete what has outlived its use and forget the keys of past periods, whether or not a report arrives. Called by
+    the admin read and by the timer (`startup`). No store yet: nothing to do, and none is made."""
+    now = time.time() if now is None else now
+    _forget_keys(now)
+    if not os.path.exists(_db_path()):
+        return {"load_sends": 0, "switch_sends": 0, "senders": 0}
+    with _lock:
+        conn = _connect()
+        try:
+            with conn:
+                return {"load_sends": 0, **_delete_outlived(conn, now)}
+        finally:
+            conn.close()
+
+
+HOUSEKEEP_EVERY_S = 600
+_housekeeper: threading.Thread | None = None
+_housekeeper_stop = threading.Event()
+_boot_done = threading.Event()       # set once the thread's start-of-process work is done
+
+
+def _at_boot() -> None:
+    """What the housekeeping thread does once, before its first wait."""
+    housekeep()
+
+
+def _housekeeping(every_s: float) -> None:
+    try:
+        _at_boot()
+    except Exception as e:          # a measurement's housekeeping never takes the process down
+        print(f"[perf-beacon] startup housekeeping failed (non-fatal): {type(e).__name__}")
+    _boot_done.set()
+    while not _housekeeper_stop.wait(every_s):
+        try:
+            housekeep()
+        except Exception as e:
+            print(f"[perf-beacon] housekeeping failed (non-fatal): {type(e).__name__}")
+
+
+def startup(every_s: float = HOUSEKEEP_EVERY_S) -> bool:
+    """Start this process's ONE housekeeping thread (api/main.py's lifespan calls it): a daemon that does the
+    start-of-process work off the boot path, then `housekeep()` every `every_s`. True when this call started it."""
+    global _housekeeper
+    with _keys_lock:
+        if _housekeeper is not None and _housekeeper.is_alive():
+            return False
+        _housekeeper_stop.clear()
+        _boot_done.clear()
+        _housekeeper = threading.Thread(target=_housekeeping, args=(every_s,), name="perf-beacon-housekeeping", daemon=True)
+        _housekeeper.start()
+        return True
+
+
+def _stop_housekeeping() -> None:
+    """Tests: stop the thread and wait for it."""
+    global _housekeeper
+    t = _housekeeper
+    _housekeeper_stop.set()
+    if t is not None:
+        t.join(timeout=10)
+    _housekeeper = None
 
 
 _SWITCH_UPSERT = (
@@ -618,6 +697,7 @@ def switch_summary(days: int = 7, now: float | None = None) -> dict[str, Any]:
     `by_day[]`: the same totals over every combination and client, and each SWITCH_COUNTERS sum.
     `legend`: what each name means and what is NOT sampled (SWITCH_LEGEND)."""
     now = time.time() if now is None else now
+    housekeep(now)       # the read itself deletes what is over: a quiet store does not wait for the next report
     first = switch_day(now - (max(1, days) - 1) * 86400)
     conn = _connect()
     try:

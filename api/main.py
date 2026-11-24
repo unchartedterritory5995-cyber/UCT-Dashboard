@@ -4936,6 +4936,16 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] thread switch interval tuning failed (non-fatal): {e}")
 
+    # The real-user beacon keeps nothing derived from an IP past its use (2026-11-24): one daemon thread blanks the
+    # keys older builds stored (off the boot path; it logs a count and nothing else) and then deletes quota and sender
+    # rows on time whether or not a report arrives. See api/services/perf_beacon.py "What is deleted, and when".
+    try:
+        from api.services import perf_beacon as _perf_beacon
+        print(f"[startup] perf beacon housekeeping: {'started' if _perf_beacon.startup() else 'already running'} "
+              f"(every {_perf_beacon.HOUSEKEEP_EVERY_S} s)")
+    except Exception as e:
+        print(f"[startup] perf beacon housekeeping failed to start (non-fatal): {e}")
+
     # ⚡ The background lane (2026-11-17). For ~15 min after every restart the site answered ~10x
     # slower: a dozen member-invisible sweeps (weekly purge, off-grid sweep, audits, breadth heal and
     # verify, split heal) ran at once and starved every request of the interpreter. Lane users wait
