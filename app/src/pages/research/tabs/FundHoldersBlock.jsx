@@ -17,6 +17,7 @@
 import { useMemo, useState } from 'react'
 import SidewaysScroll from '../../../components/research/fmpDepth/SidewaysScroll'
 import depth from '../../../components/research/fmpDepth/FmpDepth.module.css'
+import { ariaSortFor, sortCaretFor } from '../../../lib/presentation/dataGrid'
 import {
   DEFAULT_ROWS, DEFAULT_SORT, FUNDS_SOURCE, NOT_REPORTED, STATE_WORDS, boundRows, fundRows,
   fundsSummaryLine, heldLine, nextSort, noHoldersWords, presentColumns, priceLine, quarterFacts,
@@ -81,11 +82,11 @@ export default function FundHoldersBlock({ tf, failed = false, now }) {
                     const active = sort.key === c.key
                     return (
                       <th key={c.key} scope="col" className={active ? css.sorted : undefined}
-                        aria-sort={active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : undefined}>
+                        aria-sort={ariaSortFor(sort, c.key, undefined)}>
                         <button type="button" className={css.sortBtn} data-sort-key={c.key}
                           onClick={() => setSort((s) => nextSort(s, c.key))}>
                           {c.label}
-                          {active && <span aria-hidden="true" className={css.caret}>{sort.dir === 'asc' ? '▲' : '▼'}</span>}
+                          {active && <span aria-hidden="true" className={css.caret}>{sortCaretFor(sort, c.key)}</span>}
                         </button>
                       </th>
                     )

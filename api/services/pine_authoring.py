@@ -27,6 +27,7 @@ from __future__ import annotations
 import json
 import re
 from functools import lru_cache
+from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Tuple
 
 from api.services import indicator_support
@@ -357,7 +358,7 @@ THE RULES
 10. For a well-known indicator, when this document lists Pine's OWN function for it, CALL that function: do not re-derive its maths by hand. {own_functions}When this document lists none, write the published calculation yourself and say in `reply` which definition you used.
 11. Draw ONLY what the member asked for. A request for a count or a signal is that one plot or mark: do not add a label on every event, a summary table, a background colour, extra shapes or an `alertcondition` the request did not name. Each extra clutters the chart and is one more claim that has to be right. If something more would help, OFFER it in `reply` in one short sentence ("I can also mark each day or add a table") and leave it out of the script. When the request is ONLY a drawing (a box, a line, labels, a table) and names no plotted line, still `plot` the value the drawing is made from, because a script with a plot can be used in alerts and one without cannot; but make that plot INVISIBLE with a fully transparent colour (`plot(level, "Level", color=color.new(color.gray, 100))`) and say in `reply` that a hidden plot is there for alerts. Never hide a plot the member asked to see.
 12. {number_on_bars}
-13. {format_literal}
+13. {percent_format}
 14. {fill_in}"""
 
 #: ⭐ RULE 14: A FIGURE THE MEMBER MUST FILL IN (found by the first full live run of the value cases, 2026-11-22). On
@@ -370,21 +371,15 @@ FILL_IN_RULE = (
     "shows it only when it is above 0. A bare `plot(avg)` is a line at price 0 that squeezes the chart. Say in "
     "`reply` that the member's own figures cannot be read here and where to enter them.")
 
-#: ⭐ RULE 13, INTERIM (coordinator's ruling, 2026-11-22). Found by the live re-check of the rule above it: asked for a
-#: table of yesterday's high and low, the assistant added a "Decimal places" setting and BUILT the number format from
-#: text (`fmt = "#." + str.replace_all(...)`, then `str.tostring(x, fmt)`). The engine WITHHOLDS a text whose format is
-#: not a string literal (it cannot know the pattern, and the ten-decimal default would be a different text), so the
-#: table drew its labels and NO VALUES, with no error and no word to the member. Measured through the engine: a literal
-#: format, `format.mintick` and `format.volume` draw; a format held in a variable, joined from text, or
-#: `format.percent` draws nothing. Measured over the 101 scripts on file: 1 builds a format (that one).
-#: ⛔ THIS SENTENCE COMES OUT WHEN THE ENGINE SERVES A FOLDED FORMAT (the engine unit that names the withhold and folds
-#: a format made of literals and inputs). `tests/test_script_format_is_a_literal.py` runs the shape through the engine
-#: on every run and goes RED the day it draws, naming this constant: remove it then, in that commit.
-FORMAT_LITERAL_RULE = (
-    "Write `str.tostring`'s format as a string literal (\"#.##\"). For a decimals setting, choose among literal "
-    "formats (`digits == 0 ? str.tostring(x, \"#\") : digits == 1 ? str.tostring(x, \"#.#\") : str.tostring(x, "
-    "\"#.##\")`); never build a format from text or hold one in a variable. `format.mintick` and `format.volume` are "
-    "served; for a percent write the number and add \"%\" yourself.")
+#: ⭐ RULE 13 (coordinator's rulings, 2026-11-22). It was the INTERIM literal-format rule: the engine withheld a
+#: `str.tostring` text whose format was not a string literal, so an assistant that BUILT a format from text
+#: (`fmt = "#." + str.replace_all(...)`) drew a table of labels and NO VALUES, with no word to the member. Train e95's
+#: computed-number-formats unit folds a format made of literals and inputs (an alias, a join, `str.substring` /
+#: `str.replace_all` / `str.repeat`, a ternary or `switch` on an input) and names what it still withholds, so that
+#: sentence came out in that commit (`tests/test_script_format_is_a_literal.py`, the tripwire it was written for).
+#: What stays withheld is `format.percent`: no TradingView capture shows what it prints yet (probe
+#: `tools/visual_conformance/probes/vw-format-percent.pine`). When that capture is served, this rule comes out too.
+PERCENT_FORMAT_RULE = "`format.percent` is not served yet: write the number and add \"%\" yourself."
 
 #: ⭐ RULE 12: A NUMBER WRITTEN ON BARS (found by a value check of a live round, 2026-11-22). Asked to "write the
 #: count above each bar of the run as a number from 1 to 9", the assistant wrote
@@ -490,11 +485,78 @@ OWN_FUNCTION_CANDIDATES = ("ta.supertrend", "ta.sar", "ta.kc", "ta.kcw", "ta.bb"
                            "ta.dmi", "ta.wpr", "ta.hma", "ta.linreg")
 
 
+#: ⭐ (T4 E2, engine 95, train e95) the event reads the engine serves (`request.earnings` / `.dividends` / `.splits`)
+#: are supplied by ONE door, `GET /api/pine/events/<symbol>`, staged by `PINE_EVENTS_SUPPLY_ENABLED`
+#: (`pine_events.stage()`). Until it is `all` a member's chart answers "earnings data is not available on this chart
+#: yet", so the assistant is never handed them and the gap stays a gap: the stage the door reads is the one authority.
+EVENT_READS = ("request.earnings", "request.dividends", "request.splits")
+EVENTS_DARK_GUARD = "other-symbol:event-not-available"
+
+
+def events_open_to_members() -> bool:
+    """Does the events door answer every paid member (`PINE_EVENTS_SUPPLY_ENABLED=all`)? Read per call."""
+    from api.services import pine_events
+    return pine_events.stage() == "all"
+
+
+#: ⭐ (T4 F1b, engine 95, train e95) `request.financial` is supplied by ONE door, `GET /api/pine/financial/<symbol>`,
+#: staged by `PINE_FINANCIAL_SUPPLY_ENABLED` (`pine_financial.stage()`): the assistant is handed it only while that door
+#: answers every paid member, and its gap stays a gap until then. Its figures are UCT data from company filings.
+FINANCIAL_READS = ("request.financial",)
+FINANCIAL_DARK_GUARD = "other-symbol:financial-not-available"
+
+
+def financial_open_to_members() -> bool:
+    """Does the financial door answer every paid member (`PINE_FINANCIAL_SUPPLY_ENABLED=all`)? Read per call."""
+    from api.services import pine_financial
+    return pine_financial.stage() == "all"
+
+
+#: ⭐⭐ (T4 B2, engine 95, train e95) TradingView's `USI:` breadth spellings the engine serves from UCT's own breadth
+#: counts are supplied by ONE door, `GET /api/pine/breadth/<spelling>` (B1), staged by `PINE_BREADTH_SUPPLY_ENABLED`
+#: (`pine_breadth.stage()`), and each spelling is served only once its capture witnesses it (`requestWitnesses.json`
+#: rows of kind `breadth`, the engine's one authority, read here as data). The assistant is handed a spelling only
+#: while BOTH hold (the E2 pattern): below `all` a member's chart answers "UCT breadth data is not available on this
+#: chart yet", so the gap stays a gap.
+BREADTH_DARK_GUARD = "other-symbol:breadth-not-available"
+WITNESSES_PATH = Path(__file__).resolve().parents[2] / "app" / "src" / "components" / "chart" / "engine" / "requestWitnesses.json"
+BREADTH_WORDS = "UCT breadth data (our own counts), not the exchange's official figures"
+_BREADTH_IN_SOURCE = re.compile(r"(?i)[\"']\s*USI\s*:")
+
+
+def breadth_open_to_members() -> bool:
+    """Does the breadth door answer every paid member (`PINE_BREADTH_SUPPLY_ENABLED=all`)? Read per call."""
+    from api.services import pine_breadth
+    return pine_breadth.stage() == "all"
+
+
+def breadth_spellings_served(path=None) -> List[str]:
+    """The `USI:` spellings the engine serves: the breadth witness rows whose capture is in (`witness` + `captured`)."""
+    try:
+        rows = json.loads((path or WITNESSES_PATH).read_text(encoding="utf-8")).get("rows") or {}
+    except (OSError, ValueError):
+        return []
+    return sorted(k for k, v in rows.items() if isinstance(v, Mapping) and v.get("kind") == "breadth"
+                  and str(v.get("witness") or "").strip() and str(v.get("captured") or "").strip())
+
+
+def breadth_handed(path=None) -> List[str]:
+    """The `USI:` spellings the assistant is handed: served by the engine AND its door open to members, else none."""
+    return breadth_spellings_served(path) if breadth_open_to_members() else []
+
+
+def _values(ref: Mapping[str, Any]) -> List[Mapping[str, Any]]:
+    """`ref["values"]`, less the event reads and the financial read while their doors are dark for members."""
+    rows = [v for v in ref.get("values") or [] if isinstance(v, Mapping) and isinstance(v.get("name"), str)]
+    dark = (() if events_open_to_members() else EVENT_READS) + (() if financial_open_to_members() else FINANCIAL_READS)
+    return [v for v in rows if v["name"] not in dark]
+
+
 def served_names(ref: Optional[Mapping[str, Any]] = None) -> frozenset:
     """The value functions and variables the document lists as served: the SAME rows it prints under
-    "VALUE FUNCTIONS AND VARIABLES" (`ref["values"]`), so rule 10 can never name one the document does not."""
+    "VALUE FUNCTIONS AND VARIABLES" (`_values`), so rule 10 can never name one the document does not."""
     ref = reference() if ref is None else ref
-    return frozenset(v["name"] for v in ref.get("values") or [] if isinstance(v, Mapping) and isinstance(v.get("name"), str))
+    return frozenset(v["name"] for v in _values(ref))
 
 
 def _own_functions_said(ref: Optional[Mapping[str, Any]] = None) -> str:
@@ -551,7 +613,7 @@ def contract(ref: Optional[Mapping[str, Any]] = None) -> str:
     """The contract as the assistant reads it: the rules, with rule 10's examples taken from the reference."""
     return (CONTRACT.replace("{own_functions}", _own_functions_said(ref)).replace("{last_bar}", _last_bar_said(ref))
             .replace("{number_on_bars}", NUMBER_ON_BARS_RULE)
-            .replace("{format_literal}", FORMAT_LITERAL_RULE).replace("{fill_in}", FILL_IN_RULE))
+            .replace("{percent_format}", PERCENT_FORMAT_RULE).replace("{fill_in}", FILL_IN_RULE))
 
 
 def document(ref: Optional[Mapping[str, Any]] = None, run_stops: Optional[List[str]] = None) -> str:
@@ -568,7 +630,10 @@ def document(ref: Optional[Mapping[str, Any]] = None, run_stops: Optional[List[s
     out += _lines("WHAT A SCRIPT CAN SHOW", [f"- `{name}`" for name in served_outputs(ref)])
 
     out += _lines("VALUE FUNCTIONS AND VARIABLES (each with a call the engine accepts)",
-                  [f"- `{v['name']}`  e.g. `{v['call']}`" for v in ref.get("values") or []])
+                  [f"- `{v['name']}`  e.g. `{v['call']}`" for v in _values(ref)])
+    # ⭐⭐ T4 B2 -- only while the breadth door serves members, and only the spellings the engine serves
+    out += _lines(f"MARKET BREADTH ({BREADTH_WORDS}; read each as `request.security(<symbol>, \"D\", close)` on a daily, "
+                  "weekly or monthly chart)", [f"- `{s}`" for s in breadth_handed()])
 
     drawing = ref.get("drawing") or {}
     for family in ref.get("families") or []:
@@ -675,6 +740,19 @@ def gap_rows(doc: Optional[Mapping[str, Any]] = None, admitted: Optional[List[st
         if p.get("runs") is not True:
             row["guard"] = p.get("guard")
             row["says"] = (p.get("why") or p.get("headline") or "").strip()
+        elif pine_capabilities._EVENTS_RX.search(p["source"]) and not events_open_to_members():
+            # the engine reads it; the door that supplies it is dark for members (`EVENT_READS`)
+            row["guard"] = EVENTS_DARK_GUARD
+            row["says"] = "the engine reads it, and the data is not available on a member's chart yet"
+        elif pine_capabilities._FINANCIAL_RX.search(p["source"]) and not financial_open_to_members():
+            # the engine reads it; the door that supplies it is dark for members (`FINANCIAL_READS`)
+            row["guard"] = FINANCIAL_DARK_GUARD
+            row["says"] = "the engine reads it, and the data is not available on a member's chart yet"
+        elif _BREADTH_IN_SOURCE.search(p["source"]) and not breadth_handed():
+            # ⭐⭐ T4 B2 -- a `USI:` read: the engine reads it, and the breadth door is dark for members (or the
+            # spelling's capture has not landed)
+            row["guard"] = BREADTH_DARK_GUARD
+            row["says"] = "the engine reads it, and UCT breadth data is not available on a member's chart yet"
         elif p.get("lane") == "runtime":
             missing = sorted(set(pine_capabilities.capabilities_of(p["source"])) - allowed)
             if missing:

@@ -469,6 +469,34 @@
    "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of vw-fmt-tie-readings-rddt-1d-2026-11-15 DIVERGE (MATCH, or INCONCLUSIVE by name)"
   },
   {
+   "slug": "vw-format-percent",
+   "sha256": "6247706113c9bc98b4007c02b8ba05c4e4a64882160a13eea2c6658ee8d7d106",
+   "title": "UCTPROBE_VW_FORMAT_PERCENT",
+   "source": "tools/visual_conformance/probes/vw-format-percent.pine",
+   "reason": "on a captured NYSE:RDDT 1D chart (capture vw-format-percent-rddt-1d-2026-11-23-preopen) it draws something that differs from TradingView: tableCells text of cell (1,1) of table #1: TradingView \"0.13%\", ours null",
+   "evidence": {
+    "diverge": [
+     {
+      "capture": "vw-format-percent-rddt-1d-2026-11-23-preopen",
+      "symbol": "NYSE:RDDT",
+      "timeframe": "1D",
+      "kind": "drawn",
+      "firstDiverging": "tableCells text of cell (1,1) of table #1: TradingView \"0.13%\", ours null"
+     },
+     {
+      "capture": "vw-format-percent-spy-1d-2026-11-23-preopen",
+      "symbol": "AMEX:SPY",
+      "timeframe": "1D",
+      "kind": "drawn",
+      "firstDiverging": "tableCells text of cell (1,1) of table #1: TradingView \"0.13%\", ours null"
+     }
+    ],
+    "match": [],
+    "inconclusive": []
+   },
+   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of vw-format-percent-rddt-1d-2026-11-23-preopen, vw-format-percent-spy-1d-2026-11-23-preopen DIVERGE (MATCH, or INCONCLUSIVE by name)"
+  },
+  {
    "slug": "vw-h5-format-volume",
    "sha256": "693f3893b23c4faaac82d6fdd5f0f157ab50d404dc4282cd19bc6905168e213e",
    "title": "UCTPROBE H5 format.volume",

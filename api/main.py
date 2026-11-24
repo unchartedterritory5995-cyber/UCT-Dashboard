@@ -10923,10 +10923,47 @@ async def lifespan(app: FastAPI):
                 trigger=CronTrigger(day_of_week="tue-sat", hour=_ics_mod.RUN_AT_ET[0],
                                     minute=_ics_mod.RUN_AT_ET[1], timezone=_ET),
                 id="insider_clusters_sec_nightly", max_instances=1, replace_existing=True, coalesce=True,
+                misfire_grace_time=3600,
             )
             print("[startup] insider clusters (SEC Form 4) scheduled -- Tue-Sat 01:20 ET")
         except Exception as e:
             print(f"[startup] insider clusters job registration failed (non-fatal): {e}")
+
+        # ... AND ITS CATCH-UP (2026-11-23, read on the live site): two days after the merge the route still answered
+        # `not_built`. The job had no `misfire_grace_time` (APScheduler's default is about 1 s) and no catch-up, and a
+        # fire that lands while the pod restarts for a deploy (master merges land every 20-30 minutes) is simply lost:
+        # the new container's memory job store schedules the NEXT slot (`misfire_grace_time` covers only a scheduler
+        # that was ALIVE at the fire time, as the rs_history catch-up's note says). So, as rs_history does: a one-hour
+        # grace on the job above, and `insider_clusters_sec.catch_up`, which starts the SAME run only when the held
+        # answer was built before the last slot (`insider_clusters_sec.behind`), and only inside scan_period's quiet
+        # span (`insider_clusters_sec.quiet`: a boot during the weekday busy span starts nothing): a DATE job
+        # CATCHUP_BOOT_DELAY_S after boot (never inline: the boot is not slowed) and an hourly check (CATCHUP_HOURS_ET
+        # at CATCHUP_MINUTE_ET, every day; `behind` knows the schedule). A run a restart killed resumes from the store's
+        # per-day checkpoint, and the module's own guard runs one at a time. Nothing on a member's request starts it.
+        _boot_mark("INS-catch-up")
+        try:
+            def _insider_clusters_sec_catch_up_job(source):
+                from api.services import insider_clusters_sec as _ics
+                print(f"[scheduler] insider clusters (SEC Form 4) catch-up ({source}): {_ics.catch_up()}")
+
+            from datetime import datetime as _ics_dt, timedelta as _ics_td
+            from api.services import insider_clusters_sec as _ics_cu
+            _scheduler.add_job(
+                _insider_clusters_sec_catch_up_job, kwargs={"source": "boot"}, trigger="date",
+                run_date=_ics_dt.now(_ET) + _ics_td(seconds=_ics_cu.CATCHUP_BOOT_DELAY_S),
+                id="insider_clusters_sec_catchup_boot", max_instances=1, replace_existing=True,
+                misfire_grace_time=3600,
+            )
+            _scheduler.add_job(
+                _insider_clusters_sec_catch_up_job, kwargs={"source": "hourly"},
+                trigger=CronTrigger(hour=_ics_cu.CATCHUP_HOURS_ET, minute=_ics_cu.CATCHUP_MINUTE_ET, timezone=_ET),
+                id="insider_clusters_sec_catchup", max_instances=1, replace_existing=True, coalesce=True,
+                misfire_grace_time=1800,
+            )
+            print(f"[startup] insider clusters catch-up scheduled -- {_ics_cu.CATCHUP_BOOT_DELAY_S}s after boot, "
+                  f"hourly {_ics_cu.CATCHUP_HOURS_ET}h at :{_ics_cu.CATCHUP_MINUTE_ET:02d} ET, when behind")
+        except Exception as e:
+            print(f"[startup] insider clusters catch-up registration failed (non-fatal): {e}")
 
         # Funds (N-PORT) on OWN (2026-11-22): which mutual funds and ETFs hold a stock, from the SEC's
         # quarterly Form N-PORT data sets (api/services/fund_holders_nport.py). Daily at 00:50 ET, early in
@@ -10952,6 +10989,39 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             print(f"[startup] fund holders (N-PORT) job registration failed (non-fatal): {e}")
 
+        # ... AND ITS CATCH-UP (2026-11-23, the INS CLUSTER incident's shape): a fire that lands while the pod restarts for
+        # a deploy is lost (the new container's memory job store schedules the NEXT day; `misfire_grace_time` covers
+        # only a scheduler that was alive at the fire time), and a run a restart kills ends without a receipt. So
+        # `fund_holders_nport.catch_up` starts the SAME run (`run_scheduled`: the quiet span, one run at a time) only when
+        # no run has ended since the last 00:50 slot (`fund_holders_nport.behind`, from the run's own receipt). It never
+        # asks the SEC whether a newer data set exists: the run it starts decides that as every run does (no request
+        # while the index is current). A DATE job CATCHUP_BOOT_DELAY_S after boot (never inline; after INS's 600 s and IV
+        # rank's 900 s, so boot catch-ups never start together) and a daily retry at CATCHUP_AT_ET.
+        _boot_mark("NPORT-catch-up")
+        try:
+            def _fund_holders_nport_catch_up_job(source):
+                from api.services import fund_holders_nport as _fhn
+                print(f"[scheduler] fund holders (SEC Form N-PORT) catch-up ({source}): {_fhn.catch_up()}")
+
+            from datetime import datetime as _fhn_dt, timedelta as _fhn_td
+            from api.services import fund_holders_nport as _fhn_cu
+            _scheduler.add_job(
+                _fund_holders_nport_catch_up_job, kwargs={"source": "boot"}, trigger="date",
+                run_date=_fhn_dt.now(_ET) + _fhn_td(seconds=_fhn_cu.CATCHUP_BOOT_DELAY_S),
+                id="fund_holders_nport_catchup_boot", max_instances=1, replace_existing=True,
+                misfire_grace_time=3600,
+            )
+            _scheduler.add_job(
+                _fund_holders_nport_catch_up_job, kwargs={"source": "retry"},
+                trigger=CronTrigger(hour=_fhn_cu.CATCHUP_AT_ET[0], minute=_fhn_cu.CATCHUP_AT_ET[1], timezone=_ET),
+                id="fund_holders_nport_catchup", max_instances=1, replace_existing=True, coalesce=True,
+                misfire_grace_time=1800,
+            )
+            print(f"[startup] fund holders (N-PORT) catch-up scheduled -- {_fhn_cu.CATCHUP_BOOT_DELAY_S}s after boot, "
+                  f"daily {_fhn_cu.CATCHUP_AT_ET[0]:02d}:{_fhn_cu.CATCHUP_AT_ET[1]:02d} ET, when behind")
+        except Exception as e:
+            print(f"[startup] fund holders (N-PORT) catch-up registration failed (non-fatal): {e}")
+
         # OSCR RICH / OSCR CHEAP (2026-11-22): the highest and lowest IV rank across the options log, built once
         # an evening from the summary files the IVH store already mirrors (api/services/research/iv_rank_leaders.py).
         # Daily at 20:45 ET: after the 16:30 log and its screen build, inside scan_period's quiet span (from 20:15
@@ -10975,6 +11045,37 @@ async def lifespan(app: FastAPI):
             print("[startup] IV rank leaders (options log) scheduled -- daily 20:45 ET")
         except Exception as e:
             print(f"[startup] IV rank leaders job registration failed (non-fatal): {e}")
+
+        # ... AND ITS CATCH-UP (2026-11-23, the INS CLUSTER incident's shape): a 20:45 fire that lands while the pod
+        # restarts for a deploy is lost until the next evening. `iv_rank_leaders.catch_up` starts the SAME build
+        # (`run_scheduled`: OPTIONS_SCREENER_ENABLED, the quiet span, one build at a time) only when the held list is
+        # behind the session the last 20:45 build should have read and was not built since that slot
+        # (`iv_rank_leaders.behind`; it never reads the log to decide). A DATE job CATCHUP_BOOT_DELAY_S after boot (never
+        # inline; between INS's 600 s and N-PORT's 1200 s) and a daily retry at CATCHUP_AT_ET.
+        _boot_mark("IVR-catch-up")
+        try:
+            def _iv_rank_leaders_catch_up_job(source):
+                from api.services.research import iv_rank_leaders as _ivrl
+                print(f"[scheduler] IV rank leaders (options log) catch-up ({source}): {_ivrl.catch_up()}")
+
+            from datetime import datetime as _ivrl_dt, timedelta as _ivrl_td
+            from api.services.research import iv_rank_leaders as _ivrl_cu
+            _scheduler.add_job(
+                _iv_rank_leaders_catch_up_job, kwargs={"source": "boot"}, trigger="date",
+                run_date=_ivrl_dt.now(_ET) + _ivrl_td(seconds=_ivrl_cu.CATCHUP_BOOT_DELAY_S),
+                id="iv_rank_leaders_catchup_boot", max_instances=1, replace_existing=True,
+                misfire_grace_time=3600,
+            )
+            _scheduler.add_job(
+                _iv_rank_leaders_catch_up_job, kwargs={"source": "retry"},
+                trigger=CronTrigger(hour=_ivrl_cu.CATCHUP_AT_ET[0], minute=_ivrl_cu.CATCHUP_AT_ET[1], timezone=_ET),
+                id="iv_rank_leaders_catchup", max_instances=1, replace_existing=True, coalesce=True,
+                misfire_grace_time=1800,
+            )
+            print(f"[startup] IV rank leaders catch-up scheduled -- {_ivrl_cu.CATCHUP_BOOT_DELAY_S}s after boot, "
+                  f"daily {_ivrl_cu.CATCHUP_AT_ET[0]:02d}:{_ivrl_cu.CATCHUP_AT_ET[1]:02d} ET, when behind")
+        except Exception as e:
+            print(f"[startup] IV rank leaders catch-up registration failed (non-fatal): {e}")
 
         # COT BY TRADER TYPE (2026-11-22): the CFTC's Traders in Financial Futures and Disaggregated futures-only
         # reports beside the legacy COT (api/services/cot_finer.py). 05:10 and 21:10 ET, both inside scan_period's

@@ -91,7 +91,7 @@ declare — how many operands they take and what they answer.
 | `!` | 1 | true or false |
 | `?:` | 3 | passthrough |
 
-## Functions (95)
+## Functions (98)
 
 `Needs` is how far back the function reads — the number the engine adds up to
 decide whether a formula can run at all.
@@ -169,6 +169,7 @@ decide whether a formula can run at all.
 | `pow(left, right)` | a number | 0 bars | `left` raised to the power `right` |
 | `pvtN(period)` | a number | whatever `period` asks for | the change in price-volume trend across the last `period` bars |
 | `rci(source, period)` | a number | whatever `period` asks for | the `period`-bar rank correlation index of `source` |
+| `refusedArm(source)` | a number | 0 bars | a branch this engine does not compute (refusal `source` of the document) |
 | `rising(source, period)` | true or false | whatever `period` asks for | `source` rising for `period` bars |
 | `rma(source, period)` | a number | whatever `period` asks for | the `period`-bar Wilder average of `source` |
 | `round(source)` | a number | 0 bars | `source` rounded to a whole number |
@@ -190,6 +191,8 @@ decide whether a formula can run at all.
 | `valuewhen(condition, source, period)` | a number | whatever `period` asks for | the value of `source` on the most recent of the last `period` bars where `condition` was true |
 | `valuewhenOccurrence(condition, source, occurrence)` | a number | series | the value of `source` the `occurrence`-from-the-end time `condition` was true, counting occurrences backward from 0 for the most recent one |
 | `vwap()` | a number | a session (960 bars) | the volume-weighted average price so far this session |
+| `vwapAnchor(source, condition, volume)` | a number | series | the volume-weighted average of `source`, weighted by `volume`, since the last bar where `condition` was true |
+| `vwapAnchorDev(source, condition, volume)` | a number | series | the volume-weighted standard deviation of `source`, weighted by `volume`, since the last bar where `condition` was true |
 | `vwapOf(source)` | a number | a session (960 bars) | the volume-weighted average of `source` so far this session |
 | `williamsR(high, low, close, period)` | a number | whatever `period` asks for | the `period`-bar Williams %R of `high`, `low` and `close` |
 | `wma(source, period)` | a number | whatever `period` asks for | the `period`-bar weighted average of `source` |

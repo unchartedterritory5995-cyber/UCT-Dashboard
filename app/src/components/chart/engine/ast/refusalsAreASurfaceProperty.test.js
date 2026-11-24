@@ -104,7 +104,8 @@ describe('R14 — a refusal set is a property of the surface', () => {
     expect([...admissible].sort(), 'the engine declares no host-admissible class at '
       // C45: `valuewhenOccurrence` joined the class (`_requirement_tags.
       // occurrence_dependent`: accepted by the pane, refused for a screen by name)
-      + 'all — this rail is reading nothing').toEqual(['cum', 'isfirst', 'valuewhenOccurrence'])
+      // e95 unit 2: the anchored VWAP's two entries joined it (`_requirement_tags.anchor_dependent`)
+      + 'all — this rail is reading nothing').toEqual(['cum', 'isfirst', 'valuewhenOccurrence', 'vwapAnchor', 'vwapAnchorDev'])
     for (const n of MEASURED_FOUR) {
       expect(findScript(n), `${n} is not on disk`).toBeTruthy()
       const { c } = lanes(n)

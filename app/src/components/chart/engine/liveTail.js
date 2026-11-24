@@ -65,6 +65,8 @@
 // inside the lane is a second authority (SERVER-RUNTIME-DESIGN.md 2.2 H3).
 
 import { readoutSourceValue } from './readoutSchema'
+import { baseBarsFor, resampleSpec } from '../timeframes'
+import { resampleForSpec } from '../../../utils/resampleBars'
 import { LIVE_TAIL_KINDS, LIVE_TAIL_FIELDS, LIVE_TAIL_MA_TYPES } from './liveTailSchema'
 
 /** The grammar, from its leaf (`liveTailSchema.js`): one import for every reader. */
@@ -306,7 +308,14 @@ function tailKey(sym, tf) {
 export function benchmarkTailUrl(sym, tf) {
   const s = typeof sym === 'string' ? sym.trim() : ''
   if (!s) return null
-  return `/api/bars/${encodeURIComponent(s)}?tf=${encodeURIComponent(String(tf == null ? 'D' : tf))}&bars=${BENCHMARK_TAIL_BARS}`
+  const code = String(tf == null ? 'D' : tf)
+  // ⭐ (e95, 2026-11-22) a CUSTOM timeframe (2h, 4h, 45m, 2D …) is not served by the route: ask its native base for one
+  // bucket more than the tail (`baseBarsFor`), resampled on landing by the chart's own rule (`tailBarsFromWire`)
+  const spec = resampleSpec(code)
+  const ask = spec ? spec.base : code
+  const count = spec ? baseBarsFor(code, BENCHMARK_TAIL_BARS + 1) : BENCHMARK_TAIL_BARS
+  // ⛔ ONE url literal, the site `rails/oneKey.baseline.json` already lists (a shrink-only allowlist: never a new one)
+  return `/api/bars/${encodeURIComponent(s)}?tf=${encodeURIComponent(String(ask))}&bars=${count}`
 }
 
 /** Notified with the entry key when a benchmark tail lands (or fails). @returns {() => void} */
@@ -323,9 +332,12 @@ function _notify(key) {
 }
 
 /** The bars payload → the newest tail bars `[{t, c}]`, or null for a body that is not one. */
-export function tailBarsFromWire(body) {
+export function tailBarsFromWire(body, tf) {
   if (!body || typeof body !== 'object' || !Array.isArray(body.bars)) return null
-  const rows = body.bars.slice(-BENCHMARK_TAIL_BARS)
+  // ⭐ (e95) a custom timeframe's base rows, resampled by the chart's rule; the first bucket may be partial: dropped
+  const spec = tf == null ? null : resampleSpec(String(tf))
+  const src = spec ? resampleForSpec(body.bars, spec).slice(1) : body.bars
+  const rows = src.slice(-BENCHMARK_TAIL_BARS)
   const out = []
   for (const b of rows) {
     if (!b || typeof b !== 'object' || b.t === undefined || b.t === null) continue
@@ -354,7 +366,7 @@ function _fetchTail(sym, tf, key, fetcher, now) {
   try { asked = Promise.resolve(get(url)) } catch (err) { asked = Promise.reject(err) }
   const p = asked
     .then((body) => {
-      const bars = tailBarsFromWire(body)
+      const bars = tailBarsFromWire(body, tf)
       if (!bars) throw new Error('malformed bars body')
       _land(key, sym, tf, bars, typeof now === 'number' ? now : Date.now())
     })

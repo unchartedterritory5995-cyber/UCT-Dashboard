@@ -15,7 +15,7 @@
 // ⛔ It only CONSTRAINS: a sentence that states none of these leaves the plan to the screens before it (null). A clause that
 // says a chart is fine / left alone / not meant ("the middle of the bottom row looks fine") states no target constraint, and
 // a line or place that is a move's destination, a comparison ("like the top row") or a source states none either.
-import { ordinalChart, chartsNamedBy, relativeChart, selectedChart, chartRefOf } from './deixis'
+import { ordinalChart, chartsNamedBy, relativeChart, selectedChart, chartRefOf, tfOfWord } from './deixis'
 import { CLICK_ACT_NP } from './clickRef'
 import { chartsLandedOn } from './chartLanding'
 import { tickerChanged, namedTickers } from './chartRail'
@@ -2114,6 +2114,15 @@ export function bareQuantifier(t, { rest = false } = {}) {
 }
 export const quantifierCoversClick = (scoped) => !scoped
 export function everyExceptSet(text, charts = [], sel = null, opts = {}) {
+  const r = everyExceptRead(text, charts, sel, opts)
+  if (!r) return null
+  const set = r.pool.filter(c => !r.excluded.has(c.ref))
+  if (!set.length || set.length === charts.length) return null
+  return { refs: set.map(c => c.ref), excluded: [...r.excluded] }
+}
+// the quantifier's pool and the charts its exclusion places → { pool, excluded, scoped } | null (no quantifier, no exclusion, or
+// one the board cannot place). `exclude` reads the exclusions (excludedCharts by default; everyExceptNothing's description probe).
+function everyExceptRead(text, charts, sel, opts, exclude = null) {
   const t = exceptForm(text)
   const q = EVERY_Q.exec(t) || bareQuantifier(t, { rest: !!opts?.rest })
   if (!q) return null
@@ -2127,7 +2136,7 @@ export function everyExceptSet(text, charts = [], sel = null, opts = {}) {
   if (!ex) return null
   const seg = t.slice(after, after + ex.index).replace(BOARD_PP, ' ')
   const phrase = ex.neg ? '' : t.slice(after + ex.index).split(/[,;.!?]|\s+(?:and|then)\s+/i)[0]
-  const excluded = new Set(excludedCharts(text, charts, sel, opts))
+  const excluded = new Set(exclude ? exclude(text) : excludedCharts(text, charts, sel, opts))
   if (sel && negatedClick(text).excludes) excluded.add(sel)
   // a RELATION to the click inside the exclusion ("except the one diagonally across from this"): its target is excluded; a
   // relation the board cannot place is no reading of this family (null: the gates ask as before)
@@ -2141,14 +2150,99 @@ export function everyExceptSet(text, charts = [], sel = null, opts = {}) {
   // the quantifier decides the pool: unscoped, it covers the whole board (the click included); scoped, only the charts that
   // scope places, and never the click (its anchor)
   let pool = charts
-  if (!quantifierCoversClick(SCOPE_WORD.test(seg))) {
+  const scoped = !quantifierCoversClick(SCOPE_WORD.test(seg))
+  if (scoped) {
     const sc = spatialConstraints(t.slice(0, after + ex.index), charts, sel, opts)
     if (!sc.allowed?.size) return null
     pool = charts.filter(c => sc.allowed.has(c.ref) && c.ref !== sel)
   }
-  const set = pool.filter(c => !excluded.has(c.ref))
-  if (!set.length || set.length === charts.length) return null
-  return { refs: set.map(c => c.ref), excluded: [...excluded] }
+  return { pool, excluded, scoped }
+}
+
+// (AUDIT 11-23) NOTHING LEFT TO CHANGE: a whole-board quantifier whose exclusion covers EVERY chart — "set all to weekly but leave
+// the daily ones alone" with every chart on daily, "every chart to 1h except SPY" with SPY on every chart, "…except the top row"
+// on a one-row board, "…except the top row and the bottom row". The plan must change nothing, and the member is told so in one
+// plain sentence (useAgent) — never a "which chart?" card, whose every choice is a chart they excluded.
+// A chart DESCRIPTION the exclusion readers cannot place on their own (a TIMEFRAME: "the daily ones", "the charts on weekly", "the
+// dailies"; a TICKER shown on several charts: "SPY", "the SPY charts") counts only when it is in an exclusion's scope — read by
+// swapping in a plain reference to one of its charts ("chart 3") and asking excludedCharts whether that chart is now excluded, so
+// every exclusion grammar the readers know ("except", "leave … alone", "skip", "not", "keep … as is", "don't touch") holds — and
+// only when the descriptions together with the placed exclusions cover the whole board. A singular description ("the daily one",
+// "the SPY chart") on several charts is no cover (it means ONE of them: asked as before). A PARTIAL cover, a scoped quantifier
+// ("every chart in the top row …"), or any exclusion the board cannot place → null: the gates run / ask exactly as before.
+// ⛔ NO LOOKBEHIND (#988 AUDIT L1). → { excluded: [refs], why: { kind: 'timeframe' | 'ticker' | 'charts', word } } | null.
+const NLC_TF = String.raw`(\d{1,3}[\s-]*(?:m|min|mins|minute|minutes|h|hr|hour|hours)|1h|hourly|daily|weekly|monthly)`
+const NLC_DET = String.raw`(?:(?:the|my|any|those|these|all\s+(?:of\s+)?(?:the|my))\s+)?`
+const NLC_NOUN = String.raw`(charts?|ones?|panes?|panels?|graphs?)`
+const NLC_TF_RES = [
+  [new RegExp(String.raw`\b${NLC_DET}${NLC_TF}\s+${NLC_NOUN}\b`, 'gi'), 1, 2],                                             // the daily ones
+  [new RegExp(String.raw`\b${NLC_DET}${NLC_NOUN}\s+(?:(?:that\s+are|that['’]re|which\s+are)\s+)?(?:on|at|set\s+to|in)\s+(?:the\s+)?${NLC_TF}(?:\s+(?:timeframe|tf))?\b`, 'gi'), 2, 1], // the ones on daily
+  [new RegExp(String.raw`\b${NLC_DET}(dailies|weeklies|monthlies)\b`, 'gi'), 1, 0],                                         // the dailies
+]
+const NLC_NARROWED = /^\s*(?:['’]s\b|(?:in|on|of|with|without|that|which|who|from|at|near|next|beside|above|below|under|over|across|showing|where|whose|left|right|top|bottom|except|but\s+not|apart|other)\b)/i
+function coverDescriptions(text, charts) {
+  const s = String(text || '')
+  const out = []
+  for (const [re, w, n] of NLC_TF_RES) {
+    for (const m of s.matchAll(re)) {
+      const word = m[w].toLowerCase().replace(/ies$/, 'y').replace(/-/g, ' ').replace(/\s+/g, ' ')
+      const code = tfOfWord(word.replace(/^(\d+)\s*/, '$1 ').trim()) || tfOfWord(word.replace(/\s+/g, ''))
+      if (!code) continue
+      out.push({ index: m.index, phrase: m[0], plural: !n || /s$/i.test(m[n]), refs: charts.filter(c => String(c.tf) === code).map(c => c.ref), why: { kind: 'timeframe', word } })
+    }
+  }
+  // a ticker shown on SEVERAL charts (one chart is placed by the readers themselves): plural, possessive or bare ("SPY's chart" /
+  // "the SPY one" is singular)
+  const bySym = new Map()
+  for (const c of charts) { const k = String(c?.symbol || '').toUpperCase(); if (k) bySym.set(k, [...(bySym.get(k) || []), c.ref]) }
+  for (const [sym, refs] of bySym) {
+    if (refs.length < 2) continue
+    const esc = sym.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const re = new RegExp(String.raw`(^|[^A-Za-z0-9.$])((?:(?:the|my|all\s+(?:the|my))\s+)?\$?${esc}(?:['’]s)?(?:\s+(charts?|ones?))?)(?![A-Za-z0-9])`, sym.length <= 2 ? 'g' : 'gi')
+    for (const m of s.matchAll(re)) out.push({ index: m.index + m[1].length, phrase: m[2], plural: !m[3] || /s$/i.test(m[3]), refs, why: { kind: 'ticker', word: sym } })
+  }
+  // a description the words go on to narrow ("the daily ones in the top row", "SPY on the left", "the weekly ones with RSI") is
+  // no description of its own: never a cover (the readers' verdict stands)
+  return out.filter(d => d.refs.length && (d.plural || d.refs.length === 1) && !NLC_NARROWED.test(s.slice(d.index + d.phrase.length)))
+}
+const swapAt = (s, d, w) => `${s.slice(0, d.index)}${w}${s.slice(d.index + d.phrase.length)}`
+export function everyExceptNothing(text, charts = [], sel = null, opts = {}) {
+  try {
+    if (charts.length < 2) return null
+    const s = String(text || '')
+    const exclude0 = (tx) => excludedCharts(tx, charts, sel, opts)
+    // after #2604 the exclusion readers PLACE descriptions directly; the cover probe needs the pre-#2604 base
+    // (descriptions left unplaced) to find them, so read the base with the timeframe/ticker readers off.
+    const base = excludedCharts(s, charts, sel, { ...opts, xoDisable: ['timeframe', 'ticker'] })
+    // each description in an exclusion's scope, probed by "chart k" (k: the board order of one of ITS charts)
+    const order = (ref) => { for (let k = 1; k <= charts.length; k++) if (ordinalChart(`chart ${k}`, charts)?.ref === ref) return k; return 0 }
+    // the descriptions, without overlaps, each with a probe chart of its own (distinct, so a list "X and Y" reads two charts)
+    const cands = []
+    for (const d of coverDescriptions(s, charts).sort((a, b) => a.index - b.index || b.phrase.length - a.phrase.length)) {
+      if (cands.some(u => d.index < u.index + u.phrase.length && u.index < d.index + d.phrase.length)) continue
+      const probe = d.refs.find(r => !base.has(r) && order(r) && !cands.some(u => u.probe === r))
+      if (probe) cands.push({ ...d, probe })
+    }
+    // swapped for their probes (right to left: the indexes stay true) — all at once, so a LIST of descriptions is read as the list
+    // it is; then only the ones in an exclusion's scope, read again — every probe must still be excluded
+    const swapped = (ds) => [...ds].sort((a, b) => b.index - a.index).reduce((acc, d) => swapAt(acc, d, `chart ${order(d.probe)}`), s)
+    const ex1 = cands.length ? exclude0(swapped(cands)) : new Set()
+    const used = cands.filter(d => ex1.has(d.probe))
+    const probed = swapped(used)
+    if (used.length && !used.every(d => exclude0(probed).has(d.probe))) return null
+    const descRefs = used.flatMap(d => d.refs)
+    const r = everyExceptRead(probed, charts, sel, opts, (tx) => { const e = new Set(exclude0(tx)); for (const x of descRefs) e.add(x); return e })
+    if (!r || r.scoped || !r.pool.length || r.pool.some(c => !r.excluded.has(c.ref))) return null
+    const one = used.length && new Set(used.map(d => `${d.why.kind}:${d.why.word}`)).size === 1 && used[0].refs.length === charts.length
+    return { excluded: r.pool.map(c => c.ref), why: one ? used[0].why : { kind: 'charts', word: null } }
+  } catch { return null }
+}
+/** The one plain sentence for everyExceptNothing's verdict (nothing has changed). */
+export function nothingLeftText(v, n) {
+  const why = v?.why?.kind === 'timeframe' ? `Every chart here is on ${v.why.word}`
+    : v?.why?.kind === 'ticker' ? `Every chart here shows ${v.why.word}`
+      : `The charts you asked me to leave alone are all ${n} charts here`
+  return `${why}, so that leaves nothing to change. Nothing has changed.`
 }
 
 /**

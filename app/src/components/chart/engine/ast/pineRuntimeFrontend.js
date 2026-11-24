@@ -43,6 +43,8 @@ import {
   isLegacyPineVersion,
   chartOffsetFunctions, callsInBlocks, callsInConditionalArms, legacyCarryStatements, FN_HISTORY_IN_BLOCK, CARRY_VERSIONS,
   carryShapeVersion, beginPaletteScope, endPaletteScope, v6BoolHistoryServed,
+  PINE_NAMED_FORMATS, formatTextCall,
+  VWAP_DEV_CALL,
 } from './pine.js'
 import { CLOCK_REALTIME } from '../../indicators.js'
 import { clockColumnsOf } from '../clockMemo.js'
@@ -61,7 +63,8 @@ import NAMED_CONSTANT_TYPES from './namedConstantTypes.json'
 import { splitCommaStatements } from './objectFnInline.js'
 import { literalTostringText, LITERAL_TOSTRING_SENTENCE, LITERAL_TOSTRING_UNCAPTURED, tostringPatternOf } from '../pineTextFormat.js'
 import { interpret, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED, TableRefusal, hullWindows, pineNaConditionIsFalse, listingSeedIsUnpinned,
-  STOCH_FLAT_WINDOW, STOCH_LEFT_EDGE, RCI_LEFT_EDGE, BOOL_NA_UNWITNESSED, TIE_UNWITNESSED, TF_RESAMPLABLE } from './interpret.js'
+  STOCH_FLAT_WINDOW, STOCH_LEFT_EDGE, RCI_LEFT_EDGE, BOOL_NA_UNWITNESSED, TIE_UNWITNESSED, TF_RESAMPLABLE,
+  VWAP_BEFORE_FIRST_ANCHOR } from './interpret.js'
 import { bindConstsFor, foldBound, foldScalar, NotFoldable } from './bind.js'
 import { LOWER_TF_REFUSAL } from '../lowerTf.js'
 import {
@@ -96,7 +99,7 @@ import {
 } from '../runtime/runtimeInputs.js'
 import { TEXT_FNS, producesText, compileTimeFormat } from '../runtime/text.js'
 import { canonicalZone, dateStringMs, INSTANT_FIELDS } from '../runtime/clockFns.js'
-import { ARRAY_FNS, producesArray, producesMap, isVoid, argKind, DOOR_GATED_ARRAY, CALL_SITE_RUNS } from '../runtime/collections.js'
+import { ARRAY_FNS, producesArray, producesMap, isVoid, argKind, DOOR_GATED_ARRAY, CALL_SITE_RUNS, ALERT_EMIT } from '../runtime/collections.js'
 import { MAP_TYPE_SEP, MAP_ANSWER_READ } from '../runtime/maps.js'
 // ⭐ Pine's method form, and it decides no legality — see `ufcs.js`. The rewrite
 // hands `array.push` / `table.cell` to the rosters this file already consults,
@@ -419,6 +422,8 @@ export const RUNTIME_REFUSALS = Object.freeze({
   [STOCH_FLAT_WINDOW]: 'a `ta.stoch` window that is flat after a value other than 0 or 100 (or with its source off the flat level), a case no TradingView capture has reached',
   [STOCH_LEFT_EDGE]: 'off the listing, a `ta.stoch` whose every bar reads a window that reaches before the loaded bars',
   [RCI_LEFT_EDGE]: 'off the listing, a `ta.rci` whose every bar reads a window that reaches before the loaded bars',
+  // ⭐⭐ e95 (unit 2) — `interpret.js::builtinWitnessMask`'s anchored-VWAP code, for a column it blanks on every bar
+  [VWAP_BEFORE_FIRST_ANCHOR]: 'off the listing, an anchored `ta.vwap` whose anchor fires on no bar this lane can answer for, so every bar would carry a total from an anchor before the loaded bars',
   // ⭐⭐ ENGINE 56 — the two per-bar witness codes of the columnar lane (`interpret.js`). This
   // lane has no per-bar withholding, so where the columnar lane withholds bars by one of them
   // (a column it reads), or where this lane would compute one of the shapes itself, it
@@ -429,7 +434,7 @@ export const RUNTIME_REFUSALS = Object.freeze({
   'pine:fn-history-in-block': 'a script function reading a chart series at a bar offset, called inside a block, at a Pine version no capture has shown (v2/v3 repeat the last value of the copy; v4+ reads the chart)',
 })
 /** The engine-57 witness codes a column withheld on EVERY bar declines by (review N1). */
-const BUILTIN_WITNESS_REFUSALS = new Set([STOCH_FLAT_WINDOW, STOCH_LEFT_EDGE, RCI_LEFT_EDGE])
+const BUILTIN_WITNESS_REFUSALS = new Set([STOCH_FLAT_WINDOW, STOCH_LEFT_EDGE, RCI_LEFT_EDGE, VWAP_BEFORE_FIRST_ANCHOR])
 
 /** ⭐ ENGINE 56 — the bar's own prices (the arg-extreme tie rule) and the operators that
  *  answer a `bool` (the v1-v5 `bool`-`na` rule), as this lane spells them. */
@@ -604,7 +609,10 @@ export const RUNTIME_STATE_KERNELS = Object.freeze(Object.fromEntries([
   ['pivotlow', 'pivot-low', [3], true],
   ['ta.stoch', 'stochastic', [4], false],
   ['stoch', 'stochastic', [4], true],
-  ['ta.vwap', 'session-vwap', [1], false],
+  // ⭐⭐ e95 (unit 2) — and `ta.vwap(source, anchor)`, the anchored average (`CARRIED2.vwapAnchorPine`), with its
+  // band leg `VWAP_DEV_CALL` (`vwapAnchorDevPine`), which `PINE_TUPLE_BUILTINS.vwap` writes for the 3-argument form
+  ['ta.vwap', 'session-vwap', [1, 2], false],
+  [VWAP_DEV_CALL, 'anchored-vwap-dev', [2], false],
 ].map(([name, kind, arity, legacy]) => [name, { kind, arity, legacy }])))
 
 /** The widest `ta.pivothigh`/`ta.pivotlow` window (`left + right + 1`) this lane
@@ -1555,6 +1563,11 @@ function strategyOrdersSkipped(built) {
   const fam = built && built.diagnostics && built.diagnostics.families
   return !!(fam && fam['runtime:strategy-order'] > 0)
 }
+
+/** ⛔ TEST SEAM (engine 95, the named-request follow) — the routing as it was before the general follow (a name inside
+ *  a call's arguments is followed only to an event read): the grade diff's "before" and its mutant's control. */
+let _namedRequestFollowOff = false
+export function __namedRequestFollowOffForTests(off) { _namedRequestFollowOff = !!off }
 
 export function buildRuntimeIr(source, opts = {}) {
   const holder = { link: null }
@@ -6887,10 +6900,57 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
   const callArgReadsRequest = (node, depth = 0) => {
     if (!node || typeof node !== 'object' || depth > 64) return false
     if (node.type === 'call' && node.name === 'request.security') return true
+    // ⭐⭐ (engine 95, coordinator ruling 2026-11-22) — A NAME BOUND TO A REQUEST IS THE REQUEST IT NAMES, inside a
+    // call's arguments too: `e = request.security(…)` then `nz(e, -1)` / `na(e)` / `ta.sma(e, 5)`, and the chart's own
+    // corporate events (`pine.js::eventAsSecurity`: `e = request.earnings(…)` then `not na(e)`, the corpus anchor idiom).
+    // ⚰️ MEASURED (2026-11-22, a vitest probe through `computeRuntimeColumns`, SPY supplied): the call's argument `e` was
+    // not followed, the subtree went to the columnar lane, which translated the request into a `sym` column and evaluated
+    // it with NO other-symbol supply: `na` on every bar (`nz(e, -1)` drew -1, `not na(e) ? 1 : 0` drew 0), drawn, nothing
+    // said, where the same request written inline reached the run's supply. It now reaches it whatever the spelling: the
+    // value, or the supply's refusal / wait BY NAME, never a silent `na`. (T4 E2 followed event reads only; this is the
+    // general follow, which covers them: an event read IS a `request.security` call.)
+    if (node.type === 'name') {
+      if (_namedRequestFollowOff) {
+        const b = env.get(node.name)
+        return !!(b && b.kind === 'expr' && b.node && b.node.type === 'call' && b.node.event === true)
+      }
+      const bound = env.get(node.name)
+      if (!bound || bound.kind !== 'expr' || !bound.node) return false
+      // ⛔ ONLY A READ OF ANOTHER SERIES' BARS (another symbol, an event read): the one the columnar lane evaluates with
+      // no supply. A name bound to this chart's own request (the identity, a higher timeframe of its own bars) is computed
+      // there from the chart's own bars and keeps that lane: MEASURED on the runtime-served census (834 scripts), following
+      // it too moved a script whose identity read the columnar lane folds correctly onto the run's refusal of its
+      // `ta.correlation` (a move outside the silent-`na` class).
+      return readsOtherSeriesRequest(bound.node, depth + 1)
+    }
     for (const v of Object.values(node)) {
       if (Array.isArray(v)) {
         if (v.some((x) => callArgReadsRequest(x && x.value !== undefined && x.type === undefined ? x.value : x, depth + 1))) return true
       } else if (v && typeof v === 'object' && v.type && callArgReadsRequest(v, depth + 1)) return true
+    }
+    return false
+  }
+
+  /** ⭐ (engine 95, the named-request follow) — does this bound subtree hold a request that reads ANOTHER series' bars
+   *  (`requestTargetOf`: another symbol, or the chart's own corporate events, an `event` read), following further names?
+   *  A request the host's reader cannot settle counts (the run names its refusal; the columnar lane would read `na`).
+   *  A generic walk, depth-bounded like `callArgReadsRequest`. */
+  const readsOtherSeriesRequest = (node, depth = 0) => {
+    if (!node || typeof node !== 'object' || depth > 64) return false
+    if (node.type === 'call' && (node.name === 'request.security' || node.name === 'security')) {
+      if (node.event === true) return true
+      let t = null
+      try { t = makeResolver().requestTargetOf(node) } catch { t = null }
+      return !t || t.other !== null
+    }
+    if (node.type === 'name') {
+      const bound = env.get(node.name)
+      return !!(bound && bound.kind === 'expr' && readsOtherSeriesRequest(bound.node, depth + 1))
+    }
+    for (const v of Object.values(node)) {
+      if (Array.isArray(v)) {
+        if (v.some((x) => readsOtherSeriesRequest(x && x.value !== undefined && x.type === undefined ? x.value : x, depth + 1))) return true
+      } else if (v && typeof v === 'object' && v.type && v !== node.tok && readsOtherSeriesRequest(v, depth + 1)) return true
     }
     return false
   }
@@ -10823,6 +10883,15 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
             conditionalHistoryGuard('a stateful built-in', null)
             return carried2Call(idx, lowerExpr(given[0], scope), lowerExpr(given[1], scope), lowerExpr(given[2], scope))
           }
+          // ⭐⭐ e95 (unit 2) — THE ANCHORED VWAP: `ta.vwap(source, anchor)` and its band leg, summed from each bar
+          // the anchor fires (`interpret.js::vwapAnchorAccumulate`, the columnar `FN.vwapAnchor` stepped), `na`
+          // before the first. The kernel takes (anchor, price, volume), volume pushed last.
+          if (kernel.kind === 'anchored-vwap-dev' || given.length === 2) {
+            const fn = kernel.kind === 'anchored-vwap-dev' ? 'vwapAnchorDevPine' : 'vwapAnchorPine'
+            const idx = pushCarried2({ fn, n: 1, name: `${node.name}(…)` })
+            conditionalHistoryGuard('a stateful built-in', null)
+            return carried2Call(idx, lowerExpr(given[1], scope), lowerExpr(given[0], scope), series('volume'))
+          }
           // vwap: the session is the ET calendar day (`computeVWAP`'s own bucket),
           // read from the clock fields so the kernel never does date arithmetic.
           const key = binary('+', binary('+',
@@ -11012,7 +11081,16 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
               locate(node.tok))
           }
           if (given.length === 2) {
-            const f = given[1]
+            let f = given[1]
+            // ⭐⭐ e95 (computed number formats) — a format the script FIXES before bar 0 (an alias, a join,
+            // `str.substring` / `str.replace_all` / `str.repeat` of literals, a ternary on an input, an alias of
+            // `format.mintick`) is read as the text it folds to (`fixedFormatOf`), and goes through every rule
+            // below as if written there: a pattern this lane does not print exactly keeps its refusal.
+            if (f && f.type !== 'string' && !(f.type === 'name' && f.name === 'format.mintick')) {
+              const folded = fixedFormatOf(f, scope)
+              if (folded && typeof folded.text === 'string') f = { type: 'string', value: folded.text, tok: f.tok }
+              else if (folded && typeof folded.named === 'string') f = { type: 'name', name: folded.named, tok: f.tok }
+            }
             // ⭐⭐ TC (text-colour unit) — `format.mintick`: the symbol's tick, as the binding's own
             // decimal TEXT (`bindConsts['syminfo.mintick']`, the witnessed `SYMBOL_TICK_SIZE` entry
             // the host lane's object binding reads too), printed by the host lane's ONE tick
@@ -15961,6 +16039,26 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
             setSlotTy(slot, initialiserTy(v, scope))
             out.push(declare(slot, lowerExpr(v, scope)))
           }
+          // ⭐⭐ TRACK 6, AL1 (engine 95, coordinator ruling 2026-11-22) -- THE CALL IS RECORDED WHERE IT
+          // STANDS: one `ALERT_EMIT` (collections.js) on the run's alert log, so the server lane can deliver it
+          // on the bars its branch runs. It reads `bar_index` and nothing else; no output, refusal or column the
+          // pane draws moves. ⛔ NEVER A NEW REFUSAL: only a STRING LITERAL message is carried; any other message
+          // (built from values) is recorded as withheld (the event, no text), lowering nothing the run did not
+          // lower before. Not in the object door's build (its drawings never fire alerts).
+          if (!atObjectDoor) {
+            const args = (call && call.args) || []
+            const byName = (n) => args.find((a) => a && a.name === n)
+            const positional = args.filter((a) => a && !a.name)
+            const valueOf = (a) => (a && a.value !== undefined ? a.value : a)
+            const msgNode = valueOf(byName('message') || positional[0])
+            const freqNode = valueOf(byName('freq') || positional[1])
+            const literal = !!msgNode && msgNode.type === 'string' && typeof msgNode.value === 'string'
+            const freq = freqNode && freqNode.type === 'name' && typeof freqNode.name === 'string'
+              && freqNode.name.startsWith('alert.freq_') ? freqNode.name : 'alert.freq_once_per_bar'
+            const barNow = column(columnOf({ type: 'name', name: 'bar_index', tok: first }, locate(first)))
+            out.push(exprStmt(arrayCall(ALERT_EMIT, [str(literal ? msgNode.value : ''), str(freq), barNow,
+              num(literal ? 0 : 1)]), 0))
+          }
           continue
         }
         // ⭐ W4-T13 - a candle / bar is the pane's to draw FROM THE RUN (`opts.plotColours`).
@@ -17300,6 +17398,49 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
       return r === null ? null : l + r
     }
     return null
+  }
+
+  /** ⭐⭐ e95 (computed number formats) — A `str.tostring` FORMAT FIXED BEFORE BAR 0, on this lane: `{text}`,
+   *  `{named}` (one of Pine's `format.*` constants, reached through a name), or null. The columnar lane's twin
+   *  is `pine.js::Resolver.formatTextOf`; the text calls are read by the ONE `formatTextCall` both lanes ask.
+   *  What is fixed here is what this lane already fixes: a text by `fixedTextOf` (a text input at the value in
+   *  force), a whole number by `constValueOf`, a test by `fixedTestOf`. ⛔ A slot (a `var`, a frame's own name,
+   *  a loop counter) and anything per bar or per symbol is not fixed: the call keeps its refusal by name. */
+  const fixedFormatOf = (node, scope, depth = 0) => {
+    if (!node || typeof node !== 'object' || depth > 24) return null
+    if (node.type === 'string') return typeof node.value === 'string' ? { text: node.value } : null
+    if (node.type === 'name' && typeof node.name === 'string') {
+      if (scope && scope.lookup(node.name) !== null) return null
+      if (Object.prototype.hasOwnProperty.call(PINE_NAMED_FORMATS, node.name) && !env.has(node.name)) return { named: node.name }
+      const bound = env.get(node.name)
+      if (bound) return bound.kind === 'expr' ? fixedFormatOf(bound.node, scope, depth + 1) : null
+      const t = fixedTextOf(node, scope, depth + 1)
+      return t === null ? null : { text: t }
+    }
+    const textOf = (n) => {
+      const f = fixedFormatOf(n, scope, depth + 1)
+      return f && typeof f.text === 'string' ? f.text : null
+    }
+    if (node.type === 'binary' && node.op === '+') {
+      const l = textOf(node.left)
+      if (l === null) return null
+      const r = textOf(node.right)
+      return r === null ? null : { text: l + r }
+    }
+    if (node.type === 'ternary') {
+      const v = fixedTestOf(node.test, scope)
+      return v === null ? null : fixedFormatOf(v ? node.yes : node.no, scope, depth + 1)
+    }
+    if (node.type === 'call') {
+      const intOf = (n) => {
+        const c = constValueOf(n, scope)
+        return c && Number.isInteger(c.value) && c.value >= 0 ? c.value : null
+      }
+      const viaCall = formatTextCall(node, textOf, intOf)
+      if (viaCall !== null) return { text: viaCall }
+    }
+    const t = fixedTextOf(node, scope, depth + 1)
+    return t === null ? null : { text: t }
   }
 
   /** ⭐⭐ W4 T3 — IS THIS ARGUMENT THE CHART'S OWN TIMEFRAME? → its spelling

@@ -1,40 +1,40 @@
 {
  "populations": {
   "capture": {
-   "scripts": 1027,
-   "admitted": 830,
+   "scripts": 1029,
+   "admitted": 828,
    "runtimeLane": 227,
-   "hostLane": 310,
-   "refused": 293,
+   "hostLane": 312,
+   "refused": 289,
    "coreOnly": 47
   },
   "committed": {
    "scripts": 266,
-   "admitted": 196,
+   "admitted": 195,
    "runtimeLane": 50,
-   "hostLane": 62,
-   "refused": 84,
+   "hostLane": 63,
+   "refused": 82,
    "coreOnly": 4
   },
   "reference": {
    "scripts": 271,
-   "admitted": 241,
+   "admitted": 240,
    "runtimeLane": 46,
    "hostLane": 112,
-   "refused": 83,
+   "refused": 82,
    "coreOnly": 7
   },
   "builtin": {
    "scripts": 142,
-   "admitted": 119,
+   "admitted": 116,
    "runtimeLane": 29,
    "hostLane": 70,
-   "refused": 20,
+   "refused": 17,
    "coreOnly": 30
   }
  },
  "populationSizes": {
-  "capture": 1027,
+  "capture": 1029,
   "committed": 266,
   "reference": 271,
   "builtin": 142
@@ -86,36 +86,6 @@
     "request-other",
     "switch",
     "ternary"
-   ]
-  },
-  {
-   "capture": "4c-nyse-market-breadth-ratio-rddt-1d-2026-11-15",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:table",
-    "realtime-state",
-    "request-other",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "4c-nyse-market-breadth-ratio-spy-1d-2026-11-15",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:table",
-    "realtime-state",
-    "request-other",
-    "ternary",
-    "var"
    ]
   },
   {
@@ -8368,7 +8338,7 @@
   },
   {
    "capture": "volume-suite-by-leviathan-rddt-1d-2026-11-15",
-   "lane": null,
+   "lane": "host",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -8388,7 +8358,7 @@
   },
   {
    "capture": "volume-suite-by-leviathan-spy-1d-2026-11-15",
-   "lane": null,
+   "lane": "host",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -14369,18 +14339,6 @@
    ]
   },
   {
-   "key": "reference:chases-buysell-indicator-advance-decline__37714ef0a5",
-   "lane": null,
-   "guard": "pine:request",
-   "declined": "pine:request",
-   "caps": [
-    "core",
-    "realtime-state",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
    "key": "reference:check-head-and-shouldersmask-man__INWKFwOBpV",
    "lane": "runtime",
    "guard": null,
@@ -15813,7 +15771,7 @@
    "key": "reference:multi-timeframe-rolling-bitmex-liquidation-levels__6luLopNPPH",
    "lane": null,
    "guard": "pine:request",
-   "declined": "pine:request",
+   "declined": "lower-tf:store-unmeasured",
    "caps": [
     "core",
     "request-other",
@@ -17694,19 +17652,6 @@
    ]
   },
   {
-   "key": "builtin:advance-decline-line__Advance1Decl",
-   "lane": null,
-   "guard": "pine:request",
-   "declined": "pine:request",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-single",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
    "key": "builtin:advance-decline-ratio-bars__Advance_Decl",
    "lane": "host",
    "guard": null,
@@ -17714,17 +17659,6 @@
    "caps": [
     "core",
     "ternary"
-   ]
-  },
-  {
-   "key": "builtin:advance-decline-ratio__Advance1Decl",
-   "lane": null,
-   "guard": "pine:request",
-   "declined": "runtime:request-with-state",
-   "caps": [
-    "core",
-    "fn-single",
-    "request-other"
    ]
   },
   {
@@ -18041,7 +17975,7 @@
    "key": "builtin:cumulative-volume-index__Cumulative1V",
    "lane": null,
    "guard": "pine:request",
-   "declined": "pine:request",
+   "declined": "runtime:request",
    "caps": [
     "core",
     "request-other",
@@ -19031,26 +18965,6 @@
    ]
   },
   {
-   "key": "builtin:volume-weighted-average-price__VWAP",
-   "lane": null,
-   "guard": "pine:reassign",
-   "declined": "runtime:call-windowed-state",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "history-expr",
-    "if-block",
-    "method-call",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
    "key": "builtin:volume-weighted-moving-average__VWMA",
    "lane": "host",
    "guard": null,
@@ -19138,19 +19052,6 @@
     "request-other",
     "switch",
     "ternary"
-   ]
-  },
-  {
-   "key": "committed:4c-nyse-market-breadth-ratio__722410befd",
-   "lane": null,
-   "caps": [
-    "core",
-    "if-block",
-    "obj:table",
-    "realtime-state",
-    "request-other",
-    "ternary",
-    "var"
    ]
   },
   {
@@ -21931,7 +21832,7 @@
   },
   {
    "key": "committed:volume-suite-by-leviathan__48da793360",
-   "lane": null,
+   "lane": "host",
    "caps": [
     "collections:array",
     "conditional-ta",

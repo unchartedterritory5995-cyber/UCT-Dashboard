@@ -285,6 +285,9 @@ export function createPrefetch(o = {}) {
 
   /** key → {at, gen} of the last request this module caused (cooldown). */
   const asked = new Map()
+  /** key → Set of the waiters `watch` holds for it: woken once more when `ensure` notes the key's answer (see watch). */
+  const watchers = new Map()
+  const _wakeWatchers = (key) => { const set = watchers.get(key); if (set) for (const fn of [...set]) fn() }
   /** key → number of prepares running (they own the key's request; see header). */
   const preparing = new Map()
   /** Deferred prefetch batch: key → {priority, depth} (flushed on a microtask). */
@@ -420,6 +423,8 @@ export function createPrefetch(o = {}) {
       a.answered = true
       a.at = now()    // the cooldown runs from the ANSWER, not from when the request was queued
       if (isIntradayTf(s.tf ?? parseKey(key)?.tf)) _noteFull(key)   // every request asks a full window
+      // ...and a waiter reads the rules that key on this answer (`_behindClock`) only from here on: wake it (see watch)
+      _wakeWatchers(key)
     }
     return s
   }
@@ -867,6 +872,18 @@ export function createPrefetch(o = {}) {
    * again until the deep history joined or its wait ran out (devgates typed-onB, LPX: tail in at +223 ms,
    * committed at +392). The network's own signal for that moment wakes it too.
    */
+  //
+  // ⛔ ...AND WHEN THIS MODULE NOTES THE ANSWER (2026-11-23, the live-session read of the device store). In a session a held
+  // intraday copy goes behind the clock at a bucket roll, and the switch prepares it ("ask for the tail first"). Whether
+  // the answer then paints is `_behindClock`'s call: an answer that landed within BEHIND_RECHECK_MS is the name not
+  // printing, and it paints as it is. That reads `asked` (`answered`, `at`), which `ensure` writes only after the await
+  // that lands the answer: after the dispatch that woke the waiter, and after the network's own signal (which a key's
+  // later answers do not even send: it is its FIRST answer of the key's life). An answer still a bucket behind woke the
+  // waiter reading "behind", nothing woke it again, and the switch waited for the prepare's end (the lake's join, up to
+  // LAKE_JOIN_WAIT_MS); the 25 ms poll it replaced read it on its next tick. So `ensure` wakes the key's waiters once more
+  // right after it writes the answer (prefetch.watchBehindAnswer). Only a waiter of this function is woken, and the only
+  // caller is the symbol handoff with the device store on (useSymbolHandoff watchEntry): with the store off nothing is
+  // ever registered here.
   function watch(sym, tf, { showExtended } = {}, cb) {
     const key = keyFor(sym, tf, { showExtended })
     const st = S()
@@ -877,7 +894,16 @@ export function createPrefetch(o = {}) {
       const offEntry = reg.subscribe(key, wake, { wake: 'all' })
       let offAnswered = null
       try { offAnswered = st.network?.subscribeAnswered?.(key, wake) || null } catch { offAnswered = null }
-      return () => { try { offEntry() } finally { if (offAnswered) offAnswered() } }
+      let set = watchers.get(key)
+      if (!set) { set = new Set(); watchers.set(key, set) }
+      set.add(wake)
+      return () => {
+        try { offEntry() } finally {
+          if (offAnswered) offAnswered()
+          set.delete(wake)
+          if (!set.size && watchers.get(key) === set) watchers.delete(key)
+        }
+      }
     } catch { return null }
   }
 

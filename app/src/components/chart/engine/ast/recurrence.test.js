@@ -389,10 +389,20 @@ describe('the recurrence is DECLARED, so neither lane types its shape', () => {
     // pointwise entry must be usable in a body, and every non-pointwise one must
     // refuse there.
     const bs = bars(30)
+    // ⭐⭐ e95 unit 2b — a REFUSAL LEAF (`_functions_refusal_leaves`: `refusedArm`, a knob arm the translator refused)
+    // is pointwise and never a number: in a body it refuses by its own guard, bar by bar, exactly as it does as a column
+    const leaves = (TABLE._functions_refusal_leaves && TABLE._functions_refusal_leaves.names) || {}
     for (const name of declaredPointwise) {
       const spec = TABLE.functions[name]
       const args = spec.args.map((_, i) => (i === 0 ? self() : series('close')))
-      expect(() => interpret(call('accum', num(1), call(name, ...args), num(3)), bs), name).not.toThrow()
+      const run = () => interpret(call('accum', num(1), call(name, ...args), num(3)), bs)
+      if (Object.prototype.hasOwnProperty.call(leaves, name)) {
+        let err = null
+        try { run() } catch (e) { err = e }
+        expect(err && err.guard, name).toBe(leaves[name])
+        continue
+      }
+      expect(run, name).not.toThrow()
     }
     const windowed = Object.entries(TABLE.functions)
       .filter(([name, spec]) => !isPointwise(spec) && !RECURRENCES[name])

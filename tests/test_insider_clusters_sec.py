@@ -17,15 +17,19 @@ the one transport (`_sec_get`) is replaced by a fake that counts every request.
   * the holding pattern: nothing is read on a request, one run at a time, a restart answers from disk,
     a failed run keeps the last good answer;
   * the route: one paid GET under /api/insider, 401 / 402, its own gate, above `/{ticker}`, a plain def;
-  * the schedule: registered in api/main.py, Tuesday to Saturday at the module's slot.
+  * the schedule: registered in api/main.py, Tuesday to Saturday at the module's slot, with an hour's grace;
+  * the catch-up: the last slot comes from `next_run` (a weekend has none), the read starts only when nothing is held
+    or the held answer was built before that slot, never a second run, never on a request; registered as a DATE job
+    after boot (never inline) and an hourly check, under its own boot mark.
 """
 from __future__ import annotations
 
+import ast
 import inspect
 import json
 import pathlib
 import threading
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -689,3 +693,260 @@ def test_the_nightly_read_is_registered_tuesday_to_saturday_at_the_modules_slot(
     block = main[main.rindex("def _insider_clusters_sec_job", 0, at):at]
     assert "run_nightly()" in block and 'day_of_week="tue-sat"' in block
     assert "hour=_ics_mod.RUN_AT_ET[0]" in block and "minute=_ics_mod.RUN_AT_ET[1]" in block and "timezone=_ET" in block
+
+
+# ── the catch-up: a fire lost to a restart heals itself ─────────────────────────────────────────
+
+SAT_READ = datetime(2031, 3, 15, 1, 47, tzinfo=NY)        # Saturday's read finished at 01:47
+TUE = datetime(2031, 3, 18, 1, 20, tzinfo=NY)             # the next slot after it
+
+
+def _held_at(moment: datetime) -> dict:
+    """A held answer built at `moment`, its `read_at` written the way `assemble` writes it."""
+    return {"v": ics.DISK_VERSION, "clusters": [], "read_at": moment.astimezone(timezone.utc).isoformat(timespec="seconds")}
+
+
+def test_the_last_slot_is_stepped_from_next_run_across_the_weekend_and_the_0120_boundary():
+    assert ics.last_slot(NIGHT) == NIGHT                                                    # at 01:20 the slot has come
+    assert ics.last_slot(NIGHT - timedelta(seconds=1)) == datetime(2031, 3, 14, 1, 20, tzinfo=NY)   # Friday's
+    assert ics.last_slot(datetime(2031, 3, 16, 12, 0, tzinfo=NY)) == NIGHT                 # Sunday has no slot
+    assert ics.last_slot(datetime(2031, 3, 17, 23, 59, tzinfo=NY)) == NIGHT                # nor Monday
+    assert ics.last_slot(TUE - timedelta(seconds=1)) == NIGHT and ics.last_slot(TUE) == TUE
+    assert ics.last_slot(datetime(2031, 3, 16, 16, 0, tzinfo=timezone.utc)) == NIGHT       # a UTC moment: the same slot
+    # every moment of three weeks (across the March clock change): a scheduled slot, at or before it, none between
+    t = datetime(2031, 3, 1, 0, 7, tzinfo=NY)
+    while t < datetime(2031, 3, 22, tzinfo=NY):
+        s = ics.last_slot(t)
+        assert s <= t < ics.next_run(s) and ics.next_run(t) == ics.next_run(s), t
+        assert s.weekday() in (1, 2, 3, 4, 5) and (s.hour, s.minute) == ics.RUN_AT_ET, t
+        t += timedelta(minutes=37)
+
+
+def test_behind_with_nothing_held_is_the_first_read():
+    assert ics.behind(None, datetime(2031, 3, 16, 12, 0, tzinfo=NY)) is True
+
+
+def test_a_held_answer_built_after_the_last_slot_is_current_and_one_built_before_it_is_behind():
+    sunday = datetime(2031, 3, 16, 12, 0, tzinfo=NY)
+    assert ics.behind(_held_at(SAT_READ), sunday) is False                                  # Saturday's read ran
+    assert ics.behind(_held_at(SAT_READ - timedelta(days=1)), sunday) is True               # Saturday's fire was lost
+
+
+def test_over_the_weekend_saturdays_read_is_current_until_tuesdays_slot_and_not_a_second_longer():
+    held = _held_at(SAT_READ)
+    for now in (datetime(2031, 3, 16, 0, 0, tzinfo=NY), datetime(2031, 3, 17, 23, 59, tzinfo=NY), TUE - timedelta(seconds=1)):
+        assert ics.behind(held, now) is False, now
+    assert ics.behind(held, TUE) is True
+
+
+def test_the_0120_boundary_on_the_reads_side():
+    later = TUE + timedelta(minutes=5)
+    assert ics.behind(_held_at(TUE - timedelta(seconds=1)), later) is True
+    assert ics.behind(_held_at(TUE), later) is False
+
+
+@pytest.mark.parametrize("read_at", [None, "", "yesterday", "2031-03-15T01:47:00"])      # the last names no zone
+def test_a_held_answer_whose_build_time_is_not_a_moment_reads_as_behind(read_at):
+    assert ics.behind({"v": ics.DISK_VERSION, "clusters": [], "read_at": read_at}, datetime(2031, 3, 16, 12, tzinfo=NY)) is True
+
+
+def test_behind_reads_the_build_time_assemble_writes():
+    held = ics.assemble(ics._empty_store(), today=NIGHT.date())
+    built = datetime.fromisoformat(held["read_at"])
+    assert ics.behind(held, built) is False
+    assert ics.behind(held, built + timedelta(days=7)) is True                              # a week holds five slots
+
+
+def _stub_run(monkeypatch) -> list:
+    started: list = []
+    monkeypatch.setattr(ics, "run_nightly", lambda now=None: started.append(now) or {"started": True})
+    return started
+
+
+def test_the_catch_up_starts_the_run_when_nothing_is_held_and_asks_the_sec_nothing_itself(monkeypatch):
+    fake = FakeSec()
+    monkeypatch.setattr(ics, "_sec_get", fake)
+    started = _stub_run(monkeypatch)
+    assert ics.catch_up(NIGHT) == {"started": True}
+    assert started == [NIGHT] and fake.calls == []
+
+
+def test_after_a_restart_the_catch_up_reads_the_disk_copy_and_starts_the_run_only_once_behind(monkeypatch, tmp_path):
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    ics._save_disk(ics._empty_store(), _held_at(SAT_READ))
+    ics.reset_for_tests()                                                                   # a new process
+    fake = FakeSec()
+    monkeypatch.setattr(ics, "_sec_get", fake)
+    started = _stub_run(monkeypatch)
+    assert ics.catch_up(datetime(2031, 3, 17, 9, 0, tzinfo=NY)) == {"started": False, "reason": "current"}   # Monday
+    assert started == [] and fake.calls == []
+    tuesday = TUE + timedelta(minutes=10)                                                   # Tuesday's fire was lost
+    assert ics.catch_up(tuesday) == {"started": True} and started == [tuesday]
+
+
+def test_a_boot_during_market_hours_while_behind_starts_nothing_and_asks_the_sec_nothing(monkeypatch):
+    # member speed first: behind, but inside the weekday busy span, the catch-up starts no SEC read; the hourly
+    # checks and the next boot in the quiet hours start it
+    fake = FakeSec()
+    monkeypatch.setattr(ics, "_sec_get", fake)
+    started = _stub_run(monkeypatch)
+    for now in (datetime(2031, 3, 18, 10, 0, tzinfo=NY),                  # a Tuesday morning: nothing held
+                datetime(2031, 3, 18, 7, 0, tzinfo=NY),                   # the first minute of the busy span
+                datetime(2031, 3, 18, 20, 14, tzinfo=NY)):                # its last minute
+        assert ics.behind(None, now) is True
+        assert ics.catch_up(now) == {"started": False, "reason": "not_quiet"}, now
+    assert started == [] and fake.calls == []
+
+
+@pytest.mark.parametrize("now", [datetime(2031, 3, 18, 21, 0, tzinfo=NY),   # a weekday evening
+                                 datetime(2031, 3, 18, 3, 0, tzinfo=NY),    # a weekday night
+                                 datetime(2031, 3, 18, 20, 15, tzinfo=NY),  # the quiet span's first minute
+                                 datetime(2031, 3, 16, 12, 0, tzinfo=NY)])  # a Sunday noon: quiet all day
+def test_the_same_catch_up_in_the_quiet_span_starts_the_run(monkeypatch, now):
+    started = _stub_run(monkeypatch)
+    assert ics.catch_up(now) == {"started": True} and started == [now]
+
+
+def test_the_catch_up_reads_scan_periods_own_quiet_span(monkeypatch):
+    from api.services import scan_period
+    started = _stub_run(monkeypatch)
+    seen = []
+    monkeypatch.setattr(scan_period, "_reuse_quiet_now", lambda now=None: seen.append(now) or False)
+    night = datetime(2031, 3, 18, 3, 0, tzinfo=timezone.utc)             # read in New York time, never retyped
+    assert ics.catch_up(night) == {"started": False, "reason": "not_quiet"} and started == []
+    assert seen == [night.astimezone(NY)] and seen[0].tzinfo == NY
+
+
+def test_the_catch_up_never_starts_a_second_run(monkeypatch):
+    started = _stub_run(monkeypatch)
+    ics._state["inflight"] = threading.Event()                    # the 01:20 run, or another catch-up, is reading
+    assert ics.catch_up(NIGHT) == {"started": False, "reason": "running"} and started == []
+
+
+def test_the_catch_up_runs_the_real_nightly_read_once_and_is_current_after_it(monkeypatch, tmp_path):
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    fake = FakeSec()
+    quill_cluster_days(fake)
+    gate = threading.Event()
+    friday = ics.index_url(date(2031, 3, 14))
+    body = fake.routes[friday]
+    fake.routes[friday] = lambda: (gate.wait(10), body)[1]
+    monkeypatch.setattr(ics, "_sec_get", fake)
+    assert ics.catch_up(NIGHT) == {"started": True}
+    assert ics.catch_up(NIGHT) == {"started": False, "reason": "running"}
+    assert ics.run_nightly(NIGHT) == {"started": False, "reason": "running"}                # the scheduled fire too
+    gate.set()
+    _wait()
+    held = ics._state["held"]
+    assert held is not None and [c["ticker"] for c in held["clusters"]] == ["QFRB"]
+    asked = len(fake.calls)
+    assert ics.catch_up(datetime.fromisoformat(held["read_at"])) == {"started": False, "reason": "current"}
+    assert len(fake.calls) == asked
+
+
+def test_no_member_request_reaches_the_catch_up(monkeypatch):
+    monkeypatch.setattr(ics, "catch_up", lambda *a, **k: pytest.fail("a read path started the catch-up"))
+    monkeypatch.setattr(ics, "run_nightly", lambda *a, **k: pytest.fail("a read path started the run"))
+    monkeypatch.setattr(ics, "_sec_get", FakeSec())
+    ics.get_clusters()
+    ics.held_answer()
+    ics.held_purchases(NIGHT.date())
+    assert _client(PAID_USER).get("/api/insider/clusters").json()["status"] == "not_built"
+    assert "catch_up" not in inspect.getsource(route)
+
+
+def _lifespan():
+    src = (ROOT / "api" / "main.py").read_text(encoding="utf-8")
+    life = next(n for n in ast.parse(src).body if isinstance(n, ast.AsyncFunctionDef) and n.name == "lifespan")
+    return src, life
+
+
+def _add_jobs(life) -> dict:
+    """{job id: its `add_job(...)` call} for every add_job in the lifespan that names a literal id."""
+    out = {}
+    for c in ast.walk(life):
+        if isinstance(c, ast.Call) and getattr(c.func, "attr", "") == "add_job":
+            for kw in c.keywords:
+                if kw.arg == "id" and isinstance(kw.value, ast.Constant):
+                    out[kw.value.value] = c
+    return out
+
+
+def _kw(call, name):
+    return next((kw.value for kw in call.keywords if kw.arg == name), None)
+
+
+def _lit(call, name):
+    node = _kw(call, name)
+    return ast.literal_eval(node) if node is not None else None
+
+
+def test_the_nightly_job_carries_an_hours_grace_so_a_busy_scheduler_does_not_drop_the_night():
+    job = _add_jobs(_lifespan()[1])["insider_clusters_sec_nightly"]
+    assert (_lit(job, "misfire_grace_time"), _lit(job, "coalesce"), _lit(job, "max_instances")) == (3600, True, 1)
+
+
+def test_the_catch_up_is_a_date_job_after_boot_and_an_hourly_check_both_calling_the_modules_catch_up():
+    src, life = _lifespan()
+    jobs = _add_jobs(life)
+    boot, hourly = jobs["insider_clusters_sec_catchup_boot"], jobs["insider_clusters_sec_catchup"]
+    assert "from api.services import insider_clusters_sec as _ics_cu" in src
+    defs = {n.name: n for n in ast.walk(life) if isinstance(n, ast.FunctionDef)}
+    for call in (boot, hourly):
+        fn = call.args[0]
+        assert isinstance(fn, ast.Name) and fn.id in defs
+        body = ast.get_source_segment(src, defs[fn.id])
+        assert ".catch_up()" in body and "run_nightly" not in body
+    assert _lit(boot, "trigger") == "date" and _lit(boot, "kwargs") == {"source": "boot"}
+    run_date = ast.unparse(_kw(boot, "run_date"))
+    assert "now(_ET)" in run_date and "seconds=_ics_cu.CATCHUP_BOOT_DELAY_S" in run_date
+    assert _lit(boot, "max_instances") == 1 and _lit(boot, "misfire_grace_time") >= 60
+    # every day (`behind` knows the schedule; it is never retyped here)
+    assert ast.unparse(_kw(hourly, "trigger")) == (
+        "CronTrigger(hour=_ics_cu.CATCHUP_HOURS_ET, minute=_ics_cu.CATCHUP_MINUTE_ET, timezone=_ET)")
+    assert _lit(hourly, "kwargs") == {"source": "hourly"}
+    assert (_lit(hourly, "coalesce"), _lit(hourly, "max_instances")) == (True, 1) and _lit(hourly, "misfire_grace_time") >= 60
+
+
+def test_the_catch_up_never_runs_inline_in_the_boot():
+    src, life = _lifespan()
+    at_boot: list[str] = []
+
+    def walk(node, nested):
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+                walk(child, True)
+                continue
+            if isinstance(child, ast.Call) and not nested:
+                at_boot.append(getattr(child.func, "attr", None) or getattr(child.func, "id", None) or "")
+            walk(child, nested)
+
+    walk(life, False)
+    assert "_boot_mark" in at_boot and "add_job" in at_boot                 # control: the walk sees the boot's own calls
+    ran = {"catch_up", "run_nightly", "_insider_clusters_sec_catch_up_job", "_insider_clusters_sec_job"} & set(at_boot)
+    assert ran == set(), ran
+
+
+def test_the_catch_up_registration_has_its_own_boot_mark():
+    _src, life = _lifespan()
+    marks = sorted((c.lineno, c.args[0].value) for c in ast.walk(life)
+                   if isinstance(c, ast.Call) and getattr(c.func, "id", "") == "_boot_mark")
+    names = [n for _, n in marks]
+    assert names.count("INS-catch-up") == 1
+    i = names.index("INS-catch-up")
+    jobs = _add_jobs(life)
+    for jid in ("insider_clusters_sec_catchup_boot", "insider_clusters_sec_catchup"):
+        assert marks[i][0] < jobs[jid].lineno < marks[i + 1][0], jid
+
+
+def test_the_hourly_check_comes_after_the_nightly_budget_and_before_the_weekday_busy_span():
+    from apscheduler.triggers.cron import CronTrigger
+    trig = CronTrigger(hour=ics.CATCHUP_HOURS_ET, minute=ics.CATCHUP_MINUTE_ET, timezone=NY)
+    day = datetime(2031, 3, 18, 0, 0, tzinfo=NY)
+    fires, t = [], trig.get_next_fire_time(None, day)
+    while t < day + timedelta(days=1):
+        fires.append(t)
+        t = trig.get_next_fire_time(t, t + timedelta(seconds=1))
+    budget_ends = day.replace(hour=ics.RUN_AT_ET[0], minute=ics.RUN_AT_ET[1]) + timedelta(seconds=ics.RUN_BUDGET_S)
+    assert len(fires) >= 3 and all(budget_ends <= f and f.hour < 7 for f in fires), fires
+    assert ics.CATCHUP_BOOT_DELAY_S >= 300                                   # past the boot's busiest minutes

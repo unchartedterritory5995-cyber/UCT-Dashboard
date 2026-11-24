@@ -296,6 +296,26 @@ COLUMNS = [
     # build after the first evening run.
     "rev_accel_q", "eps_streak_25", "eps_growth_min_2q", "eps_growth_min_3q",
     "eps_growth_min_4q", "net_margin_chg_1y", "gross_margin_chg_1y", "shares_chg_1y",
+    # ⭐ VOLUME & VOLATILITY (2026-11-23). ONE writer, `volume_volatility.row_fields`, the
+    # builder's `bars_volume_volatility` step inside the same per-stock bars pass, from the
+    # row's own stored daily bars: STAT's realized volatility over 20 / 60 returns (REAL,
+    # percent), VFP's accumulation less distribution days over 25 sessions (INTEGER, signed),
+    # VFP's pocket pivots in the last 20 sessions and the sessions since the newest one of
+    # the last year (INTEGER), and STAT's drawdown against the S&P 500's in the newest
+    # completed MKTH decline (REAL, a ratio). NULL when the history is short, a session
+    # cannot be judged, or the series contradicts itself inside the column's window, never
+    # a guessed 0. Additive: ALTER-added on init, NULL until the next build.
+    "hv_20", "hv_60", "ad_net_25", "pocket_pivots_20", "days_since_pocket_pivot",
+    "corr_rel_last",
+    # ⭐ BEATS, INSIDERS & FUNDS (2026-11-23). Three writers, one per store, each a
+    # `_read_market_source` peer read ONCE per build (`beats_insiders_funds`): the newest
+    # report's EPS surprise (REAL, percent) and the EPS beat streak (INTEGER) from the held
+    # earnings copies; Form 4 open-market purchase filings in the last 30 days (INTEGER) and
+    # their priced dollars (REAL) from INS CLUSTER's store; funds adding less funds cutting
+    # (INTEGER, signed) from the N-PORT index. NULL while a store is not held, too thin or
+    # behind, never a guessed 0. Additive: ALTER-added on init, NULL until the next build.
+    "eps_surprise_last", "eps_beat_streak", "insider_buys_30d", "insider_buy_value_30d",
+    "fund_net_adds",
     # meta
     "snapshot_date", "bars_asof", "built_at",
 ]
@@ -405,7 +425,11 @@ _INT = {"uct_composite", "rs_rank", "inside_bar_run", "higher_lows_run",
         # Leaders' list: a 0/1 flag and a count of sessions.
         "rs_nh_weekly", "rs_nhbp_weekly", "rs_leaders_member", "rs_leaders_days",
         # Fundamental trends: two counts of quarters (the other six are REAL).
-        "rev_accel_q", "eps_streak_25"}
+        "rev_accel_q", "eps_streak_25",
+        # Volume & volatility: a signed day count, a count and an age in sessions.
+        "ad_net_25", "pocket_pivots_20", "days_since_pocket_pivot",
+        # Beats, insiders & funds: a count of quarters, a count of filings, a signed count of funds.
+        "eps_beat_streak", "insider_buys_30d", "fund_net_adds"}
 
 
 # ---------------------------------------------------------------------------

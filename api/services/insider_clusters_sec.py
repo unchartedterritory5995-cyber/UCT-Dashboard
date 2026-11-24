@@ -30,7 +30,12 @@ WHEN. That page: "Indexes incorporating the current business day's filings are u
 starting about 10:00 p.m., ET; the process is usually completed within a few hours", and a Form 4
 submitted after 10:00 p.m. is disseminated the next business day, in that day's index. So the
 read runs at `RUN_AT_ET` (01:20 New York time) Tuesday to Saturday, the night after each weekday,
-and reads the weekdays BEFORE that date. It is registered in `api/main.py`; nothing else starts it.
+and reads the weekdays BEFORE that date. It is registered in `api/main.py`. A fire that lands while the
+pod restarts for a deploy is lost (the new container schedules the NEXT slot, never the missed one),
+so `catch_up`, registered beside it (`CATCHUP_BOOT_DELAY_S` after boot, and hourly at
+`CATCHUP_MINUTE_ET` past the hours `CATCHUP_HOURS_ET`), starts the same run when the held answer was
+built before the last slot (`behind`), and only inside scan_period's quiet span (`quiet`): a boot during
+the weekday busy span starts nothing. Nothing else starts it.
 
 WHAT EACH RUN DOES (one at a time, on its own thread, never on a member's request):
   * reads the index of each of the last `SCAN_WEEKDAYS` weekdays, newest first (12 weekdays hold
@@ -104,6 +109,9 @@ STOP_AFTER_FAILURES = 10      # failed reads in a row that end the run
 MAX_DOC_BYTES = 3_000_000     # a Form 4 submission is a few kB; past this it is not read
 MAX_INDEX_BYTES = 30_000_000  # a daily master index is a few hundred kB
 RUN_AT_ET = (1, 20)           # Tuesday to Saturday, New York time
+CATCHUP_BOOT_DELAY_S = 600    # the catch-up's boot check: this long after registration (past the boot's busy minutes)
+CATCHUP_HOURS_ET = "2-6"      # and its hourly checks, every day (`behind` decides), New York time,
+CATCHUP_MINUTE_ET = 43        # after the 01:20 run's own budget and before the weekday busy span (07:00)
 DISK_VERSION = 1
 
 ROLE_ORDER = ("ceo", "cfo", "officer", "director", "ten_percent", "other", "not_stated")
@@ -826,6 +834,63 @@ def next_run(now: Optional[datetime] = None) -> datetime:
     while slot.weekday() not in (1, 2, 3, 4, 5):
         slot += timedelta(days=1)
     return slot
+
+
+def last_slot(now: Optional[datetime] = None) -> datetime:
+    """The most recent scheduled read at or before `now` (New York): stepped forward with `next_run`
+    from a week earlier, so the schedule is stated once (`next_run`, `RUN_AT_ET`)."""
+    from zoneinfo import ZoneInfo
+    now = (now or now_et()).astimezone(ZoneInfo("America/New_York"))
+    slot = next_run(now - timedelta(days=7))          # a week holds five slots, so this one is before `now`
+    while (following := next_run(slot)) <= now:
+        slot = following
+    return slot
+
+
+def behind(held: Optional[dict], now: Optional[datetime] = None) -> bool:
+    """Pure: should the catch-up start the read? True when nothing is held, or when the held answer was
+    built before the most recent scheduled slot (`last_slot`). Its `read_at` is stamped when a run
+    FINISHES (`assemble`), so a run a restart killed half way, which leaves only its per-day checkpoint
+    on disk, still reads as behind and is resumed from that checkpoint; a run that ended early on the
+    SEC's refusal, a failure streak, the cap or the budget did finish, and waits for its next night. A
+    `read_at` that is not a moment reads as behind (the run writes a new one)."""
+    if not isinstance(held, dict):
+        return True
+    try:
+        built = datetime.fromisoformat(str(held.get("read_at") or ""))
+    except ValueError:
+        return True
+    if built.tzinfo is None:
+        return True
+    return built < last_slot(now)
+
+
+def quiet(now: datetime) -> bool:
+    """scan_period's quiet span (weekends; weekdays before 07:00 or from 20:15 New York time), read from scan_period
+    itself, as the IV rank and COT catch-ups read it: never retyped here."""
+    from zoneinfo import ZoneInfo
+    from api.services import scan_period
+    return bool(scan_period._reuse_quiet_now(now.astimezone(ZoneInfo("America/New_York"))))
+
+
+def catch_up(now: Optional[datetime] = None) -> dict:
+    """THE CATCH-UP ENTRY (`api/main.py`: a DATE job `CATCHUP_BOOT_DELAY_S` after boot and an hourly
+    check): start the scheduled read, `run_nightly` itself (the same SEC client, user agent, limiter and
+    caps), only when `behind` AND inside scan_period's quiet span (`quiet`; member speed first: a boot during
+    the weekday busy span starts nothing, and the hourly checks or the next boot in the quiet hours start it);
+    otherwise it reads the held answer (from disk once) and nothing else. Never on a member's request. Returns
+    at once: `{"started": bool, "reason": "running" | "current" | "not_quiet"}` when it starts nothing,
+    `run_nightly`'s answer when it does. The 01:20 nightly job itself is not gated here."""
+    _ensure_loaded()
+    with _lock:
+        held, running = _state["held"], _state["inflight"] is not None
+    if running:
+        return {"started": False, "reason": "running"}
+    if not behind(held, now):
+        return {"started": False, "reason": "current"}
+    if not quiet(now or now_et()):
+        return {"started": False, "reason": "not_quiet"}
+    return run_nightly(now)
 
 
 def held_answer() -> tuple[Optional[dict], str]:

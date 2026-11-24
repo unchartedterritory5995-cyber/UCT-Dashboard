@@ -182,6 +182,36 @@ def test_a_file_that_breaks_half_way_is_unread_never_half_a_day(seeded):
         r["symbol"]: r["sessions"] - 1 for r in good["high"]}
 
 
+def test_a_file_whose_compressed_data_is_damaged_is_unread_never_a_failed_build(seeded):
+    # A damaged deflate stream raises zlib.error, which is not an OSError: it must cost that one day, like a file
+    # cut short, and never the whole evening's list.
+    import io
+    import zlib
+    days = build_25(seeded)
+    good = ivr.build(now=NOW)
+    path = os.path.join(seeded.root, "options_log", days[10][:4], f"{days[10]}.underlyings.csv.gz")
+    raw = open(path, "rb").read()
+    damaged = None
+    for k in range(12, len(raw) - 8):
+        cand = bytearray(raw)
+        cand[k] ^= 0xFF
+        try:
+            with gzip.open(io.BytesIO(bytes(cand)), "rt", newline="", encoding="utf-8") as fh:
+                fh.read()
+        except zlib.error:
+            damaged = bytes(cand)
+            break
+        except Exception:  # noqa: BLE001 -- another kind of damage: try the next byte
+            continue
+    assert damaged is not None, "no single-byte change gave a damaged deflate stream"
+    with open(path, "wb") as fh:
+        fh.write(damaged)
+    out = ivr.build(now=NOW)
+    assert out["unread_sessions"] == [days[10]] and out["rankable_sessions"] == 24
+    assert {r["symbol"]: r["sessions"] for r in out["high"]} == {
+        r["symbol"]: r["sessions"] - 1 for r in good["high"]}
+
+
 def test_an_empty_log_is_no_log(seeded):
     out = ivr.build(now=NOW)
     assert out["status"] == "no_log" and out["high"] == [] and out["low"] == [] and out["counts"]["ranked"] == 0
@@ -291,3 +321,195 @@ def test_the_route_is_dark_with_the_screener_paid_only_and_never_reads_the_log(s
             ivr._state["held"] = {"v": 1, "status": "ok", "session": "2026-11-20", "high": [], "low": [], "counts": {}}
         body = client.get(URL).json()
         assert body["status"] == "ok" and body["session"] == "2026-11-20" and "v" not in body
+
+
+# ── the catch-up: a 20:45 build lost to a restart heals itself ──────────────────────────────────
+
+FRI_SLOT = dt.datetime(2026, 11, 20, 20, 45, tzinfo=ET)    # Friday's build
+SAT = dt.datetime(2026, 11, 21, 9, 0, tzinfo=ET)
+
+
+def _held(session, built) -> dict:
+    """A held list of `session`, built at `built`, its `built_at` written the way `build` writes it."""
+    return {"v": ivr.DISK_VERSION, "status": "ok", "session": session, "high": [], "low": [], "counts": {},
+            "built_at": built.astimezone(dt.timezone.utc).isoformat(timespec="seconds")}
+
+
+def test_the_last_slot_is_stepped_from_next_run_across_midnight_and_the_2045_boundary():
+    assert ivr.last_slot(FRI_SLOT) == FRI_SLOT                                              # at 20:45 the slot has come
+    assert ivr.last_slot(FRI_SLOT - dt.timedelta(seconds=1)) == FRI_SLOT - dt.timedelta(days=1)
+    assert ivr.last_slot(dt.datetime(2026, 11, 21, 3, 0, tzinfo=ET)) == FRI_SLOT           # after midnight
+    assert ivr.last_slot(dt.datetime(2026, 11, 21, 2, 0, tzinfo=dt.timezone.utc)) == FRI_SLOT   # a UTC moment
+    t = dt.datetime(2026, 10, 20, 0, 7, tzinfo=ET)            # three weeks, across the November clock change
+    while t < dt.datetime(2026, 11, 10, tzinfo=ET):
+        s = ivr.last_slot(t)
+        assert s <= t < ivr.next_run(s) and ivr.next_run(t) == ivr.next_run(s), t
+        assert (s.hour, s.minute) == ivr.RUN_AT_ET, t
+        t += dt.timedelta(minutes=37)
+
+
+def test_the_target_is_the_last_session_whose_log_was_due_at_the_last_slot():
+    assert not session_calendar.is_trading_day(dt.date(2026, 11, 26))                      # Thanksgiving
+    cases = {
+        dt.datetime(2026, 11, 20, 21, 0, tzinfo=ET): "2026-11-20",     # Friday, after the build
+        dt.datetime(2026, 11, 20, 20, 44, tzinfo=ET): "2026-11-19",    # before it: Thursday's
+        dt.datetime(2026, 11, 22, 21, 0, tzinfo=ET): "2026-11-20",     # a weekend evening: Friday's
+        dt.datetime(2026, 11, 23, 10, 0, tzinfo=ET): "2026-11-20",     # Monday morning: still Friday's
+        dt.datetime(2026, 11, 26, 21, 0, tzinfo=ET): "2026-11-25",     # a holiday evening: the day before
+        dt.datetime(2026, 11, 27, 21, 0, tzinfo=ET): "2026-11-27",     # a half day is a session
+    }
+    for now, want in cases.items():
+        assert ivr.target_session(now) == want, now
+
+
+def test_behind_with_no_list_held_is_the_first_build():
+    assert ivr.behind(None, SAT) is True
+
+
+def test_a_list_of_the_target_session_is_current_and_an_older_one_built_before_the_slot_is_behind():
+    assert ivr.behind(_held("2026-11-20", FRI_SLOT + dt.timedelta(minutes=1)), SAT) is False
+    thursday_build = FRI_SLOT - dt.timedelta(days=1) + dt.timedelta(minutes=1)
+    assert ivr.behind(_held("2026-11-19", thursday_build), SAT) is True                    # Friday's fire was lost
+
+
+def test_a_list_built_since_the_slot_is_that_slots_build_even_when_the_log_held_nothing_newer():
+    after = FRI_SLOT + dt.timedelta(minutes=1)
+    assert ivr.behind(_held("2026-11-19", after), SAT) is False
+    assert ivr.behind(_held(None, after) | {"status": "no_log"}, SAT) is False
+    assert ivr.behind(_held(None, FRI_SLOT - dt.timedelta(minutes=1)) | {"status": "no_log"}, SAT) is True
+
+
+def test_the_2045_boundary():
+    thursday = _held("2026-11-19", FRI_SLOT - dt.timedelta(days=1) + dt.timedelta(minutes=1))
+    assert ivr.behind(thursday, FRI_SLOT - dt.timedelta(seconds=1)) is False
+    assert ivr.behind(thursday, FRI_SLOT) is True
+
+
+@pytest.mark.parametrize("session, built_at", [("junk", None), (None, "yesterday"),
+                                               ("2026-11-19", "2026-11-19T20:50:00")])   # the last names no zone
+def test_a_session_or_build_time_that_cannot_be_read_counts_as_older(session, built_at):
+    held = {"v": ivr.DISK_VERSION, "status": "ok", "session": session, "built_at": built_at}
+    assert ivr.behind(held, SAT) is True
+
+
+def test_with_no_target_the_held_list_is_kept(monkeypatch):
+    monkeypatch.setattr(iv_history, "expected_sessions", lambda *a, **k: (_ for _ in ()).throw(KeyError("calendar")))
+    assert ivr.target_session(SAT) is None
+    assert ivr.behind(_held("2026-11-02", FRI_SLOT - dt.timedelta(days=9)), SAT) is False
+    assert ivr.behind(None, SAT) is True
+
+
+def test_behind_reads_the_build_time_build_writes(seeded):
+    days = build_25(seeded)
+    held = ivr.build(now=NOW)
+    built = dt.datetime.fromisoformat(held["built_at"])
+    assert held["session"] == days[-1]
+    assert ivr.behind(held, built) is False                                         # built at or after its own slot
+    assert ivr.behind({**held, "session": None}, built + dt.timedelta(days=2)) is True
+
+
+def _stub_build(monkeypatch) -> list:
+    started: list = []
+    monkeypatch.setattr(ivr, "run_scheduled", lambda now=None: started.append(now) or {"started": True})
+    return started
+
+
+def test_the_catch_up_builds_when_no_list_is_held_and_is_current_after_it(seeded, monkeypatch):
+    build_25(seeded)
+    monkeypatch.setenv(FLAG, "1")
+    assert ivr.catch_up(NOW) == {"started": True}
+    ivr.drain()
+    held = ivr._state["held"]
+    assert held is not None and held["counts"]["ranked"] == 4
+    monkeypatch.setattr(iv_history, "_store_override", None)
+    monkeypatch.setattr(iv_history, "get_store", lambda: (_ for _ in ()).throw(AssertionError("read the log")))
+    assert ivr.catch_up(dt.datetime.fromisoformat(held["built_at"])) == {"started": False, "reason": "current"}
+
+
+def test_the_catch_up_keeps_every_guard_of_the_scheduled_build(seeded, monkeypatch):
+    import threading
+    build_25(seeded)
+    monkeypatch.delenv(FLAG, raising=False)
+    assert ivr.catch_up(NOW) == {"started": False, "reason": "off"}
+    monkeypatch.setenv(FLAG, "1")
+    assert ivr.catch_up(NOON) == {"started": False, "reason": "not_quiet"}
+    with ivr._lock:
+        ivr._state["inflight"] = threading.Event()
+    assert ivr.catch_up(NOW) == {"started": False, "reason": "running"}
+    with ivr._lock:
+        ivr._state["inflight"].set()
+        ivr._state["inflight"] = None
+    assert ivr._state["held"] is None
+
+
+def test_after_a_restart_the_catch_up_reads_the_disk_copy_and_builds_only_once_behind(seeded, monkeypatch):
+    monkeypatch.setenv(FLAG, "1")
+    ivr._save_disk(_held("2026-11-20", FRI_SLOT + dt.timedelta(minutes=1)), {"at": None, "ok": True, "reason": None})
+    ivr.reset_for_tests()                                                               # a new process
+    started = _stub_build(monkeypatch)
+    assert ivr.catch_up(SAT) == {"started": False, "reason": "current"}
+    assert ivr.catch_up(dt.datetime(2026, 11, 22, 21, 0, tzinfo=ET)) == {"started": False, "reason": "current"}  # Sunday
+    monday = dt.datetime(2026, 11, 23, 21, 0, tzinfo=ET)                              # Monday's 20:45 was lost
+    assert started == [] and ivr.catch_up(monday) == {"started": True} and started == [monday]
+
+
+def test_no_member_request_reaches_the_catch_up(seeded, monkeypatch):
+    import inspect
+    monkeypatch.setattr(ivr, "catch_up", lambda *a, **k: pytest.fail("a read path started the catch-up"))
+    monkeypatch.setattr(ivr, "run_scheduled", lambda *a, **k: pytest.fail("a read path started a build"))
+    assert ivr.get_leaders(NOW)["status"] == "not_built"
+    assert "catch_up" not in inspect.getsource(router_mod)
+
+
+def _boot_level_calls(life) -> list:
+    """The names of the calls the lifespan makes itself (not inside a function it defines)."""
+    import ast
+    out: list = []
+
+    def walk(node, nested):
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+                walk(child, True)
+                continue
+            if isinstance(child, ast.Call) and not nested:
+                out.append(getattr(child.func, "attr", None) or getattr(child.func, "id", None) or "")
+            walk(child, nested)
+    walk(life, False)
+    return out
+
+
+def test_the_catch_up_is_a_date_job_after_boot_and_a_daily_retry_under_its_own_boot_mark():
+    import ast
+    from tests.test_insider_clusters_sec import _add_jobs, _kw, _lifespan, _lit
+    src, life = _lifespan()
+    jobs = _add_jobs(life)
+    boot, retry = jobs["iv_rank_leaders_catchup_boot"], jobs["iv_rank_leaders_catchup"]
+    assert "from api.services.research import iv_rank_leaders as _ivrl_cu" in src
+    defs = {n.name: n for n in ast.walk(life) if isinstance(n, ast.FunctionDef)}
+    for call in (boot, retry):
+        body = ast.get_source_segment(src, defs[call.args[0].id])
+        assert ".catch_up()" in body and "run_scheduled" not in body
+    assert _lit(boot, "trigger") == "date" and _lit(boot, "kwargs") == {"source": "boot"}
+    run_date = ast.unparse(_kw(boot, "run_date"))
+    assert "now(_ET)" in run_date and "seconds=_ivrl_cu.CATCHUP_BOOT_DELAY_S" in run_date
+    assert _lit(boot, "max_instances") == 1 and _lit(boot, "misfire_grace_time") >= 60
+    assert ast.unparse(_kw(retry, "trigger")) == (
+        "CronTrigger(hour=_ivrl_cu.CATCHUP_AT_ET[0], minute=_ivrl_cu.CATCHUP_AT_ET[1], timezone=_ET)")
+    assert _lit(retry, "kwargs") == {"source": "retry"}
+    assert (_lit(retry, "coalesce"), _lit(retry, "max_instances")) == (True, 1) and _lit(retry, "misfire_grace_time") >= 60
+    at_boot = _boot_level_calls(life)
+    assert "_boot_mark" in at_boot and "add_job" in at_boot                 # control: the walk sees the boot's calls
+    assert not {"catch_up", "run_scheduled", "_iv_rank_leaders_catch_up_job", "_iv_rank_leaders_job"} & set(at_boot)
+    marks = sorted((c.lineno, c.args[0].value) for c in ast.walk(life)
+                   if isinstance(c, ast.Call) and getattr(c.func, "id", "") == "_boot_mark")
+    names = [n for _, n in marks]
+    assert names.count("IVR-catch-up") == 1
+    i = names.index("IVR-catch-up")
+    for call in (boot, retry):
+        assert marks[i][0] < call.lineno < marks[i + 1][0]
+
+
+def test_the_daily_retry_is_inside_the_quiet_span_every_day_and_after_the_evening_build():
+    for day in range(16, 23):                                                 # a whole week
+        assert ivr.quiet(dt.datetime(2026, 11, day, *ivr.CATCHUP_AT_ET, tzinfo=ET)), day
+    assert ivr.RUN_AT_ET < ivr.CATCHUP_AT_ET                                  # the same evening it can heal

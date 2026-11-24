@@ -295,7 +295,9 @@ describe('M2 persistence — "done" only on a confirmed read-back', () => {
     expect(res.ok).toBe(false)
     expect(res.undo).toBe(null)
     expect(res.failed[0].reason).toMatch(/save was not confirmed \(conflict\), so it is not done/)
-    expect(res.failed[0].reason).toMatch(/could not be reversed/)               // honest: it may be on screen
+    // ⛔ INV2: the chart is put back (read back as before), so "not done" is true on screen too — agentPersistSafety.test.jsx
+    expect(res.failed[0].reason).toMatch(/I put the chart back\) — nothing was left changed/)
+    expect(res.failed[0].say).toMatch(/so I put the chart back\. Nothing was changed\./)
   })
   it('a lost write (the read-back does not show it) → "did not land", no Undo', async () => {
     const h = host([L()], { lostWrite: true })

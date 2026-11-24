@@ -21,6 +21,11 @@
 //   GK1 a switch to a key holding a fresh device copy does not paint it: A stays until B's answer, never a blank frame
 //   GK2 the kill seen while the switch waits for its panes' columns (decided before, shown after): held the same way
 //   GK3 a linked group (1m + 15m) both on fresh device copies: both stay on A, then both show B in ONE frame
+// After #2620 (persist._deviceHit joins nothing once the page has seen a kill) GK1 and GK3 passed trivially: B's copy
+// was first read AFTER the kill, so it never joined and there was nothing for the switch to refuse. Each now runs twice:
+//   GK1 / GK3   B's copy joined the store BEFORE the kill (a warm, a prime): the store holds the device's rows and the
+//               SWITCH's own 'killed' refusal is what keeps A on screen
+//   GK1n / GK3n B's key is not held when the kill is seen: the copy never joins; A stays until B's answer
 import { render, act } from '@testing-library/react'
 import { useLayoutEffect, useRef } from 'react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
@@ -45,6 +50,16 @@ const { useBarSnapshotBars } = await import('../components/chart/useBarSnapshotB
 const useSymbolHandoff = (await import('./useSymbolHandoff')).default
 const { __resetHandoffGroupsForTests } = await import('./handoffGroups')
 const speed = await import('../lib/chartSpeed')
+const { keyOf } = await import('../data/barStore/types')
+const K = (sym, tf) => keyOf({ sym, tf: String(tf) })
+/** `sym`'s device copies join the store with no chart on them (what a warm or a linked chart's prime does). */
+async function joinDevice(w, sym, tfs) {
+  await act(async () => {
+    for (const tf of tfs) w.store.persist.hydrate(K(sym, tf), { urgent: true }).catch(() => {})
+    await vi.advanceTimersByTimeAsync(5)
+  })
+  for (const tf of tfs) expect(w.store.peek(K(sym, tf)).source).toBe('device')
+}
 const KILL = () => { document.cookie = 'uct_device_store=0; path=/'; return speed.deviceStoreKilledNow() }
 
 const DAY = 86400
@@ -289,21 +304,26 @@ describe('P4-M1 the switch asks the chart\'s own refusal when it shows the chart
     expect(blanks(log)).toEqual([])
   })
 
-  it('GK1 after the kill is seen: a switch to a fresh device copy does not paint it; A stays until B\'s answer', async () => {
-    vi.setSystemTime(etMs(10, 4, 40))
-    const w = world({ BBB: { 1: devCopy(1, et(10, 4)) } })          // fresh at 10:04:50 (G3 paints it at +300)
-    const { log, press } = await mountBoard(w, ['1'])
-    expect(KILL()).toBe(true)
-    vi.setSystemTime(etMs(10, 4, 50))
-    press('BBB')
-    await advance(310)
-    expect(last(log)[0].shown).toBe('AAA')
-    expect(w.asked('BBB')).toBe(1)
-    await act(async () => { w.answer('BBB'); await vi.advanceTimersByTimeAsync(310) })
-    expect(last(log)[0].shown).toBe('BBB')
-    expect(last(log)[0].n).toBeGreaterThan(0)
-    expect(blanks(log)).toEqual([])
-  })
+  for (const [name, joined] of [['GK1', true], ['GK1n', false]]) {
+    it(`${name} after the kill is seen: a switch to a fresh device copy ${joined ? 'the store already holds' : 'the store does not hold yet (it never joins)'} does not paint it; A stays until B's answer`, async () => {
+      vi.setSystemTime(etMs(10, 4, 40))
+      const w = world({ BBB: { 1: devCopy(1, et(10, 4)) } })        // fresh at 10:04:50 (G3 paints it at +300)
+      const { log, press } = await mountBoard(w, ['1'])
+      if (joined) await joinDevice(w, 'BBB', [1])                    // joined while the store was on
+      expect(KILL()).toBe(true)
+      vi.setSystemTime(etMs(10, 4, 50))
+      press('BBB')
+      await advance(310)
+      if (joined) expect(w.store.peek(K('BBB', 1)).source).toBe('device')      // still the device's rows: the SWITCH refuses them
+      else expect(w.store.peek(K('BBB', 1)).source).not.toBe('device')         // #2620: nothing joins once the page has seen a kill
+      expect(last(log)[0].shown).toBe('AAA')
+      expect(w.asked('BBB')).toBe(1)
+      await act(async () => { w.answer('BBB'); await vi.advanceTimersByTimeAsync(310) })
+      expect(last(log)[0].shown).toBe('BBB')
+      expect(last(log)[0].n).toBeGreaterThan(0)
+      expect(blanks(log)).toEqual([])
+    })
+  }
 
   it('GK2 the kill seen while the switch waits for its panes\' columns: held, A stays until B\'s answer', async () => {
     vi.setSystemTime(etMs(10, 4, 40))
@@ -322,18 +342,25 @@ describe('P4-M1 the switch asks the chart\'s own refusal when it shows the chart
     expect(blanks(log)).toEqual([])
   })
 
-  it('GK3 a linked group (1m + 15m) on fresh device copies after the kill: both stay on A, then B in ONE frame', async () => {
-    vi.setSystemTime(etMs(10, 4, 40))
-    const w = world({ BBB: { 1: devCopy(1, et(10, 4)), 15: devCopy(15, et(10, 4), { forming: true }) } })
-    const { log, press } = await mountBoard(w, ['1', '15'], { group: 'charts:A' })
-    KILL()
-    vi.setSystemTime(etMs(10, 4, 50))
-    press('BBB')
-    await advance(310)
-    expect(last(log).map((c) => c.shown)).toEqual(['AAA', 'AAA'])
-    await act(async () => { w.answer('BBB'); await vi.advanceTimersByTimeAsync(400) })
-    expect(last(log).map((c) => c.shown)).toEqual(['BBB', 'BBB'])
-    for (const f of log) expect(f.charts[0].shown).toBe(f.charts[1].shown)
-    expect(blanks(log)).toEqual([])
-  })
+  for (const [name, joined] of [['GK3', true], ['GK3n', false]]) {
+    it(`${name} a linked group (1m + 15m) on fresh device copies ${joined ? 'the store already holds' : 'the store does not hold yet (they never join)'} after the kill: both stay on A, then B in ONE frame`, async () => {
+      vi.setSystemTime(etMs(10, 4, 40))
+      const w = world({ BBB: { 1: devCopy(1, et(10, 4)), 15: devCopy(15, et(10, 4), { forming: true }) } })
+      const { log, press } = await mountBoard(w, ['1', '15'], { group: 'charts:A' })
+      if (joined) await joinDevice(w, 'BBB', [1, 15])                // joined while the store was on
+      KILL()
+      vi.setSystemTime(etMs(10, 4, 50))
+      press('BBB')
+      await advance(310)
+      for (const tf of [1, 15]) {
+        if (joined) expect(w.store.peek(K('BBB', tf)).source).toBe('device')
+        else expect(w.store.peek(K('BBB', tf)).source).not.toBe('device')
+      }
+      expect(last(log).map((c) => c.shown)).toEqual(['AAA', 'AAA'])
+      await act(async () => { w.answer('BBB'); await vi.advanceTimersByTimeAsync(400) })
+      expect(last(log).map((c) => c.shown)).toEqual(['BBB', 'BBB'])
+      for (const f of log) expect(f.charts[0].shown).toBe(f.charts[1].shown)
+      expect(blanks(log)).toEqual([])
+    })
+  }
 })

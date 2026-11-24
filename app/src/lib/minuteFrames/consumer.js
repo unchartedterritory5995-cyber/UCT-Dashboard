@@ -39,6 +39,13 @@
 //
 // POLLS RESPECT VISIBILITY (CLAUDE.md speed rule 6): nothing is fetched while the app is hidden
 // (`isVisible`, default lib/deskVisibility.isAppVisible); on becoming visible it catches up.
+//
+// ⭐ EVERY REQUEST AT LOW PRIORITY (2026-11-23, the live-session read of the device store). The feed shares the page's
+// origin, so its requests (head.json, a minute file, and at a mid-session open today.bin, the whole day so far) share the
+// connection with the chart's own: a switch's tail and its panes' columns. `priority: 'low'` (FEED_FETCH_PRIORITY) lets
+// those go first. Each request keeps its cache mode (head.json `no-store`, the .bin files the default). The edge keys its
+// cache on the path alone (edge/bars-edge-router/live1m.js), and a fetch that does not know the option ignores it
+// (RequestInit is a dictionary).
 
 import {
   decodeFrame, todayInfo, todayFrames, inflateIfGzip, hhmmOfSeq, dailyRows, FrameError, NO_SEQ, SESSION_MINUTES,
@@ -49,6 +56,8 @@ import { etDateLabel, etMinuteOfDay } from '../../components/chart/barTime'
 import { isAppVisible } from '../deskVisibility'
 
 export const DEFAULT_BASE = '/api/hist/live1m/v1'
+/** The feed's fetch priority (see the header): never ahead of the page's own requests. */
+export const FEED_FETCH_PRIORITY = 'low'
 
 class HttpError extends Error {
   constructor(status, url) { super(`${status} ${url}`); this.status = status }
@@ -95,7 +104,7 @@ export function createMinuteFrameConsumer({
   }
 
   async function getBytes(url, init) {
-    const r = await fetchImpl(url, { credentials: 'same-origin', ...init })
+    const r = await fetchImpl(url, { credentials: 'same-origin', priority: FEED_FETCH_PRIORITY, ...init })
     if (!r.ok) throw new HttpError(r.status, url)
     const u8 = new Uint8Array(await r.arrayBuffer())
     st.bytes += u8.length
@@ -103,7 +112,7 @@ export function createMinuteFrameConsumer({
   }
 
   async function getJson(url) {
-    const r = await fetchImpl(url, { credentials: 'same-origin', cache: 'no-store' })
+    const r = await fetchImpl(url, { credentials: 'same-origin', cache: 'no-store', priority: FEED_FETCH_PRIORITY })
     if (!r.ok) throw new HttpError(r.status, url)
     return r.json()
   }

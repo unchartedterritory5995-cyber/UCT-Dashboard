@@ -131,8 +131,11 @@ describe('⛔ the chart actually consumes it', () => {
     // generation, so the line no longer ENDS at `secondarySources]`. Anchor on the
     // dependency-array close of an effect (`}, [ ... ])`) that names
     // `secondarySources` as a whole word — still exactly one such line.
+    // ⭐ (2026-11-23, the index-history disclosure): a second effect now reads `secondarySources` (it decides the
+    // disclosure line from the served entries), so the repaint array is the one naming `secondarySources` AND
+    // `filteredBars` (the bars it repaints): exactly one such line, still asserted below.
     const deps = src.split(String.fromCharCode(10))
-      .filter((l) => /^\s*\}, \[.*\bsecondarySources\b.*\]\)\s*$/.test(l))
+      .filter((l) => /^\s*\}, \[.*\bsecondarySources\b.*\]\)\s*$/.test(l) && /\bfilteredBars\b/.test(l))
     expect(deps, 'the repaint dependency array moved — re-anchor this rail').toHaveLength(1)
     expect(deps[0], 'the generation reaches no dependency array')
       .toContain('serverColumnsGeneration')
