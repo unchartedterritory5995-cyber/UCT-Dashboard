@@ -17,6 +17,8 @@
 // none at all when no chart was switched. It is integers only: `switchesField` REBUILDS the field from
 // whole numbers it has checked one by one, so nothing the page holds (a ticker, a list's name) can be in it,
 // whatever handed it over. The instrument is found on `window`, never imported: this chunk stays as it was.
+// The counts are READ to build the report (`peek`) and FORGOTTEN (`take`) only once the browser has queued it:
+// a report the browser refuses (its beacon queue is full) costs nothing, the counts ride with the next one.
 import { isDesktopApp } from './desktopBridge'
 
 export const REPORT_AFTER_MS = 20000
@@ -25,7 +27,7 @@ const ENDPOINT = '/api/perf/beacon'
 // The mark barsPackClient.markFirstChartPaint sets. A literal, not an import: importing barsPackClient
 // would pull it into this small after-load chunk. perfBeacon.test.js pins the two equal.
 export const FIRST_CANDLES_MARK = 'uct:first-chart-paint'
-// Where lib/switchSpeed.js leaves `{ take }`. A literal, not an import (as above); the test pins the two equal.
+// Where lib/switchSpeed.js leaves `{ peek, take }`. A literal, not an import (as above); the test pins the two equal.
 export const SWITCH_SPEED_GLOBAL = '__uctSwitchSpeed'
 /** A hidden page sends its switch counts at most this often (they keep adding up in between). */
 export const SWITCH_SEND_GAP_MS = 5 * 60_000
@@ -164,15 +166,19 @@ export function startPerfBeacon({ win = window, doc = document, perf = window.pe
     if (switchSends >= MAX_SWITCH_SENDS) return
     const now = perf.now()
     if (!leaving && now - lastSwitchSendAt < SWITCH_SEND_GAP_MS) return
+    const instrument = win[SWITCH_SPEED_GLOBAL]
     let switches
-    try { switches = switchesField(win[SWITCH_SPEED_GLOBAL]?.take?.()) } catch { return }
+    try { switches = switchesField(instrument?.peek?.()) } catch { return }
     if (!switches) return
+    const body = { page: pageTemplate(win.location.pathname), client: desktop ? 'desktop' : 'browser', kind: 'switches', switches }
+    let queued = false
+    try {
+      queued = win.navigator.sendBeacon(ENDPOINT, new Blob([JSON.stringify(body)], { type: 'application/json' })) === true
+    } catch { /* measurement never breaks the page */ }
+    if (!queued) return                                  // refused: nothing was sent, so nothing is forgotten
     switchSends += 1
     lastSwitchSendAt = now
-    const body = { page: pageTemplate(win.location.pathname), client: desktop ? 'desktop' : 'browser', kind: 'switches', switches }
-    try {
-      win.navigator.sendBeacon(ENDPOINT, new Blob([JSON.stringify(body)], { type: 'application/json' }))
-    } catch { /* measurement never breaks the page */ }
+    try { instrument.take() } catch { /* the counts ride again: a repeat, never a loss */ }
   }
 
   const onHide = () => { if (doc.visibilityState === 'hidden') { send(); sendSwitches(false) } }
