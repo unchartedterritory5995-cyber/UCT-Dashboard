@@ -93,6 +93,10 @@ over 4 hours) against 23 minutes for everything else. `pine heavy` alone was 50%
   "merged", and never build on it, before that.
 - **Removed from the queue** = a required check failed on the QUEUED commit (master, plus the pull requests
   ahead, plus this one). Read that check, fix, queue again. The pull request stays open.
+- **Required in the queue (2026-11-24):** `agent-ci-required` and `merge queue gate rails` (the deploy gate's
+  engine and bars rails, run on the merge group). A pull request that breaks either is removed instead of
+  turning master red. One opened or last pushed before 2026-11-23 21:23Z needs ONE push (or an update from
+  master) before the queue takes it.
 - **Nobody holds for anybody.** The queue tests each pull request on top of the ones ahead of it and lands
   exactly the commit it tested. The Agent program's quiet window on `master` is gone.
 - **No direct push to `master`**, and never `--admin`.

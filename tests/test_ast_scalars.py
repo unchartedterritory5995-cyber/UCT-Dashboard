@@ -392,7 +392,11 @@ def test_the_scalar_section_PARTITIONS_snapshot_db_COLUMNS_exactly():
     # columns (`eps_surprise_last`, `eps_beat_streak`, `insider_buys_30d`, `insider_buy_value_30d`,
     # `fund_net_adds`, `beats_insiders_funds`'s three readers), NULL until the first build after they
     # land (R8). The declared half did not move.
-    assert (len(declared), len(excluded)) == (149, 167)
+    # ⭐ (149, 167) → (149, 178) on 2026-11-23 (held-store columns): `iv_rank`, `iv_percentile`, `group_rank`,
+    # `group_rank_of`, `group_rank_chg_4w`, `next_ex_div_date` (also TEXT), `days_to_ex_div`, `eps_rev_up_30d`,
+    # `eps_rev_down_30d`, `eps_rev_net_30d` (`store_columns`'s four readers) and `short_interest_chg_pct`
+    # (`short_columns`), NULL until the first build after they land (R8). The declared half did not move.
+    assert (len(declared), len(excluded)) == (149, 178)
 
 
 def test_a_scalar_tree_is_non_repainting_AND_as_of_snapshot__both_verdicts_or_neither():

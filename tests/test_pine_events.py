@@ -7,7 +7,11 @@ What must hold, each with a test that goes red when it breaks:
   * a family the licence catalog refuses is never fetched and answers its guard and sentence;
   * the shapes: earnings only once reported; dividends as declared; splits numerator = new, denominator = old;
     `knownFrom` = the first held event, `null` when the vendor holds none;
-  * the stage: dark for members (404), admins by default, everyone paid at `all`, nobody at `off` or a typo.
+  * the stage: dark for members (404), admins by default, everyone paid at `all`, nobody at `off` or a typo;
+  * a fund (ETF or fund, by the company profile) holds no earnings and says so (`notReported`), with no vendor call;
+    a profile that cannot say keeps the vendor read and is logged once per symbol per day;
+  * a copy held under older rules is not served (it answers pending and is rebuilt), but is still the copy a
+    family keeps when its vendor read fails.
 """
 from __future__ import annotations
 
@@ -26,6 +30,9 @@ from api.services import pine_events as pe
 @pytest.fixture(autouse=True)
 def _isolated(tmp_path, monkeypatch):
     monkeypatch.setenv("PINE_EVENTS_DIR", str(tmp_path / "pine_events"))
+    # the company profile is a vendor read: every test answers it here ("cannot say"), a fund test overrides it
+    from api.services.catalyst import ticker_metadata
+    monkeypatch.setattr(ticker_metadata, "profile_facts", lambda sym: None)
     monkeypatch.delenv("PINE_EVENTS_SUPPLY_ENABLED", raising=False)
     pe._MEM.clear()
     with pe._INFLIGHT_LOCK:
@@ -232,3 +239,143 @@ def test_an_unpaid_member_is_402(monkeypatch):
 
 def test_a_non_ticker_is_400(vendors):
     assert _client(ADMIN).get("/api/pine/events/%20%3B").status_code == 400
+
+
+# ── a fund reports no earnings (2026-11-24) ───────────────────────────────────────────────────────────────────────
+# Read on production as the member account: SPY's earnings held one 2005 row (1.81), XLK's one, GLD's seven (one of
+# them an "EPS" of 15,071.92). TradingView's request.earnings is na on every bar of a fund.
+
+class _R:
+    def __init__(self, v):
+        self.value = v
+
+
+#: the vendor's junk for SPY, as production held it
+_SPY_JUNK = [{"date": "2005-02-15", "epsActual": 1.81, "epsEstimated": None}]
+
+
+@pytest.fixture
+def real_earnings(monkeypatch):
+    """The real earnings reader over a counted vendor that answers SPY's junk row; the other families stubbed."""
+    from api.services import fmp_client
+    calls = []
+    monkeypatch.setattr(fmp_client, "get_earnings", lambda sym, limit, timeout: calls.append(sym) or _R(list(_SPY_JUNK)))
+    monkeypatch.setattr(pe, "FETCHERS", {**pe.FETCHERS,
+                                         "dividends": lambda sym: {"rows": [{"exDate": "2024-12-20", "gross": 1.9658}]},
+                                         "splits": lambda sym: {"rows": []}})
+    monkeypatch.setattr(pe, "_refusal", lambda fam: None)
+    monkeypatch.setattr(pe, "_disclosure", lambda fam: f"{fam} are UCT data")
+    return calls
+
+
+def _profile(monkeypatch, facts):
+    from api.services.catalyst import ticker_metadata
+    asked = []
+    monkeypatch.setattr(ticker_metadata, "profile_facts", lambda sym: asked.append(sym) or facts)
+    return asked
+
+
+@pytest.mark.parametrize("facts,kind", [({"is_etf": True, "is_fund": False}, "etf"),
+                                        ({"is_etf": False, "is_fund": True}, "fund"),
+                                        ({"is_etf": True, "is_fund": None}, "etf")])
+def test_a_funds_earnings_rows_never_reach_the_family(real_earnings, monkeypatch, facts, kind):
+    asked = _profile(monkeypatch, facts)
+    f = pe.refresh("SPY", now=1_000)["families"]
+    e = f["earnings"]
+    assert e["rows"] == [] and e["state"] == "empty" and e["knownFrom"] is None, e
+    assert e["notReported"] == kind
+    assert real_earnings == [], "a fund's earnings were asked of the vendor"
+    assert asked == ["SPY"]
+    # a fund still pays dividends and splits: those families are untouched
+    assert f["dividends"]["state"] == "ok" and f["dividends"]["rows"]
+
+
+def test_a_company_keeps_its_vendor_earnings_and_is_not_counted(real_earnings, monkeypatch, caplog):
+    _profile(monkeypatch, {"is_etf": False, "is_fund": False, "name": "Apple Inc."})
+    caplog.set_level("INFO", logger="pine_events")
+    e = pe.refresh("AAPL", now=1_000)["families"]["earnings"]
+    assert e["rows"] == [{"date": "2005-02-15", "actual": 1.81, "estimate": None}] and "notReported" not in e
+    assert real_earnings == ["AAPL"]
+    assert "NO fund answer" not in caplog.text
+
+
+@pytest.mark.parametrize("facts", [None, {}, {"is_etf": None, "is_fund": False}, {"is_etf": False}])
+def test_a_profile_that_cannot_say_keeps_the_vendor_read(real_earnings, monkeypatch, facts):
+    """Real companies must not lose their earnings to a profile that did not answer (coordinator 2026-11-24). A FUND
+    whose profile cannot say is the residual: its vendor rows are kept, as before the rule."""
+    _profile(monkeypatch, facts)
+    monkeypatch.setattr(pe, "_UNKNOWN_PROFILE", {})
+    e = pe.refresh("NEWCO", now=1_000)["families"]["earnings"]
+    assert e["rows"] and e["state"] == "ok" and "notReported" not in e
+    assert real_earnings == ["NEWCO"]
+
+
+def test_an_unknown_profile_is_logged_once_per_symbol_per_day(real_earnings, monkeypatch, caplog):
+    _profile(monkeypatch, None)
+    monkeypatch.setattr(pe, "_UNKNOWN_PROFILE", {})
+    day = ["2026-11-24"]
+    monkeypatch.setattr(pe, "_et_day", lambda: day[0])
+    caplog.set_level("INFO", logger="pine_events")
+    lines = lambda: [r.getMessage() for r in caplog.records if "NO fund answer" in r.getMessage()]
+    pe.refresh("NEWCO", now=1_000)
+    pe.refresh("NEWCO", now=2_000)
+    assert lines() == ["pine_events earnings read with NO fund answer from the profile: NEWCO (1 such symbols today)"]
+    pe.refresh("OTHER", now=3_000)
+    assert len(lines()) == 2 and lines()[-1].endswith("OTHER (2 such symbols today)")
+    day[0] = "2026-11-25"                       # a new day: counted again, yesterday's set let go
+    pe.refresh("NEWCO", now=4_000)
+    assert len(lines()) == 3 and lines()[-1].endswith("NEWCO (1 such symbols today)")
+    assert pe._UNKNOWN_PROFILE == {"NEWCO": "2026-11-25"}
+
+
+def _write_pre_fix_copy(sym: str, now: float) -> None:
+    """A copy as production held it before the rule: schema v1, no `rules`, the vendor's junk in earnings."""
+    path = pe._path(sym)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    doc = {"schema": pe.SCHEMA, "symbol": sym, "refreshedAt": now, "families": {
+        "earnings": {"state": "ok", "rows": [{"date": "2005-02-15", "actual": 1.81, "estimate": None}],
+                     "knownFrom": "2005-02-15", "fetchedAt": now},
+        "dividends": {"state": "ok", "rows": [{"exDate": "2024-12-20", "gross": 1.9658}], "knownFrom": "2024-12-20",
+                      "fetchedAt": now},
+        "splits": {"state": "empty", "rows": [], "knownFrom": None, "fetchedAt": now}}}
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump(doc, fh)
+
+
+def test_a_pre_fix_cached_fund_copy_is_not_served_after_the_fix(real_earnings, monkeypatch):
+    """The rule reaches a symbol already held on deploy, not when its copy expires (coordinator 2026-11-24)."""
+    _profile(monkeypatch, {"is_etf": True, "is_fund": False})
+    _write_pre_fix_copy("SPY", time.time())
+    queued = []
+    monkeypatch.setattr(pe._POOL, "submit", lambda fn: queued.append(fn))
+    first = pe.read("SPY")
+    assert first["state"] == "pending", "a copy made under the old rules was served"
+    assert len(queued) == 1
+    queued[0]()                                    # the background lane rebuilds it under the new rules
+    after = pe.read("SPY")
+    assert after["state"] == "ready" and after["rules"] == pe.RULES
+    assert after["families"]["earnings"]["rows"] == [] and after["families"]["earnings"]["notReported"] == "etf"
+    assert after["families"]["dividends"]["rows"], "the dividends were lost in the rebuild"
+
+
+def test_a_pre_fix_copy_is_still_the_copy_a_failed_family_keeps(real_earnings, monkeypatch):
+    """Not served, but not thrown away: a family whose vendor read fails during the rebuild keeps it, by name."""
+    _profile(monkeypatch, {"is_etf": True, "is_fund": False})
+    _write_pre_fix_copy("SPY", 1_000.0)
+
+    def boom(sym):
+        raise RuntimeError("vendor down")
+    monkeypatch.setitem(pe.FETCHERS, "dividends", boom)
+    f = pe.refresh("SPY", now=2_000)["families"]
+    assert f["dividends"]["state"] == "unavailable" and f["dividends"]["rows"] and f["dividends"]["staleSince"] == 1_000
+    assert f["earnings"]["rows"] == [], "a fund's old junk came back through the kept copy"
+
+
+def test_a_copy_under_the_current_rules_is_served():
+    """Control for the two above: the gate refuses old rules only."""
+    path = pe._path("QQQ")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump({"schema": pe.SCHEMA, "rules": pe.RULES, "symbol": "QQQ", "refreshedAt": time.time(),
+                   "families": {}}, fh)
+    assert pe.read("QQQ")["state"] == "ready"

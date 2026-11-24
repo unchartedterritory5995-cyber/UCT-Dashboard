@@ -1804,6 +1804,8 @@ import { isCurrentEnoughForPaint, dailyMissingSessionsForPaint, DAILY_PAINT_MAX_
 import { tradingSessionTodayET } from './chart/tradingTodayMemo'   // isTradingSessionTodayET, one answer per minute
 import { tailRetriesExhausted, liveBadgeState } from '../utils/intradayTailPoll'
 import { parseTf } from './chart/timeframes'
+import { bucketEventDate, barLookupFor } from './chart/eventBarLookup'
+import { _hollowFill, installNetChangePaint } from './chart/netChangePaint'
 import { barsRenderPlan } from './chart/renderPlan'
 import ChartSkeleton from './chart/ChartSkeleton'
 import { normalizeToPctChange } from './chart/comparisonUtils'
@@ -1889,10 +1891,11 @@ import { useBarSnapshotBars } from './chart/useBarSnapshotBars'
 // ⭐⭐ NEIGHBOR FRAMES (2026-11-20, `localStorage['uct.neighborframes']`): the per-bar arrays below are pure
 // functions (`chart/chartDerived.js`), and with the switch on they are filed under the array they came from,
 // so the rows a member is about to reach are derived in idle time and found on the switch.
-import { sessionBarsOf, ohlcBaseOf, closeDataOf, volDataOf, volMaDataOf, computeHVC } from './chart/chartDerived'
+import { sessionBarsOf, ohlcBaseOf, closeDataOf, volDataOf, volMaDataOf, computeHVC, volExtremesOf } from './chart/chartDerived'
 import { neighborFramesOn, stableSig, identitySig } from './chart/neighborFrames'
 import {
   useNeighborFrames, deriveSession, deriveDisplay, deriveHvc, deriveOhlcBase, deriveClose, deriveVol, deriveVolMa,
+  volRecipeOf, volExtremesRecipeOf, deriveVolExtremes,
 } from './chart/useNeighborFrames'
 import { BARSTORE } from './chart/barStoreSwitch'
 import {
@@ -2977,7 +2980,7 @@ const FUTURE_MIN = { '1': 90, '5': 30, '15': 30, '30': 24, '60': 24, 'D': 40, 'W
 // series keys its bars: daily = the exact day, weekly = that ISO week's Friday,
 // monthly = the 1st. Lets an upcoming-earnings date line up with a whitespace slot
 // so the marker docks instead of pinning to the edge. (Mirrors computeBarTime.)
-function bucketSlot(tf, dateStr) {
+export function bucketSlot(tf, dateStr) {
   const s = String(dateStr).slice(0, 10)
   if (tf === 'W') {
     const dt = new Date(`${s}T00:00:00Z`)
@@ -3168,10 +3171,8 @@ const LEGACY_LIVE_HELPERS = Object.freeze({
 // color parser strips alpha before contrasting, turning transparent BLACK into an
 // opaque black box over the price pill. Falls back to the old placeholder (same
 // on-chart behavior as before this fix) only if the color string doesn't parse.
-export const _hollowFill = (c) => {
-  const rgb = parseColor(c)
-  return rgb ? `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0)` : 'rgba(0,0,0,0)'
-}
+// `_hollowFill` (a hollow body: the colour's RGB at alpha 0) lives in chart/netChangePaint.js; re-exported here.
+export { _hollowFill }
 
 // Model Book "Throughout the Years" palette — tuned to pop like TC2000:
 // a brighter, bolder green that leaps off the chart, a deeper darker red that
@@ -3543,23 +3544,13 @@ const useChartRealtimePrices = LEGACY_LIVE ? useRealtimePrices : useQuietRealtim
 // `chart/chartMetaStore.js`). Each chart holds one `memoLast` of each (`createChartMetaView`), and both places
 // call that same instance with the same arguments, so a value either computed is the identity the other sees.
 
-// Splits + dividends: snap each event date to its containing bar (same bucketing as earnings).
-function bucketEventDate(dstr, tf) {
-  const s = String(dstr).slice(0, 10)
-  if (tf === 'W') {
-    const dt = new Date(`${s}T00:00:00Z`)
-    if (isNaN(dt.getTime())) return s
-    dt.setUTCDate(dt.getUTCDate() - ((dt.getUTCDay() + 6) % 7)) // → Monday of its ISO week
-    return dt.toISOString().slice(0, 10)
-  }
-  if (tf === 'M') return s.slice(0, 7)   // YYYY-MM
-  return s
-}
+// Splits + dividends: snap each event date to its containing bar (same bucketing as earnings): `bucketEventDate`, and
+// the bar that holds a date found WITHOUT an index of every bar (`barLookupFor`), both chart/eventBarLookup.js.
 
 // Earnings events (daily/weekly only) with the reporting bar's LOW, so the badge
 // primitive can hug just under the candle and click-matching has the dates. The
 // date string maps 1:1 to a daily/weekly bar time (adjustTime is identity there).
-function earningsEventsOf(markersData, earningsOn, resolvedTf, filteredBars, _nextEarnOn) {
+export function earningsEventsOf(markersData, earningsOn, resolvedTf, filteredBars, _nextEarnOn) {
   // parseTf, NOT the hand-written 5-native-code literal (see buildDeskMentionMarkers
   // above): TF_MENU also offers '45'/'120'/'240', which the literal let through as
   // daily-like, mixing a date-string marker time into this numeric-time mergedMarkers
@@ -3572,9 +3563,7 @@ function earningsEventsOf(markersData, earningsOn, resolvedTf, filteredBars, _ne
   // coincidence when a report happened to land on a Friday). Bucket both the
   // bars and the earnings dates the same way, then look up the containing bar.
   const tf = resolvedTf
-  const bucket = (dstr) => bucketEventDate(dstr, tf)
-  const barByBucket = new Map()
-  for (const b of filteredBars) barByBucket.set(bucket(b.t), b)
+  const barOf = barLookupFor(filteredBars, tf)   // (the bar of a date's period: chart/eventBarLookup.js)
   const out = []
   const seen = new Set()
   // Next earnings "E" ON → it REPLACES the upcoming (estimate) badge on every timeframe (owner 11-16): the
@@ -3589,7 +3578,7 @@ function earningsEventsOf(markersData, earningsOn, resolvedTf, filteredBars, _ne
       out.push({ date: bucketSlot(tf, e.date), low: null, beat: null, estimate: true, data: e })
       continue
     }
-    const bar = barByBucket.get(bucket(e.date))
+    const bar = barOf(e.date)
     if (!bar) continue                      // no bar in that period (outside loaded range)
     const low = +bar.l
     if (!Number.isFinite(low) || seen.has(bar.t)) continue  // 1 badge/bar (≤1 report/period)
@@ -3601,16 +3590,15 @@ function earningsEventsOf(markersData, earningsOn, resolvedTf, filteredBars, _ne
   return out
 }
 
-function splitEventsOf(markersData, splitsOn, resolvedTf, filteredBars) {
+export function splitEventsOf(markersData, splitsOn, resolvedTf, filteredBars) {
   const isDailyWeekly = parseTf(resolvedTf).minutes == null
   if (!splitsOn || !Array.isArray(markersData?.splits) || !isDailyWeekly || !filteredBars?.length) return []
-  const barByBucket = new Map()
-  for (const b of filteredBars) barByBucket.set(bucketEventDate(b.t, resolvedTf), b)
+  const barOf = barLookupFor(filteredBars, resolvedTf)
   const out = []
   const seen = new Set()
   for (const s of markersData.splits) {
     if (!s.date) continue
-    const bar = barByBucket.get(bucketEventDate(s.date, resolvedTf))
+    const bar = barOf(s.date)
     if (!bar || seen.has(bar.t)) continue
     seen.add(bar.t)
     out.push({ date: bar.t, low: +bar.l, ratio: s.ratio })
@@ -3618,16 +3606,15 @@ function splitEventsOf(markersData, splitsOn, resolvedTf, filteredBars) {
   return out
 }
 
-function dividendEventsOf(markersData, dividendsOn, resolvedTf, filteredBars) {
+export function dividendEventsOf(markersData, dividendsOn, resolvedTf, filteredBars) {
   const isDailyWeekly = parseTf(resolvedTf).minutes == null
   if (!dividendsOn || !Array.isArray(markersData?.dividends) || !isDailyWeekly || !filteredBars?.length) return []
-  const barByBucket = new Map()
-  for (const b of filteredBars) barByBucket.set(bucketEventDate(b.t, resolvedTf), b)
+  const barOf = barLookupFor(filteredBars, resolvedTf)
   const out = []
   const seen = new Set()
   for (const d of markersData.dividends) {
     if (!d.date || d.amount == null) continue
-    const bar = barByBucket.get(bucketEventDate(d.date, resolvedTf))
+    const bar = barOf(d.date)
     if (!bar || seen.has(bar.t)) continue
     seen.add(bar.t)
     out.push({ date: bar.t, low: +bar.l, amount: Number(d.amount) })
@@ -11208,13 +11195,12 @@ function StockChartBody({
   )
   // Highest-Volume-Ever bar (across all loaded bars). Coloured gold, no label —
   // only highlighted when it falls within the visible year.
+  // (`chartDerived.volExtremesOf`; with the switch on, through the neighbor-frames recipe `vx`)
+  if (_nfRecipes) _nfRecipes.vx = volExtremesRecipeOf(markVolumeExtremes, entryDate, exitDate)
   const volExtremes = useMemo(() => {
+    if (_nfRecipes) return deriveVolExtremes(__heavy.filteredBars, _nfRecipes)
     if (!markVolumeExtremes || !__heavy.filteredBars?.length) return null
-    const inYear = b => (!entryDate || b.t >= entryDate) && (!exitDate || b.t <= exitDate)
-    let hve = null
-    for (const b of __heavy.filteredBars) if (b.v != null && (!hve || b.v > hve.v)) hve = b
-    if (!hve || !inYear(hve)) return null
-    return { goldTimes: new Set([hve.t]) }
+    return volExtremesOf(__heavy.filteredBars, entryDate, exitDate)
   }, [markVolumeExtremes, filteredBars, entryDate, exitDate])  /* eslint-disable-line react-hooks/exhaustive-deps -- the box (__heavy) is read at use time; the deps above are the values */
   // Live day volume for THIS symbol (RTH day.v / pre-market aggregate). Used to
   // keep the developing volume bar + its pane label live instead of frozen at the
@@ -11236,7 +11222,7 @@ function StockChartBody({
     liveVol: liveVolForSym,
     bold: !!boldCandles,
   }
-  if (_nfRecipes) _nfRecipes.vol = { on: !markVolumeExtremes, p: _nfVolP, sig: `${stableSig(_nfVolP)}|at${_nfAtSig}` }
+  if (_nfRecipes) _nfRecipes.vol = volRecipeOf(_nfVolP, _nfAtSig, markVolumeExtremes)
   const volData = useMemo(() => {
     if (!__heavy.sessionAppliedBars?.length) return []
     return _nfRecipes ? deriveVol(__heavy.sessionAppliedBars, hvcSet, volExtremes, _nfRecipes)
@@ -12775,90 +12761,10 @@ function StockChartBody({
       // change doesn't need a recreate. In open-close mode _paintNet is a passthrough
       // and LWC colors natively from the live series options.
       if (colorByNetChange && _netEligible && !priceSeries.__uctNetWrap) {
-        const _isInside = (bar, prevBar) => (
-          prevBar
-          && bar.high != null && bar.low != null && prevBar.high != null && prevBar.low != null
-          && bar.high <= prevBar.high && bar.low >= prevBar.low
-        )
-        // Colors are read LIVE from netColorsRef (updated every render) so a color
-        // change repaints via setData without recreating the series (no shake).
-        const _paintNet = (bar, prevClose, prevBar) => {
-          if (!bar || bar.close == null) return bar
-          if (bar.color != null) return bar   // preserve an explicit override (gold highlight)
-          const NC = netColorsRef.current
-          // Sunrise's black inside-day candles are part of the theme's signature
-          // look, so they paint in EVERY color mode — checked before the openclose
-          // passthrough (below) which otherwise skips all per-bar painting. The
-          // fill still follows close-vs-open (TC2000): an inside day that closed
-          // above its open is a HOLLOW black outline, below = filled black.
-          if (NC.insideBlack && _isInside(bar, prevBar)) {
-            const openUpIn = bar.open != null ? bar.close >= bar.open : true
-            return { ...bar, color: (NC.noBody || (NC.hollow && openUpIn)) ? 'rgba(0,0,0,0)' : '#000000', borderColor: '#000000', wickColor: '#000000' }
-          }
-          if (NC.mode === 'openclose') return bar   // native close-vs-open coloring (Body off rides the series colours)
-          // One color: every bar the same body/border/wick (shape still hollow on up).
-          if (NC.mode === 'onecolor') {
-            const up = bar.open != null ? bar.close >= bar.open : true
-            const body = NC.noBody ? 'rgba(0,0,0,0)' : (NC.hollow && up) ? _hollowFill(NC.one) : NC.one
-            return { ...bar, color: body, borderColor: NC.one, wickColor: NC.one }
-          }
-          // TC2000 hollow-candle semantics: COLOR and FILL are independent axes.
-          // Direction (net-change close-vs-prev-close, or close-vs-open in that
-          // mode) drives the green/red palette; close-vs-OPEN alone drives the
-          // hollow/filled body. So a green candle that closed below its open is
-          // FILLED green, and a red candle that closed above its open is HOLLOW
-          // red — all four combinations render.
-          let up
-          if (NC.mode === 'netchange') {
-            if (prevClose == null) return bar   // first bar — no prior close to compare
-            up = bar.close >= prevClose
-          } else {
-            up = bar.open != null ? bar.close >= bar.open : true
-          }
-          const openUp = bar.open != null ? bar.close >= bar.open : up
-          const body = NC.noBody ? 'rgba(0,0,0,0)' : (NC.hollow && openUp) ? _hollowFill(up ? NC.up : NC.down) : (up ? NC.up : NC.down)
-          return { ...bar, color: body, borderColor: (up ? NC.borUp : NC.borDown), wickColor: (up ? NC.wickUp : NC.wickDown) }
-        }
-        const _realSet = priceSeries.setData.bind(priceSeries)
-        const _realUpd = priceSeries.update.bind(priceSeries)
-        priceSeries.setData = (data) => {
-          if (!Array.isArray(data)) return _realSet(data)
-          let prev = null, lastPrev = null, prevBar = null, lastPrevBar = null
-          const painted = data.map((b) => {
-            if (b && b.close != null) {
-              lastPrev = prev
-              lastPrevBar = prevBar
-              const out = _paintNet(b, prev, prevBar)
-              prev = b.close
-              prevBar = { high: b.high, low: b.low }
-              return out
-            }
-            return b
-          })
-          // Refs the update() wrap reads for the developing bar: prev-of-last & the last bar.
-          netPrevCloseRef.current = lastPrev
-          lastNetCloseRef.current = prev
-          netPrevBarRef.current = lastPrevBar
-          lastNetBarRef.current = prevBar
-          lastNetTimeRef.current = painted.length ? data[data.length - 1]?.time : null
-          return _realSet(painted)
-        }
-        priceSeries.update = (bar) => {
-          if (!bar || bar.close == null) return _realUpd(bar)
-          const isNewBar = lastNetTimeRef.current != null && bar.time > lastNetTimeRef.current
-          const prevClose = isNewBar ? lastNetCloseRef.current : netPrevCloseRef.current
-          const prevBar = isNewBar ? lastNetBarRef.current : netPrevBarRef.current
-          const out = _paintNet(bar, prevClose, prevBar)
-          if (isNewBar) {
-            netPrevCloseRef.current = lastNetCloseRef.current
-            netPrevBarRef.current = lastNetBarRef.current
-            lastNetTimeRef.current = bar.time
-          }
-          lastNetCloseRef.current = bar.close
-          lastNetBarRef.current = { high: bar.high, low: bar.low }
-          return _realUpd(out)
-        }
-        priceSeries.__uctNetWrap = true
+        // (the paint and its wrap: chart/netChangePaint.js, moved from here unchanged)
+        installNetChangePaint(priceSeries, () => netColorsRef.current, {
+          netPrevCloseRef, lastNetCloseRef, netPrevBarRef, lastNetBarRef, lastNetTimeRef,
+        })
       }
       // ⭐ B1 — Pine `barcolor`: every write to an OHLC price series is recoloured
       // from `barColoursRef` (time → colour). Installed once per series, AFTER the

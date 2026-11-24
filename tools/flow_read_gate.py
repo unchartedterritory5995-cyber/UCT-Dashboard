@@ -59,6 +59,7 @@ BATCHES: list[tuple[str, str, list[str]]] = [
         "tests/test_massive_ws_stop.py",
         "tests/test_flow_heal_side.py",
         "tests/test_flow_heal_enrich.py",
+        "tests/test_massive_ws_spot_fetch.py",
     ]),
     ("classification", "type_ priority, ML gate, tiers, curated qualification", [
         "tests/test_flow_classification.py",
@@ -67,6 +68,8 @@ BATCHES: list[tuple[str, str, list[str]]] = [
         "tests/test_massive_r69_contract_scoped_enrichment.py",
         "tests/test_bullflow_is_retired.py",
         "tests/test_ticker_types_generation.py",
+        "tests/test_ticker_types_replica.py",
+        "tests/test_live_massive_fair_ask_aggregate.py",
     ]),
     ("discord_push", "should_auto_push, cream ranking, card webhooks", [
         "tests/test_push_quality_gates.py",
@@ -89,6 +92,8 @@ BATCHES: list[tuple[str, str, list[str]]] = [
         "tests/test_live_chain_stream.py",
         "tests/test_live_recent_snapshot.py",
         "tests/test_recent_selfheal.py",
+        "tests/test_cream_route_answers_at_once.py",
+        "tests/test_live_massive_corrupt_page_resilience.py",
     ]),
     ("page_product", "the OptionsFlow page's server-side product and its caches", [
         "tests/test_flow_aggregate.py",
@@ -162,6 +167,12 @@ EXCLUDED: dict[str, str] = {
         "unrelated; matches on a module name sitting in a token list",
     "api/services/journal_two/test_symbol_normalize.py":
         "symbol normalization under journal_two",
+    "tests/test_mem_observe.py":
+        "the watch-only memory observer; it reads massive_ws_worker's SOURCE to check where the "
+        "memory hook sits and asserts nothing about the tape read",
+    "tests/test_stream_ingest_skeleton.py":
+        "the stream-ingest feed server; names api.massive_ws_worker only in the list of modules its "
+        "entrypoint must NOT import",
 }
 
 READ_PATH_MODULES = ("live_massive_router", "massive_processor",

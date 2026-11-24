@@ -256,8 +256,12 @@ def test_snapshot_records_the_vendor_data_time_beside_unchanged_rows(monkeypatch
     tickers.append({"ticker": "NOSTAMP", "day": {"c": 1}})
     monkeypatch.setattr(c, "_get", lambda url: {"tickers": tickers}, raising=False)
     out = c.get_full_market_snapshot()
+    # The row shape as of e2b01c4931 (2026-10-17, the screener's official-close and extended-hours
+    # sweep), which added `day_close`, `min_close` and `min_t_ms` from the same payload. What this
+    # rail holds is that the data-time META sits BESIDE the rows and adds no key to them.
     assert set(out["T0"]) == {"last_price", "prev_close", "today_vol", "prev_vol", "day_open",
-                              "day_high", "day_low", "last_trade_ns"}
+                              "day_high", "day_low", "last_trade_ns",
+                              "day_close", "min_close", "min_t_ms"}
     m = c.last_full_snapshot_meta
     assert m["stamped"] == 100 and m["tickers"] == 102          # future stamp + unstamped dropped
     assert now - 905 <= m["data_at"] <= now - 900 and m["data_at_newest"] == now - 900

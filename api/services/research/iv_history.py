@@ -19,6 +19,14 @@ WHY THIS READS OUR LOG AND NOTHING ELSE
   left OUT of a rank (one method per statistic).
 ⛔ NO RANK BELOW 20 SESSIONS. IV rank / percentile need `RANK_MIN_SESSIONS` points; below
   that the answer is the sentence "N sessions logged, rank needs 20", never a number.
+⛔ AN ATM IV UNDER `IV_FLOOR` IS A PLACEHOLDER, NEVER A POINT (2026-11-23). The log has carried
+  the same tiny value for many unrelated symbols on one session, and such values inside a
+  symbol's history; read as real, one made the CHEAP list lead with sub-1% IVs and pinned every
+  real reading near rank 100. `atm_iv` is the ONE reader of the column for IVH and the
+  market-wide IV rank list (`iv_rank_leaders.py`): a reading under the floor is unreadable, it
+  neither ranks nor sets a low or a high, and the symbol's other sessions still count. There is
+  no ceiling: a distressed name can really trade at a very high IV; readings above `IV_WATCH`
+  are only counted, so they can be looked at.
 ⛔ NO CALIBRATION IT CANNOT SUPPORT (BRK-10). The implied-vs-realized reliability summary
   needs `CALIBRATION_MIN_PRINTS` paired prints; below that it lists what it has and says
   how many it needs. With zero it says when the first comparison can exist.
@@ -31,6 +39,7 @@ import csv
 import datetime as _dt
 import gzip
 import json
+import math
 import os
 import re
 import tempfile
@@ -49,10 +58,20 @@ CALIBRATION_MIN_PRINTS = 4
 LOG_DUE_ET = _dt.time(17, 15)
 CURRENT_RULE = "closest-30"
 LEGACY_RULE = "legacy-20-45"
+#: An ATM IV under this (a fraction a year: 0.01 is 1%) is a vendor placeholder, never a reading.
+#: No listed stock or fund has an annualized ATM IV under 1%, and the log has carried the same
+#: value of about 0.002 for ten or more unrelated symbols on one session. The ONE floor: IVH and
+#: the market-wide IV rank list both read the column through `atm_iv`.
+IV_FLOOR = 0.01
+#: No ceiling (a distressed name can really trade there): a reading above this (500% a year) is
+#: kept and only counted (`iv_rank_leaders` counts.iv_above_watch), so it can be looked at.
+IV_WATCH = 5.0
 SOURCE = "UCT options log (Massive /v3/snapshot?type=options, recorded daily at 16:30 ET)"
 METHOD = ("ATM IV is the mean of the call and put implied volatility at the strike closest "
           "to the underlying, on the expiry closest to 30 days out (7-90 days); the "
-          "days-to-expiry it was read at is shown with each point.")
+          "days-to-expiry it was read at is shown with each point. "
+          f"A logged ATM IV under {IV_FLOOR * 100:g}% a year is a data placeholder, not a reading: "
+          "it is never a point, so it neither ranks nor sets a low or a high.")
 IMPLIED_METHOD = ("Implied move = the front straddle (call + put bid/ask mids, first expiry "
                   "after the session, strike closest to the underlying) divided by the "
                   "underlying price, read at the close of the session before the "
@@ -216,6 +235,19 @@ def _num(v):
         return None
 
 
+def atm_iv(v) -> tuple[Optional[float], bool]:
+    """`(ATM IV, implausible)` of one summary row's `atm_iv` cell: the number, or None. None with
+    `implausible` True for a reading under `IV_FLOOR` (a placeholder, never a point); None with
+    False for a cell that is blank or not a finite number. The ONE reader of the column for IVH and
+    for the market-wide IV rank list (`iv_rank_leaders._read_day`)."""
+    n = _num(v)
+    if n is None or not math.isfinite(n):
+        return None, False
+    if n < IV_FLOOR:
+        return None, True
+    return n, False
+
+
 def summary_rule(fieldnames) -> str:
     """The ATM read rule a day's summary file was written under, from its header: a file
     without the `atm_dte` column is the first run's 20-45 day rule (left out of any rank).
@@ -255,7 +287,7 @@ def _day_row(store: LocalStore, session: str, sym: str) -> Optional[dict]:
 
 
 def _point(session: str, r: dict) -> dict:
-    iv = _num(r.get("atm_iv"))
+    iv, implausible = atm_iv(r.get("atm_iv"))
     dte = _num(r.get("atm_dte"))
     if dte is None and r.get("atm_expiration"):
         # a legacy (20-45 rule) day has no atm_dte column; the DTE it was read at is
@@ -266,7 +298,8 @@ def _point(session: str, r: dict) -> dict:
             dte = None
     return {"date": session, "atm_iv": iv, "atm_dte": int(dte) if dte is not None else None,
             "atm_expiration": r.get("atm_expiration") or None,
-            "underlying_price": _num(r.get("underlying_price")), "rule": r["_rule"]}
+            "underlying_price": _num(r.get("underlying_price")), "rule": r["_rule"],
+            "implausible_iv": implausible}
 
 
 # ── sessions the log should hold ────────────────────────────────────────────────
@@ -356,7 +389,8 @@ def iv_history(sym: str, *, now: Optional[_dt.datetime] = None,
         inc = [p["date"] for p in with_iv if not p["complete"]]
         if inc:
             reasons.append(f"The log was incomplete on {', '.join(inc)}.")
-        no_iv = [p["date"] for p in points if p["atm_iv"] is None and p["date"] >= covers_from]
+        no_iv = [p["date"] for p in points if p["atm_iv"] is None and p["date"] >= covers_from
+                 and not p["implausible_iv"]]
         no_row = [d for d in absent_days if d >= covers_from]
         if no_iv or no_row:
             reasons.append(f"No ATM IV for {sym} on {', '.join(sorted(no_iv + no_row))}.")
@@ -364,6 +398,11 @@ def iv_history(sym: str, *, now: Optional[_dt.datetime] = None,
         if legacy:
             reasons.append(f"{', '.join(legacy)} {'were' if len(legacy) > 1 else 'was'} read under "
                            "the first run's 20-45 day rule and is left out of any rank.")
+    odd = [p["date"] for p in points if p["implausible_iv"]]
+    if odd:
+        reasons.append(f"The log's ATM IV for {sym} on {', '.join(odd[-5:])}{' ...' if len(odd) > 5 else ''} "
+                       f"was under {IV_FLOOR * 100:g}% a year, a placeholder rather than a reading, and is "
+                       "left out of the series and the rank.")
     ranked = [p["atm_iv"] for p in with_iv if p["rule"] == CURRENT_RULE][-RANK_WINDOW:]
     n = len(with_iv)
     if len(ranked) >= RANK_MIN_SESSIONS:
