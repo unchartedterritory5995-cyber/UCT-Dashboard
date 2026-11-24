@@ -545,11 +545,13 @@ def rsl(monkeypatch):
     rows = _rankings()
     rs._rs_cache.set(rs._CACHE_KEY, rows, ttl=600)
     route.reset_bodies()
+    rs.invalidate_ibd_cache()                  # no rating table from another test (speed pass 3 keeps the last one)
     monkeypatch.delenv("RS_RANK_IBD_ENABLED", raising=False)
     state = {"pending": frozenset()}
     monkeypatch.setattr(deal_status, "consumer_pending", lambda: state["pending"])
     yield route, rs, rows, state
     rs._rs_cache.invalidate(rs._CACHE_KEY)
+    rs.invalidate_ibd_cache()
     route.reset_bodies()
 
 
@@ -576,10 +578,10 @@ def test_rsl_a_repeat_makes_nothing_and_any_new_input_makes_new_bytes(rsl, monke
     slow = {"n": 0}
     real = route.unified_rankings
 
-    def counted(data):
+    def counted(data, table=None):            # speed pass 3: the bytes are made from the very table their key names
         slow["n"] += 1
         time.sleep(0.6)
-        return real(data)
+        return real(data, table=table)
 
     monkeypatch.setattr(route, "unified_rankings", counted)
     first = client.get("/api/rs-rankings").content
@@ -606,7 +608,8 @@ def test_rsl_two_requests_at_once_make_the_bytes_once(rsl, monkeypatch):
     route, rs, rows, state = rsl
     real = route.unified_rankings
     calls = []
-    monkeypatch.setattr(route, "unified_rankings", lambda data: (calls.append(1), time.sleep(0.4), real(data))[2])
+    monkeypatch.setattr(route, "unified_rankings",
+                        lambda data, table=None: (calls.append(1), time.sleep(0.4), real(data, table=table))[2])
     out = []
     threads = [threading.Thread(target=lambda: out.append(route._body(rows, frozenset()))) for _ in range(2)]
     for t in threads:

@@ -71,6 +71,13 @@ five new kinds default OFF, all five MODEL-ISOLATED, and none ever builds, regis
 or asks a vendor or an agency: each reads only what its service already holds, through a held-only reader beside the
 service (MD-1 §4.21). PEER gets no kind: its route works the peers out on the request (today's moves, a model's fallback)
 and holds no answer to read.
+
+Terminal data wave 13 (terminal-data): `insider.market`, `market.history`, `econ.latest`, `market.liquidity`, `market.oil`,
+`market.analogs` — the Agent half of INS (with INS CLUSTER), MKTH, ECON, LIQ, OIL and ANLG. All six default OFF, all six
+MODEL-ISOLATED, and none ever builds, searches, pages a vendor, reads the SEC or reads the econ store's files: each reads
+only what its service already holds (MD-1 §4.22). SENT gets no kind: its readings sit in the Breadth Monitor's shared-cache
+copy under keys this read could only make by calling functions that load files, so a held-only read could not be shown
+to start no work.
 """
 from __future__ import annotations
 
@@ -96,6 +103,7 @@ from api.services.uct_agent.marketdata import (cot_finer_read, group_crowding_re
                                                iv_rank_leaders_read, revision_breadth_read, sector_earnings_read)
 from api.services.uct_agent.marketdata import (analyst_ratings_read, company_deals_read, estimate_history_read, ftd_read,
                                                revenue_segments_read)
+from api.services.uct_agent.marketdata import analogues_read, econ_read, insider_market_read, market_history_read
 from api.services.uct_agent.research import rs1
 
 # Symbols one read may name. A request-shape bound per kind, not a toolkit cap: the cap numbers live only
@@ -892,6 +900,74 @@ def register(registry) -> None:
                     "server already holds, never a build or a request ('not held' otherwise; no row is 'no record "
                     "matched'); as_of is null and each part carries its own read time, never the time of the read. Shown "
                     f"to the member only. Params: {{symbol, rows (1-{company_deals_read.MAX_ROWS} per part)}}.",
+    ))
+    # Terminal data wave 13 (owner: terminal-data): six more kinds, the Agent half of INS (with INS CLUSTER), MKTH, ECON, LIQ,
+    # OIL and ANLG. Default OFF like every kind (UCT_AGENT_DATA_KINDS); ALL SIX are model-isolated, so each also needs its own
+    # UCT_AGENT_ISOLATED_KINDS entry (ADR-005) and its capability is local-only. None causes work: where the member route can
+    # (INS pages the vendor on a cache miss, MKTH starts its build, the econ routes read the published files from the data
+    # bucket on a cold cache, ANLG searches the breadth history on a miss), the adapter reads only what is already held and
+    # answers `unavailable`, with the reason, when nothing is (MD-1 §4.22).
+    registry.register(Kind(
+        name=insider_market_read.KIND, fn=insider_market_read.read_market, validate=insider_market_read.validate,
+        # declared `periodic` (the purchases held for an hour after a member opens INS, the clusters read each night)
+        freshness="periodic", owner="terminal-data", max_symbols=NO_SYMBOL, model_isolated=True,
+        description="The market's insider buying as UCT holds it (INS and INS CLUSTER): the latest open-market purchases "
+                    "from Form 4 filings across the market (largest dollar amount first, no price no amount, never $0), "
+                    "and the stocks in which three or more insiders bought within ten business days, from the SEC's own "
+                    "filings; each part with its own state and date. Only what the server already holds, never a request "
+                    "('not held' otherwise); as_of is null and each part carries its own date, never the time of the "
+                    f"read. Shown to the member only. Params: {{rows (1-{insider_market_read.MAX_ROWS} per part)}}.",
+    ))
+    registry.register(Kind(
+        name=market_history_read.KIND, fn=market_history_read.read_history, validate=market_history_read.validate,
+        # declared `periodic` (built once each evening when asked); every read is `historical`
+        freshness="periodic", owner="terminal-data", max_symbols=NO_SYMBOL, model_isolated=True,
+        description="The S&P 500's or the Nasdaq-100's corrections and bear markets as UCT holds them (MKTH): every decline "
+                    "of 10% or more on closing prices, newest first, with its depth, sessions down, recovery, the rally "
+                    "after the low and the stocks that led it, the survivorship note in the service's own words. Only what "
+                    "the server already holds, never a build or a request ('not held' otherwise); as_of is the close of the "
+                    "newest session the index's closes reach, never the time of the read. Shown to the member only. "
+                    f"Params: {{index (SPX or NDX, or null), rows (1-{market_history_read.MAX_ROWS} declines)}}.",
+    ))
+    registry.register(Kind(
+        name=econ_read.ECON_KIND, fn=econ_read.read_econ, validate=econ_read.validate,
+        # declared `periodic` (each series changes on its agency's release)
+        freshness="periodic", owner="terminal-data", max_symbols=NO_SYMBOL, model_isolated=True,
+        description="UCT's published economic series as the ECON board shows them: each series' newest readings with "
+                    "their periods and release times, its meta and its next release from the release calendar, never a "
+                    "forecast. Only what the server's economics cache already holds, never a read of the econ store's "
+                    "files or a request ('not held' otherwise; off with the econ routes' switch); as_of is the newest "
+                    "release time returned, never the time of the read. Shown to the member only. Params: {}.",
+    ))
+    registry.register(Kind(
+        name=econ_read.LIQ_KIND, fn=econ_read.read_liquidity, validate=econ_read.validate,
+        freshness="periodic", owner="terminal-data", max_symbols=NO_SYMBOL, model_isolated=True,
+        description="The liquidity figures as the LIQ panel shows them: the Fed's total assets, the Treasury General "
+                    "Account, overnight reverse repo, reserves, M2 and SOFR with their newest readings and the history the "
+                    "panel's net liquidity line is worked out from. Only what the server's economics cache already holds, "
+                    "never a read of the econ store's files or a request ('not held' otherwise; off with the econ routes' "
+                    "switch); as_of is the newest release time returned, never the time of the read. Shown to the member "
+                    "only. Params: {}.",
+    ))
+    registry.register(Kind(
+        name=econ_read.OIL_KIND, fn=econ_read.read_oil, validate=econ_read.validate,
+        freshness="periodic", owner="terminal-data", max_symbols=NO_SYMBOL, model_isolated=True,
+        description="The EIA's weekly oil figures as the OIL panel shows them: crude, gasoline and distillate stocks, the "
+                    "SPR, production, refinery utilization, pump prices and the weekly crude change, with the history the "
+                    "panel reads. Only what the server's economics cache already holds, never a read of the econ store's "
+                    "files or a request ('not held' otherwise; off with the econ routes' switch); as_of is the newest "
+                    "release time returned, never the time of the read. Shown to the member only. Params: {}.",
+    ))
+    registry.register(Kind(
+        name=analogues_read.KIND, fn=analogues_read.read_analogs, validate=analogues_read.validate,
+        # declared `periodic` (held for six hours after a member opens ANLG); every read is `historical`
+        freshness="periodic", owner="terminal-data", max_symbols=NO_SYMBOL, model_isolated=True,
+        description="The breadth analogues as UCT holds them (ANLG, days like today): the past sessions whose breadth looked "
+                    "most like the newest one, each with its closeness and the S&P 500's return 5, 10, 20 and 60 trading "
+                    "days later (not yet when the calendar has not reached it, never 0); a record, never a forecast. Only "
+                    "what the server already holds, never a search or a request ('not held' otherwise); as_of is the "
+                    "close of the reference session, never the time of the read. Shown to the member only. "
+                    f"Params: {{rows (1-{analogues_read.MAX_ROWS} sessions)}}.",
     ))
     # W2-B1 (agent-rs, RS-1 v1): a COMPOSED kind. It reads the served kinds above (purpose "research", so a
     # model-isolated kind refuses before admission) and the turn's one web search; every fact's figures come from

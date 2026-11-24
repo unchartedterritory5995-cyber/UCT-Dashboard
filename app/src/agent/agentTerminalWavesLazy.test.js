@@ -38,8 +38,8 @@ const rel = (abs) => path.relative(SRC, abs).split(path.sep).join('/')
 const read = (abs) => fs.readFileSync(abs, 'utf8')
 const parse = (src) => Parser.extend(jsx()).parse(src, { ecmaVersion: 'latest', sourceType: 'module' })
 
-// waves 2 to 12 (wave 12 added 2026-11-24 by its builder: the list moves with every wave registered in terminalWaves.js)
-const WAVE_MODULES = ['terminalDataLocal', ...Array.from({ length: 11 }, (_, i) => `terminalDataWave${i + 2}`)].map(n => `agent/capabilities/${n}.js`)
+// waves 2 to 13 (wave 13 added 2026-11-24 by its builder: the list moves with every wave registered in terminalWaves.js)
+const WAVE_MODULES = ['terminalDataLocal', ...Array.from({ length: 12 }, (_, i) => `terminalDataWave${i + 2}`)].map(n => `agent/capabilities/${n}.js`)
 const WAVES_MODULE = 'agent/terminalWaves.js'
 const HOOK_MODULE = 'agent/terminalWavesHook.js'
 const isWaveSpec = (spec) => /(^|\/)(terminalDataLocal|terminalDataWave\d+|terminalWaves)(\.js)?$/.test(spec.split('?')[0])
@@ -124,7 +124,7 @@ describe('(a) builtins.js and the AgentPanel chunk hold no static path to the wa
     expect([...closure].filter(f => WAVE_MODULES.includes(f) || f === WAVES_MODULE)).toEqual([])
   }, 60000)
 
-  it('CONTROL: the same walk from terminalWaves.js reaches all twelve wave modules', () => {
+  it('CONTROL: the same walk from terminalWaves.js reaches all thirteen wave modules', () => {
     const closure = staticClosure([WAVES_MODULE])
     for (const f of WAVE_MODULES) expect(closure, f).toContain(f)
   })

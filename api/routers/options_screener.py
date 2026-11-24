@@ -99,4 +99,5 @@ def options_oi_change(sym: str, side: str = "any", _user: dict = Depends(require
     if out.get("status") == "unavailable":
         raise HTTPException(status_code=503,
                             detail=f"The options log is unavailable: {out.get('error')}")
-    return out
+    from api.services import held_bytes
+    return held_bytes.response(out)                # a repeat: the bytes kept for it (speed pass 3), the same bytes

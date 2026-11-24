@@ -37,6 +37,9 @@ about 3.9 MB, all of it the store read (STAT's first read peaks the same); the s
 An answer is about 24 KB as JSON and about 74 KB held.
 
 Never the shared cache: the answers are held in this module.
+
+THE READY ANSWER'S BYTES ARE MADE ONCE, ON THE BUILD THREAD (speed pass 3, 2026-11-24; STAT's change): `_keep` hands each
+held answer to `held_bytes.remember`, and the route sends those bytes. Same bytes.
 """
 from __future__ import annotations
 
@@ -48,6 +51,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from api.services import held_build
+from api.services import held_bytes
 from api.services import stock_stats_calc as SC
 from api.services import volume_footprint_calc as C
 
@@ -180,13 +184,20 @@ def _keep(sym: str, key: str, answer: dict, stamp: tuple, now: float) -> None:
     if status not in ("ok", "not_held"):
         return                                        # a failed read is never held
     lagging = status == "not_held" or (answer.get("data_through") or "") < key
+    held_bytes.remember(answer)                       # its bytes, made here on the build thread, never on a request
+    dropped = []
     with _lock:
+        old = _cache.get(sym)
+        if old is not None and old["answer"] is not answer:
+            dropped.append(old["answer"])
         _cache[sym] = {"key": key, "at": now, "answer": answer, "earn_stamp": stamp,
                        "earn_check_at": now + EARNINGS_RECHECK_S,
                        "recheck_at": now + LAG_RECHECK_S if lagging else None}
         _cache.move_to_end(sym)
         while len(_cache) > CACHE_MAX:
-            _cache.popitem(last=False)
+            dropped.append(_cache.popitem(last=False)[1]["answer"])
+    for gone in dropped:
+        held_bytes.forget(gone)
 
 
 def _held(sym: str, key: str, now: float) -> Optional[dict]:
@@ -305,6 +316,8 @@ def reset_for_tests() -> None:
     """Tests only: forget everything this module holds."""
     global _slots, _gen
     with _lock:
+        for entry in _cache.values():
+            held_bytes.forget(entry["answer"])
         _cache.clear()
         _inflight.clear()
         _said.clear()

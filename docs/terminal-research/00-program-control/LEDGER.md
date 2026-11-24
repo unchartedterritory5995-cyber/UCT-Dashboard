@@ -5274,11 +5274,30 @@ the unchanged full path. There are 2 deleted `api/` lines, both the rewritten ro
   (`tools/flow_worker_watch_coverage.py` `verdict()` on this change: those three offenders, nothing else).
 - **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.
 
+## Terminal speed pass 3 (FED's rates and headlines off the request; IVH, FED and RSL warmed at boot; FT-006 and OHIS on IVH's mirror; the ready answers' bytes made once) · `perf/terminal-speed-pass-3` · 2026-11-24
 ## Terminal review rev4 (a failed build's word kept only briefly in STAT / FCTX / VFP; the estimate snapshot's catch-up stops reading at the next open) · `fix/terminal-review-rev4` · 2026-11-24
 
 | | |
 |---|---|
 | classification | **flow-worker stranded: NOT EXERCISED, safe; NO marker bump** |
+| stranded files | `api/routers/calendar.py`, `api/services/earnings_season.py`, `api/services/held_bytes.py` (new), `api/services/research/iv_history.py`, `api/services/rs_ranking.py` |
+
+- **What changed.** FED's rates block and Fed headlines are served from what `fed_watch.py` holds and refreshed by one
+  background thread each (`rates_served`, `headlines_served`; the rates kept on disk for their New York day); IVH's R2
+  mirror, FED's rates and headlines and the RS list's bytes are warmed by three boot DATE jobs (480, 540, 660 s,
+  `api/main.py`); the IV rank header and the options log history read IVH's mirror once it is ready
+  (`iv_history.mirror_sessions`); `/api/rs-rankings` makes its bytes when a source refreshes (`rs_ranking.on_change`,
+  `ibd_latest_nowait`, an equal rating table kept as the same object); STAT, VFP, ERNS, SETH one stock and OIC send a
+  held answer as the bytes made for it once (`held_bytes.py`), and OIC's per-stock compute makes row dicts only for the
+  rows shown. No figure, field or word changes except one new FED sentence for headlines still being read.
+- **Flow-worker.** Reaches `calendar.py`, `earnings_season.py` and `held_bytes.py` only through function-level imports
+  (`coach_chat_tools` -> `voice_tool_impls` -> `econ_calendar_fmp` -> `routers.calendar`, then function-level imports
+  inside the ERNS route), `iv_history.py` only through `routers.auth`'s function-level flag readout
+  (`iv_history.is_enabled()`, unchanged), and `rs_ranking.py` only through `services.groups`' function-level import, a
+  Compass / voice turn or a groups read flow-worker never answers. Flow-worker mounts only its debug-dump and build-vouch
+  routers: it never serves the calendar, ERNS, an IV history, the RS list or a groups read. The other changed modules
+  are not in its closure (`tools/flow_worker_watch_coverage.py` `verdict()` on this change: those five offenders,
+  nothing else).
 | stranded files | `api/services/estimate_history.py` |
 
 - **What changed.** STAT, FCTX and VFP keep the word of a build that held nothing (a failed read, `busy`) only for
