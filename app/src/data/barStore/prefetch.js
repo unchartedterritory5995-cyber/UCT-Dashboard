@@ -326,6 +326,8 @@ export function createPrefetch(o = {}) {
   let batch = null
   /** key → AbortController of the latest urgent prefetchBars call. */
   const urgentCtl = new Map()
+  /** key → the bucket a next row was asked again in after a roll (_reaskNext: once per row per bucket). */
+  const nextReasked = new Map()
   const intentTimers = new Map()
   /** key -> when this module last got an answer for an intraday key (the short-series stand-down) */
   const shortFullAt = new Map()
@@ -440,7 +442,7 @@ export function createPrefetch(o = {}) {
    */
   async function ensure(key, {
     until = PREPARED, depth = 0, priority = 'urgent', signal = null, session: sess = session(),
-    warm = false, front = false, local = true, _s0 = null, own = false,
+    warm = false, front = false, local = true, _s0 = null, own = false, full = false,
   } = {}) {
     const s0 = _s0 ?? await _hydrate(key)   // a caller that already hydrated passes its snapshot
     if (_satisfied(s0, until, depth) && (local || s0.restSeen)) return s0
@@ -450,7 +452,7 @@ export function createPrefetch(o = {}) {
     // `own`: the SWITCH's own ask (prepareForDisplay, askForDisplay). Only its answer starts the "name not printing" grace
     // of `_behindClock`; every other answer (a list's, a warm's, the tail's) cools the key and lends nothing: see there.
     if (own) a.own = true
-    const s = await S().ensure(key, { until, depth, priority, signal, session: sess, hydrated: true, warm, front })
+    const s = await S().ensure(key, { until, depth, priority, signal, session: sess, hydrated: true, warm, front, full })
     // Only an ANSWER starts the cooldown: an aborted request or a shed / failed one gives
     // the slot back (the lane's 503 backoff is what paces a shedding server).
     // ⭐ (review of fb6fed4328, LOW) AN ABORTED ASK WAS NEVER AN ASK: the row keeps the record it had before (its last
@@ -528,13 +530,35 @@ export function createPrefetch(o = {}) {
     const ext = session(showExtended) === 'eth'
     if (ext && Number(p.tf) >= 60) return 0
     // the DEVELOPING row counts too: at a bucket roll the just-closed bucket is still the forming row until its
-    // seal lands, and a copy holding it holds the frontier (a copy whose forming row is OLDER is still behind)
-    const tailT = Math.max(rows[rows.length - 1].t, s.developing?.t ?? -Infinity)
+    // seal lands, and a copy holding it holds the frontier (a copy whose forming row is OLDER is still behind).
+    // ⛔ ...ONLY A COPY READ AFTER THAT BUCKET CLOSED (live session 2026-11-24, 6 of 146 presses). A copy read BEFORE the
+    // roll (the urgent next-row warm's answer, ~5 s before the press) holds that bucket as it was while it formed, and
+    // its sealed close is missing: counted as the frontier, the press showed it in the key task one closed bar short
+    // (the chart draws no forming bar of a bucket that has closed) and the minute came 34-250 ms later.
+    let tailT = rows[rows.length - 1].t
+    const dev = s.developing
+    if (dev && Number.isFinite(dev.t) && _devHoldsFrontier(key, s, dev.t, p.tf)) tailT = Math.max(tailT, dev.t)
     const n = expectedBarsBehind(tailT, p.tf, now(), { session: ext ? 'extended' : 'rth' })
     return n == null || n < 1 ? 0 : n
   }
+  /** Does `s`'s developing bar (bucket `devT`) hold the frontier: its bucket still open, or the copy read after it closed
+   *  (the server's proof `verified_through`, or an answer of this facade, at or after the bucket's end)? */
+  function _devHoldsFrontier(key, s, devT, tf) {
+    const end = bucketEndUnix(devT, tf)
+    if (!(end <= now() / 1000)) return true
+    if (Number.isFinite(s.verifiedThrough) && s.verifiedThrough >= end) return true
+    const a = asked.get(key)
+    return !!(a?.answered && a.at >= end * 1000)
+  }
+  /** When the current bucket of `tf` opened (ms): the roll the server's write lag is measured from. */
+  const _rollMs = (tf) => bucketEndUnix(Math.floor(now() / 1000), tf) * 1000 - Number(tf) * 60_000
   function _behindClock(key, s, showExtended) {
-    if (_bucketsBehind(key, s, showExtended) < 1) return false
+    const n = _bucketsBehind(key, s, showExtended)
+    if (n < 1) return false
+    return !_ownGrace(key, s, n)
+  }
+  /** The switch's own answer, still `n` buckets behind: is it the name not printing (painted as it is), see below. */
+  function _ownGrace(key, s, n) {
     const a = asked.get(key)
     // ⛔ (review of #2619, MEDIUM-1, and its re-review (A)) THE GRACE IS THE SWITCH'S OWN, BY CONSTRUCTION: only an answer to
     // an ask marked `own` (prepareForDisplay's and askForDisplay's, at `visible` rank) starts it. Any other ask made a few
@@ -544,7 +568,44 @@ export function createPrefetch(o = {}) {
     // closed bar, which then appeared (the owner's 2026-11-20 complaint, at every boundary). So such an answer stays behind
     // here: the press asks for itself (at most BEHIND_HOLD_MAX_MS, then the copy paints as it is). Its own answer, still
     // behind, is what says the name is not printing: the next presses inside BEHIND_RECHECK_MS paint it at once.
-    return !(a?.answered && a.own && now() - a.at < BEHIND_RECHECK_MS)
+    if (!(a?.answered && a.own && now() - a.at < BEHIND_RECHECK_MS)) return false
+    // ⛔ ...BUT NOT WHERE IT CANNOT MEAN THAT (live session 2026-11-24: AMD and AMAT 3-5 s after a roll, RDDT two closed bars
+    // short; each painted short for 166 ms to ~1 s):
+    //   * one bucket behind inside TAIL_LAG_WINDOW_MS of the roll: the server has not stored the bucket that just closed
+    //     (its since= path reads the store, the heal lands later); that is the server's lag, not the name;
+    //   * two buckets or more behind: never (the price feed of a name this far behind is a server that lags or failed);
+    //   * the server itself marked the tail `unverified` (it served the store without its pending repair).
+    // The press then holds at most BEHIND_HOLD_MAX_MS for its re-ask (_askOwn) and paints what it has.
+    if (n >= 2) return false
+    if (s?.tailStatus === 'unverified') return false
+    const tf = parseKey(key)?.tf
+    if (tf && now() - _rollMs(tf) < TAIL_LAG_WINDOW_MS) return false
+    return true
+  }
+
+  /**
+   * The switch's own ask of a copy behind the clock, and ONE more WITHOUT since= when its answer is still behind and no
+   * grace says the name is not printing (live session 2026-11-24, RDDT: the since= answer came back three minutes short,
+   * racing the server's heal; the full read 130 ms later was current). Resolves with the last answer.
+   */
+  function _askOwn(key, { signal = null, s0 = null, showExtended, until = ASK_AGAIN } = {}) {
+    const sess = session(showExtended)
+    return ensure(key, { until, priority: 'visible', signal, warm: false, local: false, _s0: s0 || S().peek(key) || {}, session: sess, own: true })
+      .then((s1) => (_reaskWhole(key, s1, { signal, showExtended }) ?? s1))
+  }
+  /** The switch's own answer `s` (no copy painted meanwhile): still behind with no grace, it is asked once more in full and
+   *  the press waits at most BEHIND_HOLD_MAX_MS for that answer; past it, what the store holds paints as it is. */
+  async function _wholeOrAsIs(key, s, { signal = null, showExtended } = {}) {
+    const again = _reaskWhole(key, s, { signal, showExtended })
+    if (!again) return s
+    const s2 = await Promise.race([again, new Promise((resolve) => setTimer(() => resolve(undefined), BEHIND_HOLD_MAX_MS))])
+    return s2 || S().peek(key) || s
+  }
+  /** The one full re-ask (see _askOwn), or null when the answer `s1` needs none. */
+  function _reaskWhole(key, s1, { signal = null, showExtended } = {}) {
+    const cur = S().peek(key)
+    if (signal?.aborted || !s1 || !cur || s1.error || !_behindClock(key, cur, showExtended)) return null
+    return ensure(key, { until: ASK_AGAIN, priority: 'visible', signal, warm: false, local: false, _s0: cur, session: session(showExtended), own: true, full: true })
   }
 
   /** The key's last answer (ANY ask's) landed less than BEHIND_RECHECK_MS ago: a warm asking again now would most likely
@@ -715,9 +776,10 @@ export function createPrefetch(o = {}) {
           if (!_behindClock(key, h, showExtended)) return LOCAL_PAINTS
           return new Promise((resolve) => setTimer(() => resolve(LOCAL_PAINTS), BEHIND_HOLD_MAX_MS))
         })
-        const won = await Promise.race([req, localFirst, _lakeAlone(lake, t0, key, fetchTf(String(tf)), showExtended)])
+        let won = await Promise.race([req, localFirst, _lakeAlone(lake, t0, key, fetchTf(String(tf)), showExtended)])
         if (won === LOCAL_PAINTS) { await _joined(lake); return 'current' }
         if (won === LAKE_PAINTS) return 'lake'
+        if (!date) won = await _wholeOrAsIs(key, won, { signal, showExtended })
         return _whole(_outcome(won, { aborted: !!signal?.aborted, date }), lake)
       }
       // A SERVER answer is already held and the chart paints it (see HANDOFF_PAINTS): commit,
@@ -728,7 +790,8 @@ export function createPrefetch(o = {}) {
       if ((heldPaints || localPaints) && !date && _behindClock(key, s0, showExtended)) {
         // A paintable copy behind the clock: ask for the tail first (one request, ~50-110 ms) and paint the
         // answer; past BEHIND_HOLD_MAX_MS the copy paints as it is and the answer lands on the chart.
-        const req = ensure(key, { until: ASK_AGAIN, priority: 'visible', signal, warm: false, local: false, _s0: s0, session: session(showExtended), own: true })
+        // (its answer still behind with no grace: one more ask, in full, inside the same hold: _askOwn)
+        const req = _askOwn(key, { signal, s0, showExtended })
         await Promise.race([req, new Promise((resolve) => setTimer(resolve, BEHIND_HOLD_MAX_MS))])
         await _joined(lake)
         return 'current'
@@ -744,8 +807,9 @@ export function createPrefetch(o = {}) {
       // for the same URL joins it.
       const req = ensure(key, { until: date ? DAILY_PREPARED : PREPARED, priority: 'visible', signal, warm: false, local: false, _s0: s0, session: session(showExtended), own: true })
       // (a D/W/M key never paints from the lake: network.lakeSeed carries intraday keys only)
-      const s = await Promise.race([req, _lakeAlone(lake, t0, key, fetchTf(String(tf)), showExtended)])
+      let s = await Promise.race([req, _lakeAlone(lake, t0, key, fetchTf(String(tf)), showExtended)])
       if (s === LAKE_PAINTS) return 'lake'
+      if (!date) s = await _wholeOrAsIs(key, s, { signal, showExtended })
       return _whole(_outcome(s, { aborted: !!signal?.aborted, date }), lake)
     } catch {
       return 'error'
@@ -1073,12 +1137,41 @@ export function createPrefetch(o = {}) {
         if (!k) continue
         if (!urgentCtl.has(k)) urgentCtl.set(k, new AbortController())
         const c = urgentCtl.get(k)
-        // Legacy: the chart's own URL (no `&warm`), at the head of the queue.
-        prefetch([k], { priority: 'urgent', signal: c.signal, front: true }).finally(() => { if (urgentCtl.get(k) === c) urgentCtl.delete(k) })
+        const done = () => { if (urgentCtl.get(k) === c) urgentCtl.delete(k) }
+        const held = S().peek(k)
+        if (_reaskNext(k, held)) {
+          // (a next row whose copy predates the current bucket: asked again, once per bucket, see _reaskNext)
+          ensure(k, { until: ASK_AGAIN, priority: 'urgent', signal: c.signal, front: true, local: false, _s0: held }).catch(() => {}).finally(done)
+        } else {
+          // Legacy: the chart's own URL (no `&warm`), at the head of the queue.
+          prefetch([k], { priority: 'urgent', signal: c.signal, front: true }).finally(done)
+        }
         tickerMeta(sym)
       }
     }
     _many(syms.slice(nUrgent), tf, 'background', { warm: true, front: !!priority })
+  }
+
+  /**
+   * ⭐ A NEXT ROW READ BEFORE THE ROLL IS ASKED AGAIN AFTER IT (live session 2026-11-24). The urgent next-row warm answers a
+   * row ~5 s before the member reaches it, and its answer cools the row for a bucket; a press right after a minute roll then
+   * found that copy one closed bar short (_bucketsBehind) and waited for its own ask. Here the next rows whose copy is
+   * behind the clock and whose last answer predates the current bucket are asked again: ONCE per row per bucket (a re-ask
+   * the server answered still behind is the server's lag, left to the switch's own ask), intraday, in the session.
+   */
+  function _reaskNext(k, s) {
+    if (!s?.bars?.length || preparing.get(k) || !inSession()) return false
+    const tf = parseKey(k)?.tf
+    if (!tf || !isIntradayTf(tf) || _bucketsBehind(k, s) < 1) return false
+    const b = bucketEndUnix(Math.floor(now() / 1000), tf) - 1
+    if (nextReasked.get(k) === b) return false
+    const a = asked.get(k)
+    if (a && !a.answered) return false                           // its ask is in flight
+    if (a?.answered && a.at >= _rollMs(tf)) return false          // already answered in this bucket
+    nextReasked.delete(k)
+    nextReasked.set(k, b)
+    if (nextReasked.size > COOLDOWN_MAX_KEYS) nextReasked.delete(nextReasked.keys().next().value)
+    return true
   }
 
   function prefetchBar(sym, tf = 'D') {

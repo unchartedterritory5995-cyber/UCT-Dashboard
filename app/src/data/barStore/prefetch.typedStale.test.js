@@ -138,8 +138,11 @@ describe('the handoff (Enter) · a copy behind the clock waits for its tail', ()
     const enter = w.pf.prepareForDisplay('THIN', '1')
     await w.server.drain()
     await expect(enter).resolves.toBe('current')
-    expect(w.server.calls.length).toBe(n + 1)                      // ...Enter asks once
-    expect(w.pf.peekDisplayable('THIN', '1')).toBe(true)           // its own answer, still behind: the name did not print
+    // ⛔ CHANGED 2026-11-24 (prefetch.firstFrameClosedBar.test.js C2/C3): Enter's own answer, 20 buckets behind, lends no
+    // grace and is asked once more in full inside the hold; the press then paints as it is
+    expect(w.server.calls.length).toBe(n + 2)
+    expect(w.server.calls.at(-1).q.since).toBe(null)
+    expect(w.pf.peekDisplayable('THIN', '1')).toBe(false)
     vi.setSystemTime(Date.now() + BEHIND_RECHECK_MS + 1000)
     expect(w.pf.peekDisplayable('THIN', '1')).toBe(false)          // later it is asked again
   })
