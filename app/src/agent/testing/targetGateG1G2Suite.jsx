@@ -21,6 +21,7 @@ import { loadAgentConfig, _resetAgentConfig } from '../agentClient'
 import { routingV2Active } from '../nlm1/flag'
 import { _resetTurns } from '../trace'
 import { rewriteClauses } from '../nlm1/followups'
+import { _setTerminalWavesImportForTest, _resetTerminalWavesLoaderForTest } from '../terminalWavesLoader'
 
 export const SLICES = 3
 
@@ -292,6 +293,67 @@ for (const v2 of [false, true]) describe(`G1/G2 target gate [routing ${v2 ? 'v2'
     const untouched = snapshot(m.board, 2).every((s, i) => s === before[i])
     expect(done || (!v2 && untouched && (asked() || p.turns() > calls)), transcript()).toBe(true)
     if (v2) expect(p.turns(), transcript()).toBe(calls)
+  }, 60000)
+})
+
+// ── #2677 (Terminal data waves in a lazily loaded chunk): the SAME rows as the VERY FIRST turn after mount, while the waves'
+// chunk has not loaded (its import held open) — the capabilities the waves register are not there yet, and no target rail may
+// behave differently: G2 / G1 / R1 and the raw-words row, both routings
+for (const v2 of [false, true]) describe(`G1/G2 target gate · first turn after mount, Terminal waves still loading [routing ${v2 ? 'v2' : 'v1'}]`, () => {
+  let wavesAsked = 0
+  beforeEach(async () => {
+    wavesAsked = 0
+    _setTerminalWavesImportForTest(() => { wavesAsked += 1; return new Promise(() => {}) })   // never resolves during the turn
+    p = setupPanel(); _resetTurns(); await routing(v2)
+  })
+  afterEach(() => { _resetTerminalWavesLoaderForTest(); vi.restoreAllMocks(); cleanup() })
+  const say = async (m, t) => { expect(routingV2Active()).toBe(v2); return m.say(t) }
+  const only0 = SLICE === 0 ? it : it.skip
+  it.each(mine(G2))('first turn, waves loading · G2 NVDA clicked: "%s" (%j, anaphor %s)', async (t, ops, ana) => {
+    const m = mount(['SPY', 'NVDA'], 'w1')
+    const before = snapshot(m.board, 2)
+    p.st.envelopes.push(plan(ops, 'SPY'))
+    await say(m, t)
+    expect(wavesAsked, 'the panel asked for the waves chunk, which has not loaded').toBeGreaterThan(0)
+    expect(stored(m.board, 'w1'), transcript()).toBe(before[1])
+    if (ana === 'none') {
+      const ran = ops.every(k => effect[k](m.board, 'w0'))
+      expect(ran || (asked() && snapshot(m.board, 2).every((s, i) => s === before[i])), transcript()).toBe(true)
+    } else {
+      expect(snapshot(m.board, 2), transcript()).toEqual(before)
+      expect(asked(), transcript()).toBe(true)
+    }
+  }, 60000)
+  it.each(mine(G1))('first turn, waves loading · G1 no click: "%s" → asked, nothing changed', async (t, ops) => {
+    const m = mount(['SPY', 'NVDA'])
+    const before = snapshot(m.board, 2)
+    p.st.envelopes.push(plan(ops, 'SPY'))
+    await say(m, t)
+    expect(wavesAsked).toBeGreaterThan(0)
+    expect(snapshot(m.board, 2), transcript()).toEqual(before)
+    expect(asked(), transcript()).toBe(true)
+  }, 60000)
+  it.each(mine(R1))('first turn, waves loading · R1 set word: "%s"', async (t, named, tf) => {
+    const m = mount(['SPY', 'NVDA'])
+    const before = snapshot(m.board, 2)
+    const id = named === 'SPY' ? 'w0' : 'w1'
+    p.st.envelopes.push((body) => p.env('apply', [OPS[tf](body, named), OPS.ema(body, 'SPY'), OPS.ema(body, 'NVDA')]))
+    const calls = p.turns()
+    await say(m, t)
+    expect(wavesAsked).toBeGreaterThan(0)
+    const done = effect[tf](m.board, id) && effect.ema(m.board, 'w0') && effect.ema(m.board, 'w1')
+    const untouched = snapshot(m.board, 2).every((s, i) => s === before[i])
+    expect(done || (!v2 && untouched && (asked() || p.turns() > calls)), transcript()).toBe(true)
+    if (v2) expect(p.turns(), transcript()).toBe(calls)
+  }, 60000)
+  only0('first turn, waves loading · RAW WORDS: "Change SPY to the 1-hour timeframe and give this one a 20 EMA." → asked, nothing changed', async () => {
+    const m = mount(['SPY', 'NVDA'])
+    const before = snapshot(m.board, 2)
+    p.st.envelopes.push(plan(['timeframe', 'ema'], 'SPY'))
+    await say(m, 'Change SPY to the 1-hour timeframe and give this one a 20 EMA.')
+    expect(wavesAsked).toBeGreaterThan(0)
+    expect(snapshot(m.board, 2), transcript()).toEqual(before)
+    expect(asked(), transcript()).toBe(true)
   }, 60000)
 })
 }
