@@ -1,0 +1,170 @@
+{
+ "version": 1,
+ "about": "E2E PRODUCT CEILINGS (agentE2eHarness.test.jsx oracle self-check): what the IDEAL answer scores on the panel when that is not success, as observed on origin/master (agent/pl/e2e-eval) AND on the NL-1 preflight fix (agent/pl/nl1-preflight-defer merged): the union per turn. The same for every arm: no model passes these through the rails. A fix that turns one into success adds \"success\".",
+ "observed": {
+  "master": "578122571e",
+  "fix": "7ecec91e8f"
+ },
+ "ceilings": {
+  "e2-b01#1": [
+   "unnecessary_ask"
+  ],
+  "e2-b02#0": [
+   "unnecessary_ask"
+  ],
+  "e2-b06#0": [
+   "unnecessary_ask"
+  ],
+  "e2-b06#1": [
+   "unnecessary_ask"
+  ],
+  "e2-b07#1": [
+   "wrong_action"
+  ],
+  "e2-b09#1": [
+   "unnecessary_ask"
+  ],
+  "e2-c01#0": [
+   "residue",
+   "success"
+  ],
+  "e2-c02#0": [
+   "residue",
+   "success"
+  ],
+  "e2-c03#0": [
+   "residue",
+   "success"
+  ],
+  "e2-c04#0": [
+   "residue",
+   "success"
+  ],
+  "e2-c05#0": [
+   "refusal",
+   "residue"
+  ],
+  "e2-c06#0": [
+   "refusal",
+   "residue"
+  ],
+  "e2-c07#0": [
+   "residue",
+   "success"
+  ],
+  "e2-c08#0": [
+   "residue",
+   "success"
+  ],
+  "e2-c09#0": [
+   "partial_silent"
+  ],
+  "e2-c10#0": [
+   "residue",
+   "success"
+  ],
+  "e2-c11#0": [
+   "residue",
+   "success"
+  ],
+  "e2-c12#0": [
+   "residue"
+  ],
+  "e2-fc01#1": [
+   "wrong_chart"
+  ],
+  "e2-fc02#1": [
+   "unsafe"
+  ],
+  "e2-fc03#1": [
+   "wrong_action"
+  ],
+  "e2-fc05#1": [
+   "wrong_chart"
+  ],
+  "e2-fc08#1": [
+   "unnecessary_ask"
+  ],
+  "e2-fc09#1": [
+   "wrong_chart"
+  ],
+  "e2-fc10#1": [
+   "wrong_action"
+  ],
+  "e2-t01#1": [
+   "wrong_chart"
+  ],
+  "e2-t02#1": [
+   "unsafe"
+  ],
+  "e2-t08#1": [
+   "wrong_action"
+  ],
+  "e2-t09#0": [
+   "unnecessary_ask"
+  ],
+  "e2-t09#1": [
+   "unnecessary_ask"
+  ],
+  "e2-t12#1": [
+   "wrong_action"
+  ],
+  "e2-tg01#0": [
+   "unnecessary_ask"
+  ],
+  "e2-tg02#0": [
+   "unnecessary_ask"
+  ],
+  "e2-tg04#0": [
+   "unnecessary_ask"
+  ],
+  "e2-tg05#0": [
+   "unnecessary_ask"
+  ],
+  "e2-tg06#0": [
+   "unnecessary_ask"
+  ],
+  "e2-tg07#0": [
+   "unnecessary_ask"
+  ],
+  "e2-tg08#0": [
+   "unnecessary_ask"
+  ],
+  "e2-tg10#0": [
+   "unnecessary_ask"
+  ],
+  "e2-x01#0": [
+   "unnecessary_ask"
+  ],
+  "e2-x04#0": [
+   "unnecessary_ask"
+  ],
+  "e2-x08#0": [
+   "unnecessary_ask"
+  ],
+  "e2-x09#0": [
+   "unnecessary_ask"
+  ],
+  "e2-x12#0": [
+   "unnecessary_ask"
+  ],
+  "rb-f12#1": [
+   "unnecessary_ask"
+  ],
+  "rb-m07#0": [
+   "unnecessary_ask"
+  ],
+  "rb-m22#0": [
+   "refusal"
+  ],
+  "rb-s07#0": [
+   "unnecessary_ask"
+  ],
+  "rb-s12#0": [
+   "unnecessary_ask"
+  ],
+  "rb-s13#0": [
+   "unnecessary_ask"
+  ]
+ }
+}

@@ -108,6 +108,7 @@ const NEUTRAL = {
   'rb-m09:dropLast': 'blind spot: watchlist.open opens a panel, outside the board snapshot',
   'e2-t11:otherChart': 'rail: the words name the chart',
   'e2-b05:otherChart': 'rail: "this one" re-targets to the clicked chart',
+  'e2-fc07:otherChart': 'rail: "this one" re-targets to the clicked chart',
 }
 
 describe('known-wrong answers score failure', () => {
