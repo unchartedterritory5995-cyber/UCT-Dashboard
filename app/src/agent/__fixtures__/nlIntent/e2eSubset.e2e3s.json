@@ -1,6 +1,6 @@
 {
- "version": 1,
- "about": "E2E line set (a) PROPOSED SWAP SCOPE e2e3s (11-24): the full e2eBench minus pane-conflict; correction-branch KEPT for its P0.2 shapes (b02 b03 b05 b07 b08 b10: \"undo that and ... instead\" + \"fix that, ...\"), the 4 branch cases without them dropped; 6 ticker-correction cases whose shape followup-correction already covers dropped (t02 t03 t04 t06 t08 t10); the 3 NEW crossed-target cases added; tg01 tg09 x05 x11 dropped to hold the cost. The SAME cases on every arm.",
+ "version": 2,
+ "about": "E2E line set (a) PROPOSED SWAP SCOPE e2e3s (11-24): the full e2eBench minus pane-conflict; correction-branch KEPT for its P0.2 shapes (b02 b03 b05 b07 b08 b10: \"undo that and ... instead\" + \"fix that, ...\"), the 4 branch cases without them dropped; 6 ticker-correction cases whose shape followup-correction already covers dropped (t02 t03 t04 t06 t08 t10); the 3 NEW crossed-target cases added; tg01 tg09 x05 x11 dropped to hold the cost. The SAME cases on every arm. v2 (11-24): + the 2 NEW correction-vague cases (e2-cv01 bare \"fix that\", e2-cv02 negated undo); the 4 cheapest cases outside correction-branch / followup-correction / crossed-target / correction-vague dropped to hold $3.92 (tg07 tg06 x06 p05).",
  "dropped_classes": [
   "pane-conflict"
  ],
@@ -9,6 +9,7 @@
   "e2-b04",
   "e2-b06",
   "e2-b09",
+  "e2-p05",
   "e2-t02",
   "e2-t03",
   "e2-t04",
@@ -16,19 +17,23 @@
   "e2-t08",
   "e2-t10",
   "e2-tg01",
+  "e2-tg06",
+  "e2-tg07",
   "e2-tg09",
   "e2-x05",
+  "e2-x06",
   "e2-x11"
  ],
  "strata": {
-  "pane-multistep": 12,
+  "pane-multistep": 11,
   "ticker-correction": 12,
   "correction-branch": 12,
-  "exclusion": 10,
+  "exclusion": 9,
   "followup-correction": 20,
-  "targeting": 8,
+  "targeting": 6,
   "side-by-side": 6,
-  "crossed-target": 3
+  "crossed-target": 3,
+  "correction-vague": 4
  },
  "cases": {
   "e2eBench.v1.json": [
@@ -36,7 +41,6 @@
    "e2-p02",
    "e2-p03",
    "e2-p04",
-   "e2-p05",
    "e2-p06",
    "e2-p07",
    "e2-p08",
@@ -60,7 +64,6 @@
    "e2-x02",
    "e2-x03",
    "e2-x04",
-   "e2-x06",
    "e2-x07",
    "e2-x08",
    "e2-x09",
@@ -80,8 +83,6 @@
    "e2-tg03",
    "e2-tg04",
    "e2-tg05",
-   "e2-tg06",
-   "e2-tg07",
    "e2-tg08",
    "e2-tg10",
    "e2-sb01",
@@ -92,11 +93,13 @@
    "e2-sb06",
    "e2-xt01",
    "e2-xt02",
-   "e2-xt03"
+   "e2-xt03",
+   "e2-cv01",
+   "e2-cv02"
   ]
  },
  "total": {
-  "cases": 61,
+  "cases": 59,
   "turns": 83
  }
 }

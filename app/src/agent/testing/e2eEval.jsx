@@ -138,6 +138,8 @@ export async function evaluateCase({ spec, c, arm, bank = new Map(), collect = n
     // (a question with no buttons — "Which charts should it go on?" — counts too, by the panel's own question words)
     const asked = t.newChoices.length > 0 || t.requests.some(q => q.envelope?.disposition === 'clarify')
       || /(?:which|what) (?:chart|charts|one|ones|list|indicator|pane|layout)\b[^?]{0,120}\?|did you mean\b[^?]{0,120}\?/i.test(t.reply)   // no leading \b: the text runs into the timestamp (\"…PMWhich\")
+      // a clarify expectation: an approval CARD left pending (nothing applied) is the member being asked too (P0.2's revert card)
+      || (e.kind === 'clarify' && t.card)
     const lookup = plansOf(e).length > 0 && plansOf(e).every(p => p.length && p.every(o => getCapability(o.a)?.query))
     const moved = (b) => JSON.stringify(entities(b)) !== JSON.stringify(entities(pre))
     const oracleMoved = oracle.boards.some(moved)

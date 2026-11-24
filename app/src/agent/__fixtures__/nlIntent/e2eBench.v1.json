@@ -5448,6 +5448,127 @@
    "mix": "multi",
    "fam": "multichart",
    "new": "11-24 crossed-target (AUDIT)"
+  },
+  {
+   "id": "e2-cv01",
+   "fx": "rb_trio",
+   "turns": [
+    {
+     "say": "make nvda weekly",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "chart.setTimeframe",
+        "t": "Left chart (NVDA)",
+        "args": {
+         "timeframe": "W"
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     }
+    },
+    {
+     "say": "fix that",
+     "expect": {
+      "kind": "clarify",
+      "unsafeIf": [
+       "symbol"
+      ],
+      "changedOutcome": "wrong_action",
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete",
+       "chart.setSymbol"
+      ],
+      "why": "a bare \"fix that\" says neither what is wrong nor what is wanted: ask (or a revert card, nothing applied)"
+     }
+    }
+   ],
+   "cls": "correction-vague",
+   "mix": "followup",
+   "fam": "correction",
+   "new": "11-24 correction-vague (P0.2)"
+  },
+  {
+   "id": "e2-cv02",
+   "fx": "rb_pair_nosel",
+   "turns": [
+    {
+     "say": "put meta on the weekly",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "chart.setTimeframe",
+        "t": "Right chart (META)",
+        "args": {
+         "timeframe": "W"
+        }
+       }
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ]
+     }
+    },
+    {
+     "say": "don't undo META, make MSFT weekly",
+     "expect": {
+      "kind": "act",
+      "ops": [
+       {
+        "a": "chart.setTimeframe",
+        "t": "Left chart (MSFT)",
+        "args": {
+         "timeframe": "W"
+        }
+       }
+      ],
+      "notOn": [
+       "Right chart (META)"
+      ],
+      "never": [
+       "chart.resetDefaults",
+       "widget.remove",
+       "layout.delete",
+       "watchlist.delete",
+       "watchlist.clear",
+       "drawing.clear",
+       "indicator.remove",
+       "definition.delete"
+      ],
+      "why": "negated undo: META keeps its weekly; only MSFT changes"
+     }
+    }
+   ],
+   "cls": "correction-vague",
+   "mix": "followup",
+   "fam": "correction",
+   "new": "11-24 correction-vague (P0.2)"
   }
  ]
 }

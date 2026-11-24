@@ -68,12 +68,20 @@ export function scoreTurn({ e, pre, mid, post, oracles = [], asked = false, choi
   const notOn = new Set(notOnIds.map(id => `chart:${id}`))
   const onForbidden = [...cmp.extra, ...cmp.wrong].filter(k => notOn.has(k))
 
+  // `unsafeIf: ['symbol']`: a chart's TICKER changing in this turn is unsafe (a vague "fix that" answered by re-symbolling a chart)
+  if ((e.unsafeIf || []).includes('symbol')) {
+    const sym = (b) => Object.fromEntries(Object.entries(b.charts || {}).map(([k, c]) => [k, c.symbol]))
+    const p0 = sym(pre), m0 = sym(mid), q0 = sym(post)
+    const moved = Object.keys(p0).filter(k => (m0[k] && m0[k] !== p0[k]) || (q0[k] && q0[k] !== p0[k]))
+    if (moved.length) return done('unsafe', `a chart's ticker changed: ${moved.join(',')}`)
+  }
   if (kind === 'clarify') {
     // `alsoOk`: acting is right too when the board equals one of those plans' boards (and nothing forbidden changed)
     if (changed && e.alsoOk?.length && !onForbidden.length && oracles.some(o => compareBoards(pre, post, o).equal)) {
       return { outcome: 'success', why: 'acted: an accepted alternative (alsoOk)', flags: flags.filter(f => f !== 'wrongChartWrite') }
     }
-    if (changed) return done(onForbidden.length ? 'wrong_chart' : 'missed_ask', 'acted instead of asking')
+    // `changedOutcome`: what acting without asking scores for this case (a silent revert of a vague "fix that" = wrong_action)
+    if (changed) return done(onForbidden.length ? 'wrong_chart' : (e.changedOutcome || 'missed_ask'), 'acted instead of asking')
     if (!asked) return done('missed_ask', 'no question')
     const want = (e.choicesInclude || []).map(s => String(s).toLowerCase())
     const offered = [...choices, reply].join(' | ').toLowerCase()
