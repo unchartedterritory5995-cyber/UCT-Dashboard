@@ -275,6 +275,15 @@ export const TAIL_MAX_INFLIGHT = 3
  * No cap changes: at most this many more entries per hold (each the warm's first-paint bars, 960-1,199 rows).
  */
 export const NEIGHBOR_KEEP_AHEAD = 30
+/**
+ * ⛔ ...AND AT MOST THIS MANY IN ALL, ON THE WHOLE PAGE (review of #2691, MEDIUM-1). One hold per timeframe of a list: a
+ * colour with five chart timeframes had five holds pinning 30 rows each, ~185 of the registry's 200 keys with their +-6,
+ * and every warm no list pins (the typed and hover warms, the dwell's, another list's) was evicted within a few later
+ * warms. The holds keeping rows share this total, nearest rows first: 30 each for one or two holds (the 1m + 15m board
+ * unchanged), 20 for three, 15 for four, 12 for five. A hold that joins trims the others at once; one that leaves
+ * (clear, or a `set` with no keep) gives its share back at their next `set`.
+ */
+export const NEIGHBOR_KEEP_TOTAL = 60
 /** Does the entry hold rows (closed or the developing one)? What a kept row must hold to be pinned (see above). */
 const _holdsRows = (s) => !!s && (s.bars.length > 0 || !!s.developing)
 /** (review of fb6fed4328, MEDIUM-1) THE SERVER'S WRITE LAG. A tail answer that lands exactly ONE bucket behind within
@@ -348,6 +357,9 @@ export function createPrefetch(o = {}) {
   /** key → AbortController of the latest urgent prefetchBars call. */
   const urgentCtl = new Map()
   const intentTimers = new Map()
+  /** The neighbour holds keeping rows ahead now (`keep`): they share NEIGHBOR_KEEP_TOTAL. */
+  const keepers = new Set()
+  const _keepShare = () => Math.min(NEIGHBOR_KEEP_AHEAD, Math.floor(NEIGHBOR_KEEP_TOTAL / Math.max(1, keepers.size)))
   /** key -> when this module last got an answer for an intraday key (the short-series stand-down) */
   const shortFullAt = new Map()
   function _noteFull(key) {
@@ -1203,7 +1215,17 @@ export function createPrefetch(o = {}) {
   // and two lists on one colour group that both hold the symbol both open theirs (each bounded as above).
   function createNeighborHold() {
     let held = new Map()   // key → true
-    let kept = new Map()   // key → true: the rows ahead pinned against the registry's LRU (`keep`, NEIGHBOR_KEEP_AHEAD)
+    let kept = new Map()   // key → true: the rows ahead pinned against the registry's LRU (`keep`), nearest first
+    // this hold in the page's keep budget (NEIGHBOR_KEEP_TOTAL): trims its kept rows to `n`, the farthest released first
+    const keeper = {
+      trim(n) {
+        if (kept.size <= n) return
+        const st = S()
+        const next = new Map()
+        for (const k of kept.keys()) { if (next.size < n) next.set(k, true); else st.registry.release(k) }
+        kept = next
+      },
+    }
     let deepTimer = null
     let dateTimer = null
     let deepGen = 0
@@ -1395,8 +1417,14 @@ export function createPrefetch(o = {}) {
         held = want
         // the rows ahead: pinned only (no read, no ask: the list's warm fills them), released once the member is past them;
         // only an entry holding rows (an empty pin would hide the row's copies from the first looks: see NEIGHBOR_KEEP_AHEAD)
+        // this hold's share of the page's budget: joining trims the others to the new share at once (the total never
+        // passes NEIGHBOR_KEEP_TOTAL), and a `set` with no keep leaves the budget
+        if (keepSyms?.length) {
+          if (!keepers.has(keeper)) { keepers.add(keeper); const n = _keepShare(); for (const h of keepers) if (h !== keeper) h.trim(n) }
+        } else keepers.delete(keeper)
+        const share = keepers.has(keeper) ? _keepShare() : 0
         const keepWant = new Map()
-        for (const sym of (keepSyms || []).slice(0, NEIGHBOR_KEEP_AHEAD)) {
+        for (const sym of (keepSyms || []).slice(0, share)) {
           const k = keyFor(sym, tf, { showExtended })
           if (!k || keepWant.has(k)) continue
           if (kept.has(k)) keepWant.set(k, true)
@@ -1455,6 +1483,7 @@ export function createPrefetch(o = {}) {
         held = new Map()
         for (const k of kept.keys()) st.registry.release(k)
         kept = new Map()
+        keepers.delete(keeper)
       },
       keys: () => [...held.keys()],
     }
