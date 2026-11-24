@@ -246,7 +246,7 @@ _migrating = threading.Event()
 
 @contextmanager
 def _report_lock():
-    """`with _report_lock() as held:` the store's lock for one report (`held` True), or `held` False AT ONCE when the
+    """`with _report_lock() as locked:` the store's lock for one report (`locked` True), or False AT ONCE when the
     one-time rebuild has the store or is asking for it. Reports still wait for each other, in 50 ms slices, so a
     waiting one sees the rebuild start and gives way."""
     held = False
@@ -670,8 +670,8 @@ def _record_switches(row: dict[str, Any], ip: str | None, now: float) -> dict[st
     global _last_prune
     held = sum(sum(counts) for _, counts in row["cells"])
     key, key_before = _rate_keys(ip, now)
-    with _report_lock() as held:
-        if not held:
+    with _report_lock() as locked:
+        if not locked:
             return {"stored": 0, "dropped": 1, "invalid": 0}      # the one-time rebuild has the store
         conn = _connect()
         try:
@@ -725,8 +725,8 @@ def record(report: Any, *, ip: str | None, country_header: str | None, now: floa
     if kind == "switches":
         return _record_switches(row, ip, now)
     key, key_before = _rate_keys(ip, now)
-    with _report_lock() as held:
-        if not held:
+    with _report_lock() as locked:
+        if not locked:
             return {"stored": 0, "dropped": 1, "invalid": 0}      # the one-time rebuild has the store
         conn = _connect()
         try:
