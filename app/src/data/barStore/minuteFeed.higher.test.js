@@ -30,6 +30,7 @@
 //               H12 ...one 29 minutes back inside a 60m bucket is still settled exactly
 //   LEFT ALONE  H13 a key a chart is on (fed once the chart leaves)      H13b no answer, a saved copy, a pending full re-read
 //               H14 the extended 60m key, a windowed key, a D key        H14b what makes the feed poll
+//               H19 a key many buckets behind is brought forward in one go (the walk's bound is not what stops it)
 //   COST        H18 a symbol no longer held is forgotten by the rollup too (its minutes and buckets are not kept all day)
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { createRegistry } from './registry'
@@ -495,6 +496,18 @@ describe('minute feed · 5m-60m: what is left exactly as it is', () => {
     w.active.delete(w.key('AAA', '15'))
     w.frame(47)
     expect(w.tail('AAA', '15')).toMatchObject({ ...w.agg(30, 44), src: 'final' })
+  })
+
+  it('H19 a 5m key a chart was on for 70 minutes is brought forward bucket by bucket in one go, as far as its minutes are kept', () => {
+    const w = world()
+    w.answer('AAA', '5', { closed: [[20, 24], [25, 29]] })
+    w.active.add(w.key('AAA', '5'))
+    w.frames(30, 99)
+    expect(w.tail('AAA', '5').t).toBe(w.T(25))
+    w.active.delete(w.key('AAA', '5'))
+    w.frame(100)
+    expect(w.starts('AAA', '5', 25)).toEqual([25, ...Array.from({ length: 14 }, (_, i) => 30 + 5 * i)])   // 10:00 .. 11:05
+    expect(w.feeder.stats()).toMatchObject({ appended: 14, rejected: 0 })
   })
 
   it('H13b no answer yet, a saved (local) copy, a copy held for a full re-read: none is fed', () => {

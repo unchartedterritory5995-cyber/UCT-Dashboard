@@ -307,7 +307,9 @@ export function createMinuteFeeder({
       redo.clear()
     }
     // 2) THE WALK, one level up: the bucket right after the newest closed one, only when it is WHOLE; else stop.
-    while (s) {
+    //    (Bounded by construction, not by argument: every pass appends a later bucket, and no more whole buckets than
+    //    minutes are kept can exist.)
+    for (let n = 0; s && n < RING_MINUTES; n++) {
       const dev = s.developing
       const nf = s.newestForming
       // THE NIGHT (the header): the forming bar the server's answer named as its newest bar, at the session's first
