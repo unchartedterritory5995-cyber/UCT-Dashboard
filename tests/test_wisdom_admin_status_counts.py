@@ -10,8 +10,8 @@ into a member's sentence on a screen. This route answers **how much is in there*
 The AST test below reads the route module and refuses any SELECT of a text-bearing column.
 
 ⚠️ No new route was added. The counts extend the EXISTING `GET /api/admin/wisdom/core/status`,
-so the pinned 27-route list and the dark-check walk are untouched — a promotion that adds no
-surface is a promotion with less to argue about.
+so the pinned route list (27 routes when R45 landed) and the dark-check walk are untouched —
+a promotion that adds no surface is a promotion with less to argue about.
 """
 from __future__ import annotations
 
@@ -174,6 +174,12 @@ def test_a_records_pending_failure_reports_null_rather_than_killing_the_route():
 
 def test_no_new_route_was_added_so_the_pinned_list_is_untouched():
     """⭐ R45 extends an existing route on purpose. If this ever becomes a 28th route, the pinned
-    EXPECTED_GET_ROUTES and the literal 27 must both move — and this test is the reminder."""
+    EXPECTED_GET_ROUTES and the literal 27 must both move — and this test is the reminder.
+
+    ⚰️ The reminder fired, and the claim was re-checked: the pin moved 27 -> 39 -> 44 -> 45 -> 46 for the
+    trader archive's admin and paid member routes (owner rulings 2026-10-15/16: cd442599cb, 3f43f6e3bb,
+    5de469c3e0; the Team history route, e0cb24f047), none of them R45's. R45 still extends the one
+    status route, which is still in the pinned list."""
     floor_tests = (REPO / "tests" / "test_wisdom_item3_floor.py").read_text(encoding="utf-8")
-    assert "== 27" in floor_tests, "the route count pin moved; R45's no-new-surface claim is stale"
+    assert "== 46" in floor_tests, "the route count pin moved; R45's no-new-surface claim is stale"
+    assert '("/api/admin/wisdom/core/status", "admin")' in floor_tests
