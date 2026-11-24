@@ -1,13 +1,35 @@
 """Tests for ticker_meta service."""
+from types import SimpleNamespace
+
 import pytest
 from unittest.mock import patch, MagicMock
-from api.services import ticker_meta
+from api.services import fmp_client, ticker_meta
 
 # All-None shape _from_fmp returns on a total miss — used to deterministically
 # neutralize the FMP leg in tests that are exercising something else (yfinance
 # happy-path / Finnhub-fallback), so they never depend on whether FMP_API_KEY
 # happens to be set in the ambient environment.
 _FMP_EMPTY = {"name": None, "sector": None, "industry": None, "market_cap_musd": None}
+
+
+def _fmp_profile(body):
+    """Patch the profile read `_from_fmp` ACTUALLY makes -- `fmp_client.get_company_profile` -- and
+    answer it the way the adapter does: a body comes back in the result envelope, an empty list is
+    the adapter's typed not-found, and None stands for a failed call (what the retired
+    `earnings_estimates._fmp_get` returned for one).
+
+    ⛔ These tests used to patch `earnings_estimates._fmp_get`, which `_from_fmp` stopped calling in
+    553f6b68bf (2026-09-12, the D1 typed-adapter migration). From then the patch intercepted
+    nothing: the real adapter ran -- refused on a runner for want of a key, so every FMP
+    expectation read None (red on master, run 45321831045), and a live FMP request on any box
+    that has FMP_API_KEY set."""
+    def _answer(ticker, *, timeout=None):
+        if body is None:
+            raise fmp_client._ERR.transient("FMP unavailable (test)")
+        if body == []:
+            raise fmp_client._ERR.not_found("no data for this request (test)")
+        return SimpleNamespace(value=body, degraded=None)
+    return patch.object(fmp_client, "get_company_profile", side_effect=_answer)
 
 
 def _yf_info(longName="Tesla Inc", sector="Consumer Cyclical",
@@ -229,23 +251,22 @@ def test_fmp_is_tried_before_finnhub_and_finnhub_skipped_on_fmp_hit():
          patch.object(ticker_meta, "_disk_put"), \
          patch.object(ticker_meta, "_primary_theme", return_value=None), \
          patch("yfinance.Ticker", side_effect=Exception("yf down")), \
-         patch("api.services.earnings_estimates._fmp_get",
-               return_value=[_fmp_row()]) as FMP, \
+         _fmp_profile([_fmp_row()]) as FMP, \
          patch.object(ticker_meta, "fh_get") as FH:
         out = ticker_meta.get_ticker_meta("AAPL")
     assert out == {"name": "Apple Inc.", "sector": "Technology",
                    "industry": "Consumer Electronics", "exchange": None, "theme": None}
     FMP.assert_called_once()
-    assert FMP.call_args[0][0] == "/stable/profile"
-    assert FMP.call_args[0][1] == {"symbol": "AAPL"}
+    # the profile read for the asked ticker (the adapter's own rail pins `/stable/profile` and
+    # its params: tests/test_fmp_client_gaps_g2_g4.py)
+    assert FMP.call_args[0][0] == "AAPL"
     FH.assert_not_called()  # Finnhub never reached — FMP already filled the name
 
 
 def test_fmp_field_mapping_happy_path():
     """Direct unit test of the field-shape mapping table: companyName->name,
     sector/industry split correctly (Finnhub profile2 had no sector at all)."""
-    with patch("api.services.earnings_estimates._fmp_get",
-               return_value=[_fmp_row(companyName="Apple Inc.", sector="Technology",
+    with _fmp_profile([_fmp_row(companyName="Apple Inc.", sector="Technology",
                                        industry="Consumer Electronics")]):
         out = ticker_meta._from_fmp("AAPL")
     assert out["name"] == "Apple Inc."
@@ -259,8 +280,7 @@ def test_fmp_market_cap_unit_conversion_asserts_magnitude():
     marketCapitalization used. Assert the CONVERTED magnitude, not just presence —
     a bug that skips the /1e6 conversion (or divides by the wrong power) must
     fail this on the number, not silently pass on "field exists"."""
-    with patch("api.services.earnings_estimates._fmp_get",
-               return_value=[_fmp_row(marketCap=4567767716000)]):
+    with _fmp_profile([_fmp_row(marketCap=4567767716000)]):
         out = ticker_meta._from_fmp("AAPL")
     assert out["market_cap_musd"] == pytest.approx(4567767.716, rel=1e-9)
     # Sanity bound: a real megacap's market cap in MILLIONS is a 6-7 digit
@@ -272,8 +292,7 @@ def test_fmp_market_cap_unit_conversion_asserts_magnitude():
 def test_fmp_none_fields_yield_none_not_fabricated():
     """Any field FMP doesn't supply renders None — never 0, never "", never a
     fabricated value (honest-degradation law)."""
-    with patch("api.services.earnings_estimates._fmp_get",
-               return_value=[_fmp_row(companyName=None, sector=None,
+    with _fmp_profile([_fmp_row(companyName=None, sector=None,
                                        industry=None, marketCap=None)]):
         out = ticker_meta._from_fmp("ZZZZ")
     assert out == {"name": None, "sector": None, "industry": None, "market_cap_musd": None}
@@ -286,8 +305,7 @@ def test_fmp_none_fields_yield_none_not_fabricated():
 def test_fmp_missing_marketcap_key_entirely_yields_none():
     """A row that simply omits the marketCap key (not just null) must also
     yield None, not raise a KeyError or coerce to 0."""
-    with patch("api.services.earnings_estimates._fmp_get",
-               return_value=[{"companyName": "No Cap Co"}]):
+    with _fmp_profile([{"companyName": "No Cap Co"}]):
         out = ticker_meta._from_fmp("NOCAP")
     assert out["name"] == "No Cap Co"
     assert out["market_cap_musd"] is None
@@ -315,8 +333,7 @@ def test_fmp_partial_then_finnhub_fills_remainder():
          patch.object(ticker_meta, "_disk_put") as DP, \
          patch.object(ticker_meta, "_primary_theme", return_value=None), \
          patch("yfinance.Ticker", side_effect=Exception("yf down")), \
-         patch("api.services.earnings_estimates._fmp_get",
-               return_value=[_fmp_row(companyName=None, sector="Technology",
+         _fmp_profile([_fmp_row(companyName=None, sector="Technology",
                                        industry="Semiconductors")]), \
          patch.object(ticker_meta, "fh_get",
                       return_value={"name": "Micron Technology Inc", "finnhubIndustry": "Technology"}):

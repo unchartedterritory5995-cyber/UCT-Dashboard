@@ -67,9 +67,8 @@ EXEMPT: dict[str, str] = {}
 #: Measured with `python tools/remote_tests.py --vitest <the list>` on master 4e148b30bc, 2026-11-19 (runs 44618883809,
 #: 44618956890): drift and ratchet rails that other PRs broke while no PR job ran them, the class this file closes.
 #: ⚰️ formulaReference.route and AdoptSheet left the same day: #2077's own run found them PASSING (the strict step).
+#: ⚰️ swallowedFetch.census left on 2026-11-24: #2644 made it green (remote run 45326693389 on master).
 KNOWN_RED: dict[str, str] = {
-    "app/src/lib/swallowedFetch.census.test.js":
-        "TERM-033 shrink-only census: 3 new `.catch(() => null)` sites (use sectionFetcher, which throws)",
     "app/src/pages/terminal/a11y/terminalReachableContrast.test.js":
         "new inline --loss/--gain colours and new text under WCAG AA (NavBar.module.css .brandNameTop, ...)",
     "app/src/pages/terminal/themeColours.rail.test.js":

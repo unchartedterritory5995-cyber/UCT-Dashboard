@@ -307,7 +307,7 @@ def _rev(v):
 _UNREPORTED_GRACE_DAYS = 130
 
 
-def _fmp_forward_quarters(ticker, limit, reported_labels=frozenset()):
+def _fmp_forward_quarters(ticker, limit, reported_labels=frozenset(), now=None):
     """Up to `limit` UNREPORTED quarters of analyst consensus (EPS + revenue)
     from FMP stable/analyst-estimates (period=quarter), chronological
     [{period_end, label, eps_estimate, rev_estimate}].
@@ -328,8 +328,15 @@ def _fmp_forward_quarters(ticker, limit, reported_labels=frozenset()):
                                    period="quarter", limit=40, timeout=10)
     if not isinstance(data, list):
         return []
-    from datetime import date, timedelta
-    floor = (date.today() - timedelta(days=_UNREPORTED_GRACE_DAYS)).isoformat()
+    from datetime import date, datetime, timedelta, timezone
+    # `now` (unix seconds) is the AS-OF clock `_build_quarterly` threads through `_forward_quarters`,
+    # read exactly as `_next_report_date` reads it. This floor used to read date.today() directly:
+    # the grace window was measured from the real date while every other "is it still forward"
+    # answer used the as-of date, so a pinned fixture's just-ended quarter fell out of the window
+    # the day the real calendar passed it by 130 days (tests/test_earnings_table.py, red on master
+    # 2026-11-23). None keeps today -- the production call, where the two coincide.
+    as_of = date.today() if now is None else datetime.fromtimestamp(now, tz=timezone.utc).date()
+    floor = (as_of - timedelta(days=_UNREPORTED_GRACE_DAYS)).isoformat()
 
     def _pick(row, *keys):
         for k in keys:
@@ -456,7 +463,7 @@ def _forward_quarters(ticker, limit, reported_labels=frozenset(), now=None):
     {label?, period_end?, report_date?, eps_estimate, rev_estimate}; the
     nearest quarter gets the real scheduled report date."""
     try:
-        rows = _fmp_forward_quarters(ticker, limit, reported_labels)
+        rows = _fmp_forward_quarters(ticker, limit, reported_labels, now=now)
     except Exception:
         rows = []
     if not rows:

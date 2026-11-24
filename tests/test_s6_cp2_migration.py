@@ -101,8 +101,16 @@ _KNOWN_2026_09_15 = frozenset({
 #:   exactly the shape `test_get_user_ticker_sets_still_returns_the_declared_five_keys`
 #:   pins -- the migration is a no-op there for the same reason it is at the
 #:   three sites above.
+#: * api/services/journal_two/notebook_widgets.py (Notebook widgets, the
+#:   watchlist-today builder, 6c87205e52, 2026-10-20; read 2026-11-24):
+#:   `_my_watchlist_today` reads the returned dict ONLY by the named source
+#:   keys "watchlist" and "flagged" (`_LIST_LABELS`; any other `list` is a
+#:   400) and iterates that one set; it never reads `all_mine`. So it depends
+#:   on exactly the shape the five-keys test below pins, and the migration is
+#:   a no-op there as it is at earnings_prep.
 _REASONED_AFTER_2026_09_15 = frozenset({
     "api/services/journal_two/earnings_prep.py",
+    "api/services/journal_two/notebook_widgets.py",
 })
 
 
