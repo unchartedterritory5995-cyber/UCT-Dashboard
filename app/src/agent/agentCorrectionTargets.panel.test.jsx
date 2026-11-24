@@ -181,3 +181,19 @@ describe('the card is offered only when the rest of the plan passes every target
     expect(tfs(m)).toEqual(['W', 'D'])
   }, 40000)
 })
+
+// ── a plan that is NOTHING BUT the revert is the member's request for the earlier state: it runs as before (no card) ─────────────
+// ("leave replay mode", "close it", "delete that line" right after making it — owner rule 2026-10-27). A revert riding WITH another
+// change is the card (above).
+describe('a revert-only plan runs as before, with no card', () => {
+  const WORDS = [(A) => `put the ${A} chart on daily again`, (A) => `${A} back to daily`, () => 'make it daily again', (A) => `daily on ${A}`]
+  const rows = combos.map((c, i) => [tag(c), WORDS[i % WORDS.length](cased(c.kind, c.A, i)), c])
+  it.each(rows)('%s: "%s"', async (_t, text, c) => {
+    const { m, reply, model } = await dialogue({ ...c, text, ops: [tf(c.A, 'D')] })
+    expect(reply).not.toContain(CARD)
+    if (!model) return
+    if (ASKED.test(reply)) { expect(tfs(m)).toEqual(['W', 'D']); return }       // a rail asked which chart (an ordinary-word ticker)
+    if (c.mode === 'propose' && p.proposals().length) await m.click('Apply')
+    expect(tfs(m)).toEqual(['D', 'D'])
+  }, 40000)
+})
