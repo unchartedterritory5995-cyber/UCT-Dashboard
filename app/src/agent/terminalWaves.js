@@ -1,4 +1,4 @@
-// The UCT Agent's TERMINAL DATA WAVES: wave 1's four local-only answers (terminalDataLocal.js) and waves 2-11.
+// The UCT Agent's TERMINAL DATA WAVES: wave 1's four local-only answers (terminalDataLocal.js) and waves 2-12.
 // Every one is SERVER-GATED and registers nothing unless /api/agent/config serves its own isolated kind (each
 // register function is idempotent and returns the names IT registered), so calling this again after the config
 // changes registers only what became served.
@@ -29,6 +29,7 @@ import { registerTerminalWave8Capabilities } from './capabilities/terminalDataWa
 import { registerTerminalWave9Capabilities } from './capabilities/terminalDataWave9'
 import { registerTerminalWave10Capabilities } from './capabilities/terminalDataWave10'
 import { registerTerminalWave11Capabilities } from './capabilities/terminalDataWave11'
+import { registerTerminalWave12Capabilities } from './capabilities/terminalDataWave12'
 
 /** Registers every Terminal data wave whose kind the server serves. Idempotent. Returns the names registered by this call. */
 export function registerTerminalWaves() {
@@ -44,6 +45,7 @@ export function registerTerminalWaves() {
     ...registerTerminalWave9Capabilities(),   // Terminal data wave 9: three local-only answers (Treasury auctions, real yields and breakevens, the Fed watch)
     ...registerTerminalWave10Capabilities(),  // Terminal data wave 10: six local-only answers (stock statistics, volume footprint, factor exposure, setup history, public records, fund holders)
     ...registerTerminalWave11Capabilities(),  // Terminal data wave 11: seven local-only answers (group rank, group crowding, earnings by sector, revisions by sector, IV rank leaders, IPO lockups, COT by trader type)
+    ...registerTerminalWave12Capabilities(),  // Terminal data wave 12: six local-only answers (UCT rating, estimate history, analyst ratings, revenue by segment, fails to deliver, deals and index changes)
   ]
 }
 

@@ -15940,6 +15940,286 @@
       ]
     },
     {
+      "id": "stock.uctRating",
+      "source": "Terminal data wave 12 (11-24): the Agent half of RTG, EEH, ANR, SEG, FTD and one stock's MNA / IDXC (UCT composite rating, estimate history, analyst ratings and price targets, revenue by segment, fails to deliver, deals and index changes), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.uctRating"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.uctRating"
+      ],
+      "ownWords": [
+        "stockResearch"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.uctRating",
+            "target": "$stockData",
+            "args": {
+              "symbol": "NVDA"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*\"ratings\".*\"params\":\\{\"symbol\":\"NVDA\"\\}"
+        ],
+        "says": [
+          "NVDA's UCT composite rating as UCT holds it: 81 of 99 \\(higher is stronger\\)\\.",
+          "Components: EPS Strength 88, Relative Strength 76, Growth 69, Value 41, SMR B, Acc / Dis B-, Sponsorship 58\\.",
+          "Stock checkup: 1 check passes, 0 fail\\.",
+          "never a third-party analyst rating"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "NVDA UCT rating",
+        "what is NVDA's composite rating",
+        "UCT composite rating of NVDA",
+        "show me the stock checkup for NVDA"
+      ]
+    },
+    {
+      "id": "stock.estimatesHistory",
+      "source": "Terminal data wave 12 (11-24): the Agent half of RTG, EEH, ANR, SEG, FTD and one stock's MNA / IDXC (UCT composite rating, estimate history, analyst ratings and price targets, revenue by segment, fails to deliver, deals and index changes), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.estimatesHistory"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.estimatesHistory"
+      ],
+      "ownWords": [
+        "stockResearch"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.estimatesHistory",
+            "target": "$stockData",
+            "args": {
+              "symbol": "NVDA"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*\"estimates\\.history\".*\"params\":\\{\"symbol\":\"NVDA\"\\}"
+        ],
+        "says": [
+          "NVDA's consensus estimates as UCT snapshots them, Mar 2, 2026 to Nov 2, 2026 \\(170 snapshot days\\):",
+          "• The quarter ending Dec 31, 2026: EPS \\$1\\.25 \\(\\$1\\.10 to \\$1\\.40\\) from 30 analysts; over 7 / 30 / 90 days held \\+0\\.1% / raised \\+3\\.2% / raised \\+8\\.7%\\.",
+          "NVDA is in the population UCT snapshots because it is on the S&P 500 list",
+          "the fiscal year's consensus is not held at all"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "NVDA estimate history",
+        "how have NVDA's estimates changed",
+        "eps estimate revisions for NVDA",
+        "the revenue estimate trend for NVDA"
+      ]
+    },
+    {
+      "id": "stock.consensusRating",
+      "source": "Terminal data wave 12 (11-24): the Agent half of RTG, EEH, ANR, SEG, FTD and one stock's MNA / IDXC (UCT composite rating, estimate history, analyst ratings and price targets, revenue by segment, fails to deliver, deals and index changes), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.consensusRating"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.consensusRating"
+      ],
+      "ownWords": [
+        "stockResearch"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.consensusRating",
+            "target": "$stockData",
+            "args": {
+              "symbol": "NVDA",
+              "rows": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*\"analyst\\.ratings\".*\"params\":\\{\"symbol\":\"NVDA\",\"rows\":5\\}"
+        ],
+        "says": [
+          "NVDA's analyst consensus as UCT holds it: Buy from 32 analysts \\(5 Strong Buy, 20 Buy, 6 Hold, 1 Sell, 0 Strong Sell\\)\\.",
+          "Price target \\(USD\\): consensus \\$205\\.00, median \\$200\\.00, from \\$120\\.00 to \\$260\\.00\\.",
+          "Upside to the consensus target: \\+13\\.9% from the close of Fri, Oct 30, 2026 \\(\\$180\\.00\\), not the last trade\\.",
+          "Made-up Securities upgrade \\(Hold to Buy\\)"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "price target for NVDA",
+        "what's the consensus target on NVDA",
+        "consensus rating on NVDA",
+        "how many analysts rate NVDA a buy"
+      ]
+    },
+    {
+      "id": "stock.revenueSplit",
+      "source": "Terminal data wave 12 (11-24): the Agent half of RTG, EEH, ANR, SEG, FTD and one stock's MNA / IDXC (UCT composite rating, estimate history, analyst ratings and price targets, revenue by segment, fails to deliver, deals and index changes), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.revenueSplit"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.revenueSplit"
+      ],
+      "ownWords": [
+        "stockResearch"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.revenueSplit",
+            "target": "$stockData",
+            "args": {
+              "symbol": "NVDA",
+              "rows": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*\"company\\.segments\".*\"params\":\\{\"symbol\":\"NVDA\",\"rows\":8\\}"
+        ],
+        "says": [
+          "NVDA's revenue by segment as UCT holds it:",
+          "The fiscal year FY2026 by product \\(ended Jan 25, 2026, against FY2025\\):",
+          "88\\.5% of the segments listed, \\+144\\.7% on a year earlier",
+          "The newest quarter's split is not held on the server yet"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "NVDA revenue by segment",
+        "NVDA revenue by region",
+        "segment revenue for NVDA",
+        "where does NVDA make its money"
+      ]
+    },
+    {
+      "id": "stock.failsToDeliver",
+      "source": "Terminal data wave 12 (11-24): the Agent half of RTG, EEH, ANR, SEG, FTD and one stock's MNA / IDXC (UCT composite rating, estimate history, analyst ratings and price targets, revenue by segment, fails to deliver, deals and index changes), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.failsToDeliver"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.failsToDeliver"
+      ],
+      "ownWords": [
+        "stockResearch"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.failsToDeliver",
+            "target": "$stockData",
+            "args": {
+              "symbol": "NVDA",
+              "rows": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*\"stock\\.failsToDeliver\".*\"params\":\\{\"symbol\":\"NVDA\",\"rows\":10\\}"
+        ],
+        "says": [
+          "NVDA's fails to deliver as UCT holds them from the SEC's files for May 1, 2026 to Oct 15, 2026: 250,000 shares on Oct 15, 2026",
+          "The reported day before \\(Oct 14, 2026\\): 100,000 shares, a change of \\+150,000 shares\\.",
+          "The window's peak: 400,000 shares on Aug 3, 2026; the newest is 62\\.5% of it\\.",
+          "so the newest figure is some weeks old"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "NVDA fails to deliver",
+        "fails-to-deliver for NVDA",
+        "failures to deliver in NVDA",
+        "show me the fail to deliver data for NVDA"
+      ]
+    },
+    {
+      "id": "stock.companyDeals",
+      "source": "Terminal data wave 12 (11-24): the Agent half of RTG, EEH, ANR, SEG, FTD and one stock's MNA / IDXC (UCT composite rating, estimate history, analyst ratings and price targets, revenue by segment, fails to deliver, deals and index changes), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.companyDeals"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.companyDeals"
+      ],
+      "ownWords": [
+        "stockResearch"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.companyDeals",
+            "target": "$stockData",
+            "args": {
+              "symbol": "NVDA",
+              "rows": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*\"company\\.deals\".*\"params\":\\{\"symbol\":\"NVDA\",\"rows\":10\\}"
+        ],
+        "says": [
+          "Mergers and acquisitions naming NVDA \\(Made-up Company Inc\\), newest first",
+          "Made-up Company Inc \\(NVDA\\) acquiring Made-up Startup Ltd \\(NVDA the acquirer\\), with its SEC filing",
+          "added to the Dow 30, replacing Made-up Old Co \\(QZOLD\\) \\(Made-up reason\\.\\)",
+          "UCT's own time"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "mergers involving NVDA",
+        "has NVDA been acquired",
+        "when was NVDA added to the dow",
+        "acquisitions by NVDA"
+      ]
+    },
+    {
       "id": "recentlyDeleted.restore",
       "source": "Charts family (2026-11-19): Recently deleted — bring back a deleted watchlist, saved layout or saved screen through the artifact-versions routes the Recently deleted panel uses",
       "capabilities": [

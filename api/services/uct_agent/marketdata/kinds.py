@@ -63,6 +63,14 @@ Terminal data wave 11 (terminal-data): `groups.rank`, `groups.crowding`, `earnin
 CROWDING, ERNSC, EEHSC, OSCR RICH / CHEAP, IPO LOCKUP and the COT panel's "By trader type" view. All seven default OFF, all
 seven MODEL-ISOLATED, and none ever builds, starts a background build, downloads or asks a vendor or an agency: each
 reads only what its service already holds (MD-1 §4.20).
+
+Terminal data wave 12 (terminal-data): `estimates.history`, `analyst.ratings`, `company.segments`,
+`stock.failsToDeliver`, `company.deals` — the Agent half of the EEH, ANR, SEG and FTD panels and of `NVDA MNA` / `NVDA
+IDXC` — and the first capability over the existing `ratings` kind (RTG), whose adapter now reads only the held rating. All
+five new kinds default OFF, all five MODEL-ISOLATED, and none ever builds, registers a symbol, creates a store, downloads
+or asks a vendor or an agency: each reads only what its service already holds, through a held-only reader beside the
+service (MD-1 §4.21). PEER gets no kind: its route works the peers out on the request (today's moves, a model's fallback)
+and holds no answer to read.
 """
 from __future__ import annotations
 
@@ -86,6 +94,8 @@ from api.services.uct_agent.marketdata import (factor_exposure_read, fund_holder
                                                setup_history_read, stock_stats_read, volume_footprint_read)
 from api.services.uct_agent.marketdata import (cot_finer_read, group_crowding_read, group_rank_read, ipo_lockups_read,
                                                iv_rank_leaders_read, revision_breadth_read, sector_earnings_read)
+from api.services.uct_agent.marketdata import (analyst_ratings_read, company_deals_read, estimate_history_read, ftd_read,
+                                               revenue_segments_read)
 from api.services.uct_agent.research import rs1
 
 # Symbols one read may name. A request-shape bound per kind, not a toolkit cap: the cap numbers live only
@@ -822,6 +832,66 @@ def register(registry) -> None:
                     "traders' share; or the board, every listed market's watched class. Only what the server already stores, "
                     "never a build or a request ('not built' otherwise); as_of is the report's Tuesday, never the time of "
                     "the read. Shown to the member only. Params: {market (a futures market's name or code, or null)}.",
+    ))
+    # Terminal data wave 12 (owner: terminal-data): five more kinds, the Agent half of EEH, ANR, SEG, FTD and of one stock's
+    # MNA and IDXC. Default OFF like every kind (UCT_AGENT_DATA_KINDS); ALL FIVE are model-isolated, so each also needs its
+    # own UCT_AGENT_ISOLATED_KINDS entry (ADR-005) and its capability is local-only. None causes work: where the member route
+    # can (EEH registers the stock in the snapshot job, ANR asks the vendor on a cache miss, SEG / MNA / IDXC start their
+    # hold's background build, FTD's reader creates its store), the adapter reads the held-only reader beside the service
+    # and answers `unavailable`, with the reason, when nothing is held (MD-1 §4.21).
+    registry.register(Kind(
+        name=estimate_history_read.KIND, fn=estimate_history_read.read_history, validate=estimate_history_read.validate,
+        # declared `periodic` (one snapshot each weekday evening); every read is `periodic`
+        freshness="periodic", owner="terminal-data", max_symbols=ONE_SYMBOL, model_isolated=True,
+        description="One stock's estimate history as UCT holds it (EEH): for each upcoming fiscal quarter in UCT's own daily "
+                    "snapshots of the analysts' consensus (at most four), the newest EPS and revenue estimate with its low, "
+                    "high and analyst count, and how each moved over 7, 30 and 90 days by EEHSC's own rule; whether the "
+                    "stock is in the tracked population, and from where. Only what the server already holds, never a "
+                    "snapshot, a registration or a request ('not held' otherwise; off with the estimate history's switch); "
+                    "as_of is the stock's newest snapshot day, never the time of the read. Shown to the member only. "
+                    "Params: {symbol}.",
+    ))
+    registry.register(Kind(
+        name=analyst_ratings_read.KIND, fn=analyst_ratings_read.read_ratings, validate=analyst_ratings_read.validate,
+        # declared `periodic` (held for up to six hours after a member opens ANR); every read is `periodic`
+        freshness="periodic", owner="terminal-data", max_symbols=ONE_SYMBOL, model_isolated=True,
+        description="One stock's analyst ratings as UCT holds them (ANR): the count of analysts by rating with the consensus, "
+                    "the price target (high, low, median, consensus, the recent averages), the upside from its newest stored "
+                    "close and the most recent rating actions. Only what the server already holds, never a build or a "
+                    "request ('not held' otherwise); as_of is the newest time the vendor's legs observed the data, never "
+                    f"the time of the read. Shown to the member only. Params: {{symbol, rows (1-{analyst_ratings_read.MAX_ROWS} actions)}}.",
+    ))
+    registry.register(Kind(
+        name=revenue_segments_read.KIND, fn=revenue_segments_read.read_segments, validate=revenue_segments_read.validate,
+        # declared `periodic` (held for a day per stock and period); every read is `periodic`
+        freshness="periodic", owner="terminal-data", max_symbols=ONE_SYMBOL, model_isolated=True,
+        description="One stock's revenue by segment as UCT holds it (SEG): for the newest fiscal year and quarter held, the "
+                    "split by product and by region with each segment's revenue, share and growth against a year earlier. "
+                    "Only what the server already holds, never a build or a request ('not held' otherwise, per period); "
+                    "as_of is the newest fiscal period end, never the time of the read. Shown to the member only. "
+                    f"Params: {{symbol, rows (1-{revenue_segments_read.MAX_ROWS} segments per split)}}.",
+    ))
+    registry.register(Kind(
+        name=ftd_read.KIND, fn=ftd_read.read_ftd, validate=ftd_read.validate,
+        # declared `periodic` (the SEC's files land twice a month); every read is `historical`
+        freshness="periodic", owner="terminal-data", max_symbols=ONE_SYMBOL, model_isolated=True,
+        description="One stock's fails to deliver as UCT holds them from the SEC's twice-monthly files (FTD): the newest "
+                    "settlement days' balance of shares that failed to deliver with its value, the change from the day "
+                    "before, the window's peak and the window the files cover. Only what the server already holds, never a "
+                    "build or a request ('not held' otherwise; off with the data set's switch); as_of is the newest "
+                    "settlement date, never the time of the read. Shown to the member only. "
+                    f"Params: {{symbol, rows (1-{ftd_read.MAX_ROWS} days)}}.",
+    ))
+    registry.register(Kind(
+        name=company_deals_read.KIND, fn=company_deals_read.read_deals, validate=company_deals_read.validate,
+        # declared `periodic` (the deals held for hours, the index lists for a day); every read is `periodic`
+        freshness="periodic", owner="terminal-data", max_symbols=ONE_SYMBOL, model_isolated=True,
+        description="One stock's deals and index changes as UCT holds them (MNA and IDXC for one stock): the announced "
+                    "mergers and acquisitions naming it with each SEC filing, and its additions to and removals from the "
+                    "S&P 500, the Nasdaq 100 and the Dow 30; each part with its own state and read time. Only what the "
+                    "server already holds, never a build or a request ('not held' otherwise; no row is 'no record "
+                    "matched'); as_of is null and each part carries its own read time, never the time of the read. Shown "
+                    f"to the member only. Params: {{symbol, rows (1-{company_deals_read.MAX_ROWS} per part)}}.",
     ))
     # W2-B1 (agent-rs, RS-1 v1): a COMPOSED kind. It reads the served kinds above (purpose "research", so a
     # model-isolated kind refuses before admission) and the turn's one web search; every fact's figures come from
