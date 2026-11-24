@@ -21,7 +21,9 @@
 //       C6  MEDIUM-1: a name that did not trade, its answer N buckets behind WITH the server's proof, is the name not
 //           printing at any N: the grace, one ask (C6); WITHOUT that proof it waits (C6c)
 // ...and from its round 2: the server can stamp a proof AT or past the roll while the just-closed bucket is not stored (a
-// provider heal at roll+1 s; the live stream's market-wide watermark). So the proof lends the grace only when it covers
+// provider heal at roll+1 s; the live stream's market-wide watermark). (Round 3: the roll and the proof floor are the
+// current and the newest closed bucket's STARTS: on the 60m session grid the last bar is 15:30-16:00, so "end minus 60
+// min" put the roll at 15:00: G60a, G60b, G60c.) So the proof lends the grace only when it covers
 // every bucket BEFORE the newest closed one AND TAIL_LAG_WINDOW_MS has passed since the roll (never more than C1b's
 // accepted fallback): C6b (inside the window: no grace), C6d (a thin name 5 behind: no grace in the first 8 s, the grace
 // from roll+8 s on), C6e (a proof through the middle of the newest closed bucket suffices after the window), C7 (path 1:
@@ -353,6 +355,44 @@ describe("C: the switch's own answer still behind", () => {
     await serve(w, w.P.BEHIND_HOLD_MAX_MS + 50)
     expect(tailOf(w, 'THN')).toBe(T(9, 59))
     expect(w.pf.peekDisplayable('THN', '1')).toBe(true)
+    w.store.dispose()
+  })
+
+  it('G60a 60m, 15:30:03: the 15:30 bar just opened (the session grid\'s last, to 16:00): inside the window, no grace', async () => {
+    vi.setSystemTime(at(15, 29, 50))
+    const w = await boot('proof:1:3')                                 // the 14:30 bar absent, verified 3 s after its roll
+    w.pf.prefetchBars(['HHH'], '60', { urgent: true })
+    await serve(w, 200)
+    vi.setSystemTime(at(15, 30, 3))
+    w.pf.prepareForDisplay('HHH', '60').catch(() => {})
+    await serve(w, w.P.BEHIND_HOLD_MAX_MS + 50)
+    const s = w.store.peek(w.pf.keyFor('HHH', '60'))
+    expect(Math.max(s.bars.at(-1).t, s.developing?.t ?? -Infinity)).toBe(T(13, 30))   // (precondition) 14:30 absent
+    expect(w.pf.peekDisplayable('HHH', '60'), 'the 60m roll was read as 15:00: a proof lent the grace 3 s after 15:30').toBe(false)
+    w.store.dispose()
+  })
+
+  it('G60b 60m, after the window: the proof floor is the newest closed bar\'s START (14:30), so a proof through 14:15 is not enough', async () => {
+    vi.setSystemTime(at(15, 30, 15))
+    const w = await boot('proof:2:-4500')                             // 13:30 and 14:30 absent, verified through 14:15
+    w.pf.prefetchBars(['HHH'], '60', { urgent: true })
+    await serve(w, 200)
+    vi.setSystemTime(at(15, 30, 20))
+    w.pf.prepareForDisplay('HHH', '60').catch(() => {})
+    await serve(w, w.P.BEHIND_HOLD_MAX_MS + 50)
+    expect(w.pf.peekDisplayable('HHH', '60'), 'the proof floor was 14:00').toBe(false)
+    w.store.dispose()
+  })
+
+  it('G60c (control) the same with a proof through 14:45: the grace', async () => {
+    vi.setSystemTime(at(15, 30, 15))
+    const w = await boot('proof:2:-2700')                             // verified through 14:45
+    w.pf.prefetchBars(['HHH'], '60', { urgent: true })
+    await serve(w, 200)
+    vi.setSystemTime(at(15, 30, 20))
+    w.pf.prepareForDisplay('HHH', '60').catch(() => {})
+    await serve(w, w.P.BEHIND_HOLD_MAX_MS + 50)
+    expect(w.pf.peekDisplayable('HHH', '60')).toBe(true)
     w.store.dispose()
   })
 

@@ -5,6 +5,8 @@ the watermark minute, the roll) for rows not yet in the store, and the 15m/30m/6
 it (`_live_derived_proof`, `_local_tail_repair`). The 1m path already set its watermark after the write.
   W1  while a push's rows are being written, the proof is still the previous push's; after the write it is this one's
   W2  a push that writes no rows still moves the proof (the minute was delivered with nothing to write)
+  W3  (round 3) two pushes of one epoch completing out of order: the proof never moves BACK; W3b a new epoch starts from
+      its own first push, even if that is older than the last epoch's proof
 """
 import sqlite3
 
@@ -50,3 +52,15 @@ def test_W1_the_proof_moves_only_after_the_rows_are_written(live, monkeypatch):
 def test_W2_a_push_with_no_rows_still_moves_the_proof(live):
     _push(FFB, [])
     assert bls._state["watermark_ms"] == FFB
+
+
+def test_W3_out_of_order_pushes_of_one_epoch_never_move_the_proof_back(live):
+    _push(FFB + 120_000, [["AAA", FFB // 1000, 1, 2, 1, 2, 20]], seq=1)
+    _push(FFB + 60_000, [["AAA", FFB // 1000, 1, 2, 1, 2, 20]], seq=2)     # an older push completes last
+    assert bls._state["watermark_ms"] == FFB + 120_000
+
+
+def test_W3b_a_new_epoch_starts_from_its_own_first_push(live):
+    _push(FFB + 120_000, [], seq=1)
+    bls.ingest({"epoch_ms": 2, "seq": 1, "first_full_bucket_ms": FFB, "watermark_ms": FFB + 60_000, "rows": []})
+    assert bls._state["watermark_ms"] == FFB + 60_000
