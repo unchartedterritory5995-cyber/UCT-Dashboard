@@ -181,6 +181,13 @@ export const NOT_A_GRID = new Map([
       + 'negated so a market close\'s slippage moves the fill against the position it closes '
       + '(W9-T5 [B-SLIPPAGE], 361d4bac65). Nothing is sorted and there is no grid.',
   }]],
+  ['app/src/pages/Watchlists.jsx', [{
+    signal: 'NEGATE',
+    text: '-dir',
+    why: 'the direction the member is MOVING through a linked list with the arrow keys (+1 down, -1 up), negated '
+      + 'to prepare the rows behind as well as ahead (neighbor frames, b4c66eedfb). The list\'s column sort is the '
+      + 'seed\'s; this sorts nothing.',
+  }]],
 ])
 
 const isNotAGrid = (k, s) => (NOT_A_GRID.get(k) || []).some((x) => x.signal === s.signal && x.text === s.text)
@@ -238,6 +245,13 @@ export const MIGRATED = [
   // 2026-10-10 (lane P2): the shared header decisions for DarkPool + OptionsFlow; parity in
   // pages/optionsFlow/flowGridSort.seedParity.test.js
   'app/src/pages/optionsFlow/flowGridSort.js',
+  // 2026-11-23, the OWN panel's two fund tables (13F, N-PORT): header decisions onto the seed (nextSort,
+  // ariaSortFor, sortCaretFor), comparators kept; parity in pages/terminal/panels/fundGrids.seedParity.test.js.
+  // They arrived 2026-11-21/22 hand-rolled, and this rail was red on master from then (no required check ran it).
+  'app/src/pages/terminal/panels/fundHoldersModel.js',
+  'app/src/pages/terminal/panels/fundNportModel.js',
+  'app/src/pages/research/tabs/FundHoldersBlock.jsx',
+  'app/src/pages/research/tabs/FundsNportBlock.jsx',
 ]
 
 const fmt = (sigs) => sigs.map((s) => `${s.signal}@${s.line}`).join(', ')
@@ -284,7 +298,9 @@ describe('TERM-065 — a new sortable grid uses the DataGrid seed', () => {
     for (const k of MIGRATED) {
       expect(tree.has(k), `${k} exists`).toBe(true)
       const { usesSeed, signals } = gridSignals(k, tree.get(k))
-      expect({ k, usesSeed, signals: fmt(signals) }).toEqual({ k, usesSeed: true, signals: '' })
+      // NOT_A_GRID excuses its one expression here too (by file + signal + exact text, never the module)
+      const real = signals.filter((s) => !isNotAGrid(k, s))
+      expect({ k, usesSeed, signals: fmt(real) }).toEqual({ k, usesSeed: true, signals: '' })
       expect(BASELINE.has(k), `${k} is migrated, so it is not in BASELINE`).toBe(false)
     }
   })

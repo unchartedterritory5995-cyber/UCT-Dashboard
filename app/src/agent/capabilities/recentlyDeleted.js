@@ -373,7 +373,12 @@ export function registerRecentlyDeletedCapabilities() {
     fast: fastRestore,
     // the CURRENT lists before planning (the target snapshot may be an older cache): check and apply read the cache
     async prepare() {
-      const [ok] = await Promise.all([loadDeleted({ force: true }).then(() => true, () => false), loadSaved().catch(() => null)])
+      // TERM-033: a failed refresh of the saved lists is logged (its result was never read; the cached copy stands)
+      const savedRefresh = loadSaved().catch((e) => {
+        console.warn(`[uct-agent] recentlyDeleted: the saved lists could not be refreshed (${e?.message || 'error'}); the cached copy stands`)
+        return null
+      })
+      const [ok] = await Promise.all([loadDeleted({ force: true }).then(() => true, () => false), savedRefresh])
       return { deletedFresh: ok }
     },
     check(st, { item, kind }) {

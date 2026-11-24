@@ -12,6 +12,7 @@ import JoystickSettingsCard from './settings/JoystickSettingsCard'
 // TERM-078: member-visible AI meters (read-only; GET /api/ai-search/meters).
 import AiMetersCard from './settings/AiMetersCard'
 import DeviceSyncCard from './settings/DeviceSyncCard'
+import FasterChartsCard from './settings/FasterChartsCard'
 import PlanAccess from './settings/PlanAccess'
 import ColorPicker from '../components/chart/ColorPicker'
 import { CHART_DEFAULTS, PRESETS, mergeChartSettings } from '../components/chart/chartDefaults'
@@ -1709,6 +1710,7 @@ const SEARCH_INDEX = [
   { card: 'digest',         section: 'preferences', title: 'Watchlist Digest',           keywords: 'email digest daily weekly summary watchlist' },
   { card: 'tags',           section: 'preferences', title: 'Color Tags',                 keywords: 'tag color label ticker right click rename' },
   { card: 'chartSettings',  section: 'charts',      title: 'Chart Settings',             keywords: 'candles hollow bars line area colors indicators sma ema volume hvc crosshair watermark drawing preset background grid reset' },
+  { card: 'fasterCharts',   section: 'charts',      title: 'Faster charts on this device', keywords: 'faster charts speed instant load device on-device store storage disk space 80 mb download data cache automatic off turn off remove delete browser computer' },
   { card: 'compassPanel',   section: 'compass',     title: 'Compass',                    keywords: 'voice speed wake word jarvis read aloud proactive dictate talk orb ai coach' },
   { card: 'voiceMemory',    section: 'compass',     title: 'Voice Memory',               keywords: 'memory facts compass remembers' },
   { card: 'voiceTelemetry', section: 'compass',     title: 'Voice Telemetry',            keywords: 'usage minutes latency telemetry stats' },
@@ -2464,6 +2466,8 @@ export default function Settings() {
     ],
     charts: [
       card('chartSettings', <ChartSettingsSection prefs={prefs} setPref={setPref} />),
+      // The on-device bar store's own switch, per browser (never a server preference): Automatic / Off.
+      card('fasterCharts', <FasterChartsCard />),
       // Phase 2.5: the ONE Phase 4 control pulled forward, so a persistent
       // "Hide joystick" has a real re-enable path beside it.
       card('joystick', <JoystickSettingsCard />),

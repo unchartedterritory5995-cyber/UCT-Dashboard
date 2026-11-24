@@ -49,10 +49,16 @@
 //   M7  A PACK THAT FAILS ITS CHECKS (sha256, size, trailer, build, the probe record) is discarded whole, as before,
 //       and recorded with its build: tried again after BAD_PACK_RETRY_MS[0], then [1], then never again for that
 //       build + sha256 (BAD_PACK_MAX_TRIES). A new build clears it. A bad object at the edge costs a member at most
-//       three downloads per build, not one per page load.
+//       three downloads per build, not one per page load. The record also names the CLIENT that failed it (`codeId`:
+//       the worker chunk's own path, which carries the bundle's content hash; review of #2537 head 107dea1ee1, P-5):
+//       a deploy that changes the engine tries the build again, so "never again" (which lasts until the next build,
+//       a whole weekend from Friday night) never holds a fixed client to a broken one's failures.
 //   L3  Pack and delta downloads are `cache: 'no-store'`: the edge serves them `private, max-age=31536000, immutable`,
 //       which would keep a second copy of every pack in the HTTP cache. The edge's own copy (its Cache API, keyed by
-//       a URL the Worker builds) does not depend on the request's cache mode.
+//       a URL the Worker builds) does not depend on the request's cache mode. They are also `priority: 'low'` (review
+//       of #2537 head 107dea1ee1, P-4): default ON starts ~80 MB in a desktop member's first charting minute, and the
+//       charts' own bars and stream requests go first. A hint to the browser's scheduler, not a bandwidth cap; a
+//       browser that does not know the member ignores it, and the edge never sees it.
 
 import { decodeRecord, trailerLengthOf, parseTrailer, PACK_TAIL_BYTES, DeviceFormatError, SEED_FIELDS, SEED_MAGIC } from './codec'
 import { parseDelta, applyDelta, newSetOf } from './delta'
@@ -189,8 +195,9 @@ function _splitsOf(m) {
   return { session: sp.session, symbols: new Set(Object.keys(sp.symbols).map((x) => x.toUpperCase().replace(/\./g, '-'))) }
 }
 
+/** `codeId`: the client code running this engine (deviceStore.worker.js passes its own chunk's path; '' unknown). */
 export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEvent = null, flushEvery = 8 << 20, now = () => Date.now(), deltaSliceMs = DELTA_SLICE_MS,
-  estimate = _estimate, headroomBytes = HEADROOM_MARGIN_BYTES } = {}) {
+  estimate = _estimate, headroomBytes = HEADROOM_MARGIN_BYTES, codeId = '' } = {}) {
   if (!io) throw new Error('device engine: no io')
   /** M5 / M7 records (INGEST_STATE_FILE), read at open(). */
   let state = _emptyState()
@@ -640,11 +647,12 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
     for (const [g, kinds] of gens || []) if (g !== cur?.gen && !kinds.has('ok')) await _removeGen(tf, g)
   }
   /** M7: the status to answer while this build of `tf` is backed off, or null (go). A record of another build or
-   *  sha256 is cleared: a new build is never held to an old one's failures. */
+   *  sha256, or written by another client (`codeId`; a record from before it was kept names none: ''), is cleared: a
+   *  new build is never held to an old one's failures, nor a new client to an old client's. */
   async function _backoffFor(tf, entry) {
     const b = state.bad[tf]
     if (!b) return null
-    if (b.build !== entry.build || b.sha256 !== entry.sha256) { delete state.bad[tf]; await _saveState(); return null }
+    if (b.build !== entry.build || b.sha256 !== entry.sha256 || (b.code ?? '') !== String(codeId)) { delete state.bad[tf]; await _saveState(); return null }
     const base = { tf, status: 'backoff', build: b.build, tries: b.tries, error: b.error ?? null }
     if (b.tries >= BAD_PACK_MAX_TRIES) return { ...base, until: null }
     if (now() < b.until) return { ...base, until: b.until }
@@ -655,7 +663,7 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
     const prev = state.bad[tf]
     const tries = prev && prev.build === entry.build && prev.sha256 === entry.sha256 ? prev.tries + 1 : 1
     const at = now()
-    state.bad[tf] = { build: entry.build, sha256: entry.sha256, tries, at, until: tries >= BAD_PACK_MAX_TRIES ? null : at + BAD_PACK_RETRY_MS[tries - 1], error: String(e?.message || e).slice(0, 200) }
+    state.bad[tf] = { build: entry.build, sha256: entry.sha256, code: String(codeId), tries, at, until: tries >= BAD_PACK_MAX_TRIES ? null : at + BAD_PACK_RETRY_MS[tries - 1], error: String(e?.message || e).slice(0, 200) }
     await _saveState()
   }
   async function _clearBad(tf) {
@@ -704,7 +712,7 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
 
   /** The delta file, whole, in memory: exactly `d.bytes`, sha256 `d.sha256`, or IngestError. */
   async function _fetchDelta(tf, d, signal) {
-    const res = await fetchFn(d.url, { signal, credentials: 'same-origin', cache: 'no-store' })   // L3
+    const res = await fetchFn(d.url, { signal, credentials: 'same-origin', cache: 'no-store', priority: 'low' })   // L3
     if (res.status !== 200) throw new IngestError(`delta: ${tf} answered ${res.status}`)
     if (!res.body) throw new IngestError('delta: no body')
     const buf = new Uint8Array(d.bytes)
@@ -869,7 +877,7 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
         // a gzip FILE cannot resume mid-stream (the inflater's state is gone): start it over
         if (gz && have > 0) { h.truncate(0); have = 0; hasher = createSha256() }
         const headers = have > 0 ? { Range: `bytes=${have}-` } : {}
-        const res = await fetchFn(entry.url, { headers, signal, credentials: 'same-origin', cache: 'no-store' })   // L3
+        const res = await fetchFn(entry.url, { headers, signal, credentials: 'same-origin', cache: 'no-store', priority: 'low' })   // L3
         if (have > 0 && res.status === 200) { h.truncate(0); have = 0; hasher = createSha256() }   // range ignored
         else if (have > 0 && res.status === 206) {
           const m = /bytes\s+(\d+)-/i.exec(res.headers?.get?.('content-range') || '')

@@ -250,7 +250,7 @@ def test_an_engine_fixed_specimen_keeps_its_defect_and_its_fixed_by():
     case = next(c for c in WITH_FOUND if c["id"] == "table-format-01")
     kept = next(k for k in case["found"] if ENGINE_FIXED in k)
     assert "NO VALUES" in kept["defect"] and kept["fixed_by"]["pr"] == "#2433"
-    assert kept[ENGINE_FIXED] == {"by": "e95 unit 1 (#2483)", "since_engine": 95}
+    assert kept[ENGINE_FIXED] == {"by": "#2607 927aa5dc95 (e95 unit 1, #2483)", "since_engine": 95}
 
 
 def test_THE_INVARIANT_each_specimen_is_WRONG_and_its_record_RIGHT_by_the_same_rule():
