@@ -33,7 +33,7 @@ import { setOwnedDefinitionSource } from './capabilities/indicatorEdits'
 import { setAuthoringSources, setExceptSetReader, draftAmbiguity, selectDraft, isDraftAction, lastSaved, screenModelOps, PROPOSAL_TTL_MS, saveReferent, splitSaveAs, renameBeforeSave, explicitIndicatorCreate } from './capabilities/indicatorAuthoring'
 import { fastParse, matchPosition } from './fastPath'
 import { screenNewChart, screenEmptyBoardChart } from './capabilities/workspace'
-import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf, selectedChart, chartNameWord, clausesNameDifferentCharts, targetTickerConflict, lowerTickerCandidates, wordOnlyTickers, wordTickerQuestion, revertsLastChange, explicitRevertSpan, earlierSymbolsOf, chartRevertCard, boardPrintOf, TARGET_CHECK_FAILED, timeframeSetOf, chartsNamedBy, changeWordsOf, pointsAtClick, wordsNameASet, wordsNameAChart, wordsGroundWrites, anaphorsOnSubject, targetTickers } from './deixis'
+import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf, selectedChart, chartNameWord, clausesNameDifferentCharts, targetTickerConflict, lowerTickerCandidates, wordOnlyTickers, wordTickerQuestion, revertsLastChange, explicitRevertSpan, actionNamedIn, earlierSymbolsOf, chartRevertCard, boardPrintOf, TARGET_CHECK_FAILED, timeframeSetOf, chartsNamedBy, changeWordsOf, pointsAtClick, wordsNameASet, wordsNameAChart, wordsGroundWrites, anaphorsOnSubject, targetTickers } from './deixis'
 import { screenWatchlistWidget } from './watchlistTarget'
 import { whichListView, LIST_VIEW_WHICH } from './whichWidget'
 import { checkSpatialConstraints, excludedCharts, spatialConstraints, UNPLACED, withoutExcludedCharts, everyExceptSet, everyExceptNothing, nothingLeftText } from './spatialCheck'
@@ -3707,11 +3707,12 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         const undoItems = lastTurn?.undoIds?.length ? (undoRef.current || []).filter(e => lastTurn.undoIds.includes(e?.id)).flatMap(e => e.items || []) : []
         const reverts = revertsLastChange({ items: undoItems, host, getCapability, getTargetKind })
         undoHalf = reverts ? (screened.ops || []).filter(o => reverts(o)) : []
-        // ...except a plan that is NOTHING BUT the revert ("leave replay mode", "close it", "delete that line" right after drawing it,
-        // "make it daily again"): the whole plan is the member's request for the earlier state, receipted with its Undo, as before
-        // (owner rule 2026-10-27: a visible drawing is deleted at once, with Undo). A revert that rides WITH another change — the
-        // class the model slips into corrections and additive requests — is always the card.
-        if (undoHalf.length && undoHalf.length === (screened.ops || []).length) undoHalf = []
+        // ...except a plan that is NOTHING BUT the revert AND whose words NAME its action — a verb its capability declares ("delete
+        // that line" right after drawing it, "leave replay mode", "close it", "collapse the tbd section": deixis.actionNamedIn, never
+        // negated or asked). That is the member's request, run as before with its Undo (owner rule 2026-10-27: a visible drawing is
+        // deleted at once). "fix that" / "that's wrong" / "try again" name no action: their revert-only plan is the card, as is every
+        // revert that rides WITH another change. (An explicit "undo that" / "put META back" runs below, as always.)
+        if (undoHalf.length && undoHalf.length === (screened.ops || []).length && undoHalf.every(o => actionNamedIn(String(raw || text), getCapability(o?.action)?.verbs))) undoHalf = []
         // the words the member TYPED (NLM-1 may have rewritten `text` into its explicit form)
         const span = undoHalf.length > 0 ? explicitRevertSpan(String(raw || text), earlierSymbolsOf(undoItems, host)) : null
         undoExplicit = !!span

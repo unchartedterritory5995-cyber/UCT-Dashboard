@@ -1287,6 +1287,9 @@ export function registerBoardCapabilities() {
   reg({
     ...common,
     name: 'widget.setOption',
+    // `verbs`: the words that name THIS action (P0.2: a plan that is nothing but a revert of the last change runs without the revert card
+    // only when the member's words name its action — deixis.actionNamedIn). Declared by the capability; any capability may add them.
+    verbs: ['collapse', 'expand', 'hide', 'show', 'close', 'open'],
     resolveArgs: (args, host, member, how) => whichWidget(args, host, member, how),
     summary: 'Change ONE control of a widget on the board, exactly as the widget\'s own control does: a view, a filter, a period, the day shown, the open theme, a universe, an axis, a reading shown or hidden. Undo puts it back.',
     hints: 'target = the board entry; widget = the widget id; key and value from the widgetControls section, by type (never invented): “ask widget.readOptions” = the widget\'s own list right now, and a name is enough. (+/-) takes "+member" or "-member". `set` is how a widget is set now. No entry for its type: use widget.readOptions, which lists them.',
@@ -1740,6 +1743,9 @@ export function registerBoardCapabilities() {
   reg({
     ...common,
     name: 'widget.selectTab',
+    // `verbs`: the words that name THIS action (P0.2: a plan that is nothing but a revert of the last change runs without the revert card
+    // only when the member's words name its action — deixis.actionNamedIn). Declared by the capability; any capability may add them.
+    verbs: ['switch', 'flip', 'select', 'go back to'],
     summary: 'Switch a widget to one of its tabs (clicking the tab in the widget header).',
     hints: wtabHint,
     args: { type: 'object', properties: wtabArgs, required: ['widget', 'tab'], additionalProperties: false },
@@ -1769,6 +1775,9 @@ export function registerBoardCapabilities() {
   reg({
     ...common,
     name: 'widget.closeTab',
+    // `verbs`: the words that name THIS action (P0.2: a plan that is nothing but a revert of the last change runs without the revert card
+    // only when the member's words name its action — deixis.actionNamedIn). Declared by the capability; any capability may add them.
+    verbs: ['close'],
     summary: 'Close one of a widget\'s extra tabs (its ×); the widget\'s own main tab cannot be closed. Undo puts the tab back exactly, settings included.',
     hints: wtabHint,
     args: { type: 'object', properties: wtabArgs, required: ['widget', 'tab'], additionalProperties: false },

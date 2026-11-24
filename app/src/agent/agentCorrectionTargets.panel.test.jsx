@@ -182,18 +182,71 @@ describe('the card is offered only when the rest of the plan passes every target
   }, 40000)
 })
 
-// ── a plan that is NOTHING BUT the revert is the member's request for the earlier state: it runs as before (no card) ─────────────
-// ("leave replay mode", "close it", "delete that line" right after making it — owner rule 2026-10-27). A revert riding WITH another
-// change is the card (above).
-describe('a revert-only plan runs as before, with no card', () => {
-  const WORDS = [(A) => `put the ${A} chart on daily again`, (A) => `${A} back to daily`, () => 'make it daily again', (A) => `daily on ${A}`]
-  const rows = combos.map((c, i) => [tag(c), WORDS[i % WORDS.length](cased(c.kind, c.A, i)), c])
+// ── a plan that is NOTHING BUT the revert: the card, unless the words NAME its action (or explicitly undo) ───────────────────────
+// PL 11-24: keyed on plan shape alone, "fix that" / "that's wrong" / "try again" with a revert-only plan would undo silently — the
+// implicit Undo the owner ruled out. Revert-only × vague corrections × field kinds (timeframe, symbol, scale) × routing × mode: the
+// one-change card ("That would put Chart (A) back … Nothing has changed yet." [Apply] [Cancel]), 0 changes before the pick. A verb that
+// names ANOTHER action ("close the indicator panel") is no license. Verbs that name the op's own action: the 16 existing outcome
+// tests (delete that line, clear my drawings, leave replay, close the tab, collapse the list) — they run as before.
+const VAGUE = ['fix that', "that's wrong", 'no', 'hmm, try again', 'not like that', 'redo it', 'nope', "that's not right", 'wrong', 'try that again',
+  'close the indicator panel', 'no, the other way', 'again please', 'hmm no']
+const FIELDS = [
+  ['timeframe', () => tf('A', 'W'), () => ({ action: 'chart.setTimeframe', target: 'cl', args: { timeframe: 'D' } }), (m) => tfOf(m.board, 'cl'), 'W', 'D'],
+  ['symbol', () => () => ({ action: 'chart.setSymbol', target: 'cl', args: { symbol: 'PLTR' } }), (A) => ({ action: 'chart.setSymbol', target: 'cl', args: { symbol: A } }),
+    (m) => m.board.state.groupSyms['N:cl'], 'PLTR', null],
+]
+async function dialogueField({ A, B, v2, mode, text, field }) {
+  const [, first, back, read, changed] = field
+  const m = mountPair(A, B, { v2, tickers: ['PLTR'] })
+  p.st.envelopes.push((body) => p.env('apply', [field[0] === 'timeframe' ? tf(A, 'W')(body) : first()(body)], ''))
+  await m.say(field[0] === 'timeframe' ? `make the ${A} chart weekly` : `put PLTR on the ${A} chart`)
+  expect(read(m)).toBe(changed)
+  const a0 = widget(m, 'cl')
+  p.st.envelopes.length = 0
+  const t0 = p.turns()
+  p.st.envelopes.push(() => p.env(mode, [back(A)], ''))
+  const reply = await m.say(text)
+  return { m, reply, model: p.turns() - t0, a0 }
+}
+describe('a revert-only plan after a vague correction is the one-change card, 0 changes before the pick', () => {
+  const rows = []
+  combos.forEach((c, i) => FIELDS.forEach((f, j) => { for (const k of [i + j, i + j + 7]) rows.push([`${f[0]} · ${tag(c)}`, VAGUE[k % VAGUE.length], c, f, k % 2]) }))
+  it('covers every vague wording, both fields, both routings, both modes', () => {
+    expect(new Set(rows.map(r => r[1])).size).toBe(VAGUE.length)
+    expect(new Set(rows.map(r => `${r[3][0]}${r[2].v2}${r[2].mode}`)).size).toBe(8)
+  })
+  it.each(rows)('%s: "%s"', async (_t, text, c, f, pick) => {
+    const { m, reply, model, a0 } = await dialogueField({ ...c, text, field: f })
+    if (!model) return
+    if (!reply.includes(CARD)) {                                                   // a rail asked first: still nothing changed
+      expect(ASKED.test(reply) || p.proposals().length > 0, reply).toBe(true)
+      expect(widget(m, 'cl')).toBe(a0)
+      return
+    }
+    expect(reply).toContain(`That would put Chart (`)
+    expect(reply).toContain('back the way it was before my last change. Nothing has changed yet.')   // the one-change sentence
+    expect(reply).not.toContain('and also change')
+    expect(widget(m, 'cl')).toBe(a0)                                               // 0 changes before the pick
+    if (pick) {
+      await m.click('Apply')
+      if (f[0] === 'timeframe') expect(tfOf(m.board, 'cl')).toBe('D')
+      // a symbol change on a board of several charts also passes execute's own symbol rail ("Which chart should change to …?"):
+      // the card never bypasses it — either the revert ran, or that question is asked with nothing changed
+      else if (/Which chart should change to/.test(p.transcript())) expect(widget(m, 'cl')).toBe(a0)
+      else expect(m.board.state.groupSyms['N:cl']).toBe(c.A)
+    } else {
+      await m.click('Cancel')
+      expect(widget(m, 'cl')).toBe(a0)
+    }
+  }, 40000)
+})
+describe('a revert-only plan with an EXPLICIT revert runs with no card', () => {
+  const rows = combos.map((c, i) => [tag(c), ['undo that', 'revert it', 'undo my last change', `put ${c.A} back`][i % 4], c])
   it.each(rows)('%s: "%s"', async (_t, text, c) => {
     const { m, reply, model } = await dialogue({ ...c, text, ops: [tf(c.A, 'D')] })
     expect(reply).not.toContain(CARD)
     if (!model) return
-    if (ASKED.test(reply)) { expect(tfs(m)).toEqual(['W', 'D']); return }       // a rail asked which chart (an ordinary-word ticker)
     if (c.mode === 'propose' && p.proposals().length) await m.click('Apply')
-    expect(tfs(m)).toEqual(['D', 'D'])
+    expect(tfOf(m.board, 'cl')).toBe('D')
   }, 40000)
 })

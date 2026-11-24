@@ -6,7 +6,9 @@
 //   every non-revert message (corrections, additive, CAPS, D1–D4, keep / preserve) → NOT explicit (a revert in its plan is carded).
 // Plus the revert detector itself: only an op that puts the earlier chart back exactly as it was is a revert.
 import { describe, it, expect } from 'vitest'
-import { explicitRevertRequested, revertsLastChange } from './deixis'
+import { explicitRevertRequested, revertsLastChange, actionNamedIn } from './deixis'
+import { registerBuiltins } from './builtins'
+import { getCapability } from './capabilities'
 
 const A = 'META'
 const EXPLICIT = [
@@ -52,7 +54,7 @@ describe('revertsLastChange: only an op that puts the earlier chart back exactly
   const kind = {
     read: (_h, r) => ({ ref: r, tf: 'W', symbol: 'META' }),
     stateOf: (s) => ({ tf: s.tf, symbol: s.symbol }),
-    patch: () => null,
+    patch: (b, a) => (b.tf !== a.tf || b.symbol !== a.symbol ? { ...(b.tf !== a.tf ? { tf: a.tf } : {}), ...(b.symbol !== a.symbol ? { symbol: a.symbol } : {}) } : null),
   }
   const cap = { target: 'chart', apply: (st, a) => (a.timeframe ? { ...st, tf: a.timeframe } : a.symbol ? { ...st, symbol: a.symbol } : st) }
   const items = [{ ref: 'cl', before: { ref: 'cl', tf: 'D', symbol: 'META' } }]
@@ -63,5 +65,31 @@ describe('revertsLastChange: only an op that puts the earlier chart back exactly
     expect(r({ action: 'chart.setSymbol', target: 'cl', args: { symbol: 'AAPL' } })).toBe(false)
     expect(r({ action: 'chart.setTimeframe', target: 'cr', args: { timeframe: 'D' } })).toBe(false)
     expect(revertsLastChange({ items: [], host: {}, getCapability: () => cap, getTargetKind: () => kind })).toBe(null)
+  })
+})
+
+// ── actionNamedIn: a verb the op's OWN capability declares, never negated, never asked ──
+registerBuiltins()
+describe('actionNamedIn: the words name the op\'s own action (its capability\'s declared verbs)', () => {
+  const NAMED = [['drawing.remove', ['delete that line', 'delete it', 'erase the 200 line', 'get rid of the horizontal line', 'remove the line at 200']],
+    ['drawing.clear', ['clear all my drawings', 'wipe the drawings off this chart', 'remove all drawings', 'clear every drawing on NVDA']],
+    ['chart.replay', ['leave replay mode', 'exit replay', 'turn off replay']], ['widget.closeTab', ['close it', 'close the calendar tab']],
+    ['widget.setOption', ['collapse the tbd section on the terminal', 'hide the tbd list']], ['widget.selectTab', ['flip the news widget to its calendar tab', 'switch back to the news tab']]]
+  it('every declared capability names its own action in these words', () => {
+    const wrong = []
+    for (const [a, texts] of NAMED) { const v = getCapability(a)?.verbs; if (!v?.length) wrong.push(`${a}: no verbs`); for (const t of texts) if (!actionNamedIn(t, v)) wrong.push(`${a}: ${t}`) }
+    expect(wrong).toEqual([])
+  })
+  it('vague corrections name no action; a verb of ANOTHER action names nothing; negated / asked verbs name nothing', () => {
+    const vague = ['fix that', "that's wrong", 'no', 'hmm, try again', 'not like that', 'redo it', 'nope', 'wrong', 'again please']
+    const wrong = []
+    for (const [a] of NAMED) for (const t of vague) if (actionNamedIn(t, getCapability(a)?.verbs)) wrong.push(`${a}: ${t}`)
+    // the op reverts the timeframe; the words name another action
+    for (const a of ['chart.setTimeframe', 'chart.setSymbol', 'chart.setScale', 'indicatorStyle.set']) {
+      for (const t of ['close the indicator panel', 'delete that line', 'leave replay mode', 'fix that']) if (actionNamedIn(t, getCapability(a)?.verbs)) wrong.push(`${a}: ${t}`)
+    }
+    for (const t of ["don't delete that line", 'do not remove it', 'never erase the 200 line', 'should I delete that line?', 'can you remove it?', 'if you delete it'])
+      if (actionNamedIn(t, getCapability('drawing.remove').verbs)) wrong.push(`negated/asked: ${t}`)
+    expect(wrong).toEqual([])
   })
 })

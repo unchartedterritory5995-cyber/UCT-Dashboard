@@ -324,6 +324,9 @@ export function registerDrawingCapabilities() {
   registerCapability({
     ...common,
     name: 'drawing.remove',
+    // `verbs`: the words that name THIS action (P0.2: a plan that is nothing but a revert of the last change runs without the revert card
+    // only when the member's words name its action — deixis.actionNamedIn). Declared by the capability; any capability may add them.
+    verbs: ['remove', 'delete', 'erase', 'get rid of', 'take off', 'take down'],
     // ⭐ OWNER 2026-10-27 (Charts operator P1): approval is for BROAD destructive drawing operations
     // (drawing.clear), not every single removal. One visible drawing is removed at once, with Undo; a
     // HIDDEN one is still shown first (the member cannot see what would go).
@@ -446,6 +449,9 @@ export function registerDrawingCapabilities() {
   registerCapability({
     ...common,
     name: 'drawing.clear',
+    // `verbs`: the words that name THIS action (P0.2: a plan that is nothing but a revert of the last change runs without the revert card
+    // only when the member's words name its action — deixis.actionNamedIn). Declared by the capability; any capability may add them.
+    verbs: ['clear', 'remove', 'delete', 'erase', 'wipe', 'get rid of'],
     // ⭐ OWNER 2026-10-27: a BROAD destructive drawing operation — always shown first
     risk: 'confirm',
     summary: 'Remove EVERY drawing on a chart\'s symbol (every chart and layout showing it) — always shown as a proposal first. Locked drawings and drawings with an alert attached are kept (and said). Undo puts them all back.',

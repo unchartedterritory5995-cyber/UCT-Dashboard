@@ -1060,6 +1060,9 @@ const CAPABILITIES = [
     // StockChart's `replayCutoff` prop): every chart in the workspace hides the bars after it, linked or not. A VIEW: nothing is saved; the Replay
     // dialog's own startReplay / exitReplayMode write it; Undo puts the previous cutoff back (off → every bar is back).
     name: 'chart.replay',
+    // `verbs`: the words that name THIS action (P0.2: a plan that is nothing but a revert of the last change runs without the revert card
+    // only when the member's words name its action — deixis.actionNamedIn). Declared by the capability; any capability may add them.
+    verbs: ['leave', 'exit', 'quit', 'end', 'stop', 'turn off'],
     summary: 'Replay Mode (Tools → Replay): hide every bar after a date on the linked charts, as if it were that day — or exit replay (date null). A view only: nothing is saved; Undo clears it (or restores the previous cutoff).',
     hints: 'date = YYYY-MM-DD (or the member\'s date word: "last friday", "oct 15") for the cutoff; null = exit replay. "As of <date>" / "replay from <date>" / "go back to <date> and hide what came after" = this; "scroll to <date>" with every bar kept = chart.goToDate.',
     args: { type: 'object', properties: { date: { type: ['string', 'null'] } }, required: ['date'], additionalProperties: false },

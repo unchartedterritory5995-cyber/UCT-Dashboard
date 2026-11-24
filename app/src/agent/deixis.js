@@ -1096,7 +1096,10 @@ export function revertsLastChange({ items, host, getCapability, getTargetKind })
       if (!after || after === st) return false
       const was = kind.stateOf(item.before)
       // compared by VALUE, field by field (a snapshot's settings object is a new object on every read)
-      const differs = (x, y) => [...new Set([...Object.keys(x || {}), ...Object.keys(y || {})])].filter(k => typeof x?.[k] !== 'function' && canonJson(x?.[k]) !== canonJson(y?.[k])).sort()
+      // …over the fields the kind actually WRITES (a field whose change makes no patch is derived — the chart's drawSym follows its
+      // symbol — and is no part of a change or of the way back)
+      const written = (k, y) => { try { return !!kind.patch(st, { ...st, [k]: y[k] }) } catch { return true } }
+      const differs = (x, y) => [...new Set([...Object.keys(x || {}), ...Object.keys(y || {})])].filter(k => typeof x?.[k] !== 'function' && canonJson(x?.[k]) !== canonJson(y?.[k]) && written(k, y)).sort()
       const changed = differs(st, after)
       const back = differs(st, was)
       return changed.length > 0 && canonJson(changed) === canonJson(back) && changed.every(k => canonJson(after[k]) === canonJson(was[k]))
@@ -1110,6 +1113,25 @@ export function revertsLastChange({ items, host, getCapability, getTargetKind })
 // matched "undo META".)
 const REVERT_NEGATION = /\b(?:don'?t|do\s+not|does\s+not|doesn'?t|didn'?t|never|no\s+need\s+to|without|not|nor|rather\s+than|instead\s+of|stop|avoid|if|unless|before|whether)\b/i
 const REVERT_QUESTION = /\?|^\s*(?:should|shall|can|could|would|will|do|does|did|is|are|may|might|must|why|how|what|when)\b|\b(?:should|shall)\s+(?:i|we)\b/i
+/**
+ * Do the words NAME this action — one of the verbs its capability declares (`cap.verbs`: "delete that line" for drawing.remove,
+ * "leave replay mode" for chart.replay)? Never when the verb is negated / hypothetical in its clause, nor in a question. A plan that is
+ * nothing but a revert of the last change runs without the revert card only then (or on an explicit revert): "fix that" / "try again"
+ * name no action, so their revert-only plan is the card. No capability verbs → nothing is named.
+ */
+export function actionNamedIn(text, verbs) {
+  const s = String(text || '').replace(/[’‘]/g, '\'')
+  if (!s.trim() || !Array.isArray(verbs) || !verbs.length || REVERT_QUESTION.test(s)) return false
+  for (const v of verbs) {
+    const re = new RegExp(`\\b${String(v).trim().split(/\s+/).map(escRe).join('\\s+')}\\b`, 'i')
+    const m = re.exec(s)
+    if (!m) continue
+    const before = s.slice(0, m.index).split(/[.;!]|,\s*(?:and|then|but)?\s*|\b(?:and|then|but)\b/i).pop() || ''
+    if (REVERT_NEGATION.test(before)) continue
+    return true
+  }
+  return false
+}
 /** Do the words EXPLICITLY ask to undo the last change on `earlier` (its chart symbols)? */
 export const explicitRevertRequested = (text, earlier = []) => !!explicitRevertSpan(text, earlier)
 /** …and where: { start, end } of the revert clause in the words, or null. (The rails read the words without it: they are about the
