@@ -256,6 +256,24 @@ export const TAIL_RETRY_MS = 5000
 export const TAIL_ACTIVE_MS = 3 * 60_000
 /** (re-review of #2619 (B)) A HARD cap: at most this many tail asks of one hold in flight at once. */
 export const TAIL_MAX_INFLIGHT = 3
+/**
+ * ⭐ THE ROWS AHEAD STAY RESIDENT UNTIL THE MEMBER REACHES THEM (replay of the minute feed, 2026-11-24, store off, 1m + 15m,
+ * S&P 500, one press per 2.5 s: 55% of next-row presses waited because the row's server answer had been EVICTED before the
+ * press). The registry keeps DEFAULT_MAX_KEYS entries, least recently used out first (registry.js `_evict`). The list
+ * warms a row when it scrolls into view, ~26 rows before the member reaches it, and every press adds the pressed row's
+ * other timeframes and the next rows' keys (~8 a press): a row ahead, last used at its warm, is OLDER than every row
+ * just pressed, so it went first (prefetch.keepAhead.test.js K1: from press 16, one row a press, each just before the
+ * hold's +-6 reached it) and came back as a LOCAL copy the switch refuses and asks for IN FULL. A list's hold now also
+ * PINS the next NEIGHBOR_KEEP_AHEAD rows in the scan direction (`keep`), released as the member passes them, on a reversal
+ * (only the new direction's rows are kept) and on a jump: the eviction takes the rows the member has passed and the keys
+ * no list is about to show, never the ones ahead.
+ * ⛔ ONLY AN ENTRY THE REGISTRY ALREADY HOLDS IS PINNED. `acquire` of an absent key makes an EMPTY entry, and every first
+ * look hydrates only a key that has none (peekBars, holdsBars, peekDisplayable): an empty pin ahead of the list's warm
+ * would hide that row's mem and IndexedDB copies from every later look. A row not warmed yet is pinned at the first
+ * `set` after its warm made it. Nothing is read or asked for a kept row: the list's own warm fills it.
+ * No cap changes: at most this many more entries per hold (each the warm's first-paint bars, 960-1,199 rows).
+ */
+export const NEIGHBOR_KEEP_AHEAD = 30
 /** (review of fb6fed4328, MEDIUM-1) THE SERVER'S WRITE LAG. A tail answer that lands exactly ONE bucket behind within
  *  TAIL_LAG_WINDOW_MS of the boundary means the server has not stored the bucket that just closed: the hold asks that row
  *  again TAIL_LAG_RETRY_MS after the landing, then twice that, at most TAIL_LAG_RETRIES times per row per bucket, on its
@@ -1182,6 +1200,7 @@ export function createPrefetch(o = {}) {
   // and two lists on one colour group that both hold the symbol both open theirs (each bounded as above).
   function createNeighborHold() {
     let held = new Map()   // key → true
+    let kept = new Map()   // key → true: the rows ahead pinned against the registry's LRU (`keep`, NEIGHBOR_KEEP_AHEAD)
     let deepTimer = null
     let dateTimer = null
     let deepGen = 0
@@ -1364,13 +1383,24 @@ export function createPrefetch(o = {}) {
       }
     }
     return {
-      set(syms, tf, { showExtended, deep = null, tail: tailSyms = null, selected = undefined } = {}) {
+      set(syms, tf, { showExtended, deep = null, tail: tailSyms = null, selected = undefined, keep: keepSyms = null } = {}) {
         const st = S()
         const want = new Map()
         for (const sym of syms || []) { const k = keyFor(sym, tf, { showExtended }); if (k) want.set(k, true) }
         for (const k of want.keys()) if (!held.has(k)) { st.registry.acquire(k); _hydrate(k) }
         for (const k of held.keys()) if (!want.has(k)) st.registry.release(k)
         held = want
+        // the rows ahead: pinned only (no read, no ask: the list's warm fills them), released once the member is past them;
+        // only an entry the registry already holds (an empty pin would hide the row's copies from every first look)
+        const keepWant = new Map()
+        for (const sym of (keepSyms || []).slice(0, NEIGHBOR_KEEP_AHEAD)) {
+          const k = keyFor(sym, tf, { showExtended })
+          if (!k || keepWant.has(k)) continue
+          if (kept.has(k)) keepWant.set(k, true)
+          else if (st.registry.has(k)) { st.registry.acquire(k); keepWant.set(k, true) }
+        }
+        for (const k of kept.keys()) if (!keepWant.has(k)) st.registry.release(k)
+        kept = keepWant
         stopDeep()
         // the selection window (TAIL_ACTIVE_MS): opened by a CHANGE of the member's selection, never by any other `set`
         let sweeping = false
@@ -1420,6 +1450,8 @@ export function createPrefetch(o = {}) {
         const st = S()
         for (const k of held.keys()) st.registry.release(k)
         held = new Map()
+        for (const k of kept.keys()) st.registry.release(k)
+        kept = new Map()
       },
       keys: () => [...held.keys()],
     }
