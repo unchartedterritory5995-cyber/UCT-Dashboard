@@ -65,6 +65,10 @@ describe('the vocabulary', () => {
     expect(SWITCH_TF).toEqual(['intraday-1m', 'intraday-other', 'daily-plus'])
   })
 
+  it('a pointer event that changed the symbol is a `click`: the name does not say "list", because it is not only lists', () => {
+    expect(SWITCH_TRIGGER).toEqual(['list-key', 'click', 'typed', 'other'])
+  })
+
   it('leaves {take, peek} where the beacon looks for it', () => {
     expect(SWITCH_SPEED_GLOBAL).toBe('__uctSwitchSpeed')
     expect(window[SWITCH_SPEED_GLOBAL].take).toBe(takeSwitchCounts)
@@ -226,7 +230,7 @@ describe('a switch that gives no sample is counted by why, and never in a bucket
 
 describe('one page cannot outweigh the rest', () => {
   it('at most MAX_SWITCH_TOTAL samples between two sends; the next ones are `overflow`, and a send starts the count again', async () => {
-    const CAP = 20000                                 // the number itself, so a cap that is absent reads as 20003, not as NaN
+    const CAP = 6000                                  // the number itself, so a cap that is absent reads as 6003, not as NaN
     const m = member()
     const members = group(m)
     for (let i = 0; i < CAP + 3; i++) {

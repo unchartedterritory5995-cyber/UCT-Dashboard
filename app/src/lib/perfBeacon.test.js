@@ -157,9 +157,11 @@ function switchEnv(next) {
   let now = 1000
   env.perf.now = () => now
   env.at = (t) => { now = t }
+  env.peeks = 0
   env.takes = 0
   env.win.location.pathname = '/charts'
-  env.win[SWITCH_SPEED_GLOBAL] = { take: () => { env.takes += 1; return next() } }
+  // the instrument: `peek` reads the counts, `take` reads AND forgets them
+  env.win[SWITCH_SPEED_GLOBAL] = { peek: () => { env.peeks += 1; return next() }, take: () => { env.takes += 1; return next() } }
   env.hide = () => { env.doc.visibilityState = 'hidden'; env.listeners['doc:visibilitychange']() }
   env.show = () => { env.doc.visibilityState = 'visible'; env.listeners['doc:visibilitychange']() }
   env.bodies = () => Promise.all(env.beacons.map(async (b) => JSON.parse(await b.blob.text())))
@@ -181,6 +183,30 @@ describe('the chart-switch counts ride the same door', () => {
     expect(load.kind).toBeUndefined()
     expect(load.switches).toBeUndefined()
     expect(sw).toEqual({ page: '/charts', client: 'desktop', kind: 'switches', switches: COUNTS() })
+    expect([env.peeks, env.takes]).toEqual([1, 1])       // read to build the report; forgotten once it was queued
+  })
+
+  it('a report the browser REFUSES keeps its counts: they are forgotten only once a report is queued', async () => {
+    const env = switchEnv(COUNTS)
+    let accept = false
+    env.win.navigator.sendBeacon = vi.fn((url, blob) => { if (accept) env.beacons.push({ url, blob }); return accept })
+    startPerfBeacon({ ...env, desktop: false })
+    env.hide()                                           // the browser's queue is full: nothing goes
+    expect(env.beacons).toHaveLength(0)
+    expect([env.peeks, env.takes]).toEqual([1, 0])       // the counts stay with the instrument
+    accept = true
+    env.show()
+    env.at(1000 + 5)                                     // nothing was sent, so there is no gap to wait out
+    env.hide()
+    expect(env.beacons).toHaveLength(1)
+    expect((await env.bodies())[0]).toMatchObject({ kind: 'switches', switches: COUNTS() })
+    expect([env.peeks, env.takes]).toEqual([2, 1])
+    // a sendBeacon that THROWS is a refusal too
+    const thrower = switchEnv(COUNTS)
+    thrower.win.navigator.sendBeacon = vi.fn(() => { throw new Error('no') })
+    startPerfBeacon({ ...thrower, desktop: false })
+    thrower.hide()
+    expect([thrower.peeks, thrower.takes]).toEqual([1, 0])
   })
 
   it('nothing counted: nothing sent, however often the page is hidden', () => {
@@ -203,7 +229,7 @@ describe('the chart-switch counts ride the same door', () => {
     env.at(1000 + SWITCH_SEND_GAP_MS - 1)
     env.hide()
     expect(env.beacons).toHaveLength(2)
-    expect(env.takes).toBe(1)                            // not even asked: the counts stay with the instrument
+    expect([env.peeks, env.takes]).toEqual([1, 1])       // not even asked: the counts stay with the instrument
     env.show()
     env.at(1000 + SWITCH_SEND_GAP_MS)
     env.hide()

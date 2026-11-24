@@ -204,7 +204,7 @@ describe('every trigger, from a real event', () => {
   it.each([
     ['an arrow key on the list', 'list', 'ArrowDown', 'list-key'],
     ['the space bar on the list', 'list', ' ', 'list-key'],
-    ['a click on a row', 'row', 'click', 'list-click'],
+    ['a click on a row', 'row', 'click', 'click'],
     ['Enter in the search box', 'search', 'Enter', 'typed'],
     ['a hotkey outside a text field', 'list', 'j', 'other'],
   ])('%s', async (_name, where, how, trigger) => {
@@ -222,7 +222,7 @@ describe('every trigger, from a real event', () => {
     await frame(t0 + 10)
     t0 = press(row, 'CCC', 'click')
     await frame(t0 + 10)
-    expect(cells().map((c) => c.trigger).sort()).toEqual(['list-click', 'typed'])
+    expect(cells().map((c) => c.trigger).sort()).toEqual(['click', 'typed'])
   })
 
   it('a symbol that changes with no input in flight is not a press: nothing is measured, and it is counted', async () => {
@@ -395,7 +395,7 @@ describe('what leaves the page', () => {
     expect([report.page, report.client, report.kind]).toEqual(['/charts', 'desktop', 'switches'])
     const leaves = (v) => (v && typeof v === 'object' ? Object.values(v).flatMap(leaves) : [v])
     expect(leaves(report.switches).filter((v) => !Number.isInteger(v))).toEqual([])
-    expect(report.switches.cells.map(named).map((c) => c.trigger).sort()).toEqual(['list-click', 'list-key', 'typed'])
+    expect(report.switches.cells.map(named).map((c) => c.trigger).sort()).toEqual(['click', 'list-key', 'typed'])
     expect(peekSwitchCounts()).toBeNull()                    // sent once: the instrument starts again from nothing
   })
 })

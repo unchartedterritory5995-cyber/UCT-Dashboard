@@ -233,10 +233,10 @@ def test_the_switch_read_gives_each_combination_its_histogram_and_share_under_40
     assert s["cells"] == [
         {"day": "2026-11-19", "client": "browser", "tf": "daily-plus", "store": False, "trigger": "typed", "route": "prepare",
          "rth": False, "n": [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0], "switches": 1, "under_40": 0, "under_40_pct": 0.0,
-         "reports": 1, "reports_all_under_40": 0},
+         "reports": 1, "reports_all_under_40": 0, "senders": 1},
         {"day": "2026-11-18", "client": "desktop", "tf": "intraday-1m", "store": True, "trigger": "list-key", "route": "decision",
          "rth": True, "n": [3, 14, 9, 3, 0, 0, 0, 0, 0, 0, 2], "switches": 31, "under_40": 29, "under_40_pct": 93.5,
-         "reports": 2, "reports_all_under_40": 1},
+         "reports": 2, "reports_all_under_40": 1, "senders": 2},
     ]
     assert s["by_day"] == [
         {"day": "2026-11-19", "switches": 1, "under_40": 0, "under_40_pct": 0.0,
@@ -260,13 +260,16 @@ def test_the_switch_store_holds_whole_numbers_a_day_and_fixed_names_only(store):
     conn = sqlite3.connect(store)
     try:
         cols = {t: {r[1]: r[2].upper() for r in conn.execute(f"PRAGMA table_info({t})")}
-                for t in ("perf_switch_days", "perf_switch_counters", "perf_switch_sends")}
+                for t in ("perf_switch_days", "perf_switch_counters", "perf_switch_sends", "perf_switch_senders")}
         dump = "\n".join(str(r) for t in cols for r in conn.execute(f"SELECT * FROM {t}"))
     finally:
         conn.close()
     assert sorted(c for c, t in cols["perf_switch_days"].items() if t != "INTEGER") == ["client", "day"]
     assert sorted(c for c, t in cols["perf_switch_counters"].items() if t != "INTEGER") == ["client", "day", "name"]
-    assert set(cols["perf_switch_sends"]) == {"created_at", "rate_key"}       # a time and the salted hash, for the quota
+    # for the quota: a time, the salted hash and how many switches the report held (kept one hour)
+    assert set(cols["perf_switch_sends"]) == {"created_at", "rate_key", "switches"}
+    # to count a day's DISTINCT senders per cell: a hash salted with the day (kept until the day is over)
+    assert sorted(c for c, t in cols["perf_switch_senders"].items() if t != "INTEGER") == ["client", "day", "sender"]
     assert "203.0.113.9" not in dump and "/charts" not in dump
     assert {r["name"] for r in _rows(store, "perf_switch_counters")} <= set(pb.SWITCH_COUNTERS)
 
@@ -390,6 +393,7 @@ def test_the_admin_read_carries_the_switch_histograms(client, store):
     (day,) = sw["by_day"]
     assert re.fullmatch(r"\d{4}-\d{2}-\d{2}", cell["day"]) and day["day"] == cell["day"]
     assert (cell["tf"], cell["trigger"], cell["route"], cell["store"], cell["rth"]) == ("intraday-1m", "list-key", "decision", True, True)
+    assert cell["senders"] == 1 and "pop-out" in " ".join(sw["legend"]["not_sampled"])
     assert (cell["switches"], cell["under_40_pct"], day["superseded"]) == (28, 100.0, 4)
     assert c.get("/api/admin/perf?switch_days=0").status_code == 422
     assert c.get(f"/api/admin/perf?switch_days={pb.SWITCH_RETENTION_DAYS + 1}").status_code == 422
@@ -406,7 +410,7 @@ def test_the_servers_switch_lists_are_the_pages_own():
         return json.loads(m.group(1).replace("'", '"'))
 
     assert tuple(js("SWITCH_TF")) == pb.SWITCH_TF
-    assert tuple(js("SWITCH_TRIGGER")) == pb.SWITCH_TRIGGER
+    assert tuple(js("SWITCH_TRIGGER")) == pb.SWITCH_TRIGGER == ("list-key", "click", "typed", "other")
     assert tuple(js("SWITCH_ROUTE")) == pb.SWITCH_ROUTE
     assert tuple(js("SWITCH_COUNTERS")) == pb.SWITCH_COUNTERS
     assert tuple(js("SWITCH_BUCKET_EDGES_MS")) == pb.SWITCH_BUCKET_EDGES_MS
@@ -415,3 +419,55 @@ def test_the_servers_switch_lists_are_the_pages_own():
     assert js("MAX_SWITCH_CELLS") == pb.MAX_SWITCH_CELLS
     assert js("MAX_SWITCH_COUNT") == pb.MAX_SWITCH_COUNT
     assert js("MAX_SWITCH_TOTAL") == pb.MAX_SWITCH_TOTAL <= pb.MAX_SWITCH_COUNT
+
+
+# ── review of #2641: one sender cannot be the pool, and the read says what a name means ─────────────────────
+
+def _one(n, **cell):
+    """A report of n switches in one cell, nothing else."""
+    return _switch_report(cells=[_cell(counts=[n] + [0] * 10, **cell)], counters=[0] * 6)
+
+
+def test_one_sender_cannot_add_more_switches_in_an_hour_than_a_real_page_makes(store):
+    cap = pb.SWITCH_TOTAL_PER_HOUR
+    assert pb.MAX_SWITCH_TOTAL <= cap <= 2 * 3000 + 1, "about twice what a page can make in an hour (one every 1.2 s), and never under one legal report"
+    assert pb.record(_one(cap // 2), ip="9.9.9.9", country_header="US", now=_T)["stored"] == 1
+    assert pb.record(_one(cap - cap // 2), ip="9.9.9.9", country_header="US", now=_T + 60)["stored"] == 1      # exactly the cap
+    assert pb.record(_one(1), ip="9.9.9.9", country_header="US", now=_T + 120) == {"stored": 0, "dropped": 1, "invalid": 0}
+    assert pb.record(_one(1), ip="8.8.8.8", country_header="US", now=_T + 120)["stored"] == 1                 # another sender is not held back
+    assert pb.record(_one(1), ip="9.9.9.9", country_header="US", now=_T + 3661)["stored"] == 1                # an hour later: both big ones have aged out
+    (row,) = _rows(store, "perf_switch_days")
+    assert row["b0"] == cap + 2 and row["reports"] == 4                                                       # the dropped report added nothing
+
+
+def test_distinct_senders_per_day_and_cell_show_when_one_page_is_the_pool(store):
+    for i in range(3):                                                    # one sender, three reports
+        pb.record(_switch_report(), ip="10.9.0.1", country_header="US", now=_T + i)
+    pb.record(_switch_report(), ip="10.9.0.2", country_header="US", now=_T + 10)
+    pb.record(_one(1, tf=2), ip="10.9.0.1", country_header="US", now=_T + 20)                                 # the same sender, another cell
+    cells = {c["tf"]: c for c in pb.switch_summary(1, now=_T + 30)["cells"]}
+    assert (cells["intraday-1m"]["reports"], cells["intraday-1m"]["senders"]) == (4, 2)
+    assert (cells["daily-plus"]["reports"], cells["daily-plus"]["senders"]) == (1, 1)
+    # the next ET day the same sender counts again for THAT day; yesterday's count stays, yesterday's hashes do not
+    pb._last_prune = 0.0
+    pb.record(_switch_report(), ip="10.9.0.1", country_header="US", now=_T + 86400)
+    s = pb.switch_summary(2, now=_T + 86400 + 1)
+    assert [(c["day"], c["tf"], c["senders"]) for c in s["cells"]] == [
+        ("2026-11-19", "intraday-1m", 1), ("2026-11-18", "intraday-1m", 2), ("2026-11-18", "daily-plus", 1)]
+    kept = _rows(store, "perf_switch_senders")
+    assert {r["day"] for r in kept} == {"2026-11-19"} and "10.9.0.1" not in str(kept)
+    # a day's hash is its own: the same sender on two days cannot be joined through it
+    pb.record(_switch_report(), ip="10.9.0.1", country_header="US", now=_T + 86400 + 5)
+    assert len(_rows(store, "perf_switch_senders")) == 1
+    assert pb._sender_key("10.9.0.1", "2026-11-18") != pb._sender_key("10.9.0.1", "2026-11-19") != pb._rate_key("10.9.0.1")
+
+
+def test_the_read_says_what_each_name_means_and_what_is_not_sampled(store):
+    legend = pb.switch_summary(1, now=_T)["legend"]
+    assert set(legend["tf"]) == set(pb.SWITCH_TF) and set(legend["trigger"]) == set(pb.SWITCH_TRIGGER)
+    assert set(legend["route"]) == set(pb.SWITCH_ROUTE) and set(legend["counters"]) == set(pb.SWITCH_COUNTERS)
+    assert all(isinstance(v, str) and len(v) > 15 for part in ("tf", "trigger", "route", "counters") for v in legend[part].values())
+    assert "any" in legend["trigger"]["click"] and "list" in legend["trigger"]["click"]          # it is not only lists, and says so
+    gaps = " | ".join(legend["not_sampled"])
+    assert "pop-out" in gaps and "unpressed" in gaps
+    assert isinstance(legend["sample"], str) and isinstance(legend["senders"], str)
