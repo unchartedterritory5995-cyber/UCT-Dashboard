@@ -13,6 +13,10 @@
 //      request at the press: its copies were one bucket old, which that warm's legacy rule accepts, so nobody asked).
 //   K1b the same with EXTRA_KEYS more entries a press that no request shows (`peekBars` of unseen symbols).
 //   With `keep` (the hold pins the next NEIGHBOR_KEEP_AHEAD rows), none is evicted.
+//   K4 the keep is budgeted per PAGE, not per hold (review of #2691, MEDIUM-1): a list on a colour with five chart
+//      timeframes has five holds; 30 rows each pinned ~185 of the 200 keys and left the typed, hover, dwell and other
+//      lists' warms a pool of ~15. The five keep at most NEIGHBOR_KEEP_TOTAL (60) rows in all, and with the registry
+//      full at least 100 entries stay evictable.
 //   K3 the pins never stick: reversing the scan releases the rows that were ahead (only the new direction's are kept), a
 //      70-row jump releases all of them, and clear() releases what is left. A keep pins only a row the list's warm has
 //      FILLED (the server's answer here): never an absent key (it would make an empty entry) and never an existing EMPTY
@@ -62,12 +66,13 @@ async function serve(w, ms) {
   }
 }
 
-/** The 80-press scan, as the watchlist and the switch make it; `extra`: entries created a press beyond its own warms. */
-async function scan({ extra = 0 }) {
+/** The scan, as the watchlist and the switch make it; `extra`: entries created a press beyond its own warms; `tfs`: the
+ *  chart timeframes on the list's colour (one hold each); `onPress(i, w)`: a look at the end of each press. */
+async function scan({ extra = 0, tfs = ['1', '15'], presses = 80, settle = 1_900, onPress = null }) {
   vi.setSystemTime(at(10, 7, 30))
   const w = await boot()
   const flat = Array.from({ length: 140 }, (_, i) => `S${String(i).padStart(3, '0')}`)
-  const tfs = ['1', '15']                                      // the board: a 1m and a 15m chart on the list's colour
+  // (the default board: a 1m and a 15m chart on the list's colour)
   const k = (sym, tf) => w.pf.keyFor(sym, tf)
   const keepAhead = w.P.NEIGHBOR_KEEP_AHEAD ?? 30
   const view = (i) => flat.slice(i, i + 26)                    // the list's rendered rows (the ones ahead)
@@ -81,7 +86,7 @@ async function scan({ extra = 0 }) {
   const answered = new Set()
   let maxKeys = 0
   let maxBars = 0
-  for (let i = 1; i <= 80; i++) {
+  for (let i = 1; i <= presses; i++) {
     const s = w.store.peek(k(flat[i], '1'))
     if (!s?.restSeen) lost.push(i)                             // what the switch finds at the press
     // every row ahead the list has warmed must still hold that answer (a re-ask after an eviction hides it at the press)
@@ -109,10 +114,11 @@ async function scan({ extra = 0 }) {
     for (let j = 0; j < extra; j++) w.pf.peekBars(`X${i}${String.fromCharCode(65 + j)}`, '5')   // entries no request shows
     await serve(w, 600)
     w.pf.prefetchAllTimeframes(flat[i])                        // the dwell (SCAN_DWELL_MS)
-    await serve(w, 1_900)
+    await serve(w, settle)
     const st = w.store.registry.stats()
     maxKeys = Math.max(maxKeys, st.keys)
     maxBars = Math.max(maxBars, st.bars)
+    onPress?.(i, w, flat)
   }
   for (const off of subs.splice(0)) off()
   for (const h of holds.values()) h.clear()
@@ -138,6 +144,31 @@ describe('the rows ahead stay resident until the member reaches them', () => {
   }, 240_000)
 })
 
+describe('the keep is budgeted per page, not per hold', () => {
+  it('K4 five chart timeframes on one colour keep at most 60 rows ahead in all; with the registry full >= 100 entries stay evictable', async () => {
+    const tfs = ['1', '5', '15', '30', '60']
+    const over = []
+    const starved = []
+    let full = 0
+    await scan({ tfs, presses: 40, settle: 5_000, onPress: (i, w, flat) => {
+      const R = w.store.registry
+      // a row beyond the hold's +-6 is pinned only by the keep; the 6 nearest of every hold's kept rows are also held
+      let beyond = 0
+      for (const tf of tfs) for (let j = i + 7; j <= i + 30; j++) if (R.refs(w.pf.keyFor(flat[j], tf)) > 0) beyond++
+      if (beyond > 60 - tfs.length * 6) over.push(`${i}:${beyond}`)
+      const keys = R.keys()
+      if (keys.length >= 200) {
+        full++
+        const idle = keys.filter((x) => R.refs(x) === 0).length
+        if (idle < 100) starved.push(`${i}:${idle}`)
+      }
+    } })
+    expect(full).toBeGreaterThan(10)                           // the registry was full: eviction ran
+    expect(over, `presses keeping more than 60 rows in all (press:rows kept beyond +-6): ${over.join(' ')}`).toEqual([])
+    expect(starved, `presses with fewer than 100 evictable entries (press:idle): ${starved.join(' ')}`).toEqual([])
+  }, 240_000)
+})
+
 describe('the rows kept ahead are released as the member moves', () => {
   it('K3 a reversal keeps only the new direction, a 70-row jump releases the old window, clear() releases the rest', async () => {
     vi.setSystemTime(at(10, 7, 30))
@@ -159,19 +190,19 @@ describe('the rows kept ahead are released as the member moves', () => {
     press(40, 1)                                               // scanning down at row 40
     expect(refs(flat[60])).toBe(1)                             // a row 20 ahead is pinned (kept, outside +-6)
     expect(refs(flat[70])).toBe(1)
-    expect(refs(flat[61])).toBe(0)                             // an empty entry is not
+    expect(refs(flat[61]), 'an existing EMPTY entry was pinned').toBe(0)
     expect(refs(flat[20])).toBe(0)                             // a row 20 behind is not
-    expect(refs(flat[41])).toBe(2)                             // held (+-6) and kept: both pins
-    expect(refs(flat[45])).toBe(2)
+    expect(refs(flat[41]), 'a row held and kept: both pins').toBe(2)
+    expect(refs(flat[45]), 'a row held and kept: both pins').toBe(2)
     // two rows down: a row that stays kept never drops to 0 refs on the way (released before it is pinned again)
     const release = w.store.registry.release
     const zeroed = []
     w.store.registry.release = (key) => { release(key); if (key === k(flat[65]) && w.store.registry.refs(key) === 0) zeroed.push(key) }
     press(42, 1)
     w.store.registry.release = release
-    expect(zeroed).toEqual([])
+    expect(zeroed, 'a row that stays kept dropped to 0 refs between two presses').toEqual([])
     expect(refs(flat[65])).toBe(1)
-    expect(refs(flat[41])).toBe(1)                             // passed: out of the keep, still inside the hold's +-6
+    expect(refs(flat[41]), 'a passed row still inside +-6 lost the hold pin').toBe(1)
     press(39, -1)                                              // the member turns back up
     expect(refs(flat[60])).toBe(0)                             // the rows that were ahead are released...
     expect(refs(flat[70])).toBe(0)
