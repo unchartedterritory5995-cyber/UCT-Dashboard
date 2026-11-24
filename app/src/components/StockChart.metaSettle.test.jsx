@@ -192,6 +192,8 @@ describe('a metadata answer settles only the board its bars are painted on', () 
 
   it('3. the final state after every step is master\'s: rows held, visible ranges, price-scale ranges', () => {
     expect(Object.keys(fixed.states)).toEqual(Object.keys(master.states))
+    // CONTROL: the state tells pictures apart (every step's differs from every other step's)
+    expect(new Set(Object.values(master.states)).size).toBe(Object.keys(master.states).length)
     for (const k of Object.keys(master.states)) {
       expect(fixed.states[k].length, k).toBeGreaterThan(1000)
       if (fixed.states[k] !== master.states[k]) throw new Error(`the state after "${k}" differs from master's`)
@@ -204,7 +206,8 @@ describe('a metadata answer settles only the board its bars are painted on', () 
     expect(got).toEqual({
       'load AAA 30m': '6/1 -> 6/1',
       [STEPS[0][0]]: '7/3 -> 7/3',
-      [STEPS[1][0]]: '13/2 -> 6/1',
+      // the two 1m windows hold the same 750 minutes (both index steps leave 750 rows): no FULL update at all
+      [STEPS[1][0]]: '13/2 -> 6/0',
       [STEPS[2][0]]: '7/3 -> 7/3',
       [STEPS[3][0]]: '13/2 -> 6/1',
       [STEPS[4][0]]: '7/3 -> 7/3',
