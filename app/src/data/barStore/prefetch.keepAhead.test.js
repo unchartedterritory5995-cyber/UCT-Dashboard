@@ -16,7 +16,8 @@
 //   K4 the keep is budgeted per PAGE, not per hold (review of #2691, MEDIUM-1): a list on a colour with five chart
 //      timeframes has five holds; 30 rows each pinned ~185 of the 200 keys and left the typed, hover, dwell and other
 //      lists' warms a pool of ~15. The five keep at most NEIGHBOR_KEEP_TOTAL (60) rows in all, and with the registry
-//      full at least 100 entries stay evictable.
+//      full at least 100 entries stay evictable. K5: the total holds at EVERY set, not only once every hold has been
+//      set again: a hold that joins trims the others at once.
 //   K3 the pins never stick: reversing the scan releases the rows that were ahead (only the new direction's are kept), a
 //      70-row jump releases all of them, and clear() releases what is left. A keep pins only a row the list's warm has
 //      FILLED (the server's answer here): never an absent key (it would make an empty entry) and never an existing EMPTY
@@ -167,6 +168,34 @@ describe('the keep is budgeted per page, not per hold', () => {
     expect(over, `presses keeping more than 60 rows in all (press:rows kept beyond +-6): ${over.join(' ')}`).toEqual([])
     expect(starved, `presses with fewer than 100 evictable entries (press:idle): ${starved.join(' ')}`).toEqual([])
   }, 240_000)
+
+  it('K5 a hold that joins trims the others at once: the total never passes 60, set by set', async () => {
+    vi.setSystemTime(at(10, 7, 30))
+    const w = await boot()
+    const flat = Array.from({ length: 140 }, (_, i) => `S${String(i).padStart(3, '0')}`)
+    const tfs = ['1', '5', '15', '30', '60']
+    const rows = flat.slice(4, 41)                             // row 10's +-6 and the 30 rows ahead of it
+    for (const tf of tfs) w.pf.prefetchBarsToIDB(rows, tf, { priority: true, visible: true })
+    await serve(w, 30_000)
+    expect(tfs.every((tf) => w.store.peek(w.pf.keyFor(flat[40], tf))?.restSeen)).toBe(true)
+    const around = scanNeighbors(flat, 10, 1, { ahead: 6, behind: 6 })
+    const keep = scanNeighbors(flat, 10, 1, { ahead: 30, behind: 0 })
+    // rows 17..40 are beyond the +-6: pinned there only by a keep (each hold's 6 nearest kept rows are also held)
+    const beyond = () => tfs.reduce((n, tf) => n + flat.slice(17, 41).filter((s) => w.store.registry.refs(w.pf.keyFor(s, tf)) > 0).length, 0)
+    const holds = []
+    const seen = []
+    for (const tf of tfs) {
+      const h = w.pf.createNeighborHold()
+      holds.push(h)
+      h.set(around, tf, { keep })
+      seen.push(beyond())
+      expect(beyond(), `after ${holds.length} holds: rows kept beyond +-6 ${seen.join(' ')}`).toBeLessThanOrEqual(60 - holds.length * 6)
+    }
+    expect(seen).toEqual([24, 48, 42, 36, 30])                // 30, 30, 20, 15, 12 rows a hold
+    for (const h of holds) h.clear()
+    expect(beyond()).toBe(0)
+    w.store.dispose()
+  }, 60_000)
 })
 
 describe('the rows kept ahead are released as the member moves', () => {
