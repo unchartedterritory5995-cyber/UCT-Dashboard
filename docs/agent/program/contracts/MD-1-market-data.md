@@ -1,8 +1,8 @@
-# MD-1 — UCT market-data contract (v1.17)
+# MD-1 — UCT market-data contract (v1.18)
 
 - **Owner:** agent-md implements the kinds. agent-lead owns `gateway.py` and `envelope.py`, the framework every consumer relies on.
 - **Consumers:** agent-sc, agent-rs, agent-qa, and later the D and G workstreams.
-- **Status:** v1.17 (v1.1–v1.17 each additive or a scope reduction; v1.1–v1.4 acked by agent-lead 2026-11-01, v1.5 agreed for Sprint 2; v1.6, v1.7, v1.8, v1.9, v1.10, v1.11, v1.12, v1.13, v1.14, v1.15, v1.16 and v1.17 are additions whose new kinds are default OFF; v1.7 is written up after its kinds merged dark, v1.8, v1.9, v1.10, v1.11, v1.12, v1.13, v1.14, v1.15, v1.16 and v1.17 with their kinds; v1.7 and v1.8 acked by the owner 2026-11-17 in place of agent-lead, whose session has ended; the §8.1 notices for v1.9, v1.10, v1.11, v1.12, v1.13, v1.14, v1.15, v1.16 and v1.17 are owed by a person and are not acknowledged, see §9). See §9 for what changed. The envelope's wire field `contract` stays `"MD-1.0"`: no version since v1.0 adds an envelope field.
+- **Status:** v1.18 (v1.1–v1.18 each additive or a scope reduction; v1.1–v1.4 acked by agent-lead 2026-11-01, v1.5 agreed for Sprint 2; v1.6, v1.7, v1.8, v1.9, v1.10, v1.11, v1.12, v1.13, v1.14, v1.15, v1.16, v1.17 and v1.18 are additions whose new kinds are default OFF (v1.18 also narrows `ratings` to a held read); v1.7 is written up after its kinds merged dark, v1.8, v1.9, v1.10, v1.11, v1.12, v1.13, v1.14, v1.15, v1.16, v1.17 and v1.18 with their kinds; v1.7 and v1.8 acked by the owner 2026-11-17 in place of agent-lead, whose session has ended; the §8.1 notices for v1.9, v1.10, v1.11, v1.12, v1.13, v1.14, v1.15, v1.16, v1.17 and v1.18 are owed by a person and are not acknowledged, see §9). See §9 for what changed. The envelope's wire field `contract` stays `"MD-1.0"`: no version since v1.0 adds an envelope field.
 - **Changes:** see §8.
 
 ## 1. Purpose
@@ -158,7 +158,7 @@ The canonical services' own stale-while-revalidate refresh and the news store's 
 - `as_of` = the session close of `price_as_of`. Notes: `UCT Ratings are UCT's own computed scores (1–99), not a third-party analyst rating`; `the fundamental and ownership inputs carry no date; as_of is the price data's last session`.
 - `stale` when `price_as_of` predates the last completed session, with the note `the price data ends {date}, before the last completed session ({session})`.
 - `complete=False` → `partial`, with the note `one or more inputs could not be read; the scores are built on what was available`.
-- `provider_calls` 3 per read.
+- `provider_calls` 0 per read since v1.18 (it was 3 while the adapter called `get_ratings`, which on a cache miss builds the rating from three vendor reads). **v1.18 (terminal data wave 12): a held read.** The adapter reads only what the server already holds, through `ratings_held.held_ratings` (`api/services/research/ratings_held.py`, the same cache entry `get_ratings` answers from; never a build), so the first capability over this kind (`stock.uctRating`, local-only, §4.21) adds no vendor read to a turn. Nothing held: `unavailable` with the note `{symbol}'s UCT Rating is not held on this server yet, and this read never works it out. That is not the same as no rating. Open RTG for {symbol} in UCT, then ask again`. A fund: `unavailable` with `{reason}, so no UCT Rating is stated. That is not the same as a low rating` (the RTG route's own reason). A failed read: `the UCT Rating read failed; nothing is stated. That is not the same as no rating`. Narrowed by the wave 12 builder as the narrower rule; not an owner decision.
 - Data fields: `symbol, composite, components, checkup, method, basis, coverage, universe_n, sector, group_rs, price_as_of, complete`.
 
 **Deferred until a verifying spike is done (agent-md, ADR-003):**
@@ -2691,6 +2691,170 @@ the panel that shows it. The order of the crowding table (the median percent of 
   `concentration`, `credit`, `stale_for`, `left_out`; the board `market` (null), `watch`, `markets`, `no_record`, `newest`,
   `credit`, `stale_for`, `left_out`.
 
+### 4.21 Terminal data wave 12: `estimates.history`, `analyst.ratings`, `company.segments`, `stock.failsToDeliver`, `company.deals`, and the first capability over `ratings` (v1.18, terminal-data)
+
+Five more thin kinds, the Agent half of the single-stock panels a 2026-11-23 audit listed as unanswered: EEH (one stock's
+estimate history), ANR (its analyst ratings and price targets), SEG (its revenue by segment and region), FTD (its SEC fails
+to deliver) and one stock's MNA and IDXC (its deals and its index additions and removals); and RTG, whose server kind
+`ratings` (§4.4) existed with no capability: `stock.uctRating` now reads it, and its adapter now reads only the held
+rating (§4.4, v1.18). Each new kind is an adapter over the service its member route already reads
+(`api/services/uct_agent/marketdata/estimate_history_read.py`, `analyst_ratings_read.py`, `revenue_segments_read.py`,
+`ftd_read.py`, `company_deals_read.py`; registered in `kinds.py` with `owner="terminal-data"`). No new connection, job,
+database, write or route (§6), and no new environment variable. Each keeps its route's own field names.
+
+PEER gets no kind: its route (`GET /api/groups/peers`, `groups.resolve_peers`) works the peers out on the request (the
+taxonomy ranked by today's moves from a vendor snapshot, an industry fallback, a model's fallback for a stock outside the
+taxonomy) and holds no answer to read, so a held-only kind cannot be built without a new peer computation or a vendor
+call; it is left out.
+
+**Status: dark, not armed.** Like every kind, each is served only when it is listed in `UCT_AGENT_DATA_KINDS` (with
+`UCT_AGENT_DATA=1`). All five are model-isolated, as `ratings` already is, so each also needs the master switch
+`UCT_AGENT_ISOLATED=1` and its own entry in `UCT_AGENT_ISOLATED_KINDS` (§4.4, ADR-005); until then it is refused for every
+purpose, and once armed it is served for purpose `answer` only. The six capabilities (`stock.uctRating`,
+`stock.estimatesHistory`, `stock.consensusRating`, `stock.revenueSplit`, `stock.failsToDeliver`, `stock.companyDeals`) are
+local-only (`turn.LOCAL_ONLY_ACTIONS`) and registered only while the server serves their kinds. This section describes
+what the code does when a kind is switched on. It does not switch anything on. As written (2026-11-24), none of the six
+is in production's list.
+
+| Kind | Canonical service (member route) | Params | Declared freshness | `as_of` | `provider_calls` | Model-isolated |
+|---|---|---|---|---|---|---|
+| `estimates.history` | the snapshot store `api/services/estimate_history.py` keeps, read through `estimate_history_held.held_history` (`GET /api/research/estimate-history/{sym}`, behind ESTIMATE_HISTORY_ENABLED) | `{symbol}` | periodic · every read periodic | the day of the stock's newest snapshot, as the start of that New York day | 0 | **yes** |
+| `analyst.ratings` | the record `api/services/analyst_grades.py` holds in the shared cache, read through `analyst_ratings_held.held_ratings` (`GET /api/research/analyst-ratings/{sym}`) | `{symbol, rows}` | periodic · every read periodic | the newest observation time the record's legs carry | 0 | **yes** |
+| `company.segments` | the answers `api/services/revenue_segments.py` holds per stock and period, read through `revenue_segments_held.held_segments` (`GET /api/research/revenue-segments/{ticker}?period=…`) | `{symbol, rows}` | periodic · every read periodic | the newest fiscal period end among the splits returned | 0 | **yes** |
+| `stock.failsToDeliver` | the store `api/services/ftd_dataset.py` ingests, read through `ftd_dataset_held.held_series` (`GET /api/research/ftd/{sym}`, behind FTD_DATASET_ENABLED) | `{symbol, rows}` | periodic · every read historical | the newest settlement date reported for the stock (none reported: the newest date the files cover) | 0 | **yes** |
+| `company.deals` | the holds of `api/services/mergers.py` and `api/services/index_changes.py`, read through `company_deals_held.held_mergers` and `company_deals_held.held_index_changes` (`GET /api/research/mergers?sym=`, `GET /api/research/index-changes?sym=`) | `{symbol, rows}` | periodic · every read periodic | null: each part carries its own read time | 0 | **yes** |
+
+Sources (`source`): `uct-estimate-history`, `uct-analyst-ratings`, `uct-revenue-segments`, `sec-fails-to-deliver`, `uct-company-deals`.
+
+**No read of this section starts a build or a request.** (§5: a turn has 20 provider requests and a member waiting.)
+Every member route here can cause work on the request; each adapter reads a held-only reader added with this version (a
+new file beside its service; every service's own calls are unchanged) and answers `unavailable`, with the reason, when
+nothing is held:
+
+| Kind | What the member path can start | What the adapter reads instead |
+|---|---|---|
+| `ratings` | `research.ratings.get_ratings` builds the rating on a cache miss (three vendor reads) | `ratings_held.held_ratings`: the same cache entry, else nothing |
+| `estimates.history` | `estimate_history.history` registers the stock in the daily snapshot job (a write) | `estimate_history_held.held_history`: the route's answer with registering off, the tracked origin and the store's newest day over a read-only connection; no store file, nothing |
+| `analyst.ratings` | `analyst_grades.get_analyst_grades` asks the vendor four times on a cache miss | `analyst_ratings_held.held_ratings`: the same cache entry shaped as the route shapes it, else nothing |
+| `company.segments` | `revenue_segments.get_segments` starts the hold's background build (two vendor reads) | `revenue_segments_held.held_segments`: the hold's `peek()`, per period |
+| `stock.failsToDeliver` | `ftd_dataset.series` opens the store through a helper that creates it when missing | `ftd_dataset_held.held_series`: no store file, nothing; else the route's own answer |
+| `company.deals` | `mergers.get_company` and `index_changes.get_changes` start their holds' background builds (a name search, the latest-deals pages, three index lists) | `company_deals_held.held_mergers` and `company_deals_held.held_index_changes`: the holds' `peek()`; with only the market's latest-deals list held, the deals in it naming the symbol, said as such |
+
+Rails (`tests/test_uct_agent_data_terminal_wave12.py`) replace every builder, vendor leg, writer, job and hold `get` with
+one that fails, read every kind held and not held, and show each member path doing that work in the same state.
+
+**What each kind states.**
+- `estimates.history`: for each upcoming quarter (at most four) the newest consensus EPS and revenue with low, high and
+  analyst count, and each move over 7, 30 and 90 days by `estimate_revisions.classify`, EEHSC's own rule (raised, cut,
+  held, or too new / a gap / not comparable with the service's reason; a move never 0). The tracked-population rule is
+  said: a stock outside the population with no snapshot is `unavailable` with that reason, never "no estimates"; the
+  fiscal year's consensus is not held. Tracked origins: `sp500`: the S&P 500 list UCT's daily job seeds; `viewed`: a member opened EEH for it.
+- `analyst.ratings`: the counts by rating with the consensus word, the price target (high, low, median, consensus, the
+  recent averages; a window with no target has no average), the upside to the consensus target (the median when none:
+  the ANR panel's rule) from the newest completed close in UCT's bar store (not the panel's last trade; no close, no
+  upside), and the newest rating actions, cut from the old end. No coverage on file is `ok` with every section null; an
+  outage the composer holds is `unavailable`; a record built with a leg down is `partial`. Each `_meta` is reduced to its
+  observation time (no vendor name). Upside reasons: `no_target`: the record gives no consensus or median target; `no_close`: UCT's bar store holds no completed close for it.
+- `company.segments`: the newest fiscal year's and quarter's split by product and by region, each segment's revenue, the
+  server's share, and its growth against the same segment a year earlier, worked out from held periods only (no such
+  period or segment, or a figure of 0 or less there: no growth, never 0); the largest segments kept, the smallest cut. A
+  period not held is said; a leg's own state is said: `none`: the vendor answered with no period it could read; `not_in_plan`: the site's plan with the vendor does not include it; `not_configured`: the vendor is not switched on for this server; `rate_limited`: the vendor turned the read away for too many requests; `failed`: the vendor's answer could not be read.
+- `stock.failsToDeliver`: the newest settlement days' balances (shares, price, value; no price, no value), the change
+  from the reported day before, the window's peak and the newest as a share of it, the window the ingested files cover and
+  the SEC's twice-monthly lag; a balance, never summed across days. No row in the window is the service's own words for
+  it, with the window.
+- `company.deals`: the deals naming the stock (its role, both parties, the filing day and the SEC filing) and its index
+  additions and removals (the index, the day, the stock it replaced or was replaced by, the reason), each part with its
+  own state and read time. A part with no row says no record matched (never that none exist). How the deals were looked
+  for: `ok`: the company's name was searched and the latest filings were looked through by symbol; `none`: the company's name was searched and the latest filings were looked through by symbol; `no_name`: the server holds no company name for it, so only the latest filings were looked through, by symbol; `not_in_plan`: the name search is not in the site's plan with the vendor, so only the latest filings were looked through; `not_configured`: the vendor is not switched on for this server, so only the latest filings were looked through; `rate_limited`: the name search was turned away for too many requests, so only the latest filings were looked through; `failed`: the name search could not be read, so only the latest filings were looked through; `not_run`: no name search has been run for it on this server, so only the deals in the market's latest filings were looked through, by symbol. An index list not read: `none`: the vendor's list answered with no row; `not_in_plan`: it is not in the site's plan with the vendor; `not_configured`: the vendor is not switched on for this server; `rate_limited`: it was turned away for too many requests; `failed`: it could not be read.
+
+**Notes, verbatim** (the adapters' own constants; `{…}` is filled per read):
+
+`estimates.history`:
+- `NOTE_WHAT`: `{symbol}'s estimate history as UCT holds it for the EEH panel: its own daily snapshots of the analysts' consensus EPS and revenue estimate for each upcoming fiscal quarter (at most {periods}), {first} to {last}, {days} snapshot days. Analysts' estimates, not a forecast of UCT's and not advice`
+- `NOTE_AS_OF`: ``as_of` is the day of {symbol}'s newest snapshot ({day}); it is never the time of the read, and this read never adds a snapshot`
+- `NOTE_TRACKED`: `{symbol} is in the population UCT snapshots because {why} ({count} of at most {cap} stocks are tracked)`
+- `NOTE_MOVES`: `each move is the newest snapshot against the newest one on or before {windows} days earlier (within {slack} days), EEHSC's own rule: a change of more than {tol}% either way is raised or cut, anything within it held; a move the history cannot give is said with its reason, never as 0`
+- `NOTE_YEAR`: `the fiscal year's consensus is not held: UCT snapshots the quarterly estimates only`
+- `NOTE_GAPS`: `{n} snapshot days failed to read for {symbol} (newest {newest}): they are gaps, never skipped silently`
+- `NOTE_BEHIND`: `{symbol}'s newest snapshot ({last}) is older than the store's newest ({store}): the daily read has not answered for it since`
+- `NOTE_NO_PERIODS`: `{reason}: no upcoming quarter is held, so no estimate is stated. That is not the same as no estimates`
+- `NOTE_LEFT_OUT`: `every snapshot point of each quarter is not in this read, only the newest: the EEH panel shows them`
+- `NOTE_NOT_TRACKED`: `{symbol} is not in the population UCT snapshots (the S&P 500 list and the stocks members opened EEH for, at most {cap}), so no estimate history is held for it. That is not the same as no estimates. Opening EEH for {symbol} in UCT adds it when there is room; its history begins with the next snapshot`
+- `NOTE_COLLECTING`: `{symbol} is tracked but has no snapshot yet: the daily job adds one each weekday evening and its history begins with the first. That is not the same as no estimates`
+- `NOTE_SWITCHED_OFF`: `the estimate history is switched off on this server (its route answers nothing), so it is not read. That is not the same as no estimates`
+- `NOTE_NOT_HELD`: `no estimate history is held on this server yet, and this read never adds one. That is not the same as no estimates. Open EEH in UCT, then ask again`
+- `NOTE_FAILED`: `the estimate history read failed; nothing is stated. That is not the same as no estimates`
+
+`analyst.ratings`:
+- `NOTE_WHAT`: `{symbol}'s analyst ratings as UCT holds them for the ANR panel: the count of analysts by rating with the consensus, the price target (high, low, median, consensus and the recent averages) and the most recent rating actions. Analysts' opinions, not UCT's, not a forecast and not advice`
+- `NOTE_AS_OF`: ``as_of` is the newest time the vendor's legs say they observed the data ({at}); it is never the time of the read, and this read never asks the vendor`
+- `NOTE_NO_TIME`: ``as_of` is null: no leg of the held record carries an observation time`
+- `NOTE_UPSIDE`: `the upside is the {target} target against {symbol}'s close of {day} in UCT's bar store ({close}), not the last trade the ANR panel uses`
+- `NOTE_NO_UPSIDE`: `no upside is stated: {why}. That is not an upside of 0`
+- `NOTE_NO_COVERAGE`: `the vendor answered for every leg and has no analyst coverage on file for {symbol}: no consensus, no target and no rating action`
+- `NOTE_OUTAGE`: `some of {symbol}'s analyst data could not be read when UCT last asked; what is stated is what answered, and a missing section is not the same as none`
+- `NOTE_CUT`: `{total} recent rating actions are held and the newest {shown} are returned: the list is cut from the OLD end`
+- `NOTE_LEFT_OUT`: `the monthly rating trend and the estimate revisions are not in this read: the ANR panel in UCT shows the revisions`
+- `NOTE_FUND`: `{reason}, so no analyst rating is stated. That is not the same as no coverage`
+- `NOTE_NOT_HELD`: `{symbol}'s analyst ratings are not held on this server yet, and this read never asks the vendor. That is not the same as no coverage. Open ANR for {symbol} in UCT, then ask again`
+- `NOTE_FAILED`: `the analyst ratings read failed; nothing is stated. That is not the same as no coverage`
+
+`company.segments`:
+- `NOTE_WHAT`: `{symbol}'s revenue by segment as UCT holds it for the SEG panel: the newest fiscal year's and quarter's split by product and by region, each segment's revenue and share of the segments listed (which may not add up to the company's total revenue), and its growth against a year earlier. Company-reported figures, not advice`
+- `NOTE_AS_OF`: ``as_of` is the newest fiscal period end among the splits returned ({day}); it is never the time of the read. UCT read them at {at} (UCT's own time)`
+- `NOTE_NO_PERIOD`: ``as_of` is null: no split of the held answers has a period that could be read`
+- `NOTE_GROWTH`: `growth is worked out by this read from the held periods: each segment against the same segment in the period a year earlier (the year before; for a quarter, the period that ended 350 to 380 days earlier); a segment without one has no growth stated, never 0`
+- `NOTE_ONE_HELD`: `the {missing} split is not held on this server yet (only the {held} one is), and this read never builds it. Open SEG {word} for {symbol} in UCT, then ask again`
+- `NOTE_LEG`: `the {period} {leg} split is not stated: {why}. That is not the same as no segments`
+- `NOTE_CUT`: `{period} {leg} split: {total} segments are held and the largest {shown} are returned (the smallest are cut)`
+- `NOTE_LEFT_OUT`: `the earlier periods side by side are not in this read, only the newest and its comparison: the SEG panel shows them`
+- `NOTE_NOT_HELD`: `{symbol}'s revenue by segment is not held on this server yet, and this read never builds it. That is not the same as no segments. Open SEG for {symbol} in UCT, then ask again`
+- `NOTE_FAILED`: `the revenue by segment read failed; nothing is stated. That is not the same as no segments`
+
+`stock.failsToDeliver`:
+- `NOTE_WHAT`: `{symbol}'s fails to deliver as UCT holds them for the FTD panel, from the SEC's fails-to-deliver files (NSCC's Continuous Net Settlement data) ingested for {start} to {through}: each figure is the aggregate balance of shares that failed to deliver on that settlement date, not the day's new fails, and balances are never summed across days. Not advice`
+- `NOTE_AS_OF`: ``as_of` is the newest settlement date stated ({day}); it is never the time of the read, and this read never downloads a file`
+- `NOTE_NO_DAY`: ``as_of` is null: neither a reported row nor the ingested files give a date`
+- `NOTE_LAG`: `the SEC posts each half-month's file in the second half of the following period, so the newest figure is some weeks old`
+- `NOTE_NONE`: `{reason}: none of the {files} ingested files has a row for it. That is not the same as no fails ever`
+- `NOTE_MISMATCH`: `{n} of the ingested files did not reconcile with their own row count and are kept, marked: {names}`
+- `NOTE_NO_PRICE`: `{n} of the rows returned carry no price, so they have no value (never 0)`
+- `NOTE_CUT`: `{total} settlement days are reported and the newest {shown} are returned: the list is cut from the OLD end`
+- `NOTE_NOT_INGESTED`: `no fails-to-deliver file has been ingested on this server yet, so nothing is stated for {symbol}. That is not the same as no fails`
+- `NOTE_SWITCHED_OFF`: `the fails-to-deliver data set is switched off on this server (its route answers nothing), so it is not read. That is not the same as no fails`
+- `NOTE_NOT_HELD`: `no fails-to-deliver store is held on this server yet, and this read never downloads one. That is not the same as no fails`
+- `NOTE_FAILED`: `the fails-to-deliver read failed; nothing is stated. That is not the same as no fails`
+
+`company.deals`:
+- `NOTE_WHAT`: `{symbol}'s deals and index changes as UCT holds them for the MNA and IDXC panels: the announced mergers and acquisitions that name it, with each SEC filing, and its additions to and removals from the S&P 500, the Nasdaq 100 and the Dow 30. A record of announcements, not advice`
+- `NOTE_AS_OF`: ``as_of` is null: each part carries its own read time (deals: {deals}; index changes: {changes}), and each row its own day; never the time of the read`
+- `NOTE_SEARCH`: `deals: {how}`
+- `NOTE_NO_DEAL`: `no deal in what UCT holds matched {symbol} ({how}). That is not the same as a company with no deals`
+- `NOTE_OTHER`: `{n} more deals matched the name search but name a different company; they are not returned`
+- `NOTE_NO_CHANGE`: `no index change in what UCT holds matched {symbol}. That is not the same as a stock never in an index`
+- `NOTE_LEG`: `the {index} list is not stated: {why}`
+- `NOTE_CUT`: `{part}: {total} are held and the newest {shown} are returned: the list is cut from the OLD end`
+- `NOTE_PART_NOT_HELD`: `{part} for {symbol} are not held on this server yet, and this read never builds them. Open {code} for {symbol} in UCT, then ask again`
+- `NOTE_NOT_HELD`: `{symbol}'s deals and index changes are not held on this server yet, and this read never builds them. That is not the same as none. Open MNA or IDXC for {symbol} in UCT, then ask again`
+- `NOTE_FAILED`: `the deals and index changes read failed; nothing is stated. That is not the same as none`
+
+**Model isolation, from the licensing register** (`docs/terminal-research/09-security-licensing-cost/licensing-register.md`),
+the builder's default under "when in doubt, isolated": the estimates and the analyst record are the estimates vendor's
+(row T-34, member display of analyst estimates, grades, price targets and consensus, "R"; row T-44, its numbers into a
+model, "No AI clause"); the close beside the upside is the market-data vendor's stored history (row T-04, member display,
+"R"; row T-14, its numbers into a model, "R"); the segments are stamped `data_class="segments"`, which no row names
+(row T-33, statements and fundamentals for member display, and row T-44 are the nearest); the deals and index lists are
+stamped `mergers` and `constituents`, which no row names for these lists (row T-39, index constituents for member display,
+and row T-44 the nearest; the SEC filing a deal links to is public, row T-83); the fails to deliver are SEC data whose
+nearest row, T-83 (EDGAR filings, "A"), names EDGAR and not these files; the one row that mentions this store, row T-104, reads it only as a CUSIP-to-symbol input to the N-PORT fund index; no row names a model lane for them. No row
+clears any of these for a model provider; the narrower rule is kept. Every capability is local-only. These are the
+builder's default; nobody decided otherwise and nobody was asked.
+
+**Routing.** The six capabilities share ONE words-only routing group of their own, `stockResearch`, the 54th of the 56 the
+server keeps (`turn.MAX_GROUPS`, unchanged). Its words are empty in `routing.js` and each capability's own are armed only
+while it is registered, so on a dark server routing is byte-identical to the base.
+
 ## 8. Changing this contract
 
 1. Open a PR that edits this file, with a version bump (v1.1 adds; v2.0 breaks). Message agent-lead.
@@ -2700,6 +2864,7 @@ the panel that shows it. The order of the crowding table (the median percent of 
 
 ## 9. Changelog
 
+- **v1.18 addition (2026-11-24, terminal-data, data wave 12):** §4.21 documents five kinds added dark with this version: `estimates.history`, `analyst.ratings`, `company.segments`, `stock.failsToDeliver`, `company.deals` (one stock's estimate history, its analyst ratings and price targets, its revenue by segment and region, its SEC fails to deliver, and its deals and index changes: the Agent half of EEH, ANR, SEG, FTD and one stock's MNA and IDXC), and the first capability over the existing `ratings` kind (RTG). All five are model-isolated (ADR-005; the builder's default under "when in doubt, isolated": no row of the licensing register clears any of them for a model provider; §4.21 quotes the rows each kind is decided from: T-34 and T-44 for the estimates; T-34, T-44, T-04 and T-14 for the analyst record and its upside; T-33 and T-44 for the segments; T-83 (and T-104's mention of the store) for the fails to deliver; T-39, T-44 and T-83 for the deals and index changes), and none builds, registers a symbol, creates a store, downloads or asks a vendor: each reads only what its service already holds (`estimate_history_held.held_history`, `analyst_ratings_held.held_ratings`, `revenue_segments_held.held_segments`, `ftd_dataset_held.held_series`, `company_deals_held.held_mergers`, `company_deals_held.held_index_changes`) and is `unavailable`, with the reason, otherwise (§5); EEH and FTD also answer `unavailable` while their routes' switches (ESTIMATE_HISTORY_ENABLED, FTD_DATASET_ENABLED) are off. **One existing kind changes:** `ratings` (§4.4) now reads only the held rating through `ratings_held.held_ratings` and spends 0 provider calls (it called `get_ratings`, which can build, and counted 3); nothing held is now `unavailable`. That is a narrowing, made by the wave 12 builder so that its first capability adds no vendor read to a turn; no envelope field changes, so the wire `contract` stays `"MD-1.0"` (§8.4). Six read-only readers are added with this version, each a new file beside its service; every service's own calls are unchanged. `as_of` is the data's own date (the stock's newest snapshot, the newest observation time, the newest fiscal period end, the newest settlement date), or null where each part carries its own read time (the deals); never the time of the read. PEER gets no kind: its route works the peers out on the request and holds nothing (§4.21). **Not armed:** all five kinds of §4.21 and `ratings` are default OFF, and switching one on is the owner's step, not this document's. §8.1 status: the version bump and this entry are in the PR that adds the kinds. The message to agent-lead that §8.1 asks for is owed by a person: it has not been sent, and this version is not acknowledged by anyone as of this entry. Nothing in this entry or in §4.21 records an owner decision.
 - **v1.17 addition (2026-11-23, terminal-data, data wave 11):** §4.20 documents seven kinds added dark with this version: `groups.rank`, `groups.crowding`, `earnings.seasonBySector`, `estimates.revisionBreadth`, `options.ivRankLeaders`, `ipo.lockups`, `cot.byTrader` (every sector's or industry's weekly rank and its crowding, an earnings season by sector, estimate revisions by sector, the highest and lowest IV rank, estimated IPO lockup expiries, and futures positioning by trader type: the Agent half of GRPS RANK, GRPS CROWDING, ERNSC, EEHSC, OSCR RICH / CHEAP, IPO LOCKUP and the COT panel's "By trader type" view). All seven are model-isolated (ADR-005; the builder's default under "when in doubt, isolated": no row of the licensing register clears any of them for a model provider; §4.20 quotes the rows each kind is decided from: T-04, T-09, T-71 and T-14 for the group rank, as the price studies; T-93, T-48, T-99 and T-104 for the crowding; T-36, T-44, T-53 and T-54 with T-04, T-09 and T-14 for the earnings season; T-34 and T-44 for the revisions; T-28 and T-14 for the IV rank; T-04, T-09, T-14, T-52 and T-54 for the lockups; T-105, with T-82 and T-104, for the COT by trader type), and none builds, starts a background build, downloads or asks a vendor or an agency: each reads only what its service already holds (`group_stats.get_group_stats`, `group_stats.get_group_positioning`, `sector_earnings_held.held_season`, `estimate_revisions_held.held_breadth`, `iv_rank_leaders.get_leaders`, `ipo_lockups_held.held_lockups`, `cot_finer.market_answer`, `cot_finer.board_answer`) and is `unavailable`, with the reason, otherwise (§5); the EEHSC and OSCR kinds also answer `unavailable` while their routes' switches (ESTIMATE_HISTORY_ENABLED, OPTIONS_SCREENER_ENABLED) are off. Three read-only readers are added with this version, each a new file beside its service; every service's own calls are unchanged. `as_of` is the data's own date (the newest session's close, the newest held copy's or snapshot's day, the listings scan's time, the report's Tuesday), or null where each part carries its own (the crowding); never the time of the read. Additive: no existing kind changes and no envelope field changes, so the wire `contract` stays `"MD-1.0"` (§8.4). **Not armed:** all seven kinds of §4.20 are default OFF, and switching one on is the owner's step, not this document's. §8.1 status: the version bump and this entry are in the PR that adds the kinds. The message to agent-lead that §8.1 asks for is owed by a person: it has not been sent, and this version is not acknowledged by anyone as of this entry. Nothing in this entry or in §4.20 records an owner decision.
 - **v1.16 addition (2026-11-23, terminal-data, data wave 10):** §4.19 documents six kinds added dark with this version: `stock.stats`, `stock.volumeFootprint`, `stock.factorExposure`, `stock.setupHistory`, `company.publicRecords`, `ownership.funds` (one stock's statistics, its volume footprint and gaps, its factor exposure, the setups that fired on it, one company's public records, and the registered funds holding one stock: the Agent half of STAT, VFP, FCTX, SETH, PUBR and the OWN panel's N-PORT block). All six are model-isolated (ADR-005; the builder's default under "when in doubt, isolated": no row of the licensing register clears any of them for a model provider; §4.19 quotes the rows each kind is decided from: T-04, T-09, T-71 and T-14 for the four price studies, as `seasonality.stock` already is, with T-44 for the footprint's earnings marks; T-100, T-101, T-102 and T-103 for the public records; T-104 for the N-PORT funds), and none works anything out, starts a build, asks an agency or downloads: each reads only what its service already holds (`stock_stats_held.held_stats`, `volume_footprint_held.held_footprint`, `factor_exposure_held.held_exposure`, `setup_history_held.held_signals`, `public_records.held_records`, `fund_holders_nport.answer_for`) and is `unavailable` or `partial`, with the reason, otherwise (§5). Four read-only readers are added with this version, each a new file beside its service; every service's own calls are unchanged. `as_of` is the data's own date (the newest session's close, the newest fund report period), or null where each section carries its own read time (the public records); never the time of the read. Additive: no existing kind changes and no envelope field changes, so the wire `contract` stays `"MD-1.0"` (§8.4). **Not armed:** all six kinds of §4.19 are default OFF, and switching one on is the owner's step, not this document's. §8.1 status: the version bump and this entry are in the PR that adds the kinds. The message to agent-lead that §8.1 asks for is owed by a person: it has not been sent, and this version is not acknowledged by anyone as of this entry. Nothing in this entry or in §4.19 records an owner decision.
 - **v1.15 addition (2026-11-21, terminal-data, data wave 9):** §4.18 documents three kinds added dark with this version: `rates.auctions`, `rates.realYields`, `fed.watch` (US Treasury auctions coming up and their recent results, the Treasury's real yields with the breakevens, and the Fed watch: the Agent half of the AUCT panel, the real-yield block of RATES and the FED panel). All three are model-isolated (ADR-005; the builder's default under "when in doubt, isolated": no row of the licensing register clears any of them for a model provider; §4.18 quotes the rows each kind is decided from: T-95 for the auction records and the real curve, which have no row of their own, and T-97, T-98, T-37, T-44 and T-92 for the Fed watch, whose headlines come from a news wire with no row in the register), and none starts a build or a request: each reads only what its service already holds (`treasury_auctions_held.held_auctions`, `treasury_real_yields_held.held_real`, `fed_watch_held.held_answer`) and is `unavailable` or `partial`, with the reason, otherwise (§5). Three read-only readers are added with this version, each a new file beside its service; every service's own calls are unchanged. The Fed watch's reader reads its rates only from what the economics store's serving cache holds, never from the store's published files, and its rates block reports its own state whatever `ECON_ENABLED` is. `rates.realYields` is a kind of its own, and `rates.treasury` (§4.15) is unchanged. `as_of` is the data's own date (the newest auction record, the real curve's day), or null where each block carries its own (the Fed watch); never the time of the read. Additive: no existing kind changes and no envelope field changes, so the wire `contract` stays `"MD-1.0"` (§8.4). **Not armed:** all three kinds of §4.18 are default OFF, and switching one on is the owner's step, not this document's. §8.1 status: the version bump and this entry are in the PR that adds the kinds. The message to agent-lead that §8.1 asks for is owed by a person: it has not been sent, and this version is not acknowledged by anyone as of this entry. Nothing in this entry or in §4.18 records an owner decision.

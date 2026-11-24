@@ -1,41 +1,41 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 269,
+  "all": 275,
   "withProductionKinds": 208,
-  "darkGated": 61
+  "darkGated": 67
  },
  "totals": {
-  "capabilities": 269,
-  "withAnyRegressionCase": 218,
+  "capabilities": 275,
+  "withAnyRegressionCase": 224,
   "perProtection": {
    "nl": {
-    "covered": 215,
-    "applicable": 269
+    "covered": 221,
+    "applicable": 275
    },
    "routing": {
-    "covered": 212,
-    "applicable": 269
+    "covered": 218,
+    "applicable": 275
    },
    "args": {
-    "covered": 218,
-    "applicable": 269
+    "covered": 224,
+    "applicable": 275
    },
    "execution": {
-    "covered": 215,
-    "applicable": 269
+    "covered": 221,
+    "applicable": 275
    },
    "receipt": {
-    "covered": 185,
-    "applicable": 269
+    "covered": 191,
+    "applicable": 275
    },
    "refusal": {
     "covered": 35,
-    "applicable": 269
+    "applicable": 275
    },
    "permission": {
-    "covered": 261,
-    "applicable": 269
+    "covered": 267,
+    "applicable": 275
    },
    "undo": {
     "covered": 84,
@@ -43,11 +43,11 @@
    },
    "multiStep": {
     "covered": 43,
-    "applicable": 269
+    "applicable": 275
    },
    "phrasings": {
-    "covered": 211,
-    "applicable": 269
+    "covered": 217,
+    "applicable": 275
    }
   }
  },
@@ -9808,6 +9808,60 @@
     "phrasings": []
    }
   },
+  "stock.companyDeals": {
+   "domain": "stock",
+   "group": "stockResearch",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.companyDeals: \"mergers involving NVDA\"",
+     "stock.companyDeals: \"has NVDA been acquired\"",
+     "stock.companyDeals: \"when was NVDA added to the dow\"",
+     "stock.companyDeals: \"acquisitions by NVDA\""
+    ],
+    "routing": [
+     "stock.companyDeals: \"mergers involving NVDA\"",
+     "stock.companyDeals: \"has NVDA been acquired\"",
+     "stock.companyDeals: \"when was NVDA added to the dow\"",
+     "stock.companyDeals: \"acquisitions by NVDA\""
+    ],
+    "args": [
+     "corpus stock.companyDeals"
+    ],
+    "execution": [
+     "stock.companyDeals (c)"
+    ],
+    "receipt": [
+     "stock.companyDeals (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "stock.companyRecord": {
    "domain": "stock",
    "group": "stockStudies",
@@ -9962,6 +10016,60 @@
     ],
     "receipt": [
      "stock.confluenceBoard (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.consensusRating": {
+   "domain": "stock",
+   "group": "stockResearch",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.consensusRating: \"price target for NVDA\"",
+     "stock.consensusRating: \"what's the consensus target on NVDA\"",
+     "stock.consensusRating: \"consensus rating on NVDA\"",
+     "stock.consensusRating: \"how many analysts rate NVDA a buy\""
+    ],
+    "routing": [
+     "stock.consensusRating: \"price target for NVDA\"",
+     "stock.consensusRating: \"what's the consensus target on NVDA\"",
+     "stock.consensusRating: \"consensus rating on NVDA\"",
+     "stock.consensusRating: \"how many analysts rate NVDA a buy\""
+    ],
+    "args": [
+     "corpus stock.consensusRating"
+    ],
+    "execution": [
+     "stock.consensusRating (c)"
+    ],
+    "receipt": [
+     "stock.consensusRating (c)"
     ],
     "refusal": [],
     "permission": [],
@@ -10427,6 +10535,60 @@
     "phrasings": []
    }
   },
+  "stock.estimatesHistory": {
+   "domain": "stock",
+   "group": "stockResearch",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.estimatesHistory: \"NVDA estimate history\"",
+     "stock.estimatesHistory: \"how have NVDA's estimates changed\"",
+     "stock.estimatesHistory: \"eps estimate revisions for NVDA\"",
+     "stock.estimatesHistory: \"the revenue estimate trend for NVDA\""
+    ],
+    "routing": [
+     "stock.estimatesHistory: \"NVDA estimate history\"",
+     "stock.estimatesHistory: \"how have NVDA's estimates changed\"",
+     "stock.estimatesHistory: \"eps estimate revisions for NVDA\"",
+     "stock.estimatesHistory: \"the revenue estimate trend for NVDA\""
+    ],
+    "args": [
+     "corpus stock.estimatesHistory"
+    ],
+    "execution": [
+     "stock.estimatesHistory (c)"
+    ],
+    "receipt": [
+     "stock.estimatesHistory (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "stock.eventsTimeline": {
    "domain": "stock",
    "group": "marketReads",
@@ -10581,6 +10743,60 @@
     ],
     "receipt": [
      "stock.factorExposure (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.failsToDeliver": {
+   "domain": "stock",
+   "group": "stockResearch",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.failsToDeliver: \"NVDA fails to deliver\"",
+     "stock.failsToDeliver: \"fails-to-deliver for NVDA\"",
+     "stock.failsToDeliver: \"failures to deliver in NVDA\"",
+     "stock.failsToDeliver: \"show me the fail to deliver data for NVDA\""
+    ],
+    "routing": [
+     "stock.failsToDeliver: \"NVDA fails to deliver\"",
+     "stock.failsToDeliver: \"fails-to-deliver for NVDA\"",
+     "stock.failsToDeliver: \"failures to deliver in NVDA\"",
+     "stock.failsToDeliver: \"show me the fail to deliver data for NVDA\""
+    ],
+    "args": [
+     "corpus stock.failsToDeliver"
+    ],
+    "execution": [
+     "stock.failsToDeliver (c)"
+    ],
+    "receipt": [
+     "stock.failsToDeliver (c)"
     ],
     "refusal": [],
     "permission": [],
@@ -11568,6 +11784,60 @@
     "phrasings": []
    }
   },
+  "stock.revenueSplit": {
+   "domain": "stock",
+   "group": "stockResearch",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.revenueSplit: \"NVDA revenue by segment\"",
+     "stock.revenueSplit: \"NVDA revenue by region\"",
+     "stock.revenueSplit: \"segment revenue for NVDA\"",
+     "stock.revenueSplit: \"where does NVDA make its money\""
+    ],
+    "routing": [
+     "stock.revenueSplit: \"NVDA revenue by segment\"",
+     "stock.revenueSplit: \"NVDA revenue by region\"",
+     "stock.revenueSplit: \"segment revenue for NVDA\"",
+     "stock.revenueSplit: \"where does NVDA make its money\""
+    ],
+    "args": [
+     "corpus stock.revenueSplit"
+    ],
+    "execution": [
+     "stock.revenueSplit (c)"
+    ],
+    "receipt": [
+     "stock.revenueSplit (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "stock.riskProfile": {
    "domain": "stock",
    "group": "stockStudies",
@@ -12462,6 +12732,60 @@
     ],
     "receipt": [
      "stock.uct20List (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.uctRating": {
+   "domain": "stock",
+   "group": "stockResearch",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.uctRating: \"NVDA UCT rating\"",
+     "stock.uctRating: \"what is NVDA's composite rating\"",
+     "stock.uctRating: \"UCT composite rating of NVDA\"",
+     "stock.uctRating: \"show me the stock checkup for NVDA\""
+    ],
+    "routing": [
+     "stock.uctRating: \"NVDA UCT rating\"",
+     "stock.uctRating: \"what is NVDA's composite rating\"",
+     "stock.uctRating: \"UCT composite rating of NVDA\"",
+     "stock.uctRating: \"show me the stock checkup for NVDA\""
+    ],
+    "args": [
+     "corpus stock.uctRating"
+    ],
+    "execution": [
+     "stock.uctRating (c)"
+    ],
+    "receipt": [
+     "stock.uctRating (c)"
     ],
     "refusal": [],
     "permission": [],
