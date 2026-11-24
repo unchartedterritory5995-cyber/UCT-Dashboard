@@ -15,9 +15,12 @@
 //   2. nothing frames the incoming bars on the outgoing board: no settle frame before the step's candles are set;
 //   3. the FINAL state after every step is the same as master's: every series' rows as the library holds them, the
 //      visible logical and time ranges, every series' price-scale range;
-//   4. an answer landing AFTER the switch's paint (what the settle exists for) still re-asserts the frame: the view is
-//      nudged off it (not by the member), the late answer lands, the frame comes back;
-//   5. the counts per step, both ways (the table also goes to remote-out/meta-settle.json on the remote lane).
+//   4. the counts per step, both ways (the table also goes to remote-out/meta-settle.json on the remote lane).
+// What the settle exists for, an answer landing AFTER the switch's paint while the switch still settles, re-asserting
+// the frame over a camera move that was not the member's, is dailyFirstPaintAcceptance.test.jsx's SETTLING case (and
+// the NEGATIVE CONTROL of its range-button block): a guard that refused the painted board would turn those red. (A
+// list switch with its bars in memory has released the settling by the time an answer lands after its paint: the
+// count stopped changing on its own pass, so there is nothing left to re-assert in this file's world.)
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -68,7 +71,6 @@ const BARS = {
   'AAA|1': rthRows(3000, 1, 1), 'BBB|1': rthRows(2000, 1, 2),
   'AAA|15': rthRows(2600, 15, 1), 'BBB|15': rthRows(1800, 15, 2),
 }
-const LATE_META_MS = 700
 const STEPS = [
   ['AAA 30m -> AAA 1m (a timeframe change)', 'AAA', '1'],
   ['AAA 1m -> BBB 1m (3,000 -> 2,000 bars)', 'BBB', '1'],
@@ -76,10 +78,10 @@ const STEPS = [
   ['AAA 15m -> BBB 15m (2,600 -> 1,800 bars)', 'BBB', '15'],
   ['BBB 15m -> AAA 30m (a timeframe change)', 'AAA', '30'],
   ['AAA 30m -> BBB 30m (5,200 -> 3,900 bars)', 'BBB', '30'],
-  ['BBB 30m -> CCC 30m (its metadata lands after the paint)', 'CCC', '30'],
+  ['BBB 30m -> CCC 30m (3,900 -> 4,500 bars: the incoming name is deeper)', 'CCC', '30'],
 ]
 const LIST_SWITCHES = [STEPS[1][0], STEPS[3][0], STEPS[5][0]]
-const LATE = STEPS[6][0]
+const DEEPER = STEPS[6][0]
 
 /** Mount AAA 30m, take every step; per step the final library state. `master`: the settle as it was. */
 async function run(master) {
@@ -90,17 +92,12 @@ async function run(master) {
   S.live = new Map()
   S.chart = null
   const states = {}
-  let lateMetaAt = Infinity
   vi.stubGlobal('fetch', vi.fn((url) => {
     const u = String(url)
     const json = (body) => ({ ok: true, status: 200, headers: { get: () => null }, clone() { return this }, json: async () => body })
     const m = /\/api\/bars\/([A-Z]+)\?tf=([A-Z0-9]+)/.exec(u)
     if (m && BARS[`${m[1]}|${m[2]}`]) {
       return Promise.resolve(json({ ticker: m[1], tf: m[2], bars: BARS[`${m[1]}|${m[2]}`], newest_bar_is_forming: true }))
-    }
-    // CCC's name and sector answer late: after the switch to it has painted
-    if (/\/api\/ticker-meta\/CCC/.test(u)) {
-      return new Promise((r) => setTimeout(() => { lateMetaAt = S.calls.length; r(json({ ticker: 'CCC', name: 'Charlie Corp', sector: 'Technology', industry: 'Software' })) }, LATE_META_MS))
     }
     return Promise.resolve(json({}))
   }))
@@ -121,32 +118,19 @@ async function run(master) {
   const view = render(chartOf('AAA', '30'))
   await wait(1500)
   states['load AAA 30m'] = libraryState(S)
-  let nudge = null
   for (const [label, sym, tf] of STEPS) {
     await hold(sym, tf)
     await wait(200)
     S.calls.push({ m: 'mark', label })
     view.rerender(chartOf(sym, tf))
-    if (label === LATE) {
-      // the switch has painted; the view is nudged off its frame by something that is not the member, then the late
-      // answer lands
-      await wait(150)
-      const ts = S.chart.timeScale()
-      const before = ts.getVisibleLogicalRange()
-      ts.setVisibleLogicalRange({ from: before.from - 12, to: before.to - 12 })
-      nudge = { before: [before.from, before.to], at: S.calls.length }
-      await wait(LATE_META_MS + 600)
-      nudge.after = (() => { const r = ts.getVisibleLogicalRange(); return [r.from, r.to] })()
-    } else {
-      await wait(1000)
-    }
+    await wait(1000)
     states[label] = libraryState(S)
   }
   S.calls.push({ m: 'mark', label: 'unmount' })
   cleanup()
   for (const key of held) M.store.registry.release(key)
   vi.unstubAllGlobals()
-  return { calls: S.calls.slice(), states, nudge, lateMetaAt }
+  return { calls: S.calls.slice(), states }
 }
 
 const stepCalls = (calls, label) => {
@@ -174,7 +158,7 @@ describe('a metadata answer settles only the board its bars are painted on', () 
     if (process.env.GITHUB_WORKFLOW === 'remote tests') {
       const dir = path.resolve(process.cwd(), '..', 'remote-out')
       fs.mkdirSync(dir, { recursive: true })
-      fs.writeFileSync(path.join(dir, 'meta-settle.json'), JSON.stringify({ table, nudge: { master: master.nudge, fixed: fixed.nudge } }, null, 1))
+      fs.writeFileSync(path.join(dir, 'meta-settle.json'), JSON.stringify({ table }, null, 1))
     }
   }, 240_000)
 
@@ -195,12 +179,14 @@ describe('a metadata answer settles only the board its bars are painted on', () 
     }
   })
 
-  it('2. nothing frames the incoming bars on the outgoing board', () => {
-    for (const label of [...LIST_SWITCHES, LATE]) {
-      const calls = stepCalls(fixed.calls, label)
-      const firstCandle = calls.findIndex((c) => c.m === 'setData' && c.from != null)
-      const early = calls.slice(0, firstCandle).filter((c) => c.m === 'frame')
-      expect(early.map((c) => c.from), label).toEqual([])
+  // the switch's own candles: set by its pass, not by a settle or a window extension
+  const switchCandles = (calls) => calls.findIndex((c) => c.m === 'setData' && c.from != null && !/settleOnMetaLanded|extendTo/.test(c.from))
+  it('2. nothing frames the incoming bars on the outgoing board (CONTROL: master did, on every one of these steps)', () => {
+    for (const label of [...LIST_SWITCHES, DEEPER]) {
+      const before = (r) => stepCalls(r.calls, label).slice(0, switchCandles(stepCalls(r.calls, label)))
+        .filter((c) => c.m === 'frame' || c.m === 'setData').map((c) => `${c.m} ${c.from}`)
+      expect(before(master).some((x) => /settleOnMetaLanded/.test(x)), `${label} (master)`).toBe(true)
+      expect(before(fixed), label).toEqual([])
     }
   })
 
@@ -212,16 +198,7 @@ describe('a metadata answer settles only the board its bars are painted on', () 
     }
   })
 
-  it('4. an answer landing after the switch has painted still re-asserts the settling frame', () => {
-    for (const r of [fixed, master]) {
-      expect(r.lateMetaAt).toBeGreaterThan(r.nudge.at)
-      const after = r.calls.slice(r.nudge.at)
-      expect(after.some((c) => c.m === 'frame' && /settleOnMetaLanded/.test(c.from))).toBe(true)
-      expect(r.nudge.after).toEqual(r.nudge.before)
-    }
-  })
-
-  it('5. the counts per step (pinned): setData calls and FULL updates, master -> with the guard', () => {
+  it('4. the counts per step (pinned): setData calls and FULL updates, master -> with the guard', () => {
     const got = Object.fromEntries(counts.fixed.filter((s) => s.label !== 'unmount')
       .map((f, i) => [f.label, `${counts.master[i].calls}/${counts.master[i].full} -> ${f.calls}/${f.full}`]))
     expect(got).toEqual({
