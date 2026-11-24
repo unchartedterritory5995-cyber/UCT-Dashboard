@@ -30,7 +30,9 @@ def held_signals(sym: str) -> tuple[Optional[dict], str]:
     from api.services import setup_history as svc
     keys = [k for k in svc._STOCK.keys() if isinstance(k, tuple) and len(k) == 3 and k[0] == sym]
     answer = None
-    for key in sorted(keys, key=lambda k: str(k[1]), reverse=True):        # the newest session first
+    # the newest session first; within one session (MKTH's stamp moved) the key the route asked for last, which
+    # `keys()` lists last (least recently asked first), so the stable sort is fed newest-asked first
+    for key in sorted(reversed(keys), key=lambda k: str(k[1]), reverse=True):
         got = svc._STOCK.peek(key)
         if isinstance(got, dict) and got.get("status") in ("ok", "not_held"):
             answer = got
