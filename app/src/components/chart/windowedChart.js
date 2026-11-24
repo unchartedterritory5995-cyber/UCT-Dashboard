@@ -60,6 +60,38 @@ export function renderWindowStart(n, rows) {
   return Math.floor(raw / RENDER_WINDOW_STEP) * RENDER_WINDOW_STEP
 }
 
+/** The first day of the calendar month of a daily-or-coarser time ('YYYY-MM-DD', or {year, month, day}), in the same
+ *  form; null for an intraday time (a number). */
+function monthStartOf(t) {
+  if (typeof t === 'string' && /^\d{4}-\d{2}-\d{2}/.test(t)) return `${t.slice(0, 7)}-01`
+  if (t && typeof t === 'object' && Number.isFinite(t.year) && Number.isFinite(t.month)) return { year: t.year, month: t.month, day: 1 }
+  return null
+}
+
+/**
+ * ⭐ (2026-11-24) THE WINDOW START OF A NEW LOAD, from its bars. On daily and coarser bars it is ANCHORED TO A DATE: the
+ * first bar of the calendar month that holds the latest start leaving `rows` bars, so the window holds `rows` bars plus
+ * at most a month's worth. Two names showing the same recent sessions then hand the library the SAME dates whatever
+ * their history depth, and a list switch between them leaves the library's time points as they were: no FULL update
+ * (every series re-set in the library's model, the time scale's points and tick marks redone) and no time-scale rebuild.
+ * The index step (`renderWindowStart`, still what intraday bars use) put each name's start `n - rows` back rounded to
+ * 250 of ITS OWN bars: a different date for nearly every pair of names (StockChart.libraryWork.test.jsx: 1 FULL update
+ * on every daily switch between names of different depth). What is drawn does not change: the view is framed in
+ * full-history indices and the window holds the view and its margin either way (windowAnchor.test.js). 0 when the
+ * saving is small, as with the index step.
+ */
+export function renderWindowStartFor(bars, rows) {
+  const n = Array.isArray(bars) ? bars.length : 0
+  if (!(n > 0) || !(rows > 0)) return 0
+  const latest = Math.floor(n) - Math.floor(rows)
+  if (latest < RENDER_WINDOW_MIN_SAVED) return 0
+  const anchor = monthStartOf(bars[latest]?.time)
+  if (anchor == null) return renderWindowStart(n, rows)
+  const k = firstAtOrAfter(bars, anchor)
+  if (k == null || k > latest) return renderWindowStart(n, rows)
+  return k < RENDER_WINDOW_MIN_SAVED ? 0 : k
+}
+
 /** The start a view whose left edge is at full index `from`, `span` bars wide, needs (never right of `ws`). */
 export function extendedStart(ws, from, span) {
   if (!(ws > 0) || !Number.isFinite(from)) return ws
@@ -120,8 +152,11 @@ function passThrough(chart) {
  * @param {object} chart  the library chart (createChart)
  * @param {object} [o]
  * @param {() => boolean} [o.disabled]   the per-browser switch (default: localStorage)
+ * @param {'date'|'index'} [o.anchor]   where a new load's window starts on daily-or-coarser bars: the first bar of a
+ *                                     calendar month (`renderWindowStartFor`, the default) or the 250-row index step
+ *                                     (`renderWindowStart`, what every load used before 2026-11-24; intraday always)
  */
-export function createWindowedChart(chart, { disabled = renderWindowDisabled } = {}) {
+export function createWindowedChart(chart, { disabled = renderWindowDisabled, anchor = 'date' } = {}) {
   // ⛔ OFF MEANS OFF: switched off in this browser, the app gets the library chart ITSELF (every series, pane and
   // callback object exactly as before), with an inert control so callers need no branch. A rollback that still
   // wrapped would still change object identity, which is what a rollback is for ruling out.
@@ -141,6 +176,7 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled } =
   let primary = null
 
   const on = () => st.wanted != null && !disabled()
+  const anchorStart = anchor === 'index' ? (rows, wanted) => renderWindowStart(rows.length, wanted) : renderWindowStartFor
 
   function cutFor(w, rows) {
     if (!Array.isArray(rows) || !rows.length) return rows
@@ -174,7 +210,7 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled } =
       st.ws = Math.max(0, Math.min(firstAtOrAfter(full, st.wsTime) ?? 0, full.length - 1))
       return
     }
-    const ws = forcedWs != null ? forcedWs : renderWindowStart(full.length, st.wanted)
+    const ws = forcedWs != null ? forcedWs : anchorStart(full, st.wanted)
     st.placePending = false
     st.ws = Math.max(0, Math.min(ws, full.length - 1))
     st.wsTime = st.ws > 0 ? full[st.ws].time : null
