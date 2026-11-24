@@ -11,9 +11,9 @@
   "gateOpen": true,
   "declined": 348,
   "gated": 0,
-  "runtimeDrawn": 277,
-  "hostRefused": 674,
-  "reachedRuntime": 625,
+  "runtimeDrawn": 279,
+  "hostRefused": 676,
+  "reachedRuntime": 627,
   "declines": {
    "pine:builtin": 43,
    "pine:function": 34,
@@ -94453,7 +94453,7 @@
    "verdict": "INCONCLUSIVE",
    "reason": "8 of 9 items could not be compared",
    "ourNotes": [
-    "plots/objects: cold: every candidate supplier was refused, cold replay (h3-vwap-source-spy-5-2026-10-02.json: bar 1790884200 low 764.495 vs the capture's 764.78; rolling-vwap-spy-5-2026-11-16.json: bar 1790884200 low 764.495 vs the capture's 764.78; vw-bi-session-isfirstbar-spy-5-2026-11-19.json: bar 1790884200 low 764.495 vs the capture's 764.78; vw-lastbar-forming-spy-5-2026-11-20-insession.json: bar 1790884200 low 764.495 vs the capture's 764.78; vw-request-htf-alignment-spy-5-2026-10-02.json: bar 1790884200 low 764.495 vs the capture's 764.78; vw-request-htf-forming-spy-5-2026-11-19-insession.json: bar 1790884200 low 764.495 vs the capture's 764.78; vw-time-tf-spy-5-2026-10-01.json: bar 1790884200 low 764.495 vs the capture's 764.78; vw-time-tf-spy-5-ext-2026-10-02.json: bar 1790884200 low 764.495 vs the capture's 764.78; vw-w4-session-param-spy-5-2026-11-16.json: bar 1790884200 low 764.495 vs the capture's 764.78)"
+    "plots/objects: cold: every candidate supplier was refused, cold replay (h3-vwap-source-spy-5-2026-10-02.json: bar 1790884200 low 764.495 vs the capture's 764.78; rolling-vwap-spy-5-2026-11-16.json: bar 1790884200 low 764.495 vs the capture's 764.78; vw-bi-session-isfirstbar-spy-5-2026-11-19.json: bar 1790884200 low 764.495 vs the capture's 764.78; vw-lastbar-forming-spy-5-2026-11-20-insession.json: bar 1790884200 low 764.495 vs the capture's 764.78; vw-request-htf-alignment-spy-5-2026-10-02.json: bar 1790884200 low 764.495 vs the capture's 764.78; vw-request-htf-forming-spy-5-2026-11-19-insession.json: bar 1790884200 low 764.495 vs the capture's 764.78; vw-time-tf-spy-5-2026-10-01.json: bar 1790884200 low 764.495 vs the capture's 764.78; vw-time-tf-spy-5-ext-2026-10-02.json: bar 1790884200 low 764.495 vs the capture's 764.78; vw-udaily-expr-spy-5-2026-11-23.json: bar 1790884200 low 764.495 vs the capture's 764.78; vw-w4-session-param-spy-5-2026-11-16.json: bar 1790884200 low 764.495 vs the capture's 764.78)"
    ],
    "ourDoor": "runtime",
    "objectsV2": {
@@ -94582,7 +94582,7 @@
    "verdict": "INCONCLUSIVE",
    "reason": "8 of 9 items could not be compared",
    "ourNotes": [
-    "plots/objects: cold: every candidate supplier was refused, cold replay (h3-vwap-source-spy-5-2026-10-02.json: bar 1790884500 low 763.47 vs the capture's 764.02; rolling-vwap-spy-5-2026-11-16.json: bar 1790884500 low 763.47 vs the capture's 764.02; vw-bi-session-isfirstbar-spy-5-2026-11-19.json: bar 1790884500 low 763.47 vs the capture's 764.02; vw-lastbar-forming-spy-5-2026-11-20-insession.json: bar 1790884500 low 763.47 vs the capture's 764.02; vw-request-htf-alignment-spy-5-2026-10-02.json: bar 1790884500 low 763.47 vs the capture's 764.02; vw-request-htf-forming-spy-5-2026-11-19-insession.json: bar 1790884500 low 763.47 vs the capture's 764.02; vw-time-tf-spy-5-2026-10-01.json: bar 1790884500 low 763.47 vs the capture's 764.02; vw-time-tf-spy-5-ext-2026-10-02.json: bar 1790884500 low 763.47 vs the capture's 764.02; vw-w4-session-param-spy-5-2026-11-16.json: bar 1790884500 low 763.47 vs the capture's 764.02)"
+    "plots/objects: cold: every candidate supplier was refused, cold replay (h3-vwap-source-spy-5-2026-10-02.json: bar 1790884500 low 763.47 vs the capture's 764.02; rolling-vwap-spy-5-2026-11-16.json: bar 1790884500 low 763.47 vs the capture's 764.02; vw-bi-session-isfirstbar-spy-5-2026-11-19.json: bar 1790884500 low 763.47 vs the capture's 764.02; vw-lastbar-forming-spy-5-2026-11-20-insession.json: bar 1790884500 low 763.47 vs the capture's 764.02; vw-request-htf-alignment-spy-5-2026-10-02.json: bar 1790884500 low 763.47 vs the capture's 764.02; vw-request-htf-forming-spy-5-2026-11-19-insession.json: bar 1790884500 low 763.47 vs the capture's 764.02; vw-time-tf-spy-5-2026-10-01.json: bar 1790884500 low 763.47 vs the capture's 764.02; vw-time-tf-spy-5-ext-2026-10-02.json: bar 1790884500 low 763.47 vs the capture's 764.02; vw-udaily-expr-spy-5-2026-11-23.json: bar 1790884500 low 763.47 vs the capture's 764.02; vw-w4-session-param-spy-5-2026-11-16.json: bar 1790884500 low 763.47 vs the capture's 764.02)"
    ],
    "ourDoor": "runtime",
    "objectsV2": {
@@ -99410,7 +99410,7 @@
      "ours": "value",
      "rule": "M1-title",
      "verdict": "MATCH_SUBSTITUTED",
-     "reason": "70 steady-state bars differ, every one a value on a date where UCT's SPX (FMP ^GSPC as PRODUCTION served it (`/api/bars/SPX?tf=D&bars=12500`, the served shape), read on the rig as smoke@ with GETs only at 2026-11-18T12:47:00Z, minutes before the capture (scratchpad fetch_spx_daily.py); the route answered newest_bar_is_forming false (pre-market)) differs from TradingView's (witness rs-spx-daily-pm-alab-1d-2026-11-16, rs-spx-daily-pm-rddt-1d-2026-11-16, rs-spx-daily-pm-spy-1d-2026-11-16, rs-spx-daily-rddt-1d-2026-11-15, rs-spx-daily-spy-1d-2026-11-15: 70 of 334 dates differ); on the witness's values every bar agrees",
+     "reason": "70 steady-state bars differ (41 of them only by index rounding), every one a value on a date where UCT's SPX (FMP ^GSPC as PRODUCTION served it (`/api/bars/SPX?tf=D&bars=12500`, the served shape), read on the rig as smoke@ with GETs only at 2026-11-18T12:47:00Z, minutes before the capture (scratchpad fetch_spx_daily.py); the route answered newest_bar_is_forming false (pre-market)) differs from TradingView's (witness rs-spx-daily-pm-alab-1d-2026-11-16, rs-spx-daily-pm-rddt-1d-2026-11-16, rs-spx-daily-pm-spy-1d-2026-11-16, rs-spx-daily-rddt-1d-2026-11-15, rs-spx-daily-spy-1d-2026-11-15: 70 of 334 dates differ); on the witness's values every bar agrees",
      "supplyAttributed": {
       "symbol": "SPX",
       "source": "FMP ^GSPC as PRODUCTION served it (`/api/bars/SPX?tf=D&bars=12500`, the served shape), read on the rig as smoke@ with GETs only at 2026-11-18T12:47:00Z, minutes before the capture (scratchpad fetch_spx_daily.py); the route answered newest_bar_is_forming false (pre-market)",
@@ -99440,7 +99440,7 @@
       "matching": 265,
       "vendorRowsMissing": 0,
       "naMismatches": 0,
-      "valueMismatches": 70,
+      "valueMismatches": 29,
       "colorMismatches": 0,
       "colorCompared": 265,
       "colorWithheld": 0,
@@ -99464,7 +99464,7 @@
       "steady": {
        "bars": 335,
        "compared": 335,
-       "divergent": 70,
+       "divergent": 29,
        "first": {
         "bar": 3,
         "time": 922977000,
@@ -99482,6 +99482,20 @@
        "pattern": {
         "kind": "scattered",
         "lastDivergentBar": 299
+       }
+      },
+      "roundingEqual": {
+       "compared": 41,
+       "subTick": 1,
+       "steady": 41,
+       "worst": 1.0000000000779883,
+       "first": {
+        "bar": 19,
+        "time": 965136600,
+        "vendor": 0.7766455285007408,
+        "ours": 0.7766509564378717,
+        "index": 1430.83,
+        "ticks": 1.0000000000156568
        }
       },
       "vendorRowGapsAfterStart": 0
@@ -100585,7 +100599,7 @@
      "ours": "value",
      "rule": "M1-title",
      "verdict": "MATCH_SUBSTITUTED",
-     "reason": "1292 steady-state bars differ, every one a value on a date where UCT's SPX (FMP ^GSPC, the server's PRIMARY: fmp_client.get_index_history_eod_full('^GSPC'), paged in 5-year windows, recorded by the owner under `railway run` at 2026-11-15T13:50:55.537466+00:00; read back through api/index_bars.py::_fetch_fmp_daily('^GSPC', 1.0) (the served shape)) differs from TradingView's (witness rs-spx-daily-pm-alab-1d-2026-11-16, rs-spx-daily-pm-rddt-1d-2026-11-16, rs-spx-daily-pm-spy-1d-2026-11-16, rs-spx-daily-rddt-1d-2026-11-15, rs-spx-daily-spy-1d-2026-11-15: 1292 of 6997 dates differ); on the witness's values every bar agrees",
+     "reason": "1292 steady-state bars differ (918 of them only by index rounding), every one a value on a date where UCT's SPX (FMP ^GSPC, the server's PRIMARY: fmp_client.get_index_history_eod_full('^GSPC'), paged in 5-year windows, recorded by the owner under `railway run` at 2026-11-15T13:50:55.537466+00:00; read back through api/index_bars.py::_fetch_fmp_daily('^GSPC', 1.0) (the served shape)) differs from TradingView's (witness rs-spx-daily-pm-alab-1d-2026-11-16, rs-spx-daily-pm-rddt-1d-2026-11-16, rs-spx-daily-pm-spy-1d-2026-11-16, rs-spx-daily-rddt-1d-2026-11-15, rs-spx-daily-spy-1d-2026-11-15: 1292 of 6997 dates differ); on the witness's values every bar agrees",
      "supplyAttributed": {
       "symbol": "SPX",
       "source": "FMP ^GSPC, the server's PRIMARY: fmp_client.get_index_history_eod_full('^GSPC'), paged in 5-year windows, recorded by the owner under `railway run` at 2026-11-15T13:50:55.537466+00:00; read back through api/index_bars.py::_fetch_fmp_daily('^GSPC', 1.0) (the served shape)",
@@ -100615,7 +100629,7 @@
       "matching": 5705,
       "vendorRowsMissing": 0,
       "naMismatches": 0,
-      "valueMismatches": 1292,
+      "valueMismatches": 374,
       "colorMismatches": 0,
       "colorCompared": 5705,
       "colorWithheld": 0,
@@ -100639,7 +100653,7 @@
       "steady": {
        "bars": 6997,
        "compared": 6997,
-       "divergent": 1292,
+       "divergent": 374,
        "first": {
         "bar": 4,
         "time": 917533800,
@@ -100657,6 +100671,20 @@
        "pattern": {
         "kind": "scattered",
         "lastDivergentBar": 6257
+       }
+      },
+      "roundingEqual": {
+       "compared": 918,
+       "subTick": 14,
+       "steady": 918,
+       "worst": 1.0099999999427407,
+       "first": {
+        "bar": 63,
+        "time": 924874200,
+        "vendor": 0.08886370774857784,
+        "ours": 0.08886436172561489,
+        "index": 1358.82,
+        "ticks": 1.0000000000009492
        }
       },
       "vendorRowGapsAfterStart": 0
@@ -110991,7 +111019,7 @@
      "ours": "value",
      "rule": "M1-title",
      "verdict": "MATCH_SUBSTITUTED",
-     "reason": "266 steady-state bars differ, every one a value on a date where UCT's SPX (FMP ^GSPC, the server's PRIMARY, recorded by the owner under `railway run` at 2026-11-16T23:13:34.138857+00:00 with tools/vendor_harness/record_rs_supply.py --spx; read through api/index_bars.py::_fetch_fmp_daily('^GSPC', 1.0) (the served shape)) differs from TradingView's (witness rs-spx-daily-pm-alab-1d-2026-11-16, rs-spx-daily-pm-rddt-1d-2026-11-16, rs-spx-daily-pm-spy-1d-2026-11-16, rs-spx-daily-rddt-1d-2026-11-15, rs-spx-daily-spy-1d-2026-11-15: 266 of 1447 dates differ); on the witness's values every bar agrees; the newest bar INCONCLUSIVE by name: the SPX supply recorded beside this capture (recorded 2026-11-16T23:13:34.138857+00:00, newest row 2026-11-16) predates session 2026-11-17, which this capture's forming newest bar read (captured 2026-11-17T21:17:14.371Z): our side cannot answer that bar from it (supplyBehind)",
+     "reason": "266 steady-state bars differ (192 of them only by index rounding), every one a value on a date where UCT's SPX (FMP ^GSPC, the server's PRIMARY, recorded by the owner under `railway run` at 2026-11-16T23:13:34.138857+00:00 with tools/vendor_harness/record_rs_supply.py --spx; read through api/index_bars.py::_fetch_fmp_daily('^GSPC', 1.0) (the served shape)) differs from TradingView's (witness rs-spx-daily-pm-alab-1d-2026-11-16, rs-spx-daily-pm-rddt-1d-2026-11-16, rs-spx-daily-pm-spy-1d-2026-11-16, rs-spx-daily-rddt-1d-2026-11-15, rs-spx-daily-spy-1d-2026-11-15: 266 of 1447 dates differ); on the witness's values every bar agrees; the newest bar INCONCLUSIVE by name: the SPX supply recorded beside this capture (recorded 2026-11-16T23:13:34.138857+00:00, newest row 2026-11-16) predates session 2026-11-17, which this capture's forming newest bar read (captured 2026-11-17T21:17:14.371Z): our side cannot answer that bar from it (supplyBehind)",
      "supplyAttributed": {
       "symbol": "SPX",
       "source": "FMP ^GSPC, the server's PRIMARY, recorded by the owner under `railway run` at 2026-11-16T23:13:34.138857+00:00 with tools/vendor_harness/record_rs_supply.py --spx; read through api/index_bars.py::_fetch_fmp_daily('^GSPC', 1.0) (the served shape)",
@@ -111031,7 +111059,7 @@
       "matching": 1186,
       "vendorRowsMissing": 0,
       "naMismatches": 0,
-      "valueMismatches": 266,
+      "valueMismatches": 74,
       "colorMismatches": 0,
       "colorCompared": 1186,
       "colorWithheld": 0,
@@ -111055,7 +111083,7 @@
       "steady": {
        "bars": 1453,
        "compared": 1452,
-       "divergent": 266,
+       "divergent": 74,
        "first": {
         "bar": 5,
         "time": 919693800,
@@ -111073,6 +111101,20 @@
        "pattern": {
         "kind": "scattered",
         "lastDivergentBar": 1298
+       }
+      },
+      "roundingEqual": {
+       "compared": 192,
+       "subTick": 3,
+       "steady": 192,
+       "worst": 1.0000000001070108,
+       "first": {
+        "bar": 54,
+        "time": 949329000,
+        "vendor": 0.18266107708708598,
+        "ours": 0.18265973414892364,
+        "index": 1360.16,
+        "ticks": 1.000000000010243
        }
       },
       "supplyBehindBars": 1,
@@ -111651,7 +111693,7 @@
      "ours": "value",
      "rule": "M1-title",
      "verdict": "MATCH_SUBSTITUTED",
-     "reason": "266 steady-state bars differ, every one a value on a date where UCT's SPX (`/api/bars/SPX?tf=D&bars=12500` as PRODUCTION served it, read on the rig as smoke@ with GETs only at 2026-11-21T17:01:03Z, right before the capture (scratchpad fetch_spx_daily.py), and again at 17:02:34Z right after it, the two reads byte-identical; the route answered newest_bar_is_forming False. ASSEMBLED into this record on 2026-11-21T17:03:08Z from those bracketing reads (run dir ours-before-170103Z.json / ours-after-170234Z.json)) differs from TradingView's (witness rs-spx-daily-pm-alab-1d-2026-11-16, rs-spx-daily-pm-rddt-1d-2026-11-16, rs-spx-daily-pm-spy-1d-2026-11-16, rs-spx-daily-rddt-1d-2026-11-15, rs-spx-daily-spy-1d-2026-11-15: 266 of 1447 dates differ); on the witness's values every bar agrees",
+     "reason": "266 steady-state bars differ (192 of them only by index rounding), every one a value on a date where UCT's SPX (`/api/bars/SPX?tf=D&bars=12500` as PRODUCTION served it, read on the rig as smoke@ with GETs only at 2026-11-21T17:01:03Z, right before the capture (scratchpad fetch_spx_daily.py), and again at 17:02:34Z right after it, the two reads byte-identical; the route answered newest_bar_is_forming False. ASSEMBLED into this record on 2026-11-21T17:03:08Z from those bracketing reads (run dir ours-before-170103Z.json / ours-after-170234Z.json)) differs from TradingView's (witness rs-spx-daily-pm-alab-1d-2026-11-16, rs-spx-daily-pm-rddt-1d-2026-11-16, rs-spx-daily-pm-spy-1d-2026-11-16, rs-spx-daily-rddt-1d-2026-11-15, rs-spx-daily-spy-1d-2026-11-15: 266 of 1447 dates differ); on the witness's values every bar agrees",
      "supplyAttributed": {
       "symbol": "SPX",
       "source": "`/api/bars/SPX?tf=D&bars=12500` as PRODUCTION served it, read on the rig as smoke@ with GETs only at 2026-11-21T17:01:03Z, right before the capture (scratchpad fetch_spx_daily.py), and again at 17:02:34Z right after it, the two reads byte-identical; the route answered newest_bar_is_forming False. ASSEMBLED into this record on 2026-11-21T17:03:08Z from those bracketing reads (run dir ours-before-170103Z.json / ours-after-170234Z.json)",
@@ -111681,7 +111723,7 @@
       "matching": 1187,
       "vendorRowsMissing": 0,
       "naMismatches": 0,
-      "valueMismatches": 266,
+      "valueMismatches": 74,
       "colorMismatches": 0,
       "colorCompared": 1187,
       "colorWithheld": 0,
@@ -111705,7 +111747,7 @@
       "steady": {
        "bars": 1453,
        "compared": 1453,
-       "divergent": 266,
+       "divergent": 74,
        "first": {
         "bar": 5,
         "time": 919693800,
@@ -111723,6 +111765,20 @@
        "pattern": {
         "kind": "scattered",
         "lastDivergentBar": 1298
+       }
+      },
+      "roundingEqual": {
+       "compared": 192,
+       "subTick": 3,
+       "steady": 192,
+       "worst": 1.0000000001070108,
+       "first": {
+        "bar": 54,
+        "time": 949329000,
+        "vendor": 0.18266107708708598,
+        "ours": 0.18265973414892364,
+        "index": 1360.16,
+        "ticks": 1.000000000010243
        }
       },
       "vendorRowGapsAfterStart": 0
@@ -227126,7 +227182,7 @@
    "ourNotes": [
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
    ],
-   "ourDoor": "host",
+   "ourDoor": "runtime",
    "objectsV2": {
     "verdict": "DIVERGE",
     "verdictWithoutX": "DIVERGE",
@@ -227609,7 +227665,7 @@
    "ourNotes": [
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
    ],
-   "ourDoor": "host",
+   "ourDoor": "runtime",
    "objectsV2": {
     "verdict": "DIVERGE",
     "verdictWithoutX": "DIVERGE",
@@ -229680,6 +229736,458 @@
    "verdict": "INCONCLUSIVE",
    "reason": "refused on our side: member door refused (pine:request) [runtime declined: runtime:request]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`: this engine resamples weekly and monthly from the daily bars it holds, and `240` is not one of them. Below the chart's own timeframe: lower-tf:store-unmeasured: `240` is below this chart's timeframe, so it reads intraday bars — and our intraday bars have not been measured against TradingView's. TradingView's answer is known (the day's last regular-session bar, `vw-lower-tf-spy-1d-2026-09-30`); it is not served until a stored `/api/bars/<ticker>?tf=15` payload has been compared with TradingView's 15-minute bars for the same sessions (`storeIntradayAgreement`). ⚠️ THIS IS NOT THE SAME REQUEST: `timeframe.period` reads the timeframe the chart is on rather than forcing one, so decide whether that is what you meant before you take it.",
    "ourNotes": []
+  },
+  {
+   "file": "tests/fixtures/vendor/harness/vw-hline-autoscale-rddt-1d-2026-11-23-preopen.json",
+   "format": "harness-v1",
+   "id": "vw-hline-autoscale-rddt-1d-2026-11-23-preopen",
+   "script": "UCTPROBE_VW_HLINE_AUTOSCALE",
+   "symbol": "NYSE:RDDT",
+   "timeframe": "1D",
+   "plots": [
+    {
+     "id": "plot_0",
+     "title": "P0_rsi",
+     "ours": "value",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "671 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 14,
+     "color": "compared",
+     "stats": {
+      "bars": 671,
+      "compared": 671,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 671,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 657,
+      "colorWithheld": 0,
+      "colorComparable": 657,
+      "valued": 657,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 671,
+       "compared": 671,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    }
+   ],
+   "notCompared": [],
+   "notMeasured": [],
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 1e-8,
+    "absReason": "1e-6 of the tick (pricescale 100)"
+   },
+   "objects": {
+    "verdict": "MATCH",
+    "reason": "neither side draws an object"
+   },
+   "verdict": "MATCH",
+   "reason": "all 2 items agree",
+   "ourNotes": [
+    "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
+   ],
+   "ourDoor": "host",
+   "objectsV2": {
+    "verdict": "MATCH",
+    "verdictWithoutX": "MATCH",
+    "v1": "MATCH",
+    "pairedNothing": true,
+    "x": null,
+    "reason": "no record was paired; v1: neither side draws an object",
+    "families": [],
+    "ungraded": {
+     "lines": [
+      "xloc",
+      "force_overlay"
+     ],
+     "labels": [
+      "xloc",
+      "text_font_family",
+      "text_formatting",
+      "force_overlay"
+     ],
+     "boxes": [
+      "xloc",
+      "text_font_family",
+      "text_formatting",
+      "force_overlay"
+     ],
+     "tables": [
+      "force_overlay"
+     ],
+     "tableCells": [
+      "width",
+      "height",
+      "text_formatting",
+      "colspan",
+      "rowspan"
+     ],
+     "linefills": []
+    }
+   }
+  },
+  {
+   "file": "tests/fixtures/vendor/harness/vw-hline-defaults-v3-rddt-1d-2026-11-23-preopen.json",
+   "format": "harness-v1",
+   "id": "vw-hline-defaults-v3-rddt-1d-2026-11-23-preopen",
+   "script": "UCTPROBE_VW_HLINE_DEFAULTS_V3",
+   "symbol": "NYSE:RDDT",
+   "timeframe": "1D",
+   "plots": [
+    {
+     "id": "plot_0",
+     "title": "P0_close",
+     "ours": "value",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "671 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 0,
+     "color": "compared",
+     "stats": {
+      "bars": 671,
+      "compared": 671,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 671,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 671,
+      "colorWithheld": 0,
+      "colorComparable": 671,
+      "valued": 671,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 671,
+       "compared": 671,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    }
+   ],
+   "notCompared": [],
+   "notMeasured": [],
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 1e-8,
+    "absReason": "1e-6 of the tick (pricescale 100)"
+   },
+   "objects": {
+    "verdict": "MATCH",
+    "reason": "neither side draws an object"
+   },
+   "verdict": "MATCH",
+   "reason": "all 2 items agree",
+   "ourNotes": [
+    "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
+   ],
+   "ourDoor": "host",
+   "objectsV2": {
+    "verdict": "MATCH",
+    "verdictWithoutX": "MATCH",
+    "v1": "MATCH",
+    "pairedNothing": true,
+    "x": null,
+    "reason": "no record was paired; v1: neither side draws an object",
+    "families": [],
+    "ungraded": {
+     "lines": [
+      "xloc",
+      "force_overlay"
+     ],
+     "labels": [
+      "xloc",
+      "text_font_family",
+      "text_formatting",
+      "force_overlay"
+     ],
+     "boxes": [
+      "xloc",
+      "text_font_family",
+      "text_formatting",
+      "force_overlay"
+     ],
+     "tables": [
+      "force_overlay"
+     ],
+     "tableCells": [
+      "width",
+      "height",
+      "text_formatting",
+      "colspan",
+      "rowspan"
+     ],
+     "linefills": []
+    }
+   }
+  },
+  {
+   "file": "tests/fixtures/vendor/harness/vw-hline-defaults-v4-rddt-1d-2026-11-23-preopen.json",
+   "format": "harness-v1",
+   "id": "vw-hline-defaults-v4-rddt-1d-2026-11-23-preopen",
+   "script": "UCTPROBE_VW_HLINE_DEFAULTS_V4",
+   "symbol": "NYSE:RDDT",
+   "timeframe": "1D",
+   "plots": [
+    {
+     "id": "plot_0",
+     "title": "P0_close",
+     "ours": "value",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "671 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 0,
+     "color": "compared",
+     "stats": {
+      "bars": 671,
+      "compared": 671,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 671,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 671,
+      "colorWithheld": 0,
+      "colorComparable": 671,
+      "valued": 671,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 671,
+       "compared": 671,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    }
+   ],
+   "notCompared": [],
+   "notMeasured": [],
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 1e-8,
+    "absReason": "1e-6 of the tick (pricescale 100)"
+   },
+   "objects": {
+    "verdict": "MATCH",
+    "reason": "neither side draws an object"
+   },
+   "verdict": "MATCH",
+   "reason": "all 2 items agree",
+   "ourNotes": [
+    "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
+   ],
+   "ourDoor": "host",
+   "objectsV2": {
+    "verdict": "MATCH",
+    "verdictWithoutX": "MATCH",
+    "v1": "MATCH",
+    "pairedNothing": true,
+    "x": null,
+    "reason": "no record was paired; v1: neither side draws an object",
+    "families": [],
+    "ungraded": {
+     "lines": [
+      "xloc",
+      "force_overlay"
+     ],
+     "labels": [
+      "xloc",
+      "text_font_family",
+      "text_formatting",
+      "force_overlay"
+     ],
+     "boxes": [
+      "xloc",
+      "text_font_family",
+      "text_formatting",
+      "force_overlay"
+     ],
+     "tables": [
+      "force_overlay"
+     ],
+     "tableCells": [
+      "width",
+      "height",
+      "text_formatting",
+      "colspan",
+      "rowspan"
+     ],
+     "linefills": []
+    }
+   }
+  },
+  {
+   "file": "tests/fixtures/vendor/harness/vw-hline-defaults-v5-rddt-1d-2026-11-23-preopen.json",
+   "format": "harness-v1",
+   "id": "vw-hline-defaults-v5-rddt-1d-2026-11-23-preopen",
+   "script": "UCTPROBE_VW_HLINE_DEFAULTS_V5",
+   "symbol": "NYSE:RDDT",
+   "timeframe": "1D",
+   "plots": [
+    {
+     "id": "plot_0",
+     "title": "P0_close",
+     "ours": "value",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "671 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 0,
+     "color": "compared",
+     "stats": {
+      "bars": 671,
+      "compared": 671,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 671,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 671,
+      "colorWithheld": 0,
+      "colorComparable": 671,
+      "valued": 671,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 671,
+       "compared": 671,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    }
+   ],
+   "notCompared": [],
+   "notMeasured": [],
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 1e-8,
+    "absReason": "1e-6 of the tick (pricescale 100)"
+   },
+   "objects": {
+    "verdict": "MATCH",
+    "reason": "neither side draws an object"
+   },
+   "verdict": "MATCH",
+   "reason": "all 2 items agree",
+   "ourNotes": [
+    "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
+   ],
+   "ourDoor": "host",
+   "objectsV2": {
+    "verdict": "MATCH",
+    "verdictWithoutX": "MATCH",
+    "v1": "MATCH",
+    "pairedNothing": true,
+    "x": null,
+    "reason": "no record was paired; v1: neither side draws an object",
+    "families": [],
+    "ungraded": {
+     "lines": [
+      "xloc",
+      "force_overlay"
+     ],
+     "labels": [
+      "xloc",
+      "text_font_family",
+      "text_formatting",
+      "force_overlay"
+     ],
+     "boxes": [
+      "xloc",
+      "text_font_family",
+      "text_formatting",
+      "force_overlay"
+     ],
+     "tables": [
+      "force_overlay"
+     ],
+     "tableCells": [
+      "width",
+      "height",
+      "text_formatting",
+      "colspan",
+      "rowspan"
+     ],
+     "linefills": []
+    }
+   }
   },
   {
    "file": "tests/fixtures/vendor/harness/vw-hline-written-rddt-1d-2026-11-20.json",
@@ -265856,7 +266364,7 @@
    "verdict": "INCONCLUSIVE",
    "reason": "18 of 19 items could not be compared",
    "ourNotes": [
-    "plots/objects: cold: no committed capture of SPY|15 holds bars before 1775052000, cold replay"
+    "plots/objects: cold: every candidate supplier was refused, cold replay (vw-udaily-expr-spy-15-2026-11-23.json: its bar 1775073600 lies inside the window's span and the window has no such bar (another session's series))"
    ],
    "ourDoor": "runtime",
    "objectsV2": {
@@ -272986,7 +273494,7 @@
    "verdict": "INCONCLUSIVE",
    "reason": "18 of 19 items could not be compared",
    "ourNotes": [
-    "plots/objects: cold: every candidate supplier was refused, cold replay (rolling-vwap-spy-5-2026-11-16.json: its bar 1785787200 lies inside the window's span and the window has no such bar (another session's series); vw-bi-session-isfirstbar-spy-5-2026-11-19.json: its bar 1785787200 lies inside the window's span and the window has no such bar (another session's series); vw-lastbar-forming-spy-5-2026-11-20-insession.json: its bar 1785787200 lies inside the window's span and the window has no such bar (another session's series); vw-request-htf-forming-spy-5-2026-11-19-insession.json: its bar 1785787200 lies inside the window's span and the window has no such bar (another session's series); vw-w4-session-param-spy-5-2026-11-16.json: its bar 1785787200 lies inside the window's span and the window has no such bar (another session's series))"
+    "plots/objects: cold: every candidate supplier was refused, cold replay (rolling-vwap-spy-5-2026-11-16.json: its bar 1785787200 lies inside the window's span and the window has no such bar (another session's series); vw-bi-session-isfirstbar-spy-5-2026-11-19.json: its bar 1785787200 lies inside the window's span and the window has no such bar (another session's series); vw-lastbar-forming-spy-5-2026-11-20-insession.json: its bar 1785787200 lies inside the window's span and the window has no such bar (another session's series); vw-request-htf-forming-spy-5-2026-11-19-insession.json: its bar 1785787200 lies inside the window's span and the window has no such bar (another session's series); vw-udaily-expr-spy-5-2026-11-23.json: its bar 1785787200 lies inside the window's span and the window has no such bar (another session's series); vw-w4-session-param-spy-5-2026-11-16.json: its bar 1785787200 lies inside the window's span and the window has no such bar (another session's series))"
    ],
    "ourDoor": "runtime",
    "objectsV2": {
@@ -273459,6 +273967,618 @@
    "verdict": "INCONCLUSIVE",
    "reason": "refused on our side: member door refused (pine:type) [runtime declined: runtime:call-undeclared-builtin-state]: a user-defined type is outside the node shapes this engine stores — `color.r`",
    "ourNotes": []
+  },
+  {
+   "file": "tests/fixtures/vendor/harness/vw-udaily-expr-rddt-15-2026-11-23.json",
+   "format": "harness-v1",
+   "id": "vw-udaily-expr-rddt-15-2026-11-23",
+   "script": "vw-udaily-expr",
+   "symbol": "NYSE:RDDT",
+   "timeframe": "15",
+   "plots": [
+    {
+     "id": "plot_0",
+     "title": "D01 sma50 la-off",
+     "ours": "value",
+     "rule": "M1-title",
+     "verdict": "INCONCLUSIVE",
+     "withheld": "request:other-timeframe",
+     "reason": "our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it"
+    },
+    {
+     "id": "plot_1",
+     "title": "D02 highest20 la-off",
+     "ours": "out2",
+     "rule": "M1-title",
+     "verdict": "INCONCLUSIVE",
+     "withheld": "request:other-timeframe",
+     "reason": "our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it"
+    },
+    {
+     "id": "plot_2",
+     "title": "D03 high[1] la-on",
+     "ours": "out3",
+     "rule": "M1-title",
+     "verdict": "INCONCLUSIVE",
+     "withheld": "request:other-timeframe",
+     "reason": "our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it"
+    },
+    {
+     "id": "plot_3",
+     "title": "D04 ema21 la-off (stateful probe)",
+     "ours": "out4",
+     "rule": "M1-title",
+     "verdict": "INCONCLUSIVE",
+     "withheld": "request:other-timeframe",
+     "reason": "our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it"
+    }
+   ],
+   "notCompared": [],
+   "notMeasured": [],
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 1e-8,
+    "absReason": "1e-6 of the tick (pricescale 100)"
+   },
+   "objects": {
+    "verdict": "MATCH",
+    "reason": "neither side draws an object"
+   },
+   "verdict": "INCONCLUSIVE",
+   "reason": "4 of 5 items could not be compared",
+   "ourNotes": [
+    "plots/objects: cold: no committed capture of RDDT|15 holds bars before 1748851200, cold replay",
+    "`request.security` withheld (request:other-timeframe) on 4 plot(s) — This indicator reads another timeframe of its own symbol with `request.security`. Here that read is built for a 1D chart: a daily request is the chart's own bars, and a weekly or monthly one is made from them. This chart's timeframe is `15`, where the bars in hand are not daily bars — measured on AMEX:SPY 5 minutes (capture `request-realtime-alignment-spy-5-2026-10-01`), TradingView answers the DAILY bar there: the day's own close with look-ahead on, the previous day's with it off, and a close that is the daily bar's, not the last 5-minute bar's. This chart holds no daily bars beside its own, so everything this indicator draws from that request is withheld on this chart rather than drawn from the wrong bars. On a 1D chart it draws. What would settle it: this chart reading the symbol's daily bars beside its own."
+   ],
+   "ourDoor": "host",
+   "objectsV2": {
+    "verdict": "MATCH",
+    "verdictWithoutX": "MATCH",
+    "v1": "MATCH",
+    "pairedNothing": true,
+    "x": null,
+    "reason": "no record was paired; v1: neither side draws an object",
+    "families": [],
+    "ungraded": {
+     "lines": [
+      "xloc",
+      "force_overlay"
+     ],
+     "labels": [
+      "xloc",
+      "text_font_family",
+      "text_formatting",
+      "force_overlay"
+     ],
+     "boxes": [
+      "xloc",
+      "text_font_family",
+      "text_formatting",
+      "force_overlay"
+     ],
+     "tables": [
+      "force_overlay"
+     ],
+     "tableCells": [
+      "width",
+      "height",
+      "text_formatting",
+      "colspan",
+      "rowspan"
+     ],
+     "linefills": []
+    }
+   }
+  },
+  {
+   "file": "tests/fixtures/vendor/harness/vw-udaily-expr-rddt-5-2026-11-23.json",
+   "format": "harness-v1",
+   "id": "vw-udaily-expr-rddt-5-2026-11-23",
+   "script": "vw-udaily-expr",
+   "symbol": "NYSE:RDDT",
+   "timeframe": "5",
+   "plots": [
+    {
+     "id": "plot_0",
+     "title": "D01 sma50 la-off",
+     "ours": "value",
+     "rule": "M1-title",
+     "verdict": "INCONCLUSIVE",
+     "withheld": "request:other-timeframe",
+     "reason": "our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it"
+    },
+    {
+     "id": "plot_1",
+     "title": "D02 highest20 la-off",
+     "ours": "out2",
+     "rule": "M1-title",
+     "verdict": "INCONCLUSIVE",
+     "withheld": "request:other-timeframe",
+     "reason": "our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it"
+    },
+    {
+     "id": "plot_2",
+     "title": "D03 high[1] la-on",
+     "ours": "out3",
+     "rule": "M1-title",
+     "verdict": "INCONCLUSIVE",
+     "withheld": "request:other-timeframe",
+     "reason": "our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it"
+    },
+    {
+     "id": "plot_3",
+     "title": "D04 ema21 la-off (stateful probe)",
+     "ours": "out4",
+     "rule": "M1-title",
+     "verdict": "INCONCLUSIVE",
+     "withheld": "request:other-timeframe",
+     "reason": "our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it"
+    }
+   ],
+   "notCompared": [],
+   "notMeasured": [],
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 1e-8,
+    "absReason": "1e-6 of the tick (pricescale 100)"
+   },
+   "objects": {
+    "verdict": "MATCH",
+    "reason": "neither side draws an object"
+   },
+   "verdict": "INCONCLUSIVE",
+   "reason": "4 of 5 items could not be compared",
+   "ourNotes": [
+    "plots/objects: cold: every candidate supplier was refused, cold replay (vw-lower-tf-bars-rddt-5-2026-11-16.json: bar 1794852600 low 93.23 vs the capture's 93.22)",
+    "`request.security` withheld (request:other-timeframe) on 4 plot(s) — This indicator reads another timeframe of its own symbol with `request.security`. Here that read is built for a 1D chart: a daily request is the chart's own bars, and a weekly or monthly one is made from them. This chart's timeframe is `5`, where the bars in hand are not daily bars — measured on AMEX:SPY 5 minutes (capture `request-realtime-alignment-spy-5-2026-10-01`), TradingView answers the DAILY bar there: the day's own close with look-ahead on, the previous day's with it off, and a close that is the daily bar's, not the last 5-minute bar's. This chart holds no daily bars beside its own, so everything this indicator draws from that request is withheld on this chart rather than drawn from the wrong bars. On a 1D chart it draws. What would settle it: this chart reading the symbol's daily bars beside its own."
+   ],
+   "ourDoor": "host",
+   "objectsV2": {
+    "verdict": "MATCH",
+    "verdictWithoutX": "MATCH",
+    "v1": "MATCH",
+    "pairedNothing": true,
+    "x": null,
+    "reason": "no record was paired; v1: neither side draws an object",
+    "families": [],
+    "ungraded": {
+     "lines": [
+      "xloc",
+      "force_overlay"
+     ],
+     "labels": [
+      "xloc",
+      "text_font_family",
+      "text_formatting",
+      "force_overlay"
+     ],
+     "boxes": [
+      "xloc",
+      "text_font_family",
+      "text_formatting",
+      "force_overlay"
+     ],
+     "tables": [
+      "force_overlay"
+     ],
+     "tableCells": [
+      "width",
+      "height",
+      "text_formatting",
+      "colspan",
+      "rowspan"
+     ],
+     "linefills": []
+    }
+   }
+  },
+  {
+   "file": "tests/fixtures/vendor/harness/vw-udaily-expr-rddt-60-2026-11-23.json",
+   "format": "harness-v1",
+   "id": "vw-udaily-expr-rddt-60-2026-11-23",
+   "script": "vw-udaily-expr",
+   "symbol": "NYSE:RDDT",
+   "timeframe": "60",
+   "plots": [
+    {
+     "id": "plot_0",
+     "title": "D01 sma50 la-off",
+     "ours": "value",
+     "rule": "M1-title",
+     "verdict": "INCONCLUSIVE",
+     "withheld": "request:other-timeframe",
+     "reason": "our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it"
+    },
+    {
+     "id": "plot_1",
+     "title": "D02 highest20 la-off",
+     "ours": "out2",
+     "rule": "M1-title",
+     "verdict": "INCONCLUSIVE",
+     "withheld": "request:other-timeframe",
+     "reason": "our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it"
+    },
+    {
+     "id": "plot_2",
+     "title": "D03 high[1] la-on",
+     "ours": "out3",
+     "rule": "M1-title",
+     "verdict": "INCONCLUSIVE",
+     "withheld": "request:other-timeframe",
+     "reason": "our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it"
+    },
+    {
+     "id": "plot_3",
+     "title": "D04 ema21 la-off (stateful probe)",
+     "ours": "out4",
+     "rule": "M1-title",
+     "verdict": "INCONCLUSIVE",
+     "withheld": "request:other-timeframe",
+     "reason": "our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it"
+    }
+   ],
+   "notCompared": [],
+   "notMeasured": [],
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 1e-8,
+    "absReason": "1e-6 of the tick (pricescale 100)"
+   },
+   "objects": {
+    "verdict": "MATCH",
+    "reason": "neither side draws an object"
+   },
+   "verdict": "INCONCLUSIVE",
+   "reason": "4 of 5 items could not be compared",
+   "ourNotes": [
+    "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0",
+    "`request.security` withheld (request:other-timeframe) on 4 plot(s) — This indicator reads another timeframe of its own symbol with `request.security`. Here that read is built for a 1D chart: a daily request is the chart's own bars, and a weekly or monthly one is made from them. This chart's timeframe is `60`, where the bars in hand are not daily bars — measured on AMEX:SPY 5 minutes (capture `request-realtime-alignment-spy-5-2026-10-01`), TradingView answers the DAILY bar there: the day's own close with look-ahead on, the previous day's with it off, and a close that is the daily bar's, not the last 5-minute bar's. This chart holds no daily bars beside its own, so everything this indicator draws from that request is withheld on this chart rather than drawn from the wrong bars. On a 1D chart it draws. What would settle it: this chart reading the symbol's daily bars beside its own."
+   ],
+   "ourDoor": "host",
+   "objectsV2": {
+    "verdict": "MATCH",
+    "verdictWithoutX": "MATCH",
+    "v1": "MATCH",
+    "pairedNothing": true,
+    "x": null,
+    "reason": "no record was paired; v1: neither side draws an object",
+    "families": [],
+    "ungraded": {
+     "lines": [
+      "xloc",
+      "force_overlay"
+     ],
+     "labels": [
+      "xloc",
+      "text_font_family",
+      "text_formatting",
+      "force_overlay"
+     ],
+     "boxes": [
+      "xloc",
+      "text_font_family",
+      "text_formatting",
+      "force_overlay"
+     ],
+     "tables": [
+      "force_overlay"
+     ],
+     "tableCells": [
+      "width",
+      "height",
+      "text_formatting",
+      "colspan",
+      "rowspan"
+     ],
+     "linefills": []
+    }
+   }
+  },
+  {
+   "file": "tests/fixtures/vendor/harness/vw-udaily-expr-spy-15-2026-11-23.json",
+   "format": "harness-v1",
+   "id": "vw-udaily-expr-spy-15-2026-11-23",
+   "script": "vw-udaily-expr",
+   "symbol": "AMEX:SPY",
+   "timeframe": "15",
+   "plots": [
+    {
+     "id": "plot_0",
+     "title": "D01 sma50 la-off",
+     "ours": "value",
+     "rule": "M1-title",
+     "verdict": "INCONCLUSIVE",
+     "withheld": "request:other-timeframe",
+     "reason": "our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it"
+    },
+    {
+     "id": "plot_1",
+     "title": "D02 highest20 la-off",
+     "ours": "out2",
+     "rule": "M1-title",
+     "verdict": "INCONCLUSIVE",
+     "withheld": "request:other-timeframe",
+     "reason": "our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it"
+    },
+    {
+     "id": "plot_2",
+     "title": "D03 high[1] la-on",
+     "ours": "out3",
+     "rule": "M1-title",
+     "verdict": "INCONCLUSIVE",
+     "withheld": "request:other-timeframe",
+     "reason": "our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it"
+    },
+    {
+     "id": "plot_3",
+     "title": "D04 ema21 la-off (stateful probe)",
+     "ours": "out4",
+     "rule": "M1-title",
+     "verdict": "INCONCLUSIVE",
+     "withheld": "request:other-timeframe",
+     "reason": "our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it"
+    }
+   ],
+   "notCompared": [],
+   "notMeasured": [],
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 1e-8,
+    "absReason": "1e-6 of the tick (pricescale 100)"
+   },
+   "objects": {
+    "verdict": "MATCH",
+    "reason": "neither side draws an object"
+   },
+   "verdict": "INCONCLUSIVE",
+   "reason": "4 of 5 items could not be compared",
+   "ourNotes": [
+    "plots/objects: cold: no committed capture of SPY|15 holds bars before 1754035200, cold replay",
+    "`request.security` withheld (request:other-timeframe) on 4 plot(s) — This indicator reads another timeframe of its own symbol with `request.security`. Here that read is built for a 1D chart: a daily request is the chart's own bars, and a weekly or monthly one is made from them. This chart's timeframe is `15`, where the bars in hand are not daily bars — measured on AMEX:SPY 5 minutes (capture `request-realtime-alignment-spy-5-2026-10-01`), TradingView answers the DAILY bar there: the day's own close with look-ahead on, the previous day's with it off, and a close that is the daily bar's, not the last 5-minute bar's. This chart holds no daily bars beside its own, so everything this indicator draws from that request is withheld on this chart rather than drawn from the wrong bars. On a 1D chart it draws. What would settle it: this chart reading the symbol's daily bars beside its own."
+   ],
+   "ourDoor": "host",
+   "objectsV2": {
+    "verdict": "MATCH",
+    "verdictWithoutX": "MATCH",
+    "v1": "MATCH",
+    "pairedNothing": true,
+    "x": null,
+    "reason": "no record was paired; v1: neither side draws an object",
+    "families": [],
+    "ungraded": {
+     "lines": [
+      "xloc",
+      "force_overlay"
+     ],
+     "labels": [
+      "xloc",
+      "text_font_family",
+      "text_formatting",
+      "force_overlay"
+     ],
+     "boxes": [
+      "xloc",
+      "text_font_family",
+      "text_formatting",
+      "force_overlay"
+     ],
+     "tables": [
+      "force_overlay"
+     ],
+     "tableCells": [
+      "width",
+      "height",
+      "text_formatting",
+      "colspan",
+      "rowspan"
+     ],
+     "linefills": []
+    }
+   }
+  },
+  {
+   "file": "tests/fixtures/vendor/harness/vw-udaily-expr-spy-5-2026-11-23.json",
+   "format": "harness-v1",
+   "id": "vw-udaily-expr-spy-5-2026-11-23",
+   "script": "vw-udaily-expr",
+   "symbol": "AMEX:SPY",
+   "timeframe": "5",
+   "plots": [
+    {
+     "id": "plot_0",
+     "title": "D01 sma50 la-off",
+     "ours": "value",
+     "rule": "M1-title",
+     "verdict": "INCONCLUSIVE",
+     "withheld": "request:other-timeframe",
+     "reason": "our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it"
+    },
+    {
+     "id": "plot_1",
+     "title": "D02 highest20 la-off",
+     "ours": "out2",
+     "rule": "M1-title",
+     "verdict": "INCONCLUSIVE",
+     "withheld": "request:other-timeframe",
+     "reason": "our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it"
+    },
+    {
+     "id": "plot_2",
+     "title": "D03 high[1] la-on",
+     "ours": "out3",
+     "rule": "M1-title",
+     "verdict": "INCONCLUSIVE",
+     "withheld": "request:other-timeframe",
+     "reason": "our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it"
+    },
+    {
+     "id": "plot_3",
+     "title": "D04 ema21 la-off (stateful probe)",
+     "ours": "out4",
+     "rule": "M1-title",
+     "verdict": "INCONCLUSIVE",
+     "withheld": "request:other-timeframe",
+     "reason": "our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it"
+    }
+   ],
+   "notCompared": [],
+   "notMeasured": [],
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 1e-8,
+    "absReason": "1e-6 of the tick (pricescale 100)"
+   },
+   "objects": {
+    "verdict": "MATCH",
+    "reason": "neither side draws an object"
+   },
+   "verdict": "INCONCLUSIVE",
+   "reason": "4 of 5 items could not be compared",
+   "ourNotes": [
+    "plots/objects: cold: every candidate supplier was refused, cold replay (rolling-vwap-spy-5-2026-11-16.json: bar 1794851100 high 743.3 vs the capture's 743.5; vw-w4-session-param-spy-5-2026-11-16.json: bar 1794851700 close 742.89 vs the capture's 742.945)",
+    "`request.security` withheld (request:other-timeframe) on 4 plot(s) — This indicator reads another timeframe of its own symbol with `request.security`. Here that read is built for a 1D chart: a daily request is the chart's own bars, and a weekly or monthly one is made from them. This chart's timeframe is `5`, where the bars in hand are not daily bars — measured on AMEX:SPY 5 minutes (capture `request-realtime-alignment-spy-5-2026-10-01`), TradingView answers the DAILY bar there: the day's own close with look-ahead on, the previous day's with it off, and a close that is the daily bar's, not the last 5-minute bar's. This chart holds no daily bars beside its own, so everything this indicator draws from that request is withheld on this chart rather than drawn from the wrong bars. On a 1D chart it draws. What would settle it: this chart reading the symbol's daily bars beside its own."
+   ],
+   "ourDoor": "host",
+   "objectsV2": {
+    "verdict": "MATCH",
+    "verdictWithoutX": "MATCH",
+    "v1": "MATCH",
+    "pairedNothing": true,
+    "x": null,
+    "reason": "no record was paired; v1: neither side draws an object",
+    "families": [],
+    "ungraded": {
+     "lines": [
+      "xloc",
+      "force_overlay"
+     ],
+     "labels": [
+      "xloc",
+      "text_font_family",
+      "text_formatting",
+      "force_overlay"
+     ],
+     "boxes": [
+      "xloc",
+      "text_font_family",
+      "text_formatting",
+      "force_overlay"
+     ],
+     "tables": [
+      "force_overlay"
+     ],
+     "tableCells": [
+      "width",
+      "height",
+      "text_formatting",
+      "colspan",
+      "rowspan"
+     ],
+     "linefills": []
+    }
+   }
+  },
+  {
+   "file": "tests/fixtures/vendor/harness/vw-udaily-expr-spy-60-2026-11-23.json",
+   "format": "harness-v1",
+   "id": "vw-udaily-expr-spy-60-2026-11-23",
+   "script": "vw-udaily-expr",
+   "symbol": "AMEX:SPY",
+   "timeframe": "60",
+   "plots": [
+    {
+     "id": "plot_0",
+     "title": "D01 sma50 la-off",
+     "ours": "value",
+     "rule": "M1-title",
+     "verdict": "INCONCLUSIVE",
+     "withheld": "request:other-timeframe",
+     "reason": "our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it"
+    },
+    {
+     "id": "plot_1",
+     "title": "D02 highest20 la-off",
+     "ours": "out2",
+     "rule": "M1-title",
+     "verdict": "INCONCLUSIVE",
+     "withheld": "request:other-timeframe",
+     "reason": "our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it"
+    },
+    {
+     "id": "plot_2",
+     "title": "D03 high[1] la-on",
+     "ours": "out3",
+     "rule": "M1-title",
+     "verdict": "INCONCLUSIVE",
+     "withheld": "request:other-timeframe",
+     "reason": "our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it"
+    },
+    {
+     "id": "plot_3",
+     "title": "D04 ema21 la-off (stateful probe)",
+     "ours": "out4",
+     "rule": "M1-title",
+     "verdict": "INCONCLUSIVE",
+     "withheld": "request:other-timeframe",
+     "reason": "our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it"
+    }
+   ],
+   "notCompared": [],
+   "notMeasured": [],
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 1e-8,
+    "absReason": "1e-6 of the tick (pricescale 100)"
+   },
+   "objects": {
+    "verdict": "MATCH",
+    "reason": "neither side draws an object"
+   },
+   "verdict": "INCONCLUSIVE",
+   "reason": "4 of 5 items could not be compared",
+   "ourNotes": [
+    "plots/objects: cold: no committed capture of SPY|60 holds bars before 1609750800, cold replay",
+    "`request.security` withheld (request:other-timeframe) on 4 plot(s) — This indicator reads another timeframe of its own symbol with `request.security`. Here that read is built for a 1D chart: a daily request is the chart's own bars, and a weekly or monthly one is made from them. This chart's timeframe is `60`, where the bars in hand are not daily bars — measured on AMEX:SPY 5 minutes (capture `request-realtime-alignment-spy-5-2026-10-01`), TradingView answers the DAILY bar there: the day's own close with look-ahead on, the previous day's with it off, and a close that is the daily bar's, not the last 5-minute bar's. This chart holds no daily bars beside its own, so everything this indicator draws from that request is withheld on this chart rather than drawn from the wrong bars. On a 1D chart it draws. What would settle it: this chart reading the symbol's daily bars beside its own."
+   ],
+   "ourDoor": "host",
+   "objectsV2": {
+    "verdict": "MATCH",
+    "verdictWithoutX": "MATCH",
+    "v1": "MATCH",
+    "pairedNothing": true,
+    "x": null,
+    "reason": "no record was paired; v1: neither side draws an object",
+    "families": [],
+    "ungraded": {
+     "lines": [
+      "xloc",
+      "force_overlay"
+     ],
+     "labels": [
+      "xloc",
+      "text_font_family",
+      "text_formatting",
+      "force_overlay"
+     ],
+     "boxes": [
+      "xloc",
+      "text_font_family",
+      "text_formatting",
+      "force_overlay"
+     ],
+     "tables": [
+      "force_overlay"
+     ],
+     "tableCells": [
+      "width",
+      "height",
+      "text_formatting",
+      "colspan",
+      "rowspan"
+     ],
+     "linefills": []
+    }
+   }
   },
   {
    "file": "tests/fixtures/vendor/harness/vw-udt-fn-global-history-rddt-1d-2026-11-16.json",
@@ -335329,7 +336449,7 @@
     "refusal": "this strategy's trades depend on the bar its backtest starts from, and this run is not known to start at the symbol's first bar (unsettled: Q-S1n, docs/pine/capture-queue-2026-10-05-s1.md)"
    },
    "ourNotes": [
-    "plots/objects: cold: no committed capture of SPY|15 holds bars before 1782425700, cold replay"
+    "plots/objects: cold: every candidate supplier was refused, cold replay (vw-udaily-expr-spy-15-2026-11-23.json: bar 1794587400 low 749.42 vs the capture's 745.2)"
    ],
    "ourDoor": "runtime",
    "objectsV2": {
