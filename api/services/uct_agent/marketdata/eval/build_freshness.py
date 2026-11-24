@@ -12,6 +12,7 @@ import pathlib
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+from api.services.a8_taxonomy import CATALYST_TAG                              # noqa: E402
 from api.services.uct_agent.marketdata import envelope as env                    # noqa: E402
 from api.services.uct_agent.marketdata import (bars_daily as bd, breadth as br, catalysts_board as cb, cot as ct, earnings as ern,    # noqa: E402
                                               news_company as nc, quotes as q, ratings as rt, rs_leadership as rl,
@@ -315,7 +316,7 @@ add("cot-not-covered", "How are traders positioned in lithium right now?",
              "no market in this request has stored COT data"], coverage={"requested": 1, "answered": 0}),
     category="partial", disclose=["not covered", "lithium"])
 # ── catalysts.board (Phase 2 catalysts; model-isolated, answer only): as_of is the board's last refresh; stale after 2 h ──
-cbrow = {"symbol": "AAA", "market_date": "2026-11-02", "rank": 1, "catalyst_type": "Earnings", "tag": "Catalyst",  # noqa: E731
+cbrow = {"symbol": "AAA", "market_date": "2026-11-02", "rank": 1, "catalyst_type": "Earnings", "tag": CATALYST_TAG.CATALYST,  # noqa: E731
          "grade": "A", "gap_pct": 4.2, "sector": "Technology", "is_new": True, "pre_move": False,
          "catalyst_at": "2026-11-02T12:05:00Z", "refreshed_at": "2026-11-02T13:40:00Z", "as_of": "2026-11-02T12:05:00Z",
          "writeup": "a synthetic engine summary", "writeup_at": "2026-11-02T12:30:00Z", "writeup_status": "ok",
