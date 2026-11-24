@@ -96,10 +96,24 @@ export function createRegistry({
     return true
   }
 
+  // ⭐ THE DWELL'S ENTRIES OF A SYMBOL NO CHART SHOWS GO FIRST (2026-11-24). The dwell's all-timeframes warm (the chart's
+  // background warm, the watchlist's dwell) makes the other timeframes of the row the member rests on, for one use: a
+  // timeframe switch on that row. Once no chart shows the symbol they are the least useful entries held; by recency
+  // alone they outlived the rows ahead of a list (warmed earlier), and those were evicted first (minute-feed replay:
+  // 5m / 30m / 60m, 82 each in 80 presses, one per row pressed). `setDwell` marks an entry a dwell warm made; an idle
+  // one whose symbol no subscriber shows is evicted before every other idle entry (oldest first), and while a chart
+  // shows the symbol it is ordinary (a timeframe switch there is exactly as today). A pin (`acquire`: a list's hold,
+  // a read) or a subscriber makes it ordinary for good.
   function _evict() {
     if (entries.size <= maxKeys && totalBars <= barBudget) return
-    const idle = [...entries.entries()].filter(([, e]) => e.refs === 0 && e.subs.size === 0)
-      .sort((a, b) => a[1].used - b[1].used)
+    const idle = []
+    let shown = null
+    for (const [key, e] of entries) {
+      if (e.subs.size) (shown ??= new Set()).add(parseKey(key)?.sym)
+      if (e.refs === 0 && e.subs.size === 0) idle.push([key, e])
+    }
+    const rank = (key, e) => (e.dwell && !shown?.has(parseKey(key)?.sym) ? 0 : 1)
+    idle.sort((a, b) => rank(a[0], a[1]) - rank(b[0], b[1]) || a[1].used - b[1].used)
     for (const [key, e] of idle) {
       if (entries.size <= maxKeys && totalBars <= barBudget) break
       totalBars -= e.state.depth
@@ -116,7 +130,7 @@ export function createRegistry({
     peek(key) { return entries.get(key)?.state ?? null },
     has(key) { return entries.has(key) },
     /** Pin an entry (refcount +1). */
-    acquire(key) { const e = _entry(key); e.refs++; e.used = ++clock; return e.state },
+    acquire(key) { const e = _entry(key); e.refs++; e.used = ++clock; e.dwell = false; return e.state },
     release(key) {
       const e = entries.get(key)
       if (e && e.refs > 0) e.refs--
@@ -130,6 +144,7 @@ export function createRegistry({
       const sub = { cb, wake, pending: false }
       e.subs.add(sub)
       e.used = ++clock
+      e.dwell = false
       return () => { e.subs.delete(sub); _evict() }
     },
     /** Apply one reducer action to `key`; returns the (possibly unchanged) snapshot. */
@@ -154,6 +169,19 @@ export function createRegistry({
       return n
     },
     keys() { return [...entries.keys()] },
-    stats() { return { keys: entries.size, bars: totalBars } },
+    /** Mark (`on`) an entry a dwell warm made, or make it ordinary; a pinned or subscribed entry is never marked (see
+     *  _evict). Returns whether the entry is marked now. */
+    setDwell(key, on = true) {
+      const e = entries.get(key)
+      if (!e) return false
+      e.dwell = !!on && e.refs === 0 && e.subs.size === 0
+      return e.dwell
+    },
+    isDwell(key) { return !!entries.get(key)?.dwell },
+    stats() {
+      let dwell = 0
+      for (const e of entries.values()) if (e.dwell) dwell++
+      return { keys: entries.size, bars: totalBars, dwell }
+    },
   }
 }
