@@ -269,3 +269,18 @@ describe('scheduling', () => {
     n2.stop()
   })
 })
+
+// (2026-11-24) The sink is told which frames were read AS THEIR OWN MINUTE FILE (`file: true`): only such a minute is in
+// the browser's HTTP cache under its own URL, which is what the device store's worker tells the pages
+// (lib/minuteFrames/applied.js). A frame replayed from today.bin is not.
+describe('which frames were read as their own minute file', () => {
+  it('a catch-up: the frames replayed from today.bin are not marked, the minute files after it are', async () => {
+    const e = edge({ through: 599, rolled: 594, gzip: true })
+    const d = device(e.fetchImpl, at(14, 0, 8))
+    expect(await d.c.syncNow()).toEqual({ current: true })
+    const marks = d.sink.frames.map((f) => [f.seq, f.file])
+    expect(marks.length).toBeGreaterThan(590)
+    expect(marks.filter(([s]) => s <= 594).every(([, f]) => f === false)).toBe(true)
+    expect(marks.filter(([s]) => s > 594)).toEqual([[595, true], [596, true], [597, true], [598, true], [599, true]])
+  })
+})

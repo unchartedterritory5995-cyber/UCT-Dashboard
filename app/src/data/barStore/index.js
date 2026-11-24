@@ -23,6 +23,7 @@ import { createPersist } from './persist'
 import { createNetwork } from './network'
 import { createHistoryFeed, historyLakeEnabled, appHistoryFeed } from './historyFeed'
 import { createLiveFeed } from './liveFeed'
+import { appMinuteFeed } from './minuteFeedSwitch'
 import { STATUS } from './types'
 import { onDeskHiddenChange } from '../../lib/deskVisibility'
 
@@ -39,6 +40,9 @@ const DEFAULT_UNTIL = Object.freeze([STATUS.CONTEXT, STATUS.CURRENT, STATUS.UNAV
  * @param {object} [o.io]        persist cache functions (default: barsMemCache / barsIDB)
  * @param {object} [o.stream] [o.candle] [o.prices]  live feeds (default: the lib managers)
  * @param {object} [o.timers]    { setTimer, clearTimer, setIntervalFn, clearIntervalFn, now }
+ * @param {Function} [o.minuteFeed]  (store) => { stop() } | null: starts the minute feed into the registry
+ *                               (minuteFeedSwitch.appMinuteFeed; only the app's store passes it). Called ONCE, when
+ *                               the store gets its first subscriber (a chart on the page), never before.
  */
 export function createBarStore(o = {}) {
   const now = o.timers?.now ?? (() => Date.now())
@@ -72,6 +76,14 @@ export function createBarStore(o = {}) {
   })
 
   let statusTimer = null
+  // The minute feed (minuteFeedSwitch.js): asked for once, by the first chart. null = off (or not asked yet).
+  let minuteFeed = null
+  let minuteFeedAsked = false
+  function _minuteFeedOnce() {
+    if (minuteFeedAsked || typeof o.minuteFeed !== 'function') return
+    minuteFeedAsked = true
+    try { minuteFeed = o.minuteFeed(api) ?? null } catch { minuteFeed = null }
+  }
 
   function _statusLoop() {
     if (statusTimer != null || !active.size) return
@@ -103,6 +115,7 @@ export function createBarStore(o = {}) {
         else if (g == null) gapSeen = null
       }))
       _statusLoop()
+      _minuteFeedOnce()
     }
     a.stops.push(network.start(key, { session, priority, depth }))
     a.n++
@@ -130,6 +143,10 @@ export function createBarStore(o = {}) {
       return () => { if (done) return; done = true; off(); stop() }
     },
     getSnapshot: (key) => registry.getSnapshot(key),
+    /** Does a chart hold `key` right now (a subscriber with a life cycle: its own stream and its own requests)? */
+    isActive: (key) => active.has(key),
+    /** The minute feed's handle once the first chart asked for it and the switch is on, else null (tests, diagnostics). */
+    minuteFeed: () => minuteFeed,
     getBaseSnapshot: (key) => registry.getBaseSnapshot(key),
     /** Developing-bar changes of `key`, coalesced to one call per frame (no life cycle: the
      *  key's `subscribe` owns that). */
@@ -209,6 +226,8 @@ export function createBarStore(o = {}) {
       }
       active.clear()
       if (statusTimer != null) { clearTimer(statusTimer); statusTimer = null }
+      try { minuteFeed?.stop?.() } catch { /* ignore */ }
+      minuteFeed = null
       network.dispose()
       try { persist.dispose?.() } catch { /* ignore */ }
     },
@@ -242,7 +261,8 @@ function _wireFlush() {
 /** The app's one store (created on first use). */
 export function getBarStore() {
   // The history lake is ON for the app's store unless this browser says '0' (historyFeed.js).
-  if (!_default) { _default = createBarStore({ history: appHistoryFeed() }); _wireFlush() }
+  // The minute feed into the registry is the app store's alone, and off unless its switch says on (minuteFeedSwitch.js).
+  if (!_default) { _default = createBarStore({ history: appHistoryFeed(), minuteFeed: appMinuteFeed }); _wireFlush() }
   return _default
 }
 /** Test hook. */
