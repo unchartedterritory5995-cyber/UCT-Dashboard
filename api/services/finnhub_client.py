@@ -225,6 +225,13 @@ def _junk_symbol(sym) -> bool:
     return (not s) or any(c in s for c in ("$", "^", ":", "/"))
 
 
+def is_configured() -> bool:
+    """Whether Finnhub's credential is present, asked of the ADAPTER (TERM-022: no module
+    outside it reads the key). The same test `fh_get` makes before every call, for a caller
+    that must say "no key" once instead of discovering it per call (fmp_client has the twin)."""
+    return bool(os.environ.get("FINNHUB_API_KEY"))
+
+
 def fh_get(path: str, params: dict, timeout: int | None = None, base_url: str = _FH_V1) -> dict | list | None:
     """Fire a Finnhub GET request. Returns parsed JSON or None on failure.
 

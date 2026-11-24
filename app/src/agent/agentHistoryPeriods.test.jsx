@@ -6,6 +6,7 @@
 // default; one resolve, then one read per symbol. No model, no provider.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { registerBuiltins, registerServerGatedBuiltins } from './builtins'
+import './terminalWaves'  // the Terminal data waves: registerServerGatedBuiltins() runs them only once this module has loaded (terminalWavesHook.js)
 import { getCapability } from './capabilities'
 import { loadAgentConfig, _resetAgentConfig } from './agentClient'
 import { fastParse } from './fastPath'

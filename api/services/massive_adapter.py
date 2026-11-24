@@ -36,6 +36,7 @@ around this boundary, and that count only goes down.
 """
 from __future__ import annotations
 
+import os
 import threading
 from typing import Any, Mapping, Optional
 from urllib.parse import urlencode
@@ -95,6 +96,14 @@ def _client():
         return _massive._get_client()
     except RuntimeError:
         raise _ERR.not_configured("MASSIVE_API_KEY not set") from None
+
+
+def is_configured() -> bool:
+    """Whether this process holds Massive's API key, asked of the ADAPTER (TERM-022: no
+    module outside it reads the key). The same test `massive._get_client()` makes, without
+    building a client -- for a caller that decides BEFORE it would reach Massive (the
+    stream-ingest connect gate). `get`/`get_pages` still refuse by name when it is absent."""
+    return bool(os.environ.get("MASSIVE_API_KEY"))
 
 
 def _encode(params: Optional[Mapping[str, Any]], api_key: str) -> str:
@@ -163,6 +172,29 @@ def get(path: str, *, data_class: str, activity: str,
     client = _client()
     data = _fetch(client, f"{path}?{_encode(params, client._api_key)}",
                   path=path, data_class=data_class, timeout=timeout)
+    return _result(data, data_class=data_class, activity=activity)
+
+
+def get_next(next_url: str, *, data_class: str, activity: str,
+             timeout: Optional[float] = None) -> _pe.ProviderResult:
+    """The page a previous answer's `next_url` names, as one Massive REST object
+    (`.value`) -- for a caller that walks the cursor ITSELF (one that keeps the rows it
+    already has when a later page fails; `get_pages` is all-or-nothing). The cursor's
+    query is kept verbatim and any key it carries is replaced by ours, and a `next_url`
+    that is not on `massive._REST_BASE` over https is refused before any request -- the
+    same rules `get_pages` follows. Raises a `ProviderError` subclass on any failure,
+    exactly like `get`."""
+    _require(data_class, activity)
+    client = _client()
+    base = _massive._REST_BASE.rstrip("/") + "/"
+    route = (next_url[len(base) - 1:].partition("?")[0]
+             if isinstance(next_url, str) and next_url.startswith(base) else "next_url")
+    try:
+        path_qs = _next_path(next_url, client._api_key, route)
+    except _pe.ProviderError:
+        _bump(data_class, "errors")
+        raise
+    data = _fetch(client, path_qs, path=route, data_class=data_class, timeout=timeout)
     return _result(data, data_class=data_class, activity=activity)
 
 

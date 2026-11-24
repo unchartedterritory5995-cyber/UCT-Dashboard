@@ -784,6 +784,39 @@ def test_after_a_restart_the_catch_up_reads_the_disk_copy_and_starts_the_run_onl
     assert ics.catch_up(tuesday) == {"started": True} and started == [tuesday]
 
 
+def test_a_boot_during_market_hours_while_behind_starts_nothing_and_asks_the_sec_nothing(monkeypatch):
+    # member speed first: behind, but inside the weekday busy span, the catch-up starts no SEC read; the hourly
+    # checks and the next boot in the quiet hours start it
+    fake = FakeSec()
+    monkeypatch.setattr(ics, "_sec_get", fake)
+    started = _stub_run(monkeypatch)
+    for now in (datetime(2031, 3, 18, 10, 0, tzinfo=NY),                  # a Tuesday morning: nothing held
+                datetime(2031, 3, 18, 7, 0, tzinfo=NY),                   # the first minute of the busy span
+                datetime(2031, 3, 18, 20, 14, tzinfo=NY)):                # its last minute
+        assert ics.behind(None, now) is True
+        assert ics.catch_up(now) == {"started": False, "reason": "not_quiet"}, now
+    assert started == [] and fake.calls == []
+
+
+@pytest.mark.parametrize("now", [datetime(2031, 3, 18, 21, 0, tzinfo=NY),   # a weekday evening
+                                 datetime(2031, 3, 18, 3, 0, tzinfo=NY),    # a weekday night
+                                 datetime(2031, 3, 18, 20, 15, tzinfo=NY),  # the quiet span's first minute
+                                 datetime(2031, 3, 16, 12, 0, tzinfo=NY)])  # a Sunday noon: quiet all day
+def test_the_same_catch_up_in_the_quiet_span_starts_the_run(monkeypatch, now):
+    started = _stub_run(monkeypatch)
+    assert ics.catch_up(now) == {"started": True} and started == [now]
+
+
+def test_the_catch_up_reads_scan_periods_own_quiet_span(monkeypatch):
+    from api.services import scan_period
+    started = _stub_run(monkeypatch)
+    seen = []
+    monkeypatch.setattr(scan_period, "_reuse_quiet_now", lambda now=None: seen.append(now) or False)
+    night = datetime(2031, 3, 18, 3, 0, tzinfo=timezone.utc)             # read in New York time, never retyped
+    assert ics.catch_up(night) == {"started": False, "reason": "not_quiet"} and started == []
+    assert seen == [night.astimezone(NY)] and seen[0].tzinfo == NY
+
+
 def test_the_catch_up_never_starts_a_second_run(monkeypatch):
     started = _stub_run(monkeypatch)
     ics._state["inflight"] = threading.Event()                    # the 01:20 run, or another catch-up, is reading

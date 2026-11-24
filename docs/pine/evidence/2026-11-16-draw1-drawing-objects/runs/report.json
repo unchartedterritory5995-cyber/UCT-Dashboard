@@ -1,12 +1,12 @@
 {
  "populations": {
   "capture": {
-   "scripts": 1029,
-   "admitted": 828,
+   "scripts": 1039,
+   "admitted": 838,
    "runtimeLane": 227,
-   "hostLane": 312,
+   "hostLane": 322,
    "refused": 289,
-   "coreOnly": 47
+   "coreOnly": 51
   },
   "committed": {
    "scripts": 266,
@@ -34,7 +34,7 @@
   }
  },
  "populationSizes": {
-  "capture": 1029,
+  "capture": 1039,
   "committed": 266,
   "reference": 271,
   "builtin": 142
@@ -10112,6 +10112,42 @@
    ]
   },
   {
+   "capture": "vw-hline-autoscale-rddt-1d-2026-11-23-preopen",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "capture": "vw-hline-defaults-v3-rddt-1d-2026-11-23-preopen",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "capture": "vw-hline-defaults-v4-rddt-1d-2026-11-23-preopen",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "capture": "vw-hline-defaults-v5-rddt-1d-2026-11-23-preopen",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core"
+   ]
+  },
+  {
    "capture": "vw-hline-written-rddt-1d-2026-11-20",
    "lane": "host",
    "runtimeOn": "MATCH",
@@ -11634,6 +11670,72 @@
     "obj:table",
     "reassign",
     "ternary"
+   ]
+  },
+  {
+   "capture": "vw-udaily-expr-rddt-15-2026-11-23",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "realtime-state",
+    "request-other"
+   ]
+  },
+  {
+   "capture": "vw-udaily-expr-rddt-5-2026-11-23",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "realtime-state",
+    "request-other"
+   ]
+  },
+  {
+   "capture": "vw-udaily-expr-rddt-60-2026-11-23",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "realtime-state",
+    "request-other"
+   ]
+  },
+  {
+   "capture": "vw-udaily-expr-spy-15-2026-11-23",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "realtime-state",
+    "request-other"
+   ]
+  },
+  {
+   "capture": "vw-udaily-expr-spy-5-2026-11-23",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "realtime-state",
+    "request-other"
+   ]
+  },
+  {
+   "capture": "vw-udaily-expr-spy-60-2026-11-23",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "realtime-state",
+    "request-other"
    ]
   },
   {

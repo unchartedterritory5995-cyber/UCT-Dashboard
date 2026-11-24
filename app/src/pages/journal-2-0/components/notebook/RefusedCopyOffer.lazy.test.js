@@ -30,6 +30,8 @@ const SHEET = /(^|\/)ShortcutCheatSheet(\.jsx)?$/
 const SHEET_DOOR = /(^|\/)ShortcutCheatSheetDoor(\.jsx)?$/
 const DELETE = /(^|\/)DeleteAccountModal(\.jsx)?$/
 const DELETE_DOOR = /(^|\/)DeleteAccountModalDoor(\.jsx)?$/
+const CAPTURE = /(^|\/)CaptureDialog(\.jsx)?$/
+const CAPTURE_DOOR = /(^|\/)CaptureDialogDoor(\.jsx)?$/
 
 function walk(dir, out = []) {
   for (const name of fs.readdirSync(dir)) {
@@ -150,5 +152,39 @@ describe('the delete account dialog stays out of the first-open closure', () => 
     expect(importsOf("// import D from './DeleteAccountModal'\nexport const a = 1\n", DELETE).statics).toEqual([])
     expect(importsOf("const L = () => import('./DeleteAccountModal')\n", DELETE))
       .toEqual({ statics: [], dynamics: ['./DeleteAccountModal'] })
+  })
+})
+
+// First-open bytes (coordinator ruling 2026-11-23, PR #2624), same rail: the capture dialog appears only when a capture
+// door fires (Cmd/Ctrl+Shift+Y, a door's openCapture, a parked share), and CaptureHost is in Layout, the app's ENTRY
+// chunk, so no file anywhere under app/src imports the dialog statically; its one dynamic import is
+// components/notebook/CaptureDialogDoor.jsx, which CaptureHost renders in its place.
+const APP_SRC = path.resolve(WAVE, '..', '..')            // .../app/src
+describe('the capture dialog stays out of the first-open closure', () => {
+  it('NON-VACUITY: the door holds its one dynamic import, and CaptureHost renders the door', () => {
+    expect(scan(CAPTURE).filter((f) => f.dynamics.length).map((f) => [f.file, f.dynamics]))
+      .toEqual([['components/notebook/CaptureDialogDoor.jsx', ['./CaptureDialog']]])
+    // The walk sees the host's own static import, so the cell below cannot pass for want of one.
+    expect(scan(CAPTURE_DOOR).filter((f) => f.statics.length).map((f) => f.file))
+      .toEqual(['components/notebook/CaptureHost.jsx'])
+  })
+
+  it('no file under app/src imports the dialog statically -- CaptureHost (in Layout) above all', () => {
+    const named = walk(APP_SRC).filter((f) => fs.readFileSync(f, 'utf8').includes('CaptureDialog'))
+    expect(named.length, 'the walk found the dialog, its door and its host').toBeGreaterThanOrEqual(3)
+    const offenders = named
+      .filter((f) => importsOf(fs.readFileSync(f, 'utf8'), CAPTURE).statics.length)
+      .map((f) => path.relative(APP_SRC, f).split(path.sep).join('/'))
+    expect(offenders).toEqual([])
+  })
+
+  it('CONTROLS: the dialog’s static import is seen; its door, its stylesheet and a comment are not', () => {
+    expect(importsOf("import CaptureDialog from './CaptureDialog'\n", CAPTURE).statics).toHaveLength(1)
+    expect(importsOf("import C from '../components/notebook/CaptureDialog.jsx'\n", CAPTURE).statics).toHaveLength(1)
+    expect(importsOf("import D from './CaptureDialogDoor'\n", CAPTURE).statics).toEqual([])
+    expect(importsOf("import styles from './CaptureDialog.module.css'\n", CAPTURE).statics).toEqual([])
+    expect(importsOf("// import CaptureDialog from './CaptureDialog'\nexport const a = 1\n", CAPTURE).statics).toEqual([])
+    expect(importsOf("const L = () => import('./CaptureDialog')\n", CAPTURE))
+      .toEqual({ statics: [], dynamics: ['./CaptureDialog'] })
   })
 })

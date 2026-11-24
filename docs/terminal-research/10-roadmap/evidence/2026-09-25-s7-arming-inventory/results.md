@@ -1,6 +1,6 @@
 # S7 — the arming and disagreement state of all seven types, 2026-09-25 ~21:5xZ
 
-Produced by `tools/s7_arming_inventory.py` (committed `a0a7e363f`) against **production**,
+Produced by `tools/s7_arming_inventory.py` (committed `c2f166887` (landed; was a0a7e363f before replay)) against **production**,
 admin read as the synthetic smoke account. Re-runnable:
 
 ```sh

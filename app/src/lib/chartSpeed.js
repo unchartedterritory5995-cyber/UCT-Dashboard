@@ -1,9 +1,11 @@
 // app/src/lib/chartSpeed.js — the SERVER's kill switch over the chart speed switches (2026-11-20).
 //
-// One server setting, CHART_SPEED_ENABLED on web (api/routers/auth.py, read per request), turns BOTH
+// One server setting, CHART_SPEED_ENABLED on web (api/routers/auth.py, read per request), turns the
 // chart speed switches off in every browser, over a member's own local '1':
 //   • `uct.neighborframes` (components/chart/neighborFrames.js, ON by default since #2202)
 //   • `uct.deviceStore`    (data/deviceStore/switch.js)
+//   • `uct.minuteFeed`     (data/barStore/minuteFeedSwitch.js, 2026-11-23: the minute feed into the bar store's
+//                          registry; a page left open reads the cookie fresh before each of its polls and stops)
 // Each asks `chartSpeedKilled()` before it reads its own local value.
 //
 // ⭐ THE BROWSER'S COPY IS A COOKIE THE SERVER WRITES: `uct_chart_speed=0`, set beside every auth payload
@@ -85,7 +87,8 @@ export function deviceStoreKilled() { return deviceStoreKill() !== null }
 /** ...and told every browser to delete its packs (`purge`)? */
 export function deviceStorePurge() { return deviceStoreKill() === 'purge' }
 
-let _killSeen = false       // a fresh read below has seen a kill on this page (never cleared: the client stopped for good)
+let _killSeen = false       // a fresh read below has seen a kill on this page, or the member's Off stopped the client
+                            // (noteDeviceStoreStopped); never cleared: the client stopped for good
 const _killWatchers = new Set()
 
 /** Is the device store killed NOW, by either kill (either device value)? Read FRESH from the jar (not latched): a page
@@ -97,13 +100,23 @@ export function deviceStoreKilledNow() {
     if (typeof document === 'undefined') return false
     const jar = document.cookie
     const k = cookieKillsChartSpeed(jar) || cookieKillsDeviceStore(jar)
-    if (k && !_killSeen) {
-      _killSeen = true
-      for (const fn of [..._killWatchers]) { try { fn() } catch { /* one watcher never stops the rest */ } }
-    }
+    if (k) _seeKill()
     return k
   } catch { return false }
 }
+
+/** Remember the stop for the page and tell the watchers, ONCE, whichever told it first. */
+function _seeKill() {
+  if (_killSeen) return
+  _killSeen = true
+  for (const fn of [..._killWatchers]) { try { fn() } catch { /* one watcher never stops the rest */ } }
+}
+
+/** ⭐ A MEMBER'S OFF THAT REACHES AN OPEN PAGE (review of #2537 head 24fe13dc8f, Z-1). The device client reads the
+ *  member's key fresh (deviceStore/client.js: before its first start, before its first ingest, on its visible beat) and a
+ *  '0' stops it exactly as a kill does. It tells the page here: the same latch (deviceStoreKillSeen) and the same
+ *  watchers, told once whichever came first, so device rows the page already holds stop painting with the worker. */
+export function noteDeviceStoreStopped() { _seeKill() }
 
 /**
  * ⭐ HAS THIS PAGE SEEN A KILL (review of #2565, P6-L2)? A plain boolean: no cookie is read here. It turns true the moment

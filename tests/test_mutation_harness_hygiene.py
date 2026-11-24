@@ -125,13 +125,37 @@ def test_every_mutation_harness_imports_the_shared_guard_and_calls_it_before_any
 # invisible (`lesson_a_gate_list_drifts_like_any_other_artifact`).
 NOT_MUTATORS = {
     "anchor_check.py": "writes only tempfiles under --self-check; the gate path never writes",
+    # ── ruled 2026-11-24, each by reading the file's every write ─────────────────────────
+    "arrival_census.py": "writes the census evidence the caller names with --out (tmp + "
+                         "os.replace); --self-check writes three NEW `_selfcheck_*.jsonl` "
+                         "scratch files beside itself and removes them in `finally` — it never "
+                         "opens an existing file for writing",
+    "canary_scope_readback.py": "writes the canary-scope evidence JSON (evidence/canary-scope.json "
+                                "or the --out the caller names); it reads the product, never "
+                                "edits it",
     "chaos_scenarios.py": "writes the evidence JSON the caller names with --out",
     "clock_sweep.py": "writes a pytest plugin into a tempdir, plus --out evidence",
     "determinism_runner.py": "writes the evidence JSON the caller names with --out",
+    "gate_snapshot.py": "writes a NEW snapshot under evidence/gate-snapshots/ (tmp + replace, "
+                        "never over an existing file); --self-check writes only into a "
+                        "TemporaryDirectory",
     "golden_capture.py": "regenerates a golden on purpose; that is its whole job",
     "load_harness.py": "writes the evidence JSON the caller names with --out",
+    "oi44_cold_paths.py": "regenerates evidence/cold-paths/preload-manifest.json from a read-only "
+                          "scan of api/ — a regeneration on purpose, like golden_capture, never "
+                          "a mutate-and-restore; --self-check writes only into a "
+                          "TemporaryDirectory",
+    "oi44_loop_blockers.py": "writes planted snippets into a TemporaryDirectory under "
+                             "--self-check only; the scan itself only reads api/",
+    "patch_guard.py": "a LIBRARY, not a harness: `safe_replace` writes only the path its caller "
+                      "passes (tmp + os.replace) and restores the original on every failure; "
+                      "run as a script it self-checks inside mkdtemp() only. Whether a tree may "
+                      "be mutated is the CALLER's decision, and every mutation harness that "
+                      "calls it is guarded itself",
     "run_env_logs.py": "writes its own log file, not a source file",
     "soak_job.py": "writes its state file and the --out evidence",
+    "w8_accuracy_audit.py": "writes the evidence JSON (evidence/accuracy/<date>.json or the --out "
+                            "the caller names); every database it reads is opened mode=ro",
 }
 
 

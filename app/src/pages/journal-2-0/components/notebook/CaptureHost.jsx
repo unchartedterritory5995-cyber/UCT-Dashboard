@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import CaptureDialog from './CaptureDialog'
+// The dialog itself loads on its first open (CaptureDialogDoor): this file is in the app's entry chunk.
+import CaptureDialogDoor from './CaptureDialogDoor'
 import { CAPTURE_OPEN_EVENT } from '../../lib/captureBus'
 import { captureDestination } from '../../lib/capture'
-import { shareCaptureDetail, takePendingShare } from '../../lib/shareTarget'
+import { peekPendingShare, shareCaptureDetail, takePendingShare } from '../../lib/shareTarget'
 import { destinationFromLocation } from '../../lib/captureContext'
 import { useJ2Recents } from '../../hooks/useJ2Notes'
 
@@ -56,10 +57,15 @@ export default function CaptureHost() {
   // ⛔ CONSUMED EXACTLY ONCE (`takePendingShare` reads AND clears). A share left
   // in storage would reopen the dialog on every subsequent mount, which is a
   // capture the member cannot dismiss.
+  // ⛔ AND ONLY ONCE THE DIALOG HAS MOUNTED (review of #2624). The dialog loads on
+  // its first open (CaptureDialogDoor); if that chunk fails, the door's Close and
+  // its "reload the page" advice must not lose the share. So it is PEEKED here and
+  // TAKEN by the door's `onShown`, for this opening only (`fromShare`): a failed
+  // load, then Close or a reload, leaves it parked for the next mount.
   useEffect(() => {
-    const pending = takePendingShare()
+    const pending = peekPendingShare()
     if (!pending) return
-    setDetail(shareCaptureDetail(pending))
+    setDetail({ ...shareCaptureDetail(pending), fromShare: true })
     setSeq((n) => n + 1)
     setOpen(true)
   }, [])
@@ -94,7 +100,7 @@ export default function CaptureHost() {
   }, [navigate])
 
   return (
-    <CaptureDialog
+    <CaptureDialogDoor
       key={seq}
       open={open}
       onClose={() => setOpen(false)}
@@ -103,6 +109,7 @@ export default function CaptureHost() {
       doorSource={detail.source || 'hotkey'}
       recentDestinations={(recents || []).slice(0, 8)}
       onSaved={onSaved}
+      onShown={detail.fromShare ? takePendingShare : undefined}
     />
   )
 }

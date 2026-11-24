@@ -23,7 +23,8 @@ def _isolated_monitor_db(tmp_path, monkeypatch):
     # silently discarded and the test reaches the network anyway. Patching where
     # the functions LIVE survives any number of reloads.
     import api.services.edgar as _edgar
-    monkeypatch.setattr(_edgar, "newest_reported_quarter", lambda s: None)
+    sources = pytest.MonkeyPatch()
+    sources.setattr(_edgar, "newest_reported_quarter", lambda s: None)
 
     # `_is_fund` resolves through darkpool_eod._ticker_meta (an FMP profile
     # call), and this file's placeholder ticker "BAD" is a REAL ETF — FMP says
@@ -31,11 +32,19 @@ def _isolated_monitor_db(tmp_path, monkeypatch):
     # skipped it and `flagged` came back 0: the fixture was asserting on a name
     # it assumed was fictional.
     import api.darkpool_eod as _dp
-    monkeypatch.setattr(_dp, "_ticker_meta", lambda sym: {"sector": None, "isEtf": False})
+    sources.setattr(_dp, "_ticker_meta", lambda sym: {"sector": None, "isEtf": False})
 
     import api.services.fundamentals_monitor as fm
     importlib.reload(fm)
     yield
+    # ⛔ The reload above ran while the source patches stood, so the monitor's own
+    # `from api.services.edgar import newest_reported_quarter as sec_newest_reported_quarter`
+    # bound the STUB -- and nothing undoes a name another module copied. Undo the source patches
+    # and reload once more so the monitor holds the real function after this test (the conftest
+    # rail failed `test_check_ticker_clean_contiguous` on exactly that copy, red on master
+    # 2026-11-23).
+    sources.undo()
+    importlib.reload(fm)
 
 
 def _mod():

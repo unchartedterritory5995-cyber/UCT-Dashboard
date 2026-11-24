@@ -1,11 +1,11 @@
 """Mutation proofs for the FLIP GATE ITSELF — three states per row, not two.
 
-    python docs/discord-render/instruments/mutation_harness_flipgate.py
+    python docs/discord-render/instruments/flip_gate_mutations.py
     python docs/discord-render/instruments/flip_preconditions.py --self-check   # runs this set
     pytest tests/test_flip_gate_cannot_lie.py                                   # and so does this
 
 ⛔⛔ WHY THIS HARNESS IS NOT LIKE THE OTHERS
-    Every other `mutation_harness*.py` breaks a line of PRODUCT source and asserts a rail goes
+    Every `mutation_harness*.py` breaks a line of PRODUCT source and asserts a rail goes
     red. This one breaks EVIDENCE and asserts the GATE changes its verdict, because the thing
     under test is an instrument and the way an instrument fails is by describing a world that
     is not there.
@@ -37,18 +37,26 @@
     evidence directory to test itself would never be tested, and the first person to Ctrl-C it
     would leave a planted failure behind for the integrator to find.
 
-⛔ THE B4 GUARD, AND WHY THIS FILE CALLS ONLY HALF OF IT
-    `harness_guard.guard()` is two things: `require_throwaway_worktree` (refuse to run outside a
-    sacrificed tree) and `preflight_anchors` (refuse to start on a stale source anchor).
-      · The tree guard IS called, from `main()`, because the standing rule is that a file named
-        `mutation_harness*.py` refuses to run in the integrator's tree. It is defence in depth
-        here and NOT what makes this harness safe — what makes it safe is that it only ever
-        writes under `mkdtemp()`. Say that plainly rather than let a marker file take credit.
-      · `preflight_anchors` is NOT called, deliberately. It enumerates `MUTATIONS = [...]` entries
-        that name a source file and an anchor string; this harness has none, so the preflight
-        would enumerate zero controls and refuse with its own VACUOUS verdict (exit 87). A guard
+⛔⛔ WHY THIS FILE IS NOT NAMED `mutation_harness*.py` (it was `mutation_harness_flipgate.py`
+    until 2026-11-24). That glob is how B4 and B5 find the harnesses that EDIT A SOURCE FILE IN
+    PLACE, and their rails require what such a harness must have: source anchors `anchor_check`
+    can read (zero controls is a failed read, rightly) and a module-level `guard()` before any
+    write. This file has neither, by construction, and can take neither:
+      · it anchors nothing — it plants evidence in `mkdtemp()` — so `anchor_check` reads ZERO
+        controls from it, which is the truth, and the anchor rail correctly calls that a failed
+        read of a source-mutation harness;
+      · a module-level `guard()` would run on IMPORT, and `flip_preconditions.py --self-check` and
+        `tests/test_flip_gate_cannot_lie.py` import this module from the integrator's tree; its
+        preflight half would also enumerate zero controls and refuse VACUOUS (exit 87). A guard
         that fires on a file it was never meant to read is a red that teaches people to override
-        guards. `anchor_check` reads this file as contributing 0 controls, which is the truth.
+        guards.
+    Under the old name it held three rail cases red from 2026-09-14 for a property it does not
+    have, so it left the family rather than the rails growing an exemption.
+
+⛔ THE B4 TREE GUARD IS STILL CALLED, from `main()`, as defence in depth — and it is NOT what makes
+    this file safe; what makes it safe is that it only ever writes under `mkdtemp()`. Say that
+    plainly rather than let a marker file take credit. `test_mutation_harness_hygiene.py` still
+    holds it to B4 as a writing instrument that imports the shared guard.
 """
 from __future__ import annotations
 
@@ -786,7 +794,7 @@ def report(results: list[Result], out=None) -> int:
             if not r.ok:
                 out(f"       evidence said: {r.detail[:160]}")
     failed = sum(not r.ok for r in results) + len(gaps)
-    out(f"TOTALS mutation_harness_flipgate {'PASS' if not failed else 'FAIL'} "
+    out(f"TOTALS flip_gate_mutations {'PASS' if not failed else 'FAIL'} "
         f"rows={len(fp.ROW_KEYS)} cases={len(results)} failed={failed}")
     return failed
 
@@ -804,7 +812,7 @@ def dry_check(out=None) -> int:
     gaps = coverage_gaps(cases)
     for g in gaps:
         out(f"  NOT APPLIED: {g}")
-    out(f"TOTALS mutation_harness_flipgate --dry-check {'PASS' if not gaps else 'FAIL'} "
+    out(f"TOTALS flip_gate_mutations --dry-check {'PASS' if not gaps else 'FAIL'} "
         f"mutations={len(cases)} stale={len(gaps)}")
     return 0 if not gaps else 1
 

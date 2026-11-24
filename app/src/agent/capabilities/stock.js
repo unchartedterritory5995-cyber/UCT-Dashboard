@@ -78,7 +78,12 @@ export async function answerProfile({ symbol }) {
   let f
   const [fr, q, facts] = await Promise.all([
     get(`/api/fundamentals-full/${encodeURIComponent(sym)}`).catch(e => ({ __err: e })), liveQuote(sym),
-    readFundamentalsFacts(sym).catch(() => null),
+    // TERM-033: the gateway read itself never rejects (a refusal comes back as words the profile states); this catch is
+    // for a statement block that THROWS. It is logged, and the profile then carries its snapshot fields alone, as before.
+    readFundamentalsFacts(sym).catch((e) => {
+      console.warn(`[uct-agent] stock.profile: the statements for ${sym} threw (${e?.message || 'error'}); the profile carries its snapshot fields alone`)
+      return null
+    }),
   ])
   if (fr.__err) return notFound(sym, fr.__err)
   f = fr

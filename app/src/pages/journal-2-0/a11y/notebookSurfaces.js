@@ -319,11 +319,14 @@ export const SURFACES = Object.freeze({
 
   // ── capture ────────────────────────────────────────────────────────────────
   'components/notebook/CaptureDialog.jsx': { recipe: 'capture-dialog' },
+  // First-open bytes (2026-11-23): the door CaptureHost renders in the dialog's place; its own markup is the
+  // unavailable line (a chunk that could not load), with Try again and Close.
+  'components/notebook/CaptureDialogDoor.jsx': { recipe: 'capture-dialog-unavailable' },
   'components/notebook/CapturedSourceSheet.jsx': { recipe: 'captured-source' },
   'components/notebook/ShareTargetPage.jsx': { recipe: 'share-target-signed-out' },
   'components/notebook/CaptureConnectPage.jsx': { recipe: 'capture-connect' },
   'components/notebook/CaptureHost.jsx': {
-    exempt: 'mounts CaptureDialog (recipe capture-dialog) and a global key listener; it renders no markup or control of its own',
+    exempt: 'mounts CaptureDialogDoor, which renders CaptureDialog (recipe capture-dialog), and a global key listener; it renders no markup or control of its own',
   },
   'components/notebook/NotebookFlagGate.jsx': {
     exempt: 'renders its children or null; no markup or control of its own',

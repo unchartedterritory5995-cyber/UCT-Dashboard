@@ -4,7 +4,7 @@ Directories: `tests/fixtures/vendor`
 
 Lane: **production**. LANE MEASURED: production (gate CLOSED, runtime lane reached 0, host refusals 556) · objects-only pane ARMED · runtime drew 0, declined 0 · strategy lane: broker gate off, 79 graded on their trades, 0 broker run(s)
 
-Graded at script engine **96**.
+Graded at script engine **95**.
 
 ```
 capture                                      symbol/tf        plots  verdict           first divergence / reason
@@ -3601,7 +3601,19 @@ vw-h4-loops-spy-1d-2026-10-03                AMEX:SPY 1D      0      INCONCLUSIV
 vw-h5-format-volume-spy-1d-2026-11-16        AMEX:SPY 1D      0      DIVERGE           1 of 1 compared items diverge
     objects                                  DIVERGE       2 object families differ (count or text); colours agree on 37 paired slots; coordinates are NOT compared by v1
 vw-h5-request-timeframe-text-spy-1d-2026-11- AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:request): this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`: this engine resamples weekly and monthly from the daily bars it holds, and `240` is not one of them. Below the chart's own timeframe: lower-tf:store-unmeasured: `240` is below this chart's timeframe, so it reads intraday bars — and our intraday bars have not been measured against TradingView's. TradingView's answer is known (the day's last regular-session bar, `vw-lower-tf-spy-1d-2026-09-30`); it is not served until a stored `/api/bars/<ticker>?tf=15` payload has been compared with TradingView's 15-minute bars for the same sessions (`storeIntradayAgreement`). ⚠️ THIS IS NOT THE SAME REQUEST: `timeframe.period` reads the timeframe the chart is on rather than forcing one, so decide whether that is what you meant before you take it.
-vw-hline-written-rddt-1d-2026-11-20          NYSE:RDDT 1D     1      MATCH             all 3 items agree
+vw-hline-autoscale-rddt-1d-2026-11-23-preope NYSE:RDDT 1D     1      MATCH             all 2 items agree
+    P0_rsi                                   MATCH             cmp 671 ok 671 warm 0/0 steady 0/671 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+vw-hline-defaults-v3-rddt-1d-2026-11-23-preo NYSE:RDDT 1D     1      MATCH             all 2 items agree
+    P0_close                                 MATCH             cmp 671 ok 671 warm 0/0 steady 0/671 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+vw-hline-defaults-v4-rddt-1d-2026-11-23-preo NYSE:RDDT 1D     1      MATCH             all 2 items agree
+    P0_close                                 MATCH             cmp 671 ok 671 warm 0/0 steady 0/671 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+vw-hline-defaults-v5-rddt-1d-2026-11-23-preo NYSE:RDDT 1D     1      MATCH             all 2 items agree
+    P0_close                                 MATCH             cmp 671 ok 671 warm 0/0 steady 0/671 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+vw-hline-written-rddt-1d-2026-11-20          NYSE:RDDT 1D     1      MATCH             all 2 items agree
     P0_close                                 MATCH             cmp 670 ok 670 warm 0/0 steady 0/670 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
 vw-hs2-v3-highestbars-spy-1d-2026-11-16      AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:builtin): `highestbars`: the sign of a Pine v1-v3 `highestbars` / `lowestbars` offset is not stated by any reference text this engine holds (the v4 reference states v4 only) and is not yet captured (Q-HS2); write it in `//@version=4` or later
@@ -4542,6 +4554,42 @@ vw-time-tf-spy-60-2026-09-28                 AMEX:SPY 60      18     INCONCLUSIV
     T17_dayofweek                            MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
 vw-type-word-names-spy-1d-2026-10-02         AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:type): a user-defined type is outside the node shapes this engine stores — `color.r`
+vw-udaily-expr-rddt-15-2026-11-23            NYSE:RDDT 15     4      INCONCLUSIVE      4 of 5 items could not be compared
+    D01 sma50 la-off                         INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it
+    D02 highest20 la-off                     INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it
+    D03 high[1] la-on                        INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it
+    D04 ema21 la-off (stateful probe)        INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it
+    objects                                  MATCH         neither side draws an object
+vw-udaily-expr-rddt-5-2026-11-23             NYSE:RDDT 5      4      INCONCLUSIVE      4 of 5 items could not be compared
+    D01 sma50 la-off                         INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it
+    D02 highest20 la-off                     INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it
+    D03 high[1] la-on                        INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it
+    D04 ema21 la-off (stateful probe)        INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it
+    objects                                  MATCH         neither side draws an object
+vw-udaily-expr-rddt-60-2026-11-23            NYSE:RDDT 60     4      INCONCLUSIVE      4 of 5 items could not be compared
+    D01 sma50 la-off                         INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it
+    D02 highest20 la-off                     INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it
+    D03 high[1] la-on                        INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it
+    D04 ema21 la-off (stateful probe)        INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it
+    objects                                  MATCH         neither side draws an object
+vw-udaily-expr-spy-15-2026-11-23             AMEX:SPY 15      4      INCONCLUSIVE      4 of 5 items could not be compared
+    D01 sma50 la-off                         INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it
+    D02 highest20 la-off                     INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it
+    D03 high[1] la-on                        INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it
+    D04 ema21 la-off (stateful probe)        INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it
+    objects                                  MATCH         neither side draws an object
+vw-udaily-expr-spy-5-2026-11-23              AMEX:SPY 5       4      INCONCLUSIVE      4 of 5 items could not be compared
+    D01 sma50 la-off                         INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it
+    D02 highest20 la-off                     INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it
+    D03 high[1] la-on                        INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it
+    D04 ema21 la-off (stateful probe)        INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it
+    objects                                  MATCH         neither side draws an object
+vw-udaily-expr-spy-60-2026-11-23             AMEX:SPY 60      4      INCONCLUSIVE      4 of 5 items could not be compared
+    D01 sma50 la-off                         INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it
+    D02 highest20 la-off                     INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it
+    D03 high[1] la-on                        INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it
+    D04 ema21 la-off (stateful probe)        INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it
+    objects                                  MATCH         neither side draws an object
 vw-udt-fn-global-history-rddt-1d-2026-11-16  NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:state): this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one needs is a running total with no window, which the grammar has no node for. TO UNBLOCK: an unbounded accumulator would end static decidability — `maxLookback` could no longer be a tree sum and the repaint verdict could no longer be decided before the tree runs — so it is not a backlog item. `closedTable.json::_no_offset_reopened_by` names who may re-open that (the repaint-claim owner and the manifest owner, together). Re-seeding the value at a stated window turns it into `accum`, which translates today — `m[1]` reads what `m` held on an earlier bar, and this script reassigns it
 vw-udt-legacy-array-param-rddt-1d-2026-11-16 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:function-def): a Pine function definition introduces a name this engine has nowhere to keep — a Pine function definition introduces a name this engine has nowhere to keep (reached through `f`)
 vw-udt-na-index-v5-rddt-1d-2026-11-16        NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:collection): an array, a matrix or a map is outside the expression grammar this engine runs — `array.get`
@@ -4971,10 +5019,10 @@ w2-warmup-spy-12m-2026-09-22                 SPY 12M          14     MATCH      
     W14_sma1_DEGENERATE_WINDOW               MATCH             cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 0.00e+0
 
 INDEX ROUNDING (4 captures; bars within one index tick through the ratio, |rel| <= 0.0101 / X(t), counted apart, never into a MATCH): rs-rating-fred6724-m-nvda-1m-2026-11-18 DIVERGE 41 rounding-equal bars (sub-tick 1); rs-rating-fred6724-nvda-1d-2026-11-15 DIVERGE 918 rounding-equal bars (sub-tick 14); rs-rating-fred6724-w-nvda-1w-2026-11-17 DIVERGE 192 rounding-equal bars (sub-tick 3); rs-rating-fred6724-w-nvda-1w-2026-11-21 DIVERGE 192 rounding-equal bars (sub-tick 3)
-TOTAL 1028 captures — MATCH 226 · DIVERGE 94 · INCONCLUSIVE 708
-WITHOUT OBJECT COLOUR (the verdict before C44; colour graded on 132 captures) — MATCH 226 · DIVERGE 94 · INCONCLUSIVE 708
+TOTAL 1038 captures — MATCH 230 · DIVERGE 94 · INCONCLUSIVE 714
+WITHOUT OBJECT COLOUR (the verdict before C44; colour graded on 132 captures) — MATCH 230 · DIVERGE 94 · INCONCLUSIVE 714
 CHANGED BY OBJECT COLOUR (0): none
-WITHOUT PAINTS (the verdict before B1; paints graded on 41 captures) — MATCH 234 · DIVERGE 94 · INCONCLUSIVE 700
+WITHOUT PAINTS (the verdict before B1; paints graded on 41 captures) — MATCH 238 · DIVERGE 94 · INCONCLUSIVE 706
 CHANGED BY PAINTS (8): supertrend-strategy-alab-1d-2026-11-17 MATCH → INCONCLUSIVE; supertrend-strategy-deep-aapl-1d-2026-11-19 MATCH → INCONCLUSIVE; supertrend-strategy-deep-spy-1d-2026-11-19 MATCH → INCONCLUSIVE; supertrend-strategy-is-rddt-1d-2026-11-18 MATCH → INCONCLUSIVE; supertrend-strategy-rddt-1d-2026-10-02 MATCH → INCONCLUSIVE; supertrend-strategy-rddt-1d-2026-11-17 MATCH → INCONCLUSIVE; supertrend-strategy-spy-1d-2026-10-02 MATCH → INCONCLUSIVE; vw-bgcolor-barcolor-spy-1d-2026-10-02 MATCH → INCONCLUSIVE
 ```
 

@@ -29,6 +29,7 @@ from fastapi.testclient import TestClient
 from api.middleware.auth_middleware import get_current_user_with_plan
 from api.services import estimate_history as EH
 from api.services import estimate_revisions as ER
+from api.services import held_build
 from api.services import group_stats as GS
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -46,6 +47,7 @@ PAST = "2030-12-31"
 def _store(monkeypatch, tmp_path):
     monkeypatch.delenv(EH.ENABLED_ENV, raising=False)
     monkeypatch.setenv("ESTIMATE_HISTORY_DB_PATH", str(tmp_path / "eh.db"))
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))           # the held answer's copy on disk (speed pass 2)
     ER.reset_for_tests()
     yield
     ER.drain_for_tests()
@@ -273,12 +275,15 @@ def test_the_read_never_asks_the_vendor(monkeypatch):
 
 # ── held: a request never reads the store ────────────────────────────────────────────────────
 
-def test_the_first_request_waits_on_one_read_and_the_next_reads_nothing(monkeypatch):
+def test_the_first_request_is_told_computing_at_once_and_after_one_read_the_next_reads_nothing(monkeypatch):
+    # speed pass 2 (2026-11-24): the first request no longer waits on the read; it is told `computing` at once
     _fill()
     monkeypatch.setattr(GS, "_group_map", lambda: dict(GROUPS))
     reads = []
     real = ER.build
     monkeypatch.setattr(ER, "build", lambda previous=None, **k: reads.append(1) or real(previous, **k))
+    assert ER.get_breadth("eps", 30) == {"status": "computing", "metric": "eps", "window": 30}
+    ER.drain_for_tests()
     first = ER.get_breadth("eps", 30)
     assert first["status"] == "ok" and first["metric"] == "eps" and first["window"] == 30 and len(reads) == 1
     assert first["sectors"][0]["name"] == "Technology" and "slices" not in first and first["check"] is None
@@ -289,7 +294,8 @@ def test_the_first_request_waits_on_one_read_and_the_next_reads_nothing(monkeypa
 
 def test_while_the_first_read_runs_a_request_is_told_computing(monkeypatch):
     gate = threading.Event()
-    monkeypatch.setattr(ER, "build", lambda previous=None, **k: (gate.wait(5), ({"status": "ok", "v": 1, "slices": {}}, "x"))[1])
+    monkeypatch.setattr(ER, "build", lambda previous=None, **k: (gate.wait(5), (
+        {"status": "ok", "v": 1, "built_at": held_build.now_iso(), "slices": {}}, "x"))[1])
     monkeypatch.setattr(ER._held, "_wait_s", 0.05)
     got = ER.get_breadth("eps", 7)
     assert got == {"status": "computing", "metric": "eps", "window": 7}
@@ -301,6 +307,8 @@ def test_while_the_first_read_runs_a_request_is_told_computing(monkeypatch):
 
 def test_a_failed_read_is_said_and_a_word_it_does_not_take_is_refused(monkeypatch):
     monkeypatch.setattr(ER, "build", lambda previous=None, **k: (_ for _ in ()).throw(RuntimeError("disk")))
+    assert ER.get_breadth("eps", 30)["status"] in ("computing", "failed")     # the read may fail before it answers
+    ER.drain_for_tests()
     got = ER.get_breadth("eps", 30)
     assert got["status"] == "failed" and got["reason"] == "error" and got["window"] == 30
     assert ER.get_breadth("pe", 30)["status"] == "error" and ER.get_breadth("eps", 14)["status"] == "error"
@@ -355,7 +363,10 @@ def test_the_route_is_dark_paid_and_takes_only_its_words(monkeypatch):
 def test_the_route_serves_the_held_answer_end_to_end(monkeypatch):
     _fill()
     monkeypatch.setattr(GS, "_group_map", lambda: dict(GROUPS))
-    body = _client(PAID_USER, monkeypatch).get("/api/research/estimate-history?metric=eps&window=7").json()
+    client = _client(PAID_USER, monkeypatch)
+    assert client.get("/api/research/estimate-history?metric=eps&window=7").json()["status"] == "computing"
+    ER.drain_for_tests()
+    body = client.get("/api/research/estimate-history?metric=eps&window=7").json()
     assert body["status"] == "ok" and body["window"] == 7 and body["tracked"]["n"] == 10
     assert [s["name"] for s in body["sectors"]][-1] == ER.NO_SECTOR
     assert len(json.dumps(body)) < 20000

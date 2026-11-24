@@ -240,6 +240,61 @@ def test_darkpool_paired_block_trf_id_true(monkeypatch):
     assert lmr._darkpool_paired_block(_block_alert(), DP_THR) is True
 
 
+# ── the push gate's REST helpers read through massive_adapter (TERM-022) ──────
+
+class _AdapterAnswer:
+    def __init__(self, value):
+        self.value = value
+
+
+def test_massive_rest_reads_through_the_adapter_and_is_None_on_any_failure(monkeypatch):
+    from api.services import massive_adapter
+    seen = []
+
+    def get(path, **kw):
+        seen.append((path, kw))
+        return _AdapterAnswer({"results": [{"bid_price": 1.0}]})
+    monkeypatch.setattr(massive_adapter, "get", get)
+    params = {"timestamp.lte": 5, "order": "desc", "limit": 1}
+    assert lmr._massive_rest("/v3/quotes/O:X", params) == {"results": [{"bid_price": 1.0}]}
+    assert seen == [("/v3/quotes/O:X", {"params": params, "timeout": 4.0, "data_class": "quotes",
+                                         "activity": "live_massive_router.push_gate"})]
+
+    def denied(path, **kw):
+        raise massive_adapter._ERR.rate_limited("local Massive budget exhausted for /v3/quotes/O:X")
+    monkeypatch.setattr(massive_adapter, "get", denied)
+    assert lmr._massive_rest("/v3/quotes/O:X", params) is None
+
+
+def test_massive_pages_walks_the_cursor_through_the_adapter_and_keeps_what_it_has(monkeypatch):
+    from api.services import massive_adapter
+    calls = []
+
+    def get(path, **kw):
+        calls.append(("get", path, kw["timeout"]))
+        return _AdapterAnswer({"results": [1, 2], "next_url": "N1"})
+
+    def get_next(url, **kw):
+        calls.append(("next", url, kw["timeout"]))
+        if url == "N1":
+            return _AdapterAnswer({"results": [3], "next_url": "N2"})
+        raise massive_adapter._ERR.transient("Massive server error (502)", status=502)
+    monkeypatch.setattr(massive_adapter, "get", get)
+    monkeypatch.setattr(massive_adapter, "get_next", get_next)
+    # a later page fails: what was already gathered stands (this caller's choice)
+    assert lmr._massive_pages("/v3/trades/O:X", {"limit": 50000}, 5) == [1, 2, 3]
+    assert calls == [("get", "/v3/trades/O:X", 6.0), ("next", "N1", 6.0), ("next", "N2", 6.0)]
+    # max_pages bounds the walk: two pages read, the third never asked for
+    calls.clear()
+    assert lmr._massive_pages("/v3/trades/O:X", {"limit": 50000}, 2) == [1, 2, 3]
+    assert calls == [("get", "/v3/trades/O:X", 6.0), ("next", "N1", 6.0)]
+    # no key, or page one fails: an empty list, never a raise
+    def unconfigured(path, **kw):
+        raise massive_adapter._ERR.not_configured("MASSIVE_API_KEY not set")
+    monkeypatch.setattr(massive_adapter, "get", unconfigured)
+    assert lmr._massive_pages("/v3/trades/O:X", {}, 3) == []
+
+
 def test_darkpool_paired_block_rest_outage_fails_closed(monkeypatch):
     # REST returns nothing (outage) => False, so the normal directional path runs
     monkeypatch.setattr(lmr, "_massive_rest", lambda path, params, **kw: None)

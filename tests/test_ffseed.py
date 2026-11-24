@@ -382,3 +382,22 @@ def test_should_build(now, published, want):
 def test_builder_is_dark_by_default(monkeypatch):
     monkeypatch.delenv("FFSEED_ENABLED", raising=False)
     assert ffseed.start_ffseed_builder() is False
+
+
+def test_a_refused_daily_build_says_what_left_its_symbols_out():
+    """⚰️ 2026-11-24: the seed for 2026-11-23 was refused four times with "tf D: 0 symbols, floor 1500" and
+    nothing else. Every daily was STALE (the worker's after-close sweep had skipped them); the message did not
+    say so, and telling a stale store from an empty or unreadable one took a session on the pod."""
+    asof = date(2026, 11, 18)
+    days = [d for d in _trading_days(date(2026, 1, 2), 240) if d <= asof]
+    row = lambda d: {"t": d.isoformat(), "o": 10.0, "h": 11.0, "l": 9.5, "c": 10.5, "v": 7}
+    table = {("AAA", "D"): [row(d) for d in days],
+             ("OLD1", "D"): [row(d) for d in days[:-1]],            # ends one session before the as-of
+             ("OLD2", "D"): [row(d) for d in days[:-3]]}            # NONE has no rows at all
+    now = datetime(2026, 11, 19, 1, 31, tzinfo=ZoneInfo("UTC"))
+    with pytest.raises(ffseed.SeedBuildError) as refused:
+        ffseed.build(tfs=["D"], symbols=["AAA", "OLD1", "OLD2", "NONE"], asof=asof, read=_fake_read(table),
+                     now=now, min_symbols=3)
+    msg = str(refused.value)
+    assert msg.startswith("tf D: 1 symbols, floor 3: refusing to publish"), msg
+    assert "2 stale" in msg and "1 with no bars" in msg and "0 read errors" in msg and "0 not encodable" in msg, msg
