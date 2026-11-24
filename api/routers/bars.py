@@ -918,7 +918,7 @@ def _apply_tail_status(payload: dict, ticker: str, tf: str, session: str | None 
     if pending and st["tail_status"] == "current":
         payload["tail_status"] = "unverified"
     headers = {}
-    if st["tail_status"] == "unverified":
+    if payload["tail_status"] == "unverified":
         payload["retry_after"] = 3
         headers["Retry-After"] = "3"
     return headers
