@@ -90,7 +90,9 @@ def test_the_missing_playbooks_are_derived_from_the_two_setup_files(seeded, monk
     assert len(catalog) >= 20 and "Bull Flag" in authored and "Cup & Handle" in catalog  # non-vacuity
     missing = modelbook.missing_playbooks()
     assert missing == [n for n in catalog if n not in set(authored)]
-    assert len(missing) == 17  # the owner's "17 missing setup playbooks", measured 2026-09-13
+    # the owner's "17 missing setup playbooks", measured 2026-09-13; 13 since f1cfe5007f (2026-10-25)
+    # authored Kicker Candle, High Volume Edge, Slingshot and Oops Reversal in setupPlaybooks.js
+    assert len(missing) == 13
     with store.write() as conn:
         conn.execute("INSERT INTO wisdom_vocab(vocab_id, name, kind, status, version) VALUES "
                      "('v_cup', 'Cup & Handle', 'setup', 'approved', 'v0')")
@@ -108,7 +110,7 @@ def test_the_missing_playbooks_are_derived_from_the_two_setup_files(seeded, monk
     monkeypatch.setenv("WISDOM_MODELBOOK_DRAFTS_ENABLED", "1")
     modelbook.daily(_ctx())
     playbooks = {d["subject_ref"]: d for d in _drafts("modelbook_playbook")}
-    assert len(playbooks) == 17 and "setup_playbook:Bull Flag" not in playbooks
+    assert len(playbooks) == len(missing) and "setup_playbook:Bull Flag" not in playbooks
     cup = playbooks["setup_playbook:Cup & Handle"]
     assert '"state": "draft"' in cup["payload_json"] and "Buy the handle, not the cup." in cup["payload_json"]
     assert '"state": "awaiting_source_material"' in playbooks["setup_playbook:Go Signal"]["payload_json"]
@@ -142,7 +144,7 @@ def test_a_below_floor_principle_leaves_the_playbook_awaiting_source_material(se
 def test_nothing_is_drafted_while_the_flag_is_off(seeded, monkeypatch):
     monkeypatch.delenv("WISDOM_MODELBOOK_DRAFTS_ENABLED", raising=False)
     out = modelbook.daily(_ctx())
-    assert out["example_drafts"] == 1 and out["playbook_drafts"] == 17
+    assert out["example_drafts"] == 1 and out["playbook_drafts"] == len(modelbook.missing_playbooks())
     assert _drafts("modelbook_example") == [] and _drafts("modelbook_playbook") == []
 
 

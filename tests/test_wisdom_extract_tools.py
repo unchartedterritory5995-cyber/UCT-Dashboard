@@ -8,6 +8,7 @@ WHAT THIS FILE HAS TO BE ABLE TO SAY RED FOR
 from __future__ import annotations
 
 import importlib.util
+import os
 import pathlib
 import sys
 import threading
@@ -122,9 +123,18 @@ def test_a_batch_that_is_never_collected_is_charged_its_full_reservation(tmp_pat
 
 def test_tools_refuse_paths_inside_the_shared_data_root(tmp_path):
     common = _load("extract_common")
-    assert common._inside_shared_root("C:\\data\\wisdom.db") and common._inside_shared_root("/data/x/y.db")
+    # `/data` names the shared root on every host (on Windows it resolves onto the current drive)
+    assert common._inside_shared_root("/data/x/y.db")
     assert not common._inside_shared_root(str(tmp_path / "wisdom.db"))
-    assert not common._inside_shared_root("C:\\database\\x.db")  # control: a name prefix is not a parent
+    assert not common._inside_shared_root("/database/x.db")  # control: a name prefix is not a parent
     with pytest.raises(SystemExit):
-        common.out_path("C:\\data\\wisdom\\report.json")
+        common.out_path("/data/wisdom/report.json")
+    if os.name == "nt":
+        # ⚰️ These ran on every host and cannot pass on Linux: there `C:\data\x` is a
+        # RELATIVE file name in the working directory, not the shared root, and the guard is right not
+        # to refuse it (the same rule tests/test_shared_root_guard.py::_spellings applies).
+        assert common._inside_shared_root("C:\\data\\wisdom.db")
+        assert not common._inside_shared_root("C:\\database\\x.db")
+        with pytest.raises(SystemExit):
+            common.out_path("C:\\data\\wisdom\\report.json")
     assert common.out_path(str(tmp_path / "sub" / "report.json")).parent.is_dir()

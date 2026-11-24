@@ -24,8 +24,13 @@ from api.services.wisdom.core import store, vocab
 from api.services.wisdom.publish.adapters import drafts, modelbook
 from tests.test_wisdom_publish_adapters_store import adapters_db, seeded  # noqa: F401
 
-LIBRARY_SETUP = "Kicker Candle"   # in setupCatalog.js, no authored playbook, vocab kicker_candle
-ARCHIVE_SETUP = "kicker"          # the trader_archive row with that vocab id
+#: ⚰️ This was Kicker Candle until f1cfe5007f (2026-10-25) authored its playbook in setupPlaybooks.js:
+#: playbook drafts exist only for setups WITHOUT one (missing_playbooks), so the playbook tests lost
+#: their subject. The subject must be a library setup that is still missing a playbook and reaches
+#: exactly one archive setup through its vocab id alone (no detector key); _still_missing() says so
+#: by name if authoring moves on again.
+LIBRARY_SETUP = "Gap Support"     # in setupCatalog.js, no authored playbook, vocab open_bull_gap
+ARCHIVE_SETUP = "gap_support"     # the trader_archive row with that vocab id
 
 
 def _ctx(dry_run=False):
@@ -48,11 +53,11 @@ def _seed_archive(z=1.4):
     recent = _recent_day()
     recs = [
         {"record_id": "t9201", "author_id": "tsdr", "stated_date": "2025-01-02", "record_type": "CALL",
-         "tickers": ["ZZKK"], "note": "synthetic kicker over the moving averages", "quote": "", "image_count": 1},
+         "tickers": ["ZZKK"], "note": "synthetic gap support that held", "quote": "", "image_count": 1},
         {"record_id": "t9202", "author_id": "bracco", "stated_date": recent, "record_type": "CALL",
-         "tickers": ["ZZKF"], "note": "synthetic kicker that failed", "quote": "", "image_count": 0},
+         "tickers": ["ZZKF"], "note": "synthetic gap support that failed", "quote": "", "image_count": 0},
         {"record_id": "t9203", "author_id": "bracco", "stated_date": "2025-02-01", "record_type": "LESSON",
-         "tickers": [], "note": "synthetic definition of a kicker", "quote": "", "image_count": 0},
+         "tickers": [], "note": "synthetic definition of gap support", "quote": "", "image_count": 0},
     ]
     calls = [
         {"call_id": "t9201#0", "record_id": "t9201", "author_id": "tsdr", "ticker": "ZZKK", "direction": "long",
@@ -63,18 +68,18 @@ def _seed_archive(z=1.4):
          "outcome": {"r20": -0.08, "sim_R": -1.0, "status": "scored"}},
     ]
     playbook = {
-        "setup_id": ARCHIVE_SETUP, "name": "Kicker candle / gap over the MAs", "family": "gap",
-        "aliases": ["kicker"], "used_by": ["tsdr", "bracco"],
+        "setup_id": ARCHIVE_SETUP, "name": "Gap support / the open gap holds", "family": "gap",
+        "aliases": ["gap support"], "used_by": ["tsdr", "bracco"],
         "stats": _stats(140, 0.25, z), "stats_trades": _stats(60, 0.3, 1.1),
         "context": {"market": {"downtrend": _stats(40, 0.9), "uptrend": _stats(12, 2.0)}},
         "teachings": [{"record_id": "t9203", "author_id": "bracco", "date": "2025-02-01",
-                       "note": "synthetic definition of a kicker"}],
+                       "note": "synthetic definition of gap support"}],
         "winners": [{"call_id": "t9201#0", "record_id": "t9201", "ticker": "ZZKK", "author_id": "tsdr",
                      "posted": "2025-01-02", "direction": "long", "action": "entry",
-                     "evidence": "synthetic kicker", "r20": 0.18, "sim_R": 4.0, "regime": "uptrend"}],
+                     "evidence": "synthetic gap support", "r20": 0.18, "sim_R": 4.0, "regime": "uptrend"}],
         "failures": [{"call_id": "t9202#0", "record_id": "t9202", "ticker": "ZZKF", "author_id": "bracco",
                       "posted": recent, "direction": "long", "action": "entry",
-                      "evidence": "synthetic failed kicker", "r20": -0.08, "sim_R": -1.0, "regime": "mixed"}],
+                      "evidence": "synthetic failed gap support", "r20": -0.08, "sim_R": -1.0, "regime": "mixed"}],
     }
     with store.write() as conn:
         for kind, items in (("records", recs), ("calls", calls), ("setups", [playbook])):
@@ -87,6 +92,13 @@ def archive_on(seeded, monkeypatch):
     monkeypatch.setenv("WISDOM_ARCHIVE_ENABLED", "1")
     _seed_archive()
     return seeded
+
+
+def _still_missing():
+    """The playbook tests need a subject with NO authored playbook; say so by name, not as a KeyError."""
+    assert LIBRARY_SETUP in modelbook.missing_playbooks(), (
+        f"{LIBRARY_SETUP} now has an authored playbook in setupPlaybooks.js, so no playbook draft is built "
+        "for it: point LIBRARY_SETUP / ARCHIVE_SETUP at a library setup that is still missing one")
 
 
 def _drafts(kind):
@@ -188,6 +200,7 @@ def test_the_archive_is_not_read_while_its_flag_is_off(seeded, monkeypatch):
     monkeypatch.setenv("WISDOM_ARCHIVE_ENABLED", "1")
     _seed_archive()
     monkeypatch.setenv("WISDOM_ARCHIVE_ENABLED", "0")
+    _still_missing()
     with store.read() as conn:
         assert modelbook.build_archive_example_drafts(conn) == []
         playbooks = {d["payload"]["setup_name"]: d for d in modelbook.build_playbook_drafts(conn)}
@@ -221,6 +234,7 @@ def test_examples_carry_the_best_call_and_the_labelled_failure_with_aged_levels_
 # ── 6. playbooks ─────────────────────────────────────────────────────────────
 
 def _archive_sections(setup):
+    _still_missing()
     with store.read() as conn:
         pb = {d["payload"]["setup_name"]: d for d in modelbook.build_playbook_drafts(conn)}[setup]
     return pb, {s["label"]: s["items"] for s in pb["payload"]["sections"] if "trader archive" in s["label"]}
@@ -230,13 +244,13 @@ def test_a_missing_playbook_gains_the_measured_record_teachings_and_calls(archiv
     assert LIBRARY_SETUP in modelbook.missing_playbooks()
     pb, sections = _archive_sections(LIBRARY_SETUP)
     [measured] = sections["Measured record (trader archive)"]
-    assert measured["text"].startswith("Kicker candle / gap over the MAs: 140 scored calls")
+    assert measured["text"].startswith("Gap support / the open gap holds: 140 scored calls")
     assert "edge not proven (z 1.4)" in measured["text"]
     assert "strongest context market = downtrend (edge R +0.90, n 40)" in measured["text"]   # n<30 cut excluded
     assert [t["locator"] for t in sections["In the traders' words (trader archive)"]] == ["t9203"]
     assert {c["status"] for c in sections["Calls worth charting (trader archive)"]} == {"best", "failure"}
     assert pb["payload"]["state"] == "draft"
-    assert {"wisdom_archive_setups:kicker", "t9203"} <= set(pb["citations"])
+    assert {f"wisdom_archive_setups:{ARCHIVE_SETUP}", "t9203"} <= set(pb["citations"])
 
 
 def test_the_verdict_says_measured_only_at_the_z_bar(seeded, monkeypatch):
