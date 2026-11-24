@@ -173,6 +173,27 @@ export function snapshot(built) {
 const savedChartsOf = (saved, keyOf) => Object.fromEntries(saved.widgets.map(w => [w.id, { type: w.type, x: w.x, y: w.y, w: w.w, h: w.h,
   ...(w.type === 'chart' ? { symbol: saved.groupSyms[keyOf(w)] || 'SPY', tf: w.opts?.tf || 'D', settings: mergeChartSettings(w.opts?.settings ?? null) } : {}) }]))
 
+/**
+ * A board compared by MEANING, for an expectation `compare: "semantic"` (the side-by-side cases): where the widgets sit and
+ * their link colour are dropped (an "add beside" may re-tile the board in more than one right way), and a chart or widget the
+ * turn CREATED is keyed by what it shows (`new:chart:<symbol>#k`) instead of its minted id. The charts that were on the board
+ * before keep their ids, so a replaced or changed original chart still shows as a change.
+ */
+export function semanticView(snap, preIds) {
+  const charts = {}, widgets = {}
+  const fresh = Object.keys(snap.widgets || {}).filter(id => !preIds.has(id))
+  const name = new Map()
+  const bySym = {}
+  for (const id of fresh.sort((a, b) => String(snap.charts?.[a]?.symbol || snap.widgets[a].type).localeCompare(String(snap.charts?.[b]?.symbol || snap.widgets[b].type)))) {
+    const tag = snap.charts?.[id] ? `chart:${snap.charts[id].symbol}` : `widget:${snap.widgets[id].type}`
+    bySym[tag] = (bySym[tag] || 0) + 1
+    name.set(id, `new:${tag}#${bySym[tag]}`)
+  }
+  for (const [id, c] of Object.entries(snap.charts || {})) charts[name.get(id) || id] = c
+  for (const [id, w] of Object.entries(snap.widgets || {})) { const { type, opts } = w; widgets[name.get(id) || id] = { type, ...(opts ? { opts } : {}) } }
+  return { ...snap, charts, widgets }
+}
+
 // ── entity diff ─────────────────────────────────────────────────────────────────────────────────────────
 /** The board's entities, each comparable on its own: chart:<id>, widget:<id>, list:<name>, drawings:<sym>, layouts. */
 export function entities(s) {

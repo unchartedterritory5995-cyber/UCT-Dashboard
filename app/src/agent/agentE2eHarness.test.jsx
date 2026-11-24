@@ -17,7 +17,7 @@ import { specFor } from './testing/bench'
 import { evaluateCase, expectedResponder } from './testing/e2eEval'
 import { bankResponder, requestKey, mountCase, stepsOf } from './testing/e2eRun'
 import { scoreTurn, armTable, paired } from './testing/e2eScore'
-import { buildBoard, snapshot, compareBoards } from './testing/e2eHost'
+import { buildBoard, snapshot, compareBoards, semanticView } from './testing/e2eHost'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 // the panel's request taps: what it routed / selected for the request it is about to send (the reroute tables)
@@ -130,6 +130,9 @@ describe('known-wrong answers score failure', () => {
         const r0 = rows[0]
         // the wrong answer never reached the board when: a deterministic reader answered the turn (no model call), the
         // expectation is not executable here (oracle_invalid), or the case is a recorded blind spot / rail catch (NEUTRAL)
+        // (an expectation of NO change with no ops: answering with nothing is the right answer, there is nothing to get wrong)
+        const e0 = stepsOf(c)[0].expect || {}
+        if (!['act', 'propose', 'clarify'].includes(e0.kind) && !(e0.ops || []).length) return
         if (r0.lane === 'deterministic' || r0.outcome === 'oracle_invalid' || r0.lookup || r0.blocked || NEUTRAL[`${c.id}:${used}`]) return
         expect(`${r0.key} ${used} ${r0.outcome}`).not.toMatch(/ success$/)
       }, 120000)
@@ -292,6 +295,14 @@ describe('scoreTurn', () => {
     expect(scoreTurn({ e: act, pre, mid: want, post: want, oracles: [both], reply: 'Weekly on a.' }).flags).toContain('silentDrop')
     expect(scoreTurn({ e: act, pre, mid: want, post: want, oracles: [both], reply: 'Not done: one part of your request (timeframe) — it failed.' }).flags).not.toContain('silentDrop')
     expect(scoreTurn({ e: act, pre, mid: pre, post: pre, oracles: [want], reply: 'Switched to weekly' }).flags).toContain('silentDrop')
+  })
+  it('semantic view (side by side): geometry and minted ids do not matter; an original chart changing does', () => {
+    const before = { charts: { c1: { symbol: 'AAPL', tf: 'D' } }, widgets: { c1: { type: 'chart', x: 0, y: 0, w: 24, h: 20 } }, layouts: null, watchlists: {}, drawings: {} }
+    const added = (x, id) => ({ ...before, charts: { c1: before.charts.c1, [id]: { symbol: 'NVDA', tf: 'D' } }, widgets: { c1: { type: 'chart', x: 0, y: 0, w: x, h: 20 }, [id]: { type: 'chart', x, y: 0, w: 24 - x, h: 20 } } })
+    const ids = new Set(['c1'])
+    expect(JSON.stringify(semanticView(added(12, 'w-chart-1'), ids))).toBe(JSON.stringify(semanticView(added(16, 'w-chart-7'), ids)))
+    const replaced = { ...before, charts: { c1: { symbol: 'NVDA', tf: 'D' } } }
+    expect(JSON.stringify(semanticView(replaced, ids))).not.toBe(JSON.stringify(semanticView(added(12, 'w-chart-1'), ids)))
   })
   it('a save conflict: right only with no residue AND the refusal said', () => {
     const e = { ...act, blocked: ['chart.setTimeframe'] }

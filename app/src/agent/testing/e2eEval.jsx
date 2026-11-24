@@ -11,7 +11,7 @@
 import { getCapability } from '../capabilities'
 import { ARMS, bankResponder, oracleResponder, replay, stepsOf, branchStep, inChoices, targetOf, concreteArgs, offered } from './e2eRun'
 import { scoreTurn, usdOf } from './e2eScore'
-import { entities } from './e2eHost'
+import { entities, semanticView } from './e2eHost'
 
 /** The model's final plan in a turn: the LAST answered request's ops (a repair replaces the plan; a reroute is one runner item). */
 const finalPlan = (t) => { const answered = t.requests.filter(q => q.envelope); return (answered[answered.length - 1]?.envelope?.ops || []).map(o => o.action) }
@@ -79,7 +79,8 @@ async function oracleBoards({ spec, c, arm, conflict, steps, i, decided, step, r
         const text = words === 'own' ? (e.oracleSay || step.say) : `do it on ${want.join(' and ')}`
         const said = await m.say(text)
         // a rail asked which target: the oracle answers with the expected one
-        const pickLabel = said.newChoices.find(ch => want.includes(ch))
+        // (`oracleChoose`: the expectation names the choice to take, e.g. 'replacing' when the request said replace)
+        const pickLabel = (e.oracleChoose && said.newChoices.find(ch => new RegExp(e.oracleChoose, 'i').test(ch))) || said.newChoices.find(ch => want.includes(ch))
         if (pickLabel) { const again = await m.choose(pickLabel); if (again.card) await m.approve() }
         if (said.card) await m.approve()
         board = m.snap()
@@ -124,9 +125,13 @@ export async function evaluateCase({ spec, c, arm, bank = new Map(), collect = n
     }
     const t = run.turns[i]
     const e = step.expect
-    const pre = e.from === 'start' ? run.start : t.pre
+    const rawPre = e.from === 'start' ? run.start : t.pre
+    // compare: 'semantic' (side by side): boards by meaning, not by where the widgets sit (e2eHost.semanticView)
+    const view = e.compare === 'semantic' ? ((ids) => (b) => semanticView(b, ids))(new Set(Object.keys(rawPre.widgets || {}))) : (b) => b
+    const pre = view(rawPre)
     let oracle = { boards: [], data: [] }
     if (!skipOracle) oracle = await oracleBoards({ spec, c, arm, conflict, steps, i, decided, step, replayResponder: () => (responderFor ? responderFor({ ...meta }) : bankResponder({ arm, bank })) })
+    if (e.compare === 'semantic') oracle = { ...oracle, boards: oracle.boards.map(view) }
     // a question: UCT offered choices (a local question) or the model's envelope asked
     // (a question with no buttons — "Which charts should it go on?" — counts too, by the panel's own question words)
     const asked = t.newChoices.length > 0 || t.requests.some(q => q.envelope?.disposition === 'clarify')
@@ -137,7 +142,7 @@ export async function evaluateCase({ spec, c, arm, bank = new Map(), collect = n
     const invalid = ['act', 'propose'].includes(e.kind) && !lookup && !e.blocked?.length && !oracleMoved
     // an expected plan that changed nothing here could not be executed on this board: only the plans that ran are oracles
     if (['act', 'propose'].includes(e.kind) && !lookup && !e.blocked?.length && oracleMoved) oracle = { ...oracle, boards: oracle.boards.filter(moved) }
-    const sc = invalid ? { outcome: 'oracle_invalid', why: 'the expected plan changes nothing on this board (it cannot be executed here)', flags: [] } : scoreTurn({ e, pre, mid: t.mid, post: t.post, oracles: oracle.boards, asked, choices: t.newChoices, reply: `${t.reply} ${t.approved}`,
+    const sc = invalid ? { outcome: 'oracle_invalid', why: 'the expected plan changes nothing on this board (it cannot be executed here)', flags: [] } : scoreTurn({ e, pre, mid: view(t.mid), post: view(t.post), oracles: oracle.boards, asked, choices: t.newChoices, reply: `${t.reply} ${t.approved}`,
       data: t.data, oracleData: oracle.data, notOnIds: notOnIds(run.m.built.host, e.notOn),
       planned: finalPlan(t) })
     decided[i] = { outcome: sc.outcome, asked }

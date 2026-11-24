@@ -1,6 +1,6 @@
 {
  "version": 1,
- "about": "UCT Agent E2E BENCH v1 (2026-11-23, pl-e2e): scored END TO END on the final board (testing/e2eEval.jsx), never teacher-forced. Seven classes, written fresh as classes (no production sentence reused): pane-multistep (multi-step with an indicator pane edit), ticker-correction (a correction whose first word is also a ticker), pane-conflict (a pane resize whose save the server refuses with a 409 revision conflict; host.conflict), correction-branch (dialogues whose second line depends on what the first turn did); v1.1 (11-23): exclusion (all/every ... except, everything but, leave X alone, negated relative clauses), followup-correction, targeting (a chart named by what it shows or where it sits). Expectation fields beyond the bench format: from: \"start\" (the final board is compared with the dialogue's first board + these ops), blocked (actions whose save is refused), branch: { success | wrongChart | ask | fail: turn }, host: { conflict }. Fixture tickers and numbers only.",
+ "about": "UCT Agent E2E BENCH v1 (2026-11-23, pl-e2e): scored END TO END on the final board (testing/e2eEval.jsx), never teacher-forced. Eight classes, written fresh as classes (no production sentence reused): pane-multistep (multi-step with an indicator pane edit), ticker-correction (a correction whose first word is also a ticker), pane-conflict (a pane resize whose save the server refuses with a 409 revision conflict; host.conflict), correction-branch (dialogues whose second line depends on what the first turn did); v1.1 (11-23): exclusion (all/every ... except, everything but, leave X alone, negated relative clauses), followup-correction, targeting (a chart named by what it shows or where it sits); v1.2 (11-24, marked new): side-by-side, to the owner 11-23 ruling (preserve and add; ask when ambiguous), compared by meaning (compare: semantic). Expectation fields beyond the bench format: from: \"start\" (the final board is compared with the dialogue's first board + these ops), blocked (actions whose save is refused), branch: { success | wrongChart | ask | fail: turn }, host: { conflict }. Fixture tickers and numbers only.",
  "split": "dev",
  "fixtures": {
   "rb_solo": {
@@ -4989,6 +4989,267 @@
      "definition.delete"
     ]
    }
+  },
+  {
+   "id": "e2-sb01",
+   "fx": "rb_solo",
+   "text": "aapl and nvda side by side",
+   "expect": {
+    "kind": "act",
+    "compare": "semantic",
+    "ops": [
+     {
+      "a": "chartGrid.set",
+      "args": {
+       "symbols": [
+        "NVDA"
+       ],
+       "timeframe": null,
+       "layout": null,
+       "new_charts": true,
+       "watchlist": null,
+       "replace": null
+      }
+     }
+    ],
+    "alt": [
+     [
+      {
+       "a": "widget.addCharts",
+       "args": {
+        "symbols": [
+         "NVDA"
+        ],
+        "timeframe": null,
+        "chart_type": null,
+        "exact": null
+       }
+      }
+     ]
+    ],
+    "notOn": [
+     "Chart (AAPL)"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete",
+     "chart.setSymbol"
+    ]
+   },
+   "cls": "side-by-side",
+   "mix": "multi",
+   "fam": "multichart",
+   "new": "11-24 side-by-side (owner ruling 11-23)"
+  },
+  {
+   "id": "e2-sb02",
+   "fx": "rb_pair_nosel",
+   "text": "put msft and amd side by side",
+   "expect": {
+    "kind": "act",
+    "compare": "semantic",
+    "ops": [
+     {
+      "a": "chartGrid.set",
+      "args": {
+       "symbols": [
+        "AMD"
+       ],
+       "timeframe": null,
+       "layout": null,
+       "new_charts": true,
+       "watchlist": null,
+       "replace": null
+      }
+     }
+    ],
+    "alt": [
+     [
+      {
+       "a": "widget.addCharts",
+       "args": {
+        "symbols": [
+         "AMD"
+        ],
+        "timeframe": null,
+        "chart_type": null,
+        "exact": null
+       }
+      }
+     ]
+    ],
+    "notOn": [
+     "Left chart (MSFT)",
+     "Right chart (META)"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete",
+     "chart.setSymbol"
+    ]
+   },
+   "cls": "side-by-side",
+   "mix": "multi",
+   "fam": "multichart",
+   "new": "11-24 side-by-side (owner ruling 11-23)"
+  },
+  {
+   "id": "e2-sb03",
+   "fx": "rb_pair_nosel",
+   "text": "msft and meta side by side",
+   "expect": {
+    "kind": "answer",
+    "compare": "semantic",
+    "notOn": [
+     "Left chart (MSFT)",
+     "Right chart (META)"
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete",
+     "chart.setSymbol",
+     "widget.addCharts"
+    ]
+   },
+   "cls": "side-by-side",
+   "mix": "multi",
+   "fam": "multichart",
+   "new": "11-24 side-by-side (owner ruling 11-23)"
+  },
+  {
+   "id": "e2-sb04",
+   "fx": "rb_solo",
+   "text": "show nvda and amd side by side",
+   "expect": {
+    "kind": "clarify",
+    "compare": "semantic",
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete",
+     "chart.setSymbol"
+    ]
+   },
+   "cls": "side-by-side",
+   "mix": "multi",
+   "fam": "multichart",
+   "new": "11-24 side-by-side (owner ruling 11-23)"
+  },
+  {
+   "id": "e2-sb05",
+   "fx": "rb_solo",
+   "text": "swap this chart for nvda, then put amd side by side with it",
+   "expect": {
+    "kind": "act",
+    "compare": "semantic",
+    "clarifyOk": true,
+    "oracleChoose": "replacing",
+    "ops": [
+     {
+      "a": "chart.setSymbol",
+      "t": "Chart (AAPL)",
+      "args": {
+       "symbol": "NVDA"
+      }
+     },
+     {
+      "a": "chartGrid.set",
+      "args": {
+       "symbols": [
+        "AMD"
+       ],
+       "timeframe": null,
+       "layout": null,
+       "new_charts": true,
+       "watchlist": null,
+       "replace": null
+      }
+     }
+    ],
+    "alt": [
+     [
+      {
+       "a": "chart.setSymbol",
+       "t": "Chart (AAPL)",
+       "args": {
+        "symbol": "NVDA"
+       }
+      },
+      {
+       "a": "widget.addCharts",
+       "args": {
+        "symbols": [
+         "AMD"
+        ],
+        "timeframe": null,
+        "chart_type": null,
+        "exact": null
+       }
+      }
+     ]
+    ],
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete"
+    ]
+   },
+   "cls": "side-by-side",
+   "mix": "multi",
+   "fam": "multichart",
+   "new": "11-24 side-by-side (owner ruling 11-23)"
+  },
+  {
+   "id": "e2-sb06",
+   "fx": "rb_twins",
+   "text": "spy and qqq side by side",
+   "expect": {
+    "kind": "clarify",
+    "compare": "semantic",
+    "never": [
+     "chart.resetDefaults",
+     "widget.remove",
+     "layout.delete",
+     "watchlist.delete",
+     "watchlist.clear",
+     "drawing.clear",
+     "indicator.remove",
+     "definition.delete",
+     "chart.setSymbol"
+    ]
+   },
+   "cls": "side-by-side",
+   "mix": "multi",
+   "fam": "multichart",
+   "new": "11-24 side-by-side (owner ruling 11-23)"
   }
  ]
 }
