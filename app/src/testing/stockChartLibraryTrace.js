@@ -67,6 +67,42 @@ export async function recordingLibrary(S) {
 }
 
 /**
+ * A canvas whose every call (method and arguments, numbers to 1e-4 of a pixel) and every property it is given
+ * (colours, fonts, line widths) is recorded while a recording is on: two charts' drawings compare call for call.
+ * Installed over `HTMLCanvasElement.prototype.getContext` (the library asks for the context on every paint).
+ */
+export function installRecordingCanvas(width = 900, height = 500) {
+  let log = null
+  const r4 = (x) => (typeof x === 'number' ? Math.round(x * 1e4) / 1e4 : typeof x === 'string' ? x : x == null ? x : '[obj]')
+  const ctx = new Proxy({}, {
+    get: (_t, k) => {
+      if (k === 'canvas') return { width, height }
+      if (k === 'measureText') return (s) => ({ width: String(s).length * 6, actualBoundingBoxAscent: 8, actualBoundingBoxDescent: 2 })
+      if (k === 'createLinearGradient') return () => ({ addColorStop() {} })
+      if (k === 'getImageData') return () => ({ data: new Uint8ClampedArray(4) })
+      return (...a) => { if (log) log.push(`${String(k)}(${a.map(r4).join(',')})`) }
+    },
+    set: (_t, k, v) => { if (log) log.push(`${String(k)}=${r4(v)}`); return true },
+  })
+  HTMLCanvasElement.prototype.getContext = () => ctx
+  Object.defineProperty(window, 'devicePixelRatio', { value: 1, configurable: true })
+  Object.defineProperty(HTMLElement.prototype, 'clientWidth', { get() { return width }, configurable: true })
+  Object.defineProperty(HTMLElement.prototype, 'clientHeight', { get() { return height }, configurable: true })
+  return {
+    r4,
+    /** Every canvas call of one full redraw of a library chart: an options call invalidates everything, and the
+     *  screenshot paints what is pending into the chart's own canvases (panes, both axes) before it copies them. */
+    drawingOf(chart) {
+      chart.applyOptions({})
+      const out = []
+      log = out
+      try { chart.takeScreenshot() } finally { log = null }
+      return out
+    },
+  }
+}
+
+/**
  * What the library holds and shows now (the raw chart the chart last created): every live series' rows as the
  * library holds them, the price range its scale shows, and the visible logical and time ranges. A string, to compare.
  */
