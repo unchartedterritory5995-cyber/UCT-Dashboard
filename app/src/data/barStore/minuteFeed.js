@@ -85,8 +85,6 @@ export const DRAIN_SLICE_MS = 4
 export const POLL_DELAY_MS = 7000
 /** With nothing to feed (no idle regular 1m key held) the feed looks again this often: a registry read, no request. */
 export const WANT_RECHECK_MS = 5_000
-/** Hidden, outside the session or paused: it looks again once a minute (the consumer's own default). */
-export const IDLE_RECHECK_MS = 60_000
 /** A minute file that is not there yet is asked again this many times (every 2 s), then given up. */
 export const TAIL_RETRIES = 3
 /** Answers in a row that were not a frame before the feed pauses (one whole minute: the ask and its retries). */
@@ -363,8 +361,10 @@ export function createPageMinuteFeed({
 
   const api = {
     feeder,
-    /** May a poll go now? The consumer asks before every step (its `isVisible`); false = look again later (a minute;
-     *  WANT_RECHECK_MS when the only reason is that there is nothing to feed yet). */
+    /** May a poll go now? The consumer asks before every step (its `isVisible`); false = look again later: when the
+     *  next minute file is due (hidden, outside the session, paused: so the first poll after it is never a minute
+     *  late), or after WANT_RECHECK_MS when the only reason is that there is nothing to feed yet. A throw from
+     *  anything it reads counts as "no" (the consumer's tail mode fails closed). */
     gate() {
       st.waiting = false
       if (st.stopped) return false
@@ -383,7 +383,7 @@ export function createPageMinuteFeed({
       consumer = createMinuteFrameConsumer({
         sink: feeder.sink, fetchImpl: watchedFetch, now, isVisible: api.gate,
         tailOnly: true, tailRetries: TAIL_RETRIES, pollDelayMs,
-        recheckMs: () => (st.waiting ? WANT_RECHECK_MS : IDLE_RECHECK_MS),
+        recheckMs: () => (st.waiting ? WANT_RECHECK_MS : null),
         rollup: { tfs: [FEED_TF], accept: feeder.accept },
         ...consumerOpts,
       })

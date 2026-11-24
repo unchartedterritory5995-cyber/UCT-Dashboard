@@ -9,6 +9,8 @@
 //   P6 a member the edge REFUSES (401): quiet, and a handful of requests an hour, not one a minute
 //   P7 a feed that is not there (404 every minute): bounded the same way
 //   P8 one frame clears the backoff
+//   P9 a gate that throws asks nothing (it is also the kill: it fails closed)
+//   (P3 / P4 also pin WHEN it looks again after a "not now": when the next minute file is due, never a minute late)
 //   ONLY WHILE THERE IS SOMETHING TO FEED (an idle regular 1m key is held):
 //   G1 no 1m key held: no request at all                     G2 only a 1m key a chart is on: none
 //   G3 only 5m / 15m / D keys: none                          G4 only a windowed (replay) 1m key: none
@@ -112,7 +114,7 @@ describe('the page minute feed', () => {
     p.env.visible = false
     p.feed.start()
     await p.run()
-    expect(p.delay()).toBe(60_000)                               // it looks again in a minute, and asks nothing
+    expect(p.delay()).toBe(47_000)                               // it looks again when the next file is due (10:03:07), and asks nothing
     await p.runUntil(at(40, 0))
     expect(e.asked).toHaveLength(0)
     p.clock.ms = at(40, 30)
@@ -135,6 +137,8 @@ describe('the page minute feed', () => {
     p.feed.start()
     await p.runUntil(at(1, 6))                                   // ...to 09:31:06
     expect(e.asked).toHaveLength(0)
+    await p.runUntil(at(1, 7))                                   // 09:31:07: the session's first file is due NOW
+    expect(e.paths()).toEqual([name(0)])                         // ...and asked now, not up to a minute late
     await p.runUntil(at(3, 0))
     expect(e.paths()[0]).toBe(name(0))                           // 0930.bin
     expect(e.paths().every((x) => x >= name(0))).toBe(true)
@@ -201,6 +205,18 @@ describe('the page minute feed', () => {
     const n = e.asked.length
     await p.runUntil(at(40, 20))
     expect(e.asked.length).toBe(n + 4)                           // one a minute again
+  })
+})
+
+describe('the page minute feed gate fails closed', () => {
+  it('P9 a gate that throws asks nothing, and the feed looks again later', async () => {
+    const e = edge()
+    const p = page(e, at(32, 20), { killed: () => { throw new Error('cookie jar') } })
+    p.feed.start()
+    await p.run()
+    await p.runUntil(at(36, 20))
+    expect(e.asked).toEqual([])
+    expect(p.delay()).not.toBe(null)                             // still looking: a gate that recovers resumes
   })
 })
 

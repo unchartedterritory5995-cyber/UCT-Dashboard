@@ -13,6 +13,8 @@
 //   T8 an INCOMPLETE frame reaches the sink as a gap of its own minute (the shared check)
 //   T9 wake(): the next step now; no request when nothing is due; nothing when stopped
 //   T10 while its caller says "not now" it asks nothing and looks again after `recheckMs` (a number or a function)
+//   T11 a `recheckMs` that names no time: tailOnly looks again WHEN THE NEXT MINUTE FILE IS DUE (never a minute late)
+//   T12 a gate that THROWS: tailOnly fails CLOSED (its gate is also the kill); the device store's consumer as before
 import { describe, it, expect } from 'vitest'
 import { createMinuteFrameConsumer, DEFAULT_BASE } from './consumer'
 import { createMemorySink } from './memorySink'
@@ -199,5 +201,39 @@ describe('tailOnly: one minute file a minute, never the day', () => {
     const d3 = device(edge(), at(32, 20), { isVisible: () => false, recheckMs: 7_000 })
     d3.c.start(); await d3.run()
     expect(d3.delay()).toBe(7_000)
+  })
+
+  it('T11 a recheckMs that names no time: it looks again when the next minute file is due', async () => {
+    const e = edge()
+    const gate = { open: false }
+    const d = device(e, at(32, 20), { isVisible: () => gate.open, recheckMs: () => null })
+    d.c.start()
+    await d.run()
+    expect(d.delay()).toBe(47_000)                      // 10:03:07, when 10:02's file is due: not 10:03:20
+    await d.run()
+    expect(d.clock.ms).toBe(at(33, 7))
+    expect(d.delay()).toBe(60_000)                      // and then minute by minute, on the due time
+    gate.open = true
+    await d.run()
+    expect(d.clock.ms).toBe(at(34, 7))
+    expect(e.asked).toEqual([name(33)])                 // asked the moment it is due
+    // (not tailOnly: the device store's consumer, a minute as before)
+    const d2 = device(edge(), at(32, 20), { tailOnly: false, isVisible: () => false, recheckMs: () => null })
+    d2.c.start(); await d2.run()
+    expect(d2.delay()).toBe(60_000)
+  })
+
+  it('T12 a gate that throws: tailOnly asks nothing (fails closed); without tailOnly it goes on as before', async () => {
+    const boom = () => { throw new Error('gate') }
+    const e = edge()
+    const d = device(e, at(32, 20), { isVisible: boom })
+    d.c.start()
+    await d.run()
+    expect(e.asked).toEqual([])
+    expect(d.delay()).toBe(60_000)
+    const e2 = edge()
+    const d2 = device(e2, at(32, 20), { tailOnly: false, isVisible: boom })
+    d2.c.start(); await d2.run()
+    expect(e2.asked[0]).toBe('2026-11-10/head.json')
   })
 })

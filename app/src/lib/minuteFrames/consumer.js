@@ -93,7 +93,9 @@ class HttpError extends Error {
  * @param {boolean} [o.tailOnly]           follow the newest minute only: never head.json, never today.bin (see the header)
  * @param {number} [o.tailRetries]         tailOnly: asks again for a minute file that is not there yet, before giving it up
  * @param {number|Function} [o.recheckMs]  while `isVisible` says no: when to look again (default a minute; a function
- *                                         is asked each time, so a caller can look sooner for a reason it knows)
+ *                                         is asked each time, so a caller can look sooner for a reason it knows).
+ *                                         A value that names no time (null): tailOnly looks again when the next
+ *                                         minute file is DUE, so the first poll after a "not now" is never a minute late
  */
 export function createMinuteFrameConsumer({
   sink, base = DEFAULT_BASE, fetchImpl = (...a) => fetch(...a), now = () => Date.now(),
@@ -117,7 +119,10 @@ export function createMinuteFrameConsumer({
   const tail = { want: null, tries: 0 }
 
   const visible = () => {
-    if (typeof isVisible === 'function') { try { return isVisible() !== false } catch { return true } }
+    // A gate that THROWS: the device store's consumer goes on as it always did (its gate is only "is a tab visible").
+    // tailOnly FAILS CLOSED (review of #2639, L2): there the caller's gate is also its kill switch, its session window
+    // and its backoff, and a poll that goes because the gate broke is exactly what those exist to stop.
+    if (typeof isVisible === 'function') { try { return isVisible() !== false } catch { return !tailOnly } }
     return true
   }
 
@@ -326,18 +331,26 @@ export function createMinuteFrameConsumer({
       // is in: a step taken in a minute's first seconds (the first one, a wake) applied the minute BEFORE the one that
       // just ended, and that one's file is due in a moment, not a minute from now. (From `pollDelayMs` into a minute
       // on, this is the line below.) Without it the run would skip a minute at every such step: a gap of its own making.
-      const nextDue = (Math.floor((t - pollDelayMs) / 60_000) + 1) * 60_000 + pollDelayMs
-      return nextDue - t + Math.floor(random() * jitterMs)
+      return untilNextDue(t)
     }
     const nextMinuteEnd = (Math.floor(t / 60_000) + 1) * 60_000
     return nextMinuteEnd - t + pollDelayMs + Math.floor(random() * jitterMs)
   }
 
-  /** How long until the next look while `isVisible` says no (see `recheckMs`); a minute when it cannot be read. */
+  /** tailOnly: ms from `t` until the next minute file is due (`pollDelayMs` after its minute ends), plus the jitter. */
+  function untilNextDue(t) {
+    const nextDue = (Math.floor((t - pollDelayMs) / 60_000) + 1) * 60_000 + pollDelayMs
+    return nextDue - t + Math.floor(random() * jitterMs)
+  }
+
+  /** How long until the next look while `isVisible` says no (see `recheckMs`). A time the caller names is taken as it
+   *  is. None named: tailOnly looks again when the next file is due (a wait of "a minute from now" made the session's
+   *  first file, and the first after a pause, up to a minute late: review of #2639, L2); otherwise a minute. */
   function recheck() {
     let ms = recheckMs
     if (typeof recheckMs === 'function') { try { ms = recheckMs() } catch { ms = 60_000 } }
-    return Number.isFinite(ms) && ms > 0 ? ms : 60_000
+    if (Number.isFinite(ms) && ms > 0) return ms
+    return tailOnly ? untilNextDue(now()) : 60_000
   }
 
   async function tick() {
