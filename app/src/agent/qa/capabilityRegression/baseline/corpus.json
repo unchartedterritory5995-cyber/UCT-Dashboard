@@ -16220,6 +16220,274 @@
       ]
     },
     {
+      "id": "stock.insiderBuying",
+      "source": "Terminal data wave 13 (11-24): the Agent half of INS (with INS CLUSTER), MKTH, ECON, LIQ, OIL and ANLG (the market's insider buying, corrections and bear markets, the economy board, liquidity, the weekly oil report, days like the newest session), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.insiderBuying"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.insiderBuying"
+      ],
+      "ownWords": [
+        "marketMacro"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.insiderBuying",
+            "target": "$stockData",
+            "args": {
+              "rows": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*insider\\.market.*\"params\":\\{\"rows\":10\\}"
+        ],
+        "says": [
+          "The latest open-market purchases from Form 4 filings over the last 7 days, largest dollar amount first:",
+          "• QZIA: Made-up Person One \\(director\\) bought 2,000 shares at \\$15\\.00, \\$30,000\\.00, on Oct 28, 2025",
+          "1 purchase states no price, so it has no dollar amount \\(never \\$0\\)\\.",
+          "• QZIC \\(Made-up Robotics Inc\\): 3 insiders, Oct 22, 2025 to Oct 27, 2025, \\$81,000\\.00"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "insider buying",
+        "what are insiders buying",
+        "show me the insider clusters",
+        "latest insider purchases"
+      ]
+    },
+    {
+      "id": "stock.marketHistory",
+      "source": "Terminal data wave 13 (11-24): the Agent half of INS (with INS CLUSTER), MKTH, ECON, LIQ, OIL and ANLG (the market's insider buying, corrections and bear markets, the economy board, liquidity, the weekly oil report, days like the newest session), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.marketHistory"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.marketHistory"
+      ],
+      "ownWords": [
+        "marketMacro"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.marketHistory",
+            "target": "$stockData",
+            "args": {
+              "index": null,
+              "rows": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*market\\.history.*\"params\":\\{\"index\":null,\"rows\":8\\}"
+        ],
+        "says": [
+          "S&P 500's corrections \\(a fall of 10% to 20% on closing prices\\) and bear markets \\(20% or more\\) as UCT holds them",
+          "20 corrections and 5 bear markets; median depth -13\\.5%, median recovery 75 sessions\\.",
+          "• Correction from the peak of Feb 19, 2025 \\(6,100\\.00\\) to the low of Apr 8, 2025 \\(4,980\\.00\\): -18\\.4% in 33 sessions",
+          "Leaders in the 63 sessions after the low \\(the index \\+25\\.0%\\): QZLA \\+150\\.5%"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "market corrections and bear markets",
+        "how long do bear markets last",
+        "history of bear markets",
+        "nasdaq corrections"
+      ]
+    },
+    {
+      "id": "stock.economyBoard",
+      "source": "Terminal data wave 13 (11-24): the Agent half of INS (with INS CLUSTER), MKTH, ECON, LIQ, OIL and ANLG (the market's insider buying, corrections and bear markets, the economy board, liquidity, the weekly oil report, days like the newest session), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.economyBoard"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.economyBoard"
+      ],
+      "ownWords": [
+        "marketMacro"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.economyBoard",
+            "target": "$stockData",
+            "args": {}
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*econ\\.latest.*\"params\":\\{\\}"
+        ],
+        "says": [
+          "The economy board as UCT holds it \\(official U\\.S\\. releases\\), theme by theme:",
+          "• Inflation: CPI 3\\.2% for Sep 2025, m/m 3\\.2%, released Oct 15, 2025, prior 3\\.1% \\(\\+0\\.1 pts\\)",
+          "Nonfarm payrolls 180\\.0K for Sep 2025, released Oct 15, 2025, prior 210\\.0K \\(-30\\.0K\\)",
+          "Not on this board: Retail sales\\."
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "economic data",
+        "the latest cpi",
+        "jobs report",
+        "show me the economy board"
+      ]
+    },
+    {
+      "id": "stock.liquidityBoard",
+      "source": "Terminal data wave 13 (11-24): the Agent half of INS (with INS CLUSTER), MKTH, ECON, LIQ, OIL and ANLG (the market's insider buying, corrections and bear markets, the economy board, liquidity, the weekly oil report, days like the newest session), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.liquidityBoard"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.liquidityBoard"
+      ],
+      "ownWords": [
+        "marketMacro"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.liquidityBoard",
+            "target": "$stockData",
+            "args": {}
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*market\\.liquidity.*\"params\":\\{\\}"
+        ],
+        "says": [
+          "Net liquidity on Wed, Oct 15, 2025: \\$5\\.72T; the change over 1 week \\+\\$2\\.00B, 4 weeks \\+\\$8\\.00B",
+          "• Fed total assets: \\$6\\.62T \\(Wed Oct 15, 2025\\), \\+\\$2\\.00B over 1 week",
+          "net liquidity is a UCT calculation"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "net liquidity",
+        "the fed balance sheet",
+        "reverse repo",
+        "money supply"
+      ]
+    },
+    {
+      "id": "stock.oilReport",
+      "source": "Terminal data wave 13 (11-24): the Agent half of INS (with INS CLUSTER), MKTH, ECON, LIQ, OIL and ANLG (the market's insider buying, corrections and bear markets, the economy board, liquidity, the weekly oil report, days like the newest session), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.oilReport"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.oilReport"
+      ],
+      "ownWords": [
+        "marketMacro"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.oilReport",
+            "target": "$stockData",
+            "args": {}
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*market\\.oil.*\"params\":\\{\\}"
+        ],
+        "says": [
+          "Draw of 2\\.3 million barrels in the week to Fri Oct 10, 2025",
+          "• Inventories: Crude oil, excluding the SPR",
+          "The EIA's own weekly figures"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "weekly oil report",
+        "crude inventories",
+        "eia report",
+        "refinery utilization"
+      ]
+    },
+    {
+      "id": "stock.daysLikeToday",
+      "source": "Terminal data wave 13 (11-24): the Agent half of INS (with INS CLUSTER), MKTH, ECON, LIQ, OIL and ANLG (the market's insider buying, corrections and bear markets, the economy board, liquidity, the weekly oil report, days like the newest session), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.daysLikeToday"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.daysLikeToday"
+      ],
+      "ownWords": [
+        "marketMacro"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.daysLikeToday",
+            "target": "$stockData",
+            "args": {
+              "rows": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*market\\.analogs.*\"params\":\\{\"rows\":5\\}"
+        ],
+        "says": [
+          "A record of what followed similar days, not a forecast\\.",
+          "• Tue Mar 4, 2025 \\(97\\.3% match\\): \\+1\\.20% / -0\\.40% / \\+2\\.50% / \\+6\\.10%",
+          "Only 3 sessions came back of the 5 asked for\\."
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "days like today",
+        "breadth analogues",
+        "when did the market look like this",
+        "past sessions like this"
+      ]
+    },
+    {
       "id": "recentlyDeleted.restore",
       "source": "Charts family (2026-11-19): Recently deleted — bring back a deleted watchlist, saved layout or saved screen through the artifact-versions routes the Recently deleted panel uses",
       "capabilities": [

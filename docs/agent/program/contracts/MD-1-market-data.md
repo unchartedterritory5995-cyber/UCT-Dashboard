@@ -1,8 +1,8 @@
-# MD-1 — UCT market-data contract (v1.18)
+# MD-1 — UCT market-data contract (v1.19)
 
 - **Owner:** agent-md implements the kinds. agent-lead owns `gateway.py` and `envelope.py`, the framework every consumer relies on.
 - **Consumers:** agent-sc, agent-rs, agent-qa, and later the D and G workstreams.
-- **Status:** v1.18 (v1.1–v1.18 each additive or a scope reduction; v1.1–v1.4 acked by agent-lead 2026-11-01, v1.5 agreed for Sprint 2; v1.6, v1.7, v1.8, v1.9, v1.10, v1.11, v1.12, v1.13, v1.14, v1.15, v1.16, v1.17 and v1.18 are additions whose new kinds are default OFF (v1.18 also narrows `ratings` to a held read); v1.7 is written up after its kinds merged dark, v1.8, v1.9, v1.10, v1.11, v1.12, v1.13, v1.14, v1.15, v1.16, v1.17 and v1.18 with their kinds; v1.7 and v1.8 acked by the owner 2026-11-17 in place of agent-lead, whose session has ended; the §8.1 notices for v1.9, v1.10, v1.11, v1.12, v1.13, v1.14, v1.15, v1.16, v1.17 and v1.18 are owed by a person and are not acknowledged, see §9). See §9 for what changed. The envelope's wire field `contract` stays `"MD-1.0"`: no version since v1.0 adds an envelope field.
+- **Status:** v1.19 (v1.1–v1.19 each additive or a scope reduction; v1.1–v1.4 acked by agent-lead 2026-11-01, v1.5 agreed for Sprint 2; v1.6, v1.7, v1.8, v1.9, v1.10, v1.11, v1.12, v1.13, v1.14, v1.15, v1.16, v1.17, v1.18 and v1.19 are additions whose new kinds are default OFF (v1.18 also narrows `ratings` to a held read); v1.7 is written up after its kinds merged dark, v1.8, v1.9, v1.10, v1.11, v1.12, v1.13, v1.14, v1.15, v1.16, v1.17, v1.18 and v1.19 with their kinds; v1.7 and v1.8 acked by the owner 2026-11-17 in place of agent-lead, whose session has ended; the §8.1 notices for v1.9, v1.10, v1.11, v1.12, v1.13, v1.14, v1.15, v1.16, v1.17, v1.18 and v1.19 are owed by a person and are not acknowledged, see §9). See §9 for what changed. The envelope's wire field `contract` stays `"MD-1.0"`: no version since v1.0 adds an envelope field.
 - **Changes:** see §8.
 
 ## 1. Purpose
@@ -2855,6 +2855,163 @@ builder's default; nobody decided otherwise and nobody was asked.
 server keeps (`turn.MAX_GROUPS`, unchanged). Its words are empty in `routing.js` and each capability's own are armed only
 while it is registered, so on a dark server routing is byte-identical to the base.
 
+### 4.22 Terminal data wave 13: `insider.market`, `market.history`, `econ.latest`, `market.liquidity`, `market.oil`, `market.analogs` (v1.19, terminal-data)
+
+Six more thin kinds, the Agent half of market panels the Agent could not answer: INS with INS CLUSTER (the market's
+insider buying), MKTH (the S&P 500's and the Nasdaq-100's corrections and bear markets), ECON (the economy board), LIQ
+(liquidity), OIL (the EIA's weekly oil report) and ANLG (the breadth analogues, "days like today"). Each kind is an adapter
+over what its member route already reads (`api/services/uct_agent/marketdata/insider_market_read.py`,
+`market_history_read.py`, `econ_read.py` for the three econ kinds, `analogues_read.py`; registered in `kinds.py` with
+`owner="terminal-data"`). No new connection, job, database, write or route (§6), and no new environment variable. Each keeps
+its route's own field names; the three econ kinds return the econ routes' own row shape, and the member's answer works the
+board, the net liquidity calculation and the build or draw out with the panels' own pure models.
+
+Left out, and why: SENT gets no kind (its readings sit in the Breadth Monitor's shared-cache copy under keys a read could
+only make by calling functions that load files, so a held-only read could not be shown to start no work; its economy rows
+are answered by `econ.latest`); IDAY (the intraday update panel: AI-written member text, which stays on hold); NEWS, UNEWS
+and WIRE (third-party text); TIDE (intraday Market Tide: live flow). ANLG's route is `GET /api/breadth-monitor/analogues`;
+`/api/analogs` is the brain's setup analogs, a different answer, and is not read.
+
+**Status: dark, not armed.** Like every kind, each is served only when it is listed in `UCT_AGENT_DATA_KINDS` (with
+`UCT_AGENT_DATA=1`). All six are model-isolated, so each also needs the master switch `UCT_AGENT_ISOLATED=1` and its own
+entry in `UCT_AGENT_ISOLATED_KINDS` (§4.4, ADR-005); until then it is refused for every purpose, and once armed it is served
+for purpose `answer` only. The six capabilities (`stock.insiderBuying`, `stock.marketHistory`, `stock.economyBoard`,
+`stock.liquidityBoard`, `stock.oilReport`, `stock.daysLikeToday`) are local-only (`turn.LOCAL_ONLY_ACTIONS`) and registered
+only while the server serves their kinds. This section describes what the code does when a kind is switched on. It does
+not switch anything on. As written (2026-11-24), none of the six is in production's list.
+
+| Kind | Canonical service (member route) | Params | Declared freshness | `as_of` | `provider_calls` | Model-isolated |
+|---|---|---|---|---|---|---|
+| `insider.market` | the INS feed `api/services/insider.py` keeps in the shared cache, read through `insider_feed_held.held_market_buys` (`GET /api/insider/feed?scope=market`), and the cluster answer `api/services/insider_clusters_sec.py` holds, read through `insider_clusters_sec.held_answer` (`GET /api/insider/clusters`) | `{rows}` | periodic · every read periodic | null: each part carries its own date | 0 | **yes** |
+| `market.history` | the answer `api/services/market_history.py` holds, read through `market_history.held_answer` (`GET /api/research/market-history`) | `{index, rows}` | periodic · every read historical | the regular close of the newest session the index's closes reach | 0 | **yes** |
+| `econ.latest` | the econ serving cache (`api/services/econ/serving.py`), read through `econ_held.held_latest` (`GET /api/econ/latest`, behind ECON_ENABLED) | `{}` | periodic · every read periodic | the newest release time among the readings returned | 0 | **yes** |
+| `market.liquidity` | the same cache, read through `econ_held.held_latest` and `econ_held.held_history` (`GET /api/econ/latest`, `GET /api/econ/series/{symbol}`, behind ECON_ENABLED) | `{}` | periodic · every read periodic | the newest release time among the readings returned | 0 | **yes** |
+| `market.oil` | the same cache, read through `econ_held.held_latest` and `econ_held.held_history` (the same routes) | `{}` | periodic · every read periodic | the newest release time among the readings returned | 0 | **yes** |
+| `market.analogs` | the answer `api/services/breadth_analogues.py` holds per `top_n`, read through `breadth_analogues_held.held_analogues` (`GET /api/breadth-monitor/analogues`) | `{rows}` | periodic · every read historical | the regular close of the reference session | 0 | **yes** |
+
+Sources (`source`): `uct-insider-market`, `uct-market-history`, `uct-econ` (all three econ kinds), `uct-breadth-analogues`.
+
+**No read of this section starts a build or a request.** (§5: a turn has 20 provider requests and a member waiting.)
+Every member route here can cause work on the request; each adapter reads only what is already held and answers
+`unavailable`, with the reason, when nothing is. Three read-only readers are added with this version, each a new file
+beside its service (every service's own calls are unchanged); two kinds use a read-only reader the service already had:
+
+| Kind | What the member path can start | What the adapter reads instead |
+|---|---|---|
+| `insider.market` | `insider.get_market_insider_buys` pages the vendor's newest Form 4 filings on a cache miss | `insider_feed_held.held_market_buys` (new): the same cache entry, else nothing; `insider_clusters_sec.held_answer` (existing): the held clusters, never the SEC |
+| `market.history` | `market_history.get_market_history` starts the one background build when a rebuild is due, and waits for its first stage with nothing held | `market_history.held_answer` (existing): what the module holds, looked for on disk once |
+| `econ.latest`, `market.liquidity`, `market.oil` | `econ.serving.latest` and `series` read the published files from the data bucket on a cold cache | `econ_held.held_latest` and `econ_held.held_history` (new): the serving cache's own entries, never a load |
+| `market.analogs` | `breadth_analogues.find_analogues` reads 500 sessions of breadth history and runs the similarity search on a miss or an expired entry | `breadth_analogues_held.held_analogues` (new): the held entry with the most matches, its first rows (the search is the same up to its final cut) |
+
+Rails (`tests/test_uct_agent_data_terminal_wave13.py`) replace every builder, vendor page, SEC transport, loader, search and
+the shared cache writer with one that fails, read every kind held and not held, and show each member path doing that work
+in the same state (the clusters route reads only what is held itself, so it has no contrast).
+
+**What each kind states.**
+- `insider.market`: the purchases (symbol, insider and role, shares, price, amount, trade and filing day; the route's own
+  order, largest dollar amount first; a purchase with no price has no price and no amount, never $0, and the unpriced are
+  counted; an empty held list is said as the service holds it) and the clusters (ticker, company, insiders and their roles,
+  first and last buy, buys, filings, shares, the value of the priced buys, the close the list was built with; each
+  insider's name is left out and said; the coverage of the filing days read is said when it is not complete). Each list is
+  cut at `rows`: the purchases from the smallest end, the clusters from the oldest.
+- `market.history`: for one index (SPX by default, or NDX), the summary (corrections, bear markets, the ones not recovered,
+  the median depth and recovery) and each decline newest first: its kind, peak and low with their closes, depth, sessions
+  down, the day the peak was regained and the sessions it took (none while it has not been), how far below the peak the
+  newest close is while it has not, the index 1, 3, 6 and 12 months after the low (null, never 0, where the store does not
+  reach), and its leaders (the first 5 of the service's 25 and the first 3 sector medians,
+  or the leaders' own state: not drawn yet, too thin, still being worked out, failed). The survivorship note travels in
+  the service's own words. Stale when the held answer was built before the newest session's evening.
+- `econ.latest`: the ECON board's 26 series in its order, each row as the route gives it (`ok`, `no_data`, `not_found`)
+  or `not_held` (this read's own state), with its newest three points, meta, currentness (the next release from the
+  calendar) and the time the serving cache read it. A partial read is `partial`.
+- `market.liquidity`: the LIQ panel's 8 series in its order, and for the three inputs of net liquidity and the two daily
+  parts the held points within 790 or 70 days of each series' newest period (the panel reads from the first of the month
+  25 or 2 months back). Net liquidity itself is UCT's calculation, worked out in the member's answer by the panel's own
+  model; an input not held means no value, never 0.
+- `market.oil`: the OIL panel's 9 series in its order with the held points within 790 days (crude stocks) or 430
+  days (the rest) of each series' newest period; the build or draw is the econ service's own weekly change.
+- `market.analogs`: the reference session and its measures, and the closest past sessions (each with its closeness, its
+  distance, its measures then and the S&P 500's return 5, 10, 20 and 60 trading days later, an absent window null and
+  listed as not yet, never 0), cut at `rows` from the least similar end; fewer held than asked is said; stale past the
+  route's six hours, with its build time. A record of what followed, not a forecast.
+
+**Notes, verbatim** (the adapters' own constants; `{…}` is filled per read):
+
+`insider.market`:
+- `NOTE_WHAT`: `the market's insider buying as UCT holds it for the INS panel: the latest open-market purchases from Form 4 filings across the market, and the INS CLUSTER view's stocks in which several insiders bought within a few days. A record of filings, not advice`
+- `NOTE_AS_OF`: ``as_of` is null: each part carries its own date (purchases: the newest filing {buys}; clusters: the newest filing day read {clusters}); never the time of the read`
+- `NOTE_BUYS`: `purchases: the vendor's newest Form 4 filings over the last {days} days, open-market purchases only, largest dollar amount first; the service keeps at most {cap}, so a full list may leave out the smallest`
+- `NOTE_UNPRICED`: `{n} of the purchases returned state no price, so they have no dollar amount (never $0)`
+- `NOTE_BUYS_EMPTY`: `the held purchases list is empty: the service holds an empty list both when no open-market purchase was found in the window and when the vendor's pages could not be read, and it does not say which. That is not the same as no insider buying`
+- `NOTE_CUT`: `{part}: {total} are held and the first {shown} are returned: the list is cut from the {end} end`
+- `NOTE_RULE`: `clusters: {n} or more different insiders buying on the open market within {days} business days, from the SEC's Form 4 filings; joint filers count as one insider. Built {at} (UCT's own time)`
+- `NOTE_COVERAGE`: `clusters: the read of the filing days {start} to {end} is not complete ({read} of {listed} filings read), so a cluster may be missing`
+- `NOTE_NO_CLUSTER`: `clusters: no stock in what UCT holds has a cluster. That is not the same as no insider buying`
+- `NOTE_PART_NOT_HELD`: `{part} are not held on this server yet, and this read never asks for them. Open {code} in UCT, then ask again`
+- `NOTE_NOT_HELD`: `the market's insider buying is not held on this server yet, and this read never asks the vendor or the SEC. That is not the same as no insider buying. Open INS in UCT, then ask again`
+- `NOTE_FAILED`: `the insider buying read failed; nothing is stated. That is not the same as no insider buying`
+
+`market.history`:
+- `NOTE_WHAT`: `{name}'s corrections and bear markets as UCT holds them for the MKTH panel: every decline of {corr}% or more on closing prices ({bear}% or more is a bear market), newest first, with the rally after each low and the stocks that led it. A record of what the index did, not a forecast and not advice`
+- `NOTE_DEFINITION`: `the definition, in the service's own words: {text}`
+- `NOTE_AS_OF`: ``as_of` is the close of the newest session {name}'s closes reach ({day}); it is never the time of the read, and this read never builds. UCT built it at {at} (UCT's own time)`
+- `NOTE_STALE`: `the held answer was built for the evening of {built}, before the newest session's evening ({due}); this read never builds it again`
+- `NOTE_COMPUTING`: `the leaders are still being worked out on the server; each decline's leaders say so, and this read never waits`
+- `NOTE_LEADERS_FAILED`: `the leaders could not be worked out on the server's last build; the declines stand without them`
+- `NOTE_SURVIVORSHIP`: `leaders: {note}`
+- `NOTE_CUT`: `{total} declines are held and the newest {shown} are returned: the list is cut from the OLD end`
+- `NOTE_LEADERS_CUT`: `each decline's leaders are cut to the first {leaders} of up to {kept} and its sectors to the first {sectors}`
+- `NOTE_INDEX`: `the index: {note}`
+- `NOTE_HISTORY_START`: `the oldest decline's peak is the first close UCT holds ({day}), so its true peak may be earlier`
+- `NOTE_INDEX_NOT_HELD`: `{detail} This read never builds it. That is not the same as no declines`
+- `NOTE_NOT_HELD`: `market history is not held on this server yet, and this read never builds it. That is not the same as no declines. Open MKTH in UCT, then ask again`
+- `NOTE_FAILED`: `the market history read failed; nothing is stated. That is not the same as no declines`
+
+`econ.latest`, `market.liquidity`, `market.oil`:
+- `NOTE_WHAT`: `{what} as UCT holds it for the {panel} panel: UCT's published economic series from the agencies' own releases, each with its newest readings, their periods and release times, and its next release from the release calendar. Official figures, not a forecast and not advice`
+- `NOTE_AS_OF`: ``as_of` is the newest release time among the readings returned ({at}); it is never the time of the read, and this read never reads the econ store's files`
+- `NOTE_NO_TIME`: ``as_of` is null: no reading returned carries a release time`
+- `NOTE_SOME_NOT_HELD`: `{n} of the {total} series are not held in the server's economics cache yet, and this read never loads them: {names}. That is not the same as no figure`
+- `NOTE_NOT_FOUND`: `{n} of the series are not among those this server publishes: {names}`
+- `NOTE_HISTORY`: `the history returned is each series' points within {days} days of its newest period, from the same held series; a series not held has none`
+- `NOTE_SWITCHED_OFF`: `the economic data is switched off on this server (its routes answer nothing), so it is not read. That is not the same as no figure`
+- `NOTE_NOT_HELD`: `{what} is not held in the server's economics cache yet, and this read never loads it. That is not the same as no figure. Open {panel} in UCT, then ask again`
+- `NOTE_FAILED`: `the read of {what} failed; nothing is stated. That is not the same as no figure`
+
+`market.analogs`:
+- `NOTE_RECORD`: `A record of what followed similar days, not a forecast.`
+- `NOTE_WHAT`: `the past sessions whose breadth looked most like {day} in UCT's breadth history (16 weighted breadth measures over the last 500 sessions), as UCT holds them for the ANLG panel, each with what the S&P 500 did 5, 10, 20 and 60 trading days later. Not advice`
+- `NOTE_AS_OF`: ``as_of` is the close of the reference session ({day}); it is never the time of the read, and this read never searches. UCT worked it out at {at} (UCT's own time)`
+- `NOTE_NOT_YET`: `{n} of the returned forward returns are not yet: fewer trading days have passed since that session (never 0)`
+- `NOTE_SAMPLE`: `{n} sessions is a small sample; every count here is counted from this list`
+- `NOTE_FEWER`: `{held} matches are held and {asked} were asked for: only {held} are returned`
+- `NOTE_CUT`: `{held} matches are held and the closest {shown} are returned: the list is cut from the LEAST similar end`
+- `NOTE_EXPIRED`: `the held answer was worked out more than {hours} hours ago, longer than the route serves it before working it out again; this read never works it out`
+- `NOTE_NO_MATCH`: `the held answer has no match for {day}: the reference session's measures were too few to compare`
+- `NOTE_NOT_HELD`: `the breadth analogues are not held on this server yet, and this read never searches. That is not the same as no similar days. Open ANLG in UCT, then ask again`
+- `NOTE_FAILED`: `the breadth analogues read failed; nothing is stated. That is not the same as no similar days`
+
+**Model isolation, from the licensing register** (`docs/terminal-research/09-security-licensing-cost/licensing-register.md`),
+the builder's default under "when in doubt, isolated": the purchases are the vendor's selection of Form 4 filings (row T-39,
+insider trading for member display, "R"; row T-44, its numbers into a model, "No AI clause"); the clusters come from the
+SEC's own filings (row T-83, public domain, "A"), and row T-99, which records the cluster store, says nothing else reads it
+yet ("no AI lane"); the index closes behind MKTH come from Yahoo (row T-71 and row T-72, "X") and its stock closes from the
+market-data vendor's stored history (row T-04 and row T-09, "R"), the episodes and leaders being UCT's analytics over them
+(row T-11) and row T-14 (the vendor's numbers into a model) "R"; the econ series come from the primary agencies through
+UCT's econ store, which no row names (the register's Economic Data note), the nearest row being row N-14 (economic events,
+calendar and macro series, "R"), and FRED, which the store never uses, is RED with an LLM ban (rows T-59 and T-60); the
+analogues are matched on the Breadth Monitor's row (row T-75, "X", an accepted risk the register records), UCT's breadth
+analytics (row T-11) and retained derived history (row N-25, which names the breadth analogues), with sentiment inputs no
+row names. No row clears any of these for a model provider; the narrower rule is kept. Every capability is local-only.
+These are the builder's default; nobody decided otherwise and nobody was asked. A record of filings, of what an index did,
+of official figures or of what followed similar days: not a forecast, and not advice.
+
+**Routing.** The six capabilities share ONE words-only routing group of their own, `marketMacro`, the 55th of the 56 the
+server keeps (`turn.MAX_GROUPS`, unchanged). Its words are empty in `routing.js` and each capability's own are armed only
+while it is registered, so on a dark server routing is byte-identical to the base. Five name words join the typo lexicon
+while the kinds are served ("insider", "buying", "economy", "liquidity", "oil"); a rail shows they change no correction of
+any other capability's corpus phrasing.
+
 ## 8. Changing this contract
 
 1. Open a PR that edits this file, with a version bump (v1.1 adds; v2.0 breaks). Message agent-lead.
@@ -2864,6 +3021,7 @@ while it is registered, so on a dark server routing is byte-identical to the bas
 
 ## 9. Changelog
 
+- **v1.19 addition (2026-11-24, terminal-data, data wave 13):** §4.22 documents six kinds added dark with this version: `insider.market`, `market.history`, `econ.latest`, `market.liquidity`, `market.oil`, `market.analogs` (the market's insider buying and insider clusters, the S&P 500's and the Nasdaq-100's corrections and bear markets, the economy board, liquidity, the EIA's weekly oil report and the breadth analogues: the Agent half of INS with INS CLUSTER, MKTH, ECON, LIQ, OIL and ANLG). All six are model-isolated (ADR-005; the builder's default under "when in doubt, isolated": no row of the licensing register clears any of them for a model provider; §4.22 quotes the rows each kind is decided from: T-39, T-44, T-83 and T-99 for the insider buying; T-71, T-72, T-04, T-09, T-11 and T-14 for the market history; N-14, T-59 and T-60 for the econ series; T-75, T-11, N-25 and T-14 for the analogues), and none builds, searches, pages a vendor, reads the SEC or reads the econ store's files: each reads only what its service already holds (`insider_feed_held.held_market_buys`, `insider_clusters_sec.held_answer`, `market_history.held_answer`, `econ_held.held_latest`, `econ_held.held_history`, `breadth_analogues_held.held_analogues`) and is `unavailable`, with the reason, otherwise (§5); the three econ kinds also answer `unavailable` while the econ routes' switch (ECON_ENABLED) is off. Three read-only readers are added with this version, each a new file beside its service; every service's own calls are unchanged. `as_of` is the data's own date (the index's newest close, the newest release time, the reference session's close), or null where each part carries its own (the insider buying); never the time of the read. SENT, IDAY, NEWS, UNEWS, WIRE and TIDE get no kind (§4.22 says why). Additive: no existing kind changes and no envelope field changes, so the wire `contract` stays `"MD-1.0"` (§8.4). **Not armed:** all six kinds of §4.22 are default OFF, and switching one on is the owner's step, not this document's. §8.1 status: the version bump and this entry are in the PR that adds the kinds. The message to agent-lead that §8.1 asks for is owed by a person: it has not been sent, and this version is not acknowledged by anyone as of this entry. Nothing in this entry or in §4.22 records an owner decision.
 - **v1.18 addition (2026-11-24, terminal-data, data wave 12):** §4.21 documents five kinds added dark with this version: `estimates.history`, `analyst.ratings`, `company.segments`, `stock.failsToDeliver`, `company.deals` (one stock's estimate history, its analyst ratings and price targets, its revenue by segment and region, its SEC fails to deliver, and its deals and index changes: the Agent half of EEH, ANR, SEG, FTD and one stock's MNA and IDXC), and the first capability over the existing `ratings` kind (RTG). All five are model-isolated (ADR-005; the builder's default under "when in doubt, isolated": no row of the licensing register clears any of them for a model provider; §4.21 quotes the rows each kind is decided from: T-34 and T-44 for the estimates; T-34, T-44, T-04 and T-14 for the analyst record and its upside; T-33 and T-44 for the segments; T-83 (and T-104's mention of the store) for the fails to deliver; T-39, T-44 and T-83 for the deals and index changes), and none builds, registers a symbol, creates a store, downloads or asks a vendor: each reads only what its service already holds (`estimate_history_held.held_history`, `analyst_ratings_held.held_ratings`, `revenue_segments_held.held_segments`, `ftd_dataset_held.held_series`, `company_deals_held.held_mergers`, `company_deals_held.held_index_changes`) and is `unavailable`, with the reason, otherwise (§5); EEH and FTD also answer `unavailable` while their routes' switches (ESTIMATE_HISTORY_ENABLED, FTD_DATASET_ENABLED) are off. **One existing kind changes:** `ratings` (§4.4) now reads only the held rating through `ratings_held.held_ratings` and spends 0 provider calls (it called `get_ratings`, which can build, and counted 3); nothing held is now `unavailable`. That is a narrowing, made by the wave 12 builder so that its first capability adds no vendor read to a turn; no envelope field changes, so the wire `contract` stays `"MD-1.0"` (§8.4). Six read-only readers are added with this version, each a new file beside its service; every service's own calls are unchanged. `as_of` is the data's own date (the stock's newest snapshot, the newest observation time, the newest fiscal period end, the newest settlement date), or null where each part carries its own read time (the deals); never the time of the read. PEER gets no kind: its route works the peers out on the request and holds nothing (§4.21). **Not armed:** all five kinds of §4.21 and `ratings` are default OFF, and switching one on is the owner's step, not this document's. §8.1 status: the version bump and this entry are in the PR that adds the kinds. The message to agent-lead that §8.1 asks for is owed by a person: it has not been sent, and this version is not acknowledged by anyone as of this entry. Nothing in this entry or in §4.21 records an owner decision.
 - **v1.17 addition (2026-11-23, terminal-data, data wave 11):** §4.20 documents seven kinds added dark with this version: `groups.rank`, `groups.crowding`, `earnings.seasonBySector`, `estimates.revisionBreadth`, `options.ivRankLeaders`, `ipo.lockups`, `cot.byTrader` (every sector's or industry's weekly rank and its crowding, an earnings season by sector, estimate revisions by sector, the highest and lowest IV rank, estimated IPO lockup expiries, and futures positioning by trader type: the Agent half of GRPS RANK, GRPS CROWDING, ERNSC, EEHSC, OSCR RICH / CHEAP, IPO LOCKUP and the COT panel's "By trader type" view). All seven are model-isolated (ADR-005; the builder's default under "when in doubt, isolated": no row of the licensing register clears any of them for a model provider; §4.20 quotes the rows each kind is decided from: T-04, T-09, T-71 and T-14 for the group rank, as the price studies; T-93, T-48, T-99 and T-104 for the crowding; T-36, T-44, T-53 and T-54 with T-04, T-09 and T-14 for the earnings season; T-34 and T-44 for the revisions; T-28 and T-14 for the IV rank; T-04, T-09, T-14, T-52 and T-54 for the lockups; T-105, with T-82 and T-104, for the COT by trader type), and none builds, starts a background build, downloads or asks a vendor or an agency: each reads only what its service already holds (`group_stats.get_group_stats`, `group_stats.get_group_positioning`, `sector_earnings_held.held_season`, `estimate_revisions_held.held_breadth`, `iv_rank_leaders.get_leaders`, `ipo_lockups_held.held_lockups`, `cot_finer.market_answer`, `cot_finer.board_answer`) and is `unavailable`, with the reason, otherwise (§5); the EEHSC and OSCR kinds also answer `unavailable` while their routes' switches (ESTIMATE_HISTORY_ENABLED, OPTIONS_SCREENER_ENABLED) are off. Three read-only readers are added with this version, each a new file beside its service; every service's own calls are unchanged. `as_of` is the data's own date (the newest session's close, the newest held copy's or snapshot's day, the listings scan's time, the report's Tuesday), or null where each part carries its own (the crowding); never the time of the read. Additive: no existing kind changes and no envelope field changes, so the wire `contract` stays `"MD-1.0"` (§8.4). **Not armed:** all seven kinds of §4.20 are default OFF, and switching one on is the owner's step, not this document's. §8.1 status: the version bump and this entry are in the PR that adds the kinds. The message to agent-lead that §8.1 asks for is owed by a person: it has not been sent, and this version is not acknowledged by anyone as of this entry. Nothing in this entry or in §4.20 records an owner decision.
 - **v1.16 addition (2026-11-23, terminal-data, data wave 10):** §4.19 documents six kinds added dark with this version: `stock.stats`, `stock.volumeFootprint`, `stock.factorExposure`, `stock.setupHistory`, `company.publicRecords`, `ownership.funds` (one stock's statistics, its volume footprint and gaps, its factor exposure, the setups that fired on it, one company's public records, and the registered funds holding one stock: the Agent half of STAT, VFP, FCTX, SETH, PUBR and the OWN panel's N-PORT block). All six are model-isolated (ADR-005; the builder's default under "when in doubt, isolated": no row of the licensing register clears any of them for a model provider; §4.19 quotes the rows each kind is decided from: T-04, T-09, T-71 and T-14 for the four price studies, as `seasonality.stock` already is, with T-44 for the footprint's earnings marks; T-100, T-101, T-102 and T-103 for the public records; T-104 for the N-PORT funds), and none works anything out, starts a build, asks an agency or downloads: each reads only what its service already holds (`stock_stats_held.held_stats`, `volume_footprint_held.held_footprint`, `factor_exposure_held.held_exposure`, `setup_history_held.held_signals`, `public_records.held_records`, `fund_holders_nport.answer_for`) and is `unavailable` or `partial`, with the reason, otherwise (§5). Four read-only readers are added with this version, each a new file beside its service; every service's own calls are unchanged. `as_of` is the data's own date (the newest session's close, the newest fund report period), or null where each section carries its own read time (the public records); never the time of the read. Additive: no existing kind changes and no envelope field changes, so the wire `contract` stays `"MD-1.0"` (§8.4). **Not armed:** all six kinds of §4.19 are default OFF, and switching one on is the owner's step, not this document's. §8.1 status: the version bump and this entry are in the PR that adds the kinds. The message to agent-lead that §8.1 asks for is owed by a person: it has not been sent, and this version is not acknowledged by anyone as of this entry. Nothing in this entry or in §4.19 records an owner decision.
