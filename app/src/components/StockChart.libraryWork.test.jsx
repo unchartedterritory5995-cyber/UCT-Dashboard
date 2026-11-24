@@ -2,16 +2,18 @@
 //
 // The REAL StockChart, on the chart's default board (candles, volume, the four default moving averages, the hidden
 // future-axis line), through the render window, switching the way a member steps through a list: the next name's bars
-// already in memory. A recording stand-in for the library captures every series the chart creates and every row it
-// hands each one (what the library would be handed: after the render window's cut). The recording is then REPLAYED on
-// the real library, the production build as published and as the build patches it (src/testing/chartLibraryBuilds.js:
-// a test's normal import is the development build, which no member runs), and the library's work is counted per step:
+// already in memory. The chart runs on the REAL library as members run it: the production build through the build's
+// own edits (src/testing/chartLibraryBuilds.js; a test's normal import is the development build, which no member runs),
+// so everything the chart asks the library (its visible range, coordinates, data) is answered truthfully. A thin layer
+// under the render window records every series the chart creates and every row it hands each one. The recording is
+// then REPLAYED on the production build as published and as patched, and the library's work is counted per step:
 //   calls    `setData` calls (each one ends in the library's `recalculateAllPanes`: an autoscale pass over every pane)
 //   updates  `update` calls (the same, one row at a time)
 //   sorts    time-scale rebuilds, measured on each build
 //   full     FULL updates: calls after which the library's set of time points changed (every series re-set in the
 //            library's model, the time scale's points and tick marks redone); on the patched build, sorts == full.
-// The table is written to remote-out/library-work.json on the remote lane. Counts, not milliseconds: nothing here times.
+// Each step also says why the chart painted (every updateChart pass: its bars plan, its paint, which part of its render
+// signature moved). The table is written to remote-out/library-work.json on the remote lane. Counts, not milliseconds.
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -20,54 +22,39 @@ import { pinWallClock } from '../testing/pinnedWallClock'
 import { loadWithBarStore } from '../testing/barStoreModes'
 import { loadChartLibraryBuilds, stubCanvasForChartLibrary, libraryWorkCounter } from '../testing/chartLibraryBuilds'
 
-const S = vi.hoisted(() => ({ calls: [], n: 0 }))
+const S = vi.hoisted(() => ({ calls: [], n: 0, ids: new Map() }))
 vi.mock('../lib/realtimeBarsGate', () => ({ realtimeBarsEnabled: () => false }))
-vi.mock('lightweight-charts', async (importOriginal) => {
-  const real = await importOriginal()
-  const kindOf = (type) => (type === real.CandlestickSeries ? 'candle' : type === real.HistogramSeries ? 'histogram'
-    : type === real.LineSeries ? 'line' : type === real.AreaSeries ? 'area' : type === real.BarSeries ? 'bar'
-      : type === real.BaselineSeries ? 'baseline' : 'other')
+vi.mock('lightweight-charts', async () => {
+  const builds = await import('../testing/chartLibraryBuilds')
+  builds.stubCanvasForChartLibrary()
+  const lib = (await builds.loadChartLibraryBuilds()).patched
+  const kindOf = (def) => (def === lib.CandlestickSeries ? 'candle' : def === lib.HistogramSeries ? 'histogram'
+    : def === lib.LineSeries ? 'line' : def === lib.AreaSeries ? 'area' : def === lib.BarSeries ? 'bar'
+      : def === lib.BaselineSeries ? 'baseline' : 'other')
   // what each row is to the library: its time, and whether it is a bar ('c'), a value ('v') or whitespace ('w')
   const slim = (rows) => (Array.isArray(rows) ? rows.map((r) => [r?.time,
     r && (r.open !== undefined || r.close !== undefined) ? 'c' : r && r.value !== undefined ? 'v' : 'w']) : [])
-  const make = (kind, options, pane) => {
+  const recorded = (s, kind, options, pane) => {
     const id = ++S.n
+    S.ids.set(s, id)
     S.calls.push({ m: 'add', id, kind, pane: Number.isInteger(pane) ? pane : 0, scale: options?.priceScaleId ?? null })
-    return {
-      __id: id,
-      setData: (d) => { S.calls.push({ m: 'setData', id, rows: slim(d) }) },
-      update: (p, hist) => { S.calls.push({ m: 'update', id, rows: slim([p]), hist: !!hist }) },
-      data: () => [],
-      applyOptions: () => {}, priceScale: () => ({ applyOptions: () => {}, width: () => 0 }),
-      createPriceLine: () => ({ applyOptions: () => {} }), removePriceLine: () => {}, setMarkers: () => {}, attachPrimitive: () => {},
-      detachPrimitive: () => {}, priceToCoordinate: () => 0, coordinateToPrice: () => 0, options: () => ({}),
-      getPane: () => ({ paneIndex: () => 0, getHeight: () => 300, getHTMLElement: () => document.createElement('div'), getSeries: () => [] }),
-      priceFormatter: () => ({ format: (x) => String(x) }), moveToPane: () => {}, seriesOrder: () => 0, setSeriesOrder: () => {},
-      dataByIndex: () => null, barsInLogicalRange: () => null,
-      subscribeDataChanged: () => {}, unsubscribeDataChanged: () => {},
-    }
+    const setData = s.setData.bind(s)
+    const update = s.update.bind(s)
+    s.setData = (d) => { S.calls.push({ m: 'setData', id, rows: slim(d) }); return setData(d) }
+    s.update = (p, hist) => { S.calls.push({ m: 'update', id, rows: slim([p]), hist: !!hist }); return update(p, hist) }
+    return s
   }
-  const chart = {
-    addSeries: (type, options, pane) => make(kindOf(type), options, pane),
-    addCustomSeries: (_view, options, pane) => make('custom', options, pane),
-    removeSeries: (s) => { S.calls.push({ m: 'remove', id: s?.__id }) },
-    applyOptions: () => {}, priceScale: () => ({ applyOptions: () => {}, width: () => 0 }),
-    timeScale: () => ({
-      applyOptions: () => {}, fitContent: () => {}, setVisibleLogicalRange: () => {}, getVisibleLogicalRange: () => null,
-      setVisibleRange: () => {}, scrollToPosition: () => {}, subscribeVisibleLogicalRangeChange: () => {},
-      unsubscribeVisibleLogicalRangeChange: () => {}, timeToCoordinate: () => 0, coordinateToTime: () => null,
-      resetTimeScale: () => {}, options: () => ({}), width: () => 600, logicalToCoordinate: () => 0,
-      subscribeSizeChange: () => {}, unsubscribeSizeChange: () => {},
-      subscribeVisibleTimeRangeChange: () => {}, unsubscribeVisibleTimeRangeChange: () => {},
-    }),
-    paneSize: () => ({ width: 600, height: 300 }),
-    subscribeCrosshairMove: () => {}, unsubscribeCrosshairMove: () => {}, subscribeClick: () => {}, unsubscribeClick: () => {},
-    subscribeDblClick: () => {}, unsubscribeDblClick: () => {},
-    panes: () => [{ getHeight: () => 300, getHTMLElement: () => document.createElement('div'), getSeries: () => [], setHeight: () => {}, setStretchFactor: () => {}, getStretchFactor: () => 1, paneIndex: () => 0 }],
-    resize: () => {}, remove: () => {}, takeScreenshot: () => document.createElement('canvas'),
-    chartElement: () => document.createElement('div'),
+  const createChart = (...args) => {
+    const chart = lib.createChart(...args)
+    const addSeries = chart.addSeries.bind(chart)
+    const addCustomSeries = chart.addCustomSeries.bind(chart)
+    const removeSeries = chart.removeSeries.bind(chart)
+    chart.addSeries = (def, options, pane) => recorded(addSeries(def, options, pane), kindOf(def), options, pane)
+    chart.addCustomSeries = (view, options, pane) => recorded(addCustomSeries(view, options, pane), 'custom', options, pane)
+    chart.removeSeries = (s) => { S.calls.push({ m: 'remove', id: S.ids.get(s) }); return removeSeries(s) }
+    return chart
   }
-  return { ...real, createChart: () => chart, createSeriesMarkers: () => ({ setMarkers: () => {} }) }
+  return { ...lib, createChart }
 })
 // every updateChart pass: its bars plan and the paint it recorded (chart/paintLog.js), to say WHY a switch paints
 vi.mock('./chart/renderPlan', async (orig) => {
