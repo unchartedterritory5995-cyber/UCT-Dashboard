@@ -478,16 +478,6 @@
       "files": []
     },
     {
-      "key": "notebook_landing",
-      "store": "server-preference",
-      "scope": "cross-device",
-      "surface": "Notebook",
-      "kind": "setting",
-      "label": "Notebook start page (an earlier choice, no longer used)",
-      "serverAllowlisted": true,
-      "files": []
-    },
-    {
       "key": "notebook_log_trade_checklist",
       "store": "server-preference",
       "scope": "cross-device",
