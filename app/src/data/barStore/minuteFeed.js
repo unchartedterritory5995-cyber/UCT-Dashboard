@@ -58,8 +58,11 @@
 //     and the key stays behind exactly as today.
 //
 // So a bucket with a quiet or late minute inside, one touched by a missed or INCOMPLETE frame, one that began before
-// the symbol was held: not appended, and neither is any bucket after it (until the key's next answer). One the rollup
-// says it can no longer vouch for (a correction it could not settle: `stale`): not appended either.
+// the symbol was held: not appended, and neither is any bucket after it (until the key's next answer).
+// A BUCKET THE ROLLUP CAN NO LONGER VOUCH FOR (`stale`: a correction it could not settle exactly, typically a bad-print
+// high or low removed; or a late minute too old for it to merge) is rebuilt here from the kept minutes themselves,
+// which hold the corrected minute, and appended, or offered again as a correction when it was already appended
+// (review of #2680, B2: left alone, a copy that reads current kept the bad high until its next answer).
 // THE FORMING BUCKET IS NEVER SYNTHESIZED: a bucket whose last minute has not been applied is not whole, so nothing is
 // offered for it. A fed 15m copy at 10:16 holds closed buckets through the one that ended at 10:15 and no forming bar
 // (the chart's own stream or answer brings that, as for 1m); `_behindClock` accepts it, because its newest closed
@@ -178,7 +181,7 @@ export function createMinuteFeeder({
    *    bars   Map<minute, row>        the minutes KEPT for it (see the header: what is not kept cannot be walked)
    *    redo   Set<minute>             minutes (re)stated since its 1m key was last brought forward
    *    hi     Map<tf, Map<t, row>>    the rollup's buckets of those minutes, as it last stated them
-   *    bad    Map<tf, Set<t>>         buckets the rollup no longer vouches for
+   *    bad    Map<tf, Map<t, rev>>    buckets the rollup no longer vouches for, with the revision of that report
    *    redoHi Map<tf, Set<t>>         buckets (re)stated since that timeframe's key was last brought forward */
   const syms = new Map()
   /** Map<sym, Map<tf, key>> of the fed keys held while the frame in hand is applied (read once per frame). */
@@ -258,15 +261,27 @@ export function createMinuteFeeder({
     return next
   }
 
-  /** The rollup's bucket of `tf` starting at `t`, WHEN IT MAY BE APPENDED (the header): the rollup still vouches for
-   *  it, and every one of its minutes is kept for the symbol. A bucket whose last minute has not been applied is
-   *  therefore never whole: the forming bucket is never offered. */
+  /** The bucket of `tf` starting at `t`, WHEN IT MAY BE APPENDED (the header): every one of its minutes is kept for the
+   *  symbol. A bucket whose last minute has not been applied is therefore never whole: the forming bucket is never
+   *  offered. Its values are the rollup's. Only for a bucket the rollup reported it can no longer vouch for are they
+   *  built here, from the kept minutes (already at the server's grain): open of the first, close of the last, the
+   *  highest high, the lowest low, the volumes summed, as the rollup itself folds them. */
   function _whole(st, tf, t) {
-    const row = st.hi.get(tf)?.get(t)
-    if (!row || st.bad.get(tf)?.has(t)) return null
     const end = bucketOf(t, tf)[1]
     for (let m = t / 60; m < end / 60; m++) if (!st.bars.has(m)) return null
-    return row
+    const row = st.hi.get(tf)?.get(t) ?? null
+    const staleAt = st.bad.get(tf)?.get(t)
+    if (staleAt == null) return row
+    const first = st.bars.get(t / 60)
+    const b = { t, o: first.o, h: first.h, l: first.l, c: first.c, v: 0, rev: Math.max(staleAt, row ? row.rev : 0) }
+    for (let m = t / 60; m < end / 60; m++) {
+      const x = st.bars.get(m)
+      if (x.h > b.h) b.h = x.h
+      if (x.l < b.l) b.l = x.l
+      b.c = x.c
+      b.v += x.v
+    }
+    return b
   }
 
   /** Bring ONE held 5m / 15m / 30m / 60m key forward, bucket by bucket (idempotent: it reads the copy). */
@@ -413,18 +428,23 @@ export function createMinuteFeeder({
       // the rollup's buckets as of this frame, at the server's grain like the minutes. A bucket's revision is the
       // earliest instant it can have been observed whole: its own end, or for one a later frame stated again (a LATE
       // or REPLACE minute inside it) the start of that frame's minute.
+      const seenAt = (t, tf) => Math.max(bucketOf(t, tf)[1] / 60, M) * 60_000
       for (const [sym, tf, bar] of pendHi) {
         const st = syms.get(sym)
         if (!st) continue
         _of(st.hi, tf, () => new Map()).set(bar.t, {
           t: bar.t, o: serverPrice(bar.o), h: serverPrice(bar.h), l: serverPrice(bar.l), c: serverPrice(bar.c), v: bar.v,
-          rev: Math.max(bucketOf(bar.t, tf)[1] / 60, M) * 60_000,
+          rev: seenAt(bar.t, tf),
         })
         if (st.keys.has(tf)) _of(st.redoHi, tf, () => new Set()).add(bar.t)
       }
+      // ...and the buckets it can no longer vouch for: rebuilt from the kept minutes (`_whole`) and offered again, at
+      // this frame's revision, whether or not the rollup restated them (a late minute too old for it to merge is not)
       for (const [sym, tf, t] of pendStale) {
         const st = syms.get(sym)
-        if (st) _of(st.bad, tf, () => new Set()).add(t)
+        if (!st) continue
+        _of(st.bad, tf, () => new Map()).set(t, seenAt(t, tf))
+        if (st.keys.has(tf)) _of(st.redoHi, tf, () => new Set()).add(t)
       }
       pendHi = []
       pendStale = []
@@ -433,7 +453,7 @@ export function createMinuteFeeder({
       for (const st of syms.values()) {
         for (const k of st.bars.keys()) if (k < floor) st.bars.delete(k)
         for (const m of st.hi.values()) for (const t of m.keys()) if (t < floor * 60) m.delete(t)
-        for (const b of st.bad.values()) for (const t of b) if (t < floor * 60) b.delete(t)
+        for (const b of st.bad.values()) for (const t of b.keys()) if (t < floor * 60) b.delete(t)
       }
       stats.frames++
       _pump()

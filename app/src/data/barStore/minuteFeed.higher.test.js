@@ -16,7 +16,6 @@
 //               H5 a minute with no bar inside the bucket (a complete frame without the symbol)
 //               H6 an INCOMPLETE frame, a missed frame inside the bucket
 //               H7 a symbol held only after its bucket began; fed again from the bucket after its next answer
-//               H11c a bucket the rollup can no longer vouch for (a correction it could not settle)
 //               H16 a 60m bucket whose first minutes are no longer kept
 //   FORMING     H9 the forming bucket is never synthesized; the server's forming bar is left alone until its bucket closes whole
 //               H9b a forming bar whose bucket is not whole is never stepped past (it would close as a stale partial bar)
@@ -24,6 +23,9 @@
 //   SERVER WINS H10 a later answer replaces a fed bucket; a sealed span keeps the feed out
 //               H17 an answer built BEFORE the bucket closed does not turn the closed bucket back into a forming one
 //   CORRECTIONS H11 a REPLACE record inside a bucket, before and after it was appended
+//               H11c a correction the rollup could NOT settle (it reports the bucket stale): the bucket is rebuilt from
+//                    the kept minutes   H11d ...also after it was appended (a bad-print high removed: review B2)
+//               H11e ...also when the rollup reports it without restating the bucket (a late minute two buckets back)
 //               H12 ...one 29 minutes back inside a 60m bucket is still settled exactly
 //   LEFT ALONE  H13 a key a chart is on (fed once the chart leaves)      H13b no answer, a saved copy, a pending full re-read
 //               H14 the extended 60m key, a windowed key, a D key        H14b what makes the feed poll
@@ -308,17 +310,6 @@ describe('minute feed · 5m-60m: a bucket with a minute the feed cannot vouch fo
     expect(w.starts('AAA', '15', 30)).toEqual([30, 45, 60])
   })
 
-  it('H11c a bucket the rollup can no longer vouch for (a correction it could not settle exactly) is not appended', () => {
-    const w = world()
-    w.answer('AAA', '15', { closed: [[0, 14], [15, 29]] })
-    const before = w.snap('AAA', '15')
-    // 10:00 was the bucket's low; its correction has a HIGHER low: the bucket's low is now one of the other minutes',
-    // and the rollup does not re-read them (lib/minuteFrames/rollup.js: reported STALE)
-    w.frames(30, 59, (n) => (n === 33 ? { blocks: [{ minute: w.M(30), kind: KIND_REPLACE, rows: [rec('AAA', 30, { l: 2029.5 })] }] } : undefined))
-    expect(w.snap('AAA', '15')).toBe(before)
-    expect(w.feeder.stats()).toMatchObject({ appended: 0, rejected: 0 })
-  })
-
   it('H16 a 60m bucket whose first minutes are no longer kept is left alone; one still kept is appended when the chart leaves', () => {
     for (const leaveAt of [125, 62 + RING_MINUTES]) {
       const w = world({ start: [60, 20] })                        // 10:30:20
@@ -420,6 +411,49 @@ describe('minute feed · 5m-60m: corrections', () => {
     late.frames(46, 46, fix35(late, 46))
     expect(late.row('AAA', '15', 30)).toMatchObject({ ...late.agg(30, 44, { v: fixed(late.agg(30, 44).v) }), src: 'final', rev: late.M(46) * 60_000 })
     expect(late.feeder.stats()).toMatchObject({ appended: 1, corrected: 1 })
+  })
+
+  it('H11c a correction the rollup could not settle exactly (it reports the bucket STALE): the bucket is built from the kept minutes', () => {
+    const w = world()
+    w.answer('AAA', '15', { closed: [[0, 14], [15, 29]] })
+    // 10:00 was the bucket's low; its correction has a HIGHER low: the bucket's low is now one of the other minutes',
+    // and the rollup does not re-read them (lib/minuteFrames/rollup.js keeps the old low and says STALE)
+    w.frames(30, 44, (n) => (n === 33 ? { blocks: [{ minute: w.M(30), kind: KIND_REPLACE, rows: [rec('AAA', 30, { l: 2029.5 })] }] } : undefined))
+    expect(w.tail('AAA', '15')).toMatchObject({ ...w.agg(30, 44), l: 2029.5, src: 'final', rev: w.M(45) * 60_000 })
+    expect(w.feeder.stats()).toMatchObject({ appended: 1, rejected: 0 })
+    // a later correction the rollup CAN settle restates the bucket: still built from the kept minutes, at that frame's revision
+    w.frames(45, 46, fix35(w, 46))
+    expect(w.row('AAA', '15', 30)).toMatchObject({ ...w.agg(30, 44, { v: fixed(w.agg(30, 44).v) }), l: 2029.5, src: 'final', rev: w.M(46) * 60_000 })
+  })
+
+  it('H11d a bad-print high removed AFTER the bucket was appended (the rollup cannot settle it): the bucket is rebuilt and corrected', () => {
+    const w = world()
+    w.answer('AAA', '15', { closed: [[0, 14], [15, 29]] })
+    w.frames(30, 45)
+    expect(w.row('AAA', '15', 30)).toMatchObject(w.agg(30, 44))  // its high, 2045, is 10:14's
+    // 10:14 corrected to a LOWER high: the bucket's high is now below the one the copy shows
+    w.frame(46, { blocks: [{ minute: w.M(44), kind: KIND_REPLACE, rows: [rec('AAA', 44, { h: 2044.6 })] }] })
+    expect(w.row('AAA', '15', 30)).toMatchObject({ ...w.agg(30, 44), h: 2044.6, src: 'final', rev: w.M(46) * 60_000 })
+    expect(w.feeder.stats()).toMatchObject({ appended: 1, corrected: 1, rejected: 0 })
+    // ...and the server still has the last word on it
+    w.clock.ms = w.at(47, 30)
+    w.answer('AAA', '15', { closed: [[0, 14], [15, 29], [30, 44]], px: 0.5 })
+    expect(w.row('AAA', '15', 30)).toMatchObject({ ...w.agg(30, 44, { px: 0.5 }), src: 'rest' })
+  })
+
+  it('H11e a late minute two buckets back (the rollup reports the bucket stale and does not restate it): rebuilt and offered all the same', () => {
+    const w = world({ start: [28, 20] })
+    w.hold('AAA', '5')
+    w.frames(29, 36, withoutAAA(31))                              // AAA's 10:01 bar is late
+    w.clock.ms = w.at(37, 20)                                     // 10:07:20: the server's 10:00 bucket (unsealed) is in the answer
+    w.answer('AAA', '5', { closed: [[20, 24], [25, 29], [30, 34]], px: 0.25 })
+    w.frames(37, 39)
+    expect(w.tail('AAA', '5')).toMatchObject({ ...w.agg(35, 39), src: 'final' })
+    expect(w.row('AAA', '5', 30)).toMatchObject({ ...w.agg(30, 34, { px: 0.25 }), src: 'rest' })
+    // the 10:01 bar arrives with the 10:10 frame: 10:00-10:05 is two 5m buckets back, too old for the rollup to merge
+    w.frame(40, { blocks: [{ minute: w.M(31), kind: KIND_LATE, rows: [rec('AAA', 31)] }] })
+    expect(w.row('AAA', '5', 30)).toMatchObject({ ...w.agg(30, 34), src: 'final', rev: w.M(40) * 60_000 })
+    expect(w.feeder.stats()).toMatchObject({ corrected: 1, rejected: 0 })
   })
 
   it('H12 a correction 29 minutes back inside a 60m bucket is settled exactly (the rollup keeps a whole bucket of minutes)', () => {
