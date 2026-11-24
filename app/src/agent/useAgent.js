@@ -3604,7 +3604,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       // verb / command position ("fix that" → chart.setSymbol FIX) is ASKED, never applied: the plan becomes a proposal card under the
       // question, and nothing changes unless the member applies it (deixis.wordOnlyTickers states the rule). Fail closed.
       let wordTicker = []
-      try { wordTicker = wordOnlyTickers({ ops: screened.ops, text, getCapability }) } catch { wordTicker = [{ ticker: null }] }
+      try { wordTicker = wordOnlyTickers({ ops: screened.ops, text, getCapability, ordinary: lexiconFor(host).words }) } catch { wordTicker = [{ ticker: null }] }
       if (wordTicker.length) {
         const q = wordTickerQuestion(wordTicker)
         mark('escalate', 'word-ticker')

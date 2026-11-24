@@ -953,10 +953,21 @@ export function tickerWordRole(text, ticker, { capsExplicit = true, strong = fal
   return !seen ? null : verb ? 'verb' : 'other'
 }
 /** The plan's ticker values the member typed only as an ordinary word in a verb / command position → [{ ticker, word }]. */
-export function wordOnlyTickers({ ops, text, getCapability = null }) {
+// ⭐ AUDIT NO-GO F2 (11-23): the role rules are about ORDINARY ENGLISH WORDS that happen to be tickers. A ticker that is no English
+// word ("nvda the right one", "amd back on the right chart", "pltr again …") is a ticker wherever it stands — never asked, never
+// dropped as a target. The words: the ticker pronouns / short request words (ORDINARY, PRONOUNS, the app's own lexicon: isOrdinary)
+// plus the common English words that ARE symbols in the universe /api/ticker-search serves (api/data/cap_universe.json, measured
+// 2026-11-23: agentWordTicker.test.js pins that each is listed there). A word outside the list keeps the existing rule.
+export const ENGLISH_TICKER_WORDS = new Set(('act ago air all am an are arm as ball band be bill bit boot box by cake can car care cash cat chef coin cold cost dash eat edit ' +
+  'ever eye fast fate five fix flex fly for form four fox fun gain gap glad go gold good grab has he hog hood hope hum ice iron it ' +
+  'key keys land leg life line lion lot low luck main man mod net next nice now odd on onto open or out pack path pay pen play plus ' +
+  'pool post pump race rare real road rock root run safe ship shop site sky snap snow so son spot step sun swim talk tap task team ' +
+  'tech ten tree trip two unit up wash way well west wing wolf you').split(' '))
+export const isEnglishWord = (lower, extra = null) => isOrdinary(String(lower || '').toLowerCase(), extra) || ENGLISH_TICKER_WORDS.has(String(lower || '').toLowerCase())
+export function wordOnlyTickers({ ops, text, getCapability = null, ordinary = null }) {
   const out = []
   for (const T of planTickerValues(ops, getCapability)) {
-    if (tickerWordRole(text, T) === 'verb') out.push({ ticker: T, word: T.toLowerCase() })
+    if (isEnglishWord(T, ordinary) && tickerWordRole(text, T) === 'verb') out.push({ ticker: T, word: T.toLowerCase() })
   }
   return out
 }
@@ -976,7 +987,9 @@ export function wordTickerQuestion(hits) {
  */
 export function wordInVerbRole(text, ticker, ordinary = false) {
   try {
-    return ordinary ? tickerWordRole(text, ticker, { capsExplicit: false, lone: true }) === 'verb' : tickerWordRole(text, ticker, { strong: true }) === 'verb'
+    if (ordinary) return tickerWordRole(text, ticker, { capsExplicit: false, lone: true }) === 'verb'
+    // (F2) any other word only when it IS an English word ("fix it on the right one"); a ticker that is no word is always a name
+    return ENGLISH_TICKER_WORDS.has(String(ticker || '').toLowerCase()) && tickerWordRole(text, ticker, { strong: true }) === 'verb'
   } catch { return false }
 }
 
@@ -984,18 +997,52 @@ export function wordInVerbRole(text, ticker, ordinary = false) {
 // After a change on the META chart, "no, the MSFT one" planned as [META put back as it was, MSFT changed] was ALWAYS stopped with
 // "You named MSFT, but Chart (META) shows META" (v1 and v2, apply and propose): the write on META is not a target choice, it is the
 // UNDO HALF of the correction. It is recognised — and only it — when ALL hold:
-//   (1) the words are a correction (a leading "no / nope / wait / oops / sorry / actually / wrong", or "not", "instead", "meant",
-//       "rather", "wrong one / chart" anywhere);
+//   (1) the words REJECT the earlier change (correctionLicensed, below — AUDIT NO-GO F1: a bare "actually / wait / not / rather"
+//       anywhere licensed it, so "actually make MSFT weekly too" silently put META back);
 //   (2) the Agent's LAST turn changed that chart: its Undo entry holds the chart as it was (`items`: the entries' landed items);
 //   (3) the op puts back EXACTLY what that change changed: read through the capability's own `apply` and the kind's own `patch`,
 //       the op's change equals the change from the chart now back to the chart as it was (same fields, same values).
 // Anything else on that chart (another property, another value, a chart the last turn did not change, no correction words) is not
 // the undo half — the target rail asks, as before. Fails closed (an unreadable check is no revert).
-const CORRECTION_CUE = /^\s*(?:no|nope|nah|wait|oops|sorry|actually|wrong)\b|\b(?:not|instead|meant|rather|wrong (?:one|chart))\b/i
+// ⭐ AUDIT NO-GO F1 (11-23): the words must POSITIVELY say the earlier change was the wrong one. Licensed by exactly one of:
+//   • a leading rejection: "no, …", "nope", "nah", "wrong …", "oops", "sorry, …", "my bad", "not that", "that's wrong" (but not
+//     "no problem / no worries / no rush / no need");
+//   • "I meant …" / "meant the …";
+//   • "… instead" (a replacement), or "instead of / rather than / not <the earlier chart>" — the earlier chart BY NAME ("not META");
+//   • "not that one / chart", "wrong one / chart", "put <the earlier chart> back", "undo / revert".
+// And never when the words ADD ("too", "also", "as well", "both", "keep", "not just / not only", "now do", "in addition", "plus",
+// "another"): an additive request keeps the earlier change, so a plan that puts it back is a change nobody asked for — the rails
+// ask about it, as before. A bare "not" / "rather" mid-sentence ("…, not monthly", "rather than daily") licenses nothing.
+const ADDITIVE = /\b(?:too|also|as\s+well|both|keep|keeping|not\s+just|not\s+only|now\s+do|in\s+addition|additionally|plus|another)\b/i
+const LEAD_REJECT = /^\s*(?:no|nope|nah|wrong|oops|sorry|my\s+bad|not\s+that|that'?s\s+(?:wrong|not\s+it)|that\s+was\s+wrong)\b(?!\s+(?:problem|worries|worry|rush|need|biggie|doubt)\b)/i
+const MEANT = /\b(?:i|I)\s+meant\b|\bmeant\s+the\b/
+const INSTEAD_BARE = /\binstead\b(?!\s+of\b)/i
+const POINTER_REJECT = /\bnot\s+(?:that|this)\s+(?:one|chart)\b|\bwrong\s+(?:one|chart)\b|\b(?:undo|revert)\b/i
+const escRe = (x) => String(x).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+/** Do the words reject the earlier change on `earlier` (the symbols of the charts the last turn changed)? */
+export function correctionLicensed(text, earlier = []) {
+  const s = String(text || '').replace(/[’‘]/g, '\'')
+  if (!s.trim() || ADDITIVE.test(s)) return false
+  if (LEAD_REJECT.test(s) || MEANT.test(s) || INSTEAD_BARE.test(s) || POINTER_REJECT.test(s)) return true
+  for (const sym of earlier || []) {
+    const t = escRe(String(sym || '').trim())
+    if (!t) continue
+    if (new RegExp(`\\b(?:not|instead\\s+of|rather\\s+than)\\s+(?:the\\s+)?\\$?${t}\\b`, 'i').test(s)) return true
+    if (new RegExp(`\\bput\\s+(?:the\\s+)?\\$?${t}\\b(?:\\s+chart|\\s+one)?\\s+back\\b`, 'i').test(s)) return true
+  }
+  return false
+}
 const canonJson = (v) => JSON.stringify(v, (k, x) => (x && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries(Object.keys(x).sort().map(key => [key, x[key]])) : x))
 /** → (op) => true when `op` is the undo half of a correction (rules above), or null when the words are no correction / nothing to undo. */
 export function correctionReverts({ text, items, host, getCapability, getTargetKind }) {
-  if (!CORRECTION_CUE.test(String(text || '')) || !Array.isArray(items) || !items.length) return null
+  if (!Array.isArray(items) || !items.length) return null
+  // the symbols of the charts the last turn changed (as they were, and as they are now)
+  const earlier = []
+  for (const i of items) {
+    const sym = i?.before?.symbol || (() => { try { return (host?.charts?.list?.() || []).find(c => c.ref === i?.ref)?.symbol } catch { return null } })()
+    if (sym && !earlier.includes(sym)) earlier.push(sym)
+  }
+  if (!correctionLicensed(text, earlier)) return null
   return (o) => {
     try {
       const cap = getCapability(o?.action)

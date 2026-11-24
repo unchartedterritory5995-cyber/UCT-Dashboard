@@ -169,3 +169,31 @@ describe('(b) an ordinary word in a correction / command role names no target ti
   }, 30000)
   it('the controls reached the model (non-vacuous)', () => { expect(asked).toBeGreaterThanOrEqual(Math.floor(ctl.length / 2)) })
 })
+
+// ── AUDIT NO-GO F2 (11-23): a ticker that is NO English word is never asked, whatever its position ────────────────────────────
+// Two charts SPY / QQQ, the model plans setSymbol on the right chart. f4c64d59e1 asked "Did you mean the ticker NVDA?" for 12 of
+// AUDIT's 14; master applied 14 of 14. Real tickers: AUDIT's names plus no-vowel symbols generated from the universe.
+const NONWORD = [...new Set(['NVDA', 'AMD', 'TSLA', 'PLTR', 'MSFT', ...[...UNIVERSE].filter(t => /^[B-DF-HJ-NP-TV-Z]{3,4}$/.test(t)).slice(0, 12)])]
+  .filter(t => UNIVERSE.has(t) && !ENGLISH.includes(t.toLowerCase()))
+const F2_FRAMES = [w => `${w} the right one`, w => `${w} back on the right chart`, w => `${w} up on the right`, w => `${w} again on the right one`,
+  w => `ok now ${w} the right one`, w => `${w} all day on the right one`]
+describe('F2: a real ticker (no English word) at a clause head is applied, never asked', () => {
+  const rows = []
+  NONWORD.forEach((T, i) => {
+    const frames = i < 5 ? F2_FRAMES : [F2_FRAMES[i % F2_FRAMES.length], F2_FRAMES[(i + 3) % F2_FRAMES.length]]
+    for (const f of frames) rows.push([T, f(T.toLowerCase())])
+  })
+  it('the class: real, no English word, every frame used', () => {
+    expect(NONWORD.length).toBeGreaterThanOrEqual(12)
+    expect(rows.length).toBeGreaterThanOrEqual(40)
+  })
+  it.each(rows)('%s: "%s" → the right chart shows it', async (T, text) => {
+    p = setupPanel({ tickers: [T, 'SPY', 'QQQ'] })
+    const { say, board } = p.mount(...TWO('SPY', 'QQQ'))
+    p.st.envelopes.push((body) => p.env('apply', [{ action: 'chart.setSymbol', target: body.context.charts.find(c => /\(QQQ\)/.test(c.label)).ref, args: { symbol: T } }], ''))
+    const reply = await say(text)
+    expect(routingV2Active()).toBe(true)
+    expect(reply).not.toContain('Did you mean the ticker')
+    expect(board.state.groupSyms['N:cr']).toBe(T)
+  }, 30000)
+})

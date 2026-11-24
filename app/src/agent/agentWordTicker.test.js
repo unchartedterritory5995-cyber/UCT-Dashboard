@@ -8,7 +8,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { resolve, dirname } from 'node:path'
-import { tickerWordRole, wordOnlyTickers, targetTickers, tickerTokens } from './deixis'
+import { tickerWordRole, wordOnlyTickers, targetTickers, tickerTokens, ENGLISH_TICKER_WORDS, isEnglishWord, correctionLicensed } from './deixis'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const UNIVERSE = new Set(JSON.parse(readFileSync(resolve(here, '../../../api/data/cap_universe.json'), 'utf8')).map(s => String(s).toUpperCase()))
@@ -126,5 +126,64 @@ describe('(b) the same word names no TARGET ticker — both directions', () => {
     expect(targetTickers('nvda the daily', board('QQQ', 'SPY'), new Map([['nvda', 'NVDA']]))).toEqual(['NVDA'])
     expect(targetTickers('NVDA to weekly', board('QQQ', 'SPY'))).toEqual(['NVDA'])
     expect(targetTickers('$now to weekly', charts)).toEqual(['NOW'])
+  })
+})
+
+// ── AUDIT NO-GO F2 (11-23): the role rules are about ORDINARY ENGLISH WORDS only ──────────────────────────────────────────────
+// A ticker that is no English word, typed lowercase at a clause head before a follow word ("nvda the right one", "amd back on the
+// right chart"), is a ticker: never asked (direction 1), still a named target (direction 2). Non-word tickers are generated from
+// the real universe: symbols of 3–4 letters with no vowel (no English word) plus the common names AUDIT used.
+const NONWORD = [...new Set(['NVDA', 'AMD', 'TSLA', 'PLTR', 'MSFT', ...[...UNIVERSE].filter(t => /^[B-DF-HJ-NP-TV-Z]{3,4}$/.test(t)).slice(0, 40)])]
+  .filter(t => UNIVERSE.has(t) && !ENGLISH.includes(t.toLowerCase()))
+const F2_FRAMES = [w => `${w} the right one`, w => `${w} back on the right chart`, w => `${w} up on the right`, w => `${w} again on the right one`,
+  w => `ok now ${w} the right one`, w => `${w} all day on the right one`, w => `${w} it on the right one`, w => `please ${w} that`, w => `can you ${w} it`]
+describe('F2: a ticker that is no English word is never asked, whatever its position', () => {
+  it('the class: every English ticker word is listed in the universe (or is one of the app\'s own ordinary words), and the non-word sample is real', () => {
+    expect([...ENGLISH_TICKER_WORDS].filter(w => !UNIVERSE.has(w.toUpperCase()))).toEqual([])
+    expect(NONWORD.length).toBeGreaterThanOrEqual(30)
+    for (const w of WORDS) expect([w, isEnglishWord(w)]).toEqual([w, true])
+  })
+  it.each(NONWORD)('%s × every frame × lower / title: applied (direction 1), still a named target (direction 2)', (T) => {
+    const w = T.toLowerCase()
+    for (const f of [...F2_FRAMES, ...VERB_FRAMES]) {
+      for (const c of [s => s, s => s[0].toUpperCase() + s.slice(1)]) {
+        const text = c(f(w))
+        expect([text, wordOnlyTickers({ ops: setSymbol(T), text, getCapability })]).toEqual([text, []])
+        // direction 2 on AUDIT's frames (the target rail's other readers keep their own rules for the rest)
+        if (F2_FRAMES.includes(f)) expect([text, targetTickers(text, [{ ref: 'c0', symbol: T }, { ref: 'c1', symbol: 'QQQ' }], new Map([[w, T]])).includes(T)]).toEqual([text, true])
+      }
+    }
+  })
+})
+
+// ── AUDIT NO-GO F1 (11-23): an undo half must be POSITIVELY licensed by words that reject the earlier change ───────────────────
+const ADDITIVE_FRAMES = [
+  // AUDIT's seven (A = the earlier chart, B = the named one)
+  (B) => `actually make ${B} weekly too`, (B) => `wait, also make ${B} weekly`, (B, A) => `${B} weekly as well, not just ${A}`,
+  (B) => `no problem, now do ${B} weekly too`, (B) => `make the ${B} one weekly too, not monthly`, (B) => `${B} weekly too rather than daily`,
+  (B, A) => `do ${B} weekly too, keep ${A} weekly, not daily`,
+  // variations: additive cues, and a bare "not" / "rather" / "actually" / "wait" with nothing rejected
+  (B) => `also ${B}`, (B, A) => `both ${A} and ${B} weekly`, (B) => `and ${B} as well`, (B) => `plus ${B} weekly`, (B) => `${B} too`,
+  (B, A) => `keep ${A} and do ${B}`, (B, A) => `not only ${A}, ${B} weekly`, (B) => `in addition, ${B} weekly`, (B) => `now do ${B} weekly`,
+  (B) => `actually, ${B} weekly`, (B) => `wait, ${B} weekly`, (B) => `${B} weekly, not monthly`, (B) => `${B} weekly rather than daily`,
+  (B) => `no worries, ${B} weekly`, (B) => `no rush — ${B} weekly`, (B) => `another one: ${B} weekly`,
+]
+const LICENSED_FRAMES = [
+  (B) => `no, the ${B} one`, (B) => `no wait, ${B} instead`, (B) => `i meant ${B}`, (B) => `wrong chart, ${B}`, (B) => `nope, do ${B} instead`,
+  (B) => `sorry, I meant the ${B} chart`, (B) => `no — ${B}, not that`, (B, A) => `${B}, not ${A}`, (B, A) => `put ${A} back and do ${B}`,
+  (B, A) => `${B} instead of ${A}`, (B, A) => `${B} rather than ${A}`, (B) => `not that one, ${B}`, (B) => `undo that and do ${B}`,
+  (B) => `that's wrong, ${B}`, (B) => `oops, ${B}`,
+]
+const PAIRS = [['META', 'MSFT'], ['NVDA', 'AMD'], ['ON', 'NOW'], ['FIX', 'RUN']]
+describe('F1: correctionLicensed — the words must reject the earlier change', () => {
+  for (const [A, B] of PAIRS) {
+    it(`${A}→${B}: every additive / unlicensed wording licenses nothing; every rejecting wording does`, () => {
+      for (const f of ADDITIVE_FRAMES) for (const c of [s => s, s => s.toLowerCase()]) { const t = c(f(B, A)); expect([t, correctionLicensed(t, [A])]).toEqual([t, false]) }
+      for (const f of LICENSED_FRAMES) { const t = f(B, A); expect([t, correctionLicensed(t, [A])]).toEqual([t, true]) }
+    })
+  }
+  it('"not <a chart the last turn did NOT change>" licenses nothing', () => {
+    expect(correctionLicensed('MSFT weekly, not QQQ', ['META'])).toBe(false)
+    expect(correctionLicensed('MSFT weekly, not META', ['META'])).toBe(true)
   })
 })

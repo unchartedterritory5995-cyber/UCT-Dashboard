@@ -130,3 +130,42 @@ describe('(c) controls', () => {
     expect([tfOf(m.board, 'cl'), tfOf(m.board, 'cr')]).toEqual(model ? ['W', 'W'] : ['D', 'W'])
   }, 40000)
 })
+
+// ── AUDIT NO-GO F1 (11-23, SAFETY): an ADDITIVE request never puts the earlier change back ─────────────────────────────────────
+// Turn 1 makes A weekly; turn 2 ADDS ("actually make MSFT weekly too") and the model's plan is [A back to daily, B weekly]. On
+// f4c64d59e1 A silently went back to daily in 14 of 16 apply cases (master asked 32/32): a bare "actually / wait / not / rather"
+// licensed the undo half. Now the words must REJECT the earlier change. Every row: A is never put back without being asked; when
+// the model's plan was read, nothing changed and it was asked (a question or a card).
+const ADDITIVE = [
+  // AUDIT's seven
+  (B) => `actually make ${B} weekly too`, (B) => `wait, also make ${B} weekly`, (B, A) => `${B} weekly as well, not just ${A}`,
+  (B) => `no problem, now do ${B} weekly too`, (B) => `make the ${B} one weekly too, not monthly`, (B) => `${B} weekly too rather than daily`,
+  (B, A) => `do ${B} weekly too, keep ${A} weekly, not daily`,
+  // variations
+  // ("both A and B weekly" is left out: it NAMES A as a target, so a plan on A is identified by the words — the plan's wrong VALUE
+  // for A is the model's mistake, which no target rail reads, on master too)
+  (B) => `also ${B} weekly`, (B) => `and ${B} weekly as well`, (B) => `plus ${B} weekly`,
+  (B, A) => `keep ${A} and do ${B} weekly`, (B, A) => `not only ${A}, ${B} weekly`, (B) => `in addition, ${B} weekly`,
+  (B) => `actually, ${B} weekly`, (B) => `wait, ${B} weekly`, (B) => `${B} weekly, not monthly`, (B) => `${B} weekly rather than daily`,
+  (B) => `no worries, ${B} weekly`, (B) => `another one: ${B} weekly`,
+]
+const PUT_BACK = /You named|Which chart do you mean|Did you mean|wasn.t sure/
+describe('F1: an additive request with an undo-half plan is asked, and the earlier change is never silently put back', () => {
+  const rows = []
+  // AUDIT's seven on their own pair, every routing × mode
+  for (const c of combos.filter(x => x.A === 'META')) for (let k = 0; k < 7; k++) rows.push([tag(c), ADDITIVE[k](c.B, c.A), c, k])
+  // every wording, rotated over the other pairs (real tickers and ticker-like words), every routing × mode
+  combos.filter(x => x.A !== 'META').forEach((c, i) => { for (const k of [i, i + 9]) rows.push([tag(c), ADDITIVE[k % ADDITIVE.length](cased(c.kind, c.B, k), cased(c.kind, c.A, k)), c, k % ADDITIVE.length]) })
+  it('covers every wording, both routings, both modes, both ticker kinds', () => {
+    expect(new Set(rows.map(r => r[3])).size).toBe(ADDITIVE.length)
+    expect(new Set(rows.map(r => `${r[2].v2}${r[2].mode}${r[2].kind}`)).size).toBe(8)
+  })
+  it.each(rows)('%s: "%s"', async (_t, text, c) => {
+    const { m, reply, model } = await dialogue({ ...c, text, ops: [tf(c.A, 'D'), tf(c.B, 'W')] })
+    expect(tfOf(m.board, 'cl')).toBe('W')                                         // A is never put back without being asked
+    if (model) {
+      expect([tfOf(m.board, 'cl'), tfOf(m.board, 'cr')]).toEqual(['W', 'D'])      // nothing changed
+      expect(PUT_BACK.test(reply) || p.proposals().length > 0, reply).toBe(true)  // asked: a question, or a card to decide on
+    }
+  }, 40000)
+})
