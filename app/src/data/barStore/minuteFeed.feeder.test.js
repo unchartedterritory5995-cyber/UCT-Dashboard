@@ -3,6 +3,7 @@
 // frame bytes (lib/minuteFrames/testing/frameWriter, decoded by the product decoder). No network: frames are handed in.
 //
 //   APPEND      F1 the minute that just closed lands on a held, answered key        F2 a forming bar is closed by the feed's bar
+//               F2b ...and is then no longer reported as forming (review M1)
 //   NEVER A HOLE (ONE RULE: a minute the feed holds no bar for STOPS the walk; the key stays behind until its answer)
 //               F3 a forming bar with no feed bar is never stepped past            F4 a MISSED frame
 //               F5 an INCOMPLETE frame      F6 a frame the publisher never wrote   F7 a symbol held only after its frame
@@ -19,6 +20,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { createRegistry } from './registry'
 import { createMinuteFeeder, RING_MINUTES } from './minuteFeed'
 import { ACTION, keyOf } from './types'
+import { newestBarIsFormingOf } from './adapter'
 import { createMinuteFrameConsumer } from '../../lib/minuteFrames/consumer'
 import { decodeFrame, KIND_LATE, KIND_REPLACE } from '../../lib/minuteFrames/codec'
 import { writeFrame, statusResponse } from '../../lib/minuteFrames/testing/frameWriter'
@@ -48,16 +50,18 @@ function world({ feederOpts = {} } = {}) {
   return {
     clock, active, registry, feeder,
     /** The SERVER's answer for `sym`, built at `builtAt`: closed rows `from`..`through` (minus `skip`), sealed through
-     *  minute `seal` (default: all but the newest), an optional forming bar `dev`. */
-    answer(sym, { through, from = 0, skip = [], dev = null, seal = through - 1, px = 0, builtAt = clock.ms } = {}) {
+     *  minute `seal` (default: all but the newest), an optional forming bar `dev`. `named`: as the route sends it, the
+     *  forming bar is also the LAST of `bars` and `newest_bar_is_forming` says so. */
+    answer(sym, { through, from = 0, skip = [], dev = null, seal = through - 1, px = 0, builtAt = clock.ms, named = false } = {}) {
       const bars = []
       for (let n = from; n <= through; n++) if (!skip.includes(n)) bars.push(bar(n, px))
+      if (named) bars.push({ t: T(dev), o: 10 + dev, h: 10.2 + dev, l: 9.9 + dev, c: 10.1 + dev, v: 7 })
       return registry.dispatch(key(sym), {
         type: ACTION.REST_FULL,
         payload: {
           ticker: sym, tf: '1', contract: 1, grid: 'eth-clock', session: 'rth', cache_key: `b1:${sym}:1:eth-clock`,
           series_rev: builtAt, history_rev: 1, verified_through: Math.floor(builtAt / 1000), tail_status: 'verified',
-          complete_through: seal == null ? null : T(seal) + 60, bars,
+          complete_through: seal == null ? null : T(seal) + 60, bars, ...(named ? { newest_bar_is_forming: true } : {}),
           // a forming bar is a PARTIAL observation: a narrower range and less volume than the minute ends with
           developing: dev == null ? null : { t: T(dev), o: 10 + dev, h: 10.2 + dev, l: 9.9 + dev, c: 10.1 + dev, v: 7, rev: builtAt },
         },
@@ -99,6 +103,15 @@ describe('minute feed · append', () => {
     w.frame(30)
     expect(w.snap('AAA').developing).toBe(null)
     expect(w.tail('AAA')).toMatchObject({ ...bar(30), src: 'final' })
+  })
+
+  it('F2b the bar the server NAMED as forming is not reported as forming once the feed closed it', () => {
+    const w = world()
+    w.answer('AAA', { through: 29, dev: 30, named: true })
+    expect(newestBarIsFormingOf(w.snap('AAA'))).toBe(true)        // 10:00 is forming: what a chart's runs are told
+    w.frame(30)
+    expect(w.tail('AAA')).toMatchObject({ ...bar(30), src: 'final' })
+    expect(newestBarIsFormingOf(w.snap('AAA'))).toBe(false)       // closed now: never "unconfirmed" on a closed bar
   })
 })
 

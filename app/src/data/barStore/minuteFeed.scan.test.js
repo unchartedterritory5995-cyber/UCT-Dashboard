@@ -18,10 +18,13 @@
 //   D. NEVER A HOLE, NEVER A PARTIAL BAR AS A CLOSED ONE: at every press, every closed row of the last five minutes of
 //      the pressed row's copy is the true bar of its minute, and no minute between them is missing.
 //   E. COST: on, one minute file a minute for the whole page and never the day; off, not one request to the feed.
+//   F. NEVER "FORMING" ON A CLOSED BAR (review M1): a pressed copy whose newest row is a closed bar is never handed to
+//      the chart's runs as newest_bar_is_forming = true.
 import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest'
 import { installFakeIndexedDB } from './testing/fakeIndexedDB'
 import { fakeStream, fakeCandle, fakePrices } from './testing/fakeFeeds'
 import { parseBarsUrl } from './testing/fakeBarsServer'
+import { newestBarIsFormingOf } from './adapter'
 import { rng } from './__fixtures__/seededSeries'
 import { writeFrame, framePath, frameResponse, statusResponse } from '../../lib/minuteFrames/testing/frameWriter'
 
@@ -93,10 +96,13 @@ function installNetwork(model) {
           let C = null
           for (let t = OPEN; t + 60 <= nowS - 45; t += 60) C = t + 60
           const cur = Math.floor(nowS / 60) * 60
+          // as the route sends it: the forming bar is also the LAST of `bars`, and `newest_bar_is_forming` describes bars[-1]
+          if (model === 'forming' && (q.since == null || cur > q.since)) bars.push(partial(i, cur))
           body = {
             ticker: q.sym, tf: '1', bars, contract: 1, grid: 'eth-clock', session: 'rth', cache_key: `b1:${q.sym}:1:eth-clock`,
             series_rev: now, history_rev: 1, verified_through: nowS, complete_through: C, tail_status: 'verified',
             developing: model === 'forming' ? { ...partial(i, cur), rev: now } : null,
+            newest_bar_is_forming: model === 'forming',
           }
         }
         resolve({ ok: true, status: 200, headers: { get: () => null }, json: async () => body, clone() { return this } })
@@ -158,6 +164,8 @@ async function scan({ feedOn, model }) {
       expect(b, `press ${i}: ${SYMS[i]} row at ${b.t}`).toEqual(truth(i, b.t))
       if (k) expect(b.t - recent[k - 1].t, `press ${i}: ${SYMS[i]} a minute is missing before ${b.t}`).toBe(60)
     }
+    // F: a newest row that is a CLOSED bar is never reported as forming
+    if (s && !s.developing) expect(newestBarIsFormingOf(s), `press ${i}: ${SYMS[i]} closed newest bar reported as forming`).not.toBe(true)
     presses.push({ i, at: Date.now(), sec: nowS % 60, ok, tail, frontier })
     if (!ok) pf.prepareForDisplay(SYMS[i], '1').catch(() => {}) // today's path: ask for the tail, then paint
     off()

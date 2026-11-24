@@ -1094,14 +1094,22 @@ function applyPush(state, action, ctx, isFinal) {
   let bars = state.bars
   let dev = state.developing
   const last = bars.length ? bars[bars.length - 1] : null
+  // ⭐ A FINAL CLOSES THE BAR THE SERVER CALLED FORMING (review of #2639, M1). `newestForming` is the route's
+  // `newest_bar_is_forming` kept with the bar it describes (_formingOf), and the chart's runs read it for the newest
+  // row (adapter.newestBarIsFormingOf: Pine's barstate.isconfirmed). A FINAL for that bar says its bucket is over,
+  // which is what the route would now answer, whoever's values stand for it. Left as it was, a closed newest bar was
+  // handed to the runs as forming: for milliseconds on a chart's own key (until its stream opened the next bucket),
+  // for most of every minute on a copy the minute feed keeps current (data/barStore/minuteFeed.js).
+  const nf = state.newestForming
+  const closed = final && nf && nf.forming === true && nf.t === f.t ? { newestForming: Object.freeze({ t: f.t, forming: false }) } : null
 
   // A frame for a bucket at or before the newest closed row, or before the developing
   // bar: never the developing candle (I4) — it competes as a CLOSED row (rev order; never
   // inside the sealed region).
   if ((last && f.t <= last.t) || (dev && f.t < dev.t)) {
-    if (_inSpans(state, f.t)) return state
+    if (_inSpans(state, f.t)) return closed ? finalize(state, closed, ctx) : state
     const row = { t: f.t, o: f.o, h: f.h, l: f.l, c: f.c, v: f.v, rev: f.rev, fin: final, src: final ? 'final' : 'push' }
-    return finalize(state, { bars: mergeRows(state, [row]) }, ctx)
+    return finalize(state, { bars: mergeRows(state, [row]), ...closed }, ctx)
   }
 
   let st = state
@@ -1114,8 +1122,8 @@ function applyPush(state, action, ctx, isFinal) {
       // An older FINAL still CLOSES the bucket (the feed moved on); its values compete with
       // the newer observation we hold as closed rows, by rev.
       const row = { t: f.t, o: f.o, h: f.h, l: f.l, c: f.c, v: f.v, rev: f.rev, fin: true, src: 'final' }
-      const closed = closeDeveloping(st, bars)
-      return finalize(state, { bars: mergeRows({ ...st, bars: closed.bars }, [row]), developing: null }, ctx)
+      const shut = closeDeveloping(st, bars)
+      return finalize(state, { bars: mergeRows({ ...st, bars: shut.bars }, [row]), developing: null, ...closed }, ctx)
     }
     const m = mergePushBar(toChartBar(dev, sym), inc, { sym, final, tradeTs: f.tradeTs })
     if (m.kind !== 'update') return state
@@ -1123,7 +1131,7 @@ function applyPush(state, action, ctx, isFinal) {
     if (final) {
       const b = m.bar
       const row = { t: f.t, o: b.open, h: b.high, l: b.low, c: b.close, v: _vol(b.volume), rev: finite(rev) ? rev : null, fin: true, src: 'final' }
-      return finalize(state, { bars: mergeRows({ ...st, bars }, [row]), developing: null }, ctx)
+      return finalize(state, { bars: mergeRows({ ...st, bars }, [row]), developing: null, ...closed }, ctx)
     }
     dev = fromChartDev(m.bar, rev, DEV_SRC.PUSH)
     return finalize(state, { bars, developing: dev }, ctx)
