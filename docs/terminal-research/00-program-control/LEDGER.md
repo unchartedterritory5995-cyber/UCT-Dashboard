@@ -5175,3 +5175,23 @@ the unchanged full path. There are 2 deleted `api/` lines, both the rewritten ro
   `volume_volatility.py`, `beats_insiders_funds.py` and `methodology.py` are not in its closure
   (`tools/flow_worker_watch_coverage.py` `verdict()` on this change: those three offenders, nothing else).
 - **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.
+
+## Terminal speed pass (SEASB off the request; no waits before `computing`; FED headline filter) · `perf/terminal-speed-pass` · 2026-11-23
+
+| | |
+|---|---|
+| classification | **flow-worker stranded: NOT EXERCISED, safe; NO marker bump** |
+| stranded files | `api/services/seasonality_board.py`, `api/routers/seasonality.py` (its docstring only) |
+
+- **What changed.** The seasonality board's build moved off the request onto one background thread
+  (`seasonality-board-build`) and the board is kept on this server's disk for the rest of its New York day
+  (`seasonality_board.serve`, `held`); five request-path waits before `computing` became none (`setup_history.STOCK_WAIT_S`,
+  `treasury_yields.WAIT_S`, `oi_change.WAIT_S`, `public_records.WAIT_S`, `fed_watch.WAIT_S`); the Fed headline filter
+  compiles one pattern per roster (`fed_watch_parse._roster_patterns`, same answers). No figure, field or word changes.
+- **Flow-worker.** Reaches `seasonality_board.py` only through static chains whose last hops are function-level imports
+  (`api/routers/seasonality.py` `seasonality_board()` and the UCT Agent's `seasonality_board_read.read_seasonality_board`).
+  It mounts no seasonality router and answers no Agent turn, so it never serves the board; the older file it keeps
+  running lacks only what it never invokes; the router's change is its board route's docstring. The other changed
+  modules are not in its closure (`tools/flow_worker_watch_coverage.py` `verdict()` on this change: those two
+  offenders, nothing else).
+- **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.
