@@ -14823,6 +14823,10 @@
    },
    "needs": "a loop that stops when it finds the bar (`while`, or `for` with a break)",
    "distinguishes": "a value on 1,951 of 2,000 bars, 140 distinct counts, the largest 248; nothing on 49 bars, of which 19 have a higher close further back than 250 bars (those are the bars a look-back with no limit would get wrong)",
+   "edge": {
+    "back": 251,
+    "close": true
+   },
    "recorded": {
     "on": "2026-11-24",
     "front": "6d50f4662b",
