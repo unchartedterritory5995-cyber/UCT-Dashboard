@@ -46,7 +46,7 @@ delivery meets its SLO, in the instrument the flip packet calls "the authority".
                     reason is NAMED. Never silently skipped, and never counted as a pass.
 
 ⛔ AND THE NON-VACUITY HALF, which is the half people forget: a row that can only print NOT MET
-satisfies every "plant a failure" control and is just as useless. `mutation_harness_flipgate.py`
+satisfies every "plant a failure" control and is just as useless. `flip_gate_mutations.py`
 proves THREE states per row — plant a pass, plant a failure, delete the evidence — and
 `tests/test_flip_gate_cannot_lie.py` runs that set in the ordinary scoped pytest run.
 
@@ -487,8 +487,8 @@ def _declares_dry_check(src: str) -> bool | None:
     row would not have merely failed to check them: it would have STARTED A FULL MUTATION RUN
     against the caller's working tree, from inside a precondition check.
 
-    ⛔ AN AST, NEVER A GREP — measured on this file's own first version. `mutation_harness_flipgate.py`
-    carries stand-in harness SOURCE in string literals, so a grep for `def dry_check(` and
+    ⛔ AN AST, NEVER A GREP — measured on this file's own first version. `flip_gate_mutations.py`
+    (then `mutation_harness_flipgate.py`) carries stand-in harness SOURCE in string literals, so a grep for `def dry_check(` and
     `"--dry-check"` said yes about a module that had neither. Reading a module-level FunctionDef
     asks the question that actually matters: is there a `dry_check` to call?
     """
@@ -1152,7 +1152,7 @@ def check_render_alerts_locked(ev: Evidence = DEFAULT_EVIDENCE) -> dict:
 
 # ── the table ───────────────────────────────────────────────────────────────
 
-#: ⛔ ONE REGISTRY. `mutation_harness_flipgate.py` walks THIS, so a row added here without a
+#: ⛔ ONE REGISTRY. `flip_gate_mutations.py` walks THIS, so a row added here without a
 #: mutation control is a row the harness names as unproved — it is structurally impossible to add
 #: a silent row. `key` is the harness's handle on it and must stay stable.
 CHECKS: tuple[tuple[str, str, object], ...] = (
@@ -1199,7 +1199,7 @@ def self_check(stream=None) -> int:
     """⛔ PROVE EACH JUDGEMENT CAN GO THE OTHER WAY.
 
     ⛔ Since 2026-09-14 this also runs the THREE-STATE MUTATION SET from
-    `mutation_harness_flipgate.py`: every row must print MET on planted passing evidence, NOT MET
+    `flip_gate_mutations.py`: every row must print MET on planted passing evidence, NOT MET
     on planted failing evidence, and NOT MEASURABLE with the evidence deleted. A row that cannot
     do all three is a row that cannot describe the world, and the set plants only into a temporary
     directory — never into the repository's own evidence.
@@ -1240,7 +1240,7 @@ def self_check(stream=None) -> int:
     mutation_failed = 0
     try:
         sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-        import mutation_harness_flipgate as mh
+        import flip_gate_mutations as mh
         out("")
         mutation_failed = mh.report(mh.run_all(), out=out)
     except Exception as exc:  # noqa: BLE001

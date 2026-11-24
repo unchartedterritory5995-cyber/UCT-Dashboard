@@ -17,6 +17,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { getCapability, allCapabilityNames, manifestFor, MANIFEST_CONTRACT } from './capabilities'
 import { registerBuiltins, registerServerGatedBuiltins } from './builtins'
+import './terminalWaves'  // the Terminal data waves: registerServerGatedBuiltins() runs them only once this module has loaded (terminalWavesHook.js)
 import { loadAgentConfig, _resetAgentConfig } from './agentClient'
 import { turnStart, turnEnd, _resetTurns } from './trace'
 import { GROUPS, groupOfAction, routeManifest, selectGroups, wordsSelect } from './routing'

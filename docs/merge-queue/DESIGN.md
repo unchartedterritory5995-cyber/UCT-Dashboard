@@ -65,6 +65,13 @@ Added at cutover, in ONE NEW ruleset, so one switch turns the queue off and the 
   Actions: every workflow token posts as GitHub Actions, the merge group's own included.
   `master gate static checks` stays required through ruleset 27829824, whose bypass list stays empty, so it
   still applies to a merge that bypasses the queue.
+- **Added 2026-11-24:** required check `merge queue gate rails` (source: GitHub Actions, integration 15368), in
+  the same ruleset. `.github/workflows/gate-rails-queue.yml` runs the deploy gate's engine and bars jobs on every
+  merge group (cut from the gate's text; `tests/test_gate_static_rails_pr.py` holds them equal) and one verdict
+  of that name; `gate-rails-queue-pr.yml` posts the same name on every pull request's head, so a pull request
+  can enter the queue. Why: #2613 merged on 2026-11-23 with its own advisory engine rail red, the gate then
+  failed on master, and nine other pull requests inherited the red. Required after #2637 fixed the two bars
+  flakes; 17 of the check's first 18 runs were green, the one red was that flake (#2631, #2637).
 
 The repo setting "Allow auto-merge" is turned on.
 
@@ -242,8 +249,14 @@ the rehearsal repo): the branch policy carries the whole identity argument.
 - **CI.** One more run of the static check per merge (about 1,000 runner-minutes a day), and the Agent jobs
   once per queued Agent pull request, in place of today's re-arm runs. The organization's 60 job slots were
   about 52 busy on a Saturday night (2026-11-22 07:16Z); a request for 80 is with GitHub Support.
-- **A flaky required check removes pull requests.** `tests/test_bars_since_index_scan.py` is intermittent
-  today. It is not in either required check, and must stay out until it is fixed.
+- **A flaky required check removes pull requests.** `tests/test_bars_since_index_scan.py` was intermittent, and
+  so was the Z2 rail of `tests/test_bars_derived_tail_local_first.py`: one cause, a bars repair thread that
+  outlived its test and wrote into the next test's database. #2637 (2026-11-24) joins that work at the end of
+  each test, and only then did the bars rails become part of a required check (`merge queue gate rails`). A new
+  intermittent test in the engine or bars lists removes good entries: fix it, or exclude it with its reason
+  (`tools/bars_gate_rails.py` EXCLUDED), the same day.
+- **Capacity.** Measured 2026-11-23: the organization runs 120 jobs at once (three readings flat at 120 while
+  jobs waited up to 10 minutes), not the 60 assumed above.
 
 ## 7. Cutover and rollback
 

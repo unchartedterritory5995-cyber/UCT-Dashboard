@@ -113,6 +113,8 @@ const points = v => {
 }
 // Volume & volatility: a ratio of two falls ("0.62×": the stock fell 0.62 times as far as the index).
 const ratioX = v => v == null ? '—' : `${formatNumber(v, { decimals: 2 })}×`
+// A stored YYYY-MM-DD date as month-day ("11-28"): the next earnings date and the next ex-dividend date.
+const monthDay = v => v ? String(v).slice(5, 10) : '—'
 
 export const COLUMN_DEFS = {
   ticker: { label: 'Ticker', fmt: v => v },
@@ -429,7 +431,7 @@ export const COLUMN_DEFS = {
     desc: 'Days to cover: shares sold short divided by the average daily volume, so the number of average trading days it would take every short to buy back. From FINRA short interest, which brokers report twice a month and FINRA publishes about a week and a half after each settlement date, so it changes when a new report lands, not every night. A stock the FINRA report does not cover shows the figure from the nightly data export instead. Blank means not known, never zero.' },
   insider_own_pct: { label: 'Insider%', fmt: pctPlain(0) },
   insider_cluster_days: { label: 'Cluster', fmt: v => v == null ? '—' : `${v}d` },
-  next_earnings_date: { label: 'Earnings', fmt: v => v ? String(v).slice(5, 10) : '—' },
+  next_earnings_date: { label: 'Earnings', fmt: monthDay },
   earnings_session: { label: 'Session', fmt: v => v === 'bmo' ? 'BMO' : v === 'amc' ? 'AMC' : v ? 'TBD' : '—' },
   days_to_earnings: { label: 'Days→ER', fmt: num(0) },
   last_report_move_pct: { label: 'Last Move', fmt: pct },
@@ -778,4 +780,63 @@ export const COLUMN_DEFS = {
     desc: 'The dollars of those open-market purchases, at the prices the filers stated. A purchase with no stated price is counted in Ins Buys 30D but never valued at $0. Blank when no purchase in the window states a price.' },
   fund_net_adds: { label: 'Fund Net Adds', fmt: signedInt, heat: heatSign,
     desc: 'Funds that added to or opened a position, less funds that cut or sold out, from the SEC\'s quarterly fund holdings reports (Form N-PORT: mutual funds and ETFs), each fund\'s newest report against its previous one, adjusted for stock splits. +12 means twelve more funds added than cut. Blank when the change cannot be told (no fund with two reports, or a split that could not be checked). Funds report about 60 days after each quarter ends.' },
+  // ── Held-store columns (2026-11-23), each read once a night from a store UCT already holds (`store_columns`,
+  // and `short_columns` for the short interest change) ──
+  // The numbers in these sentences (252 and 20 sessions, 1%, 5 members, 4 weeks, 500,000 shares, 0.5%, 30 days,
+  // 600 stocks) are `iv_history.RANK_WINDOW`, `RANK_MIN_SESSIONS`, `IV_FLOOR`, `group_stats_calc.MIN_MEMBERS`,
+  // `store_columns.GROUP_CHANGE_WEEKS`, `short_data.FLOOR_SHARES`, `estimate_revisions.HELD_TOLERANCE_PCT`,
+  // `store_columns.EPS_REV_WINDOW` and `estimate_history.MAX_SYMBOLS` on the server
+  // (tests/test_screener_store_columns.py holds each to these sentences).
+  iv_rank: { label: 'IV Rank', fmt: num(0),
+    desc: 'Where the latest session\'s at-the-money implied volatility sits between its own lowest and highest over the stock\'s logged sessions (up to 252), from 0 (at its lowest) to 100 (at its highest), the same number OSCR and IVH print. From UCT\'s own options log, read once a night. An ATM IV under 1% a year is a data placeholder and never counts. Blank with fewer than 20 logged sessions, a series that has never moved, no reading on the newest session, or while the evening IV rank list is behind.' },
+  iv_percentile: { label: 'IV Pctl', fmt: num(0),
+    desc: 'The share of the stock\'s earlier logged sessions (up to 252) whose at-the-money implied volatility was below the latest session\'s, from 0 to 100, the same number OSCR and IVH print. One extreme day stretches IV Rank but moves this by one session. From UCT\'s own options log, read once a night. An ATM IV under 1% a year is a data placeholder and never counts. Blank with fewer than 20 logged sessions, a series that has never moved, no reading on the newest session, or while the evening IV rank list is behind.' },
+  group_rank: { label: 'Grp Rank', fmt: num(0),
+    desc: 'The stock\'s industry group\'s place among all industries, 1 = strongest, as GRPS ranks them each week: by the median 6-month price change of the industry\'s members, and an industry needs at least 5 members with a change to be ranked. The industry comes from the company details GRPS groups by, which can spell an industry differently from the Industry column. Blank when no industry is on file, the industry is too small to rank, or GRPS\'s weekly answer is behind.' },
+  group_rank_of: { label: 'Grps Ranked', fmt: num(0),
+    desc: 'How many industries GRPS ranked that week: Grp Rank is out of this many. Blank when the stock\'s industry has no rank.' },
+  group_rank_chg_4w: { label: 'Grp Chg 4W', fmt: signedInt, heat: heatSign,
+    desc: 'How many places the stock\'s industry moved over the last 4 weeks, as GRPS states it: +5 means it climbed five places, -5 that it fell five. Each week is read at its last session. Blank when either week has no place for the industry.' },
+  short_interest_chg_pct: { label: 'SI Chg', fmt: pct,
+    desc: 'The change in shares sold short since the prior FINRA report, in percent: +25% means a quarter more shares short than in the report before. From the same FINRA short interest list as Short%, which brokers report twice a month and FINRA publishes about a week and a half after each settlement date; the figure SHINT shows. No floor: a stock with few shares short can show a large percent (SHINT\'s up and down lists rank only a stock with at least 500,000 shares short in the prior report). Blank when the FINRA list does not cover the stock, has no prior report for it, or the prior report was zero shares.' },
+  next_ex_div_date: { label: 'Ex-Div', fmt: monthDay,
+    desc: 'The next ex-dividend date in DVD MARKET\'s list of this week\'s and next week\'s ex-dividend dates, from the row\'s date on. A blank means no ex-date in that window, or a stock the list does not follow, never that the stock pays no dividend. Blank for every stock while the list is not held or does not reach past the last session; the list is read when DVD MARKET is opened.' },
+  days_to_ex_div: { label: 'Days→ExDiv', fmt: num(0),
+    desc: 'Calendar days from the row\'s date to the next ex-dividend date (0 is the row\'s date), counted the way Days→ER counts. The same window as Ex-Div: a blank means no ex-date this week or next, never no dividend.' },
+  eps_rev_up_30d: { label: 'EPS Up 30D', fmt: num(0),
+    desc: '1 when the consensus EPS estimate for the next fiscal quarter rose more than 0.5% over the last 30 days, else 0, as EEHSC counts it, from UCT\'s daily estimate snapshots. Only the stocks UCT\'s estimate history tracks: the S&P 500 plus any stock a member opened EEH for, at most 600. Blank for every other stock, and while a stock\'s snapshots are still collecting or have a gap.' },
+  eps_rev_down_30d: { label: 'EPS Dn 30D', fmt: num(0),
+    desc: '1 when the consensus EPS estimate for the next fiscal quarter fell more than 0.5% over the last 30 days, else 0, as EEHSC counts it, from UCT\'s daily estimate snapshots. Only the stocks UCT\'s estimate history tracks: the S&P 500 plus any stock a member opened EEH for, at most 600. Blank for every other stock, and while a stock\'s snapshots are still collecting or have a gap.' },
+  eps_rev_net_30d: { label: 'EPS Rev 30D', fmt: signedInt, heat: heatSign,
+    desc: '+1 when the consensus EPS estimate for the next fiscal quarter rose more than 0.5% over the last 30 days, -1 when it fell more than 0.5%, 0 when it held within 0.5%, as EEHSC counts it, from UCT\'s daily estimate snapshots. Only the stocks UCT\'s estimate history tracks: the S&P 500 plus any stock a member opened EEH for, at most 600. Blank for every other stock, and while a stock\'s snapshots are still collecting or have a gap.' },
+  // ── Row columns (2026-11-24), worked out each night from the stock's own stored daily bars (`row_columns`) ──
+  // The numbers in these sentences (180 and 7 days, 5 years, 5,000 sessions and about 19 years, 5 sessions, 252,
+  // 200 and 20 sessions, the t of 2, the funds) are `ipo_lockups.LOCKUP_DAYS`, `BEHIND_DAYS`, `seasonality.MIN_YEARS`,
+  // `snapshot_builder.DEEP_BARS`, `earnings_reaction_panel.DRIFT`, `factor_exposure_calc.WINDOW`, `MIN_OBS`, `T_BAR`,
+  // `FACTORS`, `beta.WINDOW`, `beta.MIN_OBS` and `stock_stats_calc.CAPTURE_MIN_DAYS` on the server
+  // (tests/test_screener_row_columns.py holds each to these sentences).
+  days_to_lockup: { label: 'Days→Lockup', fmt: num(0),
+    desc: 'Calendar days from the row\'s date to the estimated end of the IPO lockup, when insiders are usually first free to sell: the listing date (the IPO Date column) plus 180 days, moved to the next trading session, the estimate IPO LOCKUP shows. Negative means it ended that many days ago, shown for 7 days. Every value is an estimate: the real date is in the company\'s prospectus, which UCT does not hold. Blank with no listing date, for funds and ADRs (Type: Stock only), and once the estimate is more than 7 days past.' },
+  seas_month_avg: { label: 'Seas Avg', fmt: pct, heat: heatSign,
+    desc: 'The stock\'s average return in this calendar month over every past year its stored daily bars cover the month end to end, the figure SEAS shows: a month\'s return is its last close over the prior month\'s last close, and the month still running never counts. The month is the last session\'s month. Blank with fewer than 5 such years. The Screener holds up to 5,000 sessions of a stock (about 19 years), so an older stock counts fewer years here than in SEAS. A past pattern is not a forecast.' },
+  seas_month_up_pct: { label: 'Seas Up%', fmt: pctPlain(0),
+    desc: 'The share of those past years in which the stock rose in this calendar month, the figure SEAS shows: 60% means it rose in 6 of 10. Blank with fewer than 5 such years.' },
+  seas_month_years: { label: 'Seas Yrs', fmt: num(0),
+    desc: 'How many past years Seas Avg and Seas Up% rest on: each year whose month the stored daily bars cover end to end. Blank under 5.' },
+  post_earn_drift_5d: { label: 'Drift 5D', fmt: pct, heat: heatSign,
+    desc: 'How far the stock moved in the 5 sessions after its last earnings report\'s reacting session: the close 5 sessions later over the reacting session\'s close, the drift ERX shows. The reacting session is the report day or the next session, whichever opened further from its prior close. The last report is the newest one in UCT\'s held copy of the Research Earnings results. Blank until those 5 sessions have traded (pending, never 0), with no held report, and while the held copy has not caught up with a newer report. Not Last Move, which is the wire\'s peak move on the report.' },
+  factor_mkt: { label: 'Mkt Load', fmt: num(2),
+    desc: 'How much the stock moves with the market fund (SPY), holding size, growth vs value, momentum, quality and low volatility fixed: 1.00 moves like the market, 1.50 half as much again. From FCTX\'s six-factor regression of the stock\'s daily returns over the last 252 sessions. Shown only when FCTX\'s own t-statistic is above 2; otherwise blank, too uncertain to read. Blank with fewer than 200 shared sessions.' },
+  factor_size: { label: 'Size Load', fmt: num(2), heat: heatSign,
+    desc: 'The stock\'s loading on the size spread (IWM less SPY) in FCTX\'s six-factor regression over the last 252 sessions: positive trades like small caps, negative like large caps. Shown only when its t-statistic is above 2; otherwise blank, too uncertain to read. Blank with fewer than 200 shared sessions.' },
+  factor_growth: { label: 'Growth Load', fmt: num(2), heat: heatSign,
+    desc: 'The stock\'s loading on the growth vs value spread (IWF less IWD) in FCTX\'s six-factor regression over the last 252 sessions: positive trades like growth stocks, negative like value stocks. Shown only when its t-statistic is above 2; otherwise blank, too uncertain to read. Blank with fewer than 200 shared sessions.' },
+  factor_mom: { label: 'Mom Load', fmt: num(2), heat: heatSign,
+    desc: 'The stock\'s loading on the momentum spread (MTUM less SPY) in FCTX\'s six-factor regression over the last 252 sessions: positive trades like recent winners, negative like recent losers. Shown only when its t-statistic is above 2; otherwise blank, too uncertain to read. Blank with fewer than 200 shared sessions.' },
+  factor_r2: { label: 'Factor R²', fmt: num(2),
+    desc: 'The share of the stock\'s daily moves FCTX\'s six factors explain over the last 252 sessions, from 0 to 1 (0.60 = 60%); the rest is the stock\'s own. Shown whether or not a loading clears the bar. Blank with fewer than 200 shared sessions.' },
+  up_capture_1y: { label: 'Up Capt', fmt: pctPlain(0),
+    desc: 'On the days SPY rose over the last 252 sessions, the stock\'s average daily move as a percent of SPY\'s, the up capture STAT shows: 120% means it rose 1.2 times as much. Daily, not the monthly figure fund reports use. Blank with fewer than 200 shared sessions or fewer than 20 up days.' },
+  down_capture_1y: { label: 'Down Capt', fmt: pctPlain(0),
+    desc: 'On the days SPY fell over the last 252 sessions, the stock\'s average daily move as a percent of SPY\'s, the down capture STAT shows: 80% means it fell 0.8 times as much, so under 100% held up better. Daily, not the monthly figure fund reports use. Blank with fewer than 200 shared sessions or fewer than 20 down days.' },
 }

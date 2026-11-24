@@ -1,15 +1,17 @@
 /* "Screenshot workspace" — UCT Signature icon button + floating menu (owner 11-16).
    Sentence case, no gold: nothing here is a "current/chosen" state. The colors are the
-   dark-only Signature tokens (--signature-*, styles/tokens.css). */
+   dark-only Signature tokens (--signature-*, styles/tokens.css); the button itself sits on the
+   page's top bar, so it reads them through the light-only --signature-page-* names (a light
+   theme takes its page inks; every dark theme keeps the Signature value). */
 .wrap { position: relative; display: inline-flex; align-items: center; }
 
 .btn {
   display: inline-grid; place-items: center; width: 26px; height: 26px; padding: 0;
-  border: 0; border-radius: 6px; background: transparent; color: var(--signature-dim); cursor: pointer;
+  border: 0; border-radius: 6px; background: transparent; color: var(--signature-page-dim, var(--signature-dim)); cursor: pointer;
 }
 .btn svg, .btn svg * { stroke: currentColor !important; color: inherit !important; filter: none !important; }
-.btn:hover, .btn[aria-expanded='true'] { background: color-mix(in srgb, var(--signature-bright) 7%, transparent); color: var(--signature-text); }
-.btn:focus-visible { outline: 2px solid color-mix(in srgb, var(--signature-bright) 40%, transparent); outline-offset: 1px; }
+.btn:hover, .btn[aria-expanded='true'] { background: color-mix(in srgb, var(--signature-page-bright, var(--signature-bright)) 7%, transparent); color: var(--signature-page-text, var(--signature-text)); }
+.btn:focus-visible { outline: 2px solid color-mix(in srgb, var(--signature-page-bright, var(--signature-bright)) 40%, transparent); outline-offset: 1px; }
 .btn[aria-busy='true'] { cursor: progress; }
 
 .menu {

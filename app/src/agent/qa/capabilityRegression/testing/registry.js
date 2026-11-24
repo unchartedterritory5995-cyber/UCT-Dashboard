@@ -8,6 +8,7 @@
 //     ships dark is caught the day it ships, not the day its flag flips.
 import { vi } from 'vitest'
 import { registerBuiltins, registerServerGatedBuiltins } from '../../../builtins'
+import '../../../terminalWaves'  // the Terminal data waves: registerServerGatedBuiltins() runs them only once this module has loaded (terminalWavesHook.js)
 import { allCapabilityNames } from '../../../capabilities'
 import { loadAgentConfig, _resetAgentConfig } from '../../../agentClient'
 
@@ -35,7 +36,13 @@ export const ALL_KINDS = [...PROD_KINDS, 'history.eventStudy', 'research.company
   // terminal data wave 9 (dark): the Agent half of the AUCT panel, the real-yield block of RATES and the FED panel
   'rates.auctions', 'rates.realYields', 'fed.watch',
   // terminal data wave 10 (dark): the Agent half of the STAT / VFP / FCTX / SETH / PUBR panels and the OWN panel's N-PORT block
-  'stock.stats', 'stock.volumeFootprint', 'stock.factorExposure', 'stock.setupHistory', 'company.publicRecords', 'ownership.funds']
+  'stock.stats', 'stock.volumeFootprint', 'stock.factorExposure', 'stock.setupHistory', 'company.publicRecords', 'ownership.funds',
+  // terminal data wave 11 (dark): the Agent half of GRPS RANK, GRPS CROWDING, ERNSC, EEHSC, OSCR RICH / CHEAP, IPO LOCKUP and COT by trader type
+  'groups.rank', 'groups.crowding', 'earnings.seasonBySector', 'estimates.revisionBreadth', 'options.ivRankLeaders', 'ipo.lockups', 'cot.byTrader',
+  // terminal data wave 12 (dark): the Agent half of RTG, EEH, ANR, SEG, FTD and one stock's MNA / IDXC
+  'ratings', 'estimates.history', 'analyst.ratings', 'company.segments', 'stock.failsToDeliver', 'company.deals',
+  // terminal data wave 13 (dark): the Agent half of INS (with INS CLUSTER), MKTH, ECON, LIQ, OIL and ANLG
+  'insider.market', 'market.history', 'econ.latest', 'market.liquidity', 'market.oil', 'market.analogs']
 
 /** PKG2: the data kinds an entry runs under. `"kinds": "ALL"` marks a DARK entry (its kind is not in production's list yet:
  *  history.eventStudy, the asset quotes), run only by corpus.dark.test.jsx with every gated kind on; every other entry

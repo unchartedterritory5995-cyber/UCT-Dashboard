@@ -2003,7 +2003,9 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         if (!holds.has(tf)) holds.set(tf, createNeighborHold())
         // `deep`: once the member rests here, the next rows' older history loads too, so the flip
         // paints them as deep as the chart would reach after its own wait (createNeighborHold).
-        holds.get(tf).set(around, tf, { deep: next })
+        // `tail`: the next row, the one after and the previous row stay current across a bucket boundary while the
+        // member navigates (createNeighborHold `tail`; `selected` opens its window: a re-sort of the rows does not)
+        holds.get(tf).set(around, tf, { deep: next, tail: [...next, ...scanNeighbors(flat, idx, dir, { ahead: 0, behind: 1 })], selected: selectedSym })
       }
       warmMemFromIDB(around, tfs)
       for (const tf of tfs) prefetchBarsToIDB(ahead, tf, { priority: true })

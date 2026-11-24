@@ -145,6 +145,19 @@ export function volDataOf(bars, p, hvcSet, volExtremes, adjustTime, times = null
   })
 }
 
+/**
+ * StockChart `volExtremes`: the highest-volume-ever bar across `bars`, as `{goldTimes: Set([its t])}`, or null when
+ * there is none or it falls outside [entryDate, exitDate] (either bound absent = open).
+ */
+export function volExtremesOf(bars, entryDate, exitDate) {
+  if (!bars?.length) return null
+  const inYear = b => (!entryDate || b.t >= entryDate) && (!exitDate || b.t <= exitDate)
+  let hve = null
+  for (const b of bars) if (b.v != null && (!hve || b.v > hve.v)) hve = b
+  if (!hve || !inYear(hve)) return null
+  return { goldTimes: new Set([hve.t]) }
+}
+
 /** StockChart `volMaData`: the smooth N-SMA line for the volume pane. */
 export function volMaDataOf(bars, period, adjustTime, times = null) {
   const out = []

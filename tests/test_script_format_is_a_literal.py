@@ -173,6 +173,6 @@ def test_the_recorded_answer_is_no_longer_a_case_recorded_WRONG():
     assert "NO VALUES" in FOUND["defect"]
     # ⭐ the specimen is marked as the ENGINE's fix (`engine_fixed`, coordinator ruling 2026-11-22), so the value-case
     # invariant holds it RIGHT through the engine (`tests/test_value_cases_found.py`; mutant FF10 reverts the fold)
-    assert FOUND.get("engine_fixed") == {"by": "e95 unit 1 (#2483)", "since_engine": 95}
+    assert FOUND.get("engine_fixed") == {"by": "#2607 927aa5dc95 (e95 unit 1, #2483)", "since_engine": 95}
     assert "str.tostring(pdh, fmt)" in RECORDED and "request.security" not in RECORDED
     assert script_rules.has_rule("table-format-01")

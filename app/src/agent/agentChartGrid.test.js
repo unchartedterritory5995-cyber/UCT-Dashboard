@@ -193,7 +193,12 @@ describe('chartGrid.set — a line of charts that cannot hold them becomes the e
     const host = beside().host
     const layoutOf = (t) => multiChartPlan(t, { host })?.ops?.[0]?.args?.layout
     expect(layoutOf('put NVDA and AMD stacked on the grid')).toBe('rows')
-    expect(layoutOf('put NVDA, AMD and TSLA side by side in my grid')).toBe('columns')
+    // ⛔ OWNER RULING 2026-11-23 ("For 'side by side,' preserve the existing chart and add the comparison chart beside it by default.
+    // Never silently replace an existing chart. If … ambiguous, clarify."): the AAPL chart shows none of them, so the reuse that
+    // re-symbolled it is now ASKED — and the add it offers keeps the shape asked for (columns)
+    const q = multiChartPlan('put NVDA, AMD and TSLA side by side in my grid', { host })
+    expect(q.kind).toBe('ask')
+    expect(q.options.add[0].args).toMatchObject({ symbols: ['NVDA', 'AMD', 'TSLA'], layout: 'columns', new_charts: true })
     for (const t of ['put NVDA, AMD, TSLA and SPY side by side in a grid', 'NVDA, AMD, TSLA and SPY stacked as a grid', 'NVDA, AMD, TSLA and SPY side by side in a 2x2', 'NVDA, AMD, TSLA and SPY stacked in a quad']) expect(layoutOf(t), t).toBe('grid')
     expect(layoutOf('grid of NVDA, AMD and TSLA')).toBe('grid')
   })

@@ -76,7 +76,7 @@ def test_layer_sqlite_on_fresh_stored_rows(fresh, monkeypatch):
     assert bars_fetch.get_serve_layer() == "sqlite"
 
 
-def test_layer_stale_swr_on_daily_rows(fresh):
+def test_layer_stale_swr_on_daily_rows(fresh, monkeypatch):
     """A stored DAILY row serves stale-swr + revalidates in the background.
 
     Not a defect: _needs_fresh() treats every D/W/M bar as refreshable so
@@ -87,13 +87,22 @@ def test_layer_stale_swr_on_daily_rows(fresh):
     than the last session and correctly reads as fresh — which made this test
     pass Mon-Fri and fail every weekend. A real stored daily bar always carries
     a session date anyway.
+
+    ⛔ THE REFRESH ASKS A STAND-IN, NEVER A PROVIDER. Until 2026-11-23 nothing was stubbed here, so the
+    `bars-bg-AAPL-D` thread asked Yahoo for AAPL over the network, outlived this test by about a second and
+    wrote the last session's real bar into whatever store a later test owned by then (the 1-in-100 red of
+    tests/test_bars_since_index_scan.py; tests/conftest.py `pytest_runtest_call` has the measurements).
     """
+    import threading
+    asked = threading.Event()
+    monkeypatch.setattr(bars_fetch, "_delta_daily", lambda *a, **k: asked.set() or [])
     session = str(bars_fetch._last_weekday_yyyymmdd())
     today = f"{session[:4]}-{session[4:6]}-{session[6:]}"
     rows = [{"t": today, "o": 1, "h": 2, "l": 0.5, "c": 1.5, "v": 10}]
     bars_sqlite.put_bars("AAPL", "D", rows, date_tf=True)
     bars_fetch._get_bars_inner("AAPL", "D", 1)
     assert bars_fetch.get_serve_layer() == "stale-swr"
+    assert asked.wait(5), "the background refresh never asked for the delta"
 
 
 def test_layer_cold_bg_on_cold_ticker(fresh):

@@ -11,13 +11,20 @@ import datetime as dt
 from api.services.discord_chart_render import _stats_rows, compute_stats
 
 
+#: The NYSE full closures inside `_daily()`'s window: Independence Day (observed) and Labor Day. Since
+#: 28d2d25e94 (2026-11-11) a week is its SESSIONS (`date_bar_keys.session_daily` runs before the weekly
+#: resample and the bars store refuses an off-calendar day), so a row dated on one of these is never summed
+#: into a week. The fixture leaves them out, as the store does; Labor Day's week has four sessions.
+_CLOSED = {dt.date(2026, 7, 3), dt.date(2026, 9, 7)}
+
+
 def _daily(weeks=14):
-    """`weeks` full Mon..Fri weeks ending Fri 2026-09-25, a steady climb with known volumes."""
+    """`weeks` Mon..Fri weeks of NYSE sessions ending Fri 2026-09-25, a steady climb with known volumes."""
     out, px = [], 100.0
     start = dt.date(2026, 9, 25) - dt.timedelta(days=7 * weeks - 3)       # a Monday
     d = start
     while d <= dt.date(2026, 9, 25):
-        if d.weekday() < 5:
+        if d.weekday() < 5 and d not in _CLOSED:
             wk = (d - start).days // 7
             out.append({"t": d.isoformat(), "o": px, "h": px + 2, "l": px - 1, "c": px + 1,
                         "v": 1_000_000 * (wk + 1)})
@@ -37,7 +44,8 @@ def test_a_weekly_strip_is_the_developing_weeks_numbers():
     prev_close = b[-6]["c"]
     assert abs(st["day_pct"] - (week[-1]["c"] / prev_close - 1) * 100) < 1e-9, "the change is the WEEK's"
     assert abs(st["gap_pct"] - (week[0]["o"] / prev_close - 1) * 100) < 1e-9
-    prior = [5 * 1_000_000 * (w + 1) for w in range(3, 13)]                 # the 10 completed weeks before
+    # the 10 completed weeks before; week 11 (Mon 2026-09-07, Labor Day) has four sessions
+    prior = [(4 if w == 11 else 5) * 1_000_000 * (w + 1) for w in range(3, 13)]
     assert st["avg_vol"] == sum(prior) / 10 and st["avg_vol_50"] is None
     assert abs(st["rvol"] - st["volume"] / st["avg_vol"]) < 1e-12
     assert st["dollar_vol"] == st["volume"] * st["close"]

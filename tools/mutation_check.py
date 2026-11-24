@@ -26,7 +26,8 @@ THE PROTOCOL IT ENFORCES
   4. restore the exact saved bytes
   5. re-run; require it to PASS
   6. verify the restored bytes hash-match the snapshot
-Any deviation is reported and exits non-zero.
+Any deviation is reported and exits non-zero. After each of its two writes (2 and 4) the tool
+deletes the file's own cached bytecode, so neither run can execute the other's (`_drop_bytecode`).
 
 USAGE
 -----
@@ -63,6 +64,28 @@ def _printable(line: str) -> str:
     """
     enc = sys.stdout.encoding or "utf-8"
     return line.encode(enc, errors="replace").decode(enc, errors="replace")
+
+
+def _drop_bytecode(path: Path) -> None:
+    """Delete the target's OWN cached bytecode (`__pycache__/<stem>.*.pyc`) after every write.
+
+    CPython trusts a .pyc whose recorded source mtime (whole SECONDS) and size match the file.
+    A same-length mutation (`'right'` -> `'wrong'`) restored within the second the mutated run
+    compiled it changes neither, so step 5 ran the MUTATED bytecode and called a byte-exact
+    restore red (tests/test_mutation_check.py on GitHub's Linux runners, where the whole check
+    fits in one second). Only this file's cache goes: every other module keeps its bytecode, so
+    a run costs no more. A cache that cannot be removed is reported, never raised: the restore
+    must not depend on it."""
+    cache = path.parent / "__pycache__"
+    try:
+        stale = [p for p in cache.glob("*.pyc") if p.name.startswith(path.stem + ".")]
+    except OSError:
+        return
+    for pyc in stale:
+        try:
+            pyc.unlink()
+        except OSError as e:
+            print(f"    could not remove cached bytecode {pyc}: {e}")
 
 
 def _run(cmd: str) -> tuple[int, str]:
@@ -133,6 +156,7 @@ def main() -> int:
             print(f"[2] replace {old!r} -> {new!r}")
             text = text.replace(old, new, 1)
         path.write_bytes(text.encode("utf-8"))
+        _drop_bytecode(path)
 
         # 3. REQUIRE RED
         code, out = _run(args.test)
@@ -161,6 +185,7 @@ def main() -> int:
     finally:
         # 4. RESTORE -- always, including on exception or a failing assertion.
         path.write_bytes(original)
+        _drop_bytecode(path)
         print(f"[4] restored {path}")
 
     # 5. REQUIRE GREEN AGAIN

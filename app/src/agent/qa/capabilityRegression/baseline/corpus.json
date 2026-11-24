@@ -15605,6 +15605,889 @@
       ]
     },
     {
+      "id": "stock.groupRank",
+      "source": "Terminal data wave 11 (11-23): the Agent half of GRPS RANK, GRPS CROWDING, ERNSC, EEHSC, OSCR RICH / CHEAP, IPO LOCKUP and the COT panel's \"By trader type\" view (group rank and crowding, earnings season by sector, revisions by sector, IV rank leaders, IPO lockups, COT by trader type), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.groupRank"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.groupRank"
+      ],
+      "ownWords": [
+        "marketTables"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.groupRank",
+            "target": "$stockData",
+            "args": {
+              "kind": null,
+              "name": null,
+              "rows": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*groups\\.rank.*\"params\":\\{\"kind\":\"sector\",\"name\":null,\"rows\":10\\}"
+        ],
+        "says": [
+          "Sectors by weekly rank as UCT holds it \\(each sector's place by the median 6-month price change of its stocks\\)",
+          "• 1st of 3 Made-up Software: median \\+14\\.2% over 6 months on 118 stocks",
+          "• Made-up Utilities: 4 stocks with a 6-month change, fewer than 5: no rank",
+          "Climbed the most over 4 weeks: Made-up Software \\(\\+2, 3rd to 1st\\)",
+          "UCT's own time"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "show me the sectors by weekly rank",
+        "industry group rank",
+        "top ranked industries",
+        "which sectors climbed the most in the weekly rank"
+      ]
+    },
+    {
+      "id": "stock.groupOwnership",
+      "source": "Terminal data wave 11 (11-23): the Agent half of GRPS RANK, GRPS CROWDING, ERNSC, EEHSC, OSCR RICH / CHEAP, IPO LOCKUP and the COT panel's \"By trader type\" view (group rank and crowding, earnings season by sector, revisions by sector, IV rank leaders, IPO lockups, COT by trader type), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.groupOwnership"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.groupOwnership"
+      ],
+      "ownWords": [
+        "marketTables"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.groupOwnership",
+            "target": "$stockData",
+            "args": {
+              "kind": null,
+              "name": null,
+              "rows": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*groups\\.crowding.*\"params\":\\{\"kind\":\"sector\",\"name\":null,\"rows\":10\\}"
+        ],
+        "says": [
+          "Sectors by positioning as UCT holds it, the highest median short interest first",
+          "• Made-up Software \\(120 stocks\\): median short interest 6\\.4% of float on 118",
+          "• Made-up Utilities \\(4 stocks\\): 4 in the short interest report, fewer than 5: no median",
+          "Short interest: FINRA's report for settlement Oct 15, 2026",
+          "Institutions \\(13F\\) are not in this answer"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "sector crowding",
+        "most crowded industries",
+        "insider buying by sector",
+        "crowding by industry"
+      ]
+    },
+    {
+      "id": "stock.sectorEarnings",
+      "source": "Terminal data wave 11 (11-23): the Agent half of GRPS RANK, GRPS CROWDING, ERNSC, EEHSC, OSCR RICH / CHEAP, IPO LOCKUP and the COT panel's \"By trader type\" view (group rank and crowding, earnings season by sector, revisions by sector, IV rank leaders, IPO lockups, COT by trader type), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.sectorEarnings"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.sectorEarnings"
+      ],
+      "ownWords": [
+        "marketTables"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.sectorEarnings",
+            "target": "$stockData",
+            "args": {
+              "season": null,
+              "metric": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*earnings\\.seasonBySector.*\"params\":\\{\"season\":\"current\"\\}"
+        ],
+        "says": [
+          "Only the stocks UCT holds earnings results for: 3,300 of the 3,500 stocks in its universe",
+          "• Made-up Software \\(40 reported, 2 to come, 1 pending\\): 80% beat, 10% in line, 10% missed; median surprise \\+5\\.2%",
+          "• Made-up Utilities \\(3 reported, 2 to come, 1 pending\\): 3 with a consensus, fewer than 5: no share",
+          "UCT's own time"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "earnings by sector",
+        "which sector is beating",
+        "sector beat rates",
+        "beats and misses by sector"
+      ]
+    },
+    {
+      "id": "stock.estimatesBreadth",
+      "source": "Terminal data wave 11 (11-23): the Agent half of GRPS RANK, GRPS CROWDING, ERNSC, EEHSC, OSCR RICH / CHEAP, IPO LOCKUP and the COT panel's \"By trader type\" view (group rank and crowding, earnings season by sector, revisions by sector, IV rank leaders, IPO lockups, COT by trader type), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.estimatesBreadth"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.estimatesBreadth"
+      ],
+      "ownWords": [
+        "marketTables"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.estimatesBreadth",
+            "target": "$stockData",
+            "args": {
+              "metric": null,
+              "window": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*estimates\\.revisionBreadth.*\"params\":\\{\"metric\":\"eps\",\"window\":30\\}"
+        ],
+        "says": [
+          "Among the 52 stocks UCT tracks \\(the S&P 500 list and stocks members have looked at\\), not the whole market\\.",
+          "All tracked stocks: net \\+42% \\(30 raised, 10 cut, 8 held; 48 counted\\)",
+          "• Made-up Software: net \\+57% \\(20 raised, 4 cut, 4 held; 28 counted\\); largest raises QZRA \\+12\\.5%",
+          "• Made-up Utilities: 3 stocks counted, fewer than 5, so no net figure",
+          "UCT's own time"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "estimate revisions by sector",
+        "revision breadth",
+        "earnings revisions by sector",
+        "estimate breadth across sectors"
+      ]
+    },
+    {
+      "id": "stock.ivRankLeaders",
+      "source": "Terminal data wave 11 (11-23): the Agent half of GRPS RANK, GRPS CROWDING, ERNSC, EEHSC, OSCR RICH / CHEAP, IPO LOCKUP and the COT panel's \"By trader type\" view (group rank and crowding, earnings season by sector, revisions by sector, IV rank leaders, IPO lockups, COT by trader type), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.ivRankLeaders"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.ivRankLeaders"
+      ],
+      "ownWords": [
+        "marketTables"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.ivRankLeaders",
+            "target": "$stockData",
+            "args": {
+              "side": null,
+              "rows": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*options\\.ivRankLeaders.*\"params\":\\{\"side\":\"both\",\"rows\":10\\}"
+        ],
+        "says": [
+          "The highest IV rank across UCT's own options log",
+          "• QZHA: IV rank 98 \\(high\\), IV percentile 97, ATM IV 82\\.0%",
+          "• QZLA: IV rank 1 \\(low\\)",
+          "the list is cut from the middle of the ranking",
+          "An end-of-day snapshot from UCT's own options log"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "richest options",
+        "cheapest options",
+        "most expensive options in the market",
+        "which options are the cheapest"
+      ]
+    },
+    {
+      "id": "stock.ipoUnlock",
+      "source": "Terminal data wave 11 (11-23): the Agent half of GRPS RANK, GRPS CROWDING, ERNSC, EEHSC, OSCR RICH / CHEAP, IPO LOCKUP and the COT panel's \"By trader type\" view (group rank and crowding, earnings season by sector, revisions by sector, IV rank leaders, IPO lockups, COT by trader type), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.ipoUnlock"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.ipoUnlock"
+      ],
+      "ownWords": [
+        "marketTables"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.ipoUnlock",
+            "target": "$stockData",
+            "args": {
+              "rows": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*ipo\\.lockups.*\"params\":\\{\"rows\":10\\}"
+        ],
+        "says": [
+          "2 estimated IPO lockup expiries fall from",
+          "The days to go are counted from Tue, Nov 3, 2026\\.",
+          "\\(in 21 days\\), estimated: QZIA \\(Made-up Robotics Inc\\)",
+          "\\+23\\.0% since its first close",
+          "Every date here is an ESTIMATE"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "IPO lockups",
+        "upcoming lockup expirations",
+        "lockups ending soon",
+        "IPO unlocks this month"
+      ]
+    },
+    {
+      "id": "stock.positionTypes",
+      "source": "Terminal data wave 11 (11-23): the Agent half of GRPS RANK, GRPS CROWDING, ERNSC, EEHSC, OSCR RICH / CHEAP, IPO LOCKUP and the COT panel's \"By trader type\" view (group rank and crowding, earnings season by sector, revisions by sector, IV rank leaders, IPO lockups, COT by trader type), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.positionTypes"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.positionTypes"
+      ],
+      "ownWords": [
+        "marketTables"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.positionTypes",
+            "target": "$stockData",
+            "args": {
+              "market": "ES",
+              "rows": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*cot\\.byTrader.*\"params\":\\{\"market\":\"ES\"\\}"
+        ],
+        "says": [
+          "Made-up Index Future \\(ES\\) positioning by trader type, from the CFTC's Traders in Financial Futures report as UCT stores it",
+          "• Leveraged funds \\(the class traders watch most in this report\\): net -",
+          "-10\\.0% of open interest",
+          "Source: CFTC Commitments of Traders"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "futures by trader type",
+        "what are leveraged funds doing",
+        "swap dealers and asset managers in futures",
+        "the traders in financial futures report"
+      ]
+    },
+    {
+      "id": "stock.uctRating",
+      "source": "Terminal data wave 12 (11-24): the Agent half of RTG, EEH, ANR, SEG, FTD and one stock's MNA / IDXC (UCT composite rating, estimate history, analyst ratings and price targets, revenue by segment, fails to deliver, deals and index changes), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.uctRating"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.uctRating"
+      ],
+      "ownWords": [
+        "stockResearch"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.uctRating",
+            "target": "$stockData",
+            "args": {
+              "symbol": "NVDA"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*\"ratings\".*\"params\":\\{\"symbol\":\"NVDA\"\\}"
+        ],
+        "says": [
+          "NVDA's UCT composite rating as UCT holds it: 81 of 99 \\(higher is stronger\\)\\.",
+          "Components: EPS Strength 88, Relative Strength 76, Growth 69, Value 41, SMR B, Acc / Dis B-, Sponsorship 58\\.",
+          "Stock checkup: 1 check passes, 0 fail\\.",
+          "never a third-party analyst rating"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "NVDA UCT rating",
+        "what is NVDA's composite rating",
+        "UCT composite rating of NVDA",
+        "show me the stock checkup for NVDA"
+      ]
+    },
+    {
+      "id": "stock.estimatesHistory",
+      "source": "Terminal data wave 12 (11-24): the Agent half of RTG, EEH, ANR, SEG, FTD and one stock's MNA / IDXC (UCT composite rating, estimate history, analyst ratings and price targets, revenue by segment, fails to deliver, deals and index changes), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.estimatesHistory"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.estimatesHistory"
+      ],
+      "ownWords": [
+        "stockResearch"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.estimatesHistory",
+            "target": "$stockData",
+            "args": {
+              "symbol": "NVDA"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*\"estimates\\.history\".*\"params\":\\{\"symbol\":\"NVDA\"\\}"
+        ],
+        "says": [
+          "NVDA's consensus estimates as UCT snapshots them, Mar 2, 2026 to Nov 2, 2026 \\(170 snapshot days\\):",
+          "• The quarter ending Dec 31, 2026: EPS \\$1\\.25 \\(\\$1\\.10 to \\$1\\.40\\) from 30 analysts; over 7 / 30 / 90 days held \\+0\\.1% / raised \\+3\\.2% / raised \\+8\\.7%\\.",
+          "NVDA is in the population UCT snapshots because it is on the S&P 500 list",
+          "the fiscal year's consensus is not held at all"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "NVDA estimate history",
+        "how have NVDA's estimates changed",
+        "eps estimate revisions for NVDA",
+        "the revenue estimate trend for NVDA"
+      ]
+    },
+    {
+      "id": "stock.consensusRating",
+      "source": "Terminal data wave 12 (11-24): the Agent half of RTG, EEH, ANR, SEG, FTD and one stock's MNA / IDXC (UCT composite rating, estimate history, analyst ratings and price targets, revenue by segment, fails to deliver, deals and index changes), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.consensusRating"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.consensusRating"
+      ],
+      "ownWords": [
+        "stockResearch"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.consensusRating",
+            "target": "$stockData",
+            "args": {
+              "symbol": "NVDA",
+              "rows": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*\"analyst\\.ratings\".*\"params\":\\{\"symbol\":\"NVDA\",\"rows\":5\\}"
+        ],
+        "says": [
+          "NVDA's analyst consensus as UCT holds it: Buy from 32 analysts \\(5 Strong Buy, 20 Buy, 6 Hold, 1 Sell, 0 Strong Sell\\)\\.",
+          "Price target \\(USD\\): consensus \\$205\\.00, median \\$200\\.00, from \\$120\\.00 to \\$260\\.00\\.",
+          "Upside to the consensus target: \\+13\\.9% from the close of Fri, Oct 30, 2026 \\(\\$180\\.00\\), not the last trade\\.",
+          "Made-up Securities upgrade \\(Hold to Buy\\)"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "price target for NVDA",
+        "what's the consensus target on NVDA",
+        "consensus rating on NVDA",
+        "how many analysts rate NVDA a buy"
+      ]
+    },
+    {
+      "id": "stock.revenueSplit",
+      "source": "Terminal data wave 12 (11-24): the Agent half of RTG, EEH, ANR, SEG, FTD and one stock's MNA / IDXC (UCT composite rating, estimate history, analyst ratings and price targets, revenue by segment, fails to deliver, deals and index changes), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.revenueSplit"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.revenueSplit"
+      ],
+      "ownWords": [
+        "stockResearch"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.revenueSplit",
+            "target": "$stockData",
+            "args": {
+              "symbol": "NVDA",
+              "rows": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*\"company\\.segments\".*\"params\":\\{\"symbol\":\"NVDA\",\"rows\":8\\}"
+        ],
+        "says": [
+          "NVDA's revenue by segment as UCT holds it:",
+          "The fiscal year FY2026 by product \\(ended Jan 25, 2026, against FY2025\\):",
+          "88\\.5% of the segments listed, \\+144\\.7% on a year earlier",
+          "The newest quarter's split is not held on the server yet"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "NVDA revenue by segment",
+        "NVDA revenue by region",
+        "segment revenue for NVDA",
+        "where does NVDA make its money"
+      ]
+    },
+    {
+      "id": "stock.failsToDeliver",
+      "source": "Terminal data wave 12 (11-24): the Agent half of RTG, EEH, ANR, SEG, FTD and one stock's MNA / IDXC (UCT composite rating, estimate history, analyst ratings and price targets, revenue by segment, fails to deliver, deals and index changes), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.failsToDeliver"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.failsToDeliver"
+      ],
+      "ownWords": [
+        "stockResearch"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.failsToDeliver",
+            "target": "$stockData",
+            "args": {
+              "symbol": "NVDA",
+              "rows": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*\"stock\\.failsToDeliver\".*\"params\":\\{\"symbol\":\"NVDA\",\"rows\":10\\}"
+        ],
+        "says": [
+          "NVDA's fails to deliver as UCT holds them from the SEC's files for May 1, 2026 to Oct 15, 2026: 250,000 shares on Oct 15, 2026",
+          "The reported day before \\(Oct 14, 2026\\): 100,000 shares, a change of \\+150,000 shares\\.",
+          "The window's peak: 400,000 shares on Aug 3, 2026; the newest is 62\\.5% of it\\.",
+          "so the newest figure is some weeks old"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "NVDA fails to deliver",
+        "fails-to-deliver for NVDA",
+        "failures to deliver in NVDA",
+        "show me the fail to deliver data for NVDA"
+      ]
+    },
+    {
+      "id": "stock.companyDeals",
+      "source": "Terminal data wave 12 (11-24): the Agent half of RTG, EEH, ANR, SEG, FTD and one stock's MNA / IDXC (UCT composite rating, estimate history, analyst ratings and price targets, revenue by segment, fails to deliver, deals and index changes), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.companyDeals"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.companyDeals"
+      ],
+      "ownWords": [
+        "stockResearch"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.companyDeals",
+            "target": "$stockData",
+            "args": {
+              "symbol": "NVDA",
+              "rows": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*\"company\\.deals\".*\"params\":\\{\"symbol\":\"NVDA\",\"rows\":10\\}"
+        ],
+        "says": [
+          "Mergers and acquisitions naming NVDA \\(Made-up Company Inc\\), newest first",
+          "Made-up Company Inc \\(NVDA\\) acquiring Made-up Startup Ltd \\(NVDA the acquirer\\), with its SEC filing",
+          "added to the Dow 30, replacing Made-up Old Co \\(QZOLD\\) \\(Made-up reason\\.\\)",
+          "UCT's own time"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "mergers involving NVDA",
+        "has NVDA been acquired",
+        "when was NVDA added to the dow",
+        "acquisitions by NVDA"
+      ]
+    },
+    {
+      "id": "stock.insiderBuying",
+      "source": "Terminal data wave 13 (11-24): the Agent half of INS (with INS CLUSTER), MKTH, ECON, LIQ, OIL and ANLG (the market's insider buying, corrections and bear markets, the economy board, liquidity, the weekly oil report, days like the newest session), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.insiderBuying"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.insiderBuying"
+      ],
+      "ownWords": [
+        "marketMacro"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.insiderBuying",
+            "target": "$stockData",
+            "args": {
+              "rows": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*insider\\.market.*\"params\":\\{\"rows\":10\\}"
+        ],
+        "says": [
+          "The latest open-market purchases from Form 4 filings over the last 7 days, largest dollar amount first:",
+          "• QZIA: Made-up Person One \\(director\\) bought 2,000 shares at \\$15\\.00, \\$30,000\\.00, on Oct 28, 2025",
+          "1 purchase states no price, so it has no dollar amount \\(never \\$0\\)\\.",
+          "• QZIC \\(Made-up Robotics Inc\\): 3 insiders, Oct 22, 2025 to Oct 27, 2025, \\$81,000\\.00"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "insider buying",
+        "what are insiders buying",
+        "show me the insider clusters",
+        "latest insider purchases"
+      ]
+    },
+    {
+      "id": "stock.marketHistory",
+      "source": "Terminal data wave 13 (11-24): the Agent half of INS (with INS CLUSTER), MKTH, ECON, LIQ, OIL and ANLG (the market's insider buying, corrections and bear markets, the economy board, liquidity, the weekly oil report, days like the newest session), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.marketHistory"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.marketHistory"
+      ],
+      "ownWords": [
+        "marketMacro"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.marketHistory",
+            "target": "$stockData",
+            "args": {
+              "index": null,
+              "rows": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*market\\.history.*\"params\":\\{\"index\":null,\"rows\":8\\}"
+        ],
+        "says": [
+          "S&P 500's corrections \\(a fall of 10% to 20% on closing prices\\) and bear markets \\(20% or more\\) as UCT holds them",
+          "20 corrections and 5 bear markets; median depth -13\\.5%, median recovery 75 sessions\\.",
+          "• Correction from the peak of Feb 19, 2025 \\(6,100\\.00\\) to the low of Apr 8, 2025 \\(4,980\\.00\\): -18\\.4% in 33 sessions",
+          "Leaders in the 63 sessions after the low \\(the index \\+25\\.0%\\): QZLA \\+150\\.5%"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "market corrections and bear markets",
+        "how long do bear markets last",
+        "history of bear markets",
+        "nasdaq corrections"
+      ]
+    },
+    {
+      "id": "stock.economyBoard",
+      "source": "Terminal data wave 13 (11-24): the Agent half of INS (with INS CLUSTER), MKTH, ECON, LIQ, OIL and ANLG (the market's insider buying, corrections and bear markets, the economy board, liquidity, the weekly oil report, days like the newest session), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.economyBoard"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.economyBoard"
+      ],
+      "ownWords": [
+        "marketMacro"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.economyBoard",
+            "target": "$stockData",
+            "args": {}
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*econ\\.latest.*\"params\":\\{\\}"
+        ],
+        "says": [
+          "The economy board as UCT holds it \\(official U\\.S\\. releases\\), theme by theme:",
+          "• Inflation: CPI 3\\.2% for Sep 2025, m/m 3\\.2%, released Oct 15, 2025, prior 3\\.1% \\(\\+0\\.1 pts\\)",
+          "Nonfarm payrolls 180\\.0K for Sep 2025, released Oct 15, 2025, prior 210\\.0K \\(-30\\.0K\\)",
+          "Not on this board: Retail sales\\."
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "economic data",
+        "the latest cpi",
+        "jobs report",
+        "show me the economy board"
+      ]
+    },
+    {
+      "id": "stock.liquidityBoard",
+      "source": "Terminal data wave 13 (11-24): the Agent half of INS (with INS CLUSTER), MKTH, ECON, LIQ, OIL and ANLG (the market's insider buying, corrections and bear markets, the economy board, liquidity, the weekly oil report, days like the newest session), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.liquidityBoard"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.liquidityBoard"
+      ],
+      "ownWords": [
+        "marketMacro"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.liquidityBoard",
+            "target": "$stockData",
+            "args": {}
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*market\\.liquidity.*\"params\":\\{\\}"
+        ],
+        "says": [
+          "Net liquidity on Wed, Oct 15, 2025: \\$5\\.72T; the change over 1 week \\+\\$2\\.00B, 4 weeks \\+\\$8\\.00B",
+          "• Fed total assets: \\$6\\.62T \\(Wed Oct 15, 2025\\), \\+\\$2\\.00B over 1 week",
+          "net liquidity is a UCT calculation"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "net liquidity",
+        "the fed balance sheet",
+        "reverse repo",
+        "money supply"
+      ]
+    },
+    {
+      "id": "stock.oilReport",
+      "source": "Terminal data wave 13 (11-24): the Agent half of INS (with INS CLUSTER), MKTH, ECON, LIQ, OIL and ANLG (the market's insider buying, corrections and bear markets, the economy board, liquidity, the weekly oil report, days like the newest session), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.oilReport"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.oilReport"
+      ],
+      "ownWords": [
+        "marketMacro"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.oilReport",
+            "target": "$stockData",
+            "args": {}
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*market\\.oil.*\"params\":\\{\\}"
+        ],
+        "says": [
+          "Draw of 2\\.3 million barrels in the week to Fri Oct 10, 2025",
+          "• Inventories: Crude oil, excluding the SPR",
+          "The EIA's own weekly figures"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "weekly oil report",
+        "crude inventories",
+        "eia report",
+        "refinery utilization"
+      ]
+    },
+    {
+      "id": "stock.daysLikeToday",
+      "source": "Terminal data wave 13 (11-24): the Agent half of INS (with INS CLUSTER), MKTH, ECON, LIQ, OIL and ANLG (the market's insider buying, corrections and bear markets, the economy board, liquidity, the weekly oil report, days like the newest session), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.daysLikeToday"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.daysLikeToday"
+      ],
+      "ownWords": [
+        "marketMacro"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.daysLikeToday",
+            "target": "$stockData",
+            "args": {
+              "rows": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*market\\.analogs.*\"params\":\\{\"rows\":5\\}"
+        ],
+        "says": [
+          "A record of what followed similar days, not a forecast\\.",
+          "• Tue Mar 4, 2025 \\(97\\.3% match\\): \\+1\\.20% / -0\\.40% / \\+2\\.50% / \\+6\\.10%",
+          "Only 3 sessions came back of the 5 asked for\\."
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "days like today",
+        "breadth analogues",
+        "when did the market look like this",
+        "past sessions like this"
+      ]
+    },
+    {
       "id": "recentlyDeleted.restore",
       "source": "Charts family (2026-11-19): Recently deleted — bring back a deleted watchlist, saved layout or saved screen through the artifact-versions routes the Recently deleted panel uses",
       "capabilities": [

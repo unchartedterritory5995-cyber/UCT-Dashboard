@@ -100,7 +100,38 @@ class TestOutputCaptureSurvivesNonAsciiFailures:
         assert "MARKER_ANCHOVY" in r.stdout
 
 
+# A rail that refuses to run while bytecode for impl.py is cached: CPython validates a .pyc only by
+# the source's whole-second mtime and its size, so a run that finds one left by the OTHER run may
+# be executing that run's code. It writes bytecode itself (explicitly, whatever the environment).
+PYC_PROBE = (
+    "import importlib.util, sys, pathlib\n"
+    "sys.dont_write_bytecode = False\n"
+    "impl = pathlib.Path(r'{impl}')\n"
+    "if list(impl.parent.glob('__pycache__/impl.*.pyc')):\n"
+    "    print('CACHED_BYTECODE_FOUND')\n"
+    "    sys.exit(3)\n"
+    "spec = importlib.util.spec_from_file_location('impl', impl)\n"
+    "m = importlib.util.module_from_spec(spec)\n"
+    "spec.loader.exec_module(m)\n"
+    "sys.exit(0 if m.VALUE == 'right' else 1)\n"
+)
+
+
 class TestRestoreGuarantee:
+    def test_no_run_finds_the_other_runs_bytecode(self, tmp_path):
+        """The same-second restore race (red on GitHub's Linux runners): the mutated run compiled
+        impl.py, the restore landed in the same second with the same size, and step 5 ran the
+        MUTATED bytecode, so a byte-exact restore was reported red. Deterministic here: the probe
+        fails whenever a run finds cached bytecode for impl.py, whatever the clock says."""
+        impl, _ = _project(tmp_path)
+        probe = tmp_path / "pyc_probe.py"
+        probe.write_text(PYC_PROBE.format(impl=str(impl)), encoding="utf-8")
+        r = _run_probe(impl, probe, "--replace", "'right'", "--with", "'wrong'")
+        assert r.returncode == 0, r.stdout + r.stderr
+        assert "MUTATION CHECK PASSED" in r.stdout
+        # control: the runs DO cache bytecode (step 5's is left behind), so the probe could see one
+        assert list(tmp_path.glob("__pycache__/impl.*.pyc"))
+
     def test_the_file_is_byte_identical_after_a_detected_mutation(self, tmp_path):
         impl, rail = _project(tmp_path)
         before = impl.read_bytes()

@@ -140,10 +140,12 @@ def test_the_gate_registry_still_holds_25_gates_and_the_five_are_among_them():
     # 28: WISDOM_ARCHIVE_ASK_ENABLED (Ask AI's setup-context block over the archive; member-visible,
     # double-gated with WISDOM_ARCHIVE_ENABLED; dark at merge).
     # 29: WISDOM_ARCHIVE_LINES_ENABLED (auto chart reference lines; member-visible, 2026-10-16).
-    assert len(flags.GATES) == 29, len(flags.GATES)
+    # 30: WISDOM_TICKER_HISTORY_ENABLED (the chart's Team history panel; member-visible, e0cb24f047).
+    # 31: WISDOM_CALL_MOMENTS_ENABLED (archive call -> Desk session moment; member-visible, 78881ede59).
+    assert len(flags.GATES) == 31, len(flags.GATES)
     names = {row[0] for row in flags.GATES}
     for switch in ingest.SWITCHES:
         assert switch in names, switch
     member_visible = [row[0] for row in flags.GATES if row[2]]
-    assert len(member_visible) == 13, member_visible
+    assert len(member_visible) == 15, member_visible   # 13 + the two 2026-10-17 gates above
     assert "ASKAI_WISDOM_RETRIEVAL_ENABLED" in member_visible

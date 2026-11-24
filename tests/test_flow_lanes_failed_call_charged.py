@@ -29,7 +29,11 @@ HTTP_ERROR = anthropic.InternalServerError("x", response=httpx.Response(500, req
 TIMEOUT = anthropic.APITimeoutError(REQUEST)
 DROPPED = anthropic.APIConnectionError(request=REQUEST)
 NARRATIVE = "schwab_market_narrative"
-MODEL = "claude-sonnet-4-6"
+# ⛔ The model the narrative route actually bills, read from the route, never restated. This was the
+# literal "claude-sonnet-4-6"; 8ad4babe71 (2026-11-10) moved the route to `llm_models.SONNET`, and every
+# NARRATIVE expectation below was then priced at the retired model's rates against a charge made at the
+# current one's (0.40725 expected vs 0.3015 charged).
+MODEL = schwab_router._NARRATIVE_MODEL
 
 
 class FakeClient:
