@@ -372,8 +372,8 @@ def ingest(payload: dict) -> dict:
                     return {"accepted": 0, "resync": True, "epoch_ms": _state["epoch_ms"]}
                 _begin_epoch_locked(epoch, ffb)
         _state["last_push_mono"] = _now_mono()
-        if payload.get("watermark_ms"):
-            _state["watermark_ms"] = payload["watermark_ms"]
+        # (the 5m watermark, the PROOF, is set after this push's rows are written: below)
+        w_epoch = _state["epoch_ms"]
         _state["pushes"] += 1
         min_ts = (_state["first_full_bucket_ms"] or 0) // 1000
         clean = []
@@ -413,6 +413,11 @@ def ingest(payload: dict) -> dict:
         n += _write_b0(rebuild, epoch)
     with _lock:
         _state["rows_written"] += n
+        # ⛔ Only now (this push's buckets are on disk) may the proof cover them (review of #2708, round 2): set before the
+        # write, a read in between got `proven_through_s` (the roll) for rows not stored yet, and the 15m/30m/60m derived
+        # from the 5m inherited it. The 1m watermark below follows the same rule.
+        if payload.get("watermark_ms") and _state["epoch_ms"] == w_epoch:
+            _state["watermark_ms"] = payload["watermark_ms"]
     n1 = None
     if m1_rows is not None:
         n1 = _write_m1(m1_rows, m1_epoch)
