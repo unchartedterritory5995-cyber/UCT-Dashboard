@@ -67,7 +67,7 @@ local dev checkout (bars/live-prices only — buzz degrades to not_computable) o
 via `railway ssh ... /opt/venv/bin/python docs/discord-render/instruments/w8_accuracy_audit.py`
 on the real pod, where buzz.db is present too. It writes NOTHING except the evidence JSON.
 Lives beside this programme's other instruments (`d14_monitor.py`,
-`mutation_harness_flipgate.py`) rather than repo-root `tools/`, which is for
+`flip_gate_mutations.py`) rather than repo-root `tools/`, which is for
 repo-wide tooling — this is discord-render-hardening-specific.
 
 CoverageLine idiom for the tally: checked / matched / mismatched / not_computable,
