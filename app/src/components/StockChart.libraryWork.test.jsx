@@ -50,14 +50,25 @@ vi.mock('lightweight-charts', async () => {
     s.update = (p, hist) => { S.calls.push({ m: 'update', id, rows: slim([p]), hist: !!hist }); return update(p, hist) }
     return s
   }
-  const createChart = (...args) => {
-    const chart = lib.createChart(...args)
+  const createChart = (el, options) => {
+    // jsdom has no ResizeObserver: a chart created with `autoSize` stays 0 wide and has no visible range, and every
+    // geometry the chart reads (the view's span, the outgoing frame) degenerates. Sized as a 900 x 500 chart instead.
+    const chart = lib.createChart(el, { ...(options || {}), autoSize: false, width: 900, height: 500 })
     const addSeries = chart.addSeries.bind(chart)
     const addCustomSeries = chart.addCustomSeries.bind(chart)
     const removeSeries = chart.removeSeries.bind(chart)
     chart.addSeries = (def, options, pane) => recorded(addSeries(def, options, pane), kindOf(def), options, pane)
     chart.addCustomSeries = (view, options, pane) => recorded(addCustomSeries(view, options, pane), 'custom', options, pane)
     chart.removeSeries = (s) => { S.calls.push({ m: 'remove', id: S.ids.get(s) }); return removeSeries(s) }
+    // every frame the chart sets (library logical indices) and the code that set it
+    const ts = chart.timeScale()
+    const setRange = ts.setVisibleLogicalRange.bind(ts)
+    ts.setVisibleLogicalRange = (r) => {
+      const from = String(new Error().stack).split('\n').slice(2)
+        .map((l) => /at (?:Object\.|Proxy\.)?([\w$.]+)/.exec(l)?.[1]).filter(Boolean).slice(0, 4).join('<')
+      S.calls.push({ m: 'frame', what: `${r ? `${Math.round(r.from)}..${Math.round(r.to)}` : r} from ${from}` })
+      return setRange(r)
+    }
     return chart
   }
   return { ...lib, createChart }
@@ -216,6 +227,7 @@ function replay(lib, calls) {
       if (c.m === 'plan') { step?.passes.push(`plan ${c.mode} ${c.prevN}->${c.nextN}${c.sameRows ? ' same rows' : ''}`); continue }
       if (c.m === 'paint') { step?.passes.push(`paint ${c.mode} ${c.sym} ${c.tf} ${c.bars}`); continue }
       if (c.m === 'window') { step?.passes.push(`window: ${c.what}`); step?.set.push(`window: ${c.what}`); continue }
+      if (c.m === 'frame') { step?.set.push(`frame: ${c.what}`); continue }
       if (c.m === 'sig') {
         const now = JSON.parse(c.sig)
         const moved = lastSig ? Object.keys({ ...lastSig, ...now }).filter((k) => JSON.stringify(lastSig[k]) !== JSON.stringify(now[k])) : ['(first)']
