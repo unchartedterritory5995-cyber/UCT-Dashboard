@@ -589,7 +589,9 @@ export function preflightParts(opsIn) {
     steps = [...queued, ...steps]
     all = keep
   }
-  return { rest: all, steps }
+  // ⛔ AUDIT NO-GO F1 (11-23): the same change on several charts (the F5 fan-out) is planned and refused PER CHART by
+  // execute(), never as one plan — `fanOut` says the rest is that, so the preflight checks each of its ops on its own
+  return { rest: all, steps, fanOut: !!fanOutOf(all) }
 }
 // ⛔ LT-15: what a query that came back with NOTHING to show says (never an empty row after a reply that announced it)
 export const NO_RESULT = "I couldn't get a result for that, so there is nothing to show. Try asking again."

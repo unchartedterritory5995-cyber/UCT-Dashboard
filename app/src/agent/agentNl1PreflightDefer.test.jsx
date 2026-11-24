@@ -39,9 +39,11 @@ const CTX = { surface: 'charts' }
 const load = (cs) => { const m = mergeChartSettings(JSON.stringify(cs || {})); return adoptOverlayAverages(m) || m }
 const clone = (v) => (v == null ? v : JSON.parse(JSON.stringify(v)))
 // one chart, read and written like the workspace (settings + timeframe), every save accepted
-function board() {
-  const s = { c1: { settings: {}, tf: 'D' } }
-  const read = (ref) => (ref in s ? { ref, label: 'Left chart (QQQ)', position: 'left', symbol: 'QQQ', tf: s[ref].tf, stored: s[ref].settings, cs: load(s[ref].settings), linkedCount: 0 } : null)
+// (`two`: a second chart, the right one — the fan-out rows)
+const META = { c1: ['Left chart (QQQ)', 'left', 'QQQ'], c2: ['Right chart (SPY)', 'right', 'SPY'] }
+function board(two = false) {
+  const s = two ? { c1: { settings: {}, tf: 'D' }, c2: { settings: {}, tf: 'D' } } : { c1: { settings: {}, tf: 'D' } }
+  const read = (ref) => (ref in s ? { ref, label: META[ref][0], position: META[ref][1], symbol: META[ref][2], tf: s[ref].tf, stored: s[ref].settings, cs: load(s[ref].settings), linkedCount: 0 } : null)
   const b = { s }
   b.host = {
     charts: {
@@ -225,16 +227,97 @@ describe('(c) a repair answer that drops a requested op is never silent', () => 
   }, 30000)
 })
 
+// ── F1 (AUDIT NO-GO 11-23): a PURE FAN-OUT — the same change on both charts — is planned per chart, never refused whole ──
+const cs2 = (b, ref) => load(b.s[ref].settings)
+const inst2 = (b, ref, defId) => (cs2(b, ref).indicatorInstances || []).find(i => i.defId === defId)
+const hidden = (b, ref) => { const i = inst2(b, ref, 'rsi'); return !!i && (i.visible === false || i.hidden === true || i.presentation?.visible === false) }
+// both charts' indicatorEdits refs, by the chart each names
+const ixeRefs = (body) => {
+  const xs = body.context.indicatorEdits || []
+  const by = (word) => xs.find(x => JSON.stringify(x).includes(word))?.ref
+  return { c1: by('QQQ'), c2: by('SPY') }
+}
+async function twoWithRsi({ rsiOn = ['c1', 'c2'], hide = false } = {}) {
+  const b = board(true)
+  for (const ref of rsiOn) await seed(b, [{ action: 'indicator.add', target: `ixe:${ref}`, args: { defId: 'rsi', inputs: null } }])
+  if (hide) for (const ref of rsiOn) await seed(b, [{ action: 'indicator.hide', target: `ixe:${ref}`, args: { instance: 'rsi' } }])
+  _resetProposedPlans()
+  return b
+}
+const FAN = {
+  add: { say: 'add a MACD to both charts', op: { action: 'indicator.add', args: { defId: 'macd', inputs: null } }, done: (b, ref) => !!inst2(b, ref, 'macd') },
+  show: { say: 'show the RSI on both charts', hide: true, op: { action: 'indicator.show', args: { instance: 'rsi' } }, done: (b, ref) => !hidden(b, ref) },
+  hide: { say: 'hide the RSI on both charts', op: { action: 'indicator.hide', args: { instance: 'rsi' } }, done: (b, ref) => hidden(b, ref) },
+  colour: { say: 'make the RSI orange on both charts', op: { action: 'indicatorStyle.set', args: { instance: 'rsi', property: 'color', value: 'orange', output: null } }, done: (b, ref) => JSON.stringify(inst2(b, ref, 'rsi') || {}).toLowerCase().includes('#f59e0b') },
+}
+describe('F1: a pure fan-out (one change, both charts) — no repair, every chart done', () => {
+  for (const fam of Object.keys(FAN)) {
+    for (const mode of ['apply', 'propose']) {
+      it(`fan-out ${fam} × ${mode}`, async () => {
+        const F = FAN[fam]
+        const b = await twoWithRsi({ hide: !!F.hide })
+        expect(['c1', 'c2'].map(r => F.done(b, r))).toEqual([false, false])
+        // the recorded repair idiom: handed a refusal, the model keeps only the first chart's op
+        script = (body) => { const r = ixeRefs(body); const ops = ['c1', 'c2'].map(c => ({ ...F.op, target: r[c] })); return answer({ disposition: mode, reply: 'Done.', ops: body.repair ? ops.slice(0, 1) : ops }) }
+        const m = mount(b)
+        await m.say(F.say)
+        // an add on several charts always shows its card (policy), even planned as apply: the member's Apply, then the board
+        await m.approveAll()
+        const done = ['c1', 'c2'].map(r => F.done(b, r))
+        if (globalThis.process?.env?.NL1PF_ROWS) console.log(`ROW fan-${fam} ${mode} done=${done} repaired=${turns.some(t => t.repair)}`)
+        expect({ done, repaired: turns.some(t => t.repair), turns: turns.length }, m.transcript()).toEqual({ done: [true, true], repaired: false, turns: 1 })
+      }, 30000)
+    }
+  }
+  for (const mode of ['apply', 'propose']) {
+    it(`a fan-out with a REAL per-chart refusal (no RSI on the right chart): only that chart's op is reported × ${mode}`, async () => {
+      const b = await twoWithRsi({ rsiOn: ['c1'] })
+      script = (body) => {
+        const r = ixeRefs(body)
+        const ops = ['c1', 'c2'].map(c => ({ action: 'indicator.hide', target: r[c], args: { instance: 'rsi' } }))
+        return answer({ disposition: mode, reply: 'Done.', ops: body.repair ? ops.slice(0, 1) : ops })
+      }
+      const m = mount(b)
+      await m.say('hide the RSI on both charts')
+      if (mode === 'propose') await m.approveAll()
+      const rep = turns.filter(t => t.repair)
+      expect(rep).toHaveLength(1)
+      // the reasons sent back are the right chart's only — never the exclusive "one indicator at a time" rule
+      expect(rep[0].repair.errors.join(' ')).not.toMatch(/one indicator at a time/i)
+      const t = m.transcript()
+      // the left chart's op is done, or (the words said "both", the repaired plan names one) the target rail ASKS — never silent
+      expect(hidden(b, 'c1') || /Which charts do you mean\?/.test(t)).toBe(true)
+      expect(hidden(b, 'c2')).toBe(false)
+      expect((t.match(/Not done:/g) || []).length).toBe(1)
+      expect(t).toMatch(/Not done: one part of your request \(indicator hide\) — .*Right chart \(SPY\)/)
+      expect(t).not.toMatch(/Not done:[^.]*Left chart/)
+    }, 30000)
+  }
+  it('pure: a fan-out plan is one per-chart part; each chart checked on its own', async () => {
+    const h1 = { action: 'indicator.hide', target: 'ixe:c1', args: { instance: 'rsi' } }
+    const h2 = { ...h1, target: 'ixe:c2' }
+    expect(preflightParts([h1, h2])).toEqual({ rest: [h1, h2], steps: [], fanOut: true })
+    const b = await twoWithRsi()
+    buildContext(b.host, CTX)
+    expect(preflightRefusals(b.host, [h1, h2], { parts: preflightParts })).toEqual([])
+    const one = await twoWithRsi({ rsiOn: ['c1'] })
+    buildContext(one.host, CTX)
+    const f = NL1.preflightFindings(one.host, [h1, h2], { parts: preflightParts })
+    expect(f.length).toBeGreaterThan(0)
+    expect(f.every(x => x.index === 1)).toBe(true)                      // the right chart's op only
+  })
+})
+
 // ── the pure pieces ───────────────────────────────────────────────────────────────────────────────────────────
 describe('pure: preflightParts / preflightRefusals / repairDropped', () => {
   const tf = { action: 'chart.setTimeframe', target: 'chart:c1', args: { timeframe: 'W' } }
   const rs = { action: 'pane.resize', target: 'ixe:c1', args: { pane: 'rsi', size: 40 } }
   const add = { action: 'indicator.add', target: 'ixe:c1', args: { defId: 'macd', inputs: null } }
   it('the parts are the runtime\'s: the rest first, each sequential step queued after it', () => {
-    expect(preflightParts([tf, rs])).toEqual({ rest: [tf], steps: [rs] })
-    expect(preflightParts([rs, tf])).toEqual({ rest: [tf], steps: [rs] })
-    expect(preflightParts([add, rs])).toEqual({ rest: [add], steps: [rs] })
-    expect(preflightParts([tf])).toEqual({ rest: [tf], steps: [] })
+    expect(preflightParts([tf, rs])).toEqual({ rest: [tf], steps: [rs], fanOut: false })
+    expect(preflightParts([rs, tf])).toEqual({ rest: [tf], steps: [rs], fanOut: false })
+    expect(preflightParts([add, rs])).toEqual({ rest: [add], steps: [rs], fanOut: false })
+    expect(preflightParts([tf])).toEqual({ rest: [tf], steps: [], fanOut: false })
   })
   it('a sequential edit beside a chart op is NOT a refusal; a real one is; a step on what an earlier step adds waits for its turn', async () => {
     const b = await withRsi()

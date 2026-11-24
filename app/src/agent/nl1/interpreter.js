@@ -181,7 +181,8 @@ const cleanReason = (r) => String(r || '').replace(/[\u0000-\u001f<>`]+/g, ' ').
  * the rest first, then each sequential indicator edit as its own next step), each part is checked as the runtime will
  * check it, so the sequential rule ("Change one indicator at a time, on its own") is a DEFERRAL, never a refusal sent
  * back for repair. A step aimed at what an EARLIER part of the same plan adds indicators to is judged at its own turn,
- * on the board that earlier part leaves (useAgent.execute) — never on the board before it. Without `parts`, the plan is
+ * on the board that earlier part leaves (useAgent.execute) — never on the board before it. A fan-out rest (`fanOut`: the
+ * same change on several charts) is checked per chart, as execute() plans it. Without `parts`, the plan is
  * checked whole (as before).
  */
 export function preflightFindings(host, ops, { parts = null } = {}) {
@@ -199,7 +200,9 @@ export function preflightFindings(host, ops, { parts = null } = {}) {
         if (reason) out.push({ index: r.index >= 0 && part[r.index] ? ops.indexOf(part[r.index]) : -1, reason })
       }
     }
-    if (split.rest.length) check(split.rest)
+    // a fan-out rest (one change, several charts): each chart's op on its own, as execute()'s F5 block plans it
+    if (split.fanOut) for (const o of split.rest) check([o])
+    else if (split.rest.length) check(split.rest)
     const grown = new Set(split.rest.filter(o => getCapability(o?.action)?.addsIndicators).map(o => String(o.target)))
     for (const step of split.steps) {
       if (!grown.has(String(step.target))) check([step])
