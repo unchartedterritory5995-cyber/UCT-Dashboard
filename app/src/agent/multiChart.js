@@ -13,13 +13,10 @@
 //                        board's charts reused top-left first, the rest added, the charts' area re-tiled evenly —
 //                        one change, one Undo. Only the tickers, a count that matches them, one timeframe and a
 //                        layout word may be said; anything else ("…with RSI") is the model's.
-//   side by side         "show NVDA and AMD side by side" — OWNER 2026-10-27: reuse suitable charts, create
-//                        new ones only when needed or asked ("…in new charts"):
-//                          0 or 1 chart, or    → chartGrid.set as columns (the one chart is reused; the
-//                          "new charts"          second is added beside it) — applied (live test 2026-10-28)
-//                          2 charts            → both reused (a chart already on one of them keeps it) — applied
-//                          3+ charts           → already showing both: said; else the charts are PROPOSED
-//                                                (named on the card), never picked silently
+//   side by side         "show NVDA and AMD side by side" — ⛔ OWNER RULING 2026-11-23 (replaces the 10-27 "reuse suitable
+//                        charts"): the existing chart is PRESERVED and the comparison chart ADDED beside it; never a
+//                        silent replace; asked when ambiguous (no room, replace / swap words, no chart on either ticker).
+//                        0 charts or "new charts" → added, as before. (sidePlan / sideBySideScreen below)
 //   copy a look          "make the left chart look like the right one", "copy the look of the AMD chart to this
 //                        chart", "match the bottom chart to the top one" → chartSetup.copyLook (proposed)
 //
@@ -31,6 +28,10 @@ import { ordinalChart, selectedChart } from './deixis'
 import { plainSymbolWord, SHORT_FIXES } from './nl/lexicon'
 import { isReservedWord } from './nl/tickers'
 import { getTargetKind } from './capabilities'
+import { planChartGrid } from './chartGrid'
+import { sideBySideWords, SIDE_REPLACE } from './sideBySideWords'
+
+export { sideBySideWords, SIDE_REPLACE }
 
 // ── tickers as typed (capitals, or $-prefixed) — never a lowercase word ──
 const NOT_TICKERS = new Set(['I', 'A', 'UCT', 'ETF', 'ADR', 'RS', 'RSI', 'MACD', 'EMA', 'SMA', 'ATR', 'VWAP', 'ET', 'AM', 'PM', 'OK', 'US', 'NYSE', 'HLC', 'OHLC', 'MA', 'D', 'W', 'M', 'AND', 'VS'])
@@ -175,6 +176,11 @@ function gridRequest(raw0, lower0, charts, host) {
     }
     return { kind: 'ops', ops: [chartGrid(syms, tf, layout, onBoard > 0, rail)], mode: 'apply' }
   }
+  // ⛔ SIDE BY SIDE PRESERVES (owner ruling 11-23): "show NVDA, AMD and TSLA side by side" with no count or grid shape said — the
+  // existing charts are kept and the tickers they don't show are added beside them (or asked), exactly as for two tickers
+  if (!lead && !rail && !count && !ANY_COUNT.test(raw) && !EQUAL_SIZE_WORDS.test(raw) && !GRID_SHAPE_WORDS.test(raw) && layoutHit?.[1] === 'columns' && SIDE.test(raw) && !REPLACE_INTENT.test(raw) && charts.length > 0 && !wantsNew(raw, 0, 0)) {
+    return sidePlan(syms, tf, charts, host, raw)
+  }
   if (!lead && !explicitGridIntent(raw)) {
     const q = gridQuestion(syms, tf, layoutHit ? layoutHit[1] : null, rail, gridChartCount(host, charts.length), shownOf(host, syms, tf))
     if (q) return q
@@ -240,6 +246,10 @@ export function gridQuestion(syms, tf, layout, rail, onBoard, shown = []) {
 /** review t4 M1: the SAME question for a plan from ANY path (the model, NL-1, a rewritten grid shape): one chartGrid.set
  *  that does not replace, on a grid holding more charts than its tickers, with no explicit new / add / replace in the words. */
 export function gridChoiceFor(ops, text, host) {
+  // ⛔ SIDE BY SIDE PRESERVES (owner ruling 11-23): a side-by-side plan that would replace a chart, and could not become the add
+  // (no room, replace / swap words, the chart unclear, more than the tickers planned) is ASKED — nothing changed
+  const side = sideBySideScreen(ops, text, host)
+  if (side?.ask) return side.ask
   if (!Array.isArray(ops) || ops.length !== 1 || ops[0]?.action !== 'chartGrid.set') return null
   const a = ops[0].args || {}
   if (a.replace === true || a.replace === 'charts') return null
@@ -250,6 +260,8 @@ export function gridChoiceFor(ops, text, host) {
 const wantsNew = (text, n, onBoard) => asksNew(text) || n < onBoard
 // ⛔ ADD NEVER REPLACES (hotfix 2026-11-13): the verbs that ask for MORE charts, and a grid shape said in words
 export const ADD_VERB = /\b(?:add|adds|added|adding|include|includes|included|including)\b/i
+// a count of charts said with any one word before "charts" ("four equal charts"): the GRID-REUSE ruling's, never side-by-side's
+const ANY_COUNT = /\b(?:two|three|four|five|six|seven|eight|nine|[2-9])\s+(?:[a-z-]+\s+)?charts?\b/i
 const GRID_SHAPE_WORDS = /\b[1-4]\s*(?:x|by|-by-)\s*[1-4]\b|\bquad\b/i
 // the board's room for n more widgets (unknown → assumed, the grid's own check still refuses past the cap)
 function roomFor(host, n) {
@@ -299,6 +311,9 @@ const isRailAdd = (o) => o?.action === 'widget.add' && o.args?.type === 'watchli
 // grid has made the charts (useAgent: one more step, the same execute)
 export function screenChartGrid(input, text, host) {
   if (!Array.isArray(input) || !input.length) return { ops: input, corrected: false }
+  // ⛔ SIDE BY SIDE PRESERVES (owner ruling 11-23): a side-by-side plan that re-symbols an existing chart becomes the add beside it
+  const side = sideBySideScreen(input, text, host)
+  if (side?.ops) return { ops: side.ops, corrected: true }
   const aliasesIn = new Set(input.filter(o => o?.action === 'widget.add' && o.args?.as).map(o => String(o.args.as)))
   const extra = input.filter(o => !GRID_SHAPE.has(o?.action) && aliasesIn.has(String(o?.target)))
   const ops = extra.length ? input.filter(o => !extra.includes(o)) : input
@@ -371,32 +386,164 @@ function sideBySide(raw, lower, charts, host) {
   // other is added beside it — the two side by side, one Undo
   const fresh = NEW_CHARTS.test(lower) || charts.length === 0
   if (fresh && fitsEmpty(host, 2)) return { kind: 'ops', ops: [{ action: 'widget.addCharts', target: 'workspace', args: { symbols: [a, b], timeframe: tf || null, chart_type: null, exact: null } }], mode: 'apply' }
-  if (fresh || charts.length === 1) {
-    const has = charts.length === 1 ? String(charts[0].symbol || '').toUpperCase() : null
-    const order = !fresh && has === b ? [b, a] : [a, b]
-    return { kind: 'ops', ops: [chartGrid(order, tf, 'columns', fresh && charts.length > 0)], mode: 'apply' }
+  if (fresh) return { kind: 'ops', ops: [chartGrid([a, b], tf, 'columns', charts.length > 0)], mode: 'apply' }
+  return sidePlan([a, b], tf, charts, host, raw)
+}
+
+// ⛔ SIDE BY SIDE PRESERVES (OWNER RULING 2026-11-23): "For 'side by side,' preserve the existing chart and add the comparison chart
+// beside it by default. Never silently replace an existing chart. If the request or layout makes the intended behavior
+// ambiguous, clarify." (Before: one chart showing neither ticker was re-symbolled, two charts were both re-symbolled, three or
+// more were re-symbolled on a card — the replace the ruling forbids.) Now, for the tickers asked side by side on a board that has
+// charts, ONE reading for every path (this reader, a gridRequest "side by side", and the model's plan — sideBySideScreen):
+//   a ticker a chart shows + room   → the others are ADDED beside it (chartGrid.set new_charts: the board's own grid writer —
+//                                     every existing chart keeps its symbol, timeframe, link, indicators, panes and drawings;
+//                                     the charts' area is re-tiled; one change, one Undo)
+//   no room for them                → ASKED, nothing changed (replace instead, when a chart can take them; else Cancel)
+//   replace / swap words too        → ASKED, nothing changed (add beside, or replace)
+//   no chart shows any of them      → ASKED, nothing changed (the chart they go beside is unclear: add beside, or replace)
+// The replace choice is the member's explicit pick (its label says "replacing", which the chart rail reads as replace words).
+const symOf = (c) => String(c?.symbol || '').toUpperCase()
+const plural = (xs) => (new Set(xs).size === 1 ? '' : 's')
+const chartsWord = (charts, shown) => (shown.length ? `${andWords(shown)} chart${plural(shown)}` : `chart${charts.length === 1 ? '' : 's'}`)
+/** Would a grid that ADDS these tickers beside every chart (chartGrid.set new_charts) fit the board? Unknown → true (its own check). */
+export function gridAddFits(host, symbols, timeframe, layout) {
+  try {
+    const b = getTargetKind('board')?.list?.(host)?.[0]
+    if (!b?.grid || !Array.isArray(b.raw)) return true
+    return planChartGrid({ board: b.raw, charts: b.charts || new Map(), symbols, timeframe: timeframe || null, layout: layout || null, newCharts: true,
+      cols: b.grid.cols, rows: b.grid.rows, minOf: b.minOf, maxWidgets: b.maxWidgets ?? 16, detached: b.detached || [] }).ok === true
+  } catch { return true }
+}
+const sideLayout = (charts) => (charts.length === 1 ? 'columns' : null)
+/** The tickers asked side by side, on a board with charts → ops | steps | ask | say (the ruling above). */
+function sidePlan(syms, tf, charts, host, raw) {
+  const showing = (s) => charts.filter(c => symOf(c) === s)
+  const shown = syms.filter(s => showing(s).length)
+  const missing = syms.filter(s => !showing(s).length)
+  const swap = SIDE_REPLACE.test(raw)
+  // the timeframe asked for them all ("…, both weekly") is set on the charts already showing them
+  const tfOps = tf ? shown.map(s => showing(s)[0]).filter(c => c.tf !== tf).map(c => setTf(c.ref, tf)) : []
+  // every ticker is already on a chart: nothing to add
+  if (!missing.length && !swap) {
+    if (tfOps.length) return { kind: 'ops', ops: tfOps, mode: 'apply' }
+    return { kind: 'say', text: `${andWords(shown.map(s => `${s} is already on ${showing(s)[0].label}`))} — nothing to change.` }
   }
-  const showing = (s) => charts.filter(c => String(c.symbol || '').toUpperCase() === s)
-  if (charts.length === 2) {
-    // a chart already on one of them keeps it; the other chart takes the other symbol
-    let [c1, c2] = charts
-    if (showing(b).some(c => c.ref === c1.ref) || showing(a).some(c => c.ref === c2.ref)) [c1, c2] = [c2, c1]
-    if (linkedTogether([c1.ref, c2.ref], charts)) return { kind: 'say', text: LINKED }
-    const ops = [setSymbol(c1.ref, a), setSymbol(c2.ref, b), ...(tf ? [setTf(c1.ref, tf), setTf(c2.ref, tf)] : [])]
-    return { kind: 'ops', ops, mode: 'apply' }
+  // (the words said side by side: a line of charts — the grid's own writer makes it an even grid when a line can't hold them)
+  const layout = 'columns'
+  const room = missing.length > 0 && gridAddFits(host, missing, tf, layout)
+  const add = missing.length ? [chartGrid(missing, tf, layout, true)] : null
+  if (shown.length && room && !swap) {
+    if (!tfOps.length) return { kind: 'ops', ops: add, mode: 'apply' }
+    const first = showing(shown[0])[0]
+    return { kind: 'steps', steps: [{ ops: tfOps, mode: 'apply' }, { ops: add, mode: 'apply', needs: { ref: first.ref, symbol: symOf(first) } }] }
   }
-  const sa = showing(a), sb = showing(b)
-  if (sa.length && sb.length && !tf) return { kind: 'say', text: `${a} is already on ${sa[0].label} and ${b} on ${sb[0].label} — nothing to change.` }
-  // several charts: keep one already on a symbol; fill the other from the first remaining chart in reading
-  // order — PROPOSED, so the member sees exactly which charts (never a silent pick)
-  const keepA = sa[0] || null, keepB = sb.find(c => c.ref !== keepA?.ref) || null
-  const free = charts.filter(c => c.ref !== keepA?.ref && c.ref !== keepB?.ref)
-  const ca = keepA || free.shift()
-  const cb = keepB || free.shift()
-  if (!ca || !cb) return null
-  if (linkedTogether([ca.ref, cb.ref], charts)) return { kind: 'say', text: LINKED }
-  const ops = [...(keepA ? [] : [setSymbol(ca.ref, a)]), ...(keepB ? [] : [setSymbol(cb.ref, b)]), ...(tf ? [setTf(ca.ref, tf), setTf(cb.ref, tf)] : [])]
-  return ops.length ? { kind: 'ops', ops, mode: 'propose', note: `With ${charts.length} charts here I picked ${ca.label} for ${a} and ${cb.label} for ${b} — check it first; nothing has changed yet.` } : null
+  return sideQuestion({ syms, shown, missing, charts, room, add, swap, replace: sideReplace(syms, tf, charts, host, room, layout) })
+}
+/** The member's explicit replace choice: the tickers not shown go on the other charts (reading order); else a reusing grid. */
+function sideReplace(syms, tf, charts, host, room, layout = sideLayout(charts)) {
+  const showing = (s) => charts.filter(c => symOf(c) === s)
+  const keep = new Map(syms.filter(s => showing(s).length).map(s => [s, showing(s)[0]]))
+  const kept = [...keep.values()]
+  const free = charts.filter(c => !kept.some(k => k.ref === c.ref)).sort(readingOrder)
+  const missing = syms.filter(s => !keep.has(s))
+  if (missing.length && missing.length <= free.length) {
+    const picks = missing.map((s, i) => [free[i], s])
+    const touched = [...kept, ...picks.map(p => p[0])]
+    if (linkedTogether(touched.map(c => c.ref), charts)) return null
+    const ops = [...picks.map(([c, s]) => setSymbol(c.ref, s)), ...(tf ? touched.filter(c => c.tf !== tf).map(c => setTf(c.ref, tf)) : [])]
+    return { ops, tickers: missing, replaced: picks.map(([c]) => symOf(c) || c.label) }
+  }
+  // fewer charts than tickers: the board's charts reused top-left first (a ticker a chart shows first, so it keeps it), the rest added
+  if (missing.length && (room || gridAddFits(host, syms.slice(charts.length), tf, layout))) {
+    const order = [...syms].sort((x, y) => (keep.has(y) ? 1 : 0) - (keep.has(x) ? 1 : 0))
+    const reused = charts.slice().sort(readingOrder).slice(0, syms.length).filter(c => !syms.includes(symOf(c)))
+    if (reused.length) return { ops: [chartGrid(order, tf, layout, false)], tickers: syms, replaced: reused.map(c => symOf(c) || c.label) }
+  }
+  // the ONE chart, no room beside it: the comparison ticker shown on it instead
+  if (charts.length === 1 && missing.length === 1) return { ops: [setSymbol(charts[0].ref, missing[0])], tickers: missing, replaced: [symOf(charts[0]) || charts[0].label] }
+  return null
+}
+const replacedWord = (r) => `the ${andWords([...new Set(r.replaced)])} chart${plural(r.replaced)}`
+const replaceLabel = (r) => `Put ${andWords(r.tickers)} on your board, replacing ${replacedWord(r)}`
+function sideQuestion({ syms, shown, missing, charts, room, add, swap, replace }) {
+  const mine = chartsWord(charts, shown)
+  const choices = []
+  const options = {}
+  if (room && add) { choices.push({ ref: 'grid:add', label: `Add ${andWords(missing)} beside your ${mine}` }); options.add = add }
+  if (replace) { choices.push({ ref: 'grid:replace', label: replaceLabel(replace) }); options.replace = replace.ops }
+  const instead = replace ? ` Replace ${replacedWord(replace)} instead?` : ' Close or shrink a widget to make room, then ask again.'
+  const text = !room && missing.length ? `There isn't room beside your ${mine} for ${andWords(missing)} — a chart can't get smaller than it is allowed to.${instead} Nothing has changed yet.`
+    : swap ? `Do you want ${andWords(missing.length ? missing : syms)} added beside your ${mine}${replace ? `, or put in place of ${replacedWord(replace)}` : ''}? Nothing has changed yet.`
+      : `None of your charts shows ${andWords(syms)}. Add ${missing.length === 1 ? 'it' : 'them'} beside your ${mine}${replace ? `, or replace ${replacedWord(replace)}` : ''}? Nothing has changed yet.`
+  return { kind: 'ask', text, choices, options }
+}
+
+// ── ⛔ the SAME ruling for any PLAN (the model's, NL-1's, routing v2's): side-by-side words + a plan that re-symbols an existing chart ──
+// The words ask for a chart side by side with / next to / beside / alongside another (never "the one next to …", which NAMES a
+// chart, nor "next to them", the ADD rail's own), with no replace word, and the plan gives an existing chart another ticker
+// (chart.setSymbol, or a chartGrid.set that reuses it) that no position word in the request addresses → the plan BECOMES the add
+// above when it is only that, the chart it goes beside is clear and there is room; otherwise it is ASKED (add beside, or the plan
+// as planned — named as replacing), nothing changed. → null | { ops } | { ask }
+const DEIXIS_WORDS = /\b(?:this|that)\s+(?:one|chart)\b|\b(?:it|this)\s*[.!?]?$/i
+const SIDE_PLAN = new Set(['chart.setSymbol', 'chart.setTimeframe', 'widget.add', 'widget.addCharts', 'widget.arrange', 'chartGrid.set'])
+export function sideBySideScreen(ops, text, host) {
+  const t = String(text || '')
+  if (!Array.isArray(ops) || !ops.length || !sideBySideWords(t) || isWorkspaceRequest(t)) return null
+  let charts = []
+  try { charts = host?.charts?.list?.() || [] } catch { charts = [] }
+  if (!charts.length) return null
+  const byRef = new Map(charts.map(c => [String(c.ref), c]))
+  const aliases = new Set(ops.filter(o => o?.action === 'widget.add' && o.args?.as).map(o => String(o.args.as)))
+  const addressed = (c) => { for (const m of t.matchAll(new RegExp(POS_RE.source, 'gi'))) if (matchPosition([c], normPos(m[1])).length) return true; return false }
+  // what the plan would take off an existing chart
+  const resym = ops.filter(o => o?.action === 'chart.setSymbol' && byRef.has(String(o.target)) && !aliases.has(String(o.target))
+    && String(o.args?.symbol || '').trim().toUpperCase() !== symOf(byRef.get(String(o.target))))
+  const grids = ops.filter(o => o?.action === 'chartGrid.set' && o.args?.new_charts !== true && !o.args?.replace)
+  const ordered = charts.slice().sort(readingOrder)
+  const gridReplaced = [...new Set(grids.flatMap(o => {
+    const want = (o.args?.symbols || []).map(s => String(s || '').toUpperCase())
+    return ordered.slice(0, want.length).filter(c => !want.includes(symOf(c))).map(symOf)
+  }))]
+  if (!resym.length && !gridReplaced.length) return null
+  if (resym.length && !gridReplaced.length && resym.every(o => addressed(byRef.get(String(o.target))))) return null   // the words address it
+  const onBoard = new Set(charts.map(symOf))
+  const named = tickersIn(t)
+  const planned = [...resym.map(o => String(o.args.symbol).trim().toUpperCase()), ...grids.flatMap(o => (o.args?.symbols || []).map(s => String(s || '').toUpperCase()))]
+  const missing = [...new Set([...named, ...planned].filter(s => s && !onBoard.has(s)))]
+  if (!missing.length) return null                                                  // nothing new to show: the rails decide
+  const shown = named.filter(s => onBoard.has(s))
+  let selected = null
+  try { selected = host?.charts?.selected?.() || null } catch { selected = null }
+  const deixis = DEIXIS_WORDS.test(t) && (byRef.has(String(selected)) || charts.length === 1)
+  const anchorClear = shown.length > 0 || deixis
+  // a timeframe the plan gives the chart it re-symbols (or a new one) is the new chart's; any other change → not only an add
+  const tfs = new Set()
+  let other = false
+  for (const o of ops) {
+    if (!SIDE_PLAN.has(o?.action)) { other = true; continue }
+    if (o.action === 'chart.setTimeframe') {
+      if (resym.some(r => String(r.target) === String(o.target)) || aliases.has(String(o.target))) tfs.add(o.args?.timeframe)
+      else other = true
+    }
+    if (o.action === 'widget.add' && o.args?.type !== 'chart') other = true
+  }
+  if (tfs.size > 1) other = true
+  const tf = tfs.size === 1 ? [...tfs][0] || null : null
+  const layout = sideLayout(charts)
+  const add = [chartGrid(missing, tf, layout, true)]
+  const room = gridAddFits(host, missing, tf, layout)
+  const swap = SIDE_REPLACE.test(t)
+  if (room && anchorClear && !swap && !other) return { ops: add }
+  const replaced = [...new Set([...resym.map(o => symOf(byRef.get(String(o.target)))), ...gridReplaced].filter(Boolean))]
+  const replace = { ops, tickers: [...new Set(planned)], replaced: replaced.length ? replaced : ['existing'] }
+  const q = sideQuestion({ syms: missing, shown, missing, charts, room, add: other ? null : add, swap, replace })
+  if (other && room) {
+    // the plan does more than show the tickers: the add choice says it adds the chart only
+    q.choices.unshift({ ref: 'grid:add', label: `Add ${andWords(missing)} beside your ${chartsWord(charts, shown)} (the chart only)` })
+    q.options.add = add
+    q.text = `That would replace ${replacedWord(replace)}. Add ${andWords(missing)} beside ${shown.length || deixis ? 'it' : 'your charts'} instead (the chart only — then ask for the rest on it), or replace? Nothing has changed yet.`
+  }
+  return { ask: q }
 }
 
 // ── positional symbols ──

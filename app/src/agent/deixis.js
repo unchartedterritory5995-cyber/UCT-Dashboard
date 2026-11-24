@@ -18,6 +18,12 @@ import { namedAnchorRelation, wholeLinesNamed, clickLineMatch, clickLineHits, ac
 // Words that point at "the chart in front of me". "it" counts only for a CHART-kind op ("make it
 // weekly"), never on its own ("put it in Momentum", "what is it" are not about a chart).
 const POINTS = /\b(?:(?:this|that|the|my|current|active|selected|focused)\s+(?:current\s+|active\s+|selected\s+)?(?:chart|stock|ticker|symbol|name)|this\s+one|(?:on|in)\s+here|right\s+here)\b/i
+// ⛔ G1/G2 (AUDIT 11-23): a bare "here" in a CHANGE clause ("add a 20 EMA here", "and do the same here") points at the chart in
+// front of the member, as "on here" does. Not in a clause that STATES something ("I drew two lines here": its subject comes first)
+// and never "here's / here is", which present something.
+const HERE = /\bhere\b(?!['’]s\b|\s+(?:is|are|was|were)\b)/gi
+const STATING = /^\s*(?:i|we|you|he|she|they|there)\b/i
+const pointsHere = (s) => [...s.matchAll(HERE)].some(m => !STATING.test(s.slice(0, m.index).split(/[,;:.!?]|\b(?:and|then|but)\b/i).pop()))
 const IT = /\bit\b/i
 // "this NVDA chart" — a ticker between the pointer word and "chart" (never a position or ordinal word)
 const NAMED = /\b(?:this|that|the)\s+(?!(?:left|right|top|bottom|upper|lower|middle|center|centre|other|first|second|third|last|main|new|old|big|small|current|active|selected|focused|same|whole|entire)\s)([a-z]{1,6}(?:[.-][a-z]{1,2})?)\s+(?:chart|tab)\b/i
@@ -681,7 +687,7 @@ export function describedCharts(text, charts = []) {
 /** Does the member's text point at one chart without naming it? (With the board's `charts`: also a chart it describes.) */
 export function pointsAtChart(text, { chartOp = false, charts = null } = {}) {
   const s = String(text || '')
-  return !!relationMatch(s) || POINTS.test(s) || NAMED.test(s) || TF_NAMED.test(s) || (chartOp && IT.test(s)) || (!!charts && describedCharts(s, charts) != null)
+  return !!relationMatch(s) || POINTS.test(s) || pointsHere(s) || NAMED.test(s) || TF_NAMED.test(s) || (chartOp && IT.test(s)) || (!!charts && describedCharts(s, charts) != null)
     // AUDIT probe 18 (G1): a relation from a chart named by its SYMBOL ("the one next to the SPY one") points at a chart too
     || (!!charts && !!namedAnchorRelation(s, charts))
 }
@@ -740,6 +746,13 @@ const ANAPHOR = /\b(?:it|that\s+(?:chart|one|ticker|stock|symbol|name))\b/gi
 // (a keep verb opens a clause of its own even with no comma: "change AMD to weekly leave NVDA alone")
 const ANA_SPLIT = /[,;:.!?—–]|\s-\s|\b(?:but|and then|then|and)\b|(?=\b(?:leave|keep|don['’]?t|do\s+not|hands\s+off|never\s+touch)\b)/gi
 const KEEP_CLAUSE = /^\s*(?:please\s+)?(?:leave|keep|let|don['’]?t|do\s+not|never|not|stop|skip|ignore|exclude|avoid|hands\s+off)\b|\b(?:not|never|no)\b|n['’]t\b/i
+// ⛔ G1 (AUDIT 11-23): an ADDITIVE clause — one that REPEATS a change ("and do the same on it", "the same for that one", "do it
+// there too") or is only a reference with "too / as well / also" ("and that chart too") — means ANOTHER chart than the one already
+// changed: its anaphor is never the ticker named before it (the readers then ask, unless a click or the words settle it)
+const REPEAT_CLAUSE = /\b(?:the\s+same|same\s+(?:thing\s+)?(?:on|for|to|with|in)|do(?:es)?\s+(?:that|this|it)|likewise)\b/i
+const ALSO_TAIL = /\b(?:too|as\s+well|also)\s*$/i
+const bareReference = (clause) => !String(clause).replace(/\b(?:it|that|this|chart|one|ticker|stock|symbol|name|too|as|well|also|and|on|to|for|with|in|please|the|a)\b/gi, ' ').replace(/[^a-z]/gi, '')
+export const additiveClause = (clause) => REPEAT_CLAUSE.test(String(clause)) || (ALSO_TAIL.test(String(clause).trim()) && bareReference(clause))
 const STAYS_CLAUSE = /\b(?:stays?|remains?)\b|\b(?:is|['’]s)\s+(?:(?:just|already)\s+)?(?:fine|good|ok(?:ay)?|perfect|alright)\b|\bas\s+(?:it\s+)?is\b|\b(?:untouched|unchanged|alone)\b/i
 export function tickerAntecedent(text, charts = [], sel = null, ex = new Set()) {
   try { return tickerAntecedentOf(text, charts, sel, ex) } catch { return null }   // ⛔ fail closed: no antecedent → the readers below ask
@@ -752,6 +765,7 @@ function tickerAntecedentOf(text, charts, sel, ex) {
   const cuts = [0, ...[...s.matchAll(ANA_SPLIT)].flatMap(m => [m.index, m.index + m[0].length]), s.length].sort((a, b) => a - b)
   const clauseAt = (i) => { let a = 0, b = s.length; for (const c of cuts) { if (c <= i) a = c; else { b = c; break } } return s.slice(a, b) }
   if (hits.some(h => KEEP_CLAUSE.test(clauseAt(h.index)))) return null
+  if (hits.some(h => additiveClause(clauseAt(h.index)))) return null
   // the CHANGE clauses only: a keep / negated clause ("leave my NVDA chart alone", "NVDA stays as is") names no antecedent
   let change = '', kept = ''
   for (let i = 0; i < cuts.length - 1; i++) {
@@ -788,6 +802,61 @@ function changeWords(text) {
     change += KEEP_CLAUSE.test(part) || STAYS_CLAUSE.test(part) ? ' '.repeat(part.length) : part
   }
   return withoutExclusions(change)
+}
+/** The CHANGE words of a message (keep / negated clauses and exclusions blanked) — what names a TARGET. */
+export const changeWordsOf = (text) => { try { return changeWords(text) } catch { return String(text || '') } }
+/** G1b (AUDIT 11-23): do the CHANGE words name a chart of the board themselves (by ticker, place, order, relation, description)? */
+export const wordsNameAChart = (text, charts = [], sel = null) => { try { return chartsNamedBy(changeWordsOf(text), charts, sel).size > 0 } catch { return true } }
+/** G1/G2 (AUDIT 11-23): do the words point at the CLICKED chart ("this", "here", "the selected / clicked one")? */
+export const pointsAtClick = (text) => /\b(?:this|here|selected|clicked|highlighted)\b/i.test(String(text || ''))
+/** G1/G2 (AUDIT 11-23): do the member's words THEMSELVES identify every chart a plan writes? — nothing in them points at a chart
+ *  without naming it ("this one", "that chart", "here", a relation, a description: a bare "it" may stand for a chart they named or
+ *  for a thing, never for a chart they did not name), no click outside what is written, and each written chart is one the change
+ *  words name by ticker, place, order or relation, or a plural place ("the bottom two", "the left charts"). The deictic screen then
+ *  has nothing to settle: the plan lands exactly where the words say. Anything else → false (the deictic screen reads them). */
+export function wordsGroundWrites(text, charts = [], sel = null, written = new Set()) {
+  try {
+    if (!written?.size) return false
+    const s = String(text || '')
+    if (pointsAtChart(s, { chartOp: false, charts })) return false
+    if (sel && [...written].some(c => c !== sel)) return false
+    const w = changeWordsOf(s)
+    const named = chartsNamedBy(w, charts, sel)
+    for (const m of w.matchAll(/\b(top|bottom|upper|lower|left|right)(?:[\s-]+(left|right))?\s+(?:two|three|four|both|charts|ones)\b/gi)) {
+      const parts = [m[1], m[2]].filter(Boolean).map(x => x.toLowerCase().replace('upper', 'top').replace('lower', 'bottom'))
+      for (const c of charts) if (c.position && parts.every(x => c.position.split('-').includes(x))) named.add(c.ref)
+    }
+    return [...written].every(c => named.has(c))
+  } catch { return false }
+}
+/** AUDIT R2 (11-23): sole grounding PER CLAUSE. A pronoun clause ("add a 20 EMA to it") that names no chart itself, with no chart
+ *  named before it in the words, means the conversation's live SUBJECT — even when ANOTHER clause names a chart ("… and switch SPY
+ *  to bars"). True when every chart written is that subject or a chart the change words name, and the subject is written. Never with
+ *  a click (the click outranks memory), a pointer that is not an anaphor ("this one", "here", a relation), an anaphor in a keep or
+ *  additive clause, or an in-message antecedent before the first anaphor (then the words, not memory, say what "it" is). */
+export function anaphorsOnSubject(text, charts = [], sel = null, subject = null, written = new Set()) {
+  try {
+    if (!subject || sel || !written?.size || !written.has(subject)) return false
+    const s = String(text || '')
+    const hits = [...s.matchAll(ANAPHOR)]
+    if (!hits.length) return false
+    if (pointsAtChart(s.replace(ANAPHOR, (m) => ' '.repeat(m.length)), { chartOp: false, charts })) return false
+    if (chartsNamedBy(changeWordsOf(s.slice(0, hits[0].index)), charts, null).size) return false
+    const cuts = [0, ...[...s.matchAll(ANA_SPLIT)].flatMap(m => [m.index, m.index + m[0].length]), s.length].sort((a, b) => a - b)
+    const clauseAt = (i) => { let a = 0, b = s.length; for (const c of cuts) { if (c <= i) a = c; else { b = c; break } } return s.slice(a, b) }
+    for (const h of hits) {
+      const c = clauseAt(h.index)
+      if (KEEP_CLAUSE.test(c) || STAYS_CLAUSE.test(c) || additiveClause(c) || chartsNamedBy(c, charts, null).size) return false
+    }
+    const named = chartsNamedBy(changeWordsOf(s), charts, null)
+    named.add(subject)
+    return [...written].every(c => named.has(c))
+  } catch { return false }
+}
+/** G1/G2: do the words name a SET of charts ("both", "all charts", "the others", "them") — a split may then land on several. */
+export const wordsNameASet = (text) => {
+  const s = String(text || '')
+  return MANY_COUNT.test(s) || OTHER_CHARTS.test(s) || REST_OF_BOARD.test(s) || /\b(?:them|both|charts|all|each|every)\b/i.test(s)
 }
 const TGT_ANCHOR_BEFORE = /\b(?:above|below|under|underneath|beneath|over|beside|alongside|near|nearest|by|next\s+(?:door\s+)?to|left\s+of|right\s+of|across\s+from|opposite|adjacent\s+to|diagonal(?:ly)?(?:\s+(?:from|to|across\s+from))?|kitty[\s-]?corner\s+(?:from|to)|catty[\s-]?corner\s+(?:from|to))\s+(?:the\s+|my\s+)?\$?$/i
 // ordinary words — typed in capitals for emphasis, or not in capitals at all — are words, never tickers (unless on the board):
