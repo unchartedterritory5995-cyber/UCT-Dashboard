@@ -4026,8 +4026,8 @@ def get_earnings_season(date_str: str | None = Query(None, alias="date"),
     `{"status": "computing"}` and the panel asks again. That module's docstring names every
     source and why the enrichment batch is not one of them.
     """
-    from api.services import earnings_season
-    return earnings_season.get_day(date_str)
+    from api.services import earnings_season, held_bytes
+    return held_bytes.response(earnings_season.get_day(date_str))
 
 
 @router.get("/api/calendar/enrichment-batch")

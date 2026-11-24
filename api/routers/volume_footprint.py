@@ -39,4 +39,5 @@ def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
 def get_volume_footprint(ticker: str, user: dict = Depends(require_paid)):
     """The volume footprint and gaps for one ticker (see `api/services/volume_footprint.py`)."""
     from api.services import volume_footprint
-    return volume_footprint.get_volume_footprint(require_route_symbol(ticker))
+    from api.services import held_bytes
+    return held_bytes.response(volume_footprint.get_volume_footprint(require_route_symbol(ticker)))

@@ -19,6 +19,17 @@ ranking is a new object), the rating table OBJECT and whether the rating switch 
 on, and the pending-deal set. Any other input makes new bytes; the bound is
 `_BODY_MAX` answers (each about the size of the list's JSON, ~0.6 MB). The list
 stays whole: the RS badge, UCT 20 and the groups drill read all of it.
+
+⚡ AND THEY ARE MADE BEFORE THE FIRST REQUEST (speed pass 3, 2026-11-24; live, the
+first request after a while took 2.8 s). Whenever a source refreshes (a new ranking
+cached, computed or seeded; the rating table changed: `rs_ranking.on_change`), ONE
+background thread (`BODY_THREAD`) makes the bytes for the new inputs, and a boot
+DATE job (`WARM_BOOT_DELAY_S`) makes them too (`warm_body`, a no-op when made). The
+rating table is read without waiting on its re-read (`rs_ranking.ibd_latest_nowait`),
+and a re-read that finds the same table keeps the same object, so the bytes stay
+valid; a table that changed makes new bytes. The key rules above are unchanged: a
+request never gets bytes made from another input (it waits for the one build, or
+makes them).
 """
 
 import threading
@@ -34,6 +45,10 @@ from api.services.rs_ranking import (cached_rankings, get_rs_for_ticker, kick_ba
 
 router = APIRouter()
 
+#: The boot DATE job's offset (`api/main.py`): past the boot's busy minutes, on an offset no other boot job uses.
+WARM_BOOT_DELAY_S = 660
+BODY_THREAD = "rs-rankings-body"
+
 #: The finished answers held (see the module docstring): the newest, and the one before it while a request built
 #: from the older input may still be finishing.
 _BODY_MAX = 2
@@ -48,7 +63,7 @@ def _body(data: list, deal_pending: frozenset) -> bytes:
     OBJECTS themselves (compared by identity, so an object can never be freed and its address reused while it is a
     key), the rating switch, and the pending-deal set by value."""
     on = _rs.rs_rank_ibd_enabled()
-    table = _rs._ibd_latest() if on and data else None
+    table = _rs.ibd_latest_nowait() if on and data else None
     key = (id(data), id(table), on, deal_pending)
     hit = _held_body(key, data, table)
     if hit is not None:
@@ -74,7 +89,7 @@ def _make_body(key: tuple, data: list, table, deal_pending: frozenset) -> bytes:
     # One RS rating everywhere (U5a): under RS_RANK_IBD_ENABLED the list carries
     # the nightly rating as `rs_rank` (the badge and the RS leaders panel read it
     # from here). A table read, not a compute; flag off, `data` is untouched.
-    shown = unified_rankings(data)
+    shown = unified_rankings(data, table=table)       # the very table the key names (speed pass 3)
     # A pending acquisition (DEAL_STATUS_ENABLED) is not shown as an RS leader. Removed
     # from the DISPLAYED list only: every other name keeps the percentile it was ranked
     # at. Flag off: the set is empty and the list is served untouched.
@@ -95,6 +110,56 @@ def reset_bodies() -> None:
     """Tests: forget the finished answers."""
     with _bodies_lock:
         _bodies.clear()
+
+
+def warm_body() -> str:
+    """Make the list's bytes for the inputs as they are now, on the calling (background) thread: the boot DATE job and
+    the source listener (`_warm_body_bg`). A no-op while the ranking is cold (the route answers from the snapshot then)
+    and when the bytes for these inputs are made already."""
+    data = cached_rankings()
+    if not data:
+        return "cold"
+    from api.services import deal_status
+    made = body_builds
+    _body(data, deal_status.consumer_pending())
+    return "made" if body_builds > made else "warm"
+
+
+_warm_lock = threading.Lock()
+_warm_state = {"running": False, "again": False}
+
+
+def _warm_body_run() -> None:
+    try:
+        while True:
+            try:
+                warm_body()
+            except Exception:  # noqa: BLE001 -- the next request makes the bytes, as before
+                import logging
+                logging.getLogger(__name__).warning("[rs-rankings] the bytes could not be made ahead", exc_info=True)
+            with _warm_lock:
+                if not _warm_state["again"]:
+                    _warm_state["running"] = False
+                    return
+                _warm_state["again"] = False
+    except BaseException:
+        with _warm_lock:
+            _warm_state["running"] = False
+        raise
+
+
+def _warm_body_bg() -> None:
+    """The source listener (`rs_ranking.on_change`): ONE background thread makes the bytes for the newest inputs; a
+    change seen while it runs makes it go round once more. Returns at once."""
+    with _warm_lock:
+        if _warm_state["running"]:
+            _warm_state["again"] = True
+            return
+        _warm_state["running"], _warm_state["again"] = True, False
+    threading.Thread(target=_warm_body_run, name=BODY_THREAD, daemon=True).start()
+
+
+_rs.on_change(_warm_body_bg)
 
 
 def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:

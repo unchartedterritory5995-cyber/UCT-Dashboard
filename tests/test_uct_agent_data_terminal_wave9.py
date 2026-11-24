@@ -75,7 +75,10 @@ FORBIDDEN = {
     ty: ("get_yields", "fetch_period", "_http_get", "_start_job", "_build_bg"),
     held_build.HeldBuild: ("get", "_start", "_run"),
     fw: ("get_fed_watch", "build", "fetch", "_http_get", "_start_job", "_build_bg", "rates_block", "_latest_point",
-         "_read_feed", "_read_statement", "_read_projections", "_read_survey_page", "_read_survey_file"),
+         "_read_feed", "_read_statement", "_read_projections", "_read_survey_page", "_read_survey_file",
+         # speed pass 3: the route's rates refresh and headline pass, and the boot warm, are never a turn's to start
+         "rates_served", "headlines_served", "_start_rates", "_rates_refresh_bg", "_start_headlines", "_headlines_pass",
+         "warm"),
     serving: ("series", "_read_key", "_from_artifacts", "_from_db", "_artifact"),
     data_sync: ("get_bytes",),
 }
