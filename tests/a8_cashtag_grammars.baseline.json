@@ -49,6 +49,16 @@
       "reason": "TERM-064's ONE ticker resolver (moved from the AI Search query parser, which now delegates; the catalyst discovery grammar was retired into it): class-share suffix plus a bare-word alternative in one pass; a resolution grammar, not M5's ingest grammar."
     },
     {
+      "path": "api/services/tx_headline_match.py",
+      "pattern": "\\$([A-Z]{1,5}(?:\\.[A-Z])?)\\b",
+      "reason": "Discord /news TradeXchange headline matcher (75c69f2b71, 2026-10-27): upper-case 1-5 letters with the dot class-share form, as TradeXchange writes tickers; candidates are confirmed against the real-ticker check. Owner ruling 2026-11-24 (decision delegated to the GITHUB session): recorded, not unified, because M5's grammar or the resolver's mixed-case/hyphen tier would change which tickers the public news cards name (e.g. $BRK-B, $Brk). Byte-identical to the class-share alternative already recorded for ai_search_log.py."
+    },
+    {
+      "path": "api/services/uct_agent/turn.py",
+      "pattern": "\\$[A-Za-z]{1,6}\\b|(?<![A-Za-z0-9])[A-Z]{1,5}(?![A-Za-z0-9])",
+      "reason": "UCT Agent nonsense-clarify guard (d8960db740, W1.1 NB-5, 2026-11-03): a cashtag-or-ALL-CAPS token SHAPE test that only decides 'this is a real request, not keyboard noise'; it attributes no ticker. Same class as the Notebook Ask retrieval entry. Owner ruling 2026-11-24 (delegated to the GITHUB session): recorded."
+    },
+    {
       "path": "api/services/voice_text_normalize.py",
       "pattern": "\\$([A-Za-z]{1,5})\\b",
       "reason": "Voice TTS normaliser: rewrites $sym for speech; a substitution, not ticker attribution."
@@ -62,6 +72,11 @@
       "path": "api/services/wisdom/publish/adapters/voice.py",
       "pattern": "\\$[A-Z]{1,5}\\b|\\b[A-Z]{2,5}\\b",
       "reason": "Wisdom voice adapter: cashtag-or-uppercase token shape for publish-time checks (wisdom program scope)."
+    },
+    {
+      "path": "tools/agent_v2_corpus_cost.py",
+      "pattern": "^\\$([A-Za-z]+)(?:\\[(\\d+)\\])?(?:\\{\\w+\\})?$",
+      "reason": "Offline Agent v2 cost estimator (7d6bbe9790, 2026-11-04): an anchored TEMPLATE-VARIABLE reference ($section[index]{field}) resolved against the corpus context; not a cashtag and not a product path. Owner ruling 2026-11-24 (delegated to the GITHUB session): recorded."
     },
     {
       "path": "tools/buzz_audit_extraction.py",
