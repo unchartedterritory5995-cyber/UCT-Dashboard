@@ -612,6 +612,23 @@ def test_keys_an_older_build_stored_are_blanked_and_leave_the_file(store, monkey
     assert pb.summary(24, now=_T + 100)["loads"] == 41
 
 
+def test_keys_of_rows_an_older_build_had_already_deleted_leave_the_file_too(store, monkeypatch):
+    # An older build pruned rows (30-day retention, the row ceiling) and did not zero them: their keys sit in the file's
+    # FREE space, where no row holds them and a copy of the file still hands them over.
+    _an_older_builds_store(store, 40)
+    conn = sqlite3.connect(store)
+    conn.execute("PRAGMA secure_delete=OFF")                               # (whatever this runner's SQLite defaults to)
+    conn.execute("DELETE FROM perf_loads")
+    conn.commit()
+    conn.close()
+    old = _old_load_key(_IP).encode()
+    assert _rows(store) == [] and old in _file_bytes(store)                # control: every row is gone, the key is still on disk
+    monkeypatch.setattr(pb, "_migrated", set())
+    assert pb.migrate() == 0                                               # no row left to blank...
+    assert old not in _file_bytes(store)                                   # ...and the file is rebuilt all the same
+    assert pb.migrate() == 0 and "ix_perf_loads_rate" not in {r["name"] for r in _rows(store, "sqlite_master")}
+
+
 def test_the_page_load_quota_holds_across_a_clock_hour_and_its_keys_are_gone_after_one(store):
     edge = (int(_T // 3600) + 1) * 3600                                    # the next clock hour: the quota's key rotates there
     for _ in range(pb.RATE_LIMIT):
