@@ -44,7 +44,10 @@ export function intradayRows(tf, now, { since = null, from = OPEN } = {}) {
  *  row: a MODEL, the real contract never sends a closed bucket as developing) | unsealed-row (the real counterpart: the
  *  just-closed bucket as a stored ROW not final yet, its close 10.4 where the final is 10.5, sealed through the bucket
  *  before) | thin:<buckets> (a name with no trade in its newest <buckets> closed buckets: closed rows ending that far
- *  back, and the server's PROOF `verified_through` = now) | behind (legacy, 09:40) | behind-unsealed (contract, 09:40,
+ *  back, and the server's PROOF `verified_through` = now) | proof:<buckets>:<seconds> (closed rows ending <buckets> back,
+ *  `verified_through` = the current bucket's start + <seconds>, which may be negative: a proof stamped at a given instant
+ *  around the roll, e.g. a provider heal at roll+1 s or a live watermark at the roll) | behind (legacy, 09:40) |
+ *  behind-unsealed (contract, 09:40,
  *  no seal) | nodata | shed | fail
  *  ⚠️ `lag:` modes prove only what the store holds: `verified_through` is the store's horizon (now - lag), never now. */
 export function serverAnswer(q, mode = 'ok') {
@@ -99,6 +102,20 @@ export function serverAnswer(q, mode = 'ok') {
         ticker: q.sym, tf: q.tf, bars: rows, contract: 1, grid: 'eth-clock', session: 'rth',
         cache_key: `b1:${q.sym}:${q.tf}:eth-clock`, series_rev: Date.now(), history_rev: 1,
         verified_through: now, complete_through: end, tail_status: 'current', developing: null,
+      },
+    }
+  }
+  const proof = /^proof:(\d+):(-?\d+)$/.exec(String(mode))
+  if (proof) {
+    const closed = intradayRows(tf, now, { since: q.since }).filter((b) => bucketEndUnix(b.t, tf, {}) <= now)
+    const rows = closed.slice(0, Math.max(0, closed.length - Number(proof[1])))
+    const end = rows.length ? bucketEndUnix(rows[rows.length - 1].t, tf, {}) : null
+    return {
+      body: {
+        ticker: q.sym, tf: q.tf, bars: rows, contract: 1, grid: 'eth-clock', session: 'rth',
+        cache_key: `b1:${q.sym}:${q.tf}:eth-clock`, series_rev: Date.now(), history_rev: 1,
+        verified_through: bucketStartUnix(now, tf, {}) + Number(proof[2]), complete_through: end, tail_status: 'verified',
+        developing: null,
       },
     }
   }

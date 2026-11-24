@@ -18,9 +18,14 @@
 //       C4  ...and on the path with no paintable copy (RDDT's)
 //       C5  an own answer the server marked `unverified` lends no grace either (the client half of the server's fix)
 // ...and from the review of #2708:
-//       C6  MEDIUM-1: a name that did not trade, its answer N buckets behind WITH the server's proof (`verified_through`
-//           past the newest closed bucket), is the name not printing at any N and inside the lag window: the grace, one
-//           ask (C6, C6b); WITHOUT that proof it waits (C6c)
+//       C6  MEDIUM-1: a name that did not trade, its answer N buckets behind WITH the server's proof, is the name not
+//           printing at any N: the grace, one ask (C6); WITHOUT that proof it waits (C6c)
+// ...and from its round 2: the server can stamp a proof AT or past the roll while the just-closed bucket is not stored (a
+// provider heal at roll+1 s; the live stream's market-wide watermark). So the proof lends the grace only when it covers
+// every bucket BEFORE the newest closed one AND TAIL_LAG_WINDOW_MS has passed since the roll (never more than C1b's
+// accepted fallback): C6b (inside the window: no grace), C6d (a thin name 5 behind: no grace in the first 8 s, the grace
+// from roll+8 s on), C6e (a proof through the middle of the newest closed bucket suffices after the window), C7 (path 1:
+// a proof stamped at roll+1 s, the bucket absent), C7b (path 2: a watermark at the roll, the minute absent)
 //       C4  LOW (a): a first ask that was already a full read is not asked again in full; C4b the RDDT path (a held local
 //           copy, its first ask a since= delta) is
 //       B1c LOW (b): a developing bar written exactly at its bucket's end holds the frontier (the comparison is >=, in ms)
@@ -310,7 +315,9 @@ describe("C: the switch's own answer still behind", () => {
     w.store.dispose()
   })
 
-  it('C6b ...one bucket behind inside the lag window WITH that proof: the grace too (the window is the fallback)', async () => {
+  // ⛔ CHANGED (review of #2708, round 2): inside the lag window a proof lends no grace (it may be stamped before the
+  // provider published the bucket that just closed)
+  it('C6b ...one bucket behind INSIDE the lag window, even with a proof: no grace', async () => {
     vi.setSystemTime(at(10, 0, 55))
     const w = await boot('thin:1')
     await warmNext(w, ['THN'])
@@ -318,7 +325,59 @@ describe("C: the switch's own answer still behind", () => {
     w.pf.prepareForDisplay('THN', '1').catch(() => {})
     await serve(w, w.P.BEHIND_HOLD_MAX_MS + 50)
     expect(tailOf(w, 'THN')).toBe(T(9, 59))
+    expect(w.pf.peekDisplayable('THN', '1'), 'a proof inside the lag window lent the grace').toBe(false)
+    w.store.dispose()
+  })
+
+  it('C6d a thin name 5 buckets behind with a proof: no grace in the first 8 s after the roll, the grace from roll+8 s on', async () => {
+    vi.setSystemTime(at(10, 5, 1))
+    const w = await boot('thin:5')
+    await warmNext(w, ['THN'])
+    vi.setSystemTime(at(10, 5, 3))
+    w.pf.prepareForDisplay('THN', '1').catch(() => {})
+    await serve(w, w.P.BEHIND_HOLD_MAX_MS + 50)
+    expect(w.pf.peekDisplayable('THN', '1'), 'a proof lent the grace 3 s after the roll').toBe(false)
+    vi.setSystemTime(at(10, 5, 9))
+    w.pf.prepareForDisplay('THN', '1').catch(() => {})
+    await serve(w, w.P.BEHIND_HOLD_MAX_MS + 50)
     expect(w.pf.peekDisplayable('THN', '1')).toBe(true)
+    w.store.dispose()
+  })
+
+  it('C6e after the window a proof through the MIDDLE of the newest closed bucket suffices (it covers every bucket before it)', async () => {
+    vi.setSystemTime(at(10, 5, 15))
+    const w = await boot('proof:5:-30')                               // verified through 10:04:30
+    await warmNext(w, ['THN'])
+    vi.setSystemTime(at(10, 5, 20))
+    w.pf.prepareForDisplay('THN', '1').catch(() => {})
+    await serve(w, w.P.BEHIND_HOLD_MAX_MS + 50)
+    expect(tailOf(w, 'THN')).toBe(T(9, 59))
+    expect(w.pf.peekDisplayable('THN', '1')).toBe(true)
+    w.store.dispose()
+  })
+
+  it('C7 path 1: a provider heal stamped its proof at roll+1 s, the closed bucket not stored: no grace inside the window', async () => {
+    vi.setSystemTime(at(10, 0, 55))
+    const w = await boot('proof:1:1')                                 // 10:00 absent, verified through 10:01:01
+    await warmNext(w, ['AAA'])
+    vi.setSystemTime(at(10, 1, 3))
+    w.pf.prepareForDisplay('AAA', '1').catch(() => {})
+    await serve(w, w.P.BEHIND_HOLD_MAX_MS + 50)
+    expect(w.store.peek(w.k('AAA')).verifiedThrough).toBeGreaterThanOrEqual(T(10, 1))   // (precondition) the proof
+    expect(tailOf(w, 'AAA')).toBe(T(9, 59))
+    expect(w.pf.peekDisplayable('AAA', '1'), 'a proof stamped at roll+1 s lent the grace to a short copy').toBe(false)
+    w.store.dispose()
+  })
+
+  it('C7b path 2: the live stream proves through the roll (its market-wide watermark), the minute not written: no grace', async () => {
+    vi.setSystemTime(at(10, 0, 55))
+    const w = await boot('proof:1:0')                                 // 10:00 absent, verified through 10:01:00
+    await warmNext(w, ['AAA'])
+    vi.setSystemTime(at(10, 1, 3))
+    w.pf.prepareForDisplay('AAA', '1').catch(() => {})
+    await serve(w, w.P.BEHIND_HOLD_MAX_MS + 50)
+    expect(tailOf(w, 'AAA')).toBe(T(9, 59))
+    expect(w.pf.peekDisplayable('AAA', '1')).toBe(false)
     w.store.dispose()
   })
 
