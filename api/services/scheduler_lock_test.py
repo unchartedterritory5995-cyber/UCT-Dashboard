@@ -85,6 +85,16 @@ def _hold_lock_then_signal(lock_path: str, ready_event, release_event):
     sl.release_scheduler_lock()
 
 
+def _acquire_and_exit(lock_path: str):
+    """Helper run in a child process: take the lock and exit at once, so the OS must release the flock.
+
+    Module level on purpose (2026-11-24): `spawn` pickles a process target by its qualified name, and the local
+    function this replaces could not be pickled, so the test raised before it tested anything. It is skipped on
+    Windows, so it had never passed anywhere (master's full-suite record, run 45066472928)."""
+    from api.services import scheduler_lock as sl
+    sl.acquire_scheduler_lock(path=lock_path)
+
+
 @requires_posix
 def test_second_process_denied_while_first_holds(tmp_path):
     """The whole point: a second process trying to acquire the same lock
@@ -127,12 +137,7 @@ def test_lock_releases_on_holder_process_exit(tmp_path):
     lock_path = str(tmp_path / "sched.lock")
     ctx = multiprocessing.get_context("spawn")
 
-    def _short_lived_holder(p):
-        from api.services import scheduler_lock as sl
-        sl.acquire_scheduler_lock(path=p)
-        # Process exits immediately, releasing the flock
-
-    holder = ctx.Process(target=_short_lived_holder, args=(lock_path,))
+    holder = ctx.Process(target=_acquire_and_exit, args=(lock_path,))   # exits at once, releasing the flock
     holder.start()
     holder.join(timeout=5)
     assert holder.exitcode == 0
