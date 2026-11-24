@@ -1032,24 +1032,33 @@ export function correctionLicensed(text, earlier = [], board = []) {
   // (1) an explicit revert of the earlier change
   if (earlierRe && new RegExp(`\\bput\\s+${earlierRe}\\s+back\\b`, 'i').test(s)) return true
   if (new RegExp(`\\b(?:undo|revert)\\s+(?:that|it|this|the\\s+last(?:\\s+change)?${earlierRe ? `|${earlierRe}` : ''})\\b`, 'i').test(s)) return true
-  // (2) only rejection and pointer words, with a rejection among them
-  const known = new Set([...(earlier || []), ...(board || [])].map(x => String(x || '').toLowerCase()).filter(Boolean))
-  const words = s.match(/\$?[A-Za-z][A-Za-z0-9'.]*/g) || []
+  // (2) only rejection and pointer words, with a rejection among them. DEFAULT-DENY (AUDIT NO-GO #3, F1b): a token is a pointer only
+  // when it is positively classified — a pointer word in its ordinary spelling, or a symbol that IS on the board / the earlier chart.
+  // A word typed in capitals or with "$" is a pointer only as such a symbol ("no, MSFT weekly TOO": TOO is no symbol here → fresh); a
+  // pointer word typed in capitals (in any message) is read as a would-be ticker, so it too must be on the board. Anything that
+  // is not letters (a number, a timeframe like 5m, an emoji, a mixed token) is a fresh word. Punctuation and quotes only separate.
+  const known = new Set([...(earlier || []), ...(board || [])].map(x => String(x || '').toUpperCase()).filter(Boolean))
+  const toks = s.split(/[\s,.;:!?()[\]{}"“”«»<>\-–—…/\\|*+=~`^_]+/).map(t => t.replace(/^'+|'+$/g, '')).filter(Boolean)
   let rejected = false
-  for (let i = 0; i < words.length; i++) {
-    const raw = words[i].replace(/[.']+$/, '')
-    const w = raw.replace(/^\$/, '').toLowerCase()
-    if (REJECT_WORDS.has(w)) { rejected = true; continue }
+  for (let i = 0; i < toks.length; i++) {
+    const raw = toks[i]
+    const dollar = raw.startsWith('$')
+    const bare = dollar ? raw.slice(1) : raw
+    if (!/^[A-Za-z]+(?:'[A-Za-z]+)?$/.test(bare)) return false             // a number, a timeframe, an emoji, a mixed token
+    const w = bare.toLowerCase()
+    // (property pass, 11-23) a word typed in capitals is a would-be ticker even in a message typed all in capitals ("NO, IT." — IT
+    // may be the symbol), so a capitalised pointer word is never positively classified unless it IS a symbol here
+    const capsTyped = dollar || (bare.length >= 2 && bare === bare.toUpperCase())
+    if (known.has(bare.toUpperCase())) continue                             // a symbol on the board / the earlier chart, any case
+    if (!dollar && REJECT_WORDS.has(w)) { rejected = true; continue }
     // "not / rather than / instead of" + the earlier chart (or that / this) is a rejection of it
-    if ((w === 'not' || w === 'than' || w === 'of') && i + 1 < words.length) {
-      const nx = words[i + 1].replace(/^\$/, '').toLowerCase()
-      const nx2 = i + 2 < words.length ? words[i + 2].replace(/^\$/, '').toLowerCase() : ''
-      if ((earlier || []).some(e => [nx, nx2].includes(String(e).toLowerCase())) || ['that', 'this'].includes(nx)) rejected = true
+    if (!capsTyped && (w === 'not' || w === 'than' || w === 'of') && i + 1 < toks.length) {
+      const nx = toks[i + 1].replace(/^\$/, '').toUpperCase()
+      const nx2 = i + 2 < toks.length ? toks[i + 2].replace(/^\$/, '').toUpperCase() : ''
+      if ((earlier || []).some(e => [nx, nx2].includes(String(e).toUpperCase())) || ['THAT', 'THIS'].includes(nx)) rejected = true
     }
-    if (POINTER_WORDS.has(w) || known.has(w)) continue
-    // a ticker typed as one (capitals or "$") points at a symbol
-    if (raw.startsWith('$') || (raw.length >= 1 && raw === raw.toUpperCase() && /[A-Z]/.test(raw) && /[a-z]/.test(s))) continue
-    return false                                          // a word of a fresh instruction: no license
+    if (!capsTyped && POINTER_WORDS.has(w)) continue
+    return false                                          // not positively a rejection or a pointer: a fresh word, no license
   }
   return rejected
 }

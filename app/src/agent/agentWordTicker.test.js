@@ -178,13 +178,13 @@ const PAIRS = [['META', 'MSFT'], ['NVDA', 'AMD'], ['ON', 'NOW'], ['FIX', 'RUN']]
 describe('F1: correctionLicensed — the words must reject the earlier change', () => {
   for (const [A, B] of PAIRS) {
     it(`${A}→${B}: every additive / unlicensed wording licenses nothing; every rejecting wording does`, () => {
-      for (const f of ADDITIVE_FRAMES) for (const c of [s => s, s => s.toLowerCase()]) { const t = c(f(B, A)); expect([t, correctionLicensed(t, [A])]).toEqual([t, false]) }
-      for (const f of LICENSED_FRAMES) { const t = f(B, A); expect([t, correctionLicensed(t, [A])]).toEqual([t, true]) }
+      for (const f of ADDITIVE_FRAMES) for (const c of [s => s, s => s.toLowerCase()]) { const t = c(f(B, A)); expect([t, correctionLicensed(t, [A], [A, B])]).toEqual([t, false]) }
+      for (const f of LICENSED_FRAMES) { const t = f(B, A); expect([t, correctionLicensed(t, [A], [A, B])]).toEqual([t, true]) }
     })
   }
   it('"not <a chart the last turn did NOT change>" licenses nothing', () => {
     expect(correctionLicensed('MSFT, not QQQ', ['META'])).toBe(false)
-    expect(correctionLicensed('MSFT, not META', ['META'])).toBe(true)
+    expect(correctionLicensed('MSFT, not META', ['META'], ['META', 'MSFT'])).toBe(true)
     // a correction that carries its own new change ("MSFT weekly, not META") is not licensed: asked — the safe direction
     expect(correctionLicensed('MSFT weekly, not META', ['META'])).toBe(false)
   })

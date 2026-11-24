@@ -198,3 +198,30 @@ describe('F1 round 2: a rejection + a fresh instruction is asked, and the earlie
     }
   }, 40000)
 })
+
+// ── AUDIT NO-GO #3 (11-23, F1b): CAPITALISED fresh words after a rejection never put the earlier change back ─────────────────────
+// e0ca62a3ee read ANY all-caps word in a mixed-case message as a ticker pointer ("no, MSFT weekly TOO" → TOO a "pointer"), so
+// these reverted A in 14 of 16. A capital word is a pointer only when it IS a symbol on the board (or the earlier chart).
+// ("no, BOTH A and B" is left out, as in round 1: it NAMES A as a target, so the plan's wrong value for A is the model's, on master too)
+const CAPS_FRESH = [
+  (B) => `no, ${B} weekly TOO`, (B) => `nope ALSO ${B}`, (B) => `oops ADD ${B} weekly`, (B, A) => `no wait KEEP ${A}, ${B} weekly`,
+  (B) => `no, ${B} WEEKLY too`, (B) => `sorry, ${B} AS WELL`, (B) => `no, BOTH of them, ${B}`, (B) => `nope, ${B} TOO`,
+  (B) => `no — ${B} ALSO weekly`, (B) => `wrong, ADD ${B}`, (B) => `I meant ${B} TOO`, (B) => `no, ${B} WEEKLY`,
+  (B) => `sorry, ${B} 5m TOO`, (B) => `no, ${B} PLUS ${B}`, (B, A) => `NOPE, KEEP ${A} AND ${B}`, (B) => `no, ${B} weekly as WELL`,
+]
+describe('F1b: a rejection followed by a CAPITALISED fresh word is asked, and the earlier change is never put back', () => {
+  const rows = []
+  combos.forEach((c, i) => { for (const k of [i, i + 7, i + 13]) rows.push([tag(c), CAPS_FRESH[k % CAPS_FRESH.length](c.B, c.A), c, k % CAPS_FRESH.length]) })
+  it('covers every wording, both routings, both modes, both ticker kinds', () => {
+    expect(new Set(rows.map(r => r[3])).size).toBe(CAPS_FRESH.length)
+    expect(new Set(rows.map(r => `${r[2].v2}${r[2].mode}${r[2].kind}`)).size).toBe(8)
+  })
+  it.each(rows)('%s: "%s"', async (_t, text, c) => {
+    const { m, reply, model } = await dialogue({ ...c, text, ops: [tf(c.A, 'D'), tf(c.B, 'W')] })
+    expect(tfOf(m.board, 'cl')).toBe('W')                                         // A is never put back without being asked
+    if (model) {
+      expect([tfOf(m.board, 'cl'), tfOf(m.board, 'cr')]).toEqual(['W', 'D'])      // nothing changed
+      expect(PUT_BACK.test(reply) || p.proposals().length > 0, reply).toBe(true)  // asked: a question, or a card to decide on
+    }
+  }, 40000)
+})
