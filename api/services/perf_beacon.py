@@ -111,12 +111,17 @@ import math
 import os
 import re
 import secrets
+import shutil
 import sqlite3
+import tempfile
 import threading
 import time
+from contextlib import contextmanager
 from datetime import datetime
 from typing import Any
 from zoneinfo import ZoneInfo
+
+from api.services import bg_lane
 
 KILL_SWITCH = "PERF_BEACON_ENABLED"
 _OFF_VALUES = frozenset({"0", "false", "no", "off"})
@@ -230,6 +235,31 @@ CREATE INDEX IF NOT EXISTS ix_perf_switch_sends ON perf_switch_sends(rate_key, c
 
 _lock = threading.Lock()
 _last_prune = 0.0
+
+# Set while the one-time rebuild has the store (`migrate`). ⛔ A REPORT THAT ARRIVES MEANWHILE IS DROPPED, NEVER PARKED
+# ON `_lock`: every beacon POST runs in the app's shared threadpool (run_in_threadpool), and a worker waiting out a
+# rebuild is a worker every other sync route has lost. After a deploy the reloading pages send their reports together.
+_migrating = threading.Event()
+
+
+@contextmanager
+def _report_lock():
+    """`with _report_lock() as held:` the store's lock for one report (`held` True), or `held` False AT ONCE when the
+    one-time rebuild has the store or is asking for it. Reports still wait for each other, in 50 ms slices, so a
+    waiting one sees the rebuild start and gives way."""
+    held = False
+    while not _migrating.is_set():
+        if _lock.acquire(timeout=0.05):
+            held = True
+            break
+    if held and _migrating.is_set():
+        _lock.release()
+        held = False
+    try:
+        yield held
+    finally:
+        if held:
+            _lock.release()
 
 # -- the keys: random, held in MEMORY only, one per period, forgotten when the period's use is over --
 # ⛔ NEVER a constant, an env var or a file. What a key protects is "the same sender again" (a function of the IP);
@@ -441,7 +471,8 @@ def housekeep(now: float | None = None) -> dict[str, int]:
     the admin read and by the timer (`startup`). No store yet: nothing to do, and none is made."""
     now = time.time() if now is None else now
     _forget_keys(now)
-    if not os.path.exists(_db_path()):
+    # (while the one-time rebuild has the store this does not wait for it either: the next beat deletes)
+    if _migrating.is_set() or not os.path.exists(_db_path()):
         return {"load_sends": 0, "switch_sends": 0, "senders": 0}
     with _lock:
         conn = _connect()
@@ -458,47 +489,128 @@ _housekeeper_stop = threading.Event()
 _boot_done = threading.Event()       # set once the thread's start-of-process work is done
 
 
+#: The background lane's name for the one-time rebuild (api/services/bg_lane.py: after the boot settles, one sweep at a time).
+LANE = "perf-beacon-migrate"
+#: A rebuild writes a whole copy of the store to the temp directory and then through the write-ahead log on the store's
+#: own volume: about twice the file at its peak. It is not started with less than this many times the file free in
+#: BOTH places (this volume has filled before).
+REBUILD_FREE_FACTOR = 3
+_OLDER_INDEX = "ix_perf_loads_rate"
+
+
+def _free_bytes(directory: str) -> int:
+    return shutil.disk_usage(directory).free
+
+
+def _room_to_rebuild(path: str) -> tuple[bool, int, int]:
+    """(is there room, the store's bytes, the least free bytes of the two places a rebuild writes)."""
+    size = sum(os.path.getsize(p) for p in (path, path + "-wal") if os.path.exists(p))
+    free = min(_free_bytes(os.path.dirname(path) or "."), _free_bytes(tempfile.gettempdir()))
+    return free >= REBUILD_FREE_FACTOR * size, size, free
+
+
+def _rebuild(conn: sqlite3.Connection) -> None:
+    """Rewrite the whole file and empty its write-ahead log, so nothing an older build left in its pages survives."""
+    conn.execute("VACUUM")
+    conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+
+
+def _has_older_index(conn: sqlite3.Connection) -> bool:
+    return conn.execute("SELECT 1 FROM sqlite_master WHERE type='index' AND name=?", (_OLDER_INDEX,)).fetchone() is not None
+
+
+def rebuild_pending() -> bool:
+    """Is this a store an older build wrote that has NOT yet been rebuilt? (Its marker, the older build's index, is
+    still there.) False when there is no store."""
+    path = _db_path()
+    if not os.path.exists(path):
+        return False
+    conn = sqlite3.connect(path, timeout=2.0)
+    try:
+        return _has_older_index(conn)
+    finally:
+        conn.close()
+
+
 def migrate() -> int:
     """Blank every `perf_loads.rate_key` an older build stored (a SHA-256 of the IP under a constant in the public repo,
-    kept 30 days), drop their index, and rebuild the file so the old values leave its PAGES and its write-ahead log, not
-    only its rows. Idempotent: the second run finds nothing. Returns how many rows it blanked; no store, nothing to do.
+    kept 30 days), then REBUILD the file so the old values leave its pages and its write-ahead log, not only its rows.
+    Idempotent: a second run finds nothing. Returns how many rows it blanked; no store, nothing to do.
 
+    Two steps, on purpose:
+      1. THE BLANKING, at once and whatever becomes of step 2: one UPDATE.
+      2. THE REBUILD, only when it is safe, and again at every start until it has SUCCEEDED. What says "not yet" is
+         the older build's index: it is dropped only after the rebuild, never with the blanking (it holds no key once
+         the rows are blank). No room on the disk (`_room_to_rebuild`), or the rebuild failing: it stays, and the next
+         start tries again.
     ⛔ THE REBUILD DOES NOT DEPEND ON A ROW BEING BLANKED. An older build pruned rows (30-day retention, the row ceiling)
     without zeroing them, so their keys sit in the file's FREE space with no row holding them; a store whose keyed rows
-    were all pruned has nothing to blank and everything to rebuild. What marks a store an older build wrote is the old
-    index: it is rebuilt once, when that index is found, and never again."""
-    if not os.path.exists(_db_path()):
+    were all pruned has nothing to blank and everything to rebuild.
+    ⛔ NOBODY WAITS FOR IT. While it runs, a report is dropped (`_report_lock`) and the housekeeping beat skips: the
+    lock it holds is never something a request thread queues on."""
+    path = _db_path()
+    if not os.path.exists(path):
         return 0
-    with _lock:
-        conn = _connect()
-        try:
-            with conn:
-                older_build = conn.execute(
-                    "SELECT 1 FROM sqlite_master WHERE type='index' AND name='ix_perf_loads_rate'").fetchone() is not None
-                n = conn.execute("UPDATE perf_loads SET rate_key='' WHERE rate_key<>''").rowcount
-                conn.execute("DROP INDEX IF EXISTS ix_perf_loads_rate")
-            if n or older_build:
-                conn.execute("VACUUM")
-                conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
-            return n
-        finally:
-            conn.close()
-
-
-def _at_boot() -> None:
-    """What the housekeeping thread does once, before its first wait."""
-    n = migrate()
-    print(f"[perf-beacon] startup: blanked {n} stored rate key(s)")      # a count, and nothing else
-    housekeep()
-
-
-def _housekeeping(every_s: float) -> None:
+    _migrating.set()
     try:
-        _at_boot()
+        with _lock:
+            conn = _connect()
+            try:
+                with conn:
+                    n = conn.execute("UPDATE perf_loads SET rate_key='' WHERE rate_key<>''").rowcount
+                if _has_older_index(conn):
+                    ok, size, free = _room_to_rebuild(path)
+                    if not ok:
+                        print(f"[perf-beacon] rebuild SKIPPED: the store is {size} bytes and {free} are free where it would "
+                              f"be rebuilt (needs {REBUILD_FREE_FACTOR}x); it is tried again at the next start")
+                    else:
+                        try:
+                            _rebuild(conn)
+                            with conn:
+                                conn.execute(f"DROP INDEX IF EXISTS {_OLDER_INDEX}")      # the marker goes only now
+                        except sqlite3.Error as e:
+                            print(f"[perf-beacon] rebuild FAILED ({type(e).__name__}); it is tried again at the next start")
+                return n
+            finally:
+                conn.close()
+    finally:
+        _migrating.clear()
+
+
+def _wait_for_the_boot_to_settle(stop: threading.Event | None) -> bool:
+    """Wait out the background lane's settle window (BG_LANE_SETTLE_S after the process started; nothing to wait for
+    where the lane is not active). With `stop`, wakes at once when it is set. False: told to stop meanwhile."""
+    while bg_lane.enabled():
+        rem = bg_lane.settle_remaining()
+        if rem <= 0:
+            break
+        nap = min(rem, bg_lane.SETTLE_POLL_S)
+        if stop is None:
+            time.sleep(nap)
+        elif stop.wait(nap):
+            return False
+    return stop is None or not stop.is_set()
+
+
+def _at_boot(stop: threading.Event | None = None) -> None:
+    """What the housekeeping thread does once, before its first beat: the cheap deletes at once; then the one-time
+    rebuild of an older build's store, NOT in the boot: after the lane's settle window and as one turn of the lane
+    (the minutes after a deploy belong to the members' reloading tabs)."""
+    housekeep()
+    if not _wait_for_the_boot_to_settle(stop):
+        return
+    with bg_lane.turn(LANE):
+        n = migrate()
+    print(f"[perf-beacon] blanked {n} stored rate key(s); rebuild {'still pending' if rebuild_pending() else 'not pending'}")
+
+
+def _housekeeping(every_s: float, stop: threading.Event) -> None:
+    try:
+        _at_boot(stop)
     except Exception as e:          # a measurement's housekeeping never takes the process down
         print(f"[perf-beacon] startup housekeeping failed (non-fatal): {type(e).__name__}")
     _boot_done.set()
-    while not _housekeeper_stop.wait(every_s):
+    while not stop.wait(every_s):
         try:
             housekeep()
         except Exception as e:
@@ -508,13 +620,14 @@ def _housekeeping(every_s: float) -> None:
 def startup(every_s: float = HOUSEKEEP_EVERY_S) -> bool:
     """Start this process's ONE housekeeping thread (api/main.py's lifespan calls it): a daemon that does the
     start-of-process work off the boot path, then `housekeep()` every `every_s`. True when this call started it."""
-    global _housekeeper
+    global _housekeeper, _housekeeper_stop
     with _keys_lock:
         if _housekeeper is not None and _housekeeper.is_alive():
             return False
-        _housekeeper_stop.clear()
+        _housekeeper_stop = threading.Event()       # this thread's own: a stop meant for an earlier one is not its
         _boot_done.clear()
-        _housekeeper = threading.Thread(target=_housekeeping, args=(every_s,), name="perf-beacon-housekeeping", daemon=True)
+        _housekeeper = threading.Thread(target=_housekeeping, args=(every_s, _housekeeper_stop),
+                                        name="perf-beacon-housekeeping", daemon=True)
         _housekeeper.start()
         return True
 
@@ -547,7 +660,9 @@ def _record_switches(row: dict[str, Any], ip: str | None, now: float) -> dict[st
     global _last_prune
     held = sum(sum(counts) for _, counts in row["cells"])
     key, key_before = _rate_keys(ip, now)
-    with _lock:
+    with _report_lock() as held:
+        if not held:
+            return {"stored": 0, "dropped": 1, "invalid": 0}      # the one-time rebuild has the store
         conn = _connect()
         try:
             hour_ago = now - 3600
@@ -600,7 +715,9 @@ def record(report: Any, *, ip: str | None, country_header: str | None, now: floa
     if kind == "switches":
         return _record_switches(row, ip, now)
     key, key_before = _rate_keys(ip, now)
-    with _lock:
+    with _report_lock() as held:
+        if not held:
+            return {"stored": 0, "dropped": 1, "invalid": 0}      # the one-time rebuild has the store
         conn = _connect()
         try:
             hour_ago = now - 3600

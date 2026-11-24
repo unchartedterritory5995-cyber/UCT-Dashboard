@@ -4936,16 +4936,6 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] thread switch interval tuning failed (non-fatal): {e}")
 
-    # The real-user beacon keeps nothing derived from an IP past its use (2026-11-24): one daemon thread blanks the
-    # keys older builds stored (off the boot path; it logs a count and nothing else) and then deletes quota and sender
-    # rows on time whether or not a report arrives. See api/services/perf_beacon.py "What is deleted, and when".
-    try:
-        from api.services import perf_beacon as _perf_beacon
-        print(f"[startup] perf beacon housekeeping: {'started' if _perf_beacon.startup() else 'already running'} "
-              f"(every {_perf_beacon.HOUSEKEEP_EVERY_S} s)")
-    except Exception as e:
-        print(f"[startup] perf beacon housekeeping failed to start (non-fatal): {e}")
-
     # ⚡ The background lane (2026-11-17). For ~15 min after every restart the site answered ~10x
     # slower: a dozen member-invisible sweeps (weekly purge, off-grid sweep, audits, breadth heal and
     # verify, split heal) ran at once and starved every request of the interpreter. Lane users wait
@@ -4959,6 +4949,18 @@ async def lifespan(app: FastAPI):
               f"(settle {bg_lane.settle_s():.0f}s, duty {bg_lane.duty():.2f})")
     except Exception as e:
         print(f"[startup] background lane failed to activate (non-fatal, sweeps run unpaced): {e}")
+
+    # The real-user beacon keeps nothing derived from an IP past its use (2026-11-24): one daemon thread deletes quota
+    # and sender rows on time whether or not a report arrives and, ONCE, blanks the keys older builds stored and rebuilds
+    # that store. ⛔ BELOW THE LANE'S ACTIVATION, NEVER ABOVE: the rebuild waits for the boot to settle on the lane's
+    # clock, and before `activate` the lane is a plain pass-through (it would run in the reload spike). It logs counts
+    # and nothing else. See api/services/perf_beacon.py "What is deleted, and when" and `migrate`.
+    try:
+        from api.services import perf_beacon as _perf_beacon
+        print(f"[startup] perf beacon housekeeping: {'started' if _perf_beacon.startup() else 'already running'} "
+              f"(every {_perf_beacon.HOUSEKEEP_EVERY_S} s)")
+    except Exception as e:
+        print(f"[startup] perf beacon housekeeping failed to start (non-fatal): {e}")
 
     # ⭐ U5 (2026-11-14): the capability detector's own process, off the request GIL
     # (PINE_CAPABILITY_DETECTOR_WORKER=on). Started 30 s after boot, off the boot path; until it
