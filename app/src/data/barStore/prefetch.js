@@ -571,13 +571,19 @@ export function createPrefetch(o = {}) {
     // behind, is what says the name is not printing: the next presses inside BEHIND_RECHECK_MS paint it at once.
     if (!(a?.answered && a.own && now() - a.at < BEHIND_RECHECK_MS)) return false
     if (s?.tailStatus === 'unverified') return false
-    // ⭐ ...AND BY EVIDENCE FIRST (review of #2708, MEDIUM-1): the server's proof that it was asked after the newest closed
-    // bucket and had nothing newer (`verified_through` past that bucket's end) says the name did not trade, at ANY number
-    // of buckets behind and inside the lag window alike: a thin name's complete copy paints at once with one ask, never
-    // the hold and a full read on every press. Without that proof the rules below decide (a bucket count and the lag
-    // window are only a fallback).
+    // ⭐ ...AND BY EVIDENCE (review of #2708, MEDIUM-1): the server's proof that nothing newer existed says the name did not
+    // trade, at ANY number of buckets behind: a thin name's complete copy paints at once with one ask, not the hold and a
+    // full read on every press. ⛔ BUT NEVER FOR THE BUCKET THAT JUST CLOSED (round 2): the server can stamp that proof at
+    // or past the roll before the closed bucket is stored (a provider heal asked at roll+1 s, before the provider
+    // published it; the live stream's market-wide watermark, flushed mid-burst). So the proof counts only when it covers
+    // every bucket BEFORE the newest closed one and TAIL_LAG_WINDOW_MS has passed since the roll: never more than the
+    // fallback below already lends one bucket behind after the window. A thin name therefore paints at once from roll+8 s
+    // on and holds only in the first 8 s of each bucket.
     const tf0 = parseKey(key)?.tf
-    if (tf0 && Number.isFinite(s?.verifiedThrough) && s.verifiedThrough * 1000 >= _rollMs(tf0)) return true
+    if (tf0 && Number.isFinite(s?.verifiedThrough)) {
+      const roll = _rollMs(tf0)
+      if (now() - roll >= TAIL_LAG_WINDOW_MS && s.verifiedThrough * 1000 >= roll - Number(tf0) * 60_000) return true
+    }
     // ⛔ ...BUT, WITHOUT THAT PROOF, NOT WHERE IT CANNOT MEAN THAT (live session 2026-11-24: AMD and AMAT 3-5 s after a roll,
     // RDDT two closed bars short; each painted short for 166 ms to ~1 s):
     //   * one bucket behind inside TAIL_LAG_WINDOW_MS of the roll: the server has not stored the bucket that just closed
