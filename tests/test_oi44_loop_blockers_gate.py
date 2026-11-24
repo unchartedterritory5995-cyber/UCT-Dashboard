@@ -19,14 +19,15 @@ from __future__ import annotations
 
 import importlib.util
 import pathlib
-import sys
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
 SCANNER_PATH = REPO / "docs" / "discord-render" / "instruments" / "oi44_loop_blockers.py"
 
 _spec = importlib.util.spec_from_file_location("oi44_loop_blockers", SCANNER_PATH)
 oi44_loop_blockers = importlib.util.module_from_spec(_spec)
-sys.modules["oi44_loop_blockers"] = oi44_loop_blockers
+# Not registered in sys.modules: nothing imports it by that name (it defines no dataclass, pickles
+# nothing and never imports itself), and a module-level bind is process-wide state that no test
+# removes (tests/test_shared_state_landmines.py).
 _spec.loader.exec_module(oi44_loop_blockers)
 
 #: (relative path, function name) — the ONLY route handlers this gate tolerates finding a

@@ -715,6 +715,17 @@ def _calendar_payloads(today: date) -> list[Optional[dict]]:
     monday = today - timedelta(days=today.weekday())
     for i in range(1, CALENDAR_WEEKS_AHEAD + 1):
         out.append(cache.get(f"calendar_week_{(monday + timedelta(weeks=i)).isoformat()}"))
+    # ⛔ TERM-030: every week this panel reads goes through the ONE shape assertion every other week
+    # reader calls. A malformed week is counted, logged at ERROR and sent to the ops feed by name
+    # (week_days does all three before it raises), then dropped HERE, so the panel treats it as a
+    # week it does not hold ("not held" for this week; the survey's dates for the next meeting)
+    # and never as a week with no Fed events. A well-formed or absent week passes through untouched.
+    from api.services.calendar_week_contract import WeekContractViolation, week_days
+    for i, payload in enumerate(out):
+        try:
+            week_days(payload, reader="api.services.fed_watch._calendar_payloads")
+        except WeekContractViolation:
+            out[i] = None
     return out
 
 

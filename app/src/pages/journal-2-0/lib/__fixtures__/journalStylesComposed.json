@@ -41,7 +41,7 @@
           "params": {
             "snapshot": {
               "capturedAt": "2026-10-11T14:30:00Z",
-              "detail": "This could not be read just now. Capture again in a moment.",
+              "detail": "This couldn't be read when it was captured.",
               "missing": "source_error",
               "part": "wire"
             }
@@ -144,7 +144,7 @@
           "params": {
             "snapshot": {
               "capturedAt": "2026-10-11T14:30:00Z",
-              "detail": "This could not be read just now. Capture again in a moment.",
+              "detail": "This couldn't be read when it was captured.",
               "missing": "source_error",
               "part": "earnings"
             }
@@ -170,7 +170,7 @@
           "params": {
             "snapshot": {
               "capturedAt": "2026-10-11T14:30:00Z",
-              "detail": "This could not be read just now. Capture again in a moment.",
+              "detail": "This couldn't be read when it was captured.",
               "missing": "source_error",
               "part": "movers"
             }
@@ -196,7 +196,7 @@
           "params": {
             "snapshot": {
               "capturedAt": "2026-10-11T14:30:00Z",
-              "detail": "This could not be read just now. Capture again in a moment.",
+              "detail": "This couldn't be read when it was captured.",
               "missing": "source_error",
               "part": "levels"
             }
@@ -290,7 +290,7 @@
           "params": {
             "snapshot": {
               "capturedAt": "2026-10-11T14:30:00Z",
-              "detail": "This could not be read just now. Capture again in a moment.",
+              "detail": "This couldn't be read when it was captured.",
               "missing": "source_error",
               "part": "wire"
             }
@@ -393,7 +393,7 @@
           "params": {
             "snapshot": {
               "capturedAt": "2026-10-11T14:30:00Z",
-              "detail": "This could not be read just now. Capture again in a moment.",
+              "detail": "This couldn't be read when it was captured.",
               "missing": "source_error",
               "part": "earnings"
             }
@@ -419,7 +419,7 @@
           "params": {
             "snapshot": {
               "capturedAt": "2026-10-11T14:30:00Z",
-              "detail": "This could not be read just now. Capture again in a moment.",
+              "detail": "This couldn't be read when it was captured.",
               "missing": "source_error",
               "part": "movers"
             }
@@ -445,7 +445,7 @@
           "params": {
             "snapshot": {
               "capturedAt": "2026-10-11T14:30:00Z",
-              "detail": "This could not be read just now. Capture again in a moment.",
+              "detail": "This couldn't be read when it was captured.",
               "missing": "source_error",
               "part": "levels"
             }

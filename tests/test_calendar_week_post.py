@@ -48,6 +48,19 @@ def _full_week(per_day=12):
              "tbd": [_ent(f"T{i}{j}") for j in range(per_day)]} for i in range(5)]
 
 
+def _pixels_sha256(png: bytes) -> str:
+    """sha256 of the DECODED pixels (RGBA), never of the PNG file.
+
+    ⛔ The file's bytes are the encoder's choice as much as the renderer's: the same pixels compress
+    to different bytes under another Pillow/zlib build, so a byte pin trips on a dependency bump
+    with no change to the card. The pixels are what a member sees, and what these tripwires exist
+    to hold."""
+    import hashlib
+    from io import BytesIO
+    from PIL import Image
+    return hashlib.sha256(Image.open(BytesIO(png)).convert("RGBA").tobytes()).hexdigest()
+
+
 def _png_size(b: bytes) -> tuple[int, int]:
     from io import BytesIO
     from PIL import Image
@@ -261,7 +274,15 @@ def test_most_anticipated_card_render_is_pinned():
     reaches this already-shipped one too. The hash is a TRIPWIRE, not a
     freeze: when a deliberate chrome change trips it, look at the render and
     re-pin. Last re-pinned 2026-07-30 for the full-bleed logo tile (which
-    also nudged the monogram corner radius 0.22 -> 0.24)."""
+    also nudged the monogram corner radius 0.22 -> 0.24).
+
+    ⚠️ Re-pinned 2026-11-24 on the DECODED PIXELS (`_pixels_sha256`), with no change to the card:
+    calendar_anticipated_png.py and calendar_png_common.py are untouched since 2026-07-30 and the
+    DejaVu fonts since 2026-06-25, but `Pillow>=11.3.0` is unpinned, and the runners (and any
+    image built from requirements.txt) now install Pillow 13.0.0 / FreeType 2.14.3, whose PNG
+    bytes no longer matched the July pin (red on master, run 45321831045; values read on a
+    runner, run 45323826883).
+    """
     import hashlib
     from api.services.calendar_anticipated_png import render_anticipated_png
     entries = [
@@ -278,11 +299,10 @@ def test_most_anticipated_card_render_is_pinned():
         {"sym": "F", "name": "Ford Motor Company", "timing": "amc",
          "weekday": "TUE", "mc_b": 0.42, "logo_path": None},
     ]
-    got = hashlib.sha256(
-        render_anticipated_png("Week of Aug 3-7, 2026", entries)).hexdigest()
-    assert got == "f1ae5925d8d831afff593177813d75518587518dca245ce9b3bfc17075e86d0c"
-    empty = hashlib.sha256(render_anticipated_png("Week of Aug 3-7, 2026", [])).hexdigest()
-    assert empty == "9e753e7faf45d06b12f4f6605c03c5024e0f7e333bb7ebf85593ea1ade2fef21"
+    got = _pixels_sha256(render_anticipated_png("Week of Aug 3-7, 2026", entries))
+    assert got == "26812f4494a83b5b7e1fce387213785d3c379926d0a934ff8d3067779a21aedf"
+    empty = _pixels_sha256(render_anticipated_png("Week of Aug 3-7, 2026", []))
+    assert empty == "d2759c7824525926b03202920f23c4ce232d888c124d6e5828be910043e1d87b"
 
 
 def test_econ_cap_constant_is_respected():
@@ -807,8 +827,15 @@ def test_mkt_chip_tag_even_when_the_section_is_mixed():
 
 def test_unmarked_rows_render_byte_identical_to_before_the_marks():
     """A row with no honesty fields must not change at all: pinned against the
-    pre-change renderer's bytes (sha256 of the same input on master bda17ea4ce)."""
+    pre-change renderer's bytes (sha256 of the same input on master bda17ea4ce).
+
+    ⚠️ Re-pinned 2026-11-24 on the DECODED PIXELS (`_pixels_sha256`), with no change to the card:
+    calendar_week_png.py is untouched since 07157b89da (2026-10-10, when this pin was taken), but
+    `Pillow>=11.3.0` is unpinned and the runners (and any image built from requirements.txt) now
+    install Pillow 13.0.0, whose PNG bytes no longer matched (red on master, run 45321831045; value
+    read on a runner, run 45323826883).
+    """
     import hashlib
     week = [_day(f"D{i}", n_bmo=5, n_amc=3, n_tbd=2) for i in range(5)]
-    got = hashlib.sha256(render_earnings_week_png("Week of Aug 3-7, 2026", week)).hexdigest()
-    assert got == "b34d84a1187e3f2238d1338e40749a4cab966768e5077ee596c2eef649f6e58d"
+    got = _pixels_sha256(render_earnings_week_png("Week of Aug 3-7, 2026", week))
+    assert got == "a02abf8077683fe1ec4223951acd5f6878ed84aa0695ec57dfe515b6bdad1866"
