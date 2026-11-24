@@ -168,16 +168,76 @@ export function memoryForModel(memory, epoch, back) {
  * those resolve only at apply). A non-empty list is sent back to the model once; whatever it returns goes
  * through every check again (registry, planner, policy, approval, stale state, execution).
  */
-export function preflightRefusals(host, ops) {
+export function preflightRefusals(host, ops, opts = {}) {
+  return [...new Set(preflightFindings(host, ops, opts).map(f => f.reason))].slice(0, 5)
+}
+
+// eslint-disable-next-line no-control-regex -- control characters are exactly what is stripped
+const cleanReason = (r) => String(r || '').replace(/[\u0000-\u001f<>`]+/g, ' ').trim().slice(0, 200)
+
+/**
+ * preflightRefusals' findings, each with the index (in `ops`) of the op it is about — -1 for a reason about a part as a
+ * whole. ⛔ AUDIT 11-23 (the silent drop): with `parts` (useAgent.preflightParts — the parts the runtime RUNS the plan as:
+ * the rest first, then each sequential indicator edit as its own next step), each part is checked as the runtime will
+ * check it, so the sequential rule ("Change one indicator at a time, on its own") is a DEFERRAL, never a refusal sent
+ * back for repair. A step aimed at what an EARLIER part of the same plan adds indicators to is judged at its own turn,
+ * on the board that earlier part leaves (useAgent.execute) — never on the board before it. Without `parts`, the plan is
+ * checked whole (as before).
+ */
+export function preflightFindings(host, ops, { parts = null } = {}) {
   try {
     if (!Array.isArray(ops) || !ops.length) return []
     if (ops.some(o => Object.values(o?.args || {}).some(isRef) || getCapability(o?.action)?.creates)) return []
-    const kinds = [...new Set(ops.map(o => getCapability(o?.action)?.target).filter(Boolean))]
-    const plan = planOps(collectTargets(host, kinds), ops)
-    if (plan.ok) return []
-    // eslint-disable-next-line no-control-regex -- control characters are exactly what is stripped
-    return [...new Set((plan.refusals || []).map(r => String(r.reason || '').replace(/[\u0000-\u001f<>`]+/g, ' ').trim().slice(0, 200)).filter(Boolean))].slice(0, 5)
+    const split = parts ? parts(ops) : { rest: ops, steps: [] }
+    const out = []
+    const check = (part) => {
+      const kinds = [...new Set(part.map(o => getCapability(o?.action)?.target).filter(Boolean))]
+      const plan = planOps(collectTargets(host, kinds), part)
+      if (plan.ok) return
+      for (const r of plan.refusals || []) {
+        const reason = cleanReason(r.reason)
+        if (reason) out.push({ index: r.index >= 0 && part[r.index] ? ops.indexOf(part[r.index]) : -1, reason })
+      }
+    }
+    if (split.rest.length) check(split.rest)
+    const grown = new Set(split.rest.filter(o => getCapability(o?.action)?.addsIndicators).map(o => String(o.target)))
+    for (const step of split.steps) {
+      if (!grown.has(String(step.target))) check([step])
+      if (getCapability(step?.action)?.addsIndicators) grown.add(String(step.target))
+    }
+    return out
   } catch { return [] }
+}
+
+/**
+ * ⛔ COVERAGE (AUDIT 11-23): the ops of the FIRST plan that the repair answer no longer carries — matched by action, as a
+ * multiset (a repair may fix an op's target or arguments; it may not quietly leave a requested step out). Pure.
+ */
+export function repairDropped(firstOps, repairOps) {
+  const left = new Map()
+  for (const o of repairOps || []) left.set(o?.action, (left.get(o?.action) || 0) + 1)
+  const out = []
+  for (const o of firstOps || []) {
+    const n = left.get(o?.action) || 0
+    if (n > 0) left.set(o?.action, n - 1)
+    else out.push(o)
+  }
+  return out
+}
+
+const actionWords = (a) => String(a || 'change').split('.').map(w => w.replace(/^set(?=[A-Z])/, '').replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase()).filter(w => w && w !== 'set').join(' ')
+/**
+ * The fixed NOT-DONE sentences (never model prose) for what a repair dropped, one per op: said after whatever ran, so a
+ * success receipt never stands for a plan with a requested step missing. The reason is UCT's own for that op
+ * (`findings`: preflightFindings, by index in `firstOps`), else the reasons the repair was sent with.
+ */
+export function repairDroppedLines(dropped, reasons = [], findings = [], firstOps = []) {
+  return (dropped || []).map(o => {
+    const i = firstOps.indexOf(o)
+    const own = i >= 0 ? findings.filter(f => f.index === i).map(f => f.reason) : []
+    const why = [...new Set(own.length ? own : reasons)].join(' ')
+    return `Not done: one part of your request (${actionWords(o?.action)}) — ${why || 'my revised plan left it out, so ask for it again.'}`
+  })
 }
 
 /** A repaired plan never asks for LESS approval than the plan it replaces: a proposal stays a proposal. */
