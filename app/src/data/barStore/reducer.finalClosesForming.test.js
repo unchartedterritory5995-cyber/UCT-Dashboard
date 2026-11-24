@@ -1,4 +1,8 @@
-// ⭐ A FINAL CLOSES THE BAR THE SERVER CALLED FORMING (review of #2639, M1).
+// ⭐ THE MINUTE FEED'S FINAL CLOSES THE BAR THE SERVER CALLED FORMING (review of #2639, M1; gated in round 2).
+// ⛔ ONLY THE FEED'S OWN FINALS (`fromFeed: true` on the action, data/barStore/minuteFeed.js). A STREAM final on a
+// chart's own key leaves the flag exactly as master does (N9): with the feed's switch off nothing may change for a
+// member, and on a live chart the flip would open a "confirmed" window until the next trade (Pine releases values it
+// holds back on a forming bar; bar-close logic sees a new state).
 // The store keeps the route's `newest_bar_is_forming` WITH the bar it describes (`newestForming {t, forming}`), and
 // hands it to the chart's runs for the snapshot's newest row (adapter.newestBarIsFormingOf): Pine reads it as
 // barstate.isconfirmed. A push FINAL for that bar closes it, and the flag still said "forming": a closed newest bar
@@ -10,6 +14,7 @@
 //   N6 a FINAL whose values lose (an older rev) still closes it: the bucket is over, whoever's values stand
 //   N7 a FINAL for a bar the flag does not name changes nothing (the same object)
 //   N8 the next answer naming a new forming bar: true for that bar
+//   N9 an UNMARKED final (the live stream's, on a chart's own key) leaves the flag exactly as it was: still forming
 import { describe, it, expect } from 'vitest'
 import { reduce, initialState } from './reducer'
 import { newestBarIsFormingOf } from './adapter'
@@ -37,8 +42,10 @@ function answered(dev, { asRow = false } = {}) {
     },
   }, ctx)
 }
-const push = (s, n, { final, rev, px = 0 }, ctx = ctxAt(n + 1, 8)) => reduce(s, {
-  type: final ? ACTION.PUSH_FINAL : ACTION.PUSH_BAR, event: { sym: 'AAA', tf: '1', ...bar(n, px), rev },
+/** One push frame. `fed` (default: every FINAL here): the minute feed's own final, marked as minuteFeed.js marks it;
+ *  `fed: false` is the live stream's final, which carries no mark. */
+const push = (s, n, { final, rev, px = 0, fed = final }, ctx = ctxAt(n + 1, 8)) => reduce(s, {
+  type: final ? ACTION.PUSH_FINAL : ACTION.PUSH_BAR, event: { sym: 'AAA', tf: '1', ...bar(n, px), rev }, ...(fed ? { fromFeed: true } : {}),
 }, ctx)
 
 describe('a FINAL closes the bar the server called forming', () => {
@@ -93,6 +100,19 @@ describe('a FINAL closes the bar the server called forming', () => {
     const s = push(s0, 31, { final: true, rev: T(32) * 1000 }, ctxAt(32, 8))
     expect(s.newestForming).toBe(s0.newestForming)
     expect(newestBarIsFormingOf(s)).toBe(null)                     // nothing was said about 10:01: unknown
+  })
+
+  it('N9 an UNMARKED final (the live stream on a chart own key) leaves the flag exactly as it was', () => {
+    const s0 = answered(30)
+    const s = push(s0, 30, { final: true, rev: T(31) * 1000, fed: false })
+    expect(s.developing).toBe(null)                                // the bar is closed all the same...
+    expect(s.bars[s.bars.length - 1]).toMatchObject({ ...bar(30), src: 'final' })
+    expect(s.newestForming).toBe(s0.newestForming)                 // ...and the flag is the very object it was
+    expect(newestBarIsFormingOf(s)).toBe(true)                     // (master's answer, until the stream opens 10:01)
+    // the forming bar held as a closed row, and a final whose values lose: unmarked, the same
+    const r0 = answered(30, { asRow: true })
+    expect(push(r0, 30, { final: true, rev: T(31) * 1000, fed: false }).newestForming).toBe(r0.newestForming)
+    expect(push(s0, 30, { final: true, rev: s0.developing.rev - 1000, px: 0.25, fed: false }).newestForming).toBe(s0.newestForming)
   })
 
   it('N8 the next answer naming a new forming bar says forming again, about that bar', () => {

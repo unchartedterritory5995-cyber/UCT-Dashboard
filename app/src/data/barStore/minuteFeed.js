@@ -163,6 +163,9 @@ export function createMinuteFeeder({
   function _offer(key, sym, row, rev = row.rev) {
     return registry.feed(key, {
       type: ACTION.PUSH_FINAL,
+      // marked as the feed's: the reducer clears "the newest bar is forming" for THIS final only, never for a live
+      // stream's final on a chart's own key (reducer.applyPush)
+      fromFeed: true,
       event: { sym, tf: FEED_TF, t: row.t, o: row.o, h: row.h, l: row.l, c: row.c, v: row.v, rev },
     })
   }
