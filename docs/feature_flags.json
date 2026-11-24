@@ -2528,9 +2528,9 @@
       "note": "Part of the edge-deep-history / instant-charts initiative (specs 2026-08-31 onward); recorded 2026-09-02 after a live read. Arms the after-close daily sweep so the web pod's newer-wins merge cold-populates every empty daily and advances every stale one, and a first view of ANY symbol serves from SQLite instead of shedding a warming 503."
     },
     "PINE_BREADTH_SUPPLY_ENABLED": {
-      "status": "dark",
-      "since": "2026-11-22",
-      "where": [],
+      "status": "armed",
+      "since": "2026-11-24",
+      "where": ["web"],
       "default": "admins",
       "values": [
         "off",
@@ -2538,12 +2538,12 @@
         "all"
       ],
       "owner": "Pine track 4 (the data indicators need), unit B1",
-      "note": "A STAGE, read per request in api/services/pine_breadth.py::stage() by GET /api/pine/breadth/{spelling} (api/routers/pine_breadth.py): UCT's own NYSE / Nasdaq breadth under TradingView's USI: spellings, labelled UCT breadth, for the breadth supply (B2). UNSET or admins = signed-in admins only (dark for members; admins read the values to grade them against capture Q-T4-B1). all (or 1/true/on) = paid members, served while the Pine data catalog passes uct_breadth (massive/derived_analytics, LA for member display since ESC-03 was ANSWERED BY THE OWNER 2026-11-22; held at R until then) and refused by its licence sentence otherwise. off, or any unknown value = nobody (404). Rails: tests/test_pine_breadth.py."
+      "note": "A STAGE, read per request in api/services/pine_breadth.py::stage() by GET /api/pine/breadth/{spelling} (api/routers/pine_breadth.py): UCT's own NYSE / Nasdaq breadth under TradingView's USI: spellings, labelled UCT breadth, for the breadth supply (B2). UNSET or admins = signed-in admins only (dark for members; admins read the values to grade them against capture Q-T4-B1). all (or 1/true/on) = paid members, served while the Pine data catalog passes uct_breadth (massive/derived_analytics, LA for member display since ESC-03 was ANSWERED BY THE OWNER 2026-11-22; held at R until then) and refused by its licence sentence otherwise. off, or any unknown value = nobody (404). Rails: tests/test_pine_breadth.py. ARMED 2026-11-24 00:34Z (coordinator, after engine 95 served): set to `all` on web (railway variables --skip-deploys, read back, web redeployed). Paid members can now read the route. The engine capability (request-earnings / request-financial / request-breadth in api/data/pine_runtime_allowlist.json) is still NOT admitted: admission needs its graded evidence. Rollback: set it to `admins` (dark again) and redeploy web."
     },
     "PINE_EVENTS_SUPPLY_ENABLED": {
-      "status": "dark",
-      "since": "2026-11-22",
-      "where": [],
+      "status": "armed",
+      "since": "2026-11-24",
+      "where": ["web"],
       "default": "admins",
       "values": [
         "off",
@@ -2551,12 +2551,12 @@
         "all"
       ],
       "owner": "Pine track 4 (the data indicators need), unit E1",
-      "note": "A STAGE, read per request in api/services/pine_events.py::stage() by GET /api/pine/events/{ticker} (api/routers/pine_events.py): a chart symbol's earnings, dividends and splits for the Pine event supply. UNSET or admins = signed-in admins only (dark for members): this is how production's own vendor fetch is graded against TradingView (tools/vendor_harness/event_grade.py, coordinator ruling 2026-11-22). all (or 1/true/on) = every paid member; set only when the engine's event supply (E2) ships. off, or any unknown value = nobody (404, fail closed). Members get 404 while dark, so the route is not an oracle. Nothing in the engine reads the route until E2. Rails: tests/test_pine_events.py."
+      "note": "A STAGE, read per request in api/services/pine_events.py::stage() by GET /api/pine/events/{ticker} (api/routers/pine_events.py): a chart symbol's earnings, dividends and splits for the Pine event supply. UNSET or admins = signed-in admins only (dark for members): this is how production's own vendor fetch is graded against TradingView (tools/vendor_harness/event_grade.py, coordinator ruling 2026-11-22). all (or 1/true/on) = every paid member; set only when the engine's event supply (E2) ships. off, or any unknown value = nobody (404, fail closed). Members get 404 while dark, so the route is not an oracle. Nothing in the engine reads the route until E2. Rails: tests/test_pine_events.py. ARMED 2026-11-24 00:34Z (coordinator, after engine 95 served): set to `all` on web (railway variables --skip-deploys, read back, web redeployed). Paid members can now read the route. The engine capability (request-earnings / request-financial / request-breadth in api/data/pine_runtime_allowlist.json) is still NOT admitted: admission needs its graded evidence. Rollback: set it to `admins` (dark again) and redeploy web."
     },
     "PINE_FINANCIAL_SUPPLY_ENABLED": {
-      "status": "dark",
-      "since": "2026-11-22",
-      "where": [],
+      "status": "armed",
+      "since": "2026-11-24",
+      "where": ["web"],
       "default": "admins",
       "values": [
         "off",
@@ -2564,7 +2564,7 @@
         "all"
       ],
       "owner": "Pine track 4 (the data indicators need), unit F1a",
-      "note": "A STAGE, read per request in api/services/pine_financial.py::stage() by GET /api/pine/financial/{ticker} (api/routers/pine_financial.py): a chart symbol's figures from SEC filings (UCT's point-in-time fundamentals store) for Pine's request.financial, served as UCT data and never graded as TradingView's. UNSET or admins = signed-in admins only (dark for members). all (or 1/true/on) = every paid member; set only when the engine's request.financial supply (F1b) ships, and the assistant is handed request.financial only at all. off, or any unknown value = nobody (404, fail closed). Members get 404 while dark, so the route is not an oracle. Rails: tests/test_pine_financial.py."
+      "note": "A STAGE, read per request in api/services/pine_financial.py::stage() by GET /api/pine/financial/{ticker} (api/routers/pine_financial.py): a chart symbol's figures from SEC filings (UCT's point-in-time fundamentals store) for Pine's request.financial, served as UCT data and never graded as TradingView's. UNSET or admins = signed-in admins only (dark for members). all (or 1/true/on) = every paid member; set only when the engine's request.financial supply (F1b) ships, and the assistant is handed request.financial only at all. off, or any unknown value = nobody (404, fail closed). Members get 404 while dark, so the route is not an oracle. Rails: tests/test_pine_financial.py. ARMED 2026-11-24 00:34Z (coordinator, after engine 95 served): set to `all` on web (railway variables --skip-deploys, read back, web redeployed). Paid members can now read the route. The engine capability (request-earnings / request-financial / request-breadth in api/data/pine_runtime_allowlist.json) is still NOT admitted: admission needs its graded evidence. Rollback: set it to `admins` (dark again) and redeploy web."
     },
     "PINE_SUPPORT_REPORTS_ENABLED": {
       "status": "armed",
