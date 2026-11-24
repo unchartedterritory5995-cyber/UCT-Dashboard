@@ -1,0 +1,141 @@
+{
+  "schema": "uct.ci-mutants/v1",
+  "about": "PASTE WORKER (feat/pine-paste-worker): the member door builds a paste in a Web Worker, once per script and page state, and answers byte for byte as the main thread did. Every rule, broken once, must turn its rail red: off-thread equality (the image, the answer's plain copy), one build per paste, cancel-on-rebuild, the watchdog, a dead worker, the fast control, and the page effects the build makes. The hub and the light report: the status is made in the report's worker from the full report and the full door answer (a MessageChannel between the two workers), the page is sent what it reads, and a Use asks the worker for the object program. (train e96: the 30 not reached by pine-heavy 45208974798 in its 30-min job)",
+  "mutants": [
+    {
+      "id": "H2",
+      "mutant": "the door's answer crosses to the page with its translation",
+      "file": "app/src/components/chart/builder/memberPane/memberDoorWorkerCore.js",
+      "from": "    if (k === 'translation') continue",
+      "to": "    if (k === 'no such key') continue",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/memberDoorOffThread.test.js",
+      "expectRed": "the translation stays in the workers"
+    },
+    {
+      "id": "H3",
+      "mutant": "the page never links the two workers: the status with the door's answer is never made",
+      "file": "app/src/components/chart/builder/inspectAsync.js",
+      "from": "    if (!dw || !rw) return\n",
+      "to": "    if (dw || !dw) return\n",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberDoorPerPaste.test.jsx",
+      "expectRed": "Checking your script"
+    },
+    {
+      "id": "H4",
+      "mutant": "the door's worker does not send its answer to the report's worker",
+      "file": "app/src/components/chart/builder/memberPane/memberDoorWorkerCore.js",
+      "from": "    if (PEER && PEER_ROLE === 'door' && source !== undefined) {",
+      "to": "    if (PEER && PEER_ROLE === 'no one' && source !== undefined) {",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/memberDoorOffThread.test.js",
+      "expectRed": "the report's worker sent the status of this report with this door answer"
+    },
+    {
+      "id": "L1",
+      "mutant": "the page is sent every output's tree",
+      "file": "app/src/components/chart/builder/inspectView.js",
+      "from": "  const out = without(o, ['ast', 'downstream'])",
+      "to": "  const out = without(o, ['downstream'])",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/memberDoorOffThread.test.js",
+      "expectRed": "an output's tree stayed in the worker"
+    },
+    {
+      "id": "L2",
+      "mutant": "the page is sent every read-back's tree",
+      "file": "app/src/components/chart/builder/inspectView.js",
+      "from": "  if (!down || typeof down !== 'object') return down\n  const out = {}",
+      "to": "  if (!down || typeof down === 'object') return down\n  const out = {}",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/memberDoorOffThread.test.js",
+      "expectRed": "a read-back's tree stayed in the worker"
+    },
+    {
+      "id": "L3",
+      "mutant": "the page is sent the object program with the report",
+      "file": "app/src/components/chart/builder/inspectView.js",
+      "from": "  const light = without(report, ['objects', 'outputs'])",
+      "to": "  const light = without(report, ['outputs'])",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/memberDoorBytes.test.js",
+      "expectRed": "report posted to the page"
+    },
+    {
+      "id": "L4",
+      "mutant": "PasteBox parses the chosen column on the main thread (the worker's numeric flags not read)",
+      "file": "app/src/components/chart/builder/PineBox.jsx",
+      "from": "    if (view && Array.isArray(view.numeric) && chosen != null && typeof view.numeric[chosen] === 'boolean') return view.numeric[chosen]",
+      "to": "    if (view && Array.isArray(view.numeric) && chosen === -2) return view.numeric[chosen]",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/pineBoxLightReport.test.jsx",
+      "expectRed": "no column parsed on the main thread"
+    },
+    {
+      "id": "L5",
+      "mutant": "PasteBox computes a non-Pine verdict on the main thread (the worker's not read)",
+      "file": "app/src/components/chart/builder/PineBox.jsx",
+      "from": "(view ? view.verdict : verdictOf(report))",
+      "to": "verdictOf(report)",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/pineBoxLightReport.test.jsx",
+      "expectRed": "no verdict, no column parse on the main thread"
+    },
+    {
+      "id": "L6",
+      "mutant": "PasteBox derives the input placements from the light report (the worker's not read)",
+      "file": "app/src/components/chart/builder/PineBox.jsx",
+      "from": "(view ? view.placements : placementsOf(report))",
+      "to": "placementsOf(report)",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/pineBoxLightReport.test.jsx",
+      "expectRed": "the pick is the main thread's"
+    },
+    {
+      "id": "L7",
+      "mutant": "a Use drops the object program the worker answered with",
+      "file": "app/src/components/chart/builder/inspectAsync.js",
+      "from": "  if (reply && reply.ok === true) return restoreFaithful({ value: reply.answer, hidden: reply.hidden })",
+      "to": "  if (reply && reply.ok === true) return null",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/pineBoxLightReport.test.jsx",
+      "expectRed": "the pick is the main thread's"
+    },
+    {
+      "id": "L8",
+      "mutant": "a worker that no longer holds the report does not make it again: the page makes it",
+      "file": "app/src/components/chart/builder/memberPane/memberDoorWorkerCore.js",
+      "from": "  if (!entry && m.args && typeof m.args === 'object') {",
+      "to": "  if (!entry && m.args && m.args === 0) {",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/pineBoxLightReport.test.jsx",
+      "expectRed": "the new worker made the report again"
+    },
+    {
+      "id": "L9",
+      "mutant": "a question a dead worker did not answer is never asked of a new one",
+      "file": "app/src/components/chart/builder/memberPane/memberDoorAsync.js",
+      "from": "    if (asks.size && !worker) spawn()\n",
+      "to": "\n",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/pineBoxLightReport.test.jsx",
+      "expectRed": "to be called 1 times"
+    },
+    {
+      "id": "L10",
+      "mutant": "the page does not put a refusal's stamp back (the text the suggestion is applied to)",
+      "file": "app/src/components/chart/builder/inspectView.js",
+      "from": "    if (isJobText(r.source)) r.source = source",
+      "to": "    if (isJobText(r.source)) void source",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/memberDoorOffThread.test.js",
+      "expectRed": "the worker's report is the main thread's"
+    },
+    {
+      "id": "L11",
+      "mutant": "every refusal crosses with the whole text again",
+      "file": "app/src/components/chart/builder/inspectView.js",
+      "from": "    if (r.source !== source) continue\n",
+      "to": "    continue\n",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/memberDoorOffThread.test.js",
+      "expectRed": "a refusal crossed with the whole text"
+    },
+    {
+      "id": "H5",
+      "mutant": "a new report worker is not handed the door answers the page made (the status with one is never made after a worker is replaced)",
+      "file": "app/src/components/chart/builder/inspectAsync.js",
+      "from": "else { resendPageAnswers(w); pair() } })",
+      "to": "else { pair() } })",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/hubPageAnswer.test.js",
+      "expectRed": "the status with the page-made door answer was made by the new worker"
+    }
+  ]
+}
