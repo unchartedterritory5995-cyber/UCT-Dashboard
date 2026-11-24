@@ -224,3 +224,40 @@ def test_6_a_pool_job_that_never_ends_is_named(request):
     finally:
         answer.set()
     assert rule.end_bars_pool_work(timeout_s=10) == []
+
+
+# ── The rule reads no clock a test can patch ─────────────────────────────────────────────────────────────────
+#
+# ⚰️ 2026-11-23, the first full `tests/` run of the rule: tests/test_polygon_options_chain.py::
+# test_get_chain_pagination_stops_at_wall_clock_budget failed with "RuntimeError: generator raised StopIteration".
+# It patches `time.monotonic` (the module's own attribute, through `po.time`) with a two-value iterator and uses
+# both values. A monkeypatch is undone at teardown, AFTER the body returns, so the rule's own deadline read the
+# test's exhausted clock. The rule now holds the real `time.monotonic` from conftest import.
+
+_CLOCK: dict = {}
+_CLOCK_WORK_S = 0.5
+
+
+def test_7_a_test_that_used_up_a_patched_clock_still_has_its_work_waited_for(monkeypatch):
+    """Both clocks patched with a one-value iterator, the value used: any later read raises StopIteration. The
+    refresh thread and the cold-pool job this leaves running are still waited for, and this test still passes."""
+    mono, wall = iter([0.0]), iter([0.0])
+    monkeypatch.setattr(time, "monotonic", lambda: next(mono))
+    monkeypatch.setattr(time, "time", lambda: next(wall))
+    assert time.monotonic() == 0.0 and time.time() == 0.0
+    with pytest.raises(StopIteration):
+        time.monotonic()
+    thread_done, job_done = threading.Event(), threading.Event()
+    # `Event.wait` is timed inside the interpreter, not by `time.*`: the work really lasts _CLOCK_WORK_S.
+    t = threading.Thread(target=lambda: (threading.Event().wait(_CLOCK_WORK_S), thread_done.set()),
+                         name="bars-bg-CLOCK-D", daemon=True)
+    t.start()
+    bars_fetch._cold_bg_pool.submit(lambda: (threading.Event().wait(_CLOCK_WORK_S), job_done.set()))
+    _CLOCK.update(thread=t, thread_done=thread_done, job_done=job_done)
+
+
+def test_8_that_work_had_ended_when_the_next_test_began():
+    if "thread" not in _CLOCK:
+        pytest.skip("runs right after test_7 in this file (it is the second half of one ordered pair)")
+    assert not _CLOCK["thread"].is_alive() and _CLOCK["thread_done"].is_set(), "the refresh thread was not joined"
+    assert _CLOCK["job_done"].is_set(), "the cold pool's job was not waited for"
