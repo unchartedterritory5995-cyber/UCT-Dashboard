@@ -153,6 +153,28 @@ def test_a_catch_up_after_the_next_open_takes_nothing_and_records_the_hole():
     assert again["reason"] == "missed" and calls == [] and len(eh.missed_days()) == 1
 
 
+def test_a_catch_up_that_reaches_the_next_open_stops_reading_there_and_records_the_hole(monkeypatch):
+    # Review 2026-11-24: the window was checked once, when the catch-up started. A catch-up that starts at Monday
+    # 09:29:55 for Friday's unfinished run read on through 09:30 (600 symbols at a 1 s pace take minutes) and stored
+    # Monday's estimates under Friday's date. A read due at or after the open is not made, and the hole is recorded.
+    import time
+    import types
+    _track("ZQAA", "ZQAB", "ZQAC", "ZQAD")
+    clock = {"t": 1000.0}
+    monkeypatch.setattr(eh, "time", types.SimpleNamespace(time=time.time, monotonic=lambda: clock["t"],
+                                                          sleep=time.sleep))
+
+    def pace(_s):                                             # each pace between two reads: 2 s on the run's clock
+        clock["t"] += 2.0
+    calls: list = []
+    out = eh.catch_up(MON_OPEN - timedelta(seconds=5), fetch=_fetch(calls), sleep=pace)
+    assert out["started"] is True and out["session"] == "2027-11-19"
+    assert calls == ["ZQAA", "ZQAB", "ZQAC"]                  # read 0, 2 and 4 s in; the next would be 1 s past the open
+    assert _snap_dates() == {"2027-11-19"}
+    assert eh.job_receipt("2027-11-19")["state"] == "missed"
+    assert [d["snap_date"] for d in eh.missed_days()] == ["2027-11-19"]
+
+
 def test_a_run_a_restart_killed_is_resumed_and_a_failed_read_is_not_repeated():
     _track("ZQAA", "ZQAB", "ZQAC")
     eh.snapshot_symbol("ZQAA", "2027-11-16", fetch=_fetch([]))

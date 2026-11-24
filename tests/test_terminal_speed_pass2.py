@@ -805,6 +805,36 @@ def test_another_symbol_is_never_served_and_a_failed_build_is_said_once_never_he
 
 
 @pytest.mark.parametrize("name", ["stat", "fctx", "vfp"])
+def test_a_failed_builds_word_is_for_the_panel_waiting_on_it_never_for_a_member_hours_later(studies, monkeypatch,
+                                                                                          name):
+    # Review 2026-11-24: the word of a build that held nothing (a failed read, `busy`) was kept with no time bound, so
+    # when nobody took it (the member closed the panel), the next member to open the stock HOURS later was told that
+    # old failure (and a `busy` panel asks again only after half an hour) instead of getting a new build. It is said
+    # only as long as held_build says a failed build (`held_build.FAILED_S`), then a new build starts.
+    import types
+
+    from api.services import held_build
+    worlds = _study_worlds(monkeypatch, *studies)
+    svc, get, _w = worlds[name]
+    monkeypatch.setattr(svc, "_read_bars", lambda sym, *a, **k: (_ for _ in ()).throw(OSError("invented")))
+    if name == "fctx":
+        monkeypatch.setattr(svc, "fund_set", lambda key: (_ for _ in ()).throw(OSError("invented")))
+    two_hours_ago = time.time() - 2 * 3600
+    with monkeypatch.context() as m:                                            # the failed build ran two hours ago
+        m.setattr(svc, "time", types.SimpleNamespace(time=lambda: two_hours_ago, monotonic=time.monotonic,
+                                                     thread_time=time.thread_time, sleep=time.sleep))
+        assert get("ZZQD")["status"] == "computing"
+        svc.drain_for_tests()
+    _join(svc.BUILD_THREAD)
+    assert time.time() - two_hours_ago > held_build.FAILED_S
+    assert get("ZZQD") == {"status": "computing", "symbol": "ZZQD"}             # a new build, never the old failure
+    svc.drain_for_tests()
+    said = get("ZZQD")                                                         # the new build's own word, fresh
+    assert said["status"] == "unavailable" and said["symbol"] == "ZZQD"
+    svc.drain_for_tests()
+
+
+@pytest.mark.parametrize("name", ["stat", "fctx", "vfp"])
 def test_past_the_pending_bound_a_request_says_busy_at_once(studies, monkeypatch, name):
     worlds = _study_worlds(monkeypatch, *studies)
     svc, get, _w = worlds[name]

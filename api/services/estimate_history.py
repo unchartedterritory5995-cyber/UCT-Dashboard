@@ -210,11 +210,14 @@ def _seed_sp500() -> int:
 
 def run_daily(*, today: Optional[date] = None, fetch: Optional[Callable] = None,
               sleep: Callable[[float], None] = time.sleep, seed: bool = True,
-              reread_errors: bool = True) -> dict:
+              reread_errors: bool = True, window_s: Optional[float] = None) -> dict:
     """The snapshot run. Idempotent per day: a symbol already read OK today is
     skipped. Bounded by MAX_SYMBOLS, PACE_S between vendor calls and RUN_BUDGET_S.
     `reread_errors=False` (the catch-up) also skips a symbol whose read for the day
-    failed: a catch-up repeats a MISSED read only, never a second one."""
+    failed: a catch-up repeats a MISSED read only, never a second one.
+    `window_s` (`run_scheduled`): the seconds left, as the run starts, until the next
+    session opens. A read due at or past it is not made (counted `window_cut`): it would
+    store the next session's estimates under this session's date (review 2026-11-24)."""
     if not is_enabled():
         return {"skipped": "flag off"}
     snap_date = (today or datetime.now(timezone.utc).date()).isoformat()
@@ -227,12 +230,17 @@ def run_daily(*, today: Optional[date] = None, fetch: Optional[Callable] = None,
             % ",".join("?" * len(statuses)), (snap_date, *statuses))}
     started = time.monotonic()
     out = {"snap_date": snap_date, "ok": 0, "empty": 0, "error": 0, "skipped_done": 0, "budget_cut": 0}
+    if window_s is not None:
+        out["window_cut"] = 0
     for i, sym in enumerate(tracked()[:MAX_SYMBOLS]):
         if sym in done:
             out["skipped_done"] += 1
             continue
         if time.monotonic() - started > RUN_BUDGET_S:
             out["budget_cut"] += 1
+            continue
+        if window_s is not None and time.monotonic() - started >= window_s:
+            out["window_cut"] += 1
             continue
         out[snapshot_symbol(sym, snap_date, fetch=fetch)] += 1
         sleep(PACE_S)
@@ -350,8 +358,13 @@ def run_scheduled(now: Optional[datetime] = None, *, source: str = "nightly", fe
         return {"skipped": "running"}
     try:
         _mark(session, "running", source)
+        # The window is the session's, not only the start's: reads stop at the next open (review 2026-11-24).
+        opens = next_open_after(last_slot(now))
         out = run_daily(today=date.fromisoformat(session), fetch=fetch, sleep=sleep,
-                        reread_errors=(source == "nightly"))
+                        reread_errors=(source == "nightly"),
+                        window_s=(opens - now).total_seconds() if opens is not None else None)
+        if out.get("window_cut") and _close_window(opens).get("reason") == "missed":
+            return out                             # unfinished at the open: recorded as the session's hole
         _mark(session, "done", source, detail=json.dumps(out, sort_keys=True))
         return out
     finally:
