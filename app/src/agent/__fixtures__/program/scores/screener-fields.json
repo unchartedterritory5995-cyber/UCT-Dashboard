@@ -2053,6 +2053,94 @@
    "agent_omit": true
   },
   {
+   "key": "iv_rank",
+   "label": "IV Rank",
+   "type": "range",
+   "unit": null,
+   "category": "volume_volatility",
+   "agent_omit": true
+  },
+  {
+   "key": "iv_percentile",
+   "label": "IV Percentile",
+   "type": "range",
+   "unit": null,
+   "category": "volume_volatility",
+   "agent_omit": true
+  },
+  {
+   "key": "group_rank",
+   "label": "Industry Group Rank",
+   "type": "range",
+   "unit": null,
+   "category": "context",
+   "agent_omit": true
+  },
+  {
+   "key": "group_rank_of",
+   "label": "Industry Groups Ranked",
+   "type": "range",
+   "unit": null,
+   "category": "context",
+   "agent_omit": true
+  },
+  {
+   "key": "group_rank_chg_4w",
+   "label": "Industry Group Rank Change, 4 Weeks",
+   "type": "range",
+   "unit": null,
+   "category": "context",
+   "agent_omit": true
+  },
+  {
+   "key": "short_interest_chg_pct",
+   "label": "Short Interest Change",
+   "type": "range",
+   "unit": "%",
+   "category": "ownership",
+   "agent_omit": true
+  },
+  {
+   "key": "next_ex_div_date",
+   "label": "Next Ex-Dividend Date",
+   "type": "range",
+   "unit": null,
+   "category": "events",
+   "agent_omit": true
+  },
+  {
+   "key": "days_to_ex_div",
+   "label": "Days to Ex-Dividend",
+   "type": "range",
+   "unit": null,
+   "category": "events",
+   "agent_omit": true
+  },
+  {
+   "key": "eps_rev_up_30d",
+   "label": "EPS Estimate Raised, 30 Days",
+   "type": "range",
+   "unit": null,
+   "category": "events",
+   "agent_omit": true
+  },
+  {
+   "key": "eps_rev_down_30d",
+   "label": "EPS Estimate Cut, 30 Days",
+   "type": "range",
+   "unit": null,
+   "category": "events",
+   "agent_omit": true
+  },
+  {
+   "key": "eps_rev_net_30d",
+   "label": "EPS Estimate Revision, Net, 30 Days",
+   "type": "range",
+   "unit": null,
+   "category": "events",
+   "agent_omit": true
+  },
+  {
    "key": "security_type",
    "label": "Type",
    "type": "enum",
