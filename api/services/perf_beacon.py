@@ -25,8 +25,17 @@ REFUSES the report (counted `invalid`), never cleans it:
   * country    from Cloudflare's `CF-IPCountry` header (two letters), never from
                the body; nothing finer than a country is stored
 
-No member id, no IP, no URL ever reaches a row. The rate limit keys on a salted
-hash of the IP, stored only to count.
+No member id, no IP, no URL ever reaches a row, and NOTHING DERIVED FROM AN IP IS
+KEPT PAST ITS USE OR UNDER A KEY ANYONE ELSE CAN HOLD. The quotas need "the same
+sender again within the hour": an HMAC of the IP under a random key that exists
+only in this process's memory for that clock hour (`_key`), in a quota table of
+its own whose rows are deleted once an hour old. A page-load row holds no key.
+
+(Until 2026-11-24 it did: `perf_loads.rate_key` was a SHA-256 of the IP under a
+constant in this public repo, kept 30 days, so anyone holding a copy of the
+store could recompute every row over all of IPv4. `migrate()` blanks every one
+at startup and rebuilds the file so they leave its pages too. Copies of the
+store made BEFORE that still hold them: delete old backups.)
 
 Chart-switch speed: the second kind of report (2026-11-23)
 ----------------------------------------------------------
@@ -125,7 +134,6 @@ GLOBAL_LIMIT_PER_HOUR = 50_000
 MAX_LOADS = 300_000
 RETENTION_DAYS = 30
 PRUNE_EVERY_S = 3600
-_SALT = "perf_beacon"
 
 # -- chart-switch speed (the module docstring says what each is; app/src/lib/switchSpeed.js holds the same lists) --
 KINDS = frozenset({"load", "switches"})
@@ -167,7 +175,11 @@ CREATE TABLE IF NOT EXISTS perf_loads (
     rate_key     TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS ix_perf_loads_created ON perf_loads(created_at);
-CREATE INDEX IF NOT EXISTS ix_perf_loads_rate ON perf_loads(rate_key, created_at);
+CREATE TABLE IF NOT EXISTS perf_load_sends (
+    created_at REAL NOT NULL,
+    rate_key   TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ix_perf_load_sends ON perf_load_sends(rate_key, created_at);
 CREATE TABLE IF NOT EXISTS perf_api (
     load_id  INTEGER NOT NULL REFERENCES perf_loads(id) ON DELETE CASCADE,
     route    TEXT NOT NULL,
@@ -269,6 +281,7 @@ def _connect() -> sqlite3.Connection:
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA busy_timeout=2000")
     conn.execute("PRAGMA foreign_keys=ON")
+    conn.execute("PRAGMA secure_delete=ON")       # a deleted quota or sender row is zeroed in its page, not just unlinked
     conn.executescript(_SCHEMA)
     if path not in _migrated:
         cols = {r[1] for r in conn.execute("PRAGMA table_info(perf_loads)")}
@@ -391,8 +404,12 @@ def country_from(header: str | None) -> str:
     return v if _COUNTRY_RE.fullmatch(v) else ""
 
 
-def _rate_key(ip: str | None) -> str:
-    return hashlib.sha256(f"{_SALT}:{ip or 'unknown'}".encode()).hexdigest()[:24]
+def _rate_keys(ip: str | None, now: float) -> tuple[str, str]:
+    """A sender for the hourly quotas: (under this clock hour's key, under the hour before's). New rows are written
+    under the first; a count looks for both, so the quota holds over any 60 minutes, across the clock hour too. After a
+    restart the keys are new and the quota starts again: a sender may send up to its limit once more that hour."""
+    hour = int(now // 3600)
+    return _mac(_key("hour", hour), ip, 24), _mac(_key("hour", hour - 1), ip, 24)
 
 
 def _sender_key(ip: str | None, day: str) -> str:
@@ -405,6 +422,7 @@ def _delete_outlived(conn: sqlite3.Connection, now: float) -> dict[str, int]:
     """Delete every row whose use is over: quota rows an hour old, sender rows of an earlier ET day (their counts stay
     in the day's row). How many of each."""
     return {
+        "load_sends": conn.execute("DELETE FROM perf_load_sends WHERE created_at <= ?", (now - 3600,)).rowcount,
         "switch_sends": conn.execute("DELETE FROM perf_switch_sends WHERE created_at <= ?", (now - 3600,)).rowcount,
         "senders": conn.execute("DELETE FROM perf_switch_senders WHERE day < ?", (switch_day(now),)).rowcount,
     }
@@ -429,7 +447,7 @@ def housekeep(now: float | None = None) -> dict[str, int]:
         conn = _connect()
         try:
             with conn:
-                return {"load_sends": 0, **_delete_outlived(conn, now)}
+                return _delete_outlived(conn, now)
         finally:
             conn.close()
 
@@ -440,8 +458,30 @@ _housekeeper_stop = threading.Event()
 _boot_done = threading.Event()       # set once the thread's start-of-process work is done
 
 
+def migrate() -> int:
+    """Blank every `perf_loads.rate_key` an older build stored (a SHA-256 of the IP under a constant in the public repo,
+    kept 30 days), drop their index, and rebuild the file so the old values leave its PAGES and its write-ahead log, not
+    only its rows. Idempotent: the second run finds nothing. Returns how many rows it blanked; no store, nothing to do."""
+    if not os.path.exists(_db_path()):
+        return 0
+    with _lock:
+        conn = _connect()
+        try:
+            with conn:
+                n = conn.execute("UPDATE perf_loads SET rate_key='' WHERE rate_key<>''").rowcount
+                conn.execute("DROP INDEX IF EXISTS ix_perf_loads_rate")
+            if n:
+                conn.execute("VACUUM")
+                conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+            return n
+        finally:
+            conn.close()
+
+
 def _at_boot() -> None:
     """What the housekeeping thread does once, before its first wait."""
+    n = migrate()
+    print(f"[perf-beacon] startup: blanked {n} stored rate key(s)")      # a count, and nothing else
     housekeep()
 
 
@@ -494,18 +534,19 @@ _SWITCH_UPSERT = (
 _SWITCH_CELL_WHERE = " AND ".join(f"{k}=?" for k in _SWITCH_KEY)
 
 
-def _record_switches(row: dict[str, Any], key: str, ip: str | None, now: float) -> dict[str, int]:
+def _record_switches(row: dict[str, Any], ip: str | None, now: float) -> dict[str, int]:
     """Merge one switches report into its day. Its own hourly quota per IP hash (reports, and the switches they hold
     together), and the global one. A report over a quota is dropped whole, never trimmed."""
     global _last_prune
     held = sum(sum(counts) for _, counts in row["cells"])
+    key, key_before = _rate_keys(ip, now)
     with _lock:
         conn = _connect()
         try:
             hour_ago = now - 3600
             mine, mine_held = conn.execute(
-                "SELECT COUNT(*), COALESCE(SUM(switches), 0) FROM perf_switch_sends WHERE rate_key=? AND created_at>?",
-                (key, hour_ago)).fetchone()
+                "SELECT COUNT(*), COALESCE(SUM(switches), 0) FROM perf_switch_sends WHERE rate_key IN (?,?) AND created_at>?",
+                (key, key_before, hour_ago)).fetchone()
             if mine >= SWITCH_RATE_LIMIT or mine_held + held > SWITCH_TOTAL_PER_HOUR:
                 return {"stored": 0, "dropped": 1, "invalid": 0}
             total = conn.execute("SELECT COUNT(*) FROM perf_switch_sends WHERE created_at>?", (hour_ago,)).fetchone()[0]
@@ -548,25 +589,32 @@ def record(report: Any, *, ip: str | None, country_header: str | None, now: floa
         row = validate_switch_report(report) if kind == "switches" else validate(report)
     except ValueError:
         return {"stored": 0, "dropped": 0, "invalid": 1}
-    key = _rate_key(ip)
+    _forget_keys(now)
     if kind == "switches":
-        return _record_switches(row, key, ip, now)
+        return _record_switches(row, ip, now)
+    key, key_before = _rate_keys(ip, now)
     with _lock:
         conn = _connect()
         try:
             hour_ago = now - 3600
-            mine = conn.execute("SELECT COUNT(*) FROM perf_loads WHERE rate_key=? AND created_at>?", (key, hour_ago)).fetchone()[0]
+            mine = conn.execute("SELECT COUNT(*) FROM perf_load_sends WHERE rate_key IN (?,?) AND created_at>?",
+                                (key, key_before, hour_ago)).fetchone()[0]
             if mine >= RATE_LIMIT:
                 return {"stored": 0, "dropped": 1, "invalid": 0}
             total = conn.execute("SELECT COUNT(*) FROM perf_loads WHERE created_at>?", (hour_ago,)).fetchone()[0]
             if total >= GLOBAL_LIMIT_PER_HOUR:
                 return {"stored": 0, "dropped": 1, "invalid": 0}
             with conn:
+                # the quota's own table: a time and the hour's key, deleted once an hour old
+                conn.execute("DELETE FROM perf_load_sends WHERE created_at <= ?", (hour_ago,))
+                conn.execute("INSERT INTO perf_load_sends (created_at, rate_key) VALUES (?,?)", (now, key))
+                # ⛔ the page-load row itself holds NO key: `rate_key` stays in the table only because older stores
+                # have the column (NOT NULL), and it is always written empty
                 cur = conn.execute(
                     f"INSERT INTO perf_loads (created_at,page,client,country,{','.join(TIMINGS)},long_tasks,rate_key)"
-                    f" VALUES (?,?,?,?,{','.join('?' * len(TIMINGS))},?,?)",
+                    f" VALUES (?,?,?,?,{','.join('?' * len(TIMINGS))},?,'')",
                     (now, row["page"], row["client"], country_from(country_header), *(row[k] for k in TIMINGS),
-                     row["long_tasks"], key))
+                     row["long_tasks"]))
                 load_id = cur.lastrowid
                 conn.executemany("INSERT INTO perf_api (load_id,route,ms,ok) VALUES (?,?,?,?)",
                                  [(load_id, r, ms, ok) for r, ms, ok in row["api"]])
