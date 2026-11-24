@@ -161,6 +161,26 @@ def test_an_incomplete_day_is_said_and_a_symbol_with_no_iv_is_not_in_log(seed):
     assert "no ATM IV for ZZZZ" in gone["partial_reasons"][0]
 
 
+def test_a_placeholder_atm_iv_is_never_a_point_in_the_series_or_the_rank(seed):
+    """(2026-11-23) An ATM IV under `IV_FLOOR` is a placeholder: no point, no low, no rank session; the other
+    sessions still count, and the day is said in words. Invented series."""
+    days = trading_days("2026-09-01", 22)
+    tiny = round(svc.IV_FLOOR / 5, 6)
+    for i, d in enumerate(days):
+        seed.day(d, [row("AAPL", tiny if i == 4 else 0.25 + (i % 3) / 100), row("ZZPH", tiny)])
+    now = dt.datetime(2026, 10, 2, 18, 0, tzinfo=ET)
+    out = svc.iv_history("AAPL", now=now)
+    pts = {p["date"]: p for p in out["points"]}
+    assert pts[days[4]]["atm_iv"] is None and pts[days[4]]["implausible_iv"] is True
+    assert out["n"] == 21 and out["rank"]["window_sessions"] == 21 and out["rank"]["low"] == 0.25
+    assert any(days[4] in s and "placeholder" in s for s in out["partial_reasons"])
+    assert not any(s.startswith("No ATM IV for AAPL") for s in out["partial_reasons"]), "said once, as a placeholder"
+    every = svc.iv_history("ZZPH", now=now)
+    assert every["status"] == "not_in_log" and every["rank"] is None and every["covers_from"] is None
+    assert any("placeholder" in s for s in every["partial_reasons"])
+    assert f"under {svc.IV_FLOOR * 100:g}% a year" in svc.METHOD
+
+
 def test_an_empty_log_says_so(seed):
     out = svc.iv_history("AAPL", now=NOW)
     assert out["status"] == "no_log" and out["rank"] is None and out["partial"] is True

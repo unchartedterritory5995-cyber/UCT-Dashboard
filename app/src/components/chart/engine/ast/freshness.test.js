@@ -198,7 +198,11 @@ describe('the closed table declares scalars, and both lanes read the same one', 
     //                                `bars_volume_volatility` step) and the five beats, insiders & funds
     //                                columns (`beats_insiders_funds`'s three readers), NULL until the
     //                                first build after they land (R8). Python pin: (149, 156) -> (149, 167).
-    expect(Object.keys(excluded).length).toBe(167)
+    //   excluded 167 + 11 = 178      the eleven held-store columns (2026-11-23, `store_columns`'s four
+    //                                readers and `short_columns`' change since the prior report), NULL until
+    //                                the first build after they land (R8); `next_ex_div_date` is also TEXT.
+    //                                Python pin: (149, 167) -> (149, 178).
+    expect(Object.keys(excluded).length).toBe(178)
     for (const [column, why] of Object.entries(excluded)) {
       expect(names, `${column} is in BOTH halves of the partition`).not.toContain(column)
       expect(String(why).length).toBeGreaterThan(20)

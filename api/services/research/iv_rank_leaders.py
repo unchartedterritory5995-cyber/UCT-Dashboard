@@ -33,6 +33,22 @@ WHEN (never on a member's request)
   list is behind the session the last 20:45 build should have read (`behind`), through `run_scheduled`
   and so through every one of its guards.
 
+THE FULL MAP (2026-11-23, the Screener's `iv_rank` / `iv_percentile` columns)
+  The same build also keeps EVERY ranked symbol's IV rank, IV percentile and the sessions it rests
+  on, for the session it read, in its own file beside the held answer (`MAP_FILE`, written
+  atomically after the answer, at most `MAP_MAX` symbols, most open interest first). The panel's
+  answer is not touched by it. The Screener's nightly build reads that file once
+  (`read_rank_map`, read only) and withholds it by this module's own rule (`behind`).
+  Measured 2026-11-23 on an invented log of 6,034 underlyings over 28 sessions (dev PC, tracemalloc): the
+  build's peak did not move (8.2 MB either way), the map holds 1.2 MB more until it is written, and the
+  write is 0.3 s for a 138 KB file of 6,028 symbols.
+
+PLACEHOLDERS (2026-11-23). Every ATM IV is read through `iv_history.atm_iv`, the one reader IVH uses:
+  a reading under `iv_history.IV_FLOOR` is a placeholder, never a point (it neither ranks nor sets a
+  low or a high; the symbol's other sessions still count). `counts.implausible_iv` says how many
+  points the build dropped that way, and `counts.iv_above_watch` how many it kept above
+  `iv_history.IV_WATCH` (no ceiling: those are only counted).
+
 ⛔ NO VENDOR CALL. It reads only the log this server already holds (our own R2 copy).
 ⛔ A SYMBOL UNDER THE MINIMUM IS LEFT OUT AND COUNTED, never ranked on fewer sessions.
 ⛔ DARK with the option screener: the job runs only while `OPTIONS_SCREENER_ENABLED` is on (the route's
@@ -67,6 +83,13 @@ SESSION_LOOKBACK_DAYS = 14
 DISK_DIR = "iv_rank_leaders"
 DISK_FILE = "leaders_v1.json"
 DISK_VERSION = 1
+#: The full per-symbol map, beside the held answer (the Screener reads it; the panel never does).
+MAP_FILE = "rank_map_v1.json"
+MAP_VERSION = 1
+#: At most this many symbols in the map, most open interest first (the real log is about 6,000 underlyings).
+MAP_MAX = 15000
+#: A map file larger than this is not read (a ranked symbol is about 30 bytes, so MAP_MAX fits well inside).
+MAP_MAX_BYTES = 4_000_000
 #: The private-memory peak one build added over an invented log of 6,034 underlyings (2026-11-22, the dev PC):
 #: 40 sessions 10 MB in 0.8 s, 252 sessions 26 MB in 8.8 s (tracemalloc: 7.6 and 16.6 MB). Each symbol keeps at
 #: most RANK_WINDOW values, so the memory stops growing at 252 sessions; only the time grows with the log.
@@ -165,7 +188,8 @@ def _int(v) -> Optional[int]:
 
 
 def _read_day(path: str):
-    """`(rule, rows)` of one summary file, rows streamed as `(symbol, atm_iv, atm_dte, open_interest)`.
+    """`(rule, rows)` of one summary file, rows streamed as `(symbol, atm_iv, implausible, atm_dte,
+    open_interest)`: `atm_iv` and `implausible` are `iv_history.atm_iv`'s (a placeholder is None and True).
     `rows` is None for a file that is not the current rule or has no ATM IV column."""
     fh = gzip.open(path, "rt", newline="", encoding="utf-8")
     reader = csv.reader(fh)
@@ -189,24 +213,27 @@ def _read_day(path: str):
                     continue
                 coi, poi = _int(cell(r, icoi)), _int(cell(r, ipoi))
                 oi = None if coi is None and poi is None else (coi or 0) + (poi or 0)
-                yield sym, iv_history._num(cell(r, iiv)), _int(cell(r, idte)), oi
+                iv, implausible = iv_history.atm_iv(cell(r, iiv))
+                yield sym, iv, implausible, _int(cell(r, idte)), oi
         finally:
             fh.close()
     return rule, rows()
 
 
-def build(*, store=None, now: Optional[datetime] = None) -> dict:
+def build(*, store=None, now: Optional[datetime] = None, map_out: Optional[dict] = None) -> dict:
     """The list, from every summary file the store holds. Raises when the store cannot be listed
-    (the caller keeps the last good answer)."""
+    (the caller keeps the last good answer). `map_out`, when a dict is passed, is filled with the full
+    per-symbol map (`_rank_map`); the returned answer is the same with or without it."""
     from api.services.options_analytics.vol import rank_label
     store = store or iv_history.get_store()
     manifests = store.sessions()
     base = {"v": DISK_VERSION, "source": SOURCE, "method": RANK_METHOD, "high_order": HIGH_ORDER,
             "low_order": LOW_ORDER, "rank_min_sessions": iv_history.RANK_MIN_SESSIONS,
             "rank_window": iv_history.RANK_WINDOW, "max_per_side": MAX_PER_SIDE, "built_at": _now_iso(),
-            "data_basis": "end-of-day snapshot"}
+            "data_basis": "end-of-day snapshot", "iv_floor": iv_history.IV_FLOOR, "iv_watch": iv_history.IV_WATCH}
     sessions = sorted(manifests)
     if not sessions:
+        _rank_map(map_out, None, base["built_at"], [], {})
         return {**base, "status": "no_log", "session": None, "logging_began": None, "sessions_logged": 0,
                 "rankable_sessions": 0, "legacy_sessions": [], "unread_sessions": [], "missing_sessions": [],
                 "counts": _counts(), "high": [], "low": []}
@@ -214,6 +241,7 @@ def build(*, store=None, now: Optional[datetime] = None) -> dict:
     last_seen: dict[str, int] = {}
     latest_idx, latest_extra, latest_rows, latest_no_iv = None, {}, 0, 0
     legacy, unread, rankable = [], [], 0
+    implausible, above_watch = 0, 0       # points dropped as placeholders; points kept above IV_WATCH
     for i, d in enumerate(sessions):
         path = store.summary_path(d)
         if path is None:
@@ -230,14 +258,17 @@ def build(*, store=None, now: Optional[datetime] = None) -> dict:
             (legacy if rule == iv_history.LEGACY_RULE else unread).append(d)
             continue
         day_extra, day_rows, day_no_iv, seen = {}, 0, 0, set()
-        for sym, iv, dte, oi in day:
+        for sym, iv, odd, dte, oi in day:
             if sym in seen:                 # one row a symbol a day: the first, as iv_history's reader
                 continue
             seen.add(sym)
             day_rows += 1
-            if iv is None:
+            if iv is None:                  # no reading, or a placeholder (never a point)
                 day_no_iv += 1
+                implausible += odd
                 continue
+            if iv > iv_history.IV_WATCH:
+                above_watch += 1
             a = series.get(sym)
             if a is None:
                 a = series[sym] = array("d")
@@ -253,7 +284,9 @@ def build(*, store=None, now: Optional[datetime] = None) -> dict:
            "rankable_sessions": rankable, "legacy_sessions": legacy, "unread_sessions": unread,
            "missing_sessions": _missing(sessions, now)}
     if latest_idx is None:
-        return {**out, "session": None, "counts": _counts(), "high": [], "low": []}
+        _rank_map(map_out, None, base["built_at"], [], {})
+        return {**out, "session": None, "counts": _counts(implausible_iv=implausible, iv_above_watch=above_watch),
+                "high": [], "low": []}
     ranked, below, flat, stale = [], 0, 0, 0
     for sym, a in series.items():
         if last_seen[sym] != latest_idx:
@@ -274,15 +307,36 @@ def build(*, store=None, now: Optional[datetime] = None) -> dict:
     oi_of = (lambda r: -(r["open_interest"] or 0))
     high = sorted(ranked, key=lambda r: (-r["iv_rank"], -r["iv_percentile"], oi_of(r), r["symbol"]))[:MAX_PER_SIDE]
     low = sorted(ranked, key=lambda r: (r["iv_rank"], r["iv_percentile"], oi_of(r), r["symbol"]))[:MAX_PER_SIDE]
-    return {**out, "session": sessions[latest_idx],
-            "counts": _counts(ranked=len(ranked), below_min=below, flat=flat, not_in_latest=stale,
-                              latest_rows=latest_rows, latest_no_atm_iv=latest_no_iv, symbols_logged=len(series)),
-            "high": high, "low": low}
+    counts = _counts(ranked=len(ranked), below_min=below, flat=flat, not_in_latest=stale,
+                     latest_rows=latest_rows, latest_no_atm_iv=latest_no_iv, symbols_logged=len(series),
+                     implausible_iv=implausible, iv_above_watch=above_watch)
+    _rank_map(map_out, sessions[latest_idx], base["built_at"], ranked, counts)
+    return {**out, "session": sessions[latest_idx], "counts": counts, "high": high, "low": low}
 
 
 def _counts(**kw) -> dict:
-    keys = ("ranked", "below_min", "flat", "not_in_latest", "latest_rows", "latest_no_atm_iv", "symbols_logged")
+    keys = ("ranked", "below_min", "flat", "not_in_latest", "latest_rows", "latest_no_atm_iv", "symbols_logged",
+            "implausible_iv", "iv_above_watch")
     return {k: int(kw.get(k, 0)) for k in keys}
+
+
+def _rank_map(map_out: Optional[dict], session: Optional[str], built_at: str, ranked: list, counts: dict) -> None:
+    """Fill `map_out` (when a dict) with the full map: every ranked symbol's `[iv_rank, iv_percentile, sessions]`
+    (the values the lists carry, never worked out again), for `session`. Bounded: at most `MAP_MAX` symbols, the
+    most open interest first; `cut` says how many were left out."""
+    if map_out is None:
+        return
+    keep = ranked
+    if len(ranked) > MAP_MAX:
+        keep = sorted(ranked, key=lambda r: (-(r["open_interest"] or 0), r["symbol"]))[:MAP_MAX]
+    map_out.clear()
+    map_out.update({
+        "v": MAP_VERSION, "session": session, "built_at": built_at, "source": SOURCE,
+        "rank_min_sessions": iv_history.RANK_MIN_SESSIONS, "rank_window": iv_history.RANK_WINDOW,
+        "symbols": {r["symbol"]: [r["iv_rank"], r["iv_percentile"], r["sessions"]] for r in keep},
+        "counts": {"ranked": len(ranked), "kept": len(keep), "cut": len(ranked) - len(keep),
+                   **{k: counts.get(k, 0) for k in ("below_min", "flat", "not_in_latest", "implausible_iv")}},
+    })
 
 
 def _missing(sessions: list, now: Optional[datetime]) -> list:
@@ -326,6 +380,58 @@ def _save_disk(held: Optional[dict], last_run: Optional[dict]) -> None:
         _log.warning("[iv-rank-leaders] the answer could not be written to disk (%s)", type(exc).__name__)
 
 
+def _map_path() -> Optional[str]:
+    base = os.environ.get("DATA_DIR", "/data")
+    return os.path.join(base, DISK_DIR, MAP_FILE) if os.path.isdir(base) else None
+
+
+def _save_map(doc: dict) -> None:
+    """The full map beside the held answer, ATOMICALLY (a temporary file in the same directory, then one
+    rename): a reader sees the old file or the new one, never half of one. Never raises."""
+    path = _map_path()
+    if not path or not isinstance(doc, dict) or doc.get("v") != MAP_VERSION:
+        return
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        fd, tmp = tempfile.mkstemp(prefix=".rank_map_", suffix=".tmp", dir=os.path.dirname(path))
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                json.dump(doc, fh, separators=(",", ":"))
+            os.replace(tmp, path)
+        except Exception:
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+            raise
+    except Exception as exc:  # noqa: BLE001 -- the last good map stays; the Screener withholds it once behind
+        _log.warning("[iv-rank-leaders] the full map could not be written to disk (%s)", type(exc).__name__)
+
+
+def _valid_map(doc: Any) -> bool:
+    if not isinstance(doc, dict) or doc.get("v") != MAP_VERSION or not isinstance(doc.get("symbols"), dict):
+        return False
+    return (doc.get("session") is None or _is_day(doc.get("session"))) and len(doc["symbols"]) <= MAP_MAX
+
+
+def read_rank_map() -> tuple[Optional[dict], str]:
+    """READ ONLY: the full map the last good build wrote, as `(doc, how)`: how 'held' | 'not_held' (no file) |
+    'unreadable' (larger than `MAP_MAX_BYTES`, not JSON, or not this shape). Never builds, never reads the log.
+    doc: {v, session, built_at, source, rank_min_sessions, rank_window, symbols {SYMBOL: [iv_rank, iv_percentile,
+    sessions]}, counts {ranked, kept, cut, below_min, flat, not_in_latest, implausible_iv}}."""
+    path = _map_path()
+    if not path or not os.path.exists(path):
+        return None, "not_held"
+    try:
+        if os.path.getsize(path) > MAP_MAX_BYTES:
+            return None, "unreadable"
+        with open(path, "r", encoding="utf-8") as fh:
+            doc = json.load(fh)
+    except (OSError, ValueError):
+        return None, "unreadable"
+    return (doc, "held") if _valid_map(doc) else (None, "unreadable")
+
+
 def _valid(held: Any) -> bool:
     return (isinstance(held, dict) and held.get("v") == DISK_VERSION and held.get("status") in ("ok", "no_log")
             and isinstance(held.get("high"), list) and isinstance(held.get("low"), list)
@@ -366,8 +472,9 @@ def _run(done: threading.Event, now: Optional[datetime]) -> None:
     started = time.time()
     try:
         _ensure_loaded()
+        rank_map: dict = {}
         try:
-            held = build(now=now)
+            held = build(now=now, map_out=rank_map)
         except Exception as exc:  # noqa: BLE001 -- a failed build is said; the last good list stays held
             last = {"at": _now_iso(), "ok": False, "reason": type(exc).__name__}
             with _lock:
@@ -380,10 +487,13 @@ def _run(done: threading.Event, now: Optional[datetime]) -> None:
         with _lock:
             _state["held"], _state["last_run"] = held, last
         _save_disk(held, last)
+        _save_map(rank_map)
         c = held.get("counts") or {}
-        _log.info("[iv-rank-leaders] session=%s sessions=%s ranked=%s below_min=%s flat=%s not_in_latest=%s %.1fs",
+        _log.info("[iv-rank-leaders] session=%s sessions=%s ranked=%s below_min=%s flat=%s not_in_latest=%s "
+                  "implausible_iv=%s iv_above_watch=%s map=%s %.1fs",
                   held.get("session"), held.get("sessions_logged"), c.get("ranked"), c.get("below_min"),
-                  c.get("flat"), c.get("not_in_latest"), time.time() - started)
+                  c.get("flat"), c.get("not_in_latest"), c.get("implausible_iv"), c.get("iv_above_watch"),
+                  (rank_map.get("counts") or {}).get("kept"), time.time() - started)
     finally:
         with _lock:
             _state["inflight"] = None

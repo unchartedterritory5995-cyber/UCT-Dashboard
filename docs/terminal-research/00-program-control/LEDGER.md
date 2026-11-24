@@ -5175,3 +5175,26 @@ the unchanged full path. There are 2 deleted `api/` lines, both the rewritten ro
   `volume_volatility.py`, `beats_insiders_funds.py` and `methodology.py` are not in its closure
   (`tools/flow_worker_watch_coverage.py` `verdict()` on this change: those three offenders, nothing else).
 - **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.
+
+## Screener held-store columns (IV rank, group rank, short interest change, ex-dividend dates, estimate revisions) · `feat/screener-store-columns` · 2026-11-23
+
+| | |
+|---|---|
+| classification | **flow-worker stranded: NOT EXERCISED, safe; NO marker bump** |
+| stranded files | `api/services/research/iv_history.py`, `api/services/screener/filters.py`, `api/services/screener/snapshot_builder.py`, `api/services/screener/snapshot_db.py` |
+
+- **Additive.** Eleven new snapshot columns (`snapshot_db.COLUMNS`, ALTER-added on init) and their eleven bare filters
+  in existing categories and views (`filters.py`), one more per-build helper with four `_read_market_source` reads in
+  the nightly build (`snapshot_builder.py`), served by the new `store_columns.py` (web), a third column from
+  `short_columns.py`'s same one read of the FINRA list, a read-only `dividends_market.peek`, and the IV rank build's
+  full per-symbol map written beside its held answer (`iv_rank_leaders.py`). `iv_history.py` gained the ATM IV floor
+  (`IV_FLOOR`, `atm_iv`: a placeholder reading is never a point) for IVH and the IV rank list.
+- **Flow-worker.** Reaches the three Screener files only through the static chains the last two Screener units
+  recorded (function-level hops into `rs_ranking` -> `screener.snapshot_builder`, `notebook_widgets` ->
+  `routers.scan_results` -> `screener.snapshot_db`, `coach_chat_tools` -> `rs_screens_service` -> `screener.filters`);
+  it never builds the snapshot and never runs a Screener query. It reaches `iv_history.py` only through
+  `routers.auth`'s function-level import inside `/api/auth/me`'s flag readout, which calls `iv_history.is_enabled()`
+  (unchanged); flow-worker never builds an IV history or the IV rank list. `store_columns.py`, `short_columns.py`,
+  `methodology.py`, `dividends_market.py` and `iv_rank_leaders.py` are not in its closure
+  (`tools/flow_worker_watch_coverage.py` `verdict()` on this change: those four offenders, nothing else).
+- **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.

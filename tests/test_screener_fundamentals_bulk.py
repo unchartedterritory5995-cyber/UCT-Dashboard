@@ -676,7 +676,7 @@ def _source_key_sets(monkeypatch, tmp_path) -> dict:
     from api.services import short_data
     from api.services.screener import short_columns
     monkeypatch.setattr(short_data, "held_market_rows", lambda: ({
-        "rows": {"AAA": {"sym": "AAA", "short_interest": 0, "days_to_cover": 1.5}},
+        "rows": {"AAA": {"sym": "AAA", "short_interest": 0, "days_to_cover": 1.5, "change_pct": -100.0}},
         "count": 1, "settlement_date": "2026-10-30",
         "previous_settlement_date": "2026-10-15", "publication_estimate": "2026-11-10",
         "read_at": "2026-11-18T00:00:00+00:00", "source": "stub", "float_source": "stub"},
@@ -713,6 +713,32 @@ def _source_key_sets(monkeypatch, tmp_path) -> dict:
                                                     "unchanged": 1, "both_now": 10.0, "both_prior": 8.0,
                                                     "not_comparable": 0}}})
 
+    # ── store_columns (2026-11-23): its four readers, each over its own held store stubbed at the store's
+    # read-only accessor (never a vendor, never a build), every input filled so each reader emits every column it
+    # can: a full IV rank map of a current session; a GRPS answer whose industry has a place now and four weeks
+    # back; a DVD MARKET list with an ex-date inside its window; a tracked stock whose next-quarter estimate rose. ──
+    from api.services import dividends_market, estimate_history, estimate_revisions, group_stats
+    from api.services.research import iv_rank_leaders
+    from api.services.screener import store_columns
+    _sc_session = _dt.date(2026, 11, 20)
+    monkeypatch.setattr(iv_rank_leaders, "read_rank_map", lambda: ({
+        "v": 1, "session": "2026-11-20", "built_at": "2026-11-21T01:50:00+00:00",
+        "symbols": {"AAA": [55.0, 60.0, 40]}, "counts": {"cut": 0}}, "held"))
+    monkeypatch.setattr(iv_rank_leaders, "behind", lambda held, now=None: False)
+    monkeypatch.setattr(group_stats, "held_answer", lambda: ({
+        "status": "ok", "session": "2026-11-20", "built_for": "2026-11-20", "rank": {"state": "ok"},
+        "kinds": {"industry": {"Widgets": {"rank": {"m6": {"now": {"position": 3, "of": 40},
+                                                            "w4": {"position": 7, "change": 4}}}}}}}, "held"))
+    monkeypatch.setattr(group_stats, "_group_map", lambda: {"AAA": {"sector": "Tech", "industry": "Widgets"}})
+    monkeypatch.setattr(dividends_market, "peek", lambda: {
+        "status": "ok", "window": {"from": "2026-11-16", "to": "2026-11-29"}, "legs": {"dividends": "ok"},
+        "cut": {"dividends": False}, "dividends": [{"sym": "AAA", "ex_date": "2026-11-24"}]})
+    monkeypatch.setattr(estimate_history, "db_path", lambda: str(tmp_path / "srckeys_estimates.db"))
+    (tmp_path / "srckeys_estimates.db").write_bytes(b"")
+    monkeypatch.setattr(estimate_revisions, "build", lambda previous=None, groups=None: ({
+        "asof": "2026-11-20", "tracked": {"n": 1},
+        "slices": {"eps:30": {"sectors": [{"symbols": [{"symbol": "AAA", "state": "up", "pct": 2.0}]}]}}}, ""))
+
     return {
         "fundamentals_bulk": set(fb.COLUMNS_WRITTEN),
         "rs_fields": set(b.rs_fields({"rs_rank": 90, "rs_score": 12.5})),
@@ -742,6 +768,10 @@ def _source_key_sets(monkeypatch, tmp_path) -> dict:
         "earnings_beats": set(bif.read_earnings_fields(["AAA"], session=_bif_session)["AAA"]),
         "insider_buys": set(bif.read_insider_fields(["AAA"], session=_bif_session)["AAA"]),
         "fund_adds": set(bif.read_fund_fields(["AAA"])["AAA"]),
+        "iv_rank": set(store_columns.read_iv_fields(["AAA"], session=_sc_session)["AAA"]),
+        "group_rank": set(store_columns.read_group_fields(["AAA"], session=_sc_session)["AAA"]),
+        "ex_dividend": set(store_columns.read_ex_div_fields(["AAA"], session=_sc_session)["AAA"]),
+        "eps_revisions": set(store_columns.read_eps_revision_fields(["AAA"], session=_sc_session)["AAA"]),
     }
 
 
@@ -783,12 +813,15 @@ def test_no_two_screener_sources_write_the_same_column(monkeypatch, tmp_path):
     # 21 -> 24 (2026-11-23): beats_insiders_funds' three readers, one per held store,
     # each the one writer of its own columns; no shared-column allowance. (The six
     # volume & volatility columns are a `build_row` bars step, not a source.)
-    assert len(sets) == 24, (
-        f"_source_key_sets returned {len(sets)} sources, expected 24 — a "
+    # 24 -> 28 (2026-11-23): store_columns' four readers, one per held store, each the one
+    # writer of its own columns; short_columns gained its third column (the change since
+    # the prior report) from its same one read. No shared-column allowance.
+    assert len(sets) == 28, (
+        f"_source_key_sets returned {len(sets)} sources, expected 28 — a "
         f"source was added or removed from the fixture; bump this pin "
         f"deliberately")
     assert "rs_history" in sets, "the 19th source is rs_history, by name"
-    assert sets["short_columns"] == {"short_float_pct", "short_ratio"},         "the 20th source is short_columns, and it writes exactly its two columns"
+    assert sets["short_columns"] == {"short_float_pct", "short_ratio", "short_interest_chg_pct"},         "the 20th source is short_columns, and it writes exactly its three columns"
     from api.services.screener import fund_trends
     assert sets["fund_trends"] == set(fund_trends.COLUMNS), \
         "the 21st source is fund_trends, and it writes exactly its eight columns"
@@ -797,6 +830,11 @@ def test_no_two_screener_sources_write_the_same_column(monkeypatch, tmp_path):
     assert sets["insider_buys"] == set(bif.INSIDER_COLUMNS)
     assert sets["fund_adds"] == set(bif.FUND_COLUMNS), \
         "sources 22-24 are beats_insiders_funds' readers, each writing exactly its own columns"
+    from api.services.screener import store_columns as stc
+    assert sets["iv_rank"] == set(stc.IV_COLUMNS) and sets["group_rank"] == set(stc.GROUP_COLUMNS)
+    assert sets["ex_dividend"] == set(stc.EX_DIV_COLUMNS)
+    assert sets["eps_revisions"] == set(stc.EPS_REV_COLUMNS), \
+        "sources 25-28 are store_columns' readers, each writing exactly its own columns"
     assert not (sets["finviz_universe"] & sets["short_columns"]),         "finviz_universe must not hand build_row the two short-interest columns"
     # The derivation proves nothing if a source emitted nothing.
     for label, keys in sets.items():
