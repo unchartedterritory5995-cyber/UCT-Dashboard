@@ -43,7 +43,7 @@ export const SWITCH_VERSION = 1
 export const SWITCH_BUCKET_EDGES_MS = [16, 25, 33, 40, 50, 66, 100, 150, 250, 500]
 export const SWITCH_UNDER_MS = 40
 export const SWITCH_TF = ['intraday-1m', 'intraday-other', 'daily-plus']
-export const SWITCH_TRIGGER = ['list-key', 'list-click', 'typed', 'other']
+export const SWITCH_TRIGGER = ['list-key', 'click', 'typed', 'other']
 export const SWITCH_ROUTE = ['other', 'decision', 'now', 'deferred', 'daily-hold', 'prepare']
 export const SWITCH_COUNTERS = ['superseded', 'abandoned', 'unpressed', 'untracked', 'unclocked', 'overflow']
 /** At most this many cells are ever opened between two sends; a sample for one more is counted `overflow`. */
@@ -61,12 +61,13 @@ export const SWITCH_SPEED_GLOBAL = '__uctSwitchSpeed'
 
 // trigger codes (indexes of SWITCH_TRIGGER)
 //   list-key    ArrowUp / ArrowDown / Space outside a text field: walking a list
-//   list-click  a click or tap that changed the symbol (a list row, an alert row, a menu), a search result excepted
+//   click       ANY pointer event that changed the symbol: a list row, an alert row, a menu, a badge on the chart
+//               (not only lists, so the name does not say "list"), a search result excepted
 //   typed       a key pressed in a text field (the Enter of a typed ticker), a form submit, or the chart
 //               header's search told us so (hintSwitchTrigger: a picked result is a click, and is typed)
 //   other       any other input event (a hotkey outside a text field)
 export const TRIGGER_LIST_KEY = 0
-export const TRIGGER_LIST_CLICK = 1
+export const TRIGGER_CLICK = 1
 export const TRIGGER_TYPED = 2
 export const TRIGGER_OTHER = 3
 // route codes (indexes of SWITCH_ROUTE), slowest last; a group's route is the highest any chart reported
@@ -151,7 +152,7 @@ function _classify(ev) {
     const k = ev.key
     return k === 'ArrowDown' || k === 'ArrowUp' || k === ' ' || k === 'Spacebar' ? TRIGGER_LIST_KEY : TRIGGER_OTHER
   }
-  if (kind === 2) return TRIGGER_LIST_CLICK
+  if (kind === 2) return TRIGGER_CLICK
   return typing || ev.type === 'submit' ? TRIGGER_TYPED : TRIGGER_OTHER
 }
 

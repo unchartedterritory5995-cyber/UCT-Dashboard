@@ -1041,8 +1041,8 @@ function ChartPane({
     })
   }, [onSymbolChange])
   // The header's search (a ticker typed and entered, or one of its results picked): the same handler, with the
-  // switch-speed instrument told the switch was TYPED (lib/switchSpeed.js: a picked result is a click, and the
-  // event alone would call it a list click). Set, switch, cleared: one task.
+  // switch-speed instrument told the switch was TYPED (lib/switchSpeed.js: a picked result is a pointer event, and
+  // the event alone would file it under `click`). Set, switch, cleared: one task.
   const handleSearchedSymbol = useCallback((s) => {
     hintSwitchTrigger(TRIGGER_TYPED)
     try { handleSymbolChange(s) } finally { hintSwitchTrigger(-1) }
