@@ -103,6 +103,7 @@ _state = {
     "first_full_bucket_ms": None,  # stream owns buckets starting at/after this
     "last_push_mono": None,
     "watermark_ms": None,         # newest minute the stream has delivered
+    "watermark_epoch": None,      # the epoch `watermark_ms` was pushed in (it only grows within one)
     "pushes": 0,
     "rows_written": 0,
     "daily_last_ok_mono": None,
@@ -416,8 +417,12 @@ def ingest(payload: dict) -> dict:
         # ⛔ Only now (this push's buckets are on disk) may the proof cover them (review of #2708, round 2): set before the
         # write, a read in between got `proven_through_s` (the roll) for rows not stored yet, and the 15m/30m/60m derived
         # from the 5m inherited it. The 1m watermark below follows the same rule.
+        # ...and it only grows within the epoch (review of #2708, round 3): two pushes completing out of order (a slow
+        # POST and its retry, concurrent request threads) must not move the proof back by a flush.
         if payload.get("watermark_ms") and _state["epoch_ms"] == w_epoch:
-            _state["watermark_ms"] = payload["watermark_ms"]
+            held = _state["watermark_ms"] if _state["watermark_epoch"] == w_epoch else None
+            _state["watermark_ms"] = max(held or 0, payload["watermark_ms"])
+            _state["watermark_epoch"] = w_epoch
     n1 = None
     if m1_rows is not None:
         n1 = _write_m1(m1_rows, m1_epoch)
@@ -584,6 +589,7 @@ def _adopt_restored_locked(r: dict) -> None:
     _state["epoch_ms"] = r["epoch_ms"]
     _state["first_full_bucket_ms"] = r["first_full_bucket_ms"]
     _state["watermark_ms"] = r["watermark_ms"]
+    _state["watermark_epoch"] = r["epoch_ms"]   # (the restored proof belongs to this epoch: later pushes only grow it)
     for sym in r["covered"]:
         _covered5.add(sym)
         _gap_from.pop(sym, None)
