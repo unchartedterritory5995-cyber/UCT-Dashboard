@@ -2896,7 +2896,7 @@ and each of the twelve needs its own not-found decision. That is a ruling, not a
 
 | commit | branch | system | files | what |
 |---|---|---|---|---|
-| `37cba8111` | `feat/s7-price-level` | **S7 Alerts** | `api/services/alert_taxonomy/price_level.py` (new), `tests/test_alert_taxonomy_price_level_schema.py` (new), `tests/test_alert_taxonomy_filing_watch_parity.py` (control updated by naming) | **GATE-S7-PRICE-LEVEL Checkpoint 1** (packet `123a30054`, approval block **BLANK**). Registers the type; **no evaluator, no delivery, no read of `watchlist_alerts`, no migration, no scheduler entry**. Legacy path byte-identical (`git diff` empty on `watchlist_alert_service.py` + `auth_db.py`). Two findings below moved the scope. Mutation-proved both ways (M1 drop `trendline` → RED; M2 import `delivery` → RED), restored by edit. **30 passed** across both files |
+| `67850e93d` (landed; was 37cba8111 before replay) | `feat/s7-price-level` | **S7 Alerts** | `api/services/alert_taxonomy/price_level.py` (new), `tests/test_alert_taxonomy_price_level_schema.py` (new), `tests/test_alert_taxonomy_filing_watch_parity.py` (control updated by naming) | **GATE-S7-PRICE-LEVEL Checkpoint 1** (packet `123a30054`, approval block **BLANK**). Registers the type; **no evaluator, no delivery, no read of `watchlist_alerts`, no migration, no scheduler entry**. Legacy path byte-identical (`git diff` empty on `watchlist_alert_service.py` + `auth_db.py`). Two findings below moved the scope. Mutation-proved both ways (M1 drop `trendline` → RED; M2 import `delivery` → RED), restored by edit. **30 passed** across both files |
 
 ✅ **APPROVED 2026-09-12** on **two lines** — line 1 CP1–2 at **`644497c6a`**, line 2 CP3 at
 **`b54564bb8`** (both recorded AT SHA `644497c6a`; packet SHA of record `123a30054`).
@@ -3942,7 +3942,7 @@ were the previous **Friday** — ~55h back, far outside their 26h bounds.
 **every Monday** the 09:12 ET monitor post *and* the 16:30 ET gate check would have alarmed on a
 healthy sweep. A rail that cries wolf weekly gets muted, and a muted rail is not a rail.
 
-### The fix — `de2726473`
+### The fix — `3b2e285ff` (landed; was de2726473 before replay)
 
 Each descriptor now declares its firing times, and the question becomes **has a scheduled firing
 happened inside the staleness bound?** If not the sweep is **UNJUDGEABLE** — `n/a`, with the last
@@ -4486,7 +4486,7 @@ with 2 new "never renders the bare word regime" controls + a new `CompassOvervie
 (4 tests). All green, isolated and combined.
 
 **Deployed:** `feat/s7-price-level` commit `76ef96c06` → cherry-picked onto `merge-run` →
-pushed to `master`. First push attempt (`d52fb3e99..a0adf6a9f`, cherry-pick `5d1885576`) was
+pushed to `master`. First push attempt (`d52fb3e99..a0adf6a9f`, cherry-pick `a0adf6a9f` (landed; was 5d1885576 before replay)) was
 refused mid-flight by the pre-push settle-window guard because a concurrent workstream's chart
 fix (`d2e08e04b`) landed and was still settling; after that deploy reached `SUCCESS` and settled
 its full window, the SAME cherry-pick was rebased onto the new master tip (clean, no conflicts —
