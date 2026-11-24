@@ -58,9 +58,14 @@ cell is one page, not the membership. `reports` / `reports_all_under` count
 each report once whatever it claims.
 
 To count distinct senders, `perf_switch_senders` keeps one row per day, cell and
-sender, where the sender is a hash salted with the DAY (so it joins nothing
-across days, and is not the quota's hash). Rows of an earlier day are deleted
-with the hourly prune; the count stays in `perf_switch_days.senders`.
+sender. The sender is an HMAC of the IP under a random key that exists ONLY IN
+THIS PROCESS'S MEMORY and only for that ET day (`_key`): never on disk, in the
+repo or in the environment. Someone holding a copy of the file cannot recompute
+a row from an address, and once the day is over nobody can, the server included.
+A restart mid-day makes a new key, so a returning sender is counted again that
+day: `senders` is exact within a process, and an upper bound across a restart.
+Rows of an earlier day are deleted (see "What is deleted, and when"); the count
+stays in `perf_switch_days.senders`.
 
 What is kept is a MERGE, never a report: per ET day, client and combination, the
 summed counts, how many reports added to them and in how many of those every
@@ -85,9 +90,11 @@ answers `{enabled: false}` (the page stops sending) and never deletes a row.
 from __future__ import annotations
 
 import hashlib
+import hmac
 import math
 import os
 import re
+import secrets
 import sqlite3
 import threading
 import time
@@ -204,6 +211,36 @@ CREATE INDEX IF NOT EXISTS ix_perf_switch_sends ON perf_switch_sends(rate_key, c
 
 _lock = threading.Lock()
 _last_prune = 0.0
+
+# -- the keys: random, held in MEMORY only, one per period, forgotten when the period's use is over --
+# ⛔ NEVER a constant, an env var or a file. What a key protects is "the same sender again" (a function of the IP);
+# with the key in the repo or beside the store, anyone holding a copy of the store recomputes every row over all of
+# IPv4 in minutes. A restart forgets them all, which costs only what the callers say it costs.
+_keys: dict[tuple[str, Any], bytes] = {}
+_keys_lock = threading.Lock()
+
+
+def _key(kind: str, period: Any) -> bytes:
+    """The key of (kind, period), made on first use: ('day', '2026-11-18'), ('hour', <hours since the epoch>)."""
+    with _keys_lock:
+        k = _keys.get((kind, period))
+        if k is None:
+            k = _keys[(kind, period)] = secrets.token_bytes(32)
+        return k
+
+
+def _forget_keys(now: float) -> None:
+    """Drop every key whose use is over: a day's at the ET day change; an hour's once the NEXT hour is over too (the
+    hourly quota looks back one hour, so it needs the hour before)."""
+    hour, day = int(now // 3600), switch_day(now)
+    with _keys_lock:
+        for kind, period in list(_keys):
+            if (kind == "day" and period != day) or (kind == "hour" and period < hour - 1):
+                del _keys[(kind, period)]
+
+
+def _mac(key: bytes, ip: str | None, n: int) -> str:
+    return hmac.new(key, (ip or "unknown").encode(), hashlib.sha256).hexdigest()[:n]
 _migrated: set[str] = set()  # store paths already checked for columns added after the first deploy
 
 
@@ -352,8 +389,9 @@ def _rate_key(ip: str | None) -> str:
 
 
 def _sender_key(ip: str | None, day: str) -> str:
-    """A sender, for ONE day's distinct count: salted with the day, so it joins nothing across days."""
-    return hashlib.sha256(f"{_SALT}:senders:{day}:{ip or 'unknown'}".encode()).hexdigest()[:16]
+    """A sender, for ONE ET day's distinct count: an HMAC under that day's in-memory key. It joins nothing across days,
+    and nothing at all once the key is forgotten."""
+    return _mac(_key("day", day), ip, 16)
 
 
 def _prune(conn: sqlite3.Connection, now: float) -> None:
@@ -549,8 +587,10 @@ SWITCH_LEGEND: dict[str, Any] = {
                     "start when the key was let go). Nothing does this today; anything above zero is a new key-up handler "
                     "that switches a symbol",
     },
-    "senders": "distinct senders (a hash of the IP salted with the day, deleted when the day is over) that added to the "
-               "cell that day. One sender behind most of a cell's switches is one page, not the membership.",
+    "senders": "distinct senders that added to the cell that day. One sender behind most of a cell's switches is one "
+               "page, not the membership. Counted with a key held only in the server's memory for that day, so a "
+               "restart of the server mid-day counts a returning sender again: exact within a process, an upper "
+               "bound across a restart.",
     "not_sampled": [
         "every chart host but the /charts board: the breadth drill, the terminal, the screener, the phone workspace",
         "pop-out windows, mostly: a click or a ticker typed INSIDE a pop-out is `unpressed` (never timed); a key relayed "
