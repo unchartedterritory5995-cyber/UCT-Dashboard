@@ -73,6 +73,7 @@ import { deviceServesTf } from '../deviceStore/tfs'
 import { deviceStoreKillSeen } from '../../lib/chartSpeed'
 import { isAppVisible } from '../../lib/deskVisibility'
 import { bucketEndUnix } from '../../components/chart/liveBuckets'
+import { bucketStartUnix } from '../../components/chart/barTime'
 import { BARSTORE } from '../../components/chart/barStoreSwitch'
 import { prefetchTickerMeta as _defaultTickerMeta } from '../../hooks/useTickerMeta'
 import {
@@ -552,7 +553,12 @@ export function createPrefetch(o = {}) {
     return Number.isFinite(dev.rev) && dev.rev >= end * 1000
   }
   /** When the current bucket of `tf` opened (ms): the roll the server's write lag is measured from. */
-  const _rollMs = (tf) => bucketEndUnix(Math.floor(now() / 1000), tf) * 1000 - Number(tf) * 60_000
+  // ⛔ THE CURRENT BUCKET'S START, NOT "ITS END MINUS THE PERIOD" (review of #2708, round 3): on the 60m session grid the
+  // last bar of the day runs 15:30-16:00 (12:30-13:00 on a half-day), so the end minus 60 min read 15:00. On every other
+  // timeframe the two are the same number (the grid is regular: bucketEndUnix = bucketStartUnix + tf).
+  const _rollMs = (tf) => bucketStartUnix(Math.floor(now() / 1000), tf) * 1000
+  /** When the newest CLOSED bucket of `tf` opened (ms): the end of every bucket before it (the proof floor, _ownGrace). */
+  const _prevRollMs = (tf) => bucketStartUnix(Math.floor(_rollMs(tf) / 1000) - 1, tf) * 1000
   function _behindClock(key, s, showExtended) {
     const n = _bucketsBehind(key, s, showExtended)
     if (n < 1) return false
@@ -582,7 +588,7 @@ export function createPrefetch(o = {}) {
     const tf0 = parseKey(key)?.tf
     if (tf0 && Number.isFinite(s?.verifiedThrough)) {
       const roll = _rollMs(tf0)
-      if (now() - roll >= TAIL_LAG_WINDOW_MS && s.verifiedThrough * 1000 >= roll - Number(tf0) * 60_000) return true
+      if (now() - roll >= TAIL_LAG_WINDOW_MS && s.verifiedThrough * 1000 >= _prevRollMs(tf0)) return true
     }
     // ⛔ ...BUT, WITHOUT THAT PROOF, NOT WHERE IT CANNOT MEAN THAT (live session 2026-11-24: AMD and AMAT 3-5 s after a roll,
     // RDDT two closed bars short; each painted short for 166 ms to ~1 s):
@@ -1320,7 +1326,7 @@ export function createPrefetch(o = {}) {
     }
     const _bucketOfNow = (tf) => bucketEndUnix(Math.floor(now() / 1000), tf) - 1
     /** The boundary that opened the current bucket of `tf` (ms). */
-    const _boundaryMs = (tf) => bucketEndUnix(Math.floor(now() / 1000), tf) * 1000 - Number(tf) * 60_000
+    const _boundaryMs = (tf) => _rollMs(tf)   // (the same roll: the 60m last bar opens at 15:30, not 15:00)
     const stopLag = () => { if (lagTimer != null) { clearTimer(lagTimer); lagTimer = null; lagTimerAt = Infinity } }
     const _hidden = () => { try { return visible() === false } catch { return false } }
     const _active = () => now() < activeUntil
