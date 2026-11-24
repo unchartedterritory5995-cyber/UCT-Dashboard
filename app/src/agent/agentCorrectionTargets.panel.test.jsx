@@ -169,3 +169,32 @@ describe('F1: an additive request with an undo-half plan is asked, and the earli
     }
   }, 40000)
 })
+
+// ── AUDIT NO-GO F1, round 2 (11-23): a rejection followed by a FRESH instruction never puts the earlier change back ────────────────
+// D1 "no, add …", D2 "nope, looks great, now <B> <change>", D3 "what I meant was add …", D4 "sorry, <plain new request>" — each with
+// variations, × pairs (real / word-like) × routing v1/v2 × apply/propose. The plan: [A back to daily, B weekly]. On 7f333fa40a the undo
+// half was licensed by the leading rejection alone; now it needs nothing but a replacement pointer after it.
+const FRESH = [
+  (B) => `no, add RSI to ${B}`, (B) => `nope, add the 20 EMA on ${B}`, (B) => `no — make ${B} weekly`, (B) => `nah, add a 50 SMA to ${B}`,
+  (B) => `nope, looks great, now ${B} weekly`, (B) => `no, that's perfect, now ${B} on log`, (B) => `nope, love it — now the ${B} one weekly`,
+  (B) => `no, all good, ${B} weekly next`,
+  (B) => `what I meant was add RSI to ${B}`, (B) => `I meant add the MACD on ${B}`, (B) => `what i meant was make ${B} weekly`,
+  (B) => `meant to say ${B} weekly as well`,
+  (B) => `sorry, make ${B} weekly`, (B) => `sorry, can you put ${B} on weekly`, (B) => `sorry — switch ${B} to weekly please`, (B) => `oops sorry, ${B} weekly`,
+]
+describe('F1 round 2: a rejection + a fresh instruction is asked, and the earlier change is never silently put back', () => {
+  const rows = []
+  combos.forEach((c, i) => { for (const k of [i, i + 5, i + 11]) rows.push([tag(c), FRESH[k % FRESH.length](cased(c.kind, c.B, k)), c, k % FRESH.length]) })
+  it('covers every wording, both routings, both modes, both ticker kinds', () => {
+    expect(new Set(rows.map(r => r[3])).size).toBe(FRESH.length)
+    expect(new Set(rows.map(r => `${r[2].v2}${r[2].mode}${r[2].kind}`)).size).toBe(8)
+  })
+  it.each(rows)('%s: "%s"', async (_t, text, c) => {
+    const { m, reply, model } = await dialogue({ ...c, text, ops: [tf(c.A, 'D'), tf(c.B, 'W')] })
+    expect(tfOf(m.board, 'cl')).toBe('W')                                         // A is never put back without being asked
+    if (model) {
+      expect([tfOf(m.board, 'cl'), tfOf(m.board, 'cr')]).toEqual(['W', 'D'])      // nothing changed
+      expect(PUT_BACK.test(reply) || p.proposals().length > 0, reply).toBe(true)  // asked: a question, or a card to decide on
+    }
+  }, 40000)
+})

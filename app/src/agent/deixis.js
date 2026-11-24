@@ -960,7 +960,7 @@ export function tickerWordRole(text, ticker, { capsExplicit = true, strong = fal
 // 2026-11-23: agentWordTicker.test.js pins that each is listed there). A word outside the list keeps the existing rule.
 export const ENGLISH_TICKER_WORDS = new Set(('act ago air all am an are arm as ball band be bill bit boot box by cake can car care cash cat chef coin cold cost dash eat edit ' +
   'ever eye fast fate five fix flex fly for form four fox fun gain gap glad go gold good grab has he hog hood hope hum ice iron it ' +
-  'key keys land leg life line lion lot low luck main man mod net next nice now odd on onto open or out pack path pay pen play plus ' +
+  'key keys land leg life line lion lot low luck main man max mod net next nice now odd on onto open or out pack path pay pen play plus ' +
   'pool post pump race rare real road rock root run safe ship shop site sky snap snow so son spot step sun swim talk tap task team ' +
   'tech ten tree trip two unit up wash way well west wing wolf you').split(' '))
 export const isEnglishWord = (lower, extra = null) => isOrdinary(String(lower || '').toLowerCase(), extra) || ENGLISH_TICKER_WORDS.has(String(lower || '').toLowerCase())
@@ -1004,33 +1004,54 @@ export function wordInVerbRole(text, ticker, ordinary = false) {
 //       the op's change equals the change from the chart now back to the chart as it was (same fields, same values).
 // Anything else on that chart (another property, another value, a chart the last turn did not change, no correction words) is not
 // the undo half — the target rail asks, as before. Fails closed (an unreadable check is no revert).
-// ⭐ AUDIT NO-GO F1 (11-23): the words must POSITIVELY say the earlier change was the wrong one. Licensed by exactly one of:
-//   • a leading rejection: "no, …", "nope", "nah", "wrong …", "oops", "sorry, …", "my bad", "not that", "that's wrong" (but not
-//     "no problem / no worries / no rush / no need");
-//   • "I meant …" / "meant the …";
-//   • "… instead" (a replacement), or "instead of / rather than / not <the earlier chart>" — the earlier chart BY NAME ("not META");
-//   • "not that one / chart", "wrong one / chart", "put <the earlier chart> back", "undo / revert".
-// And never when the words ADD ("too", "also", "as well", "both", "keep", "not just / not only", "now do", "in addition", "plus",
-// "another"): an additive request keeps the earlier change, so a plan that puts it back is a change nobody asked for — the rails
-// ask about it, as before. A bare "not" / "rather" mid-sentence ("…, not monthly", "rather than daily") licenses nothing.
-const ADDITIVE = /\b(?:too|also|as\s+well|both|keep|keeping|not\s+just|not\s+only|now\s+do|in\s+addition|additionally|plus|another)\b/i
-const LEAD_REJECT = /^\s*(?:no|nope|nah|wrong|oops|sorry|my\s+bad|not\s+that|that'?s\s+(?:wrong|not\s+it)|that\s+was\s+wrong)\b(?!\s+(?:problem|worries|worry|rush|need|biggie|doubt)\b)/i
-const MEANT = /\b(?:i|I)\s+meant\b|\bmeant\s+the\b/
-const INSTEAD_BARE = /\binstead\b(?!\s+of\b)/i
-const POINTER_REJECT = /\bnot\s+(?:that|this)\s+(?:one|chart)\b|\bwrong\s+(?:one|chart)\b|\b(?:undo|revert)\b/i
+// ⭐ AUDIT NO-GO F1 (11-23, twice): UNLICENSED BY DEFAULT. A correction's undo half runs only when the words do nothing but REJECT
+// the earlier change and POINT at the replacement — no fresh instruction of their own. Licensed when EITHER:
+//   (1) an explicit revert of the earlier change: "put <earlier> back", "undo / revert (that | it | <earlier>)"; OR
+//   (2) EVERY word is a rejection or a pointer, and at least one rejection is there:
+//       rejection  no / nope / nah / wrong / oops / sorry / my bad / "that's wrong" / (I) meant / instead /
+//                  "not | rather than | instead of" + <earlier> or that / this;
+//       pointer    a symbol on the board (or a ticker typed in capitals / with "$"), a position (left, right, top…), the / that /
+//                  this / one / chart / other / same, "do" / "it" / "on" (the same change, elsewhere), fillers (wait, please, ok…).
+// So "no, the MSFT one", "I meant MSFT", "wrong chart, MSFT", "not META, MSFT", "nope, do msft instead" are licensed; "no, add RSI
+// to MSFT", "nope, looks great, now MSFT weekly", "what I meant was add MSFT weekly", "sorry, make MSFT weekly", "actually make MSFT
+// weekly too" are not: a word that is no rejection and no pointer (a verb, a value, praise, "too") is a fresh instruction, and the
+// rails ask about a plan that would put the earlier chart back. No list of additive words decides it — the structure does.
+const REJECT_WORDS = new Set(['no', 'nope', 'nah', 'wrong', 'oops', 'sorry', 'meant', 'instead'])
+const POINTER_WORDS = new Set(['the', 'a', 'an', 'that', 'this', 'these', 'those', 'one', 'ones', 'chart', 'charts', 'other', 'same',
+  'do', 'it', 'on', 'for', 'there', 'i', 'my', 'bad', 'mean', 'what', 'was', 'is', "that's", 'thats', "it's", 'not', 'rather', 'than', 'of',
+  'wait', 'oh', 'ok', 'okay', 'please', 'pls', 'yeah', 'hmm', 'um', 'uh', 'just', 'so', 'then', 'actually',
+  'left', 'right', 'top', 'bottom', 'middle', 'center', 'centre', 'upper', 'lower', 'first', 'second', 'third', 'fourth', 'last'])
 const escRe = (x) => String(x).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-/** Do the words reject the earlier change on `earlier` (the symbols of the charts the last turn changed)? */
-export function correctionLicensed(text, earlier = []) {
+/** Do the words only reject the earlier change on `earlier` (symbols the last turn changed) and point at a replacement? `board`:
+ *  every symbol on the board. */
+export function correctionLicensed(text, earlier = [], board = []) {
   const s = String(text || '').replace(/[’‘]/g, '\'')
-  if (!s.trim() || ADDITIVE.test(s)) return false
-  if (LEAD_REJECT.test(s) || MEANT.test(s) || INSTEAD_BARE.test(s) || POINTER_REJECT.test(s)) return true
-  for (const sym of earlier || []) {
-    const t = escRe(String(sym || '').trim())
-    if (!t) continue
-    if (new RegExp(`\\b(?:not|instead\\s+of|rather\\s+than)\\s+(?:the\\s+)?\\$?${t}\\b`, 'i').test(s)) return true
-    if (new RegExp(`\\bput\\s+(?:the\\s+)?\\$?${t}\\b(?:\\s+chart|\\s+one)?\\s+back\\b`, 'i').test(s)) return true
+  if (!s.trim()) return false
+  const syms = (earlier || []).map(x => escRe(String(x || '').trim())).filter(Boolean)
+  const earlierRe = syms.length ? `(?:the\\s+)?\\$?(?:${syms.join('|')})\\b(?:\\s+(?:chart|one))?` : null
+  // (1) an explicit revert of the earlier change
+  if (earlierRe && new RegExp(`\\bput\\s+${earlierRe}\\s+back\\b`, 'i').test(s)) return true
+  if (new RegExp(`\\b(?:undo|revert)\\s+(?:that|it|this|the\\s+last(?:\\s+change)?${earlierRe ? `|${earlierRe}` : ''})\\b`, 'i').test(s)) return true
+  // (2) only rejection and pointer words, with a rejection among them
+  const known = new Set([...(earlier || []), ...(board || [])].map(x => String(x || '').toLowerCase()).filter(Boolean))
+  const words = s.match(/\$?[A-Za-z][A-Za-z0-9'.]*/g) || []
+  let rejected = false
+  for (let i = 0; i < words.length; i++) {
+    const raw = words[i].replace(/[.']+$/, '')
+    const w = raw.replace(/^\$/, '').toLowerCase()
+    if (REJECT_WORDS.has(w)) { rejected = true; continue }
+    // "not / rather than / instead of" + the earlier chart (or that / this) is a rejection of it
+    if ((w === 'not' || w === 'than' || w === 'of') && i + 1 < words.length) {
+      const nx = words[i + 1].replace(/^\$/, '').toLowerCase()
+      const nx2 = i + 2 < words.length ? words[i + 2].replace(/^\$/, '').toLowerCase() : ''
+      if ((earlier || []).some(e => [nx, nx2].includes(String(e).toLowerCase())) || ['that', 'this'].includes(nx)) rejected = true
+    }
+    if (POINTER_WORDS.has(w) || known.has(w)) continue
+    // a ticker typed as one (capitals or "$") points at a symbol
+    if (raw.startsWith('$') || (raw.length >= 1 && raw === raw.toUpperCase() && /[A-Z]/.test(raw) && /[a-z]/.test(s))) continue
+    return false                                          // a word of a fresh instruction: no license
   }
-  return false
+  return rejected
 }
 const canonJson = (v) => JSON.stringify(v, (k, x) => (x && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries(Object.keys(x).sort().map(key => [key, x[key]])) : x))
 /** → (op) => true when `op` is the undo half of a correction (rules above), or null when the words are no correction / nothing to undo. */
@@ -1042,7 +1063,9 @@ export function correctionReverts({ text, items, host, getCapability, getTargetK
     const sym = i?.before?.symbol || (() => { try { return (host?.charts?.list?.() || []).find(c => c.ref === i?.ref)?.symbol } catch { return null } })()
     if (sym && !earlier.includes(sym)) earlier.push(sym)
   }
-  if (!correctionLicensed(text, earlier)) return null
+  let board = []
+  try { board = (host?.charts?.list?.() || []).map(c => c?.symbol).filter(Boolean) } catch { board = [] }
+  if (!correctionLicensed(text, earlier, board)) return null
   return (o) => {
     try {
       const cap = getCapability(o?.action)

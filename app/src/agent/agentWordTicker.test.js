@@ -183,7 +183,33 @@ describe('F1: correctionLicensed — the words must reject the earlier change', 
     })
   }
   it('"not <a chart the last turn did NOT change>" licenses nothing', () => {
-    expect(correctionLicensed('MSFT weekly, not QQQ', ['META'])).toBe(false)
-    expect(correctionLicensed('MSFT weekly, not META', ['META'])).toBe(true)
+    expect(correctionLicensed('MSFT, not QQQ', ['META'])).toBe(false)
+    expect(correctionLicensed('MSFT, not META', ['META'])).toBe(true)
+    // a correction that carries its own new change ("MSFT weekly, not META") is not licensed: asked — the safe direction
+    expect(correctionLicensed('MSFT weekly, not META', ['META'])).toBe(false)
   })
+})
+
+// ── AUDIT NO-GO F1, round 2 (11-23): UNLICENSED BY DEFAULT — a rejection licenses the undo half only before a bare REPLACEMENT POINTER ─
+// AUDIT's four classes of paraphrased additive wordings that still licensed it on 7f333fa40a, each with variations:
+const FRESH_AFTER_REJECTION = [
+  // D1: a leading rejection, then "add" + the new change
+  (B) => `no, add RSI to ${B}`, (B) => `nope, add the 20 EMA on ${B}`, (B) => `no — add volume to the ${B} chart`, (B) => `nah, add a 50 SMA to ${B}`,
+  // D2: a leading "nope", praise, then "now <other chart> <change>"
+  (B) => `nope, looks great, now ${B} weekly`, (B) => `no, that's perfect, now ${B} on log`, (B) => `nope, love it — now the ${B} one weekly`,
+  (B) => `no, all good, ${B} monthly next`,
+  // D3: "what I meant was add <change>"
+  (B) => `what I meant was add RSI to ${B}`, (B) => `I meant add the MACD on ${B}`, (B) => `what i meant was make ${B} weekly`,
+  (B) => `meant to say ${B} weekly as well`,
+  // D4: a polite leading "sorry," then a plain new request
+  (B) => `sorry, make ${B} weekly`, (B) => `sorry, can you put ${B} on log`, (B) => `sorry — switch ${B} to monthly please`, (B) => `oops sorry, add RSI to ${B}`,
+]
+describe('F1 round 2: a rejection followed by a FRESH instruction licenses nothing', () => {
+  for (const [A, B] of PAIRS) {
+    it(`${A}→${B}: D1–D4 and variations → not licensed; replacement pointers → licensed`, () => {
+      for (const f of FRESH_AFTER_REJECTION) for (const c of [s => s, s => s.toLowerCase()]) { const t = c(f(B)); expect([t, correctionLicensed(t, [A], [A, B])]).toEqual([t, false]) }
+      for (const t of [`no, the ${B} one`, `I meant ${B}`, `wrong chart, ${B}`, `not ${A}, ${B}`, `put ${A} back`, `undo ${A}`, `revert that`,
+        `no, the right one`, `sorry, I meant the one on the right`, `nope, do ${B} instead`]) expect([t, correctionLicensed(t, [A], [A, B])]).toEqual([t, true])
+    })
+  }
 })
