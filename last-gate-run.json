@@ -1,10 +1,10 @@
 {
   "master_sha": "6d46fa1938ea45203dd6c7027015b62d1147817b",
-  "gate_run_id": "45421896847",
-  "gate_conclusion": "success",
+  "gate_run_id": null,
+  "gate_conclusion": null,
   "promoted": "no",
   "production_head_after": "6d50f4662b35cbcfb4b0c9146a6827885e8d48d4",
   "held_by_freeze": true,
   "decision": "HOLD",
-  "ts": "2026-11-24T15:33:08.513415Z"
+  "ts": "2026-11-24T15:35:08.470045Z"
 }
