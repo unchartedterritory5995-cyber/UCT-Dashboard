@@ -33,7 +33,7 @@ import { setOwnedDefinitionSource } from './capabilities/indicatorEdits'
 import { setAuthoringSources, setExceptSetReader, draftAmbiguity, selectDraft, isDraftAction, lastSaved, screenModelOps, PROPOSAL_TTL_MS, saveReferent, splitSaveAs, renameBeforeSave, explicitIndicatorCreate } from './capabilities/indicatorAuthoring'
 import { fastParse, matchPosition } from './fastPath'
 import { screenNewChart, screenEmptyBoardChart } from './capabilities/workspace'
-import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf, selectedChart, chartNameWord, clausesNameDifferentCharts, targetTickerConflict, lowerTickerCandidates, TARGET_CHECK_FAILED, timeframeSetOf, chartsNamedBy, changeWordsOf, pointsAtClick, wordsNameASet, wordsGroundWrites } from './deixis'
+import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf, selectedChart, chartNameWord, clausesNameDifferentCharts, targetTickerConflict, lowerTickerCandidates, TARGET_CHECK_FAILED, timeframeSetOf, chartsNamedBy, changeWordsOf, pointsAtClick, wordsNameASet, wordsNameAChart, wordsGroundWrites } from './deixis'
 import { screenWatchlistWidget } from './watchlistTarget'
 import { whichListView, LIST_VIEW_WHICH } from './whichWidget'
 import { checkSpatialConstraints, excludedCharts, spatialConstraints, UNPLACED, withoutExcludedCharts, everyExceptSet, everyExceptNothing, nothingLeftText } from './spatialCheck'
@@ -2423,6 +2423,9 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
           if (sw.text === text && !/\bit\b/i.test(text)) return false
           const s = sw.subject ? { ref: sw.subject } : atStart ? (subjectAt ? { ref: subjectAt } : null) : memoryRef.current.subject('chart', epochOf(host))
           if (!s?.ref || !ops.length) return false
+          // ⛔ G1b (AUDIT 11-23): only when the subject is the SOLE grounding — words that also name a chart (by ticker, place,
+          // order, relation) are read by the rails, never "satisfied" by the subject
+          if (!sw.subject && wordsNameAChart(text, host?.charts?.list?.() || [], selectedChart(host))) return false
           return ops.every(o => {
             const k = getTargetKind(getCapability(o?.action)?.target)
             const snap = k?.list(host)?.find(x => x.ref === o.target)

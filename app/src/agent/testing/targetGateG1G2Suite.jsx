@@ -210,5 +210,40 @@ for (const v2 of [false, true]) describe(`G1/G2 target gate [routing ${v2 ? 'v2'
     expect(snapshot(m.board, 2), transcript()).toEqual(before)
     expect(asked() || p.turns() > calls, transcript()).toBe(true)
   }, 60000)
+
+  // ── F3 · G1: no click; the words name SPY and ALSO point at another chart nothing grounds ("this one", a bare "here", an additive
+  // "that chart too") → asked, nothing changed
+  it.each(mine(G1))('G1 no click: "%s" → asked, nothing changed', async (t, ops) => {
+    const m = mount(['SPY', 'NVDA'])
+    const before = snapshot(m.board, 2)
+    p.st.envelopes.push(plan(ops, 'SPY'))
+    await say(m, t)
+    expect(snapshot(m.board, 2), transcript()).toEqual(before)
+    expect(asked(), transcript()).toBe(true)
+  }, 60000)
+
+  // ── F3 · G1b: the same after a REAL prior turn, so memory holds SPY as the live subject — the subject is not the sole grounding
+  // here (the words name SPY themselves), so the rails read them: the other chart is still not grounded
+  it.each(mine(G1B))('G1b after "make the left chart weekly": "%s" → asked, nothing changed', async (t, ops) => {
+    const m = mount(['SPY', 'NVDA'])
+    await say(m, 'make the left chart weekly')
+    expect(tfOf(m.board, 'w0'), transcript()).toBe('W')
+    const before = snapshot(m.board, 2)
+    p.st.envelopes.length = 0
+    p.st.envelopes.push(plan(ops, 'SPY'))
+    await say(m, t)
+    expect(snapshot(m.board, 2), transcript()).toEqual(before)
+    expect(asked(), transcript()).toBe(true)
+  }, 60000)
+
+  // ── F3 · a bare "here" WITH a click is that chart: the change lands on the clicked chart only (or is asked), never elsewhere
+  only0('a bare "here" with NVDA clicked: "add a 20 EMA here" → the EMA on NVDA only, SPY untouched', async () => {
+    const m = mount(['SPY', 'NVDA'], 'w1')
+    const spy0 = stored(m.board, 'w0')
+    p.st.envelopes.push((body) => p.env('apply', [OPS.ema(body, 'NVDA')]))
+    await say(m, 'add a 20 EMA here')
+    expect(stored(m.board, 'w0'), transcript()).toBe(spy0)
+    expect(effect.ema(m.board, 'w1') || asked(), transcript()).toBe(true)
+  }, 60000)
 })
 }
