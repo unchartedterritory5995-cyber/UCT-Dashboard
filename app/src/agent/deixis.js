@@ -943,7 +943,9 @@ export function targetTickerConflict({ host, ops, text, pickedRefs = [], getTarg
     // (a chart the change words name by its symbol in any position — "switch NVDA over to weekly and AMD over to monthly" — is named too)
     const other = new Set([...chartsNamedBy(w, charts, sel), ...bySym])
     // "the TSLA chart to hourly and THIS one too": a clause that points at the click names it as a target of its own
-    if (sel && /\b(?:this|here)\b/i.test(w)) other.add(sel)
+    // (e2-t05: "the selected / clicked chart" is the click's word as much as "this" and "here" — CLICK_WORD, the same words
+    // clickAgreesBesideNamed reads)
+    if (sel && CLICK_WORD.test(w)) other.add(sel)
     // …and a RELATION's charts ("the AMD chart …, and the one to its right too"; "the one below the QQQ one")
     try { for (const c of relativeChart(w, charts, relationAnchor(w, charts, sel))?.hits || []) other.add(c.ref) } catch { /* no relation */ }
     try { for (const r of namedAnchorRelation(w, charts)?.hits || []) other.add(r) } catch { /* no relation */ }
@@ -1532,6 +1534,54 @@ function clauseTargets({ host, ops, text, getTargetKind, getCapability, parse })
   return any ? { ok: true } : null
 }
 
+// ⭐ e2-t05 (AUDIT 11-24): THE CLICK AGREES, AND ANOTHER CLAUSE NAMES ITS OWN CHART. "linear here, and log on MSFT", "make this one
+// linear and put MSFT on log", with META clicked. The clause with the click's word (here / this / this one / this chart / the
+// selected chart) names no other chart, so it means the click; a SEPARATE clause names MSFT by itself. A plan that writes exactly
+// the click and the charts those named clauses name, the click among them, does what the words say: no conflict to ask about.
+// Structural — the clause carrying the click word, the clauses naming charts — never a sentence list. Not when:
+//   · a pronoun ("it", "that chart", "that one") is anywhere: it could mean the named chart (G1b / G2 still ask);
+//   · a relation or a negation involves the click ("the one beside this", "not this one"): the click is an anchor / left out;
+//   · the plan writes a chart nothing names, or does not write the click at all (G2: every op on the named chart still asks).
+// (a keep / negated clause names no target: "…, leave MSFT alone" never counts as naming MSFT)
+const CLICK_WORD = /\b(?:this\s+(?:one|chart|stock|ticker|symbol)|this|here|the\s+(?:selected|clicked|highlighted|current|active)\s+(?:chart|one))\b/i
+export function clickAgreesBesideNamed({ host, ops, text, getTargetKind, getCapability }) {
+  try {
+    const s = String(text || '')
+    const charts = host?.charts?.list?.() || []
+    const sel = selectedChart(host)
+    if (!sel || !ops?.length || charts.length < 2) return false
+    if (/\b(?:it|its)\b/i.test(s) || /\bthat\s+(?:chart|one|ticker|stock|symbol|name)\b/i.test(s)) return false
+    if (relationMatch(s) || negatedPointer(s)) return false
+    const cuts = [0, ...[...s.matchAll(ANA_SPLIT)].flatMap(m => [m.index, m.index + m[0].length]), s.length].sort((a, b) => a - b)
+    const named = new Set()
+    let pointer = false
+    for (let i = 0; i < cuts.length - 1; i++) {
+      const c = s.slice(cuts[i], cuts[i + 1])
+      if (!c.trim()) continue
+      const names = [...chartsNamedBy(c, charts, null)]
+      if (CLICK_WORD.test(c)) {
+        if (names.some(r => r !== sel)) return false            // the click word beside another chart's name: not certain
+        pointer = true
+      } else if (names.length && !KEEP_CLAUSE.test(c) && !STAYS_CLAUSE.test(c)) {
+        for (const r of names) named.add(r)
+      }
+    }
+    if (!pointer || ![...named].some(r => r !== sel)) return false
+    const written = new Set()
+    for (const o of ops) {
+      const cap = getCapability(o?.action)
+      const kind = cap ? getTargetKind(cap.target) : null
+      if (!kind) continue
+      const snap = (kind.list(host) || []).find(x => x.ref === o.target)
+      const c = snap ? chartRefOf(kind, snap) : null
+      if (!c) return false                                      // a chart-kind op on nothing the board shows: not read here
+      written.add(c)
+    }
+    if (!written.has(sel)) return false
+    return [...written].every(c => c === sel || named.has(c))
+  } catch { return false }
+}
+
 export function screenDeicticOps({ host, ops, text, getTargetKind, getCapability, parse = null, subject = null }) {
   if (!pointsAtChart(text, { chartOp: true, charts: host?.charts?.list?.() || [] })) return null
   if (planIsExceptSet({ host, ops, text, getTargetKind, getCapability, subject })) return null
@@ -1540,6 +1590,7 @@ export function screenDeicticOps({ host, ops, text, getTargetKind, getCapability
     if (per?.ask) return per
     if (per?.ok) return null
   }
+  if (clickAgreesBesideNamed({ host, ops, text, getTargetKind, getCapability })) return null
   if (negatedPointer(text)) {
     const sel = selectedChart(host)
     for (const o of ops || []) {
