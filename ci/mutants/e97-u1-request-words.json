@@ -32,7 +32,7 @@
    "id": "U1-M4",
    "mutant": "a tuple element's refusal does not ask the decline: it ends at the bare element name",
    "file": "app/src/components/chart/engine/ast/pine.js",
-   "from": "          const declined = lower ? null : this.securityDeclineReason(bound.call)",
+   "from": "          const declined = lower ? null : this.requestWordsQuietly(() => this.securityDeclineReason(bound.call), null)",
    "to": "          const declined = null",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pine.requestHonestWords.test.js",
    "expectRed": "no refusal over the fixture set ends at a bare name"
@@ -81,6 +81,15 @@
    "to": "    if (raw === null) return `${lead} ${this.requestArgUnfixedWhy(tfNode, 'timeframe', 0, tfNode)}`\n    const t = String(raw).trim()\n    if (true) return null",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pine.requestHonestWords.test.js",
    "expectRed": "input.timeframe(\"360\")"
+  },
+  {
+   "id": "U1-M10",
+   "mutant": "the refusal's words are charged to the Resolver's step budget (the restore removed)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "      this.budgetSteps = steps\n      restoreCallBudget(call)",
+   "to": "      restoreCallBudget(call)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineProbeReplay.test.js",
+   "expectRed": "every corpus Resolver ends on the same budgetSteps"
   }
  ]
 }

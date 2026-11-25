@@ -8687,6 +8687,15 @@ function tripWindow(refusal) {
   return WINDOW_TRIP
 }
 
+/** ⭐ e97 U1 — the call's step count and latched trip, put back after work that must cost the call nothing (a
+ *  refusal's words, `Resolver.requestWordsQuietly`). */
+function callBudgetMark() { return { steps: CALL_STEPS, trip: WINDOW_TRIP } }
+function restoreCallBudget(mark) {
+  if (!WINDOW_OPEN || !mark) return
+  CALL_STEPS = mark.steps
+  WINDOW_TRIP = mark.trip
+}
+
 /** e94 — one step of the call: counted against the call's budget; a tripped window refuses at once. Asked by every
  *  Resolver step and every printer tick while a window is open. */
 function countCallStep(tok) {
@@ -9919,7 +9928,7 @@ export class Resolver {
           const spelled = lower ? null : this.otherSymbolSpellingDeclineOf(bound.call)
           if (spelled) throw new PineRefusal('pine:request', spelled.message, bound.at || locate(tok))
           // ⭐ e97 U1 — and every other decline names its argument, as the call's own refusal does.
-          const declined = lower ? null : this.securityDeclineReason(bound.call)
+          const declined = lower ? null : this.requestWordsQuietly(() => this.securityDeclineReason(bound.call), null)
           const why = lower ? lower.why : declined ? declined.why : null
           throw new PineRefusal('pine:request',
             `${REFUSALS['pine:request']} — \`${name}\`${why ? `: ${why}` : ''}`,
@@ -15082,7 +15091,8 @@ export class Resolver {
     // engine resamples weekly and monthly … and `1D` is not one of them", while `"1D"` folds there to
     // the chart's own series (`requestTargetOf`, `code === this.basePeriod`) and the SYMBOL was what
     // stopped it. A code equal to the base is the identity, never a resample, so it is never named here.
-    const tfRawHere = this.ownTimeframeOf(tfNode, 0, reach) === null ? this.timeframeLiteralOf(tfNode, 0, reach) : null
+    const tfRawHere = this.requestWordsQuietly(
+      () => (this.ownTimeframeOf(tfNode, 0, reach) === null ? this.timeframeLiteralOf(tfNode, 0, reach) : null), null)
     const tfIsBase = tfRawHere !== null && PINE_TF_SPELLING[String(tfRawHere).trim().toUpperCase()] === this.basePeriod
     if (this.ownTimeframeOf(tfNode, 0, reach) === null && !tfIsBase) {
       const raw = this.timeframeLiteralOf(tfNode, 0, reach)
@@ -15147,6 +15157,11 @@ export class Resolver {
   requestWordsQuietly(fn, fallback) {
     const minted = this.paramMint
     const used = this.usedInputs ? new Set(this.usedInputs.keys()) : null
+    // ⭐ AND NO STEP CHARGED: this Resolver's `budgetSteps` and the call's window (`callBudgetMark`) are put back,
+    // so the words never spend the budget a later output of the same script would have had. ⚰️ Measured before
+    // this: artemis-oscillator-pro's Resolvers ended 1,224 steps later (`pineProbeReplay.test.js`).
+    const steps = this.budgetSteps
+    const call = callBudgetMark()
     this.paramMint = null
     try {
       return fn()
@@ -15156,6 +15171,8 @@ export class Resolver {
     } finally {
       this.paramMint = minted
       if (used) for (const k of [...this.usedInputs.keys()]) if (!used.has(k)) this.usedInputs.delete(k)
+      this.budgetSteps = steps
+      restoreCallBudget(call)
     }
   }
 
