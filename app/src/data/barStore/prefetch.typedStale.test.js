@@ -112,16 +112,18 @@ describe('the handoff (Enter) · a copy behind the clock waits for its tail', ()
     expect(w.pf.peekDisplayable('ROLL', '1')).toBe(false)
   })
 
-  it('a server that does not answer never pins the member: the copy paints after BEHIND_HOLD_MAX_MS', async () => {
+  // ⛔ CHANGED (#2721 review, 2026-11-25): the hold is ROLL_HOLD_MAX_MS (400 ms); what paints after it says UPDATING.
+  it('a server that does not answer never pins the member: the copy paints after ROLL_HOLD_MAX_MS, UPDATING', async () => {
     const w = await boot()
-    const { BEHIND_HOLD_MAX_MS } = await import('./prefetch')
+    const { ROLL_HOLD_MAX_MS } = await import('./prefetch')
+    expect(ROLL_HOLD_MAX_MS).toBe(400)
     await heldThenLater(w, 'QQQH')
     let done = null
     w.pf.prepareForDisplay('QQQH', '1').then((o) => { done = o })
-    await vi.advanceTimersByTimeAsync(BEHIND_HOLD_MAX_MS - 20)
+    await vi.advanceTimersByTimeAsync(ROLL_HOLD_MAX_MS - 50)
     expect(done).toBe(null)
-    await vi.advanceTimersByTimeAsync(40)
-    expect(done).toBe('current')
+    await vi.advanceTimersByTimeAsync(100)
+    expect(done, 'a copy lacking a closed bar was painted as current').toBe('updating')
   })
 
   // ⭐ (re-review of #2619 (A), 2026-11-23) the typed warm's answer lends NO grace: still behind, it may be a name that did
@@ -139,7 +141,8 @@ describe('the handoff (Enter) · a copy behind the clock waits for its tail', ()
     expect(w.pf.peekDisplayable('THIN', '1')).toBe(false)          // the typed warm's answer lends no grace...
     const enter = w.pf.prepareForDisplay('THIN', '1')
     await w.server.drain()
-    await expect(enter).resolves.toBe('current')
+    // ⛔ CHANGED (review of #2721): it paints as it is, under its honest status (no proof it did not print: 'updating')
+    await expect(enter).resolves.toBe('updating')
     // ⛔ CHANGED 2026-11-24 (prefetch.firstFrameClosedBar.test.js C2/C3): Enter's own answer, 20 buckets behind, lends no
     // grace and is asked once more in full inside the hold; the press then paints as it is
     expect(w.server.calls.length).toBe(n + 2)

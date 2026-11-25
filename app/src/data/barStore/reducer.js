@@ -82,6 +82,8 @@ export function initialState(key, ctx = {}) {
     source: null, restSeen: false, needsFull: true, error: null, invalidatedFor: null,
     gen: 0, pendingHistoryRev: null, depthFloor: 0, localHoleFrom: null, liveGapFrom: null,
     lakeOnly: false,
+    // ⭐ (review of #2721) the closed bucket (unix s) the switch painted this copy without: UPDATING until held (ACTION.AWAIT_CLOSED)
+    awaitingClosed: null,
     // ⭐⭐ (2026-11-18) the route's `newest_bar_is_forming` WITH the bar it describes ({t, forming}), or null
     newestForming: null,
   }
@@ -401,7 +403,7 @@ function isForeign(state, obj) {
 // ── snapshot finalize (identity-stable, frozen, status) ──────────────────────
 
 const BASE_FIELDS = ['completeThrough', 'verifiedThrough', 'seriesRev', 'historyRev', 'cacheKey', 'adjBasis', 'grid', 'restFrom', 'sealedSpans']
-const META_FIELDS = ['tailStatus', 'source', 'restSeen', 'needsFull', 'error', 'invalidatedFor', 'deltaFrom', 'gen', 'pendingHistoryRev', 'depthFloor', 'localHoleFrom', 'liveGapFrom', 'lakeOnly', 'newestForming']
+const META_FIELDS = ['tailStatus', 'source', 'restSeen', 'needsFull', 'error', 'invalidatedFor', 'deltaFrom', 'gen', 'pendingHistoryRev', 'depthFloor', 'localHoleFrom', 'liveGapFrom', 'lakeOnly', 'newestForming', 'awaitingClosed']
 
 function _sameFields(a, b) {
   if (!a || !b) return false
@@ -412,6 +414,12 @@ function _sameFields(a, b) {
 
 function finalize(prev, next, ctx) {
   const n = { ...prev, ...next }
+  // the closed bucket the switch painted this copy without: settled once the copy holds it (a row at or after it, or a
+  // developing bar of a later bucket)
+  if (n.awaitingClosed != null) {
+    const last = n.bars && n.bars.length ? n.bars[n.bars.length - 1].t : null
+    if ((last != null && last >= n.awaitingClosed) || (n.developing && n.developing.t > n.awaitingClosed)) n.awaitingClosed = null
+  }
   let { bars } = n
   // Depth cap: trims the OLDEST rows on tail growth, but never below the depth the user
   // scrolled back to (`depthFloor`, raised by scroll-back) — deep history a scroll just
@@ -828,6 +836,7 @@ function applyRest(state, action, ctx, kind) {
     // A full answer re-proves what it carries: a local hole it did not fill is the server's.
     localHoleFrom: kind === 'full' ? null : state.localHoleFrom,
     liveGapFrom: null,   // the server answered: what it still lacks is its truth (P3-S2b)
+    awaitingClosed: null,   // ...and its own status says whether it is current (review of #2721)
     newestForming: _formingOf(p, state),
   }, ctx)
 }
@@ -1329,6 +1338,10 @@ export function reduce(state, action, ctx = {}) {
     case ACTION.TICK_FALLBACK: return applyTick(state, action, ctx)
     case ACTION.SCROLL_BACK: return applyScrollBack(state, action, ctx)
     case ACTION.INVALIDATE: return invalidate(state, action.reason, ctx)
+    case ACTION.AWAIT_CLOSED: {
+      const t = numOrNull(action.payload?.t ?? action.t)
+      return t == null || isDateTf(state.tf) ? state : finalize(state, { awaitingClosed: t }, ctx)
+    }
     // ⛔ A KILL SEEN ON THIS PAGE (review of #2565, P6-L2): the copy's stamp vouches for nothing any more, so the first answer
     // keeps none of the device's rows newer than itself (applyRest). The rows stay until then (nothing is blanked), and the
     // marker stays: the refusal ('killed') keys on it. Only an entry holding device rows; never with the store off.
