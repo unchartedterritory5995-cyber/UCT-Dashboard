@@ -105,6 +105,28 @@ def test_the_warm_share_is_bounded_and_smaller_than_the_interactive_share(monkey
     assert asyncio.run(go()) <= bars_router.BARS_WARM_THREADS
 
 
+def test_an_interactive_bars_ask_answers_while_the_default_pool_is_full(monkeypatch):
+    """Both of the route's hops (the bars gate and the serve) are on its own limiter: with every token of the shared
+    default pool held (other sync routes busy), a chart ask still answers."""
+    gate, seen = threading.Event(), _seen()
+    _fake_serve(monkeypatch, gate, seen)
+
+    async def go():
+        lim = anyio.to_thread.current_default_thread_limiter()
+        holders = [object() for _ in range(int(lim.total_tokens))]
+        for h in holders:
+            await lim.acquire_on_behalf_of(h)
+        try:
+            async with httpx.AsyncClient(transport=httpx.ASGITransport(app=_app()), base_url="http://t") as c:
+                return await asyncio.wait_for(c.get("/api/bars/AAPL?tf=5&bars=600"), 2.0)
+        finally:
+            for h in holders:
+                lim.release_on_behalf_of(h)
+    r = asyncio.run(go())
+    gate.set()
+    assert r.status_code == 200
+
+
 def test_control_an_unrelated_sync_route_does_wait_when_the_default_pool_is_full():
     """Control: the condition the first rail guards is real (a sync route waits while the default pool is full)."""
     async def go():
