@@ -104,6 +104,7 @@ import useTagColors from '../hooks/useTagColors'
 import { prefetchBars, prefetchAllTimeframes, prefetchBarOnIntent, warmMemFromIDB, prewarmVisibleList, prefetchBarsToIDB, createNeighborHold } from '../utils/barsWarm'
 import { scanNeighbors } from '../utils/scanNeighbors'
 import { afterPaint } from '../utils/afterPaint'
+import { createNextFrameSlot } from '../utils/afterPaintSlot'
 import { publishScanNeighbors } from '../components/chart/neighborFrames'
 import { useIsTouch } from '../hooks/useBreakpoint'
 import Sheet from '../components/mobile/Sheet'
@@ -653,12 +654,36 @@ const WatchRow = React.memo(function WatchRow({
   )
 })
 
+// Would centring row `idx` keep the whole viewport inside the rows this render drew (`drawn`, the render's virtual
+// items)? Read from the virtualizer's cached state only: `getMeasurements()` (sizes measured or estimated, kept in
+// itemSizeCache) and `getSize()` (the viewport from its last rect report). Neither reads layout (virtual-core 3.14.0
+// index.js 366-373 and 439-523). The drawn rows' edges are looked up by index in the SAME measurements as the target
+// (a row measured between the render and this check moves both alike). `top` is where
+// `scrollToIndex(idx, { align: 'center' })` puts the viewport before its upper clamp (getOffsetForAlignment's
+// max-offset); the lower clamp (0) is mirrored, the upper is NOT: for the rows within about half a viewport of the
+// list's end this answers "far" although the clamped view would stay inside the drawn rows, so those presses centre in
+// the commit (the parent's path): conservative, the gain is only lost there.
+export function centredViewStaysDrawn(virt, idx, drawn) {
+  try {
+    if (!drawn || !drawn.length) return false
+    const ms = virt.getMeasurements()
+    const m = ms[idx]
+    const lo = ms[drawn[0].index]
+    const hi = ms[drawn[drawn.length - 1].index]
+    const size = virt.getSize()
+    if (!m || !lo || !hi || !(size > 0)) return false
+    const top = Math.max(0, m.start + (m.size - size) / 2)
+    return lo.start <= top && hi.end >= top + size
+  } catch { return false }
+}
+
 // Virtualized row list for SCAN mode (read-only lists that can be thousands of rows, e.g.
 // Custom-Period Sort's whole-market ranking). Renders only the visible window inside the
 // shared `.listBody` scroll container (the sticky column header sits above it), and reports
 // the visible symbols up so ONLY those get live-streamed — the whole point that lets a
 // ~5,000-row scan render without opening ~100 SSE streams or mounting 5,000 DOM rows.
-export function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChange, scrollToSym, noScrollRef, measureOffset = false }) {
+
+export function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChange, scrollToSym, noScrollRef, keyMoveRef = null, measureOffset = false }) {
   // ⭐ WHY AN OFFSET EXISTS AT ALL. The virtualizer places rows absolutely and
   // measures against the SCROLL element, so its arithmetic is only right when this
   // container starts at the scroller's top. A scan owns the whole body, so it does.
@@ -737,16 +762,64 @@ export function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChan
   // the user can freely scroll away. If the row isn't present yet (its group hasn't expanded),
   // we DON'T mark done, so a later `items` update (the expand) still lands the scroll once.
   const scrolledForRef = useRef(null)
+  // ⭐ (2026-11-23, next-row key profile; review of #2598) AN ARROW KEY'S SNAP RUNS IN THE NEXT ANIMATION FRAME
+  // CALLBACK, NOT IN THIS EFFECT. `scrollToIndex` reads the scroller's scrollHeight/clientHeight (virtual-core
+  // getMaxScrollOffset), a forced layout, then scrolls. It now runs in the next frame callback registered from this
+  // effect (utils/afterPaintSlot.js createNextFrameSlot): the layout it reads is the one that frame needs anyway, and
+  // the scroll is painted in that frame. WHERE THIS EFFECT RUNS (react-dom 19.2.4):
+  //   • a WatchlistWidget on /charts, the one host that passes `selectInPress` (its group symbol is in a store; the
+  //     board's other list hosts pass none and take the next path): the key handler sets the selection in the SAME
+  //     SyncLane render as the group symbol (Watchlists' handleKeyDown), so this commit is the key task's own and its
+  //     passive effects are flushed at its end. The frame callback is registered in the key task: the highlight and the
+  //     scroll belong to the first frame after the key. The linked charts' setData is in that frame too only when the
+  //     group's switch shows in the press (hooks/handoffGroups.js decideGroupShow); a chart still waiting for its bars
+  //     paints when they come, whatever this list does.
+  //   • any other host (the selection in a transition): the `[hubSym]` effect or the transition commits the selection
+  //     in a later scheduler task, and this passive effect is scheduled after that commit. The scroll's frame is then
+  //     the highlight's when that commit and this callback share a scheduler slice; when React yields between them,
+  //     the highlight paints a frame before the scroll, as before this change (the scroll ran in this same callback).
+  // ONLY a move the arrow keys made (`keyMoveRef`, set by Watchlists' handleKeyDown) waits; a list opened on a
+  // selection, a search, a symbol set from elsewhere snap here in the commit exactly as before. A held key snaps
+  // once per frame, to the newest row. The snap is marked done when it RUNS: a row missing then is snapped by the
+  // next list change, and StrictMode's simulated unmount cannot lose it.
+  // ⛔ A FAR KEY MOVE SNAPS IN THE COMMIT, AS BEFORE (F3): a wrap from the first row to the last, or a press after the
+  // member scrolled the list away. Centring there shows rows this render did not draw; the virtualizer draws them only
+  // after its scroll event (delivered in the frame after the scroll), so a scroll made in the frame callback would leave
+  // them blank one frame longer than a scroll made in the commit. Near or far is decided from cached state, no layout
+  // (`centredViewStaysDrawn`).
+  const itemsRef = useRef(items)
+  itemsRef.current = items
+  const snapSlotRef = useRef(null)
+  if (!snapSlotRef.current) snapSlotRef.current = createNextFrameSlot()
+  const snapWaitingRef = useRef(null)                    // the symbol whose key snap waits for its frame
+  useEffect(() => () => { snapSlotRef.current.cancel(); snapWaitingRef.current = null }, [])
   useEffect(() => {
-    if (!scrollToSym) { scrolledForRef.current = null; return }
+    if (!scrollToSym) { scrolledForRef.current = null; snapSlotRef.current.cancel(); snapWaitingRef.current = null; return }
     if (scrolledForRef.current === scrollToSym) return   // already snapped to it — allow free scroll
+    if (snapWaitingRef.current === scrollToSym) return   // its snap waits for the frame and finds the row by symbol then
+    snapSlotRef.current.cancel()                         // a waiting snap is for a symbol no longer asked for
+    snapWaitingRef.current = null
     // A CLICK-selection (not a search): don't move the list — just mark it handled so a later
     // search of a different ticker still snaps. Only an external search scrolls the list.
     if (noScrollRef?.current === scrollToSym) { scrolledForRef.current = scrollToSym; noScrollRef.current = null; return }
     const idx = items.findIndex((it) => it?.sym === scrollToSym && !it.isGroup)
     if (idx < 0) return                                  // row not rendered yet — retry on next items change
-    try { virt.scrollToIndex(idx, { align: 'center' }) } catch { /* mid-mount */ }
-    scrolledForRef.current = scrollToSym
+    if (keyMoveRef?.current !== scrollToSym || !centredViewStaysDrawn(virt, idx, vItems)) {   // not a key move, or a far one: in the commit, as always
+      try { virt.scrollToIndex(idx, { align: 'center' }) } catch { /* mid-mount */ }
+      scrolledForRef.current = scrollToSym
+      return
+    }
+    const sym = scrollToSym
+    snapWaitingRef.current = sym
+    snapSlotRef.current.schedule(() => {
+      snapWaitingRef.current = null
+      if (scrolledForRef.current === sym) return
+      const list = itemsRef.current
+      const at = list[idx]?.sym === sym && !list[idx].isGroup ? idx : list.findIndex((it) => it?.sym === sym && !it.isGroup)
+      if (at < 0) return                                 // gone: not marked, so the next list change snaps it
+      try { virt.scrollToIndex(at, { align: 'center' }) } catch { /* mid-mount */ }
+      scrolledForRef.current = sym
+    })
   }, [scrollToSym, items]) // eslint-disable-line react-hooks/exhaustive-deps
   if (items.length === 0) return <div className={styles.wlEmpty}>{emptyText}</div>
   return (
@@ -1001,7 +1074,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // A ticker the user CLICKED in the list (vs searched): the scan list must NOT scroll to
   // it — only the gold highlight moves. The list only snaps on an external SEARCH.
   const clickSelectRef = useRef(null)
-  const { sym: hubSym, setSym: setHubSym, tf: hubTf, tfs: hubTfs } = useChartsSym()
+  const { sym: hubSym, setSym: setHubSym, tf: hubTf, tfs: hubTfs, selectInPress = false } = useChartsSym()
   useEffect(() => {
     if (hubSym && hubSym !== selectedSym) setSelectedSym(hubSym)
   }, [hubSym]) // intentionally do NOT depend on selectedSym (avoid feedback loop)
@@ -1789,6 +1862,9 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // The row an arrow press asked for whose (transition) render has not committed yet, and the
   // `selectedSym` it stepped from: a stale entry (the selection moved some other way) is ignored.
   const navPendingRef = useRef(null)
+  // The row the arrow keys last moved to, until the commit that shows it: the two keep-in-view effects scroll for
+  // THAT move in the next animation frame callback, and for every other selection in the commit, as always.
+  const keyMoveRef = useRef(null)
 
   // Build a flat, deduped, top-to-bottom list of every sym currently visible
   // across expanded watchlists / flagged / color-tag auto-lists. Arrow keys
@@ -1906,11 +1982,23 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         // transition as BLOCKING, so they render synchronously on every press. What keeps a fast scan
         // there from drawing every row is the handoff's settle rule (useSymbolHandoff), and the board's
         // setGroupSym decides the switch in this press (hooks/handoffGroups.js): one render, one frame.
+        // ⭐ (2026-11-23, next-row key profile) A HOST WHOSE GROUP SYMBOL IS IN A STORE (`selectInPress`: the board's
+        // WatchlistWidget) gets the selection BESIDE the symbol, outside the transition. That host and the charts render
+        // synchronously in this press anyway (the store), so the transition bought nothing there and cost two renders
+        // of this list per press: the selection came a render later (the `hubSym` effect below, a scheduler task) and
+        // the transition rendered once more for nothing. Both updates are now in one render, and that effect finds the
+        // two already agree. A host that keeps the symbol in React state (the breadth drill) keeps the transition.
         navPendingRef.current = { sym: nextSym, base: selectedSym }
-        startTransition(() => {
+        keyMoveRef.current = nextSym
+        if (selectInPress) {
           if (nextSym !== selectedSym) setSelectedSym(nextSym)
           setHubSym(nextSym)   // always re-assert so this widget wins the color group
-        })
+        } else {
+          startTransition(() => {
+            if (nextSym !== selectedSym) setSelectedSym(nextSym)
+            setHubSym(nextSym)   // always re-assert so this widget wins the color group
+          })
+        }
       }
     }
     // ⛔ THIS USED TO BE GATED ON `flagged.includes(selectedSym)` AND CALL
@@ -1932,7 +2020,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       toggleFlag(selectedSym)
       setFlagToast(willFlag ? 'added' : 'removed')
     }
-  }, [visibleSymsFlat, selectedSym, flagged, toggleFlag, setHubSym])
+  }, [visibleSymsFlat, selectedSym, flagged, toggleFlag, setHubSym, selectInPress])
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown)
@@ -1940,16 +2028,41 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   }, [handleKeyDown])
 
   // Scroll the active row into view when selection changes via keyboard.
+  // ⭐ (2026-11-23, next-row key profile; review of #2598) FOR AN ARROW KEY'S MOVE, IN THE NEXT ANIMATION FRAME
+  // CALLBACK. In a WatchlistWidget on /charts (the one host that passes `selectInPress`) an arrow key's selection
+  // commits in the key task itself, beside the group symbol (handleKeyDown), and this passive effect is flushed at the
+  // end of that commit; on every other host (the board's other list hosts included) it commits in a later scheduler
+  // task (the transition, or the `[hubSym]` effect below) and this effect is scheduled after it (see ScanRows' snap
+  // effect for both paths). The row lookup and `scrollIntoView` (a forced layout, then a scroll) ran here; now they
+  // run in the next frame callback registered from here (utils/afterPaintSlot.js createNextFrameSlot), where the
+  // layout is the one that frame needs anyway. Which row, and whether this widget scrolls at all, is decided here as
+  // before; any other selection (a list opened on one, a search, a symbol set from elsewhere) scrolls here exactly as
+  // before. A held key scrolls once per frame, to the newest row; an unmount, or a selection that empties, scrolls
+  // nothing. This effect also ends the key move (`keyMoveRef`) once its selection has committed: it runs after
+  // ScanRows' snap effect in the same commit, which reads it first.
   const pageRef = useRef(null)
+  const rowScrollSlotRef = useRef(null)
+  if (!rowScrollSlotRef.current) rowScrollSlotRef.current = createNextFrameSlot()
+  useEffect(() => () => rowScrollSlotRef.current.cancel(), [])
   useEffect(() => {
-    if (!selectedSym || !pageRef.current) return
+    const slot = rowScrollSlotRef.current
+    const keyMove = keyMoveRef.current != null && keyMoveRef.current === selectedSym
+    if (keyMove) keyMoveRef.current = null               // only the move this commit shows: a later one keeps its own
     // Only the active widget scrolls — otherwise all 4 watchlists force a synchronous
     // reflow on every selection change (the big cost when scanning up / wrapping).
-    if (!isActiveWidget()) return
-    const row = pageRef.current.querySelector(`[data-watch-sym="${CSS.escape(selectedSym)}"]`)
-    if (row && typeof row.scrollIntoView === 'function') {
-      row.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+    if (!selectedSym || !pageRef.current || !isActiveWidget()) { slot.cancel(); return }
+    const sym = selectedSym
+    const scroll = () => {
+      const root = pageRef.current
+      if (!root) return
+      const row = root.querySelector(`[data-watch-sym="${CSS.escape(sym)}"]`)
+      if (row && typeof row.scrollIntoView === 'function') {
+        row.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+      }
     }
+    if (keyMove) { slot.schedule(scroll); return }
+    slot.cancel()
+    scroll()
   }, [selectedSym])
 
   // Warm the WHOLE visible list up front the moment it opens/changes, so scrolling
@@ -3266,6 +3379,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                   onVisibleChange={handleListVisible(wl.id)}
                   scrollToSym={selectedSym}
                   noScrollRef={clickSelectRef}
+                  keyMoveRef={keyMoveRef}
                   measureOffset
                 />
               </>
@@ -3674,6 +3788,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
               onVisibleChange={handleScanVisible}
               scrollToSym={selectedSym}
               noScrollRef={clickSelectRef}
+              keyMoveRef={keyMoveRef}
             />
           )}
 

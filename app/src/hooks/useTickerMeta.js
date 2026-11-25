@@ -19,13 +19,25 @@ const NULLS = Object.freeze({
 const LS_PREFIX = 'tmeta:'
 const LS_TTL = 7 * 24 * 60 * 60 * 1000 // 7 days
 
+// ⭐ (2026-11-23, next-row key profile) ONE PARSE PER STORED TEXT, NOT PER READER. A symbol switch on a two-chart board
+// has four readers of the new symbol's name and sector (each chart's pane and its metadata feed), and each seeds itself
+// here in its render. The stored text is still read every time, so a changed entry is never missed (another tab, a
+// fresh answer); only an unchanged text's parse is reused. Kept for at most LS_PARSED_MAX symbols, then started over.
+const LS_PARSED_MAX = 500
+const _lsParsed = new Map()   // sym -> { raw, t, d }: the last stored text read for it, parsed
 function lsGet(sym) {
   try {
     const raw = localStorage.getItem(LS_PREFIX + sym)
     if (!raw) return undefined
-    const { t, d } = JSON.parse(raw)
-    if (!t || Date.now() - t > LS_TTL || !d) return undefined
-    return d
+    let e = _lsParsed.get(sym)
+    if (!e || e.raw !== raw) {
+      const { t, d } = JSON.parse(raw)
+      if (_lsParsed.size >= LS_PARSED_MAX) _lsParsed.clear()
+      e = { raw, t, d }
+      _lsParsed.set(sym, e)
+    }
+    if (!e.t || Date.now() - e.t > LS_TTL || !e.d) return undefined
+    return e.d
   } catch {
     return undefined // private mode / disabled storage — degrade to network fetch
   }

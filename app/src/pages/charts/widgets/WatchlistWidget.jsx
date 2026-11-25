@@ -63,7 +63,7 @@ export function watchKeyToListRef(watchKey, watchName) {
 }
 
 export default function WatchlistWidget({ color, opts, onOptsChange }) {
-  const { groupSyms, setGroupSym, groupTfs, groupTfSets, activeWatchlistRef } = useWorkspace()
+  const { groupSyms, setGroupSym, groupTfs, groupTfSets, activeWatchlistRef, groupSymsStore } = useWorkspace()
   const listSubscribeEnabled = useListSubscribeEnabled()
   // UCT frame (/charts board): the open list's name gets a ▾ list switcher (owner 11-13, option A).
   const uctFrame = useUctControlsSlot() != null
@@ -97,12 +97,16 @@ export default function WatchlistWidget({ color, opts, onOptsChange }) {
   // the cache key that chart actually reads (see ThemeTrackerPage's warmTf note).
   // `tfs` = EVERY linked chart's timeframe (a daily and an hourly chart on one colour), so the list
   // warms each of them (ChartsWorkspace registerGroupTf).
+  // `selectInPress`: on the board the group symbol is in a store (groupSymsStore), so its readers render in the
+  // press itself and the list sets its selection beside it, in the same render (Watchlists' handleKeyDown).
+  const selectInPress = !!groupSymsStore
   const scopedSymContext = useMemo(() => ({
     sym: groupSyms[color],
     setSym,
     tf: groupTfs?.[color],
     tfs: groupTfSets?.[color],
-  }), [groupSyms, groupTfs, groupTfSets, color, setSym])
+    selectInPress,
+  }), [groupSyms, groupTfs, groupTfSets, color, setSym, selectInPress])
 
   const watchKey = opts?.watchKey || null
 
