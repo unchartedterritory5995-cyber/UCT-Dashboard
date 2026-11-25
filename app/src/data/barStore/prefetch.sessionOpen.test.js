@@ -102,3 +102,27 @@ describe('(2) the session\'s first bucket (p-1 press 71, GLW 15m at 09:39)', () 
     expect(w.pf.peekDisplayable('GLWY', '15')).toBe(true)
   })
 })
+
+describe('(1c) the grace only on the server\'s proof (p-1 press 51, NXPI)', () => {
+  it('the switch\'s own answer one bucket behind, past the lag window, with no proof: never painted as "not printing"', async () => {
+    vi.setSystemTime((OPEN + 32 * 60 + 12) * 1000)       // 10:02:12, 12 s after the roll (past TAIL_LAG_WINDOW_MS)
+    const w = await boot({ modeFor: () => 'lag-noproof:42' })
+    const prep = w.pf.prepareForDisplay('NXPX', '1')
+    await w.server.drain()
+    await vi.advanceTimersByTimeAsync(2000)
+    await prep
+    const key = w.keyOf({ sym: 'NXPX', tf: '1' })
+    expect(w.store.peek(key).bars.at(-1).t).toBe(OPEN + 30 * 60)    // through 10:00: the 10:01 bar missing
+    expect(w.pf.peekDisplayable('NXPX', '1')).toBe(false)
+  })
+
+  it('...and with the proof (verified_through covers every bucket before the newest closed) the thin name paints', async () => {
+    vi.setSystemTime((OPEN + 32 * 60 + 12) * 1000)
+    const w = await boot({ modeFor: () => 'thin:1' })
+    const prep = w.pf.prepareForDisplay('THNX', '1')
+    await w.server.drain()
+    await vi.advanceTimersByTimeAsync(2000)
+    await prep
+    expect(w.pf.peekDisplayable('THNX', '1')).toBe(true)
+  })
+})

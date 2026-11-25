@@ -663,10 +663,11 @@ export function createPrefetch(o = {}) {
     //   * two buckets or more behind (a server that lags or failed, until it proves otherwise);
     //   * (above) the server itself marked the tail `unverified` (it served the store without its pending repair).
     // The press then holds at most BEHIND_HOLD_MAX_MS for its re-ask (_askOwn) and paints what it has.
-    if (n >= 2) return false
-    const tf = parseKey(key)?.tf
-    if (tf && now() - _rollMs(tf) < TAIL_LAG_WINDOW_MS) return false
-    return true
+    // ⛔ (2026-11-25) AND WITHOUT THAT PROOF, NEVER (live session-open test, p-1 press 51: at the open the server's store
+    // lagged its stream by 7-42 s, so an answer one bucket behind 8 s after the roll was the server's lag, not the name).
+    // The bucket-count fallback (one bucket behind, past TAIL_LAG_WINDOW_MS: the name not printing) is gone; only
+    // `verified_through` says a name did not trade (the server now stamps it with proof only: bars.py _apply_tail_status).
+    return false
   }
 
   /**
