@@ -1339,6 +1339,13 @@ def _local_tail_repair(ticker_up: str, tf: str, last_ts: int):
 # stored W/M tail are rebuilt from the daily rows on read and laid over the answer (`_wm_overlay`), whatever happens to
 # their write, which runs in the background, deduped, never awaited (review of #2742); `_needs_fresh` reads a stored tail
 # that holds exactly that derivation as fresh. No provider call. Rails: tests/test_bars_wm_from_live_daily.py.
+#: ⛔ (review of #2742, round 2) AT MOST THIS MANY BACKGROUND W/M WRITES AT ONCE. Uncapped, a W/M warm over 500 names
+#: started a write thread per name, all fighting for the SQLite write lock the live store's 1m/5m/D pushes use. A write
+#: that finds no slot is SKIPPED, never queued: the answer carries the derived bars anyway, and a later read writes.
+WM_WRITE_SLOTS = 2
+_WM_WRITE_SEM = _threading.BoundedSemaphore(WM_WRITE_SLOTS)
+
+
 def _wm_live_daily(ticker_up: str) -> bool:
     try:
         from api.services import bars_live_store as _bls
@@ -1409,7 +1416,7 @@ def _wm_overlay(ticker_up: str, tf: str, stored_rows: list, bars: int):
         return None
     if todo:
         _bounded_job(f"wmderive_{ticker_up}_{tf}",
-                     lambda: _sqlite.put_bars(ticker_up, tf, todo, date_tf=True), 0.0)
+                     lambda: _sqlite.put_bars(ticker_up, tf, todo, date_tf=True), 0.0, sem=_WM_WRITE_SEM)
     rows = [by[k] for k in sorted(by)]
     if bars and len(rows) > max(int(bars), len(stored_rows)):
         rows = rows[-max(int(bars), len(stored_rows)):]
