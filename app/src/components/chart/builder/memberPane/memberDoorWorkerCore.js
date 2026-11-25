@@ -24,7 +24,8 @@ import { inspectSource, inspectPine } from '../inspectSource.js'
 import { inspectLibrary } from '../libraryIntake.js'
 import { editorStatus } from '../editorStatus.js'
 import { reportForPage, stampsForCrossing } from '../inspectView.js'
-import { MEMBER_DOOR_JOB, INSPECT_JOB, INSPECT_LIBRARY_JOB, restoreFaithful, plainAnswerOf, faithfulAnswerOf } from './memberDoorProtocol.js'
+import { MEMBER_DOOR_JOB, INSPECT_JOB, INSPECT_LIBRARY_JOB, restoreFaithful, plainAnswerOf, faithfulAnswerOf, BEAT, MEMBER_DOOR_HEARTBEAT_MS } from './memberDoorProtocol.js'
+import { setWorkPulse, restartWorkPulse } from '../../engine/workPulse.js'
 
 export { MEMBER_DOOR_JOB, INSPECT_JOB, INSPECT_LIBRARY_JOB, plainAnswerOf, faithfulAnswerOf }
 // ⛔⛔ THE REGISTRATIONS A CHART PAGE MAKES WHEN IT LOADS ARE MADE HERE TOO. On the page the door's graph is
@@ -70,8 +71,27 @@ const keep = (map, key, value) => {
   while (map.size > KEEP) map.delete(map.keys().next().value)
 }
 
-/** How this worker speaks to the page unasked (the entry sets it: `self.postMessage`). */
-export function setPagePost(fn) { PAGE_POST = typeof fn === 'function' ? fn : null }
+// ─── ⭐⭐ e96 — THE HEARTBEAT: A WORKING WORKER SAYS SO (`memberDoorProtocol.js::BEAT`) ─────────────────────────────
+// A job holds this worker's thread from its start to its answer, so the page hears nothing in between unless the work
+// itself speaks. It does: `engine/workPulse.js` is driven by the work's own counted steps (the translator's step budget,
+// the door window's walks, the VM's bars) and calls `beat` at most once per `MEMBER_DOOR_HEARTBEAT_MS` of this worker's
+// clock; a job also beats once as it starts. The page treats a worker that owes an answer and has said nothing for
+// `MEMBER_DOOR_SILENCE_MS` as dead (`memberDoorAsync.js`), so a slow check is never stopped and a hung one is.
+let JOB = null                 // the job being answered: { id, t0 }
+let PULSE_CLOCK = clock
+
+function beat(t) {
+  if (!PAGE_POST) return
+  PAGE_POST({ type: BEAT, id: JOB ? JOB.id : null, ms: JOB ? Math.max(0, t - JOB.t0) : null })
+}
+
+/** How this worker speaks to the page unasked (the entry sets it: `self.postMessage`), and with it the heartbeat:
+ *  `opts.clock` / `opts.everyMs` are a rail's (default: this worker's clock, every `MEMBER_DOOR_HEARTBEAT_MS`). */
+export function setPagePost(fn, { clock: pulseClock = clock, everyMs = MEMBER_DOOR_HEARTBEAT_MS } = {}) {
+  PAGE_POST = typeof fn === 'function' ? fn : null
+  PULSE_CLOCK = typeof pulseClock === 'function' ? pulseClock : clock
+  setWorkPulse(PAGE_POST ? beat : null, { everyMs, clock: PULSE_CLOCK })
+}
 
 /** The other worker's port (the page's MessageChannel), and which side this worker is. The door's side sends its last
  *  answer again; the report's side listens. */
@@ -271,10 +291,22 @@ export function acceptPageMessage(msg) {
   return undefined
 }
 
-/** One job, by its kind (`memberDoorProtocol.js`). */
+/** One job, by its kind (`memberDoorProtocol.js`). ⭐ e96: the job beats once as it starts (the page hears that this
+ *  worker took it), then from its own steps (`beat`), each beat naming the job. */
 export function answerJobOfKind(msg) {
   const kind = msg && msg.kind
-  if (kind === INSPECT_JOB) return answerInspectJob(msg)
-  if (kind === INSPECT_LIBRARY_JOB) return answerInspectLibraryJob(msg)
-  return answerMemberDoorJob(msg)
+  let t0 = 0
+  try { t0 = PULSE_CLOCK() } catch { t0 = 0 }
+  JOB = { id: msg && msg.id, t0 }
+  try {
+    if (PAGE_POST) {
+      try { beat(t0) } catch { /* the page is gone: the job goes on */ }
+      restartWorkPulse()
+    }
+    if (kind === INSPECT_JOB) return answerInspectJob(msg)
+    if (kind === INSPECT_LIBRARY_JOB) return answerInspectLibraryJob(msg)
+    return answerMemberDoorJob(msg)
+  } finally {
+    JOB = null
+  }
 }

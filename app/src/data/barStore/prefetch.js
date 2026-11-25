@@ -509,23 +509,34 @@ export function createPrefetch(o = {}) {
    * Warm `keys` to DISPLAYABLE at `priority` (default background). Deduped within a tick,
    * skips keys a prepare owns, respects the re-ask cooldown. Resolves when every warm settles.
    */
-  function prefetch(keys, { priority = 'background', depth = 0, signal = null, warm = false, front = false } = {}) {
+  // `dwell`: the dwell's all-timeframes warm (registry `_evict`): an entry this warm MAKES is marked once it has its
+  // answer, so it goes first out of the registry once no chart shows its symbol; any other warm of the key makes it
+  // ordinary.
+  function prefetch(keys, { priority = 'background', depth = 0, signal = null, warm = false, front = false, dwell = false } = {}) {
     return Promise.all((keys || []).filter(Boolean).map(async (key) => {
-      const s0 = await _hydrate(key)
-      const full = _shortWant(key, s0)            // a short series is not warm (see SHORT_FULL_TTL_MS)
-      const flip = _flipPaints(key, s0)
-      if (!full && _satisfied(s0, DISPLAYABLE, depth) && flip) return s0
-      if (preparing.get(key) || _cooling(key, s0)) return S().peek(key) ?? s0   // s0: the LRU may have evicted it since
-      // A local copy the flip would refuse never satisfies the warm: only a server answer does
-      // (`local: false`, exactly as prepareForDisplay asks).
-      return ensure(key, { until: DISPLAYABLE, depth: Math.max(depth, full), priority, signal, warm, front, local: flip, _s0: s0 })
+      const R = S().registry
+      const made = !!dwell && !R?.has?.(key)
+      if (!dwell) R?.setDwell?.(key, false)
+      const s = await _warmOne(key, { priority, depth, signal, warm, front })
+      if (made) R?.setDwell?.(key, true)
+      return s
     }))
+  }
+  async function _warmOne(key, { priority, depth, signal, warm, front }) {
+    const s0 = await _hydrate(key)
+    const full = _shortWant(key, s0)            // a short series is not warm (see SHORT_FULL_TTL_MS)
+    const flip = _flipPaints(key, s0)
+    if (!full && _satisfied(s0, DISPLAYABLE, depth) && flip) return s0
+    if (preparing.get(key) || _cooling(key, s0)) return S().peek(key) ?? s0   // s0: the LRU may have evicted it since
+    // A local copy the flip would refuse never satisfies the warm: only a server answer does
+    // (`local: false`, exactly as prepareForDisplay asks).
+    return ensure(key, { until: DISPLAYABLE, depth: Math.max(depth, full), priority, signal, warm, front, local: flip, _s0: s0 })
   }
 
   /** Queue warms for the next microtask: one ensure per key; the best priority / depth, front
    *  if any asker wanted it, warm only if every asker sent warm (a non-warm ask is not shed). */
   const RANK = { visible: 0, urgent: 1, grid: 2, background: 3 }
-  function _defer(key, priority, { depth = 0, warm = false, front = false } = {}) {
+  function _defer(key, priority, { depth = 0, warm = false, front = false, dwell = false } = {}) {
     if (!key) return
     if (!batch) {
       batch = new Map()
@@ -536,11 +547,12 @@ export function createPrefetch(o = {}) {
       })
     }
     const have = batch.get(key)
-    if (!have) { batch.set(key, { priority, depth, warm, front }); return }
+    if (!have) { batch.set(key, { priority, depth, warm, front, dwell }); return }
     if (RANK[priority] < RANK[have.priority]) have.priority = priority
     have.depth = Math.max(have.depth, depth)
     have.warm = have.warm && warm
     have.front = have.front || front
+    have.dwell = have.dwell && dwell   // a dwell's only if every asker was the dwell
   }
 
   // ⚡ A COPY IS JUDGED ON THE CLOCK, NOT ON ITS SAVED STATUS (owner 2026-11-20: typing SPY / QQQ / IWM on a 1m
@@ -1235,15 +1247,17 @@ export function createPrefetch(o = {}) {
     _many([sym], tf, 'background', { warm: true })
   }
 
-  function prefetchBarsToIDB(tickers, tf = 'D', { priority = false, immediate = false, visible = false, showExtended } = {}) {
+  function prefetchBarsToIDB(tickers, tf = 'D', { priority = false, immediate = false, visible = false, showExtended, dwell = false } = {}) {
     if (!tickers?.length) return
     tellSymbolWarmers(tickers.filter(Boolean), tf, { priority, visible })
-    _many(tickers.filter(Boolean), tf, immediate ? 'urgent' : (visible ? 'grid' : 'background'), { warm: true, front: !!priority }, showExtended)
+    _many(tickers.filter(Boolean), tf, immediate ? 'urgent' : (visible ? 'grid' : 'background'), { warm: true, front: !!priority, dwell }, showExtended)
   }
 
+  /** The dwell's warm of every timeframe of `sym` (the watchlist, SCAN_DWELL_MS after a press): its entries go first
+   *  once no chart shows `sym` (registry `_evict`). */
   function prefetchAllTimeframes(sym) {
     if (!sym) return
-    for (const tf of ALL_TFS) prefetchBarsToIDB([sym], tf)
+    for (const tf of ALL_TFS) prefetchBarsToIDB([sym], tf, { dwell: true })
   }
 
   function prefetchListAllTimeframes(tickers, { tfs = SCAN_WARM_TFS, cap = SCAN_WARM_CAP } = {}) {

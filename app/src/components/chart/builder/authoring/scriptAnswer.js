@@ -18,15 +18,22 @@
 // The engine modules are loaded only when a script arrives (dynamic imports), so the dock's
 // first-open bytes do not grow by the Pine translator.
 //
-// ⭐⭐ (engine 94, coordinator ruling 2026-11-22, interim) — THIS CHECK RUNS ON THE PAGE'S MAIN THREAD, SO IT
-// CARRIES ITS OWN WALL CAP. The deterministic budgets took the translator's 10 s window away: a translation is bounded
-// by its step budget, and the wall clock only by last-resort stops sized in minutes for the workers every other member
-// path runs in. This check has not moved to the door's worker yet, so it passes the door API a short cap of its own
+// ⭐⭐ (2026-11-23, unit (c)) — WHERE THERE ARE WORKERS, THIS CHECK RUNS IN THEM, AND HOLDS NO PART OF THE PAGE.
+// The report, the door's build and the status are the member door's workers' (`scriptCheckOffThread.js`): the page's
+// ONE shared build of the text, PasteBox's shared report of it, and the status the report's worker makes of the two.
+// No translation, no door call and no status is computed on this thread, so the check needs no wall cap there: the
+// door is bounded by its own deadline and watchdog, and only the hub's last step by a bound of this check's
+// (`HUB_STATUS_WAIT_MS`). A fault of the window (a worker that died, a status that did not come, a door that threw) is
+// REFUSED BY NAME: "This script could not be checked here", nothing of the check kept, nothing sent back to the
+// assistant (it is a fact about this window, never about the script).
+//
+// ⭐⭐ (engine 94, coordinator ruling 2026-11-22) — WITHOUT WORKERS IT RUNS ON THIS THREAD, UNDER ITS OWN WALL CAP.
+// A host with no `Worker` (a test, the dev server) checks as it always did, and the deterministic budgets took the
+// translator's 10 s window away, so that path passes the door API a short cap of its own
 // (`engine/ast/doorDeadline.js::withMainThreadCap`, `SCRIPT_CHECK_CAP_MS`, the old window's 10 s) over the whole
-// main-thread part of the check (the report, the door, the status). Past it the check is REFUSED BY NAME: "This
-// script could not be checked here", with the cap said in a line, nothing of the check kept, nothing sent back to the
-// assistant (a cap is a fact about this window, never about the script). Moving the check to the door's worker
-// removes the cap. Rails: `scriptCheckCap.test.js`. (The cap's module is loaded with the engine, never at first open.)
+// main-thread part of the check (the report, the door, the status). Past it the check is refused by the same name,
+// with the cap said in a line. Rails: `scriptCheckCap.test.js`. (The cap's module is loaded with the engine, never at
+// first open.)
 
 /** The authoring check's main-thread cap, in ms: the translator's old 10 s window (see the note above). */
 export const SCRIPT_CHECK_CAP_MS = 10000
@@ -36,6 +43,10 @@ export const UNCHECKED_HEADLINE = 'This script could not be checked here'
 export const SCRIPT_CHECK_CAPPED_LINE = `Checking it here took longer than ${SCRIPT_CHECK_CAP_MS / 1000} seconds, and this `
   + 'window stops a check that long rather than hold the page. That is a limit of this window, not a mistake in the '
   + 'script: open it in the editor to check it there.'
+/** What the member reads under that headline when the workers' check did not finish (the status of the script's
+ *  report and build did not come within the hub's bound, `scriptCheckOffThread.js::HUB_STATUS_WAIT_MS`). */
+export const SCRIPT_CHECK_UNFINISHED_LINE = 'The check of this script did not finish in this window. That is a limit of '
+  + 'this window, not a mistake in the script: open it in the editor to check it there.'
 const wallNow = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now())
 
 /** The most times one request's script is sent back for repair (the server holds the same bound). */
@@ -122,9 +133,10 @@ export function sameRefusals(a, b) {
  * @param {object} [deps]  injectable for tests: `{ load }` returns the engine modules; `capClock` the wall clock the
  *                         main-thread cap is read on
  */
-export async function checkScript(pine, { load = loadEngine, chart = null, admission = null, capClock = wallNow } = {}) {
+export async function checkScript(pine, { load = loadEngine, chart = null, admission = null, capClock = wallNow, cancelled = () => false } = {}) {
   try {
-    const { inspectSource, memberPaneDefinition, editorStatus, prepare, runHereWhenLanded, verdictOnChart, consultPending, pendingReason } = await load()
+    const { inspectSource, memberPaneDefinition, editorStatus, prepare, runHereWhenLanded, verdictOnChart, consultPending, pendingReason,
+      judgeOffThread } = await load()
     // (why the server is still checking, when it said: kept on a verdict that is only CHECKING, nowhere else)
     const withReason = (v) => {
       if (!isChecking(v)) return v
@@ -132,22 +144,31 @@ export async function checkScript(pine, { load = loadEngine, chart = null, admis
       return PENDING_REASON_LINES[reason] ? { ...v, pendingReason: reason } : v
     }
     await prepare(pine, admission)
-    // ⭐⭐ ONE CAP over the main-thread part of the check (see the note at the top): past it, refused by name, nothing kept
-    const { withMainThreadCap } = await import('../../engine/ast/doorDeadline.js')
-    const checked = withMainThreadCap(SCRIPT_CHECK_CAP_MS, () => {
-      const report = inspectSource(pine, 'pine')
-      const pane = memberPaneDefinition({ source: pine, id: SCRIPT_CHECK_ID, name: 'script' })
-      return { pane, status: editorStatus({ report, pane, savedRow: null, inspectedSource: pine }) }
-    }, capClock)
-    if (checked.capped) return cappedVerdict()
-    const { pane } = checked.value
-    const pasted = verdictFrom(checked.value.status, pane)
+    // ⭐⭐ IN THE WORKERS, where there are workers (`scriptCheckOffThread.js`): the page's shared build, the shared
+    // report and the status the report's worker made of them. Null: no workers here, the check runs on this thread.
+    const off = typeof judgeOffThread === 'function' ? await judgeOffThread(pine, { cancelled }) : null
+    if (off && off.unchecked) return off.because === 'status' ? unfinishedVerdict() : uncheckedVerdict()
+    let judged = off
+    if (!judged) {
+      // ⭐⭐ ONE CAP over the main-thread part of the check (see the note at the top): past it, refused by name, nothing kept
+      const { withMainThreadCap } = await import('../../engine/ast/doorDeadline.js')
+      const checked = withMainThreadCap(SCRIPT_CHECK_CAP_MS, () => {
+        const report = inspectSource(pine, 'pine')
+        const pane = memberPaneDefinition({ source: pine, id: SCRIPT_CHECK_ID, name: 'script' })
+        return { pane, status: editorStatus({ report, pane, savedRow: null, inspectedSource: pine }) }
+      }, capClock)
+      if (checked.capped) return cappedVerdict()
+      judged = { ...checked.value, consultPending: typeof consultPending === 'function' && consultPending(pine) }
+    }
+    const { pane } = judged
+    const pasted = verdictFrom(judged.status, pane)
     // ⛔ A VERDICT MADE WHILE THE CHART DOES NOT KNOW WHETHER IT MAY DRAW THE SCRIPT IS NOT A REFUSAL (review
     // 2026-11-19). The bar-by-bar lane declines a script whose admission has not answered (the server said
     // "still being checked", or the question failed); the paste check then reads "does not run", with the
     // lane's own "still being checked" sentence as its reason, and that went to the assistant for a repair of
     // a script that was fine. Nothing is known yet: it is CHECKING, and is asked again.
-    if (!pasted.runs && typeof consultPending === 'function' && consultPending(pine)) {
+    // (whether a consult the BUILD made left the script unanswered: read where the build ran, right after it)
+    if (!pasted.runs && judged.consultPending === true) {
       return withReason({ ...pasted, checking: true, headline: STILL_CHECKING_HEADLINE, errors: [] })
     }
     // ⭐⭐ 2026-11-19 -- "RUNS" MEANS IT RAN. The status above is decided before any bar is computed, and
@@ -164,9 +185,20 @@ export async function checkScript(pine, { load = loadEngine, chart = null, admis
     const run = await runHereWhenLanded(pane, chart, { timeoutMs: RUN_WAIT_MS })
     return withReason(verdictOnChart(pasted, run, SCRIPT_REFUSAL_LIMITS))
   } catch {
-    return { runs: false, attaches: false, state: UNCHECKED_STATE, lane: 'host', headline: UNCHECKED_HEADLINE,
-      withheld: [], notes: [], errors: [] }
+    return uncheckedVerdict()
   }
+}
+
+/** The verdict of a check this window could not make: refused by name, nothing of the check kept, and nothing for the
+ *  assistant to repair (`errors` empty: `refusalOf` sends nothing). */
+function uncheckedVerdict() {
+  return { runs: false, attaches: false, state: UNCHECKED_STATE, lane: 'host', headline: UNCHECKED_HEADLINE,
+    withheld: [], notes: [], errors: [] }
+}
+
+/** The verdict of a workers' check whose status did not come in time: the same refusal, with why said in a line. */
+function unfinishedVerdict() {
+  return { ...uncheckedVerdict(), notes: [SCRIPT_CHECK_UNFINISHED_LINE], unfinished: true }
 }
 
 /** The verdict of a check whose main-thread cap ran out: refused by name, the cap said, nothing of the check kept, and
@@ -208,11 +240,14 @@ export const SCRIPT_CHECK_ID = 'u_script_check'
 
 /** The engine modules, loaded on first use, and what must be read before a script is judged. */
 async function loadEngine() {
-  const [pineBox, paneDef, status, kill, gate, here] = await Promise.all([
+  const [pineBox, paneDef, status, kill, gate, here, offThread] = await Promise.all([
     import('../PineBox'), import('../memberPane/memberPaneDefinition'), import('../editorStatus'),
     import('../../engine/runtimeKill'), import('../../engine/runtimePaneGate'), import('../runsHere'),
+    import('./scriptCheckOffThread'),
   ])
   return {
+    // the check in the member door's workers (null where there are none: the three below run it on this thread)
+    judgeOffThread: offThread.judgeOffThread,
     runHereWhenLanded: here.runHereWhenLanded,
     verdictOnChart: here.verdictOnChart,
     // whether the lane decided THIS script with no admission verdict in hand (`engine/runtimeKill.js`)
@@ -325,14 +360,15 @@ async function pause(ms, cancelled) {
  * re-check and ends the pause.
  */
 async function settledVerdict(check, script, { wait, budget, cancelled }) {
-  // (the script itself rides along: its admission verdict came in the same answer, and is THIS script's only)
-  let verdict = await check(script.pine, script)
+  // (the script itself rides along: its admission verdict came in the same answer, and is THIS script's only; and
+  // `cancelled`, so a check waiting on a worker ends when the member presses Stop: a build nobody reads is stopped)
+  let verdict = await check(script.pine, script, { cancelled })
   while (budget.left > 0 && isChecking(verdict) && !cancelled()) {
     if (PENDING_REASONS_THAT_END_THE_WAIT.includes(verdict.pendingReason)) break
     budget.left -= 1
     await wait(PENDING_RECHECK_MS, cancelled)
     if (cancelled()) break
-    verdict = await check(script.pine, script)
+    verdict = await check(script.pine, script, { cancelled })
   }
   return verdict
 }
@@ -354,7 +390,7 @@ export function scriptNeedsFixing(script) {
  * @returns {Promise<{entry: object, rounds: number, verdict: object}>}
  */
 /** The default check: this window's engine, with the admission verdict the script's own answer carried. */
-const checkWithItsAdmission = (pine, script) => checkScript(pine, { admission: script && script.admission })
+const checkWithItsAdmission = (pine, script, { cancelled } = {}) => checkScript(pine, { admission: script && script.admission, cancelled })
 
 export async function settleScript(first, repair, { check = checkWithItsAdmission, wait = pause, cancelled = () => false } = {}) {
   const stopped = () => { try { return cancelled() === true } catch { return false } }

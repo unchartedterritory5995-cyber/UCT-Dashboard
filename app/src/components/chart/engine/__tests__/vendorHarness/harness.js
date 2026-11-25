@@ -105,6 +105,15 @@ export function paintsGraded(opts = {}) {
   return process.env.VENDOR_HARNESS_PAINTS !== '0'
 }
 
+/** ⭐⭐ e96 — BANDS (`hline`) ARE PART OF THE VERDICT, ON BY DEFAULT, where the capture recorded them
+ *  (`compare.mjs::compareBands`). Same contract as `paintsGraded`: `gradeCapture(c, {bands: false})`, or
+ *  `VENDOR_HARNESS_BANDS=0` for a whole run, reproduces the verdict as it was before; every graded verdict also
+ *  carries `verdictWithoutBands`. Read at call time, so a test may stub the variable. */
+export function bandsGraded(opts = {}) {
+  if (opts.bands !== undefined) return !!opts.bands
+  return process.env.VENDOR_HARNESS_BANDS !== '0'
+}
+
 /** Grade one capture object.
  *  @param {{objectColour?: boolean, paints?: boolean}} [opts] */
 export function gradeCapture(original, opts = {}) {
@@ -135,7 +144,8 @@ export function gradeCapture(original, opts = {}) {
     && ours && ours.ok && ours.objects && ours.objects.ok && Array.isArray(ours.objects.held)
     ? pairRecords(capture, ours.objects)
     : null
-  const indicator = compareCapture(capture, ours, { integrity, objectColours, paints, supplyAttribution, otherSymbolUnsettled, supplyBehind, objectRecords })
+  const bands = bandsGraded(opts) && ours && ours.ok && Array.isArray(ours.bands) ? ours.bands : null
+  const indicator = compareCapture(capture, ours, { integrity, objectColours, paints, bands, supplyAttribution, otherSymbolUnsettled, supplyBehind, objectRecords })
   // ⭐⭐ THE STRATEGY GRADE, FOLDED IN where the capture holds a Strategy Tester report or our door ran a
   // broker document (`strategyLane.js`, THE FOLD); null, and the verdict unchanged, everywhere else
   const strategy = integrity.ok ? strategyLaneGradeOf(capture, ours, { unrun }) : null

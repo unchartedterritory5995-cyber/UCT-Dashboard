@@ -35,14 +35,24 @@
 //     that never asks the clock) is terminated, and the script refused with the deadline's own answer;
 //   · a worker that DIES (an error it did not catch, an answer it could not post or this side cannot read, a
 //     worker that would not start) is terminated and the script refused by name (`MEMBER_DOOR_WORKER_GUARD`);
-//   · a door that THREW is said to each consumer in its own words, as it always was.
+//   · a door that THREW is said to each consumer in its own words, as it always was;
+//   · ⭐⭐ (e96) THE SILENCE BOUND: a worker that owes an answer (a job, or an ask) and has sent NOTHING for
+//     `MEMBER_DOOR_SILENCE_MS` is dead. A working worker beats at least every `MEMBER_DOOR_HEARTBEAT_MS` from its own
+//     counted steps (`memberDoorProtocol.js::BEAT`, `engine/workPulse.js`), so only a hung one goes quiet. It is
+//     terminated and replaced, the job refused by name (`MEMBER_DOOR_SILENT_GUARD`, the one sentence
+//     `doorSilentSentence`), and every ask it owed answered null: nothing is left spinning. The 25-minute deadline and
+//     its watchdog stay the budget for real work, which beats all the way.
+//   · ⭐⭐ (e96 train) THE SILENCE BOUND STARTS AT THE WORKER'S FIRST WORD: a fresh worker is still LOADING its bundle
+//     until it says anything, and a slow connection is not a hung check. Until its first word the separate, generous
+//     LOAD BOUND (`MEMBER_DOOR_LOAD_MS`) applies; a worker that never speaks in it is stopped by name as a check that
+//     did not start (`MEMBER_DOOR_WORKER_GUARD`), never as silent.
 // ⛔ WITHOUT `Worker` (tests, a non-browser host) the build runs here, synchronously, as it always did (still
 // once per script and state).
 import {
   memberPaneDefinition, doorAnswer, MEMBER_DOOR_BUDGET_MS, MEMBER_PANE_DEF_PREFIX, warmRuntimeLane,
 } from './memberPaneDefinition'
 import { memberDoorImage, memberDoorStateVersion } from './memberDoorImage'
-import { MEMBER_DOOR_JOB, restoreFaithful } from './memberDoorProtocol'
+import { MEMBER_DOOR_JOB, restoreFaithful, BEAT } from './memberDoorProtocol'
 import { replayRuntimeConsults, runtimeConsultPendingOf } from '../../engine/runtimeKill'
 
 /** How long past the door's own deadline a silent worker is given (its bundle load included) before the
@@ -78,6 +88,46 @@ export function doorWorkerFailedAnswer(why) {
   }
 }
 
+/** ⭐⭐ e96 — THE SILENCE BOUND (coordinator ruling 2026-11-23): how long a worker that owes an answer may send nothing
+ *  (no heartbeat, no answer) before it is taken for dead, in ms. Six heartbeats (`MEMBER_DOOR_HEARTBEAT_MS`). It also
+ *  covers a fresh worker's bundle load before its first job's first beat, and a stretch of work no step loop counts: the
+ *  longest known is one parse of a printed formula (jsep, untickable), ~0.3 s of a ~19 s door call on the synthetic chain
+ *  of `doorDeadline.test.js`, depth 17. Both double per line of the chain; IF that 1/60 share holds deeper (not measured
+ *  past depth 17), a call that fits the 25-minute deadline stays under this bound. ⛔ Lowering it kills slow scripts
+ *  that are working: a ruling, not a tuning. */
+export const MEMBER_DOOR_SILENCE_MS = 30000
+
+/** ⭐⭐ e96 (train, coordinator follow-up 2026-11-23) — THE LOAD BOUND: how long a FRESH worker may take to say its first
+ *  word, in ms. Its first word comes once its bundle is fetched, parsed and run (then the first job's start beat). THE
+ *  SILENCE BOUND STARTS ONLY AFTER THAT FIRST WORD: a worker still loading is not silent. The production worker is about
+ *  2.6 MB, and on a slow connection its load alone can pass 30 s, so this bound is separate and generous: 5 minutes,
+ *  2.6 MB at about 70 kbit/s. It runs once per worker, from when that worker first owes an answer (a later ask does not
+ *  restart it). A worker that says nothing in it is stopped as a check that DID NOT START (`MEMBER_DOOR_WORKER_GUARD`,
+ *  `doorNotLoadedWhy`), never as "silent". */
+export const MEMBER_DOOR_LOAD_MS = 5 * 60 * 1000
+
+/** Why a check whose worker never said a word within the load bound stopped (`doorWorkerFailedAnswer`'s clause). */
+export function doorNotLoadedWhy(loadMs = MEMBER_DOOR_LOAD_MS) {
+  const s = Math.round(loadMs / 1000)
+  return `it did not start within ${s % 60 === 0 ? `${s / 60} minute${s === 60 ? '' : 's'}` : `${s} seconds`}`
+}
+
+/** The guard a job is refused by when its worker went silent. */
+export const MEMBER_DOOR_SILENT_GUARD = 'pine:door-silent'
+
+/** ⭐ THE ONE SENTENCE a member reads when the background check went silent (the chart door's refusal, the report's
+ *  fault, the several-scripts summary's error): every surface says this, and only this. */
+export function doorSilentSentence(silenceMs = MEMBER_DOOR_SILENCE_MS) {
+  return `The background check of this script stopped responding (nothing from it for ${Math.round(silenceMs / 1000)} seconds), `
+    + 'so it was stopped and nothing is guessed in its place; reloading the page starts a fresh check.'
+}
+
+/** The chart door's answer when its worker went silent: refused by name, and marked as a fact about the CHECK
+ *  (`DOOR_WORKER_STOPPED`), never about the script. */
+export function doorWorkerSilentAnswer(silenceMs = MEMBER_DOOR_SILENCE_MS) {
+  return { ...refusal(doorSilentSentence(silenceMs), MEMBER_DOOR_SILENT_GUARD), [DOOR_WORKER_STOPPED]: true }
+}
+
 /** What a member reads on the member pane when the door threw while building the script. */
 export function doorFailedAnswer(message) {
   return refusal(`this script is not drawn: checking it failed inside this engine (${String(message || 'no message')}). `
@@ -106,6 +156,9 @@ const defaultFactory = () => new Worker(new URL('./memberDoorWorker.js', import.
 function mark(kind, event) {
   try { if (typeof performance !== 'undefined' && typeof performance.mark === 'function') performance.mark(`uct-worker-job:${kind}:${event}`) } catch { /* no timeline here */ }
 }
+
+/** The page's clock for how long a check has run (`sinceOf`): the wall clock, which a rail's fake timers drive. */
+const pageNow = () => Date.now()
 
 /** A consult the worker sent with its source as a mark (`{job: true}`) gets the job's source back. */
 function expandConsults(list, source) {
@@ -154,6 +207,8 @@ function doorJob(budgetMs) {
       return { built: null, error: { message: (reply.error && reply.error.message) || 'no message' }, consultPending: false, offThread: true }
     },
     failed: (why) => ({ built: doorWorkerFailedAnswer(why), error: null, consultPending: false, offThread: true }),
+    // ⛔ e96 — THE SILENCE BOUND'S ANSWER: the worker went quiet while it owed this build (`MEMBER_DOOR_SILENT_GUARD`)
+    silent: (entry, version, silenceMs) => ({ built: doorWorkerSilentAnswer(silenceMs), error: null, consultPending: false, offThread: true }),
     // ⛔ THE WATCHDOG'S ANSWER: the deadline's own, by name (`pine:timeout`), as a deadline the worker saw would give
     timedOut: () => ({ built: doorAnswer({ value: null, tripped: true }, budgetMs), error: null, consultPending: false, offThread: true }),
   }
@@ -165,28 +220,35 @@ function doorJob(budgetMs) {
  * @param {(() => Worker)|null} [opts.factory] a worker factory (a rail's stand-in); default: the real worker
  *        where a browser has workers, else none (the build runs on this thread, as before)
  * @param {number} [opts.watchdogMs] how long a build may go unanswered before its worker is stopped
+ * @param {number} [opts.silenceMs] how long a worker that owes an answer may send nothing before it is taken for dead
+ *        (from its first word: before it, the worker is loading)
+ * @param {number} [opts.loadMs] how long a fresh worker may take to say its first word (its bundle's load)
  * @param {number} [opts.budgetMs] the door deadline the watchdog's refusal names
  * @param {() => string} [opts.version] the state a build is made in (`memberDoorStateVersion`)
+ * @param {() => number} [opts.now] the page's clock a build's start is read on (`sinceOf`)
  * @returns {{subscribe: Function, stats: () => object, dispose: () => void, offThread: boolean}}
  *   `subscribe(args, onAnswer)` -> `release()`. `onAnswer(landed)` gets `{built, error, consultPending,
  *   offThread, ms}`: `built` the door's answer (null when the door threw, `error` then holds `{message}`),
  *   `consultPending` whether a consult the build made left the script "still being checked".
  */
 export function createMemberDoorService({ factory = null, watchdogMs = MEMBER_DOOR_WATCHDOG_MS,
-  budgetMs = MEMBER_DOOR_BUDGET_MS, version = memberDoorStateVersion } = {}) {
-  return createKeyedWorkerService({ job: doorJob(budgetMs), factory, watchdogMs, version })
+  silenceMs = MEMBER_DOOR_SILENCE_MS, loadMs = MEMBER_DOOR_LOAD_MS, budgetMs = MEMBER_DOOR_BUDGET_MS,
+  version = memberDoorStateVersion, now = pageNow } = {}) {
+  return createKeyedWorkerService({ job: doorJob(budgetMs), factory, watchdogMs, silenceMs, loadMs, version, now })
 }
 
 /**
  * ⭐⭐ ONE KEYED, SHARED, OFF-THREAD COMPUTATION PER (ARGS, PAGE STATE): the member door's service, for any job the
  * member door's worker answers (`memberDoorProtocol.js`). `job` names what is the job's own: its message `kind`, its
  * `keyOf(args)` and `argsOf(args)`, how it runs on this thread where there are no workers (`runHere(args)`), what a
- * reply lands as (`fromReply(reply, entry)`), and what a member reads when the worker died (`failed(why, entry)`) or
- * the watchdog stopped it (`timedOut(entry)`). The consults a job made are replayed here, in order, before anyone reads
- * its answer. Each service holds its OWN worker, so two services compute at once.
+ * reply lands as (`fromReply(reply, entry)`), and what a member reads when the worker died (`failed(why, entry)`),
+ * went silent (`silent(entry, version, silenceMs)`; default: `failed` with the silence sentence) or the watchdog
+ * stopped it (`timedOut(entry)`). The consults a job made are replayed here, in order, before anyone reads its answer.
+ * Each service holds its OWN worker, so two services compute at once.
  */
 export function createKeyedWorkerService({ job, factory = null, watchdogMs = MEMBER_DOOR_WATCHDOG_MS,
-  version = memberDoorStateVersion, onMessage = null } = {}) {
+  silenceMs = MEMBER_DOOR_SILENCE_MS, loadMs = MEMBER_DOOR_LOAD_MS, version = memberDoorStateVersion, onMessage = null,
+  now = pageNow } = {}) {
   const workerListeners = new Set()   // told of every worker this service starts, and when it has none
   const told = (w) => { for (const fn of [...workerListeners]) { try { fn(w) } catch { /* a listener's fault */ } } }
   const offThread = !!factory || (browserCanWork() && !devServer())
@@ -200,12 +262,81 @@ export function createKeyedWorkerService({ job, factory = null, watchdogMs = MEM
   let idle = null
   const asks = new Map()      // askId -> { msg, resolve, posted }: messages the worker answers by `askId` (`ask`)
   let nextAskId = 1
-  const counts = { builds: 0, posted: 0, answered: 0, shared: 0, superseded: 0, stopped: 0, watchdog: 0, died: 0, threw: 0, spawned: 0, relatched: 0 }
+  let silence = null          // ⭐ e96: the silence bound's timer, armed while the worker owes an answer (`listen`)
+  let spoke = null            // ⭐ e96 train: the worker that has said its first word (it has loaded), or null
+  let loading = null          // ⭐ e96 train: the load bound's timer, armed once per worker until its first word
+  const counts = { builds: 0, posted: 0, answered: 0, shared: 0, superseded: 0, stopped: 0, watchdog: 0, died: 0, threw: 0, spawned: 0, relatched: 0, silent: 0, beats: 0, unloaded: 0 }
+  const silentOf = typeof job.silent === 'function'
+    ? job.silent
+    : (entry, v, ms) => job.failed(doorSilentSentence(ms), entry, v)
+
+  // ─── ⭐⭐ e96 — THE SILENCE BOUND ───────────────────────────────────────────────────────────────────────────────
+  /** Does the worker owe an answer: a build it is running, or an ask posted to it? */
+  function owes() {
+    if (!worker) return false
+    if (running) return true
+    for (const a of asks.values()) if (a.posted === worker) return true
+    return false
+  }
+
+  /** (Re)starts the silence bound from now while the worker owes an answer; stops it when it owes none. Every word from
+   *  the worker (a heartbeat, a status, an answer) calls this, so only a worker that says NOTHING for `silenceMs` trips it.
+   *  ⭐⭐ e96 train: only a worker that has SPOKEN (`spoke`, its first word: it has loaded). Before that the load bound
+   *  runs instead, ONCE per worker from when it first owes an answer (a later ask or job does not restart it). */
+  function listen() {
+    if (silence !== null) { clearTimeout(silence); silence = null }
+    if (!owes()) { stopLoading(); return }
+    const w = worker
+    if (spoke !== w) {   // still loading: the load bound, never the silence bound
+      if (loading === null) loading = setTimeout(() => { loading = null; onNotLoaded(w) }, loadMs)
+      return
+    }
+    silence = setTimeout(() => { silence = null; onSilent(w) }, silenceMs)
+  }
+
+  function stopLoading() {
+    if (loading !== null) { clearTimeout(loading); loading = null }
+  }
+
+  /** ⛔ A FRESH WORKER THAT OWED AN ANSWER AND NEVER SAID A WORD WITHIN `loadMs` DID NOT START: terminated, the build it
+   *  owed refused by name as a check that stopped (`job.failed`, `MEMBER_DOOR_WORKER_GUARD`: "it did not start within
+   *  5 minutes"), never as silent; every ask it owed answered null. The next build or ask starts a fresh worker. */
+  function onNotLoaded(w) {
+    if (w !== worker || spoke === w || !owes()) return
+    counts.unloaded += 1
+    mark(job.kind, 'unloaded')
+    const r = running
+    kill()
+    const owed = [...asks.values()]
+    asks.clear()
+    for (const a of owed) a.resolve(null)
+    if (r) finish(r, job.failed(doorNotLoadedWhy(loadMs), r.entry, r.version))
+    idleLater()
+  }
+
+  /** ⛔ A WORKER THAT OWED AN ANSWER AND SAID NOTHING FOR `silenceMs` IS DEAD: terminated, the build it owed refused by
+   *  name (`silent`), every ask it owed answered null (its caller falls back), and a fresh worker put in its place, so
+   *  nothing is left spinning and nothing more is asked of the silent one. */
+  function onSilent(w) {
+    if (w !== worker || !owes()) return
+    counts.silent += 1
+    mark(job.kind, 'silent')
+    const r = running
+    kill()
+    for (const [askId, a] of [...asks]) { asks.delete(askId); a.resolve(null) }
+    if (r) finish(r, silentOf(r.entry, r.version, silenceMs))
+    // ⭐ REPLACED: the next build or ask goes to a fresh worker (`finish` may have started one already)
+    if (!worker) spawn()   // (the replacement)
+    idleLater()
+  }
 
   function kill() {
     const w = worker
     worker = null
     workerPermitted = null
+    spoke = null
+    if (silence !== null) { clearTimeout(silence); silence = null }
+    stopLoading()
     if (!w) return
     told(null)
     w.onmessage = null
@@ -227,6 +358,8 @@ export function createKeyedWorkerService({ job, factory = null, watchdogMs = MEM
   function land(entry, v, landed) {
     if (landed && landed.offThread) mark(job.kind, 'land')
     entry.landed = { ...landed, version: v }
+    // ⭐ e96: the check of what it wants is over (`sinceOf`); an answer for an older state leaves it running
+    if (v === entry.want) entry.since = null
     for (const fn of [...entry.subs]) fn(entry.landed)
   }
 
@@ -256,6 +389,7 @@ export function createKeyedWorkerService({ job, factory = null, watchdogMs = MEM
       if (a.posted === worker) continue
       try { worker.postMessage(a.msg); a.posted = worker } catch { /* the next worker is sent it */ }
     }
+    listen()
   }
 
   /** Nobody subscribes and nothing is owed: the idle worker is let go after a while. */
@@ -266,14 +400,30 @@ export function createKeyedWorkerService({ job, factory = null, watchdogMs = MEM
   }
 
   function onReply(w, reply) {
+    // (a word from a worker this service has stopped is nobody's)
+    if (w !== worker) return
+    // ⭐⭐ e96 train — ITS FIRST WORD: the worker has loaded; from now on its silence is counted (`listen`)
+    if (spoke !== w) { spoke = w; stopLoading() }
+    try {
+      answerOf(w, reply)
+    } finally {
+      // ⭐⭐ e96 — ANY WORD FROM THE WORKER IS A SIGN OF LIFE: the silence bound starts again from now while it still owes
+      // an answer (and stops once it owes none)
+      if (w === worker) listen()
+    }
+  }
+
+  function answerOf(w, reply) {
+    // ⭐ e96 — a heartbeat (`memberDoorProtocol.js::BEAT`): the worker is working; it says nothing else
+    if (reply && reply.type === BEAT) { counts.beats += 1; return }
     // ⭐ an answer to an ask (`ask`), by its id
-    if (w === worker && reply && reply.type === 'ask-answer') {
+    if (reply && reply.type === 'ask-answer') {
       const a = asks.get(reply.askId)
       if (a) { asks.delete(reply.askId); a.resolve(reply); idleLater() }
       return
     }
     // ⭐ a message the worker sends unasked (the hub's status), not a reply to a job
-    if (w === worker && reply && typeof reply.type === 'string') { if (onMessage) onMessage(reply); return }
+    if (reply && typeof reply.type === 'string') { if (onMessage) onMessage(reply); return }
     const r = running
     if (w !== worker || !r || !reply || reply.id !== r.id) return
     // ⭐ what the build did to the page, done on the page, in order, before anyone reads the answer
@@ -321,6 +471,8 @@ export function createKeyedWorkerService({ job, factory = null, watchdogMs = MEM
     }
     counts.builds += 1
     const v = entry.want
+    // ⭐ e96: when the check of what this entry wants began (kept through a restart; cleared when it lands, `land`)
+    if (entry.since == null) entry.since = now()
     if (!offThread) {
       land(entry, v, job.runHere(entry.args, entry, v))
       return
@@ -362,6 +514,10 @@ export function createKeyedWorkerService({ job, factory = null, watchdogMs = MEM
       kill()
       finish(r, job.timedOut(r.entry, r.version))
     }, watchdogMs)
+    // ⭐⭐ e96 — the bounds run from the post: a fresh worker's first word (its load, then the job's first beat) is owed
+    // within the load bound (`loadMs`); a worker that has spoken owes its next word within `silenceMs`, and every word
+    // starts that again (`onReply`)
+    listen()
   }
 
   function subscribe(args, onAnswer) {
@@ -370,7 +526,7 @@ export function createKeyedWorkerService({ job, factory = null, watchdogMs = MEM
     const v = version()
     let entry = entries.get(key)
     if (!entry) {
-      entry = { key, args: job.argsOf(args || {}), want: v, landed: null, subs: new Set(), asked: 0 }
+      entry = { key, args: job.argsOf(args || {}), want: v, landed: null, subs: new Set(), asked: 0, since: null }
       entries.set(key, entry)
     }
     entry.asked = ++asked
@@ -424,18 +580,30 @@ export function createKeyedWorkerService({ job, factory = null, watchdogMs = MEM
 
   function dispose() {
     if (idle !== null) { clearTimeout(idle); idle = null }
+    if (silence !== null) { clearTimeout(silence); silence = null }
+    stopLoading()
     stopRunning()
     entries.clear()
     for (const a of asks.values()) a.resolve(null)
     asks.clear()
   }
 
+  /** ⭐ e96 — when the check of `key` (a `keyOf` value) that is still owed began, on the page's clock (`now`), or null
+   *  (none held, or its answer is of the state it wants). What the "Checking your script... 0:42" line counts from. */
+  function sinceOf(key) {
+    const e = typeof key === 'string' ? entries.get(key) : null
+    if (!e || e.since == null || (e.landed && e.landed.version === e.want)) return null
+    return e.since
+  }
+
   return {
     subscribe,
     dispose,
-    stats: () => ({ ...counts, busy: !!running, alive: !!worker, held: entries.size }),
+    stats: () => ({ ...counts, busy: !!running, alive: !!worker, held: entries.size, listening: silence !== null,
+      loading: loading !== null }),
     offThread,
     keyOf: job.keyOf,
+    sinceOf,
     /** ⭐ THE HUB: `fn(worker | null)` on every worker this service starts, and when it has none; returns the unsubscribe. */
     onWorker(fn) { workerListeners.add(fn); if (worker) fn(worker); return () => workerListeners.delete(fn) },
     ask,

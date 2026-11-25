@@ -27,9 +27,9 @@
   "builtin": {
    "scripts": 142,
    "admitted": 116,
-   "runtimeLane": 29,
-   "hostLane": 70,
-   "refused": 17,
+   "runtimeLane": 28,
+   "hostLane": 72,
+   "refused": 16,
    "coreOnly": 30
   }
  },
@@ -17916,7 +17916,7 @@
   },
   {
    "key": "builtin:bollinger-bars__Bollinger1Ba",
-   "lane": null,
+   "lane": "host",
    "guard": null,
    "declined": null,
    "caps": [
@@ -18030,7 +18030,7 @@
   },
   {
    "key": "builtin:connors-rsi__Connors_RSI",
-   "lane": "runtime",
+   "lane": "host",
    "guard": null,
    "declined": null,
    "caps": [
