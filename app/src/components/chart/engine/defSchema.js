@@ -3219,6 +3219,12 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors, presentationKe
       `${path}.fill: expected {with: "<plotKey>"} naming the plot this one fills to, got ${fmt(plot.fill)}`,
     )
   }
+  // ⭐ e97 U7 — `fill.hiddenWhen`: the BAND hidden as the instance's settings decide, by the same knob-test grammar a
+  // plot's `hiddenWhen` holds (`hiddenWhenProblem`, mirrored by `presentation_schema.py::_check_hidden_when`)
+  if (isPlainObject(plot.fill) && plot.fill.hiddenWhen !== undefined) {
+    const why = hiddenWhenProblem(plot.fill.hiddenWhen)
+    if (why) errors.push(`${path}.fill.hiddenWhen: ${why}`)
+  }
   // ⭐ 2026-10-01 — `sparse`: this plot is BLANK BY DESIGN on some bars
   // (SuperTrend's up and down halves, each drawn only while its trend holds). A
   // sparse connected line is drawn as one render series per valued run — the
@@ -4115,6 +4121,12 @@ function validatePaints(paints, columnKeys, errors) {
     // ⭐ F1 — render-time placement (`binder.js::paintRenderColours`).
     if (p.offset !== undefined && !Number.isInteger(p.offset)) errors.push(`${path}.offset: expected a whole number, got ${fmt(p.offset)}`)
     if (p.showLast !== undefined && !(Number.isInteger(p.showLast) && p.showLast >= 0)) errors.push(`${path}.showLast: expected a non-negative whole number, got ${fmt(p.showLast)}`)
+    // ⭐ e97 U7 — `hiddenWhen`: the paint drawn only while the instance's settings show it (`knobBind.js::plotHiddenAt`),
+    // the knob-test grammar and nothing else (`hiddenWhenProblem`)
+    if (p.hiddenWhen !== undefined) {
+      const why = hiddenWhenProblem(p.hiddenWhen)
+      if (why) errors.push(`${path}.hiddenWhen: ${why}`)
+    }
     if (p.colorMode === undefined) {
       if (!isColour(p.color)) errors.push(`${path}: a paint must declare a colour (color, or colorMode "column:<key>")`)
       return

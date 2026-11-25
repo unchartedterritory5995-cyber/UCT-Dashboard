@@ -301,6 +301,23 @@ function colourWithheldNotes(rows) {
   return out
 }
 
+/** ⭐ e97 U7 — each `hline` the TRANSLATION could not read (`presentation.levelsWithheld`), in the translation's own
+ *  words. ONE sentence-maker for both documents: the runtime document said these and the host document said nothing,
+ *  so a level withheld on the host lane (a `display` it could not read, a price it could not follow) vanished silently. */
+function levelsWithheldNotesOf(t) {
+  return ((t && t.presentation && t.presentation.levelsWithheld) || []).map((u) => {
+    const said = (t.notes || []).find((x) => x && x.code === 'pine:chart-only' && x.line === u.line && /^`hline` is not drawn/.test(x.message || ''))
+    return { name: '`hline`', note: said ? said.message : `\`hline\` is not drawn: ${u.reason}` }
+  })
+}
+
+/** ⭐ e97 U7 — each band (`fill`) WITHHELD because its `display` could not be read (`pine.js::resolveFillHandles`), in
+ *  the translation's own sentence (`chartOnlySentence`), which the editor's status lists too (`editorStatus.chartDoorUndrawn`). */
+function bandDisplayWithheldNotesOf(t) {
+  return ((t && t.notes) || []).filter((x) => x && x.code === 'pine:chart-only' && typeof x.message === 'string'
+    && x.message.startsWith('`fill` is not drawn: its `display`')).map((x) => ({ name: '`fill`', note: x.message }))
+}
+
 /** ⭐⭐ e96 — the member's sentences for the levels a document draws in the neutral presentation or does not
  *  draw (`hlineLevels.js`), in the order the script writes them. */
 function levelNotesOf(plan) {
@@ -980,7 +997,12 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
       if (!ka || !kb || ka === kb) continue
       const row = byKey.get(ka)
       if (!row || row.fill) continue
+      // ⭐ e97 U7 — a band off the pane at every setting (`display.none`, read by `pine.js::resolveFillHandles`) is the
+      // author's own hiding: TradingView draws nothing, and neither does this
+      if (f.hidden === true) continue
       row.fill = { with: kb }
+      // ⭐ e97 U7 — drawn as the member's settings decide (`binder.fillActiveFor` → `knobBind.js::plotHiddenAt`)
+      if (f.hiddenWhen) row.fill.hiddenWhen = f.hiddenWhen
       if (typeof f.color === 'string') row.fillColor = f.color
       // ⭐⭐ …and a static band colour that is the script's `input.color` is the
       // member's pick (`binder.effectiveFillColour`), like the two above.
@@ -1064,6 +1086,8 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
         // ⭐ F1 — render-time placement, witnessed (`pine.js::resolvePaint`).
         ...(Number.isInteger(p.offset) && p.offset !== 0 ? { offset: p.offset } : {}),
         ...(Number.isInteger(p.showLast) ? { showLast: p.showLast } : {}),
+        // ⭐ e97 U7 — drawn as the member's settings decide (`pine.js::resolvePaint`, the ONE display reader)
+        ...(p.hiddenWhen ? { hiddenWhen: p.hiddenWhen } : {}),
       }
       if (typeof p.color === 'string') doc.color = p.color
       if (Number.isFinite(p.opacity)) doc.opacity = p.opacity
@@ -1232,6 +1256,12 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
   for (const cr of conditionRows) seriesNamesOf(cr.ast, colourRead)
   // ⭐ e97 U6 — and a setting a carried row's display reads (`hiddenWhen`): the member's control to show or hide it
   for (const r of rows) if (r && r.hiddenWhen) seriesNamesOf(r.hiddenWhen, colourRead)
+  // ⭐ e97 U7 — and a setting a band's, a paint's or a level's display reads (the same `hiddenWhen`)
+  for (const r of rows) if (r && r.fill && r.fill.hiddenWhen) seriesNamesOf(r.fill.hiddenWhen, colourRead)
+  for (const p of docPaints) if (p && p.hiddenWhen) seriesNamesOf(p.hiddenWhen, colourRead)
+  for (const h of [...((t.presentation || {}).levels || []), ...((t.presentation || {}).levelFills || [])]) {
+    if (h && h.hiddenWhen) seriesNamesOf(h.hiddenWhen, colourRead)
+  }
   const colourDeclared = colourSpecs.filter((s) => colourRead.has(s.key))
   // ⭐⭐ C43 — THE SCRIPT'S OWN `runtime.error` CALLS RIDE ON THE DOCUMENT
   // (`meta.runtimeErrors`), with the settings their conditions read declared, so
@@ -1278,6 +1308,8 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
       return row
     }
     for (const f of ((t.presentation || {}).levelFills || [])) {
+      // ⭐ e97 U7 — a band its author keeps off the pane at every setting draws nothing on TradingView, nor here
+      if (f && f.hidden === true) continue
       const ga = guideByOrdinal.get(f.a)
       const gb = guideByOrdinal.get(f.b)
       const name = `\`fill\` (${(ga && ga.label) || `hline ${f.a + 1}`} / ${(gb && gb.label) || `hline ${f.b + 1}`})`
@@ -1291,7 +1323,7 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
       }
       const ra = anchorOf(ga)
       const rb = anchorOf(gb)
-      ra.fill = { with: rb.key }
+      ra.fill = { with: rb.key, ...(f.hiddenWhen ? { hiddenWhen: f.hiddenWhen } : {}) }
       ra.fillColor = f.color
       if (Number.isFinite(f.opacity)) ra.fillOpacity = f.opacity
       if (f.transparency && typeof f.transparency.via === 'string') ra.fillTransparency = { ...f.transparency }
@@ -1309,6 +1341,43 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
       if (names.every((n) => declaredKeys.has(n))) continue
       if (hiddenAtLeafDefaults(r.hiddenWhen)) r.hidden = true
       delete r.hiddenWhen
+    }
+    // ⭐ e97 U7 — the same rule for a band, a paint and a level: decided at the setting's default when the setting did
+    // not come across. A band or paint hidden there is not carried (TradingView draws none until the member moves it,
+    // and this document then has no control to move); a level hidden there is not drawn.
+    const undeclared = (tree) => [...seriesNamesOf(tree, new Set())].some((n) => !declaredKeys.has(n))
+    const droppedColumns = new Set()
+    const columnOf = (h) => (h && typeof h.colorMode === 'string' && h.colorMode.startsWith('column:') ? h.colorMode.slice(7) : null)
+    for (const r of rows) {
+      if (!r || !r.fill || !r.fill.hiddenWhen || !undeclared(r.fill.hiddenWhen)) continue
+      if (hiddenAtLeafDefaults(r.fill.hiddenWhen)) {
+        if (columnOf(r.fill)) droppedColumns.add(columnOf(r.fill))
+        for (const k of ['fill', 'fillColor', 'fillColorInput', 'fillOpacity', 'fillTransparency']) delete r[k]
+      } else delete r.fill.hiddenWhen
+    }
+    for (let i = docPaints.length - 1; i >= 0; i -= 1) {
+      const p = docPaints[i]
+      if (!p || !p.hiddenWhen || !undeclared(p.hiddenWhen)) continue
+      if (hiddenAtLeafDefaults(p.hiddenWhen)) {
+        if (columnOf(p)) droppedColumns.add(columnOf(p))
+        docPaints.splice(i, 1)
+      } else delete p.hiddenWhen
+    }
+    for (let i = levelPlan.guides.length - 1; i >= 0; i -= 1) {
+      const g = levelPlan.guides[i]
+      if (!g || !g.hiddenWhen || !undeclared(g.hiddenWhen)) continue
+      if (hiddenAtLeafDefaults(g.hiddenWhen)) levelPlan.guides.splice(i, 1)
+      else delete g.hiddenWhen
+    }
+    // ⛔ and a condition column only that band or paint named goes with it: a column nobody names cannot exist.
+    // Only a column a dropped holder named is a candidate, and it stays while anything else mentions its key.
+    for (const key of droppedColumns) {
+      const cr = conditionRows.find((c) => c && c.key === key)
+      if (!cr) continue
+      const mentions = (x) => { const s = JSON.stringify(x); return s.includes(`"${key}"`) || s.includes(`column:${key}"`) }
+      if (rows.some((x) => x !== cr && mentions(x)) || docPaints.some(mentions)) continue
+      const at = rows.indexOf(cr)
+      if (at >= 0) rows.splice(at, 1)
     }
   }
   let definition = null
@@ -1506,7 +1575,9 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
     notes.push(n)
   }
   // ⭐⭐ e96 — A LEVEL DRAWN IN THE NEUTRAL PRESENTATION, OR NOT DRAWN, IS SAID SO, level by level.
-  for (const n of levelNotesOf(levelPlan)) {
+  // ⭐ e97 U7 — and each level the translation could not read, as the runtime document already said it, and each band
+  // whose `display` it could not read (withheld by name, never drawn)
+  for (const n of [...levelNotesOf(levelPlan), ...levelsWithheldNotesOf(t), ...bandDisplayWithheldNotesOf(t)]) {
     const key = `${n.name} :: ${n.note}`
     if (seen.has(key)) continue
     seen.add(key)
@@ -2954,6 +3025,8 @@ function runtimeLaneDocument({ source, id, name, t, hostReason, hostGuard = null
           colorPacked: c.colorPacked,
           ...(Number.isInteger(p.offset) && p.offset !== 0 ? { offset: p.offset } : {}),
           ...(Number.isInteger(p.showLast) ? { showLast: p.showLast } : {}),
+          // ⭐ e97 U7 — the host paint's display decision, as the host document carries it
+          ...(p.hiddenWhen ? { hiddenWhen: p.hiddenWhen } : {}),
         })
       })
     }
@@ -3121,10 +3194,7 @@ function runtimeLaneDocument({ source, id, name, t, hostReason, hostGuard = null
   // ⭐⭐ e96 — the levels drawn in the neutral presentation, or not drawn (see the host document's), and each level
   // the translation could not read, in the translation's own words (the editor's status lists that sentence once)
   for (const n of levelNotesOf(levelPlan)) notes.push(n)
-  for (const u of ((t.presentation || {}).levelsWithheld || [])) {
-    const said = (t.notes || []).find((x) => x && x.code === 'pine:chart-only' && x.line === u.line && /^`hline` is not drawn/.test(x.message || ''))
-    notes.push({ name: '`hline`', note: said ? said.message : `\`hline\` is not drawn: ${u.reason}` })
-  }
+  for (const n of levelsWithheldNotesOf(t)) notes.push(n)
   // ⭐ RT2 — a document that repaints says so, naming what it reads, in the
   // member's terms. A non-repainting one says nothing (the badge is silent on
   // the clean case by design, `repaintVerdict.js`).

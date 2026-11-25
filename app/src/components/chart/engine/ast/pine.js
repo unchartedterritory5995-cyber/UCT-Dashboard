@@ -14166,6 +14166,21 @@ export class Resolver {
     } finally { this.paramMint = minted }
   }
 
+  /** ⭐⭐ e97 U7 — THE SAME READER for a call whose `display` is not a named argument of an output row (`fill`,
+   *  `hline`, `bgcolor`, `barcolor`, whose display may stand by position), read in the scope the call was written in
+   *  (`env`, when it is not this resolver's own). `null` node = no display written = drawn. */
+  displayOfNode(node, env = null) {
+    if (!node) return { hidden: false }
+    const prev = this.env
+    const minted = this.paramMint
+    // ⛔ a display read MINTS NOTHING (as a paint's colour and a level's price do not): every later parameter id stays
+    this.paramMint = null // displayOfNode
+    if (env) this.env = env
+    try {
+      return this.outputDisplayOf([{ name: 'display', value: node }])
+    } finally { this.env = prev; this.paramMint = minted }
+  }
+
   /** ⭐ e97 U6 — the display one node names, through plain bindings, `+` / `-` of constants, and a `? :` whose
    *  condition folds (a constant branch) or is a setting of this script (`knobTestValue`'s shape: an input, an input
    *  compared with a constant, `and` / `or` / `not` of those). `{hidden}` / `{when}` / `{unread}`, as `outputDisplayOf`. */
@@ -14226,7 +14241,11 @@ export class Resolver {
   }
 
   /** ⭐ e97 U6 — `name` / `not name` where `name` is bound to an `input.bool` this resolution read (`usedInputs`): a knob
-   *  leaf named for the input, carrying its default (non-enumerable `inputName` / `inputDefault`), or null. */
+   *  leaf named for the input, carrying its default (non-enumerable `inputName` / `inputDefault`), or null.
+   *  ⭐ e97 U7 — and a bare `input(true)` (`call: 'input'`, which the parameter manifest already reads as the same
+   *  plain 0/1 number, `PARAM_MANIFEST_ELIGIBLE_KINDS`). ⚰️ Missed, the pass that does NOT declare the setting folded
+   *  `show = input(true)` to a constant while the declaring pass carried a rule, the colour-inputs proof saw the two
+   *  disagree and declined, and the band had no control (the built-in VWAP's `showBand_1 = input(true, …)`). */
   displayKnobLeafOf(node, depth = 0) {
     if (!node || depth > 4) return null
     if (node.type === 'unary' && node.op === 'not') {
@@ -14234,7 +14253,7 @@ export class Resolver {
       return inner ? { type: 'op', name: '!', args: [inner] } : null
     }
     if (node.type !== 'name' || typeof node.name !== 'string') return null
-    const entry = [...this.usedInputs.values()].find((e) => e && e.name === node.name && e.call === 'input.bool')
+    const entry = [...this.usedInputs.values()].find((e) => e && e.name === node.name && (e.call === 'input.bool' || e.call === 'input'))
     if (!entry) return null
     const v = entry.folded === 'true' ? 1 : entry.folded === 'false' ? 0 : Number(entry.folded)
     if (!Number.isFinite(v)) return null
@@ -18717,6 +18736,14 @@ export function chartOnlySentence(word, how = {}) {
     return `${code} is drawn: a horizontal level at ${at} across this script's pane; it is not a column, so ${SCREEN_READS}`
   }
   if (word === 'fill') {
+    // ⭐ e97 U7 — a band whose `display` this engine cannot read is WITHHELD, by that reason; one its author keeps off
+    // the pane at every setting is not drawn, as on TradingView (`resolveFillHandles`, the one display reader)
+    if (host && how.site === 'top' && how.withheld && typeof how.withheld === 'object' && how.withheld.display) {
+      return `${code} is not drawn: ${how.withheld.display}`
+    }
+    if (host && how.site === 'top' && how.hiddenBand) {
+      return `${code} has a \`display\` that keeps it off the chart's pane, so it is not drawn — TradingView does not draw it either`
+    }
     // ⭐ G-h (r1) — a band withheld because its colour reads a block this chart cannot
     // gate: the gate's own sentence (`resolveFillHandles`), not the edges'
     if (host && how.site === 'top' && typeof how.withheld === 'string' && how.withheld) {
@@ -32429,6 +32456,12 @@ function translatePineResult(source, opts = {}) {
   const hlineReads = hlineCalls.length
     ? resolveHlineLevels(hlineCalls, { makeResolver, version, notes }) : []
   for (const h of hlineReads) if (h.level) levels.push(h.level)
+  // ⭐ e97 U7 — the inputs only a level's DISPLAY read, in `inputsFolded`'s entry shape, as a fill's colour inputs ride
+  // (`_colourInputs`, non-enumerable: the array's shape and every digest are unchanged)
+  {
+    const levelDisplayInputs = hlineReads.flatMap((h) => (h && h.level && h.displayInputs) || [])
+    if (levelDisplayInputs.length) Object.defineProperty(levels, '_colourInputs', { value: levelDisplayInputs, enumerable: false })
+  }
   // …and the ones it could not read, by ordinal and line, so a document can account for every `hline` the
   // script writes (drawn, hidden by its author, or withheld by name). Present only when there are any.
   const levelsWithheld = hlineReads.map((h, i) => (h.level ? null : {
@@ -32444,6 +32477,8 @@ function translatePineResult(source, opts = {}) {
       if (p.fillRec) p.how.band = carriedFills.has(p.fillRec)
       // ⭐ G-h (r1) — a band G-h withheld says why, by its gate's own sentence
       if (p.fillRec && withheldFills.has(p.fillRec)) p.how.withheld = withheldFills.get(p.fillRec)
+      // ⭐ e97 U7 — a band its author keeps off the pane (`display.none`, read by the one display reader)
+      if (p.fillRec && hiddenBands.has(p.fillRec)) p.how.hiddenBand = true
       p.note.message = chartOnlySentence(p.word, p.how)
     }
   }
@@ -32451,6 +32486,8 @@ function translatePineResult(source, opts = {}) {
   /** ⭐ G-h (r1) — the fills whose colour read a block mark with no guard to carry:
    *  fill → the refusal's sentence (`resolveFillHandles`). */
   const withheldFills = new Map()
+  /** ⭐ e97 U7 — the fills carried but off the pane at every setting (`resolveFillHandles`). */
+  const hiddenBands = new Set()
   sayChartOnly()
   // A paint that DRAWS: carried and not hidden by the author (`display.none`).
   const paintDraws = !!(paintRecs && paintRecs.some((p) => !p.withheld && !p.hidden && !p.na))
@@ -32653,7 +32690,7 @@ function translatePineResult(source, opts = {}) {
 
   // ⭐ C1-B's bands, resolved HERE rather than inside the literal below, so the
   // `fill` sentences can say whether each band was carried (B1, step 61).
-  const presentationFills = resolveFillHandles(fills, outputs, resolved, { env, resolver: makeResolver(), carried: carriedFills, withheld: withheldFills, version, hostLane: isHostLane(opts) })
+  const presentationFills = resolveFillHandles(fills, outputs, resolved, { env, resolver: makeResolver(), carried: carriedFills, withheld: withheldFills, hiddenBands, version, hostLane: isHostLane(opts) })
   // ⭐⭐ e96 — A BAND BETWEEN TWO LEVELS (`h1 = hline(70)`, `h2 = hline(30)`, `fill(h1, h2)`), read by the SAME
   // `resolveFillHandles` a band between two plots is (its colour, its static opacity rule), with each level's call
   // standing as the edge: `a` / `b` are the two `hline` ordinals. A level that is not read, or hidden by its author,
@@ -32664,7 +32701,7 @@ function translatePineResult(source, opts = {}) {
   const presentationLevelFills = levelFillRecs.length
     ? resolveFillHandles(levelFillRecs, hlineCalls.map((h) => ({ handle: h.handle })),
       hlineReads.map((h) => (h.level && !h.level.hidden ? { refusal: null } : { refusal: 'not an edge' })),
-      { env, resolver: makeResolver(), carried: carriedFills, withheld: withheldFills, version, hostLane: isHostLane(opts) })
+      { env, resolver: makeResolver(), carried: carriedFills, withheld: withheldFills, hiddenBands, version, hostLane: isHostLane(opts) })
     : []
   for (const p of chartOnlyPending) if (p.fillRec && levelFillRecs.includes(p.fillRec)) p.how.levels = true
   sayChartOnly()
@@ -34964,10 +35001,15 @@ function resolvePaint(p, ctx) {
   if (title && title.type === 'string') rec.title = title.value
   const display = named.get('display')
   if (display) {
-    if (display.type === 'name' && display.name === 'display.none') rec.hidden = true
-    else if (!(display.type === 'name' && display.name === 'display.all')) {
-      return withhold('paint:display', `a \`display\` other than \`display.all\` / \`display.none\` has no capture (${PAINT_PROBE})`)
-    }
+    // ⭐⭐ e97 U7 — through the ONE display reader (`Resolver.displayOfNode`, U6's `outputDisplayOf`): off the pane at
+    // every setting is hidden; a setting's choice is `hiddenWhen` (true = hidden), decided per instance at bind
+    // (`knobBind.js::plotHiddenAt`); a display it cannot read is WITHHELD by name, never guessed as drawn.
+    // ⚰️ Only the two literals were read: `display = show ? display.all : display.none` was withheld at every setting.
+    const r = ctx && ctx.resolver
+    const d = r ? r.displayOfNode(display, p.env || null) : { unread: 'its `display` could not be read here' }
+    if (d.unread) return withhold('paint:display', d.unread)
+    if (d.hidden === true) rec.hidden = true
+    else if (d.when) rec.hiddenWhen = d.when
   }
   for (const [k, code] of [['overlay', 'paint:overlay'], ['force_overlay', 'paint:overlay']]) {
     if (named.has(k)) return withhold(code, `\`${k}\` on \`${p.kind}\` has no capture (${PAINT_PROBE})`)
@@ -35274,11 +35316,26 @@ function resolveHlineLevels(calls, { makeResolver, version, notes }) {
       if (!lineStyle) unread.push('lineStyle')
     }
     let hidden = false
+    let hiddenWhen = null
+    let displayInputs = null
     if (byName.has('display')) {
-      const dn = byName.get('display').value
-      const nm = dn && dn.type === 'name' ? dn.name : null
-      if (nm === 'display.none') hidden = true
-      else if (nm !== 'display.all') return { withheld: 'its `display` is not one this door can read' }
+      // ⭐⭐ e97 U7 — through the ONE display reader (`Resolver.displayOfNode`): off the pane at every setting is hidden;
+      // a setting's choice rides as `hiddenWhen` (true = hidden) onto the level's guide row, decided per instance at
+      // bind (`knobBind.js::plotHiddenAt`); a display it cannot read withholds the level by name.
+      // ⚰️ Only the two literals were read, and anything else withheld the level, which the host document never said:
+      // `hline(50, display = show ? display.all : display.none)` vanished with no word at every setting.
+      const keysBefore = new Set(r.usedInputs.keys())
+      const n1 = notes.length
+      let d
+      try { d = r.displayOfNode(byName.get('display').value, rec.env || null) } finally { notes.length = n1 }
+      if (d.unread) return { withheld: d.unread }
+      if (d.hidden === true) hidden = true
+      else if (d.when) {
+        hiddenWhen = d.when
+        // the inputs ONLY the display read: a presentation input, declared by the door as the member's control
+        // (`builderInputs.js::withColourInputs`, through `presentation.levels._colourInputs`)
+        displayInputs = [...r.usedInputs.entries()].filter(([k]) => !keysBefore.has(k)).map(([, e]) => e)
+      }
     }
     return {
       level: {
@@ -35288,12 +35345,14 @@ function resolveHlineLevels(calls, { makeResolver, version, notes }) {
         ...(width !== undefined ? { width } : {}),
         ...(lineStyle ? { lineStyle } : {}),
         ...(hidden ? { hidden: true } : {}),
+        ...(hiddenWhen ? { hiddenWhen } : {}),
         ...(input ? { input: { ...input } } : {}),
         ...(unread.length ? { unread } : {}),
         ...(rec.handle ? { handle: rec.handle } : {}),
         ordinal: rec.ordinal,
         line,
       },
+      ...(displayInputs && displayInputs.length ? { displayInputs } : {}),
     }
   })
 }
@@ -35459,6 +35518,27 @@ function resolveFillHandles(fills, outputs, resolved, ctx) {
       continue
     }
     if (fillGates && fillGates.gates.length) hangColourGates(pres, fillGates.gates)
+    // ⭐⭐ e97 U7 — WHETHER THE BAND IS DRAWN, through the ONE display reader (`Resolver.displayOfNode`): off the pane
+    // at every setting rides as `hidden` (carried, not drawn: the author's own hiding); a setting's choice rides as
+    // `hiddenWhen` (true = hidden), decided per instance at bind (`knobBind.js::plotHiddenAt`); a display it cannot
+    // read WITHHOLDS the band by name.
+    // ⚰️ A fill's `display` was not read at all: `fill(a, b, display = display.none)` and
+    // `fill(a, b, display = show ? display.all : display.none)` with `show` false were DRAWN where TradingView draws
+    // nothing (the built-in VWAP's bands #2 and #3, range-filter-x-hull's target ranges, measured at the door).
+    let bandDisplay = { hidden: false }
+    {
+      const r = ctx && ctx.resolver
+      const dArg = (f.args || []).find((x) => x && x.name === 'display')
+      if (dArg) {
+        bandDisplay = r ? r.displayOfNode(dArg.value, f.env || null) : { unread: 'its `display` could not be read here' }
+      }
+    }
+    if (bandDisplay.unread) {
+      // by name, in the band's own sentence (`chartOnlySentence`'s `how.withheld.display`)
+      if (ctx && ctx.withheld) ctx.withheld.set(f, { display: bandDisplay.unread })
+      continue
+    }
+    if (bandDisplay.hidden === true && ctx && ctx.hiddenBands) ctx.hiddenBands.add(f)
     const pair = (typeof pres.colorUp === 'string' && typeof pres.colorDown === 'string')
       ? (pres.colorUp !== pres.colorDown ? pres : null)
       : null
@@ -35526,6 +35606,8 @@ function resolveFillHandles(fills, outputs, resolved, ctx) {
       // folded at all — says so rather than going quiet.
       ...((!pair && !pres.colorIndex && (pres.colorDynamic || (pres.colorUp && pres.colorDown)))
         ? { colorDynamic: true } : {}),
+      ...(bandDisplay.hidden === true ? { hidden: true } : {}),
+      ...(bandDisplay.when ? { hiddenWhen: bandDisplay.when } : {}),
     })
   }
   // ⭐ 2026-09-28 — the inputs the fills' colours read, in `inputsFolded`'s entry

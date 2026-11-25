@@ -135,6 +135,9 @@ export function hlineGuides(levels, { version, neutralInk, withAlphaByte, bindIn
       color: neutral ? neutralInk : color,
       width: neutral ? HLINE_NEUTRAL.width : width,
       lineStyle: neutral ? HLINE_NEUTRAL.lineStyle : lineStyle,
+      // ⭐ e97 U7 — drawn as the member's settings decide (`pine.js::resolveHlineLevels`, the ONE display reader):
+      // a guide is a plot row, so every binder site's `knobBind.js::plotHiddenAt` decides it per instance
+      ...(lv.hiddenWhen ? { hiddenWhen: lv.hiddenWhen } : {}),
     }
     guides.push(guide)
     if (neutral) {
