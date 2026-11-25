@@ -17,6 +17,7 @@ import { describe, it, expect } from 'vitest'
 
 import {
   compareCapture, vendorPlotRoles, pairCandles, CANDLE_ROLES, CANDLE_BODY_COMPARED, CANDLE_BODY_ON_CLOSE,
+  CANDLE_BODY_NOT_CAPTURED, CANDLE_HIDDEN_OURS, CANDLE_DISPLAY_NOT_RECORDED, CANDLE_WITHHELD_OURS, CANDLE_WITHHELD_COLOUR,
 } from '../../../../../../../tools/vendor_harness/compare.mjs'
 import { candleRoleOf } from './ourSide'
 
@@ -127,5 +128,72 @@ describe('e97 U5 — a candle\'s four prices are compared', () => {
     const m = pairCandles(vendorPlotRoles(captureOf()).candles, ours)
     expect(m.pairs).toHaveLength(0)
     expect(m.unmappedVendor[0].reason).toMatch(/does not carry all four roles/)
+  })
+})
+
+// ─── ⭐ e98 P3 (phase B) — THE BODY COLOUR IS GRADED, ONCE PER CANDLE, ON ITS CLOSE ─────────────────────────────────
+describe('e98 P3 — a candle\'s body colour is graded on its close', () => {
+  const closeRow = (r) => r.plots.find((p) => p.rule === 'C1-candle-order (plotcandle_0.close)')
+  const partRows = (r) => r.plots.filter((p) => /^C1-candle-order/.test(p.rule || ''))
+
+  it('a body colour that differs on one bar DIVERGEs the close, by colour; the other three parts stay MATCH', () => {
+    const ours = oursOf()
+    const close = ours.plots.find((p) => p.role === 'close')
+    close.colors = [BODY, '#00ff00ff', BODY]
+    const r = compareCapture(captureOf(), ours)
+    expect(closeRow(r).verdict).toBe('DIVERGE')
+    expect(closeRow(r).stats.firstDivergence.kind).toBe('color')
+    for (const p of partRows(r).filter((x) => x !== closeRow(r))) expect(p.verdict, p.rule).toBe('MATCH')
+  })
+
+  it('a candle our side hides at these settings: its colour is not graded, by name; its prices are', () => {
+    const ours = oursOf()
+    for (const p of ours.plots.filter((x) => x.kind === 'plotcandle')) { p.drawnHidden = true; p.colors = null }
+    const r = compareCapture(captureOf(), ours)
+    expect(closeRow(r).verdict).toBe('MATCH')
+    expect(closeRow(r).color).toBe(CANDLE_HIDDEN_OURS + CANDLE_DISPLAY_NOT_RECORDED)
+  })
+
+  it('a drawn candle whose body colour our side could not read is INCONCLUSIVE, never a MATCH on prices alone', () => {
+    const ours = oursOf()
+    const close = ours.plots.find((p) => p.role === 'close')
+    close.colors = null
+    close.colorsReason = 'the binder bound no series for this row'
+    const r = compareCapture(captureOf(), ours)
+    expect(closeRow(r).verdict).toBe('INCONCLUSIVE')
+    expect(closeRow(r).reason).toMatch(/our side's colour could not be resolved \(the binder bound no series for this row\)/)
+  })
+
+  it('a candle our door withholds by name: the close is INCONCLUSIVE by that reason, a wrong price still DIVERGEs', () => {
+    const W = 'withheld by name on our side (`X`): because'
+    const ours = oursOf()
+    ours.plots.find((p) => p.role === 'close').candleWithheld = W
+    const r = compareCapture(captureOf(), ours)
+    expect(closeRow(r)).toMatchObject({ verdict: 'INCONCLUSIVE', color: CANDLE_WITHHELD_COLOUR })
+    expect(closeRow(r).reason).toBe(`3 steady-state bars agree, but the candle is ${W}: ${CANDLE_WITHHELD_OURS}`)
+    for (const p of partRows(r).filter((x) => x !== closeRow(r))) expect(p.verdict, p.rule).toBe('MATCH')
+    const wrong = oursOf({ edit: { n: 0, role: 'close', column: [12, 99, 14] } })
+    wrong.plots.find((p) => p.role === 'close').candleWithheld = W
+    expect(closeRow(compareCapture(captureOf(), wrong)).verdict).toBe('DIVERGE')
+  })
+
+  it('a palette colorer is decoded by its palette, as any colorer is', () => {
+    const cap = captureOf()
+    const body = cap.study.plots.find((p) => p.type === 'ohlc_colorer')
+    body.palette = 'pal_0'
+    cap.study.palettes = { pal_0: { colors: [{ color: '#ff1744' }, { color: '#00e676' }], valToIndex: { 0: 0, 1: 1 } } }
+    const col = cap.study.plots.indexOf(body) + 1
+    cap.plotValues.rows.forEach((row) => { row[col] = 0 })
+    const r = compareCapture(cap, oursOf())
+    expect(closeRow(r)).toMatchObject({ verdict: 'MATCH', color: CANDLE_BODY_COMPARED })
+    cap.plotValues.rows[2][col] = 1
+    expect(closeRow(compareCapture(cap, oursOf())).verdict).toBe('DIVERGE')
+  })
+
+  it('a capture with no body colorer: the close names it not captured, and grades on prices', () => {
+    const cap = captureOf()
+    cap.study.plots = cap.study.plots.filter((p) => p.type !== 'ohlc_colorer')
+    const r = compareCapture(cap, oursOf())
+    expect(closeRow(r)).toMatchObject({ verdict: 'MATCH', color: CANDLE_BODY_NOT_CAPTURED })
   })
 })

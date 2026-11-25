@@ -2163,6 +2163,10 @@ function runOurSideOnTheParityClock(capture) {
       const col = row && heldBy !== 'bar-index:window' ? cols[row.key] : undefined
       // ⭐ e97 U5 — a candle part with no row of its own: did the door say why it is not drawn?
       const notDrawnCandle = row ? null : candleNotDrawnOf(o, index, built)
+      // ⭐ e98 P3 — a candle the door WITHHOLDS by name whose rows it still carries (the host door hides all four and
+      // computes them): its prices are graded, and the grade names that nothing is drawn for it (`candleWithheld`)
+      const listedCandle = row ? candleNotDrawnOf(o, index, built) : null
+      const candleWithheld = listedCandle && listedCandle.by === 'withheld' ? listedCandle.sentence : null
       let missingReason = null
       if (heldBy) {
         missingReason = `withheld on this chart on every bar, by name (${heldBy}) — nothing is drawn for it`
@@ -2210,6 +2214,7 @@ function runOurSideOnTheParityClock(capture) {
         // asked of the engine.
         ...candleRoleOf(o),
         ...(notDrawnCandle && !heldBy ? { candleNotDrawn: notDrawnCandle.by } : {}),
+        ...(candleWithheld && !heldBy ? { candleWithheld } : {}),
         formula: o ? o.formula : null,
         key: row ? row.key : null,
         withheldBy: heldBy || null,

@@ -359,6 +359,8 @@ export const CANDLE_BODY_ON_CLOSE = 'not compared on this part — a candle\'s b
 export const CANDLE_BODY_NOT_CAPTURED = 'not captured — the capture records no body colorer for this candle'
 export const CANDLE_BODY_COMPARED = 'compared — the candle\'s body colour (its ohlc_colorer)'
 export const CANDLE_HIDDEN_OURS = 'not graded — our side hides this candle at these settings, and '
+export const CANDLE_WITHHELD_OURS = 'TradingView draws it and our side draws nothing, so its body colour is not compared'
+export const CANDLE_WITHHELD_COLOUR = 'not compared — our door withholds this candle by name, so no body is drawn'
 const CANDLE_TARGET = /^(plotcandle|plotbar)_(\d+)$/
 const hasOwn = (o, k) => Object.prototype.hasOwnProperty.call(o, k)
 
@@ -1321,7 +1323,11 @@ export function compareCapture(capture, ours, opts = {}) {
     // ⭐ e98 P3 — a candle our side hides at these settings draws no body: its colour is not graded (TradingView's
     // display for a candle is not recorded, `CANDLE_DISPLAY_NOT_RECORDED`)
     const candleHiddenOurs = !!(vc.body && o.drawnHidden === true)
-    const colourUngraded = hiddenOnVendor || emptyGlyph || candleHiddenOurs
+    // ⭐ e98 P3 (coordinator ruling (b), 2026-11-25) — a candle our door WITHHOLDS by name (`ourSide.js` `candleWithheld`,
+    // the door's `candlesNotDrawn`) draws nothing where TradingView draws a coloured candle: its body colour is not
+    // compared, and its close is INCONCLUSIVE by the door's own reason below, never a prices-only MATCH
+    const candleWithheldOurs = !!(vc.candle && v.candlePart === 'close' && typeof o.candleWithheld === 'string')
+    const colourUngraded = hiddenOnVendor || emptyGlyph || candleHiddenOurs || candleWithheldOurs
     const gradedVendorColors = themeRelative && vc.colors ? vc.colors.map(alphaOnlyColour) : vc.colors
     const gradedOurColors = themeRelative && ourColors ? ourColors.map(alphaOnlyColour) : ourColors
     // ⭐⭐ ENGINE 55 — the NEWEST bar our side withheld BY NAME (`withheldNewest`: the
@@ -1341,6 +1347,11 @@ export function compareCapture(capture, ours, opts = {}) {
       ourColorWithheldBy: o.colorsWithheldBy || null,
     }
     let pv = plotVerdict(r, verdictOpts)
+    // ⭐ e98 P3 — prices that agree on a candle our door does not draw are not a match of the candle (a wrong price
+    // still DIVERGEs, by its own row)
+    if (candleWithheldOurs && pv.verdict === 'MATCH') {
+      pv = { verdict: 'INCONCLUSIVE', reason: `${pv.reason}, but the candle is ${o.candleWithheld}: ${CANDLE_WITHHELD_OURS}` }
+    }
     // OTHER-SYMBOL UNSETTLED (see `unsettledRecord`): a zero-lookback plot whose ONLY steady divergences
     // (at most UNSETTLED_MAX_BARS, values) are bars where this capture's own read of another symbol is
     // contradicted by another committed TradingView witness of that symbol and date
@@ -1419,7 +1430,8 @@ export function compareCapture(capture, ours, opts = {}) {
       ...(o.withheldNewest === true ? { withheldNewest: 'request:htf-newest-unconfirmed', withheldNewestNote: 'the newest bar is withheld by name on our side (a finished bar whose week or month end is the date of the next session) and is not compared' } : {}),
       color: vc.candle && !vc.body ? (v.candlePart === 'close' ? CANDLE_BODY_NOT_CAPTURED : CANDLE_BODY_ON_CLOSE)
         : !vc.measured ? 'not captured'
-        : colourUngraded ? (candleHiddenOurs ? CANDLE_HIDDEN_OURS + CANDLE_DISPLAY_NOT_RECORDED
+        : colourUngraded ? (candleWithheldOurs ? CANDLE_WITHHELD_COLOUR
+          : candleHiddenOurs ? CANDLE_HIDDEN_OURS + CANDLE_DISPLAY_NOT_RECORDED
           : emptyGlyph ? 'not graded — an empty plotchar glyph draws nothing' : 'not graded — hidden on TradingView (display none)')
           : !vc.colors ? 'undecodable in the capture'
             : r.colorComparable === 0 ? 'nothing drawn on any bar — no colour to compare'
