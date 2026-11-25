@@ -110,6 +110,10 @@ class RemoteBroadcaster:
         self._sent_syms: frozenset = frozenset()
         self._last_emit_wall: Optional[float] = None
         self.on_change: Callable[[], None] = lambda: None   # the feed client's "desired changed"
+        # ⭐ Pushed list prices (api/services/quote_hub.py, additive 2026-11-25): called once per batch, on
+        # this loop, with the quotes this batch updated ({sym: {price, ts, trade_ts, volume}}), AFTER the
+        # lock is released. None = nobody listens (the default; the quote stream is behind a flag).
+        self.quote_sink: Optional[Callable[[dict], None]] = None
         self.counters = {"batches": 0, "bars_in": 0, "frames_out": 0, "dropped": 0,
                          "conflated": 0, "prices_in": 0, "mirror_resets": 0}
 
@@ -290,6 +294,7 @@ class RemoteBroadcaster:
 
     def apply_batch(self, batch: fp.Batch) -> None:
         now_m = self._mono()
+        quotes: dict = {}       # this batch's quotes for `quote_sink` (pushed list prices), called unlocked
         with self._lock:
             self._fresh_mono = now_m
             st = batch.status
@@ -322,6 +327,14 @@ class RemoteBroadcaster:
                 self._prices[sym] = dict(p)
                 self._tick_mono[sym] = now_m
                 self.counters["prices_in"] += 1
+                if self.quote_sink is not None:
+                    quotes[sym] = self._prices[sym]
+        if quotes:
+            try:
+                self.quote_sink(quotes)
+            except Exception as e:  # noqa: BLE001 - the price push never drops the bars feed
+                self.counters["quote_sink_errors"] = self.counters.get("quote_sink_errors", 0) + 1
+                log.warning("[remote_broadcaster] quote sink failed: %s: %s", type(e).__name__, e)
 
     @staticmethod
     def _msg(sym: str, k: str, bar: dict) -> dict:

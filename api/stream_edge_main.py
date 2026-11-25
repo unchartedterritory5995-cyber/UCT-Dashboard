@@ -46,6 +46,7 @@ def build_app(start_feed: bool = True) -> FastAPI:
     # The bars route refuses unless the bars stream is enabled; here it is the whole point.
     os.environ.setdefault("STREAM_BARS_ENABLED", "1")
     from api.bars_auth import require_bars_access
+    from api.routers import quote_stream
     from api.routers import stream as stream_router
     from api.services import feed_client
 
@@ -64,12 +65,15 @@ def build_app(start_feed: bool = True) -> FastAPI:
     router = APIRouter()
     # ⭐ THE SAME ROUTE FUNCTION web serves: only its auth dependency is swapped below.
     router.add_api_route("/api/stream/bars", stream_router.stream_bars, methods=["GET"])
+    # Pushed list prices (api/routers/quote_stream.py): web's route function too, behind QUOTE_STREAM_ENABLED.
+    router.add_api_route("/api/stream/quotes", quote_stream.stream_quotes, methods=["GET"])
 
     @router.get("/healthz")
     def healthz():
         st = feed_client.status() or {}
         return {"ok": True, "feed_connected": bool(st.get("connected")),
-                "streams": stream_router.subscriber_count("bars")}
+                "streams": stream_router.subscriber_count("bars"),
+                "quote_streams": stream_router.subscriber_count(quote_stream.STREAM)}
 
     @router.get("/internal/status")
     def status():
@@ -77,7 +81,8 @@ def build_app(start_feed: bool = True) -> FastAPI:
         st = feed_client.status() or {}
         # No `last_error`: this is a public domain and exception text can name internal hosts.
         return JSONResponse({"feed": {k: st.get(k) for k in ("connected", "gen", "counters")},
-                             "streams": stream_router.subscriber_count("bars")})
+                             "streams": stream_router.subscriber_count("bars"),
+                             "quotes": quote_stream.status()})
 
     app.include_router(router)
     app.dependency_overrides[require_bars_access] = edge_access

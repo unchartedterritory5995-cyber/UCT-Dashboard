@@ -15,6 +15,7 @@
 
 import { sessionState } from '../lib/marketClock/marketClock'
 import { noteServerDate, monoNow } from '../lib/serverClock'
+import * as quotePush from '../lib/quotePush'
 
 // Must match api/routers/live_prices.py::_MAX_TICKERS — the backend hard-rejects
 // (400) any request over this count rather than truncating it. The union here is
@@ -70,7 +71,14 @@ function _marketClosed() {
     return false // an unreadable clock never slows a live market
   }
 }
-const _intervalMs = () => (_marketClosed() ? CLOSED_INTERVAL_MS : _isMobile ? 4000 : 2000) // mobile ×2, as useMobileSWR
+// ⭐ (2026-11-25) While the pushed list prices are healthy (lib/quotePush.js, flag-gated) the poll is only the
+// fallback and the source of prev close / day OHLC / session: it slows to PUSH_HEALTHY_POLL_MS. The push
+// going unhealthy polls at once and the normal cadence returns (the onHealth handler below).
+const _intervalMs = () => {
+  if (_marketClosed()) return CLOSED_INTERVAL_MS
+  const base = _isMobile ? 4000 : 2000 // mobile ×2, as useMobileSWR
+  return quotePush.isHealthy() ? Math.max(base, quotePush.PUSH_HEALTHY_POLL_MS) : base
+}
 
 function _union() {
   return [...new Set(_refcounts.keys())].filter(Boolean).sort()
@@ -161,6 +169,7 @@ async function _poll() {
     // on every 2 s poll even after hours (four terminal panels, four headlines, all static), and
     // a reused entry is what lets `useLivePrices` skip a caller whose own slice is unchanged.
     let changed = false
+    const pushOn = quotePush.isHealthy()
     for (const sym in next) {
       const nv = next[sym]
       if (!nv || typeof nv !== 'object') continue
@@ -171,9 +180,14 @@ async function _poll() {
       // while nothing actually traded (identical price) — Massive intermittently
       // omits lastTrade on the weekend / after hours. A real new session MOVES the
       // price, so this never pins a stale ext once regular trading resumes.
-      const entry = (prev && nv.ext_price == null && prev.ext_price != null && price === Number(prev.price))
+      let entry = (prev && nv.ext_price == null && prev.ext_price != null && price === Number(prev.price))
         ? { ...nv, ext_price: prev.ext_price, ext_session: prev.ext_session }
         : nv
+      // A healthy push is newer than this (server-cached) answer: keep its price on the row.
+      if (pushOn) {
+        const q = quotePush.getPushedQuote(sym)
+        if (q) entry = quotePush.overlayPushed(entry, q)
+      }
       if (_sameEntry(prev, entry)) continue          // keep `prev` (already in `merged`)
       merged[sym] = entry
       changed = true
@@ -236,6 +250,7 @@ export function registerTickers(tickers) {
     _refcounts.set(t, (_refcounts.get(t) || 0) + 1)
   }
   if (_refcounts.size > 0) _startTimer()
+  quotePush.setTickers('rest', _union())
   if (grew) _poll() // new ticker(s) — populate fast instead of waiting a full interval
   return function unregister() {
     for (const t of tickers) {
@@ -243,6 +258,7 @@ export function registerTickers(tickers) {
       if (c <= 0) _refcounts.delete(t)
       else _refcounts.set(t, c)
     }
+    quotePush.setTickers('rest', _union())
     if (_refcounts.size === 0) {
       _stopTimer()
       _prices = {}
@@ -250,6 +266,32 @@ export function registerTickers(tickers) {
     }
   }
 }
+
+// ── pushed list prices (lib/quotePush.js) ──────────────────────────────────
+// A batch arrives on an animation frame (quotePush batches per frame): each row that already has its REST
+// entry (prev close, session) takes the pushed price, and one emit repaints every changed row.
+function _applyPushed(batch) {
+  if (!quotePush.isHealthy()) return
+  let merged = null
+  for (const sym in batch) {
+    const cur = (merged || _prices)[sym]
+    if (!cur) continue                                // no REST entry yet: the first poll brings it
+    const next = quotePush.overlayPushed(cur, batch[sym])
+    if (next === cur) continue
+    if (!merged) merged = { ..._prices }
+    merged[sym] = next
+  }
+  if (!merged) return
+  _prices = merged
+  _emit()
+}
+quotePush.onQuotes(_applyPushed)
+quotePush.onHealth((healthy) => {
+  if (healthy || _refcounts.size === 0) return
+  _stopTimer()
+  _poll()
+  _startTimer()
+})
 
 export function subscribe(listener) {
   _listeners.add(listener)

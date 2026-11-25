@@ -1,5 +1,6 @@
 /**
- * The live chart stream at the edge: `/api/stream/bars` to stream-edge, or to web.
+ * The live streams at the edge: `/api/stream/bars` (charts) and `/api/stream/quotes` (pushed list
+ * prices, api/routers/quote_stream.py) to stream-edge, or to web. One rule for both.
  * docs/plans/2026-11-17-stream-edge.md.
  *
  * stream-edge is a small Railway service that serves ONLY this stream, so its delivery never waits
@@ -22,6 +23,14 @@
  */
 
 export const STREAM_BARS_PATH = "/api/stream/bars";
+// Must equal api/chart_edge_token.py QUOTES_COOKIE_PATH (tests/test_chart_edge_token.py reads both).
+export const STREAM_QUOTES_PATH = "/api/stream/quotes";
+const STREAM_PATHS = new Set([STREAM_BARS_PATH, STREAM_QUOTES_PATH]);
+
+/** Is this exact path one of the streams stream-edge serves? (Exact: `/api/stream/prices` stays on web.) */
+export function isStreamPath(pathname) {
+  return STREAM_PATHS.has(pathname);
+}
 export const CANARY_COOKIE = "uct_stream_edge";
 export const EDGE_COOKIE = "uct_chart_edge";
 export const STREAM_EDGE_CONNECT_MS = 4000;
@@ -62,7 +71,7 @@ export function edgeRequestInit(request) {
  */
 export async function handleStream(request, env, fetchImpl = fetch) {
   const url = new URL(request.url);
-  if (url.pathname !== STREAM_BARS_PATH || request.method !== "GET" || !wantsStreamEdge(request, env)) {
+  if (!isStreamPath(url.pathname) || request.method !== "GET" || !wantsStreamEdge(request, env)) {
     return fetchImpl(request);
   }
   const target = env.STREAM_EDGE_ORIGIN.replace(/\/+$/, "") + url.pathname + url.search;

@@ -30,6 +30,7 @@
 import { registerRecoveryStream } from './recoveryRegistry'
 import { REBUILD_GATHER_MS } from './streamRebuildDelay'
 import * as realtimeCandle from './realtimeCandle'
+import * as quotePush from './quotePush'
 import {
   STREAM_WATCHDOG_MS, STREAM_WATCHDOG_TICK_MS, STREAM_RECONNECT_CAP_MS, LIVE_UI_CADENCE_MS,
 } from '../utils/streamStatus'
@@ -99,9 +100,11 @@ export function subscribe(tickers, listener) {
   const id = _nextId++
   _subscribers.set(id, { tickers: [...new Set((tickers || []).filter(Boolean))], listener })
   _scheduleRebuild()
+  quotePush.setTickers('stream', _union())   // pushed list prices: no-op unless flagged on
   return () => {
     _subscribers.delete(id)
     _scheduleRebuild()
+    quotePush.setTickers('stream', _union())
   }
 }
 
@@ -205,6 +208,11 @@ function _connectBucket(bucket) {
       const data = JSON.parse(event.data)
       const prev = _streamPrices
       _streamPrices = { ...prev, ...data }
+      // A pushed quote (lib/quotePush.js, `push_ts`) is never replaced by an OLDER trade from this stream.
+      for (const k of Object.keys(data)) {
+        const p = prev[k]
+        if (p && p.push_ts != null && _entryMs(data[k]) < p.push_ts) _streamPrices[k] = p
+      }
       // A CHANGED price/volume IS freshness — clear any stale flag for that
       // symbol. The server's 'fresh' event only fires on a stale→fresh
       // transition seen by the SAME connection; a flag raised before a
@@ -322,6 +330,62 @@ if (typeof document !== 'undefined') {
     if (!document.hidden) _watchdogSweep()
   })
 }
+
+// ── pushed list prices (lib/quotePush.js) ─────────────────────────────────────
+// The push hands a batch per animation frame. Each quote overlays this snapshot's entry unless the stream
+// already holds a newer trade, and only the subscribers holding a changed symbol are told: at once, not
+// on this pool's 1 s throttle (the push batches per frame already). A push that stops being healthy takes
+// its quotes back out, so a frozen pushed price can never outlive it (REST and this stream remain).
+
+function _entryMs(e) {
+  if (!e || typeof e !== 'object') return 0
+  const t = Number(e.trade_ts)
+  if (Number.isFinite(t) && t > 0) return t
+  const u = Number(e.updated_at)
+  if (Number.isFinite(u) && u > 0) return u * 1000
+  const s = Number(e.timestamp)
+  if (Number.isFinite(s) && s > 0) return s > 1e12 ? s : s * 1000
+  return 0
+}
+
+export function applyPushedQuotes(batch) {
+  let next = null
+  const changed = new Set()
+  for (const sym in batch) {
+    const q = batch[sym]
+    if (!q || !(q.price > 0)) continue
+    const prev = (next || _streamPrices)[sym]
+    if (prev && q.trade_ts != null && _entryMs(prev) > q.trade_ts) continue   // the stream is already newer
+    if (prev && prev.price === q.price && prev.volume === q.volume) continue
+    if (!next) next = { ..._streamPrices }
+    const at = q.trade_ts != null ? q.trade_ts : Date.now()
+    next[sym] = { ...(prev || {}), price: q.price, volume: q.volume ?? prev?.volume, trade_ts: at,
+      updated_at: Math.floor(at / 1000), push_ts: at }
+    changed.add(sym)
+  }
+  if (!next) return
+  _streamPrices = next
+  _refreshSnapshot()
+  for (const sub of _subscribers.values()) {
+    if (!sub.tickers.some((t) => changed.has(String(t).toUpperCase()))) continue
+    try { sub.listener() } catch { /* one bad listener never breaks fanout */ }
+  }
+}
+
+export function clearPushedQuotes() {
+  let next = null
+  for (const sym in _streamPrices) {
+    if (_streamPrices[sym]?.push_ts == null) continue
+    if (!next) next = { ..._streamPrices }
+    delete next[sym]
+  }
+  if (!next) return
+  _streamPrices = next
+  _publish()
+}
+
+quotePush.onQuotes(applyPushedQuotes)
+quotePush.onHealth((healthy) => { if (!healthy) clearPushedQuotes() })
 
 // ── recovery (lib/recovery.js) ──────────────────────────────────────────────
 // After a wake or a network return, recovery reconnects every bucket at once instead of waiting for
