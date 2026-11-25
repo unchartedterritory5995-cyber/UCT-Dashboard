@@ -42,6 +42,27 @@ export const MAX_BARS_PAIRS = 50   // mirror of api/routers/stream.py MAX_BARS_P
 //   * at most AHEAD_MAX_PAIRS per page, the oldest subscriptions first;
 //   * a pair any ordinary subscriber (a chart) holds is an ordinary pair.
 export const AHEAD_MAX_PAIRS = 4
+// (review of #2721, the +6-8% bars requests) A rebuilt connection's open no longer asks a pair it CARRIED (one that had
+// delivered) to gap-backfill at once: its first frame decides. The same bucket as its last one before the rebuild proves
+// the stream covered the gap (no ask); a later bucket asks at that frame, from that last bar; no frame within
+// REJOIN_KICK_MS asks then. Every other open (a pair new on the connection, a reconnect after an error) asks as before.
+export const REJOIN_KICK_MS = 1000
+const _rejoinKick = new Map()   // pair key -> { t: its last bar before the rebuild, timer }
+
+function _askGapBackfill(key, lastBarT) {
+  for (const sub of _subscribers.values()) {
+    if (sub.key !== key || !sub.onReconnect) continue
+    try { sub.onReconnect(lastBarT) } catch { /* ignore */ }
+  }
+}
+
+function _settleRejoinKick(key, ask) {
+  const p = _rejoinKick.get(key)
+  if (!p) return
+  _rejoinKick.delete(key)
+  clearTimeout(p.timer)
+  if (ask) _askGapBackfill(key, p.t)
+}
 // Stream protocol opt-in. v2 = the server may send a `final: true` correction whose `t`
 // is OLDER than the pair's developing bar (a late AM correction of the just-closed
 // bucket). Every consumer of this pool handles that: the chart's push writer replaces
@@ -348,11 +369,17 @@ function _connectBucket(bucket) {
     bucket.connected = true
     bucket.retryDelay = INITIAL_RETRY_MS
     touch()
-    // On (re)connect, ask each subscriber in this bucket to gap-backfill.
+    // On (re)connect, ask each subscriber in this bucket to gap-backfill; a pair the rebuild carried waits for its
+    // first frame (REJOIN_KICK_MS).
     for (const sub of _subscribers.values()) {
       if (!bucket.pairs.has(sub.key)) continue
       const ks = _keyState.get(sub.key)
-      if (sub.onReconnect) { try { sub.onReconnect(ks ? ks.lastBarT : null) } catch { /* ignore */ } }
+      if (ks && ks.rejoin && Number.isFinite(ks.rejoinT)) {
+        if (!_rejoinKick.has(sub.key)) {
+          const key = sub.key
+          _rejoinKick.set(key, { t: ks.rejoinT, timer: setTimeout(() => _settleRejoinKick(key, true), REJOIN_KICK_MS) })
+        }
+      } else if (sub.onReconnect) { try { sub.onReconnect(ks ? ks.lastBarT : null) } catch { /* ignore */ } }
       _notifyStatus(sub)
     }
   }
@@ -388,14 +415,18 @@ function _connectBucket(bucket) {
       }
       // (review of #2721, 1-A) the first frame after a rebuild decides: the same bucket as the last one before it keeps
       // the pair's delivery unbroken; a later bucket means a roll fell inside the gap (an older final waits for the next)
+      let _rejoinAsk = null
       if (ks.rejoin && !(_t != null && Number.isFinite(ks.rejoinT) && _t < ks.rejoinT)) {
         ks.rejoin = false
-        if (!(_t != null && Number.isFinite(ks.rejoinT) && _t === ks.rejoinT)) ks.liveSince = null
+        const _same = _t != null && Number.isFinite(ks.rejoinT) && _t === ks.rejoinT
+        if (!_same) ks.liveSince = null
+        _rejoinAsk = !_same    // the gap-backfill this open deferred: none when the stream covered the gap
       }
       if (_t != null && !(Number.isFinite(ks.lastBarT) && ks.lastBarT > _t)) ks.lastBarT = _t
       if (_developingFrame) ks.everDelivered = true
       if (_developingFrame && !Number.isFinite(ks.liveSince)) ks.liveSince = Date.now()
       _keyState.set(key, ks)
+      if (_rejoinAsk != null) _settleRejoinKick(key, _rejoinAsk)
       // THROTTLED keyed dispatch (see _pendingBar): coalesce to ~2x/sec so the candle
       // ticks on the same calm heartbeat as the quotes — but flush the PRIOR bucket's
       // final bar immediately on a boundary so no close is coalesced away. Only
@@ -517,6 +548,8 @@ export function _resetForTests() {
   if (_edgeRefreshTimer) { clearInterval(_edgeRefreshTimer); _edgeRefreshTimer = null }
   if (_barThrottleTimer) { clearTimeout(_barThrottleTimer); _barThrottleTimer = null }
   _pendingBar.clear()
+  for (const p of _rejoinKick.values()) clearTimeout(p.timer)
+  _rejoinKick.clear()
   for (const b of _buckets) _teardownBucket(b)
   _buckets = []
   _subscribers.clear()
