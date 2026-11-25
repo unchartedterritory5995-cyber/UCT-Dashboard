@@ -223,9 +223,10 @@ def test_P3_a_since_delta_one_short_and_not_pending_is_unverified(monkeypatch, c
     assert payload["tail_status"] == "unverified"
 
 
-def _heal_env(monkeypatch, clock, call_s, market=ROLL, rows=(), order=None):
-    """A provider that answers ok after `call_s` seconds with `rows` (none: a thin name). `market`: the market's
-    publication watermark (`market_published_through`): by default the 09:59 minute is published market-wide."""
+def _heal_env(monkeypatch, clock, call_s, market=ROLL, rows=(), order=None, window_start=None):
+    """A provider that answers ok after `call_s` seconds with `rows` (none: a thin name; a callable: called per ask).
+    `market`: the market's publication watermark (`market_published_through`; a callable: called per read): by
+    default the 09:59 minute is published market-wide. `window_start`: the rewritten window (enables the seal)."""
     stamped: list = []
 
     def _delta(t, tf, last_ts, status=None, tail_only=False):
@@ -233,12 +234,14 @@ def _heal_env(monkeypatch, clock, call_s, market=ROLL, rows=(), order=None):
             order.append("ask")
         clock["t"] += call_s
         status["ok"] = True
-        return [dict(r) for r in rows]
+        if window_start is not None:
+            status["window_start"] = window_start
+        return [dict(r) for r in (rows() if callable(rows) else rows)]
 
     def _market(now=None):
         if order is not None:
             order.append("market")
-        return market
+        return market() if callable(market) else market
 
     monkeypatch.setattr(bf, "_provider_write", lambda checked_at: bf._NullCheck())
     monkeypatch.setattr(bf, "_delta_intraday", _delta)
@@ -545,3 +548,137 @@ def test_P8_control_mid_bucket_keeps_the_normal_ttl(monkeypatch, clock):
         assert _max_age(bf._get_bars_inner("ZZCAPONE", "5", 1)) == bf._CACHE_TTL["5"]
     finally:
         bf.cache.invalidate("bars_ZZCAPONE_5_1")
+
+
+# ── P9-P11: REVIEW #2732 ROUND 2 (2026-11-25) ────────────────────────────────────────────────────────────────────────
+#   P9   the 45 s finality SEAL rests on the same publication proof: a bucket is final only once the market had
+#        published it (seal_through = min(checked_at - SEAL_LAG_S, max(own newest bar end, market watermark))). A
+#        sealed ABSENT bucket is proven empty and never re-read, so a seal over an unpublished minute is a permanent
+#        hole on a worse open than the 42 s measured.
+#   P10  the market watermark is the MAX over several references (SPY, QQQ, IWM): early pre-market minutes with no
+#        SPY print must not keep thin names unverified. One probe round (one call per reference) per pod per minute.
+#   P11  a probe that runs but whose watermark lags the frontier by > 2 min logs a rate-limited warning and is
+#        counted on /api/stream/status (`bars_market_probe`): the "probe fails while heals succeed" amplification.
+def _seal_env(monkeypatch):
+    sealed: list = []
+    monkeypatch.setattr(bf._sqlite, "record_sealed",
+                        lambda t, tf, through, wstart, checked, covers_from=None: sealed.append(through))
+    return sealed
+
+
+def test_P9_a_lagging_open_never_seals_a_hole_a_later_rest_answer_fills(monkeypatch, clock):
+    from api.services.bar_contract import SEAL_LAG_S
+    sealed = _seal_env(monkeypatch)
+    box = {"market": FRONTIER, "rows": []}
+    _heal_env(monkeypatch, clock, call_s=0.2, market=lambda: box["market"], rows=lambda: box["rows"],
+              window_start=_et(4, 0))
+    clock["t"] = ROLL + SEAL_LAG_S + 5               # past the 45 s seal lag, REST still lagging (a worse open)
+    bf._heal_intraday_tail("LIQ", "1", ONE_SHORT)
+    assert sealed and max(sealed) < ROLL, "sealed the 09:59 bucket the provider had not published"
+    # the later REST answer that holds it: now (and only now) it is final
+    box.update(market=ROLL, rows=[{"t": FRONTIER, "o": 1, "h": 2, "l": 0.5, "c": 1.5, "v": 100}])
+    clock["t"] += 10
+    bf._heal_intraday_tail("LIQ", "1", ONE_SHORT)
+    assert max(sealed) >= ROLL
+
+
+def test_P9_control_a_published_bucket_seals_as_before(monkeypatch, clock):
+    from api.services.bar_contract import SEAL_LAG_S
+    sealed = _seal_env(monkeypatch)
+    clock["t"] = ROLL + SEAL_LAG_S + 5
+    _heal_env(monkeypatch, clock, call_s=0.2, market=ROLL + 40, window_start=_et(4, 0))
+    checked = clock["t"]
+    bf._heal_intraday_tail("LIQ", "1", ONE_SHORT)
+    assert sealed == [checked - SEAL_LAG_S]
+
+
+def test_P9_no_returned_bar_and_no_watermark_seals_nothing(monkeypatch, clock):
+    from api.services.bar_contract import SEAL_LAG_S
+    sealed = _seal_env(monkeypatch)
+    clock["t"] = ROLL + SEAL_LAG_S + 5
+    _heal_env(monkeypatch, clock, call_s=0.2, market=None, window_start=_et(4, 0))
+    bf._heal_intraday_tail("LIQ", "1", ONE_SHORT)
+    assert sealed == []
+
+
+@pytest.fixture
+def refs(monkeypatch):
+    ends: dict = {}
+    calls: list = []
+
+    def _one(sym):
+        calls.append(sym)
+        v = ends.get(sym)
+        if isinstance(v, Exception):
+            raise v
+        return v
+
+    monkeypatch.setattr(bf, "_MARKET_REF_TICKERS", ("SPY", "QQQ", "IWM"), raising=False)
+    monkeypatch.setattr(bf, "_fetch_reference_end", _one, raising=False)
+    return ends, calls
+
+
+def test_P10_the_watermark_is_the_max_over_the_references(refs):
+    ends, calls = refs
+    ends.update(SPY=_et(4, 2), QQQ=_et(4, 4), IWM=_et(4, 3))    # 04:03: no SPY print, QQQ printed
+    assert bf._fetch_market_reference_end() == _et(4, 4)
+    assert sorted(calls) == ["IWM", "QQQ", "SPY"], "one call per reference per round"
+
+
+def test_P10_a_failing_reference_does_not_sink_the_round(refs):
+    ends, _ = refs
+    ends.update(SPY=RuntimeError("429"), QQQ=_et(4, 4), IWM=None)
+    assert bf._fetch_market_reference_end() == _et(4, 4)
+
+
+def test_P10_every_reference_failing_is_none(refs):
+    ends, _ = refs
+    ends.update(SPY=RuntimeError("429"), QQQ=None, IWM=RuntimeError("timeout"))
+    assert bf._fetch_market_reference_end() is None
+
+
+def test_P10_the_default_references_are_several():
+    assert len(bf._MARKET_REF_TICKERS) >= 2 and "SPY" in bf._MARKET_REF_TICKERS
+
+
+def _reset_probe_stats(monkeypatch):
+    monkeypatch.setattr(bf, "_market_probe_stats",
+                        {"probes": 0, "stale_probes": 0, "last_stale_log": None, "last_lag_s": None}, raising=False)
+
+
+def test_P11_a_probe_that_runs_but_lags_the_frontier_warns_once_and_is_counted(probe, clock, monkeypatch, caplog):
+    import logging
+    calls, answers = probe
+    _reset_probe_stats(monkeypatch)
+    answers += [ROLL - 180] * 10                     # the watermark stuck 3 minutes behind the frontier
+    with caplog.at_level(logging.WARNING, logger=bf.__name__):
+        for k in range(3):
+            clock["t"] = ROLL + 2 + k * (bf._MARKET_PROBE_RETRY_S + 0.5)
+            bf.market_published_through()
+    st = bf.market_probe_status()
+    assert st["stale_probes"] == 3 and st["probes"] == 3
+    assert st["last_lag_s"] >= 120
+    warns = [r for r in caplog.records if "market probe stale" in r.getMessage()]
+    assert len(warns) == 1, "rate-limited: one warning per window"
+
+
+def test_P11_control_a_current_probe_never_warns(probe, clock, monkeypatch, caplog):
+    import logging
+    calls, answers = probe
+    _reset_probe_stats(monkeypatch)
+    answers += [ROLL - 60, ROLL]                     # one minute behind (the open), then current: not stale
+    with caplog.at_level(logging.WARNING, logger=bf.__name__):
+        clock["t"] = ROLL + 2
+        bf.market_published_through()
+        clock["t"] = ROLL + 2 + bf._MARKET_PROBE_RETRY_S + 0.5
+        bf.market_published_through()
+    assert bf.market_probe_status()["stale_probes"] == 0
+    assert not [r for r in caplog.records if "market probe stale" in r.getMessage()]
+
+
+def test_P11_the_counter_is_on_the_stream_status(monkeypatch, probe, clock):
+    from api.routers import stream as stream_router
+    _reset_probe_stats(monkeypatch)
+    monkeypatch.setattr(stream_router, "get_stream_status", lambda: {})
+    out = stream_router.stream_status()
+    assert {"through", "probed_at", "probes", "stale_probes", "last_lag_s"} <= set(out["bars_market_probe"])
