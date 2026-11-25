@@ -124,20 +124,23 @@ describe('the hold keeps the next, the one after and the previous row current ac
     w.store.dispose()
   })
 
+  // ⛔ CHANGED 2026-11-24 (prefetch.firstFrameClosedBar.test.js B2): the next-row warm now asks again, once per bucket, a
+  // next row whose answer predates the current bucket; the press's tail then asks only the row it did not cover.
   it('TC2 a row that fell behind while it waited in the window is asked again at the next press', async () => {
     vi.setSystemTime(at(10, 0, 50))
     const w = await boot('closed')
     await warmAll(w, ['AAA', 'BBB', 'DDD'], '1')
     await tick(14_000)                                         // 10:01:04: one bucket behind, inside its cooldown
     expect(w.pf.peekDisplayable('AAA', '1')).toBe(false)
-    w.pf.prefetchBars(['AAA', 'BBB'], '1', { urgent: true })   // today's next-row warm asks nothing for it
-    await w.server.flush(40)
-    expect(w.server.open()).toHaveLength(0)
+    const n0 = w.server.calls.length
+    w.pf.prefetchBars(['AAA', 'BBB'], '1', { urgent: true })   // the next-row warm asks its two rows again (once a bucket)
+    await w.server.drain()
+    expect(w.server.calls.length - n0).toBe(2)
     const before = w.server.calls.length
     const hold = w.pf.createNeighborHold()
     navigate(hold, ['AAA', 'BBB', 'DDD'], '1', ['AAA', 'BBB', 'DDD'])   // the press, after its paint
     await w.server.drain()
-    expect(w.server.calls.length - before).toBe(3)
+    expect(w.server.calls.slice(before).map((c) => c.q.sym)).toEqual(['DDD'])
     await tick(6_000)
     expect(w.pf.peekDisplayable('AAA', '1')).toBe(true)
     hold.clear()
@@ -253,7 +256,9 @@ describe('review of #2619, MEDIUM-1: a tail answer still behind never lets a pre
     w.store.dispose()
   })
 
-  it("M1b the switch's OWN answer still starts the grace exactly as before (a name not printing paints as it is)", async () => {
+  // ⛔ CHANGED 2026-11-24 (prefetch.firstFrameClosedBar.test.js C2): an own answer TWO OR MORE buckets behind no longer lends
+  // the grace (it read as "not printing" while the server lagged); one bucket behind long after the roll still does (C1b).
+  it("M1b the switch's OWN answer 20 buckets behind lends no grace now; the press still paints after its bounded hold", async () => {
     vi.setSystemTime(at(10, 1, 10))
     const w = await boot('behind')                             // every answer ends at 09:40
     await warmAll(w, ['AAA'], '1')
@@ -263,9 +268,9 @@ describe('review of #2619, MEDIUM-1: a tail answer still behind never lets a pre
     w.pf.prepareForDisplay('AAA', '1').then((x) => { out.v = x })   // the switch's own ask
     await w.server.flush(40)
     await w.server.drain()
-    expect(w.pf.peekDisplayable('AAA', '1')).toBe(true)        // inside BEHIND_RECHECK_MS of its own answer
+    expect(w.pf.peekDisplayable('AAA', '1')).toBe(false)       // no grace for an answer this far behind
     await tick(1_000)
-    expect(out.v).not.toBe('pending')
+    expect(out.v).not.toBe('pending')                          // the hold is bounded: it painted as it is
     w.store.dispose()
   })
 })
