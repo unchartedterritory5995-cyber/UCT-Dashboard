@@ -737,6 +737,7 @@ def _error_answer(status_code: int, content: dict, response) -> JSONResponse:
     out = JSONResponse(status_code=status_code, content=content)
     if response is not None:
         out.raw_headers.extend(h for h in response.raw_headers if h[0] == b"set-cookie")
+    out.headers["Cache-Control"] = "no-store"    # (see the route: never from a cache, the error answers too)
     return out
 
 
@@ -763,6 +764,11 @@ def get_live_prices(
     if response is not None:
         from api.routers.auth import set_kill_cookies_when_killed
         set_kill_cookies_when_killed(response)
+        # ⭐ (2026-11-25, review of #2733) NEVER FROM A CACHE: this poll's Date header is the page's sample of the server's
+        # clock for every chart roll decision (app/src/lib/serverClock.js), and a cached answer carries its ORIGINAL Date.
+        # The client refuses a cacheable answer as a sample, so a future cache rule here would silently cost every member
+        # the server clock: no-store says so on the wire (merged by FastAPI into every answer it builds from this route).
+        response.headers["Cache-Control"] = "no-store"
     raw_list = [t.strip().upper() for t in tickers.split(",") if t.strip()]
     if not raw_list:
         return _error_answer(400, {"error": "No tickers provided"}, response)
