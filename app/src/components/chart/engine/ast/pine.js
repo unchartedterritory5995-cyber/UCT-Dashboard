@@ -9074,11 +9074,12 @@ export class Resolver {
     this.knobArmRefusals = opts.knobArmRefusals || null
     /** ⭐ e97 U8 — the enum settings this translation WITHHOLDS (name → `{name, title, def, sentence}`), SHARED by every
      *  Resolver of one translation: a `switch` the setting reaches through a helper's parameter whose arms are more
-     *  than this engine expands yet (`enumSwitch`, `PARAM_SWITCH_MAX_NODES`). The door does not declare it, so the
+     *  than this engine expands yet (`enumSwitch`, `PARAM_SWITCH_TOTAL_NODES`). The door does not declare it, so the
      *  script folds to its default and no control says otherwise (`builderInputs.memberInputTranslation`). */
     this.withheldKnobs = opts.withheldKnobs || null
-    /** ⭐ e97 U8 — how many parameter-reached knob `switch`es are being built around this one (`enumSwitch`) */
-    this.paramSwitchDepth = 0
+    /** ⭐ e97 U8 (ruling (b)) — the nodes every parameter-reached knob `switch` of ONE translation has built so far
+     *  (`{nodes}`, shared like `withheldKnobs`), held under `PARAM_SWITCH_TOTAL_NODES` (`enumSwitch`) */
+    this.paramSwitchSpend = opts.paramSwitchSpend || null
     /** ⭐⭐ C10 (2026-09-29) — THE OBJECT PASS. Set by the object pass's factory
      *  and by nothing else, and it widens two reads there only:
      *   · a ternary or an `and`/`or` whose test is a constant EXPRESSION
@@ -10652,7 +10653,7 @@ export class Resolver {
         this.env = arg.env || prev
         let en
         try { en = this.enumInputCallOf(arg.node, depth + 1) } finally { this.env = prev }
-        // marked, so the switch it reaches is built within `PARAM_SWITCH_MAX_NODES` (`enumSwitch`)
+        // marked, so the switch it reaches is built within `PARAM_SWITCH_TOTAL_NODES` (`enumSwitch`)
         return en ? { ...en, viaParam: true } : null
       }
       // ⭐ (input-kind) a `var` nothing reassigns is its initializer: the member's knob reaches it as the plain binding's
@@ -10809,11 +10810,11 @@ export class Resolver {
     }
     if (!arms.length) return null
     const covered = seen.size === en.options.length
-    // ⭐⭐ e97 U8 (coordinator ruling (i)) — A SWITCH THE SETTING REACHES THROUGH A HELPER'S PARAMETER IS BUILT WITHIN A
-    // BUDGET. Each arm is a whole helper body, and a helper of helpers multiplies them: measured, heikin-ashi-erebor's
-    // fifteen-type MA switches took the door from 0.6 s to 72 s, and artemis's nested method switches posted 2.5 MB.
-    // Nested inside another such switch, or over `PARAM_SWITCH_MAX_NODES`, the switch folds to the default as it
-    // always did and the SETTING IS WITHHELD BY NAME (never a control that moves what is shown but not computed).
+    // ⭐⭐ e97 U8 (coordinator rulings (i), (b)) — THE SWITCHES A SETTING REACHES THROUGH A HELPER'S PARAMETER ARE BUILT
+    // WITHIN ONE BUDGET FOR THE WHOLE TRANSLATION (`PARAM_SWITCH_TOTAL_NODES`). Each arm is a whole helper body, and a
+    // helper of helpers multiplies them: measured, heikin-ashi-erebor's fifteen-type MA switches took the door from 0.6 s
+    // to 72 s, and artemis's method switches posted 2.5 MB. Over the budget the switch folds to the default as it always
+    // did and the SETTING IS WITHHELD BY NAME (never a control that moves what is shown but not computed).
     const withhold = () => {
       if (this.withheldKnobs && !this.withheldKnobs.has(en.name)) {
         const setting = en.title ? `"${en.title}"` : `\`${en.name}\``
@@ -10822,10 +10823,11 @@ export class Resolver {
       }
       return null
     }
-    if (en.viaParam && this.withheldKnobs && this.withheldKnobs.has(en.name)) return null
-    if (en.viaParam && this.paramSwitchDepth > 0) return withhold()
-    if (en.viaParam) this.paramSwitchDepth += 1
-    try {
+    const spend = en.viaParam ? (this.paramSwitchSpend || { nodes: 0 }) : null
+    if (spend && !spend.admitted) spend.admitted = new Set()
+    // once the budget has run out, no setting reached LATER is admitted, even a small one (the withheld are exactly the
+    // latest-reached, in source order), and its arms are never built: the budget bounds the work as well as the size
+    if (spend && spend.exhausted && !spend.admitted.has(en.name)) return withhold()
     // ⭐ (approved 2026-11-22, the refusing leaf) an arm this translator refuses is carried as `refusedArm(k)`: the bind
     // prunes it away unless the knob picks it, and then refuses THAT plot by name, quoting the refusal it had here
     const armOf = (binding) => {
@@ -10856,9 +10858,17 @@ export class Resolver {
     for (let k = built.length - 1; k >= 0; k -= 1) {
       out = cOp('?:', [this.enumKnobTest(en, built[k].idx, true), nodeOf(built[k]), out])
     }
-    if (en.viaParam && treeNodeCount(out, PARAM_SWITCH_MAX_NODES + 1) > PARAM_SWITCH_MAX_NODES) return withhold()
+    if (en.viaParam) {
+      // ⭐⭐ ruling (b): ONE budget for the whole translation, spent in the order the switches are reached (source
+      // order: deterministic), so the settings withheld are the latest-reached ones, whatever the script
+      const room = PARAM_SWITCH_TOTAL_NODES - spend.nodes
+      const size = treeNodeCount(out, room + 1)
+      // (a setting admitted earlier whose switch no longer fits is withheld too, and leaves the admitted: never rebuilt)
+      if (size > room) { spend.exhausted = true; spend.admitted.delete(en.name); return withhold() }
+      spend.nodes += size
+      spend.admitted.add(en.name)
+    }
     return out
-    } finally { if (en.viaParam) this.paramSwitchDepth -= 1 }
   }
 
   /** ⭐⭐ e95 unit 2b — the leaf an arm this translator refused stands as (`enumSwitch`): `refusedArm(k)`, `k` the
@@ -31198,6 +31208,8 @@ function translatePineResult(source, opts = {}) {
   const knobArmRefusals = []
   // ⭐ e97 U8 — the enum settings withheld for their size, one map for every Resolver (`Resolver.withheldKnobs`)
   const withheldKnobs = new Map()
+  // ⭐ e97 U8 — the nodes the parameter-reached knob switches of this translation built (`Resolver.paramSwitchSpend`)
+  const paramSwitchSpend = { nodes: 0 }
   // ⭐ C11c — the object pass's read methods and window-reduction ambiguity
   // registry (see `Resolver.methodDefs` / `Resolver.windowAmbiguity`).
   const objectMethodDefs = readMethodDefs(stmts)
@@ -31205,7 +31217,7 @@ function translatePineResult(source, opts = {}) {
   const makeResolver = (scopeEnv = env) => {
     const r = new Resolver(scopeEnv, table, declaredTypes,
       { finalBindings, finalLocals, mutated: reassigned, source, rawOffsetMap, paramMint,
-        partialReadCache, knobArmRefusals, withheldKnobs,
+        partialReadCache, knobArmRefusals, withheldKnobs, paramSwitchSpend,
         // ⭐⭐ C45 — the arm reader asks which script functions read their own history
         historyFns: historyFnsOf,
         strict: opts.strict === true, screen: !isHostLane(opts), pineVersion: version, pineScript: true, pineV1,
@@ -36639,10 +36651,11 @@ function keepHiddenFacts(from, to) {
 /** ⭐⭐ e97 U6 — THE PLACES each `display.*` constant names (Pine's reference: `display.all` is every place,
  *  `display.none` none). A plot is DRAWN ON THE CHART exactly when its display includes `pane`: `display.data_window`,
  *  `display.status_line`, `display.price_scale` and `display.all - display.pane` keep it off the pane. */
-/** ⭐ e97 U8 — the most nodes a knob `switch` reached through a helper's PARAMETER may build (`enumSwitch`). The
- *  built-in MA family's six-arm switch is a few hundred; heikin-ashi-erebor's and artemis's helper-of-helper switches
- *  are thousands each (measured). */
-const PARAM_SWITCH_MAX_NODES = 2000
+/** ⭐ e97 U8 (coordinator ruling (b)) — the most nodes ALL the knob `switch`es one translation reaches through a helper's
+ *  PARAMETER may build together (`enumSwitch`, `Resolver.paramSwitchSpend`): a bound on the whole document, not a
+ *  per-switch constant tuned to one script. Over it, the setting whose switch would exceed it (and every one reached
+ *  after) is withheld by name and its switch folds to the default as before. */
+const PARAM_SWITCH_TOTAL_NODES = 4000
 
 /** Nodes in a tree, counting no further than `stop` (a budget check need not walk a huge tree whole). */
 function treeNodeCount(tree, stop = Infinity) {

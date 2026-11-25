@@ -84,12 +84,12 @@
   },
   {
    "id": "U8-M11",
-   "mutant": "the parameter-reached switch is built whatever its size (no budget, no withheld setting)",
+   "mutant": "the translation budget never withholds (every parameter-reached switch built, whatever the total)",
    "file": "app/src/components/chart/engine/ast/pine.js",
-   "from": "    if (en.viaParam && treeNodeCount(out, PARAM_SWITCH_MAX_NODES + 1) > PARAM_SWITCH_MAX_NODES) return withhold()",
-   "to": "    void 0",
+   "from": "      if (size > room) { spend.exhausted = true; spend.admitted.delete(en.name); return withhold() }",
+   "to": "      if (false) { spend.exhausted = true; spend.admitted.delete(en.name); return withhold() }",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/enumKnobTruth.test.js",
-   "expectRed": "over the budget, the setting is withheld by name"
+   "expectRed": "over the translation budget, the settings are withheld by name"
   },
   {
    "id": "U8-M12",
@@ -98,7 +98,16 @@
    "from": "        && !displacementBound.has(e.name) && !withheldKnobs.has(e.name))",
    "to": "        && !displacementBound.has(e.name))",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/enumKnobTruth.test.js",
-   "expectRed": "over the budget, the setting is withheld by name"
+   "expectRed": "over the translation budget, the settings are withheld by name"
+  },
+  {
+   "id": "U8-M13",
+   "mutant": "after the budget runs out, a later setting's switch is still built (the work is unbounded)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    if (spend && spend.exhausted && !spend.admitted.has(en.name)) return withhold()",
+   "to": "    void 0",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/enumKnobTruth.test.js",
+   "expectRed": "after the budget runs out no later switch is built"
   }
  ]
 }

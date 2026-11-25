@@ -66,23 +66,35 @@ describe('e97 U8 — every enum setting a member can see moves the script\'s own
   }, 120000)
 
   it.each([
-    ['artemis-oscillator-pro__ea1097ca9e.pine'],
     ['multicator-table__486858895c.pine'],
   ])('%s: every enum setting it offers is true', (file) => {
     expectTrue(enumKnobTruth(fs.readFileSync(path.join(CORPUS, file), 'utf8'), BARS))
   }, 240000)
 
-  // ⭐ coordinator ruling (i): a switch the setting reaches through a helper's parameter is built within a budget; over
-  // it, the switch folds to the default as it always did and the setting is WITHHELD BY NAME. Measured: artemis's
-  // drmMethod (its helper-of-helper method switch) is over; sigMethod is within, and true (above).
-  it('⛔ over the budget, the setting is withheld by name (artemis "Smoothing" / drmMethod), never a lying control', () => {
+  // ⭐ coordinator ruling (b): the knob switches one translation reaches through a helper's parameter share ONE node
+  // budget (`PARAM_SWITCH_TOTAL_NODES`), spent in source order; over it, the setting whose switch would exceed it and every
+  // one reached after are WITHHELD BY NAME and fold to the default. Measured: artemis's two "Smoothing" settings
+  // (drmMethod, then sigMethod) both are.
+  it('⛔ over the translation budget, the settings are withheld by name (artemis, two "Smoothing"), never a lying control', () => {
     const r = memberPaneDefinition({ source: fs.readFileSync(path.join(CORPUS, 'artemis-oscillator-pro__ea1097ca9e.pine'), 'utf8') })
     expect(r.ok, r.reason).toBe(true)
     const keys = r.definition.inputs.map((i) => i.key)
     expect(keys).not.toContain('drmMethod')
-    expect(keys).toContain('sigMethod')
-    expect((r.notes || []).map((n) => n.note).join(' | '))
-      .toContain('is not offered as a setting: this script\'s setting "Smoothing" has more variants than this engine expands yet, so it stays at its default "RMA"')
+    expect(keys).not.toContain('sigMethod')
+    const said = (r.notes || []).map((n) => n.note).join(' | ')
+    expect(said).toContain(`"Smoothing" (\`drmMethod\`) is not offered as a setting: this script's setting`)
+    expect(said).toContain('has more variants than this engine expands yet, so it stays at its default "RMA"')
+    expect(said).toContain('"Smoothing" (`sigMethod`) is not offered as a setting')
+    expect(said).toContain('has more variants than this engine expands yet, so it stays at its default "EMA"')
+  }, 240000)
+
+  // ⭐ once the budget has run out, no setting reached later is admitted and its switch is never BUILT: the budget bounds
+  // the work as well as the size. Measured, heikin-ashi-erebor's door: 72 s with every switch built, 56 s with the budget
+  // checked only after building, 0.6 s without the hop, 0.65 s as shipped. The bound here is generous (20 s).
+  it('⛔ after the budget runs out no later switch is built: heikin-ashi-erebor\'s door answers in seconds, not a minute', () => {
+    const t0 = Date.now()
+    memberPaneDefinition({ source: fs.readFileSync(path.join(CORPUS, 'heikin-ashi-true-strength-index-and-optimized-trend-tracker-erebor__f91c76bdec.pine'), 'utf8') })
+    expect(Date.now() - t0).toBeLessThan(20000)
   }, 240000)
 
   it('⛔ CONTROL: a document whose "Type" never reaches the smoothing is caught (the lie this rail exists for)', () => {
