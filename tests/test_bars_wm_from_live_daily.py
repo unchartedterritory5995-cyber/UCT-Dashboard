@@ -49,7 +49,7 @@ def store(monkeypatch, tmp_path):
     bls._reset_for_tests()
 
 
-def _seed(tf, stale=False, live=True, monkeypatch=None):
+def _seed(tf, stale=False, live=True, monkeypatch=None, sym="AAA"):
     """The live daily, and the W/M table built from it. `stale`: the CURRENT period as a days-old table holds it, a VALID
     bar with old values (close at the period's low, a smaller volume): one the impossible-bar gate takes, so the store
     really holds a present-but-stale row (review of #2742: a close outside the bar's own range was refused by the gate,
@@ -57,15 +57,15 @@ def _seed(tf, stale=False, live=True, monkeypatch=None):
     days = _sessions(130)
     daily = [{"t": d.isoformat(), "o": 100 + i, "h": 101 + i, "l": 99 + i, "c": 100.5 + i, "v": 1000 + i}
              for i, d in enumerate(days)]
-    bars_sqlite.put_bars("AAA", "D", daily, date_tf=True)
+    bars_sqlite.put_bars(sym, "D", daily, date_tf=True)
     periods = (bars_fetch._resample_weekly_iso(daily) if tf == "W" else bars_fetch._resample_monthly_iso(daily))
     stored = [dict(p) for p in periods]
     if stale:
         stored[-1]["c"] = stored[-1]["l"]
         stored[-1]["v"] = int(stored[-1]["v"]) - 1
-    bars_sqlite.put_bars("AAA", tf, stored, date_tf=True)
+    bars_sqlite.put_bars(sym, tf, stored, date_tf=True)
     # the seed itself round-trips: the store holds exactly the row this test means (present, and stale if asked)
-    held = bars_sqlite.get_bars("AAA", tf, 2)
+    held = bars_sqlite.get_bars(sym, tf, 2)
     assert int(held[-1][0]) == int(periods[-1]["t"].replace("-", "")), "the seed's current period is not in the store"
     if stale:
         assert float(held[-1][4]) == float(stored[-1]["c"]) != float(daily[-1]["c"]), "the stale row did not land"
@@ -155,3 +155,51 @@ def test_the_background_write_round_trips_through_the_real_store_to_fresh(store,
     assert bars_fetch._needs_fresh(last, tf, "AAA") is False, "the store never came to equal the derivation"
     stored = bars_sqlite.get_bars("AAA", tf, 3)
     assert float(stored[-1][4]) == float(daily[-1]["c"])
+
+
+# ⛔ (review of #2742, round 2) THE BACKGROUND WRITES ARE CAPPED. A W/M warm over 500 names started a write thread per
+# name (~1000), all fighting for the SQLite write lock the live store's 1m/5m/D pushes use (the late pushes #2738 is
+# about). A write that finds no slot is SKIPPED: the answer still carries the derived bars, and a later read writes.
+def test_many_concurrent_reads_start_at_most_the_capped_writes_and_every_answer_carries_the_derivation(store, monkeypatch):
+    syms = [f"S{i:02d}" for i in range(12)]
+    want = {}
+    for sym in syms:
+        daily, periods = _seed("W", stale=True, monkeypatch=monkeypatch, sym=sym)
+        want[sym] = (daily[-1]["c"], len(periods))
+        bars_fetch.cache.delete_prefix(f"bars_{sym}_")
+    gate, lock, live = threading.Event(), threading.Lock(), {"now": 0, "max": 0, "calls": 0}
+    real = bars_sqlite.put_bars
+
+    def put(ticker, tf, bars, *a, **k):
+        if tf not in ("W", "M"):
+            return real(ticker, tf, bars, *a, **k)
+        with lock:
+            live["now"] += 1
+            live["calls"] += 1
+            live["max"] = max(live["max"], live["now"])
+        try:
+            gate.wait(5)
+            return real(ticker, tf, bars, *a, **k)
+        finally:
+            with lock:
+                live["now"] -= 1
+    monkeypatch.setattr(bars_sqlite, "put_bars", put)
+    out, errs = {}, []
+
+    def read(sym):
+        try:
+            out[sym] = json.loads(bars_fetch._get_bars_inner(sym, "W", want[sym][1]).body)["bars"][-1]["c"]
+        except Exception as e:  # noqa: BLE001
+            errs.append(repr(e))
+    threads = [threading.Thread(target=read, args=(sym,)) for sym in syms]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(10)
+    time.sleep(0.2)
+    started = live["max"]
+    gate.set()
+    assert errs == []
+    assert all(out.get(sym) == want[sym][0] for sym in syms), "an answer lacked the derived bar"
+    assert started <= bars_fetch.WM_WRITE_SLOTS, f"{started} W/M writes ran at once"
+    assert bars_fetch.WM_WRITE_SLOTS <= 2
