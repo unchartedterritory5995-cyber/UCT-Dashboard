@@ -381,7 +381,24 @@ THE RULES
 11. Draw ONLY what the member asked for. A request for a count or a signal is that one plot or mark: do not add a label on every event, a summary table, a background colour, extra shapes or an `alertcondition` the request did not name. Each extra clutters the chart and is one more claim that has to be right. If something more would help, OFFER it in `reply` in one short sentence ("I can also mark each day or add a table") and leave it out of the script. When the request is ONLY a drawing (a box, a line, labels, a table) and names no plotted line, still `plot` the value the drawing is made from, because a script with a plot can be used in alerts and one without cannot; but make that plot INVISIBLE with a fully transparent colour (`plot(level, "Level", color=color.new(color.gray, 100))`) and say in `reply` that a hidden plot is there for alerts. Never hide a plot the member asked to see.
 12. {number_on_bars}
 13. {percent_format}
-14. {fill_in}"""
+14. {fill_in}
+15. {strict_pivot}"""
+
+#: ⭐ RULE 15: STRICT WORDS ON BOTH SIDES OF A BAR ARE NOT ta.pivothigh (coordinator's ruling, 2026-11-25). cap-03's
+#: words ("a swing high is a bar whose high is above the highs of the 3 bars before it and the 3 bars after it") came
+#: back live as scripts, 6 of 6 right by the case's rule on the script lane's bars, and 2 of the 6 used
+#: `ta.pivothigh(high, 3, 3)` while their reply called the rule "strictly above". The engine's pivothigh is
+#: TradingView-exact: it admits a high EQUAL to one of the bars before it. So the reply said something false, and the
+#: value is right only where the chart holds no such tie. Rule 10 (call Pine's own function) does not reach this: the
+#: member's words are not the function's rule.
+STRICT_PIVOT_RULE = (
+    "STRICT WORDS ON BOTH SIDES OF A BAR ARE NOT `ta.pivothigh` / `ta.pivotlow`: those admit a bar EQUAL to one of the "
+    "bars before it (a pivot high is at least as high as each bar before it and higher than each bar after it). When "
+    "the member's words are strict on both sides (\"above the highs of the N bars before it and the N bars after "
+    "it\"), write the comparisons yourself, on the bar N back, known on this bar: `high[N] > high[N + k]` and "
+    "`high[N] > high[N - k]` for every k from 1 to N (a `for` loop, or one line per k), and `low[N] < ...` for a low. "
+    "This comes before rule 10. If you do use `ta.pivothigh` or `ta.pivotlow`, never call its rule strict in `reply`: "
+    "say it counts a bar equal to one before it.")
 
 #: ⭐ RULE 14: A FIGURE THE MEMBER MUST FILL IN (found by the first full live run of the value cases, 2026-11-22). On
 #: the formula door an "average cost" setting was drawn bare: a line at price 0 until filled, squeezing the chart. A
@@ -635,7 +652,8 @@ def contract(ref: Optional[Mapping[str, Any]] = None) -> str:
     """The contract as the assistant reads it: the rules, with rule 10's examples taken from the reference."""
     return (CONTRACT.replace("{own_functions}", _own_functions_said(ref)).replace("{last_bar}", _last_bar_said(ref))
             .replace("{number_on_bars}", NUMBER_ON_BARS_RULE)
-            .replace("{percent_format}", PERCENT_FORMAT_RULE).replace("{fill_in}", FILL_IN_RULE))
+            .replace("{percent_format}", PERCENT_FORMAT_RULE).replace("{fill_in}", FILL_IN_RULE)
+            .replace("{strict_pivot}", STRICT_PIVOT_RULE))
 
 
 def document(ref: Optional[Mapping[str, Any]] = None, run_stops: Optional[List[str]] = None) -> str:
