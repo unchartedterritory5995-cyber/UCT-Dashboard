@@ -62,10 +62,18 @@ def live(monkeypatch, tmp_path):
     monkeypatch.setenv("BARS_LIVE_1M_ENABLED", "1")
     db = sqlite3.connect(str(tmp_path / "bars.db"), check_same_thread=False)
     monkeypatch.setattr(bars_sqlite, "_conn", lambda: db)
-    state = {"gate": None}
+    state = {"gate": None, "reject": set()}
 
-    def _many(tf, by):
-        n = sum(len(v) for v in by.values())
+    def _many(tf, by, rejected_out=None):
+        """The store's batch write: tickers in `state["reject"]` are refused by the impossible-bar gate (and reported
+        through `rejected_out`, as `bars_sqlite.put_bars_many` does)."""
+        n = 0
+        for sym, bars in by.items():
+            if sym in state["reject"]:
+                if rejected_out is not None:
+                    rejected_out.add(sym)
+                continue
+            n += len(bars)
         return n if state["gate"] is None else state["gate"](tf, by, n)
     monkeypatch.setattr(bars_sqlite, "put_bars_many", _many)
     monkeypatch.setattr(bars_sqlite, "put_bars", lambda s, tf, bars: len(bars))
@@ -149,14 +157,29 @@ def test_5m_the_same_rule(live):
     assert bls.proven_through_s("AAA", "5") == M(10, 10)
 
 
-def test_a_row_the_store_did_not_take_proves_nothing(live):
+# ⛔ (review of #2738) ONE REFUSED TICKER MUST NOT COST THE OTHERS THEIR PROOF. A 1m push is the covered universe in one
+# batch: when the impossible-bar gate refuses B's row, A's minute is still in the store and A is proven through it;
+# only B falls back to the quiet floor. (Was: the whole push proved nothing, every liquid name `unverified` for 30 s.)
+def test_a_row_the_store_refused_proves_nothing_for_its_ticker_only(live):
     _begin("AAA", "BBB")
     live.clock.now = M(10, 7, 3)
     _push(m1=[_row("AAA", M(10, 6)), _row("BBB", M(10, 6))], wm=M(10, 6) * 1000, seq=2)
-    live.state["gate"] = lambda tf, by, n: n - 1               # the impossible-bar gate refused one row
+    live.state["reject"] = {"BBB"}                             # the impossible-bar gate refused BBB's 10:07
     live.clock.now = M(10, 8, 5)
     _push(m1=[_row("AAA", M(10, 7)), _row("BBB", M(10, 7))], wm=M(10, 7) * 1000, seq=3)
-    assert bls.proven_through_s("AAA", "1") < M(10, 8)
+    assert bls.proven_through_s("AAA", "1") == M(10, 8), "one refused ticker cost every other its proof"
+    assert bls.proven_through_s("BBB", "1") < M(10, 8)
+    assert bls.status()["proof_refused_tickers"] == 1
+
+
+def test_a_store_double_that_cannot_name_the_refused_falls_back_to_the_whole_batch(live, monkeypatch):
+    _begin("AAA", "BBB")
+    live.clock.now = M(10, 7, 3)
+    _push(m1=[_row("AAA", M(10, 6)), _row("BBB", M(10, 6))], wm=M(10, 6) * 1000, seq=2)
+    monkeypatch.setattr(bars_sqlite, "put_bars_many", lambda tf, by: sum(len(v) for v in by.values()) - 1)
+    live.clock.now = M(10, 8, 5)
+    _push(m1=[_row("AAA", M(10, 7)), _row("BBB", M(10, 7))], wm=M(10, 7) * 1000, seq=3)
+    assert bls.proven_through_s("AAA", "1") < M(10, 8)          # it cannot say which: nobody is proven by the batch
 
 
 def test_a_minute_that_lands_after_the_quiet_floor_vouched_for_it_is_counted(live):
