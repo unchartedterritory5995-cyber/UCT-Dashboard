@@ -4384,6 +4384,8 @@ MEND_LIST_AS_TEXT = "list-as-text"
 MEND_ASSUMPTION = "assumption-link"
 MEND_STATE_PAINT = "state-as-paint"
 MEND_BAR_FIELDS = "bar-field-order"
+#: ⭐ 2026-11-24 -- A CHOICE OVER ITS LIMIT ONLY BECAUSE OF THE DOOR'S OWN WORDS (`mend_choice_phrases`).
+MEND_CHOICE_PHRASE = "choice-bars-phrase"
 _MEND_MAX_PASSES = 8
 
 
@@ -4617,6 +4619,51 @@ def mend(candidate: Any, view: Any) -> Tuple[Any, List[str]]:
         logger.exception("[converse] mend failed; the answer is checked as it came")
         return candidate, []
 
+
+
+#: ⚰️ MEASURED 2026-11-24, the regression sweep after #2599 (admin, measurement only; the request is private, so by
+#: its numbers alone): a request with one length in days on a 5 minute chart asked the right question and paid a
+#: SECOND call for it. Attempt 1's choice was 90 characters and the schema refused it: the door's phrase as given (44
+#: characters, one length) and 46 of the assistant's own, ten over the room it was told (`day_lengths_choice_room`,
+#: 36). A model counts characters badly; the door does not. The door's own SHORTER form of the same phrase (32)
+#: makes that choice 78.
+#: So, before the check: a question's choice that is over the limit ONLY because of the door's phrase has that phrase
+#: said again in the door's next shorter form that makes it fit. The assistant's own words are never touched; the
+#: replacement is one of `bars_phrases`, which `check_day_lengths` accepts by construction; the last resort ("these
+#: bars in place of days", which names no time) is never chosen here; a choice no form can fit is left for the
+#: schema to refuse, as before. Recorded by name (`usage.mended`), like every mend.
+
+def mend_choice_phrases(candidate: Any, forms: List[str]) -> Tuple[Any, int]:
+    """``(answer, n)``: the answer with every question's choice that is over CHOICE_MAX_CHARS only because it carries
+    one of the door's ``forms`` (``bars_phrases``, fullest first) re-said in the first SHORTER form that makes it fit,
+    and how many choices were re-said. Anything else is returned untouched. Never raises."""
+    if not forms or not isinstance(candidate, Mapping) or not isinstance(candidate.get("questions"), list):
+        return candidate, 0
+    try:
+        work: Optional[Dict[str, Any]] = None
+        n = 0
+        for qi, q in enumerate(candidate["questions"]):
+            if not isinstance(q, Mapping) or not isinstance(q.get("choices"), list):
+                continue
+            for ci, choice in enumerate(q["choices"]):
+                if not isinstance(choice, str) or len(choice) <= CHOICE_MAX_CHARS:
+                    continue
+                said = next((i for i, form in enumerate(forms) if form in choice), None)
+                if said is None:
+                    continue                       # the assistant's own words ran over: the schema's to refuse
+                own = len(choice) - len(forms[said])
+                shorter = next((form for form in forms[said + 1:]
+                                if form != BARS_PHRASE_LAST_RESORT and own + len(form) <= CHOICE_MAX_CHARS), None)
+                if shorter is None:
+                    continue                       # no form of the door's words makes it fit: refused, as before
+                if work is None:
+                    work = copy.deepcopy(dict(candidate))
+                work["questions"][qi]["choices"][ci] = choice.replace(forms[said], shorter, 1)
+                n += 1
+        return (work, n) if work is not None else (candidate, 0)
+    except Exception:                              # noqa: BLE001 -- a mend never costs the turn
+        logger.exception("[converse] choice mend failed; the answer is checked as it came")
+        return candidate, 0
 
 
 def _label_text(value: Any) -> str:
@@ -6229,6 +6276,8 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
             # shape only: the wrapper NAME and the attempt, never its content
             logger.info("[converse] unwrapped %r on attempt=%d", wrapper, attempts)
             trace.setdefault("input_wrapper", wrapper)
+        # BEFORE `mend`: a choice over its limit is a schema error, and `mend` leaves a schema-invalid answer alone
+        candidate, shortened = mend_choice_phrases(candidate, bars_phrases(message, chart))
         try:
             candidate, mended = mend(candidate, view)
         except _Refused as inlined:                # the inlined form is over its cap: answered by name, nothing built
@@ -6236,6 +6285,8 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
             return _refusal(SIZE_GATE, inlined.detail, **extra)
         if from_text:
             mended = [MEND_LIST_AS_TEXT] + list(mended)
+        if shortened:
+            mended = list(mended) + [MEND_CHOICE_PHRASE]
         if mended:
             # shape only: WHICH mends, never what they touched
             logger.info("[converse] mended %s on attempt=%d", ",".join(mended), attempts)

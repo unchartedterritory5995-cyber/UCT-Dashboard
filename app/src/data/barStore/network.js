@@ -187,6 +187,8 @@ export function createNetwork({
   /** key → per-key slot + loop state */
   const keys = new Map()
   const lakeSeeds = new Map()      // key -> the lake load in flight (lakeSeed), shared by its callers
+  /** key -> was its last tail request a `since=` delta (bounded, oldest out): `askedDelta` */
+  const lastDelta = new Map()
   // key -> bars its entry held when its lake load finished on this page (whatever it added). A copy
   // now shallower than that was evicted and rebuilt, so its depth is due again; a load that found no
   // entry to join into never settles (review of #1795).
@@ -266,7 +268,8 @@ export function createNetwork({
   // /api/bars, as before the split.
   const _splitFor = (r, p) => !!p && isDateTf(p.tf) && !p.window && !r.splitOff && barsHistorySplitEnabled()
 
-  function _tailJob(r, priority, { warm = false, front = false } = {}) {
+  // `full`: never a `since=` delta (the switch's one re-ask of an own answer still behind: prefetch._askOwn)
+  function _tailJob(r, priority, { warm = false, front = false, full = false } = {}) {
     const s = registry.getSnapshot(r.key)
     const p = parseKey(r.key)
     const gen = s.gen
@@ -275,7 +278,10 @@ export function createNetwork({
     const split = _splitFor(r, p)
     const bars = split ? Math.min(wanted, FIRST_PAINT_BARS) : wanted
     const from = deltaStartFor(s, p)
-    const delta = from != null && deltaWithinBudget(p.tf, from, now(), bars)
+    const delta = !full && from != null && deltaWithinBudget(p.tf, from, now(), bars)
+    lastDelta.delete(r.key)
+    lastDelta.set(r.key, !!delta)
+    if (lastDelta.size > 1000) lastDelta.delete(lastDelta.keys().next().value)
     // `&warm=1` (a best-effort warm the server may skip / shed under load) exactly where the
     // legacy warmers send it; never on a subscriber's own poll.
     const url = barsUrl(r.key, { bars, since: delta ? from - 1 : null, session }) + (warm ? '&warm=1' : '')
@@ -792,7 +798,7 @@ export function createNetwork({
      * flight is aborted only when the last one-shot waiter has left AND no subscriber holds
      * the key — a prefetch or a mounted chart riding the same request never loses it.
      */
-    fetchOnce(key, { priority = 'urgent', depth = 0, session = 'rth', signal = null, warm = false, front = false } = {}) {
+    fetchOnce(key, { priority = 'urgent', depth = 0, session = 'rth', signal = null, warm = false, front = false, full = false } = {}) {
       if (signal?.aborted) return Promise.resolve({ aborted: true })
       const r = _rec(key)
       r.depth = Math.max(r.depth, depth || 0)
@@ -800,7 +806,7 @@ export function createNetwork({
       // A key a chart is subscribed to is LIVE: a one-shot ask of it rides the chart's rank and
       // never goes out as a shed-able `&warm=1` warm.
       const live = r.refs > 0
-      const out = _tail(r, live ? _best(r.priority, priority) : priority, live ? { front } : { warm, front })
+      const out = _tail(r, live ? _best(r.priority, priority) : priority, live ? { front, full } : { warm, front, full })
       r.once = (r.once || 0) + 1
       let left = false
       const leave = () => { if (!left) { left = true; r.once-- } }
@@ -837,6 +843,9 @@ export function createNetwork({
      * its currentness badge (UPDATING → DELAYED).
      */
     tailExhausted(key) { return _exhausted(keys.get(key)) },
+    /** Was `key`'s last tail request a `since=` delta? null when none is known. (prefetch._reaskWhole: a full read is
+     *  never followed by another full read, review of #2708 LOW a) */
+    askedDelta(key) { return lastDelta.has(key) ? lastDelta.get(key) : null },
     /** Listen to `tailExhausted(key)` flips. Returns the unsubscribe function. */
     subscribeTailBudget(key, cb) {
       let set = budgetSubs.get(key)

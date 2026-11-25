@@ -14813,6 +14813,39 @@
    }
   },
   {
+   "id": "cap-01",
+   "lane": "script",
+   "chart": "daily",
+   "words": "In a pane under the chart, plot how many bars back the most recent close above today's close was, looking back at most 250 bars, and plot nothing when there is none",
+   "rule": {
+    "digest": "1f8bf4cc3ed7ce66",
+    "history": [
+     {
+      "digest": "1f8bf4cc3ed7ce66",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "needs": "a loop that stops when it finds the bar (`while`, or `for` with a break)",
+   "distinguishes": "a value on 1,951 of 2,000 bars, 140 distinct counts, the largest 248; nothing on 49 bars, of which 19 have a higher close further back than 250 bars (those are the bars a look-back with no limit would get wrong)",
+   "edge": {
+    "back": 251,
+    "close": true
+   },
+   "recorded": {
+    "on": "2026-11-24",
+    "front": "6d50f4662b",
+    "model": "claude-opus-5"
+   },
+   "answer": {
+    "turn": "script",
+    "script": {
+     "pine": "//@version=5\nindicator(\"Bars since last higher close\", overlay=false)\n\nlookback = input.int(250, \"Maximum bars to look back\", minval=1)\n\n// Walk back from the previous bar until a close above the current close is found.\n// Plot nothing (na) if no higher close exists within the lookback window.\ndistance() =>\n    int found = na\n    for i = 1 to lookback\n        if close[i] > close\n            found := i\n            break\n    found\n\nd = distance()\n\nplot(d, \"Bars back\", color=color.teal, style=plot.style_columns)\n"
+    }
+   },
+   "provenance": "Adopted RIGHT 2026-11-24 on the MEMBER record (coordinator's ruling): six samples of these words as the member test account (role member), production build 6d50f4662b, 0.82 USD within the member allowance: 6 of 6 RIGHT by this case's own rule, 0 of 2,000 bars differing in every run, each a script on the first answer with no refused attempt, each saying it was built from the description with no checked reference. The answer recorded is the first of the six. What made it right is on the ASSISTANT side, not the engine's: #2597 (merge 0e7aeb43f46f8ccd790fc4626cccf62bbd73a601) put the look-back fact where the first attempt reads it (a formula says how many bars of a look-back qualify, never which bar), so the formula lane declines and the window writes a script. Before it, live 2026-11-23: Live 2026-11-23, first pass: answered on the FORMULA lane with a DISCLOSED STAND-IN, wrong by value on 1,267 of 1,700 bars (it counted back to the last bar that closed above the bar before it, not above today's close, and said so). Measured over the 289 distinct formula builds on record, it was the one reply that discloses building something else. Ruled: where the formula lane cannot hold the words exactly it declines, and the door's routing then tries a script (#2572). Live again the same day, three samples on the build that holds #2572: 2 of 3 RIGHT, as scripts, exact on every bar (a guard refused the formula attempt, once envelope:event-window and once envelope:compared-with-itself, the repair declined, and the door handed the request to the script lane). 1 of 3 WRONG: the same stand-in formula, built on a first attempt no guard refuses, and this time NOT disclosed in the reply. Two of three is not a record: the case stays pending, on the script lane, and three more samples are owed to tell how often the stand-in comes back and whether it is said."
+  },
+  {
    "id": "wall-01",
    "lane": "wall",
    "words": "Plot the put/call ratio for this stock's options under the chart.",
@@ -16013,24 +16046,6 @@
     ]
    },
    "held": "Not an acceptance case by value yet: on the built 5 minute chart this condition is true on NO bar under any reading of the 14 day ATR, so a rule could not tell a right answer from a formula that is never true. Re-admit if the fixture gains a session where it can be true. The member's words are not changed to make it one."
-  },
-  {
-   "id": "cap-01",
-   "lane": "script",
-   "chart": "daily",
-   "words": "In a pane under the chart, plot how many bars back the most recent close above today's close was, looking back at most 250 bars, and plot nothing when there is none",
-   "rule": {
-    "digest": "1f8bf4cc3ed7ce66",
-    "history": [
-     {
-      "digest": "1f8bf4cc3ed7ce66",
-      "reason": "written from the request's words before the answer was read"
-     }
-    ]
-   },
-   "needs": "a loop that stops when it finds the bar (`while`, or `for` with a break)",
-   "distinguishes": "a value on 1,951 of 2,000 bars, 140 distinct counts, the largest 248; nothing on 49 bars, of which 19 have a higher close further back than 250 bars (those are the bars a look-back with no limit would get wrong)",
-   "found_live": "Live 2026-11-23, first pass: answered on the FORMULA lane with a DISCLOSED STAND-IN, wrong by value on 1,267 of 1,700 bars (it counted back to the last bar that closed above the bar before it, not above today's close, and said so). Measured over the 289 distinct formula builds on record, it was the one reply that discloses building something else. Ruled: where the formula lane cannot hold the words exactly it declines, and the door's routing then tries a script (#2572). Live again the same day, three samples on the build that holds #2572: 2 of 3 RIGHT, as scripts, exact on every bar (a guard refused the formula attempt, once envelope:event-window and once envelope:compared-with-itself, the repair declined, and the door handed the request to the script lane). 1 of 3 WRONG: the same stand-in formula, built on a first attempt no guard refuses, and this time NOT disclosed in the reply. Two of three is not a record: the case stays pending, on the script lane, and three more samples are owed to tell how often the stand-in comes back and whether it is said."
   },
   {
    "id": "fund-01",
