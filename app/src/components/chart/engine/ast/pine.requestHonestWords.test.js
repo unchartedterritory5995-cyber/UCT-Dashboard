@@ -109,7 +109,9 @@ describe('e97 U1 — a pine:request refusal ends with a named argument and a rea
     const s = said('modifyExtended2D')
     expect(s).toContain('the symbol argument `t2` is `ticker.modify(…)`, which names the session `session.extended`')
     expect(s).toContain('; and the timeframe argument `"2D"` is a timeframe this engine has no bars for')
-    expect(said('modifyAdjustment')).toContain('which changes `adjustment`: that names a different series')
+    // train e97 (U1 x U4): with U4, a written `adjustment` is read by U4's own decline, which names it and why
+    expect(said('modifyAdjustment')).toContain(
+      'the `adjustment` argument of `ticker.modify`: `adjustment.dividends` asks for prices adjusted for dividends as well as splits')
   })
 
   it('a timeframe naming the chart\'s own is never blamed: the symbol that did not fold is', () => {
