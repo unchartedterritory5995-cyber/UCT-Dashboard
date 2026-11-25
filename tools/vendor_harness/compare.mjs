@@ -971,6 +971,14 @@ export function plotVerdict(r, { colorMeasured, colorResolvable, vendorColorReas
 
 const fmt = (x) => (x === null || x === undefined ? 'na' : typeof x === 'number' ? String(x) : JSON.stringify(x))
 
+/** ⭐ e97 U6 — `{drawing}`: whether TradingView and our document agree on DRAWING a plot (not its values), or `{}`
+ *  when our side did not say. */
+export function drawingOf(vendorHidden, oursHidden) {
+  if (oursHidden !== true && oursHidden !== false) return {}
+  if (vendorHidden === oursHidden) return { drawing: vendorHidden ? 'both hide it' : 'both draw it' }
+  return { drawing: vendorHidden ? 'TradingView hides it (display none); ours draws it' : 'ours hides it; TradingView draws it' }
+}
+
 /** One divergent bar's two readings, in the unit that disagreed. ⚰️ A colour
  *  divergence printed the two VALUES ("color: vendor 50 vs ours 50") — equal by
  *  construction, since a colour is only compared on a bar whose values agree —
@@ -1252,7 +1260,10 @@ export function compareCapture(capture, ours, opts = {}) {
     // verdict: a stats block whose firstDivergence says "colour" for a plot whose
     // colour was not graded names the wrong disagreement to whoever reads it.
     const vStyle = (capture.study && capture.study.styleState && capture.study.styleState[v.id]) || null
-    const hiddenOnVendor = !!(vStyle && vStyle.display === 0)
+    // ⭐ e97 U6 — TradingView's `display` is a bitmask (pane 1, data window 2, price scale 4, status line 8; all 15):
+    // a plot whose bitmask has no PANE bit is not drawn on the chart (`display.data_window`), exactly as display 0 is not
+    const hiddenOnVendor = !!(vStyle && Number.isInteger(vStyle.display) && (vStyle.display === 0
+      || (vStyle.display >= 0 && vStyle.display < 0x100000000 && (vStyle.display & 1) === 0)))
     // ⭐ …and the same for a `plotchar` whose glyph is EMPTY. `plotchar(x, "", "")`
     // is the idiom for a value that belongs in the data window and nowhere on
     // the chart: TradingView draws no glyph and no text, and still reports the
@@ -1355,6 +1366,10 @@ export function compareCapture(capture, ours, opts = {}) {
     }
     base.plots.push({
       id: v.id, title: v.title ?? o.title, ours: o.key, rule: pair.rule, ...pv,
+      // ⭐ e97 U6 — the DRAWING named beside the values (which are graded either way: TradingView records a hidden
+      // plot's values): TradingView's display (`styleState.display`, 0 = hidden) against whether our document draws it
+      // at the capture's settings (`ourSide.js` `drawnHidden`). It moves no verdict.
+      ...drawingOf(hiddenOnVendor, o.drawnHidden),
       warmupBars, warmupSource, derivedLookback: Number.isInteger(o.lookback) ? o.lookback : null,
       ...(colorWarmupBars !== warmupBars ? { colorWarmupBars, colorWarmupSource: `derived: the colour rule's own maxLookback (${o.colorLookback})` } : {}),
       ...(treeShift ? { treeShift, treeShiftNote: `offset = ${treeShift}: our column read ${treeShift} bars ahead to meet the vendor's unshifted series; the last ${treeShift} bars are unread` } : {}),

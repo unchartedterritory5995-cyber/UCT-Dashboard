@@ -1082,6 +1082,9 @@ function colourRulesOf(t) {
     }
   }
   for (const o of (t.outputs || [])) if (o && !o.refusal) take(o.presentation)
+  // ⭐ e97 U6 — a row's display chosen by a setting (`hiddenWhen`, `pine.js::outputDisplayOf`) is a presentation rule
+  // too: an input only it reads is the member's control, declared by the same proof (`withColourInputs`)
+  for (const o of (t.outputs || [])) if (o && !o.refusal && o.hiddenWhen) rules.push({ ast: o.hiddenWhen, formula: [...seriesNamesOf(o.hiddenWhen)].join(' + ') || 'display' })
   for (const f of (((t.presentation || {}).fills) || [])) take(f)
   for (const p of (((t.presentation || {}).paints) || [])) take(p)
   return rules

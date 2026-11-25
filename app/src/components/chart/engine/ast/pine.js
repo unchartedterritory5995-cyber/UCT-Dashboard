@@ -174,7 +174,7 @@ import { compileMessagePattern, tostringPatternOf, literalTostringText } from '.
 // copies of "does an empty needle match" is the second-authority defect this repo
 // keeps paying for. The exchange-witness map lives there too: it is consulted per
 // BINDING, which is not a question a door that runs once per script can answer.
-import { TEXT_PREDICATE_FN, foldScalar, REFUSED_ARM_CALL } from './bind.js'
+import { TEXT_PREDICATE_FN, foldScalar, REFUSED_ARM_CALL, knobTestValue } from './bind.js'
 import { constCompareFold, pineCompareAmbiguous, constantTreeValue } from '../pineCompare.js'
 // ⭐ THE SHARED WINDOW PREDICATE — from `parse.js`, the one module the SAVE
 // door, the bind stage and the repaint LINTER can all see. See L2 in
@@ -14145,6 +14145,103 @@ export class Resolver {
         tok ? locate(tok) : null)
     }
     return this.basePeriod
+  }
+
+  /** ⭐⭐ e97 U6 — WHETHER AN OUTPUT IS DRAWN ON THE CHART, from its `display =` argument (`args`, the call's own):
+   *  `{hidden: true|false}` when every setting answers alike, `{when: <knob tree>}` (true = hidden) when the member's
+   *  settings decide it, or `{unread: <why>}`. The ONE reader of a display for both lanes (the host row's `hidden` /
+   *  `hiddenWhen`, and the runtime door's candles through the host rows).
+   *  ⚰️ `outputHidden` read only a literal `display.none`, so `display = show ? display.all : display.none` with
+   *  `show = input.bool(false)` was DRAWN, where TradingView draws nothing at the defaults: a silent wrong picture.
+   *  ⛔ A display this cannot read is `unread`, withheld by name by the caller, never guessed as drawn. */
+  outputDisplayOf(args) {
+    const d = (args || []).find((a) => a && a.name === 'display')
+    if (!d || !d.value) return { hidden: false }
+    const minted = this.paramMint
+    try {
+      return this.displayArmOf(d.value, 0)
+    } catch (err) {
+      if (isStackOverflow(err)) throw err
+      return { unread: `its \`display\` could not be read (${String((err && err.message) || err).slice(0, 120)})` }
+    } finally { this.paramMint = minted }
+  }
+
+  /** ⭐ e97 U6 — the display one node names, through plain bindings, `+` / `-` of constants, and a `? :` whose
+   *  condition folds (a constant branch) or is a setting of this script (`knobTestValue`'s shape: an input, an input
+   *  compared with a constant, `and` / `or` / `not` of those). `{hidden}` / `{when}` / `{unread}`, as `outputDisplayOf`. */
+  displayArmOf(node, depth) {
+    if (!node || depth > 8) return { unread: 'its `display` is not one this engine can follow to a place' }
+    const placesToHidden = (places) => ({ hidden: !places.includes('pane'), places })
+    if (node.type === 'name') {
+      const bound = this.env && this.env.get(node.name)
+      if (bound) {
+        return bound.kind === 'expr' ? this.displayArmOf(bound.node, depth + 1)
+          : { unread: `its \`display = ${node.name}\` is not bound to a display this engine reads` }
+      }
+      if (own(DISPLAY_PLACES, node.name)) return placesToHidden([...DISPLAY_PLACES[node.name]])
+      return { unread: `its \`display = ${node.name}\` is not a display constant` }
+    }
+    if (node.type === 'binary' && (node.op === '+' || node.op === '-')) {
+      const l = this.displayArmOf(node.left, depth + 1)
+      const r = this.displayArmOf(node.right, depth + 1)
+      if (l.unread) return l
+      if (r.unread) return r
+      if (!l.places || !r.places) {
+        return { unread: 'its `display` adds or removes a place the script\'s settings choose, which this engine does not read' }
+      }
+      const s = new Set(l.places)
+      for (const p of r.places) { if (node.op === '+') s.add(p); else s.delete(p) }
+      return placesToHidden([...s])
+    }
+    if (node.type === 'ternary') {
+      // ⭐ a constant branch is taken only when it is not a SETTING folded to its default (`displayKnobLeafOf`):
+      // `show ? display.all : display.none` stays the member's choice even where this pass folded `show`
+      const folded = this.constantBranchOf(node)
+      if (folded && !this.displayKnobLeafOf(node.test)) return this.displayArmOf(folded, depth + 1)
+      const yes = this.displayArmOf(node.yes, depth + 1)
+      const no = this.displayArmOf(node.no, depth + 1)
+      if (yes.unread) return yes
+      if (no.unread) return no
+      if (!yes.when && !no.when && yes.hidden === no.hidden) return { hidden: yes.hidden, places: yes.places }
+      let test
+      try { test = this.resolve(node.test) } catch (err) {
+        if (isStackOverflow(err)) throw err
+        return { unread: 'its `display` chooses between places on a condition this engine could not read' }
+      }
+      // ⭐ e97 U6 — a setting this pass folded to its default (an `input.bool` not declared here) is still the member's
+      // choice: it becomes a knob leaf carrying that default, and the door decides it (declared: per instance;
+      // undeclared: at the default, `memberPaneDefinition` / `knobBind.hiddenAtLeafDefaults`)
+      if (test && test.type === 'num') {
+        const leaf = this.displayKnobLeafOf(node.test)
+        if (!leaf) return test.value ? yes : no
+        test = leaf
+      }
+      if (knobTestValue(test, knobDefaultsOf(test)) === null) {
+        return { unread: 'its `display` chooses between places on a condition that is not one of the script\'s settings' }
+      }
+      const notTest = { type: 'op', name: '!', args: [test] }
+      return { when: knobOr(knobAnd(test, displayHiddenTree(yes)), knobAnd(notTest, displayHiddenTree(no))) }
+    }
+    return { unread: 'its `display` is not a display constant, a `+` / `-` of them, or a setting\'s choice between them' }
+  }
+
+  /** ⭐ e97 U6 — `name` / `not name` where `name` is bound to an `input.bool` this resolution read (`usedInputs`): a knob
+   *  leaf named for the input, carrying its default (non-enumerable `inputName` / `inputDefault`), or null. */
+  displayKnobLeafOf(node, depth = 0) {
+    if (!node || depth > 4) return null
+    if (node.type === 'unary' && node.op === 'not') {
+      const inner = this.displayKnobLeafOf(node.arg, depth + 1)
+      return inner ? { type: 'op', name: '!', args: [inner] } : null
+    }
+    if (node.type !== 'name' || typeof node.name !== 'string') return null
+    const entry = [...this.usedInputs.values()].find((e) => e && e.name === node.name && e.call === 'input.bool')
+    if (!entry) return null
+    const v = entry.folded === 'true' ? 1 : entry.folded === 'false' ? 0 : Number(entry.folded)
+    if (!Number.isFinite(v)) return null
+    const leaf = { type: 'series', name: node.name }
+    Object.defineProperty(leaf, 'inputName', { value: node.name, enumerable: false })
+    Object.defineProperty(leaf, 'inputDefault', { value: v, enumerable: false })
+    return leaf
   }
 
   constantBranchOf(node) {
@@ -31584,6 +31681,9 @@ function translatePineResult(source, opts = {}) {
         }
       }
       // Asked ONCE each, because both answers are needed twice below.
+      // ⭐⭐ e97 U6 — the display through the ONE reader (`outputDisplayOf`): hidden at every setting, hidden as the
+      // member's settings decide (`hiddenWhen`, resolved per instance at bind: `knobBind.js::plotHiddenAt`), or a
+      // display it cannot read, withheld by name (`displayUnread`), never guessed as drawn.
       const authorHid = outputHidden(args)
       const flat = !readsBars(ast)
       // ⭐⭐ THE OTHER SPELLING OF "SCAFFOLDING", AND IT IS THE AUTHOR'S OWN STATEMENT
@@ -31629,6 +31729,17 @@ function translatePineResult(source, opts = {}) {
       // ⭐ 2026-09-28 — which inputs the VALUE read, snapshotted before the
       // presentation below resolves the colour: see `_colourInputs`.
       const valueInputKeys = new Set(resolver.usedInputs.keys())
+      // ⭐⭐ e97 U6 — the display, read AFTER the value's inputs are snapshotted: an input only the display reads is a
+      // presentation input (`_colourInputs`, below), declared as the member's control by the door
+      // (`builderInputs.js::withColourInputs`, which counts a row's `hiddenWhen` as one of its rules).
+      // ⛔ `hidden` keeps its meaning (the author's literal `display.none`, a fill anchor, a column that cannot move:
+      // what a SCREEN may not offer); the display's DRAWING answer rides beside it, read only by the chart door.
+      const keysBeforeDisplay = new Set(resolver.usedInputs.keys())
+      const display = resolver.outputDisplayOf(args)
+      const displayUnread = display.unread || null
+      // the inputs ONLY the display read: kept out of the value's list (`inputsFolded`), so they reach the door as
+      // presentation inputs (`_colourInputs`), exactly as an input only a colour reads does
+      const displayOnlyKeys = new Set([...resolver.usedInputs.keys()].filter((k) => !keysBeforeDisplay.has(k)))
       // ⭐ F2 — and how many block gates the VALUE noted, before the presentation
       // below reads the colour: see `colourRuns`.
       const valueBlockRuns = resolver.blockRuns.length
@@ -31646,7 +31757,7 @@ function translatePineResult(source, opts = {}) {
         formula,
         ast,
         baseTimeframeFolds: [...resolver.baseFolds.values()],
-        inputsFolded: [...resolver.usedInputs.values()].map((e) => {
+        inputsFolded: [...resolver.usedInputs.entries()].filter(([k]) => !displayOnlyKeys.has(k)).map(([, e]) => {
           // ⛔ `windowBound` TRAVELS WITH THE ENTRY rather than being re-derived
           // by the reader. Whether an input reached an `int` slot is a fact about
           // THIS resolution — the reader sees only the folded formula, where the
@@ -31689,6 +31800,13 @@ function translatePineResult(source, opts = {}) {
         // the label that made this a mistranslation in the first place.
         handle: out.handle || null,
         hidden: authorHid || flat || fillAnchor,
+        // ⭐ e97 U6 — off the chart's pane at every setting, by a display other than a literal `display.none`
+        // (`display.data_window`, `display.all - display.pane`, a setting's arms that both leave the pane)
+        ...(!authorHid && display.hidden === true ? { offPane: true } : {}),
+        // ⭐ e97 U6 — hidden as the member's settings decide: a knob tree, true = hidden (`outputDisplayOf`)
+        ...(display.when ? { hiddenWhen: display.when } : {}),
+        // ⭐ e97 U6 — a display this engine cannot read: not drawn, and said (never guessed as drawn)
+        ...(displayUnread ? { displayUnread } : {}),
         // ⭐⭐ AND THE ROW SAYS WHICH OF THE TWO IT IS. `hidden` deliberately
         // merges "the author hid this plot" with "this reads no bar" — one flag,
         // one definition of usable column, as the paragraph above argues. But a
@@ -36665,6 +36783,49 @@ function keepHiddenFacts(from, to) {
     if (d && !d.enumerable && !Object.prototype.hasOwnProperty.call(to, k)) Object.defineProperty(to, k, d)
   }
   return to
+}
+
+/** ⭐⭐ e97 U6 — THE PLACES each `display.*` constant names (Pine's reference: `display.all` is every place,
+ *  `display.none` none). A plot is DRAWN ON THE CHART exactly when its display includes `pane`: `display.data_window`,
+ *  `display.status_line`, `display.price_scale` and `display.all - display.pane` keep it off the pane. */
+const DISPLAY_PLACES = Object.freeze({
+  'display.none': Object.freeze([]),
+  'display.all': Object.freeze(['pane', 'data_window', 'price_scale', 'status_line']),
+  'display.pane': Object.freeze(['pane']),
+  'display.data_window': Object.freeze(['data_window']),
+  'display.price_scale': Object.freeze(['price_scale']),
+  'display.status_line': Object.freeze(['status_line']),
+})
+
+/** ⭐ e97 U6 — the knob leaves' DEFAULTS in a tree (`series` leaves carrying the non-enumerable `inputName` /
+ *  `inputDefault` the member door's translation hangs on them), for `knobTestValue` to check a test's SHAPE. */
+function knobDefaultsOf(tree) {
+  const consts = {}
+  const stack = [tree]
+  while (stack.length) {
+    const n = stack.pop()
+    if (!n || typeof n !== 'object') continue
+    if (n.type === 'series' && typeof n.inputName === 'string' && typeof n.inputDefault === 'number'
+        && Number.isFinite(n.inputDefault)) consts[n.name] = n.inputDefault
+    if (Array.isArray(n.args)) for (const a of n.args) stack.push(a)
+  }
+  return consts
+}
+
+/** ⭐ e97 U6 — `hidden` as a knob tree (true = hidden): a static answer is `{type:'num', value: 1 | 0}`. */
+const displayHiddenTree = (h) => (h.when ? h.when : { type: 'num', value: h.hidden ? 1 : 0 })
+const isNumTree = (t, v) => !!t && t.type === 'num' && t.value === v
+function knobAnd(a, b) {
+  if (isNumTree(a, 0) || isNumTree(b, 0)) return { type: 'num', value: 0 }
+  if (isNumTree(a, 1)) return b
+  if (isNumTree(b, 1)) return a
+  return { type: 'op', name: '&&', args: [a, b] }
+}
+function knobOr(a, b) {
+  if (isNumTree(a, 1) || isNumTree(b, 1)) return { type: 'num', value: 1 }
+  if (isNumTree(a, 0)) return b
+  if (isNumTree(b, 0)) return a
+  return { type: 'op', name: '||', args: [a, b] }
 }
 
 function outputHidden(args) {

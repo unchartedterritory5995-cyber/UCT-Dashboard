@@ -1,0 +1,104 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "U6-D1",
+   "mutant": "the wrong arm: a setting's hidden arm swapped",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "      return { when: knobOr(knobAnd(test, displayHiddenTree(yes)), knobAnd(notTest, displayHiddenTree(no))) }",
+   "to": "      return { when: knobOr(knobAnd(test, displayHiddenTree(no)), knobAnd(notTest, displayHiddenTree(yes))) }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/displayKnob.test.js",
+   "expectRed": "A: a ternary on an input.bool"
+  },
+  {
+   "id": "U6-D2",
+   "mutant": "the instance's input ignored: always the declared default",
+   "file": "app/src/components/chart/engine/knobBind.js",
+   "from": "    const scalars = { ...treeScalars(def, resolveInputs(def, given)) }",
+   "to": "    const scalars = { ...treeScalars(def, resolveInputs(def, {})) }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/displayKnob.test.js",
+   "expectRed": "A: a ternary on an input.bool"
+  },
+  {
+   "id": "U6-D3",
+   "mutant": "a combination misread: `-` read as `+`",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "      for (const p of r.places) { if (node.op === '+') s.add(p); else s.delete(p) }",
+   "to": "      for (const p of r.places) { s.add(p) }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/displayKnob.test.js",
+   "expectRed": "C: arms that are combinations"
+  },
+  {
+   "id": "U6-D4",
+   "mutant": "an unreadable display guessed as drawn",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "    || !!(o && (o.offPane === true || o.displayUnread))",
+   "to": "    || !!(o && o.offPane === true)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/displayKnob.test.js",
+   "expectRed": "an unreadable display is withheld BY NAME"
+  },
+  {
+   "id": "U6-D5",
+   "mutant": "one binder site reads the plot's `hidden` directly again",
+   "file": "app/src/components/chart/engine/binder.js",
+   "from": "      if (b.plot && plotHiddenAt(b.plot, b.def, b.inst && b.inst.inputs)) { orphan(b); continue }",
+   "to": "      if (b.plot && b.plot.hidden === true) { orphan(b); continue }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/displayKnob.test.js",
+   "expectRed": "binder.js reads no plot"
+  },
+  {
+   "id": "U6-D6",
+   "mutant": "the all-author-hidden carve-out removed (served -> refused)",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "    if (!everyOutputAuthorHidden(t)) return no('this script declares nothing a chart can draw', null, t)",
+   "to": "    return no('this script declares nothing a chart can draw', null, t)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/displayKnob.test.js",
+   "expectRed": "every output its author hid is served"
+  },
+  {
+   "id": "U6-D7",
+   "mutant": "a setting only the display reads is not declared",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "  for (const r of rows) if (r && r.hiddenWhen) seriesNamesOf(r.hiddenWhen, colourRead)",
+   "to": "  void 0",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/displayKnob.test.js",
+   "expectRed": "A: a ternary on an input.bool"
+  },
+  {
+   "id": "U6-D8",
+   "mutant": "the schema accepts any operator in hiddenWhen",
+   "file": "app/src/components/chart/engine/defSchema.js",
+   "from": "    if (arity === null) return `the operator \\`${n.name}\\` is not part of a setting test`",
+   "to": "    if (false) return `the operator \\`${n.name}\\` is not part of a setting test`",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/displayKnob.test.js",
+   "expectRed": "the schema: hiddenWhen is a setting test"
+  },
+  {
+   "id": "U6-D9",
+   "mutant": "the runtime candle row drops the host row's display decision (no hiddenWhen: drawn at every setting)",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "        ...(hostClose && hostClose.hiddenWhen ? { hiddenWhen: hostClose.hiddenWhen } : {}),",
+   "to": "        ...{},",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/displayKnob.runtime.test.js",
+   "expectRed": "the candle row is hidden at the default"
+  },
+  {
+   "id": "U6-D10",
+   "mutant": "a yes/no runtime setting not read as a number (true never turns the plot on)",
+   "file": "app/src/components/chart/engine/knobBind.js",
+   "from": "    for (const [k, v] of Object.entries(scalars)) if (typeof v === 'boolean') scalars[k] = v ? 1 : 0",
+   "to": "    void 0",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/displayKnob.runtime.test.js",
+   "expectRed": "the candle row is hidden at the default"
+  },
+  {
+   "id": "U6-D11",
+   "mutant": "the carve-out counts only CARRIED drawings: a label written but dropped by the object program reads as nothing drawn (refused -> served)",
+   "file": "app/src/components/chart/engine/ast/paneGate.js",
+   "from": "  return outs.length > 0 && ops === 0 && attempted === 0 && paints.length === 0 && outs.every((o) => !o.refusal && !o.displayUnread",
+   "to": "  return outs.length > 0 && ops === 0 && paints.length === 0 && outs.every((o) => !o.refusal && !o.displayUnread",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/displayKnob.test.js",
+   "expectRed": "a drawing WRITTEN but not carried still keeps the refusal"
+  }
+ ]
+}
