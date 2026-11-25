@@ -1,0 +1,140 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "E2-A1",
+   "mutant": "the reader never collects an input's active= (the defect: ignored in silence)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    if (a && a.value) inputActiveCalls.push({ name: h[0].value, call: callTok.value, node: a.value, tok: callTok })",
+   "to": "    if (false) inputActiveCalls.push({ name: h[0].value, call: callTok.value, node: a.value, tok: callTok })",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/inputActive.test.js",
+   "expectRed": "an input.bool controller"
+  },
+  {
+   "id": "E2-A2",
+   "mutant": "FAIL-OPEN RESTORED in the evaluator: a third activeWhen shape read as active",
+   "file": "app/src/components/chart/indicatorRegistry.js",
+   "from": "the control is greyed', activeWhen)\n    return false",
+   "to": "the control is greyed', activeWhen)\n    return true",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/inputActive.test.js",
+   "expectRed": "a third shape is read INACTIVE"
+  },
+  {
+   "id": "E2-A3",
+   "mutant": "FAIL-OPEN RESTORED in the browser validator: a third activeWhen shape passes unchecked",
+   "file": "app/src/components/chart/engine/defSchema.js",
+   "from": "    errors.push(`${path}: ${ACTIVE_WHEN_UNKNOWN_SHAPE}, got ${fmt(aw)}`)\n    return",
+   "to": "    return",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/inputActive.test.js",
+   "expectRed": "a third shape is REFUSED at validation"
+  },
+  {
+   "id": "E2-A4",
+   "mutant": "FAIL-OPEN RESTORED in the server twin: a third activeWhen shape passes unchecked",
+   "file": "api/services/presentation_schema.py",
+   "from": "            _err(out, path, \"input-active-when\", f\"{path}: {ACTIVE_WHEN_UNKNOWN_SHAPE}, got {_canon(aw)}\", fp)",
+   "to": "            pass",
+   "rail": "python -m pytest -q tests/test_p2_truth_policy.py -k presentation_server_agrees",
+   "expectRed": "third shape"
+  },
+  {
+   "id": "E2-A5",
+   "mutant": "the browser validator accepts any tree as an active test (the one checker skipped)",
+   "file": "app/src/components/chart/engine/defSchema.js",
+   "from": "    const why = hiddenWhenProblem(aw)\n    if (why) { errors.push(`${path}: ${why}`); return }",
+   "to": "    const why = null\n    if (why) { errors.push(`${path}: ${why}`); return }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__truth__/p2.policy.truth.test.js",
+   "expectRed": "an active test holding arithmetic"
+  },
+  {
+   "id": "E2-A6",
+   "mutant": "the evaluator ignores the definition (an option's text never read as its index)",
+   "file": "app/src/components/chart/indicatorRegistry.js",
+   "from": "    const v = knobTestAt(activeWhen, def && typeof def === 'object' ? def : { inputs: [] }, values || {})",
+   "to": "    const v = knobTestAt(activeWhen, { inputs: [] }, values || {})",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/inputActive.test.js",
+   "expectRed": "an option compared"
+  },
+  {
+   "id": "E2-A7",
+   "mutant": "a knob test that cannot be evaluated guessed ACTIVE",
+   "file": "app/src/components/chart/indicatorRegistry.js",
+   "from": "    return v === null ? false : !!v",
+   "to": "    return v === null ? true : !!v",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/inputActive.test.js",
+   "expectRed": "cannot be evaluated is inactive"
+  },
+  {
+   "id": "E2-A8",
+   "mutant": "the settings panel greys without the row's definition",
+   "file": "app/src/components/chart/ChartSettingsIndicators.jsx",
+   "from": "!evalActiveWhen(f.activeWhen, row.values, registry?.getDefinition?.(row.defId))",
+   "to": "!evalActiveWhen(f.activeWhen, row.values)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/inputActive.test.js",
+   "expectRed": "ChartSettingsIndicators passes the definition"
+  },
+  {
+   "id": "E2-A9",
+   "mutant": "the door drops a setting test onto the input",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "    if (names.length && names.every((n) => declared.has(n) && n !== spec.key)) return { ...spec, activeWhen: plainTree(e.when) }",
+   "to": "    if (names.length && names.every((n) => declared.has(n) && n !== spec.key)) return spec",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/inputActive.test.js",
+   "expectRed": "an input.bool controller"
+  },
+  {
+   "id": "E2-A10",
+   "mutant": "a literal active = false not greyed",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "    if (e.inactive) return { ...spec, activeWhen: { type: 'num', value: 0 } }",
+   "to": "    if (e.inactive) return spec",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/inputActive.test.js",
+   "expectRed": "a literal false"
+  },
+  {
+   "id": "E2-A11",
+   "mutant": "an unreadable active= ignored in silence",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "    if (e.unread) { say(e, label, e.unread); return spec }",
+   "to": "    if (e.unread) { return spec }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/inputActive.test.js",
+   "expectRed": "is said by name, never guessed"
+  },
+  {
+   "id": "E2-A12",
+   "mutant": "an active= on a builder parameter ignored in silence",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "    if (!e || matched.has(e) || !(e.when || e.inactive || e.unread) || !paramNames.has(e.name)) continue",
+   "to": "    continue",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/inputActive.test.js",
+   "expectRed": "a parameter of the formulas"
+  },
+  {
+   "id": "E2-A13",
+   "mutant": "the controller is never declared (nothing for the member to move)",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "      if (a && a.when && have.has(memberInputKey(a.name))) seriesNamesOf(a.when, colourRead)",
+   "to": "      void 0",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/inputActive.test.js",
+   "expectRed": "an input.bool controller"
+  },
+  {
+   "id": "E2-A14",
+   "mutant": "a controller declared even when it greys nothing here",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "      if (a && a.when && have.has(memberInputKey(a.name))) seriesNamesOf(a.when, colourRead)",
+   "to": "      if (a && a.when) seriesNamesOf(a.when, colourRead)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/inputActive.test.js",
+   "expectRed": "a parameter of the formulas"
+  },
+  {
+   "id": "E2-A15",
+   "mutant": "the runtime lane's document drops every active=",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "      inputs: withInputActive(runDocInputs, (t.presentation || {}).inputActive, { notes: inputActiveNotes }),",
+   "to": "      inputs: runDocInputs,",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/inputActive.test.js",
+   "expectRed": "runtime: an input.bool controller"
+  }
+ ]
+}

@@ -293,6 +293,9 @@ def _apply(base: dict, case: dict) -> dict:
                 p[f] = v
     if "paints" in case:
         d["paints"] = case["paints"]
+    # e98 E2 -- a case may APPEND inputs (an input's `activeWhen` is checked against the declared inputs)
+    if isinstance(case.get("inputs"), list):
+        d["inputs"] = list(d.get("inputs") or []) + copy.deepcopy(case["inputs"])
     return d
 
 

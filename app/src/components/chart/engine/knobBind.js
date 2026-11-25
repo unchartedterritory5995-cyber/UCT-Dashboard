@@ -177,6 +177,17 @@ export function plotLineStyleAt(plot, def, inputs) {
 /** ⭐ e97 U6 — a `hiddenWhen` tree decided at its settings' DEFAULTS (the non-enumerable `inputDefault` each knob leaf
  *  of a translation carries): true = hidden. ⛔ A tree it cannot evaluate is HIDDEN (never guessed as drawn). */
 export function hiddenAtLeafDefaults(tree) {
+  const v = knobTestAtLeafDefaults(tree)
+  return v === null ? true : !!v
+}
+
+/** ⭐ e97 U6 (shared since e98 E2) — THE VALUE OF A KNOB TEST AT ITS SETTINGS' DEFAULTS (the non-enumerable
+ *  `inputDefault` each knob leaf of a translation carries); a bare number is itself; null when it cannot be evaluated.
+ *  `hiddenAtLeafDefaults` and an input's `active` decided at its defaults (`memberPaneDefinition.js::withInputActive`)
+ *  ask this one function. */
+export function knobTestAtLeafDefaults(tree) {
+  if (!tree || typeof tree !== 'object') return null
+  if (tree.type === 'num') return typeof tree.value === 'number' && Number.isFinite(tree.value) ? tree.value : null
   const consts = {}
   const stack = [tree]
   while (stack.length) {
@@ -185,8 +196,7 @@ export function hiddenAtLeafDefaults(tree) {
     if (n.type === 'series' && typeof n.inputDefault === 'number' && Number.isFinite(n.inputDefault)) consts[n.name] = n.inputDefault
     if (Array.isArray(n.args)) for (const a of n.args) stack.push(a)
   }
-  const v = knobTestValue(tree, consts)
-  return v === null ? true : !!v
+  return knobTestValue(tree, consts)
 }
 
 /** The refused knob arm a BOUND tree still holds (the member's setting picked it): `{guard, message}` quoting the
