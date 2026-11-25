@@ -223,7 +223,7 @@ describe('4. a worker that dies is stopped and the script refused by name; a doo
   }, 30000)
   it('a worker that will not start, and a job it cannot be sent', async () => {
     expect((await refusedByName(() => { throw new Error('no workers here') })).built.guard).toBe(MEMBER_DOOR_WORKER_GUARD)
-    const unsendable = () => Object.assign(new FakeDoorWorker(core), { postMessage() { throw new Error('DataCloneError') } })
+    const unsendable = () => Object.assign(new FakeDoorWorker(core, { answerBy: 'macrotask' }), { postMessage() { throw new Error('DataCloneError') } })
     expect((await refusedByName(unsendable)).built.guard).toBe(MEMBER_DOOR_WORKER_GUARD)
   }, 30000)
   it('a door that THREW in the worker reaches each consumer as an error (the pane words it by name)', async () => {
@@ -317,7 +317,12 @@ describe('7. the permission: a worker that latched "not permitted" is never aske
     const notPermitted = memberPaneDefinition({ source, id: MEMBER_PANE_DEF_PREFIX })
     expect(canonOf(notPermitted), 'the control: the permission changes this answer').not.toBe(canonOf(permitted))
     const made = []
-    const svc = serviceOf({ factory: () => { const w = new FakeDoorWorker(realms[made.length]); made.push(w); return w } })
+    // a macrotask stand-in like every other in this file (this one is built by hand, so it says so itself)
+    const svc = serviceOf({ factory: () => {
+      const w = new FakeDoorWorker(realms[made.length], { answerBy: 'macrotask' })
+      made.push(w)
+      return w
+    } })
     const got = []
     const ask = async () => {
       const n = got.length
