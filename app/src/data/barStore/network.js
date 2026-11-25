@@ -103,6 +103,9 @@ export const DEEP_PRIME_MAX = 4
 /** A display waiting on a key's deep join (`deepPrime({ want: true })`) sends its history job at
  *  `visible` rank (never queued) for this long. */
 export const DEEP_WANT_MS = 5_000
+/** How long a chart must keep a key after its first answer before that answer's extra lake window
+ *  (`_noteAnswered`, depth for an instant zoom-out) is asked: a scan passes the key before then. */
+export const ANSWER_WINDOW_DELAY_MS = 1_000
 
 const finite = (x) => typeof x === 'number' && Number.isFinite(x)
 
@@ -233,7 +236,16 @@ export function createNetwork({
     if (history && r.refs > 0 && _lakeCarries(r)) {
       const s = registry.getSnapshot(r.key)
       if (s.bars.length) {
-        const window = () => api.scrollBack(r.key, { priority: 'background' }).catch(() => {})
+        // ⭐ ...ONCE THE MEMBER STAYS (2026-11-19). The window used to leave the moment the answer
+        // landed. With the next rows now arriving at the lake's whole depth, it only adds history
+        // beyond what the chart already drew, ~300-800 ms after the flip, and its join re-sets a
+        // 10,000-40,000-row series on the main thread: during a scan that landed as the member pressed
+        // the next key, on the symbol just LEFT (99-148 ms tasks in front of the next paint, production
+        // 5m flip proof). So it waits ANSWER_WINDOW_DELAY_MS and leaves only if this chart still holds
+        // the key: a resting member's zoom-out finds the depth there, a scan never pays for it.
+        const window = () => new Promise((resolve) => setTimer(resolve, ANSWER_WINDOW_DELAY_MS))
+          .then(() => (r.refs > 0 && keys.get(r.key) === r ? api.scrollBack(r.key, { priority: 'background' }) : null))
+          .catch(() => {})
         if (lakeSettled.has(r.key) && api.lakePending(r.key)) {   // a load left it deeper than it is now
           Promise.resolve().then(() => api.lakeSeed(r.key)).catch(() => false)
             .then((joined) => { if (!joined) return window() })
