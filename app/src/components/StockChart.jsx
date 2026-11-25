@@ -129,6 +129,7 @@ import { detectSwingPivots, sensitivityToParams } from './chart/swingPivots'
 import { createBinder } from './chart/engine/binder'
 import { wrapSeriesForBarColours, reapplyBarColours } from './chart/engine/barColours'
 import { createObjectLayer } from './chart/engine/objectLayer'
+import { makeRoomForLabels } from './chart/labelRoom'
 import { resolvePlacement, resolvePreset } from './chart/engine/placement'
 import { registerManifestChart } from './chart/engine/paneLayout'
 // ⚠️ `engineOwnedDefIds` is NOT imported here any more (B5 Task 4). It is not
@@ -14098,6 +14099,12 @@ function StockChartBody({
           // freedom from `getBoundingClientRect` is what makes a pane resize cost
           // nothing, and one `insets` argument is the price of keeping it.
           insets: { top: CHART_TOOLBAR_FOOTPRINT_PX },
+          // ⭐ (owner ruling 2026-11-24) a label at the newest bar that runs under the price scale gets room
+          // (`chart/labelRoom.js`): the newest bar moves left by the bars it needs, bar spacing unchanged.
+          onLabelOverflow: (px) => {
+            if (!(px > 0)) return
+            try { makeRoomForLabels(chart.timeScale ? chart.timeScale() : null, px) } catch { /* chart mid-teardown */ }
+          },
           mapping: () => {
             const series = candleSeriesRef.current
             const ts = chart.timeScale ? chart.timeScale() : null

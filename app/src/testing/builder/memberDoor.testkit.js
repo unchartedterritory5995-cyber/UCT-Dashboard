@@ -69,12 +69,19 @@ export function canonOf(value, { hidden = false } = {}) {
  *   'answer' (default) answers each job one microtask later; 'hold' keeps every job until `release()`;
  *   'hang' never answers; 'die' fires `onerror` instead of answering; 'garble' fires `onmessageerror`.
  * Every job it was posted is in `jobs`; `terminated` says whether it was stopped.
+ * `answerBy`: 'microtask' (default, as every rail had it) or 'macrotask' — every message it delivers (an answer, a
+ * page message to the handler, the hub's unasked post) one TIMER later, as a real Worker's messages are. ⭐ A rail
+ * whose code under test could re-post on each answer uses 'macrotask': a microtask stand-in turns such a rebuild loop
+ * into an endless microtask chain that starves every timer, so the test's own timeout can never fire (e96: mutant S9
+ * hung memberDoorService.test.js until the CI job's 30-minute limit).
  */
 export class FakeDoorWorker {
-  constructor(core, { mode = 'answer', onPost = null } = {}) {
+  constructor(core, { mode = 'answer', onPost = null, answerBy = 'microtask' } = {}) {
     this.core = core
     this.mode = mode
     this.onPost = onPost
+    if (answerBy !== 'microtask' && answerBy !== 'macrotask') throw new Error(`FakeDoorWorker: answerBy ${answerBy}`)
+    this.later = answerBy === 'macrotask' ? (fn) => { setTimeout(fn, 0) } : (fn) => { Promise.resolve().then(fn) }
     this.jobs = []
     this.held = []
     this.terminated = false
@@ -85,7 +92,7 @@ export class FakeDoorWorker {
     if (typeof core.setPagePost === 'function') {
       core.setPagePost((m) => {
         const data = structuredClone(m)
-        Promise.resolve().then(() => { if (!this.terminated && this.onmessage) this.onmessage({ data }) })
+        this.later(() => { if (!this.terminated && this.onmessage) this.onmessage({ data }) })
       })
     }
   }
@@ -112,7 +119,7 @@ export class FakeDoorWorker {
     }
     if (msg && typeof msg.type === 'string') {
       const data = structuredClone(msg)
-      Promise.resolve().then(() => { if (!this.terminated) this.inWorker(() => this.core.acceptPageMessage(data)) })
+      this.later(() => { if (!this.terminated) this.inWorker(() => this.core.acceptPageMessage(data)) })
       return
     }
     const job = structuredClone(msg)
@@ -120,7 +127,7 @@ export class FakeDoorWorker {
     if (this.onPost) this.onPost(job, this)
     if (this.mode === 'hang') return
     if (this.mode === 'hold') { this.held.push(job); return }
-    Promise.resolve().then(() => this.answer(job))
+    this.later(() => this.answer(job))
   }
 
   answer(job) {
