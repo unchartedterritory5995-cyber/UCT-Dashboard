@@ -226,6 +226,20 @@ describe('every trigger, from a real event', () => {
     expect(cells().map((c) => c.trigger).sort()).toEqual(['click', 'typed'])
   })
 
+  // ⛔ (#2641, first-open bytes) ChartPane reaches the instrument through its global, never an import (a static import
+  // there made the entry chunk 3 B heavier: the Notebook's first open). The page's FIRST switch, a search result
+  // clicked, is still typed through that door.
+  it('the first switch, a search result clicked, is typed through the global door ChartPane uses', async () => {
+    const { row } = mount([chart(1, '30'), chart(2, '60')])
+    const door = window[SWITCH_SPEED_GLOBAL]
+    expect(typeof door?.hint, 'the instrument left no hint door').toBe('function')
+    const told = (go) => { door.hint(TRIGGER_TYPED); try { go() } finally { door.hint(-1) } }
+    const t0 = press(row, 'BBB', 'click', told)
+    await frame(t0 + 10)
+    expect(cells().map((c) => c.trigger)).toEqual(['typed'])
+    expect(total()).toBe(1)
+  })
+
   it("a switch made on a key's RELEASE is not timed: it is counted `released` (lib/switchSpeed.keyupRail holds that none exists)", async () => {
     const a = chart(1, '30')
     const b = chart(2, '60')
