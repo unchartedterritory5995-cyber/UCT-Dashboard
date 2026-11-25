@@ -24,13 +24,16 @@
 // PC's, today) moves neither the samples nor `serverNow()`. ⛔ IT NEVER GOES BACKWARDS once learned: a smaller offset holds
 // `serverNow()` where it was until the monotonic clock catches up (a roll decided is never undecided mid-bucket). With no
 // sample yet it is `Date.now()`, exactly as before (so a page that never heard the server, and every test that moves the
-// member clock with fake timers, see the member clock).
+// member clock with fake timers, see the member clock). ⛔ A SLEEP (the monotonic clock paused while the wall ran on) drops
+// every sample and the wall clock answers, held, until new samples arrive (`_clocksApart`, review of #2733 round 2).
 
 export const SAMPLES_KEPT = 9
 export const SAMPLE_RTT_MAX_MS = 3000
 /** A round trip shorter than this is a cache, not the network (a real answer from the edge takes tens of ms). */
 export const SAMPLE_RTT_MIN_MS = 2
 export const OFFSET_MAX_MS = 10 * 60 * 1000
+/** The monotonic and wall clocks parting by more than this since the newest sample is a jump (see `_clocksApart`). */
+export const CLOCK_JUMP_MS = 2000
 
 function _defaultMono() {
   try {
@@ -46,6 +49,34 @@ let _offset = 0
 let _last = -Infinity
 let _wall = () => Date.now()
 let _mono = _defaultMono
+let _learned = false          // a sample was ever taken (from then on serverNow never moves backwards, even on the wall)
+let _anchorMono = null        // the two clocks at the newest sample: what `_clocksApart` measures from
+let _anchorWall = null
+
+/**
+ * ⛔ (review of #2733, round 2) THE MONOTONIC CLOCK CAN PAUSE: on macOS and Linux `performance.now()` stops while the system
+ * sleeps (a suspended tab may stop it too), so after a wake every sample, and `serverNow()`, would run behind by the whole
+ * sleep until enough new samples outvoted the old (a press then painted pre-sleep copies as current, where `Date.now()`
+ * had been right). Measured against the newest sample: the wall clock running AHEAD of the monotonic one by more than
+ * CLOCK_JUMP_MS is a sleep (or a forward NTP step, the wall now nearer the truth): every sample is dropped and the wall
+ * clock answers until new samples arrive (held, never backwards). The wall running BEHIND is an NTP step back: the
+ * monotonic base did not move, so the offset still holds; only the anchors move.
+ */
+function _clocksApart() {
+  if (!_samples.length || _anchorMono == null) return
+  const m = _mono()
+  const w = _wall()
+  const drift = (w - _anchorWall) - (m - _anchorMono)
+  if (drift > CLOCK_JUMP_MS) {
+    _samples = []
+    _offset = 0
+    _anchorMono = null
+    _anchorWall = null
+  } else if (drift < -CLOCK_JUMP_MS) {
+    _anchorMono = m
+    _anchorWall = w
+  }
+}
 
 /** The page's monotonic clock (ms, on the epoch scale): what a sample's `sentAt` / `receivedAt` must be read from. */
 export function monoNow() { return _mono() }
@@ -75,11 +106,15 @@ export function noteServerDate(dateHeader, { sentAt, receivedAt, age = null, cac
   if (!(rtt >= SAMPLE_RTT_MIN_MS && rtt <= SAMPLE_RTT_MAX_MS)) return false
   const server = Date.parse(String(dateHeader))
   if (!Number.isFinite(server)) return false
+  _clocksApart()                                     // a sleep since the newest sample voids the older ones first
   const sample = server + 500 - (sentAt + receivedAt) / 2
   // (on the monotonic base the offset includes the member clock's own error: bounded by the wall clock's distance from it)
   if (Math.abs(sample + _mono() - _wall()) > OFFSET_MAX_MS) return false
   _samples.push(sample)
   if (_samples.length > SAMPLES_KEPT) _samples.splice(0, _samples.length - SAMPLES_KEPT)
+  _learned = true
+  _anchorMono = _mono()
+  _anchorWall = _wall()
   const sorted = [..._samples].sort((a, b) => a - b)
   const mid = sorted.length >> 1
   _offset = sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2
@@ -89,7 +124,16 @@ export function noteServerDate(dateHeader, { sentAt, receivedAt, age = null, cac
 /** The server's time now (ms): the monotonic clock plus the learned offset; the member's clock while nothing is learned.
  *  Once learned it never moves backwards: a smaller offset holds it until the monotonic clock catches up. */
 export function serverNow() {
-  if (!_samples.length) return _wall()
+  _clocksApart()
+  if (!_samples.length) {
+    const w = _wall()
+    // nothing learned yet: the member's clock exactly (it may move back: a test, a correction), RECORDED so the first
+    // sample cannot step serverNow back once (review of #2733, round 2, LOW); after a sleep dropped the samples: the wall
+    // clock, held, never backwards
+    if (!_learned) { if (w > _last) _last = w; return w }
+    if (w > _last) _last = w
+    return _last
+  }
   const t = _mono() + _offset
   if (t > _last) _last = t
   return _last
@@ -104,6 +148,9 @@ export function __resetServerClockForTests({ wall, mono } = {}) {
   _samples = []
   _offset = 0
   _last = -Infinity
+  _learned = false
+  _anchorMono = null
+  _anchorWall = null
   _wall = wall || (() => Date.now())
   _mono = mono || wall || _defaultMono
 }

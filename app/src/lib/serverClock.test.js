@@ -3,7 +3,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import {
   noteServerDate, serverNow, serverClockOffset, cacheableAnswer, __resetServerClockForTests,
-  SAMPLES_KEPT, OFFSET_MAX_MS, SAMPLE_RTT_MIN_MS,
+  SAMPLES_KEPT, OFFSET_MAX_MS, SAMPLE_RTT_MIN_MS, CLOCK_JUMP_MS,
 } from './serverClock'
 
 // two clocks the test moves: the member's wall clock (Date.now) and the page's monotonic one (performance)
@@ -104,15 +104,45 @@ describe('(review of #2733) the wall clock jumping (an NTP resync) moves nothing
     expect(Math.abs(serverNow() - (a + 1000))).toBeLessThanOrEqual(5)
   })
 
-  it('a forward jump after learning leaves it right too', () => {
+  it('a forward jump after learning (the PC clock corrected, today's case): the corrected wall answers, never backwards', () => {
     for (let i = 0; i < 3; i++) sample(wall + 6200)
     const a = serverNow()
-    wall += 6200                               // the PC's clock corrected (today's case): the server's time is unchanged
+    wall += 6200                               // the resync: the wall is now the server's time (ambiguous with a sleep: see below)
     tick(500)
-    expect(Math.abs(serverNow() - (a + 500))).toBeLessThanOrEqual(5)
+    expect(Math.abs(serverNow() - wall)).toBeLessThanOrEqual(5)
+    expect(serverNow()).toBeGreaterThanOrEqual(a)
     // and new samples, now against a correct wall, keep the same server time
-    for (let i = 0; i < SAMPLES_KEPT; i++) sample(serverNow())
-    expect(Math.abs(serverNow() - (a + 500))).toBeLessThanOrEqual(520)
+    for (let i = 0; i < SAMPLES_KEPT; i++) sample(wall)
+    expect(Math.abs(serverNow() - wall)).toBeLessThanOrEqual(520)
+  })
+})
+
+describe('(review of #2733, round 2) a sleep: the monotonic clock paused while the wall ran on', () => {
+  it('after an hour asleep serverNow is the wall clock, not an hour behind; new samples take over again', () => {
+    for (let i = 0; i < 3; i++) sample(wall + 6200)
+    const a = serverNow()
+    wall += 3_600_000                          // macOS / Linux: performance.now() stood still for the whole sleep
+    expect(Math.abs(serverNow() - wall)).toBeLessThanOrEqual(5)
+    expect(serverNow()).toBeGreaterThan(a)
+    expect(serverClockOffset()).toBe(0)        // every pre-sleep sample dropped
+    expect(sample(wall + 6200)).toBe(true)     // the next answer after the wake re-learns it
+    expect(Math.abs(serverNow() - (wall + 6200))).toBeLessThanOrEqual(520)
+  })
+
+  it('a pause shorter than the threshold is not a jump (the samples stay)', () => {
+    for (let i = 0; i < 3; i++) sample(wall + 6200)
+    wall += CLOCK_JUMP_MS - 500
+    expect(Math.abs(serverClockOffset() - 6200 - (CLOCK_JUMP_MS - 500) * -1)).toBeLessThanOrEqual(520)
+    expect(Math.abs(serverNow() - (mono + 6200))).toBeLessThanOrEqual(520)
+  })
+
+  it('(LOW) the first sample never steps serverNow back: a member clock 3 s FAST holds until the server catches up', () => {
+    const before = serverNow()                 // nothing learned: the member clock, recorded
+    expect(before).toBe(wall)
+    expect(sample(wall - 3000)).toBe(true)
+    expect(serverNow()).toBe(before)           // held, not stepped back 3 s
+    tick(4000)
+    expect(serverNow()).toBeGreaterThan(before)
   })
 })
 
