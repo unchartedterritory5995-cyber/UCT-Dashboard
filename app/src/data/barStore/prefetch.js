@@ -67,13 +67,13 @@ import { fullBarsFor, firstPaintBarsFor } from '../../utils/barsBackfill'
 import { PREFETCH_WINDOWS, prefetchTargetBars } from '../../utils/historyPrepend'
 import { viewShowExtended } from '../../utils/viewSession'
 import { isNativeTf, fetchTf } from '../../components/chart/timeframes'
-import { isCacheCurrentForView, expectedBarsBehind, isHolidayISO } from '../../utils/marketSession'
+import { isCacheCurrentForView, expectedBarsBehind, isHolidayISO, expectedLatestDailySessionET } from '../../utils/marketSession'
 import { deviceCopyFresh, inRegularSession } from '../deviceStore/fresh'
 import { deviceServesTf } from '../deviceStore/tfs'
 import { deviceStoreKillSeen } from '../../lib/chartSpeed'
 import { isAppVisible } from '../../lib/deskVisibility'
 import { bucketEndUnix } from '../../components/chart/liveBuckets'
-import { bucketStartUnix, etDateOf, etMinuteOfDay, rthCloseMinuteOf } from '../../components/chart/barTime'
+import { bucketStartUnix, etDateOf, etMinuteOfDay, rthCloseMinuteOf, etOffsetSec } from '../../components/chart/barTime'
 import { serverNow } from '../../lib/serverClock'
 import { BARSTORE } from '../../components/chart/barStoreSwitch'
 import { prefetchTickerMeta as _defaultTickerMeta } from '../../hooks/useTickerMeta'
@@ -233,6 +233,10 @@ export const LAKE_JOIN_WAIT_MS = 550
  *  the tail answer (prepareDailyForDisplay). Just under the handoff's own bound (useSymbolHandoff
  *  DAILY_HOLD_MAX_MS = 400), so the prepare's outcome, not the hang guard, commits. */
 export const DEEP_JOIN_WAIT_MS = 380
+/** (review of #2740, MEDIUM-1) When a W/M answer the server marked `unverified` (its stale-while-revalidate serve) is asked
+ *  again: its `retry_after`, api/routers/bars.py `_DATE_STALE_RETRY_AFTER_S` (3 s: review 2 of #2740, the 2 s heal was seen
+ *  on two names only). */
+export const DATE_STALE_REASK_MS = 3000
 /** The edge warm of a list (edgeWarmList): the chart timeframes that warm (the chart's own, then 60m,
  *  the deepest and slowest cold), the rows per list, the keys per page (each ~1 index GET + 2-23 HEADs),
  *  and how long after the latest list it starts. */
@@ -498,7 +502,7 @@ export function createPrefetch(o = {}) {
    */
   async function ensure(key, {
     until = PREPARED, depth = 0, priority = 'urgent', signal = null, session: sess = session(),
-    warm = false, front = false, local = true, _s0 = null, own = false, full = false,
+    warm = false, front = false, local = true, _s0 = null, own = false, full = false, _heal = false,
   } = {}) {
     const s0 = _s0 ?? await _hydrate(key)   // a caller that already hydrated passes its snapshot
     if (_satisfied(s0, until, depth) && (local || s0.restSeen)) return s0
@@ -529,6 +533,8 @@ export function createPrefetch(o = {}) {
       a.gen = s.gen   // the gen the answer landed under
       a.answered = true
       a.at = now()    // the cooldown runs from the ANSWER, not from when the request was queued
+      _noteTail(key, s)   // ...and the newest bar it left (W3: _formingLost)
+      if (!_heal) _healDateLater(key, s, { priority, warm, front, session: sess })
       if (isIntradayTf(s.tf ?? parseKey(key)?.tf)) _noteFull(key)   // every request asks a full window
       // ...and a waiter reads the rules that key on this answer (`_behindClock`) only from here on: wake it (see watch)
       _wakeWatchers(key)
@@ -596,8 +602,9 @@ export function createPrefetch(o = {}) {
   // illiquid minute, a late seal): it paints as it is and is not asked again on every keystroke.
   // ⛔ 60m / 1h on an EXTENDED view buckets on the clock grid, which expectedBarsBehind does not measure (it
   // walks the 09:30 session grid): those keys keep the status rule.
-  /** How many buckets `s` is behind the session frontier by the clock (0: not behind, or not judged by the clock). */
-  function _bucketsBehind(key, s, showExtended) {
+  /** How many buckets `s` is behind the session frontier by the clock (0: not behind, or not judged by the clock).
+   *  `closedOnly`: count CLOSED buckets only (what a copy lacks of the server's store), never a lost forming one (W3 below). */
+  function _bucketsBehind(key, s, showExtended, { closedOnly = false } = {}) {
     const rows = s?.bars
     if (!rows?.length) return 0
     // a DEVICE copy is judged by its own complete-through stamp (devicePaints / deviceStore/fresh.js)
@@ -622,6 +629,7 @@ export function createPrefetch(o = {}) {
     const live = _pushState(key, showExtended)
     if (dev && Number.isFinite(dev.t) && (_devHoldsFrontier(dev, p.tf) || (live && live.since <= _rollMs(p.tf)))) tailT = Math.max(tailT, dev.t)
     let n = expectedBarsBehind(tailT, p.tf, now(), { session: ext ? 'extended' : 'rth' })
+    let forming = false
     if (n == null || n < 1) {
       // ⭐ (2026-11-25, #2733) THE SESSION'S FIRST BUCKET. The count above walks CLOSED buckets only, so inside the session's
       // first bucket (09:30-09:45 on 15m; 5m, 30m and 60m alike) a copy ending yesterday read 0 behind and painted
@@ -629,8 +637,18 @@ export function createPrefetch(o = {}) {
       // view's session has opened, a copy with no row and no developing bar at or after today's open is behind: one bucket
       // (then judged by rule a below, like any other copy behind).
       const opened = _sessionOpenUnix(now(), ext)
-      if (!(opened != null && tailT < opened)) return 0
-      n = 1
+      if (opened == null) return 0
+      if (tailT < opened) n = 1
+      // ⭐ (2026-11-25, the wide sweep W3) ...AND A CURRENT BUCKET THE COPY HELD AND LOST. The same count read a copy as
+      // current that had held the forming bucket and lost it since: the 15m showed 13:15 in the key task at 13:43 ET with no
+      // forming 13:30, which came 19-255 ms later (W3 presses 24, 25, 28, 29; each symbol's copy had shown 13:30 about a
+      // minute before, presses 0, 3, 4 and NWS's warm). A copy whose newest bar is before the current bucket's start, and
+      // older than the newest bar this module's last answer for it left (`answeredTail`), is one bucket behind (`forming`).
+      // ⛔ NOT "every copy without the forming bucket" (the brief's first form): that turned 26 rails red, because a row
+      // holding the newest closed bucket is what the tail scan keeps current for the key task at every boundary, and an
+      // answer that lacks the forming bar is the server's word on it (a name with no print there yet).
+      else if (!closedOnly && _formingLost(key, s)) { n = 1; forming = true }
+      else return 0
     }
     // ⭐ ...UNLESS THE STREAM PROVES NO TRADE PRINTED THERE (review of #2721, rule a; it rests on lib/barsStreamManager's
     // `liveSince` breaking across a roll inside a rebuild gap, 1-A). The stream has delivered without a break since BEFORE the
@@ -640,7 +658,9 @@ export function createPrefetch(o = {}) {
     // newest row), and right after M's end its last prints may still be on the way. (Merge of #2721 into #2733: `now` is
     // the server's clock, lib/serverClock, and so is the stream's `liveSince`; the first bucket a copy from an EARLIER
     // session lacks is today's open, never the bucket after its tail: the overnight gap is not buckets.)
-    if (live && now() - _rollMs(p.tf) >= RULE_A_MARGIN_MS) {
+    // (W3: the margin is for bucket M's own last prints; a copy lacking only the FORMING bucket holds M, and the stream's
+    // silence since that bucket opened proves no print there at once.)
+    if (live && (forming || now() - _rollMs(p.tf) >= RULE_A_MARGIN_MS)) {
       let first = bucketEndUnix(tailT, p.tf)
       const opened = _sessionOpenUnix(now(), ext)
       // ⛔ (review of the merge) ONLY A COPY THAT REACHED THE PREVIOUS SESSION'S CLOSE skips the overnight gap: one whose tail
@@ -656,6 +676,50 @@ export function createPrefetch(o = {}) {
       if (Number.isFinite(first) && live.since <= first * 1000 && !(Number.isFinite(live.lastBarT) && live.lastBarT >= first * 1000)) return 0
     }
     return n
+  }
+  /** The newest bar time `s` holds, its developing bar included (null for none). */
+  function _heldTail(s) {
+    const t = s?.bars?.length ? s.bars[s.bars.length - 1].t : null
+    const d = s?.developing && Number.isFinite(s.developing.t) ? s.developing.t : null
+    return t == null ? d : (d == null ? t : Math.max(t, d))
+  }
+  /**
+   * ⭐ (review of #2740, MEDIUM-1) A WEEK OR MONTH ANSWER SERVED STALE IS ASKED AGAIN, ONCE, AFTER ITS retry_after. D/W/M keys
+   * poll every 5 min (network.js), so a warm's `unverified` W/M copy stayed stale until the press, which then held for its
+   * own ask (about 23 of 30 W2 presses: the key task's share from ~96% to ~25%). The server's background delta has
+   * healed its store by then (the press's own ask got `bars(mem)` in the record), and the warm runs 1.9-6.0 s ahead: the
+   * one re-ask, DATE_STALE_REASK_MS after the answer, in the lane and rank of the ask it answers, heals the copy before
+   * most presses. Once per answer: the re-ask's own answer, still unverified, is left to the press (one request more per
+   * stale warm, never a loop); one pending per key.
+   */
+  const dateHeals = new Map()
+  function _healDateLater(key, s, opts) {
+    const tf = parseKey(key)?.tf
+    if ((tf !== 'W' && tf !== 'M') || s?.tailStatus !== 'unverified' || dateHeals.has(key)) return
+    const t = setTimer(() => {
+      dateHeals.delete(key)
+      const cur = S().peek(key)
+      if (cur?.tailStatus !== 'unverified') return   // a newer answer already said current
+      ensure(key, { ...opts, until: ASK_AGAIN, local: false, _s0: cur, _heal: true }).catch(() => {})
+    }, DATE_STALE_REASK_MS)
+    dateHeals.set(key, t)
+  }
+  /** key → the newest bar (unix s) this module's last answer for the key left its entry holding (W3: _formingLost).
+   *  Its own map, not `asked`: a cooldown's expiry and every new ask replace an `asked` record. Bounded, oldest out. */
+  const answeredTail = new Map()
+  function _noteTail(key, s) {
+    const t = _heldTail(s)
+    answeredTail.delete(key)
+    if (Number.isFinite(t)) answeredTail.set(key, t)
+    if (answeredTail.size > COOLDOWN_MAX_KEYS) answeredTail.delete(answeredTail.keys().next().value)
+  }
+  /** (W3, see _bucketsBehind) Has `s` lost the current bucket its last answer left it holding (a copy re-read from the
+   *  cache since, or one whose forming bar went with its chart's stream)? */
+  function _formingLost(key, s) {
+    const cur = bucketOf(Math.floor(now() / 1000), s)
+    const tail = _heldTail(s)
+    const had = answeredTail.get(key)
+    return Number.isFinite(cur) && tail < cur && Number.isFinite(had) && tail < had
   }
   /** Today's open (unix s) of the view's session (09:30 regular, 04:00 extended) once it has opened on a trading day; else
    *  null (a weekend, a holiday, before the open). */
@@ -708,8 +772,8 @@ export function createPrefetch(o = {}) {
   const _rollMs = (tf) => bucketStartUnix(Math.floor(now() / 1000), tf) * 1000
   /** When the newest CLOSED bucket of `tf` opened (ms): what `_markShort` stamps a short copy as lacking (#2721). */
   const _prevRollMs = (tf) => bucketStartUnix(Math.floor(_rollMs(tf) / 1000) - 1, tf) * 1000
-  function _behindClock(key, s, showExtended) {
-    const n = _bucketsBehind(key, s, showExtended)
+  function _behindClock(key, s, showExtended, opts) {
+    const n = _bucketsBehind(key, s, showExtended, opts)
     if (n < 1) return false
     return !_ownGrace(key, s, n)
   }
@@ -793,10 +857,10 @@ export function createPrefetch(o = {}) {
     if (!signal?.aborted) _markShort(key, showExtended)
     return S().peek(key) || s
   }
-  /** The copy of `key` lacks a closed bar (behind the clock, no grace). */
+  /** The copy of `key` lacks a closed bar (behind the clock, no grace). (A CLOSED bar only: AWAIT_CLOSED names one.) */
   function _short(key, showExtended) {
     const cur = S().peek(key)
-    return !!cur && _behindClock(key, cur, showExtended)
+    return !!cur && _behindClock(key, cur, showExtended, { closedOnly: true })
   }
   /** A copy painted while it lacks a closed bar reads UPDATING until it holds the newest closed bucket (ACTION.AWAIT_CLOSED). */
   function _markShort(key, showExtended) {
@@ -860,6 +924,46 @@ export function createPrefetch(o = {}) {
   }
 
   // ── the handoff ─────────────────────────────────────────────────────────────
+  /** When the latest CLOSED daily session closed (unix s; the half-day's 13:00 too). */
+  function _lastDailyCloseUnix(nowMs) {
+    const iso = expectedLatestDailySessionET(nowMs)
+    const day = Date.parse(`${iso}T00:00:00Z`) / 1000
+    const noon = day + 43200
+    return day + rthCloseMinuteOf(noon) * 60 - etOffsetSec(noon)
+  }
+  /**
+   * ⭐ (2026-11-25, the wide sweep W2) A HELD WEEK OR MONTH COPY IS JUDGED BEFORE IT PAINTS. Any held D/W/M set painted in the
+   * key task (useSymbolHandoff dailyHoldNeeded), and the month chart showed the right symbol on the current month's bar
+   * with an OLD close for 68-284 ms (23 of 30 presses; TXN 295.86 against 265.02, QCOM -9.7%, AVGO +7.5%, CAT +6.0%). Every
+   * one of those copies was the answer of a warm 1.9-6.0 s before the press that the server had served from its stale
+   * store (Server-Timing `bars(stale-swr)`: the month table it keeps is days behind; its background heal answered the
+   * press's own ask `bars(mem)`, current); the 7 presses that painted right had a `bars(mem)` answer. The server now says
+   * so (`tail_status: 'unverified'` on a W/M answer served stale, api/routers/bars.py), and such a copy is stale here: the
+   * switch holds (DAILY_HOLD_MAX_MS at most) and the daily prepare asks first.
+   * ...AND BY AGE, where it is known: a W/M copy read (answered, or saved) before the latest daily close carries a
+   * developing bar that misses that session. A copy whose read time is unknown is judged as before.
+   * (D keeps its own paint rule, the daily verdict.)
+   */
+  function _weekMonthStale(key, s) {
+    const tf = parseKey(key)?.tf
+    if ((tf !== 'W' && tf !== 'M') || !s?.bars?.length) return false
+    if (s.restSeen && s.tailStatus === 'unverified') return true
+    let readAt = null
+    if (s.restSeen) {
+      const a = asked.get(key)
+      if (a?.answered && Number.isFinite(a.at)) readAt = a.at
+    } else {
+      const v = S().persist?.savedAtOf?.(key)
+      if (Number.isFinite(v)) readAt = v
+    }
+    return readAt != null && readAt < _lastDailyCloseUnix(now()) * 1000
+  }
+  /** (W2, see _weekMonthStale) Is the W/M copy `sym` / `tf` would show held and stale? The handoff holds for it. */
+  function dateCopyStale(sym, tf, { showExtended } = {}) {
+    const key = keyFor(sym, tf, { showExtended })
+    return !!key && _weekMonthStale(key, S().peek(key))
+  }
+
   function peekDisplayable(sym, tf, { showExtended } = {}) {
     if (!sym || !tf) return false
     if (!isNativeTf(tf) || !isIntradayTf(tf)) return true
@@ -942,6 +1046,7 @@ export function createPrefetch(o = {}) {
     const s = key ? S().peek(key) : null
     if (!s) return 0
     if (answered && !(s.restSeen && S().network?.answered?.(key))) return 0
+    if (answered && _weekMonthStale(key, s)) return 0   // (W2: an answer served stale covers nothing)
     return s.bars.length + (s.developing ? 1 : 0)
   }
 
@@ -1334,12 +1439,16 @@ export function createPrefetch(o = {}) {
       _deviceNow(key)
       const s0 = await Promise.race([hyd, new Promise((resolve) => setTimer(() => resolve(undefined), HYDRATE_WAIT_MS))])
       if (!S().deepPending?.(key)) {
-        const s = await ensure(key, { until: DAILY_PREPARED, priority: 'urgent', signal, _s0: s0 ?? null })
+        // (W2: a stale W/M copy is asked again first, whatever its status says: _weekMonthStale)
+        const s = await ensure(key, _weekMonthStale(key, s0 ?? S().peek(key))
+          ? { until: ASK_AGAIN, priority: 'urgent', signal, local: false, _s0: s0 ?? S().peek(key) ?? {} }
+          : { until: DAILY_PREPARED, priority: 'urgent', signal, _s0: s0 ?? null })
         return _outcome(s, { aborted: !!signal?.aborted, date: true })
       }
       S().deepPrime?.(key, { priority: 'visible', want: true })   // (joins the one above, if it left)
       const depth = fullBarsFor(normTf(tf) ?? fetchTf(String(tf))) || 0
-      const s = await ensure(key, { until: DAILY_PREPARED, depth, priority: 'visible', signal, local: false, _s0: s0 ?? S().peek(key) ?? {} })
+      const stale = _weekMonthStale(key, s0 ?? S().peek(key))   // (W2)
+      const s = await ensure(key, { until: stale ? ASK_AGAIN : DAILY_PREPARED, depth, priority: 'visible', signal, local: false, _s0: s0 ?? S().peek(key) ?? {} })
       if (!signal?.aborted && s?.restSeen && !s.error) await S().deepJoined?.(key, Math.max(0, DEEP_JOIN_WAIT_MS - (now() - t0)))
       return _outcome(S().peek(key) ?? s, { aborted: !!signal?.aborted, date: true })
     } catch {
@@ -1649,7 +1758,7 @@ export function createPrefetch(o = {}) {
      *  until its own press. */
     function lagRetryLater(k) {
       if (!tail.includes(k) || !inSession() || !_active() || _hidden()) return
-      if (_bucketsBehind(k, S().peek(k), tailExt) !== 1) return   // current; or more than one behind: not printing
+      if (_bucketsBehind(k, S().peek(k), tailExt, { closedOnly: true }) !== 1) return   // current; or more than one behind: not printing
       const tf = parseKey(k).tf
       if (!(now() - _boundaryMs(tf) < TAIL_LAG_WINDOW_MS)) return  // past the server's write lag
       const b = _bucketOfNow(tf)
@@ -2098,7 +2207,7 @@ export function createPrefetch(o = {}) {
   }
 
   return {
-    keyFor, peek, ensure, prefetch, peekDisplayable, peekBars, holdsBars, heldRows, prepareForDisplay, prepareDailyForDisplay, lakePending, deepPending, devicePaints, deviceVerdict, deviceWarm, watch,
+    keyFor, peek, ensure, prefetch, peekDisplayable, dateCopyStale, peekBars, holdsBars, heldRows, prepareForDisplay, prepareDailyForDisplay, lakePending, deepPending, devicePaints, deviceVerdict, deviceWarm, watch,
     deviceHold, askForDisplay,
     prefetchBars, prefetchBar, prefetchBarsToIDB, prefetchAllTimeframes, prefetchListAllTimeframes,
     prefetchGridWarm, warmMemFromIDB, prewarmVisibleList, prefetchListDeep, prefetchReplayTimeframes,
@@ -2120,6 +2229,7 @@ export function peekDisplayable(sym, tf, opts = {}) { return _f().peekDisplayabl
 export function peekBars(sym, tf, opts = {}) { return _f().peekBars(sym, tf, opts) }
 export function holdsBars(sym, tf, opts = {}) { return _f().holdsBars(sym, tf, opts) }
 export function heldRows(sym, tf, opts = {}) { return _f().heldRows(sym, tf, opts) }
+export function dateCopyStale(sym, tf, opts = {}) { return _f().dateCopyStale(sym, tf, opts) }
 export function prepareForDisplay(sym, tf, opts = {}) { return _f().prepareForDisplay(sym, tf, opts) }
 export function lakePending(sym, tf, opts = {}) { return _f().lakePending(sym, tf, opts) }
 export function deepPending(sym, tf, opts = {}) { return _f().deepPending(sym, tf, opts) }

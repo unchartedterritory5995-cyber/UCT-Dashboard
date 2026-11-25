@@ -133,11 +133,15 @@ const DAILY_SYM = /^[A-Z0-9.^-]{1,12}$/i
  *  promoted (or fetched) first, and A stays whole meanwhile. A pseudo symbol (`$IDX:…`) has no bars lane.
  *  ⭐ ...AND A HELD SET PAINTS AT ONCE ONLY WHEN ITS DEEP HISTORY IS NOT STILL DUE (2026-11-19, owner: "about 200
  *  bars instantly and then the rest shortly after, definitely in 2 phases"): a shallow held set (the pack's ~300
- *  rows) whose deep history has not joined goes through the same bounded prepare, which waits for the join. */
+ *  rows) whose deep history has not joined goes through the same bounded prepare, which waits for the join.
+ *  ⭐ ...NOR A STALE WEEK OR MONTH COPY (2026-11-25, the wide sweep W2: the month chart painted an OLD close in the key task
+ *  on 23 of 30 presses; prefetch.dateCopyStale): the prepare asks first, and B lands on that answer. */
 function dailyHoldNeeded(sym, tf) {
   return isNativeTf(tf) && !INTRADAY.has(String(tf)) && DAILY_SYM.test(String(sym))
-    && (!holdsDailySet(sym, tf) || (BARSTORE && storePrefetch.deepPending(sym, tf) && !devicePaints(sym, tf)))
+    && (!holdsDailySet(sym, tf) || (BARSTORE && storePrefetch.deepPending(sym, tf) && !devicePaints(sym, tf))
+      || (BARSTORE && dateCopyStale(sym, tf)))
 }
+const dateCopyStale = (sym, tf) => { try { return !!storePrefetch.dateCopyStale?.(sym, tf) } catch { return false } }
 
 /** ⭐ ONE PAINT, THE WHOLE CHART (2026-11-17, owner: "a good chunk, then the rest a quick blink later"). A held
  *  key paints at once only when the lake's whole depth is not still due for it (or the device's copy, or rows
