@@ -75,10 +75,10 @@
   },
   {
    "id": "U6-D9",
-   "mutant": "the runtime candle ignores the host row's display (back to the run's bare-name read)",
+   "mutant": "the runtime candle row drops the host row's display decision (no hiddenWhen: drawn at every setting)",
    "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
-   "from": "      if (hostClose && hostClose.displayUnread) { withheld.push({ label, why: hostClose.displayUnread, o: hostClose }); return }",
-   "to": "      if (false) { return }",
+   "from": "        ...(hostClose && hostClose.hiddenWhen ? { hiddenWhen: hostClose.hiddenWhen } : {}),",
+   "to": "        ...{},",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/displayKnob.runtime.test.js",
    "expectRed": "the candle row is hidden at the default"
   },
