@@ -689,6 +689,10 @@ def _member_tree_phrase(gate: str) -> str:
 
 #: The longest validator diagnostic an ADMIN's refused response carries per attempt.
 DIAGNOSTIC_MAX_CHARS = 600
+#: ⭐ 2026-11-24 -- The longest refused ATTEMPT an admin's response carries (its whole answer, as JSON text). The
+#: diagnostic above says why an attempt was refused; a mend can be ruled on only from what the attempt SAID (its
+#: reply, its notes) and a text that did not parse only from the text itself. Admin only, response only.
+REFUSED_ANSWER_MAX_CHARS = 20000
 
 
 class _Refused(Exception):
@@ -5100,6 +5104,39 @@ def lists_from_text(candidate: Any) -> Tuple[Any, List[str]]:
     return out, which
 
 
+def list_text_errors(candidate: Any) -> List[Dict[str, Any]]:
+    """For a builder: each field the contract types as a LIST that arrived as TEXT opening with "[" and did NOT parse
+    (`lists_from_text` leaves those for the check), with the parser's own message and the text around where it stopped.
+    [] when there is none. Never raises."""
+    out: List[Dict[str, Any]] = []
+    if not isinstance(candidate, Mapping):
+        return out
+    for field in _list_fields():
+        text = candidate.get(field)
+        if not isinstance(text, str) or not text.lstrip().startswith("["):
+            continue
+        try:
+            json.loads(text)
+        except json.JSONDecodeError as exc:
+            out.append({"field": field, "error": str(exc)[:200], "at": exc.pos, "length": len(text),
+                        "near": text[max(0, exc.pos - 120):exc.pos + 120]})
+        except Exception as exc:                   # noqa: BLE001 -- said by its type, never raised
+            out.append({"field": field, "error": type(exc).__name__, "length": len(text)})
+    return out
+
+
+def _refused_answer(attempt: int, tool_input: Any) -> Dict[str, Any]:
+    """One refused attempt as a builder reads it: its whole answer as JSON text (cut at REFUSED_ANSWER_MAX_CHARS, and
+    said so) and any list that arrived as text and did not parse. Never raises."""
+    try:
+        text = json.dumps(tool_input, ensure_ascii=False, default=str)
+    except Exception:                              # noqa: BLE001
+        text = repr(tool_input)
+    unwrapped = _unwrap_input(tool_input)[0] if isinstance(tool_input, dict) else tool_input
+    return {"attempt": attempt, "answer": text[:REFUSED_ANSWER_MAX_CHARS],
+            "truncated": len(text) > REFUSED_ANSWER_MAX_CHARS, "list_text_errors": list_text_errors(unwrapped)}
+
+
 def _unwrap_input(value: Optional[dict]) -> Tuple[Optional[dict], Optional[str]]:
     """``(envelope, wrapper)``. Removes ONE known argument wrapper -- an input whose
     ONLY key is a name in ``INPUT_WRAPPERS`` and whose value is an object -- and says
@@ -5707,6 +5744,11 @@ def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
         # the text can echo model output and is written for a model, not a person. Added
         # AFTER the turn is recorded, so it reaches no telemetry row.
         result["diagnostic"] = trace["refusals"]
+    if admin and trace.get("refused_answers"):
+        # ⭐ 2026-11-24 -- AND WHAT EACH REFUSED ATTEMPT SAID, FOR THE BUILDERS ONLY (coordinator's ruling). A mend
+        # that drops an op can be ruled on only from what the attempt told the member about it, and a list that came
+        # as text and did not parse only from the text. A member's response never carries it; nothing is stored.
+        result["refused_answers"] = trace["refused_answers"]
     return result
 
 
@@ -6329,6 +6371,9 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
             last = refused
             refusals.append({"attempt": attempts, "gate": refused.gate,
                              "detail": refused.detail[:DIAGNOSTIC_MAX_CHARS]})
+            # the attempt itself, for an ADMIN's response only (added after the turn is recorded, below): kept on
+            # the turn's own trace, which `learned_fields` reads by closed names only, so nothing new is stored
+            trace.setdefault("refused_answers", []).append(_refused_answer(attempts, tool_input))
             # the diagnostic (op path, validator text) is for the model and a DEBUG
             # log, never the member; it can echo model output, so not at INFO
             logger.debug("[converse] attempt %d refused at %s: %s", attempts, refused.gate,
