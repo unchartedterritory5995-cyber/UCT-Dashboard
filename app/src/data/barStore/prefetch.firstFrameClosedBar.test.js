@@ -27,7 +27,9 @@
 // every bucket BEFORE the newest closed one AND TAIL_LAG_WINDOW_MS has passed since the roll (never more than C1b's
 // accepted fallback): C6b (inside the window: no grace), C6d (a thin name 5 behind: no grace in the first 8 s, the grace
 // from roll+8 s on), C6e (a proof through the middle of the newest closed bucket suffices after the window), C7 (path 1:
-// a proof stamped at roll+1 s, the bucket absent), C7b (path 2: a watermark at the roll, the minute absent)
+// a proof stamped at roll+1 s, the bucket absent), C7b (path 2: a watermark at the roll, the minute absent).
+// (2026-11-25, review of #2733: the proof must now reach the ROLL itself, the newest closed bucket's end, so C6e reads NO
+// grace for a proof through that bucket's middle, C6f is its control through the roll, and G60c's control reaches 15:30.)
 //       C4  LOW (a): a first ask that was already a full read is not asked again in full; C4b the RDDT path (a held local
 //           copy, its first ask a since= delta) is
 //       B1c LOW (b): a developing bar written exactly at its bucket's end holds the frontier (the comparison is >=, in ms)
@@ -346,9 +348,24 @@ describe("C: the switch's own answer still behind", () => {
     w.store.dispose()
   })
 
-  it('C6e after the window a proof through the MIDDLE of the newest closed bucket suffices (it covers every bucket before it)', async () => {
+  // ⛔ CHANGED 2026-11-25 (review of #2733): the proof must reach the ROLL, the newest closed bucket's end. One through its
+  // middle proves every bucket before it and nothing about that bucket, so no grace (the client proves the newest closed
+  // bucket itself, in either deploy order with the server's #2732).
+  it('C6e after the window a proof through the MIDDLE of the newest closed bucket is NOT enough (it says nothing about that bucket)', async () => {
     vi.setSystemTime(at(10, 5, 15))
     const w = await boot('proof:5:-30')                               // verified through 10:04:30
+    await warmNext(w, ['THN'])
+    vi.setSystemTime(at(10, 5, 20))
+    w.pf.prepareForDisplay('THN', '1').catch(() => {})
+    await serve(w, w.P.BEHIND_HOLD_MAX_MS + 50)
+    expect(tailOf(w, 'THN')).toBe(T(9, 59))
+    expect(w.pf.peekDisplayable('THN', '1'), 'a proof through 10:04:30 lent the grace for the 10:04 bucket').toBe(false)
+    w.store.dispose()
+  })
+
+  it('C6f (control) the same with the proof through the roll (10:05:00): the grace', async () => {
+    vi.setSystemTime(at(10, 5, 15))
+    const w = await boot('proof:5:0')                                 // verified through 10:05:00
     await warmNext(w, ['THN'])
     vi.setSystemTime(at(10, 5, 20))
     w.pf.prepareForDisplay('THN', '1').catch(() => {})
@@ -384,9 +401,10 @@ describe("C: the switch's own answer still behind", () => {
     w.store.dispose()
   })
 
-  it('G60c (control) the same with a proof through 14:45: the grace', async () => {
+  // ⛔ CHANGED 2026-11-25 (review of #2733): the control's proof now reaches the roll (15:30), not 14:45
+  it('G60c (control) the same with a proof through the roll (15:30:05): the grace', async () => {
     vi.setSystemTime(at(15, 30, 15))
-    const w = await boot('proof:2:-2700')                             // verified through 14:45
+    const w = await boot('proof:2:5')                                 // verified through 15:30:05
     w.pf.prefetchBars(['HHH'], '60', { urgent: true })
     await serve(w, 200)
     vi.setSystemTime(at(15, 30, 20))

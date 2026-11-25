@@ -635,8 +635,6 @@ export function createPrefetch(o = {}) {
   // last bar of the day runs 15:30-16:00 (12:30-13:00 on a half-day), so the end minus 60 min read 15:00. On every other
   // timeframe the two are the same number (the grid is regular: bucketEndUnix = bucketStartUnix + tf).
   const _rollMs = (tf) => bucketStartUnix(Math.floor(now() / 1000), tf) * 1000
-  /** When the newest CLOSED bucket of `tf` opened (ms): the end of every bucket before it (the proof floor, _ownGrace). */
-  const _prevRollMs = (tf) => bucketStartUnix(Math.floor(_rollMs(tf) / 1000) - 1, tf) * 1000
   function _behindClock(key, s, showExtended) {
     const n = _bucketsBehind(key, s, showExtended)
     if (n < 1) return false
@@ -659,14 +657,17 @@ export function createPrefetch(o = {}) {
     // trade, at ANY number of buckets behind: a thin name's complete copy paints at once with one ask, not the hold and a
     // full read on every press. ⛔ BUT NEVER FOR THE BUCKET THAT JUST CLOSED (round 2): the server can stamp that proof at
     // or past the roll before the closed bucket is stored (a provider heal asked at roll+1 s, before the provider
-    // published it; the live stream's market-wide watermark, flushed mid-burst). So the proof counts only when it covers
-    // every bucket BEFORE the newest closed one and TAIL_LAG_WINDOW_MS has passed since the roll: never more than the
-    // fallback below already lends one bucket behind after the window. A thin name therefore paints at once from roll+8 s
-    // on and holds only in the first 8 s of each bucket.
+    // published it; the live stream's market-wide watermark, flushed mid-burst). So the proof counts only once
+    // TAIL_LAG_WINDOW_MS has passed since the roll, and (review of #2733) only when it reaches the roll itself, the newest
+    // closed bucket's end. A thin name therefore paints at once from roll+8 s on (once the server's proof is stamped past
+    // the roll) and holds only in the first 8 s of each bucket.
     const tf0 = parseKey(key)?.tf
     if (tf0 && Number.isFinite(s?.verifiedThrough)) {
       const roll = _rollMs(tf0)
-      if (now() - roll >= TAIL_LAG_WINDOW_MS && s.verifiedThrough * 1000 >= _prevRollMs(tf0)) return true
+      // ⛔ (review of #2733) the proof must reach the ROLL itself (the newest closed bucket's END): one reaching only its
+      // start says nothing about that bucket, and only #2732's server would then stop the short paint. With the proof
+      // through the roll the client proves the newest closed bucket itself, in either deploy order.
+      if (now() - roll >= TAIL_LAG_WINDOW_MS && s.verifiedThrough * 1000 >= roll) return true
     }
     // ⛔ ...BUT, WITHOUT THAT PROOF, NOT WHERE IT CANNOT MEAN THAT (live session 2026-11-24: AMD and AMAT 3-5 s after a roll,
     // RDDT two closed bars short; each painted short for 166 ms to ~1 s):
