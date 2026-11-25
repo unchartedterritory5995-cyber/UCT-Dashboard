@@ -873,23 +873,83 @@ TAIL_PROOF_LAG_S = 3.0
 # Cost: one provider call per pod per minute once the frontier minute is out; while it is not (the open), at most one
 # re-probe every `_MARKET_PROBE_RETRY_S`, deduped across threads (no thread waits on another's probe). Off hours the
 # last session's final minute satisfies the frontier, so one probe holds until the next session.
-_MARKET_REF_TICKER = _os.environ.get("BARS_MARKET_REF_TICKER", "SPY")
+#: ⭐ SEVERAL references, the watermark is their MAX (review #2732 round 2): early pre-market (04:00-05:00 ET) SPY
+#: does not print every minute, and one silent reference would keep every thin name `unverified` for those minutes
+#: although the provider has published them. One probe ROUND = one call per reference, run concurrently.
+_MARKET_REF_TICKERS = tuple(s.strip().upper() for s in _os.environ.get(
+    "BARS_MARKET_REF_TICKERS", "SPY,QQQ,IWM").split(",") if s.strip()) or ("SPY",)
 _MARKET_PROBE_RETRY_S = float(_os.environ.get("BARS_MARKET_PROBE_RETRY_S", "5"))
+#: A probe that ran but whose watermark trails the frontier by more than this is STALE (review #2732 round 2: if the
+#: probe keeps failing while heals succeed, every thin name stays `unverified` and each client poll costs a heal).
+_MARKET_STALE_LAG_S = float(_os.environ.get("BARS_MARKET_PROBE_STALE_LAG_S", "120"))
+_MARKET_STALE_LOG_EVERY_S = float(_os.environ.get("BARS_MARKET_PROBE_STALE_LOG_EVERY_S", "300"))
 _market_pub: dict = {"through": None, "probed_at": None}
+_market_probe_stats: dict = {"probes": 0, "stale_probes": 0, "last_stale_log": None, "last_lag_s": None}
 _market_probe_lock = _threading.Lock()
 
 
-def _fetch_market_reference_end():
-    """End (unix s) of the reference ticker's newest PUBLISHED 1m REST bar (one request, newest first), or None."""
+def _fetch_reference_end(sym: str):
+    """End (unix s) of `sym`'s newest PUBLISHED 1m REST bar (one request, newest first), or None."""
     client = _get_client()
     now_utc = datetime.utcnow()
-    url = (f"{_REST_BASE}/v2/aggs/ticker/{to_polygon_symbol(_MARKET_REF_TICKER)}/range/1/minute"
+    url = (f"{_REST_BASE}/v2/aggs/ticker/{to_polygon_symbol(sym)}/range/1/minute"
            f"/{(now_utc - timedelta(days=5)).strftime('%Y-%m-%d')}/{now_utc.strftime('%Y-%m-%d')}"
            f"?adjusted=true&sort=desc&limit=1&apiKey={client._api_key}")
     res = (client._get(url) or {}).get("results") or []
     if not res:
         return None
     return int(res[0]["t"] / 1000) + 60
+
+
+def _fetch_market_reference_end():
+    """One probe ROUND: the MAX over `_MARKET_REF_TICKERS` of each reference's newest published 1m bar end, or None
+    when none answered. A failing reference never sinks the round."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    def _one(sym):
+        try:
+            return _fetch_reference_end(sym)
+        except Exception:                  # noqa: BLE001 — the other references still answer
+            return None
+    refs = _MARKET_REF_TICKERS
+    if len(refs) == 1:
+        ends = [_one(refs[0])]
+    else:
+        with ThreadPoolExecutor(max_workers=len(refs), thread_name_prefix="bars-mkt-probe") as ex:
+            ends = list(ex.map(_one, refs))
+    ends = [int(e) for e in ends if e is not None]
+    return max(ends) if ends else None
+
+
+def market_probe_status() -> dict:
+    """The market probe's state for `/api/stream/status` (`bars_market_probe`)."""
+    return {"refs": list(_MARKET_REF_TICKERS), "through": _market_pub.get("through"),
+            "probed_at": _market_pub.get("probed_at"), "probes": _market_probe_stats.get("probes", 0),
+            "stale_probes": _market_probe_stats.get("stale_probes", 0),
+            "last_lag_s": _market_probe_stats.get("last_lag_s")}
+
+
+def _note_probe(now_ts: float, target, through) -> None:
+    """Count the probe; a watermark trailing the frontier by > `_MARKET_STALE_LAG_S` is stale: counted, and logged
+    at most once per `_MARKET_STALE_LOG_EVERY_S`."""
+    st = _market_probe_stats
+    st["probes"] = st.get("probes", 0) + 1
+    if target is None:
+        return
+    lag = float(target) - float(through) if through is not None else None
+    st["last_lag_s"] = lag
+    if lag is not None and lag <= _MARKET_STALE_LAG_S:
+        return
+    st["stale_probes"] = st.get("stale_probes", 0) + 1
+    last = st.get("last_stale_log")
+    if last is None or now_ts - last >= _MARKET_STALE_LOG_EVERY_S:
+        st["last_stale_log"] = now_ts
+        import logging as _lg
+        _lg.getLogger(__name__).warning(
+            "[bars] market probe stale %ss: watermark=%s frontier_end=%s refs=%s stale_probes=%d "
+            "(thin names stay unverified and each poll costs a heal until it advances)",
+            "none" if lag is None else int(lag), through, target, ",".join(_MARKET_REF_TICKERS),
+            st["stale_probes"])
 
 
 def market_published_through(now: float | None = None):
@@ -914,6 +974,10 @@ def market_published_through(now: float | None = None):
             end = None
         if end is not None:
             _market_pub["through"] = max(int(end), int(through or 0))
+        try:
+            _note_probe(now_ts, target, _market_pub["through"])
+        except Exception:                  # noqa: BLE001 — observability never breaks a heal
+            pass
         return _market_pub["through"]
     finally:
         _market_probe_lock.release()
@@ -978,9 +1042,13 @@ def _heal_intraday_tail(ticker_up: str, tf: str, last_ts: int, tail_only: bool =
         # ⭐ BAR CONTRACT seal: the provider rewrote the series from `window_start`
         # through `checked_at`, and those rows are in the store — so every bucket that
         # ended by `checked_at - SEAL_LAG_S` is FINAL (`complete_through` rests on this).
-        if persisted and status.get("window_start") is not None:
+        # ⭐ ON THE SAME PUBLICATION PROOF (review #2732 round 2): a sealed ABSENT bucket is proven empty and never
+        # re-read, so a seal over a minute the provider had not published yet (an open whose REST lag exceeds the
+        # 45 s lag; 42 s was measured) would be a permanent hole. Final only as far as `_reach` (this answer's own
+        # newest bar, or the market's watermark) reaches; neither = no seal.
+        if persisted and status.get("window_start") is not None and _reach is not None:
             from api.services.bar_contract import SEAL_LAG_S
-            _sqlite.record_sealed(ticker_up, tf, checked_at - SEAL_LAG_S,
+            _sqlite.record_sealed(ticker_up, tf, min(checked_at - SEAL_LAG_S, float(_reach)),
                                   status["window_start"], checked_at,
                                   covers_from=status.get("fill_from"))
     return new
