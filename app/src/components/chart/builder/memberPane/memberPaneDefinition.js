@@ -2662,6 +2662,10 @@ function runtimeLaneDocument({ source, id, name, t, hostReason, hostGuard = null
   const shiftPinned = new Set()
   // the families of elements skipped as hidden BY THEIR AUTHOR (the family ledger: hidden is not "not drawn")
   const authorSkipped = new Set()
+  // ⭐ e97 U5 — each candle / bar this document does NOT draw, by its four host output indexes, and why: hidden by its
+  // author (`display = display.none` at the inputs' defaults) or withheld by name (`runtimeCandlePresentation`).
+  // `candlesNotDrawn` on the answer, for a reader that grades a candle (the vendor harness).
+  const candlesNotDrawn = []
   for (const { o, index } of ofKind) {
     const ord = seen.get(o.kind) || 0
     seen.set(o.kind, ord + 1)
@@ -2711,10 +2715,19 @@ function runtimeLaneDocument({ source, id, name, t, hostReason, hostGuard = null
       // price series (`hiddenReason: 'passthrough'`, so it does not draw four lines over the chart),
       // and that is exactly the candle that RECOLOURS the chart's own bars, which TradingView draws.
       if (group.some(({ o }) => o.hiddenReason === 'author' || o._authorHidden === true)
-        || (run.ro.candle && run.ro.candle.display === 'display.none')) { authorSkipped.add(kind); return }
+        || (run.ro.candle && run.ro.candle.display === 'display.none')) {
+        authorSkipped.add(kind)
+        // ⭐ e97 U5 — WHICH candle, by its four host output indexes, for a reader that grades it (the vendor harness)
+        candlesNotDrawn.push({ outputs: group.map((g) => g.index), by: 'author', why: 'its author hides it (`display`)' })
+        return
+      }
       const label = (run.ro.candle && run.ro.candle.title) || `${kind} ${ord + 1}`
       const pres = runtimeCandlePresentation(kind, t && t.version, run.ro, !!(t.presentation && t.presentation.overlay === true))
-      if (!pres.ok) { withheld.push({ label, why: pres.why, o: group[3] && group[3].o }); return }
+      if (!pres.ok) {
+        withheld.push({ label, why: pres.why, o: group[3] && group[3].o })
+        candlesNotDrawn.push({ outputs: group.map((g) => g.index), by: 'withheld', label, why: pres.why })
+        return
+      }
       candleEntries.push({
         candle: kind,
         label,
@@ -3214,6 +3227,8 @@ function runtimeLaneDocument({ source, id, name, t, hostReason, hostGuard = null
     // it does not take runtime documents.
     saveable: true,
     withheld: withheld.map((w) => w.label),
+    // ⭐ e97 U5 — the candles this document does not draw, and why (host output indexes), so a grade can name them
+    candlesNotDrawn,
     // ⭐⭐ Engine 77 (#1833, fix/strategy-disarmed-taint) — what this document withholds that the HOST document shows
     // (`hostShowsRow`, `hostShowsPaint`): the armed route never replaces the host document with one that draws less
     takesAway: [
