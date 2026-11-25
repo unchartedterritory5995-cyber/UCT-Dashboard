@@ -1336,8 +1336,9 @@ def _local_tail_repair(ticker_up: str, tf: str, last_ts: int):
 # -6..-10%): its stale-while-revalidate refresh re-asks the provider for recent dailies in the background, and under load
 # that did not land. The daily is kept current by the live store's whole-market snapshot (`bars_live_store.covered(t,
 # "D")`: alive, seen, CONTIGUOUS), so W/M are derived from the STORED daily instead: the periods from the one holding the
-# stored W/M tail are rebuilt from the daily rows on read and written when they differ; `_needs_fresh` reads a tail that
-# holds exactly that derivation as fresh. No provider call. Rails: tests/test_bars_wm_from_live_daily.py.
+# stored W/M tail are rebuilt from the daily rows on read and laid over the answer (`_wm_overlay`), whatever happens to
+# their write, which runs in the background, deduped, never awaited (review of #2742); `_needs_fresh` reads a stored tail
+# that holds exactly that derivation as fresh. No provider call. Rails: tests/test_bars_wm_from_live_daily.py.
 def _wm_live_daily(ticker_up: str) -> bool:
     try:
         from api.services import bars_live_store as _bls
@@ -1358,45 +1359,61 @@ def _wm_period_start(tf: str, key: int) -> int:
     return int(s[:6] + "01")
 
 
-def _wm_derived_tail(ticker_up: str, tf: str, wm_last: int):
-    """The W/M periods the stored daily derives from the period holding the stored W/M tail onward, as bars to write:
-    [] when the store already holds them exactly, None when nothing can be derived."""
+def _wm_derived_periods(ticker_up: str, tf: str, wm_last: int):
+    """The W/M periods the stored daily derives from the period holding `wm_last` onward (iso bars), or None."""
     rows = _sqlite.get_bars_since(ticker_up, "D", _wm_period_start(tf, wm_last) - 1)
     if not rows:
         return None
     daily = _fmt_sqlite_bars(rows, "D", ticker_up)
     periods = _resample_weekly_iso(daily, ticker_up) if tf == "W" else _resample_monthly_iso(daily, ticker_up)
-    periods = [p for p in periods if int(p["t"].replace("-", "")) >= int(wm_last)]
+    return [p for p in periods if int(p["t"].replace("-", "")) >= int(wm_last)] or None
+
+
+def _wm_differs(held, p) -> bool:
+    return held is None or (float(held[1]), float(held[2]), float(held[3]), float(held[4]), int(held[5] or 0)) != (
+        float(p["o"]), float(p["h"]), float(p["l"]), float(p["c"]), int(p["v"] or 0))
+
+
+def _wm_derived_tail(ticker_up: str, tf: str, wm_last: int):
+    """The derived periods the STORE does not hold exactly (bars to write): [] when it holds them all, None when
+    nothing can be derived."""
+    periods = _wm_derived_periods(ticker_up, tf, wm_last)
     if not periods:
         return None
     held = {int(r[0]): r for r in _sqlite.get_bars_since(ticker_up, tf, int(wm_last) - 1)}
-    out = []
-    for p in periods:
-        h = held.get(int(p["t"].replace("-", "")))
-        if h is None or (float(h[1]), float(h[2]), float(h[3]), float(h[4]), int(h[5] or 0)) != (
-                float(p["o"]), float(p["h"]), float(p["l"]), float(p["c"]), int(p["v"] or 0)):
-            out.append(p)
-    return out
+    return [p for p in periods if _wm_differs(held.get(int(p["t"].replace("-", ""))), p)]
 
 
-def _wm_derive_on_read(ticker_up: str, tf: str) -> None:
-    """READ PATH, before the store is read: bring a W/M tail up to the live daily (see above). The comparison runs on
-    the request thread (two small reads); a write, when one is needed, on its own deduped thread, waited on at most
-    `_LOCAL_DERIVE_DEADLINE_SECONDS` (a held write lock costs the read that ceiling; it then serves the store)."""
-    if tf not in ("W", "M") or not _wm_live_daily(ticker_up):
-        return
+def _wm_overlay(ticker_up: str, tf: str, stored_rows: list, bars: int):
+    """READ PATH (review of #2742): (rows, last_ts) with the periods the stored LIVE daily derives laid over the stored
+    W/M rows, from the period holding the stored tail onward, when that reaches the daily tail's period; None otherwise.
+    The answer carries them whatever happens to their write: the differing periods are written on a deduped background
+    job that no read ever waits for (in session the developing daily moves every few seconds, so nearly every cache-miss
+    read has one to write, and a read that waited for it fell back to the days-old table when the write was late)."""
+    if not _wm_live_daily(ticker_up):
+        return None
     try:
-        last = _sqlite.get_last_ts(ticker_up, tf)
-        if not last:
-            return                        # nothing stored: the cold path fetches depth
-        todo = _wm_derived_tail(ticker_up, tf, int(last))
+        wm_last = int(stored_rows[-1][0])
+        d_last = _sqlite.get_last_ts(ticker_up, "D")
+        if not d_last:
+            return None
+        periods = _wm_derived_periods(ticker_up, tf, wm_last)
+        if not periods or int(periods[-1]["t"].replace("-", "")) != _wm_key_of(tf, int(d_last)):
+            return None
+        by = {int(r[0]): tuple(r) for r in stored_rows}
+        todo = [p for p in periods if _wm_differs(by.get(int(p["t"].replace("-", ""))), p)]
+        for p in periods:
+            k = int(p["t"].replace("-", ""))
+            by[k] = (k, p["o"], p["h"], p["l"], p["c"], int(p["v"] or 0))
     except Exception:                      # noqa: BLE001 — the read serves the store as it is
-        return
-    if not todo:
-        return
-    _bounded_job(f"wmderive_{ticker_up}_{tf}",
-                 lambda: _sqlite.put_bars(ticker_up, tf, todo, date_tf=True),
-                 _LOCAL_DERIVE_DEADLINE_SECONDS)
+        return None
+    if todo:
+        _bounded_job(f"wmderive_{ticker_up}_{tf}",
+                     lambda: _sqlite.put_bars(ticker_up, tf, todo, date_tf=True), 0.0)
+    rows = [by[k] for k in sorted(by)]
+    if bars and len(rows) > max(int(bars), len(stored_rows)):
+        rows = rows[-max(int(bars), len(stored_rows)):]
+    return rows, rows[-1][0]
 
 
 def _wm_live_fresh(ticker_up: str, tf: str, last_ts) -> bool:
@@ -1720,7 +1737,7 @@ def _needs_fresh(last_ts: int | None, tf: str, ticker: str | None = None) -> boo
     # when the 5m they are built from is, once the derivation has caught up with it.
     if ticker and tf in _LIVE_DERIVED_TFS and _live_derived_fresh(ticker.upper(), tf, last_ts):
         return False
-    # W/M on a live daily (see `_wm_derive_on_read`): fresh when the stored tail is the daily tail's period and holds
+    # W/M on a live daily (see `_wm_overlay`): fresh when the stored tail is the daily tail's period and holds
     # exactly what the stored daily derives.
     if ticker and tf in ("W", "M") and _wm_live_fresh(ticker.upper(), tf, last_ts):
         return False
@@ -5515,7 +5532,6 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
     # ── Layer 2: SQLite persistent store (<5 ms) ──────────────────────────────
     _time_ck("pre_sqlite")
     _live_derive_on_read(ticker_up, tf)   # 15m/30m/60m from the live 5m (no-op without it)
-    _wm_derive_on_read(ticker_up, tf)     # W/M from the live daily (no-op without it)
     _time_ck("live_drv")
     last_ts     = _sqlite.get_last_ts(ticker_up, tf)
     _time_ck("last_ts")
@@ -5532,6 +5548,15 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
             stored_rows = _sqlite.get_bars(ticker_up, tf, bars) if last_ts is not None else []
         except Exception:  # noqa: BLE001 — never serve the old grid: go cold instead
             last_ts, stored_rows = None, []
+
+    # W/M on a live daily (`_wm_overlay`): the answer carries the periods the stored daily derives, whatever happens to
+    # their write (background, deduped, never awaited); `wm_drv` on Server-Timing is the derive's cost.
+    _wm_live = False
+    if tf in ("W", "M") and stored_rows:
+        _ov = _wm_overlay(ticker_up, tf, stored_rows, bars)
+        if _ov is not None:
+            stored_rows, last_ts, _wm_live = _ov[0], _ov[1], True
+        _time_ck("wm_drv")
 
     # SQLite has fresh data AND enough rows for this request count.
     # The "len(stored_rows) >= bars * 0.9" check catches the case where SQLite
@@ -5551,7 +5576,7 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
     _live_ttl = (_live or (_bls is not None and _live_derived_proof(ticker_up, tf) is not None)
                  or (tf in ("W", "M") and _wm_live_daily(ticker_up)))
     _time_ck("live_cov")
-    _fresh_needed = _needs_fresh(last_ts, tf, ticker_up) if stored_rows else True
+    _fresh_needed = False if _wm_live else (_needs_fresh(last_ts, tf, ticker_up) if stored_rows else True)
     if stored_rows and not _fresh_needed and (
         len(stored_rows) >= bars * 0.9 or _history_complete(ticker_up, tf, bars)
         or (_live and bars <= _bls.LIVE_HISTORY_MAX_BARS and _bls.history_complete(ticker_up, tf))
