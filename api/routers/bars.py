@@ -915,13 +915,30 @@ def _apply_tail_status(payload: dict, ticker: str, tf: str, session: str | None 
     payload["verified_through"] = st["verified_through"]
     # ⭐ A PENDING TAIL IS NEVER `current` (2026-11-24): the one-bucket tolerance is for a name with no print in the newest
     # bucket, not for a store this answer knows is stale. A provider-`verified` tail stays verified.
-    if pending and st["tail_status"] == "current":
+    # ⭐ NOR IS AN UNPROVEN ONE, on ANY answer — full, since= and to= alike (2026-11-25): a tail one bucket short is
+    # `current` only when `verified_through` reaches the end of the newest closed bucket (`tolerance_unproven`,
+    # `intraday_tail_status`). Without that proof "the name printed nothing" and "the store has not landed it yet" read
+    # the same, and the client painted 1m charts one closed bar short at the open. A tail AT the frontier needs no proof.
+    if st["tail_status"] == "current" and (pending or st.get("tolerance_unproven")):
         payload["tail_status"] = "unverified"
     headers = {}
     if payload["tail_status"] == "unverified":
-        payload["retry_after"] = 3
-        headers["Retry-After"] = "3"
+        ra = _tail_retry_after_s()
+        payload["retry_after"] = ra
+        headers["Retry-After"] = str(ra)
     return headers
+
+
+#: The `unverified` re-poll: 3 s plus 0-2 s of jitter (review #2732, 2026-11-25). At the open every chart whose tail is
+#: one short is told to come back; a fixed 3 s lines those polls up into synchronized bursts. ⛔ The floor stays 3 s,
+#: >= `bars_fetch.TAIL_PROOF_LAG_S`, so the retry can always heal a tail the provider has published.
+_TAIL_RETRY_AFTER_MIN_S = 3
+_TAIL_RETRY_AFTER_JITTER_S = 2
+
+
+def _tail_retry_after_s() -> int:
+    import random
+    return _TAIL_RETRY_AFTER_MIN_S + random.randint(0, _TAIL_RETRY_AFTER_JITTER_S)
 
 
 def _since_key(since, tf: str):
