@@ -65,6 +65,7 @@ export function appMinuteFeed(store, { load = () => import('./minuteFeed.js'), f
   if (!minuteFeedEnabled()) return null
   let feed = null
   let stopped = false
+  let loadError = null
   const ready = Promise.resolve().then(load).then((m) => {
     if (stopped) return null
     // with the device store on, the page reads the worker's copy from the browser's cache and may not download (the header)
@@ -73,10 +74,18 @@ export function appMinuteFeed(store, { load = () => import('./minuteFeed.js'), f
     // numbers only, for a measurement harness (the page has it only where the switch is on)
     try { if (typeof window !== 'undefined') window.__uctMinuteFeed = { status: () => feed.status() } } catch { /* none */ }
     return feed
-  }).catch(() => null)
+  }).catch((err) => {
+    // Not swallowed (TERM-033): the failure is KEPT and said. The charts go on exactly as with the feed off (the bar
+    // store asks the server as before), so no member is told anything is empty; `loadError()` and the console say why.
+    loadError = String(err?.message || err || 'unknown')
+    try { console.warn('[minuteFeed] did not start:', loadError) } catch { /* none */ }
+    return null
+  })
   return {
-    /** Resolves to the running feed (null when it could not load or was stopped first). */
+    /** Resolves to the running feed (null when it could not load or was stopped first: see loadError()). */
     ready,
+    /** Why the feed did not start (null while it is loading, running or was stopped on purpose). */
+    loadError: () => loadError,
     stop() { stopped = true; try { feed?.stop('disposed') } catch { /* ignore */ } },
     /** The feed's own numbers (null until it runs): what a measurement harness reads to see it is on. */
     status: () => feed?.status?.() ?? null,
