@@ -719,6 +719,10 @@ export function widgetNamed(words, all) {
 const SWAP_RE = /^(?:please )?(?:swap|switch|flip|exchange|trade)(?: places of| the places of| the positions of)? (.+?) (?:and|with|for) (.+?)(?: around| over| places)?$/
 const MOVE_RE = new RegExp('^(?:please )?(?:move|put|shift|slide|drag|switch) (.+?) (?:to|on|over to|onto|to the other side,? to) the (left|right|top|bottom)(?: side| edge| of the (?:board|screen|workspace))?$')
 const SIZE_RE2 = /^(?:please )?make (.+?) (a (?:little|bit|tad) |slightly |much |a lot )?(wider|narrower|taller|shorter|bigger|larger|smaller)(?: by (\d{1,2})(?: cells?| columns?| rows?)?)?$/
+// pl-grid: the VERBS of the same family — "widen the left chart", "narrow this chart a little" — read exactly as "make … wider /
+// narrower", for a CHART only: "narrow the watchlist" / "narrow the scanner" may mean a filter, so those stay the model's
+const SIZE_VERB_RE = /^(?:please )?(widen|narrow) (.+?)( a (?:little|bit|tad)| slightly| much| a lot)?( by \d{1,2}(?: cells?| columns?| rows?)?)?$/
+const SIZE_VERB_ADJ = { widen: 'wider', narrow: 'narrower' }
 /** → { action, args } for the board, or null. */
 export function boardPhrase(lower, host) {
   const b = boardOf(host)
@@ -747,10 +751,11 @@ export function boardPhrase(lower, host) {
     const nb = b.all.filter(w => w.id !== A.id && by(w))
     return nb.length === 1 ? { action: 'board.swap', args: { a: A.id, b: nb[0].id } } : null
   }
-  m = SIZE_RE2.exec(t)
+  const v = SIZE_VERB_RE.exec(t)
+  m = SIZE_RE2.exec(v ? `make ${v[2]} ${v[3] ? `${v[3].trim()} ` : ''}${SIZE_VERB_ADJ[v[1]]}${v[4] || ''}` : t)
   if (m) {
     const A = widgetNamed(m[1], b.all)
-    if (!A) return null
+    if (!A || (v && A.type !== 'chart')) return null
     const grow = /wider|taller|bigger|larger/.test(m[3])
     const horiz = /wider|narrower/.test(m[3]) ? true : /taller|shorter/.test(m[3]) ? false
       : b.all.some(w => w.id !== A.id && w.y < A.y + A.h && A.y < w.y + w.h)     // bigger/smaller: toward a neighbour beside it

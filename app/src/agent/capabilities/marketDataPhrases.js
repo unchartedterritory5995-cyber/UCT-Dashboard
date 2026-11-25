@@ -28,6 +28,18 @@ const GRAMMAR = new Set([...ALWAYS_GRAMMAR, ...('a an get got give show tell tra
 // up to 210" is a drawing, "trade places with the left and right charts" a swap. A sentence that leans on one of them is
 // not a price question at all, so the reader steps aside (the request goes on to its own capability or the model). A
 // ticker is still read when typed $-prefixed or in capitals ("$LINE", "LINE").
+// A chart PART (pl-exec chart-noun family, after #1016's ROUTE-NOUN pins): "the price scale", "the price on the crosshair",
+// "hide the price label on the axis" are DISPLAY requests. The part is never a ticker, and a lower-case sentence that names
+// one is not a price question at all (the frame's other words — "turn OFF the price grid", "I WANT the price in the
+// legend" — are not tickers either); it goes on to the model. A ticker typed in capitals or $-prefixed still prices.
+// pl-grid (after #1027's "narrow the price column to 50" pin): a chart's GEOMETRY words are chart vocabulary the same way
+// — "narrow the price column", "show the price header", "widen the price chart" — every inflection of width / wide /
+// widen / narrow / header / resize (agent/chartGeometryWords.test.jsx holds the family out).
+const CHART_GEOMETRY_WORDS = ('width widths wide wider widest widen widens widened widening narrow narrows narrower narrowest '
+  + 'narrowed narrowing header headers resize resizes resized resizing').split(/\s+/)
+const CHART_PART_WORDS = ('axis axes scale scales crosshair crosshairs legend legends watermark watermarks grid grids '
+  + 'gridline gridlines label labels').split(/\s+/).concat(CHART_GEOMETRY_WORDS)
+const CHART_PART = new Set(CHART_PART_WORDS)
 const NOT_A_TICKER = new Set(('line lines places place left charts chart level levels drawing drawings top bottom middle side sides '
   // "sort by price" / "hide the price column" is a list widget's column, never a quote for SORT or HIDE
   + 'sort sorted sorting rank ranked ranking hide column columns list lists scan scans scanner first lowest highest biggest smallest ascending descending '
@@ -37,7 +49,7 @@ const NOT_A_TICKER = new Set(('line lines places place left charts chart level l
   // CG-23 (corpus #774): a chart's look — "make the up candles blue and the down candles orange"
   + 'candle candles bar bars wick wicks body bodies background theme blue orange red green yellow purple pink white black '
   + 'gray grey brown teal cyan magenta make set turn paint colour color recolor recolour add remove draw hide '
-  + 'thick thin dashed dotted solid bold').split(/\s+/))
+  + 'thick thin dashed dotted solid bold').split(/\s+/).concat(CHART_PART_WORDS))
 
 const QUOTE_FRAME = /\b(?:price|prices|pricing|quote|quotes|how much is|trading at|trade at|premarket|pre-market|after ?hours|overnight)\b/
 
@@ -119,6 +131,7 @@ export function parsePriceSentence(text) {
   // CG-15/22/23: an everyday word typed in lower case is DROPPED as a candidate (never a ticker) — the rest still read
   // ("price of nvda and set" prices NVDA); a sentence left with none is not a price question at all
   const all = candidatesOf(s)
+  if (all && all.some(c => c.form === 'lower' && CHART_PART.has(c.text)) && all.every(c => c.form === 'lower')) return null
   const candidates = all ? all.filter(c => !(c.form === 'lower' && NOT_A_TICKER.has(c.text))) : null
   if (!candidates || !candidates.length || candidates.length > MAX_TICKERS) return null
   // a sentence that leaned on an everyday word ("add a horizontal level at 200", "close the Swing tab") is not a price
