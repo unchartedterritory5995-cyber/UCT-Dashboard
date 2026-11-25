@@ -153,14 +153,14 @@ export function createBarStore(o = {}) {
     subscribeDeveloping: (key, cb) => registry.subscribe(key, cb, { wake: 'dev' }),
     peek: (key) => registry.peek(key),
     // `hydrated`: the caller already hydrated the key (prefetch.js) — never read the caches twice.
-    // `warm` / `front`: the request's shed-ability (`&warm=1`) and its place in its lane rank.
+    // `warm` / `front`: the request's shed-ability (`&warm=1`) and its place in its lane rank. `full`: no `since=` delta.
     // ⭐ An answer is PERSISTED whether or not anyone subscribes: with no subscriber (no
     // watcher) the answer that changed the base is written once through persist.writeOnce —
     // the same monotonic writers, the same server-backed-only rule — so a warm reaches mem +
     // IDB and survives the registry's LRU.
     async ensure(key, {
       depth = 0, until = DEFAULT_UNTIL, signal = null, priority = 'urgent', session = 'rth',
-      hydrated = false, warm = false, front = false,
+      hydrated = false, warm = false, front = false, full = false,
     } = {}) {
       registry.acquire(key)
       try {
@@ -171,7 +171,7 @@ export function createBarStore(o = {}) {
         if (signal?.aborted) return s
         const rev0 = s.baseRev
         const startedAt = now()
-        const req = network.fetchOnce(key, { priority, depth, session, signal, warm, front })
+        const req = network.fetchOnce(key, { priority, depth, session, signal, warm, front, full })
         req.then(() => {
           const cur = registry.peek(key)
           // (after the debounce and at idle, never in the task that handled the answer: persist.writeSoon)
