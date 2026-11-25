@@ -11459,6 +11459,15 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             print(f"[startup] chart monitor dead-man registration failed (non-fatal): {e}")
 
+        # Voice session post-processing sweep (2026-11-21): finishes the summary / audit / Compass
+        # bridge / profile steps a deploy or crash cut short (api/services/voice_post_session.py).
+        try:
+            from api.services import voice_post_session as _voice_post
+            _voice_post.register(_scheduler, IntervalTrigger)
+            print("[startup] voice post-session sweep registered (~60s after boot, then every 5 min)")
+        except Exception as e:
+            print(f"[startup] voice post-session sweep registration failed (non-fatal): {e}")
+
         _boot_mark("S10265")
         if _light_skip("apscheduler-jobs"):
             _scheduler.start(paused=True)
