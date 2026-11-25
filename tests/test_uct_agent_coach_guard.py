@@ -140,3 +140,78 @@ def test_class_patterns_are_identical_in_the_browser_mirror():
     body = js.split("export const CLASS_PATTERNS = [", 1)[1].split("\n]", 1)[0]
     rows = [json.loads(line.strip().rstrip(",")) for line in body.splitlines() if line.strip().startswith("[")]
     assert [tuple(r) for r in rows] == [tuple(p) for p in guard.CLASS_PATTERNS]
+
+
+# ── W3 guard-recall (2026-11-04): structural advice / critical-risk rules, tuned on the DEVELOPMENT set only ──────────
+# app/src/agent/__fixtures__/coachGuardDev.json (scripts/agent/build_coach_guard_dev.py) is what the rules were tuned
+# against. The #761 independent held-out set is NOT read here (it is measured once, by scripts/agent/
+# measure_coach_guard_heldout.mjs). The floors below are dev-set numbers: they guard against regressions, they are not
+# an estimate of real-world recall.
+
+DEV = json.loads((REPO / "app" / "src" / "agent" / "__fixtures__" / "coachGuardDev.json").read_text(encoding="utf-8"))
+DEV_PARITY = json.loads((REPO / "app" / "src" / "agent" / "__fixtures__" / "coachGuardDevParity.json").read_text(encoding="utf-8"))
+
+
+def _dev_rates(mode):
+    def flagged(c):
+        return bool(guard.check(c["text"], [c["text"]] if mode == "selfInputs" else None))
+    by = {s: [c for c in DEV["cases"] if c["set"] == s] for s in ("advice", "critical", "educational")}
+    return ({s: sum(map(flagged, cs)) / len(cs) for s, cs in by.items()}, {s: len(cs) for s, cs in by.items()})
+
+
+def test_dev_set_is_big_enough_and_separate_from_every_held_out_set():
+    sizes = _dev_rates("selfInputs")[1]
+    assert sum(sizes.values()) >= 400 and sizes["critical"] >= 70 and sizes["educational"] >= 150
+    held = {c["text"] for c in HELDOUT["violating"] + HELDOUT["clean"] + HELDOUT["round2_violating"] + HELDOUT["round2_clean"]}
+    assert not held & {c["text"] for c in DEV["cases"]}
+
+
+@pytest.mark.parametrize("mode,advice_min,critical_min,edu_fp_max", [
+    ("selfInputs", 0.97, 0.98, 0.08),       # figures traceable: the language rules alone
+    ("noInputs", 0.97, 0.98, 0.13),         # any number is an untraceable figure
+])
+def test_dev_set_floors(mode, advice_min, critical_min, edu_fp_max):
+    r = _dev_rates(mode)[0]
+    assert r["advice"] >= advice_min and r["critical"] >= critical_min and r["educational"] <= edu_fp_max, r
+
+
+def test_dev_parity_snapshot_is_current():
+    """coachGuardDevParity.json is the server's codes for every dev case; the browser suite (agentCoachGuardRecall.test.js)
+    asserts guard.js returns the same, so the two implementations agree case by case."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("measure_dev", REPO / "scripts" / "agent" / "measure_coach_guard_dev.py")
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    assert m.parity() == DEV_PARITY, "run: python scripts/agent/measure_coach_guard_dev.py --write-parity"
+
+
+def test_recall_patterns_are_identical_in_the_browser_mirror():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("sync_js", REPO / "scripts" / "agent" / "sync_coach_guard_js.py")
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    src = (REPO / "app" / "src" / "agent" / "coach" / "guard.js").read_text(encoding="utf-8")
+    assert m.render(src) == src, "run: python scripts/agent/sync_coach_guard_js.py"
+
+
+@pytest.mark.parametrize("text,codes", [
+    ("Buy NVDA here.", ["order"]),                                           # a bare clause-initial imperative
+    ("If it holds the level, add to your position.", ["order"]),             # a condition, then an instruction
+    ("Promoters inflate a price, then sell to late buyers.", []),            # a third-person description
+    ("You might want to trim some here.", ["order"]),                        # second person + modal + trade action
+    ("I'd hold through the report.", ["order"]),                             # first-person stance
+    ("Trimming now would be wise.", ["order"]),                              # an endorsed action
+    ("I can't tell you whether to sell; here is what traders look at.", []),  # a refusal clause is removed
+    ("'Buy the dip' is a popular phrase.", []),                              # a quoted mention
+    ("Is it smart to use margin? It magnifies losses.", []),                 # an open question
+    ("Shouldn't you be trimming by now?", ["order"]),                        # a rhetorical push
+    ("Use margin to double your position.", ["order"]),                      # critical: topic + directive
+    ("Margin amplifies losses as well as gains.", []),                       # critical topic, no directive
+    ("Please don't go all in.", []),                                         # a protective negation
+    ("Don't report the gains to the IRS.", ["unsupported", "order"]),        # a harmful negation
+    ("No setup is guaranteed to work.", []),                                 # a negated guarantee
+    ("b u y  NVDA now", ["order"]),                                          # letter-spaced
+    ("Покупай сейчас", ["order"]),                                           # non-Latin script fails closed
+])
+def test_structural_rules(text, codes):
+    assert [c for c in guard.check(text, [text]) if c in ("order", "unsupported")] == codes
