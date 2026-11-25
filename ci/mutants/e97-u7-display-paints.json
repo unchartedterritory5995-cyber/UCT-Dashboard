@@ -77,8 +77,8 @@
    "id": "U7-M9",
    "mutant": "a host-lane level the translation could not read is silent on the member's pane again",
    "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
-   "from": "  for (const n of [...levelNotesOf(levelPlan), ...levelsWithheldNotesOf(t), ...bandDisplayWithheldNotesOf(t)]) {",
-   "to": "  for (const n of [...levelNotesOf(levelPlan), ...bandDisplayWithheldNotesOf(t)]) {",
+   "from": "  for (const n of [...levelNotesOf(levelPlan), ...levelsWithheldNotesOf(t), ...bandDisplayWithheldNotesOf(t), ...withheldSettingNotes]) {",
+   "to": "  for (const n of [...levelNotesOf(levelPlan), ...bandDisplayWithheldNotesOf(t), ...withheldSettingNotes]) {",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/displayPaints.test.js",
    "expectRed": "SAID on the member's pane"
   },

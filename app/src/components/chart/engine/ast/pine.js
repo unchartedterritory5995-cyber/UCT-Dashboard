@@ -9128,6 +9128,14 @@ export class Resolver {
      *  of one translation (`translatePine` hands one list in): a `refusedArm(k)` leaf names its entry `k - 1`, and the
      *  member door stamps the list on the document (`meta.knobArmRefusals`) for the bind to quote. */
     this.knobArmRefusals = opts.knobArmRefusals || null
+    /** ⭐ e97 U8 — the enum settings this translation WITHHOLDS (name → `{name, title, def, sentence}`), SHARED by every
+     *  Resolver of one translation: a `switch` the setting reaches through a helper's parameter whose arms are more
+     *  than this engine expands yet (`enumSwitch`, `PARAM_SWITCH_TOTAL_NODES`). The door does not declare it, so the
+     *  script folds to its default and no control says otherwise (`builderInputs.memberInputTranslation`). */
+    this.withheldKnobs = opts.withheldKnobs || null
+    /** ⭐ e97 U8 (ruling (b)) — the nodes every parameter-reached knob `switch` of ONE translation has built so far
+     *  (`{nodes}`, shared like `withheldKnobs`), held under `PARAM_SWITCH_TOTAL_NODES` (`enumSwitch`) */
+    this.paramSwitchSpend = opts.paramSwitchSpend || null
     /** ⭐⭐ C10 (2026-09-29) — THE OBJECT PASS. Set by the object pass's factory
      *  and by nothing else, and it widens two reads there only:
      *   · a ternary or an `and`/`or` whose test is a constant EXPRESSION
@@ -9759,6 +9767,15 @@ export class Resolver {
           staleLastWord()
           return seed
         }
+        // ⭐⭐ e97 U8 — …AND ONE SEEDED BY THE MEMBER'S SETTINGS ALONE IS THAT SETTING'S ANSWER, for the same reason: a
+        // setting is one value per binding, so `var enableMA = maType != "None"` holds one answer on every bar.
+        // ⚰️ Measured: declared as the member's knob, the built-in MA family's `var enableMA` became an accumulator, and
+        // the smoothed MA was blank for its first 250 bars at every type (`enumKnobTruth`: NaN against the literal
+        // program's value from bar 21). ⛔ Only a tree of settings and numbers: a bar field keeps its accumulator.
+        if (bound.update && bound.update.type === 'selfref' && seed && this.settingsOnlyTree(seed)) {
+          staleLastWord()
+          return seed
+        }
         // 🔴 …AND THE SAME SHAPE SEEDED `na` IS A COLUMN THAT CAN ONLY EVER BE
         // BLANK. `accum(0/0, self, n)` never leaves its seed, so every bar is NaN
         // — measured at 400/400 on the anchored-VWAP script in the corpus.
@@ -9910,14 +9927,10 @@ export class Resolver {
         if (label !== null && label === subject) { picked = arm.binding; break }
       }
       if (!picked) picked = bound.fallback
-      if (!picked) {
-        // ⛔ Pine falls through to `na` when nothing matches and there is no
-        // default. This engine HAS a not-computable, but choosing it here would
-        // invent a column the script does not describe — so it is named instead.
-        throw new PineRefusal('pine:block',
-          `${REFUSALS['pine:block']} — \`switch\` on \`${subject}\`, and no arm matches it `
-          + 'and there is no default', bound.at || locate(tok))
-      }
+      // ⭐⭐ e97 U8(a) (coordinator ruling) — NO ARM MATCHES AND THERE IS NO DEFAULT: Pine's switch yields `na`, so does
+      // this (the engine's `na`, `0 / 0`, as a bare `na` resolves). ⚰️ It was refused (`pine:block`) as "inventing a
+      // column", which refused the built-in SMA / EMA / OBV smoothing plots at their default "None" on the host lane.
+      if (!picked) return cOp('/', [cNum(0), cNum(0)])
       return this.resolveBinding(picked, tok, name)
     }
     // ⭐⭐ ONE ELEMENT OF A TUPLE `request.security` (2026-09-11). Volume's line 259
@@ -10687,6 +10700,20 @@ export class Resolver {
     if (node.type === 'name') {
       if (own(this.table.series, node.name)) return null
       const bound = this.env && this.env.get(node.name)
+      // ⭐⭐ e97 U8 — a helper's PARAMETER is the caller's argument (`ma(src, len, type) => switch type`, called
+      // `ma(x, n, maType)`): the knob reaches the switch through the call, as it reaches a plain binding. ⚰️ Without it
+      // the built-in MA family's "Type" setting moved only what was SHOWN, never the smoothing it computed.
+      const viaParam = bound && bound.kind === 'param'
+      if (viaParam) {
+        const arg = this.paramArgumentOf(node.name)
+        if (!arg) return null
+        const prev = this.env
+        this.env = arg.env || prev
+        let en
+        try { en = this.enumInputCallOf(arg.node, depth + 1) } finally { this.env = prev }
+        // marked, so the switch it reaches is built within `PARAM_SWITCH_TOTAL_NODES` (`enumSwitch`)
+        return en ? { ...en, viaParam: true } : null
+      }
       // ⭐ (input-kind) a `var` nothing reassigns is its initializer: the member's knob reaches it as the plain binding's
       const fixed = this.fixedVarBinding(bound, node.name)
       if (fixed) return this.enumInputCallOf(fixed.node, depth + 1)
@@ -10709,6 +10736,46 @@ export class Resolver {
       || ((node.args || [])[1] && !(node.args || [])[1].name ? node.args[1] : null)
     const title = titleArg && titleArg.value && titleArg.value.type === 'string' ? titleArg.value.value : null
     return { call: node, name: node.boundName, options, def, title }
+  }
+
+  /** ⭐ e97 U8 — is `t` built of the member's SETTINGS (a declared input this resolution read: a knob leaf) and numbers
+   *  only, through operators? Such a tree is one value per binding. Any bar field, call or offset: no. */
+  settingsOnlyTree(t) {
+    // ⛔ NARROW (coordinator ruling): only a seed that holds an ENUM setting (the U8 case, `var enableMA = maType !=
+    // "None"`), every leaf a setting or a FINITE number. A `na` seed (`0 / 0`) and a seed of numeric settings alone
+    // keep the shapes they always had (the dead-`var` refusal; `var x = input.int(…)`'s accumulator).
+    let enumLeaf = false
+    const walk = (n, depth) => {
+      if (!n || typeof n !== 'object' || depth > 32) return false
+      if (n.type === 'num') return Number.isFinite(n.value)
+      if (n.type === 'series') {
+        if (typeof n.name !== 'string' || own(this.table.series, n.name)) return false
+        const entry = [...this.usedInputs.values()].find((e) => e && e.name === n.name)
+        if (!entry) return false
+        if (entry.call === 'input.string' && Array.isArray(entry.options)) enumLeaf = true
+        return true
+      }
+      if (n.type === 'op' && Array.isArray(n.args)) return n.args.every((a) => walk(a, depth + 1))
+      return false
+    }
+    return walk(t, 0) && enumLeaf
+  }
+
+  /** ⭐ e97 U8 — the caller's argument a function PARAMETER stands for (`{node, env}`, the frame entry), following a
+   *  parameter passed straight on through outer frames; null for anything else. The same walk `windowVectorOf` makes. */
+  paramArgumentOf(name) {
+    let b = this.env ? this.env.get(name) : null
+    let depth = this.frames.length - 1
+    let found = null
+    for (let hops = 0; hops < MAX_CALL_DEPTH && b && b.kind === 'param' && depth >= 0; hops += 1) {
+      const entry = this.frames[depth] && this.frames[depth][b.index]
+      depth -= 1
+      if (!entry || entry.kind !== 'expr' || !entry.node) return null
+      found = entry
+      if (entry.node.type !== 'name' || !entry.env) break
+      b = entry.env.get(entry.node.name)
+    }
+    return found
   }
 
   /** ⭐⭐ `kind == "SMA"` (or `!=`) where `kind` is an `input.string` with
@@ -10779,8 +10846,8 @@ export class Resolver {
    *  `refusedArm(k)` (`refusedArmLeaf`): pruned away unless the knob picks it, and then THAT plot is refused by name.
    *
    *  ⛔ NARROW, and null (today's fold to the default arm, unchanged) otherwise: the member door's knobs only
-   *  (`enumInputs`, a declared name); every label a string the script fixes; a no-match covered (a default arm, or
-   *  every option labelled); the arm the knob's DEFAULT picks translates (a knob is offered only on a chart that
+   *  (`enumInputs`, a declared name); every label a string the script fixes (a no-match with no default arm is Pine's
+   *  `na`, e97 U8(a)); the arm the knob's DEFAULT picks translates (a knob is offered only on a chart that
    *  draws); and a refused arm only where the translation keeps the list its leaves quote (`knobArmRefusals`). A label
    *  outside the options can never match (Pine's comparison would not) and is dropped, as is a repeated label
    *  (the first one wins). */
@@ -10801,7 +10868,24 @@ export class Resolver {
     }
     if (!arms.length) return null
     const covered = seen.size === en.options.length
-    if (!covered && !bound.fallback) return null
+    // ⭐⭐ e97 U8 (coordinator rulings (i), (b)) — THE SWITCHES A SETTING REACHES THROUGH A HELPER'S PARAMETER ARE BUILT
+    // WITHIN ONE BUDGET FOR THE WHOLE TRANSLATION (`PARAM_SWITCH_TOTAL_NODES`). Each arm is a whole helper body, and a
+    // helper of helpers multiplies them: measured, heikin-ashi-erebor's fifteen-type MA switches took the door from 0.6 s
+    // to 72 s, and artemis's method switches posted 2.5 MB. Over the budget the switch folds to the default as it always
+    // did and the SETTING IS WITHHELD BY NAME (never a control that moves what is shown but not computed).
+    const withhold = () => {
+      if (this.withheldKnobs && !this.withheldKnobs.has(en.name)) {
+        const setting = en.title ? `"${en.title}"` : `\`${en.name}\``
+        this.withheldKnobs.set(en.name, { name: en.name, title: en.title || null, def: en.def,
+          sentence: `this script's setting ${setting} has more variants than this engine expands yet, so it stays at its default "${en.def}"` })
+      }
+      return null
+    }
+    const spend = en.viaParam ? (this.paramSwitchSpend || { nodes: 0 }) : null
+    if (spend && !spend.admitted) spend.admitted = new Set()
+    // once the budget has run out, no setting reached LATER is admitted, even a small one (the withheld are exactly the
+    // latest-reached, in source order), and its arms are never built: the budget bounds the work as well as the size
+    if (spend && spend.exhausted && !spend.admitted.has(en.name)) return withhold()
     // ⭐ (approved 2026-11-22, the refusing leaf) an arm this translator refuses is carried as `refusedArm(k)`: the bind
     // prunes it away unless the knob picks it, and then refuses THAT plot by name, quoting the refusal it had here
     const armOf = (binding) => {
@@ -10815,8 +10899,10 @@ export class Resolver {
     }
     // every option labelled: the last arm is the chain's end (its test can only be true there)
     const last = covered ? arms.pop() : null
-    const end = { ...armOf(last ? last.binding : bound.fallback), label: last ? en.options[last.idx] : null,
-      idx: last ? last.idx : -1 }
+    // ⭐ e97 U8(a) — an option no arm names, with no default arm, yields Pine's `na`
+    const end = last || bound.fallback
+      ? { ...armOf(last ? last.binding : bound.fallback), label: last ? en.options[last.idx] : null, idx: last ? last.idx : -1 }
+      : { node: cOp('/', [cNum(0), cNum(0)]), label: null, idx: -1 }
     const built = arms.map((a) => ({ ...armOf(a.binding), label: en.options[a.idx], idx: a.idx }))
     // ⛔ THE DEFAULT'S PROGRAM MUST TRANSLATE: an arm the knob's default picks that this translator refused keeps the
     // switch folded to its default, refused as it always was (a knob is offered only on a chart that draws)
@@ -10829,6 +10915,16 @@ export class Resolver {
     let out = nodeOf(end)
     for (let k = built.length - 1; k >= 0; k -= 1) {
       out = cOp('?:', [this.enumKnobTest(en, built[k].idx, true), nodeOf(built[k]), out])
+    }
+    if (en.viaParam) {
+      // ⭐⭐ ruling (b): ONE budget for the whole translation, spent in the order the switches are reached (source
+      // order: deterministic), so the settings withheld are the latest-reached ones, whatever the script
+      const room = PARAM_SWITCH_TOTAL_NODES - spend.nodes
+      const size = treeNodeCount(out, room + 1)
+      // (a setting admitted earlier whose switch no longer fits is withheld too, and leaves the admitted: never rebuilt)
+      if (size > room) { spend.exhausted = true; spend.admitted.delete(en.name); return withhold() }
+      spend.nodes += size
+      spend.admitted.add(en.name)
     }
     return out
   }
@@ -14212,7 +14308,10 @@ export class Resolver {
       // ⭐ a constant branch is taken only when it is not a SETTING folded to its default (`displayKnobLeafOf`):
       // `show ? display.all : display.none` stays the member's choice even where this pass folded `show`
       const folded = this.constantBranchOf(node)
-      if (folded && !this.displayKnobLeafOf(node.test)) return this.displayArmOf(folded, depth + 1)
+      // ⭐ e97 U8(b) — the setting's leaf (`displayKnobLeafOf`): a test that is an input, or a name bound (plainly or by a
+      // `var` nothing reassigns) to `<input.string> == "<option>"`, stays the member's choice where this pass folded it
+      const settingLeaf = this.displayKnobLeafOf(node.test)
+      if (folded && !settingLeaf) return this.displayArmOf(folded, depth + 1)
       const yes = this.displayArmOf(node.yes, depth + 1)
       const no = this.displayArmOf(node.no, depth + 1)
       if (yes.unread) return yes
@@ -14227,9 +14326,8 @@ export class Resolver {
       // choice: it becomes a knob leaf carrying that default, and the door decides it (declared: per instance;
       // undeclared: at the default, `memberPaneDefinition` / `knobBind.hiddenAtLeafDefaults`)
       if (test && test.type === 'num') {
-        const leaf = this.displayKnobLeafOf(node.test)
-        if (!leaf) return test.value ? yes : no
-        test = leaf
+        if (!settingLeaf) return test.value ? yes : no
+        test = settingLeaf
       }
       if (knobTestValue(test, knobDefaultsOf(test)) === null) {
         return { unread: 'its `display` chooses between places on a condition that is not one of the script\'s settings' }
@@ -14252,9 +14350,33 @@ export class Resolver {
       const inner = this.displayKnobLeafOf(node.arg, depth + 1)
       return inner ? { type: 'op', name: '!', args: [inner] } : null
     }
+    // ⭐⭐ e97 U8(b) — `<input.string> == "<option>"` (or `!=`): the member's enum setting compared with an option, the
+    // leaf `enumCompare` builds (`enumKnobTest`: the knob against the option's INDEX, carrying its default)
+    if (node.type === 'binary' && (node.op === '==' || node.op === '!=') && this.enumInputs) {
+      const strSide = node.right && node.right.type === 'string' ? 'right' : node.left && node.left.type === 'string' ? 'left' : null
+      if (!strSide) return null
+      const en = this.enumInputCallOf(strSide === 'right' ? node.left : node.right)
+      if (!en) return null
+      return this.enumKnobTest(en, en.options.indexOf(node[strSide].value), node.op === '==')
+    }
     if (node.type !== 'name' || typeof node.name !== 'string') return null
     const entry = [...this.usedInputs.values()].find((e) => e && e.name === node.name && (e.call === 'input.bool' || e.call === 'input'))
-    if (!entry) return null
+    if (!entry) {
+      // ⭐⭐ e97 U8(b) — a NAME bound to such a test, by a plain binding or by a `var` nothing reassigns
+      // (`neverReassignedVarSeed`: it holds its initializer on every bar): `var isBB = maType == "SMA + Bollinger Bands"`,
+      // the built-in MA family's smoothing switch. ⚰️ Read as per-bar state, such a display was "not one of the script's
+      // settings" (withheld), or folded to the default with no control.
+      if (!this.enumInputs || own(this.table.series, node.name)) return null
+      const bound = this.env && this.env.get(node.name)
+      let via = null
+      if (bound && bound.kind === 'expr') via = bound.node
+      else if (bound && bound.kind === 'state' && this.mutatedKnown) {
+        const seed = neverReassignedVarSeed(bound, node.name, this.mutated)
+        via = seed ? seed.node : null
+      }
+      if (!via || (via.type !== 'binary' && via.type !== 'unary' && via.type !== 'name')) return null
+      return this.displayKnobLeafOf(via, depth + 1)
+    }
     const v = entry.folded === 'true' ? 1 : entry.folded === 'false' ? 0 : Number(entry.folded)
     if (!Number.isFinite(v)) return null
     const leaf = { type: 'series', name: node.name }
@@ -16979,6 +17101,16 @@ export class Resolver {
       // this line" rather than "the expansion is broken", and sent me looking at
       // the script template instead of at this expression.
       const built = args.map((a) => this.resolve(a.value !== undefined ? a.value : a))
+      // ⭐ e97 U8 — `vwma(source, length)`'s closed form (`sma(src·volume, n) / sma(volume, n)`) needs the NUMBER: a
+      // length that reached it as a declared setting's NAME made the builder return null, the output was refused
+      // `pine:roundtrip` on the door's declaring pass, and that pass then declared NOTHING for the whole script
+      // (measured: the built-in Bollinger Bands lost its StdDev setting once its MA type reached the switch, whose VWMA
+      // arm reads the length). Folded the way the table path folds a window, and recorded (`windowBoundInputs`): an
+      // input that reaches a window is not a member knob.
+      if (bare === 'vwma' && built[1] && built[1].type !== 'num') {
+        for (const n of declaredInputNames(built[1])) this.windowBoundInputs.add(n)
+        built[1] = foldWindow(built[1])
+      }
       // ⭐ `iff`'s first argument is its CONDITION — the same bool context as
       // the `?:` it expands to (`implicitBoolCast`), so it takes the same cast.
       if (bare === 'iff' && built.length === 3) built[0] = this.condition(built[0], 'iff', tok)
@@ -31431,6 +31563,10 @@ function translatePineResult(source, opts = {}) {
   const objectPartialReadCache = new Map()
   // ⭐⭐ e95 unit 2b — the knob arms this translation refused, one list for every Resolver (`Resolver.knobArmRefusals`)
   const knobArmRefusals = []
+  // ⭐ e97 U8 — the enum settings withheld for their size, one map for every Resolver (`Resolver.withheldKnobs`)
+  const withheldKnobs = new Map()
+  // ⭐ e97 U8 — the nodes the parameter-reached knob switches of this translation built (`Resolver.paramSwitchSpend`)
+  const paramSwitchSpend = { nodes: 0 }
   // ⭐ C11c — the object pass's read methods and window-reduction ambiguity
   // registry (see `Resolver.methodDefs` / `Resolver.windowAmbiguity`).
   const objectMethodDefs = readMethodDefs(stmts)
@@ -31438,7 +31574,7 @@ function translatePineResult(source, opts = {}) {
   const makeResolver = (scopeEnv = env) => {
     const r = new Resolver(scopeEnv, table, declaredTypes,
       { finalBindings, finalLocals, mutated: reassigned, source, rawOffsetMap, paramMint,
-        partialReadCache, knobArmRefusals,
+        partialReadCache, knobArmRefusals, withheldKnobs, paramSwitchSpend,
         // ⭐⭐ C45 — the arm reader asks which script functions read their own history
         historyFns: historyFnsOf,
         strict: opts.strict === true, screen: !isHostLane(opts), pineVersion: version, pineScript: true, pineV1,
@@ -32784,6 +32920,8 @@ function translatePineResult(source, opts = {}) {
   if (runtimeErrors) result.runtimeErrors = runtimeErrors
   // ⭐⭐ e95 unit 2b — present only when a knob `switch` carries an arm this translator refused (`enumSwitch`)
   if (knobArmRefusals.length) result.knobArmRefusals = knobArmRefusals.map((r) => ({ ...r }))
+  // ⭐ e97 U8 — present only when an enum setting is withheld for its size (`enumSwitch`)
+  if (withheldKnobs.size) result.withheldKnobs = [...withheldKnobs.values()].map((w) => ({ ...w }))
   return result
   } finally {
     // ⛔ ALWAYS CLOSED. A budget left open would make the NEXT standalone
@@ -36870,6 +37008,25 @@ function keepHiddenFacts(from, to) {
 /** ⭐⭐ e97 U6 — THE PLACES each `display.*` constant names (Pine's reference: `display.all` is every place,
  *  `display.none` none). A plot is DRAWN ON THE CHART exactly when its display includes `pane`: `display.data_window`,
  *  `display.status_line`, `display.price_scale` and `display.all - display.pane` keep it off the pane. */
+/** ⭐ e97 U8 (coordinator ruling (b)) — the most nodes ALL the knob `switch`es one translation reaches through a helper's
+ *  PARAMETER may build together (`enumSwitch`, `Resolver.paramSwitchSpend`): a bound on the whole document, not a
+ *  per-switch constant tuned to one script. Over it, the setting whose switch would exceed it (and every one reached
+ *  after) is withheld by name and its switch folds to the default as before. */
+const PARAM_SWITCH_TOTAL_NODES = 4000
+
+/** Nodes in a tree, counting no further than `stop` (a budget check need not walk a huge tree whole). */
+function treeNodeCount(tree, stop = Infinity) {
+  let n = 0
+  const st = [tree]
+  while (st.length && n < stop) {
+    const x = st.pop()
+    if (!x || typeof x !== 'object') continue
+    n += 1
+    if (Array.isArray(x.args)) for (const a of x.args) st.push(a)
+  }
+  return n
+}
+
 const DISPLAY_PLACES = Object.freeze({
   'display.none': Object.freeze([]),
   'display.all': Object.freeze(['pane', 'data_window', 'price_scale', 'status_line']),

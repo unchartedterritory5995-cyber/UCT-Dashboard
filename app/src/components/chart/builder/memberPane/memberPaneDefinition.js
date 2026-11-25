@@ -1577,7 +1577,13 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
   // ⭐⭐ e96 — A LEVEL DRAWN IN THE NEUTRAL PRESENTATION, OR NOT DRAWN, IS SAID SO, level by level.
   // ⭐ e97 U7 — and each level the translation could not read, as the runtime document already said it, and each band
   // whose `display` it could not read (withheld by name, never drawn)
-  for (const n of [...levelNotesOf(levelPlan), ...levelsWithheldNotesOf(t), ...bandDisplayWithheldNotesOf(t)]) {
+  // ⭐ e97 U8 — and each enum setting the translator withheld for its size (`pine.js::enumSwitch`): not offered, and why
+  const withheldSettingNotes = ((t && t.withheldKnobs) || []).map((w) => ({
+    // the title the member reads, and the script's own name for it (two settings may share a title: artemis's two "Smoothing")
+    name: w.title ? `"${w.title}" (\`${w.name}\`)` : `\`${w.name}\``,
+    note: `${w.title ? `"${w.title}" (\`${w.name}\`)` : `\`${w.name}\``} is not offered as a setting: ${w.sentence}.`,
+  }))
+  for (const n of [...levelNotesOf(levelPlan), ...levelsWithheldNotesOf(t), ...bandDisplayWithheldNotesOf(t), ...withheldSettingNotes]) {
     const key = `${n.name} :: ${n.note}`
     if (seen.has(key)) continue
     seen.add(key)

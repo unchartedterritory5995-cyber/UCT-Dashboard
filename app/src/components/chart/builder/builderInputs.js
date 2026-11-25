@@ -814,10 +814,14 @@ export function memberInputTranslation(translate, source, opts = {}) {
   // ⛔⛔ `memberInputKey`, NOT `e.name`. A name that can never be a member-input
   // KEY must never be DECLARED into a formula — see `memberInputKey`'s own note
   // for the two OOS scripts this silently broke.
+  // ⭐ e97 U8 — an enum setting the translator WITHHELD for its size (`pine.js::enumSwitch`, a `switch` reached through
+  // a helper's parameter whose arms are more than it expands yet) is never declared, by any lane below: the script
+  // folds to its default, and the member is told why (`withheldKnobs`, carried on the result)
+  const withheldKnobs = new Set(((first.withheldKnobs) || []).map((w) => w && w.name).filter(Boolean))
   const declarable = [...new Set(probed.flatMap(
     (o) => (o.inputsFolded || [])
       .filter((e) => memberInputKey(e.name) && !windowBound.has(e.name)
-        && !displacementBound.has(e.name))
+        && !displacementBound.has(e.name) && !withheldKnobs.has(e.name))
       .map((e) => e.name)))]
 
   // ⭐⭐ AND THEN THE CLOSURE IS *MEASURED*, NOT ARGUED.
@@ -941,6 +945,8 @@ export function memberInputTranslation(translate, source, opts = {}) {
     const guarded = withGuardInputs(first, out, final, withDeclarations, { windowBound, displacementBound })
     if (guarded) out = guarded
   }
+  // ⭐ e97 U8 — the settings withheld for their size, for the door to say (`memberPaneDefinition`)
+  if (first.withheldKnobs && first.withheldKnobs.length) out = { ...out, withheldKnobs: first.withheldKnobs.map((w) => ({ ...w })) }
   return out
 }
 
@@ -1157,7 +1163,8 @@ function withColourInputs(first, final, withDeclarations, { windowBound, displac
   const already = new Set(final.declaredNames || [])
   // ⛔ A name the colour reads in a WINDOW (`ta.rising(hma, len)`) is not added:
   // a window takes a literal only, so declaring it would decline the colour rule.
-  const names = [...entryByName.keys()].filter((n) => memberInputKey(n) && !valueNames.has(n)
+  const withheld = new Set(((first.withheldKnobs) || []).map((w) => w && w.name).filter(Boolean))
+  const names = [...entryByName.keys()].filter((n) => memberInputKey(n) && !valueNames.has(n) && !withheld.has(n)
     && !objectNames.has(n) && !windowBound.has(n) && !displacementBound.has(n)
     && !windowed.has(n) && !already.has(n))
   // (`sameParamIds` … `samePresentationShape` — module level since C43, shared

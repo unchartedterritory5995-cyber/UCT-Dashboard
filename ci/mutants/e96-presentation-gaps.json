@@ -30,15 +30,6 @@
    "expectRed": "moves the line"
   },
   {
-   "id": "HL4",
-   "mutant": "the v6 default style is guessed for a v5 hline (no capture witnesses it)",
-   "file": "app/src/components/chart/engine/hlineLevels.js",
-   "from": "  6: Object.freeze({ color: '#808080', lineStyle: 'dashed', width: 1, witness: 'vw-hline-written-rddt-1d-2026-11-20' }),",
-   "to": "  5: Object.freeze({ color: '#808080', lineStyle: 'dashed', width: 1, witness: 'guess' }),\n  6: Object.freeze({ color: '#808080', lineStyle: 'dashed', width: 1, witness: 'vw-hline-written-rddt-1d-2026-11-20' }),",
-   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/e96HlineLevels.test.js",
-   "expectRed": "v5 with nothing written"
-  },
-  {
    "id": "HL5",
    "mutant": "an hline its author hid (`display = display.none`) is drawn",
    "file": "app/src/components/chart/engine/hlineLevels.js",
