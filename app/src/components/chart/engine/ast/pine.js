@@ -1043,6 +1043,15 @@ function requestArgSpelling(node) {
   return node.tok && node.tok.value !== undefined ? String(node.tok.value) : '…'
 }
 
+/** ⭐ e97 U4 — how an `adjustment` argument is quoted in a refusal when it is not a plain constant. */
+function requestAdjustmentSpelling(node) {
+  if (!node) return '…'
+  if (node.type === 'name') return node.name
+  if (node.type === 'string') return `"${node.value}"`
+  if (node.type === 'call' && typeof node.name === 'string') return `${node.name}(…)`
+  return node.tok && node.tok.value !== undefined ? String(node.tok.value) : '…'
+}
+
 
 // ⛔ W9-OQ-N2 — the sinks that refuse (or withhold) their own row (`STRATEGY_TAINT_ROW_SINKS`) and the sinks with no
 // row and no object of their own (`STRATEGY_TAINT_SCRIPT_SINKS`: a `fill` band, `alert()`, `hline`, which refuse the
@@ -15108,6 +15117,10 @@ export class Resolver {
       }
     }
 
+    // 1b. ⭐ e97 U4 — THE ADJUSTMENT, by the argument and the basis our bars are (`requestAdjustmentDecline`).
+    const adjusted = this.adjustedTickerCallIn(positional[0])
+    if (adjusted) return { why: this.requestAdjustmentDecline(adjusted).why }
+
     // 2. THE TIMEFRAME. A spelling this table recognises but cannot resample from
     //    the bars it holds. `timeframe.period` is Pine's own name for "the chart's
     //    own timeframe", which is always servable because it is the base itself.
@@ -15494,6 +15507,10 @@ export class Resolver {
       const spelled = this.builtinNameThrough(a.value)
       if (spelled !== 'session.regular') return null
     }
+    // ⛔⛔ e97 U4 — THE ADJUSTMENT IS READ, NEVER IGNORED. It was: `ticker.new(prefix, sym, session.regular,
+    // adjustment.dividends)` folded onto the plain symbol, a real and DIFFERENT number on every bar before an
+    // ex-dividend date. `requestAdjustmentDecline` is the one rule (only the basis our bars ARE is served).
+    if (this.requestAdjustmentDecline(node)) return null
     // ⛔⛔ THE VENUE IS JUDGED HERE TOO, AND THIS IS THE HOLE IT CLOSES. Argument
     // ZERO was never read, so `ticker.new('BINANCE', 'BTCEUR', session.regular)`
     // resolved to `sym('BTCEUR', …)` — a lookup against a US equity store for a
@@ -15528,6 +15545,8 @@ export class Resolver {
    *  It is the built-in "Correlation coefficient"'s own spelling: `ticker.modify(input.symbol(…))`.
    *  ⛔ ANY SECOND ARGUMENT (a session, an adjustment, …) IS A DIFFERENT SERIES and is not read here:
    *  the call then keeps the refusal it had.
+   *  ⭐ e97 U4 — ONE EXCEPTION, BY MEASUREMENT: `adjustment = adjustment.splits` names the basis our bars
+   *  ARE (`requestAdjustmentDecline`), so it modifies nothing here and the call is still the symbol.
    *
    *  ⭐⭐ e97 U2 — AND `ticker.standard(<symbol>)` IS THAT SYMBOL. Pine's reference, `ticker.standard(symbol)`:
    *  "Creates a ticker to request data from a standard chart that is unaffected by modifiers like extended
@@ -15549,10 +15568,79 @@ export class Resolver {
     }
     if (!node || node.type !== 'call' || node.name !== 'ticker.modify') return null
     const args = (node.args || []).filter(Boolean)
-    if (args.length !== 1) return null
+    const rest = args.slice(1)
+    if (!args.length || rest.some((r) => r.name !== 'adjustment')) return null
+    if (rest.length && this.requestAdjustmentDecline(node)) return null
     const a = args[0]
     if (a.name && a.name !== 'tickerid') return null
     return a.value !== undefined ? a.value : null
+  }
+
+  /** ⭐⭐ e97 U4 — WHY A `ticker.new` / `tickerid` / `ticker.modify` CALL'S `adjustment` IS NOT THE BASIS OUR
+   *  BARS ARE: `{arg, spelled, why}`, or null when it is (no adjustment written, or `adjustment.splits`).
+   *
+   *  ⭐ MEASURED (2026-11-25, the store's daily bars against TradingView 1D captures): our bars are SPLIT-ADJUSTED
+   *  and NOT dividend-adjusted, TradingView's default basis for a stock. Ratio 1.0000 across AAPL's 4:1 split
+   *  (2020-08-31) and NVDA's 10:1 (2024-06-10) and 4:1 (2021-07-20), and across SPY's (2025-06-20, 2025-09-19) and
+   *  AAPL's (2025-05-12, 2025-08-11) ex-dividend dates; SPY's yearly median ratio is 1.0000 back to 1996, where a
+   *  dividend-adjusted series drifts about 1.5% a year. The vendor path says the same (`bars_fetch.py`: Massive
+   *  `adjusted=true`, split-only; `/api/adjustment-basis`, owner ruling TERM-055: splits only). So:
+   *    * `adjustment.splits` IS our bars, the identity;
+   *    * `adjustment.dividends` (splits AND dividends) and `adjustment.none` (as traded, no split adjustment) are
+   *      real and DIFFERENT numbers, and are refused by name;
+   *    * a spelling this door cannot read to one of the three constants is refused too (never guessed).
+   *  Slots, Pine's reference order: `ticker.new(prefix, ticker, session, adjustment, …)` and v4
+   *  `tickerid(prefix, ticker, session, adjustment)` slot 3; `ticker.modify(tickerid, session, adjustment, …)`
+   *  slot 2; or `adjustment =` by name.
+   *  ⛔ DECIDED, NOT MISSED: `backadjustment` and `settlement_as_close` are NOT read. Both apply to continuous
+   *  FUTURES only; on a US stock TradingView applies neither, and a futures symbol is already refused as a
+   *  foreign venue (`venueArgIsServable`, `otherSymbols.js`), so on every series this door serves they change
+   *  nothing (coordinator ruling 2026-11-25; rail `pine.tickerAdjustment.test.js`). */
+  requestAdjustmentDecline(call) {
+    if (!call || call.type !== 'call') return null
+    const slot = call.name === 'ticker.modify' ? 2 : TICKER_CALLS.has(call.name) ? 3 : -1
+    if (slot < 0) return null
+    const args = call.args || []
+    for (let i = 0; i < args.length; i += 1) {
+      const a = args[i]
+      if (!a || !(a.name === 'adjustment' || (!a.name && i === slot))) continue
+      const spelled = this.builtinNameThrough(a.value)
+      if (spelled === 'adjustment.splits') return null
+      const shown = spelled || requestAdjustmentSpelling(a.value)
+      const why = spelled === 'adjustment.dividends'
+        ? `\`${shown}\` asks for prices adjusted for dividends as well as splits, and this engine's bars are adjusted `
+          + 'for splits only (TradingView\'s default for a stock), so folding it would answer a real but DIFFERENT '
+          + 'number on every bar before an ex-dividend date'
+        : spelled === 'adjustment.none'
+          ? `\`${shown}\` asks for prices as traded, with no split adjustment, and this engine's bars are split-adjusted, `
+            + 'so folding it would answer a real but DIFFERENT number on every bar before a split'
+          : `\`${shown}\` is not an adjustment this door can read (\`adjustment.splits\`, \`adjustment.dividends\` or `
+            + '`adjustment.none`, or a name bound to one of them), so which prices it asks for is not known'
+      return {
+        arg: shown,
+        why: `the \`adjustment\` argument of \`${call.name}\`: ${why}. \`adjustment.splits\` (or no adjustment) is `
+          + 'the series this engine holds',
+      }
+    }
+    return null
+  }
+
+  /** ⭐ e97 U4 — the call (`ticker.new` / `tickerid` / `ticker.modify`) a symbol argument is built by, followed
+   *  through plain bindings (never a ternary, which would cost resolve steps), or null. */
+  adjustedTickerCallIn(node, depth = 0) {
+    if (!node || depth > 4) return null
+    if (node.type === 'call' && (TICKER_CALLS.has(node.name) || node.name === 'ticker.modify')) {
+      if (this.requestAdjustmentDecline(node)) return node
+      const inner = node.name === 'ticker.modify' ? (node.args || []).find((a) => a && (a.name === 'tickerid' || !a.name)) : null
+      return inner ? this.adjustedTickerCallIn(inner.value, depth + 1) : null
+    }
+    // ⛔ NO TERNARY IS FOLDED HERE: that resolves (`constantBranchOf`), and a refusal's words must not spend the
+    // step budget a later output would have had (`pineProbeReplay.test.js` pins it). A plain binding costs none.
+    if (node.type === 'name') {
+      const bound = this.env && this.env.get(node.name)
+      return bound && bound.kind === 'expr' ? this.adjustedTickerCallIn(bound.node, depth + 1) : null
+    }
+    return null
   }
 
   /** ⭐ REQ (coverage unit, 2026-11-16) — THE BUILT-IN NAME A NODE SPELLS, through plain bindings:
