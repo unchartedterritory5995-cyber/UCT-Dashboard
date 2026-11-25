@@ -186,7 +186,35 @@ def test_a_tie_is_exact_and_one_that_would_break_a_bar_is_refused():
         E.edge_bars(bars, [{"wobble": {}}])
 
 
+def test_a_formula_edge_has_a_script_form_for_its_ties_only():
+    ties = [{"tie": {"field": "c", "back": 5, "as": 6}}, {"tie": {"field": "c", "back": 58, "as": 59}}]
+    assert E.script_form(ties) == {"ties": [{"field": "c", "back": 5, "as": 6}, {"field": "c", "back": 58, "as": 59}]}
+    assert E.script_form({"back": 3, "low": True}) == {"back": 3, "low": True} and E.script_form(None) is None
+    with pytest.raises(ValueError):
+        E.script_form([{"extreme": {"field": "c", "back": 10}}])            # refused, never dropped
+
+
+def test_the_script_lane_refuses_a_formula_edge_and_reads_its_own_ties():
+    """⚰️ A formula-lane edge (a list) read by the script lane found no `back` and graded the PLAIN bars under a new
+    key, saying nothing. It is refused by name now; the same ties in the lane's own form run."""
+    from tools.value_cases import script_lane
+    ref = next(r for r in DATA["reference_scripts"] if r["id"] == "ref-while")
+    ties = [{"tie": {"field": "c", "back": 5, "as": 6}}]
+    src = ref["answer"]["script"]["pine"]
+    try:
+        out = script_lane.run([{"id": "as-list", "source": src, "chart": "daily", "edge": ties},
+                               {"id": "own-form", "source": src, "chart": "daily", "edge": E.script_form(ties)}])
+    except LaneUnavailable as exc:
+        pytest.skip(f"the script lane is not available here: {str(exc)[:200]}")
+    refused, ran = out["scripts"]["as-list"], out["scripts"]["own-form"]
+    assert refused.get("ok") is False and "a formula-lane edge on the script lane" in refused.get("reason", ""), refused
+    assert ran.get("ok") is not False, ran
+
+
 def test_the_edge_chart_is_restored_after_grading():
-    plain = copy.deepcopy(G.CHARTS["daily"]["bars"][-3:])
+    """The SAME list comes back, not one equal to it: an earlier test that left the chart edged would make an equality
+    check compare an edge chart with itself (the first version of this test was blind to its own break that way)."""
+    before = G.CHARTS["daily"]["bars"]
+    tail = copy.deepcopy(before[-3:])
     G.grade_case(BY["d17"], BY["d17"]["answer"])
-    assert G.CHARTS["daily"]["bars"][-3:] == plain
+    assert G.CHARTS["daily"]["bars"] is before and before[-3:] == tail

@@ -18,6 +18,7 @@
   "generics",
   "max_bars_back",
   "method-call",
+  "obj:getter",
   "realtime-state",
   "switch",
   "udt",
@@ -65,6 +66,15 @@
     "script": {
      "pine": "//@version=5\nindicator(\"Average volume of the last 10 up days (a while loop)\")\nfloat total = 0.0\nint found = 0\nint k = 0\nwhile found < 10 and k < bar_index\n    if close[k] > close[k + 1]\n        total += volume[k]\n        found += 1\n    k += 1\nplot(found == 10 ? total / 10 : na, \"Average up-day volume\")\n"
     }
+   },
+   "edge": {
+    "ties": [
+     {
+      "field": "c",
+      "back": 5,
+      "as": 6
+     }
+    ]
    }
   },
   {
@@ -85,6 +95,15 @@
     "script": {
      "pine": "//@version=5\nindicator(\"Average volume of the last 10 up days (a look back with max_bars_back)\")\nmax_bars_back(close, 500)\nmax_bars_back(volume, 500)\nfloat total = 0.0\nint found = 0\nint last = math.min(bar_index - 1, 400)\nif last >= 0\n    for k = 0 to last\n        if close[k] > close[k + 1]\n            total += volume[k]\n            found += 1\n            if found == 10\n                break\nplot(found == 10 ? total / 10 : na, \"Average up-day volume\")\n"
     }
+   },
+   "edge": {
+    "ties": [
+     {
+      "field": "c",
+      "back": 5,
+      "as": 6
+     }
+    ]
    }
   },
   {
@@ -126,6 +145,15 @@
     "script": {
      "pine": "//@version=5\nindicator(\"Average volume of the last 10 up days\")\nvar ups = array.new_float()\nif close > close[1]\n    ups.push(volume)\n    if ups.size() > 10\n        ups.shift()\nplot(ups.size() == 10 ? ups.avg() : na, \"Average up-day volume\")\n"
     }
+   },
+   "edge": {
+    "ties": [
+     {
+      "field": "c",
+      "back": 5,
+      "as": 6
+     }
+    ]
    }
   },
   {
@@ -191,6 +219,10 @@
    },
    "recorded_verdict": "wrong",
    "defect": "ENGINE, SILENT: the label is not drawn and nothing is reported. The script labels the rise of its line as line.get_y2(ln) - line.get_y1(ln). The line is drawn right; the label, whose text is ARITHMETIC on a value read back from a drawing, is missing, with no error. Isolated 2026-11-23: one read-back value alone in a label is drawn, the same script with the rise computed directly is right ($8.06), and the same subtraction plotted is right; any arithmetic on a read-back value in a label's text loses the label. A script must draw the right value or be refused by name, never neither. Routed to the engine train.",
+   "engine_fixed": {
+    "by": "e96 #2610 (getter arithmetic in a drawing's text is computed)",
+    "since_engine": 96
+   },
    "answer": {
     "turn": "script",
     "script": {
@@ -220,6 +252,15 @@
     "script": {
      "pine": "//@version=5\nindicator(\"Average volume of the last 10 up days (an average inside an if)\")\nvar float avgUp = na\nif close > close[1]\n    avgUp := ta.sma(volume, 10)\nplot(avgUp, \"Average up-day volume\")\n"
     }
+   },
+   "edge": {
+    "ties": [
+     {
+      "field": "c",
+      "back": 5,
+      "as": 6
+     }
+    ]
    }
   }
  ],

@@ -62,6 +62,17 @@ def edge_bars(bars: List[Dict[str, Any]], edge: List[Dict[str, Any]]) -> List[Di
     return out
 
 
+def script_form(edge: Any) -> Any:
+    """The same edge in the SCRIPT lane's form (`script_lane.mjs` `chartOf`), for a reference script that answers a
+    formula case: its ties as `{"ties": [{field, back, as}]}`. A script-lane edge (a dict) or none is returned as it
+    is. An extreme has no script-lane form here: refused, never dropped."""
+    if not isinstance(edge, list):
+        return edge
+    if any("tie" not in part for part in edge):
+        raise ValueError(f"only ties have a script-lane form: {edge!r}")
+    return {"ties": [dict(part["tie"]) for part in edge]}
+
+
 @contextlib.contextmanager
 def on(edge: List[Dict[str, Any]], chart: str = "daily"):
     """Within: the formula lane's chart AND its rules read the edge chart's bars. Restored on the way out."""

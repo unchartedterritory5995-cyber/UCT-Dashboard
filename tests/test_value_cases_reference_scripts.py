@@ -33,6 +33,7 @@ import pytest
 
 from api.services import pine_capabilities
 from tests.test_value_cases_scripts import _every_window_one_longer, _lane
+from tools.value_cases import edges as E
 from tools.value_cases import script_grade
 from tools.value_cases import script_rules as R
 from tools.value_cases.market import STOCK
@@ -91,7 +92,8 @@ def test_the_section_is_whole():
         assert ref["written"] == {"on": "2026-11-23", "by": "hand"} and "recorded" not in ref, rid   # never a door answer
         assert ref["answer"]["turn"] == "script" and pine(ref).startswith("//@version=5"), rid
         assert ref["capabilities"] and set(ref["capabilities"]) <= set(WITHOUT), rid
-        assert ref.get("edge") == held_by.get("edge"), rid              # the same edge as the case it answers, or none
+        # the same edge as the case it answers, or none; a formula case's ties in the script lane's own form (2026-11-25)
+        assert ref.get("edge") == E.script_form(held_by.get("edge")), rid
         assert ("defect" in ref) == (ref.get("recorded_verdict") == "wrong") and len(ref.get("defect") or "x" * 99) > 80, rid
         assert ("refused" in ref) == (ref["id"] in REFUSED), rid
     assert {r["id"] for r in REFS if r.get("recorded_verdict") == "wrong"} == RECORDED_WRONG
