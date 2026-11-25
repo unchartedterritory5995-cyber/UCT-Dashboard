@@ -119,6 +119,12 @@ function chartOf(kind, edge) {
         const b = bars.length - 1 - t.as
         const from = t.from || t.field
         if (!(a >= 0 && b >= 0 && a !== b && ['o', 'h', 'l', 'c', 'v'].includes(t.field) && ['o', 'h', 'l', 'c', 'v'].includes(from))) throw new Error(`a tie names two bars and a field: ${JSON.stringify(t)}`)
+        if (t.shift) {
+          // `shift` (2026-11-25): the WHOLE bar moves by one amount so its `field` lands exactly on the value. A tie
+          // that set one price alone broke most bars it was aimed at (a low lifted above the bar's own close)
+          const delta = bars[b][from] - bars[a][t.field]
+          for (const k of ['o', 'h', 'l', 'c']) bars[a][k] += delta
+        }
         bars[a][t.field] = bars[b][from]
         const x = bars[a]
         if (!(x.h >= Math.max(x.o, x.c) && x.l <= Math.min(x.o, x.c))) throw new Error(`the tie breaks the bar: ${JSON.stringify(t)}`)

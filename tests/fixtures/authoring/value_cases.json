@@ -14209,6 +14209,15 @@
     "script": {
      "pine": "//@version=5\nindicator(\"Distribution day count\", overlay=false)\nwin       = input.int(25, \"Window (bars)\", minval=1, maxval=200)\ndropPct   = input.float(0.2, \"Minimum close drop (%)\", minval=0.0, step=0.1)\nexpirePct = input.float(5.0, \"Stop counting a day after a rise of (%)\", minval=0.1, step=0.5)\n// a distribution day: a close down at least dropPct percent from the prior close, on more volume than the prior bar\nisDist = close <= close[1] * (1 - dropPct / 100) and volume > volume[1]\n// the days still counting: a day drops out once any LATER close is expirePct percent above its close\ncount = 0\nfor i = 0 to win - 1\n    if isDist[i]\n        expired = false\n        if i > 0\n            for j = 0 to i - 1\n                if close[j] >= close[i] * (1 + expirePct / 100)\n                    expired := true\n        if not expired\n            count += 1\nplot(count, \"Distribution days\", color=color.red, style=plot.style_stepline)"
     }
+   },
+   "edge": {
+    "ties": [
+     {
+      "field": "v",
+      "back": 3,
+      "as": 4
+     }
+    ]
    }
   },
   {
@@ -14235,6 +14244,32 @@
     "script": {
      "pine": "//@version=5\nindicator(\"Follow-through day\", overlay=true)\nlookback    = input.int(60, \"Highest-close lookback (bars)\", minval=2)\ndrawdownPct = input.float(5.0, \"Correction: percent below the highest close\", minval=0.0, step=0.25)\nminDay      = input.int(4, \"Earliest day of the attempt\", minval=1)\ngainPct     = input.float(1.25, \"Minimum gain on the day (%)\", minval=0.0, step=0.05)\n// in a correction: the close is at least drawdownPct percent below the highest close of the lookback (this bar included)\nhiClose = ta.highest(close, lookback)\ninCorrection = close <= hiClose * (1 - drawdownPct / 100)\n// ONE rally attempt at a time, kept across bars: whether it is live, which day of it this is, and the low it started on\nvar bool  active   = false\nvar int   dayCount = 0\nvar float startLow = na\nif active\n    // the attempt ends when a later bar trades below the low of the bar it started on\n    if low < startLow\n        active := false\n        dayCount := 0\n        startLow := na\n    else\n        dayCount += 1\n// it starts on a bar that closes above the prior close while in a correction (a new one may start on the bar the old one ended)\nif not active and close > close[1] and inCorrection\n    active := true\n    dayCount := 1\n    startLow := low\n// a follow-through day: day minDay or later of a live attempt, up at least gainPct percent on more volume than the prior bar\nfollowThrough = active and dayCount >= minDay and close >= close[1] * (1 + gainPct / 100) and volume > volume[1]\nplotshape(followThrough, \"Follow-through day\", shape.triangleup, location.belowbar, color.green, size=size.small)\n"
     }
+   },
+   "edge": {
+    "ties": [
+     {
+      "field": "l",
+      "back": 853,
+      "as": 856,
+      "shift": true
+     },
+     {
+      "field": "v",
+      "back": 851,
+      "as": 1982
+     },
+     {
+      "field": "c",
+      "back": 1884,
+      "as": 1885,
+      "shift": true
+     },
+     {
+      "field": "v",
+      "back": 2,
+      "as": 3
+     }
+    ]
    }
   },
   {
@@ -14318,6 +14353,15 @@
     "script": {
      "pine": "//@version=5\nindicator(\"Distribution day count\", overlay=false)\nwin     = input.int(25, \"Window (bars)\", minval=1, maxval=200)\ndropPct = input.float(0.2, \"Minimum close drop (%)\", minval=0.0, step=0.1)\nalertAt = input.int(5, \"Under pressure at count\", minval=1)\n// a distribution day: close down at least dropPct percent from the prior close, on more volume than the prior bar\nisDist = close <= close[1] * (1 - dropPct / 100) and volume > volume[1]\ncount = 0\nfor i = 0 to win - 1\n    if isDist[i]\n        count += 1\npressured = count >= alertAt\nvar table t = table.new(position.top_right, 2, 2, border_width=1)\ntable.cell(t, 0, 0, \"Dist. days\", text_color=color.white, bgcolor=color.gray)\ntable.cell(t, 1, 0, str.tostring(count), text_color=color.white, bgcolor=color.new(color.black, 30))\ntable.cell(t, 0, 1, \"Status\", text_color=color.white, bgcolor=color.gray)\ntable.cell(t, 1, 1, pressured ? \"Under pressure\" : \"Normal\", text_color=color.white, bgcolor=pressured ? color.red : color.green)\nplot(count, \"Distribution days\", color=color.red, style=plot.style_stepline)\n"
     }
+   },
+   "edge": {
+    "ties": [
+     {
+      "field": "v",
+      "back": 4,
+      "as": 5
+     }
+    ]
    }
   },
   {
@@ -14595,6 +14639,20 @@
     "script": {
      "pine": "//@version=5\nindicator(\"Inside bar boxes\", overlay=true, max_boxes_count=500)\n\nborderWidth = input.int(1, \"Border width\", minval=1)\nborderCol = input.color(color.orange, \"Border colour\")\nfillCol = input.color(color.new(color.orange, 85), \"Fill colour\")\n\nisInside = high < high[1] and low > low[1]\n\nif isInside\n    box.new(bar_index, high, bar_index, low, border_color=borderCol, border_width=borderWidth, bgcolor=fillCol)\n\nplot(isInside ? high : na, \"Inside bar high\", color=color.new(color.orange, 100))"
     }
+   },
+   "edge": {
+    "ties": [
+     {
+      "field": "h",
+      "back": 18,
+      "as": 19
+     },
+     {
+      "field": "l",
+      "back": 11,
+      "as": 12
+     }
+    ]
    }
   },
   {
@@ -14697,7 +14755,16 @@
       "merge": "82ab4c233a6a56c9473d66973cc0d1488725700f"
      }
     }
-   ]
+   ],
+   "edge": {
+    "ties": [
+     {
+      "field": "c",
+      "back": 2,
+      "as": 6
+     }
+    ]
+   }
   },
   {
    "id": "table-format-01",
@@ -14851,6 +14918,22 @@
     "script": {
      "pine": "//@version=5\nindicator(\"Gap-up boxes\", overlay=true, max_boxes_count=500)\n\nkeep     = input.int(10, \"Boxes to keep\", minval=1, maxval=500)\nbgTransp = input.int(85, \"Box fill transparency\", minval=0, maxval=100)\n\n// a gap: this bar's low is above the prior bar's high\nisGap = low > high[1]\n\nvar box[]   boxes  = array.new_box(0)\nvar float[] tops   = array.new_float(0)\nvar bool[]  live   = array.new_bool(0)\n\n// new box on a gap bar: from the prior bar's high up to this bar's low\nif isGap\n    array.push(boxes, box.new(bar_index, low, bar_index, high[1], border_color=color.teal, bgcolor=color.new(color.teal, bgTransp)))\n    array.push(tops, low)\n    array.push(live, true)\n    if array.size(boxes) > keep\n        box.delete(array.shift(boxes))\n        array.shift(tops)\n        array.shift(live)\n\n// extend every still-open box; end it at the bar whose low drops below its top\nif array.size(boxes) > 0\n    for i = 0 to array.size(boxes) - 1\n        if array.get(live, i)\n            b = array.get(boxes, i)\n            box.set_right(b, bar_index)\n            if low < array.get(tops, i) and not (isGap and i == array.size(boxes) - 1)\n                array.set(live, i, false)\n\n// hidden plot so the script can be used in alerts\nplot(array.size(tops) > 0 ? array.last(tops) : na, \"Latest gap top\", color=color.new(color.gray, 100))\n"
     }
+   },
+   "edge": {
+    "ties": [
+     {
+      "field": "l",
+      "back": 7,
+      "as": 8,
+      "from": "h"
+     },
+     {
+      "field": "l",
+      "back": 653,
+      "as": 659,
+      "shift": true
+     }
+    ]
    }
   },
   {
