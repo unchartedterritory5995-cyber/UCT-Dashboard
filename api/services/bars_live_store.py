@@ -227,28 +227,36 @@ def stream_alive() -> bool:
 LIVE_LATE_S = float(os.environ.get("BARS_LIVE_LATE_S", "30"))
 #: tf ("1" / "5") -> sym -> the start (unix s) of the newest row this tier wrote whole for it (`_write_rows`).
 _own_last: dict[str, dict[str, int]] = {"1": {}, "5": {}}
-_late = {"rows": 0}
+_late = {"rows": 0, "refused_tickers": 0, "unnamed_batches": 0}
 
 
 def _now_wall() -> float:
     return time.time()
 
 
-def _note_written(tf: str, rows: list) -> None:
-    """Rows the store took: each ticker's newest row start, and the late ones counted (see LIVE_LATE_S)."""
+def _note_written(tf: str, rows: list, skip=frozenset()) -> None:
+    """Rows the store took: each ticker's newest row start (but a ticker in `skip`, one the store refused a row of), and
+    the late ones counted (see LIVE_LATE_S). The batch's per-ticker newest is found OUTSIDE the lock (a push is ~10k
+    rows); the lock is held only to merge it."""
     own = _own_last.get(tf)
     if own is None:
         return
     step = MINUTE_S if tf == "1" else BUCKET_S
+    newest: dict[str, int] = {}
+    for sym, ts, *_rest in rows:
+        if sym in skip:
+            continue
+        try:
+            ts = int(ts)
+        except (TypeError, ValueError):
+            continue
+        if ts > newest.get(sym, -1):
+            newest[sym] = ts
     now = _now_wall()
     floor = now - LIVE_LATE_S
     with _lock:
         covered = _covered1 if tf == "1" else _covered5
-        for sym, ts, *_rest in rows:
-            try:
-                ts = int(ts)
-            except (TypeError, ValueError):
-                continue
+        for sym, ts in newest.items():
             prev = own.get(sym)
             if prev is None or ts > prev:
                 own[sym] = ts
@@ -855,15 +863,47 @@ def _write_rows(tf: str, rows: list[tuple]) -> int:
     by_sym: dict[str, list[dict]] = {}
     for sym, ts, o, h, l, c, v in rows:
         by_sym.setdefault(sym, []).append({"t": ts, "o": o, "h": h, "l": l, "c": c, "v": v})
-    n = bars_sqlite.put_bars_many(tf, by_sym)
-    # ⛔ Only a batch the store took WHOLE proves its tickers' rows (the impossible-bar gate can refuse one, and which
-    # one is not reported): a refused row must never be vouched for by the per-ticker proof.
+    # ⛔ A row the store refused (the impossible-bar gate) must never be vouched for by the per-ticker proof, and ONE
+    # refused ticker must not cost the others theirs (review of #2738: a 1m push is the covered universe in one batch;
+    # skipping the whole batch put every liquid name on the 30 s floor). The store names the refused tickers; a store
+    # that cannot (a double without `rejected_out`) proves the batch only when it took it whole.
+    put = bars_sqlite.put_bars_many
+    if _names_refused(put):
+        refused: set = set()
+        n = put(tf, by_sym, rejected_out=refused)
+        if refused:
+            with _lock:
+                _late["refused_tickers"] += len(refused)
+        _note_written(tf, rows, skip=refused)
+        return n
+    n = put(tf, by_sym)
     try:
         if int(n or 0) >= len(rows):
             _note_written(tf, rows)
+        else:
+            with _lock:
+                _late["unnamed_batches"] += 1
     except (TypeError, ValueError):
         pass
     return n
+
+
+_NAMES_REFUSED: dict = {}
+
+
+def _names_refused(fn) -> bool:
+    """Does this `put_bars_many` take `rejected_out` (the real store does; a test double may not)?"""
+    hit = _NAMES_REFUSED.get(fn)
+    if hit is None:
+        try:
+            import inspect
+            hit = "rejected_out" in inspect.signature(fn).parameters
+        except (TypeError, ValueError):
+            hit = False
+        if len(_NAMES_REFUSED) > 64:
+            _NAMES_REFUSED.clear()
+        _NAMES_REFUSED[fn] = hit
+    return hit
 
 
 # ── backfill (fills the reconnect gap and any missing history) ────────────────
@@ -1324,6 +1364,8 @@ def status() -> dict:
         s["daily_seen"] = len(_daily_seen)
         s["checkpoint"] = {k: v for k, v in _ckpt.items() if k != "last_mono"}
         s["late_rows"] = _late["rows"]
+        s["proof_refused_tickers"] = _late["refused_tickers"]
+        s["proof_unnamed_batches"] = _late["unnamed_batches"]
         s["live_late_s"] = LIVE_LATE_S
         if enabled1():
             m1 = {k: v for k, v in _s1.items() if k != "m1_last_push_mono"}
@@ -1375,5 +1417,5 @@ def _reset_for_tests() -> None:
         _recent1_meta.update(n=0, newest=None)
         for own in _own_last.values():
             own.clear()
-        _late["rows"] = 0
+        _late.update(rows=0, refused_tickers=0, unnamed_batches=0)
     _m1_wakeup.clear()
