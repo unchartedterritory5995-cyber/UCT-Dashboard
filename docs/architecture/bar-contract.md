@@ -388,7 +388,13 @@ contract, grid, session, cache_key, series_rev   -- same values as REST for that
 rev     int ms HLC per (sym, tf-key): max(prev + 1, now_ms), strictly increasing per frame
 final   = bar.final
 t_s     = bar.t // 1000 (REST's unit)
+sent_ms    int ms, this pod's wall clock as the frame is serialised (2026-11-25)
+ingest_ms  int ms, stream-ingest's wall clock when it sent the batch that carried the bar;
+           only on a relayed frame, and only once INGEST_BATCH_TS=1 on stream-ingest
 ```
+`sent_ms` and `ingest_ms` are instruments (trade -> ingest -> pod -> screen latency, with
+`bar.trade_ts` and `rev`): they are pod wall clocks, never a revision, and no client logic
+may depend on them.
 Consistency with REST:
 - `cache_key`/`grid` equal REST's for the same (ticker, tf, session) — a client routes a
   frame to the same store entry.
