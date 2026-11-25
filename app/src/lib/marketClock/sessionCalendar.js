@@ -98,8 +98,20 @@ function _dayKey(day) {
   return _etParts(_toDate(day)).isoDate
 }
 
+// ⭐ (2026-11-23, next-row key task helpers, item 1b) ONCE PER DATE. A day walk (`otherSymbols.sessionsSpanned` counts
+// the trading days an intraday chart spans, one `isTradingDay` per calendar day) parsed a Date per day on every pass:
+// 0.63 ms a next-row press, profiled. The weekday of a date string never changes, so each is parsed once and kept
+// (bounded: the map is emptied, never trimmed, past `WEEKDAY_CACHE_MAX` dates). Same function, same answer.
+const WEEKDAY_CACHE_MAX = 40_000
+const _weekdayOf = new Map()
 function _weekday(isoDate) {
-  return new Date(`${isoDate}T00:00:00Z`).getUTCDay() // 0=Sun..6=Sat, zone-free
+  let wd = _weekdayOf.get(isoDate)
+  if (wd === undefined) {
+    wd = new Date(`${isoDate}T00:00:00Z`).getUTCDay() // 0=Sun..6=Sat, zone-free
+    if (_weekdayOf.size >= WEEKDAY_CACHE_MAX) _weekdayOf.clear()
+    _weekdayOf.set(isoDate, wd)
+  }
+  return wd
 }
 
 /** The last date the dataset covers, 'YYYY-MM-DD'. */
