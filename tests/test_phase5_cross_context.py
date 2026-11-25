@@ -184,7 +184,8 @@ def test_P5_the_models_schema_offers_the_scope_wrappers_with_their_bounds(conv):
     refs = [r["$ref"].rsplit("/", 1)[-1] for r in s["$defs"]["node"]["oneOf"]]
     assert refs[-3:] == ["sym", "tf", "tf_live"]
     assert s["$defs"]["sym"]["properties"]["value"]["pattern"] == CROSS["tickerPattern"]
-    assert s["$defs"]["tf"]["properties"]["value"]["enum"] == ["W", "M"]
+    # ⭐⭐ U-DAILY (e96): and D, the last finished day, whose chart (below a day) the door checks by name
+    assert s["$defs"]["tf"]["properties"]["value"]["enum"] == ["W", "M", "D"] == CROSS["tfCodes"] + CROSS["tfBelowADayCodes"]
     assert s["$defs"]["tf_live"]["properties"]["value"]["enum"] == ["W", "M"]
     tool = conv.anthropic_tool()["input_schema"]
     assert "sym" in tool["$defs"] and "tf_live" in tool["$defs"]
@@ -203,12 +204,26 @@ def test_P5_the_scope_bounds_refuse_terminally_and_by_name(conv, model, tree, ga
         assert leak not in r["reason"].replace("symbol", "")
 
 
-def test_P5_a_daily_tf_inside_a_formula_is_a_schema_fault_not_an_author(conv):
+def test_P5_an_intraday_tf_inside_a_formula_is_a_schema_fault_not_an_author(conv):
     bad = env(1, [{"op": "set_output_tree", "output": "value",
-                   "tree": {"type": "tf", "value": "D", "args": [CLOSE]}}])
+                   "tree": {"type": "tf", "value": "60", "args": [CLOSE]}}])
     with pytest.raises(conv._Refused) as exc:
         conv.check_envelope(bad, 1)
     assert exc.value.gate == "envelope:schema"
+
+
+def test_P5_a_daily_tf_inside_a_formula_is_authored_below_a_day_and_refused_by_name_on_a_daily_chart(conv):
+    """⭐⭐ U-DAILY (e96): `tf(close, 'D')` (the last finished day on each bar) passes the schema, and WHERE it may be
+    used is the door's by-name check (`check_daily_reads`): a chart below a day builds it, a daily chart is told
+    the bars there already are days."""
+    daily = env(1, [{"op": "set_output_tree", "output": "value",
+                     "tree": {"type": "tf", "value": "D", "args": [CLOSE]}}])
+    got = conv.check_envelope(daily, 1)
+    conv.check_daily_reads(got, "the 50 day average", {"sym": "NVDA", "tf": "5"})        # must not raise
+    with pytest.raises(conv._Refused) as exc:
+        conv.check_daily_reads(got, "the 50 day average", {"sym": "NVDA", "tf": "D"})
+    # (train e96: the daily read's own gate; `envelope:reference` is `_check_references`' alone, master #2559)
+    assert exc.value.gate == "envelope:daily-read-on-days"
 
 
 def test_P5_tf_live_is_authored_and_lints_preview_repaints_not_refused(conv):

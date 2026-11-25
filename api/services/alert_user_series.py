@@ -457,6 +457,8 @@ def _withheld_reason(codes: Sequence[str]) -> str:
 #: lane is never handed (``unsupplied_reads``).
 UNSUPPLIED_OTHER_SYMBOL = "other-symbol:unsupplied"
 UNSUPPLIED_LOWER_TF = "lower-tf:unsupplied"
+#: ⭐⭐ U-DAILY (e96) -- a daily read (`tf` of D) with no daily bars handed beside the alert's own
+UNSUPPLIED_DAILY_READ = "daily-read:unsupplied"
 
 #: ⭐ PHASE 5 -- the codes a ``sym`` read is refused under now that the lane DOES
 #: supply another symbol (``_symbol_bars``): a spelling the store cannot hold, one
@@ -575,6 +577,10 @@ def unsupplied_reads(tree: Any, opts: Optional[Mapping[str, Any]] = None) -> lis
         out.append(UNSUPPLIED_OTHER_SYMBOL)
     if lower and not (opts or {}).get("lowerTf"):
         out.append(UNSUPPLIED_LOWER_TF)
+    from api.services import ast_interpret as _lane                     # noqa: PLC0415 (the module's own habit)
+    frames = (opts or {}).get("frames")
+    if _lane.tree_reads_daily(tree) and not (isinstance(frames, Mapping) and frames.get(_lane.DAILY_READ)):
+        out.append(UNSUPPLIED_DAILY_READ)
     return out
 
 
@@ -598,6 +604,10 @@ def _unsupplied_reason(tree: Any, codes: Sequence[str]) -> str:
     if UNSUPPLIED_LOWER_TF in codes:
         parts.append("it reads a timeframe below the chart (`ltf`), and the alert "
                      "lane holds no intraday bars for it")
+    if UNSUPPLIED_DAILY_READ in codes:
+        parts.append("it reads a daily value the way a chart below a day shows it (`tf(…, 'D')`: the "
+                     "last finished day on each bar), and the alert lane holds no daily bars beside "
+                     "the alert's own")
     if "request:htf-newest-unconfirmed" in codes:
         parts.append("it reads a weekly or monthly value the way TradingView's "
                      "`request.security` shows it (`tf_merge`), whose value on the newest "

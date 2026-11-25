@@ -1281,6 +1281,10 @@ export function compareCapture(capture, ours, opts = {}) {
   // a row exists only where either side paints at all.
   const paintRow = opts.paints ? comparePaints(opts.paints) : null
   if (paintRow) base.paints = paintRow
+  // ⭐⭐ e96 — Bands: the `hline`s (`compareBands`), graded only where the capture recorded them (every capture
+  // since 2026-11-19 holds `study.bandState`) and the caller handed our side's levels (`opts.bands`).
+  const bandRow = Array.isArray(opts.bands) ? compareBands(capture, opts.bands) : null
+  if (bandRow) base.bands = bandRow
 
   if (!capture.plotValues || !capture.study) base.notMeasured.push('plot values')
   if (!roles.colorers.length && !Object.keys((capture.study && capture.study.styleState) || {}).length) base.notMeasured.push('colour')
@@ -1297,13 +1301,20 @@ export function compareCapture(capture, ours, opts = {}) {
   // a regression elsewhere.
   const verdictsBeforePaints = base.objects ? [...plotVerdicts, base.objects.verdict] : plotVerdicts
   const paintJoins = !!(base.paints && base.paints.verdict)
-  const verdicts = paintJoins ? [...verdictsBeforePaints, base.paints.verdict] : verdictsBeforePaints
+  const verdictsBeforeBands = paintJoins ? [...verdictsBeforePaints, base.paints.verdict] : verdictsBeforePaints
+  // ⭐⭐ e96 — the bands join LAST, and the verdict before them is kept (`verdictWithoutBands`), so a capture whose
+  // verdict moves because of an `hline` is named, as one that moves because of a paint is.
+  const bandJoins = !!(base.bands && base.bands.verdict)
+  const verdicts = bandJoins ? [...verdictsBeforeBands, base.bands.verdict] : verdictsBeforeBands
   if (!verdicts.length) return { ...base, verdict: 'INCONCLUSIVE', reason: 'nothing on either side could be compared' }
   const out = { ...base, ...overallOf(verdicts) }
   if (paintJoins) {
     out.verdictWithoutPaints = verdictsBeforePaints.length
       ? overallOf(verdictsBeforePaints).verdict
       : 'INCONCLUSIVE'
+  }
+  if (bandJoins) {
+    out.verdictWithoutBands = verdictsBeforeBands.length ? overallOf(verdictsBeforeBands).verdict : 'INCONCLUSIVE'
   }
   // ⭐ C44 — BOTH NUMBERS, SIDE BY SIDE. Where object colour was graded, the
   // capture also carries the verdict it had BEFORE colour joined it, so a score
@@ -1327,6 +1338,7 @@ export function compareCapture(capture, ours, opts = {}) {
     out.verdict = asSubstituted(out.verdict)
     if (out.verdictWithoutPaints) out.verdictWithoutPaints = asSubstituted(out.verdictWithoutPaints)
     if (out.verdictWithoutColour) out.verdictWithoutColour = asSubstituted(out.verdictWithoutColour)
+    if (out.verdictWithoutBands) out.verdictWithoutBands = asSubstituted(out.verdictWithoutBands)
   }
   // SUPPLY BEHIND THE CAPTURE — the capture names the bar it could not judge and the plots it was withheld from;
   // the verdict is the other bars' (never lifted to MATCH by it, never lowered)
@@ -1338,6 +1350,7 @@ export function compareCapture(capture, ours, opts = {}) {
     if (out.verdict === MATCH_SUBSTITUTED) out.reason = `${out.reason}, with substituted inputs fed the vendor's value (${substituted.map((e) => e.name).join(', ')}); the UCT data a member is served is not proven`
     if (out.verdictWithoutPaints) out.verdictWithoutPaints = asSubstituted(out.verdictWithoutPaints)
     if (out.verdictWithoutColour) out.verdictWithoutColour = asSubstituted(out.verdictWithoutColour)
+    if (out.verdictWithoutBands) out.verdictWithoutBands = asSubstituted(out.verdictWithoutBands)
     out.plots = out.plots.map((p) => (p.verdict === 'MATCH' ? { ...p, verdict: MATCH_SUBSTITUTED } : p))
   }
   // ⭐⭐ T4 B2 (coordinator ruling 2026-11-22) — A RUN THAT READS UCT BREADTH NEVER READS MATCH. A `USI:` spelling is served
@@ -2357,6 +2370,83 @@ export function comparePaints(grade) {
     undecodable,
     unpaired,
     rows: rowsOut(),
+  }
+}
+
+/** ⭐⭐ e96 — TradingView's `bandState.linestyle` codes (witnessed by `vw-hline-written` H1-H3) by our style name. */
+export const BAND_STYLE_CODE = Object.freeze({ solid: 0, dotted: 1, dashed: 2 })
+
+/** ⭐⭐ e96 — THE `hline`S, GRADED LEVEL BY LEVEL (`study.bands` / `study.bandState`, recorded since 2026-11-19).
+ *
+ *  An hline is a metaInfo BAND, not a plot: TradingView keeps each one's level, colour, line style, width and
+ *  visibility, in declaration order (`hline_0`, `hline_1`, ...). Our side hands its levels in the same order, by
+ *  the ordinal of the `hline` call (`ourSide.js::bandsOf`): each `{ordinal, value, color, lineStyle, width}`, or
+ *  `{ordinal, hidden: true}` (the author's `display.none`), or `{ordinal, withheld}` (not drawn, by name), or
+ *  `{ordinal, ..., neutral: true}` (drawn at its level, its style not reproduced, by name).
+ *
+ *  ⛔ A level is the payload: a different level is DIVERGE, whatever else agrees. A style field of a level our side
+ *  draws in its own colours is graded too (colour on `#rrggbbaa`, style by TradingView's code, width exactly). A
+ *  level withheld or drawn neutral is an item that could not be compared (INCONCLUSIVE, named), as a plot is. A
+ *  level neither side draws is not graded. A capture that recorded no bands grades nothing here (`null`).
+ *  @returns {null|{verdict, reason, agreeing, differing, withheld, rows}} */
+export function compareBands(capture, ours) {
+  const st = capture && capture.study
+  const vendor = st && Array.isArray(st.bandState) ? st.bandState : null
+  if (!vendor) return null
+  const names = (st && Array.isArray(st.bands) ? st.bands : []).map((b) => (b && b.name) || null)
+  const mine = new Map((Array.isArray(ours) ? ours : []).filter((o) => o && Number.isInteger(o.ordinal)).map((o) => [o.ordinal, o]))
+  const n = Math.max(vendor.length, mine.size ? Math.max(...mine.keys()) + 1 : 0)
+  if (!n) return null
+  const rows = []
+  for (let i = 0; i < n; i += 1) {
+    const v = vendor[i]
+    const o = mine.get(i)
+    const id = `hline_${i}`
+    const title = names[i] || (o && o.title) || null
+    const row = (state, extra = {}) => rows.push({ id, ordinal: i, ...(title ? { title } : {}), state, ...extra })
+    if (!v) { row('vendorMissing', { reason: 'TradingView reports no band at this position' }); continue }
+    if (!o) { row('oursMissing', { reason: 'our side reads no level at this position' }); continue }
+    const vendorDraws = v.visible !== false
+    if (o.hidden) { if (vendorDraws) row('hiddenOursOnly'); else row('undrawn'); continue }
+    if (!vendorDraws) { row(o.withheld ? 'undrawn' : 'drawnOursOnly'); continue }
+    if (o.withheld) { row('withheld', { reason: o.withheld }); continue }
+    const vv = Number(v.value)
+    if (!(Number.isFinite(o.value) && Number.isFinite(vv) && Math.abs(o.value - vv) <= 1e-9 * Math.max(1, Math.abs(vv)))) {
+      row('value', { vendor: v.value, ours: o.value })
+      continue
+    }
+    if (o.neutral) { row('styleNotReproduced', { reason: o.reason || 'its style is not reproduced' }); continue }
+    const diffs = []
+    const vc = normalizeColor(v.color)
+    const oc = normalizeColor(o.color)
+    if (!(vc && oc && coloursAgree(oc, vc))) diffs.push(`colour TradingView ${v.color} ours ${o.color}`)
+    if (BAND_STYLE_CODE[o.lineStyle] !== v.linestyle) diffs.push(`style TradingView ${v.linestyle} ours ${o.lineStyle}`)
+    if (Number(o.width) !== Number(v.linewidth)) diffs.push(`width TradingView ${v.linewidth} ours ${o.width}`)
+    if (diffs.length) row('style', { reason: diffs.join('; ') })
+    else row('agrees')
+  }
+  const DIFFER = new Set(['vendorMissing', 'oursMissing', 'hiddenOursOnly', 'drawnOursOnly', 'value', 'style'])
+  const NAMED = new Set(['withheld', 'styleNotReproduced'])
+  const KNOWN = new Set([...DIFFER, ...NAMED, 'agrees', 'undrawn'])
+  for (const r of rows) {
+    // ⛔ FAIL CLOSED: a state this table does not name is never read as agreeing.
+    if (!KNOWN.has(r.state)) throw new Error(`bands: unknown band state ${JSON.stringify(r.state)}`)
+  }
+  const differing = rows.filter((r) => DIFFER.has(r.state))
+  const named = rows.filter((r) => NAMED.has(r.state))
+  const agreeing = rows.filter((r) => r.state === 'agrees').length
+  if (!differing.length && !named.length && !agreeing) return null
+  const say = (r) => `${r.id}${r.title ? ` "${r.title}"` : ''} ${r.state}${r.reason ? ` (${r.reason})` : ''}${r.state === 'value' ? ` TradingView ${r.vendor} ours ${r.ours}` : ''}`
+  const namedSaid = named.length ? `; ${named.length} band${named.length === 1 ? '' : 's'} not compared, by name (first: ${say(named[0])})` : ''
+  return {
+    verdict: differing.length ? 'DIVERGE' : (named.length ? 'INCONCLUSIVE' : 'MATCH'),
+    reason: differing.length
+      ? `${differing.length} band${differing.length === 1 ? '' : 's'} differ${differing.length === 1 ? 's' : ''} (first: ${say(differing[0])})${namedSaid}`
+      : `${agreeing} band${agreeing === 1 ? '' : 's'} agree in level, colour, style and width${namedSaid}`,
+    agreeing,
+    differing: differing.length,
+    withheld: named.length,
+    rows,
   }
 }
 

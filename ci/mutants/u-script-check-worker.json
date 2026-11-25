@@ -1,0 +1,114 @@
+{
+  "schema": "uct.ci-mutants/v1",
+  "about": "UNIT (c), 2026-11-23: Create Indicator's check of a script the assistant wrote (scriptAnswer.js::checkScript) runs in the member door's workers where there are workers (authoring/scriptCheckOffThread.js): the page's shared build of the text, PasteBox's shared report, and the status the report's worker makes of the two. Nothing of it is computed on the page's main thread; the door and the report are waited for themselves and only the hub's own step is bounded (HUB_STATUS_WAIT_MS); a fault of the window is refused by name and never sent to the assistant; the member's Stop ends the wait. Every rule, broken once, must turn its rail red.",
+  "mutants": [
+    {
+      "id": "C1",
+      "mutant": "the check never asks the workers: the door, the report and the status run on the page's main thread again",
+      "file": "app/src/components/chart/builder/authoring/scriptAnswer.js",
+      "from": "    const off = typeof judgeOffThread === 'function' ? await judgeOffThread(pine, { cancelled }) : null",
+      "to": "    const off = null",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/authoring/scriptCheckOffThread.test.js",
+      "expectRed": "no door call, no report, no translation and no status runs on the page"
+    },
+    {
+      "id": "C2",
+      "mutant": "the check asks the door under an id and a name of its own: a second build of the same text, which stops the member pane's",
+      "file": "app/src/components/chart/builder/authoring/scriptCheckOffThread.js",
+      "from": "  const build = firstAnswer(door, { source: pine })",
+      "to": "  const build = firstAnswer(door, { source: pine, id: 'u_script_check', name: 'script' })",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/authoring/scriptCheckOffThread.test.js",
+      "expectRed": "the check asks the door with the script and nothing else"
+    },
+    {
+      "id": "C3",
+      "mutant": "the hub bound ships at ten times its derivation",
+      "file": "app/src/components/chart/builder/authoring/scriptCheckOffThread.js",
+      "from": "export const HUB_STATUS_WAIT_MS = 1700",
+      "to": "export const HUB_STATUS_WAIT_MS = 17000",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/authoring/scriptCheckOffThread.test.js",
+      "expectRed": "the bound is ONE named constant"
+    },
+    {
+      "id": "C4",
+      "mutant": "the wait for the door is given a timer of the check's own (ten seconds)",
+      "file": "app/src/components/chart/builder/authoring/scriptCheckOffThread.js",
+      "from": "stop.stopped.then((yes) => (yes ? null : new Promise(() => {})))])",
+      "to": "new Promise((resolve) => { setTimeout(() => resolve(null), 10000) })])",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/authoring/scriptCheckOffThread.test.js",
+      "expectRed": "the door is waited for ITSELF"
+    },
+    {
+      "id": "C5",
+      "mutant": "a door worker that died is read as the door's answer about the script",
+      "file": "app/src/components/chart/builder/authoring/scriptCheckOffThread.js",
+      "from": "    if (pane.guard === MEMBER_DOOR_WORKER_GUARD || pane.guard === MEMBER_DOOR_FAILED_GUARD",
+      "to": "    if (pane.guard === 'never'",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/authoring/scriptCheckOffThread.test.js",
+      "expectRed": "the door's worker died"
+    },
+    {
+      "id": "C6",
+      "mutant": "a report this page had to make in the worker's place is judged as the script's report",
+      "file": "app/src/components/chart/builder/authoring/scriptCheckOffThread.js",
+      "from": "    if (!reportKey) return unchecked(UNCHECKED_BECAUSE.REPORT)",
+      "to": "    if (!reportKey) return unchecked(UNCHECKED_BECAUSE.STATUS)",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/authoring/scriptCheckOffThread.test.js",
+      "expectRed": "the report's worker died"
+    },
+    {
+      "id": "C7",
+      "mutant": "the check keeps its door subscription after it has answered",
+      "file": "app/src/components/chart/builder/authoring/scriptCheckOffThread.js",
+      "from": "    build.release()\n",
+      "to": "    void build\n",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/authoring/scriptCheckOffThread.test.js",
+      "expectRed": "the check holds nothing once it has answered"
+    },
+    {
+      "id": "C8",
+      "mutant": "the member's Stop is never asked while the check waits",
+      "file": "app/src/components/chart/builder/authoring/scriptCheckOffThread.js",
+      "from": "  const asked = () => { try { return cancelled() === true } catch { return false } }",
+      "to": "  const asked = () => false",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/authoring/scriptCheckOffThread.test.js",
+      "expectRed": "a check waiting on a build is ended by"
+    },
+    {
+      "id": "C9",
+      "mutant": "a check whose status did not come is sent back to the assistant as if the script were at fault",
+      "file": "app/src/components/chart/builder/authoring/scriptAnswer.js",
+      "from": "  return { ...uncheckedVerdict(), notes: [SCRIPT_CHECK_UNFINISHED_LINE], unfinished: true }",
+      "to": "  return { ...uncheckedVerdict(), notes: [SCRIPT_CHECK_UNFINISHED_LINE], errors: [SCRIPT_CHECK_UNFINISHED_LINE], unfinished: true }",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/authoring/scriptCheckOffThread.test.js",
+      "expectRed": "a status that does not come is waited for exactly the bound"
+    },
+    {
+      "id": "C10",
+      "mutant": "the check's own engine loader does not carry the workers' check",
+      "file": "app/src/components/chart/builder/authoring/scriptAnswer.js",
+      "from": "    judgeOffThread: offThread.judgeOffThread,",
+      "to": "    judgeOffThread: null,",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/authoring/scriptCheckOffThread.wired.test.js",
+      "expectRed": "what the workers' check refuses is the check's answer"
+    },
+    {
+      "id": "C11",
+      "mutant": "whether a consult left the script unanswered is read on the page, not where the build ran",
+      "file": "app/src/components/chart/builder/authoring/scriptAnswer.js",
+      "from": "    if (!pasted.runs && judged.consultPending === true) {",
+      "to": "    if (!pasted.runs && typeof consultPending === 'function' && consultPending(pine)) {",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/authoring/scriptCheckOffThread.wired.test.js",
+      "expectRed": "what the workers' check answers IS what is judged"
+    },
+    {
+      "id": "C12",
+      "mutant": "settleScript's default check does not hand the member's Stop on",
+      "file": "app/src/components/chart/builder/authoring/scriptAnswer.js",
+      "from": "checkScript(pine, { admission: script && script.admission, cancelled })",
+      "to": "checkScript(pine, { admission: script && script.admission })",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/authoring/scriptCheckOffThread.wired.test.js",
+      "expectRed": "hands its own to the default check"
+    }
+  ]
+}

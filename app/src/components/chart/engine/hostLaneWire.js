@@ -97,8 +97,10 @@ export function unpackRows(pack) {
 export const HOST_CTX_FIELDS = Object.freeze(['tf', 'newestBarIsForming', 'historyFromListing', 'barIndexFromFirstBar', 'framed',
   'requestCode', 'below', 'chartNewestDay', 'chartBars', 'listingStart'])
 /** The context fields that cross by their own rule (not plain). `workSink` is the headless export's
- *  counter and never on a chart's context. */
-export const HOST_CTX_CARRIED = Object.freeze(['symbol', 'secondary', 'exchangeOf', 'lowerTf', 'workSink'])
+ *  counter and never on a chart's context. ⭐⭐ U-DAILY (e96) — `dailyFrame` (the daily bars a daily read is computed
+ *  on, with the chart's projection as `place`, a function) never crosses: a document handed one is computed on the
+ *  main thread (`hostLaneAsync.hostLaneColumns` answers null before anything is posted). */
+export const HOST_CTX_CARRIED = Object.freeze(['symbol', 'secondary', 'exchangeOf', 'lowerTf', 'workSink', 'dailyFrame'])
 
 /** A value as plain data: primitives, and plain objects and arrays of them; a function is left out. */
 function plainOf(v, depth = 0) {
