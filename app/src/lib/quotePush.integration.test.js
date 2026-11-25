@@ -77,7 +77,7 @@ describe('livePriceStore', () => {
 
   it('while the push is healthy the REST poll slows to the push cadence', async () => {
     await healthyPush()
-    vi.advanceTimersByTime(2100)                           // the poll scheduled before the push came up
+    vi.advanceTimersToNextTimer()                          // the poll scheduled before the push came up (2 s, 4 s on touch)
     await flush()
     const n = fetch.mock.calls.length
     vi.advanceTimersByTime(qp.PUSH_HEALTHY_POLL_MS - 500)
@@ -90,13 +90,13 @@ describe('livePriceStore', () => {
 
   it('the push going unhealthy polls at once and returns to the fast cadence', async () => {
     const es = await healthyPush()
-    vi.advanceTimersByTime(2100)
+    vi.advanceTimersToNextTimer()                          // the next poll, at the normal cadence (2 s, 4 s on touch)
     await flush()
     const n = fetch.mock.calls.length
     es.emitEvent('status', { live: false })
     await flush()
     expect(fetch.mock.calls.length).toBe(n + 1)
-    vi.advanceTimersByTime(2100)
+    vi.advanceTimersToNextTimer()                          // the next poll, at the normal cadence (2 s, 4 s on touch)
     await flush()
     expect(fetch.mock.calls.length).toBe(n + 2)
   })
@@ -118,7 +118,7 @@ describe('livePriceStore', () => {
     vi.advanceTimersByTime(qp.SET_DEBOUNCE_MS + 5)
     expect(quoteEs()).toHaveLength(0)
     const n = fetch.mock.calls.length
-    vi.advanceTimersByTime(2100)
+    vi.advanceTimersToNextTimer()                          // the next poll, at the normal cadence (2 s, 4 s on touch)
     await flush()
     expect(fetch.mock.calls.length).toBe(n + 1)
   })
