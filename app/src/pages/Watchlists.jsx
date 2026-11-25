@@ -2058,7 +2058,9 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         // member navigates (createNeighborHold `tail`; `selected` opens its window: a re-sort of the rows does not)
         // `keep`: the rows ahead stay resident until the member reaches them (createNeighborHold NEIGHBOR_KEEP_AHEAD): the
         // registry's LRU took them first, and each came back a local copy asked for in full (2026-11-24 replay)
-        holds.get(tf).set(around, tf, { deep: next, tail: [...next, ...scanNeighbors(flat, idx, dir, { ahead: 0, behind: 1 })], selected: selectedSym, keep })
+        // `live` (2026-11-25): the next rows the way the member is moving ride the bars stream as `ahead` pairs, so the
+        // first press after a minute roll finds that row as current as the chart on screen (createNeighborHold `live`)
+        holds.get(tf).set(around, tf, { deep: next, tail: [...next, ...scanNeighbors(flat, idx, dir, { ahead: 0, behind: 1 })], live: next, selected: selectedSym, keep })
       }
       warmMemFromIDB(around, tfs)
       for (const tf of tfs) prefetchBarsToIDB(ahead, tf, { priority: true })

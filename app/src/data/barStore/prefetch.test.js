@@ -321,7 +321,9 @@ describe('handoff contract (peekDisplayable / prepareForDisplay / prepareDailyFo
     const asked = w.server.calls.length
     const again = w.pf.prepareForDisplay('BHD', '5')
     await w.server.drain()
-    await expect(again).resolves.toBe('current')
+    // ⛔ CHANGED (review of #2721): what paints after the hold reports its honest status: still far behind, 'updating'
+    await expect(again).resolves.toBe('updating')
+    expect(w.store.peek(w.k('BHD', '5')).status).toBe('updating')
     expect(w.server.calls.length).toBeGreaterThan(asked)
   })
 
