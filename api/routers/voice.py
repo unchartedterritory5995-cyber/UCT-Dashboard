@@ -1347,19 +1347,13 @@ def session_end_post(
     if duration > 0:
         record_mode_c_seconds(user["id"], duration)
 
-    # Schedule background summarization (non-blocking)
-    background_tasks.add_task(_summarize_session_background, body.session_id, user["id"])
-    # Schedule hallucination audit (P7) — non-blocking
-    background_tasks.add_task(_audit_session_background, body.session_id, user["id"])
-    # Phase 2-B unification: bridge voice session into Compass chat thread
-    # so the Compass tab sees what was said in voice. Non-blocking.
-    background_tasks.add_task(_bridge_session_to_compass_thread,
-                              body.session_id, user["id"])
-    # Phase 3 Sprint 8: passive Trader Profile auto-populator. Reads the
-    # transcript, extracts concrete trader-preference signals via Haiku,
-    # writes them as j2_profile_suggestions for one-click user approval.
-    background_tasks.add_task(_auto_populate_profile_background,
-                              body.session_id, user["id"])
+    # The session's post-processing (summary, hallucination audit, Compass thread bridge,
+    # trader-profile suggestions: POST_SESSION_STEPS), after the response, as ONE durable run.
+    # ⛔ It was four BackgroundTasks, lost for good when a deploy or crash ended the process
+    # before they finished. Each step is now recorded when it returns, a sweep
+    # (api/services/voice_post_session.py) finishes the missing ones after a restart, and a
+    # step whose output already exists for this session is never run twice.
+    background_tasks.add_task(_post_session_background, body.session_id, user["id"])
 
     return {"ok": True, "duration_seconds": duration}
 
@@ -1555,6 +1549,12 @@ def _bridge_session_to_compass_thread(session_id: int, user_id: str) -> None:
                      session_id, e)
 
 
+def _post_session_background(session_id: int, user_id: str) -> None:
+    """After /session/end returns: every post-processing step this session has not done yet."""
+    from api.services import voice_post_session
+    voice_post_session.run(session_id, user_id, POST_SESSION_STEPS)
+
+
 def _summarize_session_background(session_id: int, user_id: str) -> None:
     """Runs after /session/end returns. Best-effort; failures are logged but swallowed."""
     try:
@@ -1573,6 +1573,17 @@ def _summarize_session_background(session_id: int, user_id: str) -> None:
         )
     except Exception as e:  # noqa: BLE001
         _log.warning("session summarization failed for %s: %s", session_id, e)
+
+
+#: A voice session's post-processing, in the order it runs: (name, step). The names are the steps'
+#: ids in `voice_session_post` (api/services/voice_post_session.py, which runs, records and sweeps
+#: them); the order is the order the four BackgroundTasks ran in before.
+POST_SESSION_STEPS = (
+    ("summary", _summarize_session_background),
+    ("audit", _audit_session_background),
+    ("bridge", _bridge_session_to_compass_thread),
+    ("profile", _auto_populate_profile_background),
+)
 
 
 # ── Memory endpoints ───────────────────────────────────────────────────────
