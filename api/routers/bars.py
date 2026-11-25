@@ -650,16 +650,88 @@ def get_today_pack(_access: dict = Depends(require_bars_access)):
     return out
 
 
+# ⛔ (2026-11-25, scale and reliability) /api/bars NEVER HOLDS THE DEFAULT POOL, AND WARMS NEVER TAKE THE INTERACTIVE
+# SHARE. The route's thread hops (the sync `require_bars_access` dependency and the sync serve) went through anyio's
+# DEFAULT limiter: 40 tokens shared by EVERY sync route (auth, notebook, screener...). A flood of chart warms, each
+# waiting on a provider fetch, could hold all of it, and an interactive chart ask and any unrelated route queued behind
+# it (#2741 measured the same queue on /api/bars-history). Now the route has its own limiters, one per event loop: an
+# interactive one (BARS_THREADS) and a SMALLER one for best-effort warms (`warm=1`, BARS_WARM_THREADS). A warm waits
+# only behind warms. Server-Timing carries the wait (`bars-wait`, ms: the gate's hop plus the serve's).
+# Rail: tests/test_bars_own_pool.py.
+BARS_THREADS = max(2, int(os.environ.get("BARS_THREADS", "24") or 24))
+BARS_WARM_THREADS = max(1, min(BARS_THREADS - 1, int(os.environ.get("BARS_WARM_THREADS", "6") or 6)))
+_bars_limiters = __import__("weakref").WeakKeyDictionary()
+
+
+def _bars_limiter(warm: bool):
+    """This route's own limiter for an interactive ask or a warm (one pair per event loop)."""
+    import asyncio as _asyncio
+    import anyio as _anyio
+    loop = _asyncio.get_running_loop()
+    pair = _bars_limiters.get(loop)
+    if pair is None:
+        pair = _bars_limiters[loop] = (_anyio.CapacityLimiter(BARS_THREADS), _anyio.CapacityLimiter(BARS_WARM_THREADS))
+    return pair[1] if warm else pair[0]
+
+
+async def _bars_thread(warm: bool, fn, *args, **kwargs):
+    """`fn(*args, **kwargs)` on the route's own limiter: (its result, the ms it waited for a thread)."""
+    import anyio as _anyio
+    t0 = _time.perf_counter()
+    waited = [0.0]
+
+    def run():
+        waited[0] = (_time.perf_counter() - t0) * 1000.0
+        return fn(*args, **kwargs)
+    out = await _anyio.to_thread.run_sync(run, limiter=_bars_limiter(warm))
+    return out, waited[0]
+
+
+def _is_warm_request(request) -> bool:
+    try:
+        return (request.query_params.get("warm") or "") == "1"
+    except Exception:
+        return False
+
+
+async def require_bars_access_bars(request: Request, uct_session: str | None = Cookie(None),
+                                   authorization: str = Header(default="")) -> dict:
+    """`require_bars_access`, run on /api/bars' own limiter (see BARS_THREADS); an app's
+    `dependency_overrides[require_bars_access]` (tests) still applies: it is the same gate."""
+    over = getattr(getattr(request, "app", None), "dependency_overrides", {}).get(require_bars_access)
+    if over is not None:
+        out = over()
+        return await out if hasattr(out, "__await__") else out
+    out, waited = await _bars_thread(_is_warm_request(request), require_bars_access, uct_session, authorization)
+    try:
+        request.state.bars_wait_ms = waited
+    except Exception:
+        pass
+    return out
+
+
+def _stamp_bars_wait(resp, ms: float):
+    """Add `bars-wait;dur=<ms>` to the response's Server-Timing (the thread waits this request paid)."""
+    try:
+        entry = f"bars-wait;dur={ms:.1f}"
+        st = resp.headers.get("server-timing")
+        resp.headers["server-timing"] = f"{st}, {entry}" if st else entry
+    except Exception:
+        pass
+    return resp
+
+
 @router.get("/api/bars/{ticker}")
 async def get_bars(
     ticker: str,
-    _access: dict = Depends(require_bars_access),
+    _access: dict = Depends(require_bars_access_bars),
     tf: str = Query(default="D", description="Timeframe: 1, 5, 15, 30, 60, D, W, M"),
     bars: int = Query(default=200, ge=1, le=60000, description="Max bars to return"),
     since: str = Query(default="", description="Return only bars with t > since (browser delta sync)"),
     to: str = Query(default="", description="Return bars ending at this date (YYYY-MM-DD) — replay pre-cutoff window"),
     warm: int = Query(default=0, description="1 = best-effort background warm (skips the provider fetch when the pod is busy, so it can't starve a real chart request)"),
     session: str = Query(default="", description="Chart session: 'rth' | 'eth' (intraday only). eth on tf=60 serves TradingView's extended 60m grid (clock hours); tail_status is judged against this session. Absent = legacy behaviour."),
+    request: Request = None,
 ):
     """HTTP route → the dedicated bars-serving tier (Path B Phase 2) or the local
     `serve_bars` core.
@@ -680,10 +752,12 @@ async def get_bars(
     # a pair back here with 501) and never the stock/index serve below. `serves` is False for
     # every other symbol and for everyone while the switch is off, so they fall through
     # to exactly the lines that follow.
+    _warm = isinstance(warm, int) and warm == 1
+    _gate_ms = float(getattr(getattr(request, "state", None), "bars_wait_ms", 0.0) or 0.0)
     from api.routers import crypto as _crypto
     if _crypto.serves(ticker, _access):
-        from starlette.concurrency import run_in_threadpool as _pair_pool
-        return await _pair_pool(_crypto.pair_bars_response, ticker, tf, bars, since, to)
+        _resp, _ms = await _bars_thread(_warm, _crypto.pair_bars_response, ticker, tf, bars, since, to)
+        return _stamp_bars_wait(_resp, _gate_ms + _ms)
     origin = os.environ.get("BARS_ORIGIN_URL", "").rstrip("/")
     if origin and _bars_proxy_should_route(ticker, warm):
         try:
@@ -693,16 +767,17 @@ async def get_bars(
         except Exception:
             # tier unreachable/slow/error → fall through to local serve (today's path), EXCEPT an intraday
             # read whose local tail is cold-stale: see `_tier_down_cold_tail`.
-            from starlette.concurrency import run_in_threadpool as _shed_pool
-            _shed = await _shed_pool(_tier_down_cold_tail, ticker, tf, to)
+            _shed, _ms = await _bars_thread(_warm, _tier_down_cold_tail, ticker, tf, to)
+            _gate_ms += _ms
             if _shed is not None:
-                return _shed
+                return _stamp_bars_wait(_shed, _gate_ms)
     # Local serve is SYNC (SQLite/provider I/O) → run it in the threadpool so it never
     # blocks the event loop (this route is async now for the proxy path). Behaviourally
     # identical to the pre-Phase-2 sync route, which FastAPI also ran in the threadpool.
-    from starlette.concurrency import run_in_threadpool
-    return await run_in_threadpool(serve_bars_http, ticker, tf, bars, since, to, warm,
-                                   *((session,) if session else ()))
+    # (2026-11-25) ...on this route's OWN limiter, a warm on the smaller warm share (see BARS_THREADS).
+    _resp, _ms = await _bars_thread(_warm, serve_bars_http, ticker, tf, bars, since, to, warm,
+                                    *((session,) if session else ()))
+    return _stamp_bars_wait(_resp, _gate_ms + _ms)
 
 
 @router.get("/api/adjustment-basis/{ticker}")
