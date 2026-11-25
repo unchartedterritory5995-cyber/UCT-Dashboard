@@ -85,7 +85,11 @@ export function paneObjectsGate(t) {
  *  `display.none`, or a display off the pane at every setting), with none refused, unread or otherwise hidden? */
 export function everyOutputAuthorHidden(t) {
   const outs = ((t && t.outputs) || []).filter((o) => o && o.kind !== 'alertcondition')
-  return outs.length > 0 && outs.every((o) => !o.refusal && !o.displayUnread
+  // ⛔ and the script draws nothing ELSE either: no drawing objects, no paint. One whose plots are all hidden but whose
+  // labels or lines TradingView draws is not "nothing drawn" (session-highs-and-lows, measured), and keeps its refusal.
+  const ops = t && t.objects && Array.isArray(t.objects.ops) ? t.objects.ops.length : 0
+  const paints = ((t && t.presentation && t.presentation.paints) || []).filter((p) => p && !p.hidden && !p.na)
+  return outs.length > 0 && ops === 0 && paints.length === 0 && outs.every((o) => !o.refusal && !o.displayUnread
     && ((o.hidden === true && o.hiddenReason === 'author') || o.offPane === true))
 }
 

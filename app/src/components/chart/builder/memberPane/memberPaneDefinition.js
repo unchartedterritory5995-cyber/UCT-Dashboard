@@ -2490,7 +2490,10 @@ function runtimeLaneDocument({ source, id, name, t, hostReason, hostGuard = null
     // (`paneHides`): ruling 1.2 never OFFERS it, and TradingView DRAWS it unless its own `display`
     // hides it. ⚰️ supertrend-strategy's `mPlot` (Q-SD1 / Q-SD2: `display: 15`, `visible: true`) was
     // "the member pane did not carry this output" here, its value and its colour never drawn.
-    if ((paneHides(o) && o.hiddenReason !== 'constant') || o._authorHidden === true) {
+    // ⭐ e97 U6 — a plot its display keeps OFF THE PANE at every setting (`offPane`: `display.data_window`, …) is carried as a
+    // hidden row, computed and never drawn, as the host lane carries it: its values still reach scans, alerts and the grade
+    const offPaneOnly = o.offPane === true && !o.hidden && !o.displayUnread && !plotarrowWithheld(o)
+    if (!offPaneOnly && ((paneHides(o) && o.hiddenReason !== 'constant') || o._authorHidden === true)) {
       if (o._authorHidden === true || o.hiddenReason === 'author') authorSkipped.add(o.kind)
       continue
     }
@@ -2645,7 +2648,8 @@ function runtimeLaneDocument({ source, id, name, t, hostReason, hostGuard = null
       style: typeof p.style === 'string' ? p.style : 'line',
       ...rowColour(p),
       ...(p.colorWithheld ? { colorWithheld: { ...p.colorWithheld } } : {}),
-      hidden: false,
+      // ⭐ e97 U6 — off the pane at every setting: computed, never drawn
+      hidden: !!(o && o.offPane === true),
       // ⭐ e97 U6 — drawn or hidden as the instance's settings decide (the host row's display, `outputDisplayOf`)
       ...(o && o.hiddenWhen ? { hiddenWhen: o.hiddenWhen } : {}),
       // `linewidth`, as the host lane's rows carry it (see that projection).
