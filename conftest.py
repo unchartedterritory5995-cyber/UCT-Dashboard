@@ -1569,17 +1569,12 @@ if not _INERT_IN_PRODUCTION:
 #     started, so a web pod's boot is not fought over. The boot's deploy-smoke audit queues ten tickers on a
 #     one-worker pool, each waiting for that window (thread dump: `bars_audit._one` in `bg_lane.wait_settled`),
 #     so the process could not exit until ten minutes after it began. A test process has no boot to protect.
-#   * `api/services/perf_beacon.py startup()`: one daemon thread that deletes from the beacon's store every ten
-#     minutes and, once, blanks and REBUILDS a store an older build wrote. It works on whatever store the
-#     environment points at (`PERF_BEACON_DB_PATH`, else `DATA_DIR`, else `/data`, which on a developer PC can be a
-#     real one), so a lifespan test must not start it. tests/test_perf_beacon.py calls its pieces directly.
 # Set here (at conftest import, before any test module) and opt-IN: a test of a prewarm calls its `_run_pass()`
 # directly; tests/test_bg_lane.py sets the lane's variables itself.
 if not _INERT_IN_PRODUCTION:
     os.environ.setdefault("TICKER_LOGOS_PREWARM_DISABLED", "1")
     os.environ.setdefault("TICKER_NAMES_PREWARM_DISABLED", "1")
     os.environ.setdefault("BG_LANE_SETTLE_S", "0")
-    os.environ.setdefault("PERF_BEACON_HOUSEKEEPING_DISABLED", "1")
 
 
 # ─── prebuilt catalogue memo: cleared between tests ────────────────────────

@@ -690,13 +690,26 @@ def test_at_boot_blanks_old_keys_inside_the_background_lane_and_logs_a_count(sto
     assert "blanked 3 " in out and _old_load_key(_IP) not in out and _IP not in out          # the log says a count, nothing else
 
 
-def test_the_housekeeping_thread_is_off_under_pytest_and_when_opted_in_stops_when_told(store, monkeypatch):
-    # OFF under pytest (the root conftest's switch): a lifespan test starts nothing that works on a store
-    assert os.environ.get(pb.HOUSEKEEPING_SWITCH) == "1" and pb.HOUSEKEEPING_SWITCH == "PERF_BEACON_HOUSEKEEPING_DISABLED"
-    assert pb.startup(every_s=0.05) is False
+def test_the_housekeeping_thread_is_off_off_railway_and_when_opted_in_stops_when_told(store, monkeypatch):
+    # ⛔ OFF OFF RAILWAY (a test, a laptop, CI): the app's lifespan calls startup(), and a lifespan test must start nothing
+    # that deletes from, blanks or rebuilds whatever store the environment points at (`/data` on a developer PC can be a
+    # real one). Not the root conftest's job (it is self-protected: tools/agent_ci_required.py): startup() itself starts
+    # only on a Railway service (RAILWAY_SERVICE_NAME) or when PERF_BEACON_HOUSEKEEPING_ENABLED=1 opts in.
+    for k in (pb.HOUSEKEEPING_SWITCH, "RAILWAY_SERVICE_NAME", "PERF_BEACON_HOUSEKEEPING_ENABLED"):
+        monkeypatch.delenv(k, raising=False)
+    started = pb.startup(every_s=60)
+    if started:
+        pb.shutdown()
+    assert started is False, "off Railway, a lifespan started the beacon's housekeeping"
     assert _perf_beacon_threads() == [] and pb._housekeeper is None
-    # opted in, on this test's own tmp store
+    # the off switch wins even on a Railway service
+    monkeypatch.setenv("RAILWAY_SERVICE_NAME", "web")
+    monkeypatch.setenv(pb.HOUSEKEEPING_SWITCH, "1")
+    assert pb.startup(every_s=0.05) is False and _perf_beacon_threads() == []
     monkeypatch.delenv(pb.HOUSEKEEPING_SWITCH)
+    monkeypatch.delenv("RAILWAY_SERVICE_NAME")
+    # opted in, on this test's own tmp store
+    monkeypatch.setenv("PERF_BEACON_HOUSEKEEPING_ENABLED", "1")
     monkeypatch.setattr(pb.bg_lane, "turn", contextmanager(lambda name: (yield)))      # (the lane's pacing is its own tests')
     _an_older_builds_store(store, 3)
     monkeypatch.setattr(pb, "_migrated", set())
@@ -898,3 +911,16 @@ def test_the_real_lifespan_leaves_no_perf_beacon_thread_and_touches_no_store(sto
     assert asked == []
     # control: the lifespan DID reach the beacon's step (the light mode did not skip it), and the step said no
     assert "perf beacon housekeeping: not started" in capsys.readouterr().out
+
+
+def test_on_a_railway_service_the_housekeeping_starts_without_an_opt_in(store, monkeypatch):
+    for k in (pb.HOUSEKEEPING_SWITCH, "PERF_BEACON_HOUSEKEEPING_ENABLED"):
+        monkeypatch.delenv(k, raising=False)
+    monkeypatch.setenv("RAILWAY_SERVICE_NAME", "web")
+    monkeypatch.setattr(pb.bg_lane, "turn", contextmanager(lambda name: (yield)))
+    try:
+        assert pb.startup(every_s=60) is True
+        assert _perf_beacon_threads() == ["perf-beacon-housekeeping"]
+    finally:
+        pb.shutdown()
+    assert pb.HOUSEKEEPING_OPT_IN == "PERF_BEACON_HOUSEKEEPING_ENABLED"
