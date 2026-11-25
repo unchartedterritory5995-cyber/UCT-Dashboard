@@ -60,7 +60,8 @@ describe('(0) the server clock decides the roll (the member clock 6.2 s slow; p-
     expect(w.pf.peekDisplayable('RDDX', '1')).toBe(true)
     // three bars answers' Date headers (the server's whole second): the facade now reads the server's 10:03:00.5
     for (let i = 0; i < 3; i++) {
-      expect(w.clock.noteServerDate(new Date(TRUE).toUTCString(), { sentAt: Date.now() - 40, receivedAt: Date.now() })).toBe(true)
+      // (stamped on the page's monotonic clock, as the bars lane stamps them: serverClock.monoNow)
+      expect(w.clock.noteServerDate(new Date(TRUE).toUTCString(), { sentAt: w.clock.monoNow() - 40, receivedAt: w.clock.monoNow() })).toBe(true)
     }
     expect(Math.abs(w.clock.serverNow() - (Math.floor(TRUE / 1000) * 1000 + 500))).toBeLessThan(60)
     expect(w.pf.peekDisplayable('RDDX', '1')).toBe(false)

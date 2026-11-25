@@ -17,7 +17,7 @@ import { memHas as _memHasRaw, memPutMonotonic as _memPutMono, memPeek as _memPe
 import { seriesCacheTf, barsSessionQuery, barsGridQuery } from '../components/chart/barTime'
 import { setViewShowExtended } from './viewSession'
 import { isBarsSymbol } from './barsSymbol'
-import { noteServerDate } from '../lib/serverClock'
+import { noteServerDate, monoNow } from '../lib/serverClock'
 import { FIRST_PAINT_BARS, firstPaintBarsFor, fullBarsFor } from './barsBackfill'
 import { isDailyTailStale, isDailyTodayCloseProvisionalForPaint, dailyCachePaintVerdict, classifyIntradayTail, isCacheCurrentForView } from './marketSession'
 import { getTodayBar, todayPackUsable } from '../lib/todayPackClient'
@@ -526,10 +526,14 @@ export async function prepareForDisplay(sym, tf) {
 // The handoff's one request for a symbol nothing has cached. A 503 rejects tagged exactly as
 // StockChart's fetcher does (`warming`, `retryAfterMs`).
 export async function _chartLaneFetch(url, signal) {
-  const sentAt = Date.now()
+  const sentAt = monoNow()
   const r = await fetch(url, signal ? { signal } : undefined)
-  // ⭐ (2026-11-25) every bars answer is a sample of the server's clock (lib/serverClock.js: the roll decisions' `now`)
-  try { noteServerDate(r.headers?.get?.('date'), { sentAt, receivedAt: Date.now() }) } catch { /* a sample only */ }
+  // ⭐ (2026-11-25) a bars answer is a sample of the server's clock (lib/serverClock.js: the roll decisions' `now`), on the
+  // monotonic clock, and never one a cache could have served (review of #2733: its Date is the cached answer's, not now)
+  try {
+    const h = r.headers
+    noteServerDate(h?.get?.('date'), { sentAt, receivedAt: monoNow(), age: h?.get?.('age') ?? null, cacheControl: h?.get?.('cache-control') ?? null })
+  } catch { /* a sample only */ }
   if (r.ok) return r.json()
   const err = new Error(`HTTP ${r.status}`)
   err.status = r.status
