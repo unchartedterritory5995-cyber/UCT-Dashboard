@@ -15,8 +15,8 @@
 //
 // ⭐ The two scripts of #2254's trace (A, B) are licence-held and cannot be committed: their budgets are measured by the
 // same code on the developer's box, `PASTE_BYTES_LOCAL` (a JSON list of `{name, path, budgets}`), and recorded in the
-// evidence; in CI this half has nothing to read and says so. ⭐ e98 P2: those budgets are `wireBytes` too now; the
-// evidence's figures were `v8.serialize` lengths on Node 24, re-measure before relying on them.
+// evidence; in CI this half has nothing to read and says so. ⭐ e98 P2: A/B (licence-held) never measured; the rail
+// measures them with wireBytes whenever PASTE_BYTES_LOCAL is set.
 import { describe, it, expect, vi, beforeAll } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
