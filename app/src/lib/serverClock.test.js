@@ -104,7 +104,7 @@ describe('(review of #2733) the wall clock jumping (an NTP resync) moves nothing
     expect(Math.abs(serverNow() - (a + 1000))).toBeLessThanOrEqual(5)
   })
 
-  it('a forward jump after learning (the PC clock corrected, today's case): the corrected wall answers, never backwards', () => {
+  it("a forward jump after learning (the PC clock corrected, today's case): the corrected wall answers, never backwards", () => {
     for (let i = 0; i < 3; i++) sample(wall + 6200)
     const a = serverNow()
     wall += 6200                               // the resync: the wall is now the server's time (ambiguous with a sleep: see below)

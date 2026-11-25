@@ -226,9 +226,11 @@ describe("C: the switch's own answer still behind", () => {
     w.store.dispose()
   })
 
-  it('C1b (control) one bucket behind long after the roll: the name did not print, the own answer lends its grace', async () => {
+  // ⛔ CHANGED 2026-11-25 (review of #2733): the grace needs the server's proof THROUGH THE ROLL. `lag:65` proved only through
+  // 10:00:25 (nothing about the rest of the 10:00 bucket), so this control now uses a thin name verified through now.
+  it('C1b (control) one bucket behind long after the roll: the name did not print (proved through the roll), the own answer lends its grace', async () => {
     vi.setSystemTime(at(10, 1, 25))
-    const w = await boot('lag:65')                                    // nothing newer than 09:59 for over a minute
+    const w = await boot('thin:1')                                    // no trade since 09:59, verified through now
     await warmNext(w, ['AAA'])
     vi.setSystemTime(at(10, 1, 30))
     expect(w.pf.peekDisplayable('AAA', '1')).toBe(false)
