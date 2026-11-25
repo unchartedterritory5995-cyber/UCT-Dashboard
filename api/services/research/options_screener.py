@@ -981,7 +981,9 @@ def iv_percentile(*, store: Optional[LocalStore] = None, now=None, limit: int = 
             legacy_days.append(d)
             continue
         for r in rows:
-            iv = _f(r.get("atm_iv"))
+            # the ONE reader of the column (`iv_history.atm_iv`): a reading under `iv_history.IV_FLOOR` is a vendor
+            # placeholder, never a point (speed pass 2, 2026-11-24: this tab parsed it itself and ranked ~0.0019)
+            iv, _placeholder = iv_history.atm_iv(r.get("atm_iv"))
             if iv is not None:
                 series.setdefault(r["underlying"], []).append((d, iv))
     rankable = len(sessions) - len(legacy_days)

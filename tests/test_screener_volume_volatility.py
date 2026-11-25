@@ -371,7 +371,7 @@ def test_the_build_reads_the_index_once_and_writes_the_six_columns(tmp_path, mon
     monkeypatch.setattr(short_columns, "read_short_columns", lambda t, failures=None, receipt=None: {})
     monkeypatch.setattr(fund_trends, "read_fields", lambda t, failures=None, settled=None, receipt=None: {})
     for fn in ("read_earnings_fields", "read_insider_fields"):
-        monkeypatch.setattr(bif, fn, lambda t, failures=None, session=None, receipt=None: {})
+        monkeypatch.setattr(bif, fn, lambda t, failures=None, session=None, receipt=None, reports=None: {})
     monkeypatch.setattr(bif, "read_fund_fields", lambda t, failures=None, receipt=None: {})
 
     out = sb.run_build(max_tickers=2)

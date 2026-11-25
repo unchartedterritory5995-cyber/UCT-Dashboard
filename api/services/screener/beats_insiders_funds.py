@@ -110,10 +110,12 @@ def _fiscal(q: dict) -> Optional[tuple]:
     return fy, fq
 
 
-def stock_earnings(payload: dict, session: str) -> tuple[dict, str]:
+def stock_earnings(payload: dict, session: str, last: Optional[dict] = None) -> tuple[dict, str]:
     """`({column: value}, state)` for one held copy as known at `session` (YYYY-MM-DD). state: 'ok' | 'no_report'
     (no dated reported quarter on or before the session) | 'awaiting' (the copy's next report date has passed with no
-    result in it)."""
+    result in it). `last` (2026-11-24): when a dict is passed and the state is 'ok', it receives the newest such
+    quarter's `report_date` and `label`, the report the Screener's post-earnings drift is worked out for
+    (`row_columns.drift_fields`), from this same pass."""
     from api.services import earnings_intel as EI                  # noqa: PLC0415 -- lazy, like held_copies
     from api.services import sector_earnings_calc as EC            # noqa: PLC0415
     dated = []
@@ -130,6 +132,8 @@ def stock_earnings(payload: dict, session: str) -> tuple[dict, str]:
     nxt = _iso(payload.get("next_report_date") or summary.get("next_report_date"))
     if nxt and dated[0][1] < nxt <= session:
         return {}, "awaiting"
+    if last is not None:
+        last.update(report_date=dated[0][1], label=dated[0][2].get("label"))
     rows = [EC.reporter_row("", q, {}, None, lambda _d: False) for _k, _d, q in dated]
     out: dict = {}
     if rows[0][EC.EPS_PCT] is not None:
@@ -145,10 +149,12 @@ def stock_earnings(payload: dict, session: str) -> tuple[dict, str]:
 
 
 def read_earnings_fields(targets, failures=None, *, session: Optional[date] = None,
-                         receipt: Optional[dict] = None) -> dict:
+                         receipt: Optional[dict] = None, reports: Optional[dict] = None) -> dict:
     """{TICKER: {eps_surprise_last?, eps_beat_streak?}}: ONE pass over the held copies (`held_copies`, one store
     connection). `receipt` (filled when a dict is passed): state ('served' | 'no_session'), session, how many
-    copies were held, not held, behind ('awaiting'), with no dated report, and matched."""
+    copies were held, not held, behind ('awaiting'), with no dated report, and matched. `reports` (2026-11-24, filled
+    when a dict is passed): {TICKER: {report_date, label}} for every copy in state 'ok', the newest dated report as of
+    the session (`stock_earnings`' `last`), handed to the build's post-earnings drift so it reads no store again."""
     said = {"state": None, "session": session.isoformat() if session else None, "targets": len(targets or ()),
             "held": 0, "not_held": 0, "awaiting": 0, "no_report": 0, "matched": 0}
     if session is None:
@@ -161,11 +167,15 @@ def read_earnings_fields(targets, failures=None, *, session: Optional[date] = No
             said["not_held"] += 1
             continue
         said["held"] += 1
-        vals, state = stock_earnings(payload, iso)
+        last: Optional[dict] = {} if reports is not None else None
+        vals, state = stock_earnings(payload, iso, last)
         if state != "ok":
             said[state] += 1
-        elif vals:
-            out[str(sym).upper()] = vals
+        else:
+            if last:
+                reports[str(sym).upper()] = last
+            if vals:
+                out[str(sym).upper()] = vals
         del payload
     said["matched"] = len(out)
     if said["awaiting"]:

@@ -5,7 +5,18 @@
 // several widgets at once, and re-render economy on a quote tick. The shared pool
 // and the day server are faked (fakeNewsDay); synthetic only.
 import { act, fireEvent, render, renderHook, screen, waitFor, within } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+// ⏰ ONE CLOCK FOR THE WHOLE FILE (2026-11-24). `NOW` below is read once at load, the headlines are stamped
+// from it, and the widget and fakeNewsDay read Date.now() again for "today" (an ET calendar day). A run that
+// straddled midnight ET put the headlines on yesterday: 47 of 65 failed in the master deploy gate at 04:59Z on
+// 2026-11-24 (run 45330135614), green on the next run. Date is pinned to a weekday noon ET, BEFORE any import
+// reads it (vi.hoisted), and still advances in real time; timers stay real, so waitFor is unchanged.
+vi.hoisted(() => {
+  vi.useFakeTimers({ toFake: ['Date'], shouldAdvanceTime: true })
+  vi.setSystemTime(new Date('2026-11-24T17:00:00Z'))
+})
+afterAll(() => vi.useRealTimers())
 import { AuthContext } from '../../../context/AuthContext'
 import { setAgentFlag } from '../../../agent/agentFlag'
 import { NewsAgentContext } from './tradeExchangeNewsAgent'

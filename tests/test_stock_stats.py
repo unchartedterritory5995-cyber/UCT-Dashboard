@@ -93,7 +93,12 @@ def _fresh(monkeypatch):
     S.reset_for_tests()
     monkeypatch.setattr(S, "_groups", lambda sym: {})
     monkeypatch.setattr(S, "_is_trading_day", lambda d: d.weekday() < 5)
+    # Speed pass 2 (2026-11-24): a request never builds; it answers `computing` while the stock's one background
+    # build runs (`tests/test_terminal_speed_pass2.py` proves that with the module's own WAIT_S of 0). These tests
+    # prove what the build works out, holds and reads, so each request here waits for the build it started.
+    monkeypatch.setattr(S, "WAIT_S", 10.0)
     yield
+    S.drain_for_tests()
     S.reset_for_tests()
 
 

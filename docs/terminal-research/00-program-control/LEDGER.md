@@ -5231,3 +5231,83 @@ the unchanged full path. There are 2 deleted `api/` lines, both the rewritten ro
   modules are not in its closure (`tools/flow_worker_watch_coverage.py` `verdict()` on this change: those two
   offenders, nothing else).
 - **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.
+
+## Terminal speed pass 2 (IVH off the request with a local index; the IV floor in OSCR and the log history; EEHSC, RSL, OWN; the first open of STAT / FCTX / VFP) · `perf/terminal-speed-pass-2` · 2026-11-24
+## Screener row columns (days to lockup, seasonality, post-earnings drift, factor loadings, up / down capture) · `feat/screener-row-columns` · 2026-11-24
+
+| | |
+|---|---|
+| classification | **flow-worker stranded: NOT EXERCISED, safe; NO marker bump** |
+| stranded files | `api/services/research/iv_history.py`, `api/services/research/iv_history_index.py` (new), `api/services/research/options_screener.py`, `api/services/research/ownership.py` |
+
+- **What changed.** IVH's production store lists and downloads on ONE background refresh (`iv_history.R2Store.listing`;
+  `sessions()` keeps the old blocking behaviour for the background builds that call it), a day's manifest is opened
+  once while its file is unchanged, and a day's row comes from a background-built SQLite index on this server's disk
+  (`iv_history_index.py`) while that day's file is the one indexed, else from the file as before (same answers).
+  OSCR's IV percentile (`options_screener.iv_percentile`) and the log history's daily move and IV crush
+  (`options_analytics/log_history.py`) read ATM IV through `iv_history.atm_iv` (the IV floor). EEHSC never waits and
+  keeps its answer on disk for its New York day (`estimate_revisions.py`); `/api/rs-rankings` makes its bytes once per
+  input (`routers/rs_ranking.py`); OWN holds its record in its own module, not the shared cache (`research/ownership.py`);
+  STAT, FCTX and VFP build a stock's first answer on one background thread and answer `computing` at once
+  (`stock_stats.py`, `factor_exposure.py`, `volume_footprint.py`), and their panels ask again on `computing`.
+- **Flow-worker.** Reaches `iv_history.py` and `options_screener.py` only through `routers.auth`'s function-level
+  imports inside `/api/auth/me`'s flag readout, which call `iv_history.is_enabled()` and `options_screener.is_enabled()`
+  (both unchanged); `iv_history_index.py` only through `iv_history`'s function-level imports on the IVH read path;
+  `ownership.py` only through `coach_chat_tools` -> `voice_tool_impls` -> `institutional_holdings` (function-level
+  hops), a Compass / voice turn flow-worker never answers. Flow-worker mounts only its debug-dump and build-vouch
+  routers: it never serves an IV history, an options screen, the auth payload or an ownership record. The other
+  changed modules are not in its closure (`tools/flow_worker_watch_coverage.py` `verdict()` on this change: those four
+  offenders, nothing else).
+| stranded files | `api/services/screener/filters.py`, `api/services/screener/snapshot_builder.py`, `api/services/screener/snapshot_db.py` |
+
+- **Additive.** Twelve new snapshot columns (`snapshot_db.COLUMNS`, ALTER-added on init) and their twelve bare filters
+  (`filters.py`) in three existing categories and one new one (`factors_capture`, with its own view), one more step in
+  the nightly build's per-row bars pass (`bars_row_columns`) and one guarded per-build context that reads FCTX's
+  factor funds once from the bar store (`snapshot_builder.py`), served by the new `row_columns.py` (web).
+  `beats_insiders_funds.read_earnings_fields` gains an optional `reports` out-dict filled from its same one pass
+  (default unchanged); `methodology.py` gains the twelve methods. Nothing existing changes shape.
+- **Flow-worker.** Reaches the three Screener files only through the static chains the last three Screener units
+  recorded (function-level hops into `rs_ranking` -> `screener.snapshot_builder`, `notebook_widgets` ->
+  `routers.scan_results` -> `screener.snapshot_db`, `coach_chat_tools` -> `rs_screens_service` -> `screener.filters`);
+  it never builds the snapshot and never runs a Screener query, so the older files it keeps running lack only what it
+  never invokes. `row_columns.py`, `beats_insiders_funds.py` and `methodology.py` are not in its closure
+  (`tools/flow_worker_watch_coverage.py` `verdict()` on this change: those three offenders, nothing else).
+- **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.
+
+## Terminal speed pass 3 (FED's rates and headlines off the request; IVH, FED and RSL warmed at boot; FT-006 and OHIS on IVH's mirror; the ready answers' bytes made once) · `perf/terminal-speed-pass-3` · 2026-11-24
+## Terminal review rev4 (a failed build's word kept only briefly in STAT / FCTX / VFP; the estimate snapshot's catch-up stops reading at the next open) · `fix/terminal-review-rev4` · 2026-11-24
+
+| | |
+|---|---|
+| classification | **flow-worker stranded: NOT EXERCISED, safe; NO marker bump** |
+| stranded files | `api/routers/calendar.py`, `api/services/earnings_season.py`, `api/services/held_bytes.py` (new), `api/services/research/iv_history.py`, `api/services/rs_ranking.py` |
+
+- **What changed.** FED's rates block and Fed headlines are served from what `fed_watch.py` holds and refreshed by one
+  background thread each (`rates_served`, `headlines_served`; the rates kept on disk for their New York day); IVH's R2
+  mirror, FED's rates and headlines and the RS list's bytes are warmed by three boot DATE jobs (480, 540, 660 s,
+  `api/main.py`); the IV rank header and the options log history read IVH's mirror once it is ready
+  (`iv_history.mirror_sessions`); `/api/rs-rankings` makes its bytes when a source refreshes (`rs_ranking.on_change`,
+  `ibd_latest_nowait`, an equal rating table kept as the same object); STAT, VFP, ERNS, SETH one stock and OIC send a
+  held answer as the bytes made for it once (`held_bytes.py`), and OIC's per-stock compute makes row dicts only for the
+  rows shown. No figure, field or word changes except one new FED sentence for headlines still being read.
+- **Flow-worker.** Reaches `calendar.py`, `earnings_season.py` and `held_bytes.py` only through function-level imports
+  (`coach_chat_tools` -> `voice_tool_impls` -> `econ_calendar_fmp` -> `routers.calendar`, then function-level imports
+  inside the ERNS route), `iv_history.py` only through `routers.auth`'s function-level flag readout
+  (`iv_history.is_enabled()`, unchanged), and `rs_ranking.py` only through `services.groups`' function-level import, a
+  Compass / voice turn or a groups read flow-worker never answers. Flow-worker mounts only its debug-dump and build-vouch
+  routers: it never serves the calendar, ERNS, an IV history, the RS list or a groups read. The other changed modules
+  are not in its closure (`tools/flow_worker_watch_coverage.py` `verdict()` on this change: those five offenders,
+  nothing else).
+| stranded files | `api/services/estimate_history.py` |
+
+- **What changed.** STAT, FCTX and VFP keep the word of a build that held nothing (a failed read, `busy`) only for
+  `held_build.FAILED_S`, the span held_build says a failed build: an older word is dropped and the request starts a new
+  build (`stock_stats.py`, `factor_exposure.py`, `volume_footprint.py`, `SAID_S`). The estimate snapshot's run stops
+  reading at the next session's open (`run_daily`'s `window_s`, from `run_scheduled`) and a run cut there is recorded
+  as its session's hole (`_close_window`), never finished under the earlier date (`estimate_history.py`).
+- **Flow-worker.** Reaches `estimate_history.py` only through `... -> journal_two.notebook_widgets ->
+  routers.live_prices -> routers.auth -> estimate_history`, a function-level import inside `/api/auth/me`'s flag
+  readout that calls `estimate_history.is_enabled` (unchanged), as the nightly catch-ups unit recorded; it registers no
+  estimate job and never takes a snapshot. The other changed modules are not in its closure
+  (`tools/flow_worker_watch_coverage.py` `verdict()` on this change: that one offender, nothing else).
+- **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.

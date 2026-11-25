@@ -155,6 +155,20 @@ export function createRegistry({
       _evict()
       return entries.get(key)?.state ?? e.state
     },
+    /**
+     * Apply one reducer action to a key that is ALREADY HELD, for the minute feed (minuteFeed.js): it appends the
+     * minute that just closed to every held 1m key, once a minute. Unlike `dispatch` it never CREATES an entry (a
+     * key nobody holds stays unheld) and never marks the entry USED (a feed that touched every 1m key each minute
+     * would re-rank them all ahead of the keys the member last looked at, and the LRU would evict those first).
+     * Subscribers are notified as for any change. Returns the snapshot, or null when the key is not held.
+     */
+    feed(key, action, extraCtx) {
+      const e = entries.get(key)
+      if (!e) return null
+      _set(key, e, reduce(e.state, action, ctxFor(key, extraCtx)))
+      _evict()
+      return entries.get(key)?.state ?? null
+    },
     /** Re-derive time-dependent status for every held entry (one clock tick). */
     tick(extraCtx) {
       for (const [key, e] of entries) _set(key, e, refreshStatus(e.state, ctxFor(key, extraCtx)))

@@ -168,7 +168,7 @@ function sameTaskRoute(sym, tf, sess) {
  *  its commit, of what the first frame is built
  *  from and, when it is not the device copy, which rule refused it (data/deviceStore/diag.js). Read by no
  *  decision; a failure here never costs the switch. */
-function noteDeviceFor(sym, tf, sess, outcome, pre = null) {
+function noteDeviceFor(sym, tf, sess, outcome, pre = null, gate) {
   if (!DIAG) return
   try {
     const intraday = INTRADAY.has(String(tf))
@@ -177,7 +177,10 @@ function noteDeviceFor(sym, tf, sess, outcome, pre = null) {
     // queue: the device client's reads in flight at this commit (a held arrow's backlog, if any)
     let queue = null
     try { queue = deviceSource()?.inFlight?.() ?? null } catch { queue = null }
-    const rec = noteDeviceSwitch({ sym, tf: String(tf), at: performance.now(), outcome, painted: v.held, reason: v.reason, why: null, queue, pre })
+    // `gate` (2026-11-23): the key handler's decision for this chart: null = it could show it in the key task;
+    // 'settle' | 'route:daily-hold' | 'route:prepare' | 'columns' = the gate it failed (decisionGateFor); 'unasked' = an
+    // earlier chart of the group failed first, so this one was not asked
+    const rec = noteDeviceSwitch({ sym, tf: String(tf), at: performance.now(), outcome, painted: v.held, reason: v.reason, why: null, queue, pre, gate })
     if (v.held !== 'device') deviceWhy(sym, vtf).then((w) => { rec.why = w }, () => { rec.why = 'error' })
   } catch { /* diagnostics only */ }
 }
@@ -197,13 +200,18 @@ function deviceRuleBeforeAnswer(sym, tf, sess) {
 
 /** ⭐ CAN THIS CHART SHOW `sym` IN THIS TASK (the key handler's decision, handoffGroups.decideGroupShow)? The same
  *  rules the effect below applies, in the same order: the settle rule says apply, and the switch would commit at
- *  once (an economic series; or displayable and whole with its panes' columns landed). Pure. */
-function canShowNowFor(sym, tf, sess, st, settle) {
-  if (!sym || !tf) return false
-  if (st && st.debounceMs > 0 && settleAction({ now: settle.now, lastRequestAt: settle.lastRequestAt, lastAppliedAt: settle.lastAppliedAt, warm: !!st.isWarm?.(sym) }) !== 'apply') return false
+ *  once (an economic series; or displayable and whole with its panes' columns landed). Pure.
+ *  ⭐ (2026-11-23, review of #2624 2d) ONE ANSWER THAT NAMES THE RULE THAT SAID NO: null when the chart can show `sym`
+ *  in this task; else 'no-symbol' | 'settle' | 'route:daily-hold' | 'route:prepare' | 'columns'. The member's canShowNow
+ *  is this answer being null (the same checks in the same order as before); a tester's device diagnostics record it
+ *  per switch (`gate`), so a measurement can say which member and which gate sent a group down the round. */
+function decisionGateFor(sym, tf, sess, st, settle) {
+  if (!sym || !tf) return 'no-symbol'
+  if (st && st.debounceMs > 0 && settleAction({ now: settle.now, lastRequestAt: settle.lastRequestAt, lastAppliedAt: settle.lastAppliedAt, warm: !!st.isWarm?.(sym) }) !== 'apply') return 'settle'
   const route = sameTaskRoute(sym, tf, sess)
-  if (route === 'econ') return true
-  return route === 'now' && columnsReadyFor(sym, tf)
+  if (route === 'econ') return null
+  if (route !== 'now') return `route:${route}`
+  return columnsReadyFor(sym, tf) ? null : 'columns'
 }
 
 /** ⭐ (2026-11-21, the cold switch) START THIS CHART'S DEVICE READ for `sym` now (the key press: handoffGroups
@@ -281,16 +289,22 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
   // a read per row it passes
   const primeRef = useRef(null)
   if (!primeRef.current) primeRef.current = latestOnly((sym) => primeDeviceFor(sym, viewRef.current.tf, sessOf(viewRef.current.showExtended)))
+  // the decision's answer for this chart, by symbol (diagnostics: the record's `gate`)
+  const gateRef = useRef(null)
   useLayoutEffect(() => { viewRef.current = { tf, showExtended } })
   useLayoutEffect(() => {
     if (!scoped) return undefined
     return registerMember(scope, group, memberIdRef.current, {
       tf: () => viewRef.current.tf,
       prime: (sym) => primeRef.current(sym),
-      canShowNow: (sym, settleNow) => canShowNowFor(sym, viewRef.current.tf, sessOf(viewRef.current.showExtended), settleRef.current, settleNow),
+      canShowNow: (sym, settleNow) => {
+        const gate = decisionGateFor(sym, viewRef.current.tf, sessOf(viewRef.current.showExtended), settleRef.current, settleNow)
+        gateRef.current = { sym, gate }
+        return gate === null
+      },
       showDecided: (sym) => {
         lastOutcomeRef.current = null   // the synchronous warm path, as the effect's same-tick commit records it
-        noteDeviceFor(sym, viewRef.current.tf, sessOf(viewRef.current.showExtended), null)
+        noteDeviceFor(sym, viewRef.current.tf, sessOf(viewRef.current.showExtended), null, null, null)
       },
     })
   }, [scoped, scope, group])
@@ -410,7 +424,8 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
       const noteDevice = () => {
         if (noted) return
         noted = true
-        noteDeviceFor(requestedSym, tf, sess, lastOutcomeRef.current, pre)
+        const g = gateRef.current
+        noteDeviceFor(requestedSym, tf, sess, lastOutcomeRef.current, pre, scoped ? (g && g.sym === requestedSym ? g.gate : 'unasked') : undefined)
       }
       const commit = () => {
         if (genRef.current !== gen) return

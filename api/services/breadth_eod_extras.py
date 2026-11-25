@@ -363,9 +363,7 @@ def sp500_close(date_iso: str) -> Optional[float]:
         return licensed
     from api.services import yf_util
 
-    def _get():
-        import yfinance as yf
-        df = yf.download("^GSPC", period="1mo", auto_adjust=True, progress=False)
+    def _close_on_session(df):
         if df is None or df.empty:
             return None
         cl = df["Close"]
@@ -375,7 +373,9 @@ def sp500_close(date_iso: str) -> Optional[float]:
         hit = [v for d, v in cl.items() if str(d)[:10] == date_iso]
         return round(float(hit[-1]), 2) if hit else None
 
-    return yf_util.bounded_call(_get, None, timeout=20.0)
+    # The download AND this read run inside the guard, as one call (yf_util.download's `then`).
+    return yf_util.download("^GSPC", period="1mo", auto_adjust=True, progress=False,
+                            then=_close_on_session, default=None, timeout=20.0)
 
 
 def cboe_levels(date_iso: str, refresh: bool = True) -> dict:

@@ -20,7 +20,7 @@ Held here, with no paid call:
     failure);
   * the cases are pending: no answer, no record, and none of them counts toward any threshold.
 
-THE LIVE PASS (2026-11-23) answered all nine. Eight are RECORDED and one waits:
+THE LIVE PASS (2026-11-23) answered all nine. Eight were RECORDED and one waited; all nine are recorded now:
   * four came back as scripts, right by value, and are script cases (cap-04, cap-05, cap-06, cap-08). cap-04 and
     cap-05 each name an EDGE: on the plain bars a window one bar longer draws the very same lines;
   * four the door answered WITHOUT a script (cap-02, cap-03, cap-07, cap-09). They are formula cases now, held by
@@ -28,7 +28,9 @@ THE LIVE PASS (2026-11-23) answered all nine. Eight are RECORDED and one waits:
     Three are right. cap-03 is recorded WRONG with its findings named, and the formula that says its words is here;
   * the formula lane now holds NOTHING where the words ask for nothing ("only while ..., and nothing on the other
     bars"): until this pass it compared only the bars both sides had a value on;
-  * cap-01 waits: the formula lane built a different thing and said so, which is not a build.
+  * cap-01 waited: the formula lane built a different thing and said so, which is not a build. After #2597 (the
+    look-back fact where the first attempt reads it) the member account asked it six times on 2026-11-24: six
+    scripts, each RIGHT on every bar. It is a script case now, and its record says what made it right.
 """
 from __future__ import annotations
 
@@ -47,7 +49,7 @@ from tools.value_cases.market import STOCK
 ROOT = Path(__file__).resolve().parents[1]
 DATA = json.loads((ROOT / "tests" / "fixtures" / "authoring" / "value_cases.json").read_text(encoding="utf-8"))
 PENDING = {c["id"]: c for c in DATA.get("pending") or [] if c["id"].startswith("cap-")}
-#: the cases of this round that hold their first live answer (2026-11-23): each was answered with a script, right
+#: the cases of this round that hold a live answer (2026-11-23, cap-01 2026-11-24)
 RECORDED = {c["id"]: c for c in DATA["cases"] if c["id"].startswith("cap-")}
 EVERY = {**PENDING, **RECORDED}
 IDS = [f"cap-0{n}" for n in range(1, 10)]
@@ -92,7 +94,7 @@ def graded(cid, *, columns=None, labels=(), lines=(), boxes=(), source="plot(x)"
 
 def test_nine_cases_each_with_its_words_its_rule_and_where_it_stands():
     assert sorted(EVERY) == IDS and not set(PENDING) & set(RECORDED)
-    assert sorted(PENDING) == ["cap-01"]                 # a disclosed stand-in is not a build: it waits for the door's routing unit
+    assert sorted(PENDING) == []                         # cap-01 was the last: adopted on the member record, 2026-11-24
     assert tuple(formula_rules.SAME_RULE_AS_THE_SCRIPT_LANE) == ON_THE_FORMULA_LANE
     for cid, case in EVERY.items():
         formula = cid in ON_THE_FORMULA_LANE
@@ -124,9 +126,15 @@ def test_nine_cases_each_with_its_words_its_rule_and_where_it_stands():
     for finding in ("occurrence 0 is the newest", "1,261 of 1,639 bars differed"):
         assert finding in first_pass["defect"], finding
     assert first_pass["answer"] != RECORDED["cap-03"]["answer"] and first_pass["recorded"]["front"] != RECORDED["cap-03"]["recorded"]["front"]
-    # cap-01 waits with BOTH live passes beside it: the stand-in, then two right scripts and one stand-in that was not said
-    for said in ("DISCLOSED STAND-IN", "2 of 3 RIGHT, as scripts", "NOT disclosed", "stays pending"):
-        assert said in PENDING["cap-01"]["found_live"], said
+    # cap-01 is recorded RIGHT, and says what made it right (the ASSISTANT side: #2597, not an engine fix) and what
+    # it rests on (the member account, six of six); what the passes before it found is kept beside it
+    cap01 = RECORDED["cap-01"]
+    assert cap01["lane"] == "script" and "recorded_verdict" not in cap01 and "defect" not in cap01 and "found" not in cap01
+    assert cap01["recorded"]["front"] == "6d50f4662b" and cap01["recorded"]["on"] == "2026-11-24"
+    for said in ("MEMBER record", "role member", "6 of 6 RIGHT", "0 of 2,000 bars", "#2597",
+                 "0e7aeb43f46f8ccd790fc4626cccf62bbd73a601", "ASSISTANT side", "DISCLOSED STAND-IN", "NOT disclosed"):
+        assert said in cap01["provenance"], said
+    assert "engine_fixed" not in json.dumps(cap01)
     assert RECORDED["cap-04"]["edge"] == {"back": 3, "low": True} and RECORDED["cap-05"]["edge"] == {"back": 60, "low": True}
     assert set(COLUMN_RULES) | set(DRAWN_RULES) == set(IDS)
     assert [R.RULES[cid] for cid in COLUMN_RULES] == [R.rule_cap01, R.rule_cap02, R.rule_cap03, R.rule_cap07, R.rule_cap09]

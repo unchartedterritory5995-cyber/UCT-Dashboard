@@ -11,6 +11,7 @@
 // prior weekday-only/16:00 behavior — never a guess, never a throw.
 import { hasCoverage, holidayOn, earlyCloseOn } from '../lib/marketClock/nyseCalendar'
 import { bucketStartUnix as _sharedBucketStartUnix, isRthBar } from '../components/chart/barTime'
+import { etWallDate } from './etWall'
 
 const _pad = (n) => String(n).padStart(2, '0')
 
@@ -36,7 +37,7 @@ function _isNonTradingDayET(d) {
 // Holiday-aware (via the shared NYSE calendar), so a developing-bar reservation/seed is never
 // placed on a day when no new bar will actually arrive (weekend/holiday → a phantom right slot).
 export function isTradingSessionTodayET() {
-  try { return !_isNonTradingDayET(new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }))) }
+  try { return !_isNonTradingDayET(etWallDate(Date.now())) }
   catch { return false }
 }
 
@@ -89,7 +90,7 @@ function _effectiveCloseMinutesET(d) {
  * early. This fix removes that asymmetry rather than papering over one side of it.
  */
 export function expectedLatestDailySessionET(nowMs = Date.now()) {
-  const nowET = new Date(new Date(nowMs).toLocaleString('en-US', { timeZone: 'America/New_York' }))
+  const nowET = etWallDate(nowMs)
   const dow = nowET.getDay()               // 0 Sun … 6 Sat
   const mins = nowET.getHours() * 60 + nowET.getMinutes()
   const d = new Date(nowET)
@@ -143,7 +144,7 @@ export function isDailyTailStale(isoTail) {
 // rather than about the wall clock. Defaults to now, so every existing caller is
 // unchanged.
 export function expectedDailyTailForPaintET(nowMs = Date.now()) {
-  const nowET = new Date(new Date(nowMs).toLocaleString('en-US', { timeZone: 'America/New_York' }))
+  const nowET = etWallDate(nowMs)
   const dow = nowET.getDay()
   const mins = nowET.getHours() * 60 + nowET.getMinutes()
   // RTH (weekday 09:30–16:00 ET): the server carries today's developing bar, so the
@@ -204,7 +205,7 @@ export function isDailyTailStaleForPaint(isoTail) {
 export const DAILY_CLOSE_SETTLE_MS = 5 * 60_000
 export function isDailyTodayCloseProvisionalForPaint(isoTail, savedAtMs = null, nowMs = Date.now()) {
   if (typeof isoTail !== 'string' || !isoTail) return false
-  const nowET = new Date(new Date(nowMs).toLocaleString('en-US', { timeZone: 'America/New_York' }))
+  const nowET = etWallDate(nowMs)
   const dow = nowET.getDay()
   const mins = nowET.getHours() * 60 + nowET.getMinutes()
   const closeMin = _effectiveCloseMinutesET(nowET)
@@ -214,7 +215,7 @@ export function isDailyTodayCloseProvisionalForPaint(isoTail, savedAtMs = null, 
   if (Number.isFinite(savedAtMs) && savedAtMs > 0) {
     // Written after the close (+ settle, the same 16:05 the tape-settled jobs use)?
     // Compared in ET wall time on the same calendar day, so DST cannot move it.
-    const savedET = new Date(new Date(savedAtMs - DAILY_CLOSE_SETTLE_MS).toLocaleString('en-US', { timeZone: 'America/New_York' }))
+    const savedET = etWallDate(savedAtMs - DAILY_CLOSE_SETTLE_MS)
     const savedMins = savedET.getHours() * 60 + savedET.getMinutes()
     if (_isoOfET(savedET) === todayISO && savedMins >= closeMin) return false
   }
@@ -313,7 +314,7 @@ export const DAILY_TODAY_MAX_AGE_MS = 90_000
  */
 export function isDailyTodayBarStaleForPaint(isoTail, savedAtMs, nowMs = Date.now()) {
   if (typeof isoTail !== 'string' || isoTail.length < 10) return false
-  const nowET = new Date(new Date(nowMs).toLocaleString('en-US', { timeZone: 'America/New_York' }))
+  const nowET = etWallDate(nowMs)
   const dow = nowET.getDay()
   const mins = nowET.getHours() * 60 + nowET.getMinutes()
   if (!(dow >= 1 && dow <= 5 && mins >= 570 && mins < _effectiveCloseMinutesET(nowET))) return false
@@ -326,7 +327,7 @@ export function isDailyTodayBarStaleForPaint(isoTail, savedAtMs, nowMs = Date.no
 // `t` as unix seconds). Used to compare an intraday tail's SESSION against the last
 // closed daily session — the session model both daily and intraday freshness share.
 function _etDateOfUnix(unixSec) {
-  const d = new Date(new Date(unixSec * 1000).toLocaleString('en-US', { timeZone: 'America/New_York' }))
+  const d = etWallDate(unixSec * 1000)
   const p = (n) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
 }
@@ -671,7 +672,7 @@ export function classifyIntradayTail(lastTUnixSec, tf) {
   // short tail), not gapped.
   if (_intradayCompletenessOn()) {
     const tfMin = Math.max(1, Number(tf) || 5)
-    const tailD = new Date(new Date(lastTUnixSec * 1000).toLocaleString('en-US', { timeZone: 'America/New_York' }))
+    const tailD = etWallDate(lastTUnixSec * 1000)
     const tailMin = tailD.getHours() * 60 + tailD.getMinutes()
     if (tailMin < _effectiveCloseMinutesET(tailD) - tfMin) return 'behind'
   }
@@ -708,7 +709,7 @@ export const CURRENTNESS = Object.freeze({
  *  `bars_fetch.intraday_ext_session_complete`. */
 function _reachesExtendedClose(tailT, tf) {
   const tfMin = Math.max(1, Number(tf) || 5)
-  const tailD = new Date(new Date(tailT * 1000).toLocaleString('en-US', { timeZone: 'America/New_York' }))
+  const tailD = etWallDate(tailT * 1000)
   const tailMin = tailD.getHours() * 60 + tailD.getMinutes()
   const extClose = _effectiveCloseMinutesET(tailD) + (_EXT_CLOSE_MINUTES - 960)
   return tailMin >= extClose - 2 * tfMin

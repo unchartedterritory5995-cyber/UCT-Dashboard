@@ -2896,7 +2896,10 @@
    Left: the open layout's NAME (it is the Layouts button) + its save state. Then "+ Add widget"
    (the one white button) and "Tools" (a soft button). Right: Merge widgets as an icon toggle and
    the UCT Agent. Gold only on what is current or on: the ✓ on the open layout / running tool, the
-   1D-style underline on a toggle or a running mode, the dot for unsaved changes. */
+   1D-style underline on a toggle or a running mode, the dot for unsaved changes.
+   This row sits on the PAGE (--bg-surface), so its inks are the light-only --signature-page-*
+   names over the Signature tokens (styles/tokens.css): the dark themes keep the Signature
+   values exactly, a light theme takes its own page inks instead of white on white. */
 .workspaceHeader { gap: 6px; padding: 10px 14px 10px 12px; }
 .tbName {
   display: inline-flex; align-items: center; gap: 8px; height: 34px; max-width: 320px; padding: 0 10px 0 8px;
@@ -2905,22 +2908,22 @@
 }
 .tbNameText { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tbName svg, .tbName svg * { stroke: currentColor !important; filter: none !important; }
-.tbName > svg { color: #a9a59b; flex: 0 0 auto; }
-.tbName:hover, .tbName[aria-expanded='true'] { background: rgba(248, 247, 243, 0.06); }
-.tbName:focus-visible, .tbPrim:focus-visible, .tbSoft:focus-visible, .tbIcon:focus-visible { outline: 2px solid rgba(248, 247, 243, 0.4); outline-offset: 1px; }
-.tbState { display: inline-flex; align-items: center; gap: 6px; margin: 0 6px 0 2px; font: 500 12px var(--font-sans); color: #93939a; white-space: nowrap; }
+.tbName > svg { color: var(--signature-page-dim, var(--signature-dim)); flex: 0 0 auto; }
+.tbName:hover, .tbName[aria-expanded='true'] { background: color-mix(in srgb, var(--signature-page-bright, var(--signature-bright)) 6%, transparent); }
+.tbName:focus-visible, .tbPrim:focus-visible, .tbSoft:focus-visible, .tbIcon:focus-visible { outline: 2px solid color-mix(in srgb, var(--signature-page-bright, var(--signature-bright)) 40%, transparent); outline-offset: 1px; }
+.tbState { display: inline-flex; align-items: center; gap: 6px; margin: 0 6px 0 2px; font: 500 12px var(--font-sans); color: var(--signature-page-faint, var(--signature-faint)); white-space: nowrap; }
 .tbStateDot { width: 6px; height: 6px; border-radius: 50%; background: #6f6c66; flex: 0 0 auto; }
-.tbStateDirty { color: #ededed; }
+.tbStateDirty { color: var(--signature-page-text, var(--signature-text)); }
 .tbStateDirty .tbStateDot { background: var(--ut-gold); }
 /* a refused save (owner 11-16): the dot and the retry link in the soft error red */
 .tbStateFailed .tbStateDot { background: #f0827a; }
-.tbStateFailed .tbStateSave { color: #f0827a; text-decoration-color: rgba(240, 130, 122, 0.45); }
+.tbStateFailed .tbStateSave { color: var(--signature-page-danger, #f0827a); text-decoration-color: rgba(240, 130, 122, 0.45); }
 .tbStateFailed .tbStateSave:hover { text-decoration-color: #f0827a; }
 .tbStateSave {
-  border: 0; background: none; padding: 0 2px; cursor: pointer; color: #f8f7f3; font: 600 12px var(--font-sans);
-  text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgba(248, 247, 243, 0.35);
+  border: 0; background: none; padding: 0 2px; cursor: pointer; color: var(--signature-page-bright, var(--signature-bright)); font: 600 12px var(--font-sans);
+  text-decoration: underline; text-underline-offset: 3px; text-decoration-color: color-mix(in srgb, var(--signature-page-bright, var(--signature-bright)) 35%, transparent);
 }
-.tbStateSave:hover { text-decoration-color: #f8f7f3; }
+.tbStateSave:hover { text-decoration-color: var(--signature-page-bright, var(--signature-bright)); }
 .tbSep { width: 1px; height: 18px; background: #26282c; margin: 0 6px; flex: 0 0 auto; }
 .tbSpacer { flex: 1 1 auto; }
 .tbPrim {
@@ -2931,20 +2934,20 @@
 .tbPrim svg, .tbPrim svg * { stroke: currentColor !important; color: inherit !important; filter: none !important; }
 .tbSoft {
   position: relative; display: inline-flex; align-items: center; gap: 7px; height: 30px; padding: 0 10px; border: 0; border-radius: 7px;
-  background: rgba(248, 247, 243, 0.06); color: #ededed; font: 600 12.5px var(--font-sans); cursor: pointer; white-space: nowrap;
+  background: color-mix(in srgb, var(--signature-page-bright, var(--signature-bright)) 6%, transparent); color: var(--signature-page-text, var(--signature-text)); font: 600 12.5px var(--font-sans); cursor: pointer; white-space: nowrap;
 }
-.tbSoft:hover, .tbSoft[aria-expanded='true'] { background: rgba(248, 247, 243, 0.11); color: #f8f7f3; }
+.tbSoft:hover, .tbSoft[aria-expanded='true'] { background: color-mix(in srgb, var(--signature-page-bright, var(--signature-bright)) 11%, transparent); color: var(--signature-page-bright, var(--signature-bright)); }
 .tbSoft svg, .tbSoft svg * { stroke: currentColor !important; filter: none !important; }
-.tbSoft > svg { color: #a9a59b; }
+.tbSoft > svg { color: var(--signature-page-dim, var(--signature-dim)); }
 .tbModeOn { box-shadow: inset 0 -2px 0 var(--ut-gold); }
 .tbSoft .tbSpark { color: var(--ut-gold) !important; }
 .tbIcon {
   position: relative; display: inline-grid; place-items: center; width: 32px; height: 30px; border: 0; border-radius: 7px;
-  background: none; color: #a9a59b; cursor: pointer;
+  background: none; color: var(--signature-page-dim, var(--signature-dim)); cursor: pointer;
 }
 .tbIcon svg, .tbIcon svg * { stroke: currentColor !important; color: inherit !important; filter: none !important; }
-.tbIcon:hover { background: rgba(248, 247, 243, 0.07); color: #f8f7f3; }
-.tbIcon[aria-pressed='true'] { color: #f8f7f3; }
+.tbIcon:hover { background: color-mix(in srgb, var(--signature-page-bright, var(--signature-bright)) 7%, transparent); color: var(--signature-page-bright, var(--signature-bright)); }
+.tbIcon[aria-pressed='true'] { color: var(--signature-page-bright, var(--signature-bright)); }
 .tbIcon[aria-pressed='true']::after { content: ""; position: absolute; left: 9px; right: 9px; bottom: 2px; height: 2px; border-radius: 2px; background: var(--ut-gold); }
 
 /* the menus: grey glyphs, the gold ✓ (the old menus painted every glyph gold) */
@@ -2981,12 +2984,12 @@
 .workspaceHeader { min-height: 44px; padding: 6px 14px 6px 10px; }
 .tbName { height: 30px; font-size: 15px; }
 /* Owner 11-16, top-bar option 2: the Layouts button is a quiet grey caption ahead of the tabs. */
-.tbName:not([data-grid]) { height: 26px; padding: 0 6px; gap: 4px; color: #93939a; font: 600 12px var(--font-sans); }
-.tbName:not([data-grid]):hover, .tbName:not([data-grid])[aria-expanded='true'] { color: #ededed; }
+.tbName:not([data-grid]) { height: 26px; padding: 0 6px; gap: 4px; color: var(--signature-page-faint, var(--signature-faint)); font: 600 12px var(--font-sans); }
+.tbName:not([data-grid]):hover, .tbName:not([data-grid])[aria-expanded='true'] { color: var(--signature-page-text, var(--signature-text)); }
 .tbCapSep { width: 1px; height: 16px; background: #2a2c31; margin: 0 2px; flex: 0 0 auto; }
-.tbPrim { background: rgba(248, 247, 243, 0.08); color: #f8f7f3; font-weight: 600; }
-.tbPrim:hover, .tbPrim[aria-expanded='true'] { background: rgba(248, 247, 243, 0.13); color: #ffffff; }
-.tbPrim > svg { color: #f8f7f3; }
+.tbPrim { background: color-mix(in srgb, var(--signature-page-bright, var(--signature-bright)) 8%, transparent); color: var(--signature-page-bright, var(--signature-bright)); font-weight: 600; }
+.tbPrim:hover, .tbPrim[aria-expanded='true'] { background: color-mix(in srgb, var(--signature-page-bright, var(--signature-bright)) 13%, transparent); color: var(--signature-page-bright, #ffffff); }
+.tbPrim > svg { color: var(--signature-page-bright, var(--signature-bright)); }
 /* no search well in the Add-widget menu (owner 11-15): the list starts at the top */
 .tbMenu.wAddMenu .wPickScroll { padding-top: 5px; }
 
@@ -3024,12 +3027,12 @@
 .workspaceHeader > * { margin-bottom: 0; }
 .tbTabList {
   align-self: center; width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center;
-  border: 0; border-radius: 6px; background: none; color: #93939a; cursor: pointer;
+  border: 0; border-radius: 6px; background: none; color: var(--signature-page-faint, var(--signature-faint)); cursor: pointer;
 }
-.tbTabList:hover, .tbTabList[aria-expanded='true'] { background: rgba(248, 247, 243, 0.07); color: #f8f7f3; }
+.tbTabList:hover, .tbTabList[aria-expanded='true'] { background: color-mix(in srgb, var(--signature-page-bright, var(--signature-bright)) 7%, transparent); color: var(--signature-page-bright, var(--signature-bright)); }
 .tbTabList svg, .tbTabList svg * { stroke: currentColor !important; filter: none !important; }
-.tbTabList { width: 28px; height: 28px; color: #dedad2; background: rgba(248, 247, 243, 0.05); }
-.tbTabList:hover, .tbTabList[aria-expanded='true'] { background: rgba(248, 247, 243, 0.11); color: #ffffff; }
+.tbTabList { width: 28px; height: 28px; color: var(--signature-page-text, #dedad2); background: color-mix(in srgb, var(--signature-page-bright, var(--signature-bright)) 5%, transparent); }
+.tbTabList:hover, .tbTabList[aria-expanded='true'] { background: color-mix(in srgb, var(--signature-page-bright, var(--signature-bright)) 11%, transparent); color: var(--signature-page-bright, #ffffff); }
 /* Owner 11-16: 10px between the ＋ and the ▾, and more air before the divider. */
 .tbTabList { margin-left: 4px; margin-right: 4px; }
 
@@ -3038,19 +3041,19 @@
   position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 12px; pointer-events: none; font-family: var(--font-sans);
 }
-.emptyBoardTitle { color: #c9c6be; font: 600 15px var(--font-sans); }
+.emptyBoardTitle { color: var(--signature-page-rest, var(--signature-rest)); font: 600 15px var(--font-sans); }
 .emptyBoardBtn {
   pointer-events: auto; display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 16px;
-  border: 1px solid rgba(220, 187, 94, 0.35); border-radius: 8px; background: rgba(248, 247, 243, 0.06);
-  color: #f8f7f3; font: 600 13px var(--font-sans); cursor: pointer;
+  border: 1px solid rgba(220, 187, 94, 0.35); border-radius: 8px; background: color-mix(in srgb, var(--signature-page-bright, var(--signature-bright)) 6%, transparent);
+  color: var(--signature-page-bright, var(--signature-bright)); font: 600 13px var(--font-sans); cursor: pointer;
 }
-.emptyBoardBtn:hover { background: rgba(248, 247, 243, 0.11); border-color: rgba(220, 187, 94, 0.6); }
-.emptyBoardHint { color: #93939a; font-size: 12.5px; }
+.emptyBoardBtn:hover { background: color-mix(in srgb, var(--signature-page-bright, var(--signature-bright)) 11%, transparent); border-color: rgba(220, 187, 94, 0.6); }
+.emptyBoardHint { color: var(--signature-page-faint, var(--signature-faint)); font-size: 12.5px; }
 /* Owner 11-16: the main action's ＋ is the one gold glyph in the row. */
 .tbPrim > svg, .tbPrim > svg * { color: var(--ut-gold, #dcbb5e) !important; stroke: var(--ut-gold, #dcbb5e) !important; }
 .emptyBoardBtn > svg, .emptyBoardBtn > svg * { color: var(--ut-gold, #dcbb5e); stroke: var(--ut-gold, #dcbb5e); }
 /* Owner 11-16: the two ＋ buttons side by side must match — Add widget's ＋ is white again. */
-.tbPrim > svg, .tbPrim > svg * { color: #f8f7f3 !important; stroke: #f8f7f3 !important; }
+.tbPrim > svg, .tbPrim > svg * { color: var(--signature-page-bright, var(--signature-bright)) !important; stroke: var(--signature-page-bright, var(--signature-bright)) !important; }
 
 /* Clickable info-row stats (owner 11-17): each stat opens its quick-edit menu (HeaderStatMenu.jsx), like the
    timeframes beside it. Rest = exactly today's look; a soft shade on hover / while its menu is open; no gold. */

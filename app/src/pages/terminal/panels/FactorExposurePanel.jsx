@@ -17,7 +17,8 @@
 //
 // ONE read, `GET /api/research/factor-exposure/{ticker}` (paid; api/services/factor_exposure.py): worked
 // out by the server from the daily closes it already stores, never from a vendor, and held for the
-// session. Asked again every half hour (SWR skips ticks while the app is hidden). The pure half is
+// session. Asked again every half hour, and every few seconds while the server works the stock out for
+// the first time this session (`computing`); SWR skips ticks while the app is hidden. The pure half is
 // factorExposureModel.js.
 //
 // ⛔ A MISSING NUMBER IS NEVER 0: a window with too few sessions says what it needs.
@@ -32,8 +33,8 @@ import { PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, 
 import { formatNumber } from '../../../lib/presentation/presentationPrimitives'
 import { WARMING_TITLE, canRetry, failureKind, failureText, useMarketRead } from './marketRead'
 import {
-  FCTX_CODE, FCTX_SOURCE, FCTX_WHAT, HELD_POLL_MS, barOf, barScale, basisText, changeText, checkText, factorRows,
-  fctxRead, fctxUrl, fitRows, fitThenRows, fundRows, fundStateText, fundsNote, loadingCell, plural, signMeaning,
+  FCTX_CODE, FCTX_SOURCE, FCTX_WHAT, barOf, barScale, basisText, changeText, checkText, factorRows,
+  fctxPollMs, fctxRead, fctxUrl, fitRows, fitThenRows, fundRows, fundStateText, fundsNote, loadingCell, plural, signMeaning,
   signedNum, unstableText, windowShortText, windowText,
 } from './factorExposureModel'
 import { dayText } from './ratesModel'
@@ -238,7 +239,9 @@ function Method({ view, sym }) {
 
 function FactorExposureBody({ sym: s, code }) {
   const inPanel = useInTerminalPanel()
-  const read = useMarketRead(fctxUrl(s), { refreshInterval: HELD_POLL_MS })
+  // Asked again soon while the server works the stock out for the first time this session (SETH's way), else
+  // once a half hour.
+  const read = useMarketRead(fctxUrl(s), { refreshInterval: (latest) => fctxPollMs(fctxRead(latest?.body)) })
   const view = useMemo(() => fctxRead(read.body), [read.body])
   const ok = !read.loading && !!read.body && view.state === 'ok'
   usePanelFreshness(ok ? panelAsOf(FCTX_SOURCE, view.dataThrough) : null)
@@ -268,6 +271,9 @@ function FactorExposureBody({ sym: s, code }) {
   const stale = read.error ? (
     <p className={styles.note} role="status" data-testid="terminal-fctx-stale-read">{failureText(read.error, FCTX_WHAT)} Showing the last read.</p>
   ) : null
+  if (view.state === 'computing') {
+    return frame('computing', <PanelState kind="empty" role="status" testId="terminal-fctx-computing" title={WARMING_TITLE} />)
+  }
   if (view.state === 'not_held') {
     return frame('not_held', (
       <>

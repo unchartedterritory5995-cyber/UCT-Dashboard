@@ -4193,6 +4193,11 @@ def _get_bars_since_response(ticker: str, tf: str, bars: int, since_str: str) ->
     # Refresh SQLite if stale (same logic as _get_bars_inner)
     _live_derive_on_read(ticker_up, tf)   # 15m/30m/60m from the live 5m (no-op without it)
     last_ts = _sqlite.get_last_ts(ticker_up, tf)
+    # ⭐ THE STORE WAS STALE AND ITS REPAIR HAS NOT LANDED (live session 2026-11-24: the switch's own since= answer came
+    # back without the bucket(s) that had just closed, RDDT three minutes short). The router's one-bucket tolerance could
+    # still call that tail `current`; marked here, it is `unverified` (router `_apply_tail_status`), so no client reads it
+    # as the frontier. Intraday only (D/W/M keep the blocking repair below).
+    tail_pending = False
     if _needs_fresh(last_ts, tf, ticker_up):
         if _since_async_heal():
             # PHASE 1.4 — DON'T block this high-QPS poll on a provider. Heal the tail
@@ -4201,6 +4206,7 @@ def _get_bars_since_response(ticker: str, tf: str, bars: int, since_str: str) ->
             # closed bar simply arrives on the next 30s poll instead of this one.
             _mark_serve("delta-async-heal")
             _enqueue_since_bg_heal(cache_key, ticker_up, tf, last_ts or 0, date_tf)
+            tail_pending = not date_tf
         else:
             try:
                 # ⛔ THE THIRD UNBOUNDED PROVIDER CALL ON A REQUEST THREAD, and the
@@ -4225,8 +4231,9 @@ def _get_bars_since_response(ticker: str, tf: str, bars: int, since_str: str) ->
                         last_ts = _sqlite.get_last_ts(ticker_up, tf)
                     else:
                         _mark_serve("delta-deadline")
+                        tail_pending = True
             except Exception:
-                pass
+                tail_pending = not date_tf
 
     # Read ONLY the new rows via an index range scan (WHERE ts > since), instead
     # of reading up to `bars` (5000) rows + formatting all of them + Python-
@@ -4260,8 +4267,11 @@ def _get_bars_since_response(ticker: str, tf: str, bars: int, since_str: str) ->
     # Invalidate the full cache so the next non-delta request picks up fresh data
     cache.invalidate(cache_key)
 
+    content = {"ticker": ticker_up, "tf": tf, "bars": delta, "delta": True}
+    if tail_pending:
+        content["tail_pending"] = True
     return JSONResponse(
-        content={"ticker": ticker_up, "tf": tf, "bars": delta, "delta": True},
+        content=content,
         headers={"Cache-Control": "public, max-age=5"},
     )
 

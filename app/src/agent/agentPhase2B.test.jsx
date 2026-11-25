@@ -174,7 +174,11 @@ describe('F3 through the panel — NL-1 on', () => {
     expect(turns).toHaveLength(1)                          // the pick resumed the plan: no second model call
   })
 
-  it('D4: "show me AAPL and TSLA side by side" — replacing both charts is only PROPOSED; "do it" applies it', async () => {
+  // ⛔ OWNER RULING 2026-11-23: "For 'side by side,' preserve the existing chart and add the comparison chart beside it by default.
+  // Never silently replace an existing chart. If the request or layout makes the intended behavior ambiguous, clarify." — neither
+  // chart shows AAPL or TSLA, so the model's replace of both is ASKED with choices (add beside, or replace), nothing changed; the
+  // replace runs only on that explicit pick. (Was: proposed as a card, "do it" applied it.)
+  it('D4: "show me AAPL and TSLA side by side" — the model’s replace of both charts is ASKED (add beside / replace); only the replace pick re-symbols', async () => {
     await nl1On()
     const b = twoCharts()
     const { say, transcript } = mount(b)
@@ -182,10 +186,11 @@ describe('F3 through the panel — NL-1 on', () => {
       { action: 'chart.setSymbol', target: refOf(body, 'L'), args: { symbol: 'AAPL' } },
       { action: 'chart.setSymbol', target: refOf(body, 'R'), args: { symbol: 'TSLA' } }] })
     await say('show me AAPL and TSLA side by side')
-    await waitFor(() => expect(transcript()).toMatch(/I wasn't sure you meant/))
+    await waitFor(() => expect(transcript()).toMatch(/None of your charts shows AAPL and TSLA/))
     expect(sym(b, 'L')).toBe('NVDA')
     expect(sym(b, 'R')).toBe('AMD')
-    await say('do it')
+    expect(screen.getAllByRole('button', { name: /^Add AAPL and TSLA beside your charts$/ }).length).toBeGreaterThan(0)
+    fireEvent.click(screen.getAllByRole('button', { name: /^Put AAPL and TSLA on your board, replacing the NVDA and AMD charts$/ }).at(-1))
     await waitFor(() => { expect(sym(b, 'L')).toBe('AAPL'); expect(sym(b, 'R')).toBe('TSLA') })
   })
 
