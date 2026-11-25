@@ -736,7 +736,8 @@ def test_the_housekeeping_thread_is_off_off_railway_and_when_opted_in_stops_when
 
 def test_a_thread_waiting_for_the_boot_to_settle_stops_at_once_when_told(store, monkeypatch):
     # the pod restarts inside its first ten minutes: shutdown must not wait out the settle window
-    monkeypatch.delenv(pb.HOUSEKEEPING_SWITCH)
+    monkeypatch.delenv(pb.HOUSEKEEPING_SWITCH, raising=False)
+    monkeypatch.setenv("PERF_BEACON_HOUSEKEEPING_ENABLED", "1")
     monkeypatch.setattr(pb.bg_lane, "enabled", lambda *a, **k: True)
     monkeypatch.setattr(pb.bg_lane, "settle_remaining", lambda *a, **k: 600.0)
     _an_older_builds_store(store, 3)
@@ -888,31 +889,6 @@ def test_a_restart_mid_day_counts_a_returning_sender_again_and_the_legend_says_s
     assert "per process" in s["legend"]["quota"] and "restart" in s["legend"]["quota"]
 
 
-def test_the_real_lifespan_leaves_no_perf_beacon_thread_and_touches_no_store(store, monkeypatch, capsys):
-    """LAST in this file: it runs the whole app's boot and shutdown, as every lifespan test does (the root conftest's
-    switch on). No housekeeping thread during or after it, and the beacon's store path is never even asked for, so no
-    lifespan test can prune or rebuild a store, on this PC's data volume or anywhere else.
-
-    ⛔ IN THE APP'S LIGHT MODE (LOCAL_LIGHT_MODE, read on every call): the boot's warms, seeds and sweeps are not started,
-    so THIS test leaves no boot work behind either. (Without it the boot's weekly purge outlived the lifespan and took a
-    turn of the background lane inside a later test that counts turns: tests/test_bg_lane.py read 4 where 3.) The
-    beacon's own step is not one of the guarded starts, so it runs exactly as in production."""
-    from api.main import app
-    monkeypatch.setenv("LOCAL_LIGHT_MODE", "1")
-    assert os.environ.get(pb.HOUSEKEEPING_SWITCH) == "1"
-    asked = []
-    real_path = pb._db_path
-    monkeypatch.setattr(pb, "_db_path", lambda: (asked.append(real_path()), asked[-1])[1])
-    assert _perf_beacon_threads() == []
-    capsys.readouterr()
-    with TestClient(app):
-        assert _perf_beacon_threads() == []
-    assert _perf_beacon_threads() == [] and pb._housekeeper is None
-    assert asked == []
-    # control: the lifespan DID reach the beacon's step (the light mode did not skip it), and the step said no
-    assert "perf beacon housekeeping: not started" in capsys.readouterr().out
-
-
 def test_on_a_railway_service_the_housekeeping_starts_without_an_opt_in(store, monkeypatch):
     for k in (pb.HOUSEKEEPING_SWITCH, "PERF_BEACON_HOUSEKEEPING_ENABLED"):
         monkeypatch.delenv(k, raising=False)
@@ -924,3 +900,34 @@ def test_on_a_railway_service_the_housekeeping_starts_without_an_opt_in(store, m
     finally:
         pb.shutdown()
     assert pb.HOUSEKEEPING_OPT_IN == "PERF_BEACON_HOUSEKEEPING_ENABLED"
+
+
+def test_the_real_lifespan_leaves_no_perf_beacon_thread_and_touches_no_store(store, monkeypatch, capsys):
+    """LAST in this file: it runs the whole app's boot and shutdown, as every lifespan test does, with NO switch set
+    (the root conftest sets none: off a Railway service the housekeeping is opt-in). No housekeeping thread during or
+    after it, and the beacon's store path is never even asked for, so no
+    lifespan test can prune or rebuild a store, on this PC's data volume or anywhere else.
+
+    ⛔ IN THE APP'S LIGHT MODE (LOCAL_LIGHT_MODE, read on every call): the boot's warms, seeds and sweeps are not started,
+    so THIS test leaves no boot work behind either. (Without it the boot's weekly purge outlived the lifespan and took a
+    turn of the background lane inside a later test that counts turns: tests/test_bg_lane.py read 4 where 3.) The
+    beacon's own step is not one of the guarded starts, so it runs exactly as in production."""
+    from api.main import app
+    monkeypatch.setenv("LOCAL_LIGHT_MODE", "1")
+    for k in (pb.HOUSEKEEPING_SWITCH, "RAILWAY_SERVICE_NAME", "PERF_BEACON_HOUSEKEEPING_ENABLED"):
+        monkeypatch.delenv(k, raising=False)
+    asked = []
+    real_path = pb._db_path
+    monkeypatch.setattr(pb, "_db_path", lambda: (asked.append(real_path()), asked[-1])[1])
+    assert _perf_beacon_threads() == []
+    capsys.readouterr()
+    try:
+        with TestClient(app):
+            assert _perf_beacon_threads() == [], "off Railway, the real lifespan started the beacon's housekeeping"
+    finally:
+        if pb._housekeeper is not None:
+            pb.shutdown()
+    assert _perf_beacon_threads() == [] and pb._housekeeper is None
+    assert asked == []
+    # control: the lifespan DID reach the beacon's step (the light mode did not skip it), and the step said no
+    assert "perf beacon housekeeping: not started" in capsys.readouterr().out
