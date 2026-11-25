@@ -1,0 +1,15 @@
+{
+  "schema": "uct.ci-mutants/v1",
+  "about": "scratch diagnosis (never merged): S9 on (b), rail warm",
+  "mutants": [
+    {
+      "id": "S9warm",
+      "mutant": "S9 (the answer held back after it lands), rail warm",
+      "file": "app/src/components/chart/builder/memberPane/memberDoorAsync.js",
+      "from": "    if (entries.get(r.entry.key) === r.entry) land(r.entry, r.version, landed)",
+      "to": "    if (entries.get(r.entry.key) === r.entry) setTimeout(() => land(r.entry, r.version, landed), 1500)",
+      "rail": "cd app && NO_COLOR=1 npx vitest run --maxWorkers=1 --reporter=verbose src/components/chart/builder/memberPane/memberDoorService.test.js -t \"its warm of the runtime lane\"",
+      "expectRed": "its warm of the runtime lane"
+    }
+  ]
+}
