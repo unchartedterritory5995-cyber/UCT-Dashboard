@@ -7,13 +7,10 @@
    "kind": "output",
    "cannot": "A horizontal level drawn with hline",
    "source": "//@version=5\nindicator(\"probe\")\nplot(ta.rsi(close, 14), \"RSI\")\nhline(70, \"Overbought\")\n",
-   "runs": false,
+   "runs": true,
    "lane": "host",
-   "state": "runs-withheld",
-   "headline": "Runs on the chart and in alerts, 1 value withheld (not guessed)",
-   "guard": "pine:colour-default-unwitnessed",
-   "family": "presentation",
-   "why": "`Overbought`: style not reproduced: TradingView's default colour for a v5 `hline` is not captured; TradingView's default line style for a v5 `hline` is not captured; TradingView's default line width for a v5 `hline` is not captured. The level is drawn at its exact price, in the chart's text colour, solid and 1 px wide, rather than in a style the script does not choose."
+   "state": "runs",
+   "headline": "Runs on the chart and in alerts; screens and scans need a threshold"
   },
   {
    "id": "untitled-fill-anchor",

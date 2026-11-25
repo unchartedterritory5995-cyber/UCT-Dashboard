@@ -1661,8 +1661,8 @@
    "name": "hline",
    "ok": true,
    "lane": "host",
-   "state": "runs-withheld",
-   "headline": "Runs on the chart and in alerts, 1 value withheld (not guessed)"
+   "state": "runs",
+   "headline": "Runs on the chart and in alerts; screens and scans need a threshold"
   },
   {
    "name": "plot",
@@ -1728,8 +1728,8 @@
   },
   {
    "id": "hline",
-   "state": "runs-withheld",
-   "standing": true
+   "state": "runs",
+   "standing": false
   },
   {
    "id": "input-time",
