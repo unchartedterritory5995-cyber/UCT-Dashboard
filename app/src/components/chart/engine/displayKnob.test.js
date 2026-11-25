@@ -20,6 +20,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { translatePine } from './ast/pine.js'
 import { memberPaneDefinition } from '../builder/memberPane/memberPaneDefinition'
 import { plotHiddenAt, hiddenAtLeafDefaults } from './knobBind.js'
 import { validateDefinition, hiddenWhenProblem } from './defSchema.js'
@@ -123,6 +124,20 @@ describe('e97 U6 — a script whose every output its author hid is served, drawi
       + 'var label lb = na\nif barstate.islast\n    lb := label.new(bar_index, high, str.tostring(close))\n' })
     expect(r.ok && r.definition && r.definition.plots.every((p) => p.hidden === true)
       && !((r.definition.objects || {}).ops || []).length).toBe(false)
+  })
+
+  // the hollow control above passes either way (its label is CARRIED, so `ops` alone refuses it). This one's label is
+  // WRITTEN but the object program drops it (a helper with its own state: ops 0, attemptedOps 1, as session-highs measured),
+  // so only the attemptedOps rule keeps it refused.
+  it('⛔ CONTROL: a drawing WRITTEN but not carried still keeps the refusal (attemptedOps, not ops)', () => {
+    const src = `${H}plot(close, "a", display = display.none)\n`
+      + 'f() =>\n    var float hi = na\n    hi := math.max(nz(hi), high)\n    label.new(bar_index, hi, "x")\nif barstate.islast\n    f()\n'
+    const t = translatePine(src, { strict: true })
+    expect(((t.objects || {}).ops || []).length).toBe(0)
+    expect(t.objectDiagnostics.attemptedOps).toBeGreaterThan(0)
+    const r = memberPaneDefinition({ source: src })
+    expect(r.ok).toBe(false)
+    expect(r.guard).toBe('pine:hidden-only')
   })
 
   it('⛔ CONTROL: one whose only output is UNREADABLE is not carved out (it is withheld, not the author\'s hiding)', () => {

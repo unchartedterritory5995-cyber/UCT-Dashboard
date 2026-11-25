@@ -90,6 +90,15 @@
    "to": "    void 0",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/displayKnob.runtime.test.js",
    "expectRed": "the candle row is hidden at the default"
+  },
+  {
+   "id": "U6-D11",
+   "mutant": "the carve-out counts only CARRIED drawings: a label written but dropped by the object program reads as nothing drawn (refused -> served)",
+   "file": "app/src/components/chart/engine/ast/paneGate.js",
+   "from": "  return outs.length > 0 && ops === 0 && attempted === 0 && paints.length === 0 && outs.every((o) => !o.refusal && !o.displayUnread",
+   "to": "  return outs.length > 0 && ops === 0 && paints.length === 0 && outs.every((o) => !o.refusal && !o.displayUnread",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/displayKnob.test.js",
+   "expectRed": "a drawing WRITTEN but not carried still keeps the refusal"
   }
  ]
 }
