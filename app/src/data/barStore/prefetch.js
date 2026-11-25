@@ -67,13 +67,13 @@ import { fullBarsFor, firstPaintBarsFor } from '../../utils/barsBackfill'
 import { PREFETCH_WINDOWS, prefetchTargetBars } from '../../utils/historyPrepend'
 import { viewShowExtended } from '../../utils/viewSession'
 import { isNativeTf, fetchTf } from '../../components/chart/timeframes'
-import { isCacheCurrentForView, expectedBarsBehind } from '../../utils/marketSession'
+import { isCacheCurrentForView, expectedBarsBehind, isHolidayISO } from '../../utils/marketSession'
 import { deviceCopyFresh, inRegularSession } from '../deviceStore/fresh'
 import { deviceServesTf } from '../deviceStore/tfs'
 import { deviceStoreKillSeen } from '../../lib/chartSpeed'
 import { isAppVisible } from '../../lib/deskVisibility'
 import { bucketEndUnix } from '../../components/chart/liveBuckets'
-import { bucketStartUnix } from '../../components/chart/barTime'
+import { bucketStartUnix, etDateOf, etMinuteOfDay } from '../../components/chart/barTime'
 import { serverNow } from '../../lib/serverClock'
 import { BARSTORE } from '../../components/chart/barStoreSwitch'
 import { prefetchTickerMeta as _defaultTickerMeta } from '../../hooks/useTickerMeta'
@@ -588,7 +588,25 @@ export function createPrefetch(o = {}) {
     const dev = s.developing
     if (dev && Number.isFinite(dev.t) && _devHoldsFrontier(dev, p.tf)) tailT = Math.max(tailT, dev.t)
     const n = expectedBarsBehind(tailT, p.tf, now(), { session: ext ? 'extended' : 'rth' })
-    return n == null || n < 1 ? 0 : n
+    if (n != null && n >= 1) return n
+    // ⭐ (2026-11-25) THE SESSION'S FIRST BUCKET. The count above walks CLOSED buckets only, so inside the session's first
+    // bucket (09:30-09:45 on 15m; 5m, 30m and 60m alike) a copy ending yesterday read 0 behind and painted yesterday's bar
+    // as the newest (live session-open test, p-1 press 71, GLW 15m: the 'one chart only' frame). Once the view's session
+    // has opened, a copy with no row and no developing bar at or after today's open is behind: one bucket.
+    const opened = _sessionOpenUnix(now(), ext)
+    return opened != null && tailT < opened ? 1 : 0
+  }
+  /** Today's open (unix s) of the view's session (09:30 regular, 04:00 extended) once it has opened on a trading day; else
+   *  null (a weekend, a holiday, before the open). */
+  function _sessionOpenUnix(nowMs, ext) {
+    const sec = Math.floor(nowMs / 1000)
+    const iso = etDateOf(sec)
+    const dow = new Date(`${iso}T12:00:00Z`).getUTCDay()
+    if (dow === 0 || dow === 6 || isHolidayISO(iso)) return null
+    const m = etMinuteOfDay(sec)
+    const open = ext ? 240 : 570
+    if (m < open) return null
+    return (Math.floor(sec / 60) - (m - open)) * 60
   }
   /** Does the developing bar `dev` hold the frontier: its bucket still open, or the bar itself written at or after its
    *  bucket's end (its `rev`, ms: the store's write of a server bar, a tick's time)? ⛔ Not "an answer of the key landed

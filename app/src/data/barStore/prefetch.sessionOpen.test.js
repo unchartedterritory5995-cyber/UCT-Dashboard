@@ -66,3 +66,39 @@ describe('(0) the server clock decides the roll (the member clock 6.2 s slow; p-
     expect(w.pf.peekDisplayable('RDDX', '1')).toBe(false)
   })
 })
+
+describe('(2) the session\'s first bucket (p-1 press 71, GLW 15m at 09:39)', () => {
+  /** Yesterday's (2026-11-09) regular-session 15m rows, 09:30-15:45, as a server answer. */
+  function yesterday15(sym) {
+    const open = OPEN - 86400
+    const bars = []
+    for (let k = 0; k < 26; k++) {
+      const c = 40 + k * 0.1
+      bars.push({ t: open + k * 900, o: c - 0.1, h: c + 0.3, l: c - 0.3, c, v: 1000 + k })
+    }
+    const close = open + 26 * 900
+    return { ticker: sym, tf: '15', bars, contract: 1, grid: 'eth-clock', session: 'rth', cache_key: `b1:${sym}:15:eth-clock`,
+      series_rev: 1, history_rev: 1, verified_through: close, complete_through: close, tail_status: 'verified', developing: null }
+  }
+
+  it('after the open, a 15m copy with nothing of today is not displayable; before the open it is', async () => {
+    vi.setSystemTime((OPEN - 60) * 1000)                 // 09:29: the session has not opened
+    const w = await boot()
+    const key = w.keyOf({ sym: 'GLWX', tf: '15' })
+    w.store.registry.dispatch(key, { type: 'rest-full', key, payload: yesterday15('GLWX') })
+    expect(w.pf.peekDisplayable('GLWX', '15')).toBe(true)
+    vi.setSystemTime((OPEN + 8 * 60) * 1000)             // 09:38: inside today's first 15m bucket
+    expect(w.pf.peekDisplayable('GLWX', '15')).toBe(false)
+  })
+
+  it('...and a copy holding today\'s forming 09:30 bar is displayable at 09:38', async () => {
+    vi.setSystemTime((OPEN + 8 * 60) * 1000)
+    const w = await boot()
+    const key = w.keyOf({ sym: 'GLWY', tf: '15' })
+    const p = yesterday15('GLWY')
+    p.developing = { t: OPEN, o: 41, h: 41.5, l: 40.8, c: 41.2, v: 300, rev: Date.now() }
+    p.verified_through = OPEN + 8 * 60
+    w.store.registry.dispatch(key, { type: 'rest-full', key, payload: p })
+    expect(w.pf.peekDisplayable('GLWY', '15')).toBe(true)
+  })
+})
