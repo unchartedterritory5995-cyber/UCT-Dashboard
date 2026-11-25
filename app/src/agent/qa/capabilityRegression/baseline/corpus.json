@@ -15940,6 +15940,554 @@
       ]
     },
     {
+      "id": "stock.uctRating",
+      "source": "Terminal data wave 12 (11-24): the Agent half of RTG, EEH, ANR, SEG, FTD and one stock's MNA / IDXC (UCT composite rating, estimate history, analyst ratings and price targets, revenue by segment, fails to deliver, deals and index changes), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.uctRating"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.uctRating"
+      ],
+      "ownWords": [
+        "stockResearch"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.uctRating",
+            "target": "$stockData",
+            "args": {
+              "symbol": "NVDA"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*\"ratings\".*\"params\":\\{\"symbol\":\"NVDA\"\\}"
+        ],
+        "says": [
+          "NVDA's UCT composite rating as UCT holds it: 81 of 99 \\(higher is stronger\\)\\.",
+          "Components: EPS Strength 88, Relative Strength 76, Growth 69, Value 41, SMR B, Acc / Dis B-, Sponsorship 58\\.",
+          "Stock checkup: 1 check passes, 0 fail\\.",
+          "never a third-party analyst rating"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "NVDA UCT rating",
+        "what is NVDA's composite rating",
+        "UCT composite rating of NVDA",
+        "show me the stock checkup for NVDA"
+      ]
+    },
+    {
+      "id": "stock.estimatesHistory",
+      "source": "Terminal data wave 12 (11-24): the Agent half of RTG, EEH, ANR, SEG, FTD and one stock's MNA / IDXC (UCT composite rating, estimate history, analyst ratings and price targets, revenue by segment, fails to deliver, deals and index changes), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.estimatesHistory"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.estimatesHistory"
+      ],
+      "ownWords": [
+        "stockResearch"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.estimatesHistory",
+            "target": "$stockData",
+            "args": {
+              "symbol": "NVDA"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*\"estimates\\.history\".*\"params\":\\{\"symbol\":\"NVDA\"\\}"
+        ],
+        "says": [
+          "NVDA's consensus estimates as UCT snapshots them, Mar 2, 2026 to Nov 2, 2026 \\(170 snapshot days\\):",
+          "• The quarter ending Dec 31, 2026: EPS \\$1\\.25 \\(\\$1\\.10 to \\$1\\.40\\) from 30 analysts; over 7 / 30 / 90 days held \\+0\\.1% / raised \\+3\\.2% / raised \\+8\\.7%\\.",
+          "NVDA is in the population UCT snapshots because it is on the S&P 500 list",
+          "the fiscal year's consensus is not held at all"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "NVDA estimate history",
+        "how have NVDA's estimates changed",
+        "eps estimate revisions for NVDA",
+        "the revenue estimate trend for NVDA"
+      ]
+    },
+    {
+      "id": "stock.consensusRating",
+      "source": "Terminal data wave 12 (11-24): the Agent half of RTG, EEH, ANR, SEG, FTD and one stock's MNA / IDXC (UCT composite rating, estimate history, analyst ratings and price targets, revenue by segment, fails to deliver, deals and index changes), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.consensusRating"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.consensusRating"
+      ],
+      "ownWords": [
+        "stockResearch"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.consensusRating",
+            "target": "$stockData",
+            "args": {
+              "symbol": "NVDA",
+              "rows": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*\"analyst\\.ratings\".*\"params\":\\{\"symbol\":\"NVDA\",\"rows\":5\\}"
+        ],
+        "says": [
+          "NVDA's analyst consensus as UCT holds it: Buy from 32 analysts \\(5 Strong Buy, 20 Buy, 6 Hold, 1 Sell, 0 Strong Sell\\)\\.",
+          "Price target \\(USD\\): consensus \\$205\\.00, median \\$200\\.00, from \\$120\\.00 to \\$260\\.00\\.",
+          "Upside to the consensus target: \\+13\\.9% from the close of Fri, Oct 30, 2026 \\(\\$180\\.00\\), not the last trade\\.",
+          "Made-up Securities upgrade \\(Hold to Buy\\)"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "price target for NVDA",
+        "what's the consensus target on NVDA",
+        "consensus rating on NVDA",
+        "how many analysts rate NVDA a buy"
+      ]
+    },
+    {
+      "id": "stock.revenueSplit",
+      "source": "Terminal data wave 12 (11-24): the Agent half of RTG, EEH, ANR, SEG, FTD and one stock's MNA / IDXC (UCT composite rating, estimate history, analyst ratings and price targets, revenue by segment, fails to deliver, deals and index changes), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.revenueSplit"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.revenueSplit"
+      ],
+      "ownWords": [
+        "stockResearch"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.revenueSplit",
+            "target": "$stockData",
+            "args": {
+              "symbol": "NVDA",
+              "rows": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*\"company\\.segments\".*\"params\":\\{\"symbol\":\"NVDA\",\"rows\":8\\}"
+        ],
+        "says": [
+          "NVDA's revenue by segment as UCT holds it:",
+          "The fiscal year FY2026 by product \\(ended Jan 25, 2026, against FY2025\\):",
+          "88\\.5% of the segments listed, \\+144\\.7% on a year earlier",
+          "The newest quarter's split is not held on the server yet"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "NVDA revenue by segment",
+        "NVDA revenue by region",
+        "segment revenue for NVDA",
+        "where does NVDA make its money"
+      ]
+    },
+    {
+      "id": "stock.failsToDeliver",
+      "source": "Terminal data wave 12 (11-24): the Agent half of RTG, EEH, ANR, SEG, FTD and one stock's MNA / IDXC (UCT composite rating, estimate history, analyst ratings and price targets, revenue by segment, fails to deliver, deals and index changes), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.failsToDeliver"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.failsToDeliver"
+      ],
+      "ownWords": [
+        "stockResearch"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.failsToDeliver",
+            "target": "$stockData",
+            "args": {
+              "symbol": "NVDA",
+              "rows": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*\"stock\\.failsToDeliver\".*\"params\":\\{\"symbol\":\"NVDA\",\"rows\":10\\}"
+        ],
+        "says": [
+          "NVDA's fails to deliver as UCT holds them from the SEC's files for May 1, 2026 to Oct 15, 2026: 250,000 shares on Oct 15, 2026",
+          "The reported day before \\(Oct 14, 2026\\): 100,000 shares, a change of \\+150,000 shares\\.",
+          "The window's peak: 400,000 shares on Aug 3, 2026; the newest is 62\\.5% of it\\.",
+          "so the newest figure is some weeks old"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "NVDA fails to deliver",
+        "fails-to-deliver for NVDA",
+        "failures to deliver in NVDA",
+        "show me the fail to deliver data for NVDA"
+      ]
+    },
+    {
+      "id": "stock.companyDeals",
+      "source": "Terminal data wave 12 (11-24): the Agent half of RTG, EEH, ANR, SEG, FTD and one stock's MNA / IDXC (UCT composite rating, estimate history, analyst ratings and price targets, revenue by segment, fails to deliver, deals and index changes), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.companyDeals"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.companyDeals"
+      ],
+      "ownWords": [
+        "stockResearch"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.companyDeals",
+            "target": "$stockData",
+            "args": {
+              "symbol": "NVDA",
+              "rows": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*\"company\\.deals\".*\"params\":\\{\"symbol\":\"NVDA\",\"rows\":10\\}"
+        ],
+        "says": [
+          "Mergers and acquisitions naming NVDA \\(Made-up Company Inc\\), newest first",
+          "Made-up Company Inc \\(NVDA\\) acquiring Made-up Startup Ltd \\(NVDA the acquirer\\), with its SEC filing",
+          "added to the Dow 30, replacing Made-up Old Co \\(QZOLD\\) \\(Made-up reason\\.\\)",
+          "UCT's own time"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "mergers involving NVDA",
+        "has NVDA been acquired",
+        "when was NVDA added to the dow",
+        "acquisitions by NVDA"
+      ]
+    },
+    {
+      "id": "stock.insiderBuying",
+      "source": "Terminal data wave 13 (11-24): the Agent half of INS (with INS CLUSTER), MKTH, ECON, LIQ, OIL and ANLG (the market's insider buying, corrections and bear markets, the economy board, liquidity, the weekly oil report, days like the newest session), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.insiderBuying"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.insiderBuying"
+      ],
+      "ownWords": [
+        "marketMacro"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.insiderBuying",
+            "target": "$stockData",
+            "args": {
+              "rows": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*insider\\.market.*\"params\":\\{\"rows\":10\\}"
+        ],
+        "says": [
+          "The latest open-market purchases from Form 4 filings over the last 7 days, largest dollar amount first:",
+          "• QZIA: Made-up Person One \\(director\\) bought 2,000 shares at \\$15\\.00, \\$30,000\\.00, on Oct 28, 2025",
+          "1 purchase states no price, so it has no dollar amount \\(never \\$0\\)\\.",
+          "• QZIC \\(Made-up Robotics Inc\\): 3 insiders, Oct 22, 2025 to Oct 27, 2025, \\$81,000\\.00"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "insider buying",
+        "what are insiders buying",
+        "show me the insider clusters",
+        "latest insider purchases"
+      ]
+    },
+    {
+      "id": "stock.marketHistory",
+      "source": "Terminal data wave 13 (11-24): the Agent half of INS (with INS CLUSTER), MKTH, ECON, LIQ, OIL and ANLG (the market's insider buying, corrections and bear markets, the economy board, liquidity, the weekly oil report, days like the newest session), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.marketHistory"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.marketHistory"
+      ],
+      "ownWords": [
+        "marketMacro"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.marketHistory",
+            "target": "$stockData",
+            "args": {
+              "index": null,
+              "rows": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*market\\.history.*\"params\":\\{\"index\":null,\"rows\":8\\}"
+        ],
+        "says": [
+          "S&P 500's corrections \\(a fall of 10% to 20% on closing prices\\) and bear markets \\(20% or more\\) as UCT holds them",
+          "20 corrections and 5 bear markets; median depth -13\\.5%, median recovery 75 sessions\\.",
+          "• Correction from the peak of Feb 19, 2025 \\(6,100\\.00\\) to the low of Apr 8, 2025 \\(4,980\\.00\\): -18\\.4% in 33 sessions",
+          "Leaders in the 63 sessions after the low \\(the index \\+25\\.0%\\): QZLA \\+150\\.5%"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "market corrections and bear markets",
+        "how long do bear markets last",
+        "history of bear markets",
+        "nasdaq corrections"
+      ]
+    },
+    {
+      "id": "stock.economyBoard",
+      "source": "Terminal data wave 13 (11-24): the Agent half of INS (with INS CLUSTER), MKTH, ECON, LIQ, OIL and ANLG (the market's insider buying, corrections and bear markets, the economy board, liquidity, the weekly oil report, days like the newest session), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.economyBoard"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.economyBoard"
+      ],
+      "ownWords": [
+        "marketMacro"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.economyBoard",
+            "target": "$stockData",
+            "args": {}
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*econ\\.latest.*\"params\":\\{\\}"
+        ],
+        "says": [
+          "The economy board as UCT holds it \\(official U\\.S\\. releases\\), theme by theme:",
+          "• Inflation: CPI 3\\.2% for Sep 2025, m/m 3\\.2%, released Oct 15, 2025, prior 3\\.1% \\(\\+0\\.1 pts\\)",
+          "Nonfarm payrolls 180\\.0K for Sep 2025, released Oct 15, 2025, prior 210\\.0K \\(-30\\.0K\\)",
+          "Not on this board: Retail sales\\."
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "economic data",
+        "the latest cpi",
+        "jobs report",
+        "show me the economy board"
+      ]
+    },
+    {
+      "id": "stock.liquidityBoard",
+      "source": "Terminal data wave 13 (11-24): the Agent half of INS (with INS CLUSTER), MKTH, ECON, LIQ, OIL and ANLG (the market's insider buying, corrections and bear markets, the economy board, liquidity, the weekly oil report, days like the newest session), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.liquidityBoard"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.liquidityBoard"
+      ],
+      "ownWords": [
+        "marketMacro"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.liquidityBoard",
+            "target": "$stockData",
+            "args": {}
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*market\\.liquidity.*\"params\":\\{\\}"
+        ],
+        "says": [
+          "Net liquidity on Wed, Oct 15, 2025: \\$5\\.72T; the change over 1 week \\+\\$2\\.00B, 4 weeks \\+\\$8\\.00B",
+          "• Fed total assets: \\$6\\.62T \\(Wed Oct 15, 2025\\), \\+\\$2\\.00B over 1 week",
+          "net liquidity is a UCT calculation"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "net liquidity",
+        "the fed balance sheet",
+        "reverse repo",
+        "money supply"
+      ]
+    },
+    {
+      "id": "stock.oilReport",
+      "source": "Terminal data wave 13 (11-24): the Agent half of INS (with INS CLUSTER), MKTH, ECON, LIQ, OIL and ANLG (the market's insider buying, corrections and bear markets, the economy board, liquidity, the weekly oil report, days like the newest session), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.oilReport"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.oilReport"
+      ],
+      "ownWords": [
+        "marketMacro"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.oilReport",
+            "target": "$stockData",
+            "args": {}
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*market\\.oil.*\"params\":\\{\\}"
+        ],
+        "says": [
+          "Draw of 2\\.3 million barrels in the week to Fri Oct 10, 2025",
+          "• Inventories: Crude oil, excluding the SPR",
+          "The EIA's own weekly figures"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "weekly oil report",
+        "crude inventories",
+        "eia report",
+        "refinery utilization"
+      ]
+    },
+    {
+      "id": "stock.daysLikeToday",
+      "source": "Terminal data wave 13 (11-24): the Agent half of INS (with INS CLUSTER), MKTH, ECON, LIQ, OIL and ANLG (the market's insider buying, corrections and bear markets, the economy board, liquidity, the weekly oil report, days like the newest session), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.daysLikeToday"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.daysLikeToday"
+      ],
+      "ownWords": [
+        "marketMacro"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.daysLikeToday",
+            "target": "$stockData",
+            "args": {
+              "rows": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*market\\.analogs.*\"params\":\\{\"rows\":5\\}"
+        ],
+        "says": [
+          "A record of what followed similar days, not a forecast\\.",
+          "• Tue Mar 4, 2025 \\(97\\.3% match\\): \\+1\\.20% / -0\\.40% / \\+2\\.50% / \\+6\\.10%",
+          "Only 3 sessions came back of the 5 asked for\\."
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "days like today",
+        "breadth analogues",
+        "when did the market look like this",
+        "past sessions like this"
+      ]
+    },
+    {
       "id": "recentlyDeleted.restore",
       "source": "Charts family (2026-11-19): Recently deleted — bring back a deleted watchlist, saved layout or saved screen through the artifact-versions routes the Recently deleted panel uses",
       "capabilities": [

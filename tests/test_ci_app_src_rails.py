@@ -161,7 +161,7 @@ def test_the_shards_are_a_partition_of_the_list_and_load_the_known_red_plugin(ce
     assert C.shard_count([], timings) == 0 and C.shard_count(home[:1], timings) == 1
 
 
-def test_a_known_red_runs_as_a_strict_xfail_so_it_goes_red_when_it_goes_green():
+def test_a_known_red_runs_as_a_strict_xfail_so_it_goes_red_when_it_goes_green(monkeypatch):
     class _Item:
         def __init__(self, nodeid):
             self.nodeid, self.marks = nodeid, []
@@ -169,7 +169,10 @@ def test_a_known_red_runs_as_a_strict_xfail_so_it_goes_red_when_it_goes_green():
         def add_marker(self, mark):
             self.marks.append(mark)
 
-    red = next(k for k in C.KNOWN_RED if "::" in k)
+    # A planted id: this tests the marker, and the real list may hold no single-test entry at all (2026-11-24, when
+    # the sweep emptied it of them, `next()` raised StopIteration here).
+    red = "tests/test_reader.py::test_known_red"
+    monkeypatch.setitem(C.KNOWN_RED, red, "x" * 40)
     items = [_Item(red), _Item("tests/test_reader.py::test_green")]
     C.pytest_collection_modifyitems(None, items)
     assert [m.name for m in items[0].marks] == ["xfail"] and items[0].marks[0].kwargs["strict"] is True
@@ -193,12 +196,20 @@ def test_a_known_red_that_passes_turns_the_run_red(tmp_path):
     assert r.returncode == 1 and "XPASS(strict)" in r.stdout and "1 xfailed" in r.stdout, r.stdout[-600:]
 
 
+#: A real parametrized test id: the param control's sample when KNOWN_RED holds no parametrized entry (it held none
+#: once the upload-cap reader doors went green, 2026-11-24, and `next()` raised StopIteration).
+PARAM_SAMPLE = ("tests/test_notebook_upload_cap_2.py::test_reader_door_without_a_session_reads_no_body"
+                "[/api/j2/entry-context/why]")
+
+
 def test_every_known_red_still_names_a_test(census):
     for node in C.KNOWN_RED:
         if "::" in node:
             assert C._test_exists(ROOT, node), node
     assert not C._test_exists(ROOT, REFUSAL_RAIL + "::test_that_was_never_written")
-    assert not C._test_exists(ROOT, next(k for k in C.KNOWN_RED if "[" in k).split("[")[0] + "[no such param]")
+    sample = next((k for k in C.KNOWN_RED if "[" in k), PARAM_SAMPLE)
+    assert C._test_exists(ROOT, sample), sample
+    assert not C._test_exists(ROOT, sample.split("[")[0] + "[no such param]")
 
 
 # ── path-aware: a PR runs the rails that read, or depend on, what it changes ──

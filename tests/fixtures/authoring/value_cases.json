@@ -18,6 +18,7 @@
   "generics",
   "max_bars_back",
   "method-call",
+  "obj:getter",
   "realtime-state",
   "switch",
   "udt",
@@ -65,6 +66,15 @@
     "script": {
      "pine": "//@version=5\nindicator(\"Average volume of the last 10 up days (a while loop)\")\nfloat total = 0.0\nint found = 0\nint k = 0\nwhile found < 10 and k < bar_index\n    if close[k] > close[k + 1]\n        total += volume[k]\n        found += 1\n    k += 1\nplot(found == 10 ? total / 10 : na, \"Average up-day volume\")\n"
     }
+   },
+   "edge": {
+    "ties": [
+     {
+      "field": "c",
+      "back": 5,
+      "as": 6
+     }
+    ]
    }
   },
   {
@@ -85,6 +95,15 @@
     "script": {
      "pine": "//@version=5\nindicator(\"Average volume of the last 10 up days (a look back with max_bars_back)\")\nmax_bars_back(close, 500)\nmax_bars_back(volume, 500)\nfloat total = 0.0\nint found = 0\nint last = math.min(bar_index - 1, 400)\nif last >= 0\n    for k = 0 to last\n        if close[k] > close[k + 1]\n            total += volume[k]\n            found += 1\n            if found == 10\n                break\nplot(found == 10 ? total / 10 : na, \"Average up-day volume\")\n"
     }
+   },
+   "edge": {
+    "ties": [
+     {
+      "field": "c",
+      "back": 5,
+      "as": 6
+     }
+    ]
    }
   },
   {
@@ -126,6 +145,15 @@
     "script": {
      "pine": "//@version=5\nindicator(\"Average volume of the last 10 up days\")\nvar ups = array.new_float()\nif close > close[1]\n    ups.push(volume)\n    if ups.size() > 10\n        ups.shift()\nplot(ups.size() == 10 ? ups.avg() : na, \"Average up-day volume\")\n"
     }
+   },
+   "edge": {
+    "ties": [
+     {
+      "field": "c",
+      "back": 5,
+      "as": 6
+     }
+    ]
    }
   },
   {
@@ -191,6 +219,10 @@
    },
    "recorded_verdict": "wrong",
    "defect": "ENGINE, SILENT: the label is not drawn and nothing is reported. The script labels the rise of its line as line.get_y2(ln) - line.get_y1(ln). The line is drawn right; the label, whose text is ARITHMETIC on a value read back from a drawing, is missing, with no error. Isolated 2026-11-23: one read-back value alone in a label is drawn, the same script with the rise computed directly is right ($8.06), and the same subtraction plotted is right; any arithmetic on a read-back value in a label's text loses the label. A script must draw the right value or be refused by name, never neither. Routed to the engine train.",
+   "engine_fixed": {
+    "by": "e96 #2610 (getter arithmetic in a drawing's text is computed)",
+    "since_engine": 96
+   },
    "answer": {
     "turn": "script",
     "script": {
@@ -220,6 +252,15 @@
     "script": {
      "pine": "//@version=5\nindicator(\"Average volume of the last 10 up days (an average inside an if)\")\nvar float avgUp = na\nif close > close[1]\n    avgUp := ta.sma(volume, 10)\nplot(avgUp, \"Average up-day volume\")\n"
     }
+   },
+   "edge": {
+    "ties": [
+     {
+      "field": "c",
+      "back": 5,
+      "as": 6
+     }
+    ]
    }
   }
  ],
@@ -1839,7 +1880,15 @@
       "color": "#089981"
      }
     ]
-   }
+   },
+   "edge": [
+    {
+     "extreme": {
+      "field": "c",
+      "back": 252
+     }
+    }
+   ]
   },
   {
    "id": "d18",
@@ -2717,7 +2766,16 @@
       ]
      }
     ]
-   }
+   },
+   "edge": [
+    {
+     "tie": {
+      "field": "c",
+      "back": 5,
+      "as": 6
+     }
+    }
+   ]
   },
   {
    "id": "d26",
@@ -3150,7 +3208,17 @@
       "text": "20BH"
      }
     ]
-   }
+   },
+   "edge": [
+    {
+     "extreme": {
+      "field": "c",
+      "back": 31,
+      "factor": 1.1,
+      "at": 142
+     }
+    }
+   ]
   },
   {
    "id": "f03",
@@ -5233,11 +5301,16 @@
    "lane": "formula",
    "words": "Show inside bars, where the high is below the prior bar's high and the low is above the prior bar's low",
    "rule": {
-    "digest": "405205632d7d0ae8",
+    "digest": "49b43d872c64cd92",
     "history": [
      {
       "digest": "405205632d7d0ae8",
       "reason": "written from the request's words before the answer was read"
+     },
+     {
+      "digest": "49b43d872c64cd92",
+      "reason": "made strict 2026-11-25 (coordinator's ruling, the value-case audit): the words say below and above, so 'at or inside' was no honest reading; the recorded answer (high < prior high, low > prior low) is graded RIGHT by the strict rule alone",
+      "quote": "the high is below the prior bar's high and the low is above the prior bar's low"
      }
     ]
    },
@@ -8093,7 +8166,17 @@
       "text": "20B high"
      }
     ]
-   }
+   },
+   "edge": [
+    {
+     "extreme": {
+      "field": "c",
+      "back": 11,
+      "factor": 1.1,
+      "at": 69
+     }
+    }
+   ]
   },
   {
    "id": "h11",
@@ -12937,7 +13020,23 @@
       ]
      }
     ]
-   }
+   },
+   "edge": [
+    {
+     "tie": {
+      "field": "c",
+      "back": 5,
+      "as": 6
+     }
+    },
+    {
+     "tie": {
+      "field": "c",
+      "back": 58,
+      "as": 59
+     }
+    }
+   ]
   },
   {
    "id": "cap-02",
@@ -13340,7 +13439,16 @@
       ]
      }
     ]
-   }
+   },
+   "edge": [
+    {
+     "tie": {
+      "field": "c",
+      "back": 5,
+      "as": 6
+     }
+    }
+   ]
   },
   {
    "id": "cap-03",
@@ -14808,6 +14916,39 @@
    }
   },
   {
+   "id": "cap-01",
+   "lane": "script",
+   "chart": "daily",
+   "words": "In a pane under the chart, plot how many bars back the most recent close above today's close was, looking back at most 250 bars, and plot nothing when there is none",
+   "rule": {
+    "digest": "1f8bf4cc3ed7ce66",
+    "history": [
+     {
+      "digest": "1f8bf4cc3ed7ce66",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "needs": "a loop that stops when it finds the bar (`while`, or `for` with a break)",
+   "distinguishes": "a value on 1,951 of 2,000 bars, 140 distinct counts, the largest 248; nothing on 49 bars, of which 19 have a higher close further back than 250 bars (those are the bars a look-back with no limit would get wrong)",
+   "edge": {
+    "back": 251,
+    "close": true
+   },
+   "recorded": {
+    "on": "2026-11-24",
+    "front": "6d50f4662b",
+    "model": "claude-opus-5"
+   },
+   "answer": {
+    "turn": "script",
+    "script": {
+     "pine": "//@version=5\nindicator(\"Bars since last higher close\", overlay=false)\n\nlookback = input.int(250, \"Maximum bars to look back\", minval=1)\n\n// Walk back from the previous bar until a close above the current close is found.\n// Plot nothing (na) if no higher close exists within the lookback window.\ndistance() =>\n    int found = na\n    for i = 1 to lookback\n        if close[i] > close\n            found := i\n            break\n    found\n\nd = distance()\n\nplot(d, \"Bars back\", color=color.teal, style=plot.style_columns)\n"
+    }
+   },
+   "provenance": "Adopted RIGHT 2026-11-24 on the MEMBER record (coordinator's ruling): six samples of these words as the member test account (role member), production build 6d50f4662b, 0.82 USD within the member allowance: 6 of 6 RIGHT by this case's own rule, 0 of 2,000 bars differing in every run, each a script on the first answer with no refused attempt, each saying it was built from the description with no checked reference. The answer recorded is the first of the six. What made it right is on the ASSISTANT side, not the engine's: #2597 (merge 0e7aeb43f46f8ccd790fc4626cccf62bbd73a601) put the look-back fact where the first attempt reads it (a formula says how many bars of a look-back qualify, never which bar), so the formula lane declines and the window writes a script. Before it, live 2026-11-23: Live 2026-11-23, first pass: answered on the FORMULA lane with a DISCLOSED STAND-IN, wrong by value on 1,267 of 1,700 bars (it counted back to the last bar that closed above the bar before it, not above today's close, and said so). Measured over the 289 distinct formula builds on record, it was the one reply that discloses building something else. Ruled: where the formula lane cannot hold the words exactly it declines, and the door's routing then tries a script (#2572). Live again the same day, three samples on the build that holds #2572: 2 of 3 RIGHT, as scripts, exact on every bar (a guard refused the formula attempt, once envelope:event-window and once envelope:compared-with-itself, the repair declined, and the door handed the request to the script lane). 1 of 3 WRONG: the same stand-in formula, built on a first attempt no guard refuses, and this time NOT disclosed in the reply. Two of three is not a record: the case stays pending, on the script lane, and three more samples are owed to tell how often the stand-in comes back and whether it is said."
+  },
+  {
    "id": "wall-01",
    "lane": "wall",
    "words": "Plot the put/call ratio for this stock's options under the chart.",
@@ -16008,24 +16149,6 @@
     ]
    },
    "held": "Not an acceptance case by value yet: on the built 5 minute chart this condition is true on NO bar under any reading of the 14 day ATR, so a rule could not tell a right answer from a formula that is never true. Re-admit if the fixture gains a session where it can be true. The member's words are not changed to make it one."
-  },
-  {
-   "id": "cap-01",
-   "lane": "script",
-   "chart": "daily",
-   "words": "In a pane under the chart, plot how many bars back the most recent close above today's close was, looking back at most 250 bars, and plot nothing when there is none",
-   "rule": {
-    "digest": "1f8bf4cc3ed7ce66",
-    "history": [
-     {
-      "digest": "1f8bf4cc3ed7ce66",
-      "reason": "written from the request's words before the answer was read"
-     }
-    ]
-   },
-   "needs": "a loop that stops when it finds the bar (`while`, or `for` with a break)",
-   "distinguishes": "a value on 1,951 of 2,000 bars, 140 distinct counts, the largest 248; nothing on 49 bars, of which 19 have a higher close further back than 250 bars (those are the bars a look-back with no limit would get wrong)",
-   "found_live": "Live 2026-11-23, first pass: answered on the FORMULA lane with a DISCLOSED STAND-IN, wrong by value on 1,267 of 1,700 bars (it counted back to the last bar that closed above the bar before it, not above today's close, and said so). Measured over the 289 distinct formula builds on record, it was the one reply that discloses building something else. Ruled: where the formula lane cannot hold the words exactly it declines, and the door's routing then tries a script (#2572). Live again the same day, three samples on the build that holds #2572: 2 of 3 RIGHT, as scripts, exact on every bar (a guard refused the formula attempt, once envelope:event-window and once envelope:compared-with-itself, the repair declined, and the door handed the request to the script lane). 1 of 3 WRONG: the same stand-in formula, built on a first attempt no guard refuses, and this time NOT disclosed in the reply. Two of three is not a record: the case stays pending, on the script lane, and three more samples are owed to tell how often the stand-in comes back and whether it is said."
   },
   {
    "id": "fund-01",

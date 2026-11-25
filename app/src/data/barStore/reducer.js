@@ -46,7 +46,7 @@
 import { bucketStartUnix, computeBarTime, isRthBar, etDateOf, etMinuteOfDay } from '../../components/chart/barTime'
 import { isHolidayISO } from '../../utils/marketSession'
 import { bucketEndUnix } from '../../components/chart/liveBuckets'
-import { foldOffGridBars } from '../../components/chart/offGridBars'
+import { foldOffGridBars, offGrid } from '../../components/chart/offGridBars'
 import { isSaneLivePriceFor } from '../../components/chart/liveTickBaseline'
 import {
   mergePushBar, reconcileWithServerTail, foldPrice, provisionalOpen, isCompleteOhlc,
@@ -866,6 +866,34 @@ function applyLocal(state, action, ctx, source) {
   return out.lakeOnly === lakeOnly ? out : Object.freeze({ ...out, lakeOnly })
 }
 
+/**
+ * ⭐ (2026-11-25, next-row key task) DOES A SAVED COPY'S RAW ROWS PROVABLY CHANGE NOTHING ON THIS ENTRY? True only when
+ * `applyLocal(state, {payload: {bars: raw, ...}})` returns `state` ITSELF, whatever else the payload carries (its stamp,
+ * its seals, `saved_at`, `repair_from`): the entry holds a server answer (`restSeen`), and there a local copy can only add
+ * rows OLDER than everything held (`first`, the restSeen branch of `_applyLocal`), so a copy none of whose rows lands
+ * before `first` is refused whole. A row keeps its own `t` through `ingestRows` (`normT`, as `toBar` reads it), or, off
+ * its intraday grid, is moved to its bucket's start, never more than one bucket (at most an hour) earlier: such a row
+ * within an hour of `first` is not proven and answers false. A malformed row is dropped by `toBar` and adds nothing.
+ * O(rows), no allocation: what lets the bar store skip decoding and ingesting a copy that would change nothing
+ * (persist.hydrateMem, on every chart switch). False is always safe (the copy is applied as before).
+ */
+export function localCopyAddsNothing(state, raw) {
+  if (!state || !state.restSeen || !Array.isArray(raw)) return false
+  if (!raw.length) return true
+  const first = Math.min(state.restFrom ?? Infinity, state.bars[0]?.t ?? Infinity, state.developing?.t ?? Infinity)
+  if (!finite(first)) return false
+  const tf = String(state.tf)
+  const slack = isDateTf(tf) ? 0 : 3600
+  for (const r of raw) {
+    if (!r || typeof r !== 'object') continue
+    const t = normT(r.t ?? r.time, tf)
+    if (!finite(t)) continue
+    if (t < first) return false
+    if (t < first + slack && offGrid(t, tf)) return false
+  }
+  return true
+}
+
 /** A server answer's result no longer holds the lake's rows alone. */
 function _notLakeOnly(state, out) {
   return out === state || !out.lakeOnly ? out : Object.freeze({ ...out, lakeOnly: false })
@@ -1094,14 +1122,26 @@ function applyPush(state, action, ctx, isFinal) {
   let bars = state.bars
   let dev = state.developing
   const last = bars.length ? bars[bars.length - 1] : null
+  // ⭐ THE MINUTE FEED'S FINAL CLOSES THE BAR THE SERVER CALLED FORMING (review of #2639, M1). `newestForming` is the
+  // route's `newest_bar_is_forming` kept with the bar it describes (_formingOf), and the chart's runs read it for the
+  // newest row (adapter.newestBarIsFormingOf: Pine's barstate.isconfirmed). A copy the minute feed keeps current
+  // (data/barStore/minuteFeed.js) has that bar closed by the feed and then stays the newest row for most of a minute:
+  // left as it was, a closed newest bar was handed to the runs as forming.
+  // ⛔ ONLY FOR THE FEED'S OWN FINAL (`action.fromFeed`, round 2 of that review). A STREAM final on a chart's own key
+  // leaves the flag exactly as it always was: there the stale "forming" lasts until the stream opens the next bucket
+  // (a heartbeat on a liquid name), while "confirmed" would last until the next trade on a thin one, releasing the
+  // values Pine holds back on a forming bar. With the feed's switch off no member's chart may change.
+  const nf = state.newestForming
+  const closed = final && action.fromFeed === true && nf && nf.forming === true && nf.t === f.t
+    ? { newestForming: Object.freeze({ t: f.t, forming: false }) } : null
 
   // A frame for a bucket at or before the newest closed row, or before the developing
   // bar: never the developing candle (I4) — it competes as a CLOSED row (rev order; never
   // inside the sealed region).
   if ((last && f.t <= last.t) || (dev && f.t < dev.t)) {
-    if (_inSpans(state, f.t)) return state
+    if (_inSpans(state, f.t)) return closed ? finalize(state, closed, ctx) : state
     const row = { t: f.t, o: f.o, h: f.h, l: f.l, c: f.c, v: f.v, rev: f.rev, fin: final, src: final ? 'final' : 'push' }
-    return finalize(state, { bars: mergeRows(state, [row]) }, ctx)
+    return finalize(state, { bars: mergeRows(state, [row]), ...closed }, ctx)
   }
 
   let st = state
@@ -1114,8 +1154,8 @@ function applyPush(state, action, ctx, isFinal) {
       // An older FINAL still CLOSES the bucket (the feed moved on); its values compete with
       // the newer observation we hold as closed rows, by rev.
       const row = { t: f.t, o: f.o, h: f.h, l: f.l, c: f.c, v: f.v, rev: f.rev, fin: true, src: 'final' }
-      const closed = closeDeveloping(st, bars)
-      return finalize(state, { bars: mergeRows({ ...st, bars: closed.bars }, [row]), developing: null }, ctx)
+      const shut = closeDeveloping(st, bars)
+      return finalize(state, { bars: mergeRows({ ...st, bars: shut.bars }, [row]), developing: null, ...closed }, ctx)
     }
     const m = mergePushBar(toChartBar(dev, sym), inc, { sym, final, tradeTs: f.tradeTs })
     if (m.kind !== 'update') return state
@@ -1123,7 +1163,7 @@ function applyPush(state, action, ctx, isFinal) {
     if (final) {
       const b = m.bar
       const row = { t: f.t, o: b.open, h: b.high, l: b.low, c: b.close, v: _vol(b.volume), rev: finite(rev) ? rev : null, fin: true, src: 'final' }
-      return finalize(state, { bars: mergeRows({ ...st, bars }, [row]), developing: null }, ctx)
+      return finalize(state, { bars: mergeRows({ ...st, bars }, [row]), developing: null, ...closed }, ctx)
     }
     dev = fromChartDev(m.bar, rev, DEV_SRC.PUSH)
     return finalize(state, { bars, developing: dev }, ctx)

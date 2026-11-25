@@ -323,7 +323,9 @@ def test_reader_empty_and_non_object_bodies_keep_their_answers(reader_app):
     assert r.status_code == 422 and r.json()["detail"] == "Send a JSON object"
 
 
-# The real write doors: the reader runs only after the session check.
+# The real write doors: the reader runs only after the session check. Each door is always on: its feature flag was
+# retired 2026-11-04 (de6708b950 entry context and plan grading, 98929d6a7a the community library), so there is no
+# switch to turn on here; the service module is still named, as the module that owns the door.
 REAL_WRITE_DOORS = [
     ("notebook_entry_context", "api.services.journal_two.entry_context", "PUT", "/api/j2/entry-context/why"),
     ("notebook_plan_grades", "api.services.journal_two.plan_grading", "POST", "/api/j2/plan-grades/trades/t1/relink"),
@@ -333,11 +335,10 @@ REAL_WRITE_DOORS = [
 
 
 @pytest.mark.parametrize("door", REAL_WRITE_DOORS, ids=[d[3] for d in REAL_WRITE_DOORS])
-def test_reader_door_without_a_session_reads_no_body(db_path, monkeypatch, door):
+def test_reader_door_without_a_session_reads_no_body(db_path, door):
     import importlib
     name, svc_name, method, path = door
-    svc = importlib.import_module(svc_name)
-    monkeypatch.setenv(svc.FLAG, "1")
+    importlib.import_module(svc_name)
     mod = _reader(name)
     fa = FastAPI()
     fa.include_router(mod.router)

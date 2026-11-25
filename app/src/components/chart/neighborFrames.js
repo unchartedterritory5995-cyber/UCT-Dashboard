@@ -32,10 +32,11 @@
 // lib/chartSpeed.js) turns it off in every browser, over a local '1'. Read once per page load. Off, nothing
 // here is scheduled or kept, and every caller takes the path it always took.
 //
-// ⛔ ALMOST A LEAF: its one import is lib/chartSpeed.js, which imports nothing, so the binder, the bar
-// store's adapter and StockChart can all still reach it.
+// ⛔ ALMOST A LEAF: its imports are lib/chartSpeed.js and styles/breakpoints.js, which import nothing, so the
+// binder, the bar store's adapter and StockChart can all still reach it.
 
 import { chartSpeedKilled } from '../../lib/chartSpeed'
+import { MQ } from '../../styles/breakpoints'
 
 export const NEIGHBOR_FRAMES_KEY = 'uct.neighborframes'
 
@@ -139,36 +140,160 @@ export const SOURCES_KEPT = 10
 // collected with its derived values; the bound on how many sources keep derived values is unchanged.
 // Rail: StockChart.closureChains.test.jsx.
 const _WeakRef = typeof globalThis !== 'undefined' ? globalThis.WeakRef : undefined
+const _weak = (x) => (_WeakRef ? new _WeakRef(x) : { deref: () => x })
+
+// ─── ⭐ AND A BUDGET IN BARS (2026-11-25, review of #2729) ─────────────────────────────────────────────
+// Counting rows (below) lets one row's depth multiply what is kept: ten 20,000-bar minute rows hold about twice the
+// derived values ten arrays did, and the switch is not device-gated, while iOS Safari kills a tab on a few hundred MB.
+// So the derived values kept are ALSO bounded by their size: every derived array counts its length (a Set its size)
+// against DERIVED_BARS (each cache on its own: the derived values, the chart times), and over it the least recently
+// used rows go, oldest first. Two rows never go for the budget (nor for the row bound): the row each chart SHOWS and
+// the row it prepared FIRST, the one its next press lands on (`holdRow`, useNeighborFrames). The budget is sized so
+// a desktop 1m + 15m board keeps its 10 rows with room (DERIVED_BARS_DESKTOP); the touch tier (≤1024 px or a coarse
+// pointer: one chart, a phone's memory) keeps less (DERIVED_BARS_TOUCH). What is derived and what a lookup asks are
+// unchanged: a dropped value is computed again, the same numbers.
+//
+// ARITHMETIC (the 2026-11-25 next-row replay, run 3: S&P 500, 1m + 15m, regular hours, 39 presses). A row holds, in
+// derived bars, its session rows (the filter's output) plus the candles, closes, volume and its average over them:
+// 5 arrays of the session rows' length (the HVC set adds a few hundred; the extremes are one object). The rows' session
+// rows ran 9.2k-24.5k (minute rows of 20,001, 15-minute rows of 20,025-32,001; names with little extended-hours trading
+// keep most of theirs). The ten most recent rows at a press (on screen, three prepared and the one just left, per
+// chart) held a median 618k and at most 831k derived bars (the heaviest: 5 x (10,255 + 11,037 + 14,265 + 14,451 +
+// 15,517 + 15,661 + 18,757 + 19,472 + 22,271 + 24,465)). DERIVED_BARS_DESKTOP = 1,000,000 is x1.2 that: the budget
+// does NOT bind on that board, it keeps its 10 rows. The chart times are one array per row (at most 166k for the ten):
+// far under. The touch tier, one chart: 4 rows (on screen + three prepared) of median 12k session rows are ~240k;
+// DERIVED_BARS_TOUCH = 200,000 keeps the row on screen and the next one always (held) and the farther prepared rows
+// when they fit. A derived bar is one small object (a candle, a point) or a reference: 1M is some 50-80 MB of the
+// heap at most, 200k a fifth of that.
+export const DERIVED_BARS_DESKTOP = 1_000_000
+export const DERIVED_BARS_TOUCH = 200_000
+/** The derived bars a page keeps: the touch tier keeps fewer. */
+export function derivedBarsBudgetFor({ touch = false } = {}) { return touch ? DERIVED_BARS_TOUCH : DERIVED_BARS_DESKTOP }
+let _budget = null
+function _touchTier() {
+  try {
+    return typeof matchMedia === 'function' && (matchMedia(MQ.touchDown).matches || matchMedia(MQ.coarsePointer).matches)
+  } catch { return false }
+}
+/** This page's budget, read once (the tier a page loads on). */
+export function derivedBarsBudget() {
+  if (_budget === null) _budget = derivedBarsBudgetFor({ touch: _touchTier() })
+  return _budget
+}
+/** Tests: set the budget (null re-reads the tier). */
+export function __setDerivedBarsBudgetForTests(n) { _budget = n === null || n === undefined ? null : n }
+
+/** owner (a chart) -> { shown, next }: weak handles on the rows it shows and will land on next. */
+const _held = new Map()
+/** `owner` shows (`slot` 'shown') or prepared first (`slot` 'next') the row of `src`: neither budget nor bound drops
+ *  it while the owner holds it there. Weak: a row the store let go is collected as before. `src` null clears the slot. */
+export function holdRow(owner, slot, src) {
+  if (!owner || (slot !== 'shown' && slot !== 'next')) return
+  let h = _held.get(owner)
+  if (!h) { h = { shown: null, next: null }; _held.set(owner, h) }
+  h[slot] = src && typeof src === 'object' ? _weak(rowOf(src)) : null
+}
+/** `owner` holds nothing any more (its chart is gone). */
+export function releaseRows(owner) { _held.delete(owner) }
+function _isHeld(row) {
+  if (!row) return false
+  for (const h of _held.values()) {
+    if ((h.shown && h.shown.deref() === row) || (h.next && h.next.deref() === row)) return true
+  }
+  return false
+}
+/** Derived bars a value holds: an array its length, a Set or Map its size, anything else nothing. */
+function _barsOf(v) {
+  if (Array.isArray(v)) return v.length
+  if (v instanceof Set || v instanceof Map) return v.size
+  return 0
+}
+
 function _lru() {
   const store = new WeakMap()     // source -> value
   const tokens = new WeakMap()    // source -> its one recency token
   const order = new Set()         // tokens, oldest first; a token holds its source weakly (strongly where WeakRef is missing)
+  const weights = new Map()       // token -> derived bars held under it
+  let total = 0
   const tokenOf = (src) => {
     let t = tokens.get(src)
-    if (!t) { t = _WeakRef ? new _WeakRef(src) : { deref: () => src }; tokens.set(src, t) }
+    if (!t) { t = _weak(src); tokens.set(src, t) }
     return t
   }
   const touch = (src) => { const t = tokenOf(src); order.delete(t); order.add(t) }
+  const drop = (t) => {
+    order.delete(t)
+    total -= weights.get(t) || 0
+    weights.delete(t)
+    const s = t.deref()
+    if (s) store.delete(s)
+  }
+  // oldest first, while over the row bound or the bars budget; never `keep` (the source just used) nor a held row
+  const evict = (keep) => {
+    for (const t of [...order]) if (!t.deref()) drop(t)   // sources already collected
+    for (const t of [...order]) {
+      if (order.size <= SOURCES_KEPT && total <= derivedBarsBudget()) break
+      if (t === keep || _isHeld(t.deref())) continue
+      drop(t)
+    }
+  }
   return {
     get(src) { const v = store.get(src); if (v) touch(src); return v },
     make(src, v) {
       store.set(src, v)
       touch(src)
-      for (const t of order) if (!t.deref()) order.delete(t)   // sources already collected
-      while (order.size > SOURCES_KEPT) {
-        const old = order.values().next().value
-        order.delete(old)
-        const s = old.deref()
-        if (s) store.delete(s)
-      }
+      evict(tokenOf(src))
       return v
     },
-    clear() { for (const t of order) { const s = t.deref(); if (s) store.delete(s) } order.clear() },
+    /** `n` derived bars more (fewer, negative) are held under `src` (a source this cache holds); over the budget,
+     *  older rows go. */
+    weigh(src, n) {
+      if (!n) return
+      const t = tokens.get(src)
+      if (!t || !order.has(t)) return
+      weights.set(t, (weights.get(t) || 0) + n)
+      total += n
+      if (n > 0) evict(t)
+    },
+    /** The derived bars held, and the sources (rows) holding them (diagnostics, tests). */
+    size() { return { bars: total, rows: order.size } },
+    clear() { for (const t of order) { const s = t.deref(); if (s) store.delete(s) } order.clear(); weights.clear(); total = 0 },
   }
 }
 
+// ─── ⭐ ROWS, NOT ARRAYS (2026-11-25, next-row key task) ─────────────────────────────────────────────
+// The bound above was meant in ROWS ("the rows around the selection on two charts, the row on screen and the one
+// just left") and counted ARRAYS. A row is two or three arrays here: its rows (the session filter's source), the
+// session-filtered rows (the candles, closes, volume, its average, the HVC set, the extremes, the chart times, the
+// binder's columns), and with Heikin-Ashi its display rows. Preparing the three rows around the selection on a
+// two-chart board files under 12 arrays, plus the 4 of the rows on screen: the LRU dropped the OLDEST, which is the
+// row prepared FIRST, the very row the next press lands on (the next-row replay, 2026-11-25, 39 presses on a 1m + 15m
+// board: every chart render in the presses' key tasks read the very rows array the preparer had read, and 67 of the 76
+// session derivations there missed: that row's derived values had been dropped; nothing downstream was reused).
+// An array derived from a row's rows is now filed under that row (`linkDerivedSource`, called where the chain derives
+// it: deriveSession, deriveDisplay): its derived values and chart times are kept and dropped with the row, and the
+// LRU counts rows. What is derived is unchanged: the same (array, name, signature) asks the same question.
+const _rowOf = new WeakMap()   // an array derived from a row's rows -> those rows (the row's first array)
+const rowOf = (src) => _rowOf.get(src) || src
+/** `child` was derived from `parent` (the session filter of a row's rows, their Heikin-Ashi): file it under the
+ *  same row. Once per array: a child keeps the row it was first filed under. */
+export function linkDerivedSource(child, parent) {
+  if (!child || !parent || child === parent || typeof child !== 'object' || typeof parent !== 'object') return
+  if (_rowOf.has(child)) return
+  const row = rowOf(parent)
+  if (row !== child) _rowOf.set(child, row)
+}
+/** The per-array map filed under `src`'s row (made on first use). */
+function _underRow(lru, src) {
+  const row = rowOf(src)
+  const bySrc = lru.get(row) || lru.make(row, new Map())
+  let m = bySrc.get(src)
+  if (!m) { m = new Map(); bySrc.set(src, m) }
+  return m
+}
+
 // ─── one chart time per bar ───────────────────────────────────────────────────────────────────────────
-const _times = _lru()   // bars -> Map(adjustTime -> times[])
+const _times = _lru()   // a row's rows -> Map(bars of that row -> Map(adjustTime -> times[]))
 
 /**
  * `bars.map(b => adjustTime(b.t))`, built once per (bars, adjustTime) and shared read-only by every
@@ -177,18 +302,19 @@ const _times = _lru()   // bars -> Map(adjustTime -> times[])
  */
 export function chartTimesFor(bars, adjustTime) {
   if (!Array.isArray(bars) || typeof adjustTime !== 'function') return null
-  const byFn = _times.get(bars) || _times.make(bars, new Map())
+  const byFn = _underRow(_times, bars)
   const hit = byFn.get(adjustTime)
   if (hit) { _stats.timesHit += 1; return hit }
   const out = new Array(bars.length)
   for (let i = 0; i < bars.length; i++) out[i] = adjustTime(bars[i].t)
   byFn.set(adjustTime, out)
   _stats.timesBuilt += 1
+  _times.weigh(rowOf(bars), out.length)
   return out
 }
 
 // ─── a derived array, filed under its source array ────────────────────────────────────────────────────
-const _derived = _lru()   // source array -> Map(`${name}\u0001${sig}` -> value)
+const _derived = _lru()   // a row's rows -> Map(source array of that row -> Map(`${name}\u0001${sig}` -> value))
 const DERIVED_PER_SOURCE = 16
 
 /**
@@ -198,23 +324,34 @@ const DERIVED_PER_SOURCE = 16
  */
 export function deriveFrom(src, name, sig, fn) {
   if (!src || typeof src !== 'object') return fn()
-  const m = _derived.get(src) || _derived.make(src, new Map())
+  const m = _underRow(_derived, src)
   const k = `${name}\u0001${sig}`
   if (m.has(k)) { _stats.derivedHit += 1; return m.get(k) }
   const v = fn()
   m.set(k, v)
-  while (m.size > DERIVED_PER_SOURCE) m.delete(m.keys().next().value)
+  let n = _barsOf(v)
+  while (m.size > DERIVED_PER_SOURCE) {
+    const old = m.keys().next().value
+    n -= _barsOf(m.get(old))
+    m.delete(old)
+  }
+  _derived.weigh(rowOf(src), n)
   return v
 }
 
+/** The derived bars held now, and the rows holding them: the derived values and the chart times (each its own cache,
+ *  each against the budget). */
+export function derivedHeld() { return { derived: _derived.size(), times: _times.size(), budget: derivedBarsBudget() } }
+
 /** Was `name`/`sig` already derived from `src`? (A preparer skips what is done.) */
 export function hasDerived(src, name, sig) {
-  const m = src && typeof src === 'object' ? _derived.get(src) : null
+  const bySrc = src && typeof src === 'object' ? _derived.get(rowOf(src)) : null
+  const m = bySrc ? bySrc.get(src) : null
   return !!m && m.has(`${name}\u0001${sig}`)
 }
 
 /** Tests: forget every derived value and chart-time array. */
-export function __resetDerivedForTests() { _derived.clear(); _times.clear() }
+export function __resetDerivedForTests() { _derived.clear(); _times.clear(); _held.clear() }
 
 // ─── an object named by identity, inside a content signature ─────────────────────────────────────────
 const _serials = new WeakMap()

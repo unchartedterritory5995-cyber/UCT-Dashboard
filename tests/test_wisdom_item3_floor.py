@@ -547,6 +547,9 @@ EXPECTED_GET_ROUTES = [
     ("/api/wisdom/archive/stats", "authed"),
     ("/api/wisdom/archive/ticker/{sym}", "authed"),
     ("/api/wisdom/archive/ticker/{sym}/daily", "authed"),
+    # 2026-10-17 (e0cb24f047): the chart's Team history panel, require_paid, 404 unless both
+    # WISDOM_ARCHIVE_ENABLED and WISDOM_TICKER_HISTORY_ENABLED are on. Inside MEMBER_PREFIXES.
+    ("/api/wisdom/archive/ticker/{sym}/team-history", "authed"),
     ("/api/wisdom/archive/trader/{author}", "authed"),
     ("/api/wisdom/team-calls", "authed"),
 ]
@@ -587,7 +590,7 @@ def test_8b_every_route_is_admin_owner_or_internal_except_the_ruled_paid_member_
     assert member, "non-vacuity: the ruled member routes were not found at all"
     assert not [r for r in routes if dark.classify(r) == "UNGUARDED"]
     # non-vacuity: the walk must actually have found routes to classify
-    assert len(routes) == len(EXPECTED_GET_ROUTES) == 45
+    assert len(routes) == len(EXPECTED_GET_ROUTES) == 46
 
 
 def test_8c_no_route_path_is_doubled():

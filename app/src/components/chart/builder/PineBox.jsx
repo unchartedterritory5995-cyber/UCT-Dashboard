@@ -853,6 +853,7 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
           sym={sym}
           tf={tf}
           onGoToLine={goToLine}
+          reportSince={inspection.since}
         />
       )}
 

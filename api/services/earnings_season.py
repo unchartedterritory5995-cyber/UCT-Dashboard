@@ -40,6 +40,10 @@ The last good answer is served, marked `refreshing`, while its replacement is bu
 
 Reused by the Terminal panel (app/src/pages/terminal/panels/earningsSeasonModel.js); pure enough
 for an Agent kind to call `get_day` and read the same answer.
+
+THE READY ANSWER'S BYTES ARE MADE ONCE, ON THE BUILD THREAD (speed pass 3, 2026-11-24; live, a held day took
+1.45 s; a busy day of 150 invented reporters is about 98 KB, 26 ms to turn into JSON on the dev PC): `_remember` hands
+each good answer to `held_bytes.remember`, and the route sends those bytes. Same bytes.
 """
 from __future__ import annotations
 
@@ -477,9 +481,18 @@ def build_day(date_str: Optional[str]) -> dict:
 
 # ── one build per day, off the request ───────────────────────────────────────────────────────
 
+def _live_answers() -> dict:
+    """{id: answer} of every answer held now (caller holds `_lock`)."""
+    return {id(a): a for _exp, a in list(_done.values()) + list(_old.values())}
+
+
 def _remember(key: str, out: dict, ttl: float) -> None:
+    from api.services import held_bytes
+    if out.get("status") == "ok":
+        held_bytes.remember(out)                     # its bytes, made here on the build thread, never on a request
     now = time.time()
     with _lock:
+        before = _live_answers()
         _done[key] = (now + ttl, out)
         for k in [k for k, (exp, _o) in _done.items() if exp <= now]:
             _done.pop(k, None)
@@ -491,6 +504,10 @@ def _remember(key: str, out: dict, ttl: float) -> None:
                 _old.pop(k, None)
             while len(_old) > KEEP:
                 _old.pop(min(_old, key=lambda k: _old[k][0]), None)
+        after = _live_answers()
+    for i, gone in before.items():
+        if i not in after:
+            held_bytes.forget(gone)
 
 
 def _answer(key: str) -> Optional[dict]:

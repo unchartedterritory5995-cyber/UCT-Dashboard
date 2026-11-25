@@ -38,10 +38,13 @@ const RESYNCABLE = new Set(['not-received', 'link-mismatch'])
  * @param {(sym:string) => boolean} [o.accept]  symbols worth rolling up (the seed's): the rollup holds
  *                                           no state for any other (the feed carries 8.5-12k symbols)
  * @param {object} [o.consumerOpts]          extra options for createMinuteFrameConsumer (tests)
+ * @param {(info:object) => void} [o.onFrame]  told each frame the LIVE consumer applied, after the overlay took it
+ *                                           (its frameDone info). workerCore tells the pages (lib/minuteFrames/applied.js).
+ *                                           It never reaches the overlay and can never cost it a frame.
  */
 const _bundled = () => ({ createMinuteFrameConsumer })
 
-export function createLiveFeed({ overlay, load = _bundled, now = () => Date.now(), accept = null, consumerOpts = {} } = {}) {
+export function createLiveFeed({ overlay, load = _bundled, now = () => Date.now(), accept = null, consumerOpts = {}, onFrame = null } = {}) {
   let mod = null
   let consumer = null
   let generation = 0          // ⛔ a stopped consumer's catch-up still in flight writes NOTHING (see _sinkFor)
@@ -61,7 +64,11 @@ export function createLiveFeed({ overlay, load = _bundled, now = () => Date.now(
       upsert: (...a) => { if (live()) overlay.sink.upsert(...a) },
       stale: (...a) => { if (live()) overlay.sink.stale(...a) },
       reset: (info) => { if (live()) overlay.sink.reset(info) },
-      frameDone: (info) => { if (live()) overlay.sink.frameDone(info) },
+      frameDone: (info) => {
+        if (!live()) return
+        overlay.sink.frameDone(info)
+        if (onFrame) { try { onFrame(info) } catch { /* a listener never costs the overlay a frame */ } }
+      },
       // the server's day rows after the close (codec FLAG_DAILY; live.js)
       daily: (info) => { if (live()) overlay.sink.daily?.(info) },
       gap(info) {

@@ -91,7 +91,10 @@ def test_an_output_is_listed_only_when_its_own_probe_ran():
     shown = section(pa.document(), "WHAT A SCRIPT CAN SHOW")
     assert re.findall(r"`([a-z]+)`", shown) == served
     withheld = [o["name"] for o in REF["outputs"] if o["name"] not in served]
-    assert "hline" in withheld                                             # today: asked, and not drawn
+    assert "plotarrow" in withheld                                         # today: asked, and not drawn
+    # e96 (HLINE_DEFAULTS[3|4|5], witnessed by #2596's vw-hline-defaults-v{3,4,5}): the v5 `hline` probe runs fully
+    # now, so `hline` is SERVED; it was the withheld example while v5's hline defaults were unwitnessed.
+    assert "hline" in served
     for name in withheld:
         assert f"`{name}`" not in shown
     # take one away in the reference and it leaves the document
@@ -196,22 +199,55 @@ def test_a_pitfall_is_warned_about_only_while_it_stands():
 def test_every_admitted_capability_is_worded_and_no_other_is_printed():
     # every admitted capability is either worded for the assistant or NAMED as deliberately not offered
     # (a library version, `library:Author/Library/N`, is an OPEN family: named once, `pa.not_offered`)
-    unspoken = sorted(c for c in REF["admitted"] if c not in pa.CAPABILITY_WORDS and not pa.not_offered(c))
+    # (e96: the words are `pa.capability_words()`, the typed ones and the gate-worded ones read from the reference)
+    words = pa.capability_words()
+    unspoken = sorted(c for c in REF["admitted"] if c not in words and not pa.not_offered(c))
     assert not unspoken, unspoken
-    assert not (set(pa.CAPABILITY_WORDS) & set(pa.NOT_FOR_THE_ASSISTANT))
-    assert not any(pa.not_offered(c) for c in pa.CAPABILITY_WORDS)
-    assert set(pa.CAPABILITY_WORDS) | set(pa.NOT_FOR_THE_ASSISTANT) <= set(pine_capabilities.CAPABILITY_IDS),         "words for an id the detector cannot return"
+    assert not (set(words) & set(pa.NOT_FOR_THE_ASSISTANT))
+    assert not any(pa.not_offered(c) for c in words)
+    assert set(words) | set(pa.NOT_FOR_THE_ASSISTANT) <= set(pine_capabilities.CAPABILITY_IDS),         "words for an id the detector cannot return"
     assert all(reason for reason in pa.NOT_FOR_THE_ASSISTANT.values()) and pa.NOT_FOR_THE_ASSISTANT_LIBRARIES
     assert "strategy" not in section(pa.document(), "LANGUAGE YOU MAY USE")
     language = section(pa.document(), "LANGUAGE YOU MAY USE")
     for cap in REF["admitted"]:
         if not pa.not_offered(cap):
-            assert pa.CAPABILITY_WORDS[cap] in language
+            assert words[cap] in language
         else:
             assert cap not in pa.document(), cap                           # never printed, by id or by family
     ref = copy.deepcopy(REF)
     ref["admitted"] = [c for c in ref["admitted"] if c != "while"]
-    assert pa.CAPABILITY_WORDS["while"] not in pa.document(ref)
+    assert words["while"] not in pa.document(ref)
+
+
+# ═══ e96: a capability the engine's own gate words is never typed here ═════════════════════
+#
+# ⚰️ Found by the studio 2026-11-23: `conditional-ta` was typed as "a `ta.sma` / `ta.ema` call inside an `if` block
+# at the top level of the script", and the engine refuses that (`pine:block`) whenever the `if` skips a bar and runs
+# again (probe 12: `if close > close[1]` / `avgUp := ta.sma(volume, 10)`). Its words are the gate's own now
+# (`engine/blockRuns.js::BLOCK_RUNS_ADMITS`, copied by the generator into `capabilityWords`).
+
+def test_conditional_ta_is_worded_by_the_gate_never_typed():
+    assert "conditional-ta" in REF["admitted"]
+    assert "conditional-ta" not in pa.CAPABILITY_WORDS                                # never typed on this side
+    gate = REF["capabilityWords"]["conditional-ta"]
+    blockruns = (ROOT / "app" / "src" / "components" / "chart" / "engine" / "blockRuns.js").read_text(encoding="utf-8")
+    assert "export const BLOCK_RUNS_ADMITS" in blockruns and "BLOCK_RUNS_ADMITS" in GENERATOR
+    assert pa.capability_words()["conditional-ta"] == gate
+    language = section(pa.document(), "LANGUAGE YOU MAY USE")
+    assert f"- {gate}" in language
+    # what it says is what the gate does: a block that skips a bar and runs again is refused, by its guard's name
+    assert "pine:block" in gate and "skips a bar and runs again" in gate and "switch" in gate
+    # ⛔ the sentence that taught a refused script is gone from every part of the document
+    assert "inside an `if` block at the top level" not in pa.document()
+
+
+def test_CONTROL_a_reference_that_does_not_word_a_gate_worded_capability_leaves_it_unworded():
+    ref = copy.deepcopy(REF)
+    ref.pop("capabilityWords", None)
+    assert "conditional-ta" not in pa.capability_words(ref)
+    assert REF["capabilityWords"]["conditional-ta"] not in pa.document(ref)
+    unspoken = [c for c in ref["admitted"] if c not in pa.capability_words(ref) and not pa.not_offered(c)]
+    assert unspoken == ["conditional-ta"]                                             # the rule above would red
 
 
 def test_CONTROL_only_the_library_family_and_the_named_ids_are_not_offered():
@@ -223,7 +259,7 @@ def test_CONTROL_only_the_library_family_and_the_named_ids_are_not_offered():
         assert not pa.not_offered(cap), cap
     ref = copy.deepcopy(REF)
     ref["admitted"] = list(ref["admitted"]) + ["varip"]
-    assert [c for c in ref["admitted"] if c not in pa.CAPABILITY_WORDS and not pa.not_offered(c)] == ["varip"]
+    assert [c for c in ref["admitted"] if c not in pa.capability_words() and not pa.not_offered(c)] == ["varip"]
 
 
 def test_names_the_engine_refuses_are_only_ever_under_never():
@@ -299,12 +335,16 @@ def test_gaps_md_is_what_the_probes_say_now():
 def test_a_probe_the_engine_runs_is_not_a_gap_and_one_it_refuses_is():
     rows = {r["id"]: r for r in pa.gap_rows()}
     assert set(rows) == {p["id"] for p in GAPS["probes"]}
-    # today: a horizontal level is withheld; a zigzag of lines runs
-    assert rows["hline"]["served"] is False and rows["hline"]["guard"] and rows["hline"]["says"]
+    # today: plotarrow's colours are withheld; a zigzag of lines runs
+    assert rows["plotarrow-colours"]["served"] is False and rows["plotarrow-colours"]["guard"] and rows["plotarrow-colours"]["says"]
     assert rows["zigzag-lines"]["served"] is True and rows["zigzag-lines"]["guard"] is None
+    # e96 (HLINE_DEFAULTS[3|4|5], witnessed by #2596's vw-hline-defaults-v{3,4,5}): a horizontal level RUNS now; it was
+    # the withheld example while v5's hline defaults were unwitnessed (pine:colour-default-unwitnessed)
+    assert rows["hline"]["served"] is True and rows["hline"]["guard"] is None
     doc = pa.gaps_document()
-    assert "| `hline` |" in doc and "| `zigzag-lines` |" not in doc
-    assert "`zigzag-lines`" in doc.split("## Probes the engine serves today")[1].split("## The probes")[0]
+    assert "| `plotarrow-colours` |" in doc and "| `zigzag-lines` |" not in doc and "| `hline` |" not in doc
+    serves_today = doc.split("## Probes the engine serves today")[1].split("## The probes")[0]
+    assert "`zigzag-lines`" in serves_today and "`hline`" in serves_today
     # every probe's script is printed, whichever it is
     for p in GAPS["probes"]:
         assert f"### `{p['id']}`" in doc and p["source"].strip() in doc

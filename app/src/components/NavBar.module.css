@@ -376,9 +376,9 @@
 .item .icon, .searchTrigger .icon { color: var(--ut-gold); transition: color 0.15s, opacity 0.15s; opacity: 0.85; } /* owner 11-15 (final): every nav icon is flat UCT gold (no metallic gradient / glow) */
 .item:hover .icon, .searchTrigger:hover .icon { color: var(--ut-gold); opacity: 1; }
 .item.active {
-  color: #f8f7f3 !important;
-  background: rgba(248, 247, 243, 0.07);
+  color: var(--signature-page-bright, var(--signature-bright)) !important;
+  background: color-mix(in srgb, var(--signature-page-bright, var(--signature-bright)) 7%, transparent);
   box-shadow: none;
 }
 .item.active .icon { color: var(--ut-gold); opacity: 1; } /* the current page: full-strength gold on its outlined pill */
-.lock { color: #93939a; }
+.lock { color: var(--signature-page-faint, var(--signature-faint)); } /* light themes: the page's muted ink (styles/tokens.css --signature-page-*) */

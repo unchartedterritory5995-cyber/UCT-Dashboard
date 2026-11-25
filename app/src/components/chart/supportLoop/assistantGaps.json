@@ -7,13 +7,10 @@
    "kind": "output",
    "cannot": "A horizontal level drawn with hline",
    "source": "//@version=5\nindicator(\"probe\")\nplot(ta.rsi(close, 14), \"RSI\")\nhline(70, \"Overbought\")\n",
-   "runs": false,
+   "runs": true,
    "lane": "host",
-   "state": "runs-withheld",
-   "headline": "Runs on the chart and in alerts, 1 value withheld (not guessed)",
-   "guard": "pine:chart-only",
-   "family": "language",
-   "why": "`hline` is not drawn on this chart: this door does not carry a horizontal level yet, and a screen reads plot() and alertcondition() and nothing else, so a screen built from this script does not read it either"
+   "state": "runs",
+   "headline": "Runs on the chart and in alerts; screens and scans need a threshold"
   },
   {
    "id": "untitled-fill-anchor",
@@ -46,23 +43,33 @@
    "kind": "output",
    "cannot": "Candles drawn from computed values (Heikin Ashi, plotcandle)",
    "source": "//@version=5\nindicator(\"probe\")\nhaClose = (open + high + low + close) / 4\nvar float haOpen = na\nhaOpen := na(haOpen[1]) ? (open + close) / 2 : (haOpen[1] + haClose[1]) / 2\nplotcandle(haOpen, math.max(high, haOpen, haClose), math.min(low, haOpen, haClose), haClose, \"Heikin Ashi\", color=haClose > haOpen ? color.green : color.red)\n",
-   "runs": true,
+   "runs": false,
    "lane": "host",
-   "state": "runs",
-   "headline": "Runs on the chart and in alerts; screens and scans need a threshold"
+   "state": "runs-elsewhere",
+   "headline": "Runs in alerts; the chart cannot draw it yet: How it is drawn",
+   "guard": "pine:candle-not-drawn",
+   "family": "presentation",
+   "why": "this script is not drawn: `Heikin Ashi` is not drawn: it does not write `wickcolor =`, and TradingView's default for it is not captured. Nothing is drawn for it rather than a guess."
   },
   {
    "id": "plotbar",
    "kind": "output",
-   "cannot": "Bars drawn from computed values (plotbar)",
+   "cannot": "Bars in the chart's own prices, coloured by a rule (plotbar)",
    "source": "//@version=5\nindicator(\"probe\")\nplotbar(open, high, low, close, \"Bars\", color=close > open ? color.green : color.red)\n",
-   "runs": false,
+   "runs": true,
    "lane": "host",
-   "state": "not-yet",
-   "headline": "Not yet: Nothing a chart can draw",
-   "guard": null,
-   "family": null,
-   "why": "this script declares nothing a chart can draw"
+   "state": "runs",
+   "headline": "Runs on the chart and in alerts; not in screens or scans"
+  },
+  {
+   "id": "plotbar-computed",
+   "kind": "output",
+   "cannot": "Bars drawn from computed values (plotbar)",
+   "source": "//@version=5\nindicator(\"probe\")\nhaClose = (open + high + low + close) / 4\nvar float haOpen = na\nhaOpen := na(haOpen[1]) ? (open + close) / 2 : (haOpen[1] + haClose[1]) / 2\nplotbar(haOpen, math.max(high, haOpen, haClose), math.min(low, haOpen, haClose), haClose, \"Heikin Ashi bars\", color=haClose > haOpen ? color.green : color.red)\n",
+   "runs": true,
+   "lane": "runtime",
+   "state": "runs-with-notes",
+   "headline": "Runs on the chart and in alerts, with 1 note"
   },
   {
    "id": "vwap-deviation-bands",
@@ -158,7 +165,7 @@
    "headline": "Its plots run on the chart, but its drawings are not all drawn",
    "guard": "drawings:lost",
    "family": "objects",
-   "why": "1 of 4 drawing elements in this script aren't supported yet, so what it draws is incomplete. (The 4 are every drawing step this chart tried to carry: each line, label, box or table created, changed or written to, each change to a list of them, each loop, and each call to a drawing function of the script's own that could not be followed.) Where this chart can run the script bar by bar the way Tradi"
+   "why": "1 of 4 drawing elements in this script aren't supported yet, so what it draws is incomplete. (The 4 are every drawing step this chart tried to carry: each line, label, box or table created, changed or written to, each change to a list of them, each loop, and each call to a drawing function of the script's own that could not be followed.) A table cell whose text is written at line 13 is not drawn b"
   },
   {
    "id": "earnings-data",
@@ -278,6 +285,58 @@
    "lane": "runtime",
    "state": "runs-with-notes",
    "headline": "Runs on the chart, with 4 notes"
+  },
+  {
+   "id": "getter-function-in-text",
+   "kind": "drawing",
+   "cannot": "A label whose text is a function (such as `math.abs`, `math.round`, `math.max`) of a value read back from a drawing",
+   "source": "//@version=5\nindicator(\"probe\", overlay=true)\nvar line l = na\nvar label lb = na\nif barstate.islast\n    line.delete(l)\n    label.delete(lb)\n    l := line.new(bar_index - 5, low[5], bar_index, close)\n    lb := label.new(bar_index, close, str.tostring(math.abs(line.get_y2(l) - line.get_y1(l)), \"#.00\"))\n",
+   "runs": false,
+   "lane": "host",
+   "state": "drawings-lost",
+   "headline": "Its plots run on the chart, but its drawings are not all drawn",
+   "guard": "drawings:lost",
+   "family": "objects",
+   "why": "1 of 4 drawing elements in this script aren't supported yet, so what it draws is incomplete. (The 4 are every drawing step this chart tried to carry: each line, label, box or table created, changed or written to, each change to a list of them, each loop, and each call to a drawing function of the script's own that could not be followed.) A label whose text is written at line 9 is not drawn because"
+  },
+  {
+   "id": "getter-local-with-series",
+   "kind": "drawing",
+   "cannot": "A label whose text reads a local that mixes a value read back from a drawing with a price series",
+   "source": "//@version=5\nindicator(\"probe\", overlay=true)\nvar line l = na\nvar label lb = na\nif barstate.islast\n    line.delete(l)\n    label.delete(lb)\n    l := line.new(bar_index - 5, low[5], bar_index, close)\n    float above = line.get_y2(l) - low\n    lb := label.new(bar_index, close, str.tostring(above, \"#.00\"))\n",
+   "runs": false,
+   "lane": "host",
+   "state": "drawings-lost",
+   "headline": "Its plots run on the chart, but its drawings are not all drawn",
+   "guard": "drawings:lost",
+   "family": "objects",
+   "why": "1 of 4 drawing elements in this script aren't supported yet, so what it draws is incomplete. (The 4 are every drawing step this chart tried to carry: each line, label, box or table created, changed or written to, each change to a list of them, each loop, and each call to a drawing function of the script's own that could not be followed.) A label whose text is written at line 10 is not drawn becaus"
+  },
+  {
+   "id": "getter-named-format",
+   "kind": "drawing",
+   "cannot": "A value read back from a drawing printed with a named format (`format.mintick`)",
+   "source": "//@version=5\nindicator(\"probe\", overlay=true)\nvar line l = na\nvar label lb = na\nif barstate.islast\n    line.delete(l)\n    label.delete(lb)\n    l := line.new(bar_index - 5, low[5], bar_index, close)\n    lb := label.new(bar_index, close, str.tostring(line.get_y2(l), format.mintick))\n",
+   "runs": false,
+   "lane": "host",
+   "state": "drawings-lost",
+   "headline": "Its plots run on the chart, but its drawings are not all drawn",
+   "guard": "drawings:lost",
+   "family": "objects",
+   "why": "1 of 4 drawing elements in this script aren't supported yet, so what it draws is incomplete. (The 4 are every drawing step this chart tried to carry: each line, label, box or table created, changed or written to, each change to a list of them, each loop, and each call to a drawing function of the script's own that could not be followed.) A label whose text is written at line 9 is not drawn because"
+  },
+  {
+   "id": "getter-in-table-cell",
+   "kind": "drawing",
+   "cannot": "A table cell whose text is a value read back from a drawing",
+   "source": "//@version=5\nindicator(\"probe\", overlay=true)\nvar line l = na\nvar table t = table.new(position.top_right, 1, 1)\nif barstate.islast\n    line.delete(l)\n    l := line.new(bar_index - 5, low[5], bar_index, close)\n    table.cell(t, 0, 0, str.tostring(line.get_y2(l) - line.get_y1(l), \"#.00\"))\n",
+   "runs": false,
+   "lane": "host",
+   "state": "drawings-lost",
+   "headline": "Its plots run on the chart, but its drawings are not all drawn",
+   "guard": "drawings:lost",
+   "family": "objects",
+   "why": "1 of 4 drawing elements in this script aren't supported yet, so what it draws is incomplete. (The 4 are every drawing step this chart tried to carry: each line, label, box or table created, changed or written to, each change to a list of them, each loop, and each call to a drawing function of the script's own that could not be followed.) A table cell whose text is written at line 8 is not drawn be"
   }
  ]
 }

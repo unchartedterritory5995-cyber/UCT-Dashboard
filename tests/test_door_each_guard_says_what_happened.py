@@ -18,6 +18,9 @@ Held here:
   * each guard's refusal resolves to ITS sentence, through the door's own lookup, for the member and for the model;
   * the day-length sentence is ONE string (the engine unit that lets a chart below a day build on daily bars changes
     it, and it alone);
+  * ⭐⭐ U-DAILY (e96): that sentence promises a daily measure built on daily bars below a day, and THE TIE holds the
+    promise to the capability (`daily_values_below_a_day`, the cross context's D, the door's vocabulary, both door
+    checks passing a daily-read build); withdraw the capability and the tie names what broke;
   * the new gates are in the same class as the old one for the repair turn and for telemetry;
   * AT THE DOOR: a request refused twice by a guard tells the member what that guard found.
 
@@ -27,12 +30,13 @@ from __future__ import annotations
 
 import ast
 import copy
+import json
 from pathlib import Path
 
 import pytest
 
 from api.services import definition_conversation as dc
-from tests.test_door_days_on_an_intraday_chart import FIVE, STAND_IN
+from tests.test_door_days_on_an_intraday_chart import DAILY_BUILD, FIVE, STAND_IN
 from tests.test_door_days_on_an_intraday_chart import WORDS as DAYS_WORDS
 from tests.test_door_fill_in_settings import CHART, LIVE, REPLY, SILENT
 from tests.test_door_fill_in_settings import WORDS as SHARES_WORDS
@@ -88,9 +92,10 @@ def problems(raised, guard_gates, refusals):
 
 def test_THE_RAIL_no_guard_borrows_another_gates_sentence():
     assert problems(raisers(), dc.GUARD_REFUSALS, dc.REFUSALS) == []
-    # what it read is real: thirteen guard gates, each with its one owner, and the fourteen ways a reference can be wrong
+    # what it read is real: fifteen guard gates, each with its one owner, and the fourteen ways a reference can be wrong
+    # (U-DAILY (e96) added the daily read's two: `check_daily_reads` had borrowed `envelope:reference`)
     raised = raisers()
-    assert set(dc.GUARD_REFUSALS) <= set(raised) and len(dc.GUARD_REFUSALS) == 13
+    assert set(dc.GUARD_REFUSALS) <= set(raised) and len(dc.GUARD_REFUSALS) == 15
     assert {gate: next(iter(raised[gate])) for gate in dc.GUARD_REFUSALS} == {
         "envelope:days-as-bars": "check_day_lengths", "envelope:days-choice-in-days": "check_day_lengths",
         "envelope:date-number": "check_date_numbers", "envelope:bars-back-sign": "_refuse_negative_bars_back",
@@ -102,7 +107,8 @@ def test_THE_RAIL_no_guard_borrows_another_gates_sentence():
         "envelope:reply-placeholder": "_refuse_a_placeholder_reply",
         "envelope:fill-in-drawn-bare": "_refuse_a_bare_fill_in_setting",
         "envelope:reply-silent-on-your-figure": "_refuse_a_reply_silent_on_a_figure_only_the_member_has",
-        "envelope:replayed": "_converse_turn"}
+        "envelope:replayed": "_converse_turn",
+        "envelope:daily-read-on-days": "check_daily_reads", "envelope:daily-read-and-daily-bars": "check_daily_reads"}
 
 
 @pytest.mark.parametrize("gate", sorted(dc.GUARD_REFUSALS))
@@ -152,9 +158,58 @@ def test_the_sentence_that_was_false_still_belongs_to_the_one_check_it_is_true_f
 def test_the_day_length_sentence_is_ONE_string():
     assert dc.GUARD_REFUSALS["envelope:days-as-bars"] is dc.DAYS_BELOW_A_DAY_MEMBER
     assert "counting the days you asked for as bars of this chart" in dc.DAYS_BELOW_A_DAY_MEMBER
-    assert dc.DAYS_BELOW_A_DAY_MEMBER.endswith("On a daily chart this builds as asked")
+    # ⭐⭐ U-DAILY (e96): below a day the assistant builds a daily measure on daily bars (the rail below holds it true)
+    assert dc.DAYS_BELOW_A_DAY_MEMBER.endswith("Below a day it builds each daily measure on daily bars, as of the last "
+                                               "finished day")
     # it is written once in the module: the constant, read by the table
     assert SOURCE.count("counting the days you asked for as bars of this chart") == 1
+
+
+#: what the day-length sentence promises the member, and the capability that makes it true
+PROMISE = "Below a day it builds each daily measure on daily bars"
+CROSS_CONTEXT_JSON = Path(dc.CROSS_CONTEXT_PATH)
+GATE_JS = Path(dc.CROSS_CONTEXT_PATH).parent / "applyPatch.js"
+
+
+def the_promise_is_kept(chart=FIVE):
+    """Everything the sentence's promise needs, each read where it is decided: the ONE function says yes on a chart
+    below a day; the cross context lists D for such a chart (the file the browser's tree gate reads, by the code
+    `tfBelowADayCodes`); the door's tree vocabulary offers it; and a daily-read build on that chart passes both door
+    checks (the day-length guard and the daily read's own). [] when every part holds."""
+    out = []
+    if not dc.daily_values_below_a_day(chart):
+        out.append("daily_values_below_a_day says a chart below a day cannot build a daily measure")
+    if "D" not in dc.cross_context()["tfBelowADayCodes"]:
+        out.append("the cross context does not list D for a chart below a day")
+    if "D" not in dc._scope_defs()["tf"]["properties"]["value"]["enum"]:  # noqa: SLF001
+        out.append("the door's tree vocabulary does not offer a daily read")
+    build = copy.deepcopy(DAILY_BUILD)
+    for check in (dc.check_day_lengths, dc.check_daily_reads):
+        exc = refused_by(check, build, DAYS_WORDS, chart)
+        if exc is not None:
+            out.append(f"{check.__name__} refuses the daily-read build: {exc.gate}")
+    return out
+
+
+def test_THE_SENTENCE_IS_TIED_TO_THE_CAPABILITY_what_it_promises_the_door_does():
+    assert PROMISE in dc.DAYS_BELOW_A_DAY_MEMBER
+    assert the_promise_is_kept() == []
+    # the browser's gate reads the same file and the same code (never a list of its own)
+    gate = GATE_JS.read_text(encoding="utf-8")
+    assert "crossContext.json" in gate and "CROSS_CONTEXT.tfBelowADayCodes.includes(n.value)" in gate
+    assert json.loads(CROSS_CONTEXT_JSON.read_text(encoding="utf-8"))["tfBelowADayCodes"] == ["D"]
+
+
+def test_THE_TIE_CAN_FAIL_withdraw_the_capability_and_the_promise_is_broken(monkeypatch):
+    withdrawn = {**dc.cross_context(), "tfBelowADayCodes": []}
+    monkeypatch.setattr(dc, "cross_context", lambda: withdrawn)
+    broken = the_promise_is_kept()
+    assert any("daily_values_below_a_day" in line for line in broken), broken
+    assert any("does not list D" in line for line in broken), broken
+    monkeypatch.undo()
+    # and the function pointed back at "no" breaks it too, by name
+    monkeypatch.setattr(dc, "daily_values_below_a_day", lambda chart=None: False)
+    assert the_promise_is_kept() == ["daily_values_below_a_day says a chart below a day cannot build a daily measure"]
 
 
 def test_the_new_gates_are_in_the_old_ones_class_for_the_repair_and_for_telemetry():

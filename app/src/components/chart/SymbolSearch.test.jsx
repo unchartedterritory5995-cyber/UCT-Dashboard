@@ -109,6 +109,38 @@ test('typing tells the host the typed ticker before Enter (onTypedIntent)', asyn
   expect(onTypedIntent).not.toHaveBeenCalled()
 })
 
+// Review of #2624, (d): the Enter commit no longer re-renders the search (its teardown waits for the frame), so a
+// typing pause still running at Enter is cleared by submit itself. Here the frame never comes (rAF held), which is the
+// case of an Enter pressed less than a frame before the pause ends.
+test('Enter inside the typing pause: the pause never reports the entered text afterwards', async () => {
+  const raf = vi.spyOn(window, 'requestAnimationFrame').mockImplementation(() => 0)
+  try {
+    const onTypedIntent = vi.fn()
+    const onSymbolChange = vi.fn()
+    render(<SymbolSearch sym="AAPL" onSymbolChange={onSymbolChange} onTypedIntent={onTypedIntent} />)
+    fireEvent.click(screen.getByRole('button', { name: /AAPL — click to search/i }))
+    const input = screen.getByRole('textbox', { name: 'Search symbol or company' })
+    fireEvent.change(input, { target: { value: 'nvda' } })
+    await wait(40)                                       // inside the pause
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(onSymbolChange).toHaveBeenCalledWith('NVDA')
+    await wait(SETTLED)                                  // past the pause
+    expect(onTypedIntent).not.toHaveBeenCalled()
+  } finally { raf.mockRestore() }
+})
+
+test('CONTROL: the same pause with no Enter does report the text', async () => {
+  const raf = vi.spyOn(window, 'requestAnimationFrame').mockImplementation(() => 0)
+  try {
+    const onTypedIntent = vi.fn()
+    render(<SymbolSearch sym="AAPL" onSymbolChange={vi.fn()} onTypedIntent={onTypedIntent} />)
+    fireEvent.click(screen.getByRole('button', { name: /AAPL — click to search/i }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Search symbol or company' }), { target: { value: 'nvda' } })
+    await wait(SETTLED)
+    expect(onTypedIntent).toHaveBeenCalledWith('NVDA')
+  } finally { raf.mockRestore() }
+})
+
 test('typing GOOGL at a typist pace (~70 ms/key) reports ONE intent, for GOOGL — no prefix', async () => {
   const onTypedIntent = vi.fn()
   render(<SymbolSearch sym="AAPL" onSymbolChange={vi.fn()} onTypedIntent={onTypedIntent} />)

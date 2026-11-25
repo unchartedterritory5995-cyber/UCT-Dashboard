@@ -34,16 +34,22 @@ largest raises and cuts by percent.
 
 HOW OFTEN: a request NEVER reads the store. It answers from what this module holds (`held_build.HeldBuild`), and ONE
 background thread re-reads the store when the held answer is older than `REFRESH_S` (the store changes once each
-weekday evening). With nothing held a request waits a few seconds on that one read, then says `computing`. The read is
-two small indexed queries per tracked symbol (at most 600), never a whole-table scan.
+weekday evening). With nothing held a request is told `computing` AT ONCE (speed pass 2, 2026-11-24: live, it waited
+3 seconds first and then said `computing` anyway; the panel asks again every 3 seconds). The read is two small indexed
+queries per tracked symbol (at most 600), never a whole-table scan.
+
+THE COPY ON DISK (`DISK`, a few tens of KB): the newest answer is kept on this server's disk, so a restart answers at
+once. A copy built on another New York day, by another `ANSWER_VERSION` or in another shape is never served
+(`_valid`), and a failed read is never written (`held_build`).
 
 Every constant below is the builder's default, not an owner ruling.
 """
 from __future__ import annotations
 
 import time
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from typing import Optional
+from zoneinfo import ZoneInfo
 
 from api.services import estimate_history as EH
 from api.services import group_stats as GS
@@ -69,6 +75,8 @@ NOT_COUNTED = ("collecting", "gap", "not_comparable")
 STATES = COUNTED + NOT_COUNTED
 ORIGIN_WORDS = {"sp500": "sp500", "viewed": "viewed"}
 ANSWER_VERSION = 1
+DISK = ("estimate_revisions", f"breadth_v{ANSWER_VERSION}.json")
+_ET = ZoneInfo("America/New_York")
 
 
 def _iso(d: date) -> str:
@@ -274,21 +282,39 @@ def _due(answer: dict, checked: float) -> bool:
     return time.time() - checked >= REFRESH_S
 
 
+def today_et() -> date:
+    """Today in New York (indirected so tests replace it)."""
+    return datetime.now(_ET).date()
+
+
+def _built_on(answer: dict) -> Optional[date]:
+    """The New York day an answer was built on, from its `built_at` (UTC ISO), or None."""
+    try:
+        return datetime.fromisoformat(str(answer.get("built_at"))).astimezone(_ET).date()
+    except (TypeError, ValueError):
+        return None
+
+
 def _valid(answer: dict) -> bool:
-    return answer.get("status") == "ok" and isinstance(answer.get("slices"), dict) and answer.get("v") == ANSWER_VERSION
+    """This module's answer, of this version, built today (New York): anything else is never served, from memory's
+    new build or from the copy on disk."""
+    return (answer.get("status") == "ok" and isinstance(answer.get("slices"), dict) and answer.get("v") == ANSWER_VERSION
+            and _built_on(answer) == today_et())
 
 
-_held = held_build.HeldBuild("estimate-revisions", lambda previous: build(previous), _due, valid=_valid)
+_held = held_build.HeldBuild("estimate-revisions", lambda previous: build(previous), _due, disk=DISK,
+                             version=ANSWER_VERSION, wait_s=0.0, valid=_valid)
 
 
 # ── the read the route makes ─────────────────────────────────────────────────────────────────
 
 def get_breadth(metric: str = DEFAULT_METRIC, window: int = DEFAULT_WINDOW) -> dict:
     """One estimate and one window: every sector, the totals, the tracked count and the store's dates. NEVER reads the
-    store on the request: the held answer, else (nothing held) a few seconds' wait on the one read, else `computing`."""
+    store on the request and never waits: the held answer (in memory, or today's copy on disk), else `computing` while
+    the one read runs."""
     if metric not in METRICS or window not in WINDOWS:
         return {"status": "error", "detail": "metric must be eps or revenue, window 7 or 30"}
-    got = _held.get()
+    got = _held.get(wait_s=0.0)
     if got.get("status") != "ok":
         return {**got, "metric": metric, "window": window}
     out = {k: v for k, v in got.items() if k != "slices"}

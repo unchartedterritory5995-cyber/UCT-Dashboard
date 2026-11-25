@@ -2732,15 +2732,32 @@ signal detect measure alert check identify scan""".split())
 _VOCABULARY: Dict[int, Tuple[Any, frozenset]] = {}
 
 
+def _is_column_entry(entry: Mapping[str, Any]) -> bool:
+    """A SCREENER COLUMN, by what the lexicon already says of it: a scalar of the table (a stock-level number the
+    nightly build writes) or a column the table declares it does not carry (`EXCLUDED_ENTRY`)."""
+    return entry.get("kind") == EXCLUDED_ENTRY or (
+        entry.get("kind") == TABLE_ENTRY and entry.get("section") == ast_table.SCALARS_SECTION)
+
+
 def _lexicon_vocabulary(lexicon: Mapping[str, Any]) -> frozenset:
     """Every word (by stem) any phrase of this lexicon is made of: the product's own vocabulary.
     ⭐ A phrase a lexicon lists under ``names_only`` is a NAME it recognises whole and nothing more
     (the chart door's well-known names with no checked formula): its words are no vocabulary, so
-    "Fisher" and "Williams" stay foreign words inside any other name."""
+    "Fisher" and "Williams" stay foreign words inside any other name.
+    ⭐ 2026-11-25 -- AND A SCREENER COLUMN'S WORDS ARE NO VOCABULARY EITHER. Master went red on #2696: a new
+    column's filter label ("Drift 5 Days After Last Report") made "drift" a known word, and the made-up name
+    "Zero-Drift Ema" ("zero" was already known, from another column's description) was built as a plain EMA with
+    nothing said: an undisclosed stand-in. A column is a number the Screener holds, not a word of an INDICATOR's
+    name, so a word only columns carry grounds no name. A column the request names WHOLE still accounts for its
+    own words (`_named_phrases`), as a ``names_only`` name does; a word any other entry carries stays vocabulary,
+    and so does a word of the lexicon's own ``description_words`` (the chart door's DESCRIPTION_WORDS: plain words
+    that describe an indicator or a rule, never read from a column)."""
     held = _VOCABULARY.get(id(lexicon))
     if held is None or held[0] is not lexicon:
         names_only = lexicon.get("names_only") or ()
-        held = (lexicon, frozenset(stem_ for key in lexicon["index"] if key not in names_only for stem_ in key))
+        held = (lexicon, frozenset(stem_ for key, entries in lexicon["index"].items()
+                                   if key not in names_only and not all(_is_column_entry(e) for e in entries)
+                                   for stem_ in key) | frozenset(lexicon.get("description_words") or ()))
         _VOCABULARY[id(lexicon)] = held
     return held[1]
 
@@ -2836,7 +2853,9 @@ def _foreign_words(words: List[Any], lexicon: Mapping[str, Any]) -> List[str]:
     form flips NO real request and newly refuses the same 10 of 138 Title-Case names however they
     are written (alone, after "Add the", mid-sentence), nine of them real named indicators (Chande
     Momentum Oscillator, Klinger Volume Oscillator, TD Sequential ...). The one description it
-    catches holds a word the product has never used ("Interquartile")."""
+    catches holds a word the product has never used ("Interquartile").
+    ⭐ 2026-11-25: the vocabulary no longer takes words that ONLY screener columns carry (`_lexicon_vocabulary`).
+    "Linear Regression Slope" still passes at the chart door: "slope" is one of its DESCRIPTION_WORDS."""
     vocabulary = _lexicon_vocabulary(lexicon)
     out: List[str] = []
     for w in words:
@@ -2902,9 +2921,12 @@ def _named_phrases(prompt: str, already_found: List[dict],
             # ⭐ A NAME THE LEXICON RECOGNISES WHOLE (`names_only_section`) accounts for its own words
             # and no others: they are not vocabulary, so they are taken off the run here.
             whole = strict_lexicon.get("names_only_section") if strict_lexicon is not None else None
+            # ⭐ 2026-11-25 -- AND A SCREENER COLUMN THE REQUEST NAMES WHOLE ("the Market Cap") accounts for its
+            # own words in the same way: its words are no vocabulary (`_lexicon_vocabulary`), so they are taken
+            # off the run here, where the column itself was matched.
             rest = [w for w in words[first:j]
-                    if not (whole and any(f.get("section") == whole and f["start"] <= w.start() and w.end() <= f["end"]
-                                          for f in already_found))]
+                    if not any(((whole and f.get("section") == whole) or _is_column_entry(f))
+                               and f["start"] <= w.start() and w.end() <= f["end"] for f in already_found)]
             # ⭐ 2026-11-21 -- A RUN MADE ONLY OF RELATION WORDS IS A RELATION, never a name (`strict_lexicon` only).
             only_relations = strict_lexicon is not None and _only_relation_words(words[first:j], strict_lexicon)
             if (not overlaps or (strict_lexicon is not None and j - first <= NAME_MAX_WORDS

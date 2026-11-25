@@ -1,0 +1,20 @@
+//@version=6
+indicator("UCTPROBE_VW_HLINE_AUTOSCALE", overlay = false)
+
+// PROVENANCE: written 2026-11-22 (Q-HLINE-2, docs/pine/capture-queue-2026-11-22-e96-presentation.md). Our probe.
+// NEVER COMPILED ON TRADINGVIEW.
+//
+// ─── DOES TRADINGVIEW'S AUTOSCALE INCLUDE AN `hline` OUTSIDE THE PLOTS' RANGE? ───
+//
+// The chart draws an hline as a price line on the script's first visible series (`binder.js::guideSpecs`), and a
+// price line is not in the chart's autoscale. TradingView's behaviour is not recorded. RSI stays in 0..100; the two
+// levels sit far outside it, one above and one below.
+//   P0  ta.rsi(close, 14)
+//   H1  price 1000 (far above every value)
+//   H2  price -500 (far below every value)
+// CAPTURE: NYSE:RDDT 1D, inputs at defaults, the pane's price scale in autoscale. Record the pane's visible price
+// range (top and bottom of the scale) and a screenshot of the pane. The answer is yes when the scale spans -500..1000.
+
+plot(ta.rsi(close, 14), title = "P0_rsi", color = color.purple)
+hline(1000, title = "H1_far_above", color = color.red)
+hline(-500, title = "H2_far_below", color = color.green)

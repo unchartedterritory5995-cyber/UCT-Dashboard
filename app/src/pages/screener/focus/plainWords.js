@@ -131,6 +131,31 @@ export const PLAIN_COLUMN_LABELS = {
   insider_buys_30d: 'Insider buy filings, last 30 days',
   insider_buy_value_30d: 'Insider buying in dollars, last 30 days',
   fund_net_adds: 'Funds adding minus funds cutting',
+  // Held-store columns (2026-11-23): from stores UCT already holds, once a night.
+  iv_rank: 'IV rank against its own history',
+  iv_percentile: 'IV percentile against its own history',
+  group_rank: 'Industry group rank',
+  group_rank_of: 'Industry groups ranked',
+  group_rank_chg_4w: 'Industry group rank change, 4 weeks',
+  short_interest_chg_pct: 'Short interest change since the prior report',
+  next_ex_div_date: 'Next ex-dividend date',
+  days_to_ex_div: 'Days to the next ex-dividend date',
+  eps_rev_up_30d: 'EPS estimate raised, last 30 days',
+  eps_rev_down_30d: 'EPS estimate cut, last 30 days',
+  eps_rev_net_30d: 'EPS estimate revision, net, last 30 days',
+  // Row columns (2026-11-24): from each stock's own daily bars, once a night.
+  days_to_lockup: 'Days to the estimated IPO lockup end',
+  seas_month_avg: 'Average return this month, past years',
+  seas_month_up_pct: 'Share of past years up this month',
+  seas_month_years: 'Years counted for this month',
+  post_earn_drift_5d: 'Move in the 5 sessions after the last report',
+  factor_mkt: 'Market factor loading',
+  factor_size: 'Size factor loading (small caps positive)',
+  factor_growth: 'Growth vs value factor loading (growth positive)',
+  factor_mom: 'Momentum factor loading',
+  factor_r2: 'Share of moves the factors explain',
+  up_capture_1y: 'Up capture against SPY, last year',
+  down_capture_1y: 'Down capture against SPY, last year',
 }
 
 export const plainColumnLabel = key => PLAIN_COLUMN_LABELS[key] || null

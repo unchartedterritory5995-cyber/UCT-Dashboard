@@ -30,6 +30,25 @@ describe('the member’s sentence', () => {
     expect(fallback.map((e) => e.name)).toEqual([])
   })
 
+  it('the Screener column families of 2026-11-23/24 say their true kind, never the fallback', () => {
+    // 34 columns (hv_20, iv_rank, group_rank, factor_*, ...) showed members "Not available to formulas." on master
+    const says = new Map(shown.map((e) => [e.name, e.says]))
+    const notFilled = ['hv_20', 'hv_60', 'ad_net_25', 'pocket_pivots_20', 'days_since_pocket_pivot', 'corr_rel_last',
+      'eps_surprise_last', 'eps_beat_streak', 'insider_buys_30d', 'insider_buy_value_30d', 'fund_net_adds',
+      'iv_rank', 'iv_percentile', 'group_rank', 'group_rank_of', 'group_rank_chg_4w', 'short_interest_chg_pct',
+      'days_to_ex_div', 'eps_rev_up_30d', 'eps_rev_down_30d', 'eps_rev_net_30d', 'days_to_lockup', 'seas_month_avg',
+      'seas_month_up_pct', 'seas_month_years', 'post_earn_drift_5d', 'factor_mkt', 'factor_size', 'factor_growth',
+      'factor_mom', 'factor_r2', 'up_capture_1y', 'down_capture_1y']
+    for (const name of notFilled) expect(says.get(name), name).toMatch(/^Not filled in yet, so a formula cannot read it\./)
+    expect(says.get('next_ex_div_date')).toBe('A date, not a number, so a formula cannot read it. Filter by it in the Screener.')
+    // CONTROL: a column of those families held back for ANY OTHER reason is not called "not filled": it asks for its
+    // own sentence (the fallback, which the rail above turns red)
+    for (const family of ['VOLUME & VOLATILITY', 'BEATS, INSIDERS & FUNDS', 'HELD-STORE COLUMNS', 'ROW COLUMNS']) {
+      expect(memberReason({ name: 'z', kind: 'scalar', reason: `${family}, 2026-11-24 -- held back for another reason.` }).says,
+        family).toBe('Not available to formulas.')
+    }
+  })
+
   it('says the true thing for the kinds a member meets', () => {
     const by = Object.fromEntries(shown.map((e) => [e.name, e.says]))
     expect(by.sector).toMatch(/^Text, not a number/)

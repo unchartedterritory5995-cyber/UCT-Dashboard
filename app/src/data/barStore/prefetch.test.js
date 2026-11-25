@@ -304,7 +304,11 @@ describe('handoff contract (peekDisplayable / prepareForDisplay / prepareDailyFo
   // 2026-11-15 (production, 5m): a key a warm had answered earlier in the page life, now behind the
   // frontier (`updating`), was refused by the handoff although the chart paints that status; the
   // handoff then waited on a lane-held warm request (candles 546-1,180 ms after the key).
-  it('a held SERVER answer that is behind (updating) is displayable, and a second prepare asks nothing', async () => {
+  // ⛔ CHANGED 2026-11-24 (prefetch.firstFrameClosedBar.test.js C2): an answer TWO OR MORE buckets behind is no longer shown
+  // at once under the "not printing" grace (that grace is what made this key displayable after its first prepare). The
+  // press asks for itself (its own ask, then once in full) and paints what it has within BEHIND_HOLD_MAX_MS; the
+  // 2026-11-15 wait on a lane-held warm request cannot come back, the press's ask leaves at `visible` rank.
+  it('a held SERVER answer far behind (updating) is not shown at once: the press asks for itself and paints within the hold', async () => {
     const w = await boot({ modeFor: () => 'behind' })
     const p = w.pf.prepareForDisplay('BHD', '5')
     await w.server.drain()
@@ -313,10 +317,12 @@ describe('handoff contract (peekDisplayable / prepareForDisplay / prepareDailyFo
     expect(s.restSeen).toBe(true)
     expect(s.status).toBe('updating')          // the precondition: not context / current
     expect(s.depth).toBeGreaterThan(0)
-    expect(w.pf.peekDisplayable('BHD', '5')).toBe(true)
+    expect(w.pf.peekDisplayable('BHD', '5')).toBe(false)
     const asked = w.server.calls.length
-    await expect(w.pf.prepareForDisplay('BHD', '5')).resolves.toBe('current')
-    expect(w.server.calls.length).toBe(asked)
+    const again = w.pf.prepareForDisplay('BHD', '5')
+    await w.server.drain()
+    await expect(again).resolves.toBe('current')
+    expect(w.server.calls.length).toBeGreaterThan(asked)
   })
 
   it('control: an entry with NO rows is never displayable (a failed request, and a symbol with no data)', async () => {

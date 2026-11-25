@@ -825,4 +825,11 @@ def stream_status():
         out["bars_overlay_live"] = True
     except Exception:
         out["bars_overlay_live"] = False
+    # The bars market-publication probe (review #2732): `stale_probes` counts probe rounds whose watermark trailed
+    # the frontier by > 2 min — thin names then stay `unverified` and every poll costs a heal.
+    try:
+        from api.services.bars_fetch import market_probe_status
+        out["bars_market_probe"] = market_probe_status()
+    except Exception:
+        out["bars_market_probe"] = None
     return out

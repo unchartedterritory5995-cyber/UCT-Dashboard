@@ -93,6 +93,11 @@ QUOTED_DEAD: dict[str, str] = {
         "matches no object in this repo including unreachable ones; the commit "
         "matching its description is 2908ab227. Possibly a Railway deploy id "
         "rather than a git SHA -- which is why it is recorded, not erased."),
+    "026a6693f": (
+        "the tip of the WITHDRAWN `replay-preview` branch (47 commits on a stale base), quoted in "
+        "SESSION_REPORT_2026-09-17_2 sections 3 and 6 ('The withdrawn artifact') as history: the branch "
+        "was deleted from origin that day so no clone has it. Measured 2026-11-24: the GitHub API still "
+        "serves the object unreferenced (no branch, tag or PR head); a full clone cannot resolve it."),
     # ⚰️ THIS HELD FOUR ENTRIES CALLED "fabricated gate SHA, quoted verbatim
     # inside its own LEDGER tombstone" — 052d21475, b4280afaf, 4b4c3549b and
     # 3460a279b. Every one is an approval-block fingerprint, and they are now
@@ -116,6 +121,20 @@ FOREIGN_REPO = {
     "7a99d0e": "uct-intelligence tip — CONFIRMED present in C:/Users/Patrick/uct-intelligence",
     "c3efb4d": "uct-sunday-scan tip — UNVERIFIED, that repo is not checked out on this box",
     "9f05bfc": "uct-clips tip — UNVERIFIED, that repo is not checked out on this box",
+    # ── Cited by COMPLETION-LEDGER / RESUME as commits IN those repos (each sentence names the repo).
+    # Measured 2026-11-24: every one resolves in that repo's local clone AND is an ancestor of its
+    # origin/master, with a subject matching the sentence.
+    "043faec": "uct-intelligence merge of term-004b-earnings-shadow (TERM-004b) — CONFIRMED on its origin/master",
+    "8145f55": "uct-intelligence TERM-004b shadow-first adapter, ancestor of its 043faec — CONFIRMED",
+    "33b9148": "uct-intelligence TERM-004b malformed-payload test, ancestor of its 043faec — CONFIRMED",
+    "a3eecd9": "uct-intelligence TERM-004b cold-week fix — CONFIRMED on its origin/master",
+    "18a564a": "uct-intelligence TERM-004 follow-up (unlisted dates) — CONFIRMED on its origin/master",
+    "3fea34f": "uct-intelligence regime one-authority fix (TERM-004 follow-up) — CONFIRMED on its origin/master",
+    "25fade0": "uct-intelligence setup_performance tie-break fix — CONFIRMED on its origin/master",
+    "89c138c": "morning-wire TERM-085 wire surface sentence — CONFIRMED on its origin/master",
+    "3a15625": "morning-wire merge of TERM-085 — CONFIRMED on its origin/master",
+    "614a72e": "morning-wire promo-copy commit pushed with TERM-085 — CONFIRMED on its origin/master",
+    "801fd1e": "morning-wire tip as of 2026-10-12 (footer-mode promo) — CONFIRMED on its origin/master",
 }
 
 #: ⛔⛔ APPROVAL-BLOCK FINGERPRINTS ARE NOT COMMITS, AND THIS RAIL ONCE CALLED
@@ -196,6 +215,16 @@ NOT_A_COMMIT: dict[str, str] = {
         "the `sha` FIELD INSIDE docs/plans/joystick/gate-baseline.json — a content "
         "fingerprint of that baseline file, quoted in testing-plan.md beside its "
         "`failures`/`files`/`measured_at` siblings. A baseline hash, not a commit"),
+    # ── RAILWAY DEPLOY IDS. Each sentence says 'deploy'/'deployment' and is about a pod or a variable set,
+    # and none resolves as a commit. Classified from the sentence; Railway's history was not re-read.
+    "087ee696": "a Railway web DEPLOY id (COMPLETION-LEDGER FT-034: 'set on web 18:42Z (deploy …)')",
+    "0accfee6": "a Railway web DEPLOY id (COMPLETION-LEDGER: 'BREADTH_EOD_SOURCE=server … set on web (deploy …)')",
+    "94d46235": "a Railway DEPLOY id (quiet-window results: 'the owner's flag --set (deploy …, 16:08Z)')",
+    "bcdadacb": (
+        "a Railway DEPLOYMENT id (COMPLETION-LEDGER: 'One pod across the open (deployment …, commit "
+        "248d6c68195a …)'): the sentence gives the commit separately"),
+    "db45b154": "a Railway DEPLOYMENT id (quiet-window results: 'HTTP logs for deployment … (the pod in the segment)')",
+    "b8eb51a0": "a Railway DEPLOY id (quiet-window results: 'a new deploy, …, was mid-boot and the edge returned 502')",
 }
 
 #: ⚠️ A COMMIT CITATION THIS BOX CANNOT VERIFY — recorded as UNVERIFIED rather than passed,

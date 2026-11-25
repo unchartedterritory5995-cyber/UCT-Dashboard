@@ -1,6 +1,6 @@
 {
   "schema": "uct.ci-mutants/v1",
-  "about": "PASTE WORKER (feat/pine-paste-worker): the member door builds a paste in a Web Worker, once per script and page state, and answers byte for byte as the main thread did. Every rule, broken once, must turn its rail red: off-thread equality (the image, the answer's plain copy), one build per paste, cancel-on-rebuild, the watchdog, a dead worker, the fast control, and the page effects the build makes. The hub and the light report: the status is made in the report's worker from the full report and the full door answer (a MessageChannel between the two workers), the page is sent what it reads, and a Use asks the worker for the object program.",
+  "about": "PASTE WORKER (feat/pine-paste-worker): the member door builds a paste in a Web Worker, once per script and page state, and answers byte for byte as the main thread did. Every rule, broken once, must turn its rail red: off-thread equality (the image, the answer's plain copy), one build per paste, cancel-on-rebuild, the watchdog, a dead worker, the fast control, and the page effects the build makes. The hub and the light report: the status is made in the report's worker from the full report and the full door answer (a MessageChannel between the two workers), the page is sent what it reads, and a Use asks the worker for the object program. S9's rail runs ONE test (`-t \"share ONE build\"`, colour off) and its expectRed is the run's own count, `1 failed | 13 skipped (14)`: unfiltered, the held answer makes the next test rebuild in an endless MICROTASK loop (the stand-in worker answers by microtask) that starves every timer, so the file never ends; a filter that matched nothing would exit 0, and a count that moved fails loud. The stand-in answering by macrotask, as a real Worker does, is owed to master after e96.",
   "mutants": [
     {
       "id": "P1",
@@ -152,8 +152,8 @@
       "file": "app/src/components/chart/builder/memberPane/memberDoorAsync.js",
       "from": "    if (entries.get(r.entry.key) === r.entry) land(r.entry, r.version, landed)",
       "to": "    if (entries.get(r.entry.key) === r.entry) setTimeout(() => land(r.entry, r.version, landed), 1500)",
-      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/memberDoorService.test.js",
-      "expectRed": "ONE door call per script and state"
+      "rail": "cd app && NO_COLOR=1 npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/memberDoorService.test.js -t \"share ONE build\"",
+      "expectRed": "Tests  1 failed | 13 skipped (14)"
     },
     {
       "id": "S10",
