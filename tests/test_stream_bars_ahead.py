@@ -1,7 +1,10 @@
 """`/api/stream/bars?ahead=`: the rows a member is about to reach, on the SAME connection, shed first (2026-11-25).
 
 The watchlist puts the next 1-2 rows on the bars stream so the first press after a minute roll finds that row's copy as
-current as the chart on screen. Those pairs are speculative, so the pod admits them only within a pod-wide budget
+current as the chart on screen.
+(review of #2721) Ahead pairs are sent at about 1 Hz: their developing bar at most AHEAD_INTERVAL_S behind, every final
+and a new bucket's first frame at the next poll (AHEAD_POLL_S); the chart's own pairs are untouched. A failure before
+streaming starts releases the ahead budget and the connection's admission. Those pairs are speculative, so the pod admits them only within a pod-wide budget
 (`STREAM_MAX_AHEAD_PAIRS`) and never under load (the bars subscriber registry at or past `AHEAD_LOAD_FRACTION` of its cap);
 a refused ahead pair is simply not subscribed (the client keeps its old rule for that row). Admitted ahead pairs are
 counted until their connection ends.
@@ -26,10 +29,15 @@ class _Req:
 class _Broadcaster:
     def __init__(self):
         self.subs = []
+        self.queues = {}
+        self.fail_on = None
 
     def subscribe(self, sym, tf, **kw):
+        if self.fail_on == (sym, tf):
+            raise RuntimeError("subscribe failed")
         q = asyncio.Queue()
         self.subs.append((sym, tf))
+        self.queues[(sym, tf)] = q
         return q
 
     def unsubscribe(self, sym, tf, q, *a):
@@ -149,3 +157,88 @@ def test_a_request_without_ahead_is_exactly_as_before(fake):
 def test_stream_status_reports_the_ahead_counters(fake):
     out = stream.stream_status()
     assert set(out["ahead"]) >= {"live", "admitted", "refused", "max"}
+
+
+def _frame(sym, tf, t, c, final=False):
+    return {"sym": sym, "tf": tf, "bar": {"t": t, "o": 1, "h": 2, "l": 0.5, "c": c, "v": 10, "final": final}}
+
+
+def _stream(fake, script, bars="AAPL:1", ahead="MSFT:1"):
+    """Run `script(fake, got)` beside one open connection; `got` collects (monotonic, sym, t, c, final) per bar frame."""
+    import json as _json
+    import time as _t
+
+    async def go():
+        req = _Req()
+        resp = await stream.stream_bars(req, bars=bars, ahead=ahead)
+        got = []
+
+        async def reader():
+            async for chunk in resp.body_iterator:
+                if "event: bar" in chunk:
+                    d = _json.loads(chunk.split("data: ", 1)[1].strip())
+                    got.append((_t.monotonic(), d["sym"], d["bar"]["t"], d["bar"]["c"], bool(d["bar"].get("final"))))
+
+        task = asyncio.ensure_future(reader())
+        try:
+            await asyncio.sleep(0.05)
+            await script(fake, got)
+        finally:
+            req.stop = True
+            await asyncio.wait_for(task, timeout=5)
+        return got
+    return asyncio.run(go())
+
+
+def test_ahead_developing_frames_go_at_most_once_a_second_the_charts_every_one(fake):
+    assert stream.AHEAD_INTERVAL_S == 1.0
+
+    async def script(f, got):
+        for i in range(16):                                    # 1.6 s of a forming minute, a frame every 100 ms
+            f.queues[("AAPL", "1")].put_nowait(_frame("AAPL", "1", 60_000, 10 + i))
+            f.queues[("MSFT", "1")].put_nowait(_frame("MSFT", "1", 60_000, 20 + i))
+            await asyncio.sleep(0.1)
+        await asyncio.sleep(0.4)
+
+    got = _stream(fake, script)
+    chart = [g for g in got if g[1] == "AAPL"]
+    ahead = [g for g in got if g[1] == "MSFT"]
+    assert len(chart) == 16, len(chart)
+    assert 2 <= len(ahead) <= 3, [round(g[0] - ahead[0][0], 2) for g in ahead]
+    assert ahead[0][3] == 20                                   # the first frame at once
+    gaps = [b[0] - a[0] for a, b in zip(ahead, ahead[1:])]
+    assert all(g >= 0.95 for g in gaps), gaps
+    assert ahead[-1][3] >= 33                                  # the newest value, never an old one
+
+
+def test_ahead_finals_and_a_new_buckets_first_frame_go_at_once(fake):
+    async def script(f, got):
+        q = f.queues[("MSFT", "1")]
+        q.put_nowait(_frame("MSFT", "1", 60_000, 20))
+        await asyncio.sleep(0.4)
+        q.put_nowait(_frame("MSFT", "1", 60_000, 21))           # held: inside the second
+        t0 = asyncio.get_running_loop().time()
+        q.put_nowait(_frame("MSFT", "1", 60_000, 22, final=True))
+        q.put_nowait(_frame("MSFT", "1", 120_000, 30))
+        f.t0 = t0
+        await asyncio.sleep(0.5)
+
+    import time as _t
+    got = _stream(fake, script)
+    ahead = [g for g in got if g[1] == "MSFT"]
+    fin = [g for g in ahead if g[4]]
+    assert len(fin) == 1 and fin[0][3] == 22
+    assert [g[3] for g in ahead] == [20, 22, 30], ahead        # the held 21 is superseded by its bucket's final
+    assert fin[0][0] - ahead[0][0] < 0.4 + stream.AHEAD_POLL_S + 0.15
+
+
+def test_a_failure_before_streaming_releases_the_ahead_budget_and_the_connection(fake):
+    fake.fail_on = ("NVDA", "1")
+
+    async def go():
+        with pytest.raises(RuntimeError):
+            await stream.stream_bars(_Req(), bars="AAPL:1", ahead="MSFT:1,NVDA:1")
+    asyncio.run(go())
+    assert stream.ahead_stats()["live"] == 0
+    assert stream.subscriber_count("bars") == 0
+    assert fake.subs == []                                     # the queues it made are gone too

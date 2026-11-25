@@ -2,22 +2,31 @@
 // Replay of #2708 (S&P 500, 1m + 15m, a press every 2.5 s): every remaining wait was the first press after a roll (6 of 152,
 // ~105 ms). The row's copy was read ~5 s before, BEFORE the roll, so it lacks the closed minute and the switch asks for it.
 // The owner's standard for that first frame (2026-11-25): "as current as the chart on screen". Bar M present with the
-// server's own PUSH values (provisional until the push final) is correct; a copy without bar M is not.
+// server's own PUSH values (provisional until the push final) is correct; a copy without bar M is not, unless the stream
+// proves no trade printed in M. And "no lag, proper instant feeling": the switch never holds the previous chart for long.
 //   L1  a next row whose push stream has delivered since BEFORE the roll: the press 0.5 s after the roll paints it in the
 //       key task, bar M as the stream left it, no request
 //   L1b the same copy, its stream delivering only since AFTER the roll: not shown (the #2708 rule: the switch asks)
-//   L1c a live stream but a copy WITHOUT bar M (two rolls later, nothing printed in the newer minute): not shown
 //   L1d no push stream for the row: the #2708 rule, unchanged
+//   A1  (rule a) a stream delivering since BEFORE the first bucket the copy lacks opened, with NO frame for that bucket or
+//       later: no trade printed there, the copy is complete, shown at once (a thin minute)
+//   A1b the stream DID deliver a frame for that bucket but the copy lacks it: not shown
+//   A1c a stream delivering only since AFTER that bucket opened proves nothing about it: not shown
 //   L2  the hold subscribes the travel-direction rows it is given (`live`), at most NEIGHBOR_LIVE_ROWS per hold, as
 //       AHEAD pairs; a row leaving is released; clear() releases all; a hidden page subscribes none
 //   L2b ...only while the member navigates: TAIL_ACTIVE_MS after the last selection change they are released
 //   L3  the page cap: at most NEIGHBOR_LIVE_MAX_KEYS keys ride the stream as a neighbour (the store's watchLive)
-// ...and the 250 ms paint-as-is hole, for the roll class (a copy lacking a closed bar is never painted as it is: the
-// previous chart stays until the copy holds the closed bar, a re-ask every TAIL_LAG_RETRY_MS inside TAIL_LAG_WINDOW_MS):
-//   H1  the own ask held 600 ms: the switch has not committed at 250 ms; it commits with the closed bar
-//   H2  the own answer still lacks the closed bar (the server's write lag): no paint as it is; re-asked until it holds it
-//   H3  the bound: past TAIL_LAG_WINDOW_MS of the roll the server's answer is what paints (the name not printing)
-//   H4  the path with NO copy: an answer lacking the closed bar is not painted either
+//   L4  (review of #2721) a live re-sort (the same selection) never changes the rows on the stream (it would reconnect the
+//       chart's own stream); a press does
+//   L5  (review, LOW) the page turning hidden, or the session ending, mid-window releases them within LIVE_RECHECK_MS
+//   L6  (review, LOW) a key the page cap refused is asked again once, LIVE_RECHECK_MS later, while still in the window
+// ...and the roll hold (rule b): at most ROLL_HOLD_MAX_MS (400 ms) for the switch's own ask or a push frame, then what the
+// server answered paints, under its honest status (UPDATING when it still lacks the closed bar, never 'current'):
+//   H1  the own ask held: nothing at 300 ms, the copy as it is at 400 ms, its status UPDATING; the answer replaces it
+//   H2  an answer holding the closed bar within the bound: 'current' at once
+//   H3  the server's answer still lacks the closed bar (its write lag): painted at once (no wait to the bound), UPDATING,
+//       and no third ask
+//   H4  a push frame bringing the closed bar inside the bound ends the hold at once
 //   H5  the next press (abort) ends the hold at once, and nothing more is asked
 // Real store, real network, real facade, a held fake server, a fake push stream.
 import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest'
@@ -38,7 +47,7 @@ beforeEach(() => {
 })
 afterEach(() => { vi.useRealTimers(); localStorage.removeItem('barspack.version') })
 
-async function boot(modeFor, { visible = () => true } = {}) {
+async function boot(modeFor) {
   vi.resetModules()
   const server = installFakeBarsServer({ modeFor: typeof modeFor === 'function' ? modeFor : () => modeFor })
   const { createBarStore } = await import('./index')
@@ -48,8 +57,9 @@ async function boot(modeFor, { visible = () => true } = {}) {
     stream, candle: fakeCandle(), prices: fakePrices(), pushEnabled: () => true,
     isHidden: () => false, onVisible: () => () => {}, idle: (fn) => fn(),
   })
-  const pf = P.createPrefetch({ store, tickerMeta: () => {}, extended: () => false, visible, random: () => 0, deepNeighbors: () => false })
-  return { server, store, stream, P, pf, k: (sym) => pf.keyFor(sym, '1') }
+  const vis = { v: true }
+  const pf = P.createPrefetch({ store, tickerMeta: () => {}, extended: () => false, visible: () => vis.v, random: () => 0, deepNeighbors: () => false })
+  return { server, store, stream, P, pf, vis, k: (sym) => pf.keyFor(sym, '1') }
 }
 const tick = (ms) => vi.advanceTimersByTimeAsync(ms)
 async function serve(w, ms) {
@@ -79,18 +89,18 @@ function navigate(hold, syms, opts) {
   hold.set(syms, '1', { ...opts, selected: `S${++sel}` })
   hold.set(syms, '1', { ...opts, selected: `S${++sel}` })
 }
+async function liveRow(w, liveSince) {
+  await warmNext(w, ['AAA'])                                           // the urgent next-row warm, at 10:00:50
+  const hold = w.pf.createNeighborHold()
+  navigate(hold, ['ZZZ', 'AAA'], { tail: ['AAA'], live: ['AAA'] })
+  expect(w.stream.ahead(), 'the next row does not ride the stream').toEqual(['AAA:1'])
+  if (liveSince != null) w.stream.st.live.set('AAA:1', liveSince)
+  w.stream.emit('AAA', '1', frame('AAA', T(10, 0), 10.7, at(10, 0, 59)))   // the minute's last trades, pushed
+  w.stream.st.lastBar.set('AAA:1', T(10, 0) * 1000)
+  return hold
+}
 
 describe('L: a next row the push stream has kept current through the roll is shown in the key task', () => {
-  async function liveRow(w, liveSince) {
-    await warmNext(w, ['AAA'])                                         // the urgent next-row warm, at 10:00:50
-    const hold = w.pf.createNeighborHold()
-    navigate(hold, ['ZZZ', 'AAA'], { tail: ['AAA'], live: ['AAA'] })
-    expect(w.stream.ahead(), 'the next row does not ride the stream').toEqual(['AAA:1'])
-    if (liveSince != null) w.stream.st.live.set('AAA:1', liveSince)
-    w.stream.emit('AAA', '1', frame('AAA', T(10, 0), 10.7, at(10, 0, 59)))   // the minute's last trades, pushed
-    return hold
-  }
-
   it('L1 the press 0.5 s after the roll paints bar M as the stream left it, in the key task, with no request', async () => {
     vi.setSystemTime(at(10, 0, 50))
     const w = await boot('ok')
@@ -120,21 +130,42 @@ describe('L: a next row the push stream has kept current through the roll is sho
     w.store.dispose()
   })
 
-  it('L1c a live stream, but a copy WITHOUT bar M (two rolls later, nothing printed in 10:01): not shown', async () => {
-    vi.setSystemTime(at(10, 0, 50))
-    const w = await boot('ok')
-    const hold = await liveRow(w, at(10, 0, 51))
-    vi.setSystemTime(at(10, 2, 0) + 500)                               // M = 10:01, the copy ends at 10:00
-    expect(w.pf.peekDisplayable('AAA', '1'), 'a copy missing the closed 10:01 bar was shown').toBe(false)
-    hold.clear()
-    w.store.dispose()
-  })
-
   it('L1d (control) no push stream for the row: the #2708 rule, unchanged', async () => {
     vi.setSystemTime(at(10, 0, 50))
     const w = await boot('ok')
     const hold = await liveRow(w, null)
     vi.setSystemTime(at(10, 1, 0) + 500)
+    expect(w.pf.peekDisplayable('AAA', '1')).toBe(false)
+    hold.clear()
+    w.store.dispose()
+  })
+
+  it('A1 (rule a) a stream live since before 10:01 opened, NO frame for 10:01: no trade printed, the copy is complete', async () => {
+    vi.setSystemTime(at(10, 0, 50))
+    const w = await boot('ok')
+    const hold = await liveRow(w, at(10, 0, 51))                      // its newest frame: 10:00
+    vi.setSystemTime(at(10, 2, 0) + 500)                               // M = 10:01, the copy ends at 10:00
+    expect(w.pf.peekDisplayable('AAA', '1'), 'a thin minute the stream proved empty waited').toBe(true)
+    hold.clear()
+    w.store.dispose()
+  })
+
+  it('A1b the stream DID deliver a frame for 10:01 the copy lacks: not shown', async () => {
+    vi.setSystemTime(at(10, 0, 50))
+    const w = await boot('ok')
+    const hold = await liveRow(w, at(10, 0, 51))
+    w.stream.st.lastBar.set('AAA:1', T(10, 1) * 1000)
+    vi.setSystemTime(at(10, 2, 0) + 500)
+    expect(w.pf.peekDisplayable('AAA', '1'), 'a copy missing a minute the stream delivered was shown').toBe(false)
+    hold.clear()
+    w.store.dispose()
+  })
+
+  it('A1c a stream live only since AFTER 10:01 opened proves nothing about 10:01: not shown', async () => {
+    vi.setSystemTime(at(10, 0, 50))
+    const w = await boot('ok')
+    const hold = await liveRow(w, at(10, 1, 30))
+    vi.setSystemTime(at(10, 2, 0) + 500)
     expect(w.pf.peekDisplayable('AAA', '1')).toBe(false)
     hold.clear()
     w.store.dispose()
@@ -161,7 +192,8 @@ describe('L2: the hold puts the rows ahead on the stream, bounded', () => {
 
   it('L2 a hidden page puts nothing on the stream', async () => {
     vi.setSystemTime(at(10, 0, 50))
-    const w = await boot('ok', { visible: () => false })
+    const w = await boot('ok')
+    w.vis.v = false
     await warmNext(w, ['AAA'])
     const hold = w.pf.createNeighborHold()
     navigate(hold, ['ZZZ', 'AAA'], { tail: ['AAA'], live: ['AAA'] })
@@ -198,9 +230,69 @@ describe('L2: the hold puts the rows ahead on the stream, bounded', () => {
     expect(w.stream.ahead()).toEqual([])
     w.store.dispose()
   })
+
+  it('L4 a live re-sort (the same selection) never changes the rows on the stream; a press does', async () => {
+    vi.setSystemTime(at(10, 0, 50))
+    const w = await boot('ok')
+    await warmNext(w, ['AAA', 'BBB', 'CCC'])
+    const hold = w.pf.createNeighborHold()
+    const rows = ['ZZZ', 'AAA', 'BBB', 'CCC']
+    navigate(hold, rows, { tail: ['AAA', 'BBB'], live: ['AAA', 'BBB'] })
+    const selNow = `S${sel}`
+    expect(w.stream.ahead()).toEqual(['AAA:1', 'BBB:1'])
+    hold.set(['ZZZ', 'CCC', 'AAA', 'BBB'], '1', { tail: ['CCC', 'AAA'], live: ['CCC', 'AAA'], selected: selNow })   // re-sort
+    expect(w.stream.ahead(), 'a re-sort changed the rows on the stream (the chart\'s stream reconnects)').toEqual(['AAA:1', 'BBB:1'])
+    hold.set(rows, '1', { tail: ['BBB', 'CCC'], live: ['BBB', 'CCC'], selected: `S${++sel}` })   // a press
+    expect(w.stream.ahead()).toEqual(['BBB:1', 'CCC:1'])
+    hold.clear()
+    w.store.dispose()
+  })
+
+  it('L5 the page turning hidden mid-window releases them within LIVE_RECHECK_MS', async () => {
+    vi.setSystemTime(at(10, 0, 50))
+    const w = await boot('ok')
+    await warmNext(w, ['AAA'])
+    const hold = w.pf.createNeighborHold()
+    navigate(hold, ['ZZZ', 'AAA'], { tail: ['AAA'], live: ['AAA'] })
+    expect(w.stream.ahead()).toEqual(['AAA:1'])
+    w.vis.v = false
+    await tick(w.P.LIVE_RECHECK_MS + 100)
+    expect(w.stream.ahead(), 'a hidden page kept its rows ahead on the stream').toEqual([])
+    hold.clear()
+    w.store.dispose()
+  })
+
+  it('L5b the session ending mid-window releases them within LIVE_RECHECK_MS', async () => {
+    vi.setSystemTime(at(15, 59, 50))
+    const w = await boot('ok')
+    await warmNext(w, ['AAA'])
+    const hold = w.pf.createNeighborHold()
+    navigate(hold, ['ZZZ', 'AAA'], { tail: ['AAA'], live: ['AAA'] })
+    expect(w.stream.ahead()).toEqual(['AAA:1'])
+    await tick(10_000 + w.P.LIVE_RECHECK_MS + 100)                    // past 16:00
+    expect(w.stream.ahead(), 'the rows ahead outlived the session').toEqual([])
+    hold.clear()
+    w.store.dispose()
+  })
+
+  it('L6 a key the page cap refused is asked again once, LIVE_RECHECK_MS later, inside the window', async () => {
+    vi.setSystemTime(at(10, 0, 50))
+    const w = await boot('ok')
+    await warmNext(w, ['AAA'])
+    const others = ['X1', 'X2', 'X3', 'X4'].map((s) => w.store.watchLive(w.k(s)))   // another list holds the 4 places
+    const hold = w.pf.createNeighborHold()
+    navigate(hold, ['ZZZ', 'AAA'], { tail: ['AAA'], live: ['AAA'] })
+    expect(w.stream.ahead()).not.toContain('AAA:1')
+    others[0]()
+    await tick(w.P.LIVE_RECHECK_MS + 100)
+    expect(w.stream.ahead(), 'a refused row was never asked again').toContain('AAA:1')
+    hold.clear()
+    for (const f of others) f()
+    w.store.dispose()
+  })
 })
 
-describe('H: a copy lacking a closed bar is never painted as it is (the roll class)', () => {
+describe('H: the roll hold is at most ROLL_HOLD_MAX_MS, then the server\'s answer paints under its honest status', () => {
   async function behind(mode) {
     vi.setSystemTime(at(10, 0, 55))
     const w = await boot(mode)
@@ -210,74 +302,81 @@ describe('H: a copy lacking a closed bar is never painted as it is (the roll cla
     return w
   }
 
-  it('H1 the own ask held 600 ms: the switch has not committed at 250 ms; it commits with the closed bar', async () => {
+  it('H1 the own ask held: nothing at 300 ms; the copy as it is at 400 ms, UPDATING; the answer then replaces it', async () => {
+    const w = await behind('ok')
+    expect(w.P.ROLL_HOLD_MAX_MS).toBe(400)
+    let out = 'pending'
+    w.pf.prepareForDisplay('AAA', '1').then((o) => { out = o })
+    await tick(300)                                                    // nobody answers
+    expect(out).toBe('pending')
+    await tick(150)
+    expect(out, 'the hold ran past ROLL_HOLD_MAX_MS').toBe('updating')
+    expect(holdsClosed(w, 'AAA', T(10, 0))).toBe(false)               // what the store holds: the copy as it is...
+    expect(w.store.peek(w.k('AAA')).status, '...painted as current').toBe('updating')
+    await serve(w, 100)                                                // the answer lands
+    expect(holdsClosed(w, 'AAA', T(10, 0))).toBe(true)
+    expect(w.store.peek(w.k('AAA')).status).toBe('current')
+    w.store.dispose()
+  })
+
+  it('H2 an answer holding the closed bar inside the bound: current at once', async () => {
     const w = await behind('ok')
     let out = 'pending'
     w.pf.prepareForDisplay('AAA', '1').then((o) => { out = o })
-    await tick(600)                                                    // nobody answers (a slow edge)
-    expect(out, 'a copy lacking the closed 10:00 bar was painted as it is after 250 ms').toBe('pending')
-    await serve(w, 100)
+    await serve(w, 60)
     expect(out).toBe('current')
     expect(holdsClosed(w, 'AAA', T(10, 0))).toBe(true)
     w.store.dispose()
   })
 
-  it('H2 the own answer still lacks the closed bar (the server stores a bucket 3 s late): re-asked until it holds it', async () => {
+  it('H3 the server\'s answer still lacks the closed bar: painted at once, UPDATING, and no third ask', async () => {
     const lagFrom = at(10, 0, 58)
     const w = await behind((q) => (Date.now() >= lagFrom ? 'lag:3' : 'ok'))
     const n0 = w.server.calls.length
     let out = 'pending'
     w.pf.prepareForDisplay('AAA', '1').then((o) => { out = o })
-    await serve(w, 1_500)                                              // 10:01:02: the server still lacks 10:00
-    expect(out, 'the server\'s answer lacking the closed 10:00 bar was painted as it is').toBe('pending')
-    await serve(w, 2_500)                                              // 10:01:04.5: it has it since 10:01:03
-    expect(out).toBe('current')
-    expect(holdsClosed(w, 'AAA', T(10, 0))).toBe(true)
-    expect(callsOf(w, 'AAA', n0).length).toBeLessThanOrEqual(6)       // ~one ask a second, never a storm
+    await serve(w, 120)
+    expect(out, 'a non-streamed row waited for a push frame that cannot come').toBe('updating')
+    expect(holdsClosed(w, 'AAA', T(10, 0))).toBe(false)
+    expect(w.store.peek(w.k('AAA')).status).toBe('updating')
+    await serve(w, 3_000)
+    expect(callsOf(w, 'AAA', n0).length).toBeLessThanOrEqual(2)       // the own since= ask and its one full re-ask
     w.store.dispose()
   })
 
-  it('H3 the bound: past TAIL_LAG_WINDOW_MS of the roll, the server\'s answer is what paints (the name not printing)', async () => {
-    const lagFrom = at(10, 0, 58)
-    const w = await behind(() => (Date.now() >= lagFrom ? 'lag:30' : 'ok'))
-    let out = 'pending'
-    let doneAt = null
-    w.pf.prepareForDisplay('AAA', '1').then((o) => { out = o; doneAt = Date.now() })
-    await serve(w, 6_000)                                              // 10:01:06.5
-    expect(out).toBe('pending')
-    await serve(w, 4_000)                                              // 10:01:10.5
-    expect(out).toBe('current')
-    expect(doneAt).toBeGreaterThanOrEqual(at(10, 1, 0) + w.P.TAIL_LAG_WINDOW_MS)
-    expect(doneAt).toBeLessThanOrEqual(at(10, 1, 0) + w.P.TAIL_LAG_WINDOW_MS + 1_500)
-    w.store.dispose()
-  })
-
-  it('H4 the path with NO copy: an answer lacking the closed bar is not painted either', async () => {
+  it('H4 a push frame bringing the closed bar inside the bound ends the hold at once', async () => {
+    vi.setSystemTime(at(10, 0, 55))
+    const w = await boot('ok')
+    await warmNext(w, ['AAA'])
+    const off = w.store.watchLive(w.k('AAA'))
+    w.stream.st.live.set('AAA:1', at(10, 1, 0) + 100)                 // live only since just after the roll
     vi.setSystemTime(at(10, 1, 0) + 500)
-    const w = await boot(() => (Date.now() < at(10, 1, 3) ? 'lag:3' : 'ok'))
+    expect(w.pf.peekDisplayable('AAA', '1')).toBe(false)
     let out = 'pending'
     w.pf.prepareForDisplay('AAA', '1').then((o) => { out = o })
-    await serve(w, 1_000)                                              // 10:01:01.5: answered, without 10:00
-    expect(out, 'a first answer lacking the closed 10:00 bar was painted').toBe('pending')
-    await serve(w, 3_000)
-    expect(out).toBe('current')
+    await tick(150)                                                    // the own ask is held
+    expect(out).toBe('pending')
+    w.stream.emit('AAA', '1', frame('AAA', T(10, 0), 10.8, at(10, 1, 0) + 650, true))
+    w.stream.emit('AAA', '1', frame('AAA', T(10, 1), 10.9, at(10, 1, 0) + 651))
+    await tick(20)
+    expect(out, 'the push frame with the closed bar did not end the hold').toBe('current')
     expect(holdsClosed(w, 'AAA', T(10, 0))).toBe(true)
+    off()
     w.store.dispose()
   })
 
   it('H5 the next press (abort) ends the hold at once, and nothing more is asked', async () => {
-    const lagFrom = at(10, 0, 58)
-    const w = await behind(() => (Date.now() >= lagFrom ? 'lag:30' : 'ok'))
+    const w = await behind('ok')
     const ctl = new AbortController()
     let settled = false
     w.pf.prepareForDisplay('AAA', '1', { signal: ctl.signal }).then(() => { settled = true }, () => { settled = true })
-    await serve(w, 500)
+    await tick(100)                                                    // nobody answers
     expect(settled).toBe(false)
     ctl.abort()
-    await serve(w, 50)
+    await tick(10)
     expect(settled).toBe(true)
     const n1 = w.server.calls.length
-    await serve(w, 3_000)
+    await tick(3_000)
     expect(callsOf(w, 'AAA', n1).length).toBe(0)
     w.store.dispose()
   })

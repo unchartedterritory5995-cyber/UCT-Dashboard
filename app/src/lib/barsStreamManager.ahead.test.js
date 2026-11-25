@@ -7,9 +7,12 @@
 //   M3  at most AHEAD_MAX_PAIRS ahead pairs per page (the oldest subscriptions first)
 //   M4  ahead pairs only fill room left in the connections the charts already open (the 50-pair cap counts both)
 //   M5  getStatus().liveSince: the time since which the pair has been delivering WITHOUT A BREAK. Set by the first
-//       developing frame; kept across a rebuild that keeps the pair (the new connection re-sends the current bar); reset by
-//       an error, the server's vendor-down word, and the last subscriber leaving; null while not delivering; a final-only
-//       frame does not set it
+//       developing frame; kept across a rebuild only when the new connection's first frame is the SAME bucket as the last
+//       one before it; reset by an error, the server's vendor-down word, and the last subscriber leaving; null while not
+//       delivering; a final-only frame does not set it
+//   R1  (review of #2721, 1-A) a roll inside a rebuild gap breaks it (a browser connection re-sends only the current
+//       bucket: the closed bucket's final never arrives), and it reads null until the first frame decides
+//   R2  a pair that drops off every connection and rejoins starts fresh, even inside the same bucket
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import * as bars from './barsStreamManager'
 
@@ -109,6 +112,49 @@ describe('M: the rows ahead on the bars stream', () => {
     es2._open()
     es2._emit('bar', dev('MSFT', '1', 120_000))
     expect(bars.getStatus('MSFT', '1').liveSince, 'a rebuild that kept the pair broke its continuity').toBe(1_002_000)
+  })
+
+  it('R1 a roll inside a rebuild gap breaks it; it reads null until the new connection\'s first frame decides', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(3_000_000)
+    bars.subscribe('AAPL', '1', {})
+    bars.subscribe('MSFT', '1', { ahead: true })
+    flush()
+    const es = open()[0]
+    es._open()
+    es._emit('bar', dev('MSFT', '1', 120_000))                 // bucket 120 000 (M) delivering since 3 000 000
+    expect(bars.getStatus('MSFT', '1').liveSince).toBe(3_000_000)
+    vi.setSystemTime(3_005_000)
+    bars.subscribe('TSLA', '1', {})                       // a press: the connection is rebuilt...
+    flush()
+    const es2 = open()[0]
+    es2._open()
+    expect(bars.getStatus('MSFT', '1').liveSince, 'reported live before the first frame decided').toBeNull()
+    vi.setSystemTime(3_006_000)
+    es2._emit('bar', dev('MSFT', '1', 180_000))                // ...and a roll fell inside the gap: the first frame is M+1
+    expect(bars.getStatus('MSFT', '1').liveSince, 'a roll inside the rebuild gap kept the pair live through it').toBe(3_006_000)
+  })
+
+  it('R2 a pair that drops off every connection and rejoins starts fresh, even inside the same bucket', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(4_000_000)
+    const offA = bars.subscribe('AAPL', '1', {})
+    bars.subscribe('MSFT', '1', { ahead: true })
+    flush()
+    let es = open()[0]
+    es._open()
+    es._emit('bar', dev('MSFT', '1', 120_000))
+    expect(bars.getStatus('MSFT', '1').liveSince).toBe(4_000_000)
+    offA()                                                // the chart leaves: the row ahead rides no connection
+    flush()
+    expect(open().length).toBe(0)
+    vi.setSystemTime(4_010_000)
+    bars.subscribe('AAPL', '1', {})                       // ...and comes back within the staleness window
+    flush()
+    es = open()[0]
+    es._open()
+    es._emit('bar', dev('MSFT', '1', 120_000))
+    expect(bars.getStatus('MSFT', '1').liveSince, 'a pair that dropped off reused its old liveSince').toBe(4_010_000)
   })
 
   it('M5 an error, the vendor-down word and the last subscriber leaving each reset it', () => {

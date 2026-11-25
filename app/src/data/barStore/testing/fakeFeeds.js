@@ -5,7 +5,8 @@
 export function fakeStream() {
   const subs = new Map()
   // `live`: 'SYM:TF' -> the time (ms) since which the stream has delivered that pair without a break (getStatus().liveSince)
-  const st = { delivering: true, live: new Map() }
+  // `lastBar`: 'SYM:TF' -> the bucket start (ms) of the newest frame the stream delivered for it (getStatus().lastBarT)
+  const st = { delivering: true, live: new Map(), lastBar: new Map() }
   return {
     st,
     subscribe(sym, tf, cbs) {
@@ -14,7 +15,7 @@ export function fakeStream() {
       subs.get(k).add(cbs)
       return () => subs.get(k)?.delete(cbs)
     },
-    getStatus: (sym, tf) => ({ connected: true, healthy: true, delivering: st.delivering, liveSince: st.live.get(`${sym}:${tf}`) ?? null }),
+    getStatus: (sym, tf) => ({ connected: true, healthy: true, delivering: st.delivering, liveSince: st.live.get(`${sym}:${tf}`) ?? null, lastBarT: st.lastBar.get(`${sym}:${tf}`) ?? null }),
     emit(sym, tf, data) { for (const c of subs.get(`${sym}:${tf}`) || []) c.onBar?.(data) },
     count: () => [...subs.values()].reduce((n, s) => n + s.size, 0),
     /** The 'SYM:TF' pairs subscribed with `ahead: true` (a row the member has not reached), sorted. */

@@ -5,6 +5,8 @@
 //   F3  the first selection asks at once a tail row behind the clock (and keeps the tail current from there)
 //   F3b (control) a `set` with no selection (the list's rows only) opens nothing
 //   F3c (control) a live re-sort with the SAME selection asks nothing more (one ask per row per bucket, as before)
+//   F3d (review of #2721) the cost: a list mount the member never navigates asks its tail rows once per row per bucket for
+//       TAIL_ACTIVE_MS (2 rows x 3 boundaries on 1m), then nothing
 import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest'
 import { installFakeIndexedDB } from './testing/fakeIndexedDB'
 import { fakeStream, fakeCandle, fakePrices } from './testing/fakeFeeds'
@@ -89,6 +91,25 @@ describe('the list\'s first selection opens the hold\'s window', () => {
     await tick(20)
     await w.server.drain()
     expect(asksOf(w, 'AAA', n0)).toBe(1)
+    hold.clear()
+    w.store.dispose()
+  })
+})
+
+describe('the cost of the window an idle list mount opens', () => {
+  it('F3d 2 rows x 1 ask per boundary for TAIL_ACTIVE_MS, then nothing', async () => {
+    vi.setSystemTime(at(10, 0, 50))
+    const w = await boot('closed')
+    await warmAll(w, ['AAA', 'BBB'])
+    const hold = w.pf.createNeighborHold()
+    const n0 = w.server.calls.length
+    hold.set(['X', 'AAA', 'BBB'], '1', { tail: ['AAA', 'BBB'], selected: 'X' })   // the list mounts on X; nobody presses
+    for (let i = 0; i < 18; i++) { await tick(10_000); await w.server.drain() }      // to 10:03:50, the window's end
+    const inWindow = w.server.calls.length - n0
+    expect(inWindow, 'an idle mount asked more than 2 rows x 3 boundaries').toBeLessThanOrEqual(6)
+    const n1 = w.server.calls.length
+    for (let i = 0; i < 18; i++) { await tick(10_000); await w.server.drain() }      // three more minutes
+    expect(w.server.calls.length - n1).toBe(0)
     hold.clear()
     w.store.dispose()
   })
