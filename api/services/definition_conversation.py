@@ -806,7 +806,18 @@ STRICT_WORDS_RULE = (
     "A STRICT WORD STAYS STRICT INSIDE A FUNCTION: when the member's own test is strict (\"above\", \"below\", "
     "\"higher than\", \"lower than\") and a function's line in the function table admits an equal value on either "
     "side (it says \"at least as\"), that function is not the member's test. Write the comparison out with > or < "
-    "against the bars on each side instead of relying on the function. ")
+    "against the bars on each side instead of relying on the function. "
+    # ⭐ 2026-11-24 -- THE SAME RULE, WRITTEN OUT FOR A TEST ON BOTH SIDES OF A BAR. Measured: cap-03's words ("a bar
+    # whose high is above the highs of the 3 bars before it and the 3 bars after it", averaged over the last 5) came
+    # back 0 of 3 right as a MEMBER (739 of 1,643 bars), each answer built on the table's function for it, which admits
+    # an equal high on one side and places its value on the marked bar. The sentence above was in the instructions
+    # and was not enough. This one says what the words ARE, in the formula's own terms, and names no function.
+    "A TEST ON BOTH SIDES OF A BAR IS WRITTEN OUT THE SAME WAY: \"a bar whose high is above the highs of the N bars "
+    "before it and the N bars after it\" is, on each bar, the bar N back: (offset N of high) > (offset N+k of high) "
+    "and (offset N of high) > (offset N-k of high) for every k from 1 to N (offset 0 is this bar), all joined with &&, "
+    "with >= only where the member says \"at least\". Its value is offset N of high, and it is known on this bar, N "
+    "bars after the bar it marks: build every later step (a count, the last few values, their average) on that "
+    "condition and that value, and say in `reply` that each one is known N bars after the bar it marks. ")
 
 #: What a choice of the day-length question must hold (see CHOICE_MAX_CHARS above). The limit is the schema's number.
 DAY_LENGTH_CHOICE_RULE = (
