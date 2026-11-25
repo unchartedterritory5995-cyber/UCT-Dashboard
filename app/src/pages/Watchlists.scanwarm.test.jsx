@@ -133,6 +133,27 @@ test('the next two rows are warmed URGENTLY (not held behind the daily pack inge
   expect(u.syms).toEqual(['DDD', 'EEE'])
 })
 
+// ⭐ (2026-11-25 wide sweep) A member jumping through the list outran the urgent next-row warm: the jump's stride, in
+// its direction, is warmed urgently too, and kept resident by the hold.
+test('a jump warms the row one stride further, urgently, after the next rows', async () => {
+  hub.sym = 'CCC'
+  const { rerender } = render(<Watchlists embedded pickList="user:wl1" pickName="Momentum Plays" />)
+  await screen.findByText('CCC')
+  await waitFor(() => expect(calls.urgent.some(c => c.syms[0] === 'DDD')).toBe(true))
+  calls.urgent = []
+  hub.sym = 'FFF'                                            // a jump of 3 rows down
+  rerender(<Watchlists embedded pickList="user:wl1" pickName="Momentum Plays" />)
+  await waitFor(() => expect(calls.urgent.some(c => c.syms[0] === 'GGG')).toBe(true))
+  const u = calls.urgent.find(c => c.syms[0] === 'GGG')
+  expect(u.tf).toBe('5')
+  expect(u.syms).toEqual(['GGG', 'HHH', 'III'])              // the next two, then FFF + 3
+  calls.urgent = []
+  hub.sym = 'GGG'                                            // control: one row on is no jump
+  rerender(<Watchlists embedded pickList="user:wl1" pickName="Momentum Plays" />)
+  await waitFor(() => expect(calls.urgent.some(c => c.syms[0] === 'HHH')).toBe(true))
+  expect(calls.urgent.find(c => c.syms[0] === 'HHH').syms).toEqual(['HHH', 'III'])
+})
+
 test('the store hold holds the rows around the selection and deepens the next two (scan direction)', async () => {
   const sets = []
   globalThis.__uctStoreWarmers = {
