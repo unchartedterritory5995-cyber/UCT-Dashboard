@@ -988,6 +988,44 @@ import { OBJECT_ENUM_VALUES } from '../objectEnums.js'
 
 const TICKER_CALLS = new Set(['ticker.new', 'tickerid'])
 
+/** ⭐ e97 U1 — the `ticker.*` builders that ask for a CHART TYPE computed from the candles, and what
+ *  each one's bars are, for the sentence that says why such a symbol is not folded (`tickerCallUnfoldedWhy`). */
+const TICKER_CHART_TYPES = Object.freeze({
+  'ticker.heikinashi': 'Heikin-Ashi bars',
+  'ticker.renko': 'Renko bricks',
+  'ticker.linebreak': 'Line Break bars',
+  'ticker.kagi': 'Kagi lines',
+  'ticker.pointfigure': 'Point & Figure columns',
+})
+
+/** ⭐ e97 U1 — `ticker.modify`'s positional parameters, Pine's reference order. */
+const REQUEST_TICKER_MODIFY_ARGS = Object.freeze(['tickerid', 'session', 'adjustment', 'backadjustment', 'settlement_as_close'])
+
+/** ⭐ e97 U1 — WHAT A `request.*` CALL THAT IS NOT `request.security` READS, naming its own arguments, for the
+ *  refusal of one this door holds no node for (`request.economic`, `request.quandl`, `request.currency_rate`,
+ *  …). ⛔ Words only: the calls this door DOES serve (`request.financial`, `request.dividends`, …) never reach it. */
+function requestDataCallWhy(name, args) {
+  const shown = (args || []).filter((a) => a && !a.name).slice(0, name === 'request.quandl' ? 1 : 2).map((a) => `\`${requestArgSpelling(a.value)}\``)
+  const asked = shown.length ? ` (${shown.join(', ')})` : ''
+  const held = 'and this engine holds the bars of US stock and ETF listings only'
+  if (name === 'request.economic') return `it reads TradingView's economic data${asked}, not a symbol's bars, ${held}`
+  if (name === 'request.quandl') return `it reads a Nasdaq Data Link (Quandl) dataset${asked}, not a symbol's bars, ${held}`
+  if (name === 'request.currency_rate') return `it reads a currency conversion rate${asked}, not a symbol's bars, ${held}`
+  return `it reads${asked} a data source this engine does not hold: ${held.replace(/^and /, '')}`
+}
+
+/** ⭐ e97 U1 — how a request argument is QUOTED in a refusal: what the member wrote, a call shortened to its
+ *  name. Words only; it decides nothing. */
+function requestArgSpelling(node) {
+  if (!node) return '…'
+  if (node.type === 'name') return node.name
+  if (node.type === 'string') return `"${node.value}"`
+  if (node.type === 'call' && typeof node.name === 'string') return `${node.name}(…)`
+  if (node.type === 'ternary') return '… ? … : …'
+  if (node.type === 'num' && node.value !== undefined) return String(node.value)
+  return node.tok && node.tok.value !== undefined ? String(node.tok.value) : '…'
+}
+
 
 // ⛔ W9-OQ-N2 — the sinks that refuse (or withhold) their own row (`STRATEGY_TAINT_ROW_SINKS`) and the sinks with no
 // row and no object of their own (`STRATEGY_TAINT_SCRIPT_SINKS`: a `fill` band, `alert()`, `hline`, which refuse the
@@ -9880,7 +9918,9 @@ export class Resolver {
           const lower = this.lowerTfDeclineOf(bound.call)
           const spelled = lower ? null : this.otherSymbolSpellingDeclineOf(bound.call)
           if (spelled) throw new PineRefusal('pine:request', spelled.message, bound.at || locate(tok))
-          const why = lower ? lower.why : null
+          // ⭐ e97 U1 — and every other decline names its argument, as the call's own refusal does.
+          const declined = lower ? null : this.securityDeclineReason(bound.call)
+          const why = lower ? lower.why : declined ? declined.why : null
           throw new PineRefusal('pine:request',
             `${REFUSALS['pine:request']} — \`${name}\`${why ? `: ${why}` : ''}`,
             bound.at || locate(tok))
@@ -13951,7 +13991,9 @@ export class Resolver {
         const refusal = lowerTfRefusal({ code, base: this.basePeriod, array: true })
         throw new PineRefusal(guard, `${REFUSALS[guard]} — \`${name}\`: ${refusal.why}`, locate(node.tok))
       }
-      throw new PineRefusal(guard, `${REFUSALS[guard]} — \`${name}\``, locate(node.tok))
+      // ⭐ e97 U1 — any other `request.*` call says what it reads, by its own arguments, never a bare name.
+      const dataWhy = guard === 'pine:request' ? requestDataCallWhy(name, node.args || []) : null
+      throw new PineRefusal(guard, `${REFUSALS[guard]} — \`${name}\`${dataWhy ? `: ${dataWhy}` : ''}`, locate(node.tok))
     }
     if (ns && !VALUE_NAMESPACES.has(ns)) {
       throw new PineRefusal('pine:builtin',
@@ -14978,9 +15020,17 @@ export class Resolver {
   securityDeclineReason(node) {
     const args = node.args || []
     const placed = positionaliseSecurityArgs(args)
-    if (!placed) return null
+    // ⭐ e97 U1 — even a call whose arguments cannot be placed says which, never a bare name.
+    if (!placed) {
+      return { why: 'its arguments could not be matched to `symbol`, `timeframe` and `expression` (an argument '
+        + 'is named twice, named after something `request.security` does not take, or written positionally after a named one)' }
+    }
     const positional = placed.slice(0, 3)
-    if (positional.some((p) => p === undefined)) return null
+    const missing = REQUEST_SECURITY_ARGS.slice(0, 3).filter((_, i) => positional[i] === undefined)
+    if (missing.length) {
+      return { why: `it is given no ${missing.map((m) => `\`${m}\``).join(' and no ')} argument, and a request needs all three of `
+        + '`symbol`, `timeframe` and `expression`' }
+    }
     // ⭐ P0 0H — a value-changing argument this door cannot honour, named first.
     const argDecline = this.requestArgsDecline(placed)
     if (argDecline) return argDecline
@@ -15024,7 +15074,17 @@ export class Resolver {
     //    own timeframe", which is always servable because it is the base itself.
     const tfNode = positional[1]
     const reach = this.requestTimeframeReach()
-    if (this.ownTimeframeOf(tfNode, 0, reach) === null) {
+    // ⭐ e97 U1 — THE SYMBOL IS ASKED BEFORE THE TIMEFRAME IS BLAMED. Null when it folds (the chart's own,
+    // or a ticker this door can name); otherwise the sentence naming it (`requestSymbolUnfoldedWhy`).
+    const symbolWhy = this.requestWordsQuietly(() => this.requestSymbolUnfoldedWhy(positional[0]), null)
+    // ⚰️ e97 U1 — A TIMEFRAME THAT NAMES THE CHART'S OWN WAS BLAMED FOR A REFUSAL IT DID NOT CAUSE.
+    // `request.security(ticker.standard(syminfo.tickerid), "1D", close)` on a daily chart read "this
+    // engine resamples weekly and monthly … and `1D` is not one of them", while `"1D"` folds there to
+    // the chart's own series (`requestTargetOf`, `code === this.basePeriod`) and the SYMBOL was what
+    // stopped it. A code equal to the base is the identity, never a resample, so it is never named here.
+    const tfRawHere = this.ownTimeframeOf(tfNode, 0, reach) === null ? this.timeframeLiteralOf(tfNode, 0, reach) : null
+    const tfIsBase = tfRawHere !== null && PINE_TF_SPELLING[String(tfRawHere).trim().toUpperCase()] === this.basePeriod
+    if (this.ownTimeframeOf(tfNode, 0, reach) === null && !tfIsBase) {
       const raw = this.timeframeLiteralOf(tfNode, 0, reach)
       const code = raw === null ? null : PINE_TF_SPELLING[String(raw).trim().toUpperCase()]
       // ⭐ C41 — a symbol built by `ticker.modify(…)` (or any other `ticker.*`
@@ -15061,14 +15121,188 @@ export class Resolver {
         const names = servableTimeframesText()
         return {
           suggest: 'timeframe.period',
-          why: `this engine resamples ${names} from the daily bars it holds, and `
+          // ⭐ e97 U1 — and when the symbol did not fold either, it is named too, first.
+          why: `${symbolWhy ? `${symbolWhy}; and ` : ''}this engine resamples ${names} from the daily bars it holds, and `
             + `\`${String(raw)}\` is not one of them.${lowerWhy} ⚠️ THIS IS NOT THE SAME REQUEST: `
             + '`timeframe.period` reads the timeframe the chart is on rather than '
             + 'forcing one, so decide whether that is what you meant before you take it.',
         }
       }
     }
-    return null
+    // 3. ⭐⭐ e97 U1 — WHICHEVER ARGUMENT DID NOT FOLD, BY NAME, AND WHY. This returned null here, and
+    // the member read "… what stops this one is that its arguments do not fold to those — `request.security`"
+    // and nothing after it (ai-supertrend-x-pivot's `input.timeframe('360')`, ot-mtf-trend-dashboard's
+    // `ticker.heikinashi`, the reference's `ticker.modify(t1, session.extended)` at "2D"): a refusal that
+    // names no argument leaves a member guessing which of three to change.
+    return {
+      why: this.requestWordsQuietly(() => this.requestUnfoldedArgsWhy(node, placed, positional, symbolWhy),
+        (err) => `one of its symbol \`${requestArgSpelling(positional[0])}\` and timeframe \`${requestArgSpelling(positional[1])}\` `
+          + `does not fold, and reading back which one stopped on: ${String((err && err.message) || err).slice(0, 160)}`),
+    }
+  }
+
+  /** ⭐ e97 U1 — `fn()` for a refusal's WORDS, with nothing it reads left behind: no member parameter minted
+   *  (`paramMint` off, as `requestGapsOf` asks), no input recorded as used that was not before, and a throw
+   *  answered by `fallback(err)` (a refusal's words never turn the refusal into another one). */
+  requestWordsQuietly(fn, fallback) {
+    const minted = this.paramMint
+    const used = this.usedInputs ? new Set(this.usedInputs.keys()) : null
+    this.paramMint = null
+    try {
+      return fn()
+    } catch (err) {
+      if (isStackOverflow(err)) throw err
+      return typeof fallback === 'function' ? fallback(err) : fallback
+    } finally {
+      this.paramMint = minted
+      if (used) for (const k of [...this.usedInputs.keys()]) if (!used.has(k)) this.usedInputs.delete(k)
+    }
+  }
+
+  /** ⭐⭐ e97 U1 — THE SENTENCE NAMING EVERY ARGUMENT OF A DECLINED `request.security` THAT DID NOT FOLD:
+   *  the symbol (`symbolWhy`, already asked), the timeframe, the look-ahead; else the one reading that
+   *  is refused although each folds (a same-timeframe literal on a forming intraday bar). Never empty:
+   *  it is reached only when `requestTargetOf` declined, and a decline always has an argument to name. */
+  requestUnfoldedArgsWhy(node, placed, positional, symbolWhy) {
+    const clauses = []
+    if (symbolWhy) clauses.push(symbolWhy)
+    const tfWhy = this.requestTimeframeUnfoldedWhy(positional[1])
+    if (tfWhy) clauses.push(tfWhy)
+    if (this.requestLookaheadOf(node.args || [], placed) === null) {
+      const la = placed[REQUEST_SECURITY_ARGS.indexOf('lookahead')]
+      clauses.push(`the \`lookahead\` argument \`${requestArgSpelling(la)}\` is not a constant this door can read `
+        + '(`barmerge.lookahead_on`, `barmerge.lookahead_off`, `true`, `false`, or a name bound to one of them)')
+    }
+    if (clauses.length) return clauses.join('; and ')
+    const reach = this.requestTimeframeReach()
+    const raw = this.ownTimeframeOf(positional[1], 0, reach) === null ? this.timeframeLiteralOf(positional[1], 0, reach) : null
+    const code = raw === null ? null : PINE_TF_SPELLING[String(raw).trim().toUpperCase()]
+    if (code && code === this.basePeriod && isIntradayTf(this.basePeriod) && this.newestBarIsForming) {
+      return `the timeframe argument \`${requestArgSpelling(positional[1])}\` names this chart's own timeframe as a literal, `
+        + 'and while the chart\'s newest intraday bar is still forming this door does not fold such a literal onto the '
+        + 'chart\'s own bars (`timeframe.period` reads them and is served)'
+    }
+    return `its symbol \`${requestArgSpelling(positional[0])}\`, timeframe \`${requestArgSpelling(positional[1])}\` and `
+      + 'look-ahead each fold, and this combination of them is not one this door serves'
+  }
+
+  /** ⭐⭐ e97 U1 — WHY A REQUEST'S SYMBOL ARGUMENT DID NOT FOLD, as a clause naming it, or null when it
+   *  folds (`ownSymbolNameOf` / `otherSymbolOf`, the readers `requestTargetOf` asks: never a third). */
+  requestSymbolUnfoldedWhy(symNode) {
+    if (!symNode || this.ownSymbolNameOf(symNode) !== null || this.otherSymbolOf(symNode)) return null
+    const lead = `the symbol argument \`${requestArgSpelling(symNode)}\``
+    return `${lead} ${this.requestArgUnfixedWhy(symNode, 'symbol', 0, symNode)}`
+  }
+
+  /** ⭐⭐ e97 U1 — WHY A REQUEST'S TIMEFRAME ARGUMENT DID NOT FOLD to one this door serves, as a clause
+   *  naming it, or null when it folds or another step already named it (a code this table spells and
+   *  `securityDeclineReason`'s step 2 or `lowerTfDeclineOf` answers). */
+  requestTimeframeUnfoldedWhy(tfNode) {
+    const reach = this.requestTimeframeReach()
+    if (!tfNode || this.ownTimeframeOf(tfNode, 0, reach) !== null) return null
+    const lead = `the timeframe argument \`${requestArgSpelling(tfNode)}\``
+    const raw = this.timeframeLiteralOf(tfNode, 0, reach)
+    if (raw === null) return `${lead} ${this.requestArgUnfixedWhy(tfNode, 'timeframe', 0, tfNode)}`
+    const t = String(raw).trim()
+    if (t === '' || PINE_TF_SPELLING[t.toUpperCase()]) return null
+    const is = tfNode.type === 'string' ? ' is' : ` is \`${t}\`,`
+    if (/^[0-9]+$/.test(t) && isLowerTfRequest(t, this.basePeriod)) {
+      const lower = lowerTfRefusal({ code: t, base: this.basePeriod, screen: this.screen === true })
+      if (lower) return `${lead}${is} below this chart's timeframe: ${lower.why}`
+    }
+    return `${lead}${is} a timeframe this engine has no bars for: it reads the chart's own timeframe and `
+      + `resamples ${servableTimeframesText()} from the daily bars it holds`
+  }
+
+  /** ⭐⭐ e97 U1 — WHY AN ARGUMENT IS NOT ONE FIXED VALUE, following the shapes the request readers follow
+   *  (a plain binding, a constant ternary's branch, a function parameter through its call's frame) to
+   *  where they stop. A clause that starts with a verb, to follow "the <axis> argument `x`". ⛔ It decides
+   *  nothing: it is asked only after the readers have already declined. */
+  requestArgUnfixedWhy(node, axis, depth = 0, top = node) {
+    if (!node || depth > 6) return `is not a value this door can follow to one ${axis}`
+    // where the readers stopped, quoted when it is not what the member wrote at the request
+    const is = node === top ? '' : `is \`${requestArgSpelling(node)}\`, which `
+    if (node.type === 'ternary') {
+      const taken = this.constantBranchOf(node)
+      if (taken) return this.requestArgUnfixedWhy(taken, axis, depth + 1, top)
+      return `${is}picks its value on each bar (a \`? :\` whose condition is not a constant), and a request `
+        + `reads one ${axis} for the whole chart`
+    }
+    if (node.type === 'name') {
+      const bound = this.env && this.env.get(node.name)
+      if (bound && bound.kind === 'expr') return this.requestArgUnfixedWhy(bound.node, axis, depth + 1, top)
+      if (bound && bound.kind === 'param') {
+        // ⛔ A VALUE THE READERS TAKE WHEN WRITTEN AT THE REQUEST, PASSED IN THROUGH A FUNCTION'S PARAMETER,
+        // is refused for the parameter (`ownTimeframeOf` / `ownSymbolNameOf` follow a binding, not a frame):
+        // that is said, never "not a timeframe" about `timeframe.period` itself.
+        const through = this.throughBinding(bound, (b) => {
+          if (!b || !b.node) return null
+          const readable = axis === 'timeframe'
+            ? this.ownTimeframeOf(b.node) !== null || this.timeframeLiteralOf(b.node) !== null
+            : this.ownSymbolNameOf(b.node) !== null || !!this.otherSymbolOf(b.node)
+          if (readable) {
+            return `is the function parameter \`${node.name}\`, given \`${requestArgSpelling(b.node)}\` at its call: this door `
+              + `reads a request's ${axis} where it is written at the request or bound to a name, not through a function's parameter`
+          }
+          return this.requestArgUnfixedWhy(b.node, axis, depth + 1, top)
+        })
+        return through || `${is}is a function parameter this door could not follow to a value written at its call`
+      }
+      if (bound) return `${is}is held across bars or reassigned (\`var\`, \`:=\`), so it is not one ${axis} for the whole chart`
+      return `${is}is not a ${axis} this door can read`
+    }
+    if (node.type === 'call' && typeof node.name === 'string') {
+      if (axis === 'symbol' && node.name.startsWith('ticker.')) {
+        return `${is}${this.tickerCallUnfoldedWhy(node)}`
+      }
+      if (node.name === 'input' || node.name.startsWith('input.')) {
+        return `${is}has a default that is not a ${axis} this door can read`
+      }
+      return `${is || 'is a call '}this door does not fold to one ${axis}`
+    }
+    if (node.type === 'string') {
+      return `${is}is not a ${axis} this door can name`
+        + (axis === 'symbol' ? ' (a US stock or ETF ticker, optionally with its exchange)' : '')
+    }
+    return `${is}is computed from the bars, so it is not one ${axis} for the whole chart`
+  }
+
+  /** ⭐⭐ e97 U1 — WHY A `ticker.*` CALL IS NOT A SYMBOL THIS DOOR READS: a chart type, a session or
+   *  another modification, a venue, or the ticker inside it. A clause following "`ticker.x(…)`, which". */
+  tickerCallUnfoldedWhy(call) {
+    const name = call.name
+    if (own(TICKER_CHART_TYPES, name)) {
+      return `asks for ${TICKER_CHART_TYPES[name]}, a series computed from the candles rather than the candles `
+        + 'themselves, and this engine reads a symbol\'s standard candles only'
+    }
+    const args = call.args || []
+    const sessionAt = name === 'ticker.modify' ? 1 : name === 'ticker.new' ? 2 : -1
+    for (let i = 0; i < args.length; i += 1) {
+      const a = args[i]
+      if (!a || !(a.name === 'session' || (!a.name && i === sessionAt))) continue
+      const spelled = this.builtinNameThrough(a.value) || requestArgSpelling(a.value)
+      if (spelled !== 'session.regular') {
+        return `names the session \`${spelled}\`: it asks for pre- and post-market prints and this engine serves the `
+          + 'REGULAR session, so folding it would answer a real but DIFFERENT number on every bar'
+      }
+    }
+    if (name === 'ticker.modify') {
+      const changed = args.map((a, i) => (a ? a.name || REQUEST_TICKER_MODIFY_ARGS[i] : null)).filter((n, i) => i > 0 && n)
+      if (changed.length) {
+        return `changes ${changed.map((n) => `\`${n}\``).join(' and ')}: that names a different series from the chart's own, `
+          + 'and this door folds `ticker.modify` only when it changes nothing'
+      }
+    }
+    if (name === 'ticker.new') {
+      for (let i = 0; i < args.length; i += 1) {
+        const a = args[i]
+        if (a && (a.name === 'prefix' || (!a.name && i === 0)) && !venueArgIsServable(a.value)) {
+          return `names the exchange \`${requestArgSpelling(a.value)}\`, which is not one of the US stock listings this `
+            + 'engine reads'
+        }
+      }
+    }
+    return 'builds a ticker this door does not read as a symbol'
   }
 
   /** ⭐⭐ C27 — WHY A `request.security` BELOW THE CHART'S OWN TIMEFRAME IS NOT

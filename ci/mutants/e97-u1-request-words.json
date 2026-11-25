@@ -1,0 +1,86 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "U1-M1",
+   "mutant": "the last step answers null again: a refusal ends at the bare `request.security`",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "      why: this.requestWordsQuietly(() => this.requestUnfoldedArgsWhy(node, placed, positional, symbolWhy),",
+   "to": "      why: null && this.requestWordsQuietly(() => this.requestUnfoldedArgsWhy(node, placed, positional, symbolWhy),",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pine.requestHonestWords.test.js",
+   "expectRed": "no refusal over the fixture set ends at a bare name"
+  },
+  {
+   "id": "U1-M2",
+   "mutant": "a timeframe naming the chart's own is blamed again (the base-fold guard removed)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    if (this.ownTimeframeOf(tfNode, 0, reach) === null && !tfIsBase) {",
+   "to": "    if (this.ownTimeframeOf(tfNode, 0, reach) === null) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pine.requestHonestWords.test.js",
+   "expectRed": "a timeframe naming the chart"
+  },
+  {
+   "id": "U1-M3",
+   "mutant": "the wrong session slot for ticker.modify (Pine's ticker.new slot, 2): the session is not named",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    const sessionAt = name === 'ticker.modify' ? 1 : name === 'ticker.new' ? 2 : -1",
+   "to": "    const sessionAt = name === 'ticker.modify' ? 2 : name === 'ticker.new' ? 2 : -1",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pine.requestHonestWords.test.js",
+   "expectRed": "BOTH arguments, the session by its own spelling"
+  },
+  {
+   "id": "U1-M4",
+   "mutant": "a tuple element's refusal does not ask the decline: it ends at the bare element name",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "          const declined = lower ? null : this.securityDeclineReason(bound.call)",
+   "to": "          const declined = null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pine.requestHonestWords.test.js",
+   "expectRed": "no refusal over the fixture set ends at a bare name"
+  },
+  {
+   "id": "U1-M5",
+   "mutant": "request.economic / quandl / currency_rate end at their bare names again",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "      const dataWhy = guard === 'pine:request' ? requestDataCallWhy(name, node.args || []) : null",
+   "to": "      const dataWhy = null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pine.requestHonestWords.test.js",
+   "expectRed": "says what it reads, by its own arguments"
+  },
+  {
+   "id": "U1-M6",
+   "mutant": "the symbol is dropped when the timeframe is also named (step 2)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "          why: `${symbolWhy ? `${symbolWhy}; and ` : ''}this engine resamples ${names} from the daily bars it holds, and `",
+   "to": "          why: `this engine resamples ${names} from the daily bars it holds, and `",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pine.requestHonestWords.test.js",
+   "expectRed": "a timeframe naming the chart"
+  },
+  {
+   "id": "U1-M7",
+   "mutant": "a value passed through a function parameter is called 'not a timeframe'",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "          if (readable) {\n            return `is the function parameter",
+   "to": "          if (false) {\n            return `is the function parameter",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pine.requestHonestWords.test.js",
+   "expectRed": "refused FOR the parameter"
+  },
+  {
+   "id": "U1-M8",
+   "mutant": "a look-ahead that is not a constant is not named",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    if (this.requestLookaheadOf(node.args || [], placed) === null) {\n      const la = ",
+   "to": "    if (this.requestLookaheadOf(node.args || [], placed) === 'never') {\n      const la = ",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pine.requestHonestWords.test.js",
+   "expectRed": "a look-ahead that is not a constant is named"
+  },
+  {
+   "id": "U1-M9",
+   "mutant": "the timeframe walker no longer follows a constant branch / binding: input.timeframe is unread",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    if (raw === null) return `${lead} ${this.requestArgUnfixedWhy(tfNode, 'timeframe', 0, tfNode)}`\n    const t = String(raw).trim()\n    if (t === '' || PINE_TF_SPELLING[t.toUpperCase()]) return null",
+   "to": "    if (raw === null) return `${lead} ${this.requestArgUnfixedWhy(tfNode, 'timeframe', 0, tfNode)}`\n    const t = String(raw).trim()\n    if (true) return null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pine.requestHonestWords.test.js",
+   "expectRed": "input.timeframe(\"360\")"
+  }
+ ]
+}
