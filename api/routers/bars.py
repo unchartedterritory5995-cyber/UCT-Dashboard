@@ -891,6 +891,8 @@ def _apply_tail_status(payload: dict, ticker: str, tf: str, session: str | None 
     headers to add, or None when there is no tail to judge (an empty full answer).
     `contract_vt`: the proof the bar contract attached to THIS payload (judged as is)."""
     rows = payload.get("bars")
+    # the since path served a stale store whose repair has not landed (bars_fetch `_get_bars_since_response`)
+    pending = bool(payload.pop("tail_pending", False))
     if payload.get("delta"):
         from api.services import bars_sqlite as _bs
         tail = _bs.get_last_ts(ticker.upper(), tf)
@@ -911,8 +913,12 @@ def _apply_tail_status(payload: dict, ticker: str, tf: str, session: str | None 
               else _bars_fetch.intraday_tail_status(ticker, tf, tail))
     payload["tail_status"] = st["tail_status"]
     payload["verified_through"] = st["verified_through"]
+    # ⭐ A PENDING TAIL IS NEVER `current` (2026-11-24): the one-bucket tolerance is for a name with no print in the newest
+    # bucket, not for a store this answer knows is stale. A provider-`verified` tail stays verified.
+    if pending and st["tail_status"] == "current":
+        payload["tail_status"] = "unverified"
     headers = {}
-    if st["tail_status"] == "unverified":
+    if payload["tail_status"] == "unverified":
         payload["retry_after"] = 3
         headers["Retry-After"] = "3"
     return headers
@@ -978,6 +984,7 @@ def _augment_with_contract(response, ticker: str, tf: str, session: str | None, 
                 headers = _apply_tail_status(payload, ticker, tf, session) or {}
         except Exception:
             headers = {}
+    payload.pop("tail_pending", None)      # the since path's marker is the router's to read, never a client's
     out = JSONResponse(content=payload, status_code=getattr(response, "status_code", 200))
     for h in ("retry-after", "x-bars-shed"):
         if h in response.headers:

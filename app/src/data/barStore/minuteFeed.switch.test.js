@@ -86,6 +86,33 @@ describe('the switch', () => {
     expect(c.made).toHaveLength(0)
   })
 
+  it('S2c the chunk fails to load: ready is null, the failure is KEPT (loadError) and said, never swallowed', async () => {
+    localStorage.setItem('uct.minuteFeed', '1')
+    const sw = await import('./minuteFeedSwitch')
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    undo.push(() => warn.mockRestore())
+    const load = vi.fn(async () => { throw new Error('chunk 404') })
+    const h = sw.appMinuteFeed(STORE, { load })
+    expect(h.loadError()).toBe(null)                               // nothing known while it loads
+    expect(await h.ready).toBe(null)
+    expect(h.loadError()).toBe('chunk 404')
+    expect(h.status()).toBe(null)                                  // the charts go on as with the feed off
+    expect(warn).toHaveBeenCalledWith('[minuteFeed] did not start:', 'chunk 404')
+  })
+
+  it('S2d a feed that loads has no loadError, and a stop before load is not an error', async () => {
+    localStorage.setItem('uct.minuteFeed', '1')
+    const sw = await import('./minuteFeedSwitch')
+    const c = chunk()
+    const h = sw.appMinuteFeed(STORE, { load: c.load })
+    await h.ready
+    expect(h.loadError()).toBe(null)
+    const h2 = sw.appMinuteFeed(STORE, { load: chunk().load })
+    h2.stop()
+    expect(await h2.ready).toBe(null)
+    expect(h2.loadError()).toBe(null)
+  })
+
   it.each(['0', 'true', 'on', '', ' 1', 'yes'])('S3 a stored %j is off', async (v) => {
     localStorage.setItem('uct.minuteFeed', v)
     const sw = await import('./minuteFeedSwitch')
