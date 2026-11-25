@@ -1704,6 +1704,34 @@ const PARITY_CLOCK = () => 0
  * @returns {{ok: boolean, refusal: string|null, plots: object[], objects: object,
  *            ctx: object, notes: string[]}}
  */
+/** ⭐ e97 U5 — `{role, roleIndex}` of a translator output that is a candle part (`plotcandle` / `plotbar`), read
+ *  off its title (`pine.js::outputTitle` always ends it with the role), or `{}` for anything else. */
+const CANDLE_PART_ROLES = Object.freeze(['open', 'high', 'low', 'close'])
+export function candleRoleOf(o) {
+  if (!o || (o.kind !== 'plotcandle' && o.kind !== 'plotbar') || typeof o.title !== 'string') return {}
+  const role = o.title.split(' ').pop()
+  const roleIndex = CANDLE_PART_ROLES.indexOf(role)
+  return roleIndex < 0 ? {} : { role, roleIndex }
+}
+
+/** ⭐ e97 U5 — the sentence a candle part carries when our side does not draw it because its author hid it. */
+export const AUTHOR_HIDDEN_CANDLE = 'author-hidden on our side (its display is off at the script\'s default inputs); '
+  + 'the capture does not record TradingView\'s display'
+
+/** ⭐ e97 U5 — WHY THE DOOR DID NOT DRAW THIS CANDLE PART, by the door's own answer, or null (drawn, or not a candle):
+ *  `{by, sentence}`. The runtime door names each candle it does not draw by host output index (`candlesNotDrawn`:
+ *  hidden by its author, or withheld by name with its reason); the host translation marks its own author-hidden
+ *  outputs (`hiddenReason: 'author'`). ⛔ The host's `passthrough` hiding is not a reason: such a candle is drawn. */
+export function candleNotDrawnOf(o, index, built) {
+  if (!o || (o.kind !== 'plotcandle' && o.kind !== 'plotbar')) return null
+  if (o.hiddenReason === 'author' || o._authorHidden === true) return { by: 'author', sentence: AUTHOR_HIDDEN_CANDLE }
+  const listed = built && Array.isArray(built.candlesNotDrawn)
+    ? built.candlesNotDrawn.find((c) => Array.isArray(c.outputs) && c.outputs.includes(index)) : null
+  if (!listed) return null
+  if (listed.by === 'author') return { by: 'author', sentence: AUTHOR_HIDDEN_CANDLE }
+  return { by: 'withheld', sentence: `withheld by name on our side${listed.label ? ` (\`${listed.label}\`)` : ''}: ${listed.why}` }
+}
+
 /** Does this column hold no value on any bar (a by-name withholding that reached
  *  every bar)? A missing column answers no: there is nothing to grade either way. */
 export function withholdsEveryBar(column) {
@@ -2063,9 +2091,14 @@ function runOurSideOnTheParityClock(capture) {
       // it, and carries `withheldBy` — which `compare.mjs` grades exactly as it grades
       // a missing column: INCONCLUSIVE, with the reason.
       const col = row && heldBy !== 'bar-index:window' ? cols[row.key] : undefined
+      // ⭐ e97 U5 — a candle part with no row of its own: did the door say why it is not drawn?
+      const notDrawnCandle = row ? null : candleNotDrawnOf(o, index, built)
       let missingReason = null
       if (heldBy) {
         missingReason = `withheld on this chart on every bar, by name (${heldBy}) — nothing is drawn for it`
+      } else if (!row && notDrawnCandle) {
+        // ⭐ e97 U5 — a candle the door did not draw, by the door's own reason (`candlesNotDrawn`)
+        missingReason = notDrawnCandle.sentence
       } else if (!row) {
         missingReason = o && o.refusal
           ? `the translator refused this plot (${(o.refusal && (o.refusal.guard || o.refusal.message)) || 'refusal'})`
@@ -2101,6 +2134,12 @@ function runOurSideOnTheParityClock(capture) {
         title: o ? o.title : null,
         // the call that made it (`plot`, `plotshape`, ...): the strategy grade pairs `plot()` outputs only
         kind: o && typeof o.kind === 'string' ? o.kind : null,
+        // ⭐ e97 U5 — a candle part's Pine role (`open` / `high` / `low` / `close`) and its place in the call: the
+        // harness pairs candles by them (`compare.mjs::pairCandles`). Read off the translator's own title, which
+        // ALWAYS ends in the role (`pine.js::outputTitle`: "<title> <role>", or the role alone): nothing new is
+        // asked of the engine.
+        ...candleRoleOf(o),
+        ...(notDrawnCandle && !heldBy ? { candleNotDrawn: notDrawnCandle.by } : {}),
         formula: o ? o.formula : null,
         key: row ? row.key : null,
         withheldBy: heldBy || null,

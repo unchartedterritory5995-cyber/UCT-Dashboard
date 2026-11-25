@@ -41695,69 +41695,218 @@
    "script": "SMC OrderFlow Matrix",
    "symbol": "NYSE:RDDT",
    "timeframe": "1D",
-   "plots": [],
-   "notCompared": [
+   "plots": [
     {
      "id": "plot_0",
-     "title": null,
-     "type": "ohlc_open",
-     "why": "plot type ohlc_open is not compared by v1"
+     "title": "Heatmap Candles open",
+     "ours": "value",
+     "rule": "C1-candle-order (plotcandle_0.open)",
+     "verdict": "MATCH",
+     "reason": "632 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 0,
+     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "stats": {
+      "bars": 632,
+      "compared": 632,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 632,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 632,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 632,
+       "compared": 632,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
     },
     {
      "id": "plot_1",
-     "title": null,
-     "type": "ohlc_high",
-     "why": "plot type ohlc_high is not compared by v1"
+     "title": "Heatmap Candles high",
+     "ours": "out2",
+     "rule": "C1-candle-order (plotcandle_0.high)",
+     "verdict": "MATCH",
+     "reason": "632 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 0,
+     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "stats": {
+      "bars": 632,
+      "compared": 632,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 632,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 632,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 632,
+       "compared": 632,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
     },
     {
      "id": "plot_2",
-     "title": null,
-     "type": "ohlc_low",
-     "why": "plot type ohlc_low is not compared by v1"
+     "title": "Heatmap Candles low",
+     "ours": "out3",
+     "rule": "C1-candle-order (plotcandle_0.low)",
+     "verdict": "MATCH",
+     "reason": "632 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 0,
+     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "stats": {
+      "bars": 632,
+      "compared": 632,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 632,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 632,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 632,
+       "compared": 632,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
     },
     {
      "id": "plot_3",
-     "title": null,
-     "type": "ohlc_close",
-     "why": "plot type ohlc_close is not compared by v1"
-    },
+     "title": "Heatmap Candles close",
+     "ours": "out4",
+     "rule": "C1-candle-order (plotcandle_0.close)",
+     "verdict": "MATCH",
+     "reason": "632 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 0,
+     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "stats": {
+      "bars": 632,
+      "compared": 632,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 632,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 632,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 632,
+       "compared": 632,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    }
+   ],
+   "notCompared": [
     {
      "id": "plot_4",
      "title": null,
      "type": "ohlc_colorer",
-     "why": "plot type ohlc_colorer is not compared by v1"
+     "why": "candle body colour (plotcandle_0) — not compared (phase A)"
     },
     {
      "id": "plot_5",
      "title": null,
      "type": "wick_colorer",
-     "why": "plot type wick_colorer is not compared by v1"
+     "why": "candle wick colour (plotcandle_0) — not compared (phase A)"
     },
     {
      "id": "plot_6",
      "title": null,
      "type": "border_colorer",
-     "why": "plot type border_colorer is not compared by v1"
-    },
-    {
-     "ours": "value",
-     "title": "Heatmap Candles open",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out2",
-     "title": "Heatmap Candles high",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out3",
-     "title": "Heatmap Candles low",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out4",
-     "title": "Heatmap Candles close",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
+     "why": "candle border colour (plotcandle_0) — not compared (phase A)"
     }
    ],
    "notMeasured": [],
@@ -41863,7 +42012,7 @@
     }
    },
    "verdict": "MATCH",
-   "reason": "all 1 items agree",
+   "reason": "all 5 items agree",
    "verdictWithoutColour": "MATCH",
    "ourNotes": [
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
@@ -42262,69 +42411,218 @@
    "script": "SMC OrderFlow Matrix",
    "symbol": "AMEX:SPY",
    "timeframe": "1D",
-   "plots": [],
-   "notCompared": [
+   "plots": [
     {
      "id": "plot_0",
-     "title": null,
-     "type": "ohlc_open",
-     "why": "plot type ohlc_open is not compared by v1"
+     "title": "Heatmap Candles open",
+     "ours": "value",
+     "rule": "C1-candle-order (plotcandle_0.open)",
+     "verdict": "MATCH",
+     "reason": "1800 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "our side replayed 6677 bars of proved prehistory (vw-object-gc-b-spy-1d-2026-09-28.json) before the window against a maxLookback of 0",
+     "derivedLookback": 0,
+     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "stats": {
+      "bars": 1800,
+      "compared": 1800,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 1800,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 1800,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 1800,
+       "compared": 1800,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
     },
     {
      "id": "plot_1",
-     "title": null,
-     "type": "ohlc_high",
-     "why": "plot type ohlc_high is not compared by v1"
+     "title": "Heatmap Candles high",
+     "ours": "out2",
+     "rule": "C1-candle-order (plotcandle_0.high)",
+     "verdict": "MATCH",
+     "reason": "1800 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "our side replayed 6677 bars of proved prehistory (vw-object-gc-b-spy-1d-2026-09-28.json) before the window against a maxLookback of 0",
+     "derivedLookback": 0,
+     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "stats": {
+      "bars": 1800,
+      "compared": 1800,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 1800,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 1800,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 1800,
+       "compared": 1800,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
     },
     {
      "id": "plot_2",
-     "title": null,
-     "type": "ohlc_low",
-     "why": "plot type ohlc_low is not compared by v1"
+     "title": "Heatmap Candles low",
+     "ours": "out3",
+     "rule": "C1-candle-order (plotcandle_0.low)",
+     "verdict": "MATCH",
+     "reason": "1800 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "our side replayed 6677 bars of proved prehistory (vw-object-gc-b-spy-1d-2026-09-28.json) before the window against a maxLookback of 0",
+     "derivedLookback": 0,
+     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "stats": {
+      "bars": 1800,
+      "compared": 1800,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 1800,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 1800,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 1800,
+       "compared": 1800,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
     },
     {
      "id": "plot_3",
-     "title": null,
-     "type": "ohlc_close",
-     "why": "plot type ohlc_close is not compared by v1"
-    },
+     "title": "Heatmap Candles close",
+     "ours": "out4",
+     "rule": "C1-candle-order (plotcandle_0.close)",
+     "verdict": "MATCH",
+     "reason": "1800 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "our side replayed 6677 bars of proved prehistory (vw-object-gc-b-spy-1d-2026-09-28.json) before the window against a maxLookback of 0",
+     "derivedLookback": 0,
+     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "stats": {
+      "bars": 1800,
+      "compared": 1800,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 1800,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 1800,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 1800,
+       "compared": 1800,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    }
+   ],
+   "notCompared": [
     {
      "id": "plot_4",
      "title": null,
      "type": "ohlc_colorer",
-     "why": "plot type ohlc_colorer is not compared by v1"
+     "why": "candle body colour (plotcandle_0) — not compared (phase A)"
     },
     {
      "id": "plot_5",
      "title": null,
      "type": "wick_colorer",
-     "why": "plot type wick_colorer is not compared by v1"
+     "why": "candle wick colour (plotcandle_0) — not compared (phase A)"
     },
     {
      "id": "plot_6",
      "title": null,
      "type": "border_colorer",
-     "why": "plot type border_colorer is not compared by v1"
-    },
-    {
-     "ours": "value",
-     "title": "Heatmap Candles open",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out2",
-     "title": "Heatmap Candles high",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out3",
-     "title": "Heatmap Candles low",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out4",
-     "title": "Heatmap Candles close",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
+     "why": "candle border colour (plotcandle_0) — not compared (phase A)"
     }
    ],
    "notMeasured": [],
@@ -42430,7 +42728,7 @@
     }
    },
    "verdict": "MATCH",
-   "reason": "all 1 items agree",
+   "reason": "all 5 items agree",
    "verdictWithoutColour": "MATCH",
    "ourNotes": [
     "plots/objects: replayed: 6677 bars of prehistory from vw-object-gc-b-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
@@ -95735,6 +96033,198 @@
       },
       "vendorRowGapsAfterStart": 0
      }
+    },
+    {
+     "id": "plot_45",
+     "title": "open",
+     "ours": "out20",
+     "rule": "C1-candle-order (plotcandle_0.open)",
+     "verdict": "MATCH",
+     "reason": "666 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 0,
+     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "stats": {
+      "bars": 666,
+      "compared": 666,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 666,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 666,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 666,
+       "compared": 666,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_46",
+     "title": "high",
+     "ours": "out21",
+     "rule": "C1-candle-order (plotcandle_0.high)",
+     "verdict": "MATCH",
+     "reason": "666 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 0,
+     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "stats": {
+      "bars": 666,
+      "compared": 666,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 666,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 666,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 666,
+       "compared": 666,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_47",
+     "title": "low",
+     "ours": "out22",
+     "rule": "C1-candle-order (plotcandle_0.low)",
+     "verdict": "MATCH",
+     "reason": "666 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 0,
+     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "stats": {
+      "bars": 666,
+      "compared": 666,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 666,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 666,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 666,
+       "compared": 666,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_48",
+     "title": "close",
+     "ours": "out23",
+     "rule": "C1-candle-order (plotcandle_0.close)",
+     "verdict": "MATCH",
+     "reason": "666 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 0,
+     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "stats": {
+      "bars": 666,
+      "compared": 666,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 666,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 666,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 666,
+       "compared": 666,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
     }
    ],
    "notCompared": [
@@ -95871,66 +96361,22 @@
      "why": "plot type colorer is not compared by v1"
     },
     {
-     "id": "plot_45",
-     "title": null,
-     "type": "ohlc_open",
-     "why": "plot type ohlc_open is not compared by v1"
-    },
-    {
-     "id": "plot_46",
-     "title": null,
-     "type": "ohlc_high",
-     "why": "plot type ohlc_high is not compared by v1"
-    },
-    {
-     "id": "plot_47",
-     "title": null,
-     "type": "ohlc_low",
-     "why": "plot type ohlc_low is not compared by v1"
-    },
-    {
-     "id": "plot_48",
-     "title": null,
-     "type": "ohlc_close",
-     "why": "plot type ohlc_close is not compared by v1"
-    },
-    {
      "id": "plot_49",
      "title": null,
      "type": "ohlc_colorer",
-     "why": "plot type ohlc_colorer is not compared by v1"
+     "why": "candle body colour (plotcandle_0) — not compared (phase A)"
     },
     {
      "id": "plot_50",
      "title": null,
      "type": "wick_colorer",
-     "why": "plot type wick_colorer is not compared by v1"
+     "why": "candle wick colour (plotcandle_0) — not compared (phase A)"
     },
     {
      "id": "plot_51",
      "title": null,
      "type": "border_colorer",
-     "why": "plot type border_colorer is not compared by v1"
-    },
-    {
-     "ours": "out20",
-     "title": "open",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out21",
-     "title": "high",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out22",
-     "title": "low",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out23",
-     "title": "close",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
+     "why": "candle border colour (plotcandle_0) — not compared (phase A)"
     }
    ],
    "notMeasured": [],
@@ -95944,7 +96390,7 @@
     "reason": "neither side draws an object"
    },
    "verdict": "INCONCLUSIVE",
-   "reason": "1 of 21 items could not be compared",
+   "reason": "1 of 25 items could not be compared",
    "ourNotes": [
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
    ],
@@ -96093,69 +96539,58 @@
    "script": "TFlab SMT",
    "symbol": "NYSE:RDDT",
    "timeframe": "1D",
-   "plots": [],
-   "notCompared": [
+   "plots": [
     {
      "id": "plot_0",
      "title": null,
-     "type": "ohlc_open",
-     "why": "plot type ohlc_open is not compared by v1"
+     "ours": "value",
+     "rule": "C1-candle-order (plotcandle_0.open)",
+     "verdict": "INCONCLUSIVE",
+     "reason": "our side produced no column for this plot — computeFor returned no column for value (pine:request) — This indicator reads `XAUUSD`: other-symbol:bare — `\"XAUUSD\"` names no exchange and is not shaped like a US stock listing (one to five letters), so it is a currency pair, a commodity, an index or a foreign listing this chart cannot read; what this indicator draws from it is not computed."
     },
     {
      "id": "plot_1",
      "title": null,
-     "type": "ohlc_high",
-     "why": "plot type ohlc_high is not compared by v1"
+     "ours": "out2",
+     "rule": "C1-candle-order (plotcandle_0.high)",
+     "verdict": "INCONCLUSIVE",
+     "reason": "our side produced no column for this plot — computeFor returned no column for out2 (pine:request) — This indicator reads `XAUUSD`: other-symbol:bare — `\"XAUUSD\"` names no exchange and is not shaped like a US stock listing (one to five letters), so it is a currency pair, a commodity, an index or a foreign listing this chart cannot read; what this indicator draws from it is not computed."
     },
     {
      "id": "plot_2",
      "title": null,
-     "type": "ohlc_low",
-     "why": "plot type ohlc_low is not compared by v1"
+     "ours": "out3",
+     "rule": "C1-candle-order (plotcandle_0.low)",
+     "verdict": "INCONCLUSIVE",
+     "reason": "our side produced no column for this plot — computeFor returned no column for out3 (pine:request) — This indicator reads `XAUUSD`: other-symbol:bare — `\"XAUUSD\"` names no exchange and is not shaped like a US stock listing (one to five letters), so it is a currency pair, a commodity, an index or a foreign listing this chart cannot read; what this indicator draws from it is not computed."
     },
     {
      "id": "plot_3",
      "title": null,
-     "type": "ohlc_close",
-     "why": "plot type ohlc_close is not compared by v1"
-    },
+     "ours": "out4",
+     "rule": "C1-candle-order (plotcandle_0.close)",
+     "verdict": "INCONCLUSIVE",
+     "reason": "our side produced no column for this plot — computeFor returned no column for out4 (pine:request) — This indicator reads `XAUUSD`: other-symbol:bare — `\"XAUUSD\"` names no exchange and is not shaped like a US stock listing (one to five letters), so it is a currency pair, a commodity, an index or a foreign listing this chart cannot read; what this indicator draws from it is not computed."
+    }
+   ],
+   "notCompared": [
     {
      "id": "plot_4",
      "title": null,
      "type": "ohlc_colorer",
-     "why": "plot type ohlc_colorer is not compared by v1"
+     "why": "candle body colour (plotcandle_0) — not compared (phase A)"
     },
     {
      "id": "plot_5",
      "title": null,
      "type": "wick_colorer",
-     "why": "plot type wick_colorer is not compared by v1"
+     "why": "candle wick colour (plotcandle_0) — not compared (phase A)"
     },
     {
      "id": "plot_6",
      "title": null,
      "type": "border_colorer",
-     "why": "plot type border_colorer is not compared by v1"
-    },
-    {
-     "ours": "value",
-     "title": "open",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out2",
-     "title": "high",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out3",
-     "title": "low",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out4",
-     "title": "close",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
+     "why": "candle border colour (plotcandle_0) — not compared (phase A)"
     }
    ],
    "notMeasured": [],
@@ -96217,7 +96652,7 @@
     }
    },
    "verdict": "INCONCLUSIVE",
-   "reason": "1 of 1 items could not be compared",
+   "reason": "5 of 5 items could not be compared",
    "ourNotes": [
     "other symbol XAUUSD: no committed capture of XAUUSD at 1D — the vendor bars (and listing) this read would need",
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0",
@@ -96419,69 +96854,58 @@
    "script": "TFlab SMT",
    "symbol": "NYSE:RDDT",
    "timeframe": "1D",
-   "plots": [],
-   "notCompared": [
+   "plots": [
     {
      "id": "plot_0",
      "title": null,
-     "type": "ohlc_open",
-     "why": "plot type ohlc_open is not compared by v1"
+     "ours": "value",
+     "rule": "C1-candle-order (plotcandle_0.open)",
+     "verdict": "INCONCLUSIVE",
+     "reason": "our side produced no column for this plot — computeFor returned no column for value (pine:request) — This indicator reads `XAUUSD`: other-symbol:bare — `\"XAUUSD\"` names no exchange and is not shaped like a US stock listing (one to five letters), so it is a currency pair, a commodity, an index or a foreign listing this chart cannot read; what this indicator draws from it is not computed."
     },
     {
      "id": "plot_1",
      "title": null,
-     "type": "ohlc_high",
-     "why": "plot type ohlc_high is not compared by v1"
+     "ours": "out2",
+     "rule": "C1-candle-order (plotcandle_0.high)",
+     "verdict": "INCONCLUSIVE",
+     "reason": "our side produced no column for this plot — computeFor returned no column for out2 (pine:request) — This indicator reads `XAUUSD`: other-symbol:bare — `\"XAUUSD\"` names no exchange and is not shaped like a US stock listing (one to five letters), so it is a currency pair, a commodity, an index or a foreign listing this chart cannot read; what this indicator draws from it is not computed."
     },
     {
      "id": "plot_2",
      "title": null,
-     "type": "ohlc_low",
-     "why": "plot type ohlc_low is not compared by v1"
+     "ours": "out3",
+     "rule": "C1-candle-order (plotcandle_0.low)",
+     "verdict": "INCONCLUSIVE",
+     "reason": "our side produced no column for this plot — computeFor returned no column for out3 (pine:request) — This indicator reads `XAUUSD`: other-symbol:bare — `\"XAUUSD\"` names no exchange and is not shaped like a US stock listing (one to five letters), so it is a currency pair, a commodity, an index or a foreign listing this chart cannot read; what this indicator draws from it is not computed."
     },
     {
      "id": "plot_3",
      "title": null,
-     "type": "ohlc_close",
-     "why": "plot type ohlc_close is not compared by v1"
-    },
+     "ours": "out4",
+     "rule": "C1-candle-order (plotcandle_0.close)",
+     "verdict": "INCONCLUSIVE",
+     "reason": "our side produced no column for this plot — computeFor returned no column for out4 (pine:request) — This indicator reads `XAUUSD`: other-symbol:bare — `\"XAUUSD\"` names no exchange and is not shaped like a US stock listing (one to five letters), so it is a currency pair, a commodity, an index or a foreign listing this chart cannot read; what this indicator draws from it is not computed."
+    }
+   ],
+   "notCompared": [
     {
      "id": "plot_4",
      "title": null,
      "type": "ohlc_colorer",
-     "why": "plot type ohlc_colorer is not compared by v1"
+     "why": "candle body colour (plotcandle_0) — not compared (phase A)"
     },
     {
      "id": "plot_5",
      "title": null,
      "type": "wick_colorer",
-     "why": "plot type wick_colorer is not compared by v1"
+     "why": "candle wick colour (plotcandle_0) — not compared (phase A)"
     },
     {
      "id": "plot_6",
      "title": null,
      "type": "border_colorer",
-     "why": "plot type border_colorer is not compared by v1"
-    },
-    {
-     "ours": "value",
-     "title": "open",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out2",
-     "title": "high",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out3",
-     "title": "low",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out4",
-     "title": "close",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
+     "why": "candle border colour (plotcandle_0) — not compared (phase A)"
     }
    ],
    "notMeasured": [],
@@ -96543,7 +96967,7 @@
     }
    },
    "verdict": "INCONCLUSIVE",
-   "reason": "1 of 1 items could not be compared",
+   "reason": "5 of 5 items could not be compared",
    "ourNotes": [
     "other symbol XAUUSD: no committed capture of XAUUSD at 1D — the vendor bars (and listing) this read would need",
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0",
@@ -96745,69 +97169,58 @@
    "script": "TFlab SMT",
    "symbol": "AMEX:SPY",
    "timeframe": "1D",
-   "plots": [],
-   "notCompared": [
+   "plots": [
     {
      "id": "plot_0",
      "title": null,
-     "type": "ohlc_open",
-     "why": "plot type ohlc_open is not compared by v1"
+     "ours": "value",
+     "rule": "C1-candle-order (plotcandle_0.open)",
+     "verdict": "INCONCLUSIVE",
+     "reason": "our side produced no column for this plot — computeFor returned no column for value (pine:request) — This indicator reads `XAUUSD`: other-symbol:bare — `\"XAUUSD\"` names no exchange and is not shaped like a US stock listing (one to five letters), so it is a currency pair, a commodity, an index or a foreign listing this chart cannot read; what this indicator draws from it is not computed."
     },
     {
      "id": "plot_1",
      "title": null,
-     "type": "ohlc_high",
-     "why": "plot type ohlc_high is not compared by v1"
+     "ours": "out2",
+     "rule": "C1-candle-order (plotcandle_0.high)",
+     "verdict": "INCONCLUSIVE",
+     "reason": "our side produced no column for this plot — computeFor returned no column for out2 (pine:request) — This indicator reads `XAUUSD`: other-symbol:bare — `\"XAUUSD\"` names no exchange and is not shaped like a US stock listing (one to five letters), so it is a currency pair, a commodity, an index or a foreign listing this chart cannot read; what this indicator draws from it is not computed."
     },
     {
      "id": "plot_2",
      "title": null,
-     "type": "ohlc_low",
-     "why": "plot type ohlc_low is not compared by v1"
+     "ours": "out3",
+     "rule": "C1-candle-order (plotcandle_0.low)",
+     "verdict": "INCONCLUSIVE",
+     "reason": "our side produced no column for this plot — computeFor returned no column for out3 (pine:request) — This indicator reads `XAUUSD`: other-symbol:bare — `\"XAUUSD\"` names no exchange and is not shaped like a US stock listing (one to five letters), so it is a currency pair, a commodity, an index or a foreign listing this chart cannot read; what this indicator draws from it is not computed."
     },
     {
      "id": "plot_3",
      "title": null,
-     "type": "ohlc_close",
-     "why": "plot type ohlc_close is not compared by v1"
-    },
+     "ours": "out4",
+     "rule": "C1-candle-order (plotcandle_0.close)",
+     "verdict": "INCONCLUSIVE",
+     "reason": "our side produced no column for this plot — computeFor returned no column for out4 (pine:request) — This indicator reads `XAUUSD`: other-symbol:bare — `\"XAUUSD\"` names no exchange and is not shaped like a US stock listing (one to five letters), so it is a currency pair, a commodity, an index or a foreign listing this chart cannot read; what this indicator draws from it is not computed."
+    }
+   ],
+   "notCompared": [
     {
      "id": "plot_4",
      "title": null,
      "type": "ohlc_colorer",
-     "why": "plot type ohlc_colorer is not compared by v1"
+     "why": "candle body colour (plotcandle_0) — not compared (phase A)"
     },
     {
      "id": "plot_5",
      "title": null,
      "type": "wick_colorer",
-     "why": "plot type wick_colorer is not compared by v1"
+     "why": "candle wick colour (plotcandle_0) — not compared (phase A)"
     },
     {
      "id": "plot_6",
      "title": null,
      "type": "border_colorer",
-     "why": "plot type border_colorer is not compared by v1"
-    },
-    {
-     "ours": "value",
-     "title": "open",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out2",
-     "title": "high",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out3",
-     "title": "low",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out4",
-     "title": "close",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
+     "why": "candle border colour (plotcandle_0) — not compared (phase A)"
     }
    ],
    "notMeasured": [],
@@ -96869,7 +97282,7 @@
     }
    },
    "verdict": "INCONCLUSIVE",
-   "reason": "1 of 1 items could not be compared",
+   "reason": "5 of 5 items could not be compared",
    "ourNotes": [
     "other symbol XAUUSD: no committed capture of XAUUSD at 1D — the vendor bars (and listing) this read would need",
     "plots/objects: cold: a proved supplier exists (vw-object-gc-b-spy-1d-2026-09-28.json) but the script also reads another symbol whose prehistory is not supplied, cold replay",
@@ -97071,69 +97484,58 @@
    "script": "TFlab SMT",
    "symbol": "AMEX:SPY",
    "timeframe": "1D",
-   "plots": [],
-   "notCompared": [
+   "plots": [
     {
      "id": "plot_0",
      "title": null,
-     "type": "ohlc_open",
-     "why": "plot type ohlc_open is not compared by v1"
+     "ours": "value",
+     "rule": "C1-candle-order (plotcandle_0.open)",
+     "verdict": "INCONCLUSIVE",
+     "reason": "our side produced no column for this plot — computeFor returned no column for value (pine:request) — This indicator reads `XAUUSD`: other-symbol:bare — `\"XAUUSD\"` names no exchange and is not shaped like a US stock listing (one to five letters), so it is a currency pair, a commodity, an index or a foreign listing this chart cannot read; what this indicator draws from it is not computed."
     },
     {
      "id": "plot_1",
      "title": null,
-     "type": "ohlc_high",
-     "why": "plot type ohlc_high is not compared by v1"
+     "ours": "out2",
+     "rule": "C1-candle-order (plotcandle_0.high)",
+     "verdict": "INCONCLUSIVE",
+     "reason": "our side produced no column for this plot — computeFor returned no column for out2 (pine:request) — This indicator reads `XAUUSD`: other-symbol:bare — `\"XAUUSD\"` names no exchange and is not shaped like a US stock listing (one to five letters), so it is a currency pair, a commodity, an index or a foreign listing this chart cannot read; what this indicator draws from it is not computed."
     },
     {
      "id": "plot_2",
      "title": null,
-     "type": "ohlc_low",
-     "why": "plot type ohlc_low is not compared by v1"
+     "ours": "out3",
+     "rule": "C1-candle-order (plotcandle_0.low)",
+     "verdict": "INCONCLUSIVE",
+     "reason": "our side produced no column for this plot — computeFor returned no column for out3 (pine:request) — This indicator reads `XAUUSD`: other-symbol:bare — `\"XAUUSD\"` names no exchange and is not shaped like a US stock listing (one to five letters), so it is a currency pair, a commodity, an index or a foreign listing this chart cannot read; what this indicator draws from it is not computed."
     },
     {
      "id": "plot_3",
      "title": null,
-     "type": "ohlc_close",
-     "why": "plot type ohlc_close is not compared by v1"
-    },
+     "ours": "out4",
+     "rule": "C1-candle-order (plotcandle_0.close)",
+     "verdict": "INCONCLUSIVE",
+     "reason": "our side produced no column for this plot — computeFor returned no column for out4 (pine:request) — This indicator reads `XAUUSD`: other-symbol:bare — `\"XAUUSD\"` names no exchange and is not shaped like a US stock listing (one to five letters), so it is a currency pair, a commodity, an index or a foreign listing this chart cannot read; what this indicator draws from it is not computed."
+    }
+   ],
+   "notCompared": [
     {
      "id": "plot_4",
      "title": null,
      "type": "ohlc_colorer",
-     "why": "plot type ohlc_colorer is not compared by v1"
+     "why": "candle body colour (plotcandle_0) — not compared (phase A)"
     },
     {
      "id": "plot_5",
      "title": null,
      "type": "wick_colorer",
-     "why": "plot type wick_colorer is not compared by v1"
+     "why": "candle wick colour (plotcandle_0) — not compared (phase A)"
     },
     {
      "id": "plot_6",
      "title": null,
      "type": "border_colorer",
-     "why": "plot type border_colorer is not compared by v1"
-    },
-    {
-     "ours": "value",
-     "title": "open",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out2",
-     "title": "high",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out3",
-     "title": "low",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out4",
-     "title": "close",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
+     "why": "candle border colour (plotcandle_0) — not compared (phase A)"
     }
    ],
    "notMeasured": [],
@@ -97195,7 +97597,7 @@
     }
    },
    "verdict": "INCONCLUSIVE",
-   "reason": "1 of 1 items could not be compared",
+   "reason": "5 of 5 items could not be compared",
    "ourNotes": [
     "other symbol XAUUSD: no committed capture of XAUUSD at 1D — the vendor bars (and listing) this read would need",
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0",
@@ -113894,30 +114296,6 @@
    "timeframe": "1D",
    "plots": [
     {
-     "id": "plot_29",
-     "title": "Plot 1",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — title \"Plot 1\" could not be paired unambiguously"
-    },
-    {
-     "id": "plot_31",
-     "title": "Plot 2",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — title \"Plot 2\" could not be paired unambiguously"
-    },
-    {
-     "id": "plot_33",
-     "title": "Plot 3",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — title \"Plot 3\" could not be paired unambiguously"
-    },
-    {
-     "id": "plot_35",
-     "title": "Plot 4",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — title \"Plot 4\" could not be paired unambiguously"
-    },
-    {
      "id": "plot_7",
      "title": "CRVOL",
      "ours": "out5",
@@ -114396,158 +114774,626 @@
       },
       "vendorRowGapsAfterStart": 0
      }
+    },
+    {
+     "id": "plot_29",
+     "title": "Plot 1",
+     "ours": "out16",
+     "rule": "M2-position-untitled",
+     "verdict": "MATCH",
+     "reason": "666 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 50,
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 666,
+      "compared": 666,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 666,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 666,
+       "compared": 666,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_31",
+     "title": "Plot 2",
+     "ours": "out17",
+     "rule": "M2-position-untitled",
+     "verdict": "MATCH",
+     "reason": "666 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 50,
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 666,
+      "compared": 666,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 666,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 666,
+       "compared": 666,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_33",
+     "title": "Plot 3",
+     "ours": "out18",
+     "rule": "M2-position-untitled",
+     "verdict": "MATCH",
+     "reason": "666 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 0,
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 666,
+      "compared": 666,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 666,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 666,
+       "compared": 666,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_35",
+     "title": "Plot 4",
+     "ours": "out19",
+     "rule": "M2-position-untitled",
+     "verdict": "MATCH",
+     "reason": "666 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 50,
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 666,
+      "compared": 666,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 666,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 666,
+       "compared": 666,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_0",
+     "title": "CRVOL open",
+     "ours": "value",
+     "rule": "C1-candle-order (plotcandle_0.open)",
+     "verdict": "MATCH",
+     "reason": "666 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 0,
+     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "stats": {
+      "bars": 666,
+      "compared": 666,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 666,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 666,
+       "compared": 666,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_1",
+     "title": "CRVOL high",
+     "ours": "out2",
+     "rule": "C1-candle-order (plotcandle_0.high)",
+     "verdict": "MATCH",
+     "reason": "666 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 0,
+     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "stats": {
+      "bars": 666,
+      "compared": 666,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 666,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 666,
+       "compared": 666,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_2",
+     "title": "CRVOL low",
+     "ours": "out3",
+     "rule": "C1-candle-order (plotcandle_0.low)",
+     "verdict": "MATCH",
+     "reason": "666 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 0,
+     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "stats": {
+      "bars": 666,
+      "compared": 666,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 666,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 666,
+       "compared": 666,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_3",
+     "title": "CRVOL close",
+     "ours": "out4",
+     "rule": "C1-candle-order (plotcandle_0.close)",
+     "verdict": "MATCH",
+     "reason": "666 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 0,
+     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "stats": {
+      "bars": 666,
+      "compared": 666,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 666,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 666,
+       "compared": 666,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_9",
+     "title": "CVD open",
+     "ours": "out6",
+     "rule": "C1-candle-order (plotcandle_1.open)",
+     "verdict": "MATCH",
+     "reason": "666 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 0,
+     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "stats": {
+      "bars": 666,
+      "compared": 666,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 666,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 666,
+       "compared": 666,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_10",
+     "title": "CVD high",
+     "ours": "out7",
+     "rule": "C1-candle-order (plotcandle_1.high)",
+     "verdict": "MATCH",
+     "reason": "666 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 0,
+     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "stats": {
+      "bars": 666,
+      "compared": 666,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 666,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 666,
+       "compared": 666,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_11",
+     "title": "CVD low",
+     "ours": "out8",
+     "rule": "C1-candle-order (plotcandle_1.low)",
+     "verdict": "MATCH",
+     "reason": "666 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 0,
+     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "stats": {
+      "bars": 666,
+      "compared": 666,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 666,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 666,
+       "compared": 666,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_12",
+     "title": "CVD close",
+     "ours": "out9",
+     "rule": "C1-candle-order (plotcandle_1.close)",
+     "verdict": "MATCH",
+     "reason": "666 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 0,
+     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "stats": {
+      "bars": 666,
+      "compared": 666,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 666,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 666,
+       "compared": 666,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
     }
    ],
    "notCompared": [
     {
-     "id": "plot_0",
-     "title": null,
-     "type": "ohlc_open",
-     "why": "plot type ohlc_open is not compared by v1"
-    },
-    {
-     "id": "plot_1",
-     "title": null,
-     "type": "ohlc_high",
-     "why": "plot type ohlc_high is not compared by v1"
-    },
-    {
-     "id": "plot_2",
-     "title": null,
-     "type": "ohlc_low",
-     "why": "plot type ohlc_low is not compared by v1"
-    },
-    {
-     "id": "plot_3",
-     "title": null,
-     "type": "ohlc_close",
-     "why": "plot type ohlc_close is not compared by v1"
-    },
-    {
      "id": "plot_4",
      "title": null,
      "type": "ohlc_colorer",
-     "why": "plot type ohlc_colorer is not compared by v1"
+     "why": "candle body colour (plotcandle_0) — not compared (phase A)"
     },
     {
      "id": "plot_5",
      "title": null,
      "type": "wick_colorer",
-     "why": "plot type wick_colorer is not compared by v1"
+     "why": "candle wick colour (plotcandle_0) — not compared (phase A)"
     },
     {
      "id": "plot_6",
      "title": null,
      "type": "border_colorer",
-     "why": "plot type border_colorer is not compared by v1"
-    },
-    {
-     "id": "plot_9",
-     "title": null,
-     "type": "ohlc_open",
-     "why": "plot type ohlc_open is not compared by v1"
-    },
-    {
-     "id": "plot_10",
-     "title": null,
-     "type": "ohlc_high",
-     "why": "plot type ohlc_high is not compared by v1"
-    },
-    {
-     "id": "plot_11",
-     "title": null,
-     "type": "ohlc_low",
-     "why": "plot type ohlc_low is not compared by v1"
-    },
-    {
-     "id": "plot_12",
-     "title": null,
-     "type": "ohlc_close",
-     "why": "plot type ohlc_close is not compared by v1"
+     "why": "candle border colour (plotcandle_0) — not compared (phase A)"
     },
     {
      "id": "plot_13",
      "title": null,
      "type": "ohlc_colorer",
-     "why": "plot type ohlc_colorer is not compared by v1"
+     "why": "candle body colour (plotcandle_1) — not compared (phase A)"
     },
     {
      "id": "plot_14",
      "title": null,
      "type": "wick_colorer",
-     "why": "plot type wick_colorer is not compared by v1"
+     "why": "candle wick colour (plotcandle_1) — not compared (phase A)"
     },
     {
      "id": "plot_15",
      "title": null,
      "type": "border_colorer",
-     "why": "plot type border_colorer is not compared by v1"
+     "why": "candle border colour (plotcandle_1) — not compared (phase A)"
     },
     {
      "id": "plot_28",
      "title": "Bar Color",
      "type": "bar_colorer",
      "why": "plot type bar_colorer is not compared by v1"
-    },
-    {
-     "ours": "value",
-     "title": "CRVOL open",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out2",
-     "title": "CRVOL high",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out3",
-     "title": "CRVOL low",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out4",
-     "title": "CRVOL close",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out6",
-     "title": "CVD open",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out7",
-     "title": "CVD high",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out8",
-     "title": "CVD low",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out9",
-     "title": "CVD close",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out16",
-     "title": "Plot 1",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out17",
-     "title": "Plot 2",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out18",
-     "title": "Plot 3",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out19",
-     "title": "Plot 4",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
     }
    ],
    "notMeasured": [],
@@ -114570,7 +115416,7 @@
     "unpaired": []
    },
    "verdict": "INCONCLUSIVE",
-   "reason": "5 of 15 items could not be compared",
+   "reason": "1 of 23 items could not be compared",
    "ourNotes": [
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0",
     "paints: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
@@ -114623,30 +115469,6 @@
    "symbol": "AMEX:SPY",
    "timeframe": "1D",
    "plots": [
-    {
-     "id": "plot_29",
-     "title": "Plot 1",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — title \"Plot 1\" could not be paired unambiguously"
-    },
-    {
-     "id": "plot_31",
-     "title": "Plot 2",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — title \"Plot 2\" could not be paired unambiguously"
-    },
-    {
-     "id": "plot_33",
-     "title": "Plot 3",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — title \"Plot 3\" could not be paired unambiguously"
-    },
-    {
-     "id": "plot_35",
-     "title": "Plot 4",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — title \"Plot 4\" could not be paired unambiguously"
-    },
     {
      "id": "plot_7",
      "title": "CRVOL",
@@ -115126,158 +115948,626 @@
       },
       "vendorRowGapsAfterStart": 0
      }
+    },
+    {
+     "id": "plot_29",
+     "title": "Plot 1",
+     "ours": "out16",
+     "rule": "M2-position-untitled",
+     "verdict": "MATCH",
+     "reason": "8507 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 50,
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 8507,
+      "compared": 8507,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 8507,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 8507,
+       "compared": 8507,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_31",
+     "title": "Plot 2",
+     "ours": "out17",
+     "rule": "M2-position-untitled",
+     "verdict": "MATCH",
+     "reason": "8507 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 50,
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 8507,
+      "compared": 8507,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 8507,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 8507,
+       "compared": 8507,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_33",
+     "title": "Plot 3",
+     "ours": "out18",
+     "rule": "M2-position-untitled",
+     "verdict": "MATCH",
+     "reason": "8507 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 0,
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 8507,
+      "compared": 8507,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 8507,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 8507,
+       "compared": 8507,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_35",
+     "title": "Plot 4",
+     "ours": "out19",
+     "rule": "M2-position-untitled",
+     "verdict": "MATCH",
+     "reason": "8507 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 50,
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 8507,
+      "compared": 8507,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 8507,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 8507,
+       "compared": 8507,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_0",
+     "title": "CRVOL open",
+     "ours": "value",
+     "rule": "C1-candle-order (plotcandle_0.open)",
+     "verdict": "MATCH",
+     "reason": "8507 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 0,
+     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "stats": {
+      "bars": 8507,
+      "compared": 8507,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 8507,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 8507,
+       "compared": 8507,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_1",
+     "title": "CRVOL high",
+     "ours": "out2",
+     "rule": "C1-candle-order (plotcandle_0.high)",
+     "verdict": "MATCH",
+     "reason": "8507 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 0,
+     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "stats": {
+      "bars": 8507,
+      "compared": 8507,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 8507,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 8507,
+       "compared": 8507,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_2",
+     "title": "CRVOL low",
+     "ours": "out3",
+     "rule": "C1-candle-order (plotcandle_0.low)",
+     "verdict": "MATCH",
+     "reason": "8507 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 0,
+     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "stats": {
+      "bars": 8507,
+      "compared": 8507,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 8507,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 8507,
+       "compared": 8507,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_3",
+     "title": "CRVOL close",
+     "ours": "out4",
+     "rule": "C1-candle-order (plotcandle_0.close)",
+     "verdict": "MATCH",
+     "reason": "8507 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 0,
+     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "stats": {
+      "bars": 8507,
+      "compared": 8507,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 8507,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 8507,
+       "compared": 8507,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_9",
+     "title": "CVD open",
+     "ours": "out6",
+     "rule": "C1-candle-order (plotcandle_1.open)",
+     "verdict": "MATCH",
+     "reason": "8507 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 0,
+     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "stats": {
+      "bars": 8507,
+      "compared": 8507,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 8507,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 8507,
+       "compared": 8507,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_10",
+     "title": "CVD high",
+     "ours": "out7",
+     "rule": "C1-candle-order (plotcandle_1.high)",
+     "verdict": "MATCH",
+     "reason": "8507 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 0,
+     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "stats": {
+      "bars": 8507,
+      "compared": 8507,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 8507,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 8507,
+       "compared": 8507,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_11",
+     "title": "CVD low",
+     "ours": "out8",
+     "rule": "C1-candle-order (plotcandle_1.low)",
+     "verdict": "MATCH",
+     "reason": "8507 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 0,
+     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "stats": {
+      "bars": 8507,
+      "compared": 8507,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 8507,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 8507,
+       "compared": 8507,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_12",
+     "title": "CVD close",
+     "ours": "out9",
+     "rule": "C1-candle-order (plotcandle_1.close)",
+     "verdict": "MATCH",
+     "reason": "8507 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 0,
+     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "stats": {
+      "bars": 8507,
+      "compared": 8507,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 8507,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 8507,
+       "compared": 8507,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
     }
    ],
    "notCompared": [
     {
-     "id": "plot_0",
-     "title": null,
-     "type": "ohlc_open",
-     "why": "plot type ohlc_open is not compared by v1"
-    },
-    {
-     "id": "plot_1",
-     "title": null,
-     "type": "ohlc_high",
-     "why": "plot type ohlc_high is not compared by v1"
-    },
-    {
-     "id": "plot_2",
-     "title": null,
-     "type": "ohlc_low",
-     "why": "plot type ohlc_low is not compared by v1"
-    },
-    {
-     "id": "plot_3",
-     "title": null,
-     "type": "ohlc_close",
-     "why": "plot type ohlc_close is not compared by v1"
-    },
-    {
      "id": "plot_4",
      "title": null,
      "type": "ohlc_colorer",
-     "why": "plot type ohlc_colorer is not compared by v1"
+     "why": "candle body colour (plotcandle_0) — not compared (phase A)"
     },
     {
      "id": "plot_5",
      "title": null,
      "type": "wick_colorer",
-     "why": "plot type wick_colorer is not compared by v1"
+     "why": "candle wick colour (plotcandle_0) — not compared (phase A)"
     },
     {
      "id": "plot_6",
      "title": null,
      "type": "border_colorer",
-     "why": "plot type border_colorer is not compared by v1"
-    },
-    {
-     "id": "plot_9",
-     "title": null,
-     "type": "ohlc_open",
-     "why": "plot type ohlc_open is not compared by v1"
-    },
-    {
-     "id": "plot_10",
-     "title": null,
-     "type": "ohlc_high",
-     "why": "plot type ohlc_high is not compared by v1"
-    },
-    {
-     "id": "plot_11",
-     "title": null,
-     "type": "ohlc_low",
-     "why": "plot type ohlc_low is not compared by v1"
-    },
-    {
-     "id": "plot_12",
-     "title": null,
-     "type": "ohlc_close",
-     "why": "plot type ohlc_close is not compared by v1"
+     "why": "candle border colour (plotcandle_0) — not compared (phase A)"
     },
     {
      "id": "plot_13",
      "title": null,
      "type": "ohlc_colorer",
-     "why": "plot type ohlc_colorer is not compared by v1"
+     "why": "candle body colour (plotcandle_1) — not compared (phase A)"
     },
     {
      "id": "plot_14",
      "title": null,
      "type": "wick_colorer",
-     "why": "plot type wick_colorer is not compared by v1"
+     "why": "candle wick colour (plotcandle_1) — not compared (phase A)"
     },
     {
      "id": "plot_15",
      "title": null,
      "type": "border_colorer",
-     "why": "plot type border_colorer is not compared by v1"
+     "why": "candle border colour (plotcandle_1) — not compared (phase A)"
     },
     {
      "id": "plot_28",
      "title": "Bar Color",
      "type": "bar_colorer",
      "why": "plot type bar_colorer is not compared by v1"
-    },
-    {
-     "ours": "value",
-     "title": "CRVOL open",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out2",
-     "title": "CRVOL high",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out3",
-     "title": "CRVOL low",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out4",
-     "title": "CRVOL close",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out6",
-     "title": "CVD open",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out7",
-     "title": "CVD high",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out8",
-     "title": "CVD low",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out9",
-     "title": "CVD close",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out16",
-     "title": "Plot 1",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out17",
-     "title": "Plot 2",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out18",
-     "title": "Plot 3",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out19",
-     "title": "Plot 4",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
     }
    ],
    "notMeasured": [],
@@ -115300,7 +116590,7 @@
     "unpaired": []
    },
    "verdict": "INCONCLUSIVE",
-   "reason": "5 of 15 items could not be compared",
+   "reason": "1 of 23 items could not be compared",
    "ourNotes": [
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0",
     "paints: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
