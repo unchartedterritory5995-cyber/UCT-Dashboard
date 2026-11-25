@@ -6,6 +6,7 @@ Fans out WebSocket price data from Massive/Polygon to browser clients.
 import asyncio
 import json
 import logging
+import math
 import os
 import threading
 import time
@@ -81,15 +82,25 @@ def subscriber_count(stream: str) -> int:
 # (app/src/lib/barsStreamManager.js AHEAD_MAX_PAIRS = 4 a page), so the first press after a minute roll finds that row
 # as current as the chart on screen. They are SPECULATIVE: a refused one costs the member one wait after a roll (~100 ms),
 # never a wrong chart. So they are the first thing this pod sheds:
-#   * a pod-wide budget, STREAM_MAX_AHEAD_PAIRS (default 600: ~150 members at their page cap), admitted per connection at
-#     its open and released at its end (a member's connection is rebuilt on every symbol switch, so the budget re-applies
-#     within seconds as load moves);
+#   * at most AHEAD_MAX_PER_CONN a connection (the client's own page cap; a rail reads it from the JS);
+#   * a pod-wide budget, STREAM_MAX_AHEAD_PAIRS, admitted per connection at its open and released at its end (a member's
+#     connection is rebuilt on every symbol switch, so the budget re-applies within seconds as load moves). Its default
+#     (review of #2721, at 1 Hz) is what the load line lets through: ceil(0.8 x 300) x 4 = 960, so below the line the
+#     budget never refuses and the shed is what binds; set the env var lower to cap it below that;
 #   * none at all while the bars subscriber registry is at or past STREAM_AHEAD_LOAD_FRACTION of MAX_SUBSCRIBERS;
 #   * they count against the same 50-pair cap per connection as the chart's own pairs (admitted after them).
 # A refused ahead pair is simply not subscribed: the client keeps its old rule for that row (it asks after a roll).
 # Counted in-process (one uvicorn process per pod): `ahead_stats()`, on /api/stream/status.
-MAX_AHEAD_PAIRS = int(os.environ.get("STREAM_MAX_AHEAD_PAIRS", "600"))
 AHEAD_LOAD_FRACTION = float(os.environ.get("STREAM_AHEAD_LOAD_FRACTION", "0.8"))
+AHEAD_MAX_PER_CONN = 4
+
+
+def _default_max_ahead_pairs() -> int:
+    """The most ahead pairs the load line can ever let through: every connection below it at its cap."""
+    return math.ceil(AHEAD_LOAD_FRACTION * MAX_SUBSCRIBERS) * AHEAD_MAX_PER_CONN
+
+
+MAX_AHEAD_PAIRS = int(os.environ.get("STREAM_MAX_AHEAD_PAIRS") or _default_max_ahead_pairs())
 # ⭐ (review of #2721, 2026-11-25) AN AHEAD PAIR IS SENT AT ABOUT 1 Hz. A row ahead is not on screen: it needs its bar M at the
 # next roll, not every trade. Its developing bar goes out at most once per AHEAD_INTERVAL_S (the newest value then), while
 # every FINAL and a new bucket's first frame go out at the next poll; the chart's own pairs are untouched (every frame, at
@@ -740,7 +751,7 @@ async def stream_bars(
     for pair in (_parse_pairs(ahead) if isinstance(ahead, str) else []):
         if pair not in pairs and pair not in ahead_pairs:
             ahead_pairs.append(pair)
-    ahead_pairs = ahead_pairs[:max(0, MAX_BARS_PAIRS - len(pairs))]
+    ahead_pairs = ahead_pairs[:max(0, min(AHEAD_MAX_PER_CONN, MAX_BARS_PAIRS - len(pairs)))]
 
     # Admission BEFORE the broadcaster subscribe, for the same reason as
     # /api/stream/prices: a refused connection must leave no queues behind.
