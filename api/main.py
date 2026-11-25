@@ -5136,7 +5136,7 @@ async def lifespan(app: FastAPI):
     try:
         from api.services import perf_beacon as _perf_beacon
         print(f"[startup] perf beacon housekeeping: "
-              f"{'started' if _perf_beacon.startup() else 'not started (running already, or switched off)'} "
+              f"{'started' if _perf_beacon.startup() else 'not started (running already, switched off, or off Railway without PERF_BEACON_HOUSEKEEPING_ENABLED=1)'} "
               f"(every {_perf_beacon.HOUSEKEEP_EVERY_S} s)")
     except Exception as e:
         print(f"[startup] perf beacon housekeeping failed to start (non-fatal): {e}")

@@ -486,9 +486,20 @@ def housekeep(now: float | None = None) -> dict[str, int]:
 
 
 HOUSEKEEP_EVERY_S = 600
-#: Set to "1" and `startup()` starts nothing. The root conftest sets it for every pytest process: a test that runs the
-#: real lifespan must not leave a thread that deletes from, blanks or rebuilds whatever store the environment points at.
+#: Set to "1" and `startup()` starts nothing, on any service.
 HOUSEKEEPING_SWITCH = "PERF_BEACON_HOUSEKEEPING_DISABLED"
+#: ⛔ OFF RAILWAY THE HOUSEKEEPING IS OPT-IN. The app's lifespan calls `startup()`, and a test that runs the real lifespan
+#: (or a laptop's dev server) must not leave a thread that deletes from, blanks or rebuilds whatever store the environment
+#: points at (`/data` on a developer PC can be a real one). So it starts on a Railway service (RAILWAY_SERVICE_NAME, set
+#: by Railway on every deployed service) or when this is "1"; never off Railway otherwise. (Not the root conftest's job:
+#: it is self-protected, tools/agent_ci_required.py.)
+HOUSEKEEPING_OPT_IN = "PERF_BEACON_HOUSEKEEPING_ENABLED"
+
+
+def _housekeeping_wanted() -> bool:
+    if os.environ.get(HOUSEKEEPING_SWITCH) == "1":
+        return False
+    return bool((os.environ.get("RAILWAY_SERVICE_NAME") or "").strip()) or os.environ.get(HOUSEKEEPING_OPT_IN) == "1"
 _housekeeper: threading.Thread | None = None
 _housekeeper_stop = threading.Event()
 _boot_done = threading.Event()       # set once the thread's start-of-process work is done
@@ -645,9 +656,10 @@ def _housekeeping(every_s: float, stop: threading.Event) -> None:
 def startup(every_s: float = HOUSEKEEP_EVERY_S) -> bool:
     """Start this process's ONE housekeeping thread (api/main.py's lifespan calls it, and stops it with `shutdown`): a
     daemon that does the start-of-process work off the boot path, then `housekeep()` every `every_s`. True when this
-    call started it; False when one is running, or PERF_BEACON_HOUSEKEEPING_DISABLED=1 says not to."""
+    call started it; False when one is running, when PERF_BEACON_HOUSEKEEPING_DISABLED=1 says not to, or off a Railway
+    service without PERF_BEACON_HOUSEKEEPING_ENABLED=1 (see HOUSEKEEPING_OPT_IN)."""
     global _housekeeper, _housekeeper_stop
-    if os.environ.get("PERF_BEACON_HOUSEKEEPING_DISABLED") == "1":
+    if not _housekeeping_wanted():
         return False
     with _keys_lock:
         if _housekeeper is not None and _housekeeper.is_alive():
