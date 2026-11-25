@@ -73,7 +73,7 @@ import { deviceServesTf } from '../deviceStore/tfs'
 import { deviceStoreKillSeen } from '../../lib/chartSpeed'
 import { isAppVisible } from '../../lib/deskVisibility'
 import { bucketEndUnix } from '../../components/chart/liveBuckets'
-import { bucketStartUnix, etDateOf, etMinuteOfDay } from '../../components/chart/barTime'
+import { bucketStartUnix, etDateOf, etMinuteOfDay, rthCloseMinuteOf } from '../../components/chart/barTime'
 import { serverNow } from '../../lib/serverClock'
 import { BARSTORE } from '../../components/chart/barStoreSwitch'
 import { prefetchTickerMeta as _defaultTickerMeta } from '../../hooks/useTickerMeta'
@@ -643,7 +643,16 @@ export function createPrefetch(o = {}) {
     if (live && now() - _rollMs(p.tf) >= RULE_A_MARGIN_MS) {
       let first = bucketEndUnix(tailT, p.tf)
       const opened = _sessionOpenUnix(now(), ext)
-      if (opened != null && Number.isFinite(first) && first < opened) first = opened
+      // ⛔ (review of the merge) ONLY A COPY THAT REACHED THE PREVIOUS SESSION'S CLOSE skips the overnight gap: one whose tail
+      // stopped mid-session yesterday (14:00) still lacks 14:01-15:59, and a stream live since this morning proves
+      // nothing about them. Reached = its last bucket ends at that close, or the server's proof / seal covers it.
+      if (opened != null && Number.isFinite(first) && first < opened) {
+        const prevClose = _prevSessionCloseUnix(opened, ext)
+        const covered = prevClose != null && (first >= prevClose
+          || (Number.isFinite(s.verifiedThrough) && s.verifiedThrough >= prevClose)
+          || (Number.isFinite(s.completeThrough) && s.completeThrough >= prevClose))
+        if (covered) first = opened
+      }
       if (Number.isFinite(first) && live.since <= first * 1000 && !(Number.isFinite(live.lastBarT) && live.lastBarT >= first * 1000)) return 0
     }
     return n
@@ -659,6 +668,21 @@ export function createPrefetch(o = {}) {
     const open = ext ? 240 : 570
     if (m < open) return null
     return (Math.floor(sec / 60) - (m - open)) * 60
+  }
+  /** The close (unix s) of the trading session before the one that opened at `opened` (16:00, the half-day 13:00, or the
+   *  extended 20:00), or null when none is found within ten days. */
+  function _prevSessionCloseUnix(opened, ext) {
+    for (let back = 1; back <= 10; back++) {
+      const probe = opened - back * 86400
+      const iso = etDateOf(probe)
+      const dow = new Date(`${iso}T12:00:00Z`).getUTCDay()
+      if (dow === 0 || dow === 6 || isHolidayISO(iso)) continue
+      const closeMin = ext ? 1200 : rthCloseMinuteOf(probe)
+      let c = probe - etMinuteOfDay(probe) * 60 + closeMin * 60
+      c += (closeMin - etMinuteOfDay(c)) * 60      // (a DST change in between)
+      return c
+    }
+    return null
   }
   /** `key`'s push stream while it delivers without a break: { since, lastBarT } (liveFeed pushState), else null. */
   function _pushState(key, showExtended) {
