@@ -63,7 +63,7 @@ def test_CONTROL_a_dropped_section_is_counted(sections):
 
 def test_the_agent_lists_the_two_rs_exit_fields_and_not_the_three_member_only_ages(sections):
     from api.services.screener import filters, fund_trends, volume_volatility, beats_insiders_funds
-    from api.services.screener import store_columns, short_columns
+    from api.services.screener import store_columns, short_columns, row_columns
     omitted = {f["key"] for f in filters.field_catalog() if f.get("agent_omit")}
     # Pin moved 2026-11-14 (RS screens U1): every key the RS screens programme adds is kept out
     # of the Agent's list (`filters.RS_SCREENS_KEYS`); the budget has no room for them.
@@ -81,6 +81,10 @@ def test_the_agent_lists_the_two_rs_exit_fields_and_not_the_three_member_only_ag
     # (`short_columns.CHANGE_COLUMN`) are member controls kept out of the Agent's list the same way; the
     # recorded requests did not move.
     held = dict(store_columns.CATEGORY, **{short_columns.CHANGE_COLUMN: "ownership"})
+    # Pin moved 2026-11-24 (row columns): the twelve `row_columns.COLUMNS` (days to lockup, this month's seasonality,
+    # the post-earnings drift, factor loadings, up / down capture) are member controls kept out of the Agent's list the
+    # same way, each in its own family (`row_columns.CATEGORY`); the recorded requests did not move.
+    held.update(row_columns.CATEGORY)
     assert omitted == ({"rs_quick_break_bars_ago", "rs_quicksand_bars_ago", "rs_dead_break_bars_ago"}
                        | set(filters.RS_SCREENS_KEYS) | trends | vv | bif | set(held))
     full = [s["fields"] for s in sections if isinstance(s.get("fields"), str) and ":" in s["fields"]]

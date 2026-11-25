@@ -104,7 +104,8 @@ describe('P3-S1 adapter item 1 — typed stale-answer', () => {
   })
   it('the type-to-search door warms through the chart\'s own source', () => {
     const pane = fs.readFileSync(path.join(SRC, 'components/chart/pane/ChartPane.jsx'), 'utf8')
-    expect(pane).toMatch(/\(BARSTORE \? storeWarmTypedSymbol : legacyWarmTypedSymbol\)\(s, effectiveTf\)/)
+    // (2026-11-23, review of #2624 2d) the call also carries the linked charts' timeframes, as an options argument
+    expect(pane).toMatch(/\(BARSTORE \? storeWarmTypedSymbol : legacyWarmTypedSymbol\)\(s, effectiveTf(, \{ alsoTfs: typedTfsRef\.current \})?\)/)
   })
 })
 

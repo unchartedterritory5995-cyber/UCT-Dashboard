@@ -166,11 +166,13 @@ def _deep_daily_earliest(sym: str):
 
 
 def _fmp_earliest(sym: str, list_date: str):
-    """FMP's earliest daily bar in [list_date, list_date + 20d], or None (ignored)."""
-    if not os.environ.get("FMP_API_KEY"):
-        return None
+    """FMP's earliest daily bar in [list_date, list_date + 20d], or None (ignored).
+    Whether FMP is configured is asked of its adapter (`fmp_client.is_configured`),
+    never read from the environment here (TERM-022)."""
     try:
         from api.services import fmp_client
+        if not fmp_client.is_configured():
+            return None
         to = (date.fromisoformat(list_date) + timedelta(days=_FMP_WINDOW_DAYS)).isoformat()
         res = fmp_client.get_historical_price_eod_light(
             sym, list_date, to, timeout=_FMP_TIMEOUT_S)

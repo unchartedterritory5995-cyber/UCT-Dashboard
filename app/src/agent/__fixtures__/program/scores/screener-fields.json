@@ -2141,6 +2141,102 @@
    "agent_omit": true
   },
   {
+   "key": "days_to_lockup",
+   "label": "Days to Lockup Expiry (Estimated)",
+   "type": "range",
+   "unit": null,
+   "category": "events",
+   "agent_omit": true
+  },
+  {
+   "key": "seas_month_avg",
+   "label": "Seasonality, Average Return This Month",
+   "type": "range",
+   "unit": "%",
+   "category": "performance",
+   "agent_omit": true
+  },
+  {
+   "key": "seas_month_up_pct",
+   "label": "Seasonality, Up Years This Month",
+   "type": "range",
+   "unit": "%",
+   "category": "performance",
+   "agent_omit": true
+  },
+  {
+   "key": "seas_month_years",
+   "label": "Seasonality, Years Counted This Month",
+   "type": "range",
+   "unit": null,
+   "category": "performance",
+   "agent_omit": true
+  },
+  {
+   "key": "post_earn_drift_5d",
+   "label": "Drift 5 Days After Last Report",
+   "type": "range",
+   "unit": "%",
+   "category": "events",
+   "agent_omit": true
+  },
+  {
+   "key": "factor_mkt",
+   "label": "Factor Loading, Market",
+   "type": "range",
+   "unit": null,
+   "category": "factors_capture",
+   "agent_omit": true
+  },
+  {
+   "key": "factor_size",
+   "label": "Factor Loading, Size",
+   "type": "range",
+   "unit": null,
+   "category": "factors_capture",
+   "agent_omit": true
+  },
+  {
+   "key": "factor_growth",
+   "label": "Factor Loading, Growth vs Value",
+   "type": "range",
+   "unit": null,
+   "category": "factors_capture",
+   "agent_omit": true
+  },
+  {
+   "key": "factor_mom",
+   "label": "Factor Loading, Momentum",
+   "type": "range",
+   "unit": null,
+   "category": "factors_capture",
+   "agent_omit": true
+  },
+  {
+   "key": "factor_r2",
+   "label": "Factor Model R-Squared",
+   "type": "range",
+   "unit": null,
+   "category": "factors_capture",
+   "agent_omit": true
+  },
+  {
+   "key": "up_capture_1y",
+   "label": "Up Capture vs SPY, 1 Year",
+   "type": "range",
+   "unit": "%",
+   "category": "factors_capture",
+   "agent_omit": true
+  },
+  {
+   "key": "down_capture_1y",
+   "label": "Down Capture vs SPY, 1 Year",
+   "type": "range",
+   "unit": "%",
+   "category": "factors_capture",
+   "agent_omit": true
+  },
+  {
    "key": "security_type",
    "label": "Type",
    "type": "enum",

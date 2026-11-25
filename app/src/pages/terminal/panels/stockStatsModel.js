@@ -19,6 +19,9 @@ export const STAT_SOURCE = "UCT's stored daily prices"
  *  on the server (MKTH's first build), ask again soon. */
 export const HELD_POLL_MS = 30 * 60 * 1000
 export const COMPUTING_POLL_MS = 5000
+/** The first ask of a stock this session is worked out on the server while the panel waits (`computing`): ask again
+ *  soon, as SETH does for one stock. */
+export const STOCK_COMPUTING_POLL_MS = 3000
 
 export const statUrl = (sym) => `/api/research/stock-stats/${encodeURIComponent(sym)}`
 
@@ -202,12 +205,14 @@ function readCorrections(raw) {
  * The route's body -> the panel's view. `state`:
  *   'ok'           every section, each with its own as-of
  *   'not_held'     the server stores no daily prices for the stock (`detail`)
+ *   'computing'    the server is working the stock out for the first time this session; ask again soon
  *   'busy'         the server is working out other stocks; ask again
  *   'unavailable'  the read failed on the server (`detail`)
  *   'failed'       not the route's shape
  */
 export function statRead(body) {
   if (!isObj(body)) return { state: 'failed' }
+  if (body.status === 'computing') return { state: 'computing' }
   if (body.status === 'not_held') return { state: 'not_held', detail: text(body.detail) }
   if (body.status === 'busy') return { state: 'busy', detail: text(body.detail) }
   if (body.status === 'unavailable' || body.status === 'refused') return { state: 'unavailable', detail: text(body.detail) }
@@ -229,6 +234,11 @@ export function statRead(body) {
 
 /** True while the server is still working out the market's corrections (the panel asks again sooner). */
 export const isComputing = (view) => view.state === 'ok' && view.corrections.state === 'computing'
+
+/** How soon the panel asks again: soon while the stock or the market's corrections are still being worked out,
+ *  else once a half hour. */
+export const statPollMs = (view) => (view.state === 'computing' ? STOCK_COMPUTING_POLL_MS
+  : isComputing(view) ? COMPUTING_POLL_MS : HELD_POLL_MS)
 
 // ── words ──────────────────────────────────────────────────────────────────────────────────
 

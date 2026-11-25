@@ -10,7 +10,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import {
   extractUrls, parseShare, shareFromSearch, shareIsEmpty, shareCaptureDetail,
-  writePendingShare, takePendingShare, scrubShareUrlFromHistory,
+  writePendingShare, takePendingShare, peekPendingShare, scrubShareUrlFromHistory,
   PENDING_SHARE_KEY, SHARE_PARAMS, SHARE_ROUTE,
 } from './shareTarget'
 
@@ -137,6 +137,22 @@ describe('surviving the sign-in round trip', () => {
     // becomes a capture the member cannot dismiss.
     expect(takePendingShare()).toBeNull()
     expect(sessionStorage.getItem(PENDING_SHARE_KEY)).toBeNull()
+  })
+
+  // Review of #2624: CaptureHost opens a parked share by PEEKING, and takes it only once the dialog has mounted, so a
+  // dialog chunk that fails (then Close, then a reload) cannot lose it.
+  it('peeking leaves it parked, in memory and in the session copy, until it is taken', () => {
+    const s = parseShare({ url: 'https://a.com/x', text: 'rates steady' })
+    writePendingShare(s)
+    try {
+      expect(peekPendingShare()).toEqual(s)
+      expect(peekPendingShare()).toEqual(s)
+      expect(sessionStorage.getItem(PENDING_SHARE_KEY)).not.toBeNull()
+      expect(takePendingShare()).toEqual(s)
+      expect(peekPendingShare()).toBeNull()
+    } finally {
+      takePendingShare()   // the MEMORY carrier outlives beforeEach's sessionStorage.clear(): never leak it to the next case
+    }
   })
 
   it('a corrupted entry is discarded, not thrown', () => {

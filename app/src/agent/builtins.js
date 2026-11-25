@@ -49,17 +49,14 @@ import { registerResearchCapability } from './capabilities/research'
 import { registerHistoryCapability } from './capabilities/history'
 import { registerRsCapability } from './capabilities/rsLeadership'
 import { registerTerminalDataCapability } from './capabilities/terminalData'
-import { registerTerminalLocalCapabilities } from './capabilities/terminalDataLocal'
-import { registerTerminalWave2Capabilities } from './capabilities/terminalDataWave2'
-import { registerTerminalWave3Capabilities } from './capabilities/terminalDataWave3'
-import { registerTerminalWave4Capabilities } from './capabilities/terminalDataWave4'
-import { registerTerminalWave5Capabilities } from './capabilities/terminalDataWave5'
-import { registerTerminalWave6Capabilities } from './capabilities/terminalDataWave6'
-import { registerTerminalWave7Capabilities } from './capabilities/terminalDataWave7'
-import { registerTerminalWave8Capabilities } from './capabilities/terminalDataWave8'
-import { registerTerminalWave9Capabilities } from './capabilities/terminalDataWave9'
-import { registerTerminalWave10Capabilities } from './capabilities/terminalDataWave10'
-import { registerTerminalWave11Capabilities } from './capabilities/terminalDataWave11'
+// ⛔ The Terminal data waves (wave 1's local-only answers, waves 2-11) are NOT imported here (2026-11-23). They load in
+// their own chunk (terminalWavesLoader.js, chained by useAgent.js after registerServerGatedBuiltins()); a static import
+// of terminalWaves.js or of any wave from this file puts their panel-model chunks back into the entry chunk's preload
+// list and breaks the Notebook first-open byte budget. This file reaches them only through terminalWavesHook.js (which
+// imports nothing): once terminalWaves.js has loaded it hands its register function in, and registerServerGatedBuiltins()
+// runs it at its end. A test that needs a wave from registerServerGatedBuiltins() imports './terminalWaves' itself.
+// A NEW WAVE adds its line to terminalWaves.js, not here. Railed by agentTerminalWavesLazy.test.js.
+import { runTerminalWaves } from './terminalWavesHook'
 import { registerChartDescribeCapability } from './capabilities/chartDescribe'
 import { registerMultiChartCapabilities } from './capabilities/multiChart'
 // ⭐ W2-C1 (multi-page host): the pages' own capabilities — offered only on their surface (AgentProvider)
@@ -144,15 +141,5 @@ export function registerServerGatedBuiltins() {
   registerCatalystsCapability()          // Phase 2: news.movers while the server serves `catalysts.board`
   registerRsCapability()                 // Phase 2: rs.compare while the server serves `rs.leadership`
   registerTerminalDataCapability()       // Terminal data wave 1: stock.sectorPerformance while the server serves `sectors.performance`
-  registerTerminalLocalCapabilities()    // Terminal data wave 1: four local-only answers, each while the server serves its own isolated kind
-  registerTerminalWave2Capabilities()    // Terminal data wave 2: five local-only answers, each while the server serves its own isolated kind
-  registerTerminalWave3Capabilities()    // Terminal data wave 3: four local-only answers, each while the server serves its own isolated kind
-  registerTerminalWave4Capabilities()    // Terminal data wave 4: three local-only answers, each while the server serves its own isolated kind
-  registerTerminalWave5Capabilities()    // Terminal data wave 5: two local-only answers (FINRA short interest), each while the server serves its own isolated kind
-  registerTerminalWave6Capabilities()    // Terminal data wave 6: five local-only answers (seasonality, Market Tide by session, open interest change, Treasury yields), each while the server serves its own isolated kind
-  registerTerminalWave7Capabilities()    // Terminal data wave 7: six local-only answers (market regime, confirmed setups, events timeline, UCT 20 list, IV history, dilution watch), each while the server serves its own isolated kind
-  registerTerminalWave8Capabilities()    // Terminal data wave 8: three local-only answers (corporate actions, the IPO calendar, dividends and splits ahead), each while the server serves its own isolated kind
-  registerTerminalWave9Capabilities()    // Terminal data wave 9: three local-only answers (Treasury auctions, real yields and breakevens, the Fed watch), each while the server serves its own isolated kind
-  registerTerminalWave10Capabilities()   // Terminal data wave 10: six local-only answers (stock statistics, volume footprint, factor exposure, setup history, public records, fund holders), each while the server serves its own isolated kind
-  registerTerminalWave11Capabilities()   // Terminal data wave 11: seven local-only answers (group rank, group crowding, earnings by sector, revisions by sector, IV rank leaders, IPO lockups, COT by trader type), each while the server serves its own isolated kind
+  runTerminalWaves()                     // Terminal data waves 1 (local-only) to 11, once terminalWaves.js has loaded (terminalWavesHook.js); nothing before that
 }

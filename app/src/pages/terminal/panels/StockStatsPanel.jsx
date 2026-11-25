@@ -12,9 +12,9 @@
 //
 // ONE read, `GET /api/research/stock-stats/{ticker}` (paid; api/services/stock_stats.py): worked out
 // by the server from the daily prices it already stores, never from a vendor, and held for the
-// session. Asked again every half hour; every few seconds while the market's corrections are still
-// being worked out for the first time (MKTH's build). SWR skips ticks while the app is hidden. The
-// pure half is stockStatsModel.js.
+// session. Asked again every half hour; every few seconds while the stock is being worked out for the
+// first time this session (`computing`) or the market's corrections are (MKTH's build). SWR skips ticks
+// while the app is hidden. The pure half is stockStatsModel.js.
 //
 // ⛔ A MISSING NUMBER IS NEVER 0: a statistic with too little history says what it needs.
 // ⛔ A RECORD, NOT A FORECAST. Green and red mark the sign of a return only.
@@ -26,10 +26,10 @@ import { Fragment, useMemo, useState } from 'react'
 import { PanelCommand, PanelSkeleton, PanelState, panelAsOf, useInTerminalPanel, usePanelFreshness } from '../../../components/terminal'
 import { WARMING_TITLE, canRetry, failureKind, failureText, useMarketRead } from './marketRead'
 import {
-  COMPUTING_POLL_MS, HELD_POLL_MS, STAT_CODE, STAT_SOURCE, STAT_WHAT, adrText, afterCell, atrText, avgVolumeText, betaText,
-  captureText, correctionsLine, daysText, deepestLine, drawdownsLine, fellCell, highFirstCell, highLine, isComputing, kindText,
+  HELD_POLL_MS, STAT_CODE, STAT_SOURCE, STAT_WHAT, adrText, afterCell, atrText, avgVolumeText, betaText,
+  captureText, correctionsLine, daysText, deepestLine, drawdownsLine, fellCell, highFirstCell, highLine, kindText,
   changeText, moveCell, periodCell, range52Text, realizedText, recoveredCell, relVolumeText, sectorLabel, sessionsText,
-  spanText, statRead, statUrl,
+  spanText, statPollMs, statRead, statUrl,
 } from './stockStatsModel'
 import { dayText } from './ratesModel'
 import styles from './marketPanels.module.css'
@@ -328,7 +328,7 @@ function StockStatsBody({ sym: s, code }) {
   const read = useMarketRead(statUrl(s), { refreshInterval: pace })
   const view = useMemo(() => statRead(read.body), [read.body])
   // The pace follows the server's own word (adjusted during render from the last answer).
-  const wantPace = isComputing(view) ? COMPUTING_POLL_MS : HELD_POLL_MS
+  const wantPace = statPollMs(view)
   if (wantPace !== pace) setPace(wantPace)
   const ok = !read.loading && !!read.body && view.state === 'ok'
   usePanelFreshness(ok ? panelAsOf(STAT_SOURCE, view.dataThrough) : null)
@@ -358,6 +358,9 @@ function StockStatsBody({ sym: s, code }) {
   const stale = read.error ? (
     <p className={styles.note} role="status" data-testid="terminal-stat-stale-read">{failureText(read.error, STAT_WHAT)} Showing the last read.</p>
   ) : null
+  if (view.state === 'computing') {
+    return frame('computing', <PanelState kind="empty" role="status" testId="terminal-stat-computing" title={WARMING_TITLE} />)
+  }
   if (view.state === 'not_held') {
     return frame('not_held', (
       <>

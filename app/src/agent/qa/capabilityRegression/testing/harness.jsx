@@ -34,6 +34,9 @@ import * as nativeRegistry from '../../../../components/chart/engine/nativeRegis
 import { _resetAgentConfig, loadAgentConfig } from '../../../agentClient'
 import { publishWidgetDoor } from '../../../../pages/charts/widgetDoors'
 import { _resetNewsLibraryForTests, _setNewsFeedForTests } from '../../../capabilities/newsLibrary'
+import { ECON_SYMBOLS } from '../../../../pages/terminal/panels/economyModel'
+import { LIQ_SYMBOLS } from '../../../../pages/terminal/panels/liquidityModel'
+import { OIL_SYMBOLS } from '../../../../pages/terminal/panels/oilModel'
 
 const chart = (id, x, y, w, h) => ({ id, type: 'chart', x, y, w, h, color: 'N', opts: { settings: bareSettings() } })
 /** Named fixture boards. Charts are bare (the default 9/20/50/200 overlays removed, as a member's removal leaves them). */
@@ -700,6 +703,123 @@ const TERMINAL_DATA = {
       credit: 'Source: CFTC Commitments of Traders (Traders in Financial Futures / Disaggregated), as of the Tuesday it covers, published the following Friday.',
       stale_for: [], left_out: ['range'] } }
   },
+  // Terminal data wave 12 (dark kinds `estimates.history`, `analyst.ratings`, `company.segments`, `stock.failsToDeliver`,
+  // `company.deals`, and the existing `ratings`; MD-1 §4.21, §4.4): the same rule — each adapter's own data shape, made-up
+  // figures, dates, names and words. `as_of` is the data's own date, or null where each part carries its own read time.
+  'ratings': (p) => ({ freshness: 'periodic', as_of: '2026-10-30T20:00:00Z', data: { symbol: String(p.symbol || '').toUpperCase(), composite: 81,
+    components: { eps: 88, rs: 76, growth: 69, value: 41, smr: 'B', accdis: 'B-', sponsorship: 58 }, checkup: [{ label: 'Made-up check', status: 'pass', value: 1 }],
+    method: 'made-up method words', basis: 'percentile', coverage: null, universe_n: 3700, sector: 'Made-up Sector', group_rs: 70, price_as_of: '2026-10-30', complete: true } }),
+  'estimates.history': (p) => {
+    const mv = (state, pct) => ({ state, reason: null, pct, from: null, to: null, from_date: null, to_date: null })
+    return { freshness: 'periodic', as_of: '2026-11-02T05:00:00Z', data: { symbol: String(p.symbol || '').toUpperCase(), state: 'ok', covers_from: '2026-03-02',
+      last_snapshot: '2026-11-02', store_newest: '2026-11-02', snapshot_days: 170, currency: null, tracked: { origin: 'sp500', count: 510, cap: 600 }, windows: [7, 30, 90],
+      tolerance_pct: 0.5, slack_days: 4, failed_days: 0, failed_newest: [], left_out: ['points', 'year'],
+      periods: [{ period_end: '2026-12-31', n: 170, first_snapshot: '2026-03-02', upcoming: true,
+        newest: { snap_date: '2026-11-02', eps_avg: 1.25, eps_low: 1.1, eps_high: 1.4, n_eps: 30, rev_avg: 35000000000, rev_low: null, rev_high: null, n_rev: 28 },
+        moves: { eps: { 7: mv('held', 0.1), 30: mv('up', 3.2), 90: mv('up', 8.7) }, revenue: { 7: mv('held', 0), 30: mv('up', 1.5), 90: mv('collecting', null) } } }] } }
+  },
+  'analyst.ratings': (p) => ({ freshness: 'periodic', as_of: '2026-11-02T14:00:00Z', data: { symbol: String(p.symbol || '').toUpperCase(), covered: true, outage: false,
+    consensus: { strongBuy: 5, buy: 20, hold: 6, sell: 1, strongSell: 0, total: 32, label: 'Buy', observed_at: '2026-11-02T14:00:00Z' },
+    price_target: { high: 260, low: 120, median: 200, consensus: 205, last_month: { count: 6, avg: 210 }, last_quarter: { count: 15, avg: 198 }, last_year: { count: 40, avg: 180 },
+      observed_at: '2026-11-02T14:00:00Z' },
+    upside: { target: 'consensus', target_value: 205, close: 180, close_date: '2026-10-30', pct: 13.89, basis: 'stored_close' },
+    recent_actions: [{ date: '2026-10-29', company: 'Made-up Securities', action: 'upgrade', from_grade: 'Hold', to_grade: 'Buy' }].slice(0, p.rows || 5),
+    actions_total: 1, left_out: ['trend', 'revisions'] } }),
+  'company.segments': (p) => ({ freshness: 'periodic', as_of: '2026-01-25T05:00:00Z', data: { symbol: String(p.symbol || '').toUpperCase(), rows: p.rows || 8,
+    growth_basis: 'a year earlier, from held periods', left_out: ['earlier_periods'],
+    splits: { annual: { state: 'held', read_at: '2026-11-03T15:00:00Z',
+      product: { state: 'ok', latest: { date: '2026-01-25', label: 'FY2026', currency: 'USD', total: 130000000000, segments_total: 2, cut: false,
+        segments: [{ name: 'Made-up Compute', revenue: 115000000000, share: 88.5, prior: 47000000000, growth_pct: 144.7 }, { name: 'Made-up Graphics', revenue: 15000000000, share: 11.5, prior: null, growth_pct: null }] },
+        prior: { date: '2025-01-26', label: 'FY2025' } },
+      region: { state: 'none', latest: null, prior: null } },
+    quarter: { state: 'not_held' } } } }),
+  'stock.failsToDeliver': (p) => ({ freshness: 'historical', as_of: '2026-10-15T04:00:00Z', data: { symbol: String(p.symbol || '').toUpperCase(), state: 'ok',
+    window: { from: '2026-05-01', through: '2026-10-15' }, basis: 'made-up basis words', description: 'MADE-UP CO',
+    latest: { settle_date: '2026-10-15', quantity: 250000, price: 20, value: 5000000 },
+    trend: { previous: { settle_date: '2026-10-14', quantity: 100000, price: 19.5, value: 1950000 }, change: 150000,
+      peak: { settle_date: '2026-08-03', quantity: 400000, price: 15, value: 6000000 }, latest_vs_peak_pct: 62.5 },
+    days_reported: 2, rows: [{ settle_date: '2026-10-15', quantity: 250000, price: 20, value: 5000000 }, { settle_date: '2026-10-14', quantity: 100000, price: 19.5, value: 1950000 }].slice(0, p.rows || 10),
+    files_ingested: 11, mismatched_files: [], newest_file: 'cnsfails202610a' } }),
+  'company.deals': (p) => {
+    const sym = String(p.symbol || '').toUpperCase()
+    return { freshness: 'periodic', as_of: null, data: { symbol: sym,
+      deals: { state: 'held', read_at: '2026-11-03T14:00:00Z', search: 'ok', name: 'Made-up Company Inc', total: 1, cut: false, other_companies: 0, from_latest: 0,
+        deals: [{ date: '2026-09-15', accepted_at: null, role: 'acquirer', acquirer: { sym, name: 'Made-up Company Inc' }, target: { sym: null, name: 'Made-up Startup Ltd' }, link: 'https://www.sec.gov/made-up' }] },
+      index_changes: { state: 'held', read_at: '2026-11-03T14:00:00Z', indexes: { sp500: 'ok', nasdaq100: 'ok', dow: 'ok' }, total: 1, cut: false,
+        changes: [{ index: 'dow', index_name: 'Dow 30', date: '2024-11-08', side: 'added', added: { sym, name: 'Made-up Company Inc' }, removed: { sym: 'QZOLD', name: 'Made-up Old Co' }, reason: 'Made-up reason.' }] } } }
+  },
+  // Terminal data wave 13 (dark kinds `insider.market`, `market.history`, `econ.latest`, `market.liquidity`, `market.oil`,
+  // `market.analogs`; MD-1 §4.22): the same rule — each adapter's own data shape (the econ kinds: the econ routes' own row
+  // shape, the registry's real series symbols with made-up meta), made-up figures, dates, names and words. Every date is in
+  // 2025, so no answer's wording depends on the year of the run. `as_of` is the data's own date, or null where each part
+  // carries its own.
+  'insider.market': (p) => ({ freshness: 'periodic', as_of: null, data: {
+    purchases: { state: 'held', window_days: 7, cap: 50, total: 2, unpriced: 1, newest_filing: '2025-10-30', rows: [
+      { symbol: 'QZIA', name: 'Made-up Person One', title: 'director', shares: 2000, price: 15, amount: 30000, date: '2025-10-28', filing_date: '2025-10-30' },
+      { symbol: 'QZIB', name: 'Made-up Person Two', title: 'officer: Made-up Title', shares: 500, price: null, amount: null, date: '2025-10-27', filing_date: '2025-10-29' }].slice(0, p.rows || 10) },
+    clusters: { state: 'held', as_of: '2025-10-30', read_at: '2025-10-31T06:20:00Z', total: 1, truncated: false, min_insiders: 3, window_business_days: 10, left_out: ['people'],
+      coverage: { complete: true, from: '2025-10-14', to: '2025-10-30', listed: 1200, read: 1200 },
+      rows: [{ ticker: 'QZIC', company: 'Made-up Robotics Inc', insiders: 3, roles: { ceo: 1, director: 2 }, first_buy: '2025-10-22', last_buy: '2025-10-27', buys: 3, filings: 3,
+        shares: 9000, value: 81000, value_complete: true, unpriced_buys: 0, avg_price: 9, close: { value: 9.5, date: '2025-10-30', reason: null }, change_pct: 5.6 }] } } }),
+  'market.history': (p) => ({ freshness: 'historical', as_of: '2025-10-31T20:00:00Z', data: { index: p.index || 'SPX', name: p.index === 'NDX' ? 'Nasdaq-100' : 'S&P 500',
+    first: '1990-01-02', last: '2025-10-31', closes: 9000, definition: 'Made-up definition words.', leaders_state: 'ok', episodes_total: 2, built_for: '2025-10-31',
+    built_at: '2025-11-01T01:20:00Z', stale_for: [], survivorship: 'From stocks that trade today: a made-up survivorship sentence.',
+    summary: { since: '1990-01-02', corrections: 20, bear_markets: 5, ongoing: 0, recovered: 25, median_depth_pct: -13.5, median_recovery_sessions: 75 },
+    episodes: [{ kind: 'correction', peak: { date: '2025-02-19', close: 6100 }, trough: { date: '2025-04-08', close: 4980 }, depth_pct: -18.36, sessions_down: 33,
+      recovered: '2025-06-27', sessions_to_recover: 55, ongoing: false, peak_at_history_start: false, below_peak_now_pct: null,
+      rally: [{ months: 1, date: '2025-05-08', return_pct: 12.1 }, { months: 3, date: '2025-07-08', return_pct: 25.2 }],
+      leaders: { state: 'ok', trough: '2025-04-08', end: '2025-07-09', index_return_pct: 25.0, priced_both: 3100, top_total: 25, sectors_total: 11,
+        top: [{ sym: 'QZLA', sector: 'Made-up Sector', return_pct: 150.5, vs_index_pct: 125.5, check: false }],
+        sectors: [{ sector: 'Made-up Sector', median_pct: 30.2, count: 400 }] } }].slice(0, p.rows || 8) } }),
+  'econ.latest': () => ({ freshness: 'periodic', as_of: '2025-10-15T12:30:00Z', data: W13_ECON() }),
+  'market.liquidity': () => ({ freshness: 'periodic', as_of: '2025-10-16T20:30:00Z', data: W13_LIQ() }),
+  'market.oil': () => ({ freshness: 'periodic', as_of: '2025-10-15T14:30:00Z', data: W13_OIL() }),
+  'market.analogs': (p) => ({ freshness: 'historical', as_of: '2025-10-31T20:00:00Z', data: { reference_date: '2025-10-31', reference_measures: { breadth_score: 61 },
+    held: 3, windows: ['fwd_5d', 'fwd_10d', 'fwd_20d', 'fwd_60d'], built_at: '2025-11-01T14:00:00Z', age_s: 7200, stale_for: [],
+    matches: [{ date: '2025-03-04', similarity: 97.3, distance: 0.03, forward_returns: { fwd_5d: 1.2, fwd_10d: -0.4, fwd_20d: 2.5, fwd_60d: 6.1 }, not_yet: [], measures_then: {} },
+      { date: '2024-10-07', similarity: 91.0, distance: 0.09, forward_returns: { fwd_5d: -0.8, fwd_10d: 1.1, fwd_20d: 3.0, fwd_60d: 4.4 }, not_yet: [], measures_then: {} },
+      { date: '2024-06-14', similarity: 88.5, distance: 0.12, forward_returns: { fwd_5d: 0.5, fwd_10d: 0.9, fwd_20d: -1.0, fwd_60d: 5.0 }, not_yet: [], measures_then: {} }].slice(0, p.rows || 5) } }),
+}
+// wave 13's econ rows: the econ routes' own shape over the registry's real series symbols, made-up meta and figures (2025)
+const W13_T = 1760531400                                                      // 2025-10-15 12:30 UTC, a made-up release time
+const W13_COLS = ['t', 'v', 'ps', 'pe', 'pit']
+const w13Meta = (symbol, frequency, display, fmt, scale, op = null) => ({ symbol, name: `Made-up ${symbol}`, short_name: symbol, frequency, units: { display, fmt, scale },
+  source: { line: 'Source: a made-up agency' }, derivation: op ? { op, inputs: [] } : null })
+const w13Next = (date) => ({ state: 'current', latest_period: null, expected_period: null, next_release: { date, time: '08:30', tz: 'America/New_York', precision: 'exact' } })
+const w13Row = (symbol, meta, points) => ({ symbol, state: 'ok', meta, points, currentness: w13Next('2031-12-10'), retrieved_at: null, read_at: '2025-10-16T21:00:00Z' })
+const w13Monthly = (vals) => vals.map((v, i) => { const m = String(7 + i).padStart(2, '0'); return [W13_T - (vals.length - 1 - i) * 2592000, v, `2025-${m}-01`, `2025-${m}-28`, 0] })
+const w13Weekly = (vals, end) => vals.map((v, i) => { const d = new Date(Date.parse(`${end}T00:00:00Z`) - (vals.length - 1 - i) * 604800000).toISOString().slice(0, 10); return [W13_T - (vals.length - 1 - i) * 604800, v, d, d, 0] })
+function W13_ECON() {
+  const series = ECON_SYMBOLS.map(s => w13Row(s, w13Meta(s, 'M', '%', 'pct1', 1, s.endsWith('MOM') ? 'mom_pct' : s.endsWith('YOY') ? 'yoy_pct' : null), w13Monthly([2.9, 3.1, 3.2])))
+  series[series.findIndex(r => r.symbol === 'USNFPCHG')] = w13Row('USNFPCHG', w13Meta('USNFPCHG', 'M', 'persons', 'k_persons', 1000, 'diff'), w13Monthly([150, 210, 180]))
+  return { columns: W13_COLS, points_per_series: 3, series, attributions: {}, not_held: [] }
+}
+function W13_LIQ() {
+  const usd = (s, f, scale) => w13Meta(s, f, 'USD', 'usd_compact', scale)
+  const fed = w13Weekly(Array.from({ length: 60 }, (_, i) => 6500000 + 2000 * i), '2025-10-15')
+  const tga = w13Weekly(Array.from({ length: 60 }, () => 850000), '2025-10-15')
+  const rrp = w13Weekly(Array.from({ length: 60 }, () => 50000000000), '2025-10-15')
+  const series = LIQ_SYMBOLS.map(s => w13Row(s, w13Meta(s, 'M', '%', 'pct1', 1), w13Monthly([4.0, 4.1, 4.2])))
+  const put = (r) => { series[series.findIndex(x => x.symbol === r.symbol)] = r }
+  put(w13Row('USFEDBAL', usd('USFEDBAL', 'W', 1000000), fed.slice(-3)))
+  put(w13Row('USTGAFED', usd('USTGAFED', 'W', 1000000), tga.slice(-3)))
+  put(w13Row('USRRP', usd('USRRP', 'D', 1), rrp.slice(-3)))
+  const hist = (s, pts) => ({ symbol: s, columns: W13_COLS, points: pts })
+  return { latest: { columns: W13_COLS, points_per_series: 3, series, attributions: {}, not_held: [] },
+    histories: { USFEDBAL: hist('USFEDBAL', fed), USTGAFED: hist('USTGAFED', tga), USRRP: hist('USRRP', rrp), USTGA: null, USSOFR: null },
+    history_days: { USFEDBAL: 790, USTGAFED: 790, USRRP: 790, USTGA: 70, USSOFR: 70 } }
+}
+function W13_OIL() {
+  const bbl = (s) => w13Meta(s, 'W', 'bbl', 'mbbl', 1000)
+  const crude = w13Weekly(Array.from({ length: 60 }, (_, i) => 425000 - 100 * i), '2025-10-10')
+  const series = OIL_SYMBOLS.map(s => w13Row(s, bbl(s), w13Weekly([1000, 1100, 1200], '2025-10-10')))
+  const put = (r) => { series[series.findIndex(x => x.symbol === r.symbol)] = r }
+  put(w13Row('USCRUDEINV', bbl('USCRUDEINV'), crude.slice(-3)))
+  put(w13Row('USCRUDEINVCHG', w13Meta('USCRUDEINVCHG', 'W', 'bbl', 'mbbl', 1000, 'diff'), w13Weekly([-1500, 900, -2300], '2025-10-10')))
+  put(w13Row('USGASPRICE', w13Meta('USGASPRICE', 'W', 'USD/gal', 'usd3', 1), w13Weekly([3.1, 3.12, 3.15], '2025-10-13')))
+  return { latest: { columns: W13_COLS, points_per_series: 3, series, attributions: {}, not_held: [] },
+    histories: Object.fromEntries(OIL_SYMBOLS.map(s => [s, s === 'USCRUDEINV' ? { symbol: s, columns: W13_COLS, points: crude } : null])),
+    history_days: Object.fromEntries(OIL_SYMBOLS.map(s => [s, s === 'USCRUDEINV' ? 790 : 430])) }
 }
 /** Wave 6's made-up calendar months: ten years each, except a month nobody counted (February) and a thin one (March). */
 function SEASON_MONTHS(shift) {
@@ -918,7 +1038,7 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
     if (u === '/api/agent/data' && ['index.quote', 'commodity.quote', 'crypto.quote'].includes(body?.kind)) {
       return json({ contract: 'MD-1.0', kind: body.kind, params_echo: body.params, status: 'refused', freshness: 'unavailable', as_of: null, stale: false, notes: ['no licensed source'], data: null })
     }
-    // terminal data waves 1 to 11 (dark): a SYNTHETIC answer in each kind's own data shape (TERMINAL_DATA above; no market value)
+    // terminal data waves 1 to 13 (dark): a SYNTHETIC answer in each kind's own data shape (TERMINAL_DATA above; no market value)
     if (u === '/api/agent/data' && TERMINAL_DATA[body?.kind]) {
       return json({ contract: 'MD-1.0', kind: body.kind, params_echo: body.params, status: 'ok', freshness: 'periodic', as_of: null, fetched_at: '2026-11-03T16:00:00Z', delay_s: null,
         stale: false, source: 'fixture', coverage: null, notes: [], provider_calls: 0, ...TERMINAL_DATA[body.kind](body.params || {}) })

@@ -18,12 +18,17 @@
 // Worker → page, unsolicited:
 //   {type:'status', role, supported, info}      this worker became the leader (and opened the files)
 //   {type:'event', event:{type:'gen', tf, build}} a new generation of `tf` was committed (any tab)
+// Leader's worker → every page of the site, on a BroadcastChannel of its own (lib/minuteFrames/applied.js):
+//   {type:'minute-applied', day, hhmm, seq, minute}   the feed applied a minute it read AS ITS OWN MINUTE FILE, so
+//                                         that file is in the browser's HTTP cache now. Nothing here reads it; the
+//                                         bar store's page-side minute feed does (data/barStore/minuteFeed.js).
 
 import { createDeviceEngine } from './engine'
 import { createCrossTab } from './crossTab'
 import { createLiveOverlay } from './live'
 import { createLiveFeed } from './liveFeed'
 import { deviceServesTf } from './tfs'
+import { MINUTE_APPLIED_CHANNEL, appliedSignal } from '../../lib/minuteFrames/applied'
 
 /**
  * ⭐ A LONG-LIVED PAGE RE-CHECKS THE SEED (review of #2537, M2). Each page asks for an ingest when it loads, and while
@@ -68,6 +73,19 @@ export function createWorkerCore({ post, locks, makeChannel, makeIO, fetchFn, ta
   let feed = null            // liveFeed.js, the leader's, created on the first 'live' ask
   let overlay = null         // the feed's overlay (live.js)
   let lastManifestAt = -Infinity   // when this leader last asked the manifest (M2)
+  let appliedCh = null       // the "minute applied" channel, opened with the first minute there is to tell
+
+  /** Tell every page of the site that a minute file is in the browser's cache (lib/minuteFrames/applied.js): only for
+   *  a frame the feed read as its own minute file, never for one replayed from today.bin. It changes nothing here: the
+   *  overlay already took the frame (liveFeed `onFrame`), and a channel that cannot be opened or posted to tells nobody. */
+  function _announce(info) {
+    const sig = appliedSignal(info)
+    if (!sig || !makeChannel) return
+    try {
+      if (!appliedCh) appliedCh = makeChannel(MINUTE_APPLIED_CHANNEL)
+      appliedCh?.postMessage(sig)
+    } catch { /* nobody is told: the pages read nothing, as before this message existed */ }
+  }
 
   /** Is any seed file held? The feed is useless without one (and a browser whose storage cannot hold
    *  one, e.g. a private window, must not poll for nothing). */
@@ -90,7 +108,7 @@ export function createWorkerCore({ post, locks, makeChannel, makeIO, fetchFn, ta
       const nameOf = (sym) => engine.seedName(sym)
       overlay = createLiveOverlay({ nameOf })
       engine.attachLive(overlay)
-      feed = createLiveFeed({ overlay, accept: (sym) => !!nameOf(sym), ...liveOpts })
+      feed = createLiveFeed({ overlay, accept: (sym) => !!nameOf(sym), onFrame: _announce, ...liveOpts })
     }
     feed.visible(!!visible)
     _feedCheck()
@@ -204,6 +222,9 @@ export function createWorkerCore({ post, locks, makeChannel, makeIO, fetchFn, ta
     ingesting: () => ingesting,
     /** The leader's live feed (tests). */
     feed: () => feed,
-    close() { xt.close(); try { feed?.stop() } catch { /* gone */ } feed = null; try { engine?.close() } catch { /* gone */ } engine = null },
+    close() {
+      xt.close(); try { feed?.stop() } catch { /* gone */ } feed = null; try { engine?.close() } catch { /* gone */ } engine = null
+      try { appliedCh?.close() } catch { /* gone */ } appliedCh = null
+    },
   }
 }

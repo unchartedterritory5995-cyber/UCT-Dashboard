@@ -18,6 +18,7 @@ import { installFetch, latchWave8Flags, Providers, AUTH, FOLDERS } from './fixtu
 import { axeSurface } from './surface'
 import DocumentPreviewSheet from '../components/notebook/DocumentPreviewSheet'
 import CaptureDialog from '../components/notebook/CaptureDialog'
+import CaptureDialogDoor, { CAPTURE_UNAVAILABLE, captureDialogLoaders } from '../components/notebook/CaptureDialogDoor'
 import CapturedSourceSheet from '../components/notebook/CapturedSourceSheet'
 import ImportWizard from '../components/notebook/import/ImportWizard'
 import TemplatePicker from '../components/notebook/TemplatePicker'
@@ -111,6 +112,20 @@ describe('capture', () => {
     )
     await screen.findByRole('dialog')
     await settle()
+  })
+
+  // The door CaptureHost renders in the dialog's place (first-open bytes, 2026-11-23): the one state with markup of
+  // its own is a chunk that could not load -- the status line, Try again and Close.
+  axeSurface('capture-dialog-unavailable', async () => {
+    const real = captureDialogLoaders.dialog
+    captureDialogLoaders.dialog = () => Promise.reject(new Error('offline'))
+    try {
+      render(<Providers><CaptureDialogDoor open onClose={() => {}} destination={captureDestination({})} /></Providers>)
+      await screen.findByText(CAPTURE_UNAVAILABLE)
+      await settle()
+    } finally {
+      captureDialogLoaders.dialog = real
+    }
   })
 
   axeSurface('captured-source', async () => {

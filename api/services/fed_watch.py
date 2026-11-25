@@ -43,8 +43,8 @@ writes ONE log line, prefix `[fed-watch]`, naming each request's status.
 
 HOW OFTEN (the house pattern of `api/services/treasury_yields.py`): a request NEVER fetches. It
 answers from what this module holds at once and, when something is due, starts ONE background
-build (one at a time, whatever the number of members). With nothing held yet it waits up to
-`WAIT_S` for that build, else the Board's blocks say `computing` and the panel asks again.
+build (one at a time, whatever the number of members). With nothing held yet the Board's blocks say
+`computing` at once (`WAIT_S` is none) and the panel asks again every 3 seconds.
   * each Board feed: at most once per `feed_ttl` (10 minutes on weekdays 07:00-20:00 New York time,
     an hour otherwise), counted from the last ATTEMPT, so a failing feed is not asked more often;
   * a statement page, a projections page, a survey data file: once each, ever (held in memory and
@@ -56,6 +56,21 @@ page and a new survey file the hour each is published, plus one survey page read
 The answer and the pages it was built from are held in this module AND on disk under the data
 directory, so a restart does not start cold. `held_answer` is read-only for a caller that must not
 cause work (the agent, later).
+
+THE REQUEST READS NOTHING ITSELF (speed pass 3, 2026-11-24; live, a first open took 7.1 s and the next one 1.5 s).
+The two blocks that read on the request are served from what this module holds, refreshed off it:
+  * rates      `rates_served`: the block `rates_block` builds (three series through the economics store, which goes
+               to the data bucket whenever its 120 s cache has lapsed, and computes an ETag over each whole series
+               on every call), held here and refreshed by ONE background thread (`RATES_THREAD`) once it is older
+               than that cache's own lifetime. It is kept on disk for its New York day (`rates_v1.json`; a copy for
+               another day, registry, version or shape is never served). A refresh that comes back with fewer
+               figures than the block held for the same day is a failed read: it never replaces the held block and
+               is tried again after `RATES_RETRY_S`. Nothing held yet: the block says `computing`.
+  * headlines  `headlines_served`: the newest outcome of `headlines_block`, run by ONE background pass
+               (`HEADLINES_THREAD`) every `HEADLINE_MIN_S` while requests keep coming (`HEADLINE_WATCH_S`), so the
+               list is as fresh as a request's own pass made it; the pass stops when no one is asking. Nothing held
+               yet: the block says `computing`.
+The other blocks are made from what is held in memory, as before. `warm` (a boot DATE job) starts both.
 
 NOTHING HERE IS A FORECAST BY UCT: the projections are the officials' own, the survey numbers are
 its respondents', and there is no AI and no summary of any Fed text.
@@ -113,7 +128,7 @@ MAX_FEED_BYTES = 1_000_000      # a feed is about 10 kB
 MAX_PAGE_BYTES = 3_000_000      # a statement page is about 85 kB, the projections page about 250 kB
 MAX_FILE_BYTES = 8_000_000      # a survey data file is about 180 kB
 PAUSE_S = 1.0                   # between two requests of one build
-WAIT_S = 3.0                    # the longest a request waits on the build it started
+WAIT_S = 0.0                    # the longest a request waits on the build it started: none (speed pass 2026-11-23)
 KEEP_STATEMENTS = 6
 KEEP_PROJECTIONS = 2
 KEEP_SURVEYS = 2
@@ -121,8 +136,15 @@ HEADLINE_SCAN = 3000            # the newest headlines on the wire the Fed headl
 HEADLINE_MIN_S = 10.0           # the Fed headlines are worked out again at most this often
 CALENDAR_WEEKS_AHEAD = 8        # held calendar weeks looked through for the next meeting
 DISK_VERSION = 1
+RATES_DISK_VERSION = 1
+RATES_RETRY_S = 60.0            # a rates refresh that gave fewer figures than the block held is tried again after this
+HEADLINE_WATCH_S = 90.0         # the headline pass runs while a request came this recently (the panel asks every minute)
+RATES_THREAD = "fed-watch-rates"
+HEADLINES_THREAD = "fed-watch-headlines"
+WARM_BOOT_DELAY_S = 540         # the boot DATE job's offset (api/main.py): past the busy minutes, an offset no other job uses
 
 _lock = threading.Lock()
+_gen = 0                        # bumped by reset_for_tests: a thread started before it writes nothing
 
 
 def _blank_state() -> dict:
@@ -136,6 +158,13 @@ def _blank_state() -> dict:
         "loaded": False,
         "inflight": None,
         "headlines": None,    # (top seq, built at, answer)
+        "rates": None,        # {block, day, servable, checked}: the rates block, refreshed off the request
+        "rates_loaded": False,  # the disk copy has been looked for in this process
+        "rates_retry_at": 0.0,
+        "rates_inflight": None,
+        "headlines_last": None,  # the headline pass's newest outcome (the answer `headlines_block` gave it)
+        "headlines_worker": None,  # the running headline pass's done event
+        "asked_at": 0.0,      # the newest request (the headline pass runs while one came within HEADLINE_WATCH_S)
     }
 
 
@@ -792,9 +821,265 @@ def rates_block() -> dict:
     return {**out, "state": "ok" if any_value else "no_data", "effective": eff, "upper": upper, "lower": lower}
 
 
+# ── the two blocks a request never reads itself (speed pass 3; see the module docstring) ────────
+
+_RATE_KEYS = ("effective", "upper", "lower")
+
+
+def _rates_ttl() -> float:
+    """How long a held rates block stands before a request starts its refresh: the economics serving cache's own
+    lifetime (`econ.serving.TTL`), so the figures are as fresh as they were when each request read them through it."""
+    from api.services.econ import serving
+    return float(serving.TTL)
+
+
+def _rates_servable() -> tuple:
+    """Which of the three series the web build's registry serves: a copy made under another registry is not served."""
+    from api.services import fed_watch_held
+    from api.services.econ import publish as econ_publish
+    return tuple(econ_publish.resolve(symbol) is not None for _name, symbol in fed_watch_held.RATE_SERIES)
+
+
+def _rates_figures(block: Optional[dict]) -> int:
+    block = block if isinstance(block, dict) else {}
+    return sum(1 for k in _RATE_KEYS if isinstance(block.get(k), dict) and block[k].get("value") is not None)
+
+
+def _rates_path() -> Optional[str]:
+    base = _data_dir()
+    return os.path.join(base, "fed_watch", f"rates_v{RATES_DISK_VERSION}.json") if base else None
+
+
+def _rates_shape_ok(block: Any) -> bool:
+    """A block with at least one figure, in exactly the shape `rates_block` builds, with this build's words."""
+    if not isinstance(block, dict) or block.get("state") != "ok":
+        return False
+    if block.get("source") != SOURCE_NYFED or block.get("notice") != NYFED_RATE_NOTICE:
+        return False
+    for k in _RATE_KEYS:
+        p = block.get(k)
+        if not isinstance(p, dict) or set(p) != {"value", "date", "reason"}:
+            return False
+        v = p["value"]
+        if v is not None and (isinstance(v, bool) or not isinstance(v, (int, float))):
+            return False
+    return _rates_figures(block) > 0
+
+
+def _save_rates(held: dict) -> None:
+    """The held block on disk for its New York day. A block without a figure is never written."""
+    path = _rates_path()
+    if not path or not _rates_shape_ok(held.get("block")):
+        return
+    doc = {"v": RATES_DISK_VERSION, "day": held["day"], "servable": list(held["servable"]),
+           "checked": held["checked"], "block": held["block"]}
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        fd, tmp = tempfile.mkstemp(prefix=".fedrates_", suffix=".tmp", dir=os.path.dirname(path))
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                json.dump(doc, fh)
+            os.replace(tmp, path)
+        except Exception:
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+            raise
+    except Exception as exc:  # noqa: BLE001 -- the block is still held in memory
+        _log.warning("[fed-watch] the rates could not be written to disk (%s)", type(exc).__name__)
+
+
+def _load_rates(day: str, servable: tuple) -> Optional[dict]:
+    """The disk copy, only when it is for `day` (New York), this registry, this version and this shape."""
+    path = _rates_path()
+    if not path:
+        return None
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            doc = json.load(fh)
+    except (OSError, ValueError):
+        return None
+    if not isinstance(doc, dict) or doc.get("v") != RATES_DISK_VERSION or doc.get("day") != day:
+        return None
+    if doc.get("servable") != list(servable) or not _rates_shape_ok(doc.get("block")):
+        return None
+    checked = doc.get("checked")
+    checked = float(checked) if isinstance(checked, (int, float)) and not isinstance(checked, bool) else 0.0
+    return {"block": doc["block"], "day": day, "servable": servable, "checked": min(checked, time.time())}
+
+
+def _rates_load_once() -> None:
+    with _lock:
+        if _state["rates_loaded"]:
+            return
+        _state["rates_loaded"] = True
+    got = _load_rates(now_et().date().isoformat(), _rates_servable())
+    if got is not None:
+        with _lock:
+            if _state["rates"] is None:
+                _state["rates"] = got
+
+
+def _rates_refresh_bg(done: threading.Event, gen: int) -> None:
+    """ONE refresh of the rates block, on its own thread: the service's own `rates_block`. A refresh that gives fewer
+    figures than the block held for the same New York day and registry is a failed read (a published figure does not
+    vanish within a day): it never replaces the held block, and is tried again after `RATES_RETRY_S`."""
+    started = time.time()
+    said = "stopped"
+    try:
+        block = rates_block()
+        fresh = {"block": block, "day": now_et().date().isoformat(), "servable": _rates_servable(),
+                 "checked": time.time()}
+        with _lock:
+            if gen != _gen:
+                return
+            held = _state["rates"]
+            worse = (held is not None and held["day"] == fresh["day"] and held["servable"] == fresh["servable"]
+                     and _rates_figures(block) < _rates_figures(held["block"]))
+            if worse:
+                _state["rates_retry_at"] = fresh["checked"] + RATES_RETRY_S
+            else:
+                _state["rates"], _state["rates_retry_at"] = fresh, 0.0
+        if worse:
+            said = f"kept the held block ({_rates_figures(block)} of {_rates_figures(held['block'])} figures read)"
+        else:
+            said = f"{block.get('state')} ({_rates_figures(block)} figures)"
+            _save_rates(fresh)
+    except Exception as exc:  # noqa: BLE001 -- the held block stands; tried again after RATES_RETRY_S
+        with _lock:
+            if gen == _gen:
+                _state["rates_retry_at"] = time.time() + RATES_RETRY_S
+        said = f"failed ({type(exc).__name__})"
+    finally:
+        _log.info("[fed-watch] rates: %s; %.2fs", said, time.time() - started)
+        with _lock:
+            if _state.get("rates_inflight") is done:
+                _state["rates_inflight"] = None
+        done.set()
+
+
+def _start_rates() -> threading.Event:
+    with _lock:
+        done = _state["rates_inflight"]
+        if done is None:
+            done = _state["rates_inflight"] = threading.Event()
+            threading.Thread(target=_rates_refresh_bg, args=(done, _gen), daemon=True, name=RATES_THREAD).start()
+        return done
+
+
+def _rates_due(now: float) -> bool:
+    with _lock:
+        held, retry_at = _state["rates"], _state["rates_retry_at"]
+    return now >= retry_at and (held is None or now - held["checked"] >= _rates_ttl())
+
+
+def rates_served() -> dict:
+    """The rates block a request gets, AT ONCE: with the economics feature off, the service's own switched-off block
+    (no read); else the block held here (or its disk copy for today), starting ONE background refresh once it is older
+    than the serving cache's lifetime; with nothing held yet, `computing`. Never reads a series itself."""
+    if os.environ.get("ECON_ENABLED", "0") != "1":
+        return rates_block()
+    _rates_load_once()
+    if _rates_due(time.time()):
+        _start_rates()
+    with _lock:
+        held = _state["rates"]
+    if held is not None:
+        return held["block"]
+    blank = {"value": None, "date": None, "reason": "computing"}
+    return {"source": SOURCE_NYFED, "notice": NYFED_RATE_NOTICE, "state": "computing",
+            "effective": dict(blank), "upper": dict(blank), "lower": dict(blank)}
+
+
+def _headline_pause(seconds: float) -> None:
+    time.sleep(seconds)
+
+
+def _headlines_pass(done: threading.Event, gen: int) -> None:
+    """The headline pass (see `headlines_served`): `headlines_block` itself, which reads the store only when the wire
+    has moved and `HEADLINE_MIN_S` has passed, every `HEADLINE_MIN_S`; it stops once no request has come for
+    `HEADLINE_WATCH_S`."""
+    try:
+        while True:
+            try:
+                answer = headlines_block()
+            except Exception:  # noqa: BLE001 -- said as the block does: a store that fails is failed
+                answer = {"source": SOURCE_TX, "items": [], "state": "failed"}
+            with _lock:
+                if gen != _gen:
+                    return
+                _state["headlines_last"] = answer
+                if time.time() - _state["asked_at"] >= HEADLINE_WATCH_S:
+                    if _state["headlines_worker"] is done:
+                        _state["headlines_worker"] = None
+                    return
+            _headline_pause(HEADLINE_MIN_S)
+    finally:
+        with _lock:
+            if _state.get("headlines_worker") is done:
+                _state["headlines_worker"] = None
+        done.set()
+
+
+def _start_headlines() -> None:
+    with _lock:
+        if _state["headlines_worker"] is None:
+            done = _state["headlines_worker"] = threading.Event()
+            threading.Thread(target=_headlines_pass, args=(done, _gen), daemon=True, name=HEADLINES_THREAD).start()
+
+
+def headlines_served() -> dict:
+    """The Fed headlines a request gets, AT ONCE: the wire's switch states as `headlines_block` says them; else the
+    newest outcome of the headline pass (ONE background thread, `HEADLINES_THREAD`, which runs every `HEADLINE_MIN_S`
+    while requests keep coming and so keeps the list as fresh as a request's own pass made it); with no pass finished
+    yet, `computing`. Never reads the store itself."""
+    out: dict[str, Any] = {"source": SOURCE_TX, "items": []}
+    try:
+        from api.services.trade_exchange_news import config as txn_config
+        from api.services.trade_exchange_news import pipeline as txn_pipeline
+    except Exception:  # noqa: BLE001
+        return {**out, "state": "failed"}
+    if not txn_config.enabled():
+        return {**out, "state": "off"}
+    if txn_pipeline.get() is None:
+        return {**out, "state": "not_started"}
+    with _lock:
+        _state["asked_at"] = time.time()
+        last = _state["headlines_last"]
+    _start_headlines()
+    return last if last is not None else {**out, "state": "computing"}
+
+
+def warm() -> str:
+    """Boot (a DATE job in `api/main.py`, past the boot's busy minutes): start the rates refresh and one headline pass,
+    so the first member after a deploy gets both at once. Reads only what a request's blocks read (the economics
+    store, the news store), never the Board or the New York Fed. A no-op for a block already held and fresh."""
+    said = []
+    if os.environ.get("ECON_ENABLED", "0") == "1":
+        _rates_load_once()
+        if _rates_due(time.time()):
+            _start_rates()
+            said.append("rates")
+    try:
+        from api.services.trade_exchange_news import config as txn_config
+        from api.services.trade_exchange_news import pipeline as txn_pipeline
+        wire = txn_config.enabled() and txn_pipeline.get() is not None
+    except Exception:  # noqa: BLE001
+        wire = False
+    with _lock:
+        cold = _state["headlines_last"] is None
+    if wire and cold:
+        _start_headlines()                     # no request is counted: the pass runs once and stops
+        said.append("headlines")
+    return " ".join(said) or "warm"
+
+
 # ── the answer ───────────────────────────────────────────────────────────────────────────────
 
-def _assemble(computing: bool) -> dict:
+def _assemble(computing: bool, *, rates: Optional[dict] = None, headlines: Optional[dict] = None) -> dict:
+    """The answer from what is held. `rates` / `headlines`: the blocks a request is served (`rates_served`,
+    `headlines_served`); without them the blocks are read here, as `held_answer` reads them."""
     today = now_et().date()
     with _lock:
         statement = statement_block(computing)
@@ -807,9 +1092,9 @@ def _assemble(computing: bool) -> dict:
         "status": "ok",
         "statement": statement,
         "speeches": speeches,
-        "headlines": headlines_block(),
+        "headlines": headlines_block() if headlines is None else headlines,
         "calendar": calendar_block(today, extract),
-        "rates": rates_block(),
+        "rates": rates_block() if rates is None else rates,
         "projections": projections,
         "survey": survey,
         "board_cite": BOARD_CITE,
@@ -825,9 +1110,10 @@ def held_answer() -> tuple[dict, str]:
 
 
 def get_fed_watch(*, wait_s: Optional[float] = None) -> dict:
-    """The Fed watch answer (see the module docstring). NEVER fetches on the caller's thread: with
-    something due it starts the one background build and answers at once from what is held; with
-    the Board's feeds never read it waits up to `WAIT_S` for that build first."""
+    """The Fed watch answer (see the module docstring). NEVER fetches or reads a store on the caller's
+    thread: with something due it starts the one background build and answers at once from what is
+    held (the rates and the headlines included, `rates_served` / `headlines_served`); with the Board's
+    feeds never read it waits up to `WAIT_S` for that build first."""
     _ensure_loaded()
     if refresh_due():
         done = _start_job()
@@ -835,12 +1121,14 @@ def get_fed_watch(*, wait_s: Optional[float] = None) -> dict:
             done.wait(WAIT_S if wait_s is None else wait_s)
     with _lock:
         running = _state["inflight"] is not None
-    return _assemble(running)
+    return _assemble(running, rates=rates_served(), headlines=headlines_served())
 
 
 def reset_for_tests() -> None:
-    """Tests only: forget everything this module holds."""
+    """Tests only: forget everything this module holds (a thread started before this writes nothing)."""
+    global _gen
     with _lock:
         _state.clear()
         _state.update(_blank_state())
+        _gen += 1
     _REDLINES.clear()

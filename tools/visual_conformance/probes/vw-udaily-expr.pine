@@ -1,0 +1,6 @@
+//@version=6
+indicator("vw-udaily-expr", overlay = false)
+plot(request.security(syminfo.tickerid, "D", ta.sma(close, 50)), "D01 sma50 la-off")
+plot(request.security(syminfo.tickerid, "D", ta.highest(high, 20)), "D02 highest20 la-off")
+plot(request.security(syminfo.tickerid, "D", high[1], lookahead = barmerge.lookahead_on), "D03 high[1] la-on")
+plot(request.security(syminfo.tickerid, "D", ta.ema(close, 21)), "D04 ema21 la-off (stateful probe)")
