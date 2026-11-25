@@ -5,8 +5,9 @@
 // docs/pine/evidence/2026-11-20-paste-worker/EVIDENCE.md. What a worker posts to the page is received on the page's main
 // thread, and receiving is not free: #2254's first trace spent up to 1.2 s receiving one heavy script's report (62.5 MB
 // of structured clone) and 0.8 s its door answer (47.8 MB). The page is now sent what it reads (`inspectView.js`, the
-// hub in `inspectAsync.js`). This measures, in the structured-clone wire format (`v8.serialize`, what `postMessage`
-// writes), every kind of message a paste sends the page, for the heaviest committed scripts, against a budget per kind.
+// hub in `inspectAsync.js`). This measures, in the structured-clone wire format (what `postMessage` writes, counted by
+// `testing/builder/wireBytes.js` so the count is the same on every Node), every kind of message a paste sends the page,
+// for the heaviest committed scripts, against a budget per kind.
 //
 // ⛔ EVERY BUDGET CAN FAIL: for each kind, what the page would have been sent before (the full report; the full door
 // answer; for the status, both, which it was computed from on the page; for a Use, the full report the program rode in)
@@ -14,7 +15,8 @@
 //
 // ⭐ The two scripts of #2254's trace (A, B) are licence-held and cannot be committed: their budgets are measured by the
 // same code on the developer's box, `PASTE_BYTES_LOCAL` (a JSON list of `{name, path, budgets}`), and recorded in the
-// evidence; in CI this half has nothing to read and says so.
+// evidence; in CI this half has nothing to read and says so. ⭐ e98 P2: those budgets are `wireBytes` too now; the
+// evidence's figures were `v8.serialize` lengths on Node 24, re-measure before relying on them.
 import { describe, it, expect, vi, beforeAll } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -29,11 +31,15 @@ import { importWorkerCore, fakeChannel } from '../../../../testing/builder/membe
 const REPO = path.resolve(__dirname, '../../../../../..')
 
 /** Bytes per kind of message to the page, for every committed script here. */
+// ⭐ e98 P2 — the budgets are unchanged and keep their meaning: about 15-20% over the heaviest committed script's message of
+// each kind, and under what the page was sent before on at least one script (the control below). Re-derived from the CI
+// run of 2026-11-25 (Node 20.20.2, run 45705397715) in `wireBytes`, which read the SAME bytes on Node 24.13.1 for every
+// script and kind (the v8.serialize lengths moved up to 18.7%: artemis door 833,818 on Node 20 vs 702,460 on Node 24).
 const PAGE_BYTES_BUDGET = Object.freeze({
-  report: 640 * 1024,   // PasteBox's report (heaviest committed: twin-range-filter, 553 KB, its read-backs and placements)
-  door: 896 * 1024,     // the chart door's answer (twin-range-filter, 761 KB: the definition and rows the pane draws)
-  status: 64 * 1024,    // the editor status panel's status (chart-champions, 31 KB)
-  use: 512 * 1024,      // a Use's object program (artemis-oscillator-pro, 395 KB)
+  report: 640 * 1024,   // PasteBox's report (heaviest committed: twin-range-filter, 552,937 B; before 1,500,065)
+  door: 896 * 1024,     // the chart door's answer (twin-range-filter, 759,284 B; before 1,009,242)
+  status: 64 * 1024,    // the editor status panel's status (chart-champions, 31,160 B; before 2,509,307 on twin-range)
+  use: 512 * 1024,      // a Use's object program (artemis-oscillator-pro, 391,105 B; before 1,500,065 on twin-range)
 })
 
 const COMMITTED = [

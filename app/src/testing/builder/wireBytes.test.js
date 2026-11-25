@@ -56,3 +56,30 @@ describe('wireBytes — the wire format, counted by hand', () => {
     expect(() => wireBytes([Symbol('s')])).toThrow(/a symbol cannot be posted/)
   })
 })
+
+// ⛔ THE DOOR-BYTES RAIL ASSERTS ON `wireBytes`, NEVER ON `v8.serialize` (whose length is the running V8's). Read with
+// comments stripped, so a sentence that names `v8.serialize` is not a use of it; the control proves the scan can fail.
+describe('memberDoorBytes.test.js measures with wireBytes', () => {
+  const codeOf = (src) => src.replace(/\/\*[\s\S]*?\*\//g, '').split('\n').map((l) => l.replace(/(^|[^:'"`])\/\/.*$/, '$1')).join('\n')
+  const usesV8ForBudget = (code) => {
+    const size = /const size = \(v\) => ([^\n]+)/.exec(code)
+    return !size || /v8\.serialize/.test(size[1]) || !/wireBytes\(v\)/.test(size[1])
+  }
+  it('`size` is wireBytes, and v8.serialize feeds only the logged `v8size`', async () => {
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const src = fs.readFileSync(path.resolve(__dirname, '../../components/chart/builder/memberPane/memberDoorBytes.test.js'), 'utf8')
+    const code = codeOf(src)
+    expect(usesV8ForBudget(code)).toBe(false)
+    const v8Uses = code.split('\n').filter((l) => /v8\.serialize/.test(l))
+    expect(v8Uses).toEqual(['const v8size = (v) => v8.serialize(v).length'])
+    const v8sizeLines = code.split('\n').filter((l) => /\bv8size\b/.test(l) && !/^const v8size = /.test(l))
+    expect(v8sizeLines.length, 'non-vacuous: v8size is read').toBeGreaterThan(0)
+    for (const l of v8sizeLines) expect(l.trim(), 'v8size is only the logged `v8` record').toMatch(/^v8: \{/)
+  })
+  it('CONTROL: the scan reads a v8 measure as one, and a commented-out wireBytes as none', () => {
+    expect(usesV8ForBudget('const size = (v) => v8.serialize(v).length\n')).toBe(true)
+    expect(usesV8ForBudget(codeOf('// const size = (v) => wireBytes(v)\n'))).toBe(true)
+    expect(usesV8ForBudget(codeOf('const size = (v) => wireBytes(v)\n'))).toBe(false)
+  })
+})
