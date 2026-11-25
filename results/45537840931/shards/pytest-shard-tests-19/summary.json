@@ -1,0 +1,15 @@
+{
+  "suite": "pytest",
+  "collected": 3456,
+  "passed": 3455,
+  "failed": 1,
+  "errored": 0,
+  "skipped": 0,
+  "wall_s": 615.0,
+  "failed_files": [
+    "tests/test_rs_screens_u9_harness_computed.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "1 failed, 3455 passed, 3 xfailed, 6 warnings in 615.00s (0:10:15)",
+  "ok": true
+}

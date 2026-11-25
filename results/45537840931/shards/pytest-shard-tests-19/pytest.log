@@ -1,0 +1,144 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  2%]
+........................................................................ [  4%]
+........................................................................ [  6%]
+........................................................................ [  8%]
+........................................................................ [ 10%]
+........................................................................ [ 12%]
+........................................................................ [ 14%]
+........................................................................ [ 16%]
+........................................................................ [ 18%]
+........................................................................ [ 20%]
+........................................................................ [ 22%]
+........................................................................ [ 24%]
+........................................................................ [ 27%]
+........................................................................ [ 29%]
+........................................................................ [ 31%]
+........................................................................ [ 33%]
+........................................................................ [ 35%]
+........................................................................ [ 37%]
+........................................................................ [ 39%]
+........................................................................ [ 41%]
+........................................................................ [ 43%]
+........................................................................ [ 45%]
+........................................................................ [ 47%]
+..x..x.x................................................................ [ 49%]
+........................................................................ [ 52%]
+........................................................................ [ 54%]
+........................................................................ [ 56%]
+........................................................................ [ 58%]
+........................................................................ [ 60%]
+........................................................................ [ 62%]
+........................................................................ [ 64%]
+........................................................................ [ 66%]
+........................................................................ [ 68%]
+........................................................................ [ 70%]
+........................................................................ [ 72%]
+........................................................................ [ 74%]
+........................................................................ [ 77%]
+........................................................................ [ 79%]
+........................................................................ [ 81%]
+.....................F.................................................. [ 83%]
+........................................................................ [ 85%]
+........................................................................ [ 87%]
+........................................................................ [ 89%]
+........................................................................ [ 91%]
+........................................................................ [ 93%]
+........................................................................ [ 95%]
+........................................................................ [ 97%]
+........................................................................ [ 99%]
+...                                                                      [100%]
+=================================== FAILURES ===================================
+___ test_a_computed_run_opens_three_databases_read_only_and_writes_only_out ____
+
+rated = {'bars': PosixPath('/tmp/pytest-of-runner/pytest-0/rated0/bars.db'), 'dir': PosixPath('/tmp/pytest-of-runner/pytest-0/...RKK', 'BBJP', 'BIL', 'BITO', ...}, 'industry': PosixPath('/tmp/pytest-of-runner/pytest-0/rated0/industry_map.db'), ...}
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_a_computed_run_opens_thre0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7da7beaa9f40>
+capsys = <_pytest.capture.CaptureFixture object at 0x7da7beaabc50>
+
+    def test_a_computed_run_opens_three_databases_read_only_and_writes_only_out(rated, tmp_path, monkeypatch, capsys):
+        paths = [rated["bars"], rated["screener"], rated["industry"]]
+        before = {p: _sha(p) for p in paths}
+        listing = sorted(p.name for p in rated["dir"].iterdir())
+        out = tmp_path / "result.json"
+        opened, written = [], []
+        real_connect, real_open = sqlite3.connect, builtins.open
+    
+        def _connect(database, *a, **k):
+            opened.append((str(database), k.get("uri", False)))
+            return real_connect(database, *a, **k)
+    
+        def _open(file, mode="r", *a, **k):
+            if any(c in str(mode) for c in "wax+"):
+                written.append(str(file))
+            return real_open(file, mode, *a, **k)
+        monkeypatch.setattr(sqlite3, "connect", _connect)
+        monkeypatch.setattr(builtins, "open", _open)
+        code = cli.main(["--bars-db", str(paths[0]), "--screener-db", str(paths[1]), "--industry-db", str(paths[2]),
+                         "--out", str(out), "--unlock-holdout"])
+        monkeypatch.undo()
+        assert code in (0, 1)
+>       assert len(opened) == 3, opened
+E       AssertionError: [('file:///tmp/pytest-of-runner/pytest-0/rated0/bars.db?mode=ro', True), ('file:///tmp/pytest-of-runner/pytest-0/rated...p/pytest-of-runner/pytest-0/rated0/industry_map.db?mode=ro', True), ('/tmp/uct_tests_datadir_0c3df99e/flow.db', False)]
+E       assert 4 == 3
+E        +  where 4 = len([('file:///tmp/pytest-of-runner/pytest-0/rated0/bars.db?mode=ro', True), ('file:///tmp/pytest-of-runner/pytest-0/rated...p/pytest-of-runner/pytest-0/rated0/industry_map.db?mode=ro', True), ('/tmp/uct_tests_datadir_0c3df99e/flow.db', False)])
+
+tests/test_rs_screens_u9_harness_computed.py:649: AssertionError
+----------------------------- Captured stdout call -----------------------------
+==============================================================================
+HOLDOUT UNLOCKED. This run READS the newest 252 sessions, which the test
+holds back so its rules cannot be fitted to them. A holdout is read once.
+==============================================================================
+Ratings: computed from daily bars for each formation date.
+Development sessions: 96 (2020-05-20 to 2020-09-30).
+Holdout: the newest 252 sessions (2020-10-01 to 2021-09-17), READ in this run.
+Formation dates: 19 in development (2020-05-25 to the holdout), spanning 4 non-overlapping 21-session windows; 50 in the holdout (10 windows).
+==============================================================================
+HOLDOUT UNLOCKED. This run READS the newest 252 sessions, which the test
+holds back so its rules cannot be fitted to them. A holdout is read once.
+==============================================================================
+Leader score test (pre-registered 2026-11-14)
+HOLDOUT UNLOCKED: the newest 252 sessions were read in this run.
+Development data: 0 formation dates used of 19 (2020-05-25 to 2020-09-28).
+Ratings: computed from daily bars for each formation date, with the rating job's own functions.
+Ratings cross-check: 100.0% of 124 stocks have the stored rating on 2021-09-17 (70 sessions compared).
+FAIL  1. Top minus bottom quintile at 21 sessions is positive and its 90% interval excludes zero: n/a points, interval not formed, N = 0 non-overlapping windows. (fewer than 13 formation dates: no interval can be formed)
+FAIL  2. Positive in at least 3 of the 4 most recent years: 0 positive (none). (needs 4 calendar years with 20+ formation dates, found 0)
+FAIL  3. Quintile means in order: Spearman n/a (needs 0.8 or more).
+FAIL  4. Same sign in the holdout: n/a points over 0 formation dates.
+VERDICT: FAIL
+Universe as held: stocks that later delisted are missing, which flatters every number here.
+----------------------------- Captured stderr call -----------------------------
+reading every rankable symbol for 69 formation dates
+  25 of 69 formation dates rated
+  50 of 69 formation dates rated
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_rollout.py::test_the_prefix_is_declared_once
+tests/test_rollout.py::test_role_user_ids_is_read_by_tests_only
+tests/test_rs_screens_u10_owner_only.py::test_the_gate_is_still_one_the_ledger_index_can_see
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+tests/test_rs_screens_u10_owner_only.py::test_the_gate_is_still_one_the_ledger_index_can_see
+  <unknown>:7: SyntaxWarning: invalid escape sequence '\d'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+XFAIL tests/test_rs_phase3_parity.py::test_clenow_shipped_figure_is_not_the_page_figure_raw - convention, measured: the page annualises over 260 bars and the product over 252, so the shipped clenowAnnual on the page's inputs is 13.42 %, 3.3 % below its 13.88 %. Strict, so changing the exponent turns this red for a review
+XFAIL tests/test_rs_phase3_parity.py::test_vars_matches_the_published_sign_changes - OANDA publishes its VARS only as chart images: no dated zero-line crossings and no price series as text (rs_parity_vars.json `not_published`), so its sign changes cannot be reproduced
+XFAIL tests/test_rs_phase3_parity.py::test_rrg_quadrant_agreement_with_stockcharts - awaiting owner StockCharts readings
+FAILED tests/test_rs_screens_u9_harness_computed.py::test_a_computed_run_opens_three_databases_read_only_and_writes_only_out - AssertionError: [('file:///tmp/pytest-of-runner/pytest-0/rated0/bars.db?mode=ro', True), ('file:///tmp/pytest-of-runner/pytest-0/rated...p/pytest-of-runner/pytest-0/rated0/industry_map.db?mode=ro', True), ('/tmp/uct_tests_datadir_0c3df99e/flow.db', False)]
+assert 4 == 3
+ +  where 4 = len([('file:///tmp/pytest-of-runner/pytest-0/rated0/bars.db?mode=ro', True), ('file:///tmp/pytest-of-runner/pytest-0/rated...p/pytest-of-runner/pytest-0/rated0/industry_map.db?mode=ro', True), ('/tmp/uct_tests_datadir_0c3df99e/flow.db', False)])
+1 failed, 3455 passed, 3 xfailed, 6 warnings in 615.00s (0:10:15)

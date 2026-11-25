@@ -1,0 +1,39 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  7%]
+........................................................................ [ 14%]
+........................................................................ [ 21%]
+........................................................................ [ 28%]
+........................................................................ [ 35%]
+........................................................................ [ 42%]
+........................................................................ [ 49%]
+........................................................................ [ 56%]
+........................................................................ [ 64%]
+........................................................................ [ 71%]
+........................................................................ [ 78%]
+........................................................................ [ 85%]
+........................................................................ [ 92%]
+........................................................................ [ 99%]
+....                                                                     [100%]
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+tests/test_uct_agent_v2_cost_measure.py::test_the_flagship_worst_case_is_over_the_cap_and_may_not_grow_while_v2_is_off
+  tests/test_uct_agent_v2_cost_measure.py:97: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    def test_the_flagship_worst_case_is_over_the_cap_and_may_not_grow_while_v2_is_off(record_property):
+
+tests/test_uct_agent_v2_cost_measure.py::test_the_flagship_worst_case_is_over_the_cap_and_may_not_grow_while_v2_is_off
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_uct_agent_v2_cost_measure.py:114: UserWarning: planner v2 flagship worst case $0.3641 is over the $0.25 cap: v2 cannot be enabled until an owner decision
+    warnings.warn(f"planner v2 flagship worst case ${r['worst_turn_usd']:.4f} is over the ${v2.DEFAULT_TURN_USD} cap: "
+
+tests/test_user_definition_edit_forget.py::test_forget_has_a_PRODUCTION_call_site_and_it_is_the_write_path
+tests/test_user_definition_edit_forget.py::test_user_value_functions_docstring_claim_about_forget_is_TRUE_now
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+1012 passed, 5 warnings in 270.58s (0:04:30)

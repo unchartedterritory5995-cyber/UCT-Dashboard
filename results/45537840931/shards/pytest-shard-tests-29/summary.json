@@ -1,0 +1,15 @@
+{
+  "suite": "pytest",
+  "collected": 1797,
+  "passed": 1796,
+  "failed": 1,
+  "errored": 0,
+  "skipped": 0,
+  "wall_s": 383.82,
+  "failed_files": [
+    "tests/test_vendor_callsite_census.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "1 failed, 1796 passed, 288 warnings in 383.82s (0:06:23)",
+  "ok": true
+}

@@ -1,0 +1,118 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  5%]
+........................................................................ [ 11%]
+.......................................s........................[activity] Failed to log j2:notebook_ai_actions_planned for u1: FOREIGN KEY constraint failed
+........ [ 16%]
+........................................................................ [ 22%]
+........................................................................ [ 27%]
+...............................ss....................................... [ 33%]
+.s...................................................................... [ 38%]
+........................................................................ [ 44%]
+........................................................................ [ 49%]
+........................................................................ [ 55%]
+........................................................................ [ 60%]
+........................................................................ [ 66%]
+........................................................................ [ 71%]
+........................................................................ [ 77%]
+........................................................................ [ 82%]
+..................................................s..................... [ 88%]
+........................................................................ [ 94%]
+........................................................................ [ 99%]
+......                                                                   [100%]
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_note_sync_router.py::test_start_initial_sync_never_raises_into_a_successful_connect
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/routers/note_sync.py:610: RuntimeWarning: coroutine '_start_initial_sync.<locals>._run' was never awaited
+    log.warning("[note_sync] no event loop; initial sync for %s deferred to the scheduler", source_id)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_notebook_body_order.py::test_every_converted_route_has_a_request_body_schema_in_the_api_docs
+tests/test_notebook_body_order.py::test_documenting_the_bodies_changes_nothing_about_how_a_request_is_handled
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/fastapi/openapi/utils.py:225: UserWarning: Duplicate Operation ID chart_markers_endpoint_api_chart_markers__ticker__get for function chart_markers_endpoint at /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/routers/earnings.py
+    warnings.warn(message, stacklevel=1)
+
+tests/test_notebook_body_order.py::test_every_converted_route_has_a_request_body_schema_in_the_api_docs
+tests/test_notebook_body_order.py::test_documenting_the_bodies_changes_nothing_about_how_a_request_is_handled
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/fastapi/openapi/utils.py:225: UserWarning: Duplicate Operation ID test_discord_post_api_live_test_discord_post_get for function test_discord_post at /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/liveflow_router.py
+    warnings.warn(message, stacklevel=1)
+
+tests/test_notebook_body_order.py::test_every_converted_route_has_a_request_body_schema_in_the_api_docs
+tests/test_notebook_body_order.py::test_documenting_the_bodies_changes_nothing_about_how_a_request_is_handled
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/fastapi/openapi/utils.py:225: UserWarning: Duplicate Operation ID admin_clear_before_date_api_live_admin_clear_before_date_get for function admin_clear_before_date at /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/liveflow_router.py
+    warnings.warn(message, stacklevel=1)
+
+tests/test_notebook_campaign_clock.py::test_every_spelling_in_scope_is_shifted_and_out_of_scope_is_not
+  /tmp/pytest-of-runner/pytest-0/test_every_spelling_in_scope_i0/clockprobe_pkg/early.py:11: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return {"now_utc": datetime.now(timezone.utc), "naive": datetime.now(), "utcnow": datetime.utcnow(),
+
+tests/test_notebook_campaign_clock.py::test_every_spelling_in_scope_is_shifted_and_out_of_scope_is_not
+  /tmp/pytest-of-runner/pytest-0/test_every_spelling_in_scope_i0/clockprobe_pkg/late.py:11: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return {"now_utc": datetime.now(timezone.utc), "naive": datetime.now(), "utcnow": datetime.utcnow(),
+
+tests/test_notebook_campaign_clock.py::test_w11_clock_rail_only_the_launcher_arms_the_shift
+tests/test_notebook_door_guard_flag.py::test_the_flag_INDEX_can_see_it
+tests/test_notebook_flag_parse.py::test_NO_notebook_flag_is_read_outside_the_one_parse
+tests/test_notebook_flag_parse.py::test_every_flag_on_call_names_a_payload_flag
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+tests/test_notebook_campaign_clock.py::test_w11_clock_rail_only_the_launcher_arms_the_shift
+tests/test_notebook_campaign_clock.py::test_control_the_arming_scan_finds_the_launchers_own_sites
+tests/test_notebook_flag_parse.py::test_NO_notebook_flag_is_read_outside_the_one_parse
+tests/test_notebook_flag_parse.py::test_every_flag_on_call_names_a_payload_flag
+  <unknown>:7: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_notebook_campaign_tooling.py::test_c2_a_use_that_needs_answers_without_a_preview_or_a_value_sends_nothing
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/_pytest/threadexception.py:82: PytestUnhandledThreadExceptionWarning: Exception in thread Thread-495 (process_request_thread)
+  
+  Traceback (most recent call last):
+    File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py", line 1075, in _bootstrap_inner
+      self.run()
+    File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py", line 1012, in run
+      self._target(*self._args, **self._kwargs)
+    File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/socketserver.py", line 697, in process_request_thread
+      self.finish_request(request, client_address)
+    File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/socketserver.py", line 362, in finish_request
+      self.RequestHandlerClass(request, client_address, self)
+    File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/socketserver.py", line 766, in __init__
+      self.handle()
+    File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/http/server.py", line 440, in handle
+      self.handle_one_request()
+    File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/http/server.py", line 428, in handle_one_request
+      method()
+    File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_notebook_campaign_tooling.py", line 466, in _do
+      status, obj = stub.answer(self.command, self.path, dict(self.headers), body)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_notebook_campaign_tooling.py", line 860, in a
+      return answer(method, path, headers, body)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_notebook_campaign_tooling.py", line 890, in <lambda>
+      lib_two(stub, lambda *a: pytest.fail("a Use was sent"))
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/_pytest/outcomes.py", line 178, in fail
+      raise Failed(msg=reason, pytrace=pytrace)
+  Failed: a Use was sent
+  
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_notebook_fin_walk_followup_group.py:25: tools/notebook_fin_walk.py loads playwright when imported (through the walk modules it imports); CI installs no browser stack
+SKIPPED [1] tests/test_notebook_fin_walk_page_layouts_group.py:25: tools/notebook_fin_walk.py loads playwright when imported (through the walk modules it imports); CI installs no browser stack
+SKIPPED [1] tests/test_notebook_fin_walk_prep_gap.py:23: tools/notebook_fin_walk_features.py loads playwright when imported (through the walk modules it imports); CI installs no browser stack
+SKIPPED [1] tests/test_note_upload_doors_media_policy.py:127: pi_heif is installed
+SKIPPED [2] tests/test_notebook_campaign_clock.py:71: a case-folded or deeper backslash spelling of the shared root is a Windows path; on POSIX it is a relative file name
+SKIPPED [1] tests/test_notebook_campaign_clock.py:481: junctions are a Windows reparse point
+SKIPPED [1] tests/test_notebook_fin_walk_followups.py:67: notebook_fin_walk_features imports playwright; CI installs no browser stack (remote runs 44307082879, 44308065971: every test here errored on the import)
+1297 passed, 8 skipped, 20 warnings in 390.89s (0:06:30)

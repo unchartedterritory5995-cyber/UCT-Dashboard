@@ -1,0 +1,147 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  1%]
+........................................................................ [  3%]
+........................................................................ [  5%]
+........................................................................ [  6%]
+........................................................................ [  8%]
+........................................................................ [ 10%]
+........................................................................ [ 11%]
+........................................................................ [ 13%]
+........................................................................ [ 15%]
+........................................................................ [ 16%]
+........................................................................ [ 18%]
+........................................................................ [ 20%]
+........................................................................ [ 21%]
+.......s................................................................ [ 23%]
+........................................................................ [ 25%]
+........................................................................ [ 26%]
+........................................................................ [ 28%]
+............................................................s........... [ 30%]
+........................................................................ [ 31%]
+........................................................................ [ 33%]
+........................................................................ [ 35%]
+........................................................................ [ 36%]
+......................s................................................. [ 38%]
+........................................................................ [ 40%]
+........................................................................ [ 41%]
+........................................................................ [ 43%]
+........................................................................ [ 45%]
+........................................................................ [ 46%]
+........................................................................ [ 48%]
+........................................................................ [ 50%]
+........................................................................ [ 51%]
+........................................................................ [ 53%]
+........................................................................ [ 55%]
+........................................................................ [ 56%]
+........................................................................ [ 58%]
+........................................................................ [ 60%]
+........................................................................ [ 61%]
+........................................................................ [ 63%]
+..................................................s..................... [ 65%]
+................sss..................................................... [ 66%]
+..s........................................................s............ [ 68%]
+........................................................................ [ 70%]
+......................................s................................. [ 71%]
+...........s............................................................ [ 73%]
+..............................................s......................... [ 75%]
+........................................................................ [ 76%]
+........................................................................ [ 78%]
+........................................................................ [ 80%]
+........................................................................ [ 81%]
+........................................................................ [ 83%]
+........................................................................ [ 85%]
+........................................................................ [ 86%]
+.................................................s...................... [ 88%]
+........................................................................ [ 90%]
+........................................................................ [ 91%]
+........................................................................ [ 93%]
+........................................................................ [ 95%]
+........................................................................ [ 96%]
+........................................................................ [ 98%]
+............................................................             [100%]
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_wisdom_bans.py:627
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_wisdom_bans.py:627: SyntaxWarning: invalid escape sequence '\w'
+    `\w*journal`) would silently exempt every real reference that shares a line with a
+
+tests/test_widget_embed_builders_declared_attrs.py::test_every_server_widget_embed_builder_writes_only_declared_attributes
+tests/test_yf_guard_binds.py::test_every_yfinance_module_has_a_binding_proof_or_a_named_reason
+  api/services/journal_two/note_connectors/providers/obsidian.py:964: SyntaxWarning: invalid escape sequence '\`'
+    taken off, cut at the first `?` or `#`, percent-decoded ONCE and every `\` read as `/`
+
+tests/test_wisdom_bans.py::test_the_rails_import_only_the_standard_library[tests/test_wisdom_bans.py]
+  <unknown>:627: SyntaxWarning: invalid escape sequence '\w'
+
+tests/test_wisdom_type_gating_audit.py::test_every_door_into_the_wisdom_package_from_outside_it_is_declared
+tests/test_wisdom_type_gating_audit.py::test_the_door_census_can_actually_see_a_door
+tests/test_wisdom_type_gating_audit.py::test_every_declared_sub_door_is_real_and_names_a_member_visible_gate
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+tests/test_worker_uploader_independent.py: 11 warnings
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/_pytest/threadexception.py:82: PytestUnhandledThreadExceptionWarning: Exception in thread s3_upload
+  
+  Traceback (most recent call last):
+    File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py", line 1075, in _bootstrap_inner
+      self.run()
+    File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py", line 1012, in run
+      self._target(*self._args, **self._kwargs)
+    File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/worker_main.py", line 186, in loop
+      if not data_sync.credentials_ok():
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_worker_uploader_independent.py", line 49, in credentials_ok
+      raise SystemExit
+  SystemExit
+  
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+tests/test_worker_uploader_independent.py::test_a_finished_base_is_marked_and_not_rebuilt_that_day
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/_pytest/threadexception.py:82: PytestUnhandledThreadExceptionWarning: Exception in thread s3_base_upload
+  
+  Traceback (most recent call last):
+    File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py", line 1075, in _bootstrap_inner
+      self.run()
+    File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py", line 1012, in run
+      self._target(*self._args, **self._kwargs)
+    File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/worker_main.py", line 235, in base_loop
+      if not data_sync.credentials_ok():
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_worker_uploader_independent.py", line 49, in credentials_ok
+      raise SystemExit
+  SystemExit
+  
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+tests/test_yf_tail_timeout_cap.py::test_nightly_deep_warm_keeps_the_20s_default
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3492: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_yf_tail_timeout_cap.py::test_nightly_deep_warm_keeps_the_20s_default
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3495: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=lookback)).strftime("%Y-%m-%d")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_widget_latency.py:123: seeding 50,000 trades is slow; set UCT_WIDGET_50K=1 to measure
+SKIPPED [1] tests/test_widget_run.py:579: seeding 50,000 trades is slow; set UCT_WIDGET_50K=1 to measure
+SKIPPED [1] tests/test_widget_tool_sources.py:824: seeding 10 years x 60 routines is slow; set UCT_WIDGET_W9_10Y=1
+SKIPPED [1] tests/test_wisdom_extract_catalog_categories.py:189: gitignored artifact absent: /home/runner/work/UCT-Dashboard/UCT-Dashboard/data/wisdom/extract/catalog-estimate-defaults.json
+SKIPPED [3] tests/test_wisdom_extract_golden_gate_cli.py:44: needs the real golden-v1.1.jsonl (gitignored)
+SKIPPED [1] tests/test_wisdom_extract_prompt.py:178: golden labels are gitignored and not present here
+SKIPPED [1] tests/test_wisdom_extract_segmenter.py:288: golden set / samples are gitignored and not present on this checkout
+SKIPPED [1] tests/test_wisdom_golden_freeze.py:154: golden set not on this box (gitignored)
+SKIPPED [1] tests/test_wisdom_identity_study.py:258: needs the 3 persisted PAID gate runs (gitignored); found 0 of 0 total under /home/runner/work/UCT-Dashboard/UCT-Dashboard/data/wisdom/gate-runs
+SKIPPED [1] tests/test_wisdom_ledger_tokens.py:257: no persisted ledger in this checkout (gitignored tree)
+SKIPPED [1] tests/test_wisdom_vocab_authority.py:308: set WISDOM_ENGINE_DB to uct_intelligence.db to re-measure (tools/wisdom/core_vocab_engine_check.py)
+4295 passed, 13 skipped, 23 warnings in 670.34s (0:11:10)

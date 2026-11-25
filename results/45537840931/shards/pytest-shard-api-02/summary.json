@@ -1,0 +1,15 @@
+{
+  "suite": "pytest",
+  "collected": 2545,
+  "passed": 2540,
+  "failed": 1,
+  "errored": 0,
+  "skipped": 4,
+  "wall_s": 541.44,
+  "failed_files": [
+    "api/services/journal_two/test_note_convert_d3.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "1 failed, 2540 passed, 4 skipped, 7 warnings in 541.44s (0:09:01)",
+  "ok": true
+}

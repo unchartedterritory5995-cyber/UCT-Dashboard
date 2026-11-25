@@ -1,0 +1,92 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  5%]
+........................................................................ [ 10%]
+........................................................................ [ 15%]
+........................................................................ [ 21%]
+........................................................................ [ 26%]
+........................................................................ [ 31%]
+........................................................................ [ 37%]
+..................s..................................................... [ 42%]
+........................................................................ [ 47%]
+........................................................................ [ 53%]
+........................................................................ [ 58%]
+........................................................................ [ 63%]
+........................................................................ [ 69%]
+........................................................................ [ 74%]
+........................................................................ [ 79%]
+........................................................................ [ 84%]
+........................................................................ [ 90%]
+.......F................................................................ [ 95%]
+............................................................             [100%]
+=================================== FAILURES ===================================
+____________ test_flow_worker_does_not_reach_d3_price_level_wiring _____________
+
+    def test_flow_worker_does_not_reach_d3_price_level_wiring():
+        """§3 / §5 non-risk, re-verified as a REGRESSION GUARD rather than trusted
+        from the proposal's own one-time measurement: none of the four modules
+        this checkpoint touches are in flow-worker's static import closure."""
+        from tools import flow_worker_watch_coverage as wc
+    
+        root = wc.repo_root()
+        reachable = wc.reachable_paths(root)
+        touched = {
+            "api/services/alert_taxonomy/price_level_projection.py",
+            "api/services/alert_taxonomy/price_level_compare.py",
+            "api/services/bar_broadcaster.py",
+            "api/services/bar_stream.py",
+        }
+        hit = touched & reachable
+>       assert not hit, f"flow-worker's import closure now reaches: {sorted(hit)}"
+E       AssertionError: flow-worker's import closure now reaches: ['api/services/bar_broadcaster.py', 'api/services/bar_stream.py']
+E       assert not {'api/services/bar_broadcaster.py', 'api/services/bar_stream.py'}
+
+tests/test_alert_taxonomy_price_level_projection.py:1393: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at /tmp/pytest-of-runner/pytest-0/test_flow_worker_does_not_reac0/auth.db
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+tests/test_alert_taxonomy_price_level_projection.py:968
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_alert_taxonomy_price_level_projection.py:968: SyntaxWarning: invalid escape sequence '\d'
+    incident reached `C:\data\auth.db` while reporting a clean start. A tool
+
+tests/test_alert_destination.py: 3 warnings
+tests/test_alert_erasure.py: 2 warnings
+tests/test_alert_ledger_admission.py: 3 warnings
+tests/test_alert_taxonomy_catalyst_match_compare.py: 1 warning
+tests/test_alert_taxonomy_event_proximity_schema.py: 1 warning
+tests/test_alert_taxonomy_indicator_condition_schema.py: 2 warnings
+tests/test_alert_taxonomy_position_risk_compare.py: 1 warning
+tests/test_alert_taxonomy_position_risk_schema.py: 1 warning
+tests/test_alert_taxonomy_price_level_schema.py: 1 warning
+tests/test_alert_taxonomy_regime_change_compare.py: 1 warning
+tests/test_alert_taxonomy_regime_change_schema.py: 1 warning
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+tests/test_alert_fired_log.py::test_the_alert_stays_quiet_across_TWELVE_TRUE_cycles_and_refires_only_after_a_real_recross
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_alert_ledger_admission.py::test_the_door_has_EXACTLY_ONE_production_call_site
+  <unknown>:7: SyntaxWarning: invalid escape sequence '\d'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_alert_replay.py:625: walks 1,845 bars; set ALERT_REPLAY_FULL=1 (or run `python tools/alert_replay.py --check`)
+FAILED tests/test_alert_taxonomy_price_level_projection.py::test_flow_worker_does_not_reach_d3_price_level_wiring - AssertionError: flow-worker's import closure now reaches: ['api/services/bar_broadcaster.py', 'api/services/bar_stream.py']
+assert not {'api/services/bar_broadcaster.py', 'api/services/bar_stream.py'}
+1 failed, 1354 passed, 1 skipped, 21 warnings in 355.49s (0:05:55)

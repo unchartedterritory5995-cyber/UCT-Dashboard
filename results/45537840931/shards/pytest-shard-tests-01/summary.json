@@ -1,0 +1,15 @@
+{
+  "suite": "pytest",
+  "collected": 2357,
+  "passed": 2356,
+  "failed": 1,
+  "errored": 0,
+  "skipped": 0,
+  "wall_s": 543.81,
+  "failed_files": [
+    "tests/test_a8_taxonomy.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "1 failed, 2356 passed, 31 warnings in 543.81s (0:09:03)",
+  "ok": true
+}

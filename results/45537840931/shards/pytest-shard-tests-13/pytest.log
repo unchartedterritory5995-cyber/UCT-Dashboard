@@ -1,0 +1,207 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  1%]
+........................................................................ [  3%]
+........................................................................ [  5%]
+...............................................................
+BEFORE   200 users x  50 tickers ( 2567 distinct) cap=1000   steady-state upstream fetches=6922    tier1 hits=0     per-ticker miss=13836/16860 (82.1%)
+.
+BEFORE   250 users x  50 tickers ( 3000 distinct) cap=1000   steady-state upstream fetches=9124    tier1 hits=0     per-ticker miss=18158/21509 (84.4%)
+.
+BEFORE   200 users x 250 tickers ( 4000 distinct) cap=1000   steady-state upstream fetches=37272   tier1 hits=0     per-ticker miss=74548/85891 (86.8%)
+.AFTER    200 users x  50 tickers ( 2567 distinct) cap=9000   steady-state upstream fetches=0       tier1 hits=200   per-ticker miss=0/9892 (0.0%)
+.AFTER    250 users x  50 tickers ( 3000 distinct) cap=9000   steady-state upstream fetches=0       tier1 hits=250   per-ticker miss=0/12430 (0.0%)
+.AFTER    200 users x 250 tickers ( 4000 distinct) cap=9000   steady-state upstream fetches=0       tier1 hits=200   per-ticker miss=0/48372 (0.0%)
+.... [  7%]
+....
+MEMORY  live-prices cache at full saturation (9000 entries): 21.0 MB
+.................................................................... [  9%]
+............................s........................................... [ 11%]
+........................................................................ [ 13%]
+........................................................................ [ 15%]
+........................................................................ [ 16%]
+........................................................................ [ 18%]
+........................................................................ [ 20%]
+........................................................................ [ 22%]
+........................................................................ [ 24%]
+........................................................................ [ 26%]
+........................................................................ [ 28%]
+........................................................................ [ 30%]
+........................................................................ [ 32%]
+........................................................................ [ 33%]
+........................................................................ [ 35%]
+........................................................................ [ 37%]
+......................F................................................. [ 39%]
+........................................................................ [ 41%]
+........................................................................ [ 43%]
+........................................................................ [ 45%]
+........................................................................ [ 47%]
+........................................................................ [ 49%]
+........................................................................ [ 50%]
+........................................................................ [ 52%]
+........................................................................ [ 54%]
+........................................................................ [ 56%]
+........................................................................ [ 58%]
+........................................................................ [ 60%]
+........................................................................ [ 62%]
+........................................................................ [ 64%]
+........................................................................ [ 66%]
+........................................................................ [ 67%]
+.................................................................s.s.... [ 69%]
+........................................................................ [ 71%]
+........................................................................ [ 73%]
+........................................................................ [ 75%]
+........................................................................ [ 77%]
+........................................................................ [ 79%]
+........................................................................ [ 81%]
+........................................................................ [ 83%]
+........................................................................ [ 84%]
+........................................................................ [ 86%]
+........................................................................ [ 88%]
+........................................................................ [ 90%]
+........................................................................ [ 92%]
+........................................................................ [ 94%]
+........................................................................ [ 96%]
+........................................................................ [ 98%]
+........................................................................ [100%]
+=================================== FAILURES ===================================
+________________ test_real_repo_has_zero_unexempted_violations _________________
+
+    def test_real_repo_has_zero_unexempted_violations():
+        base = census_mod.repo_root()
+        hits = census_mod.census(base)
+>       assert hits == [], f"unexempted api.massive.com hits: {hits}"
+E       AssertionError: unexempted api.massive.com hits: [UrlLiteralHit(path='api/services/options_universe_log.py', line=47, col=7, snippet='BASE = "https://api.massive.com"'), UrlLiteralHit(path='api/services/uct_agent/marketdata/earnings_expected_move.py', line=1, col=0, snippet='"""MD-1 kind `earnings.expectedMove` (owner: terminal-data, data wave 2) — what the options market p')]
+E       assert [UrlLiteralHi...ns market p')] == []
+E         
+E         Left contains 2 more items, first extra item: UrlLiteralHit(path='api/services/options_universe_log.py', line=47, col=7, snippet='BASE = "https://api.massive.com"')
+E         
+E         Full diff:
+E         - []
+E         + [
+E         +     UrlLiteralHit(
+E         +         path='api/services/options_universe_log.py',
+E         +         line=47,
+E         +         col=7,
+E         +         snippet='BASE = "https://api.massive.com"',
+E         +     ),
+E         +     UrlLiteralHit(
+E         +         path='api/services/uct_agent/marketdata/earnings_expected_move.py',
+E         +         line=1,
+E         +         col=0,
+E         +         snippet='"""MD-1 kind `earnings.expectedMove` (owner: terminal-data, '
+E         +                 'data wave 2) — what the options market p',
+E         +     ),
+E         + ]
+
+tests/test_massive_guard_census.py:15: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+<unknown>:964
+tests/test_member_store_erasure.py::test_the_store_census_reads_each_store_from_the_modules_that_open_it
+tests/test_no_schwab_in_production_code.py::test_no_production_code_calls_schwab_or_imports_a_schwab_client
+tests/test_no_shadowed_definitions.py::test_the_sweep_actually_reads_the_whole_repo
+tests/test_node_vocabulary_parity.py::test_the_search_FINDS_the_copies_it_is_supposed_to_guard
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+api/services/journal_two/note_connectors/providers/obsidian.py:964
+tests/test_massive_guard_census.py::test_real_repo_has_zero_unexempted_violations
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/journal_two/note_connectors/providers/obsidian.py:964: SyntaxWarning: invalid escape sequence '\`'
+    taken off, cut at the first `?` or `#`, percent-decoded ONCE and every `\` read as `/`
+
+tests/test_llm_timeout_census.py::test_no_llm_client_is_constructed_without_an_explicit_timeout
+  api/services/journal_two/note_connectors/providers/obsidian.py:964: SyntaxWarning: invalid escape sequence '\`'
+    taken off, cut at the first `?` or `#`, percent-decoded ONCE and every `\` read as `/`
+
+tests/test_main_reload_leaves_no_leak.py::test_only_tests_mainreload_reloads_api_main
+tests/test_mutation_harness_hygiene.py::test_the_guard_has_exactly_one_definition_and_it_is_not_copy_pasted
+tests/test_no_shadowed_definitions.py::test_the_sweep_actually_reads_the_whole_repo
+  <unknown>:186: SyntaxWarning: invalid escape sequence '\['
+
+tests/test_main_reload_leaves_no_leak.py::test_only_tests_mainreload_reloads_api_main
+tests/test_mutation_harness_hygiene.py::test_the_guard_has_exactly_one_definition_and_it_is_not_copy_pasted
+tests/test_no_shadowed_definitions.py::test_the_sweep_actually_reads_the_whole_repo
+  <unknown>:968: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_main_reload_leaves_no_leak.py::test_only_tests_mainreload_reloads_api_main
+tests/test_mutation_harness_hygiene.py::test_the_guard_has_exactly_one_definition_and_it_is_not_copy_pasted
+tests/test_no_shadowed_definitions.py::test_the_sweep_actually_reads_the_whole_repo
+  <unknown>:262: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_main_reload_leaves_no_leak.py::test_only_tests_mainreload_reloads_api_main
+tests/test_mutation_harness_hygiene.py::test_the_guard_has_exactly_one_definition_and_it_is_not_copy_pasted
+tests/test_no_shadowed_definitions.py::test_the_sweep_actually_reads_the_whole_repo
+  <unknown>:55: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_main_reload_leaves_no_leak.py::test_only_tests_mainreload_reloads_api_main
+tests/test_mutation_harness_hygiene.py::test_the_guard_has_exactly_one_definition_and_it_is_not_copy_pasted
+tests/test_no_shadowed_definitions.py::test_the_sweep_actually_reads_the_whole_repo
+  <unknown>:3: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_main_reload_leaves_no_leak.py::test_only_tests_mainreload_reloads_api_main
+tests/test_mutation_harness_hygiene.py::test_the_guard_has_exactly_one_definition_and_it_is_not_copy_pasted
+tests/test_no_shadowed_definitions.py::test_the_sweep_actually_reads_the_whole_repo
+  <unknown>:1347: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_main_reload_leaves_no_leak.py::test_only_tests_mainreload_reloads_api_main
+tests/test_mutation_harness_hygiene.py::test_the_guard_has_exactly_one_definition_and_it_is_not_copy_pasted
+tests/test_no_shadowed_definitions.py::test_the_sweep_actually_reads_the_whole_repo
+  <unknown>:627: SyntaxWarning: invalid escape sequence '\w'
+
+tests/test_market_intel_event_study.py::test_fundamentals_point_in_time_through_the_real_pipeline
+tests/test_market_intel_event_study.py::test_fundamentals_point_in_time_through_the_real_pipeline
+tests/test_market_intel_event_study.py::test_fundamental_is_unknown_between_period_end_and_filing
+tests/test_market_intel_event_study.py::test_fundamental_is_unknown_between_period_end_and_filing
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/multiprocessing/popen_fork.py:66: DeprecationWarning: This process (pid=2545) is multi-threaded, use of fork() may lead to deadlocks in the child.
+    self.pid = os.fork()
+
+tests/test_modelbook_catalog.py::test_the_lists_carry_the_gallery_not_the_write_ups
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3492: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_modelbook_catalog.py::test_the_lists_carry_the_gallery_not_the_write_ups
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3495: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=lookback)).strftime("%Y-%m-%d")
+
+tests/test_mutation_harness_hygiene.py::test_the_guard_has_exactly_one_definition_and_it_is_not_copy_pasted
+tests/test_no_shadowed_definitions.py::test_the_sweep_actually_reads_the_whole_repo
+  <unknown>:7: SyntaxWarning: invalid escape sequence '\d'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_mobile_audit_route_validity.py:35: mobile_audit import failed: No module named 'playwright'
+SKIPPED [1] tests/test_live_trading_room_page.py:483: app/dist not built (the gate builds it)
+SKIPPED [2] tests/test_nb_gate_stdout.py:90: the stripped env reproduces cp1252 only where the locale is cp1252; the forced-cp1252 case carries this rail on this platform
+FAILED tests/test_massive_guard_census.py::test_real_repo_has_zero_unexempted_violations - AssertionError: unexempted api.massive.com hits: [UrlLiteralHit(path='api/services/options_universe_log.py', line=47, col=7, snippet='BASE = "https://api.massive.com"'), UrlLiteralHit(path='api/services/uct_agent/marketdata/earnings_expected_move.py', line=1, col=0, snippet='"""MD-1 kind `earnings.expectedMove` (owner: terminal-data, data wave 2) — what the options market p')]
+assert [UrlLiteralHi...ns market p')] == []
+  
+  Left contains 2 more items, first extra item: UrlLiteralHit(path='api/services/options_universe_log.py', line=47, col=7, snippet='BASE = "https://api.massive.com"')
+  
+  Full diff:
+  - []
+  + [
+  +     UrlLiteralHit(
+  +         path='api/services/options_universe_log.py',
+  +         line=47,
+  +         col=7,
+  +         snippet='BASE = "https://api.massive.com"',
+  +     ),
+  +     UrlLiteralHit(
+  +         path='api/services/uct_agent/marketdata/earnings_expected_move.py',
+  +         line=1,
+  +         col=0,
+  +         snippet='"""MD-1 kind `earnings.expectedMove` (owner: terminal-data, '
+  +                 'data wave 2) — what the options market p',
+  +     ),
+  + ]
+1 failed, 3812 passed, 4 skipped, 39 warnings in 534.71s (0:08:54)

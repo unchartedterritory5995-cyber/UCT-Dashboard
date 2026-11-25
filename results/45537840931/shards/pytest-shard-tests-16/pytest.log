@@ -1,0 +1,52 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  5%]
+........................................................................ [ 10%]
+........................................................................ [ 15%]
+........................................................................ [ 20%]
+........................................................................ [ 25%]
+........................................................................ [ 30%]
+........................................................................ [ 35%]
+........................................................................ [ 40%]
+........................................................................ [ 45%]
+........................................................................ [ 51%]
+........................................................................ [ 56%]
+........................................................................ [ 61%]
+........................................................................ [ 66%]
+.........................s.............................................. [ 71%]
+........................................................................ [ 76%]
+...........................................................s............ [ 81%]
+........................................................................ [ 86%]
+........................................................................ [ 91%]
+................................................................[activity] Failed to log j2:notebook_writing_help_used for u1: FOREIGN KEY constraint failed
+........ [ 96%]
+...........................................                              [100%]
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+tests/test_notebook_widgets_service.py:3
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_notebook_widgets_service.py:3: SyntaxWarning: invalid escape sequence '\d'
+    Every consumed function is monkeypatched: no network, no live data, no C:\data.
+
+tests/test_notebook_route_security_census.py::test_every_notebook_route_on_the_real_app_is_classified_and_agrees
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_notebook_upload_cap.py: 2 warnings
+tests/test_notebook_voice_notes.py: 43 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/voice_usage.py:20: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return datetime.utcnow().strftime("%Y-%m")
+
+tests/test_notes_answer_is_the_committed_row.py::test_no_note_writer_under_api_re_reads_after_its_commit
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_notebook_voice_notes.py:256: no ffmpeg on this box
+SKIPPED [1] tests/test_notebook_wave8_walk.py:636: could not import 'playwright._impl._helper': No module named 'playwright'
+1409 passed, 2 skipped, 49 warnings in 547.86s (0:09:07)

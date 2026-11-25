@@ -1,0 +1,13 @@
+{
+  "suite": "pytest",
+  "collected": 4418,
+  "passed": 4405,
+  "failed": 0,
+  "errored": 0,
+  "skipped": 13,
+  "wall_s": 664.92,
+  "failed_files": [],
+  "totals_line_found": true,
+  "runner_line": "4405 passed, 13 skipped, 436 warnings in 664.92s (0:11:04)",
+  "ok": true
+}
