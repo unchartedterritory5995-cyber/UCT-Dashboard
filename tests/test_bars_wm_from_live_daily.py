@@ -49,23 +49,33 @@ def store(monkeypatch, tmp_path):
     bls._reset_for_tests()
 
 
-def _seed(tf, stale_close=None, live=True, monkeypatch=None):
+def _seed(tf, stale=False, live=True, monkeypatch=None):
+    """The live daily, and the W/M table built from it. `stale`: the CURRENT period as a days-old table holds it, a VALID
+    bar with old values (close at the period's low, a smaller volume): one the impossible-bar gate takes, so the store
+    really holds a present-but-stale row (review of #2742: a close outside the bar's own range was refused by the gate,
+    and the rails then tested an ABSENT period instead)."""
     days = _sessions(130)
     daily = [{"t": d.isoformat(), "o": 100 + i, "h": 101 + i, "l": 99 + i, "c": 100.5 + i, "v": 1000 + i}
              for i, d in enumerate(days)]
     bars_sqlite.put_bars("AAA", "D", daily, date_tf=True)
     periods = (bars_fetch._resample_weekly_iso(daily) if tf == "W" else bars_fetch._resample_monthly_iso(daily))
     stored = [dict(p) for p in periods]
-    if stale_close is not None:
-        stored[-1]["c"] = stale_close                          # the current period, stored days ago
+    if stale:
+        stored[-1]["c"] = stored[-1]["l"]
+        stored[-1]["v"] = int(stored[-1]["v"]) - 1
     bars_sqlite.put_bars("AAA", tf, stored, date_tf=True)
+    # the seed itself round-trips: the store holds exactly the row this test means (present, and stale if asked)
+    held = bars_sqlite.get_bars("AAA", tf, 2)
+    assert int(held[-1][0]) == int(periods[-1]["t"].replace("-", "")), "the seed's current period is not in the store"
+    if stale:
+        assert float(held[-1][4]) == float(stored[-1]["c"]) != float(daily[-1]["c"]), "the stale row did not land"
     monkeypatch.setattr(bls, "covered", lambda t, k: live and k == "D")
     return daily, periods
 
 
 @pytest.mark.parametrize("tf", ["W", "M"])
 def test_a_stale_current_period_on_a_live_daily_is_served_current_from_the_store(store, monkeypatch, tf):
-    daily, periods = _seed(tf, stale_close=1.0, monkeypatch=monkeypatch)
+    daily, periods = _seed(tf, stale=True, monkeypatch=monkeypatch)
     n = len(periods)
     resp = bars_fetch._get_bars_inner("AAA", tf, n)
     body = json.loads(resp.body)
@@ -81,7 +91,7 @@ def test_a_period_holding_the_derivation_is_fresh(store, monkeypatch, tf):
 
 
 def test_control_without_a_live_daily_nothing_changes(store, monkeypatch):
-    daily, periods = _seed("W", stale_close=1.0, live=False, monkeypatch=monkeypatch)
+    daily, periods = _seed("W", stale=True, live=False, monkeypatch=monkeypatch)
     last = int(periods[-1]["t"].replace("-", ""))
     assert bars_fetch._needs_fresh(last, "W", "AAA") is True
     assert bars_fetch._needs_fresh(last, "W") is True            # no ticker: the old rule, unchanged
@@ -104,7 +114,7 @@ def _slow_wm_writes(monkeypatch, gate):
 
 @pytest.mark.parametrize("tf", ["W", "M"])
 def test_the_answer_never_waits_for_the_write(store, monkeypatch, tf):
-    daily, periods = _seed(tf, stale_close=1.0, monkeypatch=monkeypatch)
+    daily, periods = _seed(tf, stale=True, monkeypatch=monkeypatch)
     gate = threading.Event()
     _slow_wm_writes(monkeypatch, gate)
     try:
@@ -122,7 +132,7 @@ def test_the_answer_never_waits_for_the_write(store, monkeypatch, tf):
 
 @pytest.mark.parametrize("tf", ["W", "M"])
 def test_a_refused_write_still_answers_the_derived_period(store, monkeypatch, tf):
-    daily, periods = _seed(tf, stale_close=1.0, monkeypatch=monkeypatch)
+    daily, periods = _seed(tf, stale=True, monkeypatch=monkeypatch)
     real = bars_sqlite.put_bars
     monkeypatch.setattr(bars_sqlite, "put_bars",
                         lambda ticker, k, bars, *a, **kw: 0 if k in ("W", "M") else real(ticker, k, bars, *a, **kw))
@@ -135,7 +145,7 @@ def test_a_refused_write_still_answers_the_derived_period(store, monkeypatch, tf
 def test_the_background_write_round_trips_through_the_real_store_to_fresh(store, monkeypatch, tf):
     """(review of #2742, LOW) The fix must not be silently inert: what the read derives and writes in the background,
     read back from the REAL store, equals the derivation (rounding, the gate), so the next read needs no write."""
-    daily, periods = _seed(tf, stale_close=1.0, monkeypatch=monkeypatch)
+    daily, periods = _seed(tf, stale=True, monkeypatch=monkeypatch)
     last = int(periods[-1]["t"].replace("-", ""))
     assert bars_fetch._needs_fresh(last, tf, "AAA") is True          # the stale row: not fresh
     bars_fetch._get_bars_inner("AAA", tf, len(periods))
