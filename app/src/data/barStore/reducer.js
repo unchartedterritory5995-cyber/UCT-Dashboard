@@ -46,7 +46,7 @@
 import { bucketStartUnix, computeBarTime, isRthBar, etDateOf, etMinuteOfDay } from '../../components/chart/barTime'
 import { isHolidayISO } from '../../utils/marketSession'
 import { bucketEndUnix } from '../../components/chart/liveBuckets'
-import { foldOffGridBars } from '../../components/chart/offGridBars'
+import { foldOffGridBars, offGrid } from '../../components/chart/offGridBars'
 import { isSaneLivePriceFor } from '../../components/chart/liveTickBaseline'
 import {
   mergePushBar, reconcileWithServerTail, foldPrice, provisionalOpen, isCompleteOhlc,
@@ -864,6 +864,34 @@ function applyLocal(state, action, ctx, source) {
   if (out === state) return state
   const lakeOnly = _bulk(source) && (!!state.lakeOnly || (!state.bars.length && !state.developing))
   return out.lakeOnly === lakeOnly ? out : Object.freeze({ ...out, lakeOnly })
+}
+
+/**
+ * ⭐ (2026-11-25, next-row key task) DOES A SAVED COPY'S RAW ROWS PROVABLY CHANGE NOTHING ON THIS ENTRY? True only when
+ * `applyLocal(state, {payload: {bars: raw, ...}})` returns `state` ITSELF, whatever else the payload carries (its stamp,
+ * its seals, `saved_at`, `repair_from`): the entry holds a server answer (`restSeen`), and there a local copy can only add
+ * rows OLDER than everything held (`first`, the restSeen branch of `_applyLocal`), so a copy none of whose rows lands
+ * before `first` is refused whole. A row keeps its own `t` through `ingestRows` (`normT`, as `toBar` reads it), or, off
+ * its intraday grid, is moved to its bucket's start, never more than one bucket (at most an hour) earlier: such a row
+ * within an hour of `first` is not proven and answers false. A malformed row is dropped by `toBar` and adds nothing.
+ * O(rows), no allocation: what lets the bar store skip decoding and ingesting a copy that would change nothing
+ * (persist.hydrateMem, on every chart switch). False is always safe (the copy is applied as before).
+ */
+export function localCopyAddsNothing(state, raw) {
+  if (!state || !state.restSeen || !Array.isArray(raw)) return false
+  if (!raw.length) return true
+  const first = Math.min(state.restFrom ?? Infinity, state.bars[0]?.t ?? Infinity, state.developing?.t ?? Infinity)
+  if (!finite(first)) return false
+  const tf = String(state.tf)
+  const slack = isDateTf(tf) ? 0 : 3600
+  for (const r of raw) {
+    if (!r || typeof r !== 'object') continue
+    const t = normT(r.t ?? r.time, tf)
+    if (!finite(t)) continue
+    if (t < first) return false
+    if (t < first + slack && offGrid(t, tf)) return false
+  }
+  return true
 }
 
 /** A server answer's result no longer holds the lake's rows alone. */
