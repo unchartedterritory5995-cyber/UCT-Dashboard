@@ -1,0 +1,50 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "P2-B1",
+   "mutant": "the door-bytes rail measures v8.serialize again (the running V8's length)",
+   "file": "app/src/components/chart/builder/memberPane/memberDoorBytes.test.js",
+   "from": "const size = (v) => wireBytes(v)",
+   "to": "const size = (v) => v8.serialize(v).length",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/testing/builder/wireBytes.test.js",
+   "expectRed": "is wireBytes"
+  },
+  {
+   "id": "P2-B2",
+   "mutant": "every number counted as a double (the version-dependent reading)",
+   "file": "app/src/testing/builder/wireBytes.js",
+   "from": "  return isInt32(n) ? 1 + varintLen(zigzag(n)) : 9",
+   "to": "  return 9",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/testing/builder/wireBytes.test.js",
+   "expectRed": "scalars"
+  },
+  {
+   "id": "P2-B3",
+   "mutant": "an object met twice counted twice (no back-reference)",
+   "file": "app/src/testing/builder/wireBytes.js",
+   "from": "    if (seen.has(v)) return 1 + varintLen(seen.get(v))",
+   "to": "    if (false) return 1 + varintLen(seen.get(v))",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/testing/builder/wireBytes.test.js",
+   "expectRed": "back-reference"
+  },
+  {
+   "id": "P2-B4",
+   "mutant": "a two-byte string counted as one-byte",
+   "file": "app/src/testing/builder/wireBytes.js",
+   "from": "  if (oneByte(s)) return 1 + varintLen(s.length) + s.length",
+   "to": "  if (true) return 1 + varintLen(s.length) + s.length",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/testing/builder/wireBytes.test.js",
+   "expectRed": "strings"
+  },
+  {
+   "id": "P2-B5",
+   "mutant": "a budget under the heaviest committed message (the rail can fail on the measure)",
+   "file": "app/src/components/chart/builder/memberPane/memberDoorBytes.test.js",
+   "from": "  door: 896 * 1024,",
+   "to": "  door: 700 * 1024,",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/memberDoorBytes.test.js",
+   "expectRed": "door posted to the page"
+  }
+ ]
+}
