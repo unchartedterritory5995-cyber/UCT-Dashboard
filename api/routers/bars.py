@@ -12,7 +12,7 @@ from datetime import datetime
 
 import orjson
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Body, Cookie, Depends, Header, HTTPException, Query, Request
 from api.middleware.auth_middleware import get_current_user, require_admin
 from api.bars_auth import require_bars_access, bars_service_headers
 # ORJSONResponse: ~7-8x faster serialize than stdlib on the shared event loop +
@@ -1784,11 +1784,49 @@ async def _proxy_bars_history_to_worker(ticker, tf, bars, v, d, origin):
     return resp
 
 
+# ⛔ (2026-11-25 wide sweep) /api/bars-history NEVER WAITS BEHIND /api/bars. A pure SQLite read of 173 sealed rows took
+# 6.3 s of app time (Server-Timing `app=6325`; another of 8,454 rows took 294 ms): queueing, not work. The route took TWO
+# hops through anyio's DEFAULT thread limiter (40 tokens), shared by every sync route: the sync `require_bars_access`
+# dependency (FastAPI runs a sync dependency there) and the read itself. Under a warm flood that pool is full of
+# `/api/bars` serves waiting on provider fetches, and the cheapest read on the pod queued behind them. Both hops, and the
+# gzip (which ran on the event loop), now take this route's OWN limiter. Rail: tests/test_bars_history_own_pool.py.
+BARS_HISTORY_THREADS = max(2, int(os.environ.get("BARS_HISTORY_THREADS", "8") or 8))
+_history_limiters = __import__("weakref").WeakKeyDictionary()
+
+
+def _history_limiter():
+    """This route's own CapacityLimiter, one per event loop (a limiter belongs to the loop that made it)."""
+    import asyncio as _asyncio
+    import anyio as _anyio
+    loop = _asyncio.get_running_loop()
+    lim = _history_limiters.get(loop)
+    if lim is None:
+        lim = _history_limiters[loop] = _anyio.CapacityLimiter(BARS_HISTORY_THREADS)
+    return lim
+
+
+async def _history_thread(fn, *args, **kwargs):
+    import anyio as _anyio
+    from functools import partial as _partial
+    return await _anyio.to_thread.run_sync(_partial(fn, *args, **kwargs), limiter=_history_limiter())
+
+
+async def require_bars_access_history(request: Request, uct_session: str | None = Cookie(None),
+                                      authorization: str = Header(default="")) -> dict:
+    """`require_bars_access`, run on this route's own limiter (see BARS_HISTORY_THREADS). An app's
+    `dependency_overrides[require_bars_access]` (tests) still applies: it is the same gate, so it is honoured here."""
+    over = getattr(getattr(request, "app", None), "dependency_overrides", {}).get(require_bars_access)
+    if over is not None:
+        out = over()
+        return await out if hasattr(out, "__await__") else out
+    return await _history_thread(require_bars_access, uct_session, authorization)
+
+
 @router.get("/api/bars-history/{ticker}")
 async def get_bars_history(
     ticker: str,
     request: Request,
-    _access: dict = Depends(require_bars_access),
+    _access: dict = Depends(require_bars_access_history),
     tf: str = Query(default="D", description="Timeframe: D, W, M (sealed history only)"),
     bars: int = Query(default=60000, ge=1, le=60000, description="Max sealed bars to return"),
     v: str = Query(default="", description="Version tag — for CDN cache-keying; the current value rides on the /api/bars response and this endpoint's body"),
@@ -1829,16 +1867,18 @@ async def get_bars_history(
         # seam), none of which the worker has. `/api/bars` already keeps breadth local.
         try:
             resp = await _proxy_bars_history_to_worker(ticker, tf, bars, v, d, origin)
-            return gzip_with_length(resp, request.headers.get("accept-encoding", ""))
+            return await _history_thread(gzip_with_length, resp, request.headers.get("accept-encoding", ""))
         except Exception:
             pass  # worker unreachable/slow → fall back to the web's own shallow history
     # ⛔ (2026-10-10) OFF THE EVENT LOOP. This handler is `async`, and `serve_bars_history` is
     # synchronous: a breadth / market-indicator build here (seconds, cold) froze every request
     # on the single web pod for its whole duration. Same threadpool `/api/bars` uses.
-    from starlette.concurrency import run_in_threadpool
-    resp = await run_in_threadpool(serve_bars_history, ticker, tf, bars, v, d,
-                                   if_none_match=request.headers.get("if-none-match", ""))
-    return gzip_with_length(resp, request.headers.get("accept-encoding", ""))
+    # (2026-11-25) ...on this route's OWN limiter, never the default pool every sync route shares (see
+    # BARS_HISTORY_THREADS), and gzipped there too, off the event loop.
+    def _serve_and_pack(accept_encoding: str, inm: str):
+        return gzip_with_length(serve_bars_history(ticker, tf, bars, v, d, if_none_match=inm), accept_encoding)
+    return await _history_thread(_serve_and_pack, request.headers.get("accept-encoding", ""),
+                                 request.headers.get("if-none-match", ""))
 
 
 # ⭐⭐ A LENGTH, OR CACHE RESERVE NEVER KEEPS IT (2026-11-19). Cloudflare's Cache Reserve (the
