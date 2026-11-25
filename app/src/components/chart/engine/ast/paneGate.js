@@ -81,6 +81,14 @@ export function paneObjectsGate(t) {
  *
  *  @returns {{ok: boolean, reason: string|null, guard: string|null}}
  */
+/** ⭐ e97 U6 — does every output of this translation draw nothing because its AUTHOR said so (a literal
+ *  `display.none`, or a display off the pane at every setting), with none refused, unread or otherwise hidden? */
+export function everyOutputAuthorHidden(t) {
+  const outs = ((t && t.outputs) || []).filter((o) => o && o.kind !== 'alertcondition')
+  return outs.length > 0 && outs.every((o) => !o.refusal && !o.displayUnread
+    && ((o.hidden === true && o.hiddenReason === 'author') || o.offPane === true))
+}
+
 export function paneGate(t, opts = {}) {
   const no = (reason, guard = null) => ({ ok: false, reason, guard })
   if (!t || typeof t !== 'object') return no('there is no translation to draw')
@@ -119,6 +127,10 @@ export function paneGate(t, opts = {}) {
       if (!og.draw) return no(og.refusal, og.guard)
       return { ok: true, reason: null, guard: null }
     }
+    // ⭐⭐ e97 U6 — A SCRIPT WHOSE EVERY OUTPUT ITS AUTHOR HID IS SERVED, DRAWING NOTHING, as TradingView serves it.
+    // `pine:hidden-only` is the SCREENER's honest answer (nothing to screen); on a chart it is a script that draws
+    // nothing at its author's own display, which is not a refusal (the door carries the hidden rows).
+    if (r && r.guard === 'pine:hidden-only' && everyOutputAuthorHidden(t)) return { ok: true, reason: null, guard: null }
     return no(r && r.message
       ? String(r.message)
       : 'the host lane refused this script', r ? r.guard || null : null)

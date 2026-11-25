@@ -73,6 +73,7 @@ import { instanceDocumentForFetch } from '../../symbolInputs.js'
 import { isStrategyWindowDefinition } from '../../strategyWindow'
 import { runtimeStrategyOf } from '../../runtime/strategyRecord.js'
 import { chartStrategyWindowOf } from '../../runtime/__tests__/strategyArmed.js'
+import { plotHiddenAt } from '../../knobBind.js'
 
 // ─── ⭐⭐ C26 — ANOTHER SYMBOL'S BARS, FROM COMMITTED CAPTURES ONLY ─────────────
 //
@@ -2111,6 +2112,9 @@ function runOurSideOnTheParityClock(capture) {
         // ⭐ ENGINE 56 (S4-4) — the float-order floor where a running total feeds the plot
         floatOrderFloor: built.lane !== 'runtime' && o && o.ast && col ? floatOrderFloorOf(o.ast, calcBars, replayPre) : null,
         hidden: !!(o && o.hidden),
+        // ⭐ e97 U6 — whether THIS document draws the plot at the capture's settings (`knobBind.js::plotHiddenAt`: its
+        // `hidden`, or `hiddenWhen` at the instance's inputs), for the grade to name a drawing TradingView does not share
+        drawnHidden: defPlot ? plotHiddenAt(defPlot, def, instanceInputs || {}) : null,
         column: col || null,
         missingReason,
         lookback: curtain ? curtain.withheldBars : (o && o.ast ? lookbackOf(o.ast) : null),

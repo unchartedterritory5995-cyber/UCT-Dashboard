@@ -887,6 +887,14 @@ export function plotVerdict(r, { colorMeasured, colorResolvable, vendorColorReas
 
 const fmt = (x) => (x === null || x === undefined ? 'na' : typeof x === 'number' ? String(x) : JSON.stringify(x))
 
+/** ⭐ e97 U6 — `{drawing}`: whether TradingView and our document agree on DRAWING a plot (not its values), or `{}`
+ *  when our side did not say. */
+export function drawingOf(vendorHidden, oursHidden) {
+  if (oursHidden !== true && oursHidden !== false) return {}
+  if (vendorHidden === oursHidden) return { drawing: vendorHidden ? 'both hide it' : 'both draw it' }
+  return { drawing: vendorHidden ? 'TradingView hides it (display none); ours draws it' : 'ours hides it; TradingView draws it' }
+}
+
 /** One divergent bar's two readings, in the unit that disagreed. ⚰️ A colour
  *  divergence printed the two VALUES ("color: vendor 50 vs ours 50") — equal by
  *  construction, since a colour is only compared on a bar whose values agree —
@@ -1252,6 +1260,10 @@ export function compareCapture(capture, ours, opts = {}) {
     }
     base.plots.push({
       id: v.id, title: v.title ?? o.title, ours: o.key, rule: pair.rule, ...pv,
+      // ⭐ e97 U6 — the DRAWING named beside the values (which are graded either way: TradingView records a hidden
+      // plot's values): TradingView's display (`styleState.display`, 0 = hidden) against whether our document draws it
+      // at the capture's settings (`ourSide.js` `drawnHidden`). It moves no verdict.
+      ...drawingOf(hiddenOnVendor, o.drawnHidden),
       warmupBars, warmupSource, derivedLookback: Number.isInteger(o.lookback) ? o.lookback : null,
       ...(colorWarmupBars !== warmupBars ? { colorWarmupBars, colorWarmupSource: `derived: the colour rule's own maxLookback (${o.colorLookback})` } : {}),
       ...(treeShift ? { treeShift, treeShiftNote: `offset = ${treeShift}: our column read ${treeShift} bars ahead to meet the vendor's unshifted series; the last ${treeShift} bars are unread` } : {}),
