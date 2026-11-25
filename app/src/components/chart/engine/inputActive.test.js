@@ -96,9 +96,10 @@ describe('e98 E2 — a setting test greys the setting, per instance, on both lan
     expect(evalActiveWhen(field.activeWhen, { ...model.values, useMa: 1 }, def)).toBe(true)
   })
 
-  it('a parameter of the formulas (edited in the builder) is said by name, not greyed in silence', () => {
+  it('a parameter of the formulas (a `param<N>` setting at load) is said by its title, not greyed in silence', () => {
     const r = door('useMa = input.bool(true, "Use MA")\nlen = input.int(20, "Length", active = useMa)\nplot(ta.sma(close, len), "m")')
-    expect(notesText(r)).toContain('`len` is not greyed here as it is on TradingView: it is a parameter of the script\'s formulas')
+    expect(Object.values(r.definition.compute.paramManifest || {}).map((m) => m.sourceName)).toContain('len')
+    expect(notesText(r)).toContain('`Length` is not greyed here as it is on TradingView: it is a setting of the script\'s formulas (a parameter), which this chart does not grey yet')
     // and a controller that greys nothing here is not declared
     expect(inputOf(r.definition, 'useMa')).toBeUndefined()
   })

@@ -327,10 +327,11 @@ const plainTree = (t) => JSON.parse(JSON.stringify(t))
  *    * `when` reading a setting this document does not hold -> decided at the defaults (U6's rule): greyed there ->
  *      `{type:'num', value: 0}`, else no `activeWhen`; not decidable -> left active and SAID;
  *    * `unread` -> left active and SAID by the setting's name.
- *  An `active =` on a setting this document does not offer in the chart settings (a parameter of its formulas,
- *  edited in the builder) is SAID too, never dropped in silence. The VALUE is untouched: `activeWhen` only greys.
+ *  An `active =` on a PARAMETER of the formulas (`params`: its Pine name -> its title; projected as a `param<N>`
+ *  setting at load by `paramInputs.js`, which carries no `activeWhen` yet) is SAID by that setting's title, never
+ *  dropped in silence. The VALUE is untouched: `activeWhen` only greys.
  *  @returns {Array} the inputs (new objects where one gained `activeWhen`), pushing sentences onto `notes` */
-export function withInputActive(inputs, entries, { notes, paramNames = new Set() } = {}) {
+export function withInputActive(inputs, entries, { notes, params = new Map() } = {}) {
   const list = Array.isArray(inputs) ? inputs : []
   if (!Array.isArray(entries) || !entries.length) return inputs
   const declared = new Set(list.map((x) => x && x.key).filter(Boolean))
@@ -353,9 +354,8 @@ export function withInputActive(inputs, entries, { notes, paramNames = new Set()
     return v ? spec : { ...spec, activeWhen: { type: 'num', value: 0 } }
   })
   for (const e of entries) {
-    if (!e || matched.has(e) || !(e.when || e.inactive || e.unread) || !paramNames.has(e.name)) continue
-    say(e, e.name, 'it is a parameter of the script\'s formulas, edited in the builder, which TradingView\'s `active` '
-      + 'does not reach here')
+    if (!e || matched.has(e) || !(e.when || e.inactive || e.unread) || !params.has(e.name)) continue
+    say(e, params.get(e.name) || e.name, 'it is a setting of the script\'s formulas (a parameter), which this chart does not grey yet')
   }
   return out
 }
@@ -1508,7 +1508,7 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
       readback: primary.readback,
       // ⭐ e98 E2 — each setting's `active =`, greyed as TradingView greys it (`withInputActive`)
       inputs: withInputActive(docInputs, (t.presentation || {}).inputActive, { notes: inputActiveNotes,
-        paramNames: new Set((t.inputParams || []).map((p) => p && p.sourceName).filter(Boolean)) }),
+        params: new Map(Object.values(manifest).filter((m) => m && m.sourceName).map((m) => [m.sourceName, m.title || m.sourceName])) }),
       plots: rows.length ? rows : [primary],
       // ⭐ THE AUTHOR'S OWN PANE INTENT. `overlay = true` means the price pane;
       // anything else gets its own sub-pane at a quarter of the chart.

@@ -104,7 +104,7 @@
    "id": "E2-A12",
    "mutant": "an active= on a builder parameter ignored in silence",
    "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
-   "from": "    if (!e || matched.has(e) || !(e.when || e.inactive || e.unread) || !paramNames.has(e.name)) continue",
+   "from": "    if (!e || matched.has(e) || !(e.when || e.inactive || e.unread) || !params.has(e.name)) continue",
    "to": "    continue",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/inputActive.test.js",
    "expectRed": "a parameter of the formulas"
