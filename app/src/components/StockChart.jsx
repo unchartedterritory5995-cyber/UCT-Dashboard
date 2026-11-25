@@ -1807,6 +1807,7 @@ import { parseTf } from './chart/timeframes'
 import { bucketEventDate, barLookupFor } from './chart/eventBarLookup'
 import { _hollowFill, installNetChangePaint } from './chart/netChangePaint'
 import { barsRenderPlan } from './chart/renderPlan'
+import { settleBoardReady } from './chart/metaSettleGuard'
 import ChartSkeleton from './chart/ChartSkeleton'
 import { normalizeToPctChange } from './chart/comparisonUtils'
 import CompanyLogo from './CompanyLogo'
@@ -3837,6 +3838,13 @@ function settleOnMetaLanded(s, inp) {
   const pt = s.pendingRef.current
   if (!pt || pt.tf !== inp.resolvedTf || s.entryDate || s.exactDateRange) return
   const bars = inp.filteredBars
+  // ⛔ (2026-11-24) ONLY ON THE BOARD THESE BARS ARE PAINTED ON (`chart/metaSettleGuard.js` says what identifies it).
+  // An answer can land in the commit that brings NEW bars, before that commit's own pass has painted them: on a list
+  // switch the metadata feed publishes in its layout effect, ahead of the switch's `updateChart`. Re-asserted then, the
+  // new name's frame (its newest bar, index 3,899) landed on the OLD name's board, where 3,899 is 1,300 bars back: the
+  // render window reached left for it and re-set the whole old board (2,200 rows on every series) a moment before the
+  // switch replaced it (StockChart.metaSettle.test.jsx). The coming pass for these bars re-asserts the frame itself.
+  if (s.paintedRef && !settleBoardReady(s.paintedRef.current, bars)) return
   const chart = s.chartRef.current
   if (!chart || !bars || bars.length < 2 || !(s.countRef.current > 0)) return
   if (s.anchorRef.current && s.anchorRef.current.anchorIdx >= 0 && !s.movedRef.current) return   // the anchor's frame: `updateChart` applies it
@@ -11728,7 +11736,7 @@ function StockChartBody({
   const anchorOwnsFrame = () => anchorCfgRef.current.anchorIdx >= 0 && !userViewMovedRef.current
   // (refs and scalars only: the store keeps the listener that reads this for the chart's whole life)
   _metaSettleRef.current = {
-    chartRef, containerRef, candleRef: candleSeriesRef, pendingRef: pendingTfReframeRef, movedRef: userViewMovedRef, countRef: lastBarCountRef,
+    chartRef, containerRef, candleRef: candleSeriesRef, paintedRef: prevBarsRef, pendingRef: pendingTfReframeRef, movedRef: userViewMovedRef, countRef: lastBarCountRef,
     anchorRef: anchorCfgRef, entryDate, exactDateRange, dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride,
     sessionCandleActive, sessionExtReady,
   }
