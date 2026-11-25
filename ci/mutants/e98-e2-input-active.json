@@ -135,6 +135,15 @@
    "to": "      inputs: runDocInputs,",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/inputActive.test.js",
    "expectRed": "runtime: an input.bool controller"
+  },
+  {
+   "id": "E2-A16",
+   "mutant": "FAIL-OPEN RESTORED in the readout's mirror of evalActiveWhen: a third condition shape read as open",
+   "file": "app/src/components/chart/engine/readoutSchema.js",
+   "from": "  if (shape !== 'key') return false\n",
+   "to": "  if (shape !== 'key') return true\n",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/readoutSchema.va2.test.js",
+   "expectRed": "agrees on every comparator"
   }
  ]
 }
