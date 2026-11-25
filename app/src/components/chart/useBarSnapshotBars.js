@@ -536,7 +536,8 @@ export function useBarSnapshotBars({
         if (tf === resolvedTf || tf === activeTfRef.current) continue
         try { keys.push(keyOf({ sym, tf, session: _session })) } catch { /* not a bars symbol */ }
       }
-      storePrefetch(keys, { priority: 'background', warm: true, signal: ac?.signal ?? null })
+      // (`dwell`: what this warm makes goes first out of the registry once no chart shows `sym`: registry _evict)
+      storePrefetch(keys, { priority: 'background', warm: true, signal: ac?.signal ?? null, dwell: true })
       // ⭐ ...and the lake's whole depth for the intraday ones a member flips to (2026-11-18), so a
       // later timeframe click finds it held and paints at once (the hold above never waits). Only on a
       // symbol the member STAYS on (a scan never pays ~100k rows a row), one key at a time, stopping
