@@ -1,4 +1,5 @@
-// app/src/data/barStore/minuteFeed.js — the universe minute feed INTO THE REGISTRY (2026-11-23, first slice).
+// app/src/data/barStore/minuteFeed.js — the universe minute feed INTO THE REGISTRY (2026-11-23, first slice: 1m;
+// 2026-11-24, second slice: 5m, 15m, 30m and the regular 60m, below).
 //
 // THE PROBLEM. A row a list warmed a minute ago holds the server's answer as of then. A minute boundary later that
 // copy is one closed 1m bar behind the clock, `prefetch._behindClock` refuses it, and the switch asks the server
@@ -47,10 +48,47 @@
 // lacks outside the sealed spans, and loses to the server's row). Prices are stored at the server's grain
 // (deviceStore/price.js), so a fed bar is bit-identical to the row /api/bars answers.
 //
+// ⭐ 5m, 15m, 30m AND THE REGULAR 60m, FROM THE SAME MINUTES (second slice). The consumer's rollup
+// (lib/minuteFrames/rollup.js: the device store's, pinned to the server's buckets, the 09:30 session grid of 60m and
+// half days included) already folds each minute into those buckets. This applier takes the bucket it built and appends
+// it to the held key of that timeframe as the same marked PUSH_FINAL, under THE SAME RULE ONE LEVEL UP:
+//
+//     a CLOSED bucket is appended only when EVERY one of its minutes is kept for the symbol (so each came through
+//     the rule above), and it is the bucket right after the copy's newest closed one. Otherwise nothing is appended
+//     and the key stays behind exactly as today.
+//
+// So a bucket with a quiet or late minute inside, one touched by a missed or INCOMPLETE frame, one that began before
+// the symbol was held: not appended, and neither is any bucket after it (until the key's next answer).
+// A BUCKET THE ROLLUP CAN NO LONGER VOUCH FOR (`stale`: a correction it could not settle exactly, typically a bad-print
+// high or low removed; or a late minute too old for it to merge) is rebuilt here from the kept minutes themselves,
+// which hold the corrected minute, and appended, or offered again as a correction when it was already appended
+// (review of #2680, B2: left alone, a copy that reads current kept the bad high until its next answer).
+// THE FORMING BUCKET IS NEVER SYNTHESIZED: a bucket whose last minute has not been applied is not whole, so nothing is
+// offered for it. A fed 15m copy at 10:16 holds closed buckets through the one that ended at 10:15 and no forming bar
+// (the chart's own stream or answer brings that, as for 1m); `_behindClock` accepts it, because its newest closed
+// bucket is the clock's previous one. A forming bar the copy already holds (the server's) is left exactly as it is
+// until its bucket is whole, then closed with the bucket's own values.
+// WHAT THAT MEANS FOR A WARMED ROW: the bucket a copy was answered IN can be completed only if the symbol was already
+// held when that bucket's first minute was published. A row warmed mid-bucket therefore stays behind at the next
+// boundary, as today; its first press asks, and from the bucket of THAT answer on the key is fed for as long as it is
+// held (rails H7, and minuteFeed.scanHigher.test.js for the numbers).
+// THE NIGHT. The bucket after yesterday's last one does not start where that one ended, so the rule above alone would
+// never append today's first bucket (a whole hour on 60m). It is appended when the server's own answer NAMED the
+// forming bar the copy holds as its newest bar (`newestForming`) and that bar is the session's first regular bucket:
+// the answer itself then says nothing lies between, provided it also says the server was proved current at or after
+// the open (`verifiedThrough`). Only over the night: inside the session a bucket the server had
+// no bar for is not proved empty (a late bar), so no bucket is ever stepped over there. A copy whose answer carried
+// no forming bar (a symbol no stream is on) is not bridged and stays behind at the first boundary, as today.
+//
+// QUIET NAMES (`fedThrough`): NOT BUILT, AND NOT BUILDABLE FROM TODAY'S FRAMES. A frame's symbol table is exactly the
+// symbols that have a record in it (api/services/minute_frames.encode_frame): no universe list, no heartbeat, nothing
+// that says "this symbol had no trade in this minute". A symbol absent from a complete frame may be quiet or late,
+// so no stamp can honestly call its copy current. What the publisher would have to add is written in the PR.
+//
 // NOT IN THIS SLICE (each left exactly as it is today):
 //   • extended-hours minutes (only regular-session minutes are fed, and nothing is polled outside the regular session);
-//   • 5m-60m and D keys (no rollup here);
-//   • the quiet-name stamp (`fedThrough`): a name that did not trade in the newest minute still reads "behind";
+//   • D / W / M keys, and the extended 60m key (`60e`, the clock grid);
+//   • a forming bar, for any timeframe;
 //   • a copy the server has not answered in this page's life (a saved, lake or device copy), a copy the store holds
 //     for a full re-read, a windowed (replay) key, a key a chart is on (its own stream and requests keep it current);
 //   • a key whose newest closed row is from an earlier session (the first minutes after the open, until its answer);
@@ -58,8 +96,8 @@
 //
 // COST, ON: one GET a minute per PAGE (the minute file, `immutable` in the browser cache, so a second tab reads the
 // first tab's copy), at low priority, only while the app is visible, the regular session is open AND THERE IS
-// SOMETHING TO FEED: at least one idle regular 1m key is held (a row a list warmed, a chart the member left). No 1m
-// chart anywhere, or only the one a chart is on: no request at all. The first such key starts the polls within
+// SOMETHING TO FEED: at least one idle regular 1m / 5m / 15m / 30m / 60m key is held (a row a list warmed, a chart the
+// member left). None anywhere, or only the one a chart is on: no request at all. The first such key starts the polls within
 // WANT_RECHECK_MS, at the minute then due; the last one gone stops them at the next look (within a minute). Never head.json,
 // never today.bin, never a backlog: back from hidden the run starts again at the minute now due, and every key whose
 // walk stops at a minute that was missed is simply behind, as today. A member the edge refuses (401/403), or a feed that is not
@@ -67,6 +105,7 @@
 
 import { createMinuteFrameConsumer } from '../../lib/minuteFrames/consumer'
 import { MINUTE_APPLIED_CHANNEL, readAppliedSignal } from '../../lib/minuteFrames/applied'
+import { bucketOf } from '../../lib/minuteFrames/rollup'
 import { isRthBar } from '../../components/chart/barTime'
 import { isAppVisible, onDeskHiddenChange } from '../../lib/deskVisibility'
 import { cookieKillsChartSpeed } from '../../lib/chartSpeed'
@@ -74,10 +113,21 @@ import { inRegularSession } from '../deviceStore/fresh'
 import { serverPrice } from '../deviceStore/price'
 import { ACTION, parseKey } from './types'
 
-/** The one timeframe this slice feeds. */
+/** The timeframe the frames carry. */
 export const FEED_TF = '1'
-/** Minutes of each held symbol kept. A copy further behind stops at the first minute dropped: the server's to heal. */
-export const RING_MINUTES = 30
+/** The timeframes fed: the regular 1m key and, from the buckets the consumer's rollup builds of its minutes, 5m, 15m,
+ *  30m and the regular-session 60m. (The extended 60m key, `60e`, and D are not: see the header.) */
+export const FEED_TFS = Object.freeze(['1', '5', '15', '30', '60'])
+const HIGHER_TFS = new Set(FEED_TFS.filter((tf) => tf !== FEED_TF))
+/** Minutes of each held symbol kept: one whole 60m bucket and a margin. A copy further behind stops at the first
+ *  minute dropped: the server's to heal. */
+export const RING_MINUTES = 75
+/** The consumer's rollup as this feed needs it (ONE place: the page feed and its rails use it): the fed timeframes,
+ *  only for symbols a fed key is held for, keeping each symbol's minutes for as long as the feed does, so a correction
+ *  anywhere inside a 60m bucket is still settled exactly (the rollup's default keeps 15); and forgetting a symbol
+ *  once none of its fed keys is held (`forgetRefused`: the held keys change all day, and the rollup would otherwise keep
+ *  every symbol ever held until the day's reset; review of #2680). */
+export const feedRollup = (feeder) => ({ tfs: [...FEED_TFS], accept: feeder.accept, recentMinutes: RING_MINUTES, forgetRefused: true })
 /** The appends of one frame give the thread back after this much work (a held 1m copy is up to 20,000 rows, and a
  *  list holds a hundred of them). */
 export const DRAIN_SLICE_MS = 4
@@ -102,7 +152,7 @@ export const POLL_DELAY_MS = 7000
  */
 export const CACHE_RETRY_MS = 500
 export const CACHE_RETRIES = 1
-/** With nothing to feed (no idle regular 1m key held) the feed looks again this often: a registry read, no request. */
+/** With nothing to feed (no idle fed key held) the feed looks again this often: a registry read, no request. */
 export const WANT_RECHECK_MS = 5_000
 /** A minute file that is not there yet is asked again this many times (every 2 s), then given up. */
 export const TAIL_RETRIES = 3
@@ -129,13 +179,21 @@ export function createMinuteFeeder({
   sliceMs = DRAIN_SLICE_MS, yieldTo = () => new Promise((r) => setTimeout(r, 0)), elapsed = _perfNow,
 } = {}) {
   if (!registry || typeof registry.feed !== 'function') throw new Error('minuteFeed needs a registry with feed()')
-  /** sym -> { key, bars: Map<minute, row>, redo: Set<minute> }: one per held regular 1m key. `bars` = the minutes
-   *  KEPT for it (see the header: what is not kept cannot be walked). */
+  /** sym -> { keys, bars, redo, hi, bad, redoHi }: one per symbol a fed key is held for.
+   *    keys   Map<tf, key>            its held fed keys
+   *    bars   Map<minute, row>        the minutes KEPT for it (see the header: what is not kept cannot be walked)
+   *    redo   Set<minute>             minutes (re)stated since its 1m key was last brought forward
+   *    hi     Map<tf, Map<t, row>>    the rollup's buckets of those minutes, as it last stated them
+   *    bad    Map<tf, Map<t, rev>>    buckets the rollup no longer vouches for, with the revision of that report
+   *    redoHi Map<tf, Set<t>>         buckets (re)stated since that timeframe's key was last brought forward */
   const syms = new Map()
-  /** Map<sym, key> of the 1m keys held while the frame in hand is applied (read once per frame). */
+  /** Map<sym, Map<tf, key>> of the fed keys held while the frame in hand is applied (read once per frame). */
   let held = null
-  /** The records of the frame in hand: [sym, minute, bar] (filed at its frameDone, when its minute is known). */
+  /** The records of the frame in hand: [sym, minute, bar] (filed at its frameDone, when its minute is known)... */
   let pend = []
+  /** ...and what the rollup said of its buckets while applying it: [sym, tf, bar], and [sym, tf, t] (stale). */
+  let pendHi = []
+  let pendStale = []
   /** The newest minute a gap reported for the frame in hand covers (null: none). */
   let gapTo = null
   /** The minute of the newest frame applied (null: none): how far a walk may go. */
@@ -146,16 +204,21 @@ export function createMinuteFeeder({
   let done = Promise.resolve()
   const stats = { frames: 0, breaks: 0, appended: 0, corrected: 0, rejected: 0 }
 
-  /** The regular 1m keys the registry holds (those `only` accepts, when given), as Map<sym, key>. */
+  /** The fed keys the registry holds (those `only` accepts, when given), as Map<sym, Map<tf, key>>: a regular
+   *  1m / 5m / 15m / 30m / 60m key. Never a windowed (replay) one, never the extended 60m key (`60e`: another grid). */
   function _heldNow(only = null) {
     const m = new Map()
     for (const key of registry.keys()) {
-      if (!key.endsWith(`_${FEED_TF}`)) continue      // (a windowed key ends in its `@to=`; parseKey has the last word)
       const p = parseKey(key)
-      if (p && p.tf === FEED_TF && !p.window && (!only || only(key))) m.set(p.sym, key)
+      if (!p || p.window || p.cacheTf !== p.tf || !FEED_TFS.includes(p.tf)) continue
+      if (only && !only(key)) continue
+      let keys = m.get(p.sym)
+      if (!keys) { keys = new Map(); m.set(p.sym, keys) }
+      keys.set(p.tf, key)
     }
     return m
   }
+  const _of = (map, k, make) => { let x = map.get(k); if (!x) { x = make(); map.set(k, x) } return x }
 
   /** Is the closed row at `t` held (looked for from the tail: a fed minute is always near it)? */
   function _hasRow(s, t) {
@@ -165,28 +228,114 @@ export function createMinuteFeeder({
     return i >= 0 && b[i].t === t
   }
 
-  function _offer(key, sym, row, rev = row.rev) {
+  function _offer(key, sym, tf, row, rev = row.rev) {
     return registry.feed(key, {
       type: ACTION.PUSH_FINAL,
       // marked as the feed's: the reducer clears "the newest bar is forming" for THIS final only, never for a live
       // stream's final on a chart's own key (reducer.applyPush)
       fromFeed: true,
-      event: { sym, tf: FEED_TF, t: row.t, o: row.o, h: row.h, l: row.l, c: row.c, v: row.v, rev },
+      event: { sym, tf, t: row.t, o: row.o, h: row.h, l: row.l, c: row.c, v: row.v, rev },
     })
   }
 
-  /** Bring ONE held key forward, from what the ring and the chain hold now (idempotent: it reads the copy). */
-  function _feedKey(sym, st) {
-    const key = st.key
-    let s = registry.peek(key)
-    // Only a copy the SERVER answered in this page's life (`restSeen`: never a saved copy, the lake's or the device's
-    // rows alone), that the store does not itself hold for a full re-read (`needsFull`: its history or its price basis
-    // changed, or it has a hole a delta cannot reach), and that no chart is on. Everything else is left exactly as it
-    // is (see the header). One clause per rule, each proved by its own mutant (a rule stated twice cannot be).
-    if (!s || !s.restSeen || s.needsFull || !s.bars.length || isActive(key)) {
-      st.redo.clear()
-      return
+  /** The copy of `key`, when it may be fed: only one the SERVER answered in this page's life (`restSeen`: never a
+   *  saved copy, the lake's or the device's rows alone), that the store does not itself hold for a full re-read
+   *  (`needsFull`: its history or its price basis changed, or it has a hole a delta cannot reach), and that no chart is
+   *  on. Everything else is left exactly as it is (see the header). One clause per rule, each proved by its own mutant
+   *  (a rule stated twice cannot be), and EVERY timeframe goes through this one gate. */
+  function _copy(key) {
+    const s = registry.peek(key)
+    return s && s.restSeen && !s.needsFull && s.bars.length && !isActive(key) ? s : null
+  }
+
+  /** Append `row` as the next closed row of the copy `s`. Returns the copy after it, or null when the store did not
+   *  take it (a sealed span, a foreign identity): that ends this key's feed until its next answer. */
+  function _append(key, sym, tf, s, row) {
+    // A FORMING bar is a partial observation of its bucket, whatever instant it is stamped with; the feed's bar is
+    // that bucket CLOSED. So the closed bar outranks a forming bar the copy holds for the same bucket (review of
+    // #2639, L1): stamped at or after the fed revision (a late seal, a clock that runs ahead), the reducer would
+    // otherwise close the bucket with the PARTIAL values and rank the feed's bar below them.
+    const dev = s.developing
+    const rev = dev && dev.t === row.t && Number.isFinite(dev.rev) && dev.rev >= row.rev ? dev.rev + 1 : row.rev
+    const next = _offer(key, sym, tf, row, rev)
+    // the bar must now be a closed row, with no forming bar left at or before it
+    if (!next || !_hasRow(next, row.t) || (next.developing && next.developing.t <= row.t)) { stats.rejected++; return null }
+    if (next !== s) stats.appended++
+    return next
+  }
+
+  /** The bucket of `tf` starting at `t`, WHEN IT MAY BE APPENDED (the header): every one of its minutes is kept for the
+   *  symbol. A bucket whose last minute has not been applied is therefore never whole: the forming bucket is never
+   *  offered. Its values are the rollup's. Only for a bucket the rollup reported it can no longer vouch for are they
+   *  built here, from the kept minutes (already at the server's grain): open of the first, close of the last, the
+   *  highest high, the lowest low, the volumes summed, as the rollup itself folds them. */
+  function _whole(st, tf, t) {
+    const end = bucketOf(t, tf)[1]
+    for (let m = t / 60; m < end / 60; m++) if (!st.bars.has(m)) return null
+    const row = st.hi.get(tf)?.get(t) ?? null
+    const staleAt = st.bad.get(tf)?.get(t)
+    if (staleAt == null) return row
+    const first = st.bars.get(t / 60)
+    const b = { t, o: first.o, h: first.h, l: first.l, c: first.c, v: 0, rev: Math.max(staleAt, row ? row.rev : 0) }
+    for (let m = t / 60; m < end / 60; m++) {
+      const x = st.bars.get(m)
+      if (x.h > b.h) b.h = x.h
+      if (x.l < b.l) b.l = x.l
+      b.c = x.c
+      b.v += x.v
     }
+    return b
+  }
+
+  /** Bring ONE held 5m / 15m / 30m / 60m key forward, bucket by bucket (idempotent: it reads the copy). */
+  function _feedHigher(sym, st, tf, key) {
+    const redo = st.redoHi.get(tf)
+    let s = _copy(key)
+    if (!s) { redo?.clear(); return }
+    // 1) a bucket at or before the newest closed row that the rollup stated again (a LATE or REPLACE minute inside
+    //    it, or one the answer already carried): offered as a closed row when it is whole; the reducer's rank decides
+    //    (a server row and a sealed span always win).
+    if (redo) {
+      const lastT = s.bars[s.bars.length - 1].t
+      for (const t of redo) {
+        if (t > lastT) continue
+        const row = _whole(st, tf, t)
+        if (!row) continue
+        const next = _offer(key, sym, tf, row)
+        if (next && next !== s) { stats.corrected++; s = next }
+      }
+      redo.clear()
+    }
+    // 2) THE WALK, one level up: the bucket right after the newest closed one, only when it is WHOLE; else stop.
+    //    (Bounded by construction, not by argument: every pass appends a later bucket, and no more whole buckets than
+    //    minutes are kept can exist.)
+    for (let n = 0; s && n < RING_MINUTES; n++) {
+      const dev = s.developing
+      const nf = s.newestForming
+      // THE NIGHT (the header): the forming bar the server's answer named as its newest bar, at the session's first
+      // regular bucket, IS the next bucket
+      // ...when that answer also says the server was proved current at or after the open (`verifiedThrough`): 5m-30m
+      // rows are shared with the extended view, and a store that lagged at 09:30 could have left a pre-market bucket
+      // out of the answer (review of #2680, N2). An answer that does not say is not bridged.
+      const atOpen = dev && nf && nf.forming === true && nf.t === dev.t && isRthBar(dev.t) && !isRthBar(dev.t - 60)
+        && s.verifiedThrough >= dev.t
+      const row = _whole(st, tf, atOpen ? dev.t : bucketOf(s.bars[s.bars.length - 1].t, tf)[1])
+      if (!row) return
+      s = _append(key, sym, tf, s, row)
+    }
+  }
+
+  /** Bring every held key of ONE symbol forward. */
+  function _feedSym(sym, st) {
+    for (const [tf, key] of st.keys) {
+      try { if (tf === FEED_TF) _feedKey(sym, st, key); else _feedHigher(sym, st, tf, key) } catch { /* one key never stops the rest */ }
+    }
+  }
+
+  /** Bring ONE held 1m key forward, from what is kept now (idempotent: it reads the copy). */
+  function _feedKey(sym, st, key) {
+    let s = _copy(key)
+    if (!s) { st.redo.clear(); return }
     // 1) minutes at or before the newest closed row (a LATE or REPLACE record, or a minute the answer already
     //    carried): offered as closed rows; the reducer's rank decides (a server row and a sealed span always win).
     const lastT = s.bars[s.bars.length - 1].t
@@ -194,7 +343,7 @@ export function createMinuteFeeder({
       if (m * 60 > lastT) continue
       const row = st.bars.get(m)
       if (!row) continue
-      const next = _offer(key, sym, row)
+      const next = _offer(key, sym, FEED_TF, row)
       if (next && next !== s) { stats.corrected++; s = next }
     }
     st.redo.clear()
@@ -206,18 +355,8 @@ export function createMinuteFeeder({
     for (let m = s.bars[s.bars.length - 1].t / 60 + 1; m <= through; m++) {
       const row = st.bars.get(m)
       if (!row) return
-      // A FORMING bar is a partial observation of its minute, whatever instant it is stamped with; the feed's bar is
-      // that minute CLOSED. So the closed bar outranks a forming bar the copy holds for the same minute (review of
-      // #2639, L1): stamped at or after the fed revision (a late seal, a clock that runs ahead), the reducer would
-      // otherwise close the bucket with the PARTIAL values and rank the feed's bar below them.
-      const dev = s.developing
-      const rev = dev && dev.t === row.t && Number.isFinite(dev.rev) && dev.rev >= row.rev ? dev.rev + 1 : row.rev
-      const next = _offer(key, sym, row, rev)
-      // the minute must now be a closed row, with no forming bar left at or before it; anything else (the reducer
-      // refused it: a sealed span, a foreign identity) ends this key's feed until its next answer
-      if (!next || !_hasRow(next, row.t) || (next.developing && next.developing.t <= row.t)) { stats.rejected++; return }
-      if (next !== s) stats.appended++
-      s = next
+      s = _append(key, sym, FEED_TF, s, row)
+      if (!s) return
     }
   }
 
@@ -237,7 +376,7 @@ export function createMinuteFeeder({
         for (const [sym, st] of [...syms]) {
           if (stopped) return
           if (syms.get(sym) !== st) continue                    // the key left the registry during a pause
-          try { _feedKey(sym, st) } catch { /* one key never stops the rest */ }
+          _feedSym(sym, st)
           if (elapsed() - t0 >= sliceMs) { await yieldTo(); t0 = elapsed() }
         }
       }
@@ -247,7 +386,13 @@ export function createMinuteFeeder({
   /** The rollup's sink (lib/minuteFrames/rollup.js header), fed by the consumer one frame at a time. */
   const sink = {
     upsert(sym, tf, bar) {
-      if (tf === FEED_TF && bar && Number.isFinite(bar.t)) pend.push([sym, bar.t / 60, bar])
+      if (!bar || !Number.isFinite(bar.t)) return
+      if (tf === FEED_TF) pend.push([sym, bar.t / 60, bar])
+      else if (HIGHER_TFS.has(tf)) pendHi.push([sym, tf, bar])
+    },
+    /** The rollup can no longer vouch for that bucket (a correction it could not settle exactly). */
+    stale(sym, tf, t) {
+      if (HIGHER_TFS.has(tf)) pendStale.push([sym, tf, t])
     },
     /** Minutes this page lacks: a missing frame, an INCOMPLETE one, a refused one, a broken link. */
     gap(info) {
@@ -257,21 +402,21 @@ export function createMinuteFeeder({
     },
     /** A new trading day: nothing of yesterday is contiguous with it. */
     reset() {
-      syms.clear(); held = null; pend = []; gapTo = null; through = null
+      syms.clear(); held = null; pend = []; pendHi = []; pendStale = []; gapTo = null; through = null
     },
     /** One frame is applied: keep its records (the header says which), bring the held keys forward. */
     frameDone(info) {
       const M = info?.minute
-      if (stopped || !Number.isFinite(M)) { pend = []; held = null; gapTo = null; return }
+      if (stopped || !Number.isFinite(M)) { pend = []; pendHi = []; pendStale = []; held = null; gapTo = null; return }
       // this frame's OWN minute is a gap (INCOMPLETE; a refused frame carries nothing): its own bars are not kept
       const unusable = gapTo != null && gapTo >= M
       if (gapTo != null && stats.frames > 0) stats.breaks++     // (diagnostics only: the first frame always follows a gap)
       gapTo = null
       if (!held) held = _heldNow()                              // (a frame with no accepted record never asked)
-      for (const [sym, key] of held) {
+      for (const [sym, keys] of held) {
         const st = syms.get(sym)
-        if (st) st.key = key
-        else syms.set(sym, { key, bars: new Map(), redo: new Set() })
+        if (st) st.keys = keys
+        else syms.set(sym, { keys, bars: new Map(), redo: new Set(), hi: new Map(), bad: new Map(), redoHi: new Map() })
       }
       for (const sym of [...syms.keys()]) if (!held.has(sym)) syms.delete(sym)
       held = null
@@ -286,12 +431,39 @@ export function createMinuteFeeder({
           // record that rode a LATER frame the start of that frame's minute
           rev: Math.max(minute + 1, M) * 60_000,
         })
-        st.redo.add(minute)
+        if (st.keys.has(FEED_TF)) st.redo.add(minute)
       }
       pend = []
+      // the rollup's buckets as of this frame, at the server's grain like the minutes. A bucket's revision is the
+      // earliest instant it can have been observed whole: its own end, or for one a later frame stated again (a LATE
+      // or REPLACE minute inside it) the start of that frame's minute.
+      const seenAt = (t, tf) => Math.max(bucketOf(t, tf)[1] / 60, M) * 60_000
+      for (const [sym, tf, bar] of pendHi) {
+        const st = syms.get(sym)
+        if (!st) continue
+        _of(st.hi, tf, () => new Map()).set(bar.t, {
+          t: bar.t, o: serverPrice(bar.o), h: serverPrice(bar.h), l: serverPrice(bar.l), c: serverPrice(bar.c), v: bar.v,
+          rev: seenAt(bar.t, tf),
+        })
+        if (st.keys.has(tf)) _of(st.redoHi, tf, () => new Set()).add(bar.t)
+      }
+      // ...and the buckets it can no longer vouch for: rebuilt from the kept minutes (`_whole`) and offered again, at
+      // this frame's revision, whether or not the rollup restated them (a late minute too old for it to merge is not)
+      for (const [sym, tf, t] of pendStale) {
+        const st = syms.get(sym)
+        if (!st) continue
+        _of(st.bad, tf, () => new Map()).set(t, seenAt(t, tf))
+        if (st.keys.has(tf)) _of(st.redoHi, tf, () => new Set()).add(t)
+      }
+      pendHi = []
+      pendStale = []
       through = M
       const floor = M - RING_MINUTES                            // NOT KEPT: anything older than RING_MINUTES
-      for (const st of syms.values()) for (const k of st.bars.keys()) if (k < floor) st.bars.delete(k)
+      for (const st of syms.values()) {
+        for (const k of st.bars.keys()) if (k < floor) st.bars.delete(k)
+        for (const m of st.hi.values()) for (const t of m.keys()) if (t < floor * 60) m.delete(t)
+        for (const b of st.bad.values()) for (const t of b.keys()) if (t < floor * 60) b.delete(t)
+      }
       stats.frames++
       _pump()
     },
@@ -299,17 +471,17 @@ export function createMinuteFeeder({
 
   return {
     sink,
-    /** The rollup's `accept`: only the symbols of held regular 1m keys cost anything (a frame is 8,500 records). */
+    /** The rollup's `accept`: only the symbols of held fed keys cost anything (a frame is 8,500 records). */
     accept(sym) {
       if (!held) held = _heldNow()
       return held.has(sym)
     },
-    /** Is there anything to feed: a regular 1m key that is held and that no chart is on? (The page's gate asks before
-     *  every poll: with none, a frame would be downloaded for nothing.) */
+    /** Is there anything to feed: a regular 1m / 5m / 15m / 30m / 60m key that is held and that no chart is on? (The
+     *  page's gate asks before every poll: with none, a frame would be downloaded for nothing.) */
     wanted: () => _heldNow((key) => !isActive(key)).size > 0,
     /** Resolves when the appends of every frame applied so far are done (tests). */
     settled: () => done,
-    stop() { stopped = true; syms.clear(); pend = []; held = null },
+    stop() { stopped = true; syms.clear(); pend = []; pendHi = []; pendStale = []; held = null },
     stats: () => ({ ...stats, symbols: syms.size, through }),
   }
 }
@@ -442,7 +614,7 @@ export function createPageMinuteFeed({
         sink: feeder.sink, fetchImpl: watchedFetch, now, isVisible: api.gate,
         tailOnly: true, tailRetries: retries, pollDelayMs,
         recheckMs: () => (st.waiting ? WANT_RECHECK_MS : null),
-        rollup: { tfs: [FEED_TF], accept: feeder.accept },
+        rollup: feedRollup(feeder),
         ...consumerOpts,
       })
       if (cacheOnly) {

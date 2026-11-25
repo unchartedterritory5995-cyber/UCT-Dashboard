@@ -254,6 +254,18 @@ describe('the app store', () => {
     done()
   })
 
+  it('S8b OFF with 5m, 15m and 60m charts and warmed rows on the page: the same nothing', async () => {
+    const { s, done } = await appStore()
+    for (const k of ['BBB_5', 'BBB_15', 'BBB_30', 'BBB_60']) s.registry.acquire(k)   // rows a list warmed
+    s.subscribe('AAA_15', () => {})
+    s.subscribe('AAA_60', () => {})
+    expect(s.minuteFeed()).toBe(null)
+    await vi.advanceTimersByTimeAsync(3 * 60_000)
+    expect(live1m()).toEqual([])
+    expect(window.__uctMinuteFeed).toBeUndefined()
+    done()
+  })
+
   it('S9 ON: the first chart starts it; it asks for the minute file now due, never for head.json or today.bin', async () => {
     localStorage.setItem('uct.minuteFeed', '1')
     const { s, done } = await appStore()

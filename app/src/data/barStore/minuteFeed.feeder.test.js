@@ -18,15 +18,21 @@
 //               F17 an answer built BEFORE the minute closed does not turn the closed bar back into a partial one
 //   LEFT ALONE  F18 a key a chart is on     F19 a key with no answer / no entry     F20 a saved (local) copy
 //               F20c an answered copy the store holds for a full re-read
+//               (5m-60m keys of the same symbol: minuteFeed.higher.test.js)
 //   COST        F21 the appends give the thread back and still all land
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { createRegistry } from './registry'
-import { createMinuteFeeder, RING_MINUTES } from './minuteFeed'
+import * as feedModule from './minuteFeed'
 import { ACTION, keyOf } from './types'
 import { newestBarIsFormingOf } from './adapter'
 import { createMinuteFrameConsumer } from '../../lib/minuteFrames/consumer'
 import { decodeFrame, KIND_LATE, KIND_REPLACE } from '../../lib/minuteFrames/codec'
 import { writeFrame, statusResponse } from '../../lib/minuteFrames/testing/frameWriter'
+
+const { createMinuteFeeder, RING_MINUTES } = feedModule
+/** The rollup as THE PAGE FEED configures it: since the second slice it also builds the 5m-60m buckets, so every rail
+ *  here runs with them being built (before that slice: 1m only). */
+const rollupOf = (feeder) => (feedModule.feedRollup ? feedModule.feedRollup(feeder) : { tfs: ['1'], accept: feeder.accept })
 
 const OPEN_MIN = Date.UTC(2026, 10, 10, 14, 30) / 60000          // Tue 2026-11-10 09:30 ET, as a unix minute
 const M = (n) => OPEN_MIN + n                                     // unix minute of 09:30 + n
@@ -47,7 +53,7 @@ function world({ feederOpts = {} } = {}) {
   const registry = createRegistry({ ctx: () => ({ nowMs: clock.ms }) })
   const feeder = createMinuteFeeder({ registry, isActive: (k) => active.has(k), sliceMs: Infinity, ...feederOpts })
   const consumer = createMinuteFrameConsumer({
-    sink: feeder.sink, tailOnly: true, rollup: { tfs: ['1'], accept: feeder.accept },
+    sink: feeder.sink, tailOnly: true, rollup: rollupOf(feeder),
     now: () => clock.ms, fetchImpl: async () => statusResponse(404), setTimer: () => 0, clearTimer: () => {},
   })
   return {
@@ -380,15 +386,6 @@ describe('minute feed · what is left exactly as it is', () => {
     expect(w.tail('AAA').t).toBe(T(29))
   })
 
-  it('F20b only 1-minute keys: a 5m key of the same symbol is untouched', () => {
-    const w = world()
-    w.answer('AAA', { through: 29 })
-    const k5 = keyOf({ sym: 'AAA', tf: '5' })
-    w.registry.dispatch(k5, { type: ACTION.REST_FULL, payload: { bars: [0, 5, 10, 15, 20, 25].map((n) => bar(n)) } })
-    const before = w.registry.peek(k5)
-    w.frame(30); w.frame(31)
-    expect(w.registry.peek(k5)).toBe(before)
-  })
 })
 
 describe('minute feed · cost', () => {

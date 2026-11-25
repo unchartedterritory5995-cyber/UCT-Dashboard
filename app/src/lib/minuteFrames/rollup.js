@@ -78,8 +78,13 @@ function newAgg(t, end) {
  * @param {(sym:string) => boolean} [opts.accept]  symbols to roll up (default: every one). A symbol it
  *        refuses holds no state at all here, and reaches the sink not at all: the device store
  *        keeps only the symbols its seed holds, so the other several thousand cost nothing.
+ * @param {boolean} [opts.forgetRefused]  after each frame, drop everything held for a symbol `accept`
+ *        now refuses (default false: a symbol once accepted is kept until `reset`, as the device
+ *        store's fixed seed needs). For a reader whose wanted symbols CHANGE through the day (the
+ *        page's minute feed follows the bar store's held keys): without it every symbol ever wanted
+ *        keeps its minutes and buckets until the day ends. Wanted again, a symbol starts from nothing.
  */
-export function createMinuteRollup({ sink, tfs = ROLLUP_TFS, dailyVolume = 'auto', recentMinutes = 15, accept = null } = {}) {
+export function createMinuteRollup({ sink, tfs = ROLLUP_TFS, dailyVolume = 'auto', recentMinutes = 15, accept = null, forgetRefused = false } = {}) {
   if (!sink || typeof sink.upsert !== 'function') throw new Error('rollup needs a sink with upsert()')
   const higher = tfs.filter((tf) => tf !== '1')
   const emit1 = tfs.includes('1')
@@ -238,6 +243,12 @@ export function createMinuteRollup({ sink, tfs = ROLLUP_TFS, dailyVolume = 'auto
       }
     }
     advanceTo((f.minute + 1) * 60)
+    if (forgetRefused && accept) {
+      for (const sym of [...syms.keys()]) {
+        if (accept(sym)) continue
+        syms.delete(sym)                                       // (its open buckets are then never closed: advanceTo finds no state)
+      }
+    }
   }
 
   /** Close (emit final) every open bucket that ends at or before unix second `boundary`. */
