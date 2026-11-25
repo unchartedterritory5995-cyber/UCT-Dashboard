@@ -46,7 +46,7 @@
 import { bucketStartUnix, computeBarTime, isRthBar, etDateOf, etMinuteOfDay } from '../../components/chart/barTime'
 import { isHolidayISO } from '../../utils/marketSession'
 import { bucketEndUnix } from '../../components/chart/liveBuckets'
-import { foldOffGridBars } from '../../components/chart/offGridBars'
+import { foldOffGridBars, offGrid } from '../../components/chart/offGridBars'
 import { isSaneLivePriceFor } from '../../components/chart/liveTickBaseline'
 import {
   mergePushBar, reconcileWithServerTail, foldPrice, provisionalOpen, isCompleteOhlc,
@@ -82,6 +82,8 @@ export function initialState(key, ctx = {}) {
     source: null, restSeen: false, needsFull: true, error: null, invalidatedFor: null,
     gen: 0, pendingHistoryRev: null, depthFloor: 0, localHoleFrom: null, liveGapFrom: null,
     lakeOnly: false,
+    // ⭐ (review of #2721) the closed bucket (unix s) the switch painted this copy without: UPDATING until held (ACTION.AWAIT_CLOSED)
+    awaitingClosed: null,
     // ⭐⭐ (2026-11-18) the route's `newest_bar_is_forming` WITH the bar it describes ({t, forming}), or null
     newestForming: null,
   }
@@ -401,7 +403,7 @@ function isForeign(state, obj) {
 // ── snapshot finalize (identity-stable, frozen, status) ──────────────────────
 
 const BASE_FIELDS = ['completeThrough', 'verifiedThrough', 'seriesRev', 'historyRev', 'cacheKey', 'adjBasis', 'grid', 'restFrom', 'sealedSpans']
-const META_FIELDS = ['tailStatus', 'source', 'restSeen', 'needsFull', 'error', 'invalidatedFor', 'deltaFrom', 'gen', 'pendingHistoryRev', 'depthFloor', 'localHoleFrom', 'liveGapFrom', 'lakeOnly', 'newestForming']
+const META_FIELDS = ['tailStatus', 'source', 'restSeen', 'needsFull', 'error', 'invalidatedFor', 'deltaFrom', 'gen', 'pendingHistoryRev', 'depthFloor', 'localHoleFrom', 'liveGapFrom', 'lakeOnly', 'newestForming', 'awaitingClosed']
 
 function _sameFields(a, b) {
   if (!a || !b) return false
@@ -412,6 +414,12 @@ function _sameFields(a, b) {
 
 function finalize(prev, next, ctx) {
   const n = { ...prev, ...next }
+  // the closed bucket the switch painted this copy without: settled once the copy holds it (a row at or after it, or a
+  // developing bar of a later bucket)
+  if (n.awaitingClosed != null) {
+    const last = n.bars && n.bars.length ? n.bars[n.bars.length - 1].t : null
+    if ((last != null && last >= n.awaitingClosed) || (n.developing && n.developing.t > n.awaitingClosed)) n.awaitingClosed = null
+  }
   let { bars } = n
   // Depth cap: trims the OLDEST rows on tail growth, but never below the depth the user
   // scrolled back to (`depthFloor`, raised by scroll-back) — deep history a scroll just
@@ -828,6 +836,7 @@ function applyRest(state, action, ctx, kind) {
     // A full answer re-proves what it carries: a local hole it did not fill is the server's.
     localHoleFrom: kind === 'full' ? null : state.localHoleFrom,
     liveGapFrom: null,   // the server answered: what it still lacks is its truth (P3-S2b)
+    awaitingClosed: null,   // ...and its own status says whether it is current (review of #2721)
     newestForming: _formingOf(p, state),
   }, ctx)
 }
@@ -864,6 +873,34 @@ function applyLocal(state, action, ctx, source) {
   if (out === state) return state
   const lakeOnly = _bulk(source) && (!!state.lakeOnly || (!state.bars.length && !state.developing))
   return out.lakeOnly === lakeOnly ? out : Object.freeze({ ...out, lakeOnly })
+}
+
+/**
+ * ⭐ (2026-11-25, next-row key task) DOES A SAVED COPY'S RAW ROWS PROVABLY CHANGE NOTHING ON THIS ENTRY? True only when
+ * `applyLocal(state, {payload: {bars: raw, ...}})` returns `state` ITSELF, whatever else the payload carries (its stamp,
+ * its seals, `saved_at`, `repair_from`): the entry holds a server answer (`restSeen`), and there a local copy can only add
+ * rows OLDER than everything held (`first`, the restSeen branch of `_applyLocal`), so a copy none of whose rows lands
+ * before `first` is refused whole. A row keeps its own `t` through `ingestRows` (`normT`, as `toBar` reads it), or, off
+ * its intraday grid, is moved to its bucket's start, never more than one bucket (at most an hour) earlier: such a row
+ * within an hour of `first` is not proven and answers false. A malformed row is dropped by `toBar` and adds nothing.
+ * O(rows), no allocation: what lets the bar store skip decoding and ingesting a copy that would change nothing
+ * (persist.hydrateMem, on every chart switch). False is always safe (the copy is applied as before).
+ */
+export function localCopyAddsNothing(state, raw) {
+  if (!state || !state.restSeen || !Array.isArray(raw)) return false
+  if (!raw.length) return true
+  const first = Math.min(state.restFrom ?? Infinity, state.bars[0]?.t ?? Infinity, state.developing?.t ?? Infinity)
+  if (!finite(first)) return false
+  const tf = String(state.tf)
+  const slack = isDateTf(tf) ? 0 : 3600
+  for (const r of raw) {
+    if (!r || typeof r !== 'object') continue
+    const t = normT(r.t ?? r.time, tf)
+    if (!finite(t)) continue
+    if (t < first) return false
+    if (t < first + slack && offGrid(t, tf)) return false
+  }
+  return true
 }
 
 /** A server answer's result no longer holds the lake's rows alone. */
@@ -1301,6 +1338,10 @@ export function reduce(state, action, ctx = {}) {
     case ACTION.TICK_FALLBACK: return applyTick(state, action, ctx)
     case ACTION.SCROLL_BACK: return applyScrollBack(state, action, ctx)
     case ACTION.INVALIDATE: return invalidate(state, action.reason, ctx)
+    case ACTION.AWAIT_CLOSED: {
+      const t = numOrNull(action.payload?.t ?? action.t)
+      return t == null || isDateTf(state.tf) ? state : finalize(state, { awaitingClosed: t }, ctx)
+    }
     // ⛔ A KILL SEEN ON THIS PAGE (review of #2565, P6-L2): the copy's stamp vouches for nothing any more, so the first answer
     // keeps none of the device's rows newer than itself (applyRest). The rows stay until then (nothing is blanked), and the
     // marker stays: the refusal ('killed') keys on it. Only an entry holding device rows; never with the store off.

@@ -302,6 +302,12 @@ def grade_case(case, answer=None):
         result = grade_wall(case, answer)
     elif case['lane'] == 'formula':
         result = grade(case['id'], answer, case.get('chart', 'daily'))
+        # ⭐ 2026-11-25 -- A CASE MAY NAME AN EDGE CHART (`edges.py`): right only when right on the plain bars AND on it
+        if isinstance(case.get('edge'), list) and result['verdict'] == 'right':
+            from . import edges
+            with edges.on(case['edge'], case.get('chart', 'daily')):
+                edged = grade(case['id'], answer, case.get('chart', 'daily'))
+            result = {**edged, 'lines': result['lines'] + ['  -- on the edge chart --'] + edged['lines']}
         # a formula case may also hold what the member is TOLD (`says`: each group needs one of its phrases)
         told = ' '.join(str(answer.get('reply') or '').lower().replace('\u2019', "'").split())      # (a typographic apostrophe is a plain one)
         for group in case.get('says') or []:

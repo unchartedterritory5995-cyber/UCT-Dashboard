@@ -58,6 +58,9 @@ export const ACTION = Object.freeze({
   SCROLL_BACK: 'scroll-back',
   INVALIDATE: 'invalidate',
   DEVICE_KILLED: 'device-killed', // a kill seen on this page: the device copy's stamp vouches for nothing (persist)
+  // the switch painted this copy while it still lacked the closed bucket `t` (its hold ran out): UPDATING until it holds it
+  // or a server answer lands (prefetch._untilClosed, review of #2721)
+  AWAIT_CLOSED: 'await-closed',
 })
 
 /** Where the developing bar's current value came from. */

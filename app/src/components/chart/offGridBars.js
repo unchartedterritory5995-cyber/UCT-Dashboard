@@ -19,7 +19,8 @@ const RTH_OPEN_MIN = 570
 
 // 60m mirrors the server: a start on the session grid (09:30, 10:30 … inside RTH)
 // or on the ET clock-hour grid. ET offsets are whole hours, so a UTC :00 is an ET :00.
-function offGrid(t, tf) {
+// (Exported for the bar store's no-op proof, reducer.localCopyAddsNothing: the rows this fold may move.)
+export function offGrid(t, tf) {
   if (tf !== '60') return t % STEP[tf] !== 0
   if (t % 1800 !== 0) return true
   if (t % 3600 === 0) return false

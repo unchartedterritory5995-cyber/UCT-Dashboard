@@ -211,7 +211,9 @@ describe('B: a copy read before a minute roll is not the frontier', () => {
 })
 
 describe("C: the switch's own answer still behind", () => {
-  it('C1 one bucket behind inside TAIL_LAG_WINDOW_MS of the roll is the server lagging: no grace', async () => {
+  // ⛔ CHANGED (#2721 review, 2026-11-25): the hold is at most ROLL_HOLD_MAX_MS (400 ms) for the own ask or a push frame;
+  // then the server's answer paints under its HONEST status: UPDATING while it lacks the closed bar (never 'current').
+  it('C1 one bucket behind inside TAIL_LAG_WINDOW_MS of the roll is the server lagging: no grace; painted UPDATING', async () => {
     vi.setSystemTime(at(10, 0, 55))
     const w = await boot('lag:5')                                     // every bucket stored 5 s after it ends
     await warmNext(w, ['AAA'])
@@ -220,8 +222,9 @@ describe("C: the switch's own answer still behind", () => {
     let out = 'pending'
     w.pf.prepareForDisplay('AAA', '1').then((o) => { out = o })
     await serve(w, w.P.BEHIND_HOLD_MAX_MS + 50)
-    expect(out).toBe('current')                                       // (the hold is bounded: it paints after it)
+    expect(out).toBe('updating')                                      // (the server's answer, honestly: still updating)
     expect(tailOf(w, 'AAA')).toBe(T(9, 59))                           // its own answer came back still behind
+    expect(w.store.peek(w.k('AAA')).status).toBe('updating')
     expect(w.pf.peekDisplayable('AAA', '1'), 'the next press would paint the short copy at once').toBe(false)
     w.store.dispose()
   })

@@ -206,7 +206,13 @@ def test_an_edge_sits_one_bar_outside_the_window_the_request_names():
     assert len(edged) >= 5
     for case in edged:
         edge = case["edge"]
-        assert set(edge) <= {"back", "high", "low", "othersClose", "close"} and isinstance(edge["back"], int), case["id"]
+        assert set(edge) <= {"back", "high", "low", "othersClose", "close", "ties"}, case["id"]
+        for t in edge.get("ties") or []:                                   # 2026-11-25: exact ties, for strict words
+            assert {"field", "back", "as"} <= set(t) <= {"field", "back", "as", "from"}, (case["id"], t)
+            assert t["field"] in "ohlcv" and t.get("from", t["field"]) in "ohlcv" and t["back"] != t["as"], (case["id"], t)
+        if set(edge) == {"ties"}:
+            continue                                                       # a tie names no window: it tells > from >=
+        assert isinstance(edge["back"], int), case["id"]
         assert edge.get("high") or edge.get("low") or edge.get("othersClose") or edge.get("close"), case["id"]
         assert _edge_is_in_the_words(case), (case["id"], case["words"])
 

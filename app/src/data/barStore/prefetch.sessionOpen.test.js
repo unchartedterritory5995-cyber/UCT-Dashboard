@@ -104,6 +104,76 @@ describe('(2) the session\'s first bucket (p-1 press 71, GLW 15m at 09:39)', () 
   })
 })
 
+describe("(2b) the first bucket and the stream's proof (merge of #2721: rule a also judges the first-bucket behind)", () => {
+  // a 15m copy ending yesterday (09:30-15:45, closed rows only), held as a server answer
+  function yesterday15(sym) {
+    const open = OPEN - 86400
+    const bars = []
+    for (let k = 0; k < 26; k++) { const c = 40 + k * 0.1; bars.push({ t: open + k * 900, o: c - 0.1, h: c + 0.3, l: c - 0.3, c, v: 1000 + k }) }
+    const close = open + 26 * 900
+    return { ticker: sym, tf: '15', bars, contract: 1, grid: 'eth-clock', session: 'rth', cache_key: `b1:${sym}:15:eth-clock`,
+      series_rev: 1, history_rev: 1, verified_through: close, complete_through: close, tail_status: 'verified', developing: null }
+  }
+  async function bootLive() {
+    vi.resetModules()
+    installFakeBarsServer({ modeFor: () => 'ok' })
+    const { createBarStore } = await import('./index')
+    const { createPrefetch } = await import('./prefetch')
+    const { keyOf } = await import('./types')
+    const clock = await import('../../lib/serverClock')
+    clock.__resetServerClockForTests()
+    const stream = fakeStream()
+    const store = createBarStore({
+      stream, candle: fakeCandle(), prices: fakePrices(), pushEnabled: () => true,
+      isHidden: () => false, onVisible: () => () => {}, idle: (fn) => fn(),
+    })
+    const pf = createPrefetch({ store, tickerMeta: () => {} })
+    const hold = (sym) => {
+      const key = keyOf({ sym, tf: '15' })
+      store.registry.dispatch(key, { type: 'rest-full', key, payload: yesterday15(sym) })
+      const off = store.watchLive?.(key) ?? (() => {})
+      return { key, off }
+    }
+    return { store, pf, stream, hold }
+  }
+
+  it('09:30:02: a 15m copy with nothing of today is behind (no stream proves anything)', async () => {
+    vi.setSystemTime((OPEN + 2) * 1000)
+    const w = await bootLive()
+    const h = w.hold('GLWA')
+    expect(w.pf.peekDisplayable('GLWA', '15')).toBe(false)
+    h.off(); w.store.dispose()
+  })
+
+  it('09:31:40: live since BEFORE the open and no frame of today: no trade printed, the copy is current (rule a)', async () => {
+    vi.setSystemTime((OPEN + 100) * 1000)
+    const w = await bootLive()
+    const h = w.hold('GLWB')
+    w.stream.st.live.set('GLWB:15', (OPEN - 60) * 1000)        // delivering without a break since 09:29
+    expect(w.pf.peekDisplayable('GLWB', '15'), 'a thin name proven empty since the open still waited').toBe(true)
+    h.off(); w.store.dispose()
+  })
+
+  it('...control: live only since AFTER the open proves nothing about 09:30-09:31: behind', async () => {
+    vi.setSystemTime((OPEN + 100) * 1000)
+    const w = await bootLive()
+    const h = w.hold('GLWC')
+    w.stream.st.live.set('GLWC:15', (OPEN + 30) * 1000)
+    expect(w.pf.peekDisplayable('GLWC', '15')).toBe(false)
+    h.off(); w.store.dispose()
+  })
+
+  it('...control: live since before the open but a frame of today arrived (the copy lacks a printed bucket): behind', async () => {
+    vi.setSystemTime((OPEN + 100) * 1000)
+    const w = await bootLive()
+    const h = w.hold('GLWD')
+    w.stream.st.live.set('GLWD:15', (OPEN - 60) * 1000)
+    w.stream.st.lastBar.set('GLWD:15', OPEN * 1000)          // a frame for today's 09:30 bucket
+    expect(w.pf.peekDisplayable('GLWD', '15')).toBe(false)
+    h.off(); w.store.dispose()
+  })
+})
+
 describe('(1c) the grace only on the server\'s proof (p-1 press 51, NXPI)', () => {
   it('the switch\'s own answer one bucket behind, past the lag window, with no proof: never painted as "not printing"', async () => {
     vi.setSystemTime((OPEN + 32 * 60 + 12) * 1000)       // 10:02:12, 12 s after the roll (past TAIL_LAG_WINDOW_MS)

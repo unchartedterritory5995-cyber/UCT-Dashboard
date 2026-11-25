@@ -85,6 +85,9 @@ function chartOf(kind, edge) {
     chartWith(kind, kind, bars, othersFor(bars))
   }
   if (!edge) return { key: kind, ...CHARTS[kind] }
+  // ⛔ 2026-11-25: a FORMULA-lane edge (a list of parts, `edges.py`) read here found no `back` and graded the PLAIN
+  // bars under a new key, saying nothing. A script is given its own form (`edges.script_form`), never that one.
+  if (Array.isArray(edge)) throw new Error(`a formula-lane edge on the script lane: ${JSON.stringify(edge)}`)
   const key = `${kind}@${JSON.stringify(edge)}`
   if (!CHARTS[key]) {
     const base = CHARTS[kind]
@@ -104,6 +107,22 @@ function chartOf(kind, edge) {
       const tie = bars[bars.length - 3]
       tie.c = last.c
       tie.h = Math.max(tie.h, tie.c)
+    }
+    // ⭐ 2026-11-25, `ties`: [{field, back, as, from?}], EXACT ties set last: the bar `back` bars before the newest takes
+    // the value of the bar `as` bars before it (its `from` field, the same field by default: "a low above the prior
+    // bar's HIGH" ties a low to a high), so "above" and "at least" (or "below" and "at most") disagree on the bar that
+    // reads them. The value-case audit found strict words these bars never tie on. A tie that would break a bar (a
+    // close outside its own high and low) is refused, never patched.
+    if (Array.isArray(edge.ties)) {
+      for (const t of edge.ties) {
+        const a = bars.length - 1 - t.back
+        const b = bars.length - 1 - t.as
+        const from = t.from || t.field
+        if (!(a >= 0 && b >= 0 && a !== b && ['o', 'h', 'l', 'c', 'v'].includes(t.field) && ['o', 'h', 'l', 'c', 'v'].includes(from))) throw new Error(`a tie names two bars and a field: ${JSON.stringify(t)}`)
+        bars[a][t.field] = bars[b][from]
+        const x = bars[a]
+        if (!(x.h >= Math.max(x.o, x.c) && x.l <= Math.min(x.o, x.c))) throw new Error(`the tie breaks the bar: ${JSON.stringify(t)}`)
+      }
     }
     const others = Object.fromEntries(Object.entries(base.others).map(([sym, series]) => [sym, series.map((b) => ({ ...b }))]))
     if (edge.othersClose) {
