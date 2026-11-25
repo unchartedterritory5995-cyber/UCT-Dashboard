@@ -19,6 +19,7 @@ import { describe, it, expect, vi, beforeAll } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import v8 from 'node:v8'
+import { wireBytes } from '../../../../testing/builder/wireBytes.js'
 import { memberDoorImage } from './memberDoorImage'
 import { MEMBER_PANE_DEF_PREFIX, memberPaneDefinition } from './memberPaneDefinition'
 import { MEMBER_DOOR_JOB, INSPECT_JOB } from './memberDoorProtocol'
@@ -44,7 +45,11 @@ const COMMITTED = [
   'tests/fixtures/member/uncharted-clouds.pine',
 ]
 
-const size = (v) => v8.serialize(v).length
+// ⭐ e98 P2 — the measure is `wireBytes` (the structured-clone wire format, counted by the value's own rule), NOT
+// `v8.serialize(v).length`, whose length moves with the V8 that runs the test (Node 20 on CI read about 18% larger
+// than Node 24 for the same messages). `v8.serialize` is still logged beside it, for the record, and never asserted.
+const size = (v) => wireBytes(v)
+const v8size = (v) => v8.serialize(v).length
 
 let doorCore = null
 let reportCore = null
@@ -79,6 +84,7 @@ async function bytesOf(source) {
     ok: r.ok === true && d.ok === true && !!ask && ask.ok === true && statuses.length > 1,
     now: { report: size(r), door: size(d), status: Math.max(...statuses.map(size)), use: size(ask) },
     before: { report: fullReport, door: fullDoor, status: fullReport + fullDoor, use: fullReport },
+    v8: { node: process.versions.node, report: v8size(r), door: v8size(d), status: Math.max(...statuses.map(v8size)), use: v8size(ask) },
   }
 }
 
@@ -86,11 +92,16 @@ describe('⭐⭐ bytes posted to the page, per kind, under a stated budget', () 
   it('the heaviest committed scripts: every kind under its budget; before, every kind over it on one of them', async () => {
     vi.stubEnv('VITE_PINE_MEMBER_PANE_ENABLED', '1')
     const over = { report: 0, door: 0, status: 0, use: 0 }
+    const measured = []
     for (const f of COMMITTED) {
       const got = await bytesOf(fs.readFileSync(path.join(REPO, f), 'utf8'))
       const name = path.basename(f)
-      expect(got.ok, `${name}: both workers answered, a status with the door's answer, a Use's program`).toBe(true)
       console.log(`[paste-bytes] ${name} ${JSON.stringify(got)}`)
+      measured.push({ name, got })
+    }
+    expect(measured.length, 'every committed script was measured').toBe(COMMITTED.length)
+    for (const { name, got } of measured) {
+      expect(got.ok, `${name}: both workers answered, a status with the door's answer, a Use's program`).toBe(true)
       for (const kind of Object.keys(PAGE_BYTES_BUDGET)) {
         expect(got.now[kind], `${name}: ${kind} posted to the page`).toBeLessThanOrEqual(PAGE_BYTES_BUDGET[kind])
         if (got.before[kind] > PAGE_BYTES_BUDGET[kind]) over[kind] += 1
