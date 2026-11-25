@@ -201,7 +201,7 @@ export function deriveFrom(src, name, sig, fn) {
   if (!src || typeof src !== 'object') return fn()
   const m = _derived.get(src) || _derived.make(src, new Map())
   const k = `${name}\u0001${sig}`
-  if (m.has(k)) { _stats.derivedHit += 1; diagHit(name); return m.get(k) }
+  if (m.has(k)) { _stats.derivedHit += 1; diagHit(name, src); return m.get(k) }
   diagMiss(name, src, sig)   // DIAGNOSTIC ONLY
   const v = fn()
   m.set(k, v)
