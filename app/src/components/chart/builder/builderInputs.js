@@ -25,6 +25,7 @@
 import { declaredInputs } from '../engine/ast/lint'
 import { checkBudget, DEFAULT_BUDGET } from '../engine/ast/budget'
 import { pruneAtLeafDefaults } from '../engine/ast/bind'
+import { hiddenAtLeafDefaults } from '../engine/knobBind.js'
 import { LINE_WIDTH_HARD_MAX } from '../engine/defSchema'
 
 /** ⭐ THE WIDTH CONTROL'S CEILING: 10, or a script's own `linewidth` when larger.
@@ -956,10 +957,22 @@ const sameValueOutputs = (a, b) => (a.outputs || []).length === (b.outputs || []
     return o.formula === q.formula && !o.refusal === !q.refusal
   })
 const sameObjectProgram = (a, b) => JSON.stringify(a.objects || null) === JSON.stringify(b.objects || null)
-const paintShapeOf = (ps) => JSON.stringify((ps || []).map((p) => [p && p.kind, !!(p && p.withheld), !!(p && p.hidden)]))
+/** ⭐ e97 U8(b) — a band's or a paint's display as the ONE fact the proof holds fixed: hidden AT THE DEFAULTS or not.
+ *  Its form may differ between the passes and only by a fold, exactly as a colour's may: `hidden` where the setting is
+ *  folded to its literal, a `hiddenWhen` reading the member's knob where it is declared (the knob leaves carry their
+ *  defaults, `pine.js::displayKnobLeafOf`). ⚰️ Compared raw (U7), declaring the built-in CCI / RCI / RVI's `maTypeInput`
+ *  turned the band's `hidden: true` into a `hiddenWhen`, the proof declined, and the member lost the MA type and BB
+ *  StdDev settings. */
+const hiddenAtDefault = (h) => !!h && (h.hidden === true || (h.hiddenWhen ? hiddenAtLeafDefaults(h.hiddenWhen) : false))
+const paintShapeOf = (ps) => JSON.stringify((ps || []).map((p) => [p && p.kind, !!(p && p.withheld), hiddenAtDefault(p)]))
 const presentationShapeOf = (p) => JSON.stringify(p || null, (k, v) => ((k === 'formula' || k === 'ast') ? undefined : v))
+const fillShapeOf = (fs) => presentationShapeOf((fs || []).map((f) => {
+  if (!f) return f
+  const { hidden: _h, hiddenWhen: _w, ...rest } = f
+  return { ...rest, hiddenAtDefault: hiddenAtDefault(f) }
+}))
 const samePresentationShape = (a, b) => (a.outputs || []).every((o, i) => presentationShapeOf(o.presentation) === presentationShapeOf((b.outputs[i] || {}).presentation))
-  && presentationShapeOf((a.presentation || {}).fills) === presentationShapeOf((b.presentation || {}).fills)
+  && fillShapeOf((a.presentation || {}).fills) === fillShapeOf((b.presentation || {}).fills)
   // ⭐ B1 — and the paints (`bgcolor` / `barcolor`): the SAME paints carried, hidden and
   // withheld. Their colour shape may differ, and only by a fold: an input-pinned rule
   // (`show ? c : na`) is folded to one colour (or `na`) when its input is a literal, and

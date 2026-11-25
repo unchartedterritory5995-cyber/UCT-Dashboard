@@ -9854,14 +9854,10 @@ export class Resolver {
         if (label !== null && label === subject) { picked = arm.binding; break }
       }
       if (!picked) picked = bound.fallback
-      if (!picked) {
-        // ⛔ Pine falls through to `na` when nothing matches and there is no
-        // default. This engine HAS a not-computable, but choosing it here would
-        // invent a column the script does not describe — so it is named instead.
-        throw new PineRefusal('pine:block',
-          `${REFUSALS['pine:block']} — \`switch\` on \`${subject}\`, and no arm matches it `
-          + 'and there is no default', bound.at || locate(tok))
-      }
+      // ⭐⭐ e97 U8(a) (coordinator ruling) — NO ARM MATCHES AND THERE IS NO DEFAULT: Pine's switch yields `na`, so does
+      // this (the engine's `na`, `0 / 0`, as a bare `na` resolves). ⚰️ It was refused (`pine:block`) as "inventing a
+      // column", which refused the built-in SMA / EMA / OBV smoothing plots at their default "None" on the host lane.
+      if (!picked) return cOp('/', [cNum(0), cNum(0)])
       return this.resolveBinding(picked, tok, name)
     }
     // ⭐⭐ ONE ELEMENT OF A TUPLE `request.security` (2026-09-11). Volume's line 259
@@ -10721,8 +10717,8 @@ export class Resolver {
    *  `refusedArm(k)` (`refusedArmLeaf`): pruned away unless the knob picks it, and then THAT plot is refused by name.
    *
    *  ⛔ NARROW, and null (today's fold to the default arm, unchanged) otherwise: the member door's knobs only
-   *  (`enumInputs`, a declared name); every label a string the script fixes; a no-match covered (a default arm, or
-   *  every option labelled); the arm the knob's DEFAULT picks translates (a knob is offered only on a chart that
+   *  (`enumInputs`, a declared name); every label a string the script fixes (a no-match with no default arm is Pine's
+   *  `na`, e97 U8(a)); the arm the knob's DEFAULT picks translates (a knob is offered only on a chart that
    *  draws); and a refused arm only where the translation keeps the list its leaves quote (`knobArmRefusals`). A label
    *  outside the options can never match (Pine's comparison would not) and is dropped, as is a repeated label
    *  (the first one wins). */
@@ -10743,7 +10739,6 @@ export class Resolver {
     }
     if (!arms.length) return null
     const covered = seen.size === en.options.length
-    if (!covered && !bound.fallback) return null
     // ⭐ (approved 2026-11-22, the refusing leaf) an arm this translator refuses is carried as `refusedArm(k)`: the bind
     // prunes it away unless the knob picks it, and then refuses THAT plot by name, quoting the refusal it had here
     const armOf = (binding) => {
@@ -10757,8 +10752,10 @@ export class Resolver {
     }
     // every option labelled: the last arm is the chain's end (its test can only be true there)
     const last = covered ? arms.pop() : null
-    const end = { ...armOf(last ? last.binding : bound.fallback), label: last ? en.options[last.idx] : null,
-      idx: last ? last.idx : -1 }
+    // ⭐ e97 U8(a) — an option no arm names, with no default arm, yields Pine's `na`
+    const end = last || bound.fallback
+      ? { ...armOf(last ? last.binding : bound.fallback), label: last ? en.options[last.idx] : null, idx: last ? last.idx : -1 }
+      : { node: cOp('/', [cNum(0), cNum(0)]), label: null, idx: -1 }
     const built = arms.map((a) => ({ ...armOf(a.binding), label: en.options[a.idx], idx: a.idx }))
     // ⛔ THE DEFAULT'S PROGRAM MUST TRANSLATE: an arm the knob's default picks that this translator refused keeps the
     // switch folded to its default, refused as it always was (a knob is offered only on a chart that draws)
@@ -14152,16 +14149,22 @@ export class Resolver {
       // ⭐ a constant branch is taken only when it is not a SETTING folded to its default (`displayKnobLeafOf`):
       // `show ? display.all : display.none` stays the member's choice even where this pass folded `show`
       const folded = this.constantBranchOf(node)
-      if (folded && !this.displayKnobLeafOf(node.test)) return this.displayArmOf(folded, depth + 1)
+      // ⭐ e97 U8(b) — the setting's own leaf FIRST, in both passes alike (declared or folded): the same tree whether or
+      // not the door declares the setting, so the colour-inputs proof sees one shape. A test read through a `var` or a
+      // plain binding to `<input.string> == "<option>"` is that setting too (`displayKnobLeafOf`).
+      const settingLeaf = this.displayKnobLeafOf(node.test)
+      if (folded && !settingLeaf) return this.displayArmOf(folded, depth + 1)
       const yes = this.displayArmOf(node.yes, depth + 1)
       const no = this.displayArmOf(node.no, depth + 1)
       if (yes.unread) return yes
       if (no.unread) return no
       if (!yes.when && !no.when && yes.hidden === no.hidden) return { hidden: yes.hidden, places: yes.places }
-      let test
-      try { test = this.resolve(node.test) } catch (err) {
-        if (isStackOverflow(err)) throw err
-        return { unread: 'its `display` chooses between places on a condition this engine could not read' }
+      let test = settingLeaf
+      if (!test) {
+        try { test = this.resolve(node.test) } catch (err) {
+          if (isStackOverflow(err)) throw err
+          return { unread: 'its `display` chooses between places on a condition this engine could not read' }
+        }
       }
       // ⭐ e97 U6 — a setting this pass folded to its default (an `input.bool` not declared here) is still the member's
       // choice: it becomes a knob leaf carrying that default, and the door decides it (declared: per instance;
@@ -14192,9 +14195,33 @@ export class Resolver {
       const inner = this.displayKnobLeafOf(node.arg, depth + 1)
       return inner ? { type: 'op', name: '!', args: [inner] } : null
     }
+    // ⭐⭐ e97 U8(b) — `<input.string> == "<option>"` (or `!=`): the member's enum setting compared with an option, the
+    // leaf `enumCompare` builds (`enumKnobTest`: the knob against the option's INDEX, carrying its default)
+    if (node.type === 'binary' && (node.op === '==' || node.op === '!=') && this.enumInputs) {
+      const strSide = node.right && node.right.type === 'string' ? 'right' : node.left && node.left.type === 'string' ? 'left' : null
+      if (!strSide) return null
+      const en = this.enumInputCallOf(strSide === 'right' ? node.left : node.right)
+      if (!en) return null
+      return this.enumKnobTest(en, en.options.indexOf(node[strSide].value), node.op === '==')
+    }
     if (node.type !== 'name' || typeof node.name !== 'string') return null
     const entry = [...this.usedInputs.values()].find((e) => e && e.name === node.name && (e.call === 'input.bool' || e.call === 'input'))
-    if (!entry) return null
+    if (!entry) {
+      // ⭐⭐ e97 U8(b) — a NAME bound to such a test, by a plain binding or by a `var` nothing reassigns
+      // (`neverReassignedVarSeed`: it holds its initializer on every bar): `var isBB = maType == "SMA + Bollinger Bands"`,
+      // the built-in MA family's smoothing switch. ⚰️ Read as per-bar state, such a display was "not one of the script's
+      // settings" (withheld), or folded to the default with no control.
+      if (!this.enumInputs || own(this.table.series, node.name)) return null
+      const bound = this.env && this.env.get(node.name)
+      let via = null
+      if (bound && bound.kind === 'expr') via = bound.node
+      else if (bound && bound.kind === 'state' && this.mutatedKnown) {
+        const seed = neverReassignedVarSeed(bound, node.name, this.mutated)
+        via = seed ? seed.node : null
+      }
+      if (!via || (via.type !== 'binary' && via.type !== 'unary' && via.type !== 'name')) return null
+      return this.displayKnobLeafOf(via, depth + 1)
+    }
     const v = entry.folded === 'true' ? 1 : entry.folded === 'false' ? 0 : Number(entry.folded)
     if (!Number.isFinite(v)) return null
     const leaf = { type: 'series', name: node.name }
