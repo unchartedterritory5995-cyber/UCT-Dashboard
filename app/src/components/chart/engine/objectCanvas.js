@@ -372,6 +372,15 @@ export function paintObjects(ctx, state, m) {
   // loaded bars, or extended, stops at the plot's left edge and at the price scale
   // (`rightInset`), never painted over the axis labels.
   const plotRight = width - (finite(m.rightInset) && m.rightInset > 0 ? m.rightInset : 0)
+  // ⭐ (owner ruling 2026-11-24, "room for labels") HOW FAR A LABEL WHOSE ANCHOR IS ON THE PLOT RUNS PAST ITS RIGHT
+  // EDGE (the price scale starts there), in px; 0 = every such label fits. Fred RS writes "RS Rating" and its number at
+  // the newest bar; TradingView's 10-bar right margin leaves them room and ours did not. The host widens the gap by this
+  // much (`labelRoom.js`). A label anchored OFF the plot (the member scrolled it away) is not counted.
+  let labelOverflowRight = 0
+  const overflowsAt = (anchorX, rightEdge) => {
+    if (!(anchorX >= 0 && anchorX <= plotRight) || !Number.isFinite(rightEdge)) return
+    if (rightEdge - plotRight > labelOverflowRight) labelOverflowRight = rightEdge - plotRight
+  }
   const clipped = typeof ctx.rect === 'function' && typeof ctx.clip === 'function'
   if (clipped) {
     ctx.save()
@@ -555,6 +564,10 @@ export function paintObjects(ctx, state, m) {
         ctx.fillStyle = lb.textcolor || '#FFFFFF'
         lines.forEach((t, i) => { if (t) ctx.fillText(t, p.x, lineTop(i)) })
       }
+      if (text) {
+        const tw = Math.max(...lines.map((t) => (t ? ctx.measureText(t).width : 0)))
+        overflowsAt(p.x, ctx.textAlign === 'left' ? p.x + tw : ctx.textAlign === 'right' ? p.x : p.x + tw / 2)
+      }
       ctx.restore()
       seen(p.x, y)
       drawn.label += 1
@@ -602,6 +615,7 @@ export function paintObjects(ctx, state, m) {
     }
     ctx.restore()
     seen(bx, by); seen(bx + w, by + h)
+    if (text) overflowsAt(p.x, bx + w)
     drawn.label += 1
   }
 
@@ -625,6 +639,7 @@ export function paintObjects(ctx, state, m) {
   return {
     drawn,
     skipped,
+    labelOverflowRight: Math.ceil(labelOverflowRight),
     bbox: Number.isFinite(bbox.x0)
       ? { x0: Math.round(bbox.x0), y0: Math.round(bbox.y0), x1: Math.round(bbox.x1), y1: Math.round(bbox.y1) }
       : null,
