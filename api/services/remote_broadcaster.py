@@ -298,7 +298,10 @@ class RemoteBroadcaster:
             self.counters["batches"] += 1
             if batch.bars:
                 frames = fp.relay_bars(batch.bars, self.legacy, self.revs, int(self._clock_ms()))
+                ingest_ms = getattr(batch, "ts", None)
                 for f in frames:
+                    if ingest_ms is not None:
+                        f.msg["ingest_ms"] = ingest_ms   # ingest's send time (objective 2 instruments)
                     self.counters["bars_in"] += 1
                     k = (f.sym, f.key)
                     if k not in self._subs and k not in self._sent_keys:

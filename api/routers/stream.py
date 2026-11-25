@@ -670,9 +670,13 @@ def _contract_event(bar_contract, msg: dict, session: str) -> dict:
     identity as the REST answer for this series (grid, session, cache_key, series_rev)
     plus the frame's own `rev` (set by the broadcaster) and `final` lifted from `bar`.
     `t_s` = the bucket start in unix SECONDS (REST's unit; `bar.t` stays ms for old
-    clients). Additive; a failure leaves the frame exactly as the broadcaster built it."""
+    clients). Additive; a failure leaves the frame exactly as the broadcaster built it.
+    `sent_ms` (2026-11-25, objective 2): this pod's wall clock (ms) as the frame is serialised, so
+    a client can split trade -> pod (`bar.trade_ts`, `rev`, `ingest_ms`) from pod -> screen."""
+    sent_ms = int(time.time() * 1000)
     try:
         out = dict(msg)
+        out["sent_ms"] = sent_ms
         out.update(bar_contract.stream_fields(msg.get("sym"), str(msg.get("tf")),
                                               msg.get("session") or session))
         bar = msg.get("bar") or {}
@@ -681,7 +685,7 @@ def _contract_event(bar_contract, msg: dict, session: str) -> dict:
             out["t_s"] = int(bar["t"]) // 1000
         return out
     except Exception:                      # noqa: BLE001
-        return msg
+        return {**msg, "sent_ms": sent_ms}
 
 
 @router.get("/api/stream/bars")
