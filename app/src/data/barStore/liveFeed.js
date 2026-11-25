@@ -422,11 +422,17 @@ export function createLiveFeed({
      *  not delivering, push off, or not an intraday key. prefetch._bucketsBehind: a copy the stream kept current through a
      *  bucket roll is as current as the chart on screen. */
     pushLiveSince(key, session) {
+      return this.pushState(key, session)?.since ?? null
+    },
+    /** { since, lastBarT } of `key`'s push stream while it delivers without a break, else null. `lastBarT`: the bucket
+     *  start (ms) of the newest frame the stream delivered (null: none) — a bucket after it had NO frame (prefetch rule a). */
+    pushState(key, session) {
       const p = parseKey(key)
       if (!p || p.window || !isIntradayTf(p.tf) || !stream?.getStatus || !pushEnabled()) return null
       try {
         const st = stream.getStatus(p.sym, streamTf(p), streamSession(p, session))
-        return st?.delivering && finite(st.liveSince) ? st.liveSince : null
+        if (!(st?.delivering && finite(st.liveSince))) return null
+        return { since: st.liveSince, lastBarT: finite(st.lastBarT) ? st.lastBarT : null }
       } catch { return null }
     },
     /** Feed one push frame (tests / an external consumer). */

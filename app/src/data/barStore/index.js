@@ -233,7 +233,8 @@ export function createBarStore(o = {}) {
     watchLive(key, { session = 'rth' } = {}) {
       let wl = watched.get(key)
       if (!wl) {
-        if (!key || watched.size >= NEIGHBOR_LIVE_MAX_KEYS) return () => {}
+        // refused: a no-op release that says so (the hold asks again once, later: review of #2721, LOW)
+        if (!key || watched.size >= NEIGHBOR_LIVE_MAX_KEYS) { const no = () => {}; no.refused = true; return no }
         registry.acquire(key)
         const off = live.attach(key, { session, pushOnly: true })
         wl = { n: 0, stop: () => { try { off() } catch { /* ignore */ } registry.release(key) } }
