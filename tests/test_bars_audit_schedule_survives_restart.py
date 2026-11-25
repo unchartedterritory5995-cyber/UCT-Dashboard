@@ -13,6 +13,7 @@ What this file holds `_loop` to, driving ONE real pass of it against a temporary
 """
 import sqlite3
 import time
+import types
 
 import pytest
 
@@ -30,7 +31,10 @@ def one_pass(tmp_path, monkeypatch):
     monkeypatch.setattr(bca, "_run_5min_check", lambda: ran.append("5min"))
     monkeypatch.setattr(bca, "_run_priority_sweep", lambda: ran.append("priority"))
     monkeypatch.setattr(bca, "_run_universe_sweep", lambda: ran.append("universe"))
-    monkeypatch.setattr(bca.time, "sleep", lambda s: bca._running.clear())
+    # ⭐ 2026-11-25: replace the MODULE'S `time`, never `time.sleep` itself. `bca.time` IS the process-wide `time`
+    # module, so patching its `sleep` stopped the loop whenever ANY thread slept during the pass (a leftover
+    # background thread from another test): nothing ran at all, `[] == [...]` (merge-queue run 45527068948).
+    monkeypatch.setattr(bca, "time", types.SimpleNamespace(time=time.time, sleep=lambda s: bca._running.clear()))
 
     def run():
         bca._running.set()
@@ -122,3 +126,13 @@ def test_the_sweeps_record_themselves_under_the_scopes_the_loop_reads(monkeypatc
     bca._run_priority_sweep()
     bca._run_universe_sweep()
     assert seen == [bca.PRIORITY_SCOPE, bca.UNIVERSE_SCOPE]
+
+
+def test_another_threads_sleep_before_the_first_pass_does_not_stop_the_loop(one_pass, monkeypatch):
+    """The flake, made deterministic: the real `time.sleep` is called (as another thread would) after the loop is
+    armed and before its first check. Patching `bca.time.sleep` turned that into a stop, and nothing ran: `[]`."""
+    db, run = one_pass
+    _runs(db, (bca.PRIORITY_SCOPE, 2 * 3600, True), (bca.UNIVERSE_SCOPE, 2 * 3600, True))
+    real_last = bca._last_completed
+    monkeypatch.setattr(bca, "_last_completed", lambda scope: (time.sleep(0), real_last(scope))[1])
+    assert run() == ["5min", "priority"]
