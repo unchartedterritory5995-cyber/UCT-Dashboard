@@ -112,15 +112,19 @@ describe('the handoff (Enter) · a copy behind the clock waits for its tail', ()
     expect(w.pf.peekDisplayable('ROLL', '1')).toBe(false)
   })
 
-  it('a server that does not answer never pins the member: the copy paints after BEHIND_HOLD_MAX_MS', async () => {
+  // ⛔ CHANGED (2026-11-25, prefetch.neighborLive.test.js H): a copy lacking a closed bar is never painted as it is after
+  // BEHIND_HOLD_MAX_MS. A server that does not answer at all is the one case where it paints as it is: after ROLL_HOLD_MAX_MS.
+  it('a server that does not answer never pins the member: the copy paints after ROLL_HOLD_MAX_MS', async () => {
     const w = await boot()
-    const { BEHIND_HOLD_MAX_MS } = await import('./prefetch')
+    const { BEHIND_HOLD_MAX_MS, ROLL_HOLD_MAX_MS } = await import('./prefetch')
     await heldThenLater(w, 'QQQH')
     let done = null
     w.pf.prepareForDisplay('QQQH', '1').then((o) => { done = o })
-    await vi.advanceTimersByTimeAsync(BEHIND_HOLD_MAX_MS - 20)
+    await vi.advanceTimersByTimeAsync(BEHIND_HOLD_MAX_MS + 50)
+    expect(done, 'the copy lacking a closed bar was painted as it is after 250 ms').toBe(null)
+    await vi.advanceTimersByTimeAsync(ROLL_HOLD_MAX_MS - BEHIND_HOLD_MAX_MS - 100)
     expect(done).toBe(null)
-    await vi.advanceTimersByTimeAsync(40)
+    await vi.advanceTimersByTimeAsync(100)
     expect(done).toBe('current')
   })
 

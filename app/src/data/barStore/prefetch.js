@@ -662,7 +662,8 @@ export function createPrefetch(o = {}) {
       const windowLeft = TAIL_LAG_WINDOW_MS - (now() - _rollMs(tf))
       await _untilCurrent(key, Math.min(TAIL_LAG_RETRY_MS, windowLeft, left()), signal, showExtended)
       if (signal?.aborted || !(left() > 0) || !_rollShort(key, showExtended)) break
-      s = await _bounded(_askOwn(key, { signal, s0: S().peek(key), showExtended }), left(), signal) ?? s
+      // one plain ask a retry (the one full re-ask was the first ask's: _askOwn)
+      s = await _bounded(ensure(key, { until: ASK_AGAIN, priority: 'visible', signal, warm: false, local: false, _s0: S().peek(key) || {}, session: session(showExtended), own: true }), left(), signal) ?? s
     }
     return S().peek(key) || s
   }

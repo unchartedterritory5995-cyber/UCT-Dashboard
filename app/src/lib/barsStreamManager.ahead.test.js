@@ -123,10 +123,10 @@ describe('M: the rows ahead on the bars stream', () => {
     expect(bars.getStatus('MSFT', '1').liveSince).toBe(2_000_000)
     // an error
     es._error()
-    vi.setSystemTime(2_010_000)
     vi.advanceTimersByTime(6_000)                         // the backoff reconnect
     es = open()[0]
     es._open()
+    vi.setSystemTime(2_010_000)
     es._emit('bar', dev('MSFT', '1', 120_000))
     expect(bars.getStatus('MSFT', '1').liveSince).toBe(2_010_000)
     // the vendor socket is down
