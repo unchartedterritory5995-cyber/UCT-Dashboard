@@ -45,6 +45,7 @@ const BARS_PATH = '/api/bars/'
 // until a capture witnesses how TradingView builds it.
 import { baseBarsFor, fetchTf, resampleSpec } from '../timeframes'
 import { resampleForSpec } from '../../../utils/resampleBars'
+import { viewShowExtended } from '../../../utils/viewSession'
 
 /**
  * The request URL for one (symbol, timeframe, count).
@@ -64,12 +65,21 @@ import { resampleForSpec } from '../../../utils/resampleBars'
  *
  * @returns {string|null} null when there is nothing to ask for.
  */
-export function secondaryBarsUrl(symbol, tf, bars) {
+export function secondaryBarsUrl(symbol, tf, bars, { session = null } = {}) {
   const s = typeof symbol === 'string' ? symbol.trim().toUpperCase() : ''
   if (!s) return null
   const count = askedBarsOf(bars)
   const code = tf == null || tf === '' ? 'D' : String(tf)
-  return `${BARS_PATH}${encodeURIComponent(s)}?tf=${encodeURIComponent(code)}&bars=${count}`
+  // ⭐ (2026-11-25) a CUSTOM intraday code on the extended view is its own answer (its buckets start at 04:00 ET, not
+  // 09:30): keyed with the session, and its base asked on the extended grid (`secondaryFetchOf`)
+  const sess = session ?? (_extendedCustom(code) ? 'eth' : null)
+  return `${BARS_PATH}${encodeURIComponent(s)}?tf=${encodeURIComponent(code)}&bars=${count}${sess ? `&session=${sess}` : ''}`
+}
+
+/** Is `code` a custom intraday timeframe drawn on the extended view (the chart's session, utils/viewSession)? */
+function _extendedCustom(code) {
+  if (!viewShowExtended()) return false
+  return resampleSpec(code)?.kind === 'intradaySession'
 }
 
 /** The `bars=` a window asks for (what `secondaryBarsUrl` puts in its URL). */
@@ -96,10 +106,11 @@ export function secondaryFetchOf(symbol, tf, bars) {
   const url = secondaryBarsUrl(symbol, tf, bars)
   if (!url) return null
   const code = tf == null || tf === '' ? 'D' : String(tf)
-  const spec = resampleSpec(code)
+  const ext = _extendedCustom(code)
+  const spec = resampleSpec(code, { extended: ext })
   if (!spec) return { url, fetchUrl: url, spec: null, baseAsk: askedBarsOf(bars) }
   const baseAsk = baseAskOf(code, bars)
-  return { url, fetchUrl: secondaryBarsUrl(symbol, fetchTf(code), baseAsk), spec, baseAsk }
+  return { url, fetchUrl: secondaryBarsUrl(symbol, fetchTf(code), baseAsk, { session: ext ? 'eth' : null }), spec, baseAsk }
 }
 
 const _ET_PARTS = new Intl.DateTimeFormat('en-US', {
@@ -122,7 +133,8 @@ export function offSessionRowOf(baseBars, spec) {
     for (const b of baseBars) {
       if (!b || typeof b.t !== 'number') continue
       const { wd, min } = _etWhen(b.t)
-      if (_WEEKEND.has(wd) || min < 240 || min >= 1200 || (((min - 570) % step) + step) % step !== 0) {
+      const anchor = Number.isFinite(spec.anchorMin) ? spec.anchorMin : 570   // the spec's session start (09:30 / 04:00 ET)
+      if (_WEEKEND.has(wd) || min < 240 || min >= 1200 || (((min - anchor) % step) + step) % step !== 0) {
         return `a ${step}-minute bar at ${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')} ET on a ${wd}`
       }
     }

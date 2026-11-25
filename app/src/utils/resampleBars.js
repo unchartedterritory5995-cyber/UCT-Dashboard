@@ -97,15 +97,19 @@ function _etHM(tSec) {
   return h * 60 + m
 }
 
-// Intraday minutes/hours, anchored to the 9:30 ET session open (matches TV: a 45m
-// chart breaks at 9:30, 10:15, 11:00 …). The bucket START = this bar's time minus
-// its offset within the bucket, so all bars in one bucket share a key WITHOUT any
-// wall-clock→unix reconversion (no DST hazard — a bucket never spans a day).
-export function resampleIntradaySession(bars, bucketMinutes) {
+// Intraday minutes/hours, anchored to the SESSION START (TradingView builds intraday bars from it): 09:30 ET for the
+// regular session (a 45m chart breaks at 9:30, 10:15, 11:00 …), `anchorMin` minutes after ET midnight otherwise.
+// ⭐ (2026-11-25, Fred RS 4h captures) TradingView's EXTENDED-hours (04:00-20:00) 4h bars start at 04:00, 08:00, 12:00
+// and 16:00 ET (SPY, RDDT, ADT, every bar of every day, EST and EDT alike); anchored at 09:30 ours started at 01:30,
+// 05:30, 09:30, 13:30 and 17:30. The extended view passes the session start, 04:00 (timeframes.resampleSpec).
+// The bucket START = this bar's time minus its offset within the bucket, so all bars in one bucket share a key WITHOUT
+// any wall-clock→unix reconversion (no DST hazard — a bucket never spans a day).
+export function resampleIntradaySession(bars, bucketMinutes, { anchorMin = 570 } = {}) {
   if (!bars || !bars.length || !(bucketMinutes > 0)) return []
   const B = bucketMinutes
+  const A = Number.isFinite(anchorMin) ? anchorMin : 570
   return _aggregate(bars, (t) => {
-    const minsSinceOpen = _etHM(t) - 570               // 570 = 9:30 ET
+    const minsSinceOpen = _etHM(t) - A                 // A = the session start (570 = 9:30 ET, 240 = 04:00 ET)
     const off = ((minsSinceOpen % B) + B) % B          // 0..B-1, correct for pre-open (negative)
     return t - off * 60                                // unix-sec bucket start
   }, isUnixT)
@@ -148,7 +152,7 @@ export function resampleNMonthly(monthly, n) {
 export function resampleForSpec(baseBars, spec) {
   if (!spec || !baseBars) return baseBars || []
   switch (spec.kind) {
-    case 'intradaySession': return resampleIntradaySession(baseBars, spec.minutes)
+    case 'intradaySession': return resampleIntradaySession(baseBars, spec.minutes, { anchorMin: spec.anchorMin })
     case 'nDaily': return resampleNDaily(baseBars, spec.n)
     case 'nWeekly': return resampleNWeekly(baseBars, spec.n)
     case 'nMonthly': return resampleNMonthly(baseBars, spec.n)

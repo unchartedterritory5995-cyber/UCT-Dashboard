@@ -97,22 +97,23 @@ function _dwmGraceOff() {
  * chart drew nothing.
  * @returns {{url: string|null, spec: object|null}}
  */
-export function compareBarsRequest(compareSymbol, resolvedTf, barCount, gridQ = '') {
+export function compareBarsRequest(compareSymbol, resolvedTf, barCount, gridQ = '', extended = false) {
   if (!compareSymbol) return { url: null, spec: null }
-  const spec = isNativeTf(resolvedTf) ? null : resampleSpec(resolvedTf)
+  const spec = isNativeTf(resolvedTf) ? null : resampleSpec(resolvedTf, { extended })
   const code = spec ? spec.base : resolvedTf
   const count = spec ? customBaseBarsOf(spec.base) : barCount
-  const q = spec ? '' : gridQ
+  // (an extended custom intraday spec reads its base on the extended grid: 60m on the clock grid, as the chart's own)
+  const q = spec ? (extended && spec.kind === 'intradaySession' ? barsSessionQuery(spec.base, true) : '') : gridQ
   // ⛔ ONE url literal, the site `rails/oneKey.baseline.json` already lists (a shrink-only allowlist: never a new one)
   return { url: `/api/bars/${encodeURIComponent(compareSymbol.toUpperCase())}?tf=${code}&bars=${count}${q}`, spec }
 }
 
 /** The comparison symbol's bars (an SWR of its own URL). P3-S1: BOTH bar sources call this one
  *  hook, so a compare overlay is identical under either switch value; P3-S3 moves it onto a store key. */
-export function useCompareBars({ compareSymbol, resolvedTf, barCount, _gridQ, instFetcher }) {
+export function useCompareBars({ compareSymbol, resolvedTf, barCount, _gridQ, instFetcher, extended = false }) {
   const { url: compareSwrUrl, spec } = useMemo(
-    () => compareBarsRequest(compareSymbol, resolvedTf, barCount, _gridQ),
-    [compareSymbol, resolvedTf, barCount, _gridQ],
+    () => compareBarsRequest(compareSymbol, resolvedTf, barCount, _gridQ, extended),
+    [compareSymbol, resolvedTf, barCount, _gridQ, extended],
   )
   const { data: compareData } = useSWR(compareSwrUrl, instFetcher, { dedupingInterval: 60_000, revalidateOnFocus: false })
   // a custom timeframe: the base payload, its rows resampled (same object while the payload is the same one)
@@ -582,7 +583,7 @@ export function useLegacyChartBars({
   // custom SWR below fetches the base + resamples. Declared here so swrUrl can defer.
   const _isCustomTf = !!sym && !isNativeTf(resolvedTf)
   const _customBaseTf = _isCustomTf ? fetchTf(resolvedTf) : null
-  const _customSpec = useMemo(() => (_isCustomTf ? resampleSpec(resolvedTf) : null), [_isCustomTf, resolvedTf])
+  const _customSpec = useMemo(() => (_isCustomTf ? resampleSpec(resolvedTf, { extended: !!showExtended }) : null), [_isCustomTf, resolvedTf, showExtended])
   // barsOverride (Model Book uploaded data) short-circuits all fetching.
   const _overrideArr = Array.isArray(barsOverride) && barsOverride.length > 0
   // ⛔ AN ECONOMIC PRIMARY NEVER REACHES THE BARS LANE — loaded, loading, denied or
@@ -864,7 +865,7 @@ export function useLegacyChartBars({
   // Pull a generous base window so the resampled series has enough bars to fill the view.
   const _customBaseBars = customBaseBarsOf(_customBaseTf)
   const customSwrUrl = _isCustomTf
-    ? `/api/bars/${encodeURIComponent(sym)}?tf=${_customBaseTf}&bars=${_customBaseBars}`
+    ? `/api/bars/${encodeURIComponent(sym)}?tf=${_customBaseTf}&bars=${_customBaseBars}${_customSpec?.kind === 'intradaySession' && showExtended ? barsSessionQuery(_customBaseTf, true) : ''}`
     : null
   const { data: customBaseData } = useSWR(customSwrUrl, instFetcher, {
     dedupingInterval: dedupMs,
@@ -885,7 +886,7 @@ export function useLegacyChartBars({
   const _intradayLike = isIntraday || (_isCustomTf && _customBaseIntraday)
 
   // ── Comparison symbol SWR fetch ── (useCompareBars, shared with useBarSnapshotBars)
-  const compareData = useCompareBars({ compareSymbol, resolvedTf, barCount, _gridQ, instFetcher })
+  const compareData = useCompareBars({ compareSymbol, resolvedTf, barCount, _gridQ, instFetcher, extended: !!showExtended })
 
   // ── Intraday deep history = LEFT-PREPEND windows (2026-11-11, utils/historyPrepend.js) ──
   // ⛔ Replaces the one-shot `bars=3000` deep pull AND the scroll-back `setFetchDepth` x8

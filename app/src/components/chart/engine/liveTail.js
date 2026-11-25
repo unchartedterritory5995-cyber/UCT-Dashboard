@@ -67,6 +67,7 @@
 import { readoutSourceValue } from './readoutSchema'
 import { baseBarsFor, resampleSpec } from '../timeframes'
 import { resampleForSpec } from '../../../utils/resampleBars'
+import { viewShowExtended } from '../../../utils/viewSession'
 import { LIVE_TAIL_KINDS, LIVE_TAIL_FIELDS, LIVE_TAIL_MA_TYPES } from './liveTailSchema'
 
 /** The grammar, from its leaf (`liveTailSchema.js`): one import for every reader. */
@@ -314,8 +315,10 @@ export function benchmarkTailUrl(sym, tf) {
   const spec = resampleSpec(code)
   const ask = spec ? spec.base : code
   const count = spec ? baseBarsFor(code, BENCHMARK_TAIL_BARS + 1) : BENCHMARK_TAIL_BARS
+  // (2026-11-25) a custom intraday code on the extended view: its base on the extended grid (60m: the clock grid)
+  const sess = spec?.kind === 'intradaySession' && viewShowExtended() ? '&session=eth' : ''
   // ⛔ ONE url literal, the site `rails/oneKey.baseline.json` already lists (a shrink-only allowlist: never a new one)
-  return `/api/bars/${encodeURIComponent(s)}?tf=${encodeURIComponent(String(ask))}&bars=${count}`
+  return `/api/bars/${encodeURIComponent(s)}?tf=${encodeURIComponent(String(ask))}&bars=${count}${sess}`
 }
 
 /** Notified with the entry key when a benchmark tail lands (or fails). @returns {() => void} */
@@ -335,7 +338,8 @@ function _notify(key) {
 export function tailBarsFromWire(body, tf) {
   if (!body || typeof body !== 'object' || !Array.isArray(body.bars)) return null
   // ⭐ (e95) a custom timeframe's base rows, resampled by the chart's rule; the first bucket may be partial: dropped
-  const spec = tf == null ? null : resampleSpec(String(tf))
+  // (the view's session start anchors a custom intraday code's buckets: 04:00 ET extended, 09:30 regular)
+  const spec = tf == null ? null : resampleSpec(String(tf), { extended: viewShowExtended() })
   const src = spec ? resampleForSpec(body.bars, spec).slice(1) : body.bars
   const rows = src.slice(-BENCHMARK_TAIL_BARS)
   const out = []
