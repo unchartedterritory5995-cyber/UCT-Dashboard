@@ -1,0 +1,50 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "U8-M1",
+   "mutant": "a no-match switch with no default is refused again (Pine yields na)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "      if (!picked) return cOp('/', [cNum(0), cNum(0)])",
+   "to": "      if (!picked) throw new PineRefusal('pine:block', 'no arm matches', bound.at || locate(tok))",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/displayEnum.test.js",
+   "expectRed": "folded at its default (no member knob)"
+  },
+  {
+   "id": "U8-M2",
+   "mutant": "the enum knob's switch with no default declines again (folds to the default)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    const end = last || bound.fallback",
+   "to": "    if (!last && !bound.fallback) return null\n    const end = last || bound.fallback",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/displayEnum.test.js",
+   "expectRed": "a switch on the setting itself"
+  },
+  {
+   "id": "U8-M3",
+   "mutant": "a display read through a var is not the setting (per-bar state)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "      else if (bound && bound.kind === 'state' && this.mutatedKnown) {",
+   "to": "      else if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/displayEnum.test.js",
+   "expectRed": "the MA-family shape"
+  },
+  {
+   "id": "U8-M4",
+   "mutant": "an enum comparison is not a setting leaf",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    if (node.type === 'binary' && (node.op === '==' || node.op === '!=') && this.enumInputs) {",
+   "to": "    if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/displayEnum.test.js",
+   "expectRed": "a plain binding reads the same way"
+  },
+  {
+   "id": "U8-M5",
+   "mutant": "the setting's leaf is not taken first (the declared pass reads the var as state)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "      let test = settingLeaf",
+   "to": "      let test = null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/displayEnum.test.js",
+   "expectRed": "the MA-family shape"
+  }
+ ]
+}

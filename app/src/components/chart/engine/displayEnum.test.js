@@ -12,7 +12,7 @@
 //
 // ⭐ NOW: a no-match switch with no default yields Pine's `na`; a display test that is a NAME bound (plainly, or by a `var`
 // nothing reassigns) to `<input.string> == / != "<option>"` is the member's enum setting (`displayKnobLeafOf`), the same
-// leaf in both passes, and the colour-inputs proof holds a band's / paint's display fixed AT THE DEFAULTS, not by form.
+// leaf in both passes (declared or folded), so the colour-inputs proof sees one shape and the setting comes across.
 // The MA-family shape below is written for this rail (not the built-ins' text).
 
 import { describe, it, expect } from 'vitest'
