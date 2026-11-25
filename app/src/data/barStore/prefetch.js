@@ -334,6 +334,9 @@ export function deviceRefusalOf(s, { extended = false, through = null, nowMs = D
   return null
 }
 
+/** The refusals of a delta answer that only a full read repairs (reducer.applyRest), and that prefetch.ensure repairs. */
+export const FULL_READ_FOR = Object.freeze(new Set(['history_rev', 'cache_key', 'adj_basis', 'restored_seal']))
+
 export function createPrefetch(o = {}) {
   const S = () => o.store ?? getBarStore()
   const tickerMeta = o.tickerMeta ?? _defaultTickerMeta
@@ -489,7 +492,16 @@ export function createPrefetch(o = {}) {
     // `own`: the SWITCH's own ask (prepareForDisplay, askForDisplay). Only its answer starts the "name not printing" grace
     // of `_behindClock`; every other answer (a list's, a warm's, the tail's) cools the key and lends nothing: see there.
     if (own) a.own = true
-    const s = await S().ensure(key, { until, depth, priority, signal, session: sess, hydrated: true, warm, front, full })
+    let s = await S().ensure(key, { until, depth, priority, signal, session: sess, hydrated: true, warm, front, full })
+    // ⭐ (2026-11-25) A DELTA REFUSED FOR A NEW HISTORY IS READ IN FULL, NOW, ONCE (live session-open test: the biggest wait
+    // class, 12 presses, was a FULL ask at the press on rows warmed 5 s before). The warm's own since= answer carried a
+    // higher history_rev (the open's gap fills bump it), another cache_key or price basis, or voided restored seals:
+    // reducer.applyRest refused the delta, marked the entry `needsFull` and applied nothing. A key no chart subscribes to
+    // has nobody to repair it, and this answer would start its cooldown: the press then asked in full itself. So the same
+    // ask is made again here, in the same lane, without since= (`until: []`: asked whatever the entry's status says).
+    if (s && !full && s.needsFull && FULL_READ_FOR.has(s.invalidatedFor) && !signal?.aborted && !s.error) {
+      s = await S().ensure(key, { until: [], depth, priority, signal, session: sess, hydrated: true, warm, front, full: true })
+    }
     // Only an ANSWER starts the cooldown: an aborted request or a shed / failed one gives
     // the slot back (the lane's 503 backoff is what paces a shedding server).
     // ⭐ (review of fb6fed4328, LOW) AN ABORTED ASK WAS NEVER AN ASK: the row keeps the record it had before (its last

@@ -126,3 +126,31 @@ describe('(1c) the grace only on the server\'s proof (p-1 press 51, NXPI)', () =
     expect(w.pf.peekDisplayable('THNX', '1')).toBe(true)
   })
 })
+
+describe('(3) a warm\'s delta refused for a new history is read in full at once', () => {
+  it('the warm reads it in full; the press then shows it in the key task with no ask', async () => {
+    vi.setSystemTime((OPEN + 20 * 60) * 1000)
+    let rev = 1
+    const w = await boot({ modeFor: () => `rev:${rev}` })
+    const key = w.keyOf({ sym: 'HISX', tf: '1' })
+    w.pf.prefetch([key], { priority: 'urgent' })
+    await w.server.drain()
+    expect(w.store.peek(key).historyRev).toBe(1)
+    // two minutes later the row's warm asks again (since=: the tail hold's re-ask, ASK_AGAIN), and the server's history
+    // has moved on
+    vi.setSystemTime((OPEN + 22 * 60) * 1000)
+    rev = 2
+    const n0 = asksOf(w.server.calls, 'HISX', '1').length
+    w.pf.ensure(key, { until: [], priority: 'urgent' })
+    await w.server.drain()
+    const warm = asksOf(w.server.calls, 'HISX', '1').slice(n0)
+    expect(warm.map((c) => (c.q.since != null ? 'since' : 'full'))).toEqual(['since', 'full'])
+    const s = w.store.peek(key)
+    expect(s.historyRev).toBe(2)
+    expect(!!s.needsFull).toBe(false)
+    // the press: shown at once (the same task), nothing asked
+    const n1 = w.server.calls.length
+    expect(w.pf.peekDisplayable('HISX', '1')).toBe(true)
+    expect(w.server.calls.length).toBe(n1)
+  })
+})
