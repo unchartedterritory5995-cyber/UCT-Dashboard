@@ -154,6 +154,22 @@ describe("(2b) the first bucket and the stream's proof (merge of #2721: rule a a
     h.off(); w.store.dispose()
   })
 
+  it('...but a copy that stopped MID-SESSION yesterday (14:00) still lacks 14:15-15:45: behind, whatever the stream says', async () => {
+    vi.setSystemTime((OPEN + 100) * 1000)                    // 09:31:40
+    const w = await bootLive()
+    const key = 'GLWE'
+    const p = yesterday15(key)
+    p.bars = p.bars.slice(0, 19)                              // 09:30-14:00 (19 bars), nothing after
+    p.verified_through = p.complete_through = p.bars.at(-1).t + 900
+    const sym = key
+    const kk = (await import('./types')).keyOf({ sym, tf: '15' })
+    w.store.registry.dispatch(kk, { type: 'rest-full', key: kk, payload: p })
+    const off = w.store.watchLive?.(kk) ?? (() => {})
+    w.stream.st.live.set('GLWE:15', (OPEN - 300) * 1000)    // live since 09:25, no frame of today
+    expect(w.pf.peekDisplayable('GLWE', '15'), "a copy missing yesterday's 14:15-15:45 painted as current").toBe(false)
+    off(); w.store.dispose()
+  })
+
   it('...control: live only since AFTER the open proves nothing about 09:30-09:31: behind', async () => {
     vi.setSystemTime((OPEN + 100) * 1000)
     const w = await bootLive()
