@@ -88,8 +88,11 @@ export function everyOutputAuthorHidden(t) {
   // ⛔ and the script draws nothing ELSE either: no drawing objects, no paint. One whose plots are all hidden but whose
   // labels or lines TradingView draws is not "nothing drawn" (session-highs-and-lows, measured), and keeps its refusal.
   const ops = t && t.objects && Array.isArray(t.objects.ops) ? t.objects.ops.length : 0
+  // the drawing steps the script WRITES, whether or not this engine carried them (`objectDiagnostics.attemptedOps`):
+  // a script whose labels the object program dropped still draws them on TradingView
+  const attempted = t && t.objectDiagnostics && Number.isFinite(t.objectDiagnostics.attemptedOps) ? t.objectDiagnostics.attemptedOps : 0
   const paints = ((t && t.presentation && t.presentation.paints) || []).filter((p) => p && !p.hidden && !p.na)
-  return outs.length > 0 && ops === 0 && paints.length === 0 && outs.every((o) => !o.refusal && !o.displayUnread
+  return outs.length > 0 && ops === 0 && attempted === 0 && paints.length === 0 && outs.every((o) => !o.refusal && !o.displayUnread
     && ((o.hidden === true && o.hiddenReason === 'author') || o.offPane === true))
 }
 

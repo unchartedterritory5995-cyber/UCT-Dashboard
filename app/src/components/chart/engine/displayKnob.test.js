@@ -118,6 +118,13 @@ describe('e97 U6 — a script whose every output its author hid is served, drawi
     expect(r.definition.plots.every((p) => p.hidden === true)).toBe(true)
   })
 
+  it('⛔ CONTROL: one that also WRITES a drawing is not carved out (TradingView draws it; measured: session-highs-and-lows)', () => {
+    const r = memberPaneDefinition({ source: `${H}plot(close, "a", display = display.none)\n`
+      + 'var label lb = na\nif barstate.islast\n    lb := label.new(bar_index, high, str.tostring(close))\n' })
+    expect(r.ok && r.definition && r.definition.plots.every((p) => p.hidden === true)
+      && !((r.definition.objects || {}).ops || []).length).toBe(false)
+  })
+
   it('⛔ CONTROL: one whose only output is UNREADABLE is not carved out (it is withheld, not the author\'s hiding)', () => {
     const r = memberPaneDefinition({ source: `${H}f() => display.all\nplot(close, "a", display = f())\n` })
     expect(r.ok).toBe(false)
