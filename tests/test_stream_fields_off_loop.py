@@ -34,6 +34,8 @@ def slow_store(monkeypatch):
         return {"rev": state["rev"]}
 
     monkeypatch.setattr(bars_sqlite, "series_meta", series_meta)
+    # what the route guarantees before a stream's first frame (test_the_route_warms_...)
+    getattr(bc, "warm_imports", lambda: None)()
     reset = getattr(bc, "reset_stream_rev_for_tests", None)
     if reset:
         reset()
@@ -157,3 +159,42 @@ def test_the_route_starts_the_reads_when_the_stream_opens(monkeypatch):
 
     asyncio.run(go())
     assert asked == [([("AAPL", "5"), ("MSFT", "1")], "rth")], asked
+
+
+def test_the_route_warms_the_contract_imports_off_the_loop(monkeypatch):
+    """bars_fetch's first import (~1.5-2 s) happens on a worker thread when the first stream opens,
+    never under a frame on the event loop."""
+    from fastapi.responses import StreamingResponse
+    from api.routers import stream
+    from api.services import bar_broadcaster as bb
+
+    class _B:
+        def subscribe(self, sym, tf):
+            return asyncio.Queue()
+
+        def unsubscribe(self, sym, tf, q):
+            pass
+
+    ran = []
+    monkeypatch.setattr(stream, "_subscribers", {"prices": set(), "bars": set()})
+    monkeypatch.setattr(stream, "_event_seq", {"prices": 0, "bars": 0})
+    monkeypatch.setattr(stream, "_contract_warm", {"done": False})
+    monkeypatch.setenv("STREAM_BARS_ENABLED", "1")
+    monkeypatch.setattr(bb, "get_broadcaster", lambda: _B())
+    monkeypatch.setattr(bc, "warm_imports", lambda: ran.append(threading.current_thread() is threading.main_thread()))
+
+    class _Req:
+        headers = {}
+
+        async def is_disconnected(self):
+            return True
+
+    async def go():
+        for _ in range(2):
+            resp = await stream.stream_bars(_Req(), bars="AAPL:5")
+            assert isinstance(resp, StreamingResponse)
+            async for _ in resp.body_iterator:
+                pass
+
+    asyncio.run(go())
+    assert ran == [False], ran   # once, and not on the loop's thread

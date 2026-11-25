@@ -665,6 +665,15 @@ def _kick_seed(fn, sym: str) -> bool:
     return True
 
 
+_contract_warm = {"done": False}
+
+
+def _warm_contract_imports() -> None:
+    """Import what a frame's contract identity needs. Runs on a worker thread (see stream_bars)."""
+    from api.services import bar_contract
+    bar_contract.warm_imports()
+
+
 def _contract_event(bar_contract, msg: dict, session: str) -> dict:
     """⭐ BAR CONTRACT on a stream frame (docs/architecture/bar-contract.md): the same
     identity as the REST answer for this series (grid, session, cache_key, series_rev)
@@ -752,6 +761,14 @@ async def stream_bars(
         if pair not in pairs and pair not in ahead_pairs:
             ahead_pairs.append(pair)
     ahead_pairs = ahead_pairs[:max(0, min(AHEAD_MAX_PER_CONN, MAX_BARS_PAIRS - len(pairs)))]
+
+    # ⭐ (2026-11-25) every frame's contract identity (bar_contract.stream_fields) needs bars_fetch, whose
+    # first import costs ~1.5-2 s (massive, yf_util ...). On a pod where nothing else imported it yet
+    # (stream-edge after a restart) that import ran on THIS event loop under the first frame, holding
+    # every member's stream behind it. The first opens import it on a thread, before any queue exists.
+    if not _contract_warm["done"]:
+        await asyncio.to_thread(_warm_contract_imports)
+        _contract_warm["done"] = True
 
     # Admission BEFORE the broadcaster subscribe, for the same reason as
     # /api/stream/prices: a refused connection must leave no queues behind.

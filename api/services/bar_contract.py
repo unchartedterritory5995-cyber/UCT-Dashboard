@@ -525,6 +525,12 @@ def reset_stream_rev_for_tests() -> None:
         _stream_rev_cache.clear()
 
 
+def warm_imports() -> None:
+    """Import what stream_fields needs: bars_fetch (session rules, the 60m grid), ~1.5-2 s cold.
+    Call it OFF the event loop before a stream's first frame (stream.stream_bars does)."""
+    from api.services import bars_fetch  # noqa: F401
+
+
 def stream_fields(sym: str, tf: str, session) -> dict:
     """Contract identity for one /api/stream/bars pair (grid/session/cache_key and the
     store's series_rev, cached ~1 s and refreshed OFF the calling thread: a stream event
