@@ -37,6 +37,14 @@ def _body(resp):
     return json.loads(bytes(resp.body))
 
 
+#: The unverified Retry-After is jittered over 3-5 s (2026-11-25 review (c)).
+RETRY_AFTERS = ("3", "4", "5")
+
+
+def _retry_ok(payload, headers):
+    return headers.get("Retry-After") in RETRY_AFTERS and str(payload.get("retry_after")) == headers["Retry-After"]
+
+
 def test_P1_async_heal_marks_the_answer_pending(monkeypatch):
     _wire(monkeypatch)
     monkeypatch.setenv("BARS_SINCE_ASYNC_HEAL", "1")
@@ -90,7 +98,7 @@ def test_P2_a_pending_tail_the_tolerance_calls_current_is_unverified(monkeypatch
     payload = {"ticker": "RDDT", "tf": "1", "bars": [{"t": 1_700_000_000}], "delta": True, "tail_pending": True}
     headers = br._apply_tail_status(payload, "RDDT", "1", "rth")
     assert payload["tail_status"] == "unverified"
-    assert payload.get("retry_after") == 3 and headers.get("Retry-After") == "3"
+    assert _retry_ok(payload, headers)
     assert "tail_pending" not in payload
 
 
@@ -162,7 +170,7 @@ def test_P3_a_full_answer_one_bucket_short_with_no_proof_is_unverified(clock):
     payload = {"ticker": "THIN", "tf": "1", "bars": [{"t": ONE_SHORT}]}
     headers = br._apply_tail_status(payload, "THIN", "1", "rth", contract_vt=None)
     assert payload["tail_status"] == "unverified"
-    assert payload.get("retry_after") == 3 and headers.get("Retry-After") == "3"
+    assert _retry_ok(payload, headers)
 
 
 def test_P3_the_same_on_the_stores_own_proof(monkeypatch, clock):
@@ -171,7 +179,7 @@ def test_P3_the_same_on_the_stores_own_proof(monkeypatch, clock):
     monkeypatch.setattr(bf, "tail_verified_through", lambda *a, **k: None)
     payload = {"ticker": "THIN", "tf": "1", "bars": [{"t": ONE_SHORT}]}
     headers = br._apply_tail_status(payload, "THIN", "1")
-    assert payload["tail_status"] == "unverified" and headers.get("Retry-After") == "3"
+    assert payload["tail_status"] == "unverified" and _retry_ok(payload, headers)
 
 
 def test_P3_a_proof_through_the_closed_bucket_makes_it_current(clock):
@@ -215,17 +223,28 @@ def test_P3_a_since_delta_one_short_and_not_pending_is_unverified(monkeypatch, c
     assert payload["tail_status"] == "unverified"
 
 
-def _heal_env(monkeypatch, clock, call_s):
-    """A provider that answers ok with nothing new (a thin name) after `call_s` seconds."""
+def _heal_env(monkeypatch, clock, call_s, market=ROLL, rows=(), order=None):
+    """A provider that answers ok after `call_s` seconds with `rows` (none: a thin name). `market`: the market's
+    publication watermark (`market_published_through`): by default the 09:59 minute is published market-wide."""
     stamped: list = []
 
     def _delta(t, tf, last_ts, status=None, tail_only=False):
+        if order is not None:
+            order.append("ask")
         clock["t"] += call_s
         status["ok"] = True
-        return []
+        return [dict(r) for r in rows]
+
+    def _market(now=None):
+        if order is not None:
+            order.append("market")
+        return market
 
     monkeypatch.setattr(bf, "_provider_write", lambda checked_at: bf._NullCheck())
     monkeypatch.setattr(bf, "_delta_intraday", _delta)
+    monkeypatch.setattr(bf, "_is_intraday_stale", lambda new: False)
+    monkeypatch.setattr(bf._sqlite, "put_bars", lambda *a, **k: None)
+    monkeypatch.setattr(bf, "market_published_through", _market, raising=False)
     monkeypatch.setattr(bf, "_mark_tail_verified", lambda t, tf, at: stamped.append(at))
     monkeypatch.setattr(bf, "tail_verified_through", lambda *a, **k: max(stamped) if stamped else None)
     return stamped
@@ -252,7 +271,7 @@ def test_P4_a_heal_one_second_after_the_roll_does_not_prove_the_closed_bucket(mo
     bf._heal_intraday_tail("THIN", "1", ONE_SHORT)
     assert stamped and stamped[0] < ROLL, "the proof must lag the provider's publication"
     status, headers = _judge_thin()
-    assert status == "unverified" and headers.get("Retry-After") == "3"
+    assert status == "unverified" and headers.get("Retry-After") in RETRY_AFTERS
 
 
 def test_P4_the_retry_after_retry_heals_it(monkeypatch, clock):
@@ -277,6 +296,7 @@ def _inner_env(monkeypatch, rows):
     monkeypatch.setattr(bls, "covered", lambda *a, **k: False)
     monkeypatch.setattr(bf._sqlite, "get_last_ts", lambda *a, **k: rows[-1][0])
     monkeypatch.setattr(bf._sqlite, "get_bars", lambda *a, **k: list(rows))
+    monkeypatch.setattr(bf._sqlite, "is_old_grid_60m_ts", lambda *a, **k: False, raising=False)
     monkeypatch.setattr(bf, "_needs_fresh", lambda *a, **k: False)
     monkeypatch.setattr(bf, "_fmt_sqlite_bars",
                         lambda rs, tf, sym: [{"t": r[0], "o": r[1], "h": r[2], "l": r[3], "c": r[4], "v": r[5]}
@@ -327,3 +347,201 @@ def test_P5_control_mid_minute_keeps_the_normal_ttl(monkeypatch, clock):
         assert _max_age(bf._get_bars_inner("ZZCAPONE", "1", 1)) == bf._CACHE_TTL["1"]
     finally:
         bf.cache.invalidate("bars_ZZCAPONE_1_1")
+
+
+# ── P6-P8: REVIEW #2732 (2026-11-25) ─────────────────────────────────────────────────────────────────────────────────
+#   P6  the heal's proof is min(checked_at - lag, max(the newest bar THIS answer returned, the MARKET's publication
+#       watermark)): "the provider answered ok" proves only "nothing newer that it has PUBLISHED". At the open the
+#       provider publishes a closed minute 7-42 s late, so a heal at roll+5 s whose answer lacks the bucket proves
+#       nothing until the market has published that minute. A thin name is proven once the market has (within the
+#       lag); a liquid name proves itself with its own bar. The watermark is read BEFORE the heal asks.
+#   P7  the unverified Retry-After is jittered over 3-5 s: no synchronized poll bursts at the open.
+#   P8  the memory-cache cap holds on EVERY intraday tf, at its own bucket boundary (60m: every :00/:30).
+def test_P6_a_heal_whose_answer_lacks_the_bucket_with_the_market_behind_is_unverified(monkeypatch, clock):
+    clock["t"] = ROLL + 10                                     # well past the 3 s lag, provider not yet published
+    stamped = _heal_env(monkeypatch, clock, call_s=0.2, market=FRONTIER)   # market published through 09:58 only
+    bf._heal_intraday_tail("THIN", "1", ONE_SHORT)
+    assert not stamped or max(stamped) < ROLL, "an unpublished minute was claimed empty"
+    status, headers = _judge_thin()
+    assert status == "unverified" and headers.get("Retry-After") in RETRY_AFTERS
+
+
+def test_P6_the_market_past_the_bucket_makes_it_current(monkeypatch, clock):
+    clock["t"] = ROLL + 10
+    stamped = _heal_env(monkeypatch, clock, call_s=0.2, market=ROLL + 5)
+    bf._heal_intraday_tail("THIN", "1", ONE_SHORT)
+    assert stamped and max(stamped) >= ROLL
+    assert _judge_thin()[0] in ("current", "verified")
+
+
+def test_P6_a_thin_name_is_proven_within_the_publication_lag(monkeypatch, clock):
+    clock["t"] = ROLL + bf_lag()                               # the first instant the lag allows
+    stamped = _heal_env(monkeypatch, clock, call_s=0.1, market=ROLL)
+    bf._heal_intraday_tail("THIN", "1", ONE_SHORT)
+    assert stamped and max(stamped) >= ROLL
+    assert _judge_thin()[0] in ("current", "verified")
+
+
+def test_P6_a_liquid_name_proves_itself_with_its_own_bar(monkeypatch, clock):
+    clock["t"] = ROLL + 10
+    bar = {"t": FRONTIER, "o": 1, "h": 2, "l": 0.5, "c": 1.5, "v": 100}
+    stamped = _heal_env(monkeypatch, clock, call_s=0.2, market=None, rows=[bar])   # no market watermark at all
+    bf._heal_intraday_tail("LIQ", "1", ONE_SHORT)
+    assert stamped == [ROLL], "proof = the end of the newest bar the answer returned"
+
+
+def test_P6_no_returned_bar_and_no_market_watermark_proves_nothing(monkeypatch, clock):
+    clock["t"] = ROLL + 10
+    stamped = _heal_env(monkeypatch, clock, call_s=0.2, market=None)
+    bf._heal_intraday_tail("THIN", "1", ONE_SHORT)
+    assert not stamped or max(stamped) < ROLL
+
+
+def test_P6_the_watermark_is_read_before_the_heal_asks(monkeypatch, clock):
+    """A watermark read AFTER the ask could have advanced past a minute the answer did not yet hold."""
+    order: list = []
+    clock["t"] = ROLL + 10
+    _heal_env(monkeypatch, clock, call_s=0.2, market=ROLL, order=order)
+    bf._heal_intraday_tail("THIN", "1", ONE_SHORT)
+    assert "market" in order and order.index("market") < order.index("ask"), order
+
+
+def test_P6_the_live_streams_watermark_is_not_a_rest_publication_proof(monkeypatch, clock):
+    """bars-api: the universe stream runs 7-42 s AHEAD of the REST store at the open. A stream watermark past the
+    bucket says the STREAM delivered it, not that REST published it: an uncovered liquid name whose REST answer lacks
+    the bucket would read `current` one bar short. Covered names keep their stream proof (`tail_verified_through`)."""
+    from api.services import bars_live_store as bls
+    monkeypatch.setitem(bls._state, "watermark_ms", FRONTIER * 1000)      # the stream delivered 09:59
+    monkeypatch.setitem(bls._s1, "m1_watermark_ms", FRONTIER * 1000)
+    monkeypatch.setattr(bls, "stream_alive", lambda: True)
+    monkeypatch.setattr(bls, "m1_alive", lambda: True)
+    monkeypatch.setattr(bf, "_fetch_market_reference_end", lambda: FRONTIER, raising=False)  # REST: through 09:58
+    monkeypatch.setattr(bf, "_market_pub", {"through": None, "probed_at": None}, raising=False)
+    clock["t"] = ROLL + 10
+    stamped: list = []
+
+    def _delta(t, tf, last_ts, status=None, tail_only=False):
+        clock["t"] += 0.2
+        status["ok"] = True
+        return []
+
+    monkeypatch.setattr(bf, "_provider_write", lambda checked_at: bf._NullCheck())
+    monkeypatch.setattr(bf, "_delta_intraday", _delta)
+    monkeypatch.setattr(bf, "_mark_tail_verified", lambda t, tf, at: stamped.append(at))
+    bf._heal_intraday_tail("LIQ", "1", ONE_SHORT)
+    assert not stamped or max(stamped) < ROLL
+
+
+def bf_lag():
+    return getattr(bf, "TAIL_PROOF_LAG_S", 3.0)
+
+
+# the market publication watermark: ONE shared reference probe, cached to the minute
+@pytest.fixture
+def probe(monkeypatch):
+    calls: list = []
+    answers: list = []
+
+    def _fetch():
+        calls.append(time.time())
+        a = answers.pop(0) if answers else None
+        if isinstance(a, Exception):
+            raise a
+        return a
+
+    monkeypatch.setattr(bf, "_fetch_market_reference_end", _fetch, raising=False)
+    monkeypatch.setattr(bf, "_market_pub", {"through": None, "probed_at": None}, raising=False)
+    return calls, answers
+
+
+def test_P6_the_probe_is_one_call_per_minute_once_published(probe, clock):
+    calls, answers = probe
+    answers += [ROLL - 60, ROLL, ROLL + 60]          # 09:58 end (09:59 not yet out), then 09:59 out, then 10:00 out
+    clock["t"] = ROLL + 2
+    assert bf.market_published_through() == ROLL - 60
+    clock["t"] = ROLL + 3                            # inside the re-probe floor: no call
+    assert bf.market_published_through() == ROLL - 60
+    clock["t"] = ROLL + 2 + bf._MARKET_PROBE_RETRY_S + 0.5
+    assert bf.market_published_through() == ROLL
+    for s in (20, 40, 59):                           # published through the frontier: no call for the minute
+        clock["t"] = ROLL + s
+        assert bf.market_published_through() == ROLL
+    clock["t"] = ROLL + 61                           # the next minute closed: one call
+    assert bf.market_published_through() == ROLL + 60
+    assert len(calls) == 3
+
+
+def test_P6_off_hours_one_probe_holds_until_the_next_session(probe, clock):
+    calls, answers = probe
+    fri_close = int(datetime(2026, 11, 20, 20, 0, tzinfo=_ET).timestamp())
+    answers += [fri_close]
+    for h in (10, 14, 22):
+        clock["t"] = float(datetime(2026, 11, 21, h, 0, tzinfo=_ET).timestamp())    # Saturday
+        assert bf.market_published_through() == fri_close
+    assert len(calls) == 1
+
+
+def test_P6_a_failed_probe_is_none_and_is_retried_after_the_floor(probe, clock):
+    calls, answers = probe
+    answers += [RuntimeError("429"), ROLL]
+    clock["t"] = ROLL + 2
+    assert bf.market_published_through() is None
+    clock["t"] = ROLL + 3
+    assert bf.market_published_through() is None and len(calls) == 1
+    clock["t"] = ROLL + 2 + bf._MARKET_PROBE_RETRY_S + 0.5
+    assert bf.market_published_through() == ROLL and len(calls) == 2
+
+
+def test_P7_the_unverified_retry_after_is_jittered_over_3_to_5_s(clock):
+    br = _router()
+    seen = set()
+    for _ in range(200):
+        payload = {"ticker": "THIN", "tf": "1", "bars": [{"t": ONE_SHORT}]}
+        headers = br._apply_tail_status(payload, "THIN", "1", "rth", contract_vt=None)
+        assert _retry_ok(payload, headers)
+        seen.add(headers["Retry-After"])
+    assert len(seen) > 1, "every answer asked for the same retry instant"
+
+
+@pytest.mark.parametrize("tf,length", [("5", 300), ("15", 900), ("30", 1800), ("60", 3600)])
+def test_P8_every_intraday_tf_never_serves_a_copy_cached_before_its_roll(monkeypatch, clock, tf, length):
+    roll = _et(10, 30)                               # a boundary of every tf's grid (60m RTH grid: 09:30 -> 10:30)
+    before = roll - length                           # the bucket that closes at `roll`
+    rows = [(before - length, 1, 2, 0.5, 1.5, 100)]
+    _inner_env(monkeypatch, rows)
+    key = f"bars_ZZCAPONE_{tf}_1"
+    bf.cache.invalidate(key)
+    try:
+        clock["t"] = roll - 2
+        first = bf._get_bars_inner("ZZCAPONE", tf, 1)
+        assert _max_age(first) <= 2, "max-age must stop at the bucket boundary"
+        rows.append((before, 1, 2, 0.5, 1.5, 100))  # the closing bucket lands
+        clock["t"] = roll + 3                        # inside the old TTL, after the roll
+        second = bf._get_bars_inner("ZZCAPONE", tf, 1)
+        assert _body(second)["bars"][-1]["t"] == before, "served the answer cached before the roll"
+    finally:
+        bf.cache.invalidate(key)
+
+
+def test_P8_60m_stops_at_every_half_hour_the_session_grids_roll_on(monkeypatch, clock):
+    """The 60m TradingView RTH grid rolls at :30 (09:30, 10:30 ... and the 15:30 half bar ends 16:00), the ETH clock-hour
+    grid at :00, the 09:00 pre-market stub at 09:30: a 60m copy never outlives the next :00 or :30."""
+    rows = [(_et(9, 30), 1, 2, 0.5, 1.5, 100)]
+    _inner_env(monkeypatch, rows)
+    bf.cache.invalidate("bars_ZZCAPONE_60_1")
+    try:
+        clock["t"] = _et(15, 59, 58)
+        assert _max_age(bf._get_bars_inner("ZZCAPONE", "60", 1)) <= 2
+    finally:
+        bf.cache.invalidate("bars_ZZCAPONE_60_1")
+
+
+def test_P8_control_mid_bucket_keeps_the_normal_ttl(monkeypatch, clock):
+    rows = [(_et(10, 0), 1, 2, 0.5, 1.5, 100)]
+    _inner_env(monkeypatch, rows)
+    bf.cache.invalidate("bars_ZZCAPONE_5_1")
+    try:
+        clock["t"] = _et(10, 2)                      # 3 minutes to the 5m boundary
+        assert _max_age(bf._get_bars_inner("ZZCAPONE", "5", 1)) == bf._CACHE_TTL["5"]
+    finally:
+        bf.cache.invalidate("bars_ZZCAPONE_5_1")
