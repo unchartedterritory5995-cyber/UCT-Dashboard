@@ -1,10 +1,10 @@
 {
-  "master_sha": "a6b4600ae321b1337b080d9a550f485f172771b1",
-  "gate_run_id": "45554453513",
+  "master_sha": "6aa2a5a6611c5350ccebc2e0c25dc22ad4490fe5",
+  "gate_run_id": "45557961526",
   "gate_conclusion": "success",
-  "promoted": "a6b4600ae321b1337b080d9a550f485f172771b1",
-  "production_head_after": "a6b4600ae321b1337b080d9a550f485f172771b1",
+  "promoted": "6aa2a5a6611c5350ccebc2e0c25dc22ad4490fe5",
+  "production_head_after": "6aa2a5a6611c5350ccebc2e0c25dc22ad4490fe5",
   "held_by_freeze": false,
   "decision": "PROMOTE",
-  "ts": "2026-11-25T05:55:54.448816Z"
+  "ts": "2026-11-25T06:27:01.089263Z"
 }
