@@ -15527,8 +15527,26 @@ export class Resolver {
    *  session, the chart's own; see `tickerCallArg` on why a NON-default session refuses).
    *  It is the built-in "Correlation coefficient"'s own spelling: `ticker.modify(input.symbol(…))`.
    *  ⛔ ANY SECOND ARGUMENT (a session, an adjustment, …) IS A DIFFERENT SERIES and is not read here:
-   *  the call then keeps the refusal it had. */
+   *  the call then keeps the refusal it had.
+   *
+   *  ⭐⭐ e97 U2 — AND `ticker.standard(<symbol>)` IS THAT SYMBOL. Pine's reference, `ticker.standard(symbol)`:
+   *  "Creates a ticker to request data from a standard chart that is unaffected by modifiers like extended
+   *  session, dividend adjustment, currency conversion, and the calculations of non-standard chart types:
+   *  Heikin Ashi, Renko, etc."; `symbol` is optional and defaults to `syminfo.tickerid`. Every bar this engine
+   *  reads IS the standard chart's (`sym` and the chart's own series serve standard candles on the regular
+   *  session), so the call names exactly the series the symbol alone names; with no argument, the chart's own.
+   *  Read through this one function so the three symbol readers (`ownSymbolNameOf`, `otherSymbolOf`,
+   *  `rawSymbolSpellingOf`) cannot disagree about it.
+   *  ⛔ It changes nothing else a request asks: an extended session written through `ticker.new` /
+   *  `ticker.modify` still refuses, and so does a read below the chart (`lowerTfDeclineOf` reads a `ticker.*`
+   *  builder as naming a session there, as it always has). */
   unmodifiedTickerArg(node) {
+    if (node && node.type === 'call' && node.name === 'ticker.standard') {
+      const sargs = (node.args || []).filter(Boolean)
+      if (sargs.length === 0) return { type: 'name', name: 'syminfo.tickerid', tok: node.tok }
+      if (sargs.length !== 1 || (sargs[0].name && sargs[0].name !== 'symbol')) return null
+      return sargs[0].value !== undefined ? sargs[0].value : null
+    }
     if (!node || node.type !== 'call' || node.name !== 'ticker.modify') return null
     const args = (node.args || []).filter(Boolean)
     if (args.length !== 1) return null
