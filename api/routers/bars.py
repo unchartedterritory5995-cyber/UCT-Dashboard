@@ -915,7 +915,11 @@ def _apply_tail_status(payload: dict, ticker: str, tf: str, session: str | None 
     payload["verified_through"] = st["verified_through"]
     # ⭐ A PENDING TAIL IS NEVER `current` (2026-11-24): the one-bucket tolerance is for a name with no print in the newest
     # bucket, not for a store this answer knows is stale. A provider-`verified` tail stays verified.
-    if pending and st["tail_status"] == "current":
+    # ⭐ NOR IS AN UNPROVEN ONE, on ANY answer — full, since= and to= alike (2026-11-25): a tail one bucket short is
+    # `current` only when `verified_through` reaches the end of the newest closed bucket (`tolerance_unproven`,
+    # `intraday_tail_status`). Without that proof "the name printed nothing" and "the store has not landed it yet" read
+    # the same, and the client painted 1m charts one closed bar short at the open. A tail AT the frontier needs no proof.
+    if st["tail_status"] == "current" and (pending or st.get("tolerance_unproven")):
         payload["tail_status"] = "unverified"
     headers = {}
     if payload["tail_status"] == "unverified":

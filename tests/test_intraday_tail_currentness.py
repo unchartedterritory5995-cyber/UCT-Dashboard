@@ -158,7 +158,8 @@ class TestVerificationIsEarnedNotInferred:
         t0 = time.time()
         bars_fetch._heal_intraday_tail("AVGO", "5", FRI_1955)
         vt = bars_fetch.tail_verified_through("AVGO", "5")
-        assert vt is not None and vt >= t0 - 1
+        # the proof lags the provider's publication (`TAIL_PROOF_LAG_S`, 2026-11-25), never more
+        assert vt is not None and vt >= t0 - 1 - bars_fetch.TAIL_PROOF_LAG_S
 
     def test_a_failed_provider_verifies_nothing(self, monkeypatch):
         # The real `_delta_intraday` swallows provider errors into [] — identical to
