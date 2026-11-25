@@ -1848,6 +1848,25 @@ GENERIC_PHRASES: Mapping[str, Tuple[str, str]] = {
 }
 #: The terms that NAME a kind of average. One of them beside the bare phrase settles it.
 AVERAGE_TERMS = frozenset({"sma", "ema", "wma", "hma", "vwma", "alma"})
+#: ⭐ 2026-11-25 -- THE DOOR'S OWN DESCRIPTION WORDS (coordinator's ruling (2), no rule attached). A screener column's
+#: words stopped grounding an indicator name (master was red since #2696: "drift", from a column's filter label, let
+#: the made-up "Zero-Drift Ema" be built as a plain EMA). That took 748 stems out of the chart door's vocabulary, the
+#: words ONLY columns carried. These are the ones of them that describe an indicator or a rule in plain English
+#: ("Linear Regression Slope" was a description the whole-phrase rule was measured to let pass, known only through a
+#: column's description). The other 656 are column identifiers, fundamentals, index and company words and the candle
+#: library's names, which match whole where a member uses them. ⛔ A LITERAL, never derived: a column can never add a
+#: word here (tests/test_column_words_ground_no_name.py).
+DESCRIPTION_WORDS: Tuple[str, ...] = (
+    "above", "below", "across", "against", "acceleration", "bearish", "bullish", "bottom", "top", "break",
+    "breakout", "climax", "compression", "consecutive", "consolidation", "continuation", "contraction", "count",
+    "current", "depth", "direction", "distance", "drawdown", "equal", "expansion", "extension", "flat", "green",
+    "red", "horizontal", "inverted", "least", "level", "long", "short", "look", "loss", "mean", "measure",
+    "multiple", "narrow", "wide", "neutral", "past", "prior", "pattern", "ratio", "recent", "reclaim", "return",
+    "reversal", "rotation", "run", "scale", "score", "shape", "slope", "stack", "stage", "streak", "structure",
+    "successive", "target", "thrust", "today", "total", "touch", "trailing", "turnover", "undercut", "unusual",
+    "variation", "wave", "weak", "wick", "zero", "two", "three", "five", "seven", "annual", "annualised", "body",
+    "box", "different", "fail", "failed", "hold", "key", "leg", "most", "off", "outside",
+)
 # --------------------------------------------------------------------------- #
 # ⭐ CLARIFY FIRST (owner direction, 2026-11-18): "always clarify". When a choice that changes the
 # MATHS is not settled, the door asks ONE short question with the options before anything is built,
@@ -4990,6 +5009,8 @@ def _chart_lexicon(base: Mapping[str, Any]) -> Dict[str, Any]:
         names_only.add(stems)
     return {"index": index, "max_words": max((len(k) for k in index), default=1),
             "names_only": frozenset(names_only), "names_only_section": WITHHELD_SECTION,
+            "description_words": frozenset(stem for word in DESCRIPTION_WORDS
+                                           for stem in dc._stem_key(dc._form_tokens(word))[0]),
             "collisions": {k: v for k, v in (base.get("collisions") or {}).items() if k in index
                            and index[k] is base["index"].get(k)}}
 
