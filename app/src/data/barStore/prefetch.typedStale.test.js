@@ -97,17 +97,19 @@ describe('the handoff (Enter) · a copy behind the clock waits for its tail', ()
     expect(w.pf.peekDisplayable('SPYH', '1')).toBe(true)
   })
 
-  it('at a bucket roll, a copy whose FORMING row is the just-closed bucket is not behind', async () => {
+  // ⛔ CHANGED 2026-11-24 (prefetch.firstFrameClosedBar.test.js B1 / B1b): a forming row of the just-closed bucket holds the
+  // frontier only when it was written after that bucket closed (B1b). One read 40 s before the close (this copy) is
+  // missing the bucket's final minute: behind, so the switch asks for it.
+  it('at a bucket roll, a copy whose FORMING row is the just-closed bucket, read before the close, is behind', async () => {
     const w = await boot()
     await w.known('ROLL')
     w.pf.warmTypedSymbol('ROLL', '1'); await w.server.drain()
     const { keyOf } = await import('./types')
     const s = w.store.peek(keyOf({ sym: 'ROLL', tf: '1' }))
     expect(s.developing).toBeTruthy()                               // the answer carries the forming 10:02 row
-    // 10:03:01: the 10:02 bucket just closed; it is still the forming row (no seal yet), and the answer is
-    // older than the recheck window
+    // 10:03:06: the 10:02 bucket closed; the copy holds it as it was at 10:02:20
     vi.setSystemTime(s.developing.t * 1000 + 61_000 + 5_000)
-    expect(w.pf.peekDisplayable('ROLL', '1')).toBe(true)
+    expect(w.pf.peekDisplayable('ROLL', '1')).toBe(false)
   })
 
   it('a server that does not answer never pins the member: the copy paints after BEHIND_HOLD_MAX_MS', async () => {
@@ -138,8 +140,11 @@ describe('the handoff (Enter) · a copy behind the clock waits for its tail', ()
     const enter = w.pf.prepareForDisplay('THIN', '1')
     await w.server.drain()
     await expect(enter).resolves.toBe('current')
-    expect(w.server.calls.length).toBe(n + 1)                      // ...Enter asks once
-    expect(w.pf.peekDisplayable('THIN', '1')).toBe(true)           // its own answer, still behind: the name did not print
+    // ⛔ CHANGED 2026-11-24 (prefetch.firstFrameClosedBar.test.js C2/C3): Enter's own answer, 20 buckets behind, lends no
+    // grace and is asked once more in full inside the hold; the press then paints as it is
+    expect(w.server.calls.length).toBe(n + 2)
+    expect(w.server.calls.at(-1).q.since).toBe(null)
+    expect(w.pf.peekDisplayable('THIN', '1')).toBe(false)
     vi.setSystemTime(Date.now() + BEHIND_RECHECK_MS + 1000)
     expect(w.pf.peekDisplayable('THIN', '1')).toBe(false)          // later it is asked again
   })
