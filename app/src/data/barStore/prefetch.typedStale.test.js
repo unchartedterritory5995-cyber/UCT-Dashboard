@@ -141,7 +141,8 @@ describe('the handoff (Enter) · a copy behind the clock waits for its tail', ()
     expect(w.pf.peekDisplayable('THIN', '1')).toBe(false)          // the typed warm's answer lends no grace...
     const enter = w.pf.prepareForDisplay('THIN', '1')
     await w.server.drain()
-    await expect(enter).resolves.toBe('current')
+    // ⛔ CHANGED (review of #2721): it paints as it is, under its honest status (no proof it did not print: 'updating')
+    await expect(enter).resolves.toBe('updating')
     // ⛔ CHANGED 2026-11-24 (prefetch.firstFrameClosedBar.test.js C2/C3): Enter's own answer, 20 buckets behind, lends no
     // grace and is asked once more in full inside the hold; the press then paints as it is
     expect(w.server.calls.length).toBe(n + 2)
