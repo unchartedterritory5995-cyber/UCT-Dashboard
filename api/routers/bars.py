@@ -6,6 +6,7 @@ This file only owns route registration."""
 
 import logging
 import os
+import re
 import threading as _threading
 import time as _time
 from datetime import datetime
@@ -466,6 +467,33 @@ def _theme_index_refusal(ticker: str, tf: str = "D") -> JSONResponse:
     return resp
 
 
+# ⭐ (2026-11-22) A CUSTOM TIMEFRAME IS REFUSED IN WORDS, NEVER ANSWERED EMPTY. The route serves the native timeframes
+# (1, 5, 15, 30, 60, D, W, M, and an index's 1h / 1D spellings); the chart builds every other one (2h, 4h, 45m, 2D, 3M …)
+# in the browser from its native base (`timeframes.js::resampleSpec`). ⚰️ `/api/bars/SPX?tf=240` answered
+# `{"bars": []}` with no note, which every caller read as "this symbol has no data": Fred RS's legend vanished on a 4h
+# chart and a Compare symbol drew nothing (production 2026-11-22). Only a code that names a MULTIPLE of a native
+# unit is refused (digits other than 1/5/15/30/60; N>1 of D/W/M; N>1 hours): every spelling served today passes.
+_CUSTOM_TF_DIGITS = re.compile(r"^\d+$")
+_CUSTOM_TF_PERIOD = re.compile(r"^(\d+)([DWMdwm]|[hH])$")
+
+
+def custom_tf_refusal(ticker: str, tf) -> "JSONResponse | None":
+    """400 + the reason in words for a custom timeframe code, else None (the request is served as today)."""
+    s = tf if isinstance(tf, str) else ""
+    custom = bool(_CUSTOM_TF_DIGITS.match(s)) and s not in _INTRADAY_TFS
+    m = _CUSTOM_TF_PERIOD.match(s)
+    if m and int(m.group(1)) != 1:
+        custom = True
+    if not custom:
+        return None
+    return JSONResponse(status_code=400, content={
+        "ticker": (ticker or "").strip().upper(), "tf": s, "bars": [], "error": "unsupported_timeframe",
+        "detail": (f"tf={s} is not a timeframe this route serves: it serves 1, 5, 15, 30, 60, D, W and M. A custom "
+                   f"timeframe is built from its native base (for 240: tf=60, four 60-minute bars a bucket, "
+                   f"anchored at 09:30 ET), as the chart builds its own."),
+    })
+
+
 def _breadth_etag(body: bytes) -> str:
     """Strong validator for a Breadth (or breadth-derived indicator) history body: payload hash +
     the authority token."""
@@ -684,6 +712,9 @@ async def get_bars(
     if _crypto.serves(ticker, _access):
         from starlette.concurrency import run_in_threadpool as _pair_pool
         return await _pair_pool(_crypto.pair_bars_response, ticker, tf, bars, since, to)
+    _custom = custom_tf_refusal(ticker, tf)   # after the econ / theme / pair doors: their answers are unchanged
+    if _custom is not None:
+        return _custom
     origin = os.environ.get("BARS_ORIGIN_URL", "").rstrip("/")
     if origin and _bars_proxy_should_route(ticker, warm):
         try:
