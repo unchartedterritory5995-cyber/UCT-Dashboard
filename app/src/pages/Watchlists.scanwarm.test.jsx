@@ -175,6 +175,26 @@ test('the hold keeps the next row, the one after and the previous row current ac
   }
 })
 
+test('the hold keeps the rows AHEAD resident until the member reaches them (keep)', async () => {
+  const sets = []
+  globalThis.__uctStoreWarmers = {
+    prefetchBarsToIDB: () => {}, prefetchAllTimeframes: () => {}, prefetchListAllTimeframes: () => {},
+    warmMemFromIDB: () => {}, prefetchBars: () => {}, prefetchBarOnIntent: () => {}, prewarmVisibleList: () => {},
+    createNeighborHold: () => ({ set: (syms, tf, opts) => sets.push({ tf, keep: opts?.keep ? [...opts.keep] : null }), clear: () => {} }),
+  }
+  try {
+    hub.sym = 'CCC'
+    render(<Watchlists embedded pickList="user:wl1" pickName="Momentum Plays" />)
+    await screen.findByText('CCC')
+    await waitFor(() => expect(sets.length).toBeGreaterThan(0))
+    const s = sets[sets.length - 1]
+    expect(s.keep?.slice(0, 2)).toEqual(['DDD', 'EEE'])     // the rows ahead, nearest first, in the scan direction
+    expect(s.keep).not.toContain('CCC')                      // never the selected row (the hold's own window pins it)
+  } finally {
+    delete globalThis.__uctStoreWarmers
+  }
+})
+
 test("the selected row's other timeframes wait for the selection to REST (not every press)", async () => {
   hub.sym = 'CCC'
   render(<Watchlists embedded pickList="user:wl1" pickName="Momentum Plays" />)

@@ -810,6 +810,8 @@ function CompareSearch({ onPick, baseSym }) {
 
 // How long a selection must rest before its OTHER timeframes are warmed (see below).
 const SCAN_DWELL_MS = 600
+/** The rows ahead a list's hold keeps resident (barStore prefetch NEIGHBOR_KEEP_AHEAD caps it). */
+const SCAN_KEEP_AHEAD = 30
 
 export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null, activeRef = null, widgetKey = null, listView = null, settingsOverride = null, onSettingsPersist = null, scanSymbols = null, backLabel = null, colStorageKey = null, scanEmptyText = null, defaultColCfg = null, metaOverride = null, perfOverride = null, scanFooter = null, scanCriteria = null, scanActions = null, ephemeralCols = false, scanGroups = null, onScanVisibleSyms = null, groupExpand = 'accordion', quoteOverride = null, pickTitleSlot = null, pickTitleBefore = null, pickTitleAfter = null, pickSubHeader = null, renderGroupRow = null, groupAccent = null, openFirstGroup = false, stableGutter = false,
   // RTH · EXT switch (owner 11-14, /charts board Watchlist widget): 'ext' shows pre-market /
@@ -1996,6 +1998,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       scanNeighbors(flat, idx, -dir, { ahead: 2, behind: 0 }))
     const next = scanNeighbors(flat, idx, dir, { ahead: SCAN_URGENT_NEXT, behind: 0 })
     const ahead = scanNeighbors(flat, idx, dir, { ahead: 6, behind: 2 })
+    const keep = scanNeighbors(flat, idx, dir, { ahead: SCAN_KEEP_AHEAD, behind: 0 })
     const sendWarm = () => {
       const holds = _holdsRef.current
       for (const [htf, h] of holds) if (!tfs.includes(htf)) { h.clear(); holds.delete(htf) }
@@ -2005,7 +2008,9 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         // paints them as deep as the chart would reach after its own wait (createNeighborHold).
         // `tail`: the next row, the one after and the previous row stay current across a bucket boundary while the
         // member navigates (createNeighborHold `tail`; `selected` opens its window: a re-sort of the rows does not)
-        holds.get(tf).set(around, tf, { deep: next, tail: [...next, ...scanNeighbors(flat, idx, dir, { ahead: 0, behind: 1 })], selected: selectedSym })
+        // `keep`: the rows ahead stay resident until the member reaches them (createNeighborHold NEIGHBOR_KEEP_AHEAD): the
+        // registry's LRU took them first, and each came back a local copy asked for in full (2026-11-24 replay)
+        holds.get(tf).set(around, tf, { deep: next, tail: [...next, ...scanNeighbors(flat, idx, dir, { ahead: 0, behind: 1 })], selected: selectedSym, keep })
       }
       warmMemFromIDB(around, tfs)
       for (const tf of tfs) prefetchBarsToIDB(ahead, tf, { priority: true })

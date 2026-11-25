@@ -407,7 +407,10 @@ describe('C36 · parity with the Python lane — one fixture, both lanes', () =>
         && !k.startsWith('vwap:')
         // ⭐ PERIOD −1 (2026-11-19) — a history read before the chart's first bar is not a `time(<timeframe>)` reading;
         // `historyBeforeChart.test.js` / `tests/test_pine_history_before_chart.py` rail it
-        && !k.startsWith('history:')).sort())
+        && !k.startsWith('history:')
+        // ⭐⭐ U-DAILY (e96) — a daily read's withheld days are not a `time(<timeframe>)` reading;
+        // `dailyRead.test.js` / `tests/test_ast_daily_read.py` rail both codes
+        && !k.startsWith('daily-read:')).sort())
     for (const code of codes) expect(typeof CHART_CLOCK_WITHHELD[code]('5')).toBe('string')
     for (const code of CHART_CLOCK_WHOLE) expect(Object.keys(CHART_CLOCK_WITHHELD)).toContain(code)
   })

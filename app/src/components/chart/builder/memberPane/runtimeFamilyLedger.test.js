@@ -109,6 +109,8 @@ function drawnOf(d) {
     if (Number.isInteger(r.output) && outs[r.output]) fams.add(outs[r.output].kind)
   }
   for (const p of def.paints || []) fams.add(p.kind)
+  // ⭐ e96 — a level the document draws is a guide plot (`style: 'hlines'`, `hlineLevels.js`)
+  if ((def.plots || []).some((pl) => pl && pl.style === 'hlines' && !pl.hidden)) fams.add('hline')
   const objects = !!def.objects || !!(def.compute && def.compute.objects === true)
   return { fams, objects }
 }
