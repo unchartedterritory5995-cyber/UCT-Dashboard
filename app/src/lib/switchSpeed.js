@@ -56,7 +56,8 @@ export const MAX_SWITCH_COUNT = 100000
 export const MAX_SWITCH_TOTAL = 6000
 /** A sample outside 0..this is not a switch time (a clock mismatch, a page that slept): counted `unclocked`. */
 export const MAX_SWITCH_MS = 60000
-/** Where lib/perfBeacon.js finds `{take, peek}`. perfBeacon holds the same literal; its test pins them equal. */
+/** Where lib/perfBeacon.js finds `{take, peek}`, and ChartPane `hint`. Both hold the same literal; their tests pin
+ *  them equal (perfBeacon.test, chart/pane/ChartPane.switchSpeedDoor.test). */
 export const SWITCH_SPEED_GLOBAL = '__uctSwitchSpeed'
 
 // trigger codes (indexes of SWITCH_TRIGGER)
@@ -331,7 +332,7 @@ export function takeSwitchCounts() { return _snapshot(true) }
 export function peekSwitchCounts() { return _snapshot(false) }
 
 try {
-  if (typeof window !== 'undefined') window[SWITCH_SPEED_GLOBAL] = { take: takeSwitchCounts, peek: peekSwitchCounts }
+  if (typeof window !== 'undefined') window[SWITCH_SPEED_GLOBAL] = { take: takeSwitchCounts, peek: peekSwitchCounts, hint: hintSwitchTrigger }
 } catch { /* a locked-down host: nothing is sent */ }
 
 /** Tests: forget everything counted and waiting. The page's facts (setSwitchEnv) are kept: the handoff sets them
