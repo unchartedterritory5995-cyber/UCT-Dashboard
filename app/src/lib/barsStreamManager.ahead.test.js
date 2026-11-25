@@ -13,6 +13,12 @@
 //   R1  (review of #2721, 1-A) a roll inside a rebuild gap breaks it (a browser connection re-sends only the current
 //       bucket: the closed bucket's final never arrives), and it reads null until the first frame decides
 //   R2  a pair that drops off every connection and rejoins starts fresh, even inside the same bucket
+//   K   (review of #2721, the +6-8% bars requests) a rebuild's open asked EVERY pair on the new connection to gap-backfill
+//       (onReconnect -> network.kick, deferred to REPAIR_DEDUP_MS after the key's last ask: the pressed row's deep since=
+//       ask ~1.1 s after the press). A pair CARRIED across the rebuild that had delivered waits for its first frame:
+//       the same bucket proves the stream covered the gap (no ask); a later bucket, or no frame within REJOIN_KICK_MS,
+//       asks as before (lastBarT = its last bar before the gap). A pair new on the connection, and every reconnect after
+//       an error, asks at the open exactly as before.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import * as bars from './barsStreamManager'
 
@@ -190,5 +196,83 @@ describe('M: the rows ahead on the bars stream', () => {
     vi.setSystemTime(2_030_000)
     es._emit('bar', dev('MSFT', '1', 180_000))
     expect(bars.getStatus('MSFT', '1').liveSince).toBe(2_030_000)
+  })
+})
+
+describe('K: a rebuild asks a carried pair to gap-backfill only when the stream did not cover the gap', () => {
+  function carried(t0) {
+    vi.useFakeTimers()
+    vi.setSystemTime(t0)
+    const spyChart = vi.fn()
+    const spyAhead = vi.fn()
+    bars.subscribe('AAPL', '1', {})
+    bars.subscribe('MSFT', '1', { ahead: true, onReconnect: spyAhead })
+    flush()
+    const es = open()[0]
+    es._open()
+    es._emit('bar', dev('MSFT', '1', 120_000))            // MSFT delivering in bucket 120 000
+    bars.subscribe('MSFT', '1', { onReconnect: spyChart }) // the press: MSFT is now the chart; the connection is rebuilt
+    flush()
+    const es2 = open()[0]
+    expect(es2).not.toBe(es)
+    const before = { chart: spyChart.mock.calls.length, ahead: spyAhead.mock.calls.length }
+    return { es2, spyChart, spyAhead, before }
+  }
+
+  it('K1 the first frame is the same bucket: the stream covered the gap, no gap-backfill at the open or after', () => {
+    const { es2, spyChart, spyAhead, before } = carried(5_000_000)
+    es2._open()
+    expect(spyChart.mock.calls.length - before.chart, 'a carried pair asked to gap-backfill at the open').toBe(0)
+    es2._emit('bar', dev('MSFT', '1', 120_000))
+    vi.advanceTimersByTime(5_000)
+    expect(spyChart.mock.calls.length - before.chart).toBe(0)
+    expect(spyAhead.mock.calls.length - before.ahead).toBe(0)
+  })
+
+  it('K2 the first frame is a later bucket: the gap-backfill is asked at that frame, from the last bar before the gap', () => {
+    const { es2, spyChart, before } = carried(6_000_000)
+    es2._open()
+    expect(spyChart.mock.calls.length - before.chart).toBe(0)
+    es2._emit('bar', dev('MSFT', '1', 180_000))
+    expect(spyChart.mock.calls.slice(before.chart)).toEqual([[120_000]])
+    vi.advanceTimersByTime(5_000)
+    expect(spyChart.mock.calls.length - before.chart, 'asked twice').toBe(1)
+  })
+
+  it('K3 no frame within REJOIN_KICK_MS: the gap-backfill is asked then, once', () => {
+    expect(bars.REJOIN_KICK_MS).toBe(1000)
+    const { es2, spyChart, before } = carried(7_000_000)
+    es2._open()
+    vi.advanceTimersByTime(bars.REJOIN_KICK_MS - 1)
+    expect(spyChart.mock.calls.length - before.chart).toBe(0)
+    vi.advanceTimersByTime(1)
+    expect(spyChart.mock.calls.slice(before.chart)).toEqual([[120_000]])
+    es2._emit('bar', dev('MSFT', '1', 120_000))
+    vi.advanceTimersByTime(5_000)
+    expect(spyChart.mock.calls.length - before.chart, 'asked twice').toBe(1)
+  })
+
+  it('K4 control: a pair new on the connection, and a reconnect after an error, ask at the open as before', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(8_000_000)
+    const spyA = vi.fn()
+    const spyT = vi.fn()
+    bars.subscribe('AAPL', '1', { onReconnect: spyA })
+    flush()
+    const es = open()[0]
+    es._open()
+    expect(spyA).toHaveBeenCalledTimes(1)
+    es._emit('bar', dev('AAPL', '1', 120_000))
+    bars.subscribe('TSLA', '1', { onReconnect: spyT })   // TSLA is new on the rebuilt connection
+    flush()
+    const es2 = open()[0]
+    es2._open()
+    expect(spyT).toHaveBeenCalledTimes(1)
+    es2._emit('bar', dev('AAPL', '1', 120_000))
+    es2._error()                                           // an error: a break, the reconnect asks at its open
+    vi.advanceTimersByTime(6_000)
+    const n = spyA.mock.calls.length
+    open()[0]._open()
+    expect(spyA.mock.calls.length).toBe(n + 1)
   })
 })
