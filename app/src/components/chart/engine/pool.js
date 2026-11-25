@@ -1230,6 +1230,10 @@ export function planBindings(instances, registry, prevBindings, opts) {
   // Asked only for a definition that marks something `requiresServer`, so every
   // other definition's guides are planned exactly as before. Absent ⇒ not known.
   const serverDeclares = opts && typeof opts.serverDeclares === 'function' ? opts.serverDeclares : null
+  // ⭐ e97 U7 — `(plot, def, inputs) => boolean`, the binder's `knobBind.js::plotHiddenAt`: a guide (`hline`) whose
+  // display a setting decides is planned only while this instance shows it. Handed in, not imported, so the pool keeps
+  // out of the translation's import tree. Absent = no guide is hidden by a setting (every caller before U7).
+  const plotHidden = opts && typeof opts.plotHidden === 'function' ? opts.plotHidden : null
   // ⭐ ENGINE 58 — the chart's own two colours (`objectTheme.chartThemeOf`), for a
   // Pine plot whose colour is `chart.fg_color` / `chart.bg_color`. Absent ⇒ none.
   const theme = (opts && opts.theme && typeof opts.theme === 'object') ? opts.theme : null
@@ -1254,7 +1258,7 @@ export function planBindings(instances, registry, prevBindings, opts) {
     // ⭐ e96 — a guide's colour may be a THEME REFERENCE (a Pine `hline` whose style is not reproduced is
     // drawn in the chart's neutral ink, `hlineLevels.js`), resolved against this chart as a plot's is.
     const guides = guidePlots(def)
-      .filter(p => plotActiveFor(p, def, inst.inputs, declared))
+      .filter(p => plotActiveFor(p, def, inst.inputs, declared) && !(plotHidden && plotHidden(p, def, inst.inputs)))
       .map(p => withThemeColour(resolvePlotForInstance(p, inst.inputs), theme))
     const guideSig = guideSignature(guides)
     let first = true

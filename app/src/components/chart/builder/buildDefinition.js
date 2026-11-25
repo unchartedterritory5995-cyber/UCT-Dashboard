@@ -289,6 +289,8 @@ export function buildDefinition({ defId, name, source, ast, mode, rev = 1, versi
         ? {
           fill: {
             with: r.fill.with,
+            // ⭐ e97 U7 — the band drawn as the instance's settings decide (`binder.fillActiveFor` → `plotHiddenAt`)
+            ...(r.fill.hiddenWhen ? { hiddenWhen: r.fill.hiddenWhen } : {}),
             // ⭐⭐ (j) j.3b(b) / R34 — THE BAND'S OWN CONDITIONAL COLOUR, in the
             // SAME three field names a plot uses twenty lines above. That is not a
             // convenience: `pool.columnColorsForPlot` is handed the fill verbatim,

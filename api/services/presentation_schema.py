@@ -337,14 +337,19 @@ def hidden_when_problem(tree: Any) -> Any:
 
 
 def _check_hidden_when(plot: Mapping, path: str, fp: str, out: list) -> None:
-    if "hiddenWhen" not in plot:
-        return
-    why = hidden_when_problem(plot["hiddenWhen"])
-    if why:
-        _err(out, f"{path}.hiddenWhen", "plot-hidden-when", f"{path}.hiddenWhen: {why}", fp)
-    elif plot.get("hidden") is True:
-        _err(out, f"{path}.hiddenWhen", "plot-hidden-when",
-             f"{path}.hiddenWhen: a plot with `hidden: true` is hidden at every setting; it carries no `hiddenWhen`", fp)
+    if "hiddenWhen" in plot:
+        why = hidden_when_problem(plot["hiddenWhen"])
+        if why:
+            _err(out, f"{path}.hiddenWhen", "plot-hidden-when", f"{path}.hiddenWhen: {why}", fp)
+        elif plot.get("hidden") is True:
+            _err(out, f"{path}.hiddenWhen", "plot-hidden-when",
+                 f"{path}.hiddenWhen: a plot with `hidden: true` is hidden at every setting; it carries no `hiddenWhen`", fp)
+    # e97 U7 -- the BAND a plot's fill draws, hidden as the instance's settings decide: the same knob-test grammar
+    fill = plot.get("fill")
+    if isinstance(fill, Mapping) and "hiddenWhen" in fill:
+        why = hidden_when_problem(fill["hiddenWhen"])
+        if why:
+            _err(out, f"{path}.fill.hiddenWhen", "plot-hidden-when", f"{path}.fill.hiddenWhen: {why}", fp)
 
 
 def _check_color_mode(plot: Mapping, path: str, fp: str, columns: set, out: list) -> None:
@@ -418,6 +423,11 @@ def _check_paints(paints: Any, columns: set, out: list) -> None:
         if "showLast" in p and not (_is_int(p["showLast"]) and p["showLast"] >= 0):
             _err(out, f"{path}.showLast", "paint-field",
                  f"{path}.showLast: expected a non-negative whole number", fp)
+        # e97 U7 -- the paint drawn only while the instance's settings show it: the knob-test grammar and nothing else
+        if "hiddenWhen" in p:
+            why = hidden_when_problem(p["hiddenWhen"])
+            if why:
+                _err(out, f"{path}.hiddenWhen", "paint-hidden-when", f"{path}.hiddenWhen: {why}", fp)
         if "colorMode" not in p:
             if not _is_str(p.get("color")):
                 _err(out, path, "paint-colour",

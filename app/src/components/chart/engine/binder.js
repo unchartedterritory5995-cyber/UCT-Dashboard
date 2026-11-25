@@ -174,8 +174,13 @@ const _projMemo = new WeakMap()
  *  does reads the inputs' condition grammar through the SAME evaluator a plot's
  *  `activeWhen` uses (`pool.plotActiveFor`: stored value, else the declared
  *  default), so a band and a guide can never disagree about one switch. */
-function fillActiveFor(fillSpec, b) {
-  if (!fillSpec || fillSpec.activeWhen === undefined) return true
+export function fillActiveFor(fillSpec, b) {
+  if (!fillSpec) return true
+  // ⭐ e97 U7 — and is it DRAWN at this instance's settings: a band whose `display` a setting decides
+  // (`fill.hiddenWhen`, `pine.js::resolveFillHandles`) is decided by the ONE reader every plot is (`plotHiddenAt`)
+  if (fillSpec.hiddenWhen !== undefined
+    && plotHiddenAt({ hiddenWhen: fillSpec.hiddenWhen }, b && b.def, b && b.inst && b.inst.inputs)) return false
+  if (fillSpec.activeWhen === undefined) return true
   return plotActiveFor({ activeWhen: fillSpec.activeWhen }, b && b.def, (b && b.inst && b.inst.inputs) || {})
 }
 
@@ -1430,6 +1435,10 @@ export function createBinder({ chart, LWC, scope = '' }) {
       const instOverrides = new Map()
       paints.forEach((p, i) => {
         if (!p) return
+        // ⭐ e97 U7 — a paint whose `display` a setting decides (`paints[].hiddenWhen`) draws only while this instance
+        // shows it, decided by the ONE reader every plot is (`knobBind.js::plotHiddenAt`); its layer then comes off
+        // with every other paint this pass does not keep alive
+        if (plotHiddenAt(p, def, inst.inputs)) return
         const computed = paintColoursFor(withPackedTheme(p, chartThemeOf(ctx.cs)), inst.instanceId, columns, n,
           { unknownNone: unknownColourRule(def) })
         if (!computed) return
@@ -2904,6 +2913,8 @@ export function createBinder({ chart, LWC, scope = '' }) {
       // ⭐ UCT RS 3-14 — what the live server row declares, so a guide gated on a
       // value that row drops (a v4 Reading under a v3 server) is not drawn.
       serverDeclares,
+      // ⭐ e97 U7 — a guide whose display a setting decides is planned only while this instance shows it
+      plotHidden: plotHiddenAt,
     })
 
     // HAND-BACK (W1b.5, minor 4): reassign a hidden carrier's guides onto its
@@ -3682,7 +3693,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
       // another instance reads it (`dependedOn`), and a source is not a picture.
       if (inst.hidden === true) continue
       const def = inst.def || (ctx.registry && ctx.registry.getDefinition ? ctx.registry.getDefinition(inst.defId) : null)
-      const hidden = ((def && def.plots) || []).filter((p) => p && plotHiddenAt(p, def, inst.inputs) && p.fill && typeof p.fill.with === 'string' && p.fill.with !== p.key)
+      const hidden = ((def && def.plots) || []).filter((p) => p && plotHiddenAt(p, def, inst.inputs) && p.fill && typeof p.fill.with === 'string' && p.fill.with !== p.key && fillActiveFor(p.fill, { def, inst }))
       if (!hidden.length) continue
       const placement = attempt(() => resolvePlacement(inst, def, ctx)).value
       if (!placement || placement.paneIndex !== 0) continue
@@ -3724,7 +3735,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
         ? ctx.registry.getDefinition(inst.defId) : null)
       for (const p of ((def && def.plots) || [])) {
         if (!p || !plotHiddenAt(p, def, inst.inputs)) continue
-        const w = p.fill && typeof p.fill.with === 'string' ? p.fill.with : null
+        const w = p.fill && typeof p.fill.with === 'string' && fillActiveFor(p.fill, { def, inst }) ? p.fill.with : null
         if (!w || w === p.key) continue
         notes.push({
           instanceId: id,

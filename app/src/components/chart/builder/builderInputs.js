@@ -1004,6 +1004,8 @@ function withGuardInputs(first, base, final, withDeclarations, { windowBound, di
   for (const o of (first.outputs || [])) if (o) { note(o.inputsFolded); note(o._colourInputs) }
   note(((first.presentation || {}).fills || {})._colourInputs)
   note(((first.presentation || {}).paints || {})._colourInputs)
+  note(((first.presentation || {}).levels || {})._colourInputs)
+  note(((first.presentation || {}).levelFills || {})._colourInputs)
   const objectNames = namesAnywhere((first.objects && first.objects.trees) || [])
   const entryByName = new Map()
   const windowed = new Set()
@@ -1087,6 +1089,11 @@ function colourRulesOf(t) {
   for (const o of (t.outputs || [])) if (o && !o.refusal && o.hiddenWhen) rules.push({ ast: o.hiddenWhen, formula: [...seriesNamesOf(o.hiddenWhen)].join(' + ') || 'display' })
   for (const f of (((t.presentation || {}).fills) || [])) take(f)
   for (const p of (((t.presentation || {}).paints) || [])) take(p)
+  // ⭐ e97 U7 — and a band's, a paint's or a level's display a setting decides (`hiddenWhen`, the same ONE reader)
+  const pres = t.presentation || {}
+  for (const h of [...(pres.fills || []), ...(pres.levelFills || []), ...(pres.paints || []), ...(pres.levels || [])]) {
+    if (h && !h.withheld && h.hiddenWhen) rules.push({ ast: h.hiddenWhen, formula: [...seriesNamesOf(h.hiddenWhen)].join(' + ') || 'display' })
+  }
   return rules
 }
 
@@ -1144,6 +1151,8 @@ function withColourInputs(first, final, withDeclarations, { windowBound, displac
   for (const o of (first.outputs || [])) if (o) note(o._colourInputs)
   note(((first.presentation || {}).fills || {})._colourInputs)
   note(((first.presentation || {}).paints || {})._colourInputs)
+  note(((first.presentation || {}).levels || {})._colourInputs)
+  note(((first.presentation || {}).levelFills || {})._colourInputs)
   const minted = new Set((final.inputParams || []).map((p) => p && p.sourceName).filter(Boolean))
   const already = new Set(final.declaredNames || [])
   // ⛔ A name the colour reads in a WINDOW (`ta.rising(hma, len)`) is not added:
