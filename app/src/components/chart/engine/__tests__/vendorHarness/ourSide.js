@@ -25,11 +25,12 @@
 // reachability rail's TEST_INFRA rule), invoked by the harness tests and the
 // vitest CLI entry, and must never be imported by a member surface.
 
-import { memberPaneDefinition } from '../../../builder/memberPane/memberPaneDefinition'
+import { memberPaneDefinition, WITHHELD_COLOUR_INK } from '../../../builder/memberPane/memberPaneDefinition'
 import * as registry from '../../nativeRegistry'
 import { createBinder, drawShiftOf, paintColoursFor, plotStripNoticesOf } from '../../binder'
 import { bindWithheldPaintsOf } from './paintColours'
-import { bindingKey } from '../../pool'
+import { bindingKey, resolvePlotForInstance } from '../../pool'
+import { hlineOrdinalOf } from '../../hlineLevels'
 import { addInstance } from '../../instanceControls'
 import { mergeChartSettings } from '../../../chartDefaults'
 import { objectReaderFor } from '../../objectColumns'
@@ -1654,6 +1655,36 @@ function hostObjectsOf(def, bars, ctx, cols, built = null, inputs = undefined) {
  * ⚠️ On any path that reached the install door, the caller owns the uninstall
  * (`registry.uninstallUserDefinition(HARNESS_DEF_ID)`).
  */
+/** ⭐⭐ e96 — OUR LEVELS, for the band grade (`compare.mjs::compareBands`): one entry per `hline` call, by its
+ *  ordinal, read off the INSTALLED document's guides at the capture's own settings (`pool.resolvePlotForInstance`,
+ *  the bind path the chart takes), or what the translation and the door said instead (hidden by the author, or
+ *  withheld by name). Nothing is re-derived: the guide drawn IS the level graded. */
+export function bandsOf(def, built, inputs) {
+  const t = built && built.translation
+  const pres = (t && t.presentation) || {}
+  const guides = new Map(((def && def.plots) || []).filter((p) => p && p.style === 'hlines')
+    .map((p) => [hlineOrdinalOf(p.key), p]).filter(([k]) => k !== null))
+  const notes = (built && Array.isArray(built.notes)) ? built.notes : []
+  const out = []
+  for (const u of (Array.isArray(pres.levelsWithheld) ? pres.levelsWithheld : [])) {
+    if (u && Number.isInteger(u.ordinal)) out.push({ ordinal: u.ordinal, withheld: u.reason || 'not read' })
+  }
+  for (const lv of (Array.isArray(pres.levels) ? pres.levels : [])) {
+    if (!lv || !Number.isInteger(lv.ordinal)) continue
+    const title = lv.title || null
+    if (lv.hidden === true) { out.push({ ordinal: lv.ordinal, title, hidden: true }); continue }
+    const label = title || `hline ${lv.ordinal + 1}`
+    const said = notes.find((n) => n && n.name === label && typeof n.note === 'string')
+    const g = guides.get(lv.ordinal)
+    if (!g) { out.push({ ordinal: lv.ordinal, title, withheld: said ? said.note : 'our document carries no level for it' }); continue }
+    const r = resolvePlotForInstance(g, inputs || {})
+    const neutral = r.color === WITHHELD_COLOUR_INK
+    out.push({ ordinal: lv.ordinal, title, value: Number((r.levels || [])[0]), color: r.color, lineStyle: r.lineStyle, width: r.width,
+      ...(neutral ? { neutral: true, reason: said ? said.note : 'its style is not reproduced' } : {}) })
+  }
+  return out.sort((a, b) => a.ordinal - b.ordinal)
+}
+
 export function enterMemberDoor(source) {
   const built = memberPaneDefinition({ source, id: HARNESS_DEF_ID, name: 'vendor harness' })
   if (!built.ok) {
@@ -2174,6 +2205,8 @@ function runOurSideOnTheParityClock(capture) {
       refusal: null,
       plots,
       objects,
+      // ⭐⭐ e96 — the levels this document draws, at the capture's settings (`bandsOf`)
+      bands: bandsOf(def, built, instanceInputs),
       // ⭐ SETTINGS PARITY (2c) — `{Pine name: TradingView value}` for every setting the capture moved
       capturedInputs: taken.moved,
       ctx,

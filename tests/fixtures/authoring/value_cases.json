@@ -18,6 +18,7 @@
   "generics",
   "max_bars_back",
   "method-call",
+  "obj:getter",
   "realtime-state",
   "switch",
   "udt",
@@ -191,6 +192,10 @@
    },
    "recorded_verdict": "wrong",
    "defect": "ENGINE, SILENT: the label is not drawn and nothing is reported. The script labels the rise of its line as line.get_y2(ln) - line.get_y1(ln). The line is drawn right; the label, whose text is ARITHMETIC on a value read back from a drawing, is missing, with no error. Isolated 2026-11-23: one read-back value alone in a label is drawn, the same script with the rise computed directly is right ($8.06), and the same subtraction plotted is right; any arithmetic on a read-back value in a label's text loses the label. A script must draw the right value or be refused by name, never neither. Routed to the engine train.",
+   "engine_fixed": {
+    "by": "e96 #2610 (getter arithmetic in a drawing's text is computed)",
+    "since_engine": 96
+   },
    "answer": {
     "turn": "script",
     "script": {

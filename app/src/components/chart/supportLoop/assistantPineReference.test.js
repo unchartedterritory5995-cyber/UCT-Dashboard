@@ -745,11 +745,14 @@ describe('assistantPineReference.json is the current build\'s answer', () => {
   it('a pitfall stands only while the engine still does not draw it', () => {
     const ref = build()
     expect(ref.pitfalls.map((p) => p.id)).toEqual(Object.keys(PITFALL_PROBES).sort())
-    // today these two stand: untitled plots kept only as fill anchors draw nothing, and hline is withheld.
+    // today this one stands: untitled plots kept only as fill anchors draw nothing.
     // (Named, not the whole list: a probe added for a shape the engine will withhold LATER stands the day it does.)
     const standing = ref.pitfalls.filter((p) => p.standing).map((p) => p.id)
-    expect(standing).toContain('hline')
     expect(standing).toContain('untitled-fill-anchor')
+    // ⭐ e96 (HLINE_DEFAULTS[3|4|5], Q-HLINE-3 witnessed by #2596's vw-hline-defaults-v{3,4,5}): the v5 `hline` probe
+    // now runs fully (drawn in TradingView's witnessed default, nothing withheld), so its pitfall no longer stands.
+    // It stood while v5's default colour, style and width were unwitnessed ("pine:colour-default-unwitnessed").
+    expect(standing).not.toContain('hline')
     // and standing is exactly "the probe did not run fully", for every probe
     for (const p of ref.pitfalls) expect(p.standing, p.id).toBe(!RUNS_STATES.includes(p.state))
     // CONTROL: on an engine that runs everything, no pitfall stands

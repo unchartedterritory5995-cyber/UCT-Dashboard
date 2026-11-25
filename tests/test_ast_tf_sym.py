@@ -230,8 +230,13 @@ def test_max_lookback_and_interpret_refuse_THE_SAME_timeframes(code):
         return False
 
     lookback_refused = refuses(lambda: ast_interpret.max_lookback(tree))
+    # ⭐⭐ U-DAILY (e96) -- the one code whose answer depends on the chart: a daily read is evaluated on a chart BELOW A
+    # DAY, so that is where the two gates are asked about it. On a daily base the evaluator refuses it by name, and the
+    # one base-less consumer that would run it on daily bars, the scan door, refuses it up front by its own gate
+    # (`test_a_daily_read_is_refused_on_a_daily_base_and_at_the_scan_door`), so no scan is stamped for a nothing.
+    base = "5" if code == ast_interpret.DAILY_READ else "D"
     interpret_refused = refuses(
-        lambda: ast_interpret.interpret(tree, _bars(), opts={"tf": "D"}))
+        lambda: ast_interpret.interpret(tree, _bars(), opts={"tf": base}))
 
     assert lookback_refused == interpret_refused, (
         "max_lookback and interpret disagree about %r: max_lookback %s, interpret %s. "
@@ -256,8 +261,26 @@ def test_and_the_agreement_is_NOT_vacuous_it_accepts_and_refuses_within_the_set(
             refused.append(code)
     assert accepted, "both gates refuse every timeframe — the agreement is vacuous"
     assert refused, "both gates accept every timeframe — the guard is gone"
-    assert set(accepted) == set(ast_interpret.TF_RESAMPLABLE), (
-        "the set that survives max_lookback is not TF_RESAMPLABLE: %r" % (accepted,))
+    # ⭐⭐ U-DAILY (e96): and the daily read, the one code read on a chart below a day (not a resample)
+    assert set(accepted) == set(ast_interpret.TF_RESAMPLABLE) | {ast_interpret.DAILY_READ}, (
+        "the set that survives max_lookback is not TF_RESAMPLABLE and the daily read: %r" % (accepted,))
+
+
+def test_a_daily_read_is_refused_on_a_daily_base_and_at_the_scan_door():
+    """⭐⭐ U-DAILY (e96) -- what the agreement above asks of the daily read on a daily base, held here: the evaluator
+    refuses it by name there, and the scan door (which runs ``max_lookback`` and never ``interpret``) refuses it up
+    front, so a saved scan is never stamped for a read that would answer nothing."""
+    from api.services import scan_definition, user_definitions
+    tree = {"type": "op", "name": ">", "args": [CLOSE, _tf(ast_interpret.DAILY_READ, CLOSE)]}
+    with pytest.raises(ast_interpret.TableRefusal):
+        ast_interpret.interpret(tree, _bars(), opts={"tf": "D"})
+    definition = {"schemaVersion": 1, "id": "u_000000000001", "version": 1,
+                  "meta": {"name": "A Screen", "shortName": "SCR", "repaint": "non-repainting"},
+                  "compute": {"kind": "ast", "ast": tree, "fn": user_definitions.ast_hash(tree)},
+                  "placement": {"target": "price"}, "plots": [{"key": "value", "style": "line", "role": "primary"}],
+                  "inputs": []}
+    with pytest.raises(scan_definition.ScanRefused):
+        scan_definition.assert_scannable(definition)
 
 
 def test_a_timeframe_the_engine_cannot_resample_is_NOT_stamped_scannable():

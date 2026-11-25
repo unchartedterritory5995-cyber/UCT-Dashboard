@@ -174,6 +174,9 @@ export function paneGate(t, opts = {}) {
   const drawsPaints = !!(t.presentation && Array.isArray(t.presentation.paints)
     && t.presentation.paints.some((p) => p && !p.withheld && !p.hidden && !p.na))
   if (!Number.isInteger(t.selected) || t.selected < 0) {
+    // ⭐⭐ e96 — a candle or bar whose four prices are the chart's own offers no column to screen on, and is still a
+    // DRAWING (its colours are the indicator): the member door draws it or refuses it by name (`candleRule`).
+    if ((t.outputs || []).some((o) => o && o.candle && !o.refusal)) return { ok: true, reason: null, guard: null }
     if (opts.allowObjectsOnly === true && drawsPaints && !drawsObjects) return { ok: true, reason: null, guard: null }
     if (opts.allowObjectsOnly === true && drawsObjects) {
       // ⛔ "CLEAN" HERE MEANS `droppedOps === 0`, AND THAT IS NOT THE SAME AS

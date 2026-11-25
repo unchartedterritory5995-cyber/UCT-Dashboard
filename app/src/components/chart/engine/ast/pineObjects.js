@@ -47,7 +47,7 @@ import {
   historyReason, pureFunctions, chartSeriesFor, bodyNames, bindArgs, rewriteBody, splitArgs, definitionHeader, callsAny,
   callsMethodAny, bodyEffects, methodHead, isBuiltinMethodName, splitCommaStatements,
   barInvariantNames, guardIsBarInvariant, guardIsLastBarOnly, oneExecutionBody, callOwnedSeriesFor,
-  oneExecutionTokens, taCallIn, historyCallIn, callHistoryFunctions, getterScalars, isBareGetterAt, literalInit, isMutator,
+  oneExecutionTokens, taCallIn, historyCallIn, callHistoryFunctions, getterScalars, isBareGetterAt, isGetterValueAt, literalInit, isMutator,
   collectionFamilies, familyOfCollection, ELEMENT_METHODS,
 } from './objectFnInline.js'
 
@@ -1434,7 +1434,8 @@ export function collectObjectOps(stmts, h) {
         // ⭐⭐ C14 — `x := label.get_y(l)` / `x = l.get_x()` on a getter-fed
         // scalar: WRITTEN HERE, in op order, under this block's guards. Nothing
         // else about the statement changes (it still joins the block scope).
-        if (scalars.has(String(name)) && !inLoop && isBareGetterAt(rhs, 0, h)) {
+        // ⭐ e96 — or arithmetic over getters and numbers (`isGetterArithAt`).
+        if (scalars.has(String(name)) && !inLoop && isGetterValueAt(rhs, 0, h)) {
           ops.push({
             k: 'getnum', name: String(name), rhs, guards, locals: localScope, loopIds: [...loopIds],
             at: t[0], line: st.header[0].line,

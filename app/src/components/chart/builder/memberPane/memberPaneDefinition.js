@@ -24,7 +24,7 @@
 // `buildDefinition` call are the shapes it already proved land a valid document.
 import { staticPlotRefusalsOf } from '../../engine/otherSymbols.js'
 import { checkDoorDeadline } from '../../engine/ast/doorDeadline'
-import { translatePine, lexPine, blockStatements, parseWholeExpression, findTop, isPunct, boundName, PAINT_RUNTIME_COLOUR, strippedForScan, OBJECT_SITE_SOURCES, COLOUR_UNREAD, COLOUR_DEFAULT_UNWITNESSED, isPreV4PineVersion, LEGACY_PLOT_DEFAULT_TRANSP, NO_VERSION_GUARD, modernPineSyntaxIn, noVersionSentence, withDoorDeadline } from '../../engine/ast/pine'
+import { printFormula, translatePine, lexPine, blockStatements, parseWholeExpression, findTop, isPunct, boundName, PAINT_RUNTIME_COLOUR, strippedForScan, OBJECT_SITE_SOURCES, COLOUR_UNREAD, COLOUR_DEFAULT_UNWITNESSED, isPreV4PineVersion, LEGACY_PLOT_DEFAULT_TRANSP, NO_VERSION_GUARD, modernPineSyntaxIn, noVersionSentence, withDoorDeadline } from '../../engine/ast/pine'
 import { withAlphaByte } from '../../designTokens'
 import { DEFAULT_SERIES_COLOUR } from '../../engine/pinePalette'
 import { THEME_FG } from '../../engine/objectTheme'
@@ -84,7 +84,9 @@ import { evaluateFormula } from '../FormulaField'
 // On the page this door imports them as it always did, so the page's chunk graph (what every route loads first) is
 // unchanged; inside a WORKER bundle `vite.config.js::memberDoorWorkerPure` resolves these two specifiers to the pure
 // modules, so the member door's worker holds no React and no sheet.
-import { BUILDER_INPUT_SCOPE, seriesNamesOf, memberInputKey } from '../builderInputs'
+import { BUILDER_INPUT_SCOPE, seriesNamesOf, memberInputKey, inputsFromFolded } from '../builderInputs'
+// ⭐⭐ e96 — a Pine `hline` drawn as the level it is, one authority for both doors.
+import { hlineGuides, hlineNotReproducedNote, hlineWithheldNote, hlineOrdinalOf } from '../../engine/hlineLevels'
 import { hiddenAtLeafDefaults } from '../../engine/knobBind.js'
 // ⭐ RS RATING L3 — the substituted-value disclosure (`syminfo.industry` / `sector` from UCT data).
 import { substitutionNotesFor, otherSymbolSourceNotesFor } from '../../engine/ast/symbolSubstitution'
@@ -297,6 +299,57 @@ function colourWithheldNotes(rows) {
     })
   }
   return out
+}
+
+/** ⭐⭐ e96 — the member's sentences for the levels a document draws in the neutral presentation or does not
+ *  draw (`hlineLevels.js`), in the order the script writes them. */
+function levelNotesOf(plan) {
+  const out = []
+  // `withheld` (the guard) makes the editor's status list each as a WITHHELD part, not a note: a style TradingView
+  // draws that this chart does not reproduce is a value withheld by name (coordinator ruling R2)
+  for (const n of (plan && plan.notReproduced) || []) {
+    out.push({ name: n.title, note: hlineNotReproducedNote(n), line: n.line, withheld: COLOUR_DEFAULT_UNWITNESSED })
+  }
+  for (const w of (plan && plan.withheld) || []) out.push({ name: w.title, note: hlineWithheldNote(w), line: w.line, withheld: 'pine:chart-only' })
+  return out.sort((a, b) => (a.line ?? 1e9) - (b.line ?? 1e9)).map(({ name, note, withheld }) => ({ name, note, withheld }))
+}
+
+/** ⭐⭐ e96 — THE HOST DOCUMENT'S KEY FOR A LEVEL'S SETTING (`hlineLevels.hlineGuides`' `bindInput`): the member
+ *  input a value row already declares, or one declared here for the level alone (the setting's own folded entry,
+ *  through the same `inputsFromFolded` every member input goes through). ⛔ A setting this document edits as a
+ *  PARAMETER of its formulas (`paramManifest`: an edit rewrites the trees) is not a member input, and a level would
+ *  not follow that edit: withheld by name, never drawn at a value the member's edit leaves behind. */
+function hostLevelInputKey(entry, { t, declared, extra }) {
+  const name = entry && entry.name
+  const key = memberInputKey(name)
+  if (!key) return { withheld: `its price is the setting \`${name}\`, whose name cannot key a setting here` }
+  const has = (list) => (list || []).find((s) => s && s.key === key)
+  const got = has(declared) || has(extra)
+  if (got) {
+    return got.type === 'int' || got.type === 'float' ? key
+      : { withheld: `its price is the setting \`${key}\`, which is not a number setting here` }
+  }
+  if ((t.inputParams || []).some((p) => p && p.sourceName === name)) {
+    return { withheld: `its price is the setting \`${key}\`, which this chart changes by rewriting the script's `
+      + 'formulas, and a level does not follow that edit yet' }
+  }
+  // the level's own formula IS the setting, so the input is admitted where it lands
+  const { inputs } = inputsFromFolded([entry], key)
+  const spec = inputs[0]
+  if (!spec || (spec.type !== 'int' && spec.type !== 'float')) {
+    return { withheld: `its price is the setting \`${key}\`, which this chart cannot offer as a number setting` }
+  }
+  extra.push(spec)
+  return key
+}
+
+/** ⭐⭐ e96 — the RUNTIME document's key for a level's setting: the run's own input of that name
+ *  (`runtimeInputs.js`, keyed by the Pine name), when it is a number setting. */
+function runtimeLevelInputKey(entry, specs) {
+  const name = entry && entry.name
+  const spec = (specs || []).find((s) => s && s.key === name)
+  if (spec && (spec.type === 'int' || spec.type === 'float')) return name
+  return { withheld: `its price is the setting \`${name}\`, which this run does not offer as a number setting` }
 }
 
 /** ⭐⭐ CBC-FMT — the drawings note of a `calc_bars_count` document whose host object
@@ -618,7 +671,10 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
   const allPaints = ((t.presentation || {}).paints || []).filter(Boolean)
   const drawnPaints = allPaints.filter((p) => !p.withheld && !p.hidden && !p.na)
   const drawsPaints = drawnPaints.length > 0
-  if (!visible.length && !(allowObjectsOnly && (drawsObjects || drawsPaints))) {
+  // ⭐⭐ e96 — a candle whose four prices are the chart's own (passthrough) is a DRAWING (its colours are the
+  // indicator), so a script whose only drawing it is reaches the candle rule below, drawn or refused by name.
+  const drawsCandles = carryable.some((o) => o && o.candle && Object.prototype.hasOwnProperty.call(RUNTIME_CANDLE_STYLE, o.kind))
+  if (!visible.length && !drawsCandles && !(allowObjectsOnly && (drawsObjects || drawsPaints))) {
     // ⭐⭐ CBC-FMT — a windowed script whose only drawing is its host object program: that
     // program has no window yet, so it is refused by name, never "declares nothing".
     if (windowed && hostObjectsWouldDraw) return no(CALC_BARS_DRAWINGS_NOTE, 'pine:calc-bars-objects', t)
@@ -828,6 +884,70 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
       } : {}),
     }
   })
+
+  // ⭐⭐ e96 — THE CANDLES AND BARS (coordinator ruling R1, 2026-11-22): a `plotcandle` / `plotbar` is drawn as the
+  // candle or bar TradingView draws, or withheld BY NAME — never as four lines. ⚰️ The host door drew a computed
+  // candle's open, high, low and close as four lines (22 member-served scripts of the full census), and hid a candle
+  // whose four prices are the chart's own (`hiddenReason: 'passthrough'`) without a word (13 more). Now its close
+  // row IS the candle (`style: 'candles' | 'ohlcBars'`, the runtime document's shape), its other three prices ride as
+  // hidden columns, and its colours as packed colour columns (`pine.js::candleFactsOf`), each asked of the ONE candle
+  // rule both doors share (`candleRule`). A candle that fails it hides all four rows and says why.
+  const hostCandleOf = new Map()
+  const candleNotes = []
+  {
+    const outs = t.outputs || []
+    const overlayScript = !!(t.presentation && t.presentation.overlay === true)
+    const seenKinds = new Map()
+    drawable.forEach((o, i) => {
+      if (!o || !o.candle || !Object.prototype.hasOwnProperty.call(RUNTIME_CANDLE_STYLE, o.kind)) return
+      const ord = (seenKinds.get(o.kind) || 0) + 1
+      seenKinds.set(o.kind, ord)
+      const at = outs.indexOf(o)
+      const arms = at >= 3 ? [outs[at - 3], outs[at - 2], outs[at - 1]] : []
+      const armIdx = arms.map((g) => drawable.indexOf(g))
+      // a candle its author hid (`display = display.none`) draws nothing on TradingView either: hidden, unnamed
+      // ⭐ e97 U6 — or one its display keeps off the pane at every setting (`offPane`, the one display reader)
+      if ((o.candle && o.candle.display === 'display.none') || o._authorHidden === true || o.hiddenReason === 'author'
+          || o.offPane === true) {
+        for (const j of [...armIdx.filter((j) => j >= 0), i]) rows[j].hidden = true
+        return
+      }
+      const name = (o.candle && o.candle.title) || `${o.kind} ${ord}`
+      // ⭐ e97 U6 — a display this engine cannot read: withheld BY NAME, never guessed as drawn
+      if (o.displayUnread) {
+        for (const j of [...armIdx.filter((j) => j >= 0), i]) rows[j].hidden = true
+        candleNotes.push({ name, note: `\`${name}\` is not drawn: ${o.displayUnread}. Nothing is drawn for it rather than a guess.` })
+        return
+      }
+      const complete = arms.length === 3 && armIdx.every((j) => j >= 0)
+        && arms.every((g) => g && g.kind === o.kind && hostCarriesRow(g))
+      const rule = complete
+        // ⭐ e97 U6 — the display was read already (`pine.js::outputDisplayOf`: drawn, or `hiddenWhen` on the close row)
+        ? hostCandlePresentation(o.kind, t.version, { ...o.candle, display: undefined }, overlayScript)
+        : { ok: false, why: 'one of its four prices is not carried (that line says why)' }
+      if (!rule.ok) {
+        for (const j of [...armIdx.filter((j) => j >= 0), i]) rows[j].hidden = true
+        candleNotes.push({ name, note: `\`${name}\` is not drawn: ${rule.why}. Nothing is drawn for it rather than a guess.` })
+        return
+      }
+      for (const j of armIdx) rows[j].hidden = true
+      const row = rows[i]
+      for (const f of ['colorMode', 'colorUp', 'colorDown', 'colorPalette', 'colorGradient', 'colorWithheld', 'opacity']) delete row[f]
+      Object.assign(row, { style: RUNTIME_CANDLE_STYLE[o.kind], hidden: false, color: COLOUR_NONE, label: o.candle.title || row.label })
+      // ⭐ e97 U6 — drawn or hidden as the instance's settings decide (the close output's display, `outputDisplayOf`)
+      if (o.hiddenWhen) row.hiddenWhen = o.hiddenWhen
+      const ohlcColors = {}
+      for (const [part, tree] of Object.entries(rule.colours)) ohlcColors[part] = conditionColumnFor(tree)
+      hostCandleOf.set(row.key, {
+        ohlc: { open: rows[armIdx[0]].key, high: rows[armIdx[1]].key, low: rows[armIdx[2]].key },
+        ohlcColors,
+      })
+    })
+  }
+  // ⛔ A SCRIPT WHOSE ONLY DRAWING IS A CANDLE THE RULE WITHHOLDS IS REFUSED BY NAME, never served blank.
+  if (candleNotes.length && !rows.some((r) => r && !r.hidden) && !drawsObjects && !drawsPaints) {
+    return no(`this script is not drawn: ${candleNotes.map((n) => n.note).join(' ')}`, 'pine:candle-not-drawn', t)
+  }
 
   // ⭐⭐ (j) j.1 — THE FILLS, CARRIED BY THE ANCHORS THEY ALREADY NAME.
   //
@@ -1125,8 +1245,58 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
   // keep their order. One the value or colour lanes already declare is not added twice.
   const priorKeys = new Set([...(memberSpecs || []), ...colourDeclared, ...guardDeclared].map((x) => x && x.key))
   const fillDeclared = [...fillColourSpecs.values()].filter((x) => !priorKeys.has(x.key))
-  const docInputs = (colourDeclared.length || guardDeclared.length || fillDeclared.length)
+  const docInputsBase = (colourDeclared.length || guardDeclared.length || fillDeclared.length)
     ? [...(memberSpecs || []), ...colourDeclared, ...guardDeclared, ...fillDeclared] : memberSpecs
+  // ⭐⭐ e96 — THE LEVELS (`hline`), drawn as guides by `hlineLevels.js`, the function the runtime document asks
+  // too. A level bound to a setting names that setting's key; a setting no other line of this document reads is
+  // declared here, after every other input, so the inputs a document already declared keep their order.
+  const levelSpecs = []
+  const levelPlan = hlineGuides((t.presentation || {}).levels, {
+    version: t.version, neutralInk: WITHHELD_COLOUR_INK, withAlphaByte,
+    bindInput: (entry) => hostLevelInputKey(entry, { t, declared: docInputsBase, extra: levelSpecs }),
+  })
+  const docInputs = levelSpecs.length ? [...(docInputsBase || []), ...levelSpecs] : docInputsBase
+  // ⭐⭐ e96 — A BAND BETWEEN TWO LEVELS (`fill(h1, h2)`, `presentation.levelFills`), ON THE EXISTING BAND MECHANISM:
+  // two hidden rows at the two levels (a level bound to a setting reads that setting, so the band follows the
+  // member's value as the lines do) and the band between them, exactly as a band between two hidden plots is drawn.
+  // ⛔ A band one of whose levels is not drawn is not drawn; a band whose colour changes bar by bar is not carried
+  // here yet; both are said by name.
+  const levelBandNotes = []
+  {
+    const guideByOrdinal = new Map(levelPlan.guides.map((g) => [hlineOrdinalOf(g.key), g]))
+    const scope = { ...lintScope, ...Object.fromEntries(levelSpecs.map((s) => [s.key, true])) }
+    const anchorOf = (g) => {
+      const lv = g.levels[0]
+      const ast = typeof lv === 'string' ? { type: 'series', name: lv.slice(1) }
+        : lv < 0 ? { type: 'op', name: 'u-', args: [{ type: 'num', value: -lv }] } : { type: 'num', value: lv }
+      const formula = printFormula(ast)
+      const ev = evaluateFormula(formula, scope)
+      const row = { key: keyAt(rows.length), label: '', source: formula, ast,
+        mode: (ev && ev.verdict && ev.verdict.mode) || 'non-repainting', readback: (ev && ev.readback) || '',
+        style: 'line', hidden: true, color: COLOUR_NONE }
+      rows.push(row)
+      return row
+    }
+    for (const f of ((t.presentation || {}).levelFills || [])) {
+      const ga = guideByOrdinal.get(f.a)
+      const gb = guideByOrdinal.get(f.b)
+      const name = `\`fill\` (${(ga && ga.label) || `hline ${f.a + 1}`} / ${(gb && gb.label) || `hline ${f.b + 1}`})`
+      if (!ga || !gb) { levelBandNotes.push({ name, note: `${name} is not drawn: one of its two levels is not drawn.` }); continue }
+      if (typeof f.color !== 'string') {
+        const why = typeof f.colorUp === 'string' || Array.isArray(f.colorPalette)
+          ? 'its colour changes bar by bar, which a band between two levels does not carry here yet'
+          : 'it names no colour, and TradingView\'s default for a band between two levels is not captured'
+        levelBandNotes.push({ name, note: `${name} is not drawn: ${why}.` })
+        continue
+      }
+      const ra = anchorOf(ga)
+      const rb = anchorOf(gb)
+      ra.fill = { with: rb.key }
+      ra.fillColor = f.color
+      if (Number.isFinite(f.opacity)) ra.fillOpacity = f.opacity
+      if (f.transparency && typeof f.transparency.via === 'string') ra.fillTransparency = { ...f.transparency }
+    }
+  }
   // ⭐ e97 U6 — a display a setting decides needs that setting DECLARED to be the member's control; one whose setting
   // did not come across (the colour-inputs proof declined it) is decided HERE, at the setting's default
   // (`knobBind.js::hiddenAtLeafDefaults`): what TradingView draws until the member moves it, never a hiddenWhen
@@ -1195,6 +1365,12 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
   // ⭐⭐ ENGINE 58 — a withheld colour's name rides on its built plot
   // (`buildDefinition` projects only the fields it knows).
   definition.plots = withColourWithheld(definition.plots, rows)
+  // ⭐⭐ e96 — a candle row names its price and colour columns, as the runtime document's does.
+  if (hostCandleOf.size) {
+    definition.plots = definition.plots.map((pl) => (pl && hostCandleOf.has(pl.key) ? { ...pl, ...hostCandleOf.get(pl.key) } : pl))
+  }
+  // ⭐⭐ e96 — the levels ride after every data row (`pool.planBindings` hangs them on the first visible one).
+  if (levelPlan.guides.length) definition.plots = [...definition.plots, ...levelPlan.guides]
   // ⭐⭐ DIV-4 — A `barcolor` WHOSE COLOUR THE HOST LANE WITHHELD, READ FROM THE
   // PER-BAR RUN (`runtimeReadPaints`). Behind the runtime pane's own switch: off,
   // the document is exactly what it was.
@@ -1310,6 +1486,27 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
   }
   // ⭐⭐ ENGINE 58 — A COLOUR WITHHELD BY NAME IS SAID SO, row by row.
   for (const n of colourWithheldNotes(rows)) {
+    const key = `${n.name} :: ${n.note}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    notes.push(n)
+  }
+  // ⭐⭐ e96 — A CANDLE OR BAR THAT IS NOT DRAWN IS SAID SO, by its title (never a silent hidden row).
+  for (const n of candleNotes) {
+    const key = `${n.name} :: ${n.note}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    notes.push(n)
+  }
+  // ⭐⭐ e96 — A BAND BETWEEN TWO LEVELS THAT IS NOT DRAWN IS SAID SO.
+  for (const n of levelBandNotes) {
+    const key = `${n.name} :: ${n.note}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    notes.push(n)
+  }
+  // ⭐⭐ e96 — A LEVEL DRAWN IN THE NEUTRAL PRESENTATION, OR NOT DRAWN, IS SAID SO, level by level.
+  for (const n of levelNotesOf(levelPlan)) {
     const key = `${n.name} :: ${n.note}`
     if (seen.has(key)) continue
     seen.add(key)
@@ -1984,33 +2181,61 @@ const RUNTIME_CANDLE_STYLE = Object.freeze({ plotcandle: OHLC_DEF_STYLES[0], plo
  *  @param {boolean} overlay  the script is an `overlay = true` one
  *  @returns {{ok: true, colours: object} | {ok: false, why: string}} */
 function runtimeCandlePresentation(kind, version, ro, overlay, { displayRead = false } = {}) {
+  const c = (ro && ro.candle) || {}
+  const field = { color: 'colour', wickcolor: 'wick', bordercolor: 'border' }
+  return candleRule(kind, version, {
+    // ⭐ e97 U6 — the display read already, through the host row (`displayRead`): the run's descriptor only without one
+    showLast: c.showLast, display: displayRead ? undefined : c.display, forceOverlay: c.forceOverlay,
+    colour: (param) => {
+      const f = ro && ro[field[param]]
+      if (!f) return { absent: true }
+      return Number.isInteger(f.output) ? { value: f.output } : { refused: f.refused || 'unreadable' }
+    },
+  }, overlay, 'this lane could not compute')
+}
+
+/** ⭐⭐ e96 — THE ONE CANDLE RULE, BOTH DOORS (coordinator ruling R1, 2026-11-22): whether a `plotcandle` /
+ *  `plotbar` is drawn as the candle or bar TradingView draws, or withheld by name. The runtime door asks it of
+ *  the run's descriptor (`runtimeCandlePresentation`); the host door of the translation's own candle facts
+ *  (`pine.js::candleFactsOf`, `hostCandlePresentation`). ⛔ Never four lines in a candle's place.
+ *  @param {{showLast?, display?, forceOverlay?, colour: (param) => ({value}|{absent}|{refused})}} facts */
+function candleRule(kind, version, facts, overlay, couldNot) {
   const why = (w) => ({ ok: false, why: w })
   if (!(Number.isInteger(version) && version >= 5)) {
     return why(`the colour rules of a v${version ?? '1'} candle have no capture here`)
   }
-  const c = (ro && ro.candle) || {}
-  if (c.showLast === true) return why('its `show_last` limits the candle to the last bars, which this pane does not apply')
-  // ⭐ e97 U6 — read already, through the host row (`displayRead`): the run's descriptor is asked only without one
-  if (!displayRead && c.display !== undefined && c.display !== 'display.all' && c.display !== 'display.pane') {
-    return why(`its \`display = ${c.display}\` is not a place this pane reads`)
+  if (facts.showLast === true) return why('its `show_last` limits the candle to the last bars, which this pane does not apply')
+  if (facts.display !== undefined && facts.display !== 'display.all' && facts.display !== 'display.pane') {
+    return why(`its \`display = ${facts.display}\` is not a place this pane reads`)
   }
-  if (c.forceOverlay === 'unread') return why('its `force_overlay` is not a literal `true` or `false`')
-  if (c.forceOverlay === true && !overlay) {
+  if (facts.forceOverlay === 'unread') return why('its `force_overlay` is not a literal `true` or `false`')
+  if (facts.forceOverlay === true && !overlay) {
     return why('it asks for the price chart (`force_overlay = true`) from a script that is not an overlay')
   }
   const fields = kind === 'plotcandle'
-    ? [['body', 'colour', 'color'], ['wick', 'wick', 'wickcolor'], ['border', 'border', 'bordercolor']]
-    : [['body', 'colour', 'color']]
+    ? [['body', 'color'], ['wick', 'wickcolor'], ['border', 'bordercolor']]
+    : [['body', 'color']]
   const colours = {}
-  for (const [part, field, param] of fields) {
-    const f = ro && ro[field]
-    if (!f) return why(`it does not write \`${param} =\`, and TradingView's default for it is not captured`)
-    if (!Number.isInteger(f.output)) {
-      return why(`this lane could not compute its \`${param} =\` (${f.refused || 'unreadable'})`)
-    }
-    colours[part] = f.output
+  for (const [part, param] of fields) {
+    const f = facts.colour(param) || { absent: true }
+    if (f.absent) return why(`it does not write \`${param} =\`, and TradingView's default for it is not captured`)
+    if (f.refused !== undefined) return why(`${couldNot} its \`${param} =\` (${f.refused})`)
+    colours[part] = f.value
   }
   return { ok: true, colours }
+}
+
+/** ⭐⭐ e96 — the host door's question to `candleRule`, from the close row's own facts (`row.candle`). */
+function hostCandlePresentation(kind, version, facts, overlay) {
+  const f = facts || {}
+  return candleRule(kind, version, {
+    showLast: f.showLast, display: f.display, forceOverlay: f.forceOverlay,
+    colour: (param) => {
+      const c = f.colours && f.colours[param]
+      if (!c) return { absent: true }
+      return c.withheld ? { refused: c.withheld } : { value: c }
+    },
+  }, overlay, 'this door could not carry')
 }
 
 /* ⚰️ RT2 — `RUNTIME_REPAINT_RISK` (a regex over the raw source, comments
@@ -2788,6 +3013,13 @@ function runtimeLaneDocument({ source, id, name, t, hostReason, hostGuard = null
       }
     }
   }
+  // ⭐⭐ e96 — THE LEVELS (`hline`), the same `hlineLevels.hlineGuides` the host document asks, bound to the run's own
+  // setting of the same name (`runtimeInputs.js` keys a setting by its Pine name).
+  const runDocInputs = runtimeDocInputs(withObjectInputs(memberInputSpecs([]), drawsObjects ? t : null), runtimeInputs.specs)
+  const levelPlan = hlineGuides((t.presentation || {}).levels, {
+    version: t.version, neutralInk: WITHHELD_COLOUR_INK, withAlphaByte,
+    bindInput: (entry) => runtimeLevelInputKey(entry, runDocInputs),
+  })
   let definition
   try {
     definition = buildDefinition({
@@ -2797,7 +3029,7 @@ function runtimeLaneDocument({ source, id, name, t, hostReason, hostGuard = null
       ast: rows[0].ast,
       mode: repaint.mode,
       readback: '',
-      inputs: runtimeDocInputs(withObjectInputs(memberInputSpecs([]), drawsObjects ? t : null), runtimeInputs.specs),
+      inputs: runDocInputs,
       plots: [...rows, ...colourRows],
       placement: (t.presentation && t.presentation.overlay === true) || brokerOnly
         ? { target: 'price', ...(joinsPriceScale(t) ? { joinPriceScale: true } : {}) }
@@ -2824,6 +3056,8 @@ function runtimeLaneDocument({ source, id, name, t, hostReason, hostGuard = null
   definition.plots = definition.plots.map((pl) => (pl && candleOf.has(pl.key) ? { ...pl, ...candleOf.get(pl.key) } : pl))
   // ⭐⭐ ENGINE 58 — and a withheld colour's name (see the host lane's).
   definition.plots = withColourWithheld(definition.plots, rows)
+  // ⭐⭐ e96 — the levels, after every row, as on the host document.
+  if (levelPlan.guides.length) definition.plots = [...definition.plots, ...levelPlan.guides]
   // ⭐⭐ RT6 — the paints ride on the document (`defSchema.validatePaints`), only
   // when there are any, so every other runtime document keeps its exact shape.
   if (docPaints.length) definition.paints = docPaints
@@ -2865,6 +3099,13 @@ function runtimeLaneDocument({ source, id, name, t, hostReason, hostGuard = null
       name: w.label,
       note: `\`${w.label}\` is not drawn: ${w.why}. Nothing is drawn for it rather than a guess.`,
     })
+  }
+  // ⭐⭐ e96 — the levels drawn in the neutral presentation, or not drawn (see the host document's), and each level
+  // the translation could not read, in the translation's own words (the editor's status lists that sentence once)
+  for (const n of levelNotesOf(levelPlan)) notes.push(n)
+  for (const u of ((t.presentation || {}).levelsWithheld || [])) {
+    const said = (t.notes || []).find((x) => x && x.code === 'pine:chart-only' && x.line === u.line && /^`hline` is not drawn/.test(x.message || ''))
+    notes.push({ name: '`hline`', note: said ? said.message : `\`hline\` is not drawn: ${u.reason}` })
   }
   // ⭐ RT2 — a document that repaints says so, naming what it reads, in the
   // member's terms. A non-repainting one says nothing (the badge is silent on
@@ -2908,13 +3149,21 @@ function runtimeLaneDocument({ source, id, name, t, hostReason, hostGuard = null
   // branch was written for left the document silently: luxalgo's market-structure drew its two plots and said
   // nothing of its lines and labels (the run's drawing build refused, the host held no program). Named here, in the
   // same note the undrawn kinds use; a document with nothing unnamed keeps its exact note.
+  // ⭐⭐ e96 — the levels are accounted for as the rows are: drawn (a guide), named (a level withheld by the
+  // translation, `presentation.levelsWithheld`, or by this document), or hidden by their author (`display.none`).
+  const levelsRead = ((t.presentation || {}).levels) || []
+  const levelsUnread = ((t.presentation || {}).levelsWithheld) || []
+  const levelsNamed = levelPlan.withheld.length > 0 || levelsUnread.length > 0
+  if (levelsRead.length && !levelsNamed && levelsRead.every((l) => l && l.hidden === true)) authorSkipped.add('hline')
   const familyLedger = runtimeFamilyLedger({
     source,
     t,
     runOutputs: probe.outputs,
-    drawn: [...drawnRows.map((r) => r.candle || (r.o && r.o.kind)), ...docPaints.map((p) => p.kind)],
+    drawn: [...drawnRows.map((r) => r.candle || (r.o && r.o.kind)), ...docPaints.map((p) => p.kind),
+      ...(levelPlan.guides.length ? ['hline'] : [])],
     authorSkipped,
-    named: [...withheld.map((w) => w.o && w.o.kind), ...paintWithheld.map(({ p }) => p.kind), ...undrawn],
+    named: [...withheld.map((w) => w.o && w.o.kind), ...paintWithheld.map(({ p }) => p.kind), ...undrawn,
+      ...(levelsNamed ? ['hline'] : [])],
     objectsAccounted: drawsObjects || ownObjects || !!drawingNote || (!ownObjects && !!own.hostWithheld && hostWouldDraw),
   })
   const unnamedFamilies = familyLedger.unnamed.filter((f) => !undrawn.includes(f))
