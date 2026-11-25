@@ -4,8 +4,9 @@
 // two arrays: its rows and its regular-session rows) on the REAL library members run (testing/stockChartLibraryTrace.js),
 // stepping down a list the way a member does: the rows around the selection are warmed (answered by the server), the
 // list publishes them (neighborFrames.publishScanNeighbors), the charts prepare them in idle time (useNeighborFrames),
-// then both charts switch to the next row. Run with derived arrays filed under their row (`linkDerivedSource`, the fix)
-// and without (the code before: every array its own entry of the SOURCES_KEPT bound). Per step, for each chart:
+// then both charts switch to the next row. Run with derived arrays filed under their row (`linkDerivedSource`, the fix,
+// with the shown and next rows held: `holdRow`) and without (the code before: every array its own entry of the
+// SOURCES_KEPT bound, nothing held). Per step, for each chart:
 //   1. the same final frame: what the library holds and shows (every series' rows and price range, the visible ranges)
 //      and every canvas call of a full redraw;
 //   2. non-vacuous: with the fix every switch of both charts took prepared values (`switchPrepared`); without it some
@@ -20,10 +21,16 @@ import { etUnix } from '../data/barStore/__fixtures__/seededSeries'
 
 const S = vi.hoisted(() => ({ calls: [], n: 0, ids: new Map(), live: new Map(), chart: null, charts: [], rows: true }))
 vi.mock('lightweight-charts', async () => (await import('../testing/stockChartLibraryTrace')).recordingLibrary(S))
-// without the fix: a derived array is never filed under its row (each array is its own entry, as before)
+// without the fix: a derived array is never filed under its row (each array is its own entry, as before), and no row
+// is held against the bound (neighborFrames.holdRow, which came with the derived-bars budget: holding the next row
+// alone would keep the switch prepared)
 vi.mock('./chart/neighborFrames', async (orig) => {
   const real = await orig()
-  return { ...real, linkDerivedSource: (child, parent) => (S.rows ? real.linkDerivedSource(child, parent) : undefined) }
+  return {
+    ...real,
+    linkDerivedSource: (child, parent) => (S.rows ? real.linkDerivedSource(child, parent) : undefined),
+    holdRow: (owner, slot, src) => (S.rows ? real.holdRow(owner, slot, src) : undefined),
+  }
 })
 vi.mock('../lib/realtimeBarsGate', () => ({ realtimeBarsEnabled: () => false }))
 vi.mock('../utils/barsIDB', async (orig) => ({ ...(await orig()), idbGet: async () => null, idbPut: async () => {}, idbPutMonotonic: async () => {} }))

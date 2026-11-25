@@ -34,6 +34,7 @@ import { toHeikinAshi } from './indicators'
 import {
   neighborFramesOn, scanNeighborsFor, subscribeScanNeighbors, scheduleIdle, cancelIdleFor,
   deriveFrom, hasDerived, identitySig, stableSig, chartTimesFor, nfCount, idleSupported, linkDerivedSource,
+  holdRow, releaseRows,
 } from './neighborFrames'
 
 /** The statuses a chart paints its snapshot as it stands (useBarSnapshotBars `PAINTS`). */
@@ -110,7 +111,8 @@ export function deriveVolMa(sessionApplied, r) {
  * One row, prepared: a generator for the idle queue (each `yield` a pause point).
  * @param {string} sym   the row's symbol
  * @param {number} rank  0 = the next row ahead, 1 = the row behind, 2/3 = two away
- * @param {object} c     `{recipes, view, engineRef}` read at run time (the chart's latest)
+ * @param {object} c     `{recipes, view, engineRef, owner}` read at run time (the chart's latest; `owner`: the chart,
+ *                       which holds the row it prepares FIRST against the derived-bars budget, neighborFrames.holdRow)
  */
 export function* prepareRow(sym, rank, c) {
   const r = c.recipes()
@@ -123,6 +125,8 @@ export function* prepareRow(sym, rank, c) {
   if (!snap || !PAINTS.has(snap.status)) { nfCount('barsSkipped'); return }
   const all = legacyBars(snap)
   if (!all || !all.length) { nfCount('barsSkipped'); return }
+  // the row the next press lands on: its derived values stay until then, whatever the budget (neighborFrames.holdRow)
+  if (rank === 0 && c.owner) holdRow(c.owner, 'next', all)
   yield
   // the chart's own chain, in the chart's own order (StockChart: sessionBars → filteredBars → sessionAppliedBars → displayBars)
   const filtered = deriveSession(all, r)
@@ -150,9 +154,10 @@ export function* prepareRow(sym, rank, c) {
 /**
  * The chart's half: after it paints `sym`, prepare the rows a list published around it, and again when a
  * list publishes later or one of those rows' bars changes.
- * @param {{on: boolean, sym: string, tf: string, showExtended: boolean, engineRef: object, recipes: object|null}} o
+ * @param {{on: boolean, sym: string, tf: string, showExtended: boolean, engineRef: object, recipes: object|null,
+ *   rows?: object[]|null}} o   `rows`: the rows the chart shows (held against the derived-bars budget)
  */
-export function useNeighborFrames({ on, sym, tf, showExtended, engineRef, recipes }) {
+export function useNeighborFrames({ on, sym, tf, showExtended, engineRef, recipes, rows = null }) {
   const [owner] = useState(() => ({}))   // this chart, as the idle queue's owner
   // what a queued piece reads when it runs: this chart's LATEST recipes and view (written after each commit)
   const recipesRef = useRef(recipes)
@@ -162,11 +167,14 @@ export function useNeighborFrames({ on, sym, tf, showExtended, engineRef, recipe
     viewRef.current = { tf, showExtended }
   })
   const live = !!(on && BARSTORE && neighborFramesOn() && idleSupported() && sym && tf && recipes && recipes.plain)
+  // the row on screen: its derived values stay while it is shown, whatever the budget (neighborFrames.holdRow)
+  useLayoutEffect(() => { holdRow(owner, 'shown', live ? rows : null) }, [owner, live, rows])
+  useEffect(() => () => releaseRows(owner), [owner])
   useEffect(() => {
     if (!live) return undefined
     const symU = String(sym).toUpperCase()
     const store = getBarStore()
-    const ctx = { recipes: () => recipesRef.current, view: () => viewRef.current, engineRef }
+    const ctx = { recipes: () => recipesRef.current, view: () => viewRef.current, engineRef, owner }
     let alive = true
     let raf = 0
     let timer = null

@@ -11261,7 +11261,7 @@ function StockChartBody({
     _nfRecipes.plain = !_hasOverride && !_isCustomTf && !replayMode && replayIndex == null && !replayCutoff
       && !exactDateRange && !sessionCandleActive && filteredBars === sessionBars && sessionAppliedBars === filteredBars
   }
-  useNeighborFrames({ on: _nfOn, sym, tf: resolvedTf, showExtended, engineRef, recipes: _nfRecipes })
+  useNeighborFrames({ on: _nfOn, sym, tf: resolvedTf, showExtended, engineRef, recipes: _nfRecipes, rows: bars })
   const overlayData = useMemo(() => {
     if (!__heavy.sessionAppliedBars?.length || !resolvedOverlays?.length) return []
     return resolvedOverlays.map(ov => {
