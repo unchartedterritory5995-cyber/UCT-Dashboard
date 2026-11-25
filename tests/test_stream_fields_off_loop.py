@@ -198,3 +198,69 @@ def test_the_route_warms_the_contract_imports_off_the_loop(monkeypatch):
 
     asyncio.run(go())
     assert ran == [False], ran   # once, and not on the loop's thread
+
+
+def test_a_failing_warm_up_never_fails_the_stream(monkeypatch):
+    """(review of #2748, F1) the warm-up import raising (an ImportError in bars_fetch, a pod without
+    its databases) must not 500 every /api/stream/bars open: the stream opens and serves its frames,
+    without identity fields, as it did when that import failed inside _contract_event's catch-all."""
+    from fastapi.responses import StreamingResponse
+    from api.routers import stream
+    from api.services import bar_broadcaster as bb
+
+    queues = {}
+
+    class _B:
+        def subscribe(self, sym, tf):
+            q = asyncio.Queue()
+            queues[(sym, tf)] = q
+            return q
+
+        def unsubscribe(self, sym, tf, q):
+            pass
+
+    def boom():
+        raise ImportError("bars_fetch cannot import here")
+
+    def no_identity(sym, tf, session):
+        raise ImportError("bars_fetch cannot import here")
+
+    monkeypatch.setattr(stream, "_subscribers", {"prices": set(), "bars": set()})
+    monkeypatch.setattr(stream, "_event_seq", {"prices": 0, "bars": 0})
+    monkeypatch.setattr(stream, "_contract_warm", {"done": False})
+    monkeypatch.setenv("STREAM_BARS_ENABLED", "1")
+    monkeypatch.setattr(bb, "get_broadcaster", lambda: _B())
+    monkeypatch.setattr(bc, "warm_imports", boom)
+    monkeypatch.setattr(bc, "stream_fields", no_identity)
+
+    class _Req:
+        headers = {}
+
+        def __init__(self):
+            self.stop = False
+
+        async def is_disconnected(self):
+            return self.stop
+
+    async def go():
+        req = _Req()
+        resp = await stream.stream_bars(req, bars="AAPL:5")
+        assert isinstance(resp, StreamingResponse)
+        chunks = []
+
+        async def reader():
+            async for c in resp.body_iterator:
+                chunks.append(c)
+
+        task = asyncio.ensure_future(reader())
+        await asyncio.sleep(0.05)
+        queues[("AAPL", "5")].put_nowait({"sym": "AAPL", "tf": "5", "bar": {"t": 1, "c": 1.5}})
+        await asyncio.sleep(0.2)
+        req.stop = True
+        await asyncio.wait_for(task, timeout=5)
+        return chunks
+
+    chunks = asyncio.run(go())
+    bars_out = [c for c in chunks if "event: bar" in c]
+    assert len(bars_out) == 1 and '"c": 1.5' in bars_out[0], chunks
+    assert stream._contract_warm["done"] is True   # tried once; the next open does not park another thread
