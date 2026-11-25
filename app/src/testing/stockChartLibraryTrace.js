@@ -44,11 +44,13 @@ export async function recordingLibrary(S) {
   const createChart = (el, options) => {
     const chart = lib.createChart(el, { ...(options || {}), autoSize: false, width: 900, height: 500 })
     S.chart = chart
+    if (Array.isArray(S.charts)) S.charts.push(chart)   // a board of several charts: each one, in creation order
     const addSeries = chart.addSeries.bind(chart)
     const addCustomSeries = chart.addCustomSeries.bind(chart)
     const removeSeries = chart.removeSeries.bind(chart)
-    chart.addSeries = (def, opts, pane) => recorded(addSeries(def, opts, pane), kindOf(def), opts, pane)
-    chart.addCustomSeries = (view, opts, pane) => recorded(addCustomSeries(view, opts, pane), 'custom', opts, pane)
+    const owned = (s) => { const e = S.live.get(S.ids.get(s)); if (e) e.chart = chart; return s }
+    chart.addSeries = (def, opts, pane) => owned(recorded(addSeries(def, opts, pane), kindOf(def), opts, pane))
+    chart.addCustomSeries = (view, opts, pane) => owned(recorded(addCustomSeries(view, opts, pane), 'custom', opts, pane))
     chart.removeSeries = (s) => {
       const id = S.ids.get(s)
       S.calls.push({ m: 'remove', id })

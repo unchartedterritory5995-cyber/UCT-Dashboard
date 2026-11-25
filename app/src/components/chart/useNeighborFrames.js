@@ -33,7 +33,7 @@ import { sessionBarsOf, ohlcBaseOf, closeDataOf, volDataOf, volMaDataOf, compute
 import { toHeikinAshi } from './indicators'
 import {
   neighborFramesOn, scanNeighborsFor, subscribeScanNeighbors, scheduleIdle, cancelIdleFor,
-  deriveFrom, hasDerived, identitySig, stableSig, chartTimesFor, nfCount, idleSupported,
+  deriveFrom, hasDerived, identitySig, stableSig, chartTimesFor, nfCount, idleSupported, linkDerivedSource,
 } from './neighborFrames'
 
 /** The statuses a chart paints its snapshot as it stands (useBarSnapshotBars `PAINTS`). */
@@ -53,10 +53,17 @@ export const EMPTY_HVC = Object.freeze(new Set())
  * The derived arrays of one bars array, through the chart's own recipes. ONE implementation for the chart
  * (StockChart's memos call these) and the preparer, so the two can never derive differently.
  */
-export function deriveSession(bars, r) { return deriveFrom(bars, 'session', r.session.sig, () => sessionBarsOf(bars, r.session.p)) }
+// (deriveSession / deriveDisplay file what they make under the row it came from: neighborFrames.linkDerivedSource)
+export function deriveSession(bars, r) {
+  const out = deriveFrom(bars, 'session', r.session.sig, () => sessionBarsOf(bars, r.session.p))
+  linkDerivedSource(out, bars)
+  return out
+}
 export function deriveDisplay(sessionApplied, r) {
-  return r.heikinAshi && sessionApplied?.length
-    ? deriveFrom(sessionApplied, 'heikinAshi', '', () => toHeikinAshi(sessionApplied)) : sessionApplied
+  if (!(r.heikinAshi && sessionApplied?.length)) return sessionApplied
+  const out = deriveFrom(sessionApplied, 'heikinAshi', '', () => toHeikinAshi(sessionApplied))
+  linkDerivedSource(out, sessionApplied)
+  return out
 }
 export function deriveHvc(filtered, r) {
   return r.hvcOn && filtered?.length > 20 ? deriveFrom(filtered, 'hvc', '', () => computeHVC(filtered)) : EMPTY_HVC

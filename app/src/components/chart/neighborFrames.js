@@ -167,8 +167,39 @@ function _lru() {
   }
 }
 
+// ─── ⭐ ROWS, NOT ARRAYS (2026-11-25, next-row key task) ─────────────────────────────────────────────
+// The bound above was meant in ROWS ("the rows around the selection on two charts, the row on screen and the one
+// just left") and counted ARRAYS. A row is two or three arrays here: its rows (the session filter's source), the
+// session-filtered rows (the candles, closes, volume, its average, the HVC set, the extremes, the chart times, the
+// binder's columns), and with Heikin-Ashi its display rows. Preparing the three rows around the selection on a
+// two-chart board files under 12 arrays, plus the 4 of the rows on screen: the LRU dropped the OLDEST, which is the
+// row prepared FIRST, the very row the next press lands on (the next-row replay, 2026-11-25, 39 presses on a 1m + 15m
+// board: every chart render in the presses' key tasks read the very rows array the preparer had read, and 67 of the 76
+// session derivations there missed: that row's derived values had been dropped; nothing downstream was reused).
+// An array derived from a row's rows is now filed under that row (`linkDerivedSource`, called where the chain derives
+// it: deriveSession, deriveDisplay): its derived values and chart times are kept and dropped with the row, and the
+// LRU counts rows. What is derived is unchanged: the same (array, name, signature) asks the same question.
+const _rowOf = new WeakMap()   // an array derived from a row's rows -> those rows (the row's first array)
+const rowOf = (src) => _rowOf.get(src) || src
+/** `child` was derived from `parent` (the session filter of a row's rows, their Heikin-Ashi): file it under the
+ *  same row. Once per array: a child keeps the row it was first filed under. */
+export function linkDerivedSource(child, parent) {
+  if (!child || !parent || child === parent || typeof child !== 'object' || typeof parent !== 'object') return
+  if (_rowOf.has(child)) return
+  const row = rowOf(parent)
+  if (row !== child) _rowOf.set(child, row)
+}
+/** The per-array map filed under `src`'s row (made on first use). */
+function _underRow(lru, src) {
+  const row = rowOf(src)
+  const bySrc = lru.get(row) || lru.make(row, new Map())
+  let m = bySrc.get(src)
+  if (!m) { m = new Map(); bySrc.set(src, m) }
+  return m
+}
+
 // ─── one chart time per bar ───────────────────────────────────────────────────────────────────────────
-const _times = _lru()   // bars -> Map(adjustTime -> times[])
+const _times = _lru()   // a row's rows -> Map(bars of that row -> Map(adjustTime -> times[]))
 
 /**
  * `bars.map(b => adjustTime(b.t))`, built once per (bars, adjustTime) and shared read-only by every
@@ -177,7 +208,7 @@ const _times = _lru()   // bars -> Map(adjustTime -> times[])
  */
 export function chartTimesFor(bars, adjustTime) {
   if (!Array.isArray(bars) || typeof adjustTime !== 'function') return null
-  const byFn = _times.get(bars) || _times.make(bars, new Map())
+  const byFn = _underRow(_times, bars)
   const hit = byFn.get(adjustTime)
   if (hit) { _stats.timesHit += 1; return hit }
   const out = new Array(bars.length)
@@ -188,7 +219,7 @@ export function chartTimesFor(bars, adjustTime) {
 }
 
 // ─── a derived array, filed under its source array ────────────────────────────────────────────────────
-const _derived = _lru()   // source array -> Map(`${name}\u0001${sig}` -> value)
+const _derived = _lru()   // a row's rows -> Map(source array of that row -> Map(`${name}\u0001${sig}` -> value))
 const DERIVED_PER_SOURCE = 16
 
 /**
@@ -198,7 +229,7 @@ const DERIVED_PER_SOURCE = 16
  */
 export function deriveFrom(src, name, sig, fn) {
   if (!src || typeof src !== 'object') return fn()
-  const m = _derived.get(src) || _derived.make(src, new Map())
+  const m = _underRow(_derived, src)
   const k = `${name}\u0001${sig}`
   if (m.has(k)) { _stats.derivedHit += 1; return m.get(k) }
   const v = fn()
@@ -209,7 +240,8 @@ export function deriveFrom(src, name, sig, fn) {
 
 /** Was `name`/`sig` already derived from `src`? (A preparer skips what is done.) */
 export function hasDerived(src, name, sig) {
-  const m = src && typeof src === 'object' ? _derived.get(src) : null
+  const bySrc = src && typeof src === 'object' ? _derived.get(rowOf(src)) : null
+  const m = bySrc ? bySrc.get(src) : null
   return !!m && m.has(`${name}\u0001${sig}`)
 }
 
