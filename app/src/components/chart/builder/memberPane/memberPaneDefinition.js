@@ -1309,7 +1309,7 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
     }
     for (const f of ((t.presentation || {}).levelFills || [])) {
       // ⭐ e97 U7 — a band its author keeps off the pane at every setting draws nothing on TradingView, nor here
-      if (f.hidden === true) continue
+      if (f && f.hidden === true) continue
       const ga = guideByOrdinal.get(f.a)
       const gb = guideByOrdinal.get(f.b)
       const name = `\`fill\` (${(ga && ga.label) || `hline ${f.a + 1}`} / ${(gb && gb.label) || `hline ${f.b + 1}`})`

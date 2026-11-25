@@ -14114,7 +14114,7 @@ export class Resolver {
     const prev = this.env
     const minted = this.paramMint
     // ⛔ a display read MINTS NOTHING (as a paint's colour and a level's price do not): every later parameter id stays
-    this.paramMint = null
+    this.paramMint = null // displayOfNode
     if (env) this.env = env
     try {
       return this.outputDisplayOf([{ name: 'display', value: node }])

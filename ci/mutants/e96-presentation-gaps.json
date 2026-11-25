@@ -159,8 +159,8 @@
    "id": "LB2",
    "mutant": "the door mints the two level rows but draws no band between them",
    "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
-   "from": "      ra.fill = { with: rb.key }",
-   "to": "      ra.fillNever = { with: rb.key }",
+   "from": "      ra.fill = { with: rb.key, ...(f.hiddenWhen ? { hiddenWhen: f.hiddenWhen } : {}) }",
+   "to": "      ra.fillNever = { with: rb.key, ...(f.hiddenWhen ? { hiddenWhen: f.hiddenWhen } : {}) }",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/e96HlineLevels.test.js",
    "expectRed": "existing band mechanism"
   },
