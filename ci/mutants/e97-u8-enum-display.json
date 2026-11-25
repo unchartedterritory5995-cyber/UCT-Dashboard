@@ -45,6 +45,42 @@
    "to": "      let test = null",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/displayEnum.test.js",
    "expectRed": "the MA-family shape"
+  },
+  {
+   "id": "U8-M6",
+   "mutant": "the knob stops at a helper's parameter (\"Type\" moves what is shown, not what is computed)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "      const viaParam = bound && bound.kind === 'param'",
+   "to": "      const viaParam = false",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/enumKnobTruth.test.js",
+   "expectRed": "the MA-family shape"
+  },
+  {
+   "id": "U8-M7",
+   "mutant": "vwma's length is not folded (the declaring pass refuses, the script declares nothing)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "      if (bare === 'vwma' && built[1] && built[1].type !== 'num') {",
+   "to": "      if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/enumKnobTruth.test.js",
+   "expectRed": "the MA-family shape"
+  },
+  {
+   "id": "U8-M8",
+   "mutant": "a var seeded by settings alone is an accumulator again (blank for 250 bars)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "        if (bound.update && bound.update.type === 'selfref' && seed && this.settingsOnlyTree(seed)) {",
+   "to": "        if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/enumKnobTruth.test.js",
+   "expectRed": "the MA-family shape"
+  },
+  {
+   "id": "U8-M9",
+   "mutant": "the truth checker stops comparing values (a lying setting passes)",
+   "file": "app/src/components/chart/engine/enumKnobTruth.js",
+   "from": "    if (x.values && (x.values.length !== y.values.length || x.values.some((v, i) => !same(v, y.values[i])))) {",
+   "to": "    if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/enumKnobTruth.test.js",
+   "expectRed": "CONTROL: a document whose"
   }
  ]
 }

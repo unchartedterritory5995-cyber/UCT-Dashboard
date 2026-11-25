@@ -9703,6 +9703,15 @@ export class Resolver {
           staleLastWord()
           return seed
         }
+        // ⭐⭐ e97 U8 — …AND ONE SEEDED BY THE MEMBER'S SETTINGS ALONE IS THAT SETTING'S ANSWER, for the same reason: a
+        // setting is one value per binding, so `var enableMA = maType != "None"` holds one answer on every bar.
+        // ⚰️ Measured: declared as the member's knob, the built-in MA family's `var enableMA` became an accumulator, and
+        // the smoothed MA was blank for its first 250 bars at every type (`enumKnobTruth`: NaN against the literal
+        // program's value from bar 21). ⛔ Only a tree of settings and numbers: a bar field keeps its accumulator.
+        if (bound.update && bound.update.type === 'selfref' && seed && this.settingsOnlyTree(seed)) {
+          staleLastWord()
+          return seed
+        }
         // 🔴 …AND THE SAME SHAPE SEEDED `na` IS A COLUMN THAT CAN ONLY EVER BE
         // BLANK. `accum(0/0, self, n)` never leaves its seed, so every bar is NaN
         // — measured at 400/400 on the anchored-VWAP script in the corpus.
@@ -10625,6 +10634,17 @@ export class Resolver {
     if (node.type === 'name') {
       if (own(this.table.series, node.name)) return null
       const bound = this.env && this.env.get(node.name)
+      // ⭐⭐ e97 U8 — a helper's PARAMETER is the caller's argument (`ma(src, len, type) => switch type`, called
+      // `ma(x, n, maType)`): the knob reaches the switch through the call, as it reaches a plain binding. ⚰️ Without it
+      // the built-in MA family's "Type" setting moved only what was SHOWN, never the smoothing it computed.
+      const viaParam = bound && bound.kind === 'param'
+      if (viaParam) {
+        const arg = this.paramArgumentOf(node.name)
+        if (!arg) return null
+        const prev = this.env
+        this.env = arg.env || prev
+        try { return this.enumInputCallOf(arg.node, depth + 1) } finally { this.env = prev }
+      }
       // ⭐ (input-kind) a `var` nothing reassigns is its initializer: the member's knob reaches it as the plain binding's
       const fixed = this.fixedVarBinding(bound, node.name)
       if (fixed) return this.enumInputCallOf(fixed.node, depth + 1)
@@ -10647,6 +10667,36 @@ export class Resolver {
       || ((node.args || [])[1] && !(node.args || [])[1].name ? node.args[1] : null)
     const title = titleArg && titleArg.value && titleArg.value.type === 'string' ? titleArg.value.value : null
     return { call: node, name: node.boundName, options, def, title }
+  }
+
+  /** ⭐ e97 U8 — is `t` built of the member's SETTINGS (a declared input this resolution read: a knob leaf) and numbers
+   *  only, through operators? Such a tree is one value per binding. Any bar field, call or offset: no. */
+  settingsOnlyTree(t, depth = 0) {
+    if (!t || typeof t !== 'object' || depth > 32) return false
+    if (t.type === 'num') return true
+    if (t.type === 'series') {
+      if (typeof t.name !== 'string' || own(this.table.series, t.name)) return false
+      return [...this.usedInputs.values()].some((e) => e && e.name === t.name)
+    }
+    if (t.type === 'op' && Array.isArray(t.args)) return t.args.every((a) => this.settingsOnlyTree(a, depth + 1))
+    return false
+  }
+
+  /** ⭐ e97 U8 — the caller's argument a function PARAMETER stands for (`{node, env}`, the frame entry), following a
+   *  parameter passed straight on through outer frames; null for anything else. The same walk `windowVectorOf` makes. */
+  paramArgumentOf(name) {
+    let b = this.env ? this.env.get(name) : null
+    let depth = this.frames.length - 1
+    let found = null
+    for (let hops = 0; hops < MAX_CALL_DEPTH && b && b.kind === 'param' && depth >= 0; hops += 1) {
+      const entry = this.frames[depth] && this.frames[depth][b.index]
+      depth -= 1
+      if (!entry || entry.kind !== 'expr' || !entry.node) return null
+      found = entry
+      if (entry.node.type !== 'name' || !entry.env) break
+      b = entry.env.get(entry.node.name)
+    }
+    return found
   }
 
   /** ⭐⭐ `kind == "SMA"` (or `!=`) where `kind` is an `input.string` with
@@ -16649,6 +16699,16 @@ export class Resolver {
       // this line" rather than "the expansion is broken", and sent me looking at
       // the script template instead of at this expression.
       const built = args.map((a) => this.resolve(a.value !== undefined ? a.value : a))
+      // ⭐ e97 U8 — `vwma(source, length)`'s closed form (`sma(src·volume, n) / sma(volume, n)`) needs the NUMBER: a
+      // length that reached it as a declared setting's NAME made the builder return null, the output was refused
+      // `pine:roundtrip` on the door's declaring pass, and that pass then declared NOTHING for the whole script
+      // (measured: the built-in Bollinger Bands lost its StdDev setting once its MA type reached the switch, whose VWMA
+      // arm reads the length). Folded the way the table path folds a window, and recorded (`windowBoundInputs`): an
+      // input that reaches a window is not a member knob.
+      if (bare === 'vwma' && built[1] && built[1].type !== 'num') {
+        for (const n of declaredInputNames(built[1])) this.windowBoundInputs.add(n)
+        built[1] = foldWindow(built[1])
+      }
       // ⭐ `iff`'s first argument is its CONDITION — the same bool context as
       // the `?:` it expands to (`implicitBoolCast`), so it takes the same cast.
       if (bare === 'iff' && built.length === 3) built[0] = this.condition(built[0], 'iff', tok)
