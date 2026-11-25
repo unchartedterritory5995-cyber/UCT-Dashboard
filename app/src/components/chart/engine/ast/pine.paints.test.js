@@ -75,12 +75,22 @@ describe('what no capture witnesses is withheld BY NAME', () => {
     expect(b.withheld).toBeUndefined()
     expect(b.showLast).toBe(5)
   })
-  it('`offset = na`, a computed `show_last`, another `display`, `overlay`', () => {
+  it('`offset = na`, a computed `show_last`, an unreadable `display`, `overlay`', () => {
     expect(code('barcolor(color.red, offset = na)')).toBe('paint:offset')
     expect(code('bgcolor(color.red, show_last = bar_index)')).toBe('paint:show-last')
-    expect(code('bgcolor(color.red, display = display.data_window)')).toBe('paint:display')
+    expect(code('f() => display.all\nbgcolor(color.red, display = f())')).toBe('paint:display')
     expect(code('bgcolor(color.red, overlay = true)')).toBe('paint:overlay')
     expect(code('bgcolor(color.red, force_overlay = true)')).toBe('paint:overlay')
+  })
+  // ⭐ e97 U7 — a display the ONE reader can place (`Resolver.displayOfNode`) is no longer "no capture": off the
+  // chart's pane (`display.data_window`) the paint is not drawn, as a plot off the pane is not (U6)
+  it('a `display` off the pane is not drawn (hidden, not withheld); `display.pane` is drawn', () => {
+    const [dw] = paintsOf(host(v5('plot(close)\nbgcolor(color.red, display = display.data_window)')))
+    expect(dw.withheld).toBeUndefined()
+    expect(dw.hidden).toBe(true)
+    const [pane] = paintsOf(host(v5('plot(close)\nbgcolor(color.red, display = display.pane)')))
+    expect(pane.withheld).toBeUndefined()
+    expect(pane.hidden).toBeUndefined()
   })
   it('an `offset` of 0 is no offset', () => {
     expect(paintsOf(host(v5('plot(close)\nbgcolor(color.red, offset = 0)')))[0].withheld).toBeUndefined()
