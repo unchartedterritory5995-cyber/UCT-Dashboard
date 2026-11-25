@@ -10,6 +10,7 @@ a refused ahead pair is simply not subscribed (the client keeps its old rule for
 counted until their connection ends.
 """
 import asyncio
+import os
 
 import pytest
 from fastapi.responses import StreamingResponse
@@ -242,3 +243,56 @@ def test_a_failure_before_streaming_releases_the_ahead_budget_and_the_connection
     assert stream.ahead_stats()["live"] == 0
     assert stream.subscriber_count("bars") == 0
     assert fake.subs == []                                     # the queues it made are gone too
+
+
+# ⭐ (review of #2721, 2026-11-25) THE POD BUDGET AT 1 Hz IS THE LOAD LINE. A connection holds at most AHEAD_MAX_PER_CONN
+# ahead pairs (the client's own page cap, barsStreamManager AHEAD_MAX_PAIRS), and the pod admits them only below
+# AHEAD_LOAD_FRACTION of MAX_SUBSCRIBERS; so the most that can ever be live is ceil(0.8 x 300) x 4 = 960, and the default
+# budget is exactly that: below the load line it never refuses (the 80% shed is what binds).
+def test_a_connection_holds_at_most_the_per_connection_cap(fake):
+    async def script():
+        req, go = _open("AAPL:1", "M1:1,M2:1,M3:1,M4:1,M5:1,M6:1")
+        _r, task = await go()
+        ahead = [p for p in fake.subs if p[0] != "AAPL"]
+        assert ahead == [("M1", "1"), ("M2", "1"), ("M3", "1"), ("M4", "1")], fake.subs
+        assert stream.ahead_stats()["live"] == 4
+        req.stop = True
+        await asyncio.wait_for(task, timeout=5)
+    _run(script)
+
+
+def test_the_per_connection_cap_is_the_clients_page_cap():
+    import pathlib
+    import re
+    js = (pathlib.Path(__file__).resolve().parents[1] / "app" / "src" / "lib" / "barsStreamManager.js").read_text("utf-8")
+    m = re.search(r"export const AHEAD_MAX_PAIRS = (\d+)", js)
+    assert m, "barsStreamManager.js no longer exports AHEAD_MAX_PAIRS"
+    assert stream.AHEAD_MAX_PER_CONN == int(m.group(1))
+
+
+def test_the_default_budget_is_the_load_line_times_the_per_connection_cap(monkeypatch):
+    monkeypatch.setattr(stream, "MAX_SUBSCRIBERS", 300)
+    monkeypatch.setattr(stream, "AHEAD_LOAD_FRACTION", 0.8)
+    assert stream._default_max_ahead_pairs() == 960
+    if "STREAM_MAX_AHEAD_PAIRS" not in os.environ:
+        assert stream.MAX_AHEAD_PAIRS == 960
+
+
+def test_below_the_load_line_the_default_budget_never_refuses(fake, monkeypatch):
+    monkeypatch.setattr(stream, "MAX_SUBSCRIBERS", 10)               # load line 8: connections 1..7 may hold rows ahead
+    monkeypatch.setattr(stream, "MAX_AHEAD_PAIRS", stream._default_max_ahead_pairs())
+
+    async def script():
+        open_ = []
+        for c in range(8):
+            req, go = _open(f"C{c}:1", ",".join(f"A{c}x{k}:1" for k in range(4)))
+            _r, task = await go()
+            open_.append((req, task))
+        st = stream.ahead_stats()
+        assert st["live"] == 7 * 4, st                                 # every connection below the line got all four
+        assert st["refused"] == 4, st                                  # only the 8th, by the shed, never by the budget
+        for req, task in open_:
+            req.stop = True
+            await asyncio.wait_for(task, timeout=5)
+        assert stream.ahead_stats()["live"] == 0
+    _run(script)
