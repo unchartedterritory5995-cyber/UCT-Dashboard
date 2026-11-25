@@ -7,7 +7,7 @@
 // the same test `ownScriptCopyId` uses to reuse a copy).
 //
 // ⛔ The names are the house set's own (`housePineIndicators.json`), restated here only so the chart does not load the
-// whole house file (it carries every script's source); `houseNames.test.js` pins the two lists equal.
+// whole house file (it carries every script's source); `pane/attachedPineDisclosures.house.test.jsx` pins the two lists equal.
 export const HOUSE_INDICATOR_NAMES = Object.freeze(['Fred RS'])
 
 const NAMES = new Set(HOUSE_INDICATOR_NAMES.map((n) => n.toLowerCase()))

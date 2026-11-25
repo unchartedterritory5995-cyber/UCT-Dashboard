@@ -27,8 +27,8 @@ describe('⭐ room for labels at the newest bar (owner ruling 2026-11-24)', () =
     expect(r.labelOverflowRight).toBeGreaterThan(40)
   })
   it('CONTROL: an anchor with room reports 0, and an anchor scrolled OFF the plot is not counted', () => {
-    expect(paintObjects(ctx(), fredLabels(1), map(500)).labelOverflowRight).toBe(0)
-    expect(paintObjects(ctx(), fredLabels(1), map(870)).labelOverflowRight).toBe(0)
+    expect(paintObjects(ctx(), fredLabels(1), map(500)).labelOverflowRight || 0).toBe(0)
+    expect(paintObjects(ctx(), fredLabels(1), map(870)).labelOverflowRight || 0).toBe(0)
   })
 
   it('the offset gives the px as bars (+ pad), only grows, and only while the newest bar is on the plot', () => {

@@ -11,6 +11,8 @@ import AttachedPineDisclosures, { withoutHouseInstances } from './AttachedPineDi
 import { setChartClockNotes, resetChartClockNotes } from '../engine/chartClockNotice'
 import { setIndexHistoryNote, _resetIndexHistoryNotes } from '../engine/indexHistoryNotice'
 import { setRuntimeErrorNotice, resetRuntimeErrorNotices } from '../engine/runtimeErrorNotice'
+import house from '../house/housePineIndicators.json'
+import { HOUSE_INDICATOR_NAMES, isHouseCopyMeta } from '../house/houseNames'
 
 const DOC_NOTE = { name: 'Reads', note: 'This script reads `syminfo.industry`, and it uses UCT data for it.' }
 const CLOCK = { code: 'other-symbol:seed', reason: 'This script reads `SEED_FRED6725_RS_RATING:RSRATING`.' }
@@ -57,5 +59,18 @@ describe('⭐ UCT house indicators show no data notes under the chart', () => {
     expect(withoutHouseInstances(both, registry).indicatorInstances.map((i) => i.defId)).toEqual(['mine'])
     const mine = one('mine')
     expect(withoutHouseInstances(mine, registry)).toBe(mine)
+  })
+})
+
+describe('house indicator names (house/houseNames.js)', () => {
+  it("are exactly the house set's own names (one authority, restated only to keep the chart light)", () => {
+    expect([...HOUSE_INDICATOR_NAMES].sort()).toEqual(house.indicators.map((i) => i.name).sort())
+  })
+  it('recognise an unedited copy, and nothing else', () => {
+    expect(isHouseCopyMeta({ name: 'Fred RS' })).toBe(true)
+    expect(isHouseCopyMeta({ name: ' fred rs ' })).toBe(true)
+    expect(isHouseCopyMeta({ name: 'Fred RS', scriptEdited: true })).toBe(false)
+    expect(isHouseCopyMeta({ name: 'My RS' })).toBe(false)
+    expect(isHouseCopyMeta(null)).toBe(false)
   })
 })

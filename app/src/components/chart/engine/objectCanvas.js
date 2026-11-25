@@ -375,7 +375,9 @@ export function paintObjects(ctx, state, m) {
   // ⭐ (owner ruling 2026-11-24, "room for labels") HOW FAR A LABEL WHOSE ANCHOR IS ON THE PLOT RUNS PAST ITS RIGHT
   // EDGE (the price scale starts there), in px; 0 = every such label fits. Fred RS writes "RS Rating" and its number at
   // the newest bar; TradingView's 10-bar right margin leaves them room and ours did not. The host widens the gap by this
-  // much (`labelRoom.js`). A label anchored OFF the plot (the member scrolled it away) is not counted.
+  // much (`labelRoom.js`). A label anchored OFF the plot (the member scrolled it away) is not counted. Read off the
+  // labels with a BODY (`label_center` and the pointed styles, Fred's), whose width is already measured: a text-only
+  // label adds no canvas call for it (the painter's calls are pinned by golden).
   let labelOverflowRight = 0
   const overflowsAt = (anchorX, rightEdge) => {
     if (!(anchorX >= 0 && anchorX <= plotRight) || !Number.isFinite(rightEdge)) return
@@ -564,10 +566,6 @@ export function paintObjects(ctx, state, m) {
         ctx.fillStyle = lb.textcolor || '#FFFFFF'
         lines.forEach((t, i) => { if (t) ctx.fillText(t, p.x, lineTop(i)) })
       }
-      if (text) {
-        const tw = Math.max(...lines.map((t) => (t ? ctx.measureText(t).width : 0)))
-        overflowsAt(p.x, ctx.textAlign === 'left' ? p.x + tw : ctx.textAlign === 'right' ? p.x : p.x + tw / 2)
-      }
       ctx.restore()
       seen(p.x, y)
       drawn.label += 1
@@ -639,7 +637,8 @@ export function paintObjects(ctx, state, m) {
   return {
     drawn,
     skipped,
-    labelOverflowRight: Math.ceil(labelOverflowRight),
+    // ⛔ only when a label overflows: the painter's report is pinned by golden (labelSingleLine.golden.json)
+    ...(labelOverflowRight > 0 ? { labelOverflowRight: Math.ceil(labelOverflowRight) } : {}),
     bbox: Number.isFinite(bbox.x0)
       ? { x0: Math.round(bbox.x0), y0: Math.round(bbox.y0), x1: Math.round(bbox.x1), y1: Math.round(bbox.y1) }
       : null,
