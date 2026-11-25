@@ -766,9 +766,18 @@ async def stream_bars(
     # first import costs ~1.5-2 s (massive, yf_util ...). On a pod where nothing else imported it yet
     # (stream-edge after a restart) that import ran on THIS event loop under the first frame, holding
     # every member's stream behind it. The first opens import it on a thread, before any queue exists.
+    # (review of #2748, F1) a failing import must not fail the stream: before the warm-up existed the same
+    # import ran inside _contract_event's catch-all and cost only the identity fields. `done` is set on both
+    # outcomes (one attempt per process), never in a `finally`: a client gone mid-import (CancelledError) leaves
+    # it unset so the next open tries again.
     if not _contract_warm["done"]:
-        await asyncio.to_thread(_warm_contract_imports)
-        _contract_warm["done"] = True
+        try:
+            await asyncio.to_thread(_warm_contract_imports)
+            _contract_warm["done"] = True
+        except Exception as e:  # noqa: BLE001
+            _contract_warm["done"] = True
+            _logger.warning("[stream_bars] contract warm-up failed (%s: %s): frames go out without identity fields",
+                            type(e).__name__, str(e)[:160])
 
     # Admission BEFORE the broadcaster subscribe, for the same reason as
     # /api/stream/prices: a refused connection must leave no queues behind.
