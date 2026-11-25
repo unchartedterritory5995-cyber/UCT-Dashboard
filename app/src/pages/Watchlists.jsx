@@ -38,6 +38,9 @@ import { useVirtualizer, observeElementRect } from '@tanstack/react-virtual'
 // every batch AND renders outright, or takes the windowed path for both — rather
 // than straddling the two and behaving differently column by column.
 const VIRTUALIZE_MIN_ROWS = 120
+// A virtualized list's MOVED window (which rows stream live prices) is stored in idle time, at the latest this
+// many ms after the scroll that moved it (Watchlists `handleListVisible`).
+export const VISIBLE_IDLE_MS = 100
 // The rows ahead of a scan warmed URGENTLY (not held behind the daily pack ingest); the
 // screener's `URGENT_NEXT` (pages/screener/focus/useFocusSelection.js) is the same number.
 const SCAN_URGENT_NEXT = 2
@@ -723,7 +726,9 @@ export function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChan
     const prev = reportedRef.current
     if (prev.cb === onVisibleChange && prev.key === key) return
     reportedRef.current = { cb: onVisibleChange, key }
-    onVisibleChange(syms)
+    // the second argument: is this the receiver's FIRST window from this list (it mounted, the receiver is new, or
+    // nothing but an empty window was reported yet: the virtualizer reports one before it has measured)?
+    onVisibleChange(syms, prev.cb !== onVisibleChange || !prev.key)
   }, [first, last, items, onVisibleChange])
   // Scroll a searched/selected symbol INTO VIEW — ONCE, on first search. DOM querySelector
   // can't find a virtualized row that isn't rendered yet, so drive the virtualizer by index.
@@ -1393,6 +1398,43 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // Which symbols each VIRTUALIZED watchlist group currently has on screen, keyed by
   // list id so several open lists can each report their own window.
   const [listVisible, setListVisible] = useState({})
+  // ⭐ (2026-11-25, next-row key task) A MOVED WINDOW IS STORED WHEN THE PAGE IS IDLE. An arrow key scrolls the list
+  // to the row it selects (ScanRows `scrollToIndex`); the scroll moves the virtualized window by a row, and storing the
+  // new window re-rendered the WHOLE watchlist (the streamed set, the price map, the sort) in the tasks right after the
+  // chart switch's frame, ahead of everything else waiting (the 40 ms breakdown, 2026-11-25: ScanRows rendered again
+  // after the frame on most presses, its items and row renderer new). The window only says which rows stream live
+  // prices, so a MOVED window waits for idle time (at most VISIBLE_IDLE_MS), the newest one of each list, stored once.
+  // A list's FIRST window (ScanRows says so: its first non-empty report since it mounted) is stored at once, as before:
+  // what a list streams when it opens.
+  const visibleWaiting = useRef({ handle: null, lists: new Map() })
+  const storeListWindows = useCallback((entries) => {
+    setListVisible((prev) => {
+      let next = prev
+      for (const [wlId, syms] of entries) {
+        const cur = next[wlId]
+        // Scrolling re-reports the same window constantly; only a real change may
+        // write, or the identity churn cascades into every downstream memo.
+        if (cur && cur.length === syms.length && cur.every((s, i) => s === syms[i])) continue
+        next = { ...next, [wlId]: syms }
+      }
+      return next
+    })
+  }, [])
+  const storeWaitingWindows = useCallback(() => {
+    const q = visibleWaiting.current
+    q.handle = null
+    if (!q.lists.size) return
+    const entries = [...q.lists]
+    q.lists.clear()
+    storeListWindows(entries)
+  }, [storeListWindows])
+  useEffect(() => () => {
+    const q = visibleWaiting.current
+    if (q.handle?.idle != null) { if (typeof cancelIdleCallback === 'function') cancelIdleCallback(q.handle.idle) }
+    else if (q.handle) clearTimeout(q.handle.timer)
+    q.handle = null
+    q.lists.clear()
+  }, [])
   // ⚠️ One STABLE callback per list id. `onVisibleChange` is in ScanRows' effect deps,
   // so a fresh closure per render would re-run that effect every render — set state,
   // re-render, re-run. Cached by id, created once.
@@ -1400,17 +1442,23 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   const handleListVisible = useCallback((wlId) => {
     let cb = listVisibleCbs.current.get(wlId)
     if (!cb) {
-      cb = (syms) => setListVisible(prev => {
-        const cur = prev[wlId]
-        // Scrolling re-reports the same window constantly; only a real change may
-        // write, or the identity churn cascades into every downstream memo.
-        if (cur && cur.length === syms.length && cur.every((s, i) => s === syms[i])) return prev
-        return { ...prev, [wlId]: syms }
-      })
+      cb = (syms, first = true) => {
+        const q = visibleWaiting.current
+        if (first) {
+          q.lists.delete(wlId)
+          storeListWindows([[wlId, syms]])
+          return
+        }
+        q.lists.set(wlId, syms)
+        if (q.handle) return
+        q.handle = typeof requestIdleCallback === 'function'
+          ? { idle: requestIdleCallback(storeWaitingWindows, { timeout: VISIBLE_IDLE_MS }) }
+          : { timer: setTimeout(storeWaitingWindows, 0) }
+      }
       listVisibleCbs.current.set(wlId, cb)
     }
     return cb
-  }, [])
+  }, [storeListWindows, storeWaitingWindows])
   const visibleFromVirtualized = useMemo(
     () => Object.values(listVisible).flat(),
     [listVisible],
