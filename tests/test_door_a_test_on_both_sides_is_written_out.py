@@ -27,7 +27,12 @@ from tools.value_cases import grade as G
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA = json.loads((ROOT / "tests" / "fixtures" / "authoring" / "value_cases.json").read_text(encoding="utf-8"))
-CAP03 = next(c for c in DATA["cases"] if c["id"] == "cap-03")
+_CASE = next(c for c in DATA["cases"] if c["id"] == "cap-03")
+#: ⭐ 2026-11-25: cap-03 is recorded RIGHT on the SCRIPT lane (#2726). This test is about the FORMULA door, so it reads
+#: cap-03's newest formula answer, kept as a specimen with the defect it had (the formula lane holds the same rule)
+_SPEC = _CASE["found"][-1]
+CAP03 = {**{k: v for k, v in _CASE.items() if k not in ("edge", "found", "provenance")}, "lane": "formula",
+         "answer": _SPEC["answer"], "recorded": _SPEC["recorded"], "recorded_verdict": "wrong", "defect": _SPEC["defect"]}
 H = {"type": "series", "name": "high"}
 num = lambda v: {"type": "num", "value": v}  # noqa: E731
 op = lambda name, *a: {"type": "op", "name": name, "args": list(a)}  # noqa: E731
@@ -79,7 +84,7 @@ def test_THE_FINDING_the_formula_the_rule_describes_is_right_by_cap03s_own_rule(
     assert got["verdict"] == "right", got["lines"]
     assert any("on 1643 bars" in str(line) for line in got["lines"]), got["lines"]
     # the recorded answer (the table's function for that shape) stays wrong, by the same rule, as recorded
-    assert CAP03.get("recorded_verdict") == "wrong"
+    assert _SPEC["fixed_by"]["pr"] == "#2726" and len(_SPEC["defect"]) > 80        # kept, with what fixed it
     assert G.grade_case(CAP03, CAP03["answer"])["verdict"] == "wrong"
 
 

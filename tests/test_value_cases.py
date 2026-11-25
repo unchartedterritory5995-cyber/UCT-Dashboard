@@ -67,7 +67,8 @@ def test_the_fixture_is_whole():
         # a case may be recorded WRONG: a known defect of the door, named, never silently passed
         assert case.get("recorded_verdict", "wrong" if "defect" in case else None) in (None, "wrong"), case["id"]
         assert ("defect" in case) == (case.get("recorded_verdict") == "wrong") and len(case.get("defect") or "x" * 99) > 80, case["id"]
-    assert sorted(c["id"] for c in CASES if c.get("recorded_verdict") == "wrong") == ["cap-03", "j06"]     # every one is named here, on purpose
+    # every one is named here, on purpose (cap-03 left 2026-11-25: recorded RIGHT on the script lane, its wrong formula kept in `found`)
+    assert sorted(c["id"] for c in CASES if c.get("recorded_verdict") == "wrong") == ["j06"]
 
 
 def _floor(case):
