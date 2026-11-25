@@ -754,7 +754,7 @@ def main(argv=None) -> int:
                    help="merge-queue mode: the commit on master this PR landed as (the merge group's commit)")
     v.add_argument("--first-parent-limit", type=int, default=FIRST_PARENT_LIMIT,
                    help="--merge-group: how far back along master's first-parent chain to look for the landed commit")
-    v.add_argument("--repo", default=_this_repo("unchartedterritory5995-cyber/UCT-Dashboard"))
+    v.add_argument("--repo", default=_this_repo("northstar-quarry/UCT-Dashboard"))
     v.add_argument("--root", default=".", help="a MASTER checkout: its agent-ci.yml names the required jobs")
     v.add_argument("--accept-dispatch", action="store_true",
                    help="also accept a repository_dispatch rearm run of this PR (tools/agent_ci_rearm.py); off by default")
