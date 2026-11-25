@@ -25,6 +25,7 @@ from tools.converse_eval import LaneUnavailable
 from tools.value_cases import audit as A
 from tools.value_cases import edges as E
 from tools.value_cases import grade as G
+from tools.value_cases import rules as R
 
 from tests.test_value_cases_scripts import SHORT_WINDOWS, _every_window_one_longer
 
@@ -212,9 +213,12 @@ def test_the_script_lane_refuses_a_formula_edge_and_reads_its_own_ties():
 
 
 def test_the_edge_chart_is_restored_after_grading():
-    """The SAME list comes back, not one equal to it: an earlier test that left the chart edged would make an equality
-    check compare an edge chart with itself (the first version of this test was blind to its own break that way)."""
+    """`edges.on` itself, whatever any grade says: inside, the chart AND the rules read the edge bars; after, the SAME
+    list comes back to both, not one equal to it. ⚰️ Two earlier versions were blind to their own break: one compared
+    an edge chart with itself once an earlier test had left the chart edged; the next went through `grade_case`, which
+    never reaches the edge pass when the recorded answer is not right on such a chart, so nothing moved."""
     before = G.CHARTS["daily"]["bars"]
     tail = copy.deepcopy(before[-3:])
-    G.grade_case(BY["d17"], BY["d17"]["answer"])
-    assert G.CHARTS["daily"]["bars"] is before and before[-3:] == tail
+    with E.on([{"extreme": {"field": "c", "back": 10}}]) as bars:
+        assert G.CHARTS["daily"]["bars"] is bars and R.BARS is bars and bars is not before
+    assert G.CHARTS["daily"]["bars"] is before and R.BARS is before and before[-3:] == tail
