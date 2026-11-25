@@ -1,13 +1,13 @@
 {
  "schema": "uct.ci-mutants/v1",
- "about": "Engine 94 train, interim (coordinator ruling 2026-11-22): the authoring script check (scriptAnswer.js) still runs on the page's main thread, so it passes the door API a 10 s wall cap of its own (doorDeadline.js::withMainThreadCap); past it the check is refused by name, nothing kept, nothing sent back. No worker path opens a cap. Every rule, broken once, must turn its rail red.",
+ "about": "Engine 94 train (coordinator ruling 2026-11-22), as it stands after unit (c) of 2026-11-23: where there are no workers (a test, the dev server) the authoring script check (scriptAnswer.js) runs on the page's main thread, so there it passes the door API a 10 s wall cap of its own (doorDeadline.js::withMainThreadCap); past it the check is refused by name, nothing kept, nothing sent back. No worker path opens a cap. Every rule, broken once, must turn its rail red.",
  "mutants": [
   {
    "id": "SC1",
    "mutant": "the authoring check runs with no main-thread cap at all",
    "file": "app/src/components/chart/builder/authoring/scriptAnswer.js",
-   "from": "    const checked = withMainThreadCap(SCRIPT_CHECK_CAP_MS, () => {",
-   "to": "    const checked = ((_cap, fn) => ({ value: fn(), capped: false, elapsedMs: 0 }))(SCRIPT_CHECK_CAP_MS, () => {",
+   "from": "      const checked = withMainThreadCap(SCRIPT_CHECK_CAP_MS, () => {",
+   "to": "      const checked = ((_cap, fn) => ({ value: fn(), capped: false, elapsedMs: 0 }))(SCRIPT_CHECK_CAP_MS, () => {",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/authoring/scriptCheckCap.test.js",
    "expectRed": "a check past its cap is REFUSED BY NAME"
   },
@@ -15,8 +15,8 @@
    "id": "SC2",
    "mutant": "a check past its cap is not refused: the check goes on with what it has",
    "file": "app/src/components/chart/builder/authoring/scriptAnswer.js",
-   "from": "    if (checked.capped) return cappedVerdict()",
-   "to": "    if (false) return cappedVerdict()",
+   "from": "      if (checked.capped) return cappedVerdict()",
+   "to": "      if (false) return cappedVerdict()",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/authoring/scriptCheckCap.test.js",
    "expectRed": "a check past its cap is REFUSED BY NAME"
   },

@@ -638,6 +638,9 @@ _CANONICAL_TYPES = ("num", "series", "op", "call", "offset", "tf", "sym", "tf_li
 #: ⚠️ ROUNDING UP IS THE SAFE DIRECTION HERE TOO: a window that is too SMALL
 #: lets a formula claim it reads less history than it does.
 _TF_BASE_BARS = {"W": 5, "M": 21}
+#: ⭐⭐ U-DAILY (e96) -- the one ``tf`` code that is not a resample (``ast_interpret.DAILY_READ``), a literal for the
+#: reason the spans are one, bound to it by ``tests/test_ast_daily_read.py``.
+_DAILY_READ_CODE = "D"
 
 #: ⭐ C47 — the spans a FORMING read (`tf_live`) may carry: the mirror of
 #: ``ast_interpret.TF_LIVE_BASE_BARS`` (the quarter, read live only), bound to it
@@ -876,7 +879,14 @@ def ast_reach(tree: Any, opts: Optional[Dict[str, Any]] = None) -> Dict[str, Any
             # understated forward window is the direction that lies.
             code = str(node.get("value"))
             span = _TF_BASE_BARS.get(code)
-            if len(args) != 1 or span is None:
+            if code == _DAILY_READ_CODE and len(args) == 1:
+                # ⭐⭐ U-DAILY (e96) -- a daily read on a chart below a day (``ast_interpret.DAILY_READ``): its child runs
+                # on DAILY bars and each chart bar reads the LAST FINISHED day, so back is the child's daily reach plus
+                # that day and forward is the child's own. The port of ``lint.js``'s arm.
+                cb, cf = reach_of.get(id(args[0]), (UNKNOWN, UNKNOWN))
+                back = cb if cb in (UNKNOWN, UNBOUNDED) else int(cb) + 1
+                reach_of[id(node)] = (back, cf)
+            elif len(args) != 1 or span is None:
                 reach_of[id(node)] = unknown(
                     "a higher-timeframe node carries one child and a timeframe this "
                     "engine resamples (%s), got %r over %d"

@@ -46,7 +46,6 @@ THE RULES (R-T2B-1..6, 10):
 from __future__ import annotations
 
 import json
-import os
 import time
 from datetime import date, datetime, time as dtime, timedelta, timezone
 from typing import Any
@@ -64,8 +63,8 @@ CATCH_UP_DELAY_S = 120
 DAILY_CAP = 3
 #: Wall-clock seconds a run may spend warming earnings_intel (F21), counted from the first warm.
 WARM_BUDGET_S = 120
-#: The reporters lookup is configured when one of these keys is set (V4); calendar_alerts reads the same two.
-PROVIDER_KEYS = ("FINNHUB_API_KEY", "FMP_API_KEY")
+#: The reporters lookup is configured when Finnhub's or FMP's key is set (V4); calendar_alerts reads the same two.
+#: Asked of each vendor's adapter (`is_configured`), never read from the environment here (TERM-022).
 SAME_SESSION = frozenset({"bmo", "dmh"})
 NOTEBOOK_PATH = "/journal/notebook"
 _WALK = 15            # calendar days a trading-day walk may step: a long weekend and a holiday fit
@@ -177,10 +176,11 @@ def _reporters_configured() -> bool:
     """True when the reporters lookup has something to ask (V4). `calendar_alerts` answers `(set(), True)`
     for a box with no provider key and an empty cache, which is the answer for a quiet day too: so the
     run looks for the KEY. The walk's sandbox calendar file is its own source and needs none."""
+    from api.services import finnhub_client, fmp_client
     from api.services.journal_two import earnings_prep as ep
     if ep.sandbox_calendar_active():
         return True
-    return any((os.environ.get(k) or "").strip() for k in PROVIDER_KEYS)
+    return finnhub_client.is_configured() or fmp_client.is_configured()
 
 
 def reporters_on(day: date) -> tuple[dict[str, str | None], bool]:

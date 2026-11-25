@@ -2,9 +2,9 @@
 
 Directories: `tests/fixtures/vendor`
 
-Lane: **runtime-on**. LANE MEASURED: runtime-on (gate OPEN, runtime lane reached 625, host refusals 674) · objects-only pane ARMED · runtime drew 277, declined 348 · strategy lane: broker gate ON, 88 graded on their trades, 73 broker run(s)
+Lane: **runtime-on**. LANE MEASURED: runtime-on (gate OPEN, runtime lane reached 627, host refusals 676) · objects-only pane ARMED · runtime drew 279, declined 348 · strategy lane: broker gate ON, 88 graded on their trades, 73 broker run(s)
 
-Graded at script engine **95**.
+Graded at script engine **96**.
 
 ```
 capture                                      symbol/tf        plots  verdict           first divergence / reason
@@ -1590,7 +1590,7 @@ rs-rating-fred6724-crwv-1d-2026-11-16        NASDAQ:CRWV 1D   4      MATCH_SUBST
     Plot                                     MATCH_SUBSTITUTED cmp 411 ok 411 warm 0/0 steady 0/411 maxRel 0.00e+0
     objects                                  MATCH         object counts and texts agree; colours agree on 4 paired slots; coordinates are NOT compared by v1
 rs-rating-fred6724-m-nvda-1m-2026-11-18      NASDAQ:NVDA 1M   4      MATCH_SUBSTITUTED all 5 items agree, with substituted inputs fed the vendor's value (syminfo.industry); the UCT data a member is served is not proven
-    RS Line                                  MATCH_SUBSTITUTED cmp 335 ok 265 warm 0/0 steady 70/335 maxRel 5.66e-3
+    RS Line                                  MATCH_SUBSTITUTED cmp 335 ok 265 warm 0/0 steady 29/335 maxRel 5.66e-3 · rounding-equal 41 (sub-tick 1, worst 1.00 tick)
     Plot                                     MATCH_SUBSTITUTED cmp 335 ok 335 warm 0/21 steady 0/314 maxRel 0.00e+0
     Plot                                     MATCH_SUBSTITUTED cmp 335 ok 335 warm 0/21 steady 0/314 maxRel 0.00e+0
     Plot                                     MATCH_SUBSTITUTED cmp 335 ok 335 warm 0/50 steady 0/285 maxRel 0.00e+0
@@ -1602,7 +1602,7 @@ rs-rating-fred6724-m-rddt-1m-2026-11-18      NYSE:RDDT 1M     4      INCONCLUSIV
     Plot                                     INCONCLUSIVE      cmp 33 ok 33 warm 0/33 steady 0/0 maxRel 0.00e+0 — every compared bar is inside the warm-up region — nothing in steady state to judge
     objects                                  MATCH         object counts and texts agree; colours agree on 3 paired slots; coordinates are NOT compared by v1
 rs-rating-fred6724-nvda-1d-2026-11-15        NASDAQ:NVDA 1D   4      MATCH_SUBSTITUTED all 5 items agree, with substituted inputs fed the vendor's value (syminfo.industry); the UCT data a member is served is not proven
-    RS Line                                  MATCH_SUBSTITUTED cmp 6997 ok 5705 warm 0/0 steady 1292/6997 maxRel 1.83e-2
+    RS Line                                  MATCH_SUBSTITUTED cmp 6997 ok 5705 warm 0/0 steady 374/6997 maxRel 1.83e-2 · rounding-equal 918 (sub-tick 14, worst 1.01 tick)
     Plot                                     MATCH_SUBSTITUTED cmp 6997 ok 6997 warm 0/0 steady 0/6997 maxRel 0.00e+0
     Plot                                     MATCH_SUBSTITUTED cmp 6997 ok 6997 warm 0/0 steady 0/6997 maxRel 0.00e+0
     Plot                                     MATCH_SUBSTITUTED cmp 6997 ok 6997 warm 0/0 steady 0/6997 maxRel 0.00e+0
@@ -1708,13 +1708,13 @@ rs-rating-fred6724-setf-rddt-1d-2026-11-16   NYSE:RDDT 1D     4      MATCH_SUBST
     objects                                  MATCH         object counts and texts agree; colours agree on 4 paired slots; coordinates are NOT compared by v1
 rs-rating-fred6724-spy-1d-2026-11-15         AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: the supply this grade needs is not recorded — other symbol SPX: not graded, by owner ruling 2026-11-15 ("Leave spy blank imo"). The served SPX source (FMP) is recorded since L9 (local supply store, out of git), but this capture is deliberately not supplied, so no verdict implies a pass or a fail for it. Before the ruling, the L5 builder's probe on the yfinance fallback read a rating of 63 where TradingView draws 64.
 rs-rating-fred6724-w-nvda-1w-2026-11-17      NASDAQ:NVDA 1W   4      INCONCLUSIVE      1 of 5 items could not be compared
-    RS Line                                  MATCH_SUBSTITUTED cmp 1452 ok 1186 warm 0/0 steady 266/1452 maxRel 7.62e-3
+    RS Line                                  MATCH_SUBSTITUTED cmp 1452 ok 1186 warm 0/0 steady 74/1452 maxRel 7.62e-3 · rounding-equal 192 (sub-tick 3, worst 1.00 tick)
     Plot                                     MATCH_SUBSTITUTED cmp 1452 ok 1452 warm 0/21 steady 0/1431 maxRel 0.00e+0
     Plot                                     MATCH_SUBSTITUTED cmp 1452 ok 1452 warm 0/21 steady 0/1431 maxRel 0.00e+0
     Plot                                     MATCH_SUBSTITUTED cmp 1452 ok 1452 warm 0/50 steady 0/1402 maxRel 0.00e+0
     objects                                  INCONCLUSIVE  every drawing object is on such a bar: 2 drawing object(s) placed on the forming newest bar, which the SPX supply recorded beside this capture (newest row 2026-11-16) cannot answer for session 2026-11-17, are not compared (supplyBehind)
 rs-rating-fred6724-w-nvda-1w-2026-11-21      NASDAQ:NVDA 1W   4      MATCH_SUBSTITUTED all 5 items agree, with substituted inputs fed the vendor's value (syminfo.industry); the UCT data a member is served is not proven
-    RS Line                                  MATCH_SUBSTITUTED cmp 1453 ok 1187 warm 0/0 steady 266/1453 maxRel 7.62e-3
+    RS Line                                  MATCH_SUBSTITUTED cmp 1453 ok 1187 warm 0/0 steady 74/1453 maxRel 7.62e-3 · rounding-equal 192 (sub-tick 3, worst 1.00 tick)
     Plot                                     MATCH_SUBSTITUTED cmp 1453 ok 1453 warm 0/0 steady 0/1453 maxRel 0.00e+0
     Plot                                     MATCH_SUBSTITUTED cmp 1453 ok 1453 warm 0/0 steady 0/1453 maxRel 0.00e+0
     Plot                                     MATCH_SUBSTITUTED cmp 1453 ok 1453 warm 0/0 steady 0/1453 maxRel 0.00e+0
@@ -4237,7 +4237,19 @@ vw-h4-loops-spy-1d-2026-10-03                AMEX:SPY 1D      4      MATCH      
     objects                                  MATCH         neither side draws an object
 vw-h5-format-volume-spy-1d-2026-11-16        AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:known-divergence) [runtime declined: runtime:call-text-state]: this script is not drawn: on a captured AMEX:SPY 1D chart (capture vw-h5-format-volume-spy-1d-2026-11-16) it draws something that differs from TradingView: tableCells count of tableCells held: TradingView 34, ours 18. It is withheld until that is fixed, and comes back once a new comparison against TradingView matches.
 vw-h5-request-timeframe-text-spy-1d-2026-11- AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: runtime:request]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`: this engine resamples weekly and monthly from the daily bars it holds, and `240` is not one of them. Below the chart's own timeframe: lower-tf:store-unmeasured: `240` is below this chart's timeframe, so it reads intraday bars — and our intraday bars have not been measured against TradingView's. TradingView's answer is known (the day's last regular-session bar, `vw-lower-tf-spy-1d-2026-09-30`); it is not served until a stored `/api/bars/<ticker>?tf=15` payload has been compared with TradingView's 15-minute bars for the same sessions (`storeIntradayAgreement`). ⚠️ THIS IS NOT THE SAME REQUEST: `timeframe.period` reads the timeframe the chart is on rather than forcing one, so decide whether that is what you meant before you take it.
-vw-hline-written-rddt-1d-2026-11-20          NYSE:RDDT 1D     1      MATCH             all 2 items agree
+vw-hline-autoscale-rddt-1d-2026-11-23-preope NYSE:RDDT 1D     1      MATCH             all 3 items agree
+    P0_rsi                                   MATCH             cmp 671 ok 671 warm 0/0 steady 0/671 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+vw-hline-defaults-v3-rddt-1d-2026-11-23-preo NYSE:RDDT 1D     1      MATCH             all 3 items agree
+    P0_close                                 MATCH             cmp 671 ok 671 warm 0/0 steady 0/671 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+vw-hline-defaults-v4-rddt-1d-2026-11-23-preo NYSE:RDDT 1D     1      MATCH             all 3 items agree
+    P0_close                                 MATCH             cmp 671 ok 671 warm 0/0 steady 0/671 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+vw-hline-defaults-v5-rddt-1d-2026-11-23-preo NYSE:RDDT 1D     1      MATCH             all 3 items agree
+    P0_close                                 MATCH             cmp 671 ok 671 warm 0/0 steady 0/671 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+vw-hline-written-rddt-1d-2026-11-20          NYSE:RDDT 1D     1      MATCH             all 3 items agree
     P0_close                                 MATCH             cmp 670 ok 670 warm 0/0 steady 0/670 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
 vw-hs2-v3-highestbars-spy-1d-2026-11-16      AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:builtin) [runtime declined: pine:builtin]: `highestbars`: the sign of a Pine v1-v3 `highestbars` / `lowestbars` offset is not stated by any reference text this engine holds (the v4 reference states v4 only) and is not yet captured (Q-HS2); write it in `//@version=4` or later
@@ -5324,6 +5336,42 @@ vw-time-tf-spy-60-2026-09-28                 AMEX:SPY 60      18     INCONCLUSIV
     T17_dayofweek                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out18 (runtime:warmup-never-converges)
     objects                                  MATCH         neither side draws an object
 vw-type-word-names-spy-1d-2026-10-02         AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:type) [runtime declined: runtime:call-undeclared-builtin-state]: a user-defined type is outside the node shapes this engine stores — `color.r`
+vw-udaily-expr-rddt-15-2026-11-23            NYSE:RDDT 15     4      INCONCLUSIVE      4 of 5 items could not be compared
+    D01 sma50 la-off                         INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it
+    D02 highest20 la-off                     INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it
+    D03 high[1] la-on                        INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it
+    D04 ema21 la-off (stateful probe)        INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it
+    objects                                  MATCH         neither side draws an object
+vw-udaily-expr-rddt-5-2026-11-23             NYSE:RDDT 5      4      INCONCLUSIVE      4 of 5 items could not be compared
+    D01 sma50 la-off                         INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it
+    D02 highest20 la-off                     INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it
+    D03 high[1] la-on                        INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it
+    D04 ema21 la-off (stateful probe)        INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it
+    objects                                  MATCH         neither side draws an object
+vw-udaily-expr-rddt-60-2026-11-23            NYSE:RDDT 60     4      INCONCLUSIVE      4 of 5 items could not be compared
+    D01 sma50 la-off                         INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it
+    D02 highest20 la-off                     INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it
+    D03 high[1] la-on                        INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it
+    D04 ema21 la-off (stateful probe)        INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it
+    objects                                  MATCH         neither side draws an object
+vw-udaily-expr-spy-15-2026-11-23             AMEX:SPY 15      4      INCONCLUSIVE      4 of 5 items could not be compared
+    D01 sma50 la-off                         INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it
+    D02 highest20 la-off                     INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it
+    D03 high[1] la-on                        INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it
+    D04 ema21 la-off (stateful probe)        INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it
+    objects                                  MATCH         neither side draws an object
+vw-udaily-expr-spy-5-2026-11-23              AMEX:SPY 5       4      INCONCLUSIVE      4 of 5 items could not be compared
+    D01 sma50 la-off                         INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it
+    D02 highest20 la-off                     INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it
+    D03 high[1] la-on                        INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it
+    D04 ema21 la-off (stateful probe)        INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it
+    objects                                  MATCH         neither side draws an object
+vw-udaily-expr-spy-60-2026-11-23             AMEX:SPY 60      4      INCONCLUSIVE      4 of 5 items could not be compared
+    D01 sma50 la-off                         INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it
+    D02 highest20 la-off                     INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it
+    D03 high[1] la-on                        INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it
+    D04 ema21 la-off (stateful probe)        INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (request:other-timeframe) — nothing is drawn for it
+    objects                                  MATCH         neither side draws an object
 vw-udt-fn-global-history-rddt-1d-2026-11-16  NYSE:RDDT 1D     6      MATCH             all 7 items agree
     A00_bar_index_CONTROL                    MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
     G01_var_global_hist_1_in_fn              MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
@@ -7218,10 +7266,11 @@ w2-warmup-spy-12m-2026-09-22                 SPY 12M          14     MATCH      
     W13_cum_close_FROM_BAR0                  MATCH             cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 0.00e+0
     W14_sma1_DEGENERATE_WINDOW               MATCH             cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 0.00e+0
 
-TOTAL 1028 captures — MATCH 367 · DIVERGE 39 · INCONCLUSIVE 599 · MATCH_SUBSTITUTED 23 (verified with substituted inputs; never counted as MATCH)
-WITHOUT OBJECT COLOUR (the verdict before C44; colour graded on 207 captures) — MATCH 368 · DIVERGE 39 · INCONCLUSIVE 598
+INDEX ROUNDING (4 captures; bars within one index tick through the ratio, |rel| <= 0.0101 / X(t), counted apart, never into a MATCH): rs-rating-fred6724-m-nvda-1m-2026-11-18 MATCH_SUBSTITUTED 41 rounding-equal bars (sub-tick 1); rs-rating-fred6724-nvda-1d-2026-11-15 MATCH_SUBSTITUTED 918 rounding-equal bars (sub-tick 14); rs-rating-fred6724-w-nvda-1w-2026-11-17 INCONCLUSIVE 192 rounding-equal bars (sub-tick 3); rs-rating-fred6724-w-nvda-1w-2026-11-21 MATCH_SUBSTITUTED 192 rounding-equal bars (sub-tick 3)
+TOTAL 1038 captures — MATCH 371 · DIVERGE 39 · INCONCLUSIVE 605 · MATCH_SUBSTITUTED 23 (verified with substituted inputs; never counted as MATCH)
+WITHOUT OBJECT COLOUR (the verdict before C44; colour graded on 207 captures) — MATCH 372 · DIVERGE 39 · INCONCLUSIVE 604
 CHANGED BY OBJECT COLOUR (1): w9-d11-late-first-use-rddt-1d-2026-11-16 MATCH → INCONCLUSIVE
-WITHOUT PAINTS (the verdict before B1; paints graded on 80 captures) — MATCH 370 · DIVERGE 33 · INCONCLUSIVE 602
+WITHOUT PAINTS (the verdict before B1; paints graded on 80 captures) — MATCH 374 · DIVERGE 33 · INCONCLUSIVE 608
 CHANGED BY PAINTS (9): machine-learning-moving-average-backquant-spy-1d-2026-11-17 INCONCLUSIVE → DIVERGE; one-sided-gaussian-support-resistance-rate-loxx-spy-1d-2026-11-17 INCONCLUSIVE → DIVERGE; supertrend-strategy-rddt-1d-2026-10-02 MATCH → INCONCLUSIVE; supertrend-strategy-spy-1d-2026-10-02 MATCH → INCONCLUSIVE; volatility-coil-edge-bullbyte-rddt-1d-2026-11-14 INCONCLUSIVE → DIVERGE; volatility-coil-edge-bullbyte-rddt-1d-2026-11-17 INCONCLUSIVE → DIVERGE; volatility-coil-edge-bullbyte-spy-1d-2026-11-17 INCONCLUSIVE → DIVERGE; vw-bgcolor-barcolor-spy-1d-2026-10-02 MATCH → INCONCLUSIVE; vw-deadband-ticks-brk-a-1d-2026-09-28 INCONCLUSIVE → DIVERGE
 ```
 

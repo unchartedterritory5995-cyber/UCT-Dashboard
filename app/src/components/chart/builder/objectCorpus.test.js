@@ -158,10 +158,20 @@ describe('C3B — the object translator against the frozen 60', () => {
     expect(labels).toHaveLength(1)
     expect(labels[0].props.text.node).toEqual({ t: 'val', v: { v: 'get', target: { r: 'reg', id: 'r0' }, prop: 'x1' } })
     expect(JSON.stringify(t.objects.trees)).not.toContain('get_x1')
-    // The guard itself, driven where it still stands: a getter inside
-    // arithmetic is refused BY NAME, and the label that read it is dropped.
+    // ⭐ e96 — a getter inside ARITHMETIC is the object runtime's too now (`{v:'op'}` over the
+    // read, `pine.js::stateNumber`): carried, still never a graph node.
     const arith = translatePine(src.replace('str.tostring(line.get_x1(l))', 'str.tostring(line.get_x1(l) + 1)'))
-    expect(arith.objectDiagnostics.getters).toContain('line.get_x1')
-    expect(((arith.objects && arith.objects.ops) || []).filter((o) => o.family === 'label')).toHaveLength(0)
+    const arithLabels = ((arith.objects && arith.objects.ops) || []).filter((o) => o.family === 'label')
+    expect(arithLabels).toHaveLength(1)
+    expect(arithLabels[0].props.text.node).toEqual({ t: 'val', v: { v: 'op', op: '+', args: [
+      { v: 'get', target: { r: 'reg', id: 'r0' }, prop: 'x1' }, { v: 'const', value: 1 }] } })
+    expect(JSON.stringify(arith.objects.trees)).not.toContain('get_x1')
+    // The guard itself, driven where it still stands: a CALL over a getter's arithmetic
+    // reaches the value door, is refused BY NAME there, and the label that read it is dropped
+    // (and, e96, named where it drops: `textDrops`).
+    const call = translatePine(src.replace('str.tostring(line.get_x1(l))', 'str.tostring(math.abs(line.get_x1(l) + 1))'))
+    expect(call.objectDiagnostics.getters).toContain('line.get_x1')
+    expect(((call.objects && call.objects.ops) || []).filter((o) => o.family === 'label')).toHaveLength(0)
+    expect(call.objectDiagnostics.textDrops).toEqual([expect.objectContaining({ family: 'label', guard: 'pine:text-value' })])
   })
 })

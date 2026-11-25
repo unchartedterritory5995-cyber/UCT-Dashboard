@@ -823,6 +823,26 @@
   --on-loss: #ffffff;
   --on-gain: #ffffff;
 
+  /* UCT Signature chrome that sits ON THE LIGHT PAGE (2026-11-24): the /charts top bar (layout
+     tabs, the Layouts / Add widget / Tools / Merge buttons, the save state), the empty-board
+     prompt, the screenshot button and the left nav's current page and lock. The Signature greys
+     (#ededed, #c9c6be, #a9a59b, #93939a, #f8f7f3) are dark-only by the spec
+     (docs/uct-signature-style.md section 6), but these surfaces are not Signature panels: they
+     sit on the page (--bg-surface / --bg), so in every light theme they read 1.0-2.8:1 there.
+     Here they take the page's own inks, the mapping the Screener's --scr-* already use.
+     ⛔ LIGHT-ONLY ON PURPOSE, never in :root. A call site writes
+     `var(--signature-page-text, var(--signature-text))`: in every dark theme the name is unset,
+     so the Signature token itself paints, value for value; only the light themes move. With no
+     :root default no theme island has to pin them (styles/themeIslands.test.js). Never use them
+     inside an always-dark menu, panel or widget: a dark panel stays dark in a light theme, and
+     these inks would be dark on dark there. */
+  --signature-page-bright: var(--text-bright);
+  --signature-page-text: var(--text);
+  --signature-page-rest: var(--text-muted);
+  --signature-page-dim: var(--text-muted);
+  --signature-page-faint: var(--text-muted);
+  --signature-page-danger: var(--danger-ink);
+
   --info: #1f5d7a;
   --info-bg: #1f5d7a12;
   --info-border: #1f5d7a30;

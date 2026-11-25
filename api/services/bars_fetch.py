@@ -846,6 +846,156 @@ def _record_full_cover(ticker_up: str, tf: str, rows, checked_at: float) -> None
         pass
 
 
+#: A provider answer asked at instant A proves "no newer bar" at most through A - TAIL_PROOF_LAG_S (and only as far
+#: as it or the market's publication watermark reaches, see below). ⚖️ 3 s (2026-11-25): a minute aggregate is
+#: published ~2-5 s after its minute closes (`bar_contract.SEAL_LAG_S` notes), so a proof stamped at the ask instant
+#: claims a bucket the provider had not yet published. It may NOT exceed the router's shortest `unverified`
+#: Retry-After (3 s; jittered 3-5 s): the retry must be able to heal
+#: (chart monitor `check_tail_status`: an `unverified` answer is honest only if it heals on the Retry-After retry,
+#: rail `test_P4_the_retry_after_retry_heals_it`). NOT `SEAL_LAG_S` (45 s): that would leave a thin name `unverified`
+#: for most of every minute and fast-poll it all session; finality (`complete_through`) keeps its own 45 s seal.
+TAIL_PROOF_LAG_S = 3.0
+
+# ── THE MARKET'S PUBLICATION WATERMARK (review #2732, 2026-11-25) ─────────────────────────────────────────────────
+# ⛔ "The provider answered ok" proves "nothing newer that it has PUBLISHED", not "nothing newer". At the open the
+# provider publishes a closed minute 7-42 s late (live market-open test), so a heal at roll+5 s whose answer lacks the
+# bucket that closed at the roll is NOT evidence the name printed nothing. A heal's proof therefore reaches a bucket
+# only when (a) its own answer holds a bar that far (a liquid name proves itself), or (b) the provider had already
+# published that minute FOR THE MARKET when the heal asked: then the name's absence is real (a thin name, proven
+# within the publication lag). (b) is ONE shared reference probe per pod: the end of the reference's newest
+# published 1m REST bar, read BEFORE the heal asks (a watermark read after the ask could have moved past a minute the
+# answer did not hold yet).
+# ⛔ NOT THE LIVE STREAM'S WATERMARK. `bars_live_store`'s whole-market watermark says the STREAM delivered a minute;
+# the stream runs 7-42 s AHEAD of REST at the open, so it is no proof that a REST answer would hold it: an uncovered
+# liquid name whose REST answer lacks the bucket would read `current` one bar short. Covered names keep their stream
+# proof through `tail_verified_through` (their store rows ARE the stream's). Rail:
+# `test_P6_the_live_streams_watermark_is_not_a_rest_publication_proof`.
+# Cost: one provider call per pod per minute once the frontier minute is out; while it is not (the open), at most one
+# re-probe every `_MARKET_PROBE_RETRY_S`, deduped across threads (no thread waits on another's probe). Off hours the
+# last session's final minute satisfies the frontier, so one probe holds until the next session.
+#: ⭐ SEVERAL references, the watermark is their MAX (review #2732 round 2): early pre-market (04:00-05:00 ET) SPY
+#: does not print every minute, and one silent reference would keep every thin name `unverified` for those minutes
+#: although the provider has published them. One probe ROUND = one call per reference, run concurrently.
+_MARKET_REF_TICKERS = tuple(s.strip().upper() for s in _os.environ.get(
+    "BARS_MARKET_REF_TICKERS", "SPY,QQQ,IWM").split(",") if s.strip()) or ("SPY",)
+_MARKET_PROBE_RETRY_S = float(_os.environ.get("BARS_MARKET_PROBE_RETRY_S", "5"))
+#: A probe that ran but whose watermark trails the frontier by more than this is STALE (review #2732 round 2: if the
+#: probe keeps failing while heals succeed, every thin name stays `unverified` and each client poll costs a heal).
+_MARKET_STALE_LAG_S = float(_os.environ.get("BARS_MARKET_PROBE_STALE_LAG_S", "120"))
+_MARKET_STALE_LOG_EVERY_S = float(_os.environ.get("BARS_MARKET_PROBE_STALE_LOG_EVERY_S", "300"))
+_market_pub: dict = {"through": None, "probed_at": None}
+_market_probe_stats: dict = {"probes": 0, "stale_probes": 0, "last_stale_log": None, "last_lag_s": None}
+_market_probe_lock = _threading.Lock()
+
+
+def _fetch_reference_end(sym: str):
+    """End (unix s) of `sym`'s newest PUBLISHED 1m REST bar (one request, newest first), or None."""
+    client = _get_client()
+    now_utc = datetime.utcnow()
+    url = (f"{_REST_BASE}/v2/aggs/ticker/{to_polygon_symbol(sym)}/range/1/minute"
+           f"/{(now_utc - timedelta(days=5)).strftime('%Y-%m-%d')}/{now_utc.strftime('%Y-%m-%d')}"
+           f"?adjusted=true&sort=desc&limit=1&apiKey={client._api_key}")
+    res = (client._get(url) or {}).get("results") or []
+    if not res:
+        return None
+    return int(res[0]["t"] / 1000) + 60
+
+
+def _fetch_market_reference_end():
+    """One probe ROUND: the MAX over `_MARKET_REF_TICKERS` of each reference's newest published 1m bar end, or None
+    when none answered. A failing reference never sinks the round."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    def _one(sym):
+        try:
+            return _fetch_reference_end(sym)
+        except Exception:                  # noqa: BLE001 — the other references still answer
+            return None
+    refs = _MARKET_REF_TICKERS
+    if len(refs) == 1:
+        ends = [_one(refs[0])]
+    else:
+        with ThreadPoolExecutor(max_workers=len(refs), thread_name_prefix="bars-mkt-probe") as ex:
+            ends = list(ex.map(_one, refs))
+    ends = [int(e) for e in ends if e is not None]
+    return max(ends) if ends else None
+
+
+def market_probe_status() -> dict:
+    """The market probe's state for `/api/stream/status` (`bars_market_probe`)."""
+    return {"refs": list(_MARKET_REF_TICKERS), "through": _market_pub.get("through"),
+            "probed_at": _market_pub.get("probed_at"), "probes": _market_probe_stats.get("probes", 0),
+            "stale_probes": _market_probe_stats.get("stale_probes", 0),
+            "last_lag_s": _market_probe_stats.get("last_lag_s")}
+
+
+def _note_probe(now_ts: float, target, through) -> None:
+    """Count the probe; a watermark trailing the frontier by > `_MARKET_STALE_LAG_S` is stale: counted, and logged
+    at most once per `_MARKET_STALE_LOG_EVERY_S`."""
+    st = _market_probe_stats
+    st["probes"] = st.get("probes", 0) + 1
+    if target is None:
+        return
+    lag = float(target) - float(through) if through is not None else None
+    st["last_lag_s"] = lag
+    if lag is not None and lag <= _MARKET_STALE_LAG_S:
+        return
+    st["stale_probes"] = st.get("stale_probes", 0) + 1
+    last = st.get("last_stale_log")
+    if last is None or now_ts - last >= _MARKET_STALE_LOG_EVERY_S:
+        st["last_stale_log"] = now_ts
+        import logging as _lg
+        _lg.getLogger(__name__).warning(
+            "[bars] market probe stale %ss: watermark=%s frontier_end=%s refs=%s stale_probes=%d "
+            "(thin names stay unverified and each poll costs a heal until it advances)",
+            "none" if lag is None else int(lag), through, target, ",".join(_MARKET_REF_TICKERS),
+            st["stale_probes"])
+
+
+def market_published_through(now: float | None = None):
+    """Unix seconds through which the provider has published 1m bars FOR THE MARKET (see the block above), or None
+    (never probed successfully). Cached: no probe while the cached value already reaches the end of the newest closed
+    1m bucket; otherwise at most one probe per `_MARKET_PROBE_RETRY_S`, and never a wait on another thread's probe."""
+    now_ts = float(_time.time() if now is None else now)
+    through, probed_at = _market_pub.get("through"), _market_pub.get("probed_at")
+    frontier = newest_closed_bucket("1", "eth", now_ts)
+    target = (int(frontier) + 60) if frontier is not None else None
+    if through is not None and target is not None and through >= target:
+        return through
+    if probed_at is not None and now_ts - probed_at < _MARKET_PROBE_RETRY_S:
+        return through
+    if not _market_probe_lock.acquire(blocking=False):
+        return through
+    try:
+        _market_pub["probed_at"] = now_ts
+        try:
+            end = _fetch_market_reference_end()
+        except Exception:                  # noqa: BLE001 — no watermark this time; retried after the floor
+            end = None
+        if end is not None:
+            _market_pub["through"] = max(int(end), int(through or 0))
+        try:
+            _note_probe(now_ts, target, _market_pub["through"])
+        except Exception:                  # noqa: BLE001 — observability never breaks a heal
+            pass
+        return _market_pub["through"]
+    finally:
+        _market_probe_lock.release()
+
+
+def _newest_returned_end(tf: str, rows) -> int | None:
+    """End (unix s) of the newest bar in a provider answer, or None (no usable row)."""
+    try:
+        ts = [int(r["t"]) for r in (rows or []) if isinstance(r, dict) and isinstance(r.get("t"), (int, float))]
+    except (TypeError, ValueError):
+        return None
+    if not ts:
+        return None
+    t = max(ts)
+    step = int(tf) * 60 if tf in ("1", "5", "15", "30") else 3600
+    return _bucket_end(tf, t, step)
+
+
 def _heal_intraday_tail(ticker_up: str, tf: str, last_ts: int, tail_only: bool = False) -> list:
     """The ONE intraday tail repair: provider delta → persist → record verification.
 
@@ -865,6 +1015,11 @@ def _heal_intraday_tail(ticker_up: str, tf: str, last_ts: int, tail_only: bool =
             if _lt[1]:
                 return _lt[2]             # the finer store covered the gap: no provider
             last_ts = _lt[0]              # provider fetches only what is still missing
+    # ⭐ The market's publication watermark, read BEFORE the ask (see `market_published_through`).
+    try:
+        market_through = market_published_through()
+    except Exception:                      # noqa: BLE001 — no watermark: the answer's own bars alone prove
+        market_through = None
     checked_at = _time.time()
     status: dict = {}
     # Every write of this answer (incl. a derived tf's 15m base) carries its check instant:
@@ -876,13 +1031,24 @@ def _heal_intraday_tail(ticker_up: str, tf: str, last_ts: int, tail_only: bool =
             _sqlite.put_bars(ticker_up, tf, new, date_tf=False)
             persisted = True
     if status.get("ok"):
-        _mark_tail_verified(ticker_up, tf, checked_at)
+        # ⭐ THE PROOF REACHES ONLY WHAT WAS PUBLISHED (2026-11-25, review #2732). "Asked at `checked_at`, nothing
+        # newer" proves nothing about a bucket the provider had not published yet: a heal at roll+1 s used to stamp
+        # roll+1 s, and at the open (7-42 s publication lag) a heal at roll+5 s still did, so the router called a
+        # one-short tail current. Now: never past `checked_at - TAIL_PROOF_LAG_S`, and only as far as this answer's
+        # own newest bar or the market's publication watermark reaches. Neither = no proof.
+        _reach = max((x for x in (_newest_returned_end(tf, new), market_through) if x is not None), default=None)
+        if _reach is not None:
+            _mark_tail_verified(ticker_up, tf, min(checked_at - TAIL_PROOF_LAG_S, float(_reach)))
         # ⭐ BAR CONTRACT seal: the provider rewrote the series from `window_start`
         # through `checked_at`, and those rows are in the store — so every bucket that
         # ended by `checked_at - SEAL_LAG_S` is FINAL (`complete_through` rests on this).
-        if persisted and status.get("window_start") is not None:
+        # ⭐ ON THE SAME PUBLICATION PROOF (review #2732 round 2): a sealed ABSENT bucket is proven empty and never
+        # re-read, so a seal over a minute the provider had not published yet (an open whose REST lag exceeds the
+        # 45 s lag; 42 s was measured) would be a permanent hole. Final only as far as `_reach` (this answer's own
+        # newest bar, or the market's watermark) reaches; neither = no seal.
+        if persisted and status.get("window_start") is not None and _reach is not None:
             from api.services.bar_contract import SEAL_LAG_S
-            _sqlite.record_sealed(ticker_up, tf, checked_at - SEAL_LAG_S,
+            _sqlite.record_sealed(ticker_up, tf, min(checked_at - SEAL_LAG_S, float(_reach)),
                                   status["window_start"], checked_at,
                                   covers_from=status.get("fill_from"))
     return new
@@ -1305,6 +1471,17 @@ def intraday_tail_status(ticker: str, tf: str, tail_ts, now: float | None = None
     if ext_frontier is not None:
         if tail is not None and tail_within_one_bucket(tf, tail, ext_frontier):
             out["tail_status"] = "current"
+            # ⭐ ONE BUCKET SHORT IS A CLAIM ABOUT A BUCKET NOBODY SAW (2026-11-25). The tolerance
+            # exists for a name that printed nothing in the newest closed bucket, but a tail one
+            # bucket short reads the same when the store simply has not landed that bucket yet
+            # (live market-open test: the REST store trailed the stream by 7-42 s, the client
+            # painted 1m charts one closed bar short). Flagged here, beside the frontier it was
+            # judged against; the router (`_apply_tail_status`) answers it `unverified` unless a
+            # proof reaches the end of that bucket. `tail_status` itself is unchanged for every
+            # other reader (`_needs_fresh`, the derived-local repair).
+            if tail < int(ext_frontier) and not (
+                    vt is not None and vt >= _bucket_end(tf, ext_frontier, step)):
+                out["tolerance_unproven"] = True
         elif vt is not None and tail is not None and vt >= _bucket_end(tf, ext_frontier, step):
             out["tail_status"] = "verified"
         return out
@@ -2109,6 +2286,33 @@ def _is_yf_only_symbol(ticker_up: str) -> bool:
 # In-memory cache TTLs by timeframe (seconds)
 # Intraday kept very short so charts stay current during market hours
 _CACHE_TTL = {'1': 5, '5': 10, '15': 10, '30': 10, '60': 10, 'D': 300, 'W': 900, 'M': 900}
+
+
+#: Seconds between the boundaries a cached intraday answer may not outlive. 60m: every :00 and :30, because every
+#: boundary of BOTH 60m grids lies on one (the TradingView RTH grid rolls at :30 - 10:30, 11:30 ... and its 15:30 half
+#: bar ends 16:00 - the 09:00 pre-market stub ends 09:30, the ETH clock-hour grid rolls at :00), so a copy never
+#: outlives a bucket of either grid; it costs at most one extra cache miss per half hour.
+_CAP_STEP_S = {"1": 60, "5": 300, "15": 900, "30": 1800, "60": 1800}
+
+
+def _bucket_capped_ttl(tf: str, ttl: float, now: float | None = None) -> float:
+    """`ttl`, cut at the next bucket boundary of `tf` (`min(ttl, bucket_end - now)`); D/W/M unchanged.
+
+    ⛔ (2026-11-25) A 1m answer cached at :58 with the 5 s TTL was still served at :02, after the minute rolled: the
+    chart got a copy missing the bar that had just closed. Every intraday tf has the same roll (review #2732: a 5m
+    answer cached at 9:34:58 with the 10 s TTL served at 9:35:05). A cached intraday answer never outlives its bucket.
+    ET is a whole-hour offset from UTC, so the clock floors below are the ET grid."""
+    step = _CAP_STEP_S.get(tf)
+    if step is None:
+        return ttl
+    now_ts = float(_time.time() if now is None else now)
+    left = (int(now_ts) // step + 1) * step - now_ts
+    return max(0.0, min(float(ttl), left))
+
+
+def _bucket_capped_max_age(tf: str, ttl: float) -> int:
+    """`Cache-Control: max-age` for `ttl` (whole seconds, rounded DOWN so it never reaches past the boundary)."""
+    return int(_bucket_capped_ttl(tf, ttl))
 
 
 def _resample_weekly(daily_bars: list[dict]) -> list[dict]:
@@ -4193,6 +4397,11 @@ def _get_bars_since_response(ticker: str, tf: str, bars: int, since_str: str) ->
     # Refresh SQLite if stale (same logic as _get_bars_inner)
     _live_derive_on_read(ticker_up, tf)   # 15m/30m/60m from the live 5m (no-op without it)
     last_ts = _sqlite.get_last_ts(ticker_up, tf)
+    # ⭐ THE STORE WAS STALE AND ITS REPAIR HAS NOT LANDED (live session 2026-11-24: the switch's own since= answer came
+    # back without the bucket(s) that had just closed, RDDT three minutes short). The router's one-bucket tolerance could
+    # still call that tail `current`; marked here, it is `unverified` (router `_apply_tail_status`), so no client reads it
+    # as the frontier. Intraday only (D/W/M keep the blocking repair below).
+    tail_pending = False
     if _needs_fresh(last_ts, tf, ticker_up):
         if _since_async_heal():
             # PHASE 1.4 — DON'T block this high-QPS poll on a provider. Heal the tail
@@ -4201,6 +4410,7 @@ def _get_bars_since_response(ticker: str, tf: str, bars: int, since_str: str) ->
             # closed bar simply arrives on the next 30s poll instead of this one.
             _mark_serve("delta-async-heal")
             _enqueue_since_bg_heal(cache_key, ticker_up, tf, last_ts or 0, date_tf)
+            tail_pending = not date_tf
         else:
             try:
                 # ⛔ THE THIRD UNBOUNDED PROVIDER CALL ON A REQUEST THREAD, and the
@@ -4225,8 +4435,9 @@ def _get_bars_since_response(ticker: str, tf: str, bars: int, since_str: str) ->
                         last_ts = _sqlite.get_last_ts(ticker_up, tf)
                     else:
                         _mark_serve("delta-deadline")
+                        tail_pending = True
             except Exception:
-                pass
+                tail_pending = not date_tf
 
     # Read ONLY the new rows via an index range scan (WHERE ts > since), instead
     # of reading up to `bars` (5000) rows + formatting all of them + Python-
@@ -4260,8 +4471,11 @@ def _get_bars_since_response(ticker: str, tf: str, bars: int, since_str: str) ->
     # Invalidate the full cache so the next non-delta request picks up fresh data
     cache.invalidate(cache_key)
 
+    content = {"ticker": ticker_up, "tf": tf, "bars": delta, "delta": True}
+    if tail_pending:
+        content["tail_pending"] = True
     return JSONResponse(
-        content={"ticker": ticker_up, "tf": tf, "bars": delta, "delta": True},
+        content=content,
         headers={"Cache-Control": "public, max-age=5"},
     )
 
@@ -5200,12 +5414,16 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
     date_tf   = tf in ("D", "W", "M")
 
     # ── Layer 1: In-memory TTL cache (<1 ms) ─────────────────────────────────
+    # ⭐ Every memory-cache write and max-age of this function is cut at the next bucket boundary of `tf`
+    # (`_bucket_capped_ttl`): a cached intraday answer never outlives the bucket it was built in.
+    _cset = lambda k, v, ttl: cache.set(k, v, ttl=_bucket_capped_ttl(tf, ttl))  # noqa: E731
+    _mage = lambda ttl: _bucket_capped_max_age(tf, ttl)  # noqa: E731
     cached = cache.get(cache_key)
     if cached is not None:
         _mark_serve("mem")
         return JSONResponse(
             content=cached,
-            headers={"Cache-Control": f"public, max-age={_CACHE_TTL.get(tf, 300)}"},
+            headers={"Cache-Control": f"public, max-age={_mage(_CACHE_TTL.get(tf, 300))}"},
         )
 
     # ── Layer 2: SQLite persistent store (<5 ms) ──────────────────────────────
@@ -5260,10 +5478,10 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
         # A live-fed series changes every few seconds: never pin it in memory for the
         # normal 300 s daily TTL, or the developing candle would freeze for minutes.
         _ttl = _bls.covered_cache_ttl(tf, _CACHE_TTL.get(tf, 300)) if _live_ttl else _CACHE_TTL.get(tf, 300)
-        cache.set(cache_key, payload, ttl=_ttl)
+        _cset(cache_key, payload, _ttl)
         return JSONResponse(
             content=payload,
-            headers={"Cache-Control": f"public, max-age={_ttl}"},
+            headers={"Cache-Control": f"public, max-age={_mage(_ttl)}"},
         )
 
     # Cold-stale intraday (missing >=1 whole session) must NOT be served
@@ -5357,11 +5575,11 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
                     if payload["bars"]:
                         # A shed tail or depth must not pin the partial answer for a
                         # full TTL — same rule as the same-session branch below.
-                        cache.set(cache_key, payload,
-                                  ttl=_CACHE_TTL.get(tf, 300) if (_deep_ok and _deep_tail_ok) else 5)
+                        _cset(cache_key, payload,
+                              _CACHE_TTL.get(tf, 300) if (_deep_ok and _deep_tail_ok) else 5)
                     return JSONResponse(
                         content=payload,
-                        headers={"Cache-Control": "public, max-age=5"},
+                        headers={"Cache-Control": f"public, max-age={_mage(5)}"},
                     )
                 except Exception as _deep_e:
                     import logging as _log_deep
@@ -5384,7 +5602,7 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
                 if hit is not None:
                     return JSONResponse(
                         content=hit,
-                        headers={"Cache-Control": "public, max-age=5"},
+                        headers={"Cache-Control": f"public, max-age={_mage(5)}"},
                     )
 
         # SAME-SESSION STALE intraday on the FIRST PAINT (no `since`): serve it
@@ -5452,11 +5670,11 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
                         }
                         if payload["bars"]:
                             # A shed repair must not pin the unrepaired rows for a full TTL.
-                            cache.set(cache_key, payload,
-                                      ttl=_CACHE_TTL.get(tf, 300) if _sd_done else 5)
+                            _cset(cache_key, payload,
+                                  _CACHE_TTL.get(tf, 300) if _sd_done else 5)
                         return JSONResponse(
                             content=payload,
-                            headers={"Cache-Control": "public, max-age=5"},
+                            headers={"Cache-Control": f"public, max-age={_mage(5)}"},
                         )
                 except Exception as _sd_e:
                     import logging as _log_sd
@@ -5477,14 +5695,14 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
                 if hit is not None:
                     return JSONResponse(
                         content=hit,
-                        headers={"Cache-Control": "public, max-age=5"},
+                        headers={"Cache-Control": f"public, max-age={_mage(5)}"},
                     )
 
         # Stale-while-revalidate: SQLite has data but it needs updating.
         # Serve the stale data immediately (no spinner) and refresh in the background.
         # The browser's SWR will revalidate after a short TTL and pick up fresh data.
         stale_payload = {"ticker": ticker_up, "tf": tf, "bars": _fmt_sqlite_bars(stored_rows, tf, ticker_up)}
-        cache.set(cache_key, stale_payload, ttl=12)  # short TTL so next poll gets fresh
+        _cset(cache_key, stale_payload, 12)  # short TTL so next poll gets fresh
 
         with _inflight_lock:
             # Only spawn a bg refresh if this key isn't already in flight AND we
@@ -5566,9 +5784,9 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
                         # path that would otherwise retry the bg fetch.
                         # Use a short retry TTL so we re-attempt soon.
                         if new:
-                            cache.set(_key, fresh_payload, ttl=_CACHE_TTL.get(_tf, 300))
+                            _cset(_key, fresh_payload, _CACHE_TTL.get(_tf, 300))
                         else:
-                            cache.set(_key, fresh_payload, ttl=15)
+                            _cset(_key, fresh_payload, 15)
                     except Exception as _bg_e:
                         import logging as _log_bg
                         _log_bg.getLogger(__name__).error(
@@ -5598,7 +5816,7 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
         _time_ck("stale_return")
         return JSONResponse(
             content=stale_payload,
-            headers={"Cache-Control": "public, max-age=5"},
+            headers={"Cache-Control": f"public, max-age={_mage(5)}"},
         )
 
     # ── Layer 3: Legacy disk cache fallback (transition period) ──────────────
@@ -5608,10 +5826,10 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
         disk_cached = disk_cache.get(ticker_up, tf, bars)
         if disk_cached and disk_cached.get("bars"):
             payload = disk_cached
-            cache.set(cache_key, payload, ttl=_CACHE_TTL.get(tf, 300))
+            _cset(cache_key, payload, _CACHE_TTL.get(tf, 300))
             return JSONResponse(
                 content=payload,
-                headers={"Cache-Control": f"public, max-age={_CACHE_TTL.get(tf, 300)}"},
+                headers={"Cache-Control": f"public, max-age={_mage(_CACHE_TTL.get(tf, 300))}"},
             )
 
     # ── Layer 4: API fetch (delta or full) — with deduplication ──────────────
@@ -5638,13 +5856,13 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
         if hit is not None:
             return JSONResponse(
                 content=hit,
-                headers={"Cache-Control": f"public, max-age={_CACHE_TTL.get(tf, 300)}"},
+                headers={"Cache-Control": f"public, max-age={_mage(_CACHE_TTL.get(tf, 300))}"},
             )
         # Fetcher may have failed — return stale SQLite data or empty
         stale = _fmt_sqlite_bars(stored_rows, tf, ticker_up) if stored_rows else []
         return JSONResponse(
             content={"ticker": ticker_up, "tf": tf, "bars": stale},
-            headers={"Cache-Control": "public, max-age=5"},
+            headers={"Cache-Control": f"public, max-age={_mage(5)}"},
         )
 
     # We are the designated fetcher for this key.
@@ -5766,7 +5984,7 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
                         _serve_ttl = 15
                 except (TypeError, ValueError, AttributeError):
                     pass
-            cache.set(cache_key, payload, ttl=_serve_ttl)
+            _cset(cache_key, payload, _serve_ttl)
 
     finally:
         # Always release waiters — cache is already populated above.
@@ -5816,11 +6034,11 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
         # intraday; D/W/M carry the Retry-After alone).
         return JSONResponse(
             content=payload,
-            headers={"Cache-Control": "public, max-age=5", "Retry-After": "3"},
+            headers={"Cache-Control": f"public, max-age={_mage(5)}", "Retry-After": "3"},
         )
     return JSONResponse(
         content=payload,
-        headers={"Cache-Control": f"public, max-age={ttl}"},
+        headers={"Cache-Control": f"public, max-age={_mage(ttl)}"},
     )
 
 

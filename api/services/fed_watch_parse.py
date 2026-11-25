@@ -45,6 +45,7 @@ expanded.
 from __future__ import annotations
 
 import difflib
+import functools
 import html
 import io
 import math
@@ -681,6 +682,27 @@ _SAYS = r"(?:says|said|sees|saw|speaks|spoke|testifies|testified|warns|warned|ex
 AMBIGUOUS_SURNAMES = frozenset({"cook", "williams", "logan", "barr", "daly", "jefferson"})
 
 
+@functools.lru_cache(maxsize=8)
+def _roster_patterns(names: tuple) -> tuple:
+    """The three roster tests of `is_fed_headline`, each compiled ONCE for a roster as one
+    alternation over its surnames: `(role, quote, says)`, each a compiled pattern or None.
+
+    Speed pass 2026-11-23: the FED route ran up to three `re` calls per surname for each of the
+    3,000 newest wire headlines (about 0.6 s per pass on invented headlines, repeated whenever
+    the wire moved). An alternation inside one pattern matches exactly when one of its names
+    would have matched alone (the engine tries every alternative at every position), so the
+    answer is the same; a roster with no usable name has no pattern at all (an empty alternation
+    would match everything)."""
+    usable = [n for n in (str(x or "").strip() for x in names) if n and n.isalpha()]
+    plain = [n for n in usable if n.lower() not in AMBIGUOUS_SURNAMES]
+    every = "|".join(re.escape(n) for n in usable)
+    clear = "|".join(re.escape(n) for n in plain)
+    role = re.compile(rf"\b{_ROLE}\s+(?:{every})\b", re.I) if usable else None
+    quote = re.compile(rf"\s*(?:{clear})\s*:", re.I) if plain else None
+    says = re.compile(rf"\b(?:{clear})\s+{_SAYS}\b", re.I) if plain else None
+    return role, quote, says
+
+
 def is_fed_headline(text: Any, surnames: Iterable[str] = ()) -> bool:
     """True when a news headline is about the Federal Reserve: FOMC, Federal Reserve, Fed (as the
     institution), or an official on the roster (`api/data/fed_speakers.json`) named the way wire
@@ -692,18 +714,10 @@ def is_fed_headline(text: Any, surnames: Iterable[str] = ()) -> bool:
         return False
     if _FED_WORD.search(s) or _FOMC.search(s) or _FED_RESERVE.search(s):
         return True
-    for name in surnames:
-        n = str(name or "").strip()
-        if not n or not n.isalpha():
-            continue
-        word = re.escape(n)
-        if re.search(rf"\b{_ROLE}\s+{word}\b", s, re.I):
-            return True
-        if n.lower() in AMBIGUOUS_SURNAMES:
-            continue
-        if re.match(rf"\s*{word}\s*:", s, re.I) or re.search(rf"\b{word}\s+{_SAYS}\b", s, re.I):
-            return True
-    return False
+    role, quote, says = _roster_patterns(tuple(surnames))
+    if role is not None and role.search(s):
+        return True
+    return bool((quote is not None and quote.match(s)) or (says is not None and says.search(s)))
 
 
 # ── the economic calendar ──────────────────────────────────────────────────────────────────────

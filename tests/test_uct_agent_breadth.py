@@ -223,6 +223,10 @@ def test_MIRROR_the_servers_local_only_set_is_every_localOnly_capability():
     # stock.factorExposure / stock.setupHistory / company.publicRecords / ownership.funds
     # Terminal data wave 11: the seven capabilities over the isolated kinds groups.rank / groups.crowding /
     # earnings.seasonBySector / estimates.revisionBreadth / options.ivRankLeaders / ipo.lockups / cot.byTrader
+    # Terminal data wave 12: the six capabilities over the isolated kinds ratings / estimates.history / analyst.ratings /
+    # company.segments / stock.failsToDeliver / company.deals
+    # Terminal data wave 13: the six capabilities over the isolated kinds insider.market / market.history / econ.latest /
+    # market.liquidity / market.oil / market.analogs
     assert found == set(turn.LOCAL_ONLY_ACTIONS) == {"breadth.show", "breadth.history", "history.afterEvent", "journal.reviewTrades",
                                                      "news.movers", "rs.compare", "stock.analystActions", "stock.sessionHighsLows",
                                                      "stock.longRunLeaders", "stock.darkPoolLevels", "stock.yearlyHighsLows",
@@ -241,7 +245,11 @@ def test_MIRROR_the_servers_local_only_set_is_every_localOnly_capability():
                                                      "stock.setupHistory", "stock.companyRecord", "stock.ownershipReport",
                                                      "stock.groupRank", "stock.groupOwnership", "stock.sectorEarnings",
                                                      "stock.estimatesBreadth", "stock.ivRankLeaders", "stock.ipoUnlock",
-                                                     "stock.positionTypes"}
+                                                     "stock.positionTypes",
+                                                     "stock.uctRating", "stock.estimatesHistory", "stock.consensusRating",
+                                                     "stock.revenueSplit", "stock.failsToDeliver", "stock.companyDeals",
+                                                     "stock.insiderBuying", "stock.marketHistory", "stock.economyBoard",
+                                                     "stock.liquidityBoard", "stock.oilReport", "stock.daysLikeToday"}
 
 
 # ═══ 3. the one door: what a stored row may say to a model ══════════════════════════════════════════

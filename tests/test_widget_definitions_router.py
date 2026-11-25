@@ -1062,7 +1062,12 @@ def test_w10_plans_are_the_dark_404_at_every_door_while_w10_is_off(conn, monkeyp
 def test_w10_plans_run_at_every_door_while_w10_is_on(conn, monkeypatch):
     """With wave 10 ON (Tasks 10.5 and 10.6): formula measures, formula filters and the display
     options run at `/run`, `/preview` and `/drill` -- W10-R46's interim guard is gone. Never a
-    500, and never the plan-level refusal for a plan the validator accepted."""
+    500, and never the plan-level refusal for a plan the validator accepted.
+
+    The day is PINNED to 2026-10-25 (when this was written): the plans range over `last_30d`, so on the wall
+    clock the 2026-10-20 trade left the window on 2026-11-20 and the pinned 100.0 read None."""
+    from datetime import date
+    monkeypatch.setattr(nw, "_today_et", lambda now: date(2026, 10, 25))
     monkeypatch.setenv("NOTEBOOK_WIDGETS_W10_ENABLED", "1")
     add_trade(conn, UID, day="2026-10-20", pnl=50)
     c = _unraising()

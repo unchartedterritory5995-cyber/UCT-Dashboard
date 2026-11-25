@@ -184,7 +184,15 @@ def test_the_committed_budget_file_is_complete_and_hand_edit_documented():
     assert "by hand" in budgets["_"].lower()
     nb = budgets["bytes"]["notebook_first_open"]
     assert nb["roots"], "no route roots: the byte budget would price nothing"
-    assert int(nb["max"]) <= int(nb["baseline"] * 1.05) + 1, "max drifted above baseline + 5% without saying so"
+    # 2026-11-24: a raise above the rule SAYS SO in `owner_raises` (bytes, date, who approved, what for). Before, the
+    # 2026-11-16 owner-approved +200 B could not say so here, and this test stayed red on master from that day.
+    raises = nb.get("owner_raises", [])
+    for r in raises:
+        assert int(r["bytes"]) > 0 and r.get("approved_by") == "owner" and len(str(r.get("on", ""))) == 10, r
+        assert len(str(r.get("for", "")).strip()) >= 20, f"an owner raise needs its reason: {r}"
+    allowed = int(nb["baseline"] * 1.05) + sum(int(r["bytes"]) for r in raises)
+    assert int(nb["max"]) <= allowed + 1, "max drifted above baseline + 5% without saying so (list the raise in owner_raises)"
+    assert int(nb["max"]) >= allowed - 1, "owner_raises lists more than the max carries: withdraw the stale raise"
     for key in LATENCY_KEYS:
         spec = budgets[key]
         assert spec["ops"] and float(spec["p95_ms_max"]) > 0 and int(spec["tier"]) > 0, key

@@ -129,6 +129,7 @@ import { detectSwingPivots, sensitivityToParams } from './chart/swingPivots'
 import { createBinder } from './chart/engine/binder'
 import { wrapSeriesForBarColours, reapplyBarColours } from './chart/engine/barColours'
 import { createObjectLayer } from './chart/engine/objectLayer'
+import { makeRoomForLabels } from './chart/labelRoom'
 import { resolvePlacement, resolvePreset } from './chart/engine/placement'
 import { registerManifestChart } from './chart/engine/paneLayout'
 // ⚠️ `engineOwnedDefIds` is NOT imported here any more (B5 Task 4). It is not
@@ -1807,6 +1808,7 @@ import { parseTf } from './chart/timeframes'
 import { bucketEventDate, barLookupFor } from './chart/eventBarLookup'
 import { _hollowFill, installNetChangePaint } from './chart/netChangePaint'
 import { barsRenderPlan } from './chart/renderPlan'
+import { settleBoardReady } from './chart/metaSettleGuard'
 import ChartSkeleton from './chart/ChartSkeleton'
 import { normalizeToPctChange } from './chart/comparisonUtils'
 import CompanyLogo from './CompanyLogo'
@@ -3837,6 +3839,13 @@ function settleOnMetaLanded(s, inp) {
   const pt = s.pendingRef.current
   if (!pt || pt.tf !== inp.resolvedTf || s.entryDate || s.exactDateRange) return
   const bars = inp.filteredBars
+  // ⛔ (2026-11-24) ONLY ON THE BOARD THESE BARS ARE PAINTED ON (`chart/metaSettleGuard.js` says what identifies it).
+  // An answer can land in the commit that brings NEW bars, before that commit's own pass has painted them: on a list
+  // switch the metadata feed publishes in its layout effect, ahead of the switch's `updateChart`. Re-asserted then, the
+  // new name's frame (its newest bar, index 3,899) landed on the OLD name's board, where 3,899 is 1,300 bars back: the
+  // render window reached left for it and re-set the whole old board (2,200 rows on every series) a moment before the
+  // switch replaced it (StockChart.metaSettle.test.jsx). The coming pass for these bars re-asserts the frame itself.
+  if (s.paintedRef && !settleBoardReady(s.paintedRef.current, bars)) return
   const chart = s.chartRef.current
   if (!chart || !bars || bars.length < 2 || !(s.countRef.current > 0)) return
   if (s.anchorRef.current && s.anchorRef.current.anchorIdx >= 0 && !s.movedRef.current) return   // the anchor's frame: `updateChart` applies it
@@ -11253,7 +11262,7 @@ function StockChartBody({
     _nfRecipes.plain = !_hasOverride && !_isCustomTf && !replayMode && replayIndex == null && !replayCutoff
       && !exactDateRange && !sessionCandleActive && filteredBars === sessionBars && sessionAppliedBars === filteredBars
   }
-  useNeighborFrames({ on: _nfOn, sym, tf: resolvedTf, showExtended, engineRef, recipes: _nfRecipes })
+  useNeighborFrames({ on: _nfOn, sym, tf: resolvedTf, showExtended, engineRef, recipes: _nfRecipes, rows: bars })
   const overlayData = useMemo(() => {
     if (!__heavy.sessionAppliedBars?.length || !resolvedOverlays?.length) return []
     return resolvedOverlays.map(ov => {
@@ -11728,7 +11737,7 @@ function StockChartBody({
   const anchorOwnsFrame = () => anchorCfgRef.current.anchorIdx >= 0 && !userViewMovedRef.current
   // (refs and scalars only: the store keeps the listener that reads this for the chart's whole life)
   _metaSettleRef.current = {
-    chartRef, containerRef, candleRef: candleSeriesRef, pendingRef: pendingTfReframeRef, movedRef: userViewMovedRef, countRef: lastBarCountRef,
+    chartRef, containerRef, candleRef: candleSeriesRef, paintedRef: prevBarsRef, pendingRef: pendingTfReframeRef, movedRef: userViewMovedRef, countRef: lastBarCountRef,
     anchorRef: anchorCfgRef, entryDate, exactDateRange, dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride,
     sessionCandleActive, sessionExtReady,
   }
@@ -14090,6 +14099,12 @@ function StockChartBody({
           // freedom from `getBoundingClientRect` is what makes a pane resize cost
           // nothing, and one `insets` argument is the price of keeping it.
           insets: { top: CHART_TOOLBAR_FOOTPRINT_PX },
+          // ⭐ (owner ruling 2026-11-24) a label at the newest bar that runs under the price scale gets room
+          // (`chart/labelRoom.js`): the newest bar moves left by the bars it needs, bar spacing unchanged.
+          onLabelOverflow: (px) => {
+            if (!(px > 0)) return
+            try { makeRoomForLabels(chart.timeScale ? chart.timeScale() : null, px) } catch { /* chart mid-teardown */ }
+          },
           mapping: () => {
             const series = candleSeriesRef.current
             const ts = chart.timeScale ? chart.timeScale() : null

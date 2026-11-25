@@ -8,7 +8,7 @@
 //     focus on the same heading on arrival.
 // Both exist only with the wave-14 switch on, like the section itself.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { SWRConfig } from 'swr'
@@ -65,7 +65,10 @@ describe('Help > Walkthroughs on keys (W14-keys)', () => {
     latchNotebookFlags(SWITCH_ON)
     renderSupport('/support#walkthroughs')
     const heading = await walkthroughs()
-    expect(document.activeElement).toBe(heading)
+    // The heading is focused by WalkthroughsSection's effect, which runs AFTER the commit that put the heading in
+    // the DOM; findByRole can resolve between the two. Read once, this was red in the 2026-11-23 full suite (focus
+    // still on <body>) and green alone. Wait for the focus itself.
+    await waitFor(() => expect(document.activeElement).toBe(heading))
   })
 
   it('a plain /support arrival moves no focus', async () => {

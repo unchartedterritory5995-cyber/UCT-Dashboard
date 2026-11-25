@@ -38,6 +38,9 @@ import { useVirtualizer, observeElementRect } from '@tanstack/react-virtual'
 // every batch AND renders outright, or takes the windowed path for both — rather
 // than straddling the two and behaving differently column by column.
 const VIRTUALIZE_MIN_ROWS = 120
+// A virtualized list's MOVED window (which rows stream live prices) is stored in idle time, at the latest this
+// many ms after the scroll that moved it (Watchlists `handleListVisible`).
+export const VISIBLE_IDLE_MS = 100
 // The rows ahead of a scan warmed URGENTLY (not held behind the daily pack ingest); the
 // screener's `URGENT_NEXT` (pages/screener/focus/useFocusSelection.js) is the same number.
 const SCAN_URGENT_NEXT = 2
@@ -736,7 +739,9 @@ export function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChan
     const prev = reportedRef.current
     if (prev.cb === onVisibleChange && prev.key === key) return
     reportedRef.current = { cb: onVisibleChange, key }
-    onVisibleChange(syms)
+    // the second argument: is this the receiver's FIRST window from this list (it mounted, the receiver is new, or
+    // nothing but an empty window was reported yet: the virtualizer reports one before it has measured)?
+    onVisibleChange(syms, prev.cb !== onVisibleChange || !prev.key)
   }, [first, last, items, onVisibleChange])
   // Scroll a searched/selected symbol INTO VIEW — ONCE, on first search. DOM querySelector
   // can't find a virtualized row that isn't rendered yet, so drive the virtualizer by index.
@@ -823,6 +828,8 @@ function CompareSearch({ onPick, baseSym }) {
 
 // How long a selection must rest before its OTHER timeframes are warmed (see below).
 const SCAN_DWELL_MS = 600
+/** The rows ahead a list's hold keeps resident (barStore prefetch NEIGHBOR_KEEP_AHEAD caps it). */
+const SCAN_KEEP_AHEAD = 30
 
 export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null, activeRef = null, widgetKey = null, listView = null, settingsOverride = null, onSettingsPersist = null, scanSymbols = null, backLabel = null, colStorageKey = null, scanEmptyText = null, defaultColCfg = null, metaOverride = null, perfOverride = null, scanFooter = null, scanCriteria = null, scanActions = null, ephemeralCols = false, scanGroups = null, onScanVisibleSyms = null, groupExpand = 'accordion', quoteOverride = null, pickTitleSlot = null, pickTitleBefore = null, pickTitleAfter = null, pickSubHeader = null, renderGroupRow = null, groupAccent = null, openFirstGroup = false, stableGutter = false,
   // RTH · EXT switch (owner 11-14, /charts board Watchlist widget): 'ext' shows pre-market /
@@ -1404,6 +1411,43 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // Which symbols each VIRTUALIZED watchlist group currently has on screen, keyed by
   // list id so several open lists can each report their own window.
   const [listVisible, setListVisible] = useState({})
+  // ⭐ (2026-11-25, next-row key task) A MOVED WINDOW IS STORED WHEN THE PAGE IS IDLE. An arrow key scrolls the list
+  // to the row it selects (ScanRows `scrollToIndex`); the scroll moves the virtualized window by a row, and storing the
+  // new window re-rendered the WHOLE watchlist (the streamed set, the price map, the sort) in the tasks right after the
+  // chart switch's frame, ahead of everything else waiting (the 40 ms breakdown, 2026-11-25: ScanRows rendered again
+  // after the frame on most presses, its items and row renderer new). The window only says which rows stream live
+  // prices, so a MOVED window waits for idle time (at most VISIBLE_IDLE_MS), the newest one of each list, stored once.
+  // A list's FIRST window (ScanRows says so: its first non-empty report since it mounted) is stored at once, as before:
+  // what a list streams when it opens.
+  const visibleWaiting = useRef({ handle: null, lists: new Map() })
+  const storeListWindows = useCallback((entries) => {
+    setListVisible((prev) => {
+      let next = prev
+      for (const [wlId, syms] of entries) {
+        const cur = next[wlId]
+        // Scrolling re-reports the same window constantly; only a real change may
+        // write, or the identity churn cascades into every downstream memo.
+        if (cur && cur.length === syms.length && cur.every((s, i) => s === syms[i])) continue
+        next = { ...next, [wlId]: syms }
+      }
+      return next
+    })
+  }, [])
+  const storeWaitingWindows = useCallback(() => {
+    const q = visibleWaiting.current
+    q.handle = null
+    if (!q.lists.size) return
+    const entries = [...q.lists]
+    q.lists.clear()
+    storeListWindows(entries)
+  }, [storeListWindows])
+  useEffect(() => () => {
+    const q = visibleWaiting.current
+    if (q.handle?.idle != null) { if (typeof cancelIdleCallback === 'function') cancelIdleCallback(q.handle.idle) }
+    else if (q.handle) clearTimeout(q.handle.timer)
+    q.handle = null
+    q.lists.clear()
+  }, [])
   // ⚠️ One STABLE callback per list id. `onVisibleChange` is in ScanRows' effect deps,
   // so a fresh closure per render would re-run that effect every render — set state,
   // re-render, re-run. Cached by id, created once.
@@ -1411,17 +1455,23 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   const handleListVisible = useCallback((wlId) => {
     let cb = listVisibleCbs.current.get(wlId)
     if (!cb) {
-      cb = (syms) => setListVisible(prev => {
-        const cur = prev[wlId]
-        // Scrolling re-reports the same window constantly; only a real change may
-        // write, or the identity churn cascades into every downstream memo.
-        if (cur && cur.length === syms.length && cur.every((s, i) => s === syms[i])) return prev
-        return { ...prev, [wlId]: syms }
-      })
+      cb = (syms, first = true) => {
+        const q = visibleWaiting.current
+        if (first) {
+          q.lists.delete(wlId)
+          storeListWindows([[wlId, syms]])
+          return
+        }
+        q.lists.set(wlId, syms)
+        if (q.handle) return
+        q.handle = typeof requestIdleCallback === 'function'
+          ? { idle: requestIdleCallback(storeWaitingWindows, { timeout: VISIBLE_IDLE_MS }) }
+          : { timer: setTimeout(storeWaitingWindows, 0) }
+      }
       listVisibleCbs.current.set(wlId, cb)
     }
     return cb
-  }, [])
+  }, [storeListWindows, storeWaitingWindows])
   const visibleFromVirtualized = useMemo(
     () => Object.values(listVisible).flat(),
     [listVisible],
@@ -2009,6 +2059,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       scanNeighbors(flat, idx, -dir, { ahead: 2, behind: 0 }))
     const next = scanNeighbors(flat, idx, dir, { ahead: SCAN_URGENT_NEXT, behind: 0 })
     const ahead = scanNeighbors(flat, idx, dir, { ahead: 6, behind: 2 })
+    const keep = scanNeighbors(flat, idx, dir, { ahead: SCAN_KEEP_AHEAD, behind: 0 })
     const sendWarm = () => {
       const holds = _holdsRef.current
       for (const [htf, h] of holds) if (!tfs.includes(htf)) { h.clear(); holds.delete(htf) }
@@ -2016,7 +2067,11 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         if (!holds.has(tf)) holds.set(tf, createNeighborHold())
         // `deep`: once the member rests here, the next rows' older history loads too, so the flip
         // paints them as deep as the chart would reach after its own wait (createNeighborHold).
-        holds.get(tf).set(around, tf, { deep: next })
+        // `tail`: the next row, the one after and the previous row stay current across a bucket boundary while the
+        // member navigates (createNeighborHold `tail`; `selected` opens its window: a re-sort of the rows does not)
+        // `keep`: the rows ahead stay resident until the member reaches them (createNeighborHold NEIGHBOR_KEEP_AHEAD): the
+        // registry's LRU took them first, and each came back a local copy asked for in full (2026-11-24 replay)
+        holds.get(tf).set(around, tf, { deep: next, tail: [...next, ...scanNeighbors(flat, idx, dir, { ahead: 0, behind: 1 })], selected: selectedSym, keep })
       }
       warmMemFromIDB(around, tfs)
       for (const tf of tfs) prefetchBarsToIDB(ahead, tf, { priority: true })

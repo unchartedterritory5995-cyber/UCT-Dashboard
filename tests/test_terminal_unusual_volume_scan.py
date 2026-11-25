@@ -84,7 +84,12 @@ def served(tmp_path, monkeypatch):
     monkeypatch.setattr(live_tier, "_session", lambda: "regular")
     snapshot_db.init_db()
     snapshot_db.upsert_rows(_NIGHTLY)
-    snapshot_db.upsert_live_rows(_LIVE)
+    # ⛔ STAMPED NOW, NOT AT IMPORT. `_LIVE` is built when this module is collected, and in the
+    # regular session the tier serves an overlay only while it is younger than `max_age_s()`
+    # (180 s, the dead-sweeper contract). A suite that reached this file more than three minutes
+    # after collection had every overlay row aged out, and each by-now scan came back empty
+    # (red on master 2026-11-23, run 45321831045) -- the tier was right, the fixture was stale.
+    snapshot_db.upsert_live_rows([{**row, "live_asof": float(time.time())} for row in _LIVE])
     return snapshot_db
 
 

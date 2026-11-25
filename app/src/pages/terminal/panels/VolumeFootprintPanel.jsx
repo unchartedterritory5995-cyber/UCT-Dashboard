@@ -13,8 +13,9 @@
 //
 // ONE read, `GET /api/research/volume-footprint/{ticker}` (paid; api/services/volume_footprint.py):
 // worked out by the server from the daily bars and the earnings dates it already stores, never from a
-// vendor, and held for the session. Asked again every half hour (SWR skips ticks while the app is
-// hidden). The pure half is volumeFootprintModel.js.
+// vendor, and held for the session. Asked again every half hour, and every few seconds while the server
+// works the stock out for the first time this session (`computing`); SWR skips ticks while the app is
+// hidden. The pure half is volumeFootprintModel.js.
 //
 // ⛔ A MISSING NUMBER IS NEVER 0: a section with too little history says what it needs.
 // ⛔ AN EARNINGS MARK ONLY WHERE IT IS KNOWN; the panel names the span the held report dates cover.
@@ -28,9 +29,9 @@ import { PanelSkeleton, PanelState, panelAsOf, useInTerminalPanel, usePanelFresh
 import { formatNumber, formatPercent } from '../../../lib/presentation/presentationPrimitives'
 import { WARMING_TITLE, canRetry, failureKind, failureText, useMarketRead } from './marketRead'
 import {
-  HELD_POLL_MS, VFP_CODE, VFP_SOURCE, VFP_WHAT, adDates, bigDaysLine, bigVolumeCell, changeText, earningsNote, fillCell,
+  VFP_CODE, VFP_SOURCE, VFP_WHAT, adDates, bigDaysLine, bigVolumeCell, changeText, earningsNote, fillCell,
   filledCell, gapCell, gapDayCell, gapsLine, partialYearText, pivotCells, pivotsLine, plural, rangeText, sessionsText, sharesText,
-  signOf, updownText, vfpRead, vfpUrl, windowText, windowsAsOf,
+  signOf, updownText, vfpPollMs, vfpRead, vfpUrl, windowText, windowsAsOf,
 } from './volumeFootprintModel'
 import { dayText } from './ratesModel'
 import styles from './marketPanels.module.css'
@@ -290,7 +291,9 @@ function Gaps({ g, sym, earn, jumpPct }) {
 
 function VolumeFootprintBody({ sym: s, code }) {
   const inPanel = useInTerminalPanel()
-  const read = useMarketRead(vfpUrl(s), { refreshInterval: HELD_POLL_MS })
+  // Asked again soon while the server works the stock out for the first time this session (SETH's way), else
+  // once a half hour.
+  const read = useMarketRead(vfpUrl(s), { refreshInterval: (latest) => vfpPollMs(vfpRead(latest?.body)) })
   const view = useMemo(() => vfpRead(read.body), [read.body])
   const ok = !read.loading && !!read.body && view.state === 'ok'
   usePanelFreshness(ok ? panelAsOf(VFP_SOURCE, view.dataThrough) : null)
@@ -320,6 +323,9 @@ function VolumeFootprintBody({ sym: s, code }) {
   const stale = read.error ? (
     <p className={styles.note} role="status" data-testid="terminal-vfp-stale-read">{failureText(read.error, VFP_WHAT)} Showing the last read.</p>
   ) : null
+  if (view.state === 'computing') {
+    return frame('computing', <PanelState kind="empty" role="status" testId="terminal-vfp-computing" title={WARMING_TITLE} />)
+  }
   if (view.state === 'not_held') {
     return frame('not_held', (
       <>

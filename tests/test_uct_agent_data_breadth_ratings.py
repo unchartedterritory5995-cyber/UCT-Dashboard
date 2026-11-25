@@ -1,6 +1,7 @@
 """MD-1 kinds `breadth.current` and `ratings` (agent-md, Sprint 1 PR 4b), both MODEL-ISOLATED.
 
-No network: breadth_current.reading and research.ratings.get_ratings are stubbed at their public reads. Pins:
+No network: breadth_current.reading and the ratings adapter's held read (since MD-1 v1.18 it never calls
+research.ratings.get_ratings, which can build) are stubbed at their public reads. Pins:
 the isolation (every non-"answer" purpose refused before admission, with no read and no budget spent),
 breadth's status → freshness mapping, as_of from the VENDOR observation time (never computed_at),
 stale = not current with the label as the disclosure, tier notes, stale_reason kept out of the envelope,
@@ -13,7 +14,6 @@ import pathlib
 import pytest
 
 from api.services import bars_fetch, breadth_current
-from api.services.research import ratings as ratings_svc
 from api.services.uct_agent.marketdata import breadth as br
 from api.services.uct_agent.marketdata import envelope as env
 from api.services.uct_agent.marketdata import gateway as gw
@@ -71,7 +71,7 @@ def _breadth(monkeypatch, **kw):
 @pytest.mark.parametrize("purpose", ["research", "scan"])
 def test_model_isolated_kinds_refuse_every_non_answer_purpose_before_any_read(monkeypatch, kind, params, purpose):
     calls = _breadth(monkeypatch)
-    monkeypatch.setattr(ratings_svc, "get_ratings", lambda s: calls.append(s))
+    monkeypatch.setattr(rt, "held_answer", lambda s: calls.append(s))   # v1.18: the held read, never get_ratings
     out = _read(kind, params, purpose=purpose)
     assert env.validate_envelope(out) == [] and out["status"] == "refused" and calls == []
     assert "never used for research" in out["notes"][0]
@@ -85,7 +85,7 @@ def test_dormant_by_default_both_kinds_are_refused_for_every_purpose(monkeypatch
     included — before any read. A browser-supplied purpose is never the only gate."""
     monkeypatch.delenv(gw.ISOLATED_ENV)
     calls = _breadth(monkeypatch)
-    monkeypatch.setattr(ratings_svc, "get_ratings", lambda s: calls.append(s))
+    monkeypatch.setattr(rt, "held_answer", lambda s: calls.append(s))   # v1.18: the held read, never get_ratings
     out = _read(kind, params, purpose=purpose)
     assert env.validate_envelope(out) == [] and out["status"] == "refused" and calls == []
     assert "not available to UCT Agent yet" in out["notes"][0]
@@ -217,11 +217,11 @@ def _rating(**kw):
 
 
 def test_ratings_as_of_is_the_price_session_close_with_the_uct_and_undated_notes(monkeypatch):
-    monkeypatch.setattr(ratings_svc, "get_ratings", lambda s: _rating())
+    monkeypatch.setattr(rt, "held_answer", lambda s: (_rating(), "held"))
     out = _read("ratings", {"symbol": "aapl"})
     assert env.validate_envelope(out) == []
     assert out["status"] == "ok" and out["freshness"] == "periodic" and out["stale"] is False
-    assert out["as_of"] == "2026-10-30T20:00:00Z" and out["provider_calls"] == rt.PROVIDER_CALLS
+    assert out["as_of"] == "2026-10-30T20:00:00Z" and out["provider_calls"] == rt.PROVIDER_CALLS == 0
     assert rt.NOTE_UCT_DERIVED in out["notes"] and rt.NOTE_UNDATED_LEGS in out["notes"]
     assert set(out["data"]) == set(rt.DATA_FIELDS) | {"isolated"} and "entity" not in repr(out["data"])
     _assert_isolated_everywhere(out)
@@ -229,27 +229,27 @@ def test_ratings_as_of_is_the_price_session_close_with_the_uct_and_undated_notes
 
 
 def test_ratings_price_behind_the_last_session_is_stale(monkeypatch):
-    monkeypatch.setattr(ratings_svc, "get_ratings", lambda s: _rating(price_as_of="2026-10-28"))
+    monkeypatch.setattr(rt, "held_answer", lambda s: (_rating(price_as_of="2026-10-28"), "held"))
     out = _read("ratings", {"symbol": "AAPL"})
     assert out["stale"] is True
     assert rt.NOTE_PRICE_BEHIND.format(date="2026-10-28", session="2026-10-30") in out["notes"]
 
 
 def test_ratings_incomplete_is_partial(monkeypatch):
-    monkeypatch.setattr(ratings_svc, "get_ratings", lambda s: _rating(complete=False))
+    monkeypatch.setattr(rt, "held_answer", lambda s: (_rating(complete=False), "held"))
     out = _read("ratings", {"symbol": "AAPL"})
     assert out["status"] == "partial" and rt.NOTE_INCOMPLETE in out["notes"]
 
 
 def test_ratings_without_a_price_date_has_null_as_of_and_is_stale(monkeypatch):
-    monkeypatch.setattr(ratings_svc, "get_ratings", lambda s: _rating(price_as_of=None))
+    monkeypatch.setattr(rt, "held_answer", lambda s: (_rating(price_as_of=None), "held"))
     out = _read("ratings", {"symbol": "AAPL"})
     assert env.validate_envelope(out) == [] and out["as_of"] is None and out["stale"] is True
 
 
 @pytest.mark.parametrize("payload", [{}, None, {"composite": None}])
 def test_ratings_unavailable(monkeypatch, payload):
-    monkeypatch.setattr(ratings_svc, "get_ratings", lambda s: payload)
+    monkeypatch.setattr(rt, "held_answer", lambda s: (payload, "held" if payload else "not_held"))
     out = _read("ratings", {"symbol": "ZZZZ"})
     assert env.validate_envelope(out) == [] and out["status"] == "unavailable"
 

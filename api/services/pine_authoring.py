@@ -71,7 +71,6 @@ CAPABILITY_WORDS: Dict[str, str] = {
     "generics": "generic type arguments (`array<line>`)",
     "max_bars_back": "`max_bars_back`",
     "realtime-state": "`barstate.*` reads (a value read on the newest bar can move until that bar closes)",
-    "conditional-ta": "a `ta.sma` / `ta.ema` call inside an `if` block at the top level of the script",
     "obj:line": "lines (`line.*`)",
     "obj:label": "labels (`label.*`)",
     "obj:box": "boxes (`box.*`)",
@@ -80,6 +79,29 @@ CAPABILITY_WORDS: Dict[str, str] = {
     "obj:getter": "reading a drawing back (`line.get_y1`, `label.get_text`)",
     "obj:collection": "the list of drawings of a kind (`line.all`, `label.all`)",
 }
+
+#: ⭐⭐ e96 (2026-11-23) — CAPABILITIES WORDED BY THE ENGINE'S OWN GATE, never typed here. The generated
+#: reference carries them (`capabilityWords`, from `assistantPineReference.js::GATE_WORDS`, which copies the
+#: gate's own sentence, `engine/blockRuns.js::BLOCK_RUNS_ADMITS`). ⚰️ `conditional-ta` was typed here as "a
+#: `ta.sma` / `ta.ema` call inside an `if` block at the top level of the script", and the engine refuses that
+#: (`pine:block`) whenever the `if` skips a bar and runs again, as an `if` on a price condition does: the
+#: assistant was taught a script the engine refuses. A gate-worded id the reference does not word is NOT worded
+#: (fail closed: `tests/test_pine_authoring.py` then reds on an admitted capability nobody worded).
+GATE_WORDED = ("conditional-ta",)
+
+
+def capability_words(ref: Optional[Mapping[str, Any]] = None) -> Dict[str, str]:
+    """Every capability's words for the assistant: the typed ones (`CAPABILITY_WORDS`) and the gate-worded ones,
+    read from the generated reference (`GATE_WORDED`)."""
+    ref = reference() if ref is None else ref
+    gate = (ref or {}).get("capabilityWords") or {}
+    words = dict(CAPABILITY_WORDS)
+    for cap in GATE_WORDED:
+        said = gate.get(cap) if isinstance(gate, Mapping) else None
+        if isinstance(said, str) and said.strip():
+            words[cap] = said
+    return words
+
 
 #: ⭐ ADMITTED BY THE ENGINE AND DELIBERATELY NOT OFFERED TO THE ASSISTANT, each with its reason. The
 #: assistant writes INDICATORS: the rule that every admitted capability is worded has these named
@@ -359,7 +381,26 @@ THE RULES
 11. Draw ONLY what the member asked for. A request for a count or a signal is that one plot or mark: do not add a label on every event, a summary table, a background colour, extra shapes or an `alertcondition` the request did not name. Each extra clutters the chart and is one more claim that has to be right. If something more would help, OFFER it in `reply` in one short sentence ("I can also mark each day or add a table") and leave it out of the script. When the request is ONLY a drawing (a box, a line, labels, a table) and names no plotted line, still `plot` the value the drawing is made from, because a script with a plot can be used in alerts and one without cannot; but make that plot INVISIBLE with a fully transparent colour (`plot(level, "Level", color=color.new(color.gray, 100))`) and say in `reply` that a hidden plot is there for alerts. Never hide a plot the member asked to see.
 12. {number_on_bars}
 13. {percent_format}
-14. {fill_in}"""
+14. {fill_in}
+15. {strict_pivot}"""
+
+#: ⭐ RULE 15: STRICT WORDS ON BOTH SIDES OF A BAR ARE NOT ta.pivothigh (coordinator's ruling, 2026-11-25). cap-03's
+#: words ("a swing high is a bar whose high is above the highs of the 3 bars before it and the 3 bars after it") came
+#: back live as scripts, 6 of 6 right by the case's rule on the script lane's bars, and 2 of the 6 used
+#: `ta.pivothigh(high, 3, 3)` while their reply called the rule "strictly above". The engine's pivothigh is
+#: TradingView-exact: it admits a high EQUAL to one of the bars before it. So the reply said something false, and the
+#: value is right only where the chart holds no such tie. Rule 10 (call Pine's own function) does not reach this: the
+#: member's words are not the function's rule.
+STRICT_PIVOT_RULE = (
+    "STRICT WORDS ON BOTH SIDES OF A BAR ARE NOT `ta.pivothigh` / `ta.pivotlow`: those admit a bar EQUAL to one of the "
+    "bars before it (a pivot high is at least as high as each bar before it and higher than each bar after it). When "
+    "the member's words are strict on both sides (\"above the highs of the N bars before it and the N bars after "
+    "it\"), write the comparisons yourself, on the bar N back, known on this bar: `high[N] > high[N + k]` and "
+    "`high[N] > high[N - k]` for every k from 1 to N (a `for` loop, or one line per k), and `low[N] < ...` for a low. "
+    "This comes before rule 10. If you do use `ta.pivothigh` or `ta.pivotlow`, never call its rule strict in `reply`: "
+    "say it counts a bar equal to one before it. This rule is ONLY for strict words on both sides: a request for "
+    "\"pivot highs\", \"swing highs\" or TradingView's pivots, with no such words, is answered with `ta.pivothigh` / "
+    "`ta.pivotlow` themselves (rule 10): they are TradingView's own, and the honest answer to those words.")
 
 #: ⭐ RULE 14: A FIGURE THE MEMBER MUST FILL IN (found by the first full live run of the value cases, 2026-11-22). On
 #: the formula door an "average cost" setting was drawn bare: a line at price 0 until filled, squeezing the chart. A
@@ -613,7 +654,8 @@ def contract(ref: Optional[Mapping[str, Any]] = None) -> str:
     """The contract as the assistant reads it: the rules, with rule 10's examples taken from the reference."""
     return (CONTRACT.replace("{own_functions}", _own_functions_said(ref)).replace("{last_bar}", _last_bar_said(ref))
             .replace("{number_on_bars}", NUMBER_ON_BARS_RULE)
-            .replace("{percent_format}", PERCENT_FORMAT_RULE).replace("{fill_in}", FILL_IN_RULE))
+            .replace("{percent_format}", PERCENT_FORMAT_RULE).replace("{fill_in}", FILL_IN_RULE)
+            .replace("{strict_pivot}", STRICT_PIVOT_RULE))
 
 
 def document(ref: Optional[Mapping[str, Any]] = None, run_stops: Optional[List[str]] = None) -> str:
@@ -625,7 +667,8 @@ def document(ref: Optional[Mapping[str, Any]] = None, run_stops: Optional[List[s
     admitted = list(ref.get("admitted") or [])
     out: List[str] = [contract(ref), ""]
 
-    out += _lines("LANGUAGE YOU MAY USE", [f"- {CAPABILITY_WORDS[c]}" for c in admitted if c in CAPABILITY_WORDS])
+    words = capability_words(ref)
+    out += _lines("LANGUAGE YOU MAY USE", [f"- {words[c]}" for c in admitted if c in words])
 
     out += _lines("WHAT A SCRIPT CAN SHOW", [f"- `{name}`" for name in served_outputs(ref)])
 

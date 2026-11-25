@@ -27,6 +27,7 @@ import { viewCacheTf, resolveShowExtended } from '../../../utils/viewSession'
 import { fetchTf } from '../../../components/chart/timeframes'
 import useSymbolHandoff from '../../../hooks/useSymbolHandoff'
 import { chartGroupKey } from '../../../hooks/handoffGroups'
+import { primeTypedIntent } from './typedIntentPrime'
 import { memHas } from '../../../utils/barsMemCache'
 import {
   sanitizeChartTabs, chartTabList, addChartTab, closeChartTab,
@@ -58,7 +59,7 @@ const ADD_WIDGET_LABELS = labelMap('menu')
 // the right-click menu and the workspace-only chrome (leverage picker, add-tab,
 // Share to the Floor).
 export default function ChartWidget({ color, opts, onOptsChange, chartId = null }) {
-  const { groupSyms, groupSymsStore, setGroupSym, setGroupTf, registerGroupTf, crosshairBus, chartsTheme, activeChartRef, chartApiById, periodSortMode, onPeriodSelected: wsOnPeriodSelected, onPeriodCancel: wsOnPeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: wsOnReplayCutoffPicked, onReplayPickCancel: wsOnReplayPickCancel, floatNewWidget, applyThemeToAllCharts, applyThemeToAllWidgets, countOtherCharts, applyAppearanceToOtherCharts, canOpenCompare, markDay, markDayColor, replayWarmIntraday, showReplayExit } = useWorkspace()
+  const { groupSyms, groupSymsStore, setGroupSym, setGroupTf, registerGroupTf, groupTfSets, crosshairBus, chartsTheme, activeChartRef, chartApiById, periodSortMode, onPeriodSelected: wsOnPeriodSelected, onPeriodCancel: wsOnPeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: wsOnReplayCutoffPicked, onReplayPickCancel: wsOnReplayPickCancel, floatNewWidget, applyThemeToAllCharts, applyThemeToAllWidgets, countOtherCharts, applyAppearanceToOtherCharts, canOpenCompare, markDay, markDayColor, replayWarmIntraday, showReplayExit } = useWorkspace()
   const navigate = useNavigate()
   // T3 integrated header: non-null only for a single chart on the /charts board grid.
   const widgetChrome = useContext(WidgetChromeContext)
@@ -448,6 +449,9 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
     }
     setGroupSym(activeColor, s)
   }, [activeColor, setGroupSym, persistActiveSettings])
+  // ⭐ (2026-11-23, the typed ticker) the settled typed text starts the linked group's device reads (the same ones the
+  // Enter's setGroupSym starts: handoffGroups.primeGroup), so Enter can show it in its own task (typedIntentPrime.js)
+  const handleTypedIntent = useCallback((s) => { primeTypedIntent(groupSymsStore, activeColor, s) }, [groupSymsStore, activeColor])
 
   // ── Detail Dock (Profile / News / Fundamentals as inline chart panels) ──────
   // The three stock-specific widgets, docked into THIS chart instead of floating
@@ -742,6 +746,8 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
         sym={sym}
         tf={tf}
         onSymbolChange={handleSymbolChange}
+        onTypedIntent={handleTypedIntent}
+        typedIntentTfs={groupTfSets?.[activeColor] || null}
         onTfChange={setTf}
         allowEconomic
         chartFeatures={chartFeatures}

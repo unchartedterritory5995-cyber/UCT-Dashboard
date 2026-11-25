@@ -71,7 +71,7 @@
   font-family: inherit;
   font-size: 12.5px;
   font-weight: 500;
-  color: #c9c6be;
+  color: var(--signature-page-rest, var(--signature-rest));
   cursor: pointer;
   white-space: nowrap;
   max-width: 172px;
@@ -99,20 +99,20 @@
 
 /* :not(.itemActive) is LOAD-BEARING, not tidiness: `.item:hover` (0,2,0) outranks
    `.itemActive` (0,1,0), so an unscoped hover would repaint the OPEN layout. */
-.item:not(.itemActive):hover { color: #f8f7f3; background: rgba(248, 247, 243, 0.03); }
+.item:not(.itemActive):hover { color: var(--signature-page-bright, var(--signature-bright)); background: color-mix(in srgb, var(--signature-page-bright, var(--signature-bright)) 3%, transparent); }
 
-.itemActive { color: #f8f7f3; font-weight: 600; background: rgba(248, 247, 243, 0.08); }
+.itemActive { color: var(--signature-page-bright, var(--signature-bright)); font-weight: 600; background: color-mix(in srgb, var(--signature-page-bright, var(--signature-bright)) 8%, transparent); }
 /* Owner 11-16 (top-bar option 2): the open tab is a soft filled chip — no underline. */
 .itemActive::before { background: transparent; }
 
 .item:focus-visible {
-  outline: 2px solid rgba(248, 247, 243, 0.4);
+  outline: 2px solid color-mix(in srgb, var(--signature-page-bright, var(--signature-bright)) 40%, transparent);
   outline-offset: -3px;
   border-radius: 6px;
 }
 
 /* A prebuilt layout's small grey lock; the open layout's unsaved-changes dot. */
-.lock { flex: 0 0 auto; color: #93939a; }
+.lock { flex: 0 0 auto; color: var(--signature-page-faint, var(--signature-faint)); }
 .dirty {
   flex: 0 0 auto;
   width: 6px;
@@ -165,16 +165,16 @@
   border-radius: 6px;
   background: transparent;
   cursor: pointer;
-  color: #a9a59b;
+  color: var(--signature-page-dim, var(--signature-dim));
   font-family: inherit;
   font-size: 11.5px;
   font-weight: 600;
   transition: color 120ms, background 120ms;
 }
-.ctl:hover { background: rgba(248, 247, 243, 0.07); color: #f8f7f3; }
-.ctl[aria-expanded='true'] { background: rgba(248, 247, 243, 0.07); color: #f8f7f3; }
+.ctl:hover { background: color-mix(in srgb, var(--signature-page-bright, var(--signature-bright)) 7%, transparent); color: var(--signature-page-bright, var(--signature-bright)); }
+.ctl[aria-expanded='true'] { background: color-mix(in srgb, var(--signature-page-bright, var(--signature-bright)) 7%, transparent); color: var(--signature-page-bright, var(--signature-bright)); }
 .ctl:focus-visible {
-  outline: 2px solid rgba(248, 247, 243, 0.4);
+  outline: 2px solid color-mix(in srgb, var(--signature-page-bright, var(--signature-bright)) 40%, transparent);
   outline-offset: -2px;
 }
 .count { font-size: 11px; font-variant-numeric: tabular-nums; }
@@ -378,20 +378,20 @@
   border-radius: 8px 8px 0 0;
   border: 1px solid transparent;
   border-bottom: none;
-  color: #a9a59b;
+  color: var(--signature-page-dim, var(--signature-dim));
   max-width: 200px;
 }
-.item:not(.itemActive):hover { background: rgba(248, 247, 243, 0.04); color: #ededed; }
+.item:not(.itemActive):hover { background: color-mix(in srgb, var(--signature-page-bright, var(--signature-bright)) 4%, transparent); color: var(--signature-page-text, var(--signature-text)); }
 .itemActive {
   background: var(--bg, #0a0e14);
   border-color: var(--header-line, rgba(255, 255, 255, 0.11));
-  color: #f8f7f3;
+  color: var(--signature-page-bright, var(--signature-bright));
 }
 .itemActive::before { content: none; }
 .right { align-self: center; }
 /* Owner 11-16: ＋ (and the ▾ beside it) a little more visible — brighter glyph, faint resting fill. */
-.ctl { color: #dedad2; background: rgba(248, 247, 243, 0.05); min-width: 28px; height: 28px; }
-.ctl:hover, .ctl[aria-expanded='true'] { background: rgba(248, 247, 243, 0.11); color: #ffffff; }
+.ctl { color: var(--signature-page-text, #dedad2); background: color-mix(in srgb, var(--signature-page-bright, var(--signature-bright)) 5%, transparent); min-width: 28px; height: 28px; }
+.ctl:hover, .ctl[aria-expanded='true'] { background: color-mix(in srgb, var(--signature-page-bright, var(--signature-bright)) 11%, transparent); color: var(--signature-page-bright, #ffffff); }
 .itemCreating { align-self: center; height: auto; padding: 0 4px; border: none; background: none; }
 .itemCreating .nameInput { width: 160px; height: 28px; }
 /* Owner 11-16: the "Name this layout" box lines up with the + and the ▾ beside it. The tabs

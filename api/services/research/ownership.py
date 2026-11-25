@@ -29,6 +29,13 @@ keeps no share count for, or an insider feed that legitimately has nothing
 recent are NOT failures -- only a read that failed is, so a quiet ticker is not
 refetched every few minutes and a failed read is never pinned as "nothing on
 file" for half a day.
+
+HELD IN THIS MODULE, NOT THE SHARED CACHE (speed pass 2, 2026-11-24). The record
+used to live in the shared 1,000-entry cache, which a busy pod turns over in
+minutes, so a 12h record was evicted early and the next open made 4+ vendor calls
+again (live: 2.0 s). It is now held here (`_HELD`, per symbol, the same 12h / 5 min
+validity, the least recently asked let go past `HELD_MAX`); `forget_for_tests`
+clears it.
 """
 from __future__ import annotations
 
@@ -37,11 +44,12 @@ import logging
 import math
 import re
 import threading
+import time
+from collections import OrderedDict
 
 from api.services import fmp_client
 from api.services import provider_errors as pe
 from api.services.cache import cache
-from api.services.cache_policy import set_by_completeness
 from api.services.insider import get_insider_activity
 from api.services.research.entity_resolution import resolve_entity
 
@@ -49,6 +57,43 @@ _logger = logging.getLogger(__name__)
 
 _CACHE_TTL = 43_200  # 12h -- only when both hard legs resolved
 _FAIL_TTL = 300        # 5 min -- a partial/failed fetch self-heals fast
+#: Records held (one per symbol), the least recently asked let go first. Measured on an invented full record
+#: (`tests/test_terminal_speed_pass2.py`): about 51 KB of memory for 21 KB of JSON, so about 5 MB at the bound, and
+#: about 14 MB at the bound if every record were as large as the 58 KB the route answered live (its overlays are
+#: added by the route and are not held here).
+HELD_MAX = 96
+_HELD: "OrderedDict[str, tuple[float, dict]]" = OrderedDict()   # sym -> (expires at, epoch seconds; the record)
+_held_lock = threading.Lock()
+
+
+def _recall(sym: str):
+    """The record held for `sym` while it is valid, else None (an expired one is let go)."""
+    with _held_lock:
+        hit = _HELD.get(sym)
+        if hit is None:
+            return None
+        if time.time() >= hit[0]:
+            del _HELD[sym]
+            return None
+        _HELD.move_to_end(sym)
+        return hit[1]
+
+
+def _remember(sym: str, record: dict, ttl: float) -> None:
+    with _held_lock:
+        _HELD[sym] = (time.time() + ttl, record)
+        _HELD.move_to_end(sym)
+        while len(_HELD) > HELD_MAX:
+            _HELD.popitem(last=False)
+
+
+def forget_for_tests(sym=None) -> None:
+    """Tests: forget the record held for `sym` (every record when None), so the next read builds."""
+    with _held_lock:
+        if sym is None:
+            _HELD.clear()
+        else:
+            _HELD.pop((sym or "").upper().strip(), None)
 # Institutional holders kept for the newest filed quarter: the size of the ONE holders read
 # (`limit`, FMP's first page). It was 12; the OWN panel's Funds (13F) block shows 20 and the rest
 # on request, so the page is 50. Still one vendor call per symbol per quarter; `holders_limit`
@@ -486,7 +531,7 @@ def get_ownership(sym):
     s = (sym or "").upper().strip()
     if not s:
         return {}
-    cached = cache.get(f"research_own::{s}")
+    cached = _recall(s)
     if cached is None:
         from api.services import single_flight
         cached = single_flight.run(f"research_own::{s}", lambda: _build_ownership(s))
@@ -506,8 +551,7 @@ def _build_ownership(sym):
     if not sym:
         return {}
 
-    ck = f"research_own::{sym}"
-    cached = cache.get(ck)
+    cached = _recall(sym)
     if cached is not None:
         return cached
 
@@ -565,5 +609,6 @@ def _build_ownership(sym):
     if not insider_ok:
         legs_failed.append(LEG_INSIDER)
     out["legs_failed"] = legs_failed
-    set_by_completeness(ck, out, complete=complete, ttl_ok=_CACHE_TTL, ttl_partial=_FAIL_TTL)
+    # a partial record is still served, for the short time only (cache_policy.set_by_completeness's rule)
+    _remember(sym, out, _CACHE_TTL if complete else _FAIL_TTL)
     return out

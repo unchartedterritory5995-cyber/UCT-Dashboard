@@ -2,11 +2,13 @@ import io
 import json
 import os
 import time
+from types import SimpleNamespace
 from unittest import mock
 
 import requests
 from PIL import Image
 
+from api.services import fmp_client
 from api.services import ticker_logos as tl
 
 
@@ -98,6 +100,26 @@ def test_logodev_is_first_source_short_circuits_chain():
     fh.assert_not_called()
 
 
+def _fmp_profile(body):
+    """Patch the profile read `_fmp_profile_row` ACTUALLY makes -- `fmp_client.get_company_profile`
+    -- and answer it the way the adapter does: a body comes back in the result envelope, an empty
+    list is the adapter's typed not-found, and None stands for a failed call (what the retired
+    `earnings_estimates._fmp_get` returned for one).
+
+    ⛔ These tests used to patch `earnings_estimates._fmp_get`, which `_fmp_profile_row` stopped
+    calling in 553f6b68bf (2026-09-12, the D1 typed-adapter migration). From then the patch
+    intercepted nothing: the real adapter ran -- refused on a runner for want of a key, so every
+    FMP-row expectation read None (red on master, run 45321831045), and a live FMP request on any
+    box that has FMP_API_KEY set."""
+    def _answer(ticker, *, timeout=None):
+        if body is None:
+            raise fmp_client._ERR.transient("FMP unavailable (test)")
+        if body == []:
+            raise fmp_client._ERR.not_found("no data for this request (test)")
+        return SimpleNamespace(value=body, degraded=None)
+    return mock.patch.object(fmp_client, "get_company_profile", side_effect=_answer)
+
+
 # ── FMP `stable/profile` migration (2026-08-05, plan Task 8) ──────────────────
 # _finnhub_logo_bytes now tries FMP `stable/profile` FIRST (own bounded
 # timeout, never routed through Finnhub's shared token bucket), falling
@@ -107,23 +129,21 @@ def test_logodev_is_first_source_short_circuits_chain():
 # fall-through path and the defensive "if FMP ever adds the field" path.
 
 def test_fmp_profile_row_parses_list_of_one_shape():
-    with mock.patch("api.services.earnings_estimates._fmp_get",
-                    return_value=[{"companyName": "Apple Inc.", "sector": "Technology"}]):
+    with _fmp_profile([{"companyName": "Apple Inc.", "sector": "Technology"}]):
         row = tl._fmp_profile_row("AAPL")
     assert row == {"companyName": "Apple Inc.", "sector": "Technology"}
 
 
 def test_fmp_profile_row_parses_bare_dict_shape():
-    with mock.patch("api.services.earnings_estimates._fmp_get",
-                    return_value={"companyName": "Apple Inc."}):
+    with _fmp_profile({"companyName": "Apple Inc."}):
         row = tl._fmp_profile_row("AAPL")
     assert row == {"companyName": "Apple Inc."}
 
 
 def test_fmp_profile_row_none_on_empty_response():
-    with mock.patch("api.services.earnings_estimates._fmp_get", return_value=None):
+    with _fmp_profile(None):
         assert tl._fmp_profile_row("ZZZZ") is None
-    with mock.patch("api.services.earnings_estimates._fmp_get", return_value=[]):
+    with _fmp_profile([]):
         assert tl._fmp_profile_row("ZZZZ") is None
 
 
@@ -140,8 +160,7 @@ def test_finnhub_logo_bytes_falls_through_to_finnhub_when_fmp_has_no_logo_field(
             status_code = 200
         return _R()
 
-    with mock.patch("api.services.earnings_estimates._fmp_get",
-                    return_value=[{"companyName": "Apple Inc.", "sector": "Technology"}]), \
+    with _fmp_profile([{"companyName": "Apple Inc.", "sector": "Technology"}]), \
          mock.patch("api.services.finnhub_client.fh_get",
                     return_value={"logo": "https://static.finnhub.io/aapl.png"}), \
          mock.patch("requests.get", side_effect=_fake_get) as req_get:
@@ -164,8 +183,7 @@ def test_finnhub_logo_bytes_uses_fmp_image_when_present_and_skips_finnhub():
             status_code = 200
         return _R()
 
-    with mock.patch("api.services.earnings_estimates._fmp_get",
-                    return_value=[{"companyName": "Apple Inc.",
+    with _fmp_profile([{"companyName": "Apple Inc.",
                                    "image": "https://images.financialmodelingprep.com/aapl.png"}]), \
          mock.patch("api.services.finnhub_client.fh_get") as fh, \
          mock.patch("requests.get", side_effect=_fake_get):
@@ -186,8 +204,7 @@ def test_finnhub_logo_bytes_fmp_image_url_rejected_by_ssrf_guard_falls_to_finnhu
             status_code = 200
         return _R()
 
-    with mock.patch("api.services.earnings_estimates._fmp_get",
-                    return_value=[{"image": "http://169.254.169.254/aapl.png"}]), \
+    with _fmp_profile([{"image": "http://169.254.169.254/aapl.png"}]), \
          mock.patch("api.services.finnhub_client.fh_get",
                     return_value={"logo": "https://static.finnhub.io/aapl.png"}), \
          mock.patch("requests.get", side_effect=_fake_get) as req_get:
@@ -216,8 +233,7 @@ def test_finnhub_logo_bytes_fmp_5xx_marks_transient_then_finnhub_still_tried():
             status_code = 200
         return _Good()
 
-    with mock.patch("api.services.earnings_estimates._fmp_get",
-                    return_value=[{"image": "https://fmp-cdn.example.com/aapl.png"}]), \
+    with _fmp_profile([{"image": "https://fmp-cdn.example.com/aapl.png"}]), \
          mock.patch("api.services.finnhub_client.fh_get",
                     return_value={"logo": "https://static.finnhub.io/aapl.png"}), \
          mock.patch("requests.get", side_effect=_fake_get):
