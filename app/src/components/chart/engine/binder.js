@@ -125,6 +125,7 @@ import { computeLaneOf, COMPUTE_LANE } from './computeLane'
 // ⭐⭐ NEIGHBOR FRAMES (2026-11-20) — columns and points computed AHEAD, in idle time, for the bars of the
 // rows a member is about to reach (`prepare` below), found by the switch instead of recomputed.
 import { neighborFramesOn, chartTimesFor, nfCount, nfLogSwitch } from '../neighborFrames'
+import { diagMiss, diagPrepared } from '../__diagNeighborMiss'   // DIAGNOSTIC ONLY
 import { rescaleOf, rescalePriceFormat } from './rescale'
 // ⭐ P2b — what a render state dropped, for the member's drawing note.
 import { setObjectRenderDrops, renderDroppedCount, renderHeldCount } from './objectRenderNotice'
@@ -1925,10 +1926,10 @@ export function createBinder({ chart, LWC, scope = '' }) {
   const takePrepared = (registry, def, inst, calcBars, sourceCols, keyCtx) => {
     if (!preparedCols.size) return null
     const byInst = preparedCols.get(calcBars)
-    if (!byInst) return null
+    if (!byInst) { diagMiss('cols', calcBars, inst.instanceId, 'binder'); return null }
     const e = byInst.get(inst.instanceId)
     const k = e && e.registry === registry && e.def === def ? prepKeyOf(registry, def, inst, sourceCols, keyCtx) : null
-    if (!k || k.key !== e.key || k.token !== e.token) { nfCount('colsMissed'); return null }
+    if (!k || k.key !== e.key || k.token !== e.token) { nfCount('colsMissed'); diagMiss(e ? 'cols-key-or-token' : 'cols-instance', calcBars, inst.instanceId, 'binder'); return null }
     // the side effects the normal path has on a landed, non-provisional envelope (an ask noted, the entry used)
     if (k.lane === COMPUTE_LANE.SERVER) attempt(() => noteServerHit(def, resolveInputs(def, inst.inputs), keyCtx.sym, keyCtx.tf))
     nfCount('colsHit')
@@ -3838,6 +3839,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
         answer = r.value
         byInst.set(inst.instanceId, { registry, def, key: k.key, token: k.token, cols: answer })
         nfCount('colsPrepared')
+        diagPrepared('cols', bars, inst.instanceId)   // DIAGNOSTIC ONLY
       }
       for (const plotKey of Object.keys(answer)) cols.set(bindingKey(inst.instanceId, plotKey), answer[plotKey])
     }

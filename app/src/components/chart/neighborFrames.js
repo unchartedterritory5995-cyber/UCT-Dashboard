@@ -36,6 +36,7 @@
 // store's adapter and StockChart can all still reach it.
 
 import { chartSpeedKilled } from '../../lib/chartSpeed'
+import { diagSetIdle, diagHit, diagMiss } from './__diagNeighborMiss'   // DIAGNOSTIC ONLY
 
 export const NEIGHBOR_FRAMES_KEY = 'uct.neighborframes'
 
@@ -200,7 +201,8 @@ export function deriveFrom(src, name, sig, fn) {
   if (!src || typeof src !== 'object') return fn()
   const m = _derived.get(src) || _derived.make(src, new Map())
   const k = `${name}\u0001${sig}`
-  if (m.has(k)) { _stats.derivedHit += 1; return m.get(k) }
+  if (m.has(k)) { _stats.derivedHit += 1; diagHit(name); return m.get(k) }
+  diagMiss(name, src, sig)   // DIAGNOSTIC ONLY
   const v = fn()
   m.set(k, v)
   while (m.size > DERIVED_PER_SOURCE) m.delete(m.keys().next().value)
@@ -307,7 +309,8 @@ function _run(deadline) {
     const q = _queue[i]
     const p0 = _now()
     let done = false
-    try { done = !!q.gen.next().done } catch { done = true }
+    diagSetIdle(true)   // DIAGNOSTIC ONLY
+    try { done = !!q.gen.next().done } catch { done = true } finally { diagSetIdle(false) }
     const ms = _now() - p0
     _stats.pieces += 1
     _stats.workMs += ms

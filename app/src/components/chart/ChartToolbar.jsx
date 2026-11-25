@@ -1,4 +1,5 @@
 // app/src/components/chart/ChartToolbar.jsx — TradingView-style horizontal drawing toolbar + settings panel
+import { useWhyRender } from './__diagNeighborMiss'   // DIAGNOSTIC ONLY
 import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback, useContext, forwardRef, useImperativeHandle, lazy, Suspense, Fragment } from 'react'
 import { createPortal } from 'react-dom'
 import { CHART_DEFAULTS, PRESETS, mergeChartSettings } from './chartDefaults'
@@ -1187,6 +1188,7 @@ function ChartToolbar({
   // host's tour never opens under a sheet. Absent ⇒ the library reads no tour state.
   onIndicatorFirstAdd = null,
 }, ref) {
+  useWhyRender('ChartToolbar', arguments[0])   // DIAGNOSTIC ONLY
   const [showColors, setShowColors] = useState(false)
   const [colorPanelPos, setColorPanelPos] = useState({ left: 0, top: 0 })
   // Toolbar collapse toggle — when true, everything but the toggle button hides so
