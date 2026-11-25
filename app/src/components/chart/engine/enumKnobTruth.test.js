@@ -72,6 +72,19 @@ describe('e97 U8 — every enum setting a member can see moves the script\'s own
     expectTrue(enumKnobTruth(fs.readFileSync(path.join(CORPUS, file), 'utf8'), BARS))
   }, 240000)
 
+  // ⭐ coordinator ruling (i): a switch the setting reaches through a helper's parameter is built within a budget; over
+  // it, the switch folds to the default as it always did and the setting is WITHHELD BY NAME. Measured: artemis's
+  // drmMethod (its helper-of-helper method switch) is over; sigMethod is within, and true (above).
+  it('⛔ over the budget, the setting is withheld by name (artemis "Smoothing" / drmMethod), never a lying control', () => {
+    const r = memberPaneDefinition({ source: fs.readFileSync(path.join(CORPUS, 'artemis-oscillator-pro__ea1097ca9e.pine'), 'utf8') })
+    expect(r.ok, r.reason).toBe(true)
+    const keys = r.definition.inputs.map((i) => i.key)
+    expect(keys).not.toContain('drmMethod')
+    expect(keys).toContain('sigMethod')
+    expect((r.notes || []).map((n) => n.note).join(' | '))
+      .toContain('is not offered as a setting: this script\'s setting "Smoothing" has more variants than this engine expands yet, so it stays at its default "RMA"')
+  }, 240000)
+
   it('⛔ CONTROL: a document whose "Type" never reaches the smoothing is caught (the lie this rail exists for)', () => {
     const lying = memberPaneDefinition({ source: familyOf('    ta.sma(x, n) + 0 * (t == "EMA" ? 1 : 0)') })
     expect(lying.ok, lying.reason).toBe(true)

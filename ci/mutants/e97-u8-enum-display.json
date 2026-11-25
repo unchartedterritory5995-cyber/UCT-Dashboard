@@ -26,7 +26,7 @@
    "from": "      else if (bound && bound.kind === 'state' && this.mutatedKnown) {",
    "to": "      else if (false) {",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/displayEnum.test.js",
-   "expectRed": "the MA-family shape"
+   "expectRed": "display-only, through a `var`"
   },
   {
    "id": "U8-M4",
@@ -35,16 +35,7 @@
    "from": "    if (node.type === 'binary' && (node.op === '==' || node.op === '!=') && this.enumInputs) {",
    "to": "    if (false) {",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/displayEnum.test.js",
-   "expectRed": "a plain binding reads the same way"
-  },
-  {
-   "id": "U8-M5",
-   "mutant": "the setting's leaf is not taken first (the declared pass reads the var as state)",
-   "file": "app/src/components/chart/engine/ast/pine.js",
-   "from": "      let test = settingLeaf",
-   "to": "      let test = null",
-   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/displayEnum.test.js",
-   "expectRed": "the MA-family shape"
+   "expectRed": "display-only, through"
   },
   {
    "id": "U8-M6",
@@ -81,6 +72,33 @@
    "to": "    if (false) {",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/enumKnobTruth.test.js",
    "expectRed": "CONTROL: a document whose"
+  },
+  {
+   "id": "U8-M10",
+   "mutant": "the var-seed fix re-widened to any settings-or-numbers seed (a na seed, a numeric setting)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    return walk(t, 0) && enumLeaf",
+   "to": "    return walk(t, 0)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pine.derived.test.js",
+   "expectRed": "refuses by name at pine:state"
+  },
+  {
+   "id": "U8-M11",
+   "mutant": "the parameter-reached switch is built whatever its size (no budget, no withheld setting)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    if (en.viaParam && treeNodeCount(out, PARAM_SWITCH_MAX_NODES + 1) > PARAM_SWITCH_MAX_NODES) return withhold()",
+   "to": "    void 0",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/enumKnobTruth.test.js",
+   "expectRed": "over the budget, the setting is withheld by name"
+  },
+  {
+   "id": "U8-M12",
+   "mutant": "a withheld setting is still declared (the door offers a control the script folds)",
+   "file": "app/src/components/chart/builder/builderInputs.js",
+   "from": "        && !displacementBound.has(e.name) && !withheldKnobs.has(e.name))",
+   "to": "        && !displacementBound.has(e.name))",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/enumKnobTruth.test.js",
+   "expectRed": "over the budget, the setting is withheld by name"
   }
  ]
 }

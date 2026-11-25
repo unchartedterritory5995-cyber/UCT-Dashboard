@@ -78,6 +78,25 @@ describe('e97 U8(b) — a display read through a `var` (or a plain binding) to a
     expect(plotHiddenAt(plotOf(def, 'p'), def, { kind: 'B' })).toBe(false)
   })
 
+  // ⭐ a setting ONLY a band's and a paint's display read comes across through the colour-inputs proof, which holds
+  // their display's FORM fixed: so the pass that does not declare it must read the same setting leaf
+  // (`displayKnobLeafOf`) as the pass that does, through a `var` and through a plain binding alike
+  it.each([
+    ['a `var`', 'var on = kind == "B"'],
+    ['a plain binding', 'on = kind == "B"'],
+  ])('display-only, through %s: a band and a paint follow the setting, and the setting is declared', (_, binding) => {
+    const { definition: def } = door(`kind = input.string("A", "Kind", options = ["A", "B"])\n${binding}\n`
+      + 'a = plot(close, "a")\nb = plot(open, "b")\n'
+      + 'fill(a, b, color = color.red, display = on ? display.all : display.none)\n'
+      + 'bgcolor(color.red, display = on ? display.all : display.none)')
+    expect(inputOf(def, 'kind')).toMatchObject({ type: 'enum' })
+    const band = def.plots.find((p) => p.fill)
+    expect(fillActiveFor(band.fill, { def, inst: { inputs: {} } })).toBe(false)
+    expect(fillActiveFor(band.fill, { def, inst: { inputs: { kind: 'B' } } })).toBe(true)
+    expect(plotHiddenAt(def.paints[0], def, {})).toBe(true)
+    expect(plotHiddenAt(def.paints[0], def, { kind: 'B' })).toBe(false)
+  })
+
   it('⛔ CONTROL: a `var` the script REASSIGNS is per-bar state, not the setting', () => {
     const r = memberPaneDefinition({ source: `${H}kind = input.string("A", "Kind", options = ["A", "B"])\nvar on = kind == "B"\n`
       + 'if close > open\n    on := true\nplot(close, "p", display = on ? display.all : display.none)\n' })
