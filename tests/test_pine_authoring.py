@@ -91,7 +91,10 @@ def test_an_output_is_listed_only_when_its_own_probe_ran():
     shown = section(pa.document(), "WHAT A SCRIPT CAN SHOW")
     assert re.findall(r"`([a-z]+)`", shown) == served
     withheld = [o["name"] for o in REF["outputs"] if o["name"] not in served]
-    assert "hline" in withheld                                             # today: asked, and not drawn
+    assert "plotarrow" in withheld                                         # today: asked, and not drawn
+    # e96 (HLINE_DEFAULTS[3|4|5], witnessed by #2596's vw-hline-defaults-v{3,4,5}): the v5 `hline` probe runs fully
+    # now, so `hline` is SERVED; it was the withheld example while v5's hline defaults were unwitnessed.
+    assert "hline" in served
     for name in withheld:
         assert f"`{name}`" not in shown
     # take one away in the reference and it leaves the document
@@ -332,12 +335,16 @@ def test_gaps_md_is_what_the_probes_say_now():
 def test_a_probe_the_engine_runs_is_not_a_gap_and_one_it_refuses_is():
     rows = {r["id"]: r for r in pa.gap_rows()}
     assert set(rows) == {p["id"] for p in GAPS["probes"]}
-    # today: a horizontal level is withheld; a zigzag of lines runs
-    assert rows["hline"]["served"] is False and rows["hline"]["guard"] and rows["hline"]["says"]
+    # today: plotarrow's colours are withheld; a zigzag of lines runs
+    assert rows["plotarrow-colours"]["served"] is False and rows["plotarrow-colours"]["guard"] and rows["plotarrow-colours"]["says"]
     assert rows["zigzag-lines"]["served"] is True and rows["zigzag-lines"]["guard"] is None
+    # e96 (HLINE_DEFAULTS[3|4|5], witnessed by #2596's vw-hline-defaults-v{3,4,5}): a horizontal level RUNS now; it was
+    # the withheld example while v5's hline defaults were unwitnessed (pine:colour-default-unwitnessed)
+    assert rows["hline"]["served"] is True and rows["hline"]["guard"] is None
     doc = pa.gaps_document()
-    assert "| `hline` |" in doc and "| `zigzag-lines` |" not in doc
-    assert "`zigzag-lines`" in doc.split("## Probes the engine serves today")[1].split("## The probes")[0]
+    assert "| `plotarrow-colours` |" in doc and "| `zigzag-lines` |" not in doc and "| `hline` |" not in doc
+    serves_today = doc.split("## Probes the engine serves today")[1].split("## The probes")[0]
+    assert "`zigzag-lines`" in serves_today and "`hline`" in serves_today
     # every probe's script is printed, whichever it is
     for p in GAPS["probes"]:
         assert f"### `{p['id']}`" in doc and p["source"].strip() in doc
