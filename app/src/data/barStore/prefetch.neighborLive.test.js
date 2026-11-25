@@ -144,7 +144,7 @@ describe('L: a next row the push stream has kept current through the roll is sho
     vi.setSystemTime(at(10, 0, 50))
     const w = await boot('ok')
     const hold = await liveRow(w, at(10, 0, 51))                      // its newest frame: 10:00
-    vi.setSystemTime(at(10, 2, 0) + 500)                               // M = 10:01, the copy ends at 10:00
+    vi.setSystemTime(at(10, 2, 0) + 2000)                              // M = 10:01, the copy ends at 10:00 (past the margin)
     expect(w.pf.peekDisplayable('AAA', '1'), 'a thin minute the stream proved empty waited').toBe(true)
     hold.clear()
     w.store.dispose()
@@ -155,8 +155,43 @@ describe('L: a next row the push stream has kept current through the roll is sho
     const w = await boot('ok')
     const hold = await liveRow(w, at(10, 0, 51))
     w.stream.st.lastBar.set('AAA:1', T(10, 1) * 1000)
-    vi.setSystemTime(at(10, 2, 0) + 500)
+    vi.setSystemTime(at(10, 2, 0) + 2000)
     expect(w.pf.peekDisplayable('AAA', '1'), 'a copy missing a minute the stream delivered was shown').toBe(false)
+    hold.clear()
+    w.store.dispose()
+  })
+
+  // ⛔ (review of #2721 round 2) 'no frame for M' right after the roll can mean 'not delivered yet': the ahead poll
+  // (0.25 s) plus 100-300 ms delivery. Rule a holds for the NEWEST closed bucket only from RULE_A_MARGIN_MS after its end.
+  it('A1d a thin name\'s only print late in M (frame at the roll + 0.6 s), the press at + 0.3 s: not current without M', async () => {
+    vi.setSystemTime(at(10, 0, 50))
+    const w = await boot('ok')
+    expect(w.P.RULE_A_MARGIN_MS).toBe(1500)
+    const hold = await liveRow(w, at(10, 0, 51))                      // live since 10:00:51, newest frame 10:00
+    vi.setSystemTime(at(10, 2, 0) + 300)                               // M = 10:01 printed at 10:01:59.8, not delivered yet
+    expect(w.pf.peekDisplayable('AAA', '1'), 'a copy without M painted as current before M\'s frame could arrive').toBe(false)
+    let out = 'pending'
+    w.pf.prepareForDisplay('AAA', '1').then((o) => { out = o })
+    await tick(100)
+    expect(out, 'the press painted without M inside the delivery margin').toBe('pending')
+    await tick(200)                                                    // + 0.6 s: M's frame lands
+    w.stream.st.lastBar.set('AAA:1', T(10, 1) * 1000)
+    w.stream.emit('AAA', '1', frame('AAA', T(10, 1), 10.9, at(10, 1, 59) + 800, true))
+    await tick(20)
+    expect(out).toBe('current')
+    expect(holdsClosed(w, 'AAA', T(10, 1)), 'painted without the late print').toBe(true)
+    hold.clear()
+    w.store.dispose()
+  })
+
+  it('A1e control: past RULE_A_MARGIN_MS with still no frame for M, rule a holds (a thin minute)', async () => {
+    vi.setSystemTime(at(10, 0, 50))
+    const w = await boot('ok')
+    const hold = await liveRow(w, at(10, 0, 51))
+    vi.setSystemTime(at(10, 2, 0) + 300)
+    expect(w.pf.peekDisplayable('AAA', '1')).toBe(false)
+    vi.setSystemTime(at(10, 2, 0) + 1500)
+    expect(w.pf.peekDisplayable('AAA', '1'), 'past the margin a proven-empty minute still waited').toBe(true)
     hold.clear()
     w.store.dispose()
   })
@@ -165,7 +200,7 @@ describe('L: a next row the push stream has kept current through the roll is sho
     vi.setSystemTime(at(10, 0, 50))
     const w = await boot('ok')
     const hold = await liveRow(w, at(10, 1, 30))
-    vi.setSystemTime(at(10, 2, 0) + 500)
+    vi.setSystemTime(at(10, 2, 0) + 2000)
     expect(w.pf.peekDisplayable('AAA', '1')).toBe(false)
     hold.clear()
     w.store.dispose()
