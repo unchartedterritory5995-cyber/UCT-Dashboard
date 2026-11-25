@@ -69,12 +69,16 @@ export const BARS_LIVE_DISENGAGE_MS = 150000
 let _nextId = 1
 const _subscribers = new Map()  // id -> { sym, tf, key, ahead, onBar, onReconnect, onStatus }
 let _buckets = []               // [{ key, pairs:Set<string>, ahead:Set<string>, es, connected, retryDelay, reconnectTimer, lastMsg, lastEventId }]
-// 'SYM:TF' -> { everDelivered:boolean, lastBarAt:number, liveSince:number|null }
+// 'SYM:TF' -> { everDelivered:boolean, lastBarAt:number, lastBarT:number, liveSince:number|null, rejoin?:boolean, rejoinT?:number }
 // `liveSince`: when the pair started delivering WITHOUT A BREAK (its first developing frame since the last break). A break
 // is an error or a silent death of its connection, the server's vendor-down word, a recovery reconnect, the delivery going
-// stale, or its last subscriber leaving. A REBUILD that keeps the pair is not one: the new connection's first frames are
-// the server's current bar for every pair (and its recent finals), so nothing the pair carried is lost to it, exactly as
-// for the chart on screen riding the same connection (getStatus reports null while that connection is down).
+// stale, the pair dropping off every connection, or its last subscriber leaving.
+// ⛔ A REBUILD IS A BREAK UNLESS IT FELL INSIDE ONE BUCKET (review of #2721, 1-A). A browser's new connection gets ONE frame
+// per pair, the bucket of the symbol's newest trade (api/services/bar_broadcaster.py `subscribe`); the recent-finals replay
+// (`snapshot_bars`) is the ingest feed's, never a browser's. So when a roll falls inside the gap, the closed bucket's final
+// (and its last trades) never arrive on this connection. At the teardown each pair notes the bucket of its last frame
+// (`rejoinT`); the new connection's first frame for the pair keeps `liveSince` only when it is that SAME bucket, and a
+// later bucket breaks it (getStatus reports null until that first frame decides).
 const _keyState = new Map()
 let _lastResume = null          // the newest `event: resume` declaration, with its bucket key
 let _rebuildTimer = null
@@ -208,14 +212,17 @@ export function getStatus(sym, tf, session) {
   const fresh = recent < (wasDelivering ? BARS_LIVE_DISENGAGE_MS : BARS_LIVE_STALE_MS)
   const delivering = connected && !bucket.vendorDown && !!(ks && ks.everDelivered) && fresh
   if (ks) ks.delivering = delivering   // persist for next call's hysteresis
-  if (ks && !fresh) ks.liveSince = null   // gone stale: a break (a connection down for a rebuild is not)
-  // `liveSince` (2026-11-25): when this pair started delivering without a break (see _keyState); null while not delivering.
-  return { connected, healthy, delivering, liveSince: delivering && ks && Number.isFinite(ks.liveSince) ? ks.liveSince : null }
+  if (ks && !fresh) ks.liveSince = null   // gone stale: a break
+  // `liveSince` (2026-11-25): when this pair started delivering without a break (see _keyState); null while not delivering
+  // and while a rebuilt connection's first frame for it has not decided whether delivery continued (`rejoin`).
+  // `lastBarT`: the bucket start (ms) of the newest frame the stream delivered for it (prefetch: a bucket with no frame).
+  const live = delivering && ks && !ks.rejoin && Number.isFinite(ks.liveSince)
+  return { connected, healthy, delivering, liveSince: live ? ks.liveSince : null, lastBarT: live && Number.isFinite(ks.lastBarT) ? ks.lastBarT : null }
 }
 
 /** A break in the pairs' delivery: their `liveSince` starts again at their next developing frame. */
 function _breakLive(pairs) {
-  for (const k of pairs) { const ks = _keyState.get(k); if (ks) ks.liveSince = null }
+  for (const k of pairs) { const ks = _keyState.get(k); if (ks) { ks.liveSince = null; ks.rejoin = false } }
 }
 
 /** The newest resume declaration the server sent (or null): what it said, which
@@ -276,7 +283,18 @@ function _rebuild() {
     next.push(bucket)
     _connectBucket(bucket)
   }
-  for (const stale of existingByKey.values()) _teardownBucket(stale)
+  // (review of #2721, 1-A) a pair whose connection is torn down: carried on by a new connection, it notes the bucket of its
+  // last frame (decided by its first frame there: see _keyState); carried by none (it dropped off), its delivery breaks
+  const carried = new Set()
+  for (const b of next) for (const k of b.pairs) carried.add(k)
+  for (const stale of existingByKey.values()) {
+    for (const k of stale.pairs) {
+      const ks = _keyState.get(k)
+      if (!ks) continue
+      if (carried.has(k)) { ks.rejoin = true; ks.rejoinT = Number.isFinite(ks.lastBarT) ? ks.lastBarT : null } else { ks.liveSince = null; ks.rejoin = false }
+    }
+    _teardownBucket(stale)
+  }
   _buckets = next
 
   if (_buckets.length > 0 && !_watchdogTimer) {
@@ -367,6 +385,12 @@ function _connectBucket(bucket) {
         _keyState.set(key, ks)
         if (!wasDelivering) _notifyStatusForKey(key)
         return
+      }
+      // (review of #2721, 1-A) the first frame after a rebuild decides: the same bucket as the last one before it keeps
+      // the pair's delivery unbroken; a later bucket means a roll fell inside the gap (an older final waits for the next)
+      if (ks.rejoin && !(_t != null && Number.isFinite(ks.rejoinT) && _t < ks.rejoinT)) {
+        ks.rejoin = false
+        if (!(_t != null && Number.isFinite(ks.rejoinT) && _t === ks.rejoinT)) ks.liveSince = null
       }
       if (_t != null && !(Number.isFinite(ks.lastBarT) && ks.lastBarT > _t)) ks.lastBarT = _t
       if (_developingFrame) ks.everDelivered = true
