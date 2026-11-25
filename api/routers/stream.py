@@ -783,6 +783,12 @@ async def stream_bars(
         for (sym, tf) in pairs + ahead_pairs:
             queues.append((sym, tf, _sub(sym, tf)))
         from api.services import bar_contract as _bar_contract
+        # the pairs' series_rev reads start now, on bar_contract's worker pool (never this loop),
+        # so the first frames of a new chart already carry the store's rev
+        try:
+            _bar_contract.prefetch_stream_fields(pairs + ahead_pairs, session)
+        except Exception:  # noqa: BLE001 - identity is additive; a failed prefetch only means a null rev for ~1 read
+            pass
         _logger.info("[stream_bars] subscribed %d pairs (+%d ahead): %s", len(pairs), n_ahead, pairs[:10])
         # D8: fold the day's stored/REST minute bars into each symbol's minute map
         # (once per upstream subscription) so a mid-bucket subscriber gets the true
