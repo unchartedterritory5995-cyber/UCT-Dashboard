@@ -936,6 +936,12 @@ _TAIL_RETRY_AFTER_MIN_S = 3
 _TAIL_RETRY_AFTER_JITTER_S = 2
 
 
+#: W2: the week / month timeframes whose stale serve is stated (`_augment_with_contract` `date_stale`), and when to ask
+#: again (the background delta that heals them answered the next ask within 2 s on 2026-11-25: TXN, AAPL).
+_WEEK_MONTH_TFS = ("W", "M")
+_DATE_STALE_RETRY_AFTER_S = 2
+
+
 def _tail_retry_after_s() -> int:
     import random
     return _TAIL_RETRY_AFTER_MIN_S + random.randint(0, _TAIL_RETRY_AFTER_JITTER_S)
@@ -955,7 +961,7 @@ def _since_key(since, tf: str):
 def _augment_with_contract(response, ticker: str, tf: str, session: str | None, *,
                            store_backed: bool, tail_status: bool, to: bool = False,
                            meta: dict | None = None, since_key: int | None = None,
-                           own_history_rev: bool = False):
+                           own_history_rev: bool = False, date_stale: bool | None = None):
     """THE BAR CONTRACT (docs/architecture/bar-contract.md) onto EVERY 200 bars answer
     — every tf, every serve branch, full / `since=` / `to=` alike — in ONE parse that
     also carries `tail_status` where it always applied (`tail_status=True`: live equity
@@ -1001,6 +1007,19 @@ def _augment_with_contract(response, ticker: str, tf: str, session: str | None, 
                 headers = _apply_tail_status(payload, ticker, tf, session) or {}
         except Exception:
             headers = {}
+    # ⭐ A WEEK OR MONTH ANSWER SAYS WHETHER IT WAS SERVED STALE (2026-11-25, the wide sweep W2). The stale-while-revalidate
+    # serve hands back the stored W/M rows while a background delta heals them, and the stored month table can be days
+    # behind: the month chart painted the current month's bar with an old close (TXN 295.86 against 265.02) on 23 of 30
+    # presses, every one from a `stale-swr` answer a warm had read seconds before. `date_stale` is that serve
+    # (bars_fetch's serve layer); the client holds such a copy and asks again (prefetch._weekMonthStale). Every other
+    # live-equity W/M answer says `current`, so a later answer always replaces the word (reducer: the newest answer's
+    # `tail_status` stands). D is not judged here: the daily chart keeps its own paint rule.
+    if tail_status and tf in _WEEK_MONTH_TFS and date_stale is not None:
+        payload["tail_status"] = "unverified" if date_stale else "current"
+        if date_stale:
+            payload["retry_after"] = _DATE_STALE_RETRY_AFTER_S
+            headers = dict(headers)
+            headers["Retry-After"] = str(_DATE_STALE_RETRY_AFTER_S)
     payload.pop("tail_pending", None)      # the since path's marker is the router's to read, never a client's
     out = JSONResponse(content=payload, status_code=getattr(response, "status_code", 200))
     for h in ("retry-after", "x-bars-shed"):
@@ -1518,7 +1537,8 @@ def _serve_bars_impl(
                     response, ticker, tf, session,
                     store_backed=_live_equity and get_serve_layer() != "yf-only",
                     tail_status=(_live_equity and not to), to=bool(to), meta=_meta_pre,
-                    since_key=_since_key(since, tf), own_history_rev=is_index(ticker))
+                    since_key=_since_key(since, tf), own_history_rev=is_index(ticker),
+                    date_stale=((get_serve_layer() == "stale-swr") if tf in _WEEK_MONTH_TFS else None))
             except Exception:
                 pass
 

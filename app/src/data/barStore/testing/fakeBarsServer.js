@@ -58,6 +58,22 @@ export function serverAnswer(q, mode = 'ok') {
     return { body: { ticker: q.sym, tf: q.tf, sealed: true, last_sealed: q.d, bars: HISTORY_DAYS.map((t) => ({ t, o: 10, h: 11, l: 9, c: 10.5, v: 100 })) } }
   }
   if (['D', 'W', 'M'].includes(q.tf)) {
+    // `date-stale`: a W/M answer the server served from its stale store (bars.py: `tail_status: 'unverified'`, the old
+    // close 29.5); `date-current`: the server's word that it is not (`tail_status: 'current'`, the close 26.5). Both carry
+    // the contract as production does (series_rev, the forming bar as `developing` with its rev).
+    if (mode === 'date-stale' || mode === 'date-current') {
+      const stale = mode === 'date-stale'
+      const c = stale ? 29.5 : 26.5
+      const at = Date.now()
+      const row = (t) => ({ t, o: 10, h: 30, l: 9, c, v: 100 })
+      return {
+        body: {
+          ticker: q.sym, tf: q.tf, contract: 1, series_rev: at, history_rev: 1, complete_through: null,
+          tail_status: stale ? 'unverified' : 'current', ...(stale ? { retry_after: 2 } : {}),
+          bars: ['2026-11-06', '2026-11-09', '2026-11-10'].map(row), developing: { ...row('2026-11-10'), rev: at },
+        },
+      }
+    }
     return { body: { ticker: q.sym, tf: q.tf, bars: ['2026-11-06', '2026-11-09', '2026-11-10'].map((t) => ({ t, o: 10, h: 11, l: 9, c: 10.5, v: 100 })) } }
   }
   const tf = Number(q.tf)

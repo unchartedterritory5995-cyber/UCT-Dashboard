@@ -67,13 +67,13 @@ import { fullBarsFor, firstPaintBarsFor } from '../../utils/barsBackfill'
 import { PREFETCH_WINDOWS, prefetchTargetBars } from '../../utils/historyPrepend'
 import { viewShowExtended } from '../../utils/viewSession'
 import { isNativeTf, fetchTf } from '../../components/chart/timeframes'
-import { isCacheCurrentForView, expectedBarsBehind, isHolidayISO } from '../../utils/marketSession'
+import { isCacheCurrentForView, expectedBarsBehind, isHolidayISO, expectedLatestDailySessionET } from '../../utils/marketSession'
 import { deviceCopyFresh, inRegularSession } from '../deviceStore/fresh'
 import { deviceServesTf } from '../deviceStore/tfs'
 import { deviceStoreKillSeen } from '../../lib/chartSpeed'
 import { isAppVisible } from '../../lib/deskVisibility'
 import { bucketEndUnix } from '../../components/chart/liveBuckets'
-import { bucketStartUnix, etDateOf, etMinuteOfDay, rthCloseMinuteOf } from '../../components/chart/barTime'
+import { bucketStartUnix, etDateOf, etMinuteOfDay, rthCloseMinuteOf, etOffsetSec } from '../../components/chart/barTime'
 import { serverNow } from '../../lib/serverClock'
 import { BARSTORE } from '../../components/chart/barStoreSwitch'
 import { prefetchTickerMeta as _defaultTickerMeta } from '../../hooks/useTickerMeta'
@@ -860,6 +860,46 @@ export function createPrefetch(o = {}) {
   }
 
   // ── the handoff ─────────────────────────────────────────────────────────────
+  /** When the latest CLOSED daily session closed (unix s; the half-day's 13:00 too). */
+  function _lastDailyCloseUnix(nowMs) {
+    const iso = expectedLatestDailySessionET(nowMs)
+    const day = Date.parse(`${iso}T00:00:00Z`) / 1000
+    const noon = day + 43200
+    return day + rthCloseMinuteOf(noon) * 60 - etOffsetSec(noon)
+  }
+  /**
+   * ⭐ (2026-11-25, the wide sweep W2) A HELD WEEK OR MONTH COPY IS JUDGED BEFORE IT PAINTS. Any held D/W/M set painted in the
+   * key task (useSymbolHandoff dailyHoldNeeded), and the month chart showed the right symbol on the current month's bar
+   * with an OLD close for 68-284 ms (23 of 30 presses; TXN 295.86 against 265.02, QCOM -9.7%, AVGO +7.5%, CAT +6.0%). Every
+   * one of those copies was the answer of a warm 1.9-6.0 s before the press that the server had served from its stale
+   * store (Server-Timing `bars(stale-swr)`: the month table it keeps is days behind; its background heal answered the
+   * press's own ask `bars(mem)`, current); the 7 presses that painted right had a `bars(mem)` answer. The server now says
+   * so (`tail_status: 'unverified'` on a W/M answer served stale, api/routers/bars.py), and such a copy is stale here: the
+   * switch holds (DAILY_HOLD_MAX_MS at most) and the daily prepare asks first.
+   * ...AND BY AGE, where it is known: a W/M copy read (answered, or saved) before the latest daily close carries a
+   * developing bar that misses that session. A copy whose read time is unknown is judged as before.
+   * (D keeps its own paint rule, the daily verdict.)
+   */
+  function _weekMonthStale(key, s) {
+    const tf = parseKey(key)?.tf
+    if ((tf !== 'W' && tf !== 'M') || !s?.bars?.length) return false
+    if (s.restSeen && s.tailStatus === 'unverified') return true
+    let readAt = null
+    if (s.restSeen) {
+      const a = asked.get(key)
+      if (a?.answered && Number.isFinite(a.at)) readAt = a.at
+    } else {
+      const v = S().persist?.savedAtOf?.(key)
+      if (Number.isFinite(v)) readAt = v
+    }
+    return readAt != null && readAt < _lastDailyCloseUnix(now()) * 1000
+  }
+  /** (W2, see _weekMonthStale) Is the W/M copy `sym` / `tf` would show held and stale? The handoff holds for it. */
+  function dateCopyStale(sym, tf, { showExtended } = {}) {
+    const key = keyFor(sym, tf, { showExtended })
+    return !!key && _weekMonthStale(key, S().peek(key))
+  }
+
   function peekDisplayable(sym, tf, { showExtended } = {}) {
     if (!sym || !tf) return false
     if (!isNativeTf(tf) || !isIntradayTf(tf)) return true
@@ -942,6 +982,7 @@ export function createPrefetch(o = {}) {
     const s = key ? S().peek(key) : null
     if (!s) return 0
     if (answered && !(s.restSeen && S().network?.answered?.(key))) return 0
+    if (answered && _weekMonthStale(key, s)) return 0   // (W2: an answer served stale covers nothing)
     return s.bars.length + (s.developing ? 1 : 0)
   }
 
@@ -1334,12 +1375,16 @@ export function createPrefetch(o = {}) {
       _deviceNow(key)
       const s0 = await Promise.race([hyd, new Promise((resolve) => setTimer(() => resolve(undefined), HYDRATE_WAIT_MS))])
       if (!S().deepPending?.(key)) {
-        const s = await ensure(key, { until: DAILY_PREPARED, priority: 'urgent', signal, _s0: s0 ?? null })
+        // (W2: a stale W/M copy is asked again first, whatever its status says: _weekMonthStale)
+        const s = await ensure(key, _weekMonthStale(key, s0 ?? S().peek(key))
+          ? { until: ASK_AGAIN, priority: 'urgent', signal, local: false, _s0: s0 ?? S().peek(key) ?? {} }
+          : { until: DAILY_PREPARED, priority: 'urgent', signal, _s0: s0 ?? null })
         return _outcome(s, { aborted: !!signal?.aborted, date: true })
       }
       S().deepPrime?.(key, { priority: 'visible', want: true })   // (joins the one above, if it left)
       const depth = fullBarsFor(normTf(tf) ?? fetchTf(String(tf))) || 0
-      const s = await ensure(key, { until: DAILY_PREPARED, depth, priority: 'visible', signal, local: false, _s0: s0 ?? S().peek(key) ?? {} })
+      const stale = _weekMonthStale(key, s0 ?? S().peek(key))   // (W2)
+      const s = await ensure(key, { until: stale ? ASK_AGAIN : DAILY_PREPARED, depth, priority: 'visible', signal, local: false, _s0: s0 ?? S().peek(key) ?? {} })
       if (!signal?.aborted && s?.restSeen && !s.error) await S().deepJoined?.(key, Math.max(0, DEEP_JOIN_WAIT_MS - (now() - t0)))
       return _outcome(S().peek(key) ?? s, { aborted: !!signal?.aborted, date: true })
     } catch {
@@ -2098,7 +2143,7 @@ export function createPrefetch(o = {}) {
   }
 
   return {
-    keyFor, peek, ensure, prefetch, peekDisplayable, peekBars, holdsBars, heldRows, prepareForDisplay, prepareDailyForDisplay, lakePending, deepPending, devicePaints, deviceVerdict, deviceWarm, watch,
+    keyFor, peek, ensure, prefetch, peekDisplayable, dateCopyStale, peekBars, holdsBars, heldRows, prepareForDisplay, prepareDailyForDisplay, lakePending, deepPending, devicePaints, deviceVerdict, deviceWarm, watch,
     deviceHold, askForDisplay,
     prefetchBars, prefetchBar, prefetchBarsToIDB, prefetchAllTimeframes, prefetchListAllTimeframes,
     prefetchGridWarm, warmMemFromIDB, prewarmVisibleList, prefetchListDeep, prefetchReplayTimeframes,
@@ -2120,6 +2165,7 @@ export function peekDisplayable(sym, tf, opts = {}) { return _f().peekDisplayabl
 export function peekBars(sym, tf, opts = {}) { return _f().peekBars(sym, tf, opts) }
 export function holdsBars(sym, tf, opts = {}) { return _f().holdsBars(sym, tf, opts) }
 export function heldRows(sym, tf, opts = {}) { return _f().heldRows(sym, tf, opts) }
+export function dateCopyStale(sym, tf, opts = {}) { return _f().dateCopyStale(sym, tf, opts) }
 export function prepareForDisplay(sym, tf, opts = {}) { return _f().prepareForDisplay(sym, tf, opts) }
 export function lakePending(sym, tf, opts = {}) { return _f().lakePending(sym, tf, opts) }
 export function deepPending(sym, tf, opts = {}) { return _f().deepPending(sym, tf, opts) }
