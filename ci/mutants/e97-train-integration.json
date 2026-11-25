@@ -1,0 +1,32 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "TI1",
+   "mutant": "train e97 (U5 x U6): a runtime candle's open/high/low are not carried: the candle hidden by its setting falls back to \"did not carry\"",
+   "file": "app/src/components/chart/engine/__tests__/vendorHarness/ourSide.js",
+   "from": "          rowByOutput.set(at, { key: cp.ohlc[role], output: at, candleKey: r.key })",
+   "to": "          void at",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.candleNotDrawn.test.js",
+   "expectRed": "the candle hidden by its setting is CARRIED"
+  },
+  {
+   "id": "TI2",
+   "mutant": "train e97 (U5 x U6): a candle part's drawing reads TradingView's unrecorded display as \"TradingView draws it\"",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "...(/^C1-candle/.test(pair.rule || '') ? candleDrawingOf(o.drawnHidden) : drawingOf(hiddenOnVendor, o.drawnHidden)),",
+   "to": "...(/^NEVER-C1/.test(pair.rule || '') ? candleDrawingOf(o.drawnHidden) : drawingOf(hiddenOnVendor, o.drawnHidden)),",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.candleNotDrawn.test.js",
+   "expectRed": "the candle hidden by its setting is CARRIED"
+  },
+  {
+   "id": "TI3",
+   "mutant": "train e97 (U5 x U6): the runtime door stops listing a candle whose display it cannot read (U6's display-unread branch)",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "        candlesNotDrawn.push({ outputs: group.map((g) => g.index), by: 'withheld', label, why: hostClose.displayUnread })",
+   "to": "        void 0",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.candleNotDrawn.test.js",
+   "expectRed": "genuinely unread"
+  }
+ ]
+}

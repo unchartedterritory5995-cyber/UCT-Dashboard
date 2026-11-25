@@ -62,7 +62,7 @@
    "from": "      } else if (!row && notDrawnCandle) {",
    "to": "      } else if (false) {",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.candleNotDrawn.test.js",
-   "expectRed": "the four candle parts are INCONCLUSIVE by the door"
+   "expectRed": "the four parts INCONCLUSIVE by the door"
   },
   {
    "id": "U5-H8",
@@ -71,7 +71,7 @@
    "from": "    if (v.candlePart && o.candleNotDrawn && !o.column) {",
    "to": "    if (false) {",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.candleNotDrawn.test.js",
-   "expectRed": "the four candle parts are INCONCLUSIVE by the door"
+   "expectRed": "the four parts INCONCLUSIVE by the door"
   },
   {
    "id": "U5-H9",
@@ -80,7 +80,7 @@
    "from": "        candlesNotDrawn.push({ outputs: group.map((g) => g.index), by: 'withheld', label, why: pres.why })",
    "to": "        void 0",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.candleNotDrawn.test.js",
-   "expectRed": "the four candle parts are INCONCLUSIVE by the door"
+   "expectRed": "INCONCLUSIVE by that reason"
   }
  ]
 }

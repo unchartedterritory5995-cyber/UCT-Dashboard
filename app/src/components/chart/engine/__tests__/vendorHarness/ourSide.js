@@ -2112,6 +2112,27 @@ function runOurSideOnTheParityClock(capture) {
     const plots = []
     const defPlotByKey = new Map((def.plots || []).map((p) => [p.key, p]))
     const defInputByKey = new Map((def.inputs || []).map((x) => [x.key, x]))
+    // ⭐ train e97 (U5 x U6, coordinator ruling 2026-11-25) — A RUNTIME CANDLE'S FOUR PARTS ARE CARRIED. A runtime-lane
+    // candle is ONE row (its close, `output` = the close's host index) whose plot names the other three price columns
+    // (`plots[].ohlc`, `memberPaneDefinition.runtimeLaneDocument`). The open / high / low host outputs had no row of
+    // their own, so a candle the door DRAWS (U6: drawn or hidden as the member's settings decide, `hiddenWhen`) read
+    // "the member pane did not carry this output". Each part is matched to its own column here, so its values are
+    // graded against TradingView's recorded values (TradingView records a display.none plot's values too), and its
+    // drawing is the CANDLE's (`candleKey`: the candle plot's `hiddenWhen`, never the part column's own `hidden`).
+    if (built.lane === 'runtime') {
+      const outs = built.translation.outputs || []
+      for (const r of built.rows || []) {
+        const cp = Number.isInteger(r.output) ? defPlotByKey.get(r.key) : null
+        if (!cp || !cp.ohlc || candleRoleOf(outs[r.output]).role !== 'close') continue
+        CANDLE_PART_ROLES.slice(0, 3).forEach((role, j) => {
+          const at = r.output - 3 + j
+          const part = outs[at]
+          if (!part || part.kind !== outs[r.output].kind || candleRoleOf(part).role !== role) return
+          if (typeof cp.ohlc[role] !== 'string' || rowByOutput.has(at)) return
+          rowByOutput.set(at, { key: cp.ohlc[role], output: at, candleKey: r.key })
+        })
+      }
+    }
     for (const [index, o] of (built.translation.outputs || []).entries()) {
       if (o && o.kind === 'alertcondition') continue
       const row = built.lane === 'runtime'
@@ -2187,7 +2208,8 @@ function runOurSideOnTheParityClock(capture) {
         // ⛔ only where the DISPLAY decided it (a plot hidden for another reason, a condition column, a marker's host row,
         // is not a drawing TradingView could share or not)
         drawnHidden: defPlot && o && (o.offPane === true || o.hiddenWhen || o.displayUnread || o.hiddenReason === 'author')
-          ? plotHiddenAt(defPlot, def, instanceInputs || {}) : null,
+          // train e97 (U5 x U6): a runtime candle's part is drawn as its CANDLE is (`candleKey`)
+          ? plotHiddenAt((row && row.candleKey && defPlotByKey.get(row.candleKey)) || defPlot, def, instanceInputs || {}) : null,
         column: col || null,
         missingReason,
         lookback: curtain ? curtain.withheldBars : (o && o.ast ? lookbackOf(o.ast) : null),

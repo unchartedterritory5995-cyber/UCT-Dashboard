@@ -979,6 +979,17 @@ export function drawingOf(vendorHidden, oursHidden) {
   return { drawing: vendorHidden ? 'TradingView hides it (display none); ours draws it' : 'ours hides it; TradingView draws it' }
 }
 
+/** ⭐ train e97 (U5 x U6) — `{drawing}` for a CANDLE part (`C1-candle-order`), or `{}` when our side did not say.
+ *  ⛔ A capture does not record a candle's display: every candle part's `styleState.display` in the committed
+ *  captures is 4294967295 (all bits), whatever its `display` argument says (measured over the 37 captures that write
+ *  a `plotcandle` / `plotbar`, `display = ...` written or not). So TradingView's side is named as not recorded,
+ *  never read as "TradingView draws it". */
+export const CANDLE_DISPLAY_NOT_RECORDED = 'the capture does not record TradingView\'s display for a candle'
+export function candleDrawingOf(oursHidden) {
+  if (oursHidden !== true && oursHidden !== false) return {}
+  return { drawing: `ours ${oursHidden ? 'hides' : 'draws'} it at these settings; ${CANDLE_DISPLAY_NOT_RECORDED}` }
+}
+
 /** One divergent bar's two readings, in the unit that disagreed. ⚰️ A colour
  *  divergence printed the two VALUES ("color: vendor 50 vs ours 50") — equal by
  *  construction, since a colour is only compared on a bar whose values agree —
@@ -1369,7 +1380,8 @@ export function compareCapture(capture, ours, opts = {}) {
       // ⭐ e97 U6 — the DRAWING named beside the values (which are graded either way: TradingView records a hidden
       // plot's values): TradingView's display (`styleState.display`, 0 = hidden) against whether our document draws it
       // at the capture's settings (`ourSide.js` `drawnHidden`). It moves no verdict.
-      ...drawingOf(hiddenOnVendor, o.drawnHidden),
+      // train e97 (U5 x U6): a candle part's TradingView display is not recorded (`candleDrawingOf`)
+      ...(/^C1-candle/.test(pair.rule || '') ? candleDrawingOf(o.drawnHidden) : drawingOf(hiddenOnVendor, o.drawnHidden)),
       warmupBars, warmupSource, derivedLookback: Number.isInteger(o.lookback) ? o.lookback : null,
       ...(colorWarmupBars !== warmupBars ? { colorWarmupBars, colorWarmupSource: `derived: the colour rule's own maxLookback (${o.colorLookback})` } : {}),
       ...(treeShift ? { treeShift, treeShiftNote: `offset = ${treeShift}: our column read ${treeShift} bars ahead to meet the vendor's unshifted series; the last ${treeShift} bars are unread` } : {}),
