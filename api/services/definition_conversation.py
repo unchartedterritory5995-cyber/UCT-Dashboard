@@ -4340,6 +4340,8 @@ MEND_LIST_AS_TEXT = "list-as-text"
 MEND_ASSUMPTION = "assumption-link"
 MEND_STATE_PAINT = "state-as-paint"
 MEND_BAR_FIELDS = "bar-field-order"
+#: ⭐ 2026-11-24 -- AN OPERATOR NODE NAMED AFTER A FUNCTION (`mend_operator_named_function`).
+MEND_OPERATOR_FUNCTION = "operator-named-function"
 #: ⭐ 2026-11-24 -- A CHOICE OVER ITS LIMIT ONLY BECAUSE OF THE DOOR'S OWN WORDS (`mend_choice_phrases`).
 MEND_CHOICE_PHRASE = "choice-bars-phrase"
 _MEND_MAX_PASSES = 8
@@ -4619,6 +4621,60 @@ def mend_choice_phrases(candidate: Any, forms: List[str]) -> Tuple[Any, int]:
         return (work, n) if work is not None else (candidate, 0)
     except Exception:                              # noqa: BLE001 -- a mend never costs the turn
         logger.exception("[converse] choice mend failed; the answer is checked as it came")
+        return candidate, 0
+
+
+#: ⚰️ MEASURED 2026-11-24, the regression sweep after #2599 (admin, measurement only; the request is private, so by
+#: its shape alone): a first attempt wrote the larger and the smaller of two values as OPERATOR nodes,
+#: `{"type": "op", "name": "max", "args": [a, b]}` and the same for `min`. The schema's operators are symbols, so the
+#: whole answer was refused (`envelope:schema`) and the repair wrote the very same thing as calls, for a second paid
+#: call. Coordinator's ruling: re-spelled ONLY where the call is exactly equivalent: the name is a function of the
+#: engine's own table, the node gives exactly that function's number of arguments, and their order is kept. Any other
+#: arity, or a name the table does not hold, is left for the check to refuse, as before. Runs BEFORE `mend` (the
+#: answer is schema-invalid until it has run), recorded by name in `usage.mended`.
+
+def _schema_operators() -> frozenset:
+    """The operator names the contract allows an `op` node, read off the contract."""
+    node = ((composed_schema().get("$defs") or {}).get("op") or {}).get("properties") or {}
+    return frozenset((node.get("name") or {}).get("enum") or ())
+
+
+def _respell_function_ops(node: Any, functions: Mapping[str, Any], operators: frozenset, count: List[int]) -> Any:
+    if isinstance(node, list):
+        return [_respell_function_ops(x, functions, operators, count) for x in node]
+    if not isinstance(node, Mapping):
+        return node
+    out = {k: _respell_function_ops(v, functions, operators, count) for k, v in node.items()}
+    name, args = out.get("name"), out.get("args")
+    if (out.get("type") == "op" and isinstance(name, str) and name not in operators and name in functions
+            and isinstance(args, list) and set(out) == {"type", "name", "args"}
+            and len(args) == len(tuple((functions[name] or {}).get("args") or ()))):
+        count[0] += 1
+        return {"type": "call", "name": name, "args": args}
+    return out
+
+
+def mend_operator_named_function(candidate: Any) -> Tuple[Any, int]:
+    """``(answer, n)``: every `op` node named after a function of the engine's table, with exactly that function's
+    number of arguments, re-spelled as that call (arguments in the same order); and how many. Anything else, and an
+    answer with none, is returned untouched. Never raises."""
+    if not isinstance(candidate, Mapping) or not isinstance(candidate.get("ops"), list):
+        return candidate, 0
+    try:
+        from api.services import ast_table
+        functions = ast_table.TABLE.get("functions") or {}
+        operators = _schema_operators()
+        if not operators or not functions:
+            return candidate, 0
+        count = [0]
+        ops = _respell_function_ops(candidate["ops"], functions, operators, count)
+        if not count[0]:
+            return candidate, 0
+        work = dict(candidate)
+        work["ops"] = ops
+        return work, count[0]
+    except Exception:                              # noqa: BLE001 -- a mend never costs the turn
+        logger.exception("[converse] operator mend failed; the answer is checked as it came")
         return candidate, 0
 
 
@@ -6236,6 +6292,8 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
             trace.setdefault("input_wrapper", wrapper)
         # BEFORE `mend`: a choice over its limit is a schema error, and `mend` leaves a schema-invalid answer alone
         candidate, shortened = mend_choice_phrases(candidate, bars_phrases(message, chart))
+        # BEFORE `mend`: an operator named after a function is a schema error, and `mend` leaves those alone
+        candidate, respelled = mend_operator_named_function(candidate)
         try:
             candidate, mended = mend(candidate, view)
         except _Refused as inlined:                # the inlined form is over its cap: answered by name, nothing built
@@ -6245,6 +6303,8 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
             mended = [MEND_LIST_AS_TEXT] + list(mended)
         if shortened:
             mended = list(mended) + [MEND_CHOICE_PHRASE]
+        if respelled:
+            mended = list(mended) + [MEND_OPERATOR_FUNCTION]
         if mended:
             # shape only: WHICH mends, never what they touched
             logger.info("[converse] mended %s on attempt=%d", ",".join(mended), attempts)
