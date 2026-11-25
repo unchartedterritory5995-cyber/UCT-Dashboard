@@ -124,6 +124,35 @@ const clock = pinWallClock('2026-11-14T16:00:00Z')
 afterAll(() => clock.restore())
 const wait = (ms) => act(() => new Promise((r) => setTimeout(r, ms)))
 
+// ⭐ NO FIXED SLEEPS (review of #2706): a step waits for its own landmarks, a slice (SLICE_MS) at a time, and every slice
+// flushes React's effects and the timers due in it. First until the step's name is PAINTED (chart/paintLog's record names
+// its symbol and timeframe), then until the library has been handed nothing (no series added, set, updated or removed)
+// for QUIET_SLICES slices in a row. A late answer on a loaded runner moves the wait; it can no longer land in the next
+// step's counts. A wait that never ends throws, naming the step.
+const SLICE_MS = 25
+const QUIET_SLICES = 8          // 200 ms in which the library is handed nothing
+const LIBRARY_WORK = new Set(['add', 'setData', 'update', 'remove'])
+const libraryCalls = () => S.calls.reduce((n, c) => n + (LIBRARY_WORK.has(c.m) ? 1 : 0), 0)
+async function untilQuiet(what, deadlineMs = 20_000) {
+  const t0 = performance.now()
+  let n = libraryCalls()
+  let quiet = 0
+  while (quiet < QUIET_SLICES) {
+    await wait(SLICE_MS)
+    const now = libraryCalls()
+    if (now === n) quiet += 1
+    else { n = now; quiet = 0 }
+    if (performance.now() - t0 > deadlineMs) throw new Error(`${what}: the library was still being handed calls after ${deadlineMs} ms`)
+  }
+}
+async function untilPainted(sym, tf, from, deadlineMs = 20_000) {
+  const t0 = performance.now()
+  while (!S.calls.slice(from).some((c) => c.m === 'paint' && c.sym === sym && String(c.tf) === tf)) {
+    if (performance.now() - t0 > deadlineMs) throw new Error(`${sym} ${tf} was never painted`)
+    await wait(SLICE_MS)
+  }
+}
+
 // ── the names on the list: the same recent sessions, different history depths ──────────────────────────────────────
 const DAY = 86_400_000
 function dailyRows(n, k) {
@@ -196,13 +225,16 @@ async function recordSwitches() {
   try {
     S.calls.push({ m: 'mark', label: 'first load: AAA daily (8,003 bars)' })
     const view = render(chartOf('AAA', 'D'))
-    await wait(1500)
+    await untilPainted('AAA', 'D', 0)
+    await untilQuiet('first load')
     for (const [label, sym, tf] of STEPS) {
       await hold(sym, tf)
-      await wait(200)
+      await untilQuiet(`holding ${sym} ${tf}`)
       S.calls.push({ m: 'mark', label })
+      const from = S.calls.length
       view.rerender(chartOf(sym, tf))
-      await wait(1000)
+      await untilPainted(sym, tf, from)
+      await untilQuiet(label)
     }
   } finally { JSON.stringify = realStringify }
   S.calls.push({ m: 'mark', label: 'unmount' })
