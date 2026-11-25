@@ -135,7 +135,12 @@ test('the next two rows are warmed URGENTLY (not held behind the daily pack inge
 
 // ⭐ (2026-11-25 wide sweep) A member jumping through the list outran the urgent next-row warm: the jump's stride, in
 // its direction, is warmed urgently too, and kept resident by the hold.
-test('a jump warms the row one stride further, urgently, after the next rows', async () => {
+// ⛔ (review of #2739) URGENT ONLY INSIDE THE CAP: prefetchBars makes only the first URGENT_MAX_PER_CALL symbols of a call
+// urgent (store facade and legacy alike); a third one leaves as a shed-able `warm=1` background warm that is never
+// re-asked after a roll. A jump is [the next row, the jump target], read against the real cap.
+test('a jump warms the row one stride further, urgently, inside the per-call urgent cap', async () => {
+  const { URGENT_MAX_PER_CALL } = await vi.importActual('../utils/prefetchBars')
+  expect(URGENT_MAX_PER_CALL).toBeGreaterThanOrEqual(2)
   hub.sym = 'CCC'
   const { rerender } = render(<Watchlists embedded pickList="user:wl1" pickName="Momentum Plays" />)
   await screen.findByText('CCC')
@@ -146,12 +151,44 @@ test('a jump warms the row one stride further, urgently, after the next rows', a
   await waitFor(() => expect(calls.urgent.some(c => c.syms[0] === 'GGG')).toBe(true))
   const u = calls.urgent.find(c => c.syms[0] === 'GGG')
   expect(u.tf).toBe('5')
-  expect(u.syms).toEqual(['GGG', 'HHH', 'III'])              // the next two, then FFF + 3
+  expect(u.syms.slice(0, URGENT_MAX_PER_CALL), 'the jump target was past the urgent cap').toContain('III')
+  expect(u.syms).toEqual(['GGG', 'III'])                     // ⛔ CHANGED (review of #2739): the next row, then FFF + 3
   calls.urgent = []
   hub.sym = 'GGG'                                            // control: one row on is no jump
   rerender(<Watchlists embedded pickList="user:wl1" pickName="Momentum Plays" />)
   await waitFor(() => expect(calls.urgent.some(c => c.syms[0] === 'HHH')).toBe(true))
   expect(calls.urgent.find(c => c.syms[0] === 'HHH').syms).toEqual(['HHH', 'III'])
+})
+
+// ⛔ (review of #2739) KEPT ONLY INSIDE THE SHARE: a hold pins `keep.slice(0, share)`, share = min(NEIGHBOR_KEEP_AHEAD,
+// NEIGHBOR_KEEP_TOTAL / holds): 30 on a 1m + 15m board, 20 on three. A jump target appended after 30 rows ahead is cut.
+test('a jump target is kept inside the hold share of a two- and a three-hold board', async () => {
+  const { NEIGHBOR_KEEP_AHEAD, NEIGHBOR_KEEP_TOTAL } = await vi.importActual('../data/barStore/prefetch')
+  const share = (holds) => Math.min(NEIGHBOR_KEEP_AHEAD, Math.floor(NEIGHBOR_KEEP_TOTAL / holds))
+  const sets = []
+  const items0 = WL.items
+  WL.items = Array.from({ length: 80 }, (_, i) => ({ id: `j${i}`, sym: `S${String(i).padStart(3, '0')}`, notes: '' }))
+  globalThis.__uctStoreWarmers = {
+    prefetchBarsToIDB: () => {}, prefetchAllTimeframes: () => {}, prefetchListAllTimeframes: () => {},
+    warmMemFromIDB: () => {}, prefetchBars: () => {}, prefetchBarOnIntent: () => {}, prewarmVisibleList: () => {},
+    createNeighborHold: () => ({ set: (syms, tf, opts) => sets.push({ tf, selected: opts?.selected, keep: opts?.keep ? [...opts.keep] : null }), clear: () => {} }),
+  }
+  try {
+    hub.sym = 'S000'
+    const { rerender } = render(<Watchlists embedded pickList="user:wl1" pickName="Momentum Plays" />)
+    await screen.findByText('S000')
+    await waitFor(() => expect(sets.some(s => s.selected === 'S000')).toBe(true))
+    hub.sym = 'S035'                                         // a jump of 35 rows: the next one lands on S070
+    rerender(<Watchlists embedded pickList="user:wl1" pickName="Momentum Plays" />)
+    await waitFor(() => expect(sets.some(s => s.selected === 'S035')).toBe(true))
+    const s = sets.filter(x => x.selected === 'S035').pop()
+    expect(s.keep).toContain('S070')
+    expect(s.keep.slice(0, share(2)), 'the jump target was cut by a two-hold share').toContain('S070')
+    expect(s.keep.slice(0, share(3)), 'the jump target was cut by a three-hold share').toContain('S070')
+  } finally {
+    WL.items = items0
+    delete globalThis.__uctStoreWarmers
+  }
 })
 
 test('the store hold holds the rows around the selection and deepens the next two (scan direction)', async () => {
