@@ -923,9 +923,22 @@ def _apply_tail_status(payload: dict, ticker: str, tf: str, session: str | None 
         payload["tail_status"] = "unverified"
     headers = {}
     if payload["tail_status"] == "unverified":
-        payload["retry_after"] = 3
-        headers["Retry-After"] = "3"
+        ra = _tail_retry_after_s()
+        payload["retry_after"] = ra
+        headers["Retry-After"] = str(ra)
     return headers
+
+
+#: The `unverified` re-poll: 3 s plus 0-2 s of jitter (review #2732, 2026-11-25). At the open every chart whose tail is
+#: one short is told to come back; a fixed 3 s lines those polls up into synchronized bursts. ⛔ The floor stays 3 s,
+#: >= `bars_fetch.TAIL_PROOF_LAG_S`, so the retry can always heal a tail the provider has published.
+_TAIL_RETRY_AFTER_MIN_S = 3
+_TAIL_RETRY_AFTER_JITTER_S = 2
+
+
+def _tail_retry_after_s() -> int:
+    import random
+    return _TAIL_RETRY_AFTER_MIN_S + random.randint(0, _TAIL_RETRY_AFTER_JITTER_S)
 
 
 def _since_key(since, tf: str):

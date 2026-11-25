@@ -846,14 +846,90 @@ def _record_full_cover(ticker_up: str, tf: str, rows, checked_at: float) -> None
         pass
 
 
-#: A provider answer that ENDED at instant E proves "no newer bar" only through E - TAIL_PROOF_LAG_S (and never past
-#: the instant it was asked). ⚖️ 3 s (2026-11-25): a minute aggregate is published ~2-5 s after its minute closes
-#: (`bar_contract.SEAL_LAG_S` notes), so a proof stamped at the ask instant claims a bucket the provider had not yet
-#: published. It may NOT exceed the router's `unverified` Retry-After (3 s): the retry must be able to heal
+#: A provider answer asked at instant A proves "no newer bar" at most through A - TAIL_PROOF_LAG_S (and only as far
+#: as it or the market's publication watermark reaches, see below). ⚖️ 3 s (2026-11-25): a minute aggregate is
+#: published ~2-5 s after its minute closes (`bar_contract.SEAL_LAG_S` notes), so a proof stamped at the ask instant
+#: claims a bucket the provider had not yet published. It may NOT exceed the router's shortest `unverified`
+#: Retry-After (3 s; jittered 3-5 s): the retry must be able to heal
 #: (chart monitor `check_tail_status`: an `unverified` answer is honest only if it heals on the Retry-After retry,
 #: rail `test_P4_the_retry_after_retry_heals_it`). NOT `SEAL_LAG_S` (45 s): that would leave a thin name `unverified`
 #: for most of every minute and fast-poll it all session; finality (`complete_through`) keeps its own 45 s seal.
 TAIL_PROOF_LAG_S = 3.0
+
+# ── THE MARKET'S PUBLICATION WATERMARK (review #2732, 2026-11-25) ─────────────────────────────────────────────────
+# ⛔ "The provider answered ok" proves "nothing newer that it has PUBLISHED", not "nothing newer". At the open the
+# provider publishes a closed minute 7-42 s late (live market-open test), so a heal at roll+5 s whose answer lacks the
+# bucket that closed at the roll is NOT evidence the name printed nothing. A heal's proof therefore reaches a bucket
+# only when (a) its own answer holds a bar that far (a liquid name proves itself), or (b) the provider had already
+# published that minute FOR THE MARKET when the heal asked: then the name's absence is real (a thin name, proven
+# within the publication lag). (b) is ONE shared reference probe per pod: the end of the reference's newest
+# published 1m REST bar, read BEFORE the heal asks (a watermark read after the ask could have moved past a minute the
+# answer did not hold yet).
+# ⛔ NOT THE LIVE STREAM'S WATERMARK. `bars_live_store`'s whole-market watermark says the STREAM delivered a minute;
+# the stream runs 7-42 s AHEAD of REST at the open, so it is no proof that a REST answer would hold it: an uncovered
+# liquid name whose REST answer lacks the bucket would read `current` one bar short. Covered names keep their stream
+# proof through `tail_verified_through` (their store rows ARE the stream's). Rail:
+# `test_P6_the_live_streams_watermark_is_not_a_rest_publication_proof`.
+# Cost: one provider call per pod per minute once the frontier minute is out; while it is not (the open), at most one
+# re-probe every `_MARKET_PROBE_RETRY_S`, deduped across threads (no thread waits on another's probe). Off hours the
+# last session's final minute satisfies the frontier, so one probe holds until the next session.
+_MARKET_REF_TICKER = _os.environ.get("BARS_MARKET_REF_TICKER", "SPY")
+_MARKET_PROBE_RETRY_S = float(_os.environ.get("BARS_MARKET_PROBE_RETRY_S", "5"))
+_market_pub: dict = {"through": None, "probed_at": None}
+_market_probe_lock = _threading.Lock()
+
+
+def _fetch_market_reference_end():
+    """End (unix s) of the reference ticker's newest PUBLISHED 1m REST bar (one request, newest first), or None."""
+    client = _get_client()
+    now_utc = datetime.utcnow()
+    url = (f"{_REST_BASE}/v2/aggs/ticker/{to_polygon_symbol(_MARKET_REF_TICKER)}/range/1/minute"
+           f"/{(now_utc - timedelta(days=5)).strftime('%Y-%m-%d')}/{now_utc.strftime('%Y-%m-%d')}"
+           f"?adjusted=true&sort=desc&limit=1&apiKey={client._api_key}")
+    res = (client._get(url) or {}).get("results") or []
+    if not res:
+        return None
+    return int(res[0]["t"] / 1000) + 60
+
+
+def market_published_through(now: float | None = None):
+    """Unix seconds through which the provider has published 1m bars FOR THE MARKET (see the block above), or None
+    (never probed successfully). Cached: no probe while the cached value already reaches the end of the newest closed
+    1m bucket; otherwise at most one probe per `_MARKET_PROBE_RETRY_S`, and never a wait on another thread's probe."""
+    now_ts = float(_time.time() if now is None else now)
+    through, probed_at = _market_pub.get("through"), _market_pub.get("probed_at")
+    frontier = newest_closed_bucket("1", "eth", now_ts)
+    target = (int(frontier) + 60) if frontier is not None else None
+    if through is not None and target is not None and through >= target:
+        return through
+    if probed_at is not None and now_ts - probed_at < _MARKET_PROBE_RETRY_S:
+        return through
+    if not _market_probe_lock.acquire(blocking=False):
+        return through
+    try:
+        _market_pub["probed_at"] = now_ts
+        try:
+            end = _fetch_market_reference_end()
+        except Exception:                  # noqa: BLE001 — no watermark this time; retried after the floor
+            end = None
+        if end is not None:
+            _market_pub["through"] = max(int(end), int(through or 0))
+        return _market_pub["through"]
+    finally:
+        _market_probe_lock.release()
+
+
+def _newest_returned_end(tf: str, rows) -> int | None:
+    """End (unix s) of the newest bar in a provider answer, or None (no usable row)."""
+    try:
+        ts = [int(r["t"]) for r in (rows or []) if isinstance(r, dict) and isinstance(r.get("t"), (int, float))]
+    except (TypeError, ValueError):
+        return None
+    if not ts:
+        return None
+    t = max(ts)
+    step = int(tf) * 60 if tf in ("1", "5", "15", "30") else 3600
+    return _bucket_end(tf, t, step)
 
 
 def _heal_intraday_tail(ticker_up: str, tf: str, last_ts: int, tail_only: bool = False) -> list:
@@ -875,6 +951,11 @@ def _heal_intraday_tail(ticker_up: str, tf: str, last_ts: int, tail_only: bool =
             if _lt[1]:
                 return _lt[2]             # the finer store covered the gap: no provider
             last_ts = _lt[0]              # provider fetches only what is still missing
+    # ⭐ The market's publication watermark, read BEFORE the ask (see `market_published_through`).
+    try:
+        market_through = market_published_through()
+    except Exception:                      # noqa: BLE001 — no watermark: the answer's own bars alone prove
+        market_through = None
     checked_at = _time.time()
     status: dict = {}
     # Every write of this answer (incl. a derived tf's 15m base) carries its check instant:
@@ -886,10 +967,14 @@ def _heal_intraday_tail(ticker_up: str, tf: str, last_ts: int, tail_only: bool =
             _sqlite.put_bars(ticker_up, tf, new, date_tf=False)
             persisted = True
     if status.get("ok"):
-        # ⭐ THE PROOF LAGS THE PROVIDER'S PUBLICATION (2026-11-25). "Asked at `checked_at`, nothing newer" proves
-        # nothing about a bucket that closed a second before the ask: the provider has not published it yet. A heal
-        # at roll+1 s used to stamp roll+1 s and the router called the one-short tail current. See `TAIL_PROOF_LAG_S`.
-        _mark_tail_verified(ticker_up, tf, min(checked_at, _time.time() - TAIL_PROOF_LAG_S))
+        # ⭐ THE PROOF REACHES ONLY WHAT WAS PUBLISHED (2026-11-25, review #2732). "Asked at `checked_at`, nothing
+        # newer" proves nothing about a bucket the provider had not published yet: a heal at roll+1 s used to stamp
+        # roll+1 s, and at the open (7-42 s publication lag) a heal at roll+5 s still did, so the router called a
+        # one-short tail current. Now: never past `checked_at - TAIL_PROOF_LAG_S`, and only as far as this answer's
+        # own newest bar or the market's publication watermark reaches. Neither = no proof.
+        _reach = max((x for x in (_newest_returned_end(tf, new), market_through) if x is not None), default=None)
+        if _reach is not None:
+            _mark_tail_verified(ticker_up, tf, min(checked_at - TAIL_PROOF_LAG_S, float(_reach)))
         # ⭐ BAR CONTRACT seal: the provider rewrote the series from `window_start`
         # through `checked_at`, and those rows are in the store — so every bucket that
         # ended by `checked_at - SEAL_LAG_S` is FINAL (`complete_through` rests on this).
@@ -2135,15 +2220,25 @@ def _is_yf_only_symbol(ticker_up: str) -> bool:
 _CACHE_TTL = {'1': 5, '5': 10, '15': 10, '30': 10, '60': 10, 'D': 300, 'W': 900, 'M': 900}
 
 
+#: Seconds between the boundaries a cached intraday answer may not outlive. 60m: every :00 and :30, because every
+#: boundary of BOTH 60m grids lies on one (the TradingView RTH grid rolls at :30 - 10:30, 11:30 ... and its 15:30 half
+#: bar ends 16:00 - the 09:00 pre-market stub ends 09:30, the ETH clock-hour grid rolls at :00), so a copy never
+#: outlives a bucket of either grid; it costs at most one extra cache miss per half hour.
+_CAP_STEP_S = {"1": 60, "5": 300, "15": 900, "30": 1800, "60": 1800}
+
+
 def _bucket_capped_ttl(tf: str, ttl: float, now: float | None = None) -> float:
-    """`ttl`, cut at the next 1m bucket boundary (`min(ttl, bucket_end - now)`); other tfs unchanged.
+    """`ttl`, cut at the next bucket boundary of `tf` (`min(ttl, bucket_end - now)`); D/W/M unchanged.
 
     ⛔ (2026-11-25) A 1m answer cached at :58 with the 5 s TTL was still served at :02, after the minute rolled: the
-    chart got a copy missing the bar that had just closed. A cached 1m answer never outlives its minute."""
-    if tf != "1":
+    chart got a copy missing the bar that had just closed. Every intraday tf has the same roll (review #2732: a 5m
+    answer cached at 9:34:58 with the 10 s TTL served at 9:35:05). A cached intraday answer never outlives its bucket.
+    ET is a whole-hour offset from UTC, so the clock floors below are the ET grid."""
+    step = _CAP_STEP_S.get(tf)
+    if step is None:
         return ttl
     now_ts = float(_time.time() if now is None else now)
-    left = (int(now_ts) // 60 + 1) * 60 - now_ts
+    left = (int(now_ts) // step + 1) * step - now_ts
     return max(0.0, min(float(ttl), left))
 
 
@@ -5251,8 +5346,8 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
     date_tf   = tf in ("D", "W", "M")
 
     # ── Layer 1: In-memory TTL cache (<1 ms) ─────────────────────────────────
-    # ⭐ Every memory-cache write and max-age of this function is cut at the next 1m bucket boundary
-    # (`_bucket_capped_ttl`): a cached 1m answer never outlives the minute it was built in.
+    # ⭐ Every memory-cache write and max-age of this function is cut at the next bucket boundary of `tf`
+    # (`_bucket_capped_ttl`): a cached intraday answer never outlives the bucket it was built in.
     _cset = lambda k, v, ttl: cache.set(k, v, ttl=_bucket_capped_ttl(tf, ttl))  # noqa: E731
     _mage = lambda ttl: _bucket_capped_max_age(tf, ttl)  # noqa: E731
     cached = cache.get(cache_key)
