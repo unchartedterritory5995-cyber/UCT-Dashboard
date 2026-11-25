@@ -7325,6 +7325,16 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] breadth EOD source wiring error (non-fatal): {e}")
 
+    # Up Vol / HVC / >7xATR on US / Nasdaq / NYSE after the rebuilt series ends: the nightly job
+    # (breadth_universe_extras_forward). Starts nothing unless BREADTH_UNIVERSE_EXTRAS=1;
+    # BREADTH_UNIVERSE_EXTRAS_FORWARD=0 stops it.
+    try:
+        from api.services import breadth_universe_extras_forward as _uex_fwd
+        if _uex_fwd.start_job():
+            print("[startup] breadth universe extras nightly job armed")
+    except Exception as e:  # noqa: BLE001
+        print(f"[startup] breadth universe extras job wiring error (non-fatal): {e}")
+
     # Deep daily history rebuilt from one checked source, served per ticker (bars_rebuild); web serves
     # /api/bars too when the edge falls back to it. BARS_REBUILD_SERVE=0 = off.
     try:
