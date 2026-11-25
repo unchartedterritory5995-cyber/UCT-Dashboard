@@ -28,6 +28,7 @@
 import { memberPaneDefinition, WITHHELD_COLOUR_INK } from '../../../builder/memberPane/memberPaneDefinition'
 import * as registry from '../../nativeRegistry'
 import { createBinder, drawShiftOf, paintColoursFor, plotStripNoticesOf } from '../../binder'
+import { OHLC_DEF_STYLES } from '../../defSchema'
 import { bindWithheldPaintsOf } from './paintColours'
 import { bindingKey, resolvePlotForInstance } from '../../pool'
 import { hlineOrdinalOf } from '../../hlineLevels'
@@ -1278,6 +1279,9 @@ function runtimeAwarePaints(built, def) {
 
 /** Drive the real binder over the recording double; per plot key, the colour
  *  the renderer was handed for every bar (point colour, else series colour). */
+/** ⭐ e98 P3 — a document row drawn as a candle or an OHLC bar (`plots[].style`). */
+const isCandleStyle = (plot) => !!plot && OHLC_DEF_STYLES.includes(plot.style)
+
 function drawnColours(def, bars, ctx, inputs = undefined) {
   const fake = createFakeChart()
   const binder = createBinder({ chart: fake.chart, LWC: fake.LWC })
@@ -1356,6 +1360,19 @@ function drawnColours(def, bars, ctx, inputs = undefined) {
     // (`plots[].colorWithheld.points`): a point the renderer was handed no colour of
     // its own for draws in none, by name — `COLOUR_WITHHELD_POINT`, not a colour.
     const pointsWithheld = !!(plot.colorWithheld && plot.colorWithheld.points)
+    // ⭐ e98 P3 (phase B) — A DRAWN CANDLE'S BODY COLOUR is what the renderer was handed for each bar: the point's own
+    // `color` (`binder.computedOhlcPayload`, from the colour column `plots[].ohlcColors.body` names, on both lanes). A
+    // candle point carries prices, not a `value`. ⛔ Only a candle whose document carries a body colour column: one
+    // without is not read (no colour is read off LWC's up/down defaults), so its colour stays unresolved, by name.
+    if (isCandleStyle(plot)) {
+      if (!(plot.ohlcColors && typeof plot.ohlcColors.body === 'string')) continue
+      out.set(b.plotKey, bars.map((_bar, i) => {
+        const p = byTime.get(String(bars[i].t))
+        if (!p || !Number.isFinite(p.close)) return null
+        return typeof p.color === 'string' ? normalizeColor(p.color) : null
+      }))
+      continue
+    }
     const colors = bars.map((_bar, i) => {
       const at = i + shift
       if (at < 0) return undefined

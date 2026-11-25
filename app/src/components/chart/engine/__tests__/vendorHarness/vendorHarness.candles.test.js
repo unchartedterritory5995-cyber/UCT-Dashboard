@@ -16,12 +16,14 @@
 import { describe, it, expect } from 'vitest'
 
 import {
-  compareCapture, vendorPlotRoles, pairCandles, CANDLE_ROLES,
+  compareCapture, vendorPlotRoles, pairCandles, CANDLE_ROLES, CANDLE_BODY_COMPARED, CANDLE_BODY_ON_CLOSE,
 } from '../../../../../../../tools/vendor_harness/compare.mjs'
 import { candleRoleOf } from './ourSide'
 
 const T = [1, 2, 3]
 const PRICES = { open: [10, 11, 12], high: [13, 14, 15], low: [8, 9, 10], close: [12, 13, 14] }
+// the colorers' packed 4282652671 (0xFF4417FF, ARGB) read as #RRGGBBAA: e98 P3 grades the body against our close's colours
+const BODY = '#ff1744ff'
 
 /** A capture of ONE plot `line` (untitled) and `nCandles` candles, each with its three colorers. */
 function captureOf({ nCandles = 1, line = [1, 2, 3] } = {}) {
@@ -53,7 +55,7 @@ function oursOf({ nCandles = 1, line = [1, 2, 3], edit = null } = {}) {
   for (let n = 0; n < nCandles; n += 1) {
     for (const role of CANDLE_ROLES) {
       const o = { title: role, kind: 'plotcandle', key: `c${n}${role}`, lookback: 0,
-        column: PRICES[role].map((x) => x + 100 * n), colors: ['#ff0000ff', '#ff0000ff', '#ff0000ff'] }
+        column: PRICES[role].map((x) => x + 100 * n), colors: [BODY, BODY, BODY] }
       Object.assign(o, candleRoleOf(o))
       if (edit && edit.n === n && edit.role === role) o.column = edit.column
       plots.push(o)
@@ -63,29 +65,30 @@ function oursOf({ nCandles = 1, line = [1, 2, 3], edit = null } = {}) {
 }
 
 describe('e97 U5 — a candle\'s four prices are compared', () => {
-  it('vendorPlotRoles groups the four prices by candle and names the three colours not compared (phase A)', () => {
+  it('vendorPlotRoles groups the four prices by candle, keeps its body colorer, and names wick and border not compared', () => {
     const roles = vendorPlotRoles(captureOf({ nCandles: 2 }))
-    expect(roles.candles.map((c) => [c.target, Object.keys(c.parts).sort()])).toEqual([
-      ['plotcandle_0', ['close', 'high', 'low', 'open']], ['plotcandle_1', ['close', 'high', 'low', 'open']]])
+    expect(roles.candles.map((c) => [c.target, Object.keys(c.parts).sort(), c.bodyColorer && c.bodyColorer.type])).toEqual([
+      ['plotcandle_0', ['close', 'high', 'low', 'open'], 'ohlc_colorer'], ['plotcandle_1', ['close', 'high', 'low', 'open'], 'ohlc_colorer']])
     expect(roles.notCompared.map((p) => p.why)).toEqual([
-      'candle body colour (plotcandle_0) — not compared (phase A)', 'candle wick colour (plotcandle_0) — not compared (phase A)',
-      'candle border colour (plotcandle_0) — not compared (phase A)', 'candle body colour (plotcandle_1) — not compared (phase A)',
-      'candle wick colour (plotcandle_1) — not compared (phase A)', 'candle border colour (plotcandle_1) — not compared (phase A)'])
+      'candle wick colour (plotcandle_0) — not compared (phase B grades the body colour only)',
+      'candle border colour (plotcandle_0) — not compared (phase B grades the body colour only)',
+      'candle wick colour (plotcandle_1) — not compared (phase B grades the body colour only)',
+      'candle border colour (plotcandle_1) — not compared (phase B grades the body colour only)'])
     expect(roles.notCompared.some((p) => /is not compared by v1/.test(p.why))).toBe(false)
   })
 
-  it('MATCH on every one of the four prices, each its own row, colour named not compared (phase A)', () => {
+  it('MATCH on every one of the four prices, each its own row; the body colour graded once, on the close', () => {
     const r = compareCapture(captureOf(), oursOf())
     const rows = r.plots.filter((p) => /^C1-candle-order/.test(p.rule || ''))
     expect(rows.map((p) => [p.rule, p.verdict])).toEqual(CANDLE_ROLES.map((role) => [`C1-candle-order (plotcandle_0.${role})`, 'MATCH']))
     for (const p of rows) {
-      expect(p.color).toMatch(/^not compared \(phase A\)/)
+      expect(p.color, p.rule).toBe(/close\)$/.test(p.rule) ? CANDLE_BODY_COMPARED : CANDLE_BODY_ON_CLOSE)
       expect(p.stats.steady.compared).toBe(T.length)
     }
-    // ...and the verdict record names each colour by its own sentence, never "not compared by v1"
+    // ...and the verdict record names wick and border by their own sentence, never "not compared by v1"
     expect(r.notCompared.filter((p) => /plotcandle/.test(p.why || '')).map((p) => p.why)).toEqual([
-      'candle body colour (plotcandle_0) — not compared (phase A)', 'candle wick colour (plotcandle_0) — not compared (phase A)',
-      'candle border colour (plotcandle_0) — not compared (phase A)'])
+      'candle wick colour (plotcandle_0) — not compared (phase B grades the body colour only)',
+      'candle border colour (plotcandle_0) — not compared (phase B grades the body colour only)'])
     expect(r.notCompared.some((p) => /^plot type (ohlc|wick|border)_/.test(p.why || ''))).toBe(false)
   })
 
