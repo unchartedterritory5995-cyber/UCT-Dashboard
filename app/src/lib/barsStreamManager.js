@@ -28,6 +28,7 @@
 // onReconnect gap-backfill is unchanged.
 
 import { registerRecoveryStream } from './recoveryRegistry'
+import { serverNow } from './serverClock'
 import { REBUILD_GATHER_MS } from './streamRebuildDelay'
 import { STREAM_RECONNECT_CAP_MS, LIVE_CANDLE_CADENCE_MS, liveCandleCadenceMs } from '../utils/streamStatus'
 
@@ -424,7 +425,9 @@ function _connectBucket(bucket) {
       }
       if (_t != null && !(Number.isFinite(ks.lastBarT) && ks.lastBarT > _t)) ks.lastBarT = _t
       if (_developingFrame) ks.everDelivered = true
-      if (_developingFrame && !Number.isFinite(ks.liveSince)) ks.liveSince = Date.now()
+      // (on the SERVER's clock, lib/serverClock: prefetch compares it with the roll, which is the server's; the member's
+      // clock 6 s slow would read a stream that started after the roll as live since before it)
+      if (_developingFrame && !Number.isFinite(ks.liveSince)) ks.liveSince = serverNow()
       _keyState.set(key, ks)
       if (_rejoinAsk != null) _settleRejoinKick(key, _rejoinAsk)
       // THROTTLED keyed dispatch (see _pendingBar): coalesce to ~2x/sec so the candle

@@ -67,13 +67,14 @@ import { fullBarsFor, firstPaintBarsFor } from '../../utils/barsBackfill'
 import { PREFETCH_WINDOWS, prefetchTargetBars } from '../../utils/historyPrepend'
 import { viewShowExtended } from '../../utils/viewSession'
 import { isNativeTf, fetchTf } from '../../components/chart/timeframes'
-import { isCacheCurrentForView, expectedBarsBehind } from '../../utils/marketSession'
+import { isCacheCurrentForView, expectedBarsBehind, isHolidayISO } from '../../utils/marketSession'
 import { deviceCopyFresh, inRegularSession } from '../deviceStore/fresh'
 import { deviceServesTf } from '../deviceStore/tfs'
 import { deviceStoreKillSeen } from '../../lib/chartSpeed'
 import { isAppVisible } from '../../lib/deskVisibility'
 import { bucketEndUnix } from '../../components/chart/liveBuckets'
-import { bucketStartUnix } from '../../components/chart/barTime'
+import { bucketStartUnix, etDateOf, etMinuteOfDay, rthCloseMinuteOf } from '../../components/chart/barTime'
+import { serverNow } from '../../lib/serverClock'
 import { BARSTORE } from '../../components/chart/barStoreSwitch'
 import { prefetchTickerMeta as _defaultTickerMeta } from '../../hooks/useTickerMeta'
 import {
@@ -349,12 +350,17 @@ export function deviceRefusalOf(s, { extended = false, through = null, nowMs = D
   return null
 }
 
+/** The refusals of a delta answer that only a full read repairs (reducer.applyRest), and that prefetch.ensure repairs. */
+export const FULL_READ_FOR = Object.freeze(new Set(['history_rev', 'cache_key', 'adj_basis', 'restored_seal']))
+
 export function createPrefetch(o = {}) {
   const S = () => o.store ?? getBarStore()
   const tickerMeta = o.tickerMeta ?? _defaultTickerMeta
   const packIngesting = o.packIngesting ?? _packStillIngesting
   const extended = o.extended ?? viewShowExtended
-  const now = o.now ?? (() => Date.now())
+  // ⭐ (2026-11-25) THE SERVER'S CLOCK (lib/serverClock.js): every roll and bucket decision below reads it, never the
+  // member's own clock (6 s slow on the session-open test PC: copies a closed bar short painted in the key task).
+  const now = o.now ?? serverNow
   const setTimer = o.setTimer ?? ((fn, ms) => setTimeout(fn, ms))
   const clearTimer = o.clearTimer ?? ((h) => clearTimeout(h))
   const deepNeighbors = o.deepNeighbors ?? deepNeighborsEnabled
@@ -502,7 +508,16 @@ export function createPrefetch(o = {}) {
     // `own`: the SWITCH's own ask (prepareForDisplay, askForDisplay). Only its answer starts the "name not printing" grace
     // of `_behindClock`; every other answer (a list's, a warm's, the tail's) cools the key and lends nothing: see there.
     if (own) a.own = true
-    const s = await S().ensure(key, { until, depth, priority, signal, session: sess, hydrated: true, warm, front, full })
+    let s = await S().ensure(key, { until, depth, priority, signal, session: sess, hydrated: true, warm, front, full })
+    // ⭐ (2026-11-25) A DELTA REFUSED FOR A NEW HISTORY IS READ IN FULL, NOW, ONCE (live session-open test: the biggest wait
+    // class, 12 presses, was a FULL ask at the press on rows warmed 5 s before). The warm's own since= answer carried a
+    // higher history_rev (the open's gap fills bump it), another cache_key or price basis, or voided restored seals:
+    // reducer.applyRest refused the delta, marked the entry `needsFull` and applied nothing. A key no chart subscribes to
+    // has nobody to repair it, and this answer would start its cooldown: the press then asked in full itself. So the same
+    // ask is made again here, in the same lane, without since= (`until: []`: asked whatever the entry's status says).
+    if (s && !full && s.needsFull && FULL_READ_FOR.has(s.invalidatedFor) && !signal?.aborted && !s.error) {
+      s = await S().ensure(key, { until: [], depth, priority, signal, session: sess, hydrated: true, warm, front, full: true })
+    }
     // Only an ANSWER starts the cooldown: an aborted request or a shed / failed one gives
     // the slot back (the lane's 503 backoff is what paces a shedding server).
     // ⭐ (review of fb6fed4328, LOW) AN ABORTED ASK WAS NEVER AN ASK: the row keeps the record it had before (its last
@@ -606,19 +621,68 @@ export function createPrefetch(o = {}) {
     const dev = s.developing
     const live = _pushState(key, showExtended)
     if (dev && Number.isFinite(dev.t) && (_devHoldsFrontier(dev, p.tf) || (live && live.since <= _rollMs(p.tf)))) tailT = Math.max(tailT, dev.t)
-    const n = expectedBarsBehind(tailT, p.tf, now(), { session: ext ? 'extended' : 'rth' })
-    if (n == null || n < 1) return 0
+    let n = expectedBarsBehind(tailT, p.tf, now(), { session: ext ? 'extended' : 'rth' })
+    if (n == null || n < 1) {
+      // ⭐ (2026-11-25, #2733) THE SESSION'S FIRST BUCKET. The count above walks CLOSED buckets only, so inside the session's
+      // first bucket (09:30-09:45 on 15m; 5m, 30m and 60m alike) a copy ending yesterday read 0 behind and painted
+      // yesterday's bar as the newest (live session-open test, p-1 press 71, GLW 15m: the 'one chart only' frame). Once the
+      // view's session has opened, a copy with no row and no developing bar at or after today's open is behind: one bucket
+      // (then judged by rule a below, like any other copy behind).
+      const opened = _sessionOpenUnix(now(), ext)
+      if (!(opened != null && tailT < opened)) return 0
+      n = 1
+    }
     // ⭐ ...UNLESS THE STREAM PROVES NO TRADE PRINTED THERE (review of #2721, rule a; it rests on lib/barsStreamManager's
     // `liveSince` breaking across a roll inside a rebuild gap, 1-A). The stream has delivered without a break since BEFORE the
     // first bucket the copy lacks opened, and sent no frame for that bucket or later (`lastBarT`): every trade there would
     // have been one. The copy is complete, as the chart on screen would show it (a thin minute).
     // ...ONLY RULE_A_MARGIN_MS AFTER THE ROLL: the newest closed bucket M is always among the missing (the copy's tail is its
-    // newest row), and right after M's end its last prints may still be on the way.
+    // newest row), and right after M's end its last prints may still be on the way. (Merge of #2721 into #2733: `now` is
+    // the server's clock, lib/serverClock, and so is the stream's `liveSince`; the first bucket a copy from an EARLIER
+    // session lacks is today's open, never the bucket after its tail: the overnight gap is not buckets.)
     if (live && now() - _rollMs(p.tf) >= RULE_A_MARGIN_MS) {
-      const first = bucketEndUnix(tailT, p.tf)
+      let first = bucketEndUnix(tailT, p.tf)
+      const opened = _sessionOpenUnix(now(), ext)
+      // ⛔ (review of the merge) ONLY A COPY THAT REACHED THE PREVIOUS SESSION'S CLOSE skips the overnight gap: one whose tail
+      // stopped mid-session yesterday (14:00) still lacks 14:01-15:59, and a stream live since this morning proves
+      // nothing about them. Reached = its last bucket ends at that close, or the server's proof / seal covers it.
+      if (opened != null && Number.isFinite(first) && first < opened) {
+        const prevClose = _prevSessionCloseUnix(opened, ext)
+        const covered = prevClose != null && (first >= prevClose
+          || (Number.isFinite(s.verifiedThrough) && s.verifiedThrough >= prevClose)
+          || (Number.isFinite(s.completeThrough) && s.completeThrough >= prevClose))
+        if (covered) first = opened
+      }
       if (Number.isFinite(first) && live.since <= first * 1000 && !(Number.isFinite(live.lastBarT) && live.lastBarT >= first * 1000)) return 0
     }
     return n
+  }
+  /** Today's open (unix s) of the view's session (09:30 regular, 04:00 extended) once it has opened on a trading day; else
+   *  null (a weekend, a holiday, before the open). */
+  function _sessionOpenUnix(nowMs, ext) {
+    const sec = Math.floor(nowMs / 1000)
+    const iso = etDateOf(sec)
+    const dow = new Date(`${iso}T12:00:00Z`).getUTCDay()
+    if (dow === 0 || dow === 6 || isHolidayISO(iso)) return null
+    const m = etMinuteOfDay(sec)
+    const open = ext ? 240 : 570
+    if (m < open) return null
+    return (Math.floor(sec / 60) - (m - open)) * 60
+  }
+  /** The close (unix s) of the trading session before the one that opened at `opened` (16:00, the half-day 13:00, or the
+   *  extended 20:00), or null when none is found within ten days. */
+  function _prevSessionCloseUnix(opened, ext) {
+    for (let back = 1; back <= 10; back++) {
+      const probe = opened - back * 86400
+      const iso = etDateOf(probe)
+      const dow = new Date(`${iso}T12:00:00Z`).getUTCDay()
+      if (dow === 0 || dow === 6 || isHolidayISO(iso)) continue
+      const closeMin = ext ? 1200 : rthCloseMinuteOf(probe)
+      let c = probe - etMinuteOfDay(probe) * 60 + closeMin * 60
+      c += (closeMin - etMinuteOfDay(c)) * 60      // (a DST change in between)
+      return c
+    }
+    return null
   }
   /** `key`'s push stream while it delivers without a break: { since, lastBarT } (liveFeed pushState), else null. */
   function _pushState(key, showExtended) {
@@ -642,7 +706,7 @@ export function createPrefetch(o = {}) {
   // last bar of the day runs 15:30-16:00 (12:30-13:00 on a half-day), so the end minus 60 min read 15:00. On every other
   // timeframe the two are the same number (the grid is regular: bucketEndUnix = bucketStartUnix + tf).
   const _rollMs = (tf) => bucketStartUnix(Math.floor(now() / 1000), tf) * 1000
-  /** When the newest CLOSED bucket of `tf` opened (ms): the end of every bucket before it (the proof floor, _ownGrace). */
+  /** When the newest CLOSED bucket of `tf` opened (ms): what `_markShort` stamps a short copy as lacking (#2721). */
   const _prevRollMs = (tf) => bucketStartUnix(Math.floor(_rollMs(tf) / 1000) - 1, tf) * 1000
   function _behindClock(key, s, showExtended) {
     const n = _bucketsBehind(key, s, showExtended)
@@ -666,14 +730,17 @@ export function createPrefetch(o = {}) {
     // trade, at ANY number of buckets behind: a thin name's complete copy paints at once with one ask, not the hold and a
     // full read on every press. ⛔ BUT NEVER FOR THE BUCKET THAT JUST CLOSED (round 2): the server can stamp that proof at
     // or past the roll before the closed bucket is stored (a provider heal asked at roll+1 s, before the provider
-    // published it; the live stream's market-wide watermark, flushed mid-burst). So the proof counts only when it covers
-    // every bucket BEFORE the newest closed one and TAIL_LAG_WINDOW_MS has passed since the roll: never more than the
-    // fallback below already lends one bucket behind after the window. A thin name therefore paints at once from roll+8 s
-    // on and holds only in the first 8 s of each bucket.
+    // published it; the live stream's market-wide watermark, flushed mid-burst). So the proof counts only once
+    // TAIL_LAG_WINDOW_MS has passed since the roll, and (review of #2733) only when it reaches the roll itself, the newest
+    // closed bucket's end. A thin name therefore paints at once from roll+8 s on (once the server's proof is stamped past
+    // the roll) and holds only in the first 8 s of each bucket.
     const tf0 = parseKey(key)?.tf
     if (tf0 && Number.isFinite(s?.verifiedThrough)) {
       const roll = _rollMs(tf0)
-      if (now() - roll >= TAIL_LAG_WINDOW_MS && s.verifiedThrough * 1000 >= _prevRollMs(tf0)) return true
+      // ⛔ (review of #2733) the proof must reach the ROLL itself (the newest closed bucket's END): one reaching only its
+      // start says nothing about that bucket, and only #2732's server would then stop the short paint. With the proof
+      // through the roll the client proves the newest closed bucket itself, in either deploy order.
+      if (now() - roll >= TAIL_LAG_WINDOW_MS && s.verifiedThrough * 1000 >= roll) return true
     }
     // ⛔ ...BUT, WITHOUT THAT PROOF, NOT WHERE IT CANNOT MEAN THAT (live session 2026-11-24: AMD and AMAT 3-5 s after a roll,
     // RDDT two closed bars short; each painted short for 166 ms to ~1 s):
@@ -681,11 +748,12 @@ export function createPrefetch(o = {}) {
     //     (its since= path reads the store, the heal lands later); that is the server's lag, not the name;
     //   * two buckets or more behind (a server that lags or failed, until it proves otherwise);
     //   * (above) the server itself marked the tail `unverified` (it served the store without its pending repair).
-    // The press then asks again (_askOwn) and holds for the closed bar (_untilClosed), inside the window.
-    if (n >= 2) return false
-    const tf = parseKey(key)?.tf
-    if (tf && now() - _rollMs(tf) < TAIL_LAG_WINDOW_MS) return false
-    return true
+    // The press then asks again (_askOwn) and holds for the closed bar (_untilClosed, #2721), inside the window.
+    // ⛔ (2026-11-25, #2733) AND WITHOUT THAT PROOF, NEVER (live session-open test, p-1 press 51: at the open the server's store
+    // lagged its stream by 7-42 s, so an answer one bucket behind 8 s after the roll was the server's lag, not the name).
+    // The bucket-count fallback (one bucket behind, past TAIL_LAG_WINDOW_MS: the name not printing) is gone; only
+    // `verified_through` says a name did not trade (the server now stamps it with proof only: bars.py _apply_tail_status).
+    return false
   }
 
   /**

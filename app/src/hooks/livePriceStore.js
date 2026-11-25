@@ -14,6 +14,7 @@
 // useLivePrices with zero provider wiring, exactly as before.
 
 import { sessionState } from '../lib/marketClock/marketClock'
+import { noteServerDate, monoNow } from '../lib/serverClock'
 
 // Must match api/routers/live_prices.py::_MAX_TICKERS — the backend hard-rejects
 // (400) any request over this count rather than truncating it. The union here is
@@ -119,9 +120,16 @@ async function _poll() {
     for (let i = 0; i < tickers.length; i += _MAX_TICKERS_PER_REQUEST) {
       chunks.push(tickers.slice(i, i + _MAX_TICKERS_PER_REQUEST))
     }
-    const parts = await Promise.all(chunks.map((chunk) =>
-      fetch(`/api/live-prices?tickers=${chunk.join(',')}`, _ac ? { signal: _ac.signal } : undefined)
+    const parts = await Promise.all(chunks.map((chunk) => {
+      const sentAt = monoNow()
+      return fetch(`/api/live-prices?tickers=${chunk.join(',')}`, _ac ? { signal: _ac.signal } : undefined)
         .then((r) => {
+          // ⭐ (2026-11-25) the poll every member already makes, every few seconds: a sample of the server's clock for
+          // every roll decision (lib/serverClock.js), refused there when the answer could have come from a cache
+          try {
+            const h = r.headers
+            noteServerDate(h?.get?.('date'), { sentAt, receivedAt: monoNow(), age: h?.get?.('age') ?? null, cacheControl: h?.get?.('cache-control') ?? null })
+          } catch { /* a sample only */ }
           // A 401 is the backend answering "no", never a transient blip — treat it
           // as the distinct signal it is (see the OI-17 note above), not silence.
           if (r.status === 401 && !_unauthorizedFired) {
@@ -131,8 +139,8 @@ async function _poll() {
           if (!r.ok) return CHUNK_FAILED
           return r.json().then((body) => ({ ok: true, body }))
         })
-        .catch(chunkFailed),
-    ))
+        .catch(chunkFailed)
+    }))
     // TERM-033: each chunk is a TAGGED outcome, never a null that looks like an empty
     // answer. Every chunk failed → keep last prices, retry next tick.
     if (parts.every((p) => !p.ok)) return
