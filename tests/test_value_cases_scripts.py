@@ -138,7 +138,7 @@ def test_CONTROL_a_script_that_does_not_build_and_a_formula_where_a_script_belon
 #: mostly widths and counts of things kept), so a case whose window is that short names it here and the slip raises
 #: that number too. ⚰️ MEASURED 2026-11-23: cap-04's swing is "the 3 bars before it and the 3 bars after it", its
 #: recorded script holds no number from 5 to 300 that is a window, and the slip left it exactly as it was.
-SHORT_WINDOWS = {"cap-04": 3}
+SHORT_WINDOWS = {"cap-03": 3, "cap-04": 3}          # cap-03 back on the script lane 2026-11-25
 
 
 def _every_window_one_longer(source, short=None):

@@ -125,6 +125,15 @@
     "script": {
      "pine": "//@version=5\nindicator(\"Average of the last 5 swing highs\", overlay=true)\nvar array<float> swings = array.new<float>()\nbool isSwing = high[3] > ta.highest(high, 3)[4] and high[3] > ta.highest(high, 3)\nif isSwing\n    array.push(swings, high[3])\n    if array.size(swings) > 5\n        array.shift(swings)\nfloat total = 0.0\nfor v in swings\n    total += v\nplot(array.size(swings) == 5 ? total / 5 : na, \"Average of the last 5 swing highs\")\n"
     }
+   },
+   "edge": {
+    "ties": [
+     {
+      "field": "h",
+      "back": 11,
+      "as": 12
+     }
+    ]
    }
   },
   {
@@ -13452,10 +13461,10 @@
   },
   {
    "id": "cap-03",
-   "lane": "formula",
+   "lane": "script",
    "words": "Plot the average of the last 5 swing highs as a line, where a swing high is a bar whose high is above the highs of the 3 bars before it and the 3 bars after it",
    "rule": {
-    "digest": "eb12ea74d418714c",
+    "digest": "57253976d21d0b9d",
     "history": [
      {
       "digest": "57253976d21d0b9d",
@@ -13465,365 +13474,16 @@
       "digest": "eb12ea74d418714c",
       "reason": "moved to the formula lane 2026-11-23: the door answers this without a script, and the words can be met there, so the same rule is held on the formula lane's bars",
       "quote": "a swing high is a bar whose high is above the highs of the 3 bars before it and the 3 bars after it"
+     },
+     {
+      "digest": "57253976d21d0b9d",
+      "reason": "moved back to the script lane 2026-11-25: the door answers these words with a script again (after #2713 and #2726), so the rule is held on the script lane's bars, the fingerprint it was written with",
+      "quote": "a swing high is a bar whose high is above the highs of the 3 bars before it and the 3 bars after it"
      }
     ]
    },
    "needs": "a list that keeps the last five values (`array.*`)",
-   "distinguishes": "143 swing highs strictly above the 3 bars on each side; the average has a value on 1,643 of 1,700 bars",
-   "recorded": {
-    "on": "2026-11-23",
-    "front": "66a732bd29"
-   },
-   "recorded_verdict": "wrong",
-   "defect": "The swing is read on the swing bar itself, and an equal high counted. The build averages valuewhenOccurrence(..., 0) to (..., 4) of pivothigh(high, 3, 3): the newest five, which is right since #2573. But the formula's pivothigh writes a swing on the swing bar itself, so the average moves on that bar, where the member's swing is only known 3 bars later; and pivothigh marks a bar whose high EQUALS a high in the 3 bars before it (the member wrote 'above': strict), which alone moves 409 bars. The reply's read-back ('the line steps to a new level three bars after each new swing high') is not what the tree does on the bars. 739 of 1,643 bars differ. The same tree came back in all three live samples, each built on the repair after the first attempt was refused by the schema check.",
-   "answer": {
-    "contract": "uct.authoring.patch/1",
-    "ops": [
-     {
-      "op": "create",
-      "name": "Average of Last 5 Swing Highs",
-      "placement": "price",
-      "primary": "avgSwingHigh",
-      "outputs": [
-       {
-        "key": "avgSwingHigh",
-        "label": "Avg of last 5 swing highs",
-        "tree": {
-         "type": "op",
-         "name": "/",
-         "args": [
-          {
-           "type": "op",
-           "name": "+",
-           "args": [
-            {
-             "type": "op",
-             "name": "+",
-             "args": [
-              {
-               "type": "op",
-               "name": "+",
-               "args": [
-                {
-                 "type": "op",
-                 "name": "+",
-                 "args": [
-                  {
-                   "type": "call",
-                   "name": "valuewhenOccurrence",
-                   "args": [
-                    {
-                     "type": "op",
-                     "name": "!",
-                     "args": [
-                      {
-                       "type": "call",
-                       "name": "na",
-                       "args": [
-                        {
-                         "type": "call",
-                         "name": "pivothigh",
-                         "args": [
-                          {
-                           "type": "series",
-                           "name": "high"
-                          },
-                          {
-                           "type": "num",
-                           "value": 3
-                          },
-                          {
-                           "type": "num",
-                           "value": 3
-                          }
-                         ]
-                        }
-                       ]
-                      }
-                     ]
-                    },
-                    {
-                     "type": "call",
-                     "name": "pivothigh",
-                     "args": [
-                      {
-                       "type": "series",
-                       "name": "high"
-                      },
-                      {
-                       "type": "num",
-                       "value": 3
-                      },
-                      {
-                       "type": "num",
-                       "value": 3
-                      }
-                     ]
-                    },
-                    {
-                     "type": "num",
-                     "value": 0
-                    }
-                   ]
-                  },
-                  {
-                   "type": "call",
-                   "name": "valuewhenOccurrence",
-                   "args": [
-                    {
-                     "type": "op",
-                     "name": "!",
-                     "args": [
-                      {
-                       "type": "call",
-                       "name": "na",
-                       "args": [
-                        {
-                         "type": "call",
-                         "name": "pivothigh",
-                         "args": [
-                          {
-                           "type": "series",
-                           "name": "high"
-                          },
-                          {
-                           "type": "num",
-                           "value": 3
-                          },
-                          {
-                           "type": "num",
-                           "value": 3
-                          }
-                         ]
-                        }
-                       ]
-                      }
-                     ]
-                    },
-                    {
-                     "type": "call",
-                     "name": "pivothigh",
-                     "args": [
-                      {
-                       "type": "series",
-                       "name": "high"
-                      },
-                      {
-                       "type": "num",
-                       "value": 3
-                      },
-                      {
-                       "type": "num",
-                       "value": 3
-                      }
-                     ]
-                    },
-                    {
-                     "type": "num",
-                     "value": 1
-                    }
-                   ]
-                  }
-                 ]
-                },
-                {
-                 "type": "call",
-                 "name": "valuewhenOccurrence",
-                 "args": [
-                  {
-                   "type": "op",
-                   "name": "!",
-                   "args": [
-                    {
-                     "type": "call",
-                     "name": "na",
-                     "args": [
-                      {
-                       "type": "call",
-                       "name": "pivothigh",
-                       "args": [
-                        {
-                         "type": "series",
-                         "name": "high"
-                        },
-                        {
-                         "type": "num",
-                         "value": 3
-                        },
-                        {
-                         "type": "num",
-                         "value": 3
-                        }
-                       ]
-                      }
-                     ]
-                    }
-                   ]
-                  },
-                  {
-                   "type": "call",
-                   "name": "pivothigh",
-                   "args": [
-                    {
-                     "type": "series",
-                     "name": "high"
-                    },
-                    {
-                     "type": "num",
-                     "value": 3
-                    },
-                    {
-                     "type": "num",
-                     "value": 3
-                    }
-                   ]
-                  },
-                  {
-                   "type": "num",
-                   "value": 2
-                  }
-                 ]
-                }
-               ]
-              },
-              {
-               "type": "call",
-               "name": "valuewhenOccurrence",
-               "args": [
-                {
-                 "type": "op",
-                 "name": "!",
-                 "args": [
-                  {
-                   "type": "call",
-                   "name": "na",
-                   "args": [
-                    {
-                     "type": "call",
-                     "name": "pivothigh",
-                     "args": [
-                      {
-                       "type": "series",
-                       "name": "high"
-                      },
-                      {
-                       "type": "num",
-                       "value": 3
-                      },
-                      {
-                       "type": "num",
-                       "value": 3
-                      }
-                     ]
-                    }
-                   ]
-                  }
-                 ]
-                },
-                {
-                 "type": "call",
-                 "name": "pivothigh",
-                 "args": [
-                  {
-                   "type": "series",
-                   "name": "high"
-                  },
-                  {
-                   "type": "num",
-                   "value": 3
-                  },
-                  {
-                   "type": "num",
-                   "value": 3
-                  }
-                 ]
-                },
-                {
-                 "type": "num",
-                 "value": 3
-                }
-               ]
-              }
-             ]
-            },
-            {
-             "type": "call",
-             "name": "valuewhenOccurrence",
-             "args": [
-              {
-               "type": "op",
-               "name": "!",
-               "args": [
-                {
-                 "type": "call",
-                 "name": "na",
-                 "args": [
-                  {
-                   "type": "call",
-                   "name": "pivothigh",
-                   "args": [
-                    {
-                     "type": "series",
-                     "name": "high"
-                    },
-                    {
-                     "type": "num",
-                     "value": 3
-                    },
-                    {
-                     "type": "num",
-                     "value": 3
-                    }
-                   ]
-                  }
-                 ]
-                }
-               ]
-              },
-              {
-               "type": "call",
-               "name": "pivothigh",
-               "args": [
-                {
-                 "type": "series",
-                 "name": "high"
-                },
-                {
-                 "type": "num",
-                 "value": 3
-                },
-                {
-                 "type": "num",
-                 "value": 3
-                }
-               ]
-              },
-              {
-               "type": "num",
-               "value": 4
-              }
-             ]
-            }
-           ]
-          },
-          {
-           "type": "num",
-           "value": 5
-          }
-         ]
-        }
-       }
-      ]
-     },
-     {
-      "op": "set_style",
-      "output": "avgSwingHigh",
-      "style": "stepline",
-      "color": "#FF9800",
-      "width": 2
-     }
-    ]
-   },
+   "distinguishes": "203 swing highs strictly above the 3 bars on each side; the average has a value on 1,960 of 2,000 bars; on the edge chart a high equals the one the bar before it (11 and 12 bars before the newest), where a pivot function that admits an equal high on the left marks a swing the words do not",
    "found": [
     {
      "answer": {
@@ -14182,8 +13842,389 @@
       "pr": "#2573",
       "merge": "e161dd870304e6e30e01169c7f50affc6fa49dd6"
      }
+    },
+    {
+     "answer": {
+      "contract": "uct.authoring.patch/1",
+      "ops": [
+       {
+        "op": "create",
+        "name": "Average of Last 5 Swing Highs",
+        "placement": "price",
+        "primary": "avgSwingHigh",
+        "outputs": [
+         {
+          "key": "avgSwingHigh",
+          "label": "Avg of last 5 swing highs",
+          "tree": {
+           "type": "op",
+           "name": "/",
+           "args": [
+            {
+             "type": "op",
+             "name": "+",
+             "args": [
+              {
+               "type": "op",
+               "name": "+",
+               "args": [
+                {
+                 "type": "op",
+                 "name": "+",
+                 "args": [
+                  {
+                   "type": "op",
+                   "name": "+",
+                   "args": [
+                    {
+                     "type": "call",
+                     "name": "valuewhenOccurrence",
+                     "args": [
+                      {
+                       "type": "op",
+                       "name": "!",
+                       "args": [
+                        {
+                         "type": "call",
+                         "name": "na",
+                         "args": [
+                          {
+                           "type": "call",
+                           "name": "pivothigh",
+                           "args": [
+                            {
+                             "type": "series",
+                             "name": "high"
+                            },
+                            {
+                             "type": "num",
+                             "value": 3
+                            },
+                            {
+                             "type": "num",
+                             "value": 3
+                            }
+                           ]
+                          }
+                         ]
+                        }
+                       ]
+                      },
+                      {
+                       "type": "call",
+                       "name": "pivothigh",
+                       "args": [
+                        {
+                         "type": "series",
+                         "name": "high"
+                        },
+                        {
+                         "type": "num",
+                         "value": 3
+                        },
+                        {
+                         "type": "num",
+                         "value": 3
+                        }
+                       ]
+                      },
+                      {
+                       "type": "num",
+                       "value": 0
+                      }
+                     ]
+                    },
+                    {
+                     "type": "call",
+                     "name": "valuewhenOccurrence",
+                     "args": [
+                      {
+                       "type": "op",
+                       "name": "!",
+                       "args": [
+                        {
+                         "type": "call",
+                         "name": "na",
+                         "args": [
+                          {
+                           "type": "call",
+                           "name": "pivothigh",
+                           "args": [
+                            {
+                             "type": "series",
+                             "name": "high"
+                            },
+                            {
+                             "type": "num",
+                             "value": 3
+                            },
+                            {
+                             "type": "num",
+                             "value": 3
+                            }
+                           ]
+                          }
+                         ]
+                        }
+                       ]
+                      },
+                      {
+                       "type": "call",
+                       "name": "pivothigh",
+                       "args": [
+                        {
+                         "type": "series",
+                         "name": "high"
+                        },
+                        {
+                         "type": "num",
+                         "value": 3
+                        },
+                        {
+                         "type": "num",
+                         "value": 3
+                        }
+                       ]
+                      },
+                      {
+                       "type": "num",
+                       "value": 1
+                      }
+                     ]
+                    }
+                   ]
+                  },
+                  {
+                   "type": "call",
+                   "name": "valuewhenOccurrence",
+                   "args": [
+                    {
+                     "type": "op",
+                     "name": "!",
+                     "args": [
+                      {
+                       "type": "call",
+                       "name": "na",
+                       "args": [
+                        {
+                         "type": "call",
+                         "name": "pivothigh",
+                         "args": [
+                          {
+                           "type": "series",
+                           "name": "high"
+                          },
+                          {
+                           "type": "num",
+                           "value": 3
+                          },
+                          {
+                           "type": "num",
+                           "value": 3
+                          }
+                         ]
+                        }
+                       ]
+                      }
+                     ]
+                    },
+                    {
+                     "type": "call",
+                     "name": "pivothigh",
+                     "args": [
+                      {
+                       "type": "series",
+                       "name": "high"
+                      },
+                      {
+                       "type": "num",
+                       "value": 3
+                      },
+                      {
+                       "type": "num",
+                       "value": 3
+                      }
+                     ]
+                    },
+                    {
+                     "type": "num",
+                     "value": 2
+                    }
+                   ]
+                  }
+                 ]
+                },
+                {
+                 "type": "call",
+                 "name": "valuewhenOccurrence",
+                 "args": [
+                  {
+                   "type": "op",
+                   "name": "!",
+                   "args": [
+                    {
+                     "type": "call",
+                     "name": "na",
+                     "args": [
+                      {
+                       "type": "call",
+                       "name": "pivothigh",
+                       "args": [
+                        {
+                         "type": "series",
+                         "name": "high"
+                        },
+                        {
+                         "type": "num",
+                         "value": 3
+                        },
+                        {
+                         "type": "num",
+                         "value": 3
+                        }
+                       ]
+                      }
+                     ]
+                    }
+                   ]
+                  },
+                  {
+                   "type": "call",
+                   "name": "pivothigh",
+                   "args": [
+                    {
+                     "type": "series",
+                     "name": "high"
+                    },
+                    {
+                     "type": "num",
+                     "value": 3
+                    },
+                    {
+                     "type": "num",
+                     "value": 3
+                    }
+                   ]
+                  },
+                  {
+                   "type": "num",
+                   "value": 3
+                  }
+                 ]
+                }
+               ]
+              },
+              {
+               "type": "call",
+               "name": "valuewhenOccurrence",
+               "args": [
+                {
+                 "type": "op",
+                 "name": "!",
+                 "args": [
+                  {
+                   "type": "call",
+                   "name": "na",
+                   "args": [
+                    {
+                     "type": "call",
+                     "name": "pivothigh",
+                     "args": [
+                      {
+                       "type": "series",
+                       "name": "high"
+                      },
+                      {
+                       "type": "num",
+                       "value": 3
+                      },
+                      {
+                       "type": "num",
+                       "value": 3
+                      }
+                     ]
+                    }
+                   ]
+                  }
+                 ]
+                },
+                {
+                 "type": "call",
+                 "name": "pivothigh",
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "high"
+                  },
+                  {
+                   "type": "num",
+                   "value": 3
+                  },
+                  {
+                   "type": "num",
+                   "value": 3
+                  }
+                 ]
+                },
+                {
+                 "type": "num",
+                 "value": 4
+                }
+               ]
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 5
+            }
+           ]
+          }
+         }
+        ]
+       },
+       {
+        "op": "set_style",
+        "output": "avgSwingHigh",
+        "style": "stepline",
+        "color": "#FF9800",
+        "width": 2
+       }
+      ]
+     },
+     "defect": "The swing is read on the swing bar itself, and an equal high counted. The build averages valuewhenOccurrence(..., 0) to (..., 4) of pivothigh(high, 3, 3): the newest five, which is right since #2573. But the formula's pivothigh writes a swing on the swing bar itself, so the average moves on that bar, where the member's swing is only known 3 bars later; and pivothigh marks a bar whose high EQUALS a high in the 3 bars before it (the member wrote 'above': strict), which alone moves 409 bars. The reply's read-back ('the line steps to a new level three bars after each new swing high') is not what the tree does on the bars. 739 of 1,643 bars differ. The same tree came back in all three live samples, each built on the repair after the first attempt was refused by the schema check.",
+     "recorded": {
+      "on": "2026-11-23",
+      "front": "66a732bd29"
+     },
+     "fixed_by": {
+      "pr": "#2726",
+      "merge": "6aa2a5a6611c5350ccebc2e0c25dc22ad4490fe5"
+     }
     }
-   ]
+   ],
+   "chart": "daily",
+   "answer": {
+    "turn": "script",
+    "script": {
+     "pine": "//@version=5\nindicator(\"Average of last 5 swing highs\", overlay=true)\n\nn = input.int(3, \"Bars on each side\", minval=1)\ncount = input.int(5, \"Swing highs to average\", minval=1)\n\n// Strict swing high: high[n] is ABOVE the highs of the n bars before it\n// and the n bars after it. Known on this bar, it sits n bars back.\nisSwing = true\nfor k = 1 to n\n    if not (high[n] > high[n + k]) or not (high[n] > high[n - k])\n        isSwing := false\n\nvar float[] swings = array.new_float(0)\nif isSwing\n    array.push(swings, high[n])\n    if array.size(swings) > count\n        array.shift(swings)\n\navgSwing = array.size(swings) == count ? array.avg(swings) : na\n\nplot(avgSwing, \"Average of last 5 swing highs\", color=color.orange, linewidth=2, style=plot.style_stepline)"
+    }
+   },
+   "recorded": {
+    "on": "2026-11-25",
+    "front": "872b6976a5",
+    "model": "claude-opus-5"
+   },
+   "edge": {
+    "ties": [
+     {
+      "field": "h",
+      "back": 11,
+      "as": 12
+     }
+    ]
+   },
+   "provenance": "Recorded RIGHT 2026-11-25 on the MEMBER record (coordinator's ruling): after #2726 (rule 15: strict words on both sides are written out, and a reply using ta.pivothigh never calls it strict), these words as the member test account (role member), production build 872b6976a5: 3 of 3 RIGHT by this case's own rule on the plain bars AND on the high tie, each a script writing the comparisons out (none uses ta.pivothigh), each reply saying the swing is confirmed 3 bars late; with 3 admin-measurement samples, 6 of 6. The answer recorded is the second member sample (c03b): the three are equally right, and it is one of the two whose every single flip the audit sees (c03a's `> high[N + k]` loop guard flip is unseen). Before it, after #2713: 6 of 6 scripts, RIGHT on the plain bars, WRONG on the high tie, all six ta.pivothigh, which admits an equal high on the left (the e97 builder's finding); before #2713 the door built formulas, kept below as specimens: the first pass (one swing late, fixed by #2573), then the newest five of the engine's swing on its own bar (739 of 1,643 bars wrong)."
   },
   {
    "id": "h03",

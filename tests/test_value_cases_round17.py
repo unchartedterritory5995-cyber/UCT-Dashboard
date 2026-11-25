@@ -58,6 +58,11 @@ COLUMN_RULES = ("cap-01", "cap-02", "cap-03", "cap-07", "cap-09")
 DRAWN_RULES = ("cap-04", "cap-05", "cap-06", "cap-08")
 ON_THE_FORMULA_LANE = ("cap-02", "cap-03", "cap-07", "cap-09")     # the door answers these without a script (live 2026-11-23)
 MOVED = "moved to the formula lane 2026-11-23"
+#: ⭐ 2026-11-25: cap-03 is answered with a SCRIPT again (#2713, then #2726) and recorded RIGHT there, on its plain bars
+#: and on a high tie (6 of 6). The formula lane still holds the same rule (`rules.SAME_RULE_AS_THE_SCRIPT_LANE`), and
+#: its formula answers are kept as specimens in `found`, each with what fixed it.
+BACK_ON_THE_SCRIPT_LANE = ("cap-03",)
+MOVED_BACK = "moved back to the script lane 2026-11-25"
 KEY_WORDS = {
     "cap-01": "the most recent close above today's close was, looking back at most 250 bars, and plot nothing when there is none",
     "cap-02": "SMA, EMA or WMA, with SMA as the default and a length of 20",
@@ -92,12 +97,21 @@ def graded(cid, *, columns=None, labels=(), lines=(), boxes=(), source="plot(x)"
 
 # ── the cases ──
 
+def lane_of(cid):
+    return "formula" if cid in ON_THE_FORMULA_LANE and cid not in BACK_ON_THE_SCRIPT_LANE else "script"
+
+
+def formula_answer_of(cid):
+    """The formula answer a case holds: its record on the formula lane, or (cap-03) its newest formula specimen."""
+    return EVERY[cid]["answer"] if lane_of(cid) == "formula" else EVERY[cid]["found"][-1]["answer"]
+
+
 def test_nine_cases_each_with_its_words_its_rule_and_where_it_stands():
     assert sorted(EVERY) == IDS and not set(PENDING) & set(RECORDED)
     assert sorted(PENDING) == []                         # cap-01 was the last: adopted on the member record, 2026-11-24
     assert tuple(formula_rules.SAME_RULE_AS_THE_SCRIPT_LANE) == ON_THE_FORMULA_LANE
     for cid, case in EVERY.items():
-        formula = cid in ON_THE_FORMULA_LANE
+        formula = lane_of(cid) == "formula"
         assert case["lane"] == ("formula" if formula else "script") and case.get("chart", "daily") == "daily", cid
         history = case["rule"]["history"]
         assert history[0]["reason"] == "written from the request's words before the answer was read", cid
@@ -112,20 +126,26 @@ def test_nine_cases_each_with_its_words_its_rule_and_where_it_stands():
             # ONE rule whichever lane answers: the case says why it moved, in the member's own words
             assert len(history) == 2 and history[1]["reason"].startswith(MOVED) and history[1]["quote"] in case["words"], cid
             assert history[0]["digest"] != history[1]["digest"], cid   # the same rule on other bars says other numbers
+        elif cid in BACK_ON_THE_SCRIPT_LANE:
+            # there and back: the last entry returns to the fingerprint it was written with, in the member's words
+            assert len(history) == 3 and history[1]["reason"].startswith(MOVED) and history[2]["reason"].startswith(MOVED_BACK), cid
+            assert history[2]["digest"] == history[0]["digest"] != history[1]["digest"] and history[2]["quote"] in case["words"], cid
         else:
             assert len(history) == 1, cid
         assert case["needs"] and case["distinguishes"] and R.has_rule(cid)
-    assert {cid for cid, case in RECORDED.items() if case.get("recorded_verdict") == "wrong"} == {"cap-03"}
-    # cap-03's record is the door's CURRENT answer (live 2026-11-23, after #2572, #2573 and #2574), and it names what stands
+    assert {cid for cid, case in RECORDED.items() if case.get("recorded_verdict") == "wrong"} == set()
+    # cap-03's record is RIGHT on the script lane (2026-11-25, after #2726), and BOTH of its formula answers are kept as
+    # specimens, each with what fixed it: the first pass (#2573), then the one recorded 2026-11-23, whose findings stand
+    first_pass, formula_record = RECORDED["cap-03"]["found"]
+    assert formula_record["fixed_by"] == {"pr": "#2726", "merge": "6aa2a5a6611c5350ccebc2e0c25dc22ad4490fe5"}
     for finding in ("on the swing bar itself", "EQUALS a high in the 3 bars before it", "read-back", "739 of 1,643 bars differ",
                     "all three live samples"):
-        assert finding in RECORDED["cap-03"]["defect"], finding
-    # the answer of the first pass is kept, as the specimen of the one finding that IS fixed, with what fixed it
-    (first_pass,) = RECORDED["cap-03"]["found"]
+        assert finding in formula_record["defect"], finding
+    assert RECORDED["cap-03"]["answer"]["turn"] == "script" and "pivothigh" not in RECORDED["cap-03"]["answer"]["script"]["pine"]
     assert first_pass["fixed_by"] == {"pr": "#2573", "merge": "e161dd870304e6e30e01169c7f50affc6fa49dd6"}
     for finding in ("occurrence 0 is the newest", "1,261 of 1,639 bars differed"):
         assert finding in first_pass["defect"], finding
-    assert first_pass["answer"] != RECORDED["cap-03"]["answer"] and first_pass["recorded"]["front"] != RECORDED["cap-03"]["recorded"]["front"]
+    assert first_pass["answer"] != formula_record["answer"] and first_pass["recorded"]["front"] != formula_record["recorded"]["front"]
     # cap-01 is recorded RIGHT, and says what made it right (the ASSISTANT side: #2597, not an engine fix) and what
     # it rests on (the member account, six of six); what the passes before it found is kept beside it
     cap01 = RECORDED["cap-01"]
@@ -395,10 +415,13 @@ def lane_chart():
 
 def test_each_fingerprint_is_its_rules_on_its_own_lanes_bars(lane_chart):
     from tools.value_cases import script_grade
-    script_ids = [cid for cid in IDS if cid not in ON_THE_FORMULA_LANE]
-    digests = {**script_grade.rule_digests([EVERY[cid] for cid in script_ids]), **{cid: G.rule_digest(cid) for cid in ON_THE_FORMULA_LANE}}
+    script_ids = [cid for cid in IDS if lane_of(cid) == "script"]
+    digests = {**script_grade.rule_digests([EVERY[cid] for cid in script_ids]),
+               **{cid: G.rule_digest(cid) for cid in ON_THE_FORMULA_LANE if lane_of(cid) == "formula"}}
     assert {cid: EVERY[cid]["rule"]["digest"] for cid in IDS} == digests
     assert len(set(digests.values())) == 9
+    # a case that moved back keeps the formula lane's fingerprint in its history: the same rule on those bars
+    assert {cid: EVERY[cid]["rule"]["history"][1]["digest"] for cid in BACK_ON_THE_SCRIPT_LANE} == {cid: G.rule_digest(cid) for cid in BACK_ON_THE_SCRIPT_LANE}
     # a case that moved keeps, as its first entry, the fingerprint it was written with: the same rule on the script lane's bars
     was = script_grade.rule_digests([{"id": cid, "chart": "daily"} for cid in ON_THE_FORMULA_LANE])
     assert {cid: EVERY[cid]["rule"]["history"][0]["digest"] for cid in ON_THE_FORMULA_LANE} == was
@@ -413,6 +436,8 @@ def test_what_each_script_lane_case_says_its_rule_distinguishes_is_true(lane_cha
     beyond = sum(1 for i in range(n) if c1[i] is None and any(R.C[j] > R.C[i] for j in range(0, max(0, i - 250))))
     assert f"a value on {has(c1):,} of {n:,} bars" in said["cap-01"] and f"of which {beyond} have a higher close further back than 250 bars" in said["cap-01"]
     assert beyond >= 5                                                    # the 250 bar limit decides bars on this chart
+    c3 = R.rule_cap03()[0][1]
+    assert f"{len(R._swings(R.H, 3, True))} swing highs strictly above" in said["cap-03"] and f"a value on {has(c3):,} of {n:,} bars" in said["cap-03"]
     assert f"{len(R._swings(R.L, 3, False))} swing lows" in said["cap-04"]
     assert f"the rise is {R.drawn_rules('cap-05')['labels_at'][0][2]:.2f}" in said["cap-05"]
     assert f"reading {R.drawn_rules('cap-06')['labels_at'][0][2]:.2f} percent" in said["cap-06"]
@@ -423,11 +448,11 @@ def test_what_each_script_lane_case_says_its_rule_distinguishes_is_true(lane_cha
 def test_what_each_formula_lane_case_says_its_rule_distinguishes_is_true():
     bound()                                                               # the formula lane's own bars
     n = R.N
-    said = {cid: EVERY[cid]["distinguishes"] for cid in ON_THE_FORMULA_LANE}
+    said = {cid: EVERY[cid]["distinguishes"] for cid in ON_THE_FORMULA_LANE if lane_of(cid) == "formula"}
     c2, c3, c7, c9 = R.rule_cap02()[0][1], R.rule_cap03()[0][1], R.rule_cap07()[0][1], R.rule_cap09()[0][1]
     has = lambda col: sum(1 for v in col if v is not None)  # noqa: E731
     assert f"the default line has a value on {has(c2):,} of {n:,} bars" in said["cap-02"] and "only the DEFAULT choice is held" in said["cap-02"]
-    assert f"{len(R._swings(R.H, 3, True))} swing highs strictly above" in said["cap-03"] and f"a value on {has(c3):,} of {n:,} bars" in said["cap-03"] and has(c3) > 1000
+    assert has(c3) > 1000                                                 # (cap-03 says its numbers on the script lane now)
     assert f"shown on {has(c7):,} bars and must be empty on {n - has(c7):,}" in said["cap-07"] and has(c7) > 300 and n - has(c7) > 300
     plain = R._sma(R.V, 10)
     differs = sum(1 for i in range(n) if c9[i] is not None and plain[i] is not None and abs(c9[i] - plain[i]) > 1e-9)
@@ -438,7 +463,7 @@ def test_what_each_formula_lane_case_says_its_rule_distinguishes_is_true():
 
 def _formula_answer(cid, tree):
     """The recorded formula answer of `cid` with its one output's formula replaced."""
-    answer = copy.deepcopy(RECORDED[cid]["answer"])
+    answer = copy.deepcopy(formula_answer_of(cid))
     outputs = answer["ops"][0]["outputs"]
     assert len(outputs) == 1
     outputs[0]["tree"] = tree
@@ -446,14 +471,14 @@ def _formula_answer(cid, tree):
 
 
 def _tree_of(cid):
-    return copy.deepcopy(RECORDED[cid]["answer"]["ops"][0]["outputs"][0]["tree"])
+    return copy.deepcopy(formula_answer_of(cid)["ops"][0]["outputs"][0]["tree"])
 
 
 def test_the_four_formula_answers_are_held_by_value_three_right_and_one_wrong():
     for cid in ("cap-02", "cap-07", "cap-09"):
         got = G.grade(cid, RECORDED[cid]["answer"])
         assert got["verdict"] == "right", (cid, got["lines"])
-    got = G.grade("cap-03", RECORDED["cap-03"]["answer"])
+    got = G.grade("cap-03", formula_answer_of("cap-03"))
     assert got["verdict"] == "wrong" and "739 of 1643 bars differ" in got["lines"][0], got["lines"]
     # the first pass's answer, kept as a specimen: wrong by the same rule, on more bars
     was = G.grade("cap-03", RECORDED["cap-03"]["found"][0]["answer"])
@@ -523,7 +548,7 @@ def _said_exactly(first, last, strict=True):
 
 
 def test_cap03_the_words_can_be_met_on_the_formula_lane_and_each_finding_alone_is_wrong():
-    """cap-03 is recorded WRONG. This is what RIGHT is, for the door unit that fixes it: no script is needed."""
+    """cap-03's formula answer was WRONG (kept as a specimen). This is what RIGHT is on the formula lane: no script is needed."""
     right = G.grade("cap-03", _formula_answer("cap-03", _said_exactly(0, 4)))
     assert right["verdict"] == "right" and right["lines"][0].endswith(" on 1643 bars"), right["lines"]
     # finding 1 alone: the right swings, read one swing late (occurrences 1 to 5; 0 is the newest)
