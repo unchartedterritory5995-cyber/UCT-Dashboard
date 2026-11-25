@@ -1,0 +1,6 @@
+{
+  "family": "removal",
+  "about": "D31 resolver P1 — the generated suites' locked rates (resolver/removal.family.test.js). Ratchet DOWN only: a rate may be lowered when the resolver improves, never raised without AUDIT review.",
+  "overAskRate": 0,
+  "wrongRefuseRate": 0
+}
