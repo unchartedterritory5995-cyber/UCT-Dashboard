@@ -26,6 +26,7 @@ import { createLiveFeed } from './liveFeed'
 import { appMinuteFeed } from './minuteFeedSwitch'
 import { STATUS } from './types'
 import { onDeskHiddenChange } from '../../lib/deskVisibility'
+import { serverNow } from '../../lib/serverClock'
 
 export { keyOf, parseKey } from './types'
 
@@ -45,7 +46,8 @@ const DEFAULT_UNTIL = Object.freeze([STATUS.CONTEXT, STATUS.CURRENT, STATUS.UNAV
  *                               the store gets its first subscriber (a chart on the page), never before.
  */
 export function createBarStore(o = {}) {
-  const now = o.timers?.now ?? (() => Date.now())
+  // ⭐ (2026-11-25) the server's clock (lib/serverClock.js): the registry's `nowMs` decides every status and bucket roll
+  const now = o.timers?.now ?? serverNow
   const setTimer = o.timers?.setTimer ?? ((fn, ms) => setTimeout(fn, ms))
   const clearTimer = o.timers?.clearTimer ?? ((h) => clearTimeout(h))
   const registry = o.registry ?? createRegistry({ ctx: () => ({ nowMs: now() }), ...(o.frame ? { frame: o.frame } : {}) })

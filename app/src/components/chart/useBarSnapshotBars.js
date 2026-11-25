@@ -30,6 +30,7 @@ import { getBarStore } from '../../data/barStore/index'
 import { legacyBars, legacyDevelopingOf, newestBarIsFormingOf } from '../../data/barStore/adapter'
 import { prefetch as storePrefetch, viewKeyFor, LAKE_JOIN_WAIT_MS, deviceRefusalOf } from '../../data/barStore/prefetch'
 import { deviceStoreKillSeen } from '../../lib/chartSpeed'
+import { serverNow } from '../../lib/serverClock'
 import { keyOf, parseKey, STATUS, isDateTf, dateLabelToUnix } from '../../data/barStore/types'
 import { isNativeTf, fetchTf, resampleSpec } from './timeframes'
 import { resolveDailyTodaySeed, useCompareBars } from './useLegacyChartBars'
@@ -208,7 +209,7 @@ export function useBarSnapshotBars({
   const _deviceRefused = snap?.deviceRows === true && _intradayLike && !_hasOverride && !replayCutoff
     && _devicePaintedRef.current !== _deviceView
     // eslint-disable-next-line react-hooks/purity
-    && !!deviceRefusalOf(snap, { extended: !!showExtended, through: store.persist?.deviceThroughOf?.(key) ?? null, nowMs: Date.now(), killed: deviceStoreKillSeen() })
+    && !!deviceRefusalOf(snap, { extended: !!showExtended, through: store.persist?.deviceThroughOf?.(key) ?? null, nowMs: serverNow(), killed: deviceStoreKillSeen() })
   let chosen = null
   if (_overrideArr) chosen = barsOverride
   else if (barsOverridePending || _econId) chosen = null
@@ -228,7 +229,7 @@ export function useBarSnapshotBars({
     // Wall-clock read in render ON PURPOSE: "is the forming bucket in this copy" is a question
     // about now (the legacy selector asked it the same way); the status tick re-renders it.
     // eslint-disable-next-line react-hooks/purity
-    const forming = expectedFormingBar(resolvedTf, Date.now(), { session: showExtended ? 'extended' : 'rth' })
+    const forming = expectedFormingBar(resolvedTf, serverNow(), { session: showExtended ? 'extended' : 'rth' })
     if (forming == null) return true
     const lt = chosen[chosen.length - 1]?.t
     if (typeof lt !== 'number' || lt < forming) return false

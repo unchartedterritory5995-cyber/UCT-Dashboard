@@ -74,6 +74,7 @@ import { deviceStoreKillSeen } from '../../lib/chartSpeed'
 import { isAppVisible } from '../../lib/deskVisibility'
 import { bucketEndUnix } from '../../components/chart/liveBuckets'
 import { bucketStartUnix } from '../../components/chart/barTime'
+import { serverNow } from '../../lib/serverClock'
 import { BARSTORE } from '../../components/chart/barStoreSwitch'
 import { prefetchTickerMeta as _defaultTickerMeta } from '../../hooks/useTickerMeta'
 import {
@@ -338,7 +339,9 @@ export function createPrefetch(o = {}) {
   const tickerMeta = o.tickerMeta ?? _defaultTickerMeta
   const packIngesting = o.packIngesting ?? _packStillIngesting
   const extended = o.extended ?? viewShowExtended
-  const now = o.now ?? (() => Date.now())
+  // ⭐ (2026-11-25) THE SERVER'S CLOCK (lib/serverClock.js): every roll and bucket decision below reads it, never the
+  // member's own clock (6 s slow on the session-open test PC: copies a closed bar short painted in the key task).
+  const now = o.now ?? serverNow
   const setTimer = o.setTimer ?? ((fn, ms) => setTimeout(fn, ms))
   const clearTimer = o.clearTimer ?? ((h) => clearTimeout(h))
   const deepNeighbors = o.deepNeighbors ?? deepNeighborsEnabled
