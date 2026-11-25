@@ -34,6 +34,18 @@ def test_the_rule_says_what_the_functions_admit_and_how_strict_words_are_written
     assert ">=" not in rule.split("If you do use")[0]                     # the written-out form is strict
 
 
+def test_the_rule_fires_only_on_strict_words_and_plain_pivot_requests_keep_pines_own_function():
+    """Coordinator 2026-11-25: "pivot highs" / "swing highs" with no strict wording are TradingView's own pivots, and
+    ta.pivothigh is the honest answer to them. The rule is scoped to strict words on both sides, and says so."""
+    rule = pa.STRICT_PIVOT_RULE
+    assert "When the member's words are strict on both sides" in rule
+    assert "This rule is ONLY for strict words on both sides" in rule
+    for part in ("a request for \"pivot highs\", \"swing highs\" or TradingView's pivots, with no such words, is "
+                 "answered with `ta.pivothigh` / `ta.pivotlow` themselves (rule 10)",
+                 "they are TradingView's own, and the honest answer to those words"):
+        assert part in rule, part
+
+
 def test_rule_10_is_still_there_and_still_says_call_pines_own_function():
     c = pa.contract()
     assert "\n10. For a well-known indicator, when this document lists Pine's OWN function for it, CALL that function" in c

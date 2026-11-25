@@ -398,7 +398,9 @@ STRICT_PIVOT_RULE = (
     "it\"), write the comparisons yourself, on the bar N back, known on this bar: `high[N] > high[N + k]` and "
     "`high[N] > high[N - k]` for every k from 1 to N (a `for` loop, or one line per k), and `low[N] < ...` for a low. "
     "This comes before rule 10. If you do use `ta.pivothigh` or `ta.pivotlow`, never call its rule strict in `reply`: "
-    "say it counts a bar equal to one before it.")
+    "say it counts a bar equal to one before it. This rule is ONLY for strict words on both sides: a request for "
+    "\"pivot highs\", \"swing highs\" or TradingView's pivots, with no such words, is answered with `ta.pivothigh` / "
+    "`ta.pivotlow` themselves (rule 10): they are TradingView's own, and the honest answer to those words.")
 
 #: ⭐ RULE 14: A FIGURE THE MEMBER MUST FILL IN (found by the first full live run of the value cases, 2026-11-22). On
 #: the formula door an "average cost" setting was drawn bare: a line at price 0 until filled, squeezing the chart. A
