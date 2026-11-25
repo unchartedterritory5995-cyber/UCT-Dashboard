@@ -2063,8 +2063,13 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     // ⭐ (2026-11-25 wide sweep) A JUMP warms where the next jump lands (utils/scanNeighbors jumpTarget): jumps of 20
     // rows outran the urgent next-row warm. The previous selection is looked up in THIS order (a re-sort moved it).
     const jump = prev.sym ? jumpTarget(flat, idx, flat.indexOf(prev.sym)) : null
-    const urgentNext = jump && !next.includes(jump) ? [...next, jump] : next
-    const keep = jump && !keep0.includes(jump) ? [...keep0, jump] : keep0
+    // ⛔ (review of #2739) INSIDE BOTH CAPS. prefetchBars makes only the first URGENT_MAX_PER_CALL (2) symbols of a call
+    // urgent: a third leaves as a shed-able background warm that is never re-asked after a roll, so a jump asks for
+    // [the next row, the jump target] (a jumping member does not need row + 2 urgently). Never a SECOND urgent call: only
+    // the latest urgent call keeps its rows. And a hold pins `keep.slice(0, share)` (30 on a two-hold board, 20 on three):
+    // the target goes FIRST in keep, never after the 30 rows ahead.
+    const urgentNext = jump && !next.includes(jump) ? [next[0], jump].filter(Boolean) : next
+    const keep = jump ? [jump, ...keep0.filter((x) => x !== jump)] : keep0
     const sendWarm = () => {
       const holds = _holdsRef.current
       for (const [htf, h] of holds) if (!tfs.includes(htf)) { h.clear(); holds.delete(htf) }
