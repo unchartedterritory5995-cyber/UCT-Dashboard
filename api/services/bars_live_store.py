@@ -216,12 +216,63 @@ def stream_alive() -> bool:
     return t is not None and (_now_mono() - t) <= STREAM_ALIVE_S
 
 
+#: ⛔ (2026-11-25 wide sweep, review) THE MARKET'S WATERMARK IS NOT THIS TICKER'S PROOF. It says the stream delivered a
+#: minute for the market; one ticker's aggregate for that minute can come later (a jump's REST answer lacked the
+#: minute that had closed 24 s earlier and read `current`). So a covered ticker is proven through the end of its OWN
+#: newest row this tier wrote, or through `now - LIVE_LATE_S` (a minute that closed that long ago with nothing
+#: delivered for the ticker had no trade), whichever is later, never past the market's watermark. Cost: a covered
+#: name with no print in the newest bucket reads `unverified` for LIVE_LATE_S after each roll (the client re-asks on
+#: Retry-After, 3-5 s); a name whose own minute lands on time proves itself at once. `late_rows` in `status()`
+#: counts rows written later than this after their bucket closed: rows the proof had already vouched for.
+LIVE_LATE_S = float(os.environ.get("BARS_LIVE_LATE_S", "30"))
+#: tf ("1" / "5") -> sym -> the start (unix s) of the newest row this tier wrote whole for it (`_write_rows`).
+_own_last: dict[str, dict[str, int]] = {"1": {}, "5": {}}
+_late = {"rows": 0, "refused_tickers": 0, "unnamed_batches": 0}
+
+
+def _now_wall() -> float:
+    return time.time()
+
+
+def _note_written(tf: str, rows: list, skip=frozenset()) -> None:
+    """Rows the store took: each ticker's newest row start (but a ticker in `skip`, one the store refused a row of), and
+    the late ones counted (see LIVE_LATE_S). The batch's per-ticker newest is found OUTSIDE the lock (a push is ~10k
+    rows); the lock is held only to merge it."""
+    own = _own_last.get(tf)
+    if own is None:
+        return
+    step = MINUTE_S if tf == "1" else BUCKET_S
+    newest: dict[str, int] = {}
+    for sym, ts, *_rest in rows:
+        if sym in skip:
+            continue
+        try:
+            ts = int(ts)
+        except (TypeError, ValueError):
+            continue
+        if ts > newest.get(sym, -1):
+            newest[sym] = ts
+    now = _now_wall()
+    floor = now - LIVE_LATE_S
+    with _lock:
+        covered = _covered1 if tf == "1" else _covered5
+        for sym, ts in newest.items():
+            prev = own.get(sym)
+            if prev is None or ts > prev:
+                own[sym] = ts
+                # a NEW newest row of a covered ticker, for a bucket that closed more than LIVE_LATE_S ago (and in the
+                # last ten minutes: a repair's history is not lateness): the proof had already vouched for it
+                if sym in covered and now - 600 <= ts + step < floor:
+                    _late["rows"] += 1
+
+
 def proven_through_s(ticker: str, tf: str = "5") -> Optional[int]:
     """Unix seconds through which the universe stream PROVES `ticker`'s 5m series
-    complete: the end of the newest minute the (alive) stream has delivered for the
-    whole market, for a ticker covered in this epoch. A thin name that printed
-    nothing since its tail has, by this proof, nothing newer. None = no proof (flag
-    off, not covered, stream silent, or no minute delivered yet this epoch).
+    complete, for a ticker covered in this epoch: through the end of its own newest
+    written row, or `now - LIVE_LATE_S`, whichever is later, and never past the end of
+    the newest minute the (alive) stream has delivered for the whole market (see
+    LIVE_LATE_S). None = no proof (flag off, not covered, stream silent, or no minute
+    delivered yet this epoch).
 
     tf="1": the same proof for a 1m-covered ticker, from the watermark of the newest
     push whose minutes were WRITTEN (`_s1["m1_watermark_ms"]`, set after the write)."""
@@ -238,7 +289,12 @@ def proven_through_s(ticker: str, tf: str = "5") -> Optional[int]:
         wm = _state["watermark_ms"]
     if not wm:
         return None
-    return int(wm) // 1000 + 60
+    market = int(wm) // 1000 + 60
+    key = "1" if tf == "1" else "5"
+    own = _own_last[key].get(sym)
+    quiet = int(_now_wall() - LIVE_LATE_S)
+    mine = quiet if own is None else max(own + (MINUTE_S if key == "1" else BUCKET_S), quiet)
+    return min(market, mine)
 
 
 def daily_alive() -> bool:
@@ -807,7 +863,47 @@ def _write_rows(tf: str, rows: list[tuple]) -> int:
     by_sym: dict[str, list[dict]] = {}
     for sym, ts, o, h, l, c, v in rows:
         by_sym.setdefault(sym, []).append({"t": ts, "o": o, "h": h, "l": l, "c": c, "v": v})
-    return bars_sqlite.put_bars_many(tf, by_sym)
+    # ⛔ A row the store refused (the impossible-bar gate) must never be vouched for by the per-ticker proof, and ONE
+    # refused ticker must not cost the others theirs (review of #2738: a 1m push is the covered universe in one batch;
+    # skipping the whole batch put every liquid name on the 30 s floor). The store names the refused tickers; a store
+    # that cannot (a double without `rejected_out`) proves the batch only when it took it whole.
+    put = bars_sqlite.put_bars_many
+    if _names_refused(put):
+        refused: set = set()
+        n = put(tf, by_sym, rejected_out=refused)
+        if refused:
+            with _lock:
+                _late["refused_tickers"] += len(refused)
+        _note_written(tf, rows, skip=refused)
+        return n
+    n = put(tf, by_sym)
+    try:
+        if int(n or 0) >= len(rows):
+            _note_written(tf, rows)
+        else:
+            with _lock:
+                _late["unnamed_batches"] += 1
+    except (TypeError, ValueError):
+        pass
+    return n
+
+
+_NAMES_REFUSED: dict = {}
+
+
+def _names_refused(fn) -> bool:
+    """Does this `put_bars_many` take `rejected_out` (the real store does; a test double may not)?"""
+    hit = _NAMES_REFUSED.get(fn)
+    if hit is None:
+        try:
+            import inspect
+            hit = "rejected_out" in inspect.signature(fn).parameters
+        except (TypeError, ValueError):
+            hit = False
+        if len(_NAMES_REFUSED) > 64:
+            _NAMES_REFUSED.clear()
+        _NAMES_REFUSED[fn] = hit
+    return hit
 
 
 # ── backfill (fills the reconnect gap and any missing history) ────────────────
@@ -1267,6 +1363,10 @@ def status() -> dict:
         s["b0_stream_tickers"] = len(_b0_stream)
         s["daily_seen"] = len(_daily_seen)
         s["checkpoint"] = {k: v for k, v in _ckpt.items() if k != "last_mono"}
+        s["late_rows"] = _late["rows"]
+        s["proof_refused_tickers"] = _late["refused_tickers"]
+        s["proof_unnamed_batches"] = _late["unnamed_batches"]
+        s["live_late_s"] = LIVE_LATE_S
         if enabled1():
             m1 = {k: v for k, v in _s1.items() if k != "m1_last_push_mono"}
             m1.update(covered1=len(_covered1), gap1_pending=len(_gap1_from),
@@ -1315,4 +1415,7 @@ def _reset_for_tests() -> None:
                      _recover1, _queued1, _repairing1, _retry1_after, _eth_minute):
             coll.clear()
         _recent1_meta.update(n=0, newest=None)
+        for own in _own_last.values():
+            own.clear()
+        _late.update(rows=0, refused_tickers=0, unnamed_batches=0)
     _m1_wakeup.clear()

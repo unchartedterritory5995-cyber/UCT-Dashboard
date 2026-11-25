@@ -3117,17 +3117,21 @@ def _grid_rows(ticker: str, tf: str, bars: list[dict], date_tf: bool) -> tuple[l
         return bars, []
 
 
-def put_bars_many(tf: str, bars_by_ticker: dict[str, list[dict]]) -> int:
+def put_bars_many(tf: str, bars_by_ticker: dict[str, list[dict]], rejected_out: set | None = None) -> int:
     """Upsert many tickers' bars of ONE timeframe in a single transaction.
 
     The universe live feed (`bars_live_store`) lands ~10k tickers' newest bucket a
     minute; one `put_bars` per ticker would be ~10k transactions, each taking the
     write lock. Same validity gate and the same INSERT OR REPLACE as `put_bars`.
-    `t` is the stored integer key (unix seconds intraday, YYYYMMDD for D)."""
+    `t` is the stored integer key (unix seconds intraday, YYYYMMDD for D).
+    `rejected_out` (review of #2738): the tickers the validity gate refused a bar of are
+    added to it, so the live store's per-ticker proof skips only those."""
     rows = []
     snapped_rows = []
     for ticker, bars in (bars_by_ticker or {}).items():
         keep, _rejected = _writable_bars(ticker.upper(), tf, bars)
+        if _rejected and rejected_out is not None:
+            rejected_out.add(ticker.upper())
         keep, snapped = _grid_rows(ticker.upper(), tf, keep, False)
         for b in keep:
             rows.append((ticker.upper(), tf, int(b.get("t", 0)), b.get("o"), b.get("h"),
