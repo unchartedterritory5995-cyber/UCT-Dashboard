@@ -76,6 +76,46 @@ def subscriber_count(stream: str) -> int:
     return len(_subscribers.get(stream, ()))
 
 
+# ── the rows ahead (2026-11-25) ───────────────────────────────────────────────
+# ⭐ A watchlist puts the next 1-2 rows the member is moving towards on its bars connection as `ahead=` pairs
+# (app/src/lib/barsStreamManager.js AHEAD_MAX_PAIRS = 4 a page), so the first press after a minute roll finds that row
+# as current as the chart on screen. They are SPECULATIVE: a refused one costs the member one wait after a roll (~100 ms),
+# never a wrong chart. So they are the first thing this pod sheds:
+#   * a pod-wide budget, STREAM_MAX_AHEAD_PAIRS (default 600: ~150 members at their page cap), admitted per connection at
+#     its open and released at its end (a member's connection is rebuilt on every symbol switch, so the budget re-applies
+#     within seconds as load moves);
+#   * none at all while the bars subscriber registry is at or past STREAM_AHEAD_LOAD_FRACTION of MAX_SUBSCRIBERS;
+#   * they count against the same 50-pair cap per connection as the chart's own pairs (admitted after them).
+# A refused ahead pair is simply not subscribed: the client keeps its old rule for that row (it asks after a roll).
+# Counted in-process (one uvicorn process per pod): `ahead_stats()`, on /api/stream/status.
+MAX_AHEAD_PAIRS = int(os.environ.get("STREAM_MAX_AHEAD_PAIRS", "600"))
+AHEAD_LOAD_FRACTION = float(os.environ.get("STREAM_AHEAD_LOAD_FRACTION", "0.8"))
+_ahead = {"live": 0, "admitted": 0, "refused": 0}
+
+
+def _admit_ahead(n: int) -> int:
+    """How many of `n` ahead pairs one connection may subscribe now (counted live until `_release_ahead`)."""
+    if n <= 0:
+        return 0
+    if subscriber_count("bars") >= AHEAD_LOAD_FRACTION * MAX_SUBSCRIBERS:
+        _ahead["refused"] += n
+        return 0
+    k = min(n, max(0, MAX_AHEAD_PAIRS - _ahead["live"]))
+    _ahead["live"] += k
+    _ahead["admitted"] += k
+    _ahead["refused"] += n - k
+    return k
+
+
+def _release_ahead(k: int) -> None:
+    _ahead["live"] = max(0, _ahead["live"] - k)
+
+
+def ahead_stats() -> dict:
+    """The rows-ahead counters: live (now), admitted / refused (since boot), and the budget."""
+    return {**_ahead, "max": MAX_AHEAD_PAIRS, "load_fraction": AHEAD_LOAD_FRACTION}
+
+
 def _at_capacity(stream: str):
     """The refusal, worded once. 503 + `at_capacity` mirrors
     `massive_stream_router`'s so a client already handles it."""
@@ -643,6 +683,11 @@ async def stream_bars(
         "Id of the last event a reconnecting client received (the pooled "
         "manager's door; a browser auto-reconnect sends the Last-Event-ID "
         "header instead). Answered with an `event: resume` declaration.")),
+    ahead: str | None = Query(None, description=(
+        "Comma-separated SYM:TF pairs of the rows the member is about to reach "
+        "(a watchlist's next rows). Speculative: admitted within the pod's "
+        "STREAM_MAX_AHEAD_PAIRS budget and never under load; a refused one is "
+        "simply not subscribed.")),
 ):
     """SSE — streams real-time bar updates per (symbol, timeframe).
 
@@ -662,16 +707,20 @@ async def stream_bars(
     if os.environ.get("STREAM_BARS_ENABLED") != "1":
         return JSONResponse({"error": "Bar streaming disabled"}, status_code=503)
 
-    pairs: list[tuple[str, str]] = []
-    for raw in bars.split(","):
-        s = raw.strip()
-        if not s or ":" not in s:
-            continue
-        sym, tf = s.split(":", 1)
-        sym = sym.strip().upper()
-        tf = tf.strip()
-        if sym and tf in ("1", "5", "15", "30", "60"):  # 60-min uses canonical ET-anchored bucket
-            pairs.append((sym, tf))
+    def _parse_pairs(raw_list: str) -> list[tuple[str, str]]:
+        out: list[tuple[str, str]] = []
+        for raw in raw_list.split(","):
+            s = raw.strip()
+            if not s or ":" not in s:
+                continue
+            sym, tf = s.split(":", 1)
+            sym = sym.strip().upper()
+            tf = tf.strip()
+            if sym and tf in ("1", "5", "15", "30", "60"):  # 60-min uses canonical ET-anchored bucket
+                out.append((sym, tf))
+        return out
+
+    pairs: list[tuple[str, str]] = _parse_pairs(bars)
 
     if not pairs:
         return JSONResponse({"error": "No valid sym:tf pairs"}, status_code=400)
@@ -679,12 +728,21 @@ async def stream_bars(
     if session not in ("rth", "eth"):
         return JSONResponse({"error": "session must be rth or eth"}, status_code=400)
     pairs = pairs[:MAX_BARS_PAIRS]  # cap to prevent runaway subscriptions per connection
+    # the rows ahead: never a pair the chart already holds, within the same 50-pair cap, after the chart's own
+    ahead_pairs: list[tuple[str, str]] = []
+    for pair in (_parse_pairs(ahead) if isinstance(ahead, str) else []):
+        if pair not in pairs and pair not in ahead_pairs:
+            ahead_pairs.append(pair)
+    ahead_pairs = ahead_pairs[:max(0, MAX_BARS_PAIRS - len(pairs))]
 
     # Admission BEFORE the broadcaster subscribe, for the same reason as
     # /api/stream/prices: a refused connection must leave no queues behind.
     _token = subscribe("bars")
     if _token is None:
         return _at_capacity("bars")
+    # (after the connection's own admission, so the load line counts it)
+    ahead_pairs = ahead_pairs[:_admit_ahead(len(ahead_pairs))]
+    n_ahead = len(ahead_pairs)
 
     from api.services.bar_broadcaster import get_broadcaster
     bb = get_broadcaster()
@@ -698,9 +756,9 @@ async def stream_bars(
             kw["v2"] = True
         return bb.subscribe(sym, tf, **kw)
 
-    queues = [(sym, tf, _sub(sym, tf)) for (sym, tf) in pairs]
+    queues = [(sym, tf, _sub(sym, tf)) for (sym, tf) in pairs + ahead_pairs]
     from api.services import bar_contract as _bar_contract
-    _logger.info("[stream_bars] subscribed %d pairs: %s", len(pairs), pairs[:10])
+    _logger.info("[stream_bars] subscribed %d pairs (+%d ahead): %s", len(pairs), n_ahead, pairs[:10])
     # D8: fold the day's stored/REST minute bars into each symbol's minute map
     # (once per upstream subscription) so a mid-bucket subscriber gets the true
     # bucket-to-date O/H/L/V. Off the event loop; the broadcaster re-emits the
@@ -708,7 +766,7 @@ async def stream_bars(
     # means "bucket since subscribe" until the next AM-backed bucket.
     _seed = getattr(bb, "ensure_seeded", None)
     if _seed is not None:
-        for _sym in sorted({p[0] for p in pairs}):
+        for _sym in sorted({p[0] for p in pairs + ahead_pairs}):
             _kick_seed(_seed, _sym)
 
     resume = _resume_declaration("bars", _requested_last_event_id(request, last_event_id))
@@ -782,6 +840,7 @@ async def stream_bars(
             for task in getters.values():   # a disconnect leaves one pending get() per pair
                 task.cancel()
             unsubscribe("bars", _token)
+            _release_ahead(n_ahead)
             for (sym, tf, q) in queues:
                 if session == "rth":
                     bb.unsubscribe(sym, tf, q)
@@ -819,6 +878,7 @@ def stream_status():
     out = dict(get_stream_status() or {})
     out["max_subscribers"] = MAX_SUBSCRIBERS
     out["subscribers"] = {name: len(conns) for name, conns in _subscribers.items()}
+    out["ahead"] = ahead_stats()
     try:
         from api.services.bar_broadcaster import get_broadcaster
         get_broadcaster()
