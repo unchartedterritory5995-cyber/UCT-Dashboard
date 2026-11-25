@@ -69,7 +69,7 @@ export function serverAnswer(q, mode = 'ok') {
       return {
         body: {
           ticker: q.sym, tf: q.tf, contract: 1, series_rev: at, history_rev: 1, complete_through: null,
-          tail_status: stale ? 'unverified' : 'current', ...(stale ? { retry_after: 2 } : {}),
+          tail_status: stale ? 'unverified' : 'current', ...(stale ? { retry_after: 3 } : {}),
           bars: ['2026-11-06', '2026-11-09', '2026-11-10'].map(row), developing: { ...row('2026-11-10'), rev: at },
         },
       }

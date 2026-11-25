@@ -40,10 +40,14 @@ async function boot({ modeFor } = {}) {
     isHidden: () => false, onVisible: () => () => {}, idle: (fn) => fn(),
   })
   const pf = createPrefetch({ store, tickerMeta: () => {} })
+  DATE_STALE_REASK_MS = (await import('./prefetch')).DATE_STALE_REASK_MS ?? 3000
   return { server, store, pf, idb }
 }
 const asks = (w, sym, tf) => w.server.calls.filter((c) => c.q.sym === sym && c.q.tf === tf && !c.q.history).length
+let DATE_STALE_REASK_MS = 3000   // (prefetch's, read at boot: the test also runs on code that predates it)
 const settle = async (w, p, ms = 1000) => { await w.server.drain(); await vi.advanceTimersByTimeAsync(ms); await w.server.drain(); return p }
+// `n` settles of `ms`: each answers the requests its timers sent (the fake server answers on drain, not in time)
+const ticks = async (w, n, ms) => { for (let i = 0; i < n; i++) await settle(w, Promise.resolve(), ms) }
 const lastClose = (w, sym, tf) => { const s = w.store.peek(w.pf.keyFor(sym, tf)); return (s.developing ?? s.bars.at(-1)).c }
 
 const T_W2 = (OPEN + 249 * 60 + 6) * 1000               // Tue 13:39:06 ET (W2 press 1, TXN)
@@ -55,6 +59,8 @@ describe('(1) W2: a week or month copy the server served stale is not painted; t
     const w = await boot({ modeFor: () => st.mode })
     await settle(w, w.pf.prepareDailyForDisplay('TXN', 'M'))          // the warm (and its deep join)
     expect(w.pf.deepPending('TXN', 'M')).toBe(false)                    // as in the record: the history had joined
+    // (the warm's one re-ask after its retry_after, review of #2740: here the server's store is still stale for it)
+    await settle(w, Promise.resolve(), DATE_STALE_REASK_MS + 500)
     expect(lastClose(w, 'TXN', 'M')).toBe(29.5)                         // the stale store's close
     vi.setSystemTime(T_W2)
     st.mode = 'date-current'
@@ -91,6 +97,109 @@ describe('(1) W2: a week or month copy the server served stale is not painted; t
     const n = asks(w, 'LGCY', 'W')
     await settle(w, w.pf.prepareDailyForDisplay('LGCY', 'W'))
     expect(asks(w, 'LGCY', 'W')).toBe(n)
+  })
+
+  // ⭐ (review of #2740, MEDIUM-1) the warm's stale answer is asked again ONCE after its retry_after, so the copy heals
+  // before the press (the warms ran 1.9-6.0 s ahead in the record): the press paints in the key task.
+  const warmStale = async (sym, st) => {
+    const w = await boot({ modeFor: () => st.mode })
+    const p = w.pf.prepareDailyForDisplay(sym, 'M')                 // the warm (and its deep join)
+    await w.server.drain()
+    return { w, p }
+  }
+
+  it('a press after the warm\'s retry_after: its one re-ask has healed the copy, which paints in the key task', async () => {
+    const st = { mode: 'date-stale' }
+    vi.setSystemTime(T_W2 - 3500)
+    const { w, p } = await warmStale('TXH', st)
+    st.mode = 'date-current'                                         // the server's background delta has landed
+    await settle(w, p, 500)
+    expect(w.pf.dateCopyStale('TXH', 'M')).toBe(true)                 // a press inside the retry_after still holds (correct)
+    const n = asks(w, 'TXH', 'M')
+    await settle(w, Promise.resolve(), DATE_STALE_REASK_MS)          // t + retry_after + 0.5 s: the press
+    expect(asks(w, 'TXH', 'M')).toBe(n + 1)                           // the one re-ask
+    expect(w.pf.dateCopyStale('TXH', 'M')).toBe(false)                // nothing holds the key task
+    expect(w.pf.deepPending('TXH', 'M')).toBe(false)
+    expect(lastClose(w, 'TXH', 'M')).toBe(26.5)                       // and it shows the healed close
+  })
+
+  it('ONCE: a re-ask still answered stale is left to the press (no loop)', async () => {
+    const st = { mode: 'date-stale' }
+    vi.setSystemTime(T_W2 - 2500)
+    const { w, p } = await warmStale('TXO', st)
+    await settle(w, p, 500)
+    const n = asks(w, 'TXO', 'M')
+    await ticks(w, 8, 3100)
+    expect(asks(w, 'TXO', 'M')).toBe(n + 1)
+    expect(w.pf.dateCopyStale('TXO', 'M')).toBe(true)
+  })
+
+  it('CONTROL: an answer the server said current is not asked again', async () => {
+    const st = { mode: 'date-current' }
+    vi.setSystemTime(T_W2 - 2500)
+    const { w, p } = await warmStale('TXC', st)
+    await settle(w, p, 500)
+    const n = asks(w, 'TXC', 'M')
+    await ticks(w, 8, 3100)
+    expect(asks(w, 'TXC', 'M')).toBe(n)
+  })
+
+  // ⭐ (review 2 of #2740, F1) THE OPEN CHART: its own W/M entry answered stale (a cold press) is read again after
+  // retry_after, at most DATE_UNVERIFIED_RETRIES times, instead of keeping the old close for the 5-minute daily poll.
+  const openChart = async (sym, st) => {
+    vi.setSystemTime(T_W2)
+    const w = await boot({ modeFor: () => st.mode })
+    const key = w.pf.keyFor(sym, 'M')
+    const off = w.store.subscribe(key, () => {})
+    await settle(w, Promise.resolve(), 500)
+    return { w, key, off }
+  }
+
+  it('an open M chart answered stale is read again after retry_after and ends current, with the healed close', async () => {
+    const st = { mode: 'date-stale' }
+    const { w, key, off } = await openChart('OPN', st)
+    expect(w.store.peek(key).tailStatus).toBe('unverified')
+    const n = asks(w, 'OPN', 'M')
+    st.mode = 'date-current'
+    await settle(w, Promise.resolve(), 3000)
+    expect(asks(w, 'OPN', 'M')).toBe(n + 1)                            // before: none until the 5-minute poll
+    expect(w.store.peek(key).tailStatus).toBe('current')
+    expect(lastClose(w, 'OPN', 'M')).toBe(26.5)
+    await ticks(w, 8, 3100)
+    expect(asks(w, 'OPN', 'M')).toBe(n + 1)                            // then the daily cadence
+    off()
+  })
+
+  it('...at most 3 times while the server stays stale, then the daily cadence', async () => {
+    const st = { mode: 'date-stale' }
+    const { w, off } = await openChart('OPS', st)
+    const n = asks(w, 'OPS', 'M')
+    await ticks(w, 20, 3100)
+    expect(asks(w, 'OPS', 'M')).toBe(n + 3)
+    off()
+  })
+
+  it('...and the count starts over once an answer says current (a stale serve later in the day is retried again)', async () => {
+    const st = { mode: 'date-stale' }
+    const { w, off } = await openChart('OPR', st)
+    await ticks(w, 4, 3100)                                         // the 3 retries, all stale
+    st.mode = 'date-current'
+    await settle(w, Promise.resolve(), 300_500)                     // the daily poll: current
+    st.mode = 'date-stale'
+    await settle(w, Promise.resolve(), 300_500)                     // the next daily poll: stale again
+    const n = asks(w, 'OPR', 'M')
+    await settle(w, Promise.resolve(), 3500)
+    expect(asks(w, 'OPR', 'M')).toBe(n + 1)                          // retried again
+    off()
+  })
+
+  it('CONTROL: an open M chart answered current keeps the daily cadence', async () => {
+    const st = { mode: 'date-current' }
+    const { w, off } = await openChart('OPC', st)
+    const n = asks(w, 'OPC', 'M')
+    await ticks(w, 8, 3100)
+    expect(asks(w, 'OPC', 'M')).toBe(n)
+    off()
   })
 
   // A deep saved copy (its history joined on an earlier visit: not due) paints from the cache at once; read before the

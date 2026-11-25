@@ -937,9 +937,11 @@ _TAIL_RETRY_AFTER_JITTER_S = 2
 
 
 #: W2: the week / month timeframes whose stale serve is stated (`_augment_with_contract` `date_stale`), and when to ask
-#: again (the background delta that heals them answered the next ask within 2 s on 2026-11-25: TXN, AAPL).
+#: again. The background delta that heals them answered the next ask within 2 s on 2026-11-25 (TXN, AAPL: two names
+#: only), so 3 s, the intraday floor (review 2 of #2740). The client reads it: network.js (an open chart, at most
+#: DATE_UNVERIFIED_RETRIES times) and prefetch.js DATE_STALE_REASK_MS (a warm, once).
 _WEEK_MONTH_TFS = ("W", "M")
-_DATE_STALE_RETRY_AFTER_S = 2
+_DATE_STALE_RETRY_AFTER_S = 3
 
 
 def _tail_retry_after_s() -> int:

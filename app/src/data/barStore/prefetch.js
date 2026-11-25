@@ -233,6 +233,10 @@ export const LAKE_JOIN_WAIT_MS = 550
  *  the tail answer (prepareDailyForDisplay). Just under the handoff's own bound (useSymbolHandoff
  *  DAILY_HOLD_MAX_MS = 400), so the prepare's outcome, not the hang guard, commits. */
 export const DEEP_JOIN_WAIT_MS = 380
+/** (review of #2740, MEDIUM-1) When a W/M answer the server marked `unverified` (its stale-while-revalidate serve) is asked
+ *  again: its `retry_after`, api/routers/bars.py `_DATE_STALE_RETRY_AFTER_S` (3 s: review 2 of #2740, the 2 s heal was seen
+ *  on two names only). */
+export const DATE_STALE_REASK_MS = 3000
 /** The edge warm of a list (edgeWarmList): the chart timeframes that warm (the chart's own, then 60m,
  *  the deepest and slowest cold), the rows per list, the keys per page (each ~1 index GET + 2-23 HEADs),
  *  and how long after the latest list it starts. */
@@ -498,7 +502,7 @@ export function createPrefetch(o = {}) {
    */
   async function ensure(key, {
     until = PREPARED, depth = 0, priority = 'urgent', signal = null, session: sess = session(),
-    warm = false, front = false, local = true, _s0 = null, own = false, full = false,
+    warm = false, front = false, local = true, _s0 = null, own = false, full = false, _heal = false,
   } = {}) {
     const s0 = _s0 ?? await _hydrate(key)   // a caller that already hydrated passes its snapshot
     if (_satisfied(s0, until, depth) && (local || s0.restSeen)) return s0
@@ -530,6 +534,7 @@ export function createPrefetch(o = {}) {
       a.answered = true
       a.at = now()    // the cooldown runs from the ANSWER, not from when the request was queued
       _noteTail(key, s)   // ...and the newest bar it left (W3: _formingLost)
+      if (!_heal) _healDateLater(key, s, { priority, warm, front, session: sess })
       if (isIntradayTf(s.tf ?? parseKey(key)?.tf)) _noteFull(key)   // every request asks a full window
       // ...and a waiter reads the rules that key on this answer (`_behindClock`) only from here on: wake it (see watch)
       _wakeWatchers(key)
@@ -677,6 +682,27 @@ export function createPrefetch(o = {}) {
     const t = s?.bars?.length ? s.bars[s.bars.length - 1].t : null
     const d = s?.developing && Number.isFinite(s.developing.t) ? s.developing.t : null
     return t == null ? d : (d == null ? t : Math.max(t, d))
+  }
+  /**
+   * ⭐ (review of #2740, MEDIUM-1) A WEEK OR MONTH ANSWER SERVED STALE IS ASKED AGAIN, ONCE, AFTER ITS retry_after. D/W/M keys
+   * poll every 5 min (network.js), so a warm's `unverified` W/M copy stayed stale until the press, which then held for its
+   * own ask (about 23 of 30 W2 presses: the key task's share from ~96% to ~25%). The server's background delta has
+   * healed its store by then (the press's own ask got `bars(mem)` in the record), and the warm runs 1.9-6.0 s ahead: the
+   * one re-ask, DATE_STALE_REASK_MS after the answer, in the lane and rank of the ask it answers, heals the copy before
+   * most presses. Once per answer: the re-ask's own answer, still unverified, is left to the press (one request more per
+   * stale warm, never a loop); one pending per key.
+   */
+  const dateHeals = new Map()
+  function _healDateLater(key, s, opts) {
+    const tf = parseKey(key)?.tf
+    if ((tf !== 'W' && tf !== 'M') || s?.tailStatus !== 'unverified' || dateHeals.has(key)) return
+    const t = setTimer(() => {
+      dateHeals.delete(key)
+      const cur = S().peek(key)
+      if (cur?.tailStatus !== 'unverified') return   // a newer answer already said current
+      ensure(key, { ...opts, until: ASK_AGAIN, local: false, _s0: cur, _heal: true }).catch(() => {})
+    }, DATE_STALE_REASK_MS)
+    dateHeals.set(key, t)
   }
   /** key → the newest bar (unix s) this module's last answer for the key left its entry holding (W3: _formingLost).
    *  Its own map, not `asked`: a cooldown's expiry and every new ask replace an `asked` record. Bounded, oldest out. */

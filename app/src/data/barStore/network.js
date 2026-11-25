@@ -51,6 +51,11 @@ import { barsHistorySplitEnabled, historySealedDate } from '../../utils/barsHist
 
 /** The D/W/M refresh cadence (StockChart's daily `refreshInterval`). */
 export const DAILY_POLL_MS = 300_000
+/** (review 2 of #2740, F1) An open W/M entry the server marked `unverified` (its stale-while-revalidate serve, bars.py) is
+ *  read again after the answer's `retry_after` (this when it names none), at most this many times in a row, then the
+ *  daily cadence. A failing background delta caches nothing, so every retry would read stale again: hence the cap. */
+export const DATE_UNVERIFIED_RETRIES = 3
+export const DATE_UNVERIFIED_RETRY_S = 3
 /** Error backoff: first retry, cap. */
 export const ERROR_RETRY_MS = 1500
 export const ERROR_RETRY_MAX_MS = 30_000
@@ -585,7 +590,20 @@ export function createNetwork({
     r.errors = 0
     // A delta that found a new history needs the full read NOW (bounded: needsFull clears on it).
     if (res?.delta && s.needsFull) return 0
-    if (!isIntradayTf(p.tf) || p.window) return p.window ? Infinity : dailyPollMs
+    if (p.window) return Infinity
+    if (!isIntradayTf(p.tf)) {
+      // ⭐ (review 2 of #2740, F1) THE OPEN CHART'S OWN STALE WEEK OR MONTH IS READ AGAIN SOON, not in 5 min. A press whose own
+      // ask was served stale (no warm before it, or a background delta slower than the round trip) commits on that answer
+      // and kept the old close on screen until the next daily poll. The server has healed its store within seconds.
+      if ((p.tf === 'W' || p.tf === 'M') && s.tailStatus === 'unverified') {
+        if ((r.dateRetries || 0) < DATE_UNVERIFIED_RETRIES) {
+          r.dateRetries = (r.dateRetries || 0) + 1
+          const ra = Number(res?.retryAfterSec)
+          return (ra > 0 ? ra : DATE_UNVERIFIED_RETRY_S) * 1000
+        }
+      } else r.dateRetries = 0
+      return dailyPollMs
+    }
     const tailT = s.developing ? s.developing.t : (s.bars.length ? s.bars[s.bars.length - 1].t : null)
     const spent0 = _exhausted(r)
     const ms = nextTailPollMs(r.pollSt, r.key, { tailT, tf: p.tf, tailStatus: s.tailStatus, retryAfterSec: res?.retryAfterSec ?? null })
