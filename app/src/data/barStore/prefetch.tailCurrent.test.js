@@ -196,8 +196,8 @@ describe('the hold keeps the next, the one after and the previous row current ac
     const w = await boot('behind')                             // every answer ends at 09:40
     await warmAll(w, ['AAA'], '1')
     const hold = w.pf.createNeighborHold()
+    const before = w.server.calls.length                       // (2026-11-25: the first selection asks too)
     hold.set(['AAA'], '1', { tail: ['AAA'], selected: `S${++sel}` })
-    const before = w.server.calls.length
     for (let i = 0; i < 6; i++) {                              // a press every 6 s inside the 10:00 bucket
       await tick(6_000)
       press(hold, ['AAA'], '1', ['AAA'])
@@ -340,8 +340,8 @@ describe('review of #2619, MEDIUM-2: the timer runs only while the member naviga
     await warmAll(w, ['AAA', 'BBB'], '1')
     const A = w.pf.createNeighborHold()
     const B = w.pf.createNeighborHold()
-    navigate(A, ['AAA'], '1', ['AAA'])                          // lag 2.6 s
-    navigate(B, ['BBB'], '1', ['BBB'])                          // lag 7.4 s
+    A.set(['AAA'], '1', { tail: ['AAA'], selected: `S${++sel}` })   // the first selection opens the window: lag 2.6 s
+    B.set(['BBB'], '1', { tail: ['BBB'], selected: `S${++sel}` })   // lag 7.4 s
     const before = w.server.calls.length
     await tick(9_100)                                          // 10:00:59.2
     await tick(3_900)                                          // 10:01:03.1: A has asked, B has not
@@ -358,10 +358,8 @@ describe('review of #2619, MEDIUM-2: the timer runs only while the member naviga
     const w = await boot('behind')                             // every answer ends at 09:40: it stays behind
     await warmAll(w, ['AAA'], '1')
     const hold = w.pf.createNeighborHold()
-    hold.set(['AAA'], '1', { tail: ['AAA'], selected: `S${++sel}` })
-    await tick(6_000)
     const before = w.server.calls.length
-    press(hold, ['AAA'], '1', ['AAA'])                         // 10:00:11: the first ask
+    hold.set(['AAA'], '1', { tail: ['AAA'], selected: `S${++sel}` })   // 10:00:05: the first selection, the first ask
     await w.server.drain()
     expect(w.server.calls.length - before).toBe(1)
     await tick(1_000)
@@ -547,8 +545,9 @@ describe("re-review of #2619 (B): the tail's asks are bounded per hold, and a pa
     const w = await boot('behind')                              // every answer ends at 09:40
     await warmAll(w, ['AAA', 'BBB'], '1')
     const hold = w.pf.createNeighborHold()
-    hold.set(['AAA', 'BBB'], '1', { tail: ['BBB'], selected: 'X' })
+    hold.set(['AAA', 'BBB'], '1', { tail: ['BBB'], selected: 'X' })   // (2026-11-25: the first selection asks BBB, 10:00)
     await tick(11_000)                                          // 10:01:01, inside the boundary's lag window
+    await w.server.drain()
     const before = w.server.calls.length
     hold.set(['AAA', 'BBB'], '1', { tail: ['BBB'], selected: 'Y' })   // a press: BBB asked, still far behind
     await w.server.drain()
