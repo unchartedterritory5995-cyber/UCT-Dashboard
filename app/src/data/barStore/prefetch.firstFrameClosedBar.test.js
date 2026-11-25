@@ -209,7 +209,9 @@ describe('B: a copy read before a minute roll is not the frontier', () => {
 })
 
 describe("C: the switch's own answer still behind", () => {
-  it('C1 one bucket behind inside TAIL_LAG_WINDOW_MS of the roll is the server lagging: no grace', async () => {
+  // ⛔ CHANGED (2026-11-25, the owner's standard for a switch's first frame): the hold no longer paints the copy as it is
+  // after BEHIND_HOLD_MAX_MS. It holds the previous chart until the copy holds the closed bar (prefetch._untilClosed).
+  it('C1 one bucket behind inside TAIL_LAG_WINDOW_MS of the roll is the server lagging: no grace, and no paint as it is', async () => {
     vi.setSystemTime(at(10, 0, 55))
     const w = await boot('lag:5')                                     // every bucket stored 5 s after it ends
     await warmNext(w, ['AAA'])
@@ -218,9 +220,12 @@ describe("C: the switch's own answer still behind", () => {
     let out = 'pending'
     w.pf.prepareForDisplay('AAA', '1').then((o) => { out = o })
     await serve(w, w.P.BEHIND_HOLD_MAX_MS + 50)
-    expect(out).toBe('current')                                       // (the hold is bounded: it paints after it)
+    expect(out, 'the copy lacking the closed 10:00 bar was painted as it is after the hold').toBe('pending')
     expect(tailOf(w, 'AAA')).toBe(T(9, 59))                           // its own answer came back still behind
     expect(w.pf.peekDisplayable('AAA', '1'), 'the next press would paint the short copy at once').toBe(false)
+    await serve(w, 4_000)                                             // 10:01:06.3: the server stored 10:00 at 10:01:05
+    expect(out).toBe('current')
+    expect(holds(w, 'AAA', T(10, 0))).toBe(true)
     w.store.dispose()
   })
 

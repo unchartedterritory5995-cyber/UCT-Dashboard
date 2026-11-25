@@ -2005,7 +2005,9 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         // paints them as deep as the chart would reach after its own wait (createNeighborHold).
         // `tail`: the next row, the one after and the previous row stay current across a bucket boundary while the
         // member navigates (createNeighborHold `tail`; `selected` opens its window: a re-sort of the rows does not)
-        holds.get(tf).set(around, tf, { deep: next, tail: [...next, ...scanNeighbors(flat, idx, dir, { ahead: 0, behind: 1 })], selected: selectedSym })
+        // `live` (2026-11-25): the next rows the way the member is moving ride the bars stream as `ahead` pairs, so the
+        // first press after a minute roll finds that row as current as the chart on screen (createNeighborHold `live`)
+        holds.get(tf).set(around, tf, { deep: next, tail: [...next, ...scanNeighbors(flat, idx, dir, { ahead: 0, behind: 1 })], live: next, selected: selectedSym })
       }
       warmMemFromIDB(around, tfs)
       for (const tf of tfs) prefetchBarsToIDB(ahead, tf, { priority: true })

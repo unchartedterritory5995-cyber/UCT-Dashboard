@@ -31,6 +31,10 @@ export { keyOf, parseKey } from './types'
 
 /** How often time-dependent status (provisional → behind, current → updating) is re-derived. */
 export const STATUS_TICK_MS = 15_000
+/** ⭐ THE ROWS AHEAD ON THE LIVE STREAM (2026-11-25): at most this many keys per page ride the bars stream as a neighbour
+ *  (`watchLive`; the watchlist's next 1-2 rows on each of the board's intraday timeframes). One more is refused (its row
+ *  keeps the switch's own rule: it asks after a roll). The mux's own backstop is barsStreamManager.AHEAD_MAX_PAIRS. */
+export const NEIGHBOR_LIVE_MAX_KEYS = 4
 const DEFAULT_UNTIL = Object.freeze([STATUS.CONTEXT, STATUS.CURRENT, STATUS.UNAVAILABLE])
 
 /**
@@ -51,6 +55,8 @@ export function createBarStore(o = {}) {
   const registry = o.registry ?? createRegistry({ ctx: () => ({ nowMs: now() }), ...(o.frame ? { frame: o.frame } : {}) })
   /** key → { n, stops: Function[] } for keys with at least one subscriber (declared first: persist's `onScreen` reads it) */
   const active = new Map()
+  /** key → { n, stop } for the rows ahead riding the push stream (`watchLive`), at most NEIGHBOR_LIVE_MAX_KEYS */
+  const watched = new Map()
   // the history lake (per-browser switch until its edge route is live; historyFeed.js)
   const history = o.history !== undefined ? o.history : (historyLakeEnabled() ? createHistoryFeed() : null)
   // `beforeAnswer` names `persist`, created below: it is called only when an answer lands, long after both exist.
@@ -217,8 +223,36 @@ export function createBarStore(o = {}) {
     /** Does the history lake carry `key`'s scroll-back (network.lakeCarries)? */
     lakeCarries: (key) => !!network.lakeCarries?.(key),
     applyLive: (key, frame) => live.applyFrame(key, frame),
+    NEIGHBOR_LIVE_MAX_KEYS,
+    /**
+     * ⭐ A ROW AHEAD OF THE MEMBER ON THE PUSH STREAM (2026-11-25, prefetch.createNeighborHold `live`). The key is held in
+     * the registry (never evicted while watched) and its push frames land on its copy (liveFeed `pushOnly`: no tick
+     * fallback, no polling, no requests). Refcounted; at most NEIGHBOR_LIVE_MAX_KEYS keys per page, the rest refused (a
+     * no-op release). Returns the release.
+     */
+    watchLive(key, { session = 'rth' } = {}) {
+      let wl = watched.get(key)
+      if (!wl) {
+        if (!key || watched.size >= NEIGHBOR_LIVE_MAX_KEYS) return () => {}
+        registry.acquire(key)
+        const off = live.attach(key, { session, pushOnly: true })
+        wl = { n: 0, stop: () => { try { off() } catch { /* ignore */ } registry.release(key) } }
+        watched.set(key, wl)
+      }
+      wl.n++
+      let done = false
+      return () => {
+        if (done) return
+        done = true
+        if (--wl.n > 0) return
+        if (watched.get(key) === wl) watched.delete(key)
+        wl.stop()
+      }
+    },
     flush: () => persist.flush(),
     dispose() {
+      for (const wl of [...watched.values()]) wl.stop()
+      watched.clear()
       for (const k of [...active.keys()]) {
         const a = active.get(k)
         for (const f of a.stops.splice(0).reverse()) { try { f?.() } catch { /* ignore */ } }
