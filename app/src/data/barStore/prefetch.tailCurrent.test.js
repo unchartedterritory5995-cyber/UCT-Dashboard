@@ -18,8 +18,8 @@
 //       the bucket comes back current and the next press can show the row in the key task. M1b: the switch's OWN answer
 //       still starts the grace exactly as before
 //   M2a hidden: the timer is not ARMED (asserted on the timer), and a boundary that finds the app hidden does not re-arm it
-//   M2b the timer runs only in a window after a SELECTION CHANGE: the list's first selection and a re-sort arm nothing; a
-//       selection arms it; past TAIL_ACTIVE_MS it stops
+//   M2b the timer runs only in a window after the list's FIRST selection or a selection CHANGE (2026-11-25: the first
+//       selection used to arm nothing); a re-sort does not extend it; past TAIL_ACTIVE_MS it stops
 //   M2c the boundary lag is drawn per hold (two holds never ask in the same instant), in [TAIL_LAG_MIN_MS, TAIL_LAG_MAX_MS];
 //       a row's second ask in a bucket is at least TAIL_REASK_SPACING_MS after its first
 // ...and, from the re-review of #2619 (head 0f9b5e3769):
@@ -300,25 +300,27 @@ describe('review of #2619, MEDIUM-2: the timer runs only while the member naviga
     w.store.dispose()
   })
 
-  it('M2b the list\'s first selection and a re-sort arm nothing; a selection arms it; past TAIL_ACTIVE_MS it stops', async () => {
+  // ⛔ CHANGED (2026-11-25): the list's first selection opens the window (prefetch.firstSelection.test.js)
+  it('M2b the list\'s first selection opens the window; a re-sort does not extend it; past TAIL_ACTIVE_MS it stops', async () => {
     vi.setSystemTime(at(10, 0, 50))
     const w = await boot('closed')
     await warmAll(w, ['AAA', 'BBB', 'CCC'], '1')
     const hold = w.pf.createNeighborHold()
     let n0 = w.timers.length
     hold.set(['AAA', 'BBB', 'CCC'], '1', { tail: ['AAA', 'BBB'], selected: 'X' })   // the list opens on X
-    hold.set(['BBB', 'AAA', 'CCC'], '1', { tail: ['AAA', 'BBB'], selected: 'X' })   // a live re-sort: same selection
-    expect(w.timers.length - n0).toBe(0)
+    expect(w.timers.length - n0).toBeGreaterThan(0)            // armed by the first selection
     let before = w.server.calls.length
     await tick(13_000)
     await w.server.drain()
-    expect(w.server.calls.length - before).toBe(0)             // no boundary ask without navigation
-    n0 = w.timers.length
-    hold.set(['AAA', 'BBB', 'CCC'], '1', { tail: ['AAA', 'BBB'], selected: 'Y' })   // the member moves
-    expect(w.timers.length - n0).toBeGreaterThan(0)            // armed
-    // past the window (3 minutes after that move, no other): the next boundary asks nothing and the timer stops
+    expect(w.server.calls.length - before).toBeGreaterThan(0)  // the 10:01 boundary asked the rows behind
+    // live re-sorts (the same selection) inside the window never extend it: it ends 3 minutes after the first selection
     expect(w.P.TAIL_ACTIVE_MS).toBe(3 * 60_000)
-    await tick(w.P.TAIL_ACTIVE_MS + 1_000)
+    for (let i = 0; i < 3; i++) {
+      await tick(55_000)
+      hold.set(['BBB', 'AAA', 'CCC'], '1', { tail: ['AAA', 'BBB'], selected: 'X' })
+      await w.server.drain()
+    }
+    await tick(3_000)                                          // 10:03:51: past the window opened at 10:00:50
     await w.server.drain()
     n0 = w.timers.length
     before = w.server.calls.length

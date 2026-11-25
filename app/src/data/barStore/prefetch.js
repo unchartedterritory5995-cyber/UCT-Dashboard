@@ -1360,8 +1360,10 @@ export function createPrefetch(o = {}) {
   // when it is asked for (and a tail answer still behind lends no grace: only the switch's own answer does, `_behindClock`).
   // BOUNDED (review of #2619, MEDIUM-2):
   //   * ONLY WHILE THE MEMBER NAVIGATES: the boundary timer runs for TAIL_ACTIVE_MS after the last CHANGE of `selected`
-  //     (a key press, a click on a row; the list's first selection, a live re-sort or a new list of visible rows open
-  //     nothing). Outside that window: no timer and no ask. The first press after a rest asks at its own `set`.
+  //     (a key press, a click on a row, and ⭐ since 2026-11-25 the list's FIRST selection: live session 2026-11-24, the
+  //     first press of both runs waited 76-97 ms on a next row the list warm had read 60-100 s before; a live re-sort or a
+  //     new list of visible rows open nothing). Outside that window: no timer and no ask. The first press after a rest
+  //     asks at its own `set`.
   //   * NEVER WHILE HIDDEN: no ask, and the timer is not armed (lib/deskVisibility.isAppVisible); the next `set` arms it.
   //   * NEVER A HERD: each boundary's ask waits a lag drawn per hold per boundary, uniform in TAIL_LAG_MIN_MS to
   //     TAIL_LAG_MAX_MS after the boundary, so a fleet's holds spread their asks over seconds.
@@ -1389,7 +1391,7 @@ export function createPrefetch(o = {}) {
     let tailTimer = null
     let tail = []          // the keys kept current across a boundary (see above)
     let tailExt = undefined
-    let selSeen = false         // a `selected` was given before (the list's first selection opens no window)
+    let selSeen = false         // a `selected` was given before (the list's first selection opens the window too)
     let lastSel = undefined
     let activeUntil = -Infinity // the boundary timer runs until then (TAIL_ACTIVE_MS after the last selection change)
     let lastChangeAt = -Infinity // the last selection CHANGE (a sweep: changes closer than TAIL_SWEEP_MS)
@@ -1583,10 +1585,11 @@ export function createPrefetch(o = {}) {
         for (const k of held.keys()) if (!want.has(k)) st.registry.release(k)
         held = want
         stopDeep()
-        // the selection window (TAIL_ACTIVE_MS): opened by a CHANGE of the member's selection, never by any other `set`
+        // the selection window (TAIL_ACTIVE_MS): opened by the member's first selection and by every CHANGE of it, never by
+        // any other `set` (a live re-sort keeps the same selection)
         let sweeping = false
         if (selected !== undefined) {
-          if (selSeen && selected !== lastSel) {
+          if (!selSeen || selected !== lastSel) {
             activeUntil = now() + TAIL_ACTIVE_MS
             sweeping = now() - lastChangeAt < TAIL_SWEEP_MS   // a held arrow: the tail waits for the row it stops on
             lastChangeAt = now()
