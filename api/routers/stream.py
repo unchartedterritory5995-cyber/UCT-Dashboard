@@ -90,6 +90,13 @@ def subscriber_count(stream: str) -> int:
 # Counted in-process (one uvicorn process per pod): `ahead_stats()`, on /api/stream/status.
 MAX_AHEAD_PAIRS = int(os.environ.get("STREAM_MAX_AHEAD_PAIRS", "600"))
 AHEAD_LOAD_FRACTION = float(os.environ.get("STREAM_AHEAD_LOAD_FRACTION", "0.8"))
+# ⭐ (review of #2721, 2026-11-25) AN AHEAD PAIR IS SENT AT ABOUT 1 Hz. A row ahead is not on screen: it needs its bar M at the
+# next roll, not every trade. Its developing bar goes out at most once per AHEAD_INTERVAL_S (the newest value then), while
+# every FINAL and a new bucket's first frame go out at the next poll; the chart's own pairs are untouched (every frame, at
+# once). Ahead queues hold no pending get(): the generator drains them every AHEAD_POLL_S, so a frame the member will not
+# see costs a queue put, never a wake of this loop, an encode or a write.
+AHEAD_INTERVAL_S = float(os.environ.get("STREAM_AHEAD_INTERVAL_S", "1.0"))
+AHEAD_POLL_S = 0.25
 _ahead = {"live": 0, "admitted": 0, "refused": 0}
 
 
@@ -744,32 +751,52 @@ async def stream_bars(
     ahead_pairs = ahead_pairs[:_admit_ahead(len(ahead_pairs))]
     n_ahead = len(ahead_pairs)
 
-    from api.services.bar_broadcaster import get_broadcaster
-    bb = get_broadcaster()
-    v2 = isinstance(v, int) and v >= 2
+    # ⛔ (review of #2721, LOW) EVERYTHING ADMITTED IS RELEASED IF THE STREAM NEVER STARTS: a failure between the admission
+    # and the response (a broadcaster that raises) used to leave the connection's token and its ahead budget counted until
+    # the process restarted, and the queues already made behind.
+    queues: list = []
+    bb = None
+    try:
+        from api.services.bar_broadcaster import get_broadcaster
+        bb = get_broadcaster()
+        v2 = isinstance(v, int) and v >= 2
 
-    def _sub(sym, tf):
-        kw = {}
-        if session != "rth":
-            kw["session"] = session
-        if v2:
-            kw["v2"] = True
-        return bb.subscribe(sym, tf, **kw)
+        def _sub(sym, tf):
+            kw = {}
+            if session != "rth":
+                kw["session"] = session
+            if v2:
+                kw["v2"] = True
+            return bb.subscribe(sym, tf, **kw)
 
-    queues = [(sym, tf, _sub(sym, tf)) for (sym, tf) in pairs + ahead_pairs]
-    from api.services import bar_contract as _bar_contract
-    _logger.info("[stream_bars] subscribed %d pairs (+%d ahead): %s", len(pairs), n_ahead, pairs[:10])
-    # D8: fold the day's stored/REST minute bars into each symbol's minute map
-    # (once per upstream subscription) so a mid-bucket subscriber gets the true
-    # bucket-to-date O/H/L/V. Off the event loop; the broadcaster re-emits the
-    # corrected bucket when the seed lands. Best-effort: a failed seed only
-    # means "bucket since subscribe" until the next AM-backed bucket.
-    _seed = getattr(bb, "ensure_seeded", None)
-    if _seed is not None:
-        for _sym in sorted({p[0] for p in pairs + ahead_pairs}):
-            _kick_seed(_seed, _sym)
+        for (sym, tf) in pairs + ahead_pairs:
+            queues.append((sym, tf, _sub(sym, tf)))
+        from api.services import bar_contract as _bar_contract
+        _logger.info("[stream_bars] subscribed %d pairs (+%d ahead): %s", len(pairs), n_ahead, pairs[:10])
+        # D8: fold the day's stored/REST minute bars into each symbol's minute map
+        # (once per upstream subscription) so a mid-bucket subscriber gets the true
+        # bucket-to-date O/H/L/V. Off the event loop; the broadcaster re-emits the
+        # corrected bucket when the seed lands. Best-effort: a failed seed only
+        # means "bucket since subscribe" until the next AM-backed bucket.
+        _seed = getattr(bb, "ensure_seeded", None)
+        if _seed is not None:
+            for _sym in sorted({p[0] for p in pairs + ahead_pairs}):
+                _kick_seed(_seed, _sym)
 
-    resume = _resume_declaration("bars", _requested_last_event_id(request, last_event_id))
+        resume = _resume_declaration("bars", _requested_last_event_id(request, last_event_id))
+    except BaseException:
+        unsubscribe("bars", _token)
+        _release_ahead(n_ahead)
+        for (sym, tf, q) in queues:
+            try:
+                if session == "rth":
+                    bb.unsubscribe(sym, tf, q)
+                else:
+                    bb.unsubscribe(sym, tf, q, session)
+            except Exception:  # noqa: BLE001 - releasing what was made, never a second failure
+                pass
+        raise
+    n_chart = len(queues) - n_ahead   # queues[:n_chart] are the chart's pairs, the rest the rows ahead
 
     async def event_generator():
         last_heartbeat = time.time()
@@ -783,6 +810,11 @@ async def stream_bars(
         # disconnect and keep the heartbeat on time, instead of four times a second.
         WAIT_S = 1.0
         getters: dict[int, asyncio.Task] = {}
+        # the rows ahead (see AHEAD_INTERVAL_S): per ahead queue, the last developing frame sent (bucket t, monotonic s)
+        # and the newest one not sent yet
+        ahead_sent: dict[int, tuple] = {}
+        ahead_pend: dict[int, dict] = {}
+        ahead_final: dict[int, int] = {}
         # ⭐ THE UPSTREAM'S WORD, AS IT CHANGES (2026-11-18). A mirror of stream-ingest (web in
         # remote mode, stream-edge) knows when the Massive socket behind it is down (`feed_fresh`:
         # ingest's `connect` status, or no batch at all). Without telling the browser, a chart kept
@@ -806,11 +838,16 @@ async def stream_bars(
                     if live is not None and live != last_live:
                         last_live = live
                         yield _frame("bars", json.dumps({"live": live}), "status")
-                for i, (_sym, _tf, q) in enumerate(queues):
+                for i, (_sym, _tf, q) in enumerate(queues[:n_chart]):
                     if i not in getters:
                         getters[i] = asyncio.ensure_future(q.get())
-                done, _pending = await asyncio.wait(
-                    set(getters.values()), timeout=WAIT_S, return_when=asyncio.FIRST_COMPLETED)
+                wait_s = min(WAIT_S, AHEAD_POLL_S) if n_ahead else WAIT_S
+                if getters:
+                    done, _pending = await asyncio.wait(
+                        set(getters.values()), timeout=wait_s, return_when=asyncio.FIRST_COMPLETED)
+                else:
+                    done = set()
+                    await asyncio.sleep(wait_s)
                 # Pairs in subscription order; within a pair, the frame the getter took and then
                 # whatever queued behind it, so each pair's frames keep their order.
                 for i, (_sym, _tf, q) in enumerate(queues):
@@ -826,6 +863,44 @@ async def stream_bars(
                         except asyncio.QueueEmpty:
                             break
                         yield _frame("bars", json.dumps(_contract_event(_bar_contract, msg, session)), "bar")
+
+                # the rows ahead: drained here, never awaited (see AHEAD_INTERVAL_S)
+                if n_ahead:
+                    now_m = time.monotonic()
+                    for j in range(n_chart, len(queues)):
+                        q = queues[j][2]
+                        while True:
+                            try:
+                                msg = q.get_nowait()
+                            except asyncio.QueueEmpty:
+                                break
+                            bar = msg.get("bar") if isinstance(msg, dict) else None
+                            t = bar.get("t") if isinstance(bar, dict) else None
+                            final = bool(bar.get("final")) if isinstance(bar, dict) else False
+                            last = ahead_sent.get(j)
+                            if not final and t is not None and ahead_final.get(j) is not None and t <= ahead_final[j]:
+                                continue                      # a developing frame of a bucket already sent final
+                            if final and t is not None:
+                                ahead_final[j] = max(t, ahead_final.get(j, t))
+                            if final or last is None or t != last[0]:
+                                # a final, the pair's first frame, or a new bucket: now. A held developing frame of the
+                                # bucket it closes, or of an older bucket, is superseded (its final comes, or came).
+                                held = ahead_pend.get(j)
+                                if held is not None and (held.get("bar") or {}).get("t") != t and not final:
+                                    ahead_pend.pop(j, None)
+                                elif held is not None and final and (held.get("bar") or {}).get("t") == t:
+                                    ahead_pend.pop(j, None)
+                                yield _frame("bars", json.dumps(_contract_event(_bar_contract, msg, session)), "bar")
+                                if not final:
+                                    ahead_sent[j] = (t, now_m)
+                            else:
+                                ahead_pend[j] = msg          # the same bucket, developing: the newest wins
+                        held = ahead_pend.get(j)
+                        last = ahead_sent.get(j)
+                        if held is not None and last is not None and now_m - last[1] >= AHEAD_INTERVAL_S:
+                            ahead_pend.pop(j, None)
+                            yield _frame("bars", json.dumps(_contract_event(_bar_contract, held, session)), "bar")
+                            ahead_sent[j] = ((held.get("bar") or {}).get("t"), now_m)
 
                 if time.time() - last_heartbeat > 15:
                     # NAMED event (not a `:` comment): a bare comment keeps the
