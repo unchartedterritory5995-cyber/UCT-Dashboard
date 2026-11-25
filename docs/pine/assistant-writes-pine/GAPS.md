@@ -14,17 +14,20 @@ This file holds capabilities only: no member's request, no answer and no count f
 
 | a member cannot get | what the engine says | refused as | probe |
 |---|---|---|---|
-| A horizontal level drawn with hline | `hline` is not drawn on this chart: this door does not carry a horizontal level yet, and a screen reads plot() and alertcondition() and nothing else, so a screen built from this script does not read it either | `pine:chart-only` | `hline` |
 | A shaded area between two plots that have no title | This script also writes a fill between two plots, which a script drawn bar by bar does not draw here yet. Its lines are drawn; those are not. | `runtime:presentation` | `untitled-fill-anchor` |
 | Up and down arrows in their own colours (plotarrow) | this script is not drawn: TradingView draws a `plotarrow` as up and down arrows at its positive and negative values, which this chart does not draw yet, so it is not drawn as a line of its value | `pine:plotarrow-not-drawn` | `plotarrow-colours` |
-| Bars drawn from computed values (plotbar) | this script declares nothing a chart can draw | `withheld` | `plotbar` |
+| Candles drawn from computed values (Heikin Ashi, plotcandle) | this script is not drawn: `Heikin Ashi` is not drawn: it does not write `wickcolor =`, and TradingView's default for it is not captured. Nothing is drawn for it rather than a guess. | `pine:candle-not-drawn` | `plotcandle` |
 
 ## Drawings
 
 | a member cannot get | what the engine says | refused as | probe |
 |---|---|---|---|
 | A volume profile: volume stacked by price level, drawn sideways | the pasted script offers no plot and no alert condition to filter on | `pine:no-output` | `volume-profile-boxes` |
-| A table of the average return of each weekday | 1 of 4 drawing elements in this script aren't supported yet, so what it draws is incomplete. (The 4 are every drawing step this chart tried to carry: each line, label, box or table created, changed or written to, each change to a list of them, each loop, and each call to a drawing function of the script's own that could not be followed.) Where this chart can run the script bar by bar the way Tradi | `drawings:lost` | `weekday-table` |
+| A table of the average return of each weekday | 1 of 4 drawing elements in this script aren't supported yet, so what it draws is incomplete. (The 4 are every drawing step this chart tried to carry: each line, label, box or table created, changed or written to, each change to a list of them, each loop, and each call to a drawing function of the script's own that could not be followed.) A table cell whose text is written at line 13 is not drawn b | `drawings:lost` | `weekday-table` |
+| A label whose text is a function (such as `math.abs`, `math.round`, `math.max`) of a value read back from a drawing | 1 of 4 drawing elements in this script aren't supported yet, so what it draws is incomplete. (The 4 are every drawing step this chart tried to carry: each line, label, box or table created, changed or written to, each change to a list of them, each loop, and each call to a drawing function of the script's own that could not be followed.) A label whose text is written at line 9 is not drawn because | `drawings:lost` | `getter-function-in-text` |
+| A label whose text reads a local that mixes a value read back from a drawing with a price series | 1 of 4 drawing elements in this script aren't supported yet, so what it draws is incomplete. (The 4 are every drawing step this chart tried to carry: each line, label, box or table created, changed or written to, each change to a list of them, each loop, and each call to a drawing function of the script's own that could not be followed.) A label whose text is written at line 10 is not drawn becaus | `drawings:lost` | `getter-local-with-series` |
+| A value read back from a drawing printed with a named format (`format.mintick`) | 1 of 4 drawing elements in this script aren't supported yet, so what it draws is incomplete. (The 4 are every drawing step this chart tried to carry: each line, label, box or table created, changed or written to, each change to a list of them, each loop, and each call to a drawing function of the script's own that could not be followed.) A label whose text is written at line 9 is not drawn because | `drawings:lost` | `getter-named-format` |
+| A table cell whose text is a value read back from a drawing | 1 of 4 drawing elements in this script aren't supported yet, so what it draws is incomplete. (The 4 are every drawing step this chart tried to carry: each line, label, box or table created, changed or written to, each change to a list of them, each loop, and each call to a drawing function of the script's own that could not be followed.) A table cell whose text is written at line 8 is not drawn be | `drawings:lost` | `getter-in-table-cell` |
 
 ## Data a script can read
 
@@ -47,7 +50,7 @@ This file holds capabilities only: no member's request, no answer and no count f
 
 ## Probes the engine serves today
 
-Asked the same way, and not a gap: `plotcandle` (candles drawn from computed values (Heikin Ashi, plotcandle)), `vwap-deviation-bands` (vWAP with its own standard deviation bands), `regression-channel-deviation` (a regression channel whose bands are the deviation around the line), `schaff-trend-cycle` (the Schaff Trend Cycle in its published two-stage form), `rsi-divergence-pivots` (a divergence between price and an oscillator, read pivot to pivot), `regression-channel-residual` (a regression channel whose bands are the deviation of price around the line), `zigzag-lines` (a zigzag that joins swing highs and lows with lines), `zones-extended-right` (zones as boxes that start at a past bar and extend to the right), `linefill` (a shaded area between two drawn lines (linefill)), `input-text-area` (a multi-line text setting (input.text_area)).
+Asked the same way, and not a gap: `hline` (a horizontal level drawn with hline), `plotbar` (bars in the chart's own prices, coloured by a rule (plotbar)), `plotbar-computed` (bars drawn from computed values (plotbar)), `vwap-deviation-bands` (vWAP with its own standard deviation bands), `regression-channel-deviation` (a regression channel whose bands are the deviation around the line), `schaff-trend-cycle` (the Schaff Trend Cycle in its published two-stage form), `rsi-divergence-pivots` (a divergence between price and an oscillator, read pivot to pivot), `regression-channel-residual` (a regression channel whose bands are the deviation of price around the line), `zigzag-lines` (a zigzag that joins swing highs and lows with lines), `zones-extended-right` (zones as boxes that start at a past bar and extend to the right), `linefill` (a shaded area between two drawn lines (linefill)), `input-text-area` (a multi-line text setting (input.text_area)).
 
 ## The probes
 
@@ -95,6 +98,17 @@ plotcandle(haOpen, math.max(high, haOpen, haClose), math.min(low, haOpen, haClos
 //@version=5
 indicator("probe")
 plotbar(open, high, low, close, "Bars", color=close > open ? color.green : color.red)
+```
+
+### `plotbar-computed`
+
+```pine
+//@version=5
+indicator("probe")
+haClose = (open + high + low + close) / 4
+var float haOpen = na
+haOpen := na(haOpen[1]) ? (open + close) / 2 : (haOpen[1] + haClose[1]) / 2
+plotbar(haOpen, math.max(high, haOpen, haClose), math.min(low, haOpen, haClose), haClose, "Heikin Ashi bars", color=haClose > haOpen ? color.green : color.red)
 ```
 
 ### `vwap-deviation-bands`
@@ -360,4 +374,60 @@ indicator("probe", overlay=true)
 note = input.text_area("hello", "Note")
 if barstate.islast
     label.new(bar_index, high, note)
+```
+
+### `getter-function-in-text`
+
+```pine
+//@version=5
+indicator("probe", overlay=true)
+var line l = na
+var label lb = na
+if barstate.islast
+    line.delete(l)
+    label.delete(lb)
+    l := line.new(bar_index - 5, low[5], bar_index, close)
+    lb := label.new(bar_index, close, str.tostring(math.abs(line.get_y2(l) - line.get_y1(l)), "#.00"))
+```
+
+### `getter-local-with-series`
+
+```pine
+//@version=5
+indicator("probe", overlay=true)
+var line l = na
+var label lb = na
+if barstate.islast
+    line.delete(l)
+    label.delete(lb)
+    l := line.new(bar_index - 5, low[5], bar_index, close)
+    float above = line.get_y2(l) - low
+    lb := label.new(bar_index, close, str.tostring(above, "#.00"))
+```
+
+### `getter-named-format`
+
+```pine
+//@version=5
+indicator("probe", overlay=true)
+var line l = na
+var label lb = na
+if barstate.islast
+    line.delete(l)
+    label.delete(lb)
+    l := line.new(bar_index - 5, low[5], bar_index, close)
+    lb := label.new(bar_index, close, str.tostring(line.get_y2(l), format.mintick))
+```
+
+### `getter-in-table-cell`
+
+```pine
+//@version=5
+indicator("probe", overlay=true)
+var line l = na
+var table t = table.new(position.top_right, 1, 1)
+if barstate.islast
+    line.delete(l)
+    l := line.new(bar_index - 5, low[5], bar_index, close)
+    table.cell(t, 0, 0, str.tostring(line.get_y2(l) - line.get_y1(l), "#.00"))
 ```

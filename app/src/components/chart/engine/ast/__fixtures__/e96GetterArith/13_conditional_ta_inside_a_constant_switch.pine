@@ -1,0 +1,9 @@
+//@version=5
+indicator("Moving average, by type", overlay=true)
+kind = input.string("SMA", "Type", options=["SMA", "EMA", "WMA"])
+len = input.int(20, "Length", minval=1)
+ma = switch kind
+    "EMA" => ta.ema(close, len)
+    "WMA" => ta.wma(close, len)
+    => ta.sma(close, len)
+plot(ma, "Moving average")

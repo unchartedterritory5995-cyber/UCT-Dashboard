@@ -9,7 +9,8 @@
 // script by name with the reason (`memberDoorAsync.js`).
 import { answerJobOfKind, setPeer, setPagePost, acceptPageMessage } from './memberDoorWorkerCore.js'
 
-// ⭐ THE HUB (`memberDoorWorkerCore.js`): the status this worker makes reaches the page unasked
+// ⭐ THE HUB (`memberDoorWorkerCore.js`): the status this worker makes reaches the page unasked, and so (e96) does its
+// heartbeat while it works (`memberDoorProtocol.js::BEAT`), on this worker's own clock
 setPagePost((m) => self.postMessage(m))
 
 self.onmessage = (event) => {

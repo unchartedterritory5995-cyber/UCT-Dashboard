@@ -407,6 +407,11 @@ export function assessObjectLoss(t) {
   const hiddenFamilies = uniq([...(d.removalWithheldFamilies || []), ...(d.fieldCreateFamilies || [])])
     .filter((f) => !carried.families.has(f)).sort()
   const lossy = dropped > 0 || readerNames.length > 0
+  // ⭐⭐ e96 — the drawings whose TEXT the pass could not compute, each with its named refusal
+  // (`pine.js::noteTextDrop`), so the note says which and why rather than only a count.
+  const textDrops = Array.isArray(d.textDrops)
+    ? d.textDrops.filter((e) => e && typeof e.sentence === 'string' && e.sentence && typeof e.guard === 'string')
+    : []
   return {
     verdict: removes.length ? 'removes' : lossy ? 'partial' : 'clean',
     dropped,
@@ -416,7 +421,32 @@ export function assessObjectLoss(t) {
     ...(strategyDropped > 0 ? { strategyDropped } : {}),
     ...(strategyRemoves ? { strategyRemoves } : {}),
     ...(hiddenFamilies.length ? { hiddenFamilies } : {}),
+    ...(dropped > 0 && textDrops.length ? { textDrops } : {}),
   }
+}
+
+/** ⭐ e96 — how many text drops the object pass keeps by name (`pine.js::noteTextDrop` reads it). */
+export const TEXT_DROPS_KEPT = 40
+
+/** ⭐⭐ e96 — THE MEMBER'S SENTENCE FOR A DRAWING WHOSE TEXT WAS NOT COMPUTED, BY NAME: the first
+ *  such drawing, where it is, and the refusal's own sentence; any others counted. A drawing that
+ *  vanishes must say which one and why (the studio's probes: a label with arithmetic on a value
+ *  read back from its line was simply absent). */
+export function textDropsSentence(drops) {
+  const list = Array.isArray(drops) ? drops.filter((e) => e && e.sentence) : []
+  if (!list.length) return null
+  const first = list[0]
+  const what = first.family === 'table' ? 'A table cell' : `A ${first.family || 'drawing'}`
+  // the line the TEXT is written on: a create's own, or the setter's or cell's that writes it
+  const where = Number.isInteger(first.line) ? ` whose text is written at line ${first.line}` : ' whose text'
+  const n = list.length - 1
+  // the pass keeps at most `TEXT_DROPS_KEPT` (`pine.js::noteTextDrop`): a full list is a floor, said as one
+  const atLeast = list.length >= TEXT_DROPS_KEPT ? 'at least ' : ''
+  const more = n > 0
+    ? ` The text of ${atLeast}${n} more ${n === 1 ? 'drawing' : 'drawings'} cannot be computed here either, so ${n === 1 ? 'it is' : 'they are'} not drawn.`
+    : ''
+  return `${what}${where} is not drawn because that text cannot be computed here: `
+    + `${first.sentence.replace(/[.\s]+$/, '')}.${more}`
 }
 
 function whatOf(key, cls) {
@@ -575,6 +605,9 @@ export function objectLossNote(loss, opts = {}) {
       parts.push(`${s} of those ${s === 1 ? 'is withheld because it reads' : 'are withheld because they read'} `
         + `${STRATEGY_VALUES_WORDS}, ${STRATEGY_NOT_RUN}.`)
     }
+    // ⭐⭐ e96 — and a drawing whose text was not computed is named, with why.
+    const named = textDropsSentence(loss.textDrops)
+    if (named) parts.push(named)
   }
   if (loss.readerNames.length) {
     const names = loss.readerNames.map((n) => `\`${n}\``).join(', ')

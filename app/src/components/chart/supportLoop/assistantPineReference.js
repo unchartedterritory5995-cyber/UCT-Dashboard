@@ -37,6 +37,14 @@ import {
   BUILTIN_BARSTATE_SERIES,
 } from '../engine/ast/pine'
 import { POOL_LIMITS } from '../engine/objectPool'
+import { BLOCK_RUNS_ADMITS } from '../engine/blockRuns'
+
+/** ⭐⭐ e96 — CAPABILITIES WORDED BY THE ENGINE'S OWN GATE, never by a sentence typed for the
+ *  assistant: `conditional-ta` is what the block gate admits (`blockRuns.js::BLOCK_RUNS_ADMITS`).
+ *  ⚰️ It was typed in the server ("a `ta.sma` / `ta.ema` call inside an `if` block at the top level
+ *  of the script"), and the gate refuses that whenever the `if` skips a bar. Written into the
+ *  reference only while the capability is admitted, so the server words it from here or not at all. */
+export const GATE_WORDS = Object.freeze({ 'conditional-ta': BLOCK_RUNS_ADMITS })
 
 const keysOf = (o) => (o instanceof Set ? [...o] : Array.isArray(o) ? [...o] : Object.keys(o || {}))
 const sorted = (xs) => [...new Set(xs)].sort()
@@ -163,6 +171,8 @@ export function buildAssistantPineReference({ allowlist, doorNames, examples = [
     // rule about the last bar is written from this list (`pine_authoring._last_bar_said`), and a test holds it
     // equal to the server's own (`runtime_definitions.admitted_capabilities()["historyOnly"]`).
     historyOnly: admitted.filter((id) => caps[id].scope === CLOSED_BAR_SCOPE),
+    // ⭐ e96 — an admitted capability whose words are its gate's own (`GATE_WORDS`); the server prints these.
+    capabilityWords: Object.fromEntries(Object.keys(GATE_WORDS).sort().filter(has).map((id) => [id, GATE_WORDS[id]])),
     families,
     drawing,
     constants,

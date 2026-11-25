@@ -1,0 +1,186 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "engine 96 (train e96), the presentation gaps. Unit 1: a Pine hline is drawn as the level it is on both doors (bare and bound, a negative literal, one setting through the bind path, the witnessed defaults only, the neutral ink named) and graded as a band (vw-hline-written). Unit 3: a band between two levels on the existing band mechanism. Unit 2: one candle authority on both doors (coordinator ruling R1): never four lines in a candle's place, never a hidden candle without a name (F2). Every rule, broken once, must turn its rail red.",
+ "mutants": [
+  {
+   "id": "HL1",
+   "mutant": "a bound `h = hline(..)` is not read as a level (970 of the census 2,082 calls)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "        if (rhs[0].value === 'hline') {\n          const how = { lane: isHostLane(opts) ? 'host' : 'screen', site: 'top', level: null }",
+   "to": "        if (rhs[0].value === 'hline-never') {\n          const how = { lane: isHostLane(opts) ? 'host' : 'screen', site: 'top', level: null }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/e96HlineLevels.test.js",
+   "expectRed": "bare and bound"
+  },
+  {
+   "id": "HL2",
+   "mutant": "a negative literal price (`u-` over a number) is not read",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "      : n && n.type === 'op' && n.name === 'u-' && n.args",
+   "to": "      : n && n.type === 'op' && n.name === 'u+' && n.args",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/e96HlineLevels.test.js",
+   "expectRed": "bare and bound"
+  },
+  {
+   "id": "HL3",
+   "mutant": "a setting-bound level is drawn at the default literal, so the member's setting does not move it",
+   "file": "app/src/components/chart/engine/hlineLevels.js",
+   "from": "      if (typeof bound === 'string' && bound) level = `$${bound}`",
+   "to": "      if (typeof bound === 'string' && bound) level = lv.value",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/e96HlineLevels.test.js",
+   "expectRed": "moves the line"
+  },
+  {
+   "id": "HL4",
+   "mutant": "the v6 default style is guessed for a v5 hline (no capture witnesses it)",
+   "file": "app/src/components/chart/engine/hlineLevels.js",
+   "from": "  6: Object.freeze({ color: '#808080', lineStyle: 'dashed', width: 1, witness: 'vw-hline-written-rddt-1d-2026-11-20' }),",
+   "to": "  5: Object.freeze({ color: '#808080', lineStyle: 'dashed', width: 1, witness: 'guess' }),\n  6: Object.freeze({ color: '#808080', lineStyle: 'dashed', width: 1, witness: 'vw-hline-written-rddt-1d-2026-11-20' }),",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/e96HlineLevels.test.js",
+   "expectRed": "v5 with nothing written"
+  },
+  {
+   "id": "HL5",
+   "mutant": "an hline its author hid (`display = display.none`) is drawn",
+   "file": "app/src/components/chart/engine/hlineLevels.js",
+   "from": "    if (lv.hidden === true) continue",
+   "to": "    if (lv.hidden === 'never') continue",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/e96HlineLevels.test.js",
+   "expectRed": "display.none draws nothing"
+  },
+  {
+   "id": "HL6",
+   "mutant": "a guide's neutral ink is not resolved against the chart (the theme reference reaches the renderer)",
+   "file": "app/src/components/chart/engine/pool.js",
+   "from": "      .map(p => withThemeColour(resolvePlotForInstance(p, inst.inputs), theme))",
+   "to": "      .map(p => resolvePlotForInstance(p, inst.inputs))",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/e96HlineLevels.test.js",
+   "expectRed": "neutral ink is the CHART"
+  },
+  {
+   "id": "HL7",
+   "mutant": "the band grade does not compare the level",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "Math.abs(o.value - vv) <= 1e-9 * Math.max(1, Math.abs(vv))",
+   "to": "Math.abs(o.value - vv) <= 1e9",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/e96HlineLevels.test.js",
+   "expectRed": "a different level is DIVERGE"
+  },
+  {
+   "id": "HL8",
+   "mutant": "the bands never reach the verdict",
+   "file": "app/src/components/chart/engine/__tests__/vendorHarness/harness.js",
+   "from": "  const bands = bandsGraded(opts) && ours && ours.ok && Array.isArray(ours.bands) ? ours.bands : null",
+   "to": "  const bands = null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/e96HlineLevels.test.js",
+   "expectRed": "vw-hline-written"
+  },
+  {
+   "id": "HL9",
+   "mutant": "reading a level price mints a parameter (every hline script's manifest would move)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    const minted = r.paramMint\n    r.paramMint = null\n",
+   "to": "    const minted = r.paramMint\n",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/e96HlineLevels.test.js",
+   "expectRed": "mints no parameter"
+  },
+  {
+   "id": "CA1",
+   "mutant": "the host door draws a candle's close as a line again (four lines in a candle's place)",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "      Object.assign(row, { style: RUNTIME_CANDLE_STYLE[o.kind], hidden: false, color: COLOUR_NONE, label: o.candle.title || row.label })",
+   "to": "      Object.assign(row, { hidden: false, color: COLOUR_NONE, label: o.candle.title || row.label })",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/e96CandleAuthority.test.js",
+   "expectRed": "one ohlcBars row"
+  },
+  {
+   "id": "CA2",
+   "mutant": "a drawn candle's other three prices stay drawn as lines",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "      for (const j of armIdx) rows[j].hidden = true\n",
+   "to": "      for (const j of []) rows[j].hidden = true\n",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/e96CandleAuthority.test.js",
+   "expectRed": "one ohlcBars row"
+  },
+  {
+   "id": "CA3",
+   "mutant": "F2: a candle the rule withholds is hidden WITHOUT a word",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "        candleNotes.push({ name, note: `\\`${name}\\` is not drawn: ${rule.why}. Nothing is drawn for it rather than a guess.` })",
+   "to": "        if (name === '__never__') candleNotes.push({ name, note: `\\`${name}\\` is not drawn: ${rule.why}. Nothing is drawn for it rather than a guess.` })",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/e96CandleAuthority.test.js",
+   "expectRed": "F2"
+  },
+  {
+   "id": "CA4",
+   "mutant": "a script whose only drawing is a withheld candle is served blank",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "  if (candleNotes.length && !rows.some((r) => r && !r.hidden) && !drawsObjects && !drawsPaints) {",
+   "to": "  if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/e96CandleAuthority.test.js",
+   "expectRed": "REFUSED by name"
+  },
+  {
+   "id": "CA5",
+   "mutant": "the host door skips the rule's version clause (a v4 candle drawn with no capture of its colour rules)",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "  return candleRule(kind, version, {\n    showLast: f.showLast,",
+   "to": "  return candleRule(kind, 5, {\n    showLast: f.showLast,",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/e96CandleAuthority.test.js",
+   "expectRed": "REFUSED by name"
+  },
+  {
+   "id": "CA6",
+   "mutant": "a two-colour candle's colours are swapped",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    return tree(cOp('?:', [pres.colorCondition.ast, cNum(up), cNum(down)]))",
+   "to": "    return tree(cOp('?:', [pres.colorCondition.ast, cNum(down), cNum(up)]))",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/e96CandleAuthority.test.js",
+   "expectRed": "GAPS probe"
+  },
+  {
+   "id": "CA7",
+   "mutant": "a passthrough-only candle never reaches the door (paneGate: \"declares nothing a chart can draw\")",
+   "file": "app/src/components/chart/engine/ast/paneGate.js",
+   "from": "    if ((t.outputs || []).some((o) => o && o.candle && !o.refusal)) return { ok: true, reason: null, guard: null }\n",
+   "to": "",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/e96CandleAuthority.test.js",
+   "expectRed": "GAPS probe"
+  },
+  {
+   "id": "LB1",
+   "mutant": "a band between two levels is never read (the translation drops `fill(h1, h2)`)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "  const levelFillRecs = fills.filter((f) => levelHandles.has(f.a) && levelHandles.has(f.b))",
+   "to": "  const levelFillRecs = []",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/e96HlineLevels.test.js",
+   "expectRed": "existing band mechanism"
+  },
+  {
+   "id": "LB2",
+   "mutant": "the door mints the two level rows but draws no band between them",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "      ra.fill = { with: rb.key }",
+   "to": "      ra.fillNever = { with: rb.key }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/e96HlineLevels.test.js",
+   "expectRed": "existing band mechanism"
+  },
+  {
+   "id": "HL10",
+   "mutant": "a level drawn in the neutral ink is listed as a note, not a withheld part (the GAPS probe would read as served)",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "    out.push({ name: n.title, note: hlineNotReproducedNote(n), line: n.line, withheld: COLOUR_DEFAULT_UNWITNESSED })",
+   "to": "    out.push({ name: n.title, note: hlineNotReproducedNote(n), line: n.line })",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/e96HlineLevels.test.js",
+   "expectRed": "WITHHELD part"
+  },
+  {
+   "id": "HL11",
+   "mutant": "the pane's scale no longer holds the drawn levels (Q-HLINE-2: TradingView's autoscale includes them)",
+   "file": "app/src/components/chart/engine/hlineLevels.js",
+   "from": "  return { ...plot, autoscaleInclude: has ? { min: Math.min(own.min, r.min), max: Math.max(own.max, r.max) } : r }",
+   "to": "  return plot",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/e96HlineLevels.test.js",
+   "expectRed": "holds every drawn level"
+  }
+ ]
+}

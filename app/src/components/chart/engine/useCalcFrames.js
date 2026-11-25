@@ -24,6 +24,8 @@ import { ensureSecondaryBars, refreshSecondaryBars, subscribe } from './secondar
 import { orderByDependency, sourceInputsOf, parseSource } from './sourceRef'
 import { resolveInstanceFrames } from './calcTimeframeCapability'
 import { etDateOf, frameKey } from './mtfProjection'
+import { dailyReadNeeds } from './dailyReadSupply'
+import { isBelowADay } from './ast/interpret'
 
 export { frameKey }
 
@@ -102,6 +104,12 @@ export function framesNeeded(instances, defOf, sym, chartTf) {
   for (const inst of ordered) {
     if (!needed.has(inst.instanceId)) continue
     const f = frames.get(inst.instanceId)
+    // ⭐⭐ U-DAILY (e96) — a formula that reads a daily value (`tf` of D) on a chart below a day needs the DAILY bars of
+    // the chart symbol and of every symbol its daily reads name (`dailyReadSupply.js`), on the same window ladder
+    if ((!f || !f.frame) && isBelowADay(chartTf)) {
+      // (train e96 x e95 2b) the document this instance's inputs bind: an unpicked knob arm's daily read fetches nothing
+      for (const s of dailyReadNeeds(defOf(inst.defId), sym, inst.inputs || {})) out.set(frameKey('D', s), { frame: 'D', symbol: s })
+    }
     if (!f || !f.frame) continue
     out.set(frameKey(f.frame, sym), { frame: f.frame, symbol: String(sym).toUpperCase() })
     const def = defOf(inst.defId)

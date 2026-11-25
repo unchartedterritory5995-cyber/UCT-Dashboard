@@ -39,6 +39,7 @@ import {
 } from '../authoringIntent'
 import { printFormula } from '../../engine/ast/pine'
 import { assertCanonical, astHash, TABLE } from '../../engine/ast/parse'
+import { isBelowADay } from '../../engine/ast/interpret'
 import { expandCalls, collapseExpansions, ExpansionRefusal } from '../../engine/ast/callExpansions'
 import { declaredInputs } from '../../engine/ast/lint'
 import { outputTypeOf, outputsOf, treeOutputType, OUTPUT_TYPES } from '../../engine/outputType'
@@ -70,6 +71,8 @@ export const CROSS_CONTEXT = Object.freeze({
   maxOtherSymbols: CROSS.maxOtherSymbols,
   ambiguous: Object.freeze(new Set(CROSS.ambiguousBare)),
   tfCodes: Object.freeze([...CROSS.tfCodes]),
+  // ⭐⭐ U-DAILY (e96) — the codes a `tf` read may name on a chart below a day only (`D`: the last finished day)
+  tfBelowADayCodes: Object.freeze([...CROSS.tfBelowADayCodes]),
   tfLiveCodes: Object.freeze([...CROSS.tfLiveCodes]),
   calculationTimeframes: Object.freeze([...CROSS.calculationTimeframes]),
 })
@@ -92,6 +95,10 @@ const normRequests = (r) => ({
   ...(r && typeof r.calculationTimeframe === 'string' ? { calculationTimeframe: r.calculationTimeframe } : {}),
 })
 
+/** ⭐⭐ U-DAILY (e96) — the chart this patch is applied for (`ctx.gateCtx`: its `tf` decides whether a daily read may
+ *  be authored), or null when the caller said none. */
+const gateCtxOf = (st) => (st && st.ctx && st.ctx.gateCtx) || null
+
 /** The scope a new tree is read under: the chrome inputs of the rows plus the
  *  member's own inputs — the same declared scope a Builder save would carry. */
 function scopeOf(model) {
@@ -104,7 +111,10 @@ function scopeOf(model) {
  * reparse is the SAME tree (`astHash`) → not `repaints`.
  * @returns {{source, ast, mode, readback, dialect}}
  */
-export function gateTree(tree, scope, key) {
+export function gateTree(tree, scope, key, gateCtx = null) {
+  // ⭐⭐ U-DAILY (e96) — a daily read (`tf` of D: the last finished day on each bar) is authored on a chart BELOW A
+  // DAY only (`crossContext.tfBelowADayCodes`); on any other chart, or one not said, it is refused here as before
+  const belowADay = !!gateCtx && isBelowADay(gateCtx.tf)
   try { assertCanonical(tree) } catch (e) {
     throw err('tree:not-canonical', `${key}: the tree is not a canonical formula node (${e.message})`, { output: key })
   }
@@ -133,8 +143,10 @@ export function gateTree(tree, scope, key) {
         throw err('tree:symbol-ambiguous', `${key}: ${t} also names a market index or commodity outside UCT's bar store, so which instrument it means can't be settled.`, { output: key })
       }
     }
-    if (n.type === 'tf' && !CROSS_CONTEXT.tfCodes.includes(n.value)) {
-      throw err('tree:timeframe', `${key}: a formula can read the weekly or monthly timeframe inside it, not "${String(n.value)}".`, { output: key })
+    if (n.type === 'tf' && !CROSS_CONTEXT.tfCodes.includes(n.value)
+        && !(belowADay && CROSS_CONTEXT.tfBelowADayCodes.includes(n.value))) {
+      throw err('tree:timeframe', `${key}: a formula can read the weekly or monthly timeframe inside it, not "${String(n.value)}"`
+        + `${CROSS_CONTEXT.tfBelowADayCodes.includes(n.value) ? ' (a daily read is for a chart below a day)' : ''}.`, { output: key })
     }
     if (n.type === 'tf_live' && !CROSS_CONTEXT.tfLiveCodes.includes(n.value)) {
       throw err('tree:timeframe', `${key}: a forming-period read names the weekly or monthly timeframe only, not "${String(n.value)}".`, { output: key })
@@ -164,7 +176,7 @@ function rowOf(st, key) {
 }
 
 function setTree(st, row, tree, i, kind) {
-  const g = gateTree(tree, scopeOf(st.model), row.key)
+  const g = gateTree(tree, scopeOf(st.model), row.key, gateCtxOf(st))
   if (row.dialect && row.dialect !== 'native') {
     st.changes.push({ op: i, kind: 'foreign-source-replaced', output: row.key, dialect: row.dialect,
       text: `The ${row.dialect} text of "${row.key}" is replaced by the edited formula; the edit is authoritative.` })
@@ -296,7 +308,7 @@ export function helperOwner(m, row) {
 }
 
 function regate(st, row, tree) {
-  Object.assign(row, gateTree(tree, scopeOf(st.model), row.key))
+  Object.assign(row, gateTree(tree, scopeOf(st.model), row.key, gateCtxOf(st)))
   st.touched.add(row.key)
 }
 
@@ -471,7 +483,7 @@ const OPS = {
     for (const spec of op.inputs || []) declareInput(st, spec, i)
     const scope = scopeOf(st.model)
     op.outputs.forEach((o, j) => {
-      Object.assign(st.model.rows[j], gateTree(o.tree, scope, keys[j]))
+      Object.assign(st.model.rows[j], gateTree(o.tree, scope, keys[j], gateCtxOf(st)))
       st.touched.add(keys[j])
     })
     // ⭐ several number lines, several colours (`LINE_COLORS`): every row here is new, so none
@@ -516,7 +528,7 @@ const OPS = {
       ? { ...newRow(op.key, op.label, op.hidden), [NEW_LINE_FLAG]: true }
       : newRow(op.key, op.label, op.hidden)
     st.model.rows.push(row)
-    Object.assign(row, gateTree(op.tree, scopeOf(st.model), op.key))
+    Object.assign(row, gateTree(op.tree, scopeOf(st.model), op.key, gateCtxOf(st)))
     // ⭐ a number line added beside others takes the first colour none of them wears (`LINE_COLORS`)
     if (isNumberLine(row)) row.color = nextLineColor(st.model.rows.filter((r) => r !== row))
     st.touched.add(op.key)
@@ -635,7 +647,7 @@ const OPS = {
     if (treeOutputType(row.ast).yields !== 'bool') {
       throw err('clause:numeric-operand', `"${row.key}" is a number, not a yes/no; compare it to something before adding a condition.`, { output: row.key })
     }
-    const g = gateTree(op.tree, scopeOf(st.model), row.key)
+    const g = gateTree(op.tree, scopeOf(st.model), row.key, gateCtxOf(st))
     if (treeOutputType(g.ast).yields !== 'bool') {
       throw err('clause:numeric-operand', 'The added clause is a number, not a yes/no; compare it to something.', { output: row.key })
     }
@@ -983,7 +995,7 @@ const OPS = {
         return RELATIONS[s.relation](owner.ast)
       }
       if (s.when === undefined) throw err('color:state-when', `State ${j + 1} says neither its condition nor a relation.`)
-      const g = gateTree(s.when, scopeOf(m), `${target} colour state ${j + 1}`)
+      const g = gateTree(s.when, scopeOf(m), `${target} colour state ${j + 1}`, gateCtxOf(st))
       if (treeOutputType(g.ast).type !== OUTPUT_TYPES.CONDITION) {
         throw err('color:state-not-yes-no', `State ${j + 1} is a number, not a yes/no test; it needs a comparison such as "above 70".`)
       }

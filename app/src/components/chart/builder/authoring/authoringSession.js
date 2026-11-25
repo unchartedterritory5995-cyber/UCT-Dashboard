@@ -400,7 +400,7 @@ export async function modelTurn(before, current, words, { snippets = [], gateCtx
     // ⭐ `chartOf()` is the chart's bars and compute context NOW (asked per check: a repair is checked
     // on the bars of that moment), so the verdict is a real run on this chart (`scriptAnswer.checkScript`)
     const onChart = typeof chartOf === 'function'
-      ? (pine, script) => (checkScript || defaultCheckScript)(pine, { chart: chartOf(), admission: script && script.admission })
+      ? (pine, script, { cancelled } = {}) => (checkScript || defaultCheckScript)(pine, { chart: chartOf(), admission: script && script.admission, cancelled })
       : checkScript
     const settled = await settleScript(res,
       (refusal) => converse({ message: words, state: before, gateCtx, snippets, signal, scriptRefusal: refusal }),

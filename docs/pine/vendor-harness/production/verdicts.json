@@ -1,6 +1,6 @@
 {
  "generatedBy": "app/src/components/chart/engine/__tests__/vendorHarness/vendorHarness.corpus.test.js",
- "scriptEngineVersion": 95,
+ "scriptEngineVersion": 96,
  "dirs": [
   "tests/fixtures/vendor"
  ],
@@ -189154,8 +189154,30 @@
     "verdict": "MATCH",
     "reason": "neither side draws an object"
    },
+   "bands": {
+    "verdict": "MATCH",
+    "reason": "2 bands agree in level, colour, style and width",
+    "agreeing": 2,
+    "differing": 0,
+    "withheld": 0,
+    "rows": [
+     {
+      "id": "hline_0",
+      "ordinal": 0,
+      "title": "H1_far_above",
+      "state": "agrees"
+     },
+     {
+      "id": "hline_1",
+      "ordinal": 1,
+      "title": "H2_far_below",
+      "state": "agrees"
+     }
+    ]
+   },
    "verdict": "MATCH",
-   "reason": "all 2 items agree",
+   "reason": "all 3 items agree",
+   "verdictWithoutBands": "MATCH",
    "ourNotes": [
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
    ],
@@ -189267,8 +189289,48 @@
     "verdict": "MATCH",
     "reason": "neither side draws an object"
    },
+   "bands": {
+    "verdict": "MATCH",
+    "reason": "5 bands agree in level, colour, style and width",
+    "agreeing": 5,
+    "differing": 0,
+    "withheld": 0,
+    "rows": [
+     {
+      "id": "hline_0",
+      "ordinal": 0,
+      "title": "D0_nothing",
+      "state": "agrees"
+     },
+     {
+      "id": "hline_1",
+      "ordinal": 1,
+      "title": "D1_default_style",
+      "state": "agrees"
+     },
+     {
+      "id": "hline_2",
+      "ordinal": 2,
+      "title": "D2_default_width",
+      "state": "agrees"
+     },
+     {
+      "id": "hline_3",
+      "ordinal": 3,
+      "title": "D3_default_colour",
+      "state": "agrees"
+     },
+     {
+      "id": "hline_4",
+      "ordinal": 4,
+      "title": "D4_red_only",
+      "state": "agrees"
+     }
+    ]
+   },
    "verdict": "MATCH",
-   "reason": "all 2 items agree",
+   "reason": "all 3 items agree",
+   "verdictWithoutBands": "MATCH",
    "ourNotes": [
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
    ],
@@ -189380,8 +189442,48 @@
     "verdict": "MATCH",
     "reason": "neither side draws an object"
    },
+   "bands": {
+    "verdict": "MATCH",
+    "reason": "5 bands agree in level, colour, style and width",
+    "agreeing": 5,
+    "differing": 0,
+    "withheld": 0,
+    "rows": [
+     {
+      "id": "hline_0",
+      "ordinal": 0,
+      "title": "D0_nothing",
+      "state": "agrees"
+     },
+     {
+      "id": "hline_1",
+      "ordinal": 1,
+      "title": "D1_default_style",
+      "state": "agrees"
+     },
+     {
+      "id": "hline_2",
+      "ordinal": 2,
+      "title": "D2_default_width",
+      "state": "agrees"
+     },
+     {
+      "id": "hline_3",
+      "ordinal": 3,
+      "title": "D3_default_colour",
+      "state": "agrees"
+     },
+     {
+      "id": "hline_4",
+      "ordinal": 4,
+      "title": "D4_red_only",
+      "state": "agrees"
+     }
+    ]
+   },
    "verdict": "MATCH",
-   "reason": "all 2 items agree",
+   "reason": "all 3 items agree",
+   "verdictWithoutBands": "MATCH",
    "ourNotes": [
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
    ],
@@ -189493,8 +189595,48 @@
     "verdict": "MATCH",
     "reason": "neither side draws an object"
    },
+   "bands": {
+    "verdict": "MATCH",
+    "reason": "5 bands agree in level, colour, style and width",
+    "agreeing": 5,
+    "differing": 0,
+    "withheld": 0,
+    "rows": [
+     {
+      "id": "hline_0",
+      "ordinal": 0,
+      "title": "D0_nothing",
+      "state": "agrees"
+     },
+     {
+      "id": "hline_1",
+      "ordinal": 1,
+      "title": "D1_default_style",
+      "state": "agrees"
+     },
+     {
+      "id": "hline_2",
+      "ordinal": 2,
+      "title": "D2_default_width",
+      "state": "agrees"
+     },
+     {
+      "id": "hline_3",
+      "ordinal": 3,
+      "title": "D3_default_colour",
+      "state": "agrees"
+     },
+     {
+      "id": "hline_4",
+      "ordinal": 4,
+      "title": "D4_red_only",
+      "state": "agrees"
+     }
+    ]
+   },
    "verdict": "MATCH",
-   "reason": "all 2 items agree",
+   "reason": "all 3 items agree",
+   "verdictWithoutBands": "MATCH",
    "ourNotes": [
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
    ],
@@ -189606,8 +189748,60 @@
     "verdict": "MATCH",
     "reason": "neither side draws an object"
    },
+   "bands": {
+    "verdict": "MATCH",
+    "reason": "7 bands agree in level, colour, style and width",
+    "agreeing": 7,
+    "differing": 0,
+    "withheld": 0,
+    "rows": [
+     {
+      "id": "hline_0",
+      "ordinal": 0,
+      "title": "H1_solid_red_w1",
+      "state": "agrees"
+     },
+     {
+      "id": "hline_1",
+      "ordinal": 1,
+      "title": "H2_dashed_blue_w2",
+      "state": "agrees"
+     },
+     {
+      "id": "hline_2",
+      "ordinal": 2,
+      "title": "H3_dotted_green_w3",
+      "state": "agrees"
+     },
+     {
+      "id": "hline_3",
+      "ordinal": 3,
+      "title": "H4_orange_t40_w4",
+      "state": "agrees"
+     },
+     {
+      "id": "hline_4",
+      "ordinal": 4,
+      "title": "H5_defaults",
+      "state": "agrees"
+     },
+     {
+      "id": "hline_5",
+      "ordinal": 5,
+      "title": "H6_negative_purple",
+      "state": "agrees"
+     },
+     {
+      "id": "hline_6",
+      "ordinal": 6,
+      "title": "H7_transparent",
+      "state": "agrees"
+     }
+    ]
+   },
    "verdict": "MATCH",
-   "reason": "all 2 items agree",
+   "reason": "all 3 items agree",
+   "verdictWithoutBands": "MATCH",
    "ourNotes": [
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
    ],
