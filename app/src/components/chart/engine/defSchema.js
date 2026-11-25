@@ -134,6 +134,7 @@ import {
   READOUT_FORMATS, READOUT_ENTRY_FIELDS, READOUT_CARD_FIELDS, READOUT_SOURCE_PREFIXES,
   READOUT_CONDITION_OPS, parseReadoutSource, parseReadoutGate,
   READOUT_ACTION_KINDS, READOUT_ACTION_FIELDS, READOUT_ACTION_INPUT_TYPE,
+  activeWhenShape,
 } from './readoutSchema'
 // ⭐ THE PRESET FIELDS' VOCABULARIES ARE OWNED BY THEIR WRITERS (Phase 2a, unit
 // 2a-15). `applyPresetFields` (`instanceControls.js`) hands a preset's `dotSize`
@@ -2861,18 +2862,8 @@ function activeWhenEnumFault(aw, inputsByKey) {
   return null
 }
 
-/** ⭐⭐ e98 E2 — WHICH OF THE TWO `inputs[].activeWhen` SHAPES THIS IS: `'knob'` (a knob test, `type` present: U6's
- *  grammar, a Pine input's `active =`), `'key'` (the `{key, equals | notEquals | in | gt | gte | lt | lte}` condition
- *  the native definitions declare), or null (neither: refused by `validateActiveWhen`, and read as INACTIVE by
- *  `indicatorRegistry.evalActiveWhen`, never as active). The ONE classifier both read. */
-export function activeWhenShape(aw) {
-  if (!isPlainObject(aw)) return null
-  const hasType = Object.prototype.hasOwnProperty.call(aw, 'type')
-  const hasKey = Object.prototype.hasOwnProperty.call(aw, 'key')
-  if (hasType && !hasKey) return 'knob'
-  if (hasKey && !hasType && typeof aw.key === 'string') return 'key'
-  return null
-}
+// ⭐ e98 E2 — `activeWhenShape` lives with the condition reader (`readoutSchema.js`, imported above), re-exported here.
+export { activeWhenShape }
 export const ACTIVE_WHEN_UNKNOWN_SHAPE = 'is neither a `{key, …}` condition nor a setting test (a tree with a `type`)'
 
 function validateActiveWhen(input, index, inputsByKey, errors) {
