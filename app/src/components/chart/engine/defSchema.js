@@ -1047,6 +1047,28 @@ export function hiddenWhenProblem(tree) {
   return walk(tree, 0)
 }
 
+/** ⭐ e98 E1 — `plots[].lineStyleWhen`, the line style a plot's settings choose: a non-empty list of at most
+ *  PLOT_LINE_STYLES.length `{when, lineStyle}` entries, each `when` THE knob test `hiddenWhenProblem` checks (one
+ *  grammar, one checker), each `lineStyle` one of PLOT_LINE_STYLES and none twice, no other field. The first problem as
+ *  a sentence, or null. Mirrored by `api/services/presentation_schema.py::line_style_when_problem`. */
+export function lineStyleWhenProblem(arms) {
+  if (!Array.isArray(arms) || !arms.length) return `expected a non-empty list of {when, lineStyle}, got ${fmt(arms)}`
+  if (arms.length > PLOT_LINE_STYLES.length) return `holds more than ${PLOT_LINE_STYLES.length} entries (one per line style)`
+  const seen = new Set()
+  for (let i = 0; i < arms.length; i += 1) {
+    const a = arms[i]
+    if (!isPlainObject(a)) return `[${i}]: expected {when, lineStyle}, got ${fmt(a)}`
+    const extra = Object.keys(a).filter((k) => k !== 'when' && k !== 'lineStyle')
+    if (extra.length) return `[${i}]: unknown field(s) ${extra.map(fmt).join(', ')}`
+    if (!PLOT_LINE_STYLES.includes(a.lineStyle)) return `[${i}].lineStyle: expected one of ${list(PLOT_LINE_STYLES)}, got ${fmt(a.lineStyle)}`
+    if (seen.has(a.lineStyle)) return `[${i}].lineStyle: ${fmt(a.lineStyle)} is chosen twice`
+    seen.add(a.lineStyle)
+    const why = hiddenWhenProblem(a.when)
+    if (why) return `[${i}].when: ${why}`
+  }
+  return null
+}
+
 function validateTrees(compute, storedHash, errors, inputScope) {
   const { trees, scanPlot, sources } = compute
   if (trees === undefined) {
@@ -3082,6 +3104,7 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors, presentationKe
   // guaranteed error). A ref that fails to resolve is already reported by
   // `substitute`; there is nothing left to vet, so the vocabulary check is
   // skipped rather than run on a sentinel.
+  const lineStyleLiteral = PLOT_LINE_STYLES.includes(plot.lineStyle)
   if (plot.lineStyle !== undefined) {
     const styleRef = refKeyOf(plot.lineStyle)
     const lineStyle = substitute(plot.lineStyle, inputsByKey, `${path}.lineStyle`, errors, 'lineStyle')
@@ -3089,6 +3112,17 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors, presentationKe
       noteRef(plot, 'lineStyle', styleRef)
       checkVocabulary(lineStyle, PLOT_LINE_STYLES, [], `${path}.lineStyle`, 'line style', errors)
       plot.lineStyle = lineStyle
+    }
+  }
+  // ⭐ e98 E1 — `lineStyleWhen`: the line style the instance's settings choose (`knobBind.js::plotLineStyleAt`), each
+  // `when` the ONE knob-test grammar (`lineStyleWhenProblem` -> U6's `hiddenWhenProblem`); beside the plot's own LITERAL
+  // `lineStyle` (the style at the defaults; a `$ref` there would be a second authority over the same value). Mirrored
+  // by `presentation_schema.py::_check_line_style_when`.
+  if (plot.lineStyleWhen !== undefined) {
+    const why = lineStyleWhenProblem(plot.lineStyleWhen)
+    if (why) errors.push(`${path}.lineStyleWhen: ${why}`)
+    else if (!lineStyleLiteral) {
+      errors.push(`${path}.lineStyleWhen: needs the plot's own literal \`lineStyle\`, the style at the settings' defaults`)
     }
   }
   // `legend` — the crosshair chip this plot contributes. See LEGEND_FIELDS.

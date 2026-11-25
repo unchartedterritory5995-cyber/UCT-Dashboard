@@ -141,15 +141,37 @@ function displayConstsFor(def, inputs) {
 }
 const EMPTY_INPUTS = Object.freeze({})
 
+/** ⭐ e97 U6 (shared since e98 E1) — THE VALUE OF ONE KNOB TEST FOR THIS INSTANCE: the tree (the grammar
+ *  `defSchema.hiddenWhenProblem` checks) evaluated by `knobTestValue` at the instance's inputs over the declared
+ *  defaults (`displayConstsFor`); a bare number is itself. null when this binding cannot evaluate it. The ONE evaluator
+ *  `hiddenWhen` (`plotHiddenAt`) and `lineStyleWhen` (`plotLineStyleAt`) are asked through. */
+export function knobTestAt(tree, def, inputs) {
+  if (!tree || typeof tree !== 'object') return null
+  if (tree.type === 'num') return typeof tree.value === 'number' && Number.isFinite(tree.value) ? tree.value : null
+  return knobTestValue(tree, displayConstsFor(def, inputs))
+}
+
 export function plotHiddenAt(plot, def, inputs) {
   if (!plot || typeof plot !== 'object') return false
   if (plot.hidden === true) return true
   const when = plot.hiddenWhen
   if (!when || typeof when !== 'object') return false
-  const consts = displayConstsFor(def, inputs)
-  const v = knobTestValue(when, consts)
-  if (v === null) return !(when.type === 'num' && when.value === 0)
+  const v = knobTestAt(when, def, inputs)
+  if (v === null) return true
   return !!v
+}
+
+/** ⭐⭐ e98 E1 — THE LINE STYLE THIS INSTANCE DRAWS A PLOT WITH: the first `plots[].lineStyleWhen` arm whose knob test
+ *  holds at the instance's inputs (`knobTestAt`, the evaluator `hiddenWhen` is asked through), else the plot's own
+ *  `lineStyle` (the style at the settings' defaults, `pine.js::outputLineStyleOf`). A plot with no `lineStyleWhen` is
+ *  returned AS IS (the same object), so every document saved before it draws exactly as it did.
+ *  ⛔ An arm this binding cannot evaluate is skipped, never taken: the defaults' style stands.
+ *  @returns {object} the plot, or a copy whose `lineStyle` is the instance's */
+export function plotLineStyleAt(plot, def, inputs) {
+  if (!plot || typeof plot !== 'object' || !Array.isArray(plot.lineStyleWhen) || !plot.lineStyleWhen.length) return plot
+  const hit = plot.lineStyleWhen.find((a) => a && typeof a.lineStyle === 'string' && !!knobTestAt(a.when, def, inputs))
+  const lineStyle = hit ? hit.lineStyle : plot.lineStyle
+  return lineStyle === plot.lineStyle ? plot : { ...plot, lineStyle }
 }
 
 /** ⭐ e97 U6 — a `hiddenWhen` tree decided at its settings' DEFAULTS (the non-enumerable `inputDefault` each knob leaf

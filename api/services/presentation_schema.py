@@ -14,6 +14,8 @@ This module mirrors exactly what `defSchema.js` accepts for:
   * ``plots[].colorMode`` and its colour fields (``colorUp``/``colorDown``,
     ``colorPalette``, ``colorGradient``, ``colorPacked``), incl. the
     ``column:<key>`` reference
+  * ``plots[].lineStyleWhen`` (e98 E1) -- the line style a plot's settings choose:
+    ``[{when, lineStyle}]``, each ``when`` the one knob-test grammar ``hiddenWhen`` holds
   * ``paints[]``         -- kind, colour forms, ``column:<key>`` reference,
     opacity / offset / showLast / title / line
 
@@ -45,6 +47,8 @@ OHLC_DEF_STYLES = ("candles", "ohlcBars")
 OHLC_COLOUR_PARTS = {"candles": ("body", "wick", "border"), "ohlcBars": ("body",)}
 RESERVED_PLOT_STYLES = ("zones", "bgband", "barcolor", "fill", "cross")
 MARKER_SHAPES = ("circle", "square", "arrowUp", "arrowDown")
+#: e98 E1 -- a plot's line styles (`defSchema.js` PLOT_LINE_STYLES), held equal by the shared fixture.
+PLOT_LINE_STYLES = ("solid", "dashed", "dotted", "largeDashed")
 MARKER_POSITIONS = ("aboveBar", "belowBar", "inBar")
 MARKER_SIZE_RANGE = {"min": 0.25, "max": 4}
 MARKER_TEXT_MAX = 24
@@ -336,6 +340,46 @@ def hidden_when_problem(tree: Any) -> Any:
     return walk(tree, 0)
 
 
+def line_style_when_problem(arms: Any) -> Any:
+    """e98 E1 -- the first problem with a `lineStyleWhen` list as a sentence, or None: a non-empty list of at most
+    len(PLOT_LINE_STYLES) `{when, lineStyle}` entries, each `when` THE knob test `hidden_when_problem` checks (one
+    grammar, one checker), each `lineStyle` one of PLOT_LINE_STYLES and none twice, no other field. The mirror of
+    `defSchema.js::lineStyleWhenProblem`."""
+    if not isinstance(arms, list) or not arms:
+        return f"expected a non-empty list of {{when, lineStyle}}, got {_canon(arms)}"
+    if len(arms) > len(PLOT_LINE_STYLES):
+        return f"holds more than {len(PLOT_LINE_STYLES)} entries (one per line style)"
+    seen: set = set()
+    for i, a in enumerate(arms):
+        if not isinstance(a, Mapping):
+            return f"[{i}]: expected {{when, lineStyle}}, got {_canon(a)}"
+        extra = [k for k in a if k not in ("when", "lineStyle")]
+        if extra:
+            return f"[{i}]: unknown field(s) {', '.join(map(repr, extra))}"
+        ls = a.get("lineStyle")
+        if not _is_str(ls) or ls not in PLOT_LINE_STYLES:
+            return f"[{i}].lineStyle: expected one of {', '.join(PLOT_LINE_STYLES)}, got {_canon(ls)}"
+        if ls in seen:
+            return f"[{i}].lineStyle: {ls!r} is chosen twice"
+        seen.add(ls)
+        why = hidden_when_problem(a.get("when"))
+        if why:
+            return f"[{i}].when: {why}"
+    return None
+
+
+def _check_line_style_when(plot: Mapping, path: str, fp: str, out: list) -> None:
+    """e98 E1 -- `plots[].lineStyleWhen` beside the plot's own LITERAL `lineStyle` (the style at the defaults)."""
+    if "lineStyleWhen" not in plot:
+        return
+    why = line_style_when_problem(plot["lineStyleWhen"])
+    if why:
+        _err(out, f"{path}.lineStyleWhen", "plot-line-style-when", f"{path}.lineStyleWhen: {why}", fp)
+    elif not (_is_str(plot.get("lineStyle")) and plot.get("lineStyle") in PLOT_LINE_STYLES):
+        _err(out, f"{path}.lineStyleWhen", "plot-line-style-when",
+             f"{path}.lineStyleWhen: needs the plot's own literal `lineStyle`, the style at the settings' defaults", fp)
+
+
 def _check_hidden_when(plot: Mapping, path: str, fp: str, out: list) -> None:
     if "hiddenWhen" in plot:
         why = hidden_when_problem(plot["hiddenWhen"])
@@ -618,6 +662,7 @@ def presentation_errors(definition: Mapping[str, Any]) -> list:
         _check_color_mode(plot, path, fp, columns, out)
         _check_ohlc(plot, path, fp, columns, out)
         _check_hidden_when(plot, path, fp, out)
+        _check_line_style_when(plot, path, fp, out)
     # DIV-4 -- a PAINT (never a plot) may also name a colour column the per-bar run computes
     run_keys = _check_runtime_colours(definition, columns, out)
     _check_paints(definition.get("paints"), columns | run_keys, out)
