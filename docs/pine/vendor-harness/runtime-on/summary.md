@@ -4,7 +4,7 @@ Directories: `tests/fixtures/vendor`
 
 Lane: **runtime-on**. LANE MEASURED: runtime-on (gate OPEN, runtime lane reached 627, host refusals 676) · objects-only pane ARMED · runtime drew 279, declined 348 · strategy lane: broker gate ON, 88 graded on their trades, 73 broker run(s)
 
-Graded at script engine **96**.
+Graded at script engine **97**.
 
 ```
 capture                                      symbol/tf        plots  verdict           first divergence / reason
@@ -848,14 +848,14 @@ keltner-channels-bands-spy-1d-2026-10-03     AMEX:SPY 1D      7      MATCH      
     Upper 3                                  MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 5.70e-16
     Lower 3                                  MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 7.95e-16
     objects                                  MATCH         neither side draws an object
-kernel-channel-backquant-rddt-1d-2026-11-14  NYSE:RDDT 1D     7      INCONCLUSIVE      4 of 9 items could not be compared
+kernel-channel-backquant-rddt-1d-2026-11-14  NYSE:RDDT 1D     7      MATCH             all 9 items agree
     Kernel Midline                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     Upper Band                               MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     Lower Band                               MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
-    plot_10                                  INCONCLUSIVE       — withheld by name on our side (`Bar Coloring`): its `display = unread` is not a place this pane reads
-    plot_11                                  INCONCLUSIVE       — withheld by name on our side (`Bar Coloring`): its `display = unread` is not a place this pane reads
-    plot_12                                  INCONCLUSIVE       — withheld by name on our side (`Bar Coloring`): its `display = unread` is not a place this pane reads
-    plot_13                                  INCONCLUSIVE       — withheld by name on our side (`Bar Coloring`): its `display = unread` is not a place this pane reads
+    open                                     MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    high                                     MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    low                                      MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    close                                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
     paints                                   MATCH         3 paints agree bar for bar
 lib-v5-in-v6-rddt-1d-2026-11-16              NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `BarefootJoey/AstroLib/1` is not in this engine's library registry, so its code cannot be compiled
@@ -1221,8 +1221,8 @@ one-sided-gaussian-support-resistance-rate-l AMEX:SPY 1D      4      DIVERGE    
     Short                                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:warmup-never-converges)
     objects                                  MATCH         neither side draws an object
     paints                                   DIVERGE       1 paint differs (first: barcolor plot_4 "Bar Color" notDrawn)
-open-interest-suite-aggregated-by-leviathan- NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: pine:function]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `oic1`
-open-interest-suite-aggregated-by-leviathan- AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: pine:function]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `oic1`
+open-interest-suite-aggregated-by-leviathan- NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: pine:function]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `oic1`: the symbol argument `+` is computed from the bars, so it is not one symbol for the whole chart
+open-interest-suite-aggregated-by-leviathan- AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: pine:function]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `oic1`: the symbol argument `+` is computed from the bars, so it is not one symbol for the whole chart
 opening-range-initial-balance-opening-price- NYSE:RDDT 1D     14     INCONCLUSIVE      11 of 15 items could not be compared
     Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
     OR Low                                   INCONCLUSIVE       — UNMAPPED — vendor title "OR Low" is not unique in the study
@@ -2235,8 +2235,8 @@ swing-highlow-zigzag-chartprime-rddt-1d-2026 NYSE:RDDT 1D     1      MATCH      
 swing-highlow-zigzag-chartprime-spy-1d-2026- AMEX:SPY 1D      1      MATCH             all 2 items agree
     Plot                                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     objects                                  MATCH         object counts and texts agree; colours agree on 60 paired slots (3 theme-relative); 1 slot on objects neither side draws not graded; coordinates are NOT compared by v1
-swing-points-and-liquidity-by-leviathan-rddt NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: pine:request]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`
-swing-points-and-liquidity-by-leviathan-spy- AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: pine:request]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`
+swing-points-and-liquidity-by-leviathan-rddt NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: pine:request]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`: the symbol argument `+` is computed from the bars, so it is not one symbol for the whole chart
+swing-points-and-liquidity-by-leviathan-spy- AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: pine:request]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`: the symbol argument `+` is computed from the bars, so it is not one symbol for the whole chart
 syminfo-mincontract-aapl-1d-2026-11-16       NASDAQ:AAPL 1D   0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw
 syminfo-mincontract-rddt-1d-2026-11-16       NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw
 syminfo-mincontract-spy-1d-2026-11-16        AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw
@@ -2404,10 +2404,10 @@ volatility-trend-score-backquant-rddt-1d-202 NYSE:RDDT 1D     8      INCONCLUSIV
     Long Signal                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     Short Signal                             MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     plot_0                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
-    plot_4                                   INCONCLUSIVE       — withheld by name on our side (`Trend Candles`): its `display = unread` is not a place this pane reads
-    plot_5                                   INCONCLUSIVE       — withheld by name on our side (`Trend Candles`): its `display = unread` is not a place this pane reads
-    plot_6                                   INCONCLUSIVE       — withheld by name on our side (`Trend Candles`): its `display = unread` is not a place this pane reads
-    plot_7                                   INCONCLUSIVE       — withheld by name on our side (`Trend Candles`): its `display = unread` is not a place this pane reads
+    plot_4                                   INCONCLUSIVE       — withheld by name on our side (`Trend Candles`): it asks for the price chart (`force_overlay = true`) from a script that is not an overlay
+    plot_5                                   INCONCLUSIVE       — withheld by name on our side (`Trend Candles`): it asks for the price chart (`force_overlay = true`) from a script that is not an overlay
+    plot_6                                   INCONCLUSIVE       — withheld by name on our side (`Trend Candles`): it asks for the price chart (`force_overlay = true`) from a script that is not an overlay
+    plot_7                                   INCONCLUSIVE       — withheld by name on our side (`Trend Candles`): it asks for the price chart (`force_overlay = true`) from a script that is not an overlay
     objects                                  MATCH         object counts and texts agree; colours agree on 2 paired slots (2 theme-relative); coordinates are NOT compared by v1
     paints                                   NOT GRADED    no paint was graded; 1 paint neither side draws not graded (plot_11)
 vold-market-breadth-rddt-1d-2026-09-28       NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:known-divergence) [runtime declined: runtime:input-state]: this script is not drawn: on a captured NYSE:RDDT 1D chart (capture vold-market-breadth-rddt-1d-2026-09-28) it draws something that differs from TradingView: tableCells count of tableCells held: TradingView 2, ours 0. It is withheld until that is fixed, and comes back once a new comparison against TradingView matches.

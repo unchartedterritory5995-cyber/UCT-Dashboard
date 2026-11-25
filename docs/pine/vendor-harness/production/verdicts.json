@@ -1,6 +1,6 @@
 {
  "generatedBy": "app/src/components/chart/engine/__tests__/vendorHarness/vendorHarness.corpus.test.js",
- "scriptEngineVersion": 96,
+ "scriptEngineVersion": 97,
  "dirs": [
   "tests/fixtures/vendor"
  ],
@@ -61555,7 +61555,7 @@
      "reason": "636 steady-state bars agree",
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
-     "derivedLookback": 0,
+     "derivedLookback": 20,
      "color": "nothing drawn on any bar — no colour to compare",
      "stats": {
       "bars": 636,
@@ -61603,7 +61603,7 @@
      "reason": "636 steady-state bars agree",
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
-     "derivedLookback": 0,
+     "derivedLookback": 20,
      "color": "nothing drawn on any bar — no colour to compare",
      "stats": {
       "bars": 636,
@@ -61651,7 +61651,7 @@
      "reason": "636 steady-state bars agree",
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
-     "derivedLookback": 0,
+     "derivedLookback": 20,
      "color": "nothing drawn on any bar — no colour to compare",
      "stats": {
       "bars": 636,
@@ -63023,8 +63023,8 @@
      "verdict": "MATCH",
      "reason": "1800 steady-state bars agree",
      "warmupBars": 0,
-     "warmupSource": "our side replayed 6677 bars of proved prehistory (vw-object-gc-b-spy-1d-2026-09-28.json) before the window against a maxLookback of 0",
-     "derivedLookback": 0,
+     "warmupSource": "our side replayed 6677 bars of proved prehistory (vw-object-gc-b-spy-1d-2026-09-28.json) before the window against a maxLookback of 20",
+     "derivedLookback": 20,
      "color": "nothing drawn on any bar — no colour to compare",
      "stats": {
       "bars": 1800,
@@ -63071,8 +63071,8 @@
      "verdict": "MATCH",
      "reason": "1800 steady-state bars agree",
      "warmupBars": 0,
-     "warmupSource": "our side replayed 6677 bars of proved prehistory (vw-object-gc-b-spy-1d-2026-09-28.json) before the window against a maxLookback of 0",
-     "derivedLookback": 0,
+     "warmupSource": "our side replayed 6677 bars of proved prehistory (vw-object-gc-b-spy-1d-2026-09-28.json) before the window against a maxLookback of 20",
+     "derivedLookback": 20,
      "color": "nothing drawn on any bar — no colour to compare",
      "stats": {
       "bars": 1800,
@@ -63119,8 +63119,8 @@
      "verdict": "MATCH",
      "reason": "1800 steady-state bars agree",
      "warmupBars": 0,
-     "warmupSource": "our side replayed 6677 bars of proved prehistory (vw-object-gc-b-spy-1d-2026-09-28.json) before the window against a maxLookback of 0",
-     "derivedLookback": 0,
+     "warmupSource": "our side replayed 6677 bars of proved prehistory (vw-object-gc-b-spy-1d-2026-09-28.json) before the window against a maxLookback of 20",
+     "derivedLookback": 20,
      "color": "nothing drawn on any bar — no colour to compare",
      "stats": {
       "bars": 1800,
@@ -64305,7 +64305,7 @@
    "notCompared": [],
    "notMeasured": [],
    "verdict": "INCONCLUSIVE",
-   "reason": "refused on our side: member door refused (pine:request): this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `oic1`",
+   "reason": "refused on our side: member door refused (pine:request): this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `oic1`: the symbol argument `+` is computed from the bars, so it is not one symbol for the whole chart",
    "ourNotes": []
   },
   {
@@ -64319,7 +64319,7 @@
    "notCompared": [],
    "notMeasured": [],
    "verdict": "INCONCLUSIVE",
-   "reason": "refused on our side: member door refused (pine:request): this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `oic1`",
+   "reason": "refused on our side: member door refused (pine:request): this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `oic1`: the symbol argument `+` is computed from the bars, so it is not one symbol for the whole chart",
    "ourNotes": []
   },
   {
@@ -105837,7 +105837,7 @@
    "notCompared": [],
    "notMeasured": [],
    "verdict": "INCONCLUSIVE",
-   "reason": "refused on our side: member door refused (pine:request): this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`",
+   "reason": "refused on our side: member door refused (pine:request): this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`: the symbol argument `+` is computed from the bars, so it is not one symbol for the whole chart",
    "ourNotes": []
   },
   {
@@ -105851,7 +105851,7 @@
    "notCompared": [],
    "notMeasured": [],
    "verdict": "INCONCLUSIVE",
-   "reason": "refused on our side: member door refused (pine:request): this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`",
+   "reason": "refused on our side: member door refused (pine:request): this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`: the symbol argument `+` is computed from the bars, so it is not one symbol for the whole chart",
    "ourNotes": []
   },
   {
@@ -114943,7 +114943,7 @@
      "reason": "666 steady-state bars agree",
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
-     "derivedLookback": 0,
+     "derivedLookback": 50,
      "color": "nothing drawn on any bar — no colour to compare",
      "stats": {
       "bars": 666,
@@ -116117,7 +116117,7 @@
      "reason": "8507 steady-state bars agree",
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
-     "derivedLookback": 0,
+     "derivedLookback": 50,
      "color": "nothing drawn on any bar — no colour to compare",
      "stats": {
       "bars": 8507,

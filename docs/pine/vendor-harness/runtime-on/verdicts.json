@@ -1,6 +1,6 @@
 {
  "generatedBy": "app/src/components/chart/engine/__tests__/vendorHarness/vendorHarness.corpus.test.js",
- "scriptEngineVersion": 96,
+ "scriptEngineVersion": 97,
  "dirs": [
   "tests/fixtures/vendor"
  ],
@@ -54588,39 +54588,199 @@
     },
     {
      "id": "plot_10",
-     "title": null,
-     "ours": null,
+     "title": "open",
+     "ours": "out8",
      "rule": "C1-candle-order (plotcandle_0.open)",
-     "verdict": "INCONCLUSIVE",
-     "candleNotDrawn": "withheld",
-     "reason": "withheld by name on our side (`Bar Coloring`): its `display = unread` is not a place this pane reads"
+     "verdict": "MATCH",
+     "reason": "666 steady-state bars agree",
+     "drawing": "ours hides it at these settings; the capture does not record TradingView's display for a candle",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 0,
+     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "stats": {
+      "bars": 666,
+      "compared": 666,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 666,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 666,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 666,
+       "compared": 666,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
     },
     {
      "id": "plot_11",
-     "title": null,
-     "ours": null,
+     "title": "high",
+     "ours": "out9",
      "rule": "C1-candle-order (plotcandle_0.high)",
-     "verdict": "INCONCLUSIVE",
-     "candleNotDrawn": "withheld",
-     "reason": "withheld by name on our side (`Bar Coloring`): its `display = unread` is not a place this pane reads"
+     "verdict": "MATCH",
+     "reason": "666 steady-state bars agree",
+     "drawing": "ours hides it at these settings; the capture does not record TradingView's display for a candle",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 0,
+     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "stats": {
+      "bars": 666,
+      "compared": 666,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 666,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 666,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 666,
+       "compared": 666,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
     },
     {
      "id": "plot_12",
-     "title": null,
-     "ours": null,
+     "title": "low",
+     "ours": "out10",
      "rule": "C1-candle-order (plotcandle_0.low)",
-     "verdict": "INCONCLUSIVE",
-     "candleNotDrawn": "withheld",
-     "reason": "withheld by name on our side (`Bar Coloring`): its `display = unread` is not a place this pane reads"
+     "verdict": "MATCH",
+     "reason": "666 steady-state bars agree",
+     "drawing": "ours hides it at these settings; the capture does not record TradingView's display for a candle",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 0,
+     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "stats": {
+      "bars": 666,
+      "compared": 666,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 666,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 666,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 666,
+       "compared": 666,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
     },
     {
      "id": "plot_13",
-     "title": null,
-     "ours": null,
+     "title": "close",
+     "ours": "out4",
      "rule": "C1-candle-order (plotcandle_0.close)",
-     "verdict": "INCONCLUSIVE",
-     "candleNotDrawn": "withheld",
-     "reason": "withheld by name on our side (`Bar Coloring`): its `display = unread` is not a place this pane reads"
+     "verdict": "MATCH",
+     "reason": "666 steady-state bars agree",
+     "drawing": "ours hides it at these settings; the capture does not record TradingView's display for a candle",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 0,
+     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "stats": {
+      "bars": 666,
+      "compared": 666,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 666,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 666,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 666,
+       "compared": 666,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
     }
    ],
    "notCompared": [
@@ -54749,9 +54909,9 @@
      }
     ]
    },
-   "verdict": "INCONCLUSIVE",
-   "reason": "4 of 9 items could not be compared",
-   "verdictWithoutPaints": "INCONCLUSIVE",
+   "verdict": "MATCH",
+   "reason": "all 9 items agree",
+   "verdictWithoutPaints": "MATCH",
    "ourNotes": [
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0",
     "paints: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
@@ -73386,7 +73546,7 @@
      "reason": "636 steady-state bars agree",
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
-     "derivedLookback": 0,
+     "derivedLookback": 20,
      "color": "nothing drawn on any bar — no colour to compare",
      "stats": {
       "bars": 636,
@@ -73434,7 +73594,7 @@
      "reason": "636 steady-state bars agree",
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
-     "derivedLookback": 0,
+     "derivedLookback": 20,
      "color": "nothing drawn on any bar — no colour to compare",
      "stats": {
       "bars": 636,
@@ -73482,7 +73642,7 @@
      "reason": "636 steady-state bars agree",
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
-     "derivedLookback": 0,
+     "derivedLookback": 20,
      "color": "nothing drawn on any bar — no colour to compare",
      "stats": {
       "bars": 636,
@@ -74854,8 +75014,8 @@
      "verdict": "MATCH",
      "reason": "1800 steady-state bars agree",
      "warmupBars": 0,
-     "warmupSource": "our side replayed 6677 bars of proved prehistory (vw-object-gc-b-spy-1d-2026-09-28.json) before the window against a maxLookback of 0",
-     "derivedLookback": 0,
+     "warmupSource": "our side replayed 6677 bars of proved prehistory (vw-object-gc-b-spy-1d-2026-09-28.json) before the window against a maxLookback of 20",
+     "derivedLookback": 20,
      "color": "nothing drawn on any bar — no colour to compare",
      "stats": {
       "bars": 1800,
@@ -74902,8 +75062,8 @@
      "verdict": "MATCH",
      "reason": "1800 steady-state bars agree",
      "warmupBars": 0,
-     "warmupSource": "our side replayed 6677 bars of proved prehistory (vw-object-gc-b-spy-1d-2026-09-28.json) before the window against a maxLookback of 0",
-     "derivedLookback": 0,
+     "warmupSource": "our side replayed 6677 bars of proved prehistory (vw-object-gc-b-spy-1d-2026-09-28.json) before the window against a maxLookback of 20",
+     "derivedLookback": 20,
      "color": "nothing drawn on any bar — no colour to compare",
      "stats": {
       "bars": 1800,
@@ -74950,8 +75110,8 @@
      "verdict": "MATCH",
      "reason": "1800 steady-state bars agree",
      "warmupBars": 0,
-     "warmupSource": "our side replayed 6677 bars of proved prehistory (vw-object-gc-b-spy-1d-2026-09-28.json) before the window against a maxLookback of 0",
-     "derivedLookback": 0,
+     "warmupSource": "our side replayed 6677 bars of proved prehistory (vw-object-gc-b-spy-1d-2026-09-28.json) before the window against a maxLookback of 20",
+     "derivedLookback": 20,
      "color": "nothing drawn on any bar — no colour to compare",
      "stats": {
       "bars": 1800,
@@ -77200,7 +77360,7 @@
    "notCompared": [],
    "notMeasured": [],
    "verdict": "INCONCLUSIVE",
-   "reason": "refused on our side: member door refused (pine:request) [runtime declined: pine:function]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `oic1`",
+   "reason": "refused on our side: member door refused (pine:request) [runtime declined: pine:function]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `oic1`: the symbol argument `+` is computed from the bars, so it is not one symbol for the whole chart",
    "ourNotes": []
   },
   {
@@ -77214,7 +77374,7 @@
    "notCompared": [],
    "notMeasured": [],
    "verdict": "INCONCLUSIVE",
-   "reason": "refused on our side: member door refused (pine:request) [runtime declined: pine:function]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `oic1`",
+   "reason": "refused on our side: member door refused (pine:request) [runtime declined: pine:function]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `oic1`: the symbol argument `+` is computed from the bars, so it is not one symbol for the whole chart",
    "ourNotes": []
   },
   {
@@ -134242,7 +134402,7 @@
    "notCompared": [],
    "notMeasured": [],
    "verdict": "INCONCLUSIVE",
-   "reason": "refused on our side: member door refused (pine:request) [runtime declined: pine:request]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`",
+   "reason": "refused on our side: member door refused (pine:request) [runtime declined: pine:request]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`: the symbol argument `+` is computed from the bars, so it is not one symbol for the whole chart",
    "ourNotes": []
   },
   {
@@ -134256,7 +134416,7 @@
    "notCompared": [],
    "notMeasured": [],
    "verdict": "INCONCLUSIVE",
-   "reason": "refused on our side: member door refused (pine:request) [runtime declined: pine:request]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`",
+   "reason": "refused on our side: member door refused (pine:request) [runtime declined: pine:request]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`: the symbol argument `+` is computed from the bars, so it is not one symbol for the whole chart",
    "ourNotes": []
   },
   {
@@ -146245,7 +146405,7 @@
      "rule": "C1-candle-order (plotcandle_0.open)",
      "verdict": "INCONCLUSIVE",
      "candleNotDrawn": "withheld",
-     "reason": "withheld by name on our side (`Trend Candles`): its `display = unread` is not a place this pane reads"
+     "reason": "withheld by name on our side (`Trend Candles`): it asks for the price chart (`force_overlay = true`) from a script that is not an overlay"
     },
     {
      "id": "plot_5",
@@ -146254,7 +146414,7 @@
      "rule": "C1-candle-order (plotcandle_0.high)",
      "verdict": "INCONCLUSIVE",
      "candleNotDrawn": "withheld",
-     "reason": "withheld by name on our side (`Trend Candles`): its `display = unread` is not a place this pane reads"
+     "reason": "withheld by name on our side (`Trend Candles`): it asks for the price chart (`force_overlay = true`) from a script that is not an overlay"
     },
     {
      "id": "plot_6",
@@ -146263,7 +146423,7 @@
      "rule": "C1-candle-order (plotcandle_0.low)",
      "verdict": "INCONCLUSIVE",
      "candleNotDrawn": "withheld",
-     "reason": "withheld by name on our side (`Trend Candles`): its `display = unread` is not a place this pane reads"
+     "reason": "withheld by name on our side (`Trend Candles`): it asks for the price chart (`force_overlay = true`) from a script that is not an overlay"
     },
     {
      "id": "plot_7",
@@ -146272,7 +146432,7 @@
      "rule": "C1-candle-order (plotcandle_0.close)",
      "verdict": "INCONCLUSIVE",
      "candleNotDrawn": "withheld",
-     "reason": "withheld by name on our side (`Trend Candles`): its `display = unread` is not a place this pane reads"
+     "reason": "withheld by name on our side (`Trend Candles`): it asks for the price chart (`force_overlay = true`) from a script that is not an overlay"
     }
    ],
    "notCompared": [
@@ -149046,7 +149206,7 @@
      "reason": "666 steady-state bars agree",
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
-     "derivedLookback": 0,
+     "derivedLookback": 50,
      "color": "nothing drawn on any bar — no colour to compare",
      "stats": {
       "bars": 666,
@@ -150220,7 +150380,7 @@
      "reason": "8507 steady-state bars agree",
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
-     "derivedLookback": 0,
+     "derivedLookback": 50,
      "color": "nothing drawn on any bar — no colour to compare",
      "stats": {
       "bars": 8507,
@@ -194520,7 +194680,7 @@
      "reason": "11534 steady-state bars agree",
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
-     "derivedLookback": 0,
+     "derivedLookback": 14,
      "color": "compared",
      "stats": {
       "bars": 11534,
@@ -195012,7 +195172,7 @@
      "reason": "11369 steady-state bars agree",
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
-     "derivedLookback": 0,
+     "derivedLookback": 14,
      "color": "compared",
      "stats": {
       "bars": 11369,
@@ -195358,7 +195518,7 @@
      "reason": "8473 steady-state bars agree",
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
-     "derivedLookback": 0,
+     "derivedLookback": 14,
      "color": "compared",
      "stats": {
       "bars": 8473,
