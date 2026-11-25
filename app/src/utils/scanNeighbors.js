@@ -24,3 +24,20 @@ export function scanNeighbors(flat, idx, dir = 1, { ahead = 6, behind = 2 } = {}
   for (let d = 1; d <= behind; d++) add(idx - step * d)
   return out
 }
+
+// ⭐ (2026-11-25 wide sweep) THE NEXT JUMP'S LANDING ROW. A member jumping through a list (scroll, then a click 20 rows
+// on, again and again) outran the urgent next-row warm: it warms the row after the selection, never the row the next
+// jump lands on. The stride just taken (the shortest way round, as the nav wraps) is the best guess for the next one,
+// in its own direction. null for a step of one row (the next-row warm has it), the first selection, a list too short
+// to jump in, and a stride that lands back on the selected row or the row the jump came from.
+export function jumpTarget(flat, idx, prevIdx) {
+  const len = Array.isArray(flat) ? flat.length : 0
+  if (len < 3 || idx < 0 || idx >= len || prevIdx < 0 || prevIdx >= len) return null
+  let d = (((idx - prevIdx) % len) + len) % len
+  if (d > len / 2) d -= len
+  if (Math.abs(d) < 2) return null
+  const t = (((idx + d) % len) + len) % len
+  const s = flat[t]
+  if (!s || s === flat[idx] || s === flat[prevIdx]) return null
+  return s
+}
