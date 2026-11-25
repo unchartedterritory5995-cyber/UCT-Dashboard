@@ -71,6 +71,13 @@ function chartWith(key, kind, bars, others) {
  * whole chart, or another symbol's close ten times over). A request for "the last 252 bars" does not reach
  * that bar and a script that reads 253 does: on the plain bars the two often draw the same level, and a check
  * that cannot tell them apart proves nothing about the window.
+ *
+ * ⭐ 2026-11-24, `close`: a window of CLOSES counted back from the bar before the newest ("looking back at most
+ * 250 bars", cap-01). The bar `back` bars before the newest gets the strict highest close of the chart, and the
+ * newest bar a close above every other bar's and below that one. On the newest bar a look-back of `back - 1`
+ * bars finds no higher close and one of `back` bars finds that bar: the two answers differ there, by construction.
+ * The bar 2 before the newest closes EXACTLY at the newest's close (a tie), so "above" (strict) and "at least"
+ * also give different answers on the newest bar: nothing for "above", 2 for "at least".
  */
 function chartOf(kind, edge) {
   if (!CHARTS[kind]) {
@@ -85,6 +92,19 @@ function chartOf(kind, edge) {
     const i = bars.length - 1 - edge.back
     if (edge.high) bars[i].h = Math.max(...bars.map((b) => b.h)) * 1.5
     if (edge.low) bars[i].l = Math.min(...bars.map((b) => b.l)) * 0.5
+    if (edge.close) {
+      const top = Math.max(...bars.map((b) => b.c))
+      const last = bars[bars.length - 1]
+      bars[i].c = top * 1.5
+      bars[i].h = Math.max(bars[i].h, bars[i].c)
+      last.c = top * 1.25
+      last.h = Math.max(last.h, last.c)
+      // and a TIE: the bar 2 before the newest closes EXACTLY at the newest's close, so a script that counts a close
+      // "at least" today's (>=) finds it there, while one that counts a close "above" it (>) does not
+      const tie = bars[bars.length - 3]
+      tie.c = last.c
+      tie.h = Math.max(tie.h, tie.c)
+    }
     const others = Object.fromEntries(Object.entries(base.others).map(([sym, series]) => [sym, series.map((b) => ({ ...b }))]))
     if (edge.othersClose) {
       for (const series of Object.values(others)) {
