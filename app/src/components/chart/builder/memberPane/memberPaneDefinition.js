@@ -316,6 +316,32 @@ function lineStyleRowOf(o, style, notes) {
   return {}
 }
 
+/** ⭐⭐ e98 E3 — THE DISPLACEMENT A SETTING DECIDES, ONTO THE DOCUMENT'S ROWS (both lanes). A row whose translation
+ *  output read its `offset` from an input that nothing else reads (`pine.js::offsetSettingInputs`, the row's
+ *  `displaceSetting` `{name, scale, add, at}`) gets `plots[].displaceInput = {key, scale, add}`, the member's own int
+ *  setting, drawn at draw time either side (`binder.drawShiftOf`), as TradingView shifts the DRAWING ("the shift is only
+ *  cosmetic; the actual values in the series are not moved", Pine User Manual v4, `plot` annotation).
+ *  ⛔ A setting this document does not declare (its name cannot key an input) is drawn at its default: leftward as
+ *  `displace` (today's field); a rightward or zero default draws at the bar that computed it, and is SAID by name.
+ *  `pending`: Map row -> the output's `displaceSetting`. */
+const DISPLACE_PENDING = Symbol('e98 E3 displace pending')
+export function settleDisplaceInputs(rows, pending, inputs, notes) {
+  if (!pending || !pending.size) return
+  const list = Array.isArray(inputs) ? inputs : []
+  for (const [row, s] of pending) {
+    if (!row || !s) continue
+    const spec = list.find((x) => x && (x.key === s.name || x.key === memberInputKey(s.name)) && x.type === 'int')
+    if (spec) {
+      row.displaceInput = { key: spec.key, scale: s.scale, add: s.add }
+      continue
+    }
+    if (Number.isInteger(s.at) && s.at < 0) { row.displace = s.at; continue }
+    const name = row.label || row.key
+    notes.push({ name, note: `\`${name}\` is drawn at the bar that computed it: its \`offset\` setting \`${s.name}\` `
+      + 'cannot be offered as a setting here' + (s.at > 0 ? `, so its default shift of ${s.at} bars to the right is not drawn` : '') + '.' })
+  }
+}
+
 /** A knob tree as plain data (the translation's leaves carry non-enumerable `inputName` / `inputDefault`). */
 const plainTree = (t) => JSON.parse(JSON.stringify(t))
 
@@ -1288,6 +1314,9 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
     }
   })
   for (const pid of withheld) delete manifest[pid]
+  // ⭐⭐ e98 E3 — a displacement a SETTING decides, settled once the document's inputs are known (`settleDisplaceInputs`)
+  const displacePending = new Map()
+  drawable.forEach((o, i) => { if (o && o.displaceSetting && rows[i]) displacePending.set(rows[i], o.displaceSetting) })
   // ⛔ A BAND BETWEEN TWO PLOTS DRAWN AT DIFFERENT DISPLACEMENTS IS REFUSED BY NAME.
   // Each edge would be drawn where its own plot is, but which bar's colour a band
   // takes when its edges disagree is not something this door has measured against
@@ -1459,6 +1488,8 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
     }
     // ⭐ e98 E1 — the same rule for a line style a setting decides (`lineStyleWhen`): the style at the defaults
     settleLineStyleWhen(rows, declaredKeys)
+    // ⭐ e98 E3 — and a displacement a setting decides: the member's int setting, or its default (`settleDisplaceInputs`)
+    settleDisplaceInputs(rows, displacePending, docInputs, inputActiveNotes)
     // ⭐ e97 U7 — the same rule for a band, a paint and a level: decided at the setting's default when the setting did
     // not come across. A band or paint hidden there is not carried (TradingView draws none until the member moves it,
     // and this document then has no control to move); a level hidden there is not drawn.
@@ -2678,6 +2709,9 @@ function shiftValueOf(node, ctx, keys, depth = 0) {
  * @returns {{ok: true, displace: number, keys: string[]} | {ok: false, why: string}}
  */
 function runtimeRowShift(o, ctx) {
+  // ⭐⭐ e98 E3 — an offset a SETTING decides (the host row's `displaceSetting`): drawn at the member's value at draw time,
+  // either side, never pinned; `settleDisplaceInputs` binds it to the run's own setting of that name
+  if (o && o.displaceSetting) return { ok: true, displace: 0, keys: [], setting: o.displaceSetting }
   const node = ctx.stmts && Number.isInteger(o.line) ? rowCallAt(ctx.stmts, o.line, o.kind) : null
   if (!node) return runtimeRowOffset(o) ? { ok: false, why: OFFSET_WITHHELD } : { ok: true, displace: 0, keys: [] }
   const args = node.args || []
@@ -2946,7 +2980,8 @@ function runtimeLaneDocument({ source, id, name, t, hostReason, hostGuard = null
       continue
     }
     for (const k of shift.keys) shiftPinned.add(k)
-    carried.push({ o, index, p: pres.p, out, colourOutput: pres.colourOutput, displace: shift.displace })
+    carried.push({ o, index, p: pres.p, out, colourOutput: pres.colourOutput, displace: shift.displace,
+      ...(shift.setting ? { displaceSetting: shift.setting } : {}) })
   }
   // ⭐ W4-T13 - each candle / bar is ONE row on the document (its close column), with the other
   // three prices and the colours riding as hidden columns of the same run. Merged into the plot
@@ -3056,7 +3091,9 @@ function runtimeLaneDocument({ source, id, name, t, hostReason, hostGuard = null
   const lineStyleNotes = []
   // ⭐ e98 E2 — the sentences for an input's `active =` that is not greyed here (`withInputActive`)
   const inputActiveNotes = []
-  const rows = drawnRows.map(({ o, index, p, out, colourOutput, displace, candle, label, parts, colours, hiddenWhen }, i) => {
+  // ⭐ e98 E3 — the rows whose displacement a setting decides, settled once the run's inputs are known
+  const displacePending = new Map()
+  const rows = drawnRows.map(({ o, index, p, out, colourOutput, displace, candle, label, parts, colours, hiddenWhen, displaceSetting }, i) => {
     const key = keyAt(i)
     outputs[key] = out
     if (candle) {
@@ -3112,6 +3149,8 @@ function runtimeLaneDocument({ source, id, name, t, hostReason, hostGuard = null
       ...lineStyleRowOf(o, typeof p.style === 'string' ? p.style : 'line', lineStyleNotes),
       // ⭐ WS-E — a leftward `offset`, drawn by the binder as a host row's is.
       ...(Number.isInteger(displace) && displace < 0 ? { displace } : {}),
+      // ⭐ e98 E3 — marked for `settleDisplaceInputs` (non-enumerable: never written as it stands)
+      ...(displaceSetting ? { [DISPLACE_PENDING]: displaceSetting } : {}),
       // The host output this row draws — the vendor harness and the pane's
       // disclosures read it; nothing computes from it.
       output: index,
@@ -3249,6 +3288,11 @@ function runtimeLaneDocument({ source, id, name, t, hostReason, hostGuard = null
   // ⭐ e98 E1 — a line style a setting decides names a setting this document declares (`runtimeInputs.js` keys a setting
   // by its Pine name), or it is decided at the setting's default, as the host lane does
   settleLineStyleWhen(rows, new Set((runDocInputs || []).map((x) => x && x.key)))
+  // ⭐ e98 E3 — a displacement a setting decides, bound to the run's own setting of that name (`settleDisplaceInputs`)
+  for (const r of rows) {
+    if (r && r[DISPLACE_PENDING]) { displacePending.set(r, r[DISPLACE_PENDING]); delete r[DISPLACE_PENDING] }
+  }
+  settleDisplaceInputs(rows, displacePending, runDocInputs, inputActiveNotes)
   const levelPlan = hlineGuides((t.presentation || {}).levels, {
     version: t.version, neutralInk: WITHHELD_COLOUR_INK, withAlphaByte,
     bindInput: (entry) => runtimeLevelInputKey(entry, runDocInputs),

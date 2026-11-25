@@ -9069,6 +9069,9 @@ export class Resolver {
      *  as its OWN set because the sentence the member reads is different: this
      *  input lands in a displacement, not a window. */
     this.displacementBoundInputs = new Set()
+    /** ⭐⭐ e98 E3 — the inputs a plot's `offset` READS AS A SETTING (`offsetSettingInputs`: read nowhere else): drawn
+     *  as the member's own value at draw time (`plots[].displaceInput`), never folded into a tree or a row. */
+    this.displaceSettingInputs = new Set()
     /** ⭐⭐ TRACK F (DEC-006) — the shared, per-`translatePine` (NOT
      *  per-Resolver) parameter-identity table (`newParamMint`: `{ counter,
      *  byOrdinal, metadata, sites, ordinalAt, legacy }`), or `null` for every existing caller —
@@ -18230,8 +18233,9 @@ export class Resolver {
       const readBound = (key) => {
         const a = node.args.find((x) => x.name === key)
         if (!a) return null
-        const v = this.resolve(a.value)
-        return v && v.type === 'num' && Number.isFinite(v.value) ? v.value : null
+        // ⭐ e98 E3 — a NEGATIVE bound is a bound (`minval = -500`, the built-in moving averages' Offset): the resolver
+        // writes it as `u-` over a number (`inputBoundValue`), which this read as no bound at all
+        return inputBoundValue(this.resolve(a.value))
       }
       const lo = readBound('minval')
       const hi = readBound('maxval')
@@ -18279,8 +18283,8 @@ export class Resolver {
     const bound = (key) => {
       const arg = node.args.find((a) => a.name === key)
       if (!arg) return null
-      const v = this.resolve(arg.value)
-      return v && v.type === 'num' && Number.isFinite(v.value) ? v.value : null
+      // ⭐ e98 E3 — a NEGATIVE bound is carried (`minval = -500`), never dropped (`inputBoundValue`)
+      return inputBoundValue(this.resolve(arg.value))
     }
     this.usedInputs.set(`${node.tok.line}:${node.tok.column}`, {
       call: name,
@@ -30565,6 +30569,9 @@ function translatePineResult(source, opts = {}) {
     const a = iargs && iargs.find((x) => x && x.name === 'active')
     if (a && a.value) inputActiveCalls.push({ name: h[0].value, call: callTok.value, node: a.value, tok: callTok })
   }
+  // ⭐⭐ e98 E3 — the int inputs a plot's `offset` alone reads (`offsetSettingInputs`): each is the member's setting,
+  // drawn at draw time as TradingView shifts the drawing (the series a scan or an alert reads is unshifted).
+  const offsetSettings = offsetSettingInputs(stmts, tokens)
   let si = 0
   while (si < stmts.length) {
     const stmt = stmts[si]
@@ -31875,13 +31882,16 @@ function translatePineResult(source, opts = {}) {
       // while the author's computed value at each bar is exactly what the
       // undisplaced tree says.
       const {
-        shift, paramId: shiftParamId, displaceFrom, displaceParams,
-      } = foldDisplacement(resolver, seriesArg)
+        shift, paramId: shiftParamId, displaceFrom, displaceParams, setting: displaceSetting,
+      } = foldDisplacement(resolver, seriesArg, offsetSettings)
       const resolvedBase = resolver.resolve(seriesArg.value)
       // ⭐ ENGINE 56 (A3) — a v1-v5 `bool` PLOTTED is `na` where it is `na` (S1: `close > na_s`)
       const plottedNa = out.kind === 'plot' && !writtenLogic(seriesArg.value) ? boolNaFlagOf(resolvedBase, resolver.pineVersion) : null
       const base = plottedNa ? boolNaValue(plottedNa, resolvedBase) : resolvedBase
-      const ast = shift > 0 ? { type: 'offset', value: shift, args: [base] } : base
+      // ⭐⭐ e98 E3 — an offset a SETTING decides is never put in the tree: the drawing moves, the series does not
+      // (Pine User Manual v4, `plot` annotation: "the shift is only cosmetic; the actual values in the series are not
+      // moved"). `displaceSetting` rides on the row and the chart draws it at the member's value.
+      const ast = shift > 0 && !displaceSetting ? { type: 'offset', value: shift, args: [base] } : base
       // ⭐ 2026-09-26 — A POSITIVE DISPLACEMENT THAT IS AN INPUT'S OWN VALUE CARRIES
       // THAT INPUT'S PARAMETER ID, on the OFFSET NODE (a bare number cannot hold a
       // property). `pineParamManifest` turns it into a locator ending at `'value'`
@@ -31889,7 +31899,7 @@ function translatePineResult(source, opts = {}) {
       // so a member's edit moves the displacement with the rest of the input's
       // uses instead of leaving it at the author's default. Non-enumerable, like
       // every other tag: `astHash` and every persisted copy never see it.
-      if (shift > 0 && shiftParamId !== undefined) {
+      if (shift > 0 && !displaceSetting && shiftParamId !== undefined) {
         Object.defineProperty(ast, '__uctParamId',
           { value: shiftParamId, enumerable: false, configurable: true })
       }
@@ -32035,8 +32045,11 @@ function translatePineResult(source, opts = {}) {
           if (!e.name) return e
           const w = resolver.windowBoundInputs.has(e.name)
           const d = resolver.displacementBoundInputs.has(e.name)
-          return (w || d)
-            ? { ...e, ...(w ? { windowBound: true } : {}), ...(d ? { displacementBound: true } : {}) }
+          // ⭐ e98 E3 — an input only a plot's `offset` reads: the member's setting, drawn at draw time
+          const ds = !d && resolver.displaceSettingInputs.has(e.name)
+          return (w || d || ds)
+            ? { ...e, ...(w ? { windowBound: true } : {}), ...(d ? { displacementBound: true } : {}),
+              ...(ds ? { displaceSetting: true } : {}) }
             : e
         }),
         // ⛔⛔ A COLUMN THAT READS NO BAR IS SCAFFOLDING TOO, and it arrives the
@@ -32056,7 +32069,10 @@ function translatePineResult(source, opts = {}) {
         // ⚠️ NEGATIVE ONLY — a positive displacement is IN the tree above, so
         // recording it here too would be the same fact in two places and a
         // renderer would shift a column that has already been shifted.
-        displace: shift < 0 ? shift : 0,
+        displace: shift < 0 && !displaceSetting ? shift : 0,
+        // ⭐⭐ e98 E3 — a displacement a SETTING decides: `{name, scale, add, at}` (the drawing sits `scale * <name> + add`
+        // bars right, `at` at the defaults; negative = left). The member door carries it as `plots[].displaceInput`.
+        ...(displaceSetting ? { displaceSetting: { ...displaceSetting, at: shift } } : {}),
         // ⭐⭐ WAVE B: what the AUTHOR said this output should look like.
         // ⭐ C1-A: the env and this output's resolver, so a colour CONDITION can
         // be resolved into a real tree here rather than guessed at downstream.
@@ -32111,12 +32127,12 @@ function translatePineResult(source, opts = {}) {
       // TradingView exports the first UNSHIFTED (the vendor harness, `leadBy`).
       // Non-enumerable like `_bareRole`: a hand-off, not part of the row's shape,
       // so no digest and no persisted copy sees it.
-      if (shift > 0) Object.defineProperty(row, '_treeShift', { value: shift, enumerable: false })
+      if (shift > 0 && !displaceSetting) Object.defineProperty(row, '_treeShift', { value: shift, enumerable: false })
       // ⭐ 2026-09-26 — A LEFTWARD DISPLACEMENT'S RELATION TO ITS INPUT, for the
       // chart door (`memberPaneDefinition`) to carry onto the saved plot so a
       // definition-parameter edit moves the drawing too. Non-enumerable, like
       // `_bareRole`: it is a hand-off to one reader, not part of the row's shape.
-      if (shift < 0) {
+      if (shift < 0 && !displaceSetting) {
         Object.defineProperty(row, '_displaceFrom', { value: displaceFrom, enumerable: false })
         Object.defineProperty(row, '_displaceParams', { value: displaceParams, enumerable: false })
       }
@@ -37016,9 +37032,104 @@ function affineDisplacement(node) {
   return null
 }
 
-function foldDisplacement(resolver, seriesArg) {
+/** ⭐⭐ e98 E3 — THE INT INPUTS A PLOT'S `offset` ALONE READS: a top-level `name = input.int(…)` whose every other
+ *  mention in the script stands inside an `offset =` argument of a `plot` / `plotshape` / `plotchar` (a lexical rule,
+ *  so it is the same in every lane and every pass). Each is the member's own setting, drawn at draw time
+ *  (`foldDisplacement` -> `displaceSetting`). An input read anywhere else (a value, a colour, a paint's offset, a
+ *  reassignment) keeps today's fold, untouched. */
+const OFFSET_SETTING_CALLS = new Set(['plot', 'plotshape', 'plotchar'])
+
+/** ⭐ e98 E3 — an input bound (`minval` / `maxval`) as the number it folds to: a `num`, or `u-` over one (the engine's
+ *  canonical negative, `cNum` mints no negative literal); null for anything else. ⚰️ The readers took a `num` only, so
+ *  `minval = -500` was carried as NO lower bound, and a member's setting below the author's floor was not refused. */
+function inputBoundValue(v) {
+  if (v && v.type === 'num' && Number.isFinite(v.value)) return v.value
+  if (v && v.type === 'op' && v.name === 'u-' && Array.isArray(v.args) && v.args.length === 1 && v.args[0]
+      && v.args[0].type === 'num' && Number.isFinite(v.args[0].value)) return -v.args[0].value
+  return null
+}
+function offsetSettingInputs(stmts, tokens) {
+  // a token by its place in the source (a statement's header may hold copies of the lexer's tokens)
+  const tokenAt = (t) => (Number.isFinite(t.index) ? `i${t.index}` : `${t.line}:${t.column}`)
+  const decls = new Map()
+  const spans = new Set()
+  for (const st of stmts || []) {
+    const h = st.header || []
+    if (h[0] && h[0].kind === 'ident' && isPunct(h[1], '=') && h[2] && h[2].kind === 'ident' && h[2].value === 'input.int'
+        && isPunct(h[3], '(')) {
+      decls.set(h[0].value, decls.has(h[0].value) ? null : h[0])
+    }
+    let k = 0
+    if (h[0] && h[0].kind === 'ident' && isPunct(h[1], '=')) k = 2
+    const callTok = h[k]
+    if (!callTok || callTok.kind !== 'ident' || !OFFSET_SETTING_CALLS.has(callTok.value) || !isPunct(h[k + 1], '(')) continue
+    const a = callNamedArgToks(h.slice(k), 'offset')
+    if (a) for (const t of a.value) spans.add(tokenAt(t))
+  }
+  const out = new Set()
+  for (const [name, declTok] of decls) {
+    if (!declTok) continue
+    let used = 0
+    let elsewhere = false
+    const toks = tokens || []
+    for (let i = 0; i < toks.length; i += 1) {
+      const t = toks[i]
+      if (!t || t.kind !== 'ident' || t.value !== name || tokenAt(t) === tokenAt(declTok)) continue
+      // a NAMED ARGUMENT's own name (`f(…, offset = x)`) is not a reference to the input
+      if (isPunct(toks[i + 1], '=') && (isPunct(toks[i - 1], '(') || isPunct(toks[i - 1], ','))) continue
+      if (spans.has(tokenAt(t))) used += 1
+      else { elsewhere = true; break }
+    }
+    if (used && !elsewhere) out.add(name)
+  }
+  return out
+}
+
+/** ⭐ e98 E3 — an `offset` node written as `scale * <setting> + add` (`n`, `-n`, `n - 1`, `-n + 2`: one setting, slope
+ *  ±1, a whole-number constant), or null. Read from the WRITTEN node, so it is the same with or without declared
+ *  inputs. */
+function offsetSettingOf(node, settings) {
+  const walk = (n, d) => {
+    if (!n || d > 8) return null
+    if (n.type === 'paren' && n.expr) return walk(n.expr, d + 1)
+    if (n.type === 'name') return settings.has(n.name) ? { name: n.name, scale: 1, add: 0 } : null
+    if (n.type === 'number') return Number.isInteger(n.value) ? { name: null, scale: 0, add: n.value } : null
+    if (n.type === 'unary' && n.op === '-') {
+      const a = walk(n.arg, d + 1)
+      return a && { name: a.name, scale: -a.scale, add: -a.add }
+    }
+    if (n.type === 'binary' && (n.op === '+' || n.op === '-')) {
+      const a = walk(n.left, d + 1)
+      const b = walk(n.right, d + 1)
+      if (!a || !b || (a.name && b.name)) return null
+      const sign = n.op === '-' ? -1 : 1
+      return { name: a.name || b.name, scale: a.scale + sign * b.scale, add: a.add + sign * b.add }
+    }
+    return null
+  }
+  if (!settings || !settings.size) return null
+  const fit = walk(node, 0)
+  return fit && fit.name && Math.abs(fit.scale) === 1 ? { name: fit.name, scale: fit.scale, add: fit.add + 0 } : null
+}
+
+function foldDisplacement(resolver, seriesArg, settings = null) {
   const node = seriesArg.offsetNode
   if (!node) return { shift: 0, paramId: undefined, displaceFrom: null, displaceParams: [] }
+  // ⭐⭐ e98 E3 — AN OFFSET A SETTING DECIDES (`offsetSettingInputs`): its value at the defaults (the member's when
+  // `inputValues` overrode it) for the row's `at`, and NOTHING folded into the tree; the input is the member's setting.
+  const setting = offsetSettingOf(node, settings)
+  if (setting) {
+    let folded
+    try { folded = resolver.resolve(node) } catch {
+      throw new PineRefusal('pine:plot-offset', REFUSALS['pine:plot-offset'], locate(seriesArg.offsetTok))
+    }
+    const constant = constantValueOf(folded)
+    const value = constant === null ? NaN : Number(constant)
+    if (Number.isInteger(value)) {
+      resolver.displaceSettingInputs.add(setting.name)
+      return { shift: value, paramId: undefined, displaceFrom: null, displaceParams: [], setting }
+    }
+  }
   let folded
   try {
     folded = resolver.resolve(node)

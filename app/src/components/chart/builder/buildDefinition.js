@@ -285,6 +285,10 @@ export function buildDefinition({ defId, name, source, ast, mode, rev = 1, versi
       // …and its relation to a parameter, kept even at 0 bars so a later edit can
       // move it off 0 again.
       ...(r.displaceFrom ? { displaceFrom: { ...r.displaceFrom } } : {}),
+      // ⭐⭐ e98 E3 — a displacement the member's SETTING decides (Pine `offset = <input>`): drawn at
+      // `scale * inputs[key] + add` bars, either side (`binder.drawShiftOf`); the tree and its column stay unshifted.
+      ...(r.displaceInput && typeof r.displaceInput.key === 'string'
+        ? { displaceInput: { key: r.displaceInput.key, scale: r.displaceInput.scale, add: r.displaceInput.add } } : {}),
       // ⭐⭐ C1-B — the band, as `defSchema.plots[].fill` already validates it.
       // ⛔ ONLY WHEN THE NAMED EDGE IS REALLY IN THIS DOCUMENT. `defSchema`
       // refuses a fill naming a plot nobody declares, so a stale `with` would

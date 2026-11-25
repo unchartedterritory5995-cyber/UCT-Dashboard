@@ -1047,6 +1047,22 @@ export function hiddenWhenProblem(tree) {
   return walk(tree, 0)
 }
 
+/** ⭐ e98 E3 — `plots[].displaceInput` (`{key, scale, add}`): the first problem as a sentence, or null. `key` a declared
+ *  `int` input (`inputsByKey`, the plot's document's own inputs), `scale` 1 or -1, `add` a whole number, no other
+ *  field. Mirrored by `api/services/presentation_schema.py::displace_input_problem`. */
+export function displaceInputProblem(di, inputsByKey) {
+  if (!isPlainObject(di)) return `expected {key, scale, add}, got ${fmt(di)}`
+  const extra = Object.keys(di).filter((k) => !['key', 'scale', 'add'].includes(k))
+  if (extra.length) return `unknown field(s) ${extra.map(fmt).join(', ')}`
+  if (!isNonEmptyString(di.key)) return `.key: expected the key of an int input, got ${fmt(di.key)}`
+  const input = inputsByKey && inputsByKey.get(di.key)
+  if (!input) return `.key: ${fmt(di.key)} is not a declared input, so the displacement can never be read`
+  if (input.type !== 'int') return `.key: ${fmt(di.key)} is ${fmt(input.type)}, and a displacement counts whole bars (an int input)`
+  if (di.scale !== 1 && di.scale !== -1) return `.scale: expected 1 or -1, got ${fmt(di.scale)}`
+  if (!Number.isInteger(di.add)) return `.add: expected a whole number of bars, got ${fmt(di.add)}`
+  return null
+}
+
 /** ⭐ e98 E1 — `plots[].lineStyleWhen`, the line style a plot's settings choose: a non-empty list of at most
  *  PLOT_LINE_STYLES.length `{when, lineStyle}` entries, each `when` THE knob test `hiddenWhenProblem` checks (one
  *  grammar, one checker), each `lineStyle` one of PLOT_LINE_STYLES and none twice, no other field. The first problem as
@@ -2958,6 +2974,16 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors, presentationKe
       `${fmt(plot.displace)}. A rightward displacement belongs in the tree as a bar offset ` +
       `(\`x[N]\`), never here — carrying it on the plot too would draw it twice as far.`,
     )
+  }
+  // ⭐⭐ e98 E3 — `plots[].displaceInput: {key, scale, add}`: a displacement the member's SETTING decides (Pine
+  // `offset = <input>`), drawn at `scale * inputs[key] + add` bars either side by the one reader
+  // (`binder.drawShiftOf`); the column is never shifted. `key` a declared `int` input, `scale` 1 or -1, `add` a whole
+  // number, no other field, and never beside `displace` (two authorities over one drawing). Mirrored by
+  // `presentation_schema.py::_check_displace_input`.
+  if (plot.displaceInput !== undefined) {
+    const why = displaceInputProblem(plot.displaceInput, inputsByKey)
+    if (why) errors.push(`${path}.displaceInput: ${why}`)
+    else if (plot.displace !== undefined) errors.push(`${path}.displaceInput: a plot drawn at a setting's displacement carries no \`displace\` too`)
   }
   // ⭐ rsLine rev 5 (2026-11-08) — `plots[].autoscaleInclude: {min, max}`: a range the
   // plot's own autoscale always WIDENS to include while the plot has data on screen

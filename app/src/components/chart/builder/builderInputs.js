@@ -491,6 +491,10 @@ function positionVerdict(source, candidates) {
     if (literalOnly.has(key)) {
       return windowRefusal(key, entry)
     }
+    // ⭐⭐ e98 E3 — an input only a plot's `offset` reads (`pine.js::offsetSettingInputs`) is never in the formula: the
+    // drawing moves, the series does not. It IS the member's setting (TradingView's Offset), drawn at draw time
+    // (`plots[].displaceInput`, `binder.drawShiftOf`), so it is admitted here and not read as "never read".
+    if (entry && entry.displaceSetting) return null
     if (!namesRead.has(key)) {
       return { reason: `the formula never reads \`${key}\` — this translation folded it to its default `
         + `(\`${entry.folded}\`), so declaring it would hand the member a knob that changes `
