@@ -208,7 +208,8 @@ def test_an_edge_sits_one_bar_outside_the_window_the_request_names():
         edge = case["edge"]
         assert set(edge) <= {"back", "high", "low", "othersClose", "close", "ties"}, case["id"]
         for t in edge.get("ties") or []:                                   # 2026-11-25: exact ties, for strict words
-            assert {"field", "back", "as"} <= set(t) <= {"field", "back", "as", "from"}, (case["id"], t)
+            assert {"field", "back", "as"} <= set(t) <= {"field", "back", "as", "from", "shift"}, (case["id"], t)
+            assert t.get("shift", True) is True, (case["id"], t)                   # present means the whole bar moves
             assert t["field"] in "ohlcv" and t.get("from", t["field"]) in "ohlcv" and t["back"] != t["as"], (case["id"], t)
         if set(edge) == {"ties"}:
             continue                                                       # a tie names no window: it tells > from >=
