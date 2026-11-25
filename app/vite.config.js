@@ -162,6 +162,9 @@ function stripManifestProse() {
 
 export default defineConfig({
   plugins: [react(), comingSoonMeta(), stripManifestProse(), patchChartLibrary()],
+  // ⛔ MEASUREMENT ONLY (measure/next-row-40ms-trace, never merged): React's profiling build, so <Profiler> reports
+  // and the 'Components' performance track (console.timeStamp per component render) reach the trace
+  resolve: { alias: [{ find: /^react-dom\/client$/, replacement: 'react-dom/profiling' }] },
   worker: {
     plugins: () => [memberDoorWorkerPure()],
   },

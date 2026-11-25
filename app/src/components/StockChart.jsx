@@ -4296,6 +4296,9 @@ function StockChartBody({
   // Any other symbol: `_econId` is false and every value below is the prop itself.
   const _econId = isEconomicId(sym)
   const resolvedTf = _econId ? economicPrimaryTf(tf || prefs.default_chart_tf) : (tf || prefs.default_chart_tf || 'D')
+  // ⛔ MEASUREMENT ONLY (measure/next-row-40ms-trace, never merged): where this chart's render and commit start
+  try { performance.mark('sc:render:' + resolvedTf) } catch { /* measurement only */ }
+  useLayoutEffect(() => { try { performance.mark('sc:commit:' + resolvedTf) } catch { /* measurement only */ } })
   const econPrimary = useEconomicPrimary(_econId ? sym : null, resolvedTf)
   const barsOverride = _econId ? econPrimary.bars : barsOverrideProp
   // Study mode (T1): one switch, read by every sym-keyed side fetch below.
@@ -11972,6 +11975,8 @@ function StockChartBody({
 
   // ── Chart update — reuses chart instance, swaps data via setData() ─────────
   const updateChart = useCallback(() => {
+    const __uc = (n) => { try { performance.mark('uc:' + n + ':' + resolvedTf) } catch { /* measurement only */ } }   // MEASUREMENT ONLY
+    __uc('start')
     if (!containerRef.current) return
     // The geometry of the frame ON SCREEN, measured against the series it was painted from,
     // BEFORE this pass empties or replaces anything: the newest real bar's offset from the
@@ -12836,6 +12841,7 @@ function StockChartBody({
     // effect's deps would re-run the whole updateChart (incl. the visible-range /
     // zoom logic) on every focus change and fight the setup focus zoom.
     _applyData(candleSeriesRef.current, isOhlcType(cs.chartType) ? __heavy.committed._big.ohlcData : __heavy.committed._big.closeData)
+    __uc('candles')
     // ⭐ THE HEADLINE METRIC. Candles are now on the canvas for this (sym, tf) — the
     // moment a scanning member stops seeing the previous chart and starts seeing this
     // one. Marked HERE rather than at a React state change because `loading === false`
@@ -13640,6 +13646,7 @@ function StockChartBody({
         volumeSeriesRef.current.priceScale().applyOptions({ autoScale: true, scaleMargins: volMargins })
       }
       _applyData(volumeSeriesRef.current, __heavy.committed._big.volData)
+      __uc('volume')
       // The developing VOLUME bar after this setData: the legacy roll-gap re-top, or the store's
       // developing-bar paint (candle + volume) — chart/legacyLiveWriters.liveAfterVolumeSetData.
       liveAfterVolumeSetData({
@@ -13824,6 +13831,7 @@ function StockChartBody({
       }
     }
 
+    __uc('overlays')
     // ── Per-MA z-order — overlap the candles, or sit behind them ──────────────
     // Each overlay's `onTop` (resolvedOverlays[i].onTop) picks whether its MA
     // line draws IN FRONT of the candles (true) or BEHIND them (false, default).
@@ -13964,6 +13972,7 @@ function StockChartBody({
     }
     prepareArrangement(chart, _paneRealize)
 
+    __uc('engine0')
     const engineNeeded = engineInstances.length > 0
     if (engineRef.current && engineRef.current.chart !== chart) engineRef.current = null
     if (engineNeeded && !engineRef.current) {
@@ -14632,6 +14641,7 @@ function StockChartBody({
     // as a "fresh load" → routes through the default-zoom path so the chart re-frames to the
     // default window with the cutoff bar as the newest visible candle.
     // (`zoomKey` is hoisted to the top of this pass — `_pinOwnsMargins` needs it.)
+    __uc('frame0')
     // Capture the outgoing view BEFORE deciding. setData() preserves the logical
     // range NUMERICALLY, so this reflects where the user was — on the previous
     // ticker (sym switch) or right now (same-ticker data-phase swap / backfill).
@@ -15106,6 +15116,7 @@ function StockChartBody({
     } catch { /* mid-load: the frame above stands */ }
     // Track current bar count + bars so the next ticker switch can right-anchor the
     // preserved view and measure the outgoing vertical placement.
+    __uc('end')
     lastBarCountRef.current = __heavy.committed.filteredBars.length
     paintedRsvRef.current = _intradayLoadReserve(__heavy.committed.filteredBars, resolvedTf)
     prevBarsRef.current = __heavy.committed.filteredBars

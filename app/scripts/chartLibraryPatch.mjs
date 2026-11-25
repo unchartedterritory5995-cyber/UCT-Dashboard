@@ -143,6 +143,14 @@ export const PATCHES = [
     find: 'this.hm=()=>{this.rm||this.qv.Qt().mr()},this.lm=()=>{this.rm||this.qv.Qt().mr()}',
     replace: 'this.hm=(t,i)=>{this.rm||null===i||this.qv.Qt().mr()},this.lm=(t,i)=>{this.rm||null===i||this.qv.Qt().mr()}',
   },
+  // ⛔ MEASUREMENT ONLY (measure/next-row-40ms-trace, never merged): each chart's draw (`_drawImpl`) as a user-timing
+  // measure `lwc:draw#<n>` (n: the chart's creation order on the page)
+  {
+    name: 'measurement: the draw as a user-timing measure',
+    find: 'MM(t,i){const n=t.ls();',
+    replace: 'MM(t,i){const uctT0=performance.now();try{return this.uctDrawMeasured(t,i)}finally{performance.measure("lwc:draw#"+(this.uctDrawId||(this.uctDrawId=(globalThis.uctDrawIds=(globalThis.uctDrawIds||0)+1))),{start:uctT0})}}uctDrawMeasured(t,i){const n=t.ls();',
+    introduces: ['uctDrawMeasured', 'uctDrawIds'],
+  },
 ]
 
 const occurrences = (code, needle) => code.split(needle).length - 1

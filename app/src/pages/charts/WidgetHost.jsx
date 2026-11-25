@@ -1,4 +1,6 @@
-import { lazy, Suspense, useCallback, useMemo, useRef, useState, useLayoutEffect, cloneElement } from 'react'
+import { lazy, Suspense, useCallback, useMemo, useRef, useState, useLayoutEffect, cloneElement, Profiler } from 'react'
+// ⛔ MEASUREMENT ONLY (measure/next-row-40ms-trace, never merged): each widget's React render, as a user-timing measure
+function __rpOnRender(id, phase, actual, _base, start) { try { performance.measure('rp:' + id + ':' + phase, { start, duration: actual }) } catch { /* measurement only */ } }
 import { WidgetDoorContext } from './widgetDoors'
 import { PanelSlotContext } from './panelSlot'
 import ChartWidget from './widgets/ChartWidget'
@@ -144,7 +146,7 @@ function WidgetBody({ groupId, type, color, opts, onOptsChange, slotReady }) {
       <Suspense fallback={<div style={{ padding: 14, fontSize: 12, color: 'var(--text-muted, #8b8674)' }}>Loading…</div>}>
         <WidgetDoorContext.Provider value={groupId}>
           <PanelSlotContext.Provider value={slotReady}>
-            <Widget {...binding.props({ colorKey: key, opts, onOptsChange, groupId })} />
+            <Profiler id={`${type}:${groupId}`} onRender={__rpOnRender}><Widget {...binding.props({ colorKey: key, opts, onOptsChange, groupId })} /></Profiler>
           </PanelSlotContext.Provider>
         </WidgetDoorContext.Provider>
       </Suspense>
