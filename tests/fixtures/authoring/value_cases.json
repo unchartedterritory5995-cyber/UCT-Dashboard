@@ -18,7 +18,6 @@
   "generics",
   "max_bars_back",
   "method-call",
-  "obj:getter",
   "realtime-state",
   "switch",
   "udt",
@@ -192,10 +191,6 @@
    },
    "recorded_verdict": "wrong",
    "defect": "ENGINE, SILENT: the label is not drawn and nothing is reported. The script labels the rise of its line as line.get_y2(ln) - line.get_y1(ln). The line is drawn right; the label, whose text is ARITHMETIC on a value read back from a drawing, is missing, with no error. Isolated 2026-11-23: one read-back value alone in a label is drawn, the same script with the rise computed directly is right ($8.06), and the same subtraction plotted is right; any arithmetic on a read-back value in a label's text loses the label. A script must draw the right value or be refused by name, never neither. Routed to the engine train.",
-   "engine_fixed": {
-    "by": "e96 #2610 (getter arithmetic in a drawing's text is computed)",
-    "since_engine": 96
-   },
    "answer": {
     "turn": "script",
     "script": {
@@ -1844,7 +1839,15 @@
       "color": "#089981"
      }
     ]
-   }
+   },
+   "edge": [
+    {
+     "extreme": {
+      "field": "c",
+      "back": 252
+     }
+    }
+   ]
   },
   {
    "id": "d18",
@@ -2722,7 +2725,16 @@
       ]
      }
     ]
-   }
+   },
+   "edge": [
+    {
+     "tie": {
+      "field": "c",
+      "back": 5,
+      "as": 6
+     }
+    }
+   ]
   },
   {
    "id": "d26",
@@ -3155,7 +3167,17 @@
       "text": "20BH"
      }
     ]
-   }
+   },
+   "edge": [
+    {
+     "extreme": {
+      "field": "c",
+      "back": 31,
+      "factor": 1.1,
+      "at": 142
+     }
+    }
+   ]
   },
   {
    "id": "f03",
@@ -5238,11 +5260,16 @@
    "lane": "formula",
    "words": "Show inside bars, where the high is below the prior bar's high and the low is above the prior bar's low",
    "rule": {
-    "digest": "405205632d7d0ae8",
+    "digest": "49b43d872c64cd92",
     "history": [
      {
       "digest": "405205632d7d0ae8",
       "reason": "written from the request's words before the answer was read"
+     },
+     {
+      "digest": "49b43d872c64cd92",
+      "reason": "made strict 2026-11-25 (coordinator's ruling, the value-case audit): the words say below and above, so 'at or inside' was no honest reading; the recorded answer (high < prior high, low > prior low) is graded RIGHT by the strict rule alone",
+      "quote": "the high is below the prior bar's high and the low is above the prior bar's low"
      }
     ]
    },
@@ -8098,7 +8125,17 @@
       "text": "20B high"
      }
     ]
-   }
+   },
+   "edge": [
+    {
+     "extreme": {
+      "field": "c",
+      "back": 11,
+      "factor": 1.1,
+      "at": 69
+     }
+    }
+   ]
   },
   {
    "id": "h11",
@@ -12942,7 +12979,23 @@
       ]
      }
     ]
-   }
+   },
+   "edge": [
+    {
+     "tie": {
+      "field": "c",
+      "back": 5,
+      "as": 6
+     }
+    },
+    {
+     "tie": {
+      "field": "c",
+      "back": 58,
+      "as": 59
+     }
+    }
+   ]
   },
   {
    "id": "cap-02",
@@ -13345,7 +13398,16 @@
       ]
      }
     ]
-   }
+   },
+   "edge": [
+    {
+     "tie": {
+      "field": "c",
+      "back": 5,
+      "as": 6
+     }
+    }
+   ]
   },
   {
    "id": "cap-03",
