@@ -66,6 +66,15 @@
     "script": {
      "pine": "//@version=5\nindicator(\"Average volume of the last 10 up days (a while loop)\")\nfloat total = 0.0\nint found = 0\nint k = 0\nwhile found < 10 and k < bar_index\n    if close[k] > close[k + 1]\n        total += volume[k]\n        found += 1\n    k += 1\nplot(found == 10 ? total / 10 : na, \"Average up-day volume\")\n"
     }
+   },
+   "edge": {
+    "ties": [
+     {
+      "field": "c",
+      "back": 5,
+      "as": 6
+     }
+    ]
    }
   },
   {
@@ -86,6 +95,15 @@
     "script": {
      "pine": "//@version=5\nindicator(\"Average volume of the last 10 up days (a look back with max_bars_back)\")\nmax_bars_back(close, 500)\nmax_bars_back(volume, 500)\nfloat total = 0.0\nint found = 0\nint last = math.min(bar_index - 1, 400)\nif last >= 0\n    for k = 0 to last\n        if close[k] > close[k + 1]\n            total += volume[k]\n            found += 1\n            if found == 10\n                break\nplot(found == 10 ? total / 10 : na, \"Average up-day volume\")\n"
     }
+   },
+   "edge": {
+    "ties": [
+     {
+      "field": "c",
+      "back": 5,
+      "as": 6
+     }
+    ]
    }
   },
   {
@@ -127,6 +145,15 @@
     "script": {
      "pine": "//@version=5\nindicator(\"Average volume of the last 10 up days\")\nvar ups = array.new_float()\nif close > close[1]\n    ups.push(volume)\n    if ups.size() > 10\n        ups.shift()\nplot(ups.size() == 10 ? ups.avg() : na, \"Average up-day volume\")\n"
     }
+   },
+   "edge": {
+    "ties": [
+     {
+      "field": "c",
+      "back": 5,
+      "as": 6
+     }
+    ]
    }
   },
   {
@@ -225,6 +252,15 @@
     "script": {
      "pine": "//@version=5\nindicator(\"Average volume of the last 10 up days (an average inside an if)\")\nvar float avgUp = na\nif close > close[1]\n    avgUp := ta.sma(volume, 10)\nplot(avgUp, \"Average up-day volume\")\n"
     }
+   },
+   "edge": {
+    "ties": [
+     {
+      "field": "c",
+      "back": 5,
+      "as": 6
+     }
+    ]
    }
   }
  ],
@@ -1844,7 +1880,15 @@
       "color": "#089981"
      }
     ]
-   }
+   },
+   "edge": [
+    {
+     "extreme": {
+      "field": "c",
+      "back": 252
+     }
+    }
+   ]
   },
   {
    "id": "d18",
@@ -2722,7 +2766,16 @@
       ]
      }
     ]
-   }
+   },
+   "edge": [
+    {
+     "tie": {
+      "field": "c",
+      "back": 5,
+      "as": 6
+     }
+    }
+   ]
   },
   {
    "id": "d26",
@@ -3155,7 +3208,17 @@
       "text": "20BH"
      }
     ]
-   }
+   },
+   "edge": [
+    {
+     "extreme": {
+      "field": "c",
+      "back": 31,
+      "factor": 1.1,
+      "at": 142
+     }
+    }
+   ]
   },
   {
    "id": "f03",
@@ -5238,11 +5301,16 @@
    "lane": "formula",
    "words": "Show inside bars, where the high is below the prior bar's high and the low is above the prior bar's low",
    "rule": {
-    "digest": "405205632d7d0ae8",
+    "digest": "49b43d872c64cd92",
     "history": [
      {
       "digest": "405205632d7d0ae8",
       "reason": "written from the request's words before the answer was read"
+     },
+     {
+      "digest": "49b43d872c64cd92",
+      "reason": "made strict 2026-11-25 (coordinator's ruling, the value-case audit): the words say below and above, so 'at or inside' was no honest reading; the recorded answer (high < prior high, low > prior low) is graded RIGHT by the strict rule alone",
+      "quote": "the high is below the prior bar's high and the low is above the prior bar's low"
      }
     ]
    },
@@ -8098,7 +8166,17 @@
       "text": "20B high"
      }
     ]
-   }
+   },
+   "edge": [
+    {
+     "extreme": {
+      "field": "c",
+      "back": 11,
+      "factor": 1.1,
+      "at": 69
+     }
+    }
+   ]
   },
   {
    "id": "h11",
@@ -12942,7 +13020,23 @@
       ]
      }
     ]
-   }
+   },
+   "edge": [
+    {
+     "tie": {
+      "field": "c",
+      "back": 5,
+      "as": 6
+     }
+    },
+    {
+     "tie": {
+      "field": "c",
+      "back": 58,
+      "as": 59
+     }
+    }
+   ]
   },
   {
    "id": "cap-02",
@@ -13345,7 +13439,16 @@
       ]
      }
     ]
-   }
+   },
+   "edge": [
+    {
+     "tie": {
+      "field": "c",
+      "back": 5,
+      "as": 6
+     }
+    }
+   ]
   },
   {
    "id": "cap-03",
