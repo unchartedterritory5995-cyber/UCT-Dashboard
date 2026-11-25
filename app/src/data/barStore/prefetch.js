@@ -300,6 +300,10 @@ export const TAIL_LAG_WINDOW_MS = 8000
  *  lacking a closed bar (_untilClosed): its own ask or the row's push stream, whichever brings the bar first; then what the
  *  server answered paints, under its honest status (UPDATING while it still lacks the bar). */
 export const ROLL_HOLD_MAX_MS = 400
+/** ⛔ (review of #2721 round 2) Rule a ("no frame for M = no trade") holds for the NEWEST closed bucket only this long after
+ *  its end: until then "no frame" can mean "not delivered yet" (the server's 0.25 s ahead poll plus 100-300 ms delivery). Inside
+ *  it the copy is behind: the roll hold, then UPDATING. (Every missing bucket older than M closed a bucket ago: no margin.) */
+export const RULE_A_MARGIN_MS = 1500
 /** (review of #2721, LOW) How often a hold re-checks its rows ahead on the push stream: released when the page turns hidden
  *  or the session ends; a row the page cap refused is asked once more. */
 export const LIVE_RECHECK_MS = 10_000
@@ -608,7 +612,9 @@ export function createPrefetch(o = {}) {
     // `liveSince` breaking across a roll inside a rebuild gap, 1-A). The stream has delivered without a break since BEFORE the
     // first bucket the copy lacks opened, and sent no frame for that bucket or later (`lastBarT`): every trade there would
     // have been one. The copy is complete, as the chart on screen would show it (a thin minute).
-    if (live) {
+    // ...ONLY RULE_A_MARGIN_MS AFTER THE ROLL: the newest closed bucket M is always among the missing (the copy's tail is its
+    // newest row), and right after M's end its last prints may still be on the way.
+    if (live && now() - _rollMs(p.tf) >= RULE_A_MARGIN_MS) {
       const first = bucketEndUnix(tailT, p.tf)
       if (Number.isFinite(first) && live.since <= first * 1000 && !(Number.isFinite(live.lastBarT) && live.lastBarT >= first * 1000)) return 0
     }
