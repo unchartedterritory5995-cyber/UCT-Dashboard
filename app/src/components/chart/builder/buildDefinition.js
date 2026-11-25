@@ -232,6 +232,10 @@ export function buildDefinition({ defId, name, source, ast, mode, rev = 1, versi
       ...(r.hidden ? { hidden: true } : {}),
       // ⭐ e97 U6 — hidden as the instance's settings decide (a knob tree, true = hidden; `knobBind.js::plotHiddenAt`)
       ...(!r.hidden && r.hiddenWhen ? { hiddenWhen: r.hiddenWhen } : {}),
+      // ⭐ e98 E1 — a line style the instance's settings choose (knob tests, `knobBind.js::plotLineStyleAt`); the row's
+      // `lineStyle` (below) is the style at the defaults
+      ...(PLOT_LINE_STYLES.includes(r.lineStyle) && Array.isArray(r.lineStyleWhen) && r.lineStyleWhen.length
+        ? { lineStyleWhen: r.lineStyleWhen.map((a) => ({ when: a.when, lineStyle: a.lineStyle })) } : {}),
       // ⭐⭐ C1-A: THE AUTHOR'S CONDITIONAL COLOUR, carried as the schema's own
       // per-point mode. `colorMode: 'column:<key>'` names ANOTHER row of this
       // same document — the hidden one holding the condition — and

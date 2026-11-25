@@ -14317,25 +14317,109 @@ export class Resolver {
       if (yes.unread) return yes
       if (no.unread) return no
       if (!yes.when && !no.when && yes.hidden === no.hidden) return { hidden: yes.hidden, places: yes.places }
-      let test
-      try { test = this.resolve(node.test) } catch (err) {
-        if (isStackOverflow(err)) throw err
+      const choice = this.settingChoiceTestOf(node, settingLeaf)
+      if (choice.unread === 'unreadable') {
         return { unread: 'its `display` chooses between places on a condition this engine could not read' }
       }
-      // ⭐ e97 U6 — a setting this pass folded to its default (an `input.bool` not declared here) is still the member's
-      // choice: it becomes a knob leaf carrying that default, and the door decides it (declared: per instance;
-      // undeclared: at the default, `memberPaneDefinition` / `knobBind.hiddenAtLeafDefaults`)
-      if (test && test.type === 'num') {
-        if (!settingLeaf) return test.value ? yes : no
-        test = settingLeaf
-      }
-      if (knobTestValue(test, knobDefaultsOf(test)) === null) {
+      if (choice.unread) {
         return { unread: 'its `display` chooses between places on a condition that is not one of the script\'s settings' }
       }
+      if (choice.constant !== undefined) return choice.constant ? yes : no
+      const { test } = choice
       const notTest = { type: 'op', name: '!', args: [test] }
       return { when: knobOr(knobAnd(test, displayHiddenTree(yes)), knobAnd(notTest, displayHiddenTree(no))) }
     }
     return { unread: 'its `display` is not a display constant, a `+` / `-` of them, or a setting\'s choice between them' }
+  }
+
+  /** ⭐ e97 U6 (shared since e98 E1) — THE TEST OF A `? :` A PRESENTATION ARGUMENT CHOOSES ON, as the one knob-test
+   *  grammar (`ast/bind.js::knobTestValue`; checked by `defSchema.hiddenWhenProblem`): `{test}` (a knob tree),
+   *  `{constant: true|false}` (the test folds and is not a setting), or `{unread: 'unreadable' | 'not-a-setting'}`.
+   *  Read by `display` (`displayArmOf`) and `linestyle` (`lineStyleArmOf`), so the two can never disagree about what
+   *  counts as the member's setting. */
+  settingChoiceTestOf(node, settingLeaf) {
+    let test
+    try { test = this.resolve(node.test) } catch (err) {
+      if (isStackOverflow(err)) throw err
+      return { unread: 'unreadable' }
+    }
+    // ⭐ e97 U6 — a setting this pass folded to its default (an `input.bool` not declared here) is still the member's
+    // choice: it becomes a knob leaf carrying that default, and the door decides it (declared: per instance;
+    // undeclared: at the default, `memberPaneDefinition` / `knobBind.hiddenAtLeafDefaults`)
+    if (test && test.type === 'num') {
+      if (!settingLeaf) return { constant: !!test.value }
+      test = settingLeaf
+    }
+    if (knobTestValue(test, knobDefaultsOf(test)) === null) return { unread: 'not-a-setting' }
+    return { test }
+  }
+
+  /** ⭐⭐ e98 E1 — HOW A `plot`'S LINE IS DRAWN, from its `linestyle =` argument (Pine v6, September 2025:
+   *  `plot.linestyle_solid` / `_dashed` / `_dotted`): `{}` when none is written, `{lineStyle}` when every setting answers
+   *  alike, `{lineStyle, when: [{when: <knob tree>, lineStyle}]}` when the member's settings decide it (`lineStyle` is
+   *  the style at the settings' defaults; each `when` is a knob test, true = that style), or `{unread: <why>}`.
+   *  ⚰️ Never read: `plot(x, linestyle = plot.linestyle_dashed)` was drawn SOLID with no word, on both lanes.
+   *  ⛔ A linestyle this cannot read is `unread`: drawn solid AND said by name at the door, never silently. */
+  outputLineStyleOf(args) {
+    const a = (args || []).find((x) => x && x.name === 'linestyle')
+    if (!a || !a.value) return {}
+    const minted = this.paramMint
+    let r
+    try {
+      r = this.lineStyleArmOf(a.value, 0)
+    } catch (err) {
+      if (isStackOverflow(err)) throw err
+      return { unread: `its \`linestyle\` could not be read (${String((err && err.message) || err).slice(0, 120)})` }
+    } finally { this.paramMint = minted }
+    if (r.unread) return { unread: r.unread }
+    const arms = PLOT_LINE_STYLE_ORDER.filter((s) => r.arms[s] && !isNumTree(r.arms[s], 0)).map((s) => [s, r.arms[s]])
+    if (arms.length === 1 && isNumTree(arms[0][1], 1)) return { lineStyle: arms[0][0] }
+    if (!arms.length) return { unread: 'its `linestyle` chooses no line style at any setting' }
+    const atDefaults = arms.find(([, t]) => isNumTree(t, 1) || !!knobTestValue(t, knobDefaultsOf(t)))
+    return { lineStyle: atDefaults ? atDefaults[0] : 'solid', when: arms.map(([lineStyle, when]) => ({ when, lineStyle })) }
+  }
+
+  /** ⭐ e98 E1 — the line styles one `linestyle` node names, each with the knob test under which it is drawn
+   *  (`{arms: {dashed: <tree>, …}}`, a static style's test the number 1), through plain bindings and a `? :` whose
+   *  condition folds or is a setting of this script (`settingChoiceTestOf`, the test `display` reads); or `{unread}`. */
+  lineStyleArmOf(node, depth) {
+    if (!node || depth > 8) return { unread: 'its `linestyle` is not one this engine can follow to a line style' }
+    if (node.type === 'name') {
+      const bound = this.env && this.env.get(node.name)
+      if (bound) {
+        return bound.kind === 'expr' ? this.lineStyleArmOf(bound.node, depth + 1)
+          : { unread: `its \`linestyle = ${node.name}\` is not bound to a line style this engine reads` }
+      }
+      if (own(PLOT_LINE_STYLE_OF, node.name)) return { arms: { [PLOT_LINE_STYLE_OF[node.name]]: { type: 'num', value: 1 } } }
+      return { unread: `its \`linestyle = ${node.name}\` is not a line style constant` }
+    }
+    if (node.type === 'ternary') {
+      const folded = this.constantBranchOf(node)
+      const settingLeaf = this.displayKnobLeafOf(node.test)
+      if (folded && !settingLeaf) return this.lineStyleArmOf(folded, depth + 1)
+      const yes = this.lineStyleArmOf(node.yes, depth + 1)
+      const no = this.lineStyleArmOf(node.no, depth + 1)
+      if (yes.unread) return yes
+      if (no.unread) return no
+      const choice = this.settingChoiceTestOf(node, settingLeaf)
+      if (choice.unread === 'unreadable') {
+        return { unread: 'its `linestyle` chooses between line styles on a condition this engine could not read' }
+      }
+      if (choice.unread) {
+        return { unread: 'its `linestyle` chooses between line styles on a condition that is not one of the script\'s settings' }
+      }
+      if (choice.constant !== undefined) return choice.constant ? yes : no
+      const { test } = choice
+      const notTest = { type: 'op', name: '!', args: [test] }
+      const zero = { type: 'num', value: 0 }
+      const arms = {}
+      for (const s of PLOT_LINE_STYLE_ORDER) {
+        if (!yes.arms[s] && !no.arms[s]) continue
+        arms[s] = knobOr(knobAnd(test, yes.arms[s] || zero), knobAnd(notTest, no.arms[s] || zero))
+      }
+      return { arms }
+    }
+    return { unread: 'its `linestyle` is not a line style constant or a setting\'s choice between them' }
   }
 
   /** ⭐ e97 U6 — `name` / `not name` where `name` is bound to an `input.bool` this resolution read (`usedInputs`): a knob
@@ -31900,6 +31984,10 @@ function translatePineResult(source, opts = {}) {
       const keysBeforeDisplay = new Set(resolver.usedInputs.keys())
       const display = resolver.outputDisplayOf(args)
       const displayUnread = display.unread || null
+      // ⭐⭐ e98 E1 — a `plot`'s `linestyle`, read in the same window as its display, so an input only the line style
+      // reads is a presentation input too (declared as the member's control by the same proof, `withColourInputs`,
+      // which counts a row's `lineStyleWhen` as one of its rules)
+      const lineStyle = out.kind === 'plot' ? resolver.outputLineStyleOf(args) : {}
       // the inputs ONLY the display read: kept out of the value's list (`inputsFolded`), so they reach the door as
       // presentation inputs (`_colourInputs`), exactly as an input only a colour reads does
       const displayOnlyKeys = new Set([...resolver.usedInputs.keys()].filter((k) => !keysBeforeDisplay.has(k)))
@@ -31970,6 +32058,12 @@ function translatePineResult(source, opts = {}) {
         ...(display.when ? { hiddenWhen: display.when } : {}),
         // ⭐ e97 U6 — a display this engine cannot read: not drawn, and said (never guessed as drawn)
         ...(displayUnread ? { displayUnread } : {}),
+        // ⭐⭐ e98 E1 — how its line is drawn (`outputLineStyleOf`): a style other than solid, a setting's choice
+        // (`lineStyleWhen`, the style at the defaults in `lineStyle`), or a linestyle this engine cannot read
+        // (`lineStyleUnread`: drawn solid and said by name at the door). A plot that writes none carries nothing.
+        ...((lineStyle.when || (lineStyle.lineStyle && lineStyle.lineStyle !== 'solid')) ? { lineStyle: lineStyle.lineStyle } : {}),
+        ...(lineStyle.when ? { lineStyleWhen: lineStyle.when } : {}),
+        ...(lineStyle.unread ? { lineStyleUnread: lineStyle.unread } : {}),
         // ⭐⭐ AND THE ROW SAYS WHICH OF THE TWO IT IS. `hidden` deliberately
         // merges "the author hid this plot" with "this reads no bar" — one flag,
         // one definition of usable column, as the paragraph above argues. But a
@@ -32167,6 +32261,14 @@ function translatePineResult(source, opts = {}) {
             // never carried `hidden`, so the runtime document drew a plot
             // TradingView does not draw (nadaraya-watson's `Alert Stream`).
             Object.defineProperty(row, '_authorHidden', { value: outputHidden(pargs), enumerable: false })
+            // ⭐ e98 E1 — and its `linestyle`, by the one reader (`outputLineStyleOf`): the runtime lane draws this row
+            // from these fields, never solid where the author asked for a dashed or dotted line
+            if (out.kind === 'plot') {
+              const ls = resolver.outputLineStyleOf(pargs)
+              if (ls.when || (ls.lineStyle && ls.lineStyle !== 'solid')) row.lineStyle = ls.lineStyle
+              if (ls.when) row.lineStyleWhen = ls.when
+              if (ls.unread) row.lineStyleUnread = ls.unread
+            }
           }
         } catch { /* a presentation that cannot be read is simply not carried */ }
       }
@@ -37035,6 +37137,13 @@ const DISPLAY_PLACES = Object.freeze({
   'display.price_scale': Object.freeze(['price_scale']),
   'display.status_line': Object.freeze(['status_line']),
 })
+
+/** ⭐ e98 E1 — a `plot`'s `linestyle` constants (Pine v6), as the chart's style vocabulary (`defSchema.PLOT_LINE_STYLES`)
+ *  spells them, and the order a setting's arms are listed in. */
+const PLOT_LINE_STYLE_OF = Object.freeze({
+  'plot.linestyle_solid': 'solid', 'plot.linestyle_dashed': 'dashed', 'plot.linestyle_dotted': 'dotted',
+})
+const PLOT_LINE_STYLE_ORDER = Object.freeze(['solid', 'dashed', 'dotted'])
 
 /** ⭐ e97 U6 — the knob leaves' DEFAULTS in a tree (`series` leaves carrying the non-enumerable `inputName` /
  *  `inputDefault` the member door's translation hangs on them), for `knobTestValue` to check a test's SHAPE. */
