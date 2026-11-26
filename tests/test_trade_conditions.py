@@ -343,3 +343,37 @@ def test_a_pinned_print_never_makes_a_live_wick(monkeypatch):
     _push(bb, "W", 105.0, s=1200, c=[32])           # the 08-28 out-of-sequence high
     b = _partial(bb, "W")
     assert (b["h"], b["l"]) == (101.0, 100.0)
+
+
+def test_a_pinned_print_never_sets_the_close_either_whatever_the_vendor_table_says(monkeypatch):
+    """#2825 review (1): bars are stretched to include their open and close (`_derive`, `fold_minutes`), so a pinned
+    print that could still set the CLOSE would keep its wick. Even when the vendor's table says the pinned codes update
+    open/close, they never move the last price: the live bar's close, high and low stay on the eligible prints."""
+    class _R:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            rules = {"consolidated": {"updates_high_low": True, "updates_open_close": True, "updates_volume": True}}
+            return {"results": [{"id": c, "name": f"code {c}", "update_rules": rules} for c in (10, 32, 33, 52, 53)]
+                    + [{"id": 37, "name": "Odd Lot Trade", "update_rules": {"consolidated": {
+                        "updates_high_low": False, "updates_open_close": False, "updates_volume": True}}}]}
+
+    import httpx
+    monkeypatch.setattr(tc, "FILTER_ENABLED", True)
+    monkeypatch.setenv("MASSIVE_API_KEY", "test-not-a-key")
+    monkeypatch.setattr(httpx, "get", lambda *a, **k: _R())
+    monkeypatch.setattr(tc, "_loaded_from_provider", False)
+    monkeypatch.setattr(tc, "_hl_ineligible", set(tc._hl_ineligible))
+    monkeypatch.setattr(tc, "_last_ineligible", set(tc._last_ineligible))
+    monkeypatch.setattr(tc, "_vol_ineligible", set(tc._vol_ineligible))
+    tc.load_from_provider()
+    assert tc._loaded_from_provider is True
+    for code in (10, 32, 33, 52, 53):
+        assert tc.classify3([code]) == (False, False, True), code
+    bb = BarBroadcaster()
+    _push(bb, "X", 100.0, s=100, c=[0])
+    _push(bb, "X", 101.0, s=100, c=[0])
+    _push(bb, "X", 96.5, s=589589, c=[10, 41])      # a pinned print, last in the bar
+    b = _partial(bb, "X")
+    assert (b["h"], b["l"], b["c"]) == (101.0, 100.0, 101.0)
