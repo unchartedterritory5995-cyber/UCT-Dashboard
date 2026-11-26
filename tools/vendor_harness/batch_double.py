@@ -304,6 +304,7 @@ class RecordingTVPage:
             bc.STUDY_IDENTITY_JS: ("STUDY_IDENTITY", self._study_identity),
             bc.INPUT_IDS_JS: ("INPUT_IDS", self._input_ids), bc.INPUTS_JS: ("INPUTS", self._inputs),
             bc.READ_INPUTS_JS: ("READ_INPUTS", self._read_inputs),
+            bc.SLOT_LAYOUT_JS: ("SLOT_LAYOUT", self._slot_layout),
         }
 
     # ── recording ───────────────────────────────────────────────────────────
@@ -587,6 +588,12 @@ class RecordingTVPage:
         s["reads"] = 0                       # a new input recomputes
         return {"ok": not bad, "bad": bad, "set": len(a["inputs"])}
 
+    def _slot_layout(self, _):
+        """As SLOT_LAYOUT_JS: the layout id in the URL, and TradingView's own `layoutId()` (`layout_api`, when a scenario
+        makes the page disagree with its URL; else the URL's)."""
+        url = bc.layout_id_of(self.url)
+        return {"url": url, "api": getattr(self, "layout_api", url)}
+
     def _find(self, sid):
         return next((s for s in self.studies if s["id"] == sid), None)
 
@@ -665,7 +672,8 @@ class RecordingTVPage:
             "schema": "uct.vendor-capture/v1", "id": o.get("id") or "capture",
             "capturedAtUTC": "2026-09-28T21:00:00.000Z",
             "tool": {"snippet": "tools/vendor_harness/tv_capture.js", "version": 1},
-            "page": {"url": LAYOUT, "visibilityState": "visible", "hasFocus": True},
+            "page": {"url": LAYOUT, "visibilityState": "visible", "hasFocus": True,
+                     **({"slot": {k: o["slot"].get(k) for k in bc.SLOT_PROVENANCE_KEYS}} if isinstance(o.get("slot"), dict) else {})},
             "symbol": {"name": "RDDT", "full_name": "NYSE:RDDT", "pro_name": "NYSE:RDDT", "exchange": "NYSE",
                        "listed_exchange": "NYSE", "type": "stock", "session": self._resolved_session(),
                        "timezone": "America/New_York", "pricescale": 100, "minmov": 1, "currency": "USD"},
@@ -774,6 +782,26 @@ def run(page, manifest, run_dir, opts=None, verifier=None, **kw):
     return code, rd, clock
 
 
+def slot_info_for(slot, target=None, window=None, broker_pid=4242, browser_pid=4243) -> dict:
+    """What `_launch_cdp` fills for a slot job, with fixed fake ids (target `T-<slot>`, window by slot)."""
+    return {"slot": slot, "layoutId": bc.SLOT_LAYOUTS[slot], "cdpTargetId": target or f"T-{slot}",
+            "cdpWindowId": window if window is not None else 10 + "ABC".index(slot),
+            "brokerPid": broker_pid, "browserPid": browser_pid}
+
+
+def slot_run(page, manifest, run_dir, slot, opts=None, verifier=None, slot_info=None, layout_on=None, **kw):
+    """A SLOT job on the double, as `_launch_cdp` hands its page over: the window on the slot's layout (`layout_on`
+    overrides it, the wrong-layout case), the slot's info filled, then the unchanged batch."""
+    clock = FakeClock(page)
+    rd = bc.RunDir(run_dir, f"slot-{slot}")
+    opts = opts or fast_opts(layout=bc.SLOT_LAYOUTS[slot])
+    opts.slot_info = dict(slot_info or slot_info_for(slot))
+    opts.min_free_ram_bytes = opts.min_free_ram_bytes or bc.MIN_SLOT_FREE_RAM_BYTES
+    page.goto(bc.layout_url(layout_on or opts.layout))
+    code = bc.run_batch(page, manifest, rd, opts, clock, verifier or bc.NodeVerifier(), log=lambda *a: None, **kw)
+    return code, rd, clock
+
+
 def first_run(tmp: pathlib.Path):
     """Run 1: alpha CAPTURED, bravo REFUSED_BY_TV, charlie GATE_FAILED, delta
     INCONCLUSIVE, echo — the process dies mid-script."""
@@ -796,6 +824,54 @@ def resume_run(tmp: pathlib.Path, manifest, beh, page1):
     page2.next_id = page1.next_id
     code, rd, clock = run(page2, manifest, tmp / "run")
     return page2, code, rd, clock
+
+
+def _jsonable(a):
+    return a if isinstance(a, (str, int, float, bool, type(None))) else json.dumps(a, sort_keys=True, default=str)
+
+
+def legacy_trace(tmp: pathlib.Path) -> dict:
+    """⭐⭐ THE `--cdp`-LESS PATH, AS A TRACE (tv-capture slots, 2026-11-26): every page call (kind, name, arg) the batch
+    makes on the double, every result's outcome and steps, the batch exit codes, the sleeps and the sha256 of every capture
+    file, over three scenarios that cover the whole legacy loop: the five-script first run with its crash and the resume,
+    an extended-session intraday row, and a built-in row. `tests/fixtures/vendor_batch/legacy_trace.json` holds the trace
+    the code had BEFORE the slot mode existed (origin/master ed7605b405); the rail asserts today's trace equals it, so the
+    path without `--cdp` is the same steps and calls, call for call. A deliberate change to the legacy path regenerates
+    the fixture (`python tools/vendor_harness/batch_double.py --write-legacy-trace`) in the same commit, by name."""
+    def calls(p):
+        return [[k, n, _jsonable(a)] for k, n, a in p.calls]
+
+    def results(rd):
+        return {s: {"outcome": r.get("outcome"), "steps": r.get("steps"),
+                    "reason": re.sub(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\+00:00", "<utc>", str(r.get("reason"))),
+                    "provenanceKeys": sorted((r.get("provenance") or {}).keys())} for s, r in sorted(rd.results().items())}
+
+    def caps(run_dir):
+        return {f.name: hashlib.sha256(f.read_bytes()).hexdigest() for f in sorted((run_dir / "captures").glob("*.json"))}
+
+    out = {}
+    manifest, beh, page1, crashed = first_run(tmp / "s1")
+    r1 = results(bc.RunDir(tmp / "s1" / "run", "trace"))
+    page2, code2, rd2, clock2 = resume_run(tmp / "s1", manifest, beh, page1)
+    out["first_resume"] = {"crashed": crashed is not None, "page1": calls(page1), "results1": r1, "page2": calls(page2),
+                           "exit2": code2, "sleeps2": clock2.sleeps, "results2": results(rd2), "captures": caps(tmp / "s1" / "run")}
+    m, b = make_manifest(tmp / "s2", [("ext", '//@version=6\nindicator("X")\nplot(close)\n', {})])
+    m["scripts"][0].update({"symbol": "AMEX:SPY", "tf": "60", "session": "extended", "captureStem": "s"})
+    page = RecordingTVPage(behaviours={sha: x for sha, x in b.values()}, resolution="1D")
+    page.session_id = "extended"
+    code, rd, clock = run(page, m, tmp / "s2" / "run", fast_opts())
+    out["session"] = {"page": calls(page), "exit": code, "sleeps": clock.sleeps, "results": results(rd),
+                      "captures": caps(tmp / "s2" / "run")}
+    row = {"slug": "vwap-earn", "builtin": {"id": "STD;VWAP"}, "builtinInputs": {"Anchor Period": "Earnings"},
+           "captureStem": "builtin-vwap-anchor-earnings"}
+    page = RecordingTVPage()
+    code, rd, clock = run(page, {"schema": "uct.vendor-batch-manifest/v1", "scripts": [row]}, tmp / "s3" / "run", fast_opts())
+    out["builtin"] = {"page": calls(page), "exit": code, "sleeps": clock.sleeps, "results": results(rd),
+                      "captures": caps(tmp / "s3" / "run")}
+    return out
+
+
+LEGACY_TRACE_FIXTURE = HERE.parents[1] / "tests" / "fixtures" / "vendor_batch" / "legacy_trace.json"
 
 
 def self_check() -> int:
@@ -851,4 +927,13 @@ def self_check() -> int:
 
 
 if __name__ == "__main__":
+    if "--write-legacy-trace" in sys.argv[1:]:
+        with tempfile.TemporaryDirectory(prefix="vhbatch-trace-") as td:
+            trace = legacy_trace(pathlib.Path(td))
+        LEGACY_TRACE_FIXTURE.parent.mkdir(parents=True, exist_ok=True)
+        tmp = LEGACY_TRACE_FIXTURE.with_suffix(".tmp")
+        tmp.write_text(json.dumps(trace, indent=0, sort_keys=True) + "\n", encoding="utf-8", newline="\n")
+        tmp.replace(LEGACY_TRACE_FIXTURE)
+        print(f"wrote {LEGACY_TRACE_FIXTURE}")
+        sys.exit(0)
     sys.exit(self_check())

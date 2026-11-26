@@ -65,6 +65,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import contextlib
 import copy
 import datetime as _dt
 import hashlib
@@ -645,6 +646,48 @@ RIG_REGULAR_LAYOUT_ID = "MyS1vKSg"
 #: layout too (`evidence_engine.build_manifest`), so a batch on the other layout skips it instead of failing its read.
 SESSION_LAYOUT = {"extended": RIG_LAYOUT_ID, "regular": RIG_REGULAR_LAYOUT_ID}
 LAYOUT_ID_RX = re.compile(r"^[A-Za-z0-9]{6,16}$")
+#: ⭐⭐ THE CAPTURE SLOTS (owner + TRADINGVIEW coordinator, 2026-11-26; `docs/pine/vendor-harness/tv-capture-slots.md`).
+#: ONE broker-owned browser on the capture profile, three WINDOWS, each bound to its OWN saved layout: A is the rig;
+#: B and C were made ONCE from the empty rig layout ("Make a copy", extended hours, no studies) and never saved since.
+#: A slot job (`run --cdp <endpoint> --slot <A|B|C>`, `_launch_cdp`) runs only on its slot's layout.
+SLOT_B_LAYOUT_ID = "n3nNwFTQ"
+SLOT_C_LAYOUT_ID = "8mk0qhUA"
+SLOT_LAYOUTS = {"A": RIG_LAYOUT_ID, "B": SLOT_B_LAYOUT_ID, "C": SLOT_C_LAYOUT_ID}
+#: The hours each layout is SAVED with (B and C are copies of the extended rig). A slot job READS every row's session
+#: against it (`Driver.check_row_session`), never sets it; a row naming the rig layout may run on any EXTENDED slot.
+LAYOUT_HOURS = {RIG_LAYOUT_ID: "extended", RIG_REGULAR_LAYOUT_ID: "regular",
+                SLOT_B_LAYOUT_ID: "extended", SLOT_C_LAYOUT_ID: "extended"}
+#: a slot job below this much available RAM stops itself (checked at launch and before every row)
+MIN_SLOT_FREE_RAM_BYTES = 3 * 1024 ** 3
+
+
+def free_ram_bytes():
+    """Available physical RAM (bytes) or None: the one reading, `tv_slots.free_ram_bytes`."""
+    from tv_slots import free_ram_bytes as _f
+    return _f()
+
+
+def layout_serves(row_layout, batch_layout, slot_mode: bool) -> bool:
+    """May a row that names `row_layout` run on `batch_layout`? The same id always; in a SLOT job, also any other layout
+    saved with the same hours (B and C are the extended rig's twins). Without a slot the rule is exactly as before."""
+    if row_layout == batch_layout:
+        return True
+    return bool(slot_mode and LAYOUT_HOURS.get(row_layout) and LAYOUT_HOURS.get(row_layout) == LAYOUT_HOURS.get(batch_layout))
+
+
+SLOT_PROVENANCE_KEYS = ("slot", "layoutId", "cdpTargetId", "cdpWindowId", "brokerPid", "browserPid")
+
+
+def slot_provenance(info) -> dict:
+    """What a slot job records (result.provenance.slot AND the capture's page.slot): these keys, in this order."""
+    return {k: (info or {}).get(k) for k in SLOT_PROVENANCE_KEYS}
+
+
+#: READ-ONLY: which layout the page is on, by its URL and by TradingView's own answer (`layoutId()`), for the slot
+#: identity proof (`Driver.slot_layout_check`). `api` null: the page did not say (the URL still decides).
+SLOT_LAYOUT_JS = r"""() => { const v = (f) => { try { const x = f(); return x && typeof x.value === 'function' ? x.value() : x } catch (e) { return null } };
+  const m = /\/chart\/([A-Za-z0-9]+)/.exec(location.pathname || '');
+  return { url: m ? m[1] : null, api: v(() => window.TradingViewApi.layoutId()) || null } }"""
 
 
 def bar_step_range(tf):
@@ -924,6 +967,19 @@ def capture_id_for(script: dict, o: Opts) -> str:
     return f"{capture_id}-{phase}" if phase else capture_id
 
 
+def slot_session_name(o) -> str:
+    """The session a SLOT job's row that names none must read: a daily, weekly or monthly chart of a US listing resolves
+    0930-1600 whatever the layout's hours (`session_row_refusal`); an intraday chart resolves its layout's saved hours
+    (`LAYOUT_HOURS`). A layout of unknown hours: GateFailed, the row is not captured."""
+    if re.search(r"[DWM]$", res_norm(o.tf)):
+        return "regular"
+    hours = LAYOUT_HOURS.get(o.layout)
+    if hours not in ROW_SESSIONS:
+        raise GateFailed(f"layout {o.layout}'s saved hours are not known (LAYOUT_HOURS): a slot job cannot read the "
+                         "row's session against them", abort=True)
+    return hours
+
+
 def session_row_refusal(scripts, opts_for) -> str | None:
     """None, or why a row's named session can never read back: a daily, weekly or monthly chart of a US listing
     resolves 0930-1600 whatever the layout's hours (every daily capture on record; probe R0), so an `extended` row there
@@ -1109,6 +1165,10 @@ class Opts:
         # ⭐⭐ the settled read of the rig (`settled_rig_read`): how long its state must hold still, and the most it waits
         self.rig_settle_s = float(kw.get("rig_settle_s", RIG_SETTLE_S))
         self.rig_settle_max_s = float(kw.get("rig_settle_max_s", RIG_SETTLE_MAX_S))
+        # ⭐⭐ a SLOT job (`_launch_cdp`): {slot, layoutId, cdpTargetId, cdpWindowId, brokerPid, browserPid}, filled at
+        # launch; None on the path without `--cdp`, which then runs exactly as before
+        self.slot_info = kw.get("slot_info")
+        self.min_free_ram_bytes = kw.get("min_free_ram_bytes")
 
 
 class Driver:
@@ -1174,8 +1234,22 @@ class Driver:
         and verified gone in the page, the batch restored 1D, and a fresh load read the probe on 5m: the layout had
         saved it at the add. The next batch (Q-FCMP3) stopped at its gate, and the owner's layout carried it until it
         was cleared by hand. ⛔ Read only: it never removes or sets anything (the only repair is `guarded_clean_save`).
-        ⭐⭐ The read is THE settled read (`settled_rig_read`): the first answer is not the layout (2026-11-19, htfform-c)."""
-        self.page.reload(wait_until="domcontentloaded")
+        ⭐⭐ The read is THE settled read (`settled_rig_read`): the first answer is not the layout (2026-11-19, htfform-c).
+        ⭐⭐ A SLOT job (`_launch_cdp`): when its window went away under the reload while the broker's browser stayed up,
+        the load is made once more in a NEW window of the slot (`slot_info["reopen"]`: a fresh load by construction),
+        and the read must name the slot's OWN layout (its URL), never another window's."""
+        reopened = False
+        try:
+            self.page.reload(wait_until="domcontentloaded")
+        except Exception as exc:  # noqa: BLE001
+            reopen = (getattr(self.opts, "slot_info", None) or {}).get("reopen")
+            if reopen is None or not _is_target_closed(exc):
+                raise
+            self.log(f"[batch] the fresh-load reload lost the slot's window ({type(exc).__name__}): reopening it")
+            self.page = reopen()
+            if hasattr(self.clock, "page"):
+                self.clock.page = self.page
+            reopened = True
         s = settled_rig_read(lambda: self.ev("verify:state", STATE_JS), self.clock, self.opts.poll_s,
                              self.opts.rig_settle_s, self.opts.rig_settle_max_s)
         st, ok = s["state"] or {}, s["settled"]
@@ -1184,8 +1258,16 @@ class Driver:
         got = {"symbol": st.get("symbol"), "resolution": st.get("resolution")}
         clean = (ok and not studies and sym_match(got["symbol"], want["symbol"])
                  and res_norm(got["resolution"]) == res_norm(want["resolution"]))
-        return {"ok": bool(clean), "read": bool(ok), "studies": studies, "want": want, "got": got,
-                "settle": {k: s[k] for k in ("waitedS", "answeredS", "lastChangeS", "changes")}}
+        out = {"ok": bool(clean), "read": bool(ok), "studies": studies, "want": want, "got": got,
+               "settle": {k: s[k] for k in ("waitedS", "answeredS", "lastChangeS", "changes")}}
+        slot_layout = (getattr(self.opts, "slot_info", None) or {}).get("layoutId")
+        if slot_layout:
+            url = str(getattr(self.page, "url", "") or "")
+            out["layoutId"], out["url"], out["reopened"] = slot_layout, url, reopened
+            if f"/chart/{slot_layout}" not in url:
+                out["ok"] = False
+                out["why"] = f"the fresh load is not on the slot's layout {slot_layout} ({url!r})"
+        return out
 
     def guarded_clean_save(self, original, label="repair") -> dict:
         """⭐⭐ THE GUARDED CLEAN-SAVE (owner ruling, delegated to the coordinator, 2026-11-19: "Save only through the
@@ -1246,15 +1328,17 @@ class Driver:
             raise Inconclusive("the chart handle answered but getAllStudies() did not", st)
         return st
 
-    def check_row_session(self, label="row:session"):
+    def check_row_session(self, label="row:session", name=None, also=()):
         """⭐⭐ THE ROW'S SESSION, READ, NEVER SET (rulings 2026-11-21, #2134): at the row's own resolution (the caller
         has set and read it back), the chart's RESOLVED session must be the row's, `ROW_SESSIONS[o.session]`, and a
         `subsession_id` TradingView reports must name it too. The reading is taken only once it SETTLES (polled up to
         30 s: `symbolInfo()` answers, the loaded bars are spaced as the row's resolution, two equal reads); never
         settled: INCONCLUSIVE (could not measure). Settled and not the row's: the ROW stops by name (GateFailed),
-        nothing captured, nothing written. Returns the read."""
+        nothing captured, nothing written. Returns the read.
+        `name` (a SLOT job's row that names no session, `slot_session_name`): the session that row must read instead."""
         o = self.opts
-        name, want = o.session, ROW_SESSIONS[o.session]
+        name = name or o.session
+        want = ROW_SESSIONS[name]
         last = {"key": None}
 
         step_range = bar_step_range(o.tf)
@@ -1282,7 +1366,7 @@ class Driver:
         if not ok:
             raise Inconclusive(f"{o.symbol} {o.tf}: the chart's session never settled in 30 s (symbolInfo answering, the "
                                f"bars spaced as {o.tf}, two equal reads); last read {got!r}", got)
-        if got.get("session") != want or got.get("subsession") not in (None, name):
+        if got.get("session") != want or got.get("subsession") not in (None, name, *also):
             seen = f"session {got.get('session')!r}" + (f", subsession {got.get('subsession')!r}" if got.get("subsession") else "")
             raise GateFailed(f"{o.symbol} {o.tf}: the chart resolves {seen}, not the {name} session {want!r}. The batch "
                              f"reads a row's session and never sets it: run this row on a layout saved with {name} hours. "
@@ -1313,7 +1397,49 @@ class Driver:
         if o.session is not None:
             # ⛔ AFTER the resolution: a daily chart of a US listing resolves 0930-1600 whatever the layout's hours
             self.check_row_session()
+        elif getattr(o, "slot_info", None):
+            # ⭐⭐ A SLOT JOB READS EVERY ROW'S SESSION (the identity proof): a row that names none must resolve what its
+            # slot layout's saved hours give at this resolution, or it stops by name (a slot layout saved with other
+            # hours would otherwise capture another session than slot A does, silently)
+            # (a daily chart on an extended layout may echo the layout's sessionId as its subsession; the resolved
+            # session string still decides: 0930-1600)
+            self.check_row_session("row:session:slot", slot_session_name(o), also=(LAYOUT_HOURS.get(o.layout),))
         return st
+
+    def slot_layout_check(self, label="slot:layout"):
+        """⭐⭐ THE SLOT'S LAYOUT, READ BEFORE ANY WRITE: the page's URL names the slot's layout, and TradingView's own
+        `layoutId()`, when it answers, names it too. Anything else stops the batch by name (GateFailed), nothing touched."""
+        want = (self.opts.slot_info or {}).get("layoutId") or self.opts.layout
+        got = self.ev(label, SLOT_LAYOUT_JS) or {}
+        if got.get("url") != want or want != self.opts.layout or (got.get("api") not in (None, want)):
+            raise GateFailed(f"slot {(self.opts.slot_info or {}).get('slot')}: the page is on layout {got.get('url')!r} "
+                             f"(TradingView says {got.get('api')!r}), not the slot's {want!r}: nothing is read or written",
+                             got, abort=True)
+        return got
+
+    def slot_identity(self) -> dict:
+        """⭐⭐ THE SLOT IDENTITY PROOF, once per job BEFORE ANY WRITE (owner + coordinator, 2026-11-26): the account is
+        signed in (`layout_access`), the page is on ITS slot's layout (`slot_layout_check`), and that layout reads 0
+        studies on a SETTLED read (the coordinator's guard against a study carried across jobs). Every row's session is
+        then read at its own resolution (`ensure_symbol_tf`). Any mismatch: GateFailed, nothing touched."""
+        self.step("slot:signin")
+        verdict, detail = layout_access(self.page)
+        if verdict != "signed_in":
+            raise GateFailed(f"slot {self.opts.slot_info.get('slot')}: the account is not signed in ({verdict}: {detail}); "
+                             "a sign-in is an exclusive tv.lock event, never a slot job's", abort=True)
+        lay = self.slot_layout_check()
+        s = settled_rig_read(lambda: self.ev("slot:state", STATE_JS), self.clock, self.opts.poll_s,
+                             self.opts.rig_settle_s, self.opts.rig_settle_max_s)
+        st = s["state"] or {}
+        if not s["settled"]:
+            raise GateFailed(f"slot {self.opts.slot_info.get('slot')}: the layout's state never settled "
+                             f"({s['waitedS']}s): its study count is not read, so nothing is written", s, abort=True)
+        if st.get("studies"):
+            raise GateFailed(f"slot {self.opts.slot_info.get('slot')}: layout {self.opts.layout} carries "
+                             f"{len(st['studies'])} studies {[x.get('name') for x in st['studies']]}: a slot layout must "
+                             "read 0 before a job (a study carried across jobs is refused); repair it under the exclusive "
+                             "tv.lock", st, abort=True)
+        return {"signin": verdict, "layout": lay, "studies": 0, "settle": {k: s[k] for k in ("waitedS", "lastChangeS")}}
 
     def restore(self, target, label):
         """Put symbol, resolution and pane stretch back to `target`, asserting the read-back."""
@@ -1629,6 +1755,8 @@ class Driver:
         verdict, detail = layout_access(self.page)
         if verdict != "signed_in":
             raise Inconclusive(f"the session is no longer signed in ({verdict}: {detail}) — stopping", abort=True)
+        if getattr(o, "slot_info", None):
+            self.slot_layout_check()             # ⭐⭐ per row too, before the row's first write
         raw, text = self.source_of(script)
         st = self.read_state("state_before")
         self.baseline_ids = {x["id"] for x in st["studies"]}
@@ -1687,6 +1815,9 @@ class Driver:
         for key in ("gradeMethod", "gradeRange", "reportPath"):
             if script.get(key) is not None:
                 cap_opts[key] = script[key]
+        if getattr(o, "slot_info", None):
+            # ⭐⭐ a SLOT capture names its slot in its page block (`tv_capture.js`); without one the call is unchanged
+            cap_opts["slot"] = slot_provenance(o.slot_info)
         res = self.ev("vh_capture", VH_CAPTURE_JS, cap_opts)
         # ⭐ (c) THE PROBE LEAVES THE CHART THE MOMENT ITS VALUES ARE READ: `capture()` staged the whole capture text in
         # the page (`tv_capture.js`: `chunk(i)` slices `staged.text`), so the chunk reads and the transport check below
@@ -1870,6 +2001,8 @@ class Driver:
         result["provenance"] = {**self.provenance, "symbol": self.opts.symbol, "tf": self.opts.tf,
                                 "queueTargetId": script.get("queueTargetId"), "rows": script.get("rows") or [],
                                 "localOnly": bool(script.get("localOnly")), "operator": "owner"}
+        if getattr(self.opts, "slot_info", None):
+            result["provenance"]["slot"] = slot_provenance(self.opts.slot_info)
         result["steps"] = list(self.steps)
         result["finishedAtUTC"] = utcnow()
         self.rd.finish(result)
@@ -1937,6 +2070,23 @@ def batch_provenance(page, rd, opts) -> dict:
             "rigLayout": getattr(opts, "layout", None) or RIG_LAYOUT_ID, "engineSha": engine_sha()}
 
 
+def refuse_rows(rd: RunDir, drv: Driver, scripts, so: StepOutcome) -> list:
+    """⭐⭐ A SLOT IDENTITY REFUSAL NAMES EVERY ROW IT STOPS: each row this job would have run gets its result file,
+    outcome `so.outcome` (GATE_FAILED), the reason, the steps the proof made (all reads) and the slot provenance. No row is
+    claimed, nothing on the page was written. Returns the slugs."""
+    out = []
+    for s in scripts:
+        if s.get("layout") is not None and not layout_serves(s["layout"], drv.opts.layout, True):
+            continue
+        now = utcnow()
+        rd.finish({"schema": "uct.vendor-batch-result/v1", "runId": rd.run_id, "slug": s["slug"], "path": s.get("path"),
+                   "sha256": s.get("sha256"), "startedAtUTC": now, "finishedAtUTC": now, "outcome": so.outcome,
+                   "reason": f"slot identity proof: {so.reason}", "detail": so.detail, "steps": list(drv.steps),
+                   "provenance": {**drv.provenance, "slot": slot_provenance(drv.opts.slot_info), "operator": "owner"}})
+        out.append(s["slug"])
+    return out
+
+
 def run_batch(page, manifest: dict, rd: RunDir, opts: Opts, clock, verifier=None,
               only=None, limit=None, log=print) -> int:
     verifier = verifier or NodeVerifier()
@@ -1944,6 +2094,7 @@ def run_batch(page, manifest: dict, rd: RunDir, opts: Opts, clock, verifier=None
     if limit is not None:
         scripts = scripts[:limit]
     drv = Driver(page, clock, opts, rd, verifier, log)
+    slot_mode = bool(getattr(opts, "slot_info", None))
     rd.ledger("batch-start", scripts=len(scripts), symbol=opts.symbol, tf=opts.tf, throttleS=opts.throttle_s)
     counts = {k: 0 for k in OUTCOMES}
     counts["SKIPPED"] = 0
@@ -1969,6 +2120,14 @@ def run_batch(page, manifest: dict, rd: RunDir, opts: Opts, clock, verifier=None
                 if s.get("layout") is not None:
                     layout_url(s["layout"])        # a row's layout is a layout id, or the batch does not start
             drv.gate("batch start")
+            if slot_mode:
+                # ⭐⭐ THE SLOT IDENTITY PROOF, before any write: a refusal names every row it stops, nothing touched
+                try:
+                    proof = drv.slot_identity()
+                except StepOutcome as so:
+                    refuse_rows(rd, drv, scripts, so)
+                    raise
+                rd.ledger("slot-identity", slot=slot_provenance(opts.slot_info), **proof)
             # ⛔ the page is on the batch's layout (`--layout`) before anything is read or written
             on = layout_id_of(getattr(page, "url", None))
             if on != opts.layout:
@@ -1998,7 +2157,7 @@ def run_batch(page, manifest: dict, rd: RunDir, opts: Opts, clock, verifier=None
             return 1 if so.outcome == GATE_FAILED else 2
         processed = 0
         for script in scripts:
-            if script.get("layout") is not None and script["layout"] != opts.layout:
+            if script.get("layout") is not None and not layout_serves(script["layout"], opts.layout, slot_mode):
                 # ⭐ (B1) another layout's row: a batch on that layout takes it (the same run dir resumes it)
                 counts["SKIPPED"] += 1
                 why = f"runs on layout {script['layout']}, this batch is on {opts.layout}"
@@ -2018,6 +2177,16 @@ def run_batch(page, manifest: dict, rd: RunDir, opts: Opts, clock, verifier=None
             if processed and opts.throttle_s > 0:
                 log(f"[batch] throttle {opts.throttle_s:.0f}s (this is the owner's own account)")
                 clock.sleep(opts.throttle_s)
+            if slot_mode and opts.min_free_ram_bytes:
+                # ⭐⭐ a slot job below the RAM floor stops ITSELF, before the next row (nothing of that row is touched)
+                ram = free_ram_bytes()
+                if ram is None or ram < opts.min_free_ram_bytes:
+                    code = 2
+                    why = (f"free RAM {'unreadable' if ram is None else f'{ram / 1024 ** 3:.2f} GB'} is under the "
+                           f"{opts.min_free_ram_bytes / 1024 ** 3:.0f} GB a slot job needs: the job stops itself")
+                    rd.ledger("abort", reason=why, before=script["slug"])
+                    log(f"[batch] STOPPING: {why}")
+                    break
             processed += 1
             log(f"[batch] {script['slug']} …")
             r = drv.run_one(script)
@@ -2120,7 +2289,10 @@ def report_profile_lock(profile) -> bool:
 
 def _launch(args, body):
     """Open the session-owned browser on the rig layout, sign in (once, by the
-    owner), then hand the page to `body`. Mirrors pine_vendor_capture.main()."""
+    owner), then hand the page to `body`. Mirrors pine_vendor_capture.main().
+    ⭐⭐ With `--cdp` it is a SLOT job instead (`_launch_cdp`); without it, exactly the path it always was."""
+    if getattr(args, "cdp", None):
+        return _launch_cdp(args, body)
     profile = resolve_profile(args.profile)
     refuse_owner_browser_profile(profile)
     profile.mkdir(parents=True, exist_ok=True)
@@ -2160,6 +2332,182 @@ def _launch(args, body):
             except Exception:  # noqa: BLE001
                 pass
             report_profile_lock(profile)
+
+
+#: Where each slot's WINDOW opens (cascaded: each a real top-level window of the broker's browser, never a tab of
+#: another's window, which Chrome would hide and throttle and the visibility gate would refuse).
+SLOT_WINDOW_AT = {"A": (40, 40), "B": (100, 70), "C": (160, 100)}
+
+
+def _slot_window(ctx, cdp, slot, state_dir=None, log=print):
+    """(page, targetId, windowId) of slot `slot`'s window in the broker's browser: the window a previous job of this slot
+    left (its target id is in `<state_dir>/tvslot<slot>.window.json`) when it is still open, else a NEW WINDOW
+    (`Target.createTarget`, `newWindow`). Only this slot's target is ever touched."""
+    state = pathlib.Path(state_dir) / f"tvslot{slot}.window.json" if state_dir else None
+    targets = {t.get("targetId"): t for t in (cdp.send("Target.getTargets") or {}).get("targetInfos", [])}
+    tid = None
+    if state is not None and state.exists():
+        try:
+            old = json.loads(state.read_text(encoding="utf-8")).get("targetId")
+        except (OSError, ValueError):
+            old = None
+        if old in targets and targets[old].get("type") == "page":
+            tid = old
+            log(f"[slot {slot}] reusing its window (target {tid})")
+    if tid is None:
+        tid = cdp.send("Target.createTarget", {"url": "about:blank", "newWindow": True, "background": False,
+                                               "width": RIG_VIEWPORT["width"] + 40,
+                                               "height": RIG_VIEWPORT["height"] + 140})["targetId"]
+        log(f"[slot {slot}] opened a new window (target {tid})")
+    wid = cdp.send("Browser.getWindowForTarget", {"targetId": tid}).get("windowId")
+    x, y = SLOT_WINDOW_AT.get(slot, (40, 40))
+    try:
+        cdp.send("Browser.setWindowBounds", {"windowId": wid, "bounds": {"left": x, "top": y, "windowState": "normal"}})
+    except Exception:  # noqa: BLE001 -- a window that will not move is still the slot's window
+        pass
+    page = None
+    deadline = time.monotonic() + 15
+    while page is None and time.monotonic() < deadline:
+        for pg in list(ctx.pages):
+            s = None
+            try:
+                s = ctx.new_cdp_session(pg)
+                if (s.send("Target.getTargetInfo") or {}).get("targetInfo", {}).get("targetId") == tid:
+                    page = pg
+            except Exception:  # noqa: BLE001 -- a page closing under us is not ours
+                pass
+            finally:
+                if s is not None:
+                    try:
+                        s.detach()
+                    except Exception:  # noqa: BLE001
+                        pass
+            if page is not None:
+                break
+        if page is None:
+            try:
+                ctx.wait_for_event("page", timeout=1000)
+            except Exception:  # noqa: BLE001
+                pass
+    if page is None:
+        raise Inconclusive(f"slot {slot}: the window's target {tid} never appeared as a page")
+    if state is not None:
+        write_json_atomic(state, {"slot": slot, "targetId": tid, "windowId": wid, "at": utcnow()})
+    return page, tid, wid
+
+
+def _slot_never_answers_dialog(dialog) -> None:
+    """⭐⭐ A slot job's dialog listener, on its CONTEXT: it answers nothing. A Playwright client with no listener answers
+    every dialog itself (beforeunload accepted, others dismissed), and a client attached over CDP sees EVERY window of
+    the broker's browser, not only its own.
+    ⚰️ (16:56Z, round 2 of the live A/B) B and C ran in parallel and each listened on its OWN page only, so each job
+    auto-answered the OTHER slot's beforeunload at its fresh-load reload, beside the broker. The second answer met
+    "No dialog is showing" and the unhandled rejection killed that Playwright driver: B's own (its reload: "Connection
+    closed while reading from the driver") and the BROKER's, whose death took the browser it launched and with it C's
+    window (TargetClosedError). Neither layout was proven clean. On the context, this listener covers every page the
+    client sees, now and later, so the broker (`tv_slots.broker_answers_dialog`) is the ONE client that answers."""
+    return None
+
+
+def _launch_cdp(args, body, playwright_factory=None):
+    """⭐⭐ A SLOT JOB (owner + TRADINGVIEW coordinator, 2026-11-26): connect over CDP to the broker's browser
+    (`tv_slots.py broker`), open (or reuse) THIS slot's window, put it on THIS slot's layout, and hand the page to `body`
+    (the unchanged Driver). Closes only its own window, NEVER the broker's browser. It never signs in: a session that is
+    not signed in is INCONCLUSIVE (sign-in is an exclusive tv.lock event). The caller holds the slot's locks."""
+    slot = getattr(args, "slot", None)
+    if slot not in SLOT_LAYOUTS:
+        print(f"[slot] REFUSED: --slot must be one of {sorted(SLOT_LAYOUTS)}, not {slot!r}")
+        return 2
+    want = SLOT_LAYOUTS[slot]
+    floor = getattr(args, "min_free_ram_bytes", None) or MIN_SLOT_FREE_RAM_BYTES
+    ram = free_ram_bytes()
+    if ram is None or ram < floor:
+        print(f"[slot {slot}] INCONCLUSIVE: free RAM {'unreadable' if ram is None else f'{ram / 1024 ** 3:.2f} GB'} is under "
+              f"the {floor / 1024 ** 3:.0f} GB a slot job needs: the job stops itself, nothing touched")
+        return 2
+    if playwright_factory is None:
+        from playwright.sync_api import sync_playwright as playwright_factory
+    info = getattr(args, "slot_info", None)
+    if info is None:
+        info = args.slot_info = {}
+    with playwright_factory() as p:
+        try:
+            browser = p.chromium.connect_over_cdp(args.cdp)
+        except Exception as exc:  # noqa: BLE001
+            print(f"[slot {slot}] INCONCLUSIVE: no broker answers at {args.cdp} ({type(exc).__name__}: {exc})")
+            return 2
+        if not browser.contexts:
+            print(f"[slot {slot}] INCONCLUSIVE: the broker's browser has no context (is it the capture profile's?)")
+            return 2
+        ctx = browser.contexts[0]
+        # ⛔ FIRST, before any window opens: this client answers no dialog of ANY window (`_slot_never_answers_dialog`)
+        ctx.on("dialog", _slot_never_answers_dialog)
+        cdp = browser.new_browser_cdp_session()
+        tid = None
+
+        def _reopen():
+            """⭐ A NEW window of this slot on its layout (the fresh-load verify's recovery when its window went away
+            while the browser stayed up): only this slot's old target is closed."""
+            nonlocal tid, wid
+            old = tid
+            pg, tid, wid = _slot_window(ctx, cdp, slot, getattr(args, "slot_state_dir", None))
+            if old is not None and old != tid:
+                with contextlib.suppress(Exception):
+                    cdp.send("Target.closeTarget", {"targetId": old})
+            pg.on("dialog", _slot_never_answers_dialog)
+            pg.set_viewport_size(dict(RIG_VIEWPORT))
+            pg.goto(layout_url(want), wait_until="domcontentloaded")
+            info["verifyTargetId"] = tid
+            print(f"[slot {slot}] the fresh-load verify reopened the slot's window (target {tid})")
+            return pg
+
+        try:
+            page, tid, wid = _slot_window(ctx, cdp, slot, getattr(args, "slot_state_dir", None))
+            try:
+                procs = (cdp.send("SystemInfo.getProcessInfo") or {}).get("processInfo") or []
+                bpid = next((x.get("id") for x in procs if x.get("type") == "browser"), None)
+            except Exception:  # noqa: BLE001
+                bpid = None
+            # ⚰️ (12:01Z, the first live A/B) TWO Playwright clients are attached to this window, the broker's and this
+            # job's, and each auto-answers a JavaScript dialog nobody listens for. The reload of the fresh-load verify
+            # raised TradingView's beforeunload; the broker answered it first, this job's answer met "No dialog is
+            # showing", and the rejection killed this job's driver (rc 3, verify unread). A listener here makes the
+            # broker the ONE client that answers (beforeunload accepted, anything else dismissed: Playwright's defaults,
+            # as on the path without --cdp).
+            page.on("dialog", _slot_never_answers_dialog)
+            page.set_viewport_size(dict(RIG_VIEWPORT))
+            page.goto(layout_url(want), wait_until="domcontentloaded")
+            page.wait_for_timeout(9000)
+            verdict, detail = layout_access(page)
+            print(f"[slot {slot}] layout access: {verdict} ({detail})")
+            if verdict != "signed_in":
+                print(f"[slot {slot}] INCONCLUSIVE: not signed in. A sign-in is the owner's, under the EXCLUSIVE tv.lock "
+                      "(the path without --cdp), never a slot job's.")
+                return 2
+            go_to_layout(page, want)
+            page.wait_for_timeout(4000)
+            info.update({"slot": slot, "layoutId": want, "cdpTargetId": tid, "cdpWindowId": wid,
+                         "brokerPid": getattr(args, "broker_pid", None), "browserPid": bpid, "reopen": _reopen})
+            print(f"[slot {slot}] {json.dumps(slot_provenance(info))}")
+            return body(page)
+        except Exception as exc:  # noqa: BLE001
+            if _is_target_closed(exc):
+                print(f"[slot {slot}] INCONCLUSIVE: the slot's window went away. The run dir keeps every result.")
+                return 2
+            raise
+        finally:
+            # ⛔ ONLY this slot's own window; the broker's browser stays up for the other slots
+            if tid is not None:
+                try:
+                    cdp.send("Target.closeTarget", {"targetId": tid})
+                except Exception:  # noqa: BLE001
+                    pass
+                sd = getattr(args, "slot_state_dir", None)
+                if sd:
+                    try:
+                        (pathlib.Path(sd) / f"tvslot{slot}.window.json").unlink()
+                    except OSError:
+                        pass
 
 
 def _recon(page, args) -> int:
@@ -2257,6 +2605,11 @@ def main(argv=None) -> int:
                    help="prior outcomes to retry on resume (comma list)")
     r.add_argument("--clean-save", action="store_true",
                    help="repair a layout the fresh load shows dirty through the GUARDED clean-save (owner ruling 2026-11-19)")
+    r.add_argument("--cdp", default=None,
+                   help="a SLOT job: the broker browser's CDP endpoint (tv_slots.py broker ensure), with --slot")
+    r.add_argument("--slot", default=None, choices=sorted(SLOT_LAYOUTS), help="the slot this job drives (with --cdp)")
+    r.add_argument("--broker-pid", type=int, default=None, help="the broker's pid, for provenance (with --cdp)")
+    r.add_argument("--slot-state-dir", default=None, help="where the slot's window record lives (the lock dir)")
     rp = sub.add_parser("repair", help="ONE guarded clean-save of the rig layout: remove the named leftover probes, "
                                        "restore symbol / resolution, Save only if clean in the page, verify on a fresh load")
     common(rp)
@@ -2317,7 +2670,22 @@ def main(argv=None) -> int:
         if why:
             print(f"[batch] REFUSED: {why}")
             return 2
-        run_id = _dt.datetime.now().strftime("%Y%m%d-%H%M%S")
+        slot_info = None
+        if args.cdp or args.slot:
+            # ⭐⭐ a SLOT job: its layout is its slot's, it never saves (clean-save, repair and sign-in hold the
+            # EXCLUSIVE tv.lock on the path without --cdp)
+            if not (args.cdp and args.slot):
+                print("[batch] REFUSED: --cdp and --slot go together")
+                return 2
+            if args.clean_save:
+                print("[batch] REFUSED: --clean-save is an EXCLUSIVE tv.lock job (the path without --cdp), never a slot's")
+                return 2
+            if args.layout not in (RIG_LAYOUT_ID, SLOT_LAYOUTS[args.slot]):
+                print(f"[batch] REFUSED: slot {args.slot} runs on its own layout {SLOT_LAYOUTS[args.slot]}, not {args.layout}")
+                return 2
+            args.layout = SLOT_LAYOUTS[args.slot]
+            slot_info = args.slot_info = {}
+        run_id =_dt.datetime.now().strftime("%Y%m%d-%H%M%S")
         run_dir = pathlib.Path(args.run_dir) if args.run_dir else DEFAULT_RUN_ROOT / run_id
         rd = RunDir(run_dir, run_id)
         manifest = prepare_run_manifest(args.manifest, run_dir)
@@ -2328,8 +2696,9 @@ def main(argv=None) -> int:
                     title_selector=args.title_selector,
                     profile_leaf=resolve_profile(args.profile).name,
                     retry=[x.strip() for x in args.retry.split(",") if x.strip()],
-                    clean_save=bool(args.clean_save), layout=args.layout)
-        print(f"[batch] run dir: {run_dir}  layout: {opts.layout}")
+                    clean_save=bool(args.clean_save), layout=args.layout, slot_info=slot_info,
+                    min_free_ram_bytes=MIN_SLOT_FREE_RAM_BYTES if slot_info is not None else None)
+        print(f"[batch] run dir: {run_dir}  layout: {opts.layout}" + (f"  slot: {args.slot}" if slot_info is not None else ""))
         return _launch(args, lambda page: run_batch(page, manifest, rd, opts, RealClock(page),
                                                     only=args.only, limit=args.limit))
 

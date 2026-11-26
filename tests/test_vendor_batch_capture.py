@@ -1356,3 +1356,568 @@ def test_script_inputs_on_a_builtin_or_malformed_are_refused_before_any_page_ste
     assert "builtinInputs" in bc.script_inputs_refusal([{"slug": "b", "builtin": {"id": "STD;VWAP"}, "scriptInputs": {"x": 1}}])
     assert "scriptInputs must name" in bc.script_inputs_refusal([{"slug": "p", "scriptInputs": {}}])
     assert bc.script_inputs_refusal([{"slug": "p", "scriptInputs": {"in_7": True}}]) is None
+
+# ── the capture SLOTS (owner + TRADINGVIEW coordinator, 2026-11-26) ───────────────────────────────────────────────
+# One broker-owned browser, three WINDOWS, each bound to its own layout (`bc.SLOT_LAYOUTS`); `run --cdp --slot`. These
+# rails prove the slot mode on the double and the lock protocol on a temp dir; the path without `--cdp` is the recorded
+# trace of origin/master, call for call.
+import os  # noqa: E402
+import threading  # noqa: E402
+import time as _time  # noqa: E402
+import types  # noqa: E402
+
+import tv_slots as ts  # noqa: E402
+
+PAGE_WRITES = {"SET_SYMBOL", "SET_RESOLUTION", "SET_STRETCH", "OPEN_EDITOR", "SET_SOURCE", "ADD", "REMOVE", "INPUTS",
+               "OPEN_DIALOG", "SEARCH_AND_CLICK", "VH_CAPTURE", "inject"}
+
+
+def _writes(page):
+    """Every call on the double that writes chart / editor / page state (evaluations by name, pointer and key events)."""
+    return [(k, n) for k, n, _ in page.calls
+            if (k == "evaluate" and n in PAGE_WRITES) or k in ("click", "move", "press")]
+
+
+def test_the_path_without_cdp_is_the_recorded_trace_of_origin_master(tmp_path):
+    """⭐⭐ `--cdp`-less = exactly today's path: every page call, step, outcome, exit code, sleep and capture byte of three
+    legacy scenarios equals the trace recorded from origin/master before the slot mode existed (`bd.legacy_trace`)."""
+    got = json.loads(json.dumps(bd.legacy_trace(tmp_path), sort_keys=True))
+    want = json.loads(bd.LEGACY_TRACE_FIXTURE.read_text(encoding="utf-8"))
+    for scenario in want:
+        assert got[scenario] == want[scenario], f"the legacy path changed in scenario {scenario!r}"
+    assert got == want
+
+
+class _FakePW:
+    """A stand-in for `playwright.sync_api.sync_playwright()`: records persistent launches and CDP connects."""
+
+    def __init__(self, page=None, browser=None):
+        self.launched, self.connected = [], []
+        self.page, self.browser = page, browser
+        outer = self
+
+        class _Chromium:
+            def launch_persistent_context(self, profile, **kw):
+                outer.launched.append((profile, kw))
+                return types.SimpleNamespace(pages=[outer.page], new_page=lambda: outer.page,
+                                             close=lambda: outer.launched.append(("closed", None)))
+
+            def connect_over_cdp(self, endpoint):
+                outer.connected.append(endpoint)
+                if outer.browser is None:
+                    raise ConnectionError("no broker")
+                return outer.browser
+
+        self.chromium = _Chromium()
+
+    def __call__(self):
+        return self
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+
+def test_launch_without_cdp_launches_exactly_as_before_and_never_connects(tmp_path, monkeypatch):
+    page = bd.RecordingTVPage()
+    fake = _FakePW(page=page)
+    monkeypatch.setitem(sys.modules, "playwright.sync_api", types.SimpleNamespace(sync_playwright=fake))
+    monkeypatch.setattr(bc, "report_profile_lock", lambda profile: True)
+    prof = tmp_path / "prof"
+    args = types.SimpleNamespace(profile=str(prof), channel="chrome", wait=5, layout=bc.RIG_LAYOUT_ID)
+    assert bc._launch(args, lambda p: 0 if p is page else 9) == 0
+    assert fake.connected == []                                   # never a CDP connect without --cdp
+    (profile, kw), closed = fake.launched[0], fake.launched[-1]
+    assert profile == str(prof) and closed == ("closed", None)
+    assert kw == {"headless": False, "viewport": dict(bc.RIG_VIEWPORT), "args": ["--window-position=40,40"],
+                  "channel": "chrome"}
+    # ⭐ the broker launches the browser EXACTLY so, plus its debugging port: the same Chrome as the single path
+    broker = ts.broker_launch_options("chrome", 9333)
+    assert broker["args"][-1] == "--remote-debugging-port=9333"
+    assert {**broker, "args": broker["args"][:-1]} == kw
+
+
+def _slot_manifest(tmp, slug, text):
+    m, beh = bd.make_manifest(tmp, [(slug, text, {})])
+    return m, {sha: b for sha, b in beh.values()}
+
+
+class _SlowPage(bd.RecordingTVPage):
+    """A double that yields the GIL on every evaluation, so two slot jobs on two threads really interleave."""
+
+    def evaluate(self, expr, arg=None):
+        _time.sleep(0.0005)
+        return super().evaluate(expr, arg)
+
+
+def test_two_slots_capture_in_parallel_without_crossing_state(tmp_path):
+    jobs = {"B": ("bslot", '//@version=6\nindicator("Bee")\nplot(close)\n'),
+            "C": ("cslot", '//@version=6\nindicator("Sea")\nplot(open)\n')}
+    pages, out, errs = {}, {}, []
+
+    def job(slot):
+        try:
+            slug, text = jobs[slot]
+            m, beh = _slot_manifest(tmp_path / slot, slug, text)
+            pages[slot] = page = _SlowPage(behaviours=beh)
+            out[slot] = bd.slot_run(page, m, tmp_path / slot / "run", slot)
+        except BaseException as exc:  # noqa: BLE001
+            errs.append(exc)
+
+    threads = [threading.Thread(target=job, args=(s,)) for s in jobs]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(120)
+    assert not errs, errs
+    for slot, (slug, text) in jobs.items():
+        code, rd, _ = out[slot]
+        res = rd.results()[slug]
+        assert code == 0 and res["outcome"] == bc.CAPTURED, res
+        page = pages[slot]
+        # each window saw only its own layout, its own one add, and ends empty
+        assert [n for k, n, _ in page.calls if k == "goto"] == [bc.layout_url(bc.SLOT_LAYOUTS[slot])]
+        assert len(page.adds) == 1 and page.studies == [] and not page.globals
+        cap = json.loads(pathlib.Path(res["capture"]).read_text(encoding="utf-8"))
+        assert cap["source"]["text"] == text                       # its own script, never the other slot's
+        want = bd.slot_info_for(slot)
+        # ⭐ provenance: the result AND the capture's page block name the slot, layout, target, window and broker
+        assert res["provenance"]["slot"] == {k: want[k] for k in bc.SLOT_PROVENANCE_KEYS}
+        assert list(cap["page"]["slot"]) == list(bc.SLOT_PROVENANCE_KEYS)
+        assert cap["page"]["slot"] == res["provenance"]["slot"]
+        assert res["provenance"]["rigLayout"] == bc.SLOT_LAYOUTS[slot]
+        # the per-row identity: its slot's layout read before the row's first write, and its session read at its tf
+        steps = res["steps"]
+        assert steps.index("slot:layout") < steps.index("state_before") and "row:session:slot" in steps
+        led = _ledger(tmp_path / slot / "run")
+        assert [e["slot"]["slot"] for e in led if e["event"] == "slot-identity"] == [slot]
+    assert pages["B"].calls != pages["C"].calls
+
+
+def _refused_slot(tmp_path, page, slot="B", layout_on=None):
+    m, beh = _slot_manifest(tmp_path, "row", '//@version=6\nindicator("R")\nplot(close)\n')
+    page.behaviours = beh
+    code, rd, _ = bd.slot_run(page, m, tmp_path / "run", slot, layout_on=layout_on)
+    return code, rd.results().get("row"), page
+
+
+def _assert_refused_untouched(tmp_path, code, res, page, why):
+    assert code == 1 and res and res["outcome"] == bc.GATE_FAILED, res
+    assert res["reason"].startswith("slot identity proof:") and why in res["reason"], res["reason"]
+    assert res["provenance"]["slot"]["slot"] == "B"
+    assert _writes(page) == [], _writes(page)                     # nothing written on the page
+    assert not list((tmp_path / "run" / "captures").glob("*.json"))
+
+
+def test_a_slot_whose_page_is_on_the_wrong_layout_is_refused_with_nothing_written(tmp_path):
+    code, res, page = _refused_slot(tmp_path, bd.RecordingTVPage(), layout_on=bc.RIG_LAYOUT_ID)
+    _assert_refused_untouched(tmp_path, code, res, page, f"not the slot's {bc.SLOT_B_LAYOUT_ID!r}")
+
+
+def test_a_slot_page_whose_own_layout_id_disagrees_with_its_url_is_refused(tmp_path):
+    page = bd.RecordingTVPage()
+    page.layout_api = bc.RIG_LAYOUT_ID                           # the URL says B, TradingView says the rig
+    code, res, page = _refused_slot(tmp_path, page)
+    _assert_refused_untouched(tmp_path, code, res, page, "TradingView says")
+
+
+def test_a_slot_layout_holding_a_study_is_refused_and_the_study_left_alone(tmp_path):
+    carried = {"id": "st9", "name": "Carried", "sha": None, "source": None, "reads": 0}
+    code, res, page = _refused_slot(tmp_path, bd.RecordingTVPage(studies=[carried]))
+    _assert_refused_untouched(tmp_path, code, res, page, "carries 1 studies ['Carried']")
+    assert page.studies == [carried]                              # a slot job never removes what it did not add
+
+
+def test_a_signed_out_slot_is_refused_and_never_signs_in(tmp_path):
+    code, res, page = _refused_slot(tmp_path, bd.RecordingTVPage(signed_in=False))
+    _assert_refused_untouched(tmp_path, code, res, page, "not signed in")
+
+
+def _slot_session(tmp_path, tf, hours, session=None):
+    m, beh = _slot_manifest(tmp_path, "sess", '//@version=6\nindicator("S")\nplot(close)\n')
+    m["scripts"][0].update({"symbol": "AMEX:SPY", "tf": tf, "captureStem": "s"})
+    if session:
+        m["scripts"][0]["session"] = session
+    page = bd.RecordingTVPage(behaviours=beh, resolution="1D")
+    page.session_id = hours
+    code, rd, _ = bd.slot_run(page, m, tmp_path / "run", "B")
+    return rd.results()["sess"], page
+
+
+def test_a_slot_job_reads_every_rows_session_even_one_that_names_none(tmp_path):
+    res, _ = _slot_session(tmp_path / "a", "60", "extended")
+    assert res["outcome"] == bc.CAPTURED and "row:session:slot" in res["steps"], res
+    res, _ = _slot_session(tmp_path / "b", "1D", "extended")       # a daily chart resolves 0930-1600 on any layout
+    assert res["outcome"] == bc.CAPTURED and "row:session:slot" in res["steps"], res
+    # (a daily chart on the extended layout may echo the layout's hours as its subsession; 0930-1600 still decides)
+    m, beh = _slot_manifest(tmp_path / "d", "sess", '//@version=6\nindicator("S")\nplot(close)\n')
+    m["scripts"][0].update({"symbol": "AMEX:SPY", "tf": "1D", "captureStem": "s"})
+    page = bd.RecordingTVPage(behaviours=beh, resolution="1D")
+    page.session_id, page.subsession = "extended", "extended"
+    _, rd, _ = bd.slot_run(page, m, tmp_path / "d" / "run", "B")
+    assert rd.results()["sess"]["outcome"] == bc.CAPTURED, rd.results()["sess"]
+    page = bd.RecordingTVPage(behaviours=beh, resolution="1D")
+    page.session_id, page.subsession = "extended", "pre"           # any other subsession still stops the row
+    _, rd, _ = bd.slot_run(page, m, tmp_path / "e" / "run", "B")
+    assert rd.results()["sess"]["outcome"] == bc.GATE_FAILED
+    # a slot layout that resolves other hours than it was saved with stops the row by name, nothing captured
+    res, page = _slot_session(tmp_path / "c", "60", "regular")
+    assert res["outcome"] == bc.GATE_FAILED and "not the extended session" in res["reason"], res
+    assert "inject" not in res["steps"]
+
+
+def test_a_row_naming_the_rig_runs_on_an_extended_slot_and_the_legacy_rule_is_unchanged():
+    assert bc.layout_serves(bc.RIG_LAYOUT_ID, bc.SLOT_B_LAYOUT_ID, slot_mode=True)
+    assert not bc.layout_serves(bc.RIG_REGULAR_LAYOUT_ID, bc.SLOT_B_LAYOUT_ID, slot_mode=True)
+    assert not bc.layout_serves(bc.RIG_LAYOUT_ID, bc.SLOT_B_LAYOUT_ID, slot_mode=False)
+    assert bc.layout_serves(bc.RIG_LAYOUT_ID, bc.RIG_LAYOUT_ID, slot_mode=False)
+    assert set(bc.SLOT_LAYOUTS) == {"A", "B", "C"} and bc.SLOT_LAYOUTS["A"] == bc.RIG_LAYOUT_ID
+    assert len(set(bc.SLOT_LAYOUTS.values())) == 3 and all(bc.LAYOUT_ID_RX.match(x) for x in bc.SLOT_LAYOUTS.values())
+    assert all(bc.LAYOUT_HOURS[x] == "extended" for x in bc.SLOT_LAYOUTS.values())
+
+
+def test_a_slot_job_below_the_ram_floor_stops_itself(tmp_path, monkeypatch):
+    monkeypatch.setattr(bc, "free_ram_bytes", lambda: 2 * 1024 ** 3)
+    m, beh = _slot_manifest(tmp_path, "row", '//@version=6\nindicator("R")\nplot(close)\n')
+    page = bd.RecordingTVPage(behaviours=beh)
+    code, rd, _ = bd.slot_run(page, m, tmp_path / "run", "B")
+    assert code == 2 and "row" not in rd.results()                 # the row was never claimed
+    assert [e for e in _ledger(tmp_path / "run") if e["event"] == "abort" and "free RAM" in e["reason"]]
+    assert not [w for w in _writes(page) if w[1] in ("SET_SOURCE", "ADD")]
+    # and at launch: below the floor the job never even connects
+    fake = _FakePW(browser=object())
+    args = types.SimpleNamespace(cdp="http://127.0.0.1:9333", slot="B", slot_info={})
+    assert bc._launch_cdp(args, lambda p: 0, playwright_factory=fake) == 2 and fake.connected == []
+
+
+class _FakeCDP:
+    def __init__(self, browser):
+        self.b, self.sent = browser, []
+
+    def send(self, method, params=None):
+        self.sent.append((method, params))
+        b = self.b
+        getattr(b, "order", []).append(method)
+        if method == "Target.getTargets":
+            return {"targetInfos": [{"targetId": t, "type": "page"} for t in b.windows]}
+        if method == "Target.createTarget":
+            assert params.get("newWindow") is True, "a slot is a WINDOW, never a tab"
+            tid = f"T{len(b.windows) + 1}"
+            pg = bd.RecordingTVPage()
+            pg.set_viewport_size = lambda v, pg=pg: setattr(pg, "viewport", v)
+            pg.listeners = []
+            pg.on = lambda event, fn, pg=pg: pg.listeners.append(event)
+            pg.target_id = tid
+            b.windows[tid] = pg
+            b.ctx.pages.append(pg)
+            return {"targetId": tid}
+        if method == "Browser.getWindowForTarget":
+            return {"windowId": 100 + list(b.windows).index(params["targetId"])}
+        if method == "SystemInfo.getProcessInfo":
+            return {"processInfo": [{"type": "browser", "id": 777}, {"type": "renderer", "id": 778}]}
+        if method == "Target.closeTarget":
+            pg = b.windows.pop(params["targetId"])
+            b.ctx.pages.remove(pg)
+            return {"success": True}
+        return {}
+
+
+class _FakeBrowser:
+    def __init__(self):
+        other = bd.RecordingTVPage()
+        other.target_id = "T-other"                                 # another slot's window, already open
+        self.windows = {"T-other": other}
+
+        class _Session:
+            def __init__(self, pg):
+                self.pg = pg
+
+            def send(self, method, params=None):
+                return {"targetInfo": {"targetId": self.pg.target_id}}
+
+            def detach(self):
+                pass
+
+        self.ctx = types.SimpleNamespace(pages=[other], new_cdp_session=lambda pg: _Session(pg),
+                                         wait_for_event=lambda *a, **k: None, listeners=[])
+        # the context's listeners, in the order they came, beside the CDP calls (`order`): a listener must precede
+        # the first window this client opens
+        self.order = []
+        self.ctx.on = lambda event, fn: (self.ctx.listeners.append((event, fn)), self.order.append(f"on:{event}"))
+        self.contexts = [self.ctx]
+        self.cdp = _FakeCDP(self)
+        self.closed = False
+
+    def new_browser_cdp_session(self):
+        return self.cdp
+
+    def close(self):
+        self.closed = True
+
+
+def test_launch_cdp_opens_its_own_window_and_closes_only_that_window(tmp_path, monkeypatch):
+    monkeypatch.setattr(bc, "free_ram_bytes", lambda: 8 * 1024 ** 3)
+    browser = _FakeBrowser()
+    fake = _FakePW(browser=browser)
+    seen = {}
+
+    def body(page):
+        seen["page"], seen["url"], seen["vp"] = page, page.url, getattr(page, "viewport", None)
+        return 0
+    args = types.SimpleNamespace(cdp="http://127.0.0.1:9333", slot="C", slot_info={}, broker_pid=4242,
+                                 slot_state_dir=str(tmp_path))
+    assert bc._launch_cdp(args, body, playwright_factory=fake) == 0
+    assert fake.connected == ["http://127.0.0.1:9333"] and fake.launched == []   # connects; never launches a browser
+    assert seen["url"] == bc.layout_url(bc.SLOT_C_LAYOUT_ID) and seen["vp"] == bc.RIG_VIEWPORT
+    # the job listens for dialogs, so the broker is the ONE client that answers them (a second answer killed the driver)
+    assert seen["page"].listeners == ["dialog"]
+    # ⭐⭐ ...and on its CONTEXT, before its first window: it answers no dialog of ANY window, another slot's included
+    # (round 2, 16:56Z: B auto-answered C's beforeunload beside the broker and the lost race killed B's driver and the
+    # broker's, and with the broker the browser under C)
+    assert [(e, fn) for e, fn in browser.ctx.listeners] == [("dialog", bc._slot_never_answers_dialog)]
+    assert browser.order.index("on:dialog") < browser.order.index("Target.createTarget")
+    assert bc._slot_never_answers_dialog(_Dialog("beforeunload")) is None
+    tid = seen["page"].target_id
+    closes = [p["targetId"] for m, p in browser.cdp.sent if m == "Target.closeTarget"]
+    assert closes == [tid] and "T-other" in browser.windows and not browser.closed    # ONLY its own window
+    reopen = args.slot_info.pop("reopen")
+    assert callable(reopen) and "reopen" not in bc.SLOT_PROVENANCE_KEYS              # a hook, never provenance
+    assert args.slot_info == {"slot": "C", "layoutId": bc.SLOT_C_LAYOUT_ID, "cdpTargetId": tid, "cdpWindowId": 101,
+                              "brokerPid": 4242, "browserPid": 777}
+    assert not (tmp_path / "tvslotC.window.json").exists()
+    # signed out: INCONCLUSIVE, no body, the window still closed, the browser never closed
+    browser2 = _FakeBrowser()
+    monkeypatch.setattr(bc, "layout_access", lambda page: ("signed_out", "HTTP 403"))
+    called = []
+    args2 = types.SimpleNamespace(cdp="http://x", slot="B", slot_info={})
+    assert bc._launch_cdp(args2, lambda p: called.append(p), playwright_factory=_FakePW(browser=browser2)) == 2
+    assert not called and list(browser2.windows) == ["T-other"] and not browser2.closed
+
+
+class _Dialog:
+    """A Playwright dialog whose answer can lose the race to another client (`lost`: it raises, as the driver does)."""
+
+    def __init__(self, kind, lost=False):
+        self.type, self.lost, self.answers = kind, lost, []
+
+    def _answer(self, how):
+        self.answers.append(how)
+        if self.lost:
+            raise RuntimeError("Protocol error (Page.handleJavaScriptDialog): No dialog is showing")
+
+    def accept(self):
+        self._answer("accept")
+
+    def dismiss(self):
+        self._answer("dismiss")
+
+
+def test_the_broker_is_the_one_client_that_answers_and_a_lost_race_never_kills_it():
+    logs = []
+    d = _Dialog("beforeunload")
+    assert ts.broker_answers_dialog(d, log=logs.append) == "accepted" and d.answers == ["accept"]
+    d = _Dialog("alert")
+    assert ts.broker_answers_dialog(d, log=logs.append) == "dismissed" and d.answers == ["dismiss"]
+    assert logs == []
+    # ⚰️ the round-2 crash: another client answered first. Caught and logged, never raised (the broker lives on)
+    d = _Dialog("beforeunload", lost=True)
+    assert ts.broker_answers_dialog(d, log=logs.append) == "lost" and d.answers == ["accept"]
+    assert len(logs) == 1 and "already answered" in logs[0]
+    # the broker registers it on its context, before the endpoint is published
+    src = pathlib.Path(ts.__file__).read_text(encoding="utf-8")
+    serve_src = src[src.index("def serve("):src.index("def main(")]
+    assert 'ctx.on("dialog", lambda dialog: broker_answers_dialog(dialog))' in serve_src
+    assert serve_src.index("broker_answers_dialog") < serve_src.index("_write_json_atomic(lock_dir / BROKER_STATE")
+
+
+def test_the_broker_never_closes_while_any_slot_claim_lives():
+    # ⭐⭐ the shared browser is refcounted by the live claims: ANY claim keeps it, whatever else holds
+    for idle in (0.0, ts.IDLE_S, 10 * ts.IDLE_S):
+        for excl in (False, True):
+            assert ts.broker_should_close(["111-B"], excl, idle) is None
+            assert ts.broker_should_close(["111-B", "222-C"], excl, idle) is None
+    # the last claim gone: it closes at once for a waiting exclusive holder, else only after the idle wait
+    assert ts.broker_should_close([], True, 0.0) == "an exclusive holder waits"
+    assert ts.broker_should_close([], False, ts.IDLE_S - 1) is None
+    assert ts.broker_should_close([], False, ts.IDLE_S) == f"idle {ts.IDLE_S:.0f}s"
+
+
+def test_two_slot_jobs_on_one_browser_the_first_to_end_leaves_the_other_running(tmp_path, monkeypatch):
+    """B ends while C still runs: B closes ONLY its window, never the browser, and C's window, its page and its
+    fresh-load reload are untouched."""
+    monkeypatch.setattr(bc, "free_ram_bytes", lambda: 8 * 1024 ** 3)
+    browser = _FakeBrowser()
+    seen = {}
+
+    def b_body(page):
+        seen["B"] = page
+        return 0
+
+    def c_body(page):
+        seen["C"] = page
+        argsb = types.SimpleNamespace(cdp="http://x", slot="B", slot_info={}, slot_state_dir=str(tmp_path))
+        assert bc._launch_cdp(argsb, b_body, playwright_factory=_FakePW(browser=browser)) == 0
+        # B has ended: its window is gone, C's window is open, the browser up, and C's page still answers
+        assert seen["B"].target_id not in browser.windows and page.target_id in browser.windows
+        assert not browser.closed
+        page.reload(wait_until="domcontentloaded")
+        return 0
+    argsc = types.SimpleNamespace(cdp="http://x", slot="C", slot_info={}, slot_state_dir=str(tmp_path))
+    assert bc._launch_cdp(argsc, c_body, playwright_factory=_FakePW(browser=browser)) == 0
+    closes = [p["targetId"] for m, p in browser.cdp.sent if m == "Target.closeTarget"]
+    assert closes == [seen["B"].target_id, seen["C"].target_id] and not browser.closed
+    assert list(browser.windows) == ["T-other"]
+
+
+class _ClosingPage(bd.RecordingTVPage):
+    """A slot window that goes away under the fresh-load reload (the browser stays up)."""
+
+    def reload(self, **kw):
+        raise RuntimeError("TargetClosedError: Page.reload: Target page, context or browser has been closed")
+
+
+def test_the_fresh_load_verify_reopens_a_lost_slot_window_and_reads_the_slots_own_layout(tmp_path):
+    slot = "B"
+    lay = bc.SLOT_LAYOUTS[slot]
+    old = _ClosingPage(behaviours={})
+    old.url = bc.layout_url(lay)
+    new = bd.RecordingTVPage(behaviours={})
+    new.t = old.t
+    opened = []
+
+    def reopen():
+        opened.append(1)
+        new.goto(bc.layout_url(lay))
+        return new
+    opts = bd.fast_opts(layout=lay)
+    opts.slot_info = dict(bd.slot_info_for(slot), reopen=reopen)
+    clock = bd.FakeClock(old)
+    drv = bc.Driver(old, clock, opts, bc.RunDir(tmp_path / "run", "r"), None, log=lambda *a: None)
+    v = drv.verify_fresh_load({"symbol": new.symbol, "resolution": new.resolution})
+    assert opened == [1] and drv.page is new and clock.page is new
+    assert v["ok"] and v["reopened"] and v["layoutId"] == lay and v["url"] == bc.layout_url(lay), v
+    # ✅ CONTROL: the read must name the slot's OWN layout; another layout's page is never "clean"
+    other = bd.RecordingTVPage(behaviours={})
+    other.url = bc.layout_url(bc.SLOT_LAYOUTS["C"])
+    drv2 = bc.Driver(other, bd.FakeClock(other), opts, bc.RunDir(tmp_path / "run2", "r"), None, log=lambda *a: None)
+    v2 = drv2.verify_fresh_load({"symbol": other.symbol, "resolution": other.resolution})
+    assert not v2["ok"] and "not on the slot's layout" in v2["why"] and not v2["reopened"]
+    # ✅ CONTROL: without a reopen hook (the path without --cdp) the lost window is the error it always was
+    opts3 = bd.fast_opts(layout=lay)
+    gone = _ClosingPage(behaviours={})
+    drv3 = bc.Driver(gone, bd.FakeClock(gone), opts3, bc.RunDir(tmp_path / "run3", "r"), None, log=lambda *a: None)
+    with pytest.raises(RuntimeError, match="TargetClosed"):
+        drv3.verify_fresh_load({"symbol": "x", "resolution": "1D"})
+
+
+def test_run_refuses_a_half_slot_or_a_slot_clean_save(tmp_path, capsys):
+    m = tmp_path / "m.json"
+    m.write_text(json.dumps({"schema": "uct.vendor-batch-manifest/v1", "scripts": []}), encoding="utf-8")
+    base = ["run", "--manifest", str(m), "--run-dir", str(tmp_path / "r")]
+    assert bc.main(base + ["--cdp", "http://x"]) == 2
+    assert bc.main(base + ["--slot", "B"]) == 2
+    assert bc.main(base + ["--cdp", "http://x", "--slot", "B", "--clean-save"]) == 2
+    assert bc.main(base + ["--cdp", "http://x", "--slot", "B", "--layout", bc.RIG_REGULAR_LAYOUT_ID]) == 2
+    out = capsys.readouterr().out
+    assert "go together" in out and "EXCLUSIVE tv.lock job" in out and "its own layout" in out
+
+
+# ── the lock protocol ─────────────────────────────────────────────────────────────────────────────────────────────
+def _locks(d, pid, alive=None):
+    return ts.TvLocks(d, pid=pid, alive=alive or (lambda p: True), poll_s=0.01)
+
+
+def test_an_exclusive_holder_waits_for_slot_claims_to_drain_and_blocks_new_ones(tmp_path):
+    job = _locks(tmp_path, 101)
+    a = job.claim("A", timeout_s=1)
+    assert job.holder()[0] == "shared"
+    ex = ts.TvLocks(tmp_path, pid=202, alive=lambda p: True, poll_s=0.05)
+    got = {}
+
+    def take():
+        ex.take_exclusive("clean-save", timeout_s=10, log=lambda *_: None, wait_broker=False)
+        got["at"] = _time.monotonic()
+    t = threading.Thread(target=take)
+    t.start()
+    deadline = _time.monotonic() + 5
+    while not (tmp_path / ts.WANT_NAME).exists() and _time.monotonic() < deadline:
+        _time.sleep(0.01)
+    _time.sleep(0.1)
+    assert (tmp_path / ts.WANT_NAME).exists() and "at" not in got     # announced, and waiting on the running claim
+    newcomer = _locks(tmp_path, 303)
+    with pytest.raises(ts.Timeout, match="exclusive taker is waiting"):
+        newcomer.claim("B", timeout_s=0.1, log=lambda *_: None)       # no new slot claim while it waits
+    released = _time.monotonic()
+    job.release(a)
+    t.join(10)
+    assert got["at"] >= released and ex.holder()[0] == "exclusive"
+    assert "clean-save pid=202" in ex.holder()[1] and not (tmp_path / ts.WANT_NAME).exists()
+    with pytest.raises(ts.Timeout, match="held exclusively"):
+        newcomer.claim(None, timeout_s=0.1, log=lambda *_: None)      # nor while it holds
+    ex.release_exclusive()
+    assert newcomer.claim(None, timeout_s=1) == "A"
+
+
+def test_an_exclusive_taker_waits_on_the_claims_themselves_even_if_tv_lock_was_deleted(tmp_path):
+    job = _locks(tmp_path, 101)
+    job.claim("A", timeout_s=1)
+    (tmp_path / ts.LOCK_NAME).unlink()                                 # removed by hand while the slot job runs
+    with pytest.raises(ts.Timeout, match=r"1 slot claim\(s\) still run"):
+        _locks(tmp_path, 202).take_exclusive("repair", timeout_s=0.2, log=lambda *_: None, wait_broker=False)
+    assert not (tmp_path / ts.LOCK_NAME).exists() and not (tmp_path / ts.WANT_NAME).exists()
+
+
+def test_a_slot_unaware_tool_and_the_slots_exclude_each_other(tmp_path):
+    lock = tmp_path / ts.LOCK_NAME
+
+    def legacy_take():                                                 # what tv_run.py / afterclose_slots.py do
+        try:
+            fd = os.open(str(lock), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        except FileExistsError:
+            return False
+        os.write(fd, b"tv_run legacy 1")
+        os.close(fd)
+        return True
+    job = _locks(tmp_path, 101)
+    a = job.claim("A", timeout_s=1)
+    b = _locks(tmp_path, 102).claim(None, timeout_s=1)
+    assert b == "B" and not legacy_take()                              # the slot group holds tv.lock
+    job.release(a)
+    assert not legacy_take()                                           # one slot job still runs
+    _locks(tmp_path, 102).release(b)
+    assert not lock.exists() and legacy_take()                         # the last one out frees it; the legacy tool runs
+    with pytest.raises(ts.Timeout, match="held exclusively"):
+        _locks(tmp_path, 103).claim(None, timeout_s=0.1, log=lambda *_: None)
+    lock.unlink()
+    assert _locks(tmp_path, 103).claim(None, timeout_s=1) == "A"
+
+
+def test_at_most_three_slot_jobs_and_a_dead_jobs_claims_are_reclaimed(tmp_path):
+    dead = set()
+
+    def alive(p):
+        return p not in dead
+    got = [_locks(tmp_path, 400 + i, alive).claim(None, timeout_s=1) for i in range(3)]
+    assert sorted(got) == ["A", "B", "C"]
+    with pytest.raises(ts.Timeout, match="busy"):
+        _locks(tmp_path, 500, alive).claim(None, timeout_s=0.1, log=lambda *_: None)
+    dead.add(401)                                                       # slot B's job died without releasing
+    assert _locks(tmp_path, 500, alive).claim(None, timeout_s=1) == "B"
+    assert "401-B" not in ts.TvLocks(tmp_path, alive=alive).live_claims()
+    # a claim that names the batch CHILD lives while the child lives
+    dead.add(402)                                                       # slot C's job died too
+    j = _locks(tmp_path, 600, alive)
+    s = j.claim(None, timeout_s=1)
+    j.add_pid(s, 601)
+    dead.add(600)                                                       # the wrapper dies, its batch child runs on
+    assert f"600-{s}" in ts.TvLocks(tmp_path, alive=alive).live_claims()
+    assert ts.TvLocks(tmp_path, alive=alive).slot_busy(s)
+
+
+def test_ram_refusal_reads_the_floor():
+    assert ts.ram_refusal(read=lambda: 4 * 1024 ** 3) is None
+    assert "under the 3 GB" in ts.ram_refusal(read=lambda: 2 * 1024 ** 3)
+    assert "could not be read" in ts.ram_refusal(read=lambda: None)
+    assert ts.MIN_FREE_RAM_BYTES == bc.MIN_SLOT_FREE_RAM_BYTES == 3 * 1024 ** 3
