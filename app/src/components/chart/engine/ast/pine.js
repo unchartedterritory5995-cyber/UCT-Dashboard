@@ -4816,6 +4816,46 @@ function nzSeedAndUpdate(body, table) {
   return { seed, update: substitute(body), step: body }
 }
 
+/**
+ * ⭐⭐ e99 U1 — THE SELF-SERIES PREDICATES ARE MEMOISED BY NODE, PER TABLE, ACROSS CALLS.
+ *
+ * `containsSelfSeries`, `containsFreeSelfSeries` and `selfOutsideTheStepLoop` are each a pure function of a
+ * canonical tree and the table it is read against, and the trees they are asked about SHARE SUBTREES (a partial
+ * read inlines one accumulator many times, a replayed probe hands back the tree it kept). Walked as trees, the
+ * same subtree was walked again at every place it is referenced and again at every call. ⚰️ MEASURED on the
+ * licence-held ORB script (one host-lane translation, 2026-11-26): 806.8M node visits by the first two walks and
+ * 167M by the third's per-call memo, ~34 s of a 95 s translation.
+ *
+ * ⛔ KEYED ON THE TABLE FIRST. `bind`, which calls are recurrences and which are pointwise are all read off the table,
+ * and the rails hand in tables of their own: one node can answer differently under two tables
+ * (`selfSeriesMemo.test.js` holds a node under two tables whose `accum` binds different names).
+ *
+ * ⛔ SOUND ONLY BECAUSE A CANONICAL NODE IS NEVER MUTATED AFTER IT IS BUILT. The translator's one in-place write to
+ * a node's `args` (`tieNewest`, in `resolveTableCall`'s `ta.highestbars` branch) writes into a node built two lines
+ * earlier by `negatedBars`, before any predicate can have seen it. A new in-place write to a node that may already
+ * have been asked about would make these answers stale: build a new node instead.
+ *
+ * Each memo answers ONE predicate (their walks differ: `containsFreeSelfSeries` does not descend into a recurrence's
+ * body slot, `containsSelfSeries` does). `added` bounds what is held: past the cap the table's memos are dropped and
+ * restarted, so a pathological translation cannot grow a memo without limit (dropping a cache changes no answer).
+ */
+const SELF_WALK_MEMO_CAP = 1 << 22
+const SELF_WALK_MEMO = new WeakMap()
+function selfWalkMemoOf(table) {
+  let m = SELF_WALK_MEMO.get(table)
+  if (!m || m.added >= SELF_WALK_MEMO_CAP) {
+    m = { any: new WeakMap(), free: new WeakMap(), reads: new WeakMap(), outside: new WeakMap(), added: 0 }
+    SELF_WALK_MEMO.set(table, m)
+  }
+  return m
+}
+/** TEST SEAM: the three memoised predicates, for `selfSeriesMemo.test.js` (they are module-private otherwise). */
+export const __selfSeriesPredicatesForTests = Object.freeze({
+  containsSelfSeries: (node, table) => containsSelfSeries(node, table),
+  containsFreeSelfSeries: (node, table) => containsFreeSelfSeries(node, table),
+  selfOutsideTheStepLoop: (node, table) => selfOutsideTheStepLoop(node, table),
+})
+
 /** Does this tree read a `self` that NOTHING HAS BOUND?
  *
  *  ⛔⛔ `containsSelfSeries` CANNOT ANSWER THIS AND THE DIFFERENCE IS A WRONG
@@ -4835,14 +4875,22 @@ function containsFreeSelfSeries(node, table) {
   const spec = table && table.functions && table.functions.accum
   if (!spec || !spec.recurrence) return false
   const bind = spec.recurrence.binds
+  const m = selfWalkMemoOf(table)
   const walk = (n) => {
     if (!n || typeof n !== 'object') return false
-    if (n.type === 'series' && n.name === bind) return true
-    const args = n.args || []
-    const inner = n.type === 'call' && table.functions[n.name]
-      && table.functions[n.name].recurrence
-    if (inner) return args.some((a, i) => i !== inner.body && walk(a))
-    return args.some(walk)
+    const known = m.free.get(n)
+    if (known !== undefined) return known
+    let r
+    if (n.type === 'series' && n.name === bind) r = true
+    else {
+      const args = n.args || []
+      const inner = n.type === 'call' && table.functions[n.name]
+        && table.functions[n.name].recurrence
+      r = inner ? args.some((a, i) => i !== inner.body && walk(a)) : args.some(walk)
+    }
+    m.free.set(n, r)
+    m.added += 1
+    return r
   }
   return walk(node)
 }
@@ -4875,10 +4923,13 @@ function selfOutsideTheStepLoop(node, table) {
   // ⭐ ONE PASS, MEMOISED BY NODE: trees here share subtrees heavily (a partial
   // read inlines the same accumulator many times), so asking
   // `containsFreeSelfSeries` afresh at every node would be quadratic.
-  const memo = new Map()
+  // ⭐ e99 U1 — and memoised ACROSS calls, per table (`selfWalkMemoOf`): the same update is asked again every time
+  // its accumulator is rebuilt.
+  const m = selfWalkMemoOf(table)
   const reads = (n) => {
     if (!n || typeof n !== 'object') return false
-    if (memo.has(n)) return memo.get(n)
+    const known = m.reads.get(n)
+    if (known !== undefined) return known
     let r = false
     if (isSelf(n)) r = true
     else {
@@ -4887,28 +4938,38 @@ function selfOutsideTheStepLoop(node, table) {
         && table.functions[n.name].recurrence
       r = inner ? args.some((a, i) => i !== inner.body && reads(a)) : args.some(reads)
     }
-    memo.set(n, r)
+    m.reads.set(n, r)
+    m.added += 1
     return r
   }
-  let hit = null
-  const seen = new Set()
-  const walk = (n) => {
-    if (hit || !n || typeof n !== 'object' || seen.has(n)) return
-    seen.add(n)
-    if (!reads(n)) return
-    if (n.type === 'offset') {
-      if (!isSelf(n.args && n.args[0])) hit = 'a bar offset of an expression'
-      return
+  // The FIRST place, in depth-first order, where the update reads itself outside the step loop, or null. A pure
+  // function of the subtree: the walk stops at its first hit, so a subtree it met before (and skipped, when this was
+  // a per-call `seen` set) had held none, and walking it again finds none.
+  const hitOf = (n) => {
+    if (!n || typeof n !== 'object') return null
+    const known = m.outside.get(n)
+    if (known !== undefined) return known
+    let hit = null
+    if (reads(n)) {
+      if (n.type === 'offset') {
+        if (!isSelf(n.args && n.args[0])) hit = 'a bar offset of an expression'
+      } else {
+        const fs = n.type === 'call' ? table.functions[n.name] : null
+        if (fs && fs.recurrence) hit = `${n.name}(…)`
+        else if (fs && !isPointwise(fs)) hit = `${n.name}(…)`
+        else {
+          for (const a of (Array.isArray(n.args) ? n.args : [])) {
+            hit = hitOf(a)
+            if (hit) break
+          }
+        }
+      }
     }
-    if (n.type === 'call') {
-      const fs = table.functions[n.name]
-      if (fs && fs.recurrence) { hit = `${n.name}(…)`; return }
-      if (fs && !isPointwise(fs)) { hit = `${n.name}(…)`; return }
-    }
-    for (const a of (Array.isArray(n.args) ? n.args : [])) walk(a)
+    m.outside.set(n, hit)
+    m.added += 1
+    return hit
   }
-  walk(node)
-  return hit
+  return hitOf(node)
 }
 
 /** `tree` with its FREE `self` read as the previous bar of `column`.
@@ -5031,10 +5092,16 @@ function containsSelfSeries(node, table) {
   const spec = table.functions.accum
   if (!spec) return false
   const bind = spec.recurrence.binds
+  // ⭐ e99 U1 — memoised by node, per table (`selfWalkMemoOf`)
+  const m = selfWalkMemoOf(table)
   const walk = (n) => {
     if (!n || typeof n !== 'object') return false
-    if (n.type === 'series' && n.name === bind) return true
-    return (n.args || []).some(walk)
+    const known = m.any.get(n)
+    if (known !== undefined) return known
+    const r = (n.type === 'series' && n.name === bind) || (n.args || []).some(walk)
+    m.any.set(n, r)
+    m.added += 1
+    return r
   }
   return walk(node)
 }
