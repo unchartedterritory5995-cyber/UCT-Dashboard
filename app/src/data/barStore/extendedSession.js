@@ -12,8 +12,9 @@
 // ⭐ ONE CALENDAR TOO: holidays and half days come from `lib/marketClock/sessionCalendar.js`, the bundle's compiled
 // copy of the server's market_calendar.json (2000 to its horizon), so a day the server calls closed is closed here
 // (review of #2793; nyseCalendar.js covered fewer years). A breadth pseudo-ticker is exempt like on the server, once
-// the breadth registry has loaded (`breadthRecord`; before that it is judged by name, and breadth intraday series run
-// inside the regular session anyway).
+// the breadth registry has loaded (`breadthRecord`). ⚠️ BEFORE the registry loads a breadth series is judged by name
+// like an equity, so a breadth row outside 04:00-20:00 ET (none exists today: breadth intraday runs inside the regular
+// session) would be dropped from that load; the next load after the registry arrives keeps it.
 import { etDateOf, etMinuteOfDay } from '../../components/chart/barTime'
 import { closeTime } from '../../lib/marketClock/sessionCalendar.js'
 import { breadthRecord } from '../../hooks/useBreadthSymbols'

@@ -1971,7 +1971,19 @@ def purge_off_session_pass(budget_s: float | None = None, mode: str | None = Non
     c = _conn()
     full = not _marker_set(c, OFF_SESSION_CLEAN_MARKER)
     since = None if full else int(time.time()) - OFF_CALENDAR_RECENT_DAYS * 86400
-    after = _cursor_get(c)
+    # ⛔ THE CURSOR CARRIES ITS PASS (review of #2793, delta): a count pass stopped at "M..." must never let an apply
+    # pass resume after "M..." and call the store clean with A..M never purged. The cursor records the mode, the scope
+    # (full history or the recent window) and the errors so far; a cursor of another pass is ignored (start over), and
+    # an earlier boot's failed ticker in the same pass still blocks the clean marker.
+    after, prior_errors = None, 0
+    cur = _cursor_get(c)
+    if cur:
+        try:
+            st = json.loads(cur)
+            if st.get("mode") == mode and bool(st.get("full")) == full:
+                after, prior_errors = st.get("after"), int(st.get("errors") or 0)
+        except Exception:  # noqa: BLE001 - an unreadable cursor: start over
+            pass
     t0 = time.monotonic()
     last = None
     stopped = False
@@ -1991,13 +2003,14 @@ def purge_off_session_pass(budget_s: float | None = None, mode: str | None = Non
                 _logger.warning(f"[sqlite] off-session intraday purge {tkr} failed (non-fatal): {e}")
         out["tickers"] += 1
         last = tkr
+    errors = prior_errors + out["errors"]
     if stopped:
-        if last is not None:
-            _cursor_set(c, last)
+        _cursor_set(c, json.dumps({"mode": mode, "full": full, "after": last if last is not None else after,
+                                   "errors": errors}))
     else:
         _cursor_set(c, None)
         out["complete"] = True
-        if mode == "apply" and full and not out["errors"]:
+        if mode == "apply" and full and not errors:
             _set_marker(c, OFF_SESSION_CLEAN_MARKER)
     _logger.warning(
         "[sqlite] off-session purge (%s, %s): %d row(s) in %d series over %d ticker(s), %d error(s), %s",
