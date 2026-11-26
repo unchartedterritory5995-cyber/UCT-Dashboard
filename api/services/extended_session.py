@@ -57,9 +57,9 @@ def applies(ticker: str | None) -> bool:
 
 
 def _is_breadth(tk: str) -> bool:
-    import importlib
-    try:                                   # by name, so flow-worker's import closure does not grow by the breadth stack
-        return bool(importlib.import_module("api.services.breadth_symbols").is_breadth_symbol(tk))
+    try:                                   # lazy: read only for a name that passed every rule above
+        from api.services.breadth_symbols import is_breadth_symbol
+        return bool(is_breadth_symbol(tk))
     except Exception:                      # noqa: BLE001 - unknown: clamp as an equity
         return False
 

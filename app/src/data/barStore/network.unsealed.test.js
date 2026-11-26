@@ -9,7 +9,9 @@ import { keyOf, ACTION } from './types'
 import { INTRADAY_POLL_MS, TAIL_CATCHUP_MAX_TRIES } from '../../utils/intradayTailPoll'
 import { inExtendedSession } from './extendedSession'
 
-const T0 = Date.UTC(2026, 10, 10, 15, 0)   // Tue 10:00 ET
+// Tue 14:00 ET: late enough that tail − MUTABLE_WINDOW_S − 1 h (the 'outside' correction) is still inside the
+// 04:00-20:00 session the server serves.
+const T0 = Date.UTC(2026, 10, 10, 19, 0)
 const HOUR = 3600_000
 beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(T0) })
 afterEach(() => { vi.useRealTimers() })
