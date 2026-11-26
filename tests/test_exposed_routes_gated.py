@@ -834,10 +834,9 @@ def test_a_gate_run_off_the_tree_counts_by_IDENTITY_and_a_look_alike_name_does_n
     no dependency at all reports nothing."""
     from fastapi import APIRouter, Cookie, Depends, FastAPI, Header
 
-    async def _run(request, fn, *args):
-        return fn(*args)
+    import anyio
 
-    real = _ba.require_bars_access_on(_run, "require_bars_access_history")
+    real = _ba.require_bars_access_on(lambda request: anyio.CapacityLimiter(1), "require_bars_access_history")
 
     # (no `request: Request` parameter: this module's annotations are strings, and `Request` is not one of its
     # globals for FastAPI to resolve; the auditor reads the dependency object and its name, never its signature)
@@ -860,6 +859,38 @@ def test_a_gate_run_off_the_tree_counts_by_IDENTITY_and_a_look_alike_name_does_n
         "a hand-built dependency that merely carries the product's NAME reports a gate: the rung is reading "
         "names, and any function called require_bars_access_* now opens a route in this audit's eyes")
     assert _klass_of(t[("GET", "/open")]) == set()
+
+
+def test_a_require_bars_access_on_product_CALLS_the_gate_itself_and_its_refusals_propagate(monkeypatch):
+    """(review of #2757, H1) The rung counts a product by identity, so a product must ask the gate BY
+    CONSTRUCTION: the factory takes a limiter, never the caller's way of running the gate, and calls
+    `require_bars_access` itself. Here, with no route and no caller-supplied code: signed out -> 401, a free member
+    -> 403, a paid member admitted; a gate answer of None is refused 401; an override with parameters (which would be
+    handed its Cookie()/Header() default objects) is refused 500, a bare one honoured."""
+    import asyncio
+    from types import SimpleNamespace
+
+    import anyio
+    from fastapi import HTTPException
+
+    product = _ba.require_bars_access_on(lambda request: anyio.CapacityLimiter(1), "require_bars_access_fixture")
+
+    def answer(user, overrides=None):
+        monkeypatch.setattr(_ba, "validate_session", lambda _c: dict(user) if user else None)
+        monkeypatch.setattr(_ba, "get_user_plan", lambda _i: (user or {}).get("plan", "free"))
+        req = SimpleNamespace(app=SimpleNamespace(dependency_overrides=overrides or {}))
+        try:
+            return asyncio.run(product(request=req, uct_session="test-session", authorization=""))
+        except HTTPException as e:
+            return e.status_code
+
+    assert answer(None) == 401, "a signed-out caller was not refused 401 by the product"
+    assert answer(FREE_USER) == 403, "a free member was not refused 403 by the product"
+    assert answer(PAID_USER)["id"] == PAID_USER["id"]
+    assert answer(FREE_USER, {_ba.require_bars_access: lambda: {"id": "override"}}) == {"id": "override"}
+    assert answer(FREE_USER, {_ba.require_bars_access: lambda uct_session=None: {"id": "override"}}) == 500
+    monkeypatch.setattr(_ba, "require_bars_access", lambda *a, **k: None)
+    assert answer(PAID_USER) == 401, "a gate answer of None let the request through"
 
 
 # ── 2. the structural half ───────────────────────────────────────────────────

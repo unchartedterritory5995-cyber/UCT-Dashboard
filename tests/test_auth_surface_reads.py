@@ -101,10 +101,9 @@ def test_the_chart_gate_run_on_its_own_limiter_is_GATED_by_identity_and_a_look_a
     from fastapi import Cookie, Header
     from api import bars_auth
 
-    async def _run(request, fn, *args):
-        return fn(*args)
+    import anyio
 
-    real = bars_auth.require_bars_access_on(_run, "require_bars_access_history")
+    real = bars_auth.require_bars_access_on(lambda request: anyio.CapacityLimiter(1), "require_bars_access_history")
 
     # (no `request: Request` parameter: this module's annotations are strings and `Request` is not one of its
     # globals; the census reads the dependency object and its name, never its signature)
