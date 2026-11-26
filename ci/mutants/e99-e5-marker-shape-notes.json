@@ -1,0 +1,59 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "E5-M1",
+   "mutant": "the host lane never says a substituted shape (the defect: silent)",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "  for (const n of markerSubstitutionNotes(rows)) {\n",
+   "to": "  for (const n of []) {\n",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/markerSubstitutionNotes.test.js",
+   "expectRed": "host: shape.triangleup"
+  },
+  {
+   "id": "E5-M2",
+   "mutant": "the runtime lane never says a substituted shape",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "  for (const n of markerSubstitutionNotes(rows)) notes.push(n)\n",
+   "to": "  void 0\n",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/markerSubstitutionNotes.test.js",
+   "expectRed": "runtime: shape.triangleup"
+  },
+  {
+   "id": "E5-M3",
+   "mutant": "positionApprox stamped and unread again (location.top drawn at the bar in silence)",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "    if (m.positionApprox === true) {",
+   "to": "    if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/markerSubstitutionNotes.test.js",
+   "expectRed": "a marker at the pane's top"
+  },
+  {
+   "id": "E5-M4",
+   "mutant": "a plotchar's circle-beside-glyph unsaid",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "    } else if (m.shapeApprox === true && typeof m.text === 'string' && m.text) {",
+   "to": "    } else if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/markerSubstitutionNotes.test.js",
+   "expectRed": "a plotchar is a circle beside its character"
+  },
+  {
+   "id": "E5-M5",
+   "mutant": "a hidden marker row noted (a sentence about nothing drawn)",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "    const m = r && !r.hidden && r.style === 'markers' && r.marker",
+   "to": "    const m = r && r.style === 'markers' && r.marker",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/markerSubstitutionNotes.test.js",
+   "expectRed": "a hidden row says nothing"
+  },
+  {
+   "id": "E5-M6",
+   "mutant": "one sentence per row instead of per substitution",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "      add(`shape:${m.pineShape}:${m.shape}`, name,",
+   "to": "      add(`shape:${m.pineShape}:${m.shape}:${name}`, name,",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/markerSubstitutionNotes.test.js",
+   "expectRed": "one sentence per substitution"
+  }
+ ]
+}

@@ -283,6 +283,52 @@ function withColourWithheld(plots, rows) {
   return (plots || []).map((pl) => (pl && by.has(pl.key) ? { ...pl, colorWithheld: { ...by.get(pl.key) } } : pl))
 }
 
+/** ⭐ e98 E5 — a native marker shape in the member's words (`defSchema.MARKER_SHAPES`), singular and plural. */
+const MARKER_WORDS = Object.freeze({
+  circle: ['a circle', 'circles'], square: ['a square', 'squares'],
+  arrowUp: ['an arrow up', 'arrows up'], arrowDown: ['an arrow down', 'arrows down'],
+})
+const namesList = (names) => (names.length === 1 ? names[0]
+  : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`)
+
+/** ⭐⭐ e98 E5 — THE MEMBER'S SENTENCES FOR A MARKER THIS CHART DRAWS AS ANOTHER SHAPE, by name (both lanes).
+ *  This chart's markers draw only a circle, a square and an arrow up or down (lightweight-charts' series markers), so the
+ *  translator maps every other Pine shape onto one of them (`pine.js::PINE_MARKER_SHAPES`) and stamps the marker
+ *  `shapeApprox`, which NOTHING read: `shape.triangleup` drew as an arrow, `shape.labeldown` as an arrow, `shape.diamond`,
+ *  `shape.cross` and `shape.xcross` (and a `plotshape` with no style, whose default is `shape.xcross`) as squares, and a
+ *  `plotchar` as a circle with its character beside it, all IN SILENCE (measured 2026-11-25 on both lanes: 71 committed
+ *  scripts plot such a shape, 27 of them served on the production lane and 41 on the runtime-on lane). A marker placed at the
+ *  pane's top or bottom (`location.top` / `location.bottom`, `positionApprox`) is drawn at the bar and said too. One
+ *  sentence per substitution, naming every visible row it applies to; nothing about the drawing changes. */
+function markerSubstitutionNotes(rows) {
+  const groups = new Map()
+  const add = (key, name, make) => {
+    if (!groups.has(key)) groups.set(key, { names: [], make })
+    groups.get(key).names.push(`\`${name}\``)
+  }
+  for (const r of rows || []) {
+    const m = r && !r.hidden && r.style === 'markers' && r.marker
+    if (!m || typeof m !== 'object') continue
+    const name = r.label || r.key
+    const words = MARKER_WORDS[m.shape] || [`a ${m.shape}`, `${m.shape}s`]
+    if (m.shapeApprox === true && typeof m.pineShape === 'string' && m.pineShape) {
+      add(`shape:${m.pineShape}:${m.shape}`, name, (names) => `${namesList(names)} ${names.length === 1 ? 'is' : 'are'} drawn as `
+        + `${names.length === 1 ? words[0] : words[1]}: TradingView draws \`${m.pineShape}\`, which this chart does not draw yet.`)
+    } else if (m.shapeApprox === true && typeof m.text === 'string' && m.text) {
+      add(`char:${m.shape}`, name, (names) => `${namesList(names)} ${names.length === 1 ? 'is' : 'are'} drawn as `
+        + `${names.length === 1 ? words[0] : words[1]} with ${names.length === 1 ? 'its character' : 'their characters'} beside it: `
+        + 'TradingView draws the character alone, which this chart does not draw yet.')
+    }
+    if (m.positionApprox === true) {
+      add(`position:${m.position}`, name, (names) => `${namesList(names)} ${names.length === 1 ? 'is' : 'are'} placed `
+        + `${m.position === 'belowBar' ? 'below' : 'above'} the bar: TradingView places ${names.length === 1 ? 'it' : 'them'} at the `
+        + `${m.position === 'belowBar' ? 'bottom' : 'top'} of the pane (\`location.${m.position === 'belowBar' ? 'bottom' : 'top'}\`), `
+        + 'which this chart does not do yet.')
+    }
+  }
+  return [...groups.values()].map((g) => ({ name: g.names[0].replace(/`/g, ''), note: g.make(g.names) }))
+}
+
 /** ⭐⭐ ENGINE 58 — the member's sentence for each VISIBLE row whose colour is
  *  withheld whole. The code rides on the row (`plots[].colorWithheld`), never in
  *  the words (NO-GUARD-IDS). */
@@ -1555,6 +1601,13 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
   }
   // ⭐⭐ ENGINE 58 — A COLOUR WITHHELD BY NAME IS SAID SO, row by row.
   for (const n of colourWithheldNotes(rows)) {
+    const key = `${n.name} :: ${n.note}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    notes.push(n)
+  }
+  // ⭐⭐ e98 E5 — A MARKER DRAWN AS ANOTHER SHAPE (or another place) IS SAID SO, by name: never a silent substitution.
+  for (const n of markerSubstitutionNotes(rows)) {
     const key = `${n.name} :: ${n.note}`
     if (seen.has(key)) continue
     seen.add(key)
@@ -3191,6 +3244,8 @@ function runtimeLaneDocument({ source, id, name, t, hostReason, hostGuard = null
   }
   // ⭐ ENGINE 58 — a colour withheld by name on a drawn row (see the host lane's).
   for (const n of colourWithheldNotes(rows)) notes.push(n)
+  // ⭐ e98 E5 — a marker drawn as another shape (or another place), by name, as the host lane says it
+  for (const n of markerSubstitutionNotes(rows)) notes.push(n)
   for (const w of withheld) {
     notes.push({
       name: w.label,
