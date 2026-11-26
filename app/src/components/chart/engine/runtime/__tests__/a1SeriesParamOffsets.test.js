@@ -179,7 +179,8 @@ describe('⛔ what A1 does not serve keeps a refusal by name, or stops by name',
   it('⛔ an argument built with `/` is refused by name at the build (DY1, Q-DYN-1)', () => {
     const r = refusal(`${CYCLE}f(src, n) => src[n]\nplot(f(close, c / 2))\n`)
     expect(r.guard).toBe('runtime:history-dynamic-offset')
-    expect(r.message).toMatch(/built with `\/`.*DY1, capture queue Q-DYN-1/)
+    // ⭐ M-A: an OFFSET built with `/` is what stays uncaptured; the sentence says so (a window length is HIST-F)
+    expect(r.message).toMatch(/built with `\/`.*not captured for offsets \(DY1, Q-DYN-1 H rows\)/)
     // ⭐ CONTROL: a `%` of whole numbers is no division (whole in every version; G04 of the vw-udt-fn-global-history
     // witness, `bar_index % 3`, equals TradingView on every bar): read per bar
     const { outs } = run(`f(src, n) => src[n]\nplot(f(close, bar_index % 5))\n`)

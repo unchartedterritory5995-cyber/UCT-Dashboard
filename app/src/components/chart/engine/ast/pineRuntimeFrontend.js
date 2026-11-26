@@ -8556,6 +8556,29 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
   const foldsExactly = (t, d = 0) => !!t && typeof t === 'object' && d < 64
     && !(t.type === 'op' && (t.name === '/' || t.name === '%'))
     && (t.args || []).every((a) => foldsExactly(a, d + 1))
+  /** ⭐⭐ M-A — the whole window length a length BUILT WITH `/` stands for, or `null` (the refusal stands).
+   *  `canonical` is the resolved tree (or the number it resolved to), `written` the expression as the script
+   *  wrote it. The value is the quotient kept with its fraction, TRUNCATED toward zero (HIST-F1..F4, see
+   *  `foldConstNode`). ⛔ Only when the written expression divides with `/` through a name (an input, a
+   *  parameter, a binding: the captured shapes); a quotient of two LITERALS (`9 / 2`) is Q-DYN-1's question,
+   *  and `%` anywhere keeps the refusal (T17). A value that is not a positive finite number keeps it too. */
+  const windowLengthOfDivision = (canonical, written, scope) => {
+    const divs = divisionsOf(written, scope)
+    if (!divs.length || divs.some((d) => d.left && d.left.type === 'number' && d.right && d.right.type === 'number')) return null
+    let v = null
+    if (canonical.type === 'num') v = canonical.value
+    else if (!hasOp(canonical, '%')) {
+      try {
+        v = foldScalar(canonical, {})
+      } catch (err) {
+        if (!(err instanceof NotFoldable)) throw err
+      }
+    }
+    return typeof v === 'number' && Number.isFinite(v) && v >= 1 ? Math.trunc(v) : null
+  }
+  /** Does the canonical tree hold the operator `name` anywhere? */
+  const hasOp = (t, name, d = 0) => !!t && typeof t === 'object' && d < 64
+    && ((t.type === 'op' && t.name === name) || (t.args || []).some((a) => hasOp(a, name, d + 1)))
   /** Is this header a reassignment of `name` this fold reads? `:=` and the
    *  pointwise compound forms, written as the whole statement. */
   const simpleWriteOp = (h, name) => (h.length > 2 && h[0].kind === 'ident' && h[0].value === name
@@ -8897,6 +8920,20 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
     }
     // ⛔ the BOTTOM must always be proved: a negative offset has no answer this lane owes
     if (!r || !Number.isFinite(r.lo) || r.lo < 0) throw refusal
+    // ⛔⛔ M-A — A FRACTIONAL OFFSET IS REFUSED BY NAME. Measured on master 74bf369938: `x[len / 2]` (len = 9)
+    // built here with a ring of 5 and the VM's non-strict read answered `na` on EVERY bar, a blank picture where
+    // TradingView draws a number; so did `x[(c ? 0 : c2 ? 3 : 4) * 0.5]`, whose proved bounds (0, 2) are whole
+    // while 1.5 is reachable. Which whole number Pine reads for a fraction is not captured (Q-DYN-1 H rows), so:
+    // bounds that are not whole numbers refuse, and so does a RANGE (not one value) written with `/` or a
+    // literal that is not a whole number, the only ways `offsetRange`'s `+ - *` can step between whole bounds.
+    // One folded whole value (`len / 3` = 3) is exact and keeps its read.
+    const wholeBounds = Number.isInteger(r.lo) && (!Number.isFinite(r.hi) || Number.isInteger(r.hi))
+    if (!wholeBounds || (r.lo !== r.hi && fractionPossibleIn(e, scope))) {
+      note('runtime:history-dynamic-offset')
+      throw new RuntimeRefusal('runtime:history-dynamic-offset',
+        'this history offset is built with `/` or may not be a whole number: which whole number a fractional '
+        + 'history offset becomes is not captured for offsets (DY1, Q-DYN-1 H rows)', at)
+    }
     let depth = Number.isFinite(r.hi) ? Math.ceil(r.hi) : Infinity
     // ⭐⭐ L4b — NO PROVED TOP (or one past Pine's ceiling): a DECLARATION admits the read
     // (`declaredBufferOf`); no declaration, the refusal stands. ⭐ (2026-11-18, M2 / Q-MBB,
@@ -8925,7 +8962,20 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
    *  Splitting them would let a knob mean one thing in an offset and another in a
    *  length, which is precisely the divergence the frozen-default rule exists to
    *  prevent. */
-  const foldConstNode = (e, at, what = null, scope = null) => {
+  /** ⭐⭐ M-A — `foldConstNode` in a WINDOW-LENGTH position (`opts.windowLength`): a length built with `/`
+   *  truncates (`windowLengthOfDivision`), and every refusal it raises is marked `windowLength`, so a
+   *  caller that asks why (DY1, `seriesParamOf`) can tell a window length from a history offset. */
+  const foldConstNode = (e, at, what = null, scope = null, opts = null) => {
+    if (!opts || !opts.windowLength) return foldConstNodeOf(e, at, what, scope, null)
+    try {
+      return foldConstNodeOf(e, at, what, scope, opts)
+    } catch (err) {
+      if (err instanceof RuntimeRefusal && err.guard === 'runtime:history-dynamic-offset') err.windowLength = true
+      throw err
+    }
+  }
+  const foldConstNodeOf = (e, at, what, scope, opts) => {
+    const written = e
     // ⭐⭐ C35 — A NAME THIS FRAME HOLDS IS ANSWERED BY THE FRAME, NEVER BY `env`.
     //
     // The frozen resolver reads the TOP-LEVEL environment. Inside a function
@@ -9027,6 +9077,17 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
           if (!(err instanceof NotFoldable)) throw err
         }
       }
+    }
+    // ⭐⭐ M-A — A WINDOW LENGTH BUILT WITH `/` IS TRUNCATED TOWARD ZERO (HIST-F1..F4, captured 2026-11-16 on
+    // AMEX:SPY and NYSE:RDDT 1D, runs cb2 / cb2b, licence-held): `ta.wma(close, len / 3)` with `len` = 40 is
+    // `ta.wma(close, 13)` on every bar, and so are 9 / 2 -> 4, 20 / 3 -> 6, (25 / 3) - 1 -> 7, (26 / 3) - 1 -> 7,
+    // 26 / 3 -> 8, in wma, ema, sma, rma, highest and the HMA helper, under v3, v4, v5 and v6 alike (rounding is
+    // ruled out by 6.67, 7.67 and 8.67). The same captures plot the quotient itself (13.33, 4.5, 7.33, 7.67):
+    // `/` keeps the fraction in every version, and the WINDOW drops it. `windowLengthOfDivision` says when.
+    // ⛔ A window length only (`opts.windowLength`): a fractional history OFFSET is not captured (Q-DYN-1 H rows).
+    if (opts && opts.windowLength && canonical && !atObjectDoor) {
+      const t = windowLengthOfDivision(canonical, written, scope)
+      if (t !== null) canonical = { type: 'num', value: t }
     }
     if (!canonical || canonical.type !== 'num'
       || !Number.isInteger(canonical.value) || canonical.value < 0) {
@@ -11551,7 +11612,7 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
           try {
             n = foldConstNode(given[1], at,
               `the length of \`${node.name}\` is only known while the bar is running, `
-              + 'so the ring it needs cannot be sized before bar 0', scope)
+              + 'so the ring it needs cannot be sized before bar 0', scope, { windowLength: true })
           } catch (err) {
             if (!(err instanceof RuntimeRefusal) || err.guard !== 'runtime:history-dynamic-offset'
               || typeof err.frameName === 'string' || !seriesLengthFn(node.name, node)) throw err
@@ -12157,7 +12218,7 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
           // symmetry would reserve memory the semantics never asked for.
           const n = foldConstNode(given[1], at,
             `the length of \`${node.name}\` is only known while the bar is running, `
-            + 'so the state it needs cannot be sized before bar 0', scope)
+            + 'so the state it needs cannot be sized before bar 0', scope, { windowLength: true })
           if (n < 1) {
             throw new RuntimeRefusal('runtime:statement',
               `\`${node.name}\` needs a length of at least 1, got ${n}`, at)
@@ -16985,9 +17046,10 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
    *  `p` is declared `simple` / `const` (Pine does not compile a per-bar value there); the
    *  argument reads a parameter of the calling function that its OWN call site may fix (the C35
    *  chain stays first: a fixed window is exact and cheaper); the live object door (master's
-   *  answer there). ⛔ And an argument built with `/` is REFUSED BY NAME here (DY1): which
-   *  whole number Pine reads for a fractional length or offset, and whether a whole-number
-   *  division keeps its fraction there, is not captured (capture queue Q-DYN-1).
+   *  answer there). ⛔ And an argument built with `/` is REFUSED BY NAME here (DY1): for a history
+   *  OFFSET because which whole number a fractional offset becomes is not captured (Q-DYN-1's H
+   *  rows); for a WINDOW LENGTH because the per-bar window does not truncate (TradingView does,
+   *  HIST-F1..F4; a length fixed before bar 0 is truncated by `windowLengthOfDivision`).
    *  @returns {boolean} true = read per bar; false = the caller's refusal stands; throws the DY1 refusal */
   const seriesParamOf = (node, p, arg, q, blocked, err, scope, at) => {
     if (atObjectDoor || inRequestValue) return false
@@ -17003,10 +17065,16 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
     const div = divisionIn(arg, scope)
     if (div !== null) {
       note('runtime:history-dynamic-offset')
-      throw new RuntimeRefusal('runtime:history-dynamic-offset',
-        `\`${p}\` sizes a window in \`${node.name}\`, and this call passes a value built with \`${div}\`: `
-        + 'whether Pine keeps a whole-number division\'s fraction there, and which whole number a fractional '
-        + 'length or offset becomes, is not captured yet (DY1, capture queue Q-DYN-1)', at)
+      // ⭐ M-A — a WINDOW LENGTH built with `/` is captured (HIST-F1..F4: the quotient keeps its fraction and
+      // the window truncates it) and is served when it is fixed before bar 0 (`windowLengthOfDivision`). Read
+      // per bar, the VM's window stops by name on a fractional length, so it is refused here, truthfully.
+      // Only a fractional history OFFSET is still uncaptured (DY1, Q-DYN-1's H rows).
+      throw new RuntimeRefusal('runtime:history-dynamic-offset', err.windowLength === true
+        ? `\`${p}\` sizes a window in \`${node.name}\`, and this call passes a value built with \`${div}\` that is read `
+          + 'on every bar: TradingView truncates a fractional window length (HIST-F1..F4), and this lane truncates '
+          + 'one only when it is fixed before bar 0'
+        : `\`${p}\` sets a history offset in \`${node.name}\`, and this call passes a value built with \`${div}\`: `
+          + 'which whole number a fractional history offset becomes is not captured for offsets (DY1, Q-DYN-1 H rows)', at)
     }
     return true
   }
@@ -17017,6 +17085,55 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
    *  T17), a TradingView capture grades a per-bar `bar_index % 3` offset MATCH on every bar
    *  (vw-udt-fn-global-history G04), and a fractional remainder (of a price) stops by name in the VM
    *  (`READ_HIST_SLOT_DYN`, the W4-T8 window). */
+  /** ⭐ M-A — can the written offset take a value that is not a whole number? A `/`, or a numeric literal that is
+   *  not whole, in a VALUE position: never in a `?:` test or a `ta.barssince` condition, which choose a value
+   *  without being one (`x[close > open * 1.01 ? 1 : 2]` is whole). Read through bindings as `divisionsOf` reads. */
+  const fractionPossibleIn = (e, scope, d = 0) => {
+    if (!e || typeof e !== 'object' || d > 32) return false
+    if (Array.isArray(e)) return e.some((x) => fractionPossibleIn(x, scope, d + 1))
+    if (e.type === 'number') return typeof e.value === 'number' && !Number.isInteger(e.value)
+    if (e.type === 'binary' && e.op === '/') return true
+    if (e.type === 'ternary') return fractionPossibleIn(e.yes, scope, d + 1) || fractionPossibleIn(e.no, scope, d + 1)
+    if (e.type === 'call' && (e.name === 'ta.barssince' || e.name === 'barssince')) return false
+    if (e.type === 'name' && typeof e.name === 'string') {
+      const s = scope ? scope.lookup(e.name) : null
+      if (s !== null) {
+        const def = frameLocalDefs.get(s)
+        return def !== undefined ? fractionPossibleIn(def.expr, def.scope, d + 1) : false
+      }
+      const b = env.get(e.name)
+      return !!(b && b.kind === 'expr' && b.node) && fractionPossibleIn(b.node, root, d + 1)
+    }
+    for (const [k, v] of Object.entries(e)) {
+      if (k === 'tok' || !v || typeof v !== 'object') continue
+      if (fractionPossibleIn(v, scope, d + 1)) return true
+    }
+    return false
+  }
+  /** ⭐ M-A — every `/` node the written expression divides with, read through the names bound once to an
+   *  expression exactly as `divisionIn` reads them (a frame local, a main-body binding). */
+  const divisionsOf = (e, scope, d = 0, out = []) => {
+    if (!e || typeof e !== 'object' || d > 32) return out
+    if (Array.isArray(e)) { for (const x of e) divisionsOf(x, scope, d + 1, out); return out }
+    if (e.type === 'binary' && e.op === '/') out.push(e)
+    if (e.type === 'name' && typeof e.name === 'string') {
+      const s = scope ? scope.lookup(e.name) : null
+      if (s !== null) {
+        const def = frameLocalDefs.get(s)
+        if (def !== undefined) divisionsOf(def.expr, def.scope, d + 1, out)
+        return out
+      }
+      const b = env.get(e.name)
+      if (b && b.kind === 'expr' && b.node) divisionsOf(b.node, root, d + 1, out)
+      return out
+    }
+    for (const [k, v] of Object.entries(e)) {
+      if (k === 'tok' || !v || typeof v !== 'object') continue
+      divisionsOf(v, scope, d + 1, out)
+    }
+    return out
+  }
+
   const divisionIn = (e, scope, d = 0) => {
     if (!e || typeof e !== 'object' || d > 32) return null
     if (Array.isArray(e)) {
