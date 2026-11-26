@@ -1369,6 +1369,8 @@ SETTLE_WORKERS = max(1, int(os.environ.get("BARS_LIVE_SETTLE_WORKERS", "4")))
 SETTLE_VOL_REL = float(os.environ.get("BARS_LIVE_SETTLE_VOL_REL", "0.02"))
 SETTLE_VOL_ABS = int(os.environ.get("BARS_LIVE_SETTLE_VOL_ABS", "100"))
 SETTLE_BUCKET_SHARE = min(0.5, max(0.05, float(os.environ.get("BARS_LIVE_SETTLE_BUCKET_SHARE", "0.5"))))
+#: The half-day gap rebuild (`halfday_gap`): inside the settle on a half day, and the one-off backfill of past ones.
+HALFDAY_GAP_ENABLED = os.environ.get("BARS_LIVE_HALFDAY_GAP_ENABLED", "1") == "1"
 _settle: dict = {"done_ymd": None, "running": False, "tickers": 0, "changed_tickers": 0, "rows_replaced": 0,
                  "rows_vendor_lacks": 0, "rows_immaterial": 0, "derived_rows": 0, "failed": 0, "seals_touched": 0,
                  "started_at": None, "finished_at": None}
@@ -1576,9 +1578,48 @@ def settle_pass(now: Optional[datetime] = None) -> dict:
         t_.start()
     for t_ in threads:
         t_.join()
+    # ⭐ A HALF DAY'S 13:01-15:59 ET, rebuilt from the vendor's trades (`halfday_gap` module doc): the vendor's
+    # aggregates have none, and the pass above could only re-read what they hold.
+    if HALFDAY_GAP_ENABLED:
+        try:
+            from api.services import halfday_gap
+            if halfday_gap.gap_window(d.date()) is not None and ymd not in halfday_gap.done_days():
+                counts["halfday"] = halfday_gap.run_day(d.date(), sorted({s_ for s_, _tf in work}), _settle_take,
+                                                        rederive=_settle_rederive)
+        except Exception as e:  # noqa: BLE001 - never let it stop the settle's own bookkeeping
+            _log.warning("[bars-live] half-day gap %s failed: %s", ymd, e)
     _settle.update(counts, running=False, done_ymd=ymd, finished_at=time.time())
     _save_settle_marker(ymd)
     _log.info("[bars-live] settle %s: %s", ymd, counts)
+    return counts
+
+
+def _halfday_backfill_due(now: datetime) -> bool:
+    """The one-off rebuild of past half days runs only after the close: a non-trading day, before 04:00 ET, or
+    SETTLE_AFTER_CLOSE_MIN after today's extended close (never during the session's load)."""
+    if not (HALFDAY_GAP_ENABLED and SETTLE_ENABLED and enabled()) or _settle.get("running"):
+        return False
+    from api.services import bars_fetch
+    d = now.astimezone(_ET)
+    if not bars_fetch._is_trading_day_ymd(d):
+        return True
+    m = d.hour * 60 + d.minute
+    return m < 4 * 60 or m >= bars_fetch._ext_close_minutes(int(d.strftime("%Y%m%d"))) + SETTLE_AFTER_CLOSE_MIN
+
+
+def halfday_backfill_step(now: Optional[datetime] = None) -> Optional[dict]:
+    """Rebuild the newest half day still pending (one per call), for every 5m-covered ticker. None when none is."""
+    from api.services import halfday_gap
+    d = (now or datetime.now(_ET)).astimezone(_ET)
+    days = halfday_gap.pending_days(d.date())
+    if not days:
+        return None
+    with _lock:
+        tickers = sorted(_covered5 | _covered1)
+    if not tickers:
+        return None
+    counts = halfday_gap.run_day(days[0], tickers, _settle_take, rederive=_settle_rederive)
+    _settle["halfday_backfill"] = dict(counts, day=days[0].isoformat(), at=time.time())
     return counts
 
 
@@ -1586,8 +1627,11 @@ def _settle_loop() -> None:
     while True:
         time.sleep(60)
         try:
-            if _settle_due(datetime.now(_ET)):
+            now = datetime.now(_ET)
+            if _settle_due(now):
                 settle_pass()
+            elif _halfday_backfill_due(now):
+                halfday_backfill_step(now)
         except Exception as e:  # noqa: BLE001
             _log.warning("[bars-live] settle loop error: %s", e)
 
