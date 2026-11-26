@@ -3469,7 +3469,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
         if (own) {
           if (!markerLayer) {
             markerLayer = canvasGlyph
-              ? markerCanvas.layerFor({ host: markerHost, paneIndex: p.paneIndex })
+              ? markerCanvas.layerFor({ host: markerHost, paneIndex: p.paneIndex, order: p.bi })
               : createMarkerLayer(ctx.createSeriesMarkers, markerHost)
             // the host it rides, and whether it outlives the plot's own series
             // (`removeRunSeries` clears a price-hosted layer when the binding goes)
@@ -3500,7 +3500,9 @@ export function createBinder({ chart, LWC, scope = '' }) {
             // ⭐ e99 — the canvas places each glyph off the bar's own high / low (the
             // candles, on the price host) or the plotted value (`location.absolute`).
             ...(canvasGlyph ? { canvas: { values: own, bars: priceHost ? bars : null } } : {}),
-          }), markerSpec))
+            // ⭐ e99 — and, for the canvas, the plot's declaration order: the pane paints its
+            // plots in it, the last declared on top (TradingView does not stack markers).
+          }), markerSpec, p.bi))
         }
       }
 

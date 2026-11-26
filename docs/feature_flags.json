@@ -3861,12 +3861,12 @@
       "status": "dark",
       "where": [],
       "owner": "pine parity programme",
-      "owner_decision": "not yet taken: built dark on branch feat/e99-marker-canvas (2026-11-26); the geometry table is provisional until the pixel read",
+      "owner_decision": "not yet taken: built dark on branch feat/e99-marker-canvas (2026-11-26); the geometry table is pinned from FRED RS's run markers-2026-11-26 (text, plotchar character size and a triangle at location.absolute named approximate); a real-browser check is owed before any flip",
       "railway_value": "UNSET on every service",
       "baked_value": "undefined (never set)",
       "baked_measured_on": "2026-11-26, from Dockerfile.web's ARG list (declared in the same commit that added the read)",
       "last_changed": "2026-11-26T00:00:00Z",
-      "note": "Draw Pine plotshape / plotchar markers on canvas (twelve shapes and the character, at the author's location) instead of the four LWC series-marker shapes at the bar? Read in ONE place, app/src/components/chart/engine/markerCanvasGate.js::markerCanvasEnabled, as `=== '1'`; a build with no import.meta.env fails CLOSED. Its readers are engine/binder.js (which layer draws a Pine marker) and engine/markerCanvas.js::canvasMarkerRecord (the record the member door builds). IT IS OFF, and off is the behaviour before e99: LWC series markers, record unchanged. WHY: the glyph sizes and offsets (MARKER_GEOMETRY) are provisional until the pixel read of TradingView's markers pins them. What arming changes for a member: every imported plotshape / plotchar is drawn as its own Pine shape at its own location, said as drawn at an approximate size and offset while the table is provisional. Arming is a Railway variable plus a rebuild (a build constant) and an owner decision."
+      "note": "Draw Pine plotshape / plotchar markers on canvas (twelve shapes and the character, at the author's location) instead of the four LWC series-marker shapes at the bar? Read in ONE place, app/src/components/chart/engine/markerCanvasGate.js::markerCanvasEnabled, as `=== '1'`; a build with no import.meta.env fails CLOSED. Its readers are engine/binder.js (which layer draws a Pine marker) and engine/markerCanvas.js::canvasMarkerRecord (the record the member door builds). IT IS OFF, and off is the behaviour before e99: LWC series markers, record unchanged. WHY: the glyph sizes and offsets (MARKER_GEOMETRY) are pinned from FRED RS's run markers-2026-11-26, but no real-browser check against TradingView has been made yet. What arming changes for a member: every imported plotshape / plotchar is drawn as its own Pine shape at its own location, at TradingView's measured size and offset; a marker's text, a plotchar's character size and a triangle at location.absolute are said as approximate, by name. Arming is a Railway variable plus a rebuild (a build constant) and an owner decision."
     },
     "VITE_PINE_MEMBER_PANE_ENABLED": {
       "status": "armed",

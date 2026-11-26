@@ -1,19 +1,22 @@
 // app/src/components/chart/engine/__tests__/markerCanvas.test.js
 //
-// ─── e99 — PINE MARKERS ON CANVAS: THE SHAPE AND THE PLACE, NOT YET THE SIZE ──
+// ─── e99 — PINE MARKERS ON CANVAS: THE SHAPE, THE PLACE AND THE SIZE, AS MEASURED ──
 //
 // `markerCanvas.js` draws each `plotshape` style as its own glyph (TradingView
 // substitutes none: FRED RS, AMEX:SPY 1D captures 2026-11-26) at the author's
 // location, through one series primitive per pane, behind a gate that is OFF.
 //
-// ⛔ SYNTHETIC RAILS. Nothing here grades a pixel against TradingView: the
-// geometry table is provisional, and a marker drawn by it is recorded
-// `geometryApprox` and said so at the member door. What IS held here:
-//   - thirteen distinct glyphs, each Pine shape drawn by its own (no substitution);
-//   - x is the bar's own coordinate; y is the bar's high / low, the pane's edge or
-//     the plotted value, each fixture built so the wrong anchor gives another y;
-//   - every geometry constant lives in ONE table;
-//   - off, nothing changes (the LWC markers and the record are untouched).
+// ⭐ THE GEOMETRY RAILS ARE DRIVEN BY THE MEASUREMENT. FRED RS's run
+// `markers-2026-11-26` measured TradingView's markers (light theme, DPR 1, 90 px bar
+// spacing); its derived numbers are committed as
+// `tests/fixtures/vendor/tv-marker-geometry-spy-1d-2026-11-26.json` (no screenshot is
+// committed). Every measured cell — each shape's box at each size word, its near-edge
+// gap at abovebar / belowbar / top / bottom, its centre at `location.absolute` (rows
+// a candle did not clip), the arrows' width and `size.auto` at each bar spacing — is
+// laid out here by `layoutMarkers` and held within the fixture's tolerance. A control
+// moves the layout by more than the tolerance and every cell misses.
+// What is NOT measured (text, a `plotchar`'s character size, a triangle's anchor at
+// `location.absolute`) is held to be NAMED approximate, not to a number.
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -21,7 +24,7 @@ import process from 'node:process'
 
 import {
   GLYPHS, MARKER_GEOMETRY, glyphOf, locationOf, placeY, layoutMarkers, paintMarkers,
-  canvasMarkerRecord, createMarkerCanvasRegistry, sizePxOf,
+  canvasMarkerRecord, createMarkerCanvasRegistry, sizePxOf, boxOf, scaleMarginsOf, unmeasuredGeometryOf,
 } from '../markerCanvas'
 import { markerCanvasEnabled } from '../markerCanvasGate'
 import { createBinder } from '../binder'
@@ -29,6 +32,10 @@ import { createFakeChart } from './fakeChart'
 
 const FLAG = 'VITE_PINE_MARKER_CANVAS_ENABLED'
 afterEach(() => { vi.unstubAllEnvs() })
+
+const FX = JSON.parse(fs.readFileSync(
+  path.resolve(process.cwd(), '../tests/fixtures/vendor/tv-marker-geometry-spy-1d-2026-11-26.json'), 'utf8'))
+const TOL = FX.tolerancePx
 
 const PINE_SHAPES = ['shape.circle', 'shape.square', 'shape.diamond', 'shape.triangleup', 'shape.triangledown',
   'shape.arrowup', 'shape.arrowdown', 'shape.labelup', 'shape.labeldown', 'shape.flag', 'shape.cross', 'shape.xcross']
@@ -60,7 +67,7 @@ describe('e99 — thirteen glyphs, each Pine shape its own', () => {
   it('⛔ all thirteen paths are pairwise distinct', () => {
     const paths = Object.entries(GLYPHS).map(([name, fn]) => {
       const ctx = recordingCtx()
-      fn(ctx, 10, 'x')
+      fn(ctx, 10, 10, 'x')
       return [name, JSON.stringify(ctx.ops)]
     })
     const seen = new Map()
@@ -80,8 +87,16 @@ describe('e99 — thirteen glyphs, each Pine shape its own', () => {
 
   it('the char glyph writes the character, not a path', () => {
     const ctx = recordingCtx()
-    expect(GLYPHS.char(ctx, 12, 'B')).toBe('text')
+    expect(GLYPHS.char(ctx, 12, 12, 'B')).toBe('text')
     expect(ctx.ops.find((o) => o[0] === 'fillText')).toEqual(['fillText', 'B', 0, 0])
+  })
+
+  it('the cross and the xcross are strokes of the measured widths (2 px, about 2.4 px)', () => {
+    for (const [name, px] of [['shape.cross', 2], ['shape.xcross', 2.4]]) {
+      const ctx = recordingCtx()
+      expect(GLYPHS[name](ctx, 27, 27)).toBe('stroke')
+      expect(ctx.ops).toContainEqual(['=lineWidth', px])
+    }
   })
 })
 
@@ -97,17 +112,18 @@ describe('e99 — the location', () => {
 
   // a price scale where every anchor lands on a different y: high 110 → 100, low 90 → 300, value 50 → 700
   const toY = (p) => (200 - p) * 10 - 800
-  const at = { high: 110, low: 90, value: 50, paneHeight: 1000, toY, size: 20 }
-  const G = MARKER_GEOMETRY
+  const margins = { top: 0.3, bottom: 0.15 }
+  const at = { high: 110, low: 90, value: 50, paneHeight: 1000, toY, size: 20, margins }
+  const d = MARKER_GEOMETRY.anchorDistance.perSize * 20 - MARKER_GEOMETRY.anchorDistance.lessPx
   it('⭐ abovebar sits above the bar\'s HIGH', () => {
-    expect(placeY('location.abovebar', at)).toBe(toY(110) - G.barGapPx - 10)
+    expect(placeY('location.abovebar', at)).toBe(toY(110) - d)
   })
   it('⭐ belowbar sits below the bar\'s LOW', () => {
-    expect(placeY('location.belowbar', at)).toBe(toY(90) + G.barGapPx + 10)
+    expect(placeY('location.belowbar', at)).toBe(toY(90) + d)
   })
-  it('⭐ top and bottom are measured from the PANE\'s edges, not the bar', () => {
-    expect(placeY('location.top', at)).toBe(G.edgeInsetPx + 10)
-    expect(placeY('location.bottom', at)).toBe(1000 - G.edgeInsetPx - 10)
+  it('⭐ top and bottom are measured from the price scale\'s margin lines, inside them, not from the pane\'s edges', () => {
+    expect(placeY('location.top', at)).toBe(300 + d)
+    expect(placeY('location.bottom', at)).toBe(850 - d)
   })
   it('⭐ absolute is priceToCoordinate(the plotted value), exactly', () => {
     expect(placeY('location.absolute', at)).toBe(toY(50))
@@ -115,6 +131,184 @@ describe('e99 — the location', () => {
   it('no price, no place', () => {
     expect(placeY('location.absolute', { ...at, value: NaN })).toBeNull()
     expect(placeY('location.abovebar', { ...at, toY: () => null })).toBeNull()
+  })
+  it('the margins are the host\'s price scale\'s; LWC\'s default when it does not say', () => {
+    expect(scaleMarginsOf({ priceScale: () => ({ options: () => ({ scaleMargins: { top: 0.25, bottom: 0.1 } }) }) }))
+      .toEqual({ top: 0.25, bottom: 0.1 })
+    expect(scaleMarginsOf({})).toEqual(MARKER_GEOMETRY.fallback.scaleMargins)
+  })
+})
+
+// ─── the measurement, laid out ───────────────────────────────────────────────
+const SIZE_WORDS = ['tiny', 'small', 'normal', 'large', 'huge']
+const PANE = FX.pane
+// the measured pane: 891 px tall, scale margins 25 % / 10 %; high 110 → y 400, low 90 → y 600, value v → 1500 - 10 v
+const HOST = {
+  priceToCoordinate: (p) => 1500 - p * 10,
+  priceScale: () => ({ options: () => ({ scaleMargins: { ...PANE.scaleMargins } }) }),
+}
+const Y_HIGH = HOST.priceToCoordinate(110)
+const Y_LOW = HOST.priceToCoordinate(90)
+
+/** The one entry `layoutMarkers` gives a single marker on one bar. */
+function laidOut(marker, { barSpacing = PANE.barSpacing, value = 100, text = '' } = {}) {
+  const out = layoutMarkers([{ marker, host: HOST, items: [{ time: 1, color: '#2962FF', text, value, high: 110, low: 90 }] }],
+    { timeToCoordinate: () => 500, paneHeight: PANE.height, paneWidth: 1601, barSpacing })
+  expect(out).toHaveLength(1)
+  return out[0]
+}
+const LOC_WORDS = { abovebar: 'location.abovebar', belowbar: 'location.belowbar', top: 'location.top', bottom: 'location.bottom' }
+/** The near-edge gap as the measurement defines it (`FX.nearEdgeGapNote`). */
+const gapOf = (loc, m) => ({
+  abovebar: () => Y_HIGH - (m.y + m.h * 0.5),
+  belowbar: () => (m.y - m.h * 0.5) - Y_LOW,
+  top: () => (m.y - m.h * 0.5) - PANE.marginTopY,
+  bottom: () => PANE.marginBottomY - (m.y + m.h * 0.5),
+}[loc]())
+
+/** Every measured near-edge gap the layout misses by more than the tolerance (`shiftPx` moves every glyph: the control). */
+function gapMisses(shiftPx = 0) {
+  const misses = []
+  let checked = 0
+  for (const [loc, shapes] of Object.entries(FX.nearEdgeGap)) {
+    for (const [shape, bySize] of Object.entries(shapes)) {
+      for (const [sz, measured] of Object.entries(bySize)) {
+        const m = laidOut({ pineShape: `shape.${shape}`, pineLocation: LOC_WORDS[loc], pineSize: `size.${sz}` })
+        const got = gapOf(loc, { ...m, y: m.y + shiftPx })
+        checked += 1
+        if (Math.abs(got - measured) > TOL) misses.push(`${loc}/${shape}/${sz}: measured ${measured}, drawn ${got.toFixed(2)}`)
+      }
+    }
+  }
+  return { misses, checked }
+}
+
+describe('e99 — the geometry is TradingView\'s, as measured (run markers-2026-11-26)', () => {
+  it('the fixture names its run and holds derived numbers only', () => {
+    expect(FX.source.run).toBe('markers-2026-11-26')
+    expect(MARKER_GEOMETRY.source).toContain(FX.source.run)
+    expect(TOL).toBe(2)
+  })
+
+  it('⭐ every measured box (shape x size word) is drawn within the tolerance', () => {
+    const misses = []
+    let checked = 0
+    for (const [shape, bySize] of Object.entries(FX.box)) {
+      for (const [sz, [w, h]] of Object.entries(bySize)) {
+        const m = laidOut({ pineShape: `shape.${shape}`, pineLocation: 'location.abovebar', pineSize: `size.${sz}` })
+        checked += 1
+        if (Math.abs(m.w - w) > TOL || Math.abs(m.h - h) > TOL) misses.push(`${shape}/${sz}: measured ${w}x${h}, drawn ${m.w.toFixed(2)}x${m.h.toFixed(2)}`)
+      }
+    }
+    expect(misses).toEqual([])
+    expect(checked).toBe(60)
+  })
+
+  it('⭐ every measured near-edge gap (abovebar, belowbar, top, bottom) is drawn within the tolerance', () => {
+    const { misses, checked } = gapMisses()
+    expect(misses).toEqual([])
+    expect(checked).toBeGreaterThan(230)
+  })
+
+  it('control: a layout moved by more than the tolerance misses every gap', () => {
+    const { misses, checked } = gapMisses(TOL + 2)
+    // every cell on the side the shift moves away from, and every cell on the other side by more than a tolerance
+    expect(misses.length).toBe(checked)
+  })
+
+  it('⭐ at location.absolute the plotted value is the glyph\'s centre, and a label\'s pointer TIP', () => {
+    const misses = []
+    let checked = 0
+    for (const [shape, bySize] of Object.entries(FX.absoluteCentreMinusValue)) {
+      for (const [sz, measured] of Object.entries(bySize)) {
+        const m = laidOut({ pineShape: `shape.${shape}`, pineLocation: 'location.absolute', pineSize: `size.${sz}` }, { value: 100 })
+        const got = m.y - HOST.priceToCoordinate(100)
+        checked += 1
+        if (Math.abs(got - measured) > TOL) misses.push(`${shape}/${sz}: measured ${measured}, drawn ${got.toFixed(2)}`)
+      }
+    }
+    expect(misses).toEqual([])
+    expect(checked).toBeGreaterThan(20)
+    // the label's tip, exactly: labelup's top edge and labeldown's bottom edge ARE the value's y
+    const up = laidOut({ pineShape: 'shape.labelup', pineLocation: 'location.absolute', pineSize: 'size.normal' })
+    const down = laidOut({ pineShape: 'shape.labeldown', pineLocation: 'location.absolute', pineSize: 'size.normal' })
+    expect(up.y - up.h * 0.5).toBeCloseTo(HOST.priceToCoordinate(100), 9)
+    expect(down.y + down.h * 0.5).toBeCloseTo(HOST.priceToCoordinate(100), 9)
+  })
+
+  it('⭐ the arrow width follows the bar spacing (about half), its height the size word', () => {
+    for (const [spacing, width] of FX.barSpacing.arrowWidth) {
+      for (const shape of ['shape.arrowup', 'shape.arrowdown']) {
+        const m = laidOut({ pineShape: shape, pineLocation: 'location.abovebar', pineSize: 'size.large' }, { barSpacing: spacing })
+        expect(Math.abs(m.w - width), `${shape} at ${spacing}: ${m.w}`).toBeLessThanOrEqual(TOL)
+        expect(Math.abs(m.h - FX.box.arrowup.large[1])).toBeLessThanOrEqual(TOL)
+      }
+    }
+  })
+
+  it('⭐ size.auto (and an unwritten size: Pine\'s default) follows the bar spacing', () => {
+    expect(FX.defaults.plotshape.size).toBe('size.auto')
+    for (const [spacing, edge] of FX.barSpacing.autoBox) {
+      for (const marker of [{ pineShape: 'shape.xcross', pineSize: 'size.auto' }, { pineShape: 'shape.xcross' }]) {
+        const m = laidOut(marker, { barSpacing: spacing })
+        expect(Math.abs(m.w - edge), `${JSON.stringify(marker)} at ${spacing}: ${m.w}`).toBeLessThanOrEqual(TOL)
+        expect(Math.abs(m.h - edge)).toBeLessThanOrEqual(TOL)
+      }
+    }
+    // a fixed size word does NOT follow the spacing (measured at 90, 17.2 and 8.7 px)
+    expect(laidOut({ pineShape: 'shape.square', pineSize: 'size.tiny' }, { barSpacing: 8.73 }).w)
+      .toBe(laidOut({ pineShape: 'shape.square', pineSize: 'size.tiny' }, { barSpacing: 90 }).w)
+  })
+
+  it('the default plotshape (xcross, abovebar, size.auto) sits where the measurement put it', () => {
+    // k0: `plotshape(cond)` 46x46 at 90 spacing, its bottom 44.8 px above the high
+    const m = laidOut({ pineShape: FX.defaults.plotshape.shape, pineLocation: FX.defaults.plotshape.location })
+    expect(Math.abs(gapOf('abovebar', m) - 44.8)).toBeLessThanOrEqual(TOL)
+  })
+})
+
+describe('e99 — no stacking, the last declared on top', () => {
+  const at = { time: 1, color: '#111111', text: '', value: 100, high: 110, low: 90 }
+  const g = (pineShape, color, order) => ({ marker: { pineShape, pineLocation: 'location.abovebar', pineSize: 'size.small' }, host: HOST, items: [{ ...at, color }], order })
+  it('⭐ a marker\'s place never depends on another on its bar', () => {
+    const alone = layoutMarkers([g('shape.square', '#a', 0)], { timeToCoordinate: () => 5, paneHeight: 891 })
+    const both = layoutMarkers([g('shape.circle', '#b', 0), g('shape.square', '#a', 1)], { timeToCoordinate: () => 5, paneHeight: 891 })
+    expect(both[1].y).toBe(alone[0].y)
+  })
+  it('⭐ the last declared plot is painted last (on top), whatever order the layers were made in', () => {
+    const out = layoutMarkers([g('shape.square', '#later', 2), g('shape.circle', '#earlier', 1)], { timeToCoordinate: () => 5, paneHeight: 891 })
+    expect(out.map((m) => m.color)).toEqual(['#earlier', '#later'])
+  })
+})
+
+describe('e99 — text', () => {
+  const item = { time: 1, color: '#ff0000', text: 'Dn', value: 100, high: 110, low: 90 }
+  const paintOne = (marker) => {
+    const [m] = layoutMarkers([{ marker, host: HOST, items: [item] }], { timeToCoordinate: () => 5, paneHeight: 891, barSpacing: 90 })
+    const ctx = recordingCtx()
+    paintMarkers(ctx, [m])
+    return { m, ctx }
+  }
+  it('⭐ a triangle\'s text is in the marker colour when no text colour is given', () => {
+    const { ctx } = paintOne({ pineShape: 'shape.triangledown', pineLocation: 'location.abovebar', pineSize: 'size.small' })
+    const fills = ctx.ops.filter((o) => o[0] === '=fillStyle').map((o) => o[1])
+    expect(fills).toEqual(['#ff0000', '#ff0000'])
+  })
+  it('⭐ above the bar the text sits about 13 px above the shape; below it, about 11 px below (one triangle measured)', () => {
+    const above = paintOne({ pineShape: 'shape.triangledown', pineLocation: 'location.abovebar', pineSize: 'size.small' })
+    const tA = above.ctx.ops.find((o) => o[0] === 'fillText')
+    expect(tA[3]).toBeCloseTo(-above.m.h * 0.5 - FX.text.triangleSmallTextGapAbovePx, 3)
+    const below = paintOne({ pineShape: 'shape.triangleup', pineLocation: 'location.belowbar', pineSize: 'size.small' })
+    const tB = below.ctx.ops.find((o) => o[0] === 'fillText')
+    expect(tB[3] - FX.text.textCapPx).toBeCloseTo(below.m.h * 0.5 + FX.text.triangleSmallTextGapBelowPx, 3)
+  })
+  it('a label grows around its text and keeps its tip on the anchor', () => {
+    const plain = laidOut({ pineShape: 'shape.labeldown', pineLocation: 'location.absolute', pineSize: 'size.normal' })
+    const grown = laidOut({ pineShape: 'shape.labeldown', pineLocation: 'location.absolute', pineSize: 'size.normal' }, { text: 'Ab' })
+    expect(grown.w).toBeGreaterThan(plain.w)
+    expect(Math.abs(grown.w - FX.text.labelNormalWithTextAb[0])).toBeLessThanOrEqual(TOL)
+    expect(Math.abs(grown.h - FX.text.labelNormalWithTextAb[1])).toBeLessThanOrEqual(TOL)
+    expect(grown.y + grown.h * 0.5).toBeCloseTo(plain.y + plain.h * 0.5, 9)
   })
 })
 
@@ -126,24 +320,27 @@ describe('e99 — the layout', () => {
     { time: 300, color: '#0000ff', text: '', value: 1, high: 120, low: 95 },
   ]
   const tx = (t) => (t === 300 ? null : t * 3 + 7)
-  it('⭐ x is timeToCoordinate(bar time) exactly; a bar off the scale draws nothing', () => {
-    const out = layoutMarkers([{ marker: { shape: 'arrowUp', pineShape: 'shape.triangleup', position: 'aboveBar' }, host, items }],
-      { timeToCoordinate: tx, paneHeight: 800 })
+  it('⭐ x is timeToCoordinate(bar time) exactly; a bar off the scale draws nothing; abovebar sits above the bar\'s high', () => {
+    const marker = { shape: 'arrowUp', pineShape: 'shape.triangleup', position: 'aboveBar' }
+    const out = layoutMarkers([{ marker, host, items }], { timeToCoordinate: tx, paneHeight: 800 })
     expect(out.map((m) => m.x)).toEqual([307, 607])
     expect(out.map((m) => m.glyph)).toEqual(['shape.triangleup', 'shape.triangleup'])
-    expect(out[0].y).toBe(1000 - 110 - MARKER_GEOMETRY.barGapPx - sizePxOf({}) / 2)
+    const s = sizePxOf(marker, NaN)
+    const box = boxOf('shape.triangleup', s, NaN)
+    const anchorY = 1000 - 110 - (MARKER_GEOMETRY.anchorDistance.perSize * s - MARKER_GEOMETRY.anchorDistance.lessPx)
+    expect(out[0].y).toBeCloseTo(anchorY - box.anchor * box.h + box.h * 0.5, 9)
   })
   it('text takes the record\'s textColor, and the size word picks the box', () => {
     const [m] = layoutMarkers([{ marker: { shape: 'square', pineShape: 'shape.flag', pineSize: 'size.huge', textColor: '#2962FF' }, host, items: [items[0]] }],
       { timeToCoordinate: tx, paneHeight: 800 })
-    expect(m).toMatchObject({ text: 'B', textColor: '#2962FF', size: MARKER_GEOMETRY.sizePx['size.huge'], textAbove: true })
+    expect(m).toMatchObject({ text: 'B', textColor: '#2962FF', w: MARKER_GEOMETRY.sizePx['size.huge'], textAbove: true })
   })
   it('a hand-authored marker is not laid out here', () => {
     expect(layoutMarkers([{ marker: { shape: 'circle' }, host, items }], { timeToCoordinate: tx, paneHeight: 800 })).toEqual([])
   })
   it('paint draws the glyph at (x, y) in the item colour', () => {
     const ctx = recordingCtx()
-    paintMarkers(ctx, [{ glyph: 'shape.diamond', x: 5, y: 6, size: 10, color: '#abcdef', text: '', char: '', textColor: '#000000', textAbove: true }])
+    paintMarkers(ctx, [{ glyph: 'shape.diamond', x: 5, y: 6, w: 10, h: 10, color: '#abcdef', text: '', char: '', textColor: '#000000', textAbove: true }])
     expect(ctx.ops[1]).toEqual(['translate', 5, 6])
     expect(ctx.ops).toContainEqual(['=fillStyle', '#abcdef'])
     expect(ctx.ops).toContainEqual(['fill'])
@@ -166,7 +363,7 @@ function stripComments(src) {
 }
 /** Every numeric literal of `src` outside the `MARKER_GEOMETRY` table, other than 0, 1, 2 and 0.5. */
 function strayNumbers(src) {
-  const code = stripComments(src)
+  const code = stripComments(src.replace(/\r\n/g, '\n'))
   const start = code.indexOf('export const MARKER_GEOMETRY = Object.freeze({')
   const end = start < 0 ? -1 : code.indexOf('\n})', start)
   const outside = start < 0 ? code : code.slice(0, start) + code.slice(end + 3)
@@ -175,7 +372,7 @@ function strayNumbers(src) {
     .filter((n) => !['0', '1', '2', '0.5'].includes(n))
 }
 
-describe('e99 — ONE provisional geometry table', () => {
+describe('e99 — ONE geometry table', () => {
   const src = fs.readFileSync(path.resolve(process.cwd(), 'src/components/chart/engine/markerCanvas.js'), 'utf8')
   it('control: a stray number outside the table is found, one inside is not', () => {
     const fake = 'const a = 3\nexport const MARKER_GEOMETRY = Object.freeze({\n  b: 7,\n})\nconst c = 0.5 * 2 // 9\n'
@@ -184,9 +381,11 @@ describe('e99 — ONE provisional geometry table', () => {
   it('⛔ markerCanvas.js holds no geometry number outside MARKER_GEOMETRY', () => {
     expect(strayNumbers(src)).toEqual([])
   })
-  it('the table is provisional (no pixel read has pinned it)', () => {
-    expect(MARKER_GEOMETRY.provisional).toBe(true)
-    expect(Object.keys(MARKER_GEOMETRY.sizePx)).toEqual(['size.tiny', 'size.small', 'size.normal', 'size.large', 'size.huge', 'size.auto'])
+  it('the table names its source run and what it does not pin', () => {
+    expect(MARKER_GEOMETRY).not.toHaveProperty('provisional')
+    expect([...MARKER_GEOMETRY.unmeasured].sort()).toEqual(['absoluteTriangle', 'char', 'text'])
+    expect(Object.keys(MARKER_GEOMETRY.sizePx)).toEqual(['size.tiny', 'size.small', 'size.normal', 'size.large', 'size.huge'])
+    expect(Object.keys(MARKER_GEOMETRY.box).sort()).toEqual([...PINE_SHAPES, 'char'].sort())
   })
 })
 
@@ -198,10 +397,24 @@ describe('e99 — the record', () => {
     expect(markerCanvasEnabled({ [FLAG]: '1' })).toBe(true)
     expect(markerCanvasEnabled({ [FLAG]: 'true' })).toBe(false)
   })
-  it('⭐ ON: no shape or pane-edge substitution, and geometryApprox while the table is provisional', () => {
-    const r = canvasMarkerRecord(tri, true)
-    expect(r).toMatchObject({ shapeApprox: false, positionApprox: false, geometryApprox: true, shape: 'arrowUp', pineShape: 'shape.triangleup' })
+  it('⭐ ON: no shape or pane-edge substitution, and a pinned marker is not geometryApprox', () => {
+    const r = canvasMarkerRecord({ ...tri, geometryApprox: true }, true)
+    expect(r).toMatchObject({ shapeApprox: false, positionApprox: false, shape: 'arrowUp', pineShape: 'shape.triangleup' })
+    expect(r).not.toHaveProperty('geometryApprox')
     expect(tri.shapeApprox).toBe(true)
+  })
+  it('⭐ ON: geometryApprox for an unmeasured fact, and each fact named', () => {
+    const text = { ...tri, text: 'Up' }
+    const absTri = { ...tri, pineLocation: 'location.absolute', position: 'inBar', positionApprox: undefined }
+    const char = { shape: 'circle', pineShape: null, text: '★', shapeApprox: true, pineLocation: 'location.abovebar' }
+    expect(canvasMarkerRecord(text, true).geometryApprox).toBe(true)
+    expect(canvasMarkerRecord(absTri, true).geometryApprox).toBe(true)
+    expect(canvasMarkerRecord(char, true).geometryApprox).toBe(true)
+    expect(unmeasuredGeometryOf(text)).toEqual(['text'])
+    expect(unmeasuredGeometryOf(absTri)).toEqual(['absoluteTriangle'])
+    expect(unmeasuredGeometryOf(char)).toEqual(['char'])
+    expect(unmeasuredGeometryOf({ pineShape: 'shape.square', pineLocation: 'location.absolute' })).toEqual([])
+    expect(unmeasuredGeometryOf({ shape: 'circle' })).toEqual([])
   })
   it('a hand-authored marker is never touched', () => {
     const m = { shape: 'circle', position: 'belowBar' }
@@ -210,7 +423,7 @@ describe('e99 — the record', () => {
   it('reads the gate by default', () => {
     expect(canvasMarkerRecord(tri)).toBe(tri)
     vi.stubEnv(FLAG, '1')
-    expect(canvasMarkerRecord(tri).geometryApprox).toBe(true)
+    expect(canvasMarkerRecord(tri).shapeApprox).toBe(false)
   })
 })
 
@@ -229,6 +442,11 @@ function fakeHost(name) {
 const HOOKS = {
   attach: (host, primitive) => host.attachPrimitive(primitive),
   detach: (host, primitive) => host.detachPrimitive(primitive),
+}
+const drawPane = (prim, { width = 400, height = 300 } = {}) => {
+  const ctx = recordingCtx()
+  prim.paneViews()[0].renderer().drawBackground({ useMediaCoordinateSpace: (f) => f({ context: ctx, mediaSize: { width, height } }) })
+  return ctx
 }
 
 describe('e99 — one primitive per pane', () => {
@@ -268,13 +486,44 @@ describe('e99 — one primitive per pane', () => {
   it('⭐ the primitive draws every plot of its pane, on its own bar, off the host\'s high', () => {
     const reg = createMarkerCanvasRegistry(HOOKS)
     const a = fakeHost('a')
-    reg.layerFor({ host: a, paneIndex: 0 }).set([{ time: 10, color: '#111111', value: 1 }], { pineShape: 'shape.diamond', pineLocation: 'location.abovebar' })
+    const marker = { pineShape: 'shape.diamond', pineLocation: 'location.abovebar', pineSize: 'size.normal' }
+    reg.layerFor({ host: a, paneIndex: 0 }).set([{ time: 10, color: '#111111', value: 1 }], marker)
     const prim = a.calls[0][1]
     prim.attached({ chart: { timeScale: () => ({ timeToCoordinate: (t) => t * 2 }) }, requestUpdate: () => {} })
-    const ctx = recordingCtx()
-    prim.paneViews()[0].renderer().draw({ useMediaCoordinateSpace: (f) => f({ context: ctx, mediaSize: { width: 400, height: 300 } }) })
-    const y = 500 - 105 - MARKER_GEOMETRY.barGapPx - sizePxOf({}) / 2
-    expect(ctx.ops).toContainEqual(['translate', 20, y])
+    const s = MARKER_GEOMETRY.sizePx['size.normal']
+    const y = 500 - 105 - (MARKER_GEOMETRY.anchorDistance.perSize * s - MARKER_GEOMETRY.anchorDistance.lessPx)
+    expect(drawPane(prim).ops).toContainEqual(['translate', 20, y])
+  })
+  it('⭐ the candles paint over the markers: the view is LWC\'s normal layer and draws only in its background pass', () => {
+    const reg = createMarkerCanvasRegistry(HOOKS)
+    const a = fakeHost('a')
+    reg.layerFor({ host: a, paneIndex: 0 }).set([], { pineShape: 'shape.flag' })
+    const view = a.calls[0][1].paneViews()[0]
+    expect(view.zOrder()).toBe('normal')
+    expect(typeof view.renderer().drawBackground).toBe('function')
+    expect(view.renderer().draw).toBeUndefined()
+  })
+  it('⭐ the time scale\'s bar spacing reaches the layout (an arrow is half of it wide)', () => {
+    const reg = createMarkerCanvasRegistry(HOOKS)
+    const a = fakeHost('a')
+    reg.layerFor({ host: a, paneIndex: 0 }).set([{ time: 10, color: '#111111', value: 1 }],
+      { pineShape: 'shape.arrowup', pineLocation: 'location.abovebar', pineSize: 'size.large' })
+    const prim = a.calls[0][1]
+    prim.attached({ chart: { timeScale: () => ({ timeToCoordinate: (t) => t * 2, options: () => ({ barSpacing: 90 }) }) } })
+    const head = drawPane(prim).ops.filter((o) => o[0] === 'lineTo').map((o) => o[1])
+    expect(Math.max(...head)).toBeCloseTo(MARKER_GEOMETRY.box['shape.arrowup'].wPerBarSpacing * 90 * 0.5, 6)
+  })
+  it('⭐ the pane paints its plots in declaration order, the later layer made first', () => {
+    const reg = createMarkerCanvasRegistry(HOOKS)
+    const a = fakeHost('a')
+    const later = reg.layerFor({ host: a, paneIndex: 0, order: 5 })
+    const earlier = reg.layerFor({ host: a, paneIndex: 0, order: 1 })
+    later.set([{ time: 10, color: '#later', value: 1 }], { pineShape: 'shape.square', pineLocation: 'location.abovebar' })
+    earlier.set([{ time: 10, color: '#earlier', value: 1 }], { pineShape: 'shape.circle', pineLocation: 'location.abovebar' })
+    const prim = a.calls[0][1]
+    prim.attached({ chart: { timeScale: () => ({ timeToCoordinate: (t) => t * 2 }) } })
+    const fills = drawPane(prim).ops.filter((o) => o[0] === '=fillStyle').map((o) => o[1])
+    expect(fills).toEqual(['#earlier', '#later'])
   })
 })
 
@@ -329,14 +578,16 @@ describe('e99 — the binder', () => {
     expect(h.PRICE.calls.filter((c) => c[0] === 'attach')).toHaveLength(1)
     const prim = h.PRICE.calls[0][1]
     prim.attached({ chart: { timeScale: () => ({ timeToCoordinate: (t) => t - 1700000000 }) }, requestUpdate: () => {} })
-    const ctx = recordingCtx()
-    prim.paneViews()[0].renderer().draw({ useMediaCoordinateSpace: (f) => f({ context: ctx, mediaSize: { width: 1000, height: 600 } }) })
-    const half = sizePxOf(TRI) / 2
+    const ctx = drawPane(prim, { width: 1000, height: 600 })
+    const s = sizePxOf(TRI, NaN)
+    const box = boxOf('shape.triangleup', s, NaN)
+    const d = MARKER_GEOMETRY.anchorDistance.perSize * s - MARKER_GEOMETRY.anchorDistance.lessPx
+    const centre = (low) => 500 - low + d - box.anchor * box.h + box.h * 0.5
     // on the bar's own x, below THAT bar's low (the candles' lows differ bar to bar)
-    expect(ctx.ops.filter((o) => o[0] === 'translate')).toEqual([
-      ['translate', 60, 500 - BARS[1].l + MARKER_GEOMETRY.barGapPx + half],
-      ['translate', 240, 500 - BARS[4].l + MARKER_GEOMETRY.barGapPx + half],
-    ])
+    const tr = ctx.ops.filter((o) => o[0] === 'translate')
+    expect(tr.map((o) => o[1])).toEqual([60, 240])
+    expect(tr[0][2]).toBeCloseTo(centre(BARS[1].l), 2)
+    expect(tr[1][2]).toBeCloseTo(centre(BARS[4].l), 2)
   })
   it('ON: a hand-authored marker stays on the LWC markers', () => {
     vi.stubEnv(FLAG, '1')

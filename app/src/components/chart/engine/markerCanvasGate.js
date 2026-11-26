@@ -5,8 +5,10 @@
 // `markerCanvas.js` draws every `plotshape` / `plotchar` style TradingView draws
 // (twelve shapes and a character, at the pane's top / bottom, the bar's high /
 // low, or the plotted value) where lightweight-charts' series markers draw four
-// shapes at the bar. Its geometry (glyph sizes, offsets) is a PROVISIONAL table
-// until the pixel read of TradingView's markers pins it, so it arrives OFF.
+// shapes at the bar. Its geometry (glyph sizes, offsets) is pinned from FRED RS's
+// measurement of TradingView (run markers-2026-11-26) except a marker's text, a
+// `plotchar`'s character size and a triangle's anchor at `location.absolute`; it
+// arrives OFF until a real-browser check against TradingView.
 // Off, every marker is drawn by the LWC series markers exactly as before.
 //
 // ⭐ THE CONVENTION IS `runtimePaneGate.js`'S: default OFF means `=== '1'`, the

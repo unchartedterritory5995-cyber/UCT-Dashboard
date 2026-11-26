@@ -5,8 +5,8 @@
    "id": "MC-1",
    "mutant": "a shape substituted: shape.triangleup drawn with the arrow-up path",
    "file": "app/src/components/chart/engine/markerCanvas.js",
-   "from": "  'shape.triangleup': (ctx, s) => { poly(ctx, s, TRIANGLE_UP); return 'fill' },",
-   "to": "  'shape.triangleup': (ctx, s) => { poly(ctx, s, ARROW_UP()); return 'fill' },",
+   "from": "  'shape.triangleup': (ctx, w, h) => { poly(ctx, triangleUp(w, h)); return 'fill' },",
+   "to": "  'shape.triangleup': (ctx, w, h) => { poly(ctx, arrowUp(w, h)); return 'fill' },",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/markerCanvas.test.js",
    "expectRed": "all thirteen paths are pairwise distinct"
   },
@@ -39,12 +39,12 @@
   },
   {
    "id": "MC-5",
-   "mutant": "geometryApprox dropped while the geometry table is provisional",
+   "mutant": "geometryApprox dropped for a marker that touches an unmeasured fact",
    "file": "app/src/components/chart/engine/markerCanvas.js",
-   "from": "  if (MARKER_GEOMETRY.provisional) out.geometryApprox = true",
+   "from": "  if (unmeasuredGeometryOf(marker).length) out.geometryApprox = true",
    "to": "  if (false) out.geometryApprox = true",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/markerCanvas.test.js",
-   "expectRed": "geometryApprox while the table is provisional"
+   "expectRed": "geometryApprox for an unmeasured fact"
   },
   {
    "id": "MC-6",
@@ -53,7 +53,7 @@
    "from": "    if (m.geometryApprox === true) {",
    "to": "    if (false) {",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/markerCanvasNotes.test.js",
-   "expectRed": "its geometry is said"
+   "expectRed": "the door names the fact"
   },
   {
    "id": "MC-7",
@@ -62,7 +62,7 @@
    "from": "  const y = at(high)",
    "to": "  const y = at(low)",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/markerCanvas.test.js",
-   "expectRed": "sits above the bar"
+   "expectRed": "abovebar sits above the bar"
   },
   {
    "id": "MC-8",
@@ -77,8 +77,8 @@
    "id": "MC-9",
    "mutant": "a geometry constant written outside MARKER_GEOMETRY (same value, second authority)",
    "file": "app/src/components/chart/engine/markerCanvas.js",
-   "from": "  if (location === 'location.top') return MARKER_GEOMETRY.edgeInsetPx + half",
-   "to": "  if (location === 'location.top') return 4 + half",
+   "from": "  const d = G.anchorDistance.perSize * size - G.anchorDistance.lessPx",
+   "to": "  const d = 1.5 * size - G.anchorDistance.lessPx",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/markerCanvas.test.js",
    "expectRed": "holds no geometry number outside MARKER_GEOMETRY"
   },
@@ -117,6 +117,168 @@
    "to": "      void primitive",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/markerCanvas.test.js",
    "expectRed": "ON: the Pine marker is drawn by the pane"
+  },
+  {
+   "id": "MC-14",
+   "mutant": "the measured anchor distance moved (1.5 S - 2 -> 1.4 S - 2)",
+   "file": "app/src/components/chart/engine/markerCanvas.js",
+   "from": "  anchorDistance: Object.freeze({ perSize: 1.5, lessPx: 2 }),",
+   "to": "  anchorDistance: Object.freeze({ perSize: 1.4, lessPx: 2 }),",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/markerCanvas.test.js",
+   "expectRed": "every measured near-edge gap"
+  },
+  {
+   "id": "MC-15",
+   "mutant": "location.top measured from the pane's top edge instead of the price scale's top margin line",
+   "file": "app/src/components/chart/engine/markerCanvas.js",
+   "from": "  if (location === 'location.top') return Number.isFinite(paneHeight) ? margins.top * paneHeight + d : null",
+   "to": "  if (location === 'location.top') return Number.isFinite(paneHeight) ? d : null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/markerCanvas.test.js",
+   "expectRed": "measured from the price scale's margin lines"
+  },
+  {
+   "id": "MC-16",
+   "mutant": "location.bottom measured from the pane's bottom edge instead of the price scale's bottom margin line",
+   "file": "app/src/components/chart/engine/markerCanvas.js",
+   "from": "  if (location === 'location.bottom') return Number.isFinite(paneHeight) ? paneHeight * (1 - margins.bottom) - d : null",
+   "to": "  if (location === 'location.bottom') return Number.isFinite(paneHeight) ? paneHeight - d : null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/markerCanvas.test.js",
+   "expectRed": "measured from the price scale's margin lines"
+  },
+  {
+   "id": "MC-17",
+   "mutant": "the time scale's bar spacing never reaches the layout",
+   "file": "app/src/components/chart/engine/markerCanvas.js",
+   "from": "            barSpacing: barSpacingOf(ts),",
+   "to": "            barSpacing: NaN,",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/markerCanvas.test.js",
+   "expectRed": "bar spacing reaches the layout"
+  },
+  {
+   "id": "MC-18",
+   "mutant": "an arrow drawn at the size word's width instead of half the bar spacing",
+   "file": "app/src/components/chart/engine/markerCanvas.js",
+   "from": "  const w = Number.isFinite(b.wPerBarSpacing) ? b.wPerBarSpacing * spacingOr(barSpacing) : b.w * size",
+   "to": "  const w = Number.isFinite(b.wPerBarSpacing) ? size : b.w * size",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/markerCanvas.test.js",
+   "expectRed": "arrow width follows the bar spacing"
+  },
+  {
+   "id": "MC-19",
+   "mutant": "size.auto (and an unwritten size) drawn at a fixed size instead of following the bar spacing",
+   "file": "app/src/components/chart/engine/markerCanvas.js",
+   "from": "  return G.autoSize.perBarSpacing * spacingOr(barSpacing) + G.autoSize.plusPx",
+   "to": "  return G.sizePx['size.normal']",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/markerCanvas.test.js",
+   "expectRed": "size.auto (and an unwritten size"
+  },
+  {
+   "id": "MC-20",
+   "mutant": "the declaration order dropped: plots painted in the order their layers were made",
+   "file": "app/src/components/chart/engine/markerCanvas.js",
+   "from": "  const ordered = [...groups].sort((a, b) => orderOf(a) - orderOf(b))",
+   "to": "  const ordered = [...groups]",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/markerCanvas.test.js",
+   "expectRed": "the last declared plot is painted last"
+  },
+  {
+   "id": "MC-21",
+   "mutant": "the markers drawn on the top layer (over the candles and the crosshair)",
+   "file": "app/src/components/chart/engine/markerCanvas.js",
+   "from": "    const view = { zOrder: () => 'normal', renderer: () => renderer }",
+   "to": "    const view = { zOrder: () => 'top', renderer: () => renderer }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/markerCanvas.test.js",
+   "expectRed": "the candles paint over the markers"
+  },
+  {
+   "id": "MC-22",
+   "mutant": "the markers drawn in the series layer's foreground pass (over the candles)",
+   "file": "app/src/components/chart/engine/markerCanvas.js",
+   "from": "      drawBackground(target) {",
+   "to": "      draw(target) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/markerCanvas.test.js",
+   "expectRed": "the candles paint over the markers"
+  },
+  {
+   "id": "MC-23",
+   "mutant": "a label anchored at its centre instead of its pointer tip",
+   "file": "app/src/components/chart/engine/markerCanvas.js",
+   "from": "    'shape.labelup': Object.freeze({ w: 0.7, h: 1.14, anchor: 0 }),",
+   "to": "    'shape.labelup': Object.freeze({ w: 0.7, h: 1.14, anchor: 0.5 }),",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/markerCanvas.test.js",
+   "expectRed": "pointer TIP"
+  },
+  {
+   "id": "MC-24",
+   "mutant": "text without a text colour drawn black instead of in the marker colour",
+   "file": "app/src/components/chart/engine/markerCanvas.js",
+   "from": "        textColor: g.marker.textColor || it.color,",
+   "to": "        textColor: g.marker.textColor || '#000000',",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/markerCanvas.test.js",
+   "expectRed": "text is in the marker colour"
+  },
+  {
+   "id": "MC-25",
+   "mutant": "the text above a shape drawn touching it (the measured gap dropped)",
+   "file": "app/src/components/chart/engine/markerCanvas.js",
+   "from": "        y = -m.h * 0.5 - TEXT.gapAbovePx",
+   "to": "        y = -m.h * 0.5",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/markerCanvas.test.js",
+   "expectRed": "13 px above the shape"
+  },
+  {
+   "id": "MC-26",
+   "mutant": "every canvas marker recorded geometryApprox (a pinned marker said to be approximate)",
+   "file": "app/src/components/chart/engine/markerCanvas.js",
+   "from": "  if (unmeasuredGeometryOf(marker).length) out.geometryApprox = true",
+   "to": "  out.geometryApprox = true",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/markerCanvas.test.js",
+   "expectRed": "a pinned marker is not geometryApprox"
+  },
+  {
+   "id": "MC-27",
+   "mutant": "a triangle at location.absolute (anchor not measured) not named approximate",
+   "file": "app/src/components/chart/engine/markerCanvas.js",
+   "from": "  if ((glyph === 'shape.triangleup' || glyph === 'shape.triangledown') && locationOf(marker) === 'location.absolute') {",
+   "to": "  if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/markerCanvas.test.js",
+   "expectRed": "geometryApprox for an unmeasured fact"
+  },
+  {
+   "id": "MC-28",
+   "mutant": "the member door says the generic sentence instead of naming the unmeasured fact",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "        const say = GEOMETRY_SENTENCES[fact] || GEOMETRY_SENTENCES.geometry",
+   "to": "        const say = GEOMETRY_SENTENCES.geometry",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/markerCanvasNotes.test.js",
+   "expectRed": "the door names the fact"
+  },
+  {
+   "id": "MC-29",
+   "mutant": "the host's price-scale margins ignored (LWC's default margins always)",
+   "file": "app/src/components/chart/engine/markerCanvas.js",
+   "from": "    const margins = scaleMarginsOf(g.host)",
+   "to": "    const margins = G.fallback.scaleMargins",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/markerCanvas.test.js",
+   "expectRed": "every measured near-edge gap"
+  },
+  {
+   "id": "MC-30",
+   "mutant": "a triangle anchored at its box centre instead of its centroid",
+   "file": "app/src/components/chart/engine/markerCanvas.js",
+   "from": "    'shape.triangleup': Object.freeze({ w: 1.04, h: 1, anchor: 2 / 3 }),",
+   "to": "    'shape.triangleup': Object.freeze({ w: 1.04, h: 1, anchor: 0.5 }),",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/markerCanvas.test.js",
+   "expectRed": "every measured near-edge gap"
+  },
+  {
+   "id": "MC-31",
+   "mutant": "a cross drawn with a stroke wider than the measured 2 px",
+   "file": "app/src/components/chart/engine/markerCanvas.js",
+   "from": "  strokePx: Object.freeze({ 'shape.cross': 2, 'shape.xcross': 2.4 }),",
+   "to": "  strokePx: Object.freeze({ 'shape.cross': 3, 'shape.xcross': 2.4 }),",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/markerCanvas.test.js",
+   "expectRed": "strokes of the measured widths"
   }
  ]
 }
