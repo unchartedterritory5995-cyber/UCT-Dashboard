@@ -58,25 +58,29 @@ const maPlot = (def) => def.plots.find((p) => p.label === 'MA')
 describe('e98 E3 — an Offset only the plot reads is the member\'s setting, on both lanes', () => {
   for (const runtime of [false, true]) {
     const lane = runtime ? 'runtime' : 'host'
+    // ⭐ the setting's KEY: on the host lane the key the input's old PARAMETER was projected under (`param1003`: the
+    // Offset is the script's 3rd input call, `__uct_param_1003`), so a member's saved value lands on it; on the runtime
+    // lane its Pine name, as every runtime setting is keyed
+    const KEY = runtime ? 'offset' : 'param1003'
     for (const dflt of [0, 3, -2]) {
       it(`${lane}, default ${dflt}: an int setting with the author's bounds, drawn at the member's value either side`, () => {
         const { definition: def } = door(MA(dflt), { runtime })
-        const off = def.inputs.find((i) => i.key === 'offset')
-        expect(off, 'the Offset setting').toMatchObject({ type: 'int', default: dflt, min: -500, max: 500 })
+        const off = def.inputs.find((i) => i.key === KEY)
+        expect(off, 'the Offset setting').toMatchObject({ type: 'int', label: 'Offset', default: dflt, min: -500, max: 500 })
         const plot = maPlot(def)
-        expect(plot.displaceInput).toEqual({ key: 'offset', scale: 1, add: 0 })
+        expect(plot.displaceInput).toEqual({ key: KEY, scale: 1, add: 0 })
         expect(plot.displace, 'one authority over the drawing').toBeUndefined()
         expect(drawShiftOf(plot, def, {})).toBe(dflt)
-        expect(drawShiftOf(plot, def, { offset: 5 })).toBe(5)
-        expect(drawShiftOf(plot, def, { offset: -7 })).toBe(-7)
+        expect(drawShiftOf(plot, def, { [KEY]: 5 })).toBe(5)
+        expect(drawShiftOf(plot, def, { [KEY]: -7 })).toBe(-7)
       })
     }
     it(`${lane}: an arithmetic offset on the setting (-offset + 1) keeps its relation`, () => {
       const { definition: def } = door(MA(4, '-offset + 1'), { runtime })
       const plot = maPlot(def)
-      expect(plot.displaceInput).toEqual({ key: 'offset', scale: -1, add: 1 })
+      expect(plot.displaceInput).toEqual({ key: KEY, scale: -1, add: 1 })
       expect(drawShiftOf(plot, def, {})).toBe(-3)
-      expect(drawShiftOf(plot, def, { offset: -2 })).toBe(3)
+      expect(drawShiftOf(plot, def, { [KEY]: -2 })).toBe(3)
     })
   }
 

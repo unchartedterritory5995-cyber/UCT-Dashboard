@@ -88,6 +88,8 @@ import { BUILDER_INPUT_SCOPE, seriesNamesOf, memberInputKey, inputsFromFolded } 
 // ⭐⭐ e96 — a Pine `hline` drawn as the level it is, one authority for both doors.
 import { hlineGuides, hlineNotReproducedNote, hlineWithheldNote, hlineOrdinalOf } from '../../engine/hlineLevels'
 import { hiddenAtLeafDefaults, knobTestAtLeafDefaults } from '../../engine/knobBind.js'
+// ⭐ e98 E3 — a displacement setting keyed where the old parameter's projected setting was (no member edit is lost)
+import { paramInputKey } from '../../engine/paramInputs.js'
 // ⭐ RS RATING L3 — the substituted-value disclosure (`syminfo.industry` / `sector` from UCT data).
 import { substitutionNotesFor, otherSymbolSourceNotesFor } from '../../engine/ast/symbolSubstitution'
 
@@ -325,9 +327,11 @@ function lineStyleRowOf(o, style, notes) {
  *  `displace` (today's field); a rightward or zero default draws at the bar that computed it, and is SAID by name.
  *  `pending`: Map row -> the output's `displaceSetting`. */
 const DISPLACE_PENDING = Symbol('e98 E3 displace pending')
-export function settleDisplaceInputs(rows, pending, inputs, notes, { entries = null } = {}) {
+export function settleDisplaceInputs(rows, pending, inputs, notes, { entries = null, byParam = false } = {}) {
   const added = []
-  if (!pending || !pending.size) return added
+  const dropped = new Set()
+  const out = Object.assign(added, { dropped })
+  if (!pending || !pending.size) return out
   const list = Array.isArray(inputs) ? inputs : []
   const taken = new Set(list.map((x) => x && x.key).filter(Boolean))
   const mintedFor = new Map()
@@ -335,6 +339,23 @@ export function settleDisplaceInputs(rows, pending, inputs, notes, { entries = n
     if (!row || !s) continue
     let spec = mintedFor.get(s.name)
       || list.find((x) => x && (x.key === s.name || x.key === memberInputKey(s.name)) && x.type === 'int')
+    // ⭐⭐ NO MEMBER EDIT IS LOST (coordinator ruling 2026-11-25). On the host lane (`byParam`) the input was a
+    // PARAMETER before E3 (`param<N>`, the chart setting `paramInputs.js` projects from `compute.paramManifest`), and a
+    // member's saved value sits on the instance under that key. So the setting takes that key (`paramInputKey` of the
+    // id the translator says the input holds, `displaceSetting.paramId`): the value a member saved lands on it.
+    if (byParam && s.paramId && !mintedFor.has(s.name)) {
+      const key = paramInputKey(s.paramId)
+      const e = entries && entries.get(s.name)
+      const dflt = spec ? spec.default : Number(e && e.folded)
+      if (key && Number.isInteger(dflt) && !list.some((x) => x && x.key === key)) {
+        const base = spec || { type: 'int', label: (e && e.title) || s.name,
+          ...(e && Number.isInteger(e.min) ? { min: e.min } : {}), ...(e && Number.isInteger(e.max) ? { max: e.max } : {}) }
+        if (spec) dropped.add(spec.key)
+        spec = { ...base, key, default: dflt }
+        added.push(spec)
+        mintedFor.set(s.name, spec)
+      }
+    }
     // ⭐ A NAME THAT CANNOT KEY A MEMBER INPUT (`OR_pos`: upper-case first) still IS the member's setting: no tree reads
     // it, so its key is free. Minted from the translation's own folded entry (`entries`: its title, default and the
     // author's bounds) as the first legal, unused spelling, so the drawing never loses the author's shift.
@@ -361,7 +382,7 @@ export function settleDisplaceInputs(rows, pending, inputs, notes, { entries = n
     notes.push({ name, note: `\`${name}\` is drawn at the bar that computed it: its \`offset\` setting \`${s.name}\` `
       + 'cannot be offered as a setting here' + (s.at > 0 ? `, so its default shift of ${s.at} bars to the right is not drawn` : '') + '.' })
   }
-  return added
+  return out
 }
 
 /** ⭐ e98 E3 — the translation's folded entries of the displacement settings, by Pine name (title, default, bounds). */
@@ -1348,6 +1369,7 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
   drawable.forEach((o, i) => { if (o && o.displaceSetting && rows[i]) displacePending.set(rows[i], o.displaceSetting) })
   // the settings minted for a name that cannot key an input (`settleDisplaceInputs`), appended after every other input
   const displaceSpecs = []
+  const displaceDropped = new Set()
   // ⛔ A BAND BETWEEN TWO PLOTS DRAWN AT DIFFERENT DISPLACEMENTS IS REFUSED BY NAME.
   // Each edge would be drawn where its own plot is, but which bar's colour a band
   // takes when its edges disagree is not something this door has measured against
@@ -1520,8 +1542,12 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
     // ⭐ e98 E1 — the same rule for a line style a setting decides (`lineStyleWhen`): the style at the defaults
     settleLineStyleWhen(rows, declaredKeys)
     // ⭐ e98 E3 — and a displacement a setting decides: the member's int setting, or its default (`settleDisplaceInputs`)
-    displaceSpecs.push(...settleDisplaceInputs(rows, displacePending, docInputs, inputActiveNotes,
-      { entries: displaceEntriesOf(t.outputs) }))
+    {
+      const settled = settleDisplaceInputs(rows, displacePending, docInputs, inputActiveNotes,
+        { entries: displaceEntriesOf(t.outputs), byParam: true })
+      displaceSpecs.push(...settled)
+      for (const k of settled.dropped) displaceDropped.add(k)
+    }
     // ⭐ e97 U7 — the same rule for a band, a paint and a level: decided at the setting's default when the setting did
     // not come across. A band or paint hidden there is not carried (TradingView draws none until the member moves it,
     // and this document then has no control to move); a level hidden there is not drawn.
@@ -1570,7 +1596,8 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
       mode: primary.mode,
       readback: primary.readback,
       // ⭐ e98 E2 — each setting's `active =`, greyed as TradingView greys it (`withInputActive`)
-      inputs: withInputActive(displaceSpecs.length ? [...(docInputs || []), ...displaceSpecs] : docInputs,
+      inputs: withInputActive(displaceSpecs.length
+        ? [...(docInputs || []).filter((x) => !(x && displaceDropped.has(x.key))), ...displaceSpecs] : docInputs,
         (t.presentation || {}).inputActive, { notes: inputActiveNotes,
         params: new Map(Object.values(manifest).filter((m) => m && m.sourceName).map((m) => [m.sourceName, m.title || m.sourceName])) }),
       plots: rows.length ? rows : [primary],

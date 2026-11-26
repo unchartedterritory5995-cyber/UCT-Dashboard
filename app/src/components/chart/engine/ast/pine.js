@@ -37038,6 +37038,11 @@ function affineDisplacement(node) {
  *  (`foldDisplacement` -> `displaceSetting`). An input read anywhere else (a value, a colour, a paint's offset, a
  *  reassignment) keeps today's fold, untouched. */
 const OFFSET_SETTING_CALLS = new Set(['plot', 'plotshape', 'plotchar'])
+/** ⭐ e98 E3 — TEST SEAM: the rule off (`false`) translates every offset as before E3 (the fold), so a rail can prove a
+ *  saved document's move is exactly this unit's (`savedDocumentRoundTrip.test.js`, as Q-BH0's seam does). On for
+ *  every member. */
+let OFFSET_SETTINGS_ON = true
+export function __offsetSettingsForTests(on = true) { OFFSET_SETTINGS_ON = on !== false }
 
 /** ⭐ e98 E3 — an input bound (`minval` / `maxval`) as the number it folds to: a `num`, or `u-` over one (the engine's
  *  canonical negative, `cNum` mints no negative literal); null for anything else. ⚰️ The readers took a `num` only, so
@@ -37049,6 +37054,7 @@ function inputBoundValue(v) {
   return null
 }
 function offsetSettingInputs(stmts, tokens) {
+  if (!OFFSET_SETTINGS_ON) return new Map()
   // a token by its place in the source (a statement's header may hold copies of the lexer's tokens)
   const tokenAt = (t) => (Number.isFinite(t.index) ? `i${t.index}` : `${t.line}:${t.column}`)
   const decls = new Map()
@@ -37057,7 +37063,7 @@ function offsetSettingInputs(stmts, tokens) {
     const h = st.header || []
     if (h[0] && h[0].kind === 'ident' && isPunct(h[1], '=') && h[2] && h[2].kind === 'ident' && h[2].value === 'input.int'
         && isPunct(h[3], '(')) {
-      decls.set(h[0].value, decls.has(h[0].value) ? null : h[0])
+      decls.set(h[0].value, decls.has(h[0].value) ? null : Object.assign(Object.create(null), h[0], { callTok: h[2] }))
     }
     let k = 0
     if (h[0] && h[0].kind === 'ident' && isPunct(h[1], '=')) k = 2
@@ -37066,7 +37072,7 @@ function offsetSettingInputs(stmts, tokens) {
     const a = callNamedArgToks(h.slice(k), 'offset')
     if (a) for (const t of a.value) spans.add(tokenAt(t))
   }
-  const out = new Set()
+  const out = new Map()
   for (const [name, declTok] of decls) {
     if (!declTok) continue
     let used = 0
@@ -37080,7 +37086,7 @@ function offsetSettingInputs(stmts, tokens) {
       if (spans.has(tokenAt(t))) used += 1
       else { elsewhere = true; break }
     }
-    if (used && !elsewhere) out.add(name)
+    if (used && !elsewhere) out.set(name, declTok.callTok)
   }
   return out
 }
@@ -37127,7 +37133,14 @@ function foldDisplacement(resolver, seriesArg, settings = null) {
     const value = constant === null ? NaN : Number(constant)
     if (Number.isInteger(value)) {
       resolver.displaceSettingInputs.add(setting.name)
-      return { shift: value, paramId: undefined, displaceFrom: null, displaceParams: [], setting }
+      // ⭐ the PARAMETER ID this input held before E3 (or would hold: the call's place in the source, a pinned script's
+      // legacy id), so the member door keys the setting where a member's saved value already is (`param<N>`): no edit
+      // made on the old parameter is lost (coordinator ruling 2026-11-25)
+      const callTok = settings.get(setting.name)
+      const mint = resolver.paramMint
+      const paramId = mint && callTok ? paramIdFor(mint.legacy, paramOrdinalOf(mint, callTok)) : null
+      return { shift: value, paramId: undefined, displaceFrom: null, displaceParams: [],
+        setting: paramId ? { ...setting, paramId } : setting }
     }
   }
   let folded
