@@ -410,7 +410,9 @@ describe('both committed Pine corpora, through the real door', () => {
         const plain = translatePine(src)
         for (const o of plain.outputs || []) {
           entries += (o.inputsFolded || []).length
-          plainAdmitted += inputsFromFolded(o.inputsFolded, o.formula).inputs.length
+          // ⭐ e98 E3 — an Offset only a plot's `offset` reads (`displaceSetting`) is never in the formula in ANY lane: it
+          // is the member's draw-time setting, admitted by both calls, so it is not part of what the control counts
+          plainAdmitted += inputsFromFolded((o.inputsFolded || []).filter((e) => !(e && e.displaceSetting)), o.formula).inputs.length
         }
         const door = pineMemberInputs(translatePine, src)
         if (!door.ok) continue
