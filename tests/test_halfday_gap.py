@@ -213,6 +213,31 @@ def test_the_fold_holds_one_page_at_a_time_and_a_failed_page_writes_nothing(env,
     assert _row(sq, "SPY", "1", _ts(HALF, 14, 30)) is None, "a ticker whose pages did not all succeed writes nothing"
 
 
+def test_the_real_page_reader_has_released_the_previous_page_during_the_next_read(monkeypatch):
+    """Review of #2798 (delta): `trade_pages` itself must not hold the page it yielded while it reads the next one
+    (the peak would be two pages). Checked inside the next `_get`, against the real generator."""
+    import gc
+    import weakref
+    from api.services import massive
+    refs, alive_during_get = [], []
+
+    class _Client:
+        _api_key = "k"
+
+        def _get(self, url):
+            if refs:
+                gc.collect()
+                alive_during_get.append(refs[-1]() is not None)
+            k = len(refs)
+            page = _Page(_trade(HALF, 14, k, 10, 610.0 + k) for _ in range(200))
+            refs.append(weakref.ref(page))
+            return {"results": page, "next_url": (f"https://x/v3/trades/SPY?cursor={k}" if k < 3 else None)}
+    monkeypatch.setattr(massive, "_get_client", lambda: _Client())
+    mins = hg.fold_pages(hg.trade_pages("SPY", hg.gap_window(HALF)[0], hg.gap_window(HALF)[1], lambda: None))
+    assert len(mins) == 4
+    assert alive_during_get == [False, False, False], "the reader held the previous page during the next read"
+
+
 def test_the_half_day_60m_keys_are_the_afternoon_clock_hours_and_the_morning_is_untouched(env):
     sq, calls, trades = env
     _store_half_day(sq)

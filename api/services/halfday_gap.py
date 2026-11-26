@@ -70,6 +70,7 @@ def trade_pages(sym: str, lo: int, hi: int, take: Callable[[], None]):
         nxt = data.get("next_url")
         data = None
         yield page
+        page = None                        # never hold the folded page while the next one is read
         if not nxt:
             return
         url = f"{nxt}{'&' if '?' in nxt else '?'}apiKey={client._api_key}"
