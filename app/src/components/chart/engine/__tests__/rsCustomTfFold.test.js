@@ -17,11 +17,16 @@
 //   F4 the ask: tf=60 (regular) / tf=30 (extended), never the custom code
 //   F5 native timeframes unchanged: the envelope aligned as it is, no fold
 //   F6 the forming cell unchanged: the live tail's close / benchmark close on the chart's own last bar
+//   F7 the band's state column and its pair are the BINDER's answer (`binder.fillStatesOf`, the one reader of
+//      `plots[].fill`), handed to the lane when binder.js loads: without it the column is withheld, never guessed, and
+//      a fold made before the answer arrived is never served after it
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { registerDefinitions, resolveInputs, RS_LINE_SLIM_RAW } from '../nativeRegistry'
 import {
   primeServerColumns, clearServerColumns, serverColumnsFor, pickServerInputs, serverAskOf, customTfFoldsOf, alignColumns,
+  adoptFillStates,
 } from '../serverCompute'
+import { fillStatesOf } from '../binder'   // ...which hands the lane its band-state answer as it loads
 import { primeBenchmarkTail, _resetBenchmarkTailsForTests, __setBenchmarkTailFetcherForTests } from '../liveTail'
 import { derivedAverage } from '../derivedColumns'
 import { resampleForSpec } from '../../../../utils/resampleBars'
@@ -96,7 +101,9 @@ describe('the server lane on a custom timeframe: the native base, folded by the 
   })
 
   it('F3 the folds: rsMa and rsAbove rebuilt over the folded line, an undeclared column blank, no ratio averaged', () => {
-    // read off the definition's own declarations: the ratio live tail, the average live tail, the fill's colour column
+    // read off the definition's own declarations: the ratio live tail, the average live tail, and the band's colour
+    // column as the binder (the one reader of `plots[].fill`) answers it
+    expect(fillStatesOf(SLIM)).toEqual([{ state: 'rsAbove', rule: 'above', of: 'rsLine', with: 'rsMa' }])
     const folds = customTfFoldsOf(SLIM)
     expect(folds.rsLine).toEqual({ kind: 'last' })
     expect(folds.rsMa).toEqual({ kind: 'ma', of: 'rsLine', length: 'input:maLength', type: 'input:maType' })
@@ -155,5 +162,31 @@ describe('the server lane on a custom timeframe: the native base, folded by the 
     expect(cols.rsLine[bars.length - 1]).toBeCloseTo(last.c / 500, 12)
     const page2 = basePage(SESSION60)
     expect(cols.rsLine[bars.length - 2]).toBe(page2.rs[page2.times.indexOf(at(DAYS[2], 750))])   // history: the fold
+  })
+
+  it('F7 the band state is the binder\'s answer: withheld without it, never a stale fold after it', () => {
+    const page = basePage(SESSION60)
+    const bars = resampleForSpec(page.rows, resampleSpec('240'))
+    const raw = wire(page)
+    primeServerColumns(SLIM.id, SYM, '60', SENT, raw)
+    const ctx = { sym: SYM, tf: '240', extended: false, newestBarIsForming: false }
+    try {
+      adoptFillStates(null)                                                  // no binder: no answer
+      expect(customTfFoldsOf(SLIM).rsAbove).toBeUndefined()
+      const without = serverColumnsFor(SLIM, bars, INPUTS, ctx)
+      expect(finite(without.rsLine)).toBe(true)                              // the line still folds
+      expect(Array.from(without.rsAbove).every((v) => Number.isNaN(v))).toBe(true)   // withheld, not the base's 1s
+      adoptFillStates(fillStatesOf)                                          // the binder answers again
+      const withIt = serverColumnsFor(SLIM, bars, INPUTS, ctx)
+      expect(withIt).not.toBe(without)
+      Array.from(withIt.rsLine).forEach((v, i) => {
+        const m = withIt.rsMa[i]
+        if (Number.isFinite(m)) expect(withIt.rsAbove[i]).toBe(v >= m ? 1 : 0)
+        else expect(withIt.rsAbove[i]).toBeNaN()
+      })
+      expect(Array.from(withIt.rsAbove).some((v) => v === 0 || v === 1)).toBe(true)
+    } finally {
+      adoptFillStates(fillStatesOf)
+    }
   })
 })

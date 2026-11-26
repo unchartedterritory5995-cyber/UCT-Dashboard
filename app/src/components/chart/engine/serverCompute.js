@@ -1529,9 +1529,11 @@ export function serverAskOf(tf, extended) {
  *   ma    — a plot whose live tail is an AVERAGE (kind 'ma', `of` / `length` / `type`): an average over bars is an average
  *           over the chart's own bars, so it is REBUILT over the folded `of` column with that recipe, in the server's
  *           arithmetic (`derivedColumns.derivedAverage`). Never the base series' average carried over.
- *   above — the column a fill colours by (`plots[].fill.colorMode` 'column:<key>' with `fill.with`): the 1/0 state of
- *           the plot at or above its fill partner, REBUILT from the two folded columns (1 at or above, else 0; NaN where
- *           either is NaN, the server's `above_column` rule). */
+ *   above — the column a band colours by: the 1/0 state of the plot at or above its band partner, REBUILT from the two
+ *           folded columns (1 at or above, else 0; NaN where either is NaN, the server's `above_column` rule). Which
+ *           column and which pair is the BINDER's answer (`binder.fillStatesOf`, handed in by `adoptFillStates`): it
+ *           is the one reader of a plot's band, and this lane reads none. Until the binder has loaded there is no
+ *           answer, so the column is withheld (blank on a custom timeframe), never guessed. */
 export function customTfFoldsOf(def) {
   const out = {}
   for (const p of def && Array.isArray(def.plots) ? def.plots : []) {
@@ -1541,12 +1543,24 @@ export function customTfFoldsOf(def) {
     else if (lt && lt.kind === 'ma' && typeof lt.of === 'string') {
       out[p.key] = Object.freeze({ kind: 'ma', of: lt.of, length: lt.length, type: lt.type })
     }
-    const fill = p.fill
-    if (fill && typeof fill.with === 'string' && typeof fill.colorMode === 'string' && fill.colorMode.startsWith('column:')) {
-      out[fill.colorMode.slice('column:'.length)] = Object.freeze({ kind: 'above', of: p.key, ma: fill.with })
+  }
+  for (const s of _fillStatesOf ? _fillStatesOf(def) : []) {
+    if (s && s.rule === 'above' && typeof s.state === 'string' && typeof s.of === 'string' && typeof s.with === 'string') {
+      out[s.state] = Object.freeze({ kind: 'above', of: s.of, ma: s.with })
     }
   }
   return Object.freeze(out)
+}
+
+// The binder's answer to "which column is a band's state, and by what rule" (`binder.fillStatesOf`), handed in when
+// binder.js loads. The version is part of every fold's memo signature, so a fold made before the answer arrived is
+// never served after it.
+let _fillStatesOf = null
+let _fillStatesVersion = 0
+/** The binder hands the lane its band-state resolver (`binder.fillStatesOf`); null takes it back. */
+export function adoptFillStates(fn) {
+  _fillStatesOf = typeof fn === 'function' ? fn : null
+  _fillStatesVersion += 1
 }
 
 const _YMD = /^(\d{4})(\d{2})(\d{2})$/
@@ -1567,7 +1581,7 @@ export function foldToCustomTf(def, raw, spec, inputs) {
   for (const [key, fold] of Object.entries(folds)) {
     if (fold.kind === 'ma') recipes[key] = { length: Math.round(Number(read(fold.length))), type: String(read(fold.type)) }
   }
-  const sig = `${spec.kind}|${spec.minutes ?? ''}|${spec.n ?? ''}|${spec.anchorMin ?? ''}|${JSON.stringify(recipes)}`
+  const sig = `${spec.kind}|${spec.minutes ?? ''}|${spec.n ?? ''}|${spec.anchorMin ?? ''}|${JSON.stringify(recipes)}|f${_fillStatesVersion}`
   let byKey = _foldMemo.get(raw)
   if (!byKey) { byKey = new Map(); _foldMemo.set(raw, byKey) }
   const hit = byKey.get(sig)
