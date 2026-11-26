@@ -891,6 +891,8 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
 
   // Layout state — seed from prefs or default.
   const [layout, setLayout] = useState(() => parseLayout(prefs?.charts_workspace_layout) || DEFAULT_LAYOUT)
+  const layoutRef = useRef(layout)
+  layoutRef.current = layout
   // ⚡ (2026-11-26, the board switch; owner: "jumpy") A LAYOUT SWITCH NEVER ANIMATES THE WIDGETS. react-grid-layout's item
   // transition (`all 200ms`) belongs to drag and resize gestures. A switch to a layout that keeps a widget's id (a layout
   // saved from another keeps them) kept its grid item and ANIMATED the new size and place over 200 ms: the chart resized
@@ -900,20 +902,29 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   // later drag or resize animates exactly as before. Every whole-board replacement goes through it.
   // ⛔ ON THE GRID'S DOM NODE, NOT IN STATE: a state flag would re-render the whole board once more two frames after every
   // switch just to drop a class. React leaves the node's class alone while the grid's className prop is unchanged.
+  // ⛔ THE TWO FRAMES COUNT FROM THE COMMIT, NOT THE CALL (review of #2860): a switch made after an await or from an
+  // effect (the first prefs load, the default resolve, a version restore, a revert) commits in a later task, and frames
+  // counted from the call could be spent on the OLD board. The call marks the node and notes the switch; the layout
+  // effect of the commit that shows the new board arms the two frames.
   const switchSeqRef = useRef(0)
+  const pendingSwitchRef = useRef(null)   // { seq, grid } of a marked switch whose board has not committed yet
   const switchLayout = useCallback((next) => {
     const grid = bodyRef.current?.querySelector?.('.react-grid-layout')
-    if (grid) {
+    if (grid && next !== layoutRef.current) {
       const seq = ++switchSeqRef.current
       grid.classList.add('charts-switching')
-      const raf = typeof requestAnimationFrame === 'function' ? requestAnimationFrame : (f) => setTimeout(f, 16)
-      // two frames: the first may run before the switch's own frame computes its styles; a newer switch keeps the mark
-      raf(() => raf(() => { if (seq === switchSeqRef.current) grid.classList.remove('charts-switching') }))
+      pendingSwitchRef.current = { seq, grid }
     }
     setLayout(next)
   }, [])
-  const layoutRef = useRef(layout)
-  layoutRef.current = layout
+  useLayoutEffect(() => {
+    const p = pendingSwitchRef.current
+    if (!p) return
+    pendingSwitchRef.current = null
+    const raf = typeof requestAnimationFrame === 'function' ? requestAnimationFrame : (f) => setTimeout(f, 16)
+    // two frames: the first may run before this commit's own frame computes its styles; a newer switch keeps the mark
+    raf(() => raf(() => { if (p.seq === switchSeqRef.current) p.grid.classList.remove('charts-switching') }))
+  }, [layout])
 
   // TERM-001 — THE ONE GROWTH GATE. Every path that puts a NEW widget on the board (the
   // WIDGETS menu, the float-on-create submenu, ?ensure= seeding, a confirmed ghost) asks this
