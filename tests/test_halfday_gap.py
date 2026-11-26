@@ -50,6 +50,7 @@ def env(tmp_path, monkeypatch):
     sq.bump_db_epoch()
     sq.init_db()
     bls._reset_for_tests()
+    monkeypatch.setattr(bls, "SPIKE_REPAIR_ENABLED", False, raising=False)  # its own rails: tests/test_spike_repair.py
     calls = []
     trades = {"rows": []}
 

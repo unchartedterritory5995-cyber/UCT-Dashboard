@@ -1371,6 +1371,8 @@ SETTLE_VOL_ABS = int(os.environ.get("BARS_LIVE_SETTLE_VOL_ABS", "100"))
 SETTLE_BUCKET_SHARE = min(0.5, max(0.05, float(os.environ.get("BARS_LIVE_SETTLE_BUCKET_SHARE", "0.5"))))
 #: The half-day gap rebuild (`halfday_gap`): inside the settle on a half day, and the one-off backfill of past ones.
 HALFDAY_GAP_ENABLED = os.environ.get("BARS_LIVE_HALFDAY_GAP_ENABLED", "1") == "1"
+#: The targeted stored-bar spike repair (`spike_repair`): today inside the settle, and a backfill of recent days.
+SPIKE_REPAIR_ENABLED = os.environ.get("BARS_LIVE_SPIKE_REPAIR_ENABLED", "1") == "1"
 _settle: dict = {"done_ymd": None, "running": False, "tickers": 0, "changed_tickers": 0, "rows_replaced": 0,
                  "rows_vendor_lacks": 0, "rows_immaterial": 0, "derived_rows": 0, "failed": 0, "seals_touched": 0,
                  "started_at": None, "finished_at": None}
@@ -1592,6 +1594,15 @@ def settle_pass(now: Optional[datetime] = None) -> dict:
                                                         rederive=_settle_rederive)
         except Exception as e:  # noqa: BLE001 - never let it stop the settle's own bookkeeping
             _log.warning("[bars-live] half-day gap %s failed: %s", ymd, e)
+    # ⭐ THE TARGETED SPIKE REPAIR (`spike_repair` module doc): today's flagged stored bars, re-aggregated from trades
+    # with the live fold's rule, replaced only where that differs.
+    if SPIKE_REPAIR_ENABLED:
+        try:
+            from api.services import spike_repair
+            counts["spike"] = spike_repair.run_day(d.date(), sorted({s_ for s_, _tf in work}), _settle_take,
+                                                   rederive=_settle_rederive)
+        except Exception as e:  # noqa: BLE001 - never let it stop the settle's own bookkeeping
+            _log.warning("[bars-live] spike repair %s failed: %s", ymd, e)
     _settle.update(counts, running=False, done_ymd=ymd, finished_at=time.time())
     _save_settle_marker(ymd)
     _log.info("[bars-live] settle %s: %s", ymd, counts)
@@ -1627,6 +1638,25 @@ def halfday_backfill_step(now: Optional[datetime] = None) -> Optional[dict]:
     return counts
 
 
+def spike_backfill_step(now: Optional[datetime] = None) -> Optional[dict]:
+    """Repair the newest pending day of the last spike_repair.HISTORY_DAYS trading days (one per call), for every
+    covered ticker; None when none is pending."""
+    if not SPIKE_REPAIR_ENABLED:
+        return None
+    from api.services import spike_repair
+    d = (now or datetime.now(_ET)).astimezone(_ET)
+    days = spike_repair.pending_days(d.date())
+    if not days:
+        return None
+    with _lock:
+        tickers = sorted(_covered5 | _covered1)
+    if not tickers:
+        return None
+    counts = spike_repair.run_day(days[0], tickers, _settle_take, rederive=_settle_rederive)   # marks the day done
+    _settle["spike_backfill"] = dict(counts, day=days[0].isoformat(), at=time.time())
+    return counts
+
+
 def _settle_loop() -> None:
     while True:
         time.sleep(60)
@@ -1635,7 +1665,8 @@ def _settle_loop() -> None:
             if _settle_due(now):
                 settle_pass()
             elif _halfday_backfill_due(now):
-                halfday_backfill_step(now)
+                if halfday_backfill_step(now) is None:
+                    spike_backfill_step(now)
         except Exception as e:  # noqa: BLE001
             _log.warning("[bars-live] settle loop error: %s", e)
 
