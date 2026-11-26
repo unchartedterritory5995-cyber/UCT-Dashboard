@@ -8,6 +8,7 @@
 //   F3 nothing is kept once settled: a later read asks again (the browser's cache answers it, as before)
 //   F4 a read given up while it waits on another's request rejects at once, and that request still answers its owner
 //   F5 a request given up by ITS owner is asked again for a read that still wants the piece
+//   F6 (review of #2852) ...however deep: A owns, B and C join, A gives up, B (asking again) gives up, C still gets the bytes
 import { describe, it, expect } from 'vitest'
 import zlib from 'node:zlib'
 import fixture from './__fixtures__/source.json'
@@ -108,5 +109,23 @@ describe('history-lake source: one request per piece in flight', () => {
     await expect(owner).rejects.toMatchObject({ name: 'AbortError' })
     expectBars(await other)
     expect(e.pieceCalls().length).toBe(2 * QUARTERS.length)   // the owner's (given up), then the other read's own
+  })
+
+  it('F6 (red first) a re-ask given up in turn is asked again: A owns, B and C join, A gives up, then B, and C still gets the bytes', async () => {
+    const e = edge({ delayMs: 20 })
+    const src = createHistorySource({ fetch: e.fetch, yieldTask: () => null })
+    await src.loadIndex(SYM)
+    const ca = new AbortController()
+    const cb = new AbortController()
+    const a = src.loadBars(SYM, '5', { signal: ca.signal })
+    const b = src.loadBars(SYM, '5', { signal: cb.signal })
+    const c = src.loadBars(SYM, '5')
+    await new Promise((r) => setTimeout(r, 2))
+    ca.abort()                                            // B asks again with its own signal, C joins B's request
+    await expect(a).rejects.toMatchObject({ name: 'AbortError' })
+    await new Promise((r) => setTimeout(r, 2))
+    cb.abort()                                            // B gives up its request: C, whose signal never fired, asks again
+    await expect(b).rejects.toMatchObject({ name: 'AbortError' })
+    expectBars(await c)
   })
 })
