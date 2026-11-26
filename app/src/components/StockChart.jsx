@@ -232,7 +232,7 @@ import chipStyles from './chart/legend/IndicatorChip.module.css'
 import { chipMenuItems, paneMenuItems, presetLabelOf, CHIP_MENU_GROUPS } from './chart/legend/chipMenu'
 // ⭐ Owner 11-16 (Option C) — Volume's legend row is managed like an indicator's: its menu is
 // `chipMenuItems` for a synthetic Volume chip, through this adapter (kept out of chipMenu.js).
-import { volumeMenuItems, volumeMenuCaps, withVolumeDisplay, withVolumePaneHeightReset, VOLUME_ABOUT } from './chart/legend/volumeChip'
+import { volumeMenuItems, volumeMenuCaps, withVolumeDisplay, withVolumePaneHeightReset, VOLUME_ABOUT, VOLUME_SOURCE_NOTE } from './chart/legend/volumeChip'
 // ⭐ UCT RS Phase 4 (unit 4-05) — the teaching surfaces on the chip menu: the
 // first-add Tour page, the About page's Glossary link and "Ask Compass about this".
 import useIndicatorTours from './chart/useIndicatorTours'
@@ -18013,6 +18013,8 @@ function StockChartBody({
         // ⛔ NAMED "Volume", NOT "Vol". This is what a screen reader and the
         // tooltip get; an unnamed trigger announces a button called " options".
         controlLabel: 'Volume',
+        // ⭐ What the count IS (owner 2026-11-25, "keep the full volume with the note"): static tooltip text.
+        note: VOLUME_SOURCE_NOTE,
         value: volHidden ? '' : formatVolume(crosshairData.volume),
         color: opaqueColor(cs.volume?.upColor),
         hidden: volHidden,
@@ -21617,6 +21619,7 @@ function StockChartBody({
                            indicator row. */
                         label="Volume"
                         controlLabel="Volume"
+                        note={VOLUME_SOURCE_NOTE}
                         color={opaqueColor(cs.volume?.upColor)}
                         value={volHidden ? '' : formatVolume(crosshairData.volume)}
                         baseColor={legendColor || undefined}
@@ -21626,7 +21629,7 @@ function StockChartBody({
                         {...legendRowHandlers}
                       />
                     ) : (cs.volume?.visible === false ? null : (   // a hidden volume pane prints no volume (round 18: Hard mode's candles-only chart showed one)
-                      <span key="vol" className={styles.vlRow}><span className={styles.vlLabel} style={legBase}>Vol</span><span className={styles.vlVal} style={legBase}>{formatVolume(crosshairData.volume)}</span><span className={styles.vlCtlPad} /></span>
+                      <span key="vol" className={styles.vlRow} title={VOLUME_SOURCE_NOTE}><span className={styles.vlLabel} style={legBase}>Vol</span><span className={styles.vlVal} style={legBase}>{formatVolume(crosshairData.volume)}</span><span className={styles.vlCtlPad} /></span>
                     ))
                   }
                   if (it.kind === 'ma') {
@@ -21705,13 +21708,14 @@ function StockChartBody({
               rowId="volume"
               label="V"
               controlLabel="Volume"
+              note={VOLUME_SOURCE_NOTE}
               value={volHidden ? '' : formatVolume(crosshairData.volume)}
               baseColor={legendColor || undefined}
               hidden={volHidden}
               {...legendRowHandlers}
             />
           ) : (
-            <span className={styles.legendLabel} style={legBase}>V <span className={styles.legendVal} style={legBase}>{formatVolume(crosshairData.volume)}</span></span>
+            <span className={styles.legendLabel} style={legBase} title={VOLUME_SOURCE_NOTE}>V <span className={styles.legendVal} style={legBase}>{formatVolume(crosshairData.volume)}</span></span>
           ))}
           {/* ⭐ MOB-06′ — the volume MA's reading, for the PHONE only. It renders on
               desktop in the volume-pane strip (.volLegend), which is `display:none`
@@ -22129,6 +22133,7 @@ function StockChartBody({
               rowId={r.rowId}
               label={r.label}
               controlLabel={r.controlLabel}
+              note={r.note || undefined}
               value={r.value}
               color={r.color}
               baseColor={legendColor || undefined}

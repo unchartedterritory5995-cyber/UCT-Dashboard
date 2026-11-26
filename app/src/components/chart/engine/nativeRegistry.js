@@ -164,7 +164,7 @@ import {
   computeATRBands,
   AVWAP_ANCHORS,
 } from '../indicators'
-import { serverColumnsFor, notifyColumnsLanded, scalarsFor } from './serverCompute'
+import { serverColumnsFor, notifyColumnsLanded, scalarsFor, customTfDepthSignature } from './serverCompute'
 // ⭐ U2b — the live forming-bar tail of a server definition (`plots[].liveTail`):
 // `computeSignature` carries the benchmark tail's version into the binder's memo.
 import { definitionHasLiveTail, liveTailSignature } from './liveTail'
@@ -2693,7 +2693,11 @@ export function computeSignature(def, inputs, ctx) {
   if (carriesRunHalf(def)) return runHalfGateSignature(def)
   if (def?.compute?.kind !== 'server' || !definitionHasLiveTail(def)) return ''
   const resolved = resolveInputs(def, inputs)
-  return liveTailSignature(def, scalarsFor(def, resolved, ctx), resolved, ctx && ctx.sym, ctx && ctx.tf, !!(ctx && ctx.extended))
+  const live = liveTailSignature(def, scalarsFor(def, resolved, ctx), resolved, ctx && ctx.sym, ctx && ctx.tf, !!(ctx && ctx.extended))
+  // ⭐ (2026-11-26) on a custom timeframe the compute also reads the benchmark's held bars (`deepenCustomTf`): their
+  // landing is a memo miss, so the line upgrades to the chart's depth on the next paint
+  const deep = customTfDepthSignature(ctx && ctx.tf)
+  return deep ? `${live}|${deep}` : live
 }
 
 /** ⭐ DIV-4 — the run computes the script AS WRITTEN, so its colour is the member's

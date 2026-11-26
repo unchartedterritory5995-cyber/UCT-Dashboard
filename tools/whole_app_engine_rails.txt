@@ -36,6 +36,9 @@
 # 2026-11-25 (e98 E2, #2747): + inputActive.test.js, which reads app/src/components/chart/ChartSettingsIndicators.jsx
 # (the settings panel must grey a Pine input's `active =` with the row's definition): a PR that changes the panel and
 # never touches the engine must run it.
+# 2026-11-26 (#2820, e100): + listingSeedServerParity.test.js, which reads tests/fixtures/listing_rule_parity.json (the
+# listing rule's cases the chart and the server's Python port both assert): a PR that changes the fixture or the port
+# and never touches the engine must run it.
 src/components/chart/engine/__tests__/bindSymbolFields.rail.test.js
 src/components/chart/engine/__tests__/binderSeriesDataSpread.rail.test.js
 src/components/chart/engine/__tests__/controlDoorCensus.test.js
@@ -52,6 +55,7 @@ src/components/chart/engine/__tests__/jsdocParams.test.js
 src/components/chart/engine/__tests__/legendFromDefinitions.test.jsx
 src/components/chart/engine/__tests__/listingDeepen.test.js
 src/components/chart/engine/__tests__/listingReference.test.js
+src/components/chart/engine/__tests__/listingSeedServerParity.test.js
 src/components/chart/engine/__tests__/markerHost.test.js
 src/components/chart/engine/__tests__/memberPaneGate.test.js
 src/components/chart/engine/__tests__/objectTableDom.test.js

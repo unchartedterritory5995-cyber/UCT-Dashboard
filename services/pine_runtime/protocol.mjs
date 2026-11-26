@@ -231,7 +231,7 @@ export function sameIdentity(a, b) {
   return ENGINE_FIELDS.every((k) => String(a[k]) === String(b[k]))
 }
 
-function jobOf(v, path, { tfSet, maxBars, profile }) {
+function jobOf(v, path, { tfSet, maxBars, profile, sweepMaxBars }) {
   closed(v, path, ['job', 'symbol', 'tf', 'bars', 'ctx'], ['want'])
   const job = str(v.job, `${path}.job`, PRINTABLE(1, 128))
   const sym = closed(v.symbol, `${path}.symbol`, ['ticker', 'exchange'])
@@ -241,6 +241,13 @@ function jobOf(v, path, { tfSet, maxBars, profile }) {
   }
   if (typeof v.tf !== 'string' || !tfSet.includes(v.tf)) throw bad(`${path}.tf`, `must be one of ${tfSet.join(', ')}`)
   const bars = barsOf(v.bars, `${path}.bars`, maxBars)
+  // ⭐ e99 server budget (2026-11-26): a sweep job carries at most the bars up to which a run's budget is the 1,000 ms
+  // floor (the bundle's RUNTIME_PANE_BUDGET_FLOOR_BARS, read at boot: server.mjs loadBundle), so a sweep chunk of 50
+  // jobs never multiplies a scaled budget. A door without it (a test's fixed door) checks nothing more.
+  if (profile === 'sweep' && Number.isSafeInteger(sweepMaxBars) && bars.n > sweepMaxBars) {
+    throw bad(`${path}.bars.n`, `a sweep job carries at most ${sweepMaxBars} bars (the bars a run is given the 1,000 ms `
+      + 'floor for), so a sweep never multiplies a scaled run budget; send a longer run under another profile')
+  }
   const c = closed(v.ctx, `${path}.ctx`, ['newestBarIsForming', 'historyFromListing'], ['runtimeInputs', 'historyWindowBars', 'listingDepthBars'])
   const ctx = {
     newestBarIsForming: bool(c.newestBarIsForming, `${path}.ctx.newestBarIsForming`),
@@ -284,7 +291,7 @@ export function parseRunRequest(body, door, docs = null) {
 
 /** @param {{ get(sha:string): object|undefined, put(sha:string, text:string): object }|null} docs
  *  the T8 DocCache (W5-INT), or null for none. */
-function parse(body, { identity, tfSet, maxBars }, docs) {
+function parse(body, { identity, tfSet, maxBars, sweepMaxBars }, docs) {
   // MAX_BODY_BYTES is enforced ONCE, by the server while the body streams in (server.mjs readCapped).
   let raw
   try {
@@ -311,7 +318,7 @@ function parse(body, { identity, tfSet, maxBars }, docs) {
   }
   const ids = new Set()
   const jobs = raw.jobs.map((j, i) => {
-    const job = jobOf(j, `jobs[${i}]`, { tfSet, maxBars, profile: raw.profile })
+    const job = jobOf(j, `jobs[${i}]`, { tfSet, maxBars, profile: raw.profile, sweepMaxBars })
     if (ids.has(job.job)) throw bad(`jobs[${i}].job`, `repeats ${JSON.stringify(job.job)}`)
     ids.add(job.job)
     return job

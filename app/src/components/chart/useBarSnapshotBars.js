@@ -287,7 +287,9 @@ export function useBarSnapshotBars({
     const left = Math.max(0, LAKE_JOIN_WAIT_MS - (Date.now() - _lakeSwitchRef.current.t0))
     const sw = _lakeSwitchRef.current
     const id = setTimeout(() => { sw.done = true; wake() }, left + 1)
-    Promise.resolve().then(() => store.lakeSeed?.(key)).catch(() => {}).then(wake)
+    // (the hold WAITS on this load, LAKE_JOIN_WAIT_MS at most: its pieces never yield, or a per-piece yield could miss the
+    // wait and paint shallow, then deep: network.lakeSeed `awaited`, review of #2786)
+    Promise.resolve().then(() => store.lakeSeed?.(key, { awaited: true })).catch(() => {}).then(wake)
     return () => { alive = false; clearTimeout(id) }
   }, [_lakeHold, key, store])
   const _tfSwitchHold = _isTfSwitch && !!snap && ((!_answered && _edgeProvisional) || _lakeHold)

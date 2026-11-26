@@ -1,0 +1,23 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "LP1",
+   "mutant": "setups_board imports bar_broadcaster again",
+   "file": "api/services/journal_two/setups_board.py",
+   "from": "        from api.services import live_price_source\n        bc = live_price_source.broadcaster()\n",
+   "to": "        from api.services import bar_broadcaster\n        bc = bar_broadcaster.get_broadcaster()\n",
+   "rail": "python -m pytest -q -p no:cacheprovider tests/test_live_price_source.py",
+   "expectRed": "test_setups_board_never_imports_a_stream_module"
+  },
+  {
+   "id": "LP2",
+   "mutant": "bar_broadcaster no longer registers",
+   "file": "api/services/bar_broadcaster.py",
+   "from": "_live_price_source.register(lambda: get_broadcaster())",
+   "to": "pass",
+   "rail": "python -m pytest -q -p no:cacheprovider tests/test_live_price_source.py",
+   "expectRed": "test_bar_broadcaster_registers"
+  }
+ ]
+}

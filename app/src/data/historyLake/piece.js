@@ -41,10 +41,38 @@ const CRC_TABLE = (() => {
   return table
 })()
 
+// ⭐ PERF (smoothness trace 2026-11-26, 1m+15m board: the column CRC was 4.5 ms of the ~10 ms a flip the lake's pieces
+// spent decoding on the main thread, in the second after both charts showed the new symbol): SLICING BY EIGHT. Seven more
+// tables, each the CRC of a byte followed by k zero bytes, let one step take eight bytes of a Uint8Array at once
+// (`T[k][b]` = the table step applied k more times). The same CRC-32, value for value; anything that is not a Uint8Array
+// takes the byte-at-a-time loop, exactly as before.
+const CRC_TABLES = (() => {
+  const t = new Uint32Array(256 * 8)
+  t.set(CRC_TABLE)
+  for (let i = 0; i < 256; i++) {
+    let c = CRC_TABLE[i]
+    for (let k = 1; k < 8; k++) {
+      c = CRC_TABLE[c & 0xFF] ^ (c >>> 8)
+      t[k * 256 + i] = c >>> 0
+    }
+  }
+  return t
+})()
+
 /** CRC-32 of `bytes`, continuing from `crc` (0 to start). Same contract as zlib.crc32. */
 export function crc32(bytes, crc = 0) {
   let c = (crc ^ 0xFFFFFFFF) >>> 0
-  for (let i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8)
+  let i = 0
+  if (bytes instanceof Uint8Array) {
+    const T = CRC_TABLES
+    for (const end = bytes.length - 7; i < end; i += 8) {
+      const a = (c ^ (bytes[i] | (bytes[i + 1] << 8) | (bytes[i + 2] << 16) | (bytes[i + 3] << 24))) >>> 0
+      const b = (bytes[i + 4] | (bytes[i + 5] << 8) | (bytes[i + 6] << 16) | (bytes[i + 7] << 24)) >>> 0
+      c = (T[1792 + (a & 0xFF)] ^ T[1536 + ((a >>> 8) & 0xFF)] ^ T[1280 + ((a >>> 16) & 0xFF)] ^ T[1024 + (a >>> 24)]
+        ^ T[768 + (b & 0xFF)] ^ T[512 + ((b >>> 8) & 0xFF)] ^ T[256 + ((b >>> 16) & 0xFF)] ^ T[b >>> 24]) >>> 0
+    }
+  }
+  for (; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8)
   return (c ^ 0xFFFFFFFF) >>> 0
 }
 

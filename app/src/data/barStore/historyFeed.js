@@ -75,7 +75,7 @@ export function createHistoryFeed({ source = createHistorySource() } = {}) {
     }).catch(() => {})
   }
 
-  async function olderBars(key, beforeT, { bars: want = 2000, signal } = {}) {
+  async function olderBars(key, beforeT, { bars: want = 2000, signal, yieldTask } = {}) {
     const ls = lakeSeriesOfKey(key)
     if (!ls || !ls.series || !Number.isFinite(beforeT)) return { bars: [], exhausted: true }
     const index = await source.loadIndex(ls.sym, { signal })
@@ -93,7 +93,7 @@ export function createHistoryFeed({ source = createHistorySource() } = {}) {
       have += e.last < beforeT ? e.bars : Math.ceil(e.bars / 2)
     }
     if (!pick.some((e) => e.first < beforeT)) return { bars: [], exhausted: true }
-    const got = await source.loadBars(ls.sym, ls.tf, { from: pick[0].first, to: beforeT, extended: ls.extended, signal })
+    const got = await source.loadBars(ls.sym, ls.tf, { from: pick[0].first, to: beforeT, extended: ls.extended, signal, ...(yieldTask !== undefined ? { yieldTask } : {}) })
     if (!got || !got.t.length) return { bars: [], exhausted: true }
     const { t, o, h, l, c, v } = got
     // the last index with t <= beforeT, and the first of the newest `want` strictly older

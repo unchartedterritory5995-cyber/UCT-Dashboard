@@ -79,7 +79,7 @@ import { BARSTORE } from '../../components/chart/barStoreSwitch'
 import { prefetchTickerMeta as _defaultTickerMeta } from '../../hooks/useTickerMeta'
 import {
   _packStillIngesting, URGENT_MAX_PER_CALL, GRID_WARM_TFS, listPrewarmDisabled, _typedCachePaints,
-  tellSymbolWarmers, TYPED_REASK_MS,
+  tellSymbolWarmers, TYPED_REASK_MS, scanTracing, scanTrace,
 } from '../../utils/prefetchBars'
 
 // Lane plumbing the chart imports from the same module — re-exported unchanged so one import
@@ -381,6 +381,17 @@ export function createPrefetch(o = {}) {
   const urgentCtl = new Map()
   /** key → the bucket a next row was asked again in after a roll (_reaskNext: once per row per bucket). */
   const nextReasked = new Map()
+  /** The opt-in scan-warm trace's urgent call counter (utils/prefetchBars scanTrace; 0: not traced). */
+  let traceCalls = 0
+  /** What the trace says of a copy: held at all, its status, server answer or local, rows, tail, buckets behind the clock. */
+  function _traceCopy(key, s) {
+    if (!s) return { held: false }
+    const rows = s.bars?.length ?? 0
+    return {
+      held: true, status: s.status ?? null, rest: !!s.restSeen, rows,
+      tail: rows ? s.bars[rows - 1].t : null, dev: s.developing?.t ?? null, behind: _bucketsBehind(key, s),
+    }
+  }
   const intentTimers = new Map()
   /** The neighbour holds keeping rows ahead now (`keep`): they share NEIGHBOR_KEEP_TOTAL. */
   const keepers = new Set()
@@ -498,11 +509,18 @@ export function createPrefetch(o = {}) {
    */
   async function ensure(key, {
     until = PREPARED, depth = 0, priority = 'urgent', signal = null, session: sess = session(),
-    warm = false, front = false, local = true, _s0 = null, own = false, full = false,
+    warm = false, front = false, local = true, _s0 = null, own = false, full = false, _trace = 0,
   } = {}) {
     const s0 = _s0 ?? await _hydrate(key)   // a caller that already hydrated passes its snapshot
-    if (_satisfied(s0, until, depth) && (local || s0.restSeen)) return s0
-    if (signal?.aborted) return S().peek(key)
+    if (_satisfied(s0, until, depth) && (local || s0.restSeen)) {
+      if (_trace) scanTrace({ ev: 'warm-done', call: _trace, key, outcome: 'held', copy: _traceCopy(key, s0) })
+      return s0
+    }
+    if (signal?.aborted) {
+      if (_trace) scanTrace({ ev: 'warm-done', call: _trace, key, outcome: 'aborted-before-ask' })
+      return S().peek(key)
+    }
+    if (_trace) scanTrace({ ev: 'warm-ask', call: _trace, key, priority, front })
     const prev = asked.get(key)   // (the row's last record: an aborted ask gives it back, see below)
     const a = _noteAsked(key)
     // `own`: the SWITCH's own ask (prepareForDisplay, askForDisplay). Only its answer starts the "name not printing" grace
@@ -524,10 +542,12 @@ export function createPrefetch(o = {}) {
     // answer's cooldown, neither lost nor restarted). A tail ask aborted when its row left the tail used to delete it, so
     // a list or urgent warm re-asked a row answered seconds before.
     if (signal?.aborted || (s?.error && s.error !== 'no_data')) {
+      if (_trace) scanTrace({ ev: 'warm-done', call: _trace, key, outcome: signal?.aborted ? 'aborted' : 'error', error: s?.error ?? null })
       if (asked.get(key) === a) { if (signal?.aborted && prev) asked.set(key, prev); else asked.delete(key) }
     } else if (s) {
       a.gen = s.gen   // the gen the answer landed under
       a.answered = true
+      if (_trace) scanTrace({ ev: 'warm-done', call: _trace, key, outcome: 'answered', copy: _traceCopy(key, s) })
       a.at = now()    // the cooldown runs from the ANSWER, not from when the request was queued
       if (isIntradayTf(s.tf ?? parseKey(key)?.tf)) _noteFull(key)   // every request asks a full window
       // ...and a waiter reads the rules that key on this answer (`_behindClock`) only from here on: wake it (see watch)
@@ -543,25 +563,32 @@ export function createPrefetch(o = {}) {
   // `dwell`: the dwell's all-timeframes warm (registry `_evict`): an entry this warm MAKES is marked once it has its
   // answer, so it goes first out of the registry once no chart shows its symbol; any other warm of the key makes it
   // ordinary.
-  function prefetch(keys, { priority = 'background', depth = 0, signal = null, warm = false, front = false, dwell = false } = {}) {
+  function prefetch(keys, { priority = 'background', depth = 0, signal = null, warm = false, front = false, dwell = false, _trace = 0 } = {}) {
     return Promise.all((keys || []).filter(Boolean).map(async (key) => {
       const R = S().registry
       const made = !!dwell && !R?.has?.(key)
       if (!dwell) R?.setDwell?.(key, false)
-      const s = await _warmOne(key, { priority, depth, signal, warm, front })
+      const s = await _warmOne(key, { priority, depth, signal, warm, front, _trace })
       if (made) R?.setDwell?.(key, true)
       return s
     }))
   }
-  async function _warmOne(key, { priority, depth, signal, warm, front }) {
+  async function _warmOne(key, { priority, depth, signal, warm, front, _trace = 0 }) {
     const s0 = await _hydrate(key)
     const full = _shortWant(key, s0)            // a short series is not warm (see SHORT_FULL_TTL_MS)
     const flip = _flipPaints(key, s0)
-    if (!full && _satisfied(s0, DISPLAYABLE, depth) && flip) return s0
-    if (preparing.get(key) || _cooling(key, s0)) return S().peek(key) ?? s0   // s0: the LRU may have evicted it since
+    // (the opt-in scan-warm trace: what the warm read, hydrated, and what it decided; see utils/prefetchBars scanTrace)
+    const decide = _trace ? (d, extra) => scanTrace({ ev: 'warm-decide', call: _trace, key, decision: d, copy: _traceCopy(key, s0), short: full, flip, ...extra }) : null
+    if (!full && _satisfied(s0, DISPLAYABLE, depth) && flip) { decide?.('satisfied'); return s0 }
+    const prep = preparing.get(key)
+    if (prep || _cooling(key, s0)) {
+      decide?.(prep ? 'preparing' : 'cooling', prep ? null : { answeredAgoMs: now() - (asked.get(key)?.at ?? now()) })
+      return S().peek(key) ?? s0   // s0: the LRU may have evicted it since
+    }
+    decide?.('ensure')
     // A local copy the flip would refuse never satisfies the warm: only a server answer does
     // (`local: false`, exactly as prepareForDisplay asks).
-    return ensure(key, { until: DISPLAYABLE, depth: Math.max(depth, full), priority, signal, warm, front, local: flip, _s0: s0 })
+    return ensure(key, { until: DISPLAYABLE, depth: Math.max(depth, full), priority, signal, warm, front, local: flip, _s0: s0, _trace })
   }
 
   /** Queue warms for the next microtask: one ensure per key; the best priority / depth, front
@@ -1100,7 +1127,7 @@ export function createPrefetch(o = {}) {
       new Promise((resolve) => setTimer(resolve, HYDRATE_WAIT_MS)),
     ])
     return bounded
-      .then(() => S().lakeSeed?.(key) ?? false)
+      .then(() => S().lakeSeed?.(key, { awaited: true }) ?? false)   // a paint waits on it: its pieces never yield
       .catch(() => false)
   }
 
@@ -1367,13 +1394,19 @@ export function createPrefetch(o = {}) {
     tellSymbolWarmers(syms, tf, { priority: priority || urgent })
     const nUrgent = urgent ? Math.min(URGENT_MAX_PER_CALL, syms.length) : 0
     if (urgent) {
+      const call = scanTracing() ? ++traceCalls : 0   // the opt-in scan-warm trace (utils/prefetchBars scanTrace)
       // Only the LATEST urgent call stays urgent: rows the member already passed are aborted
       // (a waiting lane request never reaches the network). ⛔ PER TIMEFRAME (2026-11-19): a list
       // linked to a daily AND an hourly chart warms both on every press; aborting every other key
       // made the second call cancel the first timeframe's next rows.
       const keep = new Set(syms.slice(0, nUrgent).map((x) => keyFor(x, tf)))
       const callTf = parseKey([...keep][0] || '')?.tf
-      for (const [k, c] of urgentCtl) if (!keep.has(k) && parseKey(k)?.tf === callTf) { c.abort(); urgentCtl.delete(k) }
+      for (const [k, c] of urgentCtl) {
+        if (!keep.has(k) && parseKey(k)?.tf === callTf) {
+          c.abort(); urgentCtl.delete(k)
+          if (call) scanTrace({ ev: 'warm-abort', key: k, by: call })
+        }
+      }
       for (const sym of syms.slice(0, nUrgent)) {
         const k = keyFor(sym, tf)
         if (!k) continue
@@ -1381,12 +1414,14 @@ export function createPrefetch(o = {}) {
         const c = urgentCtl.get(k)
         const done = () => { if (urgentCtl.get(k) === c) urgentCtl.delete(k) }
         const held = S().peek(k)
-        if (_reaskNext(k, held)) {
+        const reask = _reaskNext(k, held)
+        if (call) scanTrace({ ev: 'warm', call, key: k, path: reask ? 'reask' : 'warm', reg: _traceCopy(k, held) })
+        if (reask) {
           // (a next row whose copy predates the current bucket: asked again, once per bucket, see _reaskNext)
-          ensure(k, { until: ASK_AGAIN, priority: 'urgent', signal: c.signal, front: true, local: false, _s0: held }).catch(() => {}).finally(done)
+          ensure(k, { until: ASK_AGAIN, priority: 'urgent', signal: c.signal, front: true, local: false, _s0: held, _trace: call }).catch(() => {}).finally(done)
         } else {
           // Legacy: the chart's own URL (no `&warm`), at the head of the queue.
-          prefetch([k], { priority: 'urgent', signal: c.signal, front: true }).finally(done)
+          prefetch([k], { priority: 'urgent', signal: c.signal, front: true, _trace: call }).finally(done)
         }
         tickerMeta(sym)
       }

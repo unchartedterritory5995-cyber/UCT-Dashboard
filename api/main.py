@@ -12535,6 +12535,8 @@ rs_discord_router.configure(leaders_fn=_rs_leaders_for, evidence_fn=_rs_evidence
                             session_fn=_rs_discord_session)
 app.include_router(rs_discord_router.router)
 app.include_router(bars_router.router, dependencies=_OPEN_READS)
+from api.routers import bars_stream_status as _bars_stream_status_router  # noqa: E402 (moved out of bars.py)
+app.include_router(_bars_stream_status_router.router, dependencies=_OPEN_READS)
 app.include_router(cot_router.router)
 app.include_router(breadth_monitor_router.router, dependencies=_OPEN_READS)
 # Market Indicators library — McClellan / Breadth-derived / Sentiment / Volatility.
@@ -12704,6 +12706,9 @@ app.include_router(watchlists_router.router)
 app.include_router(ticker_tags_router.router)
 app.include_router(watchlist_alerts_router.router)
 app.include_router(stream_router.router, dependencies=_OPEN_READS)
+# Pushed real-time list prices (/api/stream/quotes), dark behind QUOTE_STREAM_ENABLED. Also served by stream-edge.
+from api.routers import quote_stream as quote_stream_router  # noqa: E402
+app.include_router(quote_stream_router.router, dependencies=_OPEN_READS)
 app.include_router(live_prices_router.router)
 app.include_router(ticker_meta_router.router)
 app.include_router(ticker_search_router.router)

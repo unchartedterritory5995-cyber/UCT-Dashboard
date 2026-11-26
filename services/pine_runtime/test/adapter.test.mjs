@@ -145,7 +145,10 @@ test('HP-7: the service adapter builds the browser worker\'s (def, rows, ctx, op
   assert.deepEqual(drift(b, s), [])
   // the facts the rail rests on, so a parse that silently read nothing cannot pass
   assert.deepEqual(b.opts, { budgetMs: 'name:RUNTIME_PANE_TIME_BUDGET_MS', budgetScales: 'literal:true' })
-  assert.deepEqual(s.opts, { budgetMs: 'name:RUNTIME_PANE_TIME_BUDGET_MS', incremental: 'literal:false' })
+  // e99 server budget (2026-11-26): the service passes the worker's `budgetScales` too, so a server run is held to the
+  // member's own budget (runtimePaneBudgetFor of its bars); no opt is browser-only any more
+  assert.deepEqual(s.opts, { budgetMs: 'name:RUNTIME_PANE_TIME_BUDGET_MS', budgetScales: 'literal:true', incremental: 'literal:false' })
+  assert.deepEqual(DECLARED_DIFFERENCES.optsBrowserOnly, [])
   assert.deepEqual(b.row, ['t', 'o', 'h', 'l', 'c', 'v'])
   assert.deepEqual(Object.keys(s.ctx), ['tf', 'newestBarIsForming', 'historyFromListing', 'runtimeInputs', 'symbol', 'otherSymbolSupply', 'historyWindowBars', 'listingDepthBars'])
   // RS RATING L3 / L5: the browser ships every bind field and the other-symbol cache; the server

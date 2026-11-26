@@ -65,6 +65,8 @@ from jsonschema import Draft202012Validator
 from api.services import ast_interpret, ast_lint, call_expansions, conversation_preflight, user_definitions
 from api.services import definition_concierge as dc
 from api.services import chart_twins
+from api.services import presentation_schema
+from api.services import code_paste
 from api.services import named_indicators
 from api.services.ast_budget import BudgetExceeded, check_budget
 from api.services.ast_interpret import TableRefusal
@@ -855,6 +857,19 @@ LOOK_BACK_RULE = (
     "compares each bar with the one before it. Neither is \"an earlier close above today's close\"."
     + WHICH_BAR_EXIT + " When you decline, the door can have it written as a script.\n")
 
+#: ⭐ 2026-11-26 -- A MARKER SHAPE THE CHART CANNOT DRAW IS SAID, NEVER SWAPPED IN SILENCE (coordinator's ruling). The
+#: community-words probe (live, admin measurement): "a gray triangle above the bar when ... 2 times the ATR" was built as an
+#: ARROW, and the reply said "an arrow" without saying a triangle is not drawn here. The chart draws four marker shapes
+#: (`presentation_schema.MARKER_SHAPES`, the schema's own list, the words below derived from it, never restated).
+MARKER_SHAPE_WORDS: Dict[str, str] = {"circle": "a circle", "square": "a square", "arrowUp": "an up arrow",
+                                      "arrowDown": "a down arrow"}
+MARKER_SHAPE_RULE = (
+    "Markers are drawn in " + str(len(presentation_schema.MARKER_SHAPES)) + " shapes only: "
+    + ", ".join(MARKER_SHAPE_WORDS[s] for s in presentation_schema.MARKER_SHAPES[:-1])
+    + " or " + MARKER_SHAPE_WORDS[presentation_schema.MARKER_SHAPES[-1]] + ". A marker asked for in another shape (a "
+    "triangle, a diamond, a flag, a cross, a star) is drawn as the nearest of these: say in `reply` which shape it is "
+    "drawn as and that the shape asked for is not drawn on this chart. ")
+
 CONVERSE_SYSTEM_PROMPT = (
     "You are UCT's indicator-authoring assistant. Each turn you receive ONE member "
     "message and the CURRENT indicator, and you answer with exactly one call to "
@@ -953,6 +968,7 @@ CONVERSE_SYSTEM_PROMPT = (
     "an `otherwise`, or set_color_rule). `barcolor` paints the PRICE candles: only when the "
     "member says candles or price bars, or the indicator draws no bars of its own. "
     "A marker's size and color: set_marker `size` / `color`. "
+    + MARKER_SHAPE_RULE +
     "Plot styles are line, stepline, histogram, area and baseline: there is no dots style, and "
     "an output drawn as markers cannot also take set_color_states. For dots that change color "
     "by state (a squeeze on the zero line), draw a thick line on that constant level with "
@@ -2543,6 +2559,34 @@ def named_in(terms: Any) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     return ready, unchecked
 
 
+#: ⭐ 2026-11-26 -- A BUILT-IN ASKED FOR WITH ITS LOOK CHANGED IS A REQUEST TO BUILD (coordinator's ruling). The fifty-set
+#: probe (live, admin measurement): "In a pane below, plot Bollinger %B (20, 2) as a histogram, green above 1, red below 0,
+#: gray otherwise, with dashed lines at 0 and 1" was answered with the one-tap offer of the stock built-in, and the
+#: member's histogram, colours and dashed lines were dropped. The offer is for a request that is the bare NAME. Words that
+#: change how it is DRAWN (a colour, a style, a level line, a shade, fill or background) mean the member wants their own:
+#: no offer, and the script turn builds it (`customised_built_in`), saying no checked reference stands behind it. A
+#: placement ("in a pane below") and settings numbers ("20, 2") are the built-in's own and keep the offer. Measured over
+#: the requests on record: 10 are offered a built-in today, and only this one carries such a word.
+_PRESENTATION_WORDS = re.compile(
+    r"\b(?:green|red|gr[ae]y|blue|orange|yellow|purple|white|black|teal|pink|colou?r(?:s|ed)?|histogram|dots?|circles?|"
+    r"area|step ?line|dashed|dotted|thick|thin|width|pixels?|px|fill(?:ed)?|shade[ds]?|shading|background|cloud|"
+    r"lines? at|levels? at|horizontal lines?)\b", re.I)
+
+
+def customises_presentation(message: Any) -> bool:
+    """Does the request change how something is DRAWN (colour, style, levels, shading)?"""
+    return isinstance(message, str) and bool(_PRESENTATION_WORDS.search(message))
+
+
+def customised_built_in(message: Any, chart: Any) -> bool:
+    """A request that names one of UCT's own built-in indicators (no checked formula here) AND changes its look."""
+    try:
+        understood = understand_turn(message, chart)
+    except Exception:                              # noqa: BLE001 -- the ordinary turn decides
+        return False
+    return understood.get("refusal") is not None and bool(understood.get("customised_built_in"))
+
+
 def described_in_own_words(plain: str, chart: Any) -> bool:
     """Did the member DESCRIBE a rule beside the unchecked name(s) they wrote? Asked of what is
     left of the message once those names are taken out.
@@ -2936,18 +2980,22 @@ def _language_notes(understanding: Mapping[str, Any]) -> Dict[str, Any]:
 # input bounds -- refused BEFORE any call
 # --------------------------------------------------------------------------- #
 
-def _bounded_inputs(message: Any, view: Any, authoring: Any, snippets: Any
+def _bounded_inputs(message: Any, view: Any, authoring: Any, snippets: Any, *, code_cap: bool = False
                     ) -> Tuple[str, Dict[str, Any], Dict[str, Any], List[Dict[str, str]]]:
     if not isinstance(message, str):
         raise _Refused("prompt:empty")
     message = message.strip()
     if not message:
         raise _Refused("prompt:empty")
-    if len(message) > MAX_MESSAGE_CHARS:
+    # ⭐ C (2026-11-25): PASTED CODE has a door of its own with its own cap (`code_paste`), on the script lane only
+    # (`code_cap`, given by `_with_script_lane`); plain chat keeps MAX_MESSAGE_CHARS
+    pasted = code_paste.kind_of(message) if code_cap and len(message) > MAX_MESSAGE_CHARS else None
+    limit = code_paste.import_max_chars() if pasted else MAX_MESSAGE_CHARS
+    if len(message) > limit:
         raise _Refused("converse:too-large",
-                       f"message {len(message)} > {MAX_MESSAGE_CHARS}",
-                       member=f"your request is {len(message):,} characters; the limit is "
-                              f"{MAX_MESSAGE_CHARS:,}")
+                       f"message {len(message)} > {limit}",
+                       member=(f"your pasted code is {len(message):,} characters; the limit for pasted code is {limit:,}"
+                               if pasted else f"your request is {len(message):,} characters; the limit is {limit:,}"))
 
     if not isinstance(view, Mapping):
         raise _Refused("converse:view", "it is not an object")
@@ -6101,13 +6149,17 @@ def understand_turn(message: str, chart: Any) -> Dict[str, Any]:
         if not described_in_own_words(plain, chart):
             first = unchecked[0]["entry"]
             is_built_in = named_indicators.built_in(first) is not None
+            # (a built-in asked for with its look changed is not offered: it is the member's own, built by the
+            # script turn -- `customised_built_in`)
+            customised = is_built_in and customises_presentation(message)
             return {"refusal": {"ok": False, "gate": NAMED_BUILT_IN_GATE if is_built_in else NAMED_UNCHECKED_GATE,
                                 "reason": named_indicators.their_number(message, first, False) or named_indicators.way_forward(first),
                                 "not_understood": not_understood, "unavailable": unavailable},
                     "held": [u["entry"]["id"] for u in unchecked],
                     # ⭐ one of UCT's own built-in indicators: the turn may be ANSWERED with an offer
                     # to add it (`_converse_turn`), for a browser that can
-                    **({"built_in": first} if is_built_in else {})}
+                    **({"built_in": first} if is_built_in and not customised else {}),
+                    **({"customised_built_in": first["id"]} if customised else {})}
         own_words = [u["entry"] for u in unchecked]
     elif unchecked:
         discussed = discussed + [{"phrase": u["wrote"], "gate": NAMED_UNCHECKED_GATE,
@@ -6194,8 +6246,10 @@ def _with_script_lane(formula_turn: Any, message: Any, *, user_id: Any, view: An
     if not sc.lane_open(accepts, admin):
         return formula_turn()
     try:
-        words, bounded_view, _state, _turns = _bounded_inputs(message, view, authoring, snippets)
-    except _Refused:
+        words, bounded_view, _state, _turns = _bounded_inputs(message, view, authoring, snippets, code_cap=True)
+    except _Refused as too_long:
+        if too_long.gate == "converse:too-large" and code_paste.kind_of(message if isinstance(message, str) else ""):
+            return {"ok": False, "gate": too_long.gate, "reason": too_long.reason}   # pasted code over ITS cap
         return formula_turn()                      # the formula turn says why, in its own words
     if not bounded_view.get("empty"):
         return formula_turn()
@@ -6208,11 +6262,24 @@ def _with_script_lane(formula_turn: Any, message: Any, *, user_id: Any, view: An
     refused = sc.script_refusal(script_refusal)
     if refused is not None:
         return script(refused)
+    # ⭐ C (2026-11-25): PASTED CODE. Pine that passes the first look is the member's own script, opened with no model
+    # call; any other paste (Deepvue's, or Pine the first look refuses) is written by the script turn, as a translation
+    pasted = code_paste.kind_of(words)
+    if pasted == code_paste.PINE:
+        answer = sc.pasted_pine_turn(words, revision=revision, contract=PATCH_CONTRACT, trace=trace)
+        if answer is not None:
+            return answer
+    if pasted is not None:
+        return script()
     # ⛔ A DRAWING WORD DOES NOT TAKE A BUILT-IN'S NAME AWAY FROM THE DOOR (review 2026-11-19). "draw" is a script
     # word, and it is also how members ask for anything: "draw vwap bands" went to a paid script while "show vwap
     # bands" got the one-tap offer, and "draw ATR Bands" was improvised where UCT has the indicator. The same holds
     # for a name UCT holds back: it is refused by name below, never written from memory because the verb was "draw".
-    if sc.wants_script(words) and not door_answers_by_name(words, chart, can_add):
+    # (a method, drawing, chart type or data series the catalogue names goes to the script turn too: `sc.names_a_method`)
+    # (a built-in with its look changed is the member's own: the script turn builds it, `customised_built_in`)
+    if customised_built_in(words, chart):
+        return script()
+    if (sc.wants_script(words) or sc.names_a_method(words)) and not door_answers_by_name(words, chart, can_add):
         return script()
     result = formula_turn()
     if cancelled is not None and cancelled.is_set():

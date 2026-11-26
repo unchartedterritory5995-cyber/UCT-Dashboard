@@ -399,9 +399,10 @@ def _live_partial(ticker: str, tf: str, sess, grid: str, now: float):
     hold the forming one yet). Never invents a bar: None when nothing is known."""
     if tf not in INTRADAY_TFS:
         return None
-    try:
-        from api.services.bar_broadcaster import get_broadcaster
-        bar = get_broadcaster().get_partial(ticker, tf, "eth" if grid == "eth-clock" and tf == "60" else "rth")
+    try:                                   # the feed by registration (`live_price_source`): never an import of the stream
+        from api.services import live_price_source
+        bar = live_price_source.broadcaster().get_partial(
+            ticker, tf, "eth" if grid == "eth-clock" and tf == "60" else "rth")
     except Exception:                      # noqa: BLE001 — no broadcaster in this process
         return None
     if not bar or bar.get("final"):
@@ -410,6 +411,12 @@ def _live_partial(ticker: str, tf: str, sess, grid: str, now: float):
     b = bucket_bounds(tf, t, grid)
     if b is None or not (b[0] <= now < b[1]):
         return None
+    try:                                   # ⭐ the extended-session rule (`extended_session`): a 20:00 bar is no bar
+        from api.services import extended_session
+        if extended_session.applies(ticker) and not extended_session.inside(t):
+            return None
+    except Exception:                      # noqa: BLE001 - the rule is unreadable: the broadcaster's own gate stands
+        pass
     return _bar_out(dict(bar, t=t), int(bar.get("trade_ts") or now * 1000))
 
 

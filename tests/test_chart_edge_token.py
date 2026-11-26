@@ -242,7 +242,14 @@ def test_the_COOKIE_PATH_does_not_reach_the_historical_cache_surfaces():
     for other in ("/api/seed-other", "/api/seeds", "/api/bars/AAPL", "/api/hist/v1/index/AAPL.json",
                   "/api/auth/me", "/api/bars-today-pack"):
         assert not rfc6265_sends(sd, other), other
-    assert cet.COOKIE_PATHS == (cet.COOKIE_PATH, cet.HIST_COOKIE_PATH, cet.STREAM_COOKIE_PATH, cet.SEED_COOKIE_PATH)
+    # The pushed list prices' cookie path reaches that one stream and nothing else (api/routers/quote_stream.py).
+    qt = cet.QUOTES_COOKIE_PATH
+    assert rfc6265_sends(qt, "/api/stream/quotes")
+    for other in ("/api/stream/prices", "/api/stream/bars", "/api/stream/quotes-v2", "/api/stream", "/api/stream/status",
+                  "/api/bars/AAPL", "/api/auth/me", "/api/live-prices"):
+        assert not rfc6265_sends(qt, other), other
+    assert cet.COOKIE_PATHS == (cet.COOKIE_PATH, cet.HIST_COOKIE_PATH, cet.STREAM_COOKIE_PATH, cet.SEED_COOKIE_PATH,
+                                cet.QUOTES_COOKIE_PATH)
 
 
 def test_the_HISTORY_cookie_path_IS_the_worker_route_prefix():
@@ -256,6 +263,17 @@ def test_the_HISTORY_cookie_path_IS_the_worker_route_prefix():
     assert m, "HIST_PREFIX not found in history.js"
     assert m.group(1) == cet.HIST_COOKIE_PATH + "/", (m.group(1), cet.HIST_COOKIE_PATH)
 
+
+
+def test_the_QUOTES_cookie_path_IS_the_worker_quotes_stream_path():
+    """ONE FACT IN TWO FILES, READ FROM BOTH: the Worker routes `/api/stream/quotes` to stream-edge
+    (stream.js `STREAM_QUOTES_PATH`), and stream-edge admits by this cookie alone."""
+    import pathlib
+    import re
+    src = (pathlib.Path(__file__).resolve().parents[1] / "edge" / "bars-edge-router" / "stream.js").read_text(encoding="utf-8")
+    m = re.search(r'export const STREAM_QUOTES_PATH = "([^"]+)";', src)
+    assert m, "STREAM_QUOTES_PATH not found in stream.js"
+    assert m.group(1) == cet.QUOTES_COOKIE_PATH
 
 # ── the MACHINE trust path (Phase 1.5) ──────────────────────────────────────
 

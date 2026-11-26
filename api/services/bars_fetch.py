@@ -2291,6 +2291,36 @@ def _reconcile_developing_week(ticker: str, weekly: list[dict]) -> list[dict]:
     return out
 
 
+# ⭐ THE ONE EXTENDED-SESSION RULE lives in `api/services/extended_session.py` (a light module, so the live gate and the
+# store can read it without this one); these two names are its readers' spelling here.
+def session_clamp_applies(ticker: str | None) -> bool:
+    from api.services import extended_session
+    return extended_session.applies(ticker)
+
+
+def in_extended_session(ts) -> bool:
+    from api.services import extended_session
+    return extended_session.inside(ts)
+
+
+def _clamp_exempt(ticker: str) -> bool:
+    return not session_clamp_applies(ticker)
+
+
+def _clamp_to_extended_session(bars: list[dict]) -> list[dict]:
+    """The intraday rows whose start lies inside its ET trading day's extended session [04:00, close + 4 h)."""
+    out = []
+    for b in bars:
+        try:
+            t = int(b["t"])
+        except Exception:                  # noqa: BLE001 - an unreadable stamp is left to the other guards
+            out.append(b)
+            continue
+        if in_extended_session(t):
+            out.append(b)
+    return out
+
+
 def _fmt_sqlite_bars(rows: list[tuple], tf: str, ticker: str | None = None) -> list[dict]:
     """Convert SQLite (ts, o, h, l, c, v) tuples to LightweightCharts format.
 
@@ -2340,6 +2370,13 @@ def _fmt_sqlite_bars(rows: list[tuple], tf: str, ticker: str | None = None) -> l
         else:
             t_val = ts
         out.append({"t": t_val, "o": o, "h": h, "l": l, "c": c, "v": v})
+    if not date_tf and out and not (ticker and _clamp_exempt(ticker)):
+        # ⛔ SESSION CLAMP (2026-11-25, the TradingView 4h diff of #2753): an intraday row exists only inside its ET
+        # day's extended session, 04:00 to 20:00 (17:00 on a half day), the session TradingView's extended-hours bars
+        # cover. The store held 60m eth rows stamped 20:00 ET (SPY 2025-09-10, 09-29, 10-07, 11-04, 11-07: a few
+        # hundred shares of prints at or after the session's end), which drew an extra hour and an extra 20:00 4h bar.
+        # Served here, so every reader (the chart, the 4h resample, scans) sees the same session.
+        out = _clamp_to_extended_session(out)
     if not date_tf and out:
         # ⛔ Grid guard (2026-11-10): an intraday row is keyed on its bucket START. A
         # stored off-grid row (the yfinance live row stamped at a trade time, e.g. SPY
