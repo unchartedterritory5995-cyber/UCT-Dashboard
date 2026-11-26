@@ -48,7 +48,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from fastapi import Cookie, Header, HTTPException
+from fastapi import Cookie, Header, HTTPException, Request
 
 # ⛔ IMPORTED, NEVER RESTATED. `_push_secret_ok` is a constant-time compare with
 # a deliberately non-constant-time "is a secret configured at all" guard, and its
@@ -118,6 +118,41 @@ def require_bars_access(uct_session: Optional[str] = Cookie(None),
     if not meets_plan_gate(user, list(PAID_PLANS)):
         raise HTTPException(status_code=403, detail=UPGRADE_DETAIL)
     return user
+
+
+# ⭐ (2026-11-25) THE SAME GATE, RUN ON A ROUTE'S OWN THREAD LIMITER, AND HOW THE AUDITORS STILL SEE IT.
+# `require_bars_access` is sync, so FastAPI runs it on anyio's DEFAULT thread pool, the one every sync route
+# shares; a route that must never queue there (`/api/bars-history`, #2741) runs the gate in a thread on its own
+# limiter instead. The gate is then CALLED, not `Depends`-ed, so it is absent from the route's dependency tree,
+# which is what both auth auditors read (`api/auth_surface_check.py`, `tests/test_exposed_routes_gated.py`):
+# master went red on them with #2741. So the wrapper is built HERE, by one factory that records what it built,
+# and the auditors count a product by IDENTITY (`is_bars_access_on_limiter`), never by a name: a function merely
+# called `require_bars_access_*` stays an open route in their eyes. `test_exposed_routes_gated` also awaits
+# every product the served app carries with free, paid and admin callers, so identity is measured, not trusted.
+_ON_LIMITER: list = []
+
+
+def require_bars_access_on(run, name: str):
+    """`require_bars_access` as an async dependency that runs the gate through `run(request, fn, *args)` (an
+    awaitable that calls `fn(*args)` in a thread on the route's own limiter and returns its result), named
+    `name`. An app's `dependency_overrides[require_bars_access]` (tests, the stream edge) still applies: it is
+    the same gate, so the override is honoured here."""
+    async def gate(request: Request, uct_session: Optional[str] = Cookie(None),
+                   authorization: str = Header(default="")) -> dict:
+        over = getattr(getattr(request, "app", None), "dependency_overrides", {}).get(require_bars_access)
+        if over is not None:
+            out = over()
+            return await out if hasattr(out, "__await__") else out
+        return await run(request, require_bars_access, uct_session, authorization)
+
+    gate.__name__ = gate.__qualname__ = name
+    _ON_LIMITER.append(gate)
+    return gate
+
+
+def is_bars_access_on_limiter(call) -> bool:
+    """True only for a dependency `require_bars_access_on` built (identity, never a name)."""
+    return any(call is g for g in _ON_LIMITER)
 
 
 def require_bars_service(authorization: str = Header(default="")) -> dict:

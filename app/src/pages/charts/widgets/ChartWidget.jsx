@@ -27,6 +27,7 @@ import { viewCacheTf, resolveShowExtended } from '../../../utils/viewSession'
 import { fetchTf } from '../../../components/chart/timeframes'
 import useSymbolHandoff from '../../../hooks/useSymbolHandoff'
 import { chartGroupKey } from '../../../hooks/handoffGroups'
+import { PaintMemberContext } from '../../../components/chart/paintLog'
 import { primeTypedIntent } from './typedIntentPrime'
 import { memHas } from '../../../utils/barsMemCache'
 import {
@@ -150,6 +151,11 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   // surface settings (`chartCs`), read by the handoff when a switch starts — so it prepares the
   // key THIS pane reads, never the process-global view session.
   const paneExtRef = useRef(true)
+  // ⭐ (2026-11-23) the identity this widget's chart PAINTS under: the handoff registers it with the group, and
+  // the chart below reads it from PaintMemberContext, so the switch-speed instrument (lib/switchSpeed.js) can
+  // tell when every chart of the group has drawn a new symbol. One opaque token per mounted widget; nothing
+  // is stored in it and no rendering decision reads it.
+  const [switchMember] = useState(() => ({}))
   // `group`: the linked colour group shows a new symbol in ONE frame, every chart of it together
   // (useSymbolHandoff GROUP_SYNC_MS; owner's hard rule, 2026-11-20).
   const sym = useSymbolHandoff(requestedSym, tf, {
@@ -157,6 +163,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
     // a host without a store, the drill or the screener, takes the round as before)
     showExtended: paneExtRef, group: chartGroupKey(activeColor), scope: groupSymsStore || null,
     settle: { debounceMs: symDebounceMs, isWarm: symIsWarm },
+    member: switchMember,
   })
   // A host outside /charts may add price lines for the symbol on show (chartHostOverlay.js).
   const hostPriceLines = hostOverlay?.priceLinesFor?.(sym) || null
@@ -739,7 +746,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   )
 
   return (
-    <>
+    <PaintMemberContext.Provider value={switchMember}>
       <ChartDetailDock sym={sym} dock={dock} setDock={setDock} onPickSymbol={handleSymbolChange} chartSettings={activeStoredSettings}>
       <ChartPane
         ref={paneRef}
@@ -1146,6 +1153,6 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
           onSent={(msg) => setCtxToast(msg)}
         />
       )}
-    </>
+    </PaintMemberContext.Provider>
   )
 }

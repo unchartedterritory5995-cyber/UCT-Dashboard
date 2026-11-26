@@ -3,7 +3,12 @@
   POST /api/perf/beacon   — one page-load report, sent with navigator.sendBeacon.
                             No session needed and none is read: the report is
                             anonymous by construction (api/services/perf_beacon.py).
-  GET  /api/admin/perf    — admin: per page, per API route, per country percentiles.
+                            Also the chart-switch counts (`kind: "switches"`),
+                            sent when a page is hidden or left.
+  GET  /api/admin/perf    — admin: per page, per API route, per country percentiles;
+                            and `switches`: per ET day, the merged chart-switch
+                            histograms and the share under 40 ms per combination
+                            (`?switch_days=N`, default 7).
 
 ⚠️ MOUNT: `app.include_router(perf_beacon_router.router)` in api/main.py, before
 the SPA catch-all like every /api route.
@@ -48,6 +53,7 @@ async def post_perf_beacon(request: Request) -> dict[str, Any]:
 @router.get("/api/admin/perf")
 def admin_perf(
     hours: int = Query(default=24, ge=1, le=perf_beacon.RETENTION_DAYS * 24),
+    switch_days: int = Query(default=7, ge=1, le=perf_beacon.SWITCH_RETENTION_DAYS),
     _admin: dict = Depends(require_admin),
 ) -> dict[str, Any]:
-    return perf_beacon.summary(hours)
+    return {**perf_beacon.summary(hours), "switches": perf_beacon.switch_summary(switch_days)}
