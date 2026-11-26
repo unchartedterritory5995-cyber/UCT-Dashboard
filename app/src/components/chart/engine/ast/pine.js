@@ -520,6 +520,23 @@ export const REFUSALS = Object.freeze({
     + 'not offered',
 })
 
+// ⭐ e98 (train e98, polyline words) — A SCRIPT WHOSE DRAWING IS ITS POLYLINES IS TOLD SO. With no plot, no alert
+// condition and no drawing step carried, `pine:no-output` said "offers no plot and no alert condition" and named nothing
+// the author wrote; the object pass had already recorded the polyline (`objectDiagnostics.outOfScope`, the
+// `OUT_OF_SCOPE_NAMESPACES` reading). The guard is unchanged (every consumer of `pine:no-output` reads the same fact);
+// the sentence names the polylines. ⛔ ONLY `pine:no-output` with no drawing step carried, and only where a polyline was
+// written. It does not say polylines are ALL the script writes: a lost line is the drawing note's to name.
+export const POLYLINE_NO_OUTPUT_CLAUSE = 'it draws polylines (`polyline.new`), which this chart does not draw yet'
+export function writesPolyline(diagnostics) {
+  const oos = (diagnostics && Array.isArray(diagnostics.outOfScope)) ? diagnostics.outOfScope : []
+  return oos.some((e) => typeof e === 'string' && (e === 'polyline' || e.startsWith('polyline.')))
+}
+function noOutputSentence(guard, diagnostics) {
+  return guard === 'pine:no-output' && writesPolyline(diagnostics)
+    ? `${REFUSALS[guard]}: ${POLYLINE_NO_OUTPUT_CLAUSE}`
+    : REFUSALS[guard]
+}
+
 /** ⭐⭐ DRAW-1 (2026-11-16) — WHY A DRAWING STEP'S CONDITION COULD NOT BE READ, WHEN NOTHING
  *  THREW. A `guard:<kind>` drop is named by the refusal its condition's tree threw
  *  (`noteGuardRefusal`, `guardRefusals`); five return paths of the object pass's guard reader
@@ -32854,7 +32871,7 @@ function translatePineResult(source, opts = {}) {
     const r = withheld
       ? refusalValue(withheld.guard, withheldHeadline(withheld),
         withheld.line === null ? null : { line: withheld.line, column: null, index: null, token: null })
-      : refusalValue(guard, REFUSALS[guard], null)
+      : refusalValue(guard, noOutputSentence(guard, objectPass.diagnostics), null)
     return {
       ok: false, version, declaration, title, outputs: [], selected: -1,
       presentation: { overlay, levels, ...(levelsWithheld.length ? { levelsWithheld } : {}), ...(paintRecs ? { paints: paintRecs } : {}),
