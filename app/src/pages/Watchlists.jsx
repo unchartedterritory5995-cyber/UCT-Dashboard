@@ -671,6 +671,19 @@ const WatchRow = React.memo(function WatchRow({
 // shared `.listBody` scroll container (the sticky column header sits above it), and reports
 // the visible symbols up so ONLY those get live-streamed — the whole point that lets a
 // ~5,000-row scan render without opening ~100 SSE streams or mounting 5,000 DOM rows.
+/** Where row `idx` sits against the list's view, from the virtualizer's own measurements: 'visible' (wholly in view),
+ *  'near' (in view in part, or within one row of an edge) or 'far' (off-screen beyond that, or nothing measured yet). */
+export function rowPlacement(virt, idx) {
+  const m = virt?.measurementsCache?.[idx]
+  const top = virt?.scrollOffset
+  const h = virt?.scrollRect?.height
+  if (!m || !Number.isFinite(top) || !(h > 0)) return 'far'
+  const bottom = top + h
+  if (m.start >= top && m.end <= bottom) return 'visible'
+  const size = m.end - m.start
+  return m.end > top - size && m.start < bottom + size ? 'near' : 'far'
+}
+
 export function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChange, scrollToSym, noScrollRef, measureOffset = false }) {
   // ⭐ WHY AN OFFSET EXISTS AT ALL. The virtualizer places rows absolutely and
   // measures against the SCROLL element, so its arithmetic is only right when this
@@ -758,7 +771,16 @@ export function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChan
     if (noScrollRef?.current === scrollToSym) { scrolledForRef.current = scrollToSym; noScrollRef.current = null; return }
     const idx = items.findIndex((it) => it?.sym === scrollToSym && !it.isGroup)
     if (idx < 0) return                                  // row not rendered yet — retry on next items change
-    try { virt.scrollToIndex(idx, { align: 'center' }) } catch { /* mid-mount */ }
+    // ⭐ (2026-11-26, owner: "jumpy") THE LEAST SCROLL. This re-centred the list on EVERY selection change, so each arrow
+    // press moved the whole list under the member's eye. Now (TradingView-like): a row already in view does not move the
+    // list; a row in view in part, or one row past an edge (the arrow press at the bottom), scrolls the least
+    // (`align: 'auto'`: one row); a selection landing far off-screen (a typed ticker, a jump, a list opening on a
+    // symbol) is centred, once. Rail: Watchlists.scanRowsScroll.test.jsx.
+    const where = rowPlacement(virt, idx)
+    try {
+      if (where === 'far') virt.scrollToIndex(idx, { align: 'center' })
+      else if (where === 'near') virt.scrollToIndex(idx, { align: 'auto' })
+    } catch { /* mid-mount */ }
     scrolledForRef.current = scrollToSym
   }, [scrollToSym, items]) // eslint-disable-line react-hooks/exhaustive-deps
   if (items.length === 0) return <div className={styles.wlEmpty}>{emptyText}</div>
