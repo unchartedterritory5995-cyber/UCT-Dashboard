@@ -67,7 +67,7 @@ describe('a deep custom-timeframe page is read off its landing task, one ET-day 
 
   it('I1 a refused page: the same words, found in a later slice', async () => {
     const base = page('2025-10-01', 220, CLOCK60)
-    const sat = utc('2026-03-07') + 5 * 3600 + 600 * 60                         // a Saturday 10:00 ET row, late in the page
+    const sat = utc('2026-05-09') + 4 * 3600 + 600 * 60                         // a Saturday 10:00 ET row, past the first slice
     const i = base.findIndex((b) => b.t > sat)
     expect(i).toBeGreaterThan(IDLE_READ_SLICE_ROWS)
     const bad = [...base.slice(0, i), { t: sat, o: 1, h: 1, l: 1, c: 1, v: 1 }, ...base.slice(i)]

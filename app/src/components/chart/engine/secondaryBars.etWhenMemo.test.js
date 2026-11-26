@@ -76,7 +76,12 @@ describe('offSessionRowOf reads ET weekday and minute from barTime\'s memo: iden
   it('W2 the cost: at most two Intl reads per UTC day for a 30-day page (the reference: one per row)', () => {
     const page = []
     const start = utc('2034-01-09')                                           // days no other case asked about (no DST change)
-    for (let d = 0; d < 30; d++) for (let m = 240; m < 1200; m += 60) page.push({ t: start + d * 86400 + 5 * 3600 + m * 60, o: 1, h: 1, l: 1, c: 1, v: 1 })
+    for (let d = 0, n = 0; n < 30; d++) {                                      // 30 WEEKDAYS: a weekend row refuses the page
+      const wd = new Date((start + d * 86400) * 1000).getUTCDay()
+      if (wd === 0 || wd === 6) continue
+      n += 1
+      for (let m = 240; m < 1200; m += 60) page.push({ t: start + d * 86400 + 5 * 3600 + m * 60, o: 1, h: 1, l: 1, c: 1, v: 1 })
+    }
     const spec = SPECS[1]
     const proto = Intl.DateTimeFormat.prototype
     const real = proto.formatToParts
@@ -90,6 +95,7 @@ describe('offSessionRowOf reads ET weekday and minute from barTime\'s memo: iden
       want = refOffSessionRowOf(page, spec)
     } finally { proto.formatToParts = real }
     expect(got).toBe(want)
+    expect(got, 'a page on the grid, weekdays only: nothing refused').toBe(null)
     expect(reads, 'the control: the reference reads once per row').toBe(page.length)
     const utcDays = new Set(page.map((b) => Math.floor(b.t / 86400))).size
     expect(newReads).toBeLessThanOrEqual(2 * utcDays)
