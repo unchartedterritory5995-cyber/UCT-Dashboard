@@ -1,0 +1,50 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "TF1",
+   "mutant": "no 240: the clock answers no custom intraday code",
+   "file": "app/src/components/chart/indicators.js",
+   "from": "const CLOCK_CUSTOM_INTRADAY_TFS = ['240']",
+   "to": "const CLOCK_CUSTOM_INTRADAY_TFS = []",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/customTfFlags.test.js",
+   "expectRed": "isintraday 1, isdaily"
+  },
+  {
+   "id": "TF2",
+   "mutant": "240 not intraday",
+   "file": "app/src/components/chart/indicators.js",
+   "from": "    isintraday: CLOCK_INTRADAY_TFS.includes(tf) || CLOCK_CUSTOM_INTRADAY_TFS.includes(tf),",
+   "to": "    isintraday: CLOCK_INTRADAY_TFS.includes(tf),",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/customTfFlags.test.js",
+   "expectRed": "isintraday 1, isdaily"
+  },
+  {
+   "id": "TF3",
+   "mutant": "the flags guessed from a code's shape (any all-digit code answered)",
+   "file": "app/src/components/chart/indicators.js",
+   "from": "  if (!CLOCK_FLAG_TIMEFRAMES.includes(tf)) return null",
+   "to": "  if (!CLOCK_FLAG_TIMEFRAMES.includes(tf) && !/^[0-9]+$/.test(String(tf))) return null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/customTfFlags.test.js",
+   "expectRed": "never a guess from its shape"
+  },
+  {
+   "id": "TF4",
+   "mutant": "no 240 bar length (in_seconds unanswered on 240)",
+   "file": "app/src/components/chart/indicators.js",
+   "from": "  240: 14400,\n})",
+   "to": "})",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/customTfFlags.test.js",
+   "expectRed": "isintraday 1, isdaily"
+  },
+  {
+   "id": "TF5",
+   "mutant": "240 read as weekly",
+   "file": "app/src/components/chart/indicators.js",
+   "from": "    isweekly: tf === 'W',",
+   "to": "    isweekly: tf === 'W' || tf === '240',",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/customTfFlags.test.js",
+   "expectRed": "isintraday 1, isdaily"
+  }
+ ]
+}

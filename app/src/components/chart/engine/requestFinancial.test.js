@@ -105,7 +105,10 @@ describe('F1b — the parse rewrite: one data read per id, period and gaps, unde
     expect(why('plot(request.financial("NASDAQ:MSFT", "TOTAL_REVENUE", "FQ"))')).toMatchObject({ code: R.FINANCIAL_SYMBOL })
     expect(why('plot(request.financial(syminfo.tickerid, "TOTAL_REVENUE", "FQ", currency = currency.EUR))')).toMatchObject({ code: R.FINANCIAL_CURRENCY })
     expect(why('id = "TOTAL_REVENUE"\nplot(request.financial(syminfo.tickerid, id, "FQ"))')).toMatchObject({ code: R.FINANCIAL_ARGUMENT })
-    expect(why('p = "FQ"\nplot(request.financial(syminfo.tickerid, "TOTAL_REVENUE", p))')).toMatchObject({ code: R.FINANCIAL_PERIOD })
+    // ⭐ e98 E4 — a period bound to a constant string (`p = "FQ"`) is that period, as on TradingView (a simple string):
+    // the parse reads one call per catalog period and the resolver folds `p == "FQ"` (`requestFinancialPeriod.test.js`)
+    expect(why('p = "FQ"\nplot(request.financial(syminfo.tickerid, "TOTAL_REVENUE", p))')).toBeNull()
+    expect(why('p = "FY"\nplot(request.financial(syminfo.tickerid, "TOTAL_REVENUE", p))')).toMatchObject({ code: R.FINANCIAL_PERIOD })
     expect(why('g = barmerge.gaps_on\nplot(request.financial(syminfo.tickerid, "TOTAL_REVENUE", "FQ", g))')).toMatchObject({ code: R.FINANCIAL_ARGUMENT })
     // the reference example: another symbol AND an id not served: the id is named first
     expect(why('plot(request.financial("NASDAQ:MSFT", "ACCOUNTS_PAYABLE", "FY"))')).toMatchObject({ code: R.FINANCIAL_FIELD })

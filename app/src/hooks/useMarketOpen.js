@@ -19,14 +19,25 @@ import { sessionState } from '../lib/marketClock/marketClock'
  * the same chain. `isOpen`/`isPremarket`/`isExtended` must never be renamed;
  * new fields (like `isHalfDay`) are additive-only.
  */
+// ⚡ (2026-11-26, the board switch) ONE CALENDAR READ PER WALL-CLOCK MINUTE. Every chart pane, header clock and session
+// badge mounts its own copy of this hook, and each read the NYSE calendar on mount (2.1 ms of a board switch on
+// production's build). The session changes only on a minute boundary (04:00, 09:30, 16:00 or the 13:00 early close,
+// 20:00 ET; ET is a whole number of hours from UTC), so the state read in one minute IS that minute's state: read once,
+// frozen, shared by every hook that asks in that minute (useMarketOpen.minuteCache.test.js).
+let _minuteState = { minute: NaN, state: null }
 function getMarketState() {
-  const s = sessionState(new Date())
-  return {
+  const now = Date.now()
+  const minute = Math.floor(now / 60_000)
+  if (_minuteState.minute === minute && _minuteState.state) return _minuteState.state
+  const s = sessionState(new Date(now))
+  const state = Object.freeze({
     isOpen: s.isOpen,
     isPremarket: s.isPremarket,
     isExtended: s.isExtended,
     isHalfDay: s.isHalfDay,
-  }
+  })
+  _minuteState = { minute, state }
+  return state
 }
 
 export default function useMarketOpen() {

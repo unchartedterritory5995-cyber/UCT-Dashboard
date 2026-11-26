@@ -3,16 +3,16 @@
   "capture": {
    "scripts": 1039,
    "admitted": 838,
-   "runtimeLane": 227,
-   "hostLane": 322,
+   "runtimeLane": 231,
+   "hostLane": 318,
    "refused": 289,
    "coreOnly": 51
   },
   "committed": {
    "scripts": 266,
    "admitted": 195,
-   "runtimeLane": 50,
-   "hostLane": 63,
+   "runtimeLane": 51,
+   "hostLane": 62,
    "refused": 82,
    "coreOnly": 4
   },
@@ -3920,7 +3920,7 @@
   },
   {
    "capture": "opening-range-initial-balance-opening-price-rddt-1d-2026-10-02",
-   "lane": "host",
+   "lane": "runtime",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -3935,7 +3935,7 @@
   },
   {
    "capture": "opening-range-initial-balance-opening-price-rddt-1d-2026-11-15",
-   "lane": "host",
+   "lane": "runtime",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -3950,7 +3950,7 @@
   },
   {
    "capture": "opening-range-initial-balance-opening-price-spy-1d-2026-10-03",
-   "lane": "host",
+   "lane": "runtime",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -3965,7 +3965,7 @@
   },
   {
    "capture": "opening-range-initial-balance-opening-price-spy-1d-2026-11-15",
-   "lane": "host",
+   "lane": "runtime",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -20779,7 +20779,7 @@
   },
   {
    "key": "committed:opening-range-initial-balance-opening-price__4a7416ab01",
-   "lane": "host",
+   "lane": "runtime",
    "caps": [
     "core",
     "fn-multi",
