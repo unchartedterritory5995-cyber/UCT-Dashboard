@@ -8892,6 +8892,63 @@ const BUDGET_CHECK_MASK = 4095
  *  refusal path already handles every kind this set does not name. */
 const PARAM_MANIFEST_ELIGIBLE_KINDS = Object.freeze(new Set(['input', 'int', 'float', 'bool']))
 
+/** ⭐⭐ e99 U2 — KEPT REFUSALS (`Resolver.resolveProbed`, `replayRefusal`).
+ *  `RefusalReplays` is a probe map that keeps refusals only: a comparison C24 gives no probe map (an operand is a
+ *  `var`'s state, so a rewrite between the probe and the ordinary path can do work of its own) gets one of these, and
+ *  its successes resolve for real exactly as before. `REFUSAL_REPLAY` is the test seam's state
+ *  (`__refusalReplayForTests`): `off` keeps nothing (the translator before U2), `verify` resolves for real where a
+ *  refusal would be replayed and counts whether the replay would have been the same. */
+class RefusalReplays extends Map {}
+const REFUSAL_REPLAY = { off: false, verify: false, stats: null }
+
+/** A kept refusal: its prototype and every own field as it stood when it was thrown out of the probe (before any
+ *  outer catcher marked it), without its stack. */
+function refusalSnapshotOf(err) {
+  const props = Object.getOwnPropertyDescriptors(err)
+  delete props.stack
+  return { proto: Object.getPrototypeOf(err), props, original: err }
+}
+
+/** A fresh refusal from a snapshot, built WITHOUT capturing a stack (`Object.create`, never the constructor): its
+ *  `stack` reads the kept refusal's own, so a log of it still names where the refusal was first raised. */
+function refusalFromSnapshot(s) {
+  const e = Object.create(s.proto, s.props)
+  Object.defineProperty(e, 'stack', {
+    get() { return s.original.stack },
+    set(v) { Object.defineProperty(this, 'stack', { value: v, writable: true, configurable: true, enumerable: false }) },
+    configurable: true, enumerable: false,
+  })
+  return e
+}
+
+/** Do `real` (a refusal a repeat raised) and a kept snapshot carry the same prototype and the same own fields? */
+function sameRefusalFields(real, snap) {
+  if (Object.getPrototypeOf(real) !== snap.proto) return false
+  const props = Object.getOwnPropertyDescriptors(real)
+  delete props.stack
+  const a = Object.keys(props)
+  const b = Object.keys(snap.props)
+  if (a.length !== b.length) return false
+  for (const k of a) {
+    if (!snap.props[k]) return false
+    const x = props[k]
+    const y = snap.props[k]
+    if (x.enumerable !== y.enumerable || JSON.stringify(x.value) !== JSON.stringify(y.value)) return false
+  }
+  return true
+}
+
+/** TEST SEAM. `__refusalReplayForTests({ off, verify })` sets the kept-refusal mode and returns a fresh stats object
+ *  (`{ replays, verified, mismatches, mismatchCount }`); `__refusalReplayForTests()` restores the shipped mode.
+ *  `newRefusalReplays()` hands a rail the refusals-only map a comparison would build. */
+export function __refusalReplayForTests({ off = false, verify = false } = {}) {
+  REFUSAL_REPLAY.off = !!off
+  REFUSAL_REPLAY.verify = !!verify
+  REFUSAL_REPLAY.stats = { replays: 0, verified: 0, mismatches: [], mismatchCount: 0 }
+  return REFUSAL_REPLAY.stats
+}
+export const __newRefusalReplaysForTests = () => new RefusalReplays()
+
 export class Resolver {
   constructor(env, table, types, opts = {}) {
     this.env = env
@@ -10299,20 +10356,37 @@ export class Resolver {
    * own step count, so `budgetSteps` — and every `pine:timeout` step rail — reads
    * what it read before. When those steps would pass the cap, it resolves for
    * real instead, so the refusal fires at the node, with the caret, it always did.
+   *
+   * ⭐⭐ e99 U2 — …AND NOW A REFUSAL IS KEPT TOO, UNDER A STRICTER RULE (`replayRefusal`). A probe that refuses was
+   * resolved again by the ordinary path, refusing again with a NEW `PineRefusal` (a stack captured) — and a refusing
+   * operand inside a comparison inside a binding a comparison reads doubled at every level. ⚰️ MEASURED on the
+   * licence-held `market-structure-with-inducements-sweeps-luxalgo` (one host-lane translation, 2026-11-26): 3.8M
+   * refusals built, all but 81 of them only to be swallowed by `constIntOf`, 139 s of 262 s in their constructor.
+   * A comparison whose operand is a `var`'s state takes no probe map (C24's rule, above the call), so it takes a
+   * REFUSALS-ONLY one (`RefusalReplays`): its successes resolve for real exactly as before, its refusals are kept.
    */
   resolveProbed(node, probed) {
     const hit = probed.get(node)
     if (hit && hit.env === this.env && hit.stack === this.stack && hit.frames === this.frames
       && hit.framesLength === this.frames.length && hit.selfReads === this.selfReads
-      && hit.paramMint === this.paramMint && hit.objectPass === this.objectPass
-      && !(this.maxSteps > 0 && this.budgetSteps + hit.steps > this.maxSteps)) {
-      const before = this.budgetSteps
-      this.budgetSteps += hit.steps
-      const period = BUDGET_CHECK_MASK + 1
-      if (Math.floor(before / period) !== Math.floor(this.budgetSteps / period)) {
-        this.checkClock(node && node.tok)
+      && hit.paramMint === this.paramMint && hit.objectPass === this.objectPass) {
+      if (hit.refusal) {
+        if (REFUSAL_REPLAY.verify) {
+          const verified = this.verifyRefusalReplay(node, hit)
+          if (verified) return verified.tree
+        } else {
+          const replayed = this.replayRefusal(node, hit)
+          if (replayed) throw replayed
+        }
+      } else if (!(this.maxSteps > 0 && this.budgetSteps + hit.steps > this.maxSteps)) {
+        const before = this.budgetSteps
+        this.budgetSteps += hit.steps
+        const period = BUDGET_CHECK_MASK + 1
+        if (Math.floor(before / period) !== Math.floor(this.budgetSteps / period)) {
+          this.checkClock(node && node.tok)
+        }
+        return hit.tree
       }
-      return hit.tree
     }
     const env = this.env
     const stack = this.stack
@@ -10323,7 +10397,30 @@ export class Resolver {
     const objectPass = this.objectPass
     const before = this.budgetSteps
     const mark = this.firstTimeMark()
-    const tree = this.resolve(node)
+    // ⭐ e99 U2 — what a refusal's replay must also leave as it found (`replaySideMark`), and the call's own count
+    const side = REFUSAL_REPLAY.off ? 0 : this.replaySideMark()
+    const callBefore = CALL_STEPS
+    const windowOpen = WINDOW_OPEN
+    const depthTripped = this.depthTripped
+    let tree
+    try {
+      tree = this.resolve(node)
+    } catch (err) {
+      // ⛔ A REFUSAL IS KEPT ONLY WHEN A REPEAT WOULD REFUSE THE SAME WAY AT THE SAME COST: a `PineRefusal` that is
+      // not a budget's (`pine:timeout`: a step cap, the depth bound, a window or the door — another output with budget
+      // to spare must be allowed to try), from a resolution that did no first-time work and touched no record a repeat
+      // would touch again (`replaySideMark`), with no window or door tripped and the depth bound untouched.
+      if (!REFUSAL_REPLAY.off && err instanceof PineRefusal && err.guard !== 'pine:timeout'
+        && !WINDOW_TRIP && !doorTripped() && windowOpen === WINDOW_OPEN && this.depthTripped === depthTripped
+        && this.firstTimeMark() === mark && this.replaySideMark() === side) {
+        probed.set(node, {
+          refusal: refusalSnapshotOf(err), steps: this.budgetSteps - before, callSteps: WINDOW_OPEN ? CALL_STEPS - callBefore : 0,
+          mark, side, depth: this.depth,
+          env, stack, frames, framesLength, selfReads, paramMint, objectPass,
+        })
+      }
+      throw err
+    }
     // ⛔ ONLY A RESOLUTION THAT DID NO FIRST-TIME WORK IS KEPT. Minting a new
     // parameter (its `minval`/`maxval`/`step` resolve once, at creation) or
     // filling a cache (`partialReadCache`, `recurrenceColumns`, …) makes the
@@ -10331,13 +10428,97 @@ export class Resolver {
     // over-count `budgetSteps`. Such a resolution is not kept, so the ordinary
     // path resolves for real — exactly as before — and its own probes, now
     // repeats, are the ones replayed.
-    if (this.firstTimeMark() === mark) {
+    // ⭐ e99 U2 — a refusals-only map (`RefusalReplays`) keeps no tree: its successes resolve for real, as before.
+    if (!(probed instanceof RefusalReplays) && this.firstTimeMark() === mark) {
       probed.set(node, {
         tree, steps: this.budgetSteps - before,
         env, stack, frames, framesLength, selfReads, paramMint, objectPass,
       })
     }
     return tree
+  }
+
+  /** ⭐⭐ e99 U2 — THE KEPT REFUSAL, THROWN AGAIN AS A REPEAT WOULD THROW IT, or null to resolve for real.
+   *
+   *  ⛔ STRICTER THAN A KEPT TREE: on top of the scope `resolveProbed` already matched, nothing may have moved since
+   *  the refusal was kept — no first-time work and no record a repeat would touch (`firstTimeMark`,
+   *  `replaySideMark`), the same depth, the depth bound untouched, no window or door tripped — and its steps must
+   *  fit under BOTH caps (the Resolver's and the call's). Anything else resolves for real.
+   *  ⛔ CHARGED AS IF IT HAD RUN: the steps it took go on `budgetSteps` AND on the call's count (`CALL_STEPS`, what
+   *  `lastTranslateWindow().steps` reads), the worker's heartbeat hears them, and the clock is read where a 4,096
+   *  boundary is crossed — so every step rail and every `pine:timeout` reads what it read before.
+   *  ⛔ A FRESH OBJECT EACH TIME, BUILT WITHOUT CAPTURING A STACK (`refusalFromSnapshot`): the same guard, message,
+   *  location and every own field the refusal carried when it was kept, so a catcher that marks it (`afterLoop`)
+   *  marks this throw only. This is `checkBudget`'s "one refusal, thrown again" for a refusal that is not a budget's;
+   *  `Error.stackTraceLimit` is never touched, and a genuine bug (anything not a `PineRefusal`) is never kept. */
+  replayRefusal(node, hit) {
+    if (!this.refusalReplayable(hit)) return null
+    const before = this.budgetSteps
+    this.budgetSteps += hit.steps
+    if (WINDOW_OPEN) CALL_STEPS += hit.callSteps
+    workPulse(hit.steps)
+    const period = BUDGET_CHECK_MASK + 1
+    if (Math.floor(before / period) !== Math.floor(this.budgetSteps / period)) {
+      this.checkClock(node && node.tok)
+    }
+    if (REFUSAL_REPLAY.stats) REFUSAL_REPLAY.stats.replays += 1
+    return refusalFromSnapshot(hit.refusal)
+  }
+
+  /** The conditions under which `replayRefusal` throws the kept refusal instead of resolving (see there). */
+  refusalReplayable(hit) {
+    return this.depth === hit.depth && !this.depthTripped && !WINDOW_TRIP && !doorTripped()
+      && !(this.maxSteps > 0 && this.budgetSteps + hit.steps > this.maxSteps)
+      && !(WINDOW_OPEN && CALL_MAX_STEPS > 0 && CALL_STEPS + hit.callSteps > CALL_MAX_STEPS)
+      && this.firstTimeMark() === hit.mark && this.replaySideMark() === hit.side
+  }
+
+  /** TEST SEAM (`__refusalReplayForTests({ verify: true })`): where a kept refusal WOULD be replayed, resolve for real
+   *  (what this translator did before U2), and record whether the real repeat refused with the same guard, message,
+   *  location and fields at the same cost in both step counts, touching nothing. Returns `{ tree }` when the real
+   *  repeat succeeded (a mismatch: the caller returns it, as before), throws the real refusal otherwise, or returns
+   *  null when the refusal would not have been replayed at all. */
+  verifyRefusalReplay(node, hit) {
+    if (!this.refusalReplayable(hit)) return null
+    const stats = REFUSAL_REPLAY.stats
+    const before = this.budgetSteps
+    const callBefore = CALL_STEPS
+    let real = null
+    let tree = null
+    try { tree = this.resolve(node) } catch (err) { real = err }
+    const same = real instanceof PineRefusal
+      && sameRefusalFields(real, hit.refusal)
+      && this.budgetSteps - before === hit.steps
+      && (WINDOW_OPEN ? CALL_STEPS - callBefore : 0) === hit.callSteps
+      && this.firstTimeMark() === hit.mark && this.replaySideMark() === hit.side
+    if (stats) {
+      if (same) stats.verified += 1
+      else if (stats.mismatches.length < 50) {
+        stats.mismatches.push({ guard: real && real.guard, kept: hit.refusal.props.guard && hit.refusal.props.guard.value,
+          steps: [this.budgetSteps - before, hit.steps], callSteps: [CALL_STEPS - callBefore, hit.callSteps] })
+      } else stats.mismatchCount += 1
+    }
+    if (real) throw real
+    return { tree }
+  }
+
+  /** ⭐ e99 U2 — a number that moves when a resolution touches a record OUTSIDE `firstTimeMark`'s view that a repeat
+   *  would touch again: an array the resolver holds growing (`blockRuns`, `knobArmRefusals`), its `selfReads`
+   *  counts, the knob switches' node spend, and the call's sinks (other symbols, lower timeframes, period reads).
+   *  A refusal whose resolution moved it is never kept, so a replay never skips a write a repeat would make. */
+  replaySideMark() {
+    let n = 0
+    for (const k in this) {
+      const v = this[k]
+      if (Array.isArray(v)) n += v.length
+    }
+    const r = this.selfReads
+    if (r) n += (r.bare || 0) + (r.history || 0) + (r.guarded || 0)
+    if (this.paramSwitchSpend) n += this.paramSwitchSpend.nodes || 0
+    if (OTHER_SYMBOL_SINK) { n += OTHER_SYMBOL_SINK.size; for (const s of OTHER_SYMBOL_SINK.values()) n += s.size }
+    if (LOWER_TF_SINK) n += LOWER_TF_SINK.size
+    if (PERIOD_READ_SINK) n += PERIOD_READ_SINK.count + PERIOD_READ_SINK.names.size + PERIOD_READ_SINK.current.size
+    return n
   }
 
   /** A number that moves whenever a resolution does work a repeat would not:
@@ -12426,7 +12607,11 @@ export class Resolver {
         const probed = own(FLIP, node.op)
           && !this.stateBindingOf(node.left) && !this.stateBindingOf(node.right)
           && !isBareObv(node.left) && !isBareObv(node.right) ? new Map() : null
-        const viaBinding = this.boundedBarssinceThroughBinding(node, probed)
+        // ⭐⭐ e99 U2 — …and where C24 keeps nothing, a comparison still keeps what REFUSED (`RefusalReplays`): the
+        // probe's refusal is thrown again by the ordinary path below only when nothing moved in between
+        // (`replayRefusal`); a success resolves for real, exactly as it did.
+        const refusalsOnly = !probed && own(FLIP, node.op) ? new RefusalReplays() : null
+        const viaBinding = this.boundedBarssinceThroughBinding(node, probed || refusalsOnly)
         if (viaBinding) return viaBinding
         // ⭐⭐ …AND A RUN-LENGTH COUNTER IS BOUNDED THE SAME WAY. See
         // `runLengthShape`: `downRun >= 3` can only be decided by three bars, so
@@ -12630,8 +12815,9 @@ export class Resolver {
           if (constFoldP !== null) return cNum(constFoldP)
           return boolNaOperator(mapped, pl, pr, opVersion, foldLogicalIdentity(mapped, pl, pr, this.table), node.left, node.right)
         }
-        const rl = this.resolve(node.left)
-        const rr = this.resolve(node.right)
+        // ⭐ e99 U2 — through the refusals-only map when the comparison built one (a kept refusal is thrown again)
+        const rl = refusalsOnly ? this.resolveProbed(node.left, refusalsOnly) : this.resolve(node.left)
+        const rr = refusalsOnly ? this.resolveProbed(node.right, refusalsOnly) : this.resolve(node.right)
         // ⭐⭐ engine 78 (#1858) (Q-FCMP2) — v1-v4 compare two COMPILE-TIME CONSTANTS exactly; everything
         // else (and v5 / v6) is the run's tolerant compare. See `constCompareOf`.
         const constFold = this.constCompareOf(mapped, node, rl, rr)
