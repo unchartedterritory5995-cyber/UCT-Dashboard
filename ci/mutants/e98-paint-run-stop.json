@@ -1,0 +1,32 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "PS1",
+   "mutant": "the run-stop check dropped: a stopped run's missing paint reads DIVERGE again",
+   "file": "app/src/components/chart/engine/__tests__/vendorHarness/paintColours.js",
+   "from": "          if (ours.paintRunStop && ours.paintRunStop.code) {",
+   "to": "          if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.paintRunStop.test.js",
+   "expectRed": "INCONCLUSIVE, by the run"
+  },
+  {
+   "id": "PS2",
+   "mutant": "a run-stop guard not recognised",
+   "file": "app/src/components/chart/engine/__tests__/vendorHarness/paintColours.js",
+   "from": "    if (RUN_STOP_GUARDS.has(g)) return",
+   "to": "    if (false) return",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.paintRunStop.test.js",
+   "expectRed": "runStopOf reads"
+  },
+  {
+   "id": "PS3",
+   "mutant": "every withheld-by-run paint graded INCONCLUSIVE even when drawn (the check moved before the drawn test)",
+   "file": "app/src/components/chart/engine/__tests__/vendorHarness/paintColours.js",
+   "from": "      if (t.withheld) {",
+   "to": "      if (ours.paintRunStop || t.withheld) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.paintRunStop.test.js",
+   "expectRed": "DRAWN in the wrong colour"
+  }
+ ]
+}

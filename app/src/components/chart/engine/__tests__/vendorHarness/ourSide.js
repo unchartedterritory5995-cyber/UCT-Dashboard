@@ -28,7 +28,7 @@
 import { memberPaneDefinition, WITHHELD_COLOUR_INK } from '../../../builder/memberPane/memberPaneDefinition'
 import * as registry from '../../nativeRegistry'
 import { createBinder, drawShiftOf, paintColoursFor, plotStripNoticesOf } from '../../binder'
-import { bindWithheldPaintsOf } from './paintColours'
+import { bindWithheldPaintsOf, runStopOf } from './paintColours'
 import { bindingKey, resolvePlotForInstance } from '../../pool'
 import { hlineOrdinalOf } from '../../hlineLevels'
 import { addInstance } from '../../instanceControls'
@@ -2016,6 +2016,9 @@ function runOurSideOnTheParityClock(capture) {
       columnErrors: typeof registry.columnErrors === 'function' ? registry.columnErrors(paintColsRaw || {}) : {},
       notices: plotStripNoticesOf(registry, def, paintColsRaw),
     })
+    // ⭐ e98 — a run that STOPPED (a run-stop guard on the columns the paints were computed on): a paint it did not draw
+    // is withheld by the run's name in the grade (`paintColours.js::gradePaints`), never a missing colour
+    const paintRunStop = runStopOf(typeof registry.columnErrors === 'function' ? registry.columnErrors(paintColsRaw || {}) : {})
     const lowerReport = registry.lowerTfReport(cols)
     if (lowerReport) {
       for (const c of lowerReport.served) notes.push(`lower timeframe ${c}: served`)
@@ -2301,6 +2304,7 @@ function runOurSideOnTheParityClock(capture) {
       door: built.lane === 'runtime' ? 'runtime' : 'host',
       // ⭐ G5 — read by `paintColours.gradePaints` where the binder drew nothing
       bindWithheldPaints,
+      ...(paintRunStop ? { paintRunStop } : {}),
       drawnPaints,
       // ⭐ ENGINE 53 — what the door did with the run half (minted / declined by code); the bind's
       // answer (served / refused) rides on `objects.runHalf`.
