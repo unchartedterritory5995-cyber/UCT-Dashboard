@@ -391,8 +391,22 @@ function toOhlcPoints(payload, adjustTime) {
  *  negative whole number; anything else is 0, so a rightward displacement — which
  *  the translator already put in the TREE as `x[N]` — can never be applied a
  *  second time by the renderer. */
-export function drawShiftOf(plot) {
-  const d = plot && plot.displace
+export function drawShiftOf(plot, def = null, inputs = null) {
+  if (!plot) return 0
+  // ⭐⭐ e98 E3 — A DISPLACEMENT THE MEMBER'S SETTING DECIDES (`plots[].displaceInput`, Pine `offset = <input>`): the
+  // instance's value of that int setting (else its declared default), `scale * value + add` bars, EITHER SIDE: the
+  // drawing moves, the column (what a scan, an alert and every `source` read) never does. TradingView: "the shift is
+  // only cosmetic; the actual values in the series are not moved" (Pine User Manual v4, `plot` annotation). The ONE
+  // reader of a plot's draw shift: every binder site and the vendor harness ask it with the instance's inputs.
+  const di = plot.displaceInput
+  if (di && typeof di === 'object' && typeof di.key === 'string') {
+    const own = inputs && typeof inputs === 'object' ? inputs[di.key] : undefined
+    const declared = def && Array.isArray(def.inputs) ? def.inputs.find((i) => i && i.key === di.key) : null
+    const v = Number.isInteger(own) ? own : (declared && Number.isInteger(declared.default) ? declared.default : 0)
+    const d = (di.scale === -1 ? -v : v) + (Number.isInteger(di.add) ? di.add : 0)
+    return Number.isInteger(d) ? d : 0
+  }
+  const d = plot.displace
   return Number.isInteger(d) && d < 0 ? d : 0
 }
 
@@ -417,8 +431,12 @@ export function displacedColumn(column, d) {
   const n = column.length
   const numeric = column instanceof Float64Array || column instanceof Float32Array
   const out = numeric ? new Float64Array(n).fill(NaN) : new Array(n).fill(null)
+  // ⭐ e98 E3 — and a RIGHTWARD one (d > 0, a setting's value): bar j shows the value computed at bar j - d; the first
+  // d bars carry no value and the newest d values fall past the last bar, as the tree's `x[N]` already draws them.
   const k = -d
-  for (let j = 0; j + k < n; j += 1) out[j] = column[j + k]
+  if (d > 0) { for (let j = d; j < n; j += 1) out[j] = column[j - d] } else {
+    for (let j = 0; j + k < n; j += 1) out[j] = column[j + k]
+  }
   byShift.set(d, out)
   return out
 }
@@ -1110,7 +1128,7 @@ export function prepKeyOf(registry, def, inst, sourceCols, { sym, tf, forming, o
  * sync's `pointsFor` and by `prepare`, so a prepared point array is filed under exactly what the switch asks.
  */
 function pointsInputsOf(b, rawColumn, columnOf, cs) {
-  const shift = isOhlcPayload(rawColumn) ? 0 : drawShiftOf(b.plot)
+  const shift = isOhlcPayload(rawColumn) ? 0 : drawShiftOf(b.plot, b.def, b.inst && b.inst.inputs)
   const column = displacedColumn(rawColumn, shift)
   if (isOhlcPayload(column)) return { ohlc: true, column }
   const sc = signColorsForPlot(b.plot)
@@ -3318,9 +3336,9 @@ export function createBinder({ chart, LWC, scope = '' }) {
       }
       // ⭐ 2026-09-26 — each edge of a band is drawn where its OWN plot is drawn,
       // so a displaced plot's band sits under the displaced line, not the column.
-      const plotShift = (key) => drawShiftOf(((b.def && b.def.plots) || []).find((p) => p && p.key === key))
+      const plotShift = (key) => drawShiftOf(((b.def && b.def.plots) || []).find((p) => p && p.key === key), b.def, b.inst && b.inst.inputs)
       if (fillWith) {
-        const ownShift = drawShiftOf(b.plot)
+        const ownShift = drawShiftOf(b.plot, b.def, b.inst && b.inst.inputs)
         const other = displacedColumn(columns.get(bindingKey(b.instanceId, fillWith)), plotShift(fillWith))
         const own = displacedColumn(columns.get(b.key), ownShift)
         if (own && other) {
@@ -3377,7 +3395,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
           if (!hp || !plotHiddenAt(hp, b.def, b.inst && b.inst.inputs)) continue
           const hw = hp.fill && typeof hp.fill.with === 'string' && fillActiveFor(hp.fill, b) ? hp.fill.with : null
           if (!hw || hw === hp.key) continue
-          const upper = displacedColumn(columns.get(bindingKey(b.instanceId, hp.key)), drawShiftOf(hp))
+          const upper = displacedColumn(columns.get(bindingKey(b.instanceId, hp.key)), drawShiftOf(hp, b.def, b.inst && b.inst.inputs))
           const lower = displacedColumn(columns.get(bindingKey(b.instanceId, hw)), plotShift(hw))
           // ⛔ FAIL CLOSED, exactly as the own-fill path does for an
           // unresolvable `with`: no band rather than a band between whatever is
@@ -3394,7 +3412,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
             color: hc.color, opacity: hc.opacity,
             // ⭐ (j) j.3 — the HOSTED band is Clouds' case: the fill is declared on
             // a `display.none` anchor, so this is the site that colours a cloud.
-            colors: displacedColumn(bandColoursFor(hp, b.instanceId, columns, bars.length, unknownColourRule(b.def), (b.inst && b.inst.inputs) || null, chartThemeOf(ctx.cs)), drawShiftOf(hp)),
+            colors: displacedColumn(bandColoursFor(hp, b.instanceId, columns, bars.length, unknownColourRule(b.def), (b.inst && b.inst.inputs) || null, chartThemeOf(ctx.cs)), drawShiftOf(hp, b.def, b.inst && b.inst.inputs)),
           })
           kept.set(hp.key, h)
         }
@@ -3448,7 +3466,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
       if (markerSpec && typeof ctx.createSeriesMarkers === 'function') {
         // ⭐ 2026-09-26 — a displaced glyph sits where Pine draws it: a pivot
         // marked on the pivot bar, not on the bar that confirmed it.
-        const markShift = drawShiftOf(b.plot)
+        const markShift = drawShiftOf(b.plot, b.def, b.inst && b.inst.inputs)
         const own = displacedColumn(columns.get(b.key), markShift)
         if (own) {
           if (!markerLayer) {
@@ -3705,9 +3723,9 @@ export function createBinder({ chart, LWC, scope = '' }) {
       const prev = was && was.host === priceSeriesNow ? was.fills : new Map()
       if (was && was.host !== priceSeriesNow) for (const h of was.fills.values()) attempt(() => was.host.detachPrimitive(h.primitive))
       const kept = new Map()
-      const shiftOf = (key) => drawShiftOf(((def && def.plots) || []).find((p) => p && p.key === key))
+      const shiftOf = (key) => drawShiftOf(((def && def.plots) || []).find((p) => p && p.key === key), def, inst.inputs)
       for (const hp of hidden) {
-        const upper = displacedColumn(columns.get(bindingKey(id, hp.key)), drawShiftOf(hp))
+        const upper = displacedColumn(columns.get(bindingKey(id, hp.key)), drawShiftOf(hp, def, inst.inputs))
         const lower = displacedColumn(columns.get(bindingKey(id, hp.fill.with)), shiftOf(hp.fill.with))
         if (!upper || !lower || !registry.hasAnyFinite(upper) || !registry.hasAnyFinite(lower)) continue
         let h = prev.get(hp.key) || null
@@ -3716,7 +3734,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
         h.setOptions({
           upper, lower, times: nfTimes || bars.map((bar) => adjustTime(bar.t)),
           color: hc.color, opacity: hc.opacity,
-          colors: displacedColumn(bandColoursFor(hp, id, columns, bars.length, unknownColourRule(def), inst.inputs || null, chartThemeOf(ctx.cs)), drawShiftOf(hp)),
+          colors: displacedColumn(bandColoursFor(hp, id, columns, bars.length, unknownColourRule(def), inst.inputs || null, chartThemeOf(ctx.cs)), drawShiftOf(hp, def, inst.inputs)),
         })
         kept.set(hp.key, h)
       }

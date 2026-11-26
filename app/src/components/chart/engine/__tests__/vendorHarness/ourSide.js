@@ -1351,7 +1351,7 @@ function drawnColours(def, bars, ctx, inputs = undefined) {
     // was never drawn by either platform, so its colour is not a reading
     // (`undefined`, which the comparator skips), not a "none".
     // ⛔ The shift is the binder's OWN `drawShiftOf`, never re-derived here.
-    const shift = drawShiftOf(plot)
+    const shift = drawShiftOf(plot, def, b.inst && b.inst.inputs)
     // ⭐ ENGINE 58 — a colour-rule row whose series colour is withheld by name
     // (`plots[].colorWithheld.points`): a point the renderer was handed no colour of
     // its own for draws in none, by name — `COLOUR_WITHHELD_POINT`, not a colour.
