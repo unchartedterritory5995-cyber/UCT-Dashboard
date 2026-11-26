@@ -225,9 +225,20 @@ function fakeHost(name) {
   }
 }
 
+/** The binder's attach / detach (`binder.js` hands these to the registry). */
+const HOOKS = {
+  attach: (host, primitive) => host.attachPrimitive(primitive),
+  detach: (host, primitive) => host.detachPrimitive(primitive),
+}
+
 describe('e99 — one primitive per pane', () => {
+  it('⛔ without the binder\'s hooks nothing is attached', () => {
+    const a = fakeHost('a')
+    createMarkerCanvasRegistry().layerFor({ host: a, paneIndex: 0 }).set([], { pineShape: 'shape.flag' })
+    expect(a.calls).toEqual([])
+  })
   it('two plots in one pane share one primitive; another pane gets its own', () => {
-    const reg = createMarkerCanvasRegistry()
+    const reg = createMarkerCanvasRegistry(HOOKS)
     const a = fakeHost('a')
     const b = fakeHost('b')
     reg.layerFor({ host: a, paneIndex: 0 }).set([], { pineShape: 'shape.flag' })
@@ -238,7 +249,7 @@ describe('e99 — one primitive per pane', () => {
     expect(b.calls.filter((c) => c[0] === 'attach')).toHaveLength(1)
   })
   it('the primitive stays on the pane\'s first host, moves to a remaining host, and leaves when the pane has no marker plot', () => {
-    const reg = createMarkerCanvasRegistry()
+    const reg = createMarkerCanvasRegistry(HOOKS)
     const a = fakeHost('a')
     const b = fakeHost('b')
     const la = reg.layerFor({ host: a, paneIndex: 2 })
@@ -255,7 +266,7 @@ describe('e99 — one primitive per pane', () => {
     expect(reg.panes.size).toBe(0)
   })
   it('⭐ the primitive draws every plot of its pane, on its own bar, off the host\'s high', () => {
-    const reg = createMarkerCanvasRegistry()
+    const reg = createMarkerCanvasRegistry(HOOKS)
     const a = fakeHost('a')
     reg.layerFor({ host: a, paneIndex: 0 }).set([{ time: 10, color: '#111111', value: 1 }], { pineShape: 'shape.diamond', pineLocation: 'location.abovebar' })
     const prim = a.calls[0][1]

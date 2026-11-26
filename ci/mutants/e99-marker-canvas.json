@@ -108,6 +108,15 @@
    "to": "  if (!glyphOf(marker)) return marker",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/markerCanvas.test.js",
    "expectRed": "OFF: the marker is returned as is"
+  },
+  {
+   "id": "MC-13",
+   "mutant": "the binder hands the registry an attach that attaches nothing (the canvas never draws with the flag on)",
+   "file": "app/src/components/chart/engine/binder.js",
+   "from": "      host.attachPrimitive(primitive)",
+   "to": "      void primitive",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/markerCanvas.test.js",
+   "expectRed": "ON: the Pine marker is drawn by the pane"
   }
  ]
 }

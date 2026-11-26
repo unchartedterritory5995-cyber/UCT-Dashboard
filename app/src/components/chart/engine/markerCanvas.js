@@ -31,9 +31,11 @@
 // ⛔ BEHIND `markerCanvasGate.js`, DEFAULT OFF. Off, nothing here is reached: the
 // binder draws LWC series markers exactly as before and the record is unchanged.
 //
-// ⛔ IT NEVER IMPORTS `lightweight-charts`. The primitive is a plain object the
-// binder attaches with `series.attachPrimitive`, so every rail here runs with a
-// fake chart and a recording canvas.
+// ⛔ IT NEVER IMPORTS `lightweight-charts`, AND IT NEVER ATTACHES ANYTHING ITSELF.
+// The primitive is a plain object; the registry is handed `attach` / `detach`
+// by `binder.js`, the one engine file that attaches primitives (where the
+// engine's lands-dark gate lives; `primitiveGate.test.js`), so every rail here
+// runs with a fake chart and a recording canvas.
 
 import { markerCanvasEnabled } from './markerCanvasGate'
 
@@ -282,8 +284,11 @@ function anchorReader(host) {
  *  draws in it and moved to another of the pane's hosts when that one's last plot
  *  leaves; it is detached when the pane has no marker plot left. Each plot's y is
  *  read through ITS OWN host (`priceToCoordinate`), whichever series carries the
- *  primitive. */
-export function createMarkerCanvasRegistry() {
+ *  primitive.
+ *
+ *  `attach(series, primitive)` / `detach(series, primitive)` are the binder's: this
+ *  module never attaches a primitive itself. Without them nothing is attached. */
+export function createMarkerCanvasRegistry({ attach: attachTo = null, detach: detachFrom = null } = {}) {
   const panes = new Map()
   let seq = 0
 
@@ -316,15 +321,15 @@ export function createMarkerCanvasRegistry() {
   const detach = (pane) => {
     const host = pane.attachedTo
     pane.attachedTo = null
-    if (host && typeof host.detachPrimitive === 'function') {
-      try { host.detachPrimitive(pane.primitive) } catch { /* a removed series took it already */ }
+    if (host && typeof detachFrom === 'function') {
+      try { detachFrom(host, pane.primitive) } catch { /* a removed series took it already */ }
     }
   }
   const attach = (pane, host) => {
     if (pane.attachedTo === host) return
-    if (!host || typeof host.attachPrimitive !== 'function') return
+    if (!host || typeof attachTo !== 'function') return
     detach(pane)
-    try { host.attachPrimitive(pane.primitive); pane.attachedTo = host } catch { pane.attachedTo = null }
+    try { attachTo(host, pane.primitive); pane.attachedTo = host } catch { pane.attachedTo = null }
   }
   const repaint = (pane) => { if (typeof pane.requestUpdate === 'function') pane.requestUpdate() }
 

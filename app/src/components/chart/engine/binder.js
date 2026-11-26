@@ -1219,7 +1219,13 @@ export function createBinder({ chart, LWC, scope = '' }) {
   let priceHosted = new Map()
   /** ⭐ e99 — the canvas marker primitives, one per pane (`markerCanvas.js`). Reached only
    *  while `markerCanvasGate.js` is on; off, no primitive is ever made. */
-  const markerCanvas = createMarkerCanvasRegistry()
+  const markerCanvas = createMarkerCanvasRegistry({
+    attach: (host, primitive) => {
+      if (typeof host.attachPrimitive !== 'function') throw new Error('no primitives on this series')
+      host.attachPrimitive(primitive)
+    },
+    detach: (host, primitive) => { if (typeof host.detachPrimitive === 'function') host.detachPrimitive(primitive) },
+  })
   /** ⭐⭐ One paint layer per (host series, INSTANCE) (`fillPrimitive.createFillLayerGroup`):
    *  every band one instance rides on one series paints into it, so its bands do not
    *  compound and the chart's own background stays under them.
