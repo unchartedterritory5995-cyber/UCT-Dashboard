@@ -1012,6 +1012,8 @@ function withGuardInputs(first, base, final, withDeclarations, { windowBound, di
   note(((first.presentation || {}).paints || {})._colourInputs)
   note(((first.presentation || {}).levels || {})._colourInputs)
   note(((first.presentation || {}).levelFills || {})._colourInputs)
+  // ⭐ e98 E2 — and the settings an input's `active =` reads (`pine.js::resolveInputActives`)
+  note(((first.presentation || {}).inputActive || {})._colourInputs)
   const objectNames = namesAnywhere((first.objects && first.objects.trees) || [])
   const entryByName = new Map()
   const windowed = new Set()
@@ -1105,6 +1107,9 @@ function colourRulesOf(t) {
   for (const h of [...(pres.fills || []), ...(pres.levelFills || []), ...(pres.paints || []), ...(pres.levels || [])]) {
     if (h && !h.withheld && h.hiddenWhen) rules.push({ ast: h.hiddenWhen, formula: [...seriesNamesOf(h.hiddenWhen)].join(' + ') || 'display' })
   }
+  // ⭐ e98 E2 — and an input's `active =` test (`pine.js::resolveInputActives`): a setting only it reads is the member's
+  // control too (it is TradingView's own), declared by the same proof; the door keeps it only where it greys a setting
+  for (const a of (pres.inputActive || [])) if (a && a.when) rules.push({ ast: a.when, formula: [...seriesNamesOf(a.when)].join(' + ') || 'active' })
   return rules
 }
 
@@ -1164,6 +1169,8 @@ function withColourInputs(first, final, withDeclarations, { windowBound, displac
   note(((first.presentation || {}).paints || {})._colourInputs)
   note(((first.presentation || {}).levels || {})._colourInputs)
   note(((first.presentation || {}).levelFills || {})._colourInputs)
+  // ⭐ e98 E2 — and the settings an input's `active =` reads (`pine.js::resolveInputActives`)
+  note(((first.presentation || {}).inputActive || {})._colourInputs)
   const minted = new Set((final.inputParams || []).map((p) => p && p.sourceName).filter(Boolean))
   const already = new Set(final.declaredNames || [])
   // ⛔ A name the colour reads in a WINDOW (`ta.rising(hma, len)`) is not added:

@@ -30550,6 +30550,21 @@ function translatePineResult(source, opts = {}) {
       notes.push(noteOf('pine:chart-only', chartOnlyNote(callTok.value, { arg: argName }), a.nameTok))
     }
   }
+  // ⭐⭐ e98 E2 — AN INPUT'S `active =` (Pine v6, July 2025: the setting is greyed out in TradingView's settings when
+  // false; its value still applies), collected here from each top-level `name = input*(…, active = <bool>)` and read
+  // once every name is settled (`resolveInputActives`, below). ⚰️ Never read: ignored in silence on both lanes.
+  const inputActiveCalls = []
+  for (const st of stmts) {
+    const h = st.header || []
+    if (!(h[0] && h[0].kind === 'ident' && isPunct(h[1], '='))) continue
+    const callTok = h[2]
+    if (!callTok || callTok.kind !== 'ident' || !(callTok.value === 'input' || callTok.value.startsWith('input.'))
+      || !isPunct(h[3], '(')) continue
+    let iargs = null
+    try { iargs = parseArguments(new Cursor(h.slice(4))) } catch { iargs = null }
+    const a = iargs && iargs.find((x) => x && x.name === 'active')
+    if (a && a.value) inputActiveCalls.push({ name: h[0].value, call: callTok.value, node: a.value, tok: callTok })
+  }
   let si = 0
   while (si < stmts.length) {
     const stmt = stmts[si]
@@ -32700,6 +32715,9 @@ function translatePineResult(source, opts = {}) {
     const levelDisplayInputs = hlineReads.flatMap((h) => (h && h.level && h.displayInputs) || [])
     if (levelDisplayInputs.length) Object.defineProperty(levels, '_colourInputs', { value: levelDisplayInputs, enumerable: false })
   }
+  // ⭐⭐ e98 E2 — each input's `active =`, read once with every name settled (`resolveInputActives`): the setting's
+  // knob test (`when`), greyed at every setting (`inactive`), or unreadable (`unread`, said by name at the door)
+  const inputActive = inputActiveCalls.length ? resolveInputActives(inputActiveCalls, { makeResolver, notes }) : []
   // …and the ones it could not read, by ordinal and line, so a document can account for every `hline` the
   // script writes (drawn, hidden by its author, or withheld by name). Present only when there are any.
   const levelsWithheld = hlineReads.map((h, i) => (h.level ? null : {
@@ -32798,7 +32816,8 @@ function translatePineResult(source, opts = {}) {
       : refusalValue(guard, REFUSALS[guard], null)
     return {
       ok: false, version, declaration, title, outputs: [], selected: -1,
-      presentation: { overlay, levels, ...(levelsWithheld.length ? { levelsWithheld } : {}), ...(paintRecs ? { paints: paintRecs } : {}) },
+      presentation: { overlay, levels, ...(levelsWithheld.length ? { levelsWithheld } : {}), ...(paintRecs ? { paints: paintRecs } : {}),
+        ...(inputActive.length ? { inputActive } : {}) },
       notes: withExcerpts(notes, lines),
       refusal: hardRefusals[0] || r,
       refusals: withExcerpts(hardRefusals.length ? refusals : [r, ...refusals], lines),
@@ -32972,6 +32991,8 @@ function translatePineResult(source, opts = {}) {
       levels,
       // ⭐ e96 — the `hline`s this door could not read, by ordinal and reason; present only when there are any.
       ...(levelsWithheld.length ? { levelsWithheld } : {}),
+      // ⭐ e98 E2 — each input's `active =` (`resolveInputActives`); present only for a script that writes one.
+      ...(inputActive.length ? { inputActive } : {}),
       // ⭐ (j) j.3b — `resolver` reaches the fills HERE and nowhere earlier; it does
       // not exist at collection time, which is why a conditional fill colour was
       // uncarried for the whole of a6.
@@ -35481,6 +35502,50 @@ function hlineArgsOf(toks) {
  *  and TradingView's default for it is `hlineLevels.js`'s (a witnessed table).
  *
  *  @returns {Array<{level: object}|{withheld: string}>} */
+/** ⭐⭐ e98 E2 — EACH INPUT'S `active =`, READ AS THE SETTING TEST THAT GREYS IT (or why it cannot be).
+ *
+ *  Pine v6 (July 2025): `input*(…, active = <bool>)` greys the setting out in TradingView's "Settings/Inputs" tab when
+ *  false; its VALUE still applies. One read per call, with every name settled, through the test `display` and
+ *  `linestyle` read (`Resolver.settingChoiceTestOf`, the one knob-test grammar `defSchema.hiddenWhenProblem` checks):
+ *    * `{name, line, when}`: a knob test, true = active (an input, an input compared with a constant, and/or/not);
+ *    * `{name, line, inactive: true}`: greyed at every setting (a literal `false`, or a test that folds false);
+ *    * `{name, line}`: active at every setting (a literal `true`);
+ *    * `{name, line, unread}`: a test this engine cannot read (never guessed): said by name at the door.
+ *  ⛔ Reading a test mints no parameter and leaves no note behind (the hline rule). The inputs a test reads ride as the
+ *  list's non-enumerable `_colourInputs` (the shape a level's display inputs ride in), so a setting only an `active`
+ *  reads can be declared as the member's control (`builderInputs.js::withColourInputs`). */
+function resolveInputActives(calls, { makeResolver, notes }) {
+  const read = []
+  const out = calls.map((c) => {
+    const at = locate(c.tok)
+    const base = { name: c.name, line: at ? at.line : null }
+    let r = null
+    try { r = makeResolver() } catch { r = null }
+    if (!r) return { ...base, unread: 'its `active` could not be read' }
+    const n0 = notes.length
+    const minted = r.paramMint
+    r.paramMint = null
+    const before = new Set(r.usedInputs.keys())
+    try {
+      try { r.resolve(c.node) } catch (err) { if (isStackOverflow(err)) throw err }
+      const choice = r.settingChoiceTestOf({ test: c.node }, r.displayKnobLeafOf(c.node))
+      for (const [k, e] of r.usedInputs) if (!before.has(k) && e && e.name && e.name !== c.name) read.push(e)
+      if (choice.unread === 'unreadable') return { ...base, unread: 'its `active` is a condition this engine could not read' }
+      if (choice.unread) return { ...base, unread: 'its `active` is a condition that is not one of the script\'s settings' }
+      if (choice.constant !== undefined) return choice.constant ? base : { ...base, inactive: true }
+      return { ...base, when: choice.test }
+    } catch (err) {
+      if (isStackOverflow(err)) throw err
+      return { ...base, unread: 'its `active` could not be read' }
+    } finally {
+      r.paramMint = minted
+      notes.length = n0
+    }
+  })
+  if (read.length) Object.defineProperty(out, '_colourInputs', { value: read, enumerable: false })
+  return out
+}
+
 function resolveHlineLevels(calls, { makeResolver, version, notes }) {
   return calls.map((rec) => {
     const at = locate(rec.tok)

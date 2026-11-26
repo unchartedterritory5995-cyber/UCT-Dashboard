@@ -87,7 +87,7 @@ import { evaluateFormula } from '../FormulaField'
 import { BUILDER_INPUT_SCOPE, seriesNamesOf, memberInputKey, inputsFromFolded } from '../builderInputs'
 // ⭐⭐ e96 — a Pine `hline` drawn as the level it is, one authority for both doors.
 import { hlineGuides, hlineNotReproducedNote, hlineWithheldNote, hlineOrdinalOf } from '../../engine/hlineLevels'
-import { hiddenAtLeafDefaults } from '../../engine/knobBind.js'
+import { hiddenAtLeafDefaults, knobTestAtLeafDefaults } from '../../engine/knobBind.js'
 // ⭐ RS RATING L3 — the substituted-value disclosure (`syminfo.industry` / `sector` from UCT data).
 import { substitutionNotesFor, otherSymbolSourceNotesFor } from '../../engine/ast/symbolSubstitution'
 
@@ -314,6 +314,50 @@ function lineStyleRowOf(o, style, notes) {
       : `its \`linestyle\` (${o.lineStyle}) is not reproduced on an ${style} plot here`)
   }
   return {}
+}
+
+/** A knob tree as plain data (the translation's leaves carry non-enumerable `inputName` / `inputDefault`). */
+const plainTree = (t) => JSON.parse(JSON.stringify(t))
+
+/** ⭐⭐ e98 E2 — THE DOCUMENT'S INPUTS WITH EACH ONE'S `active =` (`pine.js::resolveInputActives`), as the settings
+ *  panel greys it (`inputs[].activeWhen` in its knob-test shape, U6's grammar; `indicatorRegistry.evalActiveWhen`
+ *  asks `knobBind.knobTestAt`). Matched by key (a host input's `memberInputKey(name)`, a runtime input's Pine name):
+ *    * `inactive` -> `{type:'num', value: 0}`: greyed at every setting, as TradingView greys a literal `false`;
+ *    * `when` reading only DECLARED settings -> that test, per instance;
+ *    * `when` reading a setting this document does not hold -> decided at the defaults (U6's rule): greyed there ->
+ *      `{type:'num', value: 0}`, else no `activeWhen`; not decidable -> left active and SAID;
+ *    * `unread` -> left active and SAID by the setting's name.
+ *  An `active =` on a PARAMETER of the formulas (`params`: its Pine name -> its title; projected as a `param<N>`
+ *  setting at load by `paramInputs.js`, which carries no `activeWhen` yet) is SAID by that setting's title, never
+ *  dropped in silence. The VALUE is untouched: `activeWhen` only greys.
+ *  @returns {Array} the inputs (new objects where one gained `activeWhen`), pushing sentences onto `notes` */
+export function withInputActive(inputs, entries, { notes, params = new Map() } = {}) {
+  const list = Array.isArray(inputs) ? inputs : []
+  if (!Array.isArray(entries) || !entries.length) return inputs
+  const declared = new Set(list.map((x) => x && x.key).filter(Boolean))
+  const keysOf = (e) => [e.name, memberInputKey(e.name)].filter(Boolean)
+  const matched = new Set()
+  const say = (e, label, why) => notes.push({ name: label, note: `\`${label}\` is not greyed here as it is on TradingView: ${why}.` })
+  const out = list.map((spec) => {
+    if (!spec || typeof spec.key !== 'string') return spec
+    const e = entries.find((x) => x && keysOf(x).includes(spec.key))
+    if (!e) return spec
+    matched.add(e)
+    const label = spec.label || spec.key
+    if (e.inactive) return { ...spec, activeWhen: { type: 'num', value: 0 } }
+    if (e.unread) { say(e, label, e.unread); return spec }
+    if (!e.when) return spec
+    const names = [...seriesNamesOf(e.when, new Set())]
+    if (names.length && names.every((n) => declared.has(n) && n !== spec.key)) return { ...spec, activeWhen: plainTree(e.when) }
+    const v = knobTestAtLeafDefaults(e.when)
+    if (v === null) { say(e, label, 'its `active` follows a setting this chart does not offer'); return spec }
+    return v ? spec : { ...spec, activeWhen: { type: 'num', value: 0 } }
+  })
+  for (const e of entries) {
+    if (!e || matched.has(e) || !(e.when || e.inactive || e.unread) || !params.has(e.name)) continue
+    say(e, params.get(e.name) || e.name, 'it is a setting of the script\'s formulas (a parameter), which this chart does not grey yet')
+  }
+  return out
 }
 
 /** ⭐ e98 E1 — a document row's `lineStyleWhen` arms (`[{when, lineStyle}]`), or none. */
@@ -870,6 +914,8 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
   }
   // ⭐ e98 E1 — the sentences for a `linestyle` drawn solid (unreadable, or on an area): said by name, never silent
   const lineStyleNotes = []
+  // ⭐ e98 E2 — the sentences for an input's `active =` that is not greyed here (`withInputActive`)
+  const inputActiveNotes = []
   const rows = drawable.map((o, i) => {
     let p = pineRowPresentation(o)
     // A plot coloured by a condition between two static colours draws per point.
@@ -1322,6 +1368,15 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
   for (const h of [...((t.presentation || {}).levels || []), ...((t.presentation || {}).levelFills || [])]) {
     if (h && h.hiddenWhen) seriesNamesOf(h.hiddenWhen, colourRead)
   }
+  // ⭐ e98 E2 — and a setting an input's `active =` reads, ONLY where that input is itself declared (what TradingView
+  // greys must be a setting this document offers; a test greying nothing declares nothing). Two rounds: a declared
+  // controller may itself be greyed by another setting.
+  for (let round = 0; round < 2; round += 1) {
+    const have = new Set([...(memberSpecs || []), ...colourSpecs.filter((x) => colourRead.has(x.key))].map((x) => x && x.key))
+    for (const a of ((t.presentation || {}).inputActive || [])) {
+      if (a && a.when && have.has(memberInputKey(a.name))) seriesNamesOf(a.when, colourRead)
+    }
+  }
   const colourDeclared = colourSpecs.filter((s) => colourRead.has(s.key))
   // ⭐⭐ C43 — THE SCRIPT'S OWN `runtime.error` CALLS RIDE ON THE DOCUMENT
   // (`meta.runtimeErrors`), with the settings their conditions read declared, so
@@ -1451,7 +1506,9 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
       ast: primary.ast,
       mode: primary.mode,
       readback: primary.readback,
-      inputs: docInputs,
+      // ⭐ e98 E2 — each setting's `active =`, greyed as TradingView greys it (`withInputActive`)
+      inputs: withInputActive(docInputs, (t.presentation || {}).inputActive, { notes: inputActiveNotes,
+        params: new Map(Object.values(manifest).filter((m) => m && m.sourceName).map((m) => [m.sourceName, m.title || m.sourceName])) }),
       plots: rows.length ? rows : [primary],
       // ⭐ THE AUTHOR'S OWN PANE INTENT. `overlay = true` means the price pane;
       // anything else gets its own sub-pane at a quarter of the chart.
@@ -1623,7 +1680,8 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
     notes.push(n)
   }
   // ⭐⭐ e98 E1 — A LINE STYLE DRAWN SOLID WHERE THE SCRIPT ASKED OTHERWISE IS SAID SO, by its title.
-  for (const n of lineStyleNotes) {
+  // ⭐ e98 E2 — and a setting's `active =` this chart does not grey, by the setting's name
+  for (const n of [...lineStyleNotes, ...inputActiveNotes]) {
     const key = `${n.name} :: ${n.note}`
     if (seen.has(key)) continue
     seen.add(key)
@@ -2996,6 +3054,8 @@ function runtimeLaneDocument({ source, id, name, t, hostReason, hostGuard = null
   const candleOf = new Map()
   // ⭐ e98 E1 — the sentences for a `linestyle` drawn solid (unreadable, or on an area), as the host lane says them
   const lineStyleNotes = []
+  // ⭐ e98 E2 — the sentences for an input's `active =` that is not greyed here (`withInputActive`)
+  const inputActiveNotes = []
   const rows = drawnRows.map(({ o, index, p, out, colourOutput, displace, candle, label, parts, colours, hiddenWhen }, i) => {
     const key = keyAt(i)
     outputs[key] = out
@@ -3202,7 +3262,8 @@ function runtimeLaneDocument({ source, id, name, t, hostReason, hostGuard = null
       ast: rows[0].ast,
       mode: repaint.mode,
       readback: '',
-      inputs: runDocInputs,
+      // ⭐ e98 E2 — each setting's `active =`, greyed as TradingView greys it (the host translation's reading)
+      inputs: withInputActive(runDocInputs, (t.presentation || {}).inputActive, { notes: inputActiveNotes }),
       plots: [...rows, ...colourRows],
       placement: (t.presentation && t.presentation.overlay === true) || brokerOnly
         ? { target: 'price', ...(joinsPriceScale(t) ? { joinPriceScale: true } : {}) }
@@ -3269,6 +3330,8 @@ function runtimeLaneDocument({ source, id, name, t, hostReason, hostGuard = null
   for (const n of colourWithheldNotes(rows)) notes.push(n)
   // ⭐ e98 E1 — a line style drawn solid where the script asked otherwise, by its title
   for (const n of lineStyleNotes) notes.push(n)
+  // ⭐ e98 E2 — a setting's `active =` this chart does not grey, by the setting's name
+  for (const n of inputActiveNotes) notes.push(n)
   for (const w of withheld) {
     notes.push({
       name: w.label,
