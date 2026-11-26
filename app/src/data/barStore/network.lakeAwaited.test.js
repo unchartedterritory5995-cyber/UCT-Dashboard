@@ -9,6 +9,9 @@
  *   A3 a caller that starts waiting on a load already running stops its yields for the pieces still to come
  *   A4 the key is unmarked when its load settles: the next unawaited load yields again
  *   A5 the handoff's lake wait (prefetch `_lakeLoad`) is the awaited caller
+ *   A6 (review of #2786) a chart subscribing to a key with nothing saved paints the lake's newest bars first: that load
+ *      is awaited (index.js _start) (red before: it yielded)
+ *   A7 a chart subscribing over a saved copy only deepens it: that load still yields
  */
 import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest'
 import fs from 'node:fs'
@@ -17,7 +20,7 @@ import { createBarStore } from './index'
 import { keyOf } from './types'
 import { installFakeIndexedDB } from './testing/fakeIndexedDB'
 import { fakeStream, fakeCandle, fakePrices } from './testing/fakeFeeds'
-import { memClear } from '../../utils/barsMemCache'
+import { memClear, memPutMonotonic } from '../../utils/barsMemCache'
 
 const OPEN = Date.UTC(2026, 10, 10, 14, 30) / 1000     // Tue 09:30 ET
 let fakeDb
@@ -74,6 +77,32 @@ describe('a lake load a paint waits on never yields', () => {
     await vi.advanceTimersByTimeAsync(0)
     expect(lake.loads).toHaveLength(2)
     expect(waits(lake.loads[1])).toBe('yields')
+  })
+
+  it('A6 a chart subscribing with nothing saved: its lake load (the first frame) is awaited', async () => {
+    const lake = heldLake()
+    const store = makeStore(lake)
+    const k = keyOf({ sym: 'NEW', tf: '5' })
+    store.subscribe(k, () => {})
+    await vi.advanceTimersByTimeAsync(50)
+    const load = lake.loads.find((l) => l.key === k)
+    expect(load).toBeTruthy()
+    expect(waits(load)).toBe('at once')
+  })
+
+  it('A7 a chart subscribing over a saved copy: its lake load only deepens, and yields', async () => {
+    const rows = []
+    for (let t = OPEN; t < OPEN + 9 * 300; t += 300) rows.push({ t, o: 100, h: 101, l: 99, c: 100.5, v: 10 })
+    memPutMonotonic('HELD', '5', rows, { savedAt: Date.now() - 60_000 })
+    const lake = heldLake()
+    const store = makeStore(lake)
+    const k = keyOf({ sym: 'HELD', tf: '5' })
+    store.subscribe(k, () => {})
+    await vi.advanceTimersByTimeAsync(50)
+    expect(store.peek(k)?.bars.length).toBeGreaterThan(0)    // the saved copy is held
+    const load = lake.loads.find((l) => l.key === k)
+    expect(load).toBeTruthy()
+    expect(waits(load)).toBe('yields')
   })
 
   it('A5 the handoff\'s lake wait (prefetch _lakeLoad) is the awaited caller', () => {
