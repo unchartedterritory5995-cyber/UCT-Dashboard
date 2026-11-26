@@ -4138,18 +4138,24 @@ def list_for_user(user_id: Any, *, source_below: Optional[int] = None) -> list[d
     ⭐ SAVED-SCRIPT AUTO-UPGRADE — ``source_below``: the asking browser's script
     engine version. A row whose document is stamped below it (or unstamped) AND
     that holds its script is served WITH ``pine_source``, so the browser can
-    re-translate it without a second request; every other row costs nothing."""
+    re-translate it without a second request; every other row costs nothing.
+
+    ⭐ THE TOMBSTONES STAY IN THE DATABASE (`deleted_at IS NULL` in the SQL, not in Python). A
+    tombstone carries the whole document and the script (`soft_delete`), and every indicator a
+    member ever deleted is one, so filtering them here read each one's ~90 KB into the process on
+    every list, then threw it away (`tests/test_user_definitions_list_live_only.py`)."""
     with contextlib.closing(_connect()) as c:
         _ensure(c)
         rows = c.execute(
             "SELECT * FROM user_definitions u WHERE user_id=? AND version = ("
             "  SELECT MAX(version) FROM user_definitions v"
             "   WHERE v.user_id=u.user_id AND v.def_id=u.def_id)"
+            " AND u.deleted_at IS NULL"
             " ORDER BY u.id",
             (str(user_id),),
         ).fetchall()
         return [_with_source_if_stale(r, _with_engine_status(c, _row_to_dict(r)), source_below)
-                for r in rows if r["deleted_at"] is None]
+                for r in rows]
 
 
 def live_definitions() -> list[dict]:
