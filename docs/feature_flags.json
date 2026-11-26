@@ -3480,6 +3480,14 @@
       "values": ["0", "1"],
       "note": "Desktop speed plan Step 10.1: the KILL SWITCH for real-user speed measurement, POST /api/perf/beacon (api/routers/perf_beacon.py, mounted in api/main.py; client app/src/lib/perfBeacon.js, loaded only after the page load event). SHIPS ON BY DEFAULT as a rollback switch: unset or any value but 0/false/no/off means reports are stored; 0/false/no/off answers {enabled: false} and writes nothing. Read per request in api/services/perf_beacon.py::enabled(). Never deletes a stored row. NUMBERS AND ENUMS ONLY: page = first path segment, client browser|desktop, timings in ms, API calls as /api/<word>[/<word without digits>], country from CF-IPCountry; never a URL, ticker, id, member id or IP (rate limit keys on a salted IP hash). Own store PERF_BEACON_DB_PATH (default <DATA_DIR>/perf_beacon.db), 30-day retention, cap 300,000 loads. Admin read GET /api/admin/perf."
     },
+    "PERF_BEACON_HOUSEKEEPING_ENABLED": {
+      "status": "dark",
+      "since": "2026-11-25",
+      "where": [],
+      "default": null,
+      "values": ["1"],
+      "note": "#2641 (perf beacon housekeeping): OFF a Railway service the beacon store's housekeeping thread (deletes rows past retention every ten minutes; once, blanks and rebuilds a store an older build wrote) starts ONLY with PERF_BEACON_HOUSEKEEPING_ENABLED=1, so a test, a laptop or CI never prunes a real store. ON Railway (RAILWAY_SERVICE_NAME set) it runs without this variable; only api/main.py's lifespan (the web pod) starts it. PERF_BEACON_HOUSEKEEPING_DISABLED=1 still switches it off everywhere. Read in api/services/perf_beacon.py startup() (HOUSEKEEPING_OPT_IN)."
+    },
     "REFERENCE_CACHE_ENABLED": {
       "status": "dark",
       "since": "2026-11-16",
