@@ -514,6 +514,8 @@ export function heldDepthOf(barCount, chartTf = 'W', heldSessions = 0) {
   return Math.min(HELD_DAILY_DEPTH_CAP, monthly ? n * 31 + 62 : n * 7 + 14)
 }
 
+const SPANNED_CACHE_MAX = 512
+const _spannedMemo = new Map()
 /** ⭐⭐ (e91) THE TRADING SESSIONS an intraday chart's bars span, from its first bar's session to its newest bar's, counted
  *  on the exchange calendar (`isTradingDay`), never estimated from its row count. Pure: two bar times (unix seconds), no
  *  wall clock (this module is in the run's host-neutral closure). 0 for anything else (a daily chart's ISO dates). */
@@ -521,8 +523,16 @@ export function sessionsSpanned(firstT, lastT) {
   if (typeof firstT !== 'number' || typeof lastT !== 'number' || !Number.isFinite(firstT) || !(lastT >= firstT)) return 0
   const a = etDayOf(firstT)
   const b = etDayOf(lastT)
+  // ⭐ PERF (smoothness trace 2026-11-26): the count of a span of DAYS is kept (a pure function of the two days and the
+  // static calendar), so a chart asking again for the same first and last session pays one lookup, not a walk over every
+  // calendar day between them (a 60m chart's deep history spans thousands).
+  const key = `${a}|${b}`
+  const kept = _spannedMemo.get(key)
+  if (kept !== undefined) return kept
   let count = 0
   for (let d = a, k = 0; d <= b && k < 40000; d = nextDayOf(d), k += 1) if (isTradingDay(d)) count += 1
+  if (_spannedMemo.size >= SPANNED_CACHE_MAX) _spannedMemo.clear()
+  _spannedMemo.set(key, count)
   return count
 }
 /** The held-session ladder: a chart's span rounded UP to a rung (`heldSessionsRung`), so a filling chart refetches its
@@ -718,8 +728,23 @@ function etMidnightOf(day) {
   if (!close) return null
   return close.getTime() / 1000 - (isHalfDay(day) ? 13 * 60 : 16 * 60) * 60
 }
-/** The calendar day after ISO `day`. */
-const nextDayOf = (day) => new Date(Date.parse(`${day}T12:00:00Z`) + 86400000).toISOString().slice(0, 10)
+/** The calendar day after ISO `day`.
+ *  ⭐ PERF (smoothness trace 2026-11-26, 5m+60m board): the day walks (`sessionsSpanned`, `atOrBeforeGridOf`) ask it once
+ *  per calendar day an intraday chart spans, each a template string, a `Date.parse`, a `Date` and an ISO string: 3.1-4.7
+ *  ms of one 23-28 ms task in the second after a two-chart switch. The day after a day never changes, so each is built
+ *  once and kept (bounded: emptied, never trimmed, past `NEXT_DAY_CACHE_MAX` days). Same function, same answer; a string
+ *  that is not a day throws as before (nothing is kept for it). */
+const NEXT_DAY_CACHE_MAX = 40000
+const _nextDayMemo = new Map()
+const nextDayOf = (day) => {
+  let next = _nextDayMemo.get(day)
+  if (next === undefined) {
+    next = new Date(Date.parse(`${day}T12:00:00Z`) + 86400000).toISOString().slice(0, 10)
+    if (_nextDayMemo.size >= NEXT_DAY_CACHE_MAX) _nextDayMemo.clear()
+    _nextDayMemo.set(day, next)
+  }
+  return next
+}
 const EXT_OPEN_MIN = 4 * 60      // the extended session's first bar (04:00 ET), the product's and TradingView's grid
 const EXT_END_MIN = 20 * 60      // and its end (20:00 ET)
 const RTH_OPEN_MIN = 9 * 60 + 30
