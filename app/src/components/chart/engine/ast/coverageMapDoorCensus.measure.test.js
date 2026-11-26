@@ -47,7 +47,7 @@ import { assessObjectLoss } from './objectLoss'
 import { TABLE, parseFormula } from './parse'
 import { translatePine } from './pine'
 import { functionReachability } from './doorCoverage'
-import { probeRuntimeProgram, runtimeColumnsFor } from '../runtime/runtimeColumns'
+import { probeRuntimeProgram, runtimeColumnsFor, withMemberDoorClock } from '../runtime/runtimeColumns'
 import { runHalfOf } from '../runtime/runtimeObjects'
 import { valueBuildDefersToDrawing } from '../../builder/memberPane/runtimeObjectsDoor'
 import { runtimePaneEnabled, __permitRuntimePaneForTests, __resetRuntimePanePermission } from '../runtimePaneGate'
@@ -84,6 +84,26 @@ const LIBRARIES_LOADED = RUN ? loadPineLibraryStoreFromEnv() : []
 // ⛔ read strictly: a typo throws at collection rather than measuring the other lane
 const LANE = requestedLane(process.env[CENSUS_RUNTIME_ENV], CENSUS_RUNTIME_ENV) || LANE_PRODUCTION
 const RT_ON = LANE === LANE_RUNTIME_ON
+// ⭐⭐ e98 — THE INTRADAY BIND (`COVERAGE_CHART_TFS`, set explicitly by `run_census.py --chart-tfs`, never inherited):
+// the member door translates at the daily base whatever the chart (the saved document), so what an intraday chart
+// changes is the BIND. Step 0 is bound again at each listed chart timeframe on a committed TradingView capture of RDDT
+// at that timeframe (`INTRADAY_REFERENCES`), and the row gains `boundAt: {<tf>: {clean, why, excluded, runHalf}}`.
+// ⛔ The daily row is untouched: every field it had is computed exactly as before (railed: `boundAt` is the only key
+// the switch adds). A tf with no reference here throws at collection, never measures another chart.
+export const INTRADAY_REFERENCES = Object.freeze({
+  60: Object.freeze({ file: 'vw-bar-counters-rddt-60-2026-09-30.json', historyFromListing: true }),
+  5: Object.freeze({ file: 'vw-bar-counters-rddt-5-2026-09-30.json', historyFromListing: false }),
+})
+export function chartTfsOf(value) {
+  const tfs = String(value || '').split(',').map((x) => x.trim()).filter(Boolean)
+  for (const tf of tfs) {
+    if (!Object.prototype.hasOwnProperty.call(INTRADAY_REFERENCES, tf)) {
+      throw new Error(`COVERAGE_CHART_TFS: ${JSON.stringify(tf)} has no intraday reference (${Object.keys(INTRADAY_REFERENCES).join(', ')})`)
+    }
+  }
+  return tfs
+}
+const CHART_TFS = chartTfsOf(process.env.COVERAGE_CHART_TFS)
 const DEF_ID = 'u_member-pane-coverage'
 const LF = String.fromCharCode(10)
 
@@ -172,7 +192,7 @@ export function dropHeads(diag) {
   return [...new Set(out)].slice(0, 60)
 }
 
-function oneDoor(source, { runtimeDetail = RT_ON, bound = false } = {}) {
+function oneDoor(source, { runtimeDetail = RT_ON, bound = false, chartTfs = CHART_TFS } = {}) {
   let d
   try {
     d = memberPaneDefinition({ source, id: DEF_ID, name: 'coverage' })
@@ -185,6 +205,8 @@ function oneDoor(source, { runtimeDetail = RT_ON, bound = false } = {}) {
     try { boundWhy = boundBlockers(d) } catch (err) { boundWhy = [`bound-threw:${short((err && err.message) || err, 80)}`] }
   }
   const runHalfBound = bound && d.ok && d.runHalf ? runHalfBoundOf(d) : null
+  // ⭐ e98 — the same step bound at each intraday chart timeframe (`boundAt`), only when asked
+  const boundAt = bound && d.ok && chartTfs.length ? intradayBoundOf(d, chartTfs) : null
   const t = d.translation || {}
   const refusals = (t.refusals || []).map((r) => ({
     guard: r.guard || null,
@@ -243,6 +265,7 @@ function oneDoor(source, { runtimeDetail = RT_ON, bound = false } = {}) {
     // census used to record neither, so an attached-dirty row had no runtime reading at all.
     ...(d.runHalf ? { runHalf: 'minted' } : (d.runHalfDeclined ? { runHalf: `declined:${d.runHalfDeclined.code}` } : {})),
     ...(runHalfBound ? { runHalfBound } : {}),
+    ...(boundAt ? { boundAt } : {}),
     ...(runtimeDetail ? {
       runtimeDeclined: d.runtimeDeclined ? { code: d.runtimeDeclined.code, why: short(d.runtimeDeclined.why, 300) } : null,
       rtProbe: d.runtimeDeclined ? runtimeProbeOf(source, d.runtimeDeclined) : null,
@@ -343,8 +366,15 @@ function darkPlots(def, bars, ctx, listingCols) {
 /** Why ONE bind of an attached member-door definition is not fully drawn: `[]` = it is.
  *  Exported for the rail below (`cleanBound` can fail). */
 export function boundBlockers(d, bars = referenceBars(), ctx = BOUND_CTX) {
+  return boundBlockersDetailed(d, bars, ctx).why
+}
+
+/** `boundBlockers` with every refusal it EXCLUDED as store-dependent counted by code (`excluded`), so "excluded"
+ *  never hides a real refusal (coordinator rule, e98). `storeDependent` is the set it excludes. */
+export function boundBlockersDetailed(d, bars = referenceBars(), ctx = BOUND_CTX, storeDependent = STORE_DEPENDENT) {
   const out = []
-  if (!d || !d.ok || !d.definition) return ['not-attached']
+  const excluded = {}
+  if (!d || !d.ok || !d.definition) return { why: ['not-attached'], excluded }
   const def = d.definition
   const t = d.translation || {}
   for (const o of t.outputs || []) {
@@ -371,7 +401,7 @@ export function boundBlockers(d, bars = referenceBars(), ctx = BOUND_CTX) {
   if (cols && typeof cols.then !== 'function') {
     for (const [key, e] of Object.entries(registry.columnErrors(cols) || {})) {
       const guard = (e && (e.guard || e.status)) || 'error'
-      if (STORE_DEPENDENT.has(guard)) continue
+      if (storeDependent.has(guard)) { excluded[guard] = (excluded[guard] || 0) + 1; continue }
       out.push(`column-error:${key}:${guard}`)
     }
     const other = registry.otherSymbolReport(cols)
@@ -394,7 +424,49 @@ export function boundBlockers(d, bars = referenceBars(), ctx = BOUND_CTX) {
       out.push(`objects-threw:${short((err && err.message) || err, 80)}`)
     }
   }
-  return [...new Set(out)]
+  return { why: [...new Set(out)], excluded }
+}
+
+// ─── ⭐⭐ e98 — THE INTRADAY BIND ──────────────────────────────────────────────────────────────────────────────
+// What a member on a 60m / 5m chart is served of a script the door attached: the SAME bind (`boundBlockersDetailed`)
+// on a committed TradingView capture of RDDT at that timeframe, with the runtime lane registered for the bind (a
+// runtime document computes by its run at the chart's timeframe, as the chart's does), and the run half bound there.
+// ⛔ STORE-DEPENDENT at an intraday chart: the daily set, plus the codes below, each counted in `excluded` so an
+// exclusion is never silent. The census supplies no secondary bars and no own-daily supply, and a member's chart does.
+export const INTRADAY_STORE_DEPENDENT_EXTRA = Object.freeze([])
+const INTRADAY_STORE_DEPENDENT = new Set([...STORE_DEPENDENT, ...INTRADAY_STORE_DEPENDENT_EXTRA])
+const intradayBars = new Map()
+function intradayReference(tf) {
+  if (!intradayBars.has(tf)) {
+    const ref = INTRADAY_REFERENCES[tf]
+    const cap = loadCapture(path.resolve(process.cwd(), '..', 'tests/fixtures/vendor/harness', ref.file)).capture
+    intradayBars.set(tf, toProductBars(cap))
+  }
+  return intradayBars.get(tf)
+}
+export const intradayCtxOf = (tf) => Object.freeze({ ...BOUND_CTX, tf: String(tf),
+  historyFromListing: INTRADAY_REFERENCES[tf].historyFromListing })
+/** `{<tf>: {clean, why, excluded, runHalf}}` for each intraday chart timeframe. */
+export function intradayBoundOf(d, tfs) {
+  const out = {}
+  for (const tf of tfs) {
+    const bars = intradayReference(tf)
+    const ctx = intradayCtxOf(tf)
+    let res
+    registry.registerRuntimeLane(runtimeColumnsFor)
+    try {
+      // ⛔ CLOCKS STOPPED (the door's own rule, `withMemberDoorClock`): a run's wall-clock budget is a property of the
+      // member's device, so the census never decides by this machine's speed; the instruction limits still apply
+      res = withMemberDoorClock(() => boundBlockersDetailed(d, bars, ctx, INTRADAY_STORE_DEPENDENT))
+    } catch (err) {
+      res = { why: [`bound-threw:${short((err && err.message) || err, 80)}`], excluded: {} }
+    } finally {
+      registry.registerRuntimeLane(null)
+    }
+    const runHalf = d.runHalf ? withMemberDoorClock(() => runHalfBoundOf(d, bars, ctx)) : null
+    out[tf] = { clean: res.why.length === 0, why: res.why, excluded: res.excluded, ...(runHalf ? { runHalf } : {}) }
+  }
+  return out
 }
 
 /** ⭐⭐ PARITY UNIT 1 (`objects`, 2026-11-18) — the door's RUN HALF bound on the reference bars as the binder
@@ -440,12 +512,12 @@ function isClean(r) {
     && !r.withheldObjects && !(r.withheldPaints > 0)
 }
 
-function census(source, cap, { rtOn = RT_ON } = {}) {
+export function census(source, cap, { rtOn = RT_ON, chartTfs = CHART_TFS } = {}) {
   const work = source.split(/\r?\n/)
   const steps = []
   let stuck = null
   for (let step = 0; step < cap; step += 1) {
-    const r = oneDoor(work.join(LF), { runtimeDetail: rtOn, bound: step === 0 })
+    const r = oneDoor(work.join(LF), { runtimeDetail: rtOn, bound: step === 0, chartTfs })
     // the line text each refusal names, read off the CURRENT program
     for (const ref of r.refusals || []) {
       ref.text = ref.line && work[ref.line - 1] != null ? short(work[ref.line - 1].trim(), 200) : null
@@ -486,6 +558,9 @@ function census(source, cap, { rtOn = RT_ON } = {}) {
     // ⭐⭐ PARITY UNIT 1 — clean but for the drawings its host program lost, which its run half draws
     // (`coverage_map.py::runtime_on_transfers` reads it on the runtime-on lane)
     cleanByRunHalf: isCleanByRunHalf(first),
+    // ⭐ e98 — the bound predicate at each intraday chart timeframe (only when asked: the daily row is unchanged)
+    ...(first.boundAt ? { cleanBoundAt: Object.fromEntries(Object.entries(first.boundAt)
+      .map(([tf, b]) => [tf, isClean(first) && b.clean])) } : {}),
     reachedAfterPeel: !!last.attached,
     peelSteps: steps.length - 1,
     stuck,
@@ -574,6 +649,8 @@ describe.skipIf(!RUN)('coverage-map door census (driven by run_census.py)', () =
         vi.unstubAllEnvs()
       }
       fs.appendFileSync(OUT, `${JSON.stringify({ key: it.key, lane: LANE, ms: Date.now() - t0,
+        // ⭐ e98 — the intraday chart timeframes this row was ALSO bound at (absent on a daily-only run)
+        ...(CHART_TFS.length ? { chartTfs: CHART_TFS } : {}),
         ...(LIBRARIES_LOADED.length ? { libraryStore: LIBRARIES_LOADED.length } : {}),
         // ⭐ store-held (coordinator ruling 2026-11-19): the versions this row's door linked from the store, so a
         // run without the store skips exactly this row by name (`tools/vendor_harness/store_held.py`)
@@ -968,4 +1045,47 @@ describe('⛔ census paint rule: withheld means the document does not draw it', 
     ] } }
     expect(paintsWithheldFromDocument(two, { paints: [{ kind: 'barcolor', line: 5 }] })).toBe(1)
   })
+})
+
+describe('⛔ e98 — the intraday bind lane (`COVERAGE_CHART_TFS`)', () => {
+  const v6 = (body) => `//@version=6\nindicator("e98 intraday census", overlay = true)\n${body}`
+  const strip = (row) => {
+    const copy = JSON.parse(JSON.stringify(row))
+    delete copy.cleanBoundAt
+    for (const st of copy.steps || []) delete st.boundAt
+    return copy
+  }
+
+  it('only timeframes with a committed reference are accepted, by name', () => {
+    expect(chartTfsOf('60,5')).toEqual(['60', '5'])
+    expect(chartTfsOf('')).toEqual([])
+    expect(() => chartTfsOf('15')).toThrow(/has no intraday reference/)
+  })
+
+  it('⛔ the daily row is unchanged: `boundAt` / `cleanBoundAt` are the only keys the switch adds', () => {
+    const src = v6('plot(ta.sma(close, 20))')
+    const daily = census(src, 4, { rtOn: false, chartTfs: [] })
+    const both = census(src, 4, { rtOn: false, chartTfs: ['60', '5'] })
+    expect(both.steps[0].boundAt, 'non-vacuous: the intraday binds ran').toBeTruthy()
+    expect(Object.keys(both.steps[0].boundAt).sort()).toEqual(['5', '60'])
+    expect(JSON.stringify(strip(both))).toBe(JSON.stringify(daily))
+    expect(both.cleanBoundAt).toEqual({ 60: true, 5: true })
+  }, 120000)
+
+  it('CONTROL: a script clean on the daily bind and not on an intraday one is told apart', () => {
+    const src = v6('plot(request.security(syminfo.tickerid, "D", close))')
+    const row = census(src, 4, { rtOn: false, chartTfs: ['60'] })
+    expect(row.cleanBound, JSON.stringify(row.steps[0].boundWhy)).toBe(true)
+    expect(row.cleanBoundAt['60'], JSON.stringify(row.steps[0].boundAt)).toBe(false)
+    expect(row.steps[0].boundAt['60'].why.length).toBeGreaterThan(0)
+  }, 120000)
+
+  it('a refusal excluded as store-dependent is COUNTED, never silent', () => {
+    const d = memberPaneDefinition({ source: v6('plot(request.security("AMEX:SPY", "D", close))'), id: 'u_e98_intraday', name: 'x' })
+    expect(d.ok, d.reason).toBe(true)
+    const at = intradayBoundOf(d, ['60'])['60']
+    const counted = Object.values(at.excluded).reduce((a, b) => a + b, 0)
+    expect(counted + at.why.length, JSON.stringify(at)).toBeGreaterThan(0)
+    for (const [code, n] of Object.entries(at.excluded)) expect(n, code).toBeGreaterThan(0)
+  }, 120000)
 })

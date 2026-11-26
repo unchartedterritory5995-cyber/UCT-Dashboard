@@ -67,6 +67,21 @@ def row_lane(row):
     return row.get("lane") or LANE_PRODUCTION
 
 
+def chart_tfs_in(path):
+    """The set of `chartTfs` spellings ("60,5", or "" for a daily-only row) over a census.jsonl's rows."""
+    seen = set()
+    if os.path.exists(path):
+        for l in open(path, encoding="utf-8"):
+            try:
+                d = json.loads(l)
+            except Exception:  # noqa: BLE001
+                continue
+            if d.get("stuck") == "killed" and "lane" not in d:
+                continue
+            seen.add(",".join(d.get("chartTfs") or []))
+    return seen
+
+
 def lanes_in(path):
     """Counter of lanes over a census.jsonl (a killed-script row carries none: skipped)."""
     import collections
@@ -188,6 +203,9 @@ def main():
     ap.add_argument("--library-store", default=None,
                     help="the library store the door links from (the official measurement: the promoted store, "
                          "production's truth). Left out: an EMPTY store, recorded as such")
+    ap.add_argument("--chart-tfs", default="",
+                    help="e98: also bind each script's step 0 at these intraday chart timeframes (e.g. 60,5), "
+                         "each on its committed RDDT reference capture; the daily row is unchanged")
     a = ap.parse_args()
     lane = LANE_RUNTIME_ON if a.runtime_on else LANE_PRODUCTION
     cache = os.path.abspath(a.cache)
@@ -205,8 +223,10 @@ def main():
     print("census inputs: %d (%d sample, %d examples)" % (
         len(items), sum(1 for i in items if not i["key"].startswith("example:")),
         sum(1 for i in items if i["key"].startswith("example:"))), flush=True)
+    chart_tfs = [x.strip() for x in a.chart_tfs.split(",") if x.strip()]
+    print("census chart timeframes bound beside the daily: %s" % (",".join(chart_tfs) or "(none)"), flush=True)
     drive(items, cache, lane, census_test=a.census_test, max_restarts=a.max_restarts,
-          library_store=a.library_store)
+          library_store=a.library_store, chart_tfs=chart_tfs)
 
 
 class CensusRunError(SystemExit):
@@ -244,7 +264,7 @@ def assert_lane_measured(cache, lane):
     return got[lane]
 
 
-def drive(items, cache, lane, census_test=CENSUS, max_restarts=40, library_store=None):
+def drive(items, cache, lane, census_test=CENSUS, max_restarts=40, library_store=None, chart_tfs=None):
     """THE CENSUS LOOP, in one place (run_census.py's sample census and the coverage ratchet over the
     committed corpus both call it): write `items` ([{key, path, cap}]) as the census input, run the
     census test until every item has a row in <cache>/census.jsonl, restarting past a process death
@@ -260,8 +280,15 @@ def drive(items, cache, lane, census_test=CENSUS, max_restarts=40, library_store
     other = {k: v for k, v in lanes_in(out).items() if k != lane}
     if other:
         raise CensusRunError("%s already holds rows of another lane %s - use a separate --cache per lane" % (out, other))
+    # ⭐ e98 - the intraday chart timeframes each row is ALSO bound at, set here explicitly ("" = daily only), and never
+    # resumed on top of rows bound at other timeframes
+    tfs = ",".join(chart_tfs or [])
+    mixed = chart_tfs_in(out) - {tfs}
+    if mixed:
+        raise CensusRunError("%s already holds rows bound at other chart timeframes %s - use a separate --cache" % (out, sorted(mixed)))
     env = dict(os.environ, COVERAGE_INPUT=inp, COVERAGE_OUT=out,
                COVERAGE_RUNTIME_ON="1" if lane == LANE_RUNTIME_ON else "0",
+               COVERAGE_CHART_TFS=tfs,
                NODE_OPTIONS="--max-old-space-size=6144")
     # ⭐ THE LIBRARY STORE, SET HERE EXPLICITLY (never inherited, as the lane): the store named, or none
     store = store_manifest(library_store)
