@@ -11,6 +11,8 @@
 //   4. below the floor (a chart of at most 6,666 bars) a script stops on the same bar, with the same numbers, as
 //      under the old fixed ceiling;
 //   5. a caller that NAMES the ceiling gets exactly that number.
+// ⭐⭐ (e100, coordinator ruling 2026-11-26) THE RATE IS 100,000 A BAR (delta-rsi-oscillator-strategy takes a constant
+// 44,471, which 30,000 stopped at SPY bar 5,740), so the floor holds up to 2,000 bars; the rails below read that.
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -54,13 +56,13 @@ function vmRun(src, n, limits) {
 }
 
 describe('the instruction ceiling scales with the bars a run covers', () => {
-  it('the formula: the 200,000,000 floor up to 6,666 bars, 30,000 a bar above it, in the one table', () => {
-    expect(TOTAL_INSTRUCTIONS_PER_BAR).toBe(30000)
+  it('the formula: the 200,000,000 floor up to 2,000 bars, 100,000 a bar above it, in the one table', () => {
+    expect(TOTAL_INSTRUCTIONS_PER_BAR).toBe(100000)
     expect(PER_BAR_LIMITS.TOTAL_INSTRUCTIONS).toBe(TOTAL_INSTRUCTIONS_PER_BAR)
-    expect(scaledCeiling('TOTAL_INSTRUCTIONS', DEFAULT_LIMITS.TOTAL_INSTRUCTIONS, 6666)).toBe(200000000)
-    expect(scaledCeiling('TOTAL_INSTRUCTIONS', DEFAULT_LIMITS.TOTAL_INSTRUCTIONS, 8509)).toBe(255270000)
-    expect(scaledCeiling('TOTAL_INSTRUCTIONS', DEFAULT_LIMITS.TOTAL_INSTRUCTIONS, 32768)).toBe(983040000)
-    expect(scaledCeiling('LOOP_ITERATIONS', DEFAULT_LIMITS.LOOP_ITERATIONS, 32768)).toBe(DEFAULT_LIMITS.LOOP_ITERATIONS)
+    expect(scaledCeiling('TOTAL_INSTRUCTIONS', DEFAULT_LIMITS.TOTAL_INSTRUCTIONS, 2000)).toBe(200000000)
+    expect(scaledCeiling('TOTAL_INSTRUCTIONS', DEFAULT_LIMITS.TOTAL_INSTRUCTIONS, 8509)).toBe(850900000)
+    expect(scaledCeiling('TOTAL_INSTRUCTIONS', DEFAULT_LIMITS.TOTAL_INSTRUCTIONS, 32768)).toBe(3276800000)
+    expect(scaledCeiling('CARRIED_STEPS', DEFAULT_LIMITS.CARRIED_STEPS, 32768)).toBe(DEFAULT_LIMITS.CARRIED_STEPS)
   })
 
   it('kernel-channel-backquant over SPY 1D (8,509 bars) completes with the shipped limits', () => {
@@ -88,9 +90,9 @@ describe('the instruction ceiling scales with the bars a run covers', () => {
     expect(r.err && r.err.limit).toBe('TOTAL_INSTRUCTIONS')
     expect(r.err.ceiling).toBe(scaledCeiling('TOTAL_INSTRUCTIONS', 200000000, n))
     expect(r.err.coveredBars).toBe(n)
-    expect(r.stoppedOn).toBeGreaterThan(1500)
-    expect(r.stoppedOn).toBeLessThan(1900)
-    expect(runtimeLimitSentence(r.err, r.stoppedOn, n)).toMatch(/at most 255,270,000 for 8,509 bars/)
+    expect(r.stoppedOn).toBeGreaterThan(5500)
+    expect(r.stoppedOn).toBeLessThan(6100)
+    expect(runtimeLimitSentence(r.err, r.stoppedOn, n)).toMatch(/at most 850,900,000 for 8,509 bars/)
   }, 120000)
 
   it('⛔ a loop that never ends stops on its own bar, by name', () => {
@@ -100,8 +102,8 @@ describe('the instruction ceiling scales with the bars a run covers', () => {
   })
 
   it('below the floor the stop is the old one: same bar, same 200,000,000, no "for N bars"', () => {
-    const scaled = vmRun(loopBar(7000), 3000, LOOPS_LIFTED)
-    const fixed = vmRun(loopBar(7000), 3000, { ...LOOPS_LIFTED, TOTAL_INSTRUCTIONS: 200000000 })
+    const scaled = vmRun(loopBar(7000), 1999, LOOPS_LIFTED)
+    const fixed = vmRun(loopBar(7000), 1999, { ...LOOPS_LIFTED, TOTAL_INSTRUCTIONS: 200000000 })
     expect(scaled.err.limit).toBe('TOTAL_INSTRUCTIONS')
     expect(scaled.err.ceiling).toBe(200000000)
     expect(scaled.err.coveredBars).toBeUndefined()
