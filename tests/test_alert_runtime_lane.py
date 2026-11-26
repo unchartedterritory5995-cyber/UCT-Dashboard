@@ -768,11 +768,16 @@ def test_E100_the_alert_calls_column_is_placed_past_the_curtain(world):
     assert col.messages == {200: "first", 5199: "last"}
 
 
-def test_E100_a_weekly_or_intraday_alert_never_claims_the_listing(world):
-    world["bars"]["W"] = [dict(b) for b in world["bars"]["D"]]
-    _listing(world, _iso(world["bars"]["W"][0]["t"]))
+def test_E100_a_weekly_alert_never_claims_the_listing(world):
+    import datetime as dt
+    # store-shaped WEEKLY bars: one per week, keyed by its Friday (`bars_fetch` weekly key rule)
+    fridays = [dt.date(2024, 1, 5) + dt.timedelta(weeks=i) for i in range(30)]
+    world["bars"]["W"] = [{"t": int(d.strftime("%Y%m%d")), "o": 100.0 + i, "h": 101.0 + i, "l": 99.0 + i,
+                           "c": 100.0 + i, "v": 1000} for i, d in enumerate(fridays)]
+    _listing(world, fridays[0].isoformat())      # bar 0 IS the listing week: still not served on W
     _alert(tf="W")
-    assert world["fake"].calls[-1]["jobs"][0]["ctx"]["historyFromListing"] is False
+    req = world["fake"].calls[-1]
+    assert req["jobs"][0]["ctx"]["historyFromListing"] is False and req["jobs"][0]["bars"]["n"] >= 29
 
 
 def test_E100_the_batch_key_carries_the_listing_statement():
