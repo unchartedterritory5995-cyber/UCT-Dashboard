@@ -274,11 +274,20 @@ def test_ONON_partial_key_first_answer_reaches_the_live_bucket(onon):
 
 def test_deep_partial_key_repairs_the_tail_even_when_the_deep_fetch_is_shed(onon, monkeypatch):
     monkeypatch.setattr(bars_fetch, "_start_bounded_fetch_intraday", lambda *a, **k: None)
+    # the boundary cut (#2732) measured at a MID-bucket instant, so the rail tells the shed 5 s from the full 10 s
+    # on every run (review #2736); only the cut sees the pinned instant
+    _cut = bars_fetch._bucket_capped_ttl
+    _mid = (int(time.time()) // 900) * 900 + 450
+    monkeypatch.setattr(bars_fetch, "_bucket_capped_ttl", lambda tf, ttl, now=None: _cut(tf, ttl, _mid))
     bars_fetch.set_request_interactive(True)
     resp = bars_fetch._get_bars_inner("UPST", "15", 2000)        # deep + partial
     body = orjson.loads(resp.body)
     assert body["bars"][-1]["t"] == NEW_TAIL
-    assert onon["ttls"]["bars_UPST_15_2000"] == 5, "a shed deep fetch must not pin for a full TTL"
+    # 2026-11-25: the 15m mem-cache TTL is also cut at the next 15m boundary (#2732 _bucket_capped_ttl), so within
+    # 5 s of :00/:15/:30/:45 it is below 5 (merge-queue run 45664248014 recorded 0.328 s and failed). The rail is "short,
+    # never the full TTL": the boundary cut is the expected value, computed on the same clock.
+    got = onon["ttls"]["bars_UPST_15_2000"]
+    assert got == 5, "a shed deep fetch must not pin for a full TTL (the full 15m TTL is 10)"
     assert bars_fetch.get_serve_layer() == "deep-deadline"
 
 

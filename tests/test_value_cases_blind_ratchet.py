@@ -44,9 +44,10 @@ EQUIV_STREAK = "equivalent: at self == 0 both branches give the same value (0 + 
 EQUIV_SEED = "equivalent: the accumulator's seed is overwritten at the anchor bar, before any bar the case shows"
 EQUIV_DENOM = "equivalent: the count of the last 10 admitted values is 10 whatever the condition admits"
 NEVER_ZERO = "the count it guards is never 0 on the built market: a gap of the market, not of the rule"
-PENDING = "pending: unit 2 (a tie edge in script_lane.mjs, then each comparison resolved or given its reason)"
+EQUIV_SELF = ("equivalent: on the newest bar the inner loop compares a close with itself raised by a positive "
+              "percent, never true, so the guard only saves the loop")
 REASONS = {NO_WINDOW, OWN_READING, MEASURE_ZERO, DISPLAY, GUARD, EQUIV_TIME, EQUIV_STREAK, EQUIV_SEED, EQUIV_DENOM,
-           NEVER_ZERO, PENDING}
+           NEVER_ZERO, EQUIV_SELF}
 
 ACCEPTED_WINDOW = {
     **{cid: NO_WINDOW for cid in ("d09", "d24", "date-start-02", "date-start-03", "h04", "h08", "p02", "p03", "p04",
@@ -69,11 +70,22 @@ ACCEPTED_STRICT = {
     "date-start-03": [(2, EQUIV_TIME), (1, EQUIV_SEED)],
     "h08": [(2, EQUIV_STREAK)], "p03": [(2, EQUIV_STREAK)],
     "cap-09": [(1, EQUIV_DENOM)],
-    "cap-08": [(2, PENDING)], "count-on-bars-01": [(1, PENDING)], "h03": [(4, PENDING)], "h05": [(5, PENDING)],
-    "i03": [(3, PENDING)], "l04": [(2, PENDING)],
+    # unit 2 (2026-11-25): cap-08, count-on-bars-01 and l04 see every flip on their tie edges; what the other three
+    # still cannot see is a close against a percent-scaled price (no copied tie lands on it) or h03's loop guard
+    "h03": [(2, MEASURE_ZERO), (1, EQUIV_SELF)], "h05": [(2, MEASURE_ZERO)], "i03": [(1, MEASURE_ZERO)],
 }
 #: the formula-lane edges of 2026-11-25 and the slip each was set for
 EDGED = {"d17": "window", "f02": "window", "h10": "window", "cap-09": "strict", "d25": "strict", "date-start-03": "strict"}
+#: the script-lane tie edges of unit 2 (2026-11-25) and the single flips each was set for (by their index in
+#: `audit.script_single_flips`, with the line each flips named beside it)
+SCRIPT_EDGED = {
+    "l04": {0: "high <= high[1]", 1: "low >= low[1]"},
+    "count-on-bars-01": {0: "close >= close[lookback]"},
+    "cap-08": {0: "isGap = low >= high[1]", 3: "low <= array.get(tops, i)"},
+    "h03": {1: "volume >= volume[1]"},
+    "i03": {1: "volume >= volume[1]", 2: "count > alertAt"},
+    "h05": {1: "low <= startLow", 2: "close >= close[1] and inCorrection", 5: "volume >= volume[1]"},
+}
 
 
 @pytest.fixture(scope="module")
@@ -210,6 +222,47 @@ def test_the_script_lane_refuses_a_formula_edge_and_reads_its_own_ties():
     refused, ran = out["scripts"]["as-list"], out["scripts"]["own-form"]
     assert refused.get("ok") is False and "a formula-lane edge on the script lane" in refused.get("reason", ""), refused
     assert ran.get("ok") is not False, ran
+
+
+@pytest.mark.parametrize("cid", sorted(SCRIPT_EDGED), ids=sorted(SCRIPT_EDGED))
+def test_each_script_edge_keeps_its_answer_right_and_turns_each_flip_it_was_set_for_wrong(cid):
+    """Each unit 2 edge does its job on the script lane, with all its ties present (they were chosen together:
+    alone, one of h05's would land on the bar another moves)."""
+    from tools.value_cases import script_grade
+    case = BY[cid]
+    assert set(case["edge"]) == {"ties"}, cid
+    flips = list(A.script_single_flips(case["answer"]["script"]["pine"]))
+    jobs = [case] + [{**case, "id": f"{cid}#flip{j}", "holds": cid} for j in SCRIPT_EDGED[cid]]
+    answers = {cid: case["answer"], **{f"{cid}#flip{j}": {"turn": "script", "script": {"pine": flips[j]}} for j in SCRIPT_EDGED[cid]}}
+    try:
+        got = script_grade.grade_all(jobs, answers)
+    except LaneUnavailable as exc:
+        pytest.skip(f"the script lane is not available here: {str(exc)[:200]}")
+    assert got[cid]["verdict"] == "right", got[cid]["lines"]
+    for j, line in SCRIPT_EDGED[cid].items():
+        assert line in flips[j] and line not in case["answer"]["script"]["pine"], (cid, j, line)   # the flip named
+        assert got[f"{cid}#flip{j}"]["verdict"] == "wrong", (cid, j, line)
+
+
+def test_a_shift_moves_the_whole_bar_so_one_price_lands_exactly():
+    """The lane's `shift` tie: the bar keeps its own range (high minus low) and its price lands EXACTLY on the
+    value. Without it, a tie that lifted one bar's low above that bar's own close broke the bar, and was refused."""
+    from tools.value_cases import script_lane
+    src = '//@version=5\nindicator("probe")\nplot(low, "low")\nplot(high - low, "range")'
+    tie = {"field": "l", "back": 3, "as": 9, "shift": True}
+    try:
+        out = script_lane.run([{"id": "plain", "source": src, "chart": "daily"},
+                               {"id": "shifted", "source": src, "chart": "daily", "edge": {"ties": [tie]}}])
+    except LaneUnavailable as exc:
+        pytest.skip(f"the script lane is not available here: {str(exc)[:200]}")
+    plain, shifted = out["scripts"]["plain"], out["scripts"]["shifted"]
+    assert plain.get("ok") is not False and shifted.get("ok") is not False, (plain, shifted)
+    low = lambda r, k: r["columns"]["value"][k]                            # noqa: E731   (the first plot)
+    rng = lambda r, k: r["columns"]["out2"][k]                             # noqa: E731   (the second)
+    n = len(plain["columns"]["value"])
+    a, b = n - 1 - 3, n - 1 - 9
+    assert low(shifted, a) == low(plain, b) and low(shifted, a) != low(plain, a)   # EXACTLY the other bar's low
+    assert abs(rng(shifted, a) - rng(plain, a)) < 1e-9 * max(1.0, abs(rng(plain, a)))  # the whole bar moved
 
 
 def test_the_edge_chart_is_restored_after_grading():

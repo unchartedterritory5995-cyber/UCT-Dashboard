@@ -11,6 +11,15 @@ import isModalOpen from '../../../utils/modalOpen'
 import ChartMetaRow from './ChartMetaRow'
 import useRowLadder from './useRowLadder'
 import ChartIdentityRow from './ChartIdentityRow'
+// ⛔ (#2641, first-open bytes) The switch-speed instrument (lib/switchSpeed.js) is told a picked search result is TYPED
+// through its global, never imported: a static import here made the entry chunk 3 B heavier, and the Notebook's first
+// open is a budget (tools/notebook_perf_budgets.py). ChartPane.switchSpeedDoor.test pins both literals to the instrument's.
+// No instrument on the page (no handoff loaded it): nothing to tell, nothing is timed.
+const SWITCH_SPEED_GLOBAL = '__uctSwitchSpeed'
+const TRIGGER_TYPED = 2
+function hintSwitchTrigger(code) {
+  try { if (typeof window !== 'undefined') window[SWITCH_SPEED_GLOBAL]?.hint?.(code) } catch { /* a measurement only */ }
+}
 import SymbolActionsMenu from './SymbolActionsMenu'
 // /charts integrated header: at or above this pane width the timeframe row joins the
 // title row (one header row); below it, two rows. Measured pane width, px.
@@ -1045,6 +1054,13 @@ function ChartPane({
       focusableRef.current?.focus({ preventScroll: true })
     })
   }, [onSymbolChange])
+  // The header's search (a ticker typed and entered, or one of its results picked): the same handler, with the
+  // switch-speed instrument told the switch was TYPED (lib/switchSpeed.js: a picked result is a pointer event, and
+  // the event alone would file it under `click`). Set, switch, cleared: one task.
+  const handleSearchedSymbol = useCallback((s) => {
+    hintSwitchTrigger(TRIGGER_TYPED)
+    try { handleSymbolChange(s) } finally { hintSwitchTrigger(-1) }
+  }, [handleSymbolChange])
   // Type-to-search: start fetching the typed D/W/M symbol before Enter (warmTypedSymbol).
   // P3-S1: the chart's own source warms (chart/barStoreSwitch.js). The store's typed warm never
   // answers 'stale-answer' (a late answer is merged by the reducer) — and nothing here reads it.
@@ -1316,7 +1332,7 @@ function ChartPane({
           brandLogo={themeIdx.isIndex || isBreadthLike}
           boundsRef={focusableRef}
           themeVars={menuVars}
-          onSymbolChange={onSymbolChange ? handleSymbolChange : null}
+          onSymbolChange={onSymbolChange ? handleSearchedSymbol : null}
           onTypedIntent={onSymbolChange ? handleTypedIntent : null}
           economic={allowEconomic}
           showChange={!rowHideChange && !exhibit && !_themeViewLabel && hdr.showChange && !isDelisted && !isBreadthLike && !isEcon && !(themeIdx.isIndex && !idxGain)}

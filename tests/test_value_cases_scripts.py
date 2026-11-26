@@ -138,7 +138,7 @@ def test_CONTROL_a_script_that_does_not_build_and_a_formula_where_a_script_belon
 #: mostly widths and counts of things kept), so a case whose window is that short names it here and the slip raises
 #: that number too. ⚰️ MEASURED 2026-11-23: cap-04's swing is "the 3 bars before it and the 3 bars after it", its
 #: recorded script holds no number from 5 to 300 that is a window, and the slip left it exactly as it was.
-SHORT_WINDOWS = {"cap-04": 3}
+SHORT_WINDOWS = {"cap-03": 3, "cap-04": 3}          # cap-03 back on the script lane 2026-11-25
 
 
 def _every_window_one_longer(source, short=None):
@@ -155,6 +155,49 @@ def _every_window_one_longer(source, short=None):
             hits += n + k
         lines.append(code + sep + comment)
     return "\n".join(lines), hits > 0
+
+
+SHORT_WORDS = re.compile(r"\bthe (\d) bars before it and the \1 bars after it\b")
+
+
+def test_every_short_window_the_words_name_is_in_the_table():
+    """DERIVED from the words, both ways (`test_a_short_window_is_the_one_the_request_names` holds the other): a
+    window under 5 bars is invisible to the slip below unless SHORT_WINDOWS names it. ⚰️ 2026-11-25: with cap-03 left
+    out, the slip still lengthened its OTHER number (the 5 swing highs averaged), went wrong, and passed: the 3-bar
+    window itself was never tried."""
+    named = {c["id"]: int(m.group(1)) for c in SCRIPT for m in [SHORT_WORDS.search(c["words"])] if m and int(m.group(1)) < 5}
+    assert named and named == SHORT_WINDOWS, (named, SHORT_WINDOWS)
+
+
+#: a line that sets the bars on each side of the swing (its title or its name says so): ONLY those are slipped. cap-04's
+#: words also keep "the last 3 swing lows", so raising every 3 would lengthen the count kept too, and a wrong answer
+#: would prove nothing about the window.
+SIDE_LINE = re.compile(r"\b(before|after|each side|left|right)\b", re.IGNORECASE)
+
+
+def _only_the_short_window_one_longer(source, short):
+    """The same script with ONLY the short window raised by one (3 written as 4), on the lines that set the bars on
+    each side; everything else as it was."""
+    lines, hits = [], 0
+    for line in source.splitlines():
+        code, sep, comment = line.partition("//")
+        if not code.lstrip().startswith(("indicator(", "strategy(")) and SIDE_LINE.search(code):
+            code, n = re.subn(r"(?<![\w.\"#\[])" + str(int(short)) + r"(?![\w.\"%\]])", str(int(short) + 1), code)
+            hits += n
+        lines.append(code + sep + comment)
+    return "\n".join(lines), hits > 0
+
+
+def test_a_short_window_alone_one_bar_longer_is_caught():
+    """The slip the table exists for, on its own: each short window raised by one, nothing else moved, is WRONG."""
+    cases = [c for c in SCRIPT if c["id"] in SHORT_WINDOWS]
+    answers = {}
+    for case in cases:
+        source, hit = _only_the_short_window_one_longer(case["answer"]["script"]["pine"], SHORT_WINDOWS[case["id"]])
+        assert hit, case["id"]
+        answers[case["id"]] = {"turn": "script", "script": {"pine": source}}
+    got = _lane(script_grade.grade_all, cases, answers)
+    assert sorted(cid for cid, r in got.items() if r["verdict"] == "wrong") == sorted(SHORT_WINDOWS), {k: v["verdict"] for k, v in got.items()}
 
 
 def test_a_script_with_every_window_one_longer_is_caught():
@@ -208,7 +251,8 @@ def test_an_edge_sits_one_bar_outside_the_window_the_request_names():
         edge = case["edge"]
         assert set(edge) <= {"back", "high", "low", "othersClose", "close", "ties"}, case["id"]
         for t in edge.get("ties") or []:                                   # 2026-11-25: exact ties, for strict words
-            assert {"field", "back", "as"} <= set(t) <= {"field", "back", "as", "from"}, (case["id"], t)
+            assert {"field", "back", "as"} <= set(t) <= {"field", "back", "as", "from", "shift"}, (case["id"], t)
+            assert t.get("shift", True) is True, (case["id"], t)                   # present means the whole bar moves
             assert t["field"] in "ohlcv" and t.get("from", t["field"]) in "ohlcv" and t["back"] != t["as"], (case["id"], t)
         if set(edge) == {"ties"}:
             continue                                                       # a tie names no window: it tells > from >=

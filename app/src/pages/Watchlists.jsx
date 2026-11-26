@@ -102,7 +102,7 @@ import useWatchlistAlerts from '../hooks/useWatchlistAlerts'
 import { subscribeChartReadouts, getChartReadout, hasFreshReadouts } from '../lib/chartReadoutStore'
 import useTagColors from '../hooks/useTagColors'
 import { prefetchBars, prefetchAllTimeframes, prefetchBarOnIntent, warmMemFromIDB, prewarmVisibleList, prefetchBarsToIDB, createNeighborHold } from '../utils/barsWarm'
-import { scanNeighbors } from '../utils/scanNeighbors'
+import { scanNeighbors, jumpTarget } from '../utils/scanNeighbors'
 import { afterPaint } from '../utils/afterPaint'
 import { publishScanNeighbors } from '../components/chart/neighborFrames'
 import { useIsTouch } from '../hooks/useBreakpoint'
@@ -206,6 +206,19 @@ const COL_FULL_MINW = {
 }
 // The column library's new columns (owner 11-14): a width each, and the width at which the
 // full label fits (shorter → the short label).
+// A row's library cells (`libCellsFor` in the component) are kept while every shown cell is the same, so the
+// memoized row sees the same object; this is that sameness: the same columns, each with the same value, text and kind.
+const LIB_CELLS_KEEP_MAX = 2000
+function sameLibCells(a, b, keys) {
+  let n = 0
+  for (const k in a) n++
+  if (n !== keys.length) return false
+  for (const k of keys) {
+    const x = a[k], y = b[k]
+    if (!x || !y || !Object.is(x.v, y.v) || x.t !== y.t || x.signed !== y.signed || x.bar !== y.bar || x.text !== y.text) return false
+  }
+  return true
+}
 for (const [k, c] of [...Object.entries(LIVE_COLUMNS), ...Object.entries(FACT_COLUMNS)]) {
   COL_META[k] = { def: c.width || (c.text ? 96 : 72), min: 44 }
   COL_FULL_MINW[k] = Math.round(c.label.length * 6.6 + 20)
@@ -2046,7 +2059,17 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       scanNeighbors(flat, idx, -dir, { ahead: 2, behind: 0 }))
     const next = scanNeighbors(flat, idx, dir, { ahead: SCAN_URGENT_NEXT, behind: 0 })
     const ahead = scanNeighbors(flat, idx, dir, { ahead: 6, behind: 2 })
-    const keep = scanNeighbors(flat, idx, dir, { ahead: SCAN_KEEP_AHEAD, behind: 0 })
+    const keep0 = scanNeighbors(flat, idx, dir, { ahead: SCAN_KEEP_AHEAD, behind: 0 })
+    // ⭐ (2026-11-25 wide sweep) A JUMP warms where the next jump lands (utils/scanNeighbors jumpTarget): jumps of 20
+    // rows outran the urgent next-row warm. The previous selection is looked up in THIS order (a re-sort moved it).
+    const jump = prev.sym ? jumpTarget(flat, idx, flat.indexOf(prev.sym)) : null
+    // ⛔ (review of #2739) INSIDE BOTH CAPS. prefetchBars makes only the first URGENT_MAX_PER_CALL (2) symbols of a call
+    // urgent: a third leaves as a shed-able background warm that is never re-asked after a roll, so a jump asks for
+    // [the next row, the jump target] (a jumping member does not need row + 2 urgently). Never a SECOND urgent call: only
+    // the latest urgent call keeps its rows. And a hold pins `keep.slice(0, share)` (30 on a two-hold board, 20 on three):
+    // the target goes FIRST in keep, never after the 30 rows ahead.
+    const urgentNext = jump && !next.includes(jump) ? [next[0], jump].filter(Boolean) : next
+    const keep = jump ? [jump, ...keep0.filter((x) => x !== jump)] : keep0
     const sendWarm = () => {
       const holds = _holdsRef.current
       for (const [htf, h] of holds) if (!tfs.includes(htf)) { h.clear(); holds.delete(htf) }
@@ -2058,7 +2081,9 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         // member navigates (createNeighborHold `tail`; `selected` opens its window: a re-sort of the rows does not)
         // `keep`: the rows ahead stay resident until the member reaches them (createNeighborHold NEIGHBOR_KEEP_AHEAD): the
         // registry's LRU took them first, and each came back a local copy asked for in full (2026-11-24 replay)
-        holds.get(tf).set(around, tf, { deep: next, tail: [...next, ...scanNeighbors(flat, idx, dir, { ahead: 0, behind: 1 })], selected: selectedSym, keep })
+        // `live` (2026-11-25): the next rows the way the member is moving ride the bars stream as `ahead` pairs, so the
+        // first press after a minute roll finds that row as current as the chart on screen (createNeighborHold `live`)
+        holds.get(tf).set(around, tf, { deep: next, tail: [...next, ...scanNeighbors(flat, idx, dir, { ahead: 0, behind: 1 })], live: next, selected: selectedSym, keep })
       }
       warmMemFromIDB(around, tfs)
       for (const tf of tfs) prefetchBarsToIDB(ahead, tf, { priority: true })
@@ -2071,7 +2096,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       // is about to reach. Only the latest urgent call stays urgent: a held arrow key aborts the
       // rows it has passed, so a fast scan costs at most SCAN_URGENT_NEXT requests in flight (per
       // timeframe: an urgent call only aborts its own timeframe's passed rows).
-      for (const tf of tfs) prefetchBars(next, tf, { urgent: true })
+      for (const tf of tfs) prefetchBars(urgentNext, tf, { urgent: true })
     }
     if (hurried) { sendWarm(); return undefined }
     const cancel = afterPaint(sendWarm)
@@ -2470,6 +2495,14 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // The column library's columns for one row (owner 11-14): the value (also the sort key)
   // and its display text. LIVE ones read the session-aware quote (and the meta batch for
   // Days to Earnings); FACT ones read the nightly snapshot, re-based on the live price.
+  // ⭐ (2026-11-23, next-row key profile) A ROW KEEPS ITS CELLS OBJECT WHILE WHAT IT SHOWS IS UNCHANGED. This built a
+  // new object for every row on every render, and `WatchRow` is React.memo over its props: with one library column
+  // shown, an arrow key re-rendered EVERY mounted row (twice: the group symbol's render and the selection's), not the
+  // two whose highlight moved. The cells are still computed each render; when every shown cell (value, text, kind)
+  // equals the row's last ones, the last object is handed back, so the row's memo holds. A changed cell, an added or
+  // removed column, gives a new object. Kept per symbol, at most `LIB_CELLS_KEEP_MAX`: past it the store starts over
+  // (each row then re-renders once).
+  const libCellsKeptRef = useRef(new Map())
   const libCellsFor = (sym, q) => {
     const out = {}
     for (const k of libKeys) {
@@ -2483,6 +2516,11 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       const v = factValue(k, factsData?.[sym], q?._sessBlank ? null : q)
       out[k] = { v, t: factText(k, v), signed: !!f.signed, text: !!f.text }
     }
+    const kept = libCellsKeptRef.current
+    const last = kept.get(sym)
+    if (last && sameLibCells(last, out, libKeys)) return last
+    if (kept.size >= LIB_CELLS_KEEP_MAX) kept.clear()
+    kept.set(sym, out)
     return out
   }
 

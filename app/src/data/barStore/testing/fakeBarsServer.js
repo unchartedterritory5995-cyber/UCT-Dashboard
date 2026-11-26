@@ -132,6 +132,20 @@ export function serverAnswer(q, mode = 'ok') {
       },
     }
   }
+  // `lag-noproof:N`: the store lags N s and the answer claims nothing (no verified_through, its tail not marked unverified):
+  // what a tolerance-`current` answer was at the 2026-11-25 open
+  const noproof = /^lag-noproof:(\d+(?:\.\d+)?)$/.exec(String(mode))
+  if (noproof) {
+    const stored = Date.now() / 1000 - Number(noproof[1])
+    const rows = intradayRows(tf, now, { since: q.since }).filter((b) => bucketEndUnix(b.t, tf, {}) <= stored)
+    return {
+      body: {
+        ticker: q.sym, tf: q.tf, bars: rows, contract: 1, grid: 'eth-clock', session: 'rth',
+        cache_key: `b1:${q.sym}:${q.tf}:eth-clock`, series_rev: Date.now(), history_rev: 1,
+        verified_through: null, complete_through: null, tail_status: 'verified', developing: null,
+      },
+    }
+  }
   const lag = /^lag(-unverified)?:(\d+(?:\.\d+)?)$/.exec(String(mode))
   if (mode === 'closed' || mode === 'lagging' || lag) {
     // The store holds the CLOSED buckets only (its forming minute not written yet, no live partial in this process):
@@ -150,6 +164,8 @@ export function serverAnswer(q, mode = 'ok') {
       },
     }
   }
+  // `rev:N`: the default answer under history_rev N (the open's gap fills bump the history)
+  const rev = /^rev:(\d+)$/.exec(String(mode))
   const bars = intradayRows(tf, now, { since: q.since })
   let C = null
   for (const b of bars) { const e = bucketEndUnix(b.t, tf, {}); if (e <= now - 45) C = e }
@@ -157,7 +173,7 @@ export function serverAnswer(q, mode = 'ok') {
   return {
     body: {
       ticker: q.sym, tf: q.tf, bars, contract: 1, grid: 'eth-clock', session: 'rth',
-      cache_key: `b1:${q.sym}:${q.tf}:eth-clock`, series_rev: Date.now(), history_rev: 1,
+      cache_key: `b1:${q.sym}:${q.tf}:eth-clock`, series_rev: Date.now(), history_rev: rev ? Number(rev[1]) : 1,
       verified_through: now, complete_through: C, tail_status: 'verified',
       developing: last && bucketEndUnix(last.t, tf, {}) > now ? { ...last, rev: Date.now() } : null,
     },

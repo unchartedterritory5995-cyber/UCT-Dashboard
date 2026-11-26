@@ -1,7 +1,7 @@
 # Railway: reconnecting a service to the repo after the org move
 
-**Read this before the next deploy of `flow-worker`, `breadth-v2-runner`,
-`fundamentals-v5-runner` or `trade-exchange-news-receiver`.**
+**All services were reconnected by 2026-11-25.** Keep this for the next repo transfer:
+the traps in steps 4 and 6 fired again on 2026-11-25.
 
 ## What happened (2026-11-21)
 
@@ -11,9 +11,20 @@ move: every service kept running its current deployment, but its link to the rep
 A dead link reads, in the dashboard under Settings → Source: the OLD repo name, **"Auto deploy
 unavailable"** and **"Could not load branches"**.
 
-| Reconnected | Still on the dead link (reconnect at their next planned deploy) |
+| Reconnected | Still on the dead link |
 |---|---|
-| 2026-11-21: `bars-api`, `web-front`, `stream-edge`, `stream-ingest`, `web`, `terminal-next-monitor`, `chart-renderer`, `worker`. 2026-11-22: `econ-ingest` | `flow-worker`, `breadth-v2-runner`, `fundamentals-v5-runner`, `trade-exchange-news-receiver` |
+| 2026-11-21: `bars-api`, `web-front`, `stream-edge`, `stream-ingest`, `web`, `terminal-next-monitor`, `chart-renderer`, `worker`. 2026-11-22: `econ-ingest`. 2026-11-25 (owner's go): `fundamentals-v5-runner` 17:08Z, `trade-exchange-news-receiver` 17:13Z, `breadth-v2-runner` 17:17Z, `flow-worker` 17:28Z (live 17:38Z; tape write pause 17:37:29-17:39:27Z, healed by the gap-fill) | none |
+
+2026-11-25 results: Railway staged **Branch -> master** again on `fundamentals-v5-runner` and
+`trade-exchange-news-receiver` (removed in Details both times; they stay on `fundamentals/v5-runner`
+and `production`); `flow-worker`'s reconnect turned **auto deploy ON** again (disabled at once, reads
+"Auto deploy is disabled" after reload). `fundamentals-v5-runner` rebuilt the same commit and re-parked
+`DERIVATION_COMPLETE`. `trade-exchange-news-receiver` is LIVE (real headlines, not dark): the rebuild of
+`production` came up `ready=True` and delivered headlines via web at once; its 2026-11-01 failed build
+was Railway's `failed to fetch snapshot`, not the code. `breadth-v2-runner` moved from `e19be943cc` to
+master (the producer files themselves were unchanged; 24 supporting breadth modules and
+`requirements.txt` were). Note: the dashboard's page text does not include input values, so read
+Root Directory / healthcheck fields from a screenshot or the deployment's `serviceManifest`.
 
 What a reconnect would ship for the four that remain, measured 2026-11-22:
 

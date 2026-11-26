@@ -27,7 +27,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { settleAction, BURST_SETTLE_MS } from './useSymbolSettle'
-import { groupJoin, groupLeave, groupReady, registerMember, settleClock, createSettleClock, decisionFor, subscribeDecisions, latestOnly } from './handoffGroups'
+import { groupJoin, groupLeave, groupReady, registerMember, settleClock, createSettleClock, decisionFor, subscribeDecisions, latestOnly, observeGroupSwitches } from './handoffGroups'
 import { memPeek } from '../utils/barsMemCache'
 import * as legacyPrefetch from '../utils/prefetchBars'
 import * as storePrefetch from '../data/barStore/prefetch'
@@ -39,6 +39,9 @@ import { columnsReadyFor, whenColumnsReady, warmColumnsFor } from '../components
 import { deviceStoreEnabled } from '../data/deviceStore/switch'
 import { deviceSource } from '../data/deviceStore/source'
 import { noteDeviceSwitch, exposeDeviceDiag, deviceDiagOn } from '../data/deviceStore/diag'
+import { inRegularSession } from '../data/deviceStore/fresh'
+import { onChartPaint } from '../components/chart/paintLog'
+import { switchObserver, chartPainted, noteSwitchRoute, setSwitchEnv, ROUTE_NOW, ROUTE_DEFERRED, ROUTE_DAILY_HOLD, ROUTE_PREPARE } from '../lib/switchSpeed'
 
 const INTRADAY = new Set(['1', '5', '15', '30', '60'])
 /** The longest a switch waits for its panes' server columns before it commits anyway. */
@@ -66,6 +69,13 @@ const deviceWhy = (sym, tf) => { const src = deviceSource(); return src ? src.wh
 // the device did not paint, which no member on the default should pay. Read once per page load, like DEVICE.
 const DIAG = DEVICE && deviceDiagOn()
 if (DIAG) exposeDeviceDiag()
+// ⭐ THE FIELD INSTRUMENT FOR SWITCH SPEED (lib/switchSpeed.js, 2026-11-23), wired once per page load: it is told
+// of each key press by the group (handoffGroups.beginGroupSwitch), of each member chart's paint record
+// (chart/paintLog), and of this page's two facts (the device store's one answer, the regular session). It counts
+// press-to-frame times into fixed buckets, for every member, and is read by no decision here.
+observeGroupSwitches(switchObserver)
+onChartPaint(chartPainted)
+setSwitchEnv({ store: DEVICE, rth: inRegularSession })
 /**
  * ⭐ (2026-11-20, the owner's cold path) ROWS THAT COVER THE VIEW PAINT AT ONCE. A cold switch reproduced in
  * the owner's layout (D + 30m, four averages): every 30m handoff took the intraday prepare with the lake's
@@ -250,8 +260,10 @@ const NO_DECISION = () => null
  * @param group        the linked group's key (handoffGroups.chartGroupKey), or null
  * @param scope        the board whose setGroupSym DECIDES (its groupSymsStore), or null: a chart with a scope is a
  *                     member of the key handler's decision; without one it takes the round alone (today's path)
+ * @param member       the identity this chart PAINTS under (chart/paintLog PaintMemberContext: the same token its
+ *                     host provides to its StockChart), or null. Only the switch-speed instrument reads it.
  */
-export default function useSymbolHandoff(requestedSym, tf, { enabled = true, showExtended, group = null, settle = null, scope = null } = {}) {
+export default function useSymbolHandoff(requestedSym, tf, { enabled = true, showExtended, group = null, settle = null, scope = null, member = null } = {}) {
   // Seed with the request so a FIRST mount never lags — there is no previous
   // chart to protect, and lagging here would be a blank chart on page load.
   const [displayedSym, setDisplayedSym] = useState(requestedSym)
@@ -295,6 +307,7 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
   useLayoutEffect(() => {
     if (!scoped) return undefined
     return registerMember(scope, group, memberIdRef.current, {
+      key: member,
       tf: () => viewRef.current.tf,
       prime: (sym) => primeRef.current(sym),
       canShowNow: (sym, settleNow) => {
@@ -307,7 +320,7 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
         noteDeviceFor(sym, viewRef.current.tf, sessOf(viewRef.current.showExtended), null, null, null)
       },
     })
-  }, [scoped, scope, group])
+  }, [scoped, scope, group, member])
 
   // ⭐⭐ ONE FRAME FOR THE GROUP, WHEN THE DECISION SAID NO: join the round for the requested symbol in the LAYOUT
   // phase (see GROUP_SYNC_MS), so every sibling of this commit is a member before any of them can be ready.
@@ -356,6 +369,7 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
       const snap = clock.request(requestedSym, now)
       const action = settleAction({ now, lastRequestAt: snap.lastRequestAt, lastAppliedAt: snap.lastAppliedAt, warm: !!st.isWarm?.(requestedSym) })
       if (action === 'defer') {
+        if (scoped) noteSwitchRoute(group, requestedSym, ROUTE_DEFERRED)   // (the switch-speed instrument: how it was shown)
         let inner
         const t = setTimeout(() => { clock.applied(Date.now()); inner = run() }, BURST_SETTLE_MS)
         return () => { clearTimeout(t); if (typeof inner === 'function') inner() }
@@ -438,6 +452,7 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
       // or prefetch through the bars lane (it would 404) — the chart loads it from
       // /api/econ itself, so the request commits straight through.
       const route = sameTaskRoute(requestedSym, tf, sess)
+      if (scoped) noteSwitchRoute(group, requestedSym, route === 'prepare' ? ROUTE_PREPARE : route === 'daily-hold' ? ROUTE_DAILY_HOLD : ROUTE_NOW)
       if (route === 'econ') { commitNow(); return leaveHold }
 
       // The panes' server columns leave NOW, beside the bars (the prepare below, or the daily one), so
