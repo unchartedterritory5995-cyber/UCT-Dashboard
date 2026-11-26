@@ -12,7 +12,10 @@
 //
 //   * what the run really uses — loop iterations, instructions, the per-bar peak, the
 //     MEMORY estimate — and the time and heap it takes;
-//   * whether it fits the pane's own 1,000 ms budget (`RUNTIME_PANE_TIME_BUDGET_MS`);
+//   * whether it fits the MEMBER WORKER's budget: the browser worker's run, `budgetScales` (runtimeWorker.js), held to
+//     runtimePaneBudgetFor(bars), 1,000 ms up to 5,000 bars, then 1 ms a bar, at most 12,000 ms (e99, 2026-11-26: the
+//     unscaled 1,000 ms this read before is the clock of no member's chart above 5,000 bars; it is the main-thread
+//     fallback's only, where a browser cannot construct a Worker, and the server lane's until #2817);
 //
 // and, for a set of ADVERSARIAL programs on the longest chart (32,000 bars), which limit
 // stops each one and how long the stop takes, under the old limits and the shipped ones.
@@ -26,7 +29,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 import * as registry from '../../nativeRegistry'
-import { computeRuntimeColumns, RUNTIME_PANE_TIME_BUDGET_MS } from '../../runtime/runtimeColumns'
+import { computeRuntimeColumns, runtimePaneBudgetFor, RUNTIME_PANE_TIME_BUDGET_MS, RUNTIME_PANE_BUDGET_FLOOR_BARS,
+  RUNTIME_PANE_BUDGET_CEILING_MS } from '../../runtime/runtimeColumns'
 import { DEFAULT_LIMITS } from '../../runtime/limits'
 import { enterMemberDoor, HARNESS_DEF_ID } from './ourSide'
 
@@ -54,7 +58,8 @@ function longIntraday(rows, n) {
   return [...head, ...rows]
 }
 
-function measure(def, rows, ctx, limits, budgetMs) {
+/** `memberWorker`: the run is held to the browser worker's budget (`budgetScales`), as a member's chart is. */
+function measure(def, rows, ctx, limits, budgetMs, memberWorker = false) {
   const times = []
   let peak = 0
   let err = null
@@ -75,7 +80,7 @@ function measure(def, rows, ctx, limits, budgetMs) {
     err = null
     try {
       computeRuntimeColumns(def, bars, ctx, {
-        limits, now, ...(budgetMs ? { budgetMs } : { budgetMs: 600000 }),
+        limits, now, ...(budgetMs ? { budgetMs, ...(memberWorker ? { budgetScales: true } : {}) } : { budgetMs: 600000 }),
         onBudget: (b) => { counts = { ...b.counts } },
       })
     } catch (e) { err = e }
@@ -158,8 +163,9 @@ describe.skipIf(!RUN)('UIE Phase 2 — HISTORY and LOOP_ITERATIONS, measured (op
         slug,
         runtimeHistory: (door.def.meta && door.def.meta.runtimeHistory) || null,
         lifted: lengths.map((L) => ({ length: L.name, ...measure(door.def, L.rows, ctx(L), LIFTED) })),
-        shipped: lengths.map((L) => ({ length: L.name,
-          ...measure(door.def, L.rows, ctx(L), undefined, RUNTIME_PANE_TIME_BUDGET_MS) })),
+        // the member worker's verdict (e99): the shipped limits under the budget a member's chart is held to
+        memberWorker: lengths.map((L) => ({ length: L.name, budgetMs: runtimePaneBudgetFor(L.rows.length),
+          ...measure(door.def, L.rows, ctx(L), undefined, RUNTIME_PANE_TIME_BUDGET_MS, true) })),
       })
     }
     expect(scripts.length).toBeGreaterThanOrEqual(10)
@@ -172,13 +178,13 @@ describe.skipIf(!RUN)('UIE Phase 2 — HISTORY and LOOP_ITERATIONS, measured (op
     const honest = []
     for (const L of [lengths[1], lengths[3]]) {
       const H = { HISTORY: Math.max(DEFAULT_LIMITS.HISTORY, L.rows.length) }
-      const sets = [['old', { ...OLD, ...H }, null], ['shipped', H, null],
-        ['shipped+pane', H, RUNTIME_PANE_TIME_BUDGET_MS]]
+      const sets = [['old', { ...OLD, ...H }, null, false], ['shipped', H, null, false],
+        ['shipped+memberWorker', H, RUNTIME_PANE_TIME_BUDGET_MS, true]]
       const ctx = { tf: L.tf, newestBarIsForming: false }
       for (const [name, body] of Object.entries(ADVERSARIAL)) {
         const row = { name, length: L.name }
-        for (const [label, limits, budgetMs] of sets) {
-          const m = measure(synthetic(body), L.rows, ctx, limits, budgetMs)
+        for (const [label, limits, budgetMs, memberWorker] of sets) {
+          const m = measure(synthetic(body), L.rows, ctx, limits, budgetMs, memberWorker)
           row[label] = { stop: m.stop, medianMs: m.medianMs, peakHeapMB: m.peakHeapMB }
           // ⛔ EVERY ONE IS STOPPED, BY NAME — never run to the end, never a freeze
           expect(m.stop, `${name} on ${L.name} under ${label}`).toBeTruthy()
@@ -187,8 +193,8 @@ describe.skipIf(!RUN)('UIE Phase 2 — HISTORY and LOOP_ITERATIONS, measured (op
       }
       for (const [name, [body, perBar]] of Object.entries(HONEST)) {
         const row = { name, length: L.name, needs: perBar * L.rows.length }
-        for (const [label, limits, budgetMs] of sets) {
-          const m = measure(synthetic(body), L.rows, ctx, limits, budgetMs)
+        for (const [label, limits, budgetMs, memberWorker] of sets) {
+          const m = measure(synthetic(body), L.rows, ctx, limits, budgetMs, memberWorker)
           row[label] = { stop: m.stop, medianMs: m.medianMs, peakHeapMB: m.peakHeapMB,
             loopIterations: m.loopIterations ?? null }
         }
@@ -203,7 +209,10 @@ describe.skipIf(!RUN)('UIE Phase 2 — HISTORY and LOOP_ITERATIONS, measured (op
       generatedBy: 'app/src/components/chart/engine/__tests__/vendorHarness/runtimeLimitsBudget.measure.test.js',
       shippedLimits: { HISTORY: DEFAULT_LIMITS.HISTORY, LOOP_ITERATIONS: DEFAULT_LIMITS.LOOP_ITERATIONS,
         INSTRUCTIONS_PER_BAR: DEFAULT_LIMITS.INSTRUCTIONS_PER_BAR, TOTAL_INSTRUCTIONS: DEFAULT_LIMITS.TOTAL_INSTRUCTIONS,
-        WALL_TIME: DEFAULT_LIMITS.WALL_TIME, paneBudgetMs: RUNTIME_PANE_TIME_BUDGET_MS },
+        WALL_TIME: DEFAULT_LIMITS.WALL_TIME,
+        // e99: the member worker's budget rule (runtimePaneBudgetFor), not one number
+        memberWorkerBudget: { floorMs: RUNTIME_PANE_TIME_BUDGET_MS, floorBars: RUNTIME_PANE_BUDGET_FLOOR_BARS,
+          ceilingMs: RUNTIME_PANE_BUDGET_CEILING_MS } },
       oldLimits: OLD,
       scripts,
       adversarial,
