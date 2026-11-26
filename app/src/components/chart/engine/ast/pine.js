@@ -1683,26 +1683,31 @@ const BUILTIN_SERIES_TREE = Object.freeze({
   // published reference body (the "the same on pine" half of each variable's own
   // reference example; every source and second witness, name by name, is in
   // `docs/pine/evidence/2026-11-02-w1/formula-sources.md`):
-  //     ta.iii  = (2 * close - high - low) / ((high - low) * volume)
+  //     ta.iii  = ((2 * close - high - low) / (high - low)) * volume
   //     ta.wvad = (close - open) / (high - low) * volume
   //     ta.wad  = ta.cum(mom > 0 ? close - math.min(low, close[1])
   //                      : mom < 0 ? close - math.max(high, close[1]) : 0),  mom = ta.change(close)
-  // ⛔ W1 RE-REVIEW (2026-11-02): IN `ta.iii` THE VOLUME DIVIDES. That is the v4
-  // reference's body, PyneCore's, and the answer TradingView's own exported values
-  // give on every row of PyneCore's export fixture (100 of 100). The v5/v6 pages
-  // print `((2 * close - high - low) / (high - low)) * volume`, which W1 first built
-  // from and which those same values contradict on every row (0 of 100). A zero
-  // range or a zero volume is a division by zero, and it meets the engine's one rule
-  // for that: IEEE division (`interpret.js::BINARY['/']`, mirrored by
-  // `ast_interpret._binary_div`), and a non-finite answer is `na` at the column
-  // (`interpret.js::toColumn`), a gap.
+  // ⛔ e99 (2026-11-26, MEASURED): IN `ta.iii` THE VOLUME MULTIPLIES, in every version. TradingView's own `ta.iii`
+  // (Pine v6, the builtin4 witness captures: AMEX:SPY 1D, 8,514 bars, and NYSE:RDDT 1D, 674 bars, 2026-11-26) equals
+  // the v5/v6 pages' body `((2 * close - high - low) / (high - low)) * volume` on every bar; the dividing body matched
+  // 35 of 8,514 and 0 of 674. The W1 re-review (2026-11-02) had switched this to DIVIDING on PyneCore's export fixture
+  // (`iii+nvi+obv.csv` @ fe29d4a4c5, 100 of 100 rows dividing): that fixture is not a v4 export (its column is the
+  // v5+ name `ta.iii`, and PyneCore's test runs no v4 script), so it proves nothing about v4 and contradicts today's
+  // v6 builtin; it is kept in the rail as a pinned historical fact, not as a witness. The v4 reference page's dividing
+  // body is uncaptured, so v4 multiplies too (coordinator ruling: divide only for v4 if the fixture proved v4 divides).
+  // A zero range is 0 / 0 (`na` at the column, the engine's x / 0 rule: IEEE division, `interpret.js::BINARY['/']`
+  // mirrored by `ast_interpret._binary_div`, a non-finite answer `na` by `interpret.js::toColumn`); a zero volume,
+  // over a nonzero range, is 0.
   // `iii` and `wvad` are per-bar (no state), so a screen may read them. `wad` is a
   // running total and joins the `cum` bargain (pane only). Its bar 0 is 0, not
   // `na`: `mom` is `na` there and both comparisons answer false, exactly as the
   // reference body reads in Pine. ⚠️ No capture of ours yet (capture queue W1-C).
-  iii: () => cOp('/', [
-    cOp('-', [cOp('-', [cOp('*', [cNum(2), cSeries('close')]), cSeries('high')]), cSeries('low')]),
-    cOp('*', [cOp('-', [cSeries('high'), cSeries('low')]), cSeries('volume')]),
+  iii: () => cOp('*', [
+    cOp('/', [
+      cOp('-', [cOp('-', [cOp('*', [cNum(2), cSeries('close')]), cSeries('high')]), cSeries('low')]),
+      cOp('-', [cSeries('high'), cSeries('low')]),
+    ]),
+    cSeries('volume'),
   ]),
   wvad: () => cOp('*', [
     cOp('/', [cOp('-', [cSeries('close'), cSeries('open')]), cOp('-', [cSeries('high'), cSeries('low')])]),
