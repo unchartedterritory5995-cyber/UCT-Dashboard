@@ -300,3 +300,46 @@ def test_broadcaster_odd_lot_adds_volume_only(_fallback_rules):
     _push(bb, "W", 104.0, s=7, c=[37])
     b = _partial(bb, "W")
     assert (b["h"], b["l"], b["c"], b["v"]) == (100.0, 100.0, 100.0, 107)
+
+
+def test_the_pinned_codes_never_update_high_low_whatever_the_vendor_table_says(monkeypatch):
+    """The spike probe (2026-11-26): the vendor's own aggregates counted derivatively priced (10), sold out of sequence
+    (32/33) and contingent / qualified contingent (52/53) prints toward high/low, and its condition table marks them so
+    (SPY 2025-12-22 15:00, 2026-08-28 15:00; RDDT 2024-05-20 13:30). TradingView, and our own fallback table, do not.
+    The live fold pins them out of high/low even after the vendor table loads: their size still counts, their price
+    never makes a wick (this also moves some one-cent extremes, which is the point)."""
+    class _R:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            rules = {"consolidated": {"updates_high_low": True, "updates_open_close": False, "updates_volume": True}}
+            return {"results": [{"id": c, "name": f"code {c}", "update_rules": rules} for c in (10, 32, 33, 52, 53)]
+                    + [{"id": 37, "name": "Odd Lot Trade", "update_rules": {"consolidated": {
+                        "updates_high_low": False, "updates_open_close": False, "updates_volume": True}}}]}
+
+    import httpx
+    monkeypatch.setenv("MASSIVE_API_KEY", "test-not-a-key")
+    monkeypatch.setattr(httpx, "get", lambda *a, **k: _R())
+    monkeypatch.setattr(tc, "_loaded_from_provider", False)
+    monkeypatch.setattr(tc, "_hl_ineligible", set(tc._hl_ineligible))
+    monkeypatch.setattr(tc, "_last_ineligible", set(tc._last_ineligible))
+    monkeypatch.setattr(tc, "_vol_ineligible", set(tc._vol_ineligible))
+    tc.load_from_provider()
+    assert tc._loaded_from_provider is True
+    for code in (10, 32, 33, 52, 53):
+        hl_ok, _last_ok, vol_ok = tc.classify3([code])
+        assert (hl_ok, vol_ok) == (False, True), code
+    assert tc.classify3([0]) == (True, True, True)
+
+
+def test_a_pinned_print_never_makes_a_live_wick(monkeypatch):
+    monkeypatch.setattr(tc, "FILTER_ENABLED", True)
+    monkeypatch.setattr(tc, "_hl_ineligible", (set(tc._hl_ineligible) - set(tc._HL_PINNED)) | set(tc._HL_PINNED))
+    bb = BarBroadcaster()
+    _push(bb, "W", 100.0, s=100, c=[0])
+    _push(bb, "W", 101.0, s=100, c=[0])
+    _push(bb, "W", 96.5, s=589589, c=[10, 41])      # the SPY 12-22 15:00 print, in shape
+    _push(bb, "W", 105.0, s=1200, c=[32])           # the 08-28 out-of-sequence high
+    b = _partial(bb, "W")
+    assert (b["h"], b["l"]) == (101.0, 100.0)
