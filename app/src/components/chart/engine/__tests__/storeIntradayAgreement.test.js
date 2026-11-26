@@ -21,6 +21,10 @@
 // ⛔ WHEN THE LOCAL PAYLOAD IS GIVEN AND THIS GOES RED, THAT IS THE ANSWER: the
 // store does not meet the proposed bar (`FLIP_CRITERION`) and the gate stays off.
 // The assertion message carries the whole report.
+//
+// ⭐ e98 — PRICES ARE COMPARED AT THE STORE'S 4-DP GRAIN (`api/services/bars_fetch.py::PRICE_DP`, by design;
+// TradingView's capture keeps 6): a difference past the 4th decimal is not a difference, one in the 4th is. Volume is
+// compared exactly. The rail below holds the JS grain to the server's constant.
 
 import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
@@ -28,6 +32,7 @@ import path from 'node:path'
 import process from 'node:process'
 import {
   barsOf, compareIntraday, agreementVerdict, describeAgreement, FLIP_CRITERION, KNOWN_DEFINITION_DIFFERENCES,
+  STORE_PRICE_DP, samePrice, PENDING_KNOWN_DIFFERENCES,
 } from './storeIntradayAgreement'
 
 const REPO = path.resolve(process.cwd(), '..')
@@ -153,6 +158,39 @@ describe('C41 · storeIntradayAgreement — the comparison itself (controls on t
     expect(text).toContain(`volume: ${KNOWN_DEFINITION_DIFFERENCES.volume}`)
     expect(text).toMatch(/median 1\.380/)
     expect(text).not.toMatch(/against the proposed bar:[^\n]*volume/)
+  })
+
+  it('⭐ e98 — prices at the store\'s 4-dp grain: a 5th-decimal difference is the same price, a 4th-decimal one is not', () => {
+    const k = Math.floor(vendorBars.length / 2)
+    const fifth = vendorBars.map((b, i) => (i === k ? { ...b, c: Math.round(b.c * 1e4) / 1e4 + 0.00004 } : b))
+    const base = vendorBars.map((b, i) => (i === k ? { ...b, c: Math.round(b.c * 1e4) / 1e4 } : b))
+    expect(compareIntraday(fifth, base).totals.fields.c.differ, 'a 5th-decimal difference passes').toBe(0)
+    // CONTROL: the 4th decimal is a difference
+    const fourth = base.map((b, i) => (i === k ? { ...b, c: b.c + 0.0001 } : b))
+    expect(compareIntraday(fourth, base).totals.fields.c.differ, 'a 4th-decimal difference fails').toBe(1)
+    expect(samePrice(12.34571, 12.3457)).toBe(true)
+    expect(samePrice(12.3456, 12.3457)).toBe(false)
+    // volume is not rounded: one share apart is a difference
+    const vol = base.map((b, i) => (i === k ? { ...b, v: b.v + 1 } : b))
+    expect(compareIntraday(vol, base).totals.fields.v.differ).toBe(1)
+  })
+
+  it('⭐ e98 — the JS grain is the server\'s: STORE_PRICE_DP equals api/services/bars_fetch.py PRICE_DP', () => {
+    const py = fs.readFileSync(path.join(REPO, 'api/services/bars_fetch.py'), 'utf8')
+      .split('\n').filter((l) => !/^\s*#/.test(l)).join('\n')
+    const m = /^PRICE_DP\s*=\s*(\d+)\s*$/m.exec(py)
+    expect(m, 'PRICE_DP is declared on one line').toBeTruthy()
+    expect(STORE_PRICE_DP).toBe(Number(m[1]))
+  })
+
+  it('⭐ e98 — the odd-lot-print line is prepared and INACTIVE: the bars it would name still count as differences', () => {
+    expect(PENDING_KNOWN_DIFFERENCES.oddLotPrint).toMatchObject({ sentence: 'differs only by an odd-lot print', active: false })
+    const k = Math.floor(vendorBars.length / 2)
+    const moved = vendorBars.map((b, i) => (i === k ? { ...b, h: b.h + 0.05 } : b))
+    const r = compareIntraday(moved, vendorBars, '15', { oddLotPrintBars: [vendorBars[k].t] })
+    expect(r.totals.fields.h.differ).toBe(1)
+    expect(r.totals.oddLotPrint).toBe(0)
+    expect(describeAgreement(r, agreementVerdict(r))).toContain('INACTIVE until')
   })
 
   it('the proposed bar is the one written down', () => {
