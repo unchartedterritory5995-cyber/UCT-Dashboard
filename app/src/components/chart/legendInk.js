@@ -167,6 +167,39 @@ export function readLegendContext(el) {
   return { tokens, under }
 }
 
+/** ⚡ (2026-11-26, the board switch) THE SAME CONTEXT IS READ ONCE. `readLegendContext` makes the browser resolve the role
+ *  tokens inside the chart (a probe span, one style read per role) and walks every ancestor's background (a style read
+ *  each): 2.7 ms of a two-chart board switch on production's build, every chart mount and canvas change paying it
+ *  again for the same answer. What the browser resolves there follows from the stylesheets (fixed for the page's life)
+ *  and from the chain of elements up to the root: each one's tag and attributes (class, style, data-*: a widget's
+ *  inline tokens, the app theme on <html>) and the viewport (media queries). That chain is the key: the same chain
+ *  is the same answer, read once and reused; any attribute changing anywhere on it, or the viewport, reads again. */
+const LEGEND_CONTEXT_MAX = 32
+const _legendContexts = new Map()
+export function legendContextKey(el) {
+  if (!el) return null
+  let key = typeof window !== 'undefined' ? `${window.innerWidth}x${window.innerHeight}` : ''
+  for (let n = el; n && n.nodeType === 1; n = n.parentElement) {
+    key += `<${n.tagName}`
+    const attrs = n.attributes
+    for (let i = 0; i < attrs.length; i++) key += ` ${attrs[i].name}=${attrs[i].value}`
+  }
+  return key
+}
+/** `readLegendContext(el)`, remembered by `legendContextKey(el)`. */
+export function readLegendContextCached(el) {
+  const key = legendContextKey(el)
+  if (key == null) return readLegendContext(el)
+  const hit = _legendContexts.get(key)
+  if (hit) return hit
+  const out = readLegendContext(el)
+  _legendContexts.set(key, out)
+  if (_legendContexts.size > LEGEND_CONTEXT_MAX) _legendContexts.delete(_legendContexts.keys().next().value)
+  return out
+}
+/** Tests: forget every remembered context. */
+export function _resetLegendContextsForTests() { _legendContexts.clear() }
+
 /** ⭐ 2026-11-13 — a PLOT's own colour as legend text (the RS Line's "RS 96" end tag), kept
  *  only where it reads at >= 4.5:1 on the canvas sample it sits on; else null, and the caller
  *  draws the text in the legend's neutral ink and keeps the plot colour as a swatch. Measured:
