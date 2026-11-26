@@ -7,7 +7,8 @@
 // done, so this file pins:
 //   1. THE TRANSLATION IS THE SAME: on scripts whose comparisons read a refusing `var`, the result and the call's step
 //      count are identical with refusals kept and with nothing kept (the translator before U2), replays really happen,
-//      and the verify mode (resolve for real where a replay would happen, compare) finds no difference;
+//      and the verify mode (resolve for real where a replay would happen, compare) finds no difference, including on a
+//      refusal whose first resolution fills a memo a repeat finds full (`RESOLVE_MEMO_FILLS`);
 //   2. NEVER ACROSS SCOPES: a refusal kept under one environment is not thrown under another, where the name resolves;
 //   3. A FRESH REFUSAL EACH TIME, same guard, message and location: a catcher that marks one throw marks only that one;
 //   4. CHARGED AS IF IT HAD RUN: a replay adds the steps the refusal took, and one whose steps would pass the
@@ -35,7 +36,17 @@ const SCRIPTS = {
     'var float bot = na', 'bot := close < top ? low : bot',
     'up = close > top', 'dn = close < bot', 'plot(up ? 1 : dn ? -1 : 0)',
   ].join('\n'),
+  // ⚰️ the shape of corpus/committed `renko-candles-overlay`: the first `array.size(r)` settles the vector's size
+  // (one step, `foldVectorSize`), a repeat does not, so a refusal kept from the first would over-charge a replay
+  'a refusal whose first resolution settles a vector size': [
+    '//@version=5', 'indicator("u2e", overlay=true)',
+    'var r = array.new_float(1, close)', 'f(a) =>', '    array.unshift(a, close)', '    0',
+    'if close > open', '    f(r)', 'while array.size(r) > 5', '    array.pop(r)',
+    'if array.size(r) >= 2', '    label.new(bar_index, high, "x")', 'plot(close)',
+  ].join('\n'),
 }
+// the scripts whose comparisons really replay (the third may keep nothing: what it pins is the verify mode)
+const REPLAYS = new Set(['two comparisons over a refusing var', 'a refusing var read through another var'])
 const HOST = { strict: true, paramManifest: true, enumInputs: true, declareInputs: 'all' }
 const run = (src, opts) => {
   const t = translatePine(src, opts)
@@ -55,13 +66,13 @@ describe('e99 U2: kept refusals', () => {
         const after = run(src, opts)
         expect(after.json).toBe(before.json)
         expect(after.steps).toBe(before.steps)
-        if (opts === HOST) expect(kept.replays).toBeGreaterThan(0)
+        if (opts === HOST && REPLAYS.has(name)) expect(kept.replays).toBeGreaterThan(0)
         const verify = __refusalReplayForTests({ verify: true })
         const verified = run(src, opts)
         expect(verified.json).toBe(before.json)
         expect(verify.mismatches).toEqual([])
         expect(verify.mismatchCount).toBe(0)
-        if (opts === HOST) expect(verify.verified).toBeGreaterThan(0)
+        if (opts === HOST && REPLAYS.has(name)) expect(verify.verified).toBeGreaterThan(0)
       }
     })
   }

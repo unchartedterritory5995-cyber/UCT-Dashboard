@@ -8900,6 +8900,15 @@ const PARAM_MANIFEST_ELIGIBLE_KINDS = Object.freeze(new Set(['input', 'int', 'fl
  *  refusal would be replayed and counts whether the replay would have been the same. */
 class RefusalReplays extends Map {}
 const REFUSAL_REPLAY = { off: false, verify: false, stats: null }
+/** ⭐ e99 U2 — memos the resolver fills on objects it does not own, or in this module's own tables, that make a
+ *  REPEAT cheaper than the first resolution and that `firstTimeMark` does not see: a vector's size settled
+ *  (`foldVectorSize`), its recorded loops unrolled (`applyUnrolls`), a text comparison's memo filled
+ *  (`TEXT_EQ_MEMO`). Counted here and read by `replaySideMark` only, so a refusal whose resolution filled one is
+ *  never kept (a replay would charge the steps the fill cost, which a repeat does not take). ⚰️ MEASURED: without
+ *  it, the verify seam found `array.size(…)` refusals on `renko-candles-overlay` and
+ *  `machine-learning-knn-based-strategy` (corpus/committed) whose repeat cost one step less than the record.
+ *  ⛔ NOT added to `firstTimeMark`: that would change which TREES C24 keeps, and so the call's step count. */
+let RESOLVE_MEMO_FILLS = 0
 
 /** A kept refusal: its prototype and every own field as it stood when it was thrown out of the probe (before any
  *  outer catcher marked it), without its stack. */
@@ -10505,7 +10514,8 @@ export class Resolver {
   /** ⭐ e99 U2 — a number that moves when a resolution touches a record OUTSIDE `firstTimeMark`'s view that a repeat
    *  would touch again: an array the resolver holds growing (`blockRuns`, `knobArmRefusals`), its `selfReads`
    *  counts, the knob switches' node spend, and the call's sinks (other symbols, lower timeframes, period reads).
-   *  A refusal whose resolution moved it is never kept, so a replay never skips a write a repeat would make. */
+   *  It also counts the memos a repeat would find filled (`RESOLVE_MEMO_FILLS`). A refusal whose resolution moved
+   *  it is never kept, so a replay never skips a write a repeat would make, nor charges a fill a repeat skips. */
   replaySideMark() {
     let n = 0
     for (const k in this) {
@@ -10518,7 +10528,7 @@ export class Resolver {
     if (OTHER_SYMBOL_SINK) { n += OTHER_SYMBOL_SINK.size; for (const s of OTHER_SYMBOL_SINK.values()) n += s.size }
     if (LOWER_TF_SINK) n += LOWER_TF_SINK.size
     if (PERIOD_READ_SINK) n += PERIOD_READ_SINK.count + PERIOD_READ_SINK.names.size + PERIOD_READ_SINK.current.size
-    return n
+    return n + RESOLVE_MEMO_FILLS
   }
 
   /** A number that moves whenever a resolution does work a repeat would not:
@@ -11563,6 +11573,7 @@ export class Resolver {
   applyUnrolls(vec) {
     const pending = vec.pending || []
     vec.pending = null
+    if (pending.length) RESOLVE_MEMO_FILLS += 1   // e99 U2: `replaySideMark`
     for (const loop of pending) {
       const prevEnv = this.env
       this.env = new Map(loop.env)
@@ -11695,6 +11706,7 @@ export class Resolver {
         ? new Array(n).fill(null).map(() => exprBinding(vec.initNode, vec.env, vec.at))
         : new Array(n).fill(null)
     vec.sizeFolded = true
+    RESOLVE_MEMO_FILLS += 1   // e99 U2: `replaySideMark`
     return n
   }
 
@@ -12697,7 +12709,7 @@ export class Resolver {
               if (hit) return hit
             } else {
               const eq = this.textEqTree(other, lit, node.op === '==')
-              if (memo) memo.set(mkey, eq)
+              if (memo) { memo.set(mkey, eq); RESOLVE_MEMO_FILLS += 1 }   // e99 U2: `replaySideMark`
               if (eq) return eq
             }
           }
