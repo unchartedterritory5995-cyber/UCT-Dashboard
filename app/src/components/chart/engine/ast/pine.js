@@ -35728,6 +35728,9 @@ const CANDLE_POSITIONAL = Object.freeze({
     'format', 'precision', 'force_overlay']),
 })
 const CANDLE_COLOUR_PARAMS = Object.freeze({ plotcandle: ['color', 'wickcolor', 'bordercolor'], plotbar: ['color'] })
+/** ⭐ e98 — the fields a plot presentation sets when it READ a colour (any of them; none = the colour was not read). */
+const CANDLE_BODY_READ_FIELDS = Object.freeze(['color', 'colorUp', 'colorDown', 'colorCondition', 'colorPalette', 'colorIndex',
+  'colorGradient', 'colorDynamic', 'colorDynamicArity', 'colorWithheld'])
 
 /** ⭐⭐ e96 — a candle colour as the PACKED per-bar colour the chart's candle reads (`0xTTBBGGRR`,
  *  `runtime/colours.js`): one static colour, or a two-colour rule over its condition, as a tree; anything else
@@ -35758,6 +35761,25 @@ function packedColourTreeOf(pres) {
     const down = packed(pres.colorDown, pres.opacity)
     if (up === null || down === null) return { withheld: 'its colour is not one a candle here can carry' }
     return tree(cOp('?:', [pres.colorCondition.ast, cNum(up), cNum(down)]))
+  }
+  // ⭐⭐ e98 (candle bodies) — AN N-WAY COLOUR CHAIN (`colourIndexChain`: a palette and the index of the bar's entry,
+  // the plot path's own carrier) is the same per-bar choice the binder makes for a line (`binder.pointColour`): entry
+  // k where the index is k, and NO colour where it names no entry. As a packed tree: `idx == 0 ? p0 : idx == 1 ? p1 :
+  // ... : na`. A transparent entry (Pine's `na` leaf) is `na`, which the candle draws as no colour, as it draws any
+  // `na` colour (`binder.computedOhlcPayload`). ⛔ An entry this cannot pack withholds the whole colour, by name.
+  if (Array.isArray(pres.colorPalette) && pres.colorPalette.length >= 2 && pres.colorIndex && pres.colorIndex.ast) {
+    const entries = pres.colorPalette.map((e) => {
+      if (e === TRANSPARENT_PALETTE_ENTRY) return null
+      const v = packed(e, /^#[0-9a-f]{6}$/i.test(String(e)) ? pres.opacity : undefined)
+      return v === null ? undefined : v
+    })
+    if (entries.some((e) => e === undefined)) return { withheld: 'its colour is not one a candle here can carry' }
+    const naTree = cOp('/', [cNum(0), cNum(0)])
+    let t = naTree
+    for (let k = entries.length - 1; k >= 0; k -= 1) {
+      t = cOp('?:', [cOp('==', [pres.colorIndex.ast, cNum(k)]), entries[k] === null ? naTree : cNum(entries[k]), t])
+    }
+    return tree(t)
   }
   return { withheld: 'its colour picks among more than two colours, or by a rule a candle here cannot carry yet' }
 }
@@ -35796,7 +35818,11 @@ function candleFactsOf(args, kind, ctx) {
     if (!byName.has(param)) continue
     if (param !== 'color' && sameAsBody(param) && facts.colours.color) { facts.colours[param] = facts.colours.color; continue }
     let pres = null
-    if (param === 'color' && ctx.bodyPres) pres = ctx.bodyPres
+    // ⭐ e98 (candle bodies) — the row's own read is the body's only when it READ a colour: a `color` passed by
+    // POSITION (`plotcandle(o, h, l, c, "T", barCol, ...)`, the sixth slot) is not one the plot reader places, so its
+    // presentation carries no colour field and the candle read "picks among more than two colours", a reason it did not
+    // have. Such a body is read here, by its name, as the wick and border are.
+    if (param === 'color' && ctx.bodyPres && CANDLE_BODY_READ_FIELDS.some((f) => ctx.bodyPres[f] !== undefined)) pres = ctx.bodyPres
     else {
       try { pres = outputPresentation([{ ...byName.get(param), name: 'color' }], { env: ctx.env, resolver: ctx.resolver, kind }) } catch { pres = null }
     }

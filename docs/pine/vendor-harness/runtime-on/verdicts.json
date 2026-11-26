@@ -48919,12 +48919,12 @@
      "title": "Heatmap Candles close",
      "ours": "out4",
      "rule": "C1-candle-order (plotcandle_0.close)",
-     "verdict": "INCONCLUSIVE",
-     "reason": "632 steady-state bars agree, but the candle is withheld by name on our side (`Heatmap Candles`): this door could not carry its `color =` (its colour picks among more than two colours, or by a rule a candle here cannot carry yet): TradingView draws it and our side draws nothing, so its body colour is not compared",
+     "verdict": "MATCH",
+     "reason": "632 steady-state bars agree",
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
      "derivedLookback": 0,
-     "color": "not compared — our door withholds this candle by name, so no body is drawn",
+     "color": "compared — the candle's body colour (its ohlc_colorer)",
      "stats": {
       "bars": 632,
       "compared": 632,
@@ -48938,9 +48938,9 @@
       "naMismatches": 0,
       "valueMismatches": 0,
       "colorMismatches": 0,
-      "colorCompared": 0,
+      "colorCompared": 632,
       "colorWithheld": 0,
-      "colorComparable": 0,
+      "colorComparable": 632,
       "valued": 632,
       "maxAbs": 0,
       "maxRel": 0,
@@ -49079,9 +49079,9 @@
      "vendor": 0
     }
    },
-   "verdict": "INCONCLUSIVE",
-   "reason": "1 of 5 items could not be compared",
-   "verdictWithoutColour": "INCONCLUSIVE",
+   "verdict": "MATCH",
+   "reason": "all 5 items agree",
+   "verdictWithoutColour": "MATCH",
    "ourNotes": [
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
    ],
@@ -49629,12 +49629,12 @@
      "title": "Heatmap Candles close",
      "ours": "out4",
      "rule": "C1-candle-order (plotcandle_0.close)",
-     "verdict": "INCONCLUSIVE",
-     "reason": "1800 steady-state bars agree, but the candle is withheld by name on our side (`Heatmap Candles`): this door could not carry its `color =` (its colour picks among more than two colours, or by a rule a candle here cannot carry yet): TradingView draws it and our side draws nothing, so its body colour is not compared",
+     "verdict": "MATCH",
+     "reason": "1800 steady-state bars agree",
      "warmupBars": 0,
      "warmupSource": "our side replayed 6677 bars of proved prehistory (vw-object-gc-b-spy-1d-2026-09-28.json) before the window against a maxLookback of 0",
      "derivedLookback": 0,
-     "color": "not compared — our door withholds this candle by name, so no body is drawn",
+     "color": "compared — the candle's body colour (its ohlc_colorer)",
      "stats": {
       "bars": 1800,
       "compared": 1800,
@@ -49648,9 +49648,9 @@
       "naMismatches": 0,
       "valueMismatches": 0,
       "colorMismatches": 0,
-      "colorCompared": 0,
+      "colorCompared": 1800,
       "colorWithheld": 0,
-      "colorComparable": 0,
+      "colorComparable": 1800,
       "valued": 1800,
       "maxAbs": 0,
       "maxRel": 0,
@@ -49789,9 +49789,9 @@
      "vendor": 0
     }
    },
-   "verdict": "INCONCLUSIVE",
-   "reason": "1 of 5 items could not be compared",
-   "verdictWithoutColour": "INCONCLUSIVE",
+   "verdict": "MATCH",
+   "reason": "all 5 items agree",
+   "verdictWithoutColour": "MATCH",
    "ourNotes": [
     "plots/objects: replayed: 6677 bars of prehistory from vw-object-gc-b-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ],
