@@ -36,7 +36,8 @@ const daily = (n) => Array.from({ length: n }, (_, i) => {
 const head = '//@version=6\nindicator("tipb", overlay = false)\n'
 /** About `21 x k` instructions a bar: a `for` of `k` passes adding into a float. `LOOP_ITERATIONS` (5,000,000 a run)
  *  would stop it first, so the runaway rails lift THAT one only (naming a limit opts only it out of scaling). */
-const LOOPS_LIFTED = { LOOP_ITERATIONS: 1e12 }
+// (e100) and WALL_TIME, the VM's 5,000 ms backstop: at 100,000 a bar the runaway runs ~5,800 bars before it stops
+const LOOPS_LIFTED = { LOOP_ITERATIONS: 1e12, WALL_TIME: 1e9 }
 const loopBar = (k) => `float s = 0.0\nfor i = 0 to ${k}\n    s += i\nplot(s)\n`
 function vmRun(src, n, limits) {
   const bars = daily(n)

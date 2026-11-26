@@ -73,7 +73,9 @@ function deepRun(script, capture) {
   try {
     out = computeRuntimeColumns(door.def, rows.map(([t, o, h, l, c, v]) => ({ t, o, h, l, c, v })),
       { tf: 'D', newestBarIsForming: false, historyFromListing: true },
-      { budgetMs: 600000, onBudget: (b) => { counts = { ...b.counts }; limits = b.limits } })
+      // WALL_TIME named (it does not scale; naming it opts only it out): the VM's 5,000 ms backstop is a time, and a
+      // runner's speed is not what these rails hold. A member's clock is the worker's budget, at most 12,000 ms.
+      { budgetMs: 600000, limits: { WALL_TIME: 600000 }, onBudget: (b) => { counts = { ...b.counts }; limits = b.limits } })
   } catch (e) { err = e }
   return { bars: rows.length, out, counts, limits, err }
 }
