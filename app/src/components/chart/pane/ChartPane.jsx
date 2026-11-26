@@ -92,6 +92,23 @@ const DWM = ['D', 'W', 'M']
 /** What can change a header row's width WITHOUT asking for a layout: its text, how many elements it holds and their
  *  classes (an abbreviated label, a shed button, a bolded active timeframe). The fit checks below read layout
  *  (`scrollWidth`) only when this, the pane width or their own steps moved (2026-11-21, the switch-task trace). */
+/** ⚡ (2026-11-26, the board switch) The level each chart's header last FITTED at, and at which pane width: a board switch
+ *  remounts every pane, and one that has fitted at this width before starts its ladder there (useRowLadder
+ *  `startLevelFor`: checked one step down, so it lands where the climb from the full row lands). Per chart id, the
+ *  newest LADDER_FITS_MAX charts. */
+const LADDER_FITS_MAX = 64
+const _ladderFits = new Map()
+function rememberLadderFit(chartId, width, level) {
+  if (!chartId || !Number.isFinite(width)) return
+  _ladderFits.delete(chartId)
+  _ladderFits.set(chartId, { width, level })
+  if (_ladderFits.size > LADDER_FITS_MAX) _ladderFits.delete(_ladderFits.keys().next().value)
+}
+function ladderFitAt(chartId, width) {
+  const f = chartId ? _ladderFits.get(chartId) : null
+  return f && f.width === width ? f.level : 0
+}
+
 function rowFitSig(el) {
   if (!el) return '-'
   const all = el.getElementsByTagName('*')
@@ -750,6 +767,8 @@ function ChartPane({
     level: rowLevel,
     setLevel: setRowLevel,
     max: ROW_LEVEL_MAX,
+    startLevelFor: (w) => ladderFitAt(chartId, w),
+    onSettled: (l) => rememberLadderFit(chartId, paneWidth, l),
     isClipped: () => {
       // ⭐ (2026-11-21, the switch-task trace) the layout read only when the row's text, the timeframe strip's,
       // the width or the level moved since the last read; otherwise the last answer stands (it was taken on this

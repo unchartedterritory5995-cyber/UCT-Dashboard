@@ -1,6 +1,6 @@
 {
  "generatedBy": "app/src/components/chart/engine/__tests__/vendorHarness/vendorHarness.corpus.test.js",
- "scriptEngineVersion": 97,
+ "scriptEngineVersion": 98,
  "dirs": [
   "tests/fixtures/vendor"
  ],
@@ -11,9 +11,9 @@
   "gateOpen": true,
   "declined": 348,
   "gated": 0,
-  "runtimeDrawn": 279,
-  "hostRefused": 676,
-  "reachedRuntime": 627,
+  "runtimeDrawn": 283,
+  "hostRefused": 680,
+  "reachedRuntime": 631,
   "declines": {
    "pine:builtin": 43,
    "pine:function": 34,
@@ -48780,7 +48780,7 @@
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
      "derivedLookback": 0,
-     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "color": "not compared on this part — a candle's body colour is graded once, on its close",
      "stats": {
       "bars": 632,
       "compared": 632,
@@ -48828,7 +48828,7 @@
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
      "derivedLookback": 0,
-     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "color": "not compared on this part — a candle's body colour is graded once, on its close",
      "stats": {
       "bars": 632,
       "compared": 632,
@@ -48876,7 +48876,7 @@
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
      "derivedLookback": 0,
-     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "color": "not compared on this part — a candle's body colour is graded once, on its close",
      "stats": {
       "bars": 632,
       "compared": 632,
@@ -48924,7 +48924,7 @@
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
      "derivedLookback": 0,
-     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "color": "compared — the candle's body colour (its ohlc_colorer)",
      "stats": {
       "bars": 632,
       "compared": 632,
@@ -48938,9 +48938,9 @@
       "naMismatches": 0,
       "valueMismatches": 0,
       "colorMismatches": 0,
-      "colorCompared": 0,
+      "colorCompared": 632,
       "colorWithheld": 0,
-      "colorComparable": 0,
+      "colorComparable": 632,
       "valued": 632,
       "maxAbs": 0,
       "maxRel": 0,
@@ -48965,22 +48965,16 @@
    ],
    "notCompared": [
     {
-     "id": "plot_4",
-     "title": null,
-     "type": "ohlc_colorer",
-     "why": "candle body colour (plotcandle_0) — not compared (phase A)"
-    },
-    {
      "id": "plot_5",
      "title": null,
      "type": "wick_colorer",
-     "why": "candle wick colour (plotcandle_0) — not compared (phase A)"
+     "why": "candle wick colour (plotcandle_0) — not compared (phase B grades the body colour only)"
     },
     {
      "id": "plot_6",
      "title": null,
      "type": "border_colorer",
-     "why": "candle border colour (plotcandle_0) — not compared (phase A)"
+     "why": "candle border colour (plotcandle_0) — not compared (phase B grades the body colour only)"
     }
    ],
    "notMeasured": [],
@@ -49496,7 +49490,7 @@
      "warmupBars": 0,
      "warmupSource": "our side replayed 6677 bars of proved prehistory (vw-object-gc-b-spy-1d-2026-09-28.json) before the window against a maxLookback of 0",
      "derivedLookback": 0,
-     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "color": "not compared on this part — a candle's body colour is graded once, on its close",
      "stats": {
       "bars": 1800,
       "compared": 1800,
@@ -49544,7 +49538,7 @@
      "warmupBars": 0,
      "warmupSource": "our side replayed 6677 bars of proved prehistory (vw-object-gc-b-spy-1d-2026-09-28.json) before the window against a maxLookback of 0",
      "derivedLookback": 0,
-     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "color": "not compared on this part — a candle's body colour is graded once, on its close",
      "stats": {
       "bars": 1800,
       "compared": 1800,
@@ -49592,7 +49586,7 @@
      "warmupBars": 0,
      "warmupSource": "our side replayed 6677 bars of proved prehistory (vw-object-gc-b-spy-1d-2026-09-28.json) before the window against a maxLookback of 0",
      "derivedLookback": 0,
-     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "color": "not compared on this part — a candle's body colour is graded once, on its close",
      "stats": {
       "bars": 1800,
       "compared": 1800,
@@ -49640,7 +49634,7 @@
      "warmupBars": 0,
      "warmupSource": "our side replayed 6677 bars of proved prehistory (vw-object-gc-b-spy-1d-2026-09-28.json) before the window against a maxLookback of 0",
      "derivedLookback": 0,
-     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "color": "compared — the candle's body colour (its ohlc_colorer)",
      "stats": {
       "bars": 1800,
       "compared": 1800,
@@ -49654,9 +49648,9 @@
       "naMismatches": 0,
       "valueMismatches": 0,
       "colorMismatches": 0,
-      "colorCompared": 0,
+      "colorCompared": 1800,
       "colorWithheld": 0,
-      "colorComparable": 0,
+      "colorComparable": 1800,
       "valued": 1800,
       "maxAbs": 0,
       "maxRel": 0,
@@ -49681,22 +49675,16 @@
    ],
    "notCompared": [
     {
-     "id": "plot_4",
-     "title": null,
-     "type": "ohlc_colorer",
-     "why": "candle body colour (plotcandle_0) — not compared (phase A)"
-    },
-    {
      "id": "plot_5",
      "title": null,
      "type": "wick_colorer",
-     "why": "candle wick colour (plotcandle_0) — not compared (phase A)"
+     "why": "candle wick colour (plotcandle_0) — not compared (phase B grades the body colour only)"
     },
     {
      "id": "plot_6",
      "title": null,
      "type": "border_colorer",
-     "why": "candle border colour (plotcandle_0) — not compared (phase A)"
+     "why": "candle border colour (plotcandle_0) — not compared (phase B grades the body colour only)"
     }
    ],
    "notMeasured": [],
@@ -54597,7 +54585,7 @@
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
      "derivedLookback": 0,
-     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "color": "not compared on this part — a candle's body colour is graded once, on its close",
      "stats": {
       "bars": 666,
       "compared": 666,
@@ -54646,7 +54634,7 @@
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
      "derivedLookback": 0,
-     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "color": "not compared on this part — a candle's body colour is graded once, on its close",
      "stats": {
       "bars": 666,
       "compared": 666,
@@ -54695,7 +54683,7 @@
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
      "derivedLookback": 0,
-     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "color": "not compared on this part — a candle's body colour is graded once, on its close",
      "stats": {
       "bars": 666,
       "compared": 666,
@@ -54744,7 +54732,7 @@
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
      "derivedLookback": 0,
-     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "color": "not graded — our side hides this candle at these settings, and the capture does not record TradingView's display for a candle",
      "stats": {
       "bars": 666,
       "compared": 666,
@@ -54845,22 +54833,16 @@
      "why": "plot type bg_colorer is not compared by v1"
     },
     {
-     "id": "plot_14",
-     "title": null,
-     "type": "ohlc_colorer",
-     "why": "candle body colour (plotcandle_0) — not compared (phase A)"
-    },
-    {
      "id": "plot_15",
      "title": null,
      "type": "wick_colorer",
-     "why": "candle wick colour (plotcandle_0) — not compared (phase A)"
+     "why": "candle wick colour (plotcandle_0) — not compared (phase B grades the body colour only)"
     },
     {
      "id": "plot_16",
      "title": null,
      "type": "border_colorer",
-     "why": "candle border colour (plotcandle_0) — not compared (phase A)"
+     "why": "candle border colour (plotcandle_0) — not compared (phase B grades the body colour only)"
     }
    ],
    "notMeasured": [],
@@ -73831,22 +73813,20 @@
      "ours": "out14",
      "rule": "M1-title",
      "verdict": "MATCH",
-     "reason": "611 steady-state bars agree",
+     "reason": "636 steady-state bars agree",
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
-     "derivedLookback": 51,
-     "treeShift": 25,
-     "treeShiftNote": "offset = 25: our column read 25 bars ahead to meet the vendor's unshifted series; the last 25 bars are unread",
+     "derivedLookback": 26,
      "color": "nothing drawn on any bar — no colour to compare",
      "stats": {
       "bars": 636,
-      "compared": 611,
-      "oursUnread": 25,
+      "compared": 636,
+      "oursUnread": 0,
       "withheldBars": 0,
       "withheldVendorValued": 0,
       "withheldWarmupVendorValued": 0,
       "floatOrderFloorUsed": 0,
-      "matching": 611,
+      "matching": 636,
       "vendorRowsMissing": 0,
       "naMismatches": 0,
       "valueMismatches": 0,
@@ -73866,7 +73846,7 @@
       },
       "steady": {
        "bars": 636,
-       "compared": 611,
+       "compared": 636,
        "divergent": 0,
        "first": null,
        "last": null,
@@ -73881,22 +73861,20 @@
      "ours": "out15",
      "rule": "M1-title",
      "verdict": "MATCH",
-     "reason": "611 steady-state bars agree",
+     "reason": "636 steady-state bars agree",
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
-     "derivedLookback": 77,
-     "treeShift": 25,
-     "treeShiftNote": "offset = 25: our column read 25 bars ahead to meet the vendor's unshifted series; the last 25 bars are unread",
+     "derivedLookback": 52,
      "color": "nothing drawn on any bar — no colour to compare",
      "stats": {
       "bars": 636,
-      "compared": 611,
-      "oursUnread": 25,
+      "compared": 636,
+      "oursUnread": 0,
       "withheldBars": 0,
       "withheldVendorValued": 0,
       "withheldWarmupVendorValued": 0,
       "floatOrderFloorUsed": 0,
-      "matching": 611,
+      "matching": 636,
       "vendorRowsMissing": 0,
       "naMismatches": 0,
       "valueMismatches": 0,
@@ -73916,7 +73894,7 @@
       },
       "steady": {
        "bars": 636,
-       "compared": 611,
+       "compared": 636,
        "divergent": 0,
        "first": null,
        "last": null,
@@ -73931,23 +73909,21 @@
      "ours": "out16",
      "rule": "M1-title",
      "verdict": "MATCH",
-     "reason": "611 steady-state bars agree",
+     "reason": "636 steady-state bars agree",
      "drawing": "both hide it",
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
-     "derivedLookback": 77,
-     "treeShift": 25,
-     "treeShiftNote": "offset = 25: our column read 25 bars ahead to meet the vendor's unshifted series; the last 25 bars are unread",
+     "derivedLookback": 52,
      "color": "not graded — hidden on TradingView (display none)",
      "stats": {
       "bars": 636,
-      "compared": 611,
-      "oursUnread": 25,
+      "compared": 636,
+      "oursUnread": 0,
       "withheldBars": 0,
       "withheldVendorValued": 0,
       "withheldWarmupVendorValued": 0,
       "floatOrderFloorUsed": 0,
-      "matching": 611,
+      "matching": 636,
       "vendorRowsMissing": 0,
       "naMismatches": 0,
       "valueMismatches": 0,
@@ -73967,7 +73943,7 @@
       },
       "steady": {
        "bars": 636,
-       "compared": 611,
+       "compared": 636,
        "divergent": 0,
        "first": null,
        "last": null,
@@ -73982,23 +73958,21 @@
      "ours": "out17",
      "rule": "M1-title",
      "verdict": "MATCH",
-     "reason": "611 steady-state bars agree",
+     "reason": "636 steady-state bars agree",
      "drawing": "both hide it",
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
-     "derivedLookback": 77,
-     "treeShift": 25,
-     "treeShiftNote": "offset = 25: our column read 25 bars ahead to meet the vendor's unshifted series; the last 25 bars are unread",
+     "derivedLookback": 52,
      "color": "not graded — hidden on TradingView (display none)",
      "stats": {
       "bars": 636,
-      "compared": 611,
-      "oursUnread": 25,
+      "compared": 636,
+      "oursUnread": 0,
       "withheldBars": 0,
       "withheldVendorValued": 0,
       "withheldWarmupVendorValued": 0,
       "floatOrderFloorUsed": 0,
-      "matching": 611,
+      "matching": 636,
       "vendorRowsMissing": 0,
       "naMismatches": 0,
       "valueMismatches": 0,
@@ -74018,7 +73992,7 @@
       },
       "steady": {
        "bars": 636,
-       "compared": 611,
+       "compared": 636,
        "divergent": 0,
        "first": null,
        "last": null,
@@ -75300,22 +75274,20 @@
      "ours": "out14",
      "rule": "M1-title",
      "verdict": "MATCH",
-     "reason": "1775 steady-state bars agree",
+     "reason": "1800 steady-state bars agree",
      "warmupBars": 0,
-     "warmupSource": "our side replayed 6677 bars of proved prehistory (vw-object-gc-b-spy-1d-2026-09-28.json) before the window against a maxLookback of 51",
-     "derivedLookback": 51,
-     "treeShift": 25,
-     "treeShiftNote": "offset = 25: our column read 25 bars ahead to meet the vendor's unshifted series; the last 25 bars are unread",
+     "warmupSource": "our side replayed 6677 bars of proved prehistory (vw-object-gc-b-spy-1d-2026-09-28.json) before the window against a maxLookback of 26",
+     "derivedLookback": 26,
      "color": "nothing drawn on any bar — no colour to compare",
      "stats": {
       "bars": 1800,
-      "compared": 1775,
-      "oursUnread": 25,
+      "compared": 1800,
+      "oursUnread": 0,
       "withheldBars": 0,
       "withheldVendorValued": 0,
       "withheldWarmupVendorValued": 0,
       "floatOrderFloorUsed": 0,
-      "matching": 1775,
+      "matching": 1800,
       "vendorRowsMissing": 0,
       "naMismatches": 0,
       "valueMismatches": 0,
@@ -75335,7 +75307,7 @@
       },
       "steady": {
        "bars": 1800,
-       "compared": 1775,
+       "compared": 1800,
        "divergent": 0,
        "first": null,
        "last": null,
@@ -75350,22 +75322,20 @@
      "ours": "out15",
      "rule": "M1-title",
      "verdict": "MATCH",
-     "reason": "1775 steady-state bars agree",
+     "reason": "1800 steady-state bars agree",
      "warmupBars": 0,
-     "warmupSource": "our side replayed 6677 bars of proved prehistory (vw-object-gc-b-spy-1d-2026-09-28.json) before the window against a maxLookback of 77",
-     "derivedLookback": 77,
-     "treeShift": 25,
-     "treeShiftNote": "offset = 25: our column read 25 bars ahead to meet the vendor's unshifted series; the last 25 bars are unread",
+     "warmupSource": "our side replayed 6677 bars of proved prehistory (vw-object-gc-b-spy-1d-2026-09-28.json) before the window against a maxLookback of 52",
+     "derivedLookback": 52,
      "color": "nothing drawn on any bar — no colour to compare",
      "stats": {
       "bars": 1800,
-      "compared": 1775,
-      "oursUnread": 25,
+      "compared": 1800,
+      "oursUnread": 0,
       "withheldBars": 0,
       "withheldVendorValued": 0,
       "withheldWarmupVendorValued": 0,
       "floatOrderFloorUsed": 0,
-      "matching": 1775,
+      "matching": 1800,
       "vendorRowsMissing": 0,
       "naMismatches": 0,
       "valueMismatches": 0,
@@ -75385,7 +75355,7 @@
       },
       "steady": {
        "bars": 1800,
-       "compared": 1775,
+       "compared": 1800,
        "divergent": 0,
        "first": null,
        "last": null,
@@ -75400,23 +75370,21 @@
      "ours": "out16",
      "rule": "M1-title",
      "verdict": "MATCH",
-     "reason": "1775 steady-state bars agree",
+     "reason": "1800 steady-state bars agree",
      "drawing": "both hide it",
      "warmupBars": 0,
-     "warmupSource": "our side replayed 6677 bars of proved prehistory (vw-object-gc-b-spy-1d-2026-09-28.json) before the window against a maxLookback of 77",
-     "derivedLookback": 77,
-     "treeShift": 25,
-     "treeShiftNote": "offset = 25: our column read 25 bars ahead to meet the vendor's unshifted series; the last 25 bars are unread",
+     "warmupSource": "our side replayed 6677 bars of proved prehistory (vw-object-gc-b-spy-1d-2026-09-28.json) before the window against a maxLookback of 52",
+     "derivedLookback": 52,
      "color": "not graded — hidden on TradingView (display none)",
      "stats": {
       "bars": 1800,
-      "compared": 1775,
-      "oursUnread": 25,
+      "compared": 1800,
+      "oursUnread": 0,
       "withheldBars": 0,
       "withheldVendorValued": 0,
       "withheldWarmupVendorValued": 0,
       "floatOrderFloorUsed": 0,
-      "matching": 1775,
+      "matching": 1800,
       "vendorRowsMissing": 0,
       "naMismatches": 0,
       "valueMismatches": 0,
@@ -75436,7 +75404,7 @@
       },
       "steady": {
        "bars": 1800,
-       "compared": 1775,
+       "compared": 1800,
        "divergent": 0,
        "first": null,
        "last": null,
@@ -75451,23 +75419,21 @@
      "ours": "out17",
      "rule": "M1-title",
      "verdict": "MATCH",
-     "reason": "1775 steady-state bars agree",
+     "reason": "1800 steady-state bars agree",
      "drawing": "both hide it",
      "warmupBars": 0,
-     "warmupSource": "our side replayed 6677 bars of proved prehistory (vw-object-gc-b-spy-1d-2026-09-28.json) before the window against a maxLookback of 77",
-     "derivedLookback": 77,
-     "treeShift": 25,
-     "treeShiftNote": "offset = 25: our column read 25 bars ahead to meet the vendor's unshifted series; the last 25 bars are unread",
+     "warmupSource": "our side replayed 6677 bars of proved prehistory (vw-object-gc-b-spy-1d-2026-09-28.json) before the window against a maxLookback of 52",
+     "derivedLookback": 52,
      "color": "not graded — hidden on TradingView (display none)",
      "stats": {
       "bars": 1800,
-      "compared": 1775,
-      "oursUnread": 25,
+      "compared": 1800,
+      "oursUnread": 0,
       "withheldBars": 0,
       "withheldVendorValued": 0,
       "withheldWarmupVendorValued": 0,
       "floatOrderFloorUsed": 0,
-      "matching": 1775,
+      "matching": 1800,
       "vendorRowsMissing": 0,
       "naMismatches": 0,
       "valueMismatches": 0,
@@ -75487,7 +75453,7 @@
       },
       "steady": {
        "bars": 1800,
-       "compared": 1775,
+       "compared": 1800,
        "divergent": 0,
        "first": null,
        "last": null,
@@ -77704,7 +77670,7 @@
    "ourNotes": [
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
    ],
-   "ourDoor": "host",
+   "ourDoor": "runtime",
    "objectsV2": {
     "verdict": "MATCH",
     "verdictWithoutX": "MATCH",
@@ -78071,7 +78037,7 @@
    "ourNotes": [
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
    ],
-   "ourDoor": "host",
+   "ourDoor": "runtime",
    "objectsV2": {
     "verdict": "MATCH",
     "verdictWithoutX": "MATCH",
@@ -78438,7 +78404,7 @@
    "ourNotes": [
     "plots/objects: replayed: 6677 bars of prehistory from vw-object-gc-b-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ],
-   "ourDoor": "host",
+   "ourDoor": "runtime",
    "objectsV2": {
     "verdict": "MATCH",
     "verdictWithoutX": "MATCH",
@@ -78805,7 +78771,7 @@
    "ourNotes": [
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
    ],
-   "ourDoor": "host",
+   "ourDoor": "runtime",
    "objectsV2": {
     "verdict": "MATCH",
     "verdictWithoutX": "MATCH",
@@ -124482,7 +124448,7 @@
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
      "derivedLookback": 0,
-     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "color": "not compared on this part — a candle's body colour is graded once, on its close",
      "stats": {
       "bars": 666,
       "compared": 666,
@@ -124530,7 +124496,7 @@
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
      "derivedLookback": 0,
-     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "color": "not compared on this part — a candle's body colour is graded once, on its close",
      "stats": {
       "bars": 666,
       "compared": 666,
@@ -124578,7 +124544,7 @@
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
      "derivedLookback": 0,
-     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "color": "not compared on this part — a candle's body colour is graded once, on its close",
      "stats": {
       "bars": 666,
       "compared": 666,
@@ -124621,12 +124587,12 @@
      "title": "close",
      "ours": "out23",
      "rule": "C1-candle-order (plotcandle_0.close)",
-     "verdict": "MATCH",
-     "reason": "666 steady-state bars agree",
+     "verdict": "INCONCLUSIVE",
+     "reason": "666 steady-state bars agree, but the candle is withheld by name on our side (`Smart Money Candles`): it asks for the price chart (`force_overlay = true`) from a script that is not an overlay: TradingView draws it and our side draws nothing, so its body colour is not compared",
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
      "derivedLookback": 0,
-     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "color": "not compared — our door withholds this candle by name, so no body is drawn",
      "stats": {
       "bars": 666,
       "compared": 666,
@@ -124799,22 +124765,16 @@
      "why": "plot type colorer is not compared by v1"
     },
     {
-     "id": "plot_49",
-     "title": null,
-     "type": "ohlc_colorer",
-     "why": "candle body colour (plotcandle_0) — not compared (phase A)"
-    },
-    {
      "id": "plot_50",
      "title": null,
      "type": "wick_colorer",
-     "why": "candle wick colour (plotcandle_0) — not compared (phase A)"
+     "why": "candle wick colour (plotcandle_0) — not compared (phase B grades the body colour only)"
     },
     {
      "id": "plot_51",
      "title": null,
      "type": "border_colorer",
-     "why": "candle border colour (plotcandle_0) — not compared (phase A)"
+     "why": "candle border colour (plotcandle_0) — not compared (phase B grades the body colour only)"
     }
    ],
    "notMeasured": [],
@@ -124828,7 +124788,7 @@
     "reason": "neither side draws an object"
    },
    "verdict": "INCONCLUSIVE",
-   "reason": "1 of 25 items could not be compared",
+   "reason": "2 of 25 items could not be compared",
    "ourNotes": [
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
    ],
@@ -125013,22 +124973,16 @@
    ],
    "notCompared": [
     {
-     "id": "plot_4",
-     "title": null,
-     "type": "ohlc_colorer",
-     "why": "candle body colour (plotcandle_0) — not compared (phase A)"
-    },
-    {
      "id": "plot_5",
      "title": null,
      "type": "wick_colorer",
-     "why": "candle wick colour (plotcandle_0) — not compared (phase A)"
+     "why": "candle wick colour (plotcandle_0) — not compared (phase B grades the body colour only)"
     },
     {
      "id": "plot_6",
      "title": null,
      "type": "border_colorer",
-     "why": "candle border colour (plotcandle_0) — not compared (phase A)"
+     "why": "candle border colour (plotcandle_0) — not compared (phase B grades the body colour only)"
     }
    ],
    "notMeasured": [],
@@ -125328,22 +125282,16 @@
    ],
    "notCompared": [
     {
-     "id": "plot_4",
-     "title": null,
-     "type": "ohlc_colorer",
-     "why": "candle body colour (plotcandle_0) — not compared (phase A)"
-    },
-    {
      "id": "plot_5",
      "title": null,
      "type": "wick_colorer",
-     "why": "candle wick colour (plotcandle_0) — not compared (phase A)"
+     "why": "candle wick colour (plotcandle_0) — not compared (phase B grades the body colour only)"
     },
     {
      "id": "plot_6",
      "title": null,
      "type": "border_colorer",
-     "why": "candle border colour (plotcandle_0) — not compared (phase A)"
+     "why": "candle border colour (plotcandle_0) — not compared (phase B grades the body colour only)"
     }
    ],
    "notMeasured": [],
@@ -125643,22 +125591,16 @@
    ],
    "notCompared": [
     {
-     "id": "plot_4",
-     "title": null,
-     "type": "ohlc_colorer",
-     "why": "candle body colour (plotcandle_0) — not compared (phase A)"
-    },
-    {
      "id": "plot_5",
      "title": null,
      "type": "wick_colorer",
-     "why": "candle wick colour (plotcandle_0) — not compared (phase A)"
+     "why": "candle wick colour (plotcandle_0) — not compared (phase B grades the body colour only)"
     },
     {
      "id": "plot_6",
      "title": null,
      "type": "border_colorer",
-     "why": "candle border colour (plotcandle_0) — not compared (phase A)"
+     "why": "candle border colour (plotcandle_0) — not compared (phase B grades the body colour only)"
     }
    ],
    "notMeasured": [],
@@ -125958,22 +125900,16 @@
    ],
    "notCompared": [
     {
-     "id": "plot_4",
-     "title": null,
-     "type": "ohlc_colorer",
-     "why": "candle body colour (plotcandle_0) — not compared (phase A)"
-    },
-    {
      "id": "plot_5",
      "title": null,
      "type": "wick_colorer",
-     "why": "candle wick colour (plotcandle_0) — not compared (phase A)"
+     "why": "candle wick colour (plotcandle_0) — not compared (phase B grades the body colour only)"
     },
     {
      "id": "plot_6",
      "title": null,
      "type": "border_colorer",
-     "why": "candle border colour (plotcandle_0) — not compared (phase A)"
+     "why": "candle border colour (plotcandle_0) — not compared (phase B grades the body colour only)"
     }
    ],
    "notMeasured": [],
@@ -146437,22 +146373,16 @@
    ],
    "notCompared": [
     {
-     "id": "plot_8",
-     "title": null,
-     "type": "ohlc_colorer",
-     "why": "candle body colour (plotcandle_0) — not compared (phase A)"
-    },
-    {
      "id": "plot_9",
      "title": null,
      "type": "wick_colorer",
-     "why": "candle wick colour (plotcandle_0) — not compared (phase A)"
+     "why": "candle wick colour (plotcandle_0) — not compared (phase B grades the body colour only)"
     },
     {
      "id": "plot_10",
      "title": null,
      "type": "border_colorer",
-     "why": "candle border colour (plotcandle_0) — not compared (phase A)"
+     "why": "candle border colour (plotcandle_0) — not compared (phase B grades the body colour only)"
     },
     {
      "id": "plot_11",
@@ -149303,7 +149233,7 @@
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
      "derivedLookback": 0,
-     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "color": "not compared on this part — a candle's body colour is graded once, on its close",
      "stats": {
       "bars": 666,
       "compared": 666,
@@ -149351,7 +149281,7 @@
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
      "derivedLookback": 0,
-     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "color": "not compared on this part — a candle's body colour is graded once, on its close",
      "stats": {
       "bars": 666,
       "compared": 666,
@@ -149399,7 +149329,7 @@
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
      "derivedLookback": 0,
-     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "color": "not compared on this part — a candle's body colour is graded once, on its close",
      "stats": {
       "bars": 666,
       "compared": 666,
@@ -149447,7 +149377,7 @@
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
      "derivedLookback": 0,
-     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "color": "nothing drawn on any bar — no colour to compare",
      "stats": {
       "bars": 666,
       "compared": 666,
@@ -149495,7 +149425,7 @@
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
      "derivedLookback": 0,
-     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "color": "not compared on this part — a candle's body colour is graded once, on its close",
      "stats": {
       "bars": 666,
       "compared": 666,
@@ -149543,7 +149473,7 @@
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
      "derivedLookback": 0,
-     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "color": "not compared on this part — a candle's body colour is graded once, on its close",
      "stats": {
       "bars": 666,
       "compared": 666,
@@ -149591,7 +149521,7 @@
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
      "derivedLookback": 0,
-     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "color": "not compared on this part — a candle's body colour is graded once, on its close",
      "stats": {
       "bars": 666,
       "compared": 666,
@@ -149639,7 +149569,7 @@
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
      "derivedLookback": 0,
-     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "color": "nothing drawn on any bar — no colour to compare",
      "stats": {
       "bars": 666,
       "compared": 666,
@@ -149680,40 +149610,28 @@
    ],
    "notCompared": [
     {
-     "id": "plot_4",
-     "title": null,
-     "type": "ohlc_colorer",
-     "why": "candle body colour (plotcandle_0) — not compared (phase A)"
-    },
-    {
      "id": "plot_5",
      "title": null,
      "type": "wick_colorer",
-     "why": "candle wick colour (plotcandle_0) — not compared (phase A)"
+     "why": "candle wick colour (plotcandle_0) — not compared (phase B grades the body colour only)"
     },
     {
      "id": "plot_6",
      "title": null,
      "type": "border_colorer",
-     "why": "candle border colour (plotcandle_0) — not compared (phase A)"
-    },
-    {
-     "id": "plot_13",
-     "title": null,
-     "type": "ohlc_colorer",
-     "why": "candle body colour (plotcandle_1) — not compared (phase A)"
+     "why": "candle border colour (plotcandle_0) — not compared (phase B grades the body colour only)"
     },
     {
      "id": "plot_14",
      "title": null,
      "type": "wick_colorer",
-     "why": "candle wick colour (plotcandle_1) — not compared (phase A)"
+     "why": "candle wick colour (plotcandle_1) — not compared (phase B grades the body colour only)"
     },
     {
      "id": "plot_15",
      "title": null,
      "type": "border_colorer",
-     "why": "candle border colour (plotcandle_1) — not compared (phase A)"
+     "why": "candle border colour (plotcandle_1) — not compared (phase B grades the body colour only)"
     },
     {
      "id": "plot_28",
@@ -150477,7 +150395,7 @@
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
      "derivedLookback": 0,
-     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "color": "not compared on this part — a candle's body colour is graded once, on its close",
      "stats": {
       "bars": 8507,
       "compared": 8507,
@@ -150525,7 +150443,7 @@
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
      "derivedLookback": 0,
-     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "color": "not compared on this part — a candle's body colour is graded once, on its close",
      "stats": {
       "bars": 8507,
       "compared": 8507,
@@ -150573,7 +150491,7 @@
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
      "derivedLookback": 0,
-     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "color": "not compared on this part — a candle's body colour is graded once, on its close",
      "stats": {
       "bars": 8507,
       "compared": 8507,
@@ -150621,7 +150539,7 @@
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
      "derivedLookback": 0,
-     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "color": "nothing drawn on any bar — no colour to compare",
      "stats": {
       "bars": 8507,
       "compared": 8507,
@@ -150669,7 +150587,7 @@
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
      "derivedLookback": 0,
-     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "color": "not compared on this part — a candle's body colour is graded once, on its close",
      "stats": {
       "bars": 8507,
       "compared": 8507,
@@ -150717,7 +150635,7 @@
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
      "derivedLookback": 0,
-     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "color": "not compared on this part — a candle's body colour is graded once, on its close",
      "stats": {
       "bars": 8507,
       "compared": 8507,
@@ -150765,7 +150683,7 @@
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
      "derivedLookback": 0,
-     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "color": "not compared on this part — a candle's body colour is graded once, on its close",
      "stats": {
       "bars": 8507,
       "compared": 8507,
@@ -150813,7 +150731,7 @@
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
      "derivedLookback": 0,
-     "color": "not compared (phase A) — a candle's body, wick and border colours are the candle's colorers",
+     "color": "nothing drawn on any bar — no colour to compare",
      "stats": {
       "bars": 8507,
       "compared": 8507,
@@ -150854,40 +150772,28 @@
    ],
    "notCompared": [
     {
-     "id": "plot_4",
-     "title": null,
-     "type": "ohlc_colorer",
-     "why": "candle body colour (plotcandle_0) — not compared (phase A)"
-    },
-    {
      "id": "plot_5",
      "title": null,
      "type": "wick_colorer",
-     "why": "candle wick colour (plotcandle_0) — not compared (phase A)"
+     "why": "candle wick colour (plotcandle_0) — not compared (phase B grades the body colour only)"
     },
     {
      "id": "plot_6",
      "title": null,
      "type": "border_colorer",
-     "why": "candle border colour (plotcandle_0) — not compared (phase A)"
-    },
-    {
-     "id": "plot_13",
-     "title": null,
-     "type": "ohlc_colorer",
-     "why": "candle body colour (plotcandle_1) — not compared (phase A)"
+     "why": "candle border colour (plotcandle_0) — not compared (phase B grades the body colour only)"
     },
     {
      "id": "plot_14",
      "title": null,
      "type": "wick_colorer",
-     "why": "candle wick colour (plotcandle_1) — not compared (phase A)"
+     "why": "candle wick colour (plotcandle_1) — not compared (phase B grades the body colour only)"
     },
     {
      "id": "plot_15",
      "title": null,
      "type": "border_colorer",
-     "why": "candle border colour (plotcandle_1) — not compared (phase A)"
+     "why": "candle border colour (plotcandle_1) — not compared (phase B grades the body colour only)"
     },
     {
      "id": "plot_28",

@@ -69,8 +69,8 @@
    "id": "HL9",
    "mutant": "reading a level price mints a parameter (every hline script's manifest would move)",
    "file": "app/src/components/chart/engine/ast/pine.js",
-   "from": "    const minted = r.paramMint\n    r.paramMint = null\n",
-   "to": "    const minted = r.paramMint\n",
+   "from": "    if (!r) return { withheld: 'its price is not a fixed number this door can read' }\n    const n0 = notes.length\n    const minted = r.paramMint\n    r.paramMint = null\n",
+   "to": "    if (!r) return { withheld: 'its price is not a fixed number this door can read' }\n    const n0 = notes.length\n    const minted = r.paramMint\n",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/e96HlineLevels.test.js",
    "expectRed": "mints no parameter"
   },

@@ -1317,6 +1317,17 @@ const ET_CLOCK_PARTS = new Intl.DateTimeFormat('en-US', {
  *  confident 0, which would read as "no, this is not intraday". */
 const CLOCK_INTRADAY_TFS = ['1', '5', '15', '30', '60']
 const CLOCK_TIMEFRAMES = [...CLOCK_INTRADAY_TFS, 'D', 'W', 'M']
+/** ⭐⭐ e98 (Q-FRED-4H) — THE CUSTOM INTRADAY TIMEFRAMES THE CLOCK ANSWERS, BY NAME, NEVER BY SHAPE. A code is here
+ *  only where every answer is certain: the chart offers it (`timeframes.js::TF_MENU`, built by resampling a native
+ *  base), Pine defines it as a count of MINUTES (so `isintraday` 1, `isdaily` / `isweekly` / `ismonthly` 0, one bar
+ *  = minutes x 60 seconds), and the translator already holds the code (`pine.js::PINE_TF_SPELLING`, so
+ *  `timeframe.multiplier` / `isminutes` / `isdwm` / `in_seconds` answer for the SAME codes and the family cannot
+ *  split). `240` (4h): all three, and TradingView's own Fred RS captures on 240 read `timeframe.isweekly` = 0 (its
+ *  `rsRatio` is 4200 x 80%, not the weekly 70%). The other offered custom minutes (2, 3, 10, 45, 65, 195, 120) are
+ *  not codes the translator holds, so they stay unanswered here until it does. ⛔ NOT a store timeframe:
+ *  `CLOCK_TIMEFRAMES` stays the store's words (the bar-close tri-state reads them), this list only the flags. */
+const CLOCK_CUSTOM_INTRADAY_TFS = ['240']
+const CLOCK_FLAG_TIMEFRAMES = [...CLOCK_TIMEFRAMES, ...CLOCK_CUSTOM_INTRADAY_TFS]
 
 /** The four timeframe booleans for a code — or `null` when the code is unknown.
  *
@@ -1331,9 +1342,9 @@ const CLOCK_TIMEFRAMES = [...CLOCK_INTRADAY_TFS, 'D', 'W', 'M']
  *  clothes. The callers fail closed on `null` — blank columns for the clock, an
  *  unfolded length for the bind stage. */
 export function timeframeFlags(tf) {
-  if (!CLOCK_TIMEFRAMES.includes(tf)) return null
+  if (!CLOCK_FLAG_TIMEFRAMES.includes(tf)) return null
   return {
-    isintraday: CLOCK_INTRADAY_TFS.includes(tf),
+    isintraday: CLOCK_INTRADAY_TFS.includes(tf) || CLOCK_CUSTOM_INTRADAY_TFS.includes(tf),
     isdaily: tf === 'D',
     isweekly: tf === 'W',
     ismonthly: tf === 'M',
@@ -1366,6 +1377,8 @@ export function timeframeFlags(tf) {
  *  and this column cannot drift apart. */
 export const CLOCK_PERIOD_SECONDS = Object.freeze({
   1: 60, 5: 300, 15: 900, 30: 1800, 60: 3600, D: 86400, W: 604800, M: 2628003,
+  // ⭐ e98 — the custom intraday codes the clock answers (`CLOCK_CUSTOM_INTRADAY_TFS`): minutes x 60
+  240: 14400,
 })
 
 /** The nine columns that read the bar's `t`, and therefore the nine the unit
