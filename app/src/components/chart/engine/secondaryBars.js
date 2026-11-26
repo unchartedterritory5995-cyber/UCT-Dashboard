@@ -522,10 +522,41 @@ function _read(payload, asked) {
  * request.
  */
 export function cachedBars(symbol, tf, bars, opts = {}) {
-  const url = secondaryBarsUrl(symbol, tf, bars, { extended: opts.extended })
+  const url = servingUrlOf(symbol, tf, bars, opts)
   if (!url) return null
   const hit = _cache.get(url)
   return hit === undefined ? null : hit
+}
+
+// ─── ⭐⭐ (2026-11-26, Fred RS load time) A SHALLOWER WINDOW IS SERVED BY A DEEPER ONE THAT HOLDS ALL ITS ROWS ──────────
+// ⚰️ Measured on production (ecc0bb94, AGL, Fred RS): a 1D -> 1W switch took 1,223 ms to draw Fred RS, and SP:SPX was
+// fetched AGAIN although the page already held it. The 1D chart asks SPX's daily rows at its held span
+// (`/api/bars/SPX?tf=D&bars=20000`); the 1W chart asks the same series under its held key at `heldDepthOf`
+// (`?tf=D&bars=12500`). Two URLs, one answer: the store holds 12,500 sessions of SPX, so the deeper ask came back NOT
+// FILLED (12,500 rows < 20,000 asked: every row the store has) and the shallower ask can only return those same rows.
+// So a native window with no entry of its own is served by an entry of the SAME symbol, timeframe and session that was
+// asked DEEPER and holds NO MORE rows than this window asks (nothing to slice: the very same object, so the chart's
+// identity checks see no change). ⛔ Never a FILLED deeper entry with more rows than asked (that would need a slice, and
+// a slice is a new answer), never a custom timeframe (`spec`: its entry is built from a base page, keyed by its own
+// ask), never an entry that is not AVAILABLE. The live tail follows the serving entry (`refreshSecondaryTail`).
+/** The cache URL that answers this window: its own, or a deeper one that holds all of its rows. Exported for its rail. */
+export function servingUrlOf(symbol, tf, bars, opts = {}) {
+  const wire = secondaryFetchOf(symbol, tf, bars, opts)
+  if (!wire) return null
+  const own = wire.url
+  if (wire.spec || _cache.has(own)) return own
+  const want = askedBarsOf(bars)
+  const stem = _stemOf(own)
+  for (const [u, e] of _cache) {
+    if (!e || e.status !== SOURCE_STATUS.AVAILABLE || !Array.isArray(e.bars)) continue
+    if (!Number.isFinite(e.askedBars) || !(e.askedBars > want) || e.bars.length > want) continue
+    if (_stemOf(u) === stem) return u
+  }
+  return own
+}
+/** A window's URL without its depth: two windows with one stem are one symbol, timeframe and session. */
+function _stemOf(url) {
+  return String(url).replace(/([?&])bars=\d+/, '$1bars=')
 }
 
 /**
@@ -774,7 +805,9 @@ export function mergeTail(held, tail) {
 export function refreshSecondaryTail(symbol, tf, bars, fetcher, opts = {}) {
   const wire = secondaryFetchOf(symbol, tf, bars, opts)
   const tailWire = secondaryFetchOf(symbol, tf, TAIL_BARS, opts)
-  const url = wire && wire.url
+  // ⭐ (2026-11-26) the entry that SERVES this window (`servingUrlOf`: a deeper one that holds all its rows) is the one
+  // kept current
+  const url = wire && servingUrlOf(symbol, tf, bars, opts)
   // ⭐ (e95) a custom timeframe's tail is its base's newest rows, resampled: its first bucket may be partial and is
   // dropped (`_readCustom`), so the merged tail starts on a whole bucket the held rows already hold
   const tailUrl = tailWire && tailWire.fetchUrl
