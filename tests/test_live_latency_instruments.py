@@ -8,7 +8,7 @@ ignores them, and none of them changes a value an old client reads.
   SSE bar frame   `sent_ms`         pod wall ms when the frame is serialised
   ingest wire     batch `ext`       ONE optional object of instruments (validated like nhnl/status:
                                     bounded, string keys, finite values), today `{"ts": ingest wall ms}`
-                                    when the batch is drained; sent only with INGEST_BATCH_TS=1. A new
+                                    when the batch is drained; sent only with INGEST_BATCH_TS_ENABLED=1. A new
                                     instrument goes INSIDE `ext`, so it never needs a deploy order again
                                     (the top level stays strict: an unknown field is still refused)
   SSE bar frame   `ingest_ms`       that ext.ts, carried onto every frame relayed from the batch
@@ -180,9 +180,9 @@ def _flush_once(monkeypatch, env):
     from api.services import ingest_feed_server as ifs
     from tests.test_stream_ingest_skeleton import FakeConn, SECRET
     if env is None:
-        monkeypatch.delenv("INGEST_BATCH_TS", raising=False)
+        monkeypatch.delenv("INGEST_BATCH_TS_ENABLED", raising=False)
     else:
-        monkeypatch.setenv("INGEST_BATCH_TS", env)
+        monkeypatch.setenv("INGEST_BATCH_TS_ENABLED", env)
 
     async def go():
         srv = ifs.IngestFeedServer(secret=SECRET, epoch=7)

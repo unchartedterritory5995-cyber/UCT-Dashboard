@@ -388,13 +388,22 @@ contract, grid, session, cache_key, series_rev   -- same values as REST for that
 rev     int ms HLC per (sym, tf-key): max(prev + 1, now_ms), strictly increasing per frame
 final   = bar.final
 t_s     = bar.t // 1000 (REST's unit)
-sent_ms    int ms, this pod's wall clock as the frame is serialised (2026-11-25)
-ingest_ms  int ms, stream-ingest's wall clock when it sent the batch that carried the bar;
-           only on a relayed frame, and only once INGEST_BATCH_TS=1 on stream-ingest
 ```
-`sent_ms` and `ingest_ms` are instruments (trade -> ingest -> pod -> screen latency, with
-`bar.trade_ts` and `rev`): they are pod wall clocks, never a revision, and no client logic
-may depend on them.
+Latency instruments (2026-11-25), ONLY on a stream opened with `?lat=1` (the measurement
+harness; members never pay the egress):
+```
+sent_ms    int ms, this pod's wall clock as the frame is serialised
+ingest_ms  int ms, stream-ingest's wall clock when it sent the batch that carried the bar
+           (the batch's `ext.ts`); only on a relayed frame, and only once
+           INGEST_BATCH_TS_ENABLED=1 on stream-ingest
+```
+THREE CLOCKS, never one: `bar.trade_ts` is the vendor's (SIP time of the newest trade in the
+bucket), `ingest_ms` is stream-ingest's wall clock, `rev` and `sent_ms` are the serving pod's
+wall clock. A hop between two of them is only as good as the offset between those clocks: a
+measurement corrects the browser by NTP and reports a cross-pod hop as "includes clock skew".
+They are instruments, never revisions; no client logic may depend on them. A measurement
+EXCLUDES replayed frames: the subscribe snapshot (no `rev`) and the closed finals a (re)connect
+sends at once are old bars delivered now, not latency.
 Consistency with REST:
 - `cache_key`/`grid` equal REST's for the same (ticker, tf, session) — a client routes a
   frame to the same store entry.

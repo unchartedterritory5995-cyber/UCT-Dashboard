@@ -90,12 +90,13 @@ class _Client:
 
 
 def stamp_batch(batch: fp.Batch) -> fp.Batch:
-    """The batch with ingest's send time (`ts`, wall ms) when INGEST_BATCH_TS=1, else unchanged.
-    ⛔ Switch it on only after every receiver (web, stream-edge) runs a parser that knows `ts`:
-    _parse_batch refuses an unknown field, so an old receiver would drop the whole feed."""
-    if os.environ.get("INGEST_BATCH_TS", "").strip() != "1":
+    """The batch with ingest's send time (`ext.ts`, wall ms) when INGEST_BATCH_TS_ENABLED=1, else unchanged.
+    ⛔ Switch it on only after every receiver (web, stream-edge) runs a parser that knows `ext`:
+    _parse_batch refuses an unknown top-level field, so an old receiver would drop the whole feed
+    (and the same if web/stream-edge are ROLLED BACK past that parser: unset the flag first)."""
+    if os.environ.get("INGEST_BATCH_TS_ENABLED", "").strip() != "1":
         return batch
-    return dataclasses.replace(batch, ts=int(time.time() * 1000))
+    return dataclasses.replace(batch, ext={**(batch.ext or {}), "ts": int(time.time() * 1000)})
 
 
 @dataclass
