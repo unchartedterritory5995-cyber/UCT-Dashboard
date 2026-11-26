@@ -2,6 +2,11 @@
 
 Run with: python -m api.flow_worker_main  (Railway: FLOW_WORKER_ENABLED=1)
 
+Redeploy trigger 2026-11-26 (e100, a member's alert and single-symbol backtest on the chart's history): alert_user_series,
+pine_runtime_client, ticker_ipo and the new listing_history change modules this worker reaches but does not watch. The
+alert evaluator and the strategy route run on web; this worker only reaches them. `tests/test_flow_worker_watch_coverage.py`
+named them; this header edit is the trigger it prescribes. Deploy by hand, off-hours, as always.
+
 Redeploy trigger 2026-11-26 (the import-closure fix, path 1): `api/routers/bars.py` (its stream-status route moved to
 `api/routers/bars_stream_status.py`) and `api/services/bar_contract.py` (the feed read through `live_price_source`)
 change modules this worker reaches but does not watch. Behaviour here is unchanged (this worker serves neither route

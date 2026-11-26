@@ -58,6 +58,7 @@ import threading
 import time
 from typing import Any, Callable, Mapping, Optional, Sequence
 
+from api.services import listing_history
 from api.services.bars_window import HISTORY_WINDOW_BARS
 
 _logger_name = __name__
@@ -1145,6 +1146,18 @@ RUNTIME_DATE_TFS = ("D", "W", "M")
 RUNTIME_WINDOW_DATE = HISTORY_WINDOW_BARS
 RUNTIME_WINDOW_INTRADAY = 32768
 
+#: ⭐⭐ (e100, coordinator ruling 2026-11-26) A DAILY RUNTIME ALERT RUNS ON THE CHART'S HISTORY. The member's daily
+#: chart runs a script from the stock's listing (``historyFromListing`` true, every bar) whenever its first bar is
+#: the listing day; this lane ran the last 5,000 bars with it false, and 18-21% of the comparable scripts the chart
+#: draws were refused there (``runtime:warmup-never-converges``; measured on SPY 1D 8,509 bars and JPM 1D 14,546).
+#: So a daily runtime alert FETCHES up to the runtime's own history limit (the service's ``bars.n`` ceiling, the
+#: number ``RUNTIME_WINDOW_INTRADAY`` is already held equal to ``limits.js`` by a rail), enough to reach the listing,
+#: and each run decides from the bars it is handed (``runtime_run_bars``): bar 0 on the symbol's FINAL first-trade
+#: day (``listing_history.from_listing_for``, the chart's rule ported) runs every bar with ``historyFromListing``
+#: true; anything else is the CURTAIN, the most recent ``RUNTIME_WINDOW_DATE`` bars with it false, byte-for-byte the
+#: job this lane sent before. Weekly / monthly / intraday are unchanged.
+RUNTIME_LISTING_REACH = RUNTIME_WINDOW_INTRADAY
+
 #: The cycle's batch for the (sym, tf) group being evaluated, or None (see
 #: `runtime_cycle_batch`). A context variable, so a batch never leaks into another
 #: thread's evaluation.
@@ -1158,7 +1171,16 @@ def is_runtime_document(definition: Any) -> bool:
 
 
 def runtime_window(tf: Any) -> int:
-    """How many bars a runtime alert on ``tf`` reads (design 5.1)."""
+    """How many bars a runtime alert on ``tf`` FETCHES (design 5.1; e100: a daily one reaches for the listing,
+    ``RUNTIME_LISTING_REACH``). How many a run is SENT is the run's own decision (``runtime_run_bars``)."""
+    tf = str(tf or "")
+    if tf == listing_history.LISTING_TF:
+        return RUNTIME_LISTING_REACH
+    return runtime_curtain(tf)
+
+
+def runtime_curtain(tf: Any) -> int:
+    """The most recent bars a run NOT from the listing is sent: the window this lane always sent (design 5.1)."""
     return RUNTIME_WINDOW_DATE if str(tf or "") in RUNTIME_DATE_TFS else RUNTIME_WINDOW_INTRADAY
 
 
@@ -1323,6 +1345,27 @@ def runtime_wire_bars(bars: Sequence[Mapping[str, Any]], tf: str, now: float) ->
     return out, k
 
 
+def runtime_run_bars(bars: Sequence[Mapping[str, Any]], tf: str, now: float, sym: Any) -> tuple:
+    """⭐⭐ (e100) ``(sent, k, start, from_listing)``: what ONE runtime run on ``bars`` is sent.
+
+    When the first of ``bars`` is the symbol's final first-trade day (``listing_history.from_listing_for``: daily
+    only, the chart's rule, a FINAL decision, cache only) the run takes EVERY closed bar with ``historyFromListing``
+    true, as the member's chart does. Otherwise it is the curtain: the most recent ``runtime_curtain(tf)`` bars
+    (``bars[start:]``), their closed ones sent with it false, which is exactly the job this lane sent when it
+    fetched that many. ``runtime_wire_bars`` states the closed bars; ``k`` is the newest closed bar's index in
+    ``bars`` (``-1``: none) and ``start`` the index of the first bar sent, so a caller places the run's bar ``i``
+    at ``bars[start + i]``. RAISES ``RuntimeBarsRefused`` as ``runtime_wire_bars`` does, on the bars it reads."""
+    rows = list(bars or [])
+    if listing_history.from_listing_for(rows[:1], str(tf or ""), sym):
+        start, from_listing = 0, True
+    else:
+        start, from_listing = max(0, len(rows) - runtime_curtain(tf)), False
+    wire, k = runtime_wire_bars(rows[start:], tf, now)
+    if k < 0 or not wire:
+        return wire, -1, start, False
+    return wire, start + k, start, from_listing
+
+
 class RuntimeBatch:
     """The answers one (sym, tf) group's requests returned, one per definition version.
 
@@ -1347,7 +1390,9 @@ class RuntimeBatch:
                                 separators=(",", ":"), ensure_ascii=False, allow_nan=False)
         except Exception:  # noqa: BLE001 -- an unencodable job is the client's to refuse
             return None
-        return (str(def_id), version, job.ticker, job.exchange, job.tf, inputs, bars_sha)
+        # (e100) the listing statement decides the answer (the service keys on it too: cache.mjs `listing=`)
+        return (str(def_id), version, job.ticker, job.exchange, job.tf, inputs, bars_sha,
+                getattr(job, "history_from_listing", False) is True)
 
     def lookup(self, def_id: Any, version: Any, job: Any) -> Any:
         k = self.key(def_id, version, job)
@@ -1415,7 +1460,7 @@ def _make_runtime_value_fn(row: Mapping[str, Any], def_id: str, plot_key: str,
         batch = _RUNTIME_BATCH.get()
         now = batch.now if batch is not None and (batch.sym, batch.tf) == (sym, tf) else time.time()
         try:
-            wire, k = runtime_wire_bars(bars, tf, now)
+            wire, k, start, from_listing = runtime_run_bars(bars, tf, now, sym)
         except RuntimeBarsRefused as exc:
             raise rsl.ServerLaneWithheld(exc.guard, exc.sentence) from exc
         out: list = [None] * len(bars or [])
@@ -1425,12 +1470,13 @@ def _make_runtime_value_fn(row: Mapping[str, Any], def_id: str, plot_key: str,
         if tf_why:
             raise rsl.ServerLaneWithheld(TIMEFRAME_SETTING_GUARD, f"{address}: {tf_why}")
         run = rsl.runtime_column_fn(row, plot_key, RUNTIME_LANE, client_factory=_client_factory())
-        col = run(wire, runtime_inputs_for(definition, params), tf=str(tf), ticker=str(sym))
+        col = run(wire, runtime_inputs_for(definition, params), tf=str(tf), ticker=str(sym),
+                  history_from_listing=from_listing)
         if len(col) != len(wire):
             raise AssertionError(
                 f"{address}: the runtime column is {len(col)} long for {len(wire)} closed bars")
         for i, v in enumerate(col):
-            out[i] = v if isinstance(v, (int, float)) and math.isfinite(v) else None
+            out[start + i] = v if isinstance(v, (int, float)) and math.isfinite(v) else None
         return out
 
     def fn(bars: list, params: Optional[Mapping] = None, tf: Optional[str] = None,
@@ -1485,7 +1531,7 @@ def _make_runtime_alert_fn(row: Mapping[str, Any], def_id: str,
         batch = _RUNTIME_BATCH.get()
         now = batch.now if batch is not None and (batch.sym, batch.tf) == (sym, tf) else time.time()
         try:
-            wire, k = runtime_wire_bars(bars, tf, now)
+            wire, k, start, from_listing = runtime_run_bars(bars, tf, now, sym)
         except RuntimeBarsRefused as exc:
             raise rsl.ServerLaneWithheld(exc.guard, exc.sentence) from exc
         if k < 0:
@@ -1494,17 +1540,19 @@ def _make_runtime_alert_fn(row: Mapping[str, Any], def_id: str,
         if tf_why:
             raise rsl.ServerLaneWithheld(TIMEFRAME_SETTING_GUARD, f"{address}: {tf_why}")
         run = rsl.runtime_alerts_fn(row, RUNTIME_LANE, client_factory=_client_factory())
-        record = run(wire, runtime_inputs_for(definition, params), tf=str(tf), ticker=str(sym))
+        record = run(wire, runtime_inputs_for(definition, params), tf=str(tf), ticker=str(sym),
+                     history_from_listing=from_listing)
         n = len(wire)
-        values: list = [0.0] * n + [None] * (len(bars or []) - n)
+        # (e100) a bar before the curtain was not sent: nothing is known of it (None), never "no alert" (0)
+        values: list = [None] * start + [0.0] * n + [None] * (len(bars or []) - start - n)
         texts: dict = {}
         for event in (record or {}).get("events") or []:
             bar = event.get("bar")
             if not isinstance(bar, int) or isinstance(bar, bool) or not 0 <= bar < n:
                 continue                     # an event the record could not place on a bar
-            values[bar] = 1.0
+            values[start + bar] = 1.0
             msg = event.get("message")
-            texts.setdefault(bar, []).append(msg if isinstance(msg, str) else None)
+            texts.setdefault(start + bar, []).append(msg if isinstance(msg, str) else None)
         messages = {}
         for bar, parts in texts.items():
             said = [p for p in parts if p]
@@ -1658,7 +1706,7 @@ def _gate_runtime_service(row: Mapping[str, Any], definition: Mapping[str, Any],
                                   "a script drawn bar by bar is armed on one symbol and timeframe, "
                                   "and this arm named none")
     try:
-        wire, k = runtime_wire_bars(bars, tf, time.time())
+        wire, k, _start, from_listing = runtime_run_bars(bars, tf, time.time(), sym)
     except RuntimeBarsRefused as exc:
         raise _server_run_refusal(def_id, "", exc.guard, exc.sentence) from exc
     if k < 0 or not wire:
@@ -1669,7 +1717,8 @@ def _gate_runtime_service(row: Mapping[str, Any], definition: Mapping[str, Any],
     keys = runtime_alert_keys(definition)
     job = prc.Job(job=f"{sym}|{tf}|arm", ticker=str(sym), tf=str(tf), bars=wire,
                   want=tuple(_runtime_want(k) for k in keys),
-                  runtime_inputs=runtime_inputs_for(definition, params))
+                  runtime_inputs=runtime_inputs_for(definition, params),
+                  history_from_listing=from_listing)
     [res] = _runtime_client().run(def_id=def_id, version=row.get("version"), doc=definition,
                                   owner_id=row.get("user_id"), profile=RUNTIME_LANE, jobs=[job])
     run = res.run_refusal()
@@ -1730,7 +1779,7 @@ def _prime_runtime_batch(batch: RuntimeBatch, alerts: Sequence[Mapping[str, Any]
     if not per_def:
         return
     try:
-        wire, k = runtime_wire_bars(bars, batch.tf, batch.now)
+        wire, k, _start, from_listing = runtime_run_bars(bars, batch.tf, batch.now, batch.sym)
     except RuntimeBarsRefused:
         return
     if k < 0 or not wire:
@@ -1757,7 +1806,7 @@ def _prime_runtime_batch(batch: RuntimeBatch, alerts: Sequence[Mapping[str, Any]
             jobs.setdefault(ikey, (inputs, set()))[1].add(plot)
         batch_jobs = [prc.Job(job=f"{batch.sym}|{batch.tf}|{i}", ticker=batch.sym, tf=batch.tf,
                               bars=wire, want=tuple(sorted(_runtime_want(p) for p in plots)),
-                              runtime_inputs=inputs)
+                              runtime_inputs=inputs, history_from_listing=from_listing)
                       for i, (inputs, plots) in enumerate(jobs.values())]
         batch.requests += 1
         results = _runtime_client().run(def_id=def_id, version=version, doc=definition,
