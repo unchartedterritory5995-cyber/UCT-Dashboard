@@ -178,6 +178,10 @@ MEASURED_INPUTS = {"STD;VWAP": {"Hide VWAP on 1D or Above": ("in_0", False), "An
                                 "Source": ("in_2", "hlc3"), "Offset": ("in_3", 0)}}
 
 
+#: a PASTED study's inputs by dialog label (kernel-channel-backquant's regime toggle, the `scriptInputs` case)
+PASTED_INPUTS = {"Color Bars By Regime": ("in_7", False)}
+
+
 def measured_dialog():
     out = {k: [dict(x) for x in v] for k, v in MEASURED_DIALOG.items()}
     for bid, search in bc.BUILTIN_SEARCH.items():
@@ -299,6 +303,7 @@ class RecordingTVPage:
             bc.CLOSE_DIALOG_JS: ("CLOSE_DIALOG", lambda a: not self.dialog_open),
             bc.STUDY_IDENTITY_JS: ("STUDY_IDENTITY", self._study_identity),
             bc.INPUT_IDS_JS: ("INPUT_IDS", self._input_ids), bc.INPUTS_JS: ("INPUTS", self._inputs),
+            bc.READ_INPUTS_JS: ("READ_INPUTS", self._read_inputs),
         }
 
     # ── recording ───────────────────────────────────────────────────────────
@@ -514,7 +519,8 @@ class RecordingTVPage:
         self.adds.append((self.bound, True))
         self.next_id += 1
         self.studies.append({"id": f"st{self.next_id}", "name": declared_title(src) or "Untitled",
-                             "sha": sha, "source": src, "reads": 0})
+                             "sha": sha, "source": src, "reads": 0,
+                             "inputs": {iid: dv for iid, dv in PASTED_INPUTS.values()}})
         self.bound = "update"        # every add binds the editor (capture-procedure.md, S5)
         if self.autosave == "tradingview":
             self.persisted = {"studies": json.loads(json.dumps(self.studies)), "symbol": self.symbol, "resolution": self.resolution}
@@ -555,9 +561,20 @@ class RecordingTVPage:
 
     def _input_ids(self, sid):
         s = self._find(sid)
-        if not s or not s.get("builtin"):
+        if not s:
             return {}
-        return {label: iid for label, (iid, _) in (MEASURED_INPUTS.get(s["builtin"]) or {}).items()}
+        table = MEASURED_INPUTS.get(s["builtin"]) if s.get("builtin") else PASTED_INPUTS
+        return {label: iid for label, (iid, _) in (table or {}).items()}
+
+    def _read_inputs(self, sid):
+        s = self._find(sid)
+        if not s:
+            return None
+        got = dict(s.get("inputs") or {})
+        for iid in getattr(self, "inputs_revert", ()):     # a chart that does not keep an override (the refusal case)
+            if iid in got:
+                got[iid] = (PASTED_INPUTS.get("Color Bars By Regime") or (None, None))[1]
+        return got
 
     def _inputs(self, a):
         s = self._find(a["id"])
