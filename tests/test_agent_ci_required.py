@@ -1875,26 +1875,35 @@ def test_MQ_a_weakened_deploy_freeze_trips_the_agreement_rail_and_cannot_move_th
 
 
 
-# ---- the follower executes ONLY self-protected code (review of #2850, delta 2, X1: HIGH) --------------------------
-# `--stage follow` holds AGENT_CI_VERDICT_TOKEN (statuses: write). Any repo file it executes that is not
-# SELF_PROTECTED (an Agent path AND self-protected, judged by AUDIT) could be edited by a no-agent-paths PR and run with
-# that token. Until this rail the freeze exec'd tools/deploy_freeze.py and api/services/session_calendar.py.
-# The rail runs the REAL follow_verdict on an Agent entry inside a fresh interpreter whose FIRST act is an audit hook
-# that records every code object executed ("exec") and every source file opened; every repo .py among them must be
-# self-protected, with NO exceptions: tools/__init__.py (the `tools` package marker; the follower runs
-# `from tools import ...`) was executed unprotected until this rail; it is now an Agent path and self-protected.
+# ---- the follower executes ONLY self-protected code (review of #2850, delta 2, X1: HIGH; delta 3, Z3) --------------
+# `--stage follow` holds AGENT_CI_VERDICT_TOKEN (statuses: write). Any repo file it executes that is not SELF_PROTECTED
+# AND an Agent path could be edited by a no-agent-paths PR and run with that token. Until #2850 the freeze exec'd
+# tools/deploy_freeze.py and api/services/session_calendar.py; tools/__init__.py was executed unprotected.
+# HOW THE RAIL MIRRORS THE JOB (delta 3, Z3):
+#   * the checkout: the follower's own root (`work`, a clone of master) gets ONLY the verdict job's sparse files copied
+#     in, and the tool runs FROM there, as `--root .` does in the job (b);
+#   * the entry: runpy.run_path("tools/agent_ci_required.py", run_name="__main__") with the workflow step's argv and
+#     env, sys.path[0] = <checkout>/tools exactly as `python tools/agent_ci_required.py` sets it; main ->
+#     _main_merge_group -> follow -> follow_verdict -> the POST, over a stubbed transport (urlopen), clock pinned (a);
+#   * a fresh interpreter whose FIRST act is an audit hook recording every code object executed ("exec") and every
+#     .py opened, under BOTH roots: the checkout must account for every executed repo file, and this repo (ROOT) for
+#     none (the run used only the copy).
 
 _FOLLOW_PROBE = r"""
-import json, os, sys
-root, work, merge, ref, jobs_path = sys.argv[1:6]
-rootn = os.path.normcase(os.path.abspath(root)) + os.sep
+import datetime as _d, json, os, runpy, sys, urllib.request
+work, fx_path = sys.argv[1:3]
+fx = json.load(open(fx_path, encoding="utf-8"))
+roots = {"work": os.path.normcase(os.path.abspath(work)) + os.sep, "repo": os.path.normcase(os.path.abspath(fx["repo"])) + os.sep}
 seen = set()
 def rel(p):
     p = os.path.normcase(os.path.abspath(p))
-    return os.path.relpath(p, rootn).replace(os.sep, "/") if p.startswith(rootn) else None
+    for name, r in roots.items():
+        if p.startswith(r):
+            return name + ":" + os.path.relpath(p, r).replace(os.sep, "/")
+    return None
 def hook(ev, args):
-    if ev == "exec" and args and hasattr(args[0], "co_filename"):
-        r = rel(args[0].co_filename) if args[0].co_filename and not args[0].co_filename.startswith("<") else None
+    if ev == "exec" and args and getattr(args[0], "co_filename", "") and not args[0].co_filename.startswith("<"):
+        r = rel(args[0].co_filename)
     elif ev == "open" and args and isinstance(args[0], (str, os.PathLike)):
         r = rel(os.fspath(args[0]))
     else:
@@ -1902,41 +1911,91 @@ def hook(ev, args):
     if r and r.endswith(".py"):
         seen.add(r)
 sys.addaudithook(hook)
-sys.dont_write_bytecode = True
-sys.path.insert(0, root)
-import datetime
-from tools import agent_ci_required as acr
-jobs = json.load(open(jobs_path, encoding="utf-8"))
-class Api:
-    def get(self, path):
-        if path.startswith("actions/runs/55/jobs"):
-            return {"jobs": jobs}
-        raise AssertionError(path)
-    def call(self, *a, **k):
-        raise AssertionError("never posts")
-now = datetime.datetime(2026, 11, 18, 17, 0, tzinfo=datetime.timezone.utc)
-state, reason = acr.follow_verdict(work, Api(), 55, merge, ref, now, log=lambda m: None)
-print(json.dumps({"state": state, "reason": reason, "seen": sorted(seen)}))
+class _Clock(_d.datetime):
+    @classmethod
+    def now(cls, tz=None):
+        t = cls(2026, 11, 18, 17, 0, tzinfo=_d.timezone.utc)          # Wed 12:00 ET: outside every freeze window
+        return t.astimezone(tz) if tz else t
+_d.datetime = _Clock
+posted = []
+class _Resp:
+    def __init__(self, body): self.body = body
+    def __enter__(self): return self
+    def __exit__(self, *a): return False
+    def read(self): return self.body
+def _urlopen(req, timeout=None):
+    path = req.full_url.split("/repos/o/r/", 1)[1]
+    if req.get_method() == "POST":
+        posted.append([path, json.loads(req.data), req.get_header("Authorization")])
+        return _Resp(b"{}")
+    if path == "actions/runs/55":
+        return _Resp(json.dumps(fx["described"]).encode())
+    if path.startswith("actions/runs/55/jobs"):
+        return _Resp(json.dumps({"jobs": fx["jobs"]}).encode())
+    raise AssertionError("unexpected API call " + req.full_url)
+urllib.request.urlopen = _urlopen
+os.chdir(work)
+sys.argv = ["tools/agent_ci_required.py", "--event", "merge_group", "--stage", "follow", "--sha=" + fx["sha"],
+            "--run-id=55", "--head-ref=" + fx["head_ref"], "--run-event=merge_group"]
+sys.path[0] = os.path.join(os.path.abspath(work), "tools")
+code = None
+try:
+    runpy.run_path(os.path.join("tools", "agent_ci_required.py"), run_name="__main__")
+except SystemExit as e:
+    code = e.code
+print("@@RESULT " + json.dumps({"code": code, "posted": posted, "seen": sorted(seen)}))
 """
 
 
-def test_MQ_the_follower_executes_only_self_protected_code(tmp_path):
+def _follower_checkout(r):
+    """Copy the verdict job's sparse files from this repo into the follower's root (`work`): code, configs, dataset."""
+    import shutil
+    vdoc = yaml.safe_load((ROOT / ".github" / "workflows" / "agent-ci-queue-verdict.yml").read_text(encoding="utf-8"))
+    for pat in vdoc["jobs"]["verdict"]["steps"][0]["with"]["sparse-checkout"].split():
+        rel = pat.lstrip("/")
+        if pat.endswith("/") or rel == ".github/workflows/agent-ci.yml":
+            continue            # folders (/app/: data and configs) and agent-ci.yml: the fixture's master already holds them
+        (r.work / rel).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(ROOT / rel, r.work / rel)
+    ds = "app/src/lib/marketClock/market_calendar.json"     # the one /app/ file the follower reads
+    (r.work / ds).parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy(ROOT / ds, r.work / ds)
+
+
+def _run_follower(tmp_path, r):
     import os
     import sys
+    fx = tmp_path / "fx.json"
+    fx.write_text(json.dumps({"repo": str(ROOT), "described": _described(r), "jobs": _listed(), "sha": r.merge,
+                              "head_ref": r.ref[len("refs/heads/"):]}), encoding="utf-8")
+    probe = tmp_path / "follow_probe.py"
+    probe.write_text(_FOLLOW_PROBE, encoding="utf-8")
+    env = {k: v for k, v in os.environ.items() if not k.startswith(("PYTHON", "TARGET_URL"))}
+    env.update(GITHUB_TOKEN="read-token", AGENT_CI_VERDICT_TOKEN="app-token", GITHUB_REPOSITORY="o/r",
+               GITHUB_API_URL="http://api.stub.invalid", PYTHONDONTWRITEBYTECODE="1", PYTHONPYCACHEPREFIX=str(tmp_path / "pyc"))
+    out = subprocess.run([sys.executable, "-B", str(probe), str(r.work), str(fx)], capture_output=True, text=True,
+                         timeout=300, env=env, cwd=str(r.work))
+    lines = [ln for ln in out.stdout.splitlines() if ln.startswith("@@RESULT ")]
+    assert lines, out.stdout + out.stderr
+    return json.loads(lines[-1][len("@@RESULT "):]), out
+
+
+def test_MQ_the_follower_executes_only_self_protected_code(tmp_path):
     r = _queue_repo(tmp_path / "agent", {"app/src/agent/a.js": "a2\n"})
-    jobs = tmp_path / "jobs.json"
-    jobs.write_text(json.dumps(_listed()), encoding="utf-8")
-    env = dict(os.environ, PYTHONPYCACHEPREFIX=str(tmp_path / "pyc"))     # no cached bytecode: sources are opened
-    out = subprocess.run([sys.executable, "-B", "-c", _FOLLOW_PROBE, str(ROOT), str(r.work), r.merge, r.ref, str(jobs)],
-                         capture_output=True, text=True, timeout=300, env=env)
-    assert out.returncode == 0, out.stdout + out.stderr
-    res = json.loads(out.stdout.strip().splitlines()[-1])
-    assert res["state"] == "success", res                    # the follower ran to the end, through the freeze
-    assert "tools/agent_ci_required.py" in res["seen"], res   # the hook sees the follower's own code (not vacuous)
+    _follower_checkout(r)
+    res, out = _run_follower(tmp_path, r)
+    # it ran the real entry to the POST, through the freeze, with the App's token
+    assert res["code"] == 0 and res["posted"] == [[f"statuses/{r.merge}", {
+        "state": "success", "context": "agent-ci-required", "description": "all 18 Agent jobs passed on the merge group's commit"},
+        "Bearer app-token"]], (res, out.stderr[-2000:])
+    work = sorted(p.split(":", 1)[1] for p in res["seen"] if p.startswith("work:"))
+    repo = sorted(p.split(":", 1)[1] for p in res["seen"] if p.startswith("repo:"))
+    assert "tools/agent_ci_required.py" in work, res              # the hook sees the follower's own code (not vacuous)
+    assert repo == [], f"the follower executed files of this repo, not of its own checkout: {repo}"
     protected = list(ev.protected_patterns(ROOT))
-    outside = [p for p in res["seen"] if not acr.matches(p, protected)]
+    outside = [p for p in work if not acr.matches(p, protected)]
     assert outside == [], f"the token-holding follower executes repo code that is not self-protected: {outside}"
     # ... and every one of them is an Agent path too: self-protected alone would let a no-agent-paths PR land it
     paths = acr.agent_paths(acr.load_agent_ci(ROOT))
-    not_agent = [p for p in res["seen"] if not acr.matches(p, paths)]
+    not_agent = [p for p in work if not acr.matches(p, paths)]
     assert not_agent == [], f"the token-holding follower executes repo code that is not an Agent path: {not_agent}"
