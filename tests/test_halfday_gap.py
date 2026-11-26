@@ -53,11 +53,11 @@ def env(tmp_path, monkeypatch):
     calls = []
     trades = {"rows": []}
 
-    def _fetch_trades(sym, lo, hi, take):
+    def _trade_pages(sym, lo, hi, take):
         take()
         calls.append((sym, lo, hi))
-        return [t for t in trades["rows"] if lo * 10**9 <= t["sip_timestamp"] < hi * 10**9]
-    monkeypatch.setattr(hg, "fetch_trades", _fetch_trades)
+        yield [t for t in trades["rows"] if lo * 10**9 <= t["sip_timestamp"] < hi * 10**9]
+    monkeypatch.setattr(hg, "trade_pages", _trade_pages)
     yield sq, calls, trades
     bls._reset_for_tests()
     sq.bump_db_epoch()
@@ -173,3 +173,53 @@ def test_the_settle_on_a_half_day_rebuilds_its_gap_once(env, monkeypatch):
     bls._settle["done_ymd"] = None
     bls.settle_pass(when)
     assert len(calls) == n, "a half day's gap is rebuilt once"
+
+
+# ── review of #2798 ──────────────────────────────────────────────────────────────────────────────────────────────
+
+class _Page(list):
+    """A page of trades that can be watched (a plain list cannot carry a weak reference)."""
+    __slots__ = ("__weakref__",)
+
+
+def test_the_fold_holds_one_page_at_a_time_and_a_failed_page_writes_nothing(env, monkeypatch):
+    import gc
+    import weakref
+    sq, calls, trades = env
+    _store_half_day(sq)
+    held = []
+
+    def _pages(sym, lo, hi, take):
+        prev = None
+        for k in range(4):
+            if prev is not None:
+                gc.collect()
+                held.append(prev() is not None)       # is the previous page still referenced by the fold?
+            page = _Page(_trade(HALF, 13 + k % 3, 5 + k, 10, 610.0 + k) for _ in range(500))
+            prev = weakref.ref(page)
+            yield page
+            page = None
+    monkeypatch.setattr(hg, "trade_pages", _pages)
+    got = hg.rebuild("SPY", HALF, lambda: None)
+    assert got["minutes"] == 4
+    assert held == [False, False, False], "the fold kept earlier pages alive: the trades are being collected"
+
+    def _fails(sym, lo, hi, take):
+        yield [_trade(HALF, 14, 30, 10, 611.0)]
+        raise RuntimeError("provider 503 on page 2")
+    monkeypatch.setattr(hg, "trade_pages", _fails)
+    with pytest.raises(RuntimeError):
+        hg.rebuild("SPY", HALF, lambda: None)
+    assert _row(sq, "SPY", "1", _ts(HALF, 14, 30)) is None, "a ticker whose pages did not all succeed writes nothing"
+
+
+def test_the_half_day_60m_keys_are_the_afternoon_clock_hours_and_the_morning_is_untouched(env):
+    sq, calls, trades = env
+    _store_half_day(sq)
+    morning = {int(r[0]): tuple(r) for r in sq.get_bars_since("SPY", "60", 0) if int(r[0]) < _ts(HALF, 13, 0)}
+    trades["rows"] = [_trade(HALF, h, m, 20, 610.0 + h) for h in (13, 14, 15) for m in range(0, 60, 5) if (h, m) >= (13, 5)]
+    hg.rebuild("SPY", HALF, lambda: None, rederive=bls._settle_rederive)
+    keys = [int(r[0]) for r in sq.get_bars_since("SPY", "60", _ts(HALF, 12, 59)) if int(r[0]) < _ts(HALF, 16, 0)]
+    assert keys == [_ts(HALF, 13, 0), _ts(HALF, 14, 0), _ts(HALF, 15, 0)], keys
+    after = {int(r[0]): tuple(r) for r in sq.get_bars_since("SPY", "60", 0) if int(r[0]) < _ts(HALF, 13, 0)}
+    assert after == morning, "nothing of the afternoon folds into a morning 60m bar"
