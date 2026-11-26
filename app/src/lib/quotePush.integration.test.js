@@ -5,6 +5,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 vi.mock('./realtimeCandle', () => ({ applyTick: vi.fn(), applyBarClose: vi.fn(), applyCorrection: vi.fn() }))
 
 import * as qp from './quotePush'
+import { __setQuotePushForTest } from './quotePushGate'
 import * as store from '../hooks/livePriceStore'
 import * as mgr from './priceStreamManager'
 
@@ -42,6 +43,7 @@ beforeEach(() => {
     ok: true, status: 200, headers: { get: () => null }, json: () => Promise.resolve(restBody),
   }))
   qp._resetForTests()
+  __setQuotePushForTest(qp)   // the stores reach the lazy module through the gate
   store.__resetForTest()
   mgr._resetForTests()
 })

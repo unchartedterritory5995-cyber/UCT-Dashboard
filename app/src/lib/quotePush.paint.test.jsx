@@ -9,6 +9,7 @@ import { render, act, cleanup } from '@testing-library/react'
 vi.mock('./realtimeCandle', () => ({ applyTick: vi.fn(), applyBarClose: vi.fn(), applyCorrection: vi.fn() }))
 
 import * as qp from './quotePush'
+import { __setQuotePushForTest } from './quotePushGate'
 import * as store from '../hooks/livePriceStore'
 import useLivePrices from '../hooks/useLivePrices'
 
@@ -46,6 +47,7 @@ beforeEach(() => {
     json: () => Promise.resolve({ AAPL: { price: 100, prev_close: 99, change_pct: 1, change: 1, volume: 500, ext_session: null } }),
   }))
   qp._resetForTests()
+  __setQuotePushForTest(qp)   // the stores reach the lazy module through the gate
   store.__resetForTest()
   globalThis.IS_REACT_ACT_ENVIRONMENT = true
 })
