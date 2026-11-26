@@ -467,6 +467,8 @@ function requestSupplyKey(compute, ctx) {
     // (`otherSymbols.newestOwnPeriodOf`): the close flips it with the bars unchanged, and that is a new run
     parts.push(`${k}:${(e && e.status) || ''}:${bars.length}:${last ? `${last.t}/${last.c}` : ''}`
       + `${e && e.newestBarIsForming === true ? ':forming' : ''}`
+      // ⭐⭐ e98 — the chart's session (`otherSymbols.CHART_SESSION_KEY`, no bars): it moves a custom timeframe's grid
+      + `${e && e.extended === true ? ':eth' : ''}`
       // ⭐⭐ T4 E2 — the events entry (no bars): its answer's refresh and its symbol
       + `${(k === EVENTS_KEY || k === FINANCIAL_KEY) && e ? `:r${e.rev || ''}:s${e.symbol || ''}` : ''}`)
   }

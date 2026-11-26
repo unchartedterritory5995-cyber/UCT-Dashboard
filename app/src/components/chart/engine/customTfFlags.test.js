@@ -57,9 +57,14 @@ describe('(b) every other non-native code still answers null (never a guess from
 // ─── (c) END TO END: FRED RS ON A SYNTHETIC 4h CHART ─────────────────────────────────────────────────────────────────
 // Fred RS (MPL-2.0, `docs/pine/rs-rating/`) with its RS line's comparative symbol set to AMEX:SPY (a listing served at
 // the chart's own timeframe, so this unit is measured alone: SP:SPX on 240 is PR #2745's). The chart and SPY's bars are
-// the product's own 4h bars of extended-hours 60m rows (`resampleForSpec`).
+// the product's own 4h bars of the chart the TradingView witness pins (Q-FRED-4H: EXTENDED hours, session 0400-2000),
+// built with that chart's EXPLICIT spec (`resampleSpec('240', { extended: true })`, 04:00 / 08:00 / 12:00 / 16:00) from
+// the extended view's 60m page (`&session=eth`: clock hours 04:00 .. 19:00). ⚰️ (2026-11-26) This rail built them with the
+// REGULAR spec from an extended page, and once the regular spec took regular-session rows only (#2788) its 1,000 bars
+// were 400: re-pinned here, test-locally (SPY is a listing projected by exact time: no grid, no product change).
 const FRED = path.resolve(process.cwd(), '../docs/pine/rs-rating/rs-rating-fred6724__pziQwiT2.pine')
-const to240 = (rows) => resampleForSpec(rows, resampleSpec('240'))
+const ETH_240 = resampleSpec('240', { extended: true })
+const to240 = (rows) => resampleForSpec(rows, ETH_240)
 const etOff = (day) => (/GMT-4/.test(new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', timeZoneName: 'shortOffset' })
   .format(new Date(`${day}T12:00:00Z`))) ? 4 : 5)
 const ET = (day, hh, mm) => { const [y, m, d] = day.split('-').map(Number); return Date.UTC(y, m - 1, d, hh + etOff(day), mm) / 1000 }
@@ -72,8 +77,7 @@ function synthetic(nDays) {
   const stock = []
   const spy = []
   days.forEach((day, i) => {
-    const hours = [...[4, 5, 6, 7, 8, 9].map((h) => ET(day, h, 0)), ...[0, 1, 2, 3, 4, 5, 6].map((k) => ET(day, 9, 30) + k * 3600),
-      ...[16, 17, 18, 19].map((h) => ET(day, h, 0))]
+    const hours = Array.from({ length: 16 }, (_, k) => ET(day, 4 + k, 0))      // the extended view's clock hours
     hours.forEach((t, k) => {
       stock.push({ t, o: 50, h: 51, l: 49, c: 50 + i * 0.1 + k * 0.01, v: 1000 })
       spy.push({ t, o: 600, h: 601, l: 599, c: 600 + i * 0.5 + k * 0.02, v: 1000 })
@@ -120,7 +124,8 @@ function rsLineOn(tf, chart, spy) {
 describe('(c) Fred RS draws its RS line on a 4h chart', () => {
   it('on 240: the RS line on >= 99% of bars, each close / SPY x 4200 x 80% (isweekly = 0)', () => {
     const { chart, spy } = synthetic(200)
-    expect(chart.length).toBe(1000)
+    expect(ETH_240.anchorMin).toBe(240)
+    expect(chart.length).toBe(800)                                           // four extended-hours bars a session
     const line = rsLineOn('240', chart, spy)
     const drawn = line.filter(Number.isFinite).length
     expect(drawn / chart.length).toBeGreaterThanOrEqual(0.99)
