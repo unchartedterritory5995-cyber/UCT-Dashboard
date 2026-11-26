@@ -2693,7 +2693,7 @@ export function computeSignature(def, inputs, ctx) {
   if (carriesRunHalf(def)) return runHalfGateSignature(def)
   if (def?.compute?.kind !== 'server' || !definitionHasLiveTail(def)) return ''
   const resolved = resolveInputs(def, inputs)
-  return liveTailSignature(def, scalarsFor(def, resolved, ctx), resolved, ctx && ctx.sym, ctx && ctx.tf)
+  return liveTailSignature(def, scalarsFor(def, resolved, ctx), resolved, ctx && ctx.sym, ctx && ctx.tf, !!(ctx && ctx.extended))
 }
 
 /** ⭐ DIV-4 — the run computes the script AS WRITTEN, so its colour is the member's

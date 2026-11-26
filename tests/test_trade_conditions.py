@@ -200,3 +200,103 @@ def test_filter_defaults_on():
     """Correct by default: unset env => the SIP ghost-print filter is ON."""
     import inspect
     assert 'os.environ.get("TRADE_CONDITION_FILTER_ENABLED", "1") == "1"' in inspect.getsource(tc)
+
+
+# ── the volume rule (2026-11-25, candle-accuracy audit class 1) ─────────────────
+# The vendor's minute bar adds a print's size only when its conditions update consolidated volume. Before
+# this, the developing bar summed EVERY print: an official open / close report (15/16) or a corrected
+# consolidated close (38) inflated the developing volume until that minute's AM replaced it.
+
+@pytest.fixture
+def _fallback_rules(monkeypatch):
+    monkeypatch.setattr(tc, "_hl_ineligible", set(tc._HL_INELIGIBLE_FALLBACK) - tc._SESSION_CODES)
+    monkeypatch.setattr(tc, "_last_ineligible", set(tc._LAST_INELIGIBLE_FALLBACK) - tc._SESSION_CODES)
+    monkeypatch.setattr(tc, "_vol_ineligible", set(tc._VOL_INELIGIBLE_FALLBACK) - tc._SESSION_CODES)
+
+
+def test_classify3_volume_verdicts(_fallback_rules):
+    assert tc.classify3([15]) == (False, True, False)    # MC official close: sets last, not h/l, not volume
+    assert tc.classify3([16]) == (False, True, False)    # MC official open
+    assert tc.classify3([38]) == (False, True, False)    # corrected consolidated close
+    assert tc.classify3([37]) == (False, False, True)    # an odd lot is a real trade: volume only
+    assert tc.classify3([0]) == (True, True, True)
+    assert tc.classify3([0, 15]) == (False, True, False)  # the most restrictive condition wins, per metric
+    assert tc.classify3([12, 15]) == (False, True, False)
+    assert tc.classify3(None) == (True, True, True)
+    assert tc.classify3([15], source="finnhub") == (True, True, True)   # not a SIP table: never classified
+
+
+def test_classify_keeps_its_two_value_shape(_fallback_rules):
+    assert tc.classify([15]) == (False, True)
+    assert tc.classify([37]) == (False, False)
+
+
+def test_volume_rule_is_off_with_the_filter(_fallback_rules, monkeypatch):
+    monkeypatch.setattr(tc, "FILTER_ENABLED", False)
+    assert tc.classify3([15]) == (True, True, True)
+
+
+def test_provider_parse_reads_updates_volume():
+    results = [
+        {"id": 15, "name": "Market Center Official Close",
+         "update_rules": {"consolidated": {"updates_high_low": False, "updates_open_close": True,
+                                           "updates_volume": False}}},
+        {"id": 37, "name": "Odd Lot Trade",
+         "update_rules": {"consolidated": {"updates_high_low": False, "updates_open_close": False,
+                                           "updates_volume": True}}},
+        {"id": 12, "name": "Form T",
+         "update_rules": {"consolidated": {"updates_high_low": False, "updates_open_close": False,
+                                           "updates_volume": False}}},
+        {"id": 41, "name": "Trade Thru Exempt",
+         "update_rules": {"consolidated": {"updates_high_low": True, "updates_open_close": True}}},
+    ]
+    hl, last, vol = tc._parse_provider_rules3(results)
+    assert vol == {15}                       # 37 updates volume; 12 is the session exemption; 41 says nothing
+    assert hl == {15, 37} and last == {37}
+    assert tc._parse_provider_rules(results) == (hl, last)   # the two-set shape is unchanged
+
+
+def test_provider_load_installs_the_volume_set(monkeypatch):
+    class _R:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"results": [
+                {"id": 15, "name": "Market Center Official Close",
+                 "update_rules": {"consolidated": {"updates_high_low": False, "updates_open_close": True,
+                                                   "updates_volume": False}}},
+                {"id": 99, "name": "Synthetic",
+                 "update_rules": {"consolidated": {"updates_high_low": True, "updates_open_close": True,
+                                                   "updates_volume": False}}}]}
+
+    import httpx
+    monkeypatch.setenv("MASSIVE_API_KEY", "test-not-a-key")
+    monkeypatch.setattr(httpx, "get", lambda *a, **k: _R())
+    monkeypatch.setattr(tc, "_loaded_from_provider", False)
+    monkeypatch.setattr(tc, "_hl_ineligible", set(tc._hl_ineligible))
+    monkeypatch.setattr(tc, "_last_ineligible", set(tc._last_ineligible))
+    monkeypatch.setattr(tc, "_vol_ineligible", set(tc._vol_ineligible))
+    tc.load_from_provider()
+    assert tc._loaded_from_provider is True
+    assert tc._vol_ineligible == {15, 99}
+    assert tc.classify3([99]) == (True, True, False)
+
+
+def test_broadcaster_official_close_moves_the_close_not_volume_or_high_low(_fallback_rules):
+    bb = BarBroadcaster()
+    _push(bb, "V", 100.0, s=100, c=[0])
+    _push(bb, "V", 102.0, s=100, c=[0])
+    _push(bb, "V", 101.0, s=5000, c=[15])           # the official close report, inside the range
+    b = _partial(bb, "V")
+    assert b["c"] == 101.0                          # it IS the last sale (updates_open_close)
+    assert (b["h"], b["l"]) == (102.0, 100.0)       # not a high/low
+    assert b["v"] == 200                            # and not volume: the vendor's AM leaves it out
+
+
+def test_broadcaster_odd_lot_adds_volume_only(_fallback_rules):
+    bb = BarBroadcaster()
+    _push(bb, "W", 100.0, s=100, c=[0])
+    _push(bb, "W", 104.0, s=7, c=[37])
+    b = _partial(bb, "W")
+    assert (b["h"], b["l"], b["c"], b["v"]) == (100.0, 100.0, 100.0, 107)

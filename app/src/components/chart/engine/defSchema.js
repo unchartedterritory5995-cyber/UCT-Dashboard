@@ -1020,6 +1020,33 @@ function validateAstCompute(compute, errors, inputScope) {
  * make the compute section depend on `plots[]` order, a second authority over
  * which tree the scan runs.
  */
+/** ⭐ e97 U6 — the KNOB TEST grammar `plots[].hiddenWhen` holds (the shape `ast/bind.js::knobTestValue` evaluates):
+ *  `{type:'series', name}` (a setting), `{type:'num', value}`, `{type:'op', name: '==' | '!=', args: [two]}`,
+ *  `{type:'op', name: '&&' | '||', args: [two]}`, `{type:'op', name: '!', args: [one]}`; at most 64 nodes. The first
+ *  problem as a sentence, or null. Mirrored by `api/services/presentation_schema.py::_check_hidden_when`. */
+export const HIDDEN_WHEN_MAX_NODES = 64
+export function hiddenWhenProblem(tree) {
+  let nodes = 0
+  const walk = (n, depth) => {
+    if (depth > 16) return 'is nested too deeply'
+    if (!isPlainObject(n)) return `expected a setting test (a tree), got ${fmt(n)}`
+    nodes += 1
+    if (nodes > HIDDEN_WHEN_MAX_NODES) return `holds more than ${HIDDEN_WHEN_MAX_NODES} nodes`
+    if (n.type === 'series') return isNonEmptyString(n.name) ? null : 'a setting needs its `name`'
+    if (n.type === 'num') return typeof n.value === 'number' && Number.isFinite(n.value) ? null : 'a number needs a finite `value`'
+    if (n.type !== 'op' || !Array.isArray(n.args)) return `\`${n.type}\` is not part of a setting test`
+    const arity = n.name === '!' ? 1 : ['==', '!=', '&&', '||'].includes(n.name) ? 2 : null
+    if (arity === null) return `the operator \`${n.name}\` is not part of a setting test`
+    if (n.args.length !== arity) return `\`${n.name}\` takes ${arity} argument${arity === 1 ? '' : 's'}`
+    for (const a of n.args) {
+      const w = walk(a, depth + 1)
+      if (w) return w
+    }
+    return null
+  }
+  return walk(tree, 0)
+}
+
 function validateTrees(compute, storedHash, errors, inputScope) {
   const { trees, scanPlot, sources } = compute
   if (trees === undefined) {
@@ -3192,6 +3219,12 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors, presentationKe
       `${path}.fill: expected {with: "<plotKey>"} naming the plot this one fills to, got ${fmt(plot.fill)}`,
     )
   }
+  // ⭐ e97 U7 — `fill.hiddenWhen`: the BAND hidden as the instance's settings decide, by the same knob-test grammar a
+  // plot's `hiddenWhen` holds (`hiddenWhenProblem`, mirrored by `presentation_schema.py::_check_hidden_when`)
+  if (isPlainObject(plot.fill) && plot.fill.hiddenWhen !== undefined) {
+    const why = hiddenWhenProblem(plot.fill.hiddenWhen)
+    if (why) errors.push(`${path}.fill.hiddenWhen: ${why}`)
+  }
   // ⭐ 2026-10-01 — `sparse`: this plot is BLANK BY DESIGN on some bars
   // (SuperTrend's up and down halves, each drawn only while its trend holds). A
   // sparse connected line is drawn as one render series per valued run — the
@@ -3206,6 +3239,14 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors, presentationKe
     errors.push(
       `${path}.hidden: expected true or false (a hidden plot is COMPUTED and never drawn), got ${fmt(plot.hidden)}`,
     )
+  }
+  // ⭐ e97 U6 — `hiddenWhen`: hidden as the instance's settings decide (`knobBind.js::plotHiddenAt`). A knob test
+  // and nothing else (`hiddenWhenProblem`, mirrored by `presentation_schema.py::_check_hidden_when`): a setting, a
+  // setting compared with a number, `&&` / `||` / `!` of those. Never beside `hidden: true` (which already decides).
+  if (plot.hiddenWhen !== undefined) {
+    const why = hiddenWhenProblem(plot.hiddenWhen)
+    if (why) errors.push(`${path}.hiddenWhen: ${why}`)
+    else if (plot.hidden === true) errors.push(`${path}.hiddenWhen: a plot with \`hidden: true\` is hidden at every setting; it carries no \`hiddenWhen\``)
   }
   // And never HIDDEN on a guide: an `hlines` plot returns no column, so there is
   // nothing to compute and nothing to hide. Keeping `hidden ⇒ data-bearing`
@@ -4080,6 +4121,12 @@ function validatePaints(paints, columnKeys, errors) {
     // ⭐ F1 — render-time placement (`binder.js::paintRenderColours`).
     if (p.offset !== undefined && !Number.isInteger(p.offset)) errors.push(`${path}.offset: expected a whole number, got ${fmt(p.offset)}`)
     if (p.showLast !== undefined && !(Number.isInteger(p.showLast) && p.showLast >= 0)) errors.push(`${path}.showLast: expected a non-negative whole number, got ${fmt(p.showLast)}`)
+    // ⭐ e97 U7 — `hiddenWhen`: the paint drawn only while the instance's settings show it (`knobBind.js::plotHiddenAt`),
+    // the knob-test grammar and nothing else (`hiddenWhenProblem`)
+    if (p.hiddenWhen !== undefined) {
+      const why = hiddenWhenProblem(p.hiddenWhen)
+      if (why) errors.push(`${path}.hiddenWhen: ${why}`)
+    }
     if (p.colorMode === undefined) {
       if (!isColour(p.color)) errors.push(`${path}: a paint must declare a colour (color, or colorMode "column:<key>")`)
       return

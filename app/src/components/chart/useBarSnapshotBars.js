@@ -125,7 +125,8 @@ export function useBarSnapshotBars({
   const _symU = sym ? sym.toUpperCase() : ''
   const _isCustomTf = !!sym && !isNativeTf(resolvedTf)
   const _customBaseTf = _isCustomTf ? fetchTf(resolvedTf) : null
-  const _customSpec = useMemo(() => (_isCustomTf ? resampleSpec(resolvedTf) : null), [_isCustomTf, resolvedTf])
+  // (the view's session start anchors the buckets: 04:00 ET extended, 09:30 regular; the base key is the view's session)
+  const _customSpec = useMemo(() => (_isCustomTf ? resampleSpec(resolvedTf, { extended: !!showExtended }) : null), [_isCustomTf, resolvedTf, showExtended])
   const _customBaseIntraday = INTRADAY.has(String(_customBaseTf))
   const _intradayLike = isIntraday || (_isCustomTf && _customBaseIntraday)
   const _overrideArr = Array.isArray(barsOverride) && barsOverride.length > 0
@@ -346,7 +347,7 @@ export function useBarSnapshotBars({
   _histMutateRef.current = mutate
 
   // ── compare: the same SWR hook the legacy source uses (P3-S3 moves it to a store key) ──
-  const compareData = useCompareBars({ compareSymbol, resolvedTf, barCount, _gridQ, instFetcher })
+  const compareData = useCompareBars({ compareSymbol, resolvedTf, barCount, _gridQ, instFetcher, extended: !!showExtended })
 
   // ── refs the chart reads ───────────────────────────────────────────────────────
   const idbReadyForRef = useRef(null)

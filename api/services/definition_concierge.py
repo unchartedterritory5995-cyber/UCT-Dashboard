@@ -3146,6 +3146,11 @@ def _starter_named(text: Any) -> Optional[Mapping[str, Any]]:
     return None
 
 
+def _one_plain_word(phrase: Any) -> bool:
+    """One word of letters only: no space, no digit, no underscore (a column's identifier is no plain word)."""
+    return bool(re.fullmatch(r"[A-Za-z][A-Za-z'\-]*", str(phrase or "").strip()))
+
+
 def plan(prompt: str, kind: str = INDICATOR_KIND, *,
          vocab: Optional[Mapping[str, Any]] = None,
          table: Optional[Mapping[str, Any]] = None,
@@ -3225,6 +3230,15 @@ def plan(prompt: str, kind: str = INDICATOR_KIND, *,
         # Cutting the clause would throw away the rest of a request to prevent
         # something the boundary already prevents.
         if match["kind"] == EXCLUDED_ENTRY:
+            # ⭐ 2026-11-25 -- A LEXICON MAY ASK FOR A COLUMN NAMED WHOLE (the chart door's
+            # ``column_notes_whole_only``). One plain English word that happens to be a column's alias is no
+            # naming of that column: "pick the TYPE from a list" was told "'type' is in UCT's screener data,
+            # which a chart formula can't read" (security_type), and "setup", "reversal", "unchanged", "doji",
+            # "sector" and "churn" did the same on ordinary chart requests (7 of 9 measured). On a chart those
+            # words describe an indicator the bars can build; a column named in more than one word, or by its
+            # identifier, is still named.
+            if lex.get("column_notes_whole_only") and _one_plain_word(match["matched_as"]):
+                continue
             unavailable.append(
                 {"phrase": match["matched_as"], "name": match["key"],
                  "reason": excluded.get(match["key"], "")})

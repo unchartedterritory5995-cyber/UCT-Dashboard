@@ -296,6 +296,62 @@ def _check_ohlc(plot: Mapping, path: str, fp: str, columns: set, out: list) -> N
                     ref_ok(v, f"{path}.ohlcColors.{k}")
 
 
+#: e97 U6 -- `plots[].hiddenWhen`, the knob-test grammar `defSchema.js::hiddenWhenProblem` accepts (one rule, two lanes).
+HIDDEN_WHEN_MAX_NODES = 64
+_HIDDEN_WHEN_ARITY = {"!": 1, "==": 2, "!=": 2, "&&": 2, "||": 2}
+
+
+def hidden_when_problem(tree: Any) -> Any:
+    """The first problem with a `hiddenWhen` tree as a sentence, or None: a setting (`series` with a name), a
+    finite number, `==` / `!=` / `&&` / `||` of two, `!` of one; at most HIDDEN_WHEN_MAX_NODES nodes."""
+    count = [0]
+
+    def walk(n: Any, depth: int) -> Any:
+        if depth > 16:
+            return "is nested too deeply"
+        if not isinstance(n, Mapping):
+            return f"expected a setting test (a tree), got {_canon(n)}"
+        count[0] += 1
+        if count[0] > HIDDEN_WHEN_MAX_NODES:
+            return f"holds more than {HIDDEN_WHEN_MAX_NODES} nodes"
+        t = n.get("type")
+        if t == "series":
+            return None if _is_str(n.get("name")) and n.get("name") else "a setting needs its `name`"
+        if t == "num":
+            return None if _is_num(n.get("value")) else "a number needs a finite `value`"
+        args = n.get("args")
+        if t != "op" or not isinstance(args, list):
+            return f"`{t}` is not part of a setting test"
+        arity = _HIDDEN_WHEN_ARITY.get(n.get("name"))
+        if arity is None:
+            return f"the operator `{n.get('name')}` is not part of a setting test"
+        if len(args) != arity:
+            return f"`{n.get('name')}` takes {arity} argument{'' if arity == 1 else 's'}"
+        for a in args:
+            w = walk(a, depth + 1)
+            if w:
+                return w
+        return None
+
+    return walk(tree, 0)
+
+
+def _check_hidden_when(plot: Mapping, path: str, fp: str, out: list) -> None:
+    if "hiddenWhen" in plot:
+        why = hidden_when_problem(plot["hiddenWhen"])
+        if why:
+            _err(out, f"{path}.hiddenWhen", "plot-hidden-when", f"{path}.hiddenWhen: {why}", fp)
+        elif plot.get("hidden") is True:
+            _err(out, f"{path}.hiddenWhen", "plot-hidden-when",
+                 f"{path}.hiddenWhen: a plot with `hidden: true` is hidden at every setting; it carries no `hiddenWhen`", fp)
+    # e97 U7 -- the BAND a plot's fill draws, hidden as the instance's settings decide: the same knob-test grammar
+    fill = plot.get("fill")
+    if isinstance(fill, Mapping) and "hiddenWhen" in fill:
+        why = hidden_when_problem(fill["hiddenWhen"])
+        if why:
+            _err(out, f"{path}.fill.hiddenWhen", "plot-hidden-when", f"{path}.fill.hiddenWhen: {why}", fp)
+
+
 def _check_color_mode(plot: Mapping, path: str, fp: str, columns: set, out: list) -> None:
     if "colorMode" not in plot:
         return
@@ -367,6 +423,11 @@ def _check_paints(paints: Any, columns: set, out: list) -> None:
         if "showLast" in p and not (_is_int(p["showLast"]) and p["showLast"] >= 0):
             _err(out, f"{path}.showLast", "paint-field",
                  f"{path}.showLast: expected a non-negative whole number", fp)
+        # e97 U7 -- the paint drawn only while the instance's settings show it: the knob-test grammar and nothing else
+        if "hiddenWhen" in p:
+            why = hidden_when_problem(p["hiddenWhen"])
+            if why:
+                _err(out, f"{path}.hiddenWhen", "paint-hidden-when", f"{path}.hiddenWhen: {why}", fp)
         if "colorMode" not in p:
             if not _is_str(p.get("color")):
                 _err(out, path, "paint-colour",
@@ -556,6 +617,7 @@ def presentation_errors(definition: Mapping[str, Any]) -> list:
         _check_plot_colour_fields(plot, path, fp, out)
         _check_color_mode(plot, path, fp, columns, out)
         _check_ohlc(plot, path, fp, columns, out)
+        _check_hidden_when(plot, path, fp, out)
     # DIV-4 -- a PAINT (never a plot) may also name a colour column the per-bar run computes
     run_keys = _check_runtime_colours(definition, columns, out)
     _check_paints(definition.get("paints"), columns | run_keys, out)

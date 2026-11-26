@@ -11,6 +11,7 @@ import os
 import threading
 import time
 import uuid
+from collections import OrderedDict
 
 from fastapi import APIRouter, Depends, Query, Request
 from api.bars_auth import require_bars_access
@@ -665,6 +666,15 @@ def _kick_seed(fn, sym: str) -> bool:
     return True
 
 
+_contract_warm = {"done": False}
+
+
+def _warm_contract_imports() -> None:
+    """Import what a frame's contract identity needs. Runs on a worker thread (see stream_bars)."""
+    from api.services import bar_contract
+    bar_contract.warm_imports()
+
+
 def _contract_event(bar_contract, msg: dict, session: str) -> dict:
     """⭐ BAR CONTRACT on a stream frame (docs/architecture/bar-contract.md): the same
     identity as the REST answer for this series (grid, session, cache_key, series_rev)
@@ -695,6 +705,39 @@ def _lat_fields(frame: dict, lat: bool) -> dict:
     if "ingest_ms" in frame:
         return {k: v for k, v in frame.items() if k != "ingest_ms"}
     return frame
+
+
+# ⭐ SERIALISE ONCE (2026-11-25, objective 2). stream-edge puts the SAME frame dict in every subscriber queue of a
+# pair (RemoteBroadcaster._put), and each connection's generator used to enrich it and json.dumps it again: the work
+# grew with members x frames (measured on the dev PC, 500 connections x 4 pairs: 18-23 us per delivered frame). A
+# MEMBER frame is now encoded once per (frame object, connection session) and every connection writes that same
+# text behind its own `id:` line. A `?lat=1` connection gets its own encode (its instruments); members never pay
+# for it. The cache holds the frame itself, so an id() cannot be reused while its entry lives; FIFO-bounded.
+_ENCODE_CACHE_MAX = 4096
+_ENCODE_CACHE: "OrderedDict[tuple, tuple]" = OrderedDict()
+
+
+def _encode_member_frame(bar_contract, msg: dict, session: str) -> str:
+    key = (id(msg), session)
+    hit = _ENCODE_CACHE.get(key)
+    if hit is not None and hit[0] is msg:
+        return hit[1]
+    data = json.dumps(_lat_fields(_contract_event(bar_contract, msg, session), False))
+    _ENCODE_CACHE[key] = (msg, data)
+    if len(_ENCODE_CACHE) > _ENCODE_CACHE_MAX:
+        _ENCODE_CACHE.popitem(last=False)
+    return data
+
+
+def _encode_bar_event(bar_contract, msg: dict, session: str, lat: bool) -> str:
+    """The `data:` text of one bar frame for one connection (see _encode_member_frame)."""
+    if lat:
+        return json.dumps(_lat_fields(_contract_event(bar_contract, msg, session), True))
+    return _encode_member_frame(bar_contract, msg, session)
+
+
+def _reset_encode_cache_for_tests() -> None:
+    _ENCODE_CACHE.clear()
 
 
 @router.get("/api/stream/bars")
@@ -769,6 +812,23 @@ async def stream_bars(
             ahead_pairs.append(pair)
     ahead_pairs = ahead_pairs[:max(0, min(AHEAD_MAX_PER_CONN, MAX_BARS_PAIRS - len(pairs)))]
 
+    # ⭐ (2026-11-25) every frame's contract identity (bar_contract.stream_fields) needs bars_fetch, whose
+    # first import costs ~1.5-2 s (massive, yf_util ...). On a pod where nothing else imported it yet
+    # (stream-edge after a restart) that import ran on THIS event loop under the first frame, holding
+    # every member's stream behind it. The first opens import it on a thread, before any queue exists.
+    # (review of #2748, F1) a failing import must not fail the stream: before the warm-up existed the same
+    # import ran inside _contract_event's catch-all and cost only the identity fields. `done` is set on both
+    # outcomes (one attempt per process), never in a `finally`: a client gone mid-import (CancelledError) leaves
+    # it unset so the next open tries again.
+    if not _contract_warm["done"]:
+        try:
+            await asyncio.to_thread(_warm_contract_imports)
+            _contract_warm["done"] = True
+        except Exception as e:  # noqa: BLE001
+            _contract_warm["done"] = True
+            _logger.warning("[stream_bars] contract warm-up failed (%s: %s): frames go out without identity fields",
+                            type(e).__name__, str(e)[:160])
+
     # Admission BEFORE the broadcaster subscribe, for the same reason as
     # /api/stream/prices: a refused connection must leave no queues behind.
     _token = subscribe("bars")
@@ -799,6 +859,12 @@ async def stream_bars(
         for (sym, tf) in pairs + ahead_pairs:
             queues.append((sym, tf, _sub(sym, tf)))
         from api.services import bar_contract as _bar_contract
+        # the pairs' series_rev reads start now, on bar_contract's worker pool (never this loop),
+        # so the first frames of a new chart already carry the store's rev
+        try:
+            _bar_contract.prefetch_stream_fields(pairs + ahead_pairs, session)
+        except Exception:  # noqa: BLE001 - identity is additive; a failed prefetch only means a null rev for ~1 read
+            pass
         _logger.info("[stream_bars] subscribed %d pairs (+%d ahead): %s", len(pairs), n_ahead, pairs[:10])
         # D8: fold the day's stored/REST minute bars into each symbol's minute map
         # (once per upstream subscription) so a mid-bucket subscriber gets the true
@@ -857,6 +923,9 @@ async def stream_bars(
             while True:
                 if await request.is_disconnected():
                     break
+                # every bar frame this wake produces, written in ONE chunk below (in the order produced:
+                # each pair's frames in queue order, the chart's pairs before the rows ahead)
+                out: list = []
                 if feed_live is not None:
                     try:
                         live = bool(feed_live())
@@ -883,13 +952,13 @@ async def stream_bars(
                         continue
                     del getters[i]
                     msg = task.result()
-                    yield _frame("bars", json.dumps(_lat_fields(_contract_event(_bar_contract, msg, session), lat_on)), "bar")
+                    out.append(_frame("bars", _encode_bar_event(_bar_contract, msg, session, lat_on), "bar"))
                     while True:
                         try:
                             msg = q.get_nowait()
                         except asyncio.QueueEmpty:
                             break
-                        yield _frame("bars", json.dumps(_lat_fields(_contract_event(_bar_contract, msg, session), lat_on)), "bar")
+                        out.append(_frame("bars", _encode_bar_event(_bar_contract, msg, session, lat_on), "bar"))
 
                 # the rows ahead: drained here, never awaited (see AHEAD_INTERVAL_S)
                 if n_ahead:
@@ -917,7 +986,7 @@ async def stream_bars(
                                     ahead_pend.pop(j, None)
                                 elif held is not None and final and (held.get("bar") or {}).get("t") == t:
                                     ahead_pend.pop(j, None)
-                                yield _frame("bars", json.dumps(_lat_fields(_contract_event(_bar_contract, msg, session), lat_on)), "bar")
+                                out.append(_frame("bars", _encode_bar_event(_bar_contract, msg, session, lat_on), "bar"))
                                 if not final:
                                     ahead_sent[j] = (t, now_m)
                             else:
@@ -926,8 +995,11 @@ async def stream_bars(
                         last = ahead_sent.get(j)
                         if held is not None and last is not None and now_m - last[1] >= AHEAD_INTERVAL_S:
                             ahead_pend.pop(j, None)
-                            yield _frame("bars", json.dumps(_lat_fields(_contract_event(_bar_contract, held, session), lat_on)), "bar")
+                            out.append(_frame("bars", _encode_bar_event(_bar_contract, held, session, lat_on), "bar"))
                             ahead_sent[j] = ((held.get("bar") or {}).get("t"), now_m)
+
+                if out:
+                    yield "".join(out)
 
                 if time.time() - last_heartbeat > 15:
                     # NAMED event (not a `:` comment): a bare comment keeps the

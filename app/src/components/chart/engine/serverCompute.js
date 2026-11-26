@@ -1542,7 +1542,7 @@ export function serverColumnsFor(def, bars, inputs, ctx) {
     scalars: parsed.payload || null, sym, tf: ctx.tf,
     newestBarIsForming: ctx.newestBarIsForming,
     timeKey: barTimeKey,
-    tail: (benchSym, tf) => benchmarkTailFor(benchSym, tf),
+    tail: (benchSym, tf) => benchmarkTailFor(benchSym, tf, { extended: !!ctx.extended }),   // the chart's own session
   })
   // ⭐ 2026-11-12 — a declared `rescale` multiplies the drawn columns by ONE factor,
   // read off the envelope's own cells (`rescaleFactor`), AFTER the live tail: the

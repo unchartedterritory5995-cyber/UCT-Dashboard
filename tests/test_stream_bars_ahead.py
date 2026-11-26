@@ -176,9 +176,11 @@ def _stream(fake, script, bars="AAPL:1", ahead="MSFT:1"):
 
         async def reader():
             async for chunk in resp.body_iterator:
-                if "event: bar" in chunk:
-                    d = _json.loads(chunk.split("data: ", 1)[1].strip())
-                    got.append((_t.monotonic(), d["sym"], d["bar"]["t"], d["bar"]["c"], bool(d["bar"].get("final"))))
+                # a wake's frames leave in ONE chunk (serialise-once, 2026-11-25): read each SSE event in it
+                for event in chunk.split("\n\n"):
+                    if "event: bar" in event:
+                        d = _json.loads(event.split("data: ", 1)[1].strip())
+                        got.append((_t.monotonic(), d["sym"], d["bar"]["t"], d["bar"]["c"], bool(d["bar"].get("final"))))
 
         task = asyncio.ensure_future(reader())
         try:

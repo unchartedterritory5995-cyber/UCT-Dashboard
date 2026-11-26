@@ -30,6 +30,24 @@ export function scanNeighbors(flat, idx, dir = 1, { ahead = 6, behind = 2 } = {}
 // jump lands on. The stride just taken (the shortest way round, as the nav wraps) is the best guess for the next one,
 // in its own direction. null for a step of one row (the next-row warm has it), the first selection, a list too short
 // to jump in, and a stride that lands back on the selected row or the row the jump came from.
+/** The signed stride of a jump from `prevIdx` to `idx` (wrap-aware, the shorter way round), or 0 when it is no jump: a move
+ *  of under two rows, the same row, an index outside the list, a list under three rows. */
+export function jumpStride(flat, idx, prevIdx) {
+  const len = Array.isArray(flat) ? flat.length : 0
+  if (len < 3 || idx < 0 || idx >= len || prevIdx < 0 || prevIdx >= len) return 0
+  let d = (((idx - prevIdx) % len) + len) % len
+  if (d > len / 2) d -= len
+  return Math.abs(d) < 2 ? 0 : d
+}
+
+/** The row `stride` rows on from `idx` (wrap-aware), or null for no stride, an index outside the list, or the row itself. */
+export function strideTarget(flat, idx, stride) {
+  const len = Array.isArray(flat) ? flat.length : 0
+  if (!stride || len < 3 || idx < 0 || idx >= len) return null
+  const s = flat[(((idx + stride) % len) + len) % len]
+  return s && s !== flat[idx] ? s : null
+}
+
 export function jumpTarget(flat, idx, prevIdx) {
   const len = Array.isArray(flat) ? flat.length : 0
   if (len < 3 || idx < 0 || idx >= len || prevIdx < 0 || prevIdx >= len) return null

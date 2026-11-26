@@ -411,9 +411,13 @@ Consistency with REST:
   `t`); `final: true` = the bucket CLOSED in the feed's view (not a seal). Completeness is
   only ever asserted by REST `complete_through` (the stream proves nothing about the
   store); a later `final` frame for the same `t` is a correction.
-- `series_rev` is the store's rev (cached up to 1 s); a frame never bumps it — the push
-  feed does not write rows. When REST `series_rev` moves past what a client holds, the
-  client re-reads REST.
+- `series_rev` is the store's rev as last READ, refreshed off the stream's event loop at most
+  once a second per series (stale-while-revalidate, 2026-11-25): on a frame it may LAG the
+  store by one read, and it is `null` until the series' first read lands (normally before the
+  first frame: the read starts when the stream opens) or when the store cannot be read. A frame
+  never bumps it — the push feed does not write rows — and a stream frame's `series_rev` must
+  never drive invalidation. When REST `series_rev` moves past what a client holds, the client
+  re-reads REST.
 
 ## 6. Session clock (one implementation)
 

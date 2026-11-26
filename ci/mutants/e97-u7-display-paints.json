@@ -1,0 +1,113 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "U7-M1",
+   "mutant": "an unreadable band display guessed as drawn",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    if (bandDisplay.unread) {",
+   "to": "    if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/displayPaints.test.js",
+   "expectRed": "an unreadable display WITHHOLDS the band"
+  },
+  {
+   "id": "U7-M2",
+   "mutant": "the door drops a band's setting-decided display (drawn at every setting)",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "      if (f.hiddenWhen) row.fill.hiddenWhen = f.hiddenWhen",
+   "to": "      void 0",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/displayPaints.test.js",
+   "expectRed": "hidden at the default, drawn when the member turns it on"
+  },
+  {
+   "id": "U7-M3",
+   "mutant": "the binder ignores a band's hiddenWhen",
+   "file": "app/src/components/chart/engine/binder.js",
+   "from": "  if (fillSpec.hiddenWhen !== undefined",
+   "to": "  if (false",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/displayPaints.test.js",
+   "expectRed": "hidden at the default, drawn when the member turns it on"
+  },
+  {
+   "id": "U7-M4",
+   "mutant": "a band its author hid (display.none) is drawn",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "      if (f.hidden === true) continue",
+   "to": "      void 0",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/displayPaints.test.js",
+   "expectRed": "is not drawn (TradingView draws nothing)"
+  },
+  {
+   "id": "U7-M5",
+   "mutant": "a paint's setting-decided display is not carried",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    else if (d.when) rec.hiddenWhen = d.when",
+   "to": "    else if (false) rec.hiddenWhen = d.when",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/displayPaints.test.js",
+   "expectRed": "decided by the instance's setting"
+  },
+  {
+   "id": "U7-M6",
+   "mutant": "the binder draws a paint the instance hides",
+   "file": "app/src/components/chart/engine/binder.js",
+   "from": "        if (plotHiddenAt(p, def, inst.inputs)) return",
+   "to": "        void 0",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/displayPaints.test.js",
+   "expectRed": "the binder asks plotHiddenAt for every paint"
+  },
+  {
+   "id": "U7-M7",
+   "mutant": "the guide planner ignores a level's hiddenWhen",
+   "file": "app/src/components/chart/engine/pool.js",
+   "from": "      .filter(p => plotActiveFor(p, def, inst.inputs, declared) && !(plotHidden && plotHidden(p, def, inst.inputs)))",
+   "to": "      .filter(p => plotActiveFor(p, def, inst.inputs, declared))",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/displayPaints.test.js",
+   "expectRed": "the planner hangs it only while the instance shows it"
+  },
+  {
+   "id": "U7-M8",
+   "mutant": "a level's setting-decided display is not carried",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "        hiddenWhen = d.when",
+   "to": "        hiddenWhen = null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/displayPaints.test.js",
+   "expectRed": "the guide carries `hiddenWhen`"
+  },
+  {
+   "id": "U7-M9",
+   "mutant": "a host-lane level the translation could not read is silent on the member's pane again",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "  for (const n of [...levelNotesOf(levelPlan), ...levelsWithheldNotesOf(t), ...bandDisplayWithheldNotesOf(t), ...withheldSettingNotes]) {",
+   "to": "  for (const n of [...levelNotesOf(levelPlan), ...bandDisplayWithheldNotesOf(t), ...withheldSettingNotes]) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/displayPaints.test.js",
+   "expectRed": "SAID on the member's pane"
+  },
+  {
+   "id": "U7-M10",
+   "mutant": "a bare input(true) is not a knob leaf (the proof declines; no control)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    const entry = [...this.usedInputs.values()].find((e) => e && e.name === node.name && (e.call === 'input.bool' || e.call === 'input'))",
+   "to": "    const entry = [...this.usedInputs.values()].find((e) => e && e.name === node.name && e.call === 'input.bool')",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/displayPaints.test.js",
+   "expectRed": "a bare `input(true)` setting"
+  },
+  {
+   "id": "U7-M11",
+   "mutant": "the browser validator accepts any operator in fill.hiddenWhen",
+   "file": "app/src/components/chart/engine/defSchema.js",
+   "from": "    if (why) errors.push(`${path}.fill.hiddenWhen: ${why}`)",
+   "to": "    if (false) errors.push(`${path}.fill.hiddenWhen: ${why}`)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__truth__/p2.policy.truth.test.js",
+   "expectRed": "fill.hiddenWhen holds arithmetic"
+  },
+  {
+   "id": "U7-M12",
+   "mutant": "a display read mints a parameter id (every later id moves)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    this.paramMint = null // displayOfNode",
+   "to": "    void 0 // displayOfNode",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/displayPaints.test.js",
+   "expectRed": "parameter ids do not move"
+  }
+ ]
+}

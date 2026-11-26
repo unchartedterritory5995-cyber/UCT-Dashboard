@@ -45,6 +45,7 @@ const BARS_PATH = '/api/bars/'
 // until a capture witnesses how TradingView builds it.
 import { baseBarsFor, fetchTf, resampleSpec } from '../timeframes'
 import { resampleForSpec } from '../../../utils/resampleBars'
+import { viewShowExtended } from '../../../utils/viewSession'
 
 /**
  * The request URL for one (symbol, timeframe, count).
@@ -64,12 +65,22 @@ import { resampleForSpec } from '../../../utils/resampleBars'
  *
  * @returns {string|null} null when there is nothing to ask for.
  */
-export function secondaryBarsUrl(symbol, tf, bars) {
+export function secondaryBarsUrl(symbol, tf, bars, { session = null, extended } = {}) {
   const s = typeof symbol === 'string' ? symbol.trim().toUpperCase() : ''
   if (!s) return null
   const count = askedBarsOf(bars)
   const code = tf == null || tf === '' ? 'D' : String(tf)
-  return `${BARS_PATH}${encodeURIComponent(s)}?tf=${encodeURIComponent(code)}&bars=${count}`
+  // ⭐ (2026-11-25) a CUSTOM intraday code on the extended view is its own answer (its buckets start at 04:00 ET, not
+  // 09:30): keyed with the session, and its base asked on the extended grid where that grid differs (`secondaryFetchOf`)
+  const sess = session ?? (_extendedCustom(code, extended) ? 'eth' : null)
+  return `${BARS_PATH}${encodeURIComponent(s)}?tf=${encodeURIComponent(code)}&bars=${count}${sess ? `&session=${sess}` : ''}`
+}
+
+/** Is `code` a custom intraday timeframe drawn on the extended view? `extended`: the CHART's own session (review of
+ *  #2753: two charts of one board can differ); a caller that names none reads the page's view (utils/viewSession). */
+function _extendedCustom(code, extended) {
+  if (!(extended ?? viewShowExtended())) return false
+  return resampleSpec(code)?.kind === 'intradaySession'
 }
 
 /** The `bars=` a window asks for (what `secondaryBarsUrl` puts in its URL). */
@@ -92,14 +103,16 @@ export function baseAskOf(tf, bars) {
  * `baseAskOf` rows. One function, so the fetch and the tail fetch can never disagree about the base.
  * @returns {{url: string, fetchUrl: string, spec: object|null, baseAsk: number}|null}
  */
-export function secondaryFetchOf(symbol, tf, bars) {
-  const url = secondaryBarsUrl(symbol, tf, bars)
+export function secondaryFetchOf(symbol, tf, bars, { extended } = {}) {
+  const url = secondaryBarsUrl(symbol, tf, bars, { extended })
   if (!url) return null
   const code = tf == null || tf === '' ? 'D' : String(tf)
-  const spec = resampleSpec(code)
+  const ext = _extendedCustom(code, extended)
+  const spec = resampleSpec(code, { extended: ext })
   if (!spec) return { url, fetchUrl: url, spec: null, baseAsk: askedBarsOf(bars) }
   const baseAsk = baseAskOf(code, bars)
-  return { url, fetchUrl: secondaryBarsUrl(symbol, fetchTf(code), baseAsk), spec, baseAsk }
+  // (the base asks the extended grid only where it differs: 60m's clock grid; 1/5/15/30m are one grid in both views)
+  return { url, fetchUrl: secondaryBarsUrl(symbol, fetchTf(code), baseAsk, { session: ext && spec.base === '60' ? 'eth' : null, extended: false }), spec, baseAsk }
 }
 
 const _ET_PARTS = new Intl.DateTimeFormat('en-US', {
@@ -122,7 +135,8 @@ export function offSessionRowOf(baseBars, spec) {
     for (const b of baseBars) {
       if (!b || typeof b.t !== 'number') continue
       const { wd, min } = _etWhen(b.t)
-      if (_WEEKEND.has(wd) || min < 240 || min >= 1200 || (((min - 570) % step) + step) % step !== 0) {
+      const anchor = Number.isFinite(spec.anchorMin) ? spec.anchorMin : 570   // the spec's session start (09:30 / 04:00 ET)
+      if (_WEEKEND.has(wd) || min < 240 || min >= 1200 || (((min - anchor) % step) + step) % step !== 0) {
         return `a ${step}-minute bar at ${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')} ET on a ${wd}`
       }
     }
@@ -410,8 +424,8 @@ function _read(payload, asked) {
  * that fetches cannot be called from a test or a probe without paying for a
  * request.
  */
-export function cachedBars(symbol, tf, bars) {
-  const url = secondaryBarsUrl(symbol, tf, bars)
+export function cachedBars(symbol, tf, bars, opts = {}) {
+  const url = secondaryBarsUrl(symbol, tf, bars, { extended: opts.extended })
   if (!url) return null
   const hit = _cache.get(url)
   return hit === undefined ? null : hit
@@ -455,8 +469,8 @@ export function anyCachedBars(symbol) {
  * which is the PAINT path and runs on every tick; this is the primitive that
  * means "ask now", and a caller reaching for it directly has already decided to.
  */
-export function fetchSecondaryBars(symbol, tf, bars, fetcher) {
-  const wire = secondaryFetchOf(symbol, tf, bars)
+export function fetchSecondaryBars(symbol, tf, bars, fetcher, opts = {}) {
+  const wire = secondaryFetchOf(symbol, tf, bars, opts)
   if (!wire) return Promise.resolve(null)
   const { url } = wire
   const existing = _inflight.get(url)
@@ -553,17 +567,17 @@ function _defaultFetch(url) {
  * chart runs this on every tick, so "ask again next time" and "ask again
  * hundreds of times a minute" are the same sentence written twice.
  */
-export function ensureSecondaryBars(symbol, tf, bars, fetcher) {
-  const hit = cachedBars(symbol, tf, bars)
+export function ensureSecondaryBars(symbol, tf, bars, fetcher, opts = {}) {
+  const hit = cachedBars(symbol, tf, bars, opts)
   if (hit) return hit
-  const url = secondaryBarsUrl(symbol, tf, bars)
+  const url = secondaryBarsUrl(symbol, tf, bars, { extended: opts.extended })
   if (!url) return null
   // ⭐ A FAILING URL ANSWERS ERROR AND ASKS FOR NOTHING until its wait elapses —
   // the same object every paint, so the hook's identity check sees no change.
   // The wake-up is the ONE notification `_armRetry`'s timer fires.
   const waiting = _retry.get(url)
   if (waiting && !waiting.ready && !_inflight.has(url)) return waiting.entry
-  if (!_inflight.has(url)) fetchSecondaryBars(symbol, tf, bars, fetcher)
+  if (!_inflight.has(url)) fetchSecondaryBars(symbol, tf, bars, fetcher, opts)
   return { bars: [], status: SOURCE_STATUS.LOADING }
 }
 
@@ -576,10 +590,10 @@ export function ensureSecondaryBars(symbol, tf, bars, fetcher) {
  *
  * @returns {Map<string, {bars, status}>} keyed by canonical symbol
  */
-export function ensureAll(symbols, tf, bars, fetcher) {
+export function ensureAll(symbols, tf, bars, fetcher, opts = {}) {
   const out = new Map()
   for (const symbol of (Array.isArray(symbols) ? symbols : [])) {
-    const entry = ensureSecondaryBars(symbol, tf, bars, fetcher)
+    const entry = ensureSecondaryBars(symbol, tf, bars, fetcher, opts)
     if (entry) out.set(symbol, entry)
   }
   return out
@@ -595,8 +609,8 @@ export function ensureAll(symbols, tf, bars, fetcher) {
  * it to get that saving. `primeServerColumns` exists for exactly this reason and
  * for exactly these stakes.
  */
-export function primeSecondaryBars(symbol, tf, bars, payload) {
-  const wire = secondaryFetchOf(symbol, tf, bars)
+export function primeSecondaryBars(symbol, tf, bars, payload, opts = {}) {
+  const wire = secondaryFetchOf(symbol, tf, bars, opts)
   if (!wire) return null
   const { url } = wire
   // ⛔ (e95) a custom timeframe is never primed: the payload a caller holds is not known to be this window's base page
@@ -651,9 +665,9 @@ export function mergeTail(held, tail) {
  * ⛔ Throttled per window (`REFRESH_MIN_MS`, shared with `refreshSecondaryBars`) and deduped in flight.
  * @returns {boolean} whether a fetch was started
  */
-export function refreshSecondaryTail(symbol, tf, bars, fetcher) {
-  const wire = secondaryFetchOf(symbol, tf, bars)
-  const tailWire = secondaryFetchOf(symbol, tf, TAIL_BARS)
+export function refreshSecondaryTail(symbol, tf, bars, fetcher, opts = {}) {
+  const wire = secondaryFetchOf(symbol, tf, bars, opts)
+  const tailWire = secondaryFetchOf(symbol, tf, TAIL_BARS, opts)
   const url = wire && wire.url
   // ⭐ (e95) a custom timeframe's tail is its base's newest rows, resampled: its first bucket may be partial and is
   // dropped (`_readCustom`), so the merged tail starts on a whole bucket the held rows already hold
@@ -675,7 +689,7 @@ export function refreshSecondaryTail(symbol, tf, bars, fetcher) {
       const merged = mergeTail(cur.bars, tail.bars)
       if (!merged) {
         _lastRefresh.delete(url)
-        refreshSecondaryBars(symbol, tf, bars, fetcher)
+        refreshSecondaryBars(symbol, tf, bars, fetcher, opts)   // the same chart's session (review of #2753, round 2)
         return cur
       }
       const flagged = Object.prototype.hasOwnProperty.call(tail, 'newestBarIsForming')
@@ -738,8 +752,8 @@ const _lastRefresh = new Map()   // url -> ms
  *
  * @returns {boolean} whether a fetch was started
  */
-export function refreshSecondaryBars(symbol, tf, bars, fetcher) {
-  const wire = secondaryFetchOf(symbol, tf, bars)
+export function refreshSecondaryBars(symbol, tf, bars, fetcher, opts = {}) {
+  const wire = secondaryFetchOf(symbol, tf, bars, opts)
   const url = wire && wire.url
   if (!url || _inflight.has(url)) return false
   const now = Date.now()

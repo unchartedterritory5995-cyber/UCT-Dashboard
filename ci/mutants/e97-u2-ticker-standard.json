@@ -1,0 +1,41 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "U2-T1",
+   "mutant": "ticker.standard is not read as a symbol again (the fold removed)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    if (node && node.type === 'call' && node.name === 'ticker.standard') {",
+   "to": "    if (false && node && node.type === 'call' && node.name === 'ticker.standard') {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pine.tickerStandard.test.js",
+   "expectRed": "the reference example on a daily chart"
+  },
+  {
+   "id": "U2-T2",
+   "mutant": "ticker.standard() with no argument is not the chart's own",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "      if (sargs.length === 0) return { type: 'name', name: 'syminfo.tickerid', tok: node.tok }",
+   "to": "      if (sargs.length === 0) return null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pine.tickerStandard.test.js",
+   "expectRed": "with no argument"
+  },
+  {
+   "id": "U2-T3",
+   "mutant": "a second argument to ticker.standard is ignored and the call served",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "      if (sargs.length !== 1 || (sargs[0].name && sargs[0].name !== 'symbol')) return null",
+   "to": "      if (sargs[0].name && sargs[0].name !== 'symbol') return null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pine.tickerStandard.test.js",
+   "expectRed": "a non-standard chart type stays refused"
+  },
+  {
+   "id": "U2-T4",
+   "mutant": "an extended session inside the ticker that ticker.standard wraps is folded onto the regular session",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "      const spelled = this.builtinNameThrough(a.value)\n      if (spelled !== 'session.regular') return null",
+   "to": "      const spelled = this.builtinNameThrough(a.value)\n      if (false && spelled !== 'session.regular') return null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pine.tickerStandard.test.js",
+   "expectRed": "an extended session stays refused"
+  }
+ ]
+}

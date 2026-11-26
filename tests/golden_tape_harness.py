@@ -85,14 +85,15 @@ def _pinned_condition_rules():
     fallback table for the run: a provider rules load (trade_conditions.load_from_provider,
     e.g. from an app-lifespan test with a key set) must not change the goldens."""
     from api.services import trade_conditions as tc
-    saved = (tc.FILTER_ENABLED, tc._hl_ineligible, tc._last_ineligible)
+    saved = (tc.FILTER_ENABLED, tc._hl_ineligible, tc._last_ineligible, tc._vol_ineligible)
     tc.FILTER_ENABLED = True
     tc._hl_ineligible = set(tc._HL_INELIGIBLE_FALLBACK) - tc._SESSION_CODES
     tc._last_ineligible = set(tc._LAST_INELIGIBLE_FALLBACK) - tc._SESSION_CODES
+    tc._vol_ineligible = set(tc._VOL_INELIGIBLE_FALLBACK) - tc._SESSION_CODES
     try:
         yield
     finally:
-        tc.FILTER_ENABLED, tc._hl_ineligible, tc._last_ineligible = saved
+        tc.FILTER_ENABLED, tc._hl_ineligible, tc._last_ineligible, tc._vol_ineligible = saved
 
 
 class _TapeEnd(BaseException):
