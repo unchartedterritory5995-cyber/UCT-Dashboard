@@ -131,8 +131,8 @@
    "id": "E1-L15",
    "mutant": "the shared knob evaluator reads a bare number as unevaluable (U6's hiddenWhen and E1's arms both ask it)",
    "file": "app/src/components/chart/engine/knobBind.js",
-   "from": "  if (tree.type === 'num') return typeof tree.value === 'number' && Number.isFinite(tree.value) ? tree.value : null",
-   "to": "  if (tree.type === 'num') return null",
+   "from": "  if (tree.type === 'num') return typeof tree.value === 'number' && Number.isFinite(tree.value) ? tree.value : null\n  return knobTestValue(tree, displayConstsFor(def, inputs))",
+   "to": "  if (tree.type === 'num') return null\n  return knobTestValue(tree, displayConstsFor(def, inputs))",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/plotLineStyle.test.js",
    "expectRed": "a knob test is evaluated by the ONE helper"
   }
