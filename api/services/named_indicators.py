@@ -445,6 +445,15 @@ def _site_value(node: Any, lib: Mapping[str, Any], param: Mapping[str, Any], inp
     return True, ("num", float(v))
 
 
+def _call_name(node: Mapping[str, Any]) -> Any:
+    """A node's name, with a house function and its Pine-parity twin read as ONE (`ast_table.PINE_TWINS`): the
+    words door builds the twin (2026-11-26), and the library's checked formulas are written with the house name,
+    so a library indicator the door built is still recognised as that indicator."""
+    from api.services import ast_table
+    name = node.get("name")
+    return ast_table.PINE_TWINS.get(name, name) if node.get("type") == "call" else name
+
+
 def _same(node: Any, lib: Any, path: Tuple[int, ...], sites: Mapping[Tuple[int, ...], str],
           params: Mapping[str, Mapping[str, Any]], inputs: frozenset, bound: Dict[str, Any]) -> bool:
     if not isinstance(node, dict) or not isinstance(lib, dict):
@@ -456,7 +465,7 @@ def _same(node: Any, lib: Any, path: Tuple[int, ...], sites: Mapping[Tuple[int, 
             return False
         if lib.get("type") == "num":
             return True                                         # a number: nothing beneath it
-    elif node.get("type") != lib.get("type") or node.get("name") != lib.get("name") or node.get("value") != lib.get("value"):
+    elif node.get("type") != lib.get("type") or _call_name(node) != _call_name(lib) or node.get("value") != lib.get("value"):
         return False
     if key is not None and (node.get("type") != lib.get("type") or node.get("name") != lib.get("name")):
         return False

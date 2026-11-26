@@ -44,9 +44,9 @@ def test_ASKED_red_over_5__ANSWERED_with_the_outputs_key__DID_one_call_with_the_
     assert r["ok"] is True and r["attempts"] == 1 and len(client.calls) == 1
     assert r["usage"]["repair_gate"] is None and r["usage"]["mended"] == "output-ref"
     when = r["envelope"]["ops"][1]["states"][0]["when"]
-    assert when == op(">", DIST, num(5))                     # the same tree the key names
+    assert when == conv.pine_twin_tree(op(">", DIST, num(5)))   # the same tree the key names, as the door builds it
     assert "atrDist" not in json.dumps(when)
-    assert r["envelope"]["ops"][0]["outputs"][0]["tree"] == DIST      # the output itself is untouched
+    assert r["envelope"]["ops"][0]["outputs"][0]["tree"] == conv.pine_twin_tree(DIST)   # the output itself is untouched  # as the door builds it (TradingView's twin): test_words_door_builds_pine_twins
 
 
 def test_a_second_output_built_from_the_first_by_its_key_is_written_out_too(conv, model):
@@ -56,7 +56,7 @@ def test_a_second_output_built_from_the_first_by_its_key_is_written_out_too(conv
     model([emits(e)])
     r = conv.converse(ASK, user_id="u1", view=empty_view(0))
     assert r["ok"] is True and r["attempts"] == 1 and r["usage"]["mended"] == "output-ref"
-    assert r["envelope"]["ops"][0]["outputs"][1]["tree"] == call("sma", DIST, num(10))
+    assert r["envelope"]["ops"][0]["outputs"][1]["tree"] == conv.pine_twin_tree(call("sma", DIST, num(10)))  # as the door builds it (TradingView's twin): test_words_door_builds_pine_twins
 
 
 def test_an_existing_outputs_key_read_in_a_refinement_is_written_out_from_the_view(conv, model):
@@ -66,7 +66,7 @@ def test_an_existing_outputs_key_read_in_a_refinement_is_written_out_from_the_vi
     model([emits(e)])
     r = conv.converse("colour it red above 5", user_id="u1", view=v)
     assert r["ok"] is True and r["attempts"] == 1 and r["usage"]["mended"] == "output-ref"
-    assert r["envelope"]["ops"][0]["states"][0]["when"] == op(">", DIST, num(5))
+    assert r["envelope"]["ops"][0]["states"][0]["when"] == conv.pine_twin_tree(op(">", DIST, num(5)))  # as the door builds it (TradingView's twin): test_words_door_builds_pine_twins
 
 
 def test_CONTROL_an_output_that_reads_ITSELF_is_not_written_out_and_is_refused_as_before(conv, model):

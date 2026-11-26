@@ -3072,6 +3072,31 @@ def _trees_of(envelope: Mapping[str, Any]) -> List[Tuple[str, Any]]:
     return out
 
 
+def with_pine_twins(envelope: Mapping[str, Any]) -> Dict[str, Any]:
+    """⭐ 2026-11-26 -- THE WORDS DOOR BUILDS TRADINGVIEW'S CALCULATION WHERE THE ENGINE HAS ONE (coordinator's
+    ruling). The fifty-set probe (live, admin measurement): "the 5 bar ATR divided by the 50 bar ATR" was built
+    with the house `atr` (Wilder's original, true range from bar 1), which reads 4.35% below TradingView's
+    `ta.atr(14)` at its first value and 1.4% below twenty bars on, the left edge a member compares. Every call
+    to a function with a Pine-parity twin (`ast_table.PINE_TWINS`: `atr`, `stoch`, `mfi`) is written as the twin;
+    the arguments are the same. Runs AFTER `check_named` (the library's checked formulas carry the house name,
+    and `named_indicators` reads a house name and its twin as one). ⛔ The native indicators, ThinkScript and
+    the pattern levels are other doors and keep the house calculation. Returns a NEW envelope."""
+    from api.services import ast_table
+    twins = ast_table.PINE_TWINS
+    out = copy.deepcopy(dict(envelope))
+    for where, tree in _trees_of(out):
+        for node in _walk(tree):
+            if node.get("type") == "call" and node.get("name") in twins:
+                node["name"] = twins[node["name"]]
+    return out
+
+
+def pine_twin_tree(tree: Any) -> Any:
+    """One tree as the words door builds it (`with_pine_twins`): every house call with a Pine-parity twin
+    written as the twin. A NEW tree."""
+    return with_pine_twins({"ops": [{"op": "tree", "tree": tree}]})["ops"][0]["tree"]
+
+
 def _walk(tree: Any):
     stack = [tree]
     while stack:
@@ -6520,6 +6545,7 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
             check_output_renames(envelope, message, view, turns)
             check_named(envelope, view, named)                 # a named indicator is its checked formula, or nothing
             check_withheld(envelope, withheld, understood_turn.get("member_names"))   # an unchecked name is never written
+            envelope = with_pine_twins(envelope)              # TradingView's calculation where the engine has it
             envelope = with_running_value_notes(envelope)      # the door says where a running value starts
             envelope = _with_door_notes(envelope, named_notes(envelope, view, named))
             envelope = _with_door_notes(envelope, own_words_notes(envelope, own_words))
