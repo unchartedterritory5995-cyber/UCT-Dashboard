@@ -1811,14 +1811,11 @@ async def _history_thread(fn, *args, **kwargs):
     return await _anyio.to_thread.run_sync(_partial(fn, *args, **kwargs), limiter=_history_limiter())
 
 
-async def _history_gate_run(request, fn, *args):
-    return await _history_thread(fn, *args)
-
-
 # `require_bars_access`, run on this route's own limiter (see BARS_HISTORY_THREADS). Built by
-# `bars_auth.require_bars_access_on`, never by hand here: the gate is called in a thread, not `Depends`-ed, and
-# the auth auditors recognise the factory's products by identity (a hand-built wrapper turned master red, #2741).
-require_bars_access_history = require_bars_access_on(_history_gate_run, "require_bars_access_history")
+# `bars_auth.require_bars_access_on`, never by hand here: the factory calls the gate itself in a thread on the
+# limiter it is given, and the auth auditors recognise its products by identity (a hand-built wrapper, which they
+# could not see, turned master red with #2741).
+require_bars_access_history = require_bars_access_on(lambda request: _history_limiter(), "require_bars_access_history")
 
 
 @router.get("/api/bars-history/{ticker}")
