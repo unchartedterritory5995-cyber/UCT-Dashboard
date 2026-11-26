@@ -14,7 +14,7 @@
 //
 // `t` is an ISO date string ("YYYY-MM-DD"), as /api/bars returns for D/W/M.
 
-import { isRthBar } from '../components/chart/barTime'
+import { isRthBar, etMinuteOfDay } from '../components/chart/barTime'
 import { INTRADAY_ANCHOR_MIN } from '../components/chart/timeframes'
 
 // The Friday of the ISO week containing ISO date `t`. ISO weeks are Mon-Sun, so
@@ -90,14 +90,26 @@ export function resample(bars, fromTf, toTf) {
 // bar's `t`. Buckets are STABLE (a bar's bucket never changes as new bars arrive)
 // so the developing bar updates in place instead of the whole series re-bucketing.
 
-// ET hours+minutes for a UTC-seconds timestamp (intraday `t` is unix seconds).
+// ET hours+minutes for a UTC-seconds timestamp (intraday `t` is unix seconds), as h * 60 + m.
+// ⛔⛔ (2026-11-26, measured on production's build: a 4h regular board's symbol switch spent 784-950 ms of its KEY
+// TASK here, and as much again a second later). This built a NEW `Intl.DateTimeFormat` on every call, and the
+// session key calls it once per base row: tens of thousands of formatter constructions per custom-intraday
+// resample, on every switch, since 2026-07-17. It now reads barTime's ET offset, which is memoised per UTC day
+// (`etOffsetSec`: two formatToParts per new day, an exact {a, b, at} on the two DST days, a map hit per row), so a
+// resample pays at most two Intl reads per day and constructs no formatter. ONE authority for ET wall time.
+// The old reading's one engine quirk is kept, byte for byte: an `hour12: false` en-US formatter may print the
+// midnight hour as 24 (the h24 cycle), so 00:xx read as 1440 + xx there. `_MIDNIGHT_HOUR` asks the engine once.
+const _MIDNIGHT_HOUR = (() => {
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: false,
+    }).formatToParts(new Date(Date.UTC(2026, 0, 15, 5, 0)))        // 2026-01-15 00:00 ET (EST)
+    return +parts.find(p => p.type === 'hour').value
+  } catch { return 0 }
+})()
 function _etHM(tSec) {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: false,
-  }).formatToParts(new Date(tSec * 1000))
-  const h = +parts.find(p => p.type === 'hour').value
-  const m = +parts.find(p => p.type === 'minute').value
-  return h * 60 + m
+  const m = etMinuteOfDay(+tSec)                     // + : a numeric-string time is read as its number, as before
+  return m < 60 && _MIDNIGHT_HOUR === 24 ? m + 1440 : m
 }
 
 // Intraday minutes/hours, anchored to the SESSION START (TradingView builds intraday bars from it): 09:30 ET for the

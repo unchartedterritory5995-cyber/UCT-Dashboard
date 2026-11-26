@@ -103,7 +103,7 @@ describe('parity with utils/prefetchBars (same mocked server)', () => {
       // DEEP and current (three days of rows, today's tail). A store shorter than half the chart's
       // window is NOT warm in either warmer (#1314); that rule has its own parity suite,
       // prefetch.shortIntraday.test.js.
-      await w.idb.idbPutMonotonic('WARM', '5', intradayRows(5, now - 300, { from: OPEN - 3 * 86400 }))
+      await w.idb.idbPutMonotonic('WARM', '5', intradayRows(5, now - 300, { from: OPEN - 6 * 86400 }))
       api.prefetchBarsToIDB(['WARM', 'COLD'], '5')
       await w.server.drain({ advance: () => tick(1500) })
       return { syms: symsOf(w.server.calls), byKey: countBy(w.server.calls) }
