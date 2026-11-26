@@ -11,8 +11,8 @@
   "committed": {
    "scripts": 266,
    "admitted": 195,
-   "runtimeLane": 50,
-   "hostLane": 63,
+   "runtimeLane": 51,
+   "hostLane": 62,
    "refused": 82,
    "coreOnly": 4
   },
@@ -20779,7 +20779,7 @@
   },
   {
    "key": "committed:opening-range-initial-balance-opening-price__4a7416ab01",
-   "lane": "host",
+   "lane": "runtime",
    "caps": [
     "core",
     "fn-multi",

@@ -2,9 +2,9 @@
 
 Directories: `tests/fixtures/vendor`
 
-Lane: **runtime-on**. LANE MEASURED: runtime-on (gate OPEN, runtime lane reached 627, host refusals 676) · objects-only pane ARMED · runtime drew 279, declined 348 · strategy lane: broker gate ON, 88 graded on their trades, 73 broker run(s)
+Lane: **runtime-on**. LANE MEASURED: runtime-on (gate OPEN, runtime lane reached 631, host refusals 680) · objects-only pane ARMED · runtime drew 283, declined 348 · strategy lane: broker gate ON, 88 graded on their trades, 73 broker run(s)
 
-Graded at script engine **97**.
+Graded at script engine **98**.
 
 ```
 capture                                      symbol/tf        plots  verdict           first divergence / reason
@@ -1137,10 +1137,10 @@ multicator-table-rddt-1d-2026-10-02          NYSE:RDDT 1D     28     DIVERGE    
     Conversion Line                          MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     Base Line                                MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     Lagging Span                             MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
-    Leading Span A                           MATCH             cmp 611 ok 611 warm 0/0 steady 0/611 maxRel 0.00e+0
-    Leading Span B                           MATCH             cmp 611 ok 611 warm 0/0 steady 0/611 maxRel 0.00e+0
-    Kumo Cloud Upper Line                    MATCH             cmp 611 ok 611 warm 0/0 steady 0/611 maxRel 0.00e+0
-    Kumo Cloud Lower Line                    MATCH             cmp 611 ok 611 warm 0/0 steady 0/611 maxRel 0.00e+0
+    Leading Span A                           MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Leading Span B                           MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Kumo Cloud Upper Line                    MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Kumo Cloud Lower Line                    MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     VWAP                                     MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     Supertrend                               MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     Donchian High                            MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
@@ -1167,10 +1167,10 @@ multicator-table-spy-1d-2026-10-02           AMEX:SPY 1D      28     DIVERGE    
     Conversion Line                          MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     Base Line                                MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     Lagging Span                             MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
-    Leading Span A                           MATCH             cmp 1775 ok 1775 warm 0/0 steady 0/1775 maxRel 0.00e+0
-    Leading Span B                           MATCH             cmp 1775 ok 1775 warm 0/0 steady 0/1775 maxRel 0.00e+0
-    Kumo Cloud Upper Line                    MATCH             cmp 1775 ok 1775 warm 0/0 steady 0/1775 maxRel 0.00e+0
-    Kumo Cloud Lower Line                    MATCH             cmp 1775 ok 1775 warm 0/0 steady 0/1775 maxRel 0.00e+0
+    Leading Span A                           MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    Leading Span B                           MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    Kumo Cloud Upper Line                    MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    Kumo Cloud Lower Line                    MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     VWAP                                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     Supertrend                               MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     Donchian High                            MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
