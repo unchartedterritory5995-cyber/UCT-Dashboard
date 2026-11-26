@@ -1531,9 +1531,9 @@ export function serverAskOf(tf, extended) {
  *           arithmetic (`derivedColumns.derivedAverage`). Never the base series' average carried over.
  *   above — the column a band colours by: the 1/0 state of the plot at or above its band partner, REBUILT from the two
  *           folded columns (1 at or above, else 0; NaN where either is NaN, the server's `above_column` rule). Which
- *           column and which pair is the BINDER's answer (`binder.fillStatesOf`, handed in by `adoptFillStates`): it
- *           is the one reader of a plot's band, and this lane reads none. Until the binder has loaded there is no
- *           answer, so the column is withheld (blank on a custom timeframe), never guessed. */
+ *           column and which pair is the BINDER's answer (`binder.fillStatesOf`, handed in by `adoptFillStates` when a
+ *           chart's binder is created): it is the one reader of a plot's band, and this lane reads none. Until a chart
+ *           binds there is no answer, so the column is withheld (blank on a custom timeframe), never guessed. */
 export function customTfFoldsOf(def) {
   const out = {}
   for (const p of def && Array.isArray(def.plots) ? def.plots : []) {
@@ -1552,14 +1552,16 @@ export function customTfFoldsOf(def) {
   return Object.freeze(out)
 }
 
-// The binder's answer to "which column is a band's state, and by what rule" (`binder.fillStatesOf`), handed in when
-// binder.js loads. The version is part of every fold's memo signature, so a fold made before the answer arrived is
-// never served after it.
+// The binder's answer to "which column is a band's state, and by what rule" (`binder.fillStatesOf`), handed in when a
+// chart's binder is created (`createBinder`), never at load. The version is part of every fold's memo signature, so a
+// fold made before the answer arrived is never served after it; handing in the same answer again moves nothing.
 let _fillStatesOf = null
 let _fillStatesVersion = 0
 /** The binder hands the lane its band-state resolver (`binder.fillStatesOf`); null takes it back. */
 export function adoptFillStates(fn) {
-  _fillStatesOf = typeof fn === 'function' ? fn : null
+  const next = typeof fn === 'function' ? fn : null
+  if (next === _fillStatesOf) return
+  _fillStatesOf = next
   _fillStatesVersion += 1
 }
 

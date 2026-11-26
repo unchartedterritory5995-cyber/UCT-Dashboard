@@ -180,9 +180,12 @@ const _projMemo = new WeakMap()
  *  base timeframe's over. A band coloured by a computed column (`colorMode: 'column:<state>'`) beside a partner plot
  *  (`with`) reads `<state>` as 1 where its plot is at or above the partner, else 0 (the server's `above_column` rule):
  *  `{ state, rule: 'above', of: <plot key>, with: <partner key> }`, one per such band, in plot order.
- *  ⛔ HANDED TO THE LANE AT LOAD (`adoptFillStates`, below), NEVER IMPORTED BY IT. serverCompute sits in ten lazy
- *  chunks this module is not in (the formula library, the share panel, the voice layer, the settings modal...); an
- *  import there would carry the renderer and ~70 modules into every one of them, and close a cycle. */
+ *  ⛔ HANDED TO THE LANE WHEN A CHART'S BINDER IS CREATED (`createBinder`, `adoptFillStates`), NEVER IMPORTED BY IT
+ *  AND NEVER AT LOAD. serverCompute sits in ten lazy chunks this module is not in (the formula library, the share
+ *  panel, the voice layer, the settings modal...); an import there would carry the renderer and ~70 modules into
+ *  every one of them, and close a cycle. And a registration at load is one the member door's worker graph would not
+ *  make (memberDoorWorkerGraph.test.js, case 5): no chart there, no band, no answer. Until a chart binds, the lane
+ *  withholds the state column on a custom timeframe rather than guess it. */
 export function fillStatesOf(def) {
   const out = []
   for (const p of def && Array.isArray(def.plots) ? def.plots : []) {
@@ -193,7 +196,6 @@ export function fillStatesOf(def) {
   }
   return Object.freeze(out)
 }
-adoptFillStates(fillStatesOf)
 
 export function fillActiveFor(fillSpec, b) {
   if (!fillSpec) return true
@@ -1230,6 +1232,8 @@ export function plotStripNoticesOf(registry, def, cols) {
 }
 
 export function createBinder({ chart, LWC, scope = '' }) {
+  // the band-state answer (`fillStatesOf`), handed to the server lane as a chart comes to exist, before it computes
+  adoptFillStates(fillStatesOf)
   const noticeScope = typeof scope === 'string' ? scope : ''
   /** Last pass's bindings, each carrying `series`, `guideHandles`, `paneIndex`. */
   let held = []

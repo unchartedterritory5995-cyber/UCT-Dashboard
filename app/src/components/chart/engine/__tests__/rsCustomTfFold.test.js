@@ -18,15 +18,16 @@
 //   F5 native timeframes unchanged: the envelope aligned as it is, no fold
 //   F6 the forming cell unchanged: the live tail's close / benchmark close on the chart's own last bar
 //   F7 the band's state column and its pair are the BINDER's answer (`binder.fillStatesOf`, the one reader of
-//      `plots[].fill`), handed to the lane when binder.js loads: without it the column is withheld, never guessed, and
-//      a fold made before the answer arrived is never served after it
+//      `plots[].fill`), handed to the lane when a chart's binder is created (never at load): without it the column is
+//      withheld, never guessed, and a fold made before the answer arrived is never served after it
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { registerDefinitions, resolveInputs, RS_LINE_SLIM_RAW } from '../nativeRegistry'
 import {
   primeServerColumns, clearServerColumns, serverColumnsFor, pickServerInputs, serverAskOf, customTfFoldsOf, alignColumns,
   adoptFillStates,
 } from '../serverCompute'
-import { fillStatesOf } from '../binder'   // ...which hands the lane its band-state answer as it loads
+import { createBinder, fillStatesOf } from '../binder'   // a chart's binder hands the lane its band-state answer
+import { createFakeChart } from './fakeChart'
 import { primeBenchmarkTail, _resetBenchmarkTailsForTests, __setBenchmarkTailFetcherForTests } from '../liveTail'
 import { derivedAverage } from '../derivedColumns'
 import { resampleForSpec } from '../../../../utils/resampleBars'
@@ -104,6 +105,10 @@ describe('the server lane on a custom timeframe: the native base, folded by the 
     // read off the definition's own declarations: the ratio live tail, the average live tail, and the band's colour
     // column as the binder (the one reader of `plots[].fill`) answers it
     expect(fillStatesOf(SLIM)).toEqual([{ state: 'rsAbove', rule: 'above', of: 'rsLine', with: 'rsMa' }])
+    adoptFillStates(null)                                                    // binder.js loaded, no chart yet
+    expect(customTfFoldsOf(SLIM).rsAbove).toBeUndefined()                    // withheld, never guessed
+    const fake = createFakeChart()
+    createBinder({ chart: fake.chart, LWC: fake.LWC })                       // a chart comes to exist: the answer
     const folds = customTfFoldsOf(SLIM)
     expect(folds.rsLine).toEqual({ kind: 'last' })
     expect(folds.rsMa).toEqual({ kind: 'ma', of: 'rsLine', length: 'input:maLength', type: 'input:maType' })
