@@ -16,7 +16,7 @@ So when the live-bars rail died, a member noticed the Finnhub fallback first.
 
 WHAT IT READS — the shipped admin route, not a second copy of it
 ────────────────────────────────────────────────────────────────
-``read_status`` calls the route's own handler (``api.routers.bars.bars_stream_status``),
+``read_status`` calls the route's own handler (``api.routers.bars_stream_status.bars_stream_status``),
 so every poll sees exactly the bytes the endpoint serves. Nothing here recomputes a
 counter; a reader that did would be a second authority over the numbers it reports.
 
@@ -114,7 +114,7 @@ def page_enabled() -> bool:
 
 def read_status() -> dict:
     """The shipped admin route's own payload (``GET /api/admin/bars-stream-status``)."""
-    from api.routers.bars import bars_stream_status
+    from api.routers.bars_stream_status import bars_stream_status
     return bars_stream_status()
 
 

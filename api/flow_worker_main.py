@@ -2,6 +2,12 @@
 
 Run with: python -m api.flow_worker_main  (Railway: FLOW_WORKER_ENABLED=1)
 
+Redeploy trigger 2026-11-26 (the import-closure fix, path 1): `api/routers/bars.py` (its stream-status route moved to
+`api/routers/bars_stream_status.py`) and `api/services/bar_contract.py` (the feed read through `live_price_source`)
+change modules this worker reaches but does not watch. Behaviour here is unchanged (this worker serves neither route
+and runs no broadcaster); the closure only shrinks. `tests/test_flow_worker_watch_coverage.py` named them; this header
+edit is the trigger it prescribes. Deploy by hand, off-hours, as always.
+
 Redeploy trigger 2026-11-22 (engine train e95): the alert() delivery chain (AL1-AL3, #2461 / #2476 / #2487) and the e95
 units change modules this worker reaches but does not watch (alert_fired_log, alert_taxonomy/indicator_condition,
 alert_trigger_policy, alert_user_series, indicator_alert_evaluator, indicator_alert_service, runtime_server_lane,
