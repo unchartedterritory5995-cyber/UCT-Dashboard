@@ -393,7 +393,10 @@
        "pineShape": "shape.labelup",
        "shapeApprox": true,
        "position": "belowBar",
-       "size": 0.8
+       "pineLocation": "location.belowbar",
+       "size": 0.8,
+       "pineSize": "size.small",
+       "textColor": "#2962FF"
       },
       "forward": 0
      },
@@ -412,7 +415,10 @@
        "pineShape": "shape.labeldown",
        "shapeApprox": true,
        "position": "aboveBar",
-       "size": 0.8
+       "pineLocation": "location.abovebar",
+       "size": 0.8,
+       "pineSize": "size.small",
+       "textColor": "#2962FF"
       },
       "forward": 0
      },
@@ -431,7 +437,10 @@
        "pineShape": "shape.xcross",
        "shapeApprox": true,
        "position": "aboveBar",
-       "size": 0.5
+       "pineLocation": "location.abovebar",
+       "size": 0.5,
+       "pineSize": "size.tiny",
+       "textColor": "#2962FF"
       },
       "forward": 0
      },
@@ -450,7 +459,10 @@
        "pineShape": "shape.xcross",
        "shapeApprox": true,
        "position": "belowBar",
-       "size": 0.5
+       "pineLocation": "location.belowbar",
+       "size": 0.5,
+       "pineSize": "size.tiny",
+       "textColor": "#2962FF"
       },
       "forward": 0
      }
@@ -712,6 +724,9 @@
        "decimals": 2
       },
       "marker": {
+       "pineLocation": "location.abovebar",
+       "pineSize": "size.auto",
+       "textColor": "#2962FF",
        "text": "❌",
        "position": "aboveBar",
        "shape": "circle",
@@ -731,6 +746,9 @@
        "decimals": 2
       },
       "marker": {
+       "pineLocation": "location.abovebar",
+       "pineSize": "size.auto",
+       "textColor": "#2962FF",
        "text": "📌",
        "position": "aboveBar",
        "shape": "circle",
@@ -1136,7 +1154,10 @@
        "pineShape": "shape.triangleup",
        "shapeApprox": true,
        "position": "belowBar",
+       "pineLocation": "location.belowbar",
        "size": 0.5,
+       "pineSize": "size.tiny",
+       "textColor": "#4CAF50",
        "text": "Breakout"
       },
       "forward": 0
@@ -1156,7 +1177,10 @@
        "pineShape": "shape.triangledown",
        "shapeApprox": true,
        "position": "aboveBar",
+       "pineLocation": "location.abovebar",
        "size": 0.5,
+       "pineSize": "size.tiny",
+       "textColor": "#FF5252",
        "text": "Breakdown"
       },
       "forward": 0
@@ -11775,7 +11799,10 @@
       },
       "marker": {
        "position": "belowBar",
+       "pineLocation": "location.belowbar",
        "size": 0.5,
+       "pineSize": "size.tiny",
+       "textColor": "#2962FF",
        "text": "▲",
        "shape": "circle",
        "pineShape": null,
@@ -11795,7 +11822,10 @@
       },
       "marker": {
        "position": "aboveBar",
+       "pineLocation": "location.abovebar",
        "size": 0.5,
+       "pineSize": "size.tiny",
+       "textColor": "#2962FF",
        "text": "▼",
        "shape": "circle",
        "pineShape": null,
@@ -11837,7 +11867,10 @@
        "pineShape": "shape.labelup",
        "shapeApprox": true,
        "position": "inBar",
-       "size": 0.8
+       "pineLocation": "location.absolute",
+       "size": 0.8,
+       "pineSize": "size.small",
+       "textColor": "#2962FF"
       },
       "forward": 0
      },
@@ -11856,7 +11889,10 @@
        "pineShape": "shape.labeldown",
        "shapeApprox": true,
        "position": "inBar",
-       "size": 0.8
+       "pineLocation": "location.absolute",
+       "size": 0.8,
+       "pineSize": "size.small",
+       "textColor": "#2962FF"
       },
       "forward": 0
      },
@@ -12151,7 +12187,10 @@
        "pineShape": "shape.triangleup",
        "shapeApprox": true,
        "position": "belowBar",
+       "pineLocation": "location.belowbar",
        "size": 0.5,
+       "pineSize": "size.tiny",
+       "textColor": "#FFFFFF",
        "text": "SC"
       },
       "displace": -5,
@@ -12172,7 +12211,10 @@
        "pineShape": "shape.triangledown",
        "shapeApprox": true,
        "position": "aboveBar",
+       "pineLocation": "location.abovebar",
        "size": 0.5,
+       "pineSize": "size.tiny",
+       "textColor": "#FFFFFF",
        "text": "AR"
       },
       "displace": -5,
@@ -12193,7 +12235,10 @@
        "pineShape": "shape.triangleup",
        "shapeApprox": true,
        "position": "belowBar",
+       "pineLocation": "location.belowbar",
        "size": 0.5,
+       "pineSize": "size.tiny",
+       "textColor": "#FFFFFF",
        "text": "ST"
       },
       "displace": -5,
@@ -12214,7 +12259,10 @@
        "pineShape": "shape.triangledown",
        "shapeApprox": true,
        "position": "aboveBar",
+       "pineLocation": "location.abovebar",
        "size": 0.5,
+       "pineSize": "size.tiny",
+       "textColor": "#FFFFFF",
        "text": "BC"
       },
       "displace": -5,
@@ -12235,7 +12283,10 @@
        "pineShape": "shape.triangleup",
        "shapeApprox": true,
        "position": "belowBar",
+       "pineLocation": "location.belowbar",
        "size": 0.5,
+       "pineSize": "size.tiny",
+       "textColor": "#FFFFFF",
        "text": "AR"
       },
       "displace": -5,
@@ -12256,7 +12307,10 @@
        "pineShape": "shape.triangledown",
        "shapeApprox": true,
        "position": "aboveBar",
+       "pineLocation": "location.abovebar",
        "size": 0.5,
+       "pineSize": "size.tiny",
+       "textColor": "#FFFFFF",
        "text": "ST"
       },
       "displace": -5,
@@ -12277,7 +12331,10 @@
        "pineShape": "shape.triangleup",
        "shapeApprox": true,
        "position": "belowBar",
-       "size": 1
+       "pineLocation": "location.belowbar",
+       "size": 1,
+       "pineSize": "size.auto",
+       "textColor": "#2962FF"
       },
       "displace": -5,
       "forward": 0
@@ -12297,7 +12354,10 @@
        "pineShape": "shape.triangledown",
        "shapeApprox": true,
        "position": "aboveBar",
-       "size": 1
+       "pineLocation": "location.abovebar",
+       "size": 1,
+       "pineSize": "size.auto",
+       "textColor": "#2962FF"
       },
       "displace": -5,
       "forward": 0

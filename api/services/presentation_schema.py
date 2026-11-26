@@ -47,6 +47,13 @@ RESERVED_PLOT_STYLES = ("zones", "bgband", "barcolor", "fill", "cross")
 MARKER_SHAPES = ("circle", "square", "arrowUp", "arrowDown")
 MARKER_POSITIONS = ("aboveBar", "belowBar", "inBar")
 MARKER_SIZE_RANGE = {"min": 0.25, "max": 4}
+#: e99 -- Pine's own `location.*` / `size.*` words carried beside the LWC fallback
+#: (`defSchema.js` `MARKER_PINE_LOCATIONS` / `MARKER_PINE_SIZES`, held equal by the
+#: shared fixture), and the marker's optional `textColor` (a hex colour).
+MARKER_PINE_LOCATIONS = ("location.abovebar", "location.belowbar", "location.top",
+                         "location.bottom", "location.absolute")
+MARKER_PINE_SIZES = ("size.tiny", "size.small", "size.normal", "size.large", "size.huge",
+                     "size.auto")
 MARKER_TEXT_MAX = 24
 PAINT_KINDS = ("bgcolor", "barcolor")
 COLOR_MODES = ("fixed", "sign")
@@ -208,6 +215,19 @@ def _check_marker(plot: Mapping, path: str, fp: str, out: list) -> None:
         if not isinstance(t, str) or len(t) > MARKER_TEXT_MAX:
             _err(out, f"{path}.marker.text", "marker-text",
                  f"{path}.marker.text: a string of at most {MARKER_TEXT_MAX} characters", fp)
+    if "pineLocation" in m and m.get("pineLocation") not in MARKER_PINE_LOCATIONS:
+        _err(out, f"{path}.marker.pineLocation", "marker-pine-location",
+             f"{path}.marker.pineLocation: expected one of {', '.join(MARKER_PINE_LOCATIONS)}, "
+             f"got {m.get('pineLocation')!r}", fp)
+    if "pineSize" in m and m.get("pineSize") not in MARKER_PINE_SIZES:
+        _err(out, f"{path}.marker.pineSize", "marker-pine-size",
+             f"{path}.marker.pineSize: expected one of {', '.join(MARKER_PINE_SIZES)}, "
+             f"got {m.get('pineSize')!r}", fp)
+    if "textColor" in m:
+        tc = m.get("textColor")
+        if not isinstance(tc, str) or not _HEX.match(tc):
+            _err(out, f"{path}.marker.textColor", "marker-text-colour",
+                 f"{path}.marker.textColor: expected a #RRGGBB or #RRGGBBAA colour", fp)
 
 
 def _check_plot_colour_fields(plot: Mapping, path: str, fp: str, out: list) -> None:

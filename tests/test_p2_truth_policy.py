@@ -269,6 +269,8 @@ def test_P2_presentation_vocabulary_equals_the_shared_fixture():
     assert list(ps.MARKER_POSITIONS) == v["markerPositions"]
     assert ps.MARKER_SIZE_RANGE == v["markerSizeRange"]
     assert ps.MARKER_TEXT_MAX == v["markerTextMax"]
+    assert list(ps.MARKER_PINE_LOCATIONS) == v["markerPineLocations"]
+    assert list(ps.MARKER_PINE_SIZES) == v["markerPineSizes"]
     assert list(ps.PAINT_KINDS) == v["paintKinds"]
     assert list(ps.COLOR_MODES) == v["colorModes"]
 
