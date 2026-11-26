@@ -66,6 +66,7 @@ from api.services import ast_interpret, ast_lint, call_expansions, conversation_
 from api.services import definition_concierge as dc
 from api.services import chart_twins
 from api.services import presentation_schema
+from api.services import code_paste
 from api.services import named_indicators
 from api.services.ast_budget import BudgetExceeded, check_budget
 from api.services.ast_interpret import TableRefusal
@@ -2951,18 +2952,22 @@ def _language_notes(understanding: Mapping[str, Any]) -> Dict[str, Any]:
 # input bounds -- refused BEFORE any call
 # --------------------------------------------------------------------------- #
 
-def _bounded_inputs(message: Any, view: Any, authoring: Any, snippets: Any
+def _bounded_inputs(message: Any, view: Any, authoring: Any, snippets: Any, *, code_cap: bool = False
                     ) -> Tuple[str, Dict[str, Any], Dict[str, Any], List[Dict[str, str]]]:
     if not isinstance(message, str):
         raise _Refused("prompt:empty")
     message = message.strip()
     if not message:
         raise _Refused("prompt:empty")
-    if len(message) > MAX_MESSAGE_CHARS:
+    # ⭐ C (2026-11-25): PASTED CODE has a door of its own with its own cap (`code_paste`), on the script lane only
+    # (`code_cap`, given by `_with_script_lane`); plain chat keeps MAX_MESSAGE_CHARS
+    pasted = code_paste.kind_of(message) if code_cap and len(message) > MAX_MESSAGE_CHARS else None
+    limit = code_paste.import_max_chars() if pasted else MAX_MESSAGE_CHARS
+    if len(message) > limit:
         raise _Refused("converse:too-large",
-                       f"message {len(message)} > {MAX_MESSAGE_CHARS}",
-                       member=f"your request is {len(message):,} characters; the limit is "
-                              f"{MAX_MESSAGE_CHARS:,}")
+                       f"message {len(message)} > {limit}",
+                       member=(f"your pasted code is {len(message):,} characters; the limit for pasted code is {limit:,}"
+                               if pasted else f"your request is {len(message):,} characters; the limit is {limit:,}"))
 
     if not isinstance(view, Mapping):
         raise _Refused("converse:view", "it is not an object")
@@ -6209,8 +6214,10 @@ def _with_script_lane(formula_turn: Any, message: Any, *, user_id: Any, view: An
     if not sc.lane_open(accepts, admin):
         return formula_turn()
     try:
-        words, bounded_view, _state, _turns = _bounded_inputs(message, view, authoring, snippets)
-    except _Refused:
+        words, bounded_view, _state, _turns = _bounded_inputs(message, view, authoring, snippets, code_cap=True)
+    except _Refused as too_long:
+        if too_long.gate == "converse:too-large" and code_paste.kind_of(message if isinstance(message, str) else ""):
+            return {"ok": False, "gate": too_long.gate, "reason": too_long.reason}   # pasted code over ITS cap
         return formula_turn()                      # the formula turn says why, in its own words
     if not bounded_view.get("empty"):
         return formula_turn()
@@ -6223,6 +6230,15 @@ def _with_script_lane(formula_turn: Any, message: Any, *, user_id: Any, view: An
     refused = sc.script_refusal(script_refusal)
     if refused is not None:
         return script(refused)
+    # ⭐ C (2026-11-25): PASTED CODE. Pine that passes the first look is the member's own script, opened with no model
+    # call; any other paste (Deepvue's, or Pine the first look refuses) is written by the script turn, as a translation
+    pasted = code_paste.kind_of(words)
+    if pasted == code_paste.PINE:
+        answer = sc.pasted_pine_turn(words, revision=revision, contract=PATCH_CONTRACT, trace=trace)
+        if answer is not None:
+            return answer
+    if pasted is not None:
+        return script()
     # ⛔ A DRAWING WORD DOES NOT TAKE A BUILT-IN'S NAME AWAY FROM THE DOOR (review 2026-11-19). "draw" is a script
     # word, and it is also how members ask for anything: "draw vwap bands" went to a paid script while "show vwap
     # bands" got the one-tap offer, and "draw ATR Bands" was improvised where UCT has the indicator. The same holds

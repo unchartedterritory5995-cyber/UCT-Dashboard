@@ -44,7 +44,8 @@ const BARS_PATH = '/api/bars/'
 // futures, a clock-hour series) is REFUSED by name (`UNSUPPORTED` + note), never resampled on a grid it does not have,
 // until a capture witnesses how TradingView builds it.
 import { baseBarsFor, fetchTf, resampleSpec } from '../timeframes'
-import { resampleForSpec } from '../../../utils/resampleBars'
+import { resampleForSpec, isRegularSessionSpec } from '../../../utils/resampleBars'
+import { isRthBar } from '../barTime'
 import { viewShowExtended } from '../../../utils/viewSession'
 
 /**
@@ -132,15 +133,27 @@ export function offSessionRowOf(baseBars, spec) {
   if (!spec || !Array.isArray(baseBars)) return null
   if (spec.kind === 'intradaySession') {
     const step = Number(spec.base)
+    // ⭐ (2026-11-26) A REGULAR spec is built from the regular-session rows only (resampleForSpec). On a page that holds
+    // regular-session rows on the grid (a US stock's), the weekday extended rows beside them (on the 60m session grid,
+    // 04:00-09:00 and 16:00-20:00 clock hours, off the 09:30 grid) are never resampled, so they cannot make the window
+    // unbuildable: they are not judged. A regular-session row off the grid, or any weekend row, still refuses it; and a
+    // page with NO regular-session row on the grid is judged on its extended rows as before (a lone clock-hour or
+    // overnight row is another session, coordinator ruling 2026-11-22). An extended spec judges every row, as before.
+    const regular = isRegularSessionSpec(spec)
+    const anchor = Number.isFinite(spec.anchorMin) ? spec.anchorMin : 570   // the spec's session start (09:30 / 04:00 ET)
+    let pending = null      // a regular spec's first off-session EXTENDED weekday row: refuses only a page with no regular row
+    let sawRegular = false
     for (const b of baseBars) {
       if (!b || typeof b.t !== 'number') continue
       const { wd, min } = _etWhen(b.t)
-      const anchor = Number.isFinite(spec.anchorMin) ? spec.anchorMin : 570   // the spec's session start (09:30 / 04:00 ET)
       if (_WEEKEND.has(wd) || min < 240 || min >= 1200 || (((min - anchor) % step) + step) % step !== 0) {
-        return `a ${step}-minute bar at ${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')} ET on a ${wd}`
+        const words = `a ${step}-minute bar at ${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')} ET on a ${wd}`
+        if (regular && !_WEEKEND.has(wd) && !isRthBar(b.t)) { if (pending === null) pending = words; continue }
+        return words
       }
+      if (regular && isRthBar(b.t)) sawRegular = true
     }
-    return null
+    return regular && !sawRegular ? pending : null
   }
   for (const b of baseBars) {
     const day = b && typeof b.t === 'string' ? b.t.slice(0, 10) : null

@@ -449,6 +449,8 @@ export function getPushStats() {
     enabled: quotePushEnabled(), healthy: isHealthy(), connections: _buckets.length,
     symbols: _buckets.reduce((n, b) => n + b.tickers.length, 0), frames: _stats.frames, batches: _stats.batches,
     tradeToRecv: pp(_stats.tradeToRecv), sentToRecv: pp(_stats.sentToRecv), recvToApply: pp(_stats.recvToApply),
+    // the smoothness guard's gap in force (0 = every frame): the canary's smoothness rule reads it
+    commitGapMs: getCommitGapMs(),
   }
 }
 

@@ -24,6 +24,7 @@
 
 import { compactView } from './compactView'
 import { isNamingClause } from './derivedName'
+import { codeKindOf, IMPORT_MAX_CHARS } from './codePaste'
 
 export const CONVERSE_ENDPOINT = '/api/user-definitions/converse'
 /** The server's bounds (`definition_conversation.py`), mirrored so the client
@@ -40,10 +41,18 @@ export const LENGTH_NOTE_FROM = 0.8
  * message is still sent whole and the server refuses it in the member's words.
  */
 export function messageLengthNote(message) {
-  const n = String(message || '').length
+  const text = String(message || '')
+  const n = text.length
+  const fmt = (x) => x.toLocaleString('en-US')
+  // ⭐ C (2026-11-25): PASTED CODE meets the import door's own cap (`codePaste.js`, the server's `code_paste`), and is
+  // counted against that from the chat limit up; below it, it is a message like any other
+  if (n > Math.floor(CONVERSE_LIMITS.maxMessage * LENGTH_NOTE_FROM) && codeKindOf(text) !== null) {
+    return n > IMPORT_MAX_CHARS
+      ? { over: true, text: `${fmt(n)} characters of pasted code: the limit for pasted code is ${fmt(IMPORT_MAX_CHARS)}. Shorten it to send it.` }
+      : { over: false, text: `${fmt(n)} of ${fmt(IMPORT_MAX_CHARS)} characters of pasted code` }
+  }
   const max = CONVERSE_LIMITS.maxMessage
   if (n < Math.floor(max * LENGTH_NOTE_FROM)) return null
-  const fmt = (x) => x.toLocaleString('en-US')
   return n > max
     ? { over: true, text: `${fmt(n)} characters: the limit is ${fmt(max)}. Shorten it to send it.` }
     : { over: false, text: `${fmt(n)} of ${fmt(max)} characters` }
