@@ -66,7 +66,7 @@ import {
 } from './pool'
 import { outputTypeOf, OUTPUT_TYPES } from './outputType'
 // ⭐ e97 U6 — the ONE answer to "is this plot hidden for this instance" (`plots[].hidden` / `plots[].hiddenWhen`)
-import { plotHiddenAt } from './knobBind.js'
+import { plotHiddenAt, plotLineStyleAt } from './knobBind.js'
 import { paneMode, paneStretchPlan, paneHeightMismatch } from './paneLayout'
 import { createFillPrimitive, createFillLayerGroup } from './fillPrimitive'
 import { MAIN_PRICE_SCALE_ID, applyAxisTenancy } from './placement'
@@ -2915,6 +2915,8 @@ export function createBinder({ chart, LWC, scope = '' }) {
       serverDeclares,
       // ⭐ e97 U7 — a guide whose display a setting decides is planned only while this instance shows it
       plotHidden: plotHiddenAt,
+      // ⭐ e98 E1 — a plot whose line style a setting decides is drawn in the style this instance's settings pick
+      plotLineStyle: plotLineStyleAt,
     })
 
     // HAND-BACK (W1b.5, minor 4): reassign a hidden carrier's guides onto its

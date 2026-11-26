@@ -21,7 +21,7 @@ import { markersFor } from '../markerPrimitive'
 import { createFakeChart } from '../__tests__/fakeChart'
 import {
   validateDefinition, PLOT_STYLES, RESERVED_PLOT_STYLES, MARKER_SHAPES, MARKER_POSITIONS,
-  MARKER_SIZE_RANGE, PAINT_KINDS, COLOR_MODES,
+  MARKER_SIZE_RANGE, PAINT_KINDS, COLOR_MODES, PLOT_LINE_STYLES,
 } from '../defSchema'
 import { evaluability, LANES, STATUS } from '../evaluability'
 import { parseFormula } from '../ast/parse'
@@ -283,6 +283,7 @@ describe('P2-presentation — the server validator mirrors defSchema (shared fix
     expect([...PLOT_STYLES]).toEqual(v.plotStyles)
     expect([...RESERVED_PLOT_STYLES]).toEqual(v.reservedPlotStyles)
     expect([...MARKER_SHAPES]).toEqual(v.markerShapes)
+    expect([...PLOT_LINE_STYLES]).toEqual(v.plotLineStyles)
     expect([...MARKER_POSITIONS]).toEqual(v.markerPositions)
     expect({ ...MARKER_SIZE_RANGE }).toEqual(v.markerSizeRange)
     expect([...PAINT_KINDS]).toEqual(v.paintKinds)

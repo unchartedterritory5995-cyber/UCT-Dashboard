@@ -283,6 +283,60 @@ function withColourWithheld(plots, rows) {
   return (plots || []).map((pl) => (pl && by.has(pl.key) ? { ...pl, colorWithheld: { ...by.get(pl.key) } } : pl))
 }
 
+/** ⭐⭐ e98 E1 — the row styles a `plot`'s `linestyle` dashes or dots. Pine's release notes (September 2025): "The
+ *  `linestyle` parameter setting takes effect only for `style` arguments that plot lines", so a line (`style_line`,
+ *  `style_linebr`) and a step line carry it; a histogram, columns or circles draw exactly as before (TradingView ignores
+ *  it there too). An AREA's edge is a line this chart does not dash: drawn solid and said by name. */
+const LINE_STYLE_DRAWN = new Set(['line', 'stepline'])
+const LINE_STYLE_UNREPRODUCED = new Set(['area'])
+
+/** ⭐⭐ e98 E1 — a host translation row's `linestyle` (`pine.js::outputLineStyleOf`) as the fields of the document row
+ *  drawn with `style`: `lineStyle` (a style other than solid, or the style at the settings' defaults beside
+ *  `lineStyleWhen`, a setting's choice resolved per instance at bind, `knobBind.js::plotLineStyleAt`). Where it is not
+ *  carried (a linestyle this engine cannot read, an area), the line is drawn solid and the sentence is pushed onto
+ *  `notes` by the row's title: NEVER drawn solid silently. Both lanes' rows ask this one function. */
+function lineStyleRowOf(o, style, notes) {
+  if (!o || o.kind !== 'plot') return {}
+  const asked = !!(o.lineStyleUnread || o.lineStyleWhen || (typeof o.lineStyle === 'string' && o.lineStyle !== 'solid'))
+  if (!asked) return {}
+  const shown = o.hidden === true && o.hiddenReason === 'author' ? false : o.offPane !== true
+  const name = o.title || 'Plot'
+  const say = (why) => { if (shown) notes.push({ name, note: `\`${name}\` is drawn with a solid line: ${why}.` }) }
+  if (o.lineStyleUnread) { say(o.lineStyleUnread); return {} }
+  if (LINE_STYLE_DRAWN.has(style)) {
+    return Array.isArray(o.lineStyleWhen) && o.lineStyleWhen.length
+      ? { lineStyle: o.lineStyle || 'solid', lineStyleWhen: o.lineStyleWhen.map((a) => ({ when: a.when, lineStyle: a.lineStyle })) }
+      : { lineStyle: o.lineStyle }
+  }
+  if (LINE_STYLE_UNREPRODUCED.has(style)) {
+    say(o.lineStyleWhen
+      ? `the line style its settings choose (\`linestyle\`) is not reproduced on an ${style} plot here`
+      : `its \`linestyle\` (${o.lineStyle}) is not reproduced on an ${style} plot here`)
+  }
+  return {}
+}
+
+/** ⭐ e98 E1 — a document row's `lineStyleWhen` arms (`[{when, lineStyle}]`), or none. */
+function lineStyleArmsOf(row) {
+  return row && Array.isArray(row.lineStyleWhen) ? row.lineStyleWhen.filter((a) => a && a.when) : []
+}
+
+/** ⭐ e98 E1 — a line style a setting decides names settings the document DECLARES (`declaredKeys`), or it is decided
+ *  HERE at the settings' defaults (the row's `lineStyle`, which the translation already read there): what TradingView
+ *  draws until the member moves it, never a `lineStyleWhen` naming a setting the document does not hold (U6's rule for
+ *  `hiddenWhen`). */
+export function settleLineStyleWhen(rows, declaredKeys) {
+  for (const r of rows || []) {
+    const arms = lineStyleArmsOf(r)
+    if (!arms.length) continue
+    const names = new Set()
+    for (const a of arms) seriesNamesOf(a.when, names)
+    if ([...names].every((n) => declaredKeys.has(n))) continue
+    delete r.lineStyleWhen
+    if (r.lineStyle === 'solid') delete r.lineStyle
+  }
+}
+
 /** ⭐⭐ ENGINE 58 — the member's sentence for each VISIBLE row whose colour is
  *  withheld whole. The code rides on the row (`plots[].colorWithheld`), never in
  *  the words (NO-GUARD-IDS). */
@@ -814,6 +868,8 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
     if (colourGatesByFormula.has(formula)) colourBlockRunKeys.set(key, colourGatesByFormula.get(formula))
     return key
   }
+  // ⭐ e98 E1 — the sentences for a `linestyle` drawn solid (unreadable, or on an area): said by name, never silent
+  const lineStyleNotes = []
   const rows = drawable.map((o, i) => {
     let p = pineRowPresentation(o)
     // A plot coloured by a condition between two static colours draws per point.
@@ -890,6 +946,8 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
       // ⭐ ROW 42 — `plot.style_linebr` / `style_areabr` break at `na` (`pine.js`
       // `PINE_BREAKING_STYLES`); every other style bridges, as TradingView draws it.
       ...(p.sparse === true ? { sparse: true } : {}),
+      // ⭐⭐ e98 E1 — the plot's `linestyle` (`pine.js::outputLineStyleOf`), on a style that draws a line
+      ...lineStyleRowOf(o, typeof p.style === 'string' ? p.style : 'line', lineStyleNotes),
       ...(condKey ? { colorMode: `column:${condKey}`, colorUp: p.colorUp, colorDown: p.colorDown } : {}),
       ...(paletteKey ? { colorMode: `column:${paletteKey}`, colorPalette: p.colorPalette.slice() } : {}),
       ...(gradientKey ? {
@@ -1256,6 +1314,8 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
   for (const cr of conditionRows) seriesNamesOf(cr.ast, colourRead)
   // ⭐ e97 U6 — and a setting a carried row's display reads (`hiddenWhen`): the member's control to show or hide it
   for (const r of rows) if (r && r.hiddenWhen) seriesNamesOf(r.hiddenWhen, colourRead)
+  // ⭐ e98 E1 — and a setting a carried row's line style reads (`lineStyleWhen`): the member's control for it
+  for (const r of rows) for (const arm of lineStyleArmsOf(r)) seriesNamesOf(arm.when, colourRead)
   // ⭐ e97 U7 — and a setting a band's, a paint's or a level's display reads (the same `hiddenWhen`)
   for (const r of rows) if (r && r.fill && r.fill.hiddenWhen) seriesNamesOf(r.fill.hiddenWhen, colourRead)
   for (const p of docPaints) if (p && p.hiddenWhen) seriesNamesOf(p.hiddenWhen, colourRead)
@@ -1342,6 +1402,8 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
       if (hiddenAtLeafDefaults(r.hiddenWhen)) r.hidden = true
       delete r.hiddenWhen
     }
+    // ⭐ e98 E1 — the same rule for a line style a setting decides (`lineStyleWhen`): the style at the defaults
+    settleLineStyleWhen(rows, declaredKeys)
     // ⭐ e97 U7 — the same rule for a band, a paint and a level: decided at the setting's default when the setting did
     // not come across. A band or paint hidden there is not carried (TradingView draws none until the member moves it,
     // and this document then has no control to move); a level hidden there is not drawn.
@@ -1555,6 +1617,13 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
   }
   // ⭐⭐ ENGINE 58 — A COLOUR WITHHELD BY NAME IS SAID SO, row by row.
   for (const n of colourWithheldNotes(rows)) {
+    const key = `${n.name} :: ${n.note}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    notes.push(n)
+  }
+  // ⭐⭐ e98 E1 — A LINE STYLE DRAWN SOLID WHERE THE SCRIPT ASKED OTHERWISE IS SAID SO, by its title.
+  for (const n of lineStyleNotes) {
     const key = `${n.name} :: ${n.note}`
     if (seen.has(key)) continue
     seen.add(key)
@@ -2925,6 +2994,8 @@ function runtimeLaneDocument({ source, id, name, t, hostReason, hostGuard = null
   }
   const packedOf = new Map()
   const candleOf = new Map()
+  // ⭐ e98 E1 — the sentences for a `linestyle` drawn solid (unreadable, or on an area), as the host lane says them
+  const lineStyleNotes = []
   const rows = drawnRows.map(({ o, index, p, out, colourOutput, displace, candle, label, parts, colours, hiddenWhen }, i) => {
     const key = keyAt(i)
     outputs[key] = out
@@ -2977,6 +3048,8 @@ function runtimeLaneDocument({ source, id, name, t, hostReason, hostGuard = null
       ...(p.marker && p.marker.shape ? { marker: p.marker } : {}),
       // ⭐ ROW 42 — a "with breaks" style breaks at `na`, as the host lane's rows say.
       ...(p && p.sparse === true ? { sparse: true } : {}),
+      // ⭐⭐ e98 E1 — the plot's `linestyle`, read from the host row (`pine.js::outputLineStyleOf`), as the host lane's rows
+      ...lineStyleRowOf(o, typeof p.style === 'string' ? p.style : 'line', lineStyleNotes),
       // ⭐ WS-E — a leftward `offset`, drawn by the binder as a host row's is.
       ...(Number.isInteger(displace) && displace < 0 ? { displace } : {}),
       // The host output this row draws — the vendor harness and the pane's
@@ -3113,6 +3186,9 @@ function runtimeLaneDocument({ source, id, name, t, hostReason, hostGuard = null
   // ⭐⭐ e96 — THE LEVELS (`hline`), the same `hlineLevels.hlineGuides` the host document asks, bound to the run's own
   // setting of the same name (`runtimeInputs.js` keys a setting by its Pine name).
   const runDocInputs = runtimeDocInputs(withObjectInputs(memberInputSpecs([]), drawsObjects ? t : null), runtimeInputs.specs)
+  // ⭐ e98 E1 — a line style a setting decides names a setting this document declares (`runtimeInputs.js` keys a setting
+  // by its Pine name), or it is decided at the setting's default, as the host lane does
+  settleLineStyleWhen(rows, new Set((runDocInputs || []).map((x) => x && x.key)))
   const levelPlan = hlineGuides((t.presentation || {}).levels, {
     version: t.version, neutralInk: WITHHELD_COLOUR_INK, withAlphaByte,
     bindInput: (entry) => runtimeLevelInputKey(entry, runDocInputs),
@@ -3191,6 +3267,8 @@ function runtimeLaneDocument({ source, id, name, t, hostReason, hostGuard = null
   }
   // ⭐ ENGINE 58 — a colour withheld by name on a drawn row (see the host lane's).
   for (const n of colourWithheldNotes(rows)) notes.push(n)
+  // ⭐ e98 E1 — a line style drawn solid where the script asked otherwise, by its title
+  for (const n of lineStyleNotes) notes.push(n)
   for (const w of withheld) {
     notes.push({
       name: w.label,

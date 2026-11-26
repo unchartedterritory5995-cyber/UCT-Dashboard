@@ -1093,6 +1093,11 @@ function colourRulesOf(t) {
   // ⭐ e97 U6 — a row's display chosen by a setting (`hiddenWhen`, `pine.js::outputDisplayOf`) is a presentation rule
   // too: an input only it reads is the member's control, declared by the same proof (`withColourInputs`)
   for (const o of (t.outputs || [])) if (o && !o.refusal && o.hiddenWhen) rules.push({ ast: o.hiddenWhen, formula: [...seriesNamesOf(o.hiddenWhen)].join(' + ') || 'display' })
+  // ⭐ e98 E1 — and a row's line style chosen by a setting (`lineStyleWhen`, `pine.js::outputLineStyleOf`), the same way
+  for (const o of (t.outputs || [])) {
+    if (!o || o.refusal || !Array.isArray(o.lineStyleWhen)) continue
+    for (const a of o.lineStyleWhen) if (a && a.when) rules.push({ ast: a.when, formula: [...seriesNamesOf(a.when)].join(' + ') || 'linestyle' })
+  }
   for (const f of (((t.presentation || {}).fills) || [])) take(f)
   for (const p of (((t.presentation || {}).paints) || [])) take(p)
   // ⭐ e97 U7 — and a band's, a paint's or a level's display a setting decides (`hiddenWhen`, the same ONE reader)
