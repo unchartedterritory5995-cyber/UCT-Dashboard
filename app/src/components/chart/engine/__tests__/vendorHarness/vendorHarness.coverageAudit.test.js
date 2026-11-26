@@ -211,8 +211,17 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
     const r = grade('pmax-explorer-rddt-1d-2026-10-02').v
     expect(item(r, 'PMax').verdict).toBe('MATCH')
     expect(item(r, 'Moving Avg Line').verdict).toBe('MATCH')
-    // Buy / Sell are not unique titles on TradingView's side: UNMAPPED, never graded.
-    expect(items(r, 'Buy').every((p) => p.verdict === 'INCONCLUSIVE')).toBe(true)
+    // ⭐ e98 M1b (#2795): Buy / Sell are each titled twice on BOTH sides (equal counts), so they are paired by
+    // declaration order within the title and graded; they were UNMAPPED, never graded, before. Each pair agrees,
+    // and so does the one untitled plot (M2). PMax stays DIVERGE overall: the screener label is still the one divergence.
+    for (const g of [s, r]) {
+      for (const t of ['Buy', 'Sell']) {
+        expect(items(g, t).length, t).toBe(2)
+        expect(items(g, t).every((p) => p.verdict === 'MATCH'), t).toBe(true)
+      }
+    }
+    expect(s.verdict).toBe('DIVERGE')
+    expect(r.verdict).toBe('DIVERGE')
   }, T)
 
   // supertrend-strategy (KivancOzbilgic) -----------------------------------------
@@ -452,10 +461,13 @@ describe('CAP2 coverage audit — INCONCLUSIVE', () => {
   }, T)
   // ⚠️ SPY is not pinned here: whether its warm-up check fits the 1,000 ms budget is the
   // machine's speed, and a test of a wall clock would be a flaky test.
-  it('opening-range-initial-balance-opening-price: TradingView repeats titles (Shapes, OR Low, IB Low), so 11 of 15 items are UNMAPPED', () => {
+  // ⭐ e98 M1b (#2795): measured INCONCLUSIVE before (11 of 15 items UNMAPPED); the named duplicates (OR Low, IB Low:
+  // equal counts on both sides) are now paired by declaration order, and the untitled Shapes left over go to M2.
+  it('opening-range-initial-balance-opening-price: TradingView repeats titles (Shapes, OR Low, IB Low); M1b pairs the named ones in declaration order and M2 the Shapes, so it MATCHES', () => {
     const v = grade('opening-range-initial-balance-opening-price-rddt-1d-2026-10-02').v
-    expect(v.verdict).toBe('INCONCLUSIVE')
-    expect(v.plots.filter((p) => /UNMAPPED/.test(p.reason || '')).length).toBe(11)
+    expect(v.verdict).toBe('MATCH')
+    expect(v.plots.filter((p) => /UNMAPPED/.test(p.reason || '')).length).toBe(0)
+    expect(v.plots.every((p) => p.verdict === 'MATCH')).toBe(true)
   }, T)
   it('the object-pane door still refuses the runtime-only four by name (the census `on` state)', () => {
     expect(grade('trend-targets-algoalpha-rddt-1d-2026-10-02').v.reason).toMatch(/pine:state/)
