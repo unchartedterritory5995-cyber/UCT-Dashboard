@@ -37,11 +37,11 @@ export const VOLUME_DISPLAY_OPTIONS = Object.freeze([
   Object.freeze({ value: 'price', label: 'Overlay on price', group: 'Price' }),
 ])
 
-/** What our bars count, said where members read volume (owner ruling 2026-11-25: "keep the full volume with the
- *  note"). Our bars are built from the consolidated tape, odd-lot trades included; TradingView's intraday history
- *  leaves odd lots out, so its volume reads lower, and an odd-lot print that set a high, low or close can move it by a
- *  cent or so. One note, true for both. Static text: the Volume legend row's tooltip and the About card. */
-export const VOLUME_SOURCE_NOTE = 'Includes odd-lot trades (TradingView excludes them), so volume and some highs/lows/closes can differ slightly.'
+/** What our volume counts, said where members read volume (owner ruling 2026-11-25: "keep the full volume with the
+ *  note"). Our volume is the consolidated tape's, odd-lot trades included; TradingView's intraday history leaves odd
+ *  lots out, so its volume reads lower. VOLUME ONLY: under the SIP rules an odd lot (condition 37) does not update a
+ *  bar's high, low or last, so it says nothing about prices. Static text: the Volume row's tooltip and the About card. */
+export const VOLUME_SOURCE_NOTE = "Volume includes odd-lot trades (TradingView excludes them), so it can read higher than TradingView's."
 
 /** The About card — Volume has no engine definition, so its words live here. */
 export const VOLUME_ABOUT = Object.freeze({
@@ -49,8 +49,7 @@ export const VOLUME_ABOUT = Object.freeze({
   text: 'The number of shares traded in each bar. Up bars take the up color and down bars the down color. '
     + 'Volume can sit in its own pane or overlay the bottom of the price pane, and it can carry its own moving average '
     + '(Edit in Indicators…). Bars that set a 52-week volume high can be highlighted. '
-    + 'Our bars include odd-lot trades (TradingView excludes them), so volume and some highs/lows/closes can differ '
-    + 'slightly from TradingView.',
+    + 'Volume includes odd-lot trades (TradingView excludes them), so it can read higher than TradingView\'s.',
   category: 'Volume',
 })
 

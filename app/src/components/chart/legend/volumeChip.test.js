@@ -236,12 +236,13 @@ describe('the volume strip is a study stack, like a pane readout', () => {
 
 // ⭐ Owner ruling 2026-11-25: "keep the full volume with the note". Plain words, no em dash, no alarm.
 describe('VOLUME_SOURCE_NOTE — what our volume counts', () => {
-  it('says odd-lot trades are included, TradingView leaves them out, and what that can move', () => {
-    expect(VOLUME_SOURCE_NOTE).toBe('Includes odd-lot trades (TradingView excludes them), so volume and some highs/lows/closes can differ slightly.')
+  it('says volume includes odd-lot trades, TradingView leaves them out, and nothing about prices', () => {
+    expect(VOLUME_SOURCE_NOTE).toBe("Volume includes odd-lot trades (TradingView excludes them), so it can read higher than TradingView's.")
     expect(VOLUME_SOURCE_NOTE).not.toMatch(/[–—]|!|warning|caution|inaccurate|wrong/i)
   })
   it('the About card says the same thing in a sentence', () => {
-    expect(VOLUME_ABOUT.text).toMatch(/include odd-lot trades \(TradingView excludes them\), so volume and some highs\/lows\/closes can differ slightly/)
+    expect(VOLUME_ABOUT.text).toMatch(/Volume includes odd-lot trades \(TradingView excludes them\), so it can read higher than TradingView's\./)
+    expect(VOLUME_SOURCE_NOTE, 'the note claims something about prices').not.toMatch(/\b(highs?|lows?|closes?|prices?)\b/i)
     expect(VOLUME_ABOUT.text).not.toMatch(/[–—]/)
   })
 })

@@ -219,7 +219,7 @@ export default function LegendRow({
    *  empty, the row is exactly the row it was. */
   moreValues = null,
   /** A short static line the row's tooltip carries under its name: what the series IS, when a member could
-   *  misread it (Volume: "Includes odd-lot trades"). Static text in the `title` attribute only, so it
+   *  misread it (Volume: "Volume includes odd-lot trades"). Static text in the `title` attribute only, so it
    *  costs no layout, no fetch and no render work. A read-only row (no `onOpen`) carries it as its whole title. */
   note = null,
   // ⚰️ `onHover` AND `hoverKey` ARE GONE. They drove the hover lift — a pixel
