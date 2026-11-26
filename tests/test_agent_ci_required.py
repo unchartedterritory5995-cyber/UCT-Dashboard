@@ -661,7 +661,8 @@ def test_MQ_the_freeze_windows_at_their_edges(at, window):
         assert acr.freeze_window(_et(2026, 11, day, *at)) == window, (day, at)
     for day in (21, 22):                                                   # Saturday, Sunday: never frozen
         assert acr.freeze_window(_et(2026, 11, day, *at)) is None, (day, at)
-    assert acr.FREEZE_WINDOWS == (((9, 20), (9, 45)), ((15, 30), (16, 15))) and acr.FREEZE_TZ == "America/New_York"
+    assert acr.freeze_windows_on(datetime.date(2026, 11, 18)) == (((9, 20), (9, 45)), ((15, 30), (16, 15)))
+    assert acr.FREEZE_TZ == "America/New_York"
 
 
 def test_MQ_the_freeze_windows_follow_new_yorks_clock_across_a_daylight_saving_change():
@@ -831,7 +832,7 @@ def test_MQ_an_agent_entry_is_failed_inside_a_freeze_window_and_a_plain_one_is_n
     r = _queue_repo(tmp_path / "agent", {"app/src/agent/a.js": "a2\n"})
     api = _RunApi()
     state, reason = _follow(r, api, now=_et(2026, 11, 18, *at))
-    assert (state, reason) == ("failure", f"deploy freeze window {window} on weekdays: an Agent entry does not land in it; queue it again afterwards")
+    assert (state, reason) == ("failure", f"deploy freeze window {window} (a market rush today): an Agent entry does not land in it; queue it again afterwards")
     assert len(reason) <= 140 and api.calls == []
     assert _follow(r, now=_et(2026, 11, 18, at[0], at[1]) + datetime.timedelta(hours=1))[0] == "success"        # control: an hour later
     assert _follow(r, now=_et(2026, 11, 21, *at))[0] == "success"                                             # control: a Saturday
@@ -1585,3 +1586,73 @@ def test_MQ_the_rail_files_and_local_actions_are_self_protected_and_the_rails_ar
     for other in ("tests/test_ci_cost_rails.py", "tests/test_gate_static_rails_pr.py", ".github/CODEOWNERS"):
         assert not acr.matches(other, list(ev.SELF_PROTECTED)) and not acr.matches(other, PATHS), other
     assert not acr.matches(".github/workflows/web-start.yml", PATHS) and not [p for p in PATHS if p in (".github/workflows/**", ".github/**")]
+
+
+# ---- the merge-queue freeze follows the NYSE calendar, from ONE definition (2026-11-26) ---------------------------
+# On Thanksgiving 2026 (market closed) the follower refused #2844's merge group at 16:07 ET with "deploy freeze window
+# 15:30-16:15 ET on weekdays": a hard-coded SECOND copy of the rushes that knew no holiday and no half-day. The
+# windows are now tools/deploy_freeze.py's own rushes for the day (day_hold_windows), loaded by path.
+
+def _df():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("_df_for_acr_test", ROOT / "tools" / "deploy_freeze.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_MQ_freeze_thanksgiving_1545_is_not_refused(tmp_path):
+    assert acr.freeze_window(_et(2026, 11, 26, 15, 45)) is None
+    assert acr.freeze_window(_et(2026, 11, 26, 9, 30)) is None
+    r = _queue_repo(tmp_path / "agent", {"app/src/agent/a.js": "a2\n"})
+    assert _follow(r, now=_et(2026, 11, 26, 16, 7))[0] == "success"
+
+
+def test_MQ_freeze_half_day_rush_is_close_minus_30_to_close_plus_15(tmp_path):
+    assert acr.freeze_window(_et(2026, 11, 27, 12, 45)) == "12:30-13:15 ET"
+    assert acr.freeze_window(_et(2026, 11, 27, 13, 15)) == "12:30-13:15 ET"          # both ends included, as before
+    assert acr.freeze_window(_et(2026, 11, 27, 13, 15, 1)) is None
+    assert acr.freeze_window(_et(2026, 11, 27, 15, 45)) is None
+    assert acr.freeze_window(_et(2026, 11, 27, 9, 30)) == "09:20-09:45 ET"
+    r = _queue_repo(tmp_path / "agent", {"app/src/agent/a.js": "a2\n"})
+    state, reason = _follow(r, now=_et(2026, 11, 27, 12, 45))
+    assert state == "failure" and reason.startswith("deploy freeze window 12:30-13:15 ET") and len(reason) <= 140
+
+
+def test_MQ_freeze_regular_day_1545_is_refused():
+    assert acr.freeze_window(_et(2026, 12, 3, 15, 45)) == "15:30-16:15 ET"
+    assert acr.freeze_window(_et(2026, 12, 3, 12, 0)) is None          # the rushes only, not deploy_freeze's session hold
+
+
+def test_MQ_freeze_has_no_second_list_of_windows():
+    df = _df()
+    assert not hasattr(acr, "FREEZE_WINDOWS"), "the windows are deploy_freeze's, never restated here"
+    assert acr.freeze_windows_on(datetime.date(2026, 12, 3)) == tuple((a, b) for _n, a, b in df.BURST_WINDOWS_ET)
+    src = (ROOT / "tools" / "agent_ci_required.py").read_text(encoding="utf-8")
+    assert "(15, 30)" not in src and "(9, 20)" not in src
+
+
+def test_MQ_freeze_a_broken_calendar_refuses_by_the_weekday_rule(monkeypatch):
+    df = acr._deploy_freeze()
+
+    def broken():
+        raise RuntimeError("calendar unreadable")
+    monkeypatch.setattr(df, "_calendar_module", broken)
+    assert acr.freeze_window(_et(2026, 11, 26, 15, 45)) == "15:30-16:15 ET"        # never "no window"
+    assert acr.freeze_window(_et(2026, 11, 27, 15, 45)) == "15:30-16:15 ET"
+
+
+def test_MQ_freeze_a_date_past_the_calendar_horizon_refuses_by_the_weekday_rule():
+    import importlib.util
+    import sys as _sys
+    spec = importlib.util.spec_from_file_location("_cal_for_acr_test", ROOT / "api" / "services" / "session_calendar.py")
+    cal = importlib.util.module_from_spec(spec)
+    _sys.modules["_cal_for_acr_test"] = cal
+    try:
+        spec.loader.exec_module(cal)
+    finally:
+        _sys.modules.pop("_cal_for_acr_test", None)
+    day = cal.horizon() + datetime.timedelta(days=1)
+    while day.weekday() >= 5:
+        day += datetime.timedelta(days=1)
+    assert acr.freeze_window(_et(day.year, day.month, day.day, 15, 45)) == "15:30-16:15 ET"

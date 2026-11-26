@@ -106,6 +106,8 @@ jobs:
             /tools/__init__.py
             /tools/agent_ci_required.py
             /tools/agent_ci_evidence.py
+            /tools/deploy_freeze.py
+            /api/services/session_calendar.py
             /.github/workflows/agent-ci.yml
             /app/
           sparse-checkout-cone-mode: false

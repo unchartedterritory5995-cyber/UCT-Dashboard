@@ -43,10 +43,12 @@
 #        - for an entry that needs Agent evidence, requires every self-protected path to be byte-identical between
 #          the commit and the master commit the group is built on. A difference means this entry, or one AHEAD of
 #          it in the group, edited the Agent CI machinery, which the entry's own diff cannot show: failure;
-#        - for an entry that needs Agent evidence, refuses the weekday deploy freeze windows, 09:20-09:45 and
-#          15:30-16:15 America/New_York (AUDIT D2.1). It knows no market holiday: on one that falls on a weekday
-#          an Agent entry is refused in the window for nothing, which is the safe side. The clock is read when the
-#          verdict is decided, seconds before the entry lands;
+#        - for an entry that needs Agent evidence, refuses the day's deploy freeze windows (AUDIT D2.1): the market
+#          rushes from tools/deploy_freeze.py day_hold_windows, ONE definition, following the NYSE calendar (none on a
+#          holiday; 12:30-13:15 on a 13:00 half-day; 09:20-09:45 and 15:30-16:15 America/New_York on a regular day).
+#          A calendar that cannot be read, or a date past its horizon, refuses by the weekday rule (the safe side).
+#          That is why the checkout below holds deploy_freeze.py and session_calendar.py (the dataset is under /app/).
+#          The clock is read when the verdict is decided, seconds before the entry lands;
 #        - re-reads that run's jobs through the API and requires every required Agent job (names from master's
 #          agent-ci.yml, matrix legs expanded) under the queue workflow's call, each success.
 #      An entry that touches no Agent path needs none of that: success, as on a pull request today.
@@ -109,6 +111,8 @@ jobs:
             /tools/__init__.py
             /tools/agent_ci_required.py
             /tools/agent_ci_evidence.py
+            /tools/deploy_freeze.py
+            /api/services/session_calendar.py
             /.github/workflows/agent-ci.yml
             /app/
           sparse-checkout-cone-mode: false

@@ -1387,7 +1387,10 @@ def test_MQ_each_checkout_holds_every_file_its_stage_reads():
     """A file that is not on disk makes the protected list unreadable, or the tool unimportable. Both stages (the
     in-group scope and the follower, which RECOMPUTES that scope) read: both tools, agent-ci.yml, every vite / vitest
     config and every file those configs import (derived by the same code the stages run, never listed here)."""
-    tools = {"tools/agent_ci_required.py", "tools/agent_ci_evidence.py", "tools/__init__.py", ".github/workflows/agent-ci.yml"}
+    tools = {"tools/agent_ci_required.py", "tools/agent_ci_evidence.py", "tools/__init__.py", ".github/workflows/agent-ci.yml",
+             # the follower's freeze reads deploy_freeze's rushes, which read the NYSE calendar (2026-11-26): without
+             # them the windows fall back to the weekday rule, a holiday is refused for nothing
+             "tools/deploy_freeze.py", "api/services/session_calendar.py", "app/src/lib/marketClock/market_calendar.json"}
     configs = {p.relative_to(ROOT).as_posix() for pat in ("vite*.config.*", "vitest*.config.*") for p in (ROOT / "app").glob(pat)}
     imported = set(ev.config_imports(ROOT))
     assert len(configs) >= 2 and len(imported) >= 3, (configs, imported)

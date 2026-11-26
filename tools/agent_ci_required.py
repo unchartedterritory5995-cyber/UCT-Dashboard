@@ -43,7 +43,7 @@ MASTER's copy of this file in two places:
            nothing the merge group's run says about itself: it recomputes the scope from the commit, and posts with a
            GitHub App's token. success ONLY for no-agent-paths, or for agent-paths when (a) no self-protected path
            differs between the commit and the master commit the group is built on (an entry AHEAD may have edited the
-           Agent CI machinery), (b) the clock is outside the weekday deploy freeze windows, and (c) every required
+           Agent CI machinery), (b) the clock is outside the day's deploy freeze windows, and (c) every required
            Agent job (master's agent-ci.yml) is success under the queue workflow's call in that run. self-protected is
            ALWAYS failure (AUDIT's local evidence decides), and so is anything unreadable. Never pending.
            Whatever goes wrong while deciding is POSTED as a failure; API calls are tried 3 times (transport / 5xx /
@@ -340,12 +340,20 @@ FOLLOW_MASTER_REF = "refs/agent-ci-verdict/master"
 FOLLOW_DEPTH = 50
 #: the environment variable that holds the GitHub App's installation token: the ONLY token the follower POSTs with
 VERDICT_TOKEN_ENV = "AGENT_CI_VERDICT_TOKEN"
-#: D2.1 (AUDIT on #2495): deploy freeze windows, weekdays, wall clock in FREEZE_TZ, both ends included. An entry that
-#: needs Agent evidence is failed inside one. ⚠️ The clock is read when the VERDICT is decided, which is seconds
-#: before the entry lands; and this knows no market holiday (a holiday that falls on a weekday is treated as a
-#: trading day: an Agent entry is refused in the window for nothing, which is the safe side).
+#: D2.1 (AUDIT on #2495): deploy freeze windows, wall clock in FREEZE_TZ, both ends included. An entry that needs
+#: Agent evidence is failed inside one. ⚠️ The clock is read when the VERDICT is decided, which is seconds before the
+#: entry lands.
+#: ⛔ ONE DEFINITION (2026-11-26). The windows are NOT listed here: they are tools/deploy_freeze.py's market rushes for
+#: the day (`day_hold_windows`, the windows named in FREEZE_RUSHES), loaded BY PATH (deploy_freeze is stdlib-only and
+#: imports no `api.*` package). So they follow the NYSE calendar: none on a holiday, close-30..close+15 on a half-day
+#: (12:30-13:15 ET), 09:20-09:45 and 15:30-16:15 ET on a regular day. Until then a second, hard-coded copy refused an
+#: Agent entry on Thanksgiving (#2844, 16:07 ET). Same fail-safe rule as the deploy freeze: a calendar that cannot be
+#: read, or a date past its horizon, gives the WEEKDAY rushes (refused for nothing, the safe side), never "no window".
+#: deploy_freeze.py itself not loading raises, and `follow` posts that as a failure (fail closed).
 FREEZE_TZ = "America/New_York"
-FREEZE_WINDOWS = (((9, 20), (9, 45)), ((15, 30), (16, 15)))
+FREEZE_RUSHES = ("opening", "closing")
+FREEZE_TOOL = pathlib.Path(__file__).resolve().parent / "deploy_freeze.py"
+_FREEZE_MOD: list = []
 MACHINERY_EDITED = "; an entry ahead edits the Agent CI machinery: AUDIT decides"
 APP_REACH = ": only the two posters may reach the verdict App"
 #: that workflow's job that CALLS agent-ci.yml. The Actions API reports a called workflow's jobs as
@@ -744,10 +752,28 @@ def write_outputs(values: dict, path=None) -> None:
             fh.write(f"{key}={_safe(value)}\n")
 
 
+def _deploy_freeze():
+    """tools/deploy_freeze.py, loaded BY PATH next to this file (cached per process). Raises when it cannot load."""
+    if _FREEZE_MOD:
+        return _FREEZE_MOD[0]
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("_deploy_freeze_for_agent_ci", FREEZE_TOOL)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    _FREEZE_MOD.append(mod)
+    return mod
+
+
+def freeze_windows_on(day) -> tuple:
+    """((start, end), ...) ET (h, m) pairs: deploy_freeze's market rushes for the ET date `day` (see FREEZE_RUSHES)."""
+    return tuple((a, b) for name, a, b in _deploy_freeze().day_hold_windows(day) if name in FREEZE_RUSHES)
+
+
 def freeze_window(now) -> str | None:
     """The deploy freeze window the instant `now` falls in, as "09:20-09:45 ET", or None. `now` is an AWARE datetime
-    (a naive one raises: a clock that cannot be placed is not a clock). Weekdays only, both ends included, read in
-    FREEZE_TZ's wall clock, so the UTC instants move with daylight saving. No market holiday is known here."""
+    (a naive one raises: a clock that cannot be placed is not a clock). Both ends included, read in FREEZE_TZ's wall
+    clock, so the UTC instants move with daylight saving. The windows are the day's rushes from deploy_freeze
+    (`freeze_windows_on`): none on a weekend or an NYSE holiday, close-30..close+15 on a half-day."""
     import zoneinfo
     if now.tzinfo is None or now.utcoffset() is None:
         raise ValueError("freeze_window needs an aware datetime")
@@ -755,7 +781,7 @@ def freeze_window(now) -> str | None:
     if local.weekday() >= 5:
         return None
     at = (local.hour, local.minute, local.second)
-    for (h1, m1), (h2, m2) in FREEZE_WINDOWS:
+    for (h1, m1), (h2, m2) in freeze_windows_on(local.date()):
         if (h1, m1, 0) <= at <= (h2, m2, 0):
             return f"{h1:02d}:{m1:02d}-{h2:02d}:{m2:02d} ET"
     return None
@@ -837,7 +863,7 @@ def follow_verdict(root, api: Api, run_id, head_sha: str, head_ref: str, now, ru
             return FAILURE, head[:140 - len(MACHINERY_EDITED)] + MACHINERY_EDITED
         window = freeze_window(now)
         if window:
-            return FAILURE, f"deploy freeze window {window} on weekdays: an Agent entry does not land in it; queue it again afterwards"
+            return FAILURE, f"deploy freeze window {window} (a market rush today): an Agent entry does not land in it; queue it again afterwards"
         required = required_jobs(doc)
         try:
             jobs = run_jobs(api, run_id)
