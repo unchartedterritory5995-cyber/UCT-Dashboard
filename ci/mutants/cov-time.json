@@ -1,0 +1,69 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "COV-TIME (feat/cov-time-session): B1 \"1440\" is \"D\" for time(tf, session) and the time(tf) anchor, and nowhere else (Q-BT2 vw-bt-time-1440-spy-{1d,60}-2026-11-16); B2 a v1-v3 bare `interval` is timeframe.multiplier, v4+ refused; B3 ta.swma / v4 swma over runtime state is the published pine_swma. Every rule, broken once, must turn its rail red.",
+ "mutants": [
+  {
+   "id": "T1",
+   "mutant": "the session clock reads \"1440\" through the request spelling map again (no alias)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    const code = lit === null ? null : clockTfCodeOf(lit)",
+   "to": "    const code = lit === null ? null : PINE_TF_SPELLING[String(lit).trim().toUpperCase()]",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineBuiltinsUnit.test.js",
+   "expectRed": "translate to exactly the \"D\" tree"
+  },
+  {
+   "id": "T2",
+   "mutant": "the time(tf) anchor reads \"1440\" through the request spelling map again (no alias)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "        const tfCode = rawTf === null ? null : clockTfCodeOf(rawTf)",
+   "to": "        const tfCode = rawTf === null ? null : PINE_TF_SPELLING[String(rawTf).trim().toUpperCase()]",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineBuiltinsUnit.test.js",
+   "expectRed": "translate to exactly the \"D\" tree"
+  },
+  {
+   "id": "T3",
+   "mutant": "\"1440\" leaks into PINE_TF_SPELLING, so time_close / timeframe.change / request.security read it as \"D\" with no capture",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "  '60': '60', '1H': '60', '240': '240', '4H': '240',",
+   "to": "  '60': '60', '1H': '60', '240': '240', '4H': '240', '1440': 'D',",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineBuiltinsUnit.test.js",
+   "expectRed": "is NOT a spelling anywhere else"
+  },
+  {
+   "id": "T4",
+   "mutant": "a bare `interval` is read as timeframe.multiplier in v4+ too",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "  && (version === null || version === undefined || version < 4)",
+   "to": "  && true",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineBuiltinsUnit.test.js",
+   "expectRed": "v4, v5 and v6 keep the refusal"
+  },
+  {
+   "id": "T5",
+   "mutant": "a v1-v3 bare `interval` is not served (the refusal it had)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    if (legacyIntervalIsMultiplier(name, this.pineVersion)) {",
+   "to": "    if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineBuiltinsUnit.test.js",
+   "expectRed": "reads the reference"
+  },
+  {
+   "id": "T6",
+   "mutant": "swma's weights on x[3] and x[2] are swapped (2/6 and 1/6)",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "      return plus(plus(plus(term(3, 1), term(2, 2)), term(1, 2)), term(0, 1))",
+   "to": "      return plus(plus(plus(term(3, 2), term(2, 1)), term(1, 2)), term(0, 1))",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/respelledBuiltins.test.js",
+   "expectRed": "are `pine_swma`, exactly"
+  },
+  {
+   "id": "T7",
+   "mutant": "ta.swma over runtime state is not respelled (the refusal it had)",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "    if (bare === 'swma' && given.length === 1) {",
+   "to": "    if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/respelledBuiltins.test.js",
+   "expectRed": "are `pine_swma`, exactly"
+  }
+ ]
+}
