@@ -189,7 +189,8 @@ import {
 import { sourceInputsOf, parseSource } from './engine/sourceRef'
 import { ohlcCapableFor, sourceCapabilityFor } from './engine/styleCapability'
 import { setInstancePlotStyle, setInstanceDisplayTarget, setInstanceDotSize, dotPlotsOf, DOT_SIZE_OPTIONS,
-  instanceDotSizeReading, DOT_SIZE_MIXED } from './engine/instanceControls'
+  instanceDotSizeReading, DOT_SIZE_MIXED, setInstancePinScale } from './engine/instanceControls'
+import { pinScaleOf, pinScaleOffered, PIN_SCALE_CHOICES, PIN_SCALE_LABELS } from './engine/placement'
 // ⭐ UCT RS PHASE 2a VISUAL (A6) — the Inspector's Preset row reads and writes
 // through the ENGINE's preset helpers, the ones the settings dialog and the phone
 // sheet use, so the three surfaces cannot name different presets for one instance.
@@ -2906,6 +2907,7 @@ export default function ChartSettingsIndicators({
     const preset = presetControl(row, def)
     const readOnly = readOnlyCore(row, group, meta.source)
     const display = displayInControl(row)
+    const pinScale = pinScaleControl(row)
     const timeframe = timeframeControl(row)
     const appearance = appearanceControls(row)
     const visibility = visibilityControl(row)
@@ -3083,6 +3085,7 @@ export default function ChartSettingsIndicators({
             <div className={styles.insSectionLabel}>On the chart</div>
             <div className={styles.card}>
               {display || where.map(renderReadOnly)}
+              {pinScale}
               {soonField('Legend name', (
                 <input type="text" className={styles.insText} disabled aria-disabled="true" value={meta.name} readOnly
                   aria-label="Legend name (coming soon)" title={SOON} aria-describedby={soonDescId} />
@@ -3237,6 +3240,42 @@ export default function ChartSettingsIndicators({
                 {o.label}
               </option>
             ))}
+          </select>
+        </span>
+      </div>
+    )
+  }, [settings, registry, onChange])
+
+  /**
+   * ⭐ PIN TO SCALE (2026-11-26) — TradingView's per-indicator choice, in TradingView's words, for
+   * an instance that draws ON PRICE: "Same as price" (the candles' axis) or "No scale" (an
+   * invisible scale of its own that fills the pane and follows the visible window). Reads
+   * `placement.pinScaleOf` — the answer the chart draws with, so a Fred RS copy that was never
+   * touched shows "No scale" — and writes `setInstancePinScale`. Offered only where it means
+   * something: on price, and not for a definition with its own scale rule (`pinScaleOffered`).
+   */
+  const pinScaleControl = useCallback((row) => {
+    if (!row || !row.instanceId || !row.engineOwned) return null
+    const inst = findInstance(settings, row.instanceId)
+    if (!inst) return null
+    const def = registry?.getDefinition?.(inst.defId) || null
+    if (!pinScaleOffered(def)) return null
+    if (resolveDisplayTarget(inst, settings) !== 'price') return null
+    const current = pinScaleOf(inst, def)
+    return (
+      <div className={styles.insField} data-field="__pinscale__" data-measure="wide" key="pin-scale">
+        <span className={styles.insFieldLabel}>Pin to scale</span>
+        <span className={styles.insFieldCtl}>
+          <select
+            className={styles.indSelect}
+            value={current}
+            aria-label={`${row.label} pin to scale`}
+            onChange={(e) => {
+              const next = setInstancePinScale(settings, row.instanceId, e.target.value, registry)
+              if (next !== settings) onChange?.({ ...next, preset: 'custom' })
+            }}
+          >
+            {PIN_SCALE_CHOICES.map((v) => <option key={v} value={v}>{PIN_SCALE_LABELS[v]}</option>)}
           </select>
         </span>
       </div>

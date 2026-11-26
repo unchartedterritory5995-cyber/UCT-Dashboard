@@ -130,7 +130,7 @@ import { createBinder } from './chart/engine/binder'
 import { wrapSeriesForBarColours, reapplyBarColours } from './chart/engine/barColours'
 import { createObjectLayer } from './chart/engine/objectLayer'
 import { makeRoomForLabels } from './chart/labelRoom'
-import { resolvePlacement, resolvePreset } from './chart/engine/placement'
+import { resolvePlacement, resolvePreset, objectPriceHost } from './chart/engine/placement'
 import { registerManifestChart } from './chart/engine/paneLayout'
 // ⚠️ `engineOwnedDefIds` is NOT imported here any more (B5 Task 4). It is not
 // dead — it keeps its own suite in `engine/instances.test.js` — but StockChart's
@@ -14144,6 +14144,9 @@ function StockChartBody({
             // for its tables (a calculator's one-line pane).
             let pane = null
             let mainPane = null
+            // ⭐ PIN TO SCALE — an instance on a scale of its own ("No scale", or a 3-07 own scale)
+            // places its labels and dots on THAT scale's map (`placement.objectPriceHost`), not the candles'.
+            let priceHost = series
             try {
               const rectOf = (lwPane) => {
                 const pel = lwPane?.getHTMLElement?.()
@@ -14157,10 +14160,11 @@ function StockChartBody({
               const shown = mine.find((b) => b.series.options?.()?.visible !== false) || mine[0]
               mainPane = rectOf(series.getPane?.())
               pane = rectOf(shown?.series?.getPane?.()) || mainPane
-            } catch { pane = null; mainPane = null }
+              priceHost = objectPriceHost(mine, series)
+            } catch { pane = null; mainPane = null; priceHost = series }
             return {
               timeToX: (t) => ts.timeToCoordinate(adjustTime(t)),
-              priceToY: (p) => series.priceToCoordinate(p),
+              priceToY: (p) => priceHost.priceToCoordinate(p),
               width: el ? el.clientWidth : 0,
               height: el ? el.clientHeight : 0,
               rightInset,
@@ -14186,6 +14190,10 @@ function StockChartBody({
         // Placement inputs. `resolvePlacement` reads these and nothing else, so
         // the engine lands in the legacy bands by construction.
         paneMargins,
+        // ⭐ PIN TO SCALE → "No scale" frames its own invisible scale in the candles' band
+        // (`placement.pinScaleOf`). The LAYOUT's band, never the member's dragged
+        // `vertMarginsRef`: "No scale" is independent of the price axis, as on TradingView.
+        mainScaleMargins: _mainMargins(paneLayout, priceScaleTopMargin, volumePaneExists ? priceScaleBottomMargin : null),
         // FLIP C. `null` in `'bands'` mode, and `resolvePlacement` ignores it
         // there — asserted deep-equal to the pre-Flip-C answer for every pane
         // oscillator in `engine/__tests__/flipCGeometry.test.jsx`.

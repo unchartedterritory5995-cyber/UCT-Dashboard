@@ -69,7 +69,7 @@ import { outputTypeOf, OUTPUT_TYPES } from './outputType'
 import { plotHiddenAt } from './knobBind.js'
 import { paneMode, paneStretchPlan, paneHeightMismatch } from './paneLayout'
 import { createFillPrimitive, createFillLayerGroup } from './fillPrimitive'
-import { MAIN_PRICE_SCALE_ID, applyAxisTenancy } from './placement'
+import { MAIN_PRICE_SCALE_ID, PIN_SCALE_PREFIX, applyAxisTenancy } from './placement'
 import { fillOpacityOf, fillPaint, staticFillOf } from './fillPaint'
 import { opaqueOf } from '../designTokens'
 import { createBackgroundPrimitive, isNaColour, staticPaintColour } from './paintPrimitive'
@@ -820,7 +820,9 @@ export function eventGlyphHosts(bind, settled, { isCondition = isConditionOutput
     const pl = settled[i]
     if (!b || !pl || !b.plot || plotHiddenAt(b.plot, b.def, b.inst && b.inst.inputs)) return null
     if (!markerIsEvent(b.plot, isCondition(b.def, b.plot.key))) return null
-    if (pl.paneIndex === 0) return 'price'
+    // ⛔ PINNED TO "No scale" (`placement.pinScaleOf`) the candles' map is the wrong one: such a glyph
+    // rides a sibling on the instance's own scale, found below, or keeps its own column.
+    if (pl.paneIndex === 0 && !(typeof pl.scaleId === 'string' && pl.scaleId.startsWith(PIN_SCALE_PREFIX))) return 'price'
     for (let j = 0; j < bind.length; j++) {
       const o = bind[j]
       const op = settled[j]

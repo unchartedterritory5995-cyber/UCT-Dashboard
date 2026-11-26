@@ -47,7 +47,7 @@ import { parseColor } from '../../../utils/dividerColor'
 import { isVisibleOnTimeframe } from './instanceTimeframe'
 import { resolveInstanceFrames } from './calcTimeframeCapability'
 import { orderByDependency } from './sourceRef'
-import { joinsPriceScaleOf } from './placement'
+import { joinsPriceScaleOf, pinScaleOf, PIN_SCALE_NONE } from './placement'
 
 /** `VWAP_TFS`, verbatim and in order — from `StockChart.jsx`, which no longer
  *  has it: VWAP is FLIPPED (B3 Task 11) and this is the only copy left.
@@ -161,7 +161,7 @@ export function eligibleInstances(instances, registry, ctx) {
 
     const fold = FOLDS[def.id]
     let out = fold ? fold(inst, c) : inst
-    if (def.meta && Array.isArray(def.meta.appearance)) out = averageLook(out, c)
+    if (def.meta && Array.isArray(def.meta.appearance)) out = averageLook(out, c, def)
     else if (joinsPriceScaleOf(def)) out = priceScaleJoinLook(out, c)
 
     // ⭐⭐ HIDDEN HERE ≠ GONE. Visibility (the member's "Show on") and a gated
@@ -226,12 +226,14 @@ function priceScaleJoinLook(inst, c) {
   return { ...inst, renderLook: { ...(inst.renderLook || {}), autoscale: 'default' } }
 }
 
-function averageLook(inst, c) {
+function averageLook(inst, c, def) {
   const onPrice = typeof c.targetOf === 'function' ? c.targetOf(inst) === 'price' : false
   if (!onPrice) return inst
   const look = {
     curved: !!(c.boldCandles || c.modelBookLook),
-    autoscale: c.fitPriceToCandles ? 'exclude' : 'default',
+    // ⛔ PINNED TO "No scale" the average is the only thing on its own scale: 'exclude' there would
+    // collapse it to the library's empty range (`placement.pinScaleOf`).
+    autoscale: c.fitPriceToCandles && pinScaleOf(inst, def) !== PIN_SCALE_NONE ? 'exclude' : 'default',
   }
   if (typeof c.showMaLabels === 'boolean') look.lastValue = c.showMaLabels && !c.lastBarOff
   let inputs = inst.inputs
