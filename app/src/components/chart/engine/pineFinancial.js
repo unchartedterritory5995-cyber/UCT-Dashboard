@@ -52,7 +52,7 @@ const PERIODS = Object.freeze(Object.fromEntries(own(FIN.periods)))
 const PERIOD_BY_LETTER = Object.freeze(Object.fromEntries(Object.entries(PERIODS).map(([p, s]) => [s.letter, p])))
 const ARGS = Object.freeze(['symbol', 'financial_id', 'period', 'gaps', 'ignore_invalid_symbol', 'currency'])
 
-/** What UCT serves, in the member's words: `TOTAL_REVENUE` (`FQ`, `TTM`), … */
+/** What UCT serves, in the member's words: `TOTAL_REVENUE` (`FQ`, `TTM`, `FY`), … */
 export function financialServedList() {
   return Object.entries(SERVED).map(([id, s]) => `\`${id}\` (${Object.keys(s.periods || {}).map((p) => `\`${p}\``).join(', ')})`)
     .join(', ')
@@ -342,3 +342,9 @@ export const FINANCIAL_DATA_WORDS = 'UCT data (company filings)'
 export const FINANCIAL_SOURCE_NOTE = 'This script reads `request.financial`. It uses UCT data (company filings), not '
   + "TradingView's figures: each value is dated when its filing became public, which can be days after the earnings "
   + "release, and its figures can differ from TradingView's."
+/** ⭐ e99 FY — THE NAMED LIMITATION of a fiscal-year read (the catalog's `periods.FY.limitation`, the one authority the
+ *  route serves too): the fiscal year is read from the store's published series (the V5 methodology is frozen), so a
+ *  restatement filed after the next quarterly report is not shown until the following 10-K. The note of a script that
+ *  reads any `FY` figure says so; a script that reads none keeps the plain note. */
+export const FINANCIAL_FY_LIMITATION = String((PERIODS.FY && PERIODS.FY.limitation) || '')
+export const FINANCIAL_FY_SOURCE_NOTE = `${FINANCIAL_SOURCE_NOTE} For a fiscal-year (\`FY\`) figure, ${FINANCIAL_FY_LIMITATION}.`

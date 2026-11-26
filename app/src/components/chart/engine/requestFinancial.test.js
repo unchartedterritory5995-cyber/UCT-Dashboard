@@ -18,7 +18,7 @@ import {
   otherSymbolsSignature, OTHER_SYMBOL_REFUSAL as R,
 } from './otherSymbols'
 import { EVENT_VENUE, SERIES_EVENT_RECORD, eventReadOf } from './pineEvents'
-import { FINANCIAL_KEY, placeFinancial, financialReadOf, FINANCIAL_SOURCE_NOTE } from './pineFinancial'
+import { FINANCIAL_KEY, placeFinancial, financialReadOf, FINANCIAL_SOURCE_NOTE, FINANCIAL_FY_SOURCE_NOTE, FINANCIAL_FY_LIMITATION } from './pineFinancial'
 import { SERIES_UNKNOWN_BEFORE_FIRST } from './ast/interpret'
 import { memberPaneDefinition } from '../builder/memberPane/memberPaneDefinition'
 import { computeFor, columnErrors } from './nativeRegistry'
@@ -96,12 +96,14 @@ describe('F1b — the parse rewrite: one data read per id, period and gaps, unde
     expect(debt).toMatchObject({ code: R.FINANCIAL_FIELD })
     expect(debt.reason).toMatch(/^`TOTAL_DEBT` is not served: UCT does not hold total debt/)
     expect(why('plot(request.financial(syminfo.tickerid, "EARNINGS_ESTIMATE", "FQ"))').reason).toMatch(/analyst estimate/)
-    const fy = why('plot(request.financial(syminfo.tickerid, "TOTAL_REVENUE", "FY"))')
-    expect(fy).toMatchObject({ code: R.FINANCIAL_PERIOD })
-    expect(fy.reason).toMatch(/^`TOTAL_REVENUE` is served for `FQ` and `TTM` only \(`FY`: UCT's filings store holds no fiscal-year series yet\)/)
+    // ⭐ e99 FY — the fiscal year is served now (a view of the published series); the half year is still refused by name
+    expect(why('plot(request.financial(syminfo.tickerid, "TOTAL_REVENUE", "FY"))')).toBeNull()
+    const fh = why('plot(request.financial(syminfo.tickerid, "TOTAL_REVENUE", "FH"))')
+    expect(fh).toMatchObject({ code: R.FINANCIAL_PERIOD })
+    expect(fh.reason).toMatch(/^`TOTAL_REVENUE` is served for `FQ` and `TTM` and `FY` only \(`FH`: UCT's filings store holds no fiscal half-year series\)/)
     const unknown = why('plot(request.financial(syminfo.tickerid, "NET_DEBT_TO_EBITDA", "FQ"))')
     expect(unknown).toMatchObject({ code: R.FINANCIAL_FIELD })
-    expect(unknown.reason).toMatch(/UCT serves `TOTAL_REVENUE` \(`FQ`, `TTM`\)/)
+    expect(unknown.reason).toMatch(/UCT serves `TOTAL_REVENUE` \(`FQ`, `TTM`, `FY`\)/)
     expect(why('plot(request.financial("NASDAQ:MSFT", "TOTAL_REVENUE", "FQ"))')).toMatchObject({ code: R.FINANCIAL_SYMBOL })
     expect(why('plot(request.financial(syminfo.tickerid, "TOTAL_REVENUE", "FQ", currency = currency.EUR))')).toMatchObject({ code: R.FINANCIAL_CURRENCY })
     expect(why('id = "TOTAL_REVENUE"\nplot(request.financial(syminfo.tickerid, id, "FQ"))')).toMatchObject({ code: R.FINANCIAL_ARGUMENT })
@@ -310,6 +312,24 @@ describe('F1b — the member\'s words: UCT data (company filings), never Trading
     expect(notes).toContain("not TradingView's figures")
     expect(notes).not.toMatch(/EV-F|@event/)
     expect(FINANCIAL_SOURCE_NOTE).toMatch(/dated when its filing became public/)
+    // ⭐ e99 FY — a script that reads no fiscal-year figure keeps the plain note (no FY limitation)
+    expect(notes).not.toContain(FINANCIAL_FY_LIMITATION)
+  })
+
+  it('⭐ e99 FY — a script that reads any `FY` figure names the FY limitation in its ONE note, in any read order', () => {
+    expect(FINANCIAL_FY_LIMITATION).toBe("each fiscal year's value is the one its 10-K first reported: a restatement of that "
+      + 'year filed after the next quarterly report is not shown until the following 10-K')
+    expect(FINANCIAL_FY_SOURCE_NOTE.startsWith(FINANCIAL_SOURCE_NOTE)).toBe(true)
+    for (const lines of [
+      ['plot(request.financial(syminfo.tickerid, "TOTAL_REVENUE", "FQ"), "q")', 'plot(request.financial(syminfo.tickerid, "TOTAL_REVENUE", "FY"), "y")'],
+      ['plot(request.financial(syminfo.tickerid, "TOTAL_REVENUE", "FY"), "y")', 'plot(request.financial(syminfo.tickerid, "TOTAL_REVENUE", "FQ"), "q")'],
+    ]) {
+      const d = memberPaneDefinition({ source: pine(lines), id: 'u_finfy', name: 'f' })
+      const notes = d.definition.meta.disclosures || d.notes || []
+      const fin = notes.filter((n) => JSON.stringify(n).includes('UCT data (company filings)'))
+      expect(fin).toHaveLength(1)
+      expect(JSON.stringify(fin[0])).toContain(FINANCIAL_FY_LIMITATION.replace(/'/g, "'"))
+    }
   })
 
   it('a refusal names the read in the member\'s words, never the engine\'s internal name', () => {

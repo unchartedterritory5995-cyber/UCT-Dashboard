@@ -117,6 +117,91 @@ def _disclosure() -> str:
     return cat.disclosure(FAMILY)
 
 
+# ── e99 FY: THE FISCAL-YEAR VIEW (served, never stored) ─────────────────────────────────────────────────────────────
+# The V5 methodology is FROZEN (`fundamentals_pit/v5_prod.METHODOLOGY_FILES`), so no stored FY series exists. The FY
+# figures are READ from series the store already publishes: at a fiscal-year end the store's TTM is the 10-K's reported
+# fiscal-year value (`metrics.ttm`, method `fiscal_year`, effective when that 10-K became public), a balance-sheet figure
+# at a fiscal-year end is the 10-K's, and the share count is the 10-K's cover-page count. A catalog FY entry names such a
+# view: `<stored series>@fy` (coordinator ruling, option B, 2026-11-26).
+# ⛔ THE NAMED LIMITATION (railed, never a bug to "fix" by drift): a TTM point is emitted only while the TTM still
+# describes that fiscal year, so a restatement of a fiscal year filed AFTER the next 10-Q is not seen: the view keeps the
+# value as the 10-K first reported it until the next 10-K. Measured on AAPL FY2009: the 10-K/A (2010-01-25 16:25 ET,
+# 42,905M) landed two minutes after the Q1 FY10 10-Q, and the view keeps 36,537M. A stored FY series (option A, kept on
+# its own branch) would show the restated value; it is revisited only if TradingView restates FY in place.
+FY_VIEW = "@fy"
+FY_COVER_DAYS = 120
+
+
+def fy_limitation(catalog: Optional[dict] = None) -> str:
+    """The named limitation, in the member's words: the catalog's `financial.periods.FY.limitation` (one authority for this
+    route and the chart's note, `pineFinancial.FINANCIAL_FY_SOURCE_NOTE`)."""
+    from api.services import pine_data_catalog as cat
+    return str(((cat.families(catalog)[FAMILY].get("periods") or {}).get("FY") or {}).get("limitation") or "")
+
+
+def fy_base(series: Optional[str]) -> Optional[str]:
+    """The stored series a fiscal-year view reads (`revenue_ttm@fy` -> `revenue_ttm`), or None for a stored series."""
+    return series[: -len(FY_VIEW)] if isinstance(series, str) and series.endswith(FY_VIEW) else None
+
+
+def _row_parts(r) -> Optional[tuple]:
+    if not isinstance(r, (list, tuple)) or len(r) < 4 or _num(r[0]) is None:
+        return None
+    pe = _period_end(r[2])
+    return (float(r[0]), r[1], pe, r[3], r) if pe else None
+
+
+def fiscal_year_ends(metrics: dict) -> dict:
+    """{fiscal-year end (ISO): the first instant it was known}, from every published TTM series' `fiscal_year` points."""
+    out: dict = {}
+    for name, rows in (metrics or {}).items():
+        if not name.endswith("_ttm"):
+            continue
+        for r in rows or []:
+            p = _row_parts(r)
+            if p and p[3] == "fiscal_year" and (p[2] not in out or p[0] < out[p[2]]):
+                out[p[2]] = p[0]
+    return out
+
+
+def fy_view_rows(metrics: dict, series: str) -> list:
+    """The store-shaped points (`[t_eff, v, period_end, method]`, ascending) of a fiscal-year view, as option A's stored
+    FY series would hold them but for the named limitation: one point per fiscal year from the filing that made it known;
+    a fiscal year that becomes known WITHOUT this figure closes the previous one with a GAP (once); never a step back to
+    an older fiscal year."""
+    base = fy_base(series)
+    rows = [p for p in (_row_parts(r) for r in (metrics or {}).get(base) or []) if p]
+    ends = fiscal_year_ends(metrics)
+    own = []
+    if base.endswith("_ttm"):
+        own = [(t, v, pe, "fiscal_year") for t, v, pe, m, _r in rows if m == "fiscal_year"]
+    elif base == "shares_outstanding":
+        for fe in ends:
+            e = date.fromisoformat(fe)
+            near = sorted((p for p in rows if p[3] != "gap" and e <= date.fromisoformat(p[2]) <= e + timedelta(days=FY_COVER_DAYS)),
+                          key=lambda p: (p[2], p[0]))
+            if near:
+                own.append((near[0][0], near[0][1], fe, "fiscal_year_cover"))
+    else:
+        own = [(t, v, pe, "fiscal_year_instant") for t, v, pe, m, _r in rows if pe in ends and m != "gap"]
+    events = sorted([(t, 0, None, fe, "end") for fe, t in ends.items()] + [(t, 1, v, pe, m) for t, v, pe, m in own])
+    out: list = []
+    for t, _k, v, pe, m in events:
+        if m == "end":
+            # a newer fiscal year is known; if this figure for it is not known at that instant, the previous is closed
+            last = out[-1] if out else None
+            if last is not None and pe > last[2] and not any(o[2] == pe and o[0] <= t for o in own):
+                if not (last[3] == "gap" and last[2] == pe):
+                    out.append([t, None, pe, "gap"])
+            continue
+        if out and pe < out[-1][2]:
+            continue
+        if out and out[-1][2] == pe and out[-1][1] == v:
+            continue
+        out.append([t, v, pe, m])
+    return out
+
+
 # ── point in time ───────────────────────────────────────────────────────────────────────────────────────────────
 def _session_close_utc(d: date) -> Optional[datetime]:
     """The regular close of session `d` in UTC (the exchange calendar's, 13:00 ET on a half-day), or None when `d`
@@ -164,7 +249,7 @@ def _num(v) -> Optional[float]:
     return f if f == f and f not in (float("inf"), float("-inf")) else None
 
 
-def points_of(rows: list) -> list[dict]:
+def points_of(rows: list, series: Optional[str] = None) -> list[dict]:
     """The store's points (`[t_eff, v, period_end, method]`, ascending) as this route serves them. A row whose
     instant or period cannot be read is dropped (never placed on a guessed bar)."""
     from api.services.fundamentals_pit import asof
@@ -180,7 +265,9 @@ def points_of(rows: list) -> list[dict]:
         if period_end is None or kf is None:
             continue
         gap = method == "gap" or _num(v) is None
-        stale = (date.fromisoformat(period_end) + asof.MAX_PERIOD_AGE + timedelta(days=1)).isoformat()
+        # ⭐ e99 FY — a fiscal-year view ages by its own cap (`asof.MAX_FY_PERIOD_AGE`), never the quarterly one
+        cap = asof.MAX_FY_PERIOD_AGE if fy_base(series) else asof.MAX_PERIOD_AGE
+        stale = (date.fromisoformat(period_end) + cap + timedelta(days=1)).isoformat()
         out.append({"publicAt": int(float(t_eff)), "knownFrom": kf, "v": None if gap else _num(v),
                     "periodEnd": period_end, "method": "gap" if gap else str(method),
                     "staleFrom": None if gap else stale})
@@ -220,12 +307,15 @@ def build_fields(store: dict, catalog: Optional[dict] = None) -> dict:
         if company is None:
             out[key] = {**block, "state": "none", "points": [], "knownFrom": None}
             continue
-        if withheld and spec["series"] in _split_sensitive():
+        stored = fy_base(spec["series"]) or spec["series"]
+        if withheld and stored in _split_sensitive():
             out[key] = {**block, "state": "withheld", "points": [], "knownFrom": None,
                         "why": "the company's split history could not be verified, so per-share and share-count "
                                "figures are withheld"}
             continue
-        pts = points_of(metrics.get(spec["series"]) or [])
+        # ⭐ e99 FY — a fiscal-year VIEW is read from the stored series it names (`fy_view_rows`), with its limitation
+        rows = fy_view_rows(metrics, spec["series"]) if fy_base(spec["series"]) else (metrics.get(spec["series"]) or [])
+        pts = points_of(rows, spec["series"])
         first = next((p for p in pts if p["v"] is not None), None)
         if first is None:
             out[key] = {**block, "state": "missing", "points": [], "knownFrom": None,
@@ -233,7 +323,8 @@ def build_fields(store: dict, catalog: Optional[dict] = None) -> dict:
             continue
         # ⛔ a leading GAP is not a value: the field is known from its first VALUE
         pts = pts[pts.index(first):]
-        out[key] = {**block, "state": "ok", "points": pts, "knownFrom": first["knownFrom"]}
+        out[key] = {**block, "state": "ok", "points": pts, "knownFrom": first["knownFrom"],
+                    **({"limitation": fy_limitation(catalog)} if fy_base(spec["series"]) else {})}
     return out
 
 

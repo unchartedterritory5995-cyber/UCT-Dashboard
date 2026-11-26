@@ -413,13 +413,13 @@ STRICT_PIVOT_RULE = (
 #: (`app/src/components/chart/engine/requestFinancial.periodSetting.test.js`).
 FINANCIAL_PERIOD_RULE = (
     "A `request.financial` PERIOD IS A CONSTANT STRING, AND ONLY ONE THE ENGINE SERVES. Write the period in the call "
-    "itself (\"FQ\", \"TTM\"): a period read from an input or a variable is refused, because which figure is read must be "
+    "itself (\"FQ\", \"TTM\", \"FY\"): a period read from an input or a variable is refused, because which figure is read must be "
     "known before the script runs. When the member wants to choose the period in the settings, write ONE "
     "`request.financial` call per option, each with its own constant period, and pick between their results with the "
     "input: `period = input.string(\"FQ\", \"Period\", options = [\"FQ\", \"TTM\"])`, `fq = request.financial(syminfo.tickerid, "
     "\"EARNINGS_PER_SHARE_DILUTED\", \"FQ\")`, `ttm = request.financial(syminfo.tickerid, \"EARNINGS_PER_SHARE_DILUTED\", "
     "\"TTM\")`, `plot(period == \"TTM\" ? ttm : fq)`. Offer only periods the engine serves for that figure: when it refuses "
-    "one (a fiscal-year series it does not hold), leave that option out and say so in `reply`.")
+    "one (a fiscal half-year, or a period that figure is not served for), leave that option out and say so in `reply`.")
 
 #: ⭐ RULE 14: A FIGURE THE MEMBER MUST FILL IN (found by the first full live run of the value cases, 2026-11-22). On
 #: the formula door an "average cost" setting was drawn bare: a line at price 0 until filled, squeezing the chart. A
