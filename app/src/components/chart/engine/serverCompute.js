@@ -31,13 +31,18 @@
 
 import { withDerivedColumns, withDerivedScalars, derivedAverage } from './derivedColumns'
 // ⭐ (2026-11-26) a custom timeframe asks the lane for its native base and folds it by the chart's own bucket rule
-import { resampleSpec } from '../timeframes'
+import { resampleSpec, INTRADAY_ANCHOR_MIN } from '../timeframes'
 import { bucketKeyOf } from '../../../utils/resampleBars'
-import { readoutConditionOpen } from './readoutSchema'
+import { readoutConditionOpen, readoutSourceValue } from './readoutSchema'
 // ⭐ U2b — the forming bar's live value for a `plots[].liveTail` (`liveTail.js`):
 // the one cell of a cached envelope that moves with price, recomputed where the
 // envelope is aligned. The module imports nothing of this one.
-import { withLiveTail, benchmarkTailFor, subscribeBenchmarkTails, registerBenchmarkTailRequest } from './liveTail'
+import { withLiveTail, benchmarkTailFor, subscribeBenchmarkTails, registerBenchmarkTailRequest, liveBenchmarkSymbol, ratioTail } from './liveTail'
+// ⭐ (2026-11-26) a custom timeframe's ratio line as deep as the chart: the benchmark's bars on the same timeframe
+import {
+  cachedBars as cachedOtherSymbolBars, ensureSecondaryBars, secondaryBarsUrl, subscribe as subscribeOtherSymbolBars,
+  SOURCE_STATUS as OTHER_SYMBOL_STATUS,
+} from './secondaryBars'
 // ⭐ 2026-11-12 — a declared `rescale` (`rescale.js`): the drawn columns multiplied
 // by one factor per envelope so the line reads like a rating. Presentation only.
 import { rescaleOf, rescaleChoice, rescaleFactor, withRescale, withRescaleScalars } from './rescale'
@@ -681,6 +686,8 @@ export function clearServerColumns() {
   _inflight.clear()
   _asks.clear()
   _own.clear()
+  _deepAsked.clear()     // (the custom-timeframe depth asks: `deepenCustomTf`)
+  _deepWatched.clear()
   for (const h of _held.values()) clearTimeout(h.timer)
   _held.clear()
   _shown.clear()
@@ -1578,11 +1585,7 @@ const _foldMemo = new WeakMap()   // raw envelope -> Map(signature -> folded env
 export function foldToCustomTf(def, raw, spec, inputs) {
   if (!spec || !raw) return raw
   const folds = customTfFoldsOf(def)
-  const read = (s) => (typeof s === 'string' && s.startsWith('input:') ? readInputValue(def, inputs, s.slice(6)) : s)
-  const recipes = {}
-  for (const [key, fold] of Object.entries(folds)) {
-    if (fold.kind === 'ma') recipes[key] = { length: Math.round(Number(read(fold.length))), type: String(read(fold.type)) }
-  }
+  const recipes = _recipesOf(def, inputs, folds)
   const sig = `${spec.kind}|${spec.minutes ?? ''}|${spec.n ?? ''}|${spec.anchorMin ?? ''}|${JSON.stringify(recipes)}|f${_fillStatesVersion}`
   let byKey = _foldMemo.get(raw)
   if (!byKey) { byKey = new Map(); _foldMemo.set(raw, byKey) }
@@ -1612,6 +1615,24 @@ export function foldToCustomTf(def, raw, spec, inputs) {
     for (let j = 0; j < n; j++) { const v = src[lastRow[j]]; col[j] = typeof v === 'number' ? v : NaN }
     out[key] = col
   }
+  _rebuildFolded(folds, out, cols, n, recipes)
+  const folded = { ...raw, times, columns: out }
+  byKey.set(sig, folded)
+  return folded
+}
+
+/** The recipes of `folds`' rebuilt averages, read off the instance's inputs. */
+function _recipesOf(def, inputs, folds) {
+  const read = (s) => (typeof s === 'string' && s.startsWith('input:') ? readInputValue(def, inputs, s.slice(6)) : s)
+  const recipes = {}
+  for (const [key, fold] of Object.entries(folds)) {
+    if (fold.kind === 'ma') recipes[key] = { length: Math.round(Number(read(fold.length))), type: String(read(fold.type)) }
+  }
+  return recipes
+}
+
+/** Given `out`'s `last` columns (n cells), the rebuilt averages and fill states, and every other column of `cols` blank. */
+function _rebuildFolded(folds, out, cols, n, recipes) {
   for (const [key, fold] of Object.entries(folds)) {
     if (fold.kind !== 'ma' || !cols[key] || !out[fold.of]) continue
     const r = recipes[key]
@@ -1629,9 +1650,159 @@ export function foldToCustomTf(def, raw, spec, inputs) {
     out[key] = col
   }
   for (const key of Object.keys(cols)) if (!(key in out)) out[key] = new Float64Array(n).fill(NaN)   // no fold declared: blank
-  const folded = { ...raw, times, columns: out }
-  byKey.set(sig, folded)
-  return folded
+}
+
+// ─── AS DEEP AS THE CHART: THE RATIO FROM THE BARS THE CHART HOLDS (2026-11-26, option B) ─────────────────────────
+//
+// The fold above covers the lane's own base window only (400 intraday rows: ~46 bars on a regular 4h, ~12 on 65m and
+// 195m, where a 21-bar average is never valued). A plot whose live tail is a RATIO (`close / benchmarkClose`, the RS
+// line) is a ratio of the two series' closes at each bar, and a bucket's close IS its last base row's close: so on a
+// custom timeframe it is built from the chart's own bars and the BENCHMARK'S bars on the same custom timeframe (the
+// other-symbol lane, `secondaryBars`: the same base rows, the same `resampleForSpec`), as deep as both reach.
+//   * On every bar the fold covers, the fold's (the server's) value stands: the two are the same ratio, and keeping the
+//     server's cell keeps its rounding, so the line does not move when the depth arrives. Beyond it, `ratioTail` (the
+//     live tail's own rule: both closes finite and positive, `× scale`), rounded to the wire's six places; a bar the
+//     benchmark has no bar at is NaN, as the server's join leaves it.
+//   * Only for a benchmark that resolves to a TICKER (`liveBenchmarkSymbol`); a composite (an industry group, a theme)
+//     has no bars here and keeps the fold. So does a benchmark the lane cannot serve (refused, failing, not yet held).
+//   * NEVER ON THE SWITCH'S KEY PATH: the benchmark's bars are read only if already held (`cachedBars`, which never
+//     fetches); otherwise the fold is drawn and ONE request per (benchmark, timeframe, view, depth rung) is made in a
+//     later task (`_askDeepBenchmark`), shared by every chart and symbol on that benchmark. Its landing bumps
+//     `customTfDepthVersion` (part of the binder's memo signature, `nativeRegistry.computeSignature`) and notifies, so
+//     the next paint upgrades the same line in place.
+//   * Averages and fill states are rebuilt over the deeper line exactly as over the fold (`customTfFoldsOf`).
+//   * The compute is one pass of divisions plus one average per average plot, memoised per (envelope, bars array,
+//     benchmark entry, recipes).
+
+/** Depth rungs (custom-timeframe bars) the benchmark's bars are asked at: few, so every chart shares one request. The
+ *  top rung bounds the background fetch (4800 x the base rows per bar: ~19,000 60m rows for a 4h, ~1.4 MB for SPY). */
+export const DEEP_BENCHMARK_RUNGS = Object.freeze([600, 1200, 2400, 4800])
+/** A REGULAR-session spec's base page also carries the extended rows it drops (the 60m session grid serves ~17-18 rows a
+ *  day for 7 regular ones; 5m / 15m ~2.5x likewise), so its page is asked ~2.5x deeper to reach as far back. */
+export const DEEP_REGULAR_DILUTION = 2.5
+function _deepRung(n, spec) {
+  const regular = spec && spec.kind === 'intradaySession' && (!Number.isFinite(spec.anchorMin) || spec.anchorMin === INTRADAY_ANCHOR_MIN.rth)
+  const want = Math.ceil(n * (regular ? DEEP_REGULAR_DILUTION : 1))
+  return DEEP_BENCHMARK_RUNGS.find((r) => r >= want) ?? DEEP_BENCHMARK_RUNGS[DEEP_BENCHMARK_RUNGS.length - 1]
+}
+const _deepAsked = new Set()          // benchmark entry URLs asked (or being asked) for depth
+const _deepWatched = new Map()        // ... until their first AVAILABLE landing: url -> [bench, tf, rung, extended]
+let _deepVersion = 0
+/** Moves whenever a benchmark entry asked for depth lands. */
+export function customTfDepthVersion() { return _deepVersion }
+/** What the binder's memo signature adds for a server compute on timeframe `tf`: the depth version on a custom
+ *  timeframe (its compute reads the benchmark's held bars), nothing on a native one. */
+export function customTfDepthSignature(tf) {
+  return resampleSpec(tf == null ? 'D' : String(tf)) ? `deep:${_deepVersion}` : ''
+}
+// ⭐ ONCE PER URL (review of #2801): a rung's FIRST AVAILABLE landing is the one that adds depth, so it moves the version
+// and the URL is watched no more. The same URL can be another consumer's too (a `request.security` source asking the
+// benchmark at the same depth), whose live refresh notifies on every moved tail: had each notification moved the
+// version, every custom-timeframe chart would recompute on every tick. A refresh moves only the newest rows, which the
+// fold (the server's window) already covers. A landing that is not AVAILABLE (refused, failing) adds nothing either.
+// And a rung that lands is the deepest the lane reads for that benchmark, timeframe and view (`_heldDeep` reads
+// upward), so every LOWER rung still watched for them is dropped: its late landing would add nothing.
+subscribeOtherSymbolBars((url) => {
+  const w = _deepWatched.get(url)
+  if (!w) return
+  const [bench, tf, rung, extended] = w
+  const e = cachedOtherSymbolBars(bench, tf, rung, { extended })
+  if (!e || e.status !== OTHER_SYMBOL_STATUS.AVAILABLE || !Array.isArray(e.bars) || !e.bars.length) return
+  _deepWatched.delete(url)
+  for (const [u, o] of [..._deepWatched]) {
+    if (o[0] === bench && o[1] === tf && o[3] === extended && o[2] < rung) _deepWatched.delete(u)
+  }
+  _deepVersion += 1
+  _notify(`deepBenchmark:${url}`)
+})
+
+/** The benchmark's held custom-timeframe entry at `rung` OR DEEPER (the first AVAILABLE one going up the ladder), or
+ *  null. A deeper rung holds every bar a shallower one would (the same base rows, further back), so once it is held
+ *  a smaller chart reads it and its own rung is never asked. ⚠️ The shallower entries stay in `secondaryBars`' cache:
+ *  that cache has no bound and no owner per URL, and a shallow rung's URL can be another consumer's live source (600
+ *  is a common first-page depth), so forgetting it could blank that consumer. What bounds them is this ladder: at most
+ *  four entries per (benchmark, timeframe, view), all of them together under twice the deepest. */
+function _heldDeep(bench, tf, rung, extended) {
+  for (const r of DEEP_BENCHMARK_RUNGS) {
+    if (r < rung) continue
+    const e = cachedOtherSymbolBars(bench, tf, r, { extended })
+    if (e && e.status === OTHER_SYMBOL_STATUS.AVAILABLE && Array.isArray(e.bars) && e.bars.length) return e
+  }
+  return null
+}
+
+const _later = (fn) => {
+  if (typeof requestIdleCallback === 'function') requestIdleCallback(() => fn(), { timeout: 500 })
+  else setTimeout(fn, 0)
+}
+function _askDeepBenchmark(bench, tf, rung, extended) {
+  const url = secondaryBarsUrl(bench, tf, rung, { extended })
+  if (!url || _deepAsked.has(url)) return
+  _deepAsked.add(url)
+  _deepWatched.set(url, [bench, tf, rung, extended])
+  _later(() => {
+    // `idleRead`: the page is judged and resampled in ET-day slices across idle callbacks, so its landing (and this
+    // lane's version bump, which waits for it) never costs a frame (secondaryBars `_readCustomIdle`)
+    try { ensureSecondaryBars(bench, tf, rung, undefined, { extended, idleRead: true }) } catch { _deepAsked.delete(url) }
+  })
+}
+
+const _deepMemo = new WeakMap()   // raw envelope -> WeakMap(bars -> { entry, sig, out })
+
+/** `folded` deepened over the chart's own `bars` where its ratio plots' benchmark resolves to a ticker and the
+ *  benchmark's custom-timeframe bars are held; else `folded` itself (and, for a ticker not yet held, its one request
+ *  asked in a later task). Same envelope shape: times = the chart's bar times. */
+export function deepenCustomTf(def, raw, folded, bars, spec, ctx, inputs) {
+  if (!spec || !raw || !folded || !Array.isArray(bars) || !bars.length) return folded
+  const plots = def && Array.isArray(def.plots) ? def.plots : []
+  const ratios = plots.filter((p) => p && typeof p.key === 'string' && p.liveTail && p.liveTail.kind === 'ratio')
+  if (!ratios.length) return folded
+  const sym = ctx && typeof ctx.sym === 'string' ? ctx.sym : ''
+  const extended = !!(ctx && ctx.extended)
+  const benches = ratios.map((p) => liveBenchmarkSymbol(readoutSourceValue(p.liveTail.benchmark, raw.payload || null, def, inputs || {}), sym))
+  if (benches.some((b) => !b)) return folded                        // a composite, or the symbol itself: the fold
+  const rung = _deepRung(bars.length, spec)
+  const entries = benches.map((b) => _heldDeep(b, ctx.tf, rung, extended))
+  let held = true
+  benches.forEach((b, i) => {
+    if (entries[i]) return
+    held = false
+    // nothing held this deep: ask this rung, once (an answer that is refused, failing or empty is not asked again)
+    if (!cachedOtherSymbolBars(b, ctx.tf, rung, { extended })) _askDeepBenchmark(b, ctx.tf, rung, extended)
+  })
+  if (!held) return folded
+  const folds = customTfFoldsOf(def)
+  const recipes = _recipesOf(def, inputs, folds)
+  const sig = `${JSON.stringify(recipes)}|${ratios.map((p) => String(p.liveTail.scale ?? '')).join(',')}`
+  let byBars = _deepMemo.get(raw)
+  if (!byBars) { byBars = new WeakMap(); _deepMemo.set(raw, byBars) }
+  const hit = byBars.get(bars)
+  if (hit && hit.folded === folded && hit.sig === sig && hit.entries.every((e, i) => e === entries[i])) return hit.out
+  const n = bars.length
+  const times = new Array(n)
+  const keys = new Array(n)
+  for (let i = 0; i < n; i++) { times[i] = bars[i].t; keys[i] = barTimeKey(bars[i].t) }
+  const foldAt = new Map()
+  for (let j = 0; j < folded.times.length; j++) foldAt.set(barTimeKey(folded.times[j]), j)
+  const out = {}
+  ratios.forEach((p, r) => {
+    const benchAt = new Map()
+    for (const b of entries[r].bars) if (b) benchAt.set(barTimeKey(b.t), Number(b.c))
+    const foldCol = folded.columns && folded.columns[p.key]
+    const col = new Float64Array(n)
+    for (let i = 0; i < n; i++) {
+      const j = foldAt.get(keys[i])
+      const f = j === undefined || !foldCol ? NaN : foldCol[j]
+      if (Number.isFinite(f)) { col[i] = f; continue }
+      const v = ratioTail(Number(bars[i].c), benchAt.get(keys[i]), p.liveTail.scale)
+      col[i] = Number.isFinite(v) ? Math.round(v * 1e6) / 1e6 : NaN
+    }
+    out[p.key] = col
+  })
+  _rebuildFolded(folds, out, raw.columns || {}, n, recipes)
+  const deep = { ...raw, times, columns: out }
+  byBars.set(bars, { folded, sig, entries, out: deep })
+  return deep
 }
 
 /**
@@ -1657,7 +1828,8 @@ export function serverColumnsFor(def, bars, inputs, ctx) {
   // record on disk can be older than the deploy. One on another rev is not drawn; the
   // server's answer is already on its way (`ensureColumns` asked) and replaces it.
   if (revMismatch(raw, def) && _provisional.has(serverColumnsKey(def.id, sym, ask.tf, sent))) return {}
-  const parsed = foldToCustomTf(def, raw, ask.spec, inputs)
+  // the fold, and on a ratio line with a ticker benchmark whose bars are held, as deep as the chart (`deepenCustomTf`)
+  const parsed = deepenCustomTf(def, raw, foldToCustomTf(def, raw, ask.spec, inputs), bars, ask.spec, ctx, inputs)
   // ⭐ A DIFFERENT SERVER REV IS DRAWN, NOT RE-ASKED (review finding, 2026-11-06).
   // The first cut treated a rev mismatch as a cache miss and asked again. But the
   // only way the two revs differ is a SERVER that is on another revision — the
