@@ -689,7 +689,7 @@ export function refreshSecondaryTail(symbol, tf, bars, fetcher, opts = {}) {
       const merged = mergeTail(cur.bars, tail.bars)
       if (!merged) {
         _lastRefresh.delete(url)
-        refreshSecondaryBars(symbol, tf, bars, fetcher)
+        refreshSecondaryBars(symbol, tf, bars, fetcher, opts)   // the same chart's session (review of #2753, round 2)
         return cur
       }
       const flagged = Object.prototype.hasOwnProperty.call(tail, 'newestBarIsForming')

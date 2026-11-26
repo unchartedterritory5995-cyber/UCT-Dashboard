@@ -9,7 +9,7 @@
 //   (TOGGLE   chart/useBarSnapshotBars.extended4h.test.jsx: an EXT toggle replaces the 4h series wholesale)
 import { describe, it, expect, afterEach } from 'vitest'
 import { compareBarsRequest, customSeriesRequest } from '../components/chart/useLegacyChartBars'
-import { secondaryFetchOf, clearSecondaryBars } from '../components/chart/engine/secondaryBars'
+import { secondaryFetchOf, clearSecondaryBars, fetchSecondaryBars, refreshSecondaryTail } from '../components/chart/engine/secondaryBars'
 import { ensureChartSources } from '../components/chart/engine/useSecondarySources'
 import {
   benchmarkTailFor, benchmarkTailUrl, _resetBenchmarkTailsForTests, _inflightBenchmarkTails,
@@ -80,6 +80,22 @@ describe('MEDIUM-2: the CHART\'s own session, whatever the page view says', () =
     expect(asked[0]).not.toContain('session=')
     await Promise.all(_inflightBenchmarkTails())
     expect(benchmarkTailFor('IWM', '240', { extended: false, fetcher }).bars.map((b) => b.t)).toEqual([T0 + 570 * 60 - 240 * 60 + 4 * 3600])
+  })
+})
+
+describe('ROUND 2: a tail that cannot merge refreshes in full on the CHART\'s session, not the page\'s', () => {
+  it('page regular, chart extended: the 4h tail does not overlap, and the full refresh asks the chart\'s extended URL', async () => {
+    setViewShowExtended(false)
+    const settle = () => new Promise((r) => setTimeout(r, 0))
+    await fetchSecondaryBars('SPX', '240', 500, () => ({ bars: clockHours() }), { extended: true })   // the held entry
+    const asked = []
+    const later = clockHours().map((b) => ({ ...b, t: b.t + 7 * 86400 }))      // a week on: no overlap with what is held
+    const started = refreshSecondaryTail('SPX', '240', 500, (url) => { asked.push(url); return { bars: later } }, { extended: true })
+    expect(started).toBe(true)
+    await settle(); await settle()
+    expect(asked.length).toBe(2)                                               // the tail, then the full refresh
+    expect(asked[1]).toContain('tf=60&bars=2000')
+    expect(asked[1]).toContain('&session=eth')                                 // before: the page view's (regular) URL
   })
 })
 
