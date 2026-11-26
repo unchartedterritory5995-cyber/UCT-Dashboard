@@ -57,6 +57,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import threading
 import time as _time
 from typing import Callable, Optional
@@ -65,6 +66,24 @@ from api.services.bar_rollup import TF_TO_SECONDS, tv_bucket_bounds  # noqa: F40
 from api.services import trade_conditions
 
 _logger = logging.getLogger(__name__)
+
+# ⭐ THE PER-PAIR EMIT THROTTLE IS A KNOB (2026-11-25, objective 2, gap 4). Leading edge + one trailing
+# flush per (symbol, series): a trade inside the window waits for the trailing flush (half the window
+# on average under flow). BARS_EMIT_THROTTLE_MS on the service that runs the broadcaster (stream-ingest
+# in production; web in local mode). Unset = 100 ms, the value before the knob; clamped 10..1000.
+EMIT_THROTTLE_DEFAULT_MS = 100
+
+
+def emit_throttle_ms_from_env() -> int:
+    raw = (os.environ.get("BARS_EMIT_THROTTLE_MS") or "").strip()
+    if not raw:
+        return EMIT_THROTTLE_DEFAULT_MS
+    try:
+        v = int(float(raw))
+    except ValueError:
+        _logger.warning("[bar_broadcaster] BARS_EMIT_THROTTLE_MS=%r is not a number: %d ms", raw[:20], EMIT_THROTTLE_DEFAULT_MS)
+        return EMIT_THROTTLE_DEFAULT_MS
+    return min(1000, max(10, v))
 
 ROLLUP_TFS = ("5", "15", "30", "60")  # plus "1"; every tf is derived from the per-minute map.
 
@@ -199,7 +218,7 @@ class BarBroadcaster:
         # (sym, key) -> {bucket start -> last bar sent}: never send an identical
         # frame twice (e.g. the closed bucket re-marked at the boundary).
         self._last_sent: dict[tuple[str, str], dict[int, dict]] = {}
-        self._emit_throttle_ms: int = 100
+        self._emit_throttle_ms: int = emit_throttle_ms_from_env()
         # (sym, key) -> newest contract `rev` dispatched (HLC ms; see `_dispatch`).
         self._rev: dict[tuple[str, str], int] = {}
         self._clock_ms = clock_ms or (lambda: int(_time.time() * 1000))
