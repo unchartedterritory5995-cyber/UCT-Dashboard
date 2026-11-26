@@ -4173,14 +4173,19 @@ def live_definitions() -> list[dict]:
 
 def _live_newest_rows(c: sqlite3.Connection) -> list:
     """The stored rows behind `live_definitions`: every definition's newest version that is not a tombstone, across
-    every member, oldest first (one spelling of "live" for both of its readers)."""
-    rows = c.execute(
+    every member, oldest first (one spelling of "live" for both of its readers).
+
+    ⭐ THE TOMBSTONES STAY IN THE DATABASE (`deleted_at IS NULL` on the OUTER row, as `list_for_user` does): a
+    tombstone carries the whole document and the script, and this read spans every member. ⛔ The MAX still runs
+    over ALL versions, so a newer tombstone keeps hiding an older live version
+    (`tests/test_user_definitions_live_newest_rows.py`)."""
+    return c.execute(
         "SELECT * FROM user_definitions u WHERE version = ("
         "  SELECT MAX(version) FROM user_definitions v"
         "   WHERE v.user_id=u.user_id AND v.def_id=u.def_id)"
+        " AND u.deleted_at IS NULL"
         " ORDER BY u.id",
     ).fetchall()
-    return [r for r in rows if r["deleted_at"] is None]
 
 
 def held_withholds_census() -> dict:
