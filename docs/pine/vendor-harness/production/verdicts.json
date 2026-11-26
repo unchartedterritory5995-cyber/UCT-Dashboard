@@ -64331,72 +64331,6 @@
    "timeframe": "1D",
    "plots": [
     {
-     "id": "plot_1",
-     "title": "Shapes",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — vendor title \"Shapes\" is not unique in the study"
-    },
-    {
-     "id": "plot_5",
-     "title": "OR Low",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — vendor title \"OR Low\" is not unique in the study"
-    },
-    {
-     "id": "plot_7",
-     "title": "OR Low",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — vendor title \"OR Low\" is not unique in the study"
-    },
-    {
-     "id": "plot_9",
-     "title": "Shapes",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — vendor title \"Shapes\" is not unique in the study"
-    },
-    {
-     "id": "plot_12",
-     "title": "Shapes",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — vendor title \"Shapes\" is not unique in the study"
-    },
-    {
-     "id": "plot_15",
-     "title": "Shapes",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — vendor title \"Shapes\" is not unique in the study"
-    },
-    {
-     "id": "plot_20",
-     "title": "IB Low",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — vendor title \"IB Low\" is not unique in the study"
-    },
-    {
-     "id": "plot_22",
-     "title": "IB Low",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — vendor title \"IB Low\" is not unique in the study"
-    },
-    {
-     "id": "plot_24",
-     "title": "Shapes",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — vendor title \"Shapes\" is not unique in the study"
-    },
-    {
-     "id": "plot_27",
-     "title": "Shapes",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — vendor title \"Shapes\" is not unique in the study"
-    },
-    {
-     "id": "plot_30",
-     "title": "Shapes",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — vendor title \"Shapes\" is not unique in the study"
-    },
-    {
      "id": "plot_0",
      "title": "Opening price",
      "ours": "value",
@@ -64539,6 +64473,548 @@
       },
       "vendorRowGapsAfterStart": 0
      }
+    },
+    {
+     "id": "plot_5",
+     "title": "OR Low",
+     "ours": "out4",
+     "rule": "M1b-title-order",
+     "verdict": "MATCH",
+     "reason": "636 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 251,
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 636,
+      "compared": 636,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 636,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 636,
+       "compared": 636,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_7",
+     "title": "OR Low",
+     "ours": "out5",
+     "rule": "M1b-title-order",
+     "verdict": "MATCH",
+     "reason": "636 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 251,
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 636,
+      "compared": 636,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 636,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 636,
+       "compared": 636,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_20",
+     "title": "IB Low",
+     "ours": "out10",
+     "rule": "M1b-title-order",
+     "verdict": "MATCH",
+     "reason": "636 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 251,
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 636,
+      "compared": 636,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 636,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 636,
+       "compared": 636,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_22",
+     "title": "IB Low",
+     "ours": "out11",
+     "rule": "M1b-title-order",
+     "verdict": "MATCH",
+     "reason": "636 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 251,
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 636,
+      "compared": 636,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 636,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 636,
+       "compared": 636,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_1",
+     "title": "Shapes",
+     "ours": "out2",
+     "rule": "M2-position-untitled",
+     "verdict": "MATCH",
+     "reason": "626 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 261,
+     "treeShift": 10,
+     "treeShiftNote": "offset = 10: our column read 10 bars ahead to meet the vendor's unshifted series; the last 10 bars are unread",
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 636,
+      "compared": 626,
+      "oursUnread": 10,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 626,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 636,
+       "compared": 626,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_9",
+     "title": "Shapes",
+     "ours": "out6",
+     "rule": "M2-position-untitled",
+     "verdict": "MATCH",
+     "reason": "631 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 256,
+     "treeShift": 5,
+     "treeShiftNote": "offset = 5: our column read 5 bars ahead to meet the vendor's unshifted series; the last 5 bars are unread",
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 636,
+      "compared": 631,
+      "oursUnread": 5,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 631,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 636,
+       "compared": 631,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_12",
+     "title": "Shapes",
+     "ours": "out7",
+     "rule": "M2-position-untitled",
+     "verdict": "MATCH",
+     "reason": "631 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 256,
+     "treeShift": 5,
+     "treeShiftNote": "offset = 5: our column read 5 bars ahead to meet the vendor's unshifted series; the last 5 bars are unread",
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 636,
+      "compared": 631,
+      "oursUnread": 5,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 631,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 636,
+       "compared": 631,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_15",
+     "title": "Shapes",
+     "ours": "out8",
+     "rule": "M2-position-untitled",
+     "verdict": "MATCH",
+     "reason": "631 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 256,
+     "treeShift": 5,
+     "treeShiftNote": "offset = 5: our column read 5 bars ahead to meet the vendor's unshifted series; the last 5 bars are unread",
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 636,
+      "compared": 631,
+      "oursUnread": 5,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 631,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 636,
+       "compared": 631,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_24",
+     "title": "Shapes",
+     "ours": "out12",
+     "rule": "M2-position-untitled",
+     "verdict": "MATCH",
+     "reason": "626 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 261,
+     "treeShift": 10,
+     "treeShiftNote": "offset = 10: our column read 10 bars ahead to meet the vendor's unshifted series; the last 10 bars are unread",
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 636,
+      "compared": 626,
+      "oursUnread": 10,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 626,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 636,
+       "compared": 626,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_27",
+     "title": "Shapes",
+     "ours": "out13",
+     "rule": "M2-position-untitled",
+     "verdict": "MATCH",
+     "reason": "626 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 261,
+     "treeShift": 10,
+     "treeShiftNote": "offset = 10: our column read 10 bars ahead to meet the vendor's unshifted series; the last 10 bars are unread",
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 636,
+      "compared": 626,
+      "oursUnread": 10,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 626,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 636,
+       "compared": 626,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_30",
+     "title": "Shapes",
+     "ours": "out14",
+     "rule": "M2-position-untitled",
+     "verdict": "MATCH",
+     "reason": "626 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 261,
+     "treeShift": 10,
+     "treeShiftNote": "offset = 10: our column read 10 bars ahead to meet the vendor's unshifted series; the last 10 bars are unread",
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 636,
+      "compared": 626,
+      "oursUnread": 10,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 626,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 636,
+       "compared": 626,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
     }
    ],
    "notCompared": [
@@ -64577,61 +65053,6 @@
      "title": null,
      "type": "text_colorer",
      "why": "plot type text_colorer is not compared by v1"
-    },
-    {
-     "ours": "out2",
-     "title": null,
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out4",
-     "title": "OR Low",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out5",
-     "title": "OR Low",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out6",
-     "title": null,
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out7",
-     "title": null,
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out8",
-     "title": null,
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out10",
-     "title": "IB Low",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out11",
-     "title": "IB Low",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out12",
-     "title": null,
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out13",
-     "title": null,
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out14",
-     "title": null,
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
     }
    ],
    "notMeasured": [],
@@ -64644,8 +65065,8 @@
     "verdict": "MATCH",
     "reason": "neither side draws an object"
    },
-   "verdict": "INCONCLUSIVE",
-   "reason": "11 of 15 items could not be compared",
+   "verdict": "MATCH",
+   "reason": "all 15 items agree",
    "ourNotes": [
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
    ],
@@ -64698,72 +65119,6 @@
    "timeframe": "1D",
    "plots": [
     {
-     "id": "plot_1",
-     "title": "Shapes",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — vendor title \"Shapes\" is not unique in the study"
-    },
-    {
-     "id": "plot_5",
-     "title": "OR Low",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — vendor title \"OR Low\" is not unique in the study"
-    },
-    {
-     "id": "plot_7",
-     "title": "OR Low",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — vendor title \"OR Low\" is not unique in the study"
-    },
-    {
-     "id": "plot_9",
-     "title": "Shapes",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — vendor title \"Shapes\" is not unique in the study"
-    },
-    {
-     "id": "plot_12",
-     "title": "Shapes",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — vendor title \"Shapes\" is not unique in the study"
-    },
-    {
-     "id": "plot_15",
-     "title": "Shapes",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — vendor title \"Shapes\" is not unique in the study"
-    },
-    {
-     "id": "plot_20",
-     "title": "IB Low",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — vendor title \"IB Low\" is not unique in the study"
-    },
-    {
-     "id": "plot_22",
-     "title": "IB Low",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — vendor title \"IB Low\" is not unique in the study"
-    },
-    {
-     "id": "plot_24",
-     "title": "Shapes",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — vendor title \"Shapes\" is not unique in the study"
-    },
-    {
-     "id": "plot_27",
-     "title": "Shapes",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — vendor title \"Shapes\" is not unique in the study"
-    },
-    {
-     "id": "plot_30",
-     "title": "Shapes",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — vendor title \"Shapes\" is not unique in the study"
-    },
-    {
      "id": "plot_0",
      "title": "Opening price",
      "ours": "value",
@@ -64906,6 +65261,548 @@
       },
       "vendorRowGapsAfterStart": 0
      }
+    },
+    {
+     "id": "plot_5",
+     "title": "OR Low",
+     "ours": "out4",
+     "rule": "M1b-title-order",
+     "verdict": "MATCH",
+     "reason": "666 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 251,
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 666,
+      "compared": 666,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 666,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 666,
+       "compared": 666,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_7",
+     "title": "OR Low",
+     "ours": "out5",
+     "rule": "M1b-title-order",
+     "verdict": "MATCH",
+     "reason": "666 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 251,
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 666,
+      "compared": 666,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 666,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 666,
+       "compared": 666,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_20",
+     "title": "IB Low",
+     "ours": "out10",
+     "rule": "M1b-title-order",
+     "verdict": "MATCH",
+     "reason": "666 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 251,
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 666,
+      "compared": 666,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 666,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 666,
+       "compared": 666,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_22",
+     "title": "IB Low",
+     "ours": "out11",
+     "rule": "M1b-title-order",
+     "verdict": "MATCH",
+     "reason": "666 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 251,
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 666,
+      "compared": 666,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 666,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 666,
+       "compared": 666,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_1",
+     "title": "Shapes",
+     "ours": "out2",
+     "rule": "M2-position-untitled",
+     "verdict": "MATCH",
+     "reason": "656 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 261,
+     "treeShift": 10,
+     "treeShiftNote": "offset = 10: our column read 10 bars ahead to meet the vendor's unshifted series; the last 10 bars are unread",
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 666,
+      "compared": 656,
+      "oursUnread": 10,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 656,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 666,
+       "compared": 656,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_9",
+     "title": "Shapes",
+     "ours": "out6",
+     "rule": "M2-position-untitled",
+     "verdict": "MATCH",
+     "reason": "661 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 256,
+     "treeShift": 5,
+     "treeShiftNote": "offset = 5: our column read 5 bars ahead to meet the vendor's unshifted series; the last 5 bars are unread",
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 666,
+      "compared": 661,
+      "oursUnread": 5,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 661,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 666,
+       "compared": 661,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_12",
+     "title": "Shapes",
+     "ours": "out7",
+     "rule": "M2-position-untitled",
+     "verdict": "MATCH",
+     "reason": "661 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 256,
+     "treeShift": 5,
+     "treeShiftNote": "offset = 5: our column read 5 bars ahead to meet the vendor's unshifted series; the last 5 bars are unread",
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 666,
+      "compared": 661,
+      "oursUnread": 5,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 661,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 666,
+       "compared": 661,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_15",
+     "title": "Shapes",
+     "ours": "out8",
+     "rule": "M2-position-untitled",
+     "verdict": "MATCH",
+     "reason": "661 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 256,
+     "treeShift": 5,
+     "treeShiftNote": "offset = 5: our column read 5 bars ahead to meet the vendor's unshifted series; the last 5 bars are unread",
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 666,
+      "compared": 661,
+      "oursUnread": 5,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 661,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 666,
+       "compared": 661,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_24",
+     "title": "Shapes",
+     "ours": "out12",
+     "rule": "M2-position-untitled",
+     "verdict": "MATCH",
+     "reason": "656 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 261,
+     "treeShift": 10,
+     "treeShiftNote": "offset = 10: our column read 10 bars ahead to meet the vendor's unshifted series; the last 10 bars are unread",
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 666,
+      "compared": 656,
+      "oursUnread": 10,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 656,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 666,
+       "compared": 656,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_27",
+     "title": "Shapes",
+     "ours": "out13",
+     "rule": "M2-position-untitled",
+     "verdict": "MATCH",
+     "reason": "656 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 261,
+     "treeShift": 10,
+     "treeShiftNote": "offset = 10: our column read 10 bars ahead to meet the vendor's unshifted series; the last 10 bars are unread",
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 666,
+      "compared": 656,
+      "oursUnread": 10,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 656,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 666,
+       "compared": 656,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_30",
+     "title": "Shapes",
+     "ours": "out14",
+     "rule": "M2-position-untitled",
+     "verdict": "MATCH",
+     "reason": "656 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 261,
+     "treeShift": 10,
+     "treeShiftNote": "offset = 10: our column read 10 bars ahead to meet the vendor's unshifted series; the last 10 bars are unread",
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 666,
+      "compared": 656,
+      "oursUnread": 10,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 656,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 666,
+       "compared": 656,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
     }
    ],
    "notCompared": [
@@ -64944,61 +65841,6 @@
      "title": null,
      "type": "text_colorer",
      "why": "plot type text_colorer is not compared by v1"
-    },
-    {
-     "ours": "out2",
-     "title": null,
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out4",
-     "title": "OR Low",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out5",
-     "title": "OR Low",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out6",
-     "title": null,
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out7",
-     "title": null,
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out8",
-     "title": null,
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out10",
-     "title": "IB Low",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out11",
-     "title": "IB Low",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out12",
-     "title": null,
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out13",
-     "title": null,
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out14",
-     "title": null,
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
     }
    ],
    "notMeasured": [],
@@ -65011,8 +65853,8 @@
     "verdict": "MATCH",
     "reason": "neither side draws an object"
    },
-   "verdict": "INCONCLUSIVE",
-   "reason": "11 of 15 items could not be compared",
+   "verdict": "MATCH",
+   "reason": "all 15 items agree",
    "ourNotes": [
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
    ],
@@ -65065,72 +65907,6 @@
    "timeframe": "1D",
    "plots": [
     {
-     "id": "plot_1",
-     "title": "Shapes",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — vendor title \"Shapes\" is not unique in the study"
-    },
-    {
-     "id": "plot_5",
-     "title": "OR Low",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — vendor title \"OR Low\" is not unique in the study"
-    },
-    {
-     "id": "plot_7",
-     "title": "OR Low",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — vendor title \"OR Low\" is not unique in the study"
-    },
-    {
-     "id": "plot_9",
-     "title": "Shapes",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — vendor title \"Shapes\" is not unique in the study"
-    },
-    {
-     "id": "plot_12",
-     "title": "Shapes",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — vendor title \"Shapes\" is not unique in the study"
-    },
-    {
-     "id": "plot_15",
-     "title": "Shapes",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — vendor title \"Shapes\" is not unique in the study"
-    },
-    {
-     "id": "plot_20",
-     "title": "IB Low",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — vendor title \"IB Low\" is not unique in the study"
-    },
-    {
-     "id": "plot_22",
-     "title": "IB Low",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — vendor title \"IB Low\" is not unique in the study"
-    },
-    {
-     "id": "plot_24",
-     "title": "Shapes",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — vendor title \"Shapes\" is not unique in the study"
-    },
-    {
-     "id": "plot_27",
-     "title": "Shapes",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — vendor title \"Shapes\" is not unique in the study"
-    },
-    {
-     "id": "plot_30",
-     "title": "Shapes",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — vendor title \"Shapes\" is not unique in the study"
-    },
-    {
      "id": "plot_0",
      "title": "Opening price",
      "ours": "value",
@@ -65273,6 +66049,548 @@
       },
       "vendorRowGapsAfterStart": 0
      }
+    },
+    {
+     "id": "plot_5",
+     "title": "OR Low",
+     "ours": "out4",
+     "rule": "M1b-title-order",
+     "verdict": "MATCH",
+     "reason": "1800 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "our side replayed 6677 bars of proved prehistory (vw-object-gc-b-spy-1d-2026-09-28.json) before the window against a maxLookback of 251",
+     "derivedLookback": 251,
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 1800,
+      "compared": 1800,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 1800,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 1800,
+       "compared": 1800,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_7",
+     "title": "OR Low",
+     "ours": "out5",
+     "rule": "M1b-title-order",
+     "verdict": "MATCH",
+     "reason": "1800 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "our side replayed 6677 bars of proved prehistory (vw-object-gc-b-spy-1d-2026-09-28.json) before the window against a maxLookback of 251",
+     "derivedLookback": 251,
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 1800,
+      "compared": 1800,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 1800,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 1800,
+       "compared": 1800,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_20",
+     "title": "IB Low",
+     "ours": "out10",
+     "rule": "M1b-title-order",
+     "verdict": "MATCH",
+     "reason": "1800 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "our side replayed 6677 bars of proved prehistory (vw-object-gc-b-spy-1d-2026-09-28.json) before the window against a maxLookback of 251",
+     "derivedLookback": 251,
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 1800,
+      "compared": 1800,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 1800,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 1800,
+       "compared": 1800,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_22",
+     "title": "IB Low",
+     "ours": "out11",
+     "rule": "M1b-title-order",
+     "verdict": "MATCH",
+     "reason": "1800 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "our side replayed 6677 bars of proved prehistory (vw-object-gc-b-spy-1d-2026-09-28.json) before the window against a maxLookback of 251",
+     "derivedLookback": 251,
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 1800,
+      "compared": 1800,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 1800,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 1800,
+       "compared": 1800,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_1",
+     "title": "Shapes",
+     "ours": "out2",
+     "rule": "M2-position-untitled",
+     "verdict": "MATCH",
+     "reason": "1790 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "our side replayed 6677 bars of proved prehistory (vw-object-gc-b-spy-1d-2026-09-28.json) before the window against a maxLookback of 261",
+     "derivedLookback": 261,
+     "treeShift": 10,
+     "treeShiftNote": "offset = 10: our column read 10 bars ahead to meet the vendor's unshifted series; the last 10 bars are unread",
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 1800,
+      "compared": 1790,
+      "oursUnread": 10,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 1790,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 1800,
+       "compared": 1790,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_9",
+     "title": "Shapes",
+     "ours": "out6",
+     "rule": "M2-position-untitled",
+     "verdict": "MATCH",
+     "reason": "1795 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "our side replayed 6677 bars of proved prehistory (vw-object-gc-b-spy-1d-2026-09-28.json) before the window against a maxLookback of 256",
+     "derivedLookback": 256,
+     "treeShift": 5,
+     "treeShiftNote": "offset = 5: our column read 5 bars ahead to meet the vendor's unshifted series; the last 5 bars are unread",
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 1800,
+      "compared": 1795,
+      "oursUnread": 5,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 1795,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 1800,
+       "compared": 1795,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_12",
+     "title": "Shapes",
+     "ours": "out7",
+     "rule": "M2-position-untitled",
+     "verdict": "MATCH",
+     "reason": "1795 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "our side replayed 6677 bars of proved prehistory (vw-object-gc-b-spy-1d-2026-09-28.json) before the window against a maxLookback of 256",
+     "derivedLookback": 256,
+     "treeShift": 5,
+     "treeShiftNote": "offset = 5: our column read 5 bars ahead to meet the vendor's unshifted series; the last 5 bars are unread",
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 1800,
+      "compared": 1795,
+      "oursUnread": 5,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 1795,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 1800,
+       "compared": 1795,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_15",
+     "title": "Shapes",
+     "ours": "out8",
+     "rule": "M2-position-untitled",
+     "verdict": "MATCH",
+     "reason": "1795 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "our side replayed 6677 bars of proved prehistory (vw-object-gc-b-spy-1d-2026-09-28.json) before the window against a maxLookback of 256",
+     "derivedLookback": 256,
+     "treeShift": 5,
+     "treeShiftNote": "offset = 5: our column read 5 bars ahead to meet the vendor's unshifted series; the last 5 bars are unread",
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 1800,
+      "compared": 1795,
+      "oursUnread": 5,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 1795,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 1800,
+       "compared": 1795,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_24",
+     "title": "Shapes",
+     "ours": "out12",
+     "rule": "M2-position-untitled",
+     "verdict": "MATCH",
+     "reason": "1790 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "our side replayed 6677 bars of proved prehistory (vw-object-gc-b-spy-1d-2026-09-28.json) before the window against a maxLookback of 261",
+     "derivedLookback": 261,
+     "treeShift": 10,
+     "treeShiftNote": "offset = 10: our column read 10 bars ahead to meet the vendor's unshifted series; the last 10 bars are unread",
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 1800,
+      "compared": 1790,
+      "oursUnread": 10,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 1790,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 1800,
+       "compared": 1790,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_27",
+     "title": "Shapes",
+     "ours": "out13",
+     "rule": "M2-position-untitled",
+     "verdict": "MATCH",
+     "reason": "1790 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "our side replayed 6677 bars of proved prehistory (vw-object-gc-b-spy-1d-2026-09-28.json) before the window against a maxLookback of 261",
+     "derivedLookback": 261,
+     "treeShift": 10,
+     "treeShiftNote": "offset = 10: our column read 10 bars ahead to meet the vendor's unshifted series; the last 10 bars are unread",
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 1800,
+      "compared": 1790,
+      "oursUnread": 10,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 1790,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 1800,
+       "compared": 1790,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_30",
+     "title": "Shapes",
+     "ours": "out14",
+     "rule": "M2-position-untitled",
+     "verdict": "MATCH",
+     "reason": "1790 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "our side replayed 6677 bars of proved prehistory (vw-object-gc-b-spy-1d-2026-09-28.json) before the window against a maxLookback of 261",
+     "derivedLookback": 261,
+     "treeShift": 10,
+     "treeShiftNote": "offset = 10: our column read 10 bars ahead to meet the vendor's unshifted series; the last 10 bars are unread",
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 1800,
+      "compared": 1790,
+      "oursUnread": 10,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 1790,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 1800,
+       "compared": 1790,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
     }
    ],
    "notCompared": [
@@ -65311,61 +66629,6 @@
      "title": null,
      "type": "text_colorer",
      "why": "plot type text_colorer is not compared by v1"
-    },
-    {
-     "ours": "out2",
-     "title": null,
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out4",
-     "title": "OR Low",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out5",
-     "title": "OR Low",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out6",
-     "title": null,
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out7",
-     "title": null,
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out8",
-     "title": null,
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out10",
-     "title": "IB Low",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out11",
-     "title": "IB Low",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out12",
-     "title": null,
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out13",
-     "title": null,
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out14",
-     "title": null,
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
     }
    ],
    "notMeasured": [],
@@ -65378,8 +66641,8 @@
     "verdict": "MATCH",
     "reason": "neither side draws an object"
    },
-   "verdict": "INCONCLUSIVE",
-   "reason": "11 of 15 items could not be compared",
+   "verdict": "MATCH",
+   "reason": "all 15 items agree",
    "ourNotes": [
     "plots/objects: replayed: 6677 bars of prehistory from vw-object-gc-b-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ],
@@ -65432,72 +66695,6 @@
    "timeframe": "1D",
    "plots": [
     {
-     "id": "plot_1",
-     "title": "Shapes",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — vendor title \"Shapes\" is not unique in the study"
-    },
-    {
-     "id": "plot_5",
-     "title": "OR Low",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — vendor title \"OR Low\" is not unique in the study"
-    },
-    {
-     "id": "plot_7",
-     "title": "OR Low",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — vendor title \"OR Low\" is not unique in the study"
-    },
-    {
-     "id": "plot_9",
-     "title": "Shapes",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — vendor title \"Shapes\" is not unique in the study"
-    },
-    {
-     "id": "plot_12",
-     "title": "Shapes",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — vendor title \"Shapes\" is not unique in the study"
-    },
-    {
-     "id": "plot_15",
-     "title": "Shapes",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — vendor title \"Shapes\" is not unique in the study"
-    },
-    {
-     "id": "plot_20",
-     "title": "IB Low",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — vendor title \"IB Low\" is not unique in the study"
-    },
-    {
-     "id": "plot_22",
-     "title": "IB Low",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — vendor title \"IB Low\" is not unique in the study"
-    },
-    {
-     "id": "plot_24",
-     "title": "Shapes",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — vendor title \"Shapes\" is not unique in the study"
-    },
-    {
-     "id": "plot_27",
-     "title": "Shapes",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — vendor title \"Shapes\" is not unique in the study"
-    },
-    {
-     "id": "plot_30",
-     "title": "Shapes",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — vendor title \"Shapes\" is not unique in the study"
-    },
-    {
      "id": "plot_0",
      "title": "Opening price",
      "ours": "value",
@@ -65640,6 +66837,548 @@
       },
       "vendorRowGapsAfterStart": 0
      }
+    },
+    {
+     "id": "plot_5",
+     "title": "OR Low",
+     "ours": "out4",
+     "rule": "M1b-title-order",
+     "verdict": "MATCH",
+     "reason": "8507 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 251,
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 8507,
+      "compared": 8507,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 8507,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 8507,
+       "compared": 8507,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_7",
+     "title": "OR Low",
+     "ours": "out5",
+     "rule": "M1b-title-order",
+     "verdict": "MATCH",
+     "reason": "8507 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 251,
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 8507,
+      "compared": 8507,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 8507,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 8507,
+       "compared": 8507,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_20",
+     "title": "IB Low",
+     "ours": "out10",
+     "rule": "M1b-title-order",
+     "verdict": "MATCH",
+     "reason": "8507 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 251,
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 8507,
+      "compared": 8507,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 8507,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 8507,
+       "compared": 8507,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_22",
+     "title": "IB Low",
+     "ours": "out11",
+     "rule": "M1b-title-order",
+     "verdict": "MATCH",
+     "reason": "8507 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 251,
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 8507,
+      "compared": 8507,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 8507,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 8507,
+       "compared": 8507,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_1",
+     "title": "Shapes",
+     "ours": "out2",
+     "rule": "M2-position-untitled",
+     "verdict": "MATCH",
+     "reason": "8497 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 261,
+     "treeShift": 10,
+     "treeShiftNote": "offset = 10: our column read 10 bars ahead to meet the vendor's unshifted series; the last 10 bars are unread",
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 8507,
+      "compared": 8497,
+      "oursUnread": 10,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 8497,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 8507,
+       "compared": 8497,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_9",
+     "title": "Shapes",
+     "ours": "out6",
+     "rule": "M2-position-untitled",
+     "verdict": "MATCH",
+     "reason": "8502 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 256,
+     "treeShift": 5,
+     "treeShiftNote": "offset = 5: our column read 5 bars ahead to meet the vendor's unshifted series; the last 5 bars are unread",
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 8507,
+      "compared": 8502,
+      "oursUnread": 5,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 8502,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 8507,
+       "compared": 8502,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_12",
+     "title": "Shapes",
+     "ours": "out7",
+     "rule": "M2-position-untitled",
+     "verdict": "MATCH",
+     "reason": "8502 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 256,
+     "treeShift": 5,
+     "treeShiftNote": "offset = 5: our column read 5 bars ahead to meet the vendor's unshifted series; the last 5 bars are unread",
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 8507,
+      "compared": 8502,
+      "oursUnread": 5,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 8502,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 8507,
+       "compared": 8502,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_15",
+     "title": "Shapes",
+     "ours": "out8",
+     "rule": "M2-position-untitled",
+     "verdict": "MATCH",
+     "reason": "8502 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 256,
+     "treeShift": 5,
+     "treeShiftNote": "offset = 5: our column read 5 bars ahead to meet the vendor's unshifted series; the last 5 bars are unread",
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 8507,
+      "compared": 8502,
+      "oursUnread": 5,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 8502,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 8507,
+       "compared": 8502,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_24",
+     "title": "Shapes",
+     "ours": "out12",
+     "rule": "M2-position-untitled",
+     "verdict": "MATCH",
+     "reason": "8497 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 261,
+     "treeShift": 10,
+     "treeShiftNote": "offset = 10: our column read 10 bars ahead to meet the vendor's unshifted series; the last 10 bars are unread",
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 8507,
+      "compared": 8497,
+      "oursUnread": 10,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 8497,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 8507,
+       "compared": 8497,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_27",
+     "title": "Shapes",
+     "ours": "out13",
+     "rule": "M2-position-untitled",
+     "verdict": "MATCH",
+     "reason": "8497 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 261,
+     "treeShift": 10,
+     "treeShiftNote": "offset = 10: our column read 10 bars ahead to meet the vendor's unshifted series; the last 10 bars are unread",
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 8507,
+      "compared": 8497,
+      "oursUnread": 10,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 8497,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 8507,
+       "compared": 8497,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_30",
+     "title": "Shapes",
+     "ours": "out14",
+     "rule": "M2-position-untitled",
+     "verdict": "MATCH",
+     "reason": "8497 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 261,
+     "treeShift": 10,
+     "treeShiftNote": "offset = 10: our column read 10 bars ahead to meet the vendor's unshifted series; the last 10 bars are unread",
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 8507,
+      "compared": 8497,
+      "oursUnread": 10,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 8497,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 8507,
+       "compared": 8497,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
     }
    ],
    "notCompared": [
@@ -65678,61 +67417,6 @@
      "title": null,
      "type": "text_colorer",
      "why": "plot type text_colorer is not compared by v1"
-    },
-    {
-     "ours": "out2",
-     "title": null,
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out4",
-     "title": "OR Low",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out5",
-     "title": "OR Low",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out6",
-     "title": null,
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out7",
-     "title": null,
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out8",
-     "title": null,
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out10",
-     "title": "IB Low",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out11",
-     "title": "IB Low",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out12",
-     "title": null,
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out13",
-     "title": null,
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out14",
-     "title": null,
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
     }
    ],
    "notMeasured": [],
@@ -65745,8 +67429,8 @@
     "verdict": "MATCH",
     "reason": "neither side draws an object"
    },
-   "verdict": "INCONCLUSIVE",
-   "reason": "11 of 15 items could not be compared",
+   "verdict": "MATCH",
+   "reason": "all 15 items agree",
    "ourNotes": [
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
    ],
@@ -69854,36 +71538,6 @@
    "timeframe": "1D",
    "plots": [
     {
-     "id": "plot_8",
-     "title": "Buy",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — vendor title \"Buy\" is not unique in the study"
-    },
-    {
-     "id": "plot_9",
-     "title": "Sell",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — vendor title \"Sell\" is not unique in the study"
-    },
-    {
-     "id": "plot_10",
-     "title": "Buy",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — vendor title \"Buy\" is not unique in the study"
-    },
-    {
-     "id": "plot_11",
-     "title": "Sell",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — vendor title \"Sell\" is not unique in the study"
-    },
-    {
-     "id": "plot_12",
-     "title": null,
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — title \"\" could not be paired unambiguously"
-    },
-    {
      "id": "plot_0",
      "title": "Moving Avg Line",
      "ours": "value",
@@ -69978,6 +71632,247 @@
       },
       "vendorRowGapsAfterStart": 0
      }
+    },
+    {
+     "id": "plot_8",
+     "title": "Buy",
+     "ours": "out3",
+     "rule": "M1b-title-order",
+     "verdict": "MATCH",
+     "reason": "636 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 513,
+     "color": "compared",
+     "stats": {
+      "bars": 636,
+      "compared": 636,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 636,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 4,
+      "colorWithheld": 0,
+      "colorComparable": 4,
+      "valued": 4,
+      "maxAbs": 1.1368683772161603e-13,
+      "maxRel": 5.873650518807584e-16,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 636,
+       "compared": 636,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_10",
+     "title": "Buy",
+     "ours": "out5",
+     "rule": "M1b-title-order",
+     "verdict": "MATCH",
+     "reason": "636 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 513,
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 636,
+      "compared": 636,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 636,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 636,
+       "compared": 636,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_9",
+     "title": "Sell",
+     "ours": "out4",
+     "rule": "M1b-title-order",
+     "verdict": "MATCH",
+     "reason": "636 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 513,
+     "color": "compared",
+     "stats": {
+      "bars": 636,
+      "compared": 636,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 636,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 5,
+      "colorWithheld": 0,
+      "colorComparable": 5,
+      "valued": 5,
+      "maxAbs": 5.684341886080802e-14,
+      "maxRel": 2.631020288794654e-16,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 636,
+       "compared": 636,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_11",
+     "title": "Sell",
+     "ours": "out6",
+     "rule": "M1b-title-order",
+     "verdict": "MATCH",
+     "reason": "636 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 513,
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 636,
+      "compared": 636,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 636,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 636,
+       "compared": 636,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_12",
+     "title": null,
+     "ours": "out7",
+     "rule": "M2-position-untitled",
+     "verdict": "MATCH",
+     "reason": "636 steady-state bars agree",
+     "drawing": "both hide it",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 0,
+     "color": "not graded — hidden on TradingView (display none)",
+     "stats": {
+      "bars": 636,
+      "compared": 636,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 636,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 636,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 636,
+       "compared": 636,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
     }
    ],
    "notCompared": [
@@ -70028,31 +71923,6 @@
      "title": null,
      "type": "colorer",
      "why": "plot type colorer is not compared by v1"
-    },
-    {
-     "ours": "out3",
-     "title": "Buy",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out4",
-     "title": "Sell",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out5",
-     "title": "Buy",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out6",
-     "title": "Sell",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out7",
-     "title": null,
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
     }
    ],
    "notMeasured": [],
@@ -70119,36 +71989,6 @@
    "symbol": "AMEX:SPY",
    "timeframe": "1D",
    "plots": [
-    {
-     "id": "plot_8",
-     "title": "Buy",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — vendor title \"Buy\" is not unique in the study"
-    },
-    {
-     "id": "plot_9",
-     "title": "Sell",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — vendor title \"Sell\" is not unique in the study"
-    },
-    {
-     "id": "plot_10",
-     "title": "Buy",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — vendor title \"Buy\" is not unique in the study"
-    },
-    {
-     "id": "plot_11",
-     "title": "Sell",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — vendor title \"Sell\" is not unique in the study"
-    },
-    {
-     "id": "plot_12",
-     "title": null,
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — title \"\" could not be paired unambiguously"
-    },
     {
      "id": "plot_0",
      "title": "Moving Avg Line",
@@ -70244,6 +72084,247 @@
       },
       "vendorRowGapsAfterStart": 0
      }
+    },
+    {
+     "id": "plot_8",
+     "title": "Buy",
+     "ours": "out3",
+     "rule": "M1b-title-order",
+     "verdict": "MATCH",
+     "reason": "1800 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "our side replayed 6677 bars of proved prehistory (vw-object-gc-b-spy-1d-2026-09-28.json) before the window against a maxLookback of 513",
+     "derivedLookback": 513,
+     "color": "compared",
+     "stats": {
+      "bars": 1800,
+      "compared": 1800,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 1800,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 11,
+      "colorWithheld": 0,
+      "colorComparable": 11,
+      "valued": 11,
+      "maxAbs": 3.410605131648481e-13,
+      "maxRel": 5.203723648416409e-16,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 1800,
+       "compared": 1800,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_10",
+     "title": "Buy",
+     "ours": "out5",
+     "rule": "M1b-title-order",
+     "verdict": "MATCH",
+     "reason": "1800 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "our side replayed 6677 bars of proved prehistory (vw-object-gc-b-spy-1d-2026-09-28.json) before the window against a maxLookback of 513",
+     "derivedLookback": 513,
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 1800,
+      "compared": 1800,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 1800,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 1800,
+       "compared": 1800,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_9",
+     "title": "Sell",
+     "ours": "out4",
+     "rule": "M1b-title-order",
+     "verdict": "MATCH",
+     "reason": "1800 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "our side replayed 6677 bars of proved prehistory (vw-object-gc-b-spy-1d-2026-09-28.json) before the window against a maxLookback of 513",
+     "derivedLookback": 513,
+     "color": "compared",
+     "stats": {
+      "bars": 1800,
+      "compared": 1800,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 1800,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 11,
+      "colorWithheld": 0,
+      "colorComparable": 11,
+      "valued": 11,
+      "maxAbs": 2.2737367544323206e-13,
+      "maxRel": 3.717895562382405e-16,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 1800,
+       "compared": 1800,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_11",
+     "title": "Sell",
+     "ours": "out6",
+     "rule": "M1b-title-order",
+     "verdict": "MATCH",
+     "reason": "1800 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "our side replayed 6677 bars of proved prehistory (vw-object-gc-b-spy-1d-2026-09-28.json) before the window against a maxLookback of 513",
+     "derivedLookback": 513,
+     "color": "nothing drawn on any bar — no colour to compare",
+     "stats": {
+      "bars": 1800,
+      "compared": 1800,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 1800,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 1800,
+       "compared": 1800,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_12",
+     "title": null,
+     "ours": "out7",
+     "rule": "M2-position-untitled",
+     "verdict": "MATCH",
+     "reason": "1800 steady-state bars agree",
+     "drawing": "both hide it",
+     "warmupBars": 0,
+     "warmupSource": "our side replayed 6677 bars of proved prehistory (vw-object-gc-b-spy-1d-2026-09-28.json) before the window against a maxLookback of 0",
+     "derivedLookback": 0,
+     "color": "not graded — hidden on TradingView (display none)",
+     "stats": {
+      "bars": 1800,
+      "compared": 1800,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 1800,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "colorWithheld": 0,
+      "colorComparable": 0,
+      "valued": 1800,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 1800,
+       "compared": 1800,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
     }
    ],
    "notCompared": [
@@ -70294,31 +72375,6 @@
      "title": null,
      "type": "colorer",
      "why": "plot type colorer is not compared by v1"
-    },
-    {
-     "ours": "out3",
-     "title": "Buy",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out4",
-     "title": "Sell",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out5",
-     "title": "Buy",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out6",
-     "title": "Sell",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
-    },
-    {
-     "ours": "out7",
-     "title": null,
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
     }
    ],
    "notMeasured": [],
@@ -102461,18 +104517,6 @@
    "timeframe": "1D",
    "plots": [
     {
-     "id": "plot_6",
-     "title": "L",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — vendor title \"L\" is not unique in the study"
-    },
-    {
-     "id": "plot_7",
-     "title": "L",
-     "verdict": "INCONCLUSIVE",
-     "reason": "UNMAPPED — vendor title \"L\" is not unique in the study"
-    },
-    {
      "id": "plot_0",
      "title": "STR",
      "ours": "value",
@@ -102759,20 +104803,105 @@
       },
       "vendorRowGapsAfterStart": 0
      }
-    }
-   ],
-   "notCompared": [
-    {
-     "ours": "out7",
-     "title": "L",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
     },
     {
-     "ours": "out8",
+     "id": "plot_6",
      "title": "L",
-     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
+     "ours": "out7",
+     "rule": "M1b-title-order",
+     "verdict": "MATCH",
+     "reason": "666 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 271,
+     "color": "compared",
+     "stats": {
+      "bars": 666,
+      "compared": 666,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 666,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 88,
+      "colorWithheld": 0,
+      "colorComparable": 88,
+      "valued": 88,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 666,
+       "compared": 666,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_7",
+     "title": "L",
+     "ours": "out8",
+     "rule": "M1b-title-order",
+     "verdict": "MATCH",
+     "reason": "666 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 271,
+     "color": "compared",
+     "stats": {
+      "bars": 666,
+      "compared": 666,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 666,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 188,
+      "colorWithheld": 0,
+      "colorComparable": 188,
+      "valued": 188,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 666,
+       "compared": 666,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
     }
    ],
+   "notCompared": [],
    "notMeasured": [],
    "tolerance": {
     "rel": 1e-9,
@@ -102783,8 +104912,8 @@
     "verdict": "MATCH",
     "reason": "neither side draws an object"
    },
-   "verdict": "INCONCLUSIVE",
-   "reason": "2 of 9 items could not be compared",
+   "verdict": "MATCH",
+   "reason": "all 9 items agree",
    "ourNotes": [
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
    ],
