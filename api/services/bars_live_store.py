@@ -1361,17 +1361,6 @@ _settle: dict = {"done_ymd": None, "running": False, "tickers": 0, "changed_tick
                  "rows_vendor_lacks": 0, "derived_rows": 0, "failed": 0, "started_at": None, "finished_at": None}
 
 
-def _session_window(now: datetime) -> tuple[int, int, int]:
-    """(ymd, extended-session open, extended-session close) of `now`'s ET day, as unix seconds."""
-    from api.services import bars_fetch
-    d = now.astimezone(_ET)
-    ymd = int(d.strftime("%Y%m%d"))
-    midnight = d.replace(hour=0, minute=0, second=0, microsecond=0)
-    lo = int(midnight.timestamp()) + bars_fetch._EXT_OPEN_MINUTES_SERVER * 60
-    hi = int(midnight.timestamp()) + bars_fetch._ext_close_minutes(ymd) * 60
-    return ymd, lo, hi
-
-
 def _settle_due(now: datetime) -> bool:
     """A trading day whose extended session closed SETTLE_AFTER_CLOSE_MIN ago, not yet settled by this process."""
     if not (SETTLE_ENABLED and enabled()):
@@ -1419,8 +1408,10 @@ def _settle_rederive(sym: str, lo: int, hi: int, checked_at: float) -> int:
 
 def settle_pass(now: Optional[datetime] = None) -> dict:
     """One settle of `now`'s trading day (see the block above). Returns the counts."""
-    now = now or datetime.now(_ET)
-    ymd, lo, hi = _session_window(now)
+    from api.services import bars_fetch
+    d = (now or datetime.now(_ET)).astimezone(_ET)
+    ymd = int(d.strftime("%Y%m%d"))
+    lo, hi = bars_fetch._session_window(d, "eth")      # the one session clock: 04:00 to 20:00 (17:00 on a half day)
     with _lock:
         work = [(s_, "5") for s_ in sorted(_covered5)] + [(s_, "1") for s_ in sorted(_covered1)]
     counts = {"tickers": len(work), "changed_tickers": 0, "rows_replaced": 0, "rows_vendor_lacks": 0,
