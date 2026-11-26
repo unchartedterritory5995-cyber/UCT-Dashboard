@@ -1881,10 +1881,8 @@ def test_MQ_a_weakened_deploy_freeze_trips_the_agreement_rail_and_cannot_move_th
 # that token. Until this rail the freeze exec'd tools/deploy_freeze.py and api/services/session_calendar.py.
 # The rail runs the REAL follow_verdict on an Agent entry inside a fresh interpreter whose FIRST act is an audit hook
 # that records every code object executed ("exec") and every source file opened; every repo .py among them must be
-# self-protected. ⚠️ ONE NAMED EXCEPTION, pre-existing and reported: tools/__init__.py (the `tools` package marker;
-# the follower runs `from tools import ...`). It is neither an Agent path nor self-protected; the rail requires it to
-# stay EMPTY. Protecting it properly (agent-ci.yml paths + SELF_PROTECTED) is an AUDIT change of its own.
-FOLLOWER_EXEC_EXCEPTIONS = {"tools/__init__.py": 0}           # path -> the size it must keep (bytes)
+# self-protected, with NO exceptions: tools/__init__.py (the `tools` package marker; the follower runs
+# `from tools import ...`) was executed unprotected until this rail; it is now an Agent path and self-protected.
 
 _FOLLOW_PROBE = r"""
 import json, os, sys
@@ -1936,7 +1934,9 @@ def test_MQ_the_follower_executes_only_self_protected_code(tmp_path):
     assert res["state"] == "success", res                    # the follower ran to the end, through the freeze
     assert "tools/agent_ci_required.py" in res["seen"], res   # the hook sees the follower's own code (not vacuous)
     protected = list(ev.protected_patterns(ROOT))
-    outside = [p for p in res["seen"] if not acr.matches(p, protected) and p not in FOLLOWER_EXEC_EXCEPTIONS]
+    outside = [p for p in res["seen"] if not acr.matches(p, protected)]
     assert outside == [], f"the token-holding follower executes repo code that is not self-protected: {outside}"
-    for path, size in FOLLOWER_EXEC_EXCEPTIONS.items():
-        assert (ROOT / path).stat().st_size == size, f"{path} must stay empty: the follower executes it"
+    # ... and every one of them is an Agent path too: self-protected alone would let a no-agent-paths PR land it
+    paths = acr.agent_paths(acr.load_agent_ci(ROOT))
+    not_agent = [p for p in res["seen"] if not acr.matches(p, paths)]
+    assert not_agent == [], f"the token-holding follower executes repo code that is not an Agent path: {not_agent}"
