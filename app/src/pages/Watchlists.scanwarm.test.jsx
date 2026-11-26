@@ -148,16 +148,71 @@ test('a jump warms the row one stride further, urgently, inside the per-call urg
   calls.urgent = []
   hub.sym = 'FFF'                                            // a jump of 3 rows down
   rerender(<Watchlists embedded pickList="user:wl1" pickName="Momentum Plays" />)
-  await waitFor(() => expect(calls.urgent.some(c => c.syms[0] === 'GGG')).toBe(true))
-  const u = calls.urgent.find(c => c.syms[0] === 'GGG')
+  await waitFor(() => expect(calls.urgent.some(c => c.syms.includes('GGG'))).toBe(true))
+  const u = calls.urgent.find(c => c.syms.includes('GGG'))
   expect(u.tf).toBe('5')
   expect(u.syms.slice(0, URGENT_MAX_PER_CALL), 'the jump target was past the urgent cap').toContain('III')
-  expect(u.syms).toEqual(['GGG', 'III'])                     // ⛔ CHANGED (review of #2739): the next row, then FFF + 3
+  // ⛔ CHANGED (2026-11-26, jump replay): THE TARGET FIRST, then the next row. Both sit inside the cap, but the lane
+  // starts a call's rows in order: on the jump replay the target, second, started ~0.4-0.5 s after landing.
+  expect(u.syms).toEqual(['III', 'GGG'])
   calls.urgent = []
   hub.sym = 'GGG'                                            // control: one row on is no jump
   rerender(<Watchlists embedded pickList="user:wl1" pickName="Momentum Plays" />)
   await waitFor(() => expect(calls.urgent.some(c => c.syms[0] === 'HHH')).toBe(true))
   expect(calls.urgent.find(c => c.syms[0] === 'HHH').syms).toEqual(['HHH', 'III'])
+})
+
+// ⭐ (2026-11-26, jump replay) THE EFFECT RUNS AGAIN FOR THE SAME SELECTION whenever the list's rows change identity (a
+// list or tag refresh), and that run took the PREVIOUS selection from the ref the first run had just written: the
+// selection itself. So it saw no jump (and no direction: "down"), and its urgent call, the latest one, aborted the jump
+// target's queued ask (only the latest urgent call keeps its rows). A re-run keeps what the press landed with.
+async function _rerunSameSelection(rerender) {
+  calls.urgent = []
+  WL.items = WL.items.map((it) => ({ ...it }))               // the same rows, new identities: the effect runs again
+  rerender(<Watchlists embedded pickList="user:wl1" pickName="Momentum Plays" />)
+  await waitFor(() => expect(calls.urgent.length).toBeGreaterThan(0))
+  return calls.urgent[calls.urgent.length - 1]
+}
+
+test('a re-run for the same selection keeps the jump target urgent (it never aborts it)', async () => {
+  const items0 = WL.items
+  try {
+    hub.sym = 'CCC'
+    const { rerender } = render(<Watchlists embedded pickList="user:wl1" pickName="Momentum Plays" />)
+    await screen.findByText('CCC')
+    await waitFor(() => expect(calls.urgent.some(c => c.syms[0] === 'DDD')).toBe(true))
+    calls.urgent = []
+    hub.sym = 'FFF'                                          // a jump of 3 rows down: the next one lands on III
+    rerender(<Watchlists embedded pickList="user:wl1" pickName="Momentum Plays" />)
+    await waitFor(() => expect(calls.urgent.some(c => c.syms.includes('III'))).toBe(true))
+    globalThis.__uctScanWarmTrace = []
+    const last = await _rerunSameSelection(rerender)
+    expect(last.tf).toBe('5')
+    expect(last.syms, 'a re-run for the same selection dropped the jump target from the latest urgent call').toContain('III')
+    // the opt-in trace a replay harness reads: the re-run is recorded as one, with the jump it kept
+    expect(globalThis.__uctScanWarmTrace.at(-1)).toMatchObject({ sym: 'FFF', rerun: true, stride: 3, jump: 'III' })
+  } finally {
+    WL.items = items0
+    delete globalThis.__uctScanWarmTrace
+  }
+})
+
+test('a re-run for the same selection keeps the direction the member is moving', async () => {
+  const items0 = WL.items
+  try {
+    hub.sym = 'FFF'
+    const { rerender } = render(<Watchlists embedded pickList="user:wl1" pickName="Momentum Plays" />)
+    await screen.findByText('FFF')
+    await waitFor(() => expect(calls.urgent.length).toBeGreaterThan(0))
+    calls.urgent = []
+    hub.sym = 'EEE'                                          // one row UP: the next rows are DDD, CCC
+    rerender(<Watchlists embedded pickList="user:wl1" pickName="Momentum Plays" />)
+    await waitFor(() => expect(calls.urgent.some(c => c.syms[0] === 'DDD')).toBe(true))
+    const last = await _rerunSameSelection(rerender)
+    expect(last.syms, 'a re-run for the same selection turned a member moving up around').toEqual(['DDD', 'CCC'])
+  } finally {
+    WL.items = items0
+  }
 })
 
 // ⛔ (review of #2739) KEPT ONLY INSIDE THE SHARE: a hold pins `keep.slice(0, share)`, share = min(NEIGHBOR_KEEP_AHEAD,
