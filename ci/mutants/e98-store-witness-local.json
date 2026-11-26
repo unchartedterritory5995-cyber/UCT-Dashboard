@@ -1,0 +1,41 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "SW1",
+   "mutant": "an in-repo store path accepted (a committed copy of vendor bars would be read)",
+   "file": "app/src/components/chart/engine/__tests__/storeIntradayAgreement.test.js",
+   "from": "  if (!rel.startsWith('..') && !path.isAbsolute(rel)) {",
+   "to": "  if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/storeIntradayAgreement.test.js",
+   "expectRed": "read only from OUTSIDE the repo"
+  },
+  {
+   "id": "SW2",
+   "mutant": "the guard counts no list (every dump passes)",
+   "file": "tests/test_fixture_bar_rows_guard.py",
+   "from": "            if n > limit:",
+   "to": "            if False:",
+   "rail": "python -m pytest -q tests/test_fixture_bar_rows_guard.py",
+   "expectRed": "test_control_the_guard_can_fail"
+  },
+  {
+   "id": "SW3",
+   "mutant": "a baselined file may grow",
+   "file": "tests/test_fixture_bar_rows_guard.py",
+   "from": "        elif n > baseline[path]:",
+   "to": "        elif False:",
+   "rail": "python -m pytest -q tests/test_fixture_bar_rows_guard.py",
+   "expectRed": "test_control_the_guard_can_fail"
+  },
+  {
+   "id": "SW4",
+   "mutant": "a stale baseline entry is kept silently",
+   "file": "tests/test_fixture_bar_rows_guard.py",
+   "from": "    for path in sorted(set(baseline) - set(over)):",
+   "to": "    for path in []:",
+   "rail": "python -m pytest -q tests/test_fixture_bar_rows_guard.py",
+   "expectRed": "test_control_the_guard_can_fail"
+  }
+ ]
+}
