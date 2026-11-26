@@ -35,7 +35,7 @@
    "from": "  if (!periodNode || constString(periodNode) !== null) return null",
    "to": "  if (!periodNode) return null",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestFinancialPeriod.test.js",
-   "expectRed": "a literal period is one read"
+   "expectRed": "the parse leaves a constant period alone"
   }
  ]
 }

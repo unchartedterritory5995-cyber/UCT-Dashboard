@@ -21,7 +21,7 @@ import { memberPaneDefinition } from '../builder/memberPane/memberPaneDefinition
 import { boundAtInputs } from './knobBind.js'
 import { symTickersOf, staticallyUnservable, financialDecision, OTHER_SYMBOL_REFUSAL } from './otherSymbols.js'
 import { EVENT_VENUE } from './pineEvents.js'
-import { FINANCIAL_KEY } from './pineFinancial.js'
+import { FINANCIAL_KEY, financialPeriodArms } from './pineFinancial.js'
 import { validateDefinition } from './defSchema.js'
 
 afterAll(() => __financialPeriodSettingForTests(true))
@@ -100,6 +100,17 @@ describe('e98 E4 — what does not move', () => {
     const t = translatePine(`${H}plot(request.financial(syminfo.tickerid, "EARNINGS_PER_SHARE_DILUTED", "FQ"), "EPS")\n`,
       { basePeriod: 'D', strict: true })
     expect(t.outputs[0].formula).toBe("sym('EV-FED-Q0', close)")
+  })
+
+  it('the parse leaves a constant period alone (no arms), and arms a name with one call per catalog period', () => {
+    const call = (period) => ({ type: 'call', name: 'request.financial', args: [
+      { name: null, value: { type: 'name', name: 'syminfo.tickerid' } },
+      { name: null, value: { type: 'string', value: 'EARNINGS_PER_SHARE_DILUTED' } },
+      { name: null, value: period }] })
+    expect(financialPeriodArms(call({ type: 'string', value: 'FQ' }))).toBeNull()
+    const arms = financialPeriodArms(call({ type: 'name', name: 'p' }))
+    expect(arms.arms.map((a) => a.period)).toEqual(['FQ', 'TTM', 'FY', 'FH', 'D'])
+    expect(arms.arms[1].call.args[2].value).toMatchObject({ type: 'string', value: 'TTM' })
   })
 
   it('a plain (undeclared) translation folds the setting to its default: one read', () => {
