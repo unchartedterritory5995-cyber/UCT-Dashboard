@@ -652,30 +652,45 @@ def get_today_pack(_access: dict = Depends(require_bars_access)):
 
 # ⛔ (2026-11-25, scale and reliability) /api/bars NEVER HOLDS THE DEFAULT POOL, AND WARMS NEVER TAKE THE INTERACTIVE
 # SHARE. The route's thread hops (the sync `require_bars_access` dependency and the sync serve) went through anyio's
-# DEFAULT limiter: 40 tokens shared by EVERY sync route (auth, notebook, screener...). A flood of chart warms, each
-# waiting on a provider fetch, could hold all of it, and an interactive chart ask and any unrelated route queued behind
-# it (#2741 measured the same queue on /api/bars-history). Now the route has its own limiters, one per event loop: an
-# interactive one (BARS_THREADS) and a SMALLER one for best-effort warms (`warm=1`, BARS_WARM_THREADS). A warm waits
-# only behind warms. Server-Timing carries the wait (`bars-wait`, ms: the gate's hop plus the serve's).
-# Rail: tests/test_bars_own_pool.py.
+# DEFAULT limiter, shared by EVERY sync route on the pod (auth, notebook, screener...; 64 tokens on the web, `main.py`
+# sets `total_tokens`). A flood of chart warms, each waiting on a provider fetch, could hold all of it, and an
+# interactive chart ask and any unrelated route queued behind it (#2741 measured the same queue on /api/bars-history).
+# Now the route has its own limiters, one set per event loop, three lanes:
+#   * interactive serves (BARS_THREADS);
+#   * warms (`warm=1`, BARS_WARM_THREADS): a warm's gate hop and its serve wait only behind warms;
+#   * the QUICK lane (BARS_QUICK_THREADS): an interactive ask's gate hop and the tier-down shed check
+#     (`_tier_down_cold_tail`), cheap reads that never wait behind a serve (review of #2752, MEDIUM-1: with the tier
+#     down every ask serves locally, the interactive lane fills with provider fetches, and the fast shed that exists
+#     for exactly that moment queued behind them).
+# ⛔ (review of #2752, HIGH-1) THE WARM LANE IS WIDER THAN THE WARM-SERVE SLOTS (`bars_fetch._WARM_SERVE_MAX`), never
+# equal. The serve's warm path takes a slot without blocking and, when every slot is held, serves a cheap cache hit or
+# sheds a fast 503 the client retries. With the lane equal to the slots, the warms holding the slots held every warm
+# thread too: the cache-hit and shed branches could never run, and the 7th warm (the instant list warm at the open
+# included) queued behind six provider fetches. Derived from the slots, so the two cannot drift back together.
+# This tier only: bars-api serves `serve_bars_http` from its own route on its own pool (see the PR's deploy note).
+# Server-Timing carries the wait (`bars-wait`, ms: the gate's hop plus the serve's). Rail: tests/test_bars_own_pool.py.
 BARS_THREADS = max(2, int(os.environ.get("BARS_THREADS", "24") or 24))
-BARS_WARM_THREADS = max(1, min(BARS_THREADS - 1, int(os.environ.get("BARS_WARM_THREADS", "6") or 6)))
+BARS_WARM_THREADS = max(_bars_fetch._WARM_SERVE_MAX + 1, min(BARS_THREADS - 1, int(
+    os.environ.get("BARS_WARM_THREADS", "") or (_bars_fetch._WARM_SERVE_MAX + 4))))
+BARS_QUICK_THREADS = max(1, int(os.environ.get("BARS_QUICK_THREADS", "8") or 8))
+QUICK = "quick"
 _bars_limiters = __import__("weakref").WeakKeyDictionary()
 
 
-def _bars_limiter(warm: bool):
-    """This route's own limiter for an interactive ask or a warm (one pair per event loop)."""
+def _bars_limiter(lane):
+    """This route's own limiter for a lane (one set per event loop): QUICK, a warm (truthy) or an interactive ask."""
     import asyncio as _asyncio
     import anyio as _anyio
     loop = _asyncio.get_running_loop()
-    pair = _bars_limiters.get(loop)
-    if pair is None:
-        pair = _bars_limiters[loop] = (_anyio.CapacityLimiter(BARS_THREADS), _anyio.CapacityLimiter(BARS_WARM_THREADS))
-    return pair[1] if warm else pair[0]
+    lanes = _bars_limiters.get(loop)
+    if lanes is None:
+        lanes = _bars_limiters[loop] = (_anyio.CapacityLimiter(BARS_THREADS), _anyio.CapacityLimiter(BARS_WARM_THREADS),
+                                        _anyio.CapacityLimiter(BARS_QUICK_THREADS))
+    return lanes[2] if lane == QUICK else (lanes[1] if lane else lanes[0])
 
 
-async def _bars_thread(warm: bool, fn, *args, **kwargs):
-    """`fn(*args, **kwargs)` on the route's own limiter: (its result, the ms it waited for a thread)."""
+async def _bars_thread(lane, fn, *args, **kwargs):
+    """`fn(*args, **kwargs)` on the route's own limiter for `lane`: (its result, the ms it waited for a thread)."""
     import anyio as _anyio
     t0 = _time.perf_counter()
     waited = [0.0]
@@ -683,7 +698,7 @@ async def _bars_thread(warm: bool, fn, *args, **kwargs):
     def run():
         waited[0] = (_time.perf_counter() - t0) * 1000.0
         return fn(*args, **kwargs)
-    out = await _anyio.to_thread.run_sync(run, limiter=_bars_limiter(warm))
+    out = await _anyio.to_thread.run_sync(run, limiter=_bars_limiter(lane))
     return out, waited[0]
 
 
@@ -694,20 +709,20 @@ def _is_warm_request(request) -> bool:
         return False
 
 
-async def require_bars_access_bars(request: Request, uct_session: str | None = Cookie(None),
-                                   authorization: str = Header(default="")) -> dict:
-    """`require_bars_access`, run on /api/bars' own limiter (see BARS_THREADS); an app's
-    `dependency_overrides[require_bars_access]` (tests) still applies: it is the same gate."""
-    over = getattr(getattr(request, "app", None), "dependency_overrides", {}).get(require_bars_access)
-    if over is not None:
-        out = over()
-        return await out if hasattr(out, "__await__") else out
-    out, waited = await _bars_thread(_is_warm_request(request), require_bars_access, uct_session, authorization)
+async def _bars_gate_run(request, fn, *args):
+    """The gate's hop: a warm's on the warm lane (it waits only behind warms), an interactive ask's on the QUICK lane
+    (never behind a serve). Records the wait for Server-Timing."""
+    out, waited = await _bars_thread(True if _is_warm_request(request) else QUICK, fn, *args)
     try:
         request.state.bars_wait_ms = waited
     except Exception:
         pass
     return out
+
+
+# `require_bars_access` on /api/bars' own lanes. Built by `bars_auth.require_bars_access_on`, never by hand: the gate is
+# called in a thread, not `Depends`-ed, and the auth auditors recognise the factory's products by identity.
+require_bars_access_bars = require_bars_access_on(_bars_gate_run, "require_bars_access_bars")
 
 
 def _stamp_bars_wait(resp, ms: float):
@@ -767,7 +782,7 @@ async def get_bars(
         except Exception:
             # tier unreachable/slow/error → fall through to local serve (today's path), EXCEPT an intraday
             # read whose local tail is cold-stale: see `_tier_down_cold_tail`.
-            _shed, _ms = await _bars_thread(_warm, _tier_down_cold_tail, ticker, tf, to)
+            _shed, _ms = await _bars_thread(QUICK, _tier_down_cold_tail, ticker, tf, to)   # never behind a serve
             _gate_ms += _ms
             if _shed is not None:
                 return _stamp_bars_wait(_shed, _gate_ms)
