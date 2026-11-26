@@ -9,7 +9,8 @@ Wire (text/event-stream):
     event: hello      data: {"symbols": n, "max_hz": 4.0}             first frame
     event: status     data: {"live": true|false}                       at the start and on every change
                       (false = ingest's vendor socket is down or no batch for 5 s: the client polls REST)
-    data: ["AAPL",231.45,12345678,1732550000123,1732550000180]         one per symbol update (quote_hub)
+    data: [1732550000180,["AAPL",231.45,12345678,1732550000123],...]   one per write: the server write ms,
+                      then every pending quote [sym, price, day volume, trade ms] (quote_hub)
     event: heartbeat  data: {}                                         every 15 s of silence
 
 ⛔ BEHIND A FLAG, DEFAULT OFF: `QUOTE_STREAM_ENABLED=1` on the pod, plus the client's own key
@@ -23,8 +24,11 @@ full (the client keeps polling and retries with backoff), at most MAX_QUOTE_SYMB
 (the REST /api/live-prices cap, so one request's list is one connection). Admission comes BEFORE any upstream
 interest, and everything taken is released when the stream ends.
 
-Per-connection cost is bounded by construction (quote_hub.QuoteConn): at most one pending frame per symbol;
-one socket write per wake (at most one per ingest batch, ~20/s), all pending frames in one chunk.
+Per-connection cost is bounded by construction (quote_hub.QuoteConn): at most one pending quote per symbol;
+one socket write per wake (at most one per ingest batch, ~20/s), all pending quotes in ONE message. The
+generator awaits its event with no per-wake timeout (the hub wakes every member once a second for the
+heartbeat, status and disconnect checks). Everything the stream took is released ONCE, from the generator
+AND from the response itself (api/sse_response.py: a body torn down before its first step).
 `QUOTE_STREAM_WRITE_FLOOR_S` (default 0) spaces a connection's writes further at very large scale.
 """
 from __future__ import annotations
@@ -37,9 +41,10 @@ import re
 import time
 
 from fastapi import APIRouter, Depends, Query, Request
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse
 
 from api.bars_auth import require_bars_access
+from api.sse_response import ReleasingStreamingResponse, release_once
 from api.routers import stream as stream_router
 from api.services import quote_hub
 
@@ -109,21 +114,27 @@ async def stream_quotes(
     token = stream_router.subscribe(STREAM)
     if token is None:
         return stream_router._at_capacity(STREAM)
-    conn = None
-    interest = False
-    try:
-        bb.add_interest(syms)
-        interest = True
-        conn = hub.open(syms, snapshot=bb.get_last_price)
-    except BaseException:
-        if conn is not None:
-            hub.close(conn)
-        if interest:
+    held = {"conn": None, "interest": False}
+
+    def _release() -> None:
+        # Everything this stream took, released ONCE: from the generator's `finally` AND from the
+        # response's own close (a body torn down before its first step never runs the `finally`).
+        if held["conn"] is not None:
+            hub.close(held["conn"])
+        if held["interest"]:
             try:
                 bb.remove_interest(syms)
             except Exception:  # noqa: BLE001
                 pass
         stream_router.unsubscribe(STREAM, token)
+
+    release = release_once(_release)
+    try:
+        bb.add_interest(syms)
+        held["interest"] = True
+        held["conn"] = conn = hub.open(syms, snapshot=bb.get_last_price)
+    except BaseException:
+        release()
         raise
 
     feed_live = getattr(bb, "feed_fresh", None)
@@ -145,10 +156,13 @@ async def stream_quotes(
                         last_live = live
                         yield _event("status", {"live": live})
                 if not conn.pending:
-                    try:
-                        await asyncio.wait_for(conn.event.wait(), WAIT_S)
-                    except asyncio.TimeoutError:
-                        pass
+                    if hub.ticking:
+                        await conn.event.wait()         # the hub wakes every member once a second
+                    else:
+                        try:
+                            await asyncio.wait_for(conn.event.wait(), WAIT_S)
+                        except asyncio.TimeoutError:
+                            pass
                 chunk = conn.take()
                 now = time.monotonic()
                 if chunk:
@@ -164,15 +178,11 @@ async def stream_quotes(
                     if await request.is_disconnected():
                         break
         finally:
-            hub.close(conn)
-            stream_router.unsubscribe(STREAM, token)
-            try:
-                bb.remove_interest(syms)
-            except Exception:  # noqa: BLE001
-                pass
+            release()
 
-    return StreamingResponse(
+    return ReleasingStreamingResponse(
         event_generator(),
+        on_close=release,
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache, no-transform",

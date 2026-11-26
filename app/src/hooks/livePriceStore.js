@@ -13,7 +13,8 @@
 // Deliberately plain module state (not React context) so any component can use
 // useLivePrices with zero provider wiring, exactly as before.
 
-import { sessionState } from '../lib/marketClock/marketClock'
+import { flushSync } from 'react-dom'
+import { sessionState, nextBoundary } from '../lib/marketClock/marketClock'
 import { noteServerDate, monoNow } from '../lib/serverClock'
 import * as quotePush from '../lib/quotePush'
 
@@ -74,10 +75,26 @@ function _marketClosed() {
 // ⭐ (2026-11-25) While the pushed list prices are healthy (lib/quotePush.js, flag-gated) the poll is only the
 // fallback and the source of prev close / day OHLC / session: it slows to PUSH_HEALTHY_POLL_MS. The push
 // going unhealthy polls at once and the normal cadence returns (the onHealth handler below).
+// Within BOUNDARY_WINDOW_MS of a session boundary (04:00, 09:30, 16:00, 20:00 ET, half days included) the
+// poll keeps its normal cadence even while the push is healthy (review of #2751, C): the REST row is what
+// says which session a pushed print belongs to (regular `price` vs extended `ext_price`).
+export const BOUNDARY_WINDOW_MS = 60000
+function _nearBoundary() {
+  try {
+    const now = new Date()
+    const t = now.getTime()
+    const s = sessionState(now)
+    if (s.boundaryAt && t - s.boundaryAt.getTime() <= BOUNDARY_WINDOW_MS) return true
+    const n = nextBoundary(now)
+    return !!(n && n.at.getTime() - t <= BOUNDARY_WINDOW_MS)
+  } catch {
+    return true // an unreadable clock keeps the normal cadence
+  }
+}
 const _intervalMs = () => {
   if (_marketClosed()) return CLOSED_INTERVAL_MS
   const base = _isMobile ? 4000 : 2000 // mobile ×2, as useMobileSWR
-  return quotePush.isHealthy() ? Math.max(base, quotePush.PUSH_HEALTHY_POLL_MS) : base
+  return quotePush.isHealthy() && !_nearBoundary() ? Math.max(base, quotePush.PUSH_HEALTHY_POLL_MS) : base
 }
 
 function _union() {
@@ -283,7 +300,9 @@ function _applyPushed(batch) {
   }
   if (!merged) return
   _prices = merged
-  _emit()
+  // COMMIT IN THIS FRAME: a setState from a store listener is a default-priority render scheduled as a task,
+  // which runs after the frame paints (one more frame, ~16 ms). flushSync renders the changed rows now.
+  try { flushSync(_emit) } catch { _emit() }
 }
 quotePush.onQuotes(_applyPushed)
 quotePush.onHealth((healthy) => {

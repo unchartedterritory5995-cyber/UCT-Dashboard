@@ -1,10 +1,15 @@
 // Pushed real-time list prices: the client of /api/stream/quotes (api/routers/quote_stream.py).
 //
 // ONE pooled EventSource carries the union of every list price the tab shows (livePriceStore's tickers and
-// priceStreamManager's), split only past MAX_QUOTE_SYMBOLS. The server sends one frame per symbol update,
-// already conflated per symbol (latest wins, at most 4 a second). Frames are held here and handed to the
-// stores ONCE, on the next animation frame, as one batch: latest per symbol wins inside the frame, and a
-// list of 100 names repaints at most once a frame (never per message, never on a 1 s timer).
+// priceStreamManager's), split only past MAX_QUOTE_SYMBOLS. The server writes ONE message per wake,
+// `[server write ms, [sym, price, day volume, trade ms], ...]`, every price change leaving on the ingest
+// batch that brought it. Quotes are held here and handed to the stores ONCE, on the next animation frame,
+// as one batch: latest per symbol wins inside the frame, and a list of 100 names repaints at most once a
+// frame (never per message, never on a 1 s timer). The stores commit inside that frame (livePriceStore).
+//
+// A ticker-set change is MAKE BEFORE BREAK (review of #2751, D): the new connection opens while the old one
+// keeps delivering, health and pushed quotes are kept, and the old one closes when the new one is open (or
+// after RESUBSCRIBE_GRACE_MS, when a replacement that never opened stops counting as healthy).
 //
 // The REST poll (hooks/livePriceStore) stays the fallback: while this push is healthy it slows to
 // PUSH_HEALTHY_POLL_MS (it still brings prev close, day OHLC and the session); the moment the push is not
@@ -29,13 +34,16 @@ export const MAX_QUOTE_SYMBOLS = 250            // mirror of api/routers/quote_s
 export const PUSH_HEALTHY_POLL_MS = 15000       // the REST poll's cadence while the push is healthy
 export const SET_DEBOUNCE_MS = 250              // a page transition rebuilds once, not per component
 export const HIDDEN_CLOSE_MS = 60000
+export const RESUBSCRIBE_GRACE_MS = 5000
 const INITIAL_RETRY_MS = 2000
 const RETRY_CAP_MS = 60000
 const STATS_CAP = 512
 
 const _owners = new Map()        // owner -> Set(sym)
 let _setTimer = null
-let _buckets = []                // [{ key, tickers, es, connected, live, lastMsg, retryDelay, reconnectTimer }]
+let _buckets = []                // [{ key, tickers, es, connected, live, lastMsg, retryDelay, reconnectTimer, graceUntil }]
+let _retiring = []               // replaced buckets still delivering until their replacements open
+let _graceTimer = null
 const _quotes = new Map()        // sym -> { price, volume, trade_ts, sent_ms, recv }
 let _pending = null              // sym -> quote, waiting for the next frame
 let _raf = null
@@ -83,6 +91,7 @@ function _union() {
 
 function _rebuild() {
   _setTimer = null
+  const wasHealthy = isHealthy()
   const union = quotePushEnabled() && !_closedForHidden ? _union() : []
   const chunks = []
   for (let i = 0; i < union.length; i += MAX_QUOTE_SYMBOLS) chunks.push(union.slice(i, i + MAX_QUOTE_SYMBOLS))
@@ -93,14 +102,34 @@ function _rebuild() {
     const had = byKey.get(key)
     if (had) { byKey.delete(key); next.push(had); continue }
     const b = { key, tickers: chunk, es: null, connected: false, live: null, lastMsg: Date.now(),
-      retryDelay: INITIAL_RETRY_MS, reconnectTimer: null }
+      retryDelay: INITIAL_RETRY_MS, reconnectTimer: null,
+      graceUntil: wasHealthy ? Date.now() + RESUBSCRIBE_GRACE_MS : 0 }
     next.push(b)
     _connect(b)
   }
-  for (const gone of byKey.values()) _teardown(gone)
+  const keepOld = wasHealthy && next.some((b) => !b.connected)
+  for (const gone of byKey.values()) {
+    if (keepOld) _retiring.push(gone)
+    else _teardown(gone)
+  }
   _buckets = next
+  if (_retiring.length && !keepOld) _retireAll()
+  if (keepOld && !_graceTimer) _graceTimer = setTimeout(_endGrace, RESUBSCRIBE_GRACE_MS)
   if (_buckets.length && !_watchdog) _watchdog = setInterval(_sweep, STREAM_WATCHDOG_TICK_MS)
   if (!_buckets.length && _watchdog) { clearInterval(_watchdog); _watchdog = null }
+  _updateHealth()
+}
+
+function _retireAll() {
+  for (const b of _retiring) _teardown(b)
+  _retiring = []
+  if (_graceTimer) { clearTimeout(_graceTimer); _graceTimer = null }
+}
+
+function _endGrace() {
+  _graceTimer = null
+  _retireAll()
+  for (const b of _buckets) b.graceUntil = 0
   _updateHealth()
 }
 
@@ -120,14 +149,16 @@ function _connect(b) {
     if (b.es !== es) return
     b.connected = true
     b.retryDelay = INITIAL_RETRY_MS
+    b.graceUntil = 0
     touch()
+    if (_retiring.length && _buckets.every((x) => x.connected)) _retireAll()
     _updateHealth()
   }
   es.onmessage = (e) => {
     if (b.es !== es) return
     touch()
-    const q = parseFrame(e.data)
-    if (q) _onQuote(q)
+    const m = parseMessage(e.data)
+    if (m) for (const q of m.quotes) _onQuote(q, m.sentMs)
   }
   es.addEventListener('status', (e) => {
     if (b.es !== es) return
@@ -143,6 +174,7 @@ function _connect(b) {
     b.es = null
     b.connected = false
     b.live = null
+    b.graceUntil = 0
     const delay = b.retryDelay
     b.retryDelay = Math.min(delay * 2, RETRY_CAP_MS)
     b.reconnectTimer = setTimeout(() => {
@@ -168,15 +200,32 @@ function _sweep() {
 
 // ── frames -> the next animation frame ──────────────────────────────────────
 
-/** `["AAPL",231.45,12345678,1732550000123,1732550000180]` -> a quote, or null for anything else. */
+/** One write: `[write ms, ["AAPL",231.45,12345678,1732550000123], ...]` -> { sentMs, quotes }, or null. */
+export function parseMessage(data) {
+  let a
+  try { a = JSON.parse(data) } catch { return null }
+  if (!Array.isArray(a) || !a.length || typeof a[0] !== 'number' || !Number.isFinite(a[0])) return null
+  const quotes = []
+  for (let i = 1; i < a.length; i++) {
+    const q = _quote(a[i])
+    if (q) quotes.push(q)
+  }
+  return { sentMs: a[0], quotes }
+}
+
+/** `["AAPL",231.45,12345678,1732550000123]` (as JSON text) -> a quote, or null for anything else. */
 export function parseFrame(data) {
   let a
   try { a = JSON.parse(data) } catch { return null }
+  return _quote(a)
+}
+
+function _quote(a) {
   if (!Array.isArray(a) || a.length < 2 || typeof a[0] !== 'string' || !a[0]) return null
   const price = a[1]
   if (typeof price !== 'number' || !Number.isFinite(price) || price <= 0) return null
   const num = (x) => (typeof x === 'number' && Number.isFinite(x) ? x : null)
-  return { sym: a[0].toUpperCase(), price, volume: num(a[2]), trade_ts: num(a[3]), sent_ms: num(a[4]) }
+  return { sym: a[0].toUpperCase(), price, volume: num(a[2]), trade_ts: num(a[3]) }
 }
 
 function _sample(arr, v) {
@@ -185,12 +234,12 @@ function _sample(arr, v) {
   if (arr.length > STATS_CAP) arr.shift()
 }
 
-function _onQuote(q) {
+function _onQuote(q, sentMs) {
   const recv = Date.now()
-  const quote = { price: q.price, volume: q.volume, trade_ts: q.trade_ts, sent_ms: q.sent_ms, recv }
+  const quote = { price: q.price, volume: q.volume, trade_ts: q.trade_ts, sent_ms: sentMs ?? null, recv }
   _stats.frames += 1
   if (q.trade_ts != null) _sample(_stats.tradeToRecv, recv - q.trade_ts)
-  if (q.sent_ms != null) _sample(_stats.sentToRecv, recv - q.sent_ms)
+  if (sentMs != null) _sample(_stats.sentToRecv, recv - sentMs)
   ;(_pending ||= new Map()).set(q.sym, quote)
   if (_raf == null) _raf = _requestFrame(_applyFrame)
 }
@@ -233,7 +282,8 @@ export function getPushedQuote(sym) {
 export function isHealthy() {
   if (!_buckets.length || !quotePushEnabled()) return false
   const now = Date.now()
-  return _buckets.every((b) => b.es && b.connected && b.live !== false && now - b.lastMsg <= STREAM_WATCHDOG_MS)
+  return _buckets.every((b) => (b.es && b.connected && b.live !== false && now - b.lastMsg <= STREAM_WATCHDOG_MS)
+    || (b.graceUntil > now && !b.connected))     // a replacement still opening, its predecessor delivering
 }
 
 function _updateHealth() {
@@ -261,6 +311,9 @@ export function onHealth(fn) {
  */
 export function overlayPushed(rest, q) {
   if (!rest || !q || !(q.price > 0)) return rest
+  // Never older over newer (review of #2751, A): a REST row that saw a later trade keeps its own price.
+  const restMs = _restMs(rest)
+  if (q.trade_ts != null && restMs != null && restMs > q.trade_ts) return rest
   const vol = q.volume != null && q.volume > 0 ? q.volume : rest.volume
   if (rest.ext_session == null ? (q.price === rest.price && vol === rest.volume) : q.price === rest.ext_price) {
     return rest      // the row already shows this (a recompute of the same % would only differ in rounding)
@@ -280,6 +333,15 @@ export function overlayPushed(rest, q) {
   if (same) return rest
   out.push_ts = q.trade_ts
   return out
+}
+
+/** A REST row's freshness in ms: its last trade (`last_trade_ms`), else when it was observed. */
+function _restMs(r) {
+  const t = Number(r.last_trade_ms)
+  if (Number.isFinite(t) && t > 0) return t
+  const o = Number(r.observed_at)
+  if (Number.isFinite(o) && o > 0) return o > 1e12 ? o : o * 1000
+  return null
 }
 
 // ── measurement ─────────────────────────────────────────────────────────────
@@ -329,6 +391,7 @@ export function _resetForTests() {
   if (_setTimer) { clearTimeout(_setTimer); _setTimer = null }
   for (const b of _buckets) _teardown(b)
   _buckets = []
+  _retireAll()
   if (_watchdog) { clearInterval(_watchdog); _watchdog = null }
   if (_hiddenTimer) { clearTimeout(_hiddenTimer); _hiddenTimer = null }
   _closedForHidden = false

@@ -45,9 +45,20 @@ function readCookieValue(cookieHeader, name) {
   return null;
 }
 
-/** Does this request go to stream-edge? */
-export function wantsStreamEdge(request, env) {
-  if (!env || !env.STREAM_EDGE_ORIGIN) return false;
+/**
+ * Which origin serves this stream path. Quotes may have their OWN service (QUOTES_EDGE_ORIGIN: a quote-edge,
+ * the same image with QUOTE_STREAM_ENABLED=1, so the quote fan-out never shares the bars stream's event loop;
+ * review of #2751, B); without it they share stream-edge.
+ */
+export function originFor(pathname, env) {
+  if (!env) return undefined;
+  if (pathname === STREAM_QUOTES_PATH && env.QUOTES_EDGE_ORIGIN) return env.QUOTES_EDGE_ORIGIN;
+  return env.STREAM_EDGE_ORIGIN;
+}
+
+/** Does this request go to an edge service (`origin`, default stream-edge)? */
+export function wantsStreamEdge(request, env, origin = env && env.STREAM_EDGE_ORIGIN) {
+  if (!env || !origin) return false;
   if (env.STREAM_EDGE_ALL === "1") return true;
   return readCookieValue(request.headers.get("cookie"), CANARY_COOKIE) === "1";
 }
@@ -71,10 +82,11 @@ export function edgeRequestInit(request) {
  */
 export async function handleStream(request, env, fetchImpl = fetch) {
   const url = new URL(request.url);
-  if (!isStreamPath(url.pathname) || request.method !== "GET" || !wantsStreamEdge(request, env)) {
+  const origin = originFor(url.pathname, env);
+  if (!isStreamPath(url.pathname) || request.method !== "GET" || !wantsStreamEdge(request, env, origin)) {
     return fetchImpl(request);
   }
-  const target = env.STREAM_EDGE_ORIGIN.replace(/\/+$/, "") + url.pathname + url.search;
+  const target = origin.replace(/\/+$/, "") + url.pathname + url.search;
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), STREAM_EDGE_CONNECT_MS);
   let r = null;
