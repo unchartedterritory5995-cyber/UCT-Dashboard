@@ -81,6 +81,33 @@
    "to": "  for (const k of ['coverage', 'price', 'lastClose', 'volume']) {",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/storeIntradayAgreement.test.js",
    "expectRed": "reported as a definition"
+  },
+  {
+   "id": "PD1",
+   "mutant": "prices compared exactly again (TradingView's 6 dp against the store's 4)",
+   "file": "app/src/components/chart/engine/__tests__/storeIntradayAgreement.js",
+   "from": "        if (f === 'v' ? same(x[f], y[f]) : samePrice(x[f], y[f])) { cell.equal += 1; continue }",
+   "to": "        if (same(x[f], y[f])) { cell.equal += 1; continue }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/storeIntradayAgreement.test.js",
+   "expectRed": "a 5th-decimal difference passes"
+  },
+  {
+   "id": "PD2",
+   "mutant": "the JS grain drifts from the server's PRICE_DP",
+   "file": "app/src/components/chart/engine/__tests__/storeIntradayAgreement.js",
+   "from": "export const STORE_PRICE_DP = 4",
+   "to": "export const STORE_PRICE_DP = 3",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/storeIntradayAgreement.test.js",
+   "expectRed": "the JS grain is the server's"
+  },
+  {
+   "id": "PD3",
+   "mutant": "the odd-lot-print line active before the trades probe confirms it",
+   "file": "app/src/components/chart/engine/__tests__/storeIntradayAgreement.js",
+   "from": "  oddLotPrint: Object.freeze({ sentence: 'differs only by an odd-lot print', active: false,",
+   "to": "  oddLotPrint: Object.freeze({ sentence: 'differs only by an odd-lot print', active: true,",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/storeIntradayAgreement.test.js",
+   "expectRed": "prepared and INACTIVE"
   }
  ]
 }
