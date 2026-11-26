@@ -32,6 +32,7 @@ from typing import Any, Dict, List, Mapping, Optional
 
 from api.services.catalyst import cost_guard
 from api.services import definition_concierge as dc
+from api.services import code_paste
 from api.services import pine_authoring
 
 logger = logging.getLogger(__name__)
@@ -142,6 +143,45 @@ def names_a_method(message: Any) -> Optional[str]:
     return None
 
 
+def said_with_line(said: Any, line: str) -> str:
+    """The assistant's words with UCT's own line after them: never cut, never said twice."""
+    text = str(said or "").strip()
+    if line in text:
+        return text[:pine_authoring.REPLY_MAX_CHARS]
+    return (pine_authoring._fit(text, pine_authoring.REPLY_MAX_CHARS - len(line) - 1) + " " + line).strip()
+
+
+_PINE_TITLE = re.compile(r"""(?m)^\s*(?:indicator|study|strategy)\s*\(\s*(?:title\s*=\s*)?["']([^"'\n]{1,80})["']""")
+
+
+def pasted_pine_turn(message: str, *, revision: int, contract: str,
+                     trace: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
+    """⭐ C (2026-11-25): a member who pasted a PINE script is answered with THEIR script, as written, and NO model
+    call, when it passes the first look (`pine_authoring.script_problem`). The chart's own engine then checks it like
+    any script answer, and a refusal comes back for a repair in the ordinary way. None when it does not pass: then the
+    script turn rewrites it. It is the member's own code, so no "built from your description" line is added."""
+    from api.services import runtime_definitions
+    pine = code_paste.pine_of(message)
+    if pine_authoring.script_problem(pine) is not None:
+        return None
+    trace = trace if trace is not None else {}
+    title = _PINE_TITLE.search(pine)
+    name = re.sub(r"\s+", " ", title.group(1)).strip()[:pine_authoring.NAME_MAX_CHARS] if title else "Pasted script"
+    caps = pine_authoring.script_capabilities(pine)
+    waits = pine_authoring.waits_for_the_bar(pine, caps=caps)
+    trace["script"] = {"round": 0, "pasted": True, "chars": len(pine), "reference": None, "waits_for_the_bar": waits}
+    script_out = {"name": name, "pine": pine, "round": 0, "reference": None, "waits_for_the_bar": waits}
+    admission = runtime_definitions.script_answer_admission(pine, caps)
+    if admission is not None:
+        script_out["admission"] = admission
+    said = code_paste.PINE_PASTE_REPLY
+    return {"ok": True, "disposition": "answer", "turn": "script", "reply": said, "script": script_out,
+            "envelope": {"contract": contract, "baseRevision": revision, "ops": [], "disposition": "answer",
+                         "reply": said},
+            "answered_by": "door", "not_understood": [], "unavailable": [],
+            "tokens": {"input": 0, "output": 0}, "cost_usd": 0.0, "attempts": 0, "model": None}
+
+
 def wants_script(message: Any) -> bool:
     """Does the request name something only a script can hold?"""
     return isinstance(message, str) and bool(_SCRIPT_WORDS.search(message) or _SCRIPT_ONLY_ASKS.search(message))
@@ -176,6 +216,10 @@ def _request_text(message: str, chart: Any) -> str:
     sym = chart.get("sym") if isinstance(chart, Mapping) else None
     tf = chart.get("tf") if isinstance(chart, Mapping) else None
     on = f" The member's chart shows {sym}" + (f" on the {tf} timeframe." if tf else ".") if sym else ""
+    # ⭐ C (2026-11-25): a pasted Deepvue indicator is TRANSLATED, its code carried as DATA (`code_paste.IMPORT_TASK`)
+    if code_paste.kind_of(message) == code_paste.DEEPVUE:
+        return (f"<uct_import_source>{dc.escape_json(message)}</uct_import_source>{on} {code_paste.IMPORT_TASK} "
+                "Write the script with the emit_script tool.")
     # ⭐ the recipes this request NAMES (`pine_authoring.recipes_for`): whole scripts the engine is known
     # to run, as data beside the request. Our own text, never the member's.
     found = pine_authoring.recipes_text(pine_authoring.recipes_for(message))
@@ -358,7 +402,12 @@ def script_turn(message: str, *, user_id: Any, chart: Any, cap_usd: float, calls
             # so, in UCT's own words, whatever the assistant wrote. Decided by counting
             # (`pine_authoring.backed_by`), on THIS script: a repair is judged again.
             reference = pine_authoring.backed_by(message, pine)
-            said = pine_authoring.said_with_disclosure(said, reference)
+            # ⭐ C: a translated Deepvue indicator says what it is (`code_paste.IMPORT_LINE`) in place of the
+            # unchecked line: nobody graded its values against Deepvue's, and that is the honest sentence for it
+            if reference is None and code_paste.kind_of(message) == code_paste.DEEPVUE:
+                said = said_with_line(said, code_paste.IMPORT_LINE)
+            else:
+                said = pine_authoring.said_with_disclosure(said, reference)
             # ⭐ AND WHETHER IT READS WHERE THE CHART ENDS (found live 2026-11-19): such a script is drawn
             # only on a finished bar WHEN THE BAR-BY-BAR LANE DRAWS IT. The server's own detector decides the
             # fact, on THIS script, and sends it (`waits_for_the_bar`). ⛔ The SENTENCE is the window's to say

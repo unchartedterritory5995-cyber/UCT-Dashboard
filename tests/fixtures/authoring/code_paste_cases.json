@@ -1,0 +1,14 @@
+{
+ "_": "What the code-paste import door (api/services/code_paste.py) and the browser's mirror (app/src/components/chart/builder/authoring/codePaste.js) must both call code, and of which kind. Synthetic. `kind` null = chat. Read by tests/test_code_paste_door.py and codePaste.test.js: the two detectors cannot drift apart.",
+ "cases": [
+  {"kind": "deepvue", "text": "Convert this Deepvue indicator so it works on this chart:\nglobalThis.indicator = {\n  name: 'Ten Day High',\n  panel: 'overlay',\n  params: { len: { type: 'number', default: 10 } },\n  outputs: { hi: { type: 'line', color: '#2196F3' } },\n  compute(bar) {\n    return { hi: bar.ta.highest('high', bar.params.len) };\n  },\n};"},
+  {"kind": "deepvue", "text": "globalThis.indicator = {\n  name: 'Range',\n  params: {},\n  outputs: { r: { type: 'line' } },\n  compute: (bar) => {\n    const r = bar.high - bar.low;\n    return { r };\n  },\n};"},
+  {"kind": "pine", "text": "Convert this TradingView script: //@version=5\nindicator(\"Range ratio\", overlay=false)\nlen = input.int(14, \"Length\")\nr = (high - low) / ta.sma(high - low, len)\nplot(r, \"ratio\")\nhline(1)"},
+  {"kind": "pine", "text": "//@version=5\nindicator(\"Two EMAs\", overlay=true)\nfast = ta.ema(close, 9)\nslow = ta.ema(close, 21)\nplot(fast, color=color.green)\nplot(slow, color=color.red)"},
+  {"kind": null, "text": "Plot a 20 day moving average and color it green when the close is above it"},
+  {"kind": null, "text": "In TradingView I'd write indicator(\"x\") and plot(close) - can you do the same here?"},
+  {"kind": null, "text": "Show a table in the top right with:\n- the 20 day ATR\n- the ADR percent\n- today's range\n- the 50 day average volume\n- the relative volume"},
+  {"kind": null, "text": "make it 80\nand paint the candles gold\nand alert me when it crosses\nand put a label on it\nand show it on the weekly"},
+  {"kind": null, "text": "x = 1\ny = 2\nz = 3\nw = 4\nv = 5"}
+ ]
+}
