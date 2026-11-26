@@ -160,7 +160,8 @@ export function resampleNMonthly(monthly, n) {
 // built from. Rows the resampler could not bucket anyway (no time, or not a unix time) pass through to be dropped there,
 // as before; an extended spec (04:00 anchor) is untouched. ONE entry, so every caller gets it: the chart's own bars (the
 // store and legacy paths), other-symbol bars (secondaryBars) and benchmark tails (liveTail).
-function _regularSpec(spec) {
+/** Is `spec` anchored at the regular session's start (built from regular-session rows only)? */
+export function isRegularSessionSpec(spec) {
   const a = Number.isFinite(spec.anchorMin) ? spec.anchorMin : INTRADAY_ANCHOR_MIN.rth   // resampleIntradaySession's default
   return a === INTRADAY_ANCHOR_MIN.rth
 }
@@ -174,7 +175,7 @@ export function resampleForSpec(baseBars, spec) {
   if (!spec || !baseBars) return baseBars || []
   switch (spec.kind) {
     case 'intradaySession': {
-      const rows = _regularSpec(spec) ? _regularRows(baseBars) : baseBars
+      const rows = isRegularSessionSpec(spec) ? _regularRows(baseBars) : baseBars
       return resampleIntradaySession(rows, spec.minutes, { anchorMin: spec.anchorMin })
     }
     case 'nDaily': return resampleNDaily(baseBars, spec.n)
