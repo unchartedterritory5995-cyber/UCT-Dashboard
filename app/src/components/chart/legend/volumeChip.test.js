@@ -12,7 +12,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   volumeMenuItems, volumeMenuCaps, volumeChipOf, volumePaneSizeStored,
-  withVolumeDisplay, withVolumePaneHeightReset, VOLUME_NOT_YET, VOLUME_ABOUT,
+  withVolumeDisplay, withVolumePaneHeightReset, VOLUME_NOT_YET, VOLUME_ABOUT, VOLUME_SOURCE_NOTE,
 } from './volumeChip'
 import { CHIP_MENU_GROUPS } from './chipMenu'
 import { mergeChartSettings } from '../chartDefaults'
@@ -231,5 +231,17 @@ describe('the volume strip is a study stack, like a pane readout', () => {
     const at = sc.indexOf('{volPaneRows.map((r, ri) => (')
     expect(at, 'the strip no longer renders volPaneRows').toBeGreaterThan(0)
     expect(sc.slice(at, at + 1400)).toMatch(/<LegendRow[\s\S]*?\bvertical\b/)
+  })
+})
+
+// ⭐ Owner ruling 2026-11-25: "keep the full volume with the note". Plain words, no em dash, no alarm.
+describe('VOLUME_SOURCE_NOTE — what our volume counts', () => {
+  it('says consolidated, odd lots included, and that TradingView leaves them out', () => {
+    expect(VOLUME_SOURCE_NOTE).toBe('Volume: consolidated, includes odd lots (TradingView excludes them).')
+    expect(VOLUME_SOURCE_NOTE).not.toMatch(/[–—]|!|warning|caution|inaccurate|wrong/i)
+  })
+  it('the About card says the same thing in a sentence', () => {
+    expect(VOLUME_ABOUT.text).toMatch(/consolidated across all exchanges and includes odd lots \(TradingView excludes them\)/)
+    expect(VOLUME_ABOUT.text).not.toMatch(/[–—]/)
   })
 })

@@ -288,3 +288,46 @@ describe('/charts volume — Overlay on price (TradingView style)', () => {
     expect(lastVol().paneIndex).toBe(1)
   })
 })
+
+// ⭐ Owner ruling 2026-11-25: "keep the full volume with the note". Our volume is the consolidated tape's count,
+// odd lots included, and TradingView's intraday history leaves odd lots out, so the Volume row says so in its
+// tooltip: static text in a `title`, no fetch, no layout. Exactly ONE element carries it on each layout (the
+// Volume row), so no other pane or series reads as if it did, its own moving average's row included.
+describe('/charts volume — the source note rides the Volume row only', () => {
+  const NOTE = /includes odd lots \(TradingView excludes them\)/
+  const noted = (view) => [...view.container.querySelectorAll('[title]')].filter((el) => NOTE.test(el.getAttribute('title')))
+  const settled = async (view, where) => vi.waitFor(() => {
+    act(() => { for (const fn of H.crosshairHandlers) fn(eventAt()) })
+    const rows = noted(view)
+    expect(rows.length, `${where}: elements carrying the note: ${rows.length}`).toBe(1)
+    return rows[0]
+  }, { timeout: 3000 })
+
+  it('⭐ own pane: the volume-pane strip’s Volume row carries it, its SMA row and the price stack do not', async () => {
+    const view = render(chartsLook())
+    await vi.waitFor(() => expect(lastVol()).toBeTruthy())
+    const row = await settled(view, 'own pane')
+    expect(row.getAttribute('data-legend-row')).toBe('volume')
+    expect(row.getAttribute('aria-label')).toBe('Volume options')
+    expect(volStrip(view).contains(row), 'the noted row is not in the volume-pane strip').toBe(true)
+    expect(row.getAttribute('title')).toMatch(/^Volume .*click for options\n/)
+    expect(row.getAttribute('title'), 'the note carries an em dash').not.toMatch(/—.*odd|odd.*—/)
+  })
+
+  it('⭐ overlay on price: the price stack’s Volume row carries it, the moving averages do not', async () => {
+    const view = render(chartsLook({ volume: { displayIn: 'price' } }))
+    await vi.waitFor(() => expect(lastVol()).toBeTruthy())
+    const row = await settled(view, 'overlay')
+    expect(row.getAttribute('data-legend-row')).toBe('volume')
+    const strip = volStrip(view)
+    expect(!strip || !strip.contains(row), 'the noted row is in a volume-pane strip').toBe(true)
+  })
+
+  it('the note is static text: no request names it', async () => {
+    const view = render(chartsLook())
+    await vi.waitFor(() => expect(lastVol()).toBeTruthy())
+    await settled(view, 'own pane')
+    const urls = fetch.mock.calls.map((c) => String(c[0]))
+    expect(urls.filter((u) => /odd|volume-note|volume_source/i.test(u))).toEqual([])
+  })
+})

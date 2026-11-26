@@ -408,3 +408,29 @@ describe('UCT Signature — the row holds its hover state while its menu is open
     expect(css).toMatch(/\.rowActive\.acts\{display:flex;\}/)
   })
 })
+
+// ⭐ `note` (owner 2026-11-25, the Volume source note): a static line under the row's name in its tooltip.
+describe('LegendRow note — a static tooltip line, and only where it is given', () => {
+  const NOTE = 'Volume: consolidated, includes odd lots (TradingView excludes them).'
+  it('an interactive row carries its name line, then the note', () => {
+    const { container } = render(<LegendRow rowId="volume" label="Volume" value="38.7M" vertical note={NOTE} {...handlers()} />)
+    const t = container.querySelector('[data-legend-row="volume"]').getAttribute('title')
+    expect(t.split('\n')).toEqual([expect.stringMatching(/^Volume .*click for options$/), NOTE])
+  })
+  it('a row without a note keeps its one-line title (flat and vertical)', () => {
+    for (const vertical of [false, true]) {
+      const { container, unmount } = render(<LegendRow rowId="m" label="MACD" value="2.4" vertical={vertical} {...handlers()} />)
+      const t = container.querySelector('[data-legend-row="m"]').getAttribute('title')
+      expect(t).not.toContain('\n')
+      expect(t).not.toMatch(/odd lots/)
+      unmount()
+    }
+  })
+  it('a read-only row (no door) carries the note as its whole title, and no title without one', () => {
+    const { container, unmount } = render(<LegendRow rowId="volume" label="V" value="38.7M" note={NOTE} />)
+    expect(container.querySelector('[data-legend-row="volume"]').getAttribute('title')).toBe(NOTE)
+    unmount()
+    const { container: c2 } = render(<LegendRow rowId="volume" label="V" value="38.7M" />)
+    expect(c2.querySelector('[data-legend-row="volume"]').hasAttribute('title')).toBe(false)
+  })
+})
