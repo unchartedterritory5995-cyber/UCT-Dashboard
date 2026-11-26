@@ -173,3 +173,54 @@ def test_on_a_quiet_day_the_0_3_percent_floor_keeps_a_small_wick_unflagged():
     t2, o2, h2, l2, c2, v2 = rows[20]
     rows[20] = (t2, o2, c2 + 0.25, l2, c2, v2)               # 25 cents: beyond both
     assert [int(r[0]) for r in sr.flag(rows)] == [t2]
+
+
+def test_a_spike_flagged_on_1m_and_5m_reads_the_5m_bucket_once_and_repairs_both(env):
+    """#2825 review (2): one spike flags its 1m bar and its 5m bar; the 5m bucket's trades are read once and both
+    rows are repaired from that one read (per-minute extremes, page by page)."""
+    sq, trades, pages = env
+    one = _day(NEW, 1, start=(14, 30), end=(15, 30), px=700.0)
+    five = _day(NEW, 5, start=(9, 30), end=(16, 0), px=700.0)
+    s1 = next(b for b in one if b["t"] == _ts(NEW, 15, 3))
+    s5 = next(b for b in five if b["t"] == _ts(NEW, 15, 0))
+    s1["h"] = s5["h"] = 774.18
+    sq.put_bars("SPY", "1", one)
+    sq.put_bars("SPY", "5", five)
+    trades["rows"] = [_trade(NEW, 15, 0, 5, s5["o"]), _trade(NEW, 15, 1, 0, s5["c"] + 0.02),
+                      _trade(NEW, 15, 3, 2, s1["o"]), _trade(NEW, 15, 3, 9, s1["c"] + 0.01),
+                      _trade(NEW, 15, 3, 30, 774.18, [32], 103), _trade(NEW, 15, 4, 0, 771.29, [53, 52, 41], 125783)]
+    got = sr.repair_day("SPY", NEW, lambda: None, trade_pages=pages)
+    assert got == {"flagged": 2, "replaced": 2}
+    assert trades["calls"] == [("SPY", _ts(NEW, 15, 0), _ts(NEW, 15, 5))], "one read of the 5m bucket"
+    assert round(_row(sq, "SPY", "1", s1["t"])[2], 4) == round(max(s1["o"], s1["c"], s1["c"] + 0.01), 4)
+    assert round(_row(sq, "SPY", "5", s5["t"])[2], 4) == round(max(s5["o"], s5["c"], s5["c"] + 0.02, s1["c"] + 0.01), 4)
+
+
+def test_the_settles_same_day_repair_marks_today_done_so_the_backfill_never_re_reads_it(env, monkeypatch):
+    """#2825 review (3): the settle's repair of today counts as that day's backfill."""
+    sq, trades, pages = env
+    monkeypatch.setattr(bls, "enabled", lambda: True)
+    monkeypatch.setattr(bls, "SETTLE_ENABLED", True)
+    monkeypatch.setattr(bls, "_fetch", lambda *a: [])
+    monkeypatch.setattr(sr, "repair_day", lambda sym, d, take, **k: {"flagged": 0, "replaced": 0})
+    with bls._lock:
+        bls._covered5.add("SPY")
+    bls.settle_pass(datetime(2026, 11, 11, 20, 31, tzinfo=_ET))
+    assert NEW not in sr.pending_days(date(2026, 11, 12), days=3)
+    assert sr.pending_days(date(2026, 11, 12), days=3) == [date(2026, 11, 10), date(2026, 11, 9)]
+
+
+def test_a_settle_whose_repair_mostly_failed_leaves_today_pending(env, monkeypatch):
+    sq, trades, pages = env
+    monkeypatch.setattr(bls, "enabled", lambda: True)
+    monkeypatch.setattr(bls, "SETTLE_ENABLED", True)
+    monkeypatch.setattr(bls, "_fetch", lambda *a: [])
+
+    def _boom(sym, d, take, **k):
+        raise RuntimeError("provider 503")
+    monkeypatch.setattr(sr, "repair_day", _boom)
+    with bls._lock:
+        for i in range(8):
+            bls._covered5.add(f"T{i}")
+    bls.settle_pass(datetime(2026, 11, 11, 20, 31, tzinfo=_ET))
+    assert NEW in sr.pending_days(date(2026, 11, 12), days=3)
