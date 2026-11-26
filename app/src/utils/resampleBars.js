@@ -34,20 +34,41 @@ function isoFridayOf(t) {
 // throws (Invalid Date / no .slice), which takes the whole chart to its error
 // boundary. Those bars are skipped instead: one bad bar costs one bar, not the chart.
 const isDateT = t => typeof t === 'string' && !Number.isNaN(Date.parse(t + 'T00:00:00Z'))
-const isUnixT = t => t !== '' && !Number.isNaN(new Date(t * 1000).getTime())
+// ⚡ (2026-11-26) NO DATE PER ROW. `new Date(t * 1000).getTime()` is NaN exactly when `t * 1000` is NaN, ±Infinity or past
+// the Date range (TimeClip: |ms| > 8.64e15), so the same verdict, for every input ('' included), without the allocation:
+// it ran twice per base row on every custom-intraday resample (the 4h board's switch, resampleBars.onePass.test.js).
+const _MAX_DATE_MS = 8.64e15
+const isUnixT = (t) => {
+  if (t === '') return false
+  const ms = t * 1000
+  return ms === ms && Math.abs(ms) <= _MAX_DATE_MS
+}
 
+const _byT = (a, b) => (a.t < b.t ? -1 : a.t > b.t ? 1 : 0)
 function _aggregate(rawBars, keyFn, isValidT) {
-  const bars = rawBars.filter(b => b && b.t != null && isValidT(b.t))
+  // ⚡ (2026-11-26) ONE PASS: the valid rows, and whether they already ascend (they do, from every store and server answer)
+  const bars = []
+  let ascending = true
+  for (let i = 0; i < rawBars.length; i++) {
+    const b = rawBars[i]
+    if (!(b && b.t != null && isValidT(b.t))) continue
+    if (ascending && bars.length && !(b.t >= bars[bars.length - 1].t)) ascending = false
+    bars.push(b)
+  }
   // bars MUST be ascending by date so the FIRST bar of a bucket supplies the
   // open and the LAST supplies the close (matches the server's iteration).
-  const sorted = bars.every((b, i) => i === 0 || b.t >= bars[i - 1].t)
-    ? bars
-    : [...bars].sort((a, b) => (a.t < b.t ? -1 : a.t > b.t ? 1 : 0))
+  const sorted = ascending ? bars : bars.slice().sort(_byT)
   const buckets = new Map()
+  // the buckets come out sorted by key; they are created in key order whenever each new key is above the last one
+  // (a session key never goes back as the rows ascend), and then the sort below would change nothing: it is skipped
+  let inOrder = true
+  let lastKey
   for (const b of sorted) {
     const key = keyFn(b.t)
     const cur = buckets.get(key)
     if (!cur) {
+      if (inOrder && buckets.size && !(key > lastKey)) inOrder = false
+      lastKey = key
       buckets.set(key, { t: key, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v || 0 })
     } else {
       cur.h = Math.max(cur.h, b.h)
@@ -56,7 +77,8 @@ function _aggregate(rawBars, keyFn, isValidT) {
       cur.v += (b.v || 0)
     }
   }
-  return [...buckets.values()].sort((a, b) => (a.t < b.t ? -1 : a.t > b.t ? 1 : 0))
+  const out = [...buckets.values()]
+  return inOrder ? out : out.sort(_byT)
 }
 
 // Daily → Weekly, keyed at the ISO Friday of each week.
@@ -127,10 +149,13 @@ function _sessionKey(B, A) {
   }
 }
 export function resampleIntradaySession(bars, bucketMinutes, { anchorMin = 570 } = {}) {
+  return _resampleIntraday(bars, bucketMinutes, anchorMin, isUnixT)
+}
+function _resampleIntraday(bars, bucketMinutes, anchorMin, isValidT) {
   if (!bars || !bars.length || !(bucketMinutes > 0)) return []
   const B = bucketMinutes
   const A = Number.isFinite(anchorMin) ? anchorMin : 570
-  return _aggregate(bars, _sessionKey(B, A), isUnixT)
+  return _aggregate(bars, _sessionKey(B, A), isValidT)
 }
 
 // N-of-a-native-daily-bucket, calendar-anchored for STABILITY:
@@ -183,9 +208,10 @@ export function isRegularSessionSpec(spec) {
   const a = Number.isFinite(spec.anchorMin) ? spec.anchorMin : INTRADAY_ANCHOR_MIN.rth   // resampleIntradaySession's default
   return a === INTRADAY_ANCHOR_MIN.rth
 }
-function _regularRows(bars) {
-  return bars.filter((b) => !b || b.t == null || !isUnixT(b.t) || isRthBar(Number(b.t)))
-}
+// A regular-session row the resample takes: a valid unix time inside the regular session. ⚡ (2026-11-26) ONE PASS: this
+// was a filter of its own (the regular rows, kept with the rows it could not judge) before `_aggregate`'s (the valid
+// ones); the rows both kept are exactly these, judged in the same order (isRthBar's day window sees the same calls).
+const _isRegularUnixT = (t) => isUnixT(t) && isRthBar(Number(t))
 
 /** ⭐ (2026-11-26) THE BUCKET OF ONE BASE ROW for a custom `spec`, by the very rule `resampleForSpec` builds the chart's
  *  bars with: `(t) => key`, the key a base row at `t` lands under (the bucket start, unix seconds or a window-start date),
@@ -215,10 +241,8 @@ export function bucketKeyOf(spec) {
 export function resampleForSpec(baseBars, spec) {
   if (!spec || !baseBars) return baseBars || []
   switch (spec.kind) {
-    case 'intradaySession': {
-      const rows = isRegularSessionSpec(spec) ? _regularRows(baseBars) : baseBars
-      return resampleIntradaySession(rows, spec.minutes, { anchorMin: spec.anchorMin })
-    }
+    case 'intradaySession':
+      return _resampleIntraday(baseBars, spec.minutes, spec.anchorMin, isRegularSessionSpec(spec) ? _isRegularUnixT : isUnixT)
     case 'nDaily': return resampleNDaily(baseBars, spec.n)
     case 'nWeekly': return resampleNWeekly(baseBars, spec.n)
     case 'nMonthly': return resampleNMonthly(baseBars, spec.n)
