@@ -109,6 +109,35 @@ export function financialCallParts(node) {
   return { family: 'financial', ticker: `EV-F${code}-${suffix}`, symbol: symbol === undefined ? null : symbol }
 }
 
+/** ⭐⭐ e98 E4 — A `request.financial` WHOSE PERIOD IS NOT WRITTEN AS A CONSTANT, READ AS ONE CALL PER PERIOD THE CATALOG
+ *  NAMES: `{periodNode, arms: [{period, call}]}` (each `call` the same call with its period written as that constant, in
+ *  the catalog's order), or null (the period is a constant, absent, or the call is not a `request.financial`).
+ *  TradingView takes a simple-string period, a setting included (`period = input.string("FQ", options = ["FQ", "FY",
+ *  "TTM"])`); the parse (`pine.js::eventAsSecurity`) turns this into `periodNode == "FQ" ? <FQ read> : … : <the call as
+ *  written>`, so the setting selects one read the way an enum knob selects an arm (`enumCompare`, pruned per instance
+ *  at bind), each arm's read judged by its own period (`financialStaticRefusal`: a period UCT does not serve stays
+ *  refused by name), and a value matching no catalog period falls to the call as written (`XP`, refused by name). */
+export function financialPeriodArms(node) {
+  if (!node || node.type !== 'call' || node.name !== 'request.financial') return null
+  const args = node.args || []
+  let k = 0
+  let at = -1
+  for (let i = 0; i < args.length; i += 1) {
+    const a = args[i]
+    if (!a) return null
+    if (a.name === 'period' || (!a.name && k === 2)) { at = i; break }
+    if (!a.name) k += 1
+  }
+  if (at < 0) return null
+  const periodNode = args[at].value
+  if (!periodNode || constString(periodNode) !== null) return null
+  const arms = Object.keys(PERIODS).map((period) => ({
+    period,
+    call: { ...node, args: args.map((a, i) => (i === at ? { ...a, value: { type: 'string', value: period, tok: periodNode.tok || node.tok } } : a)) },
+  }))
+  return { periodNode, arms }
+}
+
 // ─── the read ───────────────────────────────────────────────────────────────────────────────────────────────
 
 const ZZ_WHY = () => `the financial id this \`request.financial\` reads is not one UCT serves; UCT serves ${financialServedList()} `

@@ -106,6 +106,8 @@ import { isLowerTfRequest, lowerTfRefusal, LOWER_TF_REFUSAL } from '../lowerTf.j
 import { staticallyUnservable, spellingUnservable, staticOtherSymbolMessage, US_EQUITY_VENUES, witnessRowOf, SEED_SPELLING } from '../otherSymbols.js'
 // ⭐⭐ T4 E2 — `request.earnings` / `request.dividends` / `request.splits` (`eventAsSecurity`, `otherSymbolOf`)
 import { eventCallParts, eventOtherSymbolTicker, eventReadOf, EVENT_VENUE } from '../pineEvents.js'
+// ⭐ e98 E4 — a financial period written as a setting: one read per catalog period (`financialPeriodArms`)
+import { financialPeriodArms } from '../pineFinancial.js'
 import { memberNumber } from './memberValue.js'
 // ⭐⭐ CBC-FMT — the request reads a `calc_bars_count` window refuses (pure, imports nothing).
 import { CALC_BARS_REQUEST_SOURCE } from '../calcBarsWindow.js'
@@ -6791,6 +6793,29 @@ let _eventRewriteOff = false
 export function __eventRewriteOffForTests(off) { _eventRewriteOff = !!off }
 function eventAsSecurity(node) {
   if (_eventRewriteOff) return node
+  // ⭐⭐ e98 E4 — a financial period written as a SETTING (or any expression): one read per catalog period, selected by
+  // `period == "<P>"` tests the resolver reads as the member's setting (`enumCompare` on an `input.string(…, options)`,
+  // pruned per instance at bind); the call as written stays the last arm (`XP`: refused by name if ever picked)
+  const periodArms = _financialPeriodSettingOn ? financialPeriodArms(node) : null
+  if (periodArms) {
+    let chain = eventAsSecurityOne(node)
+    for (const arm of [...periodArms.arms].reverse()) {
+      chain = {
+        type: 'ternary', tok: node.tok,
+        test: { type: 'binary', op: '==', left: periodArms.periodNode, right: { type: 'string', value: arm.period, tok: node.tok }, tok: node.tok },
+        yes: eventAsSecurityOne(arm.call),
+        no: chain,
+      }
+    }
+    return chain
+  }
+  return eventAsSecurityOne(node)
+}
+/** ⛔ TEST SEAM (e98 E4) — the parse as before E4 (a non-constant financial period is one `XP` read): the census' and a
+ *  mutant's control. */
+let _financialPeriodSettingOn = true
+export function __financialPeriodSettingForTests(on = true) { _financialPeriodSettingOn = on !== false }
+function eventAsSecurityOne(node) {
   const parts = eventCallParts(node)
   if (!parts) return node
   const tok = node.tok
