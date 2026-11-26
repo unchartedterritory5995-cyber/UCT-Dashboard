@@ -12,8 +12,12 @@
  *      changes, fractional and non-finite times
  *   R2 a row a whole bucket inside a sealed span, or before every span, computes no bucket end (red before the change)
  *   R3 a server answer sealing N 60m rows computes a handful of bucket ends, not 2N (red before the change)
- *   R4 basisVerdict over a FROZEN held array: a copy entirely older than it reads two held rows, not a search per row and
- *      a scan (red before the change), with the same verdict as the Map
+ *   R4 basisVerdict over one of the store's own held arrays: a copy entirely older than it reads two held rows, not a
+ *      search per row and a scan (red before the change), with the same verdict as the Map
+ *   R5 (review of #2782) any OTHER array, even frozen, is read again every time: a frozen array whose rows' `t` changed
+ *      between two calls gets the Map's answer both times (red when every frozen array's order was kept)
+ *   R6 the store marks its own bars arrays (finalize) and nothing else
+ *   R7 (review of #2786) a marked array whose first row is not frozen (no store row ever is) is read again every time
  */
 import { describe, it, expect, vi } from 'vitest'
 
@@ -24,7 +28,7 @@ vi.mock('../../components/chart/liveBuckets', async (importOriginal) => {
 })
 
 import { bucketEndUnix } from '../../components/chart/liveBuckets'
-import { inSealedSpan, isSealedRow, bucketEnd, reduce, initialState, basisVerdict } from './reducer'
+import { inSealedSpan, isSealedRow, bucketEnd, reduce, initialState, basisVerdict, markStoreBars, isStoreBars } from './reducer'
 import { keyOf } from './types'
 import { etUnix } from './__fixtures__/seededSeries'
 
@@ -125,7 +129,7 @@ describe('a row\'s bucket end, computed only when it decides', () => {
     expect(asked).toBeLessThan(rows.length / 4)          // was at least 2 per row (the seal, then the span's absences)
   })
 
-  it('R4 basisVerdict over a frozen held array: an older copy reads two held rows, same verdict as the Map', () => {
+  it('R4 basisVerdict over a store-held array: an older copy reads two held rows, same verdict as the Map', () => {
     const DAY = 86400
     const row = (t, c) => Object.freeze({ t, o: c * 0.99, h: c * 1.01, l: c * 0.98, c, v: 1000 })
     const held = Object.freeze(Array.from({ length: 4000 }, (_, i) => row(1_700_000_000 + i * DAY, 100 + (i % 13))))
@@ -134,10 +138,52 @@ describe('a row\'s bucket end, computed only when it decides', () => {
     expect(basisVerdict(older, held)).toBe(basisVerdict(older, asMap))   // 'unknown': no row in common
     expect(basisVerdict(held.slice(-300), held)).toBe('same')
     const reads = new Set()
-    const trap = new Proxy(held, { get(target, k, recv) { if (typeof k === 'string' && /^\d+$/.test(k)) reads.add(k); return Reflect.get(target, k, recv) } })
+    const trap = markStoreBars(new Proxy(held, { get(target, k, recv) { if (typeof k === 'string' && /^\d+$/.test(k)) reads.add(k); return Reflect.get(target, k, recv) } }))
     basisVerdict(older, trap)                            // its first sight of `trap`: the scan may read every row once
     reads.clear()
     expect(basisVerdict(older, trap)).toBe('unknown')    // again: a frozen array is not scanned again, nothing searched
     expect(reads.size).toBeLessThanOrEqual(2)
+  })
+
+  it("R5 any other array, even frozen, is read again: rows whose t changed get the Map's answer", () => {
+    const DAY = 86400
+    const rows = Array.from({ length: 1000 }, (_, i) => ({ t: 1_700_000_000 + i * DAY, o: 99, h: 101, l: 98, c: 100, v: 1000 }))
+    const held = Object.freeze(rows)                      // frozen, but NOT the store's: its rows are plain objects
+    const asMap = () => new Map(held.map((r) => [r.t, r]))
+    const local = [{ ...rows[900] }]
+    expect(basisVerdict(local, held)).toBe('same')        // sorted: read as sorted
+    rows[100].t = 1_700_000_000 + 900 * DAY + 1           // a row's t moves: the array is no longer in order
+    const moved = [{ ...rows[100] }]
+    expect(basisVerdict(moved, asMap())).toBe('same')     // the Map finds it ...
+    expect(basisVerdict(moved, held)).toBe('same')        // ... and so does the array, read again (a kept order: 'unknown')
+    expect(isStoreBars(held)).toBe(false)
+  })
+
+  it("R7 a marked array whose first row is not frozen is read again: rows whose t changed get the Map's answer", () => {
+    const DAY = 86400
+    const rows = Array.from({ length: 1000 }, (_, i) => ({ t: 1_700_000_000 + i * DAY, o: 99, h: 101, l: 98, c: 100, v: 1000 }))
+    const held = markStoreBars(Object.freeze(rows))       // marked by mistake: frozen, but its rows are plain objects
+    expect(isStoreBars(held)).toBe(true)
+    expect(basisVerdict([{ ...rows[900] }], held)).toBe('same')
+    rows[100].t = 1_700_000_000 + 900 * DAY + 1
+    const moved = [{ ...rows[100] }]
+    expect(basisVerdict(moved, new Map(held.map((r) => [r.t, r])))).toBe('same')
+    expect(basisVerdict(moved, held)).toBe('same')        // read again (a kept order: 'unknown')
+  })
+
+  it('R6 the store marks its own bars arrays (finalize), and nothing else', () => {
+    const K = keyOf({ sym: 'SIM', tf: '5' })
+    const t0 = ET('2026-11-24', 10)
+    const ctx = { nowMs: (t0 + 86400) * 1000, streamLive: false }
+    const rows = Array.from({ length: 30 }, (_, i) => ({ t: t0 + i * 300, o: 100, h: 101, l: 99, c: 100.5, v: 10 }))
+    const s = reduce(initialState(K, ctx), { type: 'rest-full', payload: {
+      bars: rows, contract: 1, grid: 'eth-clock', session: 'rth', cache_key: 'b1:SIM:5:eth-clock',
+      series_rev: 1000, history_rev: 5, complete_through: t0 + 30 * 300, tail_status: 'verified',
+    } }, ctx)
+    expect(s.bars).toHaveLength(30)
+    expect(Object.isFrozen(s.bars)).toBe(true)
+    expect(isStoreBars(s.bars)).toBe(true)
+    expect(isStoreBars(rows)).toBe(false)
+    expect(isStoreBars(Object.freeze([...s.bars]))).toBe(false)   // a frozen copy is not the store's
   })
 })

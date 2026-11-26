@@ -476,6 +476,7 @@ function finalize(prev, next, ctx) {
   const baseChanged = n.bars !== prev.bars || BASE_FIELDS.some((f) => n[f] !== prev[f])
   const devChanged = n.developing !== prev.developing
   if (baseChanged && n.bars !== prev.bars && !Object.isFrozen(n.bars)) Object.freeze(n.bars)
+  if (n.bars !== prev.bars) markStoreBars(n.bars)   // (its rows are store rows: mergeRows / freezeBar)
   n.baseRev = prev.baseRev + (baseChanged ? 1 : 0)
   n.devRev = prev.devRev + (devChanged ? 1 : 0)
   n.depth = n.bars.length
@@ -530,13 +531,25 @@ export const BASIS_EPS = 0.005
 export const BASIS_VOL_TOL = 0.05
 const BASIS_MAX_PAIRS = 64
 
-// ⭐ PERF (smoothness trace 2026-11-26, 5m+60m board: ~3.3 ms a flip in `heldBasisProof`): a FROZEN array's sortedness is
-// read once (it cannot change: every array the store holds is frozen, finalize), not on every copy that lands; and a `t`
-// outside the sorted array's first..last `t` is answered without a search (no row of it can hold that `t`): a lake copy
-// whose rows are mostly OLDER than the held rows searched once per row for nothing. Same row for every `t`.
+// ⭐ PERF (smoothness trace 2026-11-26, 5m+60m board: ~3.3 ms a flip in `heldBasisProof`): the sortedness of one of the
+// STORE'S OWN bars arrays (`finalize` marks each, `markStoreBars`: a frozen array of frozen store rows, so neither the order
+// nor a row's `t` can change) is read once, not on every copy that lands. Any other array, frozen or not, is read every
+// time (review of #2782: a frozen array of rows whose `t` could still change is never trusted). And a `t` outside the
+// sorted array's first..last `t` is answered without a search (no row of it can hold that `t`): a lake copy whose rows are
+// mostly OLDER than the held rows searched once per row for nothing. Same row for every `t`.
+const _storeBars = new WeakSet()
+/** Mark `bars` as one of the store's own bars arrays: frozen, and every row in it a frozen store row (`finalize` calls it
+ *  for each entry's `bars`). Exported for its rail. */
+export function markStoreBars(bars) {
+  if (Array.isArray(bars) && Object.isFrozen(bars)) _storeBars.add(bars)
+  return bars
+}
+/** Is `bars` one of the store's own bars arrays (`markStoreBars`)? */
+export const isStoreBars = (bars) => _storeBars.has(bars)
 const _sortedByRef = new WeakMap()
 function _isSortedRows(rows) {
-  const frozen = Object.isFrozen(rows)
+  // (and its first row frozen too: a store row always is, so an array marked by mistake is read every time, review of #2786)
+  const frozen = _storeBars.has(rows) && (rows.length === 0 || Object.isFrozen(rows[0]))
   if (frozen) { const k = _sortedByRef.get(rows); if (k !== undefined) return k }
   let sorted = true
   for (let i = 0; i < rows.length; i++) {

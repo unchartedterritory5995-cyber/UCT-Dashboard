@@ -347,6 +347,28 @@ describe('late sinks (review of #2775)', () => {
   })
 })
 
+describe('the stats a live measurement reads (window.__uctQuotePush)', () => {
+  it('getPushStats carries the commit gap in force (0 when calm, the backed-off gap under long frames)', () => {
+    localStorage.setItem('uct.quotePush', '1')
+    qp.setTickers('rest', ['AAPL'])
+    settle()
+    const es = open()[0]
+    es.emitOpen()
+    es.emitEvent('hello', { v: 2, symbols: 1 })
+    es.emitEvent('status', { live: true })
+    expect(qp.getPushStats().commitGapMs).toBe(0)
+    for (let i = 0; i < 4; i++) {
+      es.frame(['AAPL', 100 + i, 10 + i, 1_700_000_000_000 + i])
+      vi.advanceTimersByTime(80)                            // a long frame
+      runFrame()
+      vi.advanceTimersByTime(20)
+    }
+    const gap = qp.getPushStats().commitGapMs
+    expect(gap).toBeGreaterThan(0)
+    expect(gap).toBe(qp.getCommitGapMs())
+  })
+})
+
 describe('overlayPushed (what a REST-shaped list row shows)', () => {
   const rest = { price: 100, change_pct: 1, change: 1, prev_close: 99, volume: 500, ext_session: null }
 
