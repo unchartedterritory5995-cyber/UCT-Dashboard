@@ -21,12 +21,12 @@ class _B:
     def __init__(self):
         self.queues = {}
 
-    def subscribe(self, sym, tf):
+    def subscribe(self, sym, tf, **kw):
         q = asyncio.Queue()
         self.queues.setdefault((sym, tf), []).append(q)
         return q
 
-    def unsubscribe(self, sym, tf, q):
+    def unsubscribe(self, sym, tf, q, *session):
         pass
 
 
