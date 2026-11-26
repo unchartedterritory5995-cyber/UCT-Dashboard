@@ -1,0 +1,32 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "D2-1",
+   "mutant": "c6: a ring read below the slot's position is not wrapped (cm - n used raw)",
+   "file": "app/src/components/chart/engine/runtime/vm.js",
+   "from": "          if (ci < 0) ci += plan.depth\n",
+   "to": "",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/e99Dispatch2.test.js",
+   "expectRed": "RING"
+  },
+  {
+   "id": "D2-2",
+   "mutant": "c1: a found pointwise implementation is kept under the wrong index",
+   "file": "app/src/components/chart/engine/runtime/vm.js",
+   "from": "if (fn) pwFns[a] = fn }",
+   "to": "if (fn) pwFns[0] = fn }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/e99Dispatch2.test.js",
+   "expectRed": "POINTWISE"
+  },
+  {
+   "id": "D2-3",
+   "mutant": "c2: HALT leaves only the switch, not the dispatch loop",
+   "file": "app/src/components/chart/engine/runtime/vm.js",
+   "from": "        case 41 /* OP.HALT */: break dispatch\n",
+   "to": "        case 41 /* OP.HALT */: break\n",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/e99Dispatch2.test.js",
+   "expectRed": "HALT"
+  }
+ ]
+}

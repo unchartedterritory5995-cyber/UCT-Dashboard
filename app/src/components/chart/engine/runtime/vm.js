@@ -436,9 +436,6 @@ function regionCausal(program, entry) {
   return true
 }
 
-/** ⭐ RT7 — read once at load, not per instruction (see the dispatch note below). */
-const OP_HALT = OP.HALT
-
 export function execute(program, ctx, limits, opts) {
   const budget = (opts && opts.budget) || new Budget(limits)
   // ⭐⭐ (coordinator ruling 2026-11-19, engine 84) — a ceiling that scales with the chart is set from the bars
@@ -586,6 +583,14 @@ export function execute(program, ctx, limits, opts) {
   const hist = boxedRings ? new Array(histTotal).fill(NaN) : new Float64Array(histTotal).fill(NaN)
   // How many bars have been committed, so a ring position is `(committed - k) % depth`.
   let committed = 0
+  // ⭐⭐ e99 dispatch-2 (c6) — A SLOT'S RING POSITION, ONE MODULO PER BAR, NOT ONE PER READ. A loop that reads
+  // `s[i]` a hundred times a bar (kernel-channel's `nz(s[i])`) paid `(committed - n) % depth` on every read.
+  // `histCm[hi]` holds `committed % depth` for the `committed` in `histCmAt[hi]`, recomputed the first time a
+  // bar reads the slot, so a resume, a restored re-run or anything else that moves `committed` is followed
+  // without being told. The cell is then `cm - n`, plus `depth` below 0: for 1 <= n <= min(depth, committed),
+  // which `READ_HIST_SLOT_DYN`'s own checks already guarantee before the read, that IS `(committed - n) % depth`.
+  const histCm = new Float64Array(nHist + 1)
+  const histCmAt = new Float64Array(nHist + 1).fill(-1)
   // ⭐ PERF (item c) — the rings a request region can read (`requestRegionScopeOf`); null: every ring
   const scopeRings = scope ? scope.rings : null
 
@@ -824,6 +829,8 @@ export function execute(program, ctx, limits, opts) {
   const frCarried2Base = new Int32Array(depthLimit + 1)
   const frWindowBase = new Int32Array(depthLimit + 1)
   const frFn = new Int32Array(depthLimit + 1)
+  // ⭐ e99 dispatch-2 (c1) — each POINTWISE index's implementation, filled on first touch (see OP.POINTWISE)
+  const pwFns = []
 
   /** ⭐ RT5 — what holds a drawing right now, for Pine's collector (C7): a
    *  VARIABLE (a `var`/global slot or a live frame local) spares its object; an
@@ -1064,7 +1071,8 @@ export function execute(program, ctx, limits, opts) {
     let carriedBase = 0
     let carried2Base = 0
     let windowBase = 0
-    for (;;) {
+    // ⭐ e99 dispatch-2 (c2) — HALT leaves through this label, so no instruction pays an `op === HALT` test
+    dispatch: for (;;) {
       const base = pc * 3
       const op = code[base]
       const a = code[base + 1]
@@ -1214,7 +1222,11 @@ export function execute(program, ctx, limits, opts) {
           }
           // WS-C — a committed infinity reads as `na`, as a column offset does
           // (`interpret.js::toColumn` launders every value it shifts).
-          const hv = hist[histOffset[hi] + ((committed - n) % plan.depth)]
+          // ⭐ e99 dispatch-2 (c6) — `(committed - n) % depth` without a modulo per read (see `histCm`)
+          if (histCmAt[hi] !== committed) { histCm[hi] = committed % plan.depth; histCmAt[hi] = committed }
+          let ci = histCm[hi] - n
+          if (ci < 0) ci += plan.depth
+          const hv = hist[histOffset[hi] + ci]
           stack[sp++] = hv === Infinity || hv === -Infinity ? NaN : hv
           break
         }
@@ -1369,7 +1381,11 @@ export function execute(program, ctx, limits, opts) {
           // a pure series are the SAME arithmetic by construction — including the
           // na rules, which is where a re-implementation would have diverged
           // first and least visibly.
-          const fn = PW[program.pointwise[a]]
+          // ⭐ e99 dispatch-2 (c1) — RESOLVED ONCE PER INDEX. `PW[name]` with a different name at each site is a
+          // megamorphic keyed load on every call; the first touch of index `a` evaluates exactly what every touch
+          // did, and a found implementation is kept (`pwFns`). A missing one is looked up, and refused, every time.
+          let fn = pwFns[a]
+          if (fn === undefined) { fn = PW[program.pointwise[a]]; if (fn) pwFns[a] = fn }
           if (!fn) throw new VmError(`pc ${pc - 1}: no pointwise implementation for ${program.pointwise[a]}`)
           sp -= b
           let v
@@ -1885,13 +1901,12 @@ export function execute(program, ctx, limits, opts) {
         // all of it. Nothing is read, so there is no value to coerce and no NaN
         // rule to apply — `sp` alone is the state that changes.
         case 86 /* OP.DROP */: sp -= a; break
-        case 41 /* OP.HALT */: break
+        case 41 /* OP.HALT */: break dispatch
         default:
           throw new VmError(
             `pc ${pc - 1}: ${IMPLEMENTED.has(op) ? 'unhandled' : 'reserved'} opcode `
             + `${OP_NAME[op] || op} reached the dispatch loop`)
       }
-      if (op === OP_HALT) break
       if (pc >= n) throw new VmError('ran off the end of the program without HALT')
     }
     flushHot()
