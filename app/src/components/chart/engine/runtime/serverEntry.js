@@ -15,6 +15,9 @@ export {
   // the module that declares each: the worker's wall budget (HP-7), the run's incremental record
   // (the H6 cold check) and the guards a pool-side stop is named by.
   RUNTIME_PANE_TIME_BUDGET_MS,
+  // e99 server budget (2026-11-26): the browser worker's budget rule, so the service holds a run to the member's own
+  // budget (job.mjs `budgetScales`) and derives its hard kill, its sweep bars and its per-request cap from it (server.mjs)
+  runtimePaneBudgetFor, RUNTIME_PANE_BUDGET_FLOOR_BARS, RUNTIME_PANE_BUDGET_CEILING_MS,
   RUNTIME_INCREMENTAL_KEY,
   RUNTIME_TIME_BUDGET_GUARD,
   RUNTIME_FAILED_GUARD,
