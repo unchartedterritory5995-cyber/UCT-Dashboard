@@ -1,0 +1,113 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "MC-1",
+   "mutant": "a shape substituted: shape.triangleup drawn with the arrow-up path",
+   "file": "app/src/components/chart/engine/markerCanvas.js",
+   "from": "  'shape.triangleup': (ctx, s) => { poly(ctx, s, TRIANGLE_UP); return 'fill' },",
+   "to": "  'shape.triangleup': (ctx, s) => { poly(ctx, s, ARROW_UP()); return 'fill' },",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/markerCanvas.test.js",
+   "expectRed": "all thirteen paths are pairwise distinct"
+  },
+  {
+   "id": "MC-2",
+   "mutant": "a shape substituted at resolution: shape.labelup resolved to the arrow-up glyph",
+   "file": "app/src/components/chart/engine/markerCanvas.js",
+   "from": "Object.hasOwn(GLYPHS, marker.pineShape) && marker.pineShape !== 'char' ? marker.pineShape : null",
+   "to": "Object.hasOwn(GLYPHS, marker.pineShape) && marker.pineShape !== 'char' ? (marker.pineShape === 'shape.labelup' ? 'shape.arrowup' : marker.pineShape) : null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/markerCanvas.test.js",
+   "expectRed": "is drawn by another"
+  },
+  {
+   "id": "MC-3",
+   "mutant": "the gate defaults ON (an unset flag draws on canvas)",
+   "file": "app/src/components/chart/engine/markerCanvasGate.js",
+   "from": "return !!source && source.VITE_PINE_MARKER_CANVAS_ENABLED === '1'",
+   "to": "return !!source && source.VITE_PINE_MARKER_CANVAS_ENABLED !== '0'",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/markerCanvas.test.js",
+   "expectRed": "OFF"
+  },
+  {
+   "id": "MC-4",
+   "mutant": "the flag-off path changed: the binder draws Pine markers on canvas without asking the gate",
+   "file": "app/src/components/chart/engine/binder.js",
+   "from": "const canvasGlyph = markerSpec && markerCanvasEnabled() ? glyphOf(markerSpec) : null",
+   "to": "const canvasGlyph = markerSpec ? glyphOf(markerSpec) : null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/markerCanvas.test.js",
+   "expectRed": "OFF: a Pine marker is drawn by the LWC series markers"
+  },
+  {
+   "id": "MC-5",
+   "mutant": "geometryApprox dropped while the geometry table is provisional",
+   "file": "app/src/components/chart/engine/markerCanvas.js",
+   "from": "  if (MARKER_GEOMETRY.provisional) out.geometryApprox = true",
+   "to": "  if (false) out.geometryApprox = true",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/markerCanvas.test.js",
+   "expectRed": "geometryApprox while the table is provisional"
+  },
+  {
+   "id": "MC-6",
+   "mutant": "geometryApprox unread at the member door (the approximation is silent)",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "    if (m.geometryApprox === true) {",
+   "to": "    if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/markerCanvasNotes.test.js",
+   "expectRed": "its geometry is said"
+  },
+  {
+   "id": "MC-7",
+   "mutant": "abovebar anchored on the bar's low instead of its high",
+   "file": "app/src/components/chart/engine/markerCanvas.js",
+   "from": "  const y = at(high)",
+   "to": "  const y = at(low)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/markerCanvas.test.js",
+   "expectRed": "sits above the bar"
+  },
+  {
+   "id": "MC-8",
+   "mutant": "x offset by one pixel from the bar's own coordinate",
+   "file": "app/src/components/chart/engine/markerCanvas.js",
+   "from": "      const x = timeToCoordinate(it.time)",
+   "to": "      const x = timeToCoordinate(it.time) + 1",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/markerCanvas.test.js",
+   "expectRed": "x is timeToCoordinate(bar time) exactly"
+  },
+  {
+   "id": "MC-9",
+   "mutant": "a geometry constant written outside MARKER_GEOMETRY (same value, second authority)",
+   "file": "app/src/components/chart/engine/markerCanvas.js",
+   "from": "  if (location === 'location.top') return MARKER_GEOMETRY.edgeInsetPx + half",
+   "to": "  if (location === 'location.top') return 4 + half",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/markerCanvas.test.js",
+   "expectRed": "holds no geometry number outside MARKER_GEOMETRY"
+  },
+  {
+   "id": "MC-10",
+   "mutant": "a pane-edge marker still recorded positionApprox with the canvas drawing it",
+   "file": "app/src/components/chart/engine/markerCanvas.js",
+   "from": "  if ((loc === 'location.top' || loc === 'location.bottom') && out.positionApprox === true) out.positionApprox = false",
+   "to": "  if (false) out.positionApprox = false",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/markerCanvas.test.js",
+   "expectRed": "no shape or pane-edge substitution"
+  },
+  {
+   "id": "MC-11",
+   "mutant": "one primitive per pane broken: each plot re-attaches the pane's primitive to its own host",
+   "file": "app/src/components/chart/engine/markerCanvas.js",
+   "from": "          if (!pane.attachedTo) attach(pane, host)",
+   "to": "          attach(pane, host)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/markerCanvas.test.js",
+   "expectRed": "stays on the pane"
+  },
+  {
+   "id": "MC-12",
+   "mutant": "the record rewritten with the flag OFF",
+   "file": "app/src/components/chart/engine/markerCanvas.js",
+   "from": "  if (!enabled || !glyphOf(marker)) return marker",
+   "to": "  if (!glyphOf(marker)) return marker",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/markerCanvas.test.js",
+   "expectRed": "OFF: the marker is returned as is"
+  }
+ ]
+}

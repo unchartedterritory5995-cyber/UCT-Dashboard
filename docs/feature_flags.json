@@ -3857,6 +3857,17 @@
       "last_changed": "2026-10-01T00:00:00Z",
       "note": "May a `request.security` at a timeframe BELOW a daily or weekly chart's own (5, 15, 60, 240 minutes) be served? Read in ONE place, app/src/components/chart/engine/lowerTfGate.js::lowerTfServingEnabled, as `=== '1'`; a build with no import.meta.env fails CLOSED. Its one caller is engine/lowerTf.js (`lowerTfRefusal` - the translate door and the bind - and `lowerTfWindowsOf`, the fetch). IT IS OFF, and off is the behaviour before C41: the read is refused by name (`lower-tf:store-unmeasured`), no `ltf` node is emitted, nothing is stamped and nothing is fetched. WHY: C41 proved the rule on TradingView's own intraday bars; in the product the bars come from our store (`/api/bars/<ticker>?tf=15`), which has not been measured against TradingView's. WHAT FLIPS IT is that measurement, not a preference: commit a store payload under tests/fixtures/store/ and read app/src/components/chart/engine/__tests__/storeIntradayAgreement.test.js (it skips by name until the payload exists). What arming changes for a member: scripts with such a read translate (corpus, pane on: mtf-dashboard-pro attaches; ema-ribbon's 15m / 1H / 4H rows and bias cells draw), and a chart carrying one fetches this symbol's 15- or 5-minute bars once per store timeframe (capped at 60,000 bars). Arming is a Railway variable plus a rebuild (a build constant) and an owner decision."
     },
+    "VITE_PINE_MARKER_CANVAS_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "owner": "pine parity programme",
+      "owner_decision": "not yet taken: built dark on branch feat/e99-marker-canvas (2026-11-26); the geometry table is provisional until the pixel read",
+      "railway_value": "UNSET on every service",
+      "baked_value": "undefined (never set)",
+      "baked_measured_on": "2026-11-26, from Dockerfile.web's ARG list (declared in the same commit that added the read)",
+      "last_changed": "2026-11-26T00:00:00Z",
+      "note": "Draw Pine plotshape / plotchar markers on canvas (twelve shapes and the character, at the author's location) instead of the four LWC series-marker shapes at the bar? Read in ONE place, app/src/components/chart/engine/markerCanvasGate.js::markerCanvasEnabled, as `=== '1'`; a build with no import.meta.env fails CLOSED. Its readers are engine/binder.js (which layer draws a Pine marker) and engine/markerCanvas.js::canvasMarkerRecord (the record the member door builds). IT IS OFF, and off is the behaviour before e99: LWC series markers, record unchanged. WHY: the glyph sizes and offsets (MARKER_GEOMETRY) are provisional until the pixel read of TradingView's markers pins them. What arming changes for a member: every imported plotshape / plotchar is drawn as its own Pine shape at its own location, said as drawn at an approximate size and offset while the table is provisional. Arming is a Railway variable plus a rebuild (a build constant) and an owner decision."
+    },
     "VITE_PINE_MEMBER_PANE_ENABLED": {
       "status": "armed",
       "where": [

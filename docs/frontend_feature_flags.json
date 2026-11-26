@@ -55,6 +55,14 @@
       ],
       "note": "Deliberately off: a `request.security` below a daily or weekly chart's timeframe reads intraday bars, and our store's intraday bars have not been measured against TradingView's. Off, the read is refused by name (`lower-tf:store-unmeasured`), nothing is stamped or fetched. On, C41's `ltf` read is served. Flipped by a measurement (engine/__tests__/storeIntradayAgreement.test.js), then an owner decision. Declared as a build ARG in Dockerfile.web. Reach: docs/feature_flags.json build_flags."
     },
+    "VITE_PINE_MARKER_CANVAS_ENABLED": {
+      "status": "dark",
+      "since": "2026-11-26",
+      "readBy": [
+        "app/src/components/chart/engine/markerCanvasGate.js::markerCanvasEnabled"
+      ],
+      "note": "Deliberately off: the canvas marker primitive (engine/markerCanvas.js) draws every Pine plotshape style and plotchar character at the location the author wrote (the pane's top / bottom included), where the LWC series markers draw four shapes at the bar, but its glyph sizes and offsets are a PROVISIONAL table (MARKER_GEOMETRY) until the pixel read of TradingView's markers pins it. Off, every marker is drawn by the LWC series markers exactly as before and the marker record is unchanged. On, a Pine marker is drawn on canvas, recorded shapeApprox false (and positionApprox false at the pane's top / bottom) and geometryApprox true, which the member door says by name. Flipped after the pixel read pins MARKER_GEOMETRY, then an owner decision. Declared as a build ARG in Dockerfile.web. Reach: docs/feature_flags.json build_flags."
+    },
     "VITE_INDICATOR_TEMPLATES_ENABLED": {
       "status": "dark",
       "since": "2026-10-11",

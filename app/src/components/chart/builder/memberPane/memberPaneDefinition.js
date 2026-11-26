@@ -44,6 +44,7 @@ import { requestTargetsUnservable } from '../../engine/runtime/requestSupply'
 import { STRATEGY_WINDOW_HISTORY } from '../../engine/runtime/strategyRecord'
 import { runtimeRepaintOf } from '../../engine/runtime/runtimeRepaint'
 import { OHLC_DEF_STYLES } from '../../engine/defSchema'
+import { canvasMarkerRecord } from '../../engine/markerCanvas'
 import { warmRuntimeLane, runtimeLaneWarmAsks } from '../../engine/runtime/runtimeAsync'
 /** ⭐ THE PASTE WORKER: the runtime lane's warm, and the count of asks for it, reached THROUGH this door (which
  *  consults the runtime pane's gate before it routes). The worker counts the door's asks and the page makes the warm
@@ -318,6 +319,12 @@ function markerSubstitutionNotes(rows) {
       add(`char:${m.shape}`, name, (names) => `${namesList(names)} ${names.length === 1 ? 'is' : 'are'} drawn as `
         + `${names.length === 1 ? words[0] : words[1]} with ${names.length === 1 ? 'its character beside it' : 'their characters beside them'}: `
         + 'TradingView draws the character alone, which this chart does not draw yet.')
+    }
+    // ⭐ e99 — DRAWN ON CANVAS (`markerCanvas.js`, behind its gate): the author's shape at the author's place, at a
+    // size and offset that are not measured against TradingView yet (`MARKER_GEOMETRY.provisional`).
+    if (m.geometryApprox === true) {
+      add('geometry', name, (names) => `${namesList(names)} ${names.length === 1 ? 'is' : 'are'} drawn at an approximate `
+        + 'size and offset: the sizes and offsets TradingView draws its markers at are not measured yet.')
     }
     if (m.positionApprox === true) {
       add(`position:${m.position}`, name, (names) => `${namesList(names)} ${names.length === 1 ? 'is' : 'are'} placed `
@@ -932,7 +939,7 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
       // N device px and `styles.linewidth` reads back N) — ⚰️ this was clamped to 1-4.
       // Clamped to the width input's own [1, 4], the Builder's Pine-import rule.
       ...(Number.isFinite(p.width) ? { width: pineLineWidth(p.width) } : {}),
-      ...(p.marker && p.marker.shape ? { marker: p.marker } : {}),
+      ...(p.marker && p.marker.shape ? { marker: canvasMarkerRecord(p.marker) } : {}),
       // ⭐ ROW 42 — `plot.style_linebr` / `style_areabr` break at `na` (`pine.js`
       // `PINE_BREAKING_STYLES`); every other style bridges, as TradingView draws it.
       ...(p.sparse === true ? { sparse: true } : {}),
@@ -3027,7 +3034,7 @@ function runtimeLaneDocument({ source, id, name, t, hostReason, hostGuard = null
       ...(o && o.hiddenWhen ? { hiddenWhen: o.hiddenWhen } : {}),
       // `linewidth`, as the host lane's rows carry it (see that projection).
       ...(Number.isFinite(p.width) ? { width: pineLineWidth(p.width) } : {}),
-      ...(p.marker && p.marker.shape ? { marker: p.marker } : {}),
+      ...(p.marker && p.marker.shape ? { marker: canvasMarkerRecord(p.marker) } : {}),
       // ⭐ ROW 42 — a "with breaks" style breaks at `na`, as the host lane's rows say.
       ...(p && p.sparse === true ? { sparse: true } : {}),
       // ⭐ WS-E — a leftward `offset`, drawn by the binder as a host row's is.

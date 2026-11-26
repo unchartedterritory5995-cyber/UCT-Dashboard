@@ -74,6 +74,8 @@ import { fillOpacityOf, fillPaint, staticFillOf } from './fillPaint'
 import { opaqueOf } from '../designTokens'
 import { createBackgroundPrimitive, isNaColour, staticPaintColour } from './paintPrimitive'
 import { markersFor, createMarkerLayer } from './markerPrimitive'
+import { createMarkerCanvasRegistry, glyphOf } from './markerCanvas'
+import { markerCanvasEnabled } from './markerCanvasGate'
 import { semanticsOf, SEMANTICS_UNKNOWN_PROPAGATES, isPineImport } from './definitionSemantics'
 // ⭐⭐ C3B — the object lifecycle, on the chart. Same injection discipline as the
 // marker layer above it: the capability is handed in, and a host that does not
@@ -1215,6 +1217,9 @@ export function createBinder({ chart, LWC, scope = '' }) {
   /** ⭐⭐ Bands hosted on the CHART'S OWN PRICE SERIES, for an instance that has no
    *  visible binding of its own to host them: `instanceId → {host, fills: Map}`. */
   let priceHosted = new Map()
+  /** ⭐ e99 — the canvas marker primitives, one per pane (`markerCanvas.js`). Reached only
+   *  while `markerCanvasGate.js` is on; off, no primitive is ever made. */
+  const markerCanvas = createMarkerCanvasRegistry()
   /** ⭐⭐ One paint layer per (host series, INSTANCE) (`fillPrimitive.createFillLayerGroup`):
    *  every band one instance rides on one series paints into it, so its bands do not
    *  compound and the chart's own background stays under them.
@@ -3439,22 +3444,33 @@ export function createBinder({ chart, LWC, scope = '' }) {
         ? (attempt(() => ctx.priceSeries()).value || null) : null
       const siblingHost = Number.isInteger(host) ? (seriesAt.get(host) || null) : null
       const markerHost = priceHost || siblingHost || series
-      if (markerLayer && (b.source !== 'same' || !markerSpec || markerLayer.host !== markerHost)) {
+      // ⭐ e99 — A PINE MARKER IS DRAWN ON CANVAS, AS TRADINGVIEW DRAWS IT, while
+      // `markerCanvasGate.js` is on (`markerCanvas.js`: the author's glyph, at the
+      // author's location). Off, or for a marker that names no Pine shape, the LWC
+      // series markers draw it exactly as before.
+      const canvasGlyph = markerSpec && markerCanvasEnabled() ? glyphOf(markerSpec) : null
+      const layerKind = canvasGlyph ? 'canvas' : 'lwc'
+      if (markerLayer && (b.source !== 'same' || !markerSpec || markerLayer.host !== markerHost
+          || (markerLayer.kind || 'lwc') !== layerKind)) {
         attempt(() => markerLayer.clear())
         markerLayer = null
       }
-      if (markerSpec && typeof ctx.createSeriesMarkers === 'function') {
+      if (markerSpec && (canvasGlyph || typeof ctx.createSeriesMarkers === 'function')) {
         // ⭐ 2026-09-26 — a displaced glyph sits where Pine draws it: a pivot
         // marked on the pivot bar, not on the bar that confirmed it.
         const markShift = drawShiftOf(b.plot)
         const own = displacedColumn(columns.get(b.key), markShift)
         if (own) {
           if (!markerLayer) {
-            markerLayer = createMarkerLayer(ctx.createSeriesMarkers, markerHost)
+            markerLayer = canvasGlyph
+              ? markerCanvas.layerFor({ host: markerHost, paneIndex: p.paneIndex })
+              : createMarkerLayer(ctx.createSeriesMarkers, markerHost)
             // the host it rides, and whether it outlives the plot's own series
             // (`removeRunSeries` clears a price-hosted layer when the binding goes)
+            // ⭐ e99 — a canvas layer is drawn by its PANE's primitive, which can outlive
+            // the plot's own series, so it is always cleared when its binding goes.
             markerLayer.host = markerHost
-            markerLayer.onPrice = markerHost !== series
+            markerLayer.onPrice = canvasGlyph ? true : markerHost !== series
           }
           const cc = columnColorsForPlot(withPackedTheme(b.plot, chartThemeOf(ctx.cs)))
           const markCond = cc ? displacedColumn(columns.get(bindingKey(b.instanceId, cc.key)), markShift) : null
@@ -3475,7 +3491,10 @@ export function createBinder({ chart, LWC, scope = '' }) {
             // series colour, the sheet's gold.
             colourAt: cc && !cc.up && markCond
               ? (i) => pointColour(cc, markCond, i, unknownNone) : null,
-          })))
+            // ⭐ e99 — the canvas places each glyph off the bar's own high / low (the
+            // candles, on the price host) or the plotted value (`location.absolute`).
+            ...(canvasGlyph ? { canvas: { values: own, bars: priceHost ? bars : null } } : {}),
+          }), markerSpec))
         }
       }
 
