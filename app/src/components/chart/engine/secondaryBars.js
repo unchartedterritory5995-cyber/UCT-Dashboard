@@ -47,6 +47,7 @@ import { baseBarsFor, fetchTf, resampleSpec } from '../timeframes'
 import { resampleForSpec, isRegularSessionSpec } from '../../../utils/resampleBars'
 import { isRthBar, toChartTime, etMinuteOfDay } from '../barTime'
 import { viewShowExtended } from '../../../utils/viewSession'
+import { takeBootSecondaryBars } from '../../../lib/bootSecondaryBars'
 
 /**
  * The request URL for one (symbol, timeframe, count).
@@ -574,8 +575,11 @@ export function fetchSecondaryBars(symbol, tf, bars, fetcher, opts = {}) {
   if (existing) return existing
 
   const get = typeof fetcher === 'function' ? fetcher : _defaultFetch
+  // ⭐⭐ (2026-11-26, Fred RS load time) the request this page started as it loaded, when it remembered needing this
+  // window (`lib/bootSecondaryBars.js`); a failed boot request ("no answer") is asked again here, as before
+  const boot = takeBootSecondaryBars(wire.fetchUrl)
   const p = Promise.resolve()
-    .then(() => get(wire.fetchUrl))
+    .then(() => (boot ? boot.then((payload) => payload || get(wire.fetchUrl)) : get(wire.fetchUrl)))
     .then((payload) => {
       // ⭐ (2026-11-26, #2801) `opts.idleRead`: a custom-timeframe page is judged and resampled OFF this landing task,
       // in ET-day slices across idle callbacks (`_readCustomIdle`), and lands (cache, notification) only then
