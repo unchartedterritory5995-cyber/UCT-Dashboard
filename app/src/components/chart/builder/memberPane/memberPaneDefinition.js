@@ -316,7 +316,7 @@ function markerSubstitutionNotes(rows) {
         + `${names.length === 1 ? words[0] : words[1]}: TradingView draws \`${m.pineShape}\`, which this chart does not draw yet.`)
     } else if (m.shapeApprox === true && typeof m.text === 'string' && m.text) {
       add(`char:${m.shape}`, name, (names) => `${namesList(names)} ${names.length === 1 ? 'is' : 'are'} drawn as `
-        + `${names.length === 1 ? words[0] : words[1]} with ${names.length === 1 ? 'its character' : 'their characters'} beside it: `
+        + `${names.length === 1 ? words[0] : words[1]} with ${names.length === 1 ? 'its character beside it' : 'their characters beside them'}: `
         + 'TradingView draws the character alone, which this chart does not draw yet.')
     }
     if (m.positionApprox === true) {
