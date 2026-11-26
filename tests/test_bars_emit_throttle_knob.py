@@ -19,8 +19,11 @@ def _filter_on(monkeypatch):
     monkeypatch.setattr(tc, "FILTER_ENABLED", True)
 
 
+# (review of #2755) "inf"/"nan" must never raise while the broadcaster is built (an OverflowError there stops
+# IngestRuntime: the whole live feed down), and 0 / negative mean "unset", never the most aggressive 10 ms.
 @pytest.mark.parametrize("raw,want", [(None, 100), ("", 100), ("soon", 100), ("20", 20), ("20.7", 20),
-                                      ("5", 10), ("0", 10), ("-3", 10), ("5000", 1000)])
+                                      ("5", 10), ("0", 100), ("-3", 100), ("5000", 1000),
+                                      ("inf", 100), ("-inf", 100), ("nan", 100), ("1e400", 100)])
 def test_the_knob_is_read_clamped_and_defaults_to_100(monkeypatch, raw, want):
     if raw is None:
         monkeypatch.delenv("BARS_EMIT_THROTTLE_MS", raising=False)
