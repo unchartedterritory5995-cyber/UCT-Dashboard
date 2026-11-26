@@ -1,0 +1,140 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "E3-O1",
+   "mutant": "the sign flipped: a setting's displacement drawn the other way",
+   "file": "app/src/components/chart/engine/binder.js",
+   "from": "    const d = (di.scale === -1 ? -v : v) + (Number.isInteger(di.add) ? di.add : 0)",
+   "to": "    const d = (di.scale === -1 ? v : -v) + (Number.isInteger(di.add) ? di.add : 0)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/plotOffsetSetting.test.js",
+   "expectRed": "drawn at the member's value either side"
+  },
+  {
+   "id": "E3-O2",
+   "mutant": "the shift applied to the VALUES instead of the drawing (a setting's offset folded into the tree)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "      const ast = shift > 0 && !displaceSetting ? { type: 'offset', value: shift, args: [base] } : base",
+   "to": "      const ast = shift > 0 ? { type: 'offset', value: shift, args: [base] } : base",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/plotOffsetSetting.test.js",
+   "expectRed": "the SERIES is never shifted"
+  },
+  {
+   "id": "E3-O3",
+   "mutant": "the author's negative minval dropped again",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "      && v.args[0].type === 'num' && Number.isFinite(v.args[0].value)) return -v.args[0].value",
+   "to": "      && v.args[0].type === 'num' && Number.isFinite(v.args[0].value)) return null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/plotOffsetSetting.test.js",
+   "expectRed": "a bound"
+  },
+  {
+   "id": "E3-O4",
+   "mutant": "an Offset only the plot reads is never detected (no setting, the old fold)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    if (used && !elsewhere) out.set(name, declTok.callTok)",
+   "to": "    if (false) out.set(name, declTok.callTok)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/plotOffsetSetting.test.js",
+   "expectRed": "an int setting with the author's bounds"
+  },
+  {
+   "id": "E3-O5",
+   "mutant": "a rightward draw shift not drawn (only leftward re-indexed)",
+   "file": "app/src/components/chart/engine/binder.js",
+   "from": "  if (d > 0) { for (let j = d; j < n; j += 1) out[j] = column[j - d] } else {",
+   "to": "  {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/plotOffsetSetting.test.js",
+   "expectRed": "the drawing moves either side"
+  },
+  {
+   "id": "E3-O6",
+   "mutant": "the instance's value ignored: always the declared default",
+   "file": "app/src/components/chart/engine/binder.js",
+   "from": "    const v = Number.isInteger(own) ? own : (declared && Number.isInteger(declared.default) ? declared.default : 0)",
+   "to": "    const v = (declared && Number.isInteger(declared.default) ? declared.default : 0)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/plotOffsetSetting.test.js",
+   "expectRed": "drawn at the member's value either side"
+  },
+  {
+   "id": "E3-O7",
+   "mutant": "one binder site reads the draw shift without the instance's inputs",
+   "file": "app/src/components/chart/engine/binder.js",
+   "from": "        const markShift = drawShiftOf(b.plot, b.def, b.inst && b.inst.inputs)",
+   "to": "        const markShift = drawShiftOf(b.plot)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/plotOffsetSetting.test.js",
+   "expectRed": "binder.js and the vendor harness pass"
+  },
+  {
+   "id": "E3-O8",
+   "mutant": "the door refuses the Offset setting as never read (a false \"kept at its default\" disclosure)",
+   "file": "app/src/components/chart/builder/builderInputs.js",
+   "from": "    if (entry && entry.displaceSetting) return null\n",
+   "to": "",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/plotOffsetSetting.test.js",
+   "expectRed": "no disclosure calls the Offset setting"
+  },
+  {
+   "id": "E3-O9",
+   "mutant": "the browser schema accepts any slope",
+   "file": "app/src/components/chart/engine/defSchema.js",
+   "from": "  if (di.scale !== 1 && di.scale !== -1) return `.scale: expected 1 or -1, got ${fmt(di.scale)}`",
+   "to": "  if (false) return `.scale: expected 1 or -1, got ${fmt(di.scale)}`",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__truth__/p2.policy.truth.test.js",
+   "expectRed": "displaceInput with a slope of 2"
+  },
+  {
+   "id": "E3-O10",
+   "mutant": "the server twin accepts any slope",
+   "file": "api/services/presentation_schema.py",
+   "from": "    if isinstance(scale, bool) or scale not in (1, -1):",
+   "to": "    if False:",
+   "rail": "python -m pytest -q tests/test_p2_truth_policy.py -k presentation_server_agrees",
+   "expectRed": "slope"
+  },
+  {
+   "id": "E3-O11",
+   "mutant": "the runtime lane pins the Offset again",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "  if (o && o.displaceSetting) return { ok: true, displace: 0, keys: [], setting: o.displaceSetting }\n",
+   "to": "",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/plotOffsetSetting.test.js",
+   "expectRed": "runtime, default 3"
+  },
+  {
+   "id": "E3-O12",
+   "mutant": "an input the value reads too taken as the offset's own setting",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "      else { elsewhere = true; break }",
+   "to": "      else { elsewhere = false }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/plotOffsetSetting.test.js",
+   "expectRed": "an input the VALUE reads too keeps the fold"
+  },
+  {
+   "id": "E3-O13",
+   "mutant": "THE CARRY DROPPED: a saved copy's edited offset parameter re-translated back to the script's default (a member edit lost)",
+   "file": "app/src/components/chart/builder/memberPane/savedScriptUpgrade.js",
+   "from": "  const offsets = carryOffsetParams(stored, next)\n",
+   "to": "  const offsets = { definition: next, carried: [] }\n",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/offsetParamCarry.test.js",
+   "expectRed": "an EDITED saved copy comes back drawn at the edited shift"
+  },
+  {
+   "id": "E3-O14",
+   "mutant": "the setting keyed by its Pine name, not where the old parameter's setting was (an instance's saved value lost)",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "    if (byParam && s.paramId && !mintedFor.has(s.name)) {",
+   "to": "    if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/offsetParamCarry.test.js",
+   "expectRed": "an INSTANCE value saved on the old setting"
+  },
+  {
+   "id": "E3-O15",
+   "mutant": "an ambiguous saved copy guessed instead of kept as saved",
+   "file": "app/src/components/chart/builder/memberPane/savedScriptUpgrade.js",
+   "from": "  if (offsets.ambiguous) return { status: 'inconclusive', reason: `kept as saved: ${offsets.ambiguous}` }\n",
+   "to": "",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/offsetParamCarry.test.js",
+   "expectRed": "not provably one-to-one"
+  }
+ ]
+}

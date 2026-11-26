@@ -16,6 +16,7 @@ This module mirrors exactly what `defSchema.js` accepts for:
     ``column:<key>`` reference
   * ``plots[].lineStyleWhen`` (e98 E1) -- the line style a plot's settings choose:
     ``[{when, lineStyle}]``, each ``when`` the one knob-test grammar ``hiddenWhen`` holds
+  * ``plots[].displaceInput`` (e98 E3) -- a displacement a setting decides: ``{key, scale, add}``, key an int input
   * ``inputs[].activeWhen`` (e98 E2) -- exactly two shapes, a third refused by name
   * ``paints[]``         -- kind, colour forms, ``column:<key>`` reference,
     opacity / offset / showLast / title / line
@@ -381,6 +382,44 @@ def _check_line_style_when(plot: Mapping, path: str, fp: str, out: list) -> None
              f"{path}.lineStyleWhen: needs the plot's own literal `lineStyle`, the style at the settings' defaults", fp)
 
 
+def displace_input_problem(di: Any, inputs: Mapping) -> Any:
+    """e98 E3 -- the first problem with a `plots[].displaceInput` (`{key, scale, add}`) as a sentence, or None: `key` a
+    declared `int` input, `scale` 1 or -1, `add` a whole number, no other field. The mirror of
+    `defSchema.js::displaceInputProblem`."""
+    if not isinstance(di, Mapping):
+        return f"expected {{key, scale, add}}, got {_canon(di)}"
+    extra = [k for k in di if k not in ("key", "scale", "add")]
+    if extra:
+        return f"unknown field(s) {', '.join(map(repr, extra))}"
+    key = di.get("key")
+    if not _is_str(key):
+        return f".key: expected the key of an int input, got {_canon(key)}"
+    inp = inputs.get(key)
+    if not isinstance(inp, Mapping):
+        return f".key: {key!r} is not a declared input, so the displacement can never be read"
+    if inp.get("type") != "int":
+        return f".key: {key!r} is {inp.get('type')!r}, and a displacement counts whole bars (an int input)"
+    scale = di.get("scale")
+    if isinstance(scale, bool) or scale not in (1, -1):
+        return f".scale: expected 1 or -1, got {_canon(scale)}"
+    add = di.get("add")
+    if isinstance(add, bool) or not isinstance(add, int):
+        return f".add: expected a whole number of bars, got {_canon(add)}"
+    return None
+
+
+def _check_displace_input(plot: Mapping, path: str, fp: str, inputs: Mapping, out: list) -> None:
+    """e98 E3 -- `plots[].displaceInput`, never beside `displace` (two authorities over one drawing)."""
+    if "displaceInput" not in plot:
+        return
+    why = displace_input_problem(plot["displaceInput"], inputs)
+    if why:
+        _err(out, f"{path}.displaceInput", "plot-displace-input", f"{path}.displaceInput: {why}", fp)
+    elif "displace" in plot:
+        _err(out, f"{path}.displaceInput", "plot-displace-input",
+             f"{path}.displaceInput: a plot drawn at a setting's displacement carries no `displace` too", fp)
+
+
 def active_when_shape(aw: Any) -> Any:
     """e98 E2 -- which of the two `inputs[].activeWhen` shapes this is: "knob" (a knob test, `type` present: a Pine
     input's `active =`), "key" (the `{key, ...}` condition native definitions declare), or None (neither: refused).
@@ -729,6 +768,7 @@ def presentation_errors(definition: Mapping[str, Any]) -> list:
         _check_ohlc(plot, path, fp, columns, out)
         _check_hidden_when(plot, path, fp, out)
         _check_line_style_when(plot, path, fp, out)
+        _check_displace_input(plot, path, fp, inputs, out)
     # e98 E2 -- an input's `activeWhen`, in exactly two shapes
     _check_input_active_when(definition, out)
     # DIV-4 -- a PAINT (never a plot) may also name a colour column the per-bar run computes

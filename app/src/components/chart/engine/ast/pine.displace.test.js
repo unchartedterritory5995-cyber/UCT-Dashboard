@@ -95,7 +95,9 @@ describe('a displaced plot', () => {
     // `offset = -prd` with `prd = input.int(10)` is how both remaining corpus
     // scripts spell it. Reading only a written literal would refuse the commonest
     // spelling in the wild — and refuse the idiom rather than the impossible thing.
-    const row = only(translatePine(src('prd = input.int(10)\nplot(close, offset = -prd)')))
+    // ⭐ e98 E3 — `prd` is read by a second plot too, so it keeps the fold; an input only the offset reads is the
+    // member's setting (`engine/plotOffsetSetting.test.js`)
+    const row = only(translatePine(src('prd = input.int(10)\nplot(close, offset = -prd)\nplot(prd, "keep")')))
     expect(row.displace).toBe(-10)
   })
 

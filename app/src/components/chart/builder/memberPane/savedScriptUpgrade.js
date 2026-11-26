@@ -69,6 +69,47 @@ import {
   SCRIPT_ENGINE_VERSION, isStaleStamp, withEngineStamp, PINE_IMPORT_HELD_SENTENCE,
 } from '../../engine/scriptEngineVersion'
 import { pineImportHeld } from '../../engine/pineImportHold'
+// ⭐ e98 E3 — a saved copy's value on an offset parameter carried onto the setting that replaced it
+import { attachedValue, paramInputKey } from '../../engine/paramInputs.js'
+
+/** ⭐⭐ e98 E3 — NO MEMBER EDIT IS LOST (coordinator ruling 2026-11-25). Since E3 an input only a plot's `offset` reads
+ *  is a draw-time setting (`plots[].displaceInput`), keyed where its old parameter's projected setting was
+ *  (`param<N>`), and the stored copy's PARAMETER for it (a literal at an offset node's `value`) is gone from today's
+ *  manifest. For each such parameter of the STORED document:
+ *    * PROVABLY ONE-TO-ONE (today's document declares an int input under exactly that parameter's key, and a plot draws
+ *      at it): the stored value becomes that setting's default in the re-translated copy (the member's edit drawn at
+ *      the edited shift; an unedited copy keeps the script's default);
+ *    * anything else: NOT GUESSED. `{ambiguous}` names the parameter, and the caller keeps the stored copy (its own
+ *      tree-fold + parameter), drawn as stored and named.
+ *  @returns {{definition: object, carried: Array<{id, key, value}>} | {ambiguous: string}} */
+export function carryOffsetParams(stored, next) {
+  const was = isObj(stored) && isObj(stored.compute) && isObj(stored.compute.paramManifest) ? stored.compute.paramManifest : {}
+  const now = isObj(next) && isObj(next.compute) && isObj(next.compute.paramManifest) ? next.compute.paramManifest : {}
+  const carried = []
+  let inputs = Array.isArray(next && next.inputs) ? next.inputs : []
+  for (const [id, entry] of Object.entries(was)) {
+    if (Object.prototype.hasOwnProperty.call(now, id) || !isObj(entry)) continue
+    const locs = Array.isArray(entry.locators) ? entry.locators : []
+    const offsetOnly = locs.length > 0 && locs.every((l) => Array.isArray(l.astPath) && l.astPath[l.astPath.length - 1] === 'value')
+    if (!offsetOnly) continue
+    const key = paramInputKey(id)
+    const spec = inputs.filter((i) => i && i.key === key)
+    const drawn = (next.plots || []).some((p) => p && p.displaceInput && p.displaceInput.key === key)
+    const value = attachedValue(stored, entry)
+    if (spec.length !== 1 || spec[0].type !== 'int' || !drawn || !Number.isInteger(value)) {
+      return { ambiguous: `the saved copy's offset parameter \`${entry.sourceName || id}\` (${id}) has no one setting it provably became` }
+    }
+    const s = spec[0]
+    if ((Number.isInteger(s.min) && value < s.min) || (Number.isInteger(s.max) && value > s.max)) {
+      return { ambiguous: `the saved copy's offset parameter \`${entry.sourceName || id}\` holds ${value}, outside its setting's bounds` }
+    }
+    if (value !== s.default) {
+      inputs = inputs.map((i) => (i === s ? { ...i, default: value } : i))
+      carried.push({ id, key, value })
+    }
+  }
+  return { definition: carried.length ? { ...next, inputs } : next, carried }
+}
 
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 
@@ -252,7 +293,12 @@ export function judgeRetranslation(row, built, threw) {
     return { status: 'inconclusive',
       reason: `${built.oversize.guard}: today's translation is ${built.oversize.bytes} bytes, past the store's ${built.oversize.cap}-byte cap` }
   }
-  return { status: 'upgraded', definition: carryOwned(next, stored, row) }
+  // ⭐ e98 E3 — a saved copy's edited offset parameter is carried onto the setting that replaced it, or (not provably
+  // one-to-one) the stored copy is kept as it is, named: never a member edit dropped back to the script's default
+  const offsets = carryOffsetParams(stored, next)
+  if (offsets.ambiguous) return { status: 'inconclusive', reason: `kept as saved: ${offsets.ambiguous}` }
+  return { status: 'upgraded', definition: carryOwned(offsets.definition, stored, row),
+    ...(offsets.carried.length ? { carriedOffsets: offsets.carried } : {}) }
 }
 
 // ── memo + write-back bookkeeping (per tab) ──────────────────────────────────
