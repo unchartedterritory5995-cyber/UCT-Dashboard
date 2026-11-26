@@ -83,10 +83,14 @@ describe('the stored document: the stamp a translation mints', () => {
   })
 
   it('`scale = scale.none` / `scale.left` on an overlay script: on price, NOT stamped', () => {
-    for (const src of [OVERLAY_NONE, OVERLAY_LEFT]) {
+    for (const [src, placement] of [
+      // PIN TO SCALE (2026-11-26): `scale.none` is the author's "No scale" (`priceScaleNonePin.test.js`)
+      [OVERLAY_NONE, { target: 'price', pinScale: 'none' }],
+      [OVERLAY_LEFT, { target: 'price' }],
+    ]) {
       const built = mint(src)
       expect(built.ok, JSON.stringify(built.reason || null)).toBe(true)
-      expect(built.definition.placement).toEqual({ target: 'price' })
+      expect(built.definition.placement).toEqual(placement)
       expect(joinsPriceScaleOf(built.definition)).toBe(false)
     }
   })

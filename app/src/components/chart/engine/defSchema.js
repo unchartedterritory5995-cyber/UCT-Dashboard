@@ -145,6 +145,11 @@ import {
 // the three imports anything of this module (`presentation.js` imports nothing,
 // `instanceTimeframe.js` only `../timeframes`), so there is no cycle to mind.
 import { DOT_SIZES } from './presentation'
+
+/** PIN TO SCALE's choices (`placement.pinScaleOf`): owned here, where a definition is validated, and re-exported by
+ *  `placement.js` as `PIN_SCALE_CHOICES` (placement already reads this module through `sourceRef`; the reverse would be
+ *  a cycle). */
+export const PLACEMENT_PIN_SCALES = Object.freeze(['price', 'none'])
 import { VISIBILITY_PRESETS } from './instanceTimeframe'
 import { isValidTf } from '../timeframes'
 // ⭐ The pane table (UCT RS design round, 2026-11-08): its grammar and its
@@ -2146,6 +2151,12 @@ function validatePlacement(placement, errors) {
   // PRICE-SCALE JOIN (2026-11-16): `joinPriceScale`, stamped on a Pine translation that
   // declares `overlay = true` (`memberPaneDefinition.joinsPriceScale`). Behavioural, so only
   // a real boolean is admitted, for the reason `ownScale` gives above.
+  // PIN TO SCALE (2026-11-26): `pinScale`, the definition's default for the member's "Pin to scale"
+  // (`placement.pinScaleOf`): 'price' ("Same as price") or 'none' ("No scale"). A closed list, so a word the
+  // chart cannot draw never reaches a definition.
+  if (placement.pinScale !== undefined) {
+    checkVocabulary(placement.pinScale, PLACEMENT_PIN_SCALES, [], 'placement.pinScale', 'pin-to-scale choice', errors)
+  }
   if (placement.joinPriceScale !== undefined && typeof placement.joinPriceScale !== 'boolean') {
     errors.push(
       `placement.joinPriceScale: expected a boolean (true lets an imported overlay script's plots ` +

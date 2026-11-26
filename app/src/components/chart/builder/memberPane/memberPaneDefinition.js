@@ -1401,7 +1401,7 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
       // author asked for the price pane. `visualParitySet.test.js::documentOf`
       // still reads it the wrong way; the overlay case below is the rail.
       placement: (t.presentation && t.presentation.overlay === true)
-        ? { target: 'price', ...(joinsPriceScale(t) ? { joinPriceScale: true } : {}) }
+        ? { target: 'price', ...(joinsPriceScale(t) ? { joinPriceScale: true } : {}), ...(declaredPinScale(t) ? { pinScale: declaredPinScale(t) } : {}) }
         : { target: 'pane', pane: { height: MEMBER_PANE_HEIGHT } },
       paramManifest: Object.keys(manifest).length ? manifest : null,
       // ⭐⭐ R2 STEP 6 — THE OBJECT PROGRAM RIDES ON THE PANE DOCUMENT TOO, OR
@@ -2491,6 +2491,21 @@ export function joinsPriceScale(t) {
   return p.scale === undefined || p.scale === null || p.scale === 'right'
 }
 
+/**
+ * ⭐ PIN TO SCALE from the declaration (2026-11-26). `indicator(..., overlay = true, scale = scale.none)` is the
+ * author's TradingView "No scale": the plots draw on an overlay scale of their own that fills the pane, never on
+ * the candles' axis. The translator records the word (`presentation.scale`, `ast/pine.js::DECLARATION_SCALES`);
+ * this stamps the definition's DEFAULT for the member setting (`placement.pinScale`, read by
+ * `placement.defaultPinScaleOf`), which a member's own pick on the instance overrides.
+ * `scale.left` has no chart answer yet (the price pane's left axis is held hidden by the comparisons effect), so it
+ * stamps nothing and keeps today's placement; `scale.right` and an absent `scale` are "Same as price".
+ */
+export function declaredPinScale(t) {
+  const p = t && t.presentation
+  if (!p || p.overlay !== true) return null
+  return p.scale === 'none' ? 'none' : null
+}
+
 /** A displacement expression's whole-number value, over integer literals, the
  *  script's own literal `input.int` settings (`ctx.ints`: key → default) and a
  *  top-level name bound ONCE to such an expression (`ctx.binds`, e.g. wyckoff's
@@ -3129,7 +3144,7 @@ function runtimeLaneDocument({ source, id, name, t, hostReason, hostGuard = null
       inputs: runDocInputs,
       plots: [...rows, ...colourRows],
       placement: (t.presentation && t.presentation.overlay === true) || brokerOnly
-        ? { target: 'price', ...(joinsPriceScale(t) ? { joinPriceScale: true } : {}) }
+        ? { target: 'price', ...(joinsPriceScale(t) ? { joinPriceScale: true } : {}), ...(declaredPinScale(t) ? { pinScale: declaredPinScale(t) } : {}) }
         : { target: 'pane', pane: { height: MEMBER_PANE_HEIGHT } },
       paramManifest: null,
       objects: drawsObjects ? t.objects : null,
