@@ -12,7 +12,8 @@
         "5",
         "15",
         "30",
-        "60"
+        "60",
+        "240"
       ],
       "queue_row": "Q-RS3",
       "probe": "tools/visual_conformance/probes/rs-spx-daily.pine",
@@ -110,6 +111,18 @@
           "witness": "rs-spx-daily-pm-rddt-60-2026-11-18, rs-rating-fred6724-pm-rddt-60-2026-11-18, rs-rating-fred6724-pm-nvda-60-2026-11-18 (l12-pm-2026-11-18 batch, local; Q-L12-1)",
           "how": "TradingView's X05 on NYSE:RDDT 60, an EXTENDED-hours chart (bars hour-aligned 04:00..19:00 ET): each bar reads the SPX hourly bar that OPENED at or before it in its session (the 10:00 bar the 09:30 SPX bar, ... the 15:00 bar the 14:30 bar), 360 of 360 equal our /api/bars/SPX?tf=60 rows; pre-market the previous official daily close, post-market the day's official close (60 of 60 days). On a REGULAR-hours chart (the product's default) every bar opens with an SPX bar (09:30, 10:30, ...), so the same rule reads the SAME bar; the regular-hours 60m grid itself is not separately captured (the rig layout autosaves, so its session is never switched). `latest-at-or-before` (the index's own bars of the chart's timeframe and its official daily closes held beside them, `SPX@D`); before our store's first SPX 60m row (yfinance: 730 days) a chart bar is unknown. ⭐ U-DAILY (L12 PR 2): SP:SPX read at \"D\" above this chart (the rs-spx probe's X01..X04 on the same l12-is captures): a bar opening before its session's close reads the PREVIOUS session's daily row (every pre-market and regular bar), a bar from the close the session's own (every post-market bar on 15 / 30 / 60m; on 1m / 5m the first post bars on some days still the previous one, the official print's own lag). `session-completed`, from the held daily rows (`SPX@D`).",
           "captured": "2026-11-18"
+        },
+        "240": {
+          "held": "240",
+          "alsoHeld": "D",
+          "reads": {
+            "period": "latest-at-or-before"
+          },
+          "queue_row": "Q-FRED-4H",
+          "probe": "docs/pine/rs-rating/rs-rating-fred6724__pziQwiT2.pine",
+          "witness": "rs-rating-fred6724-4h-spy-240-2026-11-25, rs-rating-fred6724-4h-rddt-240-2026-11-25, rs-rating-fred6724-4h-adt-240-2026-11-25 (fred-4h-2026-11-24 batch, local; Q-FRED-4H)",
+          "how": "Fred RS at its defaults on AMEX:SPY, NYSE:RDDT and NYSE:ADT 240, EXTENDED-hours charts (session 0400-2000, bars at 04:00, 08:00, 12:00, 16:00 ET): TradingView's SP:SPX on each bar (close / plot_0 x 4200 x offset%, 90% on the fund, 80% on the stocks) is the 60 block's rule over the index's OWN 4h bars. A bar opening before 09:30 reads the PREVIOUS session's official daily close; a bar from the close the day's official close; the in-session bar (12:00) the index's 4h bar that opened at or before it, those bars built from our /api/bars/SPX?tf=60 rows on the index's own 09:30-anchored session ([09:30, 13:30), [13:30, 16:00)), the chart's own resample rule (`resampleBars.js::resampleIntradaySession`, the plain key's entry built by `secondaryBars.js`, e95). An index 4h bar that HOLDS the session's close is closed by the official print: on every half-day of the window (2024-07-03, 2024-11-29, 2024-12-24, 2025-07-03, 2025-11-28, 2025-12-24; 6 of 6 on each symbol) the 12:00 bar read the day's official close, not the 12:30 hourly row's last print. Graded against our held rows (the `rs-rating-fred6724-intra-spy-60-2026-11-21` supply, production's SPX 60m from 2023-12-26 and SPX@D, to 2026-11-20; the 04:00 and 08:00 bars of 2026-11-23 read its close), one cent on SP:SPX (TradingView's print vs our provider's): SPY 04:00 731/731, 08:00 731/731, 12:00 728/730, 16:00 730/730; RDDT (from its 2024-03 listing) 04:00 663/663, 08:00 671/671, 12:00 669/671, 16:00 671/671; ADT 04:00 388/388, 08:00 731/731, 12:00 728/730, 16:00 725/725. The 12:00 misses are the same two days on all three symbols, 2024-09-19 and 2026-01-06, where our 12:30 hourly row's close differs from TradingView's SPX (by 0.66 and 0.16): index data, not the rule. Held at 240 (the plain key: our 60m rows resampled by the chart's rule) and at D (`SPX@D`). The product's own 4h bars are anchored at 09:30 (01:30, 05:30, 09:30, 13:30, 17:30 ET slots), not TradingView's 04:00 grid, so the grid is laid on the product's slots and each reads by its open (`otherSymbols.js::atOrBeforeGridOf`); the regular-hours 4h grid (09:30 and 13:30 bars) and the product's 09:30-anchored extended slots are NOT separately captured (the rig layout is extended-hours), and the 13:30 slot's read of the [13:30, 16:00) bar, closed by the official print, follows the half-day rule unwitnessed on a full day. Before our store's first SPX 60m row a chart bar is unknown. NOT WITNESSED: SP:SPX read at \"D\" on this chart (the rating label is empty on all three captures, so nothing settles it): refused by name.",
+          "captured": "2026-11-25"
         }
       }
     },

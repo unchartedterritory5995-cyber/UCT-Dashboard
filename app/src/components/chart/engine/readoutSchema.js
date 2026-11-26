@@ -117,6 +117,27 @@
 //   bool     true/false as a word pair                    true → yes (or `words[0]`)
 
 import { inputsAsRead } from './legacyInputs'
+// ⭐ e98 E2 — a knob-test condition reads through the ONE evaluator `hiddenWhen` uses (`knobBind.knobTestAt`), which
+// `knobBind.js` REGISTERS here when it loads (`registerKnobTestEvaluator`). ⛔ NOT a static import: this module sits
+// under `defSchema`, which half the engine imports first, and pulling `knobBind`'s graph (`otherSymbols`, `ast/bind`)
+// in from here moved their evaluation ahead of the `vi.mock`s three engine suites depend on (classificationLanes,
+// clockMemo, w9MinContractSource, measured on run 45711659196). Unregistered, a knob test reads CLOSED, never open.
+let knobTestEvaluator = null
+export function registerKnobTestEvaluator(fn) { knobTestEvaluator = typeof fn === 'function' ? fn : null }
+
+/** ⭐⭐ e98 E2 — WHICH OF THE TWO CONDITION SHAPES THIS IS: `'knob'` (a knob test, `type` present: U6's grammar, a Pine
+ *  input's `active =`), `'key'` (the `{key, equals | notEquals | in | gt | gte | lt | lte}` condition the native
+ *  definitions declare), or null (neither: refused by `defSchema.validateActiveWhen`, and read as CLOSED by
+ *  `indicatorRegistry.evalActiveWhen` and `readoutConditionOpen`, never as open). The ONE classifier every reader asks
+ *  (`defSchema` re-exports it). */
+export function activeWhenShape(aw) {
+  if (!aw || typeof aw !== 'object' || Array.isArray(aw)) return null
+  const hasType = Object.prototype.hasOwnProperty.call(aw, 'type')
+  const hasKey = Object.prototype.hasOwnProperty.call(aw, 'key')
+  if (hasType && !hasKey) return 'knob'
+  if (hasKey && !hasType && typeof aw.key === 'string') return 'key'
+  return null
+}
 
 export const READOUT_FORMATS = Object.freeze(['ratio', 'pct', 'int', 'barsAgo', 'text', 'bool'])
 
@@ -281,7 +302,15 @@ function readInput(def, stored, key) {
  * that is not an object with a string `key` is open, as there.
  */
 export function readoutConditionOpen(cond, def, inputs) {
-  if (!isPlainObject(cond) || typeof cond.key !== 'string') return true
+  // ⭐ e98 E2 — the same two shapes as `evalActiveWhen` (one condition language): none written is open; a knob test
+  // through `knobTestAt` (unevaluable = closed); a third shape CLOSED, never open (it read as open: a fail-open)
+  if (cond === undefined || cond === null) return true
+  const shape = activeWhenShape(cond)
+  if (shape === 'knob') {
+    const v = knobTestEvaluator ? knobTestEvaluator(cond, def && typeof def === 'object' ? def : { inputs: [] }, inputs || {}) : null
+    return v === null || v === undefined ? false : !!v
+  }
+  if (shape !== 'key') return false
   const v = readInput(def, inputs, cond.key)
   if ('equals' in cond) return v === cond.equals
   if ('notEquals' in cond) return v !== cond.notEquals

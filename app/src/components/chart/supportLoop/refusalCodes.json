@@ -66,6 +66,7 @@
   "lower-tf:store-unmeasured",
   "lower-tf:unsupplied",
   "lower-tf:unwitnessed",
+  "lower-tf:volume-definition",
   "object:incomplete",
   "object:refused",
   "object:repaints",

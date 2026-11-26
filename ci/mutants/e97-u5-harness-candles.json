@@ -32,8 +32,8 @@
    "id": "U5-H4",
    "mutant": "a candle part is graded on its own style colour, not named not compared",
    "file": "tools/vendor_harness/compare.mjs",
-   "from": "    const vc = v.candlePart ? { colors: null, measured: false, reason: null, candle: true }",
-   "to": "    const vc = false ? { colors: null, measured: false, reason: null, candle: true }",
+   "from": "    const vc = v.candlePart\n      ? (v.candlePart === 'close' && pair.candle && pair.candle.bodyColorer",
+   "to": "    const vc = false\n      ? (v.candlePart === 'close' && pair.candle && pair.candle.bodyColorer",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.candles.test.js",
    "expectRed": "MATCH on every one of the four prices"
   },

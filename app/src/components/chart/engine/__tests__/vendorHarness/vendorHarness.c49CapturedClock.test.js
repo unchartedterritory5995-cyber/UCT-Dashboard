@@ -824,7 +824,9 @@ describe('C49 · 8 — packet #3: `request.security(tickerid, "D", close)` on AM
     expect(f('plot(request.security(syminfo.tickerid, "D", close))', { strict: true, basePeriod: '5' })).toBe('pine:request')
     const gated = requestBaseNode('D', { type: 'series', name: 'close' })
     expect(requestBaseOf(gated)).toBe('D')
-    expect(requestBaseNode('240', gated)).toBe(gated)                       // no bar length known for the base: nothing to gate on
+    expect(requestBaseNode('120', gated)).toBe(gated)                       // no bar length known for the base: nothing to gate on
+    // ⭐ e98 — 240 has its length now (the clock answers it, `CLOCK_CUSTOM_INTRADAY_TFS`): a 240 base is gated too
+    expect(requestBaseOf(requestBaseNode('240', { type: 'series', name: 'close' }))).toBe('240')
     // a member's own ternary with the comparison the other way round keeps its own meaning
     const own = JSON.parse(JSON.stringify(gated)); own.args[0].args.reverse()
     expect(requestBaseOf(own)).toBeNull()
