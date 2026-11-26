@@ -12,6 +12,7 @@
  *   A6 (review of #2786) a chart subscribing to a key with nothing saved paints the lake's newest bars first: that load
  *      is awaited (index.js _start) (red before: it yielded)
  *   A7 a chart subscribing over a saved copy only deepens it: that load still yields
+ *   A8 (review of #2786 delta) an entry holding only a developing bar, no bars, is not a chart yet: its load is awaited
  */
 import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest'
 import fs from 'node:fs'
@@ -85,6 +86,20 @@ describe('a lake load a paint waits on never yields', () => {
     const k = keyOf({ sym: 'NEW', tf: '5' })
     store.subscribe(k, () => {})
     await vi.advanceTimersByTimeAsync(50)
+    const load = lake.loads.find((l) => l.key === k)
+    expect(load).toBeTruthy()
+    expect(waits(load)).toBe('at once')
+  })
+
+  it('A8 an entry holding only a developing bar (no bars) still paints the lake first: its load is awaited', async () => {
+    const lake = heldLake()
+    const store = makeStore(lake)
+    const k = keyOf({ sym: 'DEV', tf: '5' })
+    store.subscribe(k, () => {})
+    store.applyLive(k, { t: OPEN + 600, o: 100, h: 101, l: 99, c: 100.5, v: 10 })   // the 09:40 bucket, forming
+    await vi.advanceTimersByTimeAsync(50)
+    expect(store.peek(k)?.developing).toBeTruthy()           // a developing bar ...
+    expect(store.peek(k)?.bars.length ?? 0).toBe(0)          // ... and no bars: not a chart yet
     const load = lake.loads.find((l) => l.key === k)
     expect(load).toBeTruthy()
     expect(waits(load)).toBe('at once')

@@ -111,12 +111,12 @@ export function createBarStore(o = {}) {
       // Saved copy first; with none (and no server answer yet) the lake's newest bars paint at once
       // (network.lakeSeed: never persisted, kept only where the server's answer proves them).
       // (urgent: a subscriber is a chart on screen, so its device read goes ahead of every warm's)
-      // ⭐ (review of #2786) A key with nothing to paint (no saved copy, no answer yet) paints the lake's newest bars
-      // FIRST: that paint waits on the load, so its pieces never yield (network.lakeSeed `awaited`). A key that already
-      // painted a saved copy only deepens: its pieces decode one per task, leaving room for frames.
+      // ⭐ (review of #2786) A key with no bars (no saved copy, no answer yet; a lone developing bar is not a chart)
+      // paints the lake's newest bars FIRST: that paint waits on the load, so its pieces never yield (network.lakeSeed
+      // `awaited`). A key that already painted a saved copy only deepens: its pieces decode one per task, leaving room for frames.
       persist.hydrate(key, { urgent: true }).catch(() => {}).then(() => {
         const s = registry.peek(key)
-        const awaited = !s?.bars?.length && !s?.developing
+        const awaited = !s?.bars?.length
         try { network.lakeSeed?.(key, { awaited }) } catch { /* paint only */ }
       })
       a.stops.push(persist.attach(key))
