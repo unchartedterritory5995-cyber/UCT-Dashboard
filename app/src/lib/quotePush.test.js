@@ -61,7 +61,7 @@ describe('the flag', () => {
     qp.setTickers('stream', ['AAPL', 'NVDA'])
     settle()
     expect(open()).toHaveLength(1)
-    expect(open()[0].url).toBe('/api/stream/quotes?tickers=AAPL,MSFT,NVDA')
+    expect(open()[0].url).toBe('/api/stream/quotes?tickers=AAPL,MSFT,NVDA&v=2')
   })
 
   it('the cookie turns it on too', () => {
@@ -85,7 +85,7 @@ describe('the flag', () => {
     qp.setTickers('rest', many)
     settle()
     expect(open()).toHaveLength(2)
-    const n = open().map((e) => e.url.split('=')[1].split(',').length)
+    const n = open().map((e) => e.url.split('tickers=')[1].split('&')[0].split(',').length)
     expect(n[0] + n[1]).toBe(qp.MAX_QUOTE_SYMBOLS + 10)
     expect(Math.max(...n)).toBeLessThanOrEqual(qp.MAX_QUOTE_SYMBOLS)
   })
@@ -109,6 +109,7 @@ describe('frames -> the next animation frame', () => {
     settle()
     const es = open()[0]
     es.emitOpen()
+    es.emitEvent('hello', { v: 2, symbols: 1 })
     es.frame(['AAPL', 100.5, 1000, 1_700_000_000_000])
     es.frame(['MSFT', 400.25, 2000, 1_700_000_000_010])
     es.frame(['AAPL', 100.75, 1100, 1_700_000_000_020])
@@ -139,6 +140,7 @@ describe('frames -> the next animation frame', () => {
     settle()
     const es = open()[0]
     es.emitOpen()
+    es.emitEvent('hello', { v: 2, symbols: 1 })
     es.frame(['AAPL', 101, 10, 1_700_000_000_000], ['MSFT', 401, 20, 1_700_000_000_001])
     runFrame()
     expect(seen).toHaveLength(1)
@@ -153,6 +155,7 @@ describe('health', () => {
     settle()
     const es = open()[0]
     es.emitOpen()
+    es.emitEvent('hello', { v: 2, symbols: 1 })
     es.emitEvent('status', { live: true })
     return es
   }
@@ -194,6 +197,7 @@ describe('a resubscribe does not drop the push (review D)', () => {
     settle()
     const first = open()[0]
     first.emitOpen()
+    first.emitEvent('hello', { v: 2, symbols: 1 })
     first.emitEvent('status', { live: true })
     first.frame(['AAPL', 100.5, 1000, 1_700_000_000_000])
     runFrame()
@@ -204,8 +208,9 @@ describe('a resubscribe does not drop the push (review D)', () => {
     expect(qp.getPushedQuote('AAPL')?.price).toBe(100.5)
     expect(first.closed).toBe(false)                    // make before break
     const second = open().find((e) => e !== first)
-    expect(second.url).toBe('/api/stream/quotes?tickers=AAPL,MSFT')
+    expect(second.url).toBe('/api/stream/quotes?tickers=AAPL,MSFT&v=2')
     second.emitOpen()
+    second.emitEvent('hello', { v: 2, symbols: 1 })
     second.emitEvent('status', { live: true })
     expect(first.closed).toBe(true)
     expect(qp.isHealthy()).toBe(true)
@@ -218,12 +223,127 @@ describe('a resubscribe does not drop the push (review D)', () => {
     settle()
     const first = open()[0]
     first.emitOpen()
+    first.emitEvent('hello', { v: 2, symbols: 1 })
     first.emitEvent('status', { live: true })
     qp.setTickers('rest', ['AAPL', 'MSFT'])
     settle()
     expect(qp.isHealthy()).toBe(true)
     vi.advanceTimersByTime(qp.RESUBSCRIBE_GRACE_MS + 50)
     expect(qp.isHealthy()).toBe(false)
+  })
+})
+
+describe('before arming (review of #2751, round 2)', () => {
+  function up(tickers = ['AAPL']) {
+    localStorage.setItem('uct.quotePush', '1')
+    qp.setTickers('rest', tickers)
+    settle()
+    const es = open()[0]
+    es.emitOpen()
+    es.emitEvent('status', { live: true })
+    return es
+  }
+
+  it('a connection is healthy only after the server says hello on THIS wire version', () => {
+    const es = up()
+    expect(qp.isHealthy()).toBe(false)                      // open + live, but no hello yet
+    es.emitEvent('hello', { v: 1, symbols: 1 })
+    expect(qp.isHealthy()).toBe(false)                      // another version: unhealthy, so REST polls
+    es.emitEvent('hello', { v: qp.WIRE_VERSION, symbols: 1 })
+    expect(qp.isHealthy()).toBe(true)
+    expect(es.url).toContain('&v=2')
+  })
+
+  it('a pushed quote OLDER than the one held is dropped (two connections overlapping)', () => {
+    const es = up(['AAPL'])
+    es.emitEvent('hello', { v: 2, symbols: 1 })
+    const seen = []
+    qp.onQuotes((b) => seen.push(b))
+    es.frame(['AAPL', 101, 10, 1_700_000_000_020])
+    es.frame(['AAPL', 100, 9, 1_700_000_000_010])           // the other connection's slower copy
+    runFrame()
+    expect(seen.at(-1).AAPL.price).toBe(101)
+    es.frame(['AAPL', 99, 8, 1_700_000_000_005])            // older than what is held: no batch at all
+    runFrame()
+    expect(qp.getPushedQuote('AAPL').price).toBe(101)
+    expect(seen).toHaveLength(1)
+  })
+
+  it('long frames back the commits off toward ~4 Hz, and quiet frames bring them back to every frame', () => {
+    const es = up(['AAPL'])
+    es.emitEvent('hello', { v: 2, symbols: 1 })
+    const seen = []
+    qp.onQuotes((b) => seen.push(b))
+    for (let i = 0; i < 20; i++) {
+      es.frame(['AAPL', 100 + i, 10 + i, 1_700_000_000_000 + i])
+      vi.advanceTimersByTime(80)                            // the frame came 80 ms late: a long frame
+      runFrame()
+      vi.advanceTimersByTime(20)
+    }
+    expect(seen.length).toBeLessThanOrEqual(10)             // coalesced, not one commit per frame
+    expect(qp.getCommitGapMs()).toBeGreaterThan(0)
+    expect(qp.getCommitGapMs()).toBeLessThanOrEqual(qp.COMMIT_GAP_CAP_MS)
+    expect(qp.COMMIT_GAP_CAP_MS).toBe(250)
+    for (let i = 0; i < 10; i++) { vi.advanceTimersByTime(qp.LONG_FRAME_RECOVER_MS); runFrame() }
+    expect(qp.getCommitGapMs()).toBe(0)
+    const n = seen.length
+    es.frame(['AAPL', 200, 99, 1_700_000_001_000])
+    runFrame()                                              // quiet again: committed in the very next frame
+    expect(seen.length).toBe(n + 1)
+    expect(seen.at(-1).AAPL.price).toBe(200)
+  })
+})
+
+describe('late sinks (review of #2775)', () => {
+  function upReady(tickers = ['AAPL']) {
+    localStorage.setItem('uct.quotePush', '1')
+    qp.setTickers('rest', tickers)
+    settle()
+    const es = open()[0]
+    es.emitOpen()
+    es.emitEvent('hello', { v: 2, symbols: 1 })
+    es.emitEvent('status', { live: true })
+    return es
+  }
+
+  it('a sink that subscribes while the push is running gets the held quotes on the next frame', () => {
+    const es = upReady(['AAPL', 'MSFT'])
+    es.frame(['AAPL', 101, 10, 1_700_000_000_000], ['MSFT', 401, 20, 1_700_000_000_001])
+    runFrame()
+    const late = []
+    qp.onQuotes((b) => late.push(b))
+    expect(late).toHaveLength(0)                            // never inside the subscribe call (it may be an effect)
+    runFrame()
+    expect(late).toHaveLength(1)
+    expect(late[0].AAPL.price).toBe(101)
+    expect(late[0].MSFT.price).toBe(401)
+  })
+
+  it('nothing is replayed when the push holds nothing', () => {
+    upReady(['AAPL'])
+    const late = []
+    qp.onQuotes((b) => late.push(b))
+    runFrame()
+    expect(late).toHaveLength(0)
+  })
+
+  it('a keyed sink registered again (a dev hot reload of its store) replaces the old one, never doubles', () => {
+    const es = upReady(['AAPL'])
+    const a = []
+    const b = []
+    qp.onQuotes((x) => a.push(x), 'store')
+    qp.onQuotes((x) => b.push(x), 'store')
+    const h1 = []
+    const h2 = []
+    qp.onHealth((x) => h1.push(x), 'store')
+    qp.onHealth((x) => h2.push(x), 'store')
+    es.frame(['AAPL', 101, 10, 1_700_000_000_000])
+    runFrame()
+    expect(a).toHaveLength(0)
+    expect(b).toHaveLength(1)
+    es.emitEvent('status', { live: false })
+    expect(h1).toHaveLength(0)
+    expect(h2).toEqual([false])
   })
 })
 

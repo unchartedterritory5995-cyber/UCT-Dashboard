@@ -29,7 +29,7 @@ one socket write per wake (at most one per ingest batch, ~20/s), all pending quo
 generator awaits its event with no per-wake timeout (the hub wakes every member once a second for the
 heartbeat, status and disconnect checks). Everything the stream took is released ONCE, from the generator
 AND from the response itself (api/sse_response.py: a body torn down before its first step).
-`QUOTE_STREAM_WRITE_FLOOR_S` (default 0) spaces a connection's writes further at very large scale.
+`QUOTE_STREAM_WRITE_FLOOR_S` (default 0.05, one ingest batch) spaces one connection's writes: <= ~20/s a member.
 """
 from __future__ import annotations
 
@@ -53,6 +53,10 @@ _logger = logging.getLogger(__name__)
 router = APIRouter()
 
 STREAM = "quotes"
+#: The batched wire `data: [write ms, fragment, ...]`. A client declares it (`v=2`) and the hello repeats it; a
+#: client on another version (a cached old bundle) is refused 409, which its EventSource reads as an error, so
+#: it stays unhealthy and polls REST instead of reading a stream it cannot parse (review of #2751, round 2).
+WIRE_VERSION = 2
 #: One connection carries a member's whole list: the REST cap (api/routers/live_prices.py _MAX_TICKERS).
 MAX_QUOTE_SYMBOLS = 250
 #: A ticker the ingest feed protocol can carry (feed_protocol.SYM_PATTERN); anything else is dropped here.
@@ -66,11 +70,21 @@ def enabled() -> bool:
     return os.environ.get("QUOTE_STREAM_ENABLED") == "1"
 
 
+#: Default spacing of one member's writes: one ingest batch (50 ms). With QUOTE_STREAM_MAX_HZ 0 a member's
+#: writes are otherwise bounded only by the batch rate (up to 100/s at 10 ms batches). At 50 ms batches the
+#: floor costs ~0-2 ms p50 (a batch arrives about when the floor ends); at 10 ms batches ~20-25 ms p50.
+#: `QUOTE_STREAM_WRITE_FLOOR_S=0` turns it off.
+DEFAULT_WRITE_FLOOR_S = 0.05
+
+
 def _write_floor_s() -> float:
+    raw = os.environ.get("QUOTE_STREAM_WRITE_FLOOR_S")
+    if raw is None or not raw.strip():
+        return DEFAULT_WRITE_FLOOR_S
     try:
-        return max(0.0, float(os.environ.get("QUOTE_STREAM_WRITE_FLOOR_S", "0") or 0))
+        return max(0.0, float(raw))
     except ValueError:
-        return 0.0
+        return DEFAULT_WRITE_FLOOR_S
 
 
 def _parse(tickers: str) -> list:
@@ -92,11 +106,15 @@ async def stream_quotes(
     request: Request,
     tickers: str = Query(..., description="Comma-separated ticker symbols (at most 250)"),
     _access: dict = Depends(require_bars_access),
+    v: int = Query(1, description="Wire version the client reads (2 = the batched message). Another one is refused 409."),
 ):
     """SSE: pushed last price per symbol, conflated (latest wins, at most QUOTE_STREAM_MAX_HZ a symbol)."""
     if not enabled():
         return JSONResponse({"error": "quote stream disabled", "reason": "disabled", "stream": STREAM},
                             status_code=503)
+    if v != WIRE_VERSION:
+        return JSONResponse({"error": "wire version", "reason": "wire_version", "v": WIRE_VERSION,
+                             "stream": STREAM}, status_code=409)
     syms = _parse(tickers)
     if not syms:
         return JSONResponse({"error": "No valid tickers"}, status_code=400)
@@ -119,14 +137,21 @@ async def stream_quotes(
     def _release() -> None:
         # Everything this stream took, released ONCE: from the generator's `finally` AND from the
         # response's own close (a body torn down before its first step never runs the `finally`).
+        # Each step in its own try: one failing never skips the others (review of #2751, round 2).
         if held["conn"] is not None:
-            hub.close(held["conn"])
+            try:
+                hub.close(held["conn"])
+            except Exception as e:  # noqa: BLE001
+                _logger.warning("[quote_stream] hub.close failed: %s: %s", type(e).__name__, e)
         if held["interest"]:
             try:
                 bb.remove_interest(syms)
-            except Exception:  # noqa: BLE001
-                pass
-        stream_router.unsubscribe(STREAM, token)
+            except Exception as e:  # noqa: BLE001
+                _logger.warning("[quote_stream] remove_interest failed: %s: %s", type(e).__name__, e)
+        try:
+            stream_router.unsubscribe(STREAM, token)
+        except Exception as e:  # noqa: BLE001
+            _logger.warning("[quote_stream] unsubscribe failed: %s: %s", type(e).__name__, e)
 
     release = release_once(_release)
     try:
@@ -145,7 +170,7 @@ async def stream_quotes(
         last_disc = time.monotonic()
         last_live = None
         try:
-            yield _event("hello", {"symbols": len(syms), "max_hz": hub.max_hz})
+            yield _event("hello", {"v": WIRE_VERSION, "symbols": len(syms), "max_hz": hub.max_hz})
             while True:
                 if feed_live is not None:
                     try:
