@@ -1870,7 +1870,9 @@ def _real_dataset():
 def test_MQ_floor_d2_a_regular_close_of_1300_fails_closed(tmp_path):
     raw = _real_dataset()
     raw["sessions"]["close"] = "13:00"
-    assert _tree_freeze(tmp_path, raw, (2026, 12, 3, 15, 45)).startswith("FLOOR"), "a 13:00 regular close must fail closed"
+    out = _tree_freeze(tmp_path, raw, (2026, 12, 3, 15, 45))
+    # named by the explicit bound, not only caught by the windows' disagreement (the backstop): both must hold
+    assert out.startswith("FLOOR") and "sessions.close" in out, out
 
 
 def test_MQ_floor_d2_a_year_of_holidays_fails_closed(tmp_path):
