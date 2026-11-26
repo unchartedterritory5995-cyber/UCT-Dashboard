@@ -382,7 +382,8 @@ THE RULES
 12. {number_on_bars}
 13. {percent_format}
 14. {fill_in}
-15. {strict_pivot}"""
+15. {strict_pivot}
+16. {financial_period}"""
 
 #: ⭐ RULE 15: STRICT WORDS ON BOTH SIDES OF A BAR ARE NOT ta.pivothigh (coordinator's ruling, 2026-11-25). cap-03's
 #: words ("a swing high is a bar whose high is above the highs of the 3 bars before it and the 3 bars after it") came
@@ -401,6 +402,24 @@ STRICT_PIVOT_RULE = (
     "say it counts a bar equal to one before it. This rule is ONLY for strict words on both sides: a request for "
     "\"pivot highs\", \"swing highs\" or TradingView's pivots, with no such words, is answered with `ta.pivothigh` / "
     "`ta.pivotlow` themselves (rule 10): they are TradingView's own, and the honest answer to those words.")
+
+#: ⭐ RULE 16: A FINANCIAL PERIOD IS A CONSTANT, AND ONLY ONE THE ENGINE SERVES (coordinator's ruling, 2026-11-25; the
+#: assistant half of finding 2 of the Deepvue import probe). A Deepvue EPS line with a quarterly/annual setting was
+#: written three times (the first answer and both repairs) as `request.financial(..., period)` with `period` an
+#: input.string; the engine refuses a period that is not a constant string (`other-symbol:financial-period`: which figure
+#: is read must be known before the script runs) and serves no fiscal-year series at all. TradingView accepts a
+#: simple-string input as the period, so the direct form is an ENGINE unit (assigned to e98): when it lands, this rule
+#: gives way to it. The form taught here is pinned against the engine itself
+#: (`app/src/components/chart/engine/requestFinancial.periodSetting.test.js`).
+FINANCIAL_PERIOD_RULE = (
+    "A `request.financial` PERIOD IS A CONSTANT STRING, AND ONLY ONE THE ENGINE SERVES. Write the period in the call "
+    "itself (\"FQ\", \"TTM\"): a period read from an input or a variable is refused, because which figure is read must be "
+    "known before the script runs. When the member wants to choose the period in the settings, write ONE "
+    "`request.financial` call per option, each with its own constant period, and pick between their results with the "
+    "input: `period = input.string(\"FQ\", \"Period\", options = [\"FQ\", \"TTM\"])`, `fq = request.financial(syminfo.tickerid, "
+    "\"EARNINGS_PER_SHARE_DILUTED\", \"FQ\")`, `ttm = request.financial(syminfo.tickerid, \"EARNINGS_PER_SHARE_DILUTED\", "
+    "\"TTM\")`, `plot(period == \"TTM\" ? ttm : fq)`. Offer only periods the engine serves for that figure: when it refuses "
+    "one (a fiscal-year series it does not hold), leave that option out and say so in `reply`.")
 
 #: ⭐ RULE 14: A FIGURE THE MEMBER MUST FILL IN (found by the first full live run of the value cases, 2026-11-22). On
 #: the formula door an "average cost" setting was drawn bare: a line at price 0 until filled, squeezing the chart. A
@@ -651,11 +670,14 @@ def _lines(title: str, rows: List[str]) -> List[str]:
 
 
 def contract(ref: Optional[Mapping[str, Any]] = None) -> str:
-    """The contract as the assistant reads it: the rules, with rule 10's examples taken from the reference."""
-    return (CONTRACT.replace("{own_functions}", _own_functions_said(ref)).replace("{last_bar}", _last_bar_said(ref))
+    """The contract as the assistant reads it: the rules, with rule 10's examples taken from the reference.
+    Rule 16 names `request.financial`, so it is there only while the financial door answers every member
+    (`financial_open_to_members`): a read whose door is dark is never handed over, in a rule or anywhere else."""
+    rules = CONTRACT if financial_open_to_members() else CONTRACT.replace("\n16. {financial_period}", "")
+    return (rules.replace("{own_functions}", _own_functions_said(ref)).replace("{last_bar}", _last_bar_said(ref))
             .replace("{number_on_bars}", NUMBER_ON_BARS_RULE)
             .replace("{percent_format}", PERCENT_FORMAT_RULE).replace("{fill_in}", FILL_IN_RULE)
-            .replace("{strict_pivot}", STRICT_PIVOT_RULE))
+            .replace("{strict_pivot}", STRICT_PIVOT_RULE).replace("{financial_period}", FINANCIAL_PERIOD_RULE))
 
 
 def document(ref: Optional[Mapping[str, Any]] = None, run_stops: Optional[List[str]] = None) -> str:
