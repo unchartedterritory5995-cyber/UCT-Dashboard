@@ -1628,8 +1628,11 @@ def test_MQ_freeze_has_no_second_list_of_windows():
     df = _df()
     assert not hasattr(acr, "FREEZE_WINDOWS"), "the windows are deploy_freeze's, never restated here"
     assert acr.freeze_windows_on(datetime.date(2026, 12, 3)) == tuple((a, b) for _n, a, b in df.BURST_WINDOWS_ET)
+    # the only literal pair left is the self-protected FLOOR, which CHECKS deploy_freeze's windows, never supplies them
     src = (ROOT / "tools" / "agent_ci_required.py").read_text(encoding="utf-8")
-    assert "(15, 30)" not in src and "(9, 20)" not in src
+    assert src.count("(15, 30)") == 1 and src.count("(9, 20)") == 1
+    assert "FREEZE_FLOOR = (((9, 20), (9, 45)), ((15, 30), (16, 15)))" in src
+    assert acr.FREEZE_FLOOR == tuple((a, b) for _n, a, b in df.BURST_WINDOWS_ET)
 
 
 def test_MQ_freeze_a_broken_calendar_refuses_by_the_weekday_rule(monkeypatch):
@@ -1656,3 +1659,134 @@ def test_MQ_freeze_a_date_past_the_calendar_horizon_refuses_by_the_weekday_rule(
     while day.weekday() >= 5:
         day += datetime.timedelta(days=1)
     assert acr.freeze_window(_et(day.year, day.month, day.day, 15, 45)) == "15:30-16:15 ET"
+
+
+# ---- the self-protected FLOOR under the freeze (review of #2850, finding 1) ---------------------------------------
+# deploy_freeze.py, session_calendar.py and market_calendar.json are NOT self-protected, so a no-agent-paths PR could
+# weaken them. agent_ci_required.py (self-protected) checks what it loads: a regular day's rushes are exactly
+# 09:20-09:45 and 15:30-16:15, a half-day's closing rush is exactly close-30..close+15 for a close no later than 16:00,
+# a trading day is never empty. Anything else FAILS CLOSED (never "no window"). Holidays still come from the calendar.
+
+def _floor_follow(tmp_path, now):
+    r = _queue_repo(tmp_path / "agent", {"app/src/agent/a.js": "a2\n"})
+    return _follow(r, now=now)
+
+
+def test_MQ_floor_a_weakened_regular_day_fails_closed(tmp_path, monkeypatch):
+    df = acr._deploy_freeze()
+    monkeypatch.setattr(df, "day_hold_windows", lambda day: (("opening", (9, 20), (9, 45)),))   # closing rush dropped
+    with pytest.raises(acr.FreezeFloorError):
+        acr.freeze_window(_et(2026, 12, 3, 15, 45))
+    state, reason = _floor_follow(tmp_path, _et(2026, 12, 3, 15, 45))
+    assert state == "failure" and reason.startswith("fail closed: the deploy freeze") and len(reason) <= 140, reason
+
+
+def test_MQ_floor_an_emptied_trading_day_fails_closed(monkeypatch):
+    df = acr._deploy_freeze()
+    monkeypatch.setattr(df, "day_hold_windows", lambda day: ())
+    with pytest.raises(acr.FreezeFloorError):
+        acr.freeze_window(_et(2026, 12, 3, 12, 0))          # not even inside a window: the day itself is wrong
+
+
+def test_MQ_floor_a_moved_half_day_offset_fails_closed(monkeypatch):
+    df = acr._deploy_freeze()
+    real = df.day_hold_windows
+    monkeypatch.setattr(df, "day_hold_windows",
+                        lambda day: tuple(("closing", (12, 45), (13, 15)) if n == "closing" else (n, a, b) for n, a, b in real(day)))
+    with pytest.raises(acr.FreezeFloorError):
+        acr.freeze_window(_et(2026, 11, 27, 12, 50))
+
+
+def test_MQ_floor_changed_constants_fail_closed(monkeypatch):
+    df = acr._deploy_freeze()
+    monkeypatch.setattr(df, "BURST_WINDOWS_ET", (("opening", (9, 25), (9, 45)), ("closing", (15, 30), (16, 15))))
+    with pytest.raises(acr.FreezeFloorError):
+        acr.freeze_window(_et(2026, 12, 3, 9, 22))
+
+
+def test_MQ_floor_a_close_later_than_the_regular_close_fails_closed(monkeypatch):
+    df = acr._deploy_freeze()
+    cal = df._calendar_module()
+    import zoneinfo
+    monkeypatch.setattr(cal, "close_time", lambda d, *a, **k: datetime.datetime(d.year, d.month, d.day, 17, 0, tzinfo=zoneinfo.ZoneInfo("America/New_York")))
+    with pytest.raises(acr.FreezeFloorError):
+        acr.freeze_window(_et(2026, 12, 3, 16, 40))
+
+
+def test_MQ_floor_the_real_tool_passes_every_day_the_calendar_covers():
+    day = datetime.date(2026, 1, 1)
+    while day <= datetime.date(2028, 12, 31):
+        acr.freeze_windows_on(day)               # raises FreezeFloorError on any day the floor refuses
+        day += datetime.timedelta(days=1)
+
+
+def test_MQ_the_reason_says_weekday_fallback_when_the_calendar_cannot_answer(tmp_path, monkeypatch):
+    df = acr._deploy_freeze()
+    state, reason = _floor_follow(tmp_path / "a", _et(2026, 12, 3, 15, 45))
+    assert state == "failure" and "(a market rush today)" in reason, reason
+
+    def broken():
+        raise RuntimeError("calendar unreadable")
+    monkeypatch.setattr(df, "_calendar_module", broken)
+    state, reason = _floor_follow(tmp_path / "b", _et(2026, 11, 26, 15, 45))
+    assert state == "failure" and "(weekday fallback)" in reason and "market rush today" not in reason, reason
+    assert len(reason) <= 140
+
+
+# ---- the follower's sparse checkout really suffices (review of #2850, LOW) ---------------------------------------
+# Derived, not hand-listed: run the tool with an audit hook and record every repo file it opens while it loads and
+# answers the freeze; each must be held by the verdict job's sparse list. Then load it from a temp root holding ONLY
+# the sparse list's files (and, under a folder pattern, only the files it was seen to open): Thanksgiving gives None
+# with NO warning (a hidden dependency would fall back to the weekday rule and warn), the half-day gives 12:30-13:15.
+
+_PROBE = r'''
+import datetime, json, os, sys, zoneinfo
+root = os.path.abspath(sys.argv[1]); seen = set()
+def hook(ev, args):
+    if ev == "open" and args and isinstance(args[0], (str, bytes, os.PathLike)):
+        p = os.path.abspath(os.fsdecode(args[0]))
+        if p.lower().startswith(root.lower() + os.sep):
+            seen.add(os.path.relpath(p, root).replace(os.sep, "/"))
+sys.addaudithook(hook)
+sys.path.insert(0, root); sys.dont_write_bytecode = True
+from tools import agent_ci_required as acr
+et = lambda *a: datetime.datetime(*a, tzinfo=zoneinfo.ZoneInfo("America/New_York"))
+print(json.dumps({"thanksgiving": acr.freeze_window(et(2026, 11, 26, 15, 45)),
+                  "half_day": acr.freeze_window(et(2026, 11, 27, 12, 45)),
+                  "regular": acr.freeze_window(et(2026, 12, 3, 15, 45)),
+                  "seen": sorted(p for p in seen if not p.endswith(".pyc"))}))
+'''
+
+
+def _probe(root):
+    import sys
+    out = subprocess.run([sys.executable, "-B", "-c", _PROBE, str(root)], capture_output=True, text=True, timeout=120, cwd=str(root))
+    assert out.returncode == 0, out.stdout + out.stderr
+    lines = out.stdout.strip().splitlines()
+    return json.loads(lines[-1]), "\n".join(lines[:-1]) + out.stderr
+
+
+def test_MQ_the_follower_freeze_runs_from_its_sparse_checkout_alone(tmp_path):
+    import shutil
+    vdoc = yaml.safe_load((ROOT / ".github" / "workflows" / "agent-ci-queue-verdict.yml").read_text(encoding="utf-8"))
+    sparse = vdoc["jobs"]["verdict"]["steps"][0]["with"]["sparse-checkout"].split()
+    held = lambda p: any(p == s[1:] or (s.endswith("/") and p.startswith(s[1:])) for s in sparse)  # noqa: E731
+    res, noise = _probe(ROOT)
+    assert res["thanksgiving"] is None and res["half_day"] == "12:30-13:15 ET" and res["regular"] == "15:30-16:15 ET", res
+    missing = [p for p in res["seen"] if not held(p)]
+    assert missing == [], f"the follower reads files its sparse checkout does not hold: {missing}"
+    for s in sparse:                                        # the temp root: the sparse files, nothing else
+        if s.endswith("/"):
+            files = [p for p in res["seen"] if p.startswith(s[1:])]
+        else:
+            files = [s[1:]] if (ROOT / s[1:]).is_file() else []
+        for rel in files:
+            (tmp_path / rel).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy(ROOT / rel, tmp_path / rel)
+    res2, noise2 = _probe(tmp_path)
+    assert res2["thanksgiving"] is None and res2["half_day"] == "12:30-13:15 ET", (res2, noise2)
+    assert "warning" not in noise2.lower(), noise2
+    # control: the rail CAN fail. Without the calendar module the freeze falls back to the weekday rule, and warns.
+    (tmp_path / "api" / "services" / "session_calendar.py").unlink()
+    res3, noise3 = _probe(tmp_path)
+    assert res3["thanksgiving"] == "15:30-16:15 ET" and "warning" in noise3.lower(), (res3, noise3)

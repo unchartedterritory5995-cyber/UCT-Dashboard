@@ -350,8 +350,22 @@ VERDICT_TOKEN_ENV = "AGENT_CI_VERDICT_TOKEN"
 #: Agent entry on Thanksgiving (#2844, 16:07 ET). Same fail-safe rule as the deploy freeze: a calendar that cannot be
 #: read, or a date past its horizon, gives the WEEKDAY rushes (refused for nothing, the safe side), never "no window".
 #: deploy_freeze.py itself not loading raises, and `follow` posts that as a failure (fail closed).
+#: ⛔ THE SELF-PROTECTED FLOOR (review of #2850, finding 1). deploy_freeze.py, session_calendar.py and the calendar
+#: dataset are NOT self-protected: a no-agent-paths PR may edit them. So this file (self-protected) checks what it
+#: loads, every time: the regular-day rushes are exactly FREEZE_FLOOR; on a covered trading day the rushes are exactly
+#: FREEZE_FLOOR's opening plus close-30..close+15 for the calendar's close, which may not be later than 16:00 (so a
+#: regular day is FREEZE_FLOOR itself); a covered non-trading day has none; an uncovered day (the weekday fallback) is
+#: exactly FREEZE_FLOOR. Anything else raises FreezeFloorError and the entry FAILS CLOSED, never "no window".
+#: ⚠️ LIMIT, stated for AUDIT: WHICH days are holidays and half-days, and a half-day's close, still come from the
+#: unprotected dataset. An edit that marks a trading day as a holiday, or moves a close earlier, passes this floor (it
+#: moves or removes that day's rushes exactly as a real calendar change would). A close later than 16:00 is never
+#: accepted, and the regular rushes and the half-day offsets cannot be weakened without editing this file.
 FREEZE_TZ = "America/New_York"
 FREEZE_RUSHES = ("opening", "closing")
+FREEZE_FLOOR = (((9, 20), (9, 45)), ((15, 30), (16, 15)))
+#: the close FREEZE_FLOOR's closing rush is written around, and that rush's offsets from it (minutes)
+FREEZE_FLOOR_CLOSE, FREEZE_FLOOR_BEFORE, FREEZE_FLOOR_AFTER = (16, 0), 30, 15
+FREEZE_FLOOR_FAILED = "fail closed: the deploy freeze windows fail the self-protected floor in agent_ci_required.py; AUDIT decides"
 FREEZE_TOOL = pathlib.Path(__file__).resolve().parent / "deploy_freeze.py"
 _FREEZE_MOD: list = []
 MACHINERY_EDITED = "; an entry ahead edits the Agent CI machinery: AUDIT decides"
@@ -764,27 +778,74 @@ def _deploy_freeze():
     return mod
 
 
+class FreezeFloorError(RuntimeError):
+    """The windows loaded from deploy_freeze fail the self-protected floor (see FREEZE_FLOOR): fail closed."""
+
+
+def _hm(m: int) -> tuple:
+    return (m // 60, m % 60)
+
+
+def freeze_day(day) -> tuple:
+    """(windows, fallback) for ET date `day`: deploy_freeze's market rushes as ((start, end), ...) ET (h, m) pairs, and
+    whether they are its WEEKDAY FALLBACK (the calendar could not answer for `day`). Raises FreezeFloorError when the
+    loaded windows fail the floor (FREEZE_FLOOR's comment block)."""
+    df = _deploy_freeze()
+    if tuple((a, b) for n, a, b in df.BURST_WINDOWS_ET if n in FREEZE_RUSHES) != FREEZE_FLOOR:
+        raise FreezeFloorError(f"deploy_freeze's regular-day rushes {df.BURST_WINDOWS_ET!r} are not {FREEZE_FLOOR!r}")
+    windows = tuple((a, b) for name, a, b in df.day_hold_windows(day) if name in FREEZE_RUSHES)
+    try:
+        cal = df._calendar_module()
+        if not cal.covers(day):
+            raise LookupError("not covered")
+        trading = bool(cal.is_trading_day(day))
+        close = cal.close_time(day) if trading else None
+    except Exception:  # noqa: BLE001  deploy_freeze answers these days by its weekday fallback: it must be the floor
+        if windows != FREEZE_FLOOR:
+            raise FreezeFloorError(f"{day}: the weekday fallback gave {windows!r}, not {FREEZE_FLOOR!r}") from None
+        return windows, True
+    if not trading:
+        if windows != ():
+            raise FreezeFloorError(f"{day}: not a trading day, yet the rushes are {windows!r}")
+        return (), False
+    close_m = close.hour * 60 + close.minute
+    regular_m = FREEZE_FLOOR_CLOSE[0] * 60 + FREEZE_FLOOR_CLOSE[1]
+    if close_m > regular_m:
+        raise FreezeFloorError(f"{day}: a close at {close.hour:02d}:{close.minute:02d}, later than the regular close")
+    expected = (FREEZE_FLOOR[0], (_hm(close_m - FREEZE_FLOOR_BEFORE), _hm(close_m + FREEZE_FLOOR_AFTER)))
+    if windows != expected:
+        raise FreezeFloorError(f"{day}: the rushes {windows!r} are not {expected!r} for a {close.hour:02d}:{close.minute:02d} close")
+    return windows, False
+
+
 def freeze_windows_on(day) -> tuple:
-    """((start, end), ...) ET (h, m) pairs: deploy_freeze's market rushes for the ET date `day` (see FREEZE_RUSHES)."""
-    return tuple((a, b) for name, a, b in _deploy_freeze().day_hold_windows(day) if name in FREEZE_RUSHES)
+    """((start, end), ...) ET (h, m) pairs: deploy_freeze's market rushes for the ET date `day`, floor-checked."""
+    return freeze_day(day)[0]
 
 
-def freeze_window(now) -> str | None:
-    """The deploy freeze window the instant `now` falls in, as "09:20-09:45 ET", or None. `now` is an AWARE datetime
-    (a naive one raises: a clock that cannot be placed is not a clock). Both ends included, read in FREEZE_TZ's wall
-    clock, so the UTC instants move with daylight saving. The windows are the day's rushes from deploy_freeze
-    (`freeze_windows_on`): none on a weekend or an NYSE holiday, close-30..close+15 on a half-day."""
+def freeze_window_detail(now) -> tuple:
+    """(window, fallback): the deploy freeze window the instant `now` falls in, as "09:20-09:45 ET", or None; and
+    whether the day's windows are deploy_freeze's weekday fallback. `now` is an AWARE datetime (a naive one raises: a
+    clock that cannot be placed is not a clock). Both ends included, read in FREEZE_TZ's wall clock, so the UTC
+    instants move with daylight saving. The windows are the day's rushes from deploy_freeze (`freeze_day`, floor-
+    checked: FreezeFloorError propagates): none on a weekend or an NYSE holiday, close-30..close+15 on a half-day."""
     import zoneinfo
     if now.tzinfo is None or now.utcoffset() is None:
         raise ValueError("freeze_window needs an aware datetime")
     local = now.astimezone(zoneinfo.ZoneInfo(FREEZE_TZ))
     if local.weekday() >= 5:
-        return None
+        return None, False
     at = (local.hour, local.minute, local.second)
-    for (h1, m1), (h2, m2) in freeze_windows_on(local.date()):
+    windows, fallback = freeze_day(local.date())
+    for (h1, m1), (h2, m2) in windows:
         if (h1, m1, 0) <= at <= (h2, m2, 0):
-            return f"{h1:02d}:{m1:02d}-{h2:02d}:{m2:02d} ET"
-    return None
+            return f"{h1:02d}:{m1:02d}-{h2:02d}:{m2:02d} ET", fallback
+    return None, fallback
+
+
+def freeze_window(now) -> str | None:
+    """`freeze_window_detail(now)`'s window alone."""
+    return freeze_window_detail(now)[0]
 
 
 def _utcnow():
@@ -861,9 +922,14 @@ def follow_verdict(root, api: Api, run_id, head_sha: str, head_ref: str, now, ru
         if hits:
             head = f"{len(hits)} self-protected path(s) differ from master, e.g. {hits[0]}"
             return FAILURE, head[:140 - len(MACHINERY_EDITED)] + MACHINERY_EDITED
-        window = freeze_window(now)
+        try:
+            window, fallback = freeze_window_detail(now)
+        except FreezeFloorError as e:
+            log(f"freeze floor: {e}"[:400])
+            return FAILURE, FREEZE_FLOOR_FAILED
         if window:
-            return FAILURE, f"deploy freeze window {window} (a market rush today): an Agent entry does not land in it; queue it again afterwards"
+            why = "weekday fallback" if fallback else "a market rush today"
+            return FAILURE, f"deploy freeze window {window} ({why}): an Agent entry does not land in it; queue it again afterwards"
         required = required_jobs(doc)
         try:
             jobs = run_jobs(api, run_id)
