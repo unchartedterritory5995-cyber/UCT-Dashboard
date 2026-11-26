@@ -44,9 +44,16 @@ describe('boot fetches: the sign-in check and the member preferences start as th
     expect((await takeBootPreferences('A')).tag).toBe(PREFS_URL)
   })
 
-  it('never hands out preferences when the boot check said signed out, or before it answered', () => {
+  it('never hands out preferences when the boot check said signed out, or before it answered', async () => {
     startBootFetches({ fetchImpl: (u) => Promise.resolve(res(u)), storage: memStorage({ [SIGNED_IN_HINT]: '1' }) })
-    expect(takeBootPreferences('A')).toBeNull()
+    // (2026-11-26) a take before the boot check answered WAITS for it: nothing is handed out until it has
+    let settled = false
+    const early = takeBootPreferences('A')
+    early.then(() => { settled = true })
+    for (let i = 0; i < 5; i++) await Promise.resolve()
+    expect(settled).toBe(false)
+    noteBootUser(null)                                 // signed out: the waiting take answers no
+    expect(await early).toBeNull()
     __resetBootFetchForTests()
     startBootFetches({ fetchImpl: (u) => Promise.resolve(res(u)), storage: memStorage({ [SIGNED_IN_HINT]: '1' }) })
     noteBootUser(null)
@@ -83,8 +90,40 @@ describe('the three call sites stay wired', () => {
     expect(src).toMatch(/const boot = takeBootMe\(\)/)
     expect(src).toMatch(/if \(fromBoot\) noteBootUser\(data\.user\?\.id \?\? null\)/)
   })
-  it('the preferences fetcher takes the boot answer only for the current member', async () => {
+  it('the preferences fetcher takes the boot answer only for the current member (read when the boot check answers)', async () => {
     const src = await read('src/hooks/usePreferences.js')
-    expect(src).toMatch(/takeBootPreferences\(prefsUser\(\)\)/)
+    expect(src).toMatch(/takeBootPreferences\(prefsUser\)/)
+  })
+
+  it('P1 (2026-11-26) a preferences read made before the boot check answered is served by the boot request: ONE request', async () => {
+    __resetBootFetchForTests(); vi.useRealTimers()
+    const f = vi.fn((u) => Promise.resolve(res(u)))
+    startBootFetches({ fetchImpl: f, storage: memStorage({ [SIGNED_IN_HINT]: '1' }) })
+    let published                                      // the caller has no member published yet
+    const early = takeBootPreferences(() => published)
+    expect(early).not.toBeNull()
+    noteBootUser('A')
+    expect((await early).tag).toBe(PREFS_URL)
+    expect(f.mock.calls.filter((c) => c[0] === PREFS_URL)).toHaveLength(1)
+  })
+
+  it('P2 a waiting read whose member turned out to be ANOTHER member gets nothing', async () => {
+    __resetBootFetchForTests(); vi.useRealTimers()
+    startBootFetches({ fetchImpl: (u) => Promise.resolve(res(u)), storage: memStorage({ [SIGNED_IN_HINT]: '1' }) })
+    let published = 'B'
+    const early = takeBootPreferences(() => published)
+    expect(early).not.toBeNull()
+    noteBootUser('A')
+    expect(await early).toBeNull()
+  })
+
+  it('P3 a waiting read is never held past the freshness limit', async () => {
+    __resetBootFetchForTests()
+    vi.useFakeTimers()
+    startBootFetches({ fetchImpl: (u) => Promise.resolve(res(u)), storage: memStorage({ [SIGNED_IN_HINT]: '1' }) })
+    const early = takeBootPreferences(() => undefined)
+    expect(early).not.toBeNull()
+    vi.advanceTimersByTime(BOOT_MAX_AGE_MS + 1)
+    expect(await early).toBeNull()
   })
 })
