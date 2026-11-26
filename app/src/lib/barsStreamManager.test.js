@@ -255,11 +255,15 @@ describe('barsStreamManager — optional `final` / `trade_ts` bar fields', () =>
     es._open()
     es._emit('bar', { sym: 'AAPL', tf: '5', bar: { t: 1, o: 1, h: 2, l: 1, c: 1.5, v: 10 } })
     es._emit('bar', { sym: 'AAPL', tf: '5', bar: { t: 1, o: 1, h: 2, l: 1, c: 1.6, v: 12, final: true, trade_ts: 1500 } })
-    expect(got.length).toBe(1)                       // dispatched without waiting for the throttle
-    expect(got[0]).toMatchObject({ final: true, trade_ts: 1500, c: 1.6 })
+    // (2026-11-25) the developing frame is no longer held: it went at once (the live candle at that moment),
+    // and the final follows at once without waiting for anything
+    expect(got.length).toBe(2)
+    expect(got[0]).toMatchObject({ t: 1, c: 1.5 })
+    expect(got[0].final).toBeUndefined()
+    expect(got[1]).toMatchObject({ final: true, trade_ts: 1500, c: 1.6 })
     es._emit('bar', { sym: 'AAPL', tf: '5', bar: { t: 301, o: 1.6, h: 1.6, l: 1.6, c: 1.6, v: 1 } })
     bars._flushBars()
-    expect(got.map(b => b.t)).toEqual([1, 301])      // the superseded non-final frame was dropped
+    expect(got.map(b => b.t)).toEqual([1, 1, 301])   // the final was never coalesced away by what followed
   })
 
   it('absent fields: legacy {t,o,h,l,c,v} frames pass through unchanged', () => {
