@@ -71,6 +71,7 @@ describe('a pushed price commits in the frame that applies it', () => {
     vi.advanceTimersByTime(qp.SET_DEBOUNCE_MS + 5)
     const es = FakeEventSource.instances.find((e) => !e.closed && e.url.startsWith('/api/stream/quotes'))
     es.emitOpen()
+    es.emitEvent('hello', { v: 2, symbols: 1 })
     es.emitEvent('status', { live: true })
     globalThis.IS_REACT_ACT_ENVIRONMENT = false   // a real browser: no act() to flush renders for us
     es.frame(['AAPL', 101.98, 900, Date.now()])
