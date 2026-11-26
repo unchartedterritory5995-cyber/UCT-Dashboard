@@ -8,6 +8,7 @@ import { reduce, initialState, isSealedRow } from './reducer'
 import { createRegistry } from './registry'
 import { createPersist, toCacheRows, encodeMeta, decodeEntry, rowHash, histStamp, PERSIST_DEBOUNCE_MS } from './persist'
 import { forSeeds, simulateIntraday, rng, etUnix } from './__fixtures__/seededSeries'
+import { isHolidayISO } from '../../utils/marketSession'
 import { installFakeIndexedDB } from './testing/fakeIndexedDB'
 import { memClear, memPeekEntry, memPutMonotonic } from '../../utils/barsMemCache'
 import { idbGet, idbPut, idbPutMonotonic } from '../../utils/barsIDB'
@@ -363,7 +364,8 @@ describe('review fix 6: deep history, holes, basis', () => {
   function sessions(days, px = (i) => 50 + (i % 37) * 0.01) {
     const dates = []
     for (let d = new Date(Date.UTC(2026, 10, 10)); dates.length < days; d = new Date(d.getTime() - 86400000)) {
-      if (d.getUTCDay() !== 0 && d.getUTCDay() !== 6) dates.unshift(d.toISOString().slice(0, 10))
+      // a trading day only: a weekday that is not an NYSE holiday (the store never holds a bar on one)
+      if (d.getUTCDay() !== 0 && d.getUTCDay() !== 6 && !isHolidayISO(d.toISOString().slice(0, 10))) dates.unshift(d.toISOString().slice(0, 10))
     }
     const out = []
     for (const iso of dates) for (let m = 570; m < 960; m += 5) { const i = out.length; const c = px(i); out.push({ t: etUnix(iso, m), o: c, h: c + 0.05, l: c - 0.05, c, v: 100 + i }) }
@@ -513,7 +515,8 @@ describe('P4: stamped records (adj_basis / history_rev / cache_key)', () => {
   function sessions(days, px = (i) => 50 + (i % 37) * 0.01) {
     const dates = []
     for (let d = new Date(Date.UTC(2026, 10, 10)); dates.length < days; d = new Date(d.getTime() - 86400000)) {
-      if (d.getUTCDay() !== 0 && d.getUTCDay() !== 6) dates.unshift(d.toISOString().slice(0, 10))
+      // a trading day only: a weekday that is not an NYSE holiday (the store never holds a bar on one)
+      if (d.getUTCDay() !== 0 && d.getUTCDay() !== 6 && !isHolidayISO(d.toISOString().slice(0, 10))) dates.unshift(d.toISOString().slice(0, 10))
     }
     const out = []
     for (const iso of dates) for (let m = 570; m < 960; m += 5) { const i = out.length; const c = px(i); out.push({ t: etUnix(iso, m), o: c, h: c + 0.05, l: c - 0.05, c, v: 100 + i }) }

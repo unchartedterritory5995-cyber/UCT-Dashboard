@@ -2291,28 +2291,24 @@ def _reconcile_developing_week(ticker: str, weekly: list[dict]) -> list[dict]:
     return out
 
 
+# ⭐ THE ONE EXTENDED-SESSION RULE lives in `api/services/extended_session.py` (a light module, so the live gate and the
+# store can read it without this one); these two names are its readers' spelling here.
+def session_clamp_applies(ticker: str | None) -> bool:
+    from api.services import extended_session
+    return extended_session.applies(ticker)
+
+
+def in_extended_session(ts) -> bool:
+    from api.services import extended_session
+    return extended_session.inside(ts)
+
+
 def _clamp_exempt(ticker: str) -> bool:
-    """A series the NYSE session does not govern keeps every row: a breadth pseudo-ticker, and a 24-hour name
-    (crypto, `-USD`), read from the same `date_bar_keys.calendar_applies` the daily key guard uses."""
-    try:
-        from api.services import date_bar_keys as _dk
-        if not _dk.calendar_applies(ticker):
-            return True
-    except Exception:                      # noqa: BLE001 - unknown: fall through to the breadth check
-        pass
-    try:
-        from api.services.breadth_symbols import is_breadth_symbol
-        return bool(is_breadth_symbol(ticker))
-    except Exception:                      # noqa: BLE001 - unknown: clamp as an equity
-        return False
+    return not session_clamp_applies(ticker)
 
 
 def _clamp_to_extended_session(bars: list[dict]) -> list[dict]:
-    """The intraday rows whose start lies inside its ET trading day's extended session [04:00, close + 4 h).
-    One calendar read per ET DAY the rows cross, never per row (a 60,000-row answer stays cheap)."""
-    et = _ZI("America/New_York")
-    day_lo = day_hi = 0                   # the ET day [midnight, next midnight) the window below belongs to
-    win = None
+    """The intraday rows whose start lies inside its ET trading day's extended session [04:00, close + 4 h)."""
     out = []
     for b in bars:
         try:
@@ -2320,14 +2316,7 @@ def _clamp_to_extended_session(bars: list[dict]) -> list[dict]:
         except Exception:                  # noqa: BLE001 - an unreadable stamp is left to the other guards
             out.append(b)
             continue
-        if not (day_lo <= t < day_hi):
-            d = datetime.fromtimestamp(t, et)
-            midnight = datetime(d.year, d.month, d.day, tzinfo=et)
-            day_lo = int(midnight.timestamp())
-            nxt = midnight + timedelta(days=1)
-            day_hi = int(datetime(nxt.year, nxt.month, nxt.day, tzinfo=et).timestamp())
-            win = _session_window(d, "eth") if _is_trading_day_ymd(d) else None
-        if win is not None and win[0] <= t < win[1]:
+        if in_extended_session(t):
             out.append(b)
     return out
 

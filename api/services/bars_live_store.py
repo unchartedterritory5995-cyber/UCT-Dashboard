@@ -1472,14 +1472,19 @@ def _settle_due(now: datetime) -> bool:
     return _settle["done_ymd"] != ymd
 
 
-def _settle_one(sym: str, tf: str, lo: int, hi: int, checked_at: float) -> tuple[int, int, int, bool]:
+def _settle_one(sym: str, tf: str, lo: int, hi: int) -> tuple[int, int, int, bool, float]:
     """Re-read `sym`'s `tf` rows of [lo, hi) from the vendor; replace the ones that differ MATERIALLY.
-    (replaced, vendor lacks, immaterial, answered)."""
+    (replaced, vendor lacks, immaterial, answered, checked_at).
+
+    ⭐ THE CHECK INSTANT IS THIS TICKER'S, taken just before its fetch (#2774 round 2): an after-hours tail heal that
+    seals the series after the pass STARTED but before this read must not make the settle's write read as the older
+    check and be dropped (`bars_sqlite._drop_stale_sealed`). A heal that checks after this instant still wins."""
     from api.services import bars_sqlite
     _settle_take()
+    checked_at = time.time()
     got = [b for b in _fetch(sym, int(tf), lo * 1000, hi * 1000 - 1) if lo <= int(b["t"]) < hi]
     if not got:
-        return 0, 0, 0, False             # nothing answered: the stream's rows stand
+        return 0, 0, 0, False, checked_at  # nothing answered: the stream's rows stand
     stored = _stored_rows(sym, tf, lo, hi)
     diff, immaterial = [], 0
     for b in got:
@@ -1491,7 +1496,7 @@ def _settle_one(sym: str, tf: str, lo: int, hi: int, checked_at: float) -> tuple
     lacks = len(set(stored) - {int(b["t"]) for b in got})
     if diff:
         bars_sqlite.put_bars(sym, tf, diff, checked_at=checked_at)
-    return len(diff), lacks, immaterial, True
+    return len(diff), lacks, immaterial, True, checked_at
 
 
 def _stored_rows(sym: str, tf: str, lo: int, hi: int) -> dict:
@@ -1542,7 +1547,6 @@ def settle_pass(now: Optional[datetime] = None) -> dict:
     counts = {"tickers": len(work), "changed_tickers": 0, "rows_replaced": 0, "rows_vendor_lacks": 0,
               "rows_immaterial": 0, "derived_rows": 0, "failed": 0, "seals_touched": 0}
     _settle.update(running=True, started_at=time.time(), finished_at=None)
-    checked_at = time.time()
     pos = [0]
     guard = threading.Lock()
 
@@ -1554,7 +1558,7 @@ def settle_pass(now: Optional[datetime] = None) -> dict:
                 sym, tf = work[pos[0]]
                 pos[0] += 1
             try:
-                replaced, lacks, immaterial, answered = _settle_one(sym, tf, lo, hi, checked_at)
+                replaced, lacks, immaterial, answered, checked_at = _settle_one(sym, tf, lo, hi)
                 derived, held = _settle_rederive(sym, lo, hi, checked_at) if tf == "5" else (0, [])
                 touched = 0
                 for tf_ in ([tf] if answered else []) + held:
