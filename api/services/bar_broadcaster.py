@@ -78,10 +78,15 @@ def emit_throttle_ms_from_env() -> int:
     raw = (os.environ.get("BARS_EMIT_THROTTLE_MS") or "").strip()
     if not raw:
         return EMIT_THROTTLE_DEFAULT_MS
+    # (review of #2755) read when the broadcaster is BUILT: an exception here stops IngestRuntime (the whole live
+    # feed), so anything unusable is the default: not a number, inf / nan (OverflowError / ValueError), and 0 or
+    # below ("unset", never the most aggressive value).
     try:
         v = int(float(raw))
-    except ValueError:
-        _logger.warning("[bar_broadcaster] BARS_EMIT_THROTTLE_MS=%r is not a number: %d ms", raw[:20], EMIT_THROTTLE_DEFAULT_MS)
+    except (ValueError, OverflowError):
+        _logger.warning("[bar_broadcaster] BARS_EMIT_THROTTLE_MS=%r is not usable: %d ms", raw[:20], EMIT_THROTTLE_DEFAULT_MS)
+        return EMIT_THROTTLE_DEFAULT_MS
+    if v <= 0:
         return EMIT_THROTTLE_DEFAULT_MS
     return min(1000, max(10, v))
 
