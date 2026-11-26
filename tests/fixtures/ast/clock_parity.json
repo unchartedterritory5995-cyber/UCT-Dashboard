@@ -5402,6 +5402,13 @@
       "isweekly": 0,
       "periodseconds": 60
     },
+    "120": {
+      "isdaily": null,
+      "isintraday": null,
+      "ismonthly": null,
+      "isweekly": null,
+      "periodseconds": null
+    },
     "15": {
       "isdaily": 0,
       "isintraday": 1,
@@ -5415,6 +5422,13 @@
       "ismonthly": null,
       "isweekly": null,
       "periodseconds": null
+    },
+    "240": {
+      "isdaily": 0,
+      "isintraday": 1,
+      "ismonthly": 0,
+      "isweekly": 0,
+      "periodseconds": 14400
     },
     "2D": {
       "isdaily": null,

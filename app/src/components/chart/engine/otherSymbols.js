@@ -50,6 +50,8 @@ import { isoDay, SERIES_GAPS_READ_NA, SERIES_UNKNOWN_BEFORE_FIRST, isoWeekDayOf,
 // ⭐ RS RATING L13 — the exchange's sessions (a month's first session, a row's next session)
 import { isTradingDay, closeTime, isHalfDay } from '../../../lib/marketClock/sessionCalendar.js'
 import REQUEST_WITNESSES from './requestWitnesses.json'
+// ⭐⭐ e98 (the 4h grid follows the chart's spec) — the ONE authority for where a custom intraday chart's bars start
+import { resampleSpec } from '../timeframes'
 // ⭐⭐ T4 B2 — TradingView's `USI:` breadth spellings, served from UCT's own breadth (`pineBreadth.js`)
 import { BREADTH_VENUE, BREADTH_SPELLINGS, BREADTH_COVERAGE_FROM, BREADTH_DATA_WORDS, breadthBaseOf, breadthStaticRefusal, isBreadthSpread,
   breadthSpreadRefusal, breadthIntradayReason, breadthNotAvailableReason } from './pineBreadth.js'
@@ -259,6 +261,20 @@ export const WITNESS_PERIOD_READS = Object.freeze({
 })
 /** ⭐ RS RATING L12 — the intraday chart timeframes a block may stand on, and their bar step in minutes. */
 const INTRADAY_STEP_MIN = Object.freeze({ 1: 1, 5: 5, 15: 15, 30: 30, 60: 60 })
+/** ⭐⭐ e98 (Q-FRED-4H, `fred-4h-2026-11-24`) — a CUSTOM intraday chart timeframe a block may stand on, and its bar step in
+ *  minutes. The route serves no 240 (`api/index_bars.py`), so the chart builds its own 4h bars from 60m rows on the
+ *  09:30-anchored session (`timeframes.js::resampleSpec`, `resampleBars.js::resampleIntradaySession`), and the index's
+ *  entry under the plain key is built by the SAME rule (`secondaryBars.js`, e95: fetched at the native base, resampled
+ *  by `resampleForSpec`). So a 240 block is held at ITSELF, as every native intraday one is, and this module never
+ *  resamples: one rule builds both the chart's bars and the index's. Its grid is the chart's own 4h bars
+ *  (`atOrBeforeGridOf`), anchored where the CHART's spec starts them (`resampleSpec(tf, { extended })`: 09:30 regular,
+ *  04:00 extended), the chart's session carried in the secondary map (`CHART_SESSION_KEY`).
+ *  ⭐ The INDEX's 4h bars are built on the index's own 09:30-anchored session whatever the chart's view (the witness:
+ *  `/api/bars/SPX?tf=60` rows, [09:30, 13:30) and [13:30, 16:00); `useSecondarySources.js::ensureChartSources` fetches
+ *  a held key on the regular session). */
+const CUSTOM_INTRADAY_STEP_MIN = Object.freeze({ 240: 240 })
+/** Every intraday chart timeframe the `latest-at-or-before` grid is laid on, and its step. */
+const GRID_STEP_MIN = Object.freeze({ ...INTRADAY_STEP_MIN, ...CUSTOM_INTRADAY_STEP_MIN })
 
 /** ⭐ PER CHART TIMEFRAME: the timeframe its blocks are held at, and the folds (a `period` read) and
  *  samples (a read below the chart) a block on it may name. A daily read on a weekly or a monthly chart
@@ -278,6 +294,11 @@ const PERIOD_READS_OF = Object.freeze({
       // exists only as daily rows (a Pine seed), held at D alone and read AT D (`request.seed` IS
       // `request.security(<seed>, "D", …)`, `pine.js::seedAsSecurity`), each row landed on one of the chart's bars
       daily: Object.freeze({ held: 'D', folds: [], samples: [WITNESS_PERIOD_READS.UTC_MIDNIGHT_AT_OR_AFTER] }) })])),
+  // ⭐⭐ e98 (Q-FRED-4H) — a 4h chart: held at ITSELF (the index's 60m rows resampled to the chart's own 4h bars by the
+  // chart's rule, `CUSTOM_INTRADAY_STEP_MIN`) and at D. ⛔ No `daily` shape: no capture witnesses a seed on a 4h chart.
+  ...Object.fromEntries(Object.keys(CUSTOM_INTRADAY_STEP_MIN).map((tf) => [tf,
+    Object.freeze({ held: tf, alsoHeld: 'D', folds: [WITNESS_PERIOD_READS.AT_OR_BEFORE], samples: [],
+      above: [WITNESS_PERIOD_READS.SESSION_COMPLETED] })])),
 })
 /** The shape a block names on its chart timeframe: the timeframe's own, or (an intraday chart) its `daily` one. */
 function blockShapeOf(block, chartTf) {
@@ -505,8 +526,9 @@ export function heldDepthOf(barCount, chartTf = 'W', heldSessions = 0) {
   // `sessionsSpanned` rounded up a rung by the chart). ⚰️ A count at 78 bars a session is short for a symbol that trades in
   // fewer slots: RDDT's regular-hours 5m chart (18,749 rows, 273 sessions, ~69 a session) was held 267 daily rows, 7
   // sessions short of its first bar, and the run refused the chart for the bars it could not read.
-  if (Object.prototype.hasOwnProperty.call(INTRADAY_STEP_MIN, tf)) {
-    const byRows = Math.ceil((n * INTRADAY_STEP_MIN[tf]) / 390) + 10
+  // ⭐ e98 — a 4h chart's too (`GRID_STEP_MIN`: 240 minutes a bar)
+  if (Object.prototype.hasOwnProperty.call(GRID_STEP_MIN, tf)) {
+    const byRows = Math.ceil((n * GRID_STEP_MIN[tf]) / 390) + 10
     const bySpan = Number.isFinite(heldSessions) && heldSessions > 0 ? Math.floor(heldSessions) + 10 : 0
     return Math.min(HELD_DAILY_DEPTH_CAP, Math.max(byRows, bySpan))
   }
@@ -762,11 +784,29 @@ const RTH_OPEN_MIN = 9 * 60 + 30
  *  row of a session still in progress is not a close), no pre-market row without the previous close. A chart
  *  bar with no row is UNKNOWN, and so is every bar before the first row (`SERIES_UNKNOWN_BEFORE_FIRST`: our
  *  store's intraday depth, 7 days of 1m, 60 of 5/15/30m, 730 of 60m, is not the index's first bar).
- *  ⛔ A row whose `t` is not unix seconds is dropped, never guessed. */
-export function atOrBeforeGridOf(bars, daily, tf, { dailyForming = false } = {}) {
+ *  ⛔ A row whose `t` is not unix seconds is dropped, never guessed.
+ *  ⭐⭐ e98 (Q-FRED-4H) — A 4H CHART (`CUSTOM_INTRADAY_STEP_MIN`): `bars` are the index's own 4h bars, built from its 60m
+ *  rows on the 09:30-anchored session ([09:30, 13:30) and [13:30, 16:00), `secondaryBars.js`), and the grid is the
+ *  chart's own 4h bars, anchored at the session open the same way (01:30, 05:30, 09:30, 13:30, 17:30 ET slots: a slot
+ *  opening before 04:00 holds the 04:00-05:29 rows). The same three reads by the slot's OPEN. And an index bar that
+ *  HOLDS the session's close carries the day's official close once it is held (TradingView's SP:SPX 4h bar is closed
+ *  by the official print: on every half-day of the capture, 6 of 6 on three symbols, the 12:00 bar read the official
+ *  close, not the 12:30 hourly row's last print); while the day's row is not held, its own last print.
+ *  ⭐⭐ e98 (2026-11-26) THE SLOTS FOLLOW THE CHART'S SPEC: a custom timeframe's slots start where the chart's own resample
+ *  starts its bars (`resampleSpec(tf, { extended }).anchorMin`, the authority the chart's bars are built by), stepped
+ *  back by whole steps to the slot that holds 04:00: a REGULAR chart 01:30, 05:30, 09:30, 13:30, 17:30 (its bars 09:30
+ *  and 13:30), an EXTENDED chart 04:00, 08:00, 12:00, 16:00 (TradingView's extended-hours 4h chart, Q-FRED-4H). The
+ *  reads are unchanged: the index's own bars, by the slot's OPEN. `extended`: the CHART's session (`CHART_SESSION_KEY`);
+ *  absent, `resampleSpec`'s own default (regular). */
+export function atOrBeforeGridOf(bars, daily, tf, { dailyForming = false, extended = false } = {}) {
   const out = []
   Object.defineProperty(out, SERIES_UNKNOWN_BEFORE_FIRST, { value: true, enumerable: false })
-  const step = INTRADAY_STEP_MIN[String(tf)]
+  const step = GRID_STEP_MIN[String(tf)]
+  // ⭐ e98 — a custom timeframe's slots start where the CHART's spec starts its bars (09:30 regular, 04:00 extended)
+  const anchored = Object.prototype.hasOwnProperty.call(CUSTOM_INTRADAY_STEP_MIN, String(tf))
+  const spec = anchored ? resampleSpec(String(tf), { extended: extended === true }) : null
+  const anchorMin = spec && Number.isFinite(spec.anchorMin) ? spec.anchorMin : null
+  if (anchored && anchorMin === null) return out
   const intr = []
   let last = -Infinity
   for (const b of bars || []) {
@@ -799,7 +839,9 @@ export function atOrBeforeGridOf(bars, daily, tf, { dailyForming = false } = {})
     const own = closes.has(d) ? closes.get(d) : null
     while (p < intr.length && intr[p].t < open) p += 1        // this session's first held bar
     let j = p
-    for (let g = mid + EXT_OPEN_MIN * 60; g < mid + EXT_END_MIN * 60; g += step * 60) {
+    const firstSlot = anchored ? mid + (anchorMin - Math.ceil((anchorMin - EXT_OPEN_MIN) / step) * step) * 60
+      : mid + EXT_OPEN_MIN * 60
+    for (let g = firstSlot; g < mid + EXT_END_MIN * 60; g += step * 60) {
       let row = null
       if (g < open) {
         if (prevClose !== null) row = { t: g, o: prevClose, h: prevClose, l: prevClose, c: prevClose, v: 0 }
@@ -809,7 +851,10 @@ export function atOrBeforeGridOf(bars, daily, tf, { dailyForming = false } = {})
         while (j + 1 < intr.length && intr[j + 1].t <= g && intr[j + 1].t < close) j += 1
         const r = intr[j]
         if (r && r.t >= open && r.t <= g && r.t < close && (r !== newest || g < newestEnd)) {
-          row = { t: g, o: r.o, h: r.h, l: r.l, c: r.c, v: r.v }
+          // ⭐ e98 — a 4h index bar holding the session's close is closed by the official print, once it is held
+          const c = anchored && own !== null && r.t + step * 60 >= close ? own : r.c
+          row = c === r.c ? { t: g, o: r.o, h: r.h, l: r.l, c, v: r.v }
+            : { t: g, o: r.o, h: Math.max(r.h, c), l: Math.min(r.l, c), c, v: r.v }
         }
       }
       if (row) out.push(row)
@@ -923,6 +968,20 @@ function filledPageOf(entry, held) {
  *  when a run reads its own symbol at "D" above an intraday chart (`useSecondarySources`). ⛔ Not a held key's
  *  shape (`heldKeyParts` reads `<TICKER>@D`, and `SELF` is a listing): it can never be mistaken for a ticker. */
 export const OWN_DAILY_KEY = 'OWN~D'
+/** ⭐⭐ e98 (the 4h grid follows the chart's spec) — the chart's own SESSION, carried in its secondary map beside the
+ *  entries (a custom intraday chart's map, `useSecondarySources.js::ensureChartSources`), so every lane that reads the
+ *  map (the bind, the host worker, the run's supply and its worker) lays a custom timeframe's grid where the CHART's
+ *  spec starts its bars (`atOrBeforeGridOf`). ⛔ Not a held key's shape and not a ticker. One of two frozen entries
+ *  (`chartSessionEntryOf`), so a map that did not change keeps its identity. */
+export const CHART_SESSION_KEY = 'CHART~SESSION'
+const CHART_SESSION_RTH = Object.freeze({ status: 'available', extended: false })
+const CHART_SESSION_ETH = Object.freeze({ status: 'available', extended: true })
+export const chartSessionEntryOf = (extended) => (extended === true ? CHART_SESSION_ETH : CHART_SESSION_RTH)
+/** Is the chart whose map this is drawn on its EXTENDED-hours session? (absent: no, `resampleSpec`'s default) */
+function chartExtendedOf(secondary) {
+  const e = secondary && typeof secondary.get === 'function' ? secondary.get(CHART_SESSION_KEY) : null
+  return !!(e && e.extended === true)
+}
 /** ⭐ RS RATING L12 PR 2 — the ET session date of unix seconds (exported for the supply's per-bar placement). */
 export const etSessionDayOf = (t) => etDayOf(t)
 /** ⭐ RS RATING L12 PR 2 — unix seconds of `day`'s regular-session close (13:00 on a half-day), or null.
@@ -958,7 +1017,8 @@ export function periodFoldOf(fold, held, own = null, also = null) {
   if (fold === WITNESS_PERIOD_READS.SAME_WEEK) return previousWeekBarsOf(held).map((w) => ({ ...w, t: isoDayPlus(w.t, -7) }))
   if (fold === WITNESS_PERIOD_READS.SAME_MONTH) return previousMonthBarsOf(held).map((m) => ({ ...m, t: previousMonthFirst(m.t) }))
   if (fold === WITNESS_PERIOD_READS.AT_OR_BEFORE) {
-    return atOrBeforeGridOf(held, also && also.daily, also && also.tf, { dailyForming: !!(also && also.dailyForming) })
+    return atOrBeforeGridOf(held, also && also.daily, also && also.tf, { dailyForming: !!(also && also.dailyForming),
+      extended: !!(also && also.extended) })
   }
   return null
 }
@@ -1777,7 +1837,9 @@ export function resolveOtherSymbols(def, ctx = {}, confirmed = SYMBOL_EXCHANGE_C
           if (!second || String(second.status || '') === 'loading') refused[refused.length - 1].pending = true
           continue
         }
-        also = { daily: rowsD, tf, dailyForming: second.newestBarIsForming === true }
+        also = { daily: rowsD, tf, dailyForming: second.newestBarIsForming === true,
+          // ⭐⭐ e98 — a custom timeframe's grid is laid where the CHART's spec starts its bars (`CHART_SESSION_KEY`)
+          ...(Object.prototype.hasOwnProperty.call(CUSTOM_INTRADAY_STEP_MIN, tf) ? { extended: chartExtendedOf(secondary) } : {}) }
       }
       const own = newestOwnPeriodOf(ctx, entry)
       // ⭐ RS RATING L12 PR 2 (Q-L12-2) — a seed on an intraday chart lands each row on one of the chart's own bars
@@ -1925,6 +1987,9 @@ export function otherSymbolsSignature(def, secondary, chartTf) {
   const ownSig = ownE ? `|own:${ownE.status || ''}:${ownBars ? ownBars.length : 0}:${ownLast ? `${ownLast.t}/${ownLast.c}` : ''}`
     + `${ownE.newestBarIsForming === true ? ':forming' : ''}` : ''
   if (!requests.length) return ownSig
+  // ⭐⭐ e98 — a custom intraday chart's session moves its grid (`atOrBeforeGridOf`): an EXT toggle is a recompute
+  const sesSig = Object.prototype.hasOwnProperty.call(CUSTOM_INTRADAY_STEP_MIN, String(chartTf == null ? '' : chartTf))
+    ? `|session:${chartExtendedOf(secondary) ? 'eth' : 'rth'}` : ''
   // ⭐⭐ T4 E2 — the chart's events entry landing, failing or refreshing is a recompute of every event read
   const evE = requests.some((r) => (r.spellings || []).includes(EVENT_VENUE)) && secondary && typeof secondary.get === 'function'
     ? secondary.get(EVENTS_KEY) : null
@@ -1952,5 +2017,5 @@ export function otherSymbolsSignature(def, secondary, chartTf) {
     // ⭐ RS RATING L12 — every held key of the ticker (an intraday chart's daily rows landing is a recompute)
     return `${t}:${e ? e.status || '' : '-'}:${bars ? bars.length : 0}:${last ? `${last.t}/${last.c}` : ''}`
       + `${e && e.newestBarIsForming === true ? ':forming' : ''}`
-  }).join('+')).join(',') + ownSig + evSig + finSig
+  }).join('+')).join(',') + ownSig + evSig + finSig + sesSig
 }

@@ -1472,6 +1472,13 @@ def compute_avwap(bars: List[dict], anchor: str = "session") -> List[MaybeNum]:
 CLOCK_INTRADAY_TFS = ("1", "5", "15", "30", "60")
 CLOCK_TIMEFRAMES = CLOCK_INTRADAY_TFS + ("D", "W", "M")
 
+#: ⭐⭐ e98 (Q-FRED-4H) -- the CUSTOM intraday codes the clock's timeframe flags answer, by name:
+#: ``indicators.js::CLOCK_CUSTOM_INTRADAY_TFS`` (read that docstring for why ``240`` and only it). ⛔ Not a
+#: store timeframe: ``CLOCK_TIMEFRAMES`` stays ``scan_store._TF_CODES``'s words (the bar-close tri-state
+#: reads them); only the four booleans and ``periodseconds`` read this.
+CLOCK_CUSTOM_INTRADAY_TFS = ("240",)
+CLOCK_FLAG_TIMEFRAMES = CLOCK_TIMEFRAMES + CLOCK_CUSTOM_INTRADAY_TFS
+
 #: The nine columns that read the bar's ``t`` — and therefore the nine the
 #: unit gate refuses together.
 CLOCK_TIME_DERIVED = ("time", "year", "month", "dayofmonth", "dayofweek",
@@ -1587,7 +1594,9 @@ CLOCK_COLUMNS = CLOCK_TIME_DERIVED + ("barindex", "isintraday", "isdaily",
 #: translation is the default base's on every chart). Declared, never parsed
 #: off the code; an unknown or absent code is blank, like the four booleans.
 CLOCK_PERIOD_SECONDS = {"1": 60, "5": 300, "15": 900, "30": 1800, "60": 3600,
-                        "D": 86400, "W": 604800, "M": 2628003}
+                        "D": 86400, "W": 604800, "M": 2628003,
+                        # e98 -- the custom intraday codes the flags answer: minutes x 60
+                        "240": 14400}
 
 #: Seconds in one bar of an INTRADAY timeframe. Declared, never parsed off the
 #: code, for the reason ``CLOCK_INTRADAY_TFS`` states one screen up.
@@ -2037,12 +2046,12 @@ def compute_clock(bars: List[dict], tf: Optional[str] = None,
 
     # The timeframe half reads no bar, so it is decided ONCE and written flat.
     # ``known`` is a MEMBERSHIP TEST over the declared codes, never a parse.
-    known = tf in CLOCK_TIMEFRAMES
+    known = tf in CLOCK_FLAG_TIMEFRAMES
     for name, code in (("isintraday", None), ("isdaily", "D"),
                        ("isweekly", "W"), ("ismonthly", "M")):
         if not known:
             continue
-        hit = (tf in CLOCK_INTRADAY_TFS) if code is None else (tf == code)
+        hit = (tf in CLOCK_INTRADAY_TFS or tf in CLOCK_CUSTOM_INTRADAY_TFS) if code is None else (tf == code)
         cols[name] = [1.0 if hit else 0.0] * n
     # The bar length is the same kind of fact: it reads no bar, so it sits
     # above the unit gate with the four booleans and blanks exactly when they do.
