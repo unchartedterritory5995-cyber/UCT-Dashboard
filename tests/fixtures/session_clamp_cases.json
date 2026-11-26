@@ -1,0 +1,60 @@
+{
+  "_doc": "One case list for the extended-session rule, read by tests/test_bars_live_session_clamp.py (bars_fetch.session_clamp_applies / in_extended_session) and app/src/data/barStore/extendedSession.test.js (the client mirror). Times are ET wall clock.",
+  "clamped": [
+    "SPY",
+    "AAPL",
+    "RDDT",
+    "BRK.B",
+    "BF.B",
+    "VIX",
+    "UCTT"
+  ],
+  "exempt": [
+    "BTC",
+    "ETH",
+    "X:BTCUSD",
+    "BTC-USD",
+    "ETH-USD",
+    "ES=F",
+    "EURUSD=X",
+    "C:EURUSD",
+    "^GSPC",
+    "I:SPX",
+    "/ES",
+    "SHOP.TO",
+    "0700.HK",
+    "VOD.L",
+    "SAP.DE",
+    "BHP.AX",
+    "7203.T"
+  ],
+  "inside": [
+    "2026-11-11T04:00",
+    "2026-11-11T09:30",
+    "2026-11-11T19:59",
+    "2026-11-27T16:59",
+    "2026-03-09T19:59",
+    "2026-11-02T04:00",
+    "2025-11-28T12:59",
+    "2025-11-28T16:59",
+    "2025-07-03T16:00",
+    "2028-11-24T16:00",
+    "2028-03-13T19:59"
+  ],
+  "outside": [
+    "2026-11-11T03:59",
+    "2026-11-11T20:00",
+    "2026-11-11T23:00",
+    "2026-11-27T17:00",
+    "2026-11-14T10:00",
+    "2026-11-26T10:00",
+    "2026-03-09T20:00",
+    "2026-11-02T03:00",
+    "2025-11-28T17:00",
+    "2025-12-25T10:00",
+    "2025-07-04T10:00",
+    "2028-11-23T10:00",
+    "2028-11-24T17:00",
+    "2028-12-25T10:00"
+  ]
+}

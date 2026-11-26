@@ -29,7 +29,10 @@
 // overlay — never a retry storm and never a client-side "are you paid?" branch
 // that could disagree with the server.
 
-import { withDerivedColumns, withDerivedScalars } from './derivedColumns'
+import { withDerivedColumns, withDerivedScalars, derivedAverage } from './derivedColumns'
+// ⭐ (2026-11-26) a custom timeframe asks the lane for its native base and folds it by the chart's own bucket rule
+import { resampleSpec } from '../timeframes'
+import { bucketKeyOf } from '../../../utils/resampleBars'
 import { readoutConditionOpen } from './readoutSchema'
 // ⭐ U2b — the forming bar's live value for a `plots[].liveTail` (`liveTail.js`):
 // the one cell of a cached envelope that moves with price, recomputed where the
@@ -1494,6 +1497,143 @@ export function habitAsks(tf, now = Date.now()) {
   return [...borrowed.values()]
 }
 
+// ─── A CUSTOM TIMEFRAME ASKS ITS NATIVE BASE, AND IS FOLDED HERE (2026-11-26) ───────────────────────────────────
+//
+// The lane serves NATIVE timeframes only (`registry_defs.STORE_TF_FOR`; the server now refuses any other code). It was
+// asked with the chart's own code ('240'), which the server read as daily ('Unknown => D'): an envelope of DAILY rows
+// kept under '240', whose times never matched a 4h bar, so the RS line had no value on any custom-timeframe bar but the
+// forming one. Now a custom code asks its native base, and the base columns are FOLDED per custom bucket by the chart's
+// own bucket rule (`resampleBars.bucketKeyOf`, the rule its candles are built with: one authority), per column as
+// the definition's own declarations say (`customTfFoldsOf`).
+//   * The base asked is the spec's own (`resampleSpec`), except an EXTENDED view's 60m-based code, which asks 30m: the
+//     lane's 60m is the regular view's session grid (09:30, 10:30 ...), whose rows straddle the extended view's
+//     04:00 / 08:00 / 12:00 / 16:00 boundaries; 30m rows are one grid in both views and end on every hour.
+//   * A regular-session spec takes the regular rows only, exactly as its candles do.
+//   * The depth is the lane's own base window (400 intraday rows): the folded line covers the bars those rows span.
+
+/** What the lane is asked for chart timeframe `tf` in this view: `{ tf, spec }`, the native base and the custom spec for
+ *  a custom code, else the code itself and null. */
+export function serverAskOf(tf, extended) {
+  const code = tf == null ? 'D' : String(tf)
+  const spec = resampleSpec(code, { extended: !!extended })
+  if (!spec) return { tf: code, spec: null }
+  const base = extended && spec.kind === 'intradaySession' && String(spec.base) === '60' ? '30' : String(spec.base)
+  return { tf: base, spec }
+}
+
+/** HOW EACH COLUMN FOLDS FROM BASE BARS TO A CUSTOM BUCKET, read off the definition's OWN declarations (this lane names
+ *  no tenant). A column no declaration below covers is BLANK on a custom timeframe: withheld, never folded by guess.
+ *   last  — a plot whose live tail is a RATIO (`plots[].liveTail` kind 'ratio': `close / benchmarkClose`, a ratio of
+ *           closes): its value for a bucket is its value at the bucket's LAST base bar, where the bucket closes. A ratio is
+ *           never averaged.
+ *   ma    — a plot whose live tail is an AVERAGE (kind 'ma', `of` / `length` / `type`): an average over bars is an average
+ *           over the chart's own bars, so it is REBUILT over the folded `of` column with that recipe, in the server's
+ *           arithmetic (`derivedColumns.derivedAverage`). Never the base series' average carried over.
+ *   above — the column a band colours by: the 1/0 state of the plot at or above its band partner, REBUILT from the two
+ *           folded columns (1 at or above, else 0; NaN where either is NaN, the server's `above_column` rule). Which
+ *           column and which pair is the BINDER's answer (`binder.fillStatesOf`, handed in by `adoptFillStates` when a
+ *           chart's binder is created): it is the one reader of a plot's band, and this lane reads none. Until a chart
+ *           binds there is no answer, so the column is withheld (blank on a custom timeframe), never guessed. */
+export function customTfFoldsOf(def) {
+  const out = {}
+  for (const p of def && Array.isArray(def.plots) ? def.plots : []) {
+    if (!p || typeof p.key !== 'string') continue
+    const lt = p.liveTail
+    if (lt && lt.kind === 'ratio') out[p.key] = Object.freeze({ kind: 'last' })
+    else if (lt && lt.kind === 'ma' && typeof lt.of === 'string') {
+      out[p.key] = Object.freeze({ kind: 'ma', of: lt.of, length: lt.length, type: lt.type })
+    }
+  }
+  for (const s of _fillStatesOf ? _fillStatesOf(def) : []) {
+    if (s && s.rule === 'above' && typeof s.state === 'string' && typeof s.of === 'string' && typeof s.with === 'string') {
+      out[s.state] = Object.freeze({ kind: 'above', of: s.of, ma: s.with })
+    }
+  }
+  return Object.freeze(out)
+}
+
+// The binder's answer to "which column is a band's state, and by what rule" (`binder.fillStatesOf`), handed in when a
+// chart's binder is created (`createBinder`), never at load. The version is part of every fold's memo signature, so a
+// fold made before the answer arrived is never served after it; handing in the same answer again moves nothing.
+let _fillStatesOf = null
+let _fillStatesVersion = 0
+/** The binder hands the lane its band-state resolver (`binder.fillStatesOf`); null takes it back. */
+export function adoptFillStates(fn) {
+  const next = typeof fn === 'function' ? fn : null
+  if (next === _fillStatesOf) return
+  _fillStatesOf = next
+  _fillStatesVersion += 1
+}
+
+const _YMD = /^(\d{4})(\d{2})(\d{2})$/
+const _ymdIso = (t) => {
+  const m = _YMD.exec(String(t))
+  return m ? `${m[1]}-${m[2]}-${m[3]}` : null
+}
+const _foldMemo = new WeakMap()   // raw envelope -> Map(signature -> folded envelope)
+
+/** `raw` (a base-timeframe envelope) folded onto custom `spec`'s buckets, or `raw` itself for a
+ *  native view (no spec), each column as `customTfFoldsOf(def)` declares. The folded envelope keeps `payload` and `rev`,
+ *  and is the same object on every paint (memoised per raw envelope, spec and the inputs its recipes read). */
+export function foldToCustomTf(def, raw, spec, inputs) {
+  if (!spec || !raw) return raw
+  const folds = customTfFoldsOf(def)
+  const read = (s) => (typeof s === 'string' && s.startsWith('input:') ? readInputValue(def, inputs, s.slice(6)) : s)
+  const recipes = {}
+  for (const [key, fold] of Object.entries(folds)) {
+    if (fold.kind === 'ma') recipes[key] = { length: Math.round(Number(read(fold.length))), type: String(read(fold.type)) }
+  }
+  const sig = `${spec.kind}|${spec.minutes ?? ''}|${spec.n ?? ''}|${spec.anchorMin ?? ''}|${JSON.stringify(recipes)}|f${_fillStatesVersion}`
+  let byKey = _foldMemo.get(raw)
+  if (!byKey) { byKey = new Map(); _foldMemo.set(raw, byKey) }
+  const hit = byKey.get(sig)
+  if (hit) return hit
+  const keyOf = bucketKeyOf(spec)
+  const daily = spec.kind !== 'intradaySession'
+  const times = []
+  const lastRow = []
+  const at = new Map()
+  const rawTimes = Array.isArray(raw.times) ? raw.times : []
+  for (let i = 0; i < rawTimes.length; i++) {
+    const t = daily ? _ymdIso(rawTimes[i]) : rawTimes[i]
+    const k = keyOf && t != null ? keyOf(t) : null
+    if (k == null) continue
+    const j = at.get(k)
+    if (j === undefined) { at.set(k, times.length); times.push(k); lastRow.push(i) }
+    else lastRow[j] = i
+  }
+  const cols = raw.columns || {}
+  const n = times.length
+  const out = {}
+  for (const [key, fold] of Object.entries(folds)) {
+    if (fold.kind !== 'last' || !cols[key]) continue
+    const src = cols[key]
+    const col = new Float64Array(n)
+    for (let j = 0; j < n; j++) { const v = src[lastRow[j]]; col[j] = typeof v === 'number' ? v : NaN }
+    out[key] = col
+  }
+  for (const [key, fold] of Object.entries(folds)) {
+    if (fold.kind !== 'ma' || !cols[key] || !out[fold.of]) continue
+    const r = recipes[key]
+    const ma = r && Number.isInteger(r.length) && r.length >= 1 ? derivedAverage(out[fold.of], r.length, r.type) : null
+    out[key] = ma || new Float64Array(n).fill(NaN)
+  }
+  for (const [key, fold] of Object.entries(folds)) {
+    if (fold.kind !== 'above' || !cols[key] || !out[fold.of] || !out[fold.ma]) continue
+    const col = new Float64Array(n)
+    for (let j = 0; j < n; j++) {
+      const v = out[fold.of][j]
+      const m = out[fold.ma][j]
+      col[j] = Number.isFinite(v) && Number.isFinite(m) ? (v >= m ? 1 : 0) : NaN
+    }
+    out[key] = col
+  }
+  for (const key of Object.keys(cols)) if (!(key in out)) out[key] = new Float64Array(n).fill(NaN)   // no fold declared: blank
+  const folded = { ...raw, times, columns: out }
+  byKey.set(sig, folded)
+  return folded
+}
+
 /**
  * `computeFor`'s server branch, whole: bars-length columns for a server-lane
  * definition, or `{}` while nothing has landed.
@@ -1506,15 +1646,18 @@ export function serverColumnsFor(def, bars, inputs, ctx) {
   const sym = ctx && typeof ctx.sym === 'string' ? ctx.sym : ''
   if (!sym) return {}
   const sent = pickServerInputs(def, inputs)
+  // a custom timeframe asks its native base (`serverAskOf`) and is folded below (`foldToCustomTf`)
+  const ask = serverAskOf(ctx.tf, ctx.extended)
   // What this paint asks for is what a warm replays for the symbols ahead (`liveAsks`).
-  _noteAsk(def.id, ctx.tf, sent)
-  const parsed = ensureColumns(def.id, sym, ctx.tf, sent, ctx.fetcher)
-  if (!parsed) return {}
+  _noteAsk(def.id, ask.tf, sent)
+  const raw = ensureColumns(def.id, sym, ask.tf, sent, ctx.fetcher)
+  if (!raw) return {}
   // ⛔ 2026-11-13 — EXCEPT AN ENTRY FROM THIS BROWSER'S STORE. The rule below ("the cache
   // cannot hold an entry from before a deploy") is true of the in-memory cache only: a
   // record on disk can be older than the deploy. One on another rev is not drawn; the
   // server's answer is already on its way (`ensureColumns` asked) and replaces it.
-  if (revMismatch(parsed, def) && _provisional.has(serverColumnsKey(def.id, sym, ctx.tf, sent))) return {}
+  if (revMismatch(raw, def) && _provisional.has(serverColumnsKey(def.id, sym, ask.tf, sent))) return {}
+  const parsed = foldToCustomTf(def, raw, ask.spec, inputs)
   // ⭐ A DIFFERENT SERVER REV IS DRAWN, NOT RE-ASKED (review finding, 2026-11-06).
   // The first cut treated a rev mismatch as a cache miss and asked again. But the
   // only way the two revs differ is a SERVER that is on another revision — the
@@ -1600,10 +1743,12 @@ export function scalarsFor(def, inputs, ctx) {
   const sym = ctx && typeof ctx.sym === 'string' ? ctx.sym : ''
   if (!def || !sym) return null
   const sent = pickServerInputs(def, inputs)
-  const parsed = cachedColumns(def.id, sym, ctx.tf, sent)
-  if (!parsed) return null
+  const ask = serverAskOf(ctx.tf, ctx.extended)
+  const raw = cachedColumns(def.id, sym, ask.tf, sent)
+  if (!raw) return null
   // ...and the same exception: a store record on another rev is not read out either.
-  if (revMismatch(parsed, def) && _provisional.has(serverColumnsKey(def.id, sym, ctx.tf, sent))) return null
+  if (revMismatch(raw, def) && _provisional.has(serverColumnsKey(def.id, sym, ask.tf, sent))) return null
+  const parsed = foldToCustomTf(def, raw, ask.spec, inputs)
   // Same rule as the columns: what the server sent is what the readout reads.
   // A v1 server sends no payload, so this is simply null there.
   // ⭐ 2026-11-12 — plus, for a definition declaring `rescale` with the scale on,

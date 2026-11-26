@@ -5,6 +5,7 @@
 import { vi } from 'vitest'
 import { bucketStartUnix } from '../../../components/chart/barTime'
 import { bucketEndUnix } from '../../../components/chart/liveBuckets'
+import { inExtendedSession } from '../extendedSession'
 
 export const OPEN = Date.UTC(2026, 10, 10, 14, 30) / 1000     // Tue 2026-11-10 09:30 ET
 /** 'lagging': how long after a bucket's end the server has stored it. */
@@ -25,12 +26,14 @@ export function parseBarsUrl(url) {
 /** The deep sealed daily rows /api/bars-history answers (older than, and overlapping, the D tail). */
 export const HISTORY_DAYS = Object.freeze(['2026-11-03', '2026-11-04', '2026-11-05', '2026-11-06', '2026-11-09'])
 
-/** Intraday rows from the open to `now` (unix s) on `tf`, newer than `since`. */
+/** Intraday rows from `from` to `now` (unix s) on `tf`, newer than `since`: the buckets inside the extended session,
+ *  as the real server answers (it never serves a bar outside its ET day's 04:00-20:00 session). */
 export function intradayRows(tf, now, { since = null, from = OPEN } = {}) {
   const out = []
   for (let t = from; t <= now; t = bucketEndUnix(t, tf, {})) {
     const s = bucketStartUnix(t, tf, {})
     if (since != null && s <= since) continue
+    if (!inExtendedSession(s)) continue
     out.push({ t: s, o: 10, h: 11, l: 9, c: 10.5, v: 100 })
   }
   return out

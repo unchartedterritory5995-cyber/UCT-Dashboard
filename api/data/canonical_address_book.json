@@ -75,7 +75,7 @@
         "_rebuild_periods_from_daily",
         "get_bars_before"
       ],
-      "distinct_projections_over_this_table": 13,
+      "distinct_projections_over_this_table": 14,
       "authority": "authoritative",
       "undeclared_by_this_store": [
         "cadence",
