@@ -523,9 +523,9 @@ class BarBroadcaster:
                     if t0 < self._t_requested.get(sym, 0) - _STRAGGLER_MS:
                         return    # stamped well before T was asked for: a straggler, not the flow
                     self._first_trade(sym, t0)
-                hl_ok, last_ok = trade_conditions.classify(payload.get("c"))
+                hl_ok, last_ok, vol_ok = trade_conditions.classify3(payload.get("c"))
                 minute = self._apply_trade(sym, int(payload["t"]), payload["p"],
-                                           payload.get("s") or 0, hl_ok, last_ok)
+                                           payload.get("s") or 0, hl_ok, last_ok, vol_ok)
             else:
                 minute = self._apply_minute_bar(sym, payload, authoritative=True)
             if minute is None:
@@ -720,8 +720,8 @@ class BarBroadcaster:
                         e = _Minute()
                         for (t, p, s, conds) in gap_trades:
                             if prev <= t < gap[0]:
-                                hl_ok, last_ok = trade_conditions.classify(conds)
-                                self._fold_trade(e, t, p, s, hl_ok, last_ok)
+                                hl_ok, last_ok, vol_ok = trade_conditions.classify3(conds)
+                                self._fold_trade(e, t, p, s, hl_ok, last_ok, vol_ok)
                         e.auth = True
                         mins[prev] = e
                         seen.add(prev)
@@ -748,8 +748,8 @@ class BarBroadcaster:
                 if not st.auth:
                     for (t, p, s, conds) in gap_trades:
                         if m0 <= t <= b0:      # through B's own ms (the feed keeps t > B)
-                            hl_ok, last_ok = trade_conditions.classify(conds)
-                            self._fold_trade(st, t, p, s, hl_ok, last_ok)
+                            hl_ok, last_ok, vol_ok = trade_conditions.classify3(conds)
+                            self._fold_trade(st, t, p, s, hl_ok, last_ok, vol_ok)
                     st.seeded = True
                 self._cover_from.pop(su, None)
                 self._gap.pop(su, None)
@@ -820,7 +820,7 @@ class BarBroadcaster:
                     for old in [x for x in mins if x < floor]:
                         del mins[old]
 
-    def _apply_trade(self, sym, t, p, s, hl_ok, last_ok) -> Optional[int]:
+    def _apply_trade(self, sym, t, p, s, hl_ok, last_ok, vol_ok=True) -> Optional[int]:
         m = t // _MINUTE_MS * _MINUTE_MS
         if not self._accept_minute(sym, m):
             return None
@@ -837,14 +837,19 @@ class BarBroadcaster:
         if st.auth:
             st.last_ts = t if st.last_ts is None else max(st.last_ts, t)
             return None   # the AM / completed REST bar for this minute already includes it
-        self._fold_trade(st, t, p, s, hl_ok, last_ok)
+        self._fold_trade(st, t, p, s, hl_ok, last_ok, vol_ok)
         return m
 
     @staticmethod
-    def _fold_trade(st, t, p, s, hl_ok, last_ok) -> None:
-        """One eligible-classified trade into a minute (the feed's and the seed's alike)."""
+    def _fold_trade(st, t, p, s, hl_ok, last_ok, vol_ok=True) -> None:
+        """One eligible-classified trade into a minute (the feed's and the seed's alike).
+        ⭐ (2026-11-25, candle-accuracy audit class 1) its size counts only when its conditions update
+        consolidated volume (`vol_ok`, trade_conditions.classify3): the vendor's own minute bar (AM, REST)
+        leaves out the official open / close reports and a corrected consolidated close, and the developing
+        bar summed them until that minute's AM replaced it."""
         st.last_ts = t if st.last_ts is None else max(st.last_ts, t)
-        st.v += s
+        if vol_ok:
+            st.v += s
         if last_ok:
             if st.o is None or t < st.o_ts:
                 st.o, st.o_ts = p, t

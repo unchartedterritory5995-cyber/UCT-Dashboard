@@ -106,8 +106,9 @@ def _offline_minutes(events):
         o = h = l = c = None
         v = 0
         for _, _, p in lst:
-            hl_ok, last_ok = tc.classify(p.get("c"))
-            v += p["s"]
+            hl_ok, last_ok, vol_ok = tc.classify3(p.get("c"))
+            if vol_ok:                      # (2026-11-25) the vendor's volume rule: 15/16/38 add no size
+                v += p["s"]
             if last_ok:
                 if o is None:
                     o = p["p"]
