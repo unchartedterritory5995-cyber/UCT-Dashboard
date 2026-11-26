@@ -25,6 +25,8 @@
 //   B12 once per URL: a later refresh of a landed rung (a live source sharing the URL) moves no version
 //   B13 a held deeper rung serves a smaller chart (its own rung never asked), and a shallower rung landing after a
 //       deeper one moves no version
+//   B14 the page is read OFF its landing task: once it has landed nothing is read, and the version moves only after
+//       the idle slices (secondaryBars `idleRead`), so the upgrade never costs a frame
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { registerDefinitions, resolveInputs, RS_LINE_SLIM_RAW, computeSignature } from '../nativeRegistry'
 import {
@@ -105,7 +107,8 @@ function stubFetch(benchByTf, { status = 200, body = null } = {}) {
   })
   return asked
 }
-const settle = async () => { for (let i = 0; i < 4; i++) { await new Promise((r) => setTimeout(r, 0)); await Promise.resolve() } }
+// (the benchmark page is read in ET-day slices, one idle turn each: `secondaryBars` idleRead)
+const settle = async () => { for (let i = 0; i < 60; i++) { await new Promise((r) => setTimeout(r, 0)); await Promise.resolve() } }
 const finiteAll = (col) => Array.from(col).every((v) => Number.isFinite(v))
 const ctx = (over = {}) => ({ sym: 'TGTX', tf: '240', extended: false, newestBarIsForming: false, ...over })
 
@@ -297,5 +300,30 @@ describe('a custom timeframe\'s RS line as deep as the chart', () => {
     release()
     await settle()
     expect(customTfDepthVersion()).toBe(v)
+  })
+
+  it('B14 the page is read off its landing task: the version moves only after the idle slices', async () => {
+    const queue = []
+    vi.stubGlobal('requestIdleCallback', (fn) => { queue.push(fn); return queue.length })
+    const { stock, bench } = pages(weekdays(320), SESSION60)
+    const bars = resampleForSpec(stock, resampleSpec('240'))
+    const asked = stubFetch({ 60: bench })
+    primeServerColumns(SLIM.id, 'TGTX', '60', SENT, envelope(stock, bench, 400))
+    const v = customTfDepthVersion()
+    serverColumnsFor(SLIM, bars, INPUTS, ctx())
+    const run = async () => { queue.shift()({ timeRemaining: () => 10, didTimeout: false }); for (let i = 0; i < 20; i++) await Promise.resolve() }
+    await run()                                                                   // the lane's later task: the request
+    expect(asked.length).toBe(1)
+    expect(queue.length, 'the landed page waits for an idle turn').toBe(1)
+    expect(customTfDepthVersion()).toBe(v)                                        // landed, nothing read yet
+    let steps = 0
+    while (queue.length) {
+      await run()
+      steps += 1
+      if (queue.length) expect(customTfDepthVersion(), `still reading after ${steps}`).toBe(v)
+    }
+    expect(steps, 'one idle turn to start, then the ET-day slices').toBeGreaterThanOrEqual(3)
+    expect(customTfDepthVersion()).toBe(v + 1)
+    expect(finiteAll(serverColumnsFor(SLIM, bars, INPUTS, ctx()).rsLine)).toBe(true)
   })
 })

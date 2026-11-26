@@ -1741,7 +1741,9 @@ function _askDeepBenchmark(bench, tf, rung, extended) {
   _deepAsked.add(url)
   _deepWatched.set(url, [bench, tf, rung, extended])
   _later(() => {
-    try { ensureSecondaryBars(bench, tf, rung, undefined, { extended }) } catch { _deepAsked.delete(url) }
+    // `idleRead`: the page is judged and resampled in ET-day slices across idle callbacks, so its landing (and this
+    // lane's version bump, which waits for it) never costs a frame (secondaryBars `_readCustomIdle`)
+    try { ensureSecondaryBars(bench, tf, rung, undefined, { extended, idleRead: true }) } catch { _deepAsked.delete(url) }
   })
 }
 
