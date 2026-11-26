@@ -84,6 +84,13 @@ describe('e98 E3 — an Offset only the plot reads is the member\'s setting, on 
     })
   }
 
+  it('no disclosure calls the Offset setting "never read" or "kept at its default" (it is admitted, not skipped)', () => {
+    const r = door(MA(3))
+    const skipped = (r.translation.outputs || []).flatMap((o) => (o && o.skippedInputs) || []).map((x) => x.name)
+    expect(skipped).toContain('len')
+    expect(skipped).not.toContain('offset')
+  })
+
   it('the SERIES is never shifted: the host tree is the unshifted average at every default', () => {
     for (const dflt of [0, 3, -2]) {
       const { definition: def } = door(MA(dflt))

@@ -66,12 +66,12 @@
   },
   {
    "id": "E3-O8",
-   "mutant": "the door refuses the Offset setting as never read",
+   "mutant": "the door refuses the Offset setting as never read (a false \"kept at its default\" disclosure)",
    "file": "app/src/components/chart/builder/builderInputs.js",
    "from": "    if (entry && entry.displaceSetting) return null\n",
    "to": "",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/plotOffsetSetting.test.js",
-   "expectRed": "an int setting with the author's bounds"
+   "expectRed": "no disclosure calls the Offset setting"
   },
   {
    "id": "E3-O9",
