@@ -831,6 +831,8 @@ def _isolate_bars_series_meta():
         try:
             from api.services import bar_contract as _bc
             _bc._stream_rev_cache.clear()
+            # a series_rev read still running from the previous test lands nowhere
+            getattr(_bc, "reset_stream_rev_for_tests", lambda: None)()
         except Exception:
             pass
 
