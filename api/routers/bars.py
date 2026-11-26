@@ -14,7 +14,7 @@ import orjson
 
 from fastapi import APIRouter, Body, Cookie, Depends, Header, HTTPException, Query, Request
 from api.middleware.auth_middleware import get_current_user, require_admin
-from api.bars_auth import require_bars_access, bars_service_headers
+from api.bars_auth import require_bars_access, require_bars_access_on, bars_service_headers
 # ORJSONResponse: ~7-8x faster serialize than stdlib on the shared event loop +
 # NaN/Inf -> null (stdlib emits invalid `NaN` tokens that crash client JSON.parse).
 # Aliased as JSONResponse so the index-bars response and the 503 error paths below
@@ -1811,15 +1811,11 @@ async def _history_thread(fn, *args, **kwargs):
     return await _anyio.to_thread.run_sync(_partial(fn, *args, **kwargs), limiter=_history_limiter())
 
 
-async def require_bars_access_history(request: Request, uct_session: str | None = Cookie(None),
-                                      authorization: str = Header(default="")) -> dict:
-    """`require_bars_access`, run on this route's own limiter (see BARS_HISTORY_THREADS). An app's
-    `dependency_overrides[require_bars_access]` (tests) still applies: it is the same gate, so it is honoured here."""
-    over = getattr(getattr(request, "app", None), "dependency_overrides", {}).get(require_bars_access)
-    if over is not None:
-        out = over()
-        return await out if hasattr(out, "__await__") else out
-    return await _history_thread(require_bars_access, uct_session, authorization)
+# `require_bars_access`, run on this route's own limiter (see BARS_HISTORY_THREADS). Built by
+# `bars_auth.require_bars_access_on`, never by hand here: the factory calls the gate itself in a thread on the
+# limiter it is given, and the auth auditors recognise its products by identity (a hand-built wrapper, which they
+# could not see, turned master red with #2741).
+require_bars_access_history = require_bars_access_on(lambda request: _history_limiter(), "require_bars_access_history")
 
 
 @router.get("/api/bars-history/{ticker}")
