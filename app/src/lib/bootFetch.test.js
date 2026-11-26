@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
-  BOOT_MAX_AGE_MS, ME_URL, PREFS_URL, SIGNED_IN_HINT, __resetBootFetchForTests, noteBootUser, setSignedInHint,
-  startBootFetches, takeBootMe, takeBootPreferences,
+  BOOT_MAX_AGE_MS, MAINTENANCE_URL, ME_URL, PREFS_URL, SIGNED_IN_HINT, __resetBootFetchForTests, noteBootUser,
+  setSignedInHint, startBootFetches, takeBootMaintenance, takeBootMe, takeBootPreferences,
 } from './bootFetch'
 
 const memStorage = (init = {}) => {
@@ -13,7 +13,7 @@ const res = (tag) => ({ ok: true, tag })
 describe('boot fetches: the sign-in check and the member preferences start as the page loads', () => {
   afterEach(() => { __resetBootFetchForTests(); vi.useRealTimers() })
 
-  it('starts /me always and preferences only when this browser was signed in last time', async () => {
+  it('starts /me always, and preferences and the maintenance check only when this browser was signed in last time', async () => {
     const f1 = vi.fn((u) => Promise.resolve(res(u)))
     startBootFetches({ fetchImpl: f1, storage: memStorage() })
     await Promise.resolve(); await Promise.resolve()
@@ -22,7 +22,18 @@ describe('boot fetches: the sign-in check and the member preferences start as th
     const f2 = vi.fn((u) => Promise.resolve(res(u)))
     startBootFetches({ fetchImpl: f2, storage: memStorage({ [SIGNED_IN_HINT]: '1' }) })
     await Promise.resolve(); await Promise.resolve()
-    expect(f2.mock.calls.map((c) => c[0])).toEqual([ME_URL, PREFS_URL])
+    expect(f2.mock.calls.map((c) => c[0])).toEqual([ME_URL, PREFS_URL, MAINTENANCE_URL])
+  })
+
+  it('starts the maintenance check with the page when signed in last time, bounded, taken once', async () => {
+    const f = vi.fn((u) => Promise.resolve(res(u)))
+    startBootFetches({ fetchImpl: f, storage: memStorage({ [SIGNED_IN_HINT]: '1' }) })
+    await Promise.resolve(); await Promise.resolve()
+    expect(f.mock.calls.map((c) => c[0])).toEqual([ME_URL, PREFS_URL, MAINTENANCE_URL])
+    const init = f.mock.calls[2][1]
+    if (typeof AbortSignal !== 'undefined' && AbortSignal.timeout) expect(init.signal).toBeInstanceOf(AbortSignal)
+    expect((await takeBootMaintenance()).tag).toBe(MAINTENANCE_URL)
+    expect(takeBootMaintenance()).toBeNull()
   })
 
   it('each answer is taken once; a failed request is "no answer"', async () => {

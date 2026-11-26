@@ -18,6 +18,12 @@
 // run from the fitted level up: walking DOWN from the level the row has until one clips, then stepping back up one,
 // lands on exactly the level the climb from 0 finds. When the fit is unchanged (two stocks of one list, almost always)
 // that is two renders, not one per level; the header ends on the same level, so it looks the same.
+//
+// ⚡ AND A REMOUNTED PANE STARTS AT ITS LAST FIT (2026-11-26, the board switch: every chart pane mounts anew and climbed
+// from the full row, one render of the pane and StockChart plus one forced layout per level: 4.7 ms of a two-chart board
+// switch). `startLevelFor(width)` names the level this pane last fitted at that width (ChartPane remembers it per chart);
+// the pane starts there and checks it as the rested re-fit does: one step down, and back up one at the first that clips.
+// Too high (a shorter header) walks on down; too low climbs on up: either way the level the climb from 0 finds.
 import { useEffect, useLayoutEffect, useRef } from 'react'
 
 /** How long the header content must stay the same before the row re-fits from its full width. */
@@ -32,22 +38,34 @@ export const REFIT_REST_MS = 1500
  * @param {(fn: (l: number) => number) => void} o.setLevel
  * @param {number}  o.max       the last level
  * @param {() => boolean} o.isClipped  is anything in the row clipped right now (read in a layout effect)
+ * @param {(width: number) => number} [o.startLevelFor]  the level this pane last fitted at `width` (0: none)
+ * @param {(level: number) => void} [o.onSettled]  the row fits at `level` (no step pending)
  */
-export default function useRowLadder({ on, width, content, level, setLevel, max, isClipped }) {
+export default function useRowLadder({ on, width, content, level, setLevel, max, isClipped, startLevelFor = null, onSettled = null }) {
   const widthRef = useRef(null)
   const levelRef = useRef(level)
   levelRef.current = level
   // a rested re-fit walking down: the content it started on (a new switch, a wider pane or the mode ends it)
   const descentRef = useRef(null)
-  // a wider pane (or the first measure) re-fits from the full row at once; narrowing keeps the steps taken
+  // a start at a remembered level, set this commit: the fit is checked from the render that shows it
+  const pendingStartRef = useRef(null)
+  const contentRef = useRef(content)
+  contentRef.current = content
+  const startFrom = () => {
+    const l = startLevelFor ? Math.min(max, Math.max(0, Math.floor(startLevelFor(width) || 0))) : 0
+    if (l > 0) { descentRef.current = contentRef.current; pendingStartRef.current = l; setLevel(() => l) }
+    else { descentRef.current = null; pendingStartRef.current = null; setLevel(() => 0) }
+  }
+  // a wider pane (or the first measure) re-fits at once, from the level it last fitted at this width (else the full
+  // row); narrowing keeps the steps taken
   useLayoutEffect(() => {
     if (!on) return
     const prev = widthRef.current
     widthRef.current = width
-    if (prev == null || !Number.isFinite(width) || width > prev) { descentRef.current = null; setLevel(() => 0) }
-  }, [on, width, setLevel])
-  // the mode turning on starts from the full row
-  useLayoutEffect(() => { if (on) { descentRef.current = null; setLevel(() => 0) } }, [on, setLevel])
+    if (prev == null || !Number.isFinite(width) || width > prev) startFrom()
+  }, [on, width, setLevel])   // eslint-disable-line react-hooks/exhaustive-deps
+  // the mode turning on starts the same way
+  useLayoutEffect(() => { if (on) startFrom() }, [on, setLevel])   // eslint-disable-line react-hooks/exhaustive-deps
   // new content: re-fit only once it has rested (a scan never pays it), walking down from the level it has
   useEffect(() => {
     if (!on) return undefined
@@ -62,14 +80,21 @@ export default function useRowLadder({ on, width, content, level, setLevel, max,
   // that clips; otherwise one more step up while anything is clipped
   useLayoutEffect(() => {
     if (!on) return
+    // a start at a remembered level was set this commit: the check runs on the render that shows that level
+    if (pendingStartRef.current !== null) {
+      if (level !== pendingStartRef.current) return
+      pendingStartRef.current = null
+    }
     if (descentRef.current !== null && descentRef.current !== content) descentRef.current = null
     if (descentRef.current !== null) {
       if (isClipped()) { descentRef.current = null; setLevel((l) => Math.min(max, l + 1)); return }
       if (level > 0) { setLevel((l) => Math.max(0, l - 1)); return }
       descentRef.current = null
+      onSettled?.(level)
       return
     }
-    if (level >= max) return
+    if (level >= max) { onSettled?.(level); return }
     if (isClipped()) setLevel((l) => Math.min(max, l + 1))
+    else onSettled?.(level)
   })
 }
