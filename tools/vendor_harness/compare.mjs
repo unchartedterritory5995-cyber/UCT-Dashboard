@@ -459,6 +459,10 @@ export function pairCandles(vendorCandles, ourPlots) {
 //   M1  By TITLE, exact string equality, when the title is present and unique on
 //       BOTH sides. A plot's title is what the member reads in the legend on
 //       both platforms, so it is the one identity both sides expose.
+//   M1b (e98) A title present MORE THAN ONCE is paired by DECLARATION ORDER within that title, the N-th vendor plot
+//       so titled with our N-th, ONLY when both sides carry it the SAME number of times (M2's evidence rule: equal
+//       counts, order on both sides). A default title is left to M2. Never by best fit: two same-titled plots whose
+//       values are swapped DIVERGE (railed). Counts that differ stay UNMAPPED, by name.
 //   M2  What is left is paired BY POSITION only if the two leftover lists are
 //       the same length AND every leftover title on both sides is a default
 //       (empty, or TradingView's "Plot"/"Plot N") — i.e. nothing on either side
@@ -507,6 +511,21 @@ export function mapPlots(vendorValuePlots, ourPlots) {
       if (!usedOurs.has(o)) { pairs.push({ vendor: v, ours: o, rule: 'M1-title' }); usedOurs.add(o); continue }
     }
     leftVendor.push(v)
+  }
+  // ⭐ M1b (e98) — a duplicated, named title: by declaration order within the title, only on equal counts
+  const titleOf = (x) => (x.title == null ? '' : String(x.title))
+  const m1b = new Set()
+  for (const t of [...new Set(leftVendor.map(titleOf))]) {
+    if (!t || DEFAULT_TITLE.test(t) || !(vendorTitleCount.get(t) > 1)) continue
+    const vs = leftVendor.filter((v) => titleOf(v) === t)
+    const os = ourPlots.filter((o) => !usedOurs.has(o) && titleOf(o) === t)
+    if (vs.length !== vendorTitleCount.get(t) || os.length !== (byTitle.get(t) || 0) || vs.length !== os.length) continue
+    vs.forEach((v, i) => { pairs.push({ vendor: v, ours: os[i], rule: 'M1b-title-order' }); usedOurs.add(os[i]); m1b.add(v) })
+  }
+  if (m1b.size) {
+    const kept = leftVendor.filter((v) => !m1b.has(v))
+    leftVendor.length = 0
+    leftVendor.push(...kept)
   }
   const leftOurs = ourPlots.filter((o) => !usedOurs.has(o))
 
