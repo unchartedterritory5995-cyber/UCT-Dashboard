@@ -12,20 +12,21 @@
 // close / wicks). One with no twin is re-keyed to its bucket start (several such fold
 // together). A clean series is returned AS IS (same array, no copy), so memo
 // identities downstream are unchanged.
-import { bucketStartUnix, sixtyMinGridFor, etMinuteOfDay, rthCloseMinuteOf } from './barTime'
+import { bucketStartUnix, sixtyMinGridFor, isRthBar } from './barTime'
 
 const STEP = { '1': 60, '5': 300, '15': 900, '30': 1800, '60': 3600 }
-const RTH_OPEN_MIN = 570
 
 // 60m mirrors the server: a start on the session grid (09:30, 10:30 … inside RTH)
 // or on the ET clock-hour grid. ET offsets are whole hours, so a UTC :00 is an ET :00.
 // (Exported for the bar store's no-op proof, reducer.localCopyAddsNothing: the rows this fold may move.)
+// A :30 start is on the grid exactly when it is regular session: 09:30 <= ET minute < the day's close, which is
+// `barTime.isRthBar` read for read (the same ET minute and the same close; it keeps the day's window, so a series'
+// :30 bars pay two compares each, smoothness trace 2026-11-26).
 export function offGrid(t, tf) {
   if (tf !== '60') return t % STEP[tf] !== 0
   if (t % 1800 !== 0) return true
   if (t % 3600 === 0) return false
-  const m = etMinuteOfDay(t)
-  return !(m >= RTH_OPEN_MIN && m < rthCloseMinuteOf(t))
+  return !isRthBar(t)
 }
 
 export function foldOffGridBars(bars, tf, { showExtended = true } = {}) {
