@@ -169,3 +169,90 @@ def test_settle_runs_once_per_day_and_honours_the_kill_switch(env, monkeypatch):
     monkeypatch.setattr(bls, "SETTLE_ENABLED", False)
     assert bls._settle_due(datetime(2026, 11, 12, 20, 31, tzinfo=_ET)) is False
     assert "settle" in bls.status()
+
+
+# ── #2774 review round (FIX FIRST): M1, M2, the marker, the bucket share, the seal ──────────────────────────────────
+
+def test_m1_a_restart_between_the_5m_write_and_the_rederive_still_corrects_the_15m(env):
+    """The 5m was settled, then the process died before the 15m/30m/60m were re-derived. The next pass finds the 5m
+    already equal to the vendor's (nothing to replace) and must still re-derive the day from it."""
+    sq, vendor = env
+    five = _stream_day(sq)                                   # 15/30/60 derived from the STREAM's 5m
+    corrected = [dict(b) for b in five]
+    k = next(i for i, b in enumerate(corrected) if b["t"] == _ts(15, 45))
+    corrected[k]["h"] = corrected[k]["h"] + 2.0
+    sq.put_bars("SPY", "5", corrected)                       # the first pass's 5m write landed ...
+    vendor["rows"][("SPY", "5")] = corrected                 # ... and the vendor agrees with it now
+    counts = bls.settle_pass(_AFTER)                         # the pass after the restart
+    assert counts["rows_replaced"] == 0
+    top = max(round(r[2], 6) for r in sq.get_bars_since("SPY", "15", _ts(15, 44)) if r[0] < _ts(16, 0))
+    assert top == round(corrected[k]["h"], 6), "the 15m still carries the stream's 5m"
+    assert counts["derived_rows"] >= 3
+
+
+def test_m2_only_a_material_difference_replaces_a_row(env):
+    """A row is replaced only when O/H/L/C differ at the store's 4 dp grain, or volume differs by more than
+    max(2% of the vendor's, 100 shares). Anything less is counted, not written (no nightly history_rev churn)."""
+    sq, vendor = env
+    five = _stream_day(sq)
+    at = {b["t"]: i for i, b in enumerate(five)}
+    big = [_ts(10, 0), _ts(10, 5), _ts(10, 10)]
+    for t in big:
+        five[at[t]]["v"] = 10_000
+    sq.put_bars("SPY", "5", five)
+    vendor_rows = [dict(b) for b in five]
+    vendor_rows[at[_ts(10, 0)]]["v"] = 10_150                # +150 < max(203, 100): immaterial
+    vendor_rows[at[_ts(10, 5)]]["v"] = 10_300                # +300 > max(206, 100): material
+    vendor_rows[at[_ts(10, 10)]]["h"] += 0.00003             # below the 4 dp grain: immaterial
+    vendor_rows[at[_ts(11, 0)]]["v"] += 80                   # +80 shares on a ~100-share bar: under 100, immaterial
+    vendor_rows[at[_ts(11, 5)]]["c"] += 0.0001               # one grain step: material
+    vendor["rows"][("SPY", "5")] = vendor_rows
+    counts = bls.settle_pass(_AFTER)
+    assert counts["rows_replaced"] == 2, counts
+    assert counts["rows_immaterial"] == 3, counts
+    assert int(_row(sq, "SPY", "5", _ts(10, 0))[5]) == 10_000, "an immaterial volume difference is not written"
+    assert int(_row(sq, "SPY", "5", _ts(10, 5))[5]) == 10_300
+
+
+def test_the_done_marker_survives_a_restart(env):
+    sq, vendor = env
+    _stream_day(sq)
+    vendor["rows"][("SPY", "5")] = _rows(5)
+    bls.settle_pass(_AFTER)
+    bls._reset_for_tests()                                   # what a restart forgets (memory); bars.db keeps the marker
+    assert bls._settle["done_ymd"] is None
+    bls._load_settle_marker()
+    assert bls._settle_due(_AFTER) is False, "a restart after the pass would re-run ~3.7k vendor calls"
+    assert bls._settle_due(datetime(2026, 11, 12, 20, 31, tzinfo=_ET)) is True
+
+
+def test_the_settle_takes_at_most_its_share_of_the_vendor_bucket(env, monkeypatch):
+    sq, vendor = env
+    from api.services import massive
+    assert bls._settle_rate_per_min() == pytest.approx(massive._MASSIVE_RATE_LIMIT_PER_MIN * bls.SETTLE_BUCKET_SHARE)
+    assert 0 < bls.SETTLE_BUCKET_SHARE <= 0.5
+    order = []
+    monkeypatch.setattr(bls, "_settle_take", lambda: order.append("take"))
+    real = bls._fetch
+    monkeypatch.setattr(bls, "_fetch", lambda *a: (order.append("fetch"), real(*a))[1])
+    _stream_day(sq)
+    _stream_day(sq, "QQQ")
+    vendor["rows"][("SPY", "5")] = _rows(5)
+    bls.settle_pass(_AFTER)
+    assert order == ["take", "fetch", "take", "fetch"], "every vendor call waits on the settle's own share first"
+
+
+def test_the_pass_advances_the_seal_check_so_an_older_repair_cannot_overwrite_settled_rows(env):
+    sq, vendor = env
+    five = _stream_day(sq)
+    t_pre = _AFTER.timestamp() - 300                         # a repair that CHECKED before the pass ...
+    sq.record_sealed("SPY", "5", float(_ts(20, 0)), float(_ts(4, 0)), t_pre - 600)
+    corrected = [dict(b) for b in five]
+    k = next(i for i, b in enumerate(corrected) if b["t"] == _ts(15, 45))
+    corrected[k]["h"] += 1.0
+    vendor["rows"][("SPY", "5")] = corrected
+    bls.settle_pass(_AFTER)
+    assert sq.series_meta("SPY", "5")["sealed_checked_at"] >= t_pre
+    stale = dict(five[k])                                    # ... and WRITES after it, carrying the stream's high
+    sq.put_bars("SPY", "5", [stale], checked_at=t_pre)
+    assert round(_row(sq, "SPY", "5", _ts(15, 45))[2], 6) == round(corrected[k]["h"], 6)
