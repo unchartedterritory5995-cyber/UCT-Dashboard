@@ -1,0 +1,32 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "FB1",
+   "mutant": "resolve's frame grows by 40 registers again (as when every case's locals sat in its switch)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "      case 'bound': return this.resolveBoundNode(node)\n",
+   "to": "      case 'bound': return this.resolveBoundNode(node)\n      case '__e100_mutant__': { let r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15, r16, r17, r18, r19, r20, r21, r22, r23, r24, r25, r26, r27, r28, r29, r30, r31, r32, r33, r34, r35, r36, r37, r38, r39; r0 = node; r1 = r0; r2 = r1; r3 = r2; r4 = r3; r5 = r4; r6 = r5; r7 = r6; r8 = r7; r9 = r8; r10 = r9; r11 = r10; r12 = r11; r13 = r12; r14 = r13; r15 = r14; r16 = r15; r17 = r16; r18 = r17; r19 = r18; r20 = r19; r21 = r20; r22 = r21; r23 = r22; r24 = r23; r25 = r24; r26 = r25; r27 = r26; r28 = r27; r29 = r28; r30 = r29; r31 = r30; r32 = r31; r33 = r32; r34 = r33; r35 = r34; r36 = r35; r37 = r36; r38 = r37; r39 = r38; return r39 }\n",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/translateDepthCap.test.js",
+   "expectRed": "the frame budget"
+  },
+  {
+   "id": "DC2",
+   "mutant": "a converted overflow is not counted",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "        CALL_STACK_TRIPS += 1\n",
+   "to": "",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/translateDepthCap.test.js",
+   "expectRed": "the overflow counter counts"
+  },
+  {
+   "id": "DC4",
+   "mutant": "a nested window's overflow is lost to the outer call",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    CALL_STACK_TRIPS = outer.stackTrips + CALL_STACK_TRIPS\n",
+   "to": "    CALL_STACK_TRIPS = outer.stackTrips\n",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/translateDepthCap.test.js",
+   "expectRed": "reaches the outer call"
+  }
+ ]
+}
