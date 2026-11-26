@@ -704,18 +704,18 @@ const timeAnchorSentence = (pineName) => `\`${pineName}(<timeframe>)\` is the OP
   + 'the clock it does declare is `dayofweek`, `dayofmonth`, `month`, '
   + '`year` and `sessionfirst` — and `sessionfirst` is the closest to what '
   + 'an anchor comparison is usually asking'
-/** ⭐⭐ U-BUILTIN B1 (2026-11-19) — `timeframe.in_seconds("1440")` IS `timeframe.in_seconds("D")`, AND THAT
- *  ONE READER ONLY. Capture Q-BT2 (`vw-bt-time-1440-spy-{1d,60}-2026-11-16`, probe `vw-bt-time-1440.pine`,
- *  AMEX:SPY 1D 8,508 bars and 60m 20,861 bars) reads R7 = 86400 on every bar of both charts, graded through
- *  the member door (`pineBuiltinsUnit.test.js`).
- *  ⛔ THE SAME CAPTURE SAYS `time("1440", …)` = `time("D", …)` and `time("1440")` = `time("D")` on every bar
- *  (R1-R6), and neither is read here, because on THIS engine the `"D"` side is not TradingView's: through the
- *  member door R5/R6 (`time("D") - time`) read -34200 s on every 1D and 60m bar where TradingView reads 0 /
- *  the 09:30 open, and R1/R2 (`time("D", "0930-1600")` on the 60m chart) read `na` where TradingView reads
- *  the session open. Spelling `"1440"` as `"D"` there would draw those values for a script that today
- *  refuses by name. They stay refused, and the `"D"` findings are the time/session owner's (reported with
- *  the capture). ⛔ NOT a `PINE_TF_SPELLING` entry: that map also feeds `request.security` and the
- *  `timeframe.*` family, and no capture asked a request at `"1440"`. */
+/** ⭐⭐ U-BUILTIN B1 (2026-11-19) — `timeframe.in_seconds("1440")` IS `timeframe.in_seconds("D")`. Capture Q-BT2
+ *  (`vw-bt-time-1440-spy-{1d,60}-2026-11-16`, probe `vw-bt-time-1440.pine`, AMEX:SPY 1D 8,508 bars and 60m
+ *  20,861 bars) reads R7 = 86400 on every bar of both charts, graded through the member door
+ *  (`pineBuiltinsUnit.test.js`).
+ *  ⭐⭐ COV-TIME B1 (2026-11-26) — AND `time("1440", …)` / `time("1440")` ARE `time("D", …)` / `time("D")`: the
+ *  same capture reads R1 = R2, R3 = R4 and R5 = R6 on every bar of both charts. They were held back while this
+ *  engine's `"D"` side was not TradingView's (a midnight anchor 34,200 s early; `na` for `time("D", "0930-1600")`
+ *  on 60m). U-BUILTIN T-D made R2, R4 and R6 grade on every bar, so `"1440"` now reads exactly the tree `"D"`
+ *  reads, and is withheld by name wherever `"D"` is (`sessionClockOf`, the anchor arm of `resolveCall`). The
+ *  runtime lane hands both calls to that reader (`rebuiltSessionClockCall`), so it follows.
+ *  ⛔ NOT A `PINE_TF_SPELLING` ENTRY: that map also feeds `request.security`, `time_close`, `timeframe.change`
+ *  and the rest of the `timeframe.*` family, and no capture asked any of them at `"1440"`. */
 const CLOCK_TF_ALIASES = Object.freeze({ 1440: 'D' })
 const clockTfCodeOf = (lit) => {
   const key = String(lit).trim().toUpperCase()
@@ -946,6 +946,17 @@ export const legacyPeriodUndeclared = (name, version) => name === 'period'
   && version !== null && version !== undefined && version >= 4
 export const legacyPeriodRefusal = (tok) => new PineRefusal('pine:builtin',
   `${REFUSALS['pine:builtin']} — ${LEGACY_PERIOD_SENTENCE}`, tok ? locate(tok) : null)
+
+/** ⭐⭐ COV-TIME B2 (2026-11-26) — BARE `interval` IS PINE v1–v3's `timeframe.multiplier`. The v3 reference
+ *  defines it exactly ("Resolution multiplier, e.g. '60' - 60, 'D' - 1, '5D' - 5, '12M' - 12"), and the v3→v4
+ *  conversion renames it `timeframe.multiplier`, which this engine already answers from the bars the
+ *  translation is for (`BUILTIN_TIMEFRAME_SCALAR`). A versionless script is v1. Only an UNBOUND name: a
+ *  script's own `interval` (a variable, a parameter) is consulted first, as every binding is.
+ *  ⛔ v4+ keeps its refusal: no reference text from v4 on holds a bare `interval`, and nothing measured says
+ *  what TradingView's v4+ compiler does with one (its answer for the sibling `period` is
+ *  `LEGACY_PERIOD_SENTENCE`'s, but that was asked of `period` only). */
+export const legacyIntervalIsMultiplier = (name, version) => name === 'interval'
+  && (version === null || version === undefined || version < 4)
 
 /** ⭐⭐ C33 / C48 — THE TEXT AN `input.timeframe` DEFAULT PRINTS: THE DEFAULT, VERBATIM.
  *
@@ -13608,6 +13619,16 @@ export class Resolver {
       return clockLeaf(clockKey)
     }
     if (legacyPeriodUndeclared(name, this.pineVersion)) throw legacyPeriodRefusal(node.tok)
+    // ⭐ COV-TIME B2 — an unbound v1-v3 `interval` IS `timeframe.multiplier` (`legacyIntervalIsMultiplier`):
+    // the same reader, the same code, so the two spellings cannot disagree. `null` (a code this engine
+    // holds no multiplier for) falls through to the refusal below, as `timeframe.multiplier`'s does.
+    if (legacyIntervalIsMultiplier(name, this.pineVersion)) {
+      const v = BUILTIN_TIMEFRAME_SCALAR['timeframe.multiplier'](this.periodInForce('timeframe.multiplier', node && node.tok))
+      if (v !== null) {
+        recordPeriodRead('timeframe.multiplier', this.pineVersion)
+        return cNum(v)
+      }
+    }
     if (PINE_KNOWN_BUILTINS.has(name)) {
       throw new PineRefusal('pine:builtin',
         `${REFUSALS['pine:builtin']} — \`${name}\``, locate(node.tok))
@@ -14802,8 +14823,8 @@ export class Resolver {
     // one lane and refused on the other.
     const isOwnTf = this.ownTimeframeOf(tfNode) !== null || this.timeframeLiteralOf(tfNode) === ''
     const lit = isOwnTf ? null : this.timeframeLiteralOf(tfNode)
-    // ⛔ U-BUILTIN B1 — `"1440"` is NOT read as `"D"` here (`clockTfCodeOf` says why).
-    const code = lit === null ? null : PINE_TF_SPELLING[String(lit).trim().toUpperCase()]
+    // ⭐ COV-TIME B1 — `"1440"` IS `"D"` here (`clockTfCodeOf`; Q-BT2 R1 = R2 and R3 = R4 on every bar).
+    const code = lit === null ? null : clockTfCodeOf(lit)
     // ⭐ U-BUILTIN T-D — a literal `"D"` is read on any base: below a daily chart its tree is the day anchor
     // or the daily gate (step 4), each withheld by name where it is not measured, so the runtime lane (which
     // translates on the chart's own base) answers what the member door's daily-base translation answers.
@@ -17542,8 +17563,8 @@ export class Resolver {
         // `ownTimeframeOf` states (a rebound `period` is not the chart's).
         if (this.ownTimeframeOf(argNode) !== null) return this.chartOwnTimeOf('timeframe.period', pineName, tok)
         const rawTf = this.timeframeLiteralOf(argNode)
-        // ⛔ U-BUILTIN B1 — `"1440"` is NOT read as `"D"` here (`clockTfCodeOf` says why).
-        const tfCode = rawTf === null ? null : PINE_TF_SPELLING[String(rawTf).trim().toUpperCase()]
+        // ⭐ COV-TIME B1 — `"1440"` IS `"D"` for the anchor too (`clockTfCodeOf`; Q-BT2 R5 = R6 on every bar).
+        const tfCode = rawTf === null ? null : clockTfCodeOf(rawTf)
         // ⭐⭐ C36 — `"60"`, the ONE literal the probe asked (T06). Compared as the
         // text the script wrote, not through `PINE_TF_SPELLING`: `"1H"` folds to
         // the same code and no capture row spells it.
@@ -18769,6 +18790,8 @@ const PINE_KNOWN_BUILTINS = Object.freeze(new Set([
   // defect ("two different sentences for two different mistakes") pointed the
   // wrong way. This engine genuinely cannot hold a resolution STRING, so
   // `pine:builtin` is the honest guard; `pine:undefined` was the wrong one.
+  // ⭐ COV-TIME B2: a v1-v3 `interval` (a NUMBER, the multiplier) is now served before this list is
+  // asked (`legacyIntervalIsMultiplier`); it stays here for the v4+ refusal.
   'interval', 'period',
 ]))
 

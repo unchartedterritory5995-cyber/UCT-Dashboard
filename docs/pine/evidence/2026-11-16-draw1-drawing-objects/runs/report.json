@@ -3,9 +3,9 @@
   "capture": {
    "scripts": 1039,
    "admitted": 838,
-   "runtimeLane": 227,
-   "hostLane": 322,
-   "refused": 289,
+   "runtimeLane": 229,
+   "hostLane": 326,
+   "refused": 283,
    "coreOnly": 51
   },
   "committed": {
@@ -252,7 +252,7 @@
   },
   {
    "capture": "asianrange-and-killzones-rddt-1d-2026-11-14",
-   "lane": null,
+   "lane": "host",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -273,7 +273,7 @@
   },
   {
    "capture": "asianrange-and-killzones-spy-1d-2026-11-14",
-   "lane": null,
+   "lane": "host",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -8866,7 +8866,7 @@
   },
   {
    "capture": "vw-bi-time-d-extended-btcusd-60-2026-11-19",
-   "lane": null,
+   "lane": "runtime",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -8877,7 +8877,7 @@
   },
   {
    "capture": "vw-bi-time-d-extended-spy-60-2026-11-19",
-   "lane": null,
+   "lane": "runtime",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -8978,7 +8978,7 @@
   },
   {
    "capture": "vw-bt-time-1440-spy-1d-2026-11-16",
-   "lane": null,
+   "lane": "host",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -8989,7 +8989,7 @@
   },
   {
    "capture": "vw-bt-time-1440-spy-60-2026-11-16",
-   "lane": null,
+   "lane": "host",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [

@@ -198,14 +198,14 @@
   "selectedFormula": null,
   "downstream": null,
   "refusal": {
-   "guard": "pine:builtin",
-   "line": 30,
-   "column": 30,
-   "token": "interval"
+   "guard": "pine:plot-offset",
+   "line": 39,
+   "column": 68,
+   "token": "offset"
   },
   "perOutputRefusals": {
    "pine:plot-offset": 3,
-   "pine:builtin": 4
+   "pine:window": 4
   }
  },
  "15-anchored-vwap.pine": {

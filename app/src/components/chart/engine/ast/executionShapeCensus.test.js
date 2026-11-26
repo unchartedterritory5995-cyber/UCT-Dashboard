@@ -356,7 +356,13 @@ describe('⭐⭐ what each shape is worth on the corpus', () => {
     // `windowComposite` member, not a carried one. It is pinned BY NAME so the claim stays
     // exact: a second script that does not reach `carried` turns this red, and so does this
     // one reaching `carried` or ceasing to be blocked.
-    const KNOWN_WINDOW_COMPOSITE_ONLY = { 'oos1/long_tail__08-vix-term-structure.pine': 'windowComposite' }
+    // ⭐ COV-TIME B2 (2026-11-26) — A SECOND NAMED EXCEPTION, the same kind of finding. 14-bollinger (versionless,
+    // so v1) refused at its bare `interval`; that name is now `timeframe.multiplier`, so the script reaches its next
+    // wall: `alma` / `stdev` over a length computed from `interval` (`bblen_f`), a `windowComposite` member.
+    const KNOWN_WINDOW_COMPOSITE_ONLY = {
+      'oos1/long_tail__08-vix-term-structure.pine': 'windowComposite',
+      'curated/14-bollinger-bands-fixed-timeframe.pine': 'windowComposite',
+    }
     const notCarried = Object.entries(report.members)
       .filter(([k]) => !k.split('+').includes('carried'))
       .flatMap(([k, v]) => v.map((f) => [f, k]))

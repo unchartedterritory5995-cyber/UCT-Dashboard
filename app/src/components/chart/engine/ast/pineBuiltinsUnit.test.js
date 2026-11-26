@@ -83,17 +83,19 @@ const without = (text, re) => text.split(NL).filter((l) => !re.test(l)).join(NL)
 // ─── T-D ──────────────────────────────────────────────────────────────────────────────────────────
 
 describe('T-D — time("D") is the 09:30 session open; time("D", "0930-1600") reads it inside the window (Q-BT2)', () => {
-  // The probe's "1440" session / anchor rows (R1, R3, R5) are refused by name (B1 reads "1440" only in
-  // `timeframe.in_seconds`), and in strict mode one refused output refuses the whole script, so they are
-  // taken out; TradingView reads them equal to R2 / R4 / R6 on every bar.
-  const TEXT = (cap) => without(cap.source.text, /time\("1440"/)
+  // ⭐ COV-TIME B1 (2026-11-26): the probe's "1440" rows (R1, R3, R5) are no longer taken out. TradingView reads
+  // them equal to R2 / R4 / R6 on every bar, and this engine now reads "1440" as "D" in the session clock and
+  // the anchor (`pine.js::clockTfCodeOf`), so the probe is graded whole.
+  const TEXT = (cap) => cap.source.text
   const DAILY = 'vw-bt-time-1440-spy-1d-2026-11-16'
   const HOURLY = 'vw-bt-time-1440-spy-60-2026-11-16'
 
-  it('host lane, 1D: R2, R4, R6, R7 are TradingView on all 8,508 bars', () => {
+  it('host lane, 1D: R1-R7 are TradingView on all 8,508 bars', () => {
     const cap = capture(DAILY)
+    expect(cap.source.text).toMatch(/time\("1440", "0930-1600"\)/)
     const { plot } = door(cap, 'host', TEXT(cap))
-    for (const title of ['R2_secs_D_rth', 'R4_secs_D_premarket', 'R6_secs_D_anchor', 'R7_in_seconds_1440']) {
+    for (const title of ['R1_secs_1440_rth', 'R2_secs_D_rth', 'R3_secs_1440_premarket', 'R4_secs_D_premarket',
+      'R5_secs_1440_anchor', 'R6_secs_D_anchor', 'R7_in_seconds_1440']) {
       const r = grade(cap, plot(title), title)
       expect(r.n).toBe(8508)
       expect(r.drawn, title).toBe(8508)
@@ -101,10 +103,10 @@ describe('T-D — time("D") is the 09:30 session open; time("D", "0930-1600") re
     }
   })
 
-  it('host lane, RTH 60m: R2, R6, R7 are TradingView on all 20,861 bars; R4 (a 00:00 window) is withheld by name', () => {
+  it('host lane, RTH 60m: R1, R2, R5, R6, R7 are TradingView on all 20,861 bars; R3 / R4 (a 00:00 window) are withheld by name', () => {
     const cap = capture(HOURLY)
     const { plot } = door(cap, 'host', TEXT(cap))
-    for (const title of ['R2_secs_D_rth', 'R6_secs_D_anchor', 'R7_in_seconds_1440']) {
+    for (const title of ['R1_secs_1440_rth', 'R2_secs_D_rth', 'R5_secs_1440_anchor', 'R6_secs_D_anchor', 'R7_in_seconds_1440']) {
       const r = grade(cap, plot(title), title)
       expect(r.drawn, title).toBe(20861)
       expect(r.bad, `${title}: first ${JSON.stringify(r.first)}`).toBe(0)
@@ -115,18 +117,22 @@ describe('T-D — time("D") is the 09:30 session open; time("D", "0930-1600") re
     expect(cap.plotValues.rows.filter((r) => r[j] < 0).length).toBeGreaterThan(17000)
     const r4 = plot('R4_secs_D_premarket')
     expect(r4.withheldBy).toBe('time-session:day-on-other-chart')
+    // "1440" is withheld exactly where "D" is, by the same name
+    expect(plot('R3_secs_1440_premarket').withheldBy).toBe('time-session:day-on-other-chart')
   })
 
   it('runtime lane: the same rows read from runtime state are TradingView on every bar the run draws', () => {
     const RT = [`//@version=6`, 'indicator("UCTPROBE_VW_BT_TIME_1440", overlay = false)',
-      'secs(t) => na(t) ? -1.0 : (t - time) / 1000.0', 'a = array.new_float(2, 0.0)',
+      'secs(t) => na(t) ? -1.0 : (t - time) / 1000.0', 'a = array.new_float(4, 0.0)',
       'array.set(a, 0, secs(time("D", "0930-1600")))', 'array.set(a, 1, secs(time("D")))',
-      'plot(array.get(a, 0), "R2_secs_D_rth")', 'plot(array.get(a, 1), "R6_secs_D_anchor")'].join(NL)
+      'array.set(a, 2, secs(time("1440", "0930-1600")))', 'array.set(a, 3, secs(time("1440")))',
+      'plot(array.get(a, 0), "R2_secs_D_rth")', 'plot(array.get(a, 1), "R6_secs_D_anchor")',
+      'plot(array.get(a, 2), "R1_secs_1440_rth")', 'plot(array.get(a, 3), "R5_secs_1440_anchor")'].join(NL)
     for (const [id, least] of [[DAILY, 8508], [HOURLY, 20000]]) {
       const cap = capture(id)
       const { side, plot } = door(cap, 'runtime', RT)
       expect(side.door).toBe('runtime')
-      for (const title of ['R2_secs_D_rth', 'R6_secs_D_anchor']) {
+      for (const title of ['R2_secs_D_rth', 'R6_secs_D_anchor', 'R1_secs_1440_rth', 'R5_secs_1440_anchor']) {
         const r = grade(cap, plot(title), title)
         expect(r.drawn, `${id} ${title}`).toBeGreaterThanOrEqual(least)
         expect(r.bad, `${id} ${title}: first ${JSON.stringify(r.first)}`).toBe(0)
@@ -163,11 +169,12 @@ describe('T-D EXT — on an extended-hours chart time("D") is 04:00; time("D", s
   // output refuses the whole script, so they are taken out: S5 (`time("1440")`, B1), and A4 / A5, which read
   // `hour(time("D"))` / `dayofmonth(time("D"))` (a clock function of a computed timestamp: `pine:builtin`, railed
   // below). A3 (`timeframe.change("D")`) is another built-in's and is not graded here.
-  const TEXT = (cap) => without(cap.source.text, /time\("1440"|"A4_|"A5_/)
+  // ⭐ COV-TIME B1 (2026-11-26): S5 (`time("1440")`) is no longer taken out; it is graded with the rows below.
+  const TEXT = (cap) => without(cap.source.text, /"A4_|"A5_/)
   const SPY = 'vw-bi-time-d-extended-spy-60-2026-11-19'
   const BTC = 'vw-bi-time-d-extended-btcusd-60-2026-11-19'
   const ROWS = ['A1_secs_time_D', 'A2_change_time_D',
-    'S1_secs_D_rth', 'S2_secs_D_extended', 'S3_secs_D_after_open', 'S4_secs_D_after_hours']
+    'S1_secs_D_rth', 'S2_secs_D_extended', 'S3_secs_D_after_open', 'S4_secs_D_after_hours', 'S5_secs_1440']
   const col = (cap, title) => {
     const j = 1 + cap.study.plots.map((p) => p.title).indexOf(title)
     expect(j, title).toBeGreaterThan(0)
@@ -207,7 +214,7 @@ describe('T-D EXT — on an extended-hours chart time("D") is 04:00; time("D", s
     expect(t.refusal.guard).toBe('pine:builtin')
   })
 
-  it('host lane: A1, A2 and S1-S4 are TradingView on all 23,615 bars', () => {
+  it('host lane: A1, A2 and S1-S5 are TradingView on all 23,615 bars', () => {
     const cap = capture(SPY)
     const { plot } = door(cap, 'host', TEXT(cap))
     for (const title of ROWS) {
@@ -335,15 +342,95 @@ describe('T-D EXT — on an extended-hours chart time("D") is 04:00; time("D", s
 
 // ─── B1 ───────────────────────────────────────────────────────────────────────────────────────────
 
-describe('B1 — "1440" is "D" for timeframe.in_seconds only', () => {
-  it('timeframe.in_seconds("1440") is 86400 (R7 above); "1440" in the session clock and the anchor still refuses', () => {
-    const f = translatePine(V(6, 'plot(timeframe.in_seconds("1440") + close)'), { strict: true })
-    expect(f.ok).toBe(true)
-    expect(f.outputs[f.selected].formula).toBe('86400 + close')
-    for (const body of ['plot(time("1440", "0930-1600"))', 'plot(time("1440"))']) {
+describe('B1 — "1440" is "D" for timeframe.in_seconds, the session clock and the anchor; nowhere else', () => {
+  const formulaOf = (body, v = 6) => {
+    const t = translatePine(V(v, body), { strict: true })
+    expect(t.ok, `${body}: ${t.refusal && t.refusal.message}`).toBe(true)
+    return t.outputs[t.selected].formula
+  }
+  it('timeframe.in_seconds("1440") is 86400 (R7 above)', () => {
+    expect(formulaOf('plot(timeframe.in_seconds("1440") + close)')).toBe('86400 + close')
+  })
+
+  it('COV-TIME B1: time("1440", sess) / time("1440") translate to exactly the "D" tree (Q-BT2 R1 = R2, R3 = R4, R5 = R6)', () => {
+    for (const [a, b] of [
+      ['plot(time("1440", "0930-1600"))', 'plot(time("D", "0930-1600"))'],
+      ['plot(time("1440", "0000-0930"))', 'plot(time("D", "0000-0930"))'],
+      ['plot(time("1440", "1900-0001"))', 'plot(time("D", "1900-0001"))'],
+      ['plot(time(" 1440 ", "1000-1100:23456"))', 'plot(time("D", "1000-1100:23456"))'],
+      ['plot(time("1440"))', 'plot(time("D"))'],
+      ['s = input.session("0930-1600")\nplot(time("1440", s))', 's = input.session("0930-1600")\nplot(time("D", s))'],
+      ['tf = input.timeframe("1440")\nplot(time(tf))', 'tf = input.timeframe("D")\nplot(time(tf))'],
+    ]) {
+      expect(formulaOf(a), a).toBe(formulaOf(b))
+    }
+    // ⛔ NON-VACUITY: the "D" trees are not the chart's own timeframe's (a fold to `timeframe.period` would pass
+    // the equalities above only if "D" folded too)
+    expect(formulaOf('plot(time("D"))')).not.toBe(formulaOf('plot(time(timeframe.period))'))
+  })
+
+  it('"1440" is NOT a spelling anywhere else: time_close, timeframe.change and request.security keep their answers', () => {
+    // each was asked at "1440" by no capture, so each answers "1440" exactly as it did before this unit
+    for (const body of ['plot(time_close("1440"))', 'plot(timeframe.change("1440") ? 1 : 0)']) {
       const t = translatePine(V(6, body), { strict: true })
       expect(t.ok, body).toBe(false)
     }
+    const req = translatePine(V(6, 'plot(request.security(syminfo.tickerid, "1440", close))'), { strict: true })
+    const reqD = translatePine(V(6, 'plot(request.security(syminfo.tickerid, "D", close))'), { strict: true })
+    expect(req.ok && reqD.ok && req.outputs[req.selected].formula === reqD.outputs[reqD.selected].formula).toBe(false)
+  })
+})
+
+// ─── COV-TIME B2 ─────────────────────────────────────────────────────────────────────────────────
+
+describe('COV-TIME B2 — a v1-v3 bare `interval` is timeframe.multiplier (the v3 reference); v4+ keeps its refusal', () => {
+  // REFERENCE (v3): "interval — Resolution multiplier, e.g. '60' - 60, 'D' - 1, '5D' - 5, '12M' - 12"; the v3->v4
+  // conversion renames it `timeframe.multiplier`. Graded against the reference's own numbers, and against the
+  // modern name on the same base (one reader).
+  const legacy = (v, body) => (v === null ? `study("t")${NL}${body}` : `//@version=${v}${NL}study("t")${NL}${body}`)
+  const fOf = (src, opts) => {
+    const t = translatePine(src, { strict: true, ...opts })
+    expect(t.ok, `${src}: ${t.refusal && t.refusal.message}`).toBe(true)
+    return t.outputs[t.selected].formula
+  }
+  it('reads the reference\'s numbers on the base it is given, in v1 (no version line), v2 and v3', () => {
+    for (const v of [null, 2, 3]) {
+      expect(fOf(legacy(v, 'plot(close + interval)'), { basePeriod: '60' }), `v${v}`).toBe('close + 60')
+      expect(fOf(legacy(v, 'plot(close + interval)'), { basePeriod: '15' }), `v${v}`).toBe('close + 15')
+      expect(fOf(legacy(v, 'plot(close + interval)'), { basePeriod: 'D' }), `v${v}`).toBe('close + 1')
+      expect(fOf(legacy(v, 'plot(close + interval)')), `v${v} default base`).toBe('close + 1')
+    }
+  })
+
+  it('is the same number timeframe.multiplier reads on every base this engine holds', () => {
+    for (const base of ['1', '5', '15', '30', '60', '240', 'D', 'W', 'M']) {
+      const old = translatePine(legacy(3, 'plot(close + interval)'), { strict: true, basePeriod: base })
+      const now = translatePine(V(5, 'plot(close + timeframe.multiplier)'), { strict: true, basePeriod: base })
+      expect(old.ok, base).toBe(now.ok)
+      if (now.ok) expect(old.outputs[old.selected].formula, base).toBe(now.outputs[now.selected].formula)
+    }
+  })
+
+  it('a script\'s OWN `interval` is its own (a binding is read first)', () => {
+    expect(fOf(legacy(3, 'interval = 7\nplot(close + interval)'), { basePeriod: '60' })).toBe('close + 7')
+  })
+
+  it('v4, v5 and v6 keep the refusal by name (no reference from v4 on holds a bare `interval`)', () => {
+    for (const v of [4, 5, 6]) {
+      const t = translatePine(V(v, 'plot(close + interval)'), { strict: true, basePeriod: '60' })
+      expect(t.ok, `v${v}`).toBe(false)
+      expect(t.refusal.guard, `v${v}`).toBe('pine:builtin')
+    }
+  })
+
+  it('the runtime lane reads it the same way (the v3 script `volume-profile-free-pro-by-rrb` writes `interval * 1`)', () => {
+    // (v3 has no `var`; a reassigned name is the v3 way to hold runtime state)
+    const src = legacy(3, 'x = 0.0\nx := close\nplot(x * interval)')
+    const b = buildRuntimeIr(src, { bars: [], inputs: {}, newestBarIsForming: false, basePeriod: '60' })
+    expect(b.ok, b.ok ? '' : `${b.refusal.guard}: ${b.refusal.message}`).toBe(true)
+    // ⛔ control: the same script in v4 is refused on this lane too
+    const b4 = buildRuntimeIr(V(4, 'x = 0.0\nx := close\nplot(x * interval)'), { bars: [], inputs: {}, newestBarIsForming: false, basePeriod: '60' })
+    expect(b4.ok).toBe(false)
   })
 })
 
