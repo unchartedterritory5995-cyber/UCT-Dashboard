@@ -119,6 +119,29 @@ def lane_open(accepts: Any, admin: Any) -> bool:
     return pine_authoring.available()
 
 
+def names_a_method(message: Any) -> Optional[str]:
+    """⭐ 2026-11-25 (coordinator ruling B) -- the catalogue id of a METHOD, drawing, chart type or data series the
+    request names (a catalogue row that is neither distinctive nor in the library: Elliott Wave, Renko, Fibonacci
+    retracement, the put/call ratio), in any capitals. None when it names none.
+    Measured before: such a name in lower case was BUILT FROM MEMORY as a formula with no word that UCT had not
+    checked it, and in Title Case was refused as "not an indicator UCT knows by name", which the catalogue says is
+    false. No single formula is any of these, so it goes to the script turn, where every script no value-checked
+    recipe stands behind carries UCT's own line saying so (`pine_authoring.said_with_disclosure`). A bare short
+    acronym is never matched (`indicator_names.is_short_acronym`, the same rule as the withheld names)."""
+    from api.services import indicator_names
+    if not isinstance(message, str):
+        return None
+    words = " " + indicator_names.norm(message) + " "
+    in_library = indicator_names.now_in_library()
+    for row in indicator_names.catalogue():
+        if row["distinctive"] or row["id"] in in_library:
+            continue
+        for alias in row["aliases"]:
+            if not indicator_names.is_short_acronym(alias) and " " + alias + " " in words:
+                return row["id"]
+    return None
+
+
 def wants_script(message: Any) -> bool:
     """Does the request name something only a script can hold?"""
     return isinstance(message, str) and bool(_SCRIPT_WORDS.search(message) or _SCRIPT_ONLY_ASKS.search(message))

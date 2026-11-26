@@ -362,7 +362,7 @@ def test_what_the_measurement_said_must_not_be_caught_is_not(conv, message):
 
 
 def test_a_name_no_word_of_which_is_known_is_refused_as_it_always_was(conv):
-    for message, phrase in (("Add the Gann Fan", "Gann Fan"), ("Add the Hull Suite", "Hull Suite")):
+    for message, phrase in (("Add the Gann Fan", "Gann Fan"), ("Add the Zorblat Wiggle", "Zorblat Wiggle")):
         got = chart(message)
         assert got["refusal"]["gate"] == "concept:ungrounded"
         assert got["refusal"]["not_understood"][0]["phrase"] == phrase

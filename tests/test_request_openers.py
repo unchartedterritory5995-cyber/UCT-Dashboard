@@ -56,7 +56,7 @@ STILL_A_NAME_AFTER_A_VERB = [
 MEASURED_AND_LEFT_OUT = ["count", "rank", "flag", "tally", "total", "sum", "number", "score", "tag", "test", "spot", "print", "list"]
 #: A name is still a name after an opener: two or more Title-Case words that nothing accounts for.
 STILL_A_NAME = [
-    ("Add Gann Fan", "Gann Fan"), ("Add the Gann Fan", "Gann Fan"), ("Show Hull Suite", "Hull Suite"),
+    ("Add Gann Fan", "Gann Fan"), ("Add the Gann Fan", "Gann Fan"), ("Show Brannock Suite", "Brannock Suite"),
     ("Add Brannock Volume Oscillator", "Brannock Volume Oscillator"), ("Done. Add Hartwell Trend Cycle", "Hartwell Trend Cycle"),
     ("Brannock Volume Oscillator", "Brannock Volume Oscillator"),             # typed alone: "Brannock" opens no request
 ]

@@ -172,14 +172,21 @@ def test_the_one_with_no_checked_formula_is_built_with_the_name_withheld(store, 
 def test_the_one_uct_does_not_build_gets_its_own_answer_and_is_not_asked_again(store, conv, account, clean_env, model):
     mem = memory_of(account)
     q = conv.clarify_question("acronym_adl")
-    client = model([])
+    # ⭐ 2026-11-25 (ruling B): the Advance Decline Line is a catalogued name for one calculation, so it is WITHHELD
+    # (built from what it computes, the name kept off the chart), no longer refused as unknown. A breadth line is not
+    # in one stock's bars: the assistant says so and builds nothing.
+    client = model([emits(env(0, [], disposition="unsupported",
+                              reply="The Advance Decline Line counts every stock's advances and declines; this chart has one stock's bars."))])
     r = conv.converse(ADL_CHOICES[1], user_id="u1", view=empty_view(0), chart=CHART,
                       snippets=asked(q["text"], "Add ADL"), memory=mem)
-    assert r["ok"] is False and client.calls == []
-    assert r["reason"] == conv.UNKNOWN_NAME_REASON.format(name="Advance Decline Line")       # the way forward, by name
+    assert len(client.calls) == 1 and r.get("reason") != conv.UNKNOWN_NAME_REASON.format(name="Advance Decline Line")
+    sent = json.dumps(client.calls[0]["messages"][0]["content"])
+    assert "Advance Decline Line" in sent and conv.WITHHELD_RULE[:40] in sent.replace('\\"', '"')
     assert r.get("disposition") != "clarify"
-    assert mem.choice("acronym_adl") is None                                 # nothing was built, so nothing is remembered
-    assert learned(last_turn()) == {"answered": "acronym_adl", "unknown_name": "advance_decline_line"}
+    # the member said what ADL means to them, and the door now RECOGNISES that meaning (a withheld name counts in
+    # `meant_by`), so it is remembered as every recognised choice is (`answer_value`); before, it was not recognised
+    assert (mem.choice("acronym_adl") or {}).get("label") == "Advance Decline Line"
+    assert learned(last_turn()).get("answered") == "acronym_adl"
 
 
 def test_a_message_that_does_not_answer_is_a_new_request(conv, clean_env, model):

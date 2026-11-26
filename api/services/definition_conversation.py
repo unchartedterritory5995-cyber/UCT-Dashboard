@@ -6212,7 +6212,8 @@ def _with_script_lane(formula_turn: Any, message: Any, *, user_id: Any, view: An
     # word, and it is also how members ask for anything: "draw vwap bands" went to a paid script while "show vwap
     # bands" got the one-tap offer, and "draw ATR Bands" was improvised where UCT has the indicator. The same holds
     # for a name UCT holds back: it is refused by name below, never written from memory because the verb was "draw".
-    if sc.wants_script(words) and not door_answers_by_name(words, chart, can_add):
+    # (a method, drawing, chart type or data series the catalogue names goes to the script turn too: `sc.names_a_method`)
+    if (sc.wants_script(words) or sc.names_a_method(words)) and not door_answers_by_name(words, chart, can_add):
         return script()
     result = formula_turn()
     if cancelled is not None and cancelled.is_set():
