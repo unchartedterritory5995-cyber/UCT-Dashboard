@@ -36,6 +36,51 @@
    "to": "    for path in []:",
    "rail": "python -m pytest -q tests/test_fixture_bar_rows_guard.py",
    "expectRed": "test_control_the_guard_can_fail"
+  },
+  {
+   "id": "LV1",
+   "mutant": "a lower-tf volume read served once the gate is on",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    if (!what && volumeRead) {",
+   "to": "    if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/lowerTfVolume.test.js",
+   "expectRed": "withheld by name, with the definition sentence"
+  },
+  {
+   "id": "LV2",
+   "mutant": "a closed-table function that reads volume itself not recognised",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "const readsVolume = (name) => own(TABLE.functions, name) && /\\bvolume\\b/i.test(JSON.stringify(TABLE.functions[name]))",
+   "to": "const readsVolume = (name) => false",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/lowerTfVolume.test.js",
+   "expectRed": "reads volume itself"
+  },
+  {
+   "id": "LV3",
+   "mutant": "the `volume` series leaf not recognised",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "((n.type === 'series' && n.name === 'volume') || (n.type === 'call' && readsVolume(n.name)))",
+   "to": "((n.type === 'call' && readsVolume(n.name)))",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/lowerTfVolume.test.js",
+   "expectRed": "withheld by name, with the definition sentence"
+  },
+  {
+   "id": "KD1",
+   "mutant": "the session's 09:30 open counted as a price difference again",
+   "file": "app/src/components/chart/engine/__tests__/storeIntradayAgreement.js",
+   "from": "        if (f === 'o' && x.t === firstSlot) {",
+   "to": "        if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/storeIntradayAgreement.test.js",
+   "expectRed": "known definition difference"
+  },
+  {
+   "id": "KD2",
+   "mutant": "volume gating the flip",
+   "file": "app/src/components/chart/engine/__tests__/storeIntradayAgreement.js",
+   "from": "  for (const k of ['coverage', 'price', 'lastClose']) {",
+   "to": "  for (const k of ['coverage', 'price', 'lastClose', 'volume']) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/storeIntradayAgreement.test.js",
+   "expectRed": "reported as a definition"
   }
  ]
 }
