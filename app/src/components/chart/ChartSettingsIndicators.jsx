@@ -2520,7 +2520,8 @@ export default function ChartSettingsIndicators({
     // the off tier and the control is `disabled` + `aria-disabled`. It wakes on the
     // same click that satisfies the condition, because `row.values` is the resolved
     // state that click writes. A field with no `activeWhen` is untouched.
-    const off = !dis && !!f.activeWhen && !evalActiveWhen(f.activeWhen, row.values)
+    // ⭐ e98 E2 — with the row's definition, so a Pine input's `active =` test reads an option as the script does
+    const off = !dis && !!f.activeWhen && !evalActiveWhen(f.activeWhen, row.values, registry?.getDefinition?.(row.defId))
     // The reason has to reach a screen reader, not just a pointer — the rule this
     // tab already followed, kept verbatim.
     const whyId = dis ? `ind-why-${row.id}-${f.key}` : undefined

@@ -1,0 +1,59 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "FR1",
+   "mutant": "no 240 shape: the custom-timeframe step table is empty (SP:SPX at 240 has no held shape)",
+   "file": "app/src/components/chart/engine/otherSymbols.js",
+   "from": "const CUSTOM_INTRADAY_STEP_MIN = Object.freeze({ 240: 240 })",
+   "to": "const CUSTOM_INTRADAY_STEP_MIN = Object.freeze({})",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/rsFourHourWitness.test.js",
+   "expectRed": "SP:SPX lists 240"
+  },
+  {
+   "id": "FR2",
+   "mutant": "clock-anchored slots: a 4h grid starts at the extended open, not at the session-anchored slot",
+   "file": "app/src/components/chart/engine/otherSymbols.js",
+   "from": "    const firstSlot = anchored ? mid + (anchorMin - Math.ceil((anchorMin - EXT_OPEN_MIN) / step) * step) * 60",
+   "to": "    const firstSlot = false ? mid + (anchorMin - Math.ceil((anchorMin - EXT_OPEN_MIN) / step) * step) * 60",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/rsFourHourWitness.test.js",
+   "expectRed": "(b) a REGULAR chart"
+  },
+  {
+   "id": "FR3",
+   "mutant": "no official close: the 4h bar that holds the session's close keeps its own print",
+   "file": "app/src/components/chart/engine/otherSymbols.js",
+   "from": "          const c = anchored && own !== null && r.t + step * 60 >= close ? own : r.c",
+   "to": "          const c = r.c",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/rsFourHourWitness.test.js",
+   "expectRed": "a half-day"
+  },
+  {
+   "id": "FR4",
+   "mutant": "official close on native timeframes too",
+   "file": "app/src/components/chart/engine/otherSymbols.js",
+   "from": "          const c = anchored && own !== null && r.t + step * 60 >= close ? own : r.c",
+   "to": "          const c = own !== null && r.t + step * 60 >= close ? own : r.c",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/rsFourHourWitness.test.js",
+   "expectRed": "a native timeframe never takes the official close"
+  },
+  {
+   "id": "FR5",
+   "mutant": "native-only depth: a 4h chart's held rows are counted as a daily chart's",
+   "file": "app/src/components/chart/engine/otherSymbols.js",
+   "from": "  if (Object.prototype.hasOwnProperty.call(GRID_STEP_MIN, tf)) {\n    const byRows = Math.ceil((n * GRID_STEP_MIN[tf]) / 390) + 10",
+   "to": "  if (Object.prototype.hasOwnProperty.call(INTRADAY_STEP_MIN, tf)) {\n    const byRows = Math.ceil((n * INTRADAY_STEP_MIN[tf]) / 390) + 10",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/rsFourHourWitness.test.js",
+   "expectRed": "SP:SPX lists 240"
+  },
+  {
+   "id": "FR6",
+   "mutant": "native-only grid step: atOrBeforeGridOf lays no 240 grid",
+   "file": "app/src/components/chart/engine/otherSymbols.js",
+   "from": "  const step = GRID_STEP_MIN[String(tf)]",
+   "to": "  const step = INTRADAY_STEP_MIN[String(tf)]",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/rsFourHourWitness.test.js",
+   "expectRed": "(b) a REGULAR chart"
+  }
+ ]
+}

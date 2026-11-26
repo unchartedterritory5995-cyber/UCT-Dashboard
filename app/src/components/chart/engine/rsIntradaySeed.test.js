@@ -130,6 +130,8 @@ describe('the block: a series held at D alone, the second shape an intraday time
   it('served on every intraday timeframe; not on a weekly chart; never another read; never with a second held series', () => {
     for (const tf of ['1', '5', '15', '30', '60']) expect(periodBlockServes(block(), tf), tf).toBe(true)
     expect(periodBlockServes(block(), 'W')).toBe(false)
+    // ⛔ e98 — a 4h chart serves SP:SPX (Q-FRED-4H), but no capture witnesses a seed there: no seed shape on 240
+    expect(periodBlockServes(block(), '240')).toBe(false)
     expect(periodBlockServes(block({ reads: { D: 'latest-at-or-before' } }), '5')).toBe(false)
     expect(periodBlockServes(block({ reads: { period: 'utc-midnight-at-or-after' } }), '5')).toBe(false)
     expect(periodBlockServes(block({ alsoHeld: 'D' }), '5')).toBe(false)
@@ -140,6 +142,7 @@ describe('the block: a series held at D alone, the second shape an intraday time
     for (const tf of ['1', '5', '15', '30', '60']) {
       expect(heldFetchesOf(STORE, tf), tf).toEqual([{ symbol: STORE, tf: 'D', key: HELD }])
     }
+    expect(heldFetchesOf(STORE, '240')).toEqual([])
   })
 })
 

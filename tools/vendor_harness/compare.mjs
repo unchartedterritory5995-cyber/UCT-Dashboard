@@ -352,6 +352,15 @@ export const unescapeVendorTitle = decodeVendorText
 const CANDLE_PART_TYPES = Object.freeze({ ohlc_open: 'open', ohlc_high: 'high', ohlc_low: 'low', ohlc_close: 'close' })
 const CANDLE_COLOUR_TYPES = Object.freeze({ ohlc_colorer: 'body', wick_colorer: 'wick', border_colorer: 'border' })
 export const CANDLE_ROLES = Object.freeze(['open', 'high', 'low', 'close'])
+// ⭐ e98 P3 (phase B) — the body colour is graded on the candle's CLOSE row, once per candle; the wick and border are
+// named, not compared (this harness reads no wick or border colour off our side's drawn candle)
+export const CANDLE_PART_COLOUR_NOT_COMPARED = 'not compared (phase B grades the body colour only)'
+export const CANDLE_BODY_ON_CLOSE = 'not compared on this part — a candle\'s body colour is graded once, on its close'
+export const CANDLE_BODY_NOT_CAPTURED = 'not captured — the capture records no body colorer for this candle'
+export const CANDLE_BODY_COMPARED = 'compared — the candle\'s body colour (its ohlc_colorer)'
+export const CANDLE_HIDDEN_OURS = 'not graded — our side hides this candle at these settings, and '
+export const CANDLE_WITHHELD_OURS = 'TradingView draws it and our side draws nothing, so its body colour is not compared'
+export const CANDLE_WITHHELD_COLOUR = 'not compared — our door withholds this candle by name, so no body is drawn'
 const CANDLE_TARGET = /^(plotcandle|plotbar)_(\d+)$/
 const hasOwn = (o, k) => Object.prototype.hasOwnProperty.call(o, k)
 
@@ -375,7 +384,16 @@ export function vendorPlotRoles(capture) {
       return
     }
     if (candleAt && hasOwn(CANDLE_COLOUR_TYPES, p.type)) {
-      notCompared.push({ ...rec, candleColour: true, why: `candle ${CANDLE_COLOUR_TYPES[p.type]} colour (${p.target}) — not compared (phase A)` })
+      // ⭐ e98 P3 (phase B) — the BODY colorer is graded, on the candle's close (`candleBodyColoursFor`); the wick and
+      // border colorers stay named, not compared
+      if (CANDLE_COLOUR_TYPES[p.type] === 'body') {
+        if (!candleByTarget.has(p.target)) {
+          candleByTarget.set(p.target, { target: p.target, kind: candleAt[1], index: Number(candleAt[2]), parts: {} })
+        }
+        candleByTarget.get(p.target).bodyColorer = rec
+        return
+      }
+      notCompared.push({ ...rec, candleColour: true, why: `candle ${CANDLE_COLOUR_TYPES[p.type]} colour (${p.target}) — ${CANDLE_PART_COLOUR_NOT_COMPARED}` })
       return
     }
     if (VALUE_TYPES.has(p.type)) value.push(rec)
@@ -441,7 +459,7 @@ export function pairCandles(vendorCandles, ourPlots) {
           continue
         }
         const o = ours[n].parts[role]
-        pairs.push({ vendor: v, ours: o, rule: `C1-candle-order (${c.target}.${role})` })
+        pairs.push({ vendor: v, ours: o, rule: `C1-candle-order (${c.target}.${role})`, candle: c })
         usedOurs.add(o)
       }
     }
@@ -1105,6 +1123,13 @@ export function vendorColorsFor(capture, valuePlot, colorers, rowsByTime, times)
   return { colors: null, measured: false, reason: 'no colour captured for this plot' }
 }
 
+/** ⭐ e98 P3 (phase B) — a candle's BODY colours per bar, from its `ohlc_colorer` (which targets `plotcandle_N`, not a
+ *  value plot): decoded by `vendorColorsFor`'s own two paths (a packed colour, or a palette index), so one colour is
+ *  never decoded two ways. */
+export function candleBodyColoursFor(capture, bodyColorer, rowsByTime, times) {
+  return vendorColorsFor(capture, { id: bodyColorer.target }, [bodyColorer], rowsByTime, times)
+}
+
 /**
  * The whole capture.
  *
@@ -1241,7 +1266,12 @@ export function compareCapture(capture, ours, opts = {}) {
     }
     // ⭐ e97 U5 (phase A) — a candle part's colour is the candle's (its body / wick / border colorers, named
     // "not compared (phase A)"), never the part's own style colour, which draws nothing.
-    const vc = v.candlePart ? { colors: null, measured: false, reason: null, candle: true }
+    // ⭐ e98 P3 (phase B) — …except the BODY, graded on the close: the candle's `ohlc_colorer` against the body colour
+    // our side's drawn candle carries (`ourSide.js`, the bound candle's point colours)
+    const vc = v.candlePart
+      ? (v.candlePart === 'close' && pair.candle && pair.candle.bodyColorer
+        ? { ...candleBodyColoursFor(capture, pair.candle.bodyColorer, rowsByTime, times), candle: true, body: true }
+        : { colors: null, measured: false, reason: null, candle: true })
       : vendorColorsFor(capture, v, roles.colorers, rowsByTime, times)
     const treeShift = Number.isInteger(o.treeShift) && o.treeShift > 0 ? o.treeShift : 0
     const ourColors = vc.measured ? (leadBy(o.colors, treeShift) || null) : null
@@ -1290,7 +1320,14 @@ export function compareCapture(capture, ours, opts = {}) {
     // ⭐ …graded on its ALPHA byte alone (`alphaOnlyColour`): the transparency is the
     // script's, only the hue is the chart's.
     const themeRelative = o.colorsThemeRelative === true
-    const colourUngraded = hiddenOnVendor || emptyGlyph
+    // ⭐ e98 P3 — a candle our side hides at these settings draws no body: its colour is not graded (TradingView's
+    // display for a candle is not recorded, `CANDLE_DISPLAY_NOT_RECORDED`)
+    const candleHiddenOurs = !!(vc.body && o.drawnHidden === true)
+    // ⭐ e98 P3 (coordinator ruling (b), 2026-11-25) — a candle our door WITHHOLDS by name (`ourSide.js` `candleWithheld`,
+    // the door's `candlesNotDrawn`) draws nothing where TradingView draws a coloured candle: its body colour is not
+    // compared, and its close is INCONCLUSIVE by the door's own reason below, never a prices-only MATCH
+    const candleWithheldOurs = !!(vc.candle && v.candlePart === 'close' && typeof o.candleWithheld === 'string')
+    const colourUngraded = hiddenOnVendor || emptyGlyph || candleHiddenOurs || candleWithheldOurs
     const gradedVendorColors = themeRelative && vc.colors ? vc.colors.map(alphaOnlyColour) : vc.colors
     const gradedOurColors = themeRelative && ourColors ? ourColors.map(alphaOnlyColour) : ourColors
     // ⭐⭐ ENGINE 55 — the NEWEST bar our side withheld BY NAME (`withheldNewest`: the
@@ -1310,6 +1347,12 @@ export function compareCapture(capture, ours, opts = {}) {
       ourColorWithheldBy: o.colorsWithheldBy || null,
     }
     let pv = plotVerdict(r, verdictOpts)
+    // ⭐ e98 P3 — prices that agree on a candle our door does not draw are not a match of the candle (a wrong price
+    // still DIVERGEs, by its own row). ⛔ Only where TradingView draws it: a candle `na` on every bar there draws
+    // nothing on either side (volume-suite's CRVOL / CVD at their defaults), which is the same picture.
+    if (candleWithheldOurs && r.valued > 0 && pv.verdict === 'MATCH') {
+      pv = { verdict: 'INCONCLUSIVE', reason: `${pv.reason}, but the candle is ${o.candleWithheld}: ${CANDLE_WITHHELD_OURS}` }
+    }
     // OTHER-SYMBOL UNSETTLED (see `unsettledRecord`): a zero-lookback plot whose ONLY steady divergences
     // (at most UNSETTLED_MAX_BARS, values) are bars where this capture's own read of another symbol is
     // contradicted by another committed TradingView witness of that symbol and date
@@ -1386,12 +1429,14 @@ export function compareCapture(capture, ours, opts = {}) {
       ...(colorWarmupBars !== warmupBars ? { colorWarmupBars, colorWarmupSource: `derived: the colour rule's own maxLookback (${o.colorLookback})` } : {}),
       ...(treeShift ? { treeShift, treeShiftNote: `offset = ${treeShift}: our column read ${treeShift} bars ahead to meet the vendor's unshifted series; the last ${treeShift} bars are unread` } : {}),
       ...(o.withheldNewest === true ? { withheldNewest: 'request:htf-newest-unconfirmed', withheldNewestNote: 'the newest bar is withheld by name on our side (a finished bar whose week or month end is the date of the next session) and is not compared' } : {}),
-      color: vc.candle ? 'not compared (phase A) — a candle\'s body, wick and border colours are the candle\'s colorers'
+      color: vc.candle && !vc.body ? (v.candlePart === 'close' ? CANDLE_BODY_NOT_CAPTURED : CANDLE_BODY_ON_CLOSE)
         : !vc.measured ? 'not captured'
-        : colourUngraded ? (emptyGlyph ? 'not graded — an empty plotchar glyph draws nothing' : 'not graded — hidden on TradingView (display none)')
+        : colourUngraded ? (candleWithheldOurs ? (r.valued > 0 ? CANDLE_WITHHELD_COLOUR : 'nothing drawn on any bar — no colour to compare')
+          : candleHiddenOurs ? CANDLE_HIDDEN_OURS + CANDLE_DISPLAY_NOT_RECORDED
+          : emptyGlyph ? 'not graded — an empty plotchar glyph draws nothing' : 'not graded — hidden on TradingView (display none)')
           : !vc.colors ? 'undecodable in the capture'
             : r.colorComparable === 0 ? 'nothing drawn on any bar — no colour to compare'
-              : ourColors ? (themeRelative ? 'compared on alpha only — a theme reference (chart.fg_color / chart.bg_color) takes its hue from the chart (C37)' : 'compared') : 'unresolvable on our side',
+              : ourColors ? (themeRelative ? 'compared on alpha only — a theme reference (chart.fg_color / chart.bg_color) takes its hue from the chart (C37)' : vc.body ? CANDLE_BODY_COMPARED : 'compared') : 'unresolvable on our side',
       stats: r,
     })
   }

@@ -102,10 +102,12 @@ import { yieldsOf, compileRules, SENTENCE_RULES, didYouMean } from './sentence.j
 // looked back further would build a tree that translates and then refuses at
 // evaluation time, which is a refusal at the wrong door.
 import { FN, MAX_SELF_LAG, SEED_RESIDUAL_TOLERANCE, TF_RESAMPLABLE, TF_LADDER, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, heldFalseSeed, naConditionIsFalse, periodFirstCondition, readingSeed, chartOwnTimeNode, OWN_TIME_WITNESSED_TF, periodCloseNode, PERIOD_CLOSE_CODES, periodAnchorNode, chartSixtyTimeNode, dayAnchorNode, sessionDayGateNode, sessionDayWindowNode, SIXTY_WITNESSED_TF, PERIOD_ANCHOR_WITNESSED_TF, PERIOD_CLOSE_WITNESSED_TF, requestBaseNode, treeReadsLowerTf, listingSeedIsUnpinned, isBarPriceTree } from './interpret.js'
-import { isLowerTfRequest, lowerTfRefusal, LOWER_TF_REFUSAL } from '../lowerTf.js'
+import { isLowerTfRequest, lowerTfRefusal, LOWER_TF_REFUSAL, LOWER_TF_VOLUME_DEFINITION } from '../lowerTf.js'
 import { staticallyUnservable, spellingUnservable, staticOtherSymbolMessage, US_EQUITY_VENUES, witnessRowOf, SEED_SPELLING } from '../otherSymbols.js'
 // ⭐⭐ T4 E2 — `request.earnings` / `request.dividends` / `request.splits` (`eventAsSecurity`, `otherSymbolOf`)
 import { eventCallParts, eventOtherSymbolTicker, eventReadOf, EVENT_VENUE } from '../pineEvents.js'
+// ⭐ e98 E4 — a financial period written as a setting: one read per catalog period (`financialPeriodArms`)
+import { financialPeriodArms } from '../pineFinancial.js'
 import { memberNumber } from './memberValue.js'
 // ⭐⭐ CBC-FMT — the request reads a `calc_bars_count` window refuses (pure, imports nothing).
 import { CALC_BARS_REQUEST_SOURCE } from '../calcBarsWindow.js'
@@ -517,6 +519,23 @@ export const REFUSALS = Object.freeze({
     'this column translates, but the engine would refuse to compute it, so it is '
     + 'not offered',
 })
+
+// ⭐ e98 (train e98, polyline words) — A SCRIPT WHOSE DRAWING IS ITS POLYLINES IS TOLD SO. With no plot, no alert
+// condition and no drawing step carried, `pine:no-output` said "offers no plot and no alert condition" and named nothing
+// the author wrote; the object pass had already recorded the polyline (`objectDiagnostics.outOfScope`, the
+// `OUT_OF_SCOPE_NAMESPACES` reading). The guard is unchanged (every consumer of `pine:no-output` reads the same fact);
+// the sentence names the polylines. ⛔ ONLY `pine:no-output` with no drawing step carried, and only where a polyline was
+// written. It does not say polylines are ALL the script writes: a lost line is the drawing note's to name.
+export const POLYLINE_NO_OUTPUT_CLAUSE = 'it draws polylines (`polyline.new`), which this chart does not draw yet'
+export function writesPolyline(diagnostics) {
+  const oos = (diagnostics && Array.isArray(diagnostics.outOfScope)) ? diagnostics.outOfScope : []
+  return oos.some((e) => typeof e === 'string' && (e === 'polyline' || e.startsWith('polyline.')))
+}
+function noOutputSentence(guard, diagnostics) {
+  return guard === 'pine:no-output' && writesPolyline(diagnostics)
+    ? `${REFUSALS[guard]}: ${POLYLINE_NO_OUTPUT_CLAUSE}`
+    : REFUSALS[guard]
+}
 
 /** ⭐⭐ DRAW-1 (2026-11-16) — WHY A DRAWING STEP'S CONDITION COULD NOT BE READ, WHEN NOTHING
  *  THREW. A `guard:<kind>` drop is named by the refusal its condition's tree threw
@@ -6149,6 +6168,9 @@ function lowerTfCodesHeld(t) {
 /** The clock leaves a lower-timeframe child may NOT read: each answers from where
  *  the loaded series starts or ends, or from the bar's realtime state — facts our
  *  intraday supply does not share with TradingView's (`lowerTfChildRefusal`). */
+/** ⭐ e98 — a closed-table function that reads `volume` itself (its row names volume): derived from the table,
+ *  never restated, so a new volume function is withheld the day it is added. Over-declares, never under. */
+const readsVolume = (name) => own(TABLE.functions, name) && /\bvolume\b/i.test(JSON.stringify(TABLE.functions[name]))
 const LOWER_TF_EXTENT_LEAVES = new Set(['barindex', 'lastbarindex', 'lastbartime', 'lastbaryear',
   'lastbarmonth', 'lastbardayofmonth', 'lastbarhour', 'lastbarminute', 'islast', 'isfirst',
   'isrealtime', 'isconfirmed', 'ishistory', 'islastconfirmedhistory'])
@@ -6791,6 +6813,29 @@ let _eventRewriteOff = false
 export function __eventRewriteOffForTests(off) { _eventRewriteOff = !!off }
 function eventAsSecurity(node) {
   if (_eventRewriteOff) return node
+  // ⭐⭐ e98 E4 — a financial period written as a SETTING (or any expression): one read per catalog period, selected by
+  // `period == "<P>"` tests the resolver reads as the member's setting (`enumCompare` on an `input.string(…, options)`,
+  // pruned per instance at bind); the call as written stays the last arm (`XP`: refused by name if ever picked)
+  const periodArms = _financialPeriodSettingOn ? financialPeriodArms(node) : null
+  if (periodArms) {
+    let chain = eventAsSecurityOne(node)
+    for (const arm of [...periodArms.arms].reverse()) {
+      chain = {
+        type: 'ternary', tok: node.tok,
+        test: { type: 'binary', op: '==', left: periodArms.periodNode, right: { type: 'string', value: arm.period, tok: node.tok }, tok: node.tok },
+        yes: eventAsSecurityOne(arm.call),
+        no: chain,
+      }
+    }
+    return chain
+  }
+  return eventAsSecurityOne(node)
+}
+/** ⛔ TEST SEAM (e98 E4) — the parse as before E4 (a non-constant financial period is one `XP` read): the census' and a
+ *  mutant's control. */
+let _financialPeriodSettingOn = true
+export function __financialPeriodSettingForTests(on = true) { _financialPeriodSettingOn = on !== false }
+function eventAsSecurityOne(node) {
   const parts = eventCallParts(node)
   if (!parts) return node
   const tok = node.tok
@@ -9069,6 +9114,9 @@ export class Resolver {
      *  as its OWN set because the sentence the member reads is different: this
      *  input lands in a displacement, not a window. */
     this.displacementBoundInputs = new Set()
+    /** ⭐⭐ e98 E3 — the inputs a plot's `offset` READS AS A SETTING (`offsetSettingInputs`: read nowhere else): drawn
+     *  as the member's own value at draw time (`plots[].displaceInput`), never folded into a tree or a row. */
+    this.displaceSettingInputs = new Set()
     /** ⭐⭐ TRACK F (DEC-006) — the shared, per-`translatePine` (NOT
      *  per-Resolver) parameter-identity table (`newParamMint`: `{ counter,
      *  byOrdinal, metadata, sites, ordinalAt, legacy }`), or `null` for every existing caller —
@@ -14317,25 +14365,109 @@ export class Resolver {
       if (yes.unread) return yes
       if (no.unread) return no
       if (!yes.when && !no.when && yes.hidden === no.hidden) return { hidden: yes.hidden, places: yes.places }
-      let test
-      try { test = this.resolve(node.test) } catch (err) {
-        if (isStackOverflow(err)) throw err
+      const choice = this.settingChoiceTestOf(node, settingLeaf)
+      if (choice.unread === 'unreadable') {
         return { unread: 'its `display` chooses between places on a condition this engine could not read' }
       }
-      // ⭐ e97 U6 — a setting this pass folded to its default (an `input.bool` not declared here) is still the member's
-      // choice: it becomes a knob leaf carrying that default, and the door decides it (declared: per instance;
-      // undeclared: at the default, `memberPaneDefinition` / `knobBind.hiddenAtLeafDefaults`)
-      if (test && test.type === 'num') {
-        if (!settingLeaf) return test.value ? yes : no
-        test = settingLeaf
-      }
-      if (knobTestValue(test, knobDefaultsOf(test)) === null) {
+      if (choice.unread) {
         return { unread: 'its `display` chooses between places on a condition that is not one of the script\'s settings' }
       }
+      if (choice.constant !== undefined) return choice.constant ? yes : no
+      const { test } = choice
       const notTest = { type: 'op', name: '!', args: [test] }
       return { when: knobOr(knobAnd(test, displayHiddenTree(yes)), knobAnd(notTest, displayHiddenTree(no))) }
     }
     return { unread: 'its `display` is not a display constant, a `+` / `-` of them, or a setting\'s choice between them' }
+  }
+
+  /** ⭐ e97 U6 (shared since e98 E1) — THE TEST OF A `? :` A PRESENTATION ARGUMENT CHOOSES ON, as the one knob-test
+   *  grammar (`ast/bind.js::knobTestValue`; checked by `defSchema.hiddenWhenProblem`): `{test}` (a knob tree),
+   *  `{constant: true|false}` (the test folds and is not a setting), or `{unread: 'unreadable' | 'not-a-setting'}`.
+   *  Read by `display` (`displayArmOf`) and `linestyle` (`lineStyleArmOf`), so the two can never disagree about what
+   *  counts as the member's setting. */
+  settingChoiceTestOf(node, settingLeaf) {
+    let test
+    try { test = this.resolve(node.test) } catch (err) {
+      if (isStackOverflow(err)) throw err
+      return { unread: 'unreadable' }
+    }
+    // ⭐ e97 U6 — a setting this pass folded to its default (an `input.bool` not declared here) is still the member's
+    // choice: it becomes a knob leaf carrying that default, and the door decides it (declared: per instance;
+    // undeclared: at the default, `memberPaneDefinition` / `knobBind.hiddenAtLeafDefaults`)
+    if (test && test.type === 'num') {
+      if (!settingLeaf) return { constant: !!test.value }
+      test = settingLeaf
+    }
+    if (knobTestValue(test, knobDefaultsOf(test)) === null) return { unread: 'not-a-setting' }
+    return { test }
+  }
+
+  /** ⭐⭐ e98 E1 — HOW A `plot`'S LINE IS DRAWN, from its `linestyle =` argument (Pine v6, September 2025:
+   *  `plot.linestyle_solid` / `_dashed` / `_dotted`): `{}` when none is written, `{lineStyle}` when every setting answers
+   *  alike, `{lineStyle, when: [{when: <knob tree>, lineStyle}]}` when the member's settings decide it (`lineStyle` is
+   *  the style at the settings' defaults; each `when` is a knob test, true = that style), or `{unread: <why>}`.
+   *  ⚰️ Never read: `plot(x, linestyle = plot.linestyle_dashed)` was drawn SOLID with no word, on both lanes.
+   *  ⛔ A linestyle this cannot read is `unread`: drawn solid AND said by name at the door, never silently. */
+  outputLineStyleOf(args) {
+    const a = (args || []).find((x) => x && x.name === 'linestyle')
+    if (!a || !a.value) return {}
+    const minted = this.paramMint
+    let r
+    try {
+      r = this.lineStyleArmOf(a.value, 0)
+    } catch (err) {
+      if (isStackOverflow(err)) throw err
+      return { unread: `its \`linestyle\` could not be read (${String((err && err.message) || err).slice(0, 120)})` }
+    } finally { this.paramMint = minted }
+    if (r.unread) return { unread: r.unread }
+    const arms = PLOT_LINE_STYLE_ORDER.filter((s) => r.arms[s] && !isNumTree(r.arms[s], 0)).map((s) => [s, r.arms[s]])
+    if (arms.length === 1 && isNumTree(arms[0][1], 1)) return { lineStyle: arms[0][0] }
+    if (!arms.length) return { unread: 'its `linestyle` chooses no line style at any setting' }
+    const atDefaults = arms.find(([, t]) => isNumTree(t, 1) || !!knobTestValue(t, knobDefaultsOf(t)))
+    return { lineStyle: atDefaults ? atDefaults[0] : 'solid', when: arms.map(([lineStyle, when]) => ({ when, lineStyle })) }
+  }
+
+  /** ⭐ e98 E1 — the line styles one `linestyle` node names, each with the knob test under which it is drawn
+   *  (`{arms: {dashed: <tree>, …}}`, a static style's test the number 1), through plain bindings and a `? :` whose
+   *  condition folds or is a setting of this script (`settingChoiceTestOf`, the test `display` reads); or `{unread}`. */
+  lineStyleArmOf(node, depth) {
+    if (!node || depth > 8) return { unread: 'its `linestyle` is not one this engine can follow to a line style' }
+    if (node.type === 'name') {
+      const bound = this.env && this.env.get(node.name)
+      if (bound) {
+        return bound.kind === 'expr' ? this.lineStyleArmOf(bound.node, depth + 1)
+          : { unread: `its \`linestyle = ${node.name}\` is not bound to a line style this engine reads` }
+      }
+      if (own(PLOT_LINE_STYLE_OF, node.name)) return { arms: { [PLOT_LINE_STYLE_OF[node.name]]: { type: 'num', value: 1 } } }
+      return { unread: `its \`linestyle = ${node.name}\` is not a line style constant` }
+    }
+    if (node.type === 'ternary') {
+      const folded = this.constantBranchOf(node)
+      const settingLeaf = this.displayKnobLeafOf(node.test)
+      if (folded && !settingLeaf) return this.lineStyleArmOf(folded, depth + 1)
+      const yes = this.lineStyleArmOf(node.yes, depth + 1)
+      const no = this.lineStyleArmOf(node.no, depth + 1)
+      if (yes.unread) return yes
+      if (no.unread) return no
+      const choice = this.settingChoiceTestOf(node, settingLeaf)
+      if (choice.unread === 'unreadable') {
+        return { unread: 'its `linestyle` chooses between line styles on a condition this engine could not read' }
+      }
+      if (choice.unread) {
+        return { unread: 'its `linestyle` chooses between line styles on a condition that is not one of the script\'s settings' }
+      }
+      if (choice.constant !== undefined) return choice.constant ? yes : no
+      const { test } = choice
+      const notTest = { type: 'op', name: '!', args: [test] }
+      const zero = { type: 'num', value: 0 }
+      const arms = {}
+      for (const s of PLOT_LINE_STYLE_ORDER) {
+        if (!yes.arms[s] && !no.arms[s]) continue
+        arms[s] = knobOr(knobAnd(test, yes.arms[s] || zero), knobAnd(notTest, no.arms[s] || zero))
+      }
+      return { arms }
+    }
+    return { unread: 'its `linestyle` is not a line style constant or a setting\'s choice between them' }
   }
 
   /** ⭐ e97 U6 — `name` / `not name` where `name` is bound to an `input.bool` this resolution read (`usedInputs`): a knob
@@ -15679,6 +15811,7 @@ export class Resolver {
     const stack = [tree]
     const seen = new Set()
     let what = null
+    let volumeRead = null
     while (stack.length && !what) {
       const n = stack.pop()
       if (!n || typeof n !== 'object' || seen.has(n)) continue
@@ -15695,8 +15828,21 @@ export class Resolver {
         what = `\`${n.name}\`, which reads the whole loaded series, so its value depends on where the series starts`
       } else if (n.type === 'series' && LOWER_TF_EXTENT_LEAVES.has(n.name)) {
         what = `\`${n.name}\` (the bar's position in the loaded series, or its realtime state)`
+      } else if (!volumeRead && ((n.type === 'series' && n.name === 'volume') || (n.type === 'call' && readsVolume(n.name)))) {
+        volumeRead = n.type === 'series' ? '`volume`' : `\`${n.name}\` (it reads \`volume\`)`
       }
       if (Array.isArray(n.args)) for (const a of n.args) stack.push(a)
+    }
+    // ⭐⭐ e98 (owner ruling 2026-11-26, the store witness) — OUR VOLUME IS NOT TRADINGVIEW'S BY DEFINITION: the store's
+    // volume is consolidated and includes odd lots, TradingView's excludes them (about 1.2-1.6x on every 15m bar,
+    // measured). A child that reads volume would compute a different number than TradingView's on any intraday
+    // series, so once the gate is on it stays WITHHELD BY NAME with that sentence, whatever the price criteria say.
+    // (Asked after every reason above, and only reached when the read is otherwise served: the gate's own refusal,
+    // `lower-tf:store-unmeasured`, answers first while it is off.)
+    if (!what && volumeRead) {
+      return { code: LOWER_TF_REFUSAL.VOLUME_DEFINITION,
+        why: `${LOWER_TF_REFUSAL.VOLUME_DEFINITION}: the expression read at \`${code}\`, below this chart's timeframe, `
+          + `reads ${volumeRead} — ${LOWER_TF_VOLUME_DEFINITION}, so it is not TradingView's value` }
     }
     if (!what) return null
     return { code: LOWER_TF_REFUSAL.EXPRESSION,
@@ -18146,8 +18292,9 @@ export class Resolver {
       const readBound = (key) => {
         const a = node.args.find((x) => x.name === key)
         if (!a) return null
-        const v = this.resolve(a.value)
-        return v && v.type === 'num' && Number.isFinite(v.value) ? v.value : null
+        // ⭐ e98 E3 — a NEGATIVE bound is a bound (`minval = -500`, the built-in moving averages' Offset): the resolver
+        // writes it as `u-` over a number (`inputBoundValue`), which this read as no bound at all
+        return inputBoundValue(this.resolve(a.value))
       }
       const lo = readBound('minval')
       const hi = readBound('maxval')
@@ -18195,8 +18342,8 @@ export class Resolver {
     const bound = (key) => {
       const arg = node.args.find((a) => a.name === key)
       if (!arg) return null
-      const v = this.resolve(arg.value)
-      return v && v.type === 'num' && Number.isFinite(v.value) ? v.value : null
+      // ⭐ e98 E3 — a NEGATIVE bound is carried (`minval = -500`), never dropped (`inputBoundValue`)
+      return inputBoundValue(this.resolve(arg.value))
     }
     this.usedInputs.set(`${node.tok.line}:${node.tok.column}`, {
       call: name,
@@ -30466,6 +30613,24 @@ function translatePineResult(source, opts = {}) {
       notes.push(noteOf('pine:chart-only', chartOnlyNote(callTok.value, { arg: argName }), a.nameTok))
     }
   }
+  // ⭐⭐ e98 E2 — AN INPUT'S `active =` (Pine v6, July 2025: the setting is greyed out in TradingView's settings when
+  // false; its value still applies), collected here from each top-level `name = input*(…, active = <bool>)` and read
+  // once every name is settled (`resolveInputActives`, below). ⚰️ Never read: ignored in silence on both lanes.
+  const inputActiveCalls = []
+  for (const st of stmts) {
+    const h = st.header || []
+    if (!(h[0] && h[0].kind === 'ident' && isPunct(h[1], '='))) continue
+    const callTok = h[2]
+    if (!callTok || callTok.kind !== 'ident' || !(callTok.value === 'input' || callTok.value.startsWith('input.'))
+      || !isPunct(h[3], '(')) continue
+    let iargs = null
+    try { iargs = parseArguments(new Cursor(h.slice(4))) } catch { iargs = null }
+    const a = iargs && iargs.find((x) => x && x.name === 'active')
+    if (a && a.value) inputActiveCalls.push({ name: h[0].value, call: callTok.value, node: a.value, tok: callTok })
+  }
+  // ⭐⭐ e98 E3 — the int inputs a plot's `offset` alone reads (`offsetSettingInputs`): each is the member's setting,
+  // drawn at draw time as TradingView shifts the drawing (the series a scan or an alert reads is unshifted).
+  const offsetSettings = offsetSettingInputs(stmts, tokens)
   let si = 0
   while (si < stmts.length) {
     const stmt = stmts[si]
@@ -31776,13 +31941,16 @@ function translatePineResult(source, opts = {}) {
       // while the author's computed value at each bar is exactly what the
       // undisplaced tree says.
       const {
-        shift, paramId: shiftParamId, displaceFrom, displaceParams,
-      } = foldDisplacement(resolver, seriesArg)
+        shift, paramId: shiftParamId, displaceFrom, displaceParams, setting: displaceSetting,
+      } = foldDisplacement(resolver, seriesArg, offsetSettings)
       const resolvedBase = resolver.resolve(seriesArg.value)
       // ⭐ ENGINE 56 (A3) — a v1-v5 `bool` PLOTTED is `na` where it is `na` (S1: `close > na_s`)
       const plottedNa = out.kind === 'plot' && !writtenLogic(seriesArg.value) ? boolNaFlagOf(resolvedBase, resolver.pineVersion) : null
       const base = plottedNa ? boolNaValue(plottedNa, resolvedBase) : resolvedBase
-      const ast = shift > 0 ? { type: 'offset', value: shift, args: [base] } : base
+      // ⭐⭐ e98 E3 — an offset a SETTING decides is never put in the tree: the drawing moves, the series does not
+      // (Pine User Manual v4, `plot` annotation: "the shift is only cosmetic; the actual values in the series are not
+      // moved"). `displaceSetting` rides on the row and the chart draws it at the member's value.
+      const ast = shift > 0 && !displaceSetting ? { type: 'offset', value: shift, args: [base] } : base
       // ⭐ 2026-09-26 — A POSITIVE DISPLACEMENT THAT IS AN INPUT'S OWN VALUE CARRIES
       // THAT INPUT'S PARAMETER ID, on the OFFSET NODE (a bare number cannot hold a
       // property). `pineParamManifest` turns it into a locator ending at `'value'`
@@ -31790,7 +31958,7 @@ function translatePineResult(source, opts = {}) {
       // so a member's edit moves the displacement with the rest of the input's
       // uses instead of leaving it at the author's default. Non-enumerable, like
       // every other tag: `astHash` and every persisted copy never see it.
-      if (shift > 0 && shiftParamId !== undefined) {
+      if (shift > 0 && !displaceSetting && shiftParamId !== undefined) {
         Object.defineProperty(ast, '__uctParamId',
           { value: shiftParamId, enumerable: false, configurable: true })
       }
@@ -31900,6 +32068,10 @@ function translatePineResult(source, opts = {}) {
       const keysBeforeDisplay = new Set(resolver.usedInputs.keys())
       const display = resolver.outputDisplayOf(args)
       const displayUnread = display.unread || null
+      // ⭐⭐ e98 E1 — a `plot`'s `linestyle`, read in the same window as its display, so an input only the line style
+      // reads is a presentation input too (declared as the member's control by the same proof, `withColourInputs`,
+      // which counts a row's `lineStyleWhen` as one of its rules)
+      const lineStyle = out.kind === 'plot' ? resolver.outputLineStyleOf(args) : {}
       // the inputs ONLY the display read: kept out of the value's list (`inputsFolded`), so they reach the door as
       // presentation inputs (`_colourInputs`), exactly as an input only a colour reads does
       const displayOnlyKeys = new Set([...resolver.usedInputs.keys()].filter((k) => !keysBeforeDisplay.has(k)))
@@ -31932,8 +32104,11 @@ function translatePineResult(source, opts = {}) {
           if (!e.name) return e
           const w = resolver.windowBoundInputs.has(e.name)
           const d = resolver.displacementBoundInputs.has(e.name)
-          return (w || d)
-            ? { ...e, ...(w ? { windowBound: true } : {}), ...(d ? { displacementBound: true } : {}) }
+          // ⭐ e98 E3 — an input only a plot's `offset` reads: the member's setting, drawn at draw time
+          const ds = !d && resolver.displaceSettingInputs.has(e.name)
+          return (w || d || ds)
+            ? { ...e, ...(w ? { windowBound: true } : {}), ...(d ? { displacementBound: true } : {}),
+              ...(ds ? { displaceSetting: true } : {}) }
             : e
         }),
         // ⛔⛔ A COLUMN THAT READS NO BAR IS SCAFFOLDING TOO, and it arrives the
@@ -31953,7 +32128,10 @@ function translatePineResult(source, opts = {}) {
         // ⚠️ NEGATIVE ONLY — a positive displacement is IN the tree above, so
         // recording it here too would be the same fact in two places and a
         // renderer would shift a column that has already been shifted.
-        displace: shift < 0 ? shift : 0,
+        displace: shift < 0 && !displaceSetting ? shift : 0,
+        // ⭐⭐ e98 E3 — a displacement a SETTING decides: `{name, scale, add, at}` (the drawing sits `scale * <name> + add`
+        // bars right, `at` at the defaults; negative = left). The member door carries it as `plots[].displaceInput`.
+        ...(displaceSetting ? { displaceSetting: { ...displaceSetting, at: shift } } : {}),
         // ⭐⭐ WAVE B: what the AUTHOR said this output should look like.
         // ⭐ C1-A: the env and this output's resolver, so a colour CONDITION can
         // be resolved into a real tree here rather than guessed at downstream.
@@ -31970,6 +32148,12 @@ function translatePineResult(source, opts = {}) {
         ...(display.when ? { hiddenWhen: display.when } : {}),
         // ⭐ e97 U6 — a display this engine cannot read: not drawn, and said (never guessed as drawn)
         ...(displayUnread ? { displayUnread } : {}),
+        // ⭐⭐ e98 E1 — how its line is drawn (`outputLineStyleOf`): a style other than solid, a setting's choice
+        // (`lineStyleWhen`, the style at the defaults in `lineStyle`), or a linestyle this engine cannot read
+        // (`lineStyleUnread`: drawn solid and said by name at the door). A plot that writes none carries nothing.
+        ...((lineStyle.when || (lineStyle.lineStyle && lineStyle.lineStyle !== 'solid')) ? { lineStyle: lineStyle.lineStyle } : {}),
+        ...(lineStyle.when ? { lineStyleWhen: lineStyle.when } : {}),
+        ...(lineStyle.unread ? { lineStyleUnread: lineStyle.unread } : {}),
         // ⭐⭐ AND THE ROW SAYS WHICH OF THE TWO IT IS. `hidden` deliberately
         // merges "the author hid this plot" with "this reads no bar" — one flag,
         // one definition of usable column, as the paragraph above argues. But a
@@ -32002,12 +32186,12 @@ function translatePineResult(source, opts = {}) {
       // TradingView exports the first UNSHIFTED (the vendor harness, `leadBy`).
       // Non-enumerable like `_bareRole`: a hand-off, not part of the row's shape,
       // so no digest and no persisted copy sees it.
-      if (shift > 0) Object.defineProperty(row, '_treeShift', { value: shift, enumerable: false })
+      if (shift > 0 && !displaceSetting) Object.defineProperty(row, '_treeShift', { value: shift, enumerable: false })
       // ⭐ 2026-09-26 — A LEFTWARD DISPLACEMENT'S RELATION TO ITS INPUT, for the
       // chart door (`memberPaneDefinition`) to carry onto the saved plot so a
       // definition-parameter edit moves the drawing too. Non-enumerable, like
       // `_bareRole`: it is a hand-off to one reader, not part of the row's shape.
-      if (shift < 0) {
+      if (shift < 0 && !displaceSetting) {
         Object.defineProperty(row, '_displaceFrom', { value: displaceFrom, enumerable: false })
         Object.defineProperty(row, '_displaceParams', { value: displaceParams, enumerable: false })
       }
@@ -32167,6 +32351,14 @@ function translatePineResult(source, opts = {}) {
             // never carried `hidden`, so the runtime document drew a plot
             // TradingView does not draw (nadaraya-watson's `Alert Stream`).
             Object.defineProperty(row, '_authorHidden', { value: outputHidden(pargs), enumerable: false })
+            // ⭐ e98 E1 — and its `linestyle`, by the one reader (`outputLineStyleOf`): the runtime lane draws this row
+            // from these fields, never solid where the author asked for a dashed or dotted line
+            if (out.kind === 'plot') {
+              const ls = resolver.outputLineStyleOf(pargs)
+              if (ls.when || (ls.lineStyle && ls.lineStyle !== 'solid')) row.lineStyle = ls.lineStyle
+              if (ls.when) row.lineStyleWhen = ls.when
+              if (ls.unread) row.lineStyleUnread = ls.unread
+            }
           }
         } catch { /* a presentation that cannot be read is simply not carried */ }
       }
@@ -32598,6 +32790,9 @@ function translatePineResult(source, opts = {}) {
     const levelDisplayInputs = hlineReads.flatMap((h) => (h && h.level && h.displayInputs) || [])
     if (levelDisplayInputs.length) Object.defineProperty(levels, '_colourInputs', { value: levelDisplayInputs, enumerable: false })
   }
+  // ⭐⭐ e98 E2 — each input's `active =`, read once with every name settled (`resolveInputActives`): the setting's
+  // knob test (`when`), greyed at every setting (`inactive`), or unreadable (`unread`, said by name at the door)
+  const inputActive = inputActiveCalls.length ? resolveInputActives(inputActiveCalls, { makeResolver, notes }) : []
   // …and the ones it could not read, by ordinal and line, so a document can account for every `hline` the
   // script writes (drawn, hidden by its author, or withheld by name). Present only when there are any.
   const levelsWithheld = hlineReads.map((h, i) => (h.level ? null : {
@@ -32693,10 +32888,11 @@ function translatePineResult(source, opts = {}) {
     const r = withheld
       ? refusalValue(withheld.guard, withheldHeadline(withheld),
         withheld.line === null ? null : { line: withheld.line, column: null, index: null, token: null })
-      : refusalValue(guard, REFUSALS[guard], null)
+      : refusalValue(guard, noOutputSentence(guard, objectPass.diagnostics), null)
     return {
       ok: false, version, declaration, title, outputs: [], selected: -1,
-      presentation: { overlay, levels, ...(levelsWithheld.length ? { levelsWithheld } : {}), ...(paintRecs ? { paints: paintRecs } : {}) },
+      presentation: { overlay, levels, ...(levelsWithheld.length ? { levelsWithheld } : {}), ...(paintRecs ? { paints: paintRecs } : {}),
+        ...(inputActive.length ? { inputActive } : {}) },
       notes: withExcerpts(notes, lines),
       refusal: hardRefusals[0] || r,
       refusals: withExcerpts(hardRefusals.length ? refusals : [r, ...refusals], lines),
@@ -32870,6 +33066,8 @@ function translatePineResult(source, opts = {}) {
       levels,
       // ⭐ e96 — the `hline`s this door could not read, by ordinal and reason; present only when there are any.
       ...(levelsWithheld.length ? { levelsWithheld } : {}),
+      // ⭐ e98 E2 — each input's `active =` (`resolveInputActives`); present only for a script that writes one.
+      ...(inputActive.length ? { inputActive } : {}),
       // ⭐ (j) j.3b — `resolver` reaches the fills HERE and nowhere earlier; it does
       // not exist at collection time, which is why a conditional fill colour was
       // uncarried for the whole of a6.
@@ -35379,6 +35577,50 @@ function hlineArgsOf(toks) {
  *  and TradingView's default for it is `hlineLevels.js`'s (a witnessed table).
  *
  *  @returns {Array<{level: object}|{withheld: string}>} */
+/** ⭐⭐ e98 E2 — EACH INPUT'S `active =`, READ AS THE SETTING TEST THAT GREYS IT (or why it cannot be).
+ *
+ *  Pine v6 (July 2025): `input*(…, active = <bool>)` greys the setting out in TradingView's "Settings/Inputs" tab when
+ *  false; its VALUE still applies. One read per call, with every name settled, through the test `display` and
+ *  `linestyle` read (`Resolver.settingChoiceTestOf`, the one knob-test grammar `defSchema.hiddenWhenProblem` checks):
+ *    * `{name, line, when}`: a knob test, true = active (an input, an input compared with a constant, and/or/not);
+ *    * `{name, line, inactive: true}`: greyed at every setting (a literal `false`, or a test that folds false);
+ *    * `{name, line}`: active at every setting (a literal `true`);
+ *    * `{name, line, unread}`: a test this engine cannot read (never guessed): said by name at the door.
+ *  ⛔ Reading a test mints no parameter and leaves no note behind (the hline rule). The inputs a test reads ride as the
+ *  list's non-enumerable `_colourInputs` (the shape a level's display inputs ride in), so a setting only an `active`
+ *  reads can be declared as the member's control (`builderInputs.js::withColourInputs`). */
+function resolveInputActives(calls, { makeResolver, notes }) {
+  const read = []
+  const out = calls.map((c) => {
+    const at = locate(c.tok)
+    const base = { name: c.name, line: at ? at.line : null }
+    let r = null
+    try { r = makeResolver() } catch { r = null }
+    if (!r) return { ...base, unread: 'its `active` could not be read' }
+    const n0 = notes.length
+    const minted = r.paramMint
+    r.paramMint = null
+    const before = new Set(r.usedInputs.keys())
+    try {
+      try { r.resolve(c.node) } catch (err) { if (isStackOverflow(err)) throw err }
+      const choice = r.settingChoiceTestOf({ test: c.node }, r.displayKnobLeafOf(c.node))
+      for (const [k, e] of r.usedInputs) if (!before.has(k) && e && e.name && e.name !== c.name) read.push(e)
+      if (choice.unread === 'unreadable') return { ...base, unread: 'its `active` is a condition this engine could not read' }
+      if (choice.unread) return { ...base, unread: 'its `active` is a condition that is not one of the script\'s settings' }
+      if (choice.constant !== undefined) return choice.constant ? base : { ...base, inactive: true }
+      return { ...base, when: choice.test }
+    } catch (err) {
+      if (isStackOverflow(err)) throw err
+      return { ...base, unread: 'its `active` could not be read' }
+    } finally {
+      r.paramMint = minted
+      notes.length = n0
+    }
+  })
+  if (read.length) Object.defineProperty(out, '_colourInputs', { value: read, enumerable: false })
+  return out
+}
+
 function resolveHlineLevels(calls, { makeResolver, version, notes }) {
   return calls.map((rec) => {
     const at = locate(rec.tok)
@@ -35503,6 +35745,9 @@ const CANDLE_POSITIONAL = Object.freeze({
     'format', 'precision', 'force_overlay']),
 })
 const CANDLE_COLOUR_PARAMS = Object.freeze({ plotcandle: ['color', 'wickcolor', 'bordercolor'], plotbar: ['color'] })
+/** ⭐ e98 — the fields a plot presentation sets when it READ a colour (any of them; none = the colour was not read). */
+const CANDLE_BODY_READ_FIELDS = Object.freeze(['color', 'colorUp', 'colorDown', 'colorCondition', 'colorPalette', 'colorIndex',
+  'colorGradient', 'colorDynamic', 'colorDynamicArity', 'colorWithheld'])
 
 /** ⭐⭐ e96 — a candle colour as the PACKED per-bar colour the chart's candle reads (`0xTTBBGGRR`,
  *  `runtime/colours.js`): one static colour, or a two-colour rule over its condition, as a tree; anything else
@@ -35533,6 +35778,25 @@ function packedColourTreeOf(pres) {
     const down = packed(pres.colorDown, pres.opacity)
     if (up === null || down === null) return { withheld: 'its colour is not one a candle here can carry' }
     return tree(cOp('?:', [pres.colorCondition.ast, cNum(up), cNum(down)]))
+  }
+  // ⭐⭐ e98 (candle bodies) — AN N-WAY COLOUR CHAIN (`colourIndexChain`: a palette and the index of the bar's entry,
+  // the plot path's own carrier) is the same per-bar choice the binder makes for a line (`binder.pointColour`): entry
+  // k where the index is k, and NO colour where it names no entry. As a packed tree: `idx == 0 ? p0 : idx == 1 ? p1 :
+  // ... : na`. A transparent entry (Pine's `na` leaf) is `na`, which the candle draws as no colour, as it draws any
+  // `na` colour (`binder.computedOhlcPayload`). ⛔ An entry this cannot pack withholds the whole colour, by name.
+  if (Array.isArray(pres.colorPalette) && pres.colorPalette.length >= 2 && pres.colorIndex && pres.colorIndex.ast) {
+    const entries = pres.colorPalette.map((e) => {
+      if (e === TRANSPARENT_PALETTE_ENTRY) return null
+      const v = packed(e, /^#[0-9a-f]{6}$/i.test(String(e)) ? pres.opacity : undefined)
+      return v === null ? undefined : v
+    })
+    if (entries.some((e) => e === undefined)) return { withheld: 'its colour is not one a candle here can carry' }
+    const naTree = cOp('/', [cNum(0), cNum(0)])
+    let t = naTree
+    for (let k = entries.length - 1; k >= 0; k -= 1) {
+      t = cOp('?:', [cOp('==', [pres.colorIndex.ast, cNum(k)]), entries[k] === null ? naTree : cNum(entries[k]), t])
+    }
+    return tree(t)
   }
   return { withheld: 'its colour picks among more than two colours, or by a rule a candle here cannot carry yet' }
 }
@@ -35571,7 +35835,11 @@ function candleFactsOf(args, kind, ctx) {
     if (!byName.has(param)) continue
     if (param !== 'color' && sameAsBody(param) && facts.colours.color) { facts.colours[param] = facts.colours.color; continue }
     let pres = null
-    if (param === 'color' && ctx.bodyPres) pres = ctx.bodyPres
+    // ⭐ e98 (candle bodies) — the row's own read is the body's only when it READ a colour: a `color` passed by
+    // POSITION (`plotcandle(o, h, l, c, "T", barCol, ...)`, the sixth slot) is not one the plot reader places, so its
+    // presentation carries no colour field and the candle read "picks among more than two colours", a reason it did not
+    // have. Such a body is read here, by its name, as the wick and border are.
+    if (param === 'color' && ctx.bodyPres && CANDLE_BODY_READ_FIELDS.some((f) => ctx.bodyPres[f] !== undefined)) pres = ctx.bodyPres
     else {
       try { pres = outputPresentation([{ ...byName.get(param), name: 'color' }], { env: ctx.env, resolver: ctx.resolver, kind }) } catch { pres = null }
     }
@@ -36849,9 +37117,117 @@ function affineDisplacement(node) {
   return null
 }
 
-function foldDisplacement(resolver, seriesArg) {
+/** ⭐⭐ e98 E3 — THE INT INPUTS A PLOT'S `offset` ALONE READS: a top-level `name = input.int(…)` whose every other
+ *  mention in the script stands inside an `offset =` argument of a `plot` / `plotshape` / `plotchar` (a lexical rule,
+ *  so it is the same in every lane and every pass). Each is the member's own setting, drawn at draw time
+ *  (`foldDisplacement` -> `displaceSetting`). An input read anywhere else (a value, a colour, a paint's offset, a
+ *  reassignment) keeps today's fold, untouched. */
+const OFFSET_SETTING_CALLS = new Set(['plot', 'plotshape', 'plotchar'])
+/** ⭐ e98 E3 — TEST SEAM: the rule off (`false`) translates every offset as before E3 (the fold), so a rail can prove a
+ *  saved document's move is exactly this unit's (`savedDocumentRoundTrip.test.js`, as Q-BH0's seam does). On for
+ *  every member. */
+let OFFSET_SETTINGS_ON = true
+export function __offsetSettingsForTests(on = true) { OFFSET_SETTINGS_ON = on !== false }
+
+/** ⭐ e98 E3 — an input bound (`minval` / `maxval`) as the number it folds to: a `num`, or `u-` over one (the engine's
+ *  canonical negative, `cNum` mints no negative literal); null for anything else. ⚰️ The readers took a `num` only, so
+ *  `minval = -500` was carried as NO lower bound, and a member's setting below the author's floor was not refused. */
+function inputBoundValue(v) {
+  if (v && v.type === 'num' && Number.isFinite(v.value)) return v.value
+  if (v && v.type === 'op' && v.name === 'u-' && Array.isArray(v.args) && v.args.length === 1 && v.args[0]
+      && v.args[0].type === 'num' && Number.isFinite(v.args[0].value)) return -v.args[0].value
+  return null
+}
+function offsetSettingInputs(stmts, tokens) {
+  if (!OFFSET_SETTINGS_ON) return new Map()
+  // a token by its place in the source (a statement's header may hold copies of the lexer's tokens)
+  const tokenAt = (t) => (Number.isFinite(t.index) ? `i${t.index}` : `${t.line}:${t.column}`)
+  const decls = new Map()
+  const spans = new Set()
+  for (const st of stmts || []) {
+    const h = st.header || []
+    if (h[0] && h[0].kind === 'ident' && isPunct(h[1], '=') && h[2] && h[2].kind === 'ident' && h[2].value === 'input.int'
+        && isPunct(h[3], '(')) {
+      decls.set(h[0].value, decls.has(h[0].value) ? null : Object.assign(Object.create(null), h[0], { callTok: h[2] }))
+    }
+    let k = 0
+    if (h[0] && h[0].kind === 'ident' && isPunct(h[1], '=')) k = 2
+    const callTok = h[k]
+    if (!callTok || callTok.kind !== 'ident' || !OFFSET_SETTING_CALLS.has(callTok.value) || !isPunct(h[k + 1], '(')) continue
+    const a = callNamedArgToks(h.slice(k), 'offset')
+    if (a) for (const t of a.value) spans.add(tokenAt(t))
+  }
+  const out = new Map()
+  for (const [name, declTok] of decls) {
+    if (!declTok) continue
+    let used = 0
+    let elsewhere = false
+    const toks = tokens || []
+    for (let i = 0; i < toks.length; i += 1) {
+      const t = toks[i]
+      if (!t || t.kind !== 'ident' || t.value !== name || tokenAt(t) === tokenAt(declTok)) continue
+      // a NAMED ARGUMENT's own name (`f(…, offset = x)`) is not a reference to the input
+      if (isPunct(toks[i + 1], '=') && (isPunct(toks[i - 1], '(') || isPunct(toks[i - 1], ','))) continue
+      if (spans.has(tokenAt(t))) used += 1
+      else { elsewhere = true; break }
+    }
+    if (used && !elsewhere) out.set(name, declTok.callTok)
+  }
+  return out
+}
+
+/** ⭐ e98 E3 — an `offset` node written as `scale * <setting> + add` (`n`, `-n`, `n - 1`, `-n + 2`: one setting, slope
+ *  ±1, a whole-number constant), or null. Read from the WRITTEN node, so it is the same with or without declared
+ *  inputs. */
+function offsetSettingOf(node, settings) {
+  const walk = (n, d) => {
+    if (!n || d > 8) return null
+    if (n.type === 'paren' && n.expr) return walk(n.expr, d + 1)
+    if (n.type === 'name') return settings.has(n.name) ? { name: n.name, scale: 1, add: 0 } : null
+    if (n.type === 'number') return Number.isInteger(n.value) ? { name: null, scale: 0, add: n.value } : null
+    if (n.type === 'unary' && n.op === '-') {
+      const a = walk(n.arg, d + 1)
+      return a && { name: a.name, scale: -a.scale, add: -a.add }
+    }
+    if (n.type === 'binary' && (n.op === '+' || n.op === '-')) {
+      const a = walk(n.left, d + 1)
+      const b = walk(n.right, d + 1)
+      if (!a || !b || (a.name && b.name)) return null
+      const sign = n.op === '-' ? -1 : 1
+      return { name: a.name || b.name, scale: a.scale + sign * b.scale, add: a.add + sign * b.add }
+    }
+    return null
+  }
+  if (!settings || !settings.size) return null
+  const fit = walk(node, 0)
+  return fit && fit.name && Math.abs(fit.scale) === 1 ? { name: fit.name, scale: fit.scale, add: fit.add + 0 } : null
+}
+
+function foldDisplacement(resolver, seriesArg, settings = null) {
   const node = seriesArg.offsetNode
   if (!node) return { shift: 0, paramId: undefined, displaceFrom: null, displaceParams: [] }
+  // ⭐⭐ e98 E3 — AN OFFSET A SETTING DECIDES (`offsetSettingInputs`): its value at the defaults (the member's when
+  // `inputValues` overrode it) for the row's `at`, and NOTHING folded into the tree; the input is the member's setting.
+  const setting = offsetSettingOf(node, settings)
+  if (setting) {
+    let folded
+    try { folded = resolver.resolve(node) } catch {
+      throw new PineRefusal('pine:plot-offset', REFUSALS['pine:plot-offset'], locate(seriesArg.offsetTok))
+    }
+    const constant = constantValueOf(folded)
+    const value = constant === null ? NaN : Number(constant)
+    if (Number.isInteger(value)) {
+      resolver.displaceSettingInputs.add(setting.name)
+      // ⭐ the PARAMETER ID this input held before E3 (or would hold: the call's place in the source, a pinned script's
+      // legacy id), so the member door keys the setting where a member's saved value already is (`param<N>`): no edit
+      // made on the old parameter is lost (coordinator ruling 2026-11-25)
+      const callTok = settings.get(setting.name)
+      const mint = resolver.paramMint
+      const paramId = mint && callTok ? paramIdFor(mint.legacy, paramOrdinalOf(mint, callTok)) : null
+      return { shift: value, paramId: undefined, displaceFrom: null, displaceParams: [],
+        setting: paramId ? { ...setting, paramId } : setting }
+    }
+  }
   let folded
   try {
     folded = resolver.resolve(node)
@@ -37035,6 +37411,13 @@ const DISPLAY_PLACES = Object.freeze({
   'display.price_scale': Object.freeze(['price_scale']),
   'display.status_line': Object.freeze(['status_line']),
 })
+
+/** ⭐ e98 E1 — a `plot`'s `linestyle` constants (Pine v6), as the chart's style vocabulary (`defSchema.PLOT_LINE_STYLES`)
+ *  spells them, and the order a setting's arms are listed in. */
+const PLOT_LINE_STYLE_OF = Object.freeze({
+  'plot.linestyle_solid': 'solid', 'plot.linestyle_dashed': 'dashed', 'plot.linestyle_dotted': 'dotted',
+})
+const PLOT_LINE_STYLE_ORDER = Object.freeze(['solid', 'dashed', 'dotted'])
 
 /** ⭐ e97 U6 — the knob leaves' DEFAULTS in a tree (`series` leaves carrying the non-enumerable `inputName` /
  *  `inputDefault` the member door's translation hangs on them), for `knobTestValue` to check a test's SHAPE. */
