@@ -8646,16 +8646,20 @@ export function withTranslateClock(now, fn) {
 //   · NESTING-SAFE: an inner window keeps the outer one's state and gives it back.
 // The per-Resolver step cap (`PINE_TRANSLATE_MAX_STEPS`) is unchanged: it was already the same on every machine.
 let CALL_STEPS = 0
+/** ⭐⭐ (e100) — the host-stack overflows this call's resolvers turned into the depth refusal (`resolveBinding`).
+ *  ZERO on every corpus script once the depth bound sits well below any host stack: a non-zero count means the
+ *  answer depended on the JIT's frame sizes again, and `translateDepthCap.test.js` rails that it stays zero. */
+let CALL_STACK_TRIPS = 0
 let CALL_MAX_STEPS = 0
 let WINDOW_OPEN = false
 let WINDOW_TRIP = null
-let LAST_WINDOW = { trip: null, steps: 0 }
+let LAST_WINDOW = { trip: null, steps: 0, stackTrips: 0 }
 const OUTER_WINDOWS = []
 
 export function beginTranslateBudget(budgetMs, sourcePath, now, maxCallSteps) {
   OUTER_WINDOWS.push({
     open: WINDOW_OPEN, clock: TRANSLATE_WINDOW_CLOCK, budget: TRANSLATE_BUDGET, deadline: TRANSLATE_DEADLINE,
-    path: TRANSLATE_PATH, printSteps, steps: CALL_STEPS, max: CALL_MAX_STEPS, trip: WINDOW_TRIP,
+    path: TRANSLATE_PATH, printSteps, steps: CALL_STEPS, max: CALL_MAX_STEPS, trip: WINDOW_TRIP, stackTrips: CALL_STACK_TRIPS,
   })
   TRANSLATE_WINDOW_CLOCK = clockOrNull(now) || TRANSLATE_CLOCK || wallNow
   TRANSLATE_BUDGET = Number.isFinite(budgetMs) ? budgetMs : PINE_TRANSLATE_BUDGET_MS
@@ -8664,12 +8668,13 @@ export function beginTranslateBudget(budgetMs, sourcePath, now, maxCallSteps) {
   printSteps = 0
   WINDOW_OPEN = true
   CALL_STEPS = 0
+  CALL_STACK_TRIPS = 0
   CALL_MAX_STEPS = Number.isFinite(maxCallSteps) ? maxCallSteps : PINE_TRANSLATE_CALL_MAX_STEPS
   WINDOW_TRIP = null
 }
 
 export function endTranslateBudget() {
-  LAST_WINDOW = { trip: WINDOW_TRIP, steps: CALL_STEPS }
+  LAST_WINDOW = { trip: WINDOW_TRIP, steps: CALL_STEPS, stackTrips: CALL_STACK_TRIPS }
   const outer = OUTER_WINDOWS.pop()
   if (outer && outer.open) {
     WINDOW_OPEN = true
@@ -8679,6 +8684,8 @@ export function endTranslateBudget() {
     TRANSLATE_PATH = outer.path
     printSteps = outer.printSteps
     CALL_STEPS = outer.steps
+    // an overflow inside a nested window is still one the outer call met
+    CALL_STACK_TRIPS = outer.stackTrips + CALL_STACK_TRIPS
     CALL_MAX_STEPS = outer.max
     WINDOW_TRIP = outer.trip
     return
@@ -9646,6 +9653,7 @@ export class Resolver {
       // runner speed. Tripping the same sticky bound here gives the same refusal
       // the 400th level would have, so the reply is a property of the script again.
       if (bound && this.maxDepth > 0 && isStackOverflow(err)) {
+        CALL_STACK_TRIPS += 1
         this.depthTripped = true
         throw depthRefusalOf(name, this.maxDepth, this.sourcePath, tok)
       }
@@ -29736,7 +29744,7 @@ export function translatePine(source, opts = {}) {
   PERIOD_READ_SINK = periodSink
   let t
   let libraryLink = null
-  LAST_WINDOW = { trip: null, steps: 0 }
+  LAST_WINDOW = { trip: null, steps: 0, stackTrips: 0 }
   try {
     t = translatePineResult(source, opts)
   } finally {
