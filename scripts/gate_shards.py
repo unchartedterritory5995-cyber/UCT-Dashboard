@@ -453,6 +453,9 @@ GATE_READ_PATHS = (
     "api/services/journal_two/note_connectors/corpora/corpora_gen.py",
     "api/services/journal_two/note_connectors/test_connector_corpora.py",
     "api/services/uct_agent/scan/eval/composition_flatten_cases.json",
+    # ⛔ READ BY app/src/components/chart/engine/__tests__/storeIntradayAgreement.test.js (train e98, #2769): it
+    # pins the witness's price grain to `PRICE_DP` in this file. Exact path.
+    "api/services/bars_fetch.py",
     "docs/agent/CHARTS_COVERAGE_MATRIX.md",
     "docs/agent/CHARTS_TEACH_STATUS.md",
     "docs/economic-data/integration/tools/probe.mjs",
