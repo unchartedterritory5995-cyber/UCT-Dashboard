@@ -6,6 +6,7 @@ import BrandSplash from './BrandSplash'
 // than a second, drifting regex.
 import { normalizeSym } from '../pages/calendar/useEarningsModalRoute'
 import { FREE_PAGES, UPGRADE_PATH } from '../constants/freePages'
+import { takeBootMaintenance, MAINTENANCE_URL, MAINTENANCE_TIMEOUT_MS } from '../lib/bootFetch'
 
 function MaintenancePage() {
   return (
@@ -61,7 +62,6 @@ function MaintenancePage() {
 // navigation. A `true` is never treated as fresh: a member on the maintenance screen re-asks every time.
 // A failed check or a body with no boolean is not an answer and is never recorded.
 const MAINTENANCE_FRESH_MS = 15_000
-const MAINTENANCE_TIMEOUT_MS = 8_000
 let maintenanceAnswer = null   // { value: boolean, at: ms } | null
 let maintenanceInFlight = null
 
@@ -69,7 +69,14 @@ function askMaintenance() {
   if (maintenanceInFlight) return maintenanceInFlight
   // Bounded, or a hung request holds the first-load splash and blocks every later re-ask. A timeout
   // rejects into the catch below, so it is "no answer", never "maintenance on".
-  maintenanceInFlight = fetch('/api/maintenance', { signal: AbortSignal.timeout?.(MAINTENANCE_TIMEOUT_MS) })
+  // ⭐ The first ask takes the check `bootFetch.js` started with the page (signed in last time), so the shell
+  // does not wait for a request issued only now, behind the boot's chunk requests. A failed boot check is
+  // "no answer", as a failed check here always was; with no boot check to take, this asks as before.
+  const boot = takeBootMaintenance()
+  const asked = boot
+    ? boot.then((r) => r || Promise.reject(new Error('boot maintenance check failed')))
+    : fetch(MAINTENANCE_URL, { signal: AbortSignal.timeout?.(MAINTENANCE_TIMEOUT_MS) })
+  maintenanceInFlight = asked
     .then(r => r.json())
     .then(d => {
       if (typeof d?.maintenance === 'boolean') maintenanceAnswer = { value: d.maintenance, at: Date.now() }
