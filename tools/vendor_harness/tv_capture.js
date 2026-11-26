@@ -722,7 +722,12 @@
       id: o.id || String(srcTitle || title || 'capture').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
       capturedAtUTC: new Date(capturedMs).toISOString(),
       tool: { snippet: 'tools/vendor_harness/tv_capture.js', version: isStrategy ? 3 : 2 },
-      page: { url: tryOr(() => location.href, null), visibilityState: tryOr(() => document.visibilityState, null), hasFocus: tryOr(() => document.hasFocus(), null) },
+      page: { url: tryOr(() => location.href, null), visibilityState: tryOr(() => document.visibilityState, null), hasFocus: tryOr(() => document.hasFocus(), null),
+        // ⭐⭐ a SLOT capture (tv-capture slots, 2026-11-26) names its slot, layout, CDP target / window and broker; without
+        // `o.slot` the page block is exactly as before, so every other capture is byte-identical
+        ...(o.slot && typeof o.slot === 'object' ? { slot: { slot: o.slot.slot ?? null, layoutId: o.slot.layoutId ?? null,
+          cdpTargetId: o.slot.cdpTargetId ?? null, cdpWindowId: o.slot.cdpWindowId ?? null,
+          brokerPid: o.slot.brokerPid ?? null, browserPid: o.slot.browserPid ?? null } } : {}) },
       symbol: {
         name: si.name || null, full_name: si.full_name || null, pro_name: si.pro_name || null,
         exchange: si.exchange || null, listed_exchange: si.listed_exchange || null, type: si.type || null,

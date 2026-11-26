@@ -304,6 +304,7 @@ class RecordingTVPage:
             bc.STUDY_IDENTITY_JS: ("STUDY_IDENTITY", self._study_identity),
             bc.INPUT_IDS_JS: ("INPUT_IDS", self._input_ids), bc.INPUTS_JS: ("INPUTS", self._inputs),
             bc.READ_INPUTS_JS: ("READ_INPUTS", self._read_inputs),
+            bc.SLOT_LAYOUT_JS: ("SLOT_LAYOUT", self._slot_layout),
         }
 
     # ── recording ───────────────────────────────────────────────────────────
@@ -587,6 +588,12 @@ class RecordingTVPage:
         s["reads"] = 0                       # a new input recomputes
         return {"ok": not bad, "bad": bad, "set": len(a["inputs"])}
 
+    def _slot_layout(self, _):
+        """As SLOT_LAYOUT_JS: the layout id in the URL, and TradingView's own `layoutId()` (`layout_api`, when a scenario
+        makes the page disagree with its URL; else the URL's)."""
+        url = bc.layout_id_of(self.url)
+        return {"url": url, "api": getattr(self, "layout_api", url)}
+
     def _find(self, sid):
         return next((s for s in self.studies if s["id"] == sid), None)
 
@@ -665,7 +672,8 @@ class RecordingTVPage:
             "schema": "uct.vendor-capture/v1", "id": o.get("id") or "capture",
             "capturedAtUTC": "2026-09-28T21:00:00.000Z",
             "tool": {"snippet": "tools/vendor_harness/tv_capture.js", "version": 1},
-            "page": {"url": LAYOUT, "visibilityState": "visible", "hasFocus": True},
+            "page": {"url": LAYOUT, "visibilityState": "visible", "hasFocus": True,
+                     **({"slot": {k: o["slot"].get(k) for k in bc.SLOT_PROVENANCE_KEYS}} if isinstance(o.get("slot"), dict) else {})},
             "symbol": {"name": "RDDT", "full_name": "NYSE:RDDT", "pro_name": "NYSE:RDDT", "exchange": "NYSE",
                        "listed_exchange": "NYSE", "type": "stock", "session": self._resolved_session(),
                        "timezone": "America/New_York", "pricescale": 100, "minmov": 1, "currency": "USD"},
@@ -771,6 +779,26 @@ def run(page, manifest, run_dir, opts=None, verifier=None, **kw):
     bc.go_to_layout(page, opts.layout)          # as `_launch`: acquire() ends on the rig layout
     code = bc.run_batch(page, manifest, rd, opts, clock, verifier or bc.NodeVerifier(),
                         log=lambda *a: None, **kw)
+    return code, rd, clock
+
+
+def slot_info_for(slot, target=None, window=None, broker_pid=4242, browser_pid=4243) -> dict:
+    """What `_launch_cdp` fills for a slot job, with fixed fake ids (target `T-<slot>`, window by slot)."""
+    return {"slot": slot, "layoutId": bc.SLOT_LAYOUTS[slot], "cdpTargetId": target or f"T-{slot}",
+            "cdpWindowId": window if window is not None else 10 + "ABC".index(slot),
+            "brokerPid": broker_pid, "browserPid": browser_pid}
+
+
+def slot_run(page, manifest, run_dir, slot, opts=None, verifier=None, slot_info=None, layout_on=None, **kw):
+    """A SLOT job on the double, as `_launch_cdp` hands its page over: the window on the slot's layout (`layout_on`
+    overrides it, the wrong-layout case), the slot's info filled, then the unchanged batch."""
+    clock = FakeClock(page)
+    rd = bc.RunDir(run_dir, f"slot-{slot}")
+    opts = opts or fast_opts(layout=bc.SLOT_LAYOUTS[slot])
+    opts.slot_info = dict(slot_info or slot_info_for(slot))
+    opts.min_free_ram_bytes = opts.min_free_ram_bytes or bc.MIN_SLOT_FREE_RAM_BYTES
+    page.goto(bc.layout_url(layout_on or opts.layout))
+    code = bc.run_batch(page, manifest, rd, opts, clock, verifier or bc.NodeVerifier(), log=lambda *a: None, **kw)
     return code, rd, clock
 
 
