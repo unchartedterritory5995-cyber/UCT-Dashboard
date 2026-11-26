@@ -163,3 +163,91 @@ def test_a_scheduled_run_follows_a_half_day_close_in_both_offsets():
     # 13:20 ET: 17:20 UTC under EDT (July 3 half-days), 18:20 UTC under EST (Black Friday, Christmas Eve)
     for cron in ("20 17 * * 1-5", "20 18 * * 1-5"):
         assert f"cron: '{cron}'" in wf
+
+
+# -- the IN-JOB self-check must not depend on the dataset's facts (review #2836, point 6) ------------------------
+# `--self-check` runs in the production promote job with no continue-on-error: a failing case stops every promotion.
+# So it must pass with a broken dataset (the freeze then holds by the weekday rule, by design), with a dataset
+# extended past 2029 (Thanksgiving 2029 becomes a holiday), and with a bad edit to a 2026 fact.
+
+import json
+import shutil
+import subprocess
+import sys
+
+
+def _tree(tmp_path, dataset_text):
+    for rel in ("tools/deploy_freeze.py", "api/services/measurement_window.py", "api/services/session_calendar.py"):
+        (tmp_path / rel).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(ROOT / rel, tmp_path / rel)
+    ds = tmp_path / "app" / "src" / "lib" / "marketClock" / "market_calendar.json"
+    ds.parent.mkdir(parents=True, exist_ok=True)
+    ds.write_text(dataset_text, encoding="utf-8")
+    return tmp_path
+
+
+def _dataset():
+    return json.loads((ROOT / "app/src/lib/marketClock/market_calendar.json").read_text(encoding="utf-8"))
+
+
+def _run(tree, *args):
+    return subprocess.run([sys.executable, "-B", str(tree / "tools" / "deploy_freeze.py"), *args],
+                          capture_output=True, text=True, timeout=120)
+
+
+def test_self_check_passes_with_a_broken_dataset(tmp_path):
+    out = _run(_tree(tmp_path, "{ this is not json"), "--self-check")
+    assert out.returncode == 0 and "self-check: PASS" in out.stdout, out.stdout + out.stderr
+
+
+def test_self_check_passes_with_the_horizon_extended_past_thanksgiving_2029(tmp_path):
+    raw = _dataset()
+    raw["horizon"] = "2030-12-31"
+    raw["holidays"].append({"date": "2029-11-22", "name": "Thanksgiving Day"})
+    raw["early_closes"].append({"date": "2029-11-23", "name": "Day after Thanksgiving", "close": "13:00"})
+    tree = _tree(tmp_path, json.dumps(raw))
+    # the fake dataset really is valid and really makes 2029-11-22 a holiday (else this rail proves nothing)
+    held = _run(tree, "--now", "2029-11-22T18:00:00Z")
+    assert held.returncode == 0, held.stdout + held.stderr
+    out = _run(tree, "--self-check")
+    assert out.returncode == 0 and "self-check: PASS" in out.stdout, out.stdout + out.stderr
+
+
+def test_self_check_passes_with_a_bad_edit_to_a_2026_fact(tmp_path):
+    raw = _dataset()
+    raw["holidays"] = [h for h in raw["holidays"] if h["date"] != "2026-11-26"]
+    raw["early_closes"] = [e for e in raw["early_closes"] if e["date"] != "2026-11-27"]
+    out = _run(_tree(tmp_path, json.dumps(raw)), "--self-check")
+    assert out.returncode == 0 and "self-check: PASS" in out.stdout, out.stdout + out.stderr
+
+
+# -- the half-day crons do nothing unless today is a half-day (review #2836, LOW) --------------------------------
+# On a regular EDT day the 18:20 UTC cron is 14:20 ET: the hold ends 16:15 (115 min, inside the 125-min bound), so a
+# run with a pending SHA would sit ~2 h in the one promotion queue, ahead of any override hotfix.
+
+def _half_day(tree_or_root, now):
+    out = _run(tree_or_root, "--half-day", "--now", now)
+    assert out.returncode == 0, out.stdout + out.stderr
+    return [ln for ln in out.stdout.splitlines() if ln.startswith("half_day=")][-1].split("=", 1)[1]
+
+
+def test_half_day_cli_answers_from_the_calendar():
+    assert _half_day(ROOT, "2026-11-27T18:20:00Z") == "yes"
+    assert _half_day(ROOT, "2026-12-03T18:20:00Z") == "no"     # a regular Thursday
+    assert _half_day(ROOT, "2026-11-26T18:20:00Z") == "no"     # a full holiday is not a half-day
+    assert _half_day(ROOT, "2029-11-23T18:20:00Z") == "unknown"  # past the horizon: the calendar cannot say
+
+
+def test_half_day_cli_is_unknown_when_the_calendar_is_broken(tmp_path):
+    # unknown => the cron proceeds as before (it holds or waits); it never skips on a guess
+    assert _half_day(_tree(tmp_path, "{ broken"), "2026-12-03T18:20:00Z") == "unknown"
+
+
+def test_the_half_day_crons_exit_early_unless_today_is_a_half_day():
+    wf = (ROOT / ".github" / "workflows" / "promote-production.yml").read_text(encoding="utf-8")
+    cand = wf.split("      - name: Resolve the candidate", 1)[1].split("\n      - name:", 1)[0]
+    assert "SCHEDULE: ${{ github.event.schedule }}" in cand
+    for cron in ("20 17 * * 1-5", "20 18 * * 1-5"):
+        assert f'"$SCHEDULE" = "{cron}"' in cand
+    assert "tools/deploy_freeze.py --half-day" in cand
+    assert '[ "$HD" = "no" ]' in cand          # skip ONLY on a positive "no"; unknown proceeds

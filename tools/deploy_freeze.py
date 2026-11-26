@@ -190,6 +190,21 @@ def day_hold_windows(day: _dt.date) -> tuple:
     return _windows_for_close(close_hm)
 
 
+def half_day_answer(now: _dt.datetime) -> str:
+    """"yes" | "no" | "unknown": is `now`'s ET date an NYSE half-day? For the workflow's half-day catch-up crons, which
+    end early on "no" only. "unknown" (the calendar cannot load or does not cover the date) lets the run proceed as
+    any other catch-up (it holds or waits), so a broken calendar never makes the crons skip on a guess."""
+    from zoneinfo import ZoneInfo
+    day = now.astimezone(ZoneInfo("America/New_York")).date()
+    try:
+        cal = _calendar_module()
+        if not cal.covers(day):
+            return "unknown"
+        return "yes" if (cal.is_trading_day(day) and cal.is_half_day(day)) else "no"
+    except Exception:  # noqa: BLE001
+        return "unknown"
+
+
 def burst_window(now: _dt.datetime) -> str | None:
     """The session hold `now` falls in ("opening"/"session"/"closing"), or None. Follows the NYSE calendar
     (`day_hold_windows`): nothing on a weekend or a holiday, ends at close + 15 min on a half-day."""
@@ -318,16 +333,69 @@ def _write_output(frozen: bool) -> None:
             f.write(f"frozen={'yes' if frozen else 'no'}\n")
 
 
+class _SelfCheckCalendar:
+    """A FIXED, SYNTHETIC calendar for `--self-check`: the session-calendar interface `day_hold_windows` reads.
+
+    ⛔ WHY NOT THE REAL DATASET. `--self-check` runs inside the production promote job with no continue-on-error, so a
+    failing case stops EVERY promotion (review of #2836, point 6). Cases written against the real dataset fail on a
+    healthy pipeline: a date "past the horizon" becomes a holiday the day the dataset is extended, and a broken or
+    mis-edited dataset (which the freeze itself survives by holding by the weekday rule) would fail the cases about
+    its facts. So the self-check proves the LOGIC on facts it owns; the real dataset's facts (Thanksgiving 2026, the
+    2026-11-27 half-day, the horizon) are railed in tests/test_deploy_freeze_market_calendar.py and by the PR dry-run
+    steps in promote-production.yml."""
+
+    HOLIDAYS = frozenset({_dt.date(2026, 11, 26)})
+    HALF_DAYS = {_dt.date(2026, 11, 27): (13, 0)}
+    START = _dt.date(2000, 1, 1)
+    HORIZON = _dt.date(2028, 12, 31)
+
+    def version(self):
+        return "self-check"
+
+    def horizon(self):
+        return self.HORIZON
+
+    def covers(self, d):
+        return self.START <= d <= self.HORIZON
+
+    def is_trading_day(self, d):
+        return d.weekday() < 5 and d not in self.HOLIDAYS
+
+    def is_half_day(self, d):
+        return d in self.HALF_DAYS
+
+    def close_time(self, d):
+        from zoneinfo import ZoneInfo
+        if not self.is_trading_day(d):
+            return None
+        hh, mm = self.HALF_DAYS.get(d, REGULAR_CLOSE_ET)
+        return _dt.datetime(d.year, d.month, d.day, hh, mm, tzinfo=ZoneInfo("America/New_York"))
+
+
 def self_check() -> int:
-    global _SELF_CHECKING
+    """Every case runs on `_SelfCheckCalendar`, never on the real dataset (see its docstring). The real calendar's
+    state is printed as information only: a broken calendar is a WARNING (the freeze holds by the weekday rule),
+    never a self-check failure."""
+    global _SELF_CHECKING, _calendar_module
+    try:
+        cal = _calendar_module()
+        print(f"  info the NYSE calendar v{cal.version()} loads, horizon {cal.horizon()} (information, not a case)")
+    except Exception as e:  # noqa: BLE001
+        print(f"  info the NYSE calendar does NOT load ({type(e).__name__}: {e}); promotions hold by the weekday "
+              f"rule until it is fixed (information, not a case)")
+    real_loader = _calendar_module
+    stub = _SelfCheckCalendar()
     _SELF_CHECKING = True
+    _calendar_module = lambda: stub  # noqa: E731
     try:
         return _self_check()
     finally:
+        _calendar_module = real_loader
         _SELF_CHECKING = False
 
 
 def _self_check() -> int:
+    global _calendar_module
     bad = 0
 
     def case(name, ok):
@@ -405,7 +473,8 @@ def _self_check() -> int:
         return False
     case("a window end that cannot be read fails OPEN (no wait)",
          wait_plan(held_1031, in_window_fn=reader_breaks_on_second_read)[0] == 0)
-    # the NYSE calendar (2026-11-26): no hold on a holiday, close + 15 on a half-day, the weekday rule when unsure
+    # the NYSE calendar (2026-11-26): no hold on a holiday, close + 15 on a half-day, the weekday rule when unsure.
+    # ⛔ These run on _SelfCheckCalendar's OWN facts (self_check swaps it in), never the real dataset's.
     def et_at(y, mo, d, hh, mm):
         from zoneinfo import ZoneInfo
         return _dt.datetime(y, mo, d, hh, mm, tzinfo=ZoneInfo("America/New_York")).astimezone(utc)
@@ -419,9 +488,11 @@ def _self_check() -> int:
     case("a regular Thursday 2026-12-03 13:00 ET is FROZEN (the session)",
          burst_window(et_at(2026, 12, 3, 13, 0)) == "session")
     case("a regular day's windows are exactly HOLD_WINDOWS_ET", day_hold_windows(_dt.date(2026, 12, 3)) == HOLD_WINDOWS_ET)
-    case("a date past the calendar horizon holds by the weekday rule",
-         burst_window(et_at(2029, 11, 22, 13, 0)) == "session")
-    global _calendar_module
+    past = _calendar_module().horizon() + _dt.timedelta(days=1)
+    while past.weekday() >= 5:
+        past += _dt.timedelta(days=1)
+    case(f"a weekday past the calendar horizon ({past}) holds by the weekday rule",
+         burst_window(et_at(past.year, past.month, past.day, 13, 0)) == "session")
     real_loader = _calendar_module
 
     def broken_loader():
@@ -448,11 +519,16 @@ def main(argv=None) -> int:
     ap.add_argument("--wait-plan", action="store_true",
                     help="print and write (GITHUB_OUTPUT) wait_s=<seconds> for a bounded in-job wait; exit 0")
     ap.add_argument("--max-wait-min", type=int, default=MAX_WAIT_MIN)
+    ap.add_argument("--half-day", action="store_true",
+                    help="print half_day=yes|no|unknown for the ET date of --now (default today); exit 0")
     a = ap.parse_args(argv)
     if a.self_check:
         return self_check()
     now = (_dt.datetime.fromisoformat(a.now.replace("Z", "+00:00")) if a.now
            else _dt.datetime.now(_dt.timezone.utc))
+    if a.half_day:
+        print(f"half_day={half_day_answer(now)}")
+        return 0
     if a.wait_plan:
         s, why = wait_plan(now, max_wait_min=min(a.max_wait_min, MAX_WAIT_MIN),
                            override=os.environ.get(OVERRIDE_ENV, ""), message=a.message or "")
