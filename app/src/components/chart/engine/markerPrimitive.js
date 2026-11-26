@@ -54,10 +54,14 @@ const marks = (v) => Number.isFinite(v) && v > 0
  *   UNKNOWN colour condition takes the marker's own `color`, never `colorDown`
  *   (a semantics-2 document). Off ⇒ Pine's `na`-takes-else (owner ruling 2).
  *   ⛔ An unknown MARKER column already draws no marker (`marks`), on every lane.
+ * @param {{values: ArrayLike<number>, bars: Array<object>|null}|null} [spec.canvas]
+ *   ⭐ e99 — for the canvas marker primitive (`markerCanvas.js`) only: each marker
+ *   also carries its bar's plotted `value` (`location.absolute`) and, given the
+ *   candles, the bar's `high` / `low`. Absent, the LWC objects are exactly as before.
  * @returns {Array<object>} LWC marker objects, ascending by time
  */
 export function markersFor({ column, times, marker, color,
-  condColumn = null, colorUp = null, colorDown = null, unknownNone = false, colourAt = null }) {
+  condColumn = null, colorUp = null, colorDown = null, unknownNone = false, colourAt = null, canvas = null }) {
   const out = []
   if (!column || !times || !marker) return out
   const n = Math.min(
@@ -84,6 +88,11 @@ export function markersFor({ column, times, marker, color,
     }
     if (marker.text) m.text = marker.text
     if (Number.isFinite(marker.size)) m.size = marker.size
+    if (canvas) {
+      m.value = canvas.values ? canvas.values[i] : NaN
+      const bar = canvas.bars ? canvas.bars[i] : null
+      if (bar) { m.high = bar.h; m.low = bar.l }
+    }
     out.push(m)
   }
   return out

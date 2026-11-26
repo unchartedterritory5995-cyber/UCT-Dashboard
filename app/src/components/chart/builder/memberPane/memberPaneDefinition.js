@@ -44,6 +44,7 @@ import { requestTargetsUnservable } from '../../engine/runtime/requestSupply'
 import { STRATEGY_WINDOW_HISTORY } from '../../engine/runtime/strategyRecord'
 import { runtimeRepaintOf } from '../../engine/runtime/runtimeRepaint'
 import { OHLC_DEF_STYLES } from '../../engine/defSchema'
+import { canvasMarkerRecord, unmeasuredGeometryOf } from '../../engine/markerCanvas'
 import { warmRuntimeLane, runtimeLaneWarmAsks } from '../../engine/runtime/runtimeAsync'
 /** ⭐ THE PASTE WORKER: the runtime lane's warm, and the count of asks for it, reached THROUGH this door (which
  *  consults the runtime pane's gate before it routes). The worker counts the door's asks and the page makes the warm
@@ -288,6 +289,17 @@ const MARKER_WORDS = Object.freeze({
   circle: ['a circle', 'circles'], square: ['a square', 'squares'],
   arrowUp: ['an arrow up', 'arrows up'], arrowDown: ['an arrow down', 'arrows down'],
 })
+/** ⭐ e99 — the member's words for each geometry fact the canvas markers draw approximately
+ *  (`markerCanvas.js::MARKER_GEOMETRY.unmeasured`), singular or plural; `geometry` is the whole-marker fallback. */
+const GEOMETRY_SENTENCES = Object.freeze({
+  text: (one) => `drawn with ${one ? 'its' : 'their'} text at an approximate size and offset: TradingView's marker text is `
+    + 'measured on one triangle and one label only.',
+  char: (one) => `drawn at an approximate character size and offset: TradingView's \`plotchar\` is measured for the star `
+    + `only, and a character's size follows ${one ? 'its' : 'their'} font.`,
+  absoluteTriangle: (one) => `placed at an approximate height at ${one ? 'its' : 'their'} value: where TradingView pins a `
+    + 'triangle to a price (`location.absolute`) is not measured.',
+  geometry: () => 'drawn at an approximate size and offset.',
+})
 const namesList = (names) => (names.length === 1 ? names[0]
   : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`)
 
@@ -318,6 +330,17 @@ function markerSubstitutionNotes(rows) {
       add(`char:${m.shape}`, name, (names) => `${namesList(names)} ${names.length === 1 ? 'is' : 'are'} drawn as `
         + `${names.length === 1 ? words[0] : words[1]} with ${names.length === 1 ? 'its character beside it' : 'their characters beside them'}: `
         + 'TradingView draws the character alone, which this chart does not draw yet.')
+    }
+    // ⭐ e99 — DRAWN ON CANVAS (`markerCanvas.js`, behind its gate): the author's shape at the author's place, at the
+    // size and offset TradingView draws it (pinned from FRED RS's run markers-2026-11-26). `geometryApprox` marks a
+    // marker whose drawing touches a fact that run did not pin; the sentence names THAT fact
+    // (`unmeasuredGeometryOf`), not the whole marker.
+    if (m.geometryApprox === true) {
+      const facts = unmeasuredGeometryOf(m)
+      for (const fact of facts.length ? facts : ['geometry']) {
+        const say = GEOMETRY_SENTENCES[fact] || GEOMETRY_SENTENCES.geometry
+        add(`geometry:${fact}`, name, (names) => `${namesList(names)} ${names.length === 1 ? 'is' : 'are'} ${say(names.length === 1)}`)
+      }
     }
     if (m.positionApprox === true) {
       add(`position:${m.position}`, name, (names) => `${namesList(names)} ${names.length === 1 ? 'is' : 'are'} placed `
@@ -932,7 +955,7 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
       // N device px and `styles.linewidth` reads back N) — ⚰️ this was clamped to 1-4.
       // Clamped to the width input's own [1, 4], the Builder's Pine-import rule.
       ...(Number.isFinite(p.width) ? { width: pineLineWidth(p.width) } : {}),
-      ...(p.marker && p.marker.shape ? { marker: p.marker } : {}),
+      ...(p.marker && p.marker.shape ? { marker: canvasMarkerRecord(p.marker) } : {}),
       // ⭐ ROW 42 — `plot.style_linebr` / `style_areabr` break at `na` (`pine.js`
       // `PINE_BREAKING_STYLES`); every other style bridges, as TradingView draws it.
       ...(p.sparse === true ? { sparse: true } : {}),
@@ -3027,7 +3050,7 @@ function runtimeLaneDocument({ source, id, name, t, hostReason, hostGuard = null
       ...(o && o.hiddenWhen ? { hiddenWhen: o.hiddenWhen } : {}),
       // `linewidth`, as the host lane's rows carry it (see that projection).
       ...(Number.isFinite(p.width) ? { width: pineLineWidth(p.width) } : {}),
-      ...(p.marker && p.marker.shape ? { marker: p.marker } : {}),
+      ...(p.marker && p.marker.shape ? { marker: canvasMarkerRecord(p.marker) } : {}),
       // ⭐ ROW 42 — a "with breaks" style breaks at `na`, as the host lane's rows say.
       ...(p && p.sparse === true ? { sparse: true } : {}),
       // ⭐ WS-E — a leftward `offset`, drawn by the binder as a host row's is.
