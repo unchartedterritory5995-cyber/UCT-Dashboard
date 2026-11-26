@@ -2668,7 +2668,8 @@ def check_named(envelope: Mapping[str, Any], view: Any, named: Any) -> None:
     inputs = sorted(declared_inputs(envelope, view))
     existing = _view_trees(view)
     for e in named:
-        if named_indicators.held(trees, e, inputs) or named_indicators.held(existing, e, inputs):
+        if (named_indicators.held([house_tree(t) for t in trees], e, inputs)       # a twin read as the library's name
+                or named_indicators.held([house_tree(t) for t in existing], e, inputs)):
             continue
         at = named_indicators.defaults(e)
         formulas = "; ".join(f"{o['key']} = {named_indicators.formula_at(o['formula'], at)}" for o in e["outputs"])
@@ -2708,7 +2709,8 @@ def _named_outputs(envelope: Mapping[str, Any], view: Any, named: Any) -> List[T
         if not isinstance(key, str):
             continue
         for e in named:
-            got = next((g for g in (named_indicators.output_in(tree, e, o, inputs) for o in e["outputs"]) if g is not None), None)
+            got = next((g for g in (named_indicators.output_in(house_tree(tree), e, o, inputs) for o in e["outputs"])
+                        if g is not None), None)                     # (a twin read as the library's house name)
             if got is not None:
                 found.append((key, e, got))
                 break
@@ -3079,7 +3081,7 @@ def with_pine_twins(envelope: Mapping[str, Any]) -> Dict[str, Any]:
     `ta.atr(14)` at its first value and 1.4% below twenty bars on, the left edge a member compares. Every call
     to a function with a Pine-parity twin (`ast_table.PINE_TWINS`: `atr`, `stoch`, `mfi`) is written as the twin;
     the arguments are the same. Runs AFTER `check_named` (the library's checked formulas carry the house name,
-    and `named_indicators` reads a house name and its twin as one). ⛔ The native indicators, ThinkScript and
+    and the library match reads a twin as its house name: `house_tree`). ⛔ The native indicators, ThinkScript and
     the pattern levels are other doors and keep the house calculation. Returns a NEW envelope."""
     from api.services import ast_table
     twins = ast_table.PINE_TWINS
@@ -3088,6 +3090,20 @@ def with_pine_twins(envelope: Mapping[str, Any]) -> Dict[str, Any]:
         for node in _walk(tree):
             if node.get("type") == "call" and node.get("name") in twins:
                 node["name"] = twins[node["name"]]
+    return out
+
+
+def house_tree(tree: Any) -> Any:
+    """The reverse of `pine_twin_tree`: each Pine-parity twin read back as its house function. ONLY for matching a
+    built tree against the named-indicator library, whose checked formulas carry the house names, so a library
+    indicator the door built as the twin is still recognised as that indicator (`check_named`, `_named_outputs`).
+    `named_indicators` itself stays free of the engine's table. A NEW tree; never what is built."""
+    from api.services import ast_table
+    house = {twin: name for name, twin in ast_table.PINE_TWINS.items()}
+    out = copy.deepcopy(tree)
+    for node in _walk(out):
+        if node.get("type") == "call" and node.get("name") in house:
+            node["name"] = house[node["name"]]
     return out
 
 

@@ -100,12 +100,20 @@ def test_the_doors_atr_is_tradingviews_on_its_own_capture_from_the_first_bar():
     assert sum(1 for i, v in vendor.items() if house[i] is None or abs(house[i] - v) > 1e-6) > 10
 
 
-def test_a_library_indicator_built_through_the_door_is_still_recognised():
+def test_a_library_indicator_built_through_the_door_is_still_recognised(conv):
+    u = conv.understand_turn("Chandelier Exit with an ATR multiplier of 2.5", {"sym": "NVDA", "tf": "D"})
     entry = named_indicators.entry("chandelier_exit")
-    o = entry["outputs"][0]
-    assert "atr" in names_in(o["tree"])                                         # the checked formula keeps the house name
-    as_built = json.loads(json.dumps(o["tree"]).replace('"atr"', '"atrPine"'))
-    assert named_indicators.output_in(o["tree"], entry, o) is not None
-    assert named_indicators.output_in(as_built, entry, o) is not None           # the twin is the same indicator
-    wrong = json.loads(json.dumps(o["tree"]).replace('"atr"', '"rsi"'))
-    assert named_indicators.output_in(wrong, entry, o) is None                  # CONTROL: another function is not
+    trees = [named_indicators.tree_at(o, named_indicators.defaults(entry)) for o in entry["outputs"]]
+    assert all("atr" in names_in(t) for t in trees)                             # the checked formula keeps the house name
+    built = [conv.pine_twin_tree(t) for t in trees]
+    assert all("atrPine" in names_in(t) and "atr" not in names_in(t) for t in built)
+
+    def patch(ts):
+        return env(0, [{"op": "create", "name": "Chandelier Exit",
+                        "outputs": [{"key": o["key"], "tree": t} for o, t in zip(entry["outputs"], ts)]}])
+
+    conv.check_named(patch(built), empty_view(0), u["named"])                  # the twin IS the checked formula
+    assert conv.named_built(patch(built), empty_view(0), u["named"]) == ["chandelier_exit"]
+    assert conv.house_tree(built[0]) == trees[0]                                # the read-back is exact
+    wrong = [json.loads(json.dumps(t).replace('"atrPine"', '"rsi"')) for t in built]
+    assert conv.named_built(patch(wrong), empty_view(0), u["named"]) == []      # CONTROL: another function is not
