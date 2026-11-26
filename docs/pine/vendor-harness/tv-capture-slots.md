@@ -9,12 +9,14 @@ broker). Rails: `tests/test_vendor_batch_capture.py`, the section headed "the ca
 | slot | layout id | name | hours | studies |
 |---|---|---|---|---|
 | A | `01f1AcIj` | UCT CAPTURE RIG — no studies (the rig) | extended | 0 |
-| B | `SLOTBxxx` | UCT CAPTURE SLOT B — no studies | extended | 0 |
-| C | `SLOTCxxx` | UCT CAPTURE SLOT C — no studies | extended | 0 |
+| B | `n3nNwFTQ` | UCT CAPTURE SLOT B — no studies | extended | 0 |
+| C | `8mk0qhUA` | UCT CAPTURE SLOT C — no studies | extended | 0 |
 | (regular rows) | `MyS1vKSg` | UCT CAPTURE RIG REGULAR HOURS — no studies | regular | 0 |
 
 B and C were made once, on 2026-11-26, with the layout menu's "Make a copy…" from the empty rig. The menu has no
-"Save layout as". Neither copy has been saved since. The ids are `SLOT_B_LAYOUT_ID` and `SLOT_C_LAYOUT_ID` in
+"Save layout as". Each copy is the rig as it was saved that day: AMEX:SPY, 240, extended hours, 0 studies. The rig's
+saved resolution was 240, not the 1D recorded on 2026-11-21. Neither copy has been saved since. The account then held
+13 layouts on a Premium plan, which has no layout cap. The ids are `SLOT_B_LAYOUT_ID` and `SLOT_C_LAYOUT_ID` in
 `batch_capture.py`.
 
 Regular-hours rows still run one at a time on `MyS1vKSg`, on the path without `--cdp`. There are no regular-hours
@@ -77,5 +79,21 @@ has `tv_slots.py`.
 
 The test was Fred RS (`docs/pine/rs-rating/rs-rating-fred6724__pziQwiT2.pine`, sha `caa94fe3…`) on AMEX:SPY 1D, on a
 US market holiday. It ran on slot A alone, then on slots B and C in parallel. The comparison leaves out only
-`capturedAtUTC`, the date-stamped `id`, the receipt, and the page block's `url` and `slot` (where the capture ran). The
-result is in the PR that added this file.
+`capturedAtUTC`, the date-stamped `id`, the receipt, and the page block's `url` and `slot` (where the capture ran).
+
+**Result: identical.** All three captures have 8515 bars and 8515 plot rows. Over the normalised capture, the FNV-1a
+(UTF-16) is 3920109186 for A, B and C alike. The plotValues sha256 prefix is `cfddf1dd3ad0af04` and the bars sha256
+prefix is `c073b1b1e2031b98` for all three, and a deep diff of A against B and A against C finds nothing.
+
+A reference capture on today's single path (L, rig-master, no `--cdp`) has the same plotValues and bars. It differs in
+exactly one field, `study.inputs[0].value`, TradingView's encrypted compiled-script blob. That blob is 10950 characters
+in every capture and is re-encrypted on every compile.
+
+Raw receipts (`receipt.fnv1a`, which covers `capturedAtUTC`): L 3092064836 (946552 chars), A 25529597, B 345872642,
+C 761051396 (946704 chars each). The 152 extra characters are `page.slot`.
+
+The first run found two live faults, both fixed and railed:
+- The broker slept outside Playwright, so new targets waited to be resumed. Slot windows hung on navigation, and the
+  Pine editor did not open.
+- Both clients answered TradingView's beforeunload dialog. The second answer killed the job's driver, so the
+  fresh-load verify went unread (rc 3).

@@ -649,8 +649,8 @@ LAYOUT_ID_RX = re.compile(r"^[A-Za-z0-9]{6,16}$")
 #: ONE broker-owned browser on the capture profile, three WINDOWS, each bound to its OWN saved layout: A is the rig;
 #: B and C were made ONCE from the empty rig layout ("Make a copy", extended hours, no studies) and never saved since.
 #: A slot job (`run --cdp <endpoint> --slot <A|B|C>`, `_launch_cdp`) runs only on its slot's layout.
-SLOT_B_LAYOUT_ID = "SLOTBxxx"
-SLOT_C_LAYOUT_ID = "SLOTCxxx"
+SLOT_B_LAYOUT_ID = "n3nNwFTQ"
+SLOT_C_LAYOUT_ID = "8mk0qhUA"
 SLOT_LAYOUTS = {"A": RIG_LAYOUT_ID, "B": SLOT_B_LAYOUT_ID, "C": SLOT_C_LAYOUT_ID}
 #: The hours each layout is SAVED with (B and C are copies of the extended rig). A slot job READS every row's session
 #: against it (`Driver.check_row_session`), never sets it; a row naming the rig layout may run on any EXTENDED slot.
@@ -1305,7 +1305,7 @@ class Driver:
             raise Inconclusive("the chart handle answered but getAllStudies() did not", st)
         return st
 
-    def check_row_session(self, label="row:session", name=None):
+    def check_row_session(self, label="row:session", name=None, also=()):
         """⭐⭐ THE ROW'S SESSION, READ, NEVER SET (rulings 2026-11-21, #2134): at the row's own resolution (the caller
         has set and read it back), the chart's RESOLVED session must be the row's, `ROW_SESSIONS[o.session]`, and a
         `subsession_id` TradingView reports must name it too. The reading is taken only once it SETTLES (polled up to
@@ -1343,7 +1343,7 @@ class Driver:
         if not ok:
             raise Inconclusive(f"{o.symbol} {o.tf}: the chart's session never settled in 30 s (symbolInfo answering, the "
                                f"bars spaced as {o.tf}, two equal reads); last read {got!r}", got)
-        if got.get("session") != want or got.get("subsession") not in (None, name):
+        if got.get("session") != want or got.get("subsession") not in (None, name, *also):
             seen = f"session {got.get('session')!r}" + (f", subsession {got.get('subsession')!r}" if got.get("subsession") else "")
             raise GateFailed(f"{o.symbol} {o.tf}: the chart resolves {seen}, not the {name} session {want!r}. The batch "
                              f"reads a row's session and never sets it: run this row on a layout saved with {name} hours. "
@@ -1378,7 +1378,9 @@ class Driver:
             # ⭐⭐ A SLOT JOB READS EVERY ROW'S SESSION (the identity proof): a row that names none must resolve what its
             # slot layout's saved hours give at this resolution, or it stops by name (a slot layout saved with other
             # hours would otherwise capture another session than slot A does, silently)
-            self.check_row_session("row:session:slot", slot_session_name(o))
+            # (a daily chart on an extended layout may echo the layout's sessionId as its subsession; the resolved
+            # session string still decides: 0930-1600)
+            self.check_row_session("row:session:slot", slot_session_name(o), also=(LAYOUT_HOURS.get(o.layout),))
         return st
 
     def slot_layout_check(self, label="slot:layout"):
@@ -2411,6 +2413,13 @@ def _launch_cdp(args, body, playwright_factory=None):
                 bpid = next((x.get("id") for x in procs if x.get("type") == "browser"), None)
             except Exception:  # noqa: BLE001
                 bpid = None
+            # ⚰️ (12:01Z, the first live A/B) TWO Playwright clients are attached to this window, the broker's and this
+            # job's, and each auto-answers a JavaScript dialog nobody listens for. The reload of the fresh-load verify
+            # raised TradingView's beforeunload; the broker answered it first, this job's answer met "No dialog is
+            # showing", and the rejection killed this job's driver (rc 3, verify unread). A listener here makes the
+            # broker the ONE client that answers (beforeunload accepted, anything else dismissed: Playwright's defaults,
+            # as on the path without --cdp).
+            page.on("dialog", lambda dialog: None)
             page.set_viewport_size(dict(RIG_VIEWPORT))
             page.goto(layout_url(want), wait_until="domcontentloaded")
             page.wait_for_timeout(9000)

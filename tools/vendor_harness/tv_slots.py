@@ -560,6 +560,7 @@ def serve(lock_dir, port=DEFAULT_PORT, channel="chrome", profile=None, idle_s=ID
         print(f"[broker] up: {json.dumps(state)}", flush=True)
         last_busy = time.time()
         why = "?"
+        own = ctx.pages[0] if ctx.pages else ctx.new_page()
         try:
             while True:
                 if not ctx.pages and not endpoint_answers(endpoint):
@@ -582,7 +583,13 @@ def serve(lock_dir, port=DEFAULT_PORT, channel="chrome", profile=None, idle_s=ID
                         ctx.close()
                         _unlink((lock_dir / BROKER_STATE))
                     break
-                time.sleep(poll_s)
+                # ⚰️ (11:08Z, the first live A/B) a `time.sleep` here starved THIS client's event loop: Playwright attaches
+                # to every new target (each slot window, its workers and frames) and holds it until the client resumes
+                # it, so the slot windows' navigation never reached domcontentloaded and the Pine editor never opened.
+                # Waiting through Playwright keeps the loop running and every target is resumed at once.
+                if own.is_closed():
+                    own = ctx.new_page()                     # the broker keeps one page of its own (never a slot's)
+                own.wait_for_timeout(poll_s * 1000)
         finally:
             with contextlib.suppress(Exception):
                 ctx.close()

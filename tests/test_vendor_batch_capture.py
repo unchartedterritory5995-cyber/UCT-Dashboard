@@ -1551,6 +1551,17 @@ def test_a_slot_job_reads_every_rows_session_even_one_that_names_none(tmp_path):
     assert res["outcome"] == bc.CAPTURED and "row:session:slot" in res["steps"], res
     res, _ = _slot_session(tmp_path / "b", "1D", "extended")       # a daily chart resolves 0930-1600 on any layout
     assert res["outcome"] == bc.CAPTURED and "row:session:slot" in res["steps"], res
+    # (a daily chart on the extended layout may echo the layout's hours as its subsession; 0930-1600 still decides)
+    m, beh = _slot_manifest(tmp_path / "d", "sess", '//@version=6\nindicator("S")\nplot(close)\n')
+    m["scripts"][0].update({"symbol": "AMEX:SPY", "tf": "1D", "captureStem": "s"})
+    page = bd.RecordingTVPage(behaviours=beh, resolution="1D")
+    page.session_id, page.subsession = "extended", "extended"
+    _, rd, _ = bd.slot_run(page, m, tmp_path / "d" / "run", "B")
+    assert rd.results()["sess"]["outcome"] == bc.CAPTURED, rd.results()["sess"]
+    page = bd.RecordingTVPage(behaviours=beh, resolution="1D")
+    page.session_id, page.subsession = "extended", "pre"           # any other subsession still stops the row
+    _, rd, _ = bd.slot_run(page, m, tmp_path / "e" / "run", "B")
+    assert rd.results()["sess"]["outcome"] == bc.GATE_FAILED
     # a slot layout that resolves other hours than it was saved with stops the row by name, nothing captured
     res, page = _slot_session(tmp_path / "c", "60", "regular")
     assert res["outcome"] == bc.GATE_FAILED and "not the extended session" in res["reason"], res
@@ -1595,6 +1606,8 @@ class _FakeCDP:
             tid = f"T{len(b.windows) + 1}"
             pg = bd.RecordingTVPage()
             pg.set_viewport_size = lambda v, pg=pg: setattr(pg, "viewport", v)
+            pg.listeners = []
+            pg.on = lambda event, fn, pg=pg: pg.listeners.append(event)
             pg.target_id = tid
             b.windows[tid] = pg
             b.ctx.pages.append(pg)
@@ -1653,6 +1666,8 @@ def test_launch_cdp_opens_its_own_window_and_closes_only_that_window(tmp_path, m
     assert bc._launch_cdp(args, body, playwright_factory=fake) == 0
     assert fake.connected == ["http://127.0.0.1:9333"] and fake.launched == []   # connects; never launches a browser
     assert seen["url"] == bc.layout_url(bc.SLOT_C_LAYOUT_ID) and seen["vp"] == bc.RIG_VIEWPORT
+    # the job listens for dialogs, so the broker is the ONE client that answers them (a second answer killed the driver)
+    assert seen["page"].listeners == ["dialog"]
     tid = seen["page"].target_id
     closes = [p["targetId"] for m, p in browser.cdp.sent if m == "Target.closeTarget"]
     assert closes == [tid] and "T-other" in browser.windows and not browser.closed    # ONLY its own window
