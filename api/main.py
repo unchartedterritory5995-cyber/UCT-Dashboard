@@ -12704,6 +12704,9 @@ app.include_router(watchlists_router.router)
 app.include_router(ticker_tags_router.router)
 app.include_router(watchlist_alerts_router.router)
 app.include_router(stream_router.router, dependencies=_OPEN_READS)
+# Pushed real-time list prices (/api/stream/quotes), dark behind QUOTE_STREAM_ENABLED. Also served by stream-edge.
+from api.routers import quote_stream as quote_stream_router  # noqa: E402
+app.include_router(quote_stream_router.router, dependencies=_OPEN_READS)
 app.include_router(live_prices_router.router)
 app.include_router(ticker_meta_router.router)
 app.include_router(ticker_search_router.router)

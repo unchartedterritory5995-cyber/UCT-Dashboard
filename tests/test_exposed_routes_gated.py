@@ -107,6 +107,9 @@ GATED: dict[tuple[str, str], str] = {
     ("GET", "/api/barspack/{date}/{idx}"): "bars",
     ("GET", "/api/breadth-symbols"): "bars",
     ("GET", "/api/stream/bars"): "bars",
+    # Pushed list prices (api/routers/quote_stream.py): the chart-data gate, so stream-edge can admit by
+    # the same edge token (its dependency override swaps exactly this gate).
+    ("GET", "/api/stream/quotes"): "bars",
     ("GET", "/api/bars/_debug_source/{ticker}"): "admin",
     # ── P0: destructive / cost-bearing, was anonymous ────────────────────────
     ("POST", "/api/top-flow/purge-old/{keep_days}"): "flow_admin",
@@ -265,6 +268,7 @@ NEVER_PROBED = {
     # Verified structurally here, and driven anonymously in
     # `tests/test_bars_data_auth.py` where the refusal is immediate.
     ("GET", "/api/stream/bars"),
+    ("GET", "/api/stream/quotes"),     # the same SSE hazard (tests/test_quote_stream.py drives it)
     ("POST", "/api/cot/reseed"),
     ("POST", "/api/cot/refresh"),
     ("POST", "/api/theme-performance/refresh"),
