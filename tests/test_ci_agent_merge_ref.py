@@ -1057,6 +1057,9 @@ TOKEN_JOB_ACTIONS = {
     "actions/create-github-app-token": ("d72941d797fd3113feb6b93fd0dec494b13a2547", "v1.12.0"),
 }
 FOLLOW_USES = [f"{a}@{TOKEN_JOB_ACTIONS[a][0]}" for a in ("actions/checkout", "actions/setup-python", "actions/create-github-app-token")]
+#: (the follow-up to #2850/#2855) the install is its OWN step, `install`, so a failure there is told apart from the
+#: tool's own exits: only an install failure triggers the fail-closed POST below (the tool's exit 2 posts NOTHING on
+#: purpose, and must stay so).
 #: ... and install PyYAML by HASH, wheel only (site-packages code runs in the token process): the CPython 3.12
 #: manylinux x86_64 wheel of 6.0.2, the runner's platform (ubuntu-latest, setup-python 3.12).
 PYYAML_SHA256 = "80bab7bfc629882493af4aa31a4cfa43a4c57c83813253626916b8c7ada83476"
@@ -1077,9 +1080,26 @@ def _follow_ctx(event="merge_group", pr=1700, sha=MERGE, run_id=991):
             "steps": {"app-token": {"outputs": {"token": "app-installation-token"}}}, "secrets": {"GITHUB_TOKEN": "read-only-token"}}
 
 
+def _split_failsafe(doc, job_id) -> tuple:
+    """(doc without the job's failsafe step, problems): the failsafe must be exactly FAILSAFE[job_id] and last; every
+    other rule is then applied to the job WITHOUT it (it is the one conditional step, and the token's one other use)."""
+    import copy
+    doc = copy.deepcopy(doc)
+    steps = ((doc.get("jobs") or {}).get(job_id) or {}).get("steps") or []
+    fs = [s for s in steps if s.get("name") == FAILSAFE_NAME]
+    bad = [] if (fs and fs == [steps[-1]] and fs[0] == FAILSAFE[job_id]) else ["the last step is exactly the fail-closed POST for an install failure"]
+    if fs:
+        steps.remove(fs[0])
+    inst = [s for s in steps if s.get("id") == "install"]
+    if inst != [TOKEN_JOB_INSTALL_STEP]:
+        bad.append("PyYAML is installed in its own step, by hash, exactly")
+    return doc, bad
+
+
 def follower_violations(doc) -> list[str]:
     """Every rule agent-ci-queue-verdict.yml must keep, as a list of what is broken (empty = it holds)."""
-    bad = []
+    doc, bad_fs = _split_failsafe(doc, "verdict")
+    bad = list(bad_fs)
     on = doc.get("on", doc.get(True))
     if on != {"workflow_run": {"workflows": [QDOC["name"]], "types": ["completed"]}}:
         bad.append(f"the only trigger is workflow_run on {QDOC['name']!r} completed (it then runs master's copy of this file)")
@@ -1575,7 +1595,6 @@ PR_STAGE_ENV = {
 }
 PR_STAGE_RUN = (
     'set -euo pipefail\n'
-    + TOKEN_JOB_INSTALL +
     'if [ "$EVENT" = "pull_request_target" ]; then\n'
     '  python tools/agent_ci_required.py --event pull_request --sha "$PR_SHA" --pr "$PR_NUMBER"\n'
     'else\n'
@@ -1585,7 +1604,8 @@ PR_STAGE_RUN = (
 
 def pr_stage_violations(doc) -> list[str]:
     """Every rule agent-ci-required.yml must keep now that it is a `pull_request_target` job with a secret in reach."""
-    bad = []
+    doc, bad_fs = _split_failsafe(doc, "status")
+    bad = list(bad_fs)
     on = doc.get("on", doc.get(True))
     want_on = {"pull_request_target": {"branches": ["master"], "types": ["opened", "synchronize", "reopened"]},
                "workflow_run": {"workflows": [DOC["name"]], "types": ["completed"]}}
@@ -1622,7 +1642,7 @@ def pr_stage_violations(doc) -> list[str]:
         if taken in flat:
             bad.append(f"the job reads {taken} from the event: only the head SHA and the PR number are taken")
     # ---- safety 2: the event reaches the shell only as environment variables
-    runs = [s for s in steps if "run" in s]
+    runs = [s for s in steps if "run" in s and s.get("id") != "install"]
     if len(runs) != 1 or runs[0].get("run") != PR_STAGE_RUN:
         bad.append("the one run: step is the pinned script (no expression in it, the event only through $EVENT / $PR_SHA / $PR_NUMBER / $RUN_SHA)")
     if not runs or runs[0].get("env") != PR_STAGE_ENV:
@@ -1663,8 +1683,11 @@ def _pr_stage_mutants():
     def on(doc):
         return doc[True if True in doc else "on"]
 
-    def run_step(doc):
-        return next(s for s in job(doc)["steps"] if "run" in s)
+    def run_step(doc):          # the TOOL step (the install is its own step since the #2850/#2855 follow-up)
+        return next(s for s in job(doc)["steps"] if "tools/agent_ci_required.py" in (s.get("run") or ""))
+
+    def install_step(doc):
+        return next(s for s in job(doc)["steps"] if s.get("id") == "install")
 
     def mint(doc):
         return next(s for s in job(doc)["steps"] if "create-github-app-token" in str(s.get("uses")))
@@ -1724,7 +1747,7 @@ def _pr_stage_mutants():
         job(doc)["steps"].append({"run": "echo done"})
 
     def installs_unpinned(doc):
-        run_step(doc)["run"] = run_step(doc)["run"].replace("pyyaml==6.0.2", "pyyaml")
+        install_step(doc)["run"] = install_step(doc)["run"].replace("pyyaml==6.0.2", "pyyaml")
 
     def a_third_party_action(doc):
         job(doc)["steps"].insert(2, {"uses": "someone/some-action@v1"})
@@ -1819,3 +1842,109 @@ def test_Z5_each_weakening_is_caught(weaken):
         ref.partition("@")[2] != TOKEN_JOB_ACTIONS[ref.partition("@")[0]][0]
         or rest.strip() != f"# {TOKEN_JOB_ACTIONS[ref.partition('@')[0]][1]}" for ref, rest in uses)
     assert caught, weaken
+
+
+#: the install step both token jobs run right before the tool
+TOKEN_JOB_INSTALL_STEP = {"name": "Install PyYAML (pinned by hash)", "id": "install", "run": "set -euo pipefail\n" + TOKEN_JOB_INSTALL}
+#: FAIL CLOSED AT ONCE (follow-up to #2855, review section 4): when the hashed install fails (a runner change, a deleted
+#: wheel) nothing would be posted and every merge group would wait out the queue's 60-minute check timeout. This last
+#: step posts `failure` with the ALREADY-minted token, through curl (no Python), only when the install step failed and
+#: a token exists. It never decides anything else.
+FAILSAFE_NAME = "Fail closed at once when the install failed"
+FAILSAFE_IF = "failure() && steps.install.outcome == 'failure' && steps.app-token.outputs.token != ''"
+FAILSAFE_POST = (
+    'case "$SHA" in *[!0-9a-f]*|\'\') echo "not a commit: $SHA" >&2; exit 1 ;; esac\n'
+    '[ "${#SHA}" -eq 40 ] || { echo "not a commit: $SHA" >&2; exit 1; }\n'
+    'printf \'{"state":"failure","context":"agent-ci-required","description":"%s","target_url":"%s"}\' '
+    '"fail closed: this job could not install its pinned tool; nothing was decided" "$TARGET_URL" > "$RUNNER_TEMP/failsafe.json"\n'
+    'curl -fsS -X POST -H "Authorization: Bearer $AGENT_CI_VERDICT_TOKEN" -H "Accept: application/vnd.github+json" '
+    '-H "X-GitHub-Api-Version: 2022-11-28" --data @"$RUNNER_TEMP/failsafe.json" "$API/repos/$REPO/statuses/$SHA" > /dev/null\n')
+FAILSAFE_COMMON_ENV = {
+    "AGENT_CI_VERDICT_TOKEN": "${{ steps.app-token.outputs.token }}",
+    "REPO": "${{ github.repository }}",
+    "API": "${{ github.api_url }}",
+    "TARGET_URL": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+}
+FAILSAFE = {
+    "verdict": {"name": FAILSAFE_NAME, "if": FAILSAFE_IF,
+                "env": {**FAILSAFE_COMMON_ENV, "SHA": "${{ github.event.workflow_run.head_sha }}",
+                        "HEAD_BRANCH": "${{ github.event.workflow_run.head_branch }}"},
+                "run": 'set -euo pipefail\n'
+                       'case "$HEAD_BRANCH" in gh-readonly-queue/*) ;; *) echo "not a merge group: $HEAD_BRANCH" >&2; exit 1 ;; esac\n'
+                       + FAILSAFE_POST},
+    "status": {"name": FAILSAFE_NAME, "if": FAILSAFE_IF,
+               "env": {**FAILSAFE_COMMON_ENV, "SHA": "${{ github.event.pull_request.head.sha || github.event.workflow_run.head_sha }}"},
+               "run": 'set -euo pipefail\n' + FAILSAFE_POST},
+}
+TOKEN_JOBS = {("agent-ci-queue-verdict.yml", "verdict"), ("agent-ci-required.yml", "status")}
+
+
+def _token_job_steps(wf, job_id):
+    return yaml.safe_load(wf.read_text(encoding="utf-8"))["jobs"][job_id]["steps"]
+
+
+def test_FU_only_the_two_known_jobs_hold_the_verdict_app():
+    """A third job that mints or holds the verdict App's token would escape every pin and rule above (#2855 review, 3)."""
+    held = set()
+    for wf in sorted((ROOT / ".github" / "workflows").glob("*.y*ml")):
+        doc = yaml.safe_load(wf.read_text(encoding="utf-8")) or {}
+        marks = (APP_KEY_SECRET, "create-github-app-token", acr.VERDICT_TOKEN_ENV, APP_ID_VAR)
+        outside = {k: v for k, v in doc.items() if k != "jobs"}
+        assert not any(m in repr(outside) for m in marks), f"{wf.name}: the verdict App outside a job"
+        for jid, job in (doc.get("jobs") or {}).items():
+            if any(m in repr(job) for m in marks):
+                held.add((wf.name, jid))
+    assert held == TOKEN_JOBS, held
+
+
+def test_FU_both_token_jobs_install_in_their_own_step_and_end_with_the_failsafe():
+    for wf, jid in ((VWF, "verdict"), (RWF, "status")):
+        steps = _token_job_steps(wf, jid)
+        names = [s.get("name") or s.get("uses") for s in steps]
+        assert steps[-1] == FAILSAFE[jid], (wf.name, steps[-1])
+        inst = [s for s in steps if s.get("id") == "install"]
+        assert inst == [TOKEN_JOB_INSTALL_STEP], (wf.name, inst)
+        tool = _tool_step({"steps": steps})
+        assert tool is not None and steps.index(inst[0]) == steps.index(tool) - 1, names
+        assert "pip install" not in tool["run"], tool["run"]
+        mint = next(s for s in steps if "create-github-app-token" in str(s.get("uses")))
+        assert steps.index(mint) < steps.index(inst[0]), names           # the token exists before the install runs
+
+
+def _run_failsafe(tmp_path, jid, sha, branch="gh-readonly-queue/master/pr-7-" + "a" * 40):
+    import json
+    import os
+    import shutil
+    import sys
+    bash = shutil.which("bash")
+    if not bash:
+        pytest.skip("no bash")
+    bindir = tmp_path / "bin"
+    bindir.mkdir(parents=True, exist_ok=True)
+    log = tmp_path / "curl.log"
+    (bindir / "curl").write_text('#!/usr/bin/env bash\nprintf "%s\\n" "$@" > "$CURL_LOG"\nfor a in "$@"; do case "$a" in @*) cat "${a#@}" >> "$CURL_LOG.body";; esac; done\n', encoding="utf-8")
+    os.chmod(bindir / "curl", 0o755)
+    env = dict(os.environ, PATH=str(bindir) + os.pathsep + os.environ["PATH"], CURL_LOG=str(log), RUNNER_TEMP=str(tmp_path),
+               AGENT_CI_VERDICT_TOKEN="app-token", REPO="o/r", API="https://api.stub.invalid", TARGET_URL="https://run.invalid/1",
+               SHA=sha, HEAD_BRANCH=branch)
+    out = subprocess.run([bash, "-c", FAILSAFE[jid]["run"]], capture_output=True, text=True, env=env, timeout=60)
+    body = (tmp_path / "curl.log.body")
+    return out.returncode, (log.read_text(encoding="utf-8") if log.exists() else ""), (json.loads(body.read_text(encoding="utf-8")) if body.exists() else None)
+
+
+@pytest.mark.parametrize("jid", ["verdict", "status"])
+def test_FU_the_failsafe_posts_failure_once_and_only_for_a_real_commit(tmp_path, jid):
+    sha = "c" * 40
+    code, args, body = _run_failsafe(tmp_path / "ok", jid, sha)
+    assert code == 0, args
+    assert body == {"state": "failure", "context": "agent-ci-required",
+                    "description": "fail closed: this job could not install its pinned tool; nothing was decided",
+                    "target_url": "https://run.invalid/1"}
+    assert len(body["description"]) <= 140
+    assert f"https://api.stub.invalid/repos/o/r/statuses/{sha}" in args and "Authorization: Bearer app-token" in args
+    for bad in ("", "C" * 40, "c" * 39, "c" * 40 + ";touch x"):
+        code, args, body = _run_failsafe(tmp_path / f"bad{len(bad)}{bad[:1]}", jid, bad)
+        assert code != 0 and args == "" and body is None, (jid, bad)             # nothing posted for a non-commit
+    if jid == "verdict":
+        code, args, body = _run_failsafe(tmp_path / "pr", jid, sha, branch="feature/x")
+        assert code != 0 and args == "", "the follower's failsafe posts only on a merge group's commit"
