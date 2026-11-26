@@ -134,6 +134,7 @@ import {
   READOUT_FORMATS, READOUT_ENTRY_FIELDS, READOUT_CARD_FIELDS, READOUT_SOURCE_PREFIXES,
   READOUT_CONDITION_OPS, parseReadoutSource, parseReadoutGate,
   READOUT_ACTION_KINDS, READOUT_ACTION_FIELDS, READOUT_ACTION_INPUT_TYPE,
+  activeWhenShape,
 } from './readoutSchema'
 // ⭐ THE PRESET FIELDS' VOCABULARIES ARE OWNED BY THEIR WRITERS (Phase 2a, unit
 // 2a-15). `applyPresetFields` (`instanceControls.js`) hands a preset's `dotSize`
@@ -2845,6 +2846,10 @@ function activeWhenEnumFault(aw, inputsByKey) {
   return null
 }
 
+// ⭐ e98 E2 — `activeWhenShape` lives with the condition reader (`readoutSchema.js`, imported above), re-exported here.
+export { activeWhenShape }
+export const ACTIVE_WHEN_UNKNOWN_SHAPE = 'is neither a `{key, …}` condition nor a setting test (a tree with a `type`)'
+
 function validateActiveWhen(input, index, inputsByKey, errors) {
   const aw = input?.activeWhen
   if (aw === undefined || aw === null) return
@@ -2853,7 +2858,34 @@ function validateActiveWhen(input, index, inputsByKey, errors) {
     errors.push(`${path}: expected an object describing the condition, got ${fmt(aw)}`)
     return
   }
-  if (typeof aw.key !== 'string') return   // a future shape we do not yet parse — left alone
+  // ⭐⭐ e98 E2 — EXACTLY TWO SHAPES, AND A THIRD IS REFUSED BY NAME (coordinator ruling 2026-11-25). ⚰️ This line read
+  // `if (typeof aw.key !== 'string') return // a future shape`, and `evalActiveWhen` read such a shape as ACTIVE: a
+  // validator and an evaluator that both failed OPEN, harmless with one shape and a real hazard with two.
+  //   * the KNOB TEST (`type` present): a Pine input's `active =` (`pine.js::resolveInputActives`), U6's grammar,
+  //     checked by the ONE checker (`hiddenWhenProblem`), every setting it reads a declared input other than itself;
+  //   * the `{key, …}` condition (below, unchanged): the native definitions' grammar.
+  const shape = activeWhenShape(aw)
+  if (shape === 'knob') {
+    const why = hiddenWhenProblem(aw)
+    if (why) { errors.push(`${path}: ${why}`); return }
+    const names = []
+    const stack = [aw]
+    while (stack.length) {
+      const n = stack.pop()
+      if (!isPlainObject(n)) continue
+      if (n.type === 'series') names.push(n.name)
+      if (Array.isArray(n.args)) stack.push(...n.args)
+    }
+    for (const n of names) {
+      if (!inputsByKey.has(n)) errors.push(`${path}: the setting ${fmt(n)} is not a declared input, so the test can never be evaluated`)
+      else if (n === input.key) errors.push(`${path}: ${fmt(n)} refers to its own input — the condition can never be evaluated`)
+    }
+    return
+  }
+  if (shape !== 'key') {
+    errors.push(`${path}: ${ACTIVE_WHEN_UNKNOWN_SHAPE}, got ${fmt(aw)}`)
+    return
+  }
   if (!inputsByKey.has(aw.key)) {
     errors.push(
       `${path}.key: unresolvable reference ${fmt(aw.key)} — no input declares that key ` +

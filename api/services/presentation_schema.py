@@ -16,6 +16,7 @@ This module mirrors exactly what `defSchema.js` accepts for:
     ``column:<key>`` reference
   * ``plots[].lineStyleWhen`` (e98 E1) -- the line style a plot's settings choose:
     ``[{when, lineStyle}]``, each ``when`` the one knob-test grammar ``hiddenWhen`` holds
+  * ``inputs[].activeWhen`` (e98 E2) -- exactly two shapes, a third refused by name
   * ``paints[]``         -- kind, colour forms, ``column:<key>`` reference,
     opacity / offset / showLast / title / line
 
@@ -380,6 +381,71 @@ def _check_line_style_when(plot: Mapping, path: str, fp: str, out: list) -> None
              f"{path}.lineStyleWhen: needs the plot's own literal `lineStyle`, the style at the settings' defaults", fp)
 
 
+def active_when_shape(aw: Any) -> Any:
+    """e98 E2 -- which of the two `inputs[].activeWhen` shapes this is: "knob" (a knob test, `type` present: a Pine
+    input's `active =`), "key" (the `{key, ...}` condition native definitions declare), or None (neither: refused).
+    The mirror of `defSchema.js::activeWhenShape`."""
+    if not isinstance(aw, Mapping):
+        return None
+    has_type, has_key = "type" in aw, "key" in aw
+    if has_type and not has_key:
+        return "knob"
+    if has_key and not has_type and isinstance(aw.get("key"), str):
+        return "key"
+    return None
+
+
+ACTIVE_WHEN_UNKNOWN_SHAPE = "is neither a `{key, ...}` condition nor a setting test (a tree with a `type`)"
+
+
+def _check_input_active_when(definition: Mapping, out: list) -> None:
+    """e98 E2 -- `inputs[].activeWhen` in EXACTLY two shapes, a third refused by name (the mirror of
+    `defSchema.js::validateActiveWhen`): a knob test (the one grammar `hidden_when_problem` checks, every setting it
+    reads a declared input other than its own), or the `{key, ...}` condition (its key a declared input other than its
+    own). Never stricter than the browser: the `{key}` form's option checks stay the browser's alone."""
+    inputs = definition.get("inputs")
+    if not isinstance(inputs, list):
+        return
+    by_key = _inputs_by_key(definition)
+    for i, inp in enumerate(inputs):
+        if not isinstance(inp, Mapping) or inp.get("activeWhen") is None:
+            continue
+        aw = inp["activeWhen"]
+        path = f"inputs[{i}].activeWhen"
+        fp = "input:" + _canon(inp)
+        if not isinstance(aw, Mapping):
+            _err(out, path, "input-active-when", f"{path}: expected an object describing the condition, got {_canon(aw)}", fp)
+            continue
+        shape = active_when_shape(aw)
+        if shape == "knob":
+            why = hidden_when_problem(aw)
+            if why:
+                _err(out, path, "input-active-when", f"{path}: {why}", fp)
+                continue
+            stack, names = [aw], []
+            while stack:
+                n = stack.pop()
+                if not isinstance(n, Mapping):
+                    continue
+                if n.get("type") == "series":
+                    names.append(n.get("name"))
+                if isinstance(n.get("args"), list):
+                    stack.extend(n["args"])
+            for n in names:
+                if n not in by_key:
+                    _err(out, path, "input-active-when",
+                         f"{path}: the setting {n!r} is not a declared input, so the test can never be evaluated", fp)
+                elif n == inp.get("key"):
+                    _err(out, path, "input-active-when", f"{path}: {n!r} refers to its own input", fp)
+        elif shape == "key":
+            if aw["key"] not in by_key:
+                _err(out, f"{path}.key", "input-active-when", f"{path}.key: unresolvable reference {aw['key']!r}", fp)
+            elif aw["key"] == inp.get("key"):
+                _err(out, f"{path}.key", "input-active-when", f"{path}.key: {aw['key']!r} refers to its own input", fp)
+        else:
+            _err(out, path, "input-active-when", f"{path}: {ACTIVE_WHEN_UNKNOWN_SHAPE}, got {_canon(aw)}", fp)
+
+
 def _check_hidden_when(plot: Mapping, path: str, fp: str, out: list) -> None:
     if "hiddenWhen" in plot:
         why = hidden_when_problem(plot["hiddenWhen"])
@@ -663,6 +729,8 @@ def presentation_errors(definition: Mapping[str, Any]) -> list:
         _check_ohlc(plot, path, fp, columns, out)
         _check_hidden_when(plot, path, fp, out)
         _check_line_style_when(plot, path, fp, out)
+    # e98 E2 -- an input's `activeWhen`, in exactly two shapes
+    _check_input_active_when(definition, out)
     # DIV-4 -- a PAINT (never a plot) may also name a colour column the per-bar run computes
     run_keys = _check_runtime_colours(definition, columns, out)
     _check_paints(definition.get("paints"), columns | run_keys, out)

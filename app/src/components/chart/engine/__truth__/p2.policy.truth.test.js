@@ -274,6 +274,8 @@ function applyCase(base, c) {
     for (const [f, v] of Object.entries(patch)) { if (v === null) delete p[f]; else p[f] = v }
   }
   if ('paints' in c) d.paints = c.paints
+  // ⭐ e98 E2 — a case may APPEND inputs (an input's `activeWhen` is checked against the declared inputs)
+  if (Array.isArray(c.inputs)) d.inputs = [...(d.inputs || []), ...JSON.parse(JSON.stringify(c.inputs))]
   return d
 }
 
