@@ -1,0 +1,286 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  1%]
+........................................................................ [  3%]
+..................................................s..................... [  5%]
+........................................................................ [  6%]
+........................................................................ [  8%]
+............s........................................................... [ 10%]
+........................................................................ [ 11%]
+........................................................................ [ 13%]
+.................[activity] Failed to log j2:notebook_writing_help_used for u1: FOREIGN KEY constraint failed
+....................................................... [ 15%]
+........................................................................ [ 16%]
+........................................................................ [ 18%]
+........................................................................ [ 20%]
+........................................................................ [ 21%]
+........................................................................ [ 23%]
+........................................................................ [ 25%]
+..s..................................................................... [ 26%]
+........................................................................ [ 28%]
+........................................................................ [ 30%]
+.................................................................[dormant] self-heal rebuilt active set (0 active)
+....... [ 31%]
+...........F............................................................ [ 33%]
+........................................................................ [ 35%]
+........................................................................ [ 36%]
+........................................................................ [ 38%]
+........................................................................ [ 40%]
+........................................................................ [ 41%]
+........................................................................ [ 43%]
+........................................................................ [ 45%]
+........................................................................ [ 46%]
+........................................................................ [ 48%]
+........................................................................ [ 50%]
+........................................................................ [ 51%]
+........................................................................ [ 53%]
+........................................................................ [ 55%]
+........................................................................ [ 56%]
+........................................................................ [ 58%]
+........................................................................ [ 60%]
+........................................................................ [ 61%]
+........................................................................ [ 63%]
+........................................................................ [ 65%]
+...............................................................F.F...... [ 66%]
+........................................................................ [ 68%]
+........................................................................ [ 70%]
+........................................................................ [ 71%]
+........................................................................ [ 73%]
+........................................................................ [ 75%]
+........................................................................ [ 76%]
+........................................................................ [ 78%]
+.............
+  -- A2.5: one definition, four surfaces --------------------
+  builder / store : sha256:223ac9251e92dbf30fc96da80b13d40de61bd18e5f4169ecc5335af390e07718~s2
+  screener        : sha256:223ac9251e92dbf30fc96da80b13d40de61bd18e5f4169ecc5335af390e07718~s2
+  chart           : sha256:223ac9251e92dbf30fc96da80b13d40de61bd18e5f4169ecc5335af390e07718~s2
+  alert           : sha256:223ac9251e92dbf30fc96da80b13d40de61bd18e5f4169ecc5335af390e07718~s2
+  store rows @ tree: 1   (indicator's own hash: 1)
+  hits            : ['NVDA', 'AMD'] of ['NVDA', 'AMD', 'INTC']
+....
+  -- A2.5 + W4a: one definition, five surfaces ----------------
+  store           : sha256:223ac9251e92dbf30fc96da80b13d40de61bd18e5f4169ecc5335af390e07718~s2
+  nightly sweep   : sha256:223ac9251e92dbf30fc96da80b13d40de61bd18e5f4169ecc5335af390e07718~s2
+  run-now         : sha256:223ac9251e92dbf30fc96da80b13d40de61bd18e5f4169ecc5335af390e07718~s2   hits=['AMD', 'NVDA']
+  receipt moved?  : False
+....................................................... [ 80%]
+........................................................................ [ 81%]
+........................................................................ [ 83%]
+........................................................................ [ 85%]
+.................................................s...................... [ 86%]
+........................................................................ [ 88%]
+........................................................................ [ 90%]
+........................................................................ [ 92%]
+........................................................................ [ 93%]
+........................................................................ [ 95%]
+........................................................................ [ 97%]
+........................................................................ [ 98%]
+........................................................                 [100%]
+=================================== FAILURES ===================================
+____________________ test_v_the_census_reflects_the_gating _____________________
+
+app = <fastapi.applications.FastAPI object at 0x7132021ae1b0>
+
+    def test_v_the_census_reflects_the_gating(app):
+        res = asc.audit_surface(app)
+        reads = res["reads"]
+>       assert res["ok"] is True, (reads["ungated"], res["stale_baseline"])
+E       AssertionError: ([('GET', '/api/bars-history/{ticker}')], [])
+E       assert False is True
+
+tests/test_open_reads_gate.py:323: AssertionError
+____ test_the_pullback_detector_declares_its_history_and_nothing_else_does _____
+
+    def test_the_pullback_detector_declares_its_history_and_nothing_else_does():
+        assert registry.min_bars_for(_ID) == PB.MIN_BARS == 222
+        declared = {pid for pid in registry.list_pattern_ids() if registry.min_bars_for(pid)}
+        # uct_flat_top_breakout declares 202 (its rule needs the 200 SMA on the
+        # marked session, plus the two prior trigger sessions). uct_flag_htf
+        # declares 222 (its guard reads the 200 SMA 20 sessions back) and
+        # uct_ma_reclaim 225 (its 200 SMA branch reads it 23 sessions back), so the
+        # deepest declaration, and the scan's fetch, is now 225. uct_launch_pad_v4
+        # declares 222 (its falling-200 gate reads the 200 SMA 20 sessions back),
+        # which leaves the deepest at 225.
+        # uct_flat_top_breakout_ftb4 declares 222 (its new branch reads the 200 SMA
+        # 20 sessions back on the marked session and the two prior trigger sessions).
+>       assert declared == {_ID, _FT_ID, _FL_ID, _MR_ID, _LP4_ID, _FT4_ID, _ID4_ID}, declared
+E       AssertionError: {'death_cross', 'golden_cross', 'pullback_to_200sma', 'pullback_to_50sma', 'uct_flag_htf', 'uct_flat_top_breakout', ...}
+E       assert {'death_cross...reakout', ...} == {'uct_flag_ht...reclaim', ...}
+E         
+E         Extra items in the left set:
+E         'death_cross'
+E         'pullback_to_50sma'
+E         'golden_cross'
+E         'pullback_to_200sma'
+E         
+E         Full diff:
+E           {
+E         +     'death_cross',
+E         +     'golden_cross',
+E         +     'pullback_to_200sma',
+E         +     'pullback_to_50sma',
+E               'uct_flag_htf',
+E               'uct_flat_top_breakout',
+E               'uct_flat_top_breakout_ftb4',
+E               'uct_inside_day_id4',
+E               'uct_launch_pad_v4',
+E               'uct_ma_reclaim',
+E               'uct_pullback_ma_v5',
+E           }
+
+tests/test_pattern_scan_depth_and_sym.py:113: AssertionError
+______ test_undeclared_detectors_receive_byte_identical_bars_and_context _______
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7131f644b1a0>
+store = None
+
+    def test_undeclared_detectors_receive_byte_identical_bars_and_context(monkeypatch, store):
+        """Record exactly what each registered detector is handed by the scan, and
+        compare with what the pre-change scan handed it: the trailing 200 bars of a
+        200-bar fetch, and the context built on those 200 bars."""
+        import api.routers.patterns  # noqa: F401  (registers every detector)
+        full = _recent(SY.random_walk(n=320, seed=3))
+        rows = _tuples(full)
+        # non-vacuity: on this series the context depends on the window, so a scan
+        # that built it on the deeper fetch would be caught below
+        assert build_context(full[-222:], sym="DEPTHX") != build_context(full[-200:], sym="DEPTHX")
+        calls = []
+        _stub_bars(monkeypatch, {"DEPTHX": rows}, calls)
+        seen = {}
+        for pid in registry.list_pattern_ids():
+            real = registry._REGISTRY[pid]
+    
+            def rec(bars, ctx, _pid=pid, _real=real):
+                seen[_pid] = (tuple(tuple(sorted(b.items())) for b in bars), dict(ctx))
+                return _real(bars, ctx)
+            monkeypatch.setitem(registry._REGISTRY, pid, rec)
+        _scan_patterns_daily(["DEPTHX"], set(), _Log())
+    
+>       assert calls == [("DEPTHX", "D", MR.MIN_BARS)], calls
+E       AssertionError: [('DEPTHX', 'D', 270)]
+E       assert [('DEPTHX', 'D', 270)] == [('DEPTHX', 'D', 225)]
+E         
+E         At index 0 diff: ('DEPTHX', 'D', 270) != ('DEPTHX', 'D', 225)
+E         
+E         Full diff:
+E           [
+E               (
+E                   'DEPTHX',
+E                   'D',
+E         -         225,
+E         ?          ^^
+E         +         270,
+E         ?          ^^
+E               ),
+E           ]
+
+tests/test_pattern_scan_depth_and_sym.py:158: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[patterns] Pattern DB ready at /tmp/pytest-of-runner/pytest-0/test_undeclared_detectors_rece0/patterns.db
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+tests/test_notebook_widgets_service.py:3
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_notebook_widgets_service.py:3: SyntaxWarning: invalid escape sequence '\d'
+    Every consumed function is monkeypatched: no network, no live data, no C:\data.
+
+api/baselines.py:456
+tests/test_perf_beacon.py::test_the_real_lifespan_leaves_no_perf_beacon_thread_and_touches_no_store
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_notebook_upload_cap.py: 2 warnings
+tests/test_notebook_voice_notes.py: 43 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/voice_usage.py:20: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return datetime.utcnow().strftime("%Y-%m")
+
+tests/test_notes_answer_is_the_committed_row.py::test_no_note_writer_under_api_re_reads_after_its_commit
+tests/test_oi44_loop_blockers_gate.py::test_no_loop_blocking_route_handler_beyond_the_named_partner_owned_exception
+tests/test_oi44_loop_blockers_gate.py::test_the_allowlist_itself_still_names_a_real_route_and_is_not_stale
+tests/test_oi44_loop_blockers_gate.py::test_oi_confirmation_map_specifically_no_longer_blocks_the_loop
+tests/test_open_reads_gate.py::test_the_flag_is_declared_as_a_MODE_with_OFF_as_its_default
+tests/test_ops_second_transport.py::test_the_recipients_variable_NAME_comes_from_the_RESOLVER_not_a_literal
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+tests/test_oi_morning.py::test_render_returns_png
+tests/test_oi_morning.py::test_render_returns_png
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/oi_morning.py:442: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+    for (r, g, b, a) in lg.getdata()])
+
+tests/test_open_reads_gate.py::test_i_ENFORCE_admits_an_ADMIN_session[/openapi.json]
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/fastapi/openapi/utils.py:225: UserWarning: Duplicate Operation ID chart_markers_endpoint_api_chart_markers__ticker__get for function chart_markers_endpoint at /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/routers/earnings.py
+    warnings.warn(message, stacklevel=1)
+
+tests/test_open_reads_gate.py::test_i_ENFORCE_admits_an_ADMIN_session[/openapi.json]
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/fastapi/openapi/utils.py:225: UserWarning: Duplicate Operation ID test_discord_post_api_live_test_discord_post_get for function test_discord_post at /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/liveflow_router.py
+    warnings.warn(message, stacklevel=1)
+
+tests/test_open_reads_gate.py::test_i_ENFORCE_admits_an_ADMIN_session[/openapi.json]
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/fastapi/openapi/utils.py:225: UserWarning: Duplicate Operation ID admin_clear_before_date_api_live_admin_clear_before_date_get for function admin_clear_before_date at /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/liveflow_router.py
+    warnings.warn(message, stacklevel=1)
+
+tests/test_perf_batch_a.py::test_insider_feed_parallel_aggregates
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/insider.py:180: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    cutoff = (datetime.utcnow() - timedelta(days=7)).strftime("%Y-%m-%d")
+
+tests/test_phase_e_acceptance.py::test_the_RUN_NOW_leg_holds_the_SAME_hash_and_leaves_the_store_UNTOUCHED
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_scan_run.py:1347: SyntaxWarning: invalid escape sequence '\d'
+    which leaves the carriage return inside the match, so a trailing ``(\d+)$``
+
+tests/test_pine_census_full.py::test_the_envelope_needs_the_private_key
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tools/pine_coverage/census_full.py:613: DeprecationWarning: Python 3.14 will, by default, filter extracted tar archives and reject files or modify their metadata. Use the filter argument to control this behavior.
+    tf.extractall(a.out)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_notebook_voice_notes.py:256: no ffmpeg on this box
+SKIPPED [1] tests/test_notebook_wave8_walk.py:636: could not import 'playwright._impl._helper': No module named 'playwright'
+SKIPPED [1] tests/test_nyse_calendar_vendor_evidence.py:141: the 60m capture is kept outside git: C:/Users/Patrick/AppData/Local/uct-vendor-batch/runs/probes2-2026-09-28/captures/vw-clock-close-tfchange-spy-60-2026-09-28.json
+SKIPPED [1] tests/test_pine_capability_admission.py:2051: the other 835 admitted captures were verified equal; SKIPPED, NOT VERIFIED: 1 licence-held fixture(s) absent on this machine: supertrend-kivancozbilgic-rddt-1d-2026-10-02.json [licence NONE-IN-SOURCE; evidence ledger: supertrend-kivancozbilgic-rddt-1d-2026-10-02 production INCONCLUSIVE / runtime-on INCONCLUSIVE (engine 55, 2026-11-15)]. Not committed (docs/pine/LICENSING.md section 1, 2c; docs/pine/vendor-harness/licence-held.json). Put the file in the capture store ($UCT_VENDOR_CAPTURE_STORE) at its recorded hash to run it.
+FAILED tests/test_open_reads_gate.py::test_v_the_census_reflects_the_gating - AssertionError: ([('GET', '/api/bars-history/{ticker}')], [])
+assert False is True
+FAILED tests/test_pattern_scan_depth_and_sym.py::test_the_pullback_detector_declares_its_history_and_nothing_else_does - AssertionError: {'death_cross', 'golden_cross', 'pullback_to_200sma', 'pullback_to_50sma', 'uct_flag_htf', 'uct_flat_top_breakout', ...}
+assert {'death_cross...reakout', ...} == {'uct_flag_ht...reclaim', ...}
+  
+  Extra items in the left set:
+  'death_cross'
+  'pullback_to_50sma'
+  'golden_cross'
+  'pullback_to_200sma'
+  
+  Full diff:
+    {
+  +     'death_cross',
+  +     'golden_cross',
+  +     'pullback_to_200sma',
+  +     'pullback_to_50sma',
+        'uct_flag_htf',
+        'uct_flat_top_breakout',
+        'uct_flat_top_breakout_ftb4',
+        'uct_inside_day_id4',
+        'uct_launch_pad_v4',
+        'uct_ma_reclaim',
+        'uct_pullback_ma_v5',
+    }
+FAILED tests/test_pattern_scan_depth_and_sym.py::test_undeclared_detectors_receive_byte_identical_bars_and_context - AssertionError: [('DEPTHX', 'D', 270)]
+assert [('DEPTHX', 'D', 270)] == [('DEPTHX', 'D', 225)]
+  
+  At index 0 diff: ('DEPTHX', 'D', 270) != ('DEPTHX', 'D', 225)
+  
+  Full diff:
+    [
+        (
+            'DEPTHX',
+            'D',
+  -         225,
+  ?          ^^
+  +         270,
+  ?          ^^
+        ),
+    ]
+3 failed, 4297 passed, 4 skipped, 63 warnings in 852.07s (0:14:12)

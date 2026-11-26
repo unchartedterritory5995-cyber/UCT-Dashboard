@@ -1,0 +1,96 @@
+{
+  "flaky": [],
+  "flaky_size": 0,
+  "flaky_new": 0,
+  "flaky_fixed": 0,
+  "stable_runs_to_leave": 5,
+  "runs": [
+    "1513",
+    "1514",
+    "1515",
+    "1516",
+    "1519",
+    "1521",
+    "1524",
+    "1528",
+    "1531",
+    "1533",
+    "1535",
+    "1539",
+    "1542"
+  ],
+  "pairs": [
+    {
+      "a": "1513",
+      "b": "1514",
+      "equivalent": false,
+      "why": ".github/workflows/agent-ci.yml changed the suite-running job(s) browser, capability-regression-clock, server, union; api/backfill_from_patches.py is referenced by 5 source file(s); api/backfill_ticktest.py is referenced by 3 source file(s)"
+    },
+    {
+      "a": "1514",
+      "b": "1515",
+      "equivalent": null,
+      "why": ".github/workflows/front-door.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "1515",
+      "b": "1516",
+      "equivalent": null,
+      "why": ".github/workflows/live-check.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "1516",
+      "b": "1519",
+      "equivalent": null,
+      "why": ".github/workflows/authoring-eval-runner.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "1519",
+      "b": "1521",
+      "equivalent": false,
+      "why": "the shard plan differs (3a534f99e vs b790d6af0): who shares a process changed"
+    },
+    {
+      "a": "1521",
+      "b": "1524",
+      "equivalent": false,
+      "why": "the shard plan differs (b790d6af0 vs 60f9a84fb): who shares a process changed"
+    },
+    {
+      "a": "1524",
+      "b": "1528",
+      "equivalent": false,
+      "why": "the shard plan differs (60f9a84fb vs 9a69e30c0): who shares a process changed"
+    },
+    {
+      "a": "1528",
+      "b": "1531",
+      "equivalent": false,
+      "why": "the shard plan differs (9a69e30c0 vs ed109ff4a): who shares a process changed"
+    },
+    {
+      "a": "1531",
+      "b": "1533",
+      "equivalent": false,
+      "why": "the shard plan differs (ed109ff4a vs b3feec261): who shares a process changed"
+    },
+    {
+      "a": "1533",
+      "b": "1535",
+      "equivalent": false,
+      "why": "the shard plan differs (b3feec261 vs 122415103): who shares a process changed"
+    },
+    {
+      "a": "1535",
+      "b": "1539",
+      "equivalent": false,
+      "why": "the shard plan differs (122415103 vs 62a2ae497): who shares a process changed"
+    },
+    {
+      "a": "1539",
+      "b": "1542",
+      "equivalent": false,
+      "why": "the shard plan differs (62a2ae497 vs 876cc44af): who shares a process changed"
+    }
+  ]
+}

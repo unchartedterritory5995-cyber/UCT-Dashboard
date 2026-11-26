@@ -1,0 +1,155 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  2%]
+........................................................................ [  4%]
+........................................................................ [  6%]
+........................................................................ [  8%]
+..............................................s......................... [ 10%]
+................................s.s....s....ssss..................ss...s [ 12%]
+........................................................................ [ 14%]
+.............................s.......................................... [ 16%]
+...........s............................................................ [ 18%]
+..............................ssssss.........ss....s.................... [ 20%]
+........................................................................ [ 22%]
+........................................................................ [ 25%]
+........................................................................ [ 27%]
+........................................................................ [ 29%]
+....ssss......................................s......................... [ 31%]
+......................s................................................. [ 33%]
+........................................................................ [ 35%]
+........................................................................ [ 37%]
+.........................................ssssss......................... [ 39%]
+............................................................s........... [ 41%]
+........................................................................ [ 43%]
+........................................................................ [ 45%]
+........................................................................ [ 48%]
+........................................................................ [ 50%]
+........................................................................ [ 52%]
+........................................................................ [ 54%]
+........................................................................ [ 56%]
+........................................................................ [ 58%]
+........................................................................ [ 60%]
+........................................................................ [ 62%]
+........................................................................ [ 64%]
+........................................................................ [ 66%]
+........................................................................ [ 68%]
+........................................................................ [ 71%]
+........................................................................ [ 73%]
+........................................................................ [ 75%]
+........................................................................ [ 77%]
+........................................................................ [ 79%]
+........................................................................ [ 81%]
+........................................................................ [ 83%]
+........................................................................ [ 85%]
+........................................................................ [ 87%]
+........................................................................ [ 89%]
+..........................................................ssssssssssssss [ 91%]
+s....................................................................... [ 94%]
+........................................................................ [ 96%]
+........................................................................ [ 98%]
+.............................................................            [100%]
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_gate_trigger3.py::test_a_stuck_queue_turns_the_whole_verdict
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_gate_trigger3.py:148: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    doc = _resume(tmp_path / "r.md", datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"), 4)
+
+tests/test_history_lake_jobs.py: 19 warnings
+tests/test_history_lake_pack.py: 7 warnings
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/multiprocessing/popen_fork.py:66: DeprecationWarning: This process (pid=3255) is multi-threaded, use of fork() may lead to deadlocks in the child.
+    self.pid = os.fork()
+
+tests/test_history_rev_corrections.py::test_a_repair_whose_provider_changed_only_the_boundary_row_does_not_bump
+tests/test_intraday_history_integrity.py::test_null_volume_or_price_in_a_delta_keeps_the_rest[60]
+tests/test_intraday_history_integrity.py::test_null_volume_or_price_in_a_delta_keeps_the_rest[5]
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3325: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=gap_days)).strftime("%Y-%m-%d")
+
+tests/test_history_rev_corrections.py::test_a_repair_whose_provider_changed_only_the_boundary_row_does_not_bump
+tests/test_intraday_history_integrity.py::test_null_volume_or_price_in_a_delta_keeps_the_rest[60]
+tests/test_intraday_history_integrity.py::test_null_volume_or_price_in_a_delta_keeps_the_rest[5]
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3332: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date   = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_htf_closure_week_unreachable.py::test_a_calendar_ticker_loses_every_day_without_a_session_at_the_producer
+tests/test_htf_closure_week_unreachable.py::test_a_calendar_ticker_loses_every_day_without_a_session_at_the_producer
+tests/test_htf_closure_week_unreachable.py::test_a_calendar_ticker_loses_every_day_without_a_session_at_the_producer
+tests/test_htf_closure_week_unreachable.py::test_a_calendar_ticker_loses_every_day_without_a_session_at_the_producer
+tests/test_htf_closure_week_unreachable.py::test_a_calendar_ticker_loses_every_day_without_a_session_at_the_producer
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:2988: DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+    dt = datetime.utcfromtimestamp(bar["t"] / 1000)
+
+tests/test_hub_sandbox_model_keys.py::test_a_the_derived_model_keys_are_all_blanked
+tests/test_hub_sandbox_model_keys.py::test_c_classification_equals_the_derived_read_set
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/journal_two/note_connectors/providers/obsidian.py:964: SyntaxWarning: invalid escape sequence '\`'
+    taken off, cut at the first `?` or `#`, percent-decoded ONCE and every `\` read as `/`
+
+tests/test_i1_tool_registry_contract.py::test_RULE5_nothing_anywhere_mutates_the_registry_at_runtime
+tests/test_i1_tool_registry_contract.py::test_PART1_the_model_is_never_handed_a_tool__domain_choice_is_not_the_models
+tests/test_i1_tool_registry_contract.py::test_PART1_CONTROL_the_tool_detector_sees_a_real_tool_call
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+tests/test_insider_cache_policy.py::TestInsiderFeedThrottleTtl::test_budget_denied_mid_fanout_gets_short_ttl
+tests/test_insider_cache_policy.py::TestInsiderFeedThrottleTtl::test_no_denial_gets_the_full_1h_ttl
+tests/test_insider_fmp.py::TestFeedFetchFailSignal::test_dual_provider_failure_mid_fanout_gets_short_ttl
+tests/test_insider_fmp.py::TestFeedFetchFailSignal::test_no_failure_gets_full_ttl
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/insider.py:180: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    cutoff = (datetime.utcnow() - timedelta(days=7)).strftime("%Y-%m-%d")
+
+tests/test_insider_market_feed.py: 3402 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_insider_market_feed.py:29: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return (datetime.utcnow() - timedelta(days=offset)).strftime("%Y-%m-%d")
+
+tests/test_insider_market_feed.py: 13 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/insider.py:266: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    cutoff = (datetime.utcnow() - timedelta(days=_MARKET_WINDOW_DAYS)).strftime("%Y-%m-%d")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_gallery_w11_fnote1.py:1455: spaces travel between the halves: not an address
+SKIPPED [1] tests/test_gate_box_lock.py:90: holder liveness is a `tasklist` query: off Windows every pid reads as alive, so a dead holder cannot be shown there
+SKIPPED [1] tests/test_gate_box_lock.py:135: the snapshot is a Win32_Process query
+SKIPPED [1] tests/test_gate_box_lock.py:307: the snapshot is a Win32_Process query
+SKIPPED [1] tests/test_gate_box_lock.py:489: holder liveness is a `tasklist` query: off Windows every pid reads as alive, so a dead holder cannot be shown there
+SKIPPED [1] tests/test_gate_box_lock.py:542: the snapshot is a Win32_Process query
+SKIPPED [1] tests/test_gate_box_lock.py:593: the snapshot is a Win32_Process query
+SKIPPED [1] tests/test_gate_box_lock.py:628: holder liveness is a `tasklist` query: off Windows every pid reads as alive, so a dead holder cannot be shown there
+SKIPPED [1] tests/test_gate_box_sampler.py:148: the snapshot is a Win32_Process query
+SKIPPED [1] tests/test_gate_box_sampler.py:190: the snapshot is a Win32_Process query
+SKIPPED [1] tests/test_gate_box_sampler.py:239: the snapshot is a Win32_Process query
+SKIPPED [1] tests/test_gate_shards.py:478: OPT-IN rail: set UCT_RUN_REAL_VITEST=1 — real `npx vitest`, 3s..>300s, unbounded; it killed a landing run on 2026-09-17
+SKIPPED [1] tests/test_gate_shards.py:1848: OPT-IN rail: spawns two real vitest runs and samples process counts
+SKIPPED [1] tests/test_golden_journey_04_05_live.py:120: ANTHROPIC_API_KEY not set -- this is Track E's real-model-call gate working as designed (DEC-008: isolated-environment-only key, provisioned separately from this test run), not a test failure or a gap in coverage.
+SKIPPED [1] tests/test_golden_journey_04_05_live.py:137: ANTHROPIC_API_KEY not set -- this is Track E's real-model-call gate working as designed (DEC-008: isolated-environment-only key, provisioned separately from this test run), not a test failure or a gap in coverage.
+SKIPPED [1] tests/test_golden_journey_04_05_live.py:158: ANTHROPIC_API_KEY not set -- this is Track E's real-model-call gate working as designed (DEC-008: isolated-environment-only key, provisioned separately from this test run), not a test failure or a gap in coverage.
+SKIPPED [1] tests/test_golden_journey_04_05_live.py:172: ANTHROPIC_API_KEY not set -- this is Track E's real-model-call gate working as designed (DEC-008: isolated-environment-only key, provisioned separately from this test run), not a test failure or a gap in coverage.
+SKIPPED [1] tests/test_golden_journey_04_05_live.py:207: ANTHROPIC_API_KEY not set -- this is Track E's real-model-call gate working as designed (DEC-008: isolated-environment-only key, provisioned separately from this test run), not a test failure or a gap in coverage.
+SKIPPED [1] tests/test_golden_journey_04_05_live.py:237: INDICATOR_VISION_ENABLED is not '1' -- deliberate product flag, and DEC-008 requires it set ONLY in the same isolated environment as the scoped key, never globally.
+SKIPPED [1] tests/test_graph_wire_size.py:72: verified 4 bands for the bands on this machine; SKIPPED, NOT VERIFIED: 1 licence-held fixture(s) absent on this machine: u_c2d900000005.json [licence CC-BY-NC-SA; evidence ledger: no row (not a vendor capture; licence verdict per the record)]. Not committed (docs/pine/LICENSING.md section 1, 2c; docs/pine/vendor-harness/licence-held.json). Put the file in the capture store ($UCT_VENDOR_CAPTURE_STORE) at its recorded hash to run it.
+SKIPPED [1] tests/test_graph_wire_size.py:72: measured 4 bands for the bands on this machine; SKIPPED, NOT VERIFIED: 1 licence-held fixture(s) absent on this machine: u_c2d900000005.json [licence CC-BY-NC-SA; evidence ledger: no row (not a vendor capture; licence verdict per the record)]. Not committed (docs/pine/LICENSING.md section 1, 2c; docs/pine/vendor-harness/licence-held.json). Put the file in the capture store ($UCT_VENDOR_CAPTURE_STORE) at its recorded hash to run it.
+SKIPPED [1] tests/test_graph_wire_size.py:72: timed 4 bands for the bands on this machine; SKIPPED, NOT VERIFIED: 1 licence-held fixture(s) absent on this machine: u_c2d900000005.json [licence CC-BY-NC-SA; evidence ledger: no row (not a vendor capture; licence verdict per the record)]. Not committed (docs/pine/LICENSING.md section 1, 2c; docs/pine/vendor-harness/licence-held.json). Put the file in the capture store ($UCT_VENDOR_CAPTURE_STORE) at its recorded hash to run it.
+SKIPPED [1] tests/test_history_lake_build.py:537: real day files absent: ['D:/uct-history/raw/2026/2026-11-11.csv.gz', 'D:/uct-history/raw/2026/2026-11-12.csv.gz', 'D:/uct-history/raw/2026/2026-11-13.csv.gz']
+SKIPPED [1] tests/test_history_lake_build.py:554: real day files absent: ['D:/uct-history/raw/2026/2026-11-11.csv.gz', 'D:/uct-history/raw/2026/2026-11-12.csv.gz', 'D:/uct-history/raw/2026/2026-11-13.csv.gz']
+SKIPPED [1] tests/test_history_lake_build.py:560: real day files absent: ['D:/uct-history/raw/2026/2026-11-11.csv.gz', 'D:/uct-history/raw/2026/2026-11-12.csv.gz', 'D:/uct-history/raw/2026/2026-11-13.csv.gz']
+SKIPPED [1] tests/test_history_lake_build.py:569: real day files absent: ['D:/uct-history/raw/2026/2026-11-11.csv.gz', 'D:/uct-history/raw/2026/2026-11-12.csv.gz', 'D:/uct-history/raw/2026/2026-11-13.csv.gz']
+SKIPPED [1] tests/test_history_lake_factors.py:114: the vendor split reference is not on this machine
+SKIPPED [1] tests/test_history_lake_piece.py:599: real-data round trip needs D:/uct-history/raw/_probe-2026-11-13.csv.gz
+SKIPPED [3] tests/test_host_lane_probe_refuses_production.py:50: the probe's fixture patches playwright; CI installs no browser stack (remote runs 44307082879, 44308065971: every test here errored on the import)
+SKIPPED [3] tests/test_host_lane_probe_refuses_production.py:57: the probe's fixture patches playwright; CI installs no browser stack (remote runs 44307082879, 44308065971: every test here errored on the import)
+SKIPPED [1] tests/test_house_sizing_table.py:65: SKIP, NOT A PASS: uct-intelligence not found (looked in ['external/uct-intelligence', 'C:\\Users\\Patrick\\uct-intelligence']); the house table was NOT compared against _SIZING_TABLE
+SKIPPED [1] tests/test_inside_day_draw_lab_parity.py:100: UCT_LAB_ID_DRAW_V2 unset
+SKIPPED [1] tests/test_inside_day_draw_lab_parity.py:113: UCT_LAB_ID_DRAW_V2 unset
+SKIPPED [1] tests/test_inside_day_draw_lab_parity.py:159: UCT_LAB_ID_DRAW_V2 unset
+SKIPPED [11] tests/test_inside_day_draw_lab_parity.py:176: UCT_LAB_ID_DRAW_V2 unset
+SKIPPED [1] tests/test_inside_day_draw_lab_parity.py:185: bars.db absent
+3395 passed, 50 skipped, 3464 warnings in 649.83s (0:10:49)

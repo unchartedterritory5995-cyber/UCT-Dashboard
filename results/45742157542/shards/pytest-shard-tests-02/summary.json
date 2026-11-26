@@ -1,0 +1,15 @@
+{
+  "suite": "pytest",
+  "collected": 3567,
+  "passed": 3556,
+  "failed": 1,
+  "errored": 0,
+  "skipped": 10,
+  "wall_s": 802.2,
+  "failed_files": [
+    "tests/test_alert_taxonomy_price_level_projection.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "1 failed, 3556 passed, 10 skipped, 20 warnings in 802.20s (0:13:22)",
+  "ok": true
+}

@@ -1,0 +1,16 @@
+{
+  "suite": "pytest",
+  "collected": 4304,
+  "passed": 4297,
+  "failed": 3,
+  "errored": 0,
+  "skipped": 4,
+  "wall_s": 852.07,
+  "failed_files": [
+    "tests/test_open_reads_gate.py",
+    "tests/test_pattern_scan_depth_and_sym.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "3 failed, 4297 passed, 4 skipped, 63 warnings in 852.07s (0:14:12)",
+  "ok": true
+}

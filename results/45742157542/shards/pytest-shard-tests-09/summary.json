@@ -1,0 +1,15 @@
+{
+  "suite": "pytest",
+  "collected": 2634,
+  "passed": 2617,
+  "failed": 2,
+  "errored": 0,
+  "skipped": 15,
+  "wall_s": 520.02,
+  "failed_files": [
+    "tests/test_flat_top_golden.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "2 failed, 2617 passed, 15 skipped, 24 warnings in 520.02s (0:08:40)",
+  "ok": true
+}

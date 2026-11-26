@@ -1,0 +1,191 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  2%]
+........................................................................ [  5%]
+........................................................................ [  8%]
+........................................................................ [ 10%]
+........................................................................ [ 13%]
+........................................................................ [ 16%]
+........................................................................ [ 19%]
+.....................FFssss............................................. [ 21%]
+.................................................................s...s.. [ 24%]
+..............ss........................................................ [ 27%]
+........................................................................ [ 30%]
+........................................................................ [ 32%]
+........................................................................ [ 35%]
+........................................................................ [ 38%]
+........................................................................ [ 41%]
+..........................ssssss........................................ [ 43%]
+........................................................................ [ 46%]
+........................................................................ [ 49%]
+........................................................................ [ 51%]
+........................................................................ [ 54%]
+...........s............................................................ [ 57%]
+........................................................................ [ 60%]
+........................................................................ [ 62%]
+........................................................................ [ 65%]
+........................................................................ [ 68%]
+........................................................................ [ 71%]
+........................................................................ [ 73%]
+........................................................................ [ 76%]
+........................................................................ [ 79%]
+........................................................................ [ 82%]
+........................................................................ [ 84%]
+........................................................................ [ 87%]
+........................................................................ [ 90%]
+........................................................................ [ 92%]
+........................................................................ [ 95%]
+........................................................................ [ 98%]
+..........................................                               [100%]
+=================================== FAILURES ===================================
+____________ test_every_existing_drawing_is_byte_for_byte_unchanged ____________
+
+swept = {'counts': {'detections': 3689, 'dropped_new_ids': 39, 'flat_top': 20, 'flat_top_stamped': 3, ...}, 'kept': {'0:262': ...:262': 'eb15c66be2b78ec0', '0:268': '692f80a4583c4c7e', '0:274': '960916705e64c48e', '0:280': '414e50c6ed72ead8', ...}}
+
+    def test_every_existing_drawing_is_byte_for_byte_unchanged(swept):
+        bad = sorted(k for k, d in GOLDEN["digests"].items() if swept["stripped"].get(k) != d)
+>       assert bad == [], f"{len(bad)} scans moved: {bad[:10]}"
+E       AssertionError: 15 scans moved: ['12:262', '12:268', '12:280', '14:274', '15:268', '17:280', '17:286', '18:286', '19:298', '1:286']
+E       assert ['12:262', '1...'17:280', ...] == []
+E         
+E         Left contains 15 more items, first extra item: '12:262'
+E         
+E         Full diff:
+E         - []
+E         + [
+E         +     '12:262',
+E         +     '12:268',
+E         +     '12:280',
+E         +     '14:274',
+E         +     '15:268',
+E         +     '17:280',
+E         +     '17:286',
+E         +     '18:286',
+E         +     '19:298',
+E         +     '1:286',
+E         +     '20:262',
+E         +     '22:262',
+E         +     '3:268',
+E         +     '6:268',
+E         +     '6:274',
+E         + ]
+
+tests/test_flat_top_golden.py:97: AssertionError
+__________ test_control_the_comparison_sees_the_stamp_when_it_is_kept __________
+
+swept = {'counts': {'detections': 3689, 'dropped_new_ids': 39, 'flat_top': 20, 'flat_top_stamped': 3, ...}, 'kept': {'0:262': ...:262': 'eb15c66be2b78ec0', '0:268': '692f80a4583c4c7e', '0:274': '960916705e64c48e', '0:280': '414e50c6ed72ead8', ...}}
+
+    def test_control_the_comparison_sees_the_stamp_when_it_is_kept(swept):
+        moved = {k for k, d in GOLDEN["digests"].items() if swept["kept"].get(k) != d}
+        assert moved, "keeping the stamp changed nothing: the digest cannot see a drawing"
+>       assert len(moved) <= swept["counts"]["flat_top_stamped"]
+E       AssertionError: assert 17 <= 3
+E        +  where 17 = len({'12:262', '12:268', '12:280', '14:274', '15:268', '17:280', ...})
+
+tests/test_flat_top_golden.py:103: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_flag_ledger_knobs.py::test_every_local_knob_is_read_by_the_code
+tests/test_fmp_helper_census.py::test_every_body_or_none_call_names_its_timeout
+tests/test_fmp_timeout_pinning.py::test_every_fmp_get_call_site_names_its_timeout
+tests/test_fmp_timeout_pinning.py::test_the_scan_ALSO_SEES_fmp_get_passed_as_a_REFERENCE
+tests/test_fmp_timeout_pinning.py::test_the_owner_reserved_exclusion_is_STILL_REAL
+tests/test_forced_tool_choice_guard.py::test_EVERY_forced_tool_call_in_the_backend_is_named_here
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+tests/test_flag_ledger_knobs.py::test_every_local_knob_is_read_by_the_code
+  <unknown>:7: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_flow_card_from_page.py::test_an_incomplete_basis_is_labelled_on_the_all_rung_and_on_the_card
+tests/test_flow_card_from_page.py::test_the_card_reads_the_as_of_header_and_says_so_on_the_card
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/watchlist_card.py:131: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+    for (r, g, b, a) in lg.getdata()])
+
+tests/test_flow_tape_spool.py::test_collect_window_trades_assignment_and_junk
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_flow_tape_spool.py:57: DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+    hour = datetime.utcfromtimestamp(in_w0 / 1e9).strftime("%Y%m%d-%H")
+
+tests/test_flow_tape_spool.py::test_collect_window_trades_assignment_and_junk
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_flow_tape_spool.py:63: DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+    hour1 = datetime.utcfromtimestamp(in_w1 / 1e9).strftime("%Y%m%d-%H")
+
+tests/test_flow_tape_spool.py::test_collect_window_trades_assignment_and_junk
+tests/test_flow_tape_spool.py::test_iter_spool_lines_prefers_gz_over_plain_twin
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/flow_tape_spool.py:357: DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+    h0 = datetime.utcfromtimestamp(t0_ns / 1e9).strftime("%Y%m%d-%H")
+
+tests/test_flow_tape_spool.py::test_collect_window_trades_assignment_and_junk
+tests/test_flow_tape_spool.py::test_iter_spool_lines_prefers_gz_over_plain_twin
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/flow_tape_spool.py:358: DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+    h1 = datetime.utcfromtimestamp(t1_ns / 1e9 + 3600).strftime("%Y%m%d-%H")
+
+tests/test_fmp_guard_census.py::test_real_repo_has_zero_unquarantined_violations
+tests/test_fmp_guard_census.py::test_retired_quarantine_entries_are_genuinely_clean
+tests/test_fmp_guard_census.py::test_no_quarantine_entry_is_stale
+tests/test_fmp_helper_census.py::test_the_real_tree_matches_the_ratchet_exactly
+tests/test_fmp_helper_census.py::test_the_census_is_not_blind_on_the_real_tree
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/journal_two/note_connectors/providers/obsidian.py:964: SyntaxWarning: invalid escape sequence '\`'
+    taken off, cut at the first `?` or `#`, percent-decoded ONCE and every `\` read as `/`
+
+tests/test_front_app.py::test_health_does_not_depend_on_the_upstream
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/websockets/legacy/__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+    warnings.warn(  # deprecated in 14.0 - 2024-11-09
+
+tests/test_front_app.py::test_health_does_not_depend_on_the_upstream
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/uvicorn/protocols/websockets/websockets_impl.py:17: DeprecationWarning: websockets.server.WebSocketServerProtocol is deprecated
+    from websockets.server import WebSocketServerProtocol
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_flat_top_lab_parity.py:146: UCT_LAB_FLATTOP_V2 unset
+SKIPPED [1] tests/test_flat_top_lab_parity.py:171: UCT_LAB_FLATTOP_V2 unset
+SKIPPED [1] tests/test_flat_top_lab_parity.py:196: UCT_LAB_FLATTOP_V2 unset
+SKIPPED [1] tests/test_flat_top_lab_parity.py:231: UCT_LAB_FLATTOP_V2 unset
+SKIPPED [1] tests/test_flow_aggregate.py:68: node/bundle not present in this environment
+SKIPPED [1] tests/test_flow_aggregate.py:118: node/bundle not present in this environment
+SKIPPED [1] tests/test_flow_aggregate.py:243: node/bundle not present in this environment
+SKIPPED [1] tests/test_flow_aggregate.py:259: node/bundle not present in this environment
+SKIPPED [1] tests/test_flow_parts_only.py:64: flow-facts bundle not built
+SKIPPED [1] tests/test_flow_parts_only.py:73: flow-facts bundle not built
+SKIPPED [1] tests/test_flow_parts_only.py:81: flow-facts bundle not built
+SKIPPED [1] tests/test_flow_parts_only.py:89: flow-facts bundle not built
+SKIPPED [1] tests/test_flow_parts_only.py:98: flow-facts bundle not built
+SKIPPED [1] tests/test_flow_parts_only.py:122: flow-facts bundle not built
+SKIPPED [1] tests/test_flow_worker_watch_coverage.py:100: no diff against origin/master — nothing to judge (this is the on-master case, not a pass)
+FAILED tests/test_flat_top_golden.py::test_every_existing_drawing_is_byte_for_byte_unchanged - AssertionError: 15 scans moved: ['12:262', '12:268', '12:280', '14:274', '15:268', '17:280', '17:286', '18:286', '19:298', '1:286']
+assert ['12:262', '1...'17:280', ...] == []
+  
+  Left contains 15 more items, first extra item: '12:262'
+  
+  Full diff:
+  - []
+  + [
+  +     '12:262',
+  +     '12:268',
+  +     '12:280',
+  +     '14:274',
+  +     '15:268',
+  +     '17:280',
+  +     '17:286',
+  +     '18:286',
+  +     '19:298',
+  +     '1:286',
+  +     '20:262',
+  +     '22:262',
+  +     '3:268',
+  +     '6:268',
+  +     '6:274',
+  + ]
+FAILED tests/test_flat_top_golden.py::test_control_the_comparison_sees_the_stamp_when_it_is_kept - AssertionError: assert 17 <= 3
+ +  where 17 = len({'12:262', '12:268', '12:280', '14:274', '15:268', '17:280', ...})
+2 failed, 2617 passed, 15 skipped, 24 warnings in 520.02s (0:08:40)

@@ -1,0 +1,303 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  1%]
+.........................F.............................................. [  3%]
+........................ssss............................................ [  5%]
+........................................................................ [  7%]
+........................................................................ [  9%]
+........................................................................ [ 11%]
+........................................................................ [ 13%]
+........................................................................ [ 15%]
+........................................................................ [ 16%]
+........................................................................ [ 18%]
+........................................................................ [ 20%]
+........................................................................ [ 22%]
+........................................................................ [ 24%]
+........................................................................ [ 26%]
+........................................................................ [ 28%]
+........................................................................ [ 30%]
+........................................................................ [ 31%]
+........................................................................ [ 33%]
+........................................................................ [ 35%]
+........................................................................ [ 37%]
+........................................................................ [ 39%]
+........................................................................ [ 41%]
+........................................................................ [ 43%]
+........................................................................ [ 45%]
+........................................................................ [ 46%]
+........................................................................ [ 48%]
+........................................................................ [ 50%]
+........................................................................ [ 52%]
+........................................................................ [ 54%]
+........................................................................ [ 56%]
+................sssssssssssssssssss..................................... [ 58%]
+........................................................................ [ 60%]
+........................................................................ [ 62%]
+........................................................................ [ 63%]
+........................................................................ [ 65%]
+........................................................................ [ 67%]
+........................................................................ [ 69%]
+........................................................................ [ 71%]
+........................................................................ [ 73%]
+........................................................................ [ 75%]
+........................................................................ [ 77%]
+........................................................................ [ 78%]
+........................................................................ [ 80%]
+........................................................................ [ 82%]
+........................................................................ [ 84%]
+...........sssss........................................................ [ 86%]
+...........................................................[mem] rss_mb=1866.8 threads=67
+............. [ 88%]
+........................................................................ [ 90%]
+........................................................................ [ 92%]
+....................................ssssssssssss........................ [ 93%]
+........................................................................ [ 95%]
+........................................................................ [ 97%]
+........................................................................ [ 99%]
+..............                                                           [100%]
+=================================== FAILURES ===================================
+______ test_the_SERVED_app_has_no_UNRECORDED_open_read_and_no_stale_entry ______
+
+real_app = <fastapi.applications.FastAPI object at 0x700c97858950>
+
+    def test_the_SERVED_app_has_no_UNRECORDED_open_read_and_no_stale_entry(real_app):
+        res = asc.audit_surface(real_app)
+        assert res["reads"]["examined"] > 0, "examined nothing -- vacuous"
+>       assert res["reads"]["ungated"] == [], (
+            "NEW unauthenticated read(s) with no gate in the dependency tree and no "
+            "baseline entry. Gate them, or record each one in "
+            "api/auth_surface_read_baseline.json with a reason:\n  "
+            + "\n  ".join(f"{m} {p}" for m, p in res["reads"]["ungated"]))
+E       AssertionError: NEW unauthenticated read(s) with no gate in the dependency tree and no baseline entry. Gate them, or record each one in api/auth_surface_read_baseline.json with a reason:
+E           GET /api/bars-history/{ticker}
+E       assert [('GET', '/ap...ry/{ticker}')] == []
+E         
+E         Left contains one more item: ('GET', '/api/bars-history/{ticker}')
+E         
+E         Full diff:
+E         - []
+E         + [
+E         +     (
+E         +         'GET',
+E         +         '/api/bars-history/{ticker}',
+E         +     ),
+E         + ]
+
+tests/test_auth_surface_reads.py:228: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+tests/test_boot_does_not_wait_on_bars_db.py::test_lifespan_reaches_yield_while_a_writer_holds_bars_db
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_async_routes_do_not_block.py::test_no_new_async_route_that_never_awaits
+tests/test_async_routes_do_not_block.py::test_the_two_desk_diagnostics_that_stalled_the_loop_are_plain_def
+tests/test_async_routes_do_not_block.py::test_the_flow_and_dark_pool_reads_measured_stalling_the_loop_are_plain_def
+tests/test_bars_bydate_index_build.py::test_no_boot_or_request_path_starts_the_build
+tests/test_bars_extended_hours_scope.py::test_only_ONE_site_in_the_repo_asks_for_extended_hours
+tests/test_bars_snapshot_carries_indexes.py::test_every_index_created_on_ohlcv_is_one_the_snapshot_carries
+tests/test_bars_store_door.py::test_every_read_modify_write_caller_reads_raw_and_every_writer_is_classified
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+tests/test_bars_clustered_snapshot.py::test_snapshot_ships_clustered_with_every_index
+tests/test_bars_clustered_snapshot.py::test_snapshot_ships_unchanged_when_disabled_or_conversion_fails
+tests/test_bars_clustered_snapshot.py::test_snapshot_ships_unchanged_when_disabled_or_conversion_fails
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_bars_clustered_snapshot.py:184: DeprecationWarning: Python 3.14 will, by default, filter extracted tar archives and reject files or modify their metadata. Use the filter argument to control this behavior.
+    tar.extractall(out)
+
+tests/test_bars_clustered_snapshot.py: 16 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/data_sync.py:326: DeprecationWarning: Python 3.14 will, by default, filter extracted tar archives and reject files or modify their metadata. Use the filter argument to control this behavior.
+    tar.extractall(dest)
+
+tests/test_bars_cold_delta_window.py: 3 warnings
+tests/test_bars_delta_gapfill.py: 4 warnings
+tests/test_bars_tail_first_and_budget.py: 9 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3325: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=gap_days)).strftime("%Y-%m-%d")
+
+tests/test_bars_cold_delta_window.py: 3 warnings
+tests/test_bars_delta_gapfill.py: 4 warnings
+tests/test_bars_tail_first_and_budget.py: 9 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3332: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date   = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_bars_cold_delta_window.py::test_a_cold_ticker_does_not_reach_back_to_1969
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_bars_cold_delta_window.py:62: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    assert year >= _dt.datetime.utcnow().year - 1, f"from_date {d} is unbounded"
+
+tests/test_bars_cold_delta_window.py::test_a_cold_window_is_small_enough_that_the_vendor_accepts_it
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_bars_cold_delta_window.py:72: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    span_days = (_dt.datetime.utcnow() - start).days
+
+tests/test_bars_cold_delta_window.py::test_a_WARM_ticker_still_gets_its_full_heal_window
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_bars_cold_delta_window.py:79: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    eight_days_ago = int(_dt.datetime.utcnow().timestamp()) - 8 * 86400
+
+tests/test_bars_cold_delta_window.py::test_a_WARM_ticker_still_gets_its_full_heal_window
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_bars_cold_delta_window.py:83: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    span_days = (_dt.datetime.utcnow() - start).days
+
+tests/test_bars_cold_negative_cache.py: 11 warnings
+tests/test_bars_regraft.py: 7 warnings
+tests/test_breadth_chunk_invariance.py: 52 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3696: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_bars_cold_negative_cache.py: 11 warnings
+tests/test_bars_regraft.py: 7 warnings
+tests/test_breadth_chunk_invariance.py: 52 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3699: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=lookback)).strftime("%Y-%m-%d")
+
+tests/test_bars_cold_negative_cache.py::test_an_INTRADAY_fetch_every_source_answered_empty_is_cached
+tests/test_bars_log_redaction_services.py::test_fetch_intraday_massive_error_log_is_redacted
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:2375: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_bars_cold_negative_cache.py::test_an_INTRADAY_fetch_every_source_answered_empty_is_cached
+tests/test_bars_log_redaction_services.py::test_fetch_intraday_massive_error_log_is_redacted
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:2376: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=lookback_days)).strftime("%Y-%m-%d")
+
+tests/test_bars_cold_negative_cache.py: 5 warnings
+tests/test_bars_regraft.py: 240 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:2988: DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+    dt = datetime.utcfromtimestamp(bar["t"] / 1000)
+
+tests/test_bars_coverage.py::test_coverage_stats_probes_freshness_by_list
+tests/test_bars_data_auth.py::test_the_tier_admits_the_SERVICE_TOKEN_on_the_gated_route
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_sqlite.py:1294: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    cutoff = int((datetime.utcnow() - timedelta(days=fresh_within_days)).strftime("%Y%m%d"))
+
+tests/test_bars_data_auth.py: 50 warnings
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:484: DeprecationWarning: Setting per-request cookies=<...> is being deprecated, because the expected behaviour on cookie persistence is ambiguous. Set cookies directly on the client instance instead.
+    return super().request(
+
+tests/test_bars_ordinal_census.py::test_the_census_is_NON_EMPTY_and_names_a_module_we_can_point_at
+tests/test_bars_ordinal_census.py::test_bars_ordinal_census_matches_a_fresh_derivation
+tests/test_bars_ordinal_census.py::test_bars_ordinal_census_CAN_FAIL
+tests/test_boot_does_not_wait_on_bars_db.py::test_lifespan_reaches_yield_while_a_writer_holds_bars_db
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/journal_two/note_connectors/providers/obsidian.py:964: SyntaxWarning: invalid escape sequence '\`'
+    taken off, cut at the first `?` or `#`, percent-decoded ONCE and every `\` read as `/`
+
+tests/test_bars_refresh_ends_with_its_test.py: 2 warnings
+tests/test_bars_server_timing.py: 2 warnings
+tests/test_breadth_chunk_invariance.py: 6 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:539: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    d = datetime.utcnow()
+
+tests/test_bars_snapshot_carries_indexes.py::test_the_snapshot_ships_every_expected_index_even_when_the_source_lacks_one
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_bars_snapshot_carries_indexes.py:84: DeprecationWarning: Python 3.14 will, by default, filter extracted tar archives and reject files or modify their metadata. Use the filter argument to control this behavior.
+    tar.extractall(out)
+
+tests/test_bars_tail_first_and_budget.py::test_tail_only_window_starts_at_the_stored_tails_session[1]
+tests/test_bars_tail_first_and_budget.py::test_tail_only_window_starts_at_the_stored_tails_session[5]
+tests/test_bars_tail_first_and_budget.py::test_tail_only_window_starts_at_the_stored_tails_session[15]
+tests/test_bars_tail_first_and_budget.py::test_tail_only_window_starts_at_the_stored_tails_session[30]
+tests/test_bars_tail_first_and_budget.py::test_tail_only_window_starts_at_the_stored_tails_session[60]
+tests/test_bars_tail_first_and_budget.py::test_tail_only_still_covers_a_whole_missing_session
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3312: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    gap_days = max(0, (datetime.utcnow().date() - _last_et_day).days)
+
+tests/test_bars_tail_first_and_budget.py::test_CONTROL_the_full_window_reaches_back_the_gapfill_span[1-2]
+tests/test_bars_tail_first_and_budget.py::test_CONTROL_the_full_window_reaches_back_the_gapfill_span[5-5]
+tests/test_bars_tail_first_and_budget.py::test_CONTROL_the_full_window_reaches_back_the_gapfill_span[15-14]
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_bars_tail_first_and_budget.py:84: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    span = (datetime.utcnow().date() - datetime.strptime(_from_date(urls[0]), "%Y-%m-%d").date()).days
+
+tests/test_bars_warm_pool_shutdown.py::test_T2_after_the_stop_every_submitter_starts_nothing_and_raises_nothing
+tests/test_bars_warm_pool_shutdown.py::test_T2_after_the_stop_every_submitter_starts_nothing_and_raises_nothing
+tests/test_bars_warm_pool_shutdown.py::test_T5a_a_universe_warm_whose_submit_loses_the_race_ends_with_its_status_right
+tests/test_bars_warm_pool_shutdown.py::test_T5b_a_universe_warm_stopped_with_work_queued_counts_every_submitted_job
+tests/test_bars_warm_pool_shutdown.py::test_R3_the_admin_stop_does_not_leave_a_running_universe_warm_hung
+tests/test_bars_warm_pool_shutdown.py::test_R4_the_admin_stop_ends_a_multi_timeframe_warm_and_a_new_run_is_not_disturbed
+tests/test_bars_warm_pool_shutdown.py::test_R4_the_admin_stop_ends_a_multi_timeframe_warm_and_a_new_run_is_not_disturbed
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:5104: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "started_iso": datetime.utcnow().isoformat() + "Z",
+
+tests/test_bars_warm_pool_shutdown.py::test_T2_after_the_stop_every_submitter_starts_nothing_and_raises_nothing
+tests/test_bars_warm_pool_shutdown.py::test_T2_after_the_stop_every_submitter_starts_nothing_and_raises_nothing
+tests/test_bars_warm_pool_shutdown.py::test_T5a_a_universe_warm_whose_submit_loses_the_race_ends_with_its_status_right
+tests/test_bars_warm_pool_shutdown.py::test_T5b_a_universe_warm_stopped_with_work_queued_counts_every_submitted_job
+tests/test_bars_warm_pool_shutdown.py::test_R4_the_admin_stop_ends_a_multi_timeframe_warm_and_a_new_run_is_not_disturbed
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:5143: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _warm_state["completed_iso"] = datetime.utcnow().isoformat() + "Z"
+
+tests/test_bars_warm_pool_shutdown.py::test_R3_the_admin_stop_does_not_leave_a_running_universe_warm_hung
+tests/test_bars_warm_pool_shutdown.py::test_R4_the_admin_stop_ends_a_multi_timeframe_warm_and_a_new_run_is_not_disturbed
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:5154: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _warm_state["completed_iso"] = datetime.utcnow().isoformat() + "Z"
+
+tests/test_block_runs_server_lanes.py::test_the_backtest_route_replays_a_stored_definition_WITH_its_gates
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py:2249: UnsupportedFieldAttributeWarning: The 'alias' attribute with value 'from' was provided to the `Field()` function, which has no effect in the context it was used. 'alias' is field-specific metadata, and can only be attached to a model field using `Annotated` metadata or by assignment. This may have happened because an `Annotated` type alias using the `type` statement was used, or if the `Field()` function was attached to a single member of a union type.
+    warnings.warn(
+
+tests/test_boot_does_not_wait_on_bars_db.py::test_lifespan_reaches_yield_while_a_writer_holds_bars_db
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_reconciliation.py:483: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _state["started_at"] = datetime.utcnow().isoformat() + "Z"
+
+tests/test_breadth_chunk_invariance.py::test_two_chunks_equal_one_sweep
+tests/test_breadth_chunk_invariance.py::test_two_chunks_equal_one_sweep
+tests/test_breadth_chunk_invariance.py::test_two_chunks_equal_one_sweep
+tests/test_breadth_chunk_invariance.py::test_two_chunks_equal_one_sweep
+tests/test_breadth_chunk_invariance.py::test_two_chunks_equal_one_sweep
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3060: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d")
+
+tests/test_breadth_chunk_invariance.py::test_two_chunks_equal_one_sweep
+tests/test_breadth_chunk_invariance.py::test_two_chunks_equal_one_sweep
+tests/test_breadth_chunk_invariance.py::test_two_chunks_equal_one_sweep
+tests/test_breadth_chunk_invariance.py::test_two_chunks_equal_one_sweep
+tests/test_breadth_chunk_invariance.py::test_two_chunks_equal_one_sweep
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3061: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date   = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_breadth_history_tail_fastpath.py: 3639 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/rs_ranking.py:166: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_breadth_history_tail_fastpath.py: 3639 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/rs_ranking.py:167: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=200)).strftime("%Y-%m-%d")
+
+tests/test_breadth_history_tail_fastpath.py::test_us_fast_path_equals_the_full_read[1-new_52w_highs]
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_reconciliation.py:457: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _state["last_cycle_at"] = datetime.utcnow().isoformat() + "Z"
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_auto_draw.py:88: AUTO_DRAW_LAB_DIR unset
+SKIPPED [3] tests/test_auto_draw.py:36: AUTO_DRAW_LAB_DIR unset
+SKIPPED [1] tests/test_base_draw_lab_parity.py:98: UCT_LAB_BASE_DRAW unset
+SKIPPED [1] tests/test_base_draw_lab_parity.py:106: UCT_LAB_BASE_DRAW unset
+SKIPPED [1] tests/test_base_draw_lab_parity.py:150: UCT_LAB_BASE_DRAW unset
+SKIPPED [15] tests/test_base_draw_lab_parity.py:166: UCT_LAB_BASE_DRAW unset
+SKIPPED [1] tests/test_base_draw_lab_parity.py:174: bars.db absent
+SKIPPED [1] tests/test_breadth_forward_seal_e2e.py:80: durable grouped-daily frame cache not present on this machine
+SKIPPED [1] tests/test_breadth_forward_seal_e2e.py:91: durable grouped-daily frame cache not present on this machine
+SKIPPED [1] tests/test_breadth_forward_seal_e2e.py:120: durable grouped-daily frame cache not present on this machine
+SKIPPED [1] tests/test_breadth_forward_seal_e2e.py:137: durable grouped-daily frame cache not present on this machine
+SKIPPED [1] tests/test_breadth_forward_seal_e2e.py:163: durable grouped-daily frame cache not present on this machine
+SKIPPED [12] tests/test_breadth_live.py:1025: breadth_collector.py not on this machine
+FAILED tests/test_auth_surface_reads.py::test_the_SERVED_app_has_no_UNRECORDED_open_read_and_no_stale_entry - AssertionError: NEW unauthenticated read(s) with no gate in the dependency tree and no baseline entry. Gate them, or record each one in api/auth_surface_read_baseline.json with a reason:
+    GET /api/bars-history/{ticker}
+assert [('GET', '/ap...ry/{ticker}')] == []
+  
+  Left contains one more item: ('GET', '/api/bars-history/{ticker}')
+  
+  Full diff:
+  - []
+  + [
+  +     (
+  +         'GET',
+  +         '/api/bars-history/{ticker}',
+  +     ),
+  + ]
+1 failed, 3789 passed, 40 skipped, 7835 warnings in 729.20s (0:12:09)

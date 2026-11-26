@@ -1,0 +1,157 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  3%]
+........................................................................ [  7%]
+........................................................................ [ 10%]
+........................................................................ [ 14%]
+............................................................F........... [ 17%]
+........................................................................ [ 21%]
+........................................................................ [ 25%]
+........................................................................ [ 28%]
+........................................................................ [ 32%]
+........................................................................ [ 35%]
+........................................................................ [ 39%]
+........................................................................ [ 43%]
+........................................................................ [ 46%]
+........................................................................ [ 50%]
+........................................................................ [ 53%]
+........................................................................ [ 57%]
+........................................................................ [ 60%]
+........................................................................ [ 64%]
+........................................................................ [ 68%]
+........................................................................ [ 71%]
+........................................................................ [ 75%]
+........................................................................ [ 78%]
+........................................................................ [ 82%]
+........................................................................ [ 86%]
+........................................................................ [ 89%]
+........................................................................ [ 93%]
+........................................................................ [ 96%]
+...............................................................          [100%]
+=================================== FAILURES ===================================
+________________ test_the_real_tree_matches_the_ratchet_exactly ________________
+
+    def test_the_real_tree_matches_the_ratchet_exactly():
+        counts = cen.counts(cen.census(BASE))
+        baseline = cen.load_baseline(BASE)
+        grew, new, slack = cen.compare(counts, baseline)
+>       assert new == [], (
+            "a NEW file reaches a vendor outside its adapter -- route it through the "
+            f"adapter (api/services/massive_adapter.py for Massive): {new}")
+E       AssertionError: a NEW file reaches a vendor outside its adapter -- route it through the adapter (api/services/massive_adapter.py for Massive): [('massive', 'api/services/breadth_v2_producer.py', 0, 3), ('massive', 'api/services/marketcap/acquire.py', 0, 2), ('massive', 'api/services/options_universe_log.py', 0, 2), ('polygon_direct', 'api/services/marketcap/acquire.py', 0, 4)]
+E       assert [('massive', ...re.py', 0, 4)] == []
+E         
+E         Left contains 4 more items, first extra item: ('massive', 'api/services/breadth_v2_producer.py', 0, 3)
+E         
+E         Full diff:
+E         - []
+E         + [
+E         +     (
+E         +         'massive',
+E         +         'api/services/breadth_v2_producer.py',
+E         +         0,
+E         +         3,
+E         +     ),
+E         +     (
+E         +         'massive',
+E         +         'api/services/marketcap/acquire.py',
+E         +         0,
+E         +         2,
+E         +     ),
+E         +     (
+E         +         'massive',
+E         +         'api/services/options_universe_log.py',
+E         +         0,
+E         +         2,
+E         +     ),
+E         +     (
+E         +         'polygon_direct',
+E         +         'api/services/marketcap/acquire.py',
+E         +         0,
+E         +         4,
+E         +     ),
+E         + ]
+
+tests/test_vendor_callsite_census.py:58: AssertionError
+=============================== warnings summary ===============================
+<unknown>:964
+<unknown>:964
+tests/test_visibility_flag_ledger.py::test_the_derivation_finds_the_flag_this_file_was_written_for
+tests/test_visibility_flag_ledger.py::test_every_visibility_flag_is_declared
+tests/test_web_push.py::TestSubscriptions::test_table_has_no_name_column
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+<unknown>:7
+<unknown>:7
+tests/test_visibility_flag_ledger.py::test_the_derivation_finds_the_flag_this_file_was_written_for
+tests/test_visibility_flag_ledger.py::test_every_visibility_flag_is_declared
+  <unknown>:7: SyntaxWarning: invalid escape sequence '\d'
+
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_vendor_callsite_census.py::test_the_real_tree_matches_the_ratchet_exactly
+tests/test_vendor_callsite_census.py::test_the_census_is_not_blind_on_the_real_tree
+tests/test_vendor_callsite_census.py::test_the_census_sees_what_the_literal_census_is_blind_to
+tests/test_vendor_callsite_census.py::test_the_census_sees_what_the_literal_census_is_blind_to
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/journal_two/note_connectors/providers/obsidian.py:964: SyntaxWarning: invalid escape sequence '\`'
+    taken off, cut at the first `?` or `#`, percent-decoded ONCE and every `\` read as `/`
+
+tests/test_voice_cost_summary.py: 10 warnings
+tests/test_voice_router.py: 39 warnings
+tests/test_voice_usage.py: 222 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/voice_usage.py:20: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return datetime.utcnow().strftime("%Y-%m")
+
+tests/test_voice_usage.py::test_first_record_creates_row
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_voice_usage.py:24: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    assert usage["year_month"] == datetime.utcnow().strftime("%Y-%m")
+
+tests/test_weekly_flow.py::test_render_returns_png
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/weekly_flow.py:604: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+    for (r, g, b, a) in lg.getdata()])
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+FAILED tests/test_vendor_callsite_census.py::test_the_real_tree_matches_the_ratchet_exactly - AssertionError: a NEW file reaches a vendor outside its adapter -- route it through the adapter (api/services/massive_adapter.py for Massive): [('massive', 'api/services/breadth_v2_producer.py', 0, 3), ('massive', 'api/services/marketcap/acquire.py', 0, 2), ('massive', 'api/services/options_universe_log.py', 0, 2), ('polygon_direct', 'api/services/marketcap/acquire.py', 0, 4)]
+assert [('massive', ...re.py', 0, 4)] == []
+  
+  Left contains 4 more items, first extra item: ('massive', 'api/services/breadth_v2_producer.py', 0, 3)
+  
+  Full diff:
+  - []
+  + [
+  +     (
+  +         'massive',
+  +         'api/services/breadth_v2_producer.py',
+  +         0,
+  +         3,
+  +     ),
+  +     (
+  +         'massive',
+  +         'api/services/marketcap/acquire.py',
+  +         0,
+  +         2,
+  +     ),
+  +     (
+  +         'massive',
+  +         'api/services/options_universe_log.py',
+  +         0,
+  +         2,
+  +     ),
+  +     (
+  +         'polygon_direct',
+  +         'api/services/marketcap/acquire.py',
+  +         0,
+  +         4,
+  +     ),
+  + ]
+1 failed, 2006 passed, 288 warnings in 902.83s (0:15:02)

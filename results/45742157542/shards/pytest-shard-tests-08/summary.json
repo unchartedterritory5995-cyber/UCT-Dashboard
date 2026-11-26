@@ -1,0 +1,17 @@
+{
+  "suite": "pytest",
+  "collected": 3803,
+  "passed": 3800,
+  "failed": 3,
+  "errored": 0,
+  "skipped": 0,
+  "wall_s": 414.73,
+  "failed_files": [
+    "tests/test_earnings_window_single_walk.py",
+    "tests/test_exposed_routes_gated.py",
+    "tests/test_feature_flag_ledger.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "3 failed, 3800 passed, 14723 warnings in 414.73s (0:06:54)",
+  "ok": true
+}
