@@ -7,6 +7,7 @@ import { createRegistry } from './registry'
 import { createNetwork, MUTABLE_WINDOW_S, deltaStartFor } from './network'
 import { keyOf, ACTION } from './types'
 import { INTRADAY_POLL_MS, TAIL_CATCHUP_MAX_TRIES } from '../../utils/intradayTailPoll'
+import { inExtendedSession } from './extendedSession'
 
 const T0 = Date.UTC(2026, 10, 10, 15, 0)   // Tue 10:00 ET
 const HOUR = 3600_000
@@ -20,7 +21,7 @@ function server({ lagS = 0 } = {}) {
   const sync = () => {
     const now = Math.floor(Date.now() / 1000)
     for (let t = Math.floor((now - 86400) / 300) * 300; t <= now; t += 300) {
-      if (!rows.has(t)) rows.set(t, { t, o: 100, h: 101, l: 99, c: 100.5, v: 10 })
+      if (!rows.has(t) && inExtendedSession(t)) rows.set(t, { t, o: 100, h: 101, l: 99, c: 100.5, v: 10 })   // session bars only, as the server serves
     }
   }
   const answer = (url) => {
