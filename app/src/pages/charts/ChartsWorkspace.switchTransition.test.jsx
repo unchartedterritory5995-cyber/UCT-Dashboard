@@ -12,6 +12,9 @@
  *   W2 the mark clears after the next frame (later gestures animate as before)
  *   W3 a drag (the grid's own layout change) never carries it
  *   W4 the stylesheet kills the item transition under the mark, beside the resize one
+ *   W5 (review of #2860) the two frames count from the COMMIT that shows the new board, not from the call: the clearing
+ *      chain's first frame is asked for only once the grid holds the new layout (a deferred switch could otherwise spend
+ *      a frame on the old board and animate)
  */
 import { render, act, cleanup } from '@testing-library/react'
 import { useSyncExternalStore } from 'react'
@@ -136,6 +139,25 @@ test('W3 a drag (the grid\'s own layout change) never carries the mark', async (
   const after = gridCommits.slice(from)
   expect(after.length).toBeGreaterThan(0)
   expect(after.some((c) => marked(c.classes))).toBe(false)
+})
+
+test('W5 (red first) the clearing frames are asked for from the commit that shows the new board, not from the call', async () => {
+  mount()
+  await nextFrames()
+  const real = globalThis.requestAnimationFrame
+  const asked = []
+  globalThis.requestAnimationFrame = (cb) => {
+    asked.push({ marked: marked(gridNode()?.className || ''), committed: gridCommits[gridCommits.length - 1] })
+    return real(cb)
+  }
+  try {
+    await act(async () => { dockButton('Wide Board').click() })
+  } finally {
+    globalThis.requestAnimationFrame = real
+  }
+  const first = asked.find((a) => a.marked)
+  expect(first, 'no frame was asked for while the switch was marked').toBeTruthy()
+  expect(isWide(first.committed), 'the first frame was asked for before the new board committed').toBe(true)
 })
 
 test('W4 the stylesheet kills the grid item transition under the mark, as it does while resizing', () => {
