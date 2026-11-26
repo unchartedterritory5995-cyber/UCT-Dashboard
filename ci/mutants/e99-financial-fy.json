@@ -93,10 +93,10 @@
   },
   {
    "id": "FY-11",
-   "mutant": "FY still refused by the catalog (the period's why restored)",
+   "mutant": "FY unmapped for TOTAL_REVENUE: the engine refuses the fiscal-year read again (replaces an equivalent mutant: a period `why` is read only when the field has no series)",
    "file": "app/src/components/chart/engine/pineDataCatalog.json",
-   "from": "          \"letter\": \"Y\",\n",
-   "to": "          \"letter\": \"Y\",\n          \"why\": \"UCT's filings store holds no fiscal-year series yet\",\n",
+   "from": "            \"TTM\": \"revenue_ttm\",\n            \"FY\": \"revenue_ttm@fy\"\n",
+   "to": "            \"TTM\": \"revenue_ttm\"\n",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestFinancial.test.js src/components/chart/engine/requestFinancial.periodSetting.test.js",
    "expectRed": "refused by name: an id UCT does not serve"
   },
