@@ -199,3 +199,51 @@ def test_the_worker_starts_the_uploader_before_the_off_session_pass():
     assert 0 < up < src.index("purge_off_session_pass", up), "the R2 uploader must never wait for the scan"
     weekly = inspect.getsource(__import__("api.services.bars_sqlite", fromlist=["x"]).purge_mis_keyed_weekly_rows)
     assert "purge_off_session" not in weekly, "the synchronous weekly purge (which the uploader waits for) never runs it"
+
+
+def test_a_partial_count_pass_never_lets_an_apply_pass_skip_tickers(store, monkeypatch):
+    """Review of #2793 (delta): a count pass stopped part-way, then apply: every ticker is purged before the store is
+    called clean, and an earlier boot's failure in the same apply pass still blocks the marker."""
+    sq = store
+    for sym in ("AAA", "BBB", "CCC"):
+        sq.put_bars(sym, "60", [_bar(_s(2026, 11, 11, 20, 0)), _bar(_s(2026, 11, 11, 19, 0))])
+    clock = {"t": 0.0}
+
+    def _mono():
+        clock["t"] += 1.0
+        return clock["t"]
+    import types, time as _time
+    monkeypatch.setattr(sq, "time", types.SimpleNamespace(monotonic=_mono, time=_time.time, sleep=_time.sleep))
+    part = sq.purge_off_session_pass(budget_s=2.5, mode="count")
+    assert not part["complete"] and part["tickers"] >= 1
+    done = sq.purge_off_session_pass(budget_s=None, mode="apply")
+    assert done["complete"] and done["tickers"] == 3, "the apply pass resumed after the count pass's cursor"
+    for sym in ("AAA", "BBB", "CCC"):
+        assert [int(r[0]) for r in sq.get_bars_since(sym, "60", 0)] == [_s(2026, 11, 11, 19, 0)], sym
+    assert sq._marker_set(sq._conn(), sq.OFF_SESSION_CLEAN_MARKER)
+
+
+def test_an_earlier_boots_failure_in_the_same_apply_pass_blocks_the_marker(store, monkeypatch):
+    sq = store
+    for sym in ("AAA", "BBB", "CCC"):
+        sq.put_bars(sym, "60", [_bar(_s(2026, 11, 11, 20, 0))])
+    real = sq.purge_off_session_intraday
+    clock = {"t": 0.0}
+
+    def _mono():
+        clock["t"] += 1.0
+        return clock["t"]
+    import types, time as _time
+    monkeypatch.setattr(sq, "time", types.SimpleNamespace(monotonic=_mono, time=_time.time, sleep=_time.sleep))
+
+    def _flaky(tkr, *a, **k):
+        if tkr == "AAA":
+            raise RuntimeError("database is locked")
+        return real(tkr, *a, **k)
+    monkeypatch.setattr(sq, "purge_off_session_intraday", _flaky)
+    first = sq.purge_off_session_pass(budget_s=2.5, mode="apply")
+    assert first["errors"] == 1 and not first["complete"]
+    monkeypatch.setattr(sq, "purge_off_session_intraday", real)
+    rest = sq.purge_off_session_pass(budget_s=None, mode="apply")
+    assert rest["complete"]
+    assert not sq._marker_set(sq._conn(), sq.OFF_SESSION_CLEAN_MARKER), "AAA failed on an earlier boot of this pass"
