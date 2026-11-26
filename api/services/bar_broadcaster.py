@@ -1153,3 +1153,10 @@ def reset_broadcaster_for_tests() -> None:
     """Test-only: clear the singleton so init_broadcaster can be called again."""
     global _singleton
     _singleton = None
+
+
+# The live last-price source for readers that must not import this module (`live_price_source`): looked up
+# at call time, so `get_broadcaster`'s own contract (and any stub of it) is what a reader sees.
+from api.services import live_price_source as _live_price_source  # noqa: E402
+
+_live_price_source.register(lambda: get_broadcaster())
