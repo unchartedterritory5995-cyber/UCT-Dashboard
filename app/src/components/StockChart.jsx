@@ -364,6 +364,15 @@ const NO_PANE_KEYS = Object.freeze([])
  * the refresh below writes state only when a tag's identity, ink or text moved
  * (the chips are rebuilt on every call, so object identity says nothing).
  */
+/** ⚡ (2026-11-26, review of #2831) THE END TAGS' COMMIT HOOK. The readout island is a render-prop and has no effects of
+ *  its own; this renders after its tags, so its layout effect runs after every commit of the island, once the tags'
+ *  refs are attached and before the frame paints, in every render mode (a transition or a time-sliced render included:
+ *  nothing is recorded or queued by a render that never commits). It hands StockChart the committed tags. */
+function EndLabelsCommitted({ ends, onCommit }) {
+  useLayoutEffect(() => { onCommit(ends) })
+  return null
+}
+
 function sameEndTagChips(a, b) {
   if (a === b) return true
   if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false
@@ -18404,7 +18413,8 @@ function StockChartBody({
         if (!el) { m.delete(key); return }
         const entry = { el, model: endLabelModelsRef.current.get(key) }
         m.set(key, entry)
-        pinEndLabel(el, key, entry.model)
+        // a tag the island has committed before pins here; a NEW tag is pinned by its commit's pass (below)
+        if (entry.model) pinEndLabel(el, key, entry.model)
       }
       cbs.byKey.set(key, cb)
     }
@@ -18418,6 +18428,17 @@ function StockChartBody({
       endLabelRefs.current.forEach((entry, key) => pinEndLabel(entry.el, key, entry.model))
     })
   }, [pinEndLabel])
+  // After each commit of the island (`EndLabelsCommitted`): the committed models, then ONE queued pass for every commit
+  // of the task (several commits in a task queue one pass).
+  const commitEndLabels = useCallback((ends) => {
+    for (const c of ends) {
+      const key = `${c.instanceId}::${c.plotKey}`
+      endLabelModelsRef.current.set(key, c.endLabel)
+      const entry = endLabelRefs.current.get(key)
+      if (entry) entry.model = c.endLabel
+    }
+    queueEndLabelPins()
+  }, [queueEndLabelPins])
 
   useEffect(() => {
     if ((!showRangeSelector && !showVolLegend && !verticalLegend && !paneLegendKeys.length) || !chartReady) return
@@ -22416,13 +22437,8 @@ function StockChartBody({
                 ref={priceTableRefCb}
               />
             ) : null}
-            {hosted.ends.length ? queueEndLabelPins() : null}
             {hosted.ends.map((c) => {
               const key = `${c.instanceId}::${c.plotKey}`
-              // this render's model, for the ref's first pin and the queued pass (`endLabelRefOf`)
-              endLabelModelsRef.current.set(key, c.endLabel)
-              const entry = endLabelRefs.current.get(key)
-              if (entry) entry.model = c.endLabel
               return (
                 <PlotEndLabel
                   key={key}
@@ -22437,6 +22453,7 @@ function StockChartBody({
                 />
               )
             })}
+            {hosted.ends.length ? <EndLabelsCommitted ends={hosted.ends} onCommit={commitEndLabels} /> : null}
           </Fragment>
         )
       })() : null} />

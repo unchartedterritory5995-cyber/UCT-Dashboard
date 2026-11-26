@@ -39,6 +39,16 @@ describe('endLabelSize: the tag\'s box, read once per text', () => {
     size(el, 'RS 94')
     expect(reads).toBe(3)
   })
+  it('S6 a document-level token change (the root\'s data-theme, class or style) reads every box again', async () => {
+    const size = createEndLabelSizer()
+    const el = tag()
+    size(el, 'RS 94')
+    document.documentElement.setAttribute('data-theme', 'light')
+    await Promise.resolve()                                    // the observer's callback is a microtask
+    size(el, 'RS 94')
+    expect(reads).toBe(2)
+    document.documentElement.removeAttribute('data-theme')
+  })
   it('S5 each element keeps its own box', () => {
     const size = createEndLabelSizer()
     const a = tag(40), z = tag(52)

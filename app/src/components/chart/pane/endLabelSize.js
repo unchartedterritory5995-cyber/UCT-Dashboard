@@ -17,6 +17,11 @@ try {
     document.fonts.addEventListener('loadingdone', bump)
   }
   if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') window.addEventListener('resize', bump)
+  // (review of #2831, LOW) a document-level token change: a theme that repointed `--font-mono` (set on the root's style,
+  // class or data-theme) to a font already loaded fires no 'loadingdone'; any such change reads every box again
+  if (typeof MutationObserver === 'function' && typeof document !== 'undefined' && document.documentElement) {
+    new MutationObserver(bump).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'class', 'style'] })
+  }
 } catch { /* no font or window events: every read is kept until the text changes */ }
 
 /** Every kept box is read again from here on (tests; a style change a caller knows of). */

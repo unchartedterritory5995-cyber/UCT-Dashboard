@@ -343,6 +343,23 @@ describe('the line-end tag', () => {
     expect(tag.style.left, 'the tag kept the old box: it was not re-placed in the task the rating landed').toBe(`${500 - 4 - 32}px`)
   })
 
+  // (review of #2831) the models are recorded, and the pass queued, from a layout effect after the island's commit: a
+  // NEW tag (no model at its ref) is placed and shown by that commit's pass, in the task it mounts
+  it('⭐ a tag that mounts is placed and shown in the task it mounts, by its commit\'s pass', async () => {
+    const { container } = mount(ON_PRICE.id)
+    await vi.waitFor(() => expect(container.querySelector('[data-instance-id="phf-1"]'), 'the legend chip').not.toBeNull(), { timeout: 8000 })
+    expect(tagOf(container), 'nothing has landed: no tag yet').toBeNull()
+    const key = prime(ON_PRICE.id)
+    await act(async () => { notifyColumnsLanded(key) })
+    // no waitFor once it exists: the commit that mounted it placed it
+    await vi.waitFor(() => expect(tagOf(container), 'the end tag').not.toBeNull(), { timeout: 8000, interval: 20 })
+    const tag = tagOf(container)
+    expect(tag.textContent).toBe('RS 94')
+    expect(tag.hasAttribute('data-hidden'), 'mounted but never placed').toBe(false)
+    expect(tag.style.left).toBe(`${500 - 4 - 40}px`)
+    expect(tag.style.top).toBe(`${100 - 8}px`)
+  })
+
   it('⛔ Rating off → no tag (its `when` gate), though the envelope landed', async () => {
     const key = prime(ON_PRICE.id, 'D', RATING, { showRating: false })
     const { container } = mount(ON_PRICE.id, 'D', settings(ON_PRICE.id, { showRating: false }))
