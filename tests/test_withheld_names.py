@@ -81,7 +81,7 @@ def test_the_assistant_is_handed_the_name_and_the_rule_as_data(conv, clean_env, 
 
 def test_a_name_that_is_not_distinctive_keeps_its_answer(conv, clean_env, model):
     client = model([])
-    for words, phrase in (("Add the Elliott Wave", "Elliott Wave"), ("Add the McClellan Oscillator", "McClellan Oscillator"),
+    for words, phrase in (("Add the Elliott Wave", "Elliott Wave"), ("Add the Wyckoff Method", "Wyckoff Method"),
                           ("Add the Gann Fan", "Gann Fan")):
         r = conv.converse(words, user_id="u1", view=empty_view(0), chart=CHART)
         assert r["ok"] is False and r["reason"] == conv.UNKNOWN_NAME_REASON.format(name=phrase), words
