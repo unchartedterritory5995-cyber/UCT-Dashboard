@@ -14,6 +14,9 @@
 //
 // `t` is an ISO date string ("YYYY-MM-DD"), as /api/bars returns for D/W/M.
 
+import { isRthBar } from '../components/chart/barTime'
+import { INTRADAY_ANCHOR_MIN } from '../components/chart/timeframes'
+
 // The Friday of the ISO week containing ISO date `t`. ISO weeks are Mon-Sun, so
 // Friday = Monday-of-that-week + 4 days — identical to the server's
 // datetime.fromisocalendar(iso_year, iso_week, 5). All math in UTC so it is
@@ -147,12 +150,33 @@ export function resampleNMonthly(monthly, n) {
   }, isDateT)
 }
 
+// ⛔⛔ A REGULAR-SESSION CUSTOM TIMEFRAME IS BUILT FROM REGULAR-SESSION ROWS ONLY (2026-11-26, TradingView SPY 240 regular
+// capture vs production). The regular view's base answer carries the extended rows too (the 60m session grid serves
+// 04:00-09:00 and 16:00-20:00 beside 09:30-15:30), and they were resampled with the rest: anchored at 09:30, the 16:00
+// and 17:00 rows fell in the 13:30 bucket (13:30-17:30), so every regular 4h day's last bar closed on the 17:00 row's close
+// and carried post-market highs, lows and volume (8 of TradingView's last 30 bars matched; 22 once filtered); on a
+// half-day the 13:00 row fell in the 09:30 bucket. A spec anchored at the regular session's start resamples only the
+// rows `barTime.isRthBar` keeps (09:30 to the day's close, 13:00 on a half-day): what TradingView's regular chart is
+// built from. Rows the resampler could not bucket anyway (no time, or not a unix time) pass through to be dropped there,
+// as before; an extended spec (04:00 anchor) is untouched. ONE entry, so every caller gets it: the chart's own bars (the
+// store and legacy paths), other-symbol bars (secondaryBars) and benchmark tails (liveTail).
+function _regularSpec(spec) {
+  const a = Number.isFinite(spec.anchorMin) ? spec.anchorMin : INTRADAY_ANCHOR_MIN.rth   // resampleIntradaySession's default
+  return a === INTRADAY_ANCHOR_MIN.rth
+}
+function _regularRows(bars) {
+  return bars.filter((b) => !b || b.t == null || !isUnixT(b.t) || isRthBar(Number(b.t)))
+}
+
 // Dispatch base bars → the custom timeframe described by `spec` (from
 // timeframes.resampleSpec). Returns base bars unchanged when spec is null (native).
 export function resampleForSpec(baseBars, spec) {
   if (!spec || !baseBars) return baseBars || []
   switch (spec.kind) {
-    case 'intradaySession': return resampleIntradaySession(baseBars, spec.minutes, { anchorMin: spec.anchorMin })
+    case 'intradaySession': {
+      const rows = _regularSpec(spec) ? _regularRows(baseBars) : baseBars
+      return resampleIntradaySession(rows, spec.minutes, { anchorMin: spec.anchorMin })
+    }
     case 'nDaily': return resampleNDaily(baseBars, spec.n)
     case 'nWeekly': return resampleNWeekly(baseBars, spec.n)
     case 'nMonthly': return resampleNMonthly(baseBars, spec.n)
