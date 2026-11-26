@@ -64,24 +64,37 @@ def flag(rows) -> list:
     return [r for r, _up, _dn in flag_sides(rows)]
 
 
-def reaggregate_hl(pages) -> Optional[tuple[float, float]]:
-    """(high, low) of the prints whose conditions update high/low (`trade_conditions.classify3`, the live fold's rule,
-    the pinned codes included), page by page; None when no print qualifies. A page that raises propagates."""
+def minute_extremes(pages) -> dict[int, tuple[float, float]]:
+    """{minute start (unix s): (high, low)} of the prints whose conditions update high/low (`trade_conditions.classify3`,
+    the live fold's rule, the pinned codes included), page by page: only per-minute extremes are kept, never the trades.
+    A minute with no qualifying print is absent. A page that raises propagates."""
     from api.services.trade_conditions import classify3
-    hi = lo = None
+    mins: dict[int, tuple[float, float]] = {}
     for page in pages:
         for t in page:
             try:
                 p = float(t["price"])
+                m = int(t.get("sip_timestamp") or t.get("participant_timestamp")) // 1_000_000_000 // 60 * 60
             except (TypeError, ValueError, KeyError):
                 continue
             hl_ok, _last_ok, _vol_ok = classify3(t.get("conditions"))
             if not hl_ok:
                 continue
-            hi = p if hi is None else max(hi, p)
-            lo = p if lo is None else min(lo, p)
+            hi_lo = mins.get(m)
+            mins[m] = (p, p) if hi_lo is None else (max(hi_lo[0], p), min(hi_lo[1], p))
         page = None
-    return None if hi is None else (hi, lo)
+    return mins
+
+
+def window_hl(mins: dict, lo: int, hi: int) -> Optional[tuple[float, float]]:
+    """(high, low) over the minutes of `minute_extremes` in [lo, hi); None when none qualifies."""
+    got = [v for m, v in mins.items() if lo <= m < hi]
+    return (max(v[0] for v in got), min(v[1] for v in got)) if got else None
+
+
+def reaggregate_hl(pages) -> Optional[tuple[float, float]]:
+    """(high, low) of all the qualifying prints in `pages` (see `minute_extremes`); None when no print qualifies."""
+    return window_hl(minute_extremes(pages), 0, 1 << 62)
 
 
 def _day_rows(sym: str, tf: str, lo: int, hi: int) -> list:
@@ -104,12 +117,19 @@ def repair_day(sym: str, d: date, take: Callable[[], None], checked_at: Optional
     tfs = [tf for tf in ("1", "5") if held[tf]] if held["5"] else (["15"] if held["15"] else [])
     flagged = replaced = 0
     plan: dict[str, list] = {}
+    # One read per bucket: on a day holding 5m a spike flags its 1m AND its 5m bar, so both are judged from ONE read of
+    # the 5m bucket (its per-minute extremes; #2825 review). A 15m-only day reads the 15m bucket.
+    read = 900 if tfs == ["15"] else 300
+    reads: dict[int, dict] = {}
     for tf in tfs:
         step = int(tf) * 60
         for r, up, dn in flag_sides(held[tf]):
             flagged += 1
             t0 = int(r[0])
-            hl = reaggregate_hl(trade_pages(sym, t0, t0 + step, take))
+            b0 = t0 // read * read
+            if b0 not in reads:
+                reads[b0] = minute_extremes(trade_pages(sym, b0, b0 + read, take))
+            hl = window_hl(reads[b0], t0, t0 + step)
             if hl is None:
                 continue
             o, h, l, c, v = (float(r[1]), float(r[2]), float(r[3]), float(r[4]), r[5])
@@ -141,6 +161,10 @@ def run_day(d: date, tickers: list[str], take: Callable[[], None], rederive: Opt
             counts["failed"] += 1
             from api.services.log_redaction import redact
             _log.debug("[spike-repair] %s %s failed: %s", sym, d, redact(str(e)))
+    # the day counts as repaired (the backfill never re-reads it) unless more than max(5, 1%) of the reads failed;
+    # the settle's same-day run marks today so (#2825 review), as the backfill marks a past day
+    if counts["failed"] <= max(5, len(tickers) // 100):
+        mark_done(d, counts)
     _log.info("[spike-repair] %s: %s", d, counts)
     return counts
 

@@ -1652,9 +1652,7 @@ def spike_backfill_step(now: Optional[datetime] = None) -> Optional[dict]:
         tickers = sorted(_covered5 | _covered1)
     if not tickers:
         return None
-    counts = spike_repair.run_day(days[0], tickers, _settle_take, rederive=_settle_rederive)
-    if counts["failed"] <= max(5, len(tickers) // 100):
-        spike_repair.mark_done(days[0], counts)
+    counts = spike_repair.run_day(days[0], tickers, _settle_take, rederive=_settle_rederive)   # marks the day done
     _settle["spike_backfill"] = dict(counts, day=days[0].isoformat(), at=time.time())
     return counts
 
