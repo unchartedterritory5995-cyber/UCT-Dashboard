@@ -6240,8 +6240,9 @@ def _with_script_lane(formula_turn: Any, message: Any, *, user_id: Any, view: An
       * the engine refused a script this door offered (`script_refusal`): the assistant repairs it;
       * the request names something only a script can hold (a table, a label, a drawn line): the
         assistant writes a script, and no formula call is made;
-      * otherwise the formula turn runs as always, and ONLY if it declines is a script tried. A
-        script that could not be written leaves the formula turn's own answer standing."""
+      * otherwise the formula turn runs as always, and ONLY if it declines is a script tried. When the
+        script turn DECLINES TOO, in its own words, the member is told ITS reason (`said_why`); a script that
+        failed for any other reason leaves the formula turn's own answer standing."""
     from api.services import script_conversation as sc
     if not sc.lane_open(accepts, admin):
         return formula_turn()
@@ -6291,7 +6292,27 @@ def _with_script_lane(formula_turn: Any, message: Any, *, user_id: Any, view: An
     if result.get("disposition") != "unsupported" and not by_name:
         return result
     scripted = script()
-    return scripted if scripted.get("ok") else result
+    if scripted.get("ok"):
+        return scripted
+    # ⭐ 2026-11-26 -- BOTH DECLINED: THE SCRIPT TURN'S REASON IS THE ONE THE MEMBER HEARS (coordinator's ruling). The
+    # write-capability probe (live, admin measurement): "Plot annual (fiscal year) net income as columns in a pane
+    # below" -- the formula turn declined with "Fundamental data such as annual net income isn't available here -- I
+    # can only build formulas from the chart's own price and volume bars", the script turn declined as well, and the
+    # member was shown the FORMULA reason: false for the product, which builds quarterly revenue and trailing EPS on
+    # the script lane in the same run. The script turn knows the wider engine (fundamentals, drawings, tables), so its
+    # own sentence is the most specific truthful one. ⛔ Only a decline the script model SAID: a script that failed
+    # for another reason (no answer, a shape refused, the repair rounds spent) says nothing about the request.
+    if said_why(scripted):
+        return scripted
+    return result
+
+
+def said_why(scripted: Mapping[str, Any]) -> bool:
+    """Did the script turn DECLINE the request in its own words (not the default sentence, not another failure)?"""
+    from api.services import script_conversation as sc
+    reason = scripted.get("reason")
+    return (scripted.get("gate") == sc.DECLINED_GATE and isinstance(reason, str) and bool(reason.strip())
+            and reason != sc.REASONS.get(sc.DECLINED_GATE))
 
 
 def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
