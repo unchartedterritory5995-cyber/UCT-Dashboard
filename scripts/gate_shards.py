@@ -583,6 +583,8 @@ GATE_READ_PATHS = (
     "docs/pine/evidence/2026-11-15-w3n-d1/evidence.json",
     "docs/pine/evidence/2026-11-16-draw1-drawing-objects/runs/report.json",
     "docs/pine/rs-rating",
+    # e98 #2794: vendorHarness.boundedWindow.test.js reads BOTH lanes' committed snapshots (no bounded-window row)
+    "docs/pine/vendor-harness/production/verdicts.json",
     "docs/pine/vendor-harness/runtime-on/verdicts.json",
     "docs/pine/vendor-harness/strategy-verdicts",
     "tools/pine_coverage/paint_predicate.mjs",

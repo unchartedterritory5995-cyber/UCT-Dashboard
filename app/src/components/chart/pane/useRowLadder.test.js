@@ -122,3 +122,49 @@ describe('useRowLadder', () => {
     expect(result.current).toBe(6)
   })
 })
+
+// ⚡ (2026-11-26, the board switch) A REMOUNTED PANE STARTS AT ITS LAST FIT. A board switch mounts every chart pane anew,
+// and each climbed its header ladder from the full row: one render of the pane (and StockChart under it) plus one
+// forced layout per level (4.7 ms of a two-chart board switch, production build). A pane that has fitted at this width
+// before now starts at that level and checks it the way the rested re-fit does: one step down (clipped there: back up
+// one, done). The levels that fit are a run from the fitted level up, so it lands where the climb from 0 lands.
+describe('useRowLadder: a remounted pane starts at its last fit', () => {
+  const mount = (props) => renderHook((p) => useHarness(p), { initialProps: { width: 800, content: 'AAPL', ...props } })
+
+  it('S1 (red first) a pane that fitted at this width before lands on that level with 3 layout reads, not one per level', () => {
+    need = 6
+    const settled = []
+    const { result } = mount({ startLevelFor: (w) => (w === 800 ? 6 : 0), onSettled: (l) => settled.push(l) })
+    expect(result.current).toBe(6)
+    expect(reads, `${reads} layout reads to land on the level it fitted at`).toBeLessThanOrEqual(3)
+    expect(settled.at(-1)).toBe(6)
+  })
+
+  it('S2 a remembered level that is now too HIGH (the header got shorter) walks down to the level the climb finds', () => {
+    need = 2
+    const { result } = mount({ startLevelFor: () => 6 })
+    expect(result.current).toBe(2)
+  })
+
+  it('S3 a remembered level that is now too LOW (the header got longer) climbs on to the level the climb finds', () => {
+    need = 5
+    const { result } = mount({ startLevelFor: () => 2 })
+    expect(result.current).toBe(5)
+  })
+
+  it('S4 the settled level is reported (what the next mount starts from), and a pane with nothing remembered climbs from 0', () => {
+    need = 4
+    const settled = []
+    const { result } = mount({ startLevelFor: () => 0, onSettled: (l) => settled.push(l) })
+    expect(result.current).toBe(4)
+    expect(settled.at(-1)).toBe(4)
+    expect(reads).toBe(5)                                        // 0..4: the climb, as before
+  })
+
+  it('S5 a remembered level at a DIFFERENT width is not used: the climb from 0', () => {
+    need = 3
+    const { result } = mount({ width: 640, startLevelFor: (w) => (w === 800 ? 6 : 0) })
+    expect(result.current).toBe(3)
+    expect(reads).toBe(4)
+  })
+})
