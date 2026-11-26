@@ -1478,7 +1478,7 @@ def _settle_one(sym: str, tf: str, lo: int, hi: int, checked_at: float) -> tuple
     got = [b for b in _fetch(sym, int(tf), lo * 1000, hi * 1000 - 1) if lo <= int(b["t"]) < hi]
     if not got:
         return 0, 0, 0, False             # nothing answered: the stream's rows stand
-    stored = {int(r[0]): r for r in bars_sqlite.get_bars_since(sym, tf, lo - 1) if int(r[0]) < hi}
+    stored = _stored_rows(sym, tf, lo, hi)
     diff, immaterial = [], 0
     for b in got:
         r = stored.get(int(b["t"]))
@@ -1490,6 +1490,17 @@ def _settle_one(sym: str, tf: str, lo: int, hi: int, checked_at: float) -> tuple
     if diff:
         bars_sqlite.put_bars(sym, tf, diff, checked_at=checked_at)
     return len(diff), lacks, immaterial, True
+
+
+def _stored_rows(sym: str, tf: str, lo: int, hi: int) -> dict:
+    """{ts: (ts, o, h, l, c, v)} of the rows AS STORED in [lo, hi), read with SQL of our own, never through the store's
+    read door (`bars_sqlite.get_bars*`, which applies the published corrections ledger): this module writes what it
+    compares, and a correction must never be written into a row (tests/test_bars_store_door.py)."""
+    from api.services import bars_sqlite
+    rows = bars_sqlite._conn().execute(
+        "SELECT ts, o, h, l, c, v FROM ohlcv WHERE ticker=? AND tf=? AND ts>=? AND ts<? ORDER BY ts",
+        (sym.upper(), str(tf), int(lo), int(hi))).fetchall()
+    return {int(r[0]): r for r in rows}
 
 
 def _same_exact(b: dict, r) -> bool:
@@ -1506,7 +1517,7 @@ def _settle_rederive(sym: str, lo: int, hi: int, checked_at: float) -> tuple[int
     n, held = 0, []
     for tf, base in (("15", "5"), ("30", "15"), ("60", "15")):
         b0 = bars_fetch._derived_bucket_start(tf, lo)
-        stored = {int(r[0]): r for r in bars_sqlite.get_bars_since(sym, tf, b0 - 1) if int(r[0]) < hi}
+        stored = _stored_rows(sym, tf, b0, hi)
         if not stored:
             continue                      # a series this tier does not hold for the day is not started here
         held.append(tf)

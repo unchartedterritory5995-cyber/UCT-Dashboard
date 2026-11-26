@@ -9,7 +9,7 @@
   ],
   "summary": {
     "named_access_count": 2,
-    "positional_count": 60,
+    "positional_count": 59,
     "named_access": [
       "api/services/canonical/resolver.py",
       "api/services/ticker_returns.py"
@@ -26,7 +26,6 @@
       "api/services/auto_structures.py",
       "api/services/bar_contract.py",
       "api/services/bars_fetch.py",
-      "api/services/bars_live_store.py",
       "api/services/bars_regraft.py",
       "api/services/bars_split_repair.py",
       "api/services/barspack.py",
@@ -310,21 +309,6 @@
       "evidence": {
         "pattern": "int-subscript",
         "index": 0
-      }
-    },
-    "api/services/bars_live_store.py": {
-      "classification": "positional",
-      "calls": [
-        {
-          "function": "get_bars_since"
-        },
-        {
-          "function": "get_bars_since"
-        }
-      ],
-      "evidence": {
-        "pattern": "int-subscript",
-        "index": 1
       }
     },
     "api/services/bars_regraft.py": {
