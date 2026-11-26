@@ -65,6 +65,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import contextlib
 import copy
 import datetime as _dt
 import hashlib
@@ -1233,8 +1234,22 @@ class Driver:
         and verified gone in the page, the batch restored 1D, and a fresh load read the probe on 5m: the layout had
         saved it at the add. The next batch (Q-FCMP3) stopped at its gate, and the owner's layout carried it until it
         was cleared by hand. ⛔ Read only: it never removes or sets anything (the only repair is `guarded_clean_save`).
-        ⭐⭐ The read is THE settled read (`settled_rig_read`): the first answer is not the layout (2026-11-19, htfform-c)."""
-        self.page.reload(wait_until="domcontentloaded")
+        ⭐⭐ The read is THE settled read (`settled_rig_read`): the first answer is not the layout (2026-11-19, htfform-c).
+        ⭐⭐ A SLOT job (`_launch_cdp`): when its window went away under the reload while the broker's browser stayed up,
+        the load is made once more in a NEW window of the slot (`slot_info["reopen"]`: a fresh load by construction),
+        and the read must name the slot's OWN layout (its URL), never another window's."""
+        reopened = False
+        try:
+            self.page.reload(wait_until="domcontentloaded")
+        except Exception as exc:  # noqa: BLE001
+            reopen = (getattr(self.opts, "slot_info", None) or {}).get("reopen")
+            if reopen is None or not _is_target_closed(exc):
+                raise
+            self.log(f"[batch] the fresh-load reload lost the slot's window ({type(exc).__name__}): reopening it")
+            self.page = reopen()
+            if hasattr(self.clock, "page"):
+                self.clock.page = self.page
+            reopened = True
         s = settled_rig_read(lambda: self.ev("verify:state", STATE_JS), self.clock, self.opts.poll_s,
                              self.opts.rig_settle_s, self.opts.rig_settle_max_s)
         st, ok = s["state"] or {}, s["settled"]
@@ -1243,8 +1258,16 @@ class Driver:
         got = {"symbol": st.get("symbol"), "resolution": st.get("resolution")}
         clean = (ok and not studies and sym_match(got["symbol"], want["symbol"])
                  and res_norm(got["resolution"]) == res_norm(want["resolution"]))
-        return {"ok": bool(clean), "read": bool(ok), "studies": studies, "want": want, "got": got,
-                "settle": {k: s[k] for k in ("waitedS", "answeredS", "lastChangeS", "changes")}}
+        out = {"ok": bool(clean), "read": bool(ok), "studies": studies, "want": want, "got": got,
+               "settle": {k: s[k] for k in ("waitedS", "answeredS", "lastChangeS", "changes")}}
+        slot_layout = (getattr(self.opts, "slot_info", None) or {}).get("layoutId")
+        if slot_layout:
+            url = str(getattr(self.page, "url", "") or "")
+            out["layoutId"], out["url"], out["reopened"] = slot_layout, url, reopened
+            if f"/chart/{slot_layout}" not in url:
+                out["ok"] = False
+                out["why"] = f"the fresh load is not on the slot's layout {slot_layout} ({url!r})"
+        return out
 
     def guarded_clean_save(self, original, label="repair") -> dict:
         """⭐⭐ THE GUARDED CLEAN-SAVE (owner ruling, delegated to the coordinator, 2026-11-19: "Save only through the
@@ -2373,6 +2396,19 @@ def _slot_window(ctx, cdp, slot, state_dir=None, log=print):
     return page, tid, wid
 
 
+def _slot_never_answers_dialog(dialog) -> None:
+    """⭐⭐ A slot job's dialog listener, on its CONTEXT: it answers nothing. A Playwright client with no listener answers
+    every dialog itself (beforeunload accepted, others dismissed), and a client attached over CDP sees EVERY window of
+    the broker's browser, not only its own.
+    ⚰️ (16:56Z, round 2 of the live A/B) B and C ran in parallel and each listened on its OWN page only, so each job
+    auto-answered the OTHER slot's beforeunload at its fresh-load reload, beside the broker. The second answer met
+    "No dialog is showing" and the unhandled rejection killed that Playwright driver: B's own (its reload: "Connection
+    closed while reading from the driver") and the BROKER's, whose death took the browser it launched and with it C's
+    window (TargetClosedError). Neither layout was proven clean. On the context, this listener covers every page the
+    client sees, now and later, so the broker (`tv_slots.broker_answers_dialog`) is the ONE client that answers."""
+    return None
+
+
 def _launch_cdp(args, body, playwright_factory=None):
     """⭐⭐ A SLOT JOB (owner + TRADINGVIEW coordinator, 2026-11-26): connect over CDP to the broker's browser
     (`tv_slots.py broker`), open (or reuse) THIS slot's window, put it on THIS slot's layout, and hand the page to `body`
@@ -2404,8 +2440,27 @@ def _launch_cdp(args, body, playwright_factory=None):
             print(f"[slot {slot}] INCONCLUSIVE: the broker's browser has no context (is it the capture profile's?)")
             return 2
         ctx = browser.contexts[0]
+        # ⛔ FIRST, before any window opens: this client answers no dialog of ANY window (`_slot_never_answers_dialog`)
+        ctx.on("dialog", _slot_never_answers_dialog)
         cdp = browser.new_browser_cdp_session()
         tid = None
+
+        def _reopen():
+            """⭐ A NEW window of this slot on its layout (the fresh-load verify's recovery when its window went away
+            while the browser stayed up): only this slot's old target is closed."""
+            nonlocal tid, wid
+            old = tid
+            pg, tid, wid = _slot_window(ctx, cdp, slot, getattr(args, "slot_state_dir", None))
+            if old is not None and old != tid:
+                with contextlib.suppress(Exception):
+                    cdp.send("Target.closeTarget", {"targetId": old})
+            pg.on("dialog", _slot_never_answers_dialog)
+            pg.set_viewport_size(dict(RIG_VIEWPORT))
+            pg.goto(layout_url(want), wait_until="domcontentloaded")
+            info["verifyTargetId"] = tid
+            print(f"[slot {slot}] the fresh-load verify reopened the slot's window (target {tid})")
+            return pg
+
         try:
             page, tid, wid = _slot_window(ctx, cdp, slot, getattr(args, "slot_state_dir", None))
             try:
@@ -2419,7 +2474,7 @@ def _launch_cdp(args, body, playwright_factory=None):
             # showing", and the rejection killed this job's driver (rc 3, verify unread). A listener here makes the
             # broker the ONE client that answers (beforeunload accepted, anything else dismissed: Playwright's defaults,
             # as on the path without --cdp).
-            page.on("dialog", lambda dialog: None)
+            page.on("dialog", _slot_never_answers_dialog)
             page.set_viewport_size(dict(RIG_VIEWPORT))
             page.goto(layout_url(want), wait_until="domcontentloaded")
             page.wait_for_timeout(9000)
@@ -2432,7 +2487,7 @@ def _launch_cdp(args, body, playwright_factory=None):
             go_to_layout(page, want)
             page.wait_for_timeout(4000)
             info.update({"slot": slot, "layoutId": want, "cdpTargetId": tid, "cdpWindowId": wid,
-                         "brokerPid": getattr(args, "broker_pid", None), "browserPid": bpid})
+                         "brokerPid": getattr(args, "broker_pid", None), "browserPid": bpid, "reopen": _reopen})
             print(f"[slot {slot}] {json.dumps(slot_provenance(info))}")
             return body(page)
         except Exception as exc:  # noqa: BLE001

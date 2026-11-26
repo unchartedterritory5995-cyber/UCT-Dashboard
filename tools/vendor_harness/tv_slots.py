@@ -520,6 +520,41 @@ def _browser_pid(port):
         return None
 
 
+def broker_answers_dialog(dialog, log=print) -> str:
+    """⭐⭐ THE ONE ANSWER to every JavaScript dialog of the broker's browser (its context listener): beforeunload accepted,
+    anything else dismissed (Playwright's own defaults). Slot jobs listen and never answer
+    (`batch_capture._slot_never_answers_dialog`).
+    ⚰️ (16:56Z, round 2 of the live A/B) the broker had NO listener, so its Playwright DRIVER answered on its own, and an
+    answer that lost the race to another client ("No dialog is showing") was an unhandled rejection in the driver: the
+    driver died, and the browser it had launched died with it, under every running slot (C: TargetClosedError at its
+    fresh-load reload). Answered here, from the client, a lost race is a caught error, logged, and the broker lives on.
+    Returns what happened (the rails read it)."""
+    kind = getattr(dialog, "type", None)
+    try:
+        if kind == "beforeunload":
+            dialog.accept()
+            return "accepted"
+        dialog.dismiss()
+        return "dismissed"
+    except Exception as exc:  # noqa: BLE001 -- another client answered first: nothing to do, the browser must live
+        with contextlib.suppress(Exception):
+            log(f"[broker] a {kind} dialog was already answered ({type(exc).__name__}: {str(exc)[:120]})")
+        return "lost"
+
+
+def broker_should_close(claims, exclusive_waits, idle_for_s, idle_s=IDLE_S):
+    """None while the broker must stay, else why it closes. ⛔ A LIVE SLOT CLAIM ALWAYS KEEPS IT: the browser is shared
+    by every running slot job, so it closes only once the LAST claim has left (and then on idle, or at once for a
+    waiting exclusive holder). A job ends its run by closing its own window, never the browser."""
+    if claims:
+        return None
+    if exclusive_waits:
+        return "an exclusive holder waits"
+    if idle_for_s >= idle_s:
+        return f"idle {idle_s:.0f}s"
+    return None
+
+
 def broker_launch_options(channel=None, port=DEFAULT_PORT) -> dict:
     """`batch_capture._launch`'s launch options, verbatim, plus the debugging port (a rail compares the two)."""
     import batch_capture as bc
@@ -553,6 +588,8 @@ def serve(lock_dir, port=DEFAULT_PORT, channel="chrome", profile=None, idle_s=ID
             for line in _profile_holders(prof):
                 print(f"[broker]   {line}", flush=True)
             return 2
+        # ⛔ the ONE client that answers dialogs, registered before any slot window can open (`broker_answers_dialog`)
+        ctx.on("dialog", lambda dialog: broker_answers_dialog(dialog))
         endpoint = f"http://127.0.0.1:{int(port)}"
         state = {"pid": os.getpid(), "browserPid": _browser_pid(port), "port": int(port), "endpoint": endpoint,
                  "profile": prof.name, "startedAtUTC": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "closing": False}
@@ -572,14 +609,15 @@ def serve(lock_dir, port=DEFAULT_PORT, channel="chrome", profile=None, idle_s=ID
                     exclusive_waits = locks.want_live() or locks.holder()[0] == "exclusive"
                 if claims:
                     last_busy = time.time()
-                elif exclusive_waits or time.time() - last_busy >= idle_s:
+                closing = broker_should_close(claims, exclusive_waits, time.time() - last_busy, idle_s)
+                if closing:
                     with _broker_mutex(lock_dir):
                         with locks.meta():
                             if locks.live_claims():
                                 continue                     # a job claimed while we decided: stay
                         state["closing"] = True
                         _write_json_atomic(lock_dir / BROKER_STATE, state)
-                        why = "an exclusive holder waits" if exclusive_waits else f"idle {idle_s:.0f}s"
+                        why = closing
                         ctx.close()
                         _unlink((lock_dir / BROKER_STATE))
                     break

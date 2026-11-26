@@ -1599,6 +1599,7 @@ class _FakeCDP:
     def send(self, method, params=None):
         self.sent.append((method, params))
         b = self.b
+        getattr(b, "order", []).append(method)
         if method == "Target.getTargets":
             return {"targetInfos": [{"targetId": t, "type": "page"} for t in b.windows]}
         if method == "Target.createTarget":
@@ -1640,7 +1641,11 @@ class _FakeBrowser:
                 pass
 
         self.ctx = types.SimpleNamespace(pages=[other], new_cdp_session=lambda pg: _Session(pg),
-                                         wait_for_event=lambda *a, **k: None)
+                                         wait_for_event=lambda *a, **k: None, listeners=[])
+        # the context's listeners, in the order they came, beside the CDP calls (`order`): a listener must precede
+        # the first window this client opens
+        self.order = []
+        self.ctx.on = lambda event, fn: (self.ctx.listeners.append((event, fn)), self.order.append(f"on:{event}"))
         self.contexts = [self.ctx]
         self.cdp = _FakeCDP(self)
         self.closed = False
@@ -1668,9 +1673,17 @@ def test_launch_cdp_opens_its_own_window_and_closes_only_that_window(tmp_path, m
     assert seen["url"] == bc.layout_url(bc.SLOT_C_LAYOUT_ID) and seen["vp"] == bc.RIG_VIEWPORT
     # the job listens for dialogs, so the broker is the ONE client that answers them (a second answer killed the driver)
     assert seen["page"].listeners == ["dialog"]
+    # ⭐⭐ ...and on its CONTEXT, before its first window: it answers no dialog of ANY window, another slot's included
+    # (round 2, 16:56Z: B auto-answered C's beforeunload beside the broker and the lost race killed B's driver and the
+    # broker's, and with the broker the browser under C)
+    assert [(e, fn) for e, fn in browser.ctx.listeners] == [("dialog", bc._slot_never_answers_dialog)]
+    assert browser.order.index("on:dialog") < browser.order.index("Target.createTarget")
+    assert bc._slot_never_answers_dialog(_Dialog("beforeunload")) is None
     tid = seen["page"].target_id
     closes = [p["targetId"] for m, p in browser.cdp.sent if m == "Target.closeTarget"]
     assert closes == [tid] and "T-other" in browser.windows and not browser.closed    # ONLY its own window
+    reopen = args.slot_info.pop("reopen")
+    assert callable(reopen) and "reopen" not in bc.SLOT_PROVENANCE_KEYS              # a hook, never provenance
     assert args.slot_info == {"slot": "C", "layoutId": bc.SLOT_C_LAYOUT_ID, "cdpTargetId": tid, "cdpWindowId": 101,
                               "brokerPid": 4242, "browserPid": 777}
     assert not (tmp_path / "tvslotC.window.json").exists()
@@ -1681,6 +1694,122 @@ def test_launch_cdp_opens_its_own_window_and_closes_only_that_window(tmp_path, m
     args2 = types.SimpleNamespace(cdp="http://x", slot="B", slot_info={})
     assert bc._launch_cdp(args2, lambda p: called.append(p), playwright_factory=_FakePW(browser=browser2)) == 2
     assert not called and list(browser2.windows) == ["T-other"] and not browser2.closed
+
+
+class _Dialog:
+    """A Playwright dialog whose answer can lose the race to another client (`lost`: it raises, as the driver does)."""
+
+    def __init__(self, kind, lost=False):
+        self.type, self.lost, self.answers = kind, lost, []
+
+    def _answer(self, how):
+        self.answers.append(how)
+        if self.lost:
+            raise RuntimeError("Protocol error (Page.handleJavaScriptDialog): No dialog is showing")
+
+    def accept(self):
+        self._answer("accept")
+
+    def dismiss(self):
+        self._answer("dismiss")
+
+
+def test_the_broker_is_the_one_client_that_answers_and_a_lost_race_never_kills_it():
+    logs = []
+    d = _Dialog("beforeunload")
+    assert ts.broker_answers_dialog(d, log=logs.append) == "accepted" and d.answers == ["accept"]
+    d = _Dialog("alert")
+    assert ts.broker_answers_dialog(d, log=logs.append) == "dismissed" and d.answers == ["dismiss"]
+    assert logs == []
+    # ⚰️ the round-2 crash: another client answered first. Caught and logged, never raised (the broker lives on)
+    d = _Dialog("beforeunload", lost=True)
+    assert ts.broker_answers_dialog(d, log=logs.append) == "lost" and d.answers == ["accept"]
+    assert len(logs) == 1 and "already answered" in logs[0]
+    # the broker registers it on its context, before the endpoint is published
+    src = pathlib.Path(ts.__file__).read_text(encoding="utf-8")
+    serve_src = src[src.index("def serve("):src.index("def main(")]
+    assert 'ctx.on("dialog", lambda dialog: broker_answers_dialog(dialog))' in serve_src
+    assert serve_src.index("broker_answers_dialog") < serve_src.index("_write_json_atomic(lock_dir / BROKER_STATE")
+
+
+def test_the_broker_never_closes_while_any_slot_claim_lives():
+    # ⭐⭐ the shared browser is refcounted by the live claims: ANY claim keeps it, whatever else holds
+    for idle in (0.0, ts.IDLE_S, 10 * ts.IDLE_S):
+        for excl in (False, True):
+            assert ts.broker_should_close(["111-B"], excl, idle) is None
+            assert ts.broker_should_close(["111-B", "222-C"], excl, idle) is None
+    # the last claim gone: it closes at once for a waiting exclusive holder, else only after the idle wait
+    assert ts.broker_should_close([], True, 0.0) == "an exclusive holder waits"
+    assert ts.broker_should_close([], False, ts.IDLE_S - 1) is None
+    assert ts.broker_should_close([], False, ts.IDLE_S) == f"idle {ts.IDLE_S:.0f}s"
+
+
+def test_two_slot_jobs_on_one_browser_the_first_to_end_leaves_the_other_running(tmp_path, monkeypatch):
+    """B ends while C still runs: B closes ONLY its window, never the browser, and C's window, its page and its
+    fresh-load reload are untouched."""
+    monkeypatch.setattr(bc, "free_ram_bytes", lambda: 8 * 1024 ** 3)
+    browser = _FakeBrowser()
+    seen = {}
+
+    def b_body(page):
+        seen["B"] = page
+        return 0
+
+    def c_body(page):
+        seen["C"] = page
+        argsb = types.SimpleNamespace(cdp="http://x", slot="B", slot_info={}, slot_state_dir=str(tmp_path))
+        assert bc._launch_cdp(argsb, b_body, playwright_factory=_FakePW(browser=browser)) == 0
+        # B has ended: its window is gone, C's window is open, the browser up, and C's page still answers
+        assert seen["B"].target_id not in browser.windows and page.target_id in browser.windows
+        assert not browser.closed
+        page.reload(wait_until="domcontentloaded")
+        return 0
+    argsc = types.SimpleNamespace(cdp="http://x", slot="C", slot_info={}, slot_state_dir=str(tmp_path))
+    assert bc._launch_cdp(argsc, c_body, playwright_factory=_FakePW(browser=browser)) == 0
+    closes = [p["targetId"] for m, p in browser.cdp.sent if m == "Target.closeTarget"]
+    assert closes == [seen["B"].target_id, seen["C"].target_id] and not browser.closed
+    assert list(browser.windows) == ["T-other"]
+
+
+class _ClosingPage(bd.RecordingTVPage):
+    """A slot window that goes away under the fresh-load reload (the browser stays up)."""
+
+    def reload(self, **kw):
+        raise RuntimeError("TargetClosedError: Page.reload: Target page, context or browser has been closed")
+
+
+def test_the_fresh_load_verify_reopens_a_lost_slot_window_and_reads_the_slots_own_layout(tmp_path):
+    slot = "B"
+    lay = bc.SLOT_LAYOUTS[slot]
+    old = _ClosingPage(behaviours={})
+    old.url = bc.layout_url(lay)
+    new = bd.RecordingTVPage(behaviours={})
+    new.t = old.t
+    opened = []
+
+    def reopen():
+        opened.append(1)
+        new.goto(bc.layout_url(lay))
+        return new
+    opts = bd.fast_opts(layout=lay)
+    opts.slot_info = dict(bd.slot_info_for(slot), reopen=reopen)
+    clock = bd.FakeClock(old)
+    drv = bc.Driver(old, clock, opts, bc.RunDir(tmp_path / "run", "r"), None, log=lambda *a: None)
+    v = drv.verify_fresh_load({"symbol": new.symbol, "resolution": new.resolution})
+    assert opened == [1] and drv.page is new and clock.page is new
+    assert v["ok"] and v["reopened"] and v["layoutId"] == lay and v["url"] == bc.layout_url(lay), v
+    # ✅ CONTROL: the read must name the slot's OWN layout; another layout's page is never "clean"
+    other = bd.RecordingTVPage(behaviours={})
+    other.url = bc.layout_url(bc.SLOT_LAYOUTS["C"])
+    drv2 = bc.Driver(other, bd.FakeClock(other), opts, bc.RunDir(tmp_path / "run2", "r"), None, log=lambda *a: None)
+    v2 = drv2.verify_fresh_load({"symbol": other.symbol, "resolution": other.resolution})
+    assert not v2["ok"] and "not on the slot's layout" in v2["why"] and not v2["reopened"]
+    # ✅ CONTROL: without a reopen hook (the path without --cdp) the lost window is the error it always was
+    opts3 = bd.fast_opts(layout=lay)
+    gone = _ClosingPage(behaviours={})
+    drv3 = bc.Driver(gone, bd.FakeClock(gone), opts3, bc.RunDir(tmp_path / "run3", "r"), None, log=lambda *a: None)
+    with pytest.raises(RuntimeError, match="TargetClosed"):
+        drv3.verify_fresh_load({"symbol": "x", "resolution": "1D"})
 
 
 def test_run_refuses_a_half_slot_or_a_slot_clean_save(tmp_path, capsys):

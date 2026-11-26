@@ -97,3 +97,17 @@ The first run found two live faults, both fixed and railed:
   Pine editor did not open.
 - Both clients answered TradingView's beforeunload dialog. The second answer killed the job's driver, so the
   fresh-load verify went unread (rc 3).
+
+Round 2 (16:56Z) captured on B and C in parallel with plotValues and bars equal to L, but neither leg's fresh-load
+verify finished. Cause: a client attached over CDP sees every window of the broker's browser, and each job listened for
+dialogs on its own page only. So at the verify's reload each job auto-answered the OTHER slot's beforeunload beside the
+broker, and the losing answer ("No dialog is showing") was an unhandled rejection that killed that Playwright driver:
+B's own, and the broker's, whose death took the browser it had launched, and with it C's window. Fixed and railed:
+- Each job listens on its CONTEXT (`_slot_never_answers_dialog`), before its first window, and answers nothing.
+- The broker answers every dialog from its client (`tv_slots.broker_answers_dialog`), so a lost race is a caught,
+  logged error. Its close decision is `broker_should_close`: any live slot claim keeps the browser up.
+- The fresh-load verify of a slot reopens the slot's window once if it went away while the browser stayed up, and the
+  read must be on the slot's own layout URL.
+
+`capturedAtUTC` is `Date.now()` inside the page, in the synchronous `capture()` call, so each window stamps its own.
+Two parallel captures that finish together can stamp the same millisecond (round 1: 9 ms apart; round 2: equal).
