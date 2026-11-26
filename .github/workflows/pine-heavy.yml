@@ -348,7 +348,9 @@ jobs:
           # W9-NB1 reached master red because no leg ran it)
           # tests/test_c45_withheld_doors.py: the C45 doors ask ast_interpret's own whole-series decision (2026-11-20:
           # red since engine 78 #1888 and engine 90 #2194 with every check green, because no leg ran it)
-          - { leg: pine-twins, tests: 'tests/test_pine_*.py tests/test_w9_probes.py tests/test_c45_withheld_doors.py' }
+          # tests/fundamentals_pit/test_financial_fy_view.py: e99 FY, request.financial's FY view (api.services.pine_financial),
+          # beside tests/test_pine_financial.py; the census legs read tests/test_*.py only, so a subfolder file is named here
+          - { leg: pine-twins, tests: 'tests/test_pine_*.py tests/test_w9_probes.py tests/test_c45_withheld_doors.py tests/fundamentals_pit/test_financial_fy_view.py' }
           # ⭐ (2026-11-20) THE CENSUS LEGS: every OTHER tests/test_*.py that imports the Pine engine, 99 files of which
           # 67 ran in no lane at all (five were red on master for days). tools/pine_test_census.py DERIVES the list from
           # the files' own imports, minus what a `tests:` leg above names, and splits it by recorded time: a new file

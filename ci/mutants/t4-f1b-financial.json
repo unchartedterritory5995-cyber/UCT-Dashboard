@@ -95,8 +95,8 @@
    "id": "FN12",
    "mutant": "the plot's disclosure no longer says UCT data from company filings",
    "file": "app/src/components/chart/engine/ast/symbolSubstitution.js",
-   "from": "      const note = read && read.family === 'financial' ? FINANCIAL_SOURCE_NOTE : read ? EVENT_SOURCE_NOTE(read.family) : null",
-   "to": "      const note = read ? EVENT_SOURCE_NOTE(read.family) : null",
+   "from": "      const note = read && read.family === 'financial' ? (readsFy ? FINANCIAL_FY_SOURCE_NOTE : FINANCIAL_SOURCE_NOTE)",
+   "to": "      const note = read && read.family === 'financial-never' ? (readsFy ? FINANCIAL_FY_SOURCE_NOTE : FINANCIAL_SOURCE_NOTE)",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestFinancial.test.js",
    "expectRed": "UCT data (company filings)"
   },

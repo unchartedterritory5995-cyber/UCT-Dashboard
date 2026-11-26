@@ -32,7 +32,7 @@
    "id": "H4",
    "mutant": "the pine-twins pytest leg is dropped (section-8 rails no longer run)",
    "file": ".github/workflows/pine-heavy.yml",
-   "from": "          - { leg: pine-twins, tests: 'tests/test_pine_*.py tests/test_w9_probes.py tests/test_c45_withheld_doors.py' }\n",
+   "from": "          - { leg: pine-twins, tests: 'tests/test_pine_*.py tests/test_w9_probes.py tests/test_c45_withheld_doors.py tests/fundamentals_pit/test_financial_fy_view.py' }\n",
    "to": "",
    "rail": "python -m pytest tests/test_ci_pine_heavy.py tests/test_ci_cost_rails.py -q -p no:cacheprovider -x"
   },
