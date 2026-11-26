@@ -255,11 +255,15 @@ describe('barsStreamManager — optional `final` / `trade_ts` bar fields', () =>
     es._open()
     es._emit('bar', { sym: 'AAPL', tf: '5', bar: { t: 1, o: 1, h: 2, l: 1, c: 1.5, v: 10 } })
     es._emit('bar', { sym: 'AAPL', tf: '5', bar: { t: 1, o: 1, h: 2, l: 1, c: 1.6, v: 12, final: true, trade_ts: 1500 } })
-    expect(got.length).toBe(1)                       // dispatched without waiting for the throttle
-    expect(got[0]).toMatchObject({ final: true, trade_ts: 1500, c: 1.6 })
+    // (2026-11-25) the developing frame is no longer held: it went at once (the live candle at that moment),
+    // and the final follows at once without waiting for anything
+    expect(got.length).toBe(2)
+    expect(got[0]).toMatchObject({ t: 1, c: 1.5 })
+    expect(got[0].final).toBeUndefined()
+    expect(got[1]).toMatchObject({ final: true, trade_ts: 1500, c: 1.6 })
     es._emit('bar', { sym: 'AAPL', tf: '5', bar: { t: 301, o: 1.6, h: 1.6, l: 1.6, c: 1.6, v: 1 } })
     bars._flushBars()
-    expect(got.map(b => b.t)).toEqual([1, 301])      // the superseded non-final frame was dropped
+    expect(got.map(b => b.t)).toEqual([1, 1, 301])   // the final was never coalesced away by what followed
   })
 
   it('absent fields: legacy {t,o,h,l,c,v} frames pass through unchanged', () => {
@@ -346,46 +350,9 @@ describe('recovery: reconnectNow and isConnected', () => {
   })
 })
 
-describe('developing-bar hold: 250 ms by default (LIVE_CANDLE_CADENCE_MS), the per-browser override when set', () => {
-  const KEY = 'uct.liveCadenceMs'
-  const run = (stored) => {
-    if (stored == null) localStorage.removeItem(KEY); else localStorage.setItem(KEY, stored)
-    vi.useFakeTimers()
-    try {
-      const got = []
-      bars.subscribe('AAPL', '5', { onBar: (d) => got.push(d.bar.c) })
-      flush()
-      const es = MockES.instances[0]
-      es._emit('open')
-      es._emit('bar', { sym: 'AAPL', tf: '5', bar: { t: 1, o: 1, h: 1, l: 1, c: 1.1, v: 1 } })
-      es._emit('bar', { sym: 'AAPL', tf: '5', bar: { t: 1, o: 1, h: 1, l: 1, c: 1.2, v: 2 } })
-      const at = (ms) => { vi.advanceTimersByTime(ms); return got.slice() }
-      return { at }
-    } finally { /* timers restored by the caller */ }
-  }
-  afterEach(() => { vi.useRealTimers(); localStorage.removeItem(KEY) })
-
-  it('default: nothing before 250 ms, the newest value at 250 ms', () => {
-    const r = run(null)
-    expect(r.at(249)).toEqual([])
-    expect(r.at(1)).toEqual([1.2])
-  })
-  it('override 1000 (slower than the default) holds this browser to 1 s', () => {
-    const r = run('1000')
-    expect(r.at(999)).toEqual([])
-    expect(r.at(1)).toEqual([1.2])
-  })
-  it('override 50: nothing at 49 ms, the newest value at 50 ms', () => {
-    const r = run('50')
-    expect(r.at(49)).toEqual([])
-    expect(r.at(1)).toEqual([1.2])
-  })
-  it('an unusable override changes nothing', () => {
-    const r = run('soon')
-    expect(r.at(249)).toEqual([])
-    expect(r.at(1)).toEqual([1.2])
-  })
-})
+// ⚰️ 'developing-bar hold: 250 ms by default' lived here until 2026-11-25: a developing bar no longer waits for a
+// trailing 250 ms timer. The first frame of a burst is dispatched at once, the rest coalesce to one per animation
+// frame, and `uct.liveCadenceMs` is now the CAP the long-task guard backs off to: barsStreamManager.nextFrame.test.js.
 
 describe('delivering = a DEVELOPING frame, never past finals alone (2026-11-17, 1m live edge)', () => {
   it('the subscribe snapshot of closed finals leaves delivering false; a developing frame turns it on', () => {

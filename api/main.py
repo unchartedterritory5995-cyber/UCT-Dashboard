@@ -5128,6 +5128,19 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] background lane failed to activate (non-fatal, sweeps run unpaced): {e}")
 
+    # The real-user beacon keeps nothing derived from an IP past its use (2026-11-24): one daemon thread deletes quota
+    # and sender rows on time whether or not a report arrives and, ONCE, blanks the keys older builds stored and rebuilds
+    # that store. ⛔ BELOW THE LANE'S ACTIVATION, NEVER ABOVE: the rebuild waits for the boot to settle on the lane's
+    # clock, and before `activate` the lane is a plain pass-through (it would run in the reload spike). It logs counts
+    # and nothing else. See api/services/perf_beacon.py "What is deleted, and when" and `migrate`.
+    try:
+        from api.services import perf_beacon as _perf_beacon
+        print(f"[startup] perf beacon housekeeping: "
+              f"{'started' if _perf_beacon.startup() else 'not started (running already, switched off, or off Railway without PERF_BEACON_HOUSEKEEPING_ENABLED=1)'} "
+              f"(every {_perf_beacon.HOUSEKEEP_EVERY_S} s)")
+    except Exception as e:
+        print(f"[startup] perf beacon housekeeping failed to start (non-fatal): {e}")
+
     # ⭐ U5 (2026-11-14): the capability detector's own process, off the request GIL
     # (PINE_CAPABILITY_DETECTOR_WORKER=on). Started 30 s after boot, off the boot path; until it
     # is READY every detector call answers "still being checked" (fail closed). Off: nothing.
@@ -11868,6 +11881,12 @@ async def lifespan(app: FastAPI):
         _pcw_stop.shutdown()
     except Exception as e:
         print(f"[shutdown] capability detector stop failed (non-fatal): {type(e).__name__}")
+    # the beacon's housekeeping thread (started above): a thread this lifespan started is stopped by this lifespan
+    try:
+        from api.services import perf_beacon as _perf_beacon_stop
+        _perf_beacon_stop.shutdown()
+    except Exception as e:
+        print(f"[shutdown] perf beacon housekeeping stop failed (non-fatal): {type(e).__name__}")
     try:
         trade_exchange_news_router.stop_background()
     except Exception as e:

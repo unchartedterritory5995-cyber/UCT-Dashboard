@@ -95,7 +95,9 @@ LIVE_HISTORY_MAX_BARS = 1200
 #: a live daily bar cached 300 s would freeze the developing candle for 5 minutes).
 COVERED_CACHE_TTL = {"1": 5, "5": 5, "D": 10,
                      # 15m/30m/60m rebuilt from the live 5m (`bars_fetch._live_derive_on_read`)
-                     "15": 5, "30": 5, "60": 5}
+                     "15": 5, "30": 5, "60": 5,
+                     # W/M rebuilt from the live daily (`bars_fetch._wm_derive_on_read`)
+                     "W": 10, "M": 10}
 
 _lock = threading.Lock()
 _state = {
