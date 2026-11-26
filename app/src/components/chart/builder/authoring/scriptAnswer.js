@@ -51,6 +51,9 @@ const wallNow = () => (typeof performance !== 'undefined' && performance.now ? p
 
 /** The most times one request's script is sent back for repair (the server holds the same bound). */
 export const MAX_REPAIR_ROUNDS = 2
+/** A source that DECLARES a strategy: a copy of `memberPaneDefinition.STRATEGY_DECLARATION` (this module loads the engine
+ *  only when a script arrives), held equal to it by `strategyGate.test.js`. */
+export const STRATEGY_SOURCE = /^[ \t]*strategy[ \t]*\(/m
 /** The bounds the server reads a refusal under (`script_conversation.REFUSAL_MAX_*`). */
 export const SCRIPT_REFUSAL_LIMITS = Object.freeze({ maxErrors: 6, maxChars: 300 })
 /** The verdict states that mean "runs for a member with nothing withheld". */
@@ -136,7 +139,7 @@ export function sameRefusals(a, b) {
 export async function checkScript(pine, { load = loadEngine, chart = null, admission = null, capClock = wallNow, cancelled = () => false } = {}) {
   try {
     const { inspectSource, memberPaneDefinition, editorStatus, prepare, runHereWhenLanded, verdictOnChart, consultPending, pendingReason,
-      judgeOffThread } = await load()
+      judgeOffThread, strategyGate } = await load()
     // (why the server is still checking, when it said: kept on a verdict that is only CHECKING, nowhere else)
     const withReason = (v) => {
       if (!isChecking(v)) return v
@@ -182,8 +185,17 @@ export async function checkScript(pine, { load = loadEngine, chart = null, admis
     // (no chart to run on: an older caller, a chart still loading. The paste check passed and nothing was run;
     // `verdictOnChart` says exactly that, never "runs on the chart")
     if (!chart) return verdictOnChart(pasted, { state: 'not-run', stops: [], unchecked: [], waiting: [], notes: [], why: 'there was no chart to run it on' }, SCRIPT_REFUSAL_LIMITS)
-    const run = await runHereWhenLanded(pane, chart, { timeoutMs: RUN_WAIT_MS })
-    return withReason(verdictOnChart(pasted, run, SCRIPT_REFUSAL_LIMITS))
+    // ⭐⭐ 2026-11-26 -- A WRITTEN STRATEGY IS RUN WITH ITS WINDOW AND PASSES THE BROKER'S GATE (`strategyGate.js`).
+    // It is run with the strategy window the binder hands it, and a "runs" is taken back when the census predicate
+    // says the broker would refuse it -- a refusal that, with its plots standing in, lives only in the strategy record
+    // and never reached this verdict. A strategy the broker refuses is never offered as built.
+    const strategy = STRATEGY_SOURCE.test(pine)
+    const onChart = strategy ? await strategyGate.withStrategyWindow(chart) : chart
+    const run = await runHereWhenLanded(pane, onChart, { timeoutMs: RUN_WAIT_MS })
+    const ran = verdictOnChart(pasted, run, SCRIPT_REFUSAL_LIMITS)
+    if (!strategy || !ran.runs) return withReason(ran)
+    const armed = strategyGate.armedStrategyVerdict({ source: pine, door: strategyGate.PASTE_CHECK_PASSED, bars: onChart.bars, ctx: onChart.ctx })
+    return withReason(strategyGate.gatedVerdict(ran, armed, SCRIPT_REFUSAL_LIMITS))
   } catch {
     return uncheckedVerdict()
   }
@@ -240,12 +252,14 @@ export const SCRIPT_CHECK_ID = 'u_script_check'
 
 /** The engine modules, loaded on first use, and what must be read before a script is judged. */
 async function loadEngine() {
-  const [pineBox, paneDef, status, kill, gate, here, offThread] = await Promise.all([
+  const [pineBox, paneDef, status, kill, gate, here, offThread, strategyGate] = await Promise.all([
     import('../PineBox'), import('../memberPane/memberPaneDefinition'), import('../editorStatus'),
     import('../../engine/runtimeKill'), import('../../engine/runtimePaneGate'), import('../runsHere'),
-    import('./scriptCheckOffThread'),
+    import('./scriptCheckOffThread'), import('./strategyGate'),
   ])
   return {
+    // ⭐ 2026-11-26 -- the gate a written STRATEGY passes (`strategyGate.js`): read directly, no guard
+    strategyGate,
     // the check in the member door's workers (null where there are none: the three below run it on this thread)
     judgeOffThread: offThread.judgeOffThread,
     runHereWhenLanded: here.runHereWhenLanded,
