@@ -1058,3 +1058,100 @@ def test_main_waits_before_it_pushes_the_ref(monkeypatch):
 def test_claude_md_documents_the_admission_wait():
     text = (ROOT / "CLAUDE.md").read_text(encoding="utf-8")
     assert "--max-wait-min 0" in text and "waits for room" in text
+
+
+# ---- the verdict a test job writes (2026-11-26): read the exit code, never the badge ------------------------------
+#
+# ⚰️ e100, run 45843411301: a hand-dispatched run's badge read "success" over "1 failed, 587 passed". These rails feed
+# SYNTHETIC logs through the verdict the workflow's "Record the verdict" steps run (master's `--verdict`) and prove it
+# goes red on each way a run can fail or say nothing, and green only on a real green totals line.
+
+_PY_RED = "FAILED tests/test_x.py::test_y - AssertionError\n1 failed, 587 passed, 4 warnings in 91.79s (0:01:31)\n"
+_PY_GREEN = "........\n164 passed, 3 warnings in 60.18s (0:01:00)\n"
+#: verbatim shape of a vitest totals block, ANSI included (run 45844303090)
+_VI_GREEN = ("\x1b[2m Test Files \x1b[22m \x1b[1m\x1b[32m2 passed\x1b[39m\x1b[22m\x1b[90m (2)\x1b[39m\n"
+             "\x1b[2m      Tests \x1b[22m \x1b[1m\x1b[32m40 passed\x1b[39m\x1b[22m\x1b[90m (40)\x1b[39m\n")
+_VI_RED = " Test Files  1 failed | 1 passed (2)\n      Tests  1 failed | 39 passed (40)\n"
+
+
+@pytest.mark.parametrize("kind,outcome,log,why", [
+    ("pytest", "failure", _PY_RED, "a failing suite"),
+    ("pytest", "success", _PY_RED, "a failing suite whose exit code was swallowed (the totals still say failed)"),
+    ("pytest", "success", "", "an empty log: nothing ran"),
+    ("pytest", "success", "....\ncollecting ... \n", "no totals line: cut off or killed"),
+    ("pytest", "success", "no tests ran in 0.05s\n", "collected nothing"),
+    ("pytest", "success", "2 errors in 1.03s\n", "collection errors only"),
+    ("pytest", "success", "5 passed, 1 error in 2.00s\n", "a pass beside an error"),
+    ("pytest", "failure", _PY_GREEN, "a green totals line under a red exit code (teardown, plugin or pipefail)"),
+    ("pytest", "cancelled", _PY_GREEN, "a cancelled step"),
+    ("vitest", "failure", _VI_RED, "a failing shard"),
+    ("vitest", "success", _VI_RED, "a failing shard whose exit code was swallowed"),
+    ("vitest", "success", "", "an empty shard log"),
+    ("vitest", "success", " Test Files  2 passed (2)\n", "no Tests line"),
+    ("vitest", "success", _VI_GREEN + "     Errors  1 error\n", "an unhandled error beside passing tests"),
+    ("vitest", "failure", rt.EMPTY_SHARD_MARK, "the empty-shard mark under a red exit code"),
+])
+def test_VERDICT_goes_red(kind, outcome, log, why):
+    verdict, sentence = rt.verdict_of(kind, outcome, log)
+    assert verdict != "success", why
+    assert sentence.startswith(f"{kind}: RED"), sentence
+
+
+@pytest.mark.parametrize("kind,log", [
+    ("pytest", _PY_GREEN),
+    ("pytest", "=========== 5 passed, 2 skipped, 1 xfailed in 1.20s ===========\n"),
+    ("vitest", _VI_GREEN),
+    ("vitest", rt.EMPTY_SHARD_MARK + "\n"),
+])
+def test_VERDICT_green_only_on_a_real_green_totals_line(kind, log):
+    assert rt.verdict_of(kind, "success", log)[0] == "success"
+
+
+def test_VERDICT_the_step_writes_the_file_the_annotation_and_the_summary_and_never_fails(tmp_path, monkeypatch, capsys):
+    summary = tmp_path / "summary.md"
+    monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(summary))
+    log = tmp_path / "remote-pytest.log"
+    log.write_text(_PY_RED, encoding="utf-8")
+    out = tmp_path / "remote-pytest-verdict.txt"
+    assert rt.main(["--verdict", "pytest", "--log", str(log), "--outcome", "success", "--out", str(out)]) == 0
+    assert out.read_text(encoding="utf-8").strip() == "failure"
+    printed = capsys.readouterr().out
+    assert "::error title=remote tests: pytest is RED::" in printed and "1 failed, 587 passed" in printed
+    assert rt.BADGE_RULE in printed
+    assert summary.read_text(encoding="utf-8").startswith("### RED: ")
+    # the file read_verdicts collects, so the tool exits 1 on it
+    assert rt.decide("success", 1, rt.read_verdicts(tmp_path))[0] == rt.FAIL
+    # a missing log is red too, and still exits 0
+    out2 = tmp_path / "remote-vitest-verdict-1.txt"
+    assert rt.main(["--verdict", "vitest", "--log", str(tmp_path / "absent.log"), "--outcome", "success",
+                    "--out", str(out2)]) == 0
+    assert out2.read_text(encoding="utf-8").strip() == "failure"
+    # and green writes no annotation
+    capsys.readouterr()
+    log.write_text(_PY_GREEN, encoding="utf-8")
+    assert rt.main(["--verdict", "pytest", "--log", str(log), "--outcome", "success", "--out", str(out)]) == 0
+    assert out.read_text(encoding="utf-8").strip() == "success" and "::error" not in capsys.readouterr().out
+
+
+def test_VERDICT_each_record_step_runs_masters_copy_on_its_own_log():
+    for job, log_name, verdict_file in (("pytest", "remote-pytest.log", "remote-pytest-verdict.txt"),
+                                        ("vitest", '"remote-vitest-$RT_SHARD.log"', '"remote-vitest-verdict-$RT_SHARD.txt"')):
+        steps = _wf()["jobs"][job]["steps"]
+        fetch = [s for s in steps if s.get("name") == "Check out the commit under test"][0]["run"]
+        # master's copy is saved BEFORE the checkout moves to the ref under test
+        assert fetch.index('cp tools/remote_tests.py "$RUNNER_TEMP/remote_tests_master.py"') < fetch.index("git checkout")
+        rec = [s for s in steps if s.get("name") == "Record the verdict"][0]["run"]
+        assert (f'python3 "$RUNNER_TEMP/remote_tests_master.py" --verdict {job} --log {log_name} '
+                f'--outcome "$OUTCOME" --out {verdict_file}') in rec, job
+        assert f"echo failure > {verdict_file}" in rec, job          # an unreadable verdict is red, never green
+    vitest = [s for s in _wf()["jobs"]["vitest"]["steps"] if s.get("name") == "vitest"][0]["run"]
+    assert f'echo "{rt.EMPTY_SHARD_MARK}" > "../remote-vitest-$RT_SHARD.log"; exit 0' in vitest
+
+
+def test_VERDICT_the_badge_rule_is_in_the_help_and_the_workflow_header(capsys):
+    assert rt.BADGE_RULE == "Read `python tools/remote_tests.py`'s exit code, never the run badge."
+    with pytest.raises(SystemExit):
+        rt.main(["--help"])
+    assert " ".join(rt.BADGE_RULE.split()) in " ".join(capsys.readouterr().out.split())
+    header = WF.read_text(encoding="utf-8").split("\nname:", 1)[0]
+    assert rt.BADGE_RULE in " ".join(ln.lstrip("# ").strip() for ln in header.splitlines())

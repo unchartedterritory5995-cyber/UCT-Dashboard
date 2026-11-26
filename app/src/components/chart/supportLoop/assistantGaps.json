@@ -231,7 +231,7 @@
    "headline": "Not yet: Nothing a chart can draw",
    "guard": "pine:no-output",
    "family": "shape",
-   "why": "the pasted script offers no plot and no alert condition to filter on"
+   "why": "the pasted script offers no plot and no alert condition to filter on: it draws polylines (`polyline.new`), which this chart does not draw yet"
   },
   {
    "id": "matrix",

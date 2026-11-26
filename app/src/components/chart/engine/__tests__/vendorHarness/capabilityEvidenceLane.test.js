@@ -184,6 +184,12 @@ const report = JSON.parse(fs.readFileSync(path.join(REPO,
 // vw-udt-fn-global-history-rddt-1d-2026-11-16. Its one wall (G04, `f4(int n) => g[n]` with `bar_index % 3`, a per-bar
 // offset through a parameter) is read per bar now, and every plot, G04 included, equals TradingView's value on every bar
 // (`runtime/__tests__/functionGlobalHistory.test.js`); its runtime-on row re-grades MATCH.
+// ⭐ e98 E3 (feat/e98-plot-offset-setting) re-pinned 4 rows, lane `host` -> `runtime`, populations re-derived:
+// opening-range-initial-balance-opening-price RDDT x2 and SPY x2. Its seven `plotshape(…, offset = OR_pos)` label
+// positions are draw-time settings now, which the runtime lane draws (it withheld every rightward offset), so the
+// host document's cost route (over the per-bar step budget: 4,250 steps a bar) no longer finds a different picture on
+// the run and takes it ("cost-route:surface" was the only thing holding it on the host lane). Both lanes graded it
+// INCONCLUSIVE before; the runtime-on grade on that PR's run is in its results comment.
 
 describe('WS-I Part 2 — the reach run records the lanes the door itself answers', () => {
   // ⭐⭐ THE MEMBER'S DOOR, EXACTLY (GATE-BLIND follow-up (a), 2026-11-19): the allowlist EMPTY, capability admission

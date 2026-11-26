@@ -2559,6 +2559,34 @@ def named_in(terms: Any) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     return ready, unchecked
 
 
+#: ⭐ 2026-11-26 -- A BUILT-IN ASKED FOR WITH ITS LOOK CHANGED IS A REQUEST TO BUILD (coordinator's ruling). The fifty-set
+#: probe (live, admin measurement): "In a pane below, plot Bollinger %B (20, 2) as a histogram, green above 1, red below 0,
+#: gray otherwise, with dashed lines at 0 and 1" was answered with the one-tap offer of the stock built-in, and the
+#: member's histogram, colours and dashed lines were dropped. The offer is for a request that is the bare NAME. Words that
+#: change how it is DRAWN (a colour, a style, a level line, a shade, fill or background) mean the member wants their own:
+#: no offer, and the script turn builds it (`customised_built_in`), saying no checked reference stands behind it. A
+#: placement ("in a pane below") and settings numbers ("20, 2") are the built-in's own and keep the offer. Measured over
+#: the requests on record: 10 are offered a built-in today, and only this one carries such a word.
+_PRESENTATION_WORDS = re.compile(
+    r"\b(?:green|red|gr[ae]y|blue|orange|yellow|purple|white|black|teal|pink|colou?r(?:s|ed)?|histogram|dots?|circles?|"
+    r"area|step ?line|dashed|dotted|thick|thin|width|pixels?|px|fill(?:ed)?|shade[ds]?|shading|background|cloud|"
+    r"lines? at|levels? at|horizontal lines?)\b", re.I)
+
+
+def customises_presentation(message: Any) -> bool:
+    """Does the request change how something is DRAWN (colour, style, levels, shading)?"""
+    return isinstance(message, str) and bool(_PRESENTATION_WORDS.search(message))
+
+
+def customised_built_in(message: Any, chart: Any) -> bool:
+    """A request that names one of UCT's own built-in indicators (no checked formula here) AND changes its look."""
+    try:
+        understood = understand_turn(message, chart)
+    except Exception:                              # noqa: BLE001 -- the ordinary turn decides
+        return False
+    return understood.get("refusal") is not None and bool(understood.get("customised_built_in"))
+
+
 def described_in_own_words(plain: str, chart: Any) -> bool:
     """Did the member DESCRIBE a rule beside the unchecked name(s) they wrote? Asked of what is
     left of the message once those names are taken out.
@@ -6121,13 +6149,17 @@ def understand_turn(message: str, chart: Any) -> Dict[str, Any]:
         if not described_in_own_words(plain, chart):
             first = unchecked[0]["entry"]
             is_built_in = named_indicators.built_in(first) is not None
+            # (a built-in asked for with its look changed is not offered: it is the member's own, built by the
+            # script turn -- `customised_built_in`)
+            customised = is_built_in and customises_presentation(message)
             return {"refusal": {"ok": False, "gate": NAMED_BUILT_IN_GATE if is_built_in else NAMED_UNCHECKED_GATE,
                                 "reason": named_indicators.their_number(message, first, False) or named_indicators.way_forward(first),
                                 "not_understood": not_understood, "unavailable": unavailable},
                     "held": [u["entry"]["id"] for u in unchecked],
                     # ⭐ one of UCT's own built-in indicators: the turn may be ANSWERED with an offer
                     # to add it (`_converse_turn`), for a browser that can
-                    **({"built_in": first} if is_built_in else {})}
+                    **({"built_in": first} if is_built_in and not customised else {}),
+                    **({"customised_built_in": first["id"]} if customised else {})}
         own_words = [u["entry"] for u in unchecked]
     elif unchecked:
         discussed = discussed + [{"phrase": u["wrote"], "gate": NAMED_UNCHECKED_GATE,
@@ -6244,6 +6276,9 @@ def _with_script_lane(formula_turn: Any, message: Any, *, user_id: Any, view: An
     # bands" got the one-tap offer, and "draw ATR Bands" was improvised where UCT has the indicator. The same holds
     # for a name UCT holds back: it is refused by name below, never written from memory because the verb was "draw".
     # (a method, drawing, chart type or data series the catalogue names goes to the script turn too: `sc.names_a_method`)
+    # (a built-in with its look changed is the member's own: the script turn builds it, `customised_built_in`)
+    if customised_built_in(words, chart):
+        return script()
     if (sc.wants_script(words) or sc.names_a_method(words)) and not door_answers_by_name(words, chart, can_add):
         return script()
     result = formula_turn()

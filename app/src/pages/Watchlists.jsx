@@ -671,6 +671,23 @@ const WatchRow = React.memo(function WatchRow({
 // shared `.listBody` scroll container (the sticky column header sits above it), and reports
 // the visible symbols up so ONLY those get live-streamed — the whole point that lets a
 // ~5,000-row scan render without opening ~100 SSE streams or mounting 5,000 DOM rows.
+/** Where row `idx` sits against the list's CLEAR view, from the virtualizer's measurements: 'visible' (wholly in it),
+ *  'near' (in it in part, or within one row of an edge) or 'far' (beyond that, or nothing measured yet).
+ *  `scrollTop`: the scroller's LIVE position (the virtualizer's own `scrollOffset` follows the scroll EVENT, which can
+ *  lag a fast repeat under a busy main thread: a near row would then read far and be centred). `padStart`: the sticky
+ *  band at the scroller's top (the column header): a row under it is not in view (review of #2834). */
+export function rowPlacement(virt, idx, { scrollTop, padStart = 0 } = {}) {
+  const m = virt?.measurementsCache?.[idx]
+  const offset = Number.isFinite(scrollTop) ? scrollTop : virt?.scrollOffset
+  const h = virt?.scrollRect?.height
+  if (!m || !Number.isFinite(offset) || !(h > 0)) return 'far'
+  const top = offset + padStart
+  const bottom = offset + h
+  if (m.start >= top && m.end <= bottom) return 'visible'
+  const size = m.end - m.start
+  return m.end > top - size && m.start < bottom + size ? 'near' : 'far'
+}
+
 export function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChange, scrollToSym, noScrollRef, measureOffset = false }) {
   // ⭐ WHY AN OFFSET EXISTS AT ALL. The virtualizer places rows absolutely and
   // measures against the SCROLL element, so its arithmetic is only right when this
@@ -684,15 +701,34 @@ export function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChan
   // is exactly the feedback loop `rafObserveElementRect` above exists to survive.
   const hostRef = useRef(null)
   const [scrollMargin, setScrollMargin] = useState(0)
-  useLayoutEffect(() => {
-    if (!measureOffset) return
+  // ⭐ (review of #2834) THE STICKY BAND. The column header (`.gridHead`, `position: sticky; top: 0`) is a child of the
+  // SAME scroller, so rows scroll under it: the clear view is [scrollTop + band, scrollTop + height]. Its height is the
+  // virtualizer's `scrollPaddingStart` (an `align: 'auto'` scroll keeps the row clear of it) and the selection's
+  // placement test reads it. Measured with the offset, by the same rule (mount, a row-count change).
+  const [stickyTop, setStickyTop] = useState(0)
+  // ⛔ A PASSIVE effect, not a layout one (review of #2834): the scroller is this list's PARENT, and a parent's ref is
+  // attached AFTER its children's layout effects run, so on a mount in the same commit (a widget opening on a list
+  // already loaded) a layout effect found no scroller and measured nothing until the row count changed. The rows'
+  // positions do not depend on it (`vi.start - scrollMargin`); only the virtualizer's range and the scroll decisions do.
+  useEffect(() => {
     const host = hostRef.current
     const scroller = scrollRef?.current
     if (!host || !scroller) return
-    const top = host.getBoundingClientRect().top
-      - scroller.getBoundingClientRect().top
-      + scroller.scrollTop
-    setScrollMargin(prev => (Math.abs(prev - top) > 0.5 ? top : prev))
+    let band = 0
+    for (const el of scroller.children) {
+      if (el === host || el.contains(host)) continue
+      // the column header says so (`data-sticky-head`); any other sticky child counts too
+      if (el.hasAttribute('data-sticky-head') || getComputedStyle(el).position === 'sticky') { band = el.getBoundingClientRect().height || 0; break }
+    }
+    setStickyTop(prev => (Math.abs(prev - band) > 0.5 ? band : prev))
+    // the offset when asked, AND whenever a sticky band sits above the rows: a scan's rows (no `measureOffset`) start
+    // below the column header, so its positions were the band's height off the scroller's
+    if (measureOffset || band > 0) {
+      const top = host.getBoundingClientRect().top
+        - scroller.getBoundingClientRect().top
+        + scroller.scrollTop
+      setScrollMargin(prev => (Math.abs(prev - top) > 0.5 ? top : prev))
+    }
   }, [measureOffset, scrollRef, items.length])
 
   const virt = useVirtualizer({
@@ -705,6 +741,7 @@ export function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChan
     getItemKey: (i) => items[i]?.id || items[i]?.sym || i,
     overscan: 12,
     scrollMargin,
+    scrollPaddingStart: stickyTop,
     // See rafObserveElementRect above — prevents the narrow-width #185 crash.
     observeElementRect: rafObserveElementRect,
     // ⭐ (2026-11-20, switch profile) NO flushSync ON SCROLL. react-virtual's default re-renders through
@@ -758,7 +795,16 @@ export function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChan
     if (noScrollRef?.current === scrollToSym) { scrolledForRef.current = scrollToSym; noScrollRef.current = null; return }
     const idx = items.findIndex((it) => it?.sym === scrollToSym && !it.isGroup)
     if (idx < 0) return                                  // row not rendered yet — retry on next items change
-    try { virt.scrollToIndex(idx, { align: 'center' }) } catch { /* mid-mount */ }
+    // ⭐ (2026-11-26, owner: "jumpy") THE LEAST SCROLL. This re-centred the list on EVERY selection change, so each arrow
+    // press moved the whole list under the member's eye. Now (TradingView-like): a row already in view does not move the
+    // list; a row in view in part, or one row past an edge (the arrow press at the bottom), scrolls the least
+    // (`align: 'auto'`: one row); a selection landing far off-screen (a typed ticker, a jump, a list opening on a
+    // symbol) is centred, once. Rail: Watchlists.scanRowsScroll.test.jsx.
+    const where = rowPlacement(virt, idx, { scrollTop: scrollRef?.current?.scrollTop, padStart: stickyTop })
+    try {
+      if (where === 'far') virt.scrollToIndex(idx, { align: 'center' })
+      else if (where === 'near') virt.scrollToIndex(idx, { align: 'auto' })
+    } catch { /* mid-mount */ }
     scrolledForRef.current = scrollToSym
   }, [scrollToSym, items]) // eslint-disable-line react-hooks/exhaustive-deps
   if (items.length === 0) return <div className={styles.wlEmpty}>{emptyText}</div>
@@ -2982,7 +3028,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     )
   }
   const columnHeader = (
-    <div className={styles.gridHead} onContextMenu={e => { e.preventDefault(); setColMenu({ x: e.clientX, y: e.clientY }) }}>
+    <div className={styles.gridHead} data-sticky-head="" onContextMenu={e => { e.preventDefault(); setColMenu({ x: e.clientX, y: e.clientY }) }}>
       {orderedKeys.map(renderHeaderCell)}
       {/* Column library (owner 11-14): the + opens it under itself; right-click opens it at the cursor. */}
       {!isAllIdxList && (

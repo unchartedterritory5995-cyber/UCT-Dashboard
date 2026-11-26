@@ -179,7 +179,77 @@ export async function loadBundle(path = DEFAULT_BUNDLE) {
   // without it still boots: the seal then refuses any record it is handed (fails closed), and nothing else changes.
   const codec = { columnDigest: mod.columnDigest, decodeColumn: mod.decodeColumn,
     strategyRecordShapeErrors: typeof mod.strategyRecordShapeErrors === 'function' ? mod.strategyRecordShapeErrors : null }
-  return { mod, identity, codec, tfSet: [...mod.NATIVE_TFS], maxBars: mod.DEFAULT_LIMITS.HISTORY }
+  const budget = budgetOfBundle(mod, path)
+  return { mod, identity, codec, tfSet: [...mod.NATIVE_TFS], maxBars: mod.DEFAULT_LIMITS.HISTORY, budget,
+    sweepMaxBars: budget.floorBars }
+}
+
+// ─── e99 server budget (coordinator ruling 2026-11-26) ─────────────────────────────────────────────────────
+// A run here is held to the BROWSER WORKER's budget (job.mjs passes `budgetScales`): runtimePaneBudgetFor(bars),
+// 1,000 ms up to 5,000 bars, then 1 ms a bar, at most 12,000 ms. An alert or a backtest then agrees with the
+// member's chart. Every number below is the bundle's own, read once at boot, never retyped:
+//   * the HARD KILL (pool.mjs `killMs`) sits KILL_MARGIN_MS past the budget's ceiling, so a run past its budget
+//     always stops by name (runtime:time-budget) before its worker is terminated (`serviceKillMs`);
+//   * a SWEEP job carries at most the bars up to which the budget is the floor (protocol.mjs `sweepMaxBars`), so a
+//     50-job sweep chunk never multiplies a scaled budget;
+//   * ONE REQUEST's scaled time above the floor is capped at REQUEST_EXTRA_BUDGET_MS; a job past the cap is withheld
+//     by name (REQUEST_BUDGET_GUARD, a runtime:server-* guard: never cached, never a verdict) and is not run
+//     (`withRequestBudget`). A job of 5,000 bars or fewer adds nothing to the cap and runs exactly as before.
+
+/** How far past the budget's ceiling the pool's hard kill sits: the run's per-bar budget check, its encode and
+ *  its warm-up curtain's second run all end inside it. */
+export const KILL_MARGIN_MS = 5_000
+/** One request's total scaled budget ABOVE the 1,000 ms floor (coordinator ruling 2026-11-26: 30 s). */
+export const REQUEST_EXTRA_BUDGET_MS = 30_000
+/** A job withheld because its request's scaled time above the floor passed the cap. */
+export const REQUEST_BUDGET_GUARD = 'runtime:server-request-budget'
+
+/** The bundle's budget rule: `{ floorMs, floorBars, ceilingMs, budgetFor(n) }`, or a throw (the boot refuses). */
+export function budgetOfBundle(mod, path = 'the bundle') {
+  const floorMs = mod.RUNTIME_PANE_TIME_BUDGET_MS
+  const ceilingMs = mod.RUNTIME_PANE_BUDGET_CEILING_MS
+  const floorBars = mod.RUNTIME_PANE_BUDGET_FLOOR_BARS
+  const ok = (x) => typeof x === 'number' && Number.isFinite(x) && x > 0
+  if (!ok(floorMs) || !ok(ceilingMs) || ceilingMs < floorMs || !Number.isSafeInteger(floorBars) || floorBars < 1
+      || typeof mod.runtimePaneBudgetFor !== 'function') {
+    throw new Error(`${path} exports no budget rule (RUNTIME_PANE_TIME_BUDGET_MS, RUNTIME_PANE_BUDGET_CEILING_MS, `
+      + 'RUNTIME_PANE_BUDGET_FLOOR_BARS, runtimePaneBudgetFor); the service refuses to start.')
+  }
+  return Object.freeze({ floorMs, floorBars, ceilingMs, budgetFor: (n) => mod.runtimePaneBudgetFor(n, floorMs) })
+}
+
+/** The pool's hard kill for this bundle: past every budget a run can be given. */
+export function serviceKillMs(door) {
+  return door.budget.ceilingMs + KILL_MARGIN_MS
+}
+
+/** `runner` with one request's scaled time above the floor capped: jobs are admitted in order while the sum of
+ *  `budgetFor(bars.n) - floorMs` stays within REQUEST_EXTRA_BUDGET_MS; each job past it is answered withheld, by
+ *  name, in its place, and never reaches the pool. A request whose jobs all fit is handed to `runner` unchanged. */
+export function withRequestBudget(runner, budget) {
+  return async function capped(request) {
+    let extra = 0
+    const admitted = []
+    const over = new Set()
+    request.jobs.forEach((job, i) => {
+      const add = Math.max(0, budget.budgetFor(job.bars.n) - budget.floorMs)
+      if (extra + add > REQUEST_EXTRA_BUDGET_MS) { over.add(i); return }
+      extra += add
+      admitted.push(i)
+    })
+    if (over.size === 0) return runner(request)
+    const ran = admitted.length ? await runner({ ...request, jobs: admitted.map((i) => request.jobs[i]) }) : []
+    if (!Array.isArray(ran) || ran.length !== admitted.length) return ran // the seal refuses a reply of the wrong shape
+    const out = new Array(request.jobs.length)
+    admitted.forEach((i, k) => { out[i] = ran[k] })
+    for (const i of over) {
+      out[i] = { job: request.jobs[i].job, status: 'withheld', refusals: [{ key: '*', guard: REQUEST_BUDGET_GUARD,
+        sentence: `this request asked for more than ${REQUEST_EXTRA_BUDGET_MS / 1000} s of run time above the `
+          + `${budget.floorMs} ms each job is given, so this job (${request.jobs[i].bars.n} bars) was not run; `
+          + 'sent alone or in a smaller request, it runs.', bar: null }] }
+    }
+    return out
+  }
 }
 
 function send(res, status, payload) {
@@ -232,6 +302,9 @@ export function createPineRuntimeServer({ secrets, door, runner = null, canary =
   if (!Array.isArray(secrets) || secrets.length === 0) throw new Error('createPineRuntimeServer needs at least one secret')
   const replay = new ReplayGuard()
   const refuse = (res, status, guard, sentence, l) => { metrics.refused(guard); return refuseResponse(res, status, guard, sentence, l) }
+  // e99 server budget: one request's scaled time above the floor is capped (a door without the bundle's budget rule,
+  // a test's fixed door, runs every job as before)
+  const runJobs = runner && door && door.budget ? withRequestBudget(runner, door.budget) : runner
   const ready = () => Boolean(door && door.identity && runner) && canary() === true
 
   async function run(req, res) {
@@ -259,7 +332,7 @@ export function createPineRuntimeServer({ secrets, door, runner = null, canary =
     const seal = (results) => sealRunResults(door.codec, door.identity, checked.request.jobs, results)
     let sealed
     try {
-      sealed = resultLane ? await resultLane.answer(checked.request, runner, seal) : seal(await runner(checked.request))
+      sealed = resultLane ? await resultLane.answer(checked.request, runJobs, seal) : seal(await runJobs(checked.request))
     } catch (e) {
       // W5-T7: a full queue refuses the whole request before any job of it is queued (design 3.4)
       if (e && e.guard === BUSY_GUARD) return refuse(res, 429, BUSY_GUARD, e.message, log)
@@ -348,7 +421,8 @@ export async function main({ env = process.env, bundle = DEFAULT_BUNDLE, runner 
   const secrets = parseSecrets(env.PINE_RUNTIME_SERVICE_SECRET)
   const port = portOf(env)
   const door = await loadBundle(bundle)
-  const pool = !runner && poolOpts ? await createPool({ workers: workersOf(env), ...poolOpts, bundle }) : null
+  // e99 server budget: the hard kill is derived from the bundle's budget ceiling (`serviceKillMs`), never retyped
+  const pool = !runner && poolOpts ? await createPool({ workers: workersOf(env), killMs: serviceKillMs(door), ...poolOpts, bundle }) : null
   const canary = pool && canaryOn
     ? createCanary({ run: pool.run, inputs: loadCanaryInputs(), identity: door.identity, log })
     : null

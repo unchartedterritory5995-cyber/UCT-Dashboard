@@ -217,7 +217,9 @@ describe('which intraday timeframes are served, and what the chart fetches', () 
       expect(rows['SP:SPX'].periods[tf].alsoHeld).toBe('D')
       expect(rows['SP:SPX'].periods[tf].witness, tf).toMatch(/2026-11-18/)
     }
-    for (const tf of ['3', '45', '120', '240']) {
+    // (⭐ e98 — 240 is witnessed too, Q-FRED-4H: `rsFourHourWitness.test.js`)
+    expect(heldFetchOf('SPX', '240')).toEqual({ symbol: 'SPX', tf: '240', key: 'SPX' })
+    for (const tf of ['3', '45', '120']) {
       expect(heldFetchOf('SPX', tf), tf).toBe(null)
       const r = resolveOtherSymbols(symDef, { ...ctx5(), tf })
       expect(r.served, tf).toEqual([])

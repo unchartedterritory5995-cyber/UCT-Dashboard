@@ -1,0 +1,60 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "remote tests verdict (2026-11-26, after e100 run 45843411301 read 'success' over '1 failed, 587 passed'): the run badge stays green by design (2026-11-16, a failed run emails the owner); each test job's verdict is master's tools/remote_tests.py --verdict on its own log, green only on a 0 exit AND a green totals line, red with a ::error:: annotation and a step-summary line. Read `python tools/remote_tests.py`'s exit code, never the run badge. Each mutant must turn its rail red and restore byte-equal.",
+ "mutants": [
+  {
+   "id": "V1",
+   "mutant": "the exit code re-swallowed: the verdict ignores a red step outcome and reads the log alone",
+   "file": "tools/remote_tests.py",
+   "from": "    if outcome != \"success\":\n        return outcome if",
+   "to": "    if False:\n        return outcome if",
+   "rail": "python -m pytest -q -p no:cacheprovider tests/test_remote_tests_lane.py -k VERDICT_goes_red",
+   "expectRed": "VERDICT_goes_red"
+  },
+  {
+   "id": "V2",
+   "mutant": "the totals check bypassed: an exit 0 is green whatever the log says (or does not say)",
+   "file": "tools/remote_tests.py",
+   "from": "    if not green:\n        return \"failure\", f\"{kind}: RED (exit 0",
+   "to": "    if False:\n        return \"failure\", f\"{kind}: RED (exit 0",
+   "rail": "python -m pytest -q -p no:cacheprovider tests/test_remote_tests_lane.py -k VERDICT_goes_red",
+   "expectRed": "VERDICT_goes_red"
+  },
+  {
+   "id": "V3",
+   "mutant": "the verdict step fails the job on red (every red session run emails the owner again)",
+   "file": "tools/remote_tests.py",
+   "from": "            fh.write(f\"### {'RED' if verdict != 'success' else 'green'}: {note}\\n\")\n    return OK\n",
+   "to": "            fh.write(f\"### {'RED' if verdict != 'success' else 'green'}: {note}\\n\")\n    return FAIL if verdict != \"success\" else OK\n",
+   "rail": "python -m pytest -q -p no:cacheprovider tests/test_remote_tests_lane.py -k never_fails",
+   "expectRed": "never_fails"
+  },
+  {
+   "id": "V4",
+   "mutant": "the pytest record step reverts to echoing the step outcome (no totals check, no annotation)",
+   "file": ".github/workflows/remote-tests.yml",
+   "from": "          python3 \"$RUNNER_TEMP/remote_tests_master.py\" --verdict pytest --log remote-pytest.log --outcome \"$OUTCOME\" --out remote-pytest-verdict.txt \\\n",
+   "to": "          echo \"$OUTCOME\" > remote-pytest-verdict.txt; true \\\n",
+   "rail": "python -m pytest -q -p no:cacheprovider tests/test_remote_tests_lane.py -k each_record_step",
+   "expectRed": "each_record_step"
+  },
+  {
+   "id": "V5",
+   "mutant": "the pytest step loses its exit code through tee (pipefail dropped)",
+   "file": ".github/workflows/remote-tests.yml",
+   "from": "          set -o pipefail\n          # --continue-on-collection-errors",
+   "to": "          # --continue-on-collection-errors",
+   "rail": "python -m pytest -q -p no:cacheprovider tests/test_remote_tests_lane.py -k exit_code_through_tee",
+   "expectRed": "exit_code_through_tee"
+  },
+  {
+   "id": "V6",
+   "mutant": "the verdict read from the branch's own copy (a branch could change how its result is read)",
+   "file": ".github/workflows/remote-tests.yml",
+   "from": "          cp tools/remote_tests.py \"$RUNNER_TEMP/remote_tests_master.py\"\n          # actions/checkout fetches only branches and tags, never refs/remote-tests/*; fetch the validated ref by\n          # name (anonymous: the repo is public, no credentials are kept) and test exactly that commit.\n          git fetch --no-tags --quiet origin \"+$RT_REF:refs/rt/under-test\"\n          git checkout --quiet --detach refs/rt/under-test\n          git log -1 --format='testing %H %s'\n      - uses: actions/setup-python@v5\n        with:\n          python-version: '3.12'\n          cache: pip\n      # several pytest",
+   "to": "          # actions/checkout fetches only branches and tags, never refs/remote-tests/*; fetch the validated ref by\n          # name (anonymous: the repo is public, no credentials are kept) and test exactly that commit.\n          git fetch --no-tags --quiet origin \"+$RT_REF:refs/rt/under-test\"\n          git checkout --quiet --detach refs/rt/under-test\n          cp tools/remote_tests.py \"$RUNNER_TEMP/remote_tests_master.py\"\n          git log -1 --format='testing %H %s'\n      - uses: actions/setup-python@v5\n        with:\n          python-version: '3.12'\n          cache: pip\n      # several pytest",
+   "rail": "python -m pytest -q -p no:cacheprovider tests/test_remote_tests_lane.py -k each_record_step",
+   "expectRed": "each_record_step"
+  }
+ ]
+}

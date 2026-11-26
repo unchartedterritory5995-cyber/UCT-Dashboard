@@ -8,6 +8,7 @@ import { installFakeIndexedDB } from './testing/fakeIndexedDB'
 import { fakeStream, fakeCandle, fakePrices } from './testing/fakeFeeds'
 import { installFakeBarsServer, OPEN } from './testing/fakeBarsServer'
 import { firstPaintBarsFor } from '../../utils/barsBackfill'
+import { inExtendedSession } from './extendedSession'
 
 vi.mock('../../hooks/useTickerMeta', () => ({ prefetchTickerMeta: () => {} }))
 
@@ -32,10 +33,13 @@ async function boot() {
 }
 const tick = (ms) => vi.advanceTimersByTimeAsync(ms)
 const drain = (w) => w.server.drain({ advance: () => tick(1500) })
-/** `n` 5m rows ending at the bar before now (a CURRENT store) */
+/** `n` 5m rows ending at the bar before now (a CURRENT store): session buckets only, as the server serves them */
 function rows(n) {
-  const last = Math.floor(NOW / 1000 / 300) * 300 - 300
-  return Array.from({ length: n }, (_, i) => ({ t: last - 300 * (n - 1 - i), o: 10, h: 11, l: 9, c: 10.5, v: 100 }))
+  const out = []
+  for (let t = Math.floor(NOW / 1000 / 300) * 300 - 300; out.length < n; t -= 300) {
+    if (inExtendedSession(t)) out.unshift({ t, o: 10, h: 11, l: 9, c: 10.5, v: 100 })
+  }
+  return out
 }
 const barsAsked = (calls) => calls.map((c) => Number((c.url.match(/[?&]bars=(\d+)/) || [])[1] || 0))
 

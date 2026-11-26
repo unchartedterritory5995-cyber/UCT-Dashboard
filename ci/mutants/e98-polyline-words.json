@@ -1,0 +1,77 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "PW1",
+   "mutant": "the note reads the raw reader names again (`polyline.new.*`)",
+   "file": "app/src/components/chart/engine/ast/objectLoss.js",
+   "from": "    const names = readerNamesShown(loss.readerNames).map((n) => `\\`${n}\\``).join(', ')",
+   "to": "    const names = loss.readerNames.map((n) => `\\`${n}\\``).join(', ')",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/polylineWords.test.js",
+   "expectRed": "never `polyline.new.*`"
+  },
+  {
+   "id": "PW2",
+   "mutant": "a call's `.*` is never stripped",
+   "file": "app/src/components/chart/engine/ast/objectLoss.js",
+   "from": "    return m ? m[1] : n\n",
+   "to": "    return n\n",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/polylineWords.test.js",
+   "expectRed": "a call keeps its own name"
+  },
+  {
+   "id": "PW3",
+   "mutant": "a call of a namespace shown whole is listed beside it",
+   "file": "app/src/components/chart/engine/ast/objectLoss.js",
+   "from": "  return shown.filter((n) => n.endsWith('.*') || !whole.has(n.split('.')[0])).sort()",
+   "to": "  return shown.sort()",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/polylineWords.test.js",
+   "expectRed": "not listed twice"
+  },
+  {
+   "id": "PW4",
+   "mutant": "pine:no-output keeps the bare sentence beside a polyline",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "  return guard === 'pine:no-output' && writesPolyline(diagnostics)",
+   "to": "  return guard === 'pine:no-output' && false",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/polylineWords.test.js",
+   "expectRed": "only a polyline"
+  },
+  {
+   "id": "PW5",
+   "mutant": "the polyline clause on any guard, not only pine:no-output",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "  return guard === 'pine:no-output' && writesPolyline(diagnostics)",
+   "to": "  return writesPolyline(diagnostics)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/polylineWords.test.js",
+   "expectRed": "keeps its own sentence"
+  },
+  {
+   "id": "PW6",
+   "mutant": "the first no-output site ignores the polyline",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "      : refusalValue(guard, noOutputSentence(guard, objectPass.diagnostics), null)",
+   "to": "      : refusalValue(guard, REFUSALS[guard], null)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/polylineWords.test.js",
+   "expectRed": "only a polyline"
+  },
+  {
+   "id": "PW7",
+   "mutant": "writesPolyline reads the namespace only, not a call",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "(e === 'polyline' || e.startsWith('polyline.'))",
+   "to": "(e === 'polyline')",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/polylineWords.test.js",
+   "expectRed": "writesPolyline reads"
+  },
+  {
+   "id": "PW8",
+   "mutant": "writesPolyline reads any word starting `polyline`",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "(e === 'polyline' || e.startsWith('polyline.'))",
+   "to": "(e.startsWith('polyline'))",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/polylineWords.test.js",
+   "expectRed": "writesPolyline reads"
+  }
+ ]
+}

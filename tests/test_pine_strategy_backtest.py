@@ -31,7 +31,7 @@ from api.services import pine_runtime_client as prc
 from api.services import pine_runtime_codec as codec
 from api.services import runtime_definitions as rd
 from api.services import user_definitions as defs
-from api.services.bars_window import HISTORY_WINDOW_BARS
+from api.services.bars_window import HISTORY_WINDOW_BARS, STRATEGY_HISTORY_WINDOW_BARS
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 FIXTURE = ROOT / "tests" / "fixtures" / "pine_runtime" / "w9t14_strategy_result.json"
@@ -196,6 +196,11 @@ def world(monkeypatch):
     monkeypatch.setattr(ticker_meta, "_peek_base",
                         lambda sym: {"exchange": state["exchanges"].get(sym)} if sym in state["exchanges"] else None)
 
+    # e100: the symbol's CACHED /api/ticker-ipo answer (`listing_history` reads only `ticker_ipo.peek`); none by
+    # default, so every existing rail runs the curtain, the job this route always sent
+    state["ipo"] = {}
+    from api.services import ticker_ipo
+    monkeypatch.setattr(ticker_ipo, "peek", lambda sym: state["ipo"].get(sym))
     state["provider_calls"] = []
 
     def no_provider(*a, **k):
@@ -246,12 +251,15 @@ def test_auth_unauthenticated_is_401_and_unpaid_is_402(world):
 def test_the_window_is_the_one_authority_and_the_start_is_stated(world):
     r = post(world, symbols=[" aaa "])
     assert r.status_code == 200, r.text
-    assert world["reads"] == [("AAA", "D", HISTORY_WINDOW_BARS)]
+    # e100: the route reads the depth a member's daily chart holding a strategy loads; off the listing it sends
+    # the curtain (the shared window, false, no depth), byte-for-byte the job it always sent
+    assert world["reads"] == [("AAA", "D", STRATEGY_HISTORY_WINDOW_BARS)]
     [call] = world["client"].calls
     assert call["profile"] == "backtest"
     for job in call["jobs"]:
         assert job.history_window_bars == HISTORY_WINDOW_BARS
         assert job.history_from_listing is False
+        assert job.listing_depth_bars is None
         assert job.want == (codec.STRATEGY_WANT,)
     body = r.json()
     assert body["historyWindowBars"] == HISTORY_WINDOW_BARS
@@ -616,3 +624,110 @@ def test_F1_r1_peek_exchange_reads_memory_then_disk_and_nothing_else(monkeypatch
     (tmp_path / "ZZNOEX.json").write_text(json.dumps({"name": "x", "exchange": None}), encoding="utf-8")
     assert tm.peek_exchange("ZZNOEX") is None
     assert tm.peek_exchange("") is None
+
+
+# --- e100 (coordinator ruling 2026-11-26): the single-symbol backtest runs on the CHART'S history -----------------
+
+def _final(world, day="2024-01-02", final=True, sym="AAA"):
+    world["ipo"][sym] = {"symbol": sym, "list_date": day, "first_trade_date": day, "first_trade_final": final}
+
+
+def _days(n, start="2000-01-03"):
+    import datetime as dt
+    d0 = dt.date.fromisoformat(start)
+    return [{"t": (d0 + dt.timedelta(days=i)).isoformat(), "o": 10.0, "h": 11.0, "l": 9.0, "c": 10.5, "v": 1000.0}
+            for i in range(n)]
+
+
+def test_E100_from_the_listing_the_job_is_the_charts_ctx(world):
+    _final(world)
+    world["client"] = StubClient(lambda job: ok(job, fromListing=True, historyWindowBars=STRATEGY_HISTORY_WINDOW_BARS))
+    r = post(world)
+    assert r.status_code == 200, r.text
+    [job] = world["client"].calls[0]["jobs"]
+    assert job.history_from_listing is True
+    assert job.history_window_bars == STRATEGY_HISTORY_WINDOW_BARS
+    assert job.listing_depth_bars == HISTORY_WINDOW_BARS
+    assert len(job.bars) == 12
+    ctx = prc._ctx_of(job)
+    assert ctx["historyFromListing"] is True and ctx["historyWindowBars"] == STRATEGY_HISTORY_WINDOW_BARS
+    assert ctx["listingDepthBars"] == HISTORY_WINDOW_BARS
+    w = r.json()["results"][0]["window"]
+    assert w["fromListing"] is True and w["historyWindowBars"] == STRATEGY_HISTORY_WINDOW_BARS and w["bars"] == 12
+
+
+@pytest.mark.parametrize("why", ["after", "not-final", "no-fact"])
+def test_E100_anything_else_is_the_curtain(world, why):
+    if why == "after":
+        _final(world, day="2023-12-29")
+    elif why == "not-final":
+        _final(world, final=False)
+    r = post(world)
+    assert r.status_code == 200, r.text
+    [job] = world["client"].calls[0]["jobs"]
+    assert job.history_from_listing is False and job.history_window_bars == HISTORY_WINDOW_BARS
+    assert job.listing_depth_bars is None
+    assert "listingDepthBars" not in prc._ctx_of(job)
+
+
+def test_E100_a_long_history_off_the_listing_sends_exactly_the_last_shared_window(world, monkeypatch):
+    bars = _days(HISTORY_WINDOW_BARS + 700)
+    _final(world, day="1999-12-01")                 # the store does not reach it
+    monkeypatch.setattr(pst, "_window_bars", lambda sym: [dict(b) for b in bars])
+    r = post(world)
+    assert r.status_code == 200, r.text
+    [job] = world["client"].calls[0]["jobs"]
+    assert len(job.bars) == HISTORY_WINDOW_BARS and job.history_from_listing is False
+    assert job.bars[0]["t"] == sbt._service_bars([bars[700]])[0]["t"]
+    assert job.bars[-1]["t"] == sbt._service_bars([bars[-1]])[0]["t"]
+
+
+def test_E100_a_long_history_from_the_listing_sends_every_bar_and_the_broker_decides_the_deep_start(world, monkeypatch):
+    bars = _days(HISTORY_WINDOW_BARS + 700)
+    _final(world, day=bars[0]["t"])
+    monkeypatch.setattr(pst, "_window_bars", lambda sym: [dict(b) for b in bars])
+    world["client"] = StubClient(withheld("runtime:strategy-unpinned", "[B-START-DEEP] is not pinned", 5000))
+    r = post(world)
+    assert r.status_code == 200, r.text
+    [job] = world["client"].calls[0]["jobs"]
+    assert len(job.bars) == len(bars) and job.history_from_listing is True
+    assert job.history_window_bars == STRATEGY_HISTORY_WINDOW_BARS and job.listing_depth_bars == HISTORY_WINDOW_BARS
+    a = r.json()["results"][0]
+    assert a["status"] == "refused" and a["refusal"]["guard"] == "runtime:strategy-unpinned"
+    assert a["window"]["fromListing"] is True and a["window"]["bars"] == len(bars)
+
+
+def test_E100_one_authority_a_record_stating_another_listing_or_window_is_a_500(world):
+    _final(world)
+    world["client"] = StubClient(lambda job: ok(job, fromListing=False, historyWindowBars=STRATEGY_HISTORY_WINDOW_BARS))
+    assert post(world).status_code == 500
+    world["client"] = StubClient(lambda job: ok(job, fromListing=True, historyWindowBars=HISTORY_WINDOW_BARS))
+    assert post(world).status_code == 500
+    world["ipo"].clear()
+    world["client"] = StubClient(lambda job: ok(job, fromListing=True))
+    assert post(world).status_code == 500
+
+
+def test_E100_the_client_states_the_depth_only_when_the_caller_does():
+    base = prc.Job(job="A", ticker="A", tf="D", bars=[])
+    assert "listingDepthBars" not in prc._ctx_of(base)
+    assert prc._ctx_of(prc.Job(job="A", ticker="A", tf="D", bars=[], listing_depth_bars=HISTORY_WINDOW_BARS))[
+        "listingDepthBars"] == HISTORY_WINDOW_BARS
+    for bad in (0, -1, True, 2.5, "5000"):
+        with pytest.raises(prc._Refuse):
+            prc._ctx_of(prc.Job(job="A", ticker="A", tf="D", bars=[], listing_depth_bars=bad))
+
+
+def test_E100_the_listing_fact_is_read_from_the_cache_never_a_provider(monkeypatch):
+    from api.services import ticker_ipo
+    calls = []
+
+    def no_provider(*a, **k):
+        calls.append(a)
+        raise AssertionError("the strategy route reached a listing provider")
+    monkeypatch.setattr(ticker_ipo, "get_ipo_date", no_provider)
+    monkeypatch.setattr(ticker_ipo, "_kick_resolve", no_provider)
+    monkeypatch.setattr(ticker_ipo, "_disk_get", lambda sym: None)
+    from api.services import listing_history
+    assert listing_history.listing_facts("AAA") is None
+    assert calls == []

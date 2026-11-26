@@ -185,7 +185,10 @@ def test_what_the_library_claims_about_tradingview_is_what_was_graded():
         # the fourth batch: the Positive Volume Index, both lines on every bar
         "positive_volume_index",
         # the Detrended Price Oscillator in TradingView's default (not centred) form, at lengths 21 and 20
-        "detrended_price_oscillator"])
+        "detrended_price_oscillator",
+        # builtin4 (2026-11-26): six of Pine's own ta.* indicators, against a witness script of TradingView's own, on both charts
+        "true_range", "williams_variable_accumulation_distribution", "symmetrically_weighted_moving_average",
+        "least_squares_moving_average", "center_of_gravity", "intraday_intensity_index"])
     # the Fisher Transform is recomputed from 300 bars back on every bar: equal on every bar it has a
     # value for, at two lengths, with no value on the first 300 bars of a chart's history
     assert sorted(i for i, g in grade.items() if g == "EQUAL AFTER WARM-UP") == ["chandelier_exit", "connors_rsi", "fisher_transform"]
@@ -206,17 +209,12 @@ def test_what_the_library_claims_about_tradingview_is_what_was_graded():
     # builtin4 (2026-11-26): six of Pine's own `ta.*` indicators on tiers (a)+(b), each WAITING for its capture (the
     # coordinator's ruling: graded against TradingView's built-in like the others); until then each claims nothing
     # about TradingView
-    # (the Intraday Intensity Index joins with its capture: TradingView's page prints one form and its values are
-    # another, so its sentence is the capture's, `follows`)
+    # builtin4 (2026-11-26): graded EQUAL against TradingView's own (the six in the EQUAL list above)
     BUILTIN4 = ("true_range", "williams_variable_accumulation_distribution", "symmetrically_weighted_moving_average",
-                "least_squares_moving_average", "center_of_gravity")
-    for waiting in BUILTIN4:
-        assert grade[waiting] is None and not ni.tiers(ENTRIES[waiting])[2], waiting
-        # "published by TradingView" names whose definition it is (TradingView wrote SWMA, LSMA and COG's forms); what
-        # an entry waiting for its capture never says is that it EQUALS TradingView's own
-        said = ni.member_sentence(ENTRIES[waiting], ni.defaults(ENTRIES[waiting]))
-        assert "equal to TradingView" not in said and "captured" not in said, waiting
-    assert sum(1 for g in grade.values() if g is None) == 7 + len(BUILTIN4) and len(grade) == 38 + len(BUILTIN4)
+                "least_squares_moving_average", "center_of_gravity", "intraday_intensity_index")
+    for graded in BUILTIN4:
+        assert ni.tiers(ENTRIES[graded])[2] and "equal to TradingView" in ni.member_sentence(ENTRIES[graded], ni.defaults(ENTRIES[graded])), graded
+    assert sum(1 for g in grade.values() if g is None) == 7 and len(grade) == 38 + len(BUILTIN4)
     assert not ni.tiers(ENTRIES["mcginley_dynamic"])[2] and "TradingView" not in ni.member_sentence(ENTRIES["mcginley_dynamic"], {})
     assert ni.tiers(ENTRIES["connors_rsi"])[2] and ni.tiers(ENTRIES["vortex_indicator"])[2]
 

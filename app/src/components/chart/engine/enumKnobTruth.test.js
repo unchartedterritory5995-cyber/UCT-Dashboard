@@ -16,7 +16,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { memberPaneDefinition } from '../builder/memberPane/memberPaneDefinition'
-import { enumKnobTruth, walkBars, withLiteralOption } from './enumKnobTruth.js'
+import { enumKnobTruth, walkBars, withLiteralOption } from './__tests__/enumKnobTruth.js'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const CORPUS = path.resolve(HERE, '../../../../../corpus/committed')

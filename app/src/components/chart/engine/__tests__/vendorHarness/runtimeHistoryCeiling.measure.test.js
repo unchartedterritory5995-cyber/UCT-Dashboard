@@ -2,7 +2,9 @@
 //
 // ⭐⭐ UIE PHASE 3 (M2) — THE `HISTORY` CEILING AT 20,000, 30,000, 32,000 AND 32,768 BARS,
 // through the PRODUCT path a member's pane takes: `computeRuntimeColumns` under the
-// pane's own 1,000 ms budget (`RUNTIME_PANE_TIME_BUDGET_MS`), the warm-up curtain for a
+// MEMBER WORKER's budget (runtimeWorker.js `budgetScales`: runtimePaneBudgetFor(bars), the 12,000 ms ceiling at
+// every length here; e99, 2026-11-26 — the unscaled 1,000 ms this read before is the clock of no member's chart
+// above 5,000 bars: only the no-Worker main-thread fallback's, and the server lane's until #2817), the warm-up curtain for a
 // listing document (a 5-minute chart never reaches the listing), the shipped limits
 // with only `HISTORY` set to the bar count under test.
 //
@@ -20,7 +22,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 import * as registry from '../../nativeRegistry'
-import { computeRuntimeColumns, RUNTIME_PANE_TIME_BUDGET_MS } from '../../runtime/runtimeColumns'
+import { computeRuntimeColumns, runtimePaneBudgetFor, RUNTIME_PANE_TIME_BUDGET_MS } from '../../runtime/runtimeColumns'
 import { runtimeWarmupOf } from '../../runtime/runtimeObjects'
 import { DEFAULT_LIMITS } from '../../runtime/limits'
 import { enterMemberDoor, HARNESS_DEF_ID } from './ourSide'
@@ -33,7 +35,7 @@ const FIVE = path.join(REPO, 'tests', 'fixtures', 'vendor', 'harness', 'vw-bar-o
 const LENGTHS = [20000, 30000, 32000, 32768]
 const RUNS = 3
 const SYM = { ticker: 'RDDT', exchange: 'NYSE' }
-// what a stop may take past the pane budget: the bar it is checked at the end of, and
+// what a stop may take past the member worker's budget: the bar it is checked at the end of, and
 // the curtain's bookkeeping. Measured well under this; a runaway would be seconds.
 const STOP_SLACK_MS = 400
 
@@ -77,7 +79,7 @@ function runOnce(def, bars, limits) {
   const t0 = performance.now()
   try {
     const cols = computeRuntimeColumns(def, bars, { tf: '5', newestBarIsForming: false, symbol: SYM },
-      { limits, now, budgetMs: RUNTIME_PANE_TIME_BUDGET_MS, onBudget: (b) => { memory = Math.max(memory, b.counts.MEMORY || 0) } })
+      { limits, now, budgetMs: RUNTIME_PANE_TIME_BUDGET_MS, budgetScales: true, onBudget: (b) => { memory = Math.max(memory, b.counts.MEMORY || 0) } })
     return { ms: performance.now() - t0, cols, peakHeapMB: peak / 1048576, memoryMB: memory / 1048576 }
   } catch (e) {
     const stop = (String(e.message).match(/\((\w+): at most/) || [])[1] || e.guard || e.name
@@ -124,11 +126,12 @@ describe.skipIf(!RUN)('UIE Phase 3 M2 — HISTORY at 20,000 / 30,000 / 32,000 / 
           expect(r.stop, `${row.slug} ${c.n}`).toBe(first.stop)
           if (!first.stop) expect(identical(first.cols, r.cols), `${row.slug} ${c.n} identical`).toBe(true)
         }
-        // ⛔ bounded: drawn or stopped, it never runs far past the pane budget
-        expect(Math.min(...runs.map((r) => r.ms)), `${row.slug} ${c.n}`).toBeLessThan(RUNTIME_PANE_TIME_BUDGET_MS + STOP_SLACK_MS)
+        // ⛔ bounded: drawn or stopped, it never runs far past the member worker's budget
+        expect(Math.min(...runs.map((r) => r.ms)), `${row.slug} ${c.n}`).toBeLessThan(runtimePaneBudgetFor(c.n) + STOP_SLACK_MS)
         expect(first.memoryMB).toBeLessThan(DEFAULT_LIMITS.MEMORY / 1048576)
         const w = first.cols ? runtimeWarmupOf(first.cols) : null
         row.at[c.n] = {
+          memberWorkerBudgetMs: runtimePaneBudgetFor(c.n),
           outcome: first.stop || 'drawn',
           bestMs: Math.round(Math.min(...runs.map((r) => r.ms))),
           memoryMB: Number(first.memoryMB.toFixed(1)),
@@ -147,7 +150,7 @@ describe.skipIf(!RUN)('UIE Phase 3 M2 — HISTORY at 20,000 / 30,000 / 32,000 / 
         const r = runOnce(synthetic(body, name.startsWith('listing')), c.bars, { HISTORY: c.n })
         // ⛔ every one stopped BY NAME, and within the budget's reach
         expect(r.stop, `${name} ${c.n}`).toBeTruthy()
-        expect(r.ms, `${name} ${c.n}`).toBeLessThan(RUNTIME_PANE_TIME_BUDGET_MS + STOP_SLACK_MS)
+        expect(r.ms, `${name} ${c.n}`).toBeLessThan(runtimePaneBudgetFor(c.n) + STOP_SLACK_MS)
         row.at[c.n] = { stop: r.stop, ms: Math.round(r.ms), peakHeapMB: Number(r.peakHeapMB.toFixed(1)) }
       }
       adversarial.push(row)
@@ -159,7 +162,7 @@ describe.skipIf(!RUN)('UIE Phase 3 M2 — HISTORY at 20,000 / 30,000 / 32,000 / 
 
     fs.writeFileSync(OUT, JSON.stringify({
       generatedBy: 'app/src/components/chart/engine/__tests__/vendorHarness/runtimeHistoryCeiling.measure.test.js',
-      paneBudgetMs: RUNTIME_PANE_TIME_BUDGET_MS, memoryCeilingMB: DEFAULT_LIMITS.MEMORY / 1048576,
+      memberWorkerBudgetMs: Object.fromEntries(LENGTHS.map((n) => [n, runtimePaneBudgetFor(n)])), memoryCeilingMB: DEFAULT_LIMITS.MEMORY / 1048576,
       lengths: LENGTHS, scripts, adversarial, over: over.stop,
     }, null, 1))
   }, 3600000)

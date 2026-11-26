@@ -56,6 +56,9 @@
   "ichimoku_cloud": {
    "1": "sha256:22559c8e951c703fc0117057d4c594bdbdaf507f746540e6dc3ad648a4416806"
   },
+  "intraday_intensity_index": {
+   "1": "sha256:2853e2a00904a63e11b6522f3de5231c0df670d750211f561a7372125889cca1"
+  },
   "kaufman_adaptive_moving_average": {
    "1": "sha256:3438275e44468d8e2a2cca9417be7459712f1bd686eeaf4f27ce56c7a373e426"
   },

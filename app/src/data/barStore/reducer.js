@@ -55,6 +55,7 @@ import {
   ACTION, DEV_SRC, isDateTf, parseKey, dateLabelToUnix,
 } from './types'
 import { deriveStatus } from './status'
+import { clampToExtendedSession } from './extendedSession'
 import { historyReachesTail } from '../../utils/historyPrepend'
 
 // ── source ranks (tie-break among equal revs) ────────────────────────────────
@@ -406,6 +407,9 @@ function ingestRows(raw, state, extra) {
   if (!isDateTf(tf)) {
     const p = parseKey(state.key)
     rows = foldOffGridBars(rows, tf, { showExtended: _gridFor(state) === 'clock' || p?.session === 'eth' })
+    // ⭐ A bar outside its ET day's extended session (a 20:00 bar, a held IndexedDB row from before the server
+    // refused them) never enters the store: a delta answer would never delete it (`extendedSession.js`).
+    rows = clampToExtendedSession(rows, p?.sym)
   }
   rows.sort((a, b) => a.t - b.t)
   const out = []

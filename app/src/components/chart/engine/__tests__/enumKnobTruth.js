@@ -1,4 +1,4 @@
-// app/src/components/chart/engine/enumKnobTruth.js
+// app/src/components/chart/engine/__tests__/enumKnobTruth.js
 //
 // ─── ⭐⭐ e97 U8 — IS AN ENUM SETTING TRUE? ─────────────────────────────────────────────────────────────────────────
 //
@@ -14,10 +14,10 @@
 //
 // Test-side only: it evaluates documents (`astColumnsGiven`) over the bars it is handed.
 
-import { memberPaneDefinition } from '../builder/memberPane/memberPaneDefinition'
-import { astColumnsGiven } from './astColumns.js'
-import { plotHiddenAt } from './knobBind.js'
-import { resolveInputs, treeScalars } from './knobInputs.js'
+import { memberPaneDefinition } from '../../builder/memberPane/memberPaneDefinition'
+import { astColumnsGiven } from '../astColumns.js'
+import { plotHiddenAt } from '../knobBind.js'
+import { resolveInputs, treeScalars } from '../knobInputs.js'
 
 /** The script with input `name` replaced by the plain text `option` (`name = "<option>"`): the LITERAL program, which
  *  no knob reaches (its `switch` folds the way a fixed string always did), so the comparison is independent of the

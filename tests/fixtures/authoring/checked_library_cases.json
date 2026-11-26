@@ -769,4 +769,7 @@
 {"entry":"center_of_gravity","output":"cog","kind":"length is one number in one place and another in the next","set_one":["length",0,11],"expect":null},
 {"entry":"center_of_gravity","output":"cog","kind":"length driven by the member's own input","series":"length","inputs":["myOwnSetting"],"expect":{"length":null}},
 {"entry":"center_of_gravity","output":"cog","kind":"length is a series that is not a declared input","series":"length","expect":null},
-{"entry":"center_of_gravity","output":"cog","kind":"a number that is not a parameter was changed","bump":[[0],7],"expect":null}]}
+{"entry":"center_of_gravity","output":"cog","kind":"a number that is not a parameter was changed","bump":[[0],7],"expect":null},
+{"entry":"intraday_intensity_index","output":"iii","kind":"defaults","expect":{}},
+{"entry":"intraday_intensity_index","output":"iii","kind":"inside a larger formula","wrap":true,"expect":null,"expect_inside":{}},
+{"entry":"intraday_intensity_index","output":"iii","kind":"a number that is not a parameter was changed","bump":[[0,0,0,0,0],7],"expect":null}]}

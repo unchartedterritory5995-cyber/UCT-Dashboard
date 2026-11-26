@@ -297,7 +297,8 @@ test('workers, track 6: the pool follows the stated count, never the host CPUs (
   assert.equal(envRefusal({ PORT: '8080', PINE_RUNTIME_WORKERS: '2' }), null)
   // the boot passes it to the pool, and a test's own count (poolOpts.workers) still wins
   const text = readFileSync(new URL('../server.mjs', import.meta.url), 'utf8')
-  assert.match(text, /createPool\(\{ workers: workersOf\(env\), \.\.\.poolOpts, bundle \}\)/)
+  // (e99 server budget, 2026-11-26: beside the hard kill derived from the bundle's ceiling, test/budget.test.mjs)
+  assert.match(text, /createPool\(\{ workers: workersOf\(env\), killMs: serviceKillMs\(door\), \.\.\.poolOpts, bundle \}\)/)
 })
 
 test('PORT: unset is the default; anything but a whole port number refuses boot', () => {

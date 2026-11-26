@@ -67,7 +67,7 @@
   {
    "id": "U8-M9",
    "mutant": "the truth checker stops comparing values (a lying setting passes)",
-   "file": "app/src/components/chart/engine/enumKnobTruth.js",
+   "file": "app/src/components/chart/engine/__tests__/enumKnobTruth.js",
    "from": "    if (x.values && (x.values.length !== y.values.length || x.values.some((v, i) => !same(v, y.values[i])))) {",
    "to": "    if (false) {",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/enumKnobTruth.test.js",
