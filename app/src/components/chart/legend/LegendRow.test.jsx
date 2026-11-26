@@ -411,7 +411,7 @@ describe('UCT Signature — the row holds its hover state while its menu is open
 
 // ⭐ `note` (owner 2026-11-25, the Volume source note): a static line under the row's name in its tooltip.
 describe('LegendRow note — a static tooltip line, and only where it is given', () => {
-  const NOTE = 'Volume: consolidated, includes odd lots (TradingView excludes them).'
+  const NOTE = 'Includes odd-lot trades (TradingView excludes them), so volume and some highs/lows/closes can differ slightly.'
   it('an interactive row carries its name line, then the note', () => {
     const { container } = render(<LegendRow rowId="volume" label="Volume" value="38.7M" vertical note={NOTE} {...handlers()} />)
     const t = container.querySelector('[data-legend-row="volume"]').getAttribute('title')
@@ -422,7 +422,7 @@ describe('LegendRow note — a static tooltip line, and only where it is given',
       const { container, unmount } = render(<LegendRow rowId="m" label="MACD" value="2.4" vertical={vertical} {...handlers()} />)
       const t = container.querySelector('[data-legend-row="m"]').getAttribute('title')
       expect(t).not.toContain('\n')
-      expect(t).not.toMatch(/odd lots/)
+      expect(t).not.toMatch(/odd-lot/)
       unmount()
     }
   })

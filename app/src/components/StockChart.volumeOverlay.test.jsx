@@ -289,12 +289,12 @@ describe('/charts volume — Overlay on price (TradingView style)', () => {
   })
 })
 
-// ⭐ Owner ruling 2026-11-25: "keep the full volume with the note". Our volume is the consolidated tape's count,
-// odd lots included, and TradingView's intraday history leaves odd lots out, so the Volume row says so in its
+// ⭐ Owner ruling 2026-11-25: "keep the full volume with the note". Our bars include odd-lot trades and
+// TradingView's intraday history leaves them out, so the Volume row says so (volume, and some highs/lows/closes) in its
 // tooltip: static text in a `title`, no fetch, no layout. Exactly ONE element carries it on each layout (the
 // Volume row), so no other pane or series reads as if it did, its own moving average's row included.
 describe('/charts volume — the source note rides the Volume row only', () => {
-  const NOTE = /includes odd lots \(TradingView excludes them\)/
+  const NOTE = /Includes odd-lot trades \(TradingView excludes them\)/
   const noted = (view) => [...view.container.querySelectorAll('[title]')].filter((el) => NOTE.test(el.getAttribute('title')))
   const settled = async (view, where) => vi.waitFor(() => {
     act(() => { for (const fn of H.crosshairHandlers) fn(eventAt()) })
