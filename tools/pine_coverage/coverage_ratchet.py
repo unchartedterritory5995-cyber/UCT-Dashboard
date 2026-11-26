@@ -17,7 +17,9 @@ THE PREDICATE is the coverage map's, imported, never restated (`coverage_map.py`
   production   `transfers_fully`: the census's `clean` (isClean of step 0) and not a strategy that places
                orders. The headline "transfers fully" of docs/pine/COVERAGE-MAP.md.
   runtime-on   `runtime_on_transfers`: clean, or attached on the runtime lane, or a host document whose run
-               half draws what its object program lost (`cleanByRunHalf`), and not placing orders.
+               half draws what its object program lost (`cleanByRunHalf`), and not placing orders; ⭐⭐ W9 ARMED
+               (owner decision 2026-11-26): an order-placing strategy transfers when the armed broker serves it
+               (`broker_serves`: the census row's armed verdict transfers, not on the runtime kill list).
 Both read step 0 only, so the census runs with cap 1 (no peeling: the wall list is the map's job).
 
 VERDICTS (exit code):
@@ -127,6 +129,12 @@ def wall_of(lane, row, src):
     """One line: what stops a row from transferring (step 0), identifiers only."""
     usage = CM.order_usage_of(src)
     if CM.places_orders(usage):
+        # ⭐⭐ W9 ARMED (owner decision 2026-11-26) - on the runtime-on lane an armed strategy is refused by the name of
+        # what stops its broker run (`armed_wall`), or by the kill list; on the host lane the broker never runs
+        if lane == RC.LANE_RUNTIME_ON and CM.strategy_broker_armed():
+            if CM.broker_serves(row, True) and CM.is_runtime_killed(src, _killed()):
+                return "on the runtime kill list (api/data/pine_runtime_killlist.json): its broker run is refused by name"
+            return "a strategy the armed broker does not serve: %s" % (CM.armed_wall(row) or "no armed verdict on the row")
         return "a strategy that places orders (%s)" % ", ".join(sorted(usage["orders"]))
     if row is None:
         return "no census row"

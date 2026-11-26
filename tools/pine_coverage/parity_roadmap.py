@@ -506,7 +506,11 @@ def cmd_facts(a):
         full = hashlib.sha256(src.encode("utf-8")).hexdigest()
         full_lf = hashlib.sha256(src.replace("\r\n", "\n").encode("utf-8")).hexdigest()
         u = cm.usage_of(src, inv)
-        f = {"admission": None if s["placesOrders"] else _admission(src, admitted, allow, history_only)}
+        # ⭐⭐ W9 ARMED (owner decision 2026-11-26): a strategy the armed broker can serve (its armed column transfers)
+        # reaches a member through the runtime lane's admission like any runtime document, so its answer is kept;
+        # every other order-placing strategy keeps None (its wall is the strategy's whatever the admission)
+        f = {"admission": None if s["placesOrders"] and s.get("wouldTransferIfArmed") is not True
+             else _admission(src, admitted, allow, history_only)}
         r0 = rtrows.get(k) or {}
         st0 = (r0.get("steps") or [{}])[0]
         # the runtime lane drew it at step 0 (a kill-listed script, or an order-placing strategy, is still not served)
@@ -589,7 +593,11 @@ def member_model(m, facts):
         else:
             ws = set(dirty.get(k) or [])   # attached dirty on the HOST lane: its object program's walls
         route_runtime = k in added or bool(rt_walls) or rt_attached
-        if s["placesOrders"]:
+        # ⭐⭐ W9 ARMED (owner decision 2026-11-26): an order-placing strategy the runtime-on lane counts (the armed broker
+        # serves it: `coverage_map.broker_serves`) and whose own armed column agrees is a runtime document like any
+        # other: only the server's admission (and the kill list) can stop it. Every other one keeps the strategy wall.
+        armed_served = bool(s["placesOrders"]) and k in added and s.get("wouldTransferIfArmed") is True
+        if s["placesOrders"] and not armed_served:
             # a strategy's output is its trades: "nothing to plot" is the strategy wall, as the census relabels it
             ws = {w for w in ws if unit_of(w) != "output-contract"}
             ws.add(WALL_STRATEGY)
@@ -598,11 +606,13 @@ def member_model(m, facts):
         if s["clean"] and k in lost:
             ws.add("runtime:lost-on-runtime-on")
         adm = f.get("admission")
-        if route_runtime and adm and not s["placesOrders"]:
+        if route_runtime and adm and (not s["placesOrders"] or armed_served):
             if adm["status"] == "killed":
                 ws.add(WALL_KILLED)
             elif adm["status"] == "not-admitted":
                 ws |= {ADMISSION + c for c in adm["missing"]}
+        if armed_served and not adm:
+            ws.add("facts:missing")   # facts written before 2026-11-26 hold no admission for a strategy: never served
         if k in added and not ws and "admission" in f:
             served.add(k)
             continue

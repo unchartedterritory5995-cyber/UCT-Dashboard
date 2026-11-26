@@ -256,7 +256,9 @@ ARMED_SCHEMA = "uct.strategy-armed/v1"
 
 
 def would_transfer_if_armed(census_row, u):
-    """⭐⭐ W9 ARMED (coordinator ruling 2026-11-16) - A SEPARATE COLUMN, NEVER THE HEADLINE.
+    """⭐⭐ W9 ARMED (coordinator ruling 2026-11-16) - A SEPARATE COLUMN, never the HOST headline (`transfers_fully`:
+    the broker never runs on the host lane). Since the owner armed the broker (2026-11-26) the runtime-on lane and
+    the member model count a strategy the broker serves (`broker_serves`), which reads this verdict.
 
     The census's broker counterfactual (`coverageMapDoorCensus.measure.test.js`, step 0, a strategy only;
     `runtime/__tests__/strategyArmed.js`): the member door with the objects-only pane, the runtime pane and the
@@ -277,6 +279,46 @@ def armed_wall(census_row):
     """The first thing that stops an armed strategy (`strategyArmed.wall`), or None."""
     v = (census_row or {}).get("strategyArmed")
     return v.get("wall") if isinstance(v, dict) and v.get("schema") == ARMED_SCHEMA else None
+
+
+#: ⭐⭐ W9 ARMED (owner decision 2026-11-26, verbatim: "we are only admins and have no users so everything can always
+#: be live fully") - the owner's act of arming the strategy broker (ruling D6), every W2 stage at once. Where a
+#: production build decides it: the gate module's flag, compared to its literal, and `Dockerfile.web`'s ARG default
+#: for that flag (an UNSET Railway variable bakes the default; tests/test_strategy_serve_arming.py holds the build
+#: semantics). The census reads the SAME two files, never a constant of its own.
+BROKER_GATE = os.path.join(ROOT, "app", "src", "components", "chart", "engine", "strategyBrokerGate.js")
+DOCKERFILE_WEB = os.path.join(ROOT, "Dockerfile.web")
+
+
+def strategy_broker_armed(dockerfile=DOCKERFILE_WEB, gate=BROKER_GATE):
+    """Is the strategy broker ARMED in a production build? True only when `Dockerfile.web` declares the gate's flag
+    with a default equal to the literal the gate compares to (`=== '1'`).
+    ⛔ THE RE-DISARM PATH, in the same files: set the ARG default to anything else (`=0`, or no default) and the build
+    bakes the gate OFF and this census counts no strategy served again (`tests/test_pine_w9_arm_all.py` rails both
+    ways). Fails CLOSED: an unreadable file, a gate that reads no flag, or no ARG line answers False. (The no-commit
+    lever, Railway's VITE_PINE_STRATEGY_BROKER_ENABLED=0 on web-front and web, is not in the repo; its value is
+    recorded in docs/feature_flags.json.)"""
+    try:
+        gate_src = open(gate, encoding="utf-8").read()
+        body = open(dockerfile, encoding="utf-8").read()
+    except OSError:
+        return False
+    g = re.search(r"import\.meta\.env\.(VITE_[A-Z0-9_]+)\s*===\s*'([^']*)'", gate_src)
+    if not g:
+        return False
+    m = re.search(r"^ARG[ \t]+%s(?:=(\S*))?[ \t]*$" % re.escape(g.group(1)), body, re.M)
+    return bool(m) and m.group(1) == g.group(2)
+
+
+def broker_serves(census_row, armed=None):
+    """An order-placing strategy's census row is SERVED by the broker: the broker is armed (`strategy_broker_armed`,
+    read when `armed` is None) AND the census's own armed verdict transfers (`strategyArmed.transfers`: the door
+    attaches it clean, its document runs the broker, every broker rule the run exercised is pinned by the committed
+    ledger, and its trades are drawn or disclosed). Every other strategy stays refused by name (`armed_wall`)."""
+    if armed is None:
+        armed = strategy_broker_armed()
+    v = (census_row or {}).get("strategyArmed")
+    return bool(armed) and isinstance(v, dict) and v.get("schema") == ARMED_SCHEMA and v.get("transfers") is True
 
 
 def strategy_on_block(scripts):
@@ -368,7 +410,7 @@ def is_runtime_killed(src, killed):
             or hashlib.sha256(src.replace("\r\n", "\n").encode("utf-8")).hexdigest() in killed)
 
 
-def runtime_on_transfers(census_row, orders, killed=False, host_listed=False):
+def runtime_on_transfers(census_row, orders, killed=False, host_listed=False, armed=None):
     """⭐ THE RUNTIME-ON LANE'S PREDICATE, in one place: a runtime-on census row transfers when it
     transfers fully on the host lane OR attaches on the runtime lane OR (⭐⭐ PARITY UNIT 1) is a host
     document whose lost drawings its run half draws (`cleanByRunHalf`), and it is not a strategy that
@@ -388,6 +430,12 @@ def runtime_on_transfers(census_row, orders, killed=False, host_listed=False):
     # answers to the runtime lane's own gates, so the kill list stops it as it stops a runtime attach, and
     # the host known-divergence list (which refuses the host document by name) stops it as it stops a clean
     # host row.
+    # ⭐⭐ W9 ARMED (owner decision 2026-11-26) - an order-placing strategy transfers on this lane exactly when the
+    # broker serves it (`broker_serves`: armed, and the row's armed verdict transfers; `armed` None reads the build).
+    # Its document is a runtime-lane document, so the runtime kill list stops it; the host known-divergence list
+    # judges host documents only. Every other order-placing strategy is refused by name (`armed_wall`).
+    if orders:
+        return broker_serves(r, armed) and not killed
     return not orders and ((bool(r.get("clean")) and not host_listed) or (
         bool(r.get("attached")) and st0.get("lane") == "runtime" and not killed) or (
         bool(r.get("cleanByRunHalf")) and not killed and not host_listed))
@@ -1021,7 +1069,8 @@ def runtime_on_section(rt_cache, rt_verdicts, prod_verdicts, scripts, decl_of, o
         "definition": ("The member door with the runtime pane ON at every peel step, as a permitted member with "
                        "every script graded (the server's starter allowlist is NOT applied: an upper bound). A script "
                        "transfers when it transfers fully on the host lane or attaches on the runtime lane, and is "
-                       "not a strategy that places orders. Door acceptance, not numeric parity."),
+                       "not a strategy that places orders, unless the armed broker serves it (W9, owner decision "
+                       "2026-11-26: `broker_serves`). Door acceptance, not numeric parity."),
         "sample": N, "transfer": len(on), "transferPct": round(100.0 * len(on) / N, 1) if N else None,
         "productionTransfer": len(prod),
         "added": sorted(on - prod), "lost": sorted(prod - on),

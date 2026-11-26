@@ -232,3 +232,34 @@ Refines D12 points 2 to 5; points 1 and 6 stand.
    v4 margin default and Q-S1b). One probe per distinct shape the armed census meets is queued under row Q-S1b
    (`w9-q-s1b-v4-shape-a` to `-e`, `docs/pine/capture-queue-2026-11-05-w9.md`): its Properties read-back settles
    that shape. Evidence: `docs/pine/evidence/2026-11-17-strategy-v4-margin-d12b/EVIDENCE.md`.
+
+## D6 ARMED (2026-11-26, THE OWNER): every W2 stage at once
+
+The owner, in chat on 2026-11-26, verbatim: "we are only admins and have no users so everything can always be live
+fully". This is the owner's act of arming that D6 reserved ("The act of arming remains the owner's"), and it arms
+every W2 stage at once, not per stage.
+
+1. **What it found already armed in production** (read 2026-11-26 by the W9-ARM builder): `Dockerfile.web` declares
+   `ARG VITE_PINE_STRATEGY_BROKER_ENABLED=1` (since the 2026-11-17 delegated ruling); `railway variables` shows that
+   variable UNSET on `web` and `web-front`, so both builds bake the gate ON; `PINE_RUNTIME_STAGE=all`;
+   `PINE_RUNTIME_CAPABILITY_ADMISSION=on`; `VITE_PINE_RUNTIME_PANE_ENABLED=1` on both; `strategy-decl` admitted
+   (`api/data/pine_runtime_allowlist.json`). No stage was left to open, and no product code changes.
+2. **What it changes** (branch `feat/w9-arm-all`): everything that still said "dark" reads ONE arming authority, the
+   build's own (the gate module's flag and literal, and that ARG's default):
+   - the scorecard's member-facing sentence: "Strategy backtests are not served to members yet." becomes "Strategy
+     backtests are served to members where every broker rule a backtest reaches is pinned." (D7's wording, the
+     `served` case; `ast/strategyScorecard.js`, read through `runtime/__tests__/brokerArmed.js`);
+   - the census: `coverage_map.runtime_on_transfers` counts an order-placing strategy the armed broker serves
+     (`broker_serves`: its census armed verdict transfers, and it is not on the runtime kill list), so the coverage
+     ratchet's runtime-on lane and `parity_roadmap.member_model` (the served headline, which also asks the server's
+     admission) count it; every other strategy keeps its refusal by name (`armed_wall`). The host lane
+     (`transfers_fully`) never counts a strategy: the broker never runs there.
+3. **What stays refused, by name, exactly as before**: every strategy whose run reaches an unpinned or unsettled rule
+   (Q-S1a default size at the fill, Q-S1i funds and margin calls, the Q-S1b v4 margin shapes, Q-S1k, Q-S1e,
+   B-EXIT-QTY, ...), every chart a backtest cannot start on from the listing (Q-S1n: a deep daily or intraday chart),
+   and every strategy the server does not admit or the kill list holds.
+4. **The re-disarm path** is the same line: set the ARG default to anything but `1` (or Railway's variable to `0` on
+   `web-front` and `web`, the no-commit lever) and the build bakes the gate OFF; the scorecard and every census
+   predicate follow the ARG default back (rails: `strategiesAreRuled.test.js` "re-disarms on the same line",
+   `tests/test_pine_w9_arm_all.py`).
+5. **Not in scope**: the server lanes (`PINE_RUNTIME_SERVER_STAGE`, the W9.4 route's service); the coordinator holds them.
