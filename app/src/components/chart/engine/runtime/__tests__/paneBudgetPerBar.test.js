@@ -15,7 +15,8 @@
 //      8,000 ms that the VM's 5,000 would have stopped;
 //   5. the bars a run COVERS: a chart of 20,000 bars cut at its depth to fewer than 5,000 keeps 1,000 ms, and the
 //      curtain's first run is held to the scaled number;
-//   6. only the worker hands the VM its budget as `WALL_TIME`: every other caller keeps 5,000, each by name.
+//   6. only the worker (and, e99 2026-11-26, the pine-runtime service, which holds a run to the member's own budget)
+//      hands the VM its budget as `WALL_TIME`: every other caller keeps 5,000, each by name.
 import { describe, it, expect, afterEach, vi } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -227,12 +228,14 @@ describe('the budget of a run in the worker scales with the bars it covers', () 
     expect(whole.message).toMatch(/took more than 12000 ms/)
   })
 
-  it('6. only the worker hands the VM its budget as WALL_TIME: every other caller keeps 5,000, each by name', () => {
+  it('6. only the worker and the service hand the VM their budget as WALL_TIME: every other caller keeps 5,000, each by name', () => {
     expect(DEFAULT_LIMITS.WALL_TIME).toBe(5000)
     const BIG = runtimePaneBudgetFor(13440)    // 9,440 ms
     // the worker (`runtimeWorker.js`), and the curtain's two runs of its job (`wallFollowsBudget`)
     expect(runLimitsOf({ budgetMs: RUNTIME_PANE_TIME_BUDGET_MS, budgetScales: true }, BIG)).toEqual({ WALL_TIME: BIG })
     expect(runLimitsOf({ budgetMs: BIG, budgetScales: false, wallFollowsBudget: true }, BIG)).toEqual({ WALL_TIME: BIG })
+    // e99 (2026-11-26): the service (`services/pine_runtime/job.mjs`) passes the worker's scaling too
+    expect(runLimitsOf({ budgetMs: RUNTIME_PANE_TIME_BUDGET_MS, budgetScales: true, incremental: false }, BIG)).toEqual({ WALL_TIME: BIG })
     // a limit a measurement names beside it is kept; a WALL_TIME it names wins
     expect(runLimitsOf({ budgetScales: true, limits: { ARRAY_OPERATIONS: 1e9 } }, BIG)).toEqual({ ARRAY_OPERATIONS: 1e9, WALL_TIME: BIG })
     const named = { WALL_TIME: 777 }
@@ -245,7 +248,6 @@ describe('the budget of a run in the worker scales with the bars it covers', () 
       'runtimeColumns.js::runtimeColumnsFor (the synchronous door, the main thread)': { budgetMs: RUNTIME_PANE_TIME_BUDGET_MS, now: () => 0 },
       'runtimeAsync.js::runHere (a browser with no Worker, the main thread)': { budgetMs: RUNTIME_PANE_TIME_BUDGET_MS },
       'headlessCompute.js (the screener and alert lane)': { incremental: false, now: () => 0, onBudget: () => {} },
-      'services/pine_runtime/job.mjs (the service)': { budgetMs: RUNTIME_PANE_TIME_BUDGET_MS, incremental: false },
       'tools/pine_runtime_host_parity.mjs (the parity host)': { incremental: false },
       'a caller that passes a long budget but does not scale it': { budgetMs: BIG },
     }
@@ -259,7 +261,7 @@ describe('the budget of a run in the worker scales with the bars it covers', () 
       'app/src/components/chart/engine/runtime/runtimeWorker.js': true,
       'app/src/components/chart/engine/runtime/runtimeAsync.js': false,
       'app/src/components/chart/engine/headlessCompute.js': false,
-      'services/pine_runtime/job.mjs': false,
+      'services/pine_runtime/job.mjs': true,
       'tools/pine_runtime_host_parity.mjs': false,
     }
     for (const [file, scales] of Object.entries(callers)) {
@@ -269,8 +271,8 @@ describe('the budget of a run in the worker scales with the bars it covers', () 
       expect(calls.some((c) => /budgetScales: true/.test(c)), `${file} scales the budget`).toBe(scales)
       expect(text.includes('wallFollowsBudget'), `${file} never names the curtain's marker`).toBe(false)
     }
-    // the service declares the worker's scaling browser-only (its adapter rail, HP-7, holds the two call shapes)
-    expect(fs.readFileSync(path.join(ROOT, 'services/pine_runtime/job.mjs'), 'utf8')).toMatch(/optsBrowserOnly: Object\.freeze\(\['budgetScales'\]\)/)
+    // e99 (2026-11-26): the service declares NO browser-only opt any more (its adapter rail, HP-7, holds the two call shapes)
+    expect(fs.readFileSync(path.join(ROOT, 'services/pine_runtime/job.mjs'), 'utf8')).toMatch(/optsBrowserOnly: Object\.freeze\(\[\]\)/)
     // behaviour, for the caller that does not scale: a run of ~8,000 ms in one execute is stopped by the VM at 5,000
     const crawl = steppingClock(1e-7)
     expect(refusedWith(() => computeRuntimeColumns(tiny(), daily(20000), DCTX, { budgetMs: BIG }))).toBe(null)
