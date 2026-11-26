@@ -32,8 +32,20 @@ describe('rule 16: one constant read per option, chosen by the input', () => {
     expect(refusals(src)[0]).toMatchObject({ code: R.FINANCIAL_PERIOD })
   })
 
-  it('CONTROL: a fiscal-year read is refused, which is why the rule says to leave it out', () => {
-    expect(refusals(pine(['plot(request.financial(syminfo.tickerid, "TOTAL_REVENUE", "FY"))']))[0])
+  // ⭐ e99 FY — the fiscal year is served (a view of the published series): a quarterly / annual setting runs whole
+  it('e99 FY: a quarterly / fiscal-year setting written as the rule teaches has both reads served', () => {
+    const src = pine([
+      'period = input.string("FQ", "Period", options = ["FQ", "FY"])',
+      'fq = request.financial(syminfo.tickerid, "TOTAL_REVENUE", "FQ")',
+      'fy = request.financial(syminfo.tickerid, "TOTAL_REVENUE", "FY")',
+      'plot(period == "FY" ? fy : fq, "Revenue", style = plot.style_stepline)',
+    ])
+    expect(reads(src)).toHaveLength(2)
+    expect(refusals(src)).toEqual([])
+  })
+
+  it('CONTROL: a fiscal half-year read is refused, which is why the rule says to leave such a period out', () => {
+    expect(refusals(pine(['plot(request.financial(syminfo.tickerid, "TOTAL_REVENUE", "FH"))']))[0])
       .toMatchObject({ code: R.FINANCIAL_PERIOD })
   })
 })

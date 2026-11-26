@@ -38,6 +38,14 @@ def test_it_says_to_leave_out_a_period_the_engine_does_not_serve():
     assert "leave that option out and say so in `reply`" in pa.FINANCIAL_PERIOD_RULE
 
 
+def test_e99_fy_the_fiscal_year_is_named_among_the_served_periods_and_no_longer_as_refused():
+    """⭐ e99 FY: the engine serves `FY` now (a view of the published series), so the rule names it with FQ and TTM and its
+    example of a refused period is the half year, never "a fiscal-year series it does not hold"."""
+    r = pa.FINANCIAL_PERIOD_RULE
+    assert '("FQ", "TTM", "FY")' in r and "fiscal half-year" in r
+    assert "fiscal-year series it does not hold" not in r
+
+
 @pytest.mark.parametrize("stage", ["", "admins", "off"])
 def test_while_the_financial_door_is_dark_the_rule_is_not_there(monkeypatch, stage):
     monkeypatch.setenv("PINE_FINANCIAL_SUPPLY_ENABLED", stage)

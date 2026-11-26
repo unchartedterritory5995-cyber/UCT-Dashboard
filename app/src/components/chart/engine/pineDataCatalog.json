@@ -122,13 +122,14 @@
       "history": "2009 (XBRL), per company from its first XBRL filing",
       "keyedBy": "(company, series, filing public instant)",
       "fields": {
-        "_": "THE MAP (track 4 F1, 2026-11-22): a `request.financial` id and period UCT serves, and the stored series of api/services/fundamentals_pit (catalog.py) it reads, each the same definition. Read by api/services/pine_financial.py (GET /api/pine/financial/{ticker}) and the chart's request.financial supply. `code` is the engine's two-letter name for the id (never renamed once served).",
+        "_": "THE MAP (track 4 F1, 2026-11-22): a `request.financial` id and period UCT serves, and the stored series of api/services/fundamentals_pit (catalog.py) it reads, each the same definition. Read by api/services/pine_financial.py (GET /api/pine/financial/{ticker}) and the chart's request.financial supply. `code` is the engine's two-letter name for the id (never renamed once served). e99 FY: an `FY` entry is a VIEW, `<stored series>@fy`, read by api/services/pine_financial.py (`fy_view_rows`) from the series the store publishes (the V5 methodology is frozen; no stored FY series), with its named limitation (a restatement filed after the next 10-Q is not shown until the next 10-K).",
         "TOTAL_REVENUE": {
           "code": "RV",
           "unit": "usd",
           "periods": {
             "FQ": "revenue_q",
-            "TTM": "revenue_ttm"
+            "TTM": "revenue_ttm",
+            "FY": "revenue_ttm@fy"
           }
         },
         "EARNINGS_PER_SHARE_DILUTED": {
@@ -136,28 +137,32 @@
           "unit": "usd_per_share",
           "periods": {
             "FQ": "eps_diluted_q",
-            "TTM": "eps_diluted_ttm"
+            "TTM": "eps_diluted_ttm",
+            "FY": "eps_diluted_ttm@fy"
           }
         },
         "TOTAL_EQUITY": {
           "code": "EQ",
           "unit": "usd",
           "periods": {
-            "FQ": "equity"
+            "FQ": "equity",
+            "FY": "equity@fy"
           }
         },
         "TOTAL_SHARES_OUTSTANDING": {
           "code": "SO",
           "unit": "shares",
           "periods": {
-            "FQ": "shares_outstanding"
+            "FQ": "shares_outstanding",
+            "FY": "shares_outstanding@fy"
           }
         },
         "FREE_CASH_FLOW": {
           "code": "FC",
           "unit": "usd",
           "periods": {
-            "TTM": "fcf_ttm"
+            "TTM": "fcf_ttm",
+            "FY": "fcf_ttm@fy"
           }
         }
       },
@@ -238,7 +243,7 @@
         },
         "FY": {
           "letter": "Y",
-          "why": "UCT's filings store holds no fiscal-year series yet"
+          "limitation": "each fiscal year's value is the one its 10-K first reported: a restatement of that year filed after the next quarterly report is not shown until the following 10-K"
         },
         "FH": {
           "letter": "H",

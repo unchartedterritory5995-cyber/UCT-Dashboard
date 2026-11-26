@@ -1,0 +1,113 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "FY-1",
+   "mutant": "the FY staleness cap is the quarterly 200 days",
+   "file": "api/services/fundamentals_pit/asof.py",
+   "from": "MAX_FY_PERIOD_AGE = timedelta(days=470)",
+   "to": "MAX_FY_PERIOD_AGE = timedelta(days=200)",
+   "rail": "python -m pytest -q tests/fundamentals_pit/test_financial_fy_view.py",
+   "expectRed": "test_a_fiscal_year_view_ages_by_its_own_cap_never_the_quarterly_one"
+  },
+  {
+   "id": "FY-2",
+   "mutant": "a fiscal-year view ages by the quarterly cap at the route",
+   "file": "api/services/pine_financial.py",
+   "from": "        cap = asof.MAX_FY_PERIOD_AGE if fy_base(series) else asof.MAX_PERIOD_AGE",
+   "to": "        cap = asof.MAX_PERIOD_AGE",
+   "rail": "python -m pytest -q tests/fundamentals_pit/test_financial_fy_view.py",
+   "expectRed": "test_a_fiscal_year_view_ages_by_its_own_cap_never_the_quarterly_one"
+  },
+  {
+   "id": "FY-3",
+   "mutant": "the view reads every TTM point, not the fiscal-year ones (a 10-Q moves the fiscal year: the quarterly anchor)",
+   "file": "api/services/pine_financial.py",
+   "from": "        own = [(t, v, pe, \"fiscal_year\") for t, v, pe, m, _r in rows if m == \"fiscal_year\"]",
+   "to": "        own = [(t, v, pe, \"fiscal_year\") for t, v, pe, m, _r in rows if m != \"gap\"]",
+   "rail": "python -m pytest -q tests/fundamentals_pit/test_financial_fy_view.py",
+   "expectRed": "test_the_view_is_option_a_on_every_value_and_date_but_the_named_limitation"
+  },
+  {
+   "id": "FY-4",
+   "mutant": "a 10-K without the figure never closes the previous fiscal year (no GAP)",
+   "file": "api/services/pine_financial.py",
+   "from": "                    out.append([t, None, pe, \"gap\"])",
+   "to": "                    pass",
+   "rail": "python -m pytest -q tests/fundamentals_pit/test_financial_fy_view.py",
+   "expectRed": "test_the_view_is_option_a_on_every_value_and_date_but_the_named_limitation"
+  },
+  {
+   "id": "FY-5",
+   "mutant": "the cover-page share count window is shut (0 days)",
+   "file": "api/services/pine_financial.py",
+   "from": "FY_COVER_DAYS = 120",
+   "to": "FY_COVER_DAYS = 0",
+   "rail": "python -m pytest -q tests/fundamentals_pit/test_financial_fy_view.py",
+   "expectRed": "test_the_view_is_option_a_on_every_value_and_date_but_the_named_limitation"
+  },
+  {
+   "id": "FY-6",
+   "mutant": "a split-sensitive view is not withheld for an unverified split history",
+   "file": "api/services/pine_financial.py",
+   "from": "        stored = fy_base(spec[\"series\"]) or spec[\"series\"]",
+   "to": "        stored = spec[\"series\"]",
+   "rail": "python -m pytest -q tests/fundamentals_pit/test_financial_fy_view.py",
+   "expectRed": "withheld"
+  },
+  {
+   "id": "FY-7",
+   "mutant": "the route drops the named limitation",
+   "file": "api/services/pine_financial.py",
+   "from": "{\"limitation\": fy_limitation(catalog)}",
+   "to": "{\"limitation\": \"\"}",
+   "rail": "python -m pytest -q tests/fundamentals_pit/test_financial_fy_view.py",
+   "expectRed": "test_the_route_serves_the_view_with_its_limitation_and_withholds_split_sensitive_views"
+  },
+  {
+   "id": "FY-8",
+   "mutant": "the catalog maps FY revenue onto the quarter's series",
+   "file": "app/src/components/chart/engine/pineDataCatalog.json",
+   "from": "\"FY\": \"revenue_ttm@fy\"",
+   "to": "\"FY\": \"revenue_q@fy\"",
+   "rail": "python -m pytest -q tests/test_pine_financial.py tests/fundamentals_pit/test_financial_fy_view.py",
+   "expectRed": "test_the_map_is_the_catalogs_twelve_pairs_each_a_stored_series_or_a_fiscal_year_view_of_one"
+  },
+  {
+   "id": "FY-9",
+   "mutant": "the chart note never names the FY limitation",
+   "file": "app/src/components/chart/engine/ast/symbolSubstitution.js",
+   "from": "(readsFy ? FINANCIAL_FY_SOURCE_NOTE : FINANCIAL_SOURCE_NOTE)",
+   "to": "FINANCIAL_SOURCE_NOTE",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestFinancial.test.js",
+   "expectRed": "names the FY limitation in its ONE note"
+  },
+  {
+   "id": "FY-10",
+   "mutant": "only the first read decides the note (an FY read after an FQ read loses the limitation)",
+   "file": "app/src/components/chart/engine/ast/symbolSubstitution.js",
+   "from": "  const readsFy = (Array.isArray(otherSymbols) ? otherSymbols : []).some(",
+   "to": "  const readsFy = (Array.isArray(otherSymbols) ? otherSymbols : []).slice(0, 1).some(",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestFinancial.test.js",
+   "expectRed": "in any read order"
+  },
+  {
+   "id": "FY-11",
+   "mutant": "FY unmapped for TOTAL_REVENUE: the engine refuses the fiscal-year read again (replaces an equivalent mutant: a period `why` is read only when the field has no series)",
+   "file": "app/src/components/chart/engine/pineDataCatalog.json",
+   "from": "            \"TTM\": \"revenue_ttm\",\n            \"FY\": \"revenue_ttm@fy\"\n",
+   "to": "            \"TTM\": \"revenue_ttm\"\n",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestFinancial.test.js src/components/chart/engine/requestFinancial.periodSetting.test.js",
+   "expectRed": "refused by name: an id UCT does not serve"
+  },
+  {
+   "id": "FY-12",
+   "mutant": "rule 16 no longer names FY among the served periods",
+   "file": "api/services/pine_authoring.py",
+   "from": "itself (\\\"FQ\\\", \\\"TTM\\\", \\\"FY\\\")",
+   "to": "itself (\\\"FQ\\\", \\\"TTM\\\")",
+   "rail": "python -m pytest -q tests/test_script_financial_period_rule.py",
+   "expectRed": "test_e99_fy_the_fiscal_year_is_named_among_the_served_periods_and_no_longer_as_refused"
+  }
+ ]
+}
