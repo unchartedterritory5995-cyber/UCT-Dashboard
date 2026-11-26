@@ -30,7 +30,7 @@ import { computeLaneOf, COMPUTE_LANE } from '../computeLane'
 import * as registry from '../nativeRegistry'
 import { runtimeColumnsFor, setRuntimeDoorClock } from '../runtime/runtimeColumns'
 import { runtimeInputSpecsOf } from '../runtime/runtimeInputs.js'
-import { DEFAULT_LIMITS } from '../runtime/limits'
+import { DEFAULT_LIMITS, scaledCeiling } from '../runtime/limits'
 import { MAX_EVALUATION_UNITS } from '../ast/interpret'
 import { DEFAULT_BUDGET } from '../ast/budget'
 import { fetchableOtherSymbols } from '../otherSymbols'
@@ -309,10 +309,12 @@ describe("2c. each lane's work has a hard ceiling, read from the module that cou
 const house = (slug) => HOUSE.indicators.find((h) => h.slug === slug).definition
 const withMeta = (def, meta) => ({ ...def, meta: { ...def.meta, ...meta } })
 const PER_BAR = lines('//@version=5', 'indicator("per bar")', 'var float s = 0.0', 'for i = 0 to 20000', '    s := s + i', 'plot(s)')
-// ~100 instructions a pass, 1,000 passes a bar: under the per-bar ceiling and the loop ceiling, so the
-// WHOLE-RUN instruction ceiling is the one met (~bar 2,000 of 5,000)
+// ~100 instructions a pass, 1,300 passes a bar (~130,000): under the per-bar ceiling (200,000) and the loop rate
+// (2,500 a bar), so the WHOLE-RUN instruction ceiling is the one met. ⭐ (e100) that ceiling scales with the bars
+// (100,000 a bar: 500,000,000 over 5,000), so this was 1,000 passes (~100,000 a bar, met at ~bar 2,000 of the old
+// fixed 200,000,000) and is now heavier than the rate on every bar: met at ~bar 3,850.
 const WHOLE_RUN = lines('//@version=5', 'indicator("whole run")', 'var float a = 0.0', 'var float b = 0.0',
-  'var float c = 0.0', 'var float d = 0.0', 'for i = 0 to 999', '    a := a + i * 2 - 1', '    b := b + a / 3 + i',
+  'var float c = 0.0', 'var float d = 0.0', 'for i = 0 to 1299', '    a := a + i * 2 - 1', '    b := b + a / 3 + i',
   '    c := c + b * 0.5 - a', '    d := d + c - b + i', '    a := a - d * 0.25 + c', '    b := b - a + d / 7',
   '    c := c + d - a * 0.125', '    d := d - c + b / 9', 'plot(a + b + c + d)')
 const REACHED = lines('//@version=5', 'indicator("reached")', 'if bar_index == 10', '    runtime.error("stop here")', 'plot(close)')
@@ -327,9 +329,10 @@ describe('3. a refused definition answers the engine\'s own code, never a partia
     ['a served runtime row saved before its held withholds', () => rtDoc('u_hw', RT_SOURCE, { heldDivergence: 'pine:held-divergence: this saved copy is not drawn: x' }), 'pine:held-divergence'],
     ['a served host row saved before its held withholds', () => withMeta(house('atr_extension'), { heldDivergence: 'pine:held-divergence: this saved copy is not drawn: x' }), 'pine:held-divergence'],
     ['a run past the per-bar instruction ceiling', () => one('u_pb', PER_BAR), 'runtime:limit', 'INSTRUCTIONS_PER_BAR'],
-    // ⭐ the ceiling the stop names is `limits.js`'s own (`DEFAULT_LIMITS.TOTAL_INSTRUCTIONS`), in the member's words
+    // ⭐ the ceiling the stop names is `limits.js`'s own (`scaledCeiling` of `DEFAULT_LIMITS.TOTAL_INSTRUCTIONS` over
+    // the bars the run covers, e100), in the member's words
     ['a run past the WHOLE-RUN instruction ceiling', () => one('u_wr', WHOLE_RUN), 'runtime:limit', 'TOTAL_INSTRUCTIONS',
-      DEFAULT_LIMITS.TOTAL_INSTRUCTIONS.toLocaleString('en-US')],
+      () => `${scaledCeiling('TOTAL_INSTRUCTIONS', DEFAULT_LIMITS.TOTAL_INSTRUCTIONS, BARS.length).toLocaleString('en-US')} for ${BARS.length.toLocaleString('en-US')} bars`],
     ['the script\'s own runtime.error, reached', () => one('u_re', REACHED), 'pine:runtime.error'],
     ['a host document declaring runtime.error checks', () => withMeta(house('atr_extension'), { runtimeErrors: [{ line: 3 }] }), 'pine:runtime.error'],
     ['a host plot past its node budget', () => ({ ...house('atr_extension'), compute: { ...house('atr_extension').compute, budget: { maxNodes: 2 } } }), 'budget:nodes'],
@@ -342,7 +345,7 @@ describe('3. a refused definition answers the engine\'s own code, never a partia
       expect(r.work).toBeNull()
       expect(typeof r.refusal.message === 'string' && r.refusal.message.length > 0).toBe(true)
       if (limit) expect(r.refusal.limit).toBe(limit)
-      if (says) expect(r.refusal.message).toContain(says)
+      if (says) expect(r.refusal.message).toContain(typeof says === 'function' ? says() : says)
       expect(CODES.codes, `${code} is not a registered refusal code`).toContain(code)
     })
   }

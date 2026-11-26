@@ -1,0 +1,68 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "PB1",
+   "mutant": "loop passes no longer scale",
+   "file": "app/src/components/chart/engine/runtime/limits.js",
+   "from": "  LOOP_ITERATIONS: LOOP_ITERATIONS_PER_BAR,\n",
+   "to": "",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/perBarLimits.test.js",
+   "expectRed": "kernel-channel over JPM"
+  },
+  {
+   "id": "PB2",
+   "mutant": "user-function calls no longer scale",
+   "file": "app/src/components/chart/engine/runtime/limits.js",
+   "from": "  CALL_COUNT: CALL_COUNT_PER_BAR,\n",
+   "to": "",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/perBarLimits.test.js",
+   "expectRed": "delta-rsi over SPY"
+  },
+  {
+   "id": "PB3",
+   "mutant": "drawing calls no longer scale",
+   "file": "app/src/components/chart/engine/runtime/limits.js",
+   "from": "  OBJECT_OPERATIONS: OBJECT_OPERATIONS_PER_BAR,\n",
+   "to": "",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/perBarLimits.test.js",
+   "expectRed": "trendline-pivots over SPY"
+  },
+  {
+   "id": "PB4",
+   "mutant": "window cells no longer scale",
+   "file": "app/src/components/chart/engine/runtime/limits.js",
+   "from": "  WINDOW_CELLS: WINDOW_CELLS_PER_BAR,\n",
+   "to": "",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/perBarLimits.test.js",
+   "expectRed": "a WINDOW_CELLS runaway"
+  },
+  {
+   "id": "PB5",
+   "mutant": "the instruction rate back at 30,000 a bar",
+   "file": "app/src/components/chart/engine/runtime/limits.js",
+   "from": "export const TOTAL_INSTRUCTIONS_PER_BAR = 100000\n",
+   "to": "export const TOTAL_INSTRUCTIONS_PER_BAR = 30000\n",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/perBarLimits.test.js",
+   "expectRed": "delta-rsi over SPY"
+  },
+  {
+   "id": "PB6",
+   "mutant": "the array-operation rate back at 500 a bar",
+   "file": "app/src/components/chart/engine/runtime/limits.js",
+   "from": "export const ARRAY_OPERATIONS_PER_BAR = 2500\n",
+   "to": "export const ARRAY_OPERATIONS_PER_BAR = 500\n",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/arrayOperationsPerBar.test.js",
+   "expectRed": "floor up to 800 bars"
+  },
+  {
+   "id": "PB7",
+   "mutant": "a named ceiling scales anyway",
+   "file": "app/src/components/chart/engine/runtime/limits.js",
+   "from": "    this.scales = Object.keys(PER_BAR_LIMITS).filter((k) => !(limits && Object.prototype.hasOwnProperty.call(limits, k)))",
+   "to": "    this.scales = Object.keys(PER_BAR_LIMITS)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/perBarLimits.test.js",
+   "expectRed": "NAMES a ceiling"
+  }
+ ]
+}
