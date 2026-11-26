@@ -2291,6 +2291,47 @@ def _reconcile_developing_week(ticker: str, weekly: list[dict]) -> list[dict]:
     return out
 
 
+def _clamp_exempt(ticker: str) -> bool:
+    """A series the NYSE session does not govern keeps every row: a breadth pseudo-ticker, and a 24-hour name
+    (crypto, `-USD`), read from the same `date_bar_keys.calendar_applies` the daily key guard uses."""
+    try:
+        from api.services import date_bar_keys as _dk
+        if not _dk.calendar_applies(ticker):
+            return True
+    except Exception:                      # noqa: BLE001 - unknown: fall through to the breadth check
+        pass
+    try:
+        from api.services.breadth_symbols import is_breadth_symbol
+        return bool(is_breadth_symbol(ticker))
+    except Exception:                      # noqa: BLE001 - unknown: clamp as an equity
+        return False
+
+
+def _clamp_to_extended_session(bars: list[dict]) -> list[dict]:
+    """The intraday rows whose start lies inside its ET trading day's extended session [04:00, close + 4 h).
+    One calendar read per ET DAY the rows cross, never per row (a 60,000-row answer stays cheap)."""
+    et = _ZI("America/New_York")
+    day_lo = day_hi = 0                   # the ET day [midnight, next midnight) the window below belongs to
+    win = None
+    out = []
+    for b in bars:
+        try:
+            t = int(b["t"])
+        except Exception:                  # noqa: BLE001 - an unreadable stamp is left to the other guards
+            out.append(b)
+            continue
+        if not (day_lo <= t < day_hi):
+            d = datetime.fromtimestamp(t, et)
+            midnight = datetime(d.year, d.month, d.day, tzinfo=et)
+            day_lo = int(midnight.timestamp())
+            nxt = midnight + timedelta(days=1)
+            day_hi = int(datetime(nxt.year, nxt.month, nxt.day, tzinfo=et).timestamp())
+            win = _session_window(d, "eth") if _is_trading_day_ymd(d) else None
+        if win is not None and win[0] <= t < win[1]:
+            out.append(b)
+    return out
+
+
 def _fmt_sqlite_bars(rows: list[tuple], tf: str, ticker: str | None = None) -> list[dict]:
     """Convert SQLite (ts, o, h, l, c, v) tuples to LightweightCharts format.
 
@@ -2340,6 +2381,13 @@ def _fmt_sqlite_bars(rows: list[tuple], tf: str, ticker: str | None = None) -> l
         else:
             t_val = ts
         out.append({"t": t_val, "o": o, "h": h, "l": l, "c": c, "v": v})
+    if not date_tf and out and not (ticker and _clamp_exempt(ticker)):
+        # ⛔ SESSION CLAMP (2026-11-25, the TradingView 4h diff of #2753): an intraday row exists only inside its ET
+        # day's extended session, 04:00 to 20:00 (17:00 on a half day), the session TradingView's extended-hours bars
+        # cover. The store held 60m eth rows stamped 20:00 ET (SPY 2025-09-10, 09-29, 10-07, 11-04, 11-07: a few
+        # hundred shares of prints at or after the session's end), which drew an extra hour and an extra 20:00 4h bar.
+        # Served here, so every reader (the chart, the 4h resample, scans) sees the same session.
+        out = _clamp_to_extended_session(out)
     if not date_tf and out:
         # ⛔ Grid guard (2026-11-10): an intraday row is keyed on its bucket START. A
         # stored off-grid row (the yfinance live row stamped at a trade time, e.g. SPY

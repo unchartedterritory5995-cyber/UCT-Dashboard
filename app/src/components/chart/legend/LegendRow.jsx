@@ -218,6 +218,10 @@ export default function LegendRow({
    *  formatted. Each prints after the row's own value in its own line's colour. Absent or
    *  empty, the row is exactly the row it was. */
   moreValues = null,
+  /** A short static line the row's tooltip carries under its name: what the series IS, when a member could
+   *  misread it (Volume: "Volume includes odd-lot trades"). Static text in the `title` attribute only, so it
+   *  costs no layout, no fetch and no render work. A read-only row (no `onOpen`) carries it as its whole title. */
+  note = null,
   // ⚰️ `onHover` AND `hoverKey` ARE GONE. They drove the hover lift — a pixel
   // added to the drawn series while the pointer was on its label — retired by the
   // owner after production use: hovering a legend must not mutate the plot.
@@ -258,7 +262,7 @@ export default function LegendRow({
     'aria-haspopup': 'menu',
     'aria-label': `${ctlName} options`,
     'data-guide': 'chart.chip',
-    title: `${ctlName} — click for options`,
+    title: note ? `${ctlName} — click for options\n${note}` : `${ctlName} — click for options`,
     onClick: fire,
     onContextMenu: fire,
     onKeyDown: (e) => {
@@ -309,6 +313,7 @@ export default function LegendRow({
         data-instance-id={instanceId}
         data-plot-key={plotKey}
         data-computed={computed === false ? 'false' : undefined}
+        title={note || undefined}
         {...trigger}
       >
         {/* ⭐ THE MICRO-RAIL, IN THE HORIZONTAL STRIP TOO (owner §21, 2026-09-16).
@@ -343,6 +348,7 @@ export default function LegendRow({
       data-computed={computed === false ? 'false' : undefined}
       /* the card behind a hovered row reaches over the strip: 22px a button + 6px of air */
       style={actsCount ? { '--row-acts-w': `${actsCount * 22 + 6}px` } : undefined}
+      title={note || undefined}
       {...trigger}
     >
       {/* ⛔ THE LABEL CELL NEEDS THE SAME `inherit` THE VALUE DOES, and for the
