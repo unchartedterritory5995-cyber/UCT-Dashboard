@@ -1234,6 +1234,9 @@ export function planBindings(instances, registry, prevBindings, opts) {
   // display a setting decides is planned only while this instance shows it. Handed in, not imported, so the pool keeps
   // out of the translation's import tree. Absent = no guide is hidden by a setting (every caller before U7).
   const plotHidden = opts && typeof opts.plotHidden === 'function' ? opts.plotHidden : null
+  // ⭐ e98 E1 — the line style THIS instance draws a plot with (`knobBind.js::plotLineStyleAt`: a `lineStyleWhen` arm its
+  // settings pick, else the plot's own). Absent = every plot's own `lineStyle` (every caller before E1).
+  const plotLineStyle = opts && typeof opts.plotLineStyle === 'function' ? opts.plotLineStyle : null
   // ⭐ ENGINE 58 — the chart's own two colours (`objectTheme.chartThemeOf`), for a
   // Pine plot whose colour is `chart.fg_color` / `chart.bg_color`. Absent ⇒ none.
   const theme = (opts && opts.theme && typeof opts.theme === 'object') ? opts.theme : null
@@ -1281,7 +1284,8 @@ export function planBindings(instances, registry, prevBindings, opts) {
       // cannot mean has to be clamped HERE too — otherwise the plan would create
       // a candlestick the binder then refuses to feed.
       const srcCap = sourceCapability ? sourceCapability(inst) : null
-      const plot = withLevelsInAutoscale(presentedPlot(withThemeColour(resolvePlotForInstance(rawPlot, inst.inputs,
+      const plot = withLevelsInAutoscale(presentedPlot(withThemeColour(resolvePlotForInstance(
+        plotLineStyle ? plotLineStyle(rawPlot, def, inst.inputs) : rawPlot, inst.inputs,
         { pickReplacesOpacity: !!(def && def.meta && def.meta.recurrenceOrigin === 'pine') }), theme), inst,
         { ohlcCapable: !!(ohlcCapable && ohlcCapable(inst)),
           candles,

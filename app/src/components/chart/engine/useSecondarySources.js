@@ -21,7 +21,9 @@
 // network traffic for series that will never be bound.
 import { useEffect, useMemo, useState } from 'react'
 import { symbolsNeeded } from './sourceRef'
-import { fetchableOtherSymbols, isPineOriginDoc, heldKeyParts, heldDepthOf, OWN_DAILY_KEY, BARS_ASK_MAX, eventsNeeded, financialNeeded } from './otherSymbols'
+import { fetchableOtherSymbols, isPineOriginDoc, heldKeyParts, heldDepthOf, OWN_DAILY_KEY, BARS_ASK_MAX, eventsNeeded, financialNeeded,
+  heldFetchOf, CHART_SESSION_KEY, chartSessionEntryOf } from './otherSymbols'
+import { resampleSpec } from '../timeframes'
 // ⭐⭐ T4 E2 — the chart's own corporate events: one door (`/api/pine/events/<symbol>`), never `/api/bars`
 import { EVENTS_KEY } from './pineEvents'
 import { ensureEvents, subscribeEvents } from './eventSupply'
@@ -61,12 +63,42 @@ export function heldSpanFor(loaded, requested) {
   return Math.min(HELD_SPAN_MAX, Math.max(rung, req))
 }
 
+/** ⭐⭐ e98 (the 4h grid follows the chart's spec) — the session a plain key is fetched on for this chart: the chart's own
+ *  (`extended`, review of #2753: a listing's custom-timeframe bars sit on the chart's grid and project by time), EXCEPT a
+ *  key a witness row HOLDS at this chart's timeframe (`heldFetchOf`: SP:SPX on a 4h chart), whose bars TradingView
+ *  builds on the index's own 09:30-anchored session whatever the chart's view (Q-FRED-4H: the in-session 12:00 bar of
+ *  an EXTENDED chart read the index's [09:30, 13:30) bar, built from `/api/bars/SPX?tf=60` rows): the REGULAR session.
+ *  The grid that bar is read on follows the CHART's spec (`CHART_SESSION_KEY`). ONE answer for the fetch and the tail. */
+function plainKeyExtended(k, tf, extended) {
+  const held = heldFetchOf(k, tf)
+  return held && held.key === k ? false : extended
+}
+/** The plain keys of a chart, split by the session each is fetched on (`plainKeyExtended`): the chart's own, and the
+ *  regular session's (a witness-held index on a chart whose own session is not regular). */
+function plainKeysBySession(plain, tf, extended) {
+  const own = []
+  const regular = []
+  for (const k of plain) (plainKeyExtended(k, tf, extended) === extended ? own : regular).push(k)
+  return { own, regular }
+}
+
 export function ensureChartSources(keys, tf, barCount, fetcher, chartSymbol = null, heldSessions = 0, extended = false) {
   const list = Array.isArray(keys) ? keys : []
   // ⛔⛔ T4 B2 — a breadth key (held or not: `USI~ADVN.NY`, `USI~ADVN.NY@D`) never reaches the bars fetch
-  // (`extended`: the chart's own session; a custom intraday timeframe's other-symbol bars sit on ITS grid, review of #2753)
-  const out = ensureAll(list.filter((k) => !heldKeyParts(k) && k !== OWN_DAILY_KEY && k !== EVENTS_KEY && k !== FINANCIAL_KEY && !isBreadthKey(k)),
-    tf, barCount, fetcher, { extended })
+  // (`extended`: the chart's own session; a custom intraday timeframe's other-symbol bars sit on ITS grid, review of #2753;
+  // ⭐ e98: a key a witness row holds at this timeframe on the index's own regular session, `plainKeyExtended`)
+  const { own, regular } = plainKeysBySession(list.filter((k) => !heldKeyParts(k) && k !== OWN_DAILY_KEY && k !== EVENTS_KEY && k !== FINANCIAL_KEY && !isBreadthKey(k)),
+    tf, extended)
+  const out = ensureAll(own, tf, barCount, fetcher, { extended })
+  for (const k of regular) {
+    const entry = ensureSecondaryBars(k, tf, barCount, fetcher, { extended: false })
+    if (entry) out.set(k, entry)
+  }
+  // ⭐⭐ e98 — a custom intraday chart's map carries the chart's own session, so every lane lays its grid where the
+  // CHART's spec starts its bars (`otherSymbols.js::atOrBeforeGridOf`)
+  if (out.size && resampleSpec(String(tf == null ? '' : tf))?.kind === 'intradaySession') {
+    out.set(CHART_SESSION_KEY, chartSessionEntryOf(extended === true))
+  }
   for (const k of list) {
     // ⭐⭐ T4 B2 — a `USI:` breadth spelling's rows, from the breadth door (`breadthSupply.js`), at every chart timeframe
     // (a weekly or monthly chart holds them at D: the same rows under the held key)
@@ -128,10 +160,12 @@ export function liveTailTick(keys, tf, barCount, fetcher, chartForming, chartSym
     const symbol = held ? held.symbol : k
     const at = held ? held.tf : tf
     const depth = held ? heldDepthOf(barCount, tf, heldSessions) : barCount
-    const e = cachedBars(symbol, at, depth, { extended })
+    // ⭐ e98 — the session its entry was fetched on (`plainKeyExtended`), so the tail re-reads THAT entry
+    const ext = held ? extended : plainKeyExtended(k, tf, extended)
+    const e = cachedBars(symbol, at, depth, { extended: ext })
     if (!e || e.status !== 'available') continue
     if (e.newestBarIsForming !== true && chartForming !== true) continue
-    if (refreshSecondaryTail(symbol, at, depth, fetcher, { extended })) started += 1
+    if (refreshSecondaryTail(symbol, at, depth, fetcher, { extended: ext })) started += 1
   }
   return started
 }

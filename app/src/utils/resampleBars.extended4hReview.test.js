@@ -64,7 +64,9 @@ describe('MEDIUM-2: the CHART\'s own session, whatever the page view says', () =
   it('the supply hook hands the chart\'s session to the fetch', () => {
     setViewShowExtended(false)
     const asked = []
-    ensureChartSources(['SPX'], '240', 300, (url) => { asked.push(url); return new Promise(() => {}) }, null, 0, true)
+    // (e98, 2026-11-26) a LISTING: SP:SPX, a key a witness row holds on 240, is fetched on the index's own regular session
+    // in both views (`useSecondarySources.js::plainKeyExtended`, railed in `rsFourHourWitness.test.js`)
+    ensureChartSources(['QQQ'], '240', 300, (url) => { asked.push(url); return new Promise(() => {}) }, null, 0, true)
     return Promise.resolve().then(() => {
       expect(asked.length).toBe(1)
       expect(asked[0]).toContain('tf=60&')

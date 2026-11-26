@@ -42,7 +42,7 @@ This file holds capabilities only: no member's request, no answer and no count f
 
 | a member cannot get | what the engine says | refused as | probe |
 |---|---|---|---|
-| A free shape drawn through many points (polyline) | the pasted script offers no plot and no alert condition to filter on | `pine:no-output` | `polyline` |
+| A free shape drawn through many points (polyline) | the pasted script offers no plot and no alert condition to filter on: it draws polylines (`polyline.new`), which this chart does not draw yet | `pine:no-output` | `polyline` |
 | A calculation that needs a matrix | the engine runs it bar by bar, and that lane does not admit this for members yet: collections:matrix | `runtime:not-yet-graded` | `matrix` |
 | A calculation that needs a key-value map | the engine runs it bar by bar, and that lane does not admit this for members yet: collections:map | `runtime:not-yet-graded` | `map` |
 | A value that updates inside the forming bar (varip) | the engine runs it bar by bar, and that lane does not admit this for members yet: varip | `runtime:not-yet-graded` | `varip` |

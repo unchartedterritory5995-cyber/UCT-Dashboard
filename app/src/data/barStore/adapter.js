@@ -170,7 +170,19 @@ export function newestBarIsFormingOf(snapshot) {
   return newestT === f.t ? f.forming : null
 }
 
-const _legacyBarsMemo = new WeakMap()
+// ⭐ (2026-11-26, the heap check) legacyBars' arrays live as long as THIS memo's budget or a reader keeps them, never as
+// long as the registry keeps the snapshot. It was a WeakMap from the snapshot to the array, and the registry keeps
+// snapshots for up to 2,500,000 bars: every legacy copy (a second object per bar) lived as long as the registry's,
+// whatever this memo's budget said. Measured on production's build: ~200 MB of second copies retained after 50 switches
+// (V8's sampling heap profile, adapter `legacySealed`). Now the snapshot holds its array WEAKLY (identity is the same
+// for as long as the array is alive anywhere: a chart holding it, a neighbour's prepared frame), and the memo's own
+// strong hold is one slot per `${key}|${tf}`, the newest array, under the same entry/bar budget as legacySealed's.
+// A static snapshot (a caller-owned array, no store key) keeps the strong per-snapshot memo: it lives exactly as long
+// as its caller's bars.
+const _legacyBarsRefs = new WeakMap()     // snapshot → Map(tf → WeakRef(out))
+const _legacyBarsSlots = slotMemo()       // `${key}|${tf}` → out: the newest array, held strongly, under the budget
+const _legacyBarsStatic = new WeakMap()   // static snapshot → Map(tf → out)
+const _weakOf = typeof WeakRef === 'function' ? (v) => new WeakRef(v) : (v) => ({ deref: () => v })
 // ⭐⭐ NEIGHBOR FRAMES (2026-11-20, `uct.neighborframes`) — sealed array → `{tf, dev, out}`: the last
 // sealed + developing array built for it. A NEW SNAPSHOT OF THE SAME BARS (a status or meta change: a warm's
 // answer that moved nothing, a subscribe's mem hydrate) used to append the same developing bar to the same
@@ -195,15 +207,29 @@ export function legacyBars(snapshot, tf = tfOfSnapshot(snapshot, null)) {
   if (!snapshot) return null
   // Keyed per (snapshot, tf): the same snapshot read under another tf labels D/W/M
   // differently. legacyBars depends on no view input, so the view is not part of the key.
-  let byTf = _legacyBarsMemo.get(snapshot)
-  if (!byTf) { byTf = new Map(); _legacyBarsMemo.set(snapshot, byTf) }
-  const hit = byTf.get(tf)
-  if (hit) return hit
+  if (snapshot.static || snapshot.key == null) {
+    let byTf = _legacyBarsStatic.get(snapshot)
+    if (!byTf) { byTf = new Map(); _legacyBarsStatic.set(snapshot, byTf) }
+    const hit = byTf.get(tf)
+    if (hit) return hit
+    const out = _legacyBarsOf(snapshot, tf)
+    byTf.set(tf, out)
+    return out
+  }
+  const k = `${snapshot.key}|${tf}`
+  let byTf = _legacyBarsRefs.get(snapshot)
+  if (!byTf) { byTf = new Map(); _legacyBarsRefs.set(snapshot, byTf) }
+  const hit = byTf.get(tf)?.deref()
+  if (hit) { _legacyBarsSlots.get(k); return hit }   // (a read refreshes the slot's recency)
+  const out = _legacyBarsOf(snapshot, tf)
+  byTf.set(tf, _weakOf(out))
+  _legacyBarsSlots.set(k, out, out.length)
+  return out
+}
+function _legacyBarsOf(snapshot, tf) {
   const sealed = legacySealed(snapshot, tf)
   const dev = legacyDeveloping(snapshot, tf, sealed)
-  const out = dev ? withDeveloping(sealed, dev, tf) : sealed
-  byTf.set(tf, out)
-  return out
+  return dev ? withDeveloping(sealed, dev, tf) : sealed
 }
 
 // ── static snapshots (barsOverride consumers: Model Book, Setup Library, …) ──────
@@ -369,11 +395,11 @@ function composeBars(base, tail) {
 /** Test-only: drop the memos (they are bounded caches; never needed for correctness) and
  *  restore their bounds. */
 export function _resetAdapterMemos() {
-  _baseMemo.clear(); _legacyBaseMemo.clear()
+  _baseMemo.clear(); _legacyBaseMemo.clear(); _legacyBarsSlots.clear()
   _limits = { maxEntries: BASE_MEMO_MAX, maxBars: MEMO_BAR_BUDGET }
 }
 /** Test-only: what the memos hold — slots, bars, slot keys. */
-export function _adapterMemoStats() { return { legacy: _legacyBaseMemo.stats(), base: _baseMemo.stats() } }
+export function _adapterMemoStats() { return { legacy: _legacyBaseMemo.stats(), base: _baseMemo.stats(), legacyBars: _legacyBarsSlots.stats() } }
 /** Test-only: smaller bounds, so a test can reach them with small series. */
 export function _setAdapterMemoLimits({ maxEntries = BASE_MEMO_MAX, maxBars = MEMO_BAR_BUDGET } = {}) {
   _limits = { maxEntries, maxBars }

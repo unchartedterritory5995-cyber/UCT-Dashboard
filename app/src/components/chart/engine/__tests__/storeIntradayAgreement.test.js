@@ -6,31 +6,50 @@
 // (`lower-tf:store-unmeasured`) until OUR intraday bars have been compared with
 // TradingView's. This is that comparison:
 //
-//   store   tests/fixtures/store/api-bars-RDDT-tf15.json — the exact JSON
-//           `GET /api/bars/RDDT?tf=15&bars=60000` returns, saved as it arrived
+//   store   the exact JSON `GET /api/bars/RDDT?tf=15&bars=60000` returns, saved as it
+//           arrived, at a LOCAL path outside the repo named by `STORE_INTRADAY_LOCAL`
 //   vendor  tests/fixtures/vendor/harness/vw-bar-counters-rddt-15-2026-09-30.json
 //
-// ⛔ NO STORE PAYLOAD IS COMMITTED YET (fetching production is the integrator's /
-// owner's step). Until one is, the measurement SKIPS BY NAME — the skipped test's
-// title says what is missing — and the controls below prove the comparison can
-// fail, on a synthetic payload built from the vendor's own bars.
+// ⛔⛔ e98 (coordinator ruling 2026-11-26) — THE STORE PAYLOAD IS OUR DATA VENDOR'S LICENSED BARS AND IS NEVER
+// COMMITTED to this public repo, uploaded to a runner or pasted anywhere. The test reads it ONLY from the local path
+// in `STORE_INTRADAY_LOCAL` (the `PASTE_BYTES_LOCAL` precedent), refuses a path inside the repo by name, and SKIPS BY
+// NAME when the variable is unset — so in CI this measurement never runs, and the controls below (on a synthetic
+// payload built from the vendor capture's own bars) prove the comparison can fail. The verdict is local evidence, and
+// the flag's flip rests on that evidence in its PR. `tests/test_fixture_bar_rows_guard.py` keeps a vendor-bar dump out
+// of `tests/fixtures`.
 //
-// ⛔ WHEN THE PAYLOAD IS COMMITTED AND THIS GOES RED, THAT IS THE ANSWER: the
+// ⛔ WHEN THE LOCAL PAYLOAD IS GIVEN AND THIS GOES RED, THAT IS THE ANSWER: the
 // store does not meet the proposed bar (`FLIP_CRITERION`) and the gate stays off.
 // The assertion message carries the whole report.
+//
+// ⭐ e98 — PRICES ARE COMPARED AT THE STORE'S 4-DP GRAIN (`api/services/bars_fetch.py::PRICE_DP`, by design;
+// TradingView's capture keeps 6): a difference past the 4th decimal is not a difference, one in the 4th is. Volume is
+// compared exactly. The rail below holds the JS grain to the server's constant.
 
 import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
+import process from 'node:process'
 import {
-  barsOf, compareIntraday, agreementVerdict, describeAgreement, FLIP_CRITERION,
+  barsOf, compareIntraday, agreementVerdict, describeAgreement, FLIP_CRITERION, KNOWN_DEFINITION_DIFFERENCES,
+  STORE_PRICE_DP, samePrice, PENDING_KNOWN_DIFFERENCES,
 } from './storeIntradayAgreement'
 
 const REPO = path.resolve(process.cwd(), '..')
 const VENDOR = path.join(REPO, 'tests/fixtures/vendor/harness/vw-bar-counters-rddt-15-2026-09-30.json')
-const STORE = path.join(REPO, 'tests/fixtures/store/api-bars-RDDT-tf15.json')
+/** The local store payload, or null: never a path inside the repo (a committed copy of vendor bars). */
+export function localStorePath(value, repo = REPO) {
+  if (typeof value !== 'string' || !value.trim()) return null
+  const p = path.resolve(value.trim())
+  const rel = path.relative(path.resolve(repo), p)
+  if (!rel.startsWith('..') && !path.isAbsolute(rel)) {
+    throw new Error(`STORE_INTRADAY_LOCAL points inside the repo (${rel}): the store payload is licensed vendor data and is read only from outside it`)
+  }
+  return p
+}
+const STORE = localStorePath(process.env.STORE_INTRADAY_LOCAL)
 const vendorBars = barsOf(JSON.parse(fs.readFileSync(VENDOR, 'utf8')))
-const storePresent = fs.existsSync(STORE)
+const storePresent = !!STORE && fs.existsSync(STORE)
 
 describe('C41 · storeIntradayAgreement — the comparison itself (controls on the vendor\'s own bars)', () => {
   // the store's shape: `{bars: [{t,o,h,l,c,v}]}`, extended hours included
@@ -112,17 +131,88 @@ describe('C41 · storeIntradayAgreement — the comparison itself (controls on t
     expect(none.reasons).toContain('no session lies inside both supplies')
   })
 
+  it('⭐ e98 — the session\'s 09:30 OPEN is a known definition difference; the next bar\'s open is a price field', () => {
+    const [first] = midSession()
+    const k0 = vendorBars.indexOf(first)
+    const movedFirst = vendorBars.map((b, i) => (i === k0 ? { ...b, o: b.o + 0.01 } : b))
+    const r = compareIntraday(movedFirst, vendorBars)
+    expect(r.totals.sessionOpen.differ, 'non-vacuous: the moved open is seen').toBe(1)
+    expect(r.totals.sessionOpen.maxAbs).toBeCloseTo(0.01, 9)
+    expect(r.totals.priceEqual).toBe(r.totals.sessions)
+    expect(r.totals.fields.o.differ).toBe(0)
+    expect(describeAgreement(r, agreementVerdict(r))).toContain('known definition differences (not failures)')
+    // CONTROL: the session's SECOND bar's open moved is a price difference
+    const movedSecond = vendorBars.map((b, i) => (i === k0 + 1 ? { ...b, o: b.o + 0.01 } : b))
+    const r2 = compareIntraday(movedSecond, vendorBars)
+    expect(r2.totals.sessionOpen.differ).toBe(0)
+    expect(r2.totals.priceEqual).toBe(r2.totals.sessions - 1)
+  })
+
+  it('⭐ e98 — a store volume about 1.38x TradingView\'s on every bar is reported as a definition, never a failure', () => {
+    const scaled = vendorBars.map((b) => ({ ...b, v: b.v * 1.38 }))
+    const r = compareIntraday(scaled, vendorBars)
+    const v = agreementVerdict(r)
+    expect(v.pass).toBe(true)
+    expect(v.measured.volume).toBe(0)
+    const text = describeAgreement(r, v)
+    expect(text).toContain(`volume: ${KNOWN_DEFINITION_DIFFERENCES.volume}`)
+    expect(text).toMatch(/median 1\.380/)
+    expect(text).not.toMatch(/against the proposed bar:[^\n]*volume/)
+  })
+
+  it('⭐ e98 — prices at the store\'s 4-dp grain: a 5th-decimal difference is the same price, a 4th-decimal one is not', () => {
+    const k = Math.floor(vendorBars.length / 2)
+    const fifth = vendorBars.map((b, i) => (i === k ? { ...b, c: Math.round(b.c * 1e4) / 1e4 + 0.00004 } : b))
+    const base = vendorBars.map((b, i) => (i === k ? { ...b, c: Math.round(b.c * 1e4) / 1e4 } : b))
+    expect(compareIntraday(fifth, base).totals.fields.c.differ, 'a 5th-decimal difference passes').toBe(0)
+    // CONTROL: the 4th decimal is a difference
+    const fourth = base.map((b, i) => (i === k ? { ...b, c: b.c + 0.0001 } : b))
+    expect(compareIntraday(fourth, base).totals.fields.c.differ, 'a 4th-decimal difference fails').toBe(1)
+    expect(samePrice(12.34571, 12.3457)).toBe(true)
+    expect(samePrice(12.3456, 12.3457)).toBe(false)
+    // volume is not rounded: one share apart is a difference
+    const vol = base.map((b, i) => (i === k ? { ...b, v: b.v + 1 } : b))
+    expect(compareIntraday(vol, base).totals.fields.v.differ).toBe(1)
+  })
+
+  it('⭐ e98 — the JS grain is the server\'s: STORE_PRICE_DP equals api/services/bars_fetch.py PRICE_DP', () => {
+    const py = fs.readFileSync(path.join(REPO, 'api/services/bars_fetch.py'), 'utf8')
+      .split('\n').filter((l) => !/^\s*#/.test(l)).join('\n')
+    const m = /^PRICE_DP\s*=\s*(\d+)\s*$/m.exec(py)
+    expect(m, 'PRICE_DP is declared on one line').toBeTruthy()
+    expect(STORE_PRICE_DP).toBe(Number(m[1]))
+  })
+
+  it('⭐ e98 — the odd-lot-print line is prepared and INACTIVE: the bars it would name still count as differences', () => {
+    expect(PENDING_KNOWN_DIFFERENCES.oddLotPrint).toMatchObject({ sentence: 'differs only by an odd-lot print', active: false })
+    const k = Math.floor(vendorBars.length / 2)
+    const moved = vendorBars.map((b, i) => (i === k ? { ...b, h: b.h + 0.05 } : b))
+    const r = compareIntraday(moved, vendorBars, '15', { oddLotPrintBars: [vendorBars[k].t] })
+    expect(r.totals.fields.h.differ).toBe(1)
+    expect(r.totals.oddLotPrint).toBe(0)
+    expect(describeAgreement(r, agreementVerdict(r))).toContain('INACTIVE until')
+  })
+
   it('the proposed bar is the one written down', () => {
     expect(FLIP_CRITERION).toEqual({ coverage: 0.99, price: 0.99, lastClose: 0.995, volumeNote: 0.99 })
+  })
+
+  it('⛔ the store payload is read only from OUTSIDE the repo, and an unset variable is no payload', () => {
+    expect(localStorePath(undefined)).toBe(null)
+    expect(localStorePath('  ')).toBe(null)
+    expect(() => localStorePath(path.join(REPO, 'tests/fixtures/store/api-bars-RDDT-tf15.json')))
+      .toThrow(/points inside the repo/)
+    expect(localStorePath(path.join(path.dirname(REPO), 'elsewhere', 'api-bars-RDDT-tf15.json')))
+      .toBe(path.resolve(path.dirname(REPO), 'elsewhere', 'api-bars-RDDT-tf15.json'))
   })
 })
 
 describe('C41 · storeIntradayAgreement — OUR store against TradingView (RDDT, 15m)', () => {
   const title = storePresent
-    ? 'the committed store payload meets the proposed bar for serving a lower-timeframe read'
-    : 'SKIPPED — tests/fixtures/store/api-bars-RDDT-tf15.json is not committed '
-      + '(save the exact JSON of GET /api/bars/RDDT?tf=15&bars=60000 there); '
-      + 'until it is, VITE_PINE_LOWER_TF_ENABLED stays off'
+    ? 'the local store payload meets the proposed bar for serving a lower-timeframe read'
+    : 'SKIPPED — STORE_INTRADAY_LOCAL names no local store payload (the exact JSON of '
+      + 'GET /api/bars/RDDT?tf=15&bars=60000, saved OUTSIDE the repo: licensed vendor data, never committed); '
+      + 'until it is measured locally, VITE_PINE_LOWER_TF_ENABLED stays off'
   it.skipIf(!storePresent)(title, () => {
     const storeBars = barsOf(JSON.parse(fs.readFileSync(STORE, 'utf8')))
     expect(storeBars.length, 'the payload holds no bars').toBeGreaterThan(0)

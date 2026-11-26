@@ -20,6 +20,7 @@ import { NATIVE_TFS } from '../../../timeframes.js'
 import { DEFAULT_LIMITS } from '../limits.js'
 import {
   RUNTIME_PANE_TIME_BUDGET_MS, RUNTIME_INCREMENTAL_KEY, RUNTIME_TIME_BUDGET_GUARD, RUNTIME_FAILED_GUARD,
+  RUNTIME_PANE_BUDGET_CEILING_MS, RUNTIME_PANE_BUDGET_FLOOR_BARS, runtimePaneBudgetFor,
 } from '../runtimeColumns.js'
 import { RUNTIME_OBJECTS_KEY } from '../runtimeObjects.js'
 import { columnDigest } from '../columnDigest.js'
@@ -40,7 +41,9 @@ const EXPORTS = [
   // TRACK 6, AL1 (engine 95): the run's alert() record, read by the job adapter for '#alerts'
   'RUNTIME_ALERTS_KEY',
   'RUNTIME_FAILED_GUARD', 'RUNTIME_FRONTEND_LANGUAGE', 'RUNTIME_FRONTEND_VERSION',
-  'RUNTIME_INCREMENTAL_KEY', 'RUNTIME_IR_VERSION', 'RUNTIME_OBJECTS_KEY', 'RUNTIME_PANE_TIME_BUDGET_MS',
+  'RUNTIME_INCREMENTAL_KEY', 'RUNTIME_IR_VERSION', 'RUNTIME_OBJECTS_KEY',
+  // e99 server budget (2026-11-26): the worker's budget rule, so the service holds a run to it and derives its bounds
+  'RUNTIME_PANE_BUDGET_CEILING_MS', 'RUNTIME_PANE_BUDGET_FLOOR_BARS', 'RUNTIME_PANE_TIME_BUDGET_MS',
   'RUNTIME_TIME_BUDGET_GUARD', 'SCRIPT_ENGINE_VERSION', 'STRATEGY_RECORD_SCHEMA',
   // U15: `clearPineLibraries`, `libraryEntryProblem` and `registerPineLibrary` are how the job registers
   // exactly the pinned library entries for one run and clears them (services/pine_runtime/job.mjs).
@@ -55,7 +58,7 @@ const EXPORTS = [
   // '#strategy' job and put back off after it (never the browser's build-flag reader).
   'registerStrategyBrokerGate',
   'resetRuntimeLedgers', 'resetRuntimeSessions',
-  'runtimeAlertsOf', 'runtimeStrategyOf', 'runtimeVersionRefusal', 'runtimeWarmupOf', 'strategyBrokerGateOn', 'strategyRecordShapeErrors',
+  'runtimeAlertsOf', 'runtimePaneBudgetFor', 'runtimeStrategyOf', 'runtimeVersionRefusal', 'runtimeWarmupOf', 'strategyBrokerGateOn', 'strategyRecordShapeErrors',
   // Studio R5 (backlog 44): a script's top-level names with lines, for "Inspect a bar" (runtime/topLevelNames.js).
   'topLevelNames',
 ]
@@ -96,6 +99,9 @@ describe('server bundle (W5-T1)', () => {
     expect(mod.DEFAULT_LIMITS).toEqual(DEFAULT_LIMITS)
     // W5-T7: the job adapter's reads, each the declaring module's own value
     expect(mod.RUNTIME_PANE_TIME_BUDGET_MS).toBe(RUNTIME_PANE_TIME_BUDGET_MS)
+    expect(mod.RUNTIME_PANE_BUDGET_CEILING_MS).toBe(RUNTIME_PANE_BUDGET_CEILING_MS)
+    expect(mod.RUNTIME_PANE_BUDGET_FLOOR_BARS).toBe(RUNTIME_PANE_BUDGET_FLOOR_BARS)
+    expect(mod.runtimePaneBudgetFor(8509)).toBe(runtimePaneBudgetFor(8509))
     expect(mod.RUNTIME_INCREMENTAL_KEY).toBe(RUNTIME_INCREMENTAL_KEY)
     expect(mod.RUNTIME_TIME_BUDGET_GUARD).toBe(RUNTIME_TIME_BUDGET_GUARD)
     expect(mod.RUNTIME_FAILED_GUARD).toBe(RUNTIME_FAILED_GUARD)

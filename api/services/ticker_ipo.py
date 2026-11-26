@@ -238,6 +238,19 @@ def _kick_resolve(sym: str, list_date: str) -> bool:
     return True
 
 
+def peek(ticker: str):
+    """The CACHED answer for a ticker (memory, then disk), or None. Never a provider call and never a resolve
+    kick: the server lanes that ask whether a series starts at the listing (`listing_history`) read only what a
+    chart's `/api/ticker-ipo` read (`get_ipo_date`) already resolved and cached."""
+    sym = (ticker or "").upper().strip()
+    if not sym:
+        return None
+    hit = _mem.get(f"ticker_ipo_{sym}")
+    if hit is None:
+        hit = _disk_get(sym)
+    return hit if isinstance(hit, dict) else None
+
+
 def get_ipo_date(ticker: str) -> dict:
     """{"symbol", "list_date", "first_trade_date", "first_trade_final"} for a ticker.
 

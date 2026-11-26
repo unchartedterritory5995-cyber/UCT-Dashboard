@@ -65,6 +65,15 @@ on:
   # opening (09:20-09:45 ET) and closing (15:30-16:15 ET) rush; these promote the tip of
   # master after each: 09:50 and 16:20 ET, one cron per daylight/standard offset (the
   # other lands outside every window and promotes harmlessly).
+  #
+  # ⭐ THE HALF-DAY CATCH-UP (2026-11-26). The hold follows the NYSE calendar (tools/deploy_freeze.py
+  # day_hold_windows): none on a holiday, and on a half-day (13:00 ET close) it ends at 13:15 ET. A SHA held from
+  # the morning of a half-day (its wait to 13:15 is past the 125-min bound) would otherwise wait for the 16:20 ET
+  # run, so these promote at 13:20 ET: 17:20 UTC under EDT (July 3), 18:20 UTC under EST (the day after
+  # Thanksgiving, Christmas Eve). The off-season one lands at 12:20 ET, inside the hold, and waits in-job (55 min,
+  # within the bound) to 13:15. ⛔ On any day that is not a half-day both END EARLY in "Resolve the candidate"
+  # (tools/deploy_freeze.py --half-day says "no"): otherwise the EDT 18:20 UTC run (14:20 ET, 115 min before 16:15,
+  # inside the wait bound) would sit ~2 h in the one promotion queue ahead of an override hotfix.
   # ⭐ A PR that changes the promotion machinery runs ONLY the `dryrun` job below (contents: read; no push, no state
   # write, no dispatch): tools/promote_dryrun.py on simulated clocks inside a rush and inside the Wednesday window,
   # plus the decision tests. The promote and resume jobs are excluded from pull_request by their job-level `if:`.
@@ -84,6 +93,8 @@ on:
     - cron: '50 14 * * 1-5'
     - cron: '20 20 * * 1-5'
     - cron: '20 21 * * 1-5'
+    - cron: '20 17 * * 1-5'
+    - cron: '20 18 * * 1-5'
 
 # ⛔ ONE QUEUE, AND `cancel-in-progress: false` IS THE WHOLE MECHANISM.
 #
@@ -191,8 +202,25 @@ jobs:
           INPUT_SHA: ${{ inputs.sha }}
           RESUME: ${{ inputs.resume }}
           ACTOR: ${{ github.triggering_actor || github.actor }}
+          SCHEDULE: ${{ github.event.schedule }}
         run: |
           set -euo pipefail
+          # ⭐ THE HALF-DAY CRONS DO NOTHING UNLESS TODAY IS A HALF-DAY. On a regular EDT day the 18:20 UTC run is
+          # 14:20 ET: the hold ends 16:15 (115 min, inside the bound), so a pending SHA would sit ~2 h in the ONE
+          # promotion queue, ahead of any override hotfix. Ends early ONLY on a positive "no"; "unknown" (the calendar
+          # cannot answer) proceeds like any catch-up. Master's tool (this checkout), not the candidate's.
+          if [ "$EVENT" = "schedule" ] && { [ "$SCHEDULE" = "20 17 * * 1-5" ] || [ "$SCHEDULE" = "20 18 * * 1-5" ]; }; then
+            HD=$(python tools/deploy_freeze.py --half-day 2>/dev/null | sed -n 's/^half_day=//p' | tail -1 || true)
+            echo "half-day catch-up cron ($SCHEDULE): half_day=${HD:-unknown}"
+            if [ "$HD" = "no" ]; then
+              echo "gate_green=no" >> "$GITHUB_OUTPUT"
+              echo "source=" >> "$GITHUB_OUTPUT"
+              echo "stop=the half-day catch-up cron on a day that is not an NYSE half-day" >> "$GITHUB_OUTPUT"
+              echo "none=yes" >> "$GITHUB_OUTPUT"
+              echo "::notice title=Nothing to do::half-day catch-up cron ($SCHEDULE) on a day that is not an NYSE half-day; the 16:20 ET catch-up covers today."
+              exit 0
+            fi
+          fi
           # (A) the operator's manual fallback needs the tip's OWN gate verdict. It is looked up ONLY for a human blank
           # dispatch with nothing pending (resolve() re-checks every guard: no sha, no resume, no dry run, not the bot).
           TIP=""; TIP_OK=no; TIP_RUN=""
@@ -341,7 +369,7 @@ jobs:
             echo "::notice title=Promotion held (deploy freeze)::Still inside a freeze window after the bounded wait. The SHA stays PENDING; the bounded re-dispatch or the backup crons resume it."
             echo "## Promotion held — deploy freeze" >> "$GITHUB_STEP_SUMMARY"
             echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo "Still inside the Wednesday 09:00-11:00 ET window (TERM-007) or a weekday rush (09:20-09:45 / 15:30-16:15 ET) after the bounded wait. The SHA is PENDING in deploy-gate-state." >> "$GITHUB_STEP_SUMMARY"
+            echo "Still inside the Wednesday 09:00-11:00 ET window (TERM-007) or the session hold (09:20-16:15 ET on a regular NYSE day, to close + 15 min on a half-day, none on a holiday) after the bounded wait. The SHA is PENDING in deploy-gate-state." >> "$GITHUB_STEP_SUMMARY"
           fi
           exit 0
 
@@ -699,3 +727,10 @@ jobs:
         run: python tools/promote_dryrun.py --now 2026-11-10T16:00:00Z --expect hold --summary "$GITHUB_STEP_SUMMARY"
       - name: Dry run outside every window (Tue 16:20 ET) - promotes
         run: python tools/promote_dryrun.py --now 2026-11-10T21:20:00Z --summary "$GITHUB_STEP_SUMMARY"
+      # The NYSE calendar (2026-11-26): a holiday holds nothing; a half-day's hold ends at close + 15 (13:15 ET).
+      - name: Dry run on a market holiday (Thanksgiving Thu 13:00 ET) - promotes
+        run: python tools/promote_dryrun.py --now 2026-11-26T18:00:00Z --summary "$GITHUB_STEP_SUMMARY"
+      - name: Dry run after a half-day close (Fri 2026-11-27 13:20 ET) - promotes
+        run: python tools/promote_dryrun.py --now 2026-11-27T18:20:00Z --summary "$GITHUB_STEP_SUMMARY"
+      - name: Dry run inside a half-day closing rush (Fri 2026-11-27 12:50 ET) - waits to 13:15 ET, then promotes
+        run: python tools/promote_dryrun.py --now 2026-11-27T17:50:00Z --summary "$GITHUB_STEP_SUMMARY"
