@@ -36,6 +36,15 @@
    "to": "      void 0",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/pureCallMemo.test.js",
    "expectRed": "VARIES"
+  },
+  {
+   "id": "PM5",
+   "mutant": "a function whose answers never repeat is memoised for the whole run",
+   "file": "app/src/components/chart/engine/runtime/vm.js",
+   "from": "                if (m >= PURE_MEMO_GIVE_UP.misses && pureFnHit[a] * PURE_MEMO_GIVE_UP.ratio < m) { pureLeaf[a] = 0; pureMemo[a] = undefined }",
+   "to": "                if (false) { pureLeaf[a] = 0 }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/pureCallMemo.test.js",
+   "expectRed": "rarely repeat"
   }
  ]
 }

@@ -43,7 +43,7 @@ function vmRun(src, n, opts = {}) {
     columns: p.columns, confirmed: true, barTimes: bars.map((b) => b.t), requestBars: {} }
   try {
     const res = execute(p, ctx, undefined, opts)
-    return { p, bars, outputs: res.outputs, counts: { ...res.budget.counts } }
+    return { p, bars, outputs: res.outputs, counts: { ...res.budget.counts }, memo: res.budget.pureMemo || null }
   } catch (err) {
     if (!(err instanceof RuntimeLimitError)) throw err
     return { p, err }
@@ -128,6 +128,15 @@ describe('e99 b2 — pure leaf calls from a memo', () => {
     const col = Object.values(on.outputs)[0]
     expect(Array.from(col)).toEqual(on.bars.map((b) => 1 + b.c * 2))
     expect(sameColumn(col, Object.values(off.outputs)[0])).toBe(true)
+  })
+
+  it('a pure leaf whose arguments rarely repeat stops being memoised (values exact, the memo small)', () => {
+    const src = L('f(float x) =>', '    x * 2.0', 'plot(f(close))')
+    const on = vmRun(src, 3000)
+    const off = vmRun(src, 3000, { pureMemo: false })
+    expect(sameColumn(Object.values(on.outputs)[0], Object.values(off.outputs)[0])).toBe(true)
+    expect(on.counts).toEqual(off.counts)
+    expect(on.memo.entries).toBeLessThanOrEqual(256)
   })
 
   it('-0 and 0 are different arguments', () => {

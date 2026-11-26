@@ -31,6 +31,9 @@
 import { OP } from './program.js'
 
 export const PURE_MEMO_MAX = 65536
+/** A function stops being memoised for the rest of a run once it has missed `misses` times and hit fewer than one
+ *  time in `ratio` misses: its arguments rarely repeat, so the memo would only cost time. Values never depend on it. */
+export const PURE_MEMO_GIVE_UP = Object.freeze({ misses: 256, ratio: 4 })
 /** `-0`'s key: a value no argument can be, so `-0` and `0` (one `Map` key) are kept apart. */
 export const NEG_ZERO_KEY = Symbol('-0')
 

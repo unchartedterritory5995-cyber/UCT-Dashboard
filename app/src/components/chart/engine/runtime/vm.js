@@ -61,7 +61,7 @@ export function withAmbientRunClock(now, fn) {
 }
 import { etClockAt } from '../../indicators.js'
 import { encodeState, cloneValues } from './vmState.js'
-import { pureLeafFlagsFor, PURE_MEMO_MAX, NEG_ZERO_KEY } from './pureCalls.js'
+import { pureLeafFlagsFor, PURE_MEMO_MAX, PURE_MEMO_GIVE_UP, NEG_ZERO_KEY } from './pureCalls.js'
 
 /** `CLOCK_FIELDS` index -> the property `etClockAt` returns that field under.
  *
@@ -971,6 +971,10 @@ export function execute(program, ctx, limits, opts) {
   const pureMemo = pureLeaf ? new Array(pureLeaf.length) : null
   let pureEntries = 0
   let pureHits = 0
+  // per function: its misses and hits this run. A function whose answers rarely repeat (its arguments a price, say)
+  // stops being memoised for the rest of the run (`PURE_MEMO_GIVE_UP`): the memo only ever costs time, never values.
+  const pureFnMiss = pureLeaf ? new Int32Array(pureLeaf.length) : null
+  const pureFnHit = pureLeaf ? new Int32Array(pureLeaf.length) : null
   // what the memo did, for its rails and census (never a budget count: `counts` stay a run's own)
   const pureStats = pureLeaf ? (budget.pureMemo = { functions: pureLeaf.reduce((k, f) => k + f, 0), entries: 0, hits: 0 }) : null
   const frMemoNode = []
@@ -1372,9 +1376,14 @@ export function execute(program, ctx, limits, opts) {
                 for (let k = 0; k < vals.length; k += 1) stack[sp++] = vals[k]
                 perBar += e.dI
                 pureHits += 1
+                pureFnHit[a] += 1
                 break
               }
-              if (e === undefined && pureEntries < PURE_MEMO_MAX) { memoNode = node; memoKey = key }
+              if (e === undefined) {
+                const m = (pureFnMiss[a] += 1)
+                if (m >= PURE_MEMO_GIVE_UP.misses && pureFnHit[a] * PURE_MEMO_GIVE_UP.ratio < m) { pureLeaf[a] = 0; pureMemo[a] = undefined }
+                else if (pureEntries < PURE_MEMO_MAX) { memoNode = node; memoKey = key }
+              }
             }
           }
           const newBase = localsTop
