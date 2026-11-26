@@ -1882,9 +1882,9 @@ _OFF_SESSION_HOURS_DONE: dict[int, int] = {}     # id(connection) -> the hour th
 
 def _off_session_hours_table(c: sqlite3.Connection) -> None:
     """`temp.off_session_hours`: every UTC hour index from OFF_SESSION_FLOOR_TS to tomorrow that lies OUTSIDE the
-    extended session (`bars_fetch.in_extended_session`, the one rule), so a ticker's scan stays in C. Built once per
+    extended session (`extended_session.inside`, the one rule), so a ticker's scan stays in C. Built once per
     connection and topped up as the clock moves (~150k rows for 24 years)."""
-    from api.services.bars_fetch import in_extended_session
+    from api.services.extended_session import inside as in_extended_session
     top = int(time.time()) // 3600 + 48
     have = _OFF_SESSION_HOURS_DONE.get(id(c))
     c.execute("CREATE TEMP TABLE IF NOT EXISTS off_session_hours (h INTEGER PRIMARY KEY)")
@@ -1899,12 +1899,12 @@ def _off_session_hours_table(c: sqlite3.Connection) -> None:
 def purge_off_session_intraday(ticker: str, c: sqlite3.Connection | None = None,
                                since_ts: int | None = None) -> int:
     """Delete ``ticker``'s intraday rows (1/5/15/30/60) whose bucket starts outside its ET day's extended session
-    (`bars_fetch.in_extended_session`): the SPY 60m rows stamped 20:00 ET, a print on a weekend or holiday. Each
+    (`extended_session.inside`): the SPY 60m rows stamped 20:00 ET, a print on a weekend or holiday. Each
     series that loses a row has its history_rev bumped ONCE (`bump_series_revs(deleted=True)`), so a client holding it
     does one full read and converges on the store without them. Idempotent; one PK-prefixed read per ticker; writes
     only for a ticker with something to delete. Names no NYSE session governs are left alone
-    (`bars_fetch.session_clamp_applies`). Returns rows deleted."""
-    from api.services.bars_fetch import session_clamp_applies
+    (`extended_session.applies`). Returns rows deleted."""
+    from api.services.extended_session import applies as session_clamp_applies
     tkr = ticker.upper()
     if not session_clamp_applies(tkr):
         return 0

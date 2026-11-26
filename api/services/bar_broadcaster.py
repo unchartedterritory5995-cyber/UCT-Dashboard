@@ -64,6 +64,7 @@ from typing import Callable, Optional
 
 from api.services.bar_rollup import TF_TO_SECONDS, tv_bucket_bounds  # noqa: F401 (TF_TO_SECONDS re-export)
 from api.services import trade_conditions
+from api.services import extended_session
 
 _logger = logging.getLogger(__name__)
 
@@ -108,22 +109,17 @@ _RETAIN_MS = 3 * 60 * _MINUTE_MS
 # ⭐ THE EXTENDED SESSION, AT THE LIVE GATE (2026-11-25, the follow-up to #2781). A print at 20:00:05 ET used to open a
 # live 20:00 minute (and a 20:00 60m eth bar) that the store's serve path now refuses; the client kept it, because a
 # delta answer never deletes a bar. `_accept_minute` therefore refuses a minute outside its ET trading day's extended
-# session for every name the session governs (`bars_fetch.session_clamp_applies` / `in_extended_session`, the one rule;
-# both cached, so this costs a dict lookup per trade).
+# session for every name the session governs (`extended_session.applies` / `inside`, the one rule; both cached, so
+# this costs a dict lookup per trade).
 _session_applies: dict[str, bool] = {}
-_bf = None
 
 
 def _session_minute_ok(sym: str, m_ms: int) -> bool:
-    global _bf
     try:
-        if _bf is None:
-            from api.services import bars_fetch as _bars_fetch
-            _bf = _bars_fetch
         ap = _session_applies.get(sym)
         if ap is None:
-            ap = _session_applies[sym] = bool(_bf.session_clamp_applies(sym))
-        return (not ap) or _bf.in_extended_session(int(m_ms) // 1000)
+            ap = _session_applies[sym] = bool(extended_session.applies(sym))
+        return (not ap) or extended_session.inside(int(m_ms) // 1000)
     except Exception:                      # noqa: BLE001 - the gate must never stop the tape
         return True
 

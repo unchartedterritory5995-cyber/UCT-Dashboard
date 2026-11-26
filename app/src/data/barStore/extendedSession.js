@@ -5,7 +5,7 @@
 // developing row, but a client that already HOLDS one (a live 20:00 bar from before the fix, a row read into
 // IndexedDB) keeps it forever, because a delta answer never deletes a bar. So the store's ingest drops it too.
 //
-// ONE RULE, TWO LANGUAGES: this mirrors `bars_fetch.session_clamp_applies` / `in_extended_session`, and both are pinned
+// ONE RULE, TWO LANGUAGES: this mirrors `api/services/extended_session.py` (`applies` / `inside`), and both are pinned
 // to one case list (`tests/fixtures/session_clamp_cases.json`, read by `extendedSession.test.js` and by
 // `tests/test_bars_live_session_clamp.py`). Change one, change the other and the case list.
 //
@@ -23,7 +23,7 @@ const NON_US_SUFFIXES = new Set([
 ])
 const CRYPTO_NAMES = new Set(['BTC', 'ETH'])
 
-/** Is `sym` a US-listed name the NYSE extended session governs? (mirror of `bars_fetch.session_clamp_applies`) */
+/** Is `sym` a US-listed name the NYSE extended session governs? (mirror of `extended_session.applies`) */
 export function sessionClampApplies(sym) {
   const tk = String(sym || '').trim().toUpperCase()
   if (!tk) return false
@@ -38,7 +38,7 @@ export function sessionClampApplies(sym) {
 // offset is a whole number of hours, so a UTC hour is wholly in or wholly out: one calendar read per hour, ever.
 const _hours = new Map()
 
-/** Does unix second `sec` lie inside its ET trading day's extended session? (mirror of `in_extended_session`) */
+/** Does unix second `sec` lie inside its ET trading day's extended session? (mirror of `extended_session.inside`) */
 export function inExtendedSession(sec) {
   const h = Math.floor(Number(sec) / 3600)
   if (!Number.isFinite(h)) return true
