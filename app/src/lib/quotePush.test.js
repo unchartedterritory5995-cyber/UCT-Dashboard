@@ -14,7 +14,8 @@ class FakeEventSource {
   addEventListener(type, fn) { (this.listeners[type] ||= []).push(fn) }
   close() { this.closed = true }
   emitOpen() { this.onopen?.() }
-  frame(arr) { this.onmessage?.({ data: JSON.stringify(arr) }) }
+  // one write = one message: [server write ms, quote, quote, ...] (api/services/quote_hub.py)
+  frame(...quotes) { this.onmessage?.({ data: JSON.stringify([1_700_000_000_090, ...quotes]) }) }
   emitEvent(type, obj) { for (const fn of this.listeners[type] || []) fn({ data: JSON.stringify(obj) }) }
   emitError() { this.onerror?.() }
 }
@@ -108,9 +109,9 @@ describe('frames -> the next animation frame', () => {
     settle()
     const es = open()[0]
     es.emitOpen()
-    es.frame(['AAPL', 100.5, 1000, 1_700_000_000_000, 1_700_000_000_050])
-    es.frame(['MSFT', 400.25, 2000, 1_700_000_000_010, 1_700_000_000_050])
-    es.frame(['AAPL', 100.75, 1100, 1_700_000_000_020, 1_700_000_000_060])
+    es.frame(['AAPL', 100.5, 1000, 1_700_000_000_000])
+    es.frame(['MSFT', 400.25, 2000, 1_700_000_000_010])
+    es.frame(['AAPL', 100.75, 1100, 1_700_000_000_020])
     vi.advanceTimersByTime(1000)             // no timer publishes it: only a frame does
     expect(seen).toHaveLength(0)
     runFrame()
@@ -120,11 +121,28 @@ describe('frames -> the next animation frame', () => {
     expect(qp.getPushedQuote('AAPL').price).toBe(100.75)
   })
 
-  it('parseFrame refuses anything that is not a priced quote', () => {
-    expect(qp.parseFrame('["AAPL",1.5,10,1700000000000,1700000000001]')).toMatchObject({ sym: 'AAPL', price: 1.5 })
-    for (const bad of ['{}', '[]', '["AAPL",0,1,2,3]', '["AAPL",-1,1,2,3]', '["AAPL","x",1,2,3]', 'nope', '[1,2,3,4,5]']) {
-      expect(qp.parseFrame(bad)).toBeNull()
+  it('parseMessage reads [write ms, quote...] and drops anything that is not a priced quote', () => {
+    const m = qp.parseMessage('[1700000000090,["AAPL",1.5,10,1700000000000],["MSFT",0,1,2],["NVDA",2.5,20,1700000000001]]')
+    expect(m.sentMs).toBe(1700000000090)
+    expect(m.quotes.map((q) => q.sym)).toEqual(['AAPL', 'NVDA'])
+    expect(m.quotes[0]).toMatchObject({ sym: 'AAPL', price: 1.5, volume: 10, trade_ts: 1700000000000 })
+    for (const bad of ['{}', '[]', 'nope', '["AAPL",1,2,3]', '["x"]']) {
+      expect(qp.parseMessage(bad)).toBeNull()
     }
+  })
+
+  it('one message carrying several quotes lands them all in the same frame batch', () => {
+    localStorage.setItem('uct.quotePush', '1')
+    const seen = []
+    qp.onQuotes((batch) => seen.push(batch))
+    qp.setTickers('rest', ['AAPL', 'MSFT'])
+    settle()
+    const es = open()[0]
+    es.emitOpen()
+    es.frame(['AAPL', 101, 10, 1_700_000_000_000], ['MSFT', 401, 20, 1_700_000_000_001])
+    runFrame()
+    expect(seen).toHaveLength(1)
+    expect(Object.keys(seen[0]).sort()).toEqual(['AAPL', 'MSFT'])
   })
 })
 

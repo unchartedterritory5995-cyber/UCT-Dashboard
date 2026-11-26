@@ -3,7 +3,11 @@ channel (api/services/quote_hub.py), fed by the ingest feed's per-trade last pri
 
 What these rails hold (each drives the code and reads what it produced, never "the constant exists"):
   * a symbol update is SERIALISED ONCE and the same bytes reach every member (shared frames);
-  * per symbol, latest wins and at most max_hz updates a second leave the hub (conflation);
+  * BY DEFAULT every price change leaves on the ingest batch that brought it: the hub holds nothing
+    (owner target 2026-11-25: <= 40 ms p50 from a trade at our servers to the row painted);
+  * with the QUOTE_STREAM_MAX_HZ knob set, latest wins and at most max_hz updates a second leave;
+  * one write is ONE SSE message carrying every pending quote (one browser event per write);
+  * the hub measures how long it held a change (stats()['hold_ms']);
   * the first change after a quiet spell leaves AT ONCE (no timer between a trade and the wire);
   * a member who never reads holds at most ONE frame per symbol (the per-connection bound);
   * a batch from ingest reaches a member's pending bytes inside apply_batch (push, no poll);
@@ -39,7 +43,7 @@ def _q(price, volume=1000, trade_ts=1_700_000_000_000):
     return {"price": price, "ts": trade_ts, "trade_ts": trade_ts, "volume": volume}
 
 
-def _frames(raw: bytes) -> list:
+def _messages(raw: bytes) -> list:
     out = []
     for block in raw.decode().split("\n\n"):
         for line in block.split("\n"):
@@ -48,13 +52,33 @@ def _frames(raw: bytes) -> list:
     return out
 
 
+def _frames(raw: bytes) -> list:
+    """Every quote in every message: a message is [server write ms, quote, quote, ...]."""
+    out = []
+    for m in _messages(raw):
+        assert isinstance(m, list) and isinstance(m[0], int) and not isinstance(m[0], bool), m
+        out.extend(m[1:])
+    return out
+
+
 # ── the frame ────────────────────────────────────────────────────────────────
 
-def test_a_frame_is_one_sse_message_with_the_compact_quote():
-    raw = qh.encode_frame("AAPL", 231.45, 12_345_678, 1_700_000_000_123, 1_700_000_000_180)
+def test_a_quote_is_one_compact_shared_fragment():
+    raw = qh.encode_quote("AAPL", 231.45, 12_345_678, 1_700_000_000_123)
     assert isinstance(raw, bytes)
-    assert raw.startswith(b"data: ") and raw.endswith(b"\n\n")
-    assert _frames(raw) == [["AAPL", 231.45, 12_345_678, 1_700_000_000_123, 1_700_000_000_180]]
+    assert json.loads(raw) == ["AAPL", 231.45, 12_345_678, 1_700_000_000_123]
+
+
+def test_one_write_is_ONE_message_carrying_every_pending_quote_and_the_write_time():
+    hub, _ = _hub()
+    c = hub.open(["AAPL", "MSFT", "NVDA"])
+    hub.on_prices({"AAPL": _q(100.0), "MSFT": _q(400.0), "NVDA": _q(150.0)})
+    raw = c.take()
+    msgs = _messages(raw)
+    assert len(msgs) == 1, "one write must be one browser event, not one per quote"
+    assert msgs[0][0] == 1_700_000_000_000
+    assert sorted(q[0] for q in msgs[0][1:]) == ["AAPL", "MSFT", "NVDA"]
+    assert raw.startswith(b"data: ") and raw.endswith(b"\n\n") and raw.count(b"data: ") == 1
 
 
 # ── serialise once, fan out bytes ────────────────────────────────────────────
@@ -67,7 +91,7 @@ def test_one_update_is_SERIALISED_ONCE_and_the_SAME_bytes_reach_every_member():
     assert hub.counters["serialised"] - before == 1, "the frame was built per member"
     frames = [c.pending["AAPL"] for c in conns]
     assert all(f is frames[0] for f in frames), "members got copies, not one shared frame"
-    assert _frames(frames[0])[0][:2] == ["AAPL", 100.0]
+    assert json.loads(frames[0])[:2] == ["AAPL", 100.0]
 
 
 def test_a_symbol_nobody_subscribed_is_never_serialised():
@@ -77,7 +101,40 @@ def test_a_symbol_nobody_subscribed_is_never_serialised():
     assert hub.counters["serialised"] == 0
 
 
-# ── conflation: latest wins, at most max_hz a second ─────────────────────────
+# ── the default: nothing held; every price change leaves on its ingest batch ──
+
+def test_by_DEFAULT_every_price_change_leaves_on_the_batch_that_brought_it():
+    hub, clock = _hub()
+    assert hub.max_hz == 0, "the default must hold nothing (owner target: <= 40 ms p50 end to end)"
+    c = hub.open(["AAPL"])
+    got = []
+    for i in range(100):                       # 100 ingest batches, 50 ms apart, a new price in each
+        hub.on_prices({"AAPL": _q(100.0 + i / 100)})
+        got += _frames(c.take())
+        clock.t += 0.05
+    assert len(got) == 100, len(got)
+    assert got[-1][1] == pytest.approx(100.99)
+    st = hub.stats()
+    assert st["held"] == 0 and st["hold_ms"]["p90"] == 0
+
+
+def test_the_hub_MEASURES_how_long_it_held_a_change():
+    hub, clock = _hub(max_hz=4.0)
+    c = hub.open(["AAPL"])
+    hub.on_prices({"AAPL": _q(100.0)})
+    c.take()
+    clock.t += 0.05
+    hub.on_prices({"AAPL": _q(100.1)})       # held: changed 50 ms after the last frame
+    clock.t += 0.05
+    hub.on_prices({"AAPL": _q(100.2)})       # replaces it; the hold counts from the FIRST unsent change
+    clock.t += 0.20
+    hub.flush()                                 # 250 ms after that first change
+    assert _frames(c.take())[0][1] == 100.2
+    h = hub.stats()["hold_ms"]
+    assert h["n"] == 2 and h["p90"] == pytest.approx(250, abs=1) and h["p50"] == 0
+
+
+# ── the knob: latest wins, at most max_hz a second ───────────────────────────
 
 def test_the_first_change_after_quiet_leaves_AT_ONCE():
     hub, clock = _hub(max_hz=4.0)
@@ -132,7 +189,7 @@ def test_a_volume_only_change_is_held_to_the_slower_volume_cadence():
 
 
 def test_an_unchanged_quote_is_not_sent_again():
-    hub, clock = _hub()
+    hub, clock = _hub(max_hz=4.0)
     c = hub.open(["AAPL"])
     hub.on_prices({"AAPL": _q(100.0)})
     c.take()
@@ -150,7 +207,7 @@ def test_a_member_who_never_reads_holds_at_most_ONE_frame_per_symbol():
         hub.on_prices({"AAPL": _q(100 + i), "MSFT": _q(400 + i)})
         clock.t += 0.3
     assert set(c.pending) == {"AAPL", "MSFT"}
-    assert [f[1] for f in _frames(c.pending["AAPL"])] == [299.0], "the pending frame is not the newest"
+    assert json.loads(c.pending["AAPL"])[1] == 299.0, "the pending frame is not the newest"
     assert c.replaced > 0
 
 

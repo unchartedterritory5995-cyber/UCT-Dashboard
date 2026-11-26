@@ -14,7 +14,8 @@ class FakeEventSource {
   addEventListener(type, fn) { (this.listeners[type] ||= []).push(fn) }
   close() { this.closed = true }
   emitOpen() { this.onopen?.() }
-  frame(arr) { this.onmessage?.({ data: JSON.stringify(arr) }) }
+  // one write = one message: [server write ms, quote, quote, ...] (api/services/quote_hub.py)
+  frame(...quotes) { this.onmessage?.({ data: JSON.stringify([1_700_000_000_090, ...quotes]) }) }
   message(obj) { this.onmessage?.({ data: JSON.stringify(obj) }) }
   emitEvent(type, obj) { for (const fn of this.listeners[type] || []) fn({ data: JSON.stringify(obj) }) }
 }
@@ -66,7 +67,7 @@ async function healthyPush(tickers = ['AAPL']) {
 describe('livePriceStore', () => {
   it('a pushed trade reaches the list row on the next frame: price, volume and the day % recomputed', async () => {
     const es = await healthyPush()
-    es.frame(['AAPL', 101.98, 900, Date.now(), Date.now()])
+    es.frame(['AAPL', 101.98, 900, Date.now()])
     expect(store.getSnapshot().AAPL.price).toBe(100)       // not before the frame
     runFrame()
     const row = store.getSnapshot().AAPL
@@ -103,7 +104,7 @@ describe('livePriceStore', () => {
 
   it('a slower REST answer never drags a pushed price back while the push is healthy', async () => {
     const es = await healthyPush()
-    es.frame(['AAPL', 101.5, 900, Date.now(), Date.now()])
+    es.frame(['AAPL', 101.5, 900, Date.now()])
     runFrame()
     restBody = { AAPL: { ...restBody.AAPL, price: 100.2 } }   // 15 s cached server snapshot
     store.pollNow()
@@ -130,7 +131,7 @@ describe('priceStreamManager', () => {
     vi.advanceTimersByTime(mgr.REBUILD_DEBOUNCE_MS + 10)
     const es = await healthyPush()
     const t = Date.now()
-    es.frame(['AAPL', 101.5, 900, t, t])
+    es.frame(['AAPL', 101.5, 900, t])
     runFrame()
     expect(mgr.getSnapshot().prices.AAPL.price).toBe(101.5)
     const old = pricesEs()[0]
@@ -144,7 +145,7 @@ describe('priceStreamManager', () => {
     mgr.subscribe(['AAPL'], () => {})
     vi.advanceTimersByTime(mgr.REBUILD_DEBOUNCE_MS + 10)
     const es = await healthyPush()
-    es.frame(['AAPL', 101.5, 900, Date.now(), Date.now()])
+    es.frame(['AAPL', 101.5, 900, Date.now()])
     runFrame()
     es.emitEvent('status', { live: false })
     expect(mgr.getSnapshot().prices.AAPL).toBeUndefined()
