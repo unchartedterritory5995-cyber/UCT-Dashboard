@@ -151,8 +151,16 @@ _LAST_INELIGIBLE_FALLBACK = frozenset(
 #   An odd lot (37), an out-of-sequence or an average-price print DOES add its size (true trades).
 _VOL_INELIGIBLE_FALLBACK = frozenset({15, 16, 38})
 
+#: ⭐ PINNED OUT OF HIGH/LOW, WHATEVER THE VENDOR'S TABLE SAYS (2026-11-26, the spike probe). The vendor counts these
+#: toward a bar's high/low (its aggregates carried the SPY 2025-12-22 15:00 low from one derivatively priced TRF print,
+#: the 2026-08-28 15:00 high from out-of-sequence and contingent TRF prints, the RDDT 2024-05-20 13:30 low from trades
+#: reported four hours late); TradingView, and the fallback above, do not. Their size still counts (volume), their
+#: price never makes a wick. This also moves some one-cent extremes, which is the point.
+#:   10 Derivatively Priced   32 / 33 Sold (Out of Sequence)   52 Contingent Trade   53 Qualified Contingent Trade
+_HL_PINNED = frozenset({10, 32, 33, 52, 53})
+
 _lock = threading.Lock()
-_hl_ineligible: set[int] = set(_HL_INELIGIBLE_FALLBACK) - _SESSION_CODES
+_hl_ineligible: set[int] = (set(_HL_INELIGIBLE_FALLBACK) | _HL_PINNED) - _SESSION_CODES
 _last_ineligible: set[int] = set(_LAST_INELIGIBLE_FALLBACK) - _SESSION_CODES
 _vol_ineligible: set[int] = set(_VOL_INELIGIBLE_FALLBACK) - _SESSION_CODES
 _loaded_from_provider = False
@@ -232,7 +240,7 @@ def load_from_provider() -> None:
         hl, last, vol = _parse_provider_rules3(results)
         if hl or last:
             with _lock:
-                _hl_ineligible = hl
+                _hl_ineligible = set(hl) | _HL_PINNED      # the pinned codes stay out of high/low (see _HL_PINNED)
                 _last_ineligible = last
                 _vol_ineligible = vol
                 _loaded_from_provider = True
@@ -260,6 +268,7 @@ def status() -> dict:
         "enabled": FILTER_ENABLED,
         "loaded_from_provider": _loaded_from_provider,
         "hl_ineligible_count": len(_hl_ineligible),
+        "hl_pinned": sorted(_HL_PINNED),
         "last_ineligible_count": len(_last_ineligible),
         "vol_ineligible_count": len(_vol_ineligible),
     }
