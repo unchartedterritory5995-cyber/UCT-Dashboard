@@ -1,0 +1,41 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "DC1",
+   "mutant": "the depth bound back at 400 (past where the host stack breaks)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "export const PINE_TRANSLATE_MAX_DEPTH = 100\n",
+   "to": "export const PINE_TRANSLATE_MAX_DEPTH = 400\n",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/translateDepthCap.test.js",
+   "expectRed": "host-stack overflows"
+  },
+  {
+   "id": "DC2",
+   "mutant": "a converted overflow is not counted",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "        CALL_STACK_TRIPS += 1\n",
+   "to": "",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/translateDepthCap.test.js",
+   "expectRed": "the overflow counter counts"
+  },
+  {
+   "id": "DC3",
+   "mutant": "the depth bound below the deepest legitimate script",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "export const PINE_TRANSLATE_MAX_DEPTH = 100\n",
+   "to": "export const PINE_TRANSLATE_MAX_DEPTH = 40\n",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/translateDepthCap.test.js",
+   "expectRed": "the deepest legitimate script resolves"
+  },
+  {
+   "id": "DC4",
+   "mutant": "a nested window's overflow is lost to the outer call",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    CALL_STACK_TRIPS = outer.stackTrips + CALL_STACK_TRIPS\n",
+   "to": "    CALL_STACK_TRIPS = outer.stackTrips\n",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/translateDepthCap.test.js",
+   "expectRed": "reaches the outer call"
+  }
+ ]
+}

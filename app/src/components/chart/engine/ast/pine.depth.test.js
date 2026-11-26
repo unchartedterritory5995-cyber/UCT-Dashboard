@@ -73,13 +73,13 @@ describe('pine:timeout — the depth bound', () => {
     expect(guardsOf(r)).not.toContain('pine:timeout')
   })
 
-  it('the bound is 20x the deepest legitimate script — measured, not guessed', () => {
-    // Deepest resolution across the 51 published scripts in both corpora is 20
-    // (`07-rsi`); everything else sits at 8-10. The SAR file reached 1,281
-    // before the host stack broke, so 400 sits well clear of both.
-    expect(PINE_TRANSLATE_MAX_DEPTH).toBe(400)
-    expect(PINE_TRANSLATE_MAX_DEPTH / 20).toBeGreaterThanOrEqual(20)
-    expect(PINE_TRANSLATE_MAX_DEPTH).toBeLessThan(1281)
+  it('the bound sits between the deepest legitimate resolution and the host stack — measured, not guessed', () => {
+    // ⭐ (e100) Deepest resolution any committed script COMPLETES is 43 (screener-mean-reversion-channel); on
+    // Node 20 the host stack broke as shallow as 218 levels (momentum-based-zigzag), so the old 400 was reached by
+    // the stack first and the answer's steps depended on the JIT (`translateDepthCap.test.js`).
+    expect(PINE_TRANSLATE_MAX_DEPTH).toBe(100)
+    expect(PINE_TRANSLATE_MAX_DEPTH).toBeGreaterThanOrEqual(2 * 43)
+    expect(PINE_TRANSLATE_MAX_DEPTH).toBeLessThanOrEqual(218 / 2)
   })
 })
 
