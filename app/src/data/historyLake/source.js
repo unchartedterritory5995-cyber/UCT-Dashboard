@@ -130,7 +130,9 @@ async function mapLimit(items, limit, fn) {
 }
 
 /**
- * @param {{ fetch?: typeof fetch, base?: string, maxParallel?: number, yieldTask?: () => Promise<void> }} o
+ * @param {{ fetch?: typeof fetch, base?: string, maxParallel?: number, yieldTask?: () => (Promise<void> | null) }} o
+ *   `yieldTask` (also per `loadBars` call): asked before each piece's decode; a promise is awaited (the decode runs in a
+ *   later task), null runs it at once. Default `nextTask`.
  */
 export function createHistorySource(o = {}) {
   const doFetch = o.fetch ?? ((...a) => fetch(...a))
@@ -173,7 +175,7 @@ export function createHistorySource(o = {}) {
     `${base}/v1/${series}/${encodeSymbol(symbol)}/${entry.period}.ubh?c=${entry.crc}&o=${entry.off}&n=${entry.bytes}`
   const placed = (entry) => Number.isSafeInteger(entry.off) && entry.off >= 0 && Number.isSafeInteger(entry.bytes) && entry.bytes > 0
 
-  async function loadPiece(symbol, series, entry, signal) {
+  async function loadPiece(symbol, series, entry, signal, wait = yieldTask) {
     // the piece is one ranged read of its pack: offset `off`, length `bytes` (edge history.js)
     if (!placed(entry)) {
       throw new HistoryError(`${symbol} ${series}/${entry.period}: the index gives no place for the piece`, { stale: true })
@@ -191,7 +193,10 @@ export function createHistorySource(o = {}) {
     // ⭐ ONE PIECE PER TASK (smoothness trace 2026-11-26, 1m+15m board: the deep history's pieces decoded back to back
     // in 18-27 ms tasks, 160-215 ms after both charts showed the new symbol, each a dropped frame). Pieces whose bytes land
     // together are decoded in tasks of their own, so a frame can be drawn between two of them. Same decode, same check.
-    await yieldTask()
+    // A load something is WAITING on to paint (network.lakeSeed `awaited`) passes a `wait` that answers nothing: it never
+    // yields, so this cannot delay a first frame.
+    const w = wait ? wait() : null
+    if (w) await w
     const d = decodeColumns(headerJson, bytes)
     const hd = d.header
     if (hd.symbol !== owner || hd.series !== series || hd.period !== entry.period || hd.crc !== entry.crc) {
@@ -208,7 +213,7 @@ export function createHistorySource(o = {}) {
    * a caller wanting an exact cut slices by `t`.
    * A piece the index names that the edge no longer has is retried ONCE against a fresh index.
    */
-  async function loadBars(sym, tf, { from = null, to = null, extended = false, raw = false, signal } = {}) {
+  async function loadBars(sym, tf, { from = null, to = null, extended = false, raw = false, signal, yieldTask: wait = yieldTask } = {}) {
     const symbol = lakeSymbol(sym)
     const series = seriesFor(tf, { extended })
     if (!series) return null
@@ -219,7 +224,7 @@ export function createHistorySource(o = {}) {
       if (!want.length) return index.series[series] ? emptyResult(symbol, series) : null
       let parts
       try {
-        parts = await mapLimit(want, maxParallel, (e) => loadPiece(symbol, series, e, signal))
+        parts = await mapLimit(want, maxParallel, (e) => loadPiece(symbol, series, e, signal, wait))
       } catch (err) {
         if (err instanceof HistoryError && err.stale && attempt === 0) { refreshIndex(symbol); continue }
         throw err

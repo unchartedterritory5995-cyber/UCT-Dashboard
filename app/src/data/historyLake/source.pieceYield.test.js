@@ -10,6 +10,7 @@
  *      exactly the bars it loaded before (the fixture's, from the Python reference) (red before the change: no wait)
  *   Y2 the default wait (`nextTask`) resolves after the microtasks queued before it, in a later task, and a load through it
  *      returns the same bars
+ *   Y3 a load asked with `yieldTask: null` (one a paint waits on: network.lakeSeed `awaited`) never waits, same bars
  */
 import { describe, it, expect } from 'vitest'
 import fixture from './__fixtures__/source.json'
@@ -65,5 +66,17 @@ describe('one lake piece per task', () => {
     await spinning
     const got = await createHistorySource({ fetch: edge().fetch }).loadBars('MU-LT', '5')
     expectBars(got)
+  })
+
+  it('Y3 a load asked with yieldTask: null never waits, and loads the same bars', async () => {
+    const e = edge()
+    const waits = []
+    const src = createHistorySource({ fetch: e.fetch, yieldTask: () => { waits.push(1); return Promise.resolve() } })
+    const got = await src.loadBars('MU-LT', '5', { yieldTask: null })
+    expectBars(got)
+    expect(waits).toHaveLength(0)
+    const per = []
+    expectBars(await src.loadBars('MU-LT', '5', { yieldTask: () => { per.push(1); return null } }))   // a wait that answers nothing
+    expect(per).toHaveLength(3)
   })
 })

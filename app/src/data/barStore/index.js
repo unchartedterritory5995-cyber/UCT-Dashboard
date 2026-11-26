@@ -210,8 +210,9 @@ export function createBarStore(o = {}) {
     primeLake: (key) => network.primeLake?.(key),
     /** Warm the edge's copy of `key`'s whole lake depth, no download (network.lakeEdgeWarm). */
     lakeEdgeWarm: (key, opts) => network.lakeEdgeWarm?.(key, opts) ?? Promise.resolve(0),
-    /** Paint `key` from the lake's newest bars now, if it holds nothing and no answer landed (network.lakeSeed). */
-    lakeSeed: (key) => network.lakeSeed?.(key) ?? Promise.resolve(false),
+    /** Paint `key` from the lake's newest bars now, if it holds nothing and no answer landed (network.lakeSeed).
+     *  `{ awaited: true }`: the caller waits on it to paint (its pieces then decode without yielding). */
+    lakeSeed: (key, opts) => network.lakeSeed?.(key, opts) ?? Promise.resolve(false),
     /** Is the lake's whole depth still due for `key` (network.lakePending)? */
     lakePending: (key) => !!network.lakePending?.(key),
     /** D/W/M: is the deep sealed history still due for `key` (network.deepPending)? */
