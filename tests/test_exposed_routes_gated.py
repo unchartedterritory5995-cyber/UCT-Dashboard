@@ -68,6 +68,7 @@ from api.middleware.auth_middleware import (  # noqa: E402
     require_admin,
     require_plan,
 )
+import api.bars_auth as _ba  # noqa: E402
 
 # ── the gate table ───────────────────────────────────────────────────────────
 #
@@ -515,7 +516,15 @@ _GATE_LADDER: tuple[tuple[str, object, frozenset], ...] = (
     # name reports it, and without a rung every one of those rows would read as
     # "NO GATE AT ALL". Admits paid + admin over this file's three declared callers,
     # measured below beside the others.
-    ("bars",       lambda n, o: "require_bars_access" in n,
+    # ⭐ (2026-11-25) AND THE SAME GATE RUN OFF THE TREE. A route that must not hold anyio's default thread pool
+    # (`/api/bars-history`, #2741) runs `require_bars_access` in a thread on its OWN limiter, so the gate is
+    # called, not `Depends`-ed, and is absent from the tree. Such a route carries a
+    # `bars_auth.require_bars_access_on(...)` PRODUCT, recognised here by IDENTITY (the factory records what it
+    # built), never by a name: a function merely CALLED `require_bars_access_history` reports nothing
+    # (`test_a_gate_run_off_the_tree_counts_by_IDENTITY_and_a_look_alike_name_does_not`). And identity alone
+    # would trust the product to call the gate, so every product the served app carries is CALLED with the
+    # three declared callers in `test_the_gate_ladder_MEASURES_who_each_gate_admits`.
+    ("bars",       lambda n, o: "require_bars_access" in n or any(_ba.is_bars_access_on_limiter(d) for d in o),
                                                            frozenset({"paid", "admin"})),
     ("flow_admin", lambda n, o: "require_flow_admin" in n, frozenset({"admin"})),
     ("admin",      lambda n, o: require_admin in o,        frozenset({"admin"})),
@@ -812,6 +821,45 @@ def test_the_gate_reader_can_report_UNGATED(app):
     assert _klass_of(health) == set(), (
         "the deliberately-public health check reports a gate — the class reader "
         "is returning classes it did not find")
+
+
+def test_a_gate_run_off_the_tree_counts_by_IDENTITY_and_a_look_alike_name_does_not():
+    """⭐ (2026-11-25) THE CONTROL ON THE `bars` RUNG'S SECOND SPELLING.
+
+    `/api/bars-history` (#2741) runs `require_bars_access` in a thread on its own limiter, through a
+    `bars_auth.require_bars_access_on(...)` product, and the rung counts that product by identity. The
+    shortcut that would also have turned master green is a NAME rule (anything called `require_bars_access*`),
+    and it would count an open route as gated. So: the real product reports `bars`; an async dependency with the
+    product's exact name and signature, built by hand and admitting everyone, reports NOTHING; and a route with
+    no dependency at all reports nothing."""
+    from fastapi import APIRouter, Cookie, Depends, FastAPI, Header
+
+    async def _run(request, fn, *args):
+        return fn(*args)
+
+    real = _ba.require_bars_access_on(_run, "require_bars_access_history")
+
+    # (no `request: Request` parameter: this module's annotations are strings, and `Request` is not one of its
+    # globals for FastAPI to resolve; the auditor reads the dependency object and its name, never its signature)
+    async def require_bars_access_history(uct_session: str | None = Cookie(None),
+                                          authorization: str = Header(default="")) -> dict:
+        return {"id": "anyone"}                      # the look-alike: same name, async, no gate
+
+    fixture = FastAPI(openapi_url=None, docs_url=None, redoc_url=None)
+    r = APIRouter()
+    r.get("/real", dependencies=[Depends(real)])(lambda: {"ok": True})
+    r.get("/look-alike", dependencies=[Depends(require_bars_access_history)])(
+        lambda: {"ok": True})
+    r.get("/open")(lambda: {"ok": True})
+    fixture.include_router(r)
+    t = _table(fixture)
+
+    assert real.__name__ == require_bars_access_history.__name__, "the control must share the product's name"
+    assert _klass_of(t[("GET", "/real")]) == {"bars"}, _klass_of(t[("GET", "/real")])
+    assert _klass_of(t[("GET", "/look-alike")]) == set(), (
+        "a hand-built dependency that merely carries the product's NAME reports a gate: the rung is reading "
+        "names, and any function called require_bars_access_* now opens a route in this audit's eyes")
+    assert _klass_of(t[("GET", "/open")]) == set()
 
 
 # ── 2. the structural half ───────────────────────────────────────────────────
@@ -1199,20 +1247,46 @@ def test_the_gate_ladder_MEASURES_who_each_gate_admits(app, monkeypatch):
     # set, and four test modules set it at IMPORT time.
     import api.bars_auth as ba
 
-    def _bars_admits() -> set[str]:
+    def _bars_admits(invoke=None) -> set[str]:
+        invoke = invoke or (lambda: ba.require_bars_access(uct_session="test-session", authorization=""))
         out = set()
         for name, user in callers.items():
             monkeypatch.setattr(ba, "validate_session", lambda _c, _u=user: dict(_u))
             monkeypatch.setattr(ba, "get_user_plan", lambda _i, _u=user: _u["plan"])
             try:
-                if ba.require_bars_access(uct_session="test-session",
-                                          authorization="") is not None:
+                if invoke() is not None:
                     out.add(name)
             except HTTPException:
                 pass
         return out
 
     measured["bars"] = _bars_admits()
+
+    # ⭐ (2026-11-25) THE SAME DOOR RUN OFF THE TREE, MEASURED, NOT TRUSTED. The `bars` rung counts a
+    # `require_bars_access_on(...)` product by identity; identity says the factory built it, not that it still
+    # asks the gate. So every product the SERVED app carries is awaited here, on its real limiter, with the same
+    # three callers, and must admit exactly who `require_bars_access` admits. Collected from the served app (not
+    # from `GATED`), as the factory half of the `paid` rung is: a product only the table could see would be the
+    # blind spot this measures.
+    import asyncio
+    from types import SimpleNamespace
+
+    def _bare_request():
+        return SimpleNamespace(app=SimpleNamespace(dependency_overrides={}), query_params={},
+                               state=SimpleNamespace(), headers={})
+
+    off_tree = {d for r in _table(app).values() if getattr(r, "dependant", None) is not None
+                for d in _dep_objects(r) if ba.is_bars_access_on_limiter(d)}
+    assert off_tree, (
+        "no `require_bars_access_on(...)` product is reachable from the served app, yet /api/bars-history "
+        "runs its gate off the tree (#2741): the measurement below would be measuring nothing")
+    for g in sorted(off_tree, key=lambda f: f.__name__):
+        got = _bars_admits(lambda g=g: asyncio.run(g(request=_bare_request(), uct_session="test-session",
+                                                     authorization="")))
+        assert got == measured["bars"], (
+            f"`{g.__name__}` (a require_bars_access_on product) admits {sorted(got)}; the gate it stands for "
+            f"admits {sorted(measured['bars'])}. The rung counts it as the bars gate by identity, and it is not "
+            "the bars gate")
 
     # ⭐ THE MACHINE DOOR. `require_push_secret` never looks at a user — it reads
     # one header — so the honest admit-set over this file's three declared
