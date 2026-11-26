@@ -1,0 +1,59 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "CB1",
+   "mutant": "the palette candle withheld again (two-colour packing only)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "  if (Array.isArray(pres.colorPalette) && pres.colorPalette.length >= 2 && pres.colorIndex && pres.colorIndex.ast) {",
+   "to": "  if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/candleBodyColours.test.js",
+   "expectRed": "palette entry"
+  },
+  {
+   "id": "CB2",
+   "mutant": "the index read one entry off",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "      t = cOp('?:', [cOp('==', [pres.colorIndex.ast, cNum(k)]), entries[k] === null ? naTree : cNum(entries[k]), t])",
+   "to": "      t = cOp('?:', [cOp('==', [pres.colorIndex.ast, cNum(k + 1)]), entries[k] === null ? naTree : cNum(entries[k]), t])",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/candleBodyColours.test.js",
+   "expectRed": "no colour where it names none"
+  },
+  {
+   "id": "CB3",
+   "mutant": "an na leaf drawn as a colour (packed 0)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "      t = cOp('?:', [cOp('==', [pres.colorIndex.ast, cNum(k)]), entries[k] === null ? naTree : cNum(entries[k]), t])",
+   "to": "      t = cOp('?:', [cOp('==', [pres.colorIndex.ast, cNum(k)]), entries[k] === null ? cNum(0) : cNum(entries[k]), t])",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/candleBodyColours.test.js",
+   "expectRed": "never a neighbour"
+  },
+  {
+   "id": "CB4",
+   "mutant": "an index naming no entry takes the last entry's colour",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    let t = naTree\n",
+   "to": "    let t = cNum(entries[entries.length - 1] ?? 0)\n",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/candleBodyColours.test.js",
+   "expectRed": "no colour where it names none"
+  },
+  {
+   "id": "CB5",
+   "mutant": "the shared transparency dropped from the entries",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "      const v = packed(e, /^#[0-9a-f]{6}$/i.test(String(e)) ? pres.opacity : undefined)",
+   "to": "      const v = packed(e, undefined)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/candleBodyColours.test.js",
+   "expectRed": "shared transparency"
+  },
+  {
+   "id": "CB6",
+   "mutant": "a body passed by position left unread",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    if (param === 'color' && ctx.bodyPres && CANDLE_BODY_READ_FIELDS.some((f) => ctx.bodyPres[f] !== undefined)) pres = ctx.bodyPres",
+   "to": "    if (param === 'color' && ctx.bodyPres) pres = ctx.bodyPres",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/candleBodyColours.test.js",
+   "expectRed": "sixth slot"
+  }
+ ]
+}
