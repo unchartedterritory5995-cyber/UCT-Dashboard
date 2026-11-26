@@ -1,5 +1,14 @@
 # W1 formula sources (2026-11-02)
 
+> ⛔ CORRECTED 2026-11-26 (e99, `fix/e99-ta-iii-multiply`): the `ta.iii` verdict below is WRONG. TradingView's own
+> `ta.iii` (Pine v6, the builtin4 witness captures on AMEX:SPY 1D, 8,515 bars, and NYSE:RDDT 1D, 674 bars) equals the
+> v5/v6 pages' MULTIPLYING body `((2 * close - high - low) / (high - low)) * volume` on every bar, including its one `na`.
+> The dividing body matches 35 of 8,515 and 0 of 674. PyneCore's fixture is not a v4 export (its column is the v5+ name
+> `ta.iii`), so it settles nothing for v4. The engine now multiplies in every version
+> (`app/src/components/chart/engine/ast/pine.js`, the `iii` tree). The fixture's dividing values are kept in
+> `pineW1Builtins.test.js` as pinned history, not as a witness. C02/C12 of the W1-C capture queue are answered the other
+> way round: C12 reads 0, C02 does not.
+
 Branch `feat/pine-w1-names`. The W1 re-review found `ta.iii` built from a wrong quote,
 and a rail written from the same quote passed it. So every formula W1 adds was
 checked again, name by name, against TradingView's own published text, with a
