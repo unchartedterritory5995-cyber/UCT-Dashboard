@@ -29,7 +29,7 @@
 
 import { registerRecoveryStream } from './recoveryRegistry'
 import { serverNow } from './serverClock'
-import { REBUILD_GATHER_MS } from './streamRebuildDelay'
+import { rebuildLeft } from './streamRebuildDelay'
 import { STREAM_RECONNECT_CAP_MS, LIVE_CANDLE_CADENCE_MS, liveCandleCadenceMs } from '../utils/streamStatus'
 
 export const MAX_BARS_PAIRS = 50   // mirror of api/routers/stream.py MAX_BARS_PAIRS
@@ -371,8 +371,13 @@ function _scheduleRebuild() {
   // gather while a gather is pending, or on a quiet pool; otherwise the full debounce from this change
   _gathering = (!!_rebuildTimer && _gathering) || t - _lastActivityAt >= REBUILD_DEBOUNCE_MS
   _lastActivityAt = t
-  if (_rebuildTimer) clearTimeout(_rebuildTimer)
-  _rebuildTimer = setTimeout(_rebuild, _gathering ? REBUILD_GATHER_MS : REBUILD_DEBOUNCE_MS)
+  // ⚡ one timer per burst: a later change moves the deadline, not the timer (streamRebuildDelay.rebuildLeft)
+  if (!_rebuildTimer) _rebuildTimer = setTimeout(_rebuildDue, rebuildLeft(_gathering, t, REBUILD_DEBOUNCE_MS))
+}
+function _rebuildDue() {
+  const left = rebuildLeft(_gathering, _lastActivityAt, REBUILD_DEBOUNCE_MS)
+  if (left > 0) _rebuildTimer = setTimeout(_rebuildDue, left)
+  else _rebuild()
 }
 
 function _rebuild() {
