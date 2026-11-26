@@ -343,43 +343,36 @@ VERDICT_TOKEN_ENV = "AGENT_CI_VERDICT_TOKEN"
 #: D2.1 (AUDIT on #2495): deploy freeze windows, wall clock in FREEZE_TZ, both ends included. An entry that needs
 #: Agent evidence is failed inside one. ⚠️ The clock is read when the VERDICT is decided, which is seconds before the
 #: entry lands.
-#: ⛔ ONE DEFINITION (2026-11-26). The windows are NOT listed here: they are tools/deploy_freeze.py's market rushes for
-#: the day (`day_hold_windows`, the windows named in FREEZE_RUSHES), loaded BY PATH (deploy_freeze is stdlib-only and
-#: imports no `api.*` package). So they follow the NYSE calendar: none on a holiday, close-30..close+15 on a half-day
-#: (12:30-13:15 ET), 09:20-09:45 and 15:30-16:15 ET on a regular day. Until then a second, hard-coded copy refused an
-#: Agent entry on Thanksgiving (#2844, 16:07 ET). Same fail-safe rule as the deploy freeze: a calendar that cannot be
-#: read, or a date past its horizon, gives the WEEKDAY rushes (refused for nothing, the safe side), never "no window".
-#: deploy_freeze.py itself not loading raises, and `follow` posts that as a failure (fail closed).
-#: ⛔ THE SELF-PROTECTED FLOOR (review of #2850, finding 1). deploy_freeze.py, session_calendar.py and the calendar
-#: dataset are NOT self-protected: a no-agent-paths PR may edit them. So this file (self-protected) checks what it
-#: loads, every time: the regular-day rushes are exactly FREEZE_FLOOR; on a covered trading day the rushes are exactly
-#: FREEZE_FLOOR's opening plus close-30..close+15 for the calendar's close, which may not be later than 16:00 (so a
-#: regular day is FREEZE_FLOOR itself); a covered non-trading day has none; an uncovered day (the weekday fallback) is
-#: exactly FREEZE_FLOOR. Anything else raises FreezeFloorError and the entry FAILS CLOSED, never "no window".
-#: ⛔ THE FLOOR'S FACTS ARE ITS OWN (review of #2850, delta D1). It does NOT ask deploy_freeze's `_calendar_module` or
-#: api/services/session_calendar.py (both unprotected code) which days trade: it parses FREEZE_CALENDAR itself
-#: (`_floor_calendar`, stdlib only) and compares deploy_freeze's windows with THAT. So a stubbed or edited reader that
-#: drops a rush disagrees with the floor and fails closed.
+#: ⛔ THE WINDOWS FOLLOW THE NYSE CALENDAR (2026-11-26). Until then a hard-coded weekday copy refused an Agent entry
+#: on Thanksgiving (#2844, 16:07 ET). The day's windows are derived HERE (`freeze_day`) from the calendar DATASET
+#: (FREEZE_CALENDAR, parsed by `_floor_calendar`, stdlib only): none on a weekend or a listed closure; FREEZE_FLOOR's
+#: opening rush plus close-30..close+15 on a listed early close (12:30-13:15 ET for 13:00); FREEZE_FLOOR on a regular
+#: day. A dataset that cannot be read, or a day outside its coverage, gives FREEZE_FLOOR (the weekday fallback: refused
+#: for nothing, the safe side), never "no window".
+#: ⛔ THE FOLLOWER EXECUTES ONLY SELF-PROTECTED CODE (review of #2850, delta 2, X1). `--stage follow` holds the verdict
+#: App's token (statuses: write). tools/deploy_freeze.py and api/services/session_calendar.py are NOT self-protected,
+#: so this file never imports or executes them: it reads only the JSON dataset. ONE DEFINITION is kept as RAILS
+#: instead: tests/test_agent_ci_required.py and tests/test_deploy_freeze_market_calendar.py both require deploy_freeze's
+#: day_hold_windows rushes to equal `freeze_windows_on` for every covered day, and
+#: test_MQ_the_follower_executes_only_self_protected_code runs the real follower under an audit hook.
 #: ⛔ THE DATA IS BOUNDED (delta D2): `sessions.close` must be 16:00; a close other than 16:00 only on a date listed in
-#: `early_closes`, within [12:00, 16:00); listed dates are weekdays inside the coverage, never both kinds; at most
-#: FREEZE_MAX_HOLIDAYS closures and FREEZE_MAX_EARLY early closes in any calendar year (the real maxima: 13 closures
-#: in 2001, the September 11 week; 4 early closes in 2003). A dataset outside the bounds fails EVERY Agent entry closed.
-#: An unreadable dataset is the weekday fallback (deploy_freeze answers it so too): the windows must then be FREEZE_FLOOR.
-#: ⚠️ LIMIT, stated for AUDIT: within those bounds, WHICH days are closures or early closes, and an early close's time,
-#: still come from the unprotected dataset. A data edit can move or remove at most that handful of days' rushes per
-#: year, exactly as a real calendar change would; the regular rushes, the half-day offsets, the 16:00 regular close and
-#: the bounds cannot be weakened without editing this file.
+#: `early_closes`, within [12:00, 16:00); listed dates are weekdays inside the coverage, never twice or in both lists;
+#: at most FREEZE_MAX_HOLIDAYS closures and FREEZE_MAX_EARLY early closes in any calendar year (the real maxima: 13
+#: closures in 2001, the September 11 week; 4 early closes in 2003). A dataset outside the bounds raises
+#: FreezeFloorError: EVERY Agent entry fails closed.
+#: ⚠️ LIMIT, stated for AUDIT: the dataset itself is not self-protected. Within the bounds, a data edit can mark at most
+#: 14 weekdays a year as closures (both rushes gone) and 5 as early closes in [12:00, 16:00) (the closing rush moves),
+#: exactly as a real calendar change would. The regular rushes, the half-day offsets, the 16:00 regular close and the
+#: bounds cannot be weakened without editing this file.
 FREEZE_TZ = "America/New_York"
 FREEZE_RUSHES = ("opening", "closing")
 FREEZE_FLOOR = (((9, 20), (9, 45)), ((15, 30), (16, 15)))
 #: the close FREEZE_FLOOR's closing rush is written around, and that rush's offsets from it (minutes)
 FREEZE_FLOOR_CLOSE, FREEZE_FLOOR_BEFORE, FREEZE_FLOOR_AFTER = (16, 0), 30, 15
-FREEZE_FLOOR_FAILED = "fail closed: the deploy freeze windows fail the self-protected floor in agent_ci_required.py; AUDIT decides"
+FREEZE_FLOOR_FAILED = "fail closed: the NYSE calendar dataset breaks the self-protected bounds in agent_ci_required.py; AUDIT decides"
 FREEZE_CALENDAR = pathlib.Path(__file__).resolve().parents[1] / "app" / "src" / "lib" / "marketClock" / "market_calendar.json"
 FREEZE_MAX_HOLIDAYS, FREEZE_MAX_EARLY = 14, 5
 FREEZE_EARLY_RANGE = ((12, 0), (16, 0))        # an early close is in [12:00, 16:00)
-FREEZE_TOOL = pathlib.Path(__file__).resolve().parent / "deploy_freeze.py"
-_FREEZE_MOD: list = []
 MACHINERY_EDITED = "; an entry ahead edits the Agent CI machinery: AUDIT decides"
 APP_REACH = ": only the two posters may reach the verdict App"
 #: that workflow's job that CALLS agent-ci.yml. The Actions API reports a called workflow's jobs as
@@ -778,20 +771,8 @@ def write_outputs(values: dict, path=None) -> None:
             fh.write(f"{key}={_safe(value)}\n")
 
 
-def _deploy_freeze():
-    """tools/deploy_freeze.py, loaded BY PATH next to this file (cached per process). Raises when it cannot load."""
-    if _FREEZE_MOD:
-        return _FREEZE_MOD[0]
-    import importlib.util
-    spec = importlib.util.spec_from_file_location("_deploy_freeze_for_agent_ci", FREEZE_TOOL)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    _FREEZE_MOD.append(mod)
-    return mod
-
-
 class FreezeFloorError(RuntimeError):
-    """The windows loaded from deploy_freeze fail the self-protected floor (see FREEZE_FLOOR): fail closed."""
+    """The calendar dataset breaks the self-protected bounds (see FREEZE_FLOOR's comment block): fail closed."""
 
 
 def _hm(m: int) -> tuple:
@@ -845,43 +826,32 @@ def _floor_calendar() -> dict:
 
 
 def freeze_day(day) -> tuple:
-    """(windows, fallback) for ET date `day`: deploy_freeze's market rushes as ((start, end), ...) ET (h, m) pairs, and
-    whether they are its WEEKDAY FALLBACK (the calendar could not answer for `day`). Raises FreezeFloorError when the
-    loaded windows fail the floor (FREEZE_FLOOR's comment block)."""
-    df = _deploy_freeze()
-    if tuple((a, b) for n, a, b in df.BURST_WINDOWS_ET if n in FREEZE_RUSHES) != FREEZE_FLOOR:
-        raise FreezeFloorError(f"deploy_freeze's regular-day rushes {df.BURST_WINDOWS_ET!r} are not {FREEZE_FLOOR!r}")
-    windows = tuple((a, b) for name, a, b in df.day_hold_windows(day) if name in FREEZE_RUSHES)
+    """(windows, fallback) for ET date `day`: the day's market rushes as ((start, end), ...) ET (h, m) pairs, derived
+    HERE from the calendar dataset (`_floor_calendar`; nothing else is executed), and whether they are the WEEKDAY
+    FALLBACK (the dataset could not answer for `day`). Raises FreezeFloorError when the dataset breaks the bounds."""
     try:
-        cal = _floor_calendar()                    # the floor's OWN facts (delta D1); FreezeFloorError propagates
+        cal = _floor_calendar()                    # FreezeFloorError propagates: out of bounds fails closed
     except _CalendarUnreadable:
         cal = None
     if cal is None or not cal["start"] <= day <= cal["horizon"]:
-        # the weekday fallback (deploy_freeze answers an unreadable or uncovered day so too): exactly the floor
-        if windows != FREEZE_FLOOR:
-            raise FreezeFloorError(f"{day}: the weekday fallback gave {windows!r}, not {FREEZE_FLOOR!r}")
-        return windows, True
+        return (() if day.weekday() >= 5 else FREEZE_FLOOR), True
     if day.weekday() >= 5 or day in cal["holidays"]:
-        expected = ()
-    else:
-        close_m = cal["early"].get(day, FREEZE_FLOOR_CLOSE[0] * 60 + FREEZE_FLOOR_CLOSE[1])
-        expected = (FREEZE_FLOOR[0], (_hm(close_m - FREEZE_FLOOR_BEFORE), _hm(close_m + FREEZE_FLOOR_AFTER)))
-    if windows != expected:
-        raise FreezeFloorError(f"{day}: deploy_freeze's rushes {windows!r} are not the floor's {expected!r}")
-    return windows, False
+        return (), False
+    close_m = cal["early"].get(day, FREEZE_FLOOR_CLOSE[0] * 60 + FREEZE_FLOOR_CLOSE[1])
+    return (FREEZE_FLOOR[0], (_hm(close_m - FREEZE_FLOOR_BEFORE), _hm(close_m + FREEZE_FLOOR_AFTER))), False
 
 
 def freeze_windows_on(day) -> tuple:
-    """((start, end), ...) ET (h, m) pairs: deploy_freeze's market rushes for the ET date `day`, floor-checked."""
+    """((start, end), ...) ET (h, m) pairs: the day's market rushes (`freeze_day`)."""
     return freeze_day(day)[0]
 
 
 def freeze_window_detail(now) -> tuple:
     """(window, fallback): the deploy freeze window the instant `now` falls in, as "09:20-09:45 ET", or None; and
-    whether the day's windows are deploy_freeze's weekday fallback. `now` is an AWARE datetime (a naive one raises: a
-    clock that cannot be placed is not a clock). Both ends included, read in FREEZE_TZ's wall clock, so the UTC
-    instants move with daylight saving. The windows are the day's rushes from deploy_freeze (`freeze_day`, floor-
-    checked: FreezeFloorError propagates): none on a weekend or an NYSE holiday, close-30..close+15 on a half-day."""
+    whether the day's windows are the weekday fallback. `now` is an AWARE datetime (a naive one raises: a clock that
+    cannot be placed is not a clock). Both ends included, read in FREEZE_TZ's wall clock, so the UTC instants move with
+    daylight saving. The windows are the day's rushes (`freeze_day`, derived here from the calendar dataset;
+    FreezeFloorError propagates): none on a weekend or an NYSE holiday, close-30..close+15 on a half-day."""
     import zoneinfo
     if now.tzinfo is None or now.utcoffset() is None:
         raise ValueError("freeze_window needs an aware datetime")

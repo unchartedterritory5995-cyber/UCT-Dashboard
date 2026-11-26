@@ -251,3 +251,22 @@ def test_the_half_day_crons_exit_early_unless_today_is_a_half_day():
         assert f'"$SCHEDULE" = "{cron}"' in cand
     assert "tools/deploy_freeze.py --half-day" in cand
     assert '[ "$HD" = "no" ]' in cand          # skip ONLY on a positive "no"; unknown proceeds
+
+
+
+# -- ONE DEFINITION with the merge queue's freeze (review of #2850, delta 2, X1) ------------------------------------
+# The Agent CI follower holds an App token, so it never executes this tool: it derives the same rushes itself, from the
+# dataset (tools/agent_ci_required.py freeze_windows_on). This mirror of the rail in tests/test_agent_ci_required.py
+# lives HERE so a change to deploy_freeze.py or session_calendar.py alone still has to agree with it.
+
+def test_the_merge_queue_freeze_agrees_with_this_tool_every_covered_day(df):
+    spec = importlib.util.spec_from_file_location("_acr_for_freeze_mirror", ROOT / "tools" / "agent_ci_required.py")
+    acr = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(acr)
+    day, bad = dt.date(2026, 1, 1), []
+    while day <= dt.date(2028, 12, 31):
+        ours = tuple((a, b) for n, a, b in df.day_hold_windows(day) if n in acr.FREEZE_RUSHES)
+        if ours != acr.freeze_windows_on(day):
+            bad.append(day)
+        day += dt.timedelta(days=1)
+    assert bad == [], bad[:10]

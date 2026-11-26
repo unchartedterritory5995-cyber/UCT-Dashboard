@@ -1626,7 +1626,7 @@ def test_MQ_freeze_regular_day_1545_is_refused():
 
 def test_MQ_freeze_has_no_second_list_of_windows():
     df = _df()
-    assert not hasattr(acr, "FREEZE_WINDOWS"), "the windows are deploy_freeze's, never restated here"
+    assert not hasattr(acr, "FREEZE_WINDOWS") and not hasattr(acr, "_deploy_freeze") and not hasattr(acr, "FREEZE_TOOL")
     assert acr.freeze_windows_on(datetime.date(2026, 12, 3)) == tuple((a, b) for _n, a, b in df.BURST_WINDOWS_ET)
     # the only literal pair left is the self-protected FLOOR, which CHECKS deploy_freeze's windows, never supplies them
     src = (ROOT / "tools" / "agent_ci_required.py").read_text(encoding="utf-8")
@@ -1635,19 +1635,15 @@ def test_MQ_freeze_has_no_second_list_of_windows():
     assert acr.FREEZE_FLOOR == tuple((a, b) for _n, a, b in df.BURST_WINDOWS_ET)
 
 
-def test_MQ_freeze_a_broken_calendar_refuses_by_the_weekday_rule(monkeypatch):
-    df = acr._deploy_freeze()
-
-    def broken():
-        raise RuntimeError("calendar unreadable")
-    monkeypatch.setattr(df, "_calendar_module", broken)
-    # deploy_freeze falls back to the weekday rushes; the floor reads the dataset itself: a regular day agrees (refused
-    # by the floor's own windows), a holiday or half-day disagrees and FAILS CLOSED. Never "no window".
-    assert acr.freeze_window(_et(2026, 12, 3, 15, 45)) == "15:30-16:15 ET"
-    with pytest.raises(acr.FreezeFloorError):
-        acr.freeze_window(_et(2026, 11, 26, 15, 45))
-    with pytest.raises(acr.FreezeFloorError):
-        acr.freeze_window(_et(2026, 11, 27, 15, 45))
+def test_MQ_freeze_a_broken_calendar_refuses_by_the_weekday_rule(monkeypatch, tmp_path):
+    broken = tmp_path / "market_calendar.json"
+    broken.write_text("{ not json", encoding="utf-8")
+    monkeypatch.setattr(acr, "FREEZE_CALENDAR", broken)
+    assert acr.freeze_window(_et(2026, 11, 26, 15, 45)) == "15:30-16:15 ET"        # never "no window"
+    assert acr.freeze_window(_et(2026, 11, 27, 15, 45)) == "15:30-16:15 ET"
+    assert acr.freeze_window_detail(_et(2026, 12, 3, 15, 45)) == ("15:30-16:15 ET", True)
+    monkeypatch.setattr(acr, "FREEZE_CALENDAR", tmp_path / "missing.json")
+    assert acr.freeze_window(_et(2026, 11, 26, 9, 30)) == "09:20-09:45 ET"
 
 
 def test_MQ_freeze_a_date_past_the_calendar_horizon_refuses_by_the_weekday_rule():
@@ -1677,56 +1673,7 @@ def _floor_follow(tmp_path, now):
     return _follow(r, now=now)
 
 
-def test_MQ_floor_a_weakened_regular_day_fails_closed(tmp_path, monkeypatch):
-    df = acr._deploy_freeze()
-    monkeypatch.setattr(df, "day_hold_windows", lambda day: (("opening", (9, 20), (9, 45)),))   # closing rush dropped
-    with pytest.raises(acr.FreezeFloorError):
-        acr.freeze_window(_et(2026, 12, 3, 15, 45))
-    state, reason = _floor_follow(tmp_path, _et(2026, 12, 3, 15, 45))
-    assert state == "failure" and reason.startswith("fail closed: the deploy freeze") and len(reason) <= 140, reason
-
-
-def test_MQ_floor_an_emptied_trading_day_fails_closed(monkeypatch):
-    df = acr._deploy_freeze()
-    monkeypatch.setattr(df, "day_hold_windows", lambda day: ())
-    with pytest.raises(acr.FreezeFloorError):
-        acr.freeze_window(_et(2026, 12, 3, 12, 0))          # not even inside a window: the day itself is wrong
-
-
-def test_MQ_floor_a_moved_half_day_offset_fails_closed(monkeypatch):
-    df = acr._deploy_freeze()
-    real = df.day_hold_windows
-    monkeypatch.setattr(df, "day_hold_windows",
-                        lambda day: tuple(("closing", (12, 45), (13, 15)) if n == "closing" else (n, a, b) for n, a, b in real(day)))
-    with pytest.raises(acr.FreezeFloorError):
-        acr.freeze_window(_et(2026, 11, 27, 12, 50))
-
-
-def test_MQ_floor_changed_constants_fail_closed(monkeypatch):
-    df = acr._deploy_freeze()
-    monkeypatch.setattr(df, "BURST_WINDOWS_ET", (("opening", (9, 25), (9, 45)), ("closing", (15, 30), (16, 15))))
-    with pytest.raises(acr.FreezeFloorError):
-        acr.freeze_window(_et(2026, 12, 3, 9, 22))
-
-
-def test_MQ_floor_a_close_later_than_the_regular_close_fails_closed(monkeypatch):
-    df = acr._deploy_freeze()
-    cal = df._calendar_module()
-    import zoneinfo
-    monkeypatch.setattr(cal, "close_time", lambda d, *a, **k: datetime.datetime(d.year, d.month, d.day, 17, 0, tzinfo=zoneinfo.ZoneInfo("America/New_York")))
-    with pytest.raises(acr.FreezeFloorError):
-        acr.freeze_window(_et(2026, 12, 3, 16, 40))
-
-
-def test_MQ_floor_the_real_tool_passes_every_day_the_calendar_covers():
-    day = datetime.date(2026, 1, 1)
-    while day <= datetime.date(2028, 12, 31):
-        acr.freeze_windows_on(day)               # raises FreezeFloorError on any day the floor refuses
-        day += datetime.timedelta(days=1)
-
-
 def test_MQ_the_reason_says_weekday_fallback_when_the_calendar_cannot_answer(tmp_path, monkeypatch):
-    df = acr._deploy_freeze()
     state, reason = _floor_follow(tmp_path / "a", _et(2026, 12, 3, 15, 45))
     assert state == "failure" and "(a market rush today)" in reason, reason
 
@@ -1806,11 +1753,10 @@ def test_MQ_the_follower_freeze_runs_from_its_sparse_checkout_alone(tmp_path):
     res2, noise2 = _probe(tmp_path)
     assert res2["thanksgiving"] is None and res2["half_day"] == "12:30-13:15 ET", (res2, noise2)
     assert "warning" not in noise2.lower(), noise2
-    # control: the rail CAN fail. Without the calendar module deploy_freeze falls back to the weekday rule and warns;
-    # the floor (which reads the dataset itself) disagrees on the holiday and fails closed.
-    (tmp_path / "api" / "services" / "session_calendar.py").unlink()
+    # control: the rail CAN fail. Without the dataset the floor falls back to the weekday rushes: the holiday is refused.
+    (tmp_path / "app" / "src" / "lib" / "marketClock" / "market_calendar.json").unlink()
     res3, noise3 = _probe(tmp_path)
-    assert res3["thanksgiving"] == "FLOOR" and "warning" in noise3.lower(), (res3, noise3)
+    assert res3["thanksgiving"] == "15:30-16:15 ET", (res3, noise3)
 
 
 
@@ -1818,21 +1764,6 @@ def test_MQ_the_follower_freeze_runs_from_its_sparse_checkout_alone(tmp_path):
 # D1: the floor took its facts from deploy_freeze's _calendar_module / session_calendar (both unprotected), so one edit
 # to either could remove every rush and pass. The floor now parses market_calendar.json itself (stdlib, here).
 # D2: data alone could do it at scale (sessions.close "13:00"; every weekday a holiday). The floor bounds the data.
-
-def test_MQ_floor_d1_a_stubbed_calendar_reader_fails_closed(monkeypatch):
-    df = acr._deploy_freeze()
-
-    class Stub:
-        def covers(self, d): return True
-        def horizon(self): return datetime.date(2028, 12, 31)
-        def is_trading_day(self, d): return False
-        def is_half_day(self, d): return False
-        def close_time(self, d): return None
-    monkeypatch.setattr(df, "_calendar_module", lambda: Stub())
-    assert df.day_hold_windows(datetime.date(2026, 12, 3)) == ()        # deploy_freeze is fooled: no rushes at all
-    with pytest.raises(acr.FreezeFloorError):
-        acr.freeze_window(_et(2026, 12, 3, 15, 45))
-
 
 _TREE_PROBE = r"""
 import datetime, sys, zoneinfo
@@ -1850,8 +1781,7 @@ def _tree_freeze(tmp_path, dataset: dict, when):
     """freeze_window at `when` (y, mo, d, h, mi ET) with a copy of the tools whose dataset is `dataset`."""
     import shutil
     import sys
-    for rel in ("tools/__init__.py", "tools/agent_ci_required.py", "tools/agent_ci_evidence.py", "tools/deploy_freeze.py",
-                "api/services/session_calendar.py"):
+    for rel in ("tools/__init__.py", "tools/agent_ci_required.py", "tools/agent_ci_evidence.py"):
         (tmp_path / rel).parent.mkdir(parents=True, exist_ok=True)
         shutil.copy(ROOT / rel, tmp_path / rel)
     ds = tmp_path / "app" / "src" / "lib" / "marketClock" / "market_calendar.json"
@@ -1898,3 +1828,115 @@ def test_MQ_floor_d2_bounds_hold_and_the_real_dataset_passes(tmp_path):
     # control: the real dataset through the same tree gives the real answers
     assert _tree_freeze(tmp_path / "real", _real_dataset(), (2026, 11, 26, 15, 45)) == "WINDOW None"
     assert _tree_freeze(tmp_path / "real2", _real_dataset(), (2026, 11, 27, 12, 45)) == "WINDOW 12:30-13:15 ET"
+
+
+def _disagreements(df) -> list:
+    """Every day 2026-2028 on which deploy_freeze's rushes differ from the follower's (the floor's) windows."""
+    out, day = [], datetime.date(2026, 1, 1)
+    while day <= datetime.date(2028, 12, 31):
+        theirs = tuple((a, b) for n, a, b in df.day_hold_windows(day) if n in acr.FREEZE_RUSHES)
+        if theirs != acr.freeze_windows_on(day):
+            out.append(day)
+        day += datetime.timedelta(days=1)
+    return out
+
+
+def test_MQ_floor_the_real_tool_passes_every_day_the_calendar_covers():
+    """ONE DEFINITION, as a RAIL (review of #2850, delta 2 X1): the follower never executes deploy_freeze (it holds the
+    App token), so the agreement is proved here, for every covered day, and mirrored in
+    tests/test_deploy_freeze_market_calendar.py so a deploy_freeze-only change trips it too."""
+    assert _disagreements(_df()) == []
+
+
+@pytest.mark.parametrize("weaken", ["closing_dropped", "day_emptied", "half_day_offset_moved", "hold_constant_moved", "reader_stubbed"])
+def test_MQ_a_weakened_deploy_freeze_trips_the_agreement_rail_and_cannot_move_the_follower(weaken):
+    df = _df()
+    real, opening = df.day_hold_windows, (9, 20)
+    if weaken == "closing_dropped":
+        df.day_hold_windows = lambda day: tuple(w for w in real(day) if w[0] != "closing")
+    elif weaken == "day_emptied":
+        df.day_hold_windows = lambda day: ()
+    elif weaken == "half_day_offset_moved":
+        df.day_hold_windows = lambda day: tuple(("closing", (12, 45), w[2]) if w[0] == "closing" and w[2] == (13, 15) else w for w in real(day))
+    elif weaken == "hold_constant_moved":
+        df.HOLD_WINDOWS_ET = (("opening", (9, 25), (9, 45)),) + df.HOLD_WINDOWS_ET[1:]
+    else:
+        class Stub:
+            def covers(self, d): return True
+            def horizon(self): return datetime.date(2028, 12, 31)
+            def is_trading_day(self, d): return False
+            def close_time(self, d): return None
+        df._calendar_module = lambda: Stub()
+    assert _disagreements(df), f"{weaken}: the agreement rail must see it"
+    # the follower's answer is its own: unchanged whatever deploy_freeze says
+    assert acr.freeze_window(_et(2026, 12, 3, 15, 45)) == "15:30-16:15 ET"
+    assert acr.freeze_window(_et(2026, 11, 27, 12, 45)) == "12:30-13:15 ET"
+    assert acr.freeze_window(_et(2026, 12, 3, 9, 22)) == "09:20-09:45 ET"
+
+
+
+# ---- the follower executes ONLY self-protected code (review of #2850, delta 2, X1: HIGH) --------------------------
+# `--stage follow` holds AGENT_CI_VERDICT_TOKEN (statuses: write). Any repo file it executes that is not
+# SELF_PROTECTED (an Agent path AND self-protected, judged by AUDIT) could be edited by a no-agent-paths PR and run with
+# that token. Until this rail the freeze exec'd tools/deploy_freeze.py and api/services/session_calendar.py.
+# The rail runs the REAL follow_verdict on an Agent entry inside a fresh interpreter whose FIRST act is an audit hook
+# that records every code object executed ("exec") and every source file opened; every repo .py among them must be
+# self-protected. ⚠️ ONE NAMED EXCEPTION, pre-existing and reported: tools/__init__.py (the `tools` package marker;
+# the follower runs `from tools import ...`). It is neither an Agent path nor self-protected; the rail requires it to
+# stay EMPTY. Protecting it properly (agent-ci.yml paths + SELF_PROTECTED) is an AUDIT change of its own.
+FOLLOWER_EXEC_EXCEPTIONS = {"tools/__init__.py": 0}           # path -> the size it must keep (bytes)
+
+_FOLLOW_PROBE = r"""
+import json, os, sys
+root, work, merge, ref, jobs_path = sys.argv[1:6]
+rootn = os.path.normcase(os.path.abspath(root)) + os.sep
+seen = set()
+def rel(p):
+    p = os.path.normcase(os.path.abspath(p))
+    return os.path.relpath(p, rootn).replace(os.sep, "/") if p.startswith(rootn) else None
+def hook(ev, args):
+    if ev == "exec" and args and hasattr(args[0], "co_filename"):
+        r = rel(args[0].co_filename) if args[0].co_filename and not args[0].co_filename.startswith("<") else None
+    elif ev == "open" and args and isinstance(args[0], (str, os.PathLike)):
+        r = rel(os.fspath(args[0]))
+    else:
+        return
+    if r and r.endswith(".py"):
+        seen.add(r)
+sys.addaudithook(hook)
+sys.dont_write_bytecode = True
+sys.path.insert(0, root)
+import datetime
+from tools import agent_ci_required as acr
+jobs = json.load(open(jobs_path, encoding="utf-8"))
+class Api:
+    def get(self, path):
+        if path.startswith("actions/runs/55/jobs"):
+            return {"jobs": jobs}
+        raise AssertionError(path)
+    def call(self, *a, **k):
+        raise AssertionError("never posts")
+now = datetime.datetime(2026, 11, 18, 17, 0, tzinfo=datetime.timezone.utc)
+state, reason = acr.follow_verdict(work, Api(), 55, merge, ref, now, log=lambda m: None)
+print(json.dumps({"state": state, "reason": reason, "seen": sorted(seen)}))
+"""
+
+
+def test_MQ_the_follower_executes_only_self_protected_code(tmp_path):
+    import os
+    import sys
+    r = _queue_repo(tmp_path / "agent", {"app/src/agent/a.js": "a2\n"})
+    jobs = tmp_path / "jobs.json"
+    jobs.write_text(json.dumps(_listed()), encoding="utf-8")
+    env = dict(os.environ, PYTHONPYCACHEPREFIX=str(tmp_path / "pyc"))     # no cached bytecode: sources are opened
+    out = subprocess.run([sys.executable, "-B", "-c", _FOLLOW_PROBE, str(ROOT), str(r.work), r.merge, r.ref, str(jobs)],
+                         capture_output=True, text=True, timeout=300, env=env)
+    assert out.returncode == 0, out.stdout + out.stderr
+    res = json.loads(out.stdout.strip().splitlines()[-1])
+    assert res["state"] == "success", res                    # the follower ran to the end, through the freeze
+    assert "tools/agent_ci_required.py" in res["seen"], res   # the hook sees the follower's own code (not vacuous)
+    protected = list(ev.protected_patterns(ROOT))
+    outside = [p for p in res["seen"] if not acr.matches(p, protected) and p not in FOLLOWER_EXEC_EXCEPTIONS]
+    assert outside == [], f"the token-holding follower executes repo code that is not self-protected: {outside}"
+    for path, size in FOLLOWER_EXEC_EXCEPTIONS.items():
+        assert (ROOT / path).stat().st_size == size, f"{path} must stay empty: the follower executes it"

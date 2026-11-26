@@ -1388,9 +1388,9 @@ def test_MQ_each_checkout_holds_every_file_its_stage_reads():
     in-group scope and the follower, which RECOMPUTES that scope) read: both tools, agent-ci.yml, every vite / vitest
     config and every file those configs import (derived by the same code the stages run, never listed here)."""
     tools = {"tools/agent_ci_required.py", "tools/agent_ci_evidence.py", "tools/__init__.py", ".github/workflows/agent-ci.yml",
-             # the follower's freeze reads deploy_freeze's rushes, which read the NYSE calendar (2026-11-26): without
-             # them the windows fall back to the weekday rule, a holiday is refused for nothing
-             "tools/deploy_freeze.py", "api/services/session_calendar.py", "app/src/lib/marketClock/market_calendar.json"}
+             # the follower's freeze reads the NYSE calendar DATASET itself (2026-11-26): without it the windows fall
+             # back to the weekday rule, a holiday is refused for nothing
+             "app/src/lib/marketClock/market_calendar.json"}
     configs = {p.relative_to(ROOT).as_posix() for pat in ("vite*.config.*", "vitest*.config.*") for p in (ROOT / "app").glob(pat)}
     imported = set(ev.config_imports(ROOT))
     assert len(configs) >= 2 and len(imported) >= 3, (configs, imported)
@@ -1401,6 +1401,9 @@ def test_MQ_each_checkout_holds_every_file_its_stage_reads():
     assert sorted(f for f in tools | configs | imported if not _held(f, scope)) == []
     # control: the judge can say no, and refuses a pattern it cannot read
     assert not _held("api/main.py", scope) and not _held("tools/agent_ci_rearm.py", scope)
+    # the token job holds no unprotected CODE (review of #2850, delta 2, X1): deploy_freeze and session_calendar are
+    # not checked out (their agreement with the follower's windows is a test rail, not a runtime import)
+    assert not _held("tools/deploy_freeze.py", scope) and not _held("api/services/session_calendar.py", scope)
     assert not _held("tools/agent_ci_required.pyc", ["/tools/agent_ci_required.py"]) and _held("app/x/y.js", ["/app/"])
     with pytest.raises(AssertionError):
         _held("app/x.js", ["app/"])
