@@ -81,7 +81,7 @@ def _parse_provider_rules(results) -> tuple[set[int], set[int]]:
     return hl, last
 
 
-def _parse_provider_rules3(results) -> tuple[set[int], set[int], set[int]]:
+def _parse_provider_rules3(results) -> tuple[set[int], set[int], set[int] | None]:
     """Pure parse of the provider's condition list → (hl_ineligible, last_ineligible, vol_ineligible).
 
     ⭐ (2026-11-25, the candle-accuracy audit, class 1) `updates_volume` too: the vendor's minute
@@ -98,6 +98,7 @@ def _parse_provider_rules3(results) -> tuple[set[int], set[int], set[int]]:
     hl: set[int] = set()
     last: set[int] = set()
     vol: set[int] = set()
+    vol_said = False      # did any row carry `updates_volume` at all (review of #2766)
     session_ids: set[int] = set(_SESSION_CODES)
     for cond in results or []:
         cid = cond.get("id")
@@ -114,13 +115,18 @@ def _parse_provider_rules3(results) -> tuple[set[int], set[int], set[int]]:
             hl.add(cid)
         if rules.get("updates_open_close") is False:
             last.add(cid)
+        if "updates_volume" in rules:
+            vol_said = True
         if rules.get("updates_volume") is False:
             vol.add(cid)
     # Never filter the extended session (by id OR by name) — the freeze guard.
     hl -= session_ids
     last -= session_ids
     vol -= session_ids
-    return hl, last, vol
+    # ⛔ (review of #2766, LOW) a table that never states `updates_volume` says nothing about volume: None, so the
+    # loader keeps the fallback instead of installing an empty set that would switch the volume rule off. A table
+    # that states it on any row is the authority, an empty set included.
+    return hl, last, (vol if vol_said else None)
 
 # Fallback sets (Massive/Polygon numeric condition IDs — see the Stock Trade
 # Conditions reference). A condition here means a print carrying it must NOT move
@@ -234,14 +240,15 @@ def load_from_provider() -> None:
             with _lock:
                 _hl_ineligible = hl
                 _last_ineligible = last
-                _vol_ineligible = vol
+                if vol is not None:          # None: the table says nothing about volume, the fallback stays
+                    _vol_ineligible = vol
                 _loaded_from_provider = True
             log.info(
                 "[trade_conditions] loaded authoritative rules: "
                 "%d high/low-ineligible, %d last-ineligible, %d volume-ineligible codes",
                 len(hl),
                 len(last),
-                len(vol),
+                len(_vol_ineligible),
             )
     except Exception as e:  # noqa: BLE001 — never let this break startup
         log.warning("[trade_conditions] provider load failed, using fallback: %s", e)
