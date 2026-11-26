@@ -1845,7 +1845,11 @@ def test_Z5_each_weakening_is_caught(weaken):
 
 
 #: the install step both token jobs run right before the tool
-TOKEN_JOB_INSTALL_STEP = {"name": "Install PyYAML (pinned by hash)", "id": "install", "run": "set -euo pipefail\n" + TOKEN_JOB_INSTALL}
+#: its own step timeout (review of #2856): a hung pip then FAILS the step, so the failsafe below fires; without one
+#: the job would hit its own timeout, be cancelled, and post nothing
+TOKEN_JOB_INSTALL_TIMEOUT = 3
+TOKEN_JOB_INSTALL_STEP = {"name": "Install PyYAML (pinned by hash)", "id": "install", "timeout-minutes": TOKEN_JOB_INSTALL_TIMEOUT,
+                          "run": "set -euo pipefail\n" + TOKEN_JOB_INSTALL}
 #: FAIL CLOSED AT ONCE (follow-up to #2855, review section 4): when the hashed install fails (a runner change, a deleted
 #: wheel) nothing would be posted and every merge group would wait out the queue's 60-minute check timeout. This last
 #: step posts `failure` with the ALREADY-minted token, through curl (no Python), only when the install step failed and
@@ -1907,6 +1911,8 @@ def test_FU_both_token_jobs_install_in_their_own_step_and_end_with_the_failsafe(
         tool = _tool_step({"steps": steps})
         assert tool is not None and steps.index(inst[0]) == steps.index(tool) - 1, names
         assert "pip install" not in tool["run"], tool["run"]
+        job_timeout = yaml.safe_load(wf.read_text(encoding="utf-8"))["jobs"][jid]["timeout-minutes"]
+        assert 0 < inst[0]["timeout-minutes"] < job_timeout, (wf.name, inst[0].get("timeout-minutes"), job_timeout)
         mint = next(s for s in steps if "create-github-app-token" in str(s.get("uses")))
         assert steps.index(mint) < steps.index(inst[0]), names           # the token exists before the install runs
 

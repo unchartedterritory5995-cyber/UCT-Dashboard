@@ -128,6 +128,8 @@ jobs:
       # its own step, so the fail-closed POST below can tell an install failure from the tool's own exits
       - name: Install PyYAML (pinned by hash)
         id: install
+        # a hung pip FAILS the step (and the failsafe below fires) instead of the job being cancelled silently
+        timeout-minutes: 3
         run: |
           set -euo pipefail
           printf '%s\n' 'pyyaml==6.0.2 --hash=sha256:80bab7bfc629882493af4aa31a4cfa43a4c57c83813253626916b8c7ada83476' > "$RUNNER_TEMP/token-job-requirements.txt"
