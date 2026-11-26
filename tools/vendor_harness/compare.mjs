@@ -1348,8 +1348,9 @@ export function compareCapture(capture, ours, opts = {}) {
     }
     let pv = plotVerdict(r, verdictOpts)
     // ⭐ e98 P3 — prices that agree on a candle our door does not draw are not a match of the candle (a wrong price
-    // still DIVERGEs, by its own row)
-    if (candleWithheldOurs && pv.verdict === 'MATCH') {
+    // still DIVERGEs, by its own row). ⛔ Only where TradingView draws it: a candle `na` on every bar there draws
+    // nothing on either side (volume-suite's CRVOL / CVD at their defaults), which is the same picture.
+    if (candleWithheldOurs && r.valued > 0 && pv.verdict === 'MATCH') {
       pv = { verdict: 'INCONCLUSIVE', reason: `${pv.reason}, but the candle is ${o.candleWithheld}: ${CANDLE_WITHHELD_OURS}` }
     }
     // OTHER-SYMBOL UNSETTLED (see `unsettledRecord`): a zero-lookback plot whose ONLY steady divergences
@@ -1430,7 +1431,7 @@ export function compareCapture(capture, ours, opts = {}) {
       ...(o.withheldNewest === true ? { withheldNewest: 'request:htf-newest-unconfirmed', withheldNewestNote: 'the newest bar is withheld by name on our side (a finished bar whose week or month end is the date of the next session) and is not compared' } : {}),
       color: vc.candle && !vc.body ? (v.candlePart === 'close' ? CANDLE_BODY_NOT_CAPTURED : CANDLE_BODY_ON_CLOSE)
         : !vc.measured ? 'not captured'
-        : colourUngraded ? (candleWithheldOurs ? CANDLE_WITHHELD_COLOUR
+        : colourUngraded ? (candleWithheldOurs ? (r.valued > 0 ? CANDLE_WITHHELD_COLOUR : 'nothing drawn on any bar — no colour to compare')
           : candleHiddenOurs ? CANDLE_HIDDEN_OURS + CANDLE_DISPLAY_NOT_RECORDED
           : emptyGlyph ? 'not graded — an empty plotchar glyph draws nothing' : 'not graded — hidden on TradingView (display none)')
           : !vc.colors ? 'undecodable in the capture'

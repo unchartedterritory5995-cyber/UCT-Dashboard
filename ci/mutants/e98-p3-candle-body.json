@@ -32,7 +32,7 @@
    "id": "P3-H4",
    "mutant": "a withheld candle's close graded MATCH on prices alone (phase A's over-claim)",
    "file": "tools/vendor_harness/compare.mjs",
-   "from": "    if (candleWithheldOurs && pv.verdict === 'MATCH') {",
+   "from": "    if (candleWithheldOurs && r.valued > 0 && pv.verdict === 'MATCH') {",
    "to": "    if (false) {",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.candleBody.test.js",
    "expectRed": "its close is INCONCLUSIVE"
@@ -72,6 +72,15 @@
    "to": "  return vendorColorsFor(capture, { id: bodyColorer.target }, [], rowsByTime, times)",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.candles.test.js",
    "expectRed": "decoded by its palette"
+  },
+  {
+   "id": "P3-H9",
+   "mutant": "a withheld candle TradingView draws on no bar read as a different picture",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "    if (candleWithheldOurs && r.valued > 0 && pv.verdict === 'MATCH') {",
+   "to": "    if (candleWithheldOurs && pv.verdict === 'MATCH') {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.candles.test.js",
+   "expectRed": "the same picture"
   }
  ]
 }

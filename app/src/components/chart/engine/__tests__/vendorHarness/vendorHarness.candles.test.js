@@ -177,6 +177,18 @@ describe('e98 P3 — a candle\'s body colour is graded on its close', () => {
     expect(closeRow(compareCapture(captureOf(), wrong)).verdict).toBe('DIVERGE')
   })
 
+  it('CONTROL: a withheld candle TradingView draws on no bar (na throughout) is the same picture: MATCH', () => {
+    const W = 'withheld by name on our side (`X`): because'
+    const cap = captureOf()
+    const naCols = cap.study.plots.map((p, i) => (/^ohlc_(open|high|low|close)$/.test(p.type) ? i + 1 : -1)).filter((i) => i > 0)
+    cap.plotValues.rows.forEach((row) => { for (const i of naCols) row[i] = null })
+    const ours = oursOf()
+    for (const p of ours.plots.filter((x) => x.kind === 'plotcandle')) p.column = [NaN, NaN, NaN]
+    ours.plots.find((p) => p.role === 'close').candleWithheld = W
+    const r = compareCapture(cap, ours)
+    expect(closeRow(r)).toMatchObject({ verdict: 'MATCH', color: 'nothing drawn on any bar — no colour to compare' })
+  })
+
   it('a palette colorer is decoded by its palette, as any colorer is', () => {
     const cap = captureOf()
     const body = cap.study.plots.find((p) => p.type === 'ohlc_colorer')
