@@ -209,9 +209,10 @@ def _rth_day(y, m, d, px=10.0):
 
 
 def _days(start: _dt.date, n):
+    """`n` NYSE trading days from `start` (a holiday has no bars: the serve path drops a row stamped on one)."""
     out, d = [], start
     while len(out) < n:
-        if d.weekday() < 5:
+        if bars_fetch._is_trading_day_ymd(d):
             out.append(d)
         d += _dt.timedelta(days=1)
     return out

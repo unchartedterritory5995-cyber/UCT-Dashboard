@@ -20,6 +20,10 @@ from api.services import bars_fetch, bars_sqlite
 def fresh_db(tmp_path, monkeypatch):
     from api.services.cache import cache as _cache
     monkeypatch.setattr(bars_sqlite, "_DB_PATH", str(tmp_path / "bars.db"))
+    # The rows below are stamped at the WALL CLOCK, which can lie outside any session (a night, a weekend), and the
+    # serve-time session clamp would then drop them. These tests pin the since-scan; the clamp has its own rails
+    # (tests/test_bars_eth_session_clamp.py).
+    monkeypatch.setattr(bars_fetch, "_clamp_exempt", lambda _t: True)
     bars_sqlite.bump_db_epoch()
     bars_sqlite.init_db()
     try:
