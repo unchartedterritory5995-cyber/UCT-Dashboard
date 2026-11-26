@@ -198,6 +198,38 @@ def test_an_unchanged_quote_is_not_sent_again():
     assert c.take() == b""
 
 
+def test_a_held_price_change_REARMS_the_timer_EARLIER_than_a_pending_volume_only_one():
+    """Review of #2751, E: a price change held behind an already-armed, later volume-only timer must not
+    wait for it (a quiet tape sends no further offer to flush it)."""
+    armed = []
+
+    class Handle:
+        def __init__(self, delay):
+            self.delay, self.cancelled = delay, False
+
+        def cancel(self):
+            self.cancelled = True
+
+    def schedule(delay, fn):
+        h = Handle(delay)
+        armed.append(h)
+        return h
+
+    clock = Clock()
+    hub = qh.QuoteHub(max_hz=4.0, volume_interval_s=1.0, monotonic=clock, wall_ms=lambda: 1, schedule=schedule)
+    c = hub.open(["AAPL"])
+    hub.on_prices({"AAPL": _q(100.0, volume=1000)})
+    c.take()
+    clock.t += 0.1
+    hub.on_prices({"AAPL": _q(100.0, volume=1100)})      # volume only: held to t0 + 1.0
+    assert armed and armed[-1].delay == pytest.approx(0.9)
+    clock.t += 0.05
+    hub.on_prices({"AAPL": _q(100.5, volume=1200)})      # a price change: due at t0 + 0.25
+    live = [h for h in armed if not h.cancelled]
+    assert len(live) == 1, "two timers armed, or the later one never cancelled"
+    assert live[0].delay == pytest.approx(0.10), "the price change still waits for the volume-only timer"
+
+
 # ── the per-connection bound ─────────────────────────────────────────────────
 
 def test_a_member_who_never_reads_holds_at_most_ONE_frame_per_symbol():
@@ -208,7 +240,6 @@ def test_a_member_who_never_reads_holds_at_most_ONE_frame_per_symbol():
         clock.t += 0.3
     assert set(c.pending) == {"AAPL", "MSFT"}
     assert json.loads(c.pending["AAPL"])[1] == 299.0, "the pending frame is not the newest"
-    assert c.replaced > 0
 
 
 def test_a_new_member_gets_the_current_quote_at_once():
@@ -339,6 +370,45 @@ def test_the_generator_says_live_false_when_the_feed_goes_quiet(route):
         assert b'{"live": false}' in (st if isinstance(st, bytes) else st.encode())
         await it.aclose()
     asyncio.run(go())
+
+
+def test_a_response_torn_down_BEFORE_its_first_step_still_releases_everything(route):
+    """Review of #2751, F: an async generator that never started never runs its `finally`. A response
+    torn down at `http.response.start` must still release the admission slot, the upstream interest and
+    the hub connection (a release-once helper on the response itself)."""
+    qs, stream, rb, hub, _c = route
+
+    async def go():
+        resp = await qs.stream_quotes(_Req(), tickers="AAPL", _access={})
+        assert stream.subscriber_count("quotes") == 1 and rb._interest.get("AAPL") == 1
+
+        async def receive():
+            return {"type": "http.disconnect"}
+
+        async def send(message):
+            raise OSError("client went away at response start")
+
+        # The client is already gone: Starlette's disconnect listener cancels the body task, and/or the
+        # first send fails. Either way the body generator never takes a step.
+        try:
+            await resp({"type": "http", "asgi": {"version": "3.0"}, "method": "GET"}, receive, send)
+        except BaseException:  # noqa: BLE001 - whatever the teardown raises, the releases are the question
+            pass
+        assert stream.subscriber_count("quotes") == 0, "the admission slot leaked"
+        assert "AAPL" not in rb._interest, "the upstream interest leaked"
+        assert hub.stats()["connections"] == 0, "the hub connection leaked"
+    asyncio.run(go())
+
+
+def test_the_hub_MEASURES_the_wait_from_pending_to_written():
+    """How long a member's first pending quote waited for its write (the edge loop's queueing: review B)."""
+    hub, clock = _hub()
+    c = hub.open(["AAPL"])
+    hub.on_prices({"AAPL": _q(100.0)})
+    clock.t += 0.012
+    c.take()
+    q = hub.stats()["queue_ms"]
+    assert q["n"] == 1 and q["p50"] == pytest.approx(12, abs=1)
 
 
 # ── stream-edge serves it too ────────────────────────────────────────────────

@@ -185,6 +185,48 @@ describe('health', () => {
   })
 })
 
+describe('a resubscribe does not drop the push (review D)', () => {
+  it('adding a ticker keeps health and pushed quotes, and keeps the old connection until the new one opens', () => {
+    localStorage.setItem('uct.quotePush', '1')
+    const health = []
+    qp.onHealth((h) => health.push(h))
+    qp.setTickers('rest', ['AAPL'])
+    settle()
+    const first = open()[0]
+    first.emitOpen()
+    first.emitEvent('status', { live: true })
+    first.frame(['AAPL', 100.5, 1000, 1_700_000_000_000])
+    runFrame()
+    qp.setTickers('rest', ['AAPL', 'MSFT'])
+    settle()
+    expect(qp.isHealthy()).toBe(true)
+    expect(health).not.toContain(false)
+    expect(qp.getPushedQuote('AAPL')?.price).toBe(100.5)
+    expect(first.closed).toBe(false)                    // make before break
+    const second = open().find((e) => e !== first)
+    expect(second.url).toBe('/api/stream/quotes?tickers=AAPL,MSFT')
+    second.emitOpen()
+    second.emitEvent('status', { live: true })
+    expect(first.closed).toBe(true)
+    expect(qp.isHealthy()).toBe(true)
+    expect(health).not.toContain(false)
+  })
+
+  it('a replacement that never opens stops counting as healthy once its grace ends', () => {
+    localStorage.setItem('uct.quotePush', '1')
+    qp.setTickers('rest', ['AAPL'])
+    settle()
+    const first = open()[0]
+    first.emitOpen()
+    first.emitEvent('status', { live: true })
+    qp.setTickers('rest', ['AAPL', 'MSFT'])
+    settle()
+    expect(qp.isHealthy()).toBe(true)
+    vi.advanceTimersByTime(qp.RESUBSCRIBE_GRACE_MS + 50)
+    expect(qp.isHealthy()).toBe(false)
+  })
+})
+
 describe('overlayPushed (what a REST-shaped list row shows)', () => {
   const rest = { price: 100, change_pct: 1, change: 1, prev_close: 99, volume: 500, ext_session: null }
 
@@ -202,6 +244,16 @@ describe('overlayPushed (what a REST-shaped list row shows)', () => {
     expect(out.price).toBe(100)
     expect(out.ext_price).toBe(102)
     expect(out.change_pct).toBe(1)
+  })
+
+  it('a REST row NEWER than the pushed trade keeps its own price (review A)', () => {
+    const t = 1_700_000_000_000
+    const byObs = { ...rest, price: 100.4, observed_at: (t + 5000) / 1000 }
+    expect(qp.overlayPushed(byObs, { price: 101, volume: 900, trade_ts: t })).toBe(byObs)
+    const byTrade = { ...rest, price: 100.4, last_trade_ms: t + 1, observed_at: (t - 9000) / 1000 }
+    expect(qp.overlayPushed(byTrade, { price: 101, volume: 900, trade_ts: t })).toBe(byTrade)
+    const older = { ...rest, price: 100.4, last_trade_ms: t - 1, observed_at: (t + 5000) / 1000 }
+    expect(qp.overlayPushed(older, { price: 101, volume: 900, trade_ts: t }).price).toBe(101)
   })
 
   it('a push that changes nothing returns the same entry (no render)', () => {

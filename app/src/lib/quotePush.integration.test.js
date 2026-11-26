@@ -89,6 +89,18 @@ describe('livePriceStore', () => {
     expect(fetch.mock.calls.length).toBe(n + 1)
   })
 
+  it('around a session boundary the poll keeps its normal cadence even while the push is healthy (review C)', async () => {
+    vi.setSystemTime(new Date('2026-11-24T20:59:20Z'))   // 15:59:20 ET: 40 s before the close
+    await healthyPush()
+    vi.advanceTimersToNextTimer()
+    await flush()
+    const n = fetch.mock.calls.length
+    vi.advanceTimersToNextTimer()                         // the next poll: the normal cadence, not 15 s
+    await flush()
+    expect(fetch.mock.calls.length).toBe(n + 1)
+    expect(Date.now() - new Date('2026-11-24T20:59:20Z').getTime()).toBeLessThan(10_000)
+  })
+
   it('the push going unhealthy polls at once and returns to the fast cadence', async () => {
     const es = await healthyPush()
     vi.advanceTimersToNextTimer()                          // the next poll, at the normal cadence (2 s, 4 s on touch)

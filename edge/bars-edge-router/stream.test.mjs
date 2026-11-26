@@ -105,3 +105,24 @@ test("the Worker dispatches every stream path (not only bars) to handleStream", 
   const src = readFileSync(new URL("./worker.js", import.meta.url), "utf8");
   assert.match(src, /if \(isStreamPath\(url\.pathname\)\) return handleStream\(request, env\);/);
 });
+
+
+test("quotes may have their OWN origin (a quote-edge), and bars stay on stream-edge", async () => {
+  const env = { ...ENV, QUOTES_EDGE_ORIGIN: "https://quotes.example" };
+  const q = recorder(sse());
+  await handleStream(req("uct_stream_edge=1; uct_chart_edge=t", QURL), env, q.f);
+  assert.equal(q.calls[0].target, "https://quotes.example/api/stream/quotes?tickers=ZZA,ZZB");
+  const b = recorder(sse());
+  await handleStream(req("uct_stream_edge=1; uct_chart_edge=t"), env, b.f);
+  assert.equal(b.calls[0].target, "https://edge.example/api/stream/bars?bars=ZZA:1&v=2");
+});
+
+test("a quote-edge origin alone routes quotes (bars untouched to web)", async () => {
+  const env = { QUOTES_EDGE_ORIGIN: "https://quotes.example" };
+  const q = recorder(sse());
+  await handleStream(req("uct_stream_edge=1; uct_chart_edge=t", QURL), env, q.f);
+  assert.equal(q.calls[0].target, "https://quotes.example/api/stream/quotes?tickers=ZZA,ZZB");
+  const b = recorder(sse());
+  await handleStream(req("uct_stream_edge=1; uct_chart_edge=t"), env, b.f);
+  assert.equal(b.calls[0].isOriginal, true);
+});
