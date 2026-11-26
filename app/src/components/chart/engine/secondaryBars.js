@@ -45,7 +45,7 @@ const BARS_PATH = '/api/bars/'
 // until a capture witnesses how TradingView builds it.
 import { baseBarsFor, fetchTf, resampleSpec } from '../timeframes'
 import { resampleForSpec, isRegularSessionSpec } from '../../../utils/resampleBars'
-import { isRthBar } from '../barTime'
+import { isRthBar, toChartTime, etMinuteOfDay } from '../barTime'
 import { viewShowExtended } from '../../../utils/viewSession'
 
 /**
@@ -116,15 +116,15 @@ export function secondaryFetchOf(symbol, tf, bars, { extended } = {}) {
   return { url, fetchUrl: secondaryBarsUrl(symbol, fetchTf(code), baseAsk, { session: ext && spec.base === '60' ? 'eth' : null, extended: false }), spec, baseAsk }
 }
 
-const _ET_PARTS = new Intl.DateTimeFormat('en-US', {
-  timeZone: 'America/New_York', weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false,
-})
-/** ET weekday + minutes after midnight of unix seconds. */
+// ET weekday names by ET calendar day (chart time / 86400): day 0 of the epoch, 1970-01-01, was a Thursday.
+const _ET_WEEKDAY = ['Thu', 'Fri', 'Sat', 'Sun', 'Mon', 'Tue', 'Wed']
+/** ET weekday + minutes after midnight of unix seconds.
+ *  ⭐ (2026-11-26, #2801's upgrade capture) one `formatToParts` PER ROW was 29 ms of a 19,200-row benchmark page's
+ *  landing task. It now reads barTime's ET offset, memoised per UTC day (`toChartTime` / `etMinuteOfDay`): the same
+ *  weekday and minute (the formatter's `hour12: false` midnight 24 already read as 0 here), at most two Intl reads a day. */
 function _etWhen(t) {
-  const parts = _ET_PARTS.formatToParts(new Date(t * 1000))
-  const get = (type) => (parts.find((p) => p.type === type) || {}).value
-  const h = Number(get('hour')) % 24
-  return { wd: get('weekday'), min: h * 60 + Number(get('minute')) }
+  const day = Math.floor(Math.floor(toChartTime(t)) / 86400)
+  return { wd: _ET_WEEKDAY[((day % 7) + 7) % 7], min: etMinuteOfDay(t) }
 }
 const _WEEKEND = new Set(['Sat', 'Sun'])
 
