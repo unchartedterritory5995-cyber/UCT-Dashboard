@@ -12,7 +12,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   volumeMenuItems, volumeMenuCaps, volumeChipOf, volumePaneSizeStored,
-  withVolumeDisplay, withVolumePaneHeightReset, VOLUME_NOT_YET, VOLUME_ABOUT,
+  withVolumeDisplay, withVolumePaneHeightReset, VOLUME_NOT_YET, VOLUME_ABOUT, VOLUME_SOURCE_NOTE,
 } from './volumeChip'
 import { CHIP_MENU_GROUPS } from './chipMenu'
 import { mergeChartSettings } from '../chartDefaults'
@@ -231,5 +231,18 @@ describe('the volume strip is a study stack, like a pane readout', () => {
     const at = sc.indexOf('{volPaneRows.map((r, ri) => (')
     expect(at, 'the strip no longer renders volPaneRows').toBeGreaterThan(0)
     expect(sc.slice(at, at + 1400)).toMatch(/<LegendRow[\s\S]*?\bvertical\b/)
+  })
+})
+
+// ⭐ Owner ruling 2026-11-25: "keep the full volume with the note". Plain words, no em dash, no alarm.
+describe('VOLUME_SOURCE_NOTE — what our volume counts', () => {
+  it('says volume includes odd-lot trades, TradingView leaves them out, and nothing about prices', () => {
+    expect(VOLUME_SOURCE_NOTE).toBe("Volume includes odd-lot trades (TradingView excludes them), so it can read higher than TradingView's.")
+    expect(VOLUME_SOURCE_NOTE).not.toMatch(/[–—]|!|warning|caution|inaccurate|wrong/i)
+  })
+  it('the About card says the same thing in a sentence', () => {
+    expect(VOLUME_ABOUT.text).toMatch(/Volume includes odd-lot trades \(TradingView excludes them\), so it can read higher than TradingView's\./)
+    expect(VOLUME_SOURCE_NOTE, 'the note claims something about prices').not.toMatch(/\b(highs?|lows?|closes?|prices?)\b/i)
+    expect(VOLUME_ABOUT.text).not.toMatch(/[–—]/)
   })
 })

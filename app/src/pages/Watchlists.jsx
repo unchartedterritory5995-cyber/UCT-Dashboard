@@ -2053,12 +2053,14 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     // which the first run had just set to the selection itself, so it saw no jump and moved "down", and its urgent call (the
     // latest one, the only one that keeps its rows) aborts the jump target's ask if it has not started. Direction and stride
     // are kept.
-    const rerun = prev.sym === selectedSym
+    // (review of #2768, LOW) ...in the SAME list: a list switch with the same symbol selected is a fresh press there.
+    const listKey = pickList ?? `${activeTab}:${[...expandedLists].map(String).sort().join(',')}`
+    const rerun = prev.sym === selectedSym && prev.list === listKey
     // Moving up when the previous row sits just below (wrap-aware); down otherwise.
     const dir = rerun ? (prev.dir || 1) : ((prev.sym && prev.idx >= 0 && prev.idx === (idx + 1) % len) ? -1 : 1)
     const prevIdx = !rerun && prev.sym ? flat.indexOf(prev.sym) : -1
     const stride = rerun ? (prev.stride || 0) : jumpStride(flat, idx, prevIdx)
-    _scanPrevRef.current = { sym: selectedSym, idx, dir, stride }
+    _scanPrevRef.current = { sym: selectedSym, idx, dir, stride, list: listKey }
     const tfs = warmTfs.length ? warmTfs : ['D']
     const around = scanNeighbors(flat, idx, dir, { ahead: 6, behind: 6 })
     // ⭐⭐ NEIGHBOR FRAMES (`uct.neighborframes`): the charts on this list's colour prepare the next rows
