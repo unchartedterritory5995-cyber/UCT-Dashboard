@@ -14,10 +14,10 @@
    "id": "FR2",
    "mutant": "clock-anchored slots: a 4h grid starts at the extended open, not at the session-anchored slot",
    "file": "app/src/components/chart/engine/otherSymbols.js",
-   "from": "      : anchored ? open - Math.ceil((RTH_OPEN_MIN - EXT_OPEN_MIN) / step) * step * 60 : mid + EXT_OPEN_MIN * 60",
-   "to": "      : false ? open - Math.ceil((RTH_OPEN_MIN - EXT_OPEN_MIN) / step) * step * 60 : mid + EXT_OPEN_MIN * 60",
+   "from": "    const firstSlot = anchored ? mid + (anchorMin - Math.ceil((anchorMin - EXT_OPEN_MIN) / step) * step) * 60",
+   "to": "    const firstSlot = false ? mid + (anchorMin - Math.ceil((anchorMin - EXT_OPEN_MIN) / step) * step) * 60",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/rsFourHourWitness.test.js",
-   "expectRed": "the slots are the chart"
+   "expectRed": "(b) a REGULAR chart"
   },
   {
    "id": "FR3",
@@ -53,7 +53,7 @@
    "from": "  const step = GRID_STEP_MIN[String(tf)]",
    "to": "  const step = INTRADAY_STEP_MIN[String(tf)]",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/rsFourHourWitness.test.js",
-   "expectRed": "the slots are the chart"
+   "expectRed": "(b) a REGULAR chart"
   }
  ]
 }

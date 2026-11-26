@@ -1,0 +1,113 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "GS1",
+   "mutant": "the grid ignores the chart's anchor: every 4h grid is laid on the regular spec",
+   "file": "app/src/components/chart/engine/otherSymbols.js",
+   "from": "  const spec = anchored ? resampleSpec(String(tf), { extended: extended === true }) : null",
+   "to": "  const spec = anchored ? resampleSpec(String(tf), { extended: false }) : null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/rsFourHourWitness.test.js",
+   "expectRed": "(a) an EXTENDED chart"
+  },
+  {
+   "id": "GS2",
+   "mutant": "extended slots on a regular chart: every 4h grid is laid on the extended spec, so a regular bar reads nothing",
+   "file": "app/src/components/chart/engine/otherSymbols.js",
+   "from": "  const spec = anchored ? resampleSpec(String(tf), { extended: extended === true }) : null",
+   "to": "  const spec = anchored ? resampleSpec(String(tf), { extended: true }) : null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/rsFourHourWitness.test.js",
+   "expectRed": "(b) REGULAR 240"
+  },
+  {
+   "id": "GS3",
+   "mutant": "firstSlotMin required again: the extended slots only where a caller hands the grid TradingView's first slot",
+   "file": "app/src/components/chart/engine/otherSymbols.js",
+   "from": "  const anchorMin = spec && Number.isFinite(spec.anchorMin) ? spec.anchorMin : null",
+   "to": "  const anchorMin = spec && Number.isFinite(spec.anchorMin) ? (Number.isFinite(arguments[3] && arguments[3].firstSlotMin) ? arguments[3].firstSlotMin : RTH_OPEN_MIN) : null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/rsFourHourWitness.test.js",
+   "expectRed": "(a) EXTENDED 240"
+  },
+  {
+   "id": "GS4",
+   "mutant": "the bind drops the chart's session (a 4h read's grid always regular)",
+   "file": "app/src/components/chart/engine/otherSymbols.js",
+   "from": "...(Object.prototype.hasOwnProperty.call(CUSTOM_INTRADAY_STEP_MIN, tf) ? { extended: chartExtendedOf(secondary) } : {}) }",
+   "to": "...(Object.prototype.hasOwnProperty.call(CUSTOM_INTRADAY_STEP_MIN, tf) ? { extended: false } : {}) }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/rsFourHourWitness.test.js",
+   "expectRed": "(a) EXTENDED 240"
+  },
+  {
+   "id": "GS5",
+   "mutant": "the fold drops the chart's session on its way to the grid",
+   "file": "app/src/components/chart/engine/otherSymbols.js",
+   "from": "      extended: !!(also && also.extended) })",
+   "to": "      extended: false })",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/rsFourHourWitness.test.js",
+   "expectRed": "(a) EXTENDED 240"
+  },
+  {
+   "id": "GS6",
+   "mutant": "the chart's map says regular whatever the chart's session",
+   "file": "app/src/components/chart/engine/useSecondarySources.js",
+   "from": "    out.set(CHART_SESSION_KEY, chartSessionEntryOf(extended === true))",
+   "to": "    out.set(CHART_SESSION_KEY, chartSessionEntryOf(false))",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/rsFourHourWitness.test.js",
+   "expectRed": "the chart's map"
+  },
+  {
+   "id": "GS7",
+   "mutant": "the session entry says extended on every chart (extended slots on a regular chart)",
+   "file": "app/src/components/chart/engine/otherSymbols.js",
+   "from": "export const chartSessionEntryOf = (extended) => (extended === true ? CHART_SESSION_ETH : CHART_SESSION_RTH)",
+   "to": "export const chartSessionEntryOf = (extended) => (extended === true ? CHART_SESSION_ETH : CHART_SESSION_ETH)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/rsFourHourWitness.test.js",
+   "expectRed": "(b) REGULAR 240"
+  },
+  {
+   "id": "GS8",
+   "mutant": "the index fetched on the chart's extended session (its 4h bars built on 04:00, not its own 09:30)",
+   "file": "app/src/components/chart/engine/useSecondarySources.js",
+   "from": "  return held && held.key === k ? false : extended",
+   "to": "  return extended",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/rsFourHourWitness.test.js",
+   "expectRed": "the chart's map"
+  },
+  {
+   "id": "GS9",
+   "mutant": "the live tail asks the chart's session for the index entry (it was fetched on the regular one)",
+   "file": "app/src/components/chart/engine/useSecondarySources.js",
+   "from": "    const ext = held ? extended : plainKeyExtended(k, tf, extended)",
+   "to": "    const ext = extended",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/rsFourHourWitness.test.js",
+   "expectRed": "the live tail on an EXTENDED 4h chart"
+  },
+  {
+   "id": "GS10",
+   "mutant": "the bind's signature ignores the chart's session (an EXT toggle keeps the old grid)",
+   "file": "app/src/components/chart/engine/otherSymbols.js",
+   "from": "    ? `|session:${chartExtendedOf(secondary) ? 'eth' : 'rth'}` : ''",
+   "to": "    ? '' : ''",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/rsFourHourWitness.test.js",
+   "expectRed": "an EXT toggle is a recompute"
+  },
+  {
+   "id": "GS11",
+   "mutant": "the extended chart's grid starts one step late (08:00): its 04:00 bar reads nothing",
+   "file": "app/src/components/chart/engine/otherSymbols.js",
+   "from": "    const firstSlot = anchored ? mid + (anchorMin - Math.ceil((anchorMin - EXT_OPEN_MIN) / step) * step) * 60",
+   "to": "    const firstSlot = anchored ? mid + (anchorMin - Math.ceil((anchorMin - EXT_OPEN_MIN) / step) * step + step) * 60",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/rsFourHourWitness.test.js",
+   "expectRed": "(a) an EXTENDED chart"
+  },
+  {
+   "id": "GS12",
+   "mutant": "customTfFlags (c) back on the regular spec from an extended page (the 400-bar chart)",
+   "file": "app/src/components/chart/engine/customTfFlags.test.js",
+   "from": "const ETH_240 = resampleSpec('240', { extended: true })",
+   "to": "const ETH_240 = resampleSpec('240', { extended: false })",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/customTfFlags.test.js",
+   "expectRed": "on 240"
+  }
+ ]
+}
