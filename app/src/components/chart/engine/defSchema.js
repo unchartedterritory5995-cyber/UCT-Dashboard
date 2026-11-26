@@ -264,6 +264,15 @@ export const MARKER_POSITIONS = Object.freeze(['aboveBar', 'belowBar', 'inBar'])
 /** Bounds, not a list — the translator maps five named Pine sizes into it and a
  *  hand-authored document may pick anything sane between them. */
 export const MARKER_SIZE_RANGE = Object.freeze({ min: 0.25, max: 4 })
+/** e99 — Pine's own `location.*` and `size.*` words, carried beside the LWC
+ *  fallback (`position` / `size`) so a renderer that can draw them reads the word
+ *  the author wrote. Held to the server's lists by the P2 shared fixture. */
+export const MARKER_PINE_LOCATIONS = Object.freeze([
+  'location.abovebar', 'location.belowbar', 'location.top', 'location.bottom', 'location.absolute',
+])
+export const MARKER_PINE_SIZES = Object.freeze([
+  'size.tiny', 'size.small', 'size.normal', 'size.large', 'size.huge', 'size.auto',
+])
 
 /** ⭐ A PLOT WIDTH'S SANITY CEILING, in px. TradingView paints a Pine `linewidth`
  *  unclamped (set F: 1..10 is N px), so the door carries the script's own width —
@@ -316,6 +325,23 @@ function validateMarker(plot, path, errors) {
   }
   if (typeof m.text === 'string' && m.text.length > 24) {
     errors.push(`${path}.marker.text: at most 24 characters, got ${m.text.length}`)
+  }
+  // ⭐ e99 — THE PINE WORDS, KEPT BESIDE THE LWC FALLBACK. Optional, and each one a
+  // closed list of Pine's own spellings: a reader that draws from the word (the
+  // canvas marker primitive) must never meet a word Pine does not have.
+  if (m.pineLocation !== undefined && !MARKER_PINE_LOCATIONS.includes(m.pineLocation)) {
+    errors.push(
+      `${path}.marker.pineLocation: expected one of ${MARKER_PINE_LOCATIONS.join(', ')} — got ${fmt(m.pineLocation)}`,
+    )
+  }
+  if (m.pineSize !== undefined && !MARKER_PINE_SIZES.includes(m.pineSize)) {
+    errors.push(
+      `${path}.marker.pineSize: expected one of ${MARKER_PINE_SIZES.join(', ')} — got ${fmt(m.pineSize)}`,
+    )
+  }
+  if (m.textColor !== undefined
+      && !(typeof m.textColor === 'string' && /^#[0-9a-f]{6}([0-9a-f]{2})?$/i.test(m.textColor))) {
+    errors.push(`${path}.marker.textColor: expected a #RRGGBB or #RRGGBBAA colour, got ${fmt(m.textColor)}`)
   }
 }
 

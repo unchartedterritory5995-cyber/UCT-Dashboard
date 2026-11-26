@@ -33162,6 +33162,10 @@ const PINE_MARKER_SIZES = Object.freeze({
   'size.auto': 1,
 })
 
+/** e99 — the text colour TradingView records for a `plotshape` / `plotchar` whose
+ *  `textcolor=` is absent (FRED RS, AMEX:SPY 1D captures, 2026-11-26). */
+const PINE_MARKER_TEXT_COLOUR_DEFAULT = '#2962FF'
+
 /** The calls whose `style=` argument names a MARKER SHAPE rather than a plot
  *  style. Read as a set so `outputPresentation` asks one question instead of
  *  carrying two parallel branches. */
@@ -36120,15 +36124,39 @@ function outputPresentation(args, ctx) {
       const hit = PINE_MARKER_LOCATIONS[loc.value.name]
       if (hit) {
         m.position = hit.position
+        m.pineLocation = loc.value.name
         if (hit.approx) m.positionApprox = true
       } else {
         pres.locationUncarried = loc.value.name
       }
+    } else if (!loc) {
+      // ⭐ e99 — THE LOCATION WORD, KEPT. TradingView keeps the `location.*` word per
+      // plot (FRED RS, SPY 1D captures 2026-11-26), and `location.top` /
+      // `location.bottom` are pane-relative, which the LWC `position` above cannot
+      // say. Both calls default to `location.abovebar`. ⛔ Only an ABSENT argument
+      // takes the default: a location written as an expression this door cannot
+      // read is not claimed to be `abovebar`.
+      m.pineLocation = 'location.abovebar'
     }
     const size = arg('size')
     if (size && size.value && size.value.type === 'name'
         && Object.hasOwn(PINE_MARKER_SIZES, size.value.name)) {
       m.size = PINE_MARKER_SIZES[size.value.name]
+      // ⭐ e99 — THE SIZE WORD, KEPT beside the LWC multiplier (TradingView keeps the
+      // word per plot). ⛔ ONLY WHEN WRITTEN: Pine's default size is not measured
+      // yet, so an absent `size=` stays absent rather than claiming one.
+      m.pineSize = size.value.name
+    }
+    // ⭐ e99 — THE TEXT COLOUR. TradingView records `#2962FF` for a marker whose
+    // `textcolor=` is absent (the same captures). A static colour is carried as its
+    // hex; a colour this door cannot read statically is left absent, never filled
+    // with the default.
+    const tc = arg('textcolor')
+    if (!tc) {
+      m.textColor = PINE_MARKER_TEXT_COLOUR_DEFAULT
+    } else {
+      const flatText = staticColourOf(tc.value, ctx && ctx.env, 0, ctx)
+      if (typeof flatText === 'string' && /^#[0-9a-f]{6}([0-9a-f]{2})?$/i.test(flatText)) m.textColor = flatText
     }
     // ⭐ `text=` ON `plotshape`, `char=` ON `plotchar` — the same field to a
     // reader, two spellings in Pine, one name here.

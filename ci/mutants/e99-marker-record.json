@@ -1,0 +1,104 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "MR-1",
+   "mutant": "the size word dropped (only the LWC multiplier kept, as before e99)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "      m.pineSize = size.value.name",
+   "to": "      void 0",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/markerPineWords.test.js",
+   "expectRed": "is kept as written beside the multiplier"
+  },
+  {
+   "id": "MR-2",
+   "mutant": "the text colour default dropped (an absent textcolor= records nothing)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "      m.textColor = PINE_MARKER_TEXT_COLOUR_DEFAULT",
+   "to": "      void 0",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/markerPineWords.test.js",
+   "expectRed": "is #2962FF, the colour TradingView records"
+  },
+  {
+   "id": "MR-3",
+   "mutant": "the written location word dropped (location.top reduced to aboveBar again)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "        m.pineLocation = loc.value.name",
+   "to": "        void 0",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/markerPineWords.test.js",
+   "expectRed": "is kept as written, and the LWC fallback is unchanged"
+  },
+  {
+   "id": "MR-4",
+   "mutant": "the absent-location default dropped",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "      m.pineLocation = 'location.abovebar'",
+   "to": "      void 0",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/markerPineWords.test.js",
+   "expectRed": "is Pine's default, location.abovebar"
+  },
+  {
+   "id": "MR-5",
+   "mutant": "an unreadable location expression claimed to be the abovebar default",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    } else if (!loc) {",
+   "to": "    } else {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/markerPineWords.test.js",
+   "expectRed": "a location this door cannot read is NOT claimed"
+  },
+  {
+   "id": "MR-6",
+   "mutant": "an unreadable text colour filled with the default",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "      if (typeof flatText === 'string' && /^#[0-9a-f]{6}([0-9a-f]{2})?$/i.test(flatText)) m.textColor = flatText",
+   "to": "      m.textColor = flatText || PINE_MARKER_TEXT_COLOUR_DEFAULT",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/markerPineWords.test.js",
+   "expectRed": "a text colour this door cannot read statically is left absent"
+  },
+  {
+   "id": "MR-7",
+   "mutant": "the size word written when absent (claiming the unmeasured default)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    // ⭐ e99 — THE TEXT COLOUR.",
+   "to": "    if (m.pineSize === undefined) m.pineSize = 'size.normal'\n    // ⭐ e99 — THE TEXT COLOUR.",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/markerPineWords.test.js",
+   "expectRed": "ABSENT stays absent"
+  },
+  {
+   "id": "MR-8",
+   "mutant": "the browser gate stops checking pineLocation",
+   "file": "app/src/components/chart/engine/defSchema.js",
+   "from": "  if (m.pineLocation !== undefined && !MARKER_PINE_LOCATIONS.includes(m.pineLocation)) {",
+   "to": "  if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__truth__/p2.policy.truth.test.js",
+   "expectRed": "e99 marker pineLocation outside the list"
+  },
+  {
+   "id": "MR-9",
+   "mutant": "the browser gate stops checking textColor",
+   "file": "app/src/components/chart/engine/defSchema.js",
+   "from": "  if (m.textColor !== undefined\n",
+   "to": "  if (false\n",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__truth__/p2.policy.truth.test.js",
+   "expectRed": "e99 marker textColor not a hex colour"
+  },
+  {
+   "id": "MR-10",
+   "mutant": "the server door stops checking pineSize",
+   "file": "api/services/presentation_schema.py",
+   "from": "    if \"pineSize\" in m and m.get(\"pineSize\") not in MARKER_PINE_SIZES:",
+   "to": "    if False:",
+   "rail": "python -m pytest tests/test_p2_truth_policy.py -q -p no:cacheprovider -k \"P2_presentation_vocabulary or case_by_case\"",
+   "expectRed": "pineSize outside the list"
+  },
+  {
+   "id": "MR-11",
+   "mutant": "the server's size vocabulary drifts from the browser's (size.auto dropped)",
+   "file": "api/services/presentation_schema.py",
+   "from": "                     \"size.auto\")",
+   "to": "                     )",
+   "rail": "python -m pytest tests/test_p2_truth_policy.py -q -p no:cacheprovider -k \"P2_presentation_vocabulary or case_by_case\"",
+   "expectRed": "test_P2_presentation_vocabulary_equals_the_shared_fixture"
+  }
+ ]
+}
