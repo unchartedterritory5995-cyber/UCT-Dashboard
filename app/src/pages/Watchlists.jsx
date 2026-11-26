@@ -102,7 +102,7 @@ import useWatchlistAlerts from '../hooks/useWatchlistAlerts'
 import { subscribeChartReadouts, getChartReadout, hasFreshReadouts } from '../lib/chartReadoutStore'
 import useTagColors from '../hooks/useTagColors'
 import { prefetchBars, prefetchAllTimeframes, prefetchBarOnIntent, warmMemFromIDB, prewarmVisibleList, prefetchBarsToIDB, createNeighborHold } from '../utils/barsWarm'
-import { scanNeighbors, jumpTarget } from '../utils/scanNeighbors'
+import { scanNeighbors, jumpTarget, jumpStride, strideTarget } from '../utils/scanNeighbors'
 import { afterPaint } from '../utils/afterPaint'
 import { publishScanNeighbors } from '../components/chart/neighborFrames'
 import { useIsTouch } from '../hooks/useBreakpoint'
@@ -2048,9 +2048,17 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     if (idx < 0 || flat.length < 2) return
     const len = flat.length
     const prev = _scanPrevRef.current
-    _scanPrevRef.current = { sym: selectedSym, idx }
+    // ⭐ (2026-11-26, jump replay) A RE-RUN FOR THE SAME SELECTION KEEPS WHAT THE PRESS LANDED WITH. This effect runs again
+    // whenever the list's rows change identity (a list or tag refresh); that run read the PREVIOUS selection from this ref,
+    // which the first run had just set to the selection itself, so it saw no jump and moved "down", and its urgent call (the
+    // latest one, the only one that keeps its rows) aborts the jump target's ask if it has not started. Direction and stride
+    // are kept.
+    const rerun = prev.sym === selectedSym
     // Moving up when the previous row sits just below (wrap-aware); down otherwise.
-    const dir = (prev.sym && prev.idx >= 0 && prev.idx === (idx + 1) % len) ? -1 : 1
+    const dir = rerun ? (prev.dir || 1) : ((prev.sym && prev.idx >= 0 && prev.idx === (idx + 1) % len) ? -1 : 1)
+    const prevIdx = !rerun && prev.sym ? flat.indexOf(prev.sym) : -1
+    const stride = rerun ? (prev.stride || 0) : jumpStride(flat, idx, prevIdx)
+    _scanPrevRef.current = { sym: selectedSym, idx, dir, stride }
     const tfs = warmTfs.length ? warmTfs : ['D']
     const around = scanNeighbors(flat, idx, dir, { ahead: 6, behind: 6 })
     // ⭐⭐ NEIGHBOR FRAMES (`uct.neighborframes`): the charts on this list's colour prepare the next rows
@@ -2062,13 +2070,15 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     const keep0 = scanNeighbors(flat, idx, dir, { ahead: SCAN_KEEP_AHEAD, behind: 0 })
     // ⭐ (2026-11-25 wide sweep) A JUMP warms where the next jump lands (utils/scanNeighbors jumpTarget): jumps of 20
     // rows outran the urgent next-row warm. The previous selection is looked up in THIS order (a re-sort moved it).
-    const jump = prev.sym ? jumpTarget(flat, idx, flat.indexOf(prev.sym)) : null
+    const jump = rerun ? strideTarget(flat, idx, stride) : (prevIdx >= 0 ? jumpTarget(flat, idx, prevIdx) : null)
     // ⛔ (review of #2739) INSIDE BOTH CAPS. prefetchBars makes only the first URGENT_MAX_PER_CALL (2) symbols of a call
     // urgent: a third leaves as a shed-able background warm that is never re-asked after a roll, so a jump asks for
-    // [the next row, the jump target] (a jumping member does not need row + 2 urgently). Never a SECOND urgent call: only
+    // [the jump target, the next row] (a jumping member does not need row + 2 urgently). Never a SECOND urgent call: only
     // the latest urgent call keeps its rows. And a hold pins `keep.slice(0, share)` (30 on a two-hold board, 20 on three):
     // the target goes FIRST in keep, never after the 30 rows ahead.
-    const urgentNext = jump && !next.includes(jump) ? [next[0], jump].filter(Boolean) : next
+    // ⭐ (2026-11-26) THE TARGET FIRST: the lane starts a call's rows in order, and on the jump replay the target, second,
+    // started 0.4-0.5 s after landing, behind the next row (a jumping member presses the target next).
+    const urgentNext = jump && !next.includes(jump) ? [jump, next[0]].filter(Boolean) : next
     const keep = jump ? [jump, ...keep0.filter((x) => x !== jump)] : keep0
     const sendWarm = () => {
       const holds = _holdsRef.current
@@ -2096,6 +2106,13 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       // is about to reach. Only the latest urgent call stays urgent: a held arrow key aborts the
       // rows it has passed, so a fast scan costs at most SCAN_URGENT_NEXT requests in flight (per
       // timeframe: an urgent call only aborts its own timeframe's passed rows).
+      // (2026-11-26) OPT-IN TRACE for the jump replay: a harness that sets `window.__uctScanWarmTrace = []` reads every send
+      // here (a re-run included), so a measured wait can be told apart: never asked, or asked and lost in the store.
+      const trace = globalThis.__uctScanWarmTrace
+      if (Array.isArray(trace)) {
+        trace.push({ at: Math.round(performance.now()), sym: selectedSym, rerun, stride, jump, urgent: urgentNext, tfs })
+        if (trace.length > 200) trace.splice(0, trace.length - 200)
+      }
       for (const tf of tfs) prefetchBars(urgentNext, tf, { urgent: true })
     }
     if (hurried) { sendWarm(); return undefined }

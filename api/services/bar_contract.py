@@ -24,6 +24,7 @@ intraday; the session clock in `bars_fetch` for D/W/M closes).
 from __future__ import annotations
 
 import os
+import threading
 import time as _time
 from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
@@ -443,24 +444,102 @@ def derive_for_grid(ticker: str, tf: str, session, rows: list, base: dict,
 
 _STREAM_REV_TTL_S = 1.0
 _stream_rev_cache: dict = {}
+# ⭐ OFF THE LOOP (2026-11-25). stream_fields runs on the stream event loop for EVERY frame of
+# /api/stream/bars (web and stream-edge). A stale entry used to call bars_sqlite.series_meta right
+# there: a synchronous SQLite read once a second per pair, and on the first call the store's import
+# and open (~1.8 s measured in the suite), with every member's frames on that pod waiting behind it.
+# Now the read runs on a small worker pool and a frame takes what the cache holds
+# (stale-while-revalidate): series_rev may lag the store by one read, inside the ~1 s it was cached.
+# One read in flight per series; a reset (tests) bumps the generation so an old read never lands.
+_stream_rev_lock = threading.Lock()
+_stream_rev_inflight: set = set()
+_stream_rev_gen = 0
+_stream_rev_pool = None
+_STREAM_REV_WORKERS = 2
+
+
+def _stream_rev_read(key, gen) -> None:
+    try:
+        try:
+            from api.services import bars_sqlite as _bs
+            rev = int(_bs.series_meta(key[0], key[1]).get("rev") or 0)
+        except Exception:                  # noqa: BLE001
+            rev = None
+        with _stream_rev_lock:
+            if gen == _stream_rev_gen:
+                if len(_stream_rev_cache) > 20000:
+                    _stream_rev_cache.clear()
+                _stream_rev_cache[key] = (_time.monotonic(), rev)
+    finally:
+        with _stream_rev_lock:
+            _stream_rev_inflight.discard((gen, key))
+
+
+def _stream_rev_kick(key) -> None:
+    """Start one background read of `key`'s series_rev unless one is already running. Never blocks."""
+    global _stream_rev_pool
+    with _stream_rev_lock:
+        gen = _stream_rev_gen
+        if (gen, key) in _stream_rev_inflight:
+            return
+        _stream_rev_inflight.add((gen, key))
+        if _stream_rev_pool is None:
+            from concurrent.futures import ThreadPoolExecutor
+            _stream_rev_pool = ThreadPoolExecutor(max_workers=_STREAM_REV_WORKERS,
+                                                  thread_name_prefix="stream-rev")
+        pool = _stream_rev_pool
+    try:
+        pool.submit(_stream_rev_read, key, gen)
+    except Exception:                      # noqa: BLE001 - pool shut down at exit
+        with _stream_rev_lock:
+            _stream_rev_inflight.discard((gen, key))
+
+
+def prefetch_stream_fields(pairs, session) -> None:
+    """Start the series_rev reads for a stream's (sym, tf) pairs as it opens, so the first frames
+    of a new chart already carry the store's rev. Never blocks."""
+    sess = _norm_session(session) or "rth"
+    for sym, tf in pairs:
+        key = (str(sym).upper(), source_series(str(tf), sess))
+        hit = _stream_rev_cache.get(key)
+        if hit is None or _time.monotonic() - hit[0] > _STREAM_REV_TTL_S:
+            _stream_rev_kick(key)
+
+
+def stream_rev_settle(timeout_s: float = 5.0) -> bool:
+    """Wait until no series_rev read is in flight (tests). True when settled."""
+    end = _time.monotonic() + timeout_s
+    while _time.monotonic() < end:
+        with _stream_rev_lock:
+            if not _stream_rev_inflight:
+                return True
+        _time.sleep(0.005)
+    return False
+
+
+def reset_stream_rev_for_tests() -> None:
+    """Empty the cache; a read still in flight from before lands nowhere."""
+    global _stream_rev_gen
+    with _stream_rev_lock:
+        _stream_rev_gen += 1
+        _stream_rev_cache.clear()
+
+
+def warm_imports() -> None:
+    """Import what stream_fields needs: bars_fetch (session rules, the 60m grid), ~1.5-2 s cold.
+    Call it OFF the event loop before a stream's first frame (stream.stream_bars does)."""
+    from api.services import bars_fetch  # noqa: F401
 
 
 def stream_fields(sym: str, tf: str, session) -> dict:
     """Contract identity for one /api/stream/bars pair (grid/session/cache_key and the
-    store's series_rev, cached ~1 s: a stream event must never wait on SQLite)."""
+    store's series_rev, cached ~1 s and refreshed OFF the calling thread: a stream event
+    never waits on SQLite)."""
     sess = _norm_session(session) or "rth"
     src = source_series(tf, sess)
     key = (str(sym).upper(), src)
-    now = _time.monotonic()
     hit = _stream_rev_cache.get(key)
-    if hit is None or now - hit[0] > _STREAM_REV_TTL_S:
-        try:
-            from api.services import bars_sqlite as _bs
-            rev = int(_bs.series_meta(key[0], src).get("rev") or 0)
-        except Exception:                  # noqa: BLE001
-            rev = None
-        if len(_stream_rev_cache) > 20000:
-            _stream_rev_cache.clear()
-        _stream_rev_cache[key] = hit = (now, rev)
+    if hit is None or _time.monotonic() - hit[0] > _STREAM_REV_TTL_S:
+        _stream_rev_kick(key)
     return {"contract": CONTRACT_VERSION, "grid": grid_for(tf, sess), "session": sess,
-            "cache_key": cache_key(sym, tf, sess), "series_rev": hit[1]}
+            "cache_key": cache_key(sym, tf, sess), "series_rev": hit[1] if hit is not None else None}

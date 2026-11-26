@@ -76,6 +76,19 @@ def _is_session_condition(name: str) -> bool:
 
 def _parse_provider_rules(results) -> tuple[set[int], set[int]]:
     """Pure parse of the provider's condition list → (hl_ineligible, last_ineligible).
+    The two-set shape every existing caller reads; `_parse_provider_rules3` adds the volume set."""
+    hl, last, _vol = _parse_provider_rules3(results)
+    return hl, last
+
+
+def _parse_provider_rules3(results) -> tuple[set[int], set[int], set[int]]:
+    """Pure parse of the provider's condition list → (hl_ineligible, last_ineligible, vol_ineligible).
+
+    ⭐ (2026-11-25, the candle-accuracy audit, class 1) `updates_volume` too: the vendor's minute
+    aggregates (AM, REST) add a print's size only when its conditions update consolidated volume, so a
+    developing bar that summed every print counted sizes the vendor's own final bar leaves out (the
+    market centers' official open / close reports, a corrected consolidated close) until that minute's
+    AM replaced it.
 
     Extracted from load_from_provider so the session-code exemption is unit-
     testable without a live HTTP call. Session-classification codes are removed
@@ -84,6 +97,7 @@ def _parse_provider_rules(results) -> tuple[set[int], set[int]]:
     """
     hl: set[int] = set()
     last: set[int] = set()
+    vol: set[int] = set()
     session_ids: set[int] = set(_SESSION_CODES)
     for cond in results or []:
         cid = cond.get("id")
@@ -100,10 +114,13 @@ def _parse_provider_rules(results) -> tuple[set[int], set[int]]:
             hl.add(cid)
         if rules.get("updates_open_close") is False:
             last.add(cid)
+        if rules.get("updates_volume") is False:
+            vol.add(cid)
     # Never filter the extended session (by id OR by name) — the freeze guard.
     hl -= session_ids
     last -= session_ids
-    return hl, last
+    vol -= session_ids
+    return hl, last, vol
 
 # Fallback sets (Massive/Polygon numeric condition IDs — see the Stock Trade
 # Conditions reference). A condition here means a print carrying it must NOT move
@@ -127,10 +144,17 @@ _HL_INELIGIBLE_FALLBACK = frozenset(
 _LAST_INELIGIBLE_FALLBACK = frozenset(
     {2, 7, 10, 20, 21, 22, 29, 30, 32, 33, 37, 46, 52, 53}
 )
+#   updates_volume = FALSE (the print's size is not part of the bar's volume): reports that are not a
+#   trade of their own size in the minute they are stamped (SIP consolidated rules, the codes
+#   Massive/Polygon publish with updates_volume false; the runtime provider load is the authority):
+#     15 MC Official Close        16 MC Official Open      38 Corrected Consol Close
+#   An odd lot (37), an out-of-sequence or an average-price print DOES add its size (true trades).
+_VOL_INELIGIBLE_FALLBACK = frozenset({15, 16, 38})
 
 _lock = threading.Lock()
 _hl_ineligible: set[int] = set(_HL_INELIGIBLE_FALLBACK) - _SESSION_CODES
 _last_ineligible: set[int] = set(_LAST_INELIGIBLE_FALLBACK) - _SESSION_CODES
+_vol_ineligible: set[int] = set(_VOL_INELIGIBLE_FALLBACK) - _SESSION_CODES
 _loaded_from_provider = False
 
 
@@ -142,7 +166,13 @@ _SIP_SOURCES = frozenset({"sip", "massive"})
 
 
 def classify(conditions, source: str = "sip") -> tuple[bool, bool]:
-    """Return (updates_high_low, updates_last) for a trade's condition list.
+    """Return (updates_high_low, updates_last) for a trade's condition list (see classify3)."""
+    hl_ok, last_ok, _vol_ok = classify3(conditions, source)
+    return hl_ok, last_ok
+
+
+def classify3(conditions, source: str = "sip") -> tuple[bool, bool, bool]:
+    """Return (updates_high_low, updates_last, updates_volume) for a trade's condition list.
 
     `source` names the feed the codes came from. Only SIP/Massive codes are
     classified; codes from another feed (e.g. "finnhub") return (True, True).
@@ -153,9 +183,10 @@ def classify(conditions, source: str = "sip") -> tuple[bool, bool]:
     so we never suppress a genuine trade.
     """
     if not FILTER_ENABLED or not conditions or source not in _SIP_SOURCES:
-        return True, True
+        return True, True, True
     hl_ok = True
     last_ok = True
+    vol_ok = True
     for c in conditions:
         try:
             ci = int(c)
@@ -167,9 +198,11 @@ def classify(conditions, source: str = "sip") -> tuple[bool, bool]:
             hl_ok = False
         if ci in _last_ineligible:
             last_ok = False
-        if not hl_ok and not last_ok:
+        if ci in _vol_ineligible:
+            vol_ok = False
+        if not hl_ok and not last_ok and not vol_ok:
             break
-    return hl_ok, last_ok
+    return hl_ok, last_ok, vol_ok
 
 
 def load_from_provider() -> None:
@@ -177,7 +210,7 @@ def load_from_provider() -> None:
     `update_rules`. One-shot, blocking (call off the request path — e.g. a startup
     daemon thread). Any failure keeps the safe fallback in place.
     """
-    global _hl_ineligible, _last_ineligible, _loaded_from_provider
+    global _hl_ineligible, _last_ineligible, _vol_ineligible, _loaded_from_provider
     if _loaded_from_provider or not FILTER_ENABLED:
         return
     key = os.environ.get("MASSIVE_API_KEY", "")
@@ -196,17 +229,19 @@ def load_from_provider() -> None:
         # The provider's rules are RTH-consolidated, so they mark Form-T /
         # extended-hours ineligible. _parse_provider_rules strips those (by id AND
         # by name) — extended hours is a client decision, never dropped here.
-        hl, last = _parse_provider_rules(results)
+        hl, last, vol = _parse_provider_rules3(results)
         if hl or last:
             with _lock:
                 _hl_ineligible = hl
                 _last_ineligible = last
+                _vol_ineligible = vol
                 _loaded_from_provider = True
             log.info(
                 "[trade_conditions] loaded authoritative rules: "
-                "%d high/low-ineligible, %d last-ineligible codes",
+                "%d high/low-ineligible, %d last-ineligible, %d volume-ineligible codes",
                 len(hl),
                 len(last),
+                len(vol),
             )
     except Exception as e:  # noqa: BLE001 — never let this break startup
         log.warning("[trade_conditions] provider load failed, using fallback: %s", e)
@@ -226,4 +261,5 @@ def status() -> dict:
         "loaded_from_provider": _loaded_from_provider,
         "hl_ineligible_count": len(_hl_ineligible),
         "last_ineligible_count": len(_last_ineligible),
+        "vol_ineligible_count": len(_vol_ineligible),
     }

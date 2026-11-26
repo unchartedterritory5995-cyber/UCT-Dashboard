@@ -665,6 +665,15 @@ def _kick_seed(fn, sym: str) -> bool:
     return True
 
 
+_contract_warm = {"done": False}
+
+
+def _warm_contract_imports() -> None:
+    """Import what a frame's contract identity needs. Runs on a worker thread (see stream_bars)."""
+    from api.services import bar_contract
+    bar_contract.warm_imports()
+
+
 def _contract_event(bar_contract, msg: dict, session: str) -> dict:
     """⭐ BAR CONTRACT on a stream frame (docs/architecture/bar-contract.md): the same
     identity as the REST answer for this series (grid, session, cache_key, series_rev)
@@ -769,6 +778,23 @@ async def stream_bars(
             ahead_pairs.append(pair)
     ahead_pairs = ahead_pairs[:max(0, min(AHEAD_MAX_PER_CONN, MAX_BARS_PAIRS - len(pairs)))]
 
+    # ⭐ (2026-11-25) every frame's contract identity (bar_contract.stream_fields) needs bars_fetch, whose
+    # first import costs ~1.5-2 s (massive, yf_util ...). On a pod where nothing else imported it yet
+    # (stream-edge after a restart) that import ran on THIS event loop under the first frame, holding
+    # every member's stream behind it. The first opens import it on a thread, before any queue exists.
+    # (review of #2748, F1) a failing import must not fail the stream: before the warm-up existed the same
+    # import ran inside _contract_event's catch-all and cost only the identity fields. `done` is set on both
+    # outcomes (one attempt per process), never in a `finally`: a client gone mid-import (CancelledError) leaves
+    # it unset so the next open tries again.
+    if not _contract_warm["done"]:
+        try:
+            await asyncio.to_thread(_warm_contract_imports)
+            _contract_warm["done"] = True
+        except Exception as e:  # noqa: BLE001
+            _contract_warm["done"] = True
+            _logger.warning("[stream_bars] contract warm-up failed (%s: %s): frames go out without identity fields",
+                            type(e).__name__, str(e)[:160])
+
     # Admission BEFORE the broadcaster subscribe, for the same reason as
     # /api/stream/prices: a refused connection must leave no queues behind.
     _token = subscribe("bars")
@@ -799,6 +825,12 @@ async def stream_bars(
         for (sym, tf) in pairs + ahead_pairs:
             queues.append((sym, tf, _sub(sym, tf)))
         from api.services import bar_contract as _bar_contract
+        # the pairs' series_rev reads start now, on bar_contract's worker pool (never this loop),
+        # so the first frames of a new chart already carry the store's rev
+        try:
+            _bar_contract.prefetch_stream_fields(pairs + ahead_pairs, session)
+        except Exception:  # noqa: BLE001 - identity is additive; a failed prefetch only means a null rev for ~1 read
+            pass
         _logger.info("[stream_bars] subscribed %d pairs (+%d ahead): %s", len(pairs), n_ahead, pairs[:10])
         # D8: fold the day's stored/REST minute bars into each symbol's minute map
         # (once per upstream subscription) so a mid-bucket subscriber gets the true

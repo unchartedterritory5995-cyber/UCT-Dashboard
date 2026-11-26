@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { scanNeighbors, jumpTarget } from './scanNeighbors'
+import { scanNeighbors, jumpTarget, jumpStride, strideTarget } from './scanNeighbors'
 
 const L = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']
 describe('scanNeighbors', () => {
@@ -43,4 +43,26 @@ describe('jumpTarget', () => {
     expect(jumpTarget(['A', 'B', 'C', 'D'], 2, 0)).toBeNull()   // +2 on 4 rows lands back on the start
     expect(jumpTarget(['A', 'B'], 1, 0)).toBeNull()
   })
+})
+
+// (2026-11-26) the stride a jump landed with, and the row one stride further: what a re-run for the same selection keeps
+it('jumpStride is the signed shorter-way stride of a jump, 0 for no jump', () => {
+  const flat = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']
+  expect(jumpStride(flat, 5, 2)).toBe(3)
+  expect(jumpStride(flat, 2, 5)).toBe(-3)
+  expect(jumpStride(flat, 1, 8)).toBe(3)        // wrap: 8 -> 1 is three rows down, not seven up
+  expect(jumpStride(flat, 3, 2)).toBe(0)        // one row on is no jump
+  expect(jumpStride(flat, 3, 3)).toBe(0)
+  expect(jumpStride(flat, 3, -1)).toBe(0)
+  expect(jumpStride(['A', 'B'], 1, 0)).toBe(0)
+})
+
+it('strideTarget is the row one stride on (wrap-aware), null for no stride or the row itself', () => {
+  const flat = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']
+  expect(strideTarget(flat, 5, 3)).toBe('I')
+  expect(strideTarget(flat, 8, 3)).toBe('B')
+  expect(strideTarget(flat, 1, -3)).toBe('I')
+  expect(strideTarget(flat, 5, 0)).toBe(null)
+  expect(strideTarget(flat, 5, 10)).toBe(null)  // a whole lap lands on the row itself
+  expect(strideTarget(flat, -1, 3)).toBe(null)
 })

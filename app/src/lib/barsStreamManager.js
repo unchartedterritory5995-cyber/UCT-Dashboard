@@ -119,27 +119,128 @@ function _edgeRefresh() {
   try { fetch('/api/auth/me', { credentials: 'same-origin', cache: 'no-store' }).catch(() => {}) } catch { /* no fetch */ }
 }
 
-// Coalesce developing-bar dispatch to the live CANDLE cadence (LIVE_CANDLE_CADENCE_MS: 250 ms since
-// 2026-11-17, was 500), the same hold realtimeCandle uses, so the candle and its price label move
-// together instead of repainting on every sub-second update. A bucket BOUNDARY (a new bar time for a
-// key) flushes that key's prior-bucket final bar IMMEDIATELY, so a bar's closing value is never
-// coalesced away.
-const BAR_THROTTLE_MS = LIVE_CANDLE_CADENCE_MS
-const _pendingBar = new Map()   // key -> latest bar event awaiting the heartbeat flush
-let _barThrottleTimer = null
-
 function _dispatchBar(key, data) {
   for (const sub of _subscribers.values()) {
     if (sub.key === key && sub.onBar) { try { sub.onBar(data) } catch { /* never break on a bad listener */ } }
   }
 }
 
-function _flushPendingBars() {
-  _barThrottleTimer = null
+// ⭐ LEADING EDGE, THEN ONE ANIMATION FRAME (2026-11-25, objective 2: a trade on screen in ~150 ms).
+// A developing bar used to wait for ONE global trailing setTimeout of LIVE_CANDLE_CADENCE_MS (250 ms):
+// an isolated trade always waited the full 250 ms, ~125 ms on average under flow, the largest designed
+// delay between the vendor and the chart. Now, per pair:
+//   - the FIRST developing frame of a burst is dispatched at once (the pair has nothing pending and its
+//     last dispatch is at least the current gap ago);
+//   - frames that arrive inside the gap are coalesced (latest wins) and flushed on the next animation
+//     frame once the gap has passed: at most one dispatch per pair per frame;
+//   - THE DRAW-COST GUARD: the gap starts at LIVE_CANDLE_MIN_GAP_MS and DOUBLES on every main-thread
+//     long task (>= 50 ms, the PerformanceObserver 'longtask' entry), up to the cap
+//     (liveCandleCadenceMs(LIVE_CANDLE_CADENCE_MS): 250 ms, or the per-browser `uct.liveCadenceMs`); it
+//     halves after LONG_TASK_RECOVER_MS without one. Measured 2026-11-16: a fixed 100 ms cadence on 4
+//     charts dropped fps 45 -> 27 and doubled long frames; a busy page now falls back to today's 250 ms
+//     by itself, a calm one updates as fast as frames arrive (the server sends at most 10 per pair a second).
+//   - a hidden page has no animation frames: what is pending flushes on a timer at the cap.
+// A final bar and a bucket boundary still dispatch at once (below), exactly as before.
+export const LIVE_CANDLE_MIN_GAP_MS = 16
+export const LONG_TASK_RECOVER_MS = 2000
+const _pendingBar = new Map()   // key -> latest developing frame waiting for its gap
+const _lastDevAt = new Map()    // key -> clock of its last developing dispatch
+let _gapMs = LIVE_CANDLE_MIN_GAP_MS
+let _lastLongTaskAt = -Infinity
+let _flush = null               // { raf } | { timer }: the one scheduled flush
+let _longTaskObserver = null
+
+const _clock = () => (typeof performance !== 'undefined' && typeof performance.now === 'function' ? performance.now() : Date.now())
+const _capMs = () => liveCandleCadenceMs(LIVE_CANDLE_CADENCE_MS)
+const _floorMs = () => Math.min(LIVE_CANDLE_MIN_GAP_MS, _capMs())
+function _pageHidden() {
+  try { return typeof document !== 'undefined' && document.hidden === true } catch { return false }
+}
+
+/** The gap in force now (the guard's state), recovering lazily: halved once per quiet LONG_TASK_RECOVER_MS. */
+function _currentGap(now) {
+  const floor = _floorMs(); const cap = _capMs()
+  if (_gapMs > cap) _gapMs = cap
+  if (!Number.isFinite(_lastLongTaskAt)) _gapMs = floor
+  while (_gapMs > floor && now - _lastLongTaskAt >= LONG_TASK_RECOVER_MS) {
+    _gapMs = Math.max(floor, _gapMs / 2)
+    _lastLongTaskAt += LONG_TASK_RECOVER_MS
+  }
+  if (_gapMs < floor) _gapMs = floor
+  return _gapMs
+}
+
+/** A main-thread long task of `durationMs` ended at `at` (the observer's entry): back off. */
+export function _noteLongTask(durationMs, at = _clock()) {
+  if (!(durationMs >= 50)) return
+  _gapMs = Math.min(_capMs(), Math.max(_floorMs(), _gapMs) * 2)
+  _lastLongTaskAt = at
+}
+
+function _watchLongTasks() {
+  if (_longTaskObserver || typeof PerformanceObserver === 'undefined') return
+  try {
+    const supported = PerformanceObserver.supportedEntryTypes
+    if (Array.isArray(supported) && !supported.includes('longtask')) return
+    _longTaskObserver = new PerformanceObserver((list) => {
+      for (const e of list.getEntries()) _noteLongTask(e.duration, e.startTime + e.duration)
+    })
+    _longTaskObserver.observe({ type: 'longtask', buffered: false })
+  } catch { _longTaskObserver = null }
+}
+
+function _dispatchDeveloping(key, data, now) {
+  _lastDevAt.set(key, now)
+  _dispatchBar(key, data)
+}
+
+function _flushDue(all) {
   if (_pendingBar.size === 0) return
-  const pending = [..._pendingBar.entries()]
-  _pendingBar.clear()
-  for (const [key, data] of pending) _dispatchBar(key, data)
+  const now = _clock()
+  const gap = _currentGap(now)
+  for (const [key, data] of [..._pendingBar.entries()]) {
+    const last = _lastDevAt.get(key)
+    if (all || last == null || now - last >= gap) {
+      _pendingBar.delete(key)
+      _dispatchDeveloping(key, data, now)
+    }
+  }
+}
+
+function _scheduleFlush() {
+  if (_flush || _pendingBar.size === 0) return
+  if (!_pageHidden() && typeof requestAnimationFrame === 'function') {
+    _flush = { raf: requestAnimationFrame(() => { _flush = null; _flushDue(false); _scheduleFlush() }) }
+  } else {
+    _flush = { timer: setTimeout(() => { _flush = null; _flushDue(true) }, _capMs()) }
+  }
+}
+
+function _cancelFlush() {
+  if (!_flush) return
+  try {
+    if (_flush.raf != null && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(_flush.raf)
+    if (_flush.timer != null) clearTimeout(_flush.timer)
+  } catch { /* nothing scheduled */ }
+  _flush = null
+}
+
+/** A developing (non-final) frame for `key`: at once when its gap has passed, else the next frame. */
+function _offerDeveloping(key, data) {
+  _watchLongTasks()
+  const now = _clock()
+  const last = _lastDevAt.get(key)
+  if (!_pendingBar.has(key) && (last == null || now - last >= _currentGap(now))) {
+    _dispatchDeveloping(key, data, now)
+    return
+  }
+  _pendingBar.set(key, data)
+  _scheduleFlush()
+}
+
+function _flushPendingBars() {
+  _cancelFlush()
+  _flushDue(true)
 }
 
 function _killed() {
@@ -430,10 +531,10 @@ function _connectBucket(bucket) {
       if (_developingFrame && !Number.isFinite(ks.liveSince)) ks.liveSince = serverNow()
       _keyState.set(key, ks)
       if (_rejoinAsk != null) _settleRejoinKick(key, _rejoinAsk)
-      // THROTTLED keyed dispatch (see _pendingBar): coalesce to ~2x/sec so the candle
-      // ticks on the same calm heartbeat as the quotes — but flush the PRIOR bucket's
-      // final bar immediately on a boundary so no close is coalesced away. Only
-      // subscribers for this exact (sym,tf), never a global fan-out.
+      // KEYED dispatch (see _offerDeveloping): the first developing frame of a burst at once, the rest
+      // coalesced to one per animation frame, backed off by long tasks. A bucket BOUNDARY flushes the
+      // PRIOR bucket's pending bar immediately so no close is coalesced away. Only subscribers for
+      // this exact (sym,tf), never a global fan-out.
       const _pend = _pendingBar.get(key)
       if (_pend && _pend.bar && data.bar && _pend.bar.t !== data.bar.t) {
         _pendingBar.delete(key)
@@ -441,15 +542,14 @@ function _connectBucket(bucket) {
       }
       // A server FINAL bar (optional `final: true`) is the closed bucket's truth — dispatch
       // it at once instead of letting a following developing frame for the next bucket (or
-      // a straggler for the same one) coalesce it away inside the 500ms window.
+      // a straggler for the same one) coalesce it away before the next frame.
       if (data.bar && data.bar.final === true) {
         _pendingBar.delete(key)
         _dispatchBar(key, data)
         if (!wasDelivering) _notifyStatusForKey(key)
         return
       }
-      _pendingBar.set(key, data)
-      if (!_barThrottleTimer) _barThrottleTimer = setTimeout(_flushPendingBars, liveCandleCadenceMs(BAR_THROTTLE_MS))
+      _offerDeveloping(key, data)
       if (!wasDelivering) _notifyStatusForKey(key)  // first bar → status flip
     } catch { /* malformed frame */ }
   })
@@ -549,8 +649,11 @@ export function _resetForTests() {
   _gathering = false
   if (_watchdogTimer) { clearInterval(_watchdogTimer); _watchdogTimer = null }
   if (_edgeRefreshTimer) { clearInterval(_edgeRefreshTimer); _edgeRefreshTimer = null }
-  if (_barThrottleTimer) { clearTimeout(_barThrottleTimer); _barThrottleTimer = null }
+  _cancelFlush()
   _pendingBar.clear()
+  _lastDevAt.clear()
+  _gapMs = LIVE_CANDLE_MIN_GAP_MS
+  _lastLongTaskAt = -Infinity
   for (const p of _rejoinKick.values()) clearTimeout(p.timer)
   _rejoinKick.clear()
   for (const b of _buckets) _teardownBucket(b)
@@ -563,5 +666,5 @@ export function _resetForTests() {
 
 export function _getBuckets() { return _buckets }
 export function _flushRebuild() { if (_rebuildTimer) { clearTimeout(_rebuildTimer); _rebuildTimer = null } _rebuild() }
-// Test hook: dispatch any bars buffered by the 500ms throttle right now.
-export function _flushBars() { if (_barThrottleTimer) { clearTimeout(_barThrottleTimer); _barThrottleTimer = null } _flushPendingBars() }
+// Test hook: dispatch every developing bar still waiting for its frame right now.
+export function _flushBars() { _flushPendingBars() }

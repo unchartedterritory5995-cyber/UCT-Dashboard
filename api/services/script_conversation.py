@@ -66,6 +66,24 @@ _SCRIPT_WORDS = re.compile(
     r"\b(?:tables?|dashboards?|labels?|text|trend ?lines?|draw(?:s|n|ing)?|box(?:es)?|rectangles?|zones?|"
     r"fib(?:s|onacci)?|zig ?zags?|pivot points?|pine|scripts?)\b", re.I)
 
+#: ⭐ 2026-11-25 -- WHAT A FORMULA CAN DRAW, BUT NOT THE WAY THE MEMBER ASKED. Measured by the Deepvue parity probe
+#: (live, admin measurement): "Plot the Parabolic SAR as dots", "show its value in the status line with 2 decimals" and
+#: "the close of another symbol that I choose in the settings" were each BUILT as a formula, and each reply said what
+#: it could not do (a thin dotted line "reads much like the classic dots"; "I can't set a fixed 2-decimal format";
+#: "the symbol is fixed in the formula"). A script holds all three (plot.style_circles / style_cross, `precision=`,
+#: input.symbol) and a built formula is never followed by one (`_with_script_lane`), so the member was handed the near
+#: thing. Matched over the 641 distinct requests on record: exactly the five that ask for one of them. A dotted LINE
+#: is a formula's line style, and "a dot above the bar" is a formula's marker: neither is here.
+_SCRIPT_ONLY_ASKS = re.compile(
+    # a series drawn AS dots, circles or crosses (plot.style_circles / plot.style_cross)
+    r"\b(?:as|with|in|using)\s+(?:(?:small|little|tiny|big|large|colou?red|green|red|blue|white|yellow|orange)\s+){0,2}(?:dots|circles|crosses)\b"
+    r"|\b(?:dots?|circles?|cross(?:es)?)\s+style\b"
+    # a value shown to a fixed number of decimals (indicator(precision=))
+    r"|\b(?:\d|one|two|three|four|five|six)\s+decimals?\b|\bdecimal\s+places?\b"
+    # a symbol the member chooses in the settings (input.symbol)
+    r"|\b(?:symbol|ticker)s?\b[^.;!?]{0,60}\b(?:settings?|inputs?|i\s+(?:can\s+)?(?:choose|pick|select|type|enter))\b"
+    r"|\b(?:choose|pick|select|change|enter|type)\w*\b[^.;!?]{0,40}\b(?:symbol|ticker)\b", re.I)
+
 TOOL = {
     "name": TOOL_NAME,
     "description": ("Return the ONE Pine script that meets the member's request, or say that it cannot be built with "
@@ -126,7 +144,7 @@ def names_a_method(message: Any) -> Optional[str]:
 
 def wants_script(message: Any) -> bool:
     """Does the request name something only a script can hold?"""
-    return isinstance(message, str) and bool(_SCRIPT_WORDS.search(message))
+    return isinstance(message, str) and bool(_SCRIPT_WORDS.search(message) or _SCRIPT_ONLY_ASKS.search(message))
 
 
 def script_refusal(raw: Any) -> Optional[Dict[str, Any]]:
