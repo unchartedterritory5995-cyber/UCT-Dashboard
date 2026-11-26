@@ -99,6 +99,23 @@ export class HistoryError extends Error {
   }
 }
 
+/** Resolves in a later task (never in the one that asked): `scheduler.yield()` where the browser has it, else a
+ *  MessageChannel message (not clamped like a nested setTimeout), else a setTimeout. */
+export function nextTask() {
+  try {
+    const s = globalThis.scheduler
+    if (s && typeof s.yield === 'function') return s.yield()
+  } catch { /* fall through */ }
+  if (typeof MessageChannel === 'function') {
+    return new Promise((resolve) => {
+      const ch = new MessageChannel()
+      ch.port1.onmessage = () => { ch.port1.close(); ch.port2.close(); resolve() }
+      ch.port2.postMessage(0)
+    })
+  }
+  return new Promise((resolve) => setTimeout(resolve, 0))
+}
+
 async function mapLimit(items, limit, fn) {
   const out = new Array(items.length)
   let next = 0
@@ -113,10 +130,11 @@ async function mapLimit(items, limit, fn) {
 }
 
 /**
- * @param {{ fetch?: typeof fetch, base?: string, maxParallel?: number }} o
+ * @param {{ fetch?: typeof fetch, base?: string, maxParallel?: number, yieldTask?: () => Promise<void> }} o
  */
 export function createHistorySource(o = {}) {
   const doFetch = o.fetch ?? ((...a) => fetch(...a))
+  const yieldTask = o.yieldTask ?? nextTask
   const base = o.base ?? HIST_BASE
   const maxParallel = o.maxParallel ?? MAX_PARALLEL
   const indexes = new Map()      // lake symbol -> Promise<index | null>
@@ -169,7 +187,12 @@ export function createHistorySource(o = {}) {
     if (!res.ok) throw new HistoryError(`${symbol} ${series}/${entry.period}: HTTP ${res.status}`, { status: res.status })
     const headerJson = res.headers.get(HEADER_NAME)
     if (!headerJson) throw new HistoryError(`${symbol} ${series}/${entry.period}: no piece header in the answer`)
-    const d = decodeColumns(headerJson, new Uint8Array(await res.arrayBuffer()))
+    const bytes = new Uint8Array(await res.arrayBuffer())
+    // ⭐ ONE PIECE PER TASK (smoothness trace 2026-11-26, 1m+15m board: the deep history's pieces decoded back to back
+    // in 18-27 ms tasks, 160-215 ms after both charts showed the new symbol, each a dropped frame). Pieces whose bytes land
+    // together are decoded in tasks of their own, so a frame can be drawn between two of them. Same decode, same check.
+    await yieldTask()
+    const d = decodeColumns(headerJson, bytes)
     const hd = d.header
     if (hd.symbol !== owner || hd.series !== series || hd.period !== entry.period || hd.crc !== entry.crc) {
       throw new PieceError(`${symbol} ${series}/${entry.period}: the answer is a different piece`)
