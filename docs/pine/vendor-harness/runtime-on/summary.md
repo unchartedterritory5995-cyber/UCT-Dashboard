@@ -765,17 +765,17 @@ inside-bar-range-mother-candle-breakoutbreak AMEX:SPY 1D      2      MATCH      
     Shapes                                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
     objects                                  MATCH         object counts and texts agree; colours agree on 2 paired slots; coordinates are NOT compared by v1
     paints                                   MATCH         2 paints agree bar for bar
-institutional-smc-order-flow-matrix-pro-rddt NYSE:RDDT 1D     4      MATCH             all 5 items agree
+institutional-smc-order-flow-matrix-pro-rddt NYSE:RDDT 1D     4      INCONCLUSIVE      1 of 5 items could not be compared
     Heatmap Candles open                     MATCH             cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
     Heatmap Candles high                     MATCH             cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
     Heatmap Candles low                      MATCH             cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
-    Heatmap Candles close                    MATCH             cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
+    Heatmap Candles close                    INCONCLUSIVE      cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0 — 632 steady-state bars agree, but the candle is withheld by name on our side (`Heatmap Candles`): this door could not carry its `color =` (its colour picks among more than two colours, or by a rule a candle here cannot carry yet): TradingView draws it and our side draws nothing, so its body colour is not compared
     objects                                  MATCH         object counts and texts agree; colours agree on 92 paired slots; coordinates are NOT compared by v1
-institutional-smc-order-flow-matrix-pro-spy- AMEX:SPY 1D      4      MATCH             all 5 items agree
+institutional-smc-order-flow-matrix-pro-spy- AMEX:SPY 1D      4      INCONCLUSIVE      1 of 5 items could not be compared
     Heatmap Candles open                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     Heatmap Candles high                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     Heatmap Candles low                      MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
-    Heatmap Candles close                    MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    Heatmap Candles close                    INCONCLUSIVE      cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0 — 1800 steady-state bars agree, but the candle is withheld by name on our side (`Heatmap Candles`): this door could not carry its `color =` (its colour picks among more than two colours, or by a rule a candle here cannot carry yet): TradingView draws it and our side draws nothing, so its body colour is not compared
     objects                                  MATCH         object counts and texts agree; colours agree on 1105 paired slots; coordinates are NOT compared by v1
 ipda-standard-deviations-dexterlab-x-tfo-x-t NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:no-output) [runtime declined: runtime:call-undeclared-builtin-state]: the pasted script offers no plot and no alert condition to filter on
 k-clustering-rddt-1d-2026-09-28              NYSE:RDDT 1D     0      INCONCLUSIVE      1 of 1 items could not be compared
@@ -2023,7 +2023,7 @@ smart-money-interest-index-algoalpha-rddt-1d NYSE:RDDT 1D     4      MATCH      
     paints                                   MATCH         1 paint agree bar for bar
 smart-money-volume-activity-algoalpha-rddt-1 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign) [runtime declined: pine:builtin]: a name that is reassigned later cannot be folded into one expression — `retailBullBar` — and the fold stopped before it, at line 105: a Pine block spans several statements and this engine stores a single expression — `for`
 smart-money-volume-activity-algoalpha-spy-1d AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign) [runtime declined: pine:builtin]: a name that is reassigned later cannot be folded into one expression — `retailBullBar` — and the fold stopped before it, at line 105: a Pine block spans several statements and this engine stores a single expression — `for`
-smart-money-volume-index-algoalpha-rddt-1d-2 NYSE:RDDT 1D     24     INCONCLUSIVE      1 of 25 items could not be compared
+smart-money-volume-index-algoalpha-rddt-1d-2 NYSE:RDDT 1D     24     INCONCLUSIVE      2 of 25 items could not be compared
     Zero Line                                INCONCLUSIVE      cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
     Top Limit                                MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     Bottom Limit                             MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
@@ -2047,7 +2047,7 @@ smart-money-volume-index-algoalpha-rddt-1d-2 NYSE:RDDT 1D     24     INCONCLUSIV
     open                                     MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     high                                     MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     low                                      MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
-    close                                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    close                                    INCONCLUSIVE      cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0 — 666 steady-state bars agree, but the candle is withheld by name on our side (`Smart Money Candles`): it asks for the price chart (`force_overlay = true`) from a script that is not an overlay: TradingView draws it and our side draws nothing, so its body colour is not compared
     objects                                  MATCH         neither side draws an object
 smarter-snr-rddt-1d-2026-11-14               NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:builtin) [runtime declined: runtime:conditional-history]: this Pine built-in names something the engine grammar does not hold — `str.length`
 smarter-snr-spy-1d-2026-11-14                AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:builtin) [runtime declined: runtime:conditional-history]: this Pine built-in names something the engine grammar does not hold — `str.length`

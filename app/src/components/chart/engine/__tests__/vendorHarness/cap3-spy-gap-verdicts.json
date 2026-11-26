@@ -1155,7 +1155,7 @@
       "script": "corpus/committed/institutional-smc-order-flow-matrix-pro__0b30cae0e6.pine",
       "state": "on",
       "signature": {
-        "verdict": "MATCH",
+        "verdict": "INCONCLUSIVE",
         "reason": null,
         "plots": [
           [
@@ -1175,8 +1175,8 @@
           ],
           [
             "Heatmap Candles close",
-            "MATCH",
-            1800
+            "INCONCLUSIVE",
+            "1800 steady-state bars agree, but the candle is withheld by name on our side (`H"
           ]
         ],
         "objects": [

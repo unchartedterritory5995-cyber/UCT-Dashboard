@@ -1091,6 +1091,10 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
   // rule both doors share (`candleRule`). A candle that fails it hides all four rows and says why.
   const hostCandleOf = new Map()
   const candleNotes = []
+  // ⭐ e98 P3 — each candle / bar the HOST door withholds by name, by its four host output indexes, and why: the
+  // runtime door's `candlesNotDrawn` shape (e97 U5), so a grade names a candle this document does not draw. Additive:
+  // on the answer only, and only when there is one; no document changes.
+  const hostCandlesNotDrawn = []
   {
     const outs = t.outputs || []
     const overlayScript = !!(t.presentation && t.presentation.overlay === true)
@@ -1114,6 +1118,7 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
       if (o.displayUnread) {
         for (const j of [...armIdx.filter((j) => j >= 0), i]) rows[j].hidden = true
         candleNotes.push({ name, note: `\`${name}\` is not drawn: ${o.displayUnread}. Nothing is drawn for it rather than a guess.` })
+        hostCandlesNotDrawn.push({ outputs: [at - 3, at - 2, at - 1, at].filter((x) => x >= 0), by: 'withheld', label: name, why: o.displayUnread })
         return
       }
       const complete = arms.length === 3 && armIdx.every((j) => j >= 0)
@@ -1125,6 +1130,7 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
       if (!rule.ok) {
         for (const j of [...armIdx.filter((j) => j >= 0), i]) rows[j].hidden = true
         candleNotes.push({ name, note: `\`${name}\` is not drawn: ${rule.why}. Nothing is drawn for it rather than a guess.` })
+        hostCandlesNotDrawn.push({ outputs: [at - 3, at - 2, at - 1, at].filter((x) => x >= 0), by: 'withheld', label: name, why: rule.why })
         return
       }
       for (const j of armIdx) rows[j].hidden = true
@@ -1977,6 +1983,8 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
     // The pane finishes the sentence with `parse.js::requirementNote` once the
     // series has loaded; the producer still owns the wording.
     requirementTags,
+    // ⭐ e98 P3 — the candles this host document withholds by name (`hostCandlesNotDrawn`), absent when none
+    ...(hostCandlesNotDrawn.length ? { candlesNotDrawn: hostCandlesNotDrawn } : {}),
     // ⭐⭐ ENGINE 55 (review F1) — the plots a binding will refuse by spelling alone, with the
     // sentence it will say (`otherSymbols.staticPlotRefusalsOf`), for the preview to say up front.
     // ⭐ e95 unit 2b — at the knobs' defaults (`defaultBoundDocument`): what the chart draws until a knob is moved
