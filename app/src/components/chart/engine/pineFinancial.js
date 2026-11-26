@@ -5,8 +5,9 @@
 // A Pine script's `request.financial(syminfo.tickerid, "<ID>", "<period>"[, gaps])` reads a company figure. UCT answers
 // it from its own point-in-time fundamentals store (company filings, F1a: `GET /api/pine/financial/<symbol>`), NEVER
 // from TradingView's figures, and a plot that reads it is NEVER graded MATCH (Studio ruling 2026-11-14: our
-// fundamentals are UCT data, said so in the member's words). TradingView may date a figure at the earnings release;
-// UCT dates it when its filing became public, which can be days later.
+// fundamentals are UCT data, said so in the member's words). ⭐ e99 (coordinator ruling 2026-11-26): the supply places
+// each value at its fiscal period end, as TradingView does (`api/services/pine_financial.py::placement_day`), and the
+// note says the figure was published weeks later (the catalog's `financial.placement`, one authority).
 //
 // It rides E2's rails (`pineEvents.js`), so it is isolated exactly as an event read is:
 //   * the PARSE rewrite (`pine.js::eventAsSecurity`, via `pineEvents.js::eventCallParts`) turns the call into
@@ -333,15 +334,17 @@ export function financialUnknownSentence({ symbol, field, period, from, unknown 
     return `${at}: on ${unknown.day} the latest figure UCT held for ${what} described a fiscal period too old to be current `
       + '(no newer company filing yielded it), so it is not carried there.'
   }
-  return `${at}: UCT's figures for ${what} come from company filings, and none that yields it had become public before `
+  return `${at}: UCT's figures for ${what} come from company filings, and none covers a fiscal period that ended before `
     + 'then, so what it read on earlier bars is not known here.'
 }
 
 /** The disclosure a plot that reads `request.financial` carries (the member's words; never graded as TradingView's). */
 export const FINANCIAL_DATA_WORDS = 'UCT data (company filings)'
+/** ⭐ e99 — where a value is placed, in the member's words (the catalog's `financial.placement`, one authority with the
+ *  route's disclosure). */
+export const FINANCIAL_PLACEMENT_WORDS = String(FIN.placement || '')
 export const FINANCIAL_SOURCE_NOTE = 'This script reads `request.financial`. It uses UCT data (company filings), not '
-  + "TradingView's figures: each value is dated when its filing became public, which can be days after the earnings "
-  + "release, and its figures can differ from TradingView's."
+  + `TradingView's figures: each value is ${FINANCIAL_PLACEMENT_WORDS}, and its figures can differ from TradingView's.`
 /** ⭐ e99 FY — THE NAMED LIMITATION of a fiscal-year read (the catalog's `periods.FY.limitation`, the one authority the
  *  route serves too): the fiscal year is read from the store's published series (the V5 methodology is frozen), so a
  *  restatement filed after the next quarterly report is not shown until the following 10-K. The note of a script that

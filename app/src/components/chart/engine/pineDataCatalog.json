@@ -117,8 +117,9 @@
         "class": "A",
         "registerRow": "T-83"
       },
-      "disclosure": "Financial figures are UCT data from company filings (10-Q and 10-K), each dated when its filing became public (which can be days after the earnings release), not TradingView's.",
-      "definition": "A mapped financial id and period (`fields`) read from UCT's point-in-time fundamentals store: each value is known from the first session whose close is at or after the instant its filing became public (never its fiscal period end) and is never graded as TradingView's figure (TradingView may date a value at the earnings release). Any other id or period is refused by name.",
+      "disclosure": "Financial figures are UCT data from company filings (10-Q and 10-K), each placed at the fiscal period end, as TradingView does; the figure was published weeks later, so historical bars show values before they were public, not TradingView's.",
+      "placement": "placed at the fiscal period end, as TradingView does; the figure was published weeks later, so historical bars show values before they were public",
+      "definition": "A mapped financial id and period (`fields`) read from UCT's point-in-time fundamentals store. e99 (coordinator ruling 2026-11-26, parity with TradingView, measured on AAPL and NVDA 1D): the Pine supply places each fiscal period's newest known value on the last session on or before the calendar month end nearest its fiscal period end (api/services/pine_financial.py::placement_day), as TradingView does, not when its filing became public; `placement` is the member's words for it. UCT's own features (screeners, fundamentals pages) keep the point-in-time filing dates. A value is never graded as TradingView's figure. Any other id or period is refused by name.",
       "history": "2009 (XBRL), per company from its first XBRL filing",
       "keyedBy": "(company, series, filing public instant)",
       "fields": {

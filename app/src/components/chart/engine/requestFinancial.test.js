@@ -201,7 +201,7 @@ describe('F1b — P3: a bar UCT knows no current figure on is WITHHELD by name, 
     expect(Array.from(withheldBarsReport(cols)[key][R.FINANCIAL_UNKNOWN])).toEqual([1, 1, 1, 0, 0, 0, 0, 0, 0, 0])
     const notes = externalReadNotices(d.definition, cols).filter((n) => n.code === R.FINANCIAL_UNKNOWN)
     expect(notes).toEqual([{ code: R.FINANCIAL_UNKNOWN, reason: 'Not drawn before 2026-01-08: UCT\'s figures for AAPL\'s '
-      + '`TOTAL_SHARES_OUTSTANDING` (`FQ`) come from company filings, and none that yields it had become public before then, '
+      + '`TOTAL_SHARES_OUTSTANDING` (`FQ`) come from company filings, and none covers a fiscal period that ended before then, '
       + 'so what it read on earlier bars is not known here.' }])
   })
 
@@ -311,7 +311,9 @@ describe('F1b — the member\'s words: UCT data (company filings), never Trading
     expect(notes).toContain('UCT data (company filings)')
     expect(notes).toContain("not TradingView's figures")
     expect(notes).not.toMatch(/EV-F|@event/)
-    expect(FINANCIAL_SOURCE_NOTE).toMatch(/dated when its filing became public/)
+    // ⭐ e99 PLACEMENT — the note says where a value is placed (the catalog's `financial.placement`)
+    expect(FINANCIAL_SOURCE_NOTE).toContain('placed at the fiscal period end, as TradingView does; the figure was published '
+      + 'weeks later, so historical bars show values before they were public')
     // ⭐ e99 FY — a script that reads no fiscal-year figure keeps the plain note (no FY limitation)
     expect(notes).not.toContain(FINANCIAL_FY_LIMITATION)
   })
