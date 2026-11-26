@@ -9084,7 +9084,16 @@
      "says": "TR = max(high - low, |high - prior close|, |low - prior close|). TradingView's ta.tr (handle_na = false, the variable's own form) gives na where the prior close is na.",
      "note": "No value on the chart's first bar: there is no prior close, as TradingView's ta.tr (handle_na = false)."
     },
-    "capture": null
+    "capture": {
+     "id": "builtin4-2026-11-26",
+     "against": "TradingView's own ta.* functions (a witness script, Pine v6)",
+     "charts": [
+      "AMEX:SPY 1D, 8,515 bars",
+      "NYSE:RDDT 1D, 674 bars"
+     ],
+     "grade": "EQUAL",
+     "detail": "Equal on every bar both charts have a value for (SPY 8,514, RDDT 673): TradingView's own ta.tr in a witness script."
+    }
    },
    "versions": [
     {
@@ -9174,7 +9183,16 @@
      "says": "TradingView's reference body: (close - open) / (high - low) * volume, per bar.",
      "note": "A bar with no range (high equals low) has no value."
     },
-    "capture": null
+    "capture": {
+     "id": "builtin4-2026-11-26",
+     "against": "TradingView's own ta.* functions (a witness script, Pine v6)",
+     "charts": [
+      "AMEX:SPY 1D, 8,515 bars",
+      "NYSE:RDDT 1D, 674 bars"
+     ],
+     "grade": "EQUAL",
+     "detail": "Equal on every bar both charts have a value for (SPY 8,514, RDDT 674): TradingView's own ta.wvad in a witness script."
+    }
    },
    "versions": [
     {
@@ -9301,7 +9319,16 @@
      "read": "2026-11-25",
      "says": "Fixed length 4, weights [1/6, 2/6, 2/6, 1/6]: x[3] * 1/6 + x[2] * 2/6 + x[1] * 2/6 + x * 1/6."
     },
-    "capture": null
+    "capture": {
+     "id": "builtin4-2026-11-26",
+     "against": "TradingView's own ta.* functions (a witness script, Pine v6)",
+     "charts": [
+      "AMEX:SPY 1D, 8,515 bars",
+      "NYSE:RDDT 1D, 674 bars"
+     ],
+     "grade": "EQUAL",
+     "detail": "Equal on every bar both charts have a value for (SPY 8,512, RDDT 671): TradingView's own ta.swma(close) in a witness script."
+    }
    },
    "versions": [
     {
@@ -9376,7 +9403,16 @@
      "says": "linreg = intercept + slope * (length - 1 - offset), intercept and slope by least squares over the source; the Least Squares Moving Average is linreg(close, length, 0).",
      "note": "Length 25, offset 0: TradingView's built-in Least Squares Moving Average defaults."
     },
-    "capture": null
+    "capture": {
+     "id": "builtin4-2026-11-26",
+     "against": "TradingView's own ta.* functions (a witness script, Pine v6)",
+     "charts": [
+      "AMEX:SPY 1D, 8,515 bars",
+      "NYSE:RDDT 1D, 674 bars"
+     ],
+     "grade": "EQUAL",
+     "detail": "Equal on every bar both charts have a value for, at lengths 25 and 14 (SPY 8,491 and 8,502; RDDT 650 and 661): TradingView's own ta.linreg(close, length, 0) in a witness script."
+    }
    },
    "versions": [
     {
@@ -9602,12 +9638,140 @@
      "says": "TradingView's pine_cog: -sum(source[i] * (i + 1), i = 0 .. length - 1) / sum(source, length).",
      "note": "Written with the window's sum and its WMA (sum of source[i] * (i + 1) = (length + 1) * sum - WMA * length * (length + 1) / 2), the same number for any length. TradingView's sign and weighting; Ehlers' original differs, offered on request, never substituted."
     },
-    "capture": null
+    "capture": {
+     "id": "builtin4-2026-11-26",
+     "against": "TradingView's own ta.* functions (a witness script, Pine v6)",
+     "charts": [
+      "AMEX:SPY 1D, 8,515 bars",
+      "NYSE:RDDT 1D, 674 bars"
+     ],
+     "grade": "EQUAL",
+     "detail": "Equal on every bar both charts have a value for, at lengths 10 and 7 (SPY 8,506 and 8,509; RDDT 665 and 668): TradingView's own ta.cog(close, length) in a witness script."
+    }
    },
    "versions": [
     {
      "version": 1,
      "maths": "sha256:f57997d592330f95c7c37a41b9b4b07feebbd641a6467a47daa61b9697c64209",
+     "since": "2026-11-26",
+     "why": "first entry"
+    }
+   ]
+  },
+  {
+   "id": "intraday_intensity_index",
+   "name": "Intraday Intensity Index",
+   "aliases": [
+    "intraday intensity index",
+    "intraday intensity"
+   ],
+   "placement": "pane",
+   "params": [],
+   "outputs": [
+    {
+     "key": "iii",
+     "label": "Intraday Intensity Index",
+     "type": "value",
+     "formula": "(2 * close - high - low) / (high - low) * volume",
+     "says": "where the close sits in the bar's range (-1 to 1), times the bar's volume",
+     "tree": {
+      "type": "op",
+      "name": "*",
+      "args": [
+       {
+        "type": "op",
+        "name": "/",
+        "args": [
+         {
+          "type": "op",
+          "name": "-",
+          "args": [
+           {
+            "type": "op",
+            "name": "-",
+            "args": [
+             {
+              "type": "op",
+              "name": "*",
+              "args": [
+               {
+                "type": "num",
+                "value": 2
+               },
+               {
+                "type": "series",
+                "name": "close"
+               }
+              ]
+             },
+             {
+              "type": "series",
+              "name": "high"
+             }
+            ]
+           },
+           {
+            "type": "series",
+            "name": "low"
+           }
+          ]
+         },
+         {
+          "type": "op",
+          "name": "-",
+          "args": [
+           {
+            "type": "series",
+            "name": "high"
+           },
+           {
+            "type": "series",
+            "name": "low"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "series",
+        "name": "volume"
+       }
+      ]
+     },
+     "sites": {}
+    }
+   ],
+   "evidence": {
+    "value_check": "tests/test_named_indicators_values.py::intraday_intensity_index",
+    "published": {
+     "by": "David Bostian",
+     "url": "https://www.tradingview.com/pine-script-reference/v6/#var_ta.iii",
+     "sources": [
+      {
+       "title": "TradingView Pine Script v6 reference: ta.iii",
+       "url": "https://www.tradingview.com/pine-script-reference/v6/#var_ta.iii",
+       "kind": "vendor documentation"
+      }
+     ],
+     "read": "2026-11-25",
+     "says": "((2 * close - high - low) / (high - low)) * volume, per bar (TradingView's reference body).",
+     "note": "Per bar, not summed: a running or N-bar total of it is the member's to ask for. Captured 2026-11-26: TradingView computes the form its page prints (the volume MULTIPLIES), which is also Bostian's; an older note in the engine (docs/pine/evidence/2026-11-02-w1) said it divides, and the capture shows otherwise for Pine v6."
+    },
+    "capture": {
+     "id": "builtin4-2026-11-26",
+     "against": "TradingView's own ta.* functions (a witness script, Pine v6)",
+     "charts": [
+      "AMEX:SPY 1D, 8,515 bars",
+      "NYSE:RDDT 1D, 674 bars"
+     ],
+     "grade": "EQUAL",
+     "detail": "Equal on every bar both charts have a value for (SPY 8,514, RDDT 674): TradingView's own ta.iii in a witness script. The divide form matched 35 of 8,514 and 0 of 674."
+    }
+   },
+   "versions": [
+    {
+     "version": 1,
+     "maths": "sha256:2853e2a00904a63e11b6522f3de5231c0df670d750211f561a7372125889cca1",
      "since": "2026-11-26",
      "why": "first entry"
     }
