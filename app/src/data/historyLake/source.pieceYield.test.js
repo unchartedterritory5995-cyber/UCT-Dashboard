@@ -11,6 +11,7 @@
  *   Y2 the default wait (`nextTask`) resolves after the microtasks queued before it, in a later task, and a load through it
  *      returns the same bars
  *   Y3 a load asked with `yieldTask: null` (one a paint waits on: network.lakeSeed `awaited`) never waits, same bars
+ *   Y4 (review of #2786) a load aborted while a piece waited is not decoded: it rejects as an abort
  */
 import { describe, it, expect } from 'vitest'
 import fixture from './__fixtures__/source.json'
@@ -78,5 +79,15 @@ describe('one lake piece per task', () => {
     const per = []
     expectBars(await src.loadBars('MU-LT', '5', { yieldTask: () => { per.push(1); return null } }))   // a wait that answers nothing
     expect(per).toHaveLength(3)
+  })
+
+  it('Y4 a load aborted while a piece waited is not decoded: it rejects as an abort', async () => {
+    const ctrl = new AbortController()
+    const src = createHistorySource({ fetch: edge().fetch })
+    let err = null
+    try {
+      await src.loadBars('MU-LT', '5', { signal: ctrl.signal, yieldTask: () => { ctrl.abort(); return Promise.resolve() } })
+    } catch (x) { err = x }
+    expect(err?.name).toBe('AbortError')
   })
 })

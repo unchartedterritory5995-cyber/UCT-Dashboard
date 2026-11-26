@@ -17,6 +17,7 @@
  *   R5 (review of #2782) any OTHER array, even frozen, is read again every time: a frozen array whose rows' `t` changed
  *      between two calls gets the Map's answer both times (red when every frozen array's order was kept)
  *   R6 the store marks its own bars arrays (finalize) and nothing else
+ *   R7 (review of #2786) a marked array whose first row is not frozen (no store row ever is) is read again every time
  */
 import { describe, it, expect, vi } from 'vitest'
 
@@ -156,6 +157,18 @@ describe('a row\'s bucket end, computed only when it decides', () => {
     expect(basisVerdict(moved, asMap())).toBe('same')     // the Map finds it ...
     expect(basisVerdict(moved, held)).toBe('same')        // ... and so does the array, read again (a kept order: 'unknown')
     expect(isStoreBars(held)).toBe(false)
+  })
+
+  it("R7 a marked array whose first row is not frozen is read again: rows whose t changed get the Map's answer", () => {
+    const DAY = 86400
+    const rows = Array.from({ length: 1000 }, (_, i) => ({ t: 1_700_000_000 + i * DAY, o: 99, h: 101, l: 98, c: 100, v: 1000 }))
+    const held = markStoreBars(Object.freeze(rows))       // marked by mistake: frozen, but its rows are plain objects
+    expect(isStoreBars(held)).toBe(true)
+    expect(basisVerdict([{ ...rows[900] }], held)).toBe('same')
+    rows[100].t = 1_700_000_000 + 900 * DAY + 1
+    const moved = [{ ...rows[100] }]
+    expect(basisVerdict(moved, new Map(held.map((r) => [r.t, r])))).toBe('same')
+    expect(basisVerdict(moved, held)).toBe('same')        // read again (a kept order: 'unknown')
   })
 
   it('R6 the store marks its own bars arrays (finalize), and nothing else', () => {

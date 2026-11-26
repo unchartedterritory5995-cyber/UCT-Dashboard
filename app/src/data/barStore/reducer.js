@@ -548,7 +548,8 @@ export function markStoreBars(bars) {
 export const isStoreBars = (bars) => _storeBars.has(bars)
 const _sortedByRef = new WeakMap()
 function _isSortedRows(rows) {
-  const frozen = _storeBars.has(rows)
+  // (and its first row frozen too: a store row always is, so an array marked by mistake is read every time, review of #2786)
+  const frozen = _storeBars.has(rows) && (rows.length === 0 || Object.isFrozen(rows[0]))
   if (frozen) { const k = _sortedByRef.get(rows); if (k !== undefined) return k }
   let sorted = true
   for (let i = 0; i < rows.length; i++) {

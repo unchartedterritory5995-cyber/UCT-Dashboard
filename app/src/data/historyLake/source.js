@@ -196,7 +196,11 @@ export function createHistorySource(o = {}) {
     // A load something is WAITING on to paint (network.lakeSeed `awaited`) passes a `wait` that answers nothing: it never
     // yields, so this cannot delay a first frame.
     const w = wait ? wait() : null
-    if (w) await w
+    if (w) {
+      await w
+      // a load given up while it waited is not decoded (the abort a fetch in flight would have thrown)
+      if (signal?.aborted) throw signal.reason ?? new DOMException('The load was aborted', 'AbortError')
+    }
     const d = decodeColumns(headerJson, bytes)
     const hd = d.header
     if (hd.symbol !== owner || hd.series !== series || hd.period !== entry.period || hd.crc !== entry.crc) {
