@@ -117,9 +117,13 @@
 //   bool     true/false as a word pair                    true → yes (or `words[0]`)
 
 import { inputsAsRead } from './legacyInputs'
-// ⭐ e98 E2 — a knob-test condition reads through the ONE evaluator `hiddenWhen` uses (no cycle: knobBind never reaches
-// this module or `defSchema`)
-import { knobTestAt } from './knobBind.js'
+// ⭐ e98 E2 — a knob-test condition reads through the ONE evaluator `hiddenWhen` uses (`knobBind.knobTestAt`), which
+// `knobBind.js` REGISTERS here when it loads (`registerKnobTestEvaluator`). ⛔ NOT a static import: this module sits
+// under `defSchema`, which half the engine imports first, and pulling `knobBind`'s graph (`otherSymbols`, `ast/bind`)
+// in from here moved their evaluation ahead of the `vi.mock`s three engine suites depend on (classificationLanes,
+// clockMemo, w9MinContractSource, measured on run 45711659196). Unregistered, a knob test reads CLOSED, never open.
+let knobTestEvaluator = null
+export function registerKnobTestEvaluator(fn) { knobTestEvaluator = typeof fn === 'function' ? fn : null }
 
 /** ⭐⭐ e98 E2 — WHICH OF THE TWO CONDITION SHAPES THIS IS: `'knob'` (a knob test, `type` present: U6's grammar, a Pine
  *  input's `active =`), `'key'` (the `{key, equals | notEquals | in | gt | gte | lt | lte}` condition the native
@@ -303,8 +307,8 @@ export function readoutConditionOpen(cond, def, inputs) {
   if (cond === undefined || cond === null) return true
   const shape = activeWhenShape(cond)
   if (shape === 'knob') {
-    const v = knobTestAt(cond, def && typeof def === 'object' ? def : { inputs: [] }, inputs || {})
-    return v === null ? false : !!v
+    const v = knobTestEvaluator ? knobTestEvaluator(cond, def && typeof def === 'object' ? def : { inputs: [] }, inputs || {}) : null
+    return v === null || v === undefined ? false : !!v
   }
   if (shape !== 'key') return false
   const v = readInput(def, inputs, cond.key)

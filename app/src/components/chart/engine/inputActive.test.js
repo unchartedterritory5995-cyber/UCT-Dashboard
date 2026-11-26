@@ -23,6 +23,7 @@ import { fileURLToPath } from 'node:url'
 import { memberPaneDefinition, __forceRuntimeLaneForTests } from '../builder/memberPane/memberPaneDefinition'
 import { evalActiveWhen, fieldsForInstance } from '../indicatorRegistry'
 import { validateDefinition, activeWhenShape } from './defSchema.js'
+import { readoutConditionOpen } from './readoutSchema.js'
 import { listDefinitions, getDefinition } from './nativeRegistry'
 import { __permitRuntimePaneForTests } from './runtimePaneGate'
 import { __allowEveryRuntimeScriptForTests } from './runtimeKill'
@@ -175,6 +176,13 @@ describe('e98 E2 — exactly two shapes; a third fails CLOSED (coordinator rulin
         expect(evalActiveWhen(bad, { show: 1 }), JSON.stringify(bad)).toBe(false)
       }
     } finally { warn.mockRestore() }
+  })
+
+  it('the readout\'s condition reader speaks the same two shapes (knobBind registers its evaluator)', () => {
+    const def = { inputs: [{ key: 'b', type: 'int', default: 0 }] }
+    expect(readoutConditionOpen({ type: 'series', name: 'b' }, def, { b: 1 })).toBe(true)
+    expect(readoutConditionOpen({ type: 'series', name: 'b' }, def, {})).toBe(false)
+    expect(readoutConditionOpen({ when: 'b' }, def, { b: 1 })).toBe(false)
   })
 
   it('a knob test that cannot be evaluated is inactive, never guessed active', () => {

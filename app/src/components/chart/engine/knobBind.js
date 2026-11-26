@@ -18,6 +18,8 @@
 import { pruneKnobArms, REFUSED_ARM_CALL, bindConstsFor, knobTestValue } from './ast/bind.js'
 import { resolveInputs, treeScalars } from './knobInputs.js'
 import { symTickersOf } from './otherSymbols.js'
+// ⭐ e98 E2 — the readout's condition reader asks THIS evaluator for a knob test (registered below, never re-implemented)
+import { registerKnobTestEvaluator } from './readoutSchema.js'
 
 const isPlainObject = (v) => !!v && typeof v === 'object' && !Array.isArray(v)
 
@@ -150,6 +152,8 @@ export function knobTestAt(tree, def, inputs) {
   if (tree.type === 'num') return typeof tree.value === 'number' && Number.isFinite(tree.value) ? tree.value : null
   return knobTestValue(tree, displayConstsFor(def, inputs))
 }
+
+registerKnobTestEvaluator(knobTestAt)
 
 export function plotHiddenAt(plot, def, inputs) {
   if (!plot || typeof plot !== 'object') return false
