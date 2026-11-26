@@ -127,32 +127,68 @@ def require_bars_access(uct_session: Optional[str] = Cookie(None),
 # which is what both auth auditors read (`api/auth_surface_check.py`, `tests/test_exposed_routes_gated.py`):
 # master went red on them with #2741. So the wrapper is built HERE, by one factory that records what it built,
 # and the auditors count a product by IDENTITY (`is_bars_access_on_limiter`), never by a name: a function merely
-# called `require_bars_access_*` stays an open route in their eyes. `test_exposed_routes_gated` also awaits
-# every product the served app carries with free, paid and admin callers, so identity is measured, not trusted.
-_ON_LIMITER: list = []
+# called `require_bars_access_*` stays an open route in their eyes.
+# ⛔ THE FACTORY CALLS THE GATE ITSELF (review of #2757, H1). A caller gives a LIMITER, never a function that
+# runs the gate, so a product cannot skip the gate or swallow its 401/403: identity means "calls the gate" on
+# every app, measured or not. `test_exposed_routes_gated` still awaits every product the served app carries
+# with free, paid and admin callers. The products live in a frozenset only the factory rebuilds, so nothing can
+# append itself to the whitelist.
+_PRODUCTS: frozenset = frozenset()
 
 
-def require_bars_access_on(run, name: str):
-    """`require_bars_access` as an async dependency that runs the gate through `run(request, fn, *args)` (an
-    awaitable that calls `fn(*args)` in a thread on the route's own limiter and returns its result), named
-    `name`. An app's `dependency_overrides[require_bars_access]` (tests, the stream edge) still applies: it is
-    the same gate, so the override is honoured here."""
+def _takes_parameters(fn) -> bool:
+    import inspect
+    try:
+        return bool(inspect.signature(fn).parameters)
+    except (TypeError, ValueError):
+        return True
+
+
+def require_bars_access_on(limiter, name: str, on_wait=None):
+    """`require_bars_access` as an async dependency named `name` that calls the gate in a thread on
+    `limiter(request)` (an anyio CapacityLimiter: the route's own, one per event loop). `on_wait(request, ms)`,
+    if given, is told how long the gate waited for a thread. A gate answer of None (it never returns one) is
+    refused 401.
+
+    An app's `dependency_overrides[require_bars_access]` (tests) still applies: it is the same gate, so the
+    override is honoured here. It is called BARE, as FastAPI never would, so an override with parameters is
+    refused with a 500 rather than handed its `Cookie()`/`Header()` default objects."""
     async def gate(request: Request, uct_session: Optional[str] = Cookie(None),
                    authorization: str = Header(default="")) -> dict:
         over = getattr(getattr(request, "app", None), "dependency_overrides", {}).get(require_bars_access)
         if over is not None:
+            if _takes_parameters(over):
+                raise HTTPException(status_code=500,
+                                    detail="a require_bars_access override used here must take no parameters")
             out = over()
             return await out if hasattr(out, "__await__") else out
-        return await run(request, require_bars_access, uct_session, authorization)
+        import time
+        import anyio
+        t0 = time.perf_counter()
+        waited = [0.0]
 
+        def ask():
+            waited[0] = (time.perf_counter() - t0) * 1000.0
+            return require_bars_access(uct_session, authorization)
+        user = await anyio.to_thread.run_sync(ask, limiter=limiter(request))
+        if on_wait is not None:
+            try:
+                on_wait(request, waited[0])
+            except Exception:                  # noqa: BLE001 - a timing note never decides access
+                pass
+        if user is None:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        return user
+
+    global _PRODUCTS
     gate.__name__ = gate.__qualname__ = name
-    _ON_LIMITER.append(gate)
+    _PRODUCTS = _PRODUCTS | {gate}
     return gate
 
 
 def is_bars_access_on_limiter(call) -> bool:
     """True only for a dependency `require_bars_access_on` built (identity, never a name)."""
-    return any(call is g for g in _ON_LIMITER)
+    return any(call is g for g in _PRODUCTS)
 
 
 def require_bars_service(authorization: str = Header(default="")) -> dict:

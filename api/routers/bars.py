@@ -709,20 +709,19 @@ def _is_warm_request(request) -> bool:
         return False
 
 
-async def _bars_gate_run(request, fn, *args):
+def _bars_gate_limiter(request):
     """The gate's hop: a warm's on the warm lane (it waits only behind warms), an interactive ask's on the QUICK lane
-    (never behind a serve). Records the wait for Server-Timing."""
-    out, waited = await _bars_thread(True if _is_warm_request(request) else QUICK, fn, *args)
-    try:
-        request.state.bars_wait_ms = waited
-    except Exception:
-        pass
-    return out
+    (never behind a serve)."""
+    return _bars_limiter(True if _is_warm_request(request) else QUICK)
 
 
-# `require_bars_access` on /api/bars' own lanes. Built by `bars_auth.require_bars_access_on`, never by hand: the gate is
-# called in a thread, not `Depends`-ed, and the auth auditors recognise the factory's products by identity.
-require_bars_access_bars = require_bars_access_on(_bars_gate_run, "require_bars_access_bars")
+def _note_gate_wait(request, ms: float):
+    request.state.bars_wait_ms = ms           # read by get_bars for Server-Timing `bars-wait`
+
+
+# `require_bars_access` on /api/bars' own lanes. Built by `bars_auth.require_bars_access_on`, never by hand: the factory
+# calls the gate itself in a thread on the lane it is given, and the auth auditors recognise its products by identity.
+require_bars_access_bars = require_bars_access_on(_bars_gate_limiter, "require_bars_access_bars", on_wait=_note_gate_wait)
 
 
 def _stamp_bars_wait(resp, ms: float):
@@ -1901,14 +1900,11 @@ async def _history_thread(fn, *args, **kwargs):
     return await _anyio.to_thread.run_sync(_partial(fn, *args, **kwargs), limiter=_history_limiter())
 
 
-async def _history_gate_run(request, fn, *args):
-    return await _history_thread(fn, *args)
-
-
 # `require_bars_access`, run on this route's own limiter (see BARS_HISTORY_THREADS). Built by
-# `bars_auth.require_bars_access_on`, never by hand here: the gate is called in a thread, not `Depends`-ed, and
-# the auth auditors recognise the factory's products by identity (a hand-built wrapper turned master red, #2741).
-require_bars_access_history = require_bars_access_on(_history_gate_run, "require_bars_access_history")
+# `bars_auth.require_bars_access_on`, never by hand here: the factory calls the gate itself in a thread on the
+# limiter it is given, and the auth auditors recognise its products by identity (a hand-built wrapper, which they
+# could not see, turned master red with #2741).
+require_bars_access_history = require_bars_access_on(lambda request: _history_limiter(), "require_bars_access_history")
 
 
 @router.get("/api/bars-history/{ticker}")
