@@ -492,11 +492,36 @@ def test_F3_in_process_callers_do_not_get_the_edge_budget(monkeypatch):
     assert seen == {"active": False, "done": True}
 
 
-def test_F3_http_routes_start_the_edge_budget():
-    import inspect
+def test_F3_http_routes_start_the_edge_budget(monkeypatch):
+    """Both HTTP doors into the serve core (the web pod's /api/bars and the bars-api tier's) run it UNDER the edge
+    budget (serve_bars_http), never bare: measured by driving each route and reading the budget from inside the
+    core. (2026-11-26: this read the source text `run_in_threadpool(serve_bars_http,`, which the web route's own
+    thread lane, #2752, no longer spells; the property is the budget, so the property is what is asserted.)"""
+    import asyncio
+    import httpx
+    from fastapi import FastAPI
     from api import bars_api_main
-    assert "serve_bars_http(ticker" in inspect.getsource(bars_api_main)
-    assert "run_in_threadpool(serve_bars_http," in inspect.getsource(bars_router.get_bars)
+    from tests.authclients import sign_in_bars_caller
+    sign_in_bars_caller(monkeypatch)
+    monkeypatch.delenv("BARS_ORIGIN_URL", raising=False)
+    seen = []
+
+    def _impl(*a, **k):
+        seen.append(bars_fetch._budget_active())
+        return bars_router.JSONResponse(content={"bars": []})
+    monkeypatch.setattr(bars_router, "_serve_bars_impl", _impl)
+    web = FastAPI()
+    web.include_router(bars_router.router)
+    tier = bars_api_main._build_app()          # no lifespan runs: the ASGI transport sends no startup event
+
+    async def ask(app):
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://t") as c:
+            r = await c.get("/api/bars/AAPL?tf=D&bars=10")
+            assert r.status_code == 200, (r.status_code, r.text[:200])
+    for name, app in (("web /api/bars", web), ("bars-api /api/bars", tier)):
+        seen.clear()
+        asyncio.run(ask(app))
+        assert seen == [True], f"{name} ran the serve core without the edge budget: {seen}"
 
 
 def test_F4_replay_deep_DWM_pulls_share_the_replay_concurrency_cap():
