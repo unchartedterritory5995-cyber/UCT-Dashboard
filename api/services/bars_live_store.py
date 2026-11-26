@@ -1340,6 +1340,138 @@ def _start_daily() -> str:
         return "thread"
 
 
+# ── SETTLE: AFTER THE CLOSE, THE VENDOR'S HISTORICAL AGGREGATES WIN OVER THE STREAM (2026-11-26) ──────────────────────────
+# ⛔ "THE STREAM WINS FOREVER" ENDS HERE (the candle-accuracy audit, class 2). Every live 1m/5m row is the vendor's AM bar,
+# emitted at the minute's end; trades corrected or cancelled after that, and trades reported late, reach the vendor's
+# historical aggregates but never the AM, and every repair here keeps the stream's minute over the provider's. So a
+# print the vendor later corrected stayed in our store forever (SPY 2026-11-19 15:45: a high $13.77 above TradingView's,
+# from the AM). Once a trading day's extended session has closed (SETTLE_AFTER_CLOSE_MIN after it: 20:30 ET, or 17:30 on
+# an early close; NEVER during the session's load), every ticker this tier covered that day is re-read from the vendor's
+# historical aggregates: 5m for each covered ticker, 1m for each 1m-covered one, one page each. A row that differs is
+# replaced (the vendor's word, written with this pass's check instant), a row the vendor lacks is LEFT and counted (an
+# empty or failed answer never erases what the stream stored), and a ticker whose 5m changed has its 15m/30m/60m of that
+# day re-derived from the corrected 5m, where that series is stored. Once per day, per process.
+# COST: |covered 5m| + |covered 1m| provider calls per trading day (one page each: a 5m day is 192 rows, a 1m day 960),
+# through `_fetch` (bars_fetch._fetch_intraday_range, the same client and limits as the backfill), SETTLE_WORKERS at a
+# time. Kill switch: BARS_LIVE_SETTLE_ENABLED=0.
+SETTLE_ENABLED = os.environ.get("BARS_LIVE_SETTLE_ENABLED", "1") == "1"
+SETTLE_AFTER_CLOSE_MIN = int(os.environ.get("BARS_LIVE_SETTLE_AFTER_MIN", "30"))
+SETTLE_WORKERS = max(1, int(os.environ.get("BARS_LIVE_SETTLE_WORKERS", "4")))
+_settle: dict = {"done_ymd": None, "running": False, "tickers": 0, "changed_tickers": 0, "rows_replaced": 0,
+                 "rows_vendor_lacks": 0, "derived_rows": 0, "failed": 0, "started_at": None, "finished_at": None}
+
+
+def _session_window(now: datetime) -> tuple[int, int, int]:
+    """(ymd, extended-session open, extended-session close) of `now`'s ET day, as unix seconds."""
+    from api.services import bars_fetch
+    d = now.astimezone(_ET)
+    ymd = int(d.strftime("%Y%m%d"))
+    midnight = d.replace(hour=0, minute=0, second=0, microsecond=0)
+    lo = int(midnight.timestamp()) + bars_fetch._EXT_OPEN_MINUTES_SERVER * 60
+    hi = int(midnight.timestamp()) + bars_fetch._ext_close_minutes(ymd) * 60
+    return ymd, lo, hi
+
+
+def _settle_due(now: datetime) -> bool:
+    """A trading day whose extended session closed SETTLE_AFTER_CLOSE_MIN ago, not yet settled by this process."""
+    if not (SETTLE_ENABLED and enabled()):
+        return False
+    from api.services import bars_fetch
+    d = now.astimezone(_ET)
+    if not bars_fetch._is_trading_day_ymd(d):
+        return False
+    ymd = int(d.strftime("%Y%m%d"))
+    if d.hour * 60 + d.minute < bars_fetch._ext_close_minutes(ymd) + SETTLE_AFTER_CLOSE_MIN:
+        return False
+    return _settle["done_ymd"] != ymd
+
+
+def _settle_one(sym: str, tf: str, lo: int, hi: int, checked_at: float) -> tuple[int, int]:
+    """Re-read `sym`'s `tf` rows of [lo, hi) from the vendor; replace the ones that differ. (replaced, vendor lacks)."""
+    from api.services import bars_fetch, bars_sqlite
+    got = [b for b in _fetch(sym, int(tf), lo * 1000, hi * 1000 - 1) if lo <= int(b["t"]) < hi]
+    if not got:
+        return 0, 0                       # nothing answered: the stream's rows stand
+    stored = {int(r[0]): r for r in bars_sqlite.get_bars_since(sym, tf, lo - 1) if int(r[0]) < hi}
+    diff = [b for b in got if not bars_fetch._same_row(b, stored.get(int(b["t"])))]
+    lacks = len(set(stored) - {int(b["t"]) for b in got})
+    if diff:
+        bars_sqlite.put_bars(sym, tf, diff, checked_at=checked_at)
+    return len(diff), lacks
+
+
+def _settle_rederive(sym: str, lo: int, hi: int, checked_at: float) -> int:
+    """15m from the corrected 5m, then 30m/60m from that 15m, for the day: only series the store already holds."""
+    from api.services import bars_fetch, bars_sqlite
+    n = 0
+    for tf, base in (("15", "5"), ("30", "15"), ("60", "15")):
+        b0 = bars_fetch._derived_bucket_start(tf, lo)
+        stored = {int(r[0]): r for r in bars_sqlite.get_bars_since(sym, tf, b0 - 1) if int(r[0]) < hi}
+        if not stored:
+            continue                      # a series this tier does not hold for the day is not started here
+        rows = [b for b in bars_fetch._derive_from_stored_base(sym, tf, b0, base) if int(b["t"]) < hi]
+        out = [b for b in rows if not bars_fetch._same_row(b, stored.get(int(b["t"])))]
+        if out:
+            bars_sqlite.put_bars(sym, tf, out, checked_at=checked_at)
+            n += len(out)
+    return n
+
+
+def settle_pass(now: Optional[datetime] = None) -> dict:
+    """One settle of `now`'s trading day (see the block above). Returns the counts."""
+    now = now or datetime.now(_ET)
+    ymd, lo, hi = _session_window(now)
+    with _lock:
+        work = [(s_, "5") for s_ in sorted(_covered5)] + [(s_, "1") for s_ in sorted(_covered1)]
+    counts = {"tickers": len(work), "changed_tickers": 0, "rows_replaced": 0, "rows_vendor_lacks": 0,
+              "derived_rows": 0, "failed": 0}
+    _settle.update(running=True, started_at=time.time(), finished_at=None)
+    checked_at = time.time()
+    pos = [0]
+    guard = threading.Lock()
+
+    def _worker() -> None:
+        while True:
+            with guard:
+                if pos[0] >= len(work):
+                    return
+                sym, tf = work[pos[0]]
+                pos[0] += 1
+            try:
+                replaced, lacks = _settle_one(sym, tf, lo, hi, checked_at)
+                derived = _settle_rederive(sym, lo, hi, checked_at) if (replaced and tf == "5") else 0
+                with guard:
+                    counts["rows_replaced"] += replaced
+                    counts["rows_vendor_lacks"] += lacks
+                    counts["derived_rows"] += derived
+                    counts["changed_tickers"] += 1 if replaced else 0
+            except Exception as e:  # noqa: BLE001 - one ticker's failure leaves its rows as they are
+                with guard:
+                    counts["failed"] += 1
+                from api.services.log_redaction import redact
+                _log.debug("[bars-live] settle %s tf=%s failed: %s", sym, tf, redact(str(e)))
+
+    threads = [threading.Thread(target=_worker, daemon=True, name=f"bars-live-settle-{i}")
+               for i in range(min(SETTLE_WORKERS, max(1, len(work))))]
+    for t_ in threads:
+        t_.start()
+    for t_ in threads:
+        t_.join()
+    _settle.update(counts, running=False, done_ymd=ymd, finished_at=time.time())
+    _log.info("[bars-live] settle %s: %s", ymd, counts)
+    return counts
+
+
+def _settle_loop() -> None:
+    while True:
+        time.sleep(60)
+        try:
+            if _settle_due(datetime.now(_ET)):
+                settle_pass()
+        except Exception as e:  # noqa: BLE001
+            _log.warning("[bars-live] settle loop error: %s", e)
+
+
 def start() -> None:
     global _threads_started
     if _threads_started:
@@ -1353,6 +1485,7 @@ def start() -> None:
     threading.Thread(target=_backfill_loop, daemon=True, name="bars-live-backfill").start()
     if enabled1():
         threading.Thread(target=_m1_loop, daemon=True, name="bars-live-1m").start()
+    threading.Thread(target=_settle_loop, daemon=True, name="bars-live-settle").start()
     how = _start_daily()
     _log.info("[bars-live] started (enabled=%s, 1m=%s, daily poll in %s)", enabled(), enabled1(), how)
 
@@ -1369,6 +1502,7 @@ def status() -> dict:
         s["proof_refused_tickers"] = _late["refused_tickers"]
         s["proof_unnamed_batches"] = _late["unnamed_batches"]
         s["live_late_s"] = LIVE_LATE_S
+        s["settle"] = dict(_settle, enabled=SETTLE_ENABLED)
         if enabled1():
             m1 = {k: v for k, v in _s1.items() if k != "m1_last_push_mono"}
             m1.update(covered1=len(_covered1), gap1_pending=len(_gap1_from),
@@ -1420,4 +1554,6 @@ def _reset_for_tests() -> None:
         for own in _own_last.values():
             own.clear()
         _late.update(rows=0, refused_tickers=0, unnamed_batches=0)
+        _settle.update(done_ymd=None, running=False, tickers=0, changed_tickers=0, rows_replaced=0,
+                       rows_vendor_lacks=0, derived_rows=0, failed=0, started_at=None, finished_at=None)
     _m1_wakeup.clear()
