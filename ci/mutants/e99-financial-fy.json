@@ -17,7 +17,7 @@
    "from": "        cap = asof.MAX_FY_PERIOD_AGE if fy_base(series) else asof.MAX_PERIOD_AGE",
    "to": "        cap = asof.MAX_PERIOD_AGE",
    "rail": "python -m pytest -q tests/fundamentals_pit/test_financial_fy_view.py",
-   "expectRed": "staleFrom 2025-04-15"
+   "expectRed": "test_a_fiscal_year_view_ages_by_its_own_cap_never_the_quarterly_one"
   },
   {
    "id": "FY-3",
@@ -26,7 +26,7 @@
    "from": "        own = [(t, v, pe, \"fiscal_year\") for t, v, pe, m, _r in rows if m == \"fiscal_year\"]",
    "to": "        own = [(t, v, pe, \"fiscal_year\") for t, v, pe, m, _r in rows if m != \"gap\"]",
    "rail": "python -m pytest -q tests/fundamentals_pit/test_financial_fy_view.py",
-   "expectRed": "the view is option A"
+   "expectRed": "test_the_view_is_option_a_on_every_value_and_date_but_the_named_limitation"
   },
   {
    "id": "FY-4",
@@ -35,7 +35,7 @@
    "from": "                    out.append([t, None, pe, \"gap\"])",
    "to": "                    pass",
    "rail": "python -m pytest -q tests/fundamentals_pit/test_financial_fy_view.py",
-   "expectRed": "synthetic eps_diluted_fy GAP"
+   "expectRed": "test_the_view_is_option_a_on_every_value_and_date_but_the_named_limitation"
   },
   {
    "id": "FY-5",
@@ -44,7 +44,7 @@
    "from": "FY_COVER_DAYS = 120",
    "to": "FY_COVER_DAYS = 0",
    "rail": "python -m pytest -q tests/fundamentals_pit/test_financial_fy_view.py",
-   "expectRed": "shares_outstanding_fy equals option A"
+   "expectRed": "test_the_view_is_option_a_on_every_value_and_date_but_the_named_limitation"
   },
   {
    "id": "FY-6",
@@ -62,7 +62,7 @@
    "from": "{\"limitation\": fy_limitation(catalog)}",
    "to": "{\"limitation\": \"\"}",
    "rail": "python -m pytest -q tests/fundamentals_pit/test_financial_fy_view.py",
-   "expectRed": "rev['limitation'] == fy_limitation()"
+   "expectRed": "test_the_route_serves_the_view_with_its_limitation_and_withholds_split_sensitive_views"
   },
   {
    "id": "FY-8",
@@ -71,7 +71,7 @@
    "from": "\"FY\": \"revenue_ttm@fy\"",
    "to": "\"FY\": \"revenue_q@fy\"",
    "rail": "python -m pytest -q tests/test_pine_financial.py tests/fundamentals_pit/test_financial_fy_view.py",
-   "expectRed": "twelve pairs"
+   "expectRed": "test_the_map_is_the_catalogs_twelve_pairs_each_a_stored_series_or_a_fiscal_year_view_of_one"
   },
   {
    "id": "FY-9",
@@ -98,7 +98,7 @@
    "from": "          \"letter\": \"Y\",\n",
    "to": "          \"letter\": \"Y\",\n          \"why\": \"UCT's filings store holds no fiscal-year series yet\",\n",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestFinancial.test.js src/components/chart/engine/requestFinancial.periodSetting.test.js",
-   "expectRed": "FY toBeNull"
+   "expectRed": "refused by name: an id UCT does not serve"
   },
   {
    "id": "FY-12",
@@ -107,7 +107,7 @@
    "from": "itself (\\\"FQ\\\", \\\"TTM\\\", \\\"FY\\\")",
    "to": "itself (\\\"FQ\\\", \\\"TTM\\\")",
    "rail": "python -m pytest -q tests/test_script_financial_period_rule.py",
-   "expectRed": "e99 FY named"
+   "expectRed": "test_e99_fy_the_fiscal_year_is_named_among_the_served_periods_and_no_longer_as_refused"
   }
  ]
 }
