@@ -80,13 +80,20 @@ function _emit() {
   for (const l of _listeners) l()
 }
 
-/** Same flat entry (every field `Object.is`-equal). A nested value compares by reference, so it
- *  reads as changed -- the safe direction: an extra render, never a missed price. */
+// (2026-11-25, review of #2749) /api/live-prices INSTRUMENT fields: times that move on every server
+// refetch while the price does not. They never make an entry "changed" (else every poll after a
+// refetch re-renders every subscriber with identical prices); an unchanged row keeps the entry,
+// and so the fetch time, of the poll that first delivered its price.
+const _INSTRUMENT_FIELDS = new Set(['fetched_at_ms', 'observed_ms', 'last_trade_ms'])
+const _shownKeys = (o) => Object.keys(o).filter((k) => !_INSTRUMENT_FIELDS.has(k))
+
+/** Same flat entry (every field but the instruments `Object.is`-equal). A nested value compares by
+ *  reference, so it reads as changed -- the safe direction: an extra render, never a missed price. */
 function _sameEntry(a, b) {
   if (a === b) return true
   if (!a || !b) return false
-  const ka = Object.keys(a)
-  if (ka.length !== Object.keys(b).length) return false
+  const ka = _shownKeys(a)
+  if (ka.length !== _shownKeys(b).length) return false
   for (const k of ka) if (!Object.is(a[k], b[k])) return false
   return true
 }

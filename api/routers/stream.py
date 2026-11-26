@@ -693,6 +693,19 @@ def _contract_event(bar_contract, msg: dict, session: str) -> dict:
         return msg
 
 
+def _lat_fields(frame: dict, lat: bool) -> dict:
+    """The latency instruments of a bar frame, for a connection that asked (`?lat=1`, the
+    measurement harness) and nobody else (2026-11-25, review of #2749: ~11-15% more egress for
+    every member otherwise). Asked: `sent_ms` = this pod's wall clock (ms) as the frame is
+    serialised, plus the relayed `ingest_ms`. Not asked: neither. Never changes `frame` in place:
+    one message dict is shared by every subscriber of the pair."""
+    if lat:
+        return {**frame, "sent_ms": int(time.time() * 1000)}
+    if "ingest_ms" in frame:
+        return {k: v for k, v in frame.items() if k != "ingest_ms"}
+    return frame
+
+
 @router.get("/api/stream/bars")
 async def stream_bars(
     request: Request,
@@ -715,6 +728,8 @@ async def stream_bars(
         "(a watchlist's next rows). Speculative: admitted within the pod's "
         "STREAM_MAX_AHEAD_PAIRS budget and never under load; a refused one is "
         "simply not subscribed.")),
+    lat: str | None = Query(None, description=("1 = add latency instruments (sent_ms, ingest_ms) to each frame; "
+                                            "for the measurement harness, never needed by the app")),
 ):
     """SSE — streams real-time bar updates per (symbol, timeframe).
 
@@ -748,6 +763,7 @@ async def stream_bars(
         return out
 
     pairs: list[tuple[str, str]] = _parse_pairs(bars)
+    lat_on = str(lat or "").strip() == "1"
 
     if not pairs:
         return JSONResponse({"error": "No valid sym:tf pairs"}, status_code=400)
@@ -899,13 +915,13 @@ async def stream_bars(
                         continue
                     del getters[i]
                     msg = task.result()
-                    yield _frame("bars", json.dumps(_contract_event(_bar_contract, msg, session)), "bar")
+                    yield _frame("bars", json.dumps(_lat_fields(_contract_event(_bar_contract, msg, session), lat_on)), "bar")
                     while True:
                         try:
                             msg = q.get_nowait()
                         except asyncio.QueueEmpty:
                             break
-                        yield _frame("bars", json.dumps(_contract_event(_bar_contract, msg, session)), "bar")
+                        yield _frame("bars", json.dumps(_lat_fields(_contract_event(_bar_contract, msg, session), lat_on)), "bar")
 
                 # the rows ahead: drained here, never awaited (see AHEAD_INTERVAL_S)
                 if n_ahead:
@@ -933,7 +949,7 @@ async def stream_bars(
                                     ahead_pend.pop(j, None)
                                 elif held is not None and final and (held.get("bar") or {}).get("t") == t:
                                     ahead_pend.pop(j, None)
-                                yield _frame("bars", json.dumps(_contract_event(_bar_contract, msg, session)), "bar")
+                                yield _frame("bars", json.dumps(_lat_fields(_contract_event(_bar_contract, msg, session), lat_on)), "bar")
                                 if not final:
                                     ahead_sent[j] = (t, now_m)
                             else:
@@ -942,7 +958,7 @@ async def stream_bars(
                         last = ahead_sent.get(j)
                         if held is not None and last is not None and now_m - last[1] >= AHEAD_INTERVAL_S:
                             ahead_pend.pop(j, None)
-                            yield _frame("bars", json.dumps(_contract_event(_bar_contract, held, session)), "bar")
+                            yield _frame("bars", json.dumps(_lat_fields(_contract_event(_bar_contract, held, session), lat_on)), "bar")
                             ahead_sent[j] = ((held.get("bar") or {}).get("t"), now_m)
 
                 if time.time() - last_heartbeat > 15:
