@@ -28,7 +28,7 @@ import { printFormula, translatePine, lexPine, blockStatements, parseWholeExpres
 import { withAlphaByte } from '../../designTokens'
 import { DEFAULT_SERIES_COLOUR } from '../../engine/pinePalette'
 import { THEME_FG } from '../../engine/objectTheme'
-import { paneGate, paneObjectsGate, runtimeRouteOf, runtimeFallbackOf } from '../../engine/ast/paneGate'
+import { paneGate, paneObjectsGate, runtimeRouteOf, runtimeFallbackOf, everyOutputAuthorHidden } from '../../engine/ast/paneGate'
 import { runtimePaneEnabled } from '../../engine/runtimePaneGate'
 import { strategyBrokerEnabled } from '../../engine/strategyBrokerGate'
 import { registerStrategyBrokerGate } from '../../engine/strategyBrokerGateRegistry'
@@ -87,6 +87,7 @@ import { evaluateFormula } from '../FormulaField'
 import { BUILDER_INPUT_SCOPE, seriesNamesOf, memberInputKey, inputsFromFolded } from '../builderInputs'
 // ⭐⭐ e96 — a Pine `hline` drawn as the level it is, one authority for both doors.
 import { hlineGuides, hlineNotReproducedNote, hlineWithheldNote, hlineOrdinalOf } from '../../engine/hlineLevels'
+import { hiddenAtLeafDefaults } from '../../engine/knobBind.js'
 // ⭐ RS RATING L3 — the substituted-value disclosure (`syminfo.industry` / `sector` from UCT data).
 import { substitutionNotesFor, otherSymbolSourceNotesFor } from '../../engine/ast/symbolSubstitution'
 
@@ -298,6 +299,23 @@ function colourWithheldNotes(rows) {
     })
   }
   return out
+}
+
+/** ⭐ e97 U7 — each `hline` the TRANSLATION could not read (`presentation.levelsWithheld`), in the translation's own
+ *  words. ONE sentence-maker for both documents: the runtime document said these and the host document said nothing,
+ *  so a level withheld on the host lane (a `display` it could not read, a price it could not follow) vanished silently. */
+function levelsWithheldNotesOf(t) {
+  return ((t && t.presentation && t.presentation.levelsWithheld) || []).map((u) => {
+    const said = (t.notes || []).find((x) => x && x.code === 'pine:chart-only' && x.line === u.line && /^`hline` is not drawn/.test(x.message || ''))
+    return { name: '`hline`', note: said ? said.message : `\`hline\` is not drawn: ${u.reason}` }
+  })
+}
+
+/** ⭐ e97 U7 — each band (`fill`) WITHHELD because its `display` could not be read (`pine.js::resolveFillHandles`), in
+ *  the translation's own sentence (`chartOnlySentence`), which the editor's status lists too (`editorStatus.chartDoorUndrawn`). */
+function bandDisplayWithheldNotesOf(t) {
+  return ((t && t.notes) || []).filter((x) => x && x.code === 'pine:chart-only' && typeof x.message === 'string'
+    && x.message.startsWith('`fill` is not drawn: its `display`')).map((x) => ({ name: '`fill`', note: x.message }))
 }
 
 /** ⭐⭐ e96 — the member's sentences for the levels a document draws in the neutral presentation or does not
@@ -681,7 +699,9 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
     if (carryable.some(plotarrowWithheld)) {
       return no(`this script is not drawn: ${PLOTARROW_NOT_DRAWN}`, 'pine:plotarrow-not-drawn', t)
     }
-    return no('this script declares nothing a chart can draw', null, t)
+    // ⭐⭐ e97 U6 — …UNLESS ITS AUTHOR HID EVERY OUTPUT: served, drawing nothing, as on TradingView
+    // (`paneGate.everyOutputAuthorHidden`). The hidden rows are carried; nothing is drawn from them.
+    if (!everyOutputAuthorHidden(t)) return no('this script declares nothing a chart can draw', null, t)
   }
   // ⛔ A PANE SCRIPT WHOSE ONLY DRAWING IS A BACKGROUND IS REFUSED BY NAME.
   // TradingView shades the script's OWN pane; that pane exists here only when a
@@ -846,6 +866,9 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
       // ⭐⭐ Engine 75 (#1788, fix/fill-anchor-display) — the AUTHOR's statement only
       // (`paneHides`): an untitled fill anchor with no `display.none` is drawn.
       hidden: paneHides(o),
+      // ⭐ e97 U6 — drawn or hidden as the member's settings decide (`pine.js::outputDisplayOf`), resolved per
+      // instance at bind (`knobBind.js::plotHiddenAt`)
+      ...(o && o.hiddenWhen && !paneHides(o) ? { hiddenWhen: o.hiddenWhen } : {}),
       // ⚰️ `opacity` WAS DROPPED HERE, AND IT IS NOT DECORATION — measured on the
       // real chart, 2026-09-12 (T5 pixels). Volume v2's fourth plot is
       // `Scale Padding`: `color = #FFFFFF, opacity = 0, width = 1`, a series whose
@@ -900,15 +923,24 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
       const arms = at >= 3 ? [outs[at - 3], outs[at - 2], outs[at - 1]] : []
       const armIdx = arms.map((g) => drawable.indexOf(g))
       // a candle its author hid (`display = display.none`) draws nothing on TradingView either: hidden, unnamed
-      if ((o.candle && o.candle.display === 'display.none') || o._authorHidden === true || o.hiddenReason === 'author') {
+      // ⭐ e97 U6 — or one its display keeps off the pane at every setting (`offPane`, the one display reader)
+      if ((o.candle && o.candle.display === 'display.none') || o._authorHidden === true || o.hiddenReason === 'author'
+          || o.offPane === true) {
         for (const j of [...armIdx.filter((j) => j >= 0), i]) rows[j].hidden = true
         return
       }
       const name = (o.candle && o.candle.title) || `${o.kind} ${ord}`
+      // ⭐ e97 U6 — a display this engine cannot read: withheld BY NAME, never guessed as drawn
+      if (o.displayUnread) {
+        for (const j of [...armIdx.filter((j) => j >= 0), i]) rows[j].hidden = true
+        candleNotes.push({ name, note: `\`${name}\` is not drawn: ${o.displayUnread}. Nothing is drawn for it rather than a guess.` })
+        return
+      }
       const complete = arms.length === 3 && armIdx.every((j) => j >= 0)
         && arms.every((g) => g && g.kind === o.kind && hostCarriesRow(g))
       const rule = complete
-        ? hostCandlePresentation(o.kind, t.version, o.candle, overlayScript)
+        // ⭐ e97 U6 — the display was read already (`pine.js::outputDisplayOf`: drawn, or `hiddenWhen` on the close row)
+        ? hostCandlePresentation(o.kind, t.version, { ...o.candle, display: undefined }, overlayScript)
         : { ok: false, why: 'one of its four prices is not carried (that line says why)' }
       if (!rule.ok) {
         for (const j of [...armIdx.filter((j) => j >= 0), i]) rows[j].hidden = true
@@ -919,6 +951,8 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
       const row = rows[i]
       for (const f of ['colorMode', 'colorUp', 'colorDown', 'colorPalette', 'colorGradient', 'colorWithheld', 'opacity']) delete row[f]
       Object.assign(row, { style: RUNTIME_CANDLE_STYLE[o.kind], hidden: false, color: COLOUR_NONE, label: o.candle.title || row.label })
+      // ⭐ e97 U6 — drawn or hidden as the instance's settings decide (the close output's display, `outputDisplayOf`)
+      if (o.hiddenWhen) row.hiddenWhen = o.hiddenWhen
       const ohlcColors = {}
       for (const [part, tree] of Object.entries(rule.colours)) ohlcColors[part] = conditionColumnFor(tree)
       hostCandleOf.set(row.key, {
@@ -963,7 +997,12 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
       if (!ka || !kb || ka === kb) continue
       const row = byKey.get(ka)
       if (!row || row.fill) continue
+      // ⭐ e97 U7 — a band off the pane at every setting (`display.none`, read by `pine.js::resolveFillHandles`) is the
+      // author's own hiding: TradingView draws nothing, and neither does this
+      if (f.hidden === true) continue
       row.fill = { with: kb }
+      // ⭐ e97 U7 — drawn as the member's settings decide (`binder.fillActiveFor` → `knobBind.js::plotHiddenAt`)
+      if (f.hiddenWhen) row.fill.hiddenWhen = f.hiddenWhen
       if (typeof f.color === 'string') row.fillColor = f.color
       // ⭐⭐ …and a static band colour that is the script's `input.color` is the
       // member's pick (`binder.effectiveFillColour`), like the two above.
@@ -1047,6 +1086,8 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
         // ⭐ F1 — render-time placement, witnessed (`pine.js::resolvePaint`).
         ...(Number.isInteger(p.offset) && p.offset !== 0 ? { offset: p.offset } : {}),
         ...(Number.isInteger(p.showLast) ? { showLast: p.showLast } : {}),
+        // ⭐ e97 U7 — drawn as the member's settings decide (`pine.js::resolvePaint`, the ONE display reader)
+        ...(p.hiddenWhen ? { hiddenWhen: p.hiddenWhen } : {}),
       }
       if (typeof p.color === 'string') doc.color = p.color
       if (Number.isFinite(p.opacity)) doc.opacity = p.opacity
@@ -1213,6 +1254,14 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
   // document carries reads it (see `colourSpecs`), appended after the value inputs.
   const colourRead = new Set()
   for (const cr of conditionRows) seriesNamesOf(cr.ast, colourRead)
+  // ⭐ e97 U6 — and a setting a carried row's display reads (`hiddenWhen`): the member's control to show or hide it
+  for (const r of rows) if (r && r.hiddenWhen) seriesNamesOf(r.hiddenWhen, colourRead)
+  // ⭐ e97 U7 — and a setting a band's, a paint's or a level's display reads (the same `hiddenWhen`)
+  for (const r of rows) if (r && r.fill && r.fill.hiddenWhen) seriesNamesOf(r.fill.hiddenWhen, colourRead)
+  for (const p of docPaints) if (p && p.hiddenWhen) seriesNamesOf(p.hiddenWhen, colourRead)
+  for (const h of [...((t.presentation || {}).levels || []), ...((t.presentation || {}).levelFills || [])]) {
+    if (h && h.hiddenWhen) seriesNamesOf(h.hiddenWhen, colourRead)
+  }
   const colourDeclared = colourSpecs.filter((s) => colourRead.has(s.key))
   // ⭐⭐ C43 — THE SCRIPT'S OWN `runtime.error` CALLS RIDE ON THE DOCUMENT
   // (`meta.runtimeErrors`), with the settings their conditions read declared, so
@@ -1259,6 +1308,8 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
       return row
     }
     for (const f of ((t.presentation || {}).levelFills || [])) {
+      // ⭐ e97 U7 — a band its author keeps off the pane at every setting draws nothing on TradingView, nor here
+      if (f && f.hidden === true) continue
       const ga = guideByOrdinal.get(f.a)
       const gb = guideByOrdinal.get(f.b)
       const name = `\`fill\` (${(ga && ga.label) || `hline ${f.a + 1}`} / ${(gb && gb.label) || `hline ${f.b + 1}`})`
@@ -1272,10 +1323,61 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
       }
       const ra = anchorOf(ga)
       const rb = anchorOf(gb)
-      ra.fill = { with: rb.key }
+      ra.fill = { with: rb.key, ...(f.hiddenWhen ? { hiddenWhen: f.hiddenWhen } : {}) }
       ra.fillColor = f.color
       if (Number.isFinite(f.opacity)) ra.fillOpacity = f.opacity
       if (f.transparency && typeof f.transparency.via === 'string') ra.fillTransparency = { ...f.transparency }
+    }
+  }
+  // ⭐ e97 U6 — a display a setting decides needs that setting DECLARED to be the member's control; one whose setting
+  // did not come across (the colour-inputs proof declined it) is decided HERE, at the setting's default
+  // (`knobBind.js::hiddenAtLeafDefaults`): what TradingView draws until the member moves it, never a hiddenWhen
+  // naming a setting the document does not hold.
+  {
+    const declaredKeys = new Set((docInputs || []).map((x) => x && x.key))
+    for (const r of rows) {
+      if (!r || !r.hiddenWhen) continue
+      const names = [...seriesNamesOf(r.hiddenWhen, new Set())]
+      if (names.every((n) => declaredKeys.has(n))) continue
+      if (hiddenAtLeafDefaults(r.hiddenWhen)) r.hidden = true
+      delete r.hiddenWhen
+    }
+    // ⭐ e97 U7 — the same rule for a band, a paint and a level: decided at the setting's default when the setting did
+    // not come across. A band or paint hidden there is not carried (TradingView draws none until the member moves it,
+    // and this document then has no control to move); a level hidden there is not drawn.
+    const undeclared = (tree) => [...seriesNamesOf(tree, new Set())].some((n) => !declaredKeys.has(n))
+    const droppedColumns = new Set()
+    const columnOf = (h) => (h && typeof h.colorMode === 'string' && h.colorMode.startsWith('column:') ? h.colorMode.slice(7) : null)
+    for (const r of rows) {
+      if (!r || !r.fill || !r.fill.hiddenWhen || !undeclared(r.fill.hiddenWhen)) continue
+      if (hiddenAtLeafDefaults(r.fill.hiddenWhen)) {
+        if (columnOf(r.fill)) droppedColumns.add(columnOf(r.fill))
+        for (const k of ['fill', 'fillColor', 'fillColorInput', 'fillOpacity', 'fillTransparency']) delete r[k]
+      } else delete r.fill.hiddenWhen
+    }
+    for (let i = docPaints.length - 1; i >= 0; i -= 1) {
+      const p = docPaints[i]
+      if (!p || !p.hiddenWhen || !undeclared(p.hiddenWhen)) continue
+      if (hiddenAtLeafDefaults(p.hiddenWhen)) {
+        if (columnOf(p)) droppedColumns.add(columnOf(p))
+        docPaints.splice(i, 1)
+      } else delete p.hiddenWhen
+    }
+    for (let i = levelPlan.guides.length - 1; i >= 0; i -= 1) {
+      const g = levelPlan.guides[i]
+      if (!g || !g.hiddenWhen || !undeclared(g.hiddenWhen)) continue
+      if (hiddenAtLeafDefaults(g.hiddenWhen)) levelPlan.guides.splice(i, 1)
+      else delete g.hiddenWhen
+    }
+    // ⛔ and a condition column only that band or paint named goes with it: a column nobody names cannot exist.
+    // Only a column a dropped holder named is a candidate, and it stays while anything else mentions its key.
+    for (const key of droppedColumns) {
+      const cr = conditionRows.find((c) => c && c.key === key)
+      if (!cr) continue
+      const mentions = (x) => { const s = JSON.stringify(x); return s.includes(`"${key}"`) || s.includes(`column:${key}"`) }
+      if (rows.some((x) => x !== cr && mentions(x)) || docPaints.some(mentions)) continue
+      const at = rows.indexOf(cr)
+      if (at >= 0) rows.splice(at, 1)
     }
   }
   let definition = null
@@ -1402,6 +1504,12 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
     notes.push(drawingNote)
   }
   if (windowed && hostObjectsWouldDraw) notes.unshift({ name: 'Drawings', note: CALC_BARS_DRAWINGS_NOTE })
+  // ⭐ e97 U6 — a display this engine cannot read is withheld BY NAME (never guessed as drawn): each is said, by its title
+  for (const o of carryable) {
+    if (!o || !o.displayUnread) continue
+    const pname = o.title ? `\`${o.title}\`` : 'One of its plots'
+    notes.push({ name: o.title || 'Plot', note: `${pname} is not drawn: ${o.displayUnread}.` })
+  }
   // ⭐ PLOTARROW — each one carried and not drawn is said so, by its title.
   for (const o of drawable.filter(plotarrowWithheld)) {
     const name = o.title || 'plotarrow'
@@ -1467,7 +1575,15 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
     notes.push(n)
   }
   // ⭐⭐ e96 — A LEVEL DRAWN IN THE NEUTRAL PRESENTATION, OR NOT DRAWN, IS SAID SO, level by level.
-  for (const n of levelNotesOf(levelPlan)) {
+  // ⭐ e97 U7 — and each level the translation could not read, as the runtime document already said it, and each band
+  // whose `display` it could not read (withheld by name, never drawn)
+  // ⭐ e97 U8 — and each enum setting the translator withheld for its size (`pine.js::enumSwitch`): not offered, and why
+  const withheldSettingNotes = ((t && t.withheldKnobs) || []).map((w) => ({
+    // the title the member reads, and the script's own name for it (two settings may share a title: artemis's two "Smoothing")
+    name: w.title ? `"${w.title}" (\`${w.name}\`)` : `\`${w.name}\``,
+    note: `${w.title ? `"${w.title}" (\`${w.name}\`)` : `\`${w.name}\``} is not offered as a setting: ${w.sentence}.`,
+  }))
+  for (const n of [...levelNotesOf(levelPlan), ...levelsWithheldNotesOf(t), ...bandDisplayWithheldNotesOf(t), ...withheldSettingNotes]) {
     const key = `${n.name} :: ${n.note}`
     if (seen.has(key)) continue
     seen.add(key)
@@ -2141,11 +2257,12 @@ const RUNTIME_CANDLE_STYLE = Object.freeze({ plotcandle: OHLC_DEF_STYLES[0], plo
  *  @param {object} ro  the run's descriptor of the candle's CLOSE output
  *  @param {boolean} overlay  the script is an `overlay = true` one
  *  @returns {{ok: true, colours: object} | {ok: false, why: string}} */
-function runtimeCandlePresentation(kind, version, ro, overlay) {
+function runtimeCandlePresentation(kind, version, ro, overlay, { displayRead = false } = {}) {
   const c = (ro && ro.candle) || {}
   const field = { color: 'colour', wickcolor: 'wick', bordercolor: 'border' }
   return candleRule(kind, version, {
-    showLast: c.showLast, display: c.display, forceOverlay: c.forceOverlay,
+    // ⭐ e97 U6 — the display read already, through the host row (`displayRead`): the run's descriptor only without one
+    showLast: c.showLast, display: displayRead ? undefined : c.display, forceOverlay: c.forceOverlay,
     colour: (param) => {
       const f = ro && ro[field[param]]
       if (!f) return { absent: true }
@@ -2662,6 +2779,10 @@ function runtimeLaneDocument({ source, id, name, t, hostReason, hostGuard = null
   const shiftPinned = new Set()
   // the families of elements skipped as hidden BY THEIR AUTHOR (the family ledger: hidden is not "not drawn")
   const authorSkipped = new Set()
+  // ⭐ e97 U5 — each candle / bar this document does NOT draw, by its four host output indexes, and why: hidden by its
+  // author (`display = display.none` at the inputs' defaults) or withheld by name (`runtimeCandlePresentation`).
+  // `candlesNotDrawn` on the answer, for a reader that grades a candle (the vendor harness).
+  const candlesNotDrawn = []
   for (const { o, index } of ofKind) {
     const ord = seen.get(o.kind) || 0
     seen.set(o.kind, ord + 1)
@@ -2675,7 +2796,10 @@ function runtimeLaneDocument({ source, id, name, t, hostReason, hostGuard = null
     // (`paneHides`): ruling 1.2 never OFFERS it, and TradingView DRAWS it unless its own `display`
     // hides it. ⚰️ supertrend-strategy's `mPlot` (Q-SD1 / Q-SD2: `display: 15`, `visible: true`) was
     // "the member pane did not carry this output" here, its value and its colour never drawn.
-    if ((paneHides(o) && o.hiddenReason !== 'constant') || o._authorHidden === true) {
+    // ⭐ e97 U6 — a plot its display keeps OFF THE PANE at every setting (`offPane`: `display.data_window`, …) is carried as a
+    // hidden row, computed and never drawn, as the host lane carries it: its values still reach scans, alerts and the grade
+    const offPaneOnly = o.offPane === true && !o.hidden && !o.displayUnread && !plotarrowWithheld(o)
+    if (!offPaneOnly && ((paneHides(o) && o.hiddenReason !== 'constant') || o._authorHidden === true)) {
       if (o._authorHidden === true || o.hiddenReason === 'author') authorSkipped.add(o.kind)
       continue
     }
@@ -2710,11 +2834,32 @@ function runtimeLaneDocument({ source, id, name, t, hostReason, hostGuard = null
       // ⛔ ONLY THE AUTHOR'S HIDING: the host also hides a candle whose four columns are the bare
       // price series (`hiddenReason: 'passthrough'`, so it does not draw four lines over the chart),
       // and that is exactly the candle that RECOLOURS the chart's own bars, which TradingView draws.
-      if (group.some(({ o }) => o.hiddenReason === 'author' || o._authorHidden === true)
-        || (run.ro.candle && run.ro.candle.display === 'display.none')) { authorSkipped.add(kind); return }
+      // ⭐⭐ e97 U6 — THE CANDLE'S DISPLAY IS THE HOST ROW'S, through the one reader (`pine.js::outputDisplayOf`): off the
+      // pane at every setting (the author's), unreadable (withheld by name), or decided by the member's settings
+      // (`hiddenWhen`, resolved per instance at bind). ⚰️ The run's own descriptor read a bare name only, so
+      // `display = show ? display.all : display.none` was "`display = unread`" and the candle was withheld.
+      const hostClose = group[3] && group[3].o
       const label = (run.ro.candle && run.ro.candle.title) || `${kind} ${ord + 1}`
-      const pres = runtimeCandlePresentation(kind, t && t.version, run.ro, !!(t.presentation && t.presentation.overlay === true))
-      if (!pres.ok) { withheld.push({ label, why: pres.why, o: group[3] && group[3].o }); return }
+      if (hostClose && hostClose.displayUnread) {
+        withheld.push({ label, why: hostClose.displayUnread, o: hostClose })
+        // ⭐ e97 U5 (train x U6) — WHICH candle, by its four host output indexes, for a reader that grades it
+        candlesNotDrawn.push({ outputs: group.map((g) => g.index), by: 'withheld', label, why: hostClose.displayUnread })
+        return
+      }
+      if (group.some(({ o }) => o.hiddenReason === 'author' || o._authorHidden === true || o.offPane === true)
+        || (!hostClose && run.ro.candle && run.ro.candle.display === 'display.none')) {
+        authorSkipped.add(kind)
+        // ⭐ e97 U5 — WHICH candle, by its four host output indexes, for a reader that grades it (the vendor harness)
+        candlesNotDrawn.push({ outputs: group.map((g) => g.index), by: 'author', why: 'its author hides it (`display`)' })
+        return
+      }
+      const pres = runtimeCandlePresentation(kind, t && t.version, run.ro, !!(t.presentation && t.presentation.overlay === true),
+        { displayRead: !!hostClose })
+      if (!pres.ok) {
+        withheld.push({ label, why: pres.why, o: group[3] && group[3].o })
+        candlesNotDrawn.push({ outputs: group.map((g) => g.index), by: 'withheld', label, why: pres.why })
+        return
+      }
       candleEntries.push({
         candle: kind,
         label,
@@ -2723,6 +2868,7 @@ function runtimeLaneDocument({ source, id, name, t, hostReason, hostGuard = null
         out: run.byRole.close,
         parts: { open: run.byRole.open, high: run.byRole.high, low: run.byRole.low },
         colours: pres.colours,
+        ...(hostClose && hostClose.hiddenWhen ? { hiddenWhen: hostClose.hiddenWhen } : {}),
       })
     })
   }
@@ -2779,7 +2925,7 @@ function runtimeLaneDocument({ source, id, name, t, hostReason, hostGuard = null
   }
   const packedOf = new Map()
   const candleOf = new Map()
-  const rows = drawnRows.map(({ o, index, p, out, colourOutput, displace, candle, label, parts, colours }, i) => {
+  const rows = drawnRows.map(({ o, index, p, out, colourOutput, displace, candle, label, parts, colours, hiddenWhen }, i) => {
     const key = keyAt(i)
     outputs[key] = out
     if (candle) {
@@ -2802,6 +2948,8 @@ function runtimeLaneDocument({ source, id, name, t, hostReason, hostGuard = null
         readback: '',
         style: RUNTIME_CANDLE_STYLE[candle],
         hidden: false,
+        // ⭐ e97 U6 — drawn or hidden as the instance's settings decide (`knobBind.js::plotHiddenAt`)
+        ...(hiddenWhen ? { hiddenWhen } : {}),
         output: index,
       }
     }
@@ -2820,7 +2968,10 @@ function runtimeLaneDocument({ source, id, name, t, hostReason, hostGuard = null
       style: typeof p.style === 'string' ? p.style : 'line',
       ...rowColour(p),
       ...(p.colorWithheld ? { colorWithheld: { ...p.colorWithheld } } : {}),
-      hidden: false,
+      // ⭐ e97 U6 — off the pane at every setting: computed, never drawn
+      hidden: !!(o && o.offPane === true),
+      // ⭐ e97 U6 — drawn or hidden as the instance's settings decide (the host row's display, `outputDisplayOf`)
+      ...(o && o.hiddenWhen ? { hiddenWhen: o.hiddenWhen } : {}),
       // `linewidth`, as the host lane's rows carry it (see that projection).
       ...(Number.isFinite(p.width) ? { width: pineLineWidth(p.width) } : {}),
       ...(p.marker && p.marker.shape ? { marker: p.marker } : {}),
@@ -2880,6 +3031,8 @@ function runtimeLaneDocument({ source, id, name, t, hostReason, hostGuard = null
           colorPacked: c.colorPacked,
           ...(Number.isInteger(p.offset) && p.offset !== 0 ? { offset: p.offset } : {}),
           ...(Number.isInteger(p.showLast) ? { showLast: p.showLast } : {}),
+          // ⭐ e97 U7 — the host paint's display decision, as the host document carries it
+          ...(p.hiddenWhen ? { hiddenWhen: p.hiddenWhen } : {}),
         })
       })
     }
@@ -3047,10 +3200,7 @@ function runtimeLaneDocument({ source, id, name, t, hostReason, hostGuard = null
   // ⭐⭐ e96 — the levels drawn in the neutral presentation, or not drawn (see the host document's), and each level
   // the translation could not read, in the translation's own words (the editor's status lists that sentence once)
   for (const n of levelNotesOf(levelPlan)) notes.push(n)
-  for (const u of ((t.presentation || {}).levelsWithheld || [])) {
-    const said = (t.notes || []).find((x) => x && x.code === 'pine:chart-only' && x.line === u.line && /^`hline` is not drawn/.test(x.message || ''))
-    notes.push({ name: '`hline`', note: said ? said.message : `\`hline\` is not drawn: ${u.reason}` })
-  }
+  for (const n of levelsWithheldNotesOf(t)) notes.push(n)
   // ⭐ RT2 — a document that repaints says so, naming what it reads, in the
   // member's terms. A non-repainting one says nothing (the badge is silent on
   // the clean case by design, `repaintVerdict.js`).
@@ -3214,6 +3364,8 @@ function runtimeLaneDocument({ source, id, name, t, hostReason, hostGuard = null
     // it does not take runtime documents.
     saveable: true,
     withheld: withheld.map((w) => w.label),
+    // ⭐ e97 U5 — the candles this document does not draw, and why (host output indexes), so a grade can name them
+    candlesNotDrawn,
     // ⭐⭐ Engine 77 (#1833, fix/strategy-disarmed-taint) — what this document withholds that the HOST document shows
     // (`hostShowsRow`, `hostShowsPaint`): the armed route never replaces the host document with one that draws less
     takesAway: [
@@ -3442,7 +3594,10 @@ function guardInputSpecs(t, stamp, existing) {
  * ('constant' keeps its lane's rule: the runtime lane draws it (B7), the host lane hides it as before.)
  */
 function paneHides(o) {
+  // ⭐ e97 U6 — and a display that keeps it off the pane at every setting (`offPane`), or one this engine cannot read
+  // (`displayUnread`, withheld by name: never guessed as drawn)
   return (!!(o && o.hidden) && o.hiddenReason !== 'fill-anchor') || plotarrowWithheld(o)
+    || !!(o && (o.offPane === true || o.displayUnread))
 }
 
 /** ⭐⭐ PLOTARROW, WITHHELD BY NAME (coordinator ruling 2026-11-19). The reference: `plotarrow` "Plots up and down

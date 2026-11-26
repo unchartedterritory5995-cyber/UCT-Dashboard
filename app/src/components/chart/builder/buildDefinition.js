@@ -230,6 +230,8 @@ export function buildDefinition({ defId, name, source, ast, mode, rev = 1, versi
       // and its column still reaches the alert seam and the scan.
       legend: { decimals: 2 },
       ...(r.hidden ? { hidden: true } : {}),
+      // ⭐ e97 U6 — hidden as the instance's settings decide (a knob tree, true = hidden; `knobBind.js::plotHiddenAt`)
+      ...(!r.hidden && r.hiddenWhen ? { hiddenWhen: r.hiddenWhen } : {}),
       // ⭐⭐ C1-A: THE AUTHOR'S CONDITIONAL COLOUR, carried as the schema's own
       // per-point mode. `colorMode: 'column:<key>'` names ANOTHER row of this
       // same document — the hidden one holding the condition — and
@@ -287,6 +289,8 @@ export function buildDefinition({ defId, name, source, ast, mode, rev = 1, versi
         ? {
           fill: {
             with: r.fill.with,
+            // ⭐ e97 U7 — the band drawn as the instance's settings decide (`binder.fillActiveFor` → `plotHiddenAt`)
+            ...(r.fill.hiddenWhen ? { hiddenWhen: r.fill.hiddenWhen } : {}),
             // ⭐⭐ (j) j.3b(b) / R34 — THE BAND'S OWN CONDITIONAL COLOUR, in the
             // SAME three field names a plot uses twenty lines above. That is not a
             // convenience: `pool.columnColorsForPlot` is handed the fill verbatim,

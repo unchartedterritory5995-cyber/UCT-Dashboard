@@ -345,6 +345,16 @@ export function decodeVendorText(s) {
  *  of an entity decoder drift the first time one of them learns an entity. */
 export const unescapeVendorTitle = decodeVendorText
 
+// ⭐⭐ e97 U5 (phase A) — A `plotcandle` / `plotbar` IS FOUR VALUE PLOTS AND UP TO THREE COLORERS, all
+// targeting one `plotcandle_N` / `plotbar_N`. The four prices are compared now (`candles`, paired by
+// `pairCandles`); the colorers are NOT, by name. ⚰️ All seven read "plot type ohlc_open is not compared by
+// v1", so the 52 candles of 37 committed captures carried no TradingView grade at all.
+const CANDLE_PART_TYPES = Object.freeze({ ohlc_open: 'open', ohlc_high: 'high', ohlc_low: 'low', ohlc_close: 'close' })
+const CANDLE_COLOUR_TYPES = Object.freeze({ ohlc_colorer: 'body', wick_colorer: 'wick', border_colorer: 'border' })
+export const CANDLE_ROLES = Object.freeze(['open', 'high', 'low', 'close'])
+const CANDLE_TARGET = /^(plotcandle|plotbar)_(\d+)$/
+const hasOwn = (o, k) => Object.prototype.hasOwnProperty.call(o, k)
+
 export function vendorPlotRoles(capture) {
   const plots = (capture.study && capture.study.plots) || []
   const styles = (capture.study && capture.study.styles) || {}
@@ -352,9 +362,22 @@ export function vendorPlotRoles(capture) {
   const colorers = []
   const notDrawn = []
   const notCompared = []
+  const candleByTarget = new Map()
   plots.forEach((p, idx) => {
     const title = decodeVendorText((p.title !== undefined ? p.title : (styles[p.id] && styles[p.id].title)) ?? null)
     const rec = { ...p, title, column: idx + 1 }
+    const candleAt = typeof p.target === 'string' ? CANDLE_TARGET.exec(p.target) : null
+    if (candleAt && hasOwn(CANDLE_PART_TYPES, p.type)) {
+      if (!candleByTarget.has(p.target)) {
+        candleByTarget.set(p.target, { target: p.target, kind: candleAt[1], index: Number(candleAt[2]), parts: {} })
+      }
+      candleByTarget.get(p.target).parts[CANDLE_PART_TYPES[p.type]] = { ...rec, candlePart: CANDLE_PART_TYPES[p.type] }
+      return
+    }
+    if (candleAt && hasOwn(CANDLE_COLOUR_TYPES, p.type)) {
+      notCompared.push({ ...rec, candleColour: true, why: `candle ${CANDLE_COLOUR_TYPES[p.type]} colour (${p.target}) — not compared (phase A)` })
+      return
+    }
     if (VALUE_TYPES.has(p.type)) value.push(rec)
     // ⛔ A colorer on a FILLED AREA colours the fill, not a plot. v1 does not
     // grade fills, so it is reported NOT COMPARED by name, never dropped.
@@ -363,7 +386,68 @@ export function vendorPlotRoles(capture) {
     else if (p.type === 'alertcondition') notDrawn.push(rec)
     else notCompared.push(rec)
   })
-  return { value, colorers, notDrawn, notCompared }
+  const candles = [...candleByTarget.values()].sort((a, b) => (a.kind === b.kind ? a.index - b.index : a.kind < b.kind ? -1 : 1))
+  return { value, colorers, notDrawn, notCompared, candles }
+}
+
+/** Is this one of OUR plots a part of a candle (`plotcandle` / `plotbar`, carrying its Pine role)? */
+export function isOurCandlePart(o) {
+  return !!o && (o.kind === 'plotcandle' || o.kind === 'plotbar')
+}
+
+/** ⭐⭐ e97 U5 (phase A) — PAIR THE VENDOR'S CANDLES WITH OURS, or say why not.
+ *
+ *  A candle carries no title on either side (TradingView's `plotcandle_N` plots are untitled, and no capture
+ *  records `ohlcPlots` titles), so the one identity both sides expose is ORDER: TradingView numbers a study's
+ *  candles in declaration order (`plotcandle_0`, `plotcandle_1`, ...), and the translator emits one group of
+ *  four outputs per `plotcandle(...)` statement in source order (`MULTI_OUTPUT_CALLS`). So, per kind:
+ *    C1  the N-th vendor candle is paired with our N-th candle group, part by part (`open` with `open`, ...),
+ *        ONLY when both sides hold the same number of candles of that kind and every group is whole
+ *        (each of the four roles exactly once);
+ *    ⛔  anything else is UNMAPPED, by name, as `mapPlots` leaves a plot it would have to guess.
+ *  Our candle parts never enter `mapPlots`' pool: a candle part is not a line, and four untitled outputs in the
+ *  leftover pool broke M2's positional pairing for every untitled plot beside them. */
+export function pairCandles(vendorCandles, ourPlots) {
+  const pairs = []
+  const unmappedVendor = []
+  const usedOurs = new Set()
+  const ourGroups = { plotcandle: [], plotbar: [] }
+  let open = null
+  for (const o of ourPlots || []) {
+    if (!isOurCandlePart(o)) { open = null; continue }
+    if (!open || o.roleIndex === 0 || open.kind !== o.kind || open.parts[o.role] !== undefined) {
+      open = { kind: o.kind, parts: {}, count: 0 }
+      ourGroups[o.kind].push(open)
+    }
+    open.parts[o.role] = o
+    open.count += 1
+  }
+  const whole = (g) => g.count === CANDLE_ROLES.length && CANDLE_ROLES.every((r) => g.parts[r])
+  for (const kind of ['plotcandle', 'plotbar']) {
+    const vendors = (vendorCandles || []).filter((c) => c.kind === kind)
+    const ours = ourGroups[kind]
+    const vendorWhole = vendors.every((c) => CANDLE_ROLES.every((r) => c.parts[r]))
+    const pairable = vendors.length === ours.length && vendorWhole && ours.every(whole)
+    for (const [n, c] of vendors.entries()) {
+      for (const role of CANDLE_ROLES) {
+        const v = c.parts[role]
+        if (!v) continue
+        if (!pairable) {
+          const reason = vendors.length !== ours.length
+            ? `the capture holds ${vendors.length} ${kind}(s) and our side ${ours.length}: a candle is paired only by its order, and the counts disagree`
+            : !vendorWhole ? `${c.target} does not record all four prices`
+              : `one of our ${kind} groups does not carry all four roles (${CANDLE_ROLES.join(', ')})`
+          unmappedVendor.push({ vendor: v, reason })
+          continue
+        }
+        const o = ours[n].parts[role]
+        pairs.push({ vendor: v, ours: o, rule: `C1-candle-order (${c.target}.${role})` })
+        usedOurs.add(o)
+      }
+    }
+  }
+  const unmappedOurs = (ourPlots || []).filter((o) => isOurCandlePart(o) && !usedOurs.has(o))
+  return { pairs, unmappedVendor, unmappedOurs }
 }
 
 // ── MAPPING ──────────────────────────────────────────────────────────────────
@@ -887,6 +971,25 @@ export function plotVerdict(r, { colorMeasured, colorResolvable, vendorColorReas
 
 const fmt = (x) => (x === null || x === undefined ? 'na' : typeof x === 'number' ? String(x) : JSON.stringify(x))
 
+/** ⭐ e97 U6 — `{drawing}`: whether TradingView and our document agree on DRAWING a plot (not its values), or `{}`
+ *  when our side did not say. */
+export function drawingOf(vendorHidden, oursHidden) {
+  if (oursHidden !== true && oursHidden !== false) return {}
+  if (vendorHidden === oursHidden) return { drawing: vendorHidden ? 'both hide it' : 'both draw it' }
+  return { drawing: vendorHidden ? 'TradingView hides it (display none); ours draws it' : 'ours hides it; TradingView draws it' }
+}
+
+/** ⭐ train e97 (U5 x U6) — `{drawing}` for a CANDLE part (`C1-candle-order`), or `{}` when our side did not say.
+ *  ⛔ A capture does not record a candle's display: every candle part's `styleState.display` in the committed
+ *  captures is 4294967295 (all bits), whatever its `display` argument says (measured over the 37 captures that write
+ *  a `plotcandle` / `plotbar`, `display = ...` written or not). So TradingView's side is named as not recorded,
+ *  never read as "TradingView draws it". */
+export const CANDLE_DISPLAY_NOT_RECORDED = 'the capture does not record TradingView\'s display for a candle'
+export function candleDrawingOf(oursHidden) {
+  if (oursHidden !== true && oursHidden !== false) return {}
+  return { drawing: `ours ${oursHidden ? 'hides' : 'draws'} it at these settings; ${CANDLE_DISPLAY_NOT_RECORDED}` }
+}
+
 /** One divergent bar's two readings, in the unit that disagreed. ⚰️ A colour
  *  divergence printed the two VALUES ("color: vendor 50 vs ours 50") — equal by
  *  construction, since a colour is only compared on a bar whose values agree —
@@ -1071,14 +1174,23 @@ export function compareCapture(capture, ours, opts = {}) {
   const rowsByTime = new Map((capture.plotValues.rows || []).map((r) => [String(r[0]), r]))
   const roles = vendorPlotRoles(capture)
   for (const p of roles.notDrawn) base.notCompared.push({ id: p.id, title: p.title, type: p.type, why: 'alertcondition — draws nothing on TradingView either; not a visual claim' })
-  for (const p of roles.notCompared) base.notCompared.push({ id: p.id, title: p.title, type: p.type, why: `plot type ${p.type} is not compared by v1` })
+  // ⭐ e97 U5 — a candle colour keeps its own sentence ("not compared (phase A)"); every other type reads as before
+  for (const p of roles.notCompared) base.notCompared.push({ id: p.id, title: p.title, type: p.type, why: p.candleColour ? p.why : `plot type ${p.type} is not compared by v1` })
 
   // History: a capture that provably starts at bar 0 has no pre-window state our
   // side lacks, so there is no warm-up excuse and every bar counts.
   // ⛔⛔ read through `history_claim.mjs`: a claim the capture's own bar_index row contradicts is FALSE
   const bar0 = startsAtBar0Holds(capture)
 
-  const map = mapPlots(roles.value, ours.plots || [])
+  // ⭐⭐ e97 U5 (phase A) — candles are paired by their own rule (`pairCandles`) and graded below as value plots;
+  // our candle parts are kept out of `mapPlots`' pool, whatever the capture holds.
+  const candleMap = pairCandles(roles.candles, ours.plots || [])
+  const map = mapPlots(roles.value, (ours.plots || []).filter((o) => !isOurCandlePart(o)))
+  map.pairs.push(...candleMap.pairs)
+  map.unmappedVendor.push(...candleMap.unmappedVendor)
+  for (const o of candleMap.unmappedOurs) {
+    base.notCompared.push({ ours: o.key, title: o.title, why: `our ${o.kind} ${o.role ?? ''} has no vendor candle it can be paired with` })
+  }
   for (const u of map.unmappedVendor) {
     base.plots.push({ id: u.vendor.id, title: u.vendor.title, verdict: 'INCONCLUSIVE', reason: `UNMAPPED — ${u.reason}` })
   }
@@ -1114,13 +1226,23 @@ export function compareCapture(capture, ours, opts = {}) {
     // chart-clock code) is graded the way a missing column is: not compared, with the
     // reason. ⚰️ Graded as its all-`na` column it read DIVERGE — the verdict a WRONG
     // value gets — on 13 captures (triage lane WN, 2026-11-08).
+    // ⭐ e97 U5 — a candle our door did not draw is graded by the DOOR'S reason (`ourSide.js::candleNotDrawnOf`: hidden
+    // by its author, or withheld by name), never as "a missing column": INCONCLUSIVE, with that sentence.
+    if (v.candlePart && o.candleNotDrawn && !o.column) {
+      base.plots.push({ id: v.id, title: v.title, ours: o.key || null, rule: pair.rule, verdict: 'INCONCLUSIVE',
+        candleNotDrawn: o.candleNotDrawn, reason: o.missingReason })
+      continue
+    }
     if (!o.column || o.withheldBy) {
       base.plots.push({ id: v.id, title: v.title, ours: o.key || null, rule: pair.rule, verdict: 'INCONCLUSIVE',
         ...(o.withheldBy ? { withheld: o.withheldBy } : {}),
         reason: `our side produced no column for this plot${o.missingReason ? ` — ${o.missingReason}` : ''}` })
       continue
     }
-    const vc = vendorColorsFor(capture, v, roles.colorers, rowsByTime, times)
+    // ⭐ e97 U5 (phase A) — a candle part's colour is the candle's (its body / wick / border colorers, named
+    // "not compared (phase A)"), never the part's own style colour, which draws nothing.
+    const vc = v.candlePart ? { colors: null, measured: false, reason: null, candle: true }
+      : vendorColorsFor(capture, v, roles.colorers, rowsByTime, times)
     const treeShift = Number.isInteger(o.treeShift) && o.treeShift > 0 ? o.treeShift : 0
     const ourColors = vc.measured ? (leadBy(o.colors, treeShift) || null) : null
     let warmupBars
@@ -1149,7 +1271,10 @@ export function compareCapture(capture, ours, opts = {}) {
     // verdict: a stats block whose firstDivergence says "colour" for a plot whose
     // colour was not graded names the wrong disagreement to whoever reads it.
     const vStyle = (capture.study && capture.study.styleState && capture.study.styleState[v.id]) || null
-    const hiddenOnVendor = !!(vStyle && vStyle.display === 0)
+    // ⭐ e97 U6 — TradingView's `display` is a bitmask (pane 1, data window 2, price scale 4, status line 8; all 15):
+    // a plot whose bitmask has no PANE bit is not drawn on the chart (`display.data_window`), exactly as display 0 is not
+    const hiddenOnVendor = !!(vStyle && Number.isInteger(vStyle.display) && (vStyle.display === 0
+      || (vStyle.display >= 0 && vStyle.display < 0x100000000 && (vStyle.display & 1) === 0)))
     // ⭐ …and the same for a `plotchar` whose glyph is EMPTY. `plotchar(x, "", "")`
     // is the idiom for a value that belongs in the data window and nowhere on
     // the chart: TradingView draws no glyph and no text, and still reports the
@@ -1252,11 +1377,17 @@ export function compareCapture(capture, ours, opts = {}) {
     }
     base.plots.push({
       id: v.id, title: v.title ?? o.title, ours: o.key, rule: pair.rule, ...pv,
+      // ⭐ e97 U6 — the DRAWING named beside the values (which are graded either way: TradingView records a hidden
+      // plot's values): TradingView's display (`styleState.display`, 0 = hidden) against whether our document draws it
+      // at the capture's settings (`ourSide.js` `drawnHidden`). It moves no verdict.
+      // train e97 (U5 x U6): a candle part's TradingView display is not recorded (`candleDrawingOf`)
+      ...(/^C1-candle/.test(pair.rule || '') ? candleDrawingOf(o.drawnHidden) : drawingOf(hiddenOnVendor, o.drawnHidden)),
       warmupBars, warmupSource, derivedLookback: Number.isInteger(o.lookback) ? o.lookback : null,
       ...(colorWarmupBars !== warmupBars ? { colorWarmupBars, colorWarmupSource: `derived: the colour rule's own maxLookback (${o.colorLookback})` } : {}),
       ...(treeShift ? { treeShift, treeShiftNote: `offset = ${treeShift}: our column read ${treeShift} bars ahead to meet the vendor's unshifted series; the last ${treeShift} bars are unread` } : {}),
       ...(o.withheldNewest === true ? { withheldNewest: 'request:htf-newest-unconfirmed', withheldNewestNote: 'the newest bar is withheld by name on our side (a finished bar whose week or month end is the date of the next session) and is not compared' } : {}),
-      color: !vc.measured ? 'not captured'
+      color: vc.candle ? 'not compared (phase A) — a candle\'s body, wick and border colours are the candle\'s colorers'
+        : !vc.measured ? 'not captured'
         : colourUngraded ? (emptyGlyph ? 'not graded — an empty plotchar glyph draws nothing' : 'not graded — hidden on TradingView (display none)')
           : !vc.colors ? 'undecodable in the capture'
             : r.colorComparable === 0 ? 'nothing drawn on any bar — no colour to compare'

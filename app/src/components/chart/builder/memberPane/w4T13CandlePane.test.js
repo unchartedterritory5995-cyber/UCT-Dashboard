@@ -106,7 +106,6 @@ describe('W4-T13 - the document', () => {
     expect(why('plotcandle(open, high, low, close, "C", color = color.green)'))
       .toMatch(/`C` is not drawn: it does not write `wickcolor =`.*not captured/)
     expect(why(`plotcandle(${full}, show_last = 5)`)).toMatch(/show_last/)
-    expect(why(`plotcandle(${full}, display = display.status_line)`)).toMatch(/display = display\.status_line/)
     // force_overlay over a script that is not an overlay asks for the price chart
     expect(why(`plotcandle(${full}, force_overlay = true)`, H.replace('overlay = true', 'overlay = false')))
       .toMatch(/force_overlay = true/)
@@ -122,6 +121,14 @@ describe('W4-T13 - the document', () => {
     expect(hidden.ok).toBe(true)
     expect(hidden.definition.plots.some((p) => p.style === 'candles')).toBe(false)
     expect(hidden.definition.meta.disclosures.map((n) => n.note).join(' ')).not.toMatch(/not drawn/)
+    // ⭐ e97 U6 — a display that keeps the candle OFF THE PANE (`display.status_line`) is the author's own statement too:
+    // TradingView draws no candle there, so it is hidden, not withheld (`pine.js::outputDisplayOf`)
+    const offPane = door(`${H}plotcandle(${full}, display = display.status_line)
+plot(mn, "mn")
+`, 'u_t13_s')
+    expect(offPane.ok).toBe(true)
+    expect(offPane.definition.plots.some((p) => p.style === 'candles')).toBe(false)
+    expect(offPane.definition.meta.disclosures.map((n) => n.note).join(' ')).not.toMatch(/not drawn/)
     const forced = door(`${H}plotcandle(${full}, force_overlay = true)\nplot(mn, "mn")\n`, 'u_t13_f')
     expect(forced.definition.plots.some((p) => p.style === 'candles')).toBe(true)
   })

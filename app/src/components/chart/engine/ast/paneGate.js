@@ -81,6 +81,21 @@ export function paneObjectsGate(t) {
  *
  *  @returns {{ok: boolean, reason: string|null, guard: string|null}}
  */
+/** ⭐ e97 U6 — does every output of this translation draw nothing because its AUTHOR said so (a literal
+ *  `display.none`, or a display off the pane at every setting), with none refused, unread or otherwise hidden? */
+export function everyOutputAuthorHidden(t) {
+  const outs = ((t && t.outputs) || []).filter((o) => o && o.kind !== 'alertcondition')
+  // ⛔ and the script draws nothing ELSE either: no drawing objects, no paint. One whose plots are all hidden but whose
+  // labels or lines TradingView draws is not "nothing drawn" (session-highs-and-lows, measured), and keeps its refusal.
+  const ops = t && t.objects && Array.isArray(t.objects.ops) ? t.objects.ops.length : 0
+  // the drawing steps the script WRITES, whether or not this engine carried them (`objectDiagnostics.attemptedOps`):
+  // a script whose labels the object program dropped still draws them on TradingView
+  const attempted = t && t.objectDiagnostics && Number.isFinite(t.objectDiagnostics.attemptedOps) ? t.objectDiagnostics.attemptedOps : 0
+  const paints = ((t && t.presentation && t.presentation.paints) || []).filter((p) => p && !p.hidden && !p.na)
+  return outs.length > 0 && ops === 0 && attempted === 0 && paints.length === 0 && outs.every((o) => !o.refusal && !o.displayUnread
+    && ((o.hidden === true && o.hiddenReason === 'author') || o.offPane === true))
+}
+
 export function paneGate(t, opts = {}) {
   const no = (reason, guard = null) => ({ ok: false, reason, guard })
   if (!t || typeof t !== 'object') return no('there is no translation to draw')
@@ -119,6 +134,10 @@ export function paneGate(t, opts = {}) {
       if (!og.draw) return no(og.refusal, og.guard)
       return { ok: true, reason: null, guard: null }
     }
+    // ⭐⭐ e97 U6 — A SCRIPT WHOSE EVERY OUTPUT ITS AUTHOR HID IS SERVED, DRAWING NOTHING, as TradingView serves it.
+    // `pine:hidden-only` is the SCREENER's honest answer (nothing to screen); on a chart it is a script that draws
+    // nothing at its author's own display, which is not a refusal (the door carries the hidden rows).
+    if (r && r.guard === 'pine:hidden-only' && everyOutputAuthorHidden(t)) return { ok: true, reason: null, guard: null }
     return no(r && r.message
       ? String(r.message)
       : 'the host lane refused this script', r ? r.guard || null : null)

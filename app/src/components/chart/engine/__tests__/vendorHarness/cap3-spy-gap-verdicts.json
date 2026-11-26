@@ -1157,7 +1157,28 @@
       "signature": {
         "verdict": "MATCH",
         "reason": null,
-        "plots": [],
+        "plots": [
+          [
+            "Heatmap Candles open",
+            "MATCH",
+            1800
+          ],
+          [
+            "Heatmap Candles high",
+            "MATCH",
+            1800
+          ],
+          [
+            "Heatmap Candles low",
+            "MATCH",
+            1800
+          ],
+          [
+            "Heatmap Candles close",
+            "MATCH",
+            1800
+          ]
+        ],
         "objects": [
           "MATCH",
           []
@@ -2354,8 +2375,29 @@
       "state": "on",
       "signature": {
         "verdict": "INCONCLUSIVE",
-        "reason": "1 of 1 items could not be compared",
-        "plots": [],
+        "reason": null,
+        "plots": [
+          [
+            null,
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — computeFor returned no column for va"
+          ],
+          [
+            null,
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — computeFor returned no column for ou"
+          ],
+          [
+            null,
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — computeFor returned no column for ou"
+          ],
+          [
+            null,
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — computeFor returned no column for ou"
+          ]
+        ],
         "objects": [
           "INCONCLUSIVE",
           [

@@ -1,0 +1,113 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "U8-M1",
+   "mutant": "a no-match switch with no default is refused again (Pine yields na)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "      if (!picked) return cOp('/', [cNum(0), cNum(0)])",
+   "to": "      if (!picked) throw new PineRefusal('pine:block', 'no arm matches', bound.at || locate(tok))",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/displayEnum.test.js",
+   "expectRed": "folded at its default (no member knob)"
+  },
+  {
+   "id": "U8-M2",
+   "mutant": "the enum knob's switch with no default declines again (folds to the default)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    const end = last || bound.fallback",
+   "to": "    if (!last && !bound.fallback) return null\n    const end = last || bound.fallback",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/displayEnum.test.js",
+   "expectRed": "a switch on the setting itself"
+  },
+  {
+   "id": "U8-M3",
+   "mutant": "a display read through a var is not the setting (per-bar state)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "      else if (bound && bound.kind === 'state' && this.mutatedKnown) {",
+   "to": "      else if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/displayEnum.test.js",
+   "expectRed": "display-only, through a `var`"
+  },
+  {
+   "id": "U8-M4",
+   "mutant": "an enum comparison is not a setting leaf",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    if (node.type === 'binary' && (node.op === '==' || node.op === '!=') && this.enumInputs) {",
+   "to": "    if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/displayEnum.test.js",
+   "expectRed": "display-only, through"
+  },
+  {
+   "id": "U8-M6",
+   "mutant": "the knob stops at a helper's parameter (\"Type\" moves what is shown, not what is computed)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "      const viaParam = bound && bound.kind === 'param'",
+   "to": "      const viaParam = false",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/enumKnobTruth.test.js",
+   "expectRed": "the MA-family shape"
+  },
+  {
+   "id": "U8-M7",
+   "mutant": "vwma's length is not folded (the declaring pass refuses, the script declares nothing)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "      if (bare === 'vwma' && built[1] && built[1].type !== 'num') {",
+   "to": "      if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/enumKnobTruth.test.js",
+   "expectRed": "the MA-family shape"
+  },
+  {
+   "id": "U8-M8",
+   "mutant": "a var seeded by settings alone is an accumulator again (blank for 250 bars)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "        if (bound.update && bound.update.type === 'selfref' && seed && this.settingsOnlyTree(seed)) {",
+   "to": "        if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/enumKnobTruth.test.js",
+   "expectRed": "the MA-family shape"
+  },
+  {
+   "id": "U8-M9",
+   "mutant": "the truth checker stops comparing values (a lying setting passes)",
+   "file": "app/src/components/chart/engine/enumKnobTruth.js",
+   "from": "    if (x.values && (x.values.length !== y.values.length || x.values.some((v, i) => !same(v, y.values[i])))) {",
+   "to": "    if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/enumKnobTruth.test.js",
+   "expectRed": "CONTROL: a document whose"
+  },
+  {
+   "id": "U8-M10",
+   "mutant": "the var-seed fix re-widened to any settings-or-numbers seed (a na seed, a numeric setting)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    return walk(t, 0) && enumLeaf",
+   "to": "    return walk(t, 0)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pine.derived.test.js",
+   "expectRed": "refuses by name at pine:state"
+  },
+  {
+   "id": "U8-M11",
+   "mutant": "the translation budget never withholds (every parameter-reached switch built, whatever the total)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "      if (size > room) { spend.exhausted = true; spend.admitted.delete(en.name); return withhold() }",
+   "to": "      if (false) { spend.exhausted = true; spend.admitted.delete(en.name); return withhold() }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/enumKnobTruth.test.js",
+   "expectRed": "over the translation budget, the settings are withheld by name"
+  },
+  {
+   "id": "U8-M12",
+   "mutant": "a withheld setting is still declared (the door offers a control the script folds)",
+   "file": "app/src/components/chart/builder/builderInputs.js",
+   "from": "        && !displacementBound.has(e.name) && !withheldKnobs.has(e.name))",
+   "to": "        && !displacementBound.has(e.name))",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/enumKnobTruth.test.js",
+   "expectRed": "over the translation budget, the settings are withheld by name"
+  },
+  {
+   "id": "U8-M13",
+   "mutant": "after the budget runs out, a later setting's switch is still built (the work is unbounded)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    if (spend && spend.exhausted && !spend.admitted.has(en.name)) return withhold()",
+   "to": "    void 0",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/enumKnobTruth.test.js",
+   "expectRed": "after the budget runs out no later switch is built"
+  }
+ ]
+}

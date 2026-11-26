@@ -65,6 +65,8 @@ import {
   markerIsEvent,
 } from './pool'
 import { outputTypeOf, OUTPUT_TYPES } from './outputType'
+// ⭐ e97 U6 — the ONE answer to "is this plot hidden for this instance" (`plots[].hidden` / `plots[].hiddenWhen`)
+import { plotHiddenAt } from './knobBind.js'
 import { paneMode, paneStretchPlan, paneHeightMismatch } from './paneLayout'
 import { createFillPrimitive, createFillLayerGroup } from './fillPrimitive'
 import { MAIN_PRICE_SCALE_ID, applyAxisTenancy } from './placement'
@@ -172,8 +174,13 @@ const _projMemo = new WeakMap()
  *  does reads the inputs' condition grammar through the SAME evaluator a plot's
  *  `activeWhen` uses (`pool.plotActiveFor`: stored value, else the declared
  *  default), so a band and a guide can never disagree about one switch. */
-function fillActiveFor(fillSpec, b) {
-  if (!fillSpec || fillSpec.activeWhen === undefined) return true
+export function fillActiveFor(fillSpec, b) {
+  if (!fillSpec) return true
+  // ⭐ e97 U7 — and is it DRAWN at this instance's settings: a band whose `display` a setting decides
+  // (`fill.hiddenWhen`, `pine.js::resolveFillHandles`) is decided by the ONE reader every plot is (`plotHiddenAt`)
+  if (fillSpec.hiddenWhen !== undefined
+    && plotHiddenAt({ hiddenWhen: fillSpec.hiddenWhen }, b && b.def, b && b.inst && b.inst.inputs)) return false
+  if (fillSpec.activeWhen === undefined) return true
   return plotActiveFor({ activeWhen: fillSpec.activeWhen }, b && b.def, (b && b.inst && b.inst.inputs) || {})
 }
 
@@ -788,14 +795,14 @@ const GLYPH_HOST_POOLS = new Set(['line', 'area', 'baseline', 'histogram', 'colu
 export function eventGlyphHosts(bind, settled, { isCondition = isConditionOutput } = {}) {
   return bind.map((b, i) => {
     const pl = settled[i]
-    if (!b || !pl || !b.plot || b.plot.hidden === true) return null
+    if (!b || !pl || !b.plot || plotHiddenAt(b.plot, b.def, b.inst && b.inst.inputs)) return null
     if (!markerIsEvent(b.plot, isCondition(b.def, b.plot.key))) return null
     if (pl.paneIndex === 0) return 'price'
     for (let j = 0; j < bind.length; j++) {
       const o = bind[j]
       const op = settled[j]
       if (j === i || !o || !op || o.instanceId !== b.instanceId) continue
-      if (!o.plot || o.plot.hidden === true || o.plot.style === 'markers') continue
+      if (!o.plot || plotHiddenAt(o.plot, o.def, o.inst && o.inst.inputs) || o.plot.style === 'markers') continue
       if (!GLYPH_HOST_POOLS.has(o.poolKey)) continue
       if (op.paneIndex !== pl.paneIndex || op.scaleId !== pl.scaleId) continue
       return j
@@ -984,8 +991,8 @@ function reassignOrphanedGuides(bind) {
   }
   for (const group of byInstance.values()) {
     const carrier = group.find((b) => b.guides && b.guides.length)
-    if (!carrier || !(carrier.plot && carrier.plot.hidden === true)) continue
-    const heir = group.find((b) => b !== carrier && !(b.plot && b.plot.hidden === true))
+    if (!carrier || !(carrier.plot && plotHiddenAt(carrier.plot, carrier.def, carrier.inst && carrier.inst.inputs))) continue
+    const heir = group.find((b) => b !== carrier && !(b.plot && plotHiddenAt(b.plot, b.def, b.inst && b.inst.inputs)))
     if (!heir) continue                       // nothing visible left to carry it
     heir.guides = carrier.guides
     heir.guideSig = carrier.guideSig
@@ -1428,6 +1435,10 @@ export function createBinder({ chart, LWC, scope = '' }) {
       const instOverrides = new Map()
       paints.forEach((p, i) => {
         if (!p) return
+        // ⭐ e97 U7 — a paint whose `display` a setting decides (`paints[].hiddenWhen`) draws only while this instance
+        // shows it, decided by the ONE reader every plot is (`knobBind.js::plotHiddenAt`); its layer then comes off
+        // with every other paint this pass does not keep alive
+        if (plotHiddenAt(p, def, inst.inputs)) return
         const computed = paintColoursFor(withPackedTheme(p, chartThemeOf(ctx.cs)), inst.instanceId, columns, n,
           { unknownNone: unknownColourRule(def) })
         if (!computed) return
@@ -2902,6 +2913,8 @@ export function createBinder({ chart, LWC, scope = '' }) {
       // ⭐ UCT RS 3-14 — what the live server row declares, so a guide gated on a
       // value that row drops (a v4 Reading under a v3 server) is not drawn.
       serverDeclares,
+      // ⭐ e97 U7 — a guide whose display a setting decides is planned only while this instance shows it
+      plotHidden: plotHiddenAt,
     })
 
     // HAND-BACK (W1b.5, minor 4): reassign a hidden carrier's guides onto its
@@ -3021,7 +3034,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
     // definition binds exactly as before. And it is wrapped like every other
     // placement call — if it throws, the per-instance answers stand.
     const resolved = bind.map((b) => (
-      (b.plot && b.plot.hidden === true) ? null : attempt(() => resolvePlacement(b.inst, b.def, ctx))
+      (b.plot && plotHiddenAt(b.plot, b.def, b.inst && b.inst.inputs)) ? null : attempt(() => resolvePlacement(b.inst, b.def, ctx))
     ))
     const tenancy = attempt(() => applyAxisTenancy(resolved.map((r) => (r && r.ok ? r.value : null)), ctx))
     const settled = (tenancy.ok && Array.isArray(tenancy.value) && tenancy.value.length === resolved.length)
@@ -3035,7 +3048,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
       // ⭐ W1b — `plots[].hidden`: COMPUTED, NEVER DRAWN. The column still reaches
       // the scan and the alert seam through `computeFor`; the chart gets no
       // series. A series this binding was carrying goes back to the renderer.
-      if (b.plot && b.plot.hidden === true) { orphan(b); continue }
+      if (b.plot && plotHiddenAt(b.plot, b.def, b.inst && b.inst.inputs)) { orphan(b); continue }
       const placementValue = settled[bi]
       if (!placementValue) { orphan(b); continue }
       const { paneIndex, scaleId, scaleOptions, autoscale, lastValue, autoscaleRange } = placementValue
@@ -3359,7 +3372,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
       if (isFillHost) {
         const kept = new Map()
         for (const hp of ((b.def && b.def.plots) || [])) {
-          if (!hp || hp.hidden !== true) continue
+          if (!hp || !plotHiddenAt(hp, b.def, b.inst && b.inst.inputs)) continue
           const hw = hp.fill && typeof hp.fill.with === 'string' && fillActiveFor(hp.fill, b) ? hp.fill.with : null
           if (!hw || hw === hp.key) continue
           const upper = displacedColumn(columns.get(bindingKey(b.instanceId, hp.key)), drawShiftOf(hp))
@@ -3680,7 +3693,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
       // another instance reads it (`dependedOn`), and a source is not a picture.
       if (inst.hidden === true) continue
       const def = inst.def || (ctx.registry && ctx.registry.getDefinition ? ctx.registry.getDefinition(inst.defId) : null)
-      const hidden = ((def && def.plots) || []).filter((p) => p && p.hidden === true && p.fill && typeof p.fill.with === 'string' && p.fill.with !== p.key)
+      const hidden = ((def && def.plots) || []).filter((p) => p && plotHiddenAt(p, def, inst.inputs) && p.fill && typeof p.fill.with === 'string' && p.fill.with !== p.key && fillActiveFor(p.fill, { def, inst }))
       if (!hidden.length) continue
       const placement = attempt(() => resolvePlacement(inst, def, ctx)).value
       if (!placement || placement.paneIndex !== 0) continue
@@ -3721,8 +3734,8 @@ export function createBinder({ chart, LWC, scope = '' }) {
       const def = inst.def || (ctx.registry && ctx.registry.getDefinition
         ? ctx.registry.getDefinition(inst.defId) : null)
       for (const p of ((def && def.plots) || [])) {
-        if (!p || p.hidden !== true) continue
-        const w = p.fill && typeof p.fill.with === 'string' ? p.fill.with : null
+        if (!p || !plotHiddenAt(p, def, inst.inputs)) continue
+        const w = p.fill && typeof p.fill.with === 'string' && fillActiveFor(p.fill, { def, inst }) ? p.fill.with : null
         if (!w || w === p.key) continue
         notes.push({
           instanceId: id,

@@ -1,0 +1,68 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "U4-A1",
+   "mutant": "tickerCallArg ignores the adjustment again (dividends folds onto the plain symbol)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    if (this.requestAdjustmentDecline(node)) return null",
+   "to": "    if (false) return null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pine.tickerAdjustment.test.js",
+   "expectRed": "adjustment.dividends: splits AND dividends"
+  },
+  {
+   "id": "U4-A2",
+   "mutant": "the wrong basis is taken for our bars (none served, splits refused)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "      if (spelled === 'adjustment.splits') return null",
+   "to": "      if (spelled === 'adjustment.none') return null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pine.tickerAdjustment.test.js",
+   "expectRed": "adjustment.splits is the series our bars are"
+  },
+  {
+   "id": "U4-A3",
+   "mutant": "ticker.new's adjustment read from the wrong slot (4): a positional adjustment.dividends is served",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    const slot = call.name === 'ticker.modify' ? 2 : TICKER_CALLS.has(call.name) ? 3 : -1",
+   "to": "    const slot = call.name === 'ticker.modify' ? 2 : TICKER_CALLS.has(call.name) ? 4 : -1",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pine.tickerAdjustment.test.js",
+   "expectRed": "adjustment.dividends: splits AND dividends"
+  },
+  {
+   "id": "U4-A4",
+   "mutant": "ticker.modify(t, adjustment = adjustment.splits) refused again (any second argument refuses)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    if (!args.length || rest.some((r) => r.name !== 'adjustment')) return null",
+   "to": "    if (args.length !== 1) return null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pine.tickerAdjustment.test.js",
+   "expectRed": "ticker.modify, named"
+  },
+  {
+   "id": "U4-A5",
+   "mutant": "ticker.modify's adjustment accepted unread (dividends served)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    if (rest.length && this.requestAdjustmentDecline(node)) return null",
+   "to": "    if (false) return null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pine.tickerAdjustment.test.js",
+   "expectRed": "adjustment.dividends: splits AND dividends"
+  },
+  {
+   "id": "U4-A6",
+   "mutant": "the refusal does not name the adjustment argument",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    if (adjusted) return { why: this.requestAdjustmentDecline(adjusted).why }",
+   "to": "    if (false) return null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pine.tickerAdjustment.test.js",
+   "expectRed": "adjustment.none: prices as traded"
+  },
+  {
+   "id": "U4-A7",
+   "mutant": "an unreadable adjustment is guessed to be splits",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "      if (spelled === 'adjustment.splits') return null",
+   "to": "      if (spelled === 'adjustment.splits' || !spelled) return null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pine.tickerAdjustment.test.js",
+   "expectRed": "a spelling this door cannot read is refused"
+  }
+ ]
+}
