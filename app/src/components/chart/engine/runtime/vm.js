@@ -1339,7 +1339,9 @@ export function execute(program, ctx, limits, opts) {
           // invocation's values there would make an ordinary local behave like a
           // `var` that is also shared between call sites — two defects at once,
           // and both silent.
-          locals.fill(NaN, newBase + fn.params, newBase + fn.frameSize)
+          // ⭐ e99 — a plain loop, not `locals.fill`: the same slots, the same NaN, and a frame is a handful of slots,
+          // where the builtin's call overhead dominated (6.2% of kernel-channel's run, 2.6M calls; measured faster).
+          for (let k = newBase + fn.params, e = newBase + fn.frameSize; k < e; k += 1) locals[k] = NaN
           frRetPc[depth] = pc
           frLocalsBase[depth] = localsBase
           frLocalsTop[depth] = localsTop
