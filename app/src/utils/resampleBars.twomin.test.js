@@ -52,7 +52,7 @@ function foldPairs(bars) {
 
 describe('2m == aggregation of canonical 1m', () => {
   it('routes 2m to the 1m base — the decision, asserted', () => {
-    expect(resampleSpec('2')).toEqual({ base: '1', kind: 'intradaySession', minutes: 2 })
+    expect(resampleSpec('2')).toEqual({ base: '1', kind: 'intradaySession', minutes: 2, anchorMin: 570 })
   })
 
   it('OHLCV matches an independent hand-fold, bar for bar', () => {

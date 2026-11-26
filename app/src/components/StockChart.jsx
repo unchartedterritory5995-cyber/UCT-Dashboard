@@ -9347,7 +9347,7 @@ function StockChartBody({
   // is asked of the script as the run builds it (Fred RS branches on `syminfo.industry`)
   const secondarySources = useSecondarySources(
     _storedInstances, _defOf, resolvedTf, _heldSpan, instFetcher, _otherSymbolsRevalidate, _chartFormingOf, sym, symbolMeta,
-    _heldSessions)
+    _heldSessions, !!showExtended)
   // ⭐ C26 — our store's exchange for each other symbol a Pine document reads
   // (`request.security("AMEX:SPY", …)`), so the bind can match the spelling.
   const otherSymbolExchangeOf = useOtherSymbolExchanges(_storedInstances, _defOf, _otherSymbolsRevalidate)
@@ -10018,7 +10018,7 @@ function StockChartBody({
   // of `updateChart` for the same reason `secondarySources` is: frames land
   // asynchronously and must repaint when they do. See `engine/useCalcFrames.js`.
   const { frames: calcFrames, refreshFrame: refreshCalcFrame } = useCalcFrames(
-    _storedInstances, _defOf, sym, resolvedTf, filteredBars, instFetcher, csView)
+    _storedInstances, _defOf, sym, resolvedTf, filteredBars, instFetcher, csView, !!showExtended)
   const refreshCalcFrameRef = useRef(refreshCalcFrame)
   refreshCalcFrameRef.current = refreshCalcFrame
 
@@ -14033,6 +14033,8 @@ function StockChartBody({
         // fetch; `symbol` is what the bind-time fold reads. See `symbolMeta`.
         symbol: symbolMeta,
         tf: resolvedTf,
+        // (review of #2753) the chart's own session: a custom intraday timeframe's benchmark tail is built on its grid
+        extended: !!showExtended,
         // ⭐⭐ THE BAR-CLOSE TRI-STATE, PRODUCED IN PYTHON. `/api/bars` computes it
         // from `bar_close_state` because that is the side the NYSE calendar lives
         // on; the browser is handed one tri-state and never a date set. Without it
