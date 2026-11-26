@@ -101,6 +101,7 @@ export const DEFAULT_LIMITS = Object.freeze({
   // script today (dual-view and poor-man stop earlier on the host lane, on loop state and a
   // withheld text gate; only the dark runtime pane meets this ceiling). Revisit with R-RT.
   INSTRUCTIONS_PER_BAR: 200000,
+  // ⭐⭐ (e99) NOW THE FLOOR OF A CEILING THAT SCALES WITH THE BARS A RUN COVERS (`TOTAL_INSTRUCTIONS_PER_BAR`).
   TOTAL_INSTRUCTIONS: 200000000,
   // ⭐⭐ UIE PHASE 2 (2026-10-11) — RAISED FROM 100,000 TO 5,000,000, MEASURED FIRST
   // (`runtimeLimitsBudget.measure.test.js`). This is a WHOLE-RUN count, so the old
@@ -248,7 +249,32 @@ export const DEFAULT_LIMITS = Object.freeze({
 export const ARRAY_OPERATIONS_PER_BAR = 500
 /** The array-operation ceiling of a run over `bars` bars, `floor` the per-chart number (`ARRAY_OPERATIONS`). */
 export function arrayOperationsCeiling(floor, bars) {
-  return Number.isInteger(bars) && bars > 0 ? Math.max(floor, ARRAY_OPERATIONS_PER_BAR * bars) : floor
+  return scaledCeiling('ARRAY_OPERATIONS', floor, bars)
+}
+/** ⭐⭐ (e99, coordinator ruling 2026-11-26) — THE INSTRUCTIONS A RUN MAY TAKE PER BAR IT COVERS. The ceiling of a
+ *  run is `max(TOTAL_INSTRUCTIONS, TOTAL_INSTRUCTIONS_PER_BAR × bars)`: below 6,667 bars it is the 200,000,000 it
+ *  always was; above, it grows with the chart (983,040,000 at the 32,768-bar `HISTORY` ceiling).
+ *    WHY: a whole-chart count is crossed by an honest script through chart LENGTH alone. kernel-channel-backquant
+ *  takes a CONSTANT ~27,400 instructions a bar (peak 27,691: four 100-pass loops a bar, which Pine runs too) and
+ *  stopped at bar 7,295 of SPY 1D's 8,509 (233,356,208 needed), where TradingView draws it. TradingView documents no
+ *  instruction count at all: only 500 ms for one loop on one bar and a per-plan time for the whole run.
+ *    WHY 30,000: it admits every script measured at <=30,000 a bar at any length (kernel-channel the heaviest
+ *  measured over a deep daily chart), and nothing near `INSTRUCTIONS_PER_BAR`.
+ *    WHAT IT STILL BOUNDS: a loop that runs away inside one bar meets `INSTRUCTIONS_PER_BAR` (200,000) on that bar,
+ *  unchanged; a script that spends 200,000 a bar on every bar still stops BY NAME, here, at about bar
+ *  `30,000 × bars / 200,000` (bar ~1,276 of 8,509). The time any run takes is still bounded by the pane's budget and
+ *  `WALL_TIME`, neither of which changed. ⛔ THE BARS THE RUN COVERS (`Budget.coverBars`), as for array operations. */
+export const TOTAL_INSTRUCTIONS_PER_BAR = 30000
+/** ⭐ THE ONE TABLE of the ceilings that scale with the bars a run covers, and each one's per-bar rate. */
+export const PER_BAR_LIMITS = Object.freeze({
+  ARRAY_OPERATIONS: ARRAY_OPERATIONS_PER_BAR,
+  TOTAL_INSTRUCTIONS: TOTAL_INSTRUCTIONS_PER_BAR,
+})
+/** The ceiling of `limit` for a run over `bars` bars: `max(floor, rate × bars)`, or `floor` for a limit that does
+ *  not scale or a bar count that is not a positive whole number. */
+export function scaledCeiling(limit, floor, bars) {
+  const rate = PER_BAR_LIMITS[limit]
+  return rate && Number.isInteger(bars) && bars > 0 ? Math.max(floor, rate * bars) : floor
 }
 
 /** ⭐ P1 HARDENING — the per-object figure `MEMORY` charges for a live drawing. */
@@ -319,9 +345,9 @@ export function resolveLimits(overrides) {
 export class Budget {
   constructor(limits) {
     this.limits = resolveLimits(limits)
-    // ⭐ a caller that NAMES the array-operation ceiling (a measurement, a test: no product caller passes limits)
-    // gets exactly that number; the default scales with the bars the run covers (`coverBars`)
-    this.arrayOpsScale = !(limits && Object.prototype.hasOwnProperty.call(limits, 'ARRAY_OPERATIONS'))
+    // ⭐ a caller that NAMES a scaling ceiling (a measurement, a test: no product caller passes limits) gets exactly
+    // that number; the default scales with the bars the run covers (`coverBars`, `PER_BAR_LIMITS`)
+    this.scales = Object.keys(PER_BAR_LIMITS).filter((k) => !(limits && Object.prototype.hasOwnProperty.call(limits, k)))
     this.counts = Object.create(null)
     for (const n of LIMIT_NAMES) this.counts[n] = 0
     this.startedAt = 0
@@ -335,7 +361,7 @@ export class Budget {
     if (next > ceiling) {
       const err = new RuntimeLimitError(limit, ceiling, next)
       // a ceiling that scaled with the chart names the bars it was set for (`runtimeLimitSentence`)
-      if (limit === 'ARRAY_OPERATIONS' && this.coveredBars !== undefined && ceiling > this.floorOf(limit)) err.coveredBars = this.coveredBars
+      if (PER_BAR_LIMITS[limit] && this.coveredBars !== undefined && ceiling > this.floorOf(limit)) err.coveredBars = this.coveredBars
       throw err
     }
     return next
@@ -347,11 +373,16 @@ export class Budget {
   coverBars(bars) {
     if (this.coveredBars !== undefined) return
     this.coveredBars = bars
-    if (!this.arrayOpsScale) return
-    const floor = this.limits.ARRAY_OPERATIONS
-    this.floors = { ARRAY_OPERATIONS: floor }
-    const ceiling = arrayOperationsCeiling(floor, bars)
-    if (ceiling !== floor) this.limits = Object.freeze({ ...this.limits, ARRAY_OPERATIONS: ceiling })
+    if (!this.scales.length) return
+    const next = {}
+    this.floors = {}
+    for (const k of this.scales) {
+      const floor = this.limits[k]
+      this.floors[k] = floor
+      const ceiling = scaledCeiling(k, floor, bars)
+      if (ceiling !== floor) next[k] = ceiling
+    }
+    if (Object.keys(next).length) this.limits = Object.freeze({ ...this.limits, ...next })
   }
 
   /** The per-chart number a limit is (its floor when it scales with the bars). */
