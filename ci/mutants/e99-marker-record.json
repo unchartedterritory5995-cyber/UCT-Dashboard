@@ -57,12 +57,12 @@
   },
   {
    "id": "MR-7",
-   "mutant": "the size word written when absent (claiming the unmeasured default)",
+   "mutant": "the measured size default dropped (an absent size= records no word, as before the pixel run)",
    "file": "app/src/components/chart/engine/ast/pine.js",
-   "from": "    // ⭐ e99 — THE TEXT COLOUR.",
-   "to": "    if (m.pineSize === undefined) m.pineSize = 'size.normal'\n    // ⭐ e99 — THE TEXT COLOUR.",
+   "from": "      m.pineSize = 'size.auto'",
+   "to": "      void 0",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/markerPineWords.test.js",
-   "expectRed": "ABSENT stays absent"
+   "expectRed": "is Pine's default, size.auto"
   },
   {
    "id": "MR-8",
@@ -99,6 +99,15 @@
    "to": "                     )",
    "rail": "python -m pytest tests/test_p2_truth_policy.py -q -p no:cacheprovider -k \"P2_presentation_vocabulary or case_by_case\"",
    "expectRed": "test_P2_presentation_vocabulary_equals_the_shared_fixture"
+  },
+  {
+   "id": "MR-12",
+   "mutant": "an unreadable size expression claimed to be the size.auto default",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    } else if (!size) {",
+   "to": "    } else {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/markerPineWords.test.js",
+   "expectRed": "a size this door cannot read is NOT claimed"
   }
  ]
 }

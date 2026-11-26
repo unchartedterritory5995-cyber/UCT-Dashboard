@@ -11,8 +11,11 @@
 //
 // ⛔ SYNTHETIC RAILS ONLY. These hold the translator's record to Pine's own
 // spelling; the capture-graded rails (against TradingView's study state) come
-// with the redacted captures. NOTHING here claims pixel geometry, nor the
-// unmeasured defaults of `size` (absent stays absent).
+// with the redacted captures. NOTHING here claims pixel geometry. The DEFAULTS
+// recorded for an absent argument are measured: FRED RS's pixel run
+// markers-2026-11-26 drew a bare `plotshape(cond)` as an xcross above the bar at
+// `size.auto`, and a bare `plotchar` at `size.auto` (`size.auto` follows the bar
+// spacing, every size word is fixed), so an absent `size=` records `size.auto`.
 //
 // ⛔ Each fixture distinguishes: the default text colour is asserted beside a
 // written one, the default location beside a written one, and the LWC fallback
@@ -78,8 +81,17 @@ describe('e99 — the size word', () => {
     })
   }
 
-  it('⛔ ABSENT stays absent: Pine\'s default size is not measured yet', () => {
+  it('⭐ ABSENT is Pine\'s default, size.auto, on both calls (measured), and the LWC multiplier stays absent', () => {
     const m = marker(`plotshape(close > open, ${Q}S${Q}, shape.diamond)`)
+    expect(m.pineSize).toBe('size.auto')
+    expect(m.size).toBeUndefined()
+    const c = marker(`plotchar(close > open, ${Q}C${Q}, ${Q}x${Q})`)
+    expect(c.pineSize).toBe('size.auto')
+    expect(c.size).toBeUndefined()
+  })
+
+  it('⛔ a size this door cannot read is NOT claimed to be the default', () => {
+    const m = marker(`plotshape(close > open, ${Q}S${Q}, shape.diamond, size = close > open ? size.large : size.small)`)
     expect(m.pineSize).toBeUndefined()
     expect(m.size).toBeUndefined()
   })
@@ -112,9 +124,11 @@ describe('e99 — the LWC fallback is untouched', () => {
     expect(circle.shapeApprox).toBeUndefined()
   })
 
-  it('the bare default (plotshape with no style) keeps its approximation', () => {
+  it('the bare default (plotshape with no style) keeps its approximation, and records the measured defaults', () => {
     const m = marker(`plotshape(close > open, ${Q}S${Q})`)
     expect(m).toMatchObject({ shape: 'square', pineShape: 'shape.xcross', shapeApprox: true, position: 'aboveBar' })
+    // FRED RS's pixel run markers-2026-11-26: a bare plotshape is a blue xcross, above the bar, at size.auto
+    expect(m).toMatchObject({ pineLocation: 'location.abovebar', pineSize: 'size.auto' })
   })
 })
 

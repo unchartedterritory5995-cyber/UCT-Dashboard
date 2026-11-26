@@ -36133,9 +36133,10 @@ function outputPresentation(args, ctx) {
       // ⭐ e99 — THE LOCATION WORD, KEPT. TradingView keeps the `location.*` word per
       // plot (FRED RS, SPY 1D captures 2026-11-26), and `location.top` /
       // `location.bottom` are pane-relative, which the LWC `position` above cannot
-      // say. Both calls default to `location.abovebar`. ⛔ Only an ABSENT argument
-      // takes the default: a location written as an expression this door cannot
-      // read is not claimed to be `abovebar`.
+      // say. Both calls default to `location.abovebar` (measured: FRED RS's pixel run
+      // markers-2026-11-26 drew a bare `plotshape(cond)` above the bar). ⛔ Only an
+      // ABSENT argument takes the default: a location written as an expression this
+      // door cannot read is not claimed to be `abovebar`.
       m.pineLocation = 'location.abovebar'
     }
     const size = arg('size')
@@ -36143,9 +36144,17 @@ function outputPresentation(args, ctx) {
         && Object.hasOwn(PINE_MARKER_SIZES, size.value.name)) {
       m.size = PINE_MARKER_SIZES[size.value.name]
       // ⭐ e99 — THE SIZE WORD, KEPT beside the LWC multiplier (TradingView keeps the
-      // word per plot). ⛔ ONLY WHEN WRITTEN: Pine's default size is not measured
-      // yet, so an absent `size=` stays absent rather than claiming one.
+      // word per plot).
       m.pineSize = size.value.name
+    } else if (!size) {
+      // ⭐ e99 — AN ABSENT `size=` IS `size.auto`, Pine's default on both calls, MEASURED
+      // (FRED RS's pixel run markers-2026-11-26: a bare `plotshape(cond)` and a bare
+      // `plotchar` draw at `size.auto`'s spacing-following size, 46 px at 90 px bar
+      // spacing and 10 px at 17.2, where every size word is fixed). The LWC multiplier
+      // `size` stays absent: the LWC fallback draws exactly as before. ⛔ Only an
+      // ABSENT argument takes the default: a size written as an expression this door
+      // cannot read is not claimed to be `size.auto`.
+      m.pineSize = 'size.auto'
     }
     // ⭐ e99 — THE TEXT COLOUR. TradingView records `#2962FF` for a marker whose
     // `textcolor=` is absent (the same captures). A static colour is carried as its
@@ -36170,7 +36179,8 @@ function outputPresentation(args, ctx) {
     if (kind === 'plotchar' && m.text === undefined) m.text = '★'
     // ⭐ DEFAULTS ARE PINE'S OWN, stated rather than left to the renderer: both
     // calls default to `location.abovebar`, and `plotshape`'s default shape is
-    // `shape.xcross`.
+    // `shape.xcross` (both MEASURED by FRED RS's pixel run markers-2026-11-26: a bare
+    // `plotshape(cond)` draws a blue xcross above the bar, at `size.auto`).
     if (m.position === undefined) m.position = 'aboveBar'
     if (m.shape === undefined && !pres.styleUncarried) {
       m.shape = kind === 'plotchar' ? 'circle' : 'square'
