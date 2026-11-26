@@ -200,12 +200,46 @@ function _idx(bars, t) {  // first index with bars[i].t >= t
   return lo
 }
 
-/** Is the bucket starting at `t` inside a sealed span? */
+/** The longest a bucket of `tf` can run past any second inside it: `bucketEnd(t, state) - t` never exceeds it for a finite
+ *  `t` (a D/W bucket ends 86400 s after its start, a month at most 31 days after any second of it; an intraday bucket
+ *  starts at or before `t` and lasts at most one period, `bucketEndUnix`'s own `(tf > 0 ? tf : 5) * 60`, or an hour on
+ *  60m, whose session-grid stubs are SHORTER). */
+function _bucketRoom(tf) {
+  if (tf === 'D' || tf === 'W') return 86400
+  if (tf === 'M') return 31 * 86400
+  const n = Number(tf)
+  return n === 60 ? 3600 : (n > 0 ? n : 5) * 60
+}
+
+/** A `t` whose bucket end is always computable (a finite second well inside Date's range): only for such a `t` may the
+ *  end be skipped. Any other `t` computes it first, as before (on the 60m session grid that end throws past Date's range,
+ *  and the caller sees the same throw). */
+const _lazyEnd = (t) => typeof t === 'number' && t > -8.6e12 && t < 8.6e12
+
+/** Does the bucket at `t` end by `c`: `bucketEnd(t, state) <= c`, its end computed only when it decides (a bucket at
+ *  `t` ends by `t + room`, `_bucketRoom`). Same answer as computing it first, for every `t` and `c`. */
+function _endsBy(t, c, state, room) {
+  return (_lazyEnd(t) && t + room <= c) || bucketEnd(t, state) <= c
+}
+
+/** Is the bucket starting at `t` inside a sealed span?
+ *  ⭐ PERF (smoothness trace 2026-11-26, 5m+60m board: 6.6 ms of the 18 a flip spends in `_applyLocal`; on the 60m session
+ *  grid each `bucketEnd` is an ET minute-of-day and a session close, asked for every row a copy brings): the bucket's end
+ *  is computed only when it decides. Never for a span that starts after `t`, and not for a span ending at least one whole
+ *  bucket (`_bucketRoom`) after `t`: that bucket ends inside it whatever its grid. Same answer as computing it first, for
+ *  every `t` (one outside `_lazyEnd` computes it first, as before). */
 function _inSpans(state, t) {
   const sp = state.sealedSpans
   if (!sp || !sp.length) return false
-  const e = bucketEnd(t, state)
-  for (const [a, c] of sp) if (t >= a && e <= c) return true
+  const lazy = _lazyEnd(t)
+  const near = lazy ? t + _bucketRoom(state.tf) : NaN   // the bucket at `t` ends by `near`
+  let e = lazy ? undefined : bucketEnd(t, state)
+  for (const [a, c] of sp) {
+    if (!(t >= a)) continue
+    if (near <= c) return true
+    if (e === undefined) e = bucketEnd(t, state)
+    if (e <= c) return true
+  }
   return false
 }
 /** A held row is sealed when the server sent it and a sealed span covers it. */
@@ -315,7 +349,8 @@ function mergeRows(state, rows, span = null) {
   const out = []
   let changed = false
   let i = 0, j = 0
-  const inSpan = (t) => span && t >= span[0] && finite(span[1]) && bucketEnd(t, state) <= span[1]
+  const room = _bucketRoom(state.tf)
+  const inSpan = (t) => span && t >= span[0] && finite(span[1]) && _endsBy(t, span[1], state, room)
   const strip = (r) => { if (!('_sealed' in r)) return freezeBar(r); const { _sealed, ...b } = r; return freezeBar(b) }
   while (i < held.length || j < rows.length) {
     const h = held[i], r = rows[j]
@@ -495,6 +530,22 @@ export const BASIS_EPS = 0.005
 export const BASIS_VOL_TOL = 0.05
 const BASIS_MAX_PAIRS = 64
 
+// ⭐ PERF (smoothness trace 2026-11-26, 5m+60m board: ~3.3 ms a flip in `heldBasisProof`): a FROZEN array's sortedness is
+// read once (it cannot change: every array the store holds is frozen, finalize), not on every copy that lands; and a `t`
+// outside the sorted array's first..last `t` is answered without a search (no row of it can hold that `t`): a lake copy
+// whose rows are mostly OLDER than the held rows searched once per row for nothing. Same row for every `t`.
+const _sortedByRef = new WeakMap()
+function _isSortedRows(rows) {
+  const frozen = Object.isFrozen(rows)
+  if (frozen) { const k = _sortedByRef.get(rows); if (k !== undefined) return k }
+  let sorted = true
+  for (let i = 0; i < rows.length; i++) {
+    const t = rows[i]?.t
+    if (typeof t !== 'number' || t !== t || (i > 0 && !(rows[i - 1].t < t))) { sorted = false; break }
+  }
+  if (frozen) _sortedByRef.set(rows, sorted)
+  return sorted
+}
 /** `ref`'s row at time `t`, as a lookup. ⭐ (2026-11-20, switch profile) Every array the store holds is strictly
  *  ascending in a numeric `t` (its bars), and `basisVerdict` pairs at most 64 rows of it: so such an array is
  *  SEARCHED (binary search, nothing allocated) instead of copied whole into a Map of every row, which on a list
@@ -504,16 +555,14 @@ const BASIS_MAX_PAIRS = 64
 function _rowAtOf(ref) {
   if (ref instanceof Map) return (t) => ref.get(t)
   const rows = ref || []
-  let sorted = true
-  for (let i = 0; i < rows.length; i++) {
-    const t = rows[i]?.t
-    if (typeof t !== 'number' || t !== t || (i > 0 && !(rows[i - 1].t < t))) { sorted = false; break }
-  }
-  if (!sorted) {
+  if (!_isSortedRows(rows)) {
     const byT = new Map(rows.map((r) => [r.t, r]))
     return (t) => byT.get(t)
   }
+  if (!rows.length) return () => undefined
+  const first = rows[0].t, last = rows[rows.length - 1].t
   return (t) => {
+    if (!(t >= first && t <= last)) return undefined
     let lo = 0, hi = rows.length - 1
     while (lo <= hi) {
       const mid = (lo + hi) >> 1
@@ -756,7 +805,7 @@ function applyRest(state, action, ctx, kind) {
   const spanFrom = kind === 'delta' && finite(numOrNull(p.since)) ? normT(p.since, state.tf)
     : (rows.length ? rows[0].t : null)
   if (spanFrom == null) sealedIn = null   // an answer seals only what it carries
-  if (finite(sealedIn)) for (const r of rows) if (bucketEnd(r.t, working) <= sealedIn) r._sealed = true
+  if (finite(sealedIn)) { const room = _bucketRoom(working.tf); for (const r of rows) if (_endsBy(r.t, sealedIn, working, room)) r._sealed = true }
 
   const C = finite(sealedIn) && (!finite(state.completeThrough) || sealedIn > state.completeThrough)
     ? sealedIn : state.completeThrough
