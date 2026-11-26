@@ -49,6 +49,7 @@ import MergedSeamOverlay from './MergedSeamOverlay'
 import { computeSeams } from './mergedSeams'
 import WidgetHost from './WidgetHost'
 import useStaggeredMount from './grid/useStaggeredMount'
+import { createBoardSwitchMark } from './boardSwitchMark'
 import { popoutAddWidgetId, popoutRemoveWidgetId } from './popout/popoutState'
 import MobileChartsApp from './mobile/MobileChartsApp'
 import { findPlacement } from './findOpenSlot'
@@ -904,27 +905,16 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   // switch just to drop a class. React leaves the node's class alone while the grid's className prop is unchanged.
   // ⛔ THE TWO FRAMES COUNT FROM THE COMMIT, NOT THE CALL (review of #2860): a switch made after an await or from an
   // effect (the first prefs load, the default resolve, a version restore, a revert) commits in a later task, and frames
-  // counted from the call could be spent on the OLD board. The call marks the node and notes the switch; the layout
-  // effect of the commit that shows the new board arms the two frames.
-  const switchSeqRef = useRef(0)
-  const pendingSwitchRef = useRef(null)   // { seq, grid } of a marked switch whose board has not committed yet
+  // counted from the call could be spent on the OLD board. The call marks the node; the layout effect of the commit that
+  // shows the new board arms the two frames (boardSwitchMark.js).
+  const switchMarkRef = useRef(null)
+  if (!switchMarkRef.current) switchMarkRef.current = createBoardSwitchMark()
   const switchLayout = useCallback((next) => {
     const grid = bodyRef.current?.querySelector?.('.react-grid-layout')
-    if (grid && next !== layoutRef.current) {
-      const seq = ++switchSeqRef.current
-      grid.classList.add('charts-switching')
-      pendingSwitchRef.current = { seq, grid }
-    }
+    if (grid && next !== layoutRef.current) switchMarkRef.current.mark(grid)
     setLayout(next)
   }, [])
-  useLayoutEffect(() => {
-    const p = pendingSwitchRef.current
-    if (!p) return
-    pendingSwitchRef.current = null
-    const raf = typeof requestAnimationFrame === 'function' ? requestAnimationFrame : (f) => setTimeout(f, 16)
-    // two frames: the first may run before this commit's own frame computes its styles; a newer switch keeps the mark
-    raf(() => raf(() => { if (p.seq === switchSeqRef.current) p.grid.classList.remove('charts-switching') }))
-  }, [layout])
+  useLayoutEffect(() => { switchMarkRef.current.committed() }, [layout])
 
   // TERM-001 — THE ONE GROWTH GATE. Every path that puts a NEW widget on the board (the
   // WIDGETS menu, the float-on-create submenu, ?ensure= seeding, a confirmed ghost) asks this
