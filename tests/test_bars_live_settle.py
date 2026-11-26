@@ -256,3 +256,35 @@ def test_the_pass_advances_the_seal_check_so_an_older_repair_cannot_overwrite_se
     stale = dict(five[k])                                    # ... and WRITES after it, carrying the stream's high
     sq.put_bars("SPY", "5", [stale], checked_at=t_pre)
     assert round(_row(sq, "SPY", "5", _ts(15, 45))[2], 6) == round(corrected[k]["h"], 6)
+
+
+def test_the_check_time_is_taken_per_ticker_just_before_its_fetch(env, monkeypatch):
+    """#2774 round 2 (LOW): an after-hours tail heal that seals a series MID-PASS, after the pass started but before
+    this ticker's fetch, must not make the settle's later write of that ticker read as the older check."""
+    import time as _real
+    from types import SimpleNamespace
+    sq, vendor = env
+    clock = {"n": 1_800_000_000.0}
+
+    def _now():
+        clock["n"] += 10.0
+        return clock["n"]
+    monkeypatch.setattr(bls, "time", SimpleNamespace(time=_now, monotonic=_real.monotonic, sleep=_real.sleep))
+    monkeypatch.setattr(bls, "SETTLE_WORKERS", 1)
+    five = _stream_day(sq, "SPY")
+    _stream_day(sq, "QQQ")
+    corrected = [dict(b) for b in five]
+    k = next(i for i, b in enumerate(corrected) if b["t"] == _ts(15, 45))
+    corrected[k]["h"] += 1.5
+    vendor["rows"][("SPY", "5")] = corrected
+    vendor["rows"][("QQQ", "5")] = _rows(5)
+    real_fetch = bls._fetch
+
+    def _fetch(sym, mult, frm, to):
+        if sym == "QQQ":                       # while QQQ is read, a tail heal seals SPY's 5m with a check NOW
+            sq.record_sealed("SPY", "5", float(_ts(20, 0)), float(_ts(4, 0)), clock["n"] + 5.0)
+        return real_fetch(sym, mult, frm, to)
+    monkeypatch.setattr(bls, "_fetch", _fetch)
+    bls.settle_pass(_AFTER)                   # sorted: QQQ first, then SPY
+    assert round(_row(sq, "SPY", "5", _ts(15, 45))[2], 6) == round(corrected[k]["h"], 6), (
+        "the settle's SPY write carried the pass start's check and was dropped as older than the mid-pass seal")
