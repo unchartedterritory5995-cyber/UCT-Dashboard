@@ -37,7 +37,10 @@ export default function CompanyLogo({ sym, size = 38, round = false, tile = fals
   const timerRef = useRef(null)
   const [srcOn, setSrcOn] = useState(!deferSrc)
   useEffect(() => {
-    if (srcOn || !deferSrc) return undefined
+    // ⛔ once a logo has asked for its image the ask is never taken back (review of #2847): a row that came on screen
+    // (deferSrc false) and then slid back into the overscan keeps its src, never a dropped image and a re-request
+    if (!deferSrc) { if (!srcOn) setSrcOn(true); return undefined }
+    if (srcOn) return undefined
     const raf = typeof requestAnimationFrame === 'function' ? requestAnimationFrame : (fn) => setTimeout(fn, 16)
     const caf = typeof cancelAnimationFrame === 'function' ? cancelAnimationFrame : clearTimeout
     const id = raf(() => setSrcOn(true))
