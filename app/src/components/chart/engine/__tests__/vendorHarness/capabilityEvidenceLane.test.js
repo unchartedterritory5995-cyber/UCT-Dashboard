@@ -185,6 +185,16 @@ const report = JSON.parse(fs.readFileSync(path.join(REPO,
 // offset through a parameter) is read per bar now, and every plot, G04 included, equals TradingView's value on every bar
 // (`runtime/__tests__/functionGlobalHistory.test.js`); its runtime-on row re-grades MATCH.
 
+// ⭐ COV-TIME B1 (feat/cov-time-session, #2824) re-pinned 6 rows, lane `null` -> drawn, and re-derived the population
+// block from the rows (`capability_admission.py::populations_of`; capture population runtime 227 -> 229, host 322 -> 326,
+// refused 289 -> 283). "1440" is now "D" in `time(tf, session)` and the `time(tf)` anchor, so the door draws:
+// vw-bt-time-1440-spy-{1d,60}-2026-11-16 -> `host` (R1, R3, R5 equal R2, R4, R6 on every bar in
+// `ast/pineBuiltinsUnit.test.js`); vw-bi-time-d-extended-{spy,btcusd}-60-2026-11-19 -> `runtime` (its S5 row was the one
+// wall); asianrange-and-killzones-{rddt,spy}-1d-2026-11-14 -> `host` (`time('1440', sess)` its only wall). #2824's
+// pine heavy run (45847392603) grades all six runtime-on INCONCLUSIVE, none DIVERGE, so none is a REACH stop.
+// ⚠️ asianrange's two are VACUOUS witnesses: on a 1D chart the script draws nothing (`displayZones` needs an intraday
+// chart), "1 of 1 items could not be compared". Its intraday capture is queued (FRED RS capture queue, C7).
+
 describe('WS-I Part 2 — the reach run records the lanes the door itself answers', () => {
   // ⭐⭐ THE MEMBER'S DOOR, EXACTLY (GATE-BLIND follow-up (a), 2026-11-19): the allowlist EMPTY, capability admission
   // ON (each script's verdict latched admitted below) and the host lane's KNOWN-DIVERGENCE LIST APPLIED, as the
