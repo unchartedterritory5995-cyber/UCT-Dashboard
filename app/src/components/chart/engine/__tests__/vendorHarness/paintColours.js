@@ -131,7 +131,7 @@ export function paintWarmupOf(capture, supply) {
 }
 
 /** One capture's paints, paired and graded. `ours` is `runOurSide(capture)`. */
-export function gradePaints(capture, ours) {
+export function gradePaints(capture, ours, { window = null } = {}) {
   const vendor = vendorPaints(capture)
   const rows = []
   const unpaired = []
@@ -141,7 +141,9 @@ export function gradePaints(capture, ours) {
   const tr = ours.translationPaints || []
   // ⭐ RC1 — which bars the paints were replayed over, carried into the grade so a
   // reader can tell a warm replay from a cold one, and the warm-up it implies.
-  const warmupBars = paintWarmupOf(capture, ours.paintSupply)
+  // ⭐ e98 — a bounded window (`harness.js::harnessWindowOf`): only the newest `window` bars are graded
+  const nBars = ((capture.bars && capture.bars.rows) || []).length
+  const warmupBars = Math.max(paintWarmupOf(capture, ours.paintSupply), window ? Math.max(0, nBars - window) : 0)
   const supply = { ...(ours.paintSupply || { kind: 'cold', file: null, bars: 0, refused: [], reason: 'no supply recorded' }), warmupBars }
   for (const kind of ['bgcolor', 'barcolor']) {
     const vk = vendor.filter((v) => v.kind === kind)
