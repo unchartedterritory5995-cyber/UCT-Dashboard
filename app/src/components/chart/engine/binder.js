@@ -2607,7 +2607,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
       // (`nativeRegistry.computeSignature`), so a landed benchmark quote is a memo
       // miss and not another paint of the stale forming bar. `''` for every native.
       const liveSig = typeof registry.computeSignature === 'function'
-        ? (registry.computeSignature(def, inst.inputs, { sym: ctx.sym, tf: frame || ctx.tf }) || '') : ''
+        ? (registry.computeSignature(def, inst.inputs, { sym: ctx.sym, tf: frame || ctx.tf, extended: ctx.extended === true }) || '') : ''
       // ⭐ A SERVER-LANE COMPUTE IS KEYED ON (symbol, timeframe) TOO (2026-11-11). The lane
       // fetches `/api/signature/columns?...&sym=&tf=` and aligns the answer onto the bars it
       // is handed, so the same inputs over the SAME bars array mean a different request
@@ -2692,6 +2692,12 @@ export function createBinder({ chart, LWC, scope = '' }) {
           { sym: ctx.sym, symbol: ctx.symbol || null, tf: frame || ctx.tf,
             source: primarySource, sources: sourceCols,
             newestBarIsForming: formingNow,
+            // ⭐⭐ (2026-11-26) THE CHART'S OWN SESSION RIDES THE CTX TOO. StockChart hands `extended` to `sync`, and the
+            // server lane reads `ctx.extended` (`serverCompute.serverAskOf`: an extended 4h chart's envelope is asked at
+            // 30m, not 60m; `benchmarkTailFor`: the benchmark's forming bar on the chart's own grid; and the live-tail
+            // signature, `nativeRegistry.computeSignature`). ⚰️ It stopped at `sync`: every extended-hours chart's server
+            // RS line was asked and tailed on the REGULAR grid.
+            extended: ctx.extended === true,
             // ⭐ C12w — ONLY the chart's own series can start at the listing
             // bar: a framed instance computes on its frame's bars, which the
             // caller's statement does not describe.
@@ -3879,6 +3885,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
           sym, symbol: null, tf,
           source: primarySource, sources: sourceCols,
           newestBarIsForming: forming,
+          extended: base.extended === true,
           secondary, exchangeOf: base.exchangeOf, framed: false,
           lowerTf,
           hostPane: `${noticeScope}\u0001${inst.instanceId}`,
