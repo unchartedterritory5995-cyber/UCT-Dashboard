@@ -356,16 +356,28 @@ VERDICT_TOKEN_ENV = "AGENT_CI_VERDICT_TOKEN"
 #: FREEZE_FLOOR's opening plus close-30..close+15 for the calendar's close, which may not be later than 16:00 (so a
 #: regular day is FREEZE_FLOOR itself); a covered non-trading day has none; an uncovered day (the weekday fallback) is
 #: exactly FREEZE_FLOOR. Anything else raises FreezeFloorError and the entry FAILS CLOSED, never "no window".
-#: ⚠️ LIMIT, stated for AUDIT: WHICH days are holidays and half-days, and a half-day's close, still come from the
-#: unprotected dataset. An edit that marks a trading day as a holiday, or moves a close earlier, passes this floor (it
-#: moves or removes that day's rushes exactly as a real calendar change would). A close later than 16:00 is never
-#: accepted, and the regular rushes and the half-day offsets cannot be weakened without editing this file.
+#: ⛔ THE FLOOR'S FACTS ARE ITS OWN (review of #2850, delta D1). It does NOT ask deploy_freeze's `_calendar_module` or
+#: api/services/session_calendar.py (both unprotected code) which days trade: it parses FREEZE_CALENDAR itself
+#: (`_floor_calendar`, stdlib only) and compares deploy_freeze's windows with THAT. So a stubbed or edited reader that
+#: drops a rush disagrees with the floor and fails closed.
+#: ⛔ THE DATA IS BOUNDED (delta D2): `sessions.close` must be 16:00; a close other than 16:00 only on a date listed in
+#: `early_closes`, within [12:00, 16:00); listed dates are weekdays inside the coverage, never both kinds; at most
+#: FREEZE_MAX_HOLIDAYS closures and FREEZE_MAX_EARLY early closes in any calendar year (the real maxima: 13 closures
+#: in 2001, the September 11 week; 4 early closes in 2003). A dataset outside the bounds fails EVERY Agent entry closed.
+#: An unreadable dataset is the weekday fallback (deploy_freeze answers it so too): the windows must then be FREEZE_FLOOR.
+#: ⚠️ LIMIT, stated for AUDIT: within those bounds, WHICH days are closures or early closes, and an early close's time,
+#: still come from the unprotected dataset. A data edit can move or remove at most that handful of days' rushes per
+#: year, exactly as a real calendar change would; the regular rushes, the half-day offsets, the 16:00 regular close and
+#: the bounds cannot be weakened without editing this file.
 FREEZE_TZ = "America/New_York"
 FREEZE_RUSHES = ("opening", "closing")
 FREEZE_FLOOR = (((9, 20), (9, 45)), ((15, 30), (16, 15)))
 #: the close FREEZE_FLOOR's closing rush is written around, and that rush's offsets from it (minutes)
 FREEZE_FLOOR_CLOSE, FREEZE_FLOOR_BEFORE, FREEZE_FLOOR_AFTER = (16, 0), 30, 15
 FREEZE_FLOOR_FAILED = "fail closed: the deploy freeze windows fail the self-protected floor in agent_ci_required.py; AUDIT decides"
+FREEZE_CALENDAR = pathlib.Path(__file__).resolve().parents[1] / "app" / "src" / "lib" / "marketClock" / "market_calendar.json"
+FREEZE_MAX_HOLIDAYS, FREEZE_MAX_EARLY = 14, 5
+FREEZE_EARLY_RANGE = ((12, 0), (16, 0))        # an early close is in [12:00, 16:00)
 FREEZE_TOOL = pathlib.Path(__file__).resolve().parent / "deploy_freeze.py"
 _FREEZE_MOD: list = []
 MACHINERY_EDITED = "; an entry ahead edits the Agent CI machinery: AUDIT decides"
@@ -786,6 +798,52 @@ def _hm(m: int) -> tuple:
     return (m // 60, m % 60)
 
 
+class _CalendarUnreadable(Exception):
+    """The dataset could not be read or parsed at all: the weekday fallback (not a floor failure)."""
+
+
+def _floor_calendar() -> dict:
+    """FREEZE_CALENDAR parsed HERE (stdlib only), with the floor's bounds (FREEZE_FLOOR's comment block):
+    {"start", "horizon", "holidays": set of dates, "early": {date: close minute}}. _CalendarUnreadable when it cannot
+    be read or parsed; FreezeFloorError when it parses but breaks a bound."""
+    import collections
+    import datetime as _dt
+    try:
+        raw = json.loads(FREEZE_CALENDAR.read_text(encoding="utf-8"))
+        start, horizon = _dt.date.fromisoformat(raw["coverage_start"]), _dt.date.fromisoformat(raw["horizon"])
+        close = raw["sessions"]["close"]
+        holidays = [_dt.date.fromisoformat(h["date"]) for h in raw["holidays"]]
+        early = [(_dt.date.fromisoformat(e["date"]), e["close"]) for e in raw["early_closes"]]
+    except Exception as e:  # noqa: BLE001
+        raise _CalendarUnreadable(f"{type(e).__name__}: {e}") from None
+
+    def minutes(hm: str) -> int:
+        m = re.fullmatch(r"([01]\d|2[0-3]):([0-5]\d)", str(hm))
+        if not m:
+            raise FreezeFloorError(f"market_calendar.json: {hm!r} is not an HH:MM time")
+        return int(m.group(1)) * 60 + int(m.group(2))
+    regular = FREEZE_FLOOR_CLOSE[0] * 60 + FREEZE_FLOOR_CLOSE[1]
+    if minutes(close) != regular:
+        raise FreezeFloorError(f"market_calendar.json: sessions.close is {close!r}, not 16:00")
+    lo, hi = (h * 60 + m for h, m in FREEZE_EARLY_RANGE)
+    early_map = {}
+    for d, c in early:
+        cm = minutes(c)
+        if not lo <= cm < hi:
+            raise FreezeFloorError(f"market_calendar.json: the early close {d} at {c} is outside [12:00, 16:00)")
+        early_map[d] = cm
+    if len(set(holidays)) != len(holidays) or len(early_map) != len(early) or set(holidays) & set(early_map):
+        raise FreezeFloorError("market_calendar.json: a date is listed twice")
+    for d in (*holidays, *early_map):
+        if d.weekday() >= 5 or not start <= d <= horizon:
+            raise FreezeFloorError(f"market_calendar.json: {d} is a weekend or outside the coverage")
+    for what, dates, cap in (("closures", holidays, FREEZE_MAX_HOLIDAYS), ("early closes", list(early_map), FREEZE_MAX_EARLY)):
+        year, n = max(collections.Counter(d.year for d in dates).items(), key=lambda kv: kv[1], default=(None, 0))
+        if n > cap:
+            raise FreezeFloorError(f"market_calendar.json: {n} {what} in {year}, more than {cap}")
+    return {"start": start, "horizon": horizon, "holidays": set(holidays), "early": early_map}
+
+
 def freeze_day(day) -> tuple:
     """(windows, fallback) for ET date `day`: deploy_freeze's market rushes as ((start, end), ...) ET (h, m) pairs, and
     whether they are its WEEKDAY FALLBACK (the calendar could not answer for `day`). Raises FreezeFloorError when the
@@ -795,26 +853,21 @@ def freeze_day(day) -> tuple:
         raise FreezeFloorError(f"deploy_freeze's regular-day rushes {df.BURST_WINDOWS_ET!r} are not {FREEZE_FLOOR!r}")
     windows = tuple((a, b) for name, a, b in df.day_hold_windows(day) if name in FREEZE_RUSHES)
     try:
-        cal = df._calendar_module()
-        if not cal.covers(day):
-            raise LookupError("not covered")
-        trading = bool(cal.is_trading_day(day))
-        close = cal.close_time(day) if trading else None
-    except Exception:  # noqa: BLE001  deploy_freeze answers these days by its weekday fallback: it must be the floor
+        cal = _floor_calendar()                    # the floor's OWN facts (delta D1); FreezeFloorError propagates
+    except _CalendarUnreadable:
+        cal = None
+    if cal is None or not cal["start"] <= day <= cal["horizon"]:
+        # the weekday fallback (deploy_freeze answers an unreadable or uncovered day so too): exactly the floor
         if windows != FREEZE_FLOOR:
-            raise FreezeFloorError(f"{day}: the weekday fallback gave {windows!r}, not {FREEZE_FLOOR!r}") from None
+            raise FreezeFloorError(f"{day}: the weekday fallback gave {windows!r}, not {FREEZE_FLOOR!r}")
         return windows, True
-    if not trading:
-        if windows != ():
-            raise FreezeFloorError(f"{day}: not a trading day, yet the rushes are {windows!r}")
-        return (), False
-    close_m = close.hour * 60 + close.minute
-    regular_m = FREEZE_FLOOR_CLOSE[0] * 60 + FREEZE_FLOOR_CLOSE[1]
-    if close_m > regular_m:
-        raise FreezeFloorError(f"{day}: a close at {close.hour:02d}:{close.minute:02d}, later than the regular close")
-    expected = (FREEZE_FLOOR[0], (_hm(close_m - FREEZE_FLOOR_BEFORE), _hm(close_m + FREEZE_FLOOR_AFTER)))
+    if day.weekday() >= 5 or day in cal["holidays"]:
+        expected = ()
+    else:
+        close_m = cal["early"].get(day, FREEZE_FLOOR_CLOSE[0] * 60 + FREEZE_FLOOR_CLOSE[1])
+        expected = (FREEZE_FLOOR[0], (_hm(close_m - FREEZE_FLOOR_BEFORE), _hm(close_m + FREEZE_FLOOR_AFTER)))
     if windows != expected:
-        raise FreezeFloorError(f"{day}: the rushes {windows!r} are not {expected!r} for a {close.hour:02d}:{close.minute:02d} close")
+        raise FreezeFloorError(f"{day}: deploy_freeze's rushes {windows!r} are not the floor's {expected!r}")
     return windows, False
 
 

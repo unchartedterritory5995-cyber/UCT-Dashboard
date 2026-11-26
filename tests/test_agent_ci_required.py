@@ -1641,8 +1641,13 @@ def test_MQ_freeze_a_broken_calendar_refuses_by_the_weekday_rule(monkeypatch):
     def broken():
         raise RuntimeError("calendar unreadable")
     monkeypatch.setattr(df, "_calendar_module", broken)
-    assert acr.freeze_window(_et(2026, 11, 26, 15, 45)) == "15:30-16:15 ET"        # never "no window"
-    assert acr.freeze_window(_et(2026, 11, 27, 15, 45)) == "15:30-16:15 ET"
+    # deploy_freeze falls back to the weekday rushes; the floor reads the dataset itself: a regular day agrees (refused
+    # by the floor's own windows), a holiday or half-day disagrees and FAILS CLOSED. Never "no window".
+    assert acr.freeze_window(_et(2026, 12, 3, 15, 45)) == "15:30-16:15 ET"
+    with pytest.raises(acr.FreezeFloorError):
+        acr.freeze_window(_et(2026, 11, 26, 15, 45))
+    with pytest.raises(acr.FreezeFloorError):
+        acr.freeze_window(_et(2026, 11, 27, 15, 45))
 
 
 def test_MQ_freeze_a_date_past_the_calendar_horizon_refuses_by_the_weekday_rule():
@@ -1725,10 +1730,20 @@ def test_MQ_the_reason_says_weekday_fallback_when_the_calendar_cannot_answer(tmp
     state, reason = _floor_follow(tmp_path / "a", _et(2026, 12, 3, 15, 45))
     assert state == "failure" and "(a market rush today)" in reason, reason
 
-    def broken():
-        raise RuntimeError("calendar unreadable")
-    monkeypatch.setattr(df, "_calendar_module", broken)
-    state, reason = _floor_follow(tmp_path / "b", _et(2026, 11, 26, 15, 45))
+    # the weekday fallback: a day the calendar does not cover (both readers agree it is uncovered)
+    import importlib.util
+    import sys as _sys
+    spec = importlib.util.spec_from_file_location("_cal_for_fallback", ROOT / "api" / "services" / "session_calendar.py")
+    cal = importlib.util.module_from_spec(spec)
+    _sys.modules["_cal_for_fallback"] = cal
+    try:
+        spec.loader.exec_module(cal)
+    finally:
+        _sys.modules.pop("_cal_for_fallback", None)
+    day = cal.horizon() + datetime.timedelta(days=1)
+    while day.weekday() >= 5:
+        day += datetime.timedelta(days=1)
+    state, reason = _floor_follow(tmp_path / "b", _et(day.year, day.month, day.day, 15, 45))
     assert state == "failure" and "(weekday fallback)" in reason and "market rush today" not in reason, reason
     assert len(reason) <= 140
 
@@ -1751,9 +1766,14 @@ sys.addaudithook(hook)
 sys.path.insert(0, root); sys.dont_write_bytecode = True
 from tools import agent_ci_required as acr
 et = lambda *a: datetime.datetime(*a, tzinfo=zoneinfo.ZoneInfo("America/New_York"))
-print(json.dumps({"thanksgiving": acr.freeze_window(et(2026, 11, 26, 15, 45)),
-                  "half_day": acr.freeze_window(et(2026, 11, 27, 12, 45)),
-                  "regular": acr.freeze_window(et(2026, 12, 3, 15, 45)),
+def fw(t):
+    try:
+        return acr.freeze_window(t)
+    except acr.FreezeFloorError:
+        return "FLOOR"
+print(json.dumps({"thanksgiving": fw(et(2026, 11, 26, 15, 45)),
+                  "half_day": fw(et(2026, 11, 27, 12, 45)),
+                  "regular": fw(et(2026, 12, 3, 15, 45)),
                   "seen": sorted(p for p in seen if not p.endswith(".pyc"))}))
 '''
 
@@ -1786,7 +1806,93 @@ def test_MQ_the_follower_freeze_runs_from_its_sparse_checkout_alone(tmp_path):
     res2, noise2 = _probe(tmp_path)
     assert res2["thanksgiving"] is None and res2["half_day"] == "12:30-13:15 ET", (res2, noise2)
     assert "warning" not in noise2.lower(), noise2
-    # control: the rail CAN fail. Without the calendar module the freeze falls back to the weekday rule, and warns.
+    # control: the rail CAN fail. Without the calendar module deploy_freeze falls back to the weekday rule and warns;
+    # the floor (which reads the dataset itself) disagrees on the holiday and fails closed.
     (tmp_path / "api" / "services" / "session_calendar.py").unlink()
     res3, noise3 = _probe(tmp_path)
-    assert res3["thanksgiving"] == "15:30-16:15 ET" and "warning" in noise3.lower(), (res3, noise3)
+    assert res3["thanksgiving"] == "FLOOR" and "warning" in noise3.lower(), (res3, noise3)
+
+
+
+# ---- the floor reads the DATASET itself, and bounds it (review of #2850, delta D1/D2) ------------------------------
+# D1: the floor took its facts from deploy_freeze's _calendar_module / session_calendar (both unprotected), so one edit
+# to either could remove every rush and pass. The floor now parses market_calendar.json itself (stdlib, here).
+# D2: data alone could do it at scale (sessions.close "13:00"; every weekday a holiday). The floor bounds the data.
+
+def test_MQ_floor_d1_a_stubbed_calendar_reader_fails_closed(monkeypatch):
+    df = acr._deploy_freeze()
+
+    class Stub:
+        def covers(self, d): return True
+        def horizon(self): return datetime.date(2028, 12, 31)
+        def is_trading_day(self, d): return False
+        def is_half_day(self, d): return False
+        def close_time(self, d): return None
+    monkeypatch.setattr(df, "_calendar_module", lambda: Stub())
+    assert df.day_hold_windows(datetime.date(2026, 12, 3)) == ()        # deploy_freeze is fooled: no rushes at all
+    with pytest.raises(acr.FreezeFloorError):
+        acr.freeze_window(_et(2026, 12, 3, 15, 45))
+
+
+_TREE_PROBE = r"""
+import datetime, sys, zoneinfo
+sys.path.insert(0, sys.argv[1]); sys.dont_write_bytecode = True
+from tools import agent_ci_required as acr
+y, mo, d, h, mi = map(int, sys.argv[2:7])
+try:
+    print("WINDOW", acr.freeze_window(datetime.datetime(y, mo, d, h, mi, tzinfo=zoneinfo.ZoneInfo("America/New_York"))))
+except acr.FreezeFloorError as e:
+    print("FLOOR", e)
+"""
+
+
+def _tree_freeze(tmp_path, dataset: dict, when):
+    """freeze_window at `when` (y, mo, d, h, mi ET) with a copy of the tools whose dataset is `dataset`."""
+    import shutil
+    import sys
+    for rel in ("tools/__init__.py", "tools/agent_ci_required.py", "tools/agent_ci_evidence.py", "tools/deploy_freeze.py",
+                "api/services/session_calendar.py"):
+        (tmp_path / rel).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(ROOT / rel, tmp_path / rel)
+    ds = tmp_path / "app" / "src" / "lib" / "marketClock" / "market_calendar.json"
+    ds.parent.mkdir(parents=True, exist_ok=True)
+    ds.write_text(json.dumps(dataset), encoding="utf-8")
+    out = subprocess.run([sys.executable, "-B", "-c", _TREE_PROBE, str(tmp_path), *map(str, when)],
+                         capture_output=True, text=True, timeout=120, cwd=str(tmp_path))
+    assert out.returncode == 0, out.stdout + out.stderr
+    return [ln for ln in out.stdout.splitlines() if ln.startswith(("WINDOW", "FLOOR"))][-1]
+
+
+def _real_dataset():
+    return json.loads((ROOT / "app/src/lib/marketClock/market_calendar.json").read_text(encoding="utf-8"))
+
+
+def test_MQ_floor_d2_a_regular_close_of_1300_fails_closed(tmp_path):
+    raw = _real_dataset()
+    raw["sessions"]["close"] = "13:00"
+    assert _tree_freeze(tmp_path, raw, (2026, 12, 3, 15, 45)).startswith("FLOOR"), "a 13:00 regular close must fail closed"
+
+
+def test_MQ_floor_d2_a_year_of_holidays_fails_closed(tmp_path):
+    raw = _real_dataset()
+    listed = {h["date"] for h in raw["holidays"]} | {e["date"] for e in raw["early_closes"]}
+    day = datetime.date(2027, 1, 1)
+    while day.year == 2027:
+        if day.weekday() < 5 and day.isoformat() not in listed:
+            raw["holidays"].append({"date": day.isoformat(), "name": "not a real holiday"})
+        day += datetime.timedelta(days=1)
+    assert len(raw["holidays"]) > 250
+    assert _tree_freeze(tmp_path, raw, (2027, 3, 3, 15, 45)).startswith("FLOOR"), "250 holidays must fail closed"
+
+
+def test_MQ_floor_d2_bounds_hold_and_the_real_dataset_passes(tmp_path):
+    cal = acr._floor_calendar()                   # the real dataset passes the bounds (raises otherwise)
+    assert cal["horizon"] >= datetime.date(2028, 12, 31)
+    # an early close outside [12:00, 16:00) fails closed; so does a 16:00 "early" close and one on a weekend
+    for bad in ({"date": "2026-12-03", "name": "x", "close": "11:30"}, {"date": "2026-12-03", "name": "x", "close": "16:00"}):
+        raw = _real_dataset()
+        raw["early_closes"].append(bad)
+        assert _tree_freeze(tmp_path / bad["close"].replace(":", ""), raw, (2026, 12, 3, 15, 45)).startswith("FLOOR"), bad
+    # control: the real dataset through the same tree gives the real answers
+    assert _tree_freeze(tmp_path / "real", _real_dataset(), (2026, 11, 26, 15, 45)) == "WINDOW None"
+    assert _tree_freeze(tmp_path / "real2", _real_dataset(), (2026, 11, 27, 12, 45)) == "WINDOW 12:30-13:15 ET"
