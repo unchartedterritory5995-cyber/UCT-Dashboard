@@ -31,7 +31,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, cleanup, fireEvent, waitFor } from '@testing-library/react'
-import { _resetViewLockHealForTests, VIEW_LOCK_HEAL_FLAG } from './chart/viewLockHeal'
+import { _resetViewLockHealForTests, VIEW_LOCK_HEAL_FLAG, VIEW_LOCK_HEAL_FLAG_V2 } from './chart/viewLockHeal'
 
 // ── The renderer double, with a PRICE SCALE that has arithmetic in it ────────
 const rig = vi.hoisted(() => {
@@ -679,7 +679,8 @@ describe('⭐ THE ONE-TIME HEAL — a compounded stored lock is healed BEFORE th
   const KEY = 'uct.charts.viewLock.heal-rig'
   const H = { anchorFrac: 0.95, width: 200, tf: 'D', hLocked: true, vLocked: true }
   const stored = () => JSON.parse(localStorage.getItem(KEY))
-  beforeEach(() => { _resetViewLockHealForTests() })
+  // v1's own rule, on a device where v2 (every vertical half, once: the next describe) has already run
+  beforeEach(() => { _resetViewLockHealForTests(); localStorage.setItem(VIEW_LOCK_HEAL_FLAG_V2, JSON.stringify({ healed: 0, at: 'earlier' })) })
 
   it('CONTROL: a NORMAL stored lock (measured, Fred on after #2346) is restored on load as stored', async () => {
     localStorage.setItem(KEY, JSON.stringify({ ...H, top: 0.2415, bottom: 0.2234 }))
@@ -701,5 +702,41 @@ describe('⭐ THE ONE-TIME HEAL — a compounded stored lock is healed BEFORE th
     expect(stored()?.bottom ?? null).toBeNull()
     expect(stored()).toMatchObject({ anchorFrac: 0.95, width: 200, tf: 'D' })
     expect(JSON.parse(localStorage.getItem(VIEW_LOCK_HEAL_FLAG))).toMatchObject({ healed: 1 })
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+describe('⭐ HEAL v2 (2026-11-26) — every stored vertical half goes ONCE, on the first load, before the chart reads it', () => {
+  const KEY = 'uct.charts.viewLock.heal-v2-rig'
+  // the lock measured on UCT test slot 2 (AGL 1D read −40..180 for bars 10..165 with Fred RS on "No scale")
+  const SLOT2 = { anchorFrac: 0.92917, width: 137.4227180526068, tf: 'D', top: 0.3223, bottom: 0.3057 }
+  const stored = () => JSON.parse(localStorage.getItem(KEY))
+  beforeEach(() => {
+    _resetViewLockHealForTests()
+    localStorage.removeItem(VIEW_LOCK_HEAL_FLAG_V2)
+    localStorage.setItem(VIEW_LOCK_HEAL_FLAG, JSON.stringify({ healed: 0, at: 'earlier' }))   // v1 already ran
+  })
+
+  it('a real stored symmetric lock (v1 spares it) loses its vertical half on the first load: default band, time view kept', async () => {
+    const { rerender: r0 } = await mount()
+    await repaint(r0)
+    const m0 = margins()
+    cleanup(); _resetViewLockHealForTests(); localStorage.removeItem(VIEW_LOCK_HEAL_FLAG_V2)
+    localStorage.setItem(KEY, JSON.stringify(SLOT2))
+    const { rerender } = await mount({ viewLockKey: KEY })
+    await repaint(rerender, { viewLockKey: KEY })
+    expect(margins().top).not.toBeCloseTo(0.3223, 2)
+    expect(margins()).toEqual(m0)
+    expect(stored()).toMatchObject({ anchorFrac: SLOT2.anchorFrac, width: SLOT2.width, tf: 'D', top: null, bottom: null })
+    expect(JSON.parse(localStorage.getItem(VIEW_LOCK_HEAL_FLAG_V2))).toMatchObject({ healed: 1 })
+  })
+
+  it('ONCE: a vertical half authored AFTER the heal survives the next load', async () => {
+    localStorage.setItem(VIEW_LOCK_HEAL_FLAG_V2, JSON.stringify({ healed: 1, at: 'earlier' }))
+    localStorage.setItem(KEY, JSON.stringify(SLOT2))
+    const { rerender } = await mount({ viewLockKey: KEY })
+    await repaint(rerender, { viewLockKey: KEY })
+    expect(margins().top).toBeCloseTo(0.3223, 3)
+    expect(stored()).toMatchObject({ top: 0.3223, bottom: 0.3057 })
   })
 })

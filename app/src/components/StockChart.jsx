@@ -1852,7 +1852,7 @@ import {
 import { parsePaneOfTarget, parseSource, sourceInputsOf, symbolsNeeded } from './chart/engine/sourceRef'
 import { readsVendorPrefix, setIndexHistoryNote } from './chart/engine/indexHistoryNotice'
 import { chromePlan, capturedPriceRange, viewLockFractions, joinedAutoscaleExtent, lookbackPlacementSettled, LOOKBACK_REVEAL_MAX_MS } from './chart/chromeGeometry'
-import { healViewLocksOnce, axisDoubleClickLock } from './chart/viewLockHeal'
+import { healViewLocksOnce, healViewLocksV2Once, axisDoubleClickLock } from './chart/viewLockHeal'
 import { LIBRARY_HIDDEN_IDS } from './chart/discoveryCatalog'
 import { useSecondarySources, useOtherSymbolExchanges, useLowerTfSources } from './chart/engine/useSecondarySources'
 import { heldRowsFor, heldSpanOn } from './chart/heldSpanPlan'
@@ -6034,6 +6034,7 @@ function StockChartBody({
     try {
       const k = viewLockKeyRef.current; if (!k) return null
       healViewLocksOnce()   // ⭐ once per device, BEFORE the first read: compounded locks lose their vertical half (viewLockHeal.js)
+      healViewLocksV2Once() // ⭐ (2026-11-26) once per device: EVERY stored vertical half goes, the horizontal kept (viewLockHeal.js v2)
       const raw = localStorage.getItem(k); if (!raw) return null
       const v = JSON.parse(raw)
       const hOK = typeof v?.anchorFrac === 'number' && typeof v?.width === 'number' && v.width > 0
