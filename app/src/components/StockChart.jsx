@@ -226,6 +226,7 @@ import { paneTableFits, paneTableOwners } from './chart/engine/paneTable'
 // ⭐ UCT RS split, U2 — the line-end tag (`plots[].endLabel`) and the ranks strip's
 // price-pane host (`engine/endLabel.js`, `chart/pane/PlotEndLabel.jsx`).
 import PlotEndLabel from './chart/pane/PlotEndLabel'
+import { createEndLabelSizer } from './chart/pane/endLabelSize'
 import { lastFinitePoint, endLabelText, endLabelPlacement } from './chart/engine/endLabel'
 import { plotWindowDisabled, plotWindowRows, plotWindowStart, plotWindowTooNarrow } from './chart/engine/plotWindow'
 import chipStyles from './chart/legend/IndicatorChip.module.css'
@@ -5775,6 +5776,13 @@ function StockChartBody({
   // rebuilds its bindings on every sync, so a stale entry cannot outlive the data
   // it describes.
   const endLabelLastRef = useRef(new WeakMap())
+  // ⚡ (2026-11-26) each tag's box, read once per text (chart/pane/endLabelSize.js); each tag's latest model, written as
+  // the readout island renders it; the tags' refs, one function per key (`endLabelRefOf`); the queued re-pin pass.
+  const endLabelSizeRef = useRef(null)
+  if (!endLabelSizeRef.current) endLabelSizeRef.current = createEndLabelSizer()
+  const endLabelModelsRef = useRef(new Map())
+  const endLabelRefCbs = useRef({ pin: null, byKey: new Map() })
+  const endLabelPinQueued = useRef(false)
   // What the price chrome looks like this render, for the `[]`-deps pin below.
   const priceChromeRef = useRef({ legendFlush: false, toolbarCollapsed: false })
   /** Which indicator panes exist, in order — published by the layout effect.
@@ -18368,9 +18376,10 @@ function StockChartBody({
       try { leftW = chart.priceScale('left').width() || 0 } catch { leftW = 0 }
       let plotW = 0
       try { plotW = chart.timeScale().width() || 0 } catch { plotW = 0 }
+      const box = endLabelSizeRef.current(el, text)   // its box for this text, read once (endLabelSize.js)
       const place = endLabelPlacement({
         x, y, plotLeft: leftW, plotWidth: plotW, paneTop: band.top, paneHeight: band.height,
-        width: el.offsetWidth, height: el.offsetHeight,
+        width: box.w, height: box.h,
       })
       if (place.hidden) { hide(); return }
       const left = `${place.left}px`, top = `${place.top}px`
@@ -18379,6 +18388,36 @@ function StockChartBody({
       if (el.hasAttribute('data-hidden')) el.removeAttribute('data-hidden')
     } catch { hide() }
   }, [paneBandOf])
+  // ⚡ (2026-11-26, the 4h board's switch) THE TAGS' REFS ARE ONE FUNCTION PER KEY, AND THEIR RE-PIN ONE PASS PER TASK. An
+  // inline ref is a new function every render, so React detached and re-attached every tag on EVERY commit of the
+  // readout island, and each re-attach pinned it (a switch commits that island several times). Now a tag's ref pins
+  // it once, at mount; each island render queues ONE pass over every tag after its commit (a microtask: the same task,
+  // before the frame paints), so a model or a data change still moves the tag in the frame it lands, as the re-attach
+  // did; the price-chrome frame loop keeps pinning them every frame while something moves, as before.
+  const endLabelRefOf = useCallback((key) => {
+    const cbs = endLabelRefCbs.current
+    if (cbs.pin !== pinEndLabel) { cbs.pin = pinEndLabel; cbs.byKey = new Map() }
+    let cb = cbs.byKey.get(key)
+    if (!cb) {
+      cb = (el) => {
+        const m = endLabelRefs.current
+        if (!el) { m.delete(key); return }
+        const entry = { el, model: endLabelModelsRef.current.get(key) }
+        m.set(key, entry)
+        pinEndLabel(el, key, entry.model)
+      }
+      cbs.byKey.set(key, cb)
+    }
+    return cb
+  }, [pinEndLabel])
+  const queueEndLabelPins = useCallback(() => {
+    if (endLabelPinQueued.current) return
+    endLabelPinQueued.current = true
+    queueMicrotask(() => {
+      endLabelPinQueued.current = false
+      endLabelRefs.current.forEach((entry, key) => pinEndLabel(entry.el, key, entry.model))
+    })
+  }, [pinEndLabel])
 
   useEffect(() => {
     if ((!showRangeSelector && !showVolLegend && !verticalLegend && !paneLegendKeys.length) || !chartReady) return
@@ -22377,8 +22416,13 @@ function StockChartBody({
                 ref={priceTableRefCb}
               />
             ) : null}
+            {hosted.ends.length ? queueEndLabelPins() : null}
             {hosted.ends.map((c) => {
               const key = `${c.instanceId}::${c.plotKey}`
+              // this render's model, for the ref's first pin and the queued pass (`endLabelRefOf`)
+              endLabelModelsRef.current.set(key, c.endLabel)
+              const entry = endLabelRefs.current.get(key)
+              if (entry) entry.model = c.endLabel
               return (
                 <PlotEndLabel
                   key={key}
@@ -22389,10 +22433,7 @@ function StockChartBody({
                   // legend ink and the colour stays as the tag's edge (`legibleInk`).
                   color={legibleInk(c.color, canvasSample.low) || undefined}
                   swatch={c.color}
-                  ref={(el) => {
-                    const m = endLabelRefs.current
-                    if (el) { m.set(key, { el, model: c.endLabel }); pinEndLabel(el, key, c.endLabel) } else m.delete(key)
-                  }}
+                  ref={endLabelRefOf(key)}
                 />
               )
             })}
