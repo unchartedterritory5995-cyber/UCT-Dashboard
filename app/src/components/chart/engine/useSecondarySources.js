@@ -61,11 +61,12 @@ export function heldSpanFor(loaded, requested) {
   return Math.min(HELD_SPAN_MAX, Math.max(rung, req))
 }
 
-export function ensureChartSources(keys, tf, barCount, fetcher, chartSymbol = null, heldSessions = 0) {
+export function ensureChartSources(keys, tf, barCount, fetcher, chartSymbol = null, heldSessions = 0, extended = false) {
   const list = Array.isArray(keys) ? keys : []
   // ⛔⛔ T4 B2 — a breadth key (held or not: `USI~ADVN.NY`, `USI~ADVN.NY@D`) never reaches the bars fetch
+  // (`extended`: the chart's own session; a custom intraday timeframe's other-symbol bars sit on ITS grid, review of #2753)
   const out = ensureAll(list.filter((k) => !heldKeyParts(k) && k !== OWN_DAILY_KEY && k !== EVENTS_KEY && k !== FINANCIAL_KEY && !isBreadthKey(k)),
-    tf, barCount, fetcher)
+    tf, barCount, fetcher, { extended })
   for (const k of list) {
     // ⭐⭐ T4 B2 — a `USI:` breadth spelling's rows, from the breadth door (`breadthSupply.js`), at every chart timeframe
     // (a weekly or monthly chart holds them at D: the same rows under the held key)
@@ -113,7 +114,7 @@ export const LIVE_TAIL_MS = 60000
  *  re-read finds today's), re-reads its newest rows. Nothing while the member cannot see the app
  *  (`deskVisibility.isAppVisible`: a hidden tab, or the desktop desk hidden, where a minimized window still
  *  reports `visible`; speed rule 6). Exported for its rail. */
-export function liveTailTick(keys, tf, barCount, fetcher, chartForming, chartSymbol = null, heldSessions = 0) {
+export function liveTailTick(keys, tf, barCount, fetcher, chartForming, chartSymbol = null, heldSessions = 0, extended = false) {
   if (!isAppVisible()) return 0
   let started = 0
   for (const k of Array.isArray(keys) ? keys : []) {
@@ -127,10 +128,10 @@ export function liveTailTick(keys, tf, barCount, fetcher, chartForming, chartSym
     const symbol = held ? held.symbol : k
     const at = held ? held.tf : tf
     const depth = held ? heldDepthOf(barCount, tf, heldSessions) : barCount
-    const e = cachedBars(symbol, at, depth)
+    const e = cachedBars(symbol, at, depth, { extended })
     if (!e || e.status !== 'available') continue
     if (e.newestBarIsForming !== true && chartForming !== true) continue
-    if (refreshSecondaryTail(symbol, at, depth, fetcher)) started += 1
+    if (refreshSecondaryTail(symbol, at, depth, fetcher, { extended })) started += 1
   }
   return started
 }
@@ -207,7 +208,7 @@ export function ownDailyNeeded(instances, defOf, tf, symbol = null, ask = runtim
 }
 
 export function useSecondarySources(instances, defOf, tf, barCount, fetcher, revalidate, chartFormingOf, chartSymbol = null,
-  chartSymbolMeta = null, heldSessions = 0) {
+  chartSymbolMeta = null, heldSessions = 0, extended = false) {
   const [state, setState] = useState(EMPTY)
   // ⭐⭐ (switch smoothness) bumped when a question asked off this thread answers NO: the needed set is read again
   const [ownDailyGen, setOwnDailyGen] = useState(0)
@@ -236,7 +237,7 @@ export function useSecondarySources(instances, defOf, tf, barCount, fetcher, rev
     const offAnswer = askedOff.size
       ? onOwnDailyAnswer((k, yes) => { if (alive && yes === false && askedOff.has(k)) setOwnDailyGen((n) => n + 1) })
       : null
-    const key = `${symbols.join(',')}|${tf}|${barCount}|${heldSessions}`
+    const key = `${symbols.join(',')}|${tf}|${barCount}|${heldSessions}|${extended ? 'eth' : 'rth'}`
 
     const apply = () => {
       if (!alive) return
@@ -245,7 +246,7 @@ export function useSecondarySources(instances, defOf, tf, barCount, fetcher, rev
       // null-key-means-no-traffic idiom `compareSwrUrl` and
       // `useSignatureIndicators` already use. It returns the SHARED empty state,
       // so "needs nothing" is one stable identity rather than a new object.
-      const map = symbols.length ? ensureChartSources(symbols, tf, barCount, fetcher, chartSymbol, heldSessions) : null
+      const map = symbols.length ? ensureChartSources(symbols, tf, barCount, fetcher, chartSymbol, heldSessions, extended) : null
       setState((prev) => {
         if (!map) return prev.map === null ? prev : EMPTY
         return prev.key === key && sameEntries(prev.map, map) ? prev : { key, map }
@@ -267,14 +268,14 @@ export function useSecondarySources(instances, defOf, tf, barCount, fetcher, rev
     // changed entry notifies, and `apply` above hands the chart the new one
     const timer = setInterval(() => {
       liveTailTick(symbols, tf, barCount, fetcher, typeof chartFormingOf === 'function' ? chartFormingOf() : null, chartSymbol,
-        heldSessions)
+        heldSessions, extended)
     }, LIVE_TAIL_MS)
     return () => {
       alive = false; unsub(); if (unsubEvents) unsubEvents(); if (unsubFinancial) unsubFinancial()
       if (unsubBreadth) unsubBreadth(); clearInterval(timer)
       if (offAnswer) offAnswer()
     }
-  }, [instances, defOf, tf, barCount, fetcher, revalidate, chartFormingOf, chartSymbol, chartSymbolMeta, ownDailyGen, heldSessions])
+  }, [instances, defOf, tf, barCount, fetcher, revalidate, chartFormingOf, chartSymbol, chartSymbolMeta, ownDailyGen, heldSessions, extended])
 
   return state.map
 }

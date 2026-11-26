@@ -3552,18 +3552,18 @@
   },
   "build_flags": {
     "VITE_BARSTORE": {
-      "status": "dark",
+      "status": "armed",
       "where": [
         "web"
       ],
       "owner": "owner",
-      "railway_value": "UNSET",
-      "baked_value": "'' (empty - the ENV mirror in Dockerfile.web)",
-      "baked_measured_on": "never built with it",
-      "last_changed": "never set",
-      "note": "P3-S1 BarStore chart bar source (app/src/components/chart/barStoreSwitch.js, read ONCE at module load as `=== '1'`). Off (unset) = every chart reads bars through the legacy selector (chart/useLegacyChartBars.js, SWR + IDB + mem); on = through the BarStore snapshot (chart/useBarSnapshotBars.js, data/barStore). Per-browser override: localStorage 'uct.barStore' = '1' (on) / '0' (off) wins over the build. SAFETY REASON FOR THE FLAG: it swaps the whole bar data path of every chart, so it ships OFF and the owner approves the live switch separately after a per-browser soak. Removed <= 7 days after it reaches 100% (P3-S3 deletes the legacy hook and the switch).",
+      "railway_value": "1",
+      "baked_value": "'1' (the served bundle inlines buildConst \"1\": StockChart-C0Q_KIUJ.js, read through the site's assets 2026-11-25)",
+      "baked_measured_on": "the production bundle, 2026-11-25 (#2753 review)",
+      "last_changed": "before 2026-11-25 (not recorded here; found set to 1 on web and web-front 2026-11-25)",
+      "note": "P3-S1 BarStore chart bar source (app/src/components/chart/barStoreSwitch.js, read ONCE at module load as `=== '1'`). ON IN PRODUCTION (corrected 2026-11-25, #2753 review: this entry said UNSET / dark / every chart on the legacy selector; Railway web and web-front hold 1 and the served bundle bakes '1'): every chart reads bars through the BarStore snapshot (chart/useBarSnapshotBars.js, data/barStore). The legacy selector (chart/useLegacyChartBars.js, SWR + IDB + mem) runs only in a browser that sets localStorage 'uct.barStore' = '0' (the per-browser override, which wins over the build). Removed <= 7 days after it reaches 100% (P3-S3 deletes the legacy hook and the switch).",
       "flip_precondition": "ON CHANGES FOR A MEMBER: every chart's bars (history, tail polling, the developing candle Writer D re-tops, the symbol handoff's prepare) come from one BarStore entry per (symbol, timeframe) instead of the SWR/IDB/mem selector. VERIFY BEFORE FLIPPING: soak with localStorage uct.barStore=1 during RTH on 1/5/15/30/60m and D (symbol scan + timeframe switches), compare against a legacy tab; confirm no blank frames, no stale tails painted as LIVE, and the request count per chart stays at one tail poll.",
-      "hold": "Owner approval required to arm (P3-S1 PR). No action until then. The #1314 short-intraday warm rule is ported (data/barStore/prefetch.js SHORT_FULL_TTL_MS, parity-pinned by prefetch.shortIntraday.test.js, 2026-11-16)."
+      "hold": "Armed: found set on Railway web and web-front 2026-11-25 (the arming was not recorded here). The #1314 short-intraday warm rule is ported (data/barStore/prefetch.js SHORT_FULL_TTL_MS, parity-pinned by prefetch.shortIntraday.test.js, 2026-11-16)."
     },
     "VITE_COMING_SOON": {
       "status": "armed",

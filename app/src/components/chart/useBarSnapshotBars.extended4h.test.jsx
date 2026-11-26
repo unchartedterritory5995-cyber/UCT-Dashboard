@@ -56,4 +56,21 @@ describe('the chart\'s own 4h bars (store path)', () => {
     answer('rth', Array.from({ length: 4 }, (_, k) => row(et(9 + k, 30), k)))
     expect(result.current.bars.map((b) => b.t)).toEqual([et(9, 30)])
   })
+
+  // (review of #2753) an EXT toggle replaces the series wholesale: no bar left at the other view's times, so every indicator
+  // and script reading these bars recomputes on the new buckets (nothing stays at an old 05:30 / 09:30 time)
+  it("TOGGLE regular -> extended -> regular: every bar on the view's own grid, none left at the other's times", () => {
+    const regTimes = new Set([et(9, 30), et(13, 30)])
+    const extTimes = new Set([et(4, 0), et(8, 0), et(12, 0)])
+    const { result, rerender } = renderHook(({ ext }) => useBarSnapshotBars(params({ showExtended: ext })), { initialProps: { ext: false } })
+    answer('rth', Array.from({ length: 4 }, (_, k) => row(et(9 + k, 30), k)))
+    answer('eth', Array.from({ length: 10 }, (_, k) => row(et(4 + k, 0), k)))
+    expect(result.current.bars.map((b) => b.t)).toEqual([et(9, 30)])
+    rerender({ ext: true })
+    expect(result.current.bars.map((b) => b.t)).toEqual([et(4, 0), et(8, 0), et(12, 0)])
+    expect(result.current.bars.some((b) => regTimes.has(b.t))).toBe(false)
+    rerender({ ext: false })
+    expect(result.current.bars.map((b) => b.t)).toEqual([et(9, 30)])
+    expect(result.current.bars.some((b) => extTimes.has(b.t))).toBe(false)
+  })
 })

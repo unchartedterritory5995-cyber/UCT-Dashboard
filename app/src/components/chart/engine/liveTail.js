@@ -300,13 +300,21 @@ export function registerBenchmarkTailRequest(fn) {
   _request = typeof fn === 'function' ? fn : null
 }
 
-function tailKey(sym, tf) {
-  return `${String(sym).toUpperCase()}:${String(tf == null ? 'D' : tf)}`
+function tailKey(sym, tf, extended = false) {
+  // (review of #2753) a custom intraday code's tail differs by view (04:00 vs 09:30 buckets): keyed with the session
+  return `${String(sym).toUpperCase()}:${String(tf == null ? 'D' : tf)}${_extendedCustom(tf, extended) ? ':eth' : ''}`
+}
+
+/** Is `tf` a custom intraday code on the extended view? `extended`: the CHART's own session; a caller that names none
+ *  reads the page's view (utils/viewSession). */
+function _extendedCustom(tf, extended) {
+  if (!(extended ?? viewShowExtended())) return false
+  return resampleSpec(String(tf == null ? 'D' : tf))?.kind === 'intradaySession'
 }
 
 /** The request URL for one benchmark tail — pure and exported so a call site
  *  can be asserted without a network. */
-export function benchmarkTailUrl(sym, tf) {
+export function benchmarkTailUrl(sym, tf, { extended } = {}) {
   const s = typeof sym === 'string' ? sym.trim() : ''
   if (!s) return null
   const code = String(tf == null ? 'D' : tf)
@@ -315,8 +323,9 @@ export function benchmarkTailUrl(sym, tf) {
   const spec = resampleSpec(code)
   const ask = spec ? spec.base : code
   const count = spec ? baseBarsFor(code, BENCHMARK_TAIL_BARS + 1) : BENCHMARK_TAIL_BARS
-  // (2026-11-25) a custom intraday code on the extended view: its base on the extended grid (60m: the clock grid)
-  const sess = spec?.kind === 'intradaySession' && viewShowExtended() ? '&session=eth' : ''
+  // (2026-11-25) a custom intraday code on the extended view: its base on the extended grid where it differs (60m: the
+  // clock grid; 1/5/15/30m are one grid in both views)
+  const sess = spec?.base === '60' && _extendedCustom(code, extended) ? '&session=eth' : ''
   // ⛔ ONE url literal, the site `rails/oneKey.baseline.json` already lists (a shrink-only allowlist: never a new one)
   return `/api/bars/${encodeURIComponent(s)}?tf=${encodeURIComponent(String(ask))}&bars=${count}${sess}`
 }
@@ -335,11 +344,11 @@ function _notify(key) {
 }
 
 /** The bars payload → the newest tail bars `[{t, c}]`, or null for a body that is not one. */
-export function tailBarsFromWire(body, tf) {
+export function tailBarsFromWire(body, tf, { extended } = {}) {
   if (!body || typeof body !== 'object' || !Array.isArray(body.bars)) return null
   // ⭐ (e95) a custom timeframe's base rows, resampled by the chart's rule; the first bucket may be partial: dropped
   // (the view's session start anchors a custom intraday code's buckets: 04:00 ET extended, 09:30 regular)
-  const spec = tf == null ? null : resampleSpec(String(tf), { extended: viewShowExtended() })
+  const spec = tf == null ? null : resampleSpec(String(tf), { extended: _extendedCustom(tf, extended) })
   const src = spec ? resampleForSpec(body.bars, spec).slice(1) : body.bars
   const rows = src.slice(-BENCHMARK_TAIL_BARS)
   const out = []
@@ -358,11 +367,12 @@ function _land(key, sym, tf, bars, now) {
   _notify(key)
 }
 
-function _fetchTail(sym, tf, key, fetcher, now) {
+function _fetchTail(sym, tf, key, fetcher, now, extended = false) {
   // The call's own request first, else the host's registered one, else nothing.
   const get = typeof fetcher === 'function' ? fetcher : _request
   if (!get) return
-  const url = benchmarkTailUrl(sym, tf)
+  // (review of #2753) the view is the one the ask was made for: captured here, never read again when the answer lands
+  const url = benchmarkTailUrl(sym, tf, { extended })
   if (!url) return
   // The ask goes out SYNCHRONOUSLY (a throwing fetcher is a rejection, never a
   // throw on the paint path), so a call site can count requests without a tick.
@@ -370,7 +380,7 @@ function _fetchTail(sym, tf, key, fetcher, now) {
   try { asked = Promise.resolve(get(url)) } catch (err) { asked = Promise.reject(err) }
   const p = asked
     .then((body) => {
-      const bars = tailBarsFromWire(body, tf)
+      const bars = tailBarsFromWire(body, tf, { extended })
       if (!bars) throw new Error('malformed bars body')
       _land(key, sym, tf, bars, typeof now === 'number' ? now : Date.now())
     })
@@ -396,19 +406,21 @@ function _fetchTail(sym, tf, key, fetcher, now) {
 export function benchmarkTailFor(sym, tf, opts) {
   const s = typeof sym === 'string' ? sym.trim().toUpperCase() : ''
   if (!s) return null
-  const key = tailKey(s, tf)
+  // (review of #2753) the CHART's own session (`opts.extended`), fixed for this read: its key, its ask and its landing
+  const ext = _extendedCustom(tf, opts && opts.extended)
+  const key = tailKey(s, tf, ext)
   const now = opts && typeof opts.now === 'number' ? opts.now : Date.now()
   const hit = _tails.get(key) || null
   const maxAge = benchmarkTailMaxAgeMs(tf)
   const age = hit ? now - hit.fetchedAt : Infinity
-  if (age >= maxAge && !_inflight.has(key)) _fetchTail(s, tf, key, opts && opts.fetcher, now)
+  if (age >= maxAge && !_inflight.has(key)) _fetchTail(s, tf, key, opts && opts.fetcher, now, ext)
   if (!hit || !hit.bars || age >= maxAge * BENCHMARK_TAIL_HARD_STALE_FACTOR) return null
   return hit
 }
 
 /** The store's version for `(sym, tf)` — changes when a tail lands. `'0'` for none. */
-export function benchmarkTailVersion(sym, tf) {
-  const hit = _tails.get(tailKey(sym, tf))
+export function benchmarkTailVersion(sym, tf, extended) {
+  const hit = _tails.get(tailKey(sym, tf, _extendedCustom(tf, extended)))
   return hit ? String(hit.version) : '0'
 }
 
@@ -418,7 +430,7 @@ export function benchmarkTailVersion(sym, tf) {
  * payload and the store's version for it. `''` when the definition declares no
  * tail or the payload has not landed (nothing to move yet).
  */
-export function liveTailSignature(def, scalars, inputs, sym, tf) {
+export function liveTailSignature(def, scalars, inputs, sym, tf, extended) {
   const plots = liveTailPlots(def)
   if (!plots.length || !scalars) return ''
   const parts = []
@@ -426,7 +438,7 @@ export function liveTailSignature(def, scalars, inputs, sym, tf) {
     if (p.liveTail.kind !== 'ratio') continue
     const bench = liveBenchmarkSymbol(readoutSourceValue(p.liveTail.benchmark, scalars, def, inputs || {}), sym)
     if (!bench) continue
-    parts.push(`${tailKey(bench, tf)}@${benchmarkTailVersion(bench, tf)}`)
+    parts.push(`${tailKey(bench, tf, _extendedCustom(tf, extended))}@${benchmarkTailVersion(bench, tf, extended)}`)
   }
   return parts.join(',')
 }
