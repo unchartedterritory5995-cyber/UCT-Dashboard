@@ -294,6 +294,59 @@ describe('before arming (review of #2751, round 2)', () => {
   })
 })
 
+describe('late sinks (review of #2775)', () => {
+  function upReady(tickers = ['AAPL']) {
+    localStorage.setItem('uct.quotePush', '1')
+    qp.setTickers('rest', tickers)
+    settle()
+    const es = open()[0]
+    es.emitOpen()
+    es.emitEvent('hello', { v: 2, symbols: 1 })
+    es.emitEvent('status', { live: true })
+    return es
+  }
+
+  it('a sink that subscribes while the push is running gets the held quotes on the next frame', () => {
+    const es = upReady(['AAPL', 'MSFT'])
+    es.frame(['AAPL', 101, 10, 1_700_000_000_000], ['MSFT', 401, 20, 1_700_000_000_001])
+    runFrame()
+    const late = []
+    qp.onQuotes((b) => late.push(b))
+    expect(late).toHaveLength(0)                            // never inside the subscribe call (it may be an effect)
+    runFrame()
+    expect(late).toHaveLength(1)
+    expect(late[0].AAPL.price).toBe(101)
+    expect(late[0].MSFT.price).toBe(401)
+  })
+
+  it('nothing is replayed when the push holds nothing', () => {
+    upReady(['AAPL'])
+    const late = []
+    qp.onQuotes((b) => late.push(b))
+    runFrame()
+    expect(late).toHaveLength(0)
+  })
+
+  it('a keyed sink registered again (a dev hot reload of its store) replaces the old one, never doubles', () => {
+    const es = upReady(['AAPL'])
+    const a = []
+    const b = []
+    qp.onQuotes((x) => a.push(x), 'store')
+    qp.onQuotes((x) => b.push(x), 'store')
+    const h1 = []
+    const h2 = []
+    qp.onHealth((x) => h1.push(x), 'store')
+    qp.onHealth((x) => h2.push(x), 'store')
+    es.frame(['AAPL', 101, 10, 1_700_000_000_000])
+    runFrame()
+    expect(a).toHaveLength(0)
+    expect(b).toHaveLength(1)
+    es.emitEvent('status', { live: false })
+    expect(h1).toHaveLength(0)
+    expect(h2).toEqual([false])
+  })
+})
+
 describe('overlayPushed (what a REST-shaped list row shows)', () => {
   const rest = { price: 100, change_pct: 1, change: 1, prev_close: 99, volume: 500, ext_session: null }
 
