@@ -203,7 +203,20 @@ def test_what_the_library_claims_about_tradingview_is_what_was_graded():
     assert grade["pocket_pivot"] is None and ni.follows_house(ENTRIES["pocket_pivot"]) is not None
     assert "TradingView" not in ni.member_sentence(ENTRIES["pocket_pivot"], {})
     assert grade["ichimoku_cloud"] is None and not ni.tiers(ENTRIES["ichimoku_cloud"])[2]
-    assert sum(1 for g in grade.values() if g is None) == 7 and len(grade) == 38
+    # builtin4 (2026-11-26): six of Pine's own `ta.*` indicators on tiers (a)+(b), each WAITING for its capture (the
+    # coordinator's ruling: graded against TradingView's built-in like the others); until then each claims nothing
+    # about TradingView
+    # (the Intraday Intensity Index joins with its capture: TradingView's page prints one form and its values are
+    # another, so its sentence is the capture's, `follows`)
+    BUILTIN4 = ("true_range", "williams_variable_accumulation_distribution", "symmetrically_weighted_moving_average",
+                "least_squares_moving_average", "center_of_gravity")
+    for waiting in BUILTIN4:
+        assert grade[waiting] is None and not ni.tiers(ENTRIES[waiting])[2], waiting
+        # "published by TradingView" names whose definition it is (TradingView wrote SWMA, LSMA and COG's forms); what
+        # an entry waiting for its capture never says is that it EQUALS TradingView's own
+        said = ni.member_sentence(ENTRIES[waiting], ni.defaults(ENTRIES[waiting]))
+        assert "equal to TradingView" not in said and "captured" not in said, waiting
+    assert sum(1 for g in grade.values() if g is None) == 7 + len(BUILTIN4) and len(grade) == 38 + len(BUILTIN4)
     assert not ni.tiers(ENTRIES["mcginley_dynamic"])[2] and "TradingView" not in ni.member_sentence(ENTRIES["mcginley_dynamic"], {})
     assert ni.tiers(ENTRIES["connors_rsi"])[2] and ni.tiers(ENTRIES["vortex_indicator"])[2]
 
@@ -375,6 +388,13 @@ def test_a_members_own_setting_may_drive_a_parameter_and_only_a_declared_one():
     assert ni.output_in(elsewhere, MCG, MCG_OUT, inputs=["length"]) is None
 
 
+#: (building block, entry built on it): True Range (builtin4, 2026-11-26) is the true range each of these three sums or
+#: averages, written whole in their own formulas. `output_in` finds an entry ANYWHERE inside a tree (so a member may wrap
+#: a named indicator), so each of the three holds it; no other nesting is allowed.
+BUILT_ON = frozenset({("true_range", "vortex_indicator"), ("true_range", "choppiness_index"),
+                      ("true_range", "squeeze_momentum")})
+
+
 def test_every_entry_holds_itself_and_no_other_entry():
     for e in ni.entries():
         trees = [o["tree"] for o in e["outputs"]]
@@ -384,6 +404,9 @@ def test_every_entry_holds_itself_and_no_other_entry():
         assert all((i, o["key"]) in {(i_, k) for i_, k, _v in found} for i, o in enumerate(e["outputs"])), e["id"]
         for other in ni.entries():
             if other["id"] != e["id"]:
+                if (other["id"], e["id"]) in BUILT_ON:
+                    assert ni.held(trees, other), (e["id"], other["id"])      # the building block IS inside it
+                    continue
                 assert ni.held(trees, other) == [], (e["id"], other["id"])
 
 
