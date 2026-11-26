@@ -65,6 +65,7 @@ from jsonschema import Draft202012Validator
 from api.services import ast_interpret, ast_lint, call_expansions, conversation_preflight, user_definitions
 from api.services import definition_concierge as dc
 from api.services import chart_twins
+from api.services import presentation_schema
 from api.services import named_indicators
 from api.services.ast_budget import BudgetExceeded, check_budget
 from api.services.ast_interpret import TableRefusal
@@ -855,6 +856,19 @@ LOOK_BACK_RULE = (
     "compares each bar with the one before it. Neither is \"an earlier close above today's close\"."
     + WHICH_BAR_EXIT + " When you decline, the door can have it written as a script.\n")
 
+#: ⭐ 2026-11-26 -- A MARKER SHAPE THE CHART CANNOT DRAW IS SAID, NEVER SWAPPED IN SILENCE (coordinator's ruling). The
+#: community-words probe (live, admin measurement): "a gray triangle above the bar when ... 2 times the ATR" was built as an
+#: ARROW, and the reply said "an arrow" without saying a triangle is not drawn here. The chart draws four marker shapes
+#: (`presentation_schema.MARKER_SHAPES`, the schema's own list, the words below derived from it, never restated).
+MARKER_SHAPE_WORDS: Dict[str, str] = {"circle": "a circle", "square": "a square", "arrowUp": "an up arrow",
+                                      "arrowDown": "a down arrow"}
+MARKER_SHAPE_RULE = (
+    "Markers are drawn in " + str(len(presentation_schema.MARKER_SHAPES)) + " shapes only: "
+    + ", ".join(MARKER_SHAPE_WORDS[s] for s in presentation_schema.MARKER_SHAPES[:-1])
+    + " or " + MARKER_SHAPE_WORDS[presentation_schema.MARKER_SHAPES[-1]] + ". A marker asked for in another shape (a "
+    "triangle, a diamond, a flag, a cross, a star) is drawn as the nearest of these: say in `reply` which shape it is "
+    "drawn as and that the shape asked for is not drawn on this chart. ")
+
 CONVERSE_SYSTEM_PROMPT = (
     "You are UCT's indicator-authoring assistant. Each turn you receive ONE member "
     "message and the CURRENT indicator, and you answer with exactly one call to "
@@ -953,6 +967,7 @@ CONVERSE_SYSTEM_PROMPT = (
     "an `otherwise`, or set_color_rule). `barcolor` paints the PRICE candles: only when the "
     "member says candles or price bars, or the indicator draws no bars of its own. "
     "A marker's size and color: set_marker `size` / `color`. "
+    + MARKER_SHAPE_RULE +
     "Plot styles are line, stepline, histogram, area and baseline: there is no dots style, and "
     "an output drawn as markers cannot also take set_color_states. For dots that change color "
     "by state (a squeeze on the zero line), draw a thick line on that constant level with "
