@@ -7,6 +7,7 @@ import { setUnauthorizedHandler } from '../hooks/livePriceStore'
 import { setRecoveryAuthCheck } from '../lib/recoveryRegistry'
 import { publishPrefsUser } from '../lib/prefsSession'
 import { noteBootUser, setSignedInHint, takeBootMe } from '../lib/bootFetch'
+import { clearCachedDefinitions } from '../lib/userDefsCache'
 import { readFeatureStatus } from '../components/featureStatus/featureStatus'
 import { readResearchDepth } from '../pages/research/depth/researchDepthFlags'
 import { readResearchNotices } from '../pages/research/notices/researchNoticeFlags'
@@ -314,6 +315,7 @@ export function AuthProvider({ children }) {
         // from today's behavior): logged out, and any transient flag clears.
         if (fromBoot) noteBootUser(null)
         setSignedInHint(false)
+        clearCachedDefinitions()     // (2026-11-26) the member's kept definitions list is forgotten (`lib/userDefsCache.js`)
         setUser(null)
         setPlan('free')
         setSubscription(null)

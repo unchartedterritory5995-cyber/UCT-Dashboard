@@ -27,6 +27,7 @@
 import { useContext, useEffect, useMemo, useState } from 'react'
 import useSWR, { mutate } from 'swr'
 import { AuthContext } from '../context/AuthContext'
+import { readCachedDefinitionRows, writeCachedDefinitionRows } from '../lib/userDefsCache'
 import {
   installUserDefinitions, clearUserDefinitions, registryGeneration, uninstallUserDefinition,
 } from '../components/chart/engine/nativeRegistry'
@@ -76,6 +77,7 @@ async function fetcher(url) {
   // ⭐ C2D.7 — the SWR key stays `USER_DEFINITIONS_KEY` (every `mutate` in this
   // file names it) while the REQUEST carries the capability flag. Folding the
   // flag into the key would silently orphan five revalidation call sites.
+  const owner = _defsCacheOwner
   const r = await fetch(withEngine(withGraph(url)), { credentials: 'include' })
   if (!r.ok) {
     const err = new Error(`user-definitions ${r.status}`)
@@ -90,9 +92,43 @@ async function fetcher(url) {
   // ⭐ LINE IDENTITY — the store serves each definition as stored and its lines'
   // identities BESIDE it (`plot_identities`); the copy this browser holds wears them
   // as `plots[].uid` (`lineIdentity.withServedRowIdentities`).
-  return body.definitions.map((row) => (row && row.definition
+  // ⭐⭐ (2026-11-26, Fred RS load time) and the answer, as served, is this member's start for the next load
+  if (owner != null && owner === _defsCacheOwner) writeCachedDefinitionRows(owner, SCRIPT_ENGINE_VERSION, body.definitions)
+  return hydrateRows(body.definitions)
+}
+
+function hydrateRows(rows) {
+  return rows.map((row) => (row && row.definition
     ? withServedRowIdentities({ ...row, definition: hydrateGraphDocument(row.definition) })
     : row))
+}
+
+// ─── ⭐⭐ (2026-11-26, Fred RS load time) THE LIST THIS MEMBER WAS LAST SERVED STARTS THE NEXT LOAD ─────────────────────
+// ⚰️ Measured on production (ecc0bb94, AGL 1D, Fred RS on the layout, a reload): the candles were drawn at ~1.2 s and Fred
+// RS at ~1.9 s (warm) / ~3.2 s (cold). Between them the chart waited for `GET /api/user-definitions` (started ~0.97 s,
+// answered 0.6 s later warm, 1.9 s later cold): until it lands the registry has no Fred RS, so the chart cannot know the
+// script reads SP:SPX, cannot ask for it, and cannot compute.
+// So the list this member was last served is kept (`localStorage`, keyed by member and by `SCRIPT_ENGINE_VERSION`) and
+// handed to SWR as its first answer (`fallbackData`): the registry installs Fred RS on the chart's first render, while the
+// list is read again as before (SWR revalidates on mount) and replaces it when it lands.
+// Rules: the SAME member only (a row of another member is never installed), the SAME script engine only (a deploy that
+// bumps it starts from the server, as before, so a saved-script upgrade never runs on a kept row), the raw rows as served
+// (hydrated exactly as a fetched answer is), a list over its size cap is not kept, and a definitive sign-out
+// (`clearCachedDefinitions`, from AuthContext) forgets it (`lib/userDefsCache.js`).
+let _defsCacheOwner = null
+
+/** `owner`'s last served list, hydrated as a fetched answer is, or undefined (none, another member, another engine).
+ *  Exported for its rail. */
+export function readCachedDefinitions(owner) {
+  const rows = readCachedDefinitionRows(owner, SCRIPT_ENGINE_VERSION)
+  if (!rows) return undefined
+  try { return hydrateRows(rows) } catch { return undefined }
+}
+
+function ownerOf(user) {
+  if (!user || typeof user !== 'object') return null
+  const id = user.id ?? user.user_id ?? user.email
+  return id == null || id === '' ? null : String(id)
 }
 
 /** ⛔ ONE empty list, the SAME object on every render until data arrives. A fresh `[]`
@@ -141,7 +177,13 @@ export function useUserDefinitions() {
   // polling effect lists as a dependency: 0 -> 15000 starts the poll, 15000 -> 0 stops it.
   // Rail: useUserDefinitions.pendingPoll.test.jsx (a cold mount whose rows are pending reads again).
   const [pollMs, setPollMs] = useState(0)
+  // ⭐⭐ (2026-11-26, Fred RS load time) this member's last served list is SWR's first answer (`readCachedDefinitions`)
+  const owner = ownerOf(user)
+  _defsCacheOwner = owner
+  const fallback = useMemo(() => readCachedDefinitions(owner), [owner])
   const { data, error, isLoading } = useSWR(user ? USER_DEFINITIONS_KEY : null, fetcher, {
+    fallbackData: fallback,
+    revalidateOnMount: true,
     revalidateOnFocus: false,
     dedupingInterval: 10000,
     refreshInterval: pollMs,
