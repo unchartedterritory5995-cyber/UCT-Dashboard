@@ -1,0 +1,41 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "E4-F1",
+   "mutant": "the rewrite never applied: a setting's period read as the unreadable XP (the defect)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "  const periodArms = _financialPeriodSettingOn ? financialPeriodArms(node) : null",
+   "to": "  const periodArms = null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestFinancialPeriod.test.js",
+   "expectRed": "the door carries the setting"
+  },
+  {
+   "id": "E4-F2",
+   "mutant": "every arm tested against the first period: the member's TTM never selected",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "        test: { type: 'binary', op: '==', left: periodArms.periodNode, right: { type: 'string', value: arm.period, tok: node.tok }, tok: node.tok },",
+   "to": "        test: { type: 'binary', op: '==', left: periodArms.periodNode, right: { type: 'string', value: periodArms.arms[0].period, tok: node.tok }, tok: node.tok },",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestFinancialPeriod.test.js",
+   "expectRed": "the member picks TTM"
+  },
+  {
+   "id": "E4-F3",
+   "mutant": "an option outside the catalog guessed as the first period instead of refused",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    let chain = eventAsSecurityOne(node)\n",
+   "to": "    let chain = eventAsSecurityOne(periodArms.arms[0].call)\n",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestFinancialPeriod.test.js",
+   "expectRed": "an option outside the catalog"
+  },
+  {
+   "id": "E4-F4",
+   "mutant": "a literal period chained too (the constant path not kept)",
+   "file": "app/src/components/chart/engine/pineFinancial.js",
+   "from": "  if (!periodNode || constString(periodNode) !== null) return null",
+   "to": "  if (!periodNode) return null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/requestFinancialPeriod.test.js",
+   "expectRed": "a literal period is one read"
+  }
+ ]
+}
