@@ -39,6 +39,19 @@ export const PUSH_HEALTHY_POLL_MS = 15000       // the REST poll's cadence while
 export const SET_DEBOUNCE_MS = 250              // a page transition rebuilds once, not per component
 export const HIDDEN_CLOSE_MS = 60000
 export const RESUBSCRIBE_GRACE_MS = 5000
+// The batched wire (api/routers/quote_stream.py WIRE_VERSION). Declared in the URL; a connection counts as healthy
+// only after the server's hello repeats it, so a mismatch (an old bundle, an old server) polls REST instead.
+export const WIRE_VERSION = 2
+// THE SMOOTHNESS GUARD (review of #2751, round 2; the idea of #2758's long-task guard, measured by frame lateness
+// so Safari has it too): a frame that runs LONG_FRAME_MS or more after it was asked for is a long frame. Each
+// one doubles the minimum gap between two commits (from COMMIT_GAP_MIN_MS up to COMMIT_GAP_CAP_MS, ~4 Hz);
+// each quiet LONG_FRAME_RECOVER_MS halves it back, to 0 (every frame). Quotes waiting meanwhile coalesce, latest
+// wins. A frame later than LONG_FRAME_IGNORE_MS was a throttled or hidden tab, not a long frame.
+export const LONG_FRAME_MS = 50
+export const COMMIT_GAP_MIN_MS = 32
+export const COMMIT_GAP_CAP_MS = 250
+export const LONG_FRAME_RECOVER_MS = 2000
+const LONG_FRAME_IGNORE_MS = 500
 const INITIAL_RETRY_MS = 2000
 const RETRY_CAP_MS = 60000
 const STATS_CAP = 512
@@ -51,8 +64,15 @@ let _graceTimer = null
 const _quotes = new Map()        // sym -> { price, volume, trade_ts, sent_ms, recv }
 let _pending = null              // sym -> quote, waiting for the next frame
 let _raf = null
+let _rafAskedAt = 0
+let _retryTimer = null
+let _gapMs = 0
+let _lastLongAt = -Infinity
+let _lastCommitAt = -Infinity
 const _quoteSinks = new Set()
 const _healthSinks = new Set()
+const _sinkKeys = new Map()      // key -> the quote sink registered under it (a store's own key)
+const _healthKeys = new Map()
 let _healthy = false
 let _watchdog = null
 let _hiddenTimer = null
@@ -95,13 +115,13 @@ function _rebuild() {
     const key = chunk.join(',')
     const had = byKey.get(key)
     if (had) { byKey.delete(key); next.push(had); continue }
-    const b = { key, tickers: chunk, es: null, connected: false, live: null, lastMsg: Date.now(),
+    const b = { key, tickers: chunk, es: null, connected: false, live: null, wire: null, lastMsg: Date.now(),
       retryDelay: INITIAL_RETRY_MS, reconnectTimer: null,
       graceUntil: wasHealthy ? Date.now() + RESUBSCRIBE_GRACE_MS : 0 }
     next.push(b)
     _connect(b)
   }
-  const keepOld = wasHealthy && next.some((b) => !b.connected)
+  const keepOld = wasHealthy && next.some((b) => !_ready(b))
   for (const gone of byKey.values()) {
     if (keepOld) _retiring.push(gone)
     else _teardown(gone)
@@ -134,7 +154,7 @@ function _teardown(b) {
 }
 
 function _connect(b) {
-  const es = openQuotesEventSource(`${QUOTE_PUSH_PATH}?tickers=${b.key}`)
+  const es = openQuotesEventSource(`${QUOTE_PUSH_PATH}?tickers=${b.key}&v=${WIRE_VERSION}`)
   if (!es) return
   b.es = es
   b.lastMsg = Date.now()
@@ -143,9 +163,7 @@ function _connect(b) {
     if (b.es !== es) return
     b.connected = true
     b.retryDelay = INITIAL_RETRY_MS
-    b.graceUntil = 0
     touch()
-    if (_retiring.length && _buckets.every((x) => x.connected)) _retireAll()
     _updateHealth()
   }
   es.onmessage = (e) => {
@@ -160,7 +178,16 @@ function _connect(b) {
     try { b.live = !!JSON.parse(e.data).live } catch { /* malformed */ }
     _updateHealth()
   })
-  es.addEventListener('hello', () => { if (b.es === es) touch() })
+  es.addEventListener('hello', (e) => {
+    if (b.es !== es) return
+    touch()
+    try { b.wire = Number(JSON.parse(e.data).v) || null } catch { b.wire = null }
+    if (_ready(b)) {
+      b.graceUntil = 0
+      if (_retiring.length && _buckets.every(_ready)) _retireAll()
+    }
+    _updateHealth()
+  })
   es.addEventListener('heartbeat', () => { if (b.es === es) touch() })
   es.onerror = () => {
     if (b.es !== es) return
@@ -168,6 +195,7 @@ function _connect(b) {
     b.es = null
     b.connected = false
     b.live = null
+    b.wire = null
     b.graceUntil = 0
     const delay = b.retryDelay
     b.retryDelay = Math.min(delay * 2, RETRY_CAP_MS)
@@ -229,13 +257,36 @@ function _sample(arr, v) {
 }
 
 function _onQuote(q, sentMs) {
+  // Never older over newer (review of #2751, round 2): two connections overlap during make-before-break (and two
+  // quote-edge replicas would), each with its own write timing. A quote older than the one held is dropped.
+  const held = (_pending && _pending.get(q.sym)) || _quotes.get(q.sym)
+  if (held && q.trade_ts != null && held.trade_ts != null && q.trade_ts < held.trade_ts) return
   const recv = Date.now()
   const quote = { price: q.price, volume: q.volume, trade_ts: q.trade_ts, sent_ms: sentMs ?? null, recv }
   _stats.frames += 1
   if (q.trade_ts != null) _sample(_stats.tradeToRecv, recv - q.trade_ts)
   if (sentMs != null) _sample(_stats.sentToRecv, recv - sentMs)
   ;(_pending ||= new Map()).set(q.sym, quote)
-  if (_raf == null) _raf = _requestFrame(_applyFrame)
+  _askFrame()
+}
+
+function _askFrame() {
+  if (_raf != null || _retryTimer != null) return
+  _rafAskedAt = Date.now()
+  _raf = _requestFrame(_applyFrame)
+}
+
+/** The commit gap in force now, recovering lazily: halved once per quiet LONG_FRAME_RECOVER_MS, then 0. */
+function _gapNow(now) {
+  while (_gapMs > 0 && now - _lastLongAt >= LONG_FRAME_RECOVER_MS) {
+    _gapMs = _gapMs / 2 < COMMIT_GAP_MIN_MS ? 0 : _gapMs / 2
+    _lastLongAt += LONG_FRAME_RECOVER_MS
+  }
+  return _gapMs
+}
+
+export function getCommitGapMs() {
+  return _gapNow(Date.now())
 }
 
 function _requestFrame(cb) {
@@ -245,6 +296,20 @@ function _requestFrame(cb) {
 
 function _applyFrame() {
   _raf = null
+  const at = Date.now()
+  const late = at - _rafAskedAt
+  const hidden = typeof document !== 'undefined' && document.hidden
+  if (late >= LONG_FRAME_MS && late <= LONG_FRAME_IGNORE_MS && !hidden) {
+    _gapMs = _gapMs ? Math.min(COMMIT_GAP_CAP_MS, _gapMs * 2) : COMMIT_GAP_MIN_MS
+    _lastLongAt = at
+  }
+  const gap = _gapNow(at)
+  if (gap && at - _lastCommitAt < gap) {
+    // back off: the quotes keep coalescing (latest wins) until the gap has passed, then the next frame
+    _retryTimer = setTimeout(() => { _retryTimer = null; _askFrame() }, gap - (at - _lastCommitAt))
+    return
+  }
+  _lastCommitAt = at
   const pend = _pending
   _pending = null
   if (!pend || !pend.size) return
@@ -261,9 +326,35 @@ function _applyFrame() {
   }
 }
 
-export function onQuotes(fn) {
-  _quoteSinks.add(fn)
-  return () => _quoteSinks.delete(fn)
+/** `key` (optional) names the subscriber: registering again under the same key REPLACES the earlier sink, so a
+ *  store re-evaluated by a dev hot reload never ends up wired twice. A sink that subscribes while the push holds
+ *  quotes gets them on the next animation frame (never inside this call, which may run in an effect): a store
+ *  that wires late does not wait for the next trade on a quiet symbol (review of #2775). */
+export function onQuotes(fn, key) {
+  _keyed(_sinkKeys, _quoteSinks, fn, key)
+  if (_quotes.size) {
+    _requestFrame(() => {
+      if (!_quoteSinks.has(fn) || !_quotes.size) return
+      const batch = {}
+      for (const [sym, q] of _quotes) batch[sym] = q
+      try { fn(batch) } catch { /* a late sink's failure never breaks the push */ }
+    })
+  }
+  return () => _unkeyed(_sinkKeys, _quoteSinks, fn, key)
+}
+
+function _keyed(keys, set, fn, key) {
+  if (key != null) {
+    const old = keys.get(key)
+    if (old && old !== fn) set.delete(old)
+    keys.set(key, fn)
+  }
+  set.add(fn)
+}
+
+function _unkeyed(keys, set, fn, key) {
+  set.delete(fn)
+  if (key != null && keys.get(key) === fn) keys.delete(key)
 }
 
 export function getPushedQuote(sym) {
@@ -276,8 +367,13 @@ export function getPushedQuote(sym) {
 export function isHealthy() {
   if (!_buckets.length || !quotePushEnabled()) return false
   const now = Date.now()
-  return _buckets.every((b) => (b.es && b.connected && b.live !== false && now - b.lastMsg <= STREAM_WATCHDOG_MS)
-    || (b.graceUntil > now && !b.connected))     // a replacement still opening, its predecessor delivering
+  return _buckets.every((b) => (_ready(b) && b.live !== false && now - b.lastMsg <= STREAM_WATCHDOG_MS)
+    || (b.graceUntil > now && !_ready(b)))       // a replacement still opening, its predecessor delivering
+}
+
+/** Open, and the server's hello said THIS wire version. */
+function _ready(b) {
+  return !!(b.es && b.connected && b.wire === WIRE_VERSION)
 }
 
 function _updateHealth() {
@@ -290,9 +386,9 @@ function _updateHealth() {
   }
 }
 
-export function onHealth(fn) {
-  _healthSinks.add(fn)
-  return () => _healthSinks.delete(fn)
+export function onHealth(fn, key) {
+  _keyed(_healthKeys, _healthSinks, fn, key)
+  return () => _unkeyed(_healthKeys, _healthSinks, fn, key)
 }
 
 // ── what a REST-shaped list row shows ───────────────────────────────────────
@@ -394,5 +490,10 @@ export function _resetForTests() {
   _pending = null
   _raf = null
   _healthy = false
+  if (_retryTimer) { clearTimeout(_retryTimer); _retryTimer = null }
+  _gapMs = 0
+  _lastLongAt = -Infinity
+  _lastCommitAt = -Infinity
+  _rafAskedAt = 0
   _stats.tradeToRecv = []; _stats.sentToRecv = []; _stats.recvToApply = []; _stats.frames = 0; _stats.batches = 0
 }

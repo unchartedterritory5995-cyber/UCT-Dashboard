@@ -301,11 +301,12 @@ def route(monkeypatch):
     hub, clock = _hub()
     monkeypatch.setattr(qh, "_hub", hub, raising=False)
     monkeypatch.setenv("QUOTE_STREAM_ENABLED", "1")
+    monkeypatch.delenv("QUOTE_STREAM_WRITE_FLOOR_S", raising=False)
     return quote_stream, stream, rb, hub, clock
 
 
 def _open(qs, tickers="AAPL,MSFT"):
-    return asyncio.run(qs.stream_quotes(_Req(), tickers=tickers, _access={}))
+    return asyncio.run(qs.stream_quotes(_Req(), tickers=tickers, _access={}, v=2))
 
 
 def test_the_stream_is_OFF_unless_the_flag_is_set(route, monkeypatch):
@@ -341,10 +342,12 @@ def test_the_generator_pushes_hello_status_snapshot_and_live_frames_then_release
 
     async def go():
         rb.apply_batch(_batch(1, {}))                         # the feed is fresh
-        resp = await qs.stream_quotes(_Req(), tickers="AAPL", _access={})
+        resp = await qs.stream_quotes(_Req(), tickers="AAPL", _access={}, v=2)
         it = resp.body_iterator
         first = await it.__anext__()
-        assert b"event: hello" in (first if isinstance(first, bytes) else first.encode())
+        first = first if isinstance(first, bytes) else first.encode()
+        assert b"event: hello" in first
+        assert json.loads(first.split(b"data: ", 1)[1])["v"] == qs.WIRE_VERSION == 2
         st = await it.__anext__()
         assert b'event: status\ndata: {"live": true}' in (st if isinstance(st, bytes) else st.encode())
         rb.apply_batch(_batch(2, {"AAPL": _q(55.5)}))
@@ -363,7 +366,7 @@ def test_the_generator_says_live_false_when_the_feed_goes_quiet(route):
 
     async def go():
         rb.apply_batch(_batch(1, {}, connect=False))          # ingest says its vendor socket is down
-        resp = await qs.stream_quotes(_Req(), tickers="AAPL", _access={})
+        resp = await qs.stream_quotes(_Req(), tickers="AAPL", _access={}, v=2)
         it = resp.body_iterator
         await it.__anext__()
         st = await it.__anext__()
@@ -379,7 +382,7 @@ def test_a_response_torn_down_BEFORE_its_first_step_still_releases_everything(ro
     qs, stream, rb, hub, _c = route
 
     async def go():
-        resp = await qs.stream_quotes(_Req(), tickers="AAPL", _access={})
+        resp = await qs.stream_quotes(_Req(), tickers="AAPL", _access={}, v=2)
         assert stream.subscriber_count("quotes") == 1 and rb._interest.get("AAPL") == 1
 
         async def receive():
@@ -409,6 +412,59 @@ def test_the_hub_MEASURES_the_wait_from_pending_to_written():
     c.take()
     q = hub.stats()["queue_ms"]
     assert q["n"] == 1 and q["p50"] == pytest.approx(12, abs=1)
+
+
+def test_a_client_on_ANOTHER_wire_version_is_refused_not_silently_fed(route):
+    """Review of #2751 round 2: the batched format is versioned. A cached old bundle (no `v=2`) gets a
+    refusal its EventSource reads as an error (unhealthy, so it polls), never a stream it cannot parse."""
+    qs, stream = route[0], route[1]
+    for bad in (1, 3):
+        r = asyncio.run(qs.stream_quotes(_Req(), tickers="AAPL", _access={}, v=bad))
+        assert isinstance(r, JSONResponse) and r.status_code == 409, bad
+        assert b"wire_version" in r.body
+    assert stream.subscriber_count("quotes") == 0, "a refused client took an admission slot"
+
+
+def test_the_write_floor_DEFAULTS_to_one_ingest_batch_and_spaces_a_members_writes(route):
+    """Review of #2751 round 2: with MAX_HZ 0, writes per member are bounded only by the batch rate (up to
+    100/s at 10 ms batches). QUOTE_STREAM_WRITE_FLOOR_S defaults to 0.05: at most ~20 writes a member."""
+    qs, _s, rb, _h, _c = route
+    assert qs._write_floor_s() == pytest.approx(0.05)
+
+    async def go():
+        import time as _t
+        rb.apply_batch(_batch(1, {}))
+        resp = await qs.stream_quotes(_Req(), tickers="AAPL", _access={}, v=2)
+        it = resp.body_iterator
+        await it.__anext__()                                   # hello
+        await it.__anext__()                                   # status
+        rb.apply_batch(_batch(2, {"AAPL": _q(10.0)}))
+        await asyncio.wait_for(it.__anext__(), 2.0)
+        t1 = _t.monotonic()
+        rb.apply_batch(_batch(3, {"AAPL": _q(10.5)}))          # ready at once
+        await asyncio.wait_for(it.__anext__(), 2.0)
+        gap = _t.monotonic() - t1
+        await it.aclose()
+        assert gap >= 0.045, f"a member's second write followed its first after {gap * 1000:.1f} ms"
+    asyncio.run(go())
+
+
+def test_the_release_steps_are_INDEPENDENT(route, monkeypatch):
+    """Review of #2751 round 2: a failing hub.close must not skip remove_interest or the admission release."""
+    qs, stream, rb, hub, _c = route
+
+    def boom(conn):
+        raise RuntimeError("hub.close failed")
+    monkeypatch.setattr(hub, "close", boom)
+
+    async def go():
+        resp = await qs.stream_quotes(_Req(), tickers="AAPL", _access={}, v=2)
+        it = resp.body_iterator
+        await it.__anext__()
+        await it.aclose()
+    asyncio.run(go())
+    assert stream.subscriber_count("quotes") == 0, "the admission slot was skipped after hub.close failed"
+    assert "AAPL" not in rb._interest, "remove_interest was skipped after hub.close failed"
 
 
 # ── stream-edge serves it too ────────────────────────────────────────────────

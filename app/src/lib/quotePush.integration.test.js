@@ -62,6 +62,7 @@ async function healthyPush(tickers = ['AAPL']) {
   const es = quoteEs()[0]
   expect(es, 'the store did not open the quotes push').toBeTruthy()
   es.emitOpen()
+  es.emitEvent('hello', { v: 2, symbols: 1 })
   es.emitEvent('status', { live: true })
   return es
 }
@@ -169,6 +170,6 @@ describe('priceStreamManager', () => {
     mgr.subscribe(['NVDA'], () => {})
     vi.advanceTimersByTime(mgr.REBUILD_DEBOUNCE_MS + 10)
     vi.advanceTimersByTime(qp.SET_DEBOUNCE_MS + 5)
-    expect(quoteEs()[0]?.url).toBe('/api/stream/quotes?tickers=NVDA')
+    expect(quoteEs()[0]?.url).toBe('/api/stream/quotes?tickers=NVDA&v=2')
   })
 })

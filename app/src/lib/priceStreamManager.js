@@ -395,8 +395,8 @@ let _pushWired = false
 function _wirePush(qp) {
   if (!_pushWired) {
     _pushWired = true
-    qp.onQuotes(applyPushedQuotes)
-    qp.onHealth((healthy) => { if (!healthy) clearPushedQuotes() })
+    qp.onQuotes(applyPushedQuotes, 'priceStreamManager')
+    qp.onHealth((healthy) => { if (!healthy) clearPushedQuotes() }, 'priceStreamManager')
   }
   qp.setTickers('stream', _union())
 }

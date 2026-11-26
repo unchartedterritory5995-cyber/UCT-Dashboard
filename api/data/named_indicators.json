@@ -8966,6 +8966,652 @@
      "why": "first entry"
     }
    ]
+  },
+  {
+   "id": "true_range",
+   "name": "True Range",
+   "aliases": [
+    "true range"
+   ],
+   "placement": "pane",
+   "params": [],
+   "outputs": [
+    {
+     "key": "tr",
+     "label": "True Range",
+     "type": "value",
+     "formula": "max(high - low, max(abs(high - close[1]), abs(low - close[1])))",
+     "says": "the bar's range, stretched to the prior close when the bar gapped away from it",
+     "tree": {
+      "type": "call",
+      "name": "max",
+      "args": [
+       {
+        "type": "op",
+        "name": "-",
+        "args": [
+         {
+          "type": "series",
+          "name": "high"
+         },
+         {
+          "type": "series",
+          "name": "low"
+         }
+        ]
+       },
+       {
+        "type": "call",
+        "name": "max",
+        "args": [
+         {
+          "type": "call",
+          "name": "abs",
+          "args": [
+           {
+            "type": "op",
+            "name": "-",
+            "args": [
+             {
+              "type": "series",
+              "name": "high"
+             },
+             {
+              "type": "offset",
+              "value": 1,
+              "args": [
+               {
+                "type": "series",
+                "name": "close"
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "type": "call",
+          "name": "abs",
+          "args": [
+           {
+            "type": "op",
+            "name": "-",
+            "args": [
+             {
+              "type": "series",
+              "name": "low"
+             },
+             {
+              "type": "offset",
+              "value": 1,
+              "args": [
+               {
+                "type": "series",
+                "name": "close"
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     "sites": {}
+    }
+   ],
+   "evidence": {
+    "value_check": "tests/test_named_indicators_values.py::true_range",
+    "published": {
+     "by": "J. Welles Wilder",
+     "url": "https://www.tradingview.com/pine-script-reference/v6/#fun_ta.tr",
+     "sources": [
+      {
+       "title": "TradingView Pine Script v6 reference: ta.tr",
+       "url": "https://www.tradingview.com/pine-script-reference/v6/#fun_ta.tr",
+       "kind": "vendor documentation"
+      },
+      {
+       "title": "Wikipedia: Average true range",
+       "url": "https://en.wikipedia.org/wiki/Average_true_range",
+       "kind": "reference"
+      }
+     ],
+     "read": "2026-11-25",
+     "says": "TR = max(high - low, |high - prior close|, |low - prior close|). TradingView's ta.tr (handle_na = false, the variable's own form) gives na where the prior close is na.",
+     "note": "No value on the chart's first bar: there is no prior close, as TradingView's ta.tr (handle_na = false)."
+    },
+    "capture": null
+   },
+   "versions": [
+    {
+     "version": 1,
+     "maths": "sha256:5331acd458221d9b0007dcce7ced77b42ebffbfe8b1a6870be032c32c21d354a",
+     "since": "2026-11-26",
+     "why": "first entry"
+    }
+   ]
+  },
+  {
+   "id": "williams_variable_accumulation_distribution",
+   "name": "Williams Variable Accumulation Distribution",
+   "aliases": [
+    "williams variable accumulation distribution",
+    "variable accumulation distribution"
+   ],
+   "placement": "pane",
+   "params": [],
+   "outputs": [
+    {
+     "key": "wvad",
+     "label": "Williams Variable Accumulation Distribution",
+     "type": "value",
+     "formula": "(close - open) / (high - low) * volume",
+     "says": "the bar's close-minus-open as a share of its range, times its volume (per bar, not a running total)",
+     "tree": {
+      "type": "op",
+      "name": "*",
+      "args": [
+       {
+        "type": "op",
+        "name": "/",
+        "args": [
+         {
+          "type": "op",
+          "name": "-",
+          "args": [
+           {
+            "type": "series",
+            "name": "close"
+           },
+           {
+            "type": "series",
+            "name": "open"
+           }
+          ]
+         },
+         {
+          "type": "op",
+          "name": "-",
+          "args": [
+           {
+            "type": "series",
+            "name": "high"
+           },
+           {
+            "type": "series",
+            "name": "low"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "series",
+        "name": "volume"
+       }
+      ]
+     },
+     "sites": {}
+    }
+   ],
+   "evidence": {
+    "value_check": "tests/test_named_indicators_values.py::williams_variable_accumulation_distribution",
+    "published": {
+     "by": "Larry Williams",
+     "url": "https://www.tradingview.com/pine-script-reference/v6/#var_ta.wvad",
+     "sources": [
+      {
+       "title": "TradingView Pine Script v6 reference: ta.wvad",
+       "url": "https://www.tradingview.com/pine-script-reference/v6/#var_ta.wvad",
+       "kind": "vendor documentation"
+      }
+     ],
+     "read": "2026-11-25",
+     "says": "TradingView's reference body: (close - open) / (high - low) * volume, per bar.",
+     "note": "A bar with no range (high equals low) has no value."
+    },
+    "capture": null
+   },
+   "versions": [
+    {
+     "version": 1,
+     "maths": "sha256:d57dfd4f4bb9726e761eacdc3149b7609bb4dedacbd8521bd60ce87561d4cee9",
+     "since": "2026-11-26",
+     "why": "first entry"
+    }
+   ]
+  },
+  {
+   "id": "symmetrically_weighted_moving_average",
+   "name": "Symmetrically Weighted Moving Average",
+   "aliases": [
+    "symmetrically weighted moving average",
+    "symmetric weighted moving average"
+   ],
+   "placement": "overlay",
+   "params": [],
+   "outputs": [
+    {
+     "key": "swma",
+     "label": "Symmetrically Weighted Moving Average",
+     "type": "value",
+     "formula": "(close[3] + 2 * close[2] + 2 * close[1] + close) / 6",
+     "says": "a 4-bar average of the close weighted 1, 2, 2, 1 (oldest to newest)",
+     "tree": {
+      "type": "op",
+      "name": "/",
+      "args": [
+       {
+        "type": "op",
+        "name": "+",
+        "args": [
+         {
+          "type": "op",
+          "name": "+",
+          "args": [
+           {
+            "type": "op",
+            "name": "+",
+            "args": [
+             {
+              "type": "offset",
+              "value": 3,
+              "args": [
+               {
+                "type": "series",
+                "name": "close"
+               }
+              ]
+             },
+             {
+              "type": "op",
+              "name": "*",
+              "args": [
+               {
+                "type": "num",
+                "value": 2
+               },
+               {
+                "type": "offset",
+                "value": 2,
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "close"
+                 }
+                ]
+               }
+              ]
+             }
+            ]
+           },
+           {
+            "type": "op",
+            "name": "*",
+            "args": [
+             {
+              "type": "num",
+              "value": 2
+             },
+             {
+              "type": "offset",
+              "value": 1,
+              "args": [
+               {
+                "type": "series",
+                "name": "close"
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "type": "series",
+          "name": "close"
+         }
+        ]
+       },
+       {
+        "type": "num",
+        "value": 6
+       }
+      ]
+     },
+     "sites": {}
+    }
+   ],
+   "evidence": {
+    "value_check": "tests/test_named_indicators_values.py::symmetrically_weighted_moving_average",
+    "published": {
+     "by": "TradingView",
+     "url": "https://www.tradingview.com/pine-script-reference/v6/#fun_ta.swma",
+     "sources": [
+      {
+       "title": "TradingView Pine Script v6 reference: ta.swma",
+       "url": "https://www.tradingview.com/pine-script-reference/v6/#fun_ta.swma",
+       "kind": "vendor documentation"
+      }
+     ],
+     "read": "2026-11-25",
+     "says": "Fixed length 4, weights [1/6, 2/6, 2/6, 1/6]: x[3] * 1/6 + x[2] * 2/6 + x[1] * 2/6 + x * 1/6."
+    },
+    "capture": null
+   },
+   "versions": [
+    {
+     "version": 1,
+     "maths": "sha256:4ae050a112c43dda40d43295ab1f6bf08ad32f9081f447a3c4076eb42900aec7",
+     "since": "2026-11-26",
+     "why": "first entry"
+    }
+   ]
+  },
+  {
+   "id": "least_squares_moving_average",
+   "name": "Least Squares Moving Average",
+   "aliases": [
+    "least squares moving average",
+    "lsma"
+   ],
+   "placement": "overlay",
+   "params": [
+    {
+     "key": "length",
+     "label": "Length",
+     "default": 25,
+     "min": 2,
+     "max": 5000,
+     "integer": true
+    }
+   ],
+   "outputs": [
+    {
+     "key": "lsma",
+     "label": "Least Squares Moving Average",
+     "type": "value",
+     "formula": "linreg(close, {length}, 0)",
+     "says": "the least-squares line through the last N closes, read at the newest bar",
+     "tree": {
+      "type": "call",
+      "name": "linreg",
+      "args": [
+       {
+        "type": "series",
+        "name": "close"
+       },
+       {
+        "type": "num",
+        "value": 25
+       }
+      ]
+     },
+     "sites": {
+      "length": [
+       [
+        1
+       ]
+      ]
+     }
+    }
+   ],
+   "evidence": {
+    "value_check": "tests/test_named_indicators_values.py::least_squares_moving_average",
+    "published": {
+     "by": "TradingView",
+     "url": "https://www.tradingview.com/pine-script-reference/v6/#fun_ta.linreg",
+     "sources": [
+      {
+       "title": "TradingView Pine Script v6 reference: ta.linreg",
+       "url": "https://www.tradingview.com/pine-script-reference/v6/#fun_ta.linreg",
+       "kind": "vendor documentation"
+      }
+     ],
+     "read": "2026-11-25",
+     "says": "linreg = intercept + slope * (length - 1 - offset), intercept and slope by least squares over the source; the Least Squares Moving Average is linreg(close, length, 0).",
+     "note": "Length 25, offset 0: TradingView's built-in Least Squares Moving Average defaults."
+    },
+    "capture": null
+   },
+   "versions": [
+    {
+     "version": 1,
+     "maths": "sha256:cd2b6db9b46ecb619ae6f1e8c31794ef788a10f7cf7a9d0a9c46bb91df74a2d1",
+     "since": "2026-11-26",
+     "why": "first entry"
+    }
+   ]
+  },
+  {
+   "id": "center_of_gravity",
+   "name": "Center of Gravity",
+   "aliases": [
+    "center of gravity",
+    "cog oscillator"
+   ],
+   "placement": "pane",
+   "params": [
+    {
+     "key": "length",
+     "label": "Length",
+     "default": 10,
+     "min": 2,
+     "max": 5000,
+     "integer": true
+    }
+   ],
+   "outputs": [
+    {
+     "key": "cog",
+     "label": "Center of Gravity",
+     "type": "value",
+     "formula": "0 - (({length} + 1) * sum(close, {length}) - wma(close, {length}) * {length} * ({length} + 1) / 2) / sum(close, {length})",
+     "says": "minus the bar-weighted position of the last N closes (newest weighted 1) over their sum",
+     "tree": {
+      "type": "op",
+      "name": "-",
+      "args": [
+       {
+        "type": "num",
+        "value": 0
+       },
+       {
+        "type": "op",
+        "name": "/",
+        "args": [
+         {
+          "type": "op",
+          "name": "-",
+          "args": [
+           {
+            "type": "op",
+            "name": "*",
+            "args": [
+             {
+              "type": "op",
+              "name": "+",
+              "args": [
+               {
+                "type": "num",
+                "value": 10
+               },
+               {
+                "type": "num",
+                "value": 1
+               }
+              ]
+             },
+             {
+              "type": "call",
+              "name": "sum",
+              "args": [
+               {
+                "type": "series",
+                "name": "close"
+               },
+               {
+                "type": "num",
+                "value": 10
+               }
+              ]
+             }
+            ]
+           },
+           {
+            "type": "op",
+            "name": "/",
+            "args": [
+             {
+              "type": "op",
+              "name": "*",
+              "args": [
+               {
+                "type": "op",
+                "name": "*",
+                "args": [
+                 {
+                  "type": "call",
+                  "name": "wma",
+                  "args": [
+                   {
+                    "type": "series",
+                    "name": "close"
+                   },
+                   {
+                    "type": "num",
+                    "value": 10
+                   }
+                  ]
+                 },
+                 {
+                  "type": "num",
+                  "value": 10
+                 }
+                ]
+               },
+               {
+                "type": "op",
+                "name": "+",
+                "args": [
+                 {
+                  "type": "num",
+                  "value": 10
+                 },
+                 {
+                  "type": "num",
+                  "value": 1
+                 }
+                ]
+               }
+              ]
+             },
+             {
+              "type": "num",
+              "value": 2
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "type": "call",
+          "name": "sum",
+          "args": [
+           {
+            "type": "series",
+            "name": "close"
+           },
+           {
+            "type": "num",
+            "value": 10
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     "sites": {
+      "length": [
+       [
+        1,
+        0,
+        0,
+        0,
+        0
+       ],
+       [
+        1,
+        0,
+        0,
+        1,
+        1
+       ],
+       [
+        1,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1
+       ],
+       [
+        1,
+        0,
+        1,
+        0,
+        0,
+        1
+       ],
+       [
+        1,
+        0,
+        1,
+        0,
+        1,
+        0
+       ],
+       [
+        1,
+        1,
+        1
+       ]
+      ]
+     }
+    }
+   ],
+   "evidence": {
+    "value_check": "tests/test_named_indicators_values.py::center_of_gravity",
+    "published": {
+     "by": "TradingView (after John Ehlers)",
+     "url": "https://www.tradingview.com/pine-script-reference/v6/#fun_ta.cog",
+     "sources": [
+      {
+       "title": "TradingView Pine Script v6 reference: ta.cog",
+       "url": "https://www.tradingview.com/pine-script-reference/v6/#fun_ta.cog",
+       "kind": "vendor documentation"
+      }
+     ],
+     "read": "2026-11-25",
+     "says": "TradingView's pine_cog: -sum(source[i] * (i + 1), i = 0 .. length - 1) / sum(source, length).",
+     "note": "Written with the window's sum and its WMA (sum of source[i] * (i + 1) = (length + 1) * sum - WMA * length * (length + 1) / 2), the same number for any length. TradingView's sign and weighting; Ehlers' original differs, offered on request, never substituted."
+    },
+    "capture": null
+   },
+   "versions": [
+    {
+     "version": 1,
+     "maths": "sha256:f57997d592330f95c7c37a41b9b4b07feebbd641a6467a47daa61b9697c64209",
+     "since": "2026-11-26",
+     "why": "first entry"
+    }
+   ]
   }
  ],
  "held": [
