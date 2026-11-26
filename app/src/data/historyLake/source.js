@@ -178,6 +178,7 @@ export function createHistorySource(o = {}) {
   // ⛔ A SHARED REQUEST IS NOT GIVEN UP FOR ANOTHER CALLER: a read whose own signal fires while it waits on someone
   // else's request rejects at once (that request goes on for its owner); a request its OWNER gave up is asked again
   // for a read that still wants the piece.
+  // A re-ask joins whatever is in flight by then, with the same rule, so it never inherits another caller's abort.
   const inflight = new Map()   // piece URL -> Promise<{ status, ok, headerJson, buf }>
   const abortReason = (signal) => signal.reason ?? new DOMException('The load was aborted', 'AbortError')
   function readPiece(url, signal) {
@@ -197,8 +198,9 @@ export function createHistorySource(o = {}) {
     const joined = shared.catch((err) => {
       if (signal?.aborted) throw abortReason(signal)
       if (err?.name !== 'AbortError') throw err
-      const again = inflight.get(url)
-      return again && again !== shared ? again : start()
+      // asked again through the same door, however deep: a re-ask that is given up in turn is asked again too
+      // (review of #2852: adopting the re-ask as it was left a third read with an abort it never asked for)
+      return readPiece(url, signal)
     })
     if (!signal) return joined
     return new Promise((resolve, reject) => {
