@@ -231,7 +231,7 @@
    "mutant": "every canvas marker recorded geometryApprox (a pinned marker said to be approximate)",
    "file": "app/src/components/chart/engine/markerCanvas.js",
    "from": "  if (unmeasuredGeometryOf(marker).length) out.geometryApprox = true",
-   "to": "  out.geometryApprox = true",
+   "to": "  if (true) out.geometryApprox = true",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/markerCanvas.test.js",
    "expectRed": "a pinned marker is not geometryApprox"
   },
