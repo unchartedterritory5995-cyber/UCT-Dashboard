@@ -14,7 +14,7 @@
 //
 // `t` is an ISO date string ("YYYY-MM-DD"), as /api/bars returns for D/W/M.
 
-import { isRthBar } from '../components/chart/barTime'
+import { isRthBar, etMinuteOfDay } from '../components/chart/barTime'
 import { INTRADAY_ANCHOR_MIN } from '../components/chart/timeframes'
 
 // The Friday of the ISO week containing ISO date `t`. ISO weeks are Mon-Sun, so
@@ -34,20 +34,41 @@ function isoFridayOf(t) {
 // throws (Invalid Date / no .slice), which takes the whole chart to its error
 // boundary. Those bars are skipped instead: one bad bar costs one bar, not the chart.
 const isDateT = t => typeof t === 'string' && !Number.isNaN(Date.parse(t + 'T00:00:00Z'))
-const isUnixT = t => t !== '' && !Number.isNaN(new Date(t * 1000).getTime())
+// ⚡ (2026-11-26) NO DATE PER ROW. `new Date(t * 1000).getTime()` is NaN exactly when `t * 1000` is NaN, ±Infinity or past
+// the Date range (TimeClip: |ms| > 8.64e15), so the same verdict, for every input ('' included), without the allocation:
+// it ran twice per base row on every custom-intraday resample (the 4h board's switch, resampleBars.onePass.test.js).
+const _MAX_DATE_MS = 8.64e15
+const isUnixT = (t) => {
+  if (t === '') return false
+  const ms = t * 1000
+  return ms === ms && Math.abs(ms) <= _MAX_DATE_MS
+}
 
+const _byT = (a, b) => (a.t < b.t ? -1 : a.t > b.t ? 1 : 0)
 function _aggregate(rawBars, keyFn, isValidT) {
-  const bars = rawBars.filter(b => b && b.t != null && isValidT(b.t))
+  // ⚡ (2026-11-26) ONE PASS: the valid rows, and whether they already ascend (they do, from every store and server answer)
+  const bars = []
+  let ascending = true
+  for (let i = 0; i < rawBars.length; i++) {
+    const b = rawBars[i]
+    if (!(b && b.t != null && isValidT(b.t))) continue
+    if (ascending && bars.length && !(b.t >= bars[bars.length - 1].t)) ascending = false
+    bars.push(b)
+  }
   // bars MUST be ascending by date so the FIRST bar of a bucket supplies the
   // open and the LAST supplies the close (matches the server's iteration).
-  const sorted = bars.every((b, i) => i === 0 || b.t >= bars[i - 1].t)
-    ? bars
-    : [...bars].sort((a, b) => (a.t < b.t ? -1 : a.t > b.t ? 1 : 0))
+  const sorted = ascending ? bars : bars.slice().sort(_byT)
   const buckets = new Map()
+  // the buckets come out sorted by key; they are created in key order whenever each new key is above the last one
+  // (a session key never goes back as the rows ascend), and then the sort below would change nothing: it is skipped
+  let inOrder = true
+  let lastKey
   for (const b of sorted) {
     const key = keyFn(b.t)
     const cur = buckets.get(key)
     if (!cur) {
+      if (inOrder && buckets.size && !(key > lastKey)) inOrder = false
+      lastKey = key
       buckets.set(key, { t: key, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v || 0 })
     } else {
       cur.h = Math.max(cur.h, b.h)
@@ -56,7 +77,8 @@ function _aggregate(rawBars, keyFn, isValidT) {
       cur.v += (b.v || 0)
     }
   }
-  return [...buckets.values()].sort((a, b) => (a.t < b.t ? -1 : a.t > b.t ? 1 : 0))
+  const out = [...buckets.values()]
+  return inOrder ? out : out.sort(_byT)
 }
 
 // Daily → Weekly, keyed at the ISO Friday of each week.
@@ -90,14 +112,26 @@ export function resample(bars, fromTf, toTf) {
 // bar's `t`. Buckets are STABLE (a bar's bucket never changes as new bars arrive)
 // so the developing bar updates in place instead of the whole series re-bucketing.
 
-// ET hours+minutes for a UTC-seconds timestamp (intraday `t` is unix seconds).
+// ET hours+minutes for a UTC-seconds timestamp (intraday `t` is unix seconds), as h * 60 + m.
+// ⛔⛔ (2026-11-26, measured on production's build: a 4h regular board's symbol switch spent 784-950 ms of its KEY
+// TASK here, and as much again a second later). This built a NEW `Intl.DateTimeFormat` on every call, and the
+// session key calls it once per base row: tens of thousands of formatter constructions per custom-intraday
+// resample, on every switch, since 2026-07-17. It now reads barTime's ET offset, which is memoised per UTC day
+// (`etOffsetSec`: two formatToParts per new day, an exact {a, b, at} on the two DST days, a map hit per row), so a
+// resample pays at most two Intl reads per day and constructs no formatter. ONE authority for ET wall time.
+// The old reading's one engine quirk is kept, byte for byte: an `hour12: false` en-US formatter may print the
+// midnight hour as 24 (the h24 cycle), so 00:xx read as 1440 + xx there. `_MIDNIGHT_HOUR` asks the engine once.
+const _MIDNIGHT_HOUR = (() => {
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: false,
+    }).formatToParts(new Date(Date.UTC(2026, 0, 15, 5, 0)))        // 2026-01-15 00:00 ET (EST)
+    return +parts.find(p => p.type === 'hour').value
+  } catch { return 0 }
+})()
 function _etHM(tSec) {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: false,
-  }).formatToParts(new Date(tSec * 1000))
-  const h = +parts.find(p => p.type === 'hour').value
-  const m = +parts.find(p => p.type === 'minute').value
-  return h * 60 + m
+  const m = etMinuteOfDay(+tSec)                     // + : a numeric-string time is read as its number, as before
+  return m < 60 && _MIDNIGHT_HOUR === 24 ? m + 1440 : m
 }
 
 // Intraday minutes/hours, anchored to the SESSION START (TradingView builds intraday bars from it): 09:30 ET for the
@@ -107,15 +141,21 @@ function _etHM(tSec) {
 // 05:30, 09:30, 13:30 and 17:30. The extended view passes the session start, 04:00 (timeframes.resampleSpec).
 // The bucket START = this bar's time minus its offset within the bucket, so all bars in one bucket share a key WITHOUT
 // any wall-clock→unix reconversion (no DST hazard — a bucket never spans a day).
-export function resampleIntradaySession(bars, bucketMinutes, { anchorMin = 570 } = {}) {
-  if (!bars || !bars.length || !(bucketMinutes > 0)) return []
-  const B = bucketMinutes
-  const A = Number.isFinite(anchorMin) ? anchorMin : 570
-  return _aggregate(bars, (t) => {
+function _sessionKey(B, A) {
+  return (t) => {
     const minsSinceOpen = _etHM(t) - A                 // A = the session start (570 = 9:30 ET, 240 = 04:00 ET)
     const off = ((minsSinceOpen % B) + B) % B          // 0..B-1, correct for pre-open (negative)
     return t - off * 60                                // unix-sec bucket start
-  }, isUnixT)
+  }
+}
+export function resampleIntradaySession(bars, bucketMinutes, { anchorMin = 570 } = {}) {
+  return _resampleIntraday(bars, bucketMinutes, anchorMin, isUnixT)
+}
+function _resampleIntraday(bars, bucketMinutes, anchorMin, isValidT) {
+  if (!bars || !bars.length || !(bucketMinutes > 0)) return []
+  const B = bucketMinutes
+  const A = Number.isFinite(anchorMin) ? anchorMin : 570
+  return _aggregate(bars, _sessionKey(B, A), isValidT)
 }
 
 // N-of-a-native-daily-bucket, calendar-anchored for STABILITY:
@@ -127,27 +167,30 @@ export function resampleIntradaySession(bars, bucketMinutes, { anchorMin = 570 }
 function _epochDay(t) { return Math.floor(Date.parse(t + 'T00:00:00Z') / 86400000) }
 function _dayStr(epochDay) { return new Date(epochDay * 86400000).toISOString().slice(0, 10) }
 
+const _nDailyKey = (n) => (t) => _dayStr(Math.floor(_epochDay(t) / n) * n)
+// Base weekly bars are ISO-Fridays; bucket by ISO-week index (Friday's epochDay/7).
+const _nWeeklyKey = (n) => (t) => {
+  const wk = Math.floor(_epochDay(t) / 7)
+  const bucketWk = Math.floor(wk / n) * n
+  return _dayStr(bucketWk * 7)   // representative window-start date (a Thursday); label only
+}
+const _nMonthlyKey = (n) => (t) => {
+  const [y, mo] = t.split('-').map(Number)
+  const idx = y * 12 + (mo - 1)
+  const start = Math.floor(idx / n) * n
+  return `${Math.floor(start / 12)}-${String((start % 12) + 1).padStart(2, '0')}-01`
+}
 export function resampleNDaily(daily, n) {
   if (!daily || !daily.length || !(n > 1)) return daily || []
-  return _aggregate(daily, t => _dayStr(Math.floor(_epochDay(t) / n) * n), isDateT)
+  return _aggregate(daily, _nDailyKey(n), isDateT)
 }
 export function resampleNWeekly(weekly, n) {
   if (!weekly || !weekly.length || !(n > 1)) return weekly || []
-  // Base weekly bars are ISO-Fridays; bucket by ISO-week index (Friday's epochDay/7).
-  return _aggregate(weekly, t => {
-    const wk = Math.floor(_epochDay(t) / 7)
-    const bucketWk = Math.floor(wk / n) * n
-    return _dayStr(bucketWk * 7)   // representative window-start date (a Thursday); label only
-  }, isDateT)
+  return _aggregate(weekly, _nWeeklyKey(n), isDateT)
 }
 export function resampleNMonthly(monthly, n) {
   if (!monthly || !monthly.length || !(n > 1)) return monthly || []
-  return _aggregate(monthly, t => {
-    const [y, mo] = t.split('-').map(Number)
-    const idx = y * 12 + (mo - 1)
-    const start = Math.floor(idx / n) * n
-    return `${Math.floor(start / 12)}-${String((start % 12) + 1).padStart(2, '0')}-01`
-  }, isDateT)
+  return _aggregate(monthly, _nMonthlyKey(n), isDateT)
 }
 
 // ⛔⛔ A REGULAR-SESSION CUSTOM TIMEFRAME IS BUILT FROM REGULAR-SESSION ROWS ONLY (2026-11-26, TradingView SPY 240 regular
@@ -160,12 +203,37 @@ export function resampleNMonthly(monthly, n) {
 // built from. Rows the resampler could not bucket anyway (no time, or not a unix time) pass through to be dropped there,
 // as before; an extended spec (04:00 anchor) is untouched. ONE entry, so every caller gets it: the chart's own bars (the
 // store and legacy paths), other-symbol bars (secondaryBars) and benchmark tails (liveTail).
-function _regularSpec(spec) {
+/** Is `spec` anchored at the regular session's start (built from regular-session rows only)? */
+export function isRegularSessionSpec(spec) {
   const a = Number.isFinite(spec.anchorMin) ? spec.anchorMin : INTRADAY_ANCHOR_MIN.rth   // resampleIntradaySession's default
   return a === INTRADAY_ANCHOR_MIN.rth
 }
-function _regularRows(bars) {
-  return bars.filter((b) => !b || b.t == null || !isUnixT(b.t) || isRthBar(Number(b.t)))
+// A regular-session row the resample takes: a valid unix time inside the regular session. ⚡ (2026-11-26) ONE PASS: this
+// was a filter of its own (the regular rows, kept with the rows it could not judge) before `_aggregate`'s (the valid
+// ones); the rows both kept are exactly these, judged in the same order (isRthBar's day window sees the same calls).
+const _isRegularUnixT = (t) => isUnixT(t) && isRthBar(Number(t))
+
+/** ⭐ (2026-11-26) THE BUCKET OF ONE BASE ROW for a custom `spec`, by the very rule `resampleForSpec` builds the chart's
+ *  bars with: `(t) => key`, the key a base row at `t` lands under (the bucket start, unix seconds or a window-start date),
+ *  or null for a row the resample does not take (a time it cannot bucket; an extended row of a regular-session spec).
+ *  ONE authority: the server lane folds its base-timeframe columns with it (engine/serverCompute.js), so a folded value
+ *  sits on exactly the bar the chart drew from the same rows. null for a spec it cannot bucket. */
+export function bucketKeyOf(spec) {
+  if (!spec) return null
+  switch (spec.kind) {
+    case 'intradaySession': {
+      if (!(spec.minutes > 0)) return null
+      const key = _sessionKey(spec.minutes, Number.isFinite(spec.anchorMin) ? spec.anchorMin : 570)
+      const regular = isRegularSessionSpec(spec)
+      return (t) => (t != null && isUnixT(t) && (!regular || isRthBar(Number(t))) ? key(Number(t)) : null)
+    }
+    case 'nDaily': case 'nWeekly': case 'nMonthly': {
+      const n = spec.n
+      const key = !(n > 1) ? ((t) => t) : spec.kind === 'nDaily' ? _nDailyKey(n) : spec.kind === 'nWeekly' ? _nWeeklyKey(n) : _nMonthlyKey(n)
+      return (t) => (t != null && isDateT(t) ? key(t) : null)
+    }
+    default: return null
+  }
 }
 
 // Dispatch base bars → the custom timeframe described by `spec` (from
@@ -173,10 +241,8 @@ function _regularRows(bars) {
 export function resampleForSpec(baseBars, spec) {
   if (!spec || !baseBars) return baseBars || []
   switch (spec.kind) {
-    case 'intradaySession': {
-      const rows = _regularSpec(spec) ? _regularRows(baseBars) : baseBars
-      return resampleIntradaySession(rows, spec.minutes, { anchorMin: spec.anchorMin })
-    }
+    case 'intradaySession':
+      return _resampleIntraday(baseBars, spec.minutes, spec.anchorMin, isRegularSessionSpec(spec) ? _isRegularUnixT : isUnixT)
     case 'nDaily': return resampleNDaily(baseBars, spec.n)
     case 'nWeekly': return resampleNWeekly(baseBars, spec.n)
     case 'nMonthly': return resampleNMonthly(baseBars, spec.n)

@@ -24,6 +24,8 @@ Usage (from a uct-dashboard checkout, after committing):
     python tools/remote_tests.py --vitest src/components/chart/engine/__tests__/vendorHarness/vendorHarness.corpus.test.js \
         --env VENDOR_HARNESS_RUNTIME_ON=1 --env VENDOR_HARNESS_OUT=../remote-out/runtime-on --download out
 Exit: 0 all green, 1 a test job failed, 2 the lane itself could not run (bad input, push/dispatch error, timeout).
+Read `python tools/remote_tests.py`'s exit code, never the run badge: a red TEST result leaves the run green on
+purpose (2026-11-16: a failed run emails the owner); the run page carries a `::error::` annotation for it instead.
 
 The workflow's `plan` job runs `python tools/remote_tests.py --validate-inputs` (master's copy) on the dispatch
 inputs, so this file is the ONE authority on what an acceptable path, ref and shard count are.
@@ -258,6 +260,100 @@ def decide(run_conclusion: str | None, test_jobs: int, verdicts: dict[str, str])
     if bad:
         return FAIL, "tests failed in: " + ", ".join(f"{k} ({verdicts[k]})" for k in bad)
     return OK, f"{len(verdicts)} test job(s) green"
+
+
+# ---- the verdict a test job WRITES (2026-11-26) ------------------------------------------------------------------
+#
+# ⭐ THE RUN BADGE IS GREEN BY DESIGN (2026-11-16: a red run emails the owner), so it says nothing about the tests.
+# ⚰️ 2026-11-26 (e100, run 45843411301): a builder dispatched by hand and read the badge, "success", over
+# "1 failed, 587 passed". The tool's exit code was right all along; nothing on the run page said otherwise.
+# So each test job's "Record the verdict" step runs MASTER'S copy of this function on its own log
+# (`--verdict`): the verdict is green only when the step exited 0 AND the log carries the runner's own totals line
+# with at least one pass and no failure or error. A red verdict also writes a loud `::error::` annotation and a
+# step-summary line on the run page, still without failing the run.
+
+#: what the vitest job writes to its log when its shard has no files to run (the workflow's "nothing to run" branch)
+EMPTY_SHARD_MARK = "remote-tests: this shard has nothing to run"
+BADGE_RULE = "Read `python tools/remote_tests.py`'s exit code, never the run badge."
+_ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
+_PYTEST_TOTALS = re.compile(r"^=*\s*(?P<body>(?:no tests ran|\d+ [a-z]+(?:, \d+ [a-z]+)*)) in \d+(?:\.\d+)?s\b")
+_COUNT = re.compile(r"(\d+) ([a-z]+)")
+_VITEST_LINE = re.compile(r"^\s*(?P<what>Test Files|Tests|Errors)\s+(?P<body>.*?)\s*(?:\(\d+\))?\s*$")
+
+
+def _counts(body: str) -> dict[str, int]:
+    out: dict[str, int] = {}
+    for n, word in _COUNT.findall(body):
+        key = {"errors": "error", "warnings": "warning", "reruns": "rerun"}.get(word, word)
+        out[key] = out.get(key, 0) + int(n)
+    return out
+
+
+def totals_of(kind: str, log: str) -> tuple[bool, str]:
+    """``(green, what the totals say)`` from a test job's log. Green only on the runner's own totals line with at
+    least one pass and no failure or error (pytest: the last `N passed, ... in Xs` line; vitest: the last `Tests` line,
+    with no failed `Test Files` and no `Errors`). A missing line is red: a run cut off, killed or never started has
+    none. A vitest shard with nothing to run says so in its log and is green."""
+    text = _ANSI.sub("", log or "")
+    lines = text.splitlines()
+    if kind == "vitest":
+        if not text.strip():
+            return False, "the log is empty: no totals line"
+        if text.strip() == EMPTY_SHARD_MARK:
+            return True, "this shard had nothing to run"
+        seen: dict[str, dict[str, int]] = {}
+        said: dict[str, str] = {}
+        for ln in lines:
+            m = _VITEST_LINE.match(ln)
+            if m:
+                seen[m["what"]], said[m["what"]] = _counts(m["body"]), m["body"].strip()
+        if "Tests" not in seen:
+            return False, "no vitest `Tests` totals line (cut off, killed or never run)"
+        t, files, errs = seen["Tests"], seen.get("Test Files", {}), seen.get("Errors", {})
+        what = f"Tests {said['Tests']}" + (f"; Errors {said['Errors']}" if "Errors" in said else "")
+        green = t.get("passed", 0) >= 1 and not t.get("failed") and not files.get("failed") and not sum(errs.values())
+        return green, what
+    for ln in reversed(lines):
+        m = _PYTEST_TOTALS.match(ln.strip())
+        if m:
+            c = _counts(m["body"])
+            green = c.get("passed", 0) >= 1 and not c.get("failed") and not c.get("error")
+            return green, m["body"]
+    return False, "no pytest totals line (cut off, killed or never run)" if text.strip() else "the log is empty: no totals line"
+
+
+def verdict_of(kind: str, outcome: str, log: str) -> tuple[str, str]:
+    """``(verdict, sentence)`` for one test job: the STEP OUTCOME first (a red exit code is red whatever the log says),
+    then the totals line (a green exit code with no totals, or with a failure in them, is red)."""
+    green, what = totals_of(kind, log)
+    outcome = (outcome or "").strip() or "unknown"
+    if outcome != "success":
+        return outcome if outcome in ("failure", "cancelled", "skipped") else "failure", \
+            f"{kind}: RED (step {outcome}) - {what}"
+    if not green:
+        return "failure", f"{kind}: RED (exit 0, but the totals do not say green) - {what}"
+    return "success", f"{kind}: green - {what}"
+
+
+def _write_verdict(kind: str, outcome: str, log_path: str, out_path: str) -> int:
+    """`--verdict`: write the verdict file, print the sentence, and on red add the `::error::` annotation and the
+    step-summary line. ALWAYS exits 0: this step must never fail the job (a failed run emails the owner)."""
+    try:
+        p = Path(log_path)
+        log = p.read_text(encoding="utf-8", errors="replace") if p.is_file() else ""
+        verdict, sentence = verdict_of(kind, outcome, log)
+    except Exception as e:  # noqa: BLE001 -- an unreadable answer is red, never green
+        verdict, sentence = "failure", f"{kind}: RED - the verdict could not be read ({type(e).__name__})"
+    Path(out_path).write_text(verdict + "\n", encoding="utf-8")
+    note = f"{sentence}. The run badge stays green by design. {BADGE_RULE}"
+    print(note)
+    if verdict != "success":
+        print(f"::error title=remote tests: {kind} is RED::{note}")
+    summary = os.environ.get("GITHUB_STEP_SUMMARY")
+    if summary:
+        with open(summary, "a", encoding="utf-8") as fh:
+            fh.write(f"### {'RED' if verdict != 'success' else 'green'}: {note}\n")
+    return OK
 
 
 # ---- the GitHub API budget (2026-11-19) -------------------------------------------------------------------------------
@@ -776,7 +872,7 @@ def _download(api: GitHubApi, run_id: str, dest: Path, artifacts_hint: int) -> s
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0], epilog=BADGE_RULE)
     ap.add_argument("--pytest", nargs="*", default=[], help="repo-relative pytest paths / node ids (tests/... or api/...)")
     ap.add_argument("--vitest", nargs="*", default=[], help="app-relative vitest paths (src/...)")
     ap.add_argument("--shards", type=int, default=1, help=f"split the vitest files over N runners (1..{MAX_SHARDS})")
@@ -789,7 +885,14 @@ def main(argv: list[str] | None = None) -> int:
                     help=f"an allowlisted measurement variable for the tests (repeatable; *_OUT must be under {OUT_DIR}/)")
     ap.add_argument("--download", metavar="DIR", help=f"copy what the tests wrote under {OUT_DIR}/ into DIR")
     ap.add_argument("--validate-inputs", action="store_true", help=argparse.SUPPRESS)
+    # the workflow's "Record the verdict" steps: --verdict KIND --log PATH --outcome X --out VERDICT_FILE
+    ap.add_argument("--verdict", choices=("pytest", "vitest"), help=argparse.SUPPRESS)
+    ap.add_argument("--log", help=argparse.SUPPRESS)
+    ap.add_argument("--outcome", help=argparse.SUPPRESS)
+    ap.add_argument("--out", help=argparse.SUPPRESS)
     a = ap.parse_args(argv)
+    if a.verdict:
+        return _write_verdict(a.verdict, a.outcome or "", a.log or "", a.out or f"remote-{a.verdict}-verdict.txt")
     if a.validate_inputs:
         return _validate_inputs_from_env()
 

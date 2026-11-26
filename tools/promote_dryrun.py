@@ -30,7 +30,9 @@ import yaml
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 COPY = ["tools/promote_decision.py", "tools/deploy_freeze.py", "tools/promote_facts.sh", "tools/promote_state.sh",
-        "tools/promotion_gate.py", ".github/workflows/master-deploy-gate.yml", "api/services/measurement_window.py"]
+        "tools/promotion_gate.py", ".github/workflows/master-deploy-gate.yml", "api/services/measurement_window.py",
+        # the NYSE calendar the session hold follows (without it the freeze holds by the weekday rule, by design)
+        "api/services/session_calendar.py", "app/src/lib/marketClock/market_calendar.json"]
 STEPS = ["cand", "freeze0", "facts0", "Record the SHA as PENDING (before waiting)", "wait", "freeze", "dec",
          "Update the pending record", "Fast-forward `production`", "Already promoted, or refused", "Summary"]
 

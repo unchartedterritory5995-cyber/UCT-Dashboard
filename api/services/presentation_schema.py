@@ -14,6 +14,10 @@ This module mirrors exactly what `defSchema.js` accepts for:
   * ``plots[].colorMode`` and its colour fields (``colorUp``/``colorDown``,
     ``colorPalette``, ``colorGradient``, ``colorPacked``), incl. the
     ``column:<key>`` reference
+  * ``plots[].lineStyleWhen`` (e98 E1) -- the line style a plot's settings choose:
+    ``[{when, lineStyle}]``, each ``when`` the one knob-test grammar ``hiddenWhen`` holds
+  * ``plots[].displaceInput`` (e98 E3) -- a displacement a setting decides: ``{key, scale, add}``, key an int input
+  * ``inputs[].activeWhen`` (e98 E2) -- exactly two shapes, a third refused by name
   * ``paints[]``         -- kind, colour forms, ``column:<key>`` reference,
     opacity / offset / showLast / title / line
 
@@ -45,6 +49,8 @@ OHLC_DEF_STYLES = ("candles", "ohlcBars")
 OHLC_COLOUR_PARTS = {"candles": ("body", "wick", "border"), "ohlcBars": ("body",)}
 RESERVED_PLOT_STYLES = ("zones", "bgband", "barcolor", "fill", "cross")
 MARKER_SHAPES = ("circle", "square", "arrowUp", "arrowDown")
+#: e98 E1 -- a plot's line styles (`defSchema.js` PLOT_LINE_STYLES), held equal by the shared fixture.
+PLOT_LINE_STYLES = ("solid", "dashed", "dotted", "largeDashed")
 MARKER_POSITIONS = ("aboveBar", "belowBar", "inBar")
 MARKER_SIZE_RANGE = {"min": 0.25, "max": 4}
 MARKER_TEXT_MAX = 24
@@ -336,6 +342,149 @@ def hidden_when_problem(tree: Any) -> Any:
     return walk(tree, 0)
 
 
+def line_style_when_problem(arms: Any) -> Any:
+    """e98 E1 -- the first problem with a `lineStyleWhen` list as a sentence, or None: a non-empty list of at most
+    len(PLOT_LINE_STYLES) `{when, lineStyle}` entries, each `when` THE knob test `hidden_when_problem` checks (one
+    grammar, one checker), each `lineStyle` one of PLOT_LINE_STYLES and none twice, no other field. The mirror of
+    `defSchema.js::lineStyleWhenProblem`."""
+    if not isinstance(arms, list) or not arms:
+        return f"expected a non-empty list of {{when, lineStyle}}, got {_canon(arms)}"
+    if len(arms) > len(PLOT_LINE_STYLES):
+        return f"holds more than {len(PLOT_LINE_STYLES)} entries (one per line style)"
+    seen: set = set()
+    for i, a in enumerate(arms):
+        if not isinstance(a, Mapping):
+            return f"[{i}]: expected {{when, lineStyle}}, got {_canon(a)}"
+        extra = [k for k in a if k not in ("when", "lineStyle")]
+        if extra:
+            return f"[{i}]: unknown field(s) {', '.join(map(repr, extra))}"
+        ls = a.get("lineStyle")
+        if not _is_str(ls) or ls not in PLOT_LINE_STYLES:
+            return f"[{i}].lineStyle: expected one of {', '.join(PLOT_LINE_STYLES)}, got {_canon(ls)}"
+        if ls in seen:
+            return f"[{i}].lineStyle: {ls!r} is chosen twice"
+        seen.add(ls)
+        why = hidden_when_problem(a.get("when"))
+        if why:
+            return f"[{i}].when: {why}"
+    return None
+
+
+def _check_line_style_when(plot: Mapping, path: str, fp: str, out: list) -> None:
+    """e98 E1 -- `plots[].lineStyleWhen` beside the plot's own LITERAL `lineStyle` (the style at the defaults)."""
+    if "lineStyleWhen" not in plot:
+        return
+    why = line_style_when_problem(plot["lineStyleWhen"])
+    if why:
+        _err(out, f"{path}.lineStyleWhen", "plot-line-style-when", f"{path}.lineStyleWhen: {why}", fp)
+    elif not (_is_str(plot.get("lineStyle")) and plot.get("lineStyle") in PLOT_LINE_STYLES):
+        _err(out, f"{path}.lineStyleWhen", "plot-line-style-when",
+             f"{path}.lineStyleWhen: needs the plot's own literal `lineStyle`, the style at the settings' defaults", fp)
+
+
+def displace_input_problem(di: Any, inputs: Mapping) -> Any:
+    """e98 E3 -- the first problem with a `plots[].displaceInput` (`{key, scale, add}`) as a sentence, or None: `key` a
+    declared `int` input, `scale` 1 or -1, `add` a whole number, no other field. The mirror of
+    `defSchema.js::displaceInputProblem`."""
+    if not isinstance(di, Mapping):
+        return f"expected {{key, scale, add}}, got {_canon(di)}"
+    extra = [k for k in di if k not in ("key", "scale", "add")]
+    if extra:
+        return f"unknown field(s) {', '.join(map(repr, extra))}"
+    key = di.get("key")
+    if not _is_str(key):
+        return f".key: expected the key of an int input, got {_canon(key)}"
+    inp = inputs.get(key)
+    if not isinstance(inp, Mapping):
+        return f".key: {key!r} is not a declared input, so the displacement can never be read"
+    if inp.get("type") != "int":
+        return f".key: {key!r} is {inp.get('type')!r}, and a displacement counts whole bars (an int input)"
+    scale = di.get("scale")
+    if isinstance(scale, bool) or scale not in (1, -1):
+        return f".scale: expected 1 or -1, got {_canon(scale)}"
+    add = di.get("add")
+    if isinstance(add, bool) or not isinstance(add, int):
+        return f".add: expected a whole number of bars, got {_canon(add)}"
+    return None
+
+
+def _check_displace_input(plot: Mapping, path: str, fp: str, inputs: Mapping, out: list) -> None:
+    """e98 E3 -- `plots[].displaceInput`, never beside `displace` (two authorities over one drawing)."""
+    if "displaceInput" not in plot:
+        return
+    why = displace_input_problem(plot["displaceInput"], inputs)
+    if why:
+        _err(out, f"{path}.displaceInput", "plot-displace-input", f"{path}.displaceInput: {why}", fp)
+    elif "displace" in plot:
+        _err(out, f"{path}.displaceInput", "plot-displace-input",
+             f"{path}.displaceInput: a plot drawn at a setting's displacement carries no `displace` too", fp)
+
+
+def active_when_shape(aw: Any) -> Any:
+    """e98 E2 -- which of the two `inputs[].activeWhen` shapes this is: "knob" (a knob test, `type` present: a Pine
+    input's `active =`), "key" (the `{key, ...}` condition native definitions declare), or None (neither: refused).
+    The mirror of `defSchema.js::activeWhenShape`."""
+    if not isinstance(aw, Mapping):
+        return None
+    has_type, has_key = "type" in aw, "key" in aw
+    if has_type and not has_key:
+        return "knob"
+    if has_key and not has_type and isinstance(aw.get("key"), str):
+        return "key"
+    return None
+
+
+ACTIVE_WHEN_UNKNOWN_SHAPE = "is neither a `{key, ...}` condition nor a setting test (a tree with a `type`)"
+
+
+def _check_input_active_when(definition: Mapping, out: list) -> None:
+    """e98 E2 -- `inputs[].activeWhen` in EXACTLY two shapes, a third refused by name (the mirror of
+    `defSchema.js::validateActiveWhen`): a knob test (the one grammar `hidden_when_problem` checks, every setting it
+    reads a declared input other than its own), or the `{key, ...}` condition (its key a declared input other than its
+    own). Never stricter than the browser: the `{key}` form's option checks stay the browser's alone."""
+    inputs = definition.get("inputs")
+    if not isinstance(inputs, list):
+        return
+    by_key = _inputs_by_key(definition)
+    for i, inp in enumerate(inputs):
+        if not isinstance(inp, Mapping) or inp.get("activeWhen") is None:
+            continue
+        aw = inp["activeWhen"]
+        path = f"inputs[{i}].activeWhen"
+        fp = "input:" + _canon(inp)
+        if not isinstance(aw, Mapping):
+            _err(out, path, "input-active-when", f"{path}: expected an object describing the condition, got {_canon(aw)}", fp)
+            continue
+        shape = active_when_shape(aw)
+        if shape == "knob":
+            why = hidden_when_problem(aw)
+            if why:
+                _err(out, path, "input-active-when", f"{path}: {why}", fp)
+                continue
+            stack, names = [aw], []
+            while stack:
+                n = stack.pop()
+                if not isinstance(n, Mapping):
+                    continue
+                if n.get("type") == "series":
+                    names.append(n.get("name"))
+                if isinstance(n.get("args"), list):
+                    stack.extend(n["args"])
+            for n in names:
+                if n not in by_key:
+                    _err(out, path, "input-active-when",
+                         f"{path}: the setting {n!r} is not a declared input, so the test can never be evaluated", fp)
+                elif n == inp.get("key"):
+                    _err(out, path, "input-active-when", f"{path}: {n!r} refers to its own input", fp)
+        elif shape == "key":
+            if aw["key"] not in by_key:
+                _err(out, f"{path}.key", "input-active-when", f"{path}.key: unresolvable reference {aw['key']!r}", fp)
+            elif aw["key"] == inp.get("key"):
+                _err(out, f"{path}.key", "input-active-when", f"{path}.key: {aw['key']!r} refers to its own input", fp)
+        else:
+            _err(out, path, "input-active-when", f"{path}: {ACTIVE_WHEN_UNKNOWN_SHAPE}, got {_canon(aw)}", fp)
+
+
 def _check_hidden_when(plot: Mapping, path: str, fp: str, out: list) -> None:
     if "hiddenWhen" in plot:
         why = hidden_when_problem(plot["hiddenWhen"])
@@ -618,6 +767,10 @@ def presentation_errors(definition: Mapping[str, Any]) -> list:
         _check_color_mode(plot, path, fp, columns, out)
         _check_ohlc(plot, path, fp, columns, out)
         _check_hidden_when(plot, path, fp, out)
+        _check_line_style_when(plot, path, fp, out)
+        _check_displace_input(plot, path, fp, inputs, out)
+    # e98 E2 -- an input's `activeWhen`, in exactly two shapes
+    _check_input_active_when(definition, out)
     # DIV-4 -- a PAINT (never a plot) may also name a colour column the per-bar run computes
     run_keys = _check_runtime_colours(definition, columns, out)
     _check_paints(definition.get("paints"), columns | run_keys, out)

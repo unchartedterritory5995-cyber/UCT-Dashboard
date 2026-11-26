@@ -403,23 +403,23 @@ STRICT_PIVOT_RULE = (
     "\"pivot highs\", \"swing highs\" or TradingView's pivots, with no such words, is answered with `ta.pivothigh` / "
     "`ta.pivotlow` themselves (rule 10): they are TradingView's own, and the honest answer to those words.")
 
-#: ⭐ RULE 16: A FINANCIAL PERIOD IS A CONSTANT, AND ONLY ONE THE ENGINE SERVES (coordinator's ruling, 2026-11-25; the
-#: assistant half of finding 2 of the Deepvue import probe). A Deepvue EPS line with a quarterly/annual setting was
-#: written three times (the first answer and both repairs) as `request.financial(..., period)` with `period` an
-#: input.string; the engine refuses a period that is not a constant string (`other-symbol:financial-period`: which figure
-#: is read must be known before the script runs) and serves no fiscal-year series at all. TradingView accepts a
-#: simple-string input as the period, so the direct form is an ENGINE unit (assigned to e98): when it lands, this rule
-#: gives way to it. The form taught here is pinned against the engine itself
+#: ⭐ RULE 16: A FINANCIAL PERIOD IS A CONSTANT, OR A SETTING THAT OFFERS ONLY PERIODS THE ENGINE SERVES (coordinator's
+#: ruling, 2026-11-25; the assistant half of finding 2 of the Deepvue import probe). A Deepvue EPS line with a
+#: quarterly/annual setting was written three times as `request.financial(..., period)` with `period` an input.string,
+#: which the engine refused then. ⭐ TRAIN e98 (E4 x master rule 16, coordinator ruling 2026-11-26): engine 98's E4
+#: (#2770) serves that direct form as the member's setting, one read per option (`pineFinancial.js::financialPeriodArms`),
+#: so the rule now teaches it, EXACTLY that wide: a constant period, or an `input.string` whose options are only the
+#: periods the engine serves (FQ, TTM; it holds no fiscal-year series). A period computed on each bar, or read from any
+#: other variable, is still refused. Pinned against the engine itself
 #: (`app/src/components/chart/engine/requestFinancial.periodSetting.test.js`).
 FINANCIAL_PERIOD_RULE = (
-    "A `request.financial` PERIOD IS A CONSTANT STRING, AND ONLY ONE THE ENGINE SERVES. Write the period in the call "
-    "itself (\"FQ\", \"TTM\"): a period read from an input or a variable is refused, because which figure is read must be "
-    "known before the script runs. When the member wants to choose the period in the settings, write ONE "
-    "`request.financial` call per option, each with its own constant period, and pick between their results with the "
-    "input: `period = input.string(\"FQ\", \"Period\", options = [\"FQ\", \"TTM\"])`, `fq = request.financial(syminfo.tickerid, "
-    "\"EARNINGS_PER_SHARE_DILUTED\", \"FQ\")`, `ttm = request.financial(syminfo.tickerid, \"EARNINGS_PER_SHARE_DILUTED\", "
-    "\"TTM\")`, `plot(period == \"TTM\" ? ttm : fq)`. Offer only periods the engine serves for that figure: when it refuses "
-    "one (a fiscal-year series it does not hold), leave that option out and say so in `reply`.")
+    "A `request.financial` PERIOD IS A CONSTANT STRING, OR A SETTING THAT OFFERS ONLY PERIODS THE ENGINE SERVES; never "
+    "anything wider. Write the period in the call itself (\"FQ\", \"TTM\"), or read it from an `input.string` whose "
+    "`options` are only those periods: `period = input.string(\"FQ\", \"Period\", options = [\"FQ\", \"TTM\"])`, "
+    "`plot(request.financial(syminfo.tickerid, \"EARNINGS_PER_SHARE_DILUTED\", period))`. A period computed on each bar, "
+    "or read from any other variable, is refused, because which figure is read must be known before the script runs. "
+    "Offer only periods the engine serves for that figure: when it refuses one (a fiscal-year series it does not hold), "
+    "leave that option out and say so in `reply`.")
 
 #: ⭐ RULE 14: A FIGURE THE MEMBER MUST FILL IN (found by the first full live run of the value cases, 2026-11-22). On
 #: the formula door an "average cost" setting was drawn bare: a line at price 0 until filled, squeezing the chart. A

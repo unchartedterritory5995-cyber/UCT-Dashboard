@@ -1009,6 +1009,15 @@ def serve(def_id: str, sym: str, tf: str, inputs: dict | None) -> dict:
     """
     d = definition(def_id)
     fn = provider_for(def_id)
+    # ⭐ (2026-11-26) THE LANE SERVES NATIVE TIMEFRAMES ONLY. A custom code ('240', '45', '2D') used to fall through
+    # `store_tf`'s 'Unknown => D' and be answered with DAILY rows under its own code: an envelope keyed '240' holding
+    # daily data, whose times match no 4h bar. The chart asks a custom timeframe's native base and folds it on the
+    # client (`serverCompute.serverAskOf` / `foldToCustomTf`); any code this lane does not store is refused, before a
+    # provider runs or anything is cached under it.
+    if str(tf or "D") not in STORE_TF_FOR:
+        raise InputRejected(
+            f"timeframe {tf!r} is not served by this lane: it serves the native timeframes "
+            f"({', '.join(STORE_TF_FOR)}); a custom timeframe asks its native base and is folded by the chart")
     resolved = resolve_inputs(def_id, inputs)
     raw = fn(sym, tf, resolved) or {}
     columns = wire_columns(def_id, raw.get("columns") or {})

@@ -9,9 +9,28 @@
 // regular session for the day, slots counted from 09:30 — so what is compared is
 // exactly what an `ltf` read would be handed. Nothing here restates that rule.
 //
+// ⭐ e98 — PRICES ARE COMPARED AT THE STORE'S GRAIN: 4 decimal places. The store rounds every price to
+// `api/services/bars_fetch.py::PRICE_DP` (4) by design, and TradingView's capture keeps 6, so a price that differs
+// only past the 4th decimal is the same price at the grain the store holds (`samePrice`; 57 of RDDT's 127 misses
+// were that). A difference in the 4th decimal or above is a difference. Volume is compared exactly.
+// `storeIntradayAgreement.test.js` holds STORE_PRICE_DP to the server's PRICE_DP.
+//
 // Test infrastructure: imported by `storeIntradayAgreement.test.js` only.
 
-import { intrabarSeries } from '../lowerTf.js'
+import { intrabarSeries, LOWER_TF_VOLUME_DEFINITION } from '../lowerTf.js'
+
+/** ⭐⭐ e98 (owner ruling 2026-11-26) — THE KNOWN DEFINITION DIFFERENCES between our store's intraday bars and
+ *  TradingView's. They are reported in their own section, never as a failure of the bar the flip waits on:
+ *    volume       our volume is consolidated and includes odd lots; TradingView's excludes them (store / TradingView
+ *                 about 1.2-1.6x on every bar). A lower-timeframe read of volume stays withheld by name
+ *                 (`lower-tf:volume-definition`), so volume never gated the flip and now says why.
+ *    sessionOpen  the session's FIRST bar opens at the official open (the 09:30 auction); TradingView's 15m first bar
+ *                 opens on its first trade (about a cent apart). That one field of that one bar is counted here,
+ *                 not in the price criterion; every other field of every bar is. */
+export const KNOWN_DEFINITION_DIFFERENCES = Object.freeze({
+  volume: LOWER_TF_VOLUME_DEFINITION,
+  sessionOpen: "the session's first bar opens at the official open (the 09:30 auction); TradingView's 15-minute first bar opens on its first trade",
+})
 
 const FIELDS = ['o', 'h', 'l', 'c', 'v']
 const PRICE = ['o', 'h', 'l', 'c']
@@ -19,6 +38,20 @@ const PRICE = ['o', 'h', 'l', 'c']
 export const EQUAL_EPS = 1e-9
 const same = (a, b) => (a === b) || (Number.isFinite(a) && Number.isFinite(b)
   && Math.abs(a - b) <= EQUAL_EPS * Math.max(1, Math.abs(a), Math.abs(b)))
+/** ⭐ e98 — the store's price grain (`api/services/bars_fetch.py::PRICE_DP`, railed equal). */
+export const STORE_PRICE_DP = 4
+const atGrain = (x) => (Number.isFinite(x) ? Math.round(x * 10 ** STORE_PRICE_DP) / 10 ** STORE_PRICE_DP : x)
+/** Two PRICES are the same at the store's grain: each rounded to `STORE_PRICE_DP`, then compared. */
+export const samePrice = (a, b) => same(atGrain(a), atGrain(b))
+
+/** ⭐ e98 — A KNOWN DIFFERENCE PREPARED, NOT ACTIVE: a bar whose price differs only by an odd-lot print (a print
+ *  TradingView excludes and our consolidated feed keeps). It stays INACTIVE (`active: false`, every bar it would name
+ *  still counts as a price difference) until CHART SPEED's trades probe confirms the class; then `active` is set and
+ *  the bars the probe names (`compareIntraday`'s `oddLotPrintBars`) move to this line. */
+export const PENDING_KNOWN_DIFFERENCES = Object.freeze({
+  oddLotPrint: Object.freeze({ sentence: 'differs only by an odd-lot print', active: false,
+    awaiting: "CHART SPEED's trades probe confirming the class" }),
+})
 const isoOf = (ymd) => `${String(Math.floor(ymd / 10000)).padStart(4, '0')}-`
   + `${String(Math.floor(ymd / 100) % 100).padStart(2, '0')}-${String(ymd % 100).padStart(2, '0')}`
 
@@ -44,7 +77,9 @@ export function barsOf(doc) {
  *   close — the value `request.security(…, "<code>", close)` reads for the day) ·
  *   `storeComplete` / `vendorComplete` (`intrabarSeries`' own completeness).
  */
-export function compareIntraday(storeBars, vendorBars, code = '15') {
+export function compareIntraday(storeBars, vendorBars, code = '15', { oddLotPrintBars = null } = {}) {
+  // ⭐ e98 — the bars an ACTIVE odd-lot-print line names (`PENDING_KNOWN_DIFFERENCES.oddLotPrint`); inactive, none move
+  const oddLot = PENDING_KNOWN_DIFFERENCES.oddLotPrint.active && oddLotPrintBars ? new Set(oddLotPrintBars) : null
   const src = String(code)
   const ours = intrabarSeries(storeBars, src, src)
   const theirs = intrabarSeries(vendorBars, src, src)
@@ -55,6 +90,10 @@ export function compareIntraday(storeBars, vendorBars, code = '15') {
     code: src, sessions: 0, storeComplete: 0, vendorComplete: 0, bothComplete: 0,
     fullyEqual: 0, priceEqual: 0, lastCloseEqual: 0, bars: { both: 0, onlyStore: 0, onlyVendor: 0 },
     fields: Object.fromEntries(FIELDS.map((f) => [f, { equal: 0, differ: 0, maxAbs: 0, maxRel: 0 }])),
+    // ⭐ e98 — the known definition differences, measured on their own (`KNOWN_DEFINITION_DIFFERENCES`)
+    sessionOpen: { equal: 0, differ: 0, maxAbs: 0 },
+    volumeRatios: [],
+    oddLotPrint: 0,
     span: a && b ? { from: isoOf(Math.max(a[0], b[0])), to: isoOf(Math.min(a[1], b[1])) } : null,
   }
   if (!a || !b) return { totals, sessions }
@@ -71,14 +110,27 @@ export function compareIntraday(storeBars, vendorBars, code = '15') {
       storeComplete: !!(ours.sessions.get(ymd) && ours.sessions.get(ymd).complete),
       vendorComplete: !!(theirs.sessions.get(ymd) && theirs.sessions.get(ymd).complete),
       fields: Object.fromEntries(FIELDS.map((f) => [f, { equal: 0, differ: 0, maxAbs: 0, maxRel: 0 }])),
+      sessionOpen: null,
     }
+    const firstSlot = vb.length ? vb[0].t : null
     for (const x of sb) {
       const y = vAt.get(x.t)
       if (!y) { row.onlyStore += 1; continue }
       row.both += 1
+      if (Number.isFinite(x.v) && Number.isFinite(y.v) && y.v > 0) totals.volumeRatios.push(x.v / y.v)
       for (const f of FIELDS) {
+        // ⭐ e98 — the session's first bar's OPEN is a known definition difference (`sessionOpen`), not a price field
+        if (f === 'o' && x.t === firstSlot) {
+          const eq = samePrice(x.o, y.o)
+          row.sessionOpen = eq ? 'equal' : Math.abs(x.o - y.o)
+          if (eq) totals.sessionOpen.equal += 1
+          else { totals.sessionOpen.differ += 1; if (!(row.sessionOpen <= totals.sessionOpen.maxAbs)) totals.sessionOpen.maxAbs = row.sessionOpen }
+          continue
+        }
         const cell = row.fields[f]
-        if (same(x[f], y[f])) { cell.equal += 1; continue }
+        // ⭐ e98 — prices at the store's grain (`samePrice`, 4 dp); volume exactly
+        if (f === 'v' ? same(x[f], y[f]) : samePrice(x[f], y[f])) { cell.equal += 1; continue }
+        if (f !== 'v' && oddLot && oddLot.has(x.t)) { totals.oddLotPrint += 1; cell.equal += 1; continue }
         cell.differ += 1
         const abs = Math.abs(x[f] - y[f])
         const rel = abs / Math.max(Math.abs(y[f]), Number.MIN_VALUE)
@@ -91,7 +143,7 @@ export function compareIntraday(storeBars, vendorBars, code = '15') {
     row.priceEqual = sameSlots && PRICE.every((f) => row.fields[f].differ === 0)
     row.fullyEqual = row.priceEqual && row.fields.v.differ === 0
     const ls = sb[sb.length - 1]; const lv = vb[vb.length - 1]
-    row.lastCloseEqual = !!ls && !!lv && ls.t === lv.t && same(ls.c, lv.c)
+    row.lastCloseEqual = !!ls && !!lv && ls.t === lv.t && samePrice(ls.c, lv.c)
     sessions.push(row)
     totals.sessions += 1
     if (row.storeComplete) totals.storeComplete += 1
@@ -148,9 +200,18 @@ export function agreementVerdict(report, criterion = FLIP_CRITERION) {
   }
 }
 
+/** ⭐ e98 — the volume ratio (store / TradingView, per bar) as quantiles, for the known-differences section. */
+export function volumeRatioQuantiles(report) {
+  const r = [...(report.totals.volumeRatios || [])].sort((a, b) => a - b)
+  if (!r.length) return null
+  const q = (p) => r[Math.floor(p * (r.length - 1))]
+  return { n: r.length, p05: q(0.05), p50: q(0.5), p95: q(0.95) }
+}
+
 /** One paragraph a person can read in an assertion message. */
 export function describeAgreement(report, verdict) {
   const t = report.totals
+  const vq = volumeRatioQuantiles(report)
   const pct = (x) => `${(x * 100).toFixed(2)}%`
   const f = (k) => `${k} ${t.fields[k].equal}/${t.fields[k].equal + t.fields[k].differ}`
     + (t.fields[k].differ ? ` (max abs ${t.fields[k].maxAbs}, max rel ${t.fields[k].maxRel.toExponential(2)})` : '')
@@ -161,7 +222,18 @@ export function describeAgreement(report, verdict) {
     `equal bars — ${FIELDS.map(f).join(' · ')}`,
     `sessions fully equal ${t.fullyEqual}, price-equal ${t.priceEqual}, last close equal ${t.lastCloseEqual}`,
     `against the proposed bar: coverage ${pct(verdict.measured.coverage)}, price ${pct(verdict.measured.price)}, `
-      + `last close ${pct(verdict.measured.lastClose)}, volume ${pct(verdict.measured.volume)} `
+      + `last close ${pct(verdict.measured.lastClose)} `
       + `→ ${verdict.pass ? 'MEETS it' : `does NOT meet it (${verdict.reasons.join('; ')})`}`,
+    // ⭐ e98 (owner ruling 2026-11-26) — reported, never a failure: `KNOWN_DEFINITION_DIFFERENCES`
+    'known definition differences (not failures):',
+    `  volume: ${KNOWN_DEFINITION_DIFFERENCES.volume}; store / TradingView per bar `
+      + (vq ? `median ${vq.p50.toFixed(3)} (p05 ${vq.p05.toFixed(3)}, p95 ${vq.p95.toFixed(3)}, ${vq.n} bars)` : '(no bars)')
+      + `; volume-equal sessions ${pct(verdict.measured.volume)}`,
+    `  session open: ${KNOWN_DEFINITION_DIFFERENCES.sessionOpen}; the first bar's open differs on `
+      + `${t.sessionOpen.differ} of ${t.sessionOpen.equal + t.sessionOpen.differ} sessions (max abs ${t.sessionOpen.maxAbs})`,
+    PENDING_KNOWN_DIFFERENCES.oddLotPrint.active
+      ? `  odd-lot print: ${PENDING_KNOWN_DIFFERENCES.oddLotPrint.sentence}; ${t.oddLotPrint} price fields named by the trades probe`
+      : `  (prepared, INACTIVE until ${PENDING_KNOWN_DIFFERENCES.oddLotPrint.awaiting}: "${PENDING_KNOWN_DIFFERENCES.oddLotPrint.sentence}")`,
+    `prices compared at the store's grain: ${STORE_PRICE_DP} decimal places`,
   ].join('\n')
 }

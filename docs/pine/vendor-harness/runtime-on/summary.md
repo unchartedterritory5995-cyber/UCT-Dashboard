@@ -2,9 +2,9 @@
 
 Directories: `tests/fixtures/vendor`
 
-Lane: **runtime-on**. LANE MEASURED: runtime-on (gate OPEN, runtime lane reached 627, host refusals 676) · objects-only pane ARMED · runtime drew 279, declined 348 · strategy lane: broker gate ON, 88 graded on their trades, 73 broker run(s)
+Lane: **runtime-on**. LANE MEASURED: runtime-on (gate OPEN, runtime lane reached 631, host refusals 680) · objects-only pane ARMED · runtime drew 283, declined 348 · strategy lane: broker gate ON, 88 graded on their trades, 73 broker run(s)
 
-Graded at script engine **97**.
+Graded at script engine **98**.
 
 ```
 capture                                      symbol/tf        plots  verdict           first divergence / reason
@@ -1137,10 +1137,10 @@ multicator-table-rddt-1d-2026-10-02          NYSE:RDDT 1D     28     DIVERGE    
     Conversion Line                          MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     Base Line                                MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     Lagging Span                             MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
-    Leading Span A                           MATCH             cmp 611 ok 611 warm 0/0 steady 0/611 maxRel 0.00e+0
-    Leading Span B                           MATCH             cmp 611 ok 611 warm 0/0 steady 0/611 maxRel 0.00e+0
-    Kumo Cloud Upper Line                    MATCH             cmp 611 ok 611 warm 0/0 steady 0/611 maxRel 0.00e+0
-    Kumo Cloud Lower Line                    MATCH             cmp 611 ok 611 warm 0/0 steady 0/611 maxRel 0.00e+0
+    Leading Span A                           MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Leading Span B                           MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Kumo Cloud Upper Line                    MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Kumo Cloud Lower Line                    MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     VWAP                                     MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     Supertrend                               MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     Donchian High                            MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
@@ -1167,10 +1167,10 @@ multicator-table-spy-1d-2026-10-02           AMEX:SPY 1D      28     DIVERGE    
     Conversion Line                          MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     Base Line                                MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     Lagging Span                             MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
-    Leading Span A                           MATCH             cmp 1775 ok 1775 warm 0/0 steady 0/1775 maxRel 0.00e+0
-    Leading Span B                           MATCH             cmp 1775 ok 1775 warm 0/0 steady 0/1775 maxRel 0.00e+0
-    Kumo Cloud Upper Line                    MATCH             cmp 1775 ok 1775 warm 0/0 steady 0/1775 maxRel 0.00e+0
-    Kumo Cloud Lower Line                    MATCH             cmp 1775 ok 1775 warm 0/0 steady 0/1775 maxRel 0.00e+0
+    Leading Span A                           MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    Leading Span B                           MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    Kumo Cloud Upper Line                    MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    Kumo Cloud Lower Line                    MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     VWAP                                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     Supertrend                               MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     Donchian High                            MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
@@ -2023,7 +2023,7 @@ smart-money-interest-index-algoalpha-rddt-1d NYSE:RDDT 1D     4      MATCH      
     paints                                   MATCH         1 paint agree bar for bar
 smart-money-volume-activity-algoalpha-rddt-1 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign) [runtime declined: pine:builtin]: a name that is reassigned later cannot be folded into one expression — `retailBullBar` — and the fold stopped before it, at line 105: a Pine block spans several statements and this engine stores a single expression — `for`
 smart-money-volume-activity-algoalpha-spy-1d AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign) [runtime declined: pine:builtin]: a name that is reassigned later cannot be folded into one expression — `retailBullBar` — and the fold stopped before it, at line 105: a Pine block spans several statements and this engine stores a single expression — `for`
-smart-money-volume-index-algoalpha-rddt-1d-2 NYSE:RDDT 1D     24     INCONCLUSIVE      1 of 25 items could not be compared
+smart-money-volume-index-algoalpha-rddt-1d-2 NYSE:RDDT 1D     24     INCONCLUSIVE      2 of 25 items could not be compared
     Zero Line                                INCONCLUSIVE      cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
     Top Limit                                MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     Bottom Limit                             MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
@@ -2047,7 +2047,7 @@ smart-money-volume-index-algoalpha-rddt-1d-2 NYSE:RDDT 1D     24     INCONCLUSIV
     open                                     MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     high                                     MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     low                                      MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
-    close                                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    close                                    INCONCLUSIVE      cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0 — 666 steady-state bars agree, but the candle is withheld by name on our side (`Smart Money Candles`): it asks for the price chart (`force_overlay = true`) from a script that is not an overlay: TradingView draws it and our side draws nothing, so its body colour is not compared
     objects                                  MATCH         neither side draws an object
 smarter-snr-rddt-1d-2026-11-14               NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:builtin) [runtime declined: runtime:conditional-history]: this Pine built-in names something the engine grammar does not hold — `str.length`
 smarter-snr-spy-1d-2026-11-14                AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:builtin) [runtime declined: runtime:conditional-history]: this Pine built-in names something the engine grammar does not hold — `str.length`

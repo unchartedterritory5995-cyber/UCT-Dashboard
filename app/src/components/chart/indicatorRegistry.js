@@ -104,7 +104,9 @@ import {
 // the twin this phase retires, in the file whose header is about retiring them.
 import { legacyInstanceId } from './engine/instances'
 // ⭐ UCT RS PHASE 3 (unit 3-01) — the ONE reader of an enum option's gate marker.
-import { enumOptionRequiresServer, validateInputValue } from './engine/defSchema'
+import { enumOptionRequiresServer, validateInputValue, activeWhenShape } from './engine/defSchema'
+// ⭐ e98 E2 — a Pine input's `active =` greys by the ONE knob evaluator `hiddenWhen` and `lineStyleWhen` use
+import { knobTestAt } from './engine/knobBind.js'
 // ⭐ RS split U1 — the definition-level gate (`meta.requiresServer`).
 import { isDefinitionOffered } from './engine/serverCompute'
 import { inputsAsRead } from './engine/legacyInputs'
@@ -617,7 +619,11 @@ export function hiddenPlotOnlyInputKeys(def) {
  * v1; it validates only that the condition names a declared input, because a
  * condition on a key that does not exist would hide a control forever.
  *
- * ⛔ SO AN OPERATOR THIS BUILD CANNOT READ MEANS ACTIVE, NOT HIDDEN. The failure
+ * ⭐ e98 E2 — TWO SHAPES (`defSchema.activeWhenShape`): the `{key, …}` condition below, and a knob test (a Pine
+ * input's `active =`, evaluated by `knobBind.knobTestAt`; `def` maps an option's text to its index). A THIRD SHAPE is
+ * INACTIVE, never active: the schema refuses it, so reaching here means a document no validator passed.
+ *
+ * ⛔ SO AN OPERATOR THIS BUILD CANNOT READ (inside the `{key}` shape) MEANS ACTIVE, NOT HIDDEN. The failure
  * direction matters: an unknown comparator returning `false` would make a future
  * definition's control permanently inert on an older client, silently — the same
  * class of defect the schema's own unresolvable-key check exists to prevent, one
@@ -628,8 +634,24 @@ export function hiddenPlotOnlyInputKeys(def) {
  * which is what the shipped `showIf` predicates already mean
  * (`(v) => Number(v.maPeriod) > 0`).
  */
-export function evalActiveWhen(activeWhen, values) {
-  if (!activeWhen || typeof activeWhen !== 'object' || typeof activeWhen.key !== 'string') return true
+export function evalActiveWhen(activeWhen, values, def = null) {
+  if (activeWhen === undefined || activeWhen === null) return true
+  // ⭐⭐ e98 E2 — TWO SHAPES, DISPATCHED BY THE ONE CLASSIFIER (`defSchema.activeWhenShape`), and NO SILENT DEFAULT FOR A
+  // THIRD (coordinator ruling 2026-11-25). ⚰️ This line returned `true` for anything without a string `key`: a fail-open
+  // that, with a second shape in the field, would have read every Pine `active =` test as active.
+  //   * a knob test (a Pine input's `active =`): `knobBind.knobTestAt` at the form's values over the definition's
+  //     declared inputs (the evaluator `hiddenWhen` uses); one it cannot evaluate is INACTIVE (never guessed active);
+  //   * a `{key, …}` condition: below, exactly as before;
+  //   * anything else (the schema refuses it, `validateActiveWhen`): INACTIVE, and said on the console, by name.
+  const shape = activeWhenShape(activeWhen)
+  if (shape === 'knob') {
+    const v = knobTestAt(activeWhen, def && typeof def === 'object' ? def : { inputs: [] }, values || {})
+    return v === null ? false : !!v
+  }
+  if (shape !== 'key') {
+    if (typeof console !== 'undefined') console.warn('[uct] an input activeWhen is neither a {key} condition nor a setting test; the control is greyed', activeWhen)
+    return false
+  }
   const v = values ? values[activeWhen.key] : undefined
   if ('equals' in activeWhen) return v === activeWhen.equals
   if ('notEquals' in activeWhen) return v !== activeWhen.notEquals

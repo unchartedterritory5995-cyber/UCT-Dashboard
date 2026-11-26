@@ -504,6 +504,23 @@ export function objectRemovalRefusal(loss) {
     + 'have removed.', loss)
 }
 
+/**
+ * ⭐ e98 (train e98, polyline words) — THE CALL NAMES A DRAWING NOTE SHOWS, spelled as the author wrote them.
+ * `assessObjectLoss` writes an `outOfScope` entry as `<entry>.*`, and the reader records an out-of-scope family two
+ * ways: the namespace (`polyline`, a declaration) and the call (`polyline.new`, `polyline.delete`). So the note read
+ * "This script uses `polyline.new.*`", a name no script writes. Shown: a namespace as `<ns>.*`, a call as itself, and
+ * no call of a namespace already shown whole. ⛔ DISPLAY ONLY: `readerNames` (what `assessObjectLoss` classifies and
+ * the harness records) is unchanged.
+ */
+export function readerNamesShown(names) {
+  const shown = uniq((names || []).map((n) => {
+    const m = /^([A-Za-z_]\w*\.[A-Za-z_][\w.]*)\.\*$/.exec(String(n))
+    return m ? m[1] : n
+  }))
+  const whole = new Set(shown.filter((n) => n.endsWith('.*')).map((n) => n.slice(0, -2)))
+  return shown.filter((n) => n.endsWith('.*') || !whole.has(n.split('.')[0])).sort()
+}
+
 /** The name every drawing disclosure is listed under. */
 export const DRAWING_NOTE_NAME = 'Drawings'
 
@@ -610,7 +627,7 @@ export function objectLossNote(loss, opts = {}) {
     if (named) parts.push(named)
   }
   if (loss.readerNames.length) {
-    const names = loss.readerNames.map((n) => `\`${n}\``).join(', ')
+    const names = readerNamesShown(loss.readerNames).map((n) => `\`${n}\``).join(', ')
     parts.push(loss.dropped > 0
       ? `It also uses ${names}, which this chart doesn't draw yet.`
       : `This script uses ${names}, which this chart doesn't draw yet, so what it draws is incomplete.`)

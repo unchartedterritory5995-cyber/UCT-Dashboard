@@ -1,4 +1,5 @@
-"""A request.financial PERIOD IS A CONSTANT, AND ONLY ONE THE ENGINE SERVES (rule 16 of the script contract, 2026-11-25).
+"""A request.financial PERIOD IS A CONSTANT, OR A SETTING OF SERVED PERIODS (rule 16 of the script contract, 2026-11-25;
+TRAIN e98 (E4 x master rule 16) widened it to the input.string form E4 serves, and no wider).
 
 The assistant half of finding 2 of the Deepvue import probe: an EPS line with a quarterly/annual setting was written
 three times as `request.financial(..., period)` with `period` an input, which the engine refuses; and the engine holds
@@ -25,13 +26,15 @@ def test_rule_16_is_in_the_contract_once_after_rule_15(open_door):
     assert "{financial_period}" not in c and "{strict_pivot}" not in c
 
 
-def test_it_teaches_one_constant_read_per_option_chosen_by_the_input():
+def test_it_teaches_a_constant_or_a_setting_of_served_periods_never_wider():
+    """TRAIN e98 (E4 x master rule 16): E4 serves an input.string period as the member's setting, so the rule teaches the
+    direct form, and only as wide as the engine serves (FQ, TTM)."""
     r = pa.FINANCIAL_PERIOD_RULE
-    assert "constant" in r.lower() and "ONE `request.financial` call per option" in r
-    assert 'request.financial(syminfo.tickerid, "EARNINGS_PER_SHARE_DILUTED", "FQ")' in r
-    assert 'request.financial(syminfo.tickerid, "EARNINGS_PER_SHARE_DILUTED", "TTM")' in r
-    assert 'period == "TTM" ? ttm : fq' in r
-    assert "request.financial(syminfo.tickerid, \"EARNINGS_PER_SHARE_DILUTED\", period)" not in r
+    assert "constant" in r.lower() and "never anything wider" in r
+    assert 'period = input.string("FQ", "Period", options = ["FQ", "TTM"])' in r
+    assert 'request.financial(syminfo.tickerid, "EARNINGS_PER_SHARE_DILUTED", period)' in r
+    assert '"FY"' not in r
+    assert "computed on each bar, or read from any other variable, is refused" in r
 
 
 def test_it_says_to_leave_out_a_period_the_engine_does_not_serve():

@@ -12,6 +12,7 @@
       "api/services/auth_db.py",
       "api/services/auth_service.py",
       "api/services/bar_broadcaster.py",
+      "api/services/extended_session.py",
       "api/services/bar_contract.py",
       "api/services/bar_provenance.py",
       "api/services/bar_quarantine.py",

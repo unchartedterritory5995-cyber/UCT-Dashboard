@@ -44,7 +44,8 @@ const BARS_PATH = '/api/bars/'
 // futures, a clock-hour series) is REFUSED by name (`UNSUPPORTED` + note), never resampled on a grid it does not have,
 // until a capture witnesses how TradingView builds it.
 import { baseBarsFor, fetchTf, resampleSpec } from '../timeframes'
-import { resampleForSpec } from '../../../utils/resampleBars'
+import { resampleForSpec, isRegularSessionSpec } from '../../../utils/resampleBars'
+import { isRthBar, toChartTime, etMinuteOfDay } from '../barTime'
 import { viewShowExtended } from '../../../utils/viewSession'
 
 /**
@@ -115,32 +116,59 @@ export function secondaryFetchOf(symbol, tf, bars, { extended } = {}) {
   return { url, fetchUrl: secondaryBarsUrl(symbol, fetchTf(code), baseAsk, { session: ext && spec.base === '60' ? 'eth' : null, extended: false }), spec, baseAsk }
 }
 
-const _ET_PARTS = new Intl.DateTimeFormat('en-US', {
-  timeZone: 'America/New_York', weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false,
-})
-/** ET weekday + minutes after midnight of unix seconds. */
+// ET weekday names by ET calendar day (chart time / 86400): day 0 of the epoch, 1970-01-01, was a Thursday.
+const _ET_WEEKDAY = ['Thu', 'Fri', 'Sat', 'Sun', 'Mon', 'Tue', 'Wed']
+/** ET weekday + minutes after midnight of unix seconds.
+ *  ⭐ (2026-11-26, #2801's upgrade capture) one `formatToParts` PER ROW was 29 ms of a 19,200-row benchmark page's
+ *  landing task. It now reads barTime's ET offset, memoised per UTC day (`toChartTime` / `etMinuteOfDay`): the same
+ *  weekday and minute (the formatter's `hour12: false` midnight 24 already read as 0 here), at most two Intl reads a day. */
 function _etWhen(t) {
-  const parts = _ET_PARTS.formatToParts(new Date(t * 1000))
-  const get = (type) => (parts.find((p) => p.type === type) || {}).value
-  const h = Number(get('hour')) % 24
-  return { wd: get('weekday'), min: h * 60 + Number(get('minute')) }
+  const day = Math.floor(Math.floor(toChartTime(t)) / 86400)
+  return { wd: _ET_WEEKDAY[((day % 7) + 7) % 7], min: etMinuteOfDay(t) }
 }
 const _WEEKEND = new Set(['Sat', 'Sun'])
+
+/** The intraday judgement's state over a page, so it can be run over the whole page at once or over its slices in
+ *  turn (`_readCustomIdle`) with the same answer: ONE scan, `_offSessionScan`. */
+function _offSessionState(spec) {
+  return {
+    step: Number(spec.base),
+    regular: isRegularSessionSpec(spec),
+    anchor: Number.isFinite(spec.anchorMin) ? spec.anchorMin : 570,   // the spec's session start (09:30 / 04:00 ET)
+    pending: null,      // a regular spec's first off-session EXTENDED weekday row: refuses only a page with no regular row
+    sawRegular: false,
+    words: null,        // the first row that refuses the page outright
+  }
+}
+function _offSessionScan(rows, st) {
+  const { step, regular, anchor } = st
+  for (const b of rows) {
+    if (st.words) return st
+    if (!b || typeof b.t !== 'number') continue
+    const { wd, min } = _etWhen(b.t)
+    if (_WEEKEND.has(wd) || min < 240 || min >= 1200 || (((min - anchor) % step) + step) % step !== 0) {
+      const words = `a ${step}-minute bar at ${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')} ET on a ${wd}`
+      if (regular && !_WEEKEND.has(wd) && !isRthBar(b.t)) { if (st.pending === null) st.pending = words; continue }
+      st.words = words
+      return st
+    }
+    if (regular && isRthBar(b.t)) st.sawRegular = true
+  }
+  return st
+}
+const _offSessionWords = (st) => st.words || (st.regular && !st.sawRegular ? st.pending : null)
 
 /** The first base row OFF the US equity session the chart's resample anchors (above), as words, or null. */
 export function offSessionRowOf(baseBars, spec) {
   if (!spec || !Array.isArray(baseBars)) return null
   if (spec.kind === 'intradaySession') {
-    const step = Number(spec.base)
-    for (const b of baseBars) {
-      if (!b || typeof b.t !== 'number') continue
-      const { wd, min } = _etWhen(b.t)
-      const anchor = Number.isFinite(spec.anchorMin) ? spec.anchorMin : 570   // the spec's session start (09:30 / 04:00 ET)
-      if (_WEEKEND.has(wd) || min < 240 || min >= 1200 || (((min - anchor) % step) + step) % step !== 0) {
-        return `a ${step}-minute bar at ${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')} ET on a ${wd}`
-      }
-    }
-    return null
+    // ⭐ (2026-11-26) A REGULAR spec is built from the regular-session rows only (resampleForSpec). On a page that holds
+    // regular-session rows on the grid (a US stock's), the weekday extended rows beside them (on the 60m session grid,
+    // 04:00-09:00 and 16:00-20:00 clock hours, off the 09:30 grid) are never resampled, so they cannot make the window
+    // unbuildable: they are not judged. A regular-session row off the grid, or any weekend row, still refuses it; and a
+    // page with NO regular-session row on the grid is judged on its extended rows as before (a lone clock-hour or
+    // overnight row is another session, coordinator ruling 2026-11-22). An extended spec judges every row, as before.
+    return _offSessionWords(_offSessionScan(baseBars, _offSessionState(spec)))
   }
   for (const b of baseBars) {
     const day = b && typeof b.t === 'string' ? b.t.slice(0, 10) : null
@@ -163,6 +191,11 @@ export function offSessionRowOf(baseBars, spec) {
 function _readCustom(payload, symbol, tf, wire, trimFirst = true) {
   const base = payload && Array.isArray(payload.bars) ? payload.bars : []
   const off = offSessionRowOf(base, wire.spec)
+  return _customEntry(payload, symbol, tf, wire, base, off, off ? null : resampleForSpec(base, wire.spec), trimFirst)
+}
+
+/** `_readCustom`'s entry, from the page's judgement (`off`) and its resampled rows. */
+function _customEntry(payload, symbol, tf, wire, base, off, resampled, trimFirst) {
   if (off) {
     return {
       bars: [],
@@ -172,11 +205,75 @@ function _readCustom(payload, symbol, tf, wire, trimFirst = true) {
     }
   }
   const filled = base.length >= wire.baseAsk && wire.baseAsk < BASE_ASK_MAX
-  let rows = resampleForSpec(base, wire.spec)
+  let rows = resampled
   if (filled && trimFirst && rows.length) rows = rows.slice(1)
   const entry = _read({ ...(payload || {}), bars: rows })
   if (filled && entry.status === SOURCE_STATUS.AVAILABLE) entry.askedBars = rows.length
   return entry
+}
+
+// ─── ⭐ (2026-11-26, #2801) A DEEP PAGE NEVER COSTS A FRAME ─────────────────────────────────────────────────────────
+// A benchmark page for a deep custom-timeframe line can hold ~19,000 base rows (the 4h ladder's top rung). Judged and
+// resampled in one go that is one long task in the fetch's continuation, whatever the per-row cost. `idleRead` (asked
+// by `serverCompute`'s deep lane) does the same two steps in slices of whole ET days, one slice per idle callback, and
+// lands only after the last. The SAME answer: the judgement is one resumable scan (`_offSessionScan`), and a session
+// bucket never spans an ET day on a page it accepts (an extended page's rows are 04:00-20:00, a regular spec takes
+// regular-session rows only), so resampling whole days apart and joining them in order is resampling the page.
+export const IDLE_READ_SLICE_ROWS = 2000
+const _idleTurn = () => new Promise((resolve) => {
+  if (typeof requestIdleCallback === 'function') requestIdleCallback(() => resolve(), { timeout: 1000 })
+  else setTimeout(resolve, 0)
+})
+const _etDayOf = (t) => Math.floor(Math.floor(toChartTime(t)) / 86400)
+/** An ascending page's slices of at least `n` rows (the last may hold fewer), each ending where an ET day does. */
+function _daySlices(base, n) {
+  const out = []
+  let i = 0
+  while (i < base.length) {
+    let j = Math.min(base.length, i + n)
+    if (j < base.length) {
+      let k = j - 1
+      while (k > i && typeof (base[k] && base[k].t) !== 'number') k--
+      const day = typeof (base[k] && base[k].t) === 'number' ? _etDayOf(base[k].t) : null
+      while (j < base.length && (typeof (base[j] && base[j].t) !== 'number' || _etDayOf(base[j].t) === day)) j++
+    }
+    out.push(base.slice(i, j))
+    i = j
+  }
+  return out
+}
+function _ascendingTimes(base) {
+  let last = -Infinity
+  for (const b of base) {
+    if (!b || typeof b.t !== 'number') continue
+    if (b.t < last) return false
+    last = b.t
+  }
+  return true
+}
+/** `_readCustom`'s entry, built off the landing task: the judgement, then the resample, one ET-day slice per idle
+ *  callback. A page that is not intraday, small, or not ascending is read whole, in one idle callback. */
+async function _readCustomIdle(payload, symbol, tf, wire, trimFirst = true) {
+  await _idleTurn()
+  const base = payload && Array.isArray(payload.bars) ? payload.bars : []
+  const spec = wire.spec
+  if (!spec || spec.kind !== 'intradaySession' || base.length <= IDLE_READ_SLICE_ROWS || !_ascendingTimes(base)) {
+    return _readCustom(payload, symbol, tf, wire, trimFirst)
+  }
+  const slices = _daySlices(base, IDLE_READ_SLICE_ROWS)
+  const st = _offSessionState(spec)
+  for (const s of slices) {
+    await _idleTurn()
+    if (_offSessionScan(s, st).words) break
+  }
+  const off = _offSessionWords(st)
+  if (off) return _customEntry(payload, symbol, tf, wire, base, off, null, trimFirst)
+  const rows = []
+  for (const s of slices) {
+    await _idleTurn()
+    for (const r of resampleForSpec(s, spec)) rows.push(r)
+  }
+  return _customEntry(payload, symbol, tf, wire, base, null, rows, trimFirst)
 }
 
 // ─── ⭐⭐ (e90, the e88 live capture, 2026-11-20) — WHAT DEPTH AN ENTRY WAS ASKED AT ───────────────────────────────────
@@ -480,6 +577,15 @@ export function fetchSecondaryBars(symbol, tf, bars, fetcher, opts = {}) {
   const p = Promise.resolve()
     .then(() => get(wire.fetchUrl))
     .then((payload) => {
+      // ⭐ (2026-11-26, #2801) `opts.idleRead`: a custom-timeframe page is judged and resampled OFF this landing task,
+      // in ET-day slices across idle callbacks (`_readCustomIdle`), and lands (cache, notification) only then
+      if (wire.spec && opts.idleRead) {
+        return _readCustomIdle(payload, symbol, tf, wire).then((entry) => {
+          _cache.set(url, entry)
+          _clearRetry(url)
+          return entry
+        })
+      }
       const entry = wire.spec ? _readCustom(payload, symbol, tf, wire) : _read(payload, bars)
       _cache.set(url, entry)
       // ⭐ A SUCCESS RESETS THE BACKOFF. Otherwise one bad afternoon leaves the

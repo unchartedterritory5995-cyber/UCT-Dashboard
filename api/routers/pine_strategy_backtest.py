@@ -8,13 +8,20 @@ the pine-runtime service, one job per symbol, under profile ``backtest`` with
 or the refusal that stopped it, by name.
 
 WHAT THIS ROUTE DECIDES, AND WHAT IT DOES NOT.
-  * The window is ``bars_window.HISTORY_WINDOW_BARS`` (the ONE authority, rulings R10/R13): the
-    most recent that many daily bars from ``bars.db``. It is imported, never restated
-    (``tests/test_history_window_one_authority.py`` parses this file).
-  * ``historyFromListing`` is ALWAYS false: nothing on the server proves a symbol's stored daily
-    history reaches its listing (design section 9, item 5). So the window's START is stated on every
-    answer (ruling D2: "long histories state their own start"), and the broker decides what a
-    non-listing window may serve (``vm.js`` [B-START], capture Q-S1n): today it refuses it by name.
+  * ⭐⭐ (e100, coordinator ruling 2026-11-26) THE RUN TAKES THE MEMBER'S CHART HISTORY. A member's daily chart
+    holding a strategy loads ``bars_window.STRATEGY_HISTORY_WINDOW_BARS`` daily bars and runs from the listing
+    with that window and the shared window beside it as the served depth (``listingDepthBars``,
+    ``strategyWindow.js``). This route reads the same number of daily bars from ``bars.db``; when the first of
+    them is the symbol's FINAL first-trade day (``listing_history.from_listing_for``, the chart's
+    ``listingSeed.js`` rule ported and railed by a shared fixture) it sends them ALL with ``historyFromListing``
+    true, the strategy window and the depth: the chart's own ctx. The deep-start rule is the BROKER'S, untouched
+    (ruling D9, [B-START-DEEP], Q-SU-7 / Q-SU-8): a run covering more than the depth asks it, and an unpinned
+    rule refuses by name. Otherwise (the store does not reach the listing, the decision is not final, or the
+    history is longer than the strategy window) it is the CURTAIN: the most recent
+    ``bars_window.HISTORY_WINDOW_BARS`` bars, ``historyFromListing`` false, no depth, byte-for-byte the job this
+    route sent before, which the broker refuses by name ([B-START], capture Q-S1n), as the chart's does.
+    Both numbers are imported, never restated (``tests/test_history_window_one_authority.py`` parses this file).
+  * The window's START is stated on every answer (ruling D2: "long histories state their own start").
   * NO strategy semantics live here. Sizing, costs and fills (T4-T8) are the broker's
     (``RT/broker.js``) and are capture-gated: an unpinned rule stops the run
     (``runtime:strategy-unpinned``), an unsettled one ``runtime:strategy-unsettled``. This route
@@ -53,8 +60,9 @@ from api.services import bars_fetch, bars_sqlite
 from api.services import pine_runtime_client as runtime_client
 from api.services import pine_runtime_codec as codec
 from api.services import runtime_definitions
+from api.services import listing_history
 from api.services import user_definitions as defs
-from api.services.bars_window import HISTORY_WINDOW_BARS
+from api.services.bars_window import HISTORY_WINDOW_BARS, STRATEGY_HISTORY_WINDOW_BARS
 
 log = logging.getLogger(__name__)
 
@@ -90,7 +98,7 @@ class StrategyBacktestRequest(BaseModel):
     inputs: Optional[dict[str, Any]] = None
 
 
-#: D5: one symbol per request for now (its cost is bounded at ``HISTORY_WINDOW_BARS`` bars per call).
+#: D5: one symbol per request for now (its cost is bounded at ``STRATEGY_HISTORY_WINDOW_BARS`` bars per call).
 MAX_SYMBOLS = 1
 NO_SYMBOL_GUARD = "runtime:strategy-no-symbol"
 MULTI_SYMBOL_GUARD = "runtime:strategy-multi-symbol"
@@ -135,15 +143,26 @@ def _row(def_id: str, user_id: Any) -> dict:
 
 
 def _window_bars(sym: str) -> list:
-    """The most recent ``HISTORY_WINDOW_BARS`` daily bars of ``sym``, served shape (the screener
-    backtest's reader pairing: ``bars_sqlite`` then ``bars_fetch._fmt_sqlite_bars``, which sanitises).
+    """The most recent ``STRATEGY_HISTORY_WINDOW_BARS`` daily bars of ``sym`` (the depth a member's daily chart
+    holding a strategy loads), served shape (the screener backtest's reader pairing: ``bars_sqlite`` then
+    ``bars_fetch._fmt_sqlite_bars``, which sanitises). ``_history_of`` decides how many are sent.
     An unreadable store is "no bars", stated per symbol, never a dead request."""
     try:
-        rows = bars_sqlite.get_bars(sym, TF, HISTORY_WINDOW_BARS) or []
+        rows = bars_sqlite.get_bars(sym, TF, STRATEGY_HISTORY_WINDOW_BARS) or []
     except Exception as exc:  # noqa: BLE001
         log.warning("[strategy-backtest] bars read failed for %s: %s", sym, exc)
         return []
     return bars_fetch._fmt_sqlite_bars(rows, TF, sym)
+
+
+def _history_of(sym: str, bars: list) -> tuple:
+    """⭐⭐ (e100) ``(bars to send, window, depth, from_listing)`` for one symbol: the chart's ctx when ``bars``
+    start at the symbol's final first-trade day (every bar, ``STRATEGY_HISTORY_WINDOW_BARS``, the shared window
+    as the served depth, true); otherwise the curtain this route always sent (the most recent
+    ``HISTORY_WINDOW_BARS``, that window, no depth, false)."""
+    if listing_history.from_listing_for(bars, TF, sym):
+        return bars, STRATEGY_HISTORY_WINDOW_BARS, HISTORY_WINDOW_BARS, True
+    return bars[-HISTORY_WINDOW_BARS:], HISTORY_WINDOW_BARS, None, False
 
 
 #: ``strategyRecord.js::START_TIMEZONE``: no record carries the symbol's exchange timezone, so the
@@ -170,11 +189,13 @@ def start_sentence_of(start_time: Any) -> str:
     return f"this backtest starts on {date} ({START_TIMEZONE}); TradingView may start elsewhere"
 
 
-def _window_of(sent: list, rec: Optional[dict] = None) -> dict:
+def _window_of(sent: list, rec: Optional[dict] = None, *, window: int = HISTORY_WINDOW_BARS,
+               from_listing: bool = False) -> dict:
     """The window this route RAN, stated on every answer (D2). The start is ``window.startTime``,
     the run's truth (the bar time the route SENT, never a bars.db date string). With a record, its
     own ``startDate`` / ``startSentence`` are served verbatim (one authority with the report);
-    without one (a refusal) the same rule is applied to the time sent."""
+    without one (a refusal) the same rule is applied to the time sent. (e100) ``window`` and
+    ``from_listing`` are the ones the route SENT (``_history_of``)."""
     start_time = sent[0]["t"]
     if rec is not None:
         w = rec["window"]
@@ -182,7 +203,7 @@ def _window_of(sent: list, rec: Optional[dict] = None) -> dict:
     else:
         date, note = start_date_of(start_time), start_sentence_of(start_time)
     return {"startTime": start_time, "startDate": date, "bars": len(sent),
-            "historyWindowBars": HISTORY_WINDOW_BARS, "fromListing": False, "note": note}
+            "historyWindowBars": window, "fromListing": from_listing is True, "note": note}
 
 
 def _exchange_of(sym: str) -> str:
@@ -232,12 +253,13 @@ def run_strategy_backtest(body: StrategyBacktestRequest, user: dict = Depends(re
                             "refusal": {"guard": "runtime:strategy-no-bars", "bar": None,
                                         "sentence": f"bars.db holds no daily bars for {sym}, so it has no backtest"}}
             continue
+        bars, window, depth, from_listing = _history_of(sym, bars)
         sent = sbt._service_bars(bars)
         sent_of[sym] = (bars, sent)
         jobs.append(runtime_client.Job(
             job=sym, ticker=sym, exchange=_exchange_of(sym), tf=TF, bars=sent, want=(codec.STRATEGY_WANT,),
-            runtime_inputs=dict(body.inputs or {}), history_from_listing=False,
-            history_window_bars=HISTORY_WINDOW_BARS))
+            runtime_inputs=dict(body.inputs or {}), history_from_listing=from_listing,
+            history_window_bars=window, listing_depth_bars=depth))
 
     if jobs:
         results = _runtime_client().run(
@@ -245,18 +267,21 @@ def run_strategy_backtest(body: StrategyBacktestRequest, user: dict = Depends(re
             owner_id=row.get("user_id", user.get("id")), profile="backtest", jobs=jobs)
         for job, res in zip(jobs, results):
             _bars, sent = sent_of[job.job]
+            ran = {"window": job.history_window_bars, "from_listing": job.history_from_listing is True}
             why = res.refusal_for(codec.STRATEGY_WANT)
             if why is not None:
                 if _transport(why):
                     raise sbt._refuse_runtime(why.guard, why.sentence)
-                answers[job.job] = {"symbol": job.job, "status": "refused", "window": _window_of(sent),
+                answers[job.job] = {"symbol": job.job, "status": "refused", "window": _window_of(sent, **ran),
                                     "refusal": {"guard": why.guard, "sentence": why.sentence, "bar": why.bar}}
                 continue
             rec = res.strategy
             w = rec.get("window") if isinstance(rec.get("window"), dict) else {}
-            # one authority over the window: the record's own must be the window this route sent
+            # one authority over the window: the record's own must be the window this route sent (e100: its
+            # window and its listing statement too)
             if w.get("bars") != len(sent) or w.get("startTime") != sent[0]["t"] \
-                    or w.get("historyWindowBars") != HISTORY_WINDOW_BARS:
+                    or w.get("historyWindowBars") != job.history_window_bars \
+                    or w.get("fromListing") is not ran["from_listing"]:
                 raise sbt._refuse_runtime(
                     runtime_client.INTEGRITY,
                     f"the strategy record for {job.job} describes a window other than the one sent")
@@ -266,7 +291,9 @@ def run_strategy_backtest(body: StrategyBacktestRequest, user: dict = Depends(re
                 raise sbt._refuse_runtime(
                     runtime_client.INTEGRITY,
                     f"the strategy record for {job.job} does not state its start (D2)")
-            answers[job.job] = {"symbol": job.job, "status": "ok", "window": _window_of(sent, rec), "strategy": rec}
+            answers[job.job] = {"symbol": job.job, "status": "ok", "window": _window_of(sent, rec, **ran),
+                                "strategy": rec}
 
+    # the shared window (the curtain), as before; each answer's own ``window`` states the window its run took (e100)
     return {"def_id": body.def_id, "tf": TF, "historyWindowBars": HISTORY_WINDOW_BARS,
             "results": [answers[s] for s in symbols]}
