@@ -31,4 +31,14 @@ describe('CompanyLogo deferSrc', () => {
     rerender(<CompanyLogo sym="nvda" deferSrc={false} />)
     expect(imgOf(container).getAttribute('src')).toMatch(/^\/api\/ticker-logo\/NVDA\?v=/)
   })
+
+  // (review of #2847) the ask is never taken back: a row that came on screen and slid back into the overscan keeps its src
+  it('D4 (red first) once asked, never taken back: deferSrc true -> false -> true keeps the src', () => {
+    const { container, rerender } = render(<CompanyLogo sym="nvda" deferSrc />)
+    rerender(<CompanyLogo sym="nvda" deferSrc={false} />)
+    const src = imgOf(container).getAttribute('src')
+    expect(src).toMatch(/^\/api\/ticker-logo\/NVDA\?v=/)
+    rerender(<CompanyLogo sym="nvda" deferSrc />)
+    expect(imgOf(container).getAttribute('src'), 'the src was taken back from an image already asked for').toBe(src)
+  })
 })
