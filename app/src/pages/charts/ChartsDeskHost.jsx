@@ -16,9 +16,11 @@ import { Suspense, useState, useSyncExternalStore } from 'react'
 import { useLocation } from 'react-router-dom'
 import lazy from '../../utils/lazyWithRetry'
 import { subscribePopouts, hasOpenPopouts, isDeskLaunchPending } from '../../lib/popoutRegistry'
-import { importChartsWorkspace } from './chartsWorkspaceImporter'
+import { importChartsWorkspace, loadedChartsWorkspace } from './chartsWorkspaceImporter'
 
-const ChartsWorkspace = lazy(importChartsWorkspace)
+// ⭐ `loaded`: once App.jsx's boot prefetch has landed, the workspace renders in the shell's first commit
+// rather than behind a fallback and React's 300 ms reveal throttle (ChartsDeskHost.firstCommit.test.jsx)
+const ChartsWorkspace = lazy(importChartsWorkspace, { loaded: loadedChartsWorkspace })
 
 // Case-insensitive because React Router's matching is: /Charts resolves to the /charts route.
 const isChartsPath = (pathname) => /^\/charts\/?$/i.test(pathname)

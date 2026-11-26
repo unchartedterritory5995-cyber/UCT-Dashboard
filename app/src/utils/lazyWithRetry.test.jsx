@@ -129,3 +129,24 @@ describe('lazyDeferrable', () => {
     await screen.findByText('ok')
   })
 })
+
+describe('lazyWithRetry `loaded`: a module already in hand renders without suspending', () => {
+  const Mod = { default: () => <div data-testid="mod">mod</div> }
+  it('renders in the first commit, never the fallback, and clears the retry flag', () => {
+    sessionStorage.setItem(RELOAD_FLAG, '1')
+    const importer = vi.fn(() => Promise.resolve(Mod))
+    const L = lazyWithRetry(importer, { loaded: () => Mod })
+    render(<Suspense fallback={<div data-testid="fb" />}><L /></Suspense>)
+    expect(screen.queryByTestId('mod')).toBeTruthy()
+    expect(screen.queryByTestId('fb')).toBeNull()
+    expect(importer).not.toHaveBeenCalled()
+    expect(sessionStorage.getItem(RELOAD_FLAG)).toBeNull()
+  })
+  it('falls back to the retrying import while nothing is loaded (stale-chunk reload intact)', async () => {
+    const L = lazyWithRetry(() => Promise.reject(chunkErr()), { loaded: () => null })
+    render(<Suspense fallback="loading"><L /></Suspense>)
+    expect(screen.getByText('loading')).toBeTruthy()
+    await vi.waitFor(() => expect(reloadSpy).toHaveBeenCalledTimes(1))
+    expect(sessionStorage.getItem(RELOAD_FLAG)).toBeTruthy()
+  })
+})

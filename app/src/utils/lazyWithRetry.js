@@ -32,8 +32,24 @@ function isChunkLoadError(err) {
   return /Failed to fetch dynamically imported module|Loading chunk|error loading dynamically imported module|ChunkLoadError|Importing a module script failed/i.test(msg)
 }
 
-export default function lazyWithRetry(importer) {
-  return lazy(async () => {
+export default function lazyWithRetry(importer, { loaded } = {}) {
+  const retrying = retryingFactory(importer)
+  if (typeof loaded !== 'function') return lazy(retrying)
+  // ⭐ `loaded()` (optional): the module when it has ALREADY loaded in this page, else null. Then React
+  // is handed a thenable that resolves synchronously, so React.lazy marks itself resolved on the first
+  // render and never suspends: no fallback is committed, and no reveal throttle follows it (react-dom
+  // holds a Suspense retry's commit until 300 ms after the most recent fallback). The flag is cleared,
+  // as the async path's success does: this module loaded.
+  return lazy(() => {
+    const mod = loaded()
+    if (!mod) return retrying()
+    try { sessionStorage.removeItem(RELOAD_FLAG) } catch { /* storage blocked: nothing to clear */ }
+    return { then: (resolve) => resolve(mod) }
+  })
+}
+
+function retryingFactory(importer) {
+  return async () => {
     try {
       const mod = await importer()
       // Clear the retry flag on success so a future stale-chunk can also retry.
@@ -62,7 +78,7 @@ export default function lazyWithRetry(importer) {
 
       throw err
     }
-  })
+  }
 }
 
 /**
