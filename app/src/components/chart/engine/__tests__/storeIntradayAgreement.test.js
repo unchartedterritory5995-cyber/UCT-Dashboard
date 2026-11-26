@@ -27,7 +27,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 import {
-  barsOf, compareIntraday, agreementVerdict, describeAgreement, FLIP_CRITERION,
+  barsOf, compareIntraday, agreementVerdict, describeAgreement, FLIP_CRITERION, KNOWN_DEFINITION_DIFFERENCES,
 } from './storeIntradayAgreement'
 
 const REPO = path.resolve(process.cwd(), '..')
@@ -124,6 +124,35 @@ describe('C41 · storeIntradayAgreement — the comparison itself (controls on t
     const none = agreementVerdict(compareIntraday([], vendorBars))
     expect(none.pass).toBe(false)
     expect(none.reasons).toContain('no session lies inside both supplies')
+  })
+
+  it('⭐ e98 — the session\'s 09:30 OPEN is a known definition difference; the next bar\'s open is a price field', () => {
+    const [first] = midSession()
+    const k0 = vendorBars.indexOf(first)
+    const movedFirst = vendorBars.map((b, i) => (i === k0 ? { ...b, o: b.o + 0.01 } : b))
+    const r = compareIntraday(movedFirst, vendorBars)
+    expect(r.totals.sessionOpen.differ, 'non-vacuous: the moved open is seen').toBe(1)
+    expect(r.totals.sessionOpen.maxAbs).toBeCloseTo(0.01, 9)
+    expect(r.totals.priceEqual).toBe(r.totals.sessions)
+    expect(r.totals.fields.o.differ).toBe(0)
+    expect(describeAgreement(r, agreementVerdict(r))).toContain('known definition differences (not failures)')
+    // CONTROL: the session's SECOND bar's open moved is a price difference
+    const movedSecond = vendorBars.map((b, i) => (i === k0 + 1 ? { ...b, o: b.o + 0.01 } : b))
+    const r2 = compareIntraday(movedSecond, vendorBars)
+    expect(r2.totals.sessionOpen.differ).toBe(0)
+    expect(r2.totals.priceEqual).toBe(r2.totals.sessions - 1)
+  })
+
+  it('⭐ e98 — a store volume about 1.38x TradingView\'s on every bar is reported as a definition, never a failure', () => {
+    const scaled = vendorBars.map((b) => ({ ...b, v: b.v * 1.38 }))
+    const r = compareIntraday(scaled, vendorBars)
+    const v = agreementVerdict(r)
+    expect(v.pass).toBe(true)
+    expect(v.measured.volume).toBe(0)
+    const text = describeAgreement(r, v)
+    expect(text).toContain(`volume: ${KNOWN_DEFINITION_DIFFERENCES.volume}`)
+    expect(text).toMatch(/median 1\.380/)
+    expect(text).not.toMatch(/against the proposed bar:[^\n]*volume/)
   })
 
   it('the proposed bar is the one written down', () => {

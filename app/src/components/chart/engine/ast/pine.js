@@ -102,7 +102,7 @@ import { yieldsOf, compileRules, SENTENCE_RULES, didYouMean } from './sentence.j
 // looked back further would build a tree that translates and then refuses at
 // evaluation time, which is a refusal at the wrong door.
 import { FN, MAX_SELF_LAG, SEED_RESIDUAL_TOLERANCE, TF_RESAMPLABLE, TF_LADDER, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, heldFalseSeed, naConditionIsFalse, periodFirstCondition, readingSeed, chartOwnTimeNode, OWN_TIME_WITNESSED_TF, periodCloseNode, PERIOD_CLOSE_CODES, periodAnchorNode, chartSixtyTimeNode, dayAnchorNode, sessionDayGateNode, sessionDayWindowNode, SIXTY_WITNESSED_TF, PERIOD_ANCHOR_WITNESSED_TF, PERIOD_CLOSE_WITNESSED_TF, requestBaseNode, treeReadsLowerTf, listingSeedIsUnpinned, isBarPriceTree } from './interpret.js'
-import { isLowerTfRequest, lowerTfRefusal, LOWER_TF_REFUSAL } from '../lowerTf.js'
+import { isLowerTfRequest, lowerTfRefusal, LOWER_TF_REFUSAL, LOWER_TF_VOLUME_DEFINITION } from '../lowerTf.js'
 import { staticallyUnservable, spellingUnservable, staticOtherSymbolMessage, US_EQUITY_VENUES, witnessRowOf, SEED_SPELLING } from '../otherSymbols.js'
 // ⭐⭐ T4 E2 — `request.earnings` / `request.dividends` / `request.splits` (`eventAsSecurity`, `otherSymbolOf`)
 import { eventCallParts, eventOtherSymbolTicker, eventReadOf, EVENT_VENUE } from '../pineEvents.js'
@@ -6168,6 +6168,9 @@ function lowerTfCodesHeld(t) {
 /** The clock leaves a lower-timeframe child may NOT read: each answers from where
  *  the loaded series starts or ends, or from the bar's realtime state — facts our
  *  intraday supply does not share with TradingView's (`lowerTfChildRefusal`). */
+/** ⭐ e98 — a closed-table function that reads `volume` itself (its row names volume): derived from the table,
+ *  never restated, so a new volume function is withheld the day it is added. Over-declares, never under. */
+const readsVolume = (name) => own(TABLE.functions, name) && /\bvolume\b/i.test(JSON.stringify(TABLE.functions[name]))
 const LOWER_TF_EXTENT_LEAVES = new Set(['barindex', 'lastbarindex', 'lastbartime', 'lastbaryear',
   'lastbarmonth', 'lastbardayofmonth', 'lastbarhour', 'lastbarminute', 'islast', 'isfirst',
   'isrealtime', 'isconfirmed', 'ishistory', 'islastconfirmedhistory'])
@@ -15808,6 +15811,7 @@ export class Resolver {
     const stack = [tree]
     const seen = new Set()
     let what = null
+    let volumeRead = null
     while (stack.length && !what) {
       const n = stack.pop()
       if (!n || typeof n !== 'object' || seen.has(n)) continue
@@ -15824,8 +15828,21 @@ export class Resolver {
         what = `\`${n.name}\`, which reads the whole loaded series, so its value depends on where the series starts`
       } else if (n.type === 'series' && LOWER_TF_EXTENT_LEAVES.has(n.name)) {
         what = `\`${n.name}\` (the bar's position in the loaded series, or its realtime state)`
+      } else if (!volumeRead && ((n.type === 'series' && n.name === 'volume') || (n.type === 'call' && readsVolume(n.name)))) {
+        volumeRead = n.type === 'series' ? '`volume`' : `\`${n.name}\` (it reads \`volume\`)`
       }
       if (Array.isArray(n.args)) for (const a of n.args) stack.push(a)
+    }
+    // ⭐⭐ e98 (owner ruling 2026-11-26, the store witness) — OUR VOLUME IS NOT TRADINGVIEW'S BY DEFINITION: the store's
+    // volume is consolidated and includes odd lots, TradingView's excludes them (about 1.2-1.6x on every 15m bar,
+    // measured). A child that reads volume would compute a different number than TradingView's on any intraday
+    // series, so once the gate is on it stays WITHHELD BY NAME with that sentence, whatever the price criteria say.
+    // (Asked after every reason above, and only reached when the read is otherwise served: the gate's own refusal,
+    // `lower-tf:store-unmeasured`, answers first while it is off.)
+    if (!what && volumeRead) {
+      return { code: LOWER_TF_REFUSAL.VOLUME_DEFINITION,
+        why: `${LOWER_TF_REFUSAL.VOLUME_DEFINITION}: the expression read at \`${code}\`, below this chart's timeframe, `
+          + `reads ${volumeRead} — ${LOWER_TF_VOLUME_DEFINITION}, so it is not TradingView's value` }
     }
     if (!what) return null
     return { code: LOWER_TF_REFUSAL.EXPRESSION,
