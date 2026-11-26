@@ -55,6 +55,7 @@ import { calcTimeframeCapability } from '../../engine/calcTimeframeCapability'
 import { frameRelation } from '../../engine/instanceTimeframe'
 import CROSS from './crossContext.json'
 import { COLOR_HELPER_SUFFIX, FILL_HELPER_SUFFIX, risingTree, aboveTree, sameTree } from './colorRules'
+import { FILL_DEFAULT_OPACITY } from '../../engine/fillPaint'
 import { tableProgram, tableSpecOf, tableSpecProblem, cellOutputKeys } from './tables'
 import {
   STATES_SUFFIX, PAINT_STATE_KEYS, MAX_COLOR_STATES, RELATIONS, stateIndexTree, decomposeStateTree, rederiveStates,
@@ -855,6 +856,15 @@ const OPS = {
     // ⭐ the record a band's door stamp is judged by (`graftCarried`): an opacity the
     // member NAMED drops the stamp even when it equals the stored one.
     if (op.opacity !== undefined) st.fillOpacityNamed.add(row.key)
+    // ⭐ 2026-11-26 — A CLOUD THAT CHANGES COLOUR, WRITTEN FROM A MEMBER'S WORDS, IS TRANSLUCENT UNLESS THEY NAME
+    // AN OPACITY (coordinator's GO). The fifty-set probe (live, admin measurement): "fill between them green when
+    // the 10 day is above the 50 day and red when it is below" drew a SOLID cloud that hid the two lines and the
+    // candles behind it. A static band already paints at `FILL_DEFAULT_OPACITY` when it declares none
+    // (`fillPaint.staticFillOf`); a per-bar band paints its colours as given, which is right for an imported
+    // Pine script (`color.red` IS opaque there) and so is not changed in the renderer. The words door chooses the
+    // look for the member, so it gives the colour-changing cloud the static band's opacity, ONE constant for both.
+    // ⛔ An opacity the member names, or the one an existing band already has, is kept: only an unset one is filled.
+    if (conditional && row.fillOpacity === undefined) row.fillOpacity = FILL_DEFAULT_OPACITY
     if (conditional) {
       let key = op.when
       if (key === undefined) {
