@@ -160,3 +160,16 @@ def test_the_settle_runs_the_repair_for_today(env, monkeypatch):
         bls._covered5.add("SPY")
     counts = bls.settle_pass(datetime(2026, 11, 11, 20, 31, tzinfo=_ET))
     assert seen == [("SPY", NEW)] and counts["spike"]["flagged"] == 2 and counts["spike"]["replaced"] == 1
+
+
+def test_on_a_quiet_day_the_0_3_percent_floor_keeps_a_small_wick_unflagged():
+    d = OLD
+    rows = []
+    for i, r in enumerate(_day(d, 15)):
+        p = r["o"]
+        rows.append((r["t"], p, p + 0.01, p - 0.005, p + 0.005, r["v"]))        # a 1.5-cent median range
+    t, o, h, l, c, v = rows[10]
+    rows[10] = (t, o, c + 0.10, l, c, v)                     # 10 cents above the body: > 3 x median, < 0.3% of $60
+    t2, o2, h2, l2, c2, v2 = rows[20]
+    rows[20] = (t2, o2, c2 + 0.25, l2, c2, v2)               # 25 cents: beyond both
+    assert [int(r[0]) for r in sr.flag(rows)] == [t2]
