@@ -11,6 +11,7 @@ import os
 import threading
 import time
 import uuid
+from collections import OrderedDict
 
 from fastapi import APIRouter, Depends, Query, Request
 from api.bars_auth import require_bars_access
@@ -706,6 +707,39 @@ def _lat_fields(frame: dict, lat: bool) -> dict:
     return frame
 
 
+# ⭐ SERIALISE ONCE (2026-11-25, objective 2). stream-edge puts the SAME frame dict in every subscriber queue of a
+# pair (RemoteBroadcaster._put), and each connection's generator used to enrich it and json.dumps it again: the work
+# grew with members x frames (measured on the dev PC, 500 connections x 4 pairs: 18-23 us per delivered frame). A
+# MEMBER frame is now encoded once per (frame object, connection session) and every connection writes that same
+# text behind its own `id:` line. A `?lat=1` connection gets its own encode (its instruments); members never pay
+# for it. The cache holds the frame itself, so an id() cannot be reused while its entry lives; FIFO-bounded.
+_ENCODE_CACHE_MAX = 4096
+_ENCODE_CACHE: "OrderedDict[tuple, tuple]" = OrderedDict()
+
+
+def _encode_member_frame(bar_contract, msg: dict, session: str) -> str:
+    key = (id(msg), session)
+    hit = _ENCODE_CACHE.get(key)
+    if hit is not None and hit[0] is msg:
+        return hit[1]
+    data = json.dumps(_lat_fields(_contract_event(bar_contract, msg, session), False))
+    _ENCODE_CACHE[key] = (msg, data)
+    if len(_ENCODE_CACHE) > _ENCODE_CACHE_MAX:
+        _ENCODE_CACHE.popitem(last=False)
+    return data
+
+
+def _encode_bar_event(bar_contract, msg: dict, session: str, lat: bool) -> str:
+    """The `data:` text of one bar frame for one connection (see _encode_member_frame)."""
+    if lat:
+        return json.dumps(_lat_fields(_contract_event(bar_contract, msg, session), True))
+    return _encode_member_frame(bar_contract, msg, session)
+
+
+def _reset_encode_cache_for_tests() -> None:
+    _ENCODE_CACHE.clear()
+
+
 @router.get("/api/stream/bars")
 async def stream_bars(
     request: Request,
@@ -889,6 +923,9 @@ async def stream_bars(
             while True:
                 if await request.is_disconnected():
                     break
+                # every bar frame this wake produces, written in ONE chunk below (in the order produced:
+                # each pair's frames in queue order, the chart's pairs before the rows ahead)
+                out: list = []
                 if feed_live is not None:
                     try:
                         live = bool(feed_live())
@@ -915,13 +952,13 @@ async def stream_bars(
                         continue
                     del getters[i]
                     msg = task.result()
-                    yield _frame("bars", json.dumps(_lat_fields(_contract_event(_bar_contract, msg, session), lat_on)), "bar")
+                    out.append(_frame("bars", _encode_bar_event(_bar_contract, msg, session, lat_on), "bar"))
                     while True:
                         try:
                             msg = q.get_nowait()
                         except asyncio.QueueEmpty:
                             break
-                        yield _frame("bars", json.dumps(_lat_fields(_contract_event(_bar_contract, msg, session), lat_on)), "bar")
+                        out.append(_frame("bars", _encode_bar_event(_bar_contract, msg, session, lat_on), "bar"))
 
                 # the rows ahead: drained here, never awaited (see AHEAD_INTERVAL_S)
                 if n_ahead:
@@ -949,7 +986,7 @@ async def stream_bars(
                                     ahead_pend.pop(j, None)
                                 elif held is not None and final and (held.get("bar") or {}).get("t") == t:
                                     ahead_pend.pop(j, None)
-                                yield _frame("bars", json.dumps(_lat_fields(_contract_event(_bar_contract, msg, session), lat_on)), "bar")
+                                out.append(_frame("bars", _encode_bar_event(_bar_contract, msg, session, lat_on), "bar"))
                                 if not final:
                                     ahead_sent[j] = (t, now_m)
                             else:
@@ -958,8 +995,11 @@ async def stream_bars(
                         last = ahead_sent.get(j)
                         if held is not None and last is not None and now_m - last[1] >= AHEAD_INTERVAL_S:
                             ahead_pend.pop(j, None)
-                            yield _frame("bars", json.dumps(_lat_fields(_contract_event(_bar_contract, held, session), lat_on)), "bar")
+                            out.append(_frame("bars", _encode_bar_event(_bar_contract, held, session, lat_on), "bar"))
                             ahead_sent[j] = ((held.get("bar") or {}).get("t"), now_m)
+
+                if out:
+                    yield "".join(out)
 
                 if time.time() - last_heartbeat > 15:
                     # NAMED event (not a `:` comment): a bare comment keeps the
