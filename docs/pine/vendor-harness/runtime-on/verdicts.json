@@ -64052,11 +64052,11 @@
     "reason": "our object lane did not run: the run drew nothing (runtime:limit: this script went past the number of array operations a script may make over the whole chart (at most 4,254,500 for 8,509 bars, it reached 4,254,644) on bar 5,602 of 8,509, so it is stopped and nothing is drawn rather than part of it.)"
    },
    "paints": {
-    "verdict": "DIVERGE",
-    "reason": "1 paint differs (first: barcolor plot_6 \"Bar Color\" notDrawn)",
+    "verdict": "INCONCLUSIVE",
+    "reason": "no paint was graded; 1 paint withheld by name, not graded (first: barcolor plot_6 \"Bar Color\" — our run stopped (runtime:limit), so nothing is drawn for it)",
     "agreeing": 0,
-    "differing": 1,
-    "withheld": 0,
+    "differing": 0,
+    "withheld": 1,
     "undrawn": 0,
     "undecodable": 0,
     "unpaired": [],
@@ -64064,15 +64064,16 @@
      {
       "id": "plot_6",
       "kind": "barcolor",
-      "state": "notDrawn",
+      "state": "withheld",
+      "reason": "our run stopped (runtime:limit), so nothing is drawn for it",
       "line": 313,
       "title": "Bar Color",
-      "differs": true
+      "differs": false
      }
     ]
    },
-   "verdict": "DIVERGE",
-   "reason": "1 of 3 compared items diverge",
+   "verdict": "INCONCLUSIVE",
+   "reason": "3 of 3 items could not be compared",
    "verdictWithoutPaints": "INCONCLUSIVE",
    "ourNotes": [
     "plots/objects: cold: no committed capture of SPY|D holds bars before 728317800, cold replay",

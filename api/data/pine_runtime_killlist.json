@@ -203,8 +203,8 @@
       "reason": "on a long chart it needs more array operations than a script may make here: on SPY daily (8,509 bars) its run reaches 2,000,262 of the 2,000,000 allowed on bar 2,805, so it stops and draws nothing, where TradingView draws its line, its bar colours and its table (on RDDT daily, 668 bars, every item agrees)",
       "evidence": {
         "capture": "machine-learning-moving-average-backquant-spy-1d-2026-11-17",
-        "verdict": "DIVERGE",
-        "paints": "1 paint differs (first: barcolor plot_6 \"Bar Color\" notDrawn); the ML MA plot and the objects INCONCLUSIVE by name (runtime:limit, 2,000,262 array operations on bar 2,805 of 8,509)",
+        "verdict": "INCONCLUSIVE",
+        "paints": "the barcolor plot_6 \"Bar Color\" paint is withheld by the run's name, not graded (e98: a paint our run did not draw because it stopped is INCONCLUSIVE, no longer DIVERGE); the ML MA plot and the objects INCONCLUSIVE by name (runtime:limit, 2,000,262 array operations on bar 2,805 of 8,509). Was DIVERGE (1 paint differs, notDrawn) until e98 feat/e98-harness-paint-stop; the kill stands: on SPY daily the run still stops and draws nothing",
         "session": "pine heavy run 44427583401 on PR #1930 (d597bb8a62), vendor harness runtime-on lane; the two RDDT captures grade MATCH on the same run (plot, objects, paints, objectsV2)"
       },
       "liftWhen": "the run carries SPY daily's whole history inside the runtime's limits (an engine change to the script's array work, or a coordinator ruling on the limit), then a runtime-on re-grade to MATCH on machine-learning-moving-average-backquant-spy-1d-2026-11-17",
