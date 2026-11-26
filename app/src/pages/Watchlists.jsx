@@ -411,6 +411,8 @@ const WatchRow = React.memo(function WatchRow({
   entityNote = null, entityTitle = null, entityTone = null,
   showLogos = true, tintEnabled = true, logoSize = 16, mcap = null, earn = null, rating = null,
   ipoDate = null,
+  // a row the list mounts OFF screen (ScanRows' overscan): its logo asks for its image after paint (CompanyLogo deferSrc)
+  deferLogo = false,
   dchg = null, fromOpen = null, fromHigh = null, fromLow = null, dcr = null, dolvol = null, rvol = null,
   coName = null, sector = null, industry = null, theme = null,
   rsExitLast = null, rsExitAgo = null,
@@ -481,7 +483,7 @@ const WatchRow = React.memo(function WatchRow({
       return (
         <span key="sym" className={styles.symCell} style={isMember ? { paddingLeft: 20 } : undefined} {...(wlId ? rowMenuBind : {})}>
           {flagBadge}
-          {showLogos && <span className={styles.rowLogo}><CompanyLogo sym={sym} name={name} size={logoSize} round brandMark={brandMark} /></span>}
+          {showLogos && <span className={styles.rowLogo}><CompanyLogo sym={sym} name={name} size={logoSize} round brandMark={brandMark} deferSrc={deferLogo} /></span>}
           <span className={styles.rowSym} title={displayName ? sym : undefined}>{displayName || sym}</span>
           {entityNote && (
             <span className={`${styles.entityMark}${entityTone === 'danger' ? ' ' + styles.entityMarkDanger : ''}`}
@@ -753,6 +755,16 @@ export function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChan
     useFlushSync: false,
   })
   const vItems = virt.getVirtualItems()
+  // ⚡ (2026-11-26, the board switch) which mounted rows lie OFF screen (the overscan): their logos ask for their images
+  // after paint (CompanyLogo `deferSrc`). Judged on the virtualizer's own view with one row of margin on each side;
+  // nothing measured yet counts as on screen, as does everything inside that margin.
+  const viewTop = virt.scrollOffset
+  const viewH = virt.scrollRect?.height
+  const rowOffscreen = (vi) => {
+    if (!Number.isFinite(viewTop) || !(viewH > 0)) return false
+    const size = vi.end - vi.start
+    return vi.end <= viewTop - size || vi.start >= viewTop + viewH + size
+  }
   const first = vItems.length ? vItems[0].index : 0
   const last = vItems.length ? vItems[vItems.length - 1].index : -1
   // ⛔ REPORT A CHANGED WINDOW, NEVER A RE-RENDER (React #185, /breadth drill board,
@@ -826,7 +838,7 @@ export function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChan
             // `scrollMargin: 0` (every pre-existing caller) this is `vi.start`.
             style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${vi.start - scrollMargin}px)` }}
           >
-            {renderRow(item)}
+            {renderRow(item, { offscreen: rowOffscreen(vi) })}
           </div>
         )
       })}
@@ -3090,7 +3102,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // Thin wrapper: compute this row's primitive props + hand it the stable callbacks.
   // `wlId` (owner watchlist rows only) enables the right-click row menu, which is
   // where notes / price alerts / remove all live.
-  function renderTickerRow({ sym, name = null, isOwner = false, wlId = null, isGroup = false, isMember = false, expanded = false, entity = null }) {
+  function renderTickerRow({ sym, name = null, isOwner = false, wlId = null, isGroup = false, isMember = false, expanded = false, entity = null, deferLogo = false }) {
     // Thematic-index row: no market feed — pull its live daily % from the batch
     // quotes map (keyed by lowercase slug), and show the theme's name instead of
     // the raw "$IDX:CYBERSECURITY" pseudo-ticker.
@@ -3106,7 +3118,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
           price={q.price} changePct={q.change_pct} volume={null}
           coName={idxq?.name ?? null}
           flagged={isFlagged(sym)} selected={selectedSym === sym} orderedKeys={orderedKeys}
-          showLogos={wlSettings.showLogos} tintEnabled={wlSettings.tintEnabled} logoSize={rowLogoSize}
+          showLogos={wlSettings.showLogos} tintEnabled={wlSettings.tintEnabled} logoSize={rowLogoSize} deferLogo={deferLogo}
           isOwner={isOwner} wlId={wlId} isMember={isMember}
           onSelect={onRowSelect} onToggleFlag={onRowFlag} onIntent={onRowIntent} onCtx={onRowCtx}
         />
@@ -3174,6 +3186,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         showLogos={wlSettings.showLogos}
         tintEnabled={wlSettings.tintEnabled}
         logoSize={rowLogoSize}
+        deferLogo={deferLogo}
         mcap={metaData[sym]?.market_cap ?? null}
         earn={metaData[sym]?.next_earnings ?? null}
         rating={metaData[sym]?.composite ?? null}
@@ -3328,9 +3341,9 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
 
           // ONE renderer for both paths — a virtualized row and a plain row must never
           // be able to drift apart.
-          const renderListItem = (item) => (
+          const renderListItem = (item, meta) => (
             <>
-              {renderTickerRow({ sym: item.sym, name: item.name, isOwner: editable, wlId: wl.id, entity: item })}
+              {renderTickerRow({ sym: item.sym, name: item.name, isOwner: editable, wlId: wl.id, entity: item, deferLogo: !!meta?.offscreen })}
               {/* Note editor, opened from the row menu's "Notes" entry (and closed by
                   picking it again). Editable on YOUR lists only — a shared list's
                   notes are read-only. */}
@@ -3757,7 +3770,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
             <ScanRows
               scrollRef={listBodyRef}
               items={scanSortedItems}
-              renderRow={(item) => {
+              renderRow={(item, meta) => {
                 // A host may draw its own group header (the breadth drill's sections).
                 if (item.isGroup && renderGroupRow) {
                   const open = expandedGroups.has(item.sym)
@@ -3767,6 +3780,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                   sym: item.sym, name: item.name, isOwner: false, wlId: null,
                   isGroup: !!item.isGroup, isMember: !!item.isMember,
                   expanded: item.isGroup ? expandedGroups.has(item.sym) : false,
+                  deferLogo: !!meta?.offscreen,
                 })
                 const accent = item.isMember && groupAccent ? groupAccent(String(item.id).split('::')[0]) : null
                 return accent
