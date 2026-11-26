@@ -64,6 +64,16 @@ export function healedViewLock(lock) {
   return { ...lock, top: null, bottom: null, vLocked: false }
 }
 
+/**
+ * ⭐ (2026-11-26) What a DOUBLE-CLICK ON THE PRICE AXIS does to the stored view lock: TradingView's full price-scale
+ * reset, so the vertical half goes (and with it the candles' authored band), the horizontal half (the member's time
+ * view) stays. `{ changed, lock }`: `changed` false when there was no vertical half to drop (nothing is written).
+ */
+export function axisDoubleClickLock(lock) {
+  if (!lock || typeof lock !== 'object' || (lock.top == null && lock.bottom == null)) return { changed: false, lock: lock || null }
+  return { changed: true, lock: healedViewLock(lock) }
+}
+
 let settledThisPage = false
 
 /** Heal every compounded view lock on this device, once. Never throws. Returns the done record it

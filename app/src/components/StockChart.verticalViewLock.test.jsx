@@ -627,6 +627,50 @@ describe('⭐ RESET VIEW is canonical', () => {
     for (let i = 1; i <= 10; i++) { await pan(i); await repaint(rerender) }
     expect(occupancy()).toBeCloseTo(occ, 6)
   })
+
+  it('⭐ a DOUBLE-CLICK on the price axis is a full price-scale reset (TradingView): default band back, the vertical lock dropped, the time view kept', async () => {
+    // (2026-11-26) the double-click used to release only the manual pin: the band the drag authored stayed on the
+    // candles, and on every later ticker and reload (AGL 1D on /charts: −40..180 for bars 10..165).
+    const switchTo = async (rr, sym) => { rr(view({ sym })); await frames(); await frames() }
+    const { rerender } = await mount()
+    await repaint(rerender)
+    const m0 = margins()
+    await dragPriceAxis(3)
+    await repaint(rerender)
+    await pan(2)
+    await repaint(rerender)
+    const locked = storedLock()
+    expect(locked?.top, 'the drag authored no vertical lock: nothing to reset').toBeTypeOf('number')
+    // the authored band lands on the next ticker (the pin owns the view until then)
+    await switchTo(rerender, 'MSFT')
+    expect(margins(), 'the authored band never reached the candles').not.toEqual(m0)
+
+    fireEvent.dblClick(host, { clientX: AXIS_X(), clientY: 200, bubbles: true })
+    await frames()
+    // AT ONCE, with no re-render: a double-click is not a React update, so the scale itself must be reset
+    expect(margins(), 'the double-click left the authored band on the candles until something re-rendered').toEqual(m0)
+    await repaint(rerender, { sym: 'MSFT' })
+    expect(margins()).toEqual(m0)
+    // …and the next ticker and a reload stay on the default band
+    await switchTo(rerender, 'AAPL')
+    expect(margins()).toEqual(m0)
+    const after = storedLock()
+    expect(after === null || (after.top == null && after.bottom == null), JSON.stringify(after)).toBe(true)
+    // the horizontal half, when there was one, survives
+    if (locked && typeof locked.anchorFrac === 'number' && locked.width > 0) expect(after?.anchorFrac).toBe(locked.anchorFrac)
+  })
+
+  it('CONTROL: a double-click on the PLOT (not the axis) leaves the stored vertical lock alone', async () => {
+    const { rerender } = await mount()
+    await repaint(rerender)
+    await dragPriceAxis(3)
+    await repaint(rerender)
+    const before = storedLock()
+    expect(before?.top).toBeTypeOf('number')
+    fireEvent.dblClick(host, { clientX: PLOT_X, clientY: 200, bubbles: true })
+    await repaint(rerender)
+    expect(storedLock()?.top).toBe(before.top)
+  })
 })
 
 // ─────────────────────────────────────────────────────────────────────────────

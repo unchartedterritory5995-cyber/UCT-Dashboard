@@ -1852,7 +1852,7 @@ import {
 import { parsePaneOfTarget, parseSource, sourceInputsOf, symbolsNeeded } from './chart/engine/sourceRef'
 import { readsVendorPrefix, setIndexHistoryNote } from './chart/engine/indexHistoryNotice'
 import { chromePlan, capturedPriceRange, viewLockFractions, joinedAutoscaleExtent, lookbackPlacementSettled, LOOKBACK_REVEAL_MAX_MS } from './chart/chromeGeometry'
-import { healViewLocksOnce } from './chart/viewLockHeal'
+import { healViewLocksOnce, axisDoubleClickLock } from './chart/viewLockHeal'
 import { LIBRARY_HIDDEN_IDS } from './chart/discoveryCatalog'
 import { useSecondarySources, useOtherSymbolExchanges, useLowerTfSources } from './chart/engine/useSecondarySources'
 import { heldRowsFor, heldSpanOn } from './chart/heldSpanPlan'
@@ -5296,6 +5296,9 @@ function StockChartBody({
     cs, instances: _volPresenceInstances, shown: showVolume, blankVolume, volumeSeparatePane, volumePaneByDefault,
   }
   const volumePaneExists = volumePaneRequired(_volPresenceOpts)
+  // the margins a double-click on the price axis restores (`onDbl`), current every render so the listener never reads stale props
+  const axisResetMarginsRef = useRef({ top: null, bottom: null })
+  axisResetMarginsRef.current = { top: priceScaleTopMargin, bottom: volumePaneExists ? priceScaleBottomMargin : null }
   // Will a NATIVE volume series (and so its own pane) exist? Narrower than `volumePaneExists`, which
   // is also true when only a GUEST (an MA sent to the Volume pane) holds that pane open with no bars.
   // The lookback bar anchors on the volume SERIES' pane (`lookbackBottomFor`), so this is the question
@@ -10535,7 +10538,24 @@ function StockChartBody({
         // Release the manual pin so the scale returns to auto-fit.
         priceManualRef.current = false
         priceManualRangeRef.current = null
-        try { mainPriceScale()?.applyOptions({ autoScale: true }) } catch { /* disposed */ }
+        // ⭐ (2026-11-26, TradingView parity: a double-click on the price axis is a FULL price-scale reset) …and the
+        // VERTICAL half of the stored view lock, with the margins it put on the candles. It was left in force, so after
+        // "stretch, then double-click" the candles stayed in the band the drag authored, compressed, and every later
+        // ticker and reload inherited it (measured on /charts, AGL 1D: −40..180 for bars 10..165). The horizontal half
+        // (`anchorFrac` / `width`) is the member's time view and is kept (`viewLockHeal.healedViewLock`).
+        const lockAfter = axisDoubleClickLock(userViewLockedRef.current ? userLockedViewRef.current : null)
+        if (lockAfter.changed) {
+          userLockedViewRef.current = lockAfter.lock
+          userViewLockedRef.current = !!lockAfter.lock
+          persistViewLock()
+        }
+        vertMarginsRef.current = null
+        try {
+          mainPriceScale()?.applyOptions({
+            autoScale: true,
+            scaleMargins: _mainMargins(paneLayoutRef.current, axisResetMarginsRef.current.top, axisResetMarginsRef.current.bottom),
+          })
+        } catch { /* disposed */ }
       }
     }
     el.addEventListener('dblclick', onDbl)
