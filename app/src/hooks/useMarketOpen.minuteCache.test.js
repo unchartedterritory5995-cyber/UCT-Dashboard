@@ -43,6 +43,17 @@ describe('useMarketOpen: one calendar read per minute', () => {
     for (const h of hooks) expect(h.result.current).toMatchObject({ isOpen: true, isPremarket: false })
   })
 
+  it('M4 the test reset forgets the minute: the next read in the same faked minute asks the calendar again', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-01-15T15:00:05Z'))
+    renderHook(() => useMarketOpen())
+    const before = C.reads
+    const { _resetMarketStateCacheForTests } = await import('./useMarketOpen')
+    _resetMarketStateCacheForTests()
+    renderHook(() => useMarketOpen())
+    expect(C.reads - before).toBe(1)
+  })
+
   it('M3 the state is the calendar\'s own answer at every minute of a day: pre, the open, the close, post, overnight', () => {
     vi.useFakeTimers()
     const day = Date.parse('2026-11-27T05:00:00Z')        // the day after Thanksgiving, an early close (13:00 ET)

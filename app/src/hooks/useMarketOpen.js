@@ -39,6 +39,8 @@ function getMarketState() {
   _minuteState = { minute, state }
   return state
 }
+/** Tests: forget the minute's state (a test that mocks the calendar twice within one faked minute gets a fresh read). */
+export function _resetMarketStateCacheForTests() { _minuteState = { minute: NaN, state: null } }
 
 export default function useMarketOpen() {
   const [state, setState] = useState(getMarketState)
