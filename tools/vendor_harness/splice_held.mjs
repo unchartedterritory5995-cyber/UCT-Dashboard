@@ -10,6 +10,10 @@ import path from 'node:path'
 const [snapshotPath, heldPath, ...canonical] = process.argv.slice(2)
 const snap = JSON.parse(fs.readFileSync(snapshotPath, 'utf8'))
 const held = JSON.parse(fs.readFileSync(heldPath, 'utf8'))
+// ⛔ e98 — a BOUNDED-WINDOW run (`VENDOR_HARNESS_WINDOW`) graded only the newest bars: never a committed snapshot row
+if (held.boundedWindow || (held.results || []).some((r) => r && r.boundedWindow)) {
+  throw new Error('the held run is a bounded-window grade (VENDOR_HARNESS_WINDOW): it is never spliced into a snapshot')
+}
 if (snap.lane !== held.lane) throw new Error(`lanes differ: snapshot ${snap.lane}, held run ${held.lane}`)
 if (held.scriptEngineVersion !== snap.scriptEngineVersion) throw new Error('the held run was graded at another engine')
 const byName = new Map(canonical.map((c) => [path.basename(c), c]))

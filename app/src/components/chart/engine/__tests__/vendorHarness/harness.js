@@ -114,6 +114,21 @@ export function bandsGraded(opts = {}) {
   return process.env.VENDOR_HARNESS_BANDS !== '0'
 }
 
+/** ⭐⭐ e98 — A BOUNDED WINDOW (`VENDOR_HARNESS_WINDOW=<n>`, or `opts.window`): grade only the capture's NEWEST n bars.
+ *  Our engine still runs from bar 0 (every value keeps its whole history, so nothing is computed from a cut series);
+ *  only the bars graded are bounded, and the verdict is LABELLED "bounded-window (newest n)" (`boundedWindow`), so it
+ *  is never read, or stored, as the full-history verdict (the snapshot writers refuse it). Unset: every capture is
+ *  graded exactly as before. ⛔ Read strictly: anything but a positive whole number throws.
+ *  Read at call time, so a test may stub the variable. */
+export const BOUNDED_WINDOW_LABEL = (n) => `bounded-window (newest ${n})`
+export function harnessWindowOf(opts = {}) {
+  const raw = opts.window !== undefined ? opts.window : process.env.VENDOR_HARNESS_WINDOW
+  if (raw === undefined || raw === null || raw === '') return null
+  const n = Number(raw)
+  if (!Number.isInteger(n) || n <= 0) throw new Error(`VENDOR_HARNESS_WINDOW=${JSON.stringify(raw)}: a positive whole number of bars`)
+  return n
+}
+
 /** Grade one capture object.
  *  @param {{objectColour?: boolean, paints?: boolean}} [opts] */
 export function gradeCapture(original, opts = {}) {
@@ -131,7 +146,8 @@ export function gradeCapture(original, opts = {}) {
     && ours && ours.ok && ours.objects && ours.objects.ok && Array.isArray(ours.objects.held)
     ? pairObjects(capture, ours.objects)
     : null
-  const paints = paintsGraded(opts) && ours && ours.ok ? gradePaints(capture, ours) : null
+  const window = harnessWindowOf(opts)
+  const paints = paintsGraded(opts) && ours && ours.ok ? gradePaints(capture, ours, { window }) : null
   // SUPPLY-ATTRIBUTED (coordinator ruling on #1541): only where the supply symbol has a committed witness
   const supplyAttribution = integrity.ok && ours && ours.ok ? supplyAttributionOf(capture) : null
   const otherSymbolUnsettled = integrity.ok && ours && ours.ok ? otherSymbolUnsettledOf(capture) : null
@@ -145,11 +161,13 @@ export function gradeCapture(original, opts = {}) {
     ? pairRecords(capture, ours.objects)
     : null
   const bands = bandsGraded(opts) && ours && ours.ok && Array.isArray(ours.bands) ? ours.bands : null
-  const indicator = compareCapture(capture, ours, { integrity, objectColours, paints, bands, supplyAttribution, otherSymbolUnsettled, supplyBehind, objectRecords })
+  const indicator = compareCapture(capture, ours, { integrity, objectColours, paints, bands, supplyAttribution, otherSymbolUnsettled, supplyBehind, objectRecords, window })
   // ⭐⭐ THE STRATEGY GRADE, FOLDED IN where the capture holds a Strategy Tester report or our door ran a
   // broker document (`strategyLane.js`, THE FOLD); null, and the verdict unchanged, everywhere else
   const strategy = integrity.ok ? strategyLaneGradeOf(capture, ours, { unrun }) : null
-  const verdict = foldStrategyGrade(indicator, strategy)
+  const folded = foldStrategyGrade(indicator, strategy)
+  // ⭐ e98 — a bounded window's verdict says so in its own words, never as the full-history verdict
+  const verdict = window ? { ...folded, boundedWindow: { newest: window }, reason: `${BOUNDED_WINDOW_LABEL(window)}: ${folded.reason}` } : folded
   const objectsV2 = objectsV2Of(capture, ours, verdict, objectRecords)
   // ⭐ L7 — a run with substituted inputs never reads MATCH, the v2 objects report included
   // (capability admission reads `objectsV2: MATCH` for an `obj:*` family).

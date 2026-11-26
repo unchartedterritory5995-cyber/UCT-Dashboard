@@ -1261,8 +1261,12 @@ export function compareCapture(capture, ours, opts = {}) {
     }
     else if (Number.isInteger(o.lookback)) { warmupBars = o.lookback; warmupSource = 'derived: our evaluator\'s maxLookback for this plot' }
     else { warmupBars = 0; warmupSource = 'lookback unknown — no warm-up region' }
-    const colorWarmupBars = colourWarmupOf({ bar0, capture, warmupBars, colorLookback: o.colorLookback,
-      replayedBars: o.historyReplayed && Number.isInteger(o.historyReplayed.bars) ? o.historyReplayed.bars : 0 })
+    // ⭐ e98 — A BOUNDED WINDOW (`opts.window`, `harness.js::harnessWindowOf`): bars before the newest `window` are not
+    // graded (our side computed them from bar 0; only the grading is bounded). Counted in the warm-up region.
+    const windowFrom = Number.isInteger(opts.window) && opts.window > 0 ? Math.max(0, times.length - opts.window) : 0
+    if (windowFrom > warmupBars) { warmupBars = windowFrom; warmupSource = `bounded window: only the newest ${opts.window} bars are graded` }
+    const colorWarmupBars = Math.max(windowFrom, colourWarmupOf({ bar0, capture, warmupBars, colorLookback: o.colorLookback,
+      replayedBars: o.historyReplayed && Number.isInteger(o.historyReplayed.bars) ? o.historyReplayed.bars : 0 }))
     const oursCol = leadBy(drawnOnly && o.column ? Array.from(o.column, notDrawn) : o.column, treeShift)
     // ⭐ A plot TradingView does not display (style `display: 0`, i.e. the author's
     // `display = display.none`) has no colour anyone sees, so its colour is not

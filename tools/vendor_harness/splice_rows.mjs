@@ -22,6 +22,10 @@ const [snapshotPath, subsetPath] = check ? args.slice(1) : args
 const snap = JSON.parse(fs.readFileSync(snapshotPath, 'utf8'))
 const sub = JSON.parse(fs.readFileSync(subsetPath, 'utf8'))
 if (snap.lane !== sub.lane) throw new Error(`lanes differ: snapshot ${snap.lane}, subset run ${sub.lane}`)
+// ⛔ e98 — a BOUNDED-WINDOW run (`VENDOR_HARNESS_WINDOW`) graded only the newest bars: never a committed snapshot row
+if (sub.boundedWindow || (sub.results || []).some((r) => r && r.boundedWindow)) {
+  throw new Error('the subset run is a bounded-window grade (VENDOR_HARNESS_WINDOW): it is never spliced into a snapshot')
+}
 if (sub.scriptEngineVersion !== snap.scriptEngineVersion) throw new Error('the subset run was graded at another engine')
 // ⛔ THE LIBRARY STORE. A subset run with the snapshot's store is always comparable. One WITHOUT it (the store is a
 // scratch directory the libraries chain holds) is accepted only for rows whose script imports NOTHING: a script with

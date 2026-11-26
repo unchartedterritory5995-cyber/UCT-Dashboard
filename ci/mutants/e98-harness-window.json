@@ -1,0 +1,41 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "BW1",
+   "mutant": "the bounded-window label dropped from the verdict",
+   "file": "app/src/components/chart/engine/__tests__/vendorHarness/harness.js",
+   "from": "  const verdict = window ? { ...folded, boundedWindow: { newest: window }, reason: `${BOUNDED_WINDOW_LABEL(window)}: ${folded.reason}` } : folded",
+   "to": "  const verdict = folded",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.boundedWindow.test.js",
+   "expectRed": "LABELLED"
+  },
+  {
+   "id": "BW2",
+   "mutant": "the window not applied to the plot grade",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "    const windowFrom = Number.isInteger(opts.window) && opts.window > 0 ? Math.max(0, times.length - opts.window) : 0",
+   "to": "    const windowFrom = 0",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.boundedWindow.test.js",
+   "expectRed": "outside the newest n"
+  },
+  {
+   "id": "BW3",
+   "mutant": "a bounded-window run spliced into a committed snapshot",
+   "file": "tools/vendor_harness/splice_rows.mjs",
+   "from": "if (sub.boundedWindow || (sub.results || []).some((r) => r && r.boundedWindow)) {",
+   "to": "if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.boundedWindow.test.js",
+   "expectRed": "refused by the snapshot splicers"
+  },
+  {
+   "id": "BW4",
+   "mutant": "the window leaking into a snapshot regeneration run",
+   "file": "tools/vendor_harness/regenerate_snapshots.py",
+   "from": "    env = {k: v for k, v in os.environ.items() if k != \"VENDOR_HARNESS_WINDOW\"}",
+   "to": "    env = dict(os.environ)",
+   "rail": "python -m pytest -q tests/test_vendor_regenerate_window.py",
+   "expectRed": "test_the_window_never_reaches"
+  }
+ ]
+}
