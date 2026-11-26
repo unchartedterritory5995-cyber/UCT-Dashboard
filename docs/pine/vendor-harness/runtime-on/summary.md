@@ -765,17 +765,17 @@ inside-bar-range-mother-candle-breakoutbreak AMEX:SPY 1D      2      MATCH      
     Shapes                                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
     objects                                  MATCH         object counts and texts agree; colours agree on 2 paired slots; coordinates are NOT compared by v1
     paints                                   MATCH         2 paints agree bar for bar
-institutional-smc-order-flow-matrix-pro-rddt NYSE:RDDT 1D     4      INCONCLUSIVE      1 of 5 items could not be compared
+institutional-smc-order-flow-matrix-pro-rddt NYSE:RDDT 1D     4      MATCH             all 5 items agree
     Heatmap Candles open                     MATCH             cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
     Heatmap Candles high                     MATCH             cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
     Heatmap Candles low                      MATCH             cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
-    Heatmap Candles close                    INCONCLUSIVE      cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0 — 632 steady-state bars agree, but the candle is withheld by name on our side (`Heatmap Candles`): this door could not carry its `color =` (its colour picks among more than two colours, or by a rule a candle here cannot carry yet): TradingView draws it and our side draws nothing, so its body colour is not compared
+    Heatmap Candles close                    MATCH             cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
     objects                                  MATCH         object counts and texts agree; colours agree on 92 paired slots; coordinates are NOT compared by v1
-institutional-smc-order-flow-matrix-pro-spy- AMEX:SPY 1D      4      INCONCLUSIVE      1 of 5 items could not be compared
+institutional-smc-order-flow-matrix-pro-spy- AMEX:SPY 1D      4      MATCH             all 5 items agree
     Heatmap Candles open                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     Heatmap Candles high                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     Heatmap Candles low                      MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
-    Heatmap Candles close                    INCONCLUSIVE      cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0 — 1800 steady-state bars agree, but the candle is withheld by name on our side (`Heatmap Candles`): this door could not carry its `color =` (its colour picks among more than two colours, or by a rule a candle here cannot carry yet): TradingView draws it and our side draws nothing, so its body colour is not compared
+    Heatmap Candles close                    MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     objects                                  MATCH         object counts and texts agree; colours agree on 1105 paired slots; coordinates are NOT compared by v1
 ipda-standard-deviations-dexterlab-x-tfo-x-t NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:no-output) [runtime declined: runtime:call-undeclared-builtin-state]: the pasted script offers no plot and no alert condition to filter on
 k-clustering-rddt-1d-2026-09-28              NYSE:RDDT 1D     0      INCONCLUSIVE      1 of 1 items could not be compared

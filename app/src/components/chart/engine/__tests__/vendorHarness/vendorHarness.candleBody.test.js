@@ -28,20 +28,27 @@ import { __allowEveryRuntimeScriptForTests } from '../../runtimeKill'
 
 const H = path.resolve(process.cwd(), '../tests/fixtures/vendor/harness')
 const SMC = path.join(H, 'institutional-smc-order-flow-matrix-pro-rddt-1d-2026-09-28.json')
+const SMC_SPY = path.join(H, 'institutional-smc-order-flow-matrix-pro-spy-1d-2026-10-03.json')
+// ⭐ e98 (candle bodies) — institutional-smc's three-colour body is DRAWN now (`pine.js::packedColourTreeOf`), so the
+// withheld example is smart-money-volume-index's candle (`force_overlay = true` from a script that is not an overlay)
+const SMVI = path.join(H, 'smart-money-volume-index-algoalpha-rddt-1d-2026-11-14.json')
+const SMVI_LABEL = 'Smart Money Candles'
 const KERNEL = path.join(H, 'kernel-channel-backquant-rddt-1d-2026-11-14.json')
 const parts = (r) => r.plots.filter((p) => /^C1-candle-order/.test(p.rule || ''))
 
 describe('e98 P3 — a candle the host door withholds by name', () => {
   it('the door records it on its answer, by the four host output indexes and its reason', () => {
-    const { capture } = loadCapture(SMC)
+    const { capture } = loadCapture(SMVI)
     const d = memberPaneDefinition({ source: capture.source.text })
     expect(d.ok, d.reason).toBe(true)
     expect(d.candlesNotDrawn).toHaveLength(1)
     const c = d.candlesNotDrawn[0]
-    expect(c).toMatchObject({ by: 'withheld', label: 'Heatmap Candles' })
-    expect(c.why).toMatch(/could not carry its `color =`|picks among more than two colours/)
+    expect(c).toMatchObject({ by: 'withheld', label: SMVI_LABEL })
+    expect(c.why).toMatch(/force_overlay = true/)
     const outs = d.translation.outputs
-    expect(c.outputs.map((i) => outs[i].title)).toEqual(['open', 'high', 'low', 'close'].map((r) => `Heatmap Candles ${r}`))
+    // (its outputs are titled by role alone: `pine.js::outputTitle`, a candle whose `title` is not its first argument)
+    expect(c.outputs.map((i) => outs[i].title)).toEqual(['open', 'high', 'low', 'close'])
+    expect(c.outputs.map((i) => outs[i].kind)).toEqual(['plotcandle', 'plotcandle', 'plotcandle', 'plotcandle'])
   }, 120000)
 
   it('CONTROL: a host answer with no withheld candle carries no `candlesNotDrawn` at all', () => {
@@ -51,11 +58,11 @@ describe('e98 P3 — a candle the host door withholds by name', () => {
   }, 60000)
 
   it('its close is INCONCLUSIVE by the door\'s reason; its open, high and low stay MATCH on prices', () => {
-    const { capture } = loadCapture(SMC)
+    const { capture } = loadCapture(SMVI)
     const ours = runOurSide(capture)
     expect(ours.ok, ours.refusal).toBe(true)
     const close = ours.plots.find((p) => p.kind === 'plotcandle' && p.role === 'close')
-    expect(close.candleWithheld).toMatch(/^withheld by name on our side \(`Heatmap Candles`\): /)
+    expect(close.candleWithheld).toMatch(/^withheld by name on our side \(`Smart Money Candles`\): /)
     const r = compareCapture(capture, ours)
     const rows = parts(r)
     expect(rows.map((p) => p.verdict)).toEqual(['MATCH', 'MATCH', 'MATCH', 'INCONCLUSIVE'])
@@ -64,6 +71,24 @@ describe('e98 P3 — a candle the host door withholds by name', () => {
     expect(c.reason).toContain(CANDLE_WITHHELD_OURS)
     expect(c.color).toBe(CANDLE_WITHHELD_COLOUR)
     expect(r.verdict).toBe('INCONCLUSIVE')
+  }, 120000)
+})
+
+describe('e98 (candle bodies) — institutional-smc\'s three-colour body is drawn and graded against TradingView', () => {
+  it.each([[SMC, 632], [SMC_SPY, 1800]])('%s: the body colour is compared on every bar, and agrees', (file, bars) => {
+    const { capture } = loadCapture(file)
+    const d = memberPaneDefinition({ source: capture.source.text })
+    expect('candlesNotDrawn' in d, 'the door draws it now').toBe(false)
+    const ours = runOurSide(capture)
+    expect(ours.ok, ours.refusal).toBe(true)
+    const r = compareCapture(capture, ours)
+    const rows = parts(r)
+    expect(rows.map((p) => p.verdict)).toEqual(['MATCH', 'MATCH', 'MATCH', 'MATCH'])
+    const c = rows[3]
+    expect(c.color).toBe(CANDLE_BODY_COMPARED)
+    expect(c.stats.colorCompared).toBe(bars)
+    expect(c.stats.colorMismatches).toBe(0)
+    expect(r.verdict).toBe('MATCH')
   }, 120000)
 })
 
