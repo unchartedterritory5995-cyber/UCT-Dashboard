@@ -1,0 +1,213 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "e100 (coordinator ruling 2026-11-26): a member's Pine-script ALERT and the single-symbol strategy BACKTEST run on the chart's history. A daily runtime alert fetches up to the runtime's history limit and runs every bar with historyFromListing true ONLY when bar 0 is the symbol's FINAL first-trade day (listing_history, the chart's listingSeed.js rule ported; one parity fixture both hosts read); otherwise the curtain (the last 5,000 bars, false), byte-for-byte as before. The backtest takes the chart's ctx (12,500-bar strategy window, 5,000 served depth, true) on the same condition and its old job otherwise; the broker's [B-START-DEEP] is untouched. Sweeps, scans, the screener backtest and the definition record stay at 5,000, off the listing. Each mutant must turn its rail red and restore byte-equal.",
+ "mutants": [
+  {
+   "id": "L1",
+   "mutant": "the flag forced true without reaching the listing: any final fact claims it",
+   "file": "api/services/listing_history.py",
+   "from": "    return history_from_listing_of(bars, tf, listing_reference_date(ipo))\n",
+   "to": "    return True\n",
+   "rail": "python -m pytest -q -p no:cacheprovider tests/test_alert_runtime_lane.py -k E100_anything_else",
+   "expectRed": "E100_anything_else"
+  },
+  {
+   "id": "L2",
+   "mutant": "finality ignored: a non-final /api/ticker-ipo answer claims the listing on an unattended run",
+   "file": "api/services/listing_history.py",
+   "from": "    if not isinstance(ipo, Mapping) or ipo.get(\"first_trade_final\") is not True:\n",
+   "to": "    if not isinstance(ipo, Mapping):\n",
+   "rail": "python -m pytest -q -p no:cacheprovider tests/test_listing_history.py -k FINAL",
+   "expectRed": "FINAL"
+  },
+  {
+   "id": "P1",
+   "mutant": "parity drift, Python side: the port compares against list_date, not first_trade_date",
+   "file": "api/services/listing_history.py",
+   "from": "    ft = ipo.get(\"first_trade_date\")\n",
+   "to": "    ft = ipo.get(\"list_date\")\n",
+   "rail": "python -m pytest -q -p no:cacheprovider tests/test_listing_history.py -k PARITY",
+   "expectRed": "PARITY"
+  },
+  {
+   "id": "P2",
+   "mutant": "parity drift, Python side: within a day, not exact",
+   "file": "api/services/listing_history.py",
+   "from": "    return t[:10] == day\n",
+   "to": "    return t[:8] == day[:8]\n",
+   "rail": "python -m pytest -q -p no:cacheprovider tests/test_listing_history.py -k PARITY",
+   "expectRed": "PARITY"
+  },
+  {
+   "id": "P3",
+   "mutant": "parity drift, chart side: listingReferenceDate reads list_date first",
+   "file": "app/src/components/chart/engine/listingSeed.js",
+   "from": "  const ft = ipo.first_trade_date\n",
+   "to": "  const ft = ipo.list_date\n",
+   "rail": "cd app && npx vitest run src/components/chart/engine/__tests__/listingSeedServerParity.test.js",
+   "expectRed": "PARITY"
+  },
+  {
+   "id": "A1",
+   "mutant": "the alert ignores the listing: every daily run is the curtain",
+   "file": "api/services/alert_user_series.py",
+   "from": "    if listing_history.from_listing_for(list(bars or [])[:1], str(tf or \"\"), sym):\n",
+   "to": "    if False:\n",
+   "rail": "python -m pytest -q -p no:cacheprovider tests/test_alert_runtime_lane.py -k \"E100_a_daily_alert or E100_from_the_listing\"",
+   "expectRed": "E100_a_daily_alert"
+  },
+  {
+   "id": "A2",
+   "mutant": "the curtain not applied: a daily run off the listing is sent every fetched bar (up to 32,768) as before's 5,000",
+   "file": "api/services/alert_user_series.py",
+   "from": "    start = max(0, len(wire) - runtime_curtain(tf))\n",
+   "to": "    start = 0\n",
+   "rail": "python -m pytest -q -p no:cacheprovider tests/test_alert_runtime_lane.py -k E100_curtain_sends",
+   "expectRed": "E100_curtain_sends"
+  },
+  {
+   "id": "A3",
+   "mutant": "the column placed from bar 0 of the fetch instead of the first bar sent",
+   "file": "api/services/alert_user_series.py",
+   "from": "            out[start + i] = v if isinstance(v, (int, float)) and math.isfinite(v) else None\n",
+   "to": "            out[i] = v if isinstance(v, (int, float)) and math.isfinite(v) else None\n",
+   "rail": "python -m pytest -q -p no:cacheprovider tests/test_alert_runtime_lane.py -k E100_curtain_sends",
+   "expectRed": "E100_curtain_sends"
+  },
+  {
+   "id": "A4",
+   "mutant": "the alert() column placed from bar 0 of the fetch",
+   "file": "api/services/alert_user_series.py",
+   "from": "            values[start + bar] = 1.0\n",
+   "to": "            values[bar] = 1.0\n",
+   "rail": "python -m pytest -q -p no:cacheprovider tests/test_alert_runtime_lane.py -k E100_the_alert_calls_column",
+   "expectRed": "E100_the_alert_calls_column"
+  },
+  {
+   "id": "A5",
+   "mutant": "the batch key ignores the listing statement: a run from the listing answers a curtain job",
+   "file": "api/services/alert_user_series.py",
+   "from": "        return (str(def_id), version, job.ticker, job.exchange, job.tf, inputs, bars_sha,\n                getattr(job, \"history_from_listing\", False) is True)\n",
+   "to": "        return (str(def_id), version, job.ticker, job.exchange, job.tf, inputs, bars_sha)\n",
+   "rail": "python -m pytest -q -p no:cacheprovider tests/test_alert_runtime_lane.py -k E100_the_batch_key",
+   "expectRed": "E100_the_batch_key"
+  },
+  {
+   "id": "A6",
+   "mutant": "the daily fetch stays at 5,000 bars: no daily alert can reach the listing",
+   "file": "api/services/alert_user_series.py",
+   "from": "    if tf == listing_history.LISTING_TF:\n        return RUNTIME_LISTING_REACH\n",
+   "to": "",
+   "rail": "python -m pytest -q -p no:cacheprovider tests/test_alert_runtime_lane.py -k the_window_is_the_profiles",
+   "expectRed": "the_window_is_the_profiles"
+  },
+  {
+   "id": "A7",
+   "mutant": "the arm run drops the listing statement",
+   "file": "api/services/alert_user_series.py",
+   "from": "                  runtime_inputs=runtime_inputs_for(definition, params),\n                  history_from_listing=from_listing)\n",
+   "to": "                  runtime_inputs=runtime_inputs_for(definition, params))\n",
+   "rail": "python -m pytest -q -p no:cacheprovider tests/test_alert_runtime_lane.py -k E100_a_daily_alert",
+   "expectRed": "E100_a_daily_alert"
+  },
+  {
+   "id": "A8",
+   "mutant": "the cycle batch drops the listing statement",
+   "file": "api/services/alert_user_series.py",
+   "from": "                              runtime_inputs=inputs, history_from_listing=from_listing)\n",
+   "to": "                              runtime_inputs=inputs)\n",
+   "rail": "python -m pytest -q -p no:cacheprovider tests/test_alert_runtime_lane.py -k E100_a_daily_alert",
+   "expectRed": "E100_a_daily_alert"
+  },
+  {
+   "id": "A9",
+   "mutant": "the value column's own run drops the listing statement",
+   "file": "api/services/alert_user_series.py",
+   "from": "        col = run(wire, runtime_inputs_for(definition, params), tf=str(tf), ticker=str(sym),\n                  history_from_listing=from_listing)\n",
+   "to": "        col = run(wire, runtime_inputs_for(definition, params), tf=str(tf), ticker=str(sym))\n",
+   "rail": "python -m pytest -q -p no:cacheprovider tests/test_alert_runtime_lane.py -k E100_a_daily_alert",
+   "expectRed": "E100_a_daily_alert"
+  },
+  {
+   "id": "S1",
+   "mutant": "the scan sweep given the listing (the ruling keeps it at 5,000 bars, off the listing)",
+   "file": "api/services/screener/scan_evaluator.py",
+   "from": "                                            bars=encoded if encoded is not None else seconds))\n",
+   "to": "                                            bars=encoded if encoded is not None else seconds,\n                                            history_from_listing=True))\n",
+   "rail": "python -m pytest -q -p no:cacheprovider tests/test_listing_history.py -k STAY",
+   "expectRed": "STAY"
+  },
+  {
+   "id": "S2",
+   "mutant": "the multi-symbol screener backtest given the listing",
+   "file": "api/routers/screener_backtest.py",
+   "from": "                                               bars=_service_bars(bars), want=(plot,)))\n",
+   "to": "                                               bars=_service_bars(bars), want=(plot,),\n                                               history_from_listing=True))\n",
+   "rail": "python -m pytest -q -p no:cacheprovider tests/test_listing_history.py -k STAY",
+   "expectRed": "STAY"
+  },
+  {
+   "id": "S3",
+   "mutant": "a lane adapter defaults to the listing, so the definition record claims it",
+   "file": "api/services/runtime_server_lane.py",
+   "from": "           exchange: str = \"\", history_from_listing: bool = False) -> List[float]:\n",
+   "to": "           exchange: str = \"\", history_from_listing: bool = True) -> List[float]:\n",
+   "rail": "python -m pytest -q -p no:cacheprovider tests/test_listing_history.py -k STAY",
+   "expectRed": "STAY"
+  },
+  {
+   "id": "B1",
+   "mutant": "the backtest claims the listing for any bars",
+   "file": "api/routers/pine_strategy_backtest.py",
+   "from": "    if listing_history.from_listing_for(bars, TF, sym):\n",
+   "to": "    if True:\n",
+   "rail": "python -m pytest -q -p no:cacheprovider tests/test_pine_strategy_backtest.py -k E100_anything_else_is_the_curtain",
+   "expectRed": "E100_anything_else_is_the_curtain"
+  },
+  {
+   "id": "B2",
+   "mutant": "the backtest from the listing sends no served depth (every run deeper than 5,000 off the chart's ctx)",
+   "file": "api/routers/pine_strategy_backtest.py",
+   "from": "        return bars, STRATEGY_HISTORY_WINDOW_BARS, HISTORY_WINDOW_BARS, True\n",
+   "to": "        return bars, STRATEGY_HISTORY_WINDOW_BARS, None, True\n",
+   "rail": "python -m pytest -q -p no:cacheprovider tests/test_pine_strategy_backtest.py -k E100_from_the_listing_the_job",
+   "expectRed": "E100_from_the_listing_the_job"
+  },
+  {
+   "id": "B3",
+   "mutant": "the backtest curtain untrimmed: up to 12,500 bars off the listing",
+   "file": "api/routers/pine_strategy_backtest.py",
+   "from": "    return bars[-HISTORY_WINDOW_BARS:], HISTORY_WINDOW_BARS, None, False\n",
+   "to": "    return bars, HISTORY_WINDOW_BARS, None, False\n",
+   "rail": "python -m pytest -q -p no:cacheprovider tests/test_pine_strategy_backtest.py -k E100_a_long_history_off",
+   "expectRed": "E100_a_long_history_off"
+  },
+  {
+   "id": "B4",
+   "mutant": "the record's listing statement unchecked",
+   "file": "api/routers/pine_strategy_backtest.py",
+   "from": "                    or w.get(\"historyWindowBars\") != job.history_window_bars \\\n                    or w.get(\"fromListing\") is not ran[\"from_listing\"]:\n",
+   "to": "                    or w.get(\"historyWindowBars\") != job.history_window_bars:\n",
+   "rail": "python -m pytest -q -p no:cacheprovider tests/test_pine_strategy_backtest.py -k E100_one_authority",
+   "expectRed": "E100_one_authority"
+  },
+  {
+   "id": "C1",
+   "mutant": "the client drops the served depth from the wire",
+   "file": "api/services/pine_runtime_client.py",
+   "from": "        ctx[\"listingDepthBars\"] = d\n",
+   "to": "        pass\n",
+   "rail": "python -m pytest -q -p no:cacheprovider tests/test_pine_strategy_backtest.py -k E100_the_client_states_the_depth",
+   "expectRed": "E100_the_client_states_the_depth"
+  },
+  {
+   "id": "T1",
+   "mutant": "peek reaches the provider path on a miss",
+   "file": "api/services/ticker_ipo.py",
+   "from": "    hit = _mem.get(f\"ticker_ipo_{sym}\")\n    if hit is None:\n        hit = _disk_get(sym)\n    return hit if isinstance(hit, dict) else None\n",
+   "to": "    hit = _mem.get(f\"ticker_ipo_{sym}\")\n    if hit is None:\n        hit = _disk_get(sym) or get_ipo_date(sym)\n    return hit if isinstance(hit, dict) else None\n",
+   "rail": "python -m pytest -q -p no:cacheprovider tests/test_listing_history.py -k peek",
+   "expectRed": "peek"
+  }
+ ]
+}

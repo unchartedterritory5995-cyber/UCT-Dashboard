@@ -53,10 +53,10 @@ def runtime_doc(def_id=DEF_ID, source=SOURCE, inputs=None):
             "inputs": inputs or []}
 
 
-def daily_bars(n=30):
-    """Store-shaped DAILY bars: ``t`` is a YYYYMMDD int (`bars_sqlite`), weekdays of 2024."""
+def daily_bars(n=30, start=None):
+    """Store-shaped DAILY bars: ``t`` is a YYYYMMDD int (`bars_sqlite`), weekdays from ``start`` (2024-01-02)."""
     import datetime as dt
-    out, d = [], dt.date(2024, 1, 2)
+    out, d = [], start or dt.date(2024, 1, 2)
     while len(out) < n:
         if d.weekday() < 5:
             c = 100.0 + len(out)
@@ -113,10 +113,15 @@ def world(tmp_path, monkeypatch):
         fires.append((alert["id"], value, k.get("bar_time")))
     monkeypatch.setattr(ev, "_dispatch_delivery", deliver)
     monkeypatch.setattr(ev, "_accrue_ledger_receipt", lambda *a, **k: None)
+    # e100: the symbol's CACHED /api/ticker-ipo answer (`listing_history` reads only `ticker_ipo.peek`); none by
+    # default, so every run is the curtain exactly as before unless a test states a listing
+    ipo: dict = {}
+    from api.services import ticker_ipo
+    monkeypatch.setattr(ticker_ipo, "peek", lambda sym: ipo.get(str(sym).upper()))
     aus.forget()
     ud.save(USER, DEF_ID, runtime_doc(), role="admin")
     yield {"adm": adm, "fake": fake, "bars": bars, "fetched": fetched, "delivered": delivered,
-           "fires": fires}
+           "fires": fires, "ipo": ipo}
     aus.forget()
     prc._forget_signing_times()
 
@@ -360,13 +365,17 @@ def test_a_bar_whose_time_cannot_be_stated_is_refused_not_guessed():
 
 
 def test_the_window_is_the_profiles(world):
+    # e100: a DAILY runtime alert fetches up to the runtime's history limit, to reach the listing
     _alert(tf="D")
     a = {"indicator": VALUE, "user_id": USER, "tf": "D"}
-    assert aus.lookback_for_alert(a) == 5000 and ev.bars_needed_for_alert(a) == 5000
+    assert aus.lookback_for_alert(a) == 32768 and ev.bars_needed_for_alert(a) == 32768
+    for tf in ("W", "M"):
+        assert aus.runtime_window(tf) == 5000 == aus.runtime_curtain(tf)
+    assert aus.runtime_curtain("D") == 5000
     cold = {"indicator": VALUE, "user_id": USER, "tf": "5"}
     aus.forget()
     assert aus.lookback_for_alert(cold) == 32768 and ev.bars_needed_for_alert(cold) == 32768
-    assert ("AAPL", "D", 5000) in world["fetched"]
+    assert ("AAPL", "D", 32768) in world["fetched"]
     world["bars"]["5"] = [{"t": 1_700_000_000 + 300 * i, "o": 1.0, "h": 1.0, "l": 1.0, "c": 1.0, "v": 1}
                           for i in range(50)]
     _alert(indicator=SIGNAL, tf="5")
@@ -386,7 +395,7 @@ def test_a_formula_neighbour_keeps_its_own_window(world, monkeypatch):
     monkeypatch.setattr(ev, "_fetch_bars_for_alert",
                         lambda sym, tf, count=400: [{"t": i, "c": 1.0} for i in range(int(count))])
     bars, host_bars, runtime_ids = ev.group_bars("AAPL", "D", [host, rt])
-    assert len(bars) == 5000 and len(host_bars) == ev.bars_needed_for_alert(host) < 5000
+    assert len(bars) == 32768 and len(host_bars) == ev.bars_needed_for_alert(host) < 5000
     assert host_bars == bars[-len(host_bars):] and runtime_ids == {id(rt)}
     only_host = ev.group_bars("AAPL", "D", [host])
     assert only_host[1] is only_host[0]
@@ -676,3 +685,102 @@ def test_AL3_the_message_column_is_truncated_and_null_elsewhere(world):
     assert got[7] is None and got[8] == "x" * 512
     assert afl.fire_key("above", 20240105, 3) == "ep:3"
     assert afl.fire_key("above", 20240105, 3, per_bar=True) == "bar:20240105"
+
+
+# ── e100 (coordinator ruling 2026-11-26): a daily runtime alert runs on the CHART'S history ──────────────────
+
+def _listing(world, first_trade_date, final=True, sym="AAPL"):
+    world["ipo"][sym] = {"symbol": sym, "list_date": first_trade_date, "first_trade_date": first_trade_date,
+                         "first_trade_final": final}
+
+
+def _iso(t):
+    s = str(t)
+    return f"{s[:4]}-{s[4:6]}-{s[6:]}"
+
+
+def test_E100_a_daily_alert_runs_every_bar_from_the_listing_when_its_bars_reach_it(world):
+    bars = world["bars"]["D"]
+    _listing(world, _iso(bars[0]["t"]))
+    _alert(tf="D")
+    req = world["fake"].calls[0]
+    assert req["jobs"][0]["ctx"]["historyFromListing"] is True
+    assert req["jobs"][0]["bars"]["n"] == len(bars)
+    # and the cycle's batched request says the same (one statement, every run site)
+    before = len(world["fake"].calls)
+    ev._run_one_cycle()
+    sent = world["fake"].calls[before:]
+    assert sent and all(j["ctx"]["historyFromListing"] is True for r in sent for j in r["jobs"])
+
+
+@pytest.mark.parametrize("why", ["after", "not-final", "no-fact"])
+def test_E100_anything_else_falls_back_to_the_curtain(world, why):
+    bars = world["bars"]["D"]
+    if why == "after":            # the store starts a session after the listing: not the listing bar
+        _listing(world, "2023-12-29")
+    elif why == "not-final":      # the chart would serve this; an unattended server run does not
+        _listing(world, _iso(bars[0]["t"]), final=False)
+    _alert(tf="D")
+    req = world["fake"].calls[0]
+    assert req["jobs"][0]["ctx"]["historyFromListing"] is False
+    assert req["jobs"][0]["bars"]["n"] == len(bars)
+
+
+def test_E100_curtain_sends_the_last_5000_and_places_the_column(world):
+    import datetime as dt
+    world["bars"]["D"] = bars = daily_bars(5200, start=dt.date(2000, 1, 3))
+    _alert(tf="D")
+    req = world["fake"].calls[0]
+    assert req["jobs"][0]["ctx"]["historyFromListing"] is False
+    assert req["jobs"][0]["bars"]["n"] == 5000
+    want0 = indicator_compute.bar_open_instant(_iso(bars[200]["t"]), "D")
+    assert _wire_t(req)[0] == want0
+    fn = aus.USER_FUNCS[aus.scoped_key(USER, VALUE)]
+    col = fn.column(bars, {}, tf="D", sym="AAPL")
+    assert len(col) == 5200 and all(v is None for v in col[:200])
+    assert col[200] == pytest.approx(2 * bars[200]["c"]) and col[-1] == pytest.approx(2 * bars[-1]["c"])
+
+
+def test_E100_from_the_listing_sends_every_bar_past_the_curtain(world):
+    import datetime as dt
+    world["bars"]["D"] = bars = daily_bars(5200, start=dt.date(2000, 1, 3))
+    _listing(world, _iso(bars[0]["t"]))
+    _alert(tf="D")
+    req = world["fake"].calls[0]
+    assert req["jobs"][0]["ctx"]["historyFromListing"] is True
+    assert req["jobs"][0]["bars"]["n"] == 5200
+    fn = aus.USER_FUNCS[aus.scoped_key(USER, VALUE)]
+    col = fn.column(bars, {}, tf="D", sym="AAPL")
+    assert col[0] == pytest.approx(2 * bars[0]["c"]) and col[-1] == pytest.approx(2 * bars[-1]["c"])
+
+
+def test_E100_the_alert_calls_column_is_placed_past_the_curtain(world):
+    import datetime as dt
+    world["bars"]["D"] = bars = daily_bars(5200, start=dt.date(2000, 1, 3))
+    _with_alert_calls(world, events=lambda cols: [{"bar": 0, "message": "first", "freq": "once_per_bar_close"},
+                                                  {"bar": len(cols["c"]) - 1, "message": "last",
+                                                   "freq": "once_per_bar_close"}])
+    _calls_alert(world)
+    fn = aus.USER_FUNCS[aus.scoped_key(USER, CALLS)]
+    col = fn.column(bars, {}, tf="D", sym="AAPL")
+    assert len(col) == 5200 and all(v is None for v in col[:200])
+    assert col[200] == 1.0 and col[201] == 0.0 and col[-1] == 1.0
+    assert col.messages == {200: "first", 5199: "last"}
+
+
+def test_E100_a_weekly_or_intraday_alert_never_claims_the_listing(world):
+    world["bars"]["W"] = [dict(b) for b in world["bars"]["D"]]
+    _listing(world, _iso(world["bars"]["W"][0]["t"]))
+    _alert(tf="W")
+    assert world["fake"].calls[-1]["jobs"][0]["ctx"]["historyFromListing"] is False
+
+
+def test_E100_the_batch_key_carries_the_listing_statement():
+    bars = [{"t": 1_700_000_000.0 + i, "o": 1.0, "h": 1.0, "l": 1.0, "c": 1.0, "v": 1.0} for i in range(3)]
+    on = prc.Job(job="a", ticker="AAPL", tf="D", bars=bars, want=("value",), history_from_listing=True)
+    off = prc.Job(job="a", ticker="AAPL", tf="D", bars=bars, want=("value",))
+    assert aus.RuntimeBatch.key(DEF_ID, 1, on) != aus.RuntimeBatch.key(DEF_ID, 1, off)
+    batch = aus.RuntimeBatch("AAPL", "D", 0.0)
+    res = prc.JobResult(job="a", status="ok", columns={"value": (1.0, 2.0, 3.0)})
+    batch.results[aus.RuntimeBatch.key(DEF_ID, 1, on)] = ({"value"}, res)
+    assert batch.lookup(DEF_ID, 1, on) is res and batch.lookup(DEF_ID, 1, off) is None
