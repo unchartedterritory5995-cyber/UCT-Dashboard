@@ -1686,7 +1686,7 @@ function _deepRung(n, spec) {
   return DEEP_BENCHMARK_RUNGS.find((r) => r >= want) ?? DEEP_BENCHMARK_RUNGS[DEEP_BENCHMARK_RUNGS.length - 1]
 }
 const _deepAsked = new Set()          // benchmark entry URLs asked (or being asked) for depth
-const _deepWatched = new Set()        // ... whose landing bumps the version
+const _deepWatched = new Map()        // ... until their first AVAILABLE landing: url -> [bench, tf, rung, extended]
 let _deepVersion = 0
 /** Moves whenever a benchmark entry asked for depth lands. */
 export function customTfDepthVersion() { return _deepVersion }
@@ -1695,11 +1695,41 @@ export function customTfDepthVersion() { return _deepVersion }
 export function customTfDepthSignature(tf) {
   return resampleSpec(tf == null ? 'D' : String(tf)) ? `deep:${_deepVersion}` : ''
 }
+// ⭐ ONCE PER URL (review of #2801): a rung's FIRST AVAILABLE landing is the one that adds depth, so it moves the version
+// and the URL is watched no more. The same URL can be another consumer's too (a `request.security` source asking the
+// benchmark at the same depth), whose live refresh notifies on every moved tail: had each notification moved the
+// version, every custom-timeframe chart would recompute on every tick. A refresh moves only the newest rows, which the
+// fold (the server's window) already covers. A landing that is not AVAILABLE (refused, failing) adds nothing either.
+// And a rung that lands is the deepest the lane reads for that benchmark, timeframe and view (`_heldDeep` reads
+// upward), so every LOWER rung still watched for them is dropped: its late landing would add nothing.
 subscribeOtherSymbolBars((url) => {
-  if (!_deepWatched.has(url)) return
+  const w = _deepWatched.get(url)
+  if (!w) return
+  const [bench, tf, rung, extended] = w
+  const e = cachedOtherSymbolBars(bench, tf, rung, { extended })
+  if (!e || e.status !== OTHER_SYMBOL_STATUS.AVAILABLE || !Array.isArray(e.bars) || !e.bars.length) return
+  _deepWatched.delete(url)
+  for (const [u, o] of [..._deepWatched]) {
+    if (o[0] === bench && o[1] === tf && o[3] === extended && o[2] < rung) _deepWatched.delete(u)
+  }
   _deepVersion += 1
   _notify(`deepBenchmark:${url}`)
 })
+
+/** The benchmark's held custom-timeframe entry at `rung` OR DEEPER (the first AVAILABLE one going up the ladder), or
+ *  null. A deeper rung holds every bar a shallower one would (the same base rows, further back), so once it is held
+ *  a smaller chart reads it and its own rung is never asked. ⚠️ The shallower entries stay in `secondaryBars`' cache:
+ *  that cache has no bound and no owner per URL, and a shallow rung's URL can be another consumer's live source (600
+ *  is a common first-page depth), so forgetting it could blank that consumer. What bounds them is this ladder: at most
+ *  four entries per (benchmark, timeframe, view), all of them together under twice the deepest. */
+function _heldDeep(bench, tf, rung, extended) {
+  for (const r of DEEP_BENCHMARK_RUNGS) {
+    if (r < rung) continue
+    const e = cachedOtherSymbolBars(bench, tf, r, { extended })
+    if (e && e.status === OTHER_SYMBOL_STATUS.AVAILABLE && Array.isArray(e.bars) && e.bars.length) return e
+  }
+  return null
+}
 
 const _later = (fn) => {
   if (typeof requestIdleCallback === 'function') requestIdleCallback(() => fn(), { timeout: 500 })
@@ -1709,7 +1739,7 @@ function _askDeepBenchmark(bench, tf, rung, extended) {
   const url = secondaryBarsUrl(bench, tf, rung, { extended })
   if (!url || _deepAsked.has(url)) return
   _deepAsked.add(url)
-  _deepWatched.add(url)
+  _deepWatched.set(url, [bench, tf, rung, extended])
   _later(() => {
     try { ensureSecondaryBars(bench, tf, rung, undefined, { extended }) } catch { _deepAsked.delete(url) }
   })
@@ -1730,12 +1760,13 @@ export function deepenCustomTf(def, raw, folded, bars, spec, ctx, inputs) {
   const benches = ratios.map((p) => liveBenchmarkSymbol(readoutSourceValue(p.liveTail.benchmark, raw.payload || null, def, inputs || {}), sym))
   if (benches.some((b) => !b)) return folded                        // a composite, or the symbol itself: the fold
   const rung = _deepRung(bars.length, spec)
-  const entries = benches.map((b) => cachedOtherSymbolBars(b, ctx.tf, rung, { extended }))
+  const entries = benches.map((b) => _heldDeep(b, ctx.tf, rung, extended))
   let held = true
   benches.forEach((b, i) => {
-    const e = entries[i]
-    if (!e) { held = false; _askDeepBenchmark(b, ctx.tf, rung, extended); return }
-    if (e.status !== OTHER_SYMBOL_STATUS.AVAILABLE || !Array.isArray(e.bars) || !e.bars.length) held = false   // refused, failing, empty
+    if (entries[i]) return
+    held = false
+    // nothing held this deep: ask this rung, once (an answer that is refused, failing or empty is not asked again)
+    if (!cachedOtherSymbolBars(b, ctx.tf, rung, { extended })) _askDeepBenchmark(b, ctx.tf, rung, extended)
   })
   if (!held) return folded
   const folds = customTfFoldsOf(def)

@@ -22,13 +22,16 @@
 //      identical, so nothing visible moves where the line was already drawn)
 //   B10 shared: a second symbol on the same benchmark makes no second request
 //   B11 the compute is one pass: measured on 5,000 bars
+//   B12 once per URL: a later refresh of a landed rung (a live source sharing the URL) moves no version
+//   B13 a held deeper rung serves a smaller chart (its own rung never asked), and a shallower rung landing after a
+//       deeper one moves no version
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { registerDefinitions, resolveInputs, RS_LINE_SLIM_RAW, computeSignature } from '../nativeRegistry'
 import {
   primeServerColumns, clearServerColumns, serverColumnsFor, pickServerInputs, serverAskOf, deepenCustomTf, foldToCustomTf,
   customTfDepthVersion,
 } from '../serverCompute'
-import { clearSecondaryBars } from '../secondaryBars'
+import { clearSecondaryBars, refreshSecondaryBars, secondaryBarsUrl, subscribe as subscribeSecondary } from '../secondaryBars'
 import { primeBenchmarkTail, _resetBenchmarkTailsForTests, __setBenchmarkTailFetcherForTests } from '../liveTail'
 import { resampleForSpec } from '../../../../utils/resampleBars'
 import { resampleSpec } from '../../timeframes'
@@ -238,5 +241,61 @@ describe('a custom timeframe\'s RS line as deep as the chart', () => {
     console.log(`[deepenCustomTf] 5,000 bars: ${ms.toFixed(2)} ms`)
     expect(out.times.length).toBe(5000)
     expect(ms).toBeLessThan(50)
+  })
+
+  it('B12 once per URL: a refresh of a landed rung (a live source sharing its URL) moves no version', async () => {
+    const r = await paintTwice({ days: weekdays(320), mins: SESSION60, base: '60' })
+    const v = customTfDepthVersion()
+    const sig = computeSignature(SLIM, INPUTS, { sym: 'TGTX', tf: '240' })
+    const url = secondaryBarsUrl('SPY', '240', 2400, { extended: false })        // the rung this 640-bar chart asked
+    expect(r.asked.some((u) => u.includes('bars=9600'))).toBe(true)              // ... at its base: 2400 x 4 60m rows
+    const heard = []
+    const off = subscribeSecondary((u) => heard.push(u))
+    try {
+      expect(refreshSecondaryBars('SPY', '240', 2400, undefined, { extended: false })).toBe(true)
+      await settle()
+    } finally { off() }
+    expect(heard).toContain(url)                                                  // the control: the refresh DID notify
+    expect(customTfDepthVersion()).toBe(v)                                        // ... and moved nothing
+    expect(computeSignature(SLIM, INPUTS, { sym: 'TGTX', tf: '240' })).toBe(sig)
+  })
+
+  it('B13 a held deeper rung serves a smaller chart, and a shallower rung landing late moves no version', async () => {
+    const days = weekdays(320)
+    const { stock, bench } = pages(days, SESSION60)
+    const spec = resampleSpec('240')
+    const big = resampleForSpec(stock, spec)                                      // 640 bars: rung 2400
+    const small = big.slice(-100)                                                 // 100 bars: rung 600
+    // the shallow page (600 x 4 = 2400 60m rows) is held back until released; every other page answers at once
+    const asked = []
+    let release
+    const gate = new Promise((res) => { release = res })
+    vi.stubGlobal('fetch', (u) => {
+      asked.push(String(u))
+      const q = new URL(String(u), 'http://x').searchParams
+      const body = { bars: bench.slice(-Number(q.get('bars'))) }
+      const answer = { ok: true, status: 200, json: () => Promise.resolve(body) }
+      return q.get('bars') === '2400' ? gate.then(() => answer) : Promise.resolve(answer)
+    })
+    primeServerColumns(SLIM.id, 'AAA', '60', SENT, envelope(stock, bench, 400))
+    primeServerColumns(SLIM.id, 'BBB', '60', SENT, envelope(stock, bench, 400))
+    primeServerColumns(SLIM.id, 'CCC', '60', SENT, envelope(stock, bench, 400))
+    serverColumnsFor(SLIM, small, INPUTS, ctx({ sym: 'AAA' }))                   // asks the shallow rung (held back)
+    serverColumnsFor(SLIM, big, INPUTS, ctx({ sym: 'BBB' }))                     // asks the deep rung
+    await settle()
+    expect(asked.filter((u) => u.includes('bars=2400')).length).toBe(1)
+    expect(asked.filter((u) => u.includes('bars=9600')).length).toBe(1)
+    const v = customTfDepthVersion()
+    // a 300-bar chart on another symbol (rung 1200, asked by nobody): served by the deep rung at once, asking nothing
+    const n = asked.length
+    const c = serverColumnsFor(SLIM, big.slice(-300), INPUTS, ctx({ sym: 'CCC' }))
+    await settle()
+    expect(asked.length).toBe(n)
+    expect(asked.some((u) => u.includes('bars=4800'))).toBe(false)               // its own rung's page: never asked
+    expect(finiteAll(c.rsLine)).toBe(true)
+    // the shallow page lands late: it adds nothing, so no version moves
+    release()
+    await settle()
+    expect(customTfDepthVersion()).toBe(v)
   })
 })
