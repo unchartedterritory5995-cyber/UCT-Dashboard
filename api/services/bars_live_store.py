@@ -1350,15 +1350,110 @@ def _start_daily() -> str:
 # historical aggregates: 5m for each covered ticker, 1m for each 1m-covered one, one page each. A row that differs is
 # replaced (the vendor's word, written with this pass's check instant), a row the vendor lacks is LEFT and counted (an
 # empty or failed answer never erases what the stream stored), and a ticker whose 5m changed has its 15m/30m/60m of that
-# day re-derived from the corrected 5m, where that series is stored. Once per day, per process.
+# day re-derived from the corrected 5m, where that series is stored. Once per day: the day it ran is kept in bars.db
+# (`live_settle_done`), so a restart after the pass does not run it again.
 # COST: |covered 5m| + |covered 1m| provider calls per trading day (one page each: a 5m day is 192 rows, a 1m day 960),
-# through `_fetch` (bars_fetch._fetch_intraday_range, the same client and limits as the backfill), SETTLE_WORKERS at a
-# time. Kill switch: BARS_LIVE_SETTLE_ENABLED=0.
+# through `_fetch` (bars_fetch._fetch_intraday_range, the same client as the backfill), SETTLE_WORKERS at a time, and
+# never more than SETTLE_BUCKET_SHARE of the Massive bucket (`_settle_take`: half of 300/min = 150/min, so ~3,742 calls
+# take ~25 minutes and after-hours interactive calls keep the other half). Kill switch: BARS_LIVE_SETTLE_ENABLED=0.
+#
+# ⭐ MATERIAL DIFFERENCES ONLY (#2774 review, M2). Every replaced row below a series' seal bumps its `history_rev`, and a
+# client holding that series then does a FULL read instead of a delta, at the 09:30 open. An exact compare would bump
+# most of ~3.7k series every night for a few late-reported shares. So a row is replaced only when its O/H/L/C differ at
+# the store's grain (bars_fetch.PRICE_DP, 4 dp) or its volume differs by more than max(SETTLE_VOL_REL x the vendor's,
+# SETTLE_VOL_ABS shares); a smaller difference is counted (`rows_immaterial`), never written. SPY's $13.77 false high
+# is material; 40 late shares on a 30,000-share bar are not.
 SETTLE_ENABLED = os.environ.get("BARS_LIVE_SETTLE_ENABLED", "1") == "1"
 SETTLE_AFTER_CLOSE_MIN = int(os.environ.get("BARS_LIVE_SETTLE_AFTER_MIN", "30"))
 SETTLE_WORKERS = max(1, int(os.environ.get("BARS_LIVE_SETTLE_WORKERS", "4")))
+SETTLE_VOL_REL = float(os.environ.get("BARS_LIVE_SETTLE_VOL_REL", "0.02"))
+SETTLE_VOL_ABS = int(os.environ.get("BARS_LIVE_SETTLE_VOL_ABS", "100"))
+SETTLE_BUCKET_SHARE = min(0.5, max(0.05, float(os.environ.get("BARS_LIVE_SETTLE_BUCKET_SHARE", "0.5"))))
 _settle: dict = {"done_ymd": None, "running": False, "tickers": 0, "changed_tickers": 0, "rows_replaced": 0,
-                 "rows_vendor_lacks": 0, "derived_rows": 0, "failed": 0, "started_at": None, "finished_at": None}
+                 "rows_vendor_lacks": 0, "rows_immaterial": 0, "derived_rows": 0, "failed": 0, "seals_touched": 0,
+                 "started_at": None, "finished_at": None}
+_SETTLE_DDL = ("CREATE TABLE IF NOT EXISTS live_settle_done ("
+               "id INTEGER PRIMARY KEY CHECK (id = 1), ymd INTEGER NOT NULL, saved_at REAL NOT NULL)")
+_settle_bucket = {"tokens": None, "at": None}
+_settle_bucket_lock = threading.Lock()
+
+
+def _settle_rate_per_min() -> float:
+    """The settle's own ceiling: SETTLE_BUCKET_SHARE of the Massive bucket's (per process, like that bucket)."""
+    from api.services import massive
+    return max(1.0, float(massive._MASSIVE_RATE_LIMIT_PER_MIN) * SETTLE_BUCKET_SHARE)
+
+
+def _settle_take() -> None:
+    """Block until the settle may make one more vendor call. Its own token bucket (one minute's worth of burst),
+    taken BEFORE the shared Massive bucket, so the settle never spends more than its share of it."""
+    rate = _settle_rate_per_min()
+    while True:
+        with _settle_bucket_lock:
+            now = time.monotonic()
+            b = _settle_bucket
+            if b["at"] is None:
+                b["tokens"], b["at"] = rate, now
+            b["tokens"] = min(rate, b["tokens"] + (now - b["at"]) * rate / 60.0)
+            b["at"] = now
+            if b["tokens"] >= 1.0:
+                b["tokens"] -= 1.0
+                return
+            wait = (1.0 - b["tokens"]) * 60.0 / rate
+        time.sleep(min(wait, 1.0))
+
+
+def _material(b: dict, r) -> bool:
+    """The vendor's bar `b` differs from the stored row `r` (ts, o, h, l, c, v) enough to write (see the block above)."""
+    if r is None:
+        return True                       # a bucket the store lacks: the vendor's row fills it
+    try:
+        from api.services.bars_fetch import PRICE_DP
+        for k, x in (("o", r[1]), ("h", r[2]), ("l", r[3]), ("c", r[4])):
+            if round(float(b[k]), PRICE_DP) != round(float(x), PRICE_DP):
+                return True
+        bv, sv = int(b.get("v") or 0), int(r[5] or 0)
+        return abs(bv - sv) > max(SETTLE_VOL_REL * bv, SETTLE_VOL_ABS)
+    except Exception:                      # noqa: BLE001 - unreadable: rewrite it
+        return True
+
+
+def _save_settle_marker(ymd: int) -> None:
+    from api.services import bars_sqlite
+    try:
+        with bars_sqlite._WRITE_LOCK:
+            c = bars_sqlite._conn()
+            c.execute(_SETTLE_DDL)
+            c.execute("INSERT OR REPLACE INTO live_settle_done(id, ymd, saved_at) VALUES (1, ?, ?)",
+                      (int(ymd), time.time()))
+            c.commit()
+    except Exception as e:  # noqa: BLE001 - the in-memory marker still holds for this process
+        _log.warning("[bars-live] settle marker save failed: %s", e)
+
+
+def _load_settle_marker() -> Optional[int]:
+    """At boot: the day the last pass settled, from bars.db (none on a fresh or replaced database)."""
+    from api.services import bars_sqlite
+    try:
+        row = bars_sqlite._conn().execute("SELECT ymd FROM live_settle_done WHERE id = 1").fetchone()
+    except Exception:  # noqa: BLE001 - no table yet
+        return None
+    if row and row[0]:
+        _settle["done_ymd"] = int(row[0])
+        return int(row[0])
+    return None
+
+
+def _settle_touch_seal(sym: str, tf: str, checked_at: float) -> bool:
+    """Advance a sealed series' check instant to this pass's, so a repair that CHECKED before the pass but writes
+    after it cannot overwrite the settled rows inside the seal (`bars_sqlite._drop_stale_sealed`). The sealed span
+    itself is not moved. A series with no seal has nothing to protect this way."""
+    from api.services import bars_sqlite
+    cur = bars_sqlite.series_meta(sym, tf).get("sealed_through")
+    if cur is None:
+        return False
+    bars_sqlite.record_sealed(sym, tf, float(cur), float(cur), float(checked_at))
+    return True
 
 
 def _settle_due(now: datetime) -> bool:
@@ -1375,35 +1470,52 @@ def _settle_due(now: datetime) -> bool:
     return _settle["done_ymd"] != ymd
 
 
-def _settle_one(sym: str, tf: str, lo: int, hi: int, checked_at: float) -> tuple[int, int]:
-    """Re-read `sym`'s `tf` rows of [lo, hi) from the vendor; replace the ones that differ. (replaced, vendor lacks)."""
-    from api.services import bars_fetch, bars_sqlite
+def _settle_one(sym: str, tf: str, lo: int, hi: int, checked_at: float) -> tuple[int, int, int, bool]:
+    """Re-read `sym`'s `tf` rows of [lo, hi) from the vendor; replace the ones that differ MATERIALLY.
+    (replaced, vendor lacks, immaterial, answered)."""
+    from api.services import bars_sqlite
+    _settle_take()
     got = [b for b in _fetch(sym, int(tf), lo * 1000, hi * 1000 - 1) if lo <= int(b["t"]) < hi]
     if not got:
-        return 0, 0                       # nothing answered: the stream's rows stand
+        return 0, 0, 0, False             # nothing answered: the stream's rows stand
     stored = {int(r[0]): r for r in bars_sqlite.get_bars_since(sym, tf, lo - 1) if int(r[0]) < hi}
-    diff = [b for b in got if not bars_fetch._same_row(b, stored.get(int(b["t"])))]
+    diff, immaterial = [], 0
+    for b in got:
+        r = stored.get(int(b["t"]))
+        if _material(b, r):
+            diff.append(b)
+        elif not _same_exact(b, r):
+            immaterial += 1
     lacks = len(set(stored) - {int(b["t"]) for b in got})
     if diff:
         bars_sqlite.put_bars(sym, tf, diff, checked_at=checked_at)
-    return len(diff), lacks
+    return len(diff), lacks, immaterial, True
 
 
-def _settle_rederive(sym: str, lo: int, hi: int, checked_at: float) -> int:
-    """15m from the corrected 5m, then 30m/60m from that 15m, for the day: only series the store already holds."""
+def _same_exact(b: dict, r) -> bool:
+    from api.services import bars_fetch
+    return bars_fetch._same_row(b, r)
+
+
+def _settle_rederive(sym: str, lo: int, hi: int, checked_at: float) -> tuple[int, list]:
+    """15m from the stored 5m, then 30m/60m from that 15m, for the day: only series the store already holds, only
+    material differences. Runs for EVERY covered 5m ticker each pass (#2774 review, M1): a restart between a pass's 5m
+    write and this would otherwise leave the day's 15m/30m/60m derived from the stream's 5m for good, because the next
+    pass finds the 5m already equal to the vendor's. Local reads only, no vendor call. (rows written, tfs held)."""
     from api.services import bars_fetch, bars_sqlite
-    n = 0
+    n, held = 0, []
     for tf, base in (("15", "5"), ("30", "15"), ("60", "15")):
         b0 = bars_fetch._derived_bucket_start(tf, lo)
         stored = {int(r[0]): r for r in bars_sqlite.get_bars_since(sym, tf, b0 - 1) if int(r[0]) < hi}
         if not stored:
             continue                      # a series this tier does not hold for the day is not started here
+        held.append(tf)
         rows = [b for b in bars_fetch._derive_from_stored_base(sym, tf, b0, base) if int(b["t"]) < hi]
-        out = [b for b in rows if not bars_fetch._same_row(b, stored.get(int(b["t"])))]
+        out = [b for b in rows if _material(b, stored.get(int(b["t"])))]
         if out:
             bars_sqlite.put_bars(sym, tf, out, checked_at=checked_at)
             n += len(out)
-    return n
+    return n, held
 
 
 def settle_pass(now: Optional[datetime] = None) -> dict:
@@ -1415,7 +1527,7 @@ def settle_pass(now: Optional[datetime] = None) -> dict:
     with _lock:
         work = [(s_, "5") for s_ in sorted(_covered5)] + [(s_, "1") for s_ in sorted(_covered1)]
     counts = {"tickers": len(work), "changed_tickers": 0, "rows_replaced": 0, "rows_vendor_lacks": 0,
-              "derived_rows": 0, "failed": 0}
+              "rows_immaterial": 0, "derived_rows": 0, "failed": 0, "seals_touched": 0}
     _settle.update(running=True, started_at=time.time(), finished_at=None)
     checked_at = time.time()
     pos = [0]
@@ -1429,13 +1541,18 @@ def settle_pass(now: Optional[datetime] = None) -> dict:
                 sym, tf = work[pos[0]]
                 pos[0] += 1
             try:
-                replaced, lacks = _settle_one(sym, tf, lo, hi, checked_at)
-                derived = _settle_rederive(sym, lo, hi, checked_at) if (replaced and tf == "5") else 0
+                replaced, lacks, immaterial, answered = _settle_one(sym, tf, lo, hi, checked_at)
+                derived, held = _settle_rederive(sym, lo, hi, checked_at) if tf == "5" else (0, [])
+                touched = 0
+                for tf_ in ([tf] if answered else []) + held:
+                    touched += 1 if _settle_touch_seal(sym, tf_, checked_at) else 0
                 with guard:
                     counts["rows_replaced"] += replaced
                     counts["rows_vendor_lacks"] += lacks
+                    counts["rows_immaterial"] += immaterial
                     counts["derived_rows"] += derived
-                    counts["changed_tickers"] += 1 if replaced else 0
+                    counts["seals_touched"] += touched
+                    counts["changed_tickers"] += 1 if (replaced or derived) else 0
             except Exception as e:  # noqa: BLE001 - one ticker's failure leaves its rows as they are
                 with guard:
                     counts["failed"] += 1
@@ -1449,6 +1566,7 @@ def settle_pass(now: Optional[datetime] = None) -> dict:
     for t_ in threads:
         t_.join()
     _settle.update(counts, running=False, done_ymd=ymd, finished_at=time.time())
+    _save_settle_marker(ymd)
     _log.info("[bars-live] settle %s: %s", ymd, counts)
     return counts
 
@@ -1476,6 +1594,10 @@ def start() -> None:
     threading.Thread(target=_backfill_loop, daemon=True, name="bars-live-backfill").start()
     if enabled1():
         threading.Thread(target=_m1_loop, daemon=True, name="bars-live-1m").start()
+    try:
+        _load_settle_marker()
+    except Exception as e:  # noqa: BLE001
+        _log.warning("[bars-live] settle marker read failed: %s", e)
     threading.Thread(target=_settle_loop, daemon=True, name="bars-live-settle").start()
     how = _start_daily()
     _log.info("[bars-live] started (enabled=%s, 1m=%s, daily poll in %s)", enabled(), enabled1(), how)
@@ -1545,6 +1667,8 @@ def _reset_for_tests() -> None:
         for own in _own_last.values():
             own.clear()
         _late.update(rows=0, refused_tickers=0, unnamed_batches=0)
-        _settle.update(done_ymd=None, running=False, tickers=0, changed_tickers=0, rows_replaced=0,
+        _settle_bucket.update(tokens=None, at=None)
+        _settle.update(done_ymd=None, running=False, tickers=0, changed_tickers=0, rows_replaced=0, rows_immaterial=0,
+                       seals_touched=0,
                        rows_vendor_lacks=0, derived_rows=0, failed=0, started_at=None, finished_at=None)
     _m1_wakeup.clear()
