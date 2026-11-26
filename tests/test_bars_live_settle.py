@@ -46,6 +46,7 @@ def env(tmp_path, monkeypatch):
     bls._reset_for_tests()
     monkeypatch.setattr(bls, "enabled", lambda: True)
     monkeypatch.setattr(bls, "SETTLE_ENABLED", True)
+    monkeypatch.setattr(bls, "SPIKE_REPAIR_ENABLED", False, raising=False)  # its own rails: tests/test_spike_repair.py
     vendor = {"rows": {}, "calls": [], "fail": set()}
 
     def _fetch(sym, mult, frm, to):
