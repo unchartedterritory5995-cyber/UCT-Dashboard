@@ -71,6 +71,9 @@ on:
       # the `tools` package marker: the queue verdict's follower (it holds the App token) executes it on
       # `from tools import ...`, so it is an Agent path AND self-protected (#2850, review delta 2 X1)
       - 'tools/__init__.py'
+      # the NYSE calendar dataset the queue verdict's freeze derives its windows from (AUDIT O1 on #2850): an Agent
+      # path AND self-protected, so a calendar edit (the yearly holiday refresh included) is AUDIT's
+      - 'app/src/lib/marketClock/market_calendar.json'
       # DOCS THE SUITES READ (11-16, AUDIT): editing one of these changes an Agent test's verdict, so it must run Agent CI
       # (tests/test_ci_agent_docs_paths.py discovers the reads and holds this list complete)
       - 'docs/agent/COMPATIBILITY-DECISIONS.md'
@@ -123,6 +126,9 @@ on:
       # the `tools` package marker: the queue verdict's follower (it holds the App token) executes it on
       # `from tools import ...`, so it is an Agent path AND self-protected (#2850, review delta 2 X1)
       - 'tools/__init__.py'
+      # the NYSE calendar dataset the queue verdict's freeze derives its windows from (AUDIT O1 on #2850): an Agent
+      # path AND self-protected, so a calendar edit (the yearly holiday refresh included) is AUDIT's
+      - 'app/src/lib/marketClock/market_calendar.json'
       # DOCS THE SUITES READ (11-16, AUDIT): editing one of these changes an Agent test's verdict, so it must run Agent CI
       # (tests/test_ci_agent_docs_paths.py discovers the reads and holds this list complete)
       - 'docs/agent/COMPATIBILITY-DECISIONS.md'

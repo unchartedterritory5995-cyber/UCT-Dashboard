@@ -198,6 +198,8 @@ SELF_PROTECTED_EXAMPLES = {
     "suite lock": ["tools/agent_suite_lock.py"],
     # #2850: the `tools` package marker the queue verdict's follower executes (it holds the App token)
     "tools package marker": ["tools/__init__.py"],
+    # AUDIT O1 on #2850: the NYSE calendar dataset the queue verdict's freeze reads (it decides the windows)
+    "freeze calendar dataset": ["app/src/lib/marketClock/market_calendar.json"],
     "app package": ["app/package.json", "app/package-lock.json"],
     "vite config": ["app/vite.config.js", "app/vite.device.config.mjs", "app/vite.config.lab.mjs"],
     "vitest config": ["app/vitest.config.ts", "app/vitest.workspace.config.js"],
