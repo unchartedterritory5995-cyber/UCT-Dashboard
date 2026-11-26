@@ -102,6 +102,7 @@ on:
       - 'api/services/runtime_*.py'
       - 'api/services/screener/backtest.py'
       - 'api/services/script_conversation.py'
+      - 'api/services/code_paste.py'
       - 'api/services/setup_history_calc.py'
       - 'api/services/starter_library.py'
       - 'api/routers/bars.py'
