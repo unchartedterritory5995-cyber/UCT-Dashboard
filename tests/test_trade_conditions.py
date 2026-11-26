@@ -300,3 +300,52 @@ def test_broadcaster_odd_lot_adds_volume_only(_fallback_rules):
     _push(bb, "W", 104.0, s=7, c=[37])
     b = _partial(bb, "W")
     assert (b["h"], b["l"], b["c"], b["v"]) == (100.0, 100.0, 100.0, 107)
+
+
+# ── review of #2766 (LOW): a provider table that says nothing about volume keeps the fallback ────────
+# load_from_provider installed the volume set whenever the high/low and open/close sets were non-empty, so a
+# table without `updates_volume` on any row installed an EMPTY set and silently switched the volume rule off.
+
+class _ProviderAnswer:
+    def __init__(self, results):
+        self._results = results
+
+    def raise_for_status(self):
+        return None
+
+    def json(self):
+        return {"results": self._results}
+
+
+def _load_with(monkeypatch, results):
+    import httpx
+    monkeypatch.setenv("MASSIVE_API_KEY", "test-not-a-key")
+    monkeypatch.setattr(httpx, "get", lambda *a, **k: _ProviderAnswer(results))
+    monkeypatch.setattr(tc, "_loaded_from_provider", False)
+    monkeypatch.setattr(tc, "_hl_ineligible", set(tc._HL_INELIGIBLE_FALLBACK) - tc._SESSION_CODES)
+    monkeypatch.setattr(tc, "_last_ineligible", set(tc._LAST_INELIGIBLE_FALLBACK) - tc._SESSION_CODES)
+    monkeypatch.setattr(tc, "_vol_ineligible", set(tc._VOL_INELIGIBLE_FALLBACK) - tc._SESSION_CODES)
+    tc.load_from_provider()
+
+
+def test_a_provider_table_without_updates_volume_keeps_the_volume_fallback(monkeypatch):
+    _load_with(monkeypatch, [
+        {"id": 37, "name": "Odd Lot Trade",
+         "update_rules": {"consolidated": {"updates_high_low": False, "updates_open_close": False}}},
+        {"id": 15, "name": "Market Center Official Close",
+         "update_rules": {"consolidated": {"updates_high_low": False, "updates_open_close": True}}},
+    ])
+    assert tc._loaded_from_provider is True             # the high/low and last rules did load
+    assert tc.status()["vol_ineligible_count"] == 3     # ...and the volume rule kept its fallback {15, 16, 38}
+    assert tc.classify3([15]) == (False, True, False)
+
+
+def test_a_provider_table_that_says_every_code_updates_volume_installs_an_empty_set(monkeypatch):
+    # the field present on a row is the provider's word: an empty volume set is then its authority, not a gap
+    _load_with(monkeypatch, [
+        {"id": 37, "name": "Odd Lot Trade",
+         "update_rules": {"consolidated": {"updates_high_low": False, "updates_open_close": False,
+                                           "updates_volume": True}}},
+    ])
+    assert tc.status()["vol_ineligible_count"] == 0
+    assert tc.classify3([15]) == (True, True, True)
