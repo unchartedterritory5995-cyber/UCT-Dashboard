@@ -123,7 +123,7 @@ import { dailyReadSupplyFor } from './dailyReadSupply'
 import { otherSymbolsSignature } from './otherSymbols'
 import { lowerTfSignature } from './lowerTf'
 import { setChartClockNotes } from './chartClockNotice'
-import { serverDeclares, scalarsFor, landedEnvelopeFor, noteServerHit } from './serverCompute'
+import { serverDeclares, scalarsFor, landedEnvelopeFor, noteServerHit, adoptFillStates } from './serverCompute'
 import { computeLaneOf, COMPUTE_LANE } from './computeLane'
 // ⭐⭐ NEIGHBOR FRAMES (2026-11-20) — columns and points computed AHEAD, in idle time, for the bars of the
 // rows a member is about to reach (`prepare` below), found by the switch instead of recomputed.
@@ -174,6 +174,29 @@ const _projMemo = new WeakMap()
  *  does reads the inputs' condition grammar through the SAME evaluator a plot's
  *  `activeWhen` uses (`pool.plotActiveFor`: stored value, else the declared
  *  default), so a band and a guide can never disagree about one switch. */
+/** ⭐ (2026-11-26) WHICH COLUMN IS A BAND'S STATE, AND BY WHAT RULE: the binder answering, as the ONE reader of
+ *  `plots[].fill` (defSchema.test.js's reader rail), for the server lane's custom-timeframe fold
+ *  (`serverCompute.customTfFoldsOf`), which must REBUILD that column over the chart's own buckets rather than carry the
+ *  base timeframe's over. A band coloured by a computed column (`colorMode: 'column:<state>'`) beside a partner plot
+ *  (`with`) reads `<state>` as 1 where its plot is at or above the partner, else 0 (the server's `above_column` rule):
+ *  `{ state, rule: 'above', of: <plot key>, with: <partner key> }`, one per such band, in plot order.
+ *  ⛔ HANDED TO THE LANE WHEN A CHART'S BINDER IS CREATED (`createBinder`, `adoptFillStates`), NEVER IMPORTED BY IT
+ *  AND NEVER AT LOAD. serverCompute sits in ten lazy chunks this module is not in (the formula library, the share
+ *  panel, the voice layer, the settings modal...); an import there would carry the renderer and ~70 modules into
+ *  every one of them, and close a cycle. And a registration at load is one the member door's worker graph would not
+ *  make (memberDoorWorkerGraph.test.js, case 5): no chart there, no band, no answer. Until a chart binds, the lane
+ *  withholds the state column on a custom timeframe rather than guess it. */
+export function fillStatesOf(def) {
+  const out = []
+  for (const p of def && Array.isArray(def.plots) ? def.plots : []) {
+    const fill = p && p.fill
+    if (!fill || typeof p.key !== 'string' || typeof fill.with !== 'string' || typeof fill.colorMode !== 'string') continue
+    if (!fill.colorMode.startsWith('column:')) continue
+    out.push(Object.freeze({ state: fill.colorMode.slice('column:'.length), rule: 'above', of: p.key, with: fill.with }))
+  }
+  return Object.freeze(out)
+}
+
 export function fillActiveFor(fillSpec, b) {
   if (!fillSpec) return true
   // ⭐ e97 U7 — and is it DRAWN at this instance's settings: a band whose `display` a setting decides
@@ -1209,6 +1232,8 @@ export function plotStripNoticesOf(registry, def, cols) {
 }
 
 export function createBinder({ chart, LWC, scope = '' }) {
+  // the band-state answer (`fillStatesOf`), handed to the server lane as a chart comes to exist, before it computes
+  adoptFillStates(fillStatesOf)
   const noticeScope = typeof scope === 'string' ? scope : ''
   /** Last pass's bindings, each carrying `series`, `guideHandles`, `paneIndex`. */
   let held = []
