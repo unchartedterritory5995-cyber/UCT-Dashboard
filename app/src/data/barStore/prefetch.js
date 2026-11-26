@@ -1100,7 +1100,7 @@ export function createPrefetch(o = {}) {
       new Promise((resolve) => setTimer(resolve, HYDRATE_WAIT_MS)),
     ])
     return bounded
-      .then(() => S().lakeSeed?.(key) ?? false)
+      .then(() => S().lakeSeed?.(key, { awaited: true }) ?? false)   // a paint waits on it: its pieces never yield
       .catch(() => false)
   }
 

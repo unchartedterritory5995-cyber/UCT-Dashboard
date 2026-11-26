@@ -111,7 +111,14 @@ export function createBarStore(o = {}) {
       // Saved copy first; with none (and no server answer yet) the lake's newest bars paint at once
       // (network.lakeSeed: never persisted, kept only where the server's answer proves them).
       // (urgent: a subscriber is a chart on screen, so its device read goes ahead of every warm's)
-      persist.hydrate(key, { urgent: true }).catch(() => {}).then(() => { try { network.lakeSeed?.(key) } catch { /* paint only */ } })
+      // ⭐ (review of #2786) A key with no bars (no saved copy, no answer yet; a lone developing bar is not a chart)
+      // paints the lake's newest bars FIRST: that paint waits on the load, so its pieces never yield (network.lakeSeed
+      // `awaited`). A key that already painted a saved copy only deepens: its pieces decode one per task, leaving room for frames.
+      persist.hydrate(key, { urgent: true }).catch(() => {}).then(() => {
+        const s = registry.peek(key)
+        const awaited = !s?.bars?.length
+        try { network.lakeSeed?.(key, { awaited }) } catch { /* paint only */ }
+      })
       a.stops.push(persist.attach(key))
       a.stops.push(live.attach(key, { session }))
       // P3-S2b: a live gap (reducer.liveGapStart) asks the server NOW — once per gap; the answer
@@ -210,8 +217,9 @@ export function createBarStore(o = {}) {
     primeLake: (key) => network.primeLake?.(key),
     /** Warm the edge's copy of `key`'s whole lake depth, no download (network.lakeEdgeWarm). */
     lakeEdgeWarm: (key, opts) => network.lakeEdgeWarm?.(key, opts) ?? Promise.resolve(0),
-    /** Paint `key` from the lake's newest bars now, if it holds nothing and no answer landed (network.lakeSeed). */
-    lakeSeed: (key) => network.lakeSeed?.(key) ?? Promise.resolve(false),
+    /** Paint `key` from the lake's newest bars now, if it holds nothing and no answer landed (network.lakeSeed).
+     *  `{ awaited: true }`: the caller waits on it to paint (its pieces then decode without yielding). */
+    lakeSeed: (key, opts) => network.lakeSeed?.(key, opts) ?? Promise.resolve(false),
     /** Is the lake's whole depth still due for `key` (network.lakePending)? */
     lakePending: (key) => !!network.lakePending?.(key),
     /** D/W/M: is the deep sealed history still due for `key` (network.deepPending)? */
