@@ -171,15 +171,43 @@ export function readLegendContext(el) {
  *  tokens inside the chart (a probe span, one style read per role) and walks every ancestor's background (a style read
  *  each): 2.7 ms of a two-chart board switch on production's build, every chart mount and canvas change paying it
  *  again for the same answer. What the browser resolves there follows from the stylesheets (fixed for the page's life)
- *  and from the chain of elements up to the root: each one's tag and attributes (class, style, data-*: a widget's
- *  inline tokens, the app theme on <html>) and the viewport (media queries). That chain is the key: the same chain
- *  is the same answer, read once and reused; any attribute changing anywhere on it, or the viewport, reads again. */
+ *  and from what can feed it:
+ *   - every ANCESTOR, tag and attributes (class, style, data-*: a widget's inline tokens, the app theme on <html>): the
+ *     backgrounds walked and the tokens inherited;
+ *   - the chart wrapper itself only as far as the tokens are concerned: its tag, its class and its own inline `--text*`
+ *     declarations (the role tokens). ⛔ Never its volatile rest (review of #2844): `data-bar-tail`, `data-bar-currentness`,
+ *     `data-live-badge`, the pane height, its panel and layout variables, and the legend inks THIS read publishes. Keyed
+ *     on those, the second chart of a board, and the same chart after its inks land, never matched;
+ *   - the viewport and the media features a token can be defined under (colour scheme, forced colours, contrast).
+ *  That is the key: the same key is the same answer, read once and reused; anything in it changing reads again.
+ *  `globalThis.__uctLegendContextStats` (an object, opt-in) counts `hits` / `misses` for a measurement. */
 const LEGEND_CONTEXT_MAX = 32
 const _legendContexts = new Map()
+const MEDIA = ['(prefers-color-scheme: dark)', '(forced-colors: active)', '(prefers-contrast: more)']
+function _mediaKey() {
+  if (typeof window === 'undefined') return ''
+  let k = `${window.innerWidth}x${window.innerHeight}`
+  if (typeof window.matchMedia === 'function') {
+    for (const q of MEDIA) { try { k += window.matchMedia(q).matches ? '1' : '0' } catch { k += '?' } }
+  }
+  return k
+}
+/** The wrapper's own part of the key: tag, class, and its inline role-token (`--text*`) declarations. */
+function _ownKey(el) {
+  let k = `<${el.tagName}.${el.getAttribute('class') || ''}`
+  const st = el.style
+  if (st) {
+    for (let i = 0; i < st.length; i++) {
+      const name = st[i]
+      if (name.startsWith('--text')) k += ` ${name}:${st.getPropertyValue(name)}`
+    }
+  }
+  return k
+}
 export function legendContextKey(el) {
   if (!el) return null
-  let key = typeof window !== 'undefined' ? `${window.innerWidth}x${window.innerHeight}` : ''
-  for (let n = el; n && n.nodeType === 1; n = n.parentElement) {
+  let key = _mediaKey() + _ownKey(el)
+  for (let n = el.parentElement; n && n.nodeType === 1; n = n.parentElement) {
     key += `<${n.tagName}`
     const attrs = n.attributes
     for (let i = 0; i < attrs.length; i++) key += ` ${attrs[i].name}=${attrs[i].value}`
@@ -190,8 +218,13 @@ export function legendContextKey(el) {
 export function readLegendContextCached(el) {
   const key = legendContextKey(el)
   if (key == null) return readLegendContext(el)
+  const stats = typeof globalThis !== 'undefined' && globalThis.__uctLegendContextStats
   const hit = _legendContexts.get(key)
-  if (hit) return hit
+  if (hit) {
+    if (stats && typeof stats === 'object') stats.hits = (stats.hits || 0) + 1
+    return hit
+  }
+  if (stats && typeof stats === 'object') stats.misses = (stats.misses || 0) + 1
   const out = readLegendContext(el)
   _legendContexts.set(key, out)
   if (_legendContexts.size > LEGEND_CONTEXT_MAX) _legendContexts.delete(_legendContexts.keys().next().value)
