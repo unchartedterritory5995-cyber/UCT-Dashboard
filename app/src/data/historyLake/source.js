@@ -170,6 +170,49 @@ export function createHistorySource(o = {}) {
 
   function refreshIndex(sym) { indexes.delete(lakeSymbol(sym)) }
 
+  // ⭐ ONE REQUEST PER PIECE IN FLIGHT (2026-11-26, the typed ticker). The typed warm primes the lake (`warmPieces`) and
+  // seeds it (`loadBars`) off the same index answer, so both asked every piece at the same instant: two requests per
+  // piece (the second answered behind the first by the browser's cache lock, still holding a `maxParallel` slot).
+  // A read asked while its URL is in flight shares that request's answer (status, piece header, body bytes; the decode
+  // only reads them). Settled, the entry goes: a later read is answered by the browser's cache, as before.
+  // ⛔ A SHARED REQUEST IS NOT GIVEN UP FOR ANOTHER CALLER: a read whose own signal fires while it waits on someone
+  // else's request rejects at once (that request goes on for its owner); a request its OWNER gave up is asked again
+  // for a read that still wants the piece.
+  // A re-ask joins whatever is in flight by then, with the same rule, so it never inherits another caller's abort.
+  const inflight = new Map()   // piece URL -> Promise<{ status, ok, headerJson, buf }>
+  const abortReason = (signal) => signal.reason ?? new DOMException('The load was aborted', 'AbortError')
+  function readPiece(url, signal) {
+    const start = () => {
+      const p = (async () => {
+        const res = await get(url, signal)
+        return { status: res.status, ok: res.ok, headerJson: res.headers.get(HEADER_NAME), buf: res.ok ? await res.arrayBuffer() : null }
+      })()
+      inflight.set(url, p)
+      const settle = () => { if (inflight.get(url) === p) inflight.delete(url) }
+      p.then(settle, settle)
+      return p
+    }
+    const shared = inflight.get(url)
+    if (!shared) return start()
+    if (signal?.aborted) return Promise.reject(abortReason(signal))
+    const joined = shared.catch((err) => {
+      if (signal?.aborted) throw abortReason(signal)
+      if (err?.name !== 'AbortError') throw err
+      // asked again through the same door, however deep: a re-ask that is given up in turn is asked again too
+      // (review of #2852: adopting the re-ask as it was left a third read with an abort it never asked for)
+      return readPiece(url, signal)
+    })
+    if (!signal) return joined
+    return new Promise((resolve, reject) => {
+      const onAbort = () => reject(abortReason(signal))
+      signal.addEventListener('abort', onAbort, { once: true })
+      joined.then(
+        (v) => { signal.removeEventListener('abort', onAbort); resolve(v) },
+        (e) => { signal.removeEventListener('abort', onAbort); reject(e) },
+      )
+    })
+  }
+
   /** THE one piece URL (its cache key): `warmPieces` and `loadPiece` must never name a piece two ways. */
   const pieceUrl = (symbol, series, entry) =>
     `${base}/v1/${series}/${encodeSymbol(symbol)}/${entry.period}.ubh?c=${entry.crc}&o=${entry.off}&n=${entry.bytes}`
@@ -182,14 +225,14 @@ export function createHistorySource(o = {}) {
     }
     const owner = ownerOf(symbol, entry)
     const url = pieceUrl(owner, series, entry)
-    const res = await get(url, signal)
+    const res = await readPiece(url, signal)
     if (res.status === 409 || res.status === 404) {
       throw new HistoryError(`${symbol} ${series}/${entry.period}: the index is out of date`, { status: res.status, stale: true })
     }
     if (!res.ok) throw new HistoryError(`${symbol} ${series}/${entry.period}: HTTP ${res.status}`, { status: res.status })
-    const headerJson = res.headers.get(HEADER_NAME)
+    const headerJson = res.headerJson
     if (!headerJson) throw new HistoryError(`${symbol} ${series}/${entry.period}: no piece header in the answer`)
-    const bytes = new Uint8Array(await res.arrayBuffer())
+    const bytes = new Uint8Array(res.buf)
     // ⭐ ONE PIECE PER TASK (smoothness trace 2026-11-26, 1m+15m board: the deep history's pieces decoded back to back
     // in 18-27 ms tasks, 160-215 ms after both charts showed the new symbol, each a dropped frame). Pieces whose bytes land
     // together are decoded in tasks of their own, so a frame can be drawn between two of them. Same decode, same check.
@@ -248,7 +291,7 @@ export function createHistorySource(o = {}) {
   async function warmPieces(sym, series, entries) {
     const symbol = lakeSymbol(sym)
     await mapLimit((entries || []).filter(placed), maxParallel, async (e) => {
-      try { const res = await get(pieceUrl(ownerOf(symbol, e), series, e)); if (res.ok) await res.arrayBuffer() } catch { /* a warm only */ }
+      try { await readPiece(pieceUrl(ownerOf(symbol, e), series, e)) } catch { /* a warm only */ }
     })
   }
 
