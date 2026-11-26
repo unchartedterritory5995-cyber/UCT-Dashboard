@@ -71,6 +71,8 @@ let _lastLongAt = -Infinity
 let _lastCommitAt = -Infinity
 const _quoteSinks = new Set()
 const _healthSinks = new Set()
+const _sinkKeys = new Map()      // key -> the quote sink registered under it (a store's own key)
+const _healthKeys = new Map()
 let _healthy = false
 let _watchdog = null
 let _hiddenTimer = null
@@ -324,9 +326,35 @@ function _applyFrame() {
   }
 }
 
-export function onQuotes(fn) {
-  _quoteSinks.add(fn)
-  return () => _quoteSinks.delete(fn)
+/** `key` (optional) names the subscriber: registering again under the same key REPLACES the earlier sink, so a
+ *  store re-evaluated by a dev hot reload never ends up wired twice. A sink that subscribes while the push holds
+ *  quotes gets them on the next animation frame (never inside this call, which may run in an effect): a store
+ *  that wires late does not wait for the next trade on a quiet symbol (review of #2775). */
+export function onQuotes(fn, key) {
+  _keyed(_sinkKeys, _quoteSinks, fn, key)
+  if (_quotes.size) {
+    _requestFrame(() => {
+      if (!_quoteSinks.has(fn) || !_quotes.size) return
+      const batch = {}
+      for (const [sym, q] of _quotes) batch[sym] = q
+      try { fn(batch) } catch { /* a late sink's failure never breaks the push */ }
+    })
+  }
+  return () => _unkeyed(_sinkKeys, _quoteSinks, fn, key)
+}
+
+function _keyed(keys, set, fn, key) {
+  if (key != null) {
+    const old = keys.get(key)
+    if (old && old !== fn) set.delete(old)
+    keys.set(key, fn)
+  }
+  set.add(fn)
+}
+
+function _unkeyed(keys, set, fn, key) {
+  set.delete(fn)
+  if (key != null && keys.get(key) === fn) keys.delete(key)
 }
 
 export function getPushedQuote(sym) {
@@ -358,9 +386,9 @@ function _updateHealth() {
   }
 }
 
-export function onHealth(fn) {
-  _healthSinks.add(fn)
-  return () => _healthSinks.delete(fn)
+export function onHealth(fn, key) {
+  _keyed(_healthKeys, _healthSinks, fn, key)
+  return () => _unkeyed(_healthKeys, _healthSinks, fn, key)
 }
 
 // ── what a REST-shaped list row shows ───────────────────────────────────────

@@ -329,8 +329,8 @@ let _pushWired = false
 function _wirePush(qp) {
   if (!_pushWired) {
     _pushWired = true
-    qp.onQuotes(_applyPushed)
-    qp.onHealth(_onPushHealth)
+    qp.onQuotes(_applyPushed, 'livePriceStore')
+    qp.onHealth(_onPushHealth, 'livePriceStore')
   }
   qp.setTickers('rest', _union())
 }
