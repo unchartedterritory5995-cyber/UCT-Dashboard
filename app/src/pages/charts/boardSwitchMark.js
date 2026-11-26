@@ -9,15 +9,19 @@
 // ⛔ On the node, not in React state: a state flag would render the whole board again just to drop a class.
 
 export const SWITCH_MARK_CLASS = 'charts-switching'
+// ⛔ A SWITCH WHOSE BOARD NEVER COMMITS STILL DROPS ITS MARK (review of #2860): switching to X and back to the board on
+// screen in one batch is a React bail-out, no commit and no layout effect, and the class would stay on the grid: every
+// later drag would lose react-grid-layout's transition. After this long without its commit, the switch arms the frames.
+export const SWITCH_MARK_FALLBACK_MS = 250
 
 const defaultRaf = (f) => (typeof requestAnimationFrame === 'function' ? requestAnimationFrame(f) : setTimeout(f, 16))
 
 /**
- * @param {{ raf?: (f: () => void) => any }} [o]
+ * @param {{ raf?: (f: () => void) => any, setTimer?: (f: () => void, ms: number) => any }} [o]
  * `mark(grid)`: a switch is about to commit (puts the class on `grid`); `committed()`: the commit that shows the new
  * board ran (its layout effect): the class comes off two frames later, unless a newer switch marked the grid meanwhile.
  */
-export function createBoardSwitchMark({ raf = defaultRaf } = {}) {
+export function createBoardSwitchMark({ raf = defaultRaf, setTimer = (f, ms) => setTimeout(f, ms) } = {}) {
   let seq = 0
   let pending = null   // { seq, grid } of a marked switch whose board has not committed yet
   const clearAfterFrames = (p) => {
@@ -30,6 +34,12 @@ export function createBoardSwitchMark({ raf = defaultRaf } = {}) {
       const s = ++seq
       grid.classList.add(SWITCH_MARK_CLASS)
       pending = { seq: s, grid }
+      setTimer(() => {
+        if (!pending || pending.seq !== s) return   // committed, or a newer switch is waiting on its own commit
+        const p = pending
+        pending = null
+        clearAfterFrames(p)
+      }, SWITCH_MARK_FALLBACK_MS)
     },
     committed() {
       const p = pending
