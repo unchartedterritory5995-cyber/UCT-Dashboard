@@ -798,6 +798,54 @@ def resume_run(tmp: pathlib.Path, manifest, beh, page1):
     return page2, code, rd, clock
 
 
+def _jsonable(a):
+    return a if isinstance(a, (str, int, float, bool, type(None))) else json.dumps(a, sort_keys=True, default=str)
+
+
+def legacy_trace(tmp: pathlib.Path) -> dict:
+    """⭐⭐ THE `--cdp`-LESS PATH, AS A TRACE (tv-capture slots, 2026-11-26): every page call (kind, name, arg) the batch
+    makes on the double, every result's outcome and steps, the batch exit codes, the sleeps and the sha256 of every capture
+    file, over three scenarios that cover the whole legacy loop: the five-script first run with its crash and the resume,
+    an extended-session intraday row, and a built-in row. `tests/fixtures/vendor_batch/legacy_trace.json` holds the trace
+    the code had BEFORE the slot mode existed (origin/master ed7605b405); the rail asserts today's trace equals it, so the
+    path without `--cdp` is the same steps and calls, call for call. A deliberate change to the legacy path regenerates
+    the fixture (`python tools/vendor_harness/batch_double.py --write-legacy-trace`) in the same commit, by name."""
+    def calls(p):
+        return [[k, n, _jsonable(a)] for k, n, a in p.calls]
+
+    def results(rd):
+        return {s: {"outcome": r.get("outcome"), "steps": r.get("steps"),
+                    "reason": re.sub(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\+00:00", "<utc>", str(r.get("reason"))),
+                    "provenanceKeys": sorted((r.get("provenance") or {}).keys())} for s, r in sorted(rd.results().items())}
+
+    def caps(run_dir):
+        return {f.name: hashlib.sha256(f.read_bytes()).hexdigest() for f in sorted((run_dir / "captures").glob("*.json"))}
+
+    out = {}
+    manifest, beh, page1, crashed = first_run(tmp / "s1")
+    r1 = results(bc.RunDir(tmp / "s1" / "run", "trace"))
+    page2, code2, rd2, clock2 = resume_run(tmp / "s1", manifest, beh, page1)
+    out["first_resume"] = {"crashed": crashed is not None, "page1": calls(page1), "results1": r1, "page2": calls(page2),
+                           "exit2": code2, "sleeps2": clock2.sleeps, "results2": results(rd2), "captures": caps(tmp / "s1" / "run")}
+    m, b = make_manifest(tmp / "s2", [("ext", '//@version=6\nindicator("X")\nplot(close)\n', {})])
+    m["scripts"][0].update({"symbol": "AMEX:SPY", "tf": "60", "session": "extended", "captureStem": "s"})
+    page = RecordingTVPage(behaviours={sha: x for sha, x in b.values()}, resolution="1D")
+    page.session_id = "extended"
+    code, rd, clock = run(page, m, tmp / "s2" / "run", fast_opts())
+    out["session"] = {"page": calls(page), "exit": code, "sleeps": clock.sleeps, "results": results(rd),
+                      "captures": caps(tmp / "s2" / "run")}
+    row = {"slug": "vwap-earn", "builtin": {"id": "STD;VWAP"}, "builtinInputs": {"Anchor Period": "Earnings"},
+           "captureStem": "builtin-vwap-anchor-earnings"}
+    page = RecordingTVPage()
+    code, rd, clock = run(page, {"schema": "uct.vendor-batch-manifest/v1", "scripts": [row]}, tmp / "s3" / "run", fast_opts())
+    out["builtin"] = {"page": calls(page), "exit": code, "sleeps": clock.sleeps, "results": results(rd),
+                      "captures": caps(tmp / "s3" / "run")}
+    return out
+
+
+LEGACY_TRACE_FIXTURE = HERE.parents[1] / "tests" / "fixtures" / "vendor_batch" / "legacy_trace.json"
+
+
 def self_check() -> int:
     checks = []
 
@@ -851,4 +899,13 @@ def self_check() -> int:
 
 
 if __name__ == "__main__":
+    if "--write-legacy-trace" in sys.argv[1:]:
+        with tempfile.TemporaryDirectory(prefix="vhbatch-trace-") as td:
+            trace = legacy_trace(pathlib.Path(td))
+        LEGACY_TRACE_FIXTURE.parent.mkdir(parents=True, exist_ok=True)
+        tmp = LEGACY_TRACE_FIXTURE.with_suffix(".tmp")
+        tmp.write_text(json.dumps(trace, indent=0, sort_keys=True) + "\n", encoding="utf-8", newline="\n")
+        tmp.replace(LEGACY_TRACE_FIXTURE)
+        print(f"wrote {LEGACY_TRACE_FIXTURE}")
+        sys.exit(0)
     sys.exit(self_check())
