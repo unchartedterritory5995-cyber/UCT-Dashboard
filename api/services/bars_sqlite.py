@@ -1724,6 +1724,12 @@ def _sixty_grid_clean(c: sqlite3.Connection) -> bool:
 #: had the full pass carries no marker and gets one.
 OFF_CALENDAR_CLEAN_MARKER = "daily_off_calendar_2026_11_11_clean"
 OFF_CALENDAR_RECENT_DAYS = 30
+#: The one-off purge of intraday rows outside their ET day's extended session (the SPY 60m rows stamped 20:00 ET): a
+#: full pass until a clean one sets this, then the recent window each boot, like the off-calendar daily purge.
+OFF_SESSION_CLEAN_MARKER = "intraday_off_session_2026_11_25_clean"
+OFF_SESSION_TFS = ("1", "5", "15", "30", "60")
+#: The full pass reaches back to the vendor's intraday floor (2003-09-10); every hour from here on is judged once.
+OFF_SESSION_FLOOR_TS = 1_041_379_200     # 2003-01-01T00:00:00Z
 
 
 def _marker_set(c: sqlite3.Connection, name: str) -> bool:
@@ -1797,6 +1803,9 @@ def purge_mis_keyed_weekly_rows() -> int:
     off_full = not _marker_set(c, OFF_CALENDAR_CLEAN_MARKER)
     off_since = None if off_full else _off_calendar_window_start()
     off_errors = 0
+    off_sess_full = not _marker_set(c, OFF_SESSION_CLEAN_MARKER)
+    off_sess_since = None if off_sess_full else int(time.time()) - OFF_CALENDAR_RECENT_DAYS * 86400
+    off_session = off_sess_errors = 0
     # ⭐ Same pass, same PK-prefixed seeks: a ticker still carrying the
     # pre-2026-11-10 clock-hour 60m layout is REBUILT in place from its own stored
     # 15m/30m rows (bars_fetch.rebuild_sixty_min_grid — local, no provider call),
@@ -1826,6 +1835,12 @@ def purge_mis_keyed_weekly_rows() -> int:
             except Exception as e:  # noqa: BLE001 — never let it stop the weekly purge
                 off_errors += 1
                 _logger.warning(f"[sqlite] off-calendar daily purge {tkr} failed (non-fatal): {e}")
+            # Same pass, same PK-prefixed seek: intraday rows outside the extended session.
+            try:
+                off_session += purge_off_session_intraday(tkr, c, since_ts=off_sess_since)
+            except Exception as e:  # noqa: BLE001 — never let it stop the weekly purge
+                off_sess_errors += 1
+                _logger.warning(f"[sqlite] off-session intraday purge {tkr} failed (non-fatal): {e}")
             bad = [
                 ts for (ts,) in c.execute(
                     "SELECT ts FROM ohlcv WHERE ticker=? AND tf='W'", (tkr,)
@@ -1855,7 +1870,71 @@ def purge_mis_keyed_weekly_rows() -> int:
         _logger.warning(f"[sqlite] purge_off_calendar_daily: deleted {off_calendar} non-trading-day daily rows")
     if off_full and not off_errors:
         _set_marker(c, OFF_CALENDAR_CLEAN_MARKER)
+    if off_session:
+        _logger.warning(f"[sqlite] purge_off_session_intraday: deleted {off_session} intraday rows outside the session")
+    if off_sess_full and not off_sess_errors:
+        _set_marker(c, OFF_SESSION_CLEAN_MARKER)
     return deleted
+
+
+_OFF_SESSION_HOURS_DONE: dict[int, int] = {}     # id(connection) -> the hour the temp table reaches
+
+
+def _off_session_hours_table(c: sqlite3.Connection) -> None:
+    """`temp.off_session_hours`: every UTC hour index from OFF_SESSION_FLOOR_TS to tomorrow that lies OUTSIDE the
+    extended session (`bars_fetch.in_extended_session`, the one rule), so a ticker's scan stays in C. Built once per
+    connection and topped up as the clock moves (~150k rows for 24 years)."""
+    from api.services.bars_fetch import in_extended_session
+    top = int(time.time()) // 3600 + 48
+    have = _OFF_SESSION_HOURS_DONE.get(id(c))
+    c.execute("CREATE TEMP TABLE IF NOT EXISTS off_session_hours (h INTEGER PRIMARY KEY)")
+    start = OFF_SESSION_FLOOR_TS // 3600 if have is None else have
+    if start >= top:
+        return
+    c.executemany("INSERT OR IGNORE INTO temp.off_session_hours(h) VALUES (?)",
+                  ((h,) for h in range(start, top) if not in_extended_session(h * 3600)))
+    _OFF_SESSION_HOURS_DONE[id(c)] = top
+
+
+def purge_off_session_intraday(ticker: str, c: sqlite3.Connection | None = None,
+                               since_ts: int | None = None) -> int:
+    """Delete ``ticker``'s intraday rows (1/5/15/30/60) whose bucket starts outside its ET day's extended session
+    (`bars_fetch.in_extended_session`): the SPY 60m rows stamped 20:00 ET, a print on a weekend or holiday. Each
+    series that loses a row has its history_rev bumped ONCE (`bump_series_revs(deleted=True)`), so a client holding it
+    does one full read and converges on the store without them. Idempotent; one PK-prefixed read per ticker; writes
+    only for a ticker with something to delete. Names no NYSE session governs are left alone
+    (`bars_fetch.session_clamp_applies`). Returns rows deleted."""
+    from api.services.bars_fetch import session_clamp_applies
+    tkr = ticker.upper()
+    if not session_clamp_applies(tkr):
+        return 0
+    c = c or _conn()
+    _off_session_hours_table(c)
+    qs = ",".join("?" for _ in OFF_SESSION_TFS)
+    lo = "" if since_ts is None else " AND ts>=?"
+    bad = c.execute(
+        f"SELECT tf, ts FROM ohlcv WHERE ticker=? AND tf IN ({qs}){lo} "
+        f"AND (ts / 3600) IN (SELECT h FROM temp.off_session_hours)",
+        [tkr, *OFF_SESSION_TFS, *([] if since_ts is None else [int(since_ts)])]).fetchall()
+    if not bad:
+        return 0
+    by_tf: dict[str, list[int]] = {}
+    for tf, ts in bad:
+        by_tf.setdefault(str(tf), []).append(int(ts))
+    n = 0
+    with _WRITE_LOCK:
+        for tf, tss in by_tf.items():
+            for i in range(0, len(tss), 500):
+                chunk = tss[i:i + 500]
+                cur = c.execute(f"DELETE FROM ohlcv WHERE ticker=? AND tf=? AND ts IN ({','.join('?' for _ in chunk)})",
+                                [tkr, tf, *chunk])
+                n += cur.rowcount
+        bump_series_revs(c, [(tkr, tf) for tf in by_tf], deleted=True,
+                         deleted_from={(tkr, tf): min(tss) for tf, tss in by_tf.items()})
+        c.commit()
+    _logger.warning("[sqlite] %s: deleted %d intraday row(s) outside the extended session (%s)", tkr, n,
+                    ", ".join(f"{tf}:{len(v)}" for tf, v in sorted(by_tf.items())))
+    return n
 
 
 def _off_calendar_window_start() -> int:

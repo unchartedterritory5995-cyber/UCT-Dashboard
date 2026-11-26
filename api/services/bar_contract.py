@@ -410,6 +410,12 @@ def _live_partial(ticker: str, tf: str, sess, grid: str, now: float):
     b = bucket_bounds(tf, t, grid)
     if b is None or not (b[0] <= now < b[1]):
         return None
+    try:                                   # ⭐ the extended-session rule (`bars_fetch.in_extended_session`): a 20:00 bar is no bar
+        from api.services import bars_fetch
+        if bars_fetch.session_clamp_applies(ticker) and not bars_fetch.in_extended_session(t):
+            return None
+    except Exception:                      # noqa: BLE001 - the rule is unreadable: the broadcaster's own gate stands
+        pass
     return _bar_out(dict(bar, t=t), int(bar.get("trade_ts") or now * 1000))
 
 

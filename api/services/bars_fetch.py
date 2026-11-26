@@ -2291,28 +2291,83 @@ def _reconcile_developing_week(ticker: str, weekly: list[dict]) -> list[dict]:
     return out
 
 
-def _clamp_exempt(ticker: str) -> bool:
-    """A series the NYSE session does not govern keeps every row: a breadth pseudo-ticker, and a 24-hour name
-    (crypto, `-USD`), read from the same `date_bar_keys.calendar_applies` the daily key guard uses."""
+# ⭐ THE ONE EXTENDED-SESSION RULE (2026-11-25, #2781 and its live follow-up). An intraday row, a live minute and a
+# developing bar of a US-listed name exist only inside their ET trading day's extended session, [04:00, extended close)
+# (20:00, 17:00 on a half day): the session TradingView's extended-hours bars cover. Every reader asks these two:
+#   `session_clamp_applies(ticker)`  is the name governed by that session at all
+#   `in_extended_session(ts)`        is this instant inside it
+# The serve chokepoint (`_fmt_sqlite_bars`), the live minute gate (`bar_broadcaster._accept_minute`), the REST developing
+# row (`bar_contract._live_partial`) and the one-off store purge (`bars_sqlite.purge_off_session_intraday`) read them.
+# The client mirror is `app/src/data/barStore/extendedSession.js`; both are pinned to one case list
+# (`tests/fixtures/session_clamp_cases.json`).
+
+#: Markers of a symbol no NYSE session governs: a vendor prefix (`X:` crypto, `C:` FX, `I:` index), a Yahoo future or FX
+#: pair (`ES=F`, `EURUSD=X`), an index (`^GSPC`) or a slash form (`/ES`).
+_NON_SESSION_MARKS = (":", "=", "^", "/")
+#: Yahoo suffixes of non-US listings (`SHOP.TO`, `0700.HK`). A US class share (`BRK.B`) keeps its one-letter class; the
+#: few one-letter exchange suffixes here (`.L` London, `.V` TSX Venture, `.T` Tokyo, `.F` Frankfurt) would leave a US
+#: class share with that letter UNclamped, which is today's behaviour, never a loss.
+_NON_US_SUFFIXES = frozenset({
+    "TO", "V", "CN", "NE", "L", "IL", "AS", "BR", "PA", "DE", "F", "MI", "MC", "LS", "SW", "VI", "ST", "OL", "CO",
+    "HE", "IR", "WA", "IS", "AT", "HK", "SS", "SZ", "T", "KS", "KQ", "TW", "TWO", "SI", "KL", "BK", "JK", "NS", "BO",
+    "AX", "NZ", "SA", "MX", "BA", "SN", "JO", "TA", "SR", "QA",
+})
+
+
+def session_clamp_applies(ticker: str | None) -> bool:
+    """Is `ticker` a US-listed name the NYSE extended session governs? False for a breadth pseudo-ticker, a 24-hour
+    name (`date_bar_keys.calendar_applies`: crypto, `-USD`), a future, an FX pair, an index, or a foreign listing.
+    No ticker (a caller that does not pass one) is clamped, as the serve path always was."""
+    tk = (ticker or "").strip().upper()
+    if not tk:
+        return True
+    if any(m in tk for m in _NON_SESSION_MARKS):
+        return False
+    if "." in tk and tk.rsplit(".", 1)[1] in _NON_US_SUFFIXES:
+        return False
     try:
         from api.services import date_bar_keys as _dk
-        if not _dk.calendar_applies(ticker):
-            return True
+        if not _dk.calendar_applies(tk):
+            return False
     except Exception:                      # noqa: BLE001 - unknown: fall through to the breadth check
         pass
     try:
         from api.services.breadth_symbols import is_breadth_symbol
-        return bool(is_breadth_symbol(ticker))
+        return not is_breadth_symbol(tk)
     except Exception:                      # noqa: BLE001 - unknown: clamp as an equity
-        return False
+        return True
+
+
+def _clamp_exempt(ticker: str) -> bool:
+    return not session_clamp_applies(ticker)
+
+
+#: UTC hour index -> inside the extended session. Every boundary of the session (04:00, 17:00, 20:00 ET) is a whole ET
+#: hour, and ET's offset from UTC is a whole number of hours, so a UTC hour is either wholly inside or wholly outside.
+_SESSION_HOURS: dict[int, bool] = {}
+
+
+def in_extended_session(ts) -> bool:
+    """`ts` (unix seconds) lies inside its ET trading day's extended session. One calendar read per UTC hour, ever
+    (cached), so the live gate can ask it on every trade."""
+    h = int(ts) // 3600
+    v = _SESSION_HOURS.get(h)
+    if v is None:
+        start = h * 3600
+        d = datetime.fromtimestamp(start, _ZI("America/New_York"))
+        if _is_trading_day_ymd(d):
+            lo, hi = _session_window(d, "eth")
+            v = lo <= start < hi
+        else:
+            v = False
+        if len(_SESSION_HOURS) > 400_000:   # ~45 years of hours: never in practice; bounded anyway
+            _SESSION_HOURS.clear()
+        _SESSION_HOURS[h] = v
+    return v
 
 
 def _clamp_to_extended_session(bars: list[dict]) -> list[dict]:
-    """The intraday rows whose start lies inside its ET trading day's extended session [04:00, close + 4 h).
-    One calendar read per ET DAY the rows cross, never per row (a 60,000-row answer stays cheap)."""
-    et = _ZI("America/New_York")
-    day_lo = day_hi = 0                   # the ET day [midnight, next midnight) the window below belongs to
-    win = None
+    """The intraday rows whose start lies inside its ET trading day's extended session [04:00, close + 4 h)."""
     out = []
     for b in bars:
         try:
@@ -2320,14 +2375,7 @@ def _clamp_to_extended_session(bars: list[dict]) -> list[dict]:
         except Exception:                  # noqa: BLE001 - an unreadable stamp is left to the other guards
             out.append(b)
             continue
-        if not (day_lo <= t < day_hi):
-            d = datetime.fromtimestamp(t, et)
-            midnight = datetime(d.year, d.month, d.day, tzinfo=et)
-            day_lo = int(midnight.timestamp())
-            nxt = midnight + timedelta(days=1)
-            day_hi = int(datetime(nxt.year, nxt.month, nxt.day, tzinfo=et).timestamp())
-            win = _session_window(d, "eth") if _is_trading_day_ymd(d) else None
-        if win is not None and win[0] <= t < win[1]:
+        if in_extended_session(t):
             out.append(b)
     return out
 
