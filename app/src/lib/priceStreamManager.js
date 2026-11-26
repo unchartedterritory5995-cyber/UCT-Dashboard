@@ -30,7 +30,7 @@
 import { registerRecoveryStream } from './recoveryRegistry'
 import { REBUILD_GATHER_MS } from './streamRebuildDelay'
 import * as realtimeCandle from './realtimeCandle'
-import * as quotePush from './quotePush'
+import { getQuotePush, whenQuotePush } from './quotePushGate'
 import {
   STREAM_WATCHDOG_MS, STREAM_WATCHDOG_TICK_MS, STREAM_RECONNECT_CAP_MS, LIVE_UI_CADENCE_MS,
 } from '../utils/streamStatus'
@@ -100,11 +100,11 @@ export function subscribe(tickers, listener) {
   const id = _nextId++
   _subscribers.set(id, { tickers: [...new Set((tickers || []).filter(Boolean))], listener })
   _scheduleRebuild()
-  quotePush.setTickers('stream', _union())   // pushed list prices: no-op unless flagged on
+  _pushTickers()   // pushed list prices: loads lib/quotePush only when flagged on
   return () => {
     _subscribers.delete(id)
     _scheduleRebuild()
-    quotePush.setTickers('stream', _union())
+    _pushTickers()
   }
 }
 
@@ -384,8 +384,27 @@ export function clearPushedQuotes() {
   _publish()
 }
 
-quotePush.onQuotes(applyPushedQuotes)
-quotePush.onHealth((healthy) => { if (!healthy) clearPushedQuotes() })
+/** The pushed list prices' connection (lib/quotePush.js, loaded lazily) is constructed HERE, by this pool
+ *  entry point (lib/panelContract.rail.test.js: transports belong to the pools). */
+export function openQuotesEventSource(url) {
+  if (typeof EventSource === 'undefined') return null
+  return new EventSource(url)
+}
+
+let _pushWired = false
+function _wirePush(qp) {
+  if (!_pushWired) {
+    _pushWired = true
+    qp.onQuotes(applyPushedQuotes)
+    qp.onHealth((healthy) => { if (!healthy) clearPushedQuotes() })
+  }
+  qp.setTickers('stream', _union())
+}
+function _pushTickers() {
+  const qp = getQuotePush()
+  if (qp) _wirePush(qp)
+  else whenQuotePush(_wirePush)
+}
 
 // ── recovery (lib/recovery.js) ──────────────────────────────────────────────
 // After a wake or a network return, recovery reconnects every bucket at once instead of waiting for

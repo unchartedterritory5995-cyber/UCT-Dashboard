@@ -66,9 +66,6 @@ import * as barsStreamManager from './barsStreamManager'
 import * as chainStreamManager from './chainStreamManager'
 import * as timeSalesStreamManager from './timeSalesStreamManager'
 import * as tradeExchangeNewsStreamManager from './tradeExchangeNewsStreamManager'
-// Pushed list prices (/api/stream/quotes): a transport owner, but NOT a need a panel declares. Its quotes
-// reach panels through the `prices` pool above and hooks/livePriceStore, which consume it.
-import * as quotePush from './quotePush' // eslint-disable-line no-unused-vars
 
 export const DELIVERY = Object.freeze({
   LAST_VALUE_WINS: 'last-value-wins',

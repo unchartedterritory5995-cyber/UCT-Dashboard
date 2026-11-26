@@ -28,6 +28,10 @@
 
 import { STREAM_WATCHDOG_MS, STREAM_WATCHDOG_TICK_MS } from '../utils/streamStatus'
 import { _applyLiveChange, _applyLiveExtPrice } from './liveQuoteMerge'
+import { quotePushFlagOn } from './quotePushGate'
+// The transport is constructed by a pool entry point (lib/panelContract.rail.test.js): this module is loaded
+// lazily (lib/quotePushGate.js), so it opens its connection through the prices pool.
+import { openQuotesEventSource } from './priceStreamManager'
 
 export const QUOTE_PUSH_PATH = '/api/stream/quotes'
 export const MAX_QUOTE_SYMBOLS = 250            // mirror of api/routers/quote_stream.py MAX_QUOTE_SYMBOLS
@@ -58,17 +62,7 @@ const _stats = { tradeToRecv: [], sentToRecv: [], recvToApply: [], frames: 0, ba
 // ── the flag ────────────────────────────────────────────────────────────────
 
 export function quotePushEnabled() {
-  try {
-    if (typeof localStorage !== 'undefined') {
-      if (localStorage.getItem('uct.quotePush.disabled') === '1') return false
-      if (localStorage.getItem('uct.quotePush') === '1') return true
-    }
-  } catch { /* storage refused: fall through to the cookie */ }
-  try {
-    return typeof document !== 'undefined' && /(?:^|;\s*)uct_quote_push=1(?:;|$)/.test(document.cookie || '')
-  } catch {
-    return false
-  }
+  return quotePushFlagOn()
 }
 
 // ── subscriptions ───────────────────────────────────────────────────────────
@@ -140,8 +134,8 @@ function _teardown(b) {
 }
 
 function _connect(b) {
-  if (typeof EventSource === 'undefined') return
-  const es = new EventSource(`${QUOTE_PUSH_PATH}?tickers=${b.key}`)
+  const es = openQuotesEventSource(`${QUOTE_PUSH_PATH}?tickers=${b.key}`)
+  if (!es) return
   b.es = es
   b.lastMsg = Date.now()
   const touch = () => { b.lastMsg = Date.now() }

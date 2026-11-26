@@ -16,7 +16,10 @@
 import { flushSync } from 'react-dom'
 import { sessionState, nextBoundary } from '../lib/marketClock/marketClock'
 import { noteServerDate, monoNow } from '../lib/serverClock'
-import * as quotePush from '../lib/quotePush'
+import { getQuotePush, whenQuotePush } from '../lib/quotePushGate'
+// lib/quotePush.js PUSH_HEALTHY_POLL_MS, restated here because the module is lazy (one number, railed by
+// lib/quotePush.lazy.test.js against the module's own export).
+export const PUSH_HEALTHY_POLL_MS = 15000
 
 // Must match api/routers/live_prices.py::_MAX_TICKERS — the backend hard-rejects
 // (400) any request over this count rather than truncating it. The union here is
@@ -94,7 +97,8 @@ function _nearBoundary() {
 const _intervalMs = () => {
   if (_marketClosed()) return CLOSED_INTERVAL_MS
   const base = _isMobile ? 4000 : 2000 // mobile ×2, as useMobileSWR
-  return quotePush.isHealthy() && !_nearBoundary() ? Math.max(base, quotePush.PUSH_HEALTHY_POLL_MS) : base
+  const qp = getQuotePush()
+  return qp && qp.isHealthy() && !_nearBoundary() ? Math.max(base, PUSH_HEALTHY_POLL_MS) : base
 }
 
 function _union() {
@@ -193,7 +197,8 @@ async function _poll() {
     // on every 2 s poll even after hours (four terminal panels, four headlines, all static), and
     // a reused entry is what lets `useLivePrices` skip a caller whose own slice is unchanged.
     let changed = false
-    const pushOn = quotePush.isHealthy()
+    const qp = getQuotePush()
+    const pushOn = !!qp && qp.isHealthy()
     for (const sym in next) {
       const nv = next[sym]
       if (!nv || typeof nv !== 'object') continue
@@ -209,8 +214,8 @@ async function _poll() {
         : nv
       // A healthy push is newer than this (server-cached) answer: keep its price on the row.
       if (pushOn) {
-        const q = quotePush.getPushedQuote(sym)
-        if (q) entry = quotePush.overlayPushed(entry, q)
+        const q = qp.getPushedQuote(sym)
+        if (q) entry = qp.overlayPushed(entry, q)
       }
       if (_sameEntry(prev, entry)) continue          // keep `prev` (already in `merged`)
       merged[sym] = entry
@@ -274,7 +279,7 @@ export function registerTickers(tickers) {
     _refcounts.set(t, (_refcounts.get(t) || 0) + 1)
   }
   if (_refcounts.size > 0) _startTimer()
-  quotePush.setTickers('rest', _union())
+  _pushTickers()
   if (grew) _poll() // new ticker(s) — populate fast instead of waiting a full interval
   return function unregister() {
     for (const t of tickers) {
@@ -282,7 +287,7 @@ export function registerTickers(tickers) {
       if (c <= 0) _refcounts.delete(t)
       else _refcounts.set(t, c)
     }
-    quotePush.setTickers('rest', _union())
+    _pushTickers()
     if (_refcounts.size === 0) {
       _stopTimer()
       _prices = {}
@@ -295,12 +300,13 @@ export function registerTickers(tickers) {
 // A batch arrives on an animation frame (quotePush batches per frame): each row that already has its REST
 // entry (prev close, session) takes the pushed price, and one emit repaints every changed row.
 function _applyPushed(batch) {
-  if (!quotePush.isHealthy()) return
+  const qp = getQuotePush()
+  if (!qp || !qp.isHealthy()) return
   let merged = null
   for (const sym in batch) {
     const cur = (merged || _prices)[sym]
     if (!cur) continue                                // no REST entry yet: the first poll brings it
-    const next = quotePush.overlayPushed(cur, batch[sym])
+    const next = qp.overlayPushed(cur, batch[sym])
     if (next === cur) continue
     if (!merged) merged = { ..._prices }
     merged[sym] = next
@@ -311,13 +317,28 @@ function _applyPushed(batch) {
   // which runs after the frame paints (one more frame, ~16 ms). flushSync renders the changed rows now.
   try { flushSync(_emit) } catch { _emit() }
 }
-quotePush.onQuotes(_applyPushed)
-quotePush.onHealth((healthy) => {
+function _onPushHealth(healthy) {
   if (healthy || _refcounts.size === 0) return
   _stopTimer()
   _poll()
   _startTimer()
-})
+}
+
+// Wired when lib/quotePush has loaded (only with the client flag on): never at this module's load.
+let _pushWired = false
+function _wirePush(qp) {
+  if (!_pushWired) {
+    _pushWired = true
+    qp.onQuotes(_applyPushed)
+    qp.onHealth(_onPushHealth)
+  }
+  qp.setTickers('rest', _union())
+}
+function _pushTickers() {
+  const qp = getQuotePush()
+  if (qp) _wirePush(qp)
+  else whenQuotePush(_wirePush)
+}
 
 export function subscribe(listener) {
   _listeners.add(listener)
