@@ -14,6 +14,15 @@ web is also held every weekday inside `BURST_WINDOWS_ET` (09:20-09:45 and 15:30-
 ET, half-open), the busiest minutes of the session. Catch-up: the workflow's weekday
 scheduled runs after each rush promote the tip of master.
 
+THE NYSE CALENDAR (2026-11-26, Thanksgiving). The session/rush hold follows the real
+session, read from `api/services/session_calendar.py` (the repo's one calendar, loaded
+BY PATH like the measurement window): none on a holiday (no session to protect), and on
+a half-day it runs from the opening rush to close + 15 min (closing rush 12:30-13:15 ET
+for a 13:00 close). Regular days are unchanged. A calendar that cannot be read, or a date
+past its horizon, holds by the WEEKDAY rule with a warning, never "no hold" (see
+`day_hold_windows`). The Wednesday measurement window (`in_window`) is NOT calendar-aware:
+it is defined by weekday alone and is unchanged here.
+
 WHAT IT DOES. Prints a verdict and exits:
 
     0  NOT FROZEN  promote as usual
@@ -31,7 +40,9 @@ printed, never silent. A promotion that ships inside the window voids that week'
 measurement; the result record will say "2 pod identities".
 
 ⛔ FAILS OPEN. Any error reading the clock or the window answers NOT FROZEN with a
-warning: a broken freeze must never become a stuck production branch.
+warning: a broken freeze must never become a stuck production branch. ⚠️ ONE EXCEPTION,
+deliberate: a broken NYSE calendar falls back to the weekday hold, not to "no hold"
+(`day_hold_windows` explains why).
 
 ⛔ ONE DEFINITION OF THE WINDOW. `in_window` is read from
 `api/services/measurement_window.py`, loaded BY PATH (its top level is stdlib-only)
@@ -82,14 +93,110 @@ def _window_module():
     return mod
 
 
+#: The regular close the constant windows are written around: the closing rush runs from 30 min before it to 15 min
+#: after it. A half-day's closing rush keeps those offsets around ITS close (13:00 => 12:30-13:15 ET).
+REGULAR_CLOSE_ET = (16, 0)
+
+_CAL_CACHE: list = []
+_WARNED: set[str] = set()
+_SELF_CHECKING = False
+
+
+def _calendar_module():
+    """`api/services/session_calendar.py`, loaded BY PATH (stdlib-only top level; no `api.*` import in CI).
+
+    It parses its JSON dataset at import, so a missing or invalid dataset raises HERE. Cached per process."""
+    if _CAL_CACHE:
+        return _CAL_CACHE[0]
+    path = _ROOT / "api" / "services" / "session_calendar.py"
+    name = "_session_calendar_for_freeze"
+    spec = importlib.util.spec_from_file_location(name, path)
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[name] = mod   # the dataclass machinery looks its module up by name
+    try:
+        spec.loader.exec_module(mod)
+    except BaseException:
+        sys.modules.pop(name, None)
+        raise
+    _CAL_CACHE.append(mod)
+    return mod
+
+
+def _warn(msg: str) -> None:
+    if msg in _WARNED:
+        return
+    _WARNED.add(msg)
+    # The self-check provokes these on purpose; it prints them plainly so a passing check raises no annotation.
+    prefix = "deploy-freeze warning (self-check, expected): " if _SELF_CHECKING else "::warning title=Deploy freeze calendar::"
+    print(f"{prefix}{msg}", flush=True)
+
+
+def _hm_add(hm: tuple[int, int], minutes: int) -> tuple[int, int]:
+    t = hm[0] * 60 + hm[1] + minutes
+    return (t // 60, t % 60)
+
+
+def _hm_diff(a: tuple[int, int], b: tuple[int, int]) -> int:
+    return (a[0] * 60 + a[1]) - (b[0] * 60 + b[1])
+
+
+def _windows_for_close(close_hm: tuple[int, int]) -> tuple:
+    """The opening rush, the session and the closing rush for a day that closes at `close_hm` (ET).
+
+    Derived from the constants, so a 16:00 close gives back exactly HOLD_WINDOWS_ET."""
+    opening, session, closing = HOLD_WINDOWS_ET
+    c_start = _hm_add(close_hm, _hm_diff(closing[1], REGULAR_CLOSE_ET))
+    c_end = _hm_add(close_hm, _hm_diff(closing[2], REGULAR_CLOSE_ET))
+    out = [opening]
+    if session[1] < c_start:
+        out.append((session[0], session[1], c_start))
+    out.append((closing[0], max(c_start, opening[2]), c_end))
+    return tuple(out)
+
+
+def day_hold_windows(day: _dt.date) -> tuple:
+    """The session/rush hold windows for ET date `day`: ((name, start, end), ...), ET wall clock, half-open.
+
+    * a weekend: none.
+    * not an NYSE trading day (a holiday): none. There is no session to protect.
+    * a half-day: the opening rush to close + 15 min (closing rush = close - 30 min .. close + 15 min).
+    * a regular day: HOLD_WINDOWS_ET, unchanged.
+
+    ⛔ FAILS TO THE WEEKDAY RULE, NOT OPEN. If the calendar cannot be loaded, raises, or `day` is past its horizon,
+    the answer is HOLD_WINDOWS_ET (the behaviour before the calendar was read) with a printed warning. This is the
+    OPPOSITE of `decide`'s fail-open on a broken clock or window reader, on purpose: that fail-open trades one held
+    deploy for an unstuck production branch, while "no hold" here would ship web/bars-api restarts into a live
+    session on every weekday the calendar is broken. The weekday rule over-holds only on a holiday or a half-day
+    afternoon, and the catch-up crons still promote after 16:15 ET, so the cost of a broken calendar is a delay,
+    never a member-facing restart mid-session."""
+    if day.weekday() >= 5:
+        return ()
+    try:
+        cal = _calendar_module()
+        if not cal.covers(day):
+            _warn(f"{day} is outside the NYSE calendar's coverage (horizon {cal.horizon()}); holding by the weekday "
+                  f"rule (09:20-16:15 ET). Extend app/src/lib/marketClock/market_calendar.json.")
+            return HOLD_WINDOWS_ET
+        if not cal.is_trading_day(day):
+            return ()
+        close = cal.close_time(day)
+        close_hm = (close.hour, close.minute)
+    except Exception as e:  # noqa: BLE001
+        _warn(f"the NYSE calendar could not be read ({type(e).__name__}: {e}); holding by the weekday rule "
+              f"(09:20-16:15 ET), never by 'no hold'.")
+        return HOLD_WINDOWS_ET
+    if close_hm == REGULAR_CLOSE_ET:
+        return HOLD_WINDOWS_ET
+    return _windows_for_close(close_hm)
+
+
 def burst_window(now: _dt.datetime) -> str | None:
-    """The weekday hold `now` falls in ("opening"/"session"/"closing"), or None."""
+    """The session hold `now` falls in ("opening"/"session"/"closing"), or None. Follows the NYSE calendar
+    (`day_hold_windows`): nothing on a weekend or a holiday, ends at close + 15 min on a half-day."""
     from zoneinfo import ZoneInfo
     et = now.astimezone(ZoneInfo("America/New_York"))
-    if et.weekday() >= 5:
-        return None
     hm = (et.hour, et.minute)
-    for name, start, end in HOLD_WINDOWS_ET:
+    for name, start, end in day_hold_windows(et.date()):
         if start <= hm < end:
             return name
     return None
@@ -124,11 +231,16 @@ def freeze_ends_at(now: _dt.datetime, *, in_window_fn=None, burst_fn=None) -> _d
         ends.append(mw.window_bounds(et.date())[1])
     rush = (burst_fn or burst_window)(now)
     if rush:
-        end = next(b for n, _a, b in HOLD_WINDOWS_ET if n == rush)
+        # The SAME day's windows `burst_window` judged by, so the wait ends where the hold does (13:15 ET on a
+        # half-day). A name the day does not hold (an injected burst_fn) falls back to the constant windows.
+        windows = day_hold_windows(et.date())
+        if not any(n == rush for n, _a, _b in windows):
+            windows = HOLD_WINDOWS_ET
+        end = next(b for n, _a, b in windows if n == rush)
         # Back-to-back windows are ONE hold: the opening rush ends where the session starts, and the session where
         # the closing rush starts, so the freeze ends where the last of a contiguous run ends (16:15 ET).
         while True:
-            nxt = next((b for _n, a, b in HOLD_WINDOWS_ET if a == end), None)
+            nxt = next((b for _n, a, b in windows if a == end), None)
             if nxt is None:
                 break
             end = nxt
@@ -171,13 +283,18 @@ def decide(now: _dt.datetime, *, override: str = "", message: str = "",
                            f"({type(e).__name__}: {e})")
     if not inside and not rush:
         return EXIT_OPEN, ("NOT FROZEN: outside Wednesday 09:00-11:00 ET and outside the "
-                           "weekday session hold (09:20-16:15 ET)")
+                           "session hold (09:20-16:15 ET on a regular NYSE day, to close + 15 min on a "
+                           "half-day, none on a holiday)")
     if inside:
         what = "the Wednesday 09:00-11:00 ET measurement window (TERM-007)"
         cost = "This week's measurement window is void."
         after = "the held run, after its bounded in-job wait (backup: the scheduled runs after 11:00 ET),"
     else:
-        start, end = next((a, b) for n, a, b in HOLD_WINDOWS_ET if n == rush)
+        from zoneinfo import ZoneInfo
+        windows = day_hold_windows(now.astimezone(ZoneInfo("America/New_York")).date())
+        if not any(n == rush for n, _a, _b in windows):
+            windows = HOLD_WINDOWS_ET
+        start, end = next((a, b) for n, a, b in windows if n == rush)
         label = "regular session" if rush == "session" else f"{rush} rush"
         what = (f"the weekday {label} ({start[0]:02d}:{start[1]:02d}-"
                 f"{end[0]:02d}:{end[1]:02d} ET)")
@@ -202,6 +319,15 @@ def _write_output(frozen: bool) -> None:
 
 
 def self_check() -> int:
+    global _SELF_CHECKING
+    _SELF_CHECKING = True
+    try:
+        return _self_check()
+    finally:
+        _SELF_CHECKING = False
+
+
+def _self_check() -> int:
     bad = 0
 
     def case(name, ok):
@@ -279,6 +405,33 @@ def self_check() -> int:
         return False
     case("a window end that cannot be read fails OPEN (no wait)",
          wait_plan(held_1031, in_window_fn=reader_breaks_on_second_read)[0] == 0)
+    # the NYSE calendar (2026-11-26): no hold on a holiday, close + 15 on a half-day, the weekday rule when unsure
+    def et_at(y, mo, d, hh, mm):
+        from zoneinfo import ZoneInfo
+        return _dt.datetime(y, mo, d, hh, mm, tzinfo=ZoneInfo("America/New_York")).astimezone(utc)
+    case("Thanksgiving 2026-11-26 13:00 ET is not frozen (market closed)", decide(et_at(2026, 11, 26, 13, 0))[0] == EXIT_OPEN)
+    case("half-day 2026-11-27 12:50 ET is FROZEN (the closing rush)", burst_window(et_at(2026, 11, 27, 12, 50)) == "closing")
+    case("half-day 2026-11-27 13:20 ET is not frozen", decide(et_at(2026, 11, 27, 13, 20))[0] == EXIT_OPEN)
+    case("half-day 13:15 ET exactly is not frozen (half-open end)", decide(et_at(2026, 11, 27, 13, 15))[0] == EXIT_OPEN)
+    case("half-day freeze_ends_at from 12:50 ET is 13:15 ET",
+         freeze_ends_at(et_at(2026, 11, 27, 12, 50)) == et_at(2026, 11, 27, 13, 15))
+    case("half-day 12:50 ET waits 25 min + margin", wait_plan(et_at(2026, 11, 27, 12, 50))[0] == 25 * 60 + WAIT_MARGIN_S)
+    case("a regular Thursday 2026-12-03 13:00 ET is FROZEN (the session)",
+         burst_window(et_at(2026, 12, 3, 13, 0)) == "session")
+    case("a regular day's windows are exactly HOLD_WINDOWS_ET", day_hold_windows(_dt.date(2026, 12, 3)) == HOLD_WINDOWS_ET)
+    case("a date past the calendar horizon holds by the weekday rule",
+         burst_window(et_at(2029, 11, 22, 13, 0)) == "session")
+    global _calendar_module
+    real_loader = _calendar_module
+
+    def broken_loader():
+        raise RuntimeError("self-check: calendar unreadable")
+    _calendar_module = broken_loader
+    try:
+        case("a calendar that cannot load holds a holiday by the weekday rule (never 'no hold')",
+             decide(et_at(2026, 11, 26, 13, 0))[0] == EXIT_FROZEN)
+    finally:
+        _calendar_module = real_loader
     case("every wait is within the bound", all(
         0 <= wait_plan(_dt.datetime(2026, 10, 15, 13, 0, tzinfo=utc) + _dt.timedelta(minutes=m))[0] <= MAX_WAIT_MIN * 60
         for m in range(0, 12 * 60, 1)))
