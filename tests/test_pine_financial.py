@@ -82,14 +82,18 @@ def test_a_cold_symbol_answers_pending_and_queues_one_refresh_never_a_store_read
     assert c["state"] == "ready" and store["n"] == 1
 
 
-def test_known_from_is_the_filing_public_instant_never_the_period_end(store):
+def test_known_from_is_the_fiscal_period_end_session_and_published_from_the_filings(store):
+    """⭐ e99 PLACEMENT (coordinator ruling 2026-11-26): the Pine supply places a value at its fiscal period end, as
+    TradingView does; the filing's own session stays on the point as `publishedFrom` (and its instant as `publicAt`)."""
     f = pf.refresh("AAPL")["fields"]["TOTAL_REVENUE:FQ"]
     assert f["state"] == "ok" and f["series"] == "revenue_q" and f["unit"] == "usd"
     p0, p1 = f["points"]
     assert p0["periodEnd"] == "2024-06-29"
-    assert p0["knownFrom"] == "2024-08-02", "a filing public after the close is known from the NEXT session"
-    assert p1["knownFrom"] == "2024-11-01", "a filing public before the close is known that session"
-    assert f["knownFrom"] == "2024-08-02"
+    # the quarter ended Saturday 2024-06-29: the last session on or before the month end (Sunday 06-30) is Friday 06-28
+    assert p0["knownFrom"] == "2024-06-28" and p1["knownFrom"] == "2024-09-30"
+    assert f["knownFrom"] == "2024-06-28"
+    assert p0["publishedFrom"] == "2024-08-02", "a filing public after the close was published to the NEXT session"
+    assert p1["publishedFrom"] == "2024-11-01", "a filing public before the close was published that session"
     assert p0["publicAt"] == et(2024, 8, 1, 16, 30)
 
 
@@ -112,7 +116,7 @@ def test_stale_from_is_the_store_cap_and_a_gap_is_unknown_never_carried(store):
         *REV_Q,
         [et(2025, 2, 1, 6, 0), None, "2024-12-28", "gap"]]
     f = pf.refresh("AAPL")["fields"]["TOTAL_REVENUE:FQ"]
-    assert f["knownFrom"] == "2024-08-02", "the field is known from its first VALUE, not a leading gap"
+    assert f["knownFrom"] == "2024-06-28", "the field is known from its first VALUE, not a leading gap"
     assert [p["method"] for p in f["points"]] == ["direct", "derived", "gap"]
     gap = f["points"][-1]
     assert gap["v"] is None and gap["staleFrom"] is None
@@ -123,7 +127,7 @@ def test_stale_from_is_the_store_cap_and_a_gap_is_unknown_never_carried(store):
 def test_the_v5_period_end_shape_reads_too(store):
     store["state"]["metrics"]["revenue_ttm"] = [[et(2024, 8, 1, 10, 0), 3.85e11, 20240629, "derived"]]
     f = pf.refresh("AAPL")["fields"]["TOTAL_REVENUE:TTM"]
-    assert f["points"][0]["periodEnd"] == "2024-06-29" and f["knownFrom"] == "2024-08-01"
+    assert f["points"][0]["periodEnd"] == "2024-06-29" and f["knownFrom"] == "2024-06-28"
 
 
 def test_a_figure_the_filings_do_not_yield_is_missing_by_name(store):
@@ -186,7 +190,7 @@ def test_the_live_catalog_passes_financial_and_says_uct_data():
     assert pf._refusal() is None
     said = pf._disclosure()
     assert said.startswith("Financial figures are UCT data from company filings") and said.endswith("not TradingView's.")
-    assert "dated when its filing became public" in said
+    assert "placed at the fiscal period end, as TradingView does" in said and said.count(pf.placement()) == 1
 
 
 def test_the_map_is_the_catalogs_twelve_pairs_each_a_stored_series_or_a_fiscal_year_view_of_one():
@@ -231,7 +235,7 @@ def test_the_real_store_read_through_serving(tmp_path, monkeypatch):
     finally:
         serving.clear_cache()
     assert doc["familyState"] == "ok" and doc["company"]["cik"] == 320193
-    assert doc["fields"]["TOTAL_REVENUE:FQ"]["knownFrom"] == "2024-08-02"
+    assert doc["fields"]["TOTAL_REVENUE:FQ"]["knownFrom"] == "2024-06-28"
     assert doc["source"]["serving"] == "v4"
 
 
@@ -296,7 +300,7 @@ def test_dark_by_default_a_member_gets_404_an_admin_gets_the_answer(store):
     pf.refresh("AAPL")
     assert _client(MEMBER).get("/api/pine/financial/AAPL").status_code == 404
     r = _client(ADMIN).get("/api/pine/financial/AAPL")
-    assert r.status_code == 200 and r.json()["fields"]["TOTAL_REVENUE:FQ"]["knownFrom"] == "2024-08-02"
+    assert r.status_code == 200 and r.json()["fields"]["TOTAL_REVENUE:FQ"]["knownFrom"] == "2024-06-28"
 
 
 def test_at_all_every_paid_member_and_at_off_nobody(store, monkeypatch):

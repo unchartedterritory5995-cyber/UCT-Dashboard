@@ -34,6 +34,15 @@ on a bounded background pool. A copy older than `TTL_S` is served and kicks a re
 the previous copy, marked `unavailable` with `staleSince`, never an empty answer in its place. The store read
 itself (`fundamentals_pit.serving`, the published artifact) runs on the pool only.
 
+⭐ e99 PLACEMENT (coordinator ruling 2026-11-26: for the PINE path, match TradingView): the route places each fiscal
+period's NEWEST KNOWN value on the period's own session (`placement_day`: the last session on or before the calendar
+month end nearest the fiscal period end; measured on TradingView's own AAPL / NVDA 1D steps, FQ and FY), NOT on the
+session its filing became public. So `knownFrom` above is now that placement day (`publishedFrom` keeps the filing's
+session, `publicAt` its instant), one point per fiscal period, and a share count (a 10-Q / 10-K cover-page count, dated
+weeks after its quarter) is placed at the fiscal period it follows. Stated once: `PINE_PLACEMENT`, `place_rows`,
+`placement_day`; the words are the catalog's `financial.placement`. Only this Pine supply moves: the store, its
+published series and UCT's own features (screeners, fundamentals pages) keep point-in-time filing dates.
+
 LICENCE: the family is read and served only when `pine_data_catalog.family_refusal("financial")` passes it (SEC
 EDGAR, class A, licensing register T-83). A refused family answers its guard and sentence; no store read is made.
 
@@ -202,6 +211,74 @@ def fy_view_rows(metrics: dict, series: str) -> list:
     return out
 
 
+# ── e99 PLACEMENT: THE PINE SUPPLY PLACES EACH VALUE AT ITS FISCAL PERIOD END, AS TRADINGVIEW DOES ─────────────────
+#: The ONE switch of where the Pine supply places a value (coordinator ruling 2026-11-26). Read by `points_of` only.
+PINE_PLACEMENT = "fiscal_period_end"
+
+
+def placement(catalog: Optional[dict] = None) -> str:
+    """The member's words for the placement: the catalog's `financial.placement` (one authority with the chart note)."""
+    from api.services import pine_data_catalog as cat
+    return str(cat.families(catalog)[FAMILY].get("placement") or "")
+
+
+def placement_day(period_end: str) -> Optional[str]:
+    """The session (ISO) a fiscal period's value is placed on: the last exchange session on or before the calendar month
+    end NEAREST the period end (a period ending in the first half of a month belongs to the month before: 52/53-week
+    years). MEASURED (TradingView's own steps, 2026-11-26): AAPL's fiscal year ended 2024-09-28 steps on 2024-09-30, its
+    2023-09-30 year on 2023-09-29; NVDA's 2025-01-26 year on 2025-01-31; every FQ and FY step of both, all equal."""
+    try:
+        pe = date.fromisoformat(str(period_end)[:10])
+    except ValueError:
+        return None
+    if pe.day <= 15:
+        me = pe.replace(day=1) - timedelta(days=1)
+    else:
+        nxt = (pe.replace(day=28) + timedelta(days=4)).replace(day=1)
+        me = nxt - timedelta(days=1)
+    d = me
+    for _ in range(_SESSION_SEARCH_DAYS):
+        if _session_close_utc(d) is not None:
+            return d.isoformat()
+        d -= timedelta(days=1)
+    return None
+
+
+def _fiscal_period_ends(metrics: dict) -> list:
+    """Every fiscal period end the company's published duration series name (ascending ISO): the quarters and years a
+    cover-page share count can follow."""
+    ends = set()
+    for name, rows in (metrics or {}).items():
+        if name.endswith("_q") or name.endswith("_ttm"):
+            for r in rows or []:
+                p = _row_parts(r)
+                if p:
+                    ends.add(p[2])
+    return sorted(ends)
+
+
+def place_rows(metrics: dict, series: str, rows: list) -> list:
+    """The Pine supply's rows for one field: ONE row per fiscal period, its NEWEST known value (a restatement replaces
+    it), ascending by period. A share count's period is the fiscal period it follows: the latest fiscal period end on or
+    before its cover date within `FY_COVER_DAYS` (none: the row cannot be placed and is dropped, never guessed). A
+    fiscal-year view's rows are already per fiscal year."""
+    base = fy_base(series) or series
+    parts = [p for p in (_row_parts(r) for r in rows or []) if p]
+    if base == "shares_outstanding" and not fy_base(series):
+        ends = _fiscal_period_ends(metrics)
+        moved = []
+        for t, v, pe, m, _r in parts:
+            d = date.fromisoformat(pe)
+            own = [e for e in ends if date.fromisoformat(e) <= d <= date.fromisoformat(e) + timedelta(days=FY_COVER_DAYS)]
+            if own:
+                moved.append((t, v, own[-1], m, None))
+        parts = moved
+    newest: dict = {}
+    for t, v, pe, m, _r in sorted(parts, key=lambda p: p[0]):
+        newest[pe] = [t, v, pe, m]
+    return [newest[pe] for pe in sorted(newest)]
+
+
 # ── point in time ───────────────────────────────────────────────────────────────────────────────────────────────
 def _session_close_utc(d: date) -> Optional[datetime]:
     """The regular close of session `d` in UTC (the exchange calendar's, 13:00 ET on a half-day), or None when `d`
@@ -261,17 +338,19 @@ def points_of(rows: list, series: Optional[str] = None) -> list[dict]:
         if _num(t_eff) is None:
             continue
         period_end = _period_end(pe)
-        kf = known_from(float(t_eff))
+        published = known_from(float(t_eff))
+        # ⭐ e99 PLACEMENT — the Pine supply's day is the fiscal period's own session, as TradingView places it
+        kf = placement_day(period_end) if (period_end and PINE_PLACEMENT == "fiscal_period_end") else published
         if period_end is None or kf is None:
             continue
         gap = method == "gap" or _num(v) is None
         # ⭐ e99 FY — a fiscal-year view ages by its own cap (`asof.MAX_FY_PERIOD_AGE`), never the quarterly one
         cap = asof.MAX_FY_PERIOD_AGE if fy_base(series) else asof.MAX_PERIOD_AGE
         stale = (date.fromisoformat(period_end) + cap + timedelta(days=1)).isoformat()
-        out.append({"publicAt": int(float(t_eff)), "knownFrom": kf, "v": None if gap else _num(v),
+        out.append({"publicAt": int(float(t_eff)), "knownFrom": kf, "publishedFrom": published, "v": None if gap else _num(v),
                     "periodEnd": period_end, "method": "gap" if gap else str(method),
                     "staleFrom": None if gap else stale})
-    out.sort(key=lambda p: p["publicAt"])
+    out.sort(key=lambda p: (p["knownFrom"], p["publicAt"]))
     return out
 
 
@@ -315,6 +394,8 @@ def build_fields(store: dict, catalog: Optional[dict] = None) -> dict:
             continue
         # ⭐ e99 FY — a fiscal-year VIEW is read from the stored series it names (`fy_view_rows`), with its limitation
         rows = fy_view_rows(metrics, spec["series"]) if fy_base(spec["series"]) else (metrics.get(spec["series"]) or [])
+        # ⭐ e99 PLACEMENT — one row per fiscal period (its newest value), placed at the period end (`place_rows`)
+        rows = place_rows(metrics, spec["series"], rows)
         pts = points_of(rows, spec["series"])
         first = next((p for p in pts if p["v"] is not None), None)
         if first is None:

@@ -1575,7 +1575,7 @@ export function financialDecision(ticker, ctx = {}) {
   const notComputed = `so what this indicator draws from ${label} is not computed`
   if (!tfCode) {
     return { code: R.FINANCIAL_TIMEFRAME, reason: `${label} on a \`${String(ctx.tf == null ? '?' : ctx.tf).trim().toUpperCase() || '?'}\` `
-      + 'chart: UCT dates each figure by the session its company filing became public in, so it is served on daily, weekly '
+      + 'chart: UCT places each figure on the session of its fiscal period end, so it is served on daily, weekly '
       + `and monthly charts; ${notComputed}` }
   }
   const secondary = ctx.secondary && typeof ctx.secondary.get === 'function' ? ctx.secondary : null
