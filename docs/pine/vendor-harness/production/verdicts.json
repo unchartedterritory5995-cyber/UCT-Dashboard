@@ -332,10 +332,6 @@
  ],
  "sourceHeldStore": [
   {
-   "id": "STD;Bollinger%1Bars",
-   "sha256": "aa9fbace8e1573174be41bec7b770ad11ee617b3f4085a8703e358fc4d26f49d"
-  },
-  {
    "id": "STD;VWAP",
    "sha256": "670d21c04b7d81b5ec5dfd0d614386628b8e020a1f2e12514a9ae83b77bb1541"
   }
