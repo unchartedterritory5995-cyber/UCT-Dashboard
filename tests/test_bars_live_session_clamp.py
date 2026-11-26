@@ -132,20 +132,70 @@ def test_the_purge_deletes_the_rows_outside_the_session_and_bumps_history_once(s
     sq.put_bars("SPY", "5", [_bar(t) for t in keep5 + drop5])
     sq.put_bars("BTC-USD", "60", [_bar(t) for t in drop60])
     before = {tf: sq.series_meta("SPY", tf)["history_rev"] for tf in ("60", "5")}
-    assert sq.purge_off_session_intraday("SPY") == 3
+    assert sq.purge_off_session_intraday("SPY") == {"5": 2, "60": 1}
     assert [int(r[0]) for r in sq.get_bars_since("SPY", "60", 0)] == keep60
     assert [int(r[0]) for r in sq.get_bars_since("SPY", "5", 0)] == keep5
     after = {tf: sq.series_meta("SPY", tf)["history_rev"] for tf in ("60", "5")}
     assert all(after[tf] != before[tf] for tf in after), (before, after)
-    assert sq.purge_off_session_intraday("SPY") == 0, "idempotent"
+    assert sq.purge_off_session_intraday("SPY") == {}, "idempotent"
     assert {tf: sq.series_meta("SPY", tf)["history_rev"] for tf in ("60", "5")} == after, "bumped once"
-    assert sq.purge_off_session_intraday("BTC-USD") == 0
+    assert sq.purge_off_session_intraday("BTC-USD") == {}
     assert [int(r[0]) for r in sq.get_bars_since("BTC-USD", "60", 0)] == drop60
 
 
-def test_the_purge_runs_in_the_boot_pass_and_marks_itself_clean(store):
+def test_the_pass_counts_by_default_and_deletes_only_in_apply_mode(store, caplog, monkeypatch):
     sq = store
+    monkeypatch.delenv("BARS_OFF_SESSION_PURGE", raising=False)
     sq.put_bars("SPY", "60", [_bar(_s(2026, 11, 11, 20, 0)), _bar(_s(2026, 11, 11, 19, 0))])
-    sq.purge_mis_keyed_weekly_rows()
+    sq.put_bars("QQQ", "5", [_bar(_s(2026, 11, 14, 10, 0)), _bar(_s(2026, 11, 11, 10, 0))])
+    import logging
+    with caplog.at_level(logging.WARNING):
+        got = sq.purge_off_session_pass()
+    assert (got["mode"], got["rows"], got["series"], got["complete"]) == ("count", 2, 2, True)
+    assert "2 row(s) in 2 series" in caplog.text, "the first boot states the history_rev blast radius"
+    assert len(sq.get_bars_since("SPY", "60", 0)) == 2, "count mode deletes nothing"
+    assert not sq._marker_set(sq._conn(), sq.OFF_SESSION_CLEAN_MARKER)
+    got = sq.purge_off_session_pass(mode="apply")
+    assert (got["rows"], got["series"], got["complete"]) == (2, 2, True)
     assert [int(r[0]) for r in sq.get_bars_since("SPY", "60", 0)] == [_s(2026, 11, 11, 19, 0)]
     assert sq._marker_set(sq._conn(), sq.OFF_SESSION_CLEAN_MARKER)
+
+
+def test_the_pass_is_resumable_within_a_budget(store, monkeypatch):
+    sq = store
+    for sym in ("AAA", "BBB", "CCC"):
+        sq.put_bars(sym, "60", [_bar(_s(2026, 11, 11, 20, 0)), _bar(_s(2026, 11, 11, 19, 0))])
+    clock = {"t": 0.0}
+
+    def _mono():
+        clock["t"] += 1.0                  # every read of the clock costs a second of budget
+        return clock["t"]
+    import types, time as _time
+    monkeypatch.setattr(sq, "time", types.SimpleNamespace(monotonic=_mono, time=_time.time, sleep=_time.sleep))
+    first = sq.purge_off_session_pass(budget_s=2.5, mode="apply")
+    assert not first["complete"] and 0 < first["tickers"] < 3
+    assert not sq._marker_set(sq._conn(), sq.OFF_SESSION_CLEAN_MARKER)
+    rest = sq.purge_off_session_pass(budget_s=None, mode="apply")
+    assert rest["complete"] and first["tickers"] + rest["tickers"] == 3, (first, rest)
+    for sym in ("AAA", "BBB", "CCC"):
+        assert [int(r[0]) for r in sq.get_bars_since(sym, "60", 0)] == [_s(2026, 11, 11, 19, 0)], sym
+    assert sq._marker_set(sq._conn(), sq.OFF_SESSION_CLEAN_MARKER)
+
+
+def test_a_missing_hours_table_is_rebuilt_never_an_empty_silent_pass(store):
+    sq = store
+    sq.put_bars("SPY", "60", [_bar(_s(2026, 11, 11, 20, 0))])
+    c = sq._conn()
+    sq._off_session_hours_table(c)
+    c.execute("DROP TABLE temp.off_session_hours")          # a fresh connection / a temp table gone
+    assert sq.purge_off_session_intraday("SPY", c) == {"60": 1}
+
+
+def test_the_worker_starts_the_uploader_before_the_off_session_pass():
+    import inspect
+    from api import worker_main
+    src = inspect.getsource(worker_main)
+    up = src.index("        _start_uploader()" + chr(10))
+    assert 0 < up < src.index("purge_off_session_pass", up), "the R2 uploader must never wait for the scan"
+    weekly = inspect.getsource(__import__("api.services.bars_sqlite", fromlist=["x"]).purge_mis_keyed_weekly_rows)
+    assert "purge_off_session" not in weekly, "the synchronous weekly purge (which the uploader waits for) never runs it"
