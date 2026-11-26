@@ -8549,11 +8549,21 @@ export const PINE_TRANSLATE_MAX_STEPS = 5000000
  *  colleague's machine, and neither run would say why. A bound stated in the
  *  engine makes the answer a property of the script again.
  *
- *  ⭐ 20x THE MEASURED MAXIMUM, the same convention as the clock and the step cap.
- *  Deepest legitimate resolution across the 51 published scripts in both corpora
- *  is 20 (`07-rsi`); every other script sits at 8-10. So 400 is far above any real
- *  script and far below where the host stack actually breaks. */
-export const PINE_TRANSLATE_MAX_DEPTH = 400
+ *  ⛔⛔ (e100, coordinator ruling 2026-11-26) 400 WAS NOT "FAR BELOW WHERE THE HOST STACK BREAKS". Measured on
+ *  Node 20 (the CI image) over the committed corpus, three lane shapes each (`translateDepth.measure.test.js`):
+ *  five scripts overflowed the host stack BEFORE level 400, at 218-382 levels (momentum-based-zigzag the
+ *  shallowest), on 8 of their 15 (script, lane) pairs. The overflow was converted into this same refusal, so no
+ *  result moved, but WHERE it tripped, and so the call's steps, depended on the JIT's frame sizes: cold and warm
+ *  runs of one script disagreed.
+ *  ⭐ 100: the deepest resolution any committed script COMPLETES is 43 (screener-mean-reversion-channel; then 42,
+ *  32, 29, and the rest under 25); every deeper descent belongs to a resolver that trips anyway (cc-yata,
+ *  ict-killzone, momentum-based-zigzag, parabolic-sar, smoothed-gaussian, which re-expand without end). 100 is
+ *  2.3x the first and half the shallowest overflow measured, and with it: 0 of 798 (script, lane) translations
+ *  move (whole-result digest against 400, the depth number normalised), 0 host-stack overflows, and the trippers
+ *  refuse 1.1-4x sooner. (64 moved two refused scripts' results: a doomed descent between 65 and 100 still has
+ *  side effects.) `lastTranslateWindow().stackTrips` counts any overflow that still reaches the conversion below;
+ *  `translateDepthCap.test.js` rails it at zero, cold, warm and with 40% of the stack already used. */
+export const PINE_TRANSLATE_MAX_DEPTH = 100
 
 /** The depth bound's refusal — ONE sentence whether the 400th level or the host
  *  stack got there first, so which one did cannot change what the member reads. */
@@ -8564,7 +8574,7 @@ function depthRefusalOf(name, maxDepth, sourcePath, tok) {
     + 'That is a translator defect, not a limit on the script: this door expands a '
     + 'variable by re-reading its definition, and a definition that reaches its own '
     + 'previous bar can be re-entered without end. The deepest legitimate script '
-    + 'measured needs 20 levels.',
+    + 'measured needs 43 levels.',
     locate(tok))
 }
 
