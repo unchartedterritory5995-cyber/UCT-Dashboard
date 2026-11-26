@@ -1975,6 +1975,22 @@ def _stochastic_open(understood: Mapping[str, Any], words: str, numbers: Any) ->
     return bool(_STOCHASTIC_WORD.search(words)) and not named and not understood.get("withheld")
 
 
+#: ⭐ 2026-11-25 -- A CHOICE THE MEMBER ASKS TO PICK IS A SETTING, NOT A QUESTION. "Plot a moving average where
+#: I can pick the type from a list (SMA, EMA, WMA, HMA) and the length" was asked "How many bars should the average
+#: use?" with no model call, so the dropdown and the length setting it asked for were never built (Deepvue's agent
+#: built both). The words that hand a choice to the member: a verb of choosing within one clause of the thing
+#: chosen, or a setting's own names (a dropdown, a list, an input).
+_PICK = r"(?:let\s+me|i\s+can|i\s+could|i\s+want\s+to|so\s+i\s+can|user\s+can|able\s+to)\s+(?:pick|choose|select|change|set|adjust|switch|tweak|edit|toggle)"
+_PICK_LENGTH = re.compile(
+    _PICK + r"\b[^.;!?]{0,90}?\b(?:length|lengths|period|periods|lookback|bars|days)\b"
+    r"|\b(?:length|period|lookback)\s+(?:as\s+an?\s+)?(?:input|setting|parameter|option)s?\b"
+    r"|\b(?:adjustable|configurable|editable|customi[sz]able|selectable|changeable)\s+(?:length|period|lookback)s?\b", re.I)
+_PICK_KIND = re.compile(
+    _PICK + r"\b[^.;!?]{0,90}?\b(?:type|types|kind|kinds|style|method)\b"
+    r"|\b(?:drop-?\s?down|from\s+a\s+list|a\s+list\s+of|selectable|switchable)\b"
+    r"|\b(?:type|kind|method)\s+(?:as\s+an?\s+)?(?:input|setting|parameter|option)s?\b", re.I)
+
+
 def open_questions(understood: Mapping[str, Any]) -> List[str]:
     """The registry questions this request leaves OPEN, in the order they are asked.
 
@@ -1990,11 +2006,13 @@ def open_questions(understood: Mapping[str, Any]) -> List[str]:
     numbers = (understood.get("notes") or {}).get("member_numbers") or []
     words = str(understood.get("request_text") or "")
     found = set()
-    if bare and not kinds and not library:
+    # (a choice the member asks to PICK is theirs to make in the settings: never a question, `_PICK_*`)
+    if bare and not kinds and not library and not _PICK_KIND.search(words):
         found.add("average_kind")
     # (ONE average: "a ribbon of EMAs" or "moving averages" wants several lengths, which this
     # question's choices cannot give; that request is the assistant's to ask about)
-    if (bare or kinds) and not numbers and not library and not _SEVERAL_AVERAGES.search(words):
+    if ((bare or kinds) and not numbers and not library and not _SEVERAL_AVERAGES.search(words)
+            and not _PICK_LENGTH.search(words)):
         found.add("average_length")
     if _CROSS_WORD.search(words) and _PRICE_WORD.search(words) and not _CROSS_SETTLED.search(words):
         found.add("cross_meaning")
@@ -5080,6 +5098,8 @@ def _chart_lexicon(base: Mapping[str, Any]) -> Dict[str, Any]:
         names_only.add(stems)
     return {"index": index, "max_words": max((len(k) for k in index), default=1),
             "names_only": frozenset(names_only), "names_only_section": WITHHELD_SECTION,
+            # a Screener column is noted only when a request names it WHOLE (`definition_concierge.plan`)
+            "column_notes_whole_only": True,
             "description_words": frozenset(stem for word in DESCRIPTION_WORDS
                                            for stem in dc._stem_key(dc._form_tokens(word))[0]),
             "collisions": {k: v for k, v in (base.get("collisions") or {}).items() if k in index
