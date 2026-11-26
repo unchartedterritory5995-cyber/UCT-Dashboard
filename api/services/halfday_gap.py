@@ -53,32 +53,49 @@ def gap_window(d: date) -> Optional[tuple[int, int]]:
     return (int(lo.timestamp()), int(hi.timestamp())) if lo < hi else None
 
 
-def fetch_trades(sym: str, lo: int, hi: int, take: Callable[[], None]) -> list[dict]:
-    """The vendor's trades of `sym` in [lo, hi) unix seconds, every page (`take()` before each one: the caller's share
-    of the vendor budget). Raises on a provider failure (an error must never read as "no trades")."""
+def trade_pages(sym: str, lo: int, hi: int, take: Callable[[], None]):
+    """The vendor's trades of `sym` in [lo, hi) unix seconds, ONE PAGE AT A TIME (a generator of lists; `take()` before
+    each one: the caller's share of the vendor budget). Raises on a provider failure (an error must never read as "no
+    trades"). ⛔ Pages are never collected: a busy name's afternoon is up to 20 x 50,000 trades, and bars-api is the
+    serving tier, where an out-of-memory is a member outage (review of #2798)."""
     from api.services.massive import _get_client, _REST_BASE, to_polygon_symbol
     client = _get_client()
     q = urllib.parse.urlencode({"timestamp.gte": int(lo) * 1_000_000_000, "timestamp.lt": int(hi) * 1_000_000_000,
                                 "order": "asc", "sort": "timestamp", "limit": 50000, "apiKey": client._api_key})
     url = f"{_REST_BASE}/v3/trades/{urllib.parse.quote(to_polygon_symbol(sym))}?{q}"
-    out: list[dict] = []
     for _ in range(TRADES_PAGE_CAP):
         take()
         data = client._get(url)
-        out.extend(data.get("results") or [])
+        page = data.get("results") or []
         nxt = data.get("next_url")
+        data = None
+        yield page
         if not nxt:
-            return out
+            return
         url = f"{nxt}{'&' if '?' in nxt else '?'}apiKey={client._api_key}"
     raise RuntimeError(f"{sym}: more than {TRADES_PAGE_CAP} trade pages")
 
 
-def fold_minutes(trades: list[dict]) -> list[dict]:
+def fold_minutes(trades) -> list[dict]:
+    """`fold_pages` over one list of trades."""
+    return fold_pages([trades])
+
+
+def fold_pages(pages) -> list[dict]:
     """One bar per minute that has a price-eligible trade, folded as the live fold folds a trade
     (`bar_broadcaster._fold_trade`): size where it updates volume, open/close from the first/last price that updates the
-    last, high/low from prices that update them. A minute whose prints set no price (all odd lots) makes no bar."""
+    last, high/low from prices that update them. A minute whose prints set no price (all odd lots) makes no bar.
+    `pages` is consumed page by page and only per-minute state is kept (at most 180 minutes), never the trades; a page
+    that raises propagates, so the caller writes nothing for that ticker."""
     from api.services.trade_conditions import classify3
     mins: dict[int, dict] = {}
+    for page in pages:
+        _fold_page(page, mins, classify3)
+        page = None
+    return _bars_of(mins)
+
+
+def _fold_page(trades, mins: dict, classify3) -> None:
     for t in trades:
         try:
             ts_ns = int(t.get("sip_timestamp") or t.get("participant_timestamp"))
@@ -98,6 +115,9 @@ def fold_minutes(trades: list[dict]) -> list[dict]:
         if hl_ok:
             st["h"] = p if st["h"] is None else max(st["h"], p)
             st["l"] = p if st["l"] is None else min(st["l"], p)
+
+
+def _bars_of(mins: dict) -> list[dict]:
     out = []
     for m in sorted(mins):
         st = mins[m]
@@ -128,7 +148,8 @@ def rebuild(sym: str, d: date, take: Callable[[], None], checked_at: Optional[fl
     lo, hi = win
     day_lo = int(datetime(d.year, d.month, d.day, tzinfo=_ET).timestamp())
     day_hi = day_lo + 86400
-    mins = [b for b in fold_minutes(fetch_trades(sym, lo, hi, take)) if lo <= b["t"] < hi]
+    # every page is folded before anything is written: a page that fails discards the whole ticker (nothing written)
+    mins = [b for b in fold_pages(trade_pages(sym, lo, hi, take)) if lo <= b["t"] < hi]
     written: dict[str, int] = {}
     if not mins:
         return {"minutes": 0, "written": written}
