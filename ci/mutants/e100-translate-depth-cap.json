@@ -35,7 +35,7 @@
    "from": "    CALL_STACK_TRIPS = outer.stackTrips + CALL_STACK_TRIPS\n",
    "to": "    CALL_STACK_TRIPS = outer.stackTrips\n",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/translateDepthCap.test.js",
-   "expectRed": "the overflow counter counts"
+   "expectRed": "reaches the outer call"
   }
  ]
 }

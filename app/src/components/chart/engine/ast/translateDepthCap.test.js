@@ -11,13 +11,14 @@
 //      gaussian) translates with ZERO host-stack overflows, cold, warm and with 40% of the stack already used, and
 //      all three take the same steps and give the same answer: the refusal is a function of the script;
 //   2. the deepest legitimate script resolves exactly as at a bound of 43, and NOT as at 42 (the measurement is real);
-//   3. the overflow counter counts: with the bound out of reach, cc-yata's overflow is counted (so rail 1's zero can fail).
+//   3. the overflow counter counts: with the bound out of reach, cc-yata's overflow is counted (so rail 1's zero can fail),
+//      and an overflow inside a nested window still reaches the outer call's count.
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { translatePine, lastTranslateWindow, PINE_TRANSLATE_MAX_DEPTH } from './pine.js'
+import { translatePine, lastTranslateWindow, beginTranslateBudget, endTranslateBudget, PINE_TRANSLATE_MAX_DEPTH } from './pine.js'
 import { probeObjectRuntime } from '../runtime/runtimeColumns.js'
 import { __resetHostKnownDivergence } from '../hostKnownDivergence.js'
 import { __resetHeldWithholds } from '../heldWithholds.js'
@@ -106,5 +107,12 @@ describe('the depth bound is reached before any host stack', () => {
     const r = translate(read('cc-yata__bd898a1af0'), { maxDepth: 1e9 })
     expect(r.stackTrips).toBeGreaterThan(0)
     expect(r.json).toMatch(/nested past 1000000000 levels/)
+  }, 120000)
+
+  it('3b. the overflow counter counts: an overflow in a nested window reaches the outer call', () => {
+    __resetHostKnownDivergence(); __resetHeldWithholds()
+    beginTranslateBudget(60000, 'outer.pine')
+    try { translatePine(read('cc-yata__bd898a1af0'), { ...DOOR, maxDepth: 1e9 }) } finally { endTranslateBudget() }
+    expect(lastTranslateWindow().stackTrips).toBeGreaterThan(0)
   }, 120000)
 })
