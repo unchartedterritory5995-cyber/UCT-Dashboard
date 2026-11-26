@@ -1348,19 +1348,22 @@ def runtime_wire_bars(bars: Sequence[Mapping[str, Any]], tf: str, now: float) ->
 def runtime_run_bars(bars: Sequence[Mapping[str, Any]], tf: str, now: float, sym: Any) -> tuple:
     """⭐⭐ (e100) ``(sent, k, start, from_listing)``: what ONE runtime run on ``bars`` is sent.
 
-    ``runtime_wire_bars`` gives the closed bars ``bars[:k + 1]``. When the first of them is the symbol's final
-    first-trade day (``listing_history.from_listing_for``: daily only, the chart's rule, a FINAL decision, cache
-    only) the run takes them ALL with ``historyFromListing`` true, as the member's chart does. Otherwise it takes
-    the most recent ``runtime_curtain(tf)`` of them with it false: the curtain, exactly the job this lane sent
-    before. ``start`` is the index in ``bars`` of the first bar sent, so a caller places the run's bar ``i`` at
-    ``bars[start + i]``. RAISES ``RuntimeBarsRefused`` as ``runtime_wire_bars`` does."""
-    wire, k = runtime_wire_bars(bars, tf, now)
+    When the first of ``bars`` is the symbol's final first-trade day (``listing_history.from_listing_for``: daily
+    only, the chart's rule, a FINAL decision, cache only) the run takes EVERY closed bar with ``historyFromListing``
+    true, as the member's chart does. Otherwise it is the curtain: the most recent ``runtime_curtain(tf)`` bars
+    (``bars[start:]``), their closed ones sent with it false, which is exactly the job this lane sent when it
+    fetched that many. ``runtime_wire_bars`` states the closed bars; ``k`` is the newest closed bar's index in
+    ``bars`` (``-1``: none) and ``start`` the index of the first bar sent, so a caller places the run's bar ``i``
+    at ``bars[start + i]``. RAISES ``RuntimeBarsRefused`` as ``runtime_wire_bars`` does, on the bars it reads."""
+    rows = list(bars or [])
+    if listing_history.from_listing_for(rows[:1], str(tf or ""), sym):
+        start, from_listing = 0, True
+    else:
+        start, from_listing = max(0, len(rows) - runtime_curtain(tf)), False
+    wire, k = runtime_wire_bars(rows[start:], tf, now)
     if k < 0 or not wire:
-        return wire, k, 0, False
-    if listing_history.from_listing_for(list(bars or [])[:1], str(tf or ""), sym):
-        return wire, k, 0, True
-    start = max(0, len(wire) - runtime_curtain(tf))
-    return wire[start:], k, start, False
+        return wire, -1, start, False
+    return wire, start + k, start, from_listing
 
 
 class RuntimeBatch:

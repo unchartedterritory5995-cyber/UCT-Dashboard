@@ -51,7 +51,7 @@
    "id": "A1",
    "mutant": "the alert ignores the listing: every daily run is the curtain",
    "file": "api/services/alert_user_series.py",
-   "from": "    if listing_history.from_listing_for(list(bars or [])[:1], str(tf or \"\"), sym):\n",
+   "from": "    if listing_history.from_listing_for(rows[:1], str(tf or \"\"), sym):\n",
    "to": "    if False:\n",
    "rail": "python -m pytest -q -p no:cacheprovider tests/test_alert_runtime_lane.py -k \"E100_a_daily_alert or E100_from_the_listing\"",
    "expectRed": "E100_a_daily_alert"
@@ -60,8 +60,8 @@
    "id": "A2",
    "mutant": "the curtain not applied: a daily run off the listing is sent every fetched bar (up to 32,768) as before's 5,000",
    "file": "api/services/alert_user_series.py",
-   "from": "    start = max(0, len(wire) - runtime_curtain(tf))\n",
-   "to": "    start = 0\n",
+   "from": "        start, from_listing = max(0, len(rows) - runtime_curtain(tf)), False\n",
+   "to": "        start, from_listing = 0, False\n",
    "rail": "python -m pytest -q -p no:cacheprovider tests/test_alert_runtime_lane.py -k E100_curtain_sends",
    "expectRed": "E100_curtain_sends"
   },
