@@ -41,9 +41,11 @@ const WL = {
   id: 'wl1', name: 'Momentum Plays', description: '',
   items: SYMS.map((sym, i) => ({ id: `i${i}`, sym, notes: '' })),
 }
+// more of the member's lists, per test (empty by default: every other test sees Momentum Plays alone)
+const EXTRA_LISTS = []
 vi.mock('swr', () => ({
   default: (key) => {
-    if (key === '/api/watchlists') return { data: [WL], mutate: () => {} }
+    if (key === '/api/watchlists') return { data: [WL, ...EXTRA_LISTS], mutate: () => {} }
     if (key === '/api/watchlists/public') return { data: [], mutate: () => {} }
     return { data: [], mutate: () => {} }
   },
@@ -194,6 +196,33 @@ test('a re-run for the same selection keeps the jump target urgent (it never abo
   } finally {
     WL.items = items0
     delete globalThis.__uctScanWarmTrace
+  }
+})
+
+// (review of #2768, LOW) A LIST SWITCH WITH THE SAME SYMBOL SELECTED IS NOT A RE-RUN: the old list's stride and
+// direction mean nothing in the new list's order, so the press is read afresh there (no jump: nothing moved).
+test('switching lists with the same symbol selected is not a re-run (the old stride is not carried over)', async () => {
+  const items0 = WL.items
+  // 7 rows: a stride of 3 is not half this list, so strideTarget's came-from guard cannot answer for this rail
+  EXTRA_LISTS.push({ id: 'wl2', name: 'Other', description: '',
+    items: ['FFF', 'KKK', 'LLL', 'MMM', 'NNN', 'OOO', 'PPP'].map((sym, i) => ({ id: `o${i}`, sym, notes: '' })) })
+  try {
+    hub.sym = 'CCC'
+    const { rerender } = render(<Watchlists embedded pickList="user:wl1" pickName="Momentum Plays" />)
+    await screen.findByText('CCC')
+    await waitFor(() => expect(calls.urgent.some(c => c.syms[0] === 'DDD')).toBe(true))
+    hub.sym = 'FFF'                                          // a jump of 3 rows down in Momentum Plays
+    rerender(<Watchlists embedded pickList="user:wl1" pickName="Momentum Plays" />)
+    await waitFor(() => expect(calls.urgent.some(c => c.syms.includes('III'))).toBe(true))
+    calls.urgent = []
+    rerender(<Watchlists embedded pickList="user:wl2" pickName="Other" />)   // FFF stays selected, another list
+    await screen.findByText('KKK')
+    await waitFor(() => expect(calls.urgent.some(c => c.syms.includes('KKK'))).toBe(true))
+    const last = calls.urgent[calls.urgent.length - 1]
+    expect(last.syms, "the old list's stride was applied in the new list").toEqual(['KKK', 'LLL'])
+  } finally {
+    WL.items = items0
+    EXTRA_LISTS.length = 0
   }
 })
 
