@@ -1730,6 +1730,8 @@ OFF_SESSION_CLEAN_MARKER = "intraday_off_session_2026_11_25_clean"
 OFF_SESSION_TFS = ("1", "5", "15", "30", "60")
 #: The full pass reaches back to the vendor's intraday floor (2003-09-10); every hour from here on is judged once.
 OFF_SESSION_FLOOR_TS = 1_041_379_200     # 2003-01-01T00:00:00Z
+#: The per-boot share of the off-session pass (seconds); the rest resumes on the next boot.
+OFF_SESSION_BOOT_BUDGET_S = float(os.environ.get("BARS_OFF_SESSION_BUDGET_S", "600"))
 
 
 def _marker_set(c: sqlite3.Connection, name: str) -> bool:
@@ -1803,9 +1805,6 @@ def purge_mis_keyed_weekly_rows() -> int:
     off_full = not _marker_set(c, OFF_CALENDAR_CLEAN_MARKER)
     off_since = None if off_full else _off_calendar_window_start()
     off_errors = 0
-    off_sess_full = not _marker_set(c, OFF_SESSION_CLEAN_MARKER)
-    off_sess_since = None if off_sess_full else int(time.time()) - OFF_CALENDAR_RECENT_DAYS * 86400
-    off_session = off_sess_errors = 0
     # ⭐ Same pass, same PK-prefixed seeks: a ticker still carrying the
     # pre-2026-11-10 clock-hour 60m layout is REBUILT in place from its own stored
     # 15m/30m rows (bars_fetch.rebuild_sixty_min_grid — local, no provider call),
@@ -1835,12 +1834,6 @@ def purge_mis_keyed_weekly_rows() -> int:
             except Exception as e:  # noqa: BLE001 — never let it stop the weekly purge
                 off_errors += 1
                 _logger.warning(f"[sqlite] off-calendar daily purge {tkr} failed (non-fatal): {e}")
-            # Same pass, same PK-prefixed seek: intraday rows outside the extended session.
-            try:
-                off_session += purge_off_session_intraday(tkr, c, since_ts=off_sess_since)
-            except Exception as e:  # noqa: BLE001 — never let it stop the weekly purge
-                off_sess_errors += 1
-                _logger.warning(f"[sqlite] off-session intraday purge {tkr} failed (non-fatal): {e}")
             bad = [
                 ts for (ts,) in c.execute(
                     "SELECT ts FROM ohlcv WHERE ticker=? AND tf='W'", (tkr,)
@@ -1870,44 +1863,45 @@ def purge_mis_keyed_weekly_rows() -> int:
         _logger.warning(f"[sqlite] purge_off_calendar_daily: deleted {off_calendar} non-trading-day daily rows")
     if off_full and not off_errors:
         _set_marker(c, OFF_CALENDAR_CLEAN_MARKER)
-    if off_session:
-        _logger.warning(f"[sqlite] purge_off_session_intraday: deleted {off_session} intraday rows outside the session")
-    if off_sess_full and not off_sess_errors:
-        _set_marker(c, OFF_SESSION_CLEAN_MARKER)
     return deleted
 
 
-_OFF_SESSION_HOURS_DONE: dict[int, int] = {}     # id(connection) -> the hour the temp table reaches
-
-
 def _off_session_hours_table(c: sqlite3.Connection) -> None:
-    """`temp.off_session_hours`: every UTC hour index from OFF_SESSION_FLOOR_TS to tomorrow that lies OUTSIDE the
-    extended session (`extended_session.inside`, the one rule), so a ticker's scan stays in C. Built once per
-    connection and topped up as the clock moves (~150k rows for 24 years)."""
+    """`temp.off_session_hours`: every UTC hour index from OFF_SESSION_FLOOR_TS to two days ahead that lies OUTSIDE
+    the extended session (`extended_session.inside`, the one rule), so a ticker's scan stays in C (~150k rows for 24
+    years). ⛔ IT ASKS THE TABLE WHERE IT REACHES, never a side record of "already built": a fresh connection (or one
+    whose temp table is gone) builds it from the floor, so the purge can never find an empty table, delete nothing and
+    call the store clean (review of #2793)."""
     from api.services.extended_session import inside as in_extended_session
     top = int(time.time()) // 3600 + 48
-    have = _OFF_SESSION_HOURS_DONE.get(id(c))
     c.execute("CREATE TEMP TABLE IF NOT EXISTS off_session_hours (h INTEGER PRIMARY KEY)")
-    start = OFF_SESSION_FLOOR_TS // 3600 if have is None else have
+    row = c.execute("SELECT MAX(h), COUNT(*) FROM temp.off_session_hours").fetchone()
+    start = OFF_SESSION_FLOOR_TS // 3600 if not row or not row[1] else int(row[0]) + 1
     if start >= top:
         return
     c.executemany("INSERT OR IGNORE INTO temp.off_session_hours(h) VALUES (?)",
                   ((h,) for h in range(start, top) if not in_extended_session(h * 3600)))
-    _OFF_SESSION_HOURS_DONE[id(c)] = top
+
+
+def _off_session_mode() -> str:
+    """`BARS_OFF_SESSION_PURGE`: `count` (default: find and LOG what would go, delete nothing, so the first boot states
+    the history_rev blast radius), `apply` (delete, one history_rev bump per series that loses a row), or `off`."""
+    v = os.environ.get("BARS_OFF_SESSION_PURGE", "count").strip().lower()
+    return v if v in ("count", "apply", "off") else "count"
 
 
 def purge_off_session_intraday(ticker: str, c: sqlite3.Connection | None = None,
-                               since_ts: int | None = None) -> int:
-    """Delete ``ticker``'s intraday rows (1/5/15/30/60) whose bucket starts outside its ET day's extended session
-    (`extended_session.inside`): the SPY 60m rows stamped 20:00 ET, a print on a weekend or holiday. Each
-    series that loses a row has its history_rev bumped ONCE (`bump_series_revs(deleted=True)`), so a client holding it
-    does one full read and converges on the store without them. Idempotent; one PK-prefixed read per ticker; writes
-    only for a ticker with something to delete. Names no NYSE session governs are left alone
-    (`extended_session.applies`). Returns rows deleted."""
+                               since_ts: int | None = None, apply: bool = True) -> dict:
+    """``ticker``'s intraday rows (1/5/15/30/60) whose bucket starts outside its ET day's extended session
+    (`extended_session.inside`): the SPY 60m rows stamped 20:00 ET, a print on a weekend or holiday. With `apply`
+    they are deleted and each series that lost a row has its history_rev bumped ONCE (`bump_series_revs(deleted=True)`),
+    so a client holding it does one full read and converges; without, they are only counted. Idempotent; one
+    PK-prefixed read per ticker; writes only for a ticker with something to delete. Names no NYSE session governs are
+    left alone (`extended_session.applies`). Returns {tf: rows} (found, or deleted with `apply`)."""
     from api.services.extended_session import applies as session_clamp_applies
     tkr = ticker.upper()
     if not session_clamp_applies(tkr):
-        return 0
+        return {}
     c = c or _conn()
     _off_session_hours_table(c)
     qs = ",".join("?" for _ in OFF_SESSION_TFS)
@@ -1917,10 +1911,15 @@ def purge_off_session_intraday(ticker: str, c: sqlite3.Connection | None = None,
         f"AND (ts / 3600) IN (SELECT h FROM temp.off_session_hours)",
         [tkr, *OFF_SESSION_TFS, *([] if since_ts is None else [int(since_ts)])]).fetchall()
     if not bad:
-        return 0
+        return {}
     by_tf: dict[str, list[int]] = {}
     for tf, ts in bad:
         by_tf.setdefault(str(tf), []).append(int(ts))
+    counts = {tf: len(v) for tf, v in sorted(by_tf.items())}
+    if not apply:
+        _logger.warning("[sqlite] %s: %s intraday row(s) outside the extended session WOULD be deleted (count mode)",
+                        tkr, ", ".join(f"{tf}:{k}" for tf, k in counts.items()))
+        return counts
     n = 0
     with _WRITE_LOCK:
         for tf, tss in by_tf.items():
@@ -1932,9 +1931,106 @@ def purge_off_session_intraday(ticker: str, c: sqlite3.Connection | None = None,
         bump_series_revs(c, [(tkr, tf) for tf in by_tf], deleted=True,
                          deleted_from={(tkr, tf): min(tss) for tf, tss in by_tf.items()})
         c.commit()
-    _logger.warning("[sqlite] %s: deleted %d intraday row(s) outside the extended session (%s)", tkr, n,
-                    ", ".join(f"{tf}:{len(v)}" for tf, v in sorted(by_tf.items())))
-    return n
+    _logger.warning("[sqlite] %s: deleted %d intraday row(s) outside the extended session (%s); %d series bumped",
+                    tkr, n, ", ".join(f"{tf}:{k}" for tf, k in counts.items()), len(counts))
+    return counts
+
+
+OFF_SESSION_CURSOR_KEY = "intraday_off_session_cursor"
+
+
+def _cursor_get(c: sqlite3.Connection) -> str | None:
+    try:
+        row = c.execute("SELECT value FROM off_session_cursor WHERE name=?", (OFF_SESSION_CURSOR_KEY,)).fetchone()
+        return row[0] if row else None
+    except Exception:  # noqa: BLE001 - no table yet
+        return None
+
+
+def _cursor_set(c: sqlite3.Connection, value: str | None) -> None:
+    with _WRITE_LOCK:
+        c.execute("CREATE TABLE IF NOT EXISTS off_session_cursor (name TEXT PRIMARY KEY, value TEXT)")
+        if value is None:
+            c.execute("DELETE FROM off_session_cursor WHERE name=?", (OFF_SESSION_CURSOR_KEY,))
+        else:
+            c.execute("INSERT OR REPLACE INTO off_session_cursor(name, value) VALUES (?, ?)",
+                      (OFF_SESSION_CURSOR_KEY, value))
+        c.commit()
+
+
+def purge_off_session_pass(budget_s: float | None = None, mode: str | None = None) -> dict:
+    """One pass of the off-session purge over every ticker, RESUMABLE: it stops when `budget_s` is spent and records
+    the last ticker it finished, and the next call (the next boot) carries on after it. The FULL history once (until a
+    clean apply pass sets OFF_SESSION_CLEAN_MARKER), then the last OFF_CALENDAR_RECENT_DAYS each pass. Runs in the
+    BACKGROUND, never ahead of the worker's R2 uploader (worker_main starts the uploader first) nor web's readiness.
+    Logs the totals: rows, the series that lost (or would lose) rows, tickers scanned. Returns them."""
+    mode = mode or _off_session_mode()
+    out = {"mode": mode, "rows": 0, "series": 0, "tickers": 0, "errors": 0, "complete": False}
+    if mode == "off":
+        return out
+    c = _conn()
+    full = not _marker_set(c, OFF_SESSION_CLEAN_MARKER)
+    since = None if full else int(time.time()) - OFF_CALENDAR_RECENT_DAYS * 86400
+    after = _cursor_get(c)
+    t0 = time.monotonic()
+    last = None
+    stopped = False
+    for tkr in iter_tickers(c):
+        if after is not None and tkr <= after:
+            continue
+        if budget_s is not None and time.monotonic() - t0 >= budget_s:
+            stopped = True
+            break
+        with _bg_lane.turn("off-session-purge"):
+            try:
+                got = purge_off_session_intraday(tkr, c, since_ts=since, apply=(mode == "apply"))
+                out["rows"] += sum(got.values())
+                out["series"] += len(got)
+            except Exception as e:  # noqa: BLE001 — one ticker's failure never stops the pass
+                out["errors"] += 1
+                _logger.warning(f"[sqlite] off-session intraday purge {tkr} failed (non-fatal): {e}")
+        out["tickers"] += 1
+        last = tkr
+    if stopped:
+        if last is not None:
+            _cursor_set(c, last)
+    else:
+        _cursor_set(c, None)
+        out["complete"] = True
+        if mode == "apply" and full and not out["errors"]:
+            _set_marker(c, OFF_SESSION_CLEAN_MARKER)
+    _logger.warning(
+        "[sqlite] off-session purge (%s, %s): %d row(s) in %d series over %d ticker(s), %d error(s), %s",
+        mode, "full history" if full else f"last {OFF_CALENDAR_RECENT_DAYS} days", out["rows"], out["series"],
+        out["tickers"], out["errors"], "complete" if out["complete"] else f"resumes after {last}")
+    return out
+
+
+_off_session_running = False
+_off_session_lock = threading.Lock()
+
+
+def purge_off_session_async(budget_s: float | None = None, delay_s: float = 0.0) -> None:
+    """`purge_off_session_pass` in a daemon thread (deduped)."""
+    global _off_session_running
+    with _off_session_lock:
+        if _off_session_running:
+            return
+        _off_session_running = True
+
+    def _run():
+        global _off_session_running
+        try:
+            if delay_s:
+                time.sleep(delay_s)
+            purge_off_session_pass(budget_s=budget_s)
+        except Exception as e:  # noqa: BLE001
+            _logger.warning(f"[sqlite] off-session purge failed (non-fatal): {e}")
+        finally:
+            with _off_session_lock:
+                _off_session_running = False
+
+    threading.Thread(target=_run, daemon=True, name="off-session-purge").start()
 
 
 def _off_calendar_window_start() -> int:
@@ -2060,6 +2156,10 @@ def purge_mis_keyed_weekly_rows_async() -> None:
             purge_mis_keyed_weekly_rows()
         except Exception as e:
             _logger.warning(f"[sqlite] weekly key purge failed (non-fatal): {e}")
+        try:                       # after it, on the same background thread: never ahead of anything a boot waits on
+            purge_off_session_pass(budget_s=OFF_SESSION_BOOT_BUDGET_S)
+        except Exception as e:  # noqa: BLE001
+            _logger.warning(f"[sqlite] off-session purge failed (non-fatal): {e}")
         finally:
             with _purge_weekly_thread_lock:
                 _purge_weekly_running = False

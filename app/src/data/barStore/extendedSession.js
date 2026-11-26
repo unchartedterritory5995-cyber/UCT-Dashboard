@@ -9,11 +9,14 @@
 // to one case list (`tests/fixtures/session_clamp_cases.json`, read by `extendedSession.test.js` and by
 // `tests/test_bars_live_session_clamp.py`). Change one, change the other and the case list.
 //
-// ⚠️ A breadth pseudo-ticker is exempt on the server (its catalog lives there). Here it is judged by name like any
-// other symbol: breadth intraday series run inside the regular session, so the rule never removes one of its bars.
+// ⭐ ONE CALENDAR TOO: holidays and half days come from `lib/marketClock/sessionCalendar.js`, the bundle's compiled
+// copy of the server's market_calendar.json (2000 to its horizon), so a day the server calls closed is closed here
+// (review of #2793; nyseCalendar.js covered fewer years). A breadth pseudo-ticker is exempt like on the server, once
+// the breadth registry has loaded (`breadthRecord`; before that it is judged by name, and breadth intraday series run
+// inside the regular session anyway).
 import { etDateOf, etMinuteOfDay } from '../../components/chart/barTime'
-import { isHolidayISO } from '../../utils/marketSession'
-import { earlyCloseOn } from '../../lib/marketClock/nyseCalendar'
+import { closeTime } from '../../lib/marketClock/sessionCalendar.js'
+import { breadthRecord } from '../../hooks/useBreadthSymbols'
 
 const NON_SESSION_MARKS = [':', '=', '^', '/']
 const NON_US_SUFFIXES = new Set([
@@ -31,6 +34,7 @@ export function sessionClampApplies(sym) {
   const dot = tk.lastIndexOf('.')
   if (dot >= 0 && NON_US_SUFFIXES.has(tk.slice(dot + 1))) return false
   if (CRYPTO_NAMES.has(tk) || tk.includes('-USD')) return false
+  try { if (breadthRecord(tk)) return false } catch { /* unknown: judged by name */ }
   return true
 }
 
@@ -45,15 +49,8 @@ export function inExtendedSession(sec) {
   let v = _hours.get(h)
   if (v === undefined) {
     const start = h * 3600
-    const iso = etDateOf(start)
-    const dow = new Date(iso + 'T12:00:00Z').getUTCDay()
-    if (dow === 0 || dow === 6 || isHolidayISO(iso)) v = false
-    else {
-      const early = earlyCloseOn(iso)
-      const close = early ? early.closeHour * 60 + (early.closeMinute || 0) + 240 : 1200
-      const m = etMinuteOfDay(start)
-      v = m >= 240 && m < close
-    }
+    const close = closeTime(etDateOf(start))          // null on a weekend or an exchange holiday (server: close_time)
+    v = close !== null && etMinuteOfDay(start) >= 240 && start < close.getTime() / 1000 + 4 * 3600
     if (_hours.size > 400000) _hours.clear()
     _hours.set(h, v)
   }

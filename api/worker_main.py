@@ -1186,6 +1186,13 @@ def main():
         except Exception as e:
             log.warning(f"weekly key purge failed (non-fatal): {e}")
         _start_uploader()
+        # The off-session intraday purge AFTER the uploader starts (review of #2793): its first full pass scans every
+        # ticker's intraday history, and the rows it removes are already hidden at serve (#2781), so it must never
+        # hold up a snapshot. Resumable: a per-boot budget, the rest on the next boot.
+        try:
+            _bs.purge_off_session_pass(budget_s=_bs.OFF_SESSION_BOOT_BUDGET_S)
+        except Exception as e:
+            log.warning(f"off-session intraday purge failed (non-fatal): {e}")
 
     threading.Thread(
         target=_purge_then_start_uploader, name="weekly-purge", daemon=True
