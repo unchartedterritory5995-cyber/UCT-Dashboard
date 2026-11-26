@@ -61,6 +61,7 @@ export function withAmbientRunClock(now, fn) {
 }
 import { etClockAt } from '../../indicators.js'
 import { encodeState, cloneValues } from './vmState.js'
+import { pureLeafFlagsFor, PURE_MEMO_MAX, NEG_ZERO_KEY } from './pureCalls.js'
 
 /** `CLOCK_FIELDS` index -> the property `etClockAt` returns that field under.
  *
@@ -964,7 +965,20 @@ export function execute(program, ctx, limits, opts) {
   const capWin = bl.WINDOW_CELLS
   const capDepth = bl.CALL_DEPTH
   const capNest = bl.LOOP_NESTING
+  // ⭐⭐ e99 b2 — A PURE LEAF CALL ANSWERED FROM A MEMO, ITS ACCOUNT REPLAYED (`pureCalls.js`: the classifier, the
+  // rule and why it is exact). `opts.pureMemo === false` runs every body (the exactness rails and census compare).
+  const pureLeaf = opts && opts.pureMemo === false ? null : pureLeafFlagsFor(program, columns, ctx.bars)
+  const pureMemo = pureLeaf ? new Array(pureLeaf.length) : null
+  let pureEntries = 0
+  let pureHits = 0
+  // what the memo did, for its rails and census (never a budget count: `counts` stay a run's own)
+  const pureStats = pureLeaf ? (budget.pureMemo = { functions: pureLeaf.reduce((k, f) => k + f, 0), entries: 0, hits: 0 }) : null
+  const frMemoNode = []
+  const frMemoKey = []
+  const frMemoSp = []
+  const frMemoPer = []
   const flushHot = () => {
+    if (pureStats !== null) { pureStats.entries = pureEntries; pureStats.hits = pureHits }
     bc.LOOP_ITERATIONS = cLoop
     bc.CALL_COUNT = cCall
     bc.CARRIED_STEPS = cCarried
@@ -1330,6 +1344,39 @@ export function execute(program, ctx, limits, opts) {
           const site = program.callSites[b]
           if (depth + 1 > pkDepth) { pkDepth = depth + 1; if (pkDepth > capDepth) budget.peak('CALL_DEPTH', pkDepth) }
           if (++cCall > capCall) { bc.CALL_COUNT = cCall - 1; budget.charge('CALL_COUNT', 1) }
+          // ⭐⭐ e99 b2 — a pure leaf's memo: a hit pushes the values the body left and charges the instructions it took
+          // (`pureCalls.js`); a miss runs the body and records both at its RET. Depth and call count are charged above,
+          // exactly as for any call.
+          let memoNode = null
+          let memoKey
+          if (pureLeaf !== null && pureLeaf[a] === 1) {
+            const p = fn.params
+            let node = pureMemo[a] || (pureMemo[a] = new Map())
+            let ok = true
+            let key = ''
+            for (let k = 0; k < p; k += 1) {
+              let v = stack[sp - p + k]
+              const t = typeof v
+              if (t !== 'number' && t !== 'string' && t !== 'boolean') { ok = false; break }
+              if (v === 0 && 1 / v < 0) v = NEG_ZERO_KEY
+              if (k === p - 1) { key = v; break }
+              let nx = node.get(v)
+              if (nx === undefined) { nx = new Map(); node.set(v, nx) }
+              node = nx
+            }
+            if (ok) {
+              const e = node.get(key)
+              if (e !== undefined && perBar + e.dI <= instrCap) {
+                sp -= p
+                const vals = e.vals
+                for (let k = 0; k < vals.length; k += 1) stack[sp++] = vals[k]
+                perBar += e.dI
+                pureHits += 1
+                break
+              }
+              if (e === undefined && pureEntries < PURE_MEMO_MAX) { memoNode = node; memoKey = key }
+            }
+          }
           const newBase = localsTop
           // ⭐ ARGUMENTS COME OFF THE STACK IN REVERSE — they were pushed
           // left-to-right, so the last parameter is on top.
@@ -1360,6 +1407,10 @@ export function execute(program, ctx, limits, opts) {
           frWindowBase[depth - 1] = windowBase
           windowBase = site.windowBase
           pc = fn.entry
+          if (pureLeaf !== null) {
+            frMemoNode[depth - 1] = memoNode
+            if (memoNode !== null) { frMemoKey[depth - 1] = memoKey; frMemoSp[depth - 1] = sp; frMemoPer[depth - 1] = perBar }
+          }
           break
         }
         case 72 /* OP.POINTWISE */: {
@@ -1740,6 +1791,16 @@ export function execute(program, ctx, limits, opts) {
               held[historyBase + k] = rf.historyPersist[k]
                 ? persist[persistBase + rf.historySlots[k]]
                 : locals[localsBase + rf.historySlots[k]]
+            }
+          }
+          // ⭐⭐ e99 b2 — a pure leaf's first answer for these arguments: its values and the instructions it took
+          if (pureLeaf !== null) {
+            const mn = frMemoNode[depth - 1]
+            if (mn) {
+              const s0 = frMemoSp[depth - 1]
+              mn.set(frMemoKey[depth - 1], { vals: Array.prototype.slice.call(stack, s0, sp), dI: perBar - frMemoPer[depth - 1] })
+              pureEntries += 1
+              frMemoNode[depth - 1] = null
             }
           }
           depth -= 1

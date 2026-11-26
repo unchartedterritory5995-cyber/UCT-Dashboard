@@ -2220,6 +2220,8 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
       ...(realtime ? { realtime: realtime.hooks } : {}),
       ...(sessionKey && lastConfirmed >= 0 && !(resumeFrom && resumeFrom.bar >= lastConfirmed)
         ? { checkpointAt: lastConfirmed } : {}),
+      // e99 b2 — the exactness rails and census run every body (`pureCalls.js`); no product caller passes it
+      ...(opts.pureMemo === false ? { pureMemo: false } : {}),
       onBar,
     })
   } catch (err) {
