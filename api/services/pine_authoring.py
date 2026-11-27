@@ -737,7 +737,7 @@ _VERSION_LINE = re.compile(r"\s*//\s*@version\s*=\s*([0-9]+)\s*$")
 _DECLARATION = re.compile(r"^\s*(indicator|study|strategy|library)\s*\(", re.M)
 
 
-def script_problem(pine: Any) -> Optional[str]:
+def script_problem(pine: Any, strategy: bool = False) -> Optional[str]:
     """The server's first look at a script the assistant wrote: None when it may go to the
     browser's engine, else one sentence saying what is wrong (sent back to the assistant for a
     repair, never shown to a member as a verdict).
@@ -755,8 +755,12 @@ def script_problem(pine: Any) -> Optional[str]:
     if version is None or version.group(1) != "5":
         return "the first line must be `//@version=5`"
     declared = _DECLARATION.search(pine)
-    if declared is None or declared.group(1) != "indicator":
-        return "the script must declare `indicator(...)` (not a strategy or a library)"
+    # ⭐ 2026-11-26 (coordinator ruling 1, step 2): on a STRATEGY request the script declares `strategy(...)`, and the
+    # browser's gate (`builder/authoring/strategyGate.js`) decides what the broker serves of it. Nowhere else.
+    allowed = ("indicator", "strategy") if strategy else ("indicator",)
+    if declared is None or declared.group(1) not in allowed:
+        return ("the script must declare `strategy(...)` or `indicator(...)` (not a library)" if strategy
+                else "the script must declare `indicator(...)` (not a strategy or a library)")
     return None
 
 
