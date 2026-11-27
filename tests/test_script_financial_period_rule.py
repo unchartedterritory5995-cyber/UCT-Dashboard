@@ -28,12 +28,12 @@ def test_rule_16_is_in_the_contract_once_after_rule_15(open_door):
 
 def test_it_teaches_a_constant_or_a_setting_of_served_periods_never_wider():
     """TRAIN e98 (E4 x master rule 16): E4 serves an input.string period as the member's setting, so the rule teaches the
-    direct form, and only as wide as the engine serves (FQ, TTM)."""
+    direct form, and only as wide as the engine serves (FQ, TTM; TRAIN e99 #2787 x E4: and FY, never the half year)."""
     r = pa.FINANCIAL_PERIOD_RULE
     assert "constant" in r.lower() and "never anything wider" in r
     assert 'period = input.string("FQ", "Period", options = ["FQ", "TTM"])' in r
     assert 'request.financial(syminfo.tickerid, "EARNINGS_PER_SHARE_DILUTED", period)' in r
-    assert '"FY"' not in r
+    assert '"FH"' not in r   # TRAIN e99 (#2787 FY x E4): FY is served and named; the half year never taught
     assert "computed on each bar, or read from any other variable, is refused" in r
 
 

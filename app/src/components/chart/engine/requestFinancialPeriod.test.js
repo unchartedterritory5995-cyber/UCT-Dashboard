@@ -69,11 +69,18 @@ describe('e98 E4 — the period setting is the member\'s enum setting; the setti
     expect(refusal).toBeNull()
   })
 
-  it('the member picks FY, a period UCT does not serve for this id: refused BY NAME, that period\'s own reason', () => {
+  // ⭐ TRAIN e99 (#2787 FY x E4): FY is served now (a view of the published series), so the member's FY pick is served;
+  // the half year is the period UCT does not serve, refused by name with its own reason.
+  it('the member picks FY: the FY read, served by its period (e99 FY)', () => {
     const { ticker, refusal } = readAt(door(SETTING()), { p: 'FY' })
     expect(ticker).toBe('EV-FED-Y0')
+    expect(refusal).toBeNull()
+  })
+
+  it('the member picks FH, a period UCT does not serve for this id: refused BY NAME, that period\'s own reason', () => {
+    const { refusal } = readAt(door(SETTING('"FQ", "FH", "TTM"')), { p: 'FH' })
     expect(refusal.code).toBe(R.FINANCIAL_PERIOD)
-    expect(refusal.reason).toContain('served for `FQ` and `TTM` only (`FY`: UCT\'s filings store holds no fiscal-year series yet)')
+    expect(refusal.reason).toContain('(`FH`: UCT\'s filings store holds no fiscal half-year series)')
   })
 
   it('an option outside the catalog\'s periods falls to the call as written: refused by name, never guessed', () => {
