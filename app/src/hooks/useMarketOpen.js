@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useSyncExternalStore } from 'react'
 import { sessionState } from '../lib/marketClock/marketClock'
 
 /**
@@ -42,15 +42,37 @@ function getMarketState() {
 /** Tests: forget the minute's state (a test that mocks the calendar twice within one faked minute gets a fresh read). */
 export function _resetMarketStateCacheForTests() { _minuteState = { minute: NaN, state: null } }
 
+// ⚡ (2026-11-27, chart speed; ruling 4c) ONE TIMER, ON THE MINUTE BOUNDARY. Every consumer mounted its own 60 s
+// setInterval (about 1.5 ms of each chart mount on the owner's board), each on the phase of its own mount, so after 09:30
+// one badge could read "open" while another still read "pre" for up to a minute. One timer now fires at each wall-clock
+// minute boundary and every consumer reads that minute's state in the same commit: the same values, at the true
+// boundary. Every consumer still renders once a minute (a clock reading the time in its render keeps ticking). The
+// timer exists only while a consumer does (useMarketOpen.sharedTimer.test.jsx).
+const _listeners = new Set()
+let _timer = null
+let _armedMinute = null
+function _arm() {
+  if (_timer != null || !_listeners.size) return
+  const now = Date.now()
+  _armedMinute = Math.floor(now / 60_000)
+  _timer = setTimeout(_onMinute, 60_000 - (now % 60_000))
+}
+function _onMinute() {
+  _timer = null
+  if (!_listeners.size) return
+  // still the minute it was armed in: it woke before the boundary, so it waits for it (a late wake still notifies)
+  if (Math.floor(Date.now() / 60_000) !== _armedMinute) for (const cb of [..._listeners]) cb()
+  _arm()
+}
+function _subscribe(cb) {
+  _listeners.add(cb)
+  _arm()
+  return () => {
+    _listeners.delete(cb)
+    if (!_listeners.size && _timer != null) { clearTimeout(_timer); _timer = null }
+  }
+}
+
 export default function useMarketOpen() {
-  const [state, setState] = useState(getMarketState)
-
-  useEffect(() => {
-    const id = setInterval(() => {
-      setState(getMarketState())
-    }, 60_000)
-    return () => clearInterval(id)
-  }, [])
-
-  return state
+  return useSyncExternalStore(_subscribe, getMarketState, getMarketState)
 }
